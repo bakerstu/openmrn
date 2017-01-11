@@ -35,8 +35,6 @@
 
 #include <fcntl.h>
 
-#define DEBUG 0
-
 const MCP2515Can::MCP2515Baud MCP2515Can::baudTable[] =
 {
     /* 20 MHz clock source
@@ -152,9 +150,9 @@ void MCP2515Can::disable()
 }
 
 /* 
- * tx_msg()
+ * tx_msg_locked()
  */
-void MCP2515Can::tx_msg()
+void MCP2515Can::tx_msg_locked()
 {
     /* the node lock_ will be locked by the caller */
     if (txPending < 3)
@@ -171,33 +169,10 @@ void MCP2515Can::tx_msg()
                 index = 1;
             }
 
-            Buffer tx_buf;
-            memset(&tx_buf, 0, sizeof(tx_buf));
-
-            if (can_frame->can_eff)
-            {
-                /* extended frame */
-                tx_buf.eid0 = ((can_frame->can_id & 0x000000FF) >> 0);
-                tx_buf.eid8 = ((can_frame->can_id & 0x0000FF00) >> 8);
-                tx_buf.sidl = ((can_frame->can_id & 0x00030000) >> 16) +
-                              ((can_frame->can_id & 0x001C0000) >> 13);
-                tx_buf.sidh = ((can_frame->can_id & 0x1FE00000) >> 21);
-                tx_buf.sidl |= 0x08;
-            }
-            else
-            {
-                /* standard frame */
-                tx_buf.sidl = (can_frame->can_id & 0x00000007) << 5;
-                tx_buf.sidh = (can_frame->can_id & 0x000007F8) >> 3;
-            }
-            memcpy(tx_buf.data, can_frame->data, 8);
-            tx_buf.dlc = can_frame->can_dlc;
-            if (can_frame->can_rtr)
-            {
-                tx_buf.dlc |= 0x40;
-            }
+            Buffer tx_buf(can_frame);
             txPending |= (0x1 << index);
             txBuf->consume(1);
+            txBuf->signal_condition();
 
             portEXIT_CRITICAL();
             /* bump up priority of the other buffer so it will transmit first
@@ -205,7 +180,7 @@ void MCP2515Can::tx_msg()
              */
             bit_modify(index == 0 ? TXB1CTRL : TXB0CTRL, 0x01, 0x03);
             /* load the tranmsit buffer */
-            buffer_write(index, &tx_buf);
+            buffer_write(index, tx_buf.get_payload());
             /* request to send at lowest priority */
             bit_modify(index == 0 ? TXB0CTRL : TXB1CTRL, 0x08, 0x0B);
             /* enable transmit interrupt */
@@ -221,36 +196,13 @@ void MCP2515Can::tx_msg()
 void MCP2515Can::rx_msg(int index)
 {
     Buffer rx_buf;
-    buffer_read(index, &rx_buf);
+    buffer_read(index, rx_buf.get_payload());
     struct can_frame *can_frame;
 
     portENTER_CRITICAL();
     if (rxBuf->data_write_pointer(&can_frame))
     {
-        can_frame->can_rtr = (rx_buf.dlc & 0x40) ? 1 : 0;
-        if (rx_buf.sidl & 0x08)
-        {
-            /* extended frame */
-            can_frame->can_eff = 1;
-            can_frame->can_rtr = (rx_buf.dlc & 0x40) ? 1 : 0;
-            can_frame->can_id = (((uint32_t)rx_buf.eid0 & 0xFF) <<  0) +
-                                (((uint32_t)rx_buf.eid8 & 0xFF) <<  8) +
-                                (((uint32_t)rx_buf.sidl & 0x03) << 16) +
-                                (((uint32_t)rx_buf.sidl & 0xE0) << 13) +
-                                (((uint32_t)rx_buf.sidh & 0xFF) << 21);
-        }
-        else
-        {
-            /* standard frame */
-            can_frame->can_eff = 0;
-            can_frame->can_rtr = (rx_buf.sidl & 0x01) ? 1 : 0;
-            can_frame->can_id = ((uint32_t)rx_buf.sidl >> 5) +
-                                ((uint32_t)rx_buf.sidh << 3);
-        }
-        can_frame->can_err = 0;
-        memcpy(can_frame->data, rx_buf.data, 8);
-        can_frame->can_dlc = rx_buf.dlc & 0x0F;
-
+        rx_buf.build_struct_can_frame(can_frame);
         rxBuf->advance(1);
         ++numReceivedPackets_;
         rxBuf->signal_condition();
@@ -270,7 +222,7 @@ void *MCP2515Can::entry()
 {
     for ( ; /* forever */ ; )
     {
-#if DEBUG
+#if MCP2515_DEBUG
         int result = sem.timedwait(SEC_TO_NSEC(1));
         lock_.lock();
 
@@ -326,16 +278,18 @@ void *MCP2515Can::entry()
                 txPending &= ~0x1;
                 bit_modify(CANINTE, 0, TX0I);
                 bit_modify(CANINTF, 0, TX0I);
+                ++numTransmittedPackets_;
             }
             if (canintf & TX1I)
             {
                 txPending &= ~0x2;
                 bit_modify(CANINTE, 0, TX1I);
                 bit_modify(CANINTF, 0, TX1I);
+                ++numTransmittedPackets_;
             }
 
             portENTER_CRITICAL();
-            tx_msg();
+            tx_msg_locked();
             portEXIT_CRITICAL();
         }
 

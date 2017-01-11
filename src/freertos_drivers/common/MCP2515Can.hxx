@@ -41,6 +41,8 @@
 
 #include "os/OS.hxx"
 
+#define MCP2515_DEBUG 0
+
 /** Specialization of CAN driver for Tiva CAN.
  */
 class MCP2515Can : public Can, public OSThread
@@ -329,28 +331,92 @@ private:
     };
 
     /** CAN TX and RX buffer structure */
-    struct Buffer
+    class Buffer
     {
+    public:
+        /** Constructor.
+         * @param can_frame reference to a can_frame metadata structure.
+         */
+        Buffer(struct can_frame *can_frame)
+            : sidh(can_frame->can_eff ? (can_frame->can_id & 0x1FE00000) >> 21 :
+                                        (can_frame->can_id & 0x000007F8) >> 3)
+            , eid(can_frame->can_eff ? (can_frame->can_id & 0x00030000) >> 16 :
+                                       0)
+            , exide(can_frame->can_eff)
+            , sid(can_frame->can_eff ? (can_frame->can_id & 0x001C0000) >> 18 :
+                                       (can_frame->can_id & 0x000007F8) >> 3)
+            , eid8(can_frame->can_eff ? (can_frame->can_id & 0x0000FF00) >> 8 :
+                                        0)
+            , eid0(can_frame->can_eff ? (can_frame->can_id & 0x000000FF) >> 0 :
+                                        0)
+            , dlc(can_frame->can_dlc)
+            , rtr(can_frame->can_rtr)
+        {
+            memcpy(data, can_frame->data, 8);
+        }
+
+        /** Constructor.
+         */
+        Buffer()
+        {
+        }
+
+        /** Take the contents of the Buffer and fill in a can_frame structure.
+         * @param can_frame CAN frame structure to fill in
+         */
+        void build_struct_can_frame(struct can_frame *can_frame)
+        {
+            can_frame->can_eff = exide;
+            if (exide)
+            {
+                /* extended frame */
+                can_frame->can_rtr = rtr;
+                can_frame->can_id = ((uint32_t)eid0 <<  0) +
+                                    ((uint32_t)eid8 <<  8) +
+                                    ((uint32_t)eid  << 16) +
+                                    ((uint32_t)sid  << 18) +
+                                    ((uint32_t)sidh << 21);
+            }
+            else
+            {
+                /* standard frame */
+                can_frame->can_rtr = srr;
+                can_frame->can_id = ((uint32_t)sid  << 0) +
+                                    ((uint32_t)sidh << 3);
+            }
+            can_frame->can_err = 0;
+            memcpy(can_frame->data, data, 8);
+            can_frame->can_dlc = dlc;
+        }
+
+        /** Get a pointer to the buffer payload.
+         * @return pointer to the buffer payload
+         */
+        void *get_payload()
+        {
+            return &sidh;
+        }
+
+    private:
         uint8_t sidh; /**< standard identifier high byte */
-        uint8_t sidl; /**< standard identifier low byte */
+        struct
+        {
+            uint8_t eid     : 2; /**< extended identifier bits 16 and 17 */
+            uint8_t unused1 : 1; /**< unused bit */
+            uint8_t exide   : 1; /**< extended identifer enable */
+            uint8_t srr     : 1; /**< standard frame RTR */
+            uint8_t sid     : 3; /**< standard identifier low bits */
+        };
         uint8_t eid8; /**< extended identifier high byte */
         uint8_t eid0; /**< extended identifier low byte */
-        uint8_t dlc; /**< data length code */
-        union
+        struct
         {
-            uint8_t data[8]; /** all 8 data bytes */
-            struct
-            {
-                uint8_t d0; /**< data 0 byte */
-                uint8_t d1; /**< data 1 byte */
-                uint8_t d2; /**< data 2 byte */
-                uint8_t d3; /**< data 3 byte */
-                uint8_t d4; /**< data 4 byte */
-                uint8_t d5; /**< data 5 byte */
-                uint8_t d6; /**< data 6 byte */
-                uint8_t d7; /**< data 7 byte */
-            };
+            uint8_t dlc     : 4; /**< data length code */
+            uint8_t unused3 : 2; /**< unused bits */
+            uint8_t rtr     : 1; /**< remote transmit request bit */
+            uint8_t unused4 : 1; /**< unused bit */
         };
+        uint8_t data[8]; /** all 8 data bytes */
     };
 
     /** User entry point for the created thread.
@@ -363,7 +429,20 @@ private:
 
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
-    void tx_msg() override; /** function to try and transmit a message */
+
+    /** Function to try and transmit a message. */
+    void tx_msg() override
+    {
+        /** @todo I thnk the commented out lock is neded, but it seems to
+         * deadlock the system.  Need to investigate further.
+         */
+        //lock_.lock();
+        tx_msg_locked();
+        //lock_.unlock();
+    }
+
+    /** Function to try and transmit a message while holding a lock. */
+    void tx_msg_locked();
 
     /** Function to receive a message.
      * @param index buffer index, 0 or 1
@@ -402,7 +481,7 @@ private:
      * @param index buffer index to read from (valid values are 0 and 1)
      * @param buffer pointer to a buffer structure to fill in with the result
      */
-    void buffer_read(int index, Buffer *buffer)
+    void buffer_read(int index, void *buffer)
     {
         spi_ioc_transfer xfer[2];
         memset(xfer, 0, sizeof(xfer));
@@ -411,7 +490,7 @@ private:
         xfer[0].tx_buf = (unsigned long)wr_data;
         xfer[0].len = sizeof(wr_data);
         xfer[1].rx_buf = (unsigned long)buffer;
-        xfer[1].len = sizeof(Buffer);
+        xfer[1].len = 13;
         xfer[1].cs_change = 1;
         ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
     }
@@ -430,7 +509,7 @@ private:
      * @param index buffer index to write to (valid values are 0 through 2)
      * @param buffer pointer to a buffer structure to fill in with the result
      */
-    void buffer_write(int index, Buffer *buffer)
+    void buffer_write(int index, void *buffer)
     {
         spi_ioc_transfer xfer[2];
         memset(xfer, 0, sizeof(xfer));
@@ -439,7 +518,7 @@ private:
         xfer[0].tx_buf = (unsigned long)instruction;
         xfer[0].len = sizeof(instruction);
         xfer[1].tx_buf = (unsigned long)buffer;
-        xfer[1].len = sizeof(Buffer);
+        xfer[1].len = 13;
         xfer[1].cs_change = 1;
         ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
     }
@@ -467,7 +546,9 @@ private:
     unsigned txPending; /**< transmission in flight */
     int spi; /**< SPI bus that accesses MCP2515 */
     OSSem sem; /**< semaphore for posting events */
-    uint8_t regs[128];
+#if MCP2515_DEBUG
+    uint8_t regs[128]; /**< debug copy of MCP2515 registers */
+#endif
 
     /** baud rate settings table */
     static const MCP2515Baud baudTable[];
