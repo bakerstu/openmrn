@@ -183,7 +183,6 @@ void MCP2515Can::tx_msg()
                               ((can_frame->can_id & 0x001C0000) >> 13);
                 tx_buf.sidh = ((can_frame->can_id & 0x1FE00000) >> 21);
                 tx_buf.sidl |= 0x08;
-                tx_buf.sidh |= 0x08;
             }
             else
             {
