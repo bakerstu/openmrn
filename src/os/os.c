@@ -148,6 +148,14 @@ void hw_init(void)
 {
 }
 
+/** Default hardware initializer.  This function is defined weak so that
+ * a given board can stub in an intiailization specific to it.
+ */
+void hw_postinit(void) __attribute__ ((weak));
+void hw_postinit(void)
+{
+}
+
 __attribute__ ((weak))
 struct _reent* allocate_reent(void)
 {
@@ -862,6 +870,8 @@ void main_thread(void *arg)
 
     /* Allow any library threads to run that must run ahead of main */
     os_yield_trampoline();
+
+    hw_postinit();
 
     appl_main(1, argv);
     // If the main thread returns, FreeRTOS usually crashes the CPU in a
