@@ -35,31 +35,10 @@
 
 #include <fcntl.h>
 
-/** Baud rate table entry */
-struct MCP2515Baud
-{
-    uint32_t freq; /**< incoming frequency */
-    uint32_t baud; /**< target baud rate */
-    uint8_t cnf[3]; /**< Configuration registers CNF1, CNF2, and CNF3 */
-};
+#define DEBUG 0
 
-static const MCP2515Baud baudTable[] =
+const MCP2515Can::MCP2515Baud MCP2515Can::baudTable[] =
 {
-#if 0
-    /* 20 MHz clock source
-     * TQ = (2 * BRP) / freq = (2 * 5) / 20 MHz = 500 nsec
-     * Baud = 125 kHz
-     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
-     * SyncSeg = 1 TQ
-     * PropSeg = 4 TQ
-     * PS1 = 8 TQ
-     * PS2 = 3 TQ
-     * sample time = (1 TQ + 4 TQ + 8 TQ) / 16 TQ = 81.25%
-     * SJW = PS2 - 1 = 3 - 1 = 2
-     * SJW = 2 * 500 nsec = 1 usec
-     */
-    {20000000, 125000, {0x44, 0xBB, 0x02}}
-#endif
     /* 20 MHz clock source
      * TQ = (2 * BRP) / freq = (2 * 4) / 20 MHz = 400 nsec
      * Baud = 125 kHz
@@ -72,7 +51,9 @@ static const MCP2515Baud baudTable[] =
      * SJW = PS2 - 1 = 4 - 1 = 3
      * SJW = 3 * 400 nsec = 1.2 usec
      */
-    {20000000, 125000, {0x83, 0xBE, 0x03}},
+    {20000000, 125000, {(4 - 1), (2 - 1)},
+                       {(7 - 1), (8 - 1), 0, 1},
+                       {(4 - 1), 0, 0}},
     /* 8 MHz clock source
      * TQ = (2 * BRP) / freq = (2 * 2) / 8 MHz = 500 nsec
      * Baud = 125 kHz
@@ -85,34 +66,48 @@ static const MCP2515Baud baudTable[] =
      * SJW = PS2 - 1 = 3 - 1 = 2
      * SJW = 2 * 500 nsec = 1 usec
      */
-    {8000000, 125000, {0x41, 0xBB, 0x02}}
+    {8000000, 125000, {(2 - 1), (2 - 1)},
+                      {(4 - 1), (8 - 1), 0, 1},
+                      {(3 - 1), 0, 0}}
 };
 
+
 /*
- * MCP2515Can()
+ * init()
  */
-MCP2515Can::MCP2515Can(const char *name, const char *spi_name,
-                       uint32_t freq, uint32_t baud,
-                       void (*interrupt_enable)(),
-                       void (*interrupt_disable)())
-    : Can(name)
-    , OSThread()
-    , interrupt_enable(interrupt_enable)
-    , interrupt_disable(interrupt_disable)
-    , txPending(0)
-    , spi(::open(spi_name, O_RDWR))
-    , sem()
+void MCP2515Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
 {
+    spi = ::open(spi_name, O_RDWR);
     HASSERT(spi >= 0);
+
+    /* reset device */
+    reset();
+
+    /* wait until device is in configuration mode */
+    while ((register_read(CANSTAT) & 0xE0) != 0x80);
 
     /* find valid timing settings for the requested frequency and buad rates */
     for (size_t i = 0; i < (sizeof(baudTable) / sizeof(baudTable[0])); ++i)
     {
         if (baudTable[i].freq == freq && baudTable[i].baud == baud)
         {
-            register_write(CNF1, baudTable[i].cnf[0]);
-            register_write(CNF2, baudTable[i].cnf[1]);
-            register_write(CNF3, baudTable[i].cnf[2]);
+            register_write(CNF1, baudTable[i].cnf1.data);
+            register_write(CNF2, baudTable[i].cnf2.data);
+            register_write(CNF3, baudTable[i].cnf3.data);
+
+            /* setup RX Buf 0 and 1 to receive any message */
+            register_write(RXB0CTRL, 0x60);
+            register_write(RXB1CTRL, 0x60);
+
+            /* enable error and receive interrupts */
+            register_write(CANINTE, MERR | ERRI | RX1I | RX0I);
+
+            /* put the device into normal operation mode */
+            register_write(CANCTRL, 0x00);
+
+            /* wait until device is in normal mode */
+            while ((register_read(CANSTAT) & 0xE0) != 0x00);
+
             return;
         }
     }
@@ -135,17 +130,7 @@ void MCP2515Can::enable()
     }
 
     /* reset device */
-    reset();
-
-    /* setup RX Buf 0 and 1 to receive any message */
-    register_write(RXB0CTRL, 0x60);
-    register_write(RXB1CTRL, 0x60);
-
-    /* enable error and receive interrupts */
-    register_write(CANINTE, MERR | ERRI | RX1I | RX0I);
-
-    /* put the device into normal operation mode */
-    register_write(CANCTRL, 0x00);
+    //reset();
 
     interrupt_enable();
 }
@@ -157,15 +142,21 @@ void MCP2515Can::disable()
 {
     interrupt_disable();
 
-    /* reset device */
-    reset();
+    register_write(TXB0CTRL, 0x00);
+    register_write(TXB1CTRL, 0x00);
+    portENTER_CRITICAL();
+    /* flush out any transmit data in the pipleline */
+    txBuf->flush();
+    txPending = 0;
+    portEXIT_CRITICAL();
 }
 
 /* 
- * tx_msg_locked()
+ * tx_msg()
  */
-void MCP2515Can::tx_msg_locked()
+void MCP2515Can::tx_msg()
 {
+    /* the node lock_ will be locked by the caller */
     if (txPending < 3)
     {
         struct can_frame *can_frame;
@@ -190,7 +181,7 @@ void MCP2515Can::tx_msg_locked()
                 tx_buf.eid8 = ((can_frame->can_id & 0x0000FF00) >> 8);
                 tx_buf.sidl = ((can_frame->can_id & 0x00030000) >> 16) +
                               ((can_frame->can_id & 0x001C0000) >> 13);
-                tx_buf.sidh = ((can_frame->can_id & 0x1FE00000) >> 19);
+                tx_buf.sidh = ((can_frame->can_id & 0x1FE00000) >> 21);
                 tx_buf.sidl |= 0x08;
                 tx_buf.sidh |= 0x08;
             }
@@ -200,13 +191,14 @@ void MCP2515Can::tx_msg_locked()
                 tx_buf.sidl = (can_frame->can_id & 0x00000007) << 5;
                 tx_buf.sidh = (can_frame->can_id & 0x000007F8) >> 3;
             }
-            memcpy(&tx_buf.d0, can_frame->data, 8);
+            memcpy(tx_buf.data, can_frame->data, 8);
             tx_buf.dlc = can_frame->can_dlc;
             if (can_frame->can_rtr)
             {
                 tx_buf.dlc |= 0x40;
             }
             txPending |= (0x1 << index);
+            txBuf->consume(1);
 
             portEXIT_CRITICAL();
             /* bump up priority of the other buffer so it will transmit first
@@ -237,7 +229,7 @@ void MCP2515Can::rx_msg(int index)
     if (rxBuf->data_write_pointer(&can_frame))
     {
         can_frame->can_rtr = (rx_buf.dlc & 0x40) ? 1 : 0;
-        if (can_frame->can_eff == (rx_buf.sidl & 0x08))
+        if (rx_buf.sidl & 0x08)
         {
             /* extended frame */
             can_frame->can_eff = 1;
@@ -246,7 +238,7 @@ void MCP2515Can::rx_msg(int index)
                                 (((uint32_t)rx_buf.eid8 & 0xFF) <<  8) +
                                 (((uint32_t)rx_buf.sidl & 0x03) << 16) +
                                 (((uint32_t)rx_buf.sidl & 0xE0) << 13) +
-                                (((uint32_t)rx_buf.sidh & 0xFF) << 19);
+                                (((uint32_t)rx_buf.sidh & 0xFF) << 21);
         }
         else
         {
@@ -257,7 +249,7 @@ void MCP2515Can::rx_msg(int index)
                                 ((uint32_t)rx_buf.sidh << 3);
         }
         can_frame->can_err = 0;
-        memcpy(can_frame->data, &rx_buf.d0, 8);
+        memcpy(can_frame->data, rx_buf.data, 8);
         can_frame->can_dlc = rx_buf.dlc & 0x0F;
 
         rxBuf->advance(1);
@@ -279,8 +271,28 @@ void *MCP2515Can::entry()
 {
     for ( ; /* forever */ ; )
     {
-        sem.wait();
+#if DEBUG
+        int result = sem.timedwait(SEC_TO_NSEC(1));
+        lock_.lock();
 
+        if (result != 0)
+        {
+            spi_ioc_transfer xfer[2];
+            memset(xfer, 0, sizeof(xfer));
+            uint8_t wr_data[2] = {READ, 0};
+            xfer[0].tx_buf = (unsigned long)wr_data;
+            xfer[0].len = sizeof(wr_data);
+            xfer[1].rx_buf = (unsigned long)regs;
+            xfer[1].len = sizeof(regs);
+            xfer[1].cs_change = 1;
+            ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
+            lock_.unlock();
+            continue;
+        }
+#else
+        sem.wait();
+        lock_.lock();
+#endif
         /* read status flags */
         uint8_t canintf = register_read(CANINTF);
 
@@ -291,7 +303,6 @@ void *MCP2515Can::entry()
         if (canintf & ERRI)
         {
             /* error interrupt active */
-            lock_.lock();
             register_write(TXB0CTRL, 0x00);
             register_write(TXB1CTRL, 0x00);
             portENTER_CRITICAL();
@@ -301,7 +312,6 @@ void *MCP2515Can::entry()
             txPending = 0;
             txBuf->signal_condition();
             portEXIT_CRITICAL();
-            lock_.unlock();
         }
         if (canintf & RX0I)
         {
@@ -309,7 +319,6 @@ void *MCP2515Can::entry()
             rx_msg(0);
         }
 
-        lock_.lock();
         if (txPending)
         {
             /* transmit interrupt active and transmission complete */
@@ -327,10 +336,9 @@ void *MCP2515Can::entry()
             }
 
             portENTER_CRITICAL();
-            tx_msg_locked();
+            tx_msg();
             portEXIT_CRITICAL();
         }
-        lock_.unlock();
 
         /* Refresh status flags just in case RX1 buffer became active
          * before we could finish reading out RX0 buffer.  This ussually
@@ -343,6 +351,7 @@ void *MCP2515Can::entry()
             /* receive interrupt active */
             rx_msg(1);
         }
+        lock_.unlock();
 
         interrupt_enable();
     }

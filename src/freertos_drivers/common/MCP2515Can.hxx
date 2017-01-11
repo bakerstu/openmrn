@@ -48,22 +48,34 @@ class MCP2515Can : public Can, public OSThread
 public:
     /** Constructor.
      * @param name name of this device instance in the file system
-     * @param spi_name spi interface that the MCP2515Can is on
-     * @param freq frequency in Hz that the MCP2515 clock runs at
-     * @param target baud rate in Hz
      * @param interrupt_enable callback to enable the interrupt
      * @param interrupt_disable callback to disable the interrupt
      */
-    MCP2515Can(const char *name, const char *spi_name,
-               uint32_t freq, uint32_t baud,
-               void (*interrupt_enable)(),
-               void (*interrupt_disable)());
+    MCP2515Can(const char *name,
+               void (*interrupt_enable)(), void (*interrupt_disable)())
+        : Can(name)
+        , OSThread()
+        , interrupt_enable(interrupt_enable)
+        , interrupt_disable(interrupt_disable)
+        , txPending(0)
+        , spi(-1)
+        , sem()
+    {
+    }
 
     /** Destructor.
      */
     ~MCP2515Can()
     {
     }
+
+    /** Initialize CAN device settings.  Typically called in hw_postinit(), not
+     * hw_preinit() or hw_init().
+     * @param spi_name spi interface that the MCP2515Can is on
+     * @param freq frequency in Hz that the MCP2515 clock runs at
+     * @param baud target baud rate in Hz
+     */
+    void init(const char *spi_name, uint32_t freq, uint32_t baud);
 
     /** Handle an interrupt.  Called by user provided interrupt handler.
      */
@@ -86,9 +98,9 @@ private:
         RXF2SEID8,
         RXF2EID0,
         BFPCTRL,
-        TXRTSCTRL,
-        CANSTAT,
-        CANCTRL,
+        TXRTSCTRL, /**< TX RTS I/O control */
+        CANSTAT,   /**< status */
+        CANCTRL,   /**< control */
 
         RXF3SIDH = 16,
         RXF3SIDL,
@@ -102,8 +114,8 @@ private:
         RXF5SIDL,
         RXF5EID8,
         RXF5EID0,
-        TEC,
-        RED,
+        TEC,      /**< transmit error counter */
+        RED,      /**< receive error counter */
 
         RXM0SIDH = 32,
         RXM0SIDL,
@@ -113,12 +125,12 @@ private:
         RXM1SIDL,
         RXM1EID8,
         RXM1EID0,
-        CNF3,
-        CNF2,
-        CNF1,
-        CANINTE,
-        CANINTF,
-        EFLG,
+        CNF3,     /**< configuration register 3 */
+        CNF2,     /**< configuration register 3 */
+        CNF1,     /**< configuration register 3 */
+        CANINTE,  /**< interrupt enable */
+        CANINTF,  /**< interrupt flags */
+        EFLG,     /**< error flags */
 
         TXB0CTRL = 48,
         TXB0SIDH,
@@ -203,10 +215,10 @@ private:
         RX1I = 0x02, /**< receive buffer 1 interrupt bit */
         TX0I = 0x04, /**< transmit buffer 0 interrupt bit */
         TX1I = 0x08, /**< transmit buffer 1 interrupt bit */
-        TX2I = 0x01, /**< transmit buffer 2 interrupt bit */
-        ERRI = 0x02, /**< error interrupt bit */
-        WAKI = 0x02, /**< wake-up interrupt bit */
-        MERR = 0x02, /**< message error interrupt bit */
+        TX2I = 0x10, /**< transmit buffer 2 interrupt bit */
+        ERRI = 0x20, /**< error interrupt bit */
+        WAKI = 0x40, /**< wake-up interrupt bit */
+        MERR = 0x80, /**< message error interrupt bit */
     };
 
     /** SPI transaction instructions */
@@ -223,6 +235,99 @@ private:
         BIT_MODIFY  = 0x05, /**< perform a bit manipulation */
     };
 
+    /** Configuration resgister 1 structure */
+    struct Config1
+    {
+        /** Constructor.
+         * @param brp initial value
+         * @param sjw initial value
+         */
+        Config1(uint8_t brp, uint8_t sjw)
+            : brp(brp)
+            , sjw(sjw)
+        {
+        }
+
+        union
+        {
+            uint8_t data; /**< raw data for register */
+            struct
+            {
+                uint8_t brp : 6; /**< baud rate prescaler bits */
+                uint8_t sjw : 2; /**< synchronization jump width length bits */
+            };
+        };
+    };
+
+    /** Configuration resgister 2 structure */
+    struct Config2
+    {
+        /** Constructor.
+         * @param prseg initial value
+         * @param prseg1 initial value
+         * @param sam initial value
+         * @param bltmode initial value
+         */
+        Config2(uint8_t prseg, uint8_t prseg1, uint8_t sam, uint8_t bltmode)
+            : prseg(prseg)
+            , prseg1(prseg1)
+            , sam(sam)
+            , bltmode(bltmode)
+        {
+        }
+
+        union
+        {
+            uint8_t data; /**< raw data for register */
+            struct
+            {
+                uint8_t prseg   : 3; /**< propagation segment length bits */
+                uint8_t prseg1  : 3; /**< PS1 length bits */
+                uint8_t sam     : 1; /**< sample point configuration bit */
+                uint8_t bltmode : 1; /**< PS2 bit time length bit */
+            };
+        };
+    };
+
+    /** Configuration resgister 3 structure */
+    struct Config3
+    {
+        /** Constructor.
+         * @param phseg2 initial value
+         * @param wakfil initial value
+         * @param sof initial value
+         */
+        Config3(uint8_t phseg2, uint8_t wakfil, uint8_t sof)
+            : phseg2(phseg2)
+            , unused(0)
+            , wakfil(wakfil)
+            , sof(sof)
+        {
+        }
+
+        union
+        {
+            uint8_t data; /**< raw data for register */
+            struct
+            {
+                uint8_t phseg2 : 3; /**< PS2 length bits */
+                uint8_t unused : 3; /**< unused bits */
+                uint8_t wakfil : 1; /**< wake-up filter bit */
+                uint8_t sof    : 1; /**< start of frame signal bit */
+            };
+        };
+    };
+
+    /** Baud rate table entry */
+    struct MCP2515Baud
+    {
+        uint32_t freq; /**< incoming frequency */
+        uint32_t baud; /**< target baud rate */
+        Config1 cnf1; /**< Configuration registers CNF1 */
+        Config2 cnf2; /**< Configuration registers CNF2 */
+        Config3 cnf3; /**< Configuration registers CNF3 */
+    };
+
     /** CAN TX and RX buffer structure */
     struct Buffer
     {
@@ -231,14 +336,21 @@ private:
         uint8_t eid8; /**< extended identifier high byte */
         uint8_t eid0; /**< extended identifier low byte */
         uint8_t dlc; /**< data length code */
-        uint8_t d0; /**< data 0 byte */
-        uint8_t d1; /**< data 1 byte */
-        uint8_t d2; /**< data 2 byte */
-        uint8_t d3; /**< data 3 byte */
-        uint8_t d4; /**< data 4 byte */
-        uint8_t d5; /**< data 5 byte */
-        uint8_t d6; /**< data 6 byte */
-        uint8_t d7; /**< data 7 byte */
+        union
+        {
+            uint8_t data[8]; /** all 8 data bytes */
+            struct
+            {
+                uint8_t d0; /**< data 0 byte */
+                uint8_t d1; /**< data 1 byte */
+                uint8_t d2; /**< data 2 byte */
+                uint8_t d3; /**< data 3 byte */
+                uint8_t d4; /**< data 4 byte */
+                uint8_t d5; /**< data 5 byte */
+                uint8_t d6; /**< data 6 byte */
+                uint8_t d7; /**< data 7 byte */
+            };
+        };
     };
 
     /** User entry point for the created thread.
@@ -251,19 +363,7 @@ private:
 
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
-
-    /** Function to try and transmit a message with the mutex already locked.
-     */
-    void tx_msg_locked();
-
-    /** Function to try and transmit a message.
-     */
-    void tx_msg() override
-    {
-        lock_.lock();
-        tx_msg_locked();
-        lock_.unlock();
-    }
+    void tx_msg() override; /** function to try and transmit a message */
 
     /** Function to receive a message.
      * @param index buffer index, 0 or 1
@@ -292,6 +392,7 @@ private:
         xfer[0].len = sizeof(wr_data);
         xfer[1].rx_buf = (unsigned long)rd_data;
         xfer[1].len = sizeof(rd_data);
+        xfer[1].cs_change = 1;
         ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
 
         return rd_data[0];
@@ -310,7 +411,8 @@ private:
         xfer[0].tx_buf = (unsigned long)wr_data;
         xfer[0].len = sizeof(wr_data);
         xfer[1].rx_buf = (unsigned long)buffer;
-        xfer[1].len = sizeof(buffer);
+        xfer[1].len = sizeof(Buffer);
+        xfer[1].cs_change = 1;
         ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
     }
 
@@ -333,11 +435,12 @@ private:
         spi_ioc_transfer xfer[2];
         memset(xfer, 0, sizeof(xfer));
         uint8_t instruction[1];
-        instruction[0] = LOAD_TX_BUF + (0x01 << index);
+        instruction[0] = LOAD_TX_BUF + (index << 1);
         xfer[0].tx_buf = (unsigned long)instruction;
         xfer[0].len = sizeof(instruction);
         xfer[1].tx_buf = (unsigned long)buffer;
-        xfer[1].len = sizeof(buffer);
+        xfer[1].len = sizeof(Buffer);
+        xfer[1].cs_change = 1;
         ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
     }
 
@@ -364,6 +467,10 @@ private:
     unsigned txPending; /**< transmission in flight */
     int spi; /**< SPI bus that accesses MCP2515 */
     OSSem sem; /**< semaphore for posting events */
+    uint8_t regs[128];
+
+    /** baud rate settings table */
+    static const MCP2515Baud baudTable[];
 
     /** Default constructor.
      */
