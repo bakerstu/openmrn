@@ -321,6 +321,8 @@ extern void hw_set_to_safe(void);
  */
 void reset_handler(void)
 {
+    asm("cpsid i\n");
+
     unsigned long *section_table_addr = &__data_section_table;
 
     /* copy ram load sections from flash to ram */

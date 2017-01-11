@@ -75,9 +75,7 @@ static CC32xxSPI spi0_0("/dev/spidev0.0", GSPI_BASE, INT_GSPI,
                         mcp2515_cs_assert, mcp2515_cs_deassert);
 
 
-static MCP2515Can can0("/dev/can0", "/dev/spidev0.0", 8000000,
-                       config_nmranet_can_bitrate(),
-                       mcp2515_int_enable, mcp2515_int_disable);
+static MCP2515Can can0("/dev/can0", mcp2515_int_enable, mcp2515_int_disable);
 
 /** Assert the chip select for the MCP2515 CAN controller.
  */
@@ -115,30 +113,6 @@ extern "C"
 
 extern void (* const __interrupt_vector[])(void);
 void hw_set_to_safe(void);
-
-void enter_bootloader()
-{
-    extern void (* const __interrupt_vector[])(void);
-    if (__interrupt_vector[1] == __interrupt_vector[13] ||
-        __interrupt_vector[13] == nullptr) {
-        // No bootloader detected.
-        return;
-    }
-    hw_set_to_safe();
-    __bootloader_magic_ptr = REQUEST_BOOTLOADER;
-    /* Globally disables interrupts. */
-    asm("cpsid i\n");
-    extern char __flash_start;
-    asm volatile(" mov   r3, %[flash_addr] \n"
-                 :
-                 : [flash_addr] "r"(&__flash_start));
-    /* Loads SP and jumps to the reset vector. */
-    asm volatile(
-        " ldr r0, [r3]\n"
-        " mov sp, r0\n"
-        " ldr r0, [r3, #4]\n"
-        " bx  r0\n");
-}
 
 static uint32_t nsec_per_clock = 0;
 /// Calculate partial timing information from the tick counter.
@@ -179,7 +153,7 @@ void timer2a_interrupt_handler(void)
     //
     // Clear the timer interrupt.
     //
-    MAP_TimerIntClear(TIMERA3_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerIntClear(TIMERA2_BASE, TIMER_TIMA_TIMEOUT);
     // Set output LED.
     BLINKER_RAW_Pin::set((rest_pattern & 1));
 
@@ -246,7 +220,6 @@ void hw_preinit(void)
     MAP_PinTypeSPI(PIN_05, PIN_MODE_7);
     MAP_PinTypeSPI(PIN_06, PIN_MODE_7);
     MAP_PinTypeSPI(PIN_07, PIN_MODE_7);
-    MAP_PinTypeGPIO(PIN_07, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
     MAP_PinTypeUART(PIN_55, PIN_MODE_3);
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
@@ -276,11 +249,11 @@ void hw_preinit(void)
 
     /* MCP2515 CAN Controller gpio interrupt initialization */
     GPIOIntTypeSet(GPIOA0_BASE, GPIO_PIN_7, GPIO_LOW_LEVEL);
+    MAP_IntEnable(INT_GPIOA0);
 
     /* MCP2515 CAN Controller reset release */
     MCP2515_RESET_N_Pin::set(true);
 
-    while (1);
     //GPIOPinWrite(unsigned long GPIO, unsigned char ucPins, unsigned char ucVal)
 #if 0
     /* Checks the SW2 pin at boot time in case we want to allow for a debugger
@@ -302,6 +275,13 @@ void hw_preinit(void)
 void hw_init(void)
 {
     wifi.instance()->start();
+}
+
+/** Initialize the processor hardware post platform init.
+ */
+void hw_postinit(void)
+{
+    can0.init("/dev/spidev0.0", 8000000, config_nmranet_can_bitrate());
 }
 
 } /* extern "C" */

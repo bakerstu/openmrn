@@ -6,12 +6,9 @@ GROUP(-lgcc -lc)
 /* include device specific memory map */
 INCLUDE memory_map.ld
 
-__top_RAM = ORIGIN(RAM) + LENGTH(RAM);
-
-__cs3_heap_end = __top_RAM;
-
-__start_ram = ORIGIN(RAM);
-__end_ram = __top_RAM;
+__cs3_heap_end = ORIGIN(STACK);
+__heap2_start = ORIGIN(RAM2);
+__heap2_end = ORIGIN(RAM2) + LENGTH(RAM2);
 
 SECTIONS
 {
@@ -33,9 +30,11 @@ SECTIONS
         . = ALIGN(4) ;
         __section_table_start = .;
         __data_section_table = .;
+        /* Since the entire application is already in RAM, the data section
+           does not need to move.
         LONG(LOADADDR(.data));
-        LONG(    ADDR(.data)) ;
-        LONG(  SIZEOF(.data));
+        LONG(    ADDR(.data));
+        LONG(  SIZEOF(.data)); */
         __data_section_table_end = .;
         __bss_section_table = .;
         LONG(    ADDR(.bss));
@@ -103,12 +102,18 @@ SECTIONS
 
     __init_data = .;
 
-    .data : AT(__init_data)
+    .data : /*AT(__init_data)*/
     {
         _data = .;
         *(.data*)
         . = ALIGN (8);
         _edata = .;
+        . = ALIGN(4);
+        __ovly_table = .;
+/*
+        LONG(ABSOLUTE(ADDR(.ovly0))); LONG(SIZEOF(.ovly0)); LONG(LOADADDR(.ovly0));
+        LONG(ABSOLUTE(ADDR(.ovly1))); LONG(SIZEOF(.ovly1)); LONG(LOADADDR(.ovly1));
+*/
     } > RAM
 
     .bss :
@@ -131,8 +136,6 @@ SECTIONS
     
     PROVIDE(_pvHeapStart = .);
     PROVIDE(__cs3_heap_start = .);
-    /* This pointer will be written to the SP register at reset. */
-    PROVIDE(__stack = __top_RAM);
 /*
     PROVIDE(__impure_data_size = __impure_data_end - __impure_data_start);
 */
