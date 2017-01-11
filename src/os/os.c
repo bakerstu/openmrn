@@ -148,8 +148,10 @@ void hw_init(void)
 {
 }
 
-/** Default hardware initializer.  This function is defined weak so that
- * a given board can stub in an intiailization specific to it.
+/** Default hardware post-initializer.  This function is called from the main
+ * task, after the scheduler is started, but before appl_main is invoked. This
+ * function is defined weak so that a given board can stub in an intiailization
+ * specific to it.
  */
 void hw_postinit(void) __attribute__ ((weak));
 void hw_postinit(void)
@@ -871,6 +873,8 @@ void main_thread(void *arg)
     /* Allow any library threads to run that must run ahead of main */
     os_yield_trampoline();
 
+    /* Give another chance to the board file to do work, this time coordinating
+     * between application and library threads. */
     hw_postinit();
 
     appl_main(1, argv);

@@ -1024,7 +1024,7 @@ int getaddrinfo(const char *nodename, const char *servname,
         free(*res);
         return EAI_MEMORY;
     }
-    memset(sa.get(), 0, sizeof(struct addrinfo));
+    memset(sa.get(), 0, sizeof(struct sockaddr));
 
     switch (hints->ai_family)
     {

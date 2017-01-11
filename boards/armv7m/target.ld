@@ -163,5 +163,5 @@ SECTIONS
     /* This pointer will be written to the SP register at reset. */
     PROVIDE(__stack = __top_RAM);
 
-    PROVIDE(__impure_data_size = __impure_data_end - __impure_data_start);
+    __impure_data_size = (__impure_data_end - __impure_data_start);
 }
