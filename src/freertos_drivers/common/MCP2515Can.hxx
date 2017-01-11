@@ -433,12 +433,16 @@ private:
     /** Function to try and transmit a message. */
     void tx_msg() override
     {
-        /** @todo I thnk the commented out lock is neded, but it seems to
-         * deadlock the system.  Need to investigate further.
+        /* The caller has us in a critical section, we need to exchange a
+         * critical section lock for a mutex lock since event handling happens
+         * in thread context and not in interrupt context like it would in a
+         * typical CAN device driver.
          */
-        //lock_.lock();
+        portEXIT_CRITICAL();
+        lock_.lock();
         tx_msg_locked();
-        //lock_.unlock();
+        lock_.unlock();
+        portENTER_CRITICAL();
     }
 
     /** Function to try and transmit a message while holding a lock. */

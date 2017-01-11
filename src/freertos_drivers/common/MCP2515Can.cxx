@@ -159,22 +159,24 @@ void MCP2515Can::tx_msg_locked()
     {
         struct can_frame *can_frame;
 
+        /* find an empty buffer */
+        int index = 0;
+        if (txPending & 0x1)
+        {
+            /* buffer 0 already in use */
+            index = 1;
+        }
+
+        portENTER_CRITICAL();
         if (txBuf->data_read_pointer(&can_frame))
         {
-            /* find an empty buffer */
-            int index = 0;
-            if (txPending & 0x1)
-            {
-                /* buffer 0 already in use */
-                index = 1;
-            }
-
             Buffer tx_buf(can_frame);
-            txPending |= (0x1 << index);
             txBuf->consume(1);
             txBuf->signal_condition();
-
             portEXIT_CRITICAL();
+
+            txPending |= (0x1 << index);
+
             /* bump up priority of the other buffer so it will transmit first
              * if it is pending
              */
@@ -185,7 +187,10 @@ void MCP2515Can::tx_msg_locked()
             bit_modify(index == 0 ? TXB0CTRL : TXB1CTRL, 0x08, 0x0B);
             /* enable transmit interrupt */
             bit_modify(CANINTE, TX0I << index, TX0I << index);
-            portENTER_CRITICAL();
+        }
+        else
+        {
+            portEXIT_CRITICAL();
         }
     }
 }
@@ -256,13 +261,15 @@ void *MCP2515Can::entry()
             /* error interrupt active */
             register_write(TXB0CTRL, 0x00);
             register_write(TXB1CTRL, 0x00);
+
             portENTER_CRITICAL();
             ++softErrorCount;
             /* flush out any transmit data in the pipleline */
             txBuf->flush();
-            txPending = 0;
             txBuf->signal_condition();
             portEXIT_CRITICAL();
+
+            txPending = 0;
         }
         if (canintf & RX0I)
         {
@@ -288,9 +295,7 @@ void *MCP2515Can::entry()
                 ++numTransmittedPackets_;
             }
 
-            portENTER_CRITICAL();
             tx_msg_locked();
-            portEXIT_CRITICAL();
         }
 
         /* Refresh status flags just in case RX1 buffer became active
