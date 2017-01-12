@@ -239,8 +239,9 @@ struct GroupConfigDefs : public AtomConfigDefs
     DECLARE_OPTIONALARG(Offset, offset, int, 10, INT_MAX);
     DECLARE_OPTIONALARG(Segment, segment, int, 11, -1);
     DECLARE_OPTIONALARG(RepName, repname, const char*, 12, nullptr);
+    DECLARE_OPTIONALARG(FixedSize, fixed_size, unsigned, 13, 0);
     using Base = OptionalArg<GroupConfigDefs, Name, Description, Segment,
-        Offset, RepName>;
+                             Offset, RepName, FixedSize>;
 };
 
 /// Implementation class for the condifuration options of a CDI group element.
@@ -266,6 +267,11 @@ public:
     /// called.
     DEFINE_OPTIONALARG(RepName, repname, const char*);
 
+    /// Specifies that the size of this group should be fixed to this many
+    /// bytes, even if the contents are smaller. Creates a compile error if the
+    /// size is bigger.
+    DEFINE_OPTIONALARG(FixedSize, fixed_size, int);
+    
     /// Declares that this group is a toplevel CDI. Causes the group to render
     /// the xml header.
     /// static constexpr Segment MainCdi() { return Segment(-2); }
@@ -404,6 +410,10 @@ public:
         *s += ">\n";
         opts.render_cdi(s);
         body_.render_content_cdi(s);
+        if (opts.fixed_size() && (body_.end_buffer_length() > 0)) {
+            *s += StringPrintf(
+                "<group offset='%u'/>\n", body_.end_buffer_length());
+        }
         *s += StringPrintf("</%s>\n", tag);
     }
 
