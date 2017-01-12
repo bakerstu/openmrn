@@ -116,7 +116,7 @@ TEST(ConfigRenderer, IntWithMax)
 }
 
 CDI_GROUP(TestGroup, Name("testgroup"), Description("test group desc"),
-    RepName("foorep"));
+          RepName("foorep"), FixedSize(6));
 CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
 CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
 CDI_GROUP_END();
@@ -178,6 +178,7 @@ TEST(ComplexGroupRender, RenderOk)
 <int size='2'>
 <description>e2</description>
 </int>
+<group offset='3'/>
 </group>
 <int size='1'>
 </int>
@@ -215,7 +216,7 @@ TEST(StringIdentRender, RenderOk)
 }
 
 CDI_GROUP(TestSegment, Name("testseg"), Description("test seg desc"),
-    Segment(17));
+          Segment(17), FixedSize(3));
 CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
 CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
 CDI_GROUP_END();
