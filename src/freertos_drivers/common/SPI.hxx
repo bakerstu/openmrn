@@ -90,6 +90,11 @@ protected:
      */
     virtual int transfer(struct spi_ioc_transfer *msg) = 0;
 
+    /** Update the configuration of the bus.
+     * @return >= 0 upon success, -errno upon failure
+     */
+    virtual int update_configuration() = 0;
+
     /** Request an ioctl transaction.
      * @param file file reference for this device
      * @param key ioctl key
