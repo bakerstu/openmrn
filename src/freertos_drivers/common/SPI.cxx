@@ -133,9 +133,13 @@ int SPI::ioctl(File *file, unsigned long int key, unsigned long data)
     {
         default:
             return -EINVAL;
-        case SPI_IOC_RD_MODE_SLAVE:
-            /* fall through */
-        case SPI_IOC_WR_MODE_SLAVE:
+        case SPI_IOC_RD_MODE:
+        {
+            uint8_t *m = (uint8_t*)data;
+            *m = mode;
+            break;
+        }
+        case SPI_IOC_WR_MODE:
         {
             uint8_t *m = (uint8_t*)data;
             HASSERT(*m <= SPI_MODE_3);
@@ -143,23 +147,35 @@ int SPI::ioctl(File *file, unsigned long int key, unsigned long data)
             break;
         }
         case SPI_IOC_RD_LSB_FIRST:
-            /* fall through */
+        {
+            uint8_t *lsbf = (uint8_t*)data;
+            *lsbf = lsbFirst;
+            break;
+        }
         case SPI_IOC_WR_LSB_FIRST:
         {
             uint8_t *lsbf = (uint8_t*)data;
             lsbFirst = *lsbf;
             break;
         }
-        case SPI_IOC_RD_PER_WORD:
-            /* fall through */
-        case SPI_IOC_WR_PER_WORD:
+        case SPI_IOC_RD_BITS_PER_WORD:
+        {
+            uint8_t *bpw = (uint8_t*)data;
+            *bpw = bitsPerWord;
+            break;
+        }
+        case SPI_IOC_WR_BITS_PER_WORD:
         {
             uint8_t *bpw = (uint8_t*)data;
             bitsPerWord = *bpw;
             break;
         }
         case SPI_IOC_RD_MAX_SPEED_HZ:
-            /* fall through */
+        {
+            uint32_t *hz = (uint32_t*)data;
+            *hz = speedHz;
+            break;
+        }
         case SPI_IOC_WR_MAX_SPEED_HZ:
         {
             uint32_t *hz = (uint32_t*)data;
@@ -167,7 +183,14 @@ int SPI::ioctl(File *file, unsigned long int key, unsigned long data)
             break;
         }
     }
-    return 0;
+
+    lock_.lock();
+    bus_lock();
+    int result = update_configuration();
+    lock_.unlock();
+    bus_unlock();
+
+    return result;
 }
 
 /** Conduct multiple message transfers with one stop at the end.
