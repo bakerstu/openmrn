@@ -81,7 +81,13 @@ CC32xxSPI::CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
             break;
     }
 
-    update_configuration();
+    MAP_SPIReset(base);
+
+    MAP_SPIConfigSetExpClk(base, clock, speedHz, SPI_MODE_MASTER,
+                           SPI_SUB_MODE_3, (/*SPI_SW_CTRL_CS |*/ SPI_3PIN_MODE |
+                                            SPI_TURBO_OFF | SPI_WL_8));
+
+    MAP_SPIEnable(base);
 }
 
 /** Method to transmit/receive the data.
@@ -95,56 +101,6 @@ int CC32xxSPI::transfer(struct spi_ioc_transfer *msg)
 
     return msg->len;
 }
-
-/** Update the configuration of the bus.
- * @return >= 0 upon success, -errno upon failure
- */
-int CC32xxSPI::update_configuration()
-{
-    unsigned long new_mode;
-    unsigned long bits_per_word;
-
-    switch (mode)
-    {
-        default:
-        case SPI_MODE_0:
-            new_mode = SPI_SUB_MODE_0;
-            break;
-        case SPI_MODE_1:
-            new_mode = SPI_SUB_MODE_1;
-            break;
-        case SPI_MODE_2:
-            new_mode = SPI_SUB_MODE_2;
-            break;
-        case SPI_MODE_3:
-            new_mode = SPI_SUB_MODE_3;
-            break;
-    }
-
-    switch (bitsPerWord)
-    {
-        default:
-        case 0:
-        case 8:
-            bits_per_word = SPI_WL_8;
-            break;
-        case 16:
-            bits_per_word = SPI_WL_16;
-            break;
-        case 32:
-            bits_per_word = SPI_WL_32;
-            break;
-    }
-
-    MAP_SPIDisable(base);
-    MAP_SPIReset(base);
-    MAP_SPIConfigSetExpClk(base, clock, speedHz, SPI_MODE_MASTER, new_mode,
-                           (SPI_3PIN_MODE | SPI_TURBO_OFF | bits_per_word));
-    MAP_SPIEnable(base);
-
-    return 0;
-}
-
 
 /// Debugging helper.
 volatile uint32_t g_error;
