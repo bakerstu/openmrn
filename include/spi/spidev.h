@@ -101,12 +101,12 @@
     /** Read SPI mode: @ref SPI_MODE_0, @ref SPI_MODE_1, @ref SPI_MODE_2, or
      * @ref SPI_MODE_3
      */
-    #define SPI_IOC_RD_MODE_SLAVE IOR(SPI_IOC_MAGIC, 1, sizeof(uint8_t))
+    #define SPI_IOC_RD_MODE IOR(SPI_IOC_MAGIC, 1, sizeof(uint8_t))
 
     /** Write SPI mode: @ref SPI_MODE_0, @ref SPI_MODE_1, @ref SPI_MODE_2, or
      * @ref SPI_MODE_3
      */
-    #define SPI_IOC_WR_MODE_SLAVE IOW(SPI_IOC_MAGIC, 1, sizeof(uint8_t))
+    #define SPI_IOC_WR_MODE IOW(SPI_IOC_MAGIC, 1, sizeof(uint8_t))
 
     /** Read SPI bit justification
      */
@@ -118,11 +118,11 @@
 
     /** Read SPI bit word length in bits
      */
-    #define SPI_IOC_RD_PER_WORD IOR(SPI_IOC_MAGIC, 3, sizeof(uint8_t))
+    #define SPI_IOC_RD_BITS_PER_WORD IOR(SPI_IOC_MAGIC, 3, sizeof(uint8_t))
 
     /** Write SPI word length in bits
      */
-    #define SPI_IOC_WR_PER_WORD IOW(SPI_IOC_MAGIC, 3, sizeof(uint8_t))
+    #define SPI_IOC_WR_BITS_PER_WORD IOW(SPI_IOC_MAGIC, 3, sizeof(uint8_t))
 
     /** Read SPI default max speed in Hz
      */
