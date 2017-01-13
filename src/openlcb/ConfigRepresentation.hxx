@@ -106,6 +106,7 @@ public:
     using Segment = GroupConfigOptions::Segment;
     using Offset = GroupConfigOptions::Offset;
     using RepName = GroupConfigOptions::RepName;
+    using FixedSize = GroupConfigOptions::FixedSize;
     using Manufacturer = IdentificationConfigOptions::Manufacturer;
     using Model = IdentificationConfigOptions::Model;
     using HwVersion = IdentificationConfigOptions::HwVersion;
@@ -125,7 +126,7 @@ public:
 /// @param GroupName C++ identifier for the name of this group.
 /// @param ARGS Proxied additional arguments, forwarded to the Options
 /// class.
-#define CDI_GROUP_HELPER(START_LINE, GroupName, ARGS...)             \
+#define CDI_GROUP_HELPER(START_LINE, GroupName, ARGS...)                       \
     struct GroupName : public openlcb::GroupBase                               \
     {                                                                          \
         INHERIT_CONSTEXPR_CONSTRUCTOR(GroupName, GroupBase);                   \
@@ -141,6 +142,10 @@ public:
         static constexpr unsigned size()                                       \
         {                                                                      \
             return GroupName(0).end_offset();                                  \
+        }                                                                      \
+        static constexpr GroupName zero_offset_this()                          \
+        {                                                                      \
+            return GroupName(0);                                               \
         }                                                                      \
         template <int LINE>                                                    \
         constexpr openlcb::NoopGroupEntry entry(                               \
@@ -221,7 +226,19 @@ public:
 #define CDI_GROUP_END_HELPER(LINE)                                             \
     constexpr unsigned end_offset() const                                      \
     {                                                                          \
-        return entry(openlcb::EntryMarker<LINE>()).end_offset();               \
+        static_assert((group_opts().fixed_size() == 0) ||                      \
+                (zero_offset_this()                                            \
+                              .entry(openlcb::EntryMarker<LINE>())             \
+                              .end_offset() <= group_opts().fixed_size()),     \
+            "FixedSize group contents too large");                             \
+        return (group_opts().fixed_size() == 0)                                \
+            ? entry(openlcb::EntryMarker<LINE>()).end_offset()                 \
+            : offset_ + group_opts().fixed_size();                             \
+    }                                                                          \
+    constexpr unsigned end_buffer_length() const                               \
+    {                                                                          \
+        return group_opts().fixed_size() -                                     \
+            (entry(openlcb::EntryMarker<LINE>()).end_offset() - offset());     \
     }                                                                          \
     static void render_content_cdi(std::string *s)                             \
     {                                                                          \
