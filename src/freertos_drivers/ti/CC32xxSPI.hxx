@@ -83,11 +83,6 @@ private:
      */
     int transfer(struct spi_ioc_transfer *msg) override;
 
-    /** Update the configuration of the bus.
-     * @return >= 0 upon success, -errno upon failure
-     */
-    int update_configuration() override;
-
     unsigned long base; /**< base address of this device */
     unsigned long clock; /**< clock rate supplied to the module */
     unsigned long interrupt; /**< interrupt of this device */
