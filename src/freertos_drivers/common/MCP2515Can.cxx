@@ -78,6 +78,14 @@ void MCP2515Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     spi = ::open(spi_name, O_RDWR);
     HASSERT(spi >= 0);
 
+    /* configure SPI bus settings */
+    uint8_t spi_mode = SPI_MODE_0;
+    uint8_t spi_bpw = 8;
+    uint32_t spi_max_speed_hz = freq / 4;
+    ::ioctl(spi, SPI_IOC_WR_MODE, &spi_mode);
+    ::ioctl(spi, SPI_IOC_WR_BITS_PER_WORD, &spi_bpw);
+    ::ioctl(spi, SPI_IOC_WR_MAX_SPEED_HZ, &spi_max_speed_hz);
+
     /* reset device */
     reset();
 
