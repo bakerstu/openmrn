@@ -307,7 +307,7 @@ private:
 /// send out a query upon boot or network reconnect.
 class NetworkInitializedBit : public BitEventInterface {
 public:
-    /// Constructs a NetworkINitializedBit.
+    /// Constructs a NetworkInitializedBit.
     ///
     /// @param node the virtual node who exposes this bit.
     /// @param event_on event ID to set the state to true
