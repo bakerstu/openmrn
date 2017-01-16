@@ -104,7 +104,9 @@ all: $(EXECUTABLE)$(EXTENTION)
 # then compiles it into an xml and object file.
 HAVE_CONFIG_CDI := $(shell grep ConfigDef config.hxx 2>/dev/null)
 ifneq ($(HAVE_CONFIG_CDI),)
+ifeq ($(SKIP_CONFIG_CDI),)
 OBJS += cdi.o
+endif
 
 $(EXECUTABLE)$(EXTENTION): cdi.o
 

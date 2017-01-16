@@ -110,9 +110,11 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_ACDI_USR, space);
         additionalComponents_.emplace_back(space);
     }
+    size_t cdi_size = strlen(CDI_DATA);
+    if (cdi_size > 0)
     {
         auto *space = new ReadOnlyMemoryBlock(
-            reinterpret_cast<const uint8_t *>(&CDI_DATA), strlen(CDI_DATA) + 1);
+            reinterpret_cast<const uint8_t *>(&CDI_DATA), cdi_size + 1);
         memoryConfigHandler_.registry()->insert(
             node(), MemoryConfigDefs::SPACE_CDI, space);
         additionalComponents_.emplace_back(space);
