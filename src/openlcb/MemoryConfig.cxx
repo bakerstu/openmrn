@@ -84,7 +84,12 @@ void FileMemorySpace::ensure_file_open()
 {
     if (fd_ < 0)
     {
-        int opts = O_RDWR;
+        int opts = 0;
+        if (read_only()) {
+            opts = O_RDONLY;
+        } else {
+            opts = O_RDWR;
+        }
 #ifdef __FreeRTOS__
         opts |= O_NONBLOCK;
 #endif

@@ -415,6 +415,40 @@ private:
     int fd_;
 };
 
+/// Memory space implementation that exports the contents of a file as a memory
+/// space. The file can be specified either as a path or an fd. By default
+/// writes are also allowed.
+class ROFileMemorySpace : public FileMemorySpace {
+public:
+    /** Creates a memory space based on an fd.
+     *
+     * @param fd is an open file descriptor with the data.
+     * @param len tells how many bytes there are in the memory space. If
+     * specified as AUTO_LEN, then uses fstat to figure out the size of the
+     * file.
+     */
+    ROFileMemorySpace(int fd, address_t len = AUTO_LEN)
+        : FileMemorySpace(fd, len) {}
+
+    /** Creates a memory space based on a file name. Opens the file at the
+     * first use, and never closes it.
+     *
+     * @param name is the file name to open. The pointer must stay alive so
+     * long as *this is around.
+     * @param len tells how many bytes there are in the memory space. If
+     * specified as AUTO_LEN, then uses fstat to figure out the size of the
+     * file.
+     */
+    ROFileMemorySpace(const char *name, address_t len = AUTO_LEN)
+        : FileMemorySpace(name, len) {}
+
+    bool read_only() OVERRIDE
+    {
+        return true;
+    }
+};
+
+
 /// Implementation of the Memory Access Configuration Protocol for OpenLCB.
 ///
 /// Usage: Create an instance of this object either for the specific virtual
