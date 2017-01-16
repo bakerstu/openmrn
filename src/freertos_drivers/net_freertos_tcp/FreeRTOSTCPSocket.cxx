@@ -177,9 +177,10 @@ int FreeRTOSTCPSocket::bind(
             errno = EINVAL;
             return -1;
     }
-    // fr_address.sin_addr = ((const struct sockaddr_in *)(address))->sin_addr;
-    // fr_address.sin_port = address->sin_port;
-    memcpy(&fr_address, address->sa_data, sizeof(fr_address));
+
+    struct sockaddr_in *sin = (struct sockaddr_in *)(address);
+    fr_address.sin_addr = sin->sin_addr.s_addr;
+    fr_address.sin_port = sin->sin_port;
 
     int result = FreeRTOS_bind(s->sd, &fr_address, address_len);
 
