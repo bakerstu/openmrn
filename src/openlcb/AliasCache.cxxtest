@@ -400,6 +400,29 @@ TEST(AliasCacheTest, remove_last)
     EXPECT_TRUE(aliasCache->lookup((NodeAlias)12) == 103);
 }
 
+TEST(AliasCacheTest, reinsert_flush)
+{
+    AliasCache *aliasCache = new AliasCache(0, 3);
+    
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)103, (NodeAlias)12);
+    aliasCache->add((NodeID)104, (NodeAlias)13);
+    aliasCache->add((NodeID)105, (NodeAlias)14);
+
+    aliasCache->add((NodeID)101, (NodeAlias)10);
+    aliasCache->add((NodeID)102, (NodeAlias)11);
+    aliasCache->add((NodeID)103, (NodeAlias)12);
+    aliasCache->add((NodeID)104, (NodeAlias)13);
+    aliasCache->add((NodeID)105, (NodeAlias)14);
+
+    aliasCache->add((NodeID)103, (NodeAlias)12);
+    aliasCache->add((NodeID)104, (NodeAlias)13);
+    aliasCache->add((NodeID)105, (NodeAlias)14);
+
+    aliasCache->add((NodeID)105, (NodeAlias)99);
+    aliasCache->add((NodeID)108, (NodeAlias)99);
+}
 
 int appl_main(int argc, char* argv[])
 {
