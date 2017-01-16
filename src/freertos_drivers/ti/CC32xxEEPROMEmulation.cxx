@@ -31,6 +31,10 @@
  * @date 30 December 2016
  */
 
+//#define LOGLEVEL VERBOSE
+
+#include "utils/logging.h"
+
 #include "freertos_drivers/ti/CC32xxEEPROMEmulation.hxx"
 #include "freertos_drivers/ti/CC32xxHelper.hxx"
 #include "fs.h"
@@ -59,26 +63,32 @@ void CC32xxEEPROMEmulation::mount()
         int handle = open_file(sector, FS_MODE_OPEN_READ, true);
         if (handle < 0)
         {
+            LOG(VERBOSE, "EEPROM: sector %u: could not open.", sector);
             continue;
         }
         unsigned b = 0xaa55aaaa;
         SlCheckResult(sl_FsRead(handle, 0, (uint8_t *)&b, 4), 4);
         sl_FsClose(handle, nullptr, nullptr, 0);
+        LOG(VERBOSE, "EEPROM: sector %u: version %u.", sector, b);
         if (b >= fileVersion_)
         {
             readSector_ = sector;
+            fileVersion_ = b;
             have_rot = true;
         }
     }
 
     if (have_rot)
     {
+        LOG(VERBOSE, "EEPROM: read sector %u:", readSector_);
         int handle = open_file(readSector_, FS_MODE_OPEN_READ);
         int ret = sl_FsRead(handle, 4, data_, file_size());
         if (ret < 0)
         {
             SlCheckResult(ret);
         }
+    } else {
+        LOG(VERBOSE, "EEPROM: no read sector");
     }
 }
 
@@ -96,6 +106,7 @@ void CC32xxEEPROMEmulation::flush_buffers()
     ++readSector_;
     if (readSector_ >= SECTOR_COUNT)
         readSector_ = 0;
+    LOG(VERBOSE, "EEPROM: write sector %u version %u", readSector_, fileVersion_);
     int handle = open_file(readSector_, FS_MODE_OPEN_WRITE, true);
     if (handle < 0)
     {
@@ -128,12 +139,12 @@ void CC32xxEEPROMEmulation::write(
     unsigned int index, const void *buf, size_t len)
 {
     // Boundary checks are performed by the EEPROM class.
-    if (isDirty_ || (memcmp(data_ + index, buf, len) != 0))
-    {
-        isDirty_ = 1;
-        memcpy(data_ + index, buf, len);
-        eeprom_updated_notification();
+    if (memcmp(data_ + index, buf, len) == 0) {
+        return;
     }
+    memcpy(data_ + index, buf, len);
+    isDirty_ = 1;
+    eeprom_updated_notification();
 }
 
 void CC32xxEEPROMEmulation::read(unsigned int index, void *buf, size_t len)
