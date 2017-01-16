@@ -34,7 +34,7 @@
  */
 
 #ifdef _NMRANET_BOOTLOADER_HXX_
-#error Bootlaoder.hxx should be included only once.
+#error Bootloader.hxx should be included only once.
 #endif
 
 /// include guard macro
