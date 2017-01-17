@@ -245,7 +245,7 @@ public:
      * event by rounding and returns the mask value to be sent to the
      * register_handler function.
      * @param event is the event id to be registered. Will be modified.
-     * @param is the number of events to register from that offset. [event,
+     * @param size is the number of events to register from that offset. [event,
      * event+size) will be the registration range.
      */
     static unsigned align_mask(EventId *event, unsigned size);
