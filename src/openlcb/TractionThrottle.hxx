@@ -172,6 +172,7 @@ public:
         : StateFlow<Buffer<TractionThrottleInput>, QList<1>>(node->iface())
         , node_(node)
     {
+        clear_cache();
     }
 
     ~TractionThrottle() {
@@ -187,7 +188,7 @@ public:
         /// function.
         FN_NOT_KNOWN = 0xffff,
         /// Upon a load state request, how far do we go into the function list?
-        MAX_FN_QUERY = 8,
+        MAX_FN_QUERY = 28,
         ERROR_UNASSIGNED = 0x4000000,
     };
 
@@ -375,7 +376,7 @@ private:
     {
         pendingQueries_ = 1;
         send_traction_message(TractionDefs::speed_get_payload());
-        for (int i = 0; i < MAX_FN_QUERY; ++i)
+        for (int i = 0; i <= MAX_FN_QUERY; ++i)
         {
             pendingQueries_++;
             send_traction_message(TractionDefs::fn_get_payload(i));
