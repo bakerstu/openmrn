@@ -91,9 +91,7 @@ public:
         }
         mount();
 
-        LOG(INFO, "sector count %d", sector_count());
-        LOG(INFO, "slot count %d", slot_count());
-        LOG(INFO, "active index %d", activeSector_);
+        LOG(INFO, "sector count %d, active index %d, slot count %d, available count %d", sector_count(), activeSector_, slot_count(), avail());
     }
 
     /// @return how many blocks are available in the current sector.
@@ -236,6 +234,19 @@ TEST_F(EepromTest, readwrite) {
     EXPECT_AT(12, "kqbcd\xFF");
 }
 
+TEST_F(EepromTest, readwrite_recreate) {
+    create();
+    // Reboot MCU after creating empty.
+    create(false);
+
+    write_to(13, "abcd");
+    EXPECT_AT(13, "abcd");
+
+    // Reboot MCU
+    create(false);
+    EXPECT_AT(13, "abcd");
+}
+
 TEST_F(EepromTest, smalloverflow) {
     create();
     write_to(13, "abcd");
@@ -257,6 +268,10 @@ TEST_F(EepromTest, smalloverflow) {
     EXPECT_AT(13, "abcd");
     overflow_block();
     EXPECT_AT(13, "abcd");
+    EXPECT_EQ(3, e->activeSector_);
+    create(false);
+    EXPECT_AT(13, "abcd");
+    EXPECT_EQ(3, e->activeSector_);
 }
 
 TEST_F(EepromTest, many_overflow) {
@@ -269,4 +284,8 @@ TEST_F(EepromTest, many_overflow) {
         overflow_block();
     }
     EXPECT_AT(13, "abcd");
+    unsigned s = e->activeSector_;
+    create(false);
+    EXPECT_AT(13, "abcd");
+    EXPECT_EQ(s, e->activeSector_);
 }
