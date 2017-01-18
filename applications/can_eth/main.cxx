@@ -55,7 +55,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define version "can_eth Vrs 0.1"
+#define VERSION "can_eth Vrs 0.1"
 
 
 Executor<1> g_executor("g_executor", 0, 1024);
@@ -84,7 +84,7 @@ int appl_main(int argc, char* argv[])
     const int listen_port = 12021;
     int serial_fd = ::open("/dev/ser0", O_RDWR); // or /dev/ser0
     HASSERT(serial_fd >= 0);
-    printf(version);
+    printf(VERSION);
     printf(" started, listening on port %d\n",listen_port);
 
     GcTcpHub hub(&can_hub0,listen_port);
