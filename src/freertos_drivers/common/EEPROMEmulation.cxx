@@ -290,12 +290,10 @@ void EEPROMEmulation::read(unsigned int offset, void *buf, size_t len)
     memset(byte_data, 0xff, len); // default if data not found
 
     for (unsigned block_index = slot_first();
-         block_index <= slot_last();
+         block_index < rawBlockCount_ - availableSlots_;
          ++block_index)
     {
     	const uint32_t *address = block(activeSector_, block_index);
-    	if (*address == MAGIC_ERASED)
-            break;
         unsigned slot_offset = (address[0] >> 16) * BYTES_PER_BLOCK;
         // Check if slot overlaps with desired data.
         if (offset + len <= slot_offset)
