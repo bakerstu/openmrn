@@ -268,6 +268,10 @@ TEST_F(EepromTest, smalloverflow) {
     EXPECT_AT(13, "abcd");
     overflow_block();
     EXPECT_AT(13, "abcd");
+    EXPECT_EQ(3, e->activeSector_);
+    create(false);
+    EXPECT_AT(13, "abcd");
+    EXPECT_EQ(3, e->activeSector_);
 }
 
 TEST_F(EepromTest, many_overflow) {
@@ -280,4 +284,8 @@ TEST_F(EepromTest, many_overflow) {
         overflow_block();
     }
     EXPECT_AT(13, "abcd");
+    unsigned s = e->activeSector_;
+    create(false);
+    EXPECT_AT(13, "abcd");
+    EXPECT_EQ(s, e->activeSector_);
 }
