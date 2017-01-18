@@ -93,7 +93,7 @@ void EEPROMEmulation::mount()
     {
         /* look for first data block */
         for (unsigned block_index = rawBlockCount_ - 1;
-        	 block_index != MAGIC_COUNT; --block_index)
+             block_index >= MAGIC_COUNT; --block_index)
         {
             if (*block(activeSector_, block_index) != MAGIC_ERASED)
             {
