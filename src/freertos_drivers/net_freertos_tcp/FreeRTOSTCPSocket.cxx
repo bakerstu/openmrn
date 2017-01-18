@@ -169,9 +169,12 @@ int FreeRTOSTCPSocket::bind(
     }
 
     struct freertos_sockaddr fr_address;
+    fr_address.sin_len = sizeof(fr_address);
+
     switch (address->sa_family)
     {
         case AF_INET:
+        	fr_address.sin_family = FREERTOS_AF_INET;
             break;
         default:
             errno = EINVAL;
@@ -182,7 +185,7 @@ int FreeRTOSTCPSocket::bind(
     fr_address.sin_addr = sin->sin_addr.s_addr;
     fr_address.sin_port = sin->sin_port;
 
-    int result = FreeRTOS_bind(s->sd, &fr_address, address_len);
+    int result = FreeRTOS_bind(s->sd, &fr_address, sizeof(fr_address));
 
     if (result < 0)
     {
