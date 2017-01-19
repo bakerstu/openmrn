@@ -169,19 +169,23 @@ int FreeRTOSTCPSocket::bind(
     }
 
     struct freertos_sockaddr fr_address;
+    fr_address.sin_len = sizeof(fr_address);
+
     switch (address->sa_family)
     {
         case AF_INET:
+        	fr_address.sin_family = FREERTOS_AF_INET;
             break;
         default:
             errno = EINVAL;
             return -1;
     }
-    // fr_address.sin_addr = ((const struct sockaddr_in *)(address))->sin_addr;
-    // fr_address.sin_port = address->sin_port;
-    memcpy(&fr_address, address->sa_data, sizeof(fr_address));
 
-    int result = FreeRTOS_bind(s->sd, &fr_address, address_len);
+    struct sockaddr_in *sin = (struct sockaddr_in *)(address);
+    fr_address.sin_addr = sin->sin_addr.s_addr;
+    fr_address.sin_port = sin->sin_port;
+
+    int result = FreeRTOS_bind(s->sd, &fr_address, sizeof(fr_address));
 
     if (result < 0)
     {
@@ -273,7 +277,7 @@ int FreeRTOSTCPSocket::accept(
 
     Socket_t sd = FreeRTOS_accept(s->sd, &fr_address, &fr_address_len);
 
-    if (address && address_len)
+    if (address && address_len && (*address_len >= sizeof(sockaddr_in)))
     {
         // copy the address across and set the address family
         sin->sin_port = fr_address.sin_port;
@@ -338,16 +342,20 @@ int FreeRTOSTCPSocket::connect(
 
     struct freertos_sockaddr fr_address;
     socklen_t fr_address_len = sizeof(fr_address);
+    fr_address.sin_len = sizeof(fr_address);
+
     switch (sin->sin_family)
     {
         case AF_INET:
+        	fr_address.sin_family = FREERTOS_AF_INET;
             break;
         default:
             errno = EINVAL;
             return -1;
     }
 
-    memcpy(&fr_address, address->sa_data, fr_address_len);
+    fr_address.sin_addr = sin->sin_addr.s_addr;
+    fr_address.sin_port = sin->sin_port;
 
     int result = FreeRTOS_connect(s->sd, &fr_address, fr_address_len);
 
