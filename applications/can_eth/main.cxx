@@ -55,6 +55,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#define VERSION "can_eth Vrs 0.1"
+
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
@@ -79,11 +81,13 @@ OVERRIDE_CONST(main_thread_stack_size, 900);
  */
 int appl_main(int argc, char* argv[])
 {
+    const int listen_port = 12021;
     int serial_fd = ::open("/dev/ser0", O_RDWR); // or /dev/ser0
     HASSERT(serial_fd >= 0);
-    printf("Started\n");
+    printf(VERSION);
+    printf(" started, listening on port %d\n",listen_port);
 
-    GcTcpHub hub(&can_hub0,9000);
+    GcTcpHub hub(&can_hub0,listen_port);
 
     int can_fd = ::open("/dev/can0", O_RDWR);
     HASSERT(can_fd >= 0);
