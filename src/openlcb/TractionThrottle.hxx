@@ -244,6 +244,16 @@ public:
         return assigned_;
     }
 
+    /// @return the controlling node (virtual node of the throttle, i.e., us.)
+    openlcb::Node* throttle_node() {
+        return node_;
+    }
+
+    /// @return the controlled node (the train node) ID.
+    openlcb::NodeID target_node() {
+        return dst_;
+    }
+    
 private:
     Action entry() override
     {
