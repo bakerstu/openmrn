@@ -516,6 +516,29 @@ protected:
         return wait_and_call(c);
     }
 
+    /** Calls a helper flow to perform some actions. Performs inline
+     * synchronous allocation form the main buffer pool. Ignores the target
+     * flow's buffer pool settings, because that makes it impossible to
+     * guarantee successful allocation.
+     *
+     * Fills in the payload's arguments using the passed-in args by calling
+     * T::reset(args...). Then sends the buffer to the target flow, and ignores
+     * any response value.
+     *
+     * @param target_flow is a pointer to the helper flow to be used
+     * @param args are forwarded to the reset() method on the target flow's
+     * buffer type.
+     */
+    template <class T, typename... Args>
+    void invoke_subflow_and_ignore_result(
+        FlowInterface<Buffer<T>> *target_flow, Args &&... args)
+    {
+        Buffer<T> *b;
+        mainBufferPool->alloc(&b);
+        b->data()->reset(std::forward<Args>(args)...);
+        target_flow->send(b);
+    }
+    
     struct StateFlowSelectHelper;
     struct StateFlowTimedSelectHelper;
 
