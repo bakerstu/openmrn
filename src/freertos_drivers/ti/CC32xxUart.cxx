@@ -39,7 +39,6 @@
 #include "inc/hw_uart.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
-#include "driverlib/uart.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/prcm.h"
 
@@ -52,10 +51,13 @@ static CC32xxUart *instances[2] = {NULL};
  * @param name name of this device instance in the file system
  * @param base base address of this device
  * @param interrupt interrupt number of this device
+ * @param baud desired baud rate
+ * @param mode to configure the UART for
  * @param tx_enable_assert callback to assert the transmit enable
  * @param tx_enable_deassert callback to deassert the transmit enable
  */
 CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
+                       uint32_t baud, uint32_t mode,
                        TxEnableMethod tx_enable_assert,
                        TxEnableMethod tx_enable_deassert)
     : Serial(name)
@@ -72,23 +74,16 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
             HASSERT(0);
         case UARTA0_BASE:
             MAP_PRCMPeripheralClkEnable(PRCM_UARTA0, PRCM_RUN_MODE_CLK);
-            //MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
             instances[0] = this;
             break;
         case UARTA1_BASE:
             MAP_PRCMPeripheralClkEnable(PRCM_UARTA1, PRCM_RUN_MODE_CLK);
-            //MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
             instances[1] = this;
             break;
     }
     
-    /* We set the preliminary clock here, but it will be re-set when the device
-     * gets enabled. The reason for re-setting is that the system clock is
-     * switched in HwInit but that has not run yet at this point. */
-    MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, 115200,
-                            UART_CONFIG_WLEN_8 |
-                            UART_CONFIG_STOP_ONE |
-                            UART_CONFIG_PAR_NONE);
+    MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, baud,
+                            mode | UART_CONFIG_PAR_NONE);
     MAP_UARTFIFOEnable(base);
     MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
     MAP_IntDisable(interrupt);
@@ -104,10 +99,6 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
  */
 void CC32xxUart::enable()
 {
-    MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, 115200,
-                            UART_CONFIG_WLEN_8 |
-                            UART_CONFIG_STOP_ONE |
-                            UART_CONFIG_PAR_NONE);
     MAP_IntEnable(interrupt);
     MAP_UARTEnable(base);
     MAP_UARTFIFOEnable(base);
