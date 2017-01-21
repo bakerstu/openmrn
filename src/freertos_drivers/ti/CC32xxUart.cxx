@@ -52,12 +52,18 @@ static CC32xxUart *instances[2] = {NULL};
  * @param name name of this device instance in the file system
  * @param base base address of this device
  * @param interrupt interrupt number of this device
+ * @param tx_enable_assert callback to assert the transmit enable
+ * @param tx_enable_deassert callback to deassert the transmit enable
  */
-CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt)
-    : Serial(name),
-      base(base),
-      interrupt(interrupt),
-      txPending(false)
+CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
+                       TxEnableMethod tx_enable_assert,
+                       TxEnableMethod tx_enable_deassert)
+    : Serial(name)
+    , txEnableAssert(tx_enable_assert)
+    , txEnableDeassert(tx_enable_deassert)
+    , base(base)
+    , interrupt(interrupt)
+    , txPending(false)
 {
     
     switch (base)
@@ -125,6 +131,10 @@ void CC32xxUart::tx_char()
 
         if (txBuf->get(&data, 1))
         {
+            if (txEnableAssert)
+            {
+                txEnableAssert();
+            }
             MAP_UARTCharPutNonBlocking(base, data);
 
             MAP_IntDisable(interrupt);
@@ -165,11 +175,20 @@ void CC32xxUart::interrupt_handler()
     /* transmit a character if we have pending tx data */
     if (txPending)
     {
-        /** @todo (Stuart Baker) optimization opportunity by getting a read
-         * pointer to fill the fifo and then consume the buffer when finished.
-         */
         while (MAP_UARTSpaceAvail(base))
         {
+            if (MAP_UARTTxIntModeGet(base) == UART_TXINT_MODE_EOT)
+            {
+                MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_FIFO);
+                if (txBuf->pending() == 0)
+                {
+                    txEnableDeassert();
+                    txPending = false;
+                    MAP_UARTIntDisable(base, UART_INT_TX);
+                    break;
+                }
+            }
+
             unsigned char data;
             if (txBuf->get(&data, 1) != 0)
             {
@@ -179,8 +198,15 @@ void CC32xxUart::interrupt_handler()
             else
             {
                 /* no more data pending */
-                txPending = false;
-                MAP_UARTIntDisable(base, UART_INT_TX);
+                if (txEnableDeassert)
+                {
+                    MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
+                }
+                else
+                {
+                    txPending = false;
+                    MAP_UARTIntDisable(base, UART_INT_TX);
+                }
                 break;
             }
         }

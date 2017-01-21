@@ -47,12 +47,19 @@
 class CC32xxUart : public Serial
 {
 public:
+    /** Function point for the tx enable assert and deassert methods */
+    typedef void (*TxEnableMethod)();
+
     /** Constructor.
      * @param name name of this device instance in the file system
      * @param base base address of this device
      * @param interrupt interrupt number of this device
+     * @param tx_enable_assert callback to assert the transmit enable
+     * @param tx_enable_deassert callback to deassert the transmit enable
      */
-    CC32xxUart(const char *name, unsigned long base, uint32_t interrupt);
+    CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
+               TxEnableMethod tx_enable_assert = nullptr,
+               TxEnableMethod tx_enable_deassert = nullptr);
 
     /** Destructor.
      */
@@ -72,6 +79,12 @@ private:
     /** Try and transmit a message.
      */
     void tx_char() override;
+
+    /** function pointer to a method that asserts the transmit enable. */
+    TxEnableMethod txEnableAssert;
+
+    /** function pointer to a method that deasserts the transmit enable. */
+    TxEnableMethod txEnableDeassert;
 
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
