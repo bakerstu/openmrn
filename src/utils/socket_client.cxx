@@ -64,6 +64,10 @@ int ConnectSocket(const char *host, int port)
     char port_str[30];
     integer_to_buffer(port, port_str);
 
+    return ConnectSocket(host, port_str);
+}
+
+int ConnectSocket(const char *host, const char* port_str) {
     struct addrinfo *addr;
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
@@ -110,7 +114,7 @@ int ConnectSocket(const char *host, int port)
     ERRNOCHECK("setsockopt(nodelay)",
                setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)));
 
-    LOG(INFO, "Connected to %s:%d. fd=%d", host, port, fd);
+    LOG(INFO, "Connected to %s:%s. fd=%d", host ? host : "mDNS", port_str, fd);
     return fd;
 }
 

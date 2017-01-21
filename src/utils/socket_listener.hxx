@@ -93,7 +93,7 @@ private:
 };
 
 /// Connects a tcp socket to the specified remote host:port. Returns -1 if
-/// unsuccessful; returns the fd is successful.
+/// unsuccessful; returns the fd if successful.
 ///
 /// @param host hostname to connect to
 /// @param port TCP port number to connect to
@@ -101,5 +101,15 @@ private:
 /// @return fd of the connected socket.
 ///
 int ConnectSocket(const char *host, int port);
+
+/// Connects a tcp socket to the specified remote host:port. Returns -1 if
+/// unsuccessful; returns the fd if successful.
+///
+/// @param host hostname to connect to. Shall be null for mDNS target.
+/// @param port TCP port number or mDNS hostname to connect to.
+///
+/// @return fd of the connected socket.
+///
+int ConnectSocket(const char *host, const char* port_str);
 
 #endif //_UTILS_SOCKET_LISTENER_HXX_
