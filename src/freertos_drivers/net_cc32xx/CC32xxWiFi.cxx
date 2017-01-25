@@ -35,6 +35,7 @@
 #include "CC32xxSocket.hxx"
 
 #include "freertos_drivers/common/WifiDefs.hxx"
+#include "utils/format_utils.hxx"
 
 #include <unistd.h>
 
@@ -835,6 +836,50 @@ void CC32xxWiFi::sock_event_handler(void *context)
             break;
     }
 }
+
+
+static void append_num(std::string* s, uint32_t d) {
+    char num[10];
+    integer_to_buffer(d, num);
+    s->append(num);
+}
+
+static void append_ver_4(std::string* s, uint32_t* d) {
+    for (int i = 0; i < 4; ++i) {
+        if (i) s->push_back('.');
+        append_num(s, d[i]);
+    }
+}
+
+std::string CC32xxWiFi::get_version() {
+    std::string v;
+    SlVersionFull ver;
+    uint8_t ucConfigOpt = SL_DEVICE_GENERAL_VERSION;
+    uint8_t ucConfigLen = sizeof(ver);
+    int lRetVal = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &ucConfigOpt, 
+                            &ucConfigLen, (unsigned char *)(&ver));
+    HASSERT(lRetVal == 0);
+
+    v.push_back('H');
+    v += SL_DRIVER_VERSION;
+    v += " N";
+    append_ver_4(&v, ver.NwpVersion);
+    v += " F";
+    append_ver_4(&v, ver.ChipFwAndPhyVersion.FwVersion);
+    v += " P";
+    uint32_t pv[4];
+    pv[0] = ver.ChipFwAndPhyVersion.PhyVersion[0];
+    pv[1] = ver.ChipFwAndPhyVersion.PhyVersion[1];
+    pv[2] = ver.ChipFwAndPhyVersion.PhyVersion[2];
+    pv[3] = ver.ChipFwAndPhyVersion.PhyVersion[3];
+    append_ver_4(&v, pv);
+    v += " R";
+    append_num(&v, ver.RomVersion);
+    v += " C";
+    append_num(&v, ver.ChipFwAndPhyVersion.ChipId);
+    return v;
+}
+
 
 extern "C"
 {
