@@ -42,17 +42,38 @@
 
 #include "Serial.hxx"
 
+#include "driverlib/uart.h"
+
 /** Specialization of Serial driver for CC32xx UART.
  */
 class CC32xxUart : public Serial
 {
 public:
+    enum Mode
+    {
+        CS5 = UART_CONFIG_WLEN_5, /**< 5-bits word length */
+        CS6 = UART_CONFIG_WLEN_6, /**< 6-bits word length */
+        CS7 = UART_CONFIG_WLEN_7, /**< 7-bits word length */
+        CS8 = UART_CONFIG_WLEN_8, /**< 8-bits word length */
+        CSTOPB = UART_CONFIG_STOP_TWO, /**< send two stop bits instead of 1 */
+    };
+
+    /** Function point for the tx enable assert and deassert methods */
+    typedef void (*TxEnableMethod)();
+
     /** Constructor.
      * @param name name of this device instance in the file system
      * @param base base address of this device
      * @param interrupt interrupt number of this device
+     * @param baud desired baud rate
+     * @param mode to configure the UART for
+     * @param tx_enable_assert callback to assert the transmit enable
+     * @param tx_enable_deassert callback to deassert the transmit enable
      */
-    CC32xxUart(const char *name, unsigned long base, uint32_t interrupt);
+    CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
+               uint32_t baud = 115200, uint32_t mode = CS8,
+               TxEnableMethod tx_enable_assert = nullptr,
+               TxEnableMethod tx_enable_deassert = nullptr);
 
     /** Destructor.
      */
@@ -72,6 +93,12 @@ private:
     /** Try and transmit a message.
      */
     void tx_char() override;
+
+    /** function pointer to a method that asserts the transmit enable. */
+    TxEnableMethod txEnableAssert;
+
+    /** function pointer to a method that deasserts the transmit enable. */
+    TxEnableMethod txEnableDeassert;
 
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */

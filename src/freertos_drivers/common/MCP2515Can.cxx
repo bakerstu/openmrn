@@ -38,35 +38,45 @@
 const MCP2515Can::MCP2515Baud MCP2515Can::baudTable[] =
 {
     /* 20 MHz clock source
-     * TQ = (2 * BRP) / freq = (2 * 4) / 20 MHz = 400 nsec
+     * TQ = (2 * BRP) / freq = (2 * 5) / 20 MHz = 500 nsec
      * Baud = 125 kHz
-     * bit time = 1 / 125 kHz = 8 usec = 20 TQ
+     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
      * SyncSeg = 1 TQ
      * PropSeg = 7 TQ
-     * PS1 = 8 TQ
+     * PS1 = 4 TQ
      * PS2 = 4 TQ
-     * sample time = (1 TQ + 7 TQ + 8 TQ) / 20 TQ = 80%
+     * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
      * SJW = PS2 - 1 = 4 - 1 = 3
-     * SJW = 3 * 400 nsec = 1.2 usec
+     * SJW = 3 * 500 nsec = 1.5 usec
+     *
+     * Oscillator Tolerance:
+     *     4 / (2 * ((13 * 16) - 4)) = 0.980%
+     *     3 / (20 * 16) = 0.938%
+     *     = 0.938%
      */
-    {20000000, 125000, {(4 - 1), (2 - 1)},
-                       {(7 - 1), (8 - 1), 0, 1},
+    {20000000, 125000, {(5 - 1), (3 - 1)},
+                       {(7 - 1), (4 - 1), 0, 1},
                        {(4 - 1), 0, 0}},
     /* 8 MHz clock source
      * TQ = (2 * BRP) / freq = (2 * 2) / 8 MHz = 500 nsec
      * Baud = 125 kHz
      * bit time = 1 / 125 kHz = 8 usec = 16 TQ
      * SyncSeg = 1 TQ
-     * PropSeg = 4 TQ
-     * PS1 = 8 TQ
-     * PS2 = 3 TQ
-     * sample time = (1 TQ + 4 TQ + 8 TQ) / 16 TQ = 81.25%
-     * SJW = PS2 - 1 = 3 - 1 = 2
-     * SJW = 2 * 500 nsec = 1 usec
+     * PropSeg = 7 TQ
+     * PS1 = 4 TQ
+     * PS2 = 4 TQ
+     * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
+     * SJW = PS2 - 1 = 4 - 1 = 3
+     * SJW = 3 * 500 nsec = 1.5 usec
+     *
+     * Oscillator Tolerance:
+     *     4 / (2 * ((13 * 16) - 4)) = 0.980%
+     *     3 / (20 * 16) = 0.938%
+     *     = 0.938%
      */
-    {8000000, 125000, {(2 - 1), (2 - 1)},
-                      {(4 - 1), (8 - 1), 0, 1},
-                      {(3 - 1), 0, 0}}
+    {8000000, 125000, {(2 - 1), (3 - 1)},
+                      {(7 - 1), (4 - 1), 0, 1},
+                      {(4 - 1), 0, 0}}
 };
 
 
