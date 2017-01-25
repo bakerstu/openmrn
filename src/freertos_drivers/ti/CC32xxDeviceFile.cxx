@@ -32,6 +32,7 @@
  */
 
 #include "CC32xxDeviceFile.hxx"
+#include "CC32xxHelper.hxx"
 
 #include <fcntl.h>
 
@@ -90,14 +91,14 @@ int CC32xxDeviceFile::open(File* file, const char *path, int flags, int mode)
     {
         /* file not open yet, open and intialize metadata */
         int32_t result;
-        if (mode & O_CREAT)
+        if (flags & O_CREAT)
         {
             result = sl_FsOpen((const unsigned char *)path,
                                FS_MODE_OPEN_CREATE(maxSizeOnCreate, 0),
                                nullptr, &handle);
             writeEnable = true;
         }
-        else if (mode & O_WRONLY)
+        else if (flags & O_WRONLY)
         {
             result = sl_FsOpen((const unsigned char *)path, FS_MODE_OPEN_WRITE,
                                nullptr, &handle);
@@ -117,9 +118,7 @@ int CC32xxDeviceFile::open(File* file, const char *path, int flags, int mode)
             switch (result)
             {
                 default:
-                    static volatile int err = result;
-                    err;
-                    HASSERT(0);
+                    SlCheckError(result);
                     return -ENOENT;
             }
         }
@@ -157,7 +156,7 @@ ssize_t CC32xxDeviceFile::write(unsigned int index, const void *buf, size_t len)
 
     int32_t result = sl_FsWrite(handle, index, (unsigned char *)buf, len);
 
-    HASSERT(result >= 0);
+    SlCheckError(result);
 
     if ((index + result) > size)
     {
@@ -185,7 +184,7 @@ ssize_t CC32xxDeviceFile::read(unsigned int index, void *buf, size_t len)
 
     int32_t result = sl_FsRead(handle, index, (unsigned char *)buf, len);
 
-    HASSERT(result >= 0);
+    SlCheckError(result);
 
     return result;
 }
@@ -194,7 +193,7 @@ int CC32xxDeviceFile::fstat(File* file, struct stat *stat) {
     Node::fstat(file, stat);
     SlFsFileInfo_t fs_file_info;
     int ret = sl_FsGetInfo((const uint8_t*)name, 0, &fs_file_info);
-    HASSERT(ret == 0);
+    SlCheckResult(ret);
     stat->st_size = fs_file_info.FileLen;
     stat->st_blocks = fs_file_info.AllocatedLen / 512;
     return 0;
