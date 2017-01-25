@@ -41,3 +41,9 @@ void SlCheckResult(int result, int expected)
     g_last_sl_result = result;
     HASSERT(result == expected);
 }
+
+void SlCheckError(int result)
+{
+    g_last_sl_result = result;
+    HASSERT(result >= 0);
+}
