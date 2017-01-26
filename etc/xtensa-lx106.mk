@@ -44,7 +44,7 @@ CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -fdata-sections -ffunction-sections \
              -fno-builtin -fno-stack-protector \
              -D_REENT_SMALL -DESP_NONOS -DICACHE_FLASH \
-             -Wno-parentheses
+             -Wno-parentheses -Wno-format
 
 CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
           -Wno-strict-prototypes -D_REENT_SMALL \
