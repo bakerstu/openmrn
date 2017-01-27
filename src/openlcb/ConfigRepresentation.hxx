@@ -293,7 +293,7 @@ public:
     {
         return offset() + size();
     }
-    constexpr unsigned num_repeats() const
+    static constexpr unsigned num_repeats()
     {
         return N;
     }

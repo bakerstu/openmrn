@@ -65,6 +65,9 @@ public:
      * up. Can return 0 if there is an expired timer. */
     long long get_next_timeout();
 
+    /** @return true if there are no timers waiting. */
+    bool empty();
+    
     /** Adds a new timer to the active timer list. It is OK to schedule a timer
      * that is already expired, which will then wake up the executor.
      *

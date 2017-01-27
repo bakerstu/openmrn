@@ -36,6 +36,7 @@
 
 #include <functional>
 #include <vector>
+#include <string>
 
 #include "os/OS.hxx"
 #include "freertos_drivers/common/WifiDefs.hxx"
@@ -222,6 +223,10 @@ public:
      */
     void sock_event_handler(void *context);
 
+    /** Returns a string contianing the version numbers of the network
+     * interface. */
+    static std::string get_version();
+    
 private:
     /** Translates the SecurityType enum to the internal SimpleLink code.
      * @param sec_type security type

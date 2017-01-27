@@ -43,6 +43,14 @@
  */
 void SlCheckResult(int result, int expected = 0);
 
+/**
+ * Tests that a SimpleLink request has succeeded (return >= 0). Performs
+ * internal debugging when it failed and crashes.
+ *
+ * @param result is the returned value from the simplelink driver
+ */
+void SlCheckError(int result);
+
 
 #endif // _FREERTOS_DRIVERS_TI_CC32XXHELPER_HXX_
 

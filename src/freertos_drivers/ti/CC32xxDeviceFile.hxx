@@ -46,7 +46,7 @@ public:
      * @param max_size_on_create this is the maximum size of the file allocated
      *                           when it is created
      */
-    CC32xxDeviceFile(const char *name, size_t max_size_on_create = 4096)
+    CC32xxDeviceFile(const char *name, size_t max_size_on_create = 3000)
         : DeviceFile(name)
         , handle(-1)
         , size(0)
