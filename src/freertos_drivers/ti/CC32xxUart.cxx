@@ -85,7 +85,7 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
     MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, baud,
                             mode | UART_CONFIG_PAR_NONE);
     MAP_UARTFIFOEnable(base);
-    MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
+    MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_FIFO);
     MAP_IntDisable(interrupt);
     /* We set the priority so that it is slightly lower than the highest needed
      * for FreeRTOS compatibility. This will ensure that CAN interrupts take
