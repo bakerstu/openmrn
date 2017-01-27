@@ -122,6 +122,14 @@ long long ActiveTimers::get_next_timeout()
     }
 }
 
+bool ActiveTimers::empty() {
+    OSMutexLock l(&lock_);
+
+    QMember **last = &activeTimers_.next;
+    Timer *current_timer = static_cast<Timer *>(*last);
+    return (current_timer == nullptr);
+}
+
 void ActiveTimers::schedule_timer(Timer *timer)
 {
     OSMutexLock l(&lock_);
