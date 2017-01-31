@@ -114,7 +114,9 @@ public:
         HASSERT(result == 0);
 #elif defined (TARGET_IS_CC3200)
         string full_name(name);
-        full_name += service;
+        full_name.append(1, '.');
+        full_name.append(service);
+        full_name.append(".local");
         sl_NetAppMDNSRegisterService((const signed char*)full_name.c_str(),
                                      full_name.length(),
                                      (const signed char*)"OLCB", strlen("OLCB"), 
