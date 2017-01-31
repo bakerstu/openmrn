@@ -38,7 +38,7 @@
 #define gcc
 #endif
 
-#if !defined(TIVADCC_TIVA) && !defined(TIVADCC_CC3200)
+#if (!defined(TIVADCC_TIVA)) && (!defined(TIVADCC_CC3200))
 #error must define either TIVADCC_TIVA or TIVADCC_CC3200
 #endif
 
