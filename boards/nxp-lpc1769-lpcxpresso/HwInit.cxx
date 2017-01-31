@@ -57,6 +57,9 @@ static LpcUart uart0("/dev/ser0", LPC_UART3, UART3_IRQn);
 /** CAN 0 driver instance */
 static LpcCan can0("/dev/can0", LPC_CAN2);
 
+/** Size of a FLASH sector on the device */
+const size_t EEPROMEmulation::SECTOR_SIZE = 0x8000;
+
 /** EEPROM file */
 static LpcEEPROMEmulation eeprom("/dev/eeprom", 256);
 
