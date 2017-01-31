@@ -82,8 +82,8 @@ StateFlowBase::Action ThrottleFlow::data_received()
         return delete_this();
     }
 
-    printf("WiThrottle strraw: %.*s\n",
-           sizeof(readRaw) - selectHelper.remaining_, readRaw);
+    //printf("WiThrottle strraw: %.*s\n",
+    //       sizeof(readRaw) - selectHelper.remaining_, readRaw);
 
     data.append(readRaw, sizeof(readRaw) - selectHelper.remaining_);
     if (data.find('\n' != string::npos))
