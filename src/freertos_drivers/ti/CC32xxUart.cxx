@@ -85,7 +85,8 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
     MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, baud,
                             mode | UART_CONFIG_PAR_NONE);
     MAP_UARTFIFOEnable(base);
-    MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_FIFO);
+    //MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_FIFO);
+    MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
     MAP_IntDisable(interrupt);
     /* We set the priority so that it is slightly lower than the highest needed
      * for FreeRTOS compatibility. This will ensure that CAN interrupts take
@@ -168,6 +169,7 @@ void CC32xxUart::interrupt_handler()
     {
         while (MAP_UARTSpaceAvail(base))
         {
+#if 0           
             if (MAP_UARTTxIntModeGet(base) == UART_TXINT_MODE_EOT)
             {
                 MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_FIFO);
@@ -179,7 +181,7 @@ void CC32xxUart::interrupt_handler()
                     break;
                 }
             }
-
+#endif
             unsigned char data;
             if (txBuf->get(&data, 1) != 0)
             {
@@ -189,11 +191,13 @@ void CC32xxUart::interrupt_handler()
             else
             {
                 /* no more data pending */
+#if 0
                 if (txEnableDeassert)
                 {
                     MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
                 }
                 else
+#endif
                 {
                     txPending = false;
                     MAP_UARTIntDisable(base, UART_INT_TX);
