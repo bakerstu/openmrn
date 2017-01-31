@@ -50,14 +50,25 @@ public:
 
 private:
     /** Entry point to the state machine.
-     * @return next state is based on the CommandSubType
+     * @return next state based on the CommandSubType
      */
     StateFlowBase::Action entry() override;
 
     /** Handle a DCC long address sub-command.
-     * @return next state is
+     * @return next state assign_train
      */
     StateFlowBase::Action address_long();
+
+    /** Handle succes or failure of assigning the train, including getting the
+     * latest train state.
+     * @return next state load_state()
+     */
+    StateFlowBase::Action assign_train();
+
+    /** Update the LCD display with the trains current state.
+     * @return next state release_and_exit()
+     */
+    StateFlowBase::Action load_state();
 
     DISALLOW_COPY_AND_ASSIGN(ServerCommandLoco);
 };

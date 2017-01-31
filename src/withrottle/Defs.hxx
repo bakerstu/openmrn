@@ -30,6 +30,8 @@
 
 #include <string>
 
+#include "openlcb/TractionThrottle.hxx"
+
 namespace withrottle
 {
 
@@ -171,17 +173,62 @@ struct Defs
         return init;
     }
 
+    /** Get the function status string.
+     * @param loco WiThrottle train handle string
+     * @param number function number
+     * @param state function state
+     * @return function status string
+     */
+    static string get_function_status_string(const char *loco, int number,
+                                             bool state)
+    {
+        string status("MTA");
+        status.append(loco);
+        status.append("<;>F");
+        status.append(1, state ? '1' : '0');
+        if (number < 10)
+        {
+            status.append(1, '0' + number);
+        }
+        else
+        {
+            status.append(1, '0' + (number / 10));
+            status.append(1, '0' + (number % 10));
+        }
+        status.append("\n\n");
+
+        return status;
+    }
+
     /** Get the locomotive status command string.
+     * @param throttle OpenLCB assigned openLCB throttle
      * @return locomotive status string
      */
-    static string get_loco_status_string(const char *loco)
+    static string get_loco_status_string(openlcb::TractionThrottle *throttle,
+                                         const char *loco)
     {
+        string status("MT+");
+        status.append(loco);
+        status.append("<;>\n\n");
+        for (int i = 0; i <=28; ++i)
+        {
+            status.append(get_function_status_string(loco, i,
+                                                     throttle->get_fn(i)));
+        }
+        status.append("MTA");
+        status.append(loco);
+        status.append("<;>V0\n\nMTA");
+        status.append(loco);
+        status.append("<;>R1\n\nMTA");
+        status.append(loco);
+        status.append("<;>S1\n\n");
+#if 0
         string status("TL6915\n\nTF00\n\nTF01\n\nTF02\n\nTF03\n\nTF04\n\nTF05\n\n");
         status.append("TF06\n\nTF07\n\nTF08\n\nTF09\n\nTF010\n\nTF011\n\nTF012\n\n");
         status.append("TF013\n\nTF014\n\nTF015\n\nTF016\n\nTF017\n\nTF018\n\n");
         status.append("TF019\n\nTF020\n\nTF021\n\nTF022\n\nTF023\n\nTF024\n\n");
         status.append("TF025\n\nTF026\n\nTF027\n\nTF028\n\nTV0\n\nTR1\n\nTs1\n\n");
-
+#endif
         return status;
     }
 };

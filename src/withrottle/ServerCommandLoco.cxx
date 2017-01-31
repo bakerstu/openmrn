@@ -29,6 +29,7 @@
 
 #include <cstdio>
 
+#include "openlcb/TractionDefs.hxx"
 #include "withrottle/Server.hxx"
 
 namespace withrottle
@@ -80,6 +81,50 @@ StateFlowBase::Action ServerCommandLoco::address_long()
     }
 
     printf("loco: %lu\n", value);
+
+    /** @todo need to search for train */
+    openlcb::NodeID node_id = openlcb::TractionDefs::train_node_id_from_legacy(
+        dcc::TrainAddressType::DCC_LONG_ADDRESS, value);
+
+    return invoke_subflow_and_wait(&throttle->olcbThrottle, STATE(assign_train),
+               openlcb::TractionThrottleCommands::ASSIGN_TRAIN, node_id);
+}
+
+/*
+ * ServerCommandLoco::assign_train()
+ */
+StateFlowBase::Action ServerCommandLoco::assign_train()
+{
+    auto *m = full_allocation_result(&throttle->olcbThrottle);
+    switch (m->data()->resultCode)
+    {
+        //case openlcb::Defs::ERROR_CODE_OK:
+        //    break;
+        //case openlcb::Defs::ERROR_TIMEOUT:
+        //case openlcb::Defs::ERROR_REJECTED:
+        default:
+            break;
+    }
+    m->unref();
+
+    return invoke_subflow_and_wait(&throttle->olcbThrottle, STATE(load_state), 
+                   openlcb::TractionThrottleCommands::LOAD_STATE);
+}
+
+/*
+ * ServerCommandLoco::load_state()
+ */
+StateFlowBase::Action ServerCommandLoco::load_state()
+{
+    auto *m = full_allocation_result(&throttle->olcbThrottle);
+    m->unref();
+
+    string status = Defs::get_loco_status_string(&throttle->olcbThrottle,
+                                                 message()->data()->train.c_str());
+
+    ::write(throttle->fd, status.c_str(), status.length());
+    printf("%s", status.c_str());
+
     return release_and_exit();
 }
 
