@@ -38,13 +38,16 @@
 #define gcc
 #endif
 
+#if (!defined(TIVADCC_TIVA)) && (!defined(TIVADCC_CC3200))
+#error must define either TIVADCC_TIVA or TIVADCC_CC3200
+#endif
+
 #include <algorithm>
 #include <cstdint>
 
 #include "driverlib/interrupt.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
-#include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
 #include "driverlib/uart.h"
 #include "freertos/can_ioctl.h"
@@ -53,11 +56,18 @@
 #include "inc/hw_types.h"
 #include "inc/hw_uart.h"
 
+#ifdef TIVADCC_TIVA
+#include "driverlib/sysctl.h"
+#include "TivaGPIO.hxx"
+#else
+#include "driverlib/prcm.h"
+#include "driverlib/utils.h"
+#endif
+
 #include "Devtab.hxx"
 #include "dcc/Packet.hxx"
 #include "dcc/RailCom.hxx"
 #include "executor/Notifiable.hxx"
-#include "TivaGPIO.hxx"
 #include "RailcomDriver.hxx"
 
 /// This structure is safe to use from an interrupt context and a regular
@@ -239,6 +249,7 @@ public:
      * uninintialized. The only safe solution is to make them static. */
     /// Initializes the DCC output hardware.
     static void hw_init() {
+#ifdef TIVADCC_TIVA
         MAP_SysCtlPeripheralEnable(HW::CCP_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::INTERVAL_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::PIN_H_GPIO_PERIPH);
@@ -246,10 +257,17 @@ public:
         MAP_SysCtlPeripheralEnable(HW::RAILCOM_TRIGGER_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::RAILCOM_UART_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::RAILCOM_UARTPIN_PERIPH);
+#else
+        MAP_PRCMPeripheralClkEnable(HW::CCP_PERIPH, PRCM_RUN_MODE_CLK);
+        MAP_PRCMPeripheralClkEnable(HW::INTERVAL_PERIPH, PRCM_RUN_MODE_CLK);
+        MAP_PRCMPeripheralClkEnable(HW::RAILCOM_UART_PERIPH, PRCM_RUN_MODE_CLK);
+#endif
         internal_enable_output();
         disable_output();
+#ifdef TIVADCC_TIVA
         MAP_GPIOPinConfigure(HW::RAILCOM_UARTPIN_CONFIG);
         MAP_GPIOPinTypeUART(HW::RAILCOM_UARTPIN_BASE, HW::RAILCOM_UARTPIN_PIN);
+#endif        
         MAP_UARTConfigSetExpClk(
             HW::RAILCOM_UART_BASE, configCPU_CLOCK_HZ, 250000,
             UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
@@ -284,15 +302,22 @@ public:
 private:
     /// Helper function for turnon and the cutout.
     static void internal_enable_output() {
+#ifdef TIVADCC_CC3200
+        HW::BOOSTER_ENABLE_Pin::set(true);
+#else
         MAP_GPIOPinConfigure(HW::PIN_H_GPIO_CONFIG);
         MAP_GPIOPinConfigure(HW::PIN_L_GPIO_CONFIG);
         MAP_GPIOPinTypeTimer(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN);
         MAP_GPIOPinTypeTimer(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN);
+#endif
     }
 
     /// Helper function for turning off the output.
     static void internal_disable_output() {
         output_enabled = false;
+#ifdef TIVADCC_CC3200
+        HW::BOOSTER_ENABLE_Pin::set(false);
+#else
         MAP_GPIOPinWrite(HW::PIN_H_GPIO_BASE, HW::PIN_H_GPIO_PIN,
                          HW::PIN_H_INVERT ? 0xff : 0);
         MAP_GPIOPinWrite(HW::PIN_L_GPIO_BASE, HW::PIN_L_GPIO_PIN,
@@ -311,6 +336,7 @@ private:
         MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
                          HW::RAILCOM_TRIGGER_PIN,
                          HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
+#endif
     }
 
     /** Read from a file or device.
@@ -478,6 +504,15 @@ private:
     void fill_timing_turnon(BitEnum ofs, uint32_t period_usec,
                             uint32_t fill_usec);
 
+    #ifdef TIVADCC_CC3200
+    // This function is called differently in tivaware than CC3200.
+    void MAP_SysCtlDelay(unsigned ticks3) {
+        MAP_UtilsDelay(ticks3);
+    }
+    #endif
+
+
+    
     /// Packets still waiting to be sent.
     FixedQueue<dcc::Packet, HW::Q_SIZE> packetQueue_;
     Notifiable* writableNotifiable_; /**< Notify this when we have free buffers. */
@@ -742,8 +777,10 @@ inline void TivaDCC<HW>::interrupt_handler()
         HWREG(HW::CCP_BASE + TIMER_O_TAILR) = hDeadbandDelay_;  // tmp
 
         // timer synchronize (if it works...)
+#ifdef TIVADCC_TIVA
         HWREG(TIMER0_BASE + TIMER_O_SYNC) = HW::TIMER_SYNC;
-
+#endif
+        
         // Switches back to asynch timer update.
         HWREG(HW::CCP_BASE + TIMER_O_TAMR) |=
             (TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
@@ -907,8 +944,10 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     MAP_TimerDisable(HW::CCP_BASE, TIMER_A);
     MAP_TimerDisable(HW::CCP_BASE, TIMER_B);
 
+#ifdef TIVADCC_TIVA
     MAP_TimerClockSourceSet(HW::CCP_BASE, TIMER_CLOCK_SYSTEM);
     MAP_TimerClockSourceSet(HW::INTERVAL_BASE, TIMER_CLOCK_SYSTEM);
+#endif    
     MAP_TimerConfigure(HW::CCP_BASE, TIMER_CFG_SPLIT_PAIR |
                                     TIMER_CFG_A_PWM |
                                     TIMER_CFG_B_PWM);
@@ -947,8 +986,10 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     MAP_TimerEnable(HW::CCP_BASE, TIMER_B);
     MAP_TimerEnable(HW::INTERVAL_BASE, TIMER_A);
 
+#ifdef TIVADCC_TIVA
     MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
-
+#endif
+    
     MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timings[DCC_ONE].period);
     MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timings[DCC_ONE].period);
     MAP_IntEnable(HW::INTERVAL_INTERRUPT);
