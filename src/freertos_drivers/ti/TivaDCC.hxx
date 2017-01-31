@@ -633,9 +633,13 @@ inline void TivaDCC<HW>::interrupt_handler()
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[RAILCOM_CUTOUT_SECOND].period);
             state_ = DCC_MIDDLE_RAILCOM_CUTOUT;
+#ifdef TIVADCC_TIVA         
             MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
                              HW::RAILCOM_TRIGGER_PIN,
                              HW::RAILCOM_TRIGGER_INVERT ? 0 : 0xff);
+#else
+            HW::RAILCOM_TRIGGER_Pin::set(HW::RAILCOM_TRIGGER_INVERT ? false : true);
+#endif
             // Waits for transient after the trigger to pass.
             MAP_SysCtlDelay( lDeadbandDelay_ * 2 );
             // Enables UART RX.
@@ -654,9 +658,13 @@ inline void TivaDCC<HW>::interrupt_handler()
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[DCC_ONE].period);
             railcomDriver_->end_cutout();
+#ifdef TIVADCC_TIVA         
             MAP_GPIOPinWrite(HW::RAILCOM_TRIGGER_BASE,
                              HW::RAILCOM_TRIGGER_PIN,
                              HW::RAILCOM_TRIGGER_INVERT ? 0xff : 0);
+#else
+            HW::RAILCOM_TRIGGER_Pin::set(HW::RAILCOM_TRIGGER_INVERT ? true : false);
+#endif
             break;
         case DCC_ENABLE_AFTER_RAILCOM:
             if (savedOutputEnabled_) {
