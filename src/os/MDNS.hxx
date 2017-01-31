@@ -54,6 +54,7 @@
 #if defined (TARGET_IS_CC3200)
 #include <string>
 #include "netapp.h"
+#undef OK // this is to fix the namespace polution in netapp.h
 #endif
 
 #include "utils/macros.h"
