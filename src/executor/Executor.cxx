@@ -230,6 +230,7 @@ void executor_loop_some(void* arg)
 void *ExecutorBase::entry()
 {
     started_ = 1;
+    sequence_ = 0;
     ExecutorBase* b = this;
     emscripten_set_main_loop_arg(&executor_loop_some, b, 100, true);
     return nullptr;
@@ -291,6 +292,7 @@ void ICACHE_FLASH_ATTR *ExecutorBase::entry()
 void *ExecutorBase::entry()
 {
     started_ = 1;
+    sequence_ = 0;
     selectHelper_.lock_to_thread();
     /* wait for messages to process */
     for (; /* forever */;)
@@ -314,6 +316,7 @@ void *ExecutorBase::entry()
         }
         if (msg != NULL)
         {
+            ++sequence_;
             current_ = msg;
             msg->run();
             current_ = nullptr;
