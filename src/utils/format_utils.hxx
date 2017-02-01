@@ -63,10 +63,12 @@ char* unsigned_integer_to_buffer_hex(int value, char* buffer);
 ///
 /// @param mac a 6-byte array storing the MAC address. mac[0] will be printed
 /// at the beginning.
+/// @param colons true to print colons, else false to exclude the colon
+/// seperators
 ///
 /// @return a string containing a colon-separated hexadecimal printout of the
 /// given MAC address.
 ///
-string mac_to_string(uint8_t mac[6]);
+string mac_to_string(uint8_t mac[6], bool colons = true);
 
 #endif // _UTILS_FORMAT_UTILS_HXX_

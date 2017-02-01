@@ -97,7 +97,7 @@ char* integer_to_buffer(int value, char* buffer)
     return unsigned_integer_to_buffer(value, buffer);
 }
 
-string mac_to_string(uint8_t mac[6])
+string mac_to_string(uint8_t mac[6], bool colon)
 {
     string ret;
     ret.reserve(12+6);
@@ -106,9 +106,17 @@ string mac_to_string(uint8_t mac[6])
     {
         unsigned_integer_to_buffer_hex(mac[i], tmp);
         if (!tmp[1]) ret.push_back('0');
-        ret += tmp;
-        ret.push_back(':');
+        {
+            ret += tmp;
+        }
+        if (colon)
+        {
+            ret.push_back(':');
+        }
     }
-    ret.pop_back();
+    if (colon)
+    {
+        ret.pop_back();
+    }
     return ret;
 }
