@@ -152,6 +152,10 @@ public:
     /// @return the thread handle.
     os_thread_t thread_handle() { return OSThread::get_handle(); }
 
+    /// @return a number that gets incremented by one every time an executable
+    /// runs.
+    virtual uint32_t sequence() = 0;
+    
 protected:
     /** Thread entry point.
      * @return Should never return
@@ -247,6 +251,10 @@ private:
     /// order to find more data to read/write in the FDs being waited upon.
     unsigned selectPrescaler_ : 5;
 
+protected:
+    /// Sequence number.
+    volatile unsigned sequence_ : 25;
+    
     /** provide access to Executor::send method. */
     friend class Service;
 
@@ -347,6 +355,8 @@ public:
     {
         return queue_.empty();
     }
+
+    uint32_t sequence() OVERRIDE { return sequence_; }
 
 private:
 #ifndef ESP_NONOS
