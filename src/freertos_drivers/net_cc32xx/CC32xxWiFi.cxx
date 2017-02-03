@@ -275,19 +275,31 @@ bool CC32xxWiFi::wlan_profile_test_none()
     return true;
 }
 
+
+/*
+ * CC32xxWiFi::wlan_rescan()
+ */
+void CC32xxWiFi::wlan_rescan()
+{
+    // This will trigger an immediate rescan and then every 10 minutes a new
+    // scan will be done if we have no connection.
+    unsigned long intervalInSeconds = 600;
+    sl_WlanPolicySet(SL_POLICY_SCAN, 1 /*enable*/, (unsigned char *)
+                     &intervalInSeconds,sizeof(intervalInSeconds));    
+}
+    
 /*
  * CC32xxWiFi::wlan_network_list_get()
  */
 int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
 {
-    Sl_WlanNetworkEntry_t sl_entries[count];
+    Sl_WlanNetworkEntry_t* sl_entries = new Sl_WlanNetworkEntry_t[count];
 
     int result = sl_WlanGetNetworkList(0, count, sl_entries);
 
-    for (size_t i = 0; i < count; ++i)
+    for (int i = 0; i < result; ++i)
     {
-        memcpy(entries[i].ssid, sl_entries[i].ssid, sl_entries[i].ssid_len);
-        entries[i].ssid[sl_entries[i].ssid_len] = '\0';
+        entries[i].ssid.assign((char*)sl_entries[i].ssid, sl_entries[i].ssid_len);
 
         switch (sl_entries[i].sec_type)
         {
@@ -306,6 +318,7 @@ int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
         entries[i].rssi = sl_entries[i].rssi;
     }
 
+    delete [] sl_entries;
     return result;
 }
 
