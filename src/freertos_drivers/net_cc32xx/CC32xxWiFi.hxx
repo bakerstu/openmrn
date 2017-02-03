@@ -63,7 +63,7 @@ public:
      */
     struct WlanNetworkEntry
     {
-        char ssid[33]; /**< SSID of AP */
+        string ssid; /**< SSID of AP */
         SecurityType sec_type; /**< security type of the AP */
         int rssi; /**< receive signal strength indicator of the AP */
     };
@@ -170,6 +170,10 @@ public:
      */
     int wlan_network_list_get(WlanNetworkEntry *entries, size_t count);
 
+    /** Initiate rescanning available networks.
+     */
+    void wlan_rescan();
+    
     /** Get the device MAC address.
      * @param mac 6 byte array which will hold the resulting MAC address.
      */
