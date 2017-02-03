@@ -33,6 +33,7 @@
 
 #include "CC32xxSocket.hxx"
 #include "CC32xxWiFi.hxx"
+#include "CC32xxHelper.hxx"
 
 #include <memory>
 #include <fcntl.h>
@@ -157,7 +158,7 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
         switch (result)
         {
             default:
-                HASSERT(0);
+                SlCheckResult(result);
                 break;
             case SL_EAFNOSUPPORT:
                 errno = EAFNOSUPPORT;
@@ -228,7 +229,7 @@ int CC32xxSocket::bind(int socket, const struct sockaddr *address,
         switch (result)
         {
             default:
-                HASSERT(0);
+                SlCheckResult(result);
                 break;
         }
         return -1;
@@ -254,7 +255,7 @@ int CC32xxSocket::listen(int socket, int backlog)
         switch (result)
         {
             default:
-                HASSERT(0);
+                SlCheckResult(result);
                 break;
         }
         return -1;
@@ -300,7 +301,7 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
         switch (result)
         {
             default:
-                HASSERT(0);
+                SlCheckResult(result);
                 break;
             case SL_ENSOCK:
                 errno = ENOMEM;
@@ -380,9 +381,7 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
         {
             default:
             {
-                volatile int g_bad_result = 0;
-                g_bad_result = g_bad_result + result;
-                HASSERT(0);
+                SlCheckResult(result);
                 break;
             }
             case SL_ECONNREFUSED:
@@ -424,7 +423,7 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
         switch (result)
         {
             default:
-                HASSERT(0);
+                SlCheckResult(result);
                 break;
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
@@ -475,10 +474,8 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
                 errno = EAGAIN;
                 break;
             default:
-                volatile int err = 0;
-                err = err | result;
                 /// @todo (stbaker): handle errors via the callback.
-                HASSERT(0);
+                SlCheckResult(result);
                 break;
         }
         return -1;
@@ -545,7 +542,7 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
         switch (result)
         {
             default:
-                HASSERT(0);
+                SlCheckResult(result);
                 break;
         }
         return -1;
@@ -619,7 +616,7 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
         switch (result)
         {
             default:
-                HASSERT(0);
+                SlCheckResult(result);
                 break;
         }
         return -1;
@@ -814,7 +811,7 @@ int CC32xxSocket::fcntl(File *file, int cmd, unsigned long data)
             int result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
                                        SL_SO_NONBLOCKING, &sl_option_value,
                                        sizeof(sl_option_value));
-            HASSERT(result == 0);
+            SlCheckResult(result, 0);
             return 0;
         }
     }
