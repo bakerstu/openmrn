@@ -1,0 +1,99 @@
+/** \copyright
+ * Copyright (c) 2015, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file DccAccyConsumer.cxxtest
+ *
+ * Unit tests for accessory consumer for command stations.
+ *
+ * @author Balazs Racz
+ * @date 4 Feb 2017
+ */
+
+#include "openlcb/DccAccyConsumer.hxx"
+#include "utils/async_traction_test_helper.hxx"
+
+
+namespace openlcb {
+
+class DccAccyTest : public AsyncNodeTest {
+protected:
+
+
+    DccAccyConsumer consumer_{node_};
+};
+
+TEST_F(DccAccyTest, create) {}
+
+TEST_F(DccAccyTest, identify_boot_invalid) {
+    send_packet_and_expect_response(
+        ":X198F4111N0101020000FF01F0;",
+        ":X194C722AN0101020000FF01F0;");
+}
+
+TEST_F(DccAccyTest, identify_throw_identify) {
+    // unknown at beginning
+    send_packet_and_expect_response(
+        ":X198F4111N0101020000FF01F0;",
+        ":X194C722AN0101020000FF01F0;");
+    // throw it
+    send_packet(
+        ":X195B4111N0101020000FF01F0;");
+    // got to VALID
+    send_packet_and_expect_response(
+        ":X198F4111N0101020000FF01F0;",
+        ":X194C422AN0101020000FF01F0;");
+    
+    // the opposite is INVALID state
+    send_packet_and_expect_response(
+        ":X198F4111N0101020000FF01F1;",
+        ":X194C522AN0101020000FF01F1;");
+
+    // the next accessory is UNKNOWN state
+    send_packet_and_expect_response(
+        ":X198F4111N0101020000FF01F2;",
+        ":X194C722AN0101020000FF01F2;");
+
+    // the previous accessory is UNKNOWN state
+    send_packet_and_expect_response(
+        ":X198F4111N0101020000FF01EF;",
+        ":X194C722AN0101020000FF01EF;");
+
+    // set to closed
+    send_packet(
+        ":X195B4111N0101020000FF01F1;");
+
+    // got to INVALID
+    send_packet_and_expect_response(
+        ":X198F4111N0101020000FF01F0;",
+        ":X194C522AN0101020000FF01F0;");
+    
+    // the opposite is VALID state
+    send_packet_and_expect_response(
+        ":X198F4111N0101020000FF01F1;",
+        ":X194C422AN0101020000FF01F1;");
+}
+
+} // namespace openlcb

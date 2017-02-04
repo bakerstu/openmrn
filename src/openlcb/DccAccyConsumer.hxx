@@ -37,6 +37,7 @@
 #define _NMRANET_DCCACCYCONSUMER_HXX_
 
 #include "openlcb/TractionDefs.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
 
 namespace openlcb
 {
