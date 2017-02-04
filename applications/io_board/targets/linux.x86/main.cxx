@@ -38,6 +38,7 @@
 #include "openlcb/SimpleStack.hxx"
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
+#include "openlcb/CallbackEventHandler.hxx"
 
 #include "config.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
@@ -118,6 +119,34 @@ openlcb::ConfiguredProducer producer_sw1(
 openlcb::ConfiguredProducer producer_sw2(
     stack.node(), cfg.seg().producers().entry<1>(), SW2_Pin());
 
+
+void report_handler(const openlcb::EventRegistryEntry &registry_entry,
+                    openlcb::EventReport *report, BarrierNotifiable *done) {
+    fprintf(stderr," event %016" PRIx64"\n", report->event);
+    // do something with the incoming event
+    if (report->event == 0x0501010114FF0000) {
+        fprintf(stderr, "hello, world ON\n");
+
+        Buffer<openlcb::GenMessage> *b;
+        mainBufferPool->alloc(&b);
+        b->data()->reset(openlcb::Defs::MTI_EVENT_REPORT, stack.node()->node_id(), openlcb::eventid_to_buffer(0x0501010114FF0100));
+        stack.node()->iface()->global_message_write_flow()->send(b);
+
+    } else if (report->event == 0x0501010114FF0001) {
+        fprintf(stderr, "hello, world OFF\n");
+    } 
+}
+
+openlcb::EventState state_handler(const openlcb::EventRegistryEntry &registry_entry,
+                         openlcb::EventReport *report) {
+    // figure out state to return
+    return openlcb::EventState::UNKNOWN;
+}
+
+openlcb::CallbackEventHandler cb_handler(stack.node(), report_handler, state_handler);
+
+
+
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
@@ -137,6 +166,10 @@ int appl_main(int argc, char *argv[])
     stack.connect_tcp_gridconnect_hub("localhost", 12021);
     // Causes all packets to be dumped to stdout.
     stack.print_all_packets();
+
+    cb_handler.add_entry(0x0501010114FF0000, 1);
+    cb_handler.add_entry(0x0501010114FF0001, 1);
+    
     // This command donates the main thread to the operation of the
     // stack. Alternatively the stack could be started in a separate stack and
     // then application-specific business logic could be executed ion a busy
