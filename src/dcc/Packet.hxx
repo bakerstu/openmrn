@@ -186,6 +186,18 @@ struct Packet : public DCCPacket
      * value is the value to set it to. */
     void add_dcc_pom_write1(unsigned cv_number, uint8_t value);
 
+    /** Adds a DCC basic accessory decoder command packet and the checksum
+     * byte.
+     * @param address is the unencoded 12-bit address, containing both the A
+     * bits and the D bits in the DCC standard, in the range of 0..4095. The
+     * values of 4088-4095 are broadcast addresses.
+     * @param is_activate is true for setting bit C to one, false for setting
+     * bit C to zero. Usually commandstations set is_activate to one and use
+     * the lowest bit of the address to decide whether the turnouts should be
+     * closed or thrown.
+     */
+    void add_dcc_basic_accessory(unsigned address, bool is_activate);
+    
     /** Appends one byte to the packet payload that represents the XOR checksum
      * for DCC. */
     void add_dcc_checksum();

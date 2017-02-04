@@ -38,6 +38,7 @@
 
 #include "openlcb/TractionDefs.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
+#include "dcc/PacketFlowInterface.hxx"
 
 namespace openlcb
 {
@@ -45,8 +46,13 @@ namespace openlcb
 class DccAccyConsumer : public SimpleEventHandler
 {
 public:
-    DccAccyConsumer(Node *node)
-        : node_(node)
+    /// Constructs a listener for DCC accessory control.
+    /// @param node is the virtual node that will be listening for events and
+    /// responding to Identify messages.
+    /// @param track is the interface through which we will be writing DCC
+    /// accessory packets.
+    DccAccyConsumer(Node *node, dcc::PacketFlowInterface* track)
+        : node_(node), track_(track)
     {
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(
@@ -104,7 +110,11 @@ public:
             lastSetState_[eventOfs_] &= ~m;
         }
 
-        // @TODO: send off the actual accessory packet.
+        dcc::PacketFlowInterface::message_type *pkt;
+        mainBufferPool->alloc(&pkt);
+        pkt->data()->add_dcc_basic_accessory(dccAddress_, onOff_);
+        pkt->data()->packet_header.rept_count = 3;
+        track_->send(pkt);
     }
 
     void handle_identify_consumer(const EventRegistryEntry &entry,
@@ -202,7 +212,10 @@ private:
     /// known.
     uint32_t isStateKnown_[64];
 
+    /// OpenLCB node to export the consumer on.
     Node *node_;
+    /// Track to send DCC packets to.
+    dcc::PacketFlowInterface* track_;
 };
 
 } // namespace openlcb

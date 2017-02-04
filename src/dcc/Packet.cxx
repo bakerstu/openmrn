@@ -74,6 +74,9 @@ enum
     DCC_PROG_WRITE1 = 0b11101100,
     DCC_PROG_READ4 = 0b11100000,
 
+    DCC_BASIC_ACCESSORY_B1 = 0b10000000,
+    DCC_BASIC_ACCESSORY_B2 = 0b10000000,
+    
     // Extended packet: 128-step speed.
     DCC_EXT_SPEED = 0b00111111,
     DCC_EXT_SPEED_FORWARD = 0x80,
@@ -245,6 +248,19 @@ void Packet::add_dcc_pom_write1(unsigned cv_number, uint8_t value) {
     payload[dlc++] = DCC_PROG_WRITE1 | ((cv_number >> 8) & 3);
     payload[dlc++] = cv_number & 0xff;
     payload[dlc++] = value;
+    add_dcc_checksum();
+}
+
+void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate) {
+    payload[dlc++] = DCC_BASIC_ACCESSORY_B1 | ((address >> 3) & 0b111111);
+    uint8_t b2 = 1;
+    b2 <<= 3;
+    b2 |= ((~(address >> 9)) & 0b111);
+    b2 <<= 1;
+    b2 |= (is_activate ? 1 : 0);
+    b2 <<= 3;
+    b2 |= address & 0b111;
+    payload[dlc++] = b2;
     add_dcc_checksum();
 }
 

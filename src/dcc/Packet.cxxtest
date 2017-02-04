@@ -161,6 +161,23 @@ TEST_F(PacketTest, Fn20)
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011111, 0xAA, _));
 }
 
+
+TEST_F(PacketTest, DccBasicAccyOn)
+{
+    pkt_.add_dcc_basic_accessory(3542, true);
+    // 3542 = 0b 1101 1101 0110
+    uint8_t b1 = 0b10111010;
+    uint8_t b2 = 0b10011110;
+    EXPECT_THAT(get_packet(), ElementsAre(b1, b2, b1 ^ b2));
+
+    pkt_.clear();
+    pkt_.add_dcc_basic_accessory(3542, false);
+    // 3542 = 0b 1101 1101 0110
+    b1 = 0b10111010;
+    b2 = 0b10010110;
+    EXPECT_THAT(get_packet(), ElementsAre(b1, b2, b1 ^ b2));
+}
+
 TEST_F(PacketTest, MMOld)
 {
     pkt_.start_mm_packet();
