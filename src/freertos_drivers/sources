@@ -20,7 +20,8 @@ CXXSRCS += Fileio.cxx \
            CpuLoad.cxx \
            Socket.cxx \
            DeviceFile.cxx \
-           MCP2515Can.cxx
+           MCP2515Can.cxx \
+           WifiDefs.cxx
 
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
