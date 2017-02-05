@@ -38,6 +38,7 @@
 #include "openlcb/TractionClient.hxx"
 #include "openlcb/TractionDefs.hxx"
 #include "openlcb/TrainInterface.hxx"
+#include "executor/CallableFlow.hxx"
 
 namespace openlcb
 {
@@ -82,7 +83,7 @@ struct TractionThrottleCommands
 /// Request structure used to send requests to the TractionThrottle
 /// class. Contains parametrized reset calls for properly supporting
 /// @ref StateFlowBase::invoke_subflow_and_wait() syntax.
-struct TractionThrottleInput
+struct TractionThrottleInput : public CallableFlowRequestBase
 {
     enum Command
     {
@@ -144,11 +145,6 @@ struct TractionThrottleInput
     /// requests, and filled for Query responses.
     uint8_t flags;
 
-
-    BarrierNotifiable done;
-    /// If high bits are zero, this is a 16-bit OpenLCB result code. Higher
-    /// values are OpenMRN errors.
-    int resultCode;
     /// For assign controller reply REJECTED, this is 1 for controller refused
     /// connection, 2 fortrain refused connection.
     uint8_t replyCause;
@@ -162,14 +158,14 @@ struct TractionThrottleInput
  *
  */
 class TractionThrottle
-    : public StateFlow<Buffer<TractionThrottleInput>, QList<1>>,
+    : public CallableFlow<TractionThrottleInput>,
       public openlcb::TrainImpl
 {
 public:
     /// @param node is the openlcb node from which this throttle will be
     /// sending its messages.
     TractionThrottle(Node *node)
-        : StateFlow<Buffer<TractionThrottleInput>, QList<1>>(node->iface())
+        : CallableFlow<TractionThrottleInput>(node->iface())
         , node_(node)
     {
         clear_cache();
@@ -563,18 +559,6 @@ private:
         }
         input()->replyCause = 0;
         return return_ok();
-    }
-
-    Action return_ok()
-    {
-        return return_with_error(0);
-    }
-
-    Action return_with_error(int error)
-    {
-        input()->resultCode = error;
-        return_buffer();
-        return exit();
     }
 
     /** Allocates (synchronously) an outgoing openlcb buffer with traction
