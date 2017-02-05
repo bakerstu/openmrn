@@ -50,6 +50,9 @@
 #include "hardware.hxx"
 
 #include "TivaDev.hxx"
+
+#define TIVADCC_TIVA
+
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
 #include "DummyGPIO.hxx"
