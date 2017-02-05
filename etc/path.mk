@@ -584,6 +584,19 @@ ESPRTOSSDKPATH:=$(TRYPATH)
 endif
 endif #ESPRTOSSDKPATH
 
+##################### SXMLC ######################
+ifndef SXMLCPATH
+SEARCHPATH := \
+  /opt/sxmlc/default
+
+
+TRYPATH:=$(call findfirst,src/sxmlc.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+SXMLCPATH:=$(TRYPATH)
+endif
+endif #SXMLCPATH
+
+
 
 endif # if  $(OS)  != Windows_NT
 endif # ifndef OPENMRN_PATH_MK
