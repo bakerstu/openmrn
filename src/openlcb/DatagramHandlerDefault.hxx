@@ -52,11 +52,13 @@ protected:
     {
     }
 
+public:
     DatagramService *dg_service()
     {
         return static_cast<DatagramService *>(service());
     }
 
+protected:
     /** Sends a DATAGRAM_OK response to the datagram originator node. Call this
      * from the user handler. The flow will end up in the ok_response_sent()
      * state.

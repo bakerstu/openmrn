@@ -173,6 +173,26 @@ struct MemoryConfigDefs {
         return p;
     }
 
+    static DatagramPayload read_datagram(
+        uint8_t space, uint32_t offset, uint8_t length)
+    {
+        DatagramPayload p;
+        p.reserve(7);
+        p.push_back(DatagramDefs::CONFIGURATION);
+        p.push_back(COMMAND_READ);
+        p.push_back(0xff & (offset >> 24));
+        p.push_back(0xff & (offset >> 16));
+        p.push_back(0xff & (offset >> 8));
+        p.push_back(0xff & (offset));
+        if (is_special_space(space)) {
+            p[1] |= space & ~SPACE_SPECIAL;
+        } else {
+            p.push_back(space);
+        }
+        p.push_back(length);
+        return p;
+    }
+    
 private:
     /** Do not instantiate this class. */
     MemoryConfigDefs();
@@ -484,6 +504,13 @@ public:
         return &registry_;
     }
 
+    /// Registers a second handler to forward all the client interactions,
+    /// i.e. everythingthat comes back with the RESPONSE bit set.
+    void set_client(DatagramHandlerFlow* client) {
+        HASSERT(client_ == nullptr || client_ == client);
+        client_ = client;
+    }
+    
 private:
     typedef MemorySpace::address_t address_t;
     typedef MemorySpace::errorcode_t errorcode_t;
@@ -562,6 +589,23 @@ private:
             {
                 return call_immediately(STATE(handle_get_space_info));
             }
+            case MemoryConfigDefs::COMMAND_WRITE_REPLY:
+            case MemoryConfigDefs::COMMAND_WRITE_FAILED:
+            case MemoryConfigDefs::COMMAND_WRITE_STREAM_REPLY:
+            case MemoryConfigDefs::COMMAND_WRITE_STREAM_FAILED:
+            case MemoryConfigDefs::COMMAND_READ_REPLY:
+            case MemoryConfigDefs::COMMAND_READ_FAILED:
+            case MemoryConfigDefs::COMMAND_OPTIONS_REPLY:
+            case MemoryConfigDefs::COMMAND_INFORMATION_REPLY:
+            case MemoryConfigDefs::COMMAND_LOCK_REPLY:
+            case MemoryConfigDefs::COMMAND_UNIQUE_ID_REPLY:
+            {
+                if (client_)
+                {
+                    client_->send(transfer_message());
+                    return exit();
+                }
+            } // fall through to unsupported.
             default:
                 // Unknown/unsupported command, reject datagram.
                 return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
@@ -1036,6 +1080,9 @@ private:
     //NodeID lockNode_; //< Holds the node ID that locked us.
 
     Registry registry_;         //< holds the known memory spaces
+    /// If there is a memory config client, we will forward response traffic to
+    /// it.
+    DatagramHandlerFlow* client_{nullptr};
 
     /** Offset withing the current write/read datagram. This does not include
      * the offset from the incoming datagram. */
