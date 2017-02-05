@@ -510,6 +510,12 @@ public:
         HASSERT(client_ == nullptr || client_ == client);
         client_ = client;
     }
+
+    /// Unregisters the previously registered second handler.
+    void clear_client(DatagramHandlerFlow* client) {
+        HASSERT(client_ == client);
+        client_ = nullptr;
+    }
     
 private:
     typedef MemorySpace::address_t address_t;

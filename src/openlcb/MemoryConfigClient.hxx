@@ -36,7 +36,7 @@
 #define _OPENLCB_MEMORYCONFIGCLIENT_HXX_
 
 #include "executor/CallableFlow.hxx"
-#include "openlcb/MemoryConfigClient.hxx"
+#include "openlcb/MemoryConfig.hxx"
 #include "openlcb/DatagramHandlerDefault.hxx"
 
 namespace openlcb
@@ -44,7 +44,7 @@ namespace openlcb
 
 struct MemoryConfigClientRequest : public CallableFlowRequestBase
 {
-    enum class ReadCmd
+    enum ReadCmd
     {
         READ
     };
@@ -101,6 +101,7 @@ private:
     {
         dgClient_ = full_allocation_result(dg_service()->client_allocator());
         offset_ = 0;
+        memoryConfigHandler_->set_client(&responseFlow_);
         return call_immediately(STATE(send_next_read));
     }
 
@@ -227,6 +228,7 @@ private:
     void cleanup_read() {
         responsePayload_.clear();
         dg_service()->client_allocator()->typed_insert(dgClient_);
+        memoryConfigHandler_->clear_client(&responseFlow_);
         dgClient_ = nullptr;
     }
 
