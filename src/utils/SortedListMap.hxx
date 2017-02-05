@@ -94,7 +94,7 @@ public:
 
     /// @param key what to search for @return iterators, see std::equal_range.
     template<class key_type>
-    pair<iterator, iterator> equal_range(key_type key)
+    std::pair<iterator, iterator> equal_range(key_type key)
     {
         lazy_init();
         return std::equal_range(container_.begin(), container_.end(), key,
@@ -113,6 +113,12 @@ public:
         container_.erase(it);
     }
 
+    /// Removes all entries.
+    void clear() {
+        container_.clear();
+        sortedCount_ = 0;
+    }
+    
 private:
     /// Reestablishes sorted order in case anything was inserted or removed.
     void lazy_init()
