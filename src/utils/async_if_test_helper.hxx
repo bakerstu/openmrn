@@ -351,17 +351,7 @@ protected:
             ifCan_->set_alias_allocator(
                 new AliasAllocator(TEST_NODE_ID, ifCan_.get()));
         }
-        Buffer<AliasInfo> *a;
-        mainBufferPool->alloc(&a);
-        a->data()->reset();
-        a->data()->alias = alias;
-        a->data()->state = AliasInfo::STATE_RESERVED;
-        if (!repeat) {
-            a->data()->do_not_reallocate();
-        }
-        ifCan_->local_aliases()->add(AliasCache::RESERVED_ALIAS_NODE_ID,
-                                     a->data()->alias);
-        ifCan_->alias_allocator()->reserved_aliases()->insert(a);
+        ifCan_->alias_allocator()->TEST_add_allocated_alias(alias, repeat);
     }
 
     void expect_next_alias_allocation(NodeAlias a = 0)

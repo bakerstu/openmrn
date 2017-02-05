@@ -36,6 +36,7 @@
 #ifndef _EXECUTOR_CALLABLEFLOW_HXX_
 #define _EXECUTOR_CALLABLEFLOW_HXX_
 
+#include "executor/StateFlow.hxx"
 
 /// All callable flow request objects have to derive from this struct.
 struct CallableFlowRequestBase {

@@ -247,4 +247,20 @@ void AliasAllocator::TEST_finish_pending_allocation() {
     }
 }
 
+void AliasAllocator::TEST_add_allocated_alias(NodeAlias alias, bool repeat)
+{
+    Buffer<AliasInfo> *a;
+    mainBufferPool->alloc(&a);
+    a->data()->reset();
+    a->data()->alias = alias;
+    a->data()->state = AliasInfo::STATE_RESERVED;
+    if (!repeat)
+    {
+        a->data()->do_not_reallocate();
+    }
+    if_can()->local_aliases()->add(
+        AliasCache::RESERVED_ALIAS_NODE_ID, a->data()->alias);
+    reserved_aliases()->insert(a);
+}
+
 } // namespace openlcb

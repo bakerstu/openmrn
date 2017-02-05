@@ -130,6 +130,11 @@ public:
      * finishes it immediately. Needed in test destructors. */
     void TEST_finish_pending_allocation();
 
+    /** Adds an allocated aliad to the reserved aliases queue.
+        @param alias the next allocated alias to add.
+    */
+    void TEST_add_allocated_alias(NodeAlias alias, bool repeat=false);
+    
 private:
     /** Listens to incoming CAN frames and handles alias conflicts. */
     class ConflictHandler : public IncomingFrameHandler
