@@ -10,6 +10,7 @@ INCLUDES += -I./ -I../ -I../include
 INCLUDES += -I$(OPENMRNPATH)/include
 INCLUDES += -I$(OPENMRNPATH)/src
 include $(OPENMRNPATH)/etc/$(TARGET).mk
+include $(OPENMRNPATH)/etc/path.mk
 
 exist := $(wildcard $(SRCDIR)/sources)
 ifneq ($(strip $(exist)),)
