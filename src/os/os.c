@@ -762,6 +762,10 @@ void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
     {
         heap_end = &__cs3_heap_start;
     }
+    if (heap2_end == 0)
+    {
+        heap2_end = &__heap2_start;
+    }
     prev_heap_end = heap_end;
     if ((heap_end + incr) > &__cs3_heap_end)
     {
@@ -769,10 +773,6 @@ void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
         {
             /* there is a second heap */
             char *prev_heap2_end;
-            if (heap2_end == 0)
-            {
-                heap2_end = &__heap2_start;
-            }
             prev_heap2_end = heap2_end;
             if ((heap2_end + incr) <= &__heap2_end)
             {
