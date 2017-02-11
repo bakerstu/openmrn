@@ -163,21 +163,21 @@ public:
     }
     /// Sets the output pin to a defined value. @param value if true, output
     /// will be set to HIGH, otherwise to LOW.
-    static void set(bool value)
+    static void __attribute__((always_inline)) set(bool value)
     {
         uint8_t *ptr = reinterpret_cast<uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
     }
     /// @return current value of the input pin: if true HIGH.
-    static bool get()
+    static bool __attribute__((always_inline)) get()
     {
         const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }
     /// Changes the value of an output pin.
-    static void toggle()
+    static void __attribute__((always_inline)) toggle()
     {
         set(!get());
     }
