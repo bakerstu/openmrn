@@ -777,31 +777,57 @@ inline void TivaDCC<HW>::interrupt_handler()
         HWREG(HW::INTERVAL_BASE + TIMER_O_TAILR) =
             timing->period + hDeadbandDelay_ * 2;
 
-        HWREG(HW::CCP_BASE + TIMER_O_TBMATCHR) = timing->transition_b;  // final
-        // since timer A starts later, the deadband delay cycle we set to be
-        // constant off (match == period)
-        HWREG(HW::CCP_BASE + TIMER_O_TAMATCHR) = hDeadbandDelay_;  // tmp
-        HWREG(HW::CCP_BASE + TIMER_O_TBILR) = timing->period;  // final
-        HWREG(HW::CCP_BASE + TIMER_O_TAILR) = hDeadbandDelay_;  // tmp
+        if (!HW::H_DEADBAND_DELAY_NSEC)
+        {
+            MAP_TimerDisable(HW::CCP_BASE, TIMER_A|TIMER_B);
+            // Sets final values for the cycle.
+            MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A|TIMER_B, timing->period);
+            MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
+            MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timing->transition_b);
+            MAP_TimerEnable(HW::CCP_BASE, TIMER_A|TIMER_B);
 
-        // timer synchronize (if it works...)
+            MAP_TimerDisable(HW::INTERVAL_BASE, TIMER_A);
+            MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->period);
+            MAP_TimerEnable(HW::INTERVAL_BASE, TIMER_A);
+
+            // Switches back to asynch timer update.
+            HWREG(HW::CCP_BASE + TIMER_O_TAMR) |=
+                (TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
+            HWREG(HW::CCP_BASE + TIMER_O_TBMR) |=
+                (TIMER_TBMR_TBMRSU | TIMER_TBMR_TBILD);
+            HWREG(HW::INTERVAL_BASE + TIMER_O_TAMR) |=
+                (TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
+        }
+        else
+        {
+
+            HWREG(HW::CCP_BASE + TIMER_O_TBMATCHR) =
+                timing->transition_b; // final
+            // since timer A starts later, the deadband delay cycle we set to be
+            // constant off (match == period)
+            HWREG(HW::CCP_BASE + TIMER_O_TAMATCHR) = hDeadbandDelay_; // tmp
+            HWREG(HW::CCP_BASE + TIMER_O_TBILR) = timing->period;     // final
+            HWREG(HW::CCP_BASE + TIMER_O_TAILR) = hDeadbandDelay_;    // tmp
+
+// timer synchronize (if it works...)
 #ifdef TIVADCC_TIVA
-        HWREG(TIMER0_BASE + TIMER_O_SYNC) = HW::TIMER_SYNC;
+            HWREG(TIMER0_BASE + TIMER_O_SYNC) = HW::TIMER_SYNC;
 #endif
+
+            // Switches back to asynch timer update.
+            HWREG(HW::CCP_BASE + TIMER_O_TAMR) |=
+                (TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
+            HWREG(HW::CCP_BASE + TIMER_O_TBMR) |=
+                (TIMER_TBMR_TBMRSU | TIMER_TBMR_TBILD);
+            HWREG(HW::INTERVAL_BASE + TIMER_O_TAMR) |=
+                (TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
+
+            // Sets final values for the cycle.
+            MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timing->period);
+            MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
+            MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->period);
+        }
         
-        // Switches back to asynch timer update.
-        HWREG(HW::CCP_BASE + TIMER_O_TAMR) |=
-            (TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
-        HWREG(HW::CCP_BASE + TIMER_O_TBMR) |=
-            (TIMER_TBMR_TBMRSU | TIMER_TBMR_TBILD);
-        HWREG(HW::INTERVAL_BASE + TIMER_O_TAMR) |=
-            (TIMER_TAMR_TAMRSU | TIMER_TAMR_TAILD);
-
-        // Sets final values for the cycle.
-        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timing->period);
-        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
-        MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->period);
-
         last_bit = current_bit;
     } else if (last_bit != current_bit)
     {
