@@ -149,6 +149,8 @@ CC32xxWiFi::CC32xxWiFi()
     SL_FD_ZERO(&wfds);
     SL_FD_ZERO(&efds);
     ssid[0] = '\0';
+
+    add_http_get_callback(make_pair(bind(&CC32xxWiFi::http_get_ip_address, this), "__SL_G_UNA"));
 }
 
 uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
@@ -575,6 +577,17 @@ void CC32xxWiFi::run_on_network_thread(std::function<void()> callback)
 }
 
 /*
+ * CC32xxWiFi::add_http_get_callback()
+ */
+void CC32xxWiFi::add_http_get_callback(std::pair<std::function<std::string()>,
+                                                 const char *> callback)
+{
+    OSMutexLock l(&lock_);
+    httpGetCallbacks_.emplace_back(callback);
+}
+
+
+/*
  * CC32xxWiFi::fd_set_read()
  */
 void CC32xxWiFi::fd_set_read(int16_t socket)
@@ -850,6 +863,52 @@ void CC32xxWiFi::sock_event_handler(void *context)
     }
 }
 
+/*
+ * CC32xxWiFi::http_server_callback()
+ */
+void CC32xxWiFi::http_server_callback(void *context1, void *context2)
+{
+    if(!context1 || !context2)
+    {
+        return;
+    }
+
+    SlHttpServerEvent_t *event = static_cast<SlHttpServerEvent_t *>(context1);
+    SlHttpServerResponse_t *response = static_cast<SlHttpServerResponse_t *>(context2);
+
+    switch (event->Event)
+    {
+        case SL_NETAPP_HTTPGETTOKENVALUE_EVENT:
+        {
+            unsigned char *ptr;
+
+            ptr = response->ResponseData.token_value.data;
+            response->ResponseData.token_value.len = 0;
+
+            for (unsigned i = 0; i < httpGetCallbacks_.size(); ++i)
+            {
+                if (memcmp(event->EventData.httpTokenName.data,
+                           httpGetCallbacks_[i].second,
+                           strlen(httpGetCallbacks_[i].second)) == 0)
+                {
+                    string result = httpGetCallbacks_[i].first();
+                    memcpy(ptr, result.c_str(), result.length());
+                    ptr += result.length();
+                    response->ResponseData.token_value.len += result.length();
+                    break;
+                }
+            }
+            break;
+        }
+        case SL_NETAPP_HTTPPOSTTOKENVALUE_EVENT:
+        {
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 
 static void append_num(std::string* s, uint32_t d) {
     char num[10];
@@ -934,9 +993,11 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
  * @param pSlHttpServerEvent pointer indicating http server event
  * @param pSlHttpServerResponse pointer indicating http server response
  */
-void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pSlHttpServerEvent, 
-                                  SlHttpServerResponse_t *pSlHttpServerResponse)
+void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpServerEvent, 
+                                  SlHttpServerResponse_t *pHttpServerResponse)
 {
-    /* currently unused */
+    CC32xxWiFi::instance()->http_server_callback(pHttpServerEvent,
+                                                 pHttpServerResponse);
 }
+
 } /* extern "C" */

@@ -39,6 +39,7 @@
 #include <string>
 
 #include "os/OS.hxx"
+#include "utils/format_utils.hxx"
 #include "freertos_drivers/common/WifiDefs.hxx"
 
 class CC32xxSocket;
@@ -208,6 +209,13 @@ public:
      * isthe function to execute.*/
     void run_on_network_thread(std::function<void()> callback);
 
+    /** Add and HTTP get token callback.
+     * @param callback the std::pair<> of the function to execute and the
+     *        matching token to execute the callback on
+     */
+    void add_http_get_callback(std::pair<std::function<std::string()>,
+                                         const char *> callback);
+
     /** This function handles WLAN events.  This is public only so that an
      * extern "C" method can call it.  DO NOT use directly.
      * @param context pointer to WLAN Event Info
@@ -226,6 +234,13 @@ public:
      * @param context pointer to Socket Event Info
      */
     void sock_event_handler(void *context);
+
+    /** This function handles http server callback indication.  This is public
+     * only so that an extern "C" method can call it.  DO NOT use directly.
+     * @param context1 pointer to HTTP Server Event info
+     * @param context2 pointer to HTTP Server Response info
+     */
+    void http_server_callback(void *context1, void *context2);
 
     /** Returns a string contianing the version numbers of the network
      * interface. */
@@ -277,12 +292,25 @@ private:
      */
     void fd_set_write(int16_t socket);
 
+    /** Get the IP address for a http request.
+     * @return string representation of the IP address
+     */
+    string http_get_ip_address()
+    {
+        return ipv4_to_string(ipAddress);
+    }
+
     static CC32xxWiFi *instance_; /**< singleton instance pointer. */
     uint32_t ipAddress; /**< assigned IP adress */
     char ssid[33]; /**< SSID of AP we are connected to */
 
     /// List of callbacks to execute on the network thread.
     std::vector<std::function<void()> > callbacks_;
+
+    /// List of callbacks for http get tokens
+    std::vector<std::pair<std::function<std::string()>, const char *>>
+        httpGetCallbacks_;
+
     /// Protects callbacks_ vector.
     OSMutex lock_;
 

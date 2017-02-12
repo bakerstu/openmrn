@@ -105,16 +105,38 @@ string mac_to_string(uint8_t mac[6], bool colon)
     for (int i = 0; i < 6; ++i)
     {
         unsigned_integer_to_buffer_hex(mac[i], tmp);
-        if (!tmp[1]) ret.push_back('0');
+        if (!tmp[1])
         {
-            ret += tmp;
+            ret.push_back('0');
         }
+        ret += tmp;
         if (colon)
         {
             ret.push_back(':');
         }
     }
     if (colon)
+    {
+        ret.pop_back();
+    }
+    return ret;
+}
+
+string ipv4_to_string(uint8_t ip[4], bool dot)
+{
+    string ret;
+    ret.reserve(12+4);
+    char tmp[10];
+    for (int i = 3; i >= 0; --i)
+    {
+        unsigned_integer_to_buffer(ip[i], tmp);
+        ret += tmp;
+        if (dot)
+        {
+            ret.push_back('.');
+        }
+    }
+    if (dot)
     {
         ret.pop_back();
     }
