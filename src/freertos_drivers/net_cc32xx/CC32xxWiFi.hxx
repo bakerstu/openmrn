@@ -51,6 +51,21 @@ class CC32xxSocket;
 class CC32xxWiFi
 {
 public:
+    /** CC32xx SimpleLink forward declaration */
+    struct WlanEvent;
+
+    /** CC32xx SimpleLink forward declaration */
+    struct NetAppEvent;
+
+    /** CC32xx SimpleLink forward declaration */
+    struct SockEvent;
+
+    /** CC32xx SimpleLink forward declaration */
+    struct HttpServerEvent;
+
+    /** CC32xx SimpleLink forward declaration */
+    struct HttpServerResponse;
+
     /** Security types.
      */
     enum SecurityType
@@ -209,38 +224,79 @@ public:
      * isthe function to execute.*/
     void run_on_network_thread(std::function<void()> callback);
 
-    /** Add and HTTP get token callback.
+    /** Add an HTTP get token callback.  A get token is a string that takes the
+     * form "__SL_G_*".  The form "__SL_G_U*" is the form that is reserved for
+     * user defined tokens.  The * can be any two characters that uniquely
+     * identify the token.  When the token is found in an HTML file, the
+     * network processor will call the supplied callback in order for the user
+     * to return the resulting string.  The result returned will be clipped at
+     * (MAX_TOKEN_VALUE_LEN - 1), which is (64 - 1) bytes.  All tokens must be
+     * an exact match.
+     *
+     * Use Case Example:
+     * @code
+     * class SomeClass
+     * {
+     * public:
+     *     SomeClass()
+     *     {
+     *         add_http_get_callback(std::make_pair(std::bind(&SomeClass::http_get, this), "__SL_G_U.A");
+     *     }
+     *
+     * private:
+     *     string http_get()
+     *     {
+     *         return "some_string";
+     *     }
+     * }
+     * @endcode
+     * In the example above, the string "__SL_G_U.A" when used in an HTML file
+     * will be recognized by the HTTP server replaced with result of the server
+     * calling SomeClass::http_get().
+     *
+     * Additional documentation on the CC32xx HTTP Web Server can be found in
+     * the
+     * <a href="http://www.ti.com/lit/ug/swru368a/swru368a.pdf">
+     * CC3100/CC3200 SimpleLink Wi-Fi Internet-on-a-Chip User's Guide</a>
+     *
      * @param callback the std::pair<> of the function to execute and the
-     *        matching token to execute the callback on
+     *        matching token to execute the callback on.  The second (const
+     *        char *) argument of the std::pair must live for as long as the
+     *        callback is valid.
      */
     void add_http_get_callback(std::pair<std::function<std::string()>,
-                                         const char *> callback);
+                                         const char *> callback)
+    {
+        OSMutexLock l(&lock_);
+        httpGetCallbacks_.emplace_back(std::move(callback));
+    }
 
     /** This function handles WLAN events.  This is public only so that an
      * extern "C" method can call it.  DO NOT use directly.
-     * @param context pointer to WLAN Event Info
+     * @param event pointer to WLAN Event Info
      */
-    void wlan_event_handler(void *context);
+    void wlan_event_handler(WlanEvent *event);
 
     /** This function handles network events such as IP acquisition, IP leased,
      * IP released etc.  This is public only so that an extern "C" method can
      * call it.  DO NOT use directly.
-     * @param context Pointer indicating device acquired IP
+     * @param event Pointer indicating device acquired IP
      */
-    void net_app_event_handler(void *context);
+    void net_app_event_handler(NetAppEvent *event);
 
     /** This function handles socket events indication.  This is public only so
      * that an extern "C" method can call it.  DO NOT use directly.
-     * @param context pointer to Socket Event Info
+     * @param event pointer to Socket Event Info
      */
-    void sock_event_handler(void *context);
+    void sock_event_handler(SockEvent *event);
 
     /** This function handles http server callback indication.  This is public
      * only so that an extern "C" method can call it.  DO NOT use directly.
-     * @param context1 pointer to HTTP Server Event info
-     * @param context2 pointer to HTTP Server Response info
+     * @param event pointer to HTTP Server Event info
+     * @param response pointer to HTTP Server Response info
      */
-    void http_server_callback(void *context1, void *context2);
+    void http_server_callback(HttpServerEvent *event,
+                              HttpServerResponse *response);
 
     /** Returns a string contianing the version numbers of the network
      * interface. */

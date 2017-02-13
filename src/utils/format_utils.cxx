@@ -122,7 +122,7 @@ string mac_to_string(uint8_t mac[6], bool colon)
     return ret;
 }
 
-string ipv4_to_string(uint8_t ip[4], bool dot)
+string ipv4_to_string(uint8_t ip[4])
 {
     string ret;
     ret.reserve(12+4);
@@ -131,14 +131,9 @@ string ipv4_to_string(uint8_t ip[4], bool dot)
     {
         unsigned_integer_to_buffer(ip[i], tmp);
         ret += tmp;
-        if (dot)
-        {
-            ret.push_back('.');
-        }
+        ret.push_back('.');
     }
-    if (dot)
-    {
-        ret.pop_back();
-    }
+    ret.pop_back();
+
     return ret;
 }

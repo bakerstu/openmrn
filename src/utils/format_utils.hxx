@@ -75,27 +75,23 @@ string mac_to_string(uint8_t mac[6], bool colons = true);
 ///
 /// @param ip a 4-byte array storing the IPv4 address. ip[3] will be printed
 /// at the beginning.
-/// @param dots true to print dots, else false to exclude the dot
-/// seperators
 ///
-/// @return a string containing a dot-separated hexadecimal printout of the
+/// @return a string containing a dot-separated printout of the
 /// given IPv4 address.
 ///
-string ipv4_to_string(uint8_t ip[4], bool dots = true);
+string ipv4_to_string(uint8_t ip[4]);
 
 /// Formats an IPv4 address to string.
 ///
 /// @param ip a uint32_t storing the IPv4 address. most significant bytes
 /// will be printed at the beginning.
-/// @param dots true to print dots, else false to exclude the dot
-/// seperators
 ///
-/// @return a string containing a dot-separated hexadecimal printout of the
+/// @return a string containing a dot-separated printout of the
 /// given IPv4 address.
 ///
-inline string ipv4_to_string(uint32_t ip, bool dots = true)
+inline string ipv4_to_string(uint32_t ip)
 {
-    return ipv4_to_string((uint8_t*)&ip, dots);
+    return ipv4_to_string((uint8_t*)&ip);
 }
 
 #endif // _UTILS_FORMAT_UTILS_HXX_

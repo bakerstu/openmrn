@@ -43,6 +43,21 @@
 #include "osi.h"
 #include "simplelink.h"
 
+/** CC32xx forward declaration Helper */
+struct CC32xxWiFi::WlanEvent : public ::SlWlanEvent_t {};
+
+/** CC32xx forward declaration Helper */
+struct CC32xxWiFi::NetAppEvent : public ::SlNetAppEvent_t {};
+
+/** CC32xx forward declaration Helper */
+struct CC32xxWiFi::SockEvent : public ::SlSockEvent_t {};
+
+/** CC32xx forward declaration Helper */
+struct CC32xxWiFi::HttpServerEvent : public ::SlHttpServerEvent_t {};
+
+/** CC32xx forward declaration Helper */
+struct CC32xxWiFi::HttpServerResponse : public ::SlHttpServerResponse_t {};
+
 CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;
 
 /** these are not class members so that including CC32xxWiFi.hxx does not
@@ -150,7 +165,8 @@ CC32xxWiFi::CC32xxWiFi()
     SL_FD_ZERO(&efds);
     ssid[0] = '\0';
 
-    add_http_get_callback(make_pair(bind(&CC32xxWiFi::http_get_ip_address, this), "__SL_G_UNA"));
+    add_http_get_callback(make_pair(bind(&CC32xxWiFi::http_get_ip_address,
+                                         this), "__SL_G_UNA"));
 }
 
 uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
@@ -577,17 +593,6 @@ void CC32xxWiFi::run_on_network_thread(std::function<void()> callback)
 }
 
 /*
- * CC32xxWiFi::add_http_get_callback()
- */
-void CC32xxWiFi::add_http_get_callback(std::pair<std::function<std::string()>,
-                                                 const char *> callback)
-{
-    OSMutexLock l(&lock_);
-    httpGetCallbacks_.emplace_back(callback);
-}
-
-
-/*
  * CC32xxWiFi::fd_set_read()
  */
 void CC32xxWiFi::fd_set_read(int16_t socket)
@@ -626,14 +631,12 @@ void CC32xxWiFi::fd_set_write(int16_t socket)
 /*
  * CC32xxWiFi::wlan_event_handler()
  */
-void CC32xxWiFi::wlan_event_handler(void *context)
+void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
 {
-    if (context == NULL)
+    if (event == nullptr)
     {
         return;
     }
-
-    SlWlanEvent_t *event = static_cast<SlWlanEvent_t *>(context);
 
     switch (event->Event)
     {
@@ -746,14 +749,12 @@ void CC32xxWiFi::wlan_event_handler(void *context)
 /*
  * CC32xxWiFi::net_app_event_handler()
  */
-void CC32xxWiFi::net_app_event_handler(void *context)
+void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
 {
-    if (context == NULL)
+    if (event == nullptr)
     {
         return;
     }
-
-    SlNetAppEvent_t *event = static_cast<SlNetAppEvent_t *>(context);
 
     switch (event->Event)
     {
@@ -822,14 +823,12 @@ void CC32xxWiFi::net_app_event_handler(void *context)
 /*
  * CC32xxWiFi::sock_event_handler()
  */
-void CC32xxWiFi::sock_event_handler(void *context)
+void CC32xxWiFi::sock_event_handler(SockEvent *event)
 {
-    if (context == NULL)
+    if (event == nullptr)
     {
         return;
     }
-
-    SlSockEvent_t *event = static_cast<SlSockEvent_t *>(context);
 
     //
     // Events are not expected
@@ -866,15 +865,13 @@ void CC32xxWiFi::sock_event_handler(void *context)
 /*
  * CC32xxWiFi::http_server_callback()
  */
-void CC32xxWiFi::http_server_callback(void *context1, void *context2)
+void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
+                                      HttpServerResponse *response)
 {
-    if(!context1 || !context2)
+    if(!event || !response)
     {
         return;
     }
-
-    SlHttpServerEvent_t *event = static_cast<SlHttpServerEvent_t *>(context1);
-    SlHttpServerResponse_t *response = static_cast<SlHttpServerResponse_t *>(context2);
 
     switch (event->Event)
     {
@@ -887,14 +884,18 @@ void CC32xxWiFi::http_server_callback(void *context1, void *context2)
 
             for (unsigned i = 0; i < httpGetCallbacks_.size(); ++i)
             {
-                if (memcmp(event->EventData.httpTokenName.data,
-                           httpGetCallbacks_[i].second,
-                           strlen(httpGetCallbacks_[i].second)) == 0)
+                if (strcmp((const char *)event->EventData.httpTokenName.data,
+                           httpGetCallbacks_[i].second) == 0)
                 {
                     string result = httpGetCallbacks_[i].first();
-                    memcpy(ptr, result.c_str(), result.length());
-                    ptr += result.length();
-                    response->ResponseData.token_value.len += result.length();
+                    // clip string if required
+                    if (result.size() >= MAX_TOKEN_VALUE_LEN)
+                    {
+                        result.erase(MAX_TOKEN_VALUE_LEN);
+                    }
+                    memcpy(ptr, result.c_str(), result.size());
+                    ptr += result.size();
+                    response->ResponseData.token_value.len += result.size();
                     break;
                 }
             }
@@ -960,7 +961,8 @@ extern "C"
  */
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
 {
-    CC32xxWiFi::instance()->wlan_event_handler(pSlWlanEvent);
+    CC32xxWiFi::instance()->wlan_event_handler(
+        static_cast<CC32xxWiFi::WlanEvent *>(pSlWlanEvent));
 }
 
 /** This function handles network events such as IP acquisition, IP leased,
@@ -969,7 +971,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent)
  */
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent)
 {
-    CC32xxWiFi::instance()->net_app_event_handler(pNetAppEvent);
+    CC32xxWiFi::instance()->net_app_event_handler(
+        static_cast<CC32xxWiFi::NetAppEvent *>(pNetAppEvent));
 }
 
 /** This function handles general events.
@@ -985,7 +988,8 @@ void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
  */
 void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 {
-    CC32xxWiFi::instance()->sock_event_handler(pSock);
+    CC32xxWiFi::instance()->sock_event_handler(
+        static_cast<CC32xxWiFi::SockEvent *>(pSock));
 }
 
 /** This function gets triggered when HTTP Server receives Application
@@ -996,8 +1000,9 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpServerEvent, 
                                   SlHttpServerResponse_t *pHttpServerResponse)
 {
-    CC32xxWiFi::instance()->http_server_callback(pHttpServerEvent,
-                                                 pHttpServerResponse);
+    CC32xxWiFi::instance()->http_server_callback(
+        static_cast<CC32xxWiFi::HttpServerEvent *>(pHttpServerEvent),
+        static_cast<CC32xxWiFi::HttpServerResponse *>(pHttpServerResponse));
 }
 
 } /* extern "C" */
