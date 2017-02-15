@@ -159,16 +159,18 @@ protected:
                         done += ret;
                         continue;
                     }
+                    if ((ret < 0) && (errno == EINTR || errno == EAGAIN))
+                    {
+                        continue;
+                    }
 // Now: we have an error.
-#ifdef __linux__
+#if defined(__linux__)
                     if (!ret)
                     {
                         LOG_ERROR("EOF reading fd %d", port_->fd_);
                     }
-                    else if (errno == EINTR || errno == EAGAIN)
+                    else
                     {
-                        continue;
-                    } else {
                         LOG_ERROR("Error reading fd %d: (%d) %s", port_->fd_,
                             errno, strerror(errno));
                     }
