@@ -61,6 +61,19 @@ GPIO_PIN(USB5, GpioInputNP, Q, 4);
 GPIO_PIN(TDEBUG1, GpioOutputSafeLow, P, 5);
 GPIO_PIN(TDEBUG2, GpioOutputSafeLow, M, 7);
 
+GPIO_HWPIN(BOOSTER_H, GpioHwPin, A, 2, T1CCP0, Timer);
+#ifdef BPACK_1_LOW
+  // set the output pin to be on boosterpack 1
+GPIO_HWPIN(BOOSTER_L, GpioHwPin, D, 3, T1CCP1, Timer);
+#else
+GPIO_HWPIN(BOOSTER_L, GpioHwPin, A, 3, T1CCP1, Timer);
+#endif
+
+GPIO_PIN(RAILCOM_TRIGGER, GpioOutputSafeHigh, H, 1);
+
+GPIO_HWPIN(RAILCOM_CH1, GpioHwPin, P, 0, U6RX, UART);
+
+
 typedef GpioInitializer<                                             //
     USR_SW1_Pin, USR_SW2_Pin,                                        //
     LED_B1_Pin, LED_B2_Pin, LED_B3_Pin, LED_B4_Pin,                  //

@@ -34,6 +34,8 @@
 #include <cstdint>
 #include <new>
 
+#define TIVADCC_TIVA
+
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"

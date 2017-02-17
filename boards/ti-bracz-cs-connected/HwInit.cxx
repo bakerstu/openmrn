@@ -34,6 +34,8 @@
 #include <cstdint>
 #include <new>
 
+#define TIVADCC_TIVA
+
 #include "hardware.hxx"
 
 #include "inc/hw_types.h"
@@ -71,6 +73,7 @@ struct Debug {
     typedef DummyPin RailcomDataReceived;
     typedef DummyPin RailcomAnyData;
     typedef DummyPin RailcomPackets;
+    typedef DummyPin RailcomRxActivate;
 };
 #include "TivaRailcom.hxx"
 
