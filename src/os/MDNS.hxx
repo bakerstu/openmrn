@@ -158,10 +158,9 @@ private:
     }
 
     /** mdns polling thread.
-     * @param unused unused parameter
      * @return should never return
      */
-    void *entry(void *unused)
+    void *entry() override
     {
         int error;
 
