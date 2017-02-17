@@ -58,11 +58,22 @@ struct DummyPin
     static void toggle()
     {
     }
-
     /// Returns whether this is an output pin or not.
     static bool is_output()
     {
         return true;
+    }
+    /// Sets to "hardware" function.
+    static void set_hw()
+    {
+    }
+    /// Sets to "GPIO out" function.
+    static void set_output()
+    {
+    }
+    /// Sets to "GPIO in" function.
+    static void set_input()
+    {
     }
 };
 
