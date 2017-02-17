@@ -134,6 +134,7 @@ struct Debug
     // typedef LED_BLUE_SW_Pin RailcomError;
 
     typedef DummyPin RailcomDataReceived;
+    typedef DummyPin RailcomRxActivate;
 
     //typedef LED_BLUE_Pin RailcomDataReceived;
     typedef DummyPin RailcomAnyData;

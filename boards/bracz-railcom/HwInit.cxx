@@ -34,6 +34,8 @@
 #include <new>
 #include <cstdint>
 
+#define TIVADCC_TIVA
+
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
@@ -56,7 +58,7 @@
 #include "custom/TivaGNDControl.hxx"
 #include "custom/TivaDAC.hxx"
 #include "bootloader_hal.h"
-#include "TivaDCC.hxx"
+//#include "TivaDCC.hxx"
 
 
 /*struct Debug {
