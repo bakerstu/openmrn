@@ -110,7 +110,13 @@ public:
                                                    (AvahiPublishFlags)0, name,
                                                    service, NULL, NULL,
                                                    port, NULL);
-
+        
+        if (result != 0)
+        {
+            fprintf(stderr, "Error exporting mDNS name (%d) %s\n", result,
+                    avahi_strerror(result));
+            return;
+        }
         HASSERT(result == 0);
 #elif defined (TARGET_IS_CC3200)
         string full_name(name);
@@ -170,6 +176,13 @@ private:
         client = avahi_client_new(avahi_simple_poll_get(simplePoll),
                                   (AvahiClientFlags)0, client_callback, this,
                                   &error);
+        if (!client)
+        {
+            fprintf(stderr, "Error creating AvaHi client (%d) %s\nmDNS export "
+                            "will not be functional.\n",
+                error, avahi_strerror(error));
+            return nullptr;
+        }
         printf("client created\n");
         HASSERT(client);
 
