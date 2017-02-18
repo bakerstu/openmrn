@@ -223,6 +223,19 @@ public:
         return FN_NOT_KNOWN;
     }
 
+    void toggle_fn(uint32_t fn) {
+        auto fnstate = get_fn(fn);
+        if (fnstate == FN_NOT_KNOWN)
+        {
+            fnstate = 1;
+        }
+        else
+        {
+            fnstate = !fnstate;
+        }
+        set_fn(fn, fnstate);        
+    }
+    
     uint32_t legacy_address() override
     {
         return 0;
