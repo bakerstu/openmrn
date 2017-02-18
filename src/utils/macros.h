@@ -208,4 +208,8 @@ extern const char* g_death_file;
 /// Helper macro for printing a node ID on printf that does not support %llx.
 #define FAKELLP(x)  static_cast<unsigned>((x) >> 32), static_cast<unsigned>((x) & 0xffffffffu)
 
+/// Macro to signal a function that the result must be used.
+#define MUST_USE_RESULT __attribute__((__warn_unused_result__))
+
+
 #endif // _UTILS_MACROS_H_
