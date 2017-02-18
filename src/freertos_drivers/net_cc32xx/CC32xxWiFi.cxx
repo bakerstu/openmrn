@@ -178,7 +178,6 @@ uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
             return SL_SEC_TYPE_OPEN;
         case SEC_WEP:
             return SL_SEC_TYPE_WEP;
-            break;
         case SEC_WPA2:
             return SL_SEC_TYPE_WPA_WPA2;
     }
@@ -193,6 +192,9 @@ CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(uint8_t sec_t
             return SEC_OPEN;
         case SL_SEC_TYPE_WEP:
             return SEC_WEP;
+        case SL_SEC_TYPE_WPS_PBC:
+        case SL_SEC_TYPE_WPS_PIN:
+        case SL_SEC_TYPE_WPA_ENT:
         case SL_SEC_TYPE_WPA_WPA2:
             return SEC_WPA2;
     }
@@ -318,21 +320,7 @@ int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
     for (int i = 0; i < result; ++i)
     {
         entries[i].ssid.assign((char*)sl_entries[i].ssid, sl_entries[i].ssid_len);
-
-        switch (sl_entries[i].sec_type)
-        {
-            default:
-            case SL_SEC_TYPE_OPEN:
-                entries[i].sec_type = SEC_OPEN;
-                break;
-            case SL_SEC_TYPE_WEP:
-                entries[i].sec_type = SEC_WEP;
-                break;
-            case SL_SEC_TYPE_WPA_WPA2:
-                entries[i].sec_type = SEC_WPA2;
-                break;
-        }
-
+        entries[i].sec_type = security_type_from_simplelink(sl_entries[i].sec_type);
         entries[i].rssi = sl_entries[i].rssi;
     }
 
