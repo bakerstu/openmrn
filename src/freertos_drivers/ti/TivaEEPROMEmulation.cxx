@@ -105,7 +105,7 @@ void TivaEEPROMEmulation::flash_program(
 {
     HASSERT(sector < sectorCount_);
     HASSERT((byte_count % BLOCK_SIZE) == 0);
-    HASSERT(start_block + (byte_count / BLOCK_SIZE) < rawBlockCount_);
+    HASSERT(start_block + (byte_count / BLOCK_SIZE) <= rawBlockCount_);
     auto* address = get_block(sector, start_block);
 
     portENTER_CRITICAL();
