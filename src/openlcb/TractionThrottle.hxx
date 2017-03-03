@@ -408,6 +408,7 @@ private:
         if (!timer_.is_triggered())
         {
             // timed out
+            pendingQueries_ = 0;
             return return_with_error(Defs::OPENMRN_TIMEOUT);
         }
         else
