@@ -37,6 +37,8 @@
 
 #include <stdint.h>
 
+#include "utils/macros.h"
+
 class Fixed16
 {
 public:
