@@ -899,7 +899,6 @@ private:
      * the newly allocated payload object. */
     void alloc_result(QMember *b) override
     {
-        LOG(VERBOSE, "allocation result arrived.");
         allocationResult_ = b;
         notify();
     }
