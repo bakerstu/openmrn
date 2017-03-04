@@ -1,0 +1,54 @@
+#include "utils/test_main.hxx"
+#include "utils/OpenSSLAesCcm.hxx"
+
+
+int nibble_to_int(char n) {
+    if ('0' <= n && n <= '9') {
+        return n - '0';
+    }
+    if ('a' <= n && n <= 'f') {
+        return n - 'a'+ 10;
+    }
+    if ('A' <= n && n <= 'F') {
+        return n - 'A'+ 10;
+    }
+    DIE("Unknown nibble arrived.");
+}
+  
+std::string hex2str(const char* hex) {
+    std::string ret;
+    while (*hex && *(hex+1)) {
+        ret.push_back((nibble_to_int(*hex) << 4) |
+                      (nibble_to_int(*(hex+1))));
+        hex += 2;
+    }
+    return ret;
+}
+
+void get_example(int index, string& Key, string& Nonce, string& Adata, string& Payload, string& CT) {
+#include "utils/AesCcmTestVectors.hxx"
+}
+
+
+TEST(OpenSSLCCMTest, EncryptionTest) {
+    string key;
+    string nonce;
+    string auth_data;
+    string plain;
+    string cipher;
+    string tag;
+
+    for (int i = 40; i <= 49; ++i) {
+        fprintf(stderr, "Example %d\n", i);
+        get_example(i, key, nonce, auth_data, plain, cipher);
+        // Move the last part of the cipher to the tag.
+        tag = cipher.substr(cipher.size() - 16, 16);
+        cipher.resize(cipher.size() - 16);
+
+        string o_cipher;
+        string o_tag;
+        CCMEncrypt(key, nonce, auth_data, plain, &o_cipher, &o_tag);
+        EXPECT_EQ(tag, o_tag);
+        EXPECT_EQ(cipher, o_cipher);
+    }
+}

@@ -10,6 +10,8 @@ include $(OPENMRNPATH)/etc/core_test.mk
 
 TESTDIRS = $(TESTSRCS:.cxxtest=.covdir)
 
+utils/OpenSSLAesCcm.test: SYSLIBRARIESEXTRA+=-lcrypto
+
 # This target actually runs the test. We jump through some hoops to collect the
 # coverage files into a separate directory. Since they are in a separate directory, we need to put the original .gcno files there as well.
 %.testout : %.testmd5
