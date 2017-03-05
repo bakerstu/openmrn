@@ -33,6 +33,7 @@
  */
 
 #include "utils/macros.h"
+#include "utils/format_utils.hxx"
 
 char* unsigned_integer_to_buffer_hex(int value, char* buffer)
 {
