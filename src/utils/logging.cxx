@@ -56,13 +56,7 @@ void log_output(char* buf, int size) {
 
 #elif defined(__linux__) || defined(__MACH__) || defined(__EMSCRIPTEN__)
 
-#include <stdio.h>
-
-void log_output(char* buf, int size) {
-    if (size <= 0) return;
-    fwrite(buf, size, 1, stderr);
-    fwrite("\n", 1, 1, stderr);
-}
+#include "utils/stdio_logging.h"
 
 #else
 
