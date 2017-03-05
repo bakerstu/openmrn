@@ -29,6 +29,11 @@
  * Helper function to perform encryption/authentication/decryption using
  * AES-CCM algorithm with OpenSSL crypt library.
  *
+ * In order to use this function, you need to install libssl-dev package and
+ * add to the makefile of your application target to link against it:
+ *
+ * SYSLIBRARIESEXTRA+=-lcrypto
+ *
  * @author Balazs Racz
  * @date 4 Mar 2017
  */

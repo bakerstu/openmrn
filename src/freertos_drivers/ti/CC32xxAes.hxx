@@ -45,9 +45,24 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/aes.h"
 
+/// Helper class for doing CCM encryption-with-authentication using the
+/// CC32xx's hardware AES engine.
 class CCMHelper
 {
 public:
+    /// Performs authenticated decryption using CCM in one call. Use this when
+    /// all of the ciphertext is available.
+    ///
+    /// @param aes_key is the secret key. 16, 24 or 32 bytes long.
+    /// @param nonce is the use-once initialization that came in cleartext with
+    /// the encrypted data.
+    /// @param auth_data is cleartext data (usually packet headers) that need
+    /// to be checked for authenticity.
+    /// @param cipher is the encrypted data.
+    /// @param plain will hold the decrypted data.
+    /// @param tag will hold the authentication checksum. Make sure to resize
+    /// this to the appropriate number of bytes before calling (suggested 16
+    /// bytes).
     static void decrypt(const std::string &aes_key, const std::string &nonce,
         const std::string &auth_data, const std::string &cipher,
         std::string *plain, std::string *tag)
@@ -305,8 +320,11 @@ private:
         MAP_AESDataRead(AES_BASE, dout, 16);
     }
 
+    /// Holds up to one block of data to work around incorrectly aligned input.
     uint8_t writeBuffer_[16];
+    /// Number of live bytes in writeBuffer_.
     uint8_t writeBufferLength_;
+    /// How many bytes we need to have in the tag output.
     uint8_t tagLength_;
 };
 
