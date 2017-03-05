@@ -101,7 +101,8 @@ void CCMEncrypt(const std::string &aes_key, const std::string &iv,
     HASSERT(outlen <= (int)cipher->size());
     LOG(INFO, "encupdate: in=%d, ret=%d", (int)plain.size(), outlen);
     cipher->resize(outlen);
-
+    // CCM always outputs the same number of bytes than the input.
+    ASSERT_EQ(plain.size(), outlen);
     int ret = -1;
     ASSERT_EQ(1, EVP_EncryptFinal_ex(ctx, (uint8_t *)&((*cipher)[0]), &ret));
     ASSERT_EQ(0, ret);
