@@ -9,7 +9,8 @@ LDFLAGSEXTRA += -L$(TICC3200SDKPATH)/driverlib/gcc/exe
 SYSLIBRARIESEXTRA += -ldriver \
                      -lfreertos_drivers_cc32xx \
                      -lfreertos_drivers_cc32xxsdk \
-                     -lfreertos_drivers_net_cc32xx
+                     -lfreertos_drivers_net_cc32xx \
+                     -lutils
 
 endif
 
