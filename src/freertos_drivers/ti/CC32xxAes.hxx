@@ -52,39 +52,15 @@ public:
         const std::string &auth_data, const std::string &cipher,
         std::string *plain, std::string *tag)
     {
-        // HASSERT(32 == aes_key.size());
-        // HASSERT(11 == iv.size());
-
-        unsigned tag_len = tag->size();
-
-        reset();
-
-        unsigned mode = AES_CFG_DIR_DECRYPT | AES_CFG_MODE_CCM |
-            AES_CFG_CTR_WIDTH_32 |
-            get_mode(aes_key.size(), nonce.size(), tag->size());
-        MAP_AESConfigSet(AES_BASE, mode);
-
-        string real_iv;
-        real_iv.push_back(nonce_length_to_l(nonce.size()) - 1);
-        real_iv += nonce;
-        while (real_iv.size() < 16)
-        {
-            real_iv.push_back(0);
-        }
-        MAP_AESIVSet(AES_BASE, (uint8_t *)real_iv.data());
-
-        string copy_a(auth_data);
-        for (int i = 0; i < 16; ++i)
-            copy_a.push_back(0);
-        MAP_AESKey1Set(AES_BASE, (uint8_t *)aes_key.data(),
-            interpret_key_size(aes_key.size()));
-        plain->resize(cipher.size() + 16);
-        tag->resize(16);
-        MAP_AESDataProcessAE(AES_BASE, (uint8_t *)cipher.data(),
-            (uint8_t *)(&plain->at(0)), cipher.size(), (uint8_t *)copy_a.data(),
-            auth_data.size(), (uint8_t *)&tag->at(0));
-        plain->resize(cipher.size());
-        tag->resize(tag_len);
+        CCMHelper h;
+        h.decrypt_init(aes_key, nonce, auth_data, cipher.size(), tag->size());
+        unsigned ofs = cipher.size() / 3;
+        h.data_process(cipher.substr(0, ofs), plain);
+        std::string part;
+        h.data_process(cipher.substr(ofs), &part);
+        *plain += part;
+        h.data_finalize(&part, tag);
+        *plain += part;
     }
 
     static void encrypt(const std::string &aes_key, const std::string &iv,
