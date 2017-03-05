@@ -260,12 +260,14 @@ void get_example(int index, string &Key, string &Nonce, string &Adata,
     
 }
 
+bool have_failure = false;
+
 void printcomp(const string& exp, const string& act, const char* name) {
     if (exp == act) {
         LOG(INFO, "%s correct.", name);
         return;
     }
-        return;
+    have_failure = true;
     LOG(INFO, "%s failed.", name);
     LOG(INFO, "Expected=%s", str2hex(exp).c_str());
     LOG(INFO, "Actual  =%s", str2hex(act).c_str());
@@ -292,7 +294,7 @@ void run_all_tests()
         string o_tag;
         o_tag.resize(tag.size());
         HASSERT(cipher.size() == plain.size());
-        CCMHelper::Decrypt(
+        CCMHelper::decrypt(
             key, nonce, auth_data, cipher, &o_plain, &o_tag);
         printcomp(tag, o_tag, "tag");
         printcomp(plain, o_plain, "plain");
@@ -307,7 +309,7 @@ void run_all_tests()
 int appl_main(int argc, char *argv[])
 {
     run_all_tests();
-    LOG(WARNING, "done.");
+    LOG(WARNING, "done. %s.", have_failure ? " FAILURES" : "All good");
     while (1)
         ;
     return 0;
