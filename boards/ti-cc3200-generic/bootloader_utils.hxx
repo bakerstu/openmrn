@@ -6,6 +6,7 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/prcm.h"
 
+#include "utils/Crc.hxx"
 
 constexpr auto UART_PERIPH = PRCM_UARTA0;
 constexpr auto UART_BASE = UARTA0_BASE;
