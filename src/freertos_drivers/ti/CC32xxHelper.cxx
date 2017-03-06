@@ -32,7 +32,10 @@
  */
 
 #include "freertos_drivers/ti/CC32xxHelper.hxx"
+
+#include "utils/logging.h"
 #include "utils/macros.h"
+#include "fs.h"
 
 volatile int g_last_sl_result;
 
@@ -46,4 +49,24 @@ void SlCheckError(int result)
 {
     g_last_sl_result = result;
     HASSERT(result >= 0);
+}
+
+void SlDeleteFile(const void* filename)
+{
+    const uint8_t* name = (const uint8_t*)filename;
+    int ret = sl_FsDel(name, 0);
+    if (ret == SL_FS_FILE_HAS_NOT_BEEN_CLOSE_CORRECTLY)
+    {
+        int32_t sl_file_handle = -1;
+        ret = sl_FsOpen(
+            name, FS_MODE_OPEN_WRITE, nullptr, &sl_file_handle);
+        LOG(INFO, "recreate %s: %d", name, ret);
+        if (sl_file_handle >= 0)
+        {
+            ret = sl_FsClose(sl_file_handle, nullptr, nullptr, 0);
+            LOG(INFO, "recreate-close %s: %d", name, ret);
+        }
+        ret = sl_FsDel(name, 0);
+        LOG(INFO, "redelete %s: %d", name, ret);
+    }
 }
