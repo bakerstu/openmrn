@@ -117,6 +117,10 @@ int CC32xxDeviceFile::open(File* file, const char *path, int flags, int mode)
             lock_.unlock();
             switch (result)
             {
+                case SL_FS_FILE_HAS_NOT_BEEN_CLOSE_CORRECTLY:
+                    // we fake a not existent error here. When the file gets
+                    // opened for write, that will work.
+                    return -ENOENT;
                 default:
                     SlCheckError(result);
                     return -ENOENT;
