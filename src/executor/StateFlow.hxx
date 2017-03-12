@@ -727,6 +727,25 @@ protected:
         service()->executor()->select(helper);
         return wait_and_call(c);
     }
+
+    /** Wait for a connect socket to become active.
+     * @param helper selectable helper for maintaining the select metadata
+     * @param fd file descriptor of a non-blocking connect socket
+     * @param c next state
+     */
+    Action connect_and_call(StateFlowSelectHelper *helper, int fd, Callback c)
+    {
+        // verify that the fd is a socket
+        struct stat stat;
+        fstat(fd, &stat);
+        HASSERT(S_ISSOCK(stat.st_mode));
+
+        helper->reset(Selectable::WRITE, fd, Selectable::MAX_PRIO);
+        helper->set_wakeup(this);
+
+        service()->executor()->select(helper);
+        return wait_and_call(c);
+    }
 #endif
 
     /// Writes some data into a file descriptor, repeating the operation as

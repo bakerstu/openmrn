@@ -384,11 +384,18 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
                 SlCheckResult(result);
                 break;
             }
+            case SL_EISCONN:
+                errno = EISCONN;
+                break;
             case SL_ECONNREFUSED:
                 errno = ECONNREFUSED;
                 break;
             case SL_EALREADY:
-                errno = EALREADY;
+                /** @todo the return value for a non-blocking connect is
+                 * supposed to be EINPROGRESS, but the CC32xx returns EALREADY
+                 * instead.
+                 */
+                errno = EINPROGRESS;
                 break;
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
@@ -432,6 +439,9 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
                 errno = EAGAIN;
                 s->readActive = false;
                 break;
+            case SL_ECONNREFUSED:
+                s->readActive = true;
+                return 0;
         }
         return -1;
     }
