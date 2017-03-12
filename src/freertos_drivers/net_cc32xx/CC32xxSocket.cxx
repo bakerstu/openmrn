@@ -468,7 +468,8 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
         {
             case SL_SOC_ERROR:
                 /// @todo (stbaker): handle errors via the callback.
-                errno = ECONNRESET;
+                //errno = ECONNRESET;
+                errno = EAGAIN;
                 break;
             case SL_EAGAIN:
                 errno = EAGAIN;
@@ -794,8 +795,7 @@ int CC32xxSocket::fcntl(File *file, int cmd, unsigned long data)
     CC32xxSocket *s = static_cast<CC32xxSocket *>(file->priv);
     if (!S_ISSOCK(s->mode_))
     {
-        errno = ENOTSOCK;
-        return -1;
+        return -ENOTSOCK;
     }
 
     switch (cmd)
