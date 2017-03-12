@@ -35,10 +35,10 @@
 #include "utils/macros.h"
 #include "utils/format_utils.hxx"
 
-char* unsigned_integer_to_buffer_hex(int value, char* buffer)
+char* unsigned_integer_to_buffer_hex(unsigned int value, char* buffer)
 {
     int num_digits = 0;
-    int tmp = value;
+    unsigned int tmp = value;
     do
     {
         num_digits++;
@@ -50,7 +50,7 @@ char* unsigned_integer_to_buffer_hex(int value, char* buffer)
     do
     {
         HASSERT(num_digits >= 0);
-        int tmp2 = tmp % 16;
+        unsigned int tmp2 = tmp % 16;
         if (tmp2 <= 9)
         {
             buffer[num_digits--] = '0' + tmp2;
