@@ -107,6 +107,26 @@ TivaDAC<DACDefs> dac;
 TivaGNDControl gnd_control;
 TivaBypassControl bypass_control;
 
+uint8_t RailcomDefs::feedbackChannel_ = 0xff;
+uint8_t dac_next_packet_mode = 0;
+
+volatile uint32_t ch0_count, ch1_count, sample_count;
+
+DacSettings dac_occupancy = {5, 50, true};  // 1.9 mV
+// DacSettings dac_occupancy = { 5, 10, true };
+
+#if 1
+DacSettings dac_overcurrent = {5, 20, false};
+#else
+DacSettings dac_overcurrent = dac_occupancy;
+#endif
+
+#if 1
+DacSettings dac_railcom = {5, 10, true};  // 8.6 mV
+#else
+DacSettings dac_railcom = dac_occupancy;
+#endif
+
 inline void DCCDecode::dcc_packet_finished_hook() {
   RailcomDefs::set_input();
   extern uint8_t dac_next_packet_mode;
