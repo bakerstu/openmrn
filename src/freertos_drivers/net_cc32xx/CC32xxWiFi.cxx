@@ -152,7 +152,7 @@ CC32xxWiFi::CC32xxWiFi()
     , wlanRole(WlanRole::UNKNOWN)
     , connected(0)
     , connectionFailed(0)
-    , ipAquired(0)
+    , ipAcquired(0)
     , ipLeased(0)
     , smartConfigStart(0)
 {
@@ -398,6 +398,7 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
     len = 32;
     config_opt = WLAN_AP_OPT_SSID;
     sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt , &len, (uint8_t*)old_ssid);
+    // simplify strcmp by null terminating the old_ssid
     if (len != strlen(ssid) || strncmp(old_ssid, ssid, len))
     {
         sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SSID, strlen(ssid),
@@ -437,7 +438,7 @@ void CC32xxWiFi::connecting_update_blinker()
     {
         resetblink(WIFI_BLINK_NOTASSOCIATED);
     }
-    else if (!ipAquired)
+    else if (!ipAcquired)
     {
         resetblink(WIFI_BLINK_ASSOC_NOIP);
     }
@@ -446,10 +447,10 @@ void CC32xxWiFi::connecting_update_blinker()
 /*
  * CC32xxWiFi::set_default_state()
  */
-void CC32xxWiFi::set_default_state(WlanRole role)
+void CC32xxWiFi::set_default_state()
 {
     long result = sl_Start(0, 0, 0);
-    if (role == WlanRole::AP)
+    if (wlanRole == WlanRole::AP)
     {
         if (result != ROLE_AP)
         {
@@ -483,10 +484,10 @@ void CC32xxWiFi::set_default_state(WlanRole role)
 /*
  * CC32xxWiFi::wlan_task()
  */
-void CC32xxWiFi::wlan_task(WlanRole role)
+void CC32xxWiFi::wlan_task()
 {
     int result;
-    set_default_state(role);
+    set_default_state();
 
     /* adjust to a lower priority task */
     vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);
@@ -641,7 +642,12 @@ void CC32xxWiFi::select_wakeup(int16_t data)
         address.sin_port = sl_Htons(8000);
         address.sin_addr.s_addr = sl_Htonl(SL_IPV4_VAL(127,0,0,1));
 
-        sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
+        int result = sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
+        while (result == SL_EAGAIN && data != SELECT_WAKE_NO_ACTION);
+        {
+            result = sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
+            usleep(10000);
+        }
     }
 }
 
@@ -735,7 +741,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             event_data = &event->EventData.STAandP2PModeDisconnected;
 
             connected = 0;
-            ipAquired = 0;
+            ipAcquired = 0;
             ssid[0] = '\0';
 
 
@@ -827,7 +833,7 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
         }
         // fall through
         case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
-            ipAquired = 1;
+            ipAcquired = 1;
 
             //
             // Information about the IPv4 & IPv6 details (like IP, gateway,dns

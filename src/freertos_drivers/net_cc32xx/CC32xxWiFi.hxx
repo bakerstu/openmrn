@@ -125,7 +125,7 @@ public:
      * connections. */
     bool wlan_ready()
     {
-        return (connected || wlanRole == WlanRole::AP) && ipAquired;
+        return (connected || wlanRole == WlanRole::AP) && ipAcquired;
     }
 
     /** Get the current Wi-Fi role.
@@ -143,7 +143,7 @@ public:
         {
             return WlanState::NOT_ASSOCIATED;
         }
-        if (!ipAquired)
+        if (!ipAcquired)
         {
             return WlanState::NO_IP;
         }
@@ -223,7 +223,7 @@ public:
      */
     uint32_t wlan_ip()
     {
-        return ipAquired ? ipAddress : 0;
+        return ipAcquired ? ipAddress : 0;
     }
 
     /** Get the SSID of the access point we are connected to.
@@ -347,23 +347,21 @@ private:
     SecurityType security_type_from_simplelink(uint8_t sec_type);
 
     /** Set the CC32xx to its default state, including station mode.
-     * @param device role
      */
-    void set_default_state(WlanRole role);
+    void set_default_state();
 
     /** Thread that will manage the WLAN connection.
      * @param context context passed into the stack.
      */
     static void* wlan_task_entry(void *context)
     {
-        instance()->wlan_task((WlanRole)(uintptr_t)context);
+        instance()->wlan_task();
         return nullptr;
     }
 
     /** Thread that will manage the WLAN connection inside object context.
-     * @param device role
      */
-    void wlan_task(WlanRole role);
+    void wlan_task();
 
     /** Asynchronously wakeup the select call.
      * @param data -1 for no action,
@@ -412,7 +410,7 @@ private:
 
     unsigned connected        : 1; /**< AP connected state */
     unsigned connectionFailed : 1; /**< Connection attempt failed status */
-    unsigned ipAquired        : 1; /**< IP address aquired state */
+    unsigned ipAcquired        : 1; /**< IP address aquired state */
     unsigned ipLeased         : 1; /**< IP address leased to a client(AP mode)*/
     unsigned smartConfigStart : 1; /**< Smart config in progress */
 
