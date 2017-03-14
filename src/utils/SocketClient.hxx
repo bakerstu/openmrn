@@ -42,13 +42,13 @@
 #include "executor/StateFlow.hxx"
 #include "executor/Timer.hxx"
 
-class SocketClient : public StateFlowBase, public OSThread , public OSSem
+class SocketClient : public StateFlowBase, private OSThread
 {
 public:
     /** Constructor.
      * @param service service that the StateFlowBase will be bound to.
-     * @param mdns_name service name to connect to, nullptr to force use
-     *                  hostsname and port
+     * @param mdns service name to connect to, nullptr to force use
+     *                  hostname and port
      * @param host host to connect to if mdns_name resolution fails,
      *             nullptr to force use mDNS
      * @param port port number to connect to if mdns_name resolution fails
@@ -57,16 +57,21 @@ public:
      *                 callee to register the notifiable (on close) if this
      *                 client shall reattempt the connection if the socket
      *                 is ever closed.
+     *                 - First param is the file descriptor of the resulting
+     *                   socket
+     *                 - Second param is the struct addrinfo for the connected
+     *                   peer
+     *                 - Third param is a pointer to "this" class to notify
+     *                   on exit that the socket has been torn down.
      * @param retry_seconds time in seconds that the client shall wait to retry
      *                      connecting on error.
      */
     SocketClient(Service *service, const char *mdns, const char * host,
                  int port,
-                 std::function<void(int, char*, int, Notifiable*)>callback,
+                 std::function<void(int, struct addrinfo *, Notifiable*)>callback,
                  unsigned retry_seconds = 5)
         : StateFlowBase(service)
         , OSThread()
-        , OSSem()
         , mdns_(mdns)
         , host_(host)
         , port_(port)
@@ -76,18 +81,29 @@ public:
         , timer_(this)
         , fd_(-1)
         , addr_(nullptr)
+        , sem_()
     {
         HASSERT(mdns_ || (host_ && port_));
         start_flow(STATE(spawn_thread));
+    }
+
+    /** Destructor.
+     */
+    ~SocketClient()
+    {
+        if (addr_)
+        {
+            freeaddrinfo(addr_);
+        }
     }
 
 private:
     /** thread that will handle the blocking address resolution.
      * @return should never return
      */
-    virtual void *entry() override
+    void *entry() override
     {
-        int ai_ret;
+        int ai_ret = -1;
         struct addrinfo hints;
 
         memset(&hints, 0, sizeof(hints));
@@ -96,33 +112,31 @@ private:
         hints.ai_flags = 0;
         hints.ai_protocol = IPPROTO_TCP;
 
+        sem_.wait();
+
         for ( ; /* forever */ ; )
         {
-            OSSem::wait();
-            for ( ; /* forever */ ; )
+            if (mdns_)
             {
-                if (mdns_)
-                {
-                    /* mdns address resolution */
-                    ai_ret = getaddrinfo(nullptr, mdns_, &hints, &addr_);
-                }
-                else
-                {
-                    char port_str[30];
-                    integer_to_buffer(port_, port_str);
-                    ai_ret = getaddrinfo(host_, port_str, &hints, &addr_);
-                }
-                if (ai_ret == 0 && addr_)
-                {
-                    notify();
-                    break;
-                }
-                if (addr_)
-                {
-                    freeaddrinfo(addr_);
-                }
-                sleep(retrySeconds_);
+                /* mdns address resolution */
+                ai_ret = getaddrinfo(nullptr, mdns_, &hints, &addr_);
             }
+            if (ai_ret != 0 || addr_ == nullptr)
+            {
+                char port_str[30];
+                integer_to_buffer(port_, port_str);
+                ai_ret = getaddrinfo(host_, port_str, &hints, &addr_);
+            }
+            if (ai_ret == 0 && addr_)
+            {
+                notify();
+                sem_.wait();
+            }
+            if (addr_)
+            {
+                freeaddrinfo(addr_);
+            }
+            sleep(retrySeconds_);
         }
 
         return nullptr;
@@ -133,7 +147,7 @@ private:
      */
     Action spawn_thread()
     {
-        start("socket_client", 0, 1024);
+        start("socket_client", 0, 2048);
         return call_immediately(STATE(find_host));
     }
 
@@ -142,7 +156,7 @@ private:
      */
     Action find_host()
     {
-        OSSem::post();
+        sem_.post();
         return wait_and_call(STATE(do_connect));
     }
 
@@ -183,16 +197,27 @@ private:
         }
     }
 
-    /** Start the connection attempt
-     * @return next state is find_host() after a timeout upon error, or upon
-               success, after the connection has been broken
+    /** Change in connect state
+     * @return next state is connect_active_delayed() after a timeout
      */
     Action connect_active()
     {
+#if defined (__FreeRTOS__)
         /// @todo small delay seems to be required for CC32xx.  Not sure why.
-        usleep(10000);
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(100),
+                              STATE(connect_active_delayed));
+#else
+        return call_immediately(STATE(connect_active_delayed));
+#endif
+    }
+
+    /** complete the connection attempt
+     * @return next state is find_host() after a timeout upon error, or upon
+     *         success, after the connection has been broken
+     */
+    Action connect_active_delayed()
+    {
         int ret = connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
-        freeaddrinfo(addr_);
         if (ret < 0)
         {
             if (errno != EISCONN)
@@ -205,7 +230,7 @@ private:
         }
 
         /* connect successful */
-        callback_(fd_, nullptr, -1, this);
+        callback_(fd_, addr_, this);
         return wait_and_call(STATE(find_host));
     }
 
@@ -219,7 +244,7 @@ private:
     int port_;
 
     /** callback to call on connection success */
-    std::function<void(int, char *, int, Notifiable*)> callback_;
+    std::function<void(int, struct addrinfo *, Notifiable*)> callback_;
 
     /** number of seconds between retries */
     unsigned retrySeconds_;
@@ -235,6 +260,9 @@ private:
 
     /** address info metadata */
     struct addrinfo *addr_;
+
+    /** Semaphore for synchronizing with the helper thread */
+    OSSem sem_;
 
     DISALLOW_COPY_AND_ASSIGN(SocketClient);
 };
