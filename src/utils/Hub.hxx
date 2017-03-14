@@ -213,4 +213,23 @@ private:
                        ///printed.
 };
 
+
+/** Shared base class for thread-based and select-based hub devices. */
+class FdHubPortInterface : public Destructable {
+public:
+    /// @return the filedes to read/write.
+    int fd()
+    {
+        return fd_;
+    }
+
+protected:
+    FdHubPortInterface() : fd_(-1) {}
+
+    FdHubPortInterface(int fd) : fd_(fd) {}
+
+    /** The device file descriptor. */
+    int fd_{-1};
+};
+
 #endif // _UTILS_HUB_HXX_
