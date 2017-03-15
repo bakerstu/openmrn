@@ -35,6 +35,7 @@
 
 #include "utils/GcTcpHub.hxx"
 
+#include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
 
 void GcTcpHub::OnNewConnection(int fd)
