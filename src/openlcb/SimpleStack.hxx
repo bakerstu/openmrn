@@ -170,6 +170,15 @@ public:
         auto *port = new HubDeviceSelect<CanHubFlow>(&canHub0_, device);
         additionalComponents_.emplace_back(port);
     }
+
+    /// Adds a CAN bus port with select-based asynchronous driver API.
+    /// @param fd file descriptor to add to can hub
+    /// @param on_error Notifiable to wakeup on error
+    void add_can_port_select(int fd, Notifiable *on_error = nullptr)
+    {
+        auto *port = new HubDeviceSelect<CanHubFlow>(&canHub0_, fd, on_error);
+        additionalComponents_.emplace_back(port);
+    }
 #endif
 
     /// Adds a gridconnect port to the CAN bus.

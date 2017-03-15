@@ -25,6 +25,16 @@ enum class WlanState : uint8_t
     UPDATE_DISPLAY = 20,
 };
 
+/** Operating Role.
+ */
+enum class WlanRole : uint8_t
+{
+    UNKNOWN = 0, /**< Wi-Fi station mode */
+    STA,         /**< Wi-Fi station mode */
+    AP           /**< Wi-Fi access point mode */
+};
+
+
 extern "C" {
 /// Name of wifi accesspoint to connect to.
 extern char WIFI_SSID[];

@@ -56,7 +56,7 @@ char* unsigned_integer_to_buffer(int value, char* buffer);
  * @param value will be rendered into the buffer.
  * @returns the pointer to the null character at the end of the rendering.
  */
-char* unsigned_integer_to_buffer_hex(int value, char* buffer);
+char* unsigned_integer_to_buffer_hex(unsigned int value, char* buffer);
 
 /// Formats a MAC address to string. Works both for Ethernet addresses as well
 /// as for OpenLCB node IDs.

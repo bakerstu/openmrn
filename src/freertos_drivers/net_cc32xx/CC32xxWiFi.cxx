@@ -148,9 +148,11 @@ void del_socket(int16_t socket)
 CC32xxWiFi::CC32xxWiFi()
     : ipAddress(0)
     , wakeup(-1)
+    , rssi(0)
+    , wlanRole(WlanRole::UNKNOWN)
     , connected(0)
     , connectionFailed(0)
-    , ipAquired(0)
+    , ipAcquired(0)
     , ipLeased(0)
     , smartConfigStart(0)
 {
@@ -340,17 +342,21 @@ void CC32xxWiFi::wlan_mac(uint8_t mac[6])
 /*
  * CC32xxWiFi::start()
  */
-void CC32xxWiFi::start()
+void CC32xxWiFi::start(WlanRole role)
 {
+    wlanRole = role;
     VStartSimpleLinkSpawnTask(configMAX_PRIORITIES - 1);
-    //int result = sl_start(0, 0, 0);
-    //HASSERT(result >= 0);
-    os_thread_create(nullptr, "Wlan Task", configMAX_PRIORITIES - 1, 2048, wlan_task_entry, nullptr);
+    os_thread_create(nullptr, "Wlan Task", configMAX_PRIORITIES - 1, 2048,
+                     wlan_task_entry, (void *)role);
 }
 
+/*
+ * CC32xxWiFi::stop()
+ */
 void CC32xxWiFi::stop()
 {
-    sl_Stop(0xFF);
+    ipAquired = false;
+    connected = false;
 }
 
 /*
@@ -375,13 +381,64 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
     }
 }
 
+/*
+ * CC32xxWiFi::wlan_setup_ap()
+ */
+void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
+                               SecurityType security_type)
+{
+    HASSERT(strlen(ssid) <= 32);
+    HASSERT(strlen(security_key) <= 64);
+
+    int sec_type = security_type_to_simplelink(security_type);
+    uint16_t len;
+    uint16_t config_opt;
+
+    char old_ssid[32];
+    len = 32;
+    config_opt = WLAN_AP_OPT_SSID;
+    sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt , &len, (uint8_t*)old_ssid);
+    // simplify strcmp by null terminating the old_ssid
+    if (len != strlen(ssid) || strncmp(old_ssid, ssid, len))
+    {
+        sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SSID, strlen(ssid),
+                   (uint8_t*)ssid);
+    }
+
+    uint8_t old_sec_type;
+    len = 1;
+    config_opt = WLAN_AP_OPT_SECURITY_TYPE;
+    sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt , &len, (uint8_t*)&old_sec_type);
+    if (old_sec_type != sec_type)
+    {
+        uint8_t sec_type = sec_type;
+        sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SECURITY_TYPE, 1,
+                   (uint8_t*)&sec_type);
+    }
+
+    if (sec_type == SL_SEC_TYPE_OPEN)
+    {
+        return;
+    }
+
+    char old_password[64];
+    len = 64;
+    config_opt = WLAN_AP_OPT_PASSWORD;
+    sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt , &len, (uint8_t*)old_password);
+    if (len != strlen(security_key) || strncmp(old_password, security_key, len))
+    {
+        sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_PASSWORD,
+                   strlen(security_key), (uint8_t*)security_key);
+    }
+}
+
 void CC32xxWiFi::connecting_update_blinker()
 {
     if (!connected)
     {
         resetblink(WIFI_BLINK_NOTASSOCIATED);
     }
-    else if (!ipAquired)
+    else if (!ipAcquired)
     {
         resetblink(WIFI_BLINK_ASSOC_NOIP);
     }
@@ -393,22 +450,35 @@ void CC32xxWiFi::connecting_update_blinker()
 void CC32xxWiFi::set_default_state()
 {
     long result = sl_Start(0, 0, 0);
-    if (true || wlan_profile_test_none())
+    if (wlanRole == WlanRole::AP)
     {
-        /* no profiles saved, add the default profile */
-        wlan_profile_add(WIFI_SSID, strlen(WIFI_PASS) > 0 ? SEC_WPA2 : SEC_OPEN,
-                         WIFI_PASS, 0);
+        if (result != ROLE_AP)
+        {
+            sl_WlanSetMode(ROLE_AP);
+            sl_Stop(0xFF);
+            sl_Start(0, 0, 0);
+        }
     }
-    if (result != ROLE_STA)
+    else
     {
-        sl_WlanSetMode(ROLE_STA);
-        sl_Stop(0xFF);
-        sl_Start(0, 0, 0);
-    }
+        if (true || wlan_profile_test_none())
+        {
+            /* no profiles saved, add the default profile */
+            wlan_profile_add(WIFI_SSID,
+                             strlen(WIFI_PASS) > 0 ? SEC_WPA2 : SEC_OPEN,
+                             WIFI_PASS, 0);
+        }
+        if (result != ROLE_STA)
+        {
+            sl_WlanSetMode(ROLE_STA);
+            sl_Stop(0xFF);
+            sl_Start(0, 0, 0);
+        }
 
-    /* auto connection policy */
-    sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(1,0,0,0,0),
-                     NULL,0); 
+        /* auto connection policy */
+        sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(1,0,0,0,0),
+                         NULL,0); 
+    }
 }
 
 /*
@@ -418,8 +488,6 @@ void CC32xxWiFi::wlan_task()
 {
     int result;
     set_default_state();
-
-    //wlan_connect(WIFI_SSID, WIFI_PASS, strlen(WIFI_PASS) > 0 ? SL_SEC_TYPE_WPA : SL_SEC_TYPE_OPEN);
 
     /* adjust to a lower priority task */
     vTaskPrioritySet(NULL, configMAX_PRIORITIES / 2);
@@ -502,19 +570,27 @@ void CC32xxWiFi::wlan_task()
                     {
                         continue;
                     }
-                    if (data != -1)
+                    switch (data)
                     {
-                        /* special action to close socket */
-                        portENTER_CRITICAL();
-                        SL_FD_CLR(data, &rfds);
-                        SL_FD_CLR(data, &wfds);
-                        SL_FD_CLR(data, &efds);
-                        del_socket(data);
-                        delete CC32xxSocket::get_instance_from_sd(data);
-                        CC32xxSocket::remove_instance_from_sd(data);
-                        portEXIT_CRITICAL();
+                        default:
+                            /* special action to close socket */
+                            HASSERT(data >= 0);
+                            portENTER_CRITICAL();
+                            SL_FD_CLR(data, &rfds);
+                            SL_FD_CLR(data, &wfds);
+                            SL_FD_CLR(data, &efds);
+                            del_socket(data);
+                            delete CC32xxSocket::get_instance_from_sd(data);
+                            CC32xxSocket::remove_instance_from_sd(data);
+                            portEXIT_CRITICAL();
 
-                        sl_Close(data);
+                            sl_Close(data);
+                        case SELECT_WAKE_NO_ACTION:
+                            break;
+                        case SELECT_WAKE_EXIT:
+                            /* shutdown Wi-Fi stack and helper thread */
+                            sl_Close(wakeup);
+                            return;
                     }
                 }
                 else
@@ -551,7 +627,6 @@ void CC32xxWiFi::wlan_task()
             }
         }
     }
-
 }
 
 /*
@@ -567,7 +642,12 @@ void CC32xxWiFi::select_wakeup(int16_t data)
         address.sin_port = sl_Htons(8000);
         address.sin_addr.s_addr = sl_Htonl(SL_IPV4_VAL(127,0,0,1));
 
-        sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
+        int result = sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
+        while (result == SL_EAGAIN && data != SELECT_WAKE_NO_ACTION);
+        {
+            result = sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
+            usleep(10000);
+        }
     }
 }
 
@@ -661,7 +741,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             event_data = &event->EventData.STAandP2PModeDisconnected;
 
             connected = 0;
-            ipAquired = 0;
+            ipAcquired = 0;
             ssid[0] = '\0';
 
 
@@ -677,7 +757,6 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
         }
         case SL_WLAN_STA_CONNECTED_EVENT:
             // when device is in AP mode and any client connects to device cc3xxx
-            HASSERT(0);
             break;
         case SL_WLAN_STA_DISCONNECTED_EVENT:
             // when client disconnects from device (AP)
@@ -754,7 +833,7 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
         }
         // fall through
         case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
-            ipAquired = 1;
+            ipAcquired = 1;
 
             //
             // Information about the IPv4 & IPv6 details (like IP, gateway,dns

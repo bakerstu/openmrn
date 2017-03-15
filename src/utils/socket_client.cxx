@@ -67,7 +67,8 @@ int ConnectSocket(const char *host, int port)
     return ConnectSocket(host, port_str);
 }
 
-int ConnectSocket(const char *host, const char* port_str) {
+int ConnectSocket(const char *host, const char* port_str)
+{
     struct addrinfo *addr;
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));

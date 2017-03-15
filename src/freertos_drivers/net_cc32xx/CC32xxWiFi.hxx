@@ -95,8 +95,9 @@ public:
     }
 
     /** Startup the Wi-Fi.
+     * @param device role
      */
-    void start();
+    void start(WlanRole role = WlanRole::STA);
 
     /** Stops the Wi-Fi in preparation for a reboot. TODO: does this need to be
      * called from a critical section?
@@ -108,22 +109,44 @@ public:
      * @param security_key access point security key
      * @param security_type specifies security type 
      */
-    void wlan_connect(const char *ssid, const char* security_key,
+    void wlan_connect(const char *ssid, const char *security_key,
                       SecurityType security_type);
 
+
+    /** Setup access point role credentials.
+     * @param ssid access point ssid
+     * @param security_key access point security key
+     * @param security_type specifies security type 
+     */
+    void wlan_setup_ap(const char *ssid, const char *security_key,
+                       SecurityType security_type);
 
     /** @return true if the wlan interface is ready to establish outgoing
      * connections. */
     bool wlan_ready()
     {
-        return connected && ipAquired;
+        return (connected || wlanRole == WlanRole::AP) && ipAcquired;
+    }
+
+    /** Get the current Wi-Fi role.
+     * @return the current Wi-Fi role.
+     */
+    WlanRole wlan_role()
+    {
+        return wlanRole;
     }
 
     /** @return 0 if !wlan_ready, else a debugging status code. */
     WlanState wlan_startup_state()
     {
-        if (!connected) return WlanState::NOT_ASSOCIATED;
-        if (!ipAquired) return WlanState::NO_IP;
+        if (!connected && wlanRole != WlanRole::AP)
+        {
+            return WlanState::NOT_ASSOCIATED;
+        }
+        if (!ipAcquired)
+        {
+            return WlanState::NO_IP;
+        }
         return WlanState::OK;
     }
 
@@ -200,7 +223,7 @@ public:
      */
     uint32_t wlan_ip()
     {
-        return ipAquired ? ipAddress : 0;
+        return ipAcquired ? ipAddress : 0;
     }
 
     /** Get the SSID of the access point we are connected to.
@@ -303,6 +326,14 @@ public:
     static std::string get_version();
     
 private:
+    /** Internal helper thread select wakeup codes.
+     */
+    enum SelectWakeupType : int16_t
+    {
+        SELECT_WAKE_NO_ACTION = -1, /**< generic select helper wakeup */
+        SELECT_WAKE_EXIT      = -2, /**< exit the select helper thread */
+    };
+
     /** Translates the SecurityType enum to the internal SimpleLink code.
      * @param sec_type security type
      * @return simplelink security type
@@ -333,10 +364,11 @@ private:
     void wlan_task();
 
     /** Asynchronously wakeup the select call.
-     * @param data -1 for no action, else socket descriptor if socket shall be
-     *             closed.
+     * @param data -1 for no action,
+     * @param data -2 to exit thread,
+                   else socket descriptor if socket shall be closed.
      */
-    void select_wakeup(int16_t data = -1);
+    void select_wakeup(int16_t data = SELECT_WAKE_NO_ACTION);
 
     /** Add socket to the read fd set.
      * @param socket socket descriptor to add
@@ -374,9 +406,11 @@ private:
 
     int16_t rssi; /**< receive signal strength indicator */
 
+    WlanRole wlanRole; /**< the Wi-Fi role we are in */
+
     unsigned connected        : 1; /**< AP connected state */
     unsigned connectionFailed : 1; /**< Connection attempt failed status */
-    unsigned ipAquired        : 1; /**< IP address aquired state */
+    unsigned ipAcquired        : 1; /**< IP address aquired state */
     unsigned ipLeased         : 1; /**< IP address leased to a client(AP mode)*/
     unsigned smartConfigStart : 1; /**< Smart config in progress */
 
