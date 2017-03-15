@@ -35,11 +35,14 @@
 
 #include "utils/GcTcpHub.hxx"
 
+#include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
 
 void GcTcpHub::OnNewConnection(int fd)
 {
-    create_gc_port_for_can_hub(canHub_, fd);
+    const bool use_select =
+        (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
+    create_gc_port_for_can_hub(canHub_, fd, nullptr, use_select);
 }
 
 GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port)
