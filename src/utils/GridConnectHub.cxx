@@ -160,13 +160,21 @@ public:
                 /// performance.
                 target_buffer->data()->resize(size);
                 memcpy((char *)target_buffer->data()->data(), dbuf_, size);
+                target_buffer->set_done(bn_.reset(this));
                 delayPort_.send(target_buffer, 0);
+                release();
+                return wait_and_call(STATE(buffer_accepted));
             }
             else
             {
                 LOG(INFO, "gc generate failed.");
             }
             return release_and_exit();
+        }
+
+        Action buffer_accepted()
+        {
+            return exit();
         }
 
     private:
@@ -181,6 +189,8 @@ public:
         HubPort *skipMember_;
         /// Non-zero if doubling was requested.
         int double_bytes_;
+        /// Helper object
+        BarrierNotifiable bn_;
     };
 
     /// HubPort (on a string hub) that turns a gridconnect-formatted CAN packet
