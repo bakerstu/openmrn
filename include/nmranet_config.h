@@ -108,6 +108,10 @@ DECLARE_CONST(gridconnect_buffer_size);
  * off to the lowlevel system (such as a TCP socket). */
 DECLARE_CONST(gridconnect_buffer_delay_usec);
 
+/** Whether the GridConnect TCP server should use select (single-threaded) or
+ * two threads per client (multi-threaded) execution model. */
+DECLARE_CONST(gridconnect_tcp_use_select);
+
 /** Number of entries in the remote alias cache */
 DECLARE_CONST(remote_alias_cache_size);
 
