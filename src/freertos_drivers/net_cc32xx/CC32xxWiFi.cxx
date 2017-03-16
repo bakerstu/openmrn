@@ -355,7 +355,7 @@ void CC32xxWiFi::start(WlanRole role)
  */
 void CC32xxWiFi::stop()
 {
-    ipAquired = false;
+    ipAcquired = false;
     connected = false;
 }
 
