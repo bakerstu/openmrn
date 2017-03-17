@@ -69,7 +69,7 @@ public:
      *                      connecting on error.
      */
     SocketClient(Service *service, const char *mdns, const char * host,
-                 int port,
+                 uint16_t port,
                  std::function<void(int, struct addrinfo *, Notifiable*)>callback,
                  unsigned retry_seconds = 5)
         : StateFlowBase(service)
