@@ -6,7 +6,7 @@ OPENMRNPATH ?= $(realpath ../../../..)
 TARGET := freertos.armv7m
 
 # Find driverlib
-include $(OPENMRNPATH)/etc/cc32xx.mk
+include $(OPENMRNPATH)/etc/cc322x.mk
 
 LDFLAGSEXTRA +=
 SYSLIBRARIESEXTRA +=
@@ -15,20 +15,6 @@ OBJEXTRA =
 CXXFLAGSEXTRA += -DTARGET_IS_CC3200
 
 include $(OPENMRNPATH)/etc/prog.mk
-
-
-INCLUDES += -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx \
-            -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/dummy \
-            -I$(TICC3200SDKPATH)/simplelink/include \
-            -I$(TICC3200SDKPATH)/simplelink/source \
-            -I$(TICC3200SDKPATH)/simplelink \
-            -I$(TICC3200SDKPATH)/oslib \
-            -I$(TICC3200SDKPATH)/driverlib \
-            -I$(TICC3200SDKPATH)/inc
-
-CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
-            -D__USER_H__
-
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
 

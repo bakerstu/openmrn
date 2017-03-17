@@ -278,8 +278,8 @@ endif #TICC3200SDKPATH
 ################### TI-CC3220-SDK #####################
 ifndef TICC3220SDKPATH
 SEARCHPATH := \
-  /opt/ti/CC3220SDK/default/  \
-  /opt/ti/CC3220SDK/simplelink_cc32xx_sdk_1_30_01_03/ \
+  /opt/ti/CC3220SDK/default  \
+  /opt/ti/CC3220SDK/simplelink_cc32xx_sdk_1_30_01_03 \
 
 
 TRYPATH:=$(call findfirst,source/ti/devices/cc32xx/driverlib/gpio.c,$(SEARCHPATH))
