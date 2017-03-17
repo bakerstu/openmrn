@@ -79,8 +79,6 @@ public:
         , port_(port)
         , callback_(callback)
         , retrySeconds_(retry_seconds)
-        , selectHelper_(this)
-        , timer_(this)
         , fd_(-1)
         , addr_(nullptr)
         , sem_()
@@ -138,122 +136,87 @@ private:
 
         for ( ; /* forever */ ; )
         {
+            long long start_time = OSTime::get_monotonic();
+
             if (mdns_)
             {
-                /* mdns address resolution */
+                /* try mDNS address resolution */
                 ai_ret = getaddrinfo(nullptr, mdns_, &hints, &addr_);
             }
-            if (ai_ret != 0 || addr_ == nullptr)
+            if ((ai_ret != 0 || addr_ == nullptr) && host_)
             {
+                /* try address resolution without mDNS */
                 char port_str[30];
                 integer_to_buffer(port_, port_str);
                 ai_ret = getaddrinfo(host_, port_str, &hints, &addr_);
             }
+
             if (ai_ret == 0 && addr_)
             {
-                notify();
-                sem_.wait();
+                /* able to resolve the hostname */
+                fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                if (fd_ >= 0)
+                {
+                    /* socket available */
+                    int ret = ::connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
+                    if (ret == 0)
+                    {
+                        /* connect successful */
+                        ::fcntl(fd_, F_SETFL, O_NONBLOCK);
+                        notify();
+                        sem_.wait();
+                    }
+                    else
+                    {
+                        /* connect failed */
+                        close(fd_);
+                    }
+                }
             }
+
             if (addr_)
             {
                 freeaddrinfo(addr_);
+                addr_ = nullptr;
             }
-            sleep(retrySeconds_);
+
+            long long diff_time = OSTime::get_monotonic() - start_time;
+            if (NSEC_TO_SEC(diff_time) < retrySeconds_)
+            {
+                sleep(retrySeconds_ - NSEC_TO_SEC(diff_time));
+            }
         }
 
+        /* should never get here */
         return nullptr;
     }
 
     /** Entry point into the state flow.
-     * @return next state is find_host()
+     * @return next state is do_connect()
      */
     Action spawn_thread()
     {
         start("socket_client", 0, 2048);
-        return call_immediately(STATE(find_host));
+        return call_immediately(STATE(do_connect));
     }
 
-    /** Kick off host name resolution.
-     * @return next state is do_connect() upon successful host name resolution
-     */
-    Action find_host()
-    {
-        sem_.post();
-        return wait_and_call(STATE(do_connect));
-    }
-
-    /** Start the connection attempt.
-     * @return next stat is connect_active() on success or connect in progress,
-     *         else find_host() after timeout on error
+    /** Kick off connection attempt.
+     * @return next state is connected() upon successful connection
      */
     Action do_connect()
     {
-        fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-        if (fd_ < 0)
-        {
-            /* no available socket */
-            return sleep_and_call(&timer_, SEC_TO_NSEC(retrySeconds_),
-                                  STATE(find_host));
-        }
-
-        /* set to non-blocking */
-        ::fcntl(fd_, F_SETFL, O_NONBLOCK);
-
-        int ret = ::connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
-        if (ret == 0)
-        {
-            /* connect successful */
-            return call_immediately(STATE(connect_active));
-        }
-        else if (ret < 0 && errno == EINPROGRESS)
-        {
-            /* connection pending */
-            return connect_and_call(&selectHelper_, fd_, STATE(connect_active));
-        }
-        else
-        {
-            /* connect failed */
-            close(fd_);
-            return sleep_and_call(&timer_, SEC_TO_NSEC(retrySeconds_),
-                                  STATE(find_host));
-        }
+        sem_.post();
+        return wait_and_call(STATE(connected));
     }
 
-    /** Change in connect state
-     * @return next state is connect_active_delayed() after a timeout
+    /** Connected successfully, notify user through a callback.
+     * @return next state is do_connect() after the connection has been broken
      */
-    Action connect_active()
+    Action connected()
     {
-#if defined (__FreeRTOS__)
-        /// @todo small delay seems to be required for CC32xx.  Not sure why.
-        return sleep_and_call(&timer_, MSEC_TO_NSEC(100),
-                              STATE(connect_active_delayed));
-#else
-        return call_immediately(STATE(connect_active_delayed));
-#endif
-    }
-
-    /** complete the connection attempt
-     * @return next state is find_host() after a timeout upon error, or upon
-     *         success, after the connection has been broken
-     */
-    Action connect_active_delayed()
-    {
-        int ret = ::connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
-        if (ret < 0)
-        {
-            if (errno != EISCONN)
-            {
-                /* connection failed or timed out */
-                close(fd_);
-                return sleep_and_call(&timer_, SEC_TO_NSEC(retrySeconds_),
-                                      STATE(find_host));
-            }
-        }
-
         /* connect successful */
         callback_(fd_, addr_, this);
-        return wait_and_call(STATE(find_host));
+        return wait_and_call(STATE(do_connect));
     }
 
     /** mDNS service name */
@@ -270,12 +233,6 @@ private:
 
     /** number of seconds between retries */
     unsigned retrySeconds_;
-
-    /** helper for non-blocking connect */
-    StateFlowSelectHelper selectHelper_;
-
-    /** retry timer */
-    StateFlowTimer timer_;
 
     /** socket descriptor */
     int fd_;
