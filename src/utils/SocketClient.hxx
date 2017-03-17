@@ -38,9 +38,11 @@
 #include <functional>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 #include "executor/StateFlow.hxx"
 #include "executor/Timer.hxx"
+#include "utils/format_utils.hxx"
 
 class SocketClient : public StateFlowBase, private OSThread
 {
@@ -96,6 +98,26 @@ public:
             freeaddrinfo(addr_);
         }
     }
+
+    /** Connects a tcp socket to the specified remote host:port. Returns -1 if
+     *  unsuccessful; returns the fd if successful.
+     *
+     *  @param host hostname to connect to
+     *  @param port TCP port number to connect to
+     *
+     *  @return fd of the connected socket.
+     */
+    static int connect(const char *host, int port);
+
+    /** Connects a tcp socket to the specified remote host:port. Returns -1 if
+     *  unsuccessful; returns the fd if successful.
+     *
+     *  @param host hostname to connect to. Shall be null for mDNS target.
+     *  @param port_str TCP port number or mDNS hostname to connect to.
+     *
+     *  @return fd of the connected socket.
+     */
+    static int connect(const char *host, const char* port_str);
 
 private:
     /** thread that will handle the blocking address resolution.
@@ -177,7 +199,7 @@ private:
         /* set to non-blocking */
         ::fcntl(fd_, F_SETFL, O_NONBLOCK);
 
-        int ret = connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
+        int ret = ::connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
         if (ret == 0)
         {
             /* connect successful */
@@ -217,7 +239,7 @@ private:
      */
     Action connect_active_delayed()
     {
-        int ret = connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
+        int ret = ::connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
         if (ret < 0)
         {
             if (errno != EISCONN)

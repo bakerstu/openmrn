@@ -22,7 +22,7 @@ CXXSRCS += \
            constants.cxx \
            gc_format.cxx \
            logging.cxx \
-           socket_client.cxx \
+           SocketClient.cxx \
            socket_listener.cxx \
 
 
