@@ -74,6 +74,7 @@ struct Debug {
   typedef DummyPin RailcomPackets;
 
   typedef DummyPin RailcomCh2Data;
+  typedef DummyPin RailcomRxActivate;
 };
 #include "TivaRailcom.hxx"
 
