@@ -37,6 +37,7 @@
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
+#include "inc/hw_nvic.h"
 #include "inc/hw_gpio.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
@@ -197,6 +198,14 @@ void hw_preinit(void)
 
     /* Setup the interrupt vector table */
     MAP_IntVTableBaseSet((unsigned long)&__interrupt_vector[0]);
+
+    // Disables all interrupts that the bootloader might have enabled.
+    HWREG(NVIC_DIS0) = 0xffffffffU;
+    HWREG(NVIC_DIS1) = 0xffffffffU;
+    HWREG(NVIC_DIS2) = 0xffffffffU;
+    HWREG(NVIC_DIS3) = 0xffffffffU;
+    HWREG(NVIC_DIS4) = 0xffffffffU;
+    HWREG(NVIC_DIS5) = 0xffffffffU;
 
     /* Setup the system clock. */
     PRCMCC3200MCUInit();
