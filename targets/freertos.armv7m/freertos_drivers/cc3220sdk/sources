@@ -1,0 +1,29 @@
+include $(OPENMRNPATH)/etc/cc322x.mk
+DEPS += TICC3220SDKPATH
+
+VPATH := $(TICC3220SDKPATH)/source/ti/drivers/net/wifi \
+         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/source \
+         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/porting
+
+CSRCS += device.c \
+         driver.c \
+         flowcont.c \
+         fs.c \
+         netapp.c \
+         netcfg.c \
+         socket.c \
+         spawn.c \
+         wlan.c
+
+CSRCS += cc_pal.c
+
+# CSRCS += osi_freertos.c
+         
+CXXSRCS +=
+
+CFLAGS += -Wno-strict-prototypes \
+          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
+          -D__USER_H__
+
+CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
+            -D__USER_H__
