@@ -31,11 +31,14 @@
  * @date 16 July 2016
  */
 
+#define SUPPORT_SL_R1_API
+
 #include "CC32xxDeviceFile.hxx"
 #include "CC32xxHelper.hxx"
 
 #include <fcntl.h>
 
+#include "simplelink.h"
 #include "fs.h"
 
 /*
