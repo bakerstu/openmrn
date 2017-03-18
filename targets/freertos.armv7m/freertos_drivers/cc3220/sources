@@ -1,0 +1,26 @@
+include $(OPENMRNPATH)/etc/cc32xx.mk
+DEPS += TICC3200SDKPATH
+VPATH=$(OPENMRNPATH)/src/freertos_drivers/ti
+
+CXXSRCS += CC32xxUart.cxx \
+           CC32xxSPI.cxx \
+           CC32xxDeviceFile.cxx \
+           CC32xxEEPROMEmulation.cxx \
+           CC32xxHelper.cxx \
+           
+
+INCLUDES += -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx \
+            -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/dummy \
+            -I$(TICC3200SDKPATH)/simplelink/include \
+            -I$(TICC3200SDKPATH)/simplelink/source \
+            -I$(TICC3200SDKPATH)/simplelink \
+            -I$(TICC3200SDKPATH)/oslib \
+            -I$(TICC3200SDKPATH)/driverlib \
+            -I$(TICC3200SDKPATH)/inc
+
+CFLAGS += -Wno-strict-prototypes \
+          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
+          -D__USER_H__
+
+CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
+            -D__USER_H__
