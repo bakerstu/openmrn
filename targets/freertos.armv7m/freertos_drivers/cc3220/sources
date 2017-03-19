@@ -11,3 +11,9 @@ CXXSRCS += CC32xxUart.cxx \
 
 CFLAGS += -Wno-strict-prototypes \
 
+CFLAGS += -Wno-strict-prototypes \
+          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
+          -D__USER_H__
+
+CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
+            -D__USER_H__

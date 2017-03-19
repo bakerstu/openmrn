@@ -39,12 +39,11 @@ CSRCS += device.c \
 CXXSRCS +=
 
 CFLAGS += -Wno-strict-prototypes \
+          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
+          -D__USER_H__
 
-#          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
-#          -D__USER_H__
-
-#CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
-#            -D__USER_H__
+CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
+            -D__USER_H__
 
 
 PowerCC32XX.o : CFLAGS+= -Wno-maybe-uninitialized
