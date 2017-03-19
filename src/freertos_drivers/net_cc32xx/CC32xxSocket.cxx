@@ -31,6 +31,8 @@
  * @date 18 March 2016
  */
 
+#define SUPPORT_SL_R1_API
+
 #include "CC32xxSocket.hxx"
 #include "CC32xxWiFi.hxx"
 #include "CC32xxHelper.hxx"
@@ -43,7 +45,12 @@
 #include <netinet/tcp.h>
 
 // Simplelink includes
-#include "socket.h"
+#include "CC3200_compat/simplelink.h"
+#ifdef SL_API_V2
+//#include "sl_socket.h"
+#else
+//#include "socket.h"
+#endif
 
 #include "utils/format_utils.hxx"
 
@@ -816,7 +823,7 @@ int CC32xxSocket::fcntl(File *file, int cmd, unsigned long data)
         case F_SETFL:
         {
             SlSockNonblocking_t sl_option_value;
-            sl_option_value.NonblockingEnabled = data & O_NONBLOCK ? 1 : 0;
+            sl_option_value.SL_NonblockingEnabled = data & O_NONBLOCK ? 1 : 0;
             int result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
                                        SL_SO_NONBLOCKING, &sl_option_value,
                                        sizeof(sl_option_value));

@@ -42,7 +42,7 @@
 #include <unistd.h>
 
 // Simplelink includes
-#include "simplelink.h"
+#include "CC3200_compat/simplelink.h"
 
 /** CC32xx forward declaration Helper */
 struct CC32xxWiFi::WlanEvent : public ::SlWlanEvent_t {};
@@ -353,7 +353,7 @@ void CC32xxWiFi::start(WlanRole role)
     os_thread_create(nullptr, "SimpleLink Task", configMAX_PRIORITIES - 1, 2048,
         sl_Task, nullptr);
 #else
-    VStartSimpleLinkSpawnTask();
+    VStartSimpleLinkSpawnTask(configMAX_PRIORITIES - 1);
 #endif
     os_thread_create(nullptr, "Wlan Task", configMAX_PRIORITIES - 1, 2048,
                      wlan_task_entry, (void *)role);
