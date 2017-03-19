@@ -70,7 +70,13 @@ extern "C" {
 #define SL_SO_SECURE_FILES_DH_KEY_FILE_NAME                                    \
     SL_SO_SECURE_FILES_PEER_CERT_OR_DH_KEY_FILE_NAME
 #define SO_SECURE_DOMAIN_NAME_VERIFICATION SL_SO_SECURE_DOMAIN_NAME_VERIFICATION
-/*** Updatetd Structure Names ***/
+
+#define SL_FD_ISSET(fd, p) SL_SOCKET_FD_ISSET(fd, p)
+#define SL_FD_SET(fd, p) SL_SOCKET_FD_SET(fd, p)
+#define SL_FD_CLR(fd, p) SL_SOCKET_FD_CLR(fd, p)
+#define SL_FD_ZERO(p) SL_SOCKET_FD_ZERO(p)
+
+/*** Updated Structure Names ***/
 #define Sl_WlanNetworkEntry_t SlWlanNetworkEntry_t
 #define SlHttpServerEvent_t SlNetAppHttpServerEvent_t
 #define SlHttpServerResponse_t SlNetAppHttpServerResponse_t

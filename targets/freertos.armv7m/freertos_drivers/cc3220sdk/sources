@@ -3,7 +3,13 @@ DEPS += TICC3220SDKPATH
 
 VPATH := $(TICC3220SDKPATH)/source/ti/drivers/net/wifi \
          $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/source \
-         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/porting
+         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/porting \
+         $(TICC3220SDKPATH)/source/ti/drivers \
+         $(TICC3220SDKPATH)/source/ti/drivers/spi \
+         $(TICC3220SDKPATH)/source/ti/drivers/dma \
+         $(TICC3220SDKPATH)/source/ti/drivers/power \
+         $(TICC3220SDKPATH)/source/ti/drivers/utils \
+         $(TICC3220SDKPATH)/kernel/freertos/dpl \
 
 CSRCS += device.c \
          driver.c \
@@ -17,6 +23,16 @@ CSRCS += device.c \
          wlan.c \
          eventreg.c \
 	 cc_pal.c \
+         SPI.c \
+         HwiPCC32XX_freertos.c \
+         SemaphoreP_freertos.c \
+         MutexP_freertos.c \
+         ClockP_freertos.c \
+         SPICC32XXDMA.c \
+         UDMACC32XX.c \
+         PowerCC32XX.c \
+         List.c \
+
 
 # CSRCS += osi_freertos.c
          
@@ -29,3 +45,6 @@ CFLAGS += -Wno-strict-prototypes \
 
 #CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
 #            -D__USER_H__
+
+
+PowerCC32XX.o : CFLAGS+= -Wno-maybe-uninitialized

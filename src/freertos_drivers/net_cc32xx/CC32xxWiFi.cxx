@@ -31,6 +31,8 @@
  * @date 18 March 2016
  */
 
+#define SUPPORT_SL_R1_API
+
 #include "CC32xxWiFi.hxx"
 #include "CC32xxSocket.hxx"
 
@@ -40,7 +42,6 @@
 #include <unistd.h>
 
 // Simplelink includes
-#include "osi.h"
 #include "simplelink.h"
 
 /** CC32xx forward declaration Helper */
