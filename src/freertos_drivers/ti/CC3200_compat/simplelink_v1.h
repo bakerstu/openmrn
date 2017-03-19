@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2016, Balazs Racz
+ * Copyright (c) 2017, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,28 +24,43 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file simplelink.h
- * Compatibility header for including before the CC3220-sdk.
+ * \file simplelink_v1.h
+ * Compatibility header for compiling with the CC3200-sdk.
  *
  * @author Balazs Racz
- * @date 18 Mar 2017
+ * @date 19 Mar 2017
  */
 
-#ifndef _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_
-#define _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_
+#ifndef _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_V1_H_
+#define _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_V1_H_
 
-#ifndef __USER_H__
-#define __USER_H__
+#ifndef SL_API_V2
+
+#define SL_FileLen FileLen
+#define SL_AllocatedLen AllocatedLen
+#define SL_ssid ssid
+#define SL_ssid_len ssid_len
+#define SL_sec_type sec_type
+#define SL_rssi rssi
+#define SL_Event Event
+#define SL_EventData EventData
+#define SL_ssid_name ssid_name
+#define SL_reason_code reason_code
+#define SL_ipAcquiredV4 ipAcquiredV4
+#define SL_ip ip
+#define SL_ipLeased ipLeased
+#define SL_ip_address ip_address
+#define SL_socketAsyncEvent socketAsyncEvent
+#define SL_status status
+#define SL_type type
+#define SL_token_value token_value
+#define SL_data data
+#define SL_len len
+#define SL_httpTokenName httpTokenName
+#define SL_ChipFwAndPhyVersion(ver) ver.ChipFwAndPhyVersion
+#define SL_NETAPP_MAX_TOKEN_VALUE_LEN MAX_TOKEN_VALUE_LEN
+#define SL_NonblockingEnabled NonblockingEnabled
+
 #endif
 
-#ifdef SL_API_V2
-#include "sl_compat.h"
-#include "CC3220/user.h"
-#include "ti/drivers/net/wifi/simplelink.h"
-#else
-#include "simplelink_v1.h"
-#include "CC3200/user.h"
-#include "simplelink/include/simplelink.h"
-#endif
-
-#endif // _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_
+#endif // _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_V1_H_

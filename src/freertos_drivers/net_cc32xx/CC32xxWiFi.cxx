@@ -38,6 +38,7 @@
 
 #include "freertos_drivers/common/WifiDefs.hxx"
 #include "utils/format_utils.hxx"
+#include "utils/logging.h"
 
 #include <unistd.h>
 
@@ -58,6 +59,11 @@ struct CC32xxWiFi::HttpServerEvent : public ::SlHttpServerEvent_t {};
 
 /** CC32xx forward declaration Helper */
 struct CC32xxWiFi::HttpServerResponse : public ::SlHttpServerResponse_t {};
+
+#ifdef SL_API_V2
+/** CC32xx forward declaration Helper */
+struct CC32xxWiFi::FatalErrorEvent : public ::SlDeviceFatal_t {};
+#endif
 
 CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;
 
@@ -983,6 +989,15 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
 }
 
 
+/*
+ * CC32xxWiFi::fatal_error_callback()
+ */
+void CC32xxWiFi::fatal_error_callback(CC32xxWiFi::FatalErrorEvent* event)
+{
+    LOG(WARNING, "Simplelink experienced a fatal error.");
+}
+
+
 static void append_num(std::string* s, uint32_t d) {
     char num[10];
     integer_to_buffer(d, num);
@@ -1082,5 +1097,56 @@ void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpServerEvent,
         static_cast<CC32xxWiFi::HttpServerEvent *>(pHttpServerEvent),
         static_cast<CC32xxWiFi::HttpServerResponse *>(pHttpServerResponse));
 }
+
+#ifdef SL_API_V2
+
+/**
+ *  \brief      This function handles resource request
+ *  \param[in]  pNetAppRequest - Contains the resource requests
+ *  \param[in]  pNetAppResponse - Should be filled by the user with the
+ *                                relevant response information
+ *  \return     None
+ */
+void SimpleLinkNetAppRequestEventHandler(SlNetAppRequest_t  *pNetAppRequest,
+                                         SlNetAppResponse_t *pNetAppResponse)
+{
+    /* Unused in this application */
+}
+
+/**
+ *  \brief      This function handles resource release
+ *  \param[in]  buffer - Contains the resource requests
+ *  \param[in]  pNetAppResponse - Should be filled by the user with the
+ *                                relevant response information
+ *  \return     None
+ */
+void SimpleLinkNetAppRequestMemFreeEventHandler (uint8_t *buffer)
+{
+    free(buffer);
+}
+
+/** This Function Handles the Fatal errors
+ *  @param  slFatalErrorEvent - Contains the fatal error data
+ *  @return     None
+ */
+void SimpleLinkFatalErrorEventHandler(SlDeviceFatal_t *slFatalErrorEvent)
+{
+    CC32xxWiFi::instance()->fatal_error_callback(
+        static_cast<CC32xxWiFi::FatalErrorEvent*>(slFatalErrorEvent));
+}
+
+extern int slcb_SetErrno(int Errno);
+
+/** Helper function called by SimpleLink driver to set OS-specific errno value.
+    The implementation just forwards the errno value to the newlib_nano errno
+    value.
+    @param Errno is the new value to be written to errno.
+ */
+int slcb_SetErrno(int Errno)
+{
+    errno = Errno;
+}
+
+#endif 
 
 } /* extern "C" */

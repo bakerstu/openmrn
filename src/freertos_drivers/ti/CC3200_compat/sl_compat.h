@@ -128,6 +128,7 @@ extern "C" {
 #define SL_ChipFwAndPhyVersion(ver) ver
 #define SL_NonblockingEnabled NonBlockingEnabled
 
+#define SimpleLinkHttpServerCallback SimpleLinkHttpServerEventHandler
 
 
 #if 0
