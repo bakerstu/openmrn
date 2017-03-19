@@ -28,13 +28,18 @@
  * Compatibility header for including before the CC3220-sdk.
  *
  * @author Balazs Racz
- * @date 18 mar 2017
+ * @date 18 Mar 2017
  */
 
 #ifndef _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_
 #define _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_
 
+#ifdef SL_API_V2
 #include "sl_compat.h"
 #include "ti/drivers/net/wifi/simplelink.h"
+#else
+#include "simplelink_v1.h"
+#include "simplelink/include/simplelink.h"
+#endif
 
 #endif // _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_

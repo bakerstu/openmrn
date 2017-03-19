@@ -38,7 +38,7 @@
 
 #include <fcntl.h>
 
-#include "simplelink.h"
+#include "CC3200_compat/simplelink.h"
 #include "fs.h"
 
 /*
@@ -131,8 +131,8 @@ int CC32xxDeviceFile::open(File* file, const char *path, int flags, int mode)
         }
         SlFsFileInfo_t info;
         sl_FsGetInfo((const unsigned char *)path, 0, &info);
-        size = info.FileLen;
-        maxSize = info.AllocatedLen;
+        size = info.SL_FileLen;
+        maxSize = info.SL_AllocatedLen;
     }
     lock_.unlock();
 
@@ -201,7 +201,7 @@ int CC32xxDeviceFile::fstat(File* file, struct stat *stat) {
     SlFsFileInfo_t fs_file_info;
     int ret = sl_FsGetInfo((const uint8_t*)name, 0, &fs_file_info);
     SlCheckResult(ret);
-    stat->st_size = fs_file_info.FileLen;
-    stat->st_blocks = fs_file_info.AllocatedLen / 512;
+    stat->st_size = fs_file_info.SL_FileLen;
+    stat->st_blocks = fs_file_info.SL_AllocatedLen / 512;
     return 0;
 }

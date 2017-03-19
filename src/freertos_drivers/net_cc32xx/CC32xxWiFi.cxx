@@ -155,7 +155,6 @@ CC32xxWiFi::CC32xxWiFi()
     , connectionFailed(0)
     , ipAcquired(0)
     , ipLeased(0)
-    , smartConfigStart(0)
 {
     HASSERT(instance_ == nullptr);
     instance_ = this;
@@ -322,9 +321,9 @@ int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
 
     for (int i = 0; i < result; ++i)
     {
-        entries[i].ssid.assign((char*)sl_entries[i].ssid, sl_entries[i].ssid_len);
-        entries[i].sec_type = security_type_from_simplelink(sl_entries[i].sec_type);
-        entries[i].rssi = sl_entries[i].rssi;
+        entries[i].ssid.assign((char*)sl_entries[i].SL_ssid, sl_entries[i].SL_ssid_len);
+        entries[i].sec_type = security_type_from_simplelink(sl_entries[i].SL_sec_type);
+        entries[i].rssi = sl_entries[i].SL_rssi;
     }
 
     delete [] sl_entries;
@@ -336,7 +335,11 @@ int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
  */
 void CC32xxWiFi::wlan_mac(uint8_t mac[6])
 {
+#ifdef SL_API_V2
+    uint16_t  len = 6;
+#else
     uint8_t  len = 6;
+#endif
     sl_NetCfgGet(SL_MAC_ADDRESS_GET, nullptr, &len, mac);
 }
 
@@ -346,7 +349,12 @@ void CC32xxWiFi::wlan_mac(uint8_t mac[6])
 void CC32xxWiFi::start(WlanRole role)
 {
     wlanRole = role;
-    VStartSimpleLinkSpawnTask(configMAX_PRIORITIES - 1);
+#ifdef SL_API_V2
+    os_thread_create(nullptr, "SimpleLink Task", configMAX_PRIORITIES - 1, 2048,
+        sl_Task, nullptr);
+#else
+    VStartSimpleLinkSpawnTask();
+#endif
     os_thread_create(nullptr, "Wlan Task", configMAX_PRIORITIES - 1, 2048,
                      wlan_task_entry, (void *)role);
 }
@@ -707,21 +715,26 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
         return;
     }
 
-    switch (event->Event)
+    switch (event->SL_Event)
     {
         case SL_WLAN_CONNECT_EVENT:
         {
             connected = 1;
             connectionFailed = 0;
 
-            slWlanConnectAsyncResponse_t *event_data;
-            event_data = &event->EventData.STAandP2PModeWlanConnected;
-            if (event_data->connection_type == 0)
+            const auto *event_data =
+                &event->SL_EventData.STAandP2PModeWlanConnected;
+#ifndef SL_API_V2
+            if (event_data->connection_type != 0)
+            {
+                break;
+            }
+#endif
             {
                 /* Station mode */
                 portENTER_CRITICAL();
-                memcpy(ssid, event_data->ssid_name, event_data->ssid_len);
-                ssid[event_data->ssid_len] = '\0';
+                memcpy(ssid, event_data->SL_ssid_name, event_data->SL_ssid_len);
+                ssid[event_data->SL_ssid_len] = '\0';
                 portEXIT_CRITICAL();
             }
         
@@ -737,9 +750,8 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
         }
         case SL_WLAN_DISCONNECT_EVENT:
         {
-            slWlanConnectAsyncResponse_t *event_data;
-
-            event_data = &event->EventData.STAandP2PModeDisconnected;
+            const auto *event_data =
+                &event->SL_EventData.STAandP2PModeDisconnected;
 
             connected = 0;
             ipAcquired = 0;
@@ -748,7 +760,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
 
             // If the user has initiated 'Disconnect' request, 
             //'reason_code' is SL_USER_INITIATED_DISCONNECTION 
-            if(SL_USER_INITIATED_DISCONNECTION == event_data->reason_code)
+            if(SL_USER_INITIATED_DISCONNECTION == event_data->SL_reason_code)
             {
             }
             else
@@ -773,8 +785,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             // event_data = &event->EventData.APModestaDisconnected;
             //
             break;
-        case SL_WLAN_SMART_CONFIG_COMPLETE_EVENT:
-            smartConfigStart = 1;
+            //case SL_WLAN_SMART_CONFIG_COMPLETE_EVENT:
 
             //
             // Information about the SmartConfig details (like Status, SSID, 
@@ -785,9 +796,8 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             //  event_data = &event->EventData.smartConfigStartResponse;
             //
             break;
-        case SL_WLAN_SMART_CONFIG_STOP_EVENT:
+            //case SL_WLAN_SMART_CONFIG_STOP_EVENT:
             // SmartConfig operation finished
-            smartConfigStart = 0;
 
             //
             // Information about the SmartConfig details (like Status, padding 
@@ -798,15 +808,15 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             // event_data = &event->EventData.smartConfigStopResponse;
             //
             break;
-        case SL_WLAN_P2P_DEV_FOUND_EVENT:
+            //case SL_WLAN_P2P_DEV_FOUND_EVENT:
             HASSERT(0);
             break;
-        case SL_WLAN_P2P_NEG_REQ_RECEIVED_EVENT:
+            //case SL_WLAN_P2P_NEG_REQ_RECEIVED_EVENT:
             HASSERT(0);
             break;
-        case SL_WLAN_CONNECTION_FAILED_EVENT:
-            // If device gets any connection failed event
-            connectionFailed = 1;
+            // case SL_WLAN_CONNECTION_FAILED_EVENT:
+            // If device gets any connection failed event in P2P mode
+            // connectionFailed = 1;
             break;
         default:
             HASSERT(0);
@@ -824,13 +834,13 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
         return;
     }
 
-    switch (event->Event)
+    switch (event->SL_Event)
     {
         case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
         {
-            SlIpV4AcquiredAsync_t *event_data = NULL;
-            event_data = &event->EventData.ipAcquiredV4;
-            ipAddress = event_data->ip;
+            //SlIpV4AcquiredAsync_t *event_data = NULL;
+            const auto* event_data = &event->SL_EventData.SL_ipAcquiredV4;
+            ipAddress = event_data->SL_ip;
         }
         // fall through
         case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
@@ -865,8 +875,8 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             // event_data = &event->EventData.ipLeased;
             //
 
-            SlIpLeasedAsync_t *event_data = &event->EventData.ipLeased;
-            ipAddress = event_data->ip_address;
+            SlIpLeasedAsync_t *event_data = &event->SL_EventData.SL_ipLeased;
+            ipAddress = event_data->SL_ip_address;
             break;
         }
         case SL_NETAPP_IP_RELEASED_EVENT:
@@ -904,7 +914,7 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
     switch (event->Event)
     {
         case SL_SOCKET_TX_FAILED_EVENT:
-            switch (event->socketAsyncEvent.SockTxFailData.status)
+            switch (event->SL_socketAsyncEvent.SockTxFailData.SL_status)
             {
                 case SL_ECLOSE: 
                     break;
@@ -913,14 +923,8 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
             }
             break;
         case SL_SOCKET_ASYNC_EVENT:
-            switch (event->socketAsyncEvent.SockAsyncData.type)
+            switch (event->SL_socketAsyncEvent.SockAsyncData.SL_type)
             {
-                case SSL_ACCEPT:/*accept failed due to ssl issue ( tcp pass)*/
-                    break;
-                case RX_FRAGMENTATION_TOO_BIG:
-                    break;
-                case OTHER_SIDE_CLOSE_SSL_DATA_NOT_ENCRYPTED:
-                    break;
                 default:
                     break;
             }
@@ -947,23 +951,23 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
         {
             unsigned char *ptr;
 
-            ptr = response->ResponseData.token_value.data;
-            response->ResponseData.token_value.len = 0;
+            ptr = response->ResponseData.SL_token_value.SL_data;
+            response->ResponseData.SL_token_value.SL_len = 0;
 
             for (unsigned i = 0; i < httpGetCallbacks_.size(); ++i)
             {
-                if (strcmp((const char *)event->EventData.httpTokenName.data,
+                if (strcmp((const char *)event->EventData.SL_httpTokenName.SL_data,
                            httpGetCallbacks_[i].second) == 0)
                 {
                     string result = httpGetCallbacks_[i].first();
                     // clip string if required
-                    if (result.size() >= MAX_TOKEN_VALUE_LEN)
+                    if (result.size() >= SL_NETAPP_MAX_TOKEN_VALUE_LEN)
                     {
-                        result.erase(MAX_TOKEN_VALUE_LEN);
+                        result.erase(SL_NETAPP_MAX_TOKEN_VALUE_LEN);
                     }
                     memcpy(ptr, result.c_str(), result.size());
                     ptr += result.size();
-                    response->ResponseData.token_value.len += result.size();
+                    response->ResponseData.SL_token_value.SL_len += result.size();
                     break;
                 }
             }
@@ -985,7 +989,8 @@ static void append_num(std::string* s, uint32_t d) {
     s->append(num);
 }
 
-static void append_ver_4(std::string* s, uint32_t* d) {
+template<class NUM>
+static void append_ver_4(std::string* s, NUM d[4]) {
     for (int i = 0; i < 4; ++i) {
         if (i) s->push_back('.');
         append_num(s, d[i]);
@@ -996,7 +1001,12 @@ std::string CC32xxWiFi::get_version() {
     std::string v;
     SlVersionFull ver;
     uint8_t ucConfigOpt = SL_DEVICE_GENERAL_VERSION;
+#ifdef SL_API_V2
+    uint16_t ucConfigLen = sizeof(ver);
+#else
     uint8_t ucConfigLen = sizeof(ver);
+#endif
+    
     int lRetVal = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &ucConfigOpt, 
                             &ucConfigLen, (unsigned char *)(&ver));
     HASSERT(lRetVal == 0);
@@ -1006,18 +1016,18 @@ std::string CC32xxWiFi::get_version() {
     v += " N";
     append_ver_4(&v, ver.NwpVersion);
     v += " F";
-    append_ver_4(&v, ver.ChipFwAndPhyVersion.FwVersion);
+    append_ver_4(&v, SL_ChipFwAndPhyVersion(ver).FwVersion);
     v += " P";
     uint32_t pv[4];
-    pv[0] = ver.ChipFwAndPhyVersion.PhyVersion[0];
-    pv[1] = ver.ChipFwAndPhyVersion.PhyVersion[1];
-    pv[2] = ver.ChipFwAndPhyVersion.PhyVersion[2];
-    pv[3] = ver.ChipFwAndPhyVersion.PhyVersion[3];
+    pv[0] = SL_ChipFwAndPhyVersion(ver).PhyVersion[0];
+    pv[1] = SL_ChipFwAndPhyVersion(ver).PhyVersion[1];
+    pv[2] = SL_ChipFwAndPhyVersion(ver).PhyVersion[2];
+    pv[3] = SL_ChipFwAndPhyVersion(ver).PhyVersion[3];
     append_ver_4(&v, pv);
     v += " R";
     append_num(&v, ver.RomVersion);
     v += " C";
-    append_num(&v, ver.ChipFwAndPhyVersion.ChipId);
+    append_num(&v, SL_ChipFwAndPhyVersion(ver).ChipId);
     return v;
 }
 

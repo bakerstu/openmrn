@@ -53,6 +53,10 @@ extern "C" {
 #define SL_SEC_TYPE_WEP SL_WLAN_SEC_TYPE_WEP
 #define SL_SEC_TYPE_WPA SL_WLAN_SEC_TYPE_WPA
 #define SL_SEC_TYPE_WPA_WPA2 SL_WLAN_SEC_TYPE_WPA_WPA2
+#define SL_SEC_TYPE_WPS_PBC SL_WLAN_SEC_TYPE_WPS_PBC
+#define SL_SEC_TYPE_WPS_PIN SL_WLAN_SEC_TYPE_WPS_PIN
+#define SL_SEC_TYPE_WPA_ENT SL_WLAN_SEC_TYPE_WPA_ENT
+
 #define WLAN_GENERAL_PARAM_OPT_STA_TX_POWER                                    \
     SL_WLAN_GENERAL_PARAM_OPT_STA_TX_POWER
 #define WLAN_GENERAL_PARAM_OPT_AP_TX_POWER SL_WLAN_GENERAL_PARAM_OPT_AP_TX_POWER
@@ -60,6 +64,7 @@ extern "C" {
 #define SL_NETAPP_IP_LEASED_EVENT SL_NETAPP_EVENT_DHCPV4_LEASED
 #define SL_NETAPP_IP_RELEASED_EVENT SL_NETAPP_EVENT_DHCPV4_RELEASED
 #define SL_NETAPP_IPV4_IPACQUIRED_EVENT SL_NETAPP_EVENT_IPV4_ACQUIRED
+#define SL_NETAPP_IPV6_IPACQUIRED_EVENT SL_NETAPP_EVENT_IPV6_ACQUIRED
 #define SL_NETAPP_HTTPGETTOKENVALUE_EVENT SL_NETAPP_EVENT_HTTP_TOKEN_GET
 #define SL_NETAPP_HTTPPOSTTOKENVALUE_EVENT SL_NETAPP_EVENT_HTTP_TOKEN_POST
 #define SL_NET_APP_HTTP_SERVER_ID SL_NETAPP_HTTP_SERVER_ID
@@ -90,14 +95,40 @@ extern "C" {
 #define SlWlanProtocolInfoElement_t SlWlanInfoElement_t
 #define SlWlanProtocolSetInfoElement_t SlWlanSetInfoElement_t
 #define slWlanConnectAsyncResponse_t SlWlanEventDisconnect_t /* ??? */
+#define SlGetRxStatResponse_t SlWlanGetRxStatResponse_t
 #define _WlanRxFilterOperationCommandBuff_t SlWlanRxFilterOperationCommandBuff_t
 #define slPeerInfoAsyncResponse_t SlWlanEventP2PClientAdded_t
 #define SlVersionFull SlDeviceVersion_t
 #define SlSockSecureMethod SlSockSecureMethod_t
 #define SlSockSecureMask SlSockSecureMask_t
 /*** Updatetd Structure Members Names ***/
-#define AllocatedLen StorageSize
-#define FileLen Len
+
+
+#define SL_FileLen Len
+#define SL_AllocatedLen StorageSize
+#define SL_ssid Ssid
+#define SL_ssid_len SsidLen
+#define SL_sec_type SecurityInfo
+#define SL_rssi Rssi
+#define SL_Event Id
+#define SL_EventData Data
+#define SL_ssid_name SsidName
+#define SL_reason_code ReasonCode
+#define SL_ipAcquiredV4 IpAcquiredV4
+#define SL_ip Ip
+#define SL_ipLeased IpLeased
+#define SL_ip_address IpAddress
+#define SL_socketAsyncEvent SocketAsyncEvent
+#define SL_status Status
+#define SL_type Type
+#define SL_token_value TokenValue
+#define SL_data pData
+#define SL_len Len
+#define SL_httpTokenName HttpTokenName
+#define SL_ChipFwAndPhyVersion(ver) ver
+
+
+#if 0
 #define NonblockingEnabled NonBlockingEnabled
 #define reason Reason
 #define reason_code ReasonCode
@@ -117,17 +148,11 @@ extern "C" {
 #define deviceDriverReport DeviceDriverReport
 #define deviceEvent DeviceEvent
 #define deviceReport DeviceReport
-#define ipAcquiredV4 IpAcquiredV4
-#define ipLeased IpLeased
 #define ipReleased IpReleased
-#define status Status
-#define rssi Rssi
 #define bssid Bssid
-#define ssid Ssid
-#define ssid_len SsidLen
-#define sec_type SecurityInfo
-#define ssid_name SsidName
 #define FilterIdMask FilterBitmap
+#endif
+
 /*** Updatetd Error Names ***/
 #define SL_FS_ERR_FILE_NOT_EXISTS SL_ERROR_FS_FILE_NOT_EXISTS
 #define SL_EAGAIN SL_ERROR_BSD_EAGAIN
