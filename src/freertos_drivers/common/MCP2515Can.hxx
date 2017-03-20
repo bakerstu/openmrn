@@ -223,6 +223,19 @@ private:
         MERR = 0x80, /**< message error interrupt bit */
     };
 
+    /** interrupt flag masks */
+    enum ErrorFlags
+    {
+        EWARN  = 0x01, /**< set when TEC or REC is equal to or greater than 96 */
+        RXWARN = 0x02, /**< set when REC is equal to or greater than 96 */
+        TXWARN = 0x04, /**< set when TEC is equal to or greater than 96 */
+        RXEP   = 0x08, /**< set when REC is equal to or greater than 128 */
+        TXEP   = 0x10, /**< set when TEC is equal to or greater than 128 */
+        TXBO   = 0x20, /**< set when TEC reaches 255 (bus-off) */
+        RX0OVR = 0x40, /**< receiver buffer 0 overflow flag */
+        RX1OVR = 0x80, /**< receiver buffer 1 overflow flag */
+    };
+
     /** SPI transaction instructions */
     enum Instructions
     {
