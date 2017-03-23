@@ -1,29 +1,14 @@
 include $(OPENMRNPATH)/etc/cc322x.mk
 DEPS += TICC3220SDKPATH
 
-VPATH := $(TICC3220SDKPATH)/source/ti/drivers/net/wifi \
-         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/source \
-         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/porting \
-         $(TICC3220SDKPATH)/source/ti/drivers \
+VPATH := $(TICC3220SDKPATH)/source/ti/drivers \
          $(TICC3220SDKPATH)/source/ti/drivers/spi \
          $(TICC3220SDKPATH)/source/ti/drivers/dma \
          $(TICC3220SDKPATH)/source/ti/drivers/power \
          $(TICC3220SDKPATH)/source/ti/drivers/utils \
          $(TICC3220SDKPATH)/kernel/freertos/dpl \
 
-CSRCS += device.c \
-         driver.c \
-         flowcont.c \
-         fs.c \
-         netapp.c \
-         netcfg.c \
-         netutil.c \
-         sl_socket.c \
-         spawn.c \
-         wlan.c \
-         eventreg.c \
-	 cc_pal.c \
-         SPI.c \
+CSRCS += SPI.c \
          HwiPCC32XX_freertos.c \
          SemaphoreP_freertos.c \
          MutexP_freertos.c \
@@ -38,13 +23,7 @@ CSRCS += device.c \
          
 CXXSRCS +=
 
-CFLAGS += -Wno-strict-prototypes \
-          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
-          -D__USER_H__
-
-CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
-            -D__USER_H__
-
+CFLAGS += -Wno-strict-prototypes
 
 PowerCC32XX.o : CFLAGS+= -Wno-error -Wno-maybe-uninitialized
 

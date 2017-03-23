@@ -14,6 +14,7 @@ INCLUDES += -DSL_PLATFORM_MULTI_THREADED -DSL_API_V2 \
 SYSLIBRARIESEXTRA += $(TICC3220SDKPATH)/source/ti/devices/cc32xx/driverlib/gcc/Release/driverlib.a \
                      -lfreertos_drivers_cc3220 \
                      -lfreertos_drivers_cc3220sdk \
+                     -lfreertos_drivers_cc3220driverlib \
                      -lfreertos_drivers_net_cc3220 \
                      -lutils
 
