@@ -67,7 +67,7 @@ const char *STDERR_DEVICE = "/dev/ser0";
 static CC32xxUart uart0("/dev/ser0", UARTA0_BASE, INT_UARTA0);
 
 /** Wi-Fi instance */
-static CC32xxWiFi wifi;
+CC32xxWiFi wifi;
 
 extern "C"
 {
@@ -191,6 +191,10 @@ void hw_preinit(void)
     MAP_IntPrioritySet(INT_TIMERA2A, 0);
     MAP_TimerIntEnable(TIMERA2_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMERA2_BASE, TIMER_A);
+
+    // Initialize the SPI driver for the CC32xx network processor connection.
+    extern void SPI_init(void);
+    SPI_init();
 
     /* Checks the SW2 pin at boot time in case we want to allow for a debugger
      * to connect. */

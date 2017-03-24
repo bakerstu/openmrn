@@ -37,6 +37,7 @@
 #include "CC32xxSocket.hxx"
 
 #include "freertos_drivers/common/WifiDefs.hxx"
+#include "freertos_drivers/ti/CC32xxHelper.hxx"
 #include "utils/format_utils.hxx"
 #include "utils/logging.h"
 
@@ -465,6 +466,7 @@ void CC32xxWiFi::connecting_update_blinker()
 void CC32xxWiFi::set_default_state()
 {
     long result = sl_Start(0, 0, 0);
+    SlCheckError(result);
     if (wlanRole == WlanRole::AP)
     {
         if (result != ROLE_AP)

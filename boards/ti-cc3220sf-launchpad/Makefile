@@ -26,7 +26,7 @@ OPENOCDARGS = -c 'set TRANSPORT swd' -f board/ti-cc3200-launchxl.cfg
 
 run: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
 	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
-	$(GDB) $< -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex "source $(OPENMRNPATH)/boards/ti-cc3200-generic/utils.gdb" -ex "monitor reset halt" -ex "load" -ex "reset"
+	$(GDB) $< -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex "source $(OPENMRNPATH)/boards/ti-cc3200-generic/utils.gdb" -ex "monitor reset init" -ex "monitor reset halt" -ex "load" # -ex "reset"
 
 # "monitor reset init" -ex "monitor reset run"
 

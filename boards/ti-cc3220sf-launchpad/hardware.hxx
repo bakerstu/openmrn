@@ -14,7 +14,7 @@ GPIO_PIN(LED_GREEN, GpioOutputSafeLow, A1, 3);
 GPIO_PIN(LED_YELLOW, GpioOutputSafeLow, A1, 2);
 
 typedef LED_RED_RAW_Pin BLINKER_RAW_Pin;
-typedef BLINKER_Pin RED_LED_Pin;
+typedef BLINKER_Pin LED_RED_Pin;
 
 // Create an initializer that can initialize all the GPIO pins in one shot
 typedef GpioInitializer<SW2_Pin,
