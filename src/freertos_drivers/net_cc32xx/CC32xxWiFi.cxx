@@ -1145,6 +1145,7 @@ extern int slcb_SetErrno(int Errno);
 int slcb_SetErrno(int Errno)
 {
     errno = Errno;
+    return 0;
 }
 
 #endif 
