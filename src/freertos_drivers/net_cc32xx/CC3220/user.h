@@ -23,7 +23,6 @@
 extern "C" {
 #endif
 
-  
 #include <string.h>
 #include <ti/drivers/net/wifi/porting/cc_pal.h>
 
@@ -99,7 +98,7 @@ typedef signed int _SlFd_t;
     \note       belongs to \ref configuration_sec
 
 */
-#define SL_RUNTIME_EVENT_REGISTERATION
+//#define SL_RUNTIME_EVENT_REGISTERATION
 
 
 /*!
@@ -666,8 +665,16 @@ typedef signed int _SlFd_t;
 #ifndef SL_INC_INTERNAL_ERRNO
 // we prefer the system's errno header first
 #include <sys/errno.h>
+
+// prevent recursive inclusion
+#define __SIMPLELINK_H__
 // Include all the nonstandard error numbers too
 #include <ti/drivers/net/wifi/sys/errno.h>
+#undef __SIMPLELINK_H__
+
+#undef OK
+//#undef TRUE
+//#undef FALSE
 
 #endif
 
@@ -1092,7 +1099,6 @@ typedef signed int _SlFd_t;
 */
 
 #define slcb_DeviceGeneralEvtHdlr		  SimpleLinkGeneralEventHandler
-
 /*!
     \brief WLAN Async event handler
     
