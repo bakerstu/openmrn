@@ -16,10 +16,10 @@ CSRCS += device.c \
          spawn.c \
          wlan.c \
 	 cc_pal.c \
+         eventreg.c \
 
 #	 maybe we don't need this because we are not using dynamic event
 #         registration:
-#        eventreg.c \
 #
 
 
