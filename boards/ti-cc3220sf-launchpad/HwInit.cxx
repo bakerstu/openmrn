@@ -192,12 +192,8 @@ void hw_preinit(void)
     MAP_TimerIntEnable(TIMERA2_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMERA2_BASE, TIMER_A);
 
-    // Initialize the SPI driver for the CC32xx network processor connection.
-    extern void SPI_init(void);
-    SPI_init();
-
     /* Checks the SW2 pin at boot time in case we want to allow for a debugger
-     * to connect. */
+     * to connect. 
     asm volatile ("cpsie i\n");
     do {
       if (SW2_Pin::get()) {
@@ -206,13 +202,17 @@ void hw_preinit(void)
         blinker_pattern = 0;
       }
     } while (blinker_pattern || rest_pattern);
-    asm volatile ("cpsid i\n");
+    asm volatile ("cpsid i\n"); */
 }
 
 /** Initialize the processor hardware post C runtime init.
  */
 void hw_init(void)
 {
+    // Initialize the SPI driver for the CC32xx network processor connection.
+    extern void SPI_init(void);
+    SPI_init();
+
     wifi.instance()->start();
 }
 
