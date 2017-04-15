@@ -43,9 +43,10 @@
 #include "executor/StateFlow.hxx"
 #include "executor/Timer.hxx"
 #include "os/MDNS.hxx"
+#include "utils/Atomic.hxx"
 #include "utils/format_utils.hxx"
 
-class SocketClient : public StateFlowBase, private OSThread
+class SocketClient : public StateFlowBase, private OSThread, private Atomic
 {
 public:
     /** Constructor.
@@ -68,11 +69,13 @@ public:
      *                   on exit that the socket has been torn down.
      * @param retry_seconds time in seconds that the client shall wait to retry
      *                      connecting on error.
+     * @param timeout_seconds time in seconds that the connect is supposed to
+     *                        timeout and look for a possible shutdown.
      */
-    SocketClient(Service *service, const char *mdns, const char * host,
+    SocketClient(Service *service, const char *mdns, const char *host,
                  uint16_t port,
                  std::function<void(int, struct addrinfo *, Notifiable*)>callback,
-                 unsigned retry_seconds = 5)
+                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255)
         : StateFlowBase(service)
         , OSThread()
         , mdns_(mdns)
@@ -80,6 +83,8 @@ public:
         , port_(port)
         , callback_(callback)
         , retrySeconds_(retry_seconds)
+        , timeoutSeconds_(timeout_seconds)
+        , state_(STATE_CREATED)
         , fd_(-1)
         , addr_(nullptr)
         , sem_()
@@ -92,9 +97,29 @@ public:
      */
     ~SocketClient()
     {
+        shutdown();
         if (addr_)
         {
             freeaddrinfo(addr_);
+        }
+    }
+
+    /** Shutdown the client so that it can be deleted.
+     */
+    void shutdown()
+    {
+        {
+            AtomicHolder h(this);
+            if (state_ == STATE_SHUTDOWN)
+            {
+                return;
+            }
+            state_ = STATE_SHUTDOWN_REQUESTED;
+        }
+        sem_.post();
+        while (state_ != STATE_SHUTDOWN)
+        {
+            usleep(1000);
         }
     }
 
@@ -119,6 +144,16 @@ public:
     static int connect(const char *host, const char* port_str);
 
 private:
+    /** Execution state.
+     */
+    enum State
+    {
+        STATE_CREATED = 0, /**< constructed */
+        STATE_STARTED,     /**< thread started */
+        STATE_SHUTDOWN_REQUESTED, /**< shutdown requested */
+        STATE_SHUTDOWN, /**< shutdown */
+    };
+
     /** thread that will handle the blocking address resolution.
      * @return should never return
      */
@@ -137,6 +172,20 @@ private:
 
         for ( ; /* forever */ ; )
         {
+            {
+                AtomicHolder h(this);
+                switch (state_)
+                {
+                    case STATE_CREATED:
+                        state_ = STATE_STARTED;
+                    case STATE_STARTED:
+                        break;
+                    case STATE_SHUTDOWN_REQUESTED:
+                        state_ = STATE_SHUTDOWN;
+                    case STATE_SHUTDOWN:
+                        return nullptr;
+                }
+            }
             long long start_time = OSTime::get_monotonic();
 
             if (mdns_)
@@ -158,6 +207,17 @@ private:
                 fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
                 if (fd_ >= 0)
                 {
+                    {
+                        struct timeval tm;
+                        tm.tv_sec = timeoutSeconds_;
+                        tm.tv_usec = 0;
+                        ERRNOCHECK("setsockopt_timeout", setsockopt(fd_,
+                                                                    SOL_SOCKET,
+                                                                    SO_RCVTIMEO,
+                                                                    &tm,
+                                                                    sizeof(tm))
+                                  );
+                    }
                     /* socket available */
                     int ret = ::connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
                     if (ret == 0)
@@ -233,7 +293,10 @@ private:
     std::function<void(int, struct addrinfo *, Notifiable*)> callback_;
 
     /** number of seconds between retries */
-    unsigned retrySeconds_;
+    uint8_t retrySeconds_;
+    uint8_t timeoutSeconds_;
+
+    volatile State state_;
 
     /** socket descriptor */
     int fd_;
