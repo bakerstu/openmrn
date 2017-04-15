@@ -995,6 +995,10 @@ const char *gai_strerror (int __ecode)
 void freeaddrinfo(struct addrinfo *ai)
 {
     delete ai->ai_addr;
+    if (ai->ai_canonname)
+    {
+        delete ai->ai_canonname;
+    }
     delete ai;
 }
 
