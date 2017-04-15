@@ -28,5 +28,6 @@ CXXSRCS += \
 
 CXXTESTSRCS += BufferQueue.cxxtest \
                StlMap.cxxtest      \
-               StlMultiMap.cxxtest      
+               StlMultiMap.cxxtest \
+               SocketClient.cxxtest
 

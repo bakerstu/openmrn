@@ -42,6 +42,7 @@
 
 #include "executor/StateFlow.hxx"
 #include "executor/Timer.hxx"
+#include "os/MDNS.hxx"
 #include "utils/format_utils.hxx"
 
 class SocketClient : public StateFlowBase, private OSThread
@@ -141,7 +142,7 @@ private:
             if (mdns_)
             {
                 /* try mDNS address resolution */
-                ai_ret = getaddrinfo(nullptr, mdns_, &hints, &addr_);
+                ai_ret = MDNS::lookup(mdns_, &hints, &addr_);
             }
             if ((ai_ret != 0 || addr_ == nullptr) && host_)
             {
