@@ -1020,6 +1020,22 @@ std::string CC32xxWiFi::get_version() {
     return v;
 }
 
+// Override weak MDNS implementations for the CC32xx platform
+
+/*
+ * mdns_publish()
+ */
+void mdns_publish(const char *name, const char *service, uint16_t port)
+{
+        string full_name(name);
+        full_name.append(1, '.');
+        full_name.append(service);
+        full_name.append(".local");
+        sl_NetAppMDNSRegisterService((const signed char*)full_name.c_str(),
+                                     full_name.length(),
+                                     (const signed char*)"OLCB", strlen("OLCB"), 
+                                     port, 200, 0);
+}
 
 extern "C"
 {
@@ -1072,22 +1088,5 @@ void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpServerEvent,
         static_cast<CC32xxWiFi::HttpServerResponse *>(pHttpServerResponse));
 }
 
-// Override weak MDNS implementations for the CC32xx platform
-
-/*
- * mdns_publish()
- */
-void mdns_publish(const char *name, const char *service, uint16_t port)
-{
-        string full_name(name);
-        full_name.append(1, '.');
-        full_name.append(service);
-        full_name.append(".local");
-        sl_NetAppMDNSRegisterService((const signed char*)full_name.c_str(),
-                                     full_name.length(),
-                                     (const signed char*)"OLCB", strlen("OLCB"), 
-                                     port, 200, 0);
-}
-
-
 } /* extern "C" */
+
