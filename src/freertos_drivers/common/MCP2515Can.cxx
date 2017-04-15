@@ -181,12 +181,7 @@ void MCP2515Can::tx_msg_locked()
         struct can_frame *can_frame;
 
         /* find an empty buffer */
-        int index = 0;
-        if (txPending & 0x1)
-        {
-            /* buffer 0 already in use */
-            index = 1;
-        }
+        int index = (txPending & 0x1) ? 1 : 0;
 
         portENTER_CRITICAL();
         if (txBuf->data_read_pointer(&can_frame))
