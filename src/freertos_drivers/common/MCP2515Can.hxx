@@ -574,7 +574,7 @@ private:
     int spi; /**< SPI bus that accesses MCP2515 */
     OSSem sem; /**< semaphore for posting events */
 #if MCP2515_DEBUG
-    uint8_t regs[128]; /**< debug copy of MCP2515 registers */
+    volatile uint8_t regs[128]; /**< debug copy of MCP2515 registers */
 #endif
 
     /** baud rate settings table */
