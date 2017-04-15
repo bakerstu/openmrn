@@ -223,7 +223,6 @@ private:
                     if (ret == 0)
                     {
                         /* connect successful */
-                        ::fcntl(fd_, F_SETFL, O_NONBLOCK);
                         notify();
                         sem_.wait();
                     }
