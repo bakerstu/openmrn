@@ -257,7 +257,7 @@ private:
      */
     Action spawn_thread()
     {
-        start("socket_client", 0, 2048);
+        start("socket_client", 0, 1024);
         return call_immediately(STATE(do_connect));
     }
 
