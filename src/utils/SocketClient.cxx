@@ -36,6 +36,8 @@
 
 #define LOGLEVEL INFO
 
+#include "utils/SocketClient.hxx"
+
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -55,6 +57,16 @@
 
 int ConnectSocket(const char *host, int port)
 {
+    return SocketClient::connect(host, port);
+}
+
+int ConnectSocket(const char *host, const char* port_str)
+{
+    return SocketClient::connect(host, port_str);
+}
+
+int SocketClient::connect(const char *host, int port)
+{
 #ifdef __linux__
     // We expect write failures to occur but we want to handle them where 
     // the error occurs rather than in a SIGPIPE handler.
@@ -64,10 +76,10 @@ int ConnectSocket(const char *host, int port)
     char port_str[30];
     integer_to_buffer(port, port_str);
 
-    return ConnectSocket(host, port_str);
+    return SocketClient::connect(host, port_str);
 }
 
-int ConnectSocket(const char *host, const char* port_str)
+int SocketClient::connect(const char *host, const char* port_str)
 {
     struct addrinfo *addr;
     struct addrinfo hints;
@@ -96,14 +108,14 @@ int ConnectSocket(const char *host, const char* port_str)
     };
     std::unique_ptr<struct addrinfo, AddrInfoDeleter> ai_deleter(addr);
 
-    int fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+    int fd = ::socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (fd < 0)
     {
         LOG_ERROR("socket: %s", strerror(errno));
         return -1;
     }
 
-    int ret = connect(fd, addr->ai_addr, addr->ai_addrlen);
+    int ret = ::connect(fd, addr->ai_addr, addr->ai_addrlen);
     if (ret < 0)
     {
         LOG_ERROR("connect: %s", strerror(errno));
@@ -113,7 +125,7 @@ int ConnectSocket(const char *host, const char* port_str)
 
     int val = 1;
     ERRNOCHECK("setsockopt(nodelay)",
-               setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)));
+               ::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)));
 
     LOG(INFO, "Connected to %s:%s. fd=%d", host ? host : "mDNS", port_str, fd);
     return fd;

@@ -139,7 +139,7 @@ struct SelectBufferInfo<Buffer<CanHubData>> {
 /// structures (such as CAN frame, dcc Packets or dcc Feedback structures) in
 /// the units ofthe size of the structure.
 template <class HFlow>
-class HubDeviceSelect : public Destructable, private Atomic, public Service
+class HubDeviceSelect : public FdHubPortInterface, private Atomic, public Service
 {
 public:
 
@@ -147,8 +147,8 @@ public:
     /// Creates a select-aware hub port for the device specified by `path'.
     HubDeviceSelect(
         HFlow *hub, const char *path, Notifiable *on_error = nullptr)
-        : Service(hub->service()->executor())
-        , fd_(::open(path, O_RDWR | O_NONBLOCK))
+        : FdHubPortInterface(::open(path, O_RDWR | O_NONBLOCK))
+        , Service(hub->service()->executor())
         , barrier_(on_error ? on_error : EmptyNotifiable::DefaultInstance())
         , hub_(hub)
         , readFlow_(this)
@@ -168,8 +168,8 @@ public:
     /// @param on_error notifiable that will be called when a write or read
     /// error is encountered.
     HubDeviceSelect(HFlow *hub, int fd, Notifiable *on_error = nullptr)
-        : Service(hub->service()->executor())
-        , fd_(fd)
+        : FdHubPortInterface(fd)
+        , Service(hub->service()->executor())
         , barrier_(on_error ? on_error : EmptyNotifiable::DefaultInstance())
         , hub_(hub)
         , readFlow_(this)
@@ -219,12 +219,6 @@ public:
     typename HFlow::port_type *write_port()
     {
         return &writeFlow_;
-    }
-
-    /// @return filedes to write to / read from.
-    int fd()
-    {
-        return fd_;
     }
 
     /// Removes the current write port from the registry of the source hub.
@@ -424,8 +418,6 @@ protected:
         }
     }
 
-    /** The device file descriptor. */
-    int fd_;
     /// This notifiable will be called (if not NULL) upon read or write error.
     BarrierNotifiable barrier_;
     /// Hub whose data we are trying to send.

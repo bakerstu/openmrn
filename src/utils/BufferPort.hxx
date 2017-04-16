@@ -129,6 +129,10 @@ private:
         tgtBuf_ = nullptr;
         b->data()->assign(sendBuf_, bufEnd_);
         bufEnd_ = 0;
+        if (message())
+        {
+            b->set_done(message()->new_child());
+        }
         downstream_->send(b);
     }
 

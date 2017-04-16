@@ -1,0 +1,135 @@
+/** @copyright
+ * Copyright (c) 2017, Stuart W Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * @file SimpleQueue.cxxtest
+ * Unit tests for SocketClient.
+ *
+ * @author Stuart Baker
+ * @date 20 March 2017
+ */
+
+#include "utils/SocketClient.hxx"
+
+#include "os/MDNS.hxx"
+#include "utils/socket_listener.hxx"
+#include "utils/async_if_test_helper.hxx"
+
+#define LISTEN_PORT 12345
+
+using namespace std::placeholders;
+
+class SocketClientTest : public openlcb::AsyncNodeTest
+{
+public:
+    MOCK_METHOD3(connect_callback, void(int fd, struct addrinfo *addr,
+                                        Notifiable *on_exit));
+
+protected:
+    SocketClientTest()
+    {
+        wait();
+    }
+
+    static void accept_callback(int fd)
+    {
+        printf("accept_callback\n");
+    }
+};
+
+TEST_F(SocketClientTest, create)
+{
+}
+
+TEST_F(SocketClientTest, connect_host)
+{
+    SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
+
+    SocketClient *sc = new SocketClient(
+        node_->iface()->dispatcher()->service(), nullptr, "127.0.0.1",
+        LISTEN_PORT,
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2, _3), 1, 1);
+
+    EXPECT_CALL(*this, connect_callback(_, _, sc)).Times(1);
+
+    usleep(10000);
+    wait();
+    usleep(10000);
+    wait();
+
+    sl->shutdown();
+    sc->shutdown();
+    delete sl;
+    delete sc;
+}
+
+TEST_F(SocketClientTest, connect_mdns)
+{
+    MDNS *mdns = new MDNS();
+    mdns->publish("openmrn_service", "_openlcb._tcp", LISTEN_PORT);
+    mdns->commit();
+
+    sleep(1);
+
+    SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
+
+    SocketClient *sc = new SocketClient(
+        node_->iface()->dispatcher()->service(), "_openlcb._tcp", nullptr, 0,
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2, _3), 1, 1);
+
+    EXPECT_CALL(*this, connect_callback(_, _, sc)).Times(1);
+
+    usleep(10000);
+    wait();
+    usleep(10000);
+    wait();
+
+    sl->shutdown();
+    sc->shutdown();
+    delete sl;
+    delete sc;
+}
+
+TEST_F(SocketClientTest, connect_mdns_not_published)
+{
+    SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
+
+    SocketClient *sc = new SocketClient(
+        node_->iface()->dispatcher()->service(), "_openlcb._tcp", "127.0.0.1",
+        LISTEN_PORT,
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2, _3), 1, 1);
+
+    EXPECT_CALL(*this, connect_callback(_, _, sc)).Times(1);
+
+    usleep(10000);
+    wait();
+    usleep(10000);
+    wait();
+
+    sl->shutdown();
+    sc->shutdown();
+    delete sl;
+    delete sc;
+}

@@ -121,9 +121,9 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-/** Creates a new port on a CAN hub in gridconnect format. The port will
- * automatically be closed, deleted and on_exit notified when the fd encounters
- * an error.
+/** Creates a new port on a CAN hub in gridconnect format for a
+ * select-compatible file descriptor. The port will automatically be closed,
+ * deleted and on_exit notified when the fd encounters an error.
  *
  * NOTE(balazs.racz): this could be expanded to return an object pointer via
  * which the port can be closed.
@@ -131,8 +131,11 @@ private:
  * @param can_hub the raw CAN packets are coming/going to this object.
  * @param fd the file descriptor of the port to send/receive the gridconnect
  * ascii data to/from.
- * @param on_exit is a notificable (may be null) which will be called in case
- * an error is encountered on this port and the port is subsequently closed. */
-void create_gc_port_for_can_hub(CanHubFlow* can_hub, int fd, Notifiable* on_exit = nullptr);
+ * @param on_exit is a notifiable (may be null) which will be called in case
+ * an error is encountered on this port and the port is subsequently closed.
+ * @param use_select when true, the FD will be used with select, when false,
+ * separate threads will be started with blocking read and write calls. */
+void create_gc_port_for_can_hub(CanHubFlow *can_hub, int fd,
+    Notifiable *on_exit = nullptr, bool use_select = false);
 
 #endif //_UTILS_GRIDCONNECTHUB_HXX_

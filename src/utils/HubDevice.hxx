@@ -44,7 +44,7 @@ template <class Data> class FdHubWriteFlow;
 /// Template-nonspecific base class for @ref FdHubPort. The purpose of this
 /// class is to avoid compiling this code multiple times for differently typed
 /// devices (and thus saving flash space).
-class FdHubPortBase : public Destructable, private Atomic
+class FdHubPortBase : public FdHubPortInterface, private Atomic
 {
 public:
     /// How many bytes of stack should we allocate to the write thread's stack.
@@ -56,7 +56,7 @@ public:
     /// @param done will be called when this file is closed and removed from
     /// the hub (usually due to an error).
     FdHubPortBase(int fd, Notifiable *done)
-        : fd_(fd)
+        : FdHubPortInterface(fd)
         , writeThread_(fill_thread_name('W', fd), 3, kWriteThreadStackSize)
         , writeService_(&writeThread_)
         , barrier_(done)
@@ -68,12 +68,6 @@ public:
 
     virtual ~FdHubPortBase()
     {
-    }
-
-    /// @return the filedes to read/write.
-    int fd()
-    {
-        return fd_;
     }
 
     /// Puts the desired thread name for the read or write thread.
@@ -192,8 +186,6 @@ protected:
 
     /** Temporary buffer used for rendering thread names. */
     char threadName_[30];
-    /** The device file descriptor. */
-    int fd_;
     /** This executor is running the writes. */
     Executor<1> writeThread_;
     /** Service for the write flow. */

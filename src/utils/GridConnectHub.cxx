@@ -41,6 +41,7 @@
 #include "utils/Buffer.hxx"
 #include "utils/BufferPort.hxx"
 #include "utils/HubDevice.hxx"
+#include "utils/HubDeviceSelect.hxx"
 #include "utils/Hub.hxx"
 #include "utils/GcStreamParser.hxx"
 #include "utils/gc_format.h"
@@ -159,13 +160,21 @@ public:
                 /// performance.
                 target_buffer->data()->resize(size);
                 memcpy((char *)target_buffer->data()->data(), dbuf_, size);
+                target_buffer->set_done(bn_.reset(this));
                 delayPort_.send(target_buffer, 0);
+                release();
+                return wait_and_call(STATE(buffer_accepted));
             }
             else
             {
                 LOG(INFO, "gc generate failed.");
             }
             return release_and_exit();
+        }
+
+        Action buffer_accepted()
+        {
+            return exit();
         }
 
     private:
@@ -180,6 +189,8 @@ public:
         HubPort *skipMember_;
         /// Non-zero if doubling was requested.
         int double_bytes_;
+        /// Helper object
+        BarrierNotifiable bn_;
     };
 
     /// HubPort (on a string hub) that turns a gridconnect-formatted CAN packet
@@ -381,14 +392,20 @@ struct GcHubPort : public Executable
     /// @param fd device descriptor of open channel (device or socket)
     /// @param on_exit Notifiable that will be called when the descriptor
     /// experiences an error (typically upon device closed or connection lost).
-    GcHubPort(CanHubFlow *can_hub, int fd, Notifiable *on_exit)
+    /// @param use_select true if fd can be used with select, false if threads
+    /// are needed.
+    GcHubPort(CanHubFlow *can_hub, int fd, Notifiable *on_exit, bool use_select)
         : gcHub_(can_hub->service())
         , bridge_(
               GCAdapterBase::CreateGridConnectAdapter(&gcHub_, can_hub, false))
-        , gcWrite_(&gcHub_, fd, this)
         , onExit_(on_exit)
     {
         LOG(VERBOSE, "gchub port %p", (Executable *)this);
+        if (use_select) {
+            gcWrite_.reset(new HubDeviceSelect<HubFlow>(&gcHub_, fd, this));
+        } else {
+            gcWrite_.reset(new FdHubPort<HubFlow>(&gcHub_, fd, this));
+        }
     }
     virtual ~GcHubPort()
     {
@@ -410,7 +427,7 @@ struct GcHubPort : public Executable
     /** Reads the characters from the char-hub and sends them to the
      * fd. Similarly, listens to the fd and sends the read charcters to the
      * char-hub. */
-    FdHubPort<HubFlow> gcWrite_;
+    std::unique_ptr<FdHubPortInterface> gcWrite_;
     /** If not null, this notifiable will be called when the device is
      * closed. */
     Notifiable* onExit_;
@@ -434,7 +451,7 @@ struct GcHubPort : public Executable
             return;
         }
         LOG(INFO, "GCHubPort: Shutting down gridconnect port %d. (%p)",
-            gcWrite_.fd(), bridge_.get());
+            gcWrite_->fd(), bridge_.get());
         if (onExit_) {
             onExit_->notify();
             onExit_ = nullptr;
@@ -447,7 +464,8 @@ struct GcHubPort : public Executable
     }
 };
 
-void create_gc_port_for_can_hub(CanHubFlow *can_hub, int fd, Notifiable* on_exit)
+void create_gc_port_for_can_hub(
+    CanHubFlow *can_hub, int fd, Notifiable *on_exit, bool use_select)
 {
-    new GcHubPort(can_hub, fd, on_exit);
+    new GcHubPort(can_hub, fd, on_exit, use_select);
 }
