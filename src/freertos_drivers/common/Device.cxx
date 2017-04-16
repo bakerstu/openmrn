@@ -40,7 +40,7 @@
 #define NUM_OPEN_FILES     4
 #else
 /// How many concurrently open fd we support.
-#define NUM_OPEN_FILES     12
+#define NUM_OPEN_FILES     20 //12
 #endif
 
 Device *Device::first = NULL;
