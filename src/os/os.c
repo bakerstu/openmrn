@@ -315,14 +315,14 @@ static void os_thread_start(void *arg)
 
     vTaskSuspendAll();
     TaskList *current = taskList;
-    TaskList *last = taskList;
-    if (last == current)
+    if (current->next == NULL)
     {
         /* only one thread in the system */
         taskList = NULL;
     }
     else
     {
+        TaskList *last = taskList;
         while (current->task != xTaskGetCurrentTaskHandle())
         {
             last = current;
@@ -330,7 +330,14 @@ static void os_thread_start(void *arg)
             HASSERT(current);
         }
 
-        last->next = current->next;
+        if (current->task == taskList->task)
+        {
+            taskList = current->next;
+        }
+        else
+        {
+            last->next = current->next;
+        }
     }
     free(current);
     xTaskResumeAll();
