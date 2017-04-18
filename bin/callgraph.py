@@ -694,6 +694,8 @@ def ApplyFilters():
       if m:
         for dname, dep_symbol in symbol.deps.iteritems():
           dl.append(dep_symbol)
+        for dname, dep_symbol in symbol.indeps.iteritems():
+          l.append(dep_symbol)
       else:
         symbol.removed_by_filter = True
         continue
