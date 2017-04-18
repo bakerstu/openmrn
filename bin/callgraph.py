@@ -50,7 +50,7 @@ FLAGS.demangle = True
 FLAGS.strip_template = True
 FLAGS.objects = False
 FLAGS.max_indep = 1000000000
-
+FLAGS.focus_re = None
 
 def Blacklist(s):
     if s in _blacklist: return True
@@ -646,7 +646,7 @@ Options:
 
 def parseargs():
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "hm:vo", ["help", "map=", "demangle", "min_size=", "max_indep=", "objects"])
+    opts, args = getopt.getopt(sys.argv[1:], "hm:vo", ["help", "map=", "demangle", "min_size=", "max_indep=", "objects", "focus="])
   except getopt.GetoptError as err:
     # print help information and exit:
     print str(err) # will print something like "option -a not recognized"
@@ -663,6 +663,9 @@ def parseargs():
     elif o in ("-m", "--map"):
       FLAGS.map_file = a
       print >> sys.stderr, "will read map file ", FLAGS.map_file
+    elif o in ("--focus"):
+      FLAGS.focus_re = re.compile(a)
+      print >> sys.stderr, "focus on symbol like (regexp match) ", a
     elif o in ("-C", "--demangle"):
       FLAGS.demangle = True
     elif o in ("-t", "--no-strip-template"):
@@ -681,20 +684,40 @@ def parseargs():
       assert False, "unhandled option"
 
 def ApplyFilters():
+  # symbols from which we want all upstream symbols
   l = []
+  # symbols from which we want all downstream symbols
+  dl = []
   for name, symbol in all_symbols.iteritems():
-    if symbol.total_code_size < FLAGS.min_size:
-      symbol.removed_by_filter = True
+    if FLAGS.focus_re is not None:
+      m = FLAGS.focus_re.search(symbol.displayname)
+      if m:
+        for dname, dep_symbol in symbol.deps.iteritems():
+          dl.append(dep_symbol)
+      else:
+        symbol.removed_by_filter = True
+        continue
     else:
-      if len(symbol.indeps) > FLAGS.max_indep: continue
-      for dname, dep_symbol in symbol.indeps.iteritems():
-        l.append(dep_symbol)
+      if symbol.total_code_size < FLAGS.min_size:
+        symbol.removed_by_filter = True
+      else:
+        if len(symbol.indeps) > FLAGS.max_indep: continue
+        for dname, dep_symbol in symbol.indeps.iteritems():
+          l.append(dep_symbol)
   # We go into all inwards dependencies and make them show
   for symbol in l:
     if symbol.removed_by_filter:
       if len(symbol.indeps) > FLAGS.max_indep: continue
       for dname, dep_symbol in symbol.indeps.iteritems():
         l.append(dep_symbol)
+    symbol.removed_by_filter = False
+  # We go into all outwards dependencies and make them show
+  for symbol in dl:
+    print >>sys.stderr, "downstream symbol ", symbol.name
+    if not symbol.removed_by_filter: continue
+    if len(symbol.indeps) > FLAGS.max_indep: continue
+    for dname, dep_symbol in symbol.deps.iteritems():
+      dl.append(dep_symbol)
     symbol.removed_by_filter = False
 
 
