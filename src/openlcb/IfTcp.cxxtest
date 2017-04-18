@@ -1,0 +1,39 @@
+
+#include "utils/test_main.hxx"
+#include "openlcb/IfTcpImpl.hxx"
+
+namespace openlcb {
+
+class TestSequenceGenerator : public SequenceNumberGenerator {
+public:
+    long long get_sequence_number() override {
+        return seq_++;
+    }
+    
+    long long seq_{42};
+};
+
+class TcpRenderingTest : public ::testing::Test {
+    
+    
+};
+
+
+TEST_F(TcpRenderingTest, create) {}
+
+
+TEST_F(TcpRenderingTest, render_global_message) {
+    GenMessage msg;
+    msg.src.id = 0x050102030405ULL;
+    msg.dst.id = 0;
+    msg.mti = Defs::MTI_EVENT_REPORT;
+    msg.payload = eventid_to_buffer(0x0102030405060708ULL);
+    string data;
+
+    TcpDefs::render_tcp_message(msg, 0x101112131415ULL, 42, &data);
+    EXPECT_EQ("\x", data);
+}
+
+
+
+} // namespace openlcb

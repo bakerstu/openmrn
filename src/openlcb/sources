@@ -17,6 +17,7 @@ CXXSRCS += \
            If.cxx \
            IfCan.cxx \
            IfImpl.cxx \
+           IfTcp.cxx \
            NodeInitializeFlow.cxx \
 	   PIPClient.cxx \
 	   RoutingLogic.cxx \
