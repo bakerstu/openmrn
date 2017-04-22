@@ -343,8 +343,6 @@ void hw_preinit(void)
     MAP_IntEnable(INT_TIMER4A);
     // Still above kernel but not prio zero
     MAP_IntPrioritySet(INT_TIMER4A, 0x80);
-    MAP_TimerIntEnable(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
-    MAP_TimerEnable(TIMER4_BASE, TIMER_A);
 
     /* Checks the SW1 pin at boot time in case we want to allow for a debugger
      * to connect. */
@@ -357,6 +355,16 @@ void hw_preinit(void)
       }
     } while (blinker_pattern || rest_pattern);
     asm volatile ("cpsid i\n");
+}
+
+/** Initialize the processor hardware.
+ */
+void hw_postinit(void)
+{
+    // Enables charlieplexing interrupt only after the static initialization
+    // has created the object itself.
+    MAP_TimerIntEnable(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerEnable(TIMER4_BASE, TIMER_A);
 }
 
 }
