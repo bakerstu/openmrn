@@ -181,12 +181,7 @@ void MCP2515Can::tx_msg_locked()
         struct can_frame *can_frame;
 
         /* find an empty buffer */
-        int index = 0;
-        if (txPending & 0x1)
-        {
-            /* buffer 0 already in use */
-            index = 1;
-        }
+        int index = (txPending & 0x1) ? 1 : 0;
 
         portENTER_CRITICAL();
         if (txBuf->data_read_pointer(&can_frame))
@@ -276,21 +271,13 @@ void *MCP2515Can::entry()
         /* read status flags */
         uint8_t canintf = register_read(CANINTF);
 
-        if (canintf & MERR)
-        {
-            /* message error interrupt active */
-
-            /* clear message error status flag */
-            bit_modify(CANINTF, 0, MERR);
-
-        }
-        if (canintf & ERRI)
+        if ((canintf & ERRI) || (canintf & MERR))
         {
             /* error handling, read error flag register */
             uint8_t eflg = register_read(EFLG);
 
             /* clear error status flag */
-            bit_modify(CANINTF, 0, ERRI);
+            bit_modify(CANINTF, 0, ERRI | MERR);
 
             if (eflg & (RX0OVR | RX1OVR))
             {
@@ -305,9 +292,9 @@ void *MCP2515Can::entry()
                 /* bus off */
                 ++busOffCount;
             }
-            if (eflg & (TXEP || RXEP))
+            if ((eflg & TXEP) || (eflg & RXEP))
             {
-                /* error active state */
+                /* error passive state */
                 ++softErrorCount;
 
                 /* flush out any transmit data in the pipleline */
