@@ -1028,11 +1028,11 @@ std::string CC32xxWiFi::get_version() {
 void mdns_publish(const char *name, const char *service, uint16_t port)
 {
         string full_name(name);
-        full_name.append(1, '.');
+        full_name.push_back('.');
         full_name.append(service);
         full_name.append(".local");
         sl_NetAppMDNSRegisterService((const signed char*)full_name.c_str(),
-                                     full_name.length(),
+                                     full_name.size(),
                                      (const signed char*)"OLCB", strlen("OLCB"), 
                                      port, 200, 0);
 }

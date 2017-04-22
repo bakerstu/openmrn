@@ -63,6 +63,27 @@ TEST_F(SocketClientTest, create)
 {
 }
 
+TEST_F(SocketClientTest, connect_mdns_not_published_no_fallback)
+{
+    SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
+
+    SocketClient *sc = new SocketClient(
+        node_->iface()->dispatcher()->service(), "_openlcbtest._tcp", nullptr, 0,
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2, _3), 1, 1);
+
+    EXPECT_CALL(*this, connect_callback(_, _, sc)).Times(0);
+
+    usleep(10000);
+    wait();
+    usleep(10000);
+    wait();
+
+    sl->shutdown();
+    sc->shutdown();
+    delete sl;
+    delete sc;
+}
+
 TEST_F(SocketClientTest, connect_host)
 {
     SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
@@ -88,7 +109,7 @@ TEST_F(SocketClientTest, connect_host)
 TEST_F(SocketClientTest, connect_mdns)
 {
     MDNS *mdns = new MDNS();
-    mdns->publish("openmrn_service", "_openlcb._tcp", LISTEN_PORT);
+    mdns->publish("openmrn_service", "_openlcbtest._tcp", LISTEN_PORT);
     mdns->commit();
 
     sleep(1);
@@ -96,7 +117,7 @@ TEST_F(SocketClientTest, connect_mdns)
     SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
 
     SocketClient *sc = new SocketClient(
-        node_->iface()->dispatcher()->service(), "_openlcb._tcp", nullptr, 0,
+        node_->iface()->dispatcher()->service(), "_openlcbtest._tcp", nullptr, 0,
         std::bind(&SocketClientTest::connect_callback, this, _1, _2, _3), 1, 1);
 
     EXPECT_CALL(*this, connect_callback(_, _, sc)).Times(1);
@@ -117,7 +138,7 @@ TEST_F(SocketClientTest, connect_mdns_not_published)
     SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
 
     SocketClient *sc = new SocketClient(
-        node_->iface()->dispatcher()->service(), "_openlcb._tcp", "127.0.0.1",
+        node_->iface()->dispatcher()->service(), "_openlcbtest._tcp", "127.0.0.1",
         LISTEN_PORT,
         std::bind(&SocketClientTest::connect_callback, this, _1, _2, _3), 1, 1);
 
@@ -133,3 +154,5 @@ TEST_F(SocketClientTest, connect_mdns_not_published)
     delete sl;
     delete sc;
 }
+
+
