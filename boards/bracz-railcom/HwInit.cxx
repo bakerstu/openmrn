@@ -289,7 +289,7 @@ void uart1_interrupt_handler(void)
 
 void diewith(uint32_t pattern)
 {
-    vPortClearInterruptMask(0x20);
+    vPortClearInterruptMask(0xA0);
     asm("cpsie i\n");
 
     resetblink(pattern);
