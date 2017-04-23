@@ -43,7 +43,9 @@
 extern "C" {
 #endif
 
-  
+#define SL_TIMESTAMP_TICKS_IN_10_MILLISECONDS     (_u32)(10000000)
+#define SL_TIMESTAMP_MAX_VALUE                    0xFFFFFFFF /* 32-bit timer counter */
+
 #include <string.h>  
 #include "cc_pal.h"
 
@@ -575,6 +577,27 @@ extern "C" {
     \warning        
 */
 /* #define SL_START_WRITE_STAT */
+
+/*!
+
+    \return     Returns 32-bit timer counter value (ticks unit)
+
+    \sa
+
+    \note
+
+    \note       belongs to \ref porting_sec
+
+    \warning
+*/
+#ifndef SL_TINY_EXT
+#if TARGET_IS_BARE
+#undef sl_GetTimestamp
+/* A timer must be started before using this function */
+/* User must allocate a 32-bit wide timer in order to take timestamps */
+#define sl_GetTimestamp           TimerGetCurrentTimestamp
+#endif
+#endif
 
 /*!
 
