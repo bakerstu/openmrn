@@ -135,7 +135,7 @@ typedef struct task_list
 } TaskList;
 
 /** List of all the tasks in the system */
-static TaskList *taskList;
+static TaskList *taskList = NULL;
 
 /** Mutex for os_thread_once. */
 static os_mutex_t onceMutex = OS_MUTEX_INITIALIZER;
@@ -314,32 +314,16 @@ static void os_thread_start(void *arg)
     (*priv->entry)(priv->arg);
 
     vTaskSuspendAll();
-    TaskList *current = taskList;
-    if (current->next == NULL)
+    TaskList** prev_ptr = &taskList;
+    while ((*prev_ptr)->task != xTaskGetCurrentTaskHandle())
     {
-        /* only one thread in the system */
-        taskList = NULL;
+        prev_ptr = &(*prev_ptr)->next;
+        HASSERT(*prev_ptr);
     }
-    else
-    {
-        TaskList *last = taskList;
-        while (current->task != xTaskGetCurrentTaskHandle())
-        {
-            last = current;
-            current = current->next;
-            HASSERT(current);
-        }
 
-        if (current->task == taskList->task)
-        {
-            taskList = current->next;
-        }
-        else
-        {
-            last->next = current->next;
-        }
-    }
-    free(current);
+    TaskList *to_delete = *prev_ptr;
+    *prev_ptr = (*prev_ptr)->next;
+    free(to_delete);
     xTaskResumeAll();
 
     free(priv->reent);
@@ -402,21 +386,9 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **pxTimerTaskTCBBuffer,
  */
 static void add_thread_to_task_list(TaskList *task_new)
 {
-    task_new->next = NULL;
     vTaskSuspendAll();
-    if (taskList == NULL)
-    {
-        taskList = task_new;
-    }
-    else
-    {
-        TaskList *current = taskList;
-        while (current->next != NULL)
-        {
-            current = current->next;
-        }
-        current->next = task_new;
-    }
+    task_new->next = taskList;
+    taskList = task_new;
     xTaskResumeAll();
 }
 #endif // FreeRTOS

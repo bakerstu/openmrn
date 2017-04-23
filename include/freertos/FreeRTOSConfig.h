@@ -100,8 +100,11 @@
 /* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY     191 /* equivalent to 0xa0, or priority 5. */
-#define configASSERT( x ) if (!(x)) diewith(BLINK_DIE_ASSERT)
 
+// change #if to 1 in order to enable asserts for the kernel
+#if 0
+#define configASSERT( x ) if (!(x)) diewith(BLINK_DIE_ASSERT)
+#endif
 
 /// @todo(balazs.racz) i implemented diewith for the launchpad ek-xxx, so this is not needed anymore.
 //#define diewith( x ) abort()
