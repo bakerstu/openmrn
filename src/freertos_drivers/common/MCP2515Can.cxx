@@ -115,9 +115,6 @@ void MCP2515Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
             register_write(RXB0CTRL, 0x60);
             register_write(RXB1CTRL, 0x60);
 
-            /* enable error and receive interrupts */
-            register_write(CANINTE, MERR | ERRI | RX1I | RX0I);
-
             /* put the device into normal operation mode */
             register_write(CANCTRL, 0x00);
 
@@ -140,13 +137,16 @@ void MCP2515Can::enable()
     /* there is a mutex lock above us, so the following sequence is atomic */
     if (!is_created())
     {
-        /* start the thread */
+        /* start the thread at the highest priority in the system */
         /** @todo make this the highest possible thread priority */
-        start(name, 0, 1024);
+        start(name, configMAX_PRIORITIES - 1, 1024);
     }
 
-    /* reset device */
-    //reset();
+    /* clear interrupt flags */
+    register_write(CANINTF, 0);
+
+    /* enable error and receive interrupts */
+    register_write(CANINTE, MERR | ERRI | RX1I | RX0I);
 
     interrupt_enable();
 }
@@ -157,6 +157,9 @@ void MCP2515Can::enable()
 void MCP2515Can::disable()
 {
     interrupt_disable();
+
+    /* disable all interrupt sources */
+    register_write(CANINTE, 0);
 
     register_write(TXB0CTRL, 0x00);
     register_write(TXB1CTRL, 0x00);
@@ -178,12 +181,7 @@ void MCP2515Can::tx_msg_locked()
         struct can_frame *can_frame;
 
         /* find an empty buffer */
-        int index = 0;
-        if (txPending & 0x1)
-        {
-            /* buffer 0 already in use */
-            index = 1;
-        }
+        int index = (txPending & 0x1) ? 1 : 0;
 
         portENTER_CRITICAL();
         if (txBuf->data_read_pointer(&can_frame))
@@ -218,6 +216,9 @@ void MCP2515Can::tx_msg_locked()
  */
 void MCP2515Can::rx_msg(int index)
 {
+    /* Read the rx buffer.  The RXnIF flag is automatically cleared at the
+     * end of the SPI transaction
+     */
     Buffer rx_buf;
     buffer_read(index, rx_buf.get_payload());
     struct can_frame *can_frame;
@@ -270,24 +271,45 @@ void *MCP2515Can::entry()
         /* read status flags */
         uint8_t canintf = register_read(CANINTF);
 
-        if (canintf & MERR)
+        if ((canintf & ERRI) || (canintf & MERR))
         {
-            /* message error interrupt active */
-        }
-        if (canintf & ERRI)
-        {
-            /* error interrupt active */
-            register_write(TXB0CTRL, 0x00);
-            register_write(TXB1CTRL, 0x00);
+            /* error handling, read error flag register */
+            uint8_t eflg = register_read(EFLG);
 
-            portENTER_CRITICAL();
-            ++softErrorCount;
-            /* flush out any transmit data in the pipleline */
-            txBuf->flush();
-            txBuf->signal_condition();
-            portEXIT_CRITICAL();
+            /* clear error status flag */
+            bit_modify(CANINTF, 0, ERRI | MERR);
 
-            txPending = 0;
+            if (eflg & (RX0OVR | RX1OVR))
+            {
+                /* receive overrun */
+                ++overrunCount;
+
+                /* clear error flag */
+                bit_modify(EFLG, 0, (RX0OVR | RX1OVR));
+            }
+            if (eflg & TXBO)
+            {
+                /* bus off */
+                ++busOffCount;
+            }
+            if ((eflg & TXEP) || (eflg & RXEP))
+            {
+                /* error passive state */
+                ++softErrorCount;
+
+                /* flush out any transmit data in the pipleline */
+                register_write(TXB0CTRL, 0x00);
+                register_write(TXB1CTRL, 0x00);
+                bit_modify(CANINTE, 0, TX0I | TX1I);
+                bit_modify(CANINTF, 0, TX0I | TX1I);
+
+                portENTER_CRITICAL();
+                txBuf->flush();
+                txBuf->signal_condition();
+                portEXIT_CRITICAL();
+
+                txPending = 0;
+            }
         }
         if (canintf & RX0I)
         {
@@ -322,6 +344,7 @@ void *MCP2515Can::entry()
          * messages fast enough to only use RX0 buffer.
          */
         canintf = register_read(CANINTF);
+
         if (canintf & RX1I)
         {
             /* receive interrupt active */

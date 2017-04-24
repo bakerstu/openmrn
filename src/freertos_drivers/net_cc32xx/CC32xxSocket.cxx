@@ -528,7 +528,6 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
             errno = EINVAL;
             return -1;
         case SOL_SOCKET:
-            level = SL_SOL_SOCKET;
             switch (option_name)
             {
                 default:
@@ -538,6 +537,19 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
                     /* CC32xx does not care about SO_REUSEADDR, ignore it */
                     result = 0;
                     break;
+                case SO_RCVTIMEO:
+                {
+                    const struct timeval *tm;
+                    struct SlTimeval_t timeval;
+
+                    tm = static_cast<const struct timeval *>(option_value);
+                    timeval.tv_sec = tm->tv_sec;
+                    timeval.tv_usec = tm->tv_usec;
+                    result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
+                                           SL_SO_RCVTIMEO, &timeval,
+                                           sizeof(timeval));
+                    break;
+                }
             }
             break;
         case IPPROTO_TCP:
@@ -588,7 +600,6 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
             errno = EINVAL;
             return -1;
         case SOL_SOCKET:
-            level = SL_SOL_SOCKET;
             switch (option_name)
             {
                 default:
@@ -603,6 +614,21 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
                     *so_reuseaddr = 1;
                     *option_len = sizeof(int);
                     result = 0;
+                    break;
+                }
+                case SO_RCVTIMEO:
+                {
+                    struct timeval *tm;
+                    struct SlTimeval_t timeval;
+                    SlSocklen_t sl_option_len = sizeof(timeval);
+
+                    tm = static_cast<struct timeval *>(option_value);
+                    result = sl_GetSockOpt(s->sd, SL_SOL_SOCKET,
+                                           SL_SO_RCVTIMEO, &timeval,
+                                           &sl_option_len);
+                    tm->tv_sec = timeval.tv_sec;
+                    tm->tv_usec = timeval.tv_usec;
+                    *option_len = sizeof(struct timeval);
                     break;
                 }
             }
@@ -1002,6 +1028,10 @@ const char *gai_strerror (int __ecode)
 void freeaddrinfo(struct addrinfo *ai)
 {
     delete ai->ai_addr;
+    if (ai->ai_canonname)
+    {
+        delete ai->ai_canonname;
+    }
     delete ai;
 }
 
