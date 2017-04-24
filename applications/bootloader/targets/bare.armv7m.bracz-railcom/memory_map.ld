@@ -1,1 +1,1 @@
-../../../../boards/ti-ek-tm4c123gxl-launchpad/memory_map.ld
+../../../../boards/bracz-railcom/memory_map.ld

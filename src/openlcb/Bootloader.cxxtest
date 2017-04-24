@@ -564,6 +564,31 @@ TEST_F(BootloaderTest, PIPReply)
     exit_bootloader();
 }
 
+
+TEST_F(BootloaderTest, VerifyAddressed)
+{
+    proper_startup();
+
+    expect_packet(":X191704AAN1A2A3A4A5A6A;");
+    send_packet(":X19488321N04AA;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, VerifyGlobal)
+{
+    proper_startup();
+
+    expect_packet(":X191704AAN1A2A3A4A5A6A;");
+    send_packet(":X19490321N;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    exit_bootloader();
+}
+
 TEST_F(BootloaderTest, StartWriteAtOffsetZero)
 {
     print_all_packets();
