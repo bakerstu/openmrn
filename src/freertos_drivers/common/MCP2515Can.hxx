@@ -210,6 +210,16 @@ private:
         RXB1D7,
     };
 
+    /** Fields of the control register */
+    enum ControlFields
+    {
+        CLKPRE = 0x03, /**< clockout pin prescaler */
+        CLKEN  = 0x04, /**< clockout pin enable */
+        OSM    = 0x08, /**< one-shot mode */
+        ABAT   = 0x10, /**< abort all pending transmissions */
+        REQOP  = 0xE0, /**< request operation mode */
+    };
+
     /** interrupt flag masks */
     enum InterruptFlags
     {
@@ -564,7 +574,7 @@ private:
     int spi; /**< SPI bus that accesses MCP2515 */
     OSSem sem; /**< semaphore for posting events */
 #if MCP2515_DEBUG
-    uint8_t regs[128]; /**< debug copy of MCP2515 registers */
+    volatile uint8_t regs[128]; /**< debug copy of MCP2515 registers */
 #endif
 
     /** baud rate settings table */
