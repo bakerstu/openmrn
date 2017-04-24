@@ -32,7 +32,7 @@
  * @date 30 January 2017
  */
 
-#ifndef _OS_MDNS_HXX_
+#if (!defined(_OS_MDNS_HXX_)) && (defined(__linux__) || defined(__FreeRTOS__))
 #define _OS_MDNS_HXX_
 
 #include <netdb.h>

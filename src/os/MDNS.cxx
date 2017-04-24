@@ -34,6 +34,8 @@
 
 #include "os/MDNS.hxx"
 
+#ifdef _OS_MDNS_HXX_
+
 /** Turn on/off debug print statements */
 #define MDNS_DEBUG 0
 
@@ -448,3 +450,6 @@ void *MDNS::entry()
     return nullptr;
 }
 #endif
+
+
+#endif // there is mdns support
