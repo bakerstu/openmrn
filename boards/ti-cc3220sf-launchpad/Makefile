@@ -20,8 +20,8 @@ ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
 
 #OPENOCDARGS = -f /opt/ti/CC3200SDK/default/cc3200-sdk/tools/gcc_scripts/cc3200.cfg
 #OPENOCDARGS = -f interface/ftdi/ti-icdi.cfg -f target/cc32xx.cfg
-#OPENOCDARGS = -c 'set TRANSPORT swd' -f board/ti-cc3200-launchxl.cfg
-OPENOCDARGS = -f interface/cmsis-dap.cfg -c 'transport select swd' -f target/cc32xx.cfg -c 'reset_config srst_only'
+OPENOCDARGS = -c 'set TRANSPORT swd' -f board/ti-cc3200-launchxl.cfg
+#OPENOCDARGS = -f interface/cmsis-dap.cfg -c 'transport select swd' -f target/cc32xx.cfg -c 'reset_config srst_only'
 #OPENOCDARGS = -f interface/ftdi/ti-icdi.cfg -f interface/ftdi/swd-resistor-hack.cfg -f target/cc32xx.cfg
 #OPENOCDARGS = -f interface/ftdi/olimex-arm-usb-tiny-h.cfg -f interface/ftdi/swd-resistor-hack.cfg -f target/cc32xx.cfg
 

@@ -26,7 +26,7 @@
  *
  * \file main.cxx
  *
- * Main file for the io board application on the Tiva Launchpad board.
+ * Main file for the io board application on the CC3220SF Launchpad board.
  *
  * @author Balazs Racz
  * @date 5 Jun 2015
@@ -52,7 +52,6 @@ RamDisk eeprom("/dev/eeprom", 1500);
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
 //#define SNIFF_ON_SERIAL
-//#define SNIFF_ON_USB
 //#define HAVE_PHYSICAL_CAN_PORT
 
 // Changes the default behavior by adding a newline after each gridconnect
@@ -148,9 +147,6 @@ int appl_main(int argc, char *argv[])
     // freeze waiting for that port to send the packets out.
 #if defined(HAVE_PHYSICAL_CAN_PORT)
     stack.add_can_port_select("/dev/can0");
-#endif
-#if defined(SNIFF_ON_USB)
-    stack.add_gridconnect_port("/dev/serUSB0");
 #endif
 #if defined(SNIFF_ON_SERIAL)
     stack.add_gridconnect_port("/dev/ser0");
