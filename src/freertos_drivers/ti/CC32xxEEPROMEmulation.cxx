@@ -32,11 +32,13 @@
  */
 
 //#define LOGLEVEL VERBOSE
+#define SUPPORT_SL_R1_API
 
 #include "utils/logging.h"
 
 #include "freertos_drivers/ti/CC32xxEEPROMEmulation.hxx"
 #include "freertos_drivers/ti/CC32xxHelper.hxx"
+#include "simplelink.h"
 #include "fs.h"
 
 const uint8_t CC32xxEEPROMEmulation::SECTOR_COUNT = 8;

@@ -34,8 +34,6 @@
  *
 */
 
-    
-
 #ifndef _FREERTOS_DRIVERS_NET_C32XX_USER_H_
 #define _FREERTOS_DRIVERS_NET_C32XX_USER_H_
 

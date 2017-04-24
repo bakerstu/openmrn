@@ -1,0 +1,40 @@
+include $(OPENMRNPATH)/etc/cc322x.mk
+DEPS += TICC3220SDKPATH
+
+VPATH := $(TICC3220SDKPATH)/source/ti/drivers/net/wifi \
+         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/source \
+         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/porting \
+
+CSRCS += device.c \
+         driver.c \
+         flowcont.c \
+         fs.c \
+         netapp.c \
+         netcfg.c \
+         netutil.c \
+         sl_socket.c \
+         spawn.c \
+         wlan.c \
+	 cc_pal.c \
+         eventreg.c \
+
+#	 maybe we don't need this because we are not using dynamic event
+#         registration:
+#
+
+
+
+# CSRCS += osi_freertos.c
+         
+CXXSRCS +=
+
+CFLAGS += -Wno-strict-prototypes \
+          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
+          -D__USER_H__
+
+CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
+            -D__USER_H__
+
+
+
+device.o : CFLAGS+= -DTRUE=1 -DFALSE=0

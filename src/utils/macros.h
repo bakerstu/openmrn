@@ -61,7 +61,11 @@ extern const char* g_death_file;
 
 #if defined(__FreeRTOS__)
 
+#ifdef RECORD_DEATH_FILE
+#define RECORD_DEATH() do { g_death_file = __FILE__ ; g_death_lineno = __LINE__; } while(0)
+#else
 #define RECORD_DEATH() do { g_death_lineno = __LINE__; } while(0)
+#endif
 
 /**
    Hard assertion facility. These checks will remain in production code, and

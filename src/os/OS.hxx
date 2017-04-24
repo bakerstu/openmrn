@@ -216,7 +216,7 @@ public:
 
 #ifndef ESP_NONOS
     /** Wait on (decrement) a semaphore with timeout condition.
-     * @param timeout timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
+     * @param timeout timeout in nanoseconds, else OPENMRN_OS_WAIT_FOREVER to wait forever
      * @return 0 upon success, else -1 with errno set to indicate error
      */
     int timedwait(long long timeout)
@@ -554,7 +554,7 @@ public:
      */
     int wait(OSEventType mask, OSEventType *value, bool clear, Test test)
     {
-        return timedwait(mask, value, clear, test, OS_WAIT_FOREVER);
+        return timedwait(mask, value, clear, test, OPENMRN_OS_WAIT_FOREVER);
     }
 
     /** Wait on (decrement) an event with timeout condition.
@@ -565,14 +565,14 @@ public:
      * @param clear true if upon return the bits caled out in mask are to be
      *              cleared.  If a timeout occurs, no bits will be cleared.
      * @param test type of test on the mask bits
-     * @param timeout timeout in nanoseconds, else OS_WAIT_FOREVER to wait forever
+     * @param timeout timeout in nanoseconds, else OPENMRN_OS_WAIT_FOREVER to wait forever
      * @return 0 upon success, else -1 with errno set to indicate error
      */
     int timedwait(OSEventType mask, OSEventType *value, bool clear, Test test, long long timeout)
     {
         BaseType_t e_clear = clear ? pdTRUE : pdFALSE;
         BaseType_t e_test = test ? pdTRUE : pdFALSE;
-        TickType_t e_timeout = timeout == OS_WAIT_FOREVER ? portMAX_DELAY : timeout >> NSEC_TO_TICK_SHIFT;
+        TickType_t e_timeout = timeout == OPENMRN_OS_WAIT_FOREVER ? portMAX_DELAY : timeout >> NSEC_TO_TICK_SHIFT;
 
         OSEventType bits = xEventGroupWaitBits(event, mask, e_clear, e_test, e_timeout);
 

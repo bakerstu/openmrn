@@ -66,6 +66,9 @@ public:
     /** CC32xx SimpleLink forward declaration */
     struct HttpServerResponse;
 
+    /** CC32xx SimpleLink forward declaration */
+    struct FatalErrorEvent;
+    
     /** Security types.
      */
     enum SecurityType
@@ -320,6 +323,12 @@ public:
      */
     void http_server_callback(HttpServerEvent *event,
                               HttpServerResponse *response);
+
+    /** This Function Handles the Fatal errors
+     *  @param  event - Contains the fatal error data
+     *  @return     None
+     */
+    void fatal_error_callback(FatalErrorEvent* event);
 
     /** Returns a string contianing the version numbers of the network
      * interface. */
