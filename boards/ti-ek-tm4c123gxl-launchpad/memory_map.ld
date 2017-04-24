@@ -1,9 +1,13 @@
+___ram_for_bootloader_api = 8;
+
+
 MEMORY
 {
   FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 240K
   EEPROMEMU (r): ORIGIN = 0x3C000, LENGTH = 8K
   BOOTLOADER (rx) : ORIGIN = 0x0003E000, LENGTH = 8K
-  RAM  (rwx) : ORIGIN = 0x20000000, LENGTH = 32K
+  RAM  (rwx) : ORIGIN = 0x20000000, LENGTH = 32K - ___ram_for_bootloader_api
+  BOOTLOADERAPI (rw) : ORIGIN = 0x20000000 + 32K - ___ram_for_bootloader_api, LENGTH = ___ram_for_bootloader_api
 }
 
 __flash_start = ORIGIN(FLASH);
@@ -14,3 +18,4 @@ __bootloader_start = ORIGIN(BOOTLOADER);
 __bootloader_end = ORIGIN(BOOTLOADER) + LENGTH(BOOTLOADER);
 __app_header_offset = 0x270;
 __bootloader_magic_ptr = ORIGIN(RAM);
+__application_node_id = ORIGIN(BOOTLOADERAPI);
