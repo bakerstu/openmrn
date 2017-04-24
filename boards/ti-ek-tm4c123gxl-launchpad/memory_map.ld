@@ -1,6 +1,4 @@
 ___ram_for_bootloader_api = 8;
-___total_ram = 32K;
-___bootloader_api_origin = ___total_ram - ___ram_for_bootloader_api;
 
 
 MEMORY
@@ -9,7 +7,7 @@ MEMORY
   EEPROMEMU (r): ORIGIN = 0x3C000, LENGTH = 8K
   BOOTLOADER (rx) : ORIGIN = 0x0003E000, LENGTH = 8K
   RAM  (rwx) : ORIGIN = 0x20000000, LENGTH = 32K - ___ram_for_bootloader_api
-  BOOTLOADERAPI (rw) : ORIGIN = ___bootloader_api_origin, LENGTH = ___ram_for_bootloader_api        
+  BOOTLOADERAPI (rw) : ORIGIN = 0x20000000 + 32K - ___ram_for_bootloader_api, LENGTH = ___ram_for_bootloader_api
 }
 
 __flash_start = ORIGIN(FLASH);
