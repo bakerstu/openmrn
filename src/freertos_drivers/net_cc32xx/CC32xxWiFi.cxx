@@ -350,6 +350,7 @@ void CC32xxWiFi::wlan_mac(uint8_t mac[6])
     sl_NetCfgGet(SL_MAC_ADDRESS_GET, nullptr, &len, mac);
 }
 
+#ifndef SL_API_V2
 void *vSimpleLinkSpawnTask(void *pvParameters)
 {
     tSimpleLinkSpawnMsg Msg;
@@ -366,6 +367,7 @@ void *vSimpleLinkSpawnTask(void *pvParameters)
     return nullptr;
 }
 extern TaskHandle_t xSimpleLinkSpawnTaskHndl;
+#endif
 
 /*
  * CC32xxWiFi::start()
