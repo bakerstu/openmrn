@@ -6,14 +6,14 @@ GROUP(-lgcc -lc)
 /* include device specific memory map */
 INCLUDE memory_map.ld
 
-__cs3_heap_end = ORIGIN(STACK);
-__heap2_start = ORIGIN(RAM2);
-__heap2_end = ORIGIN(RAM2) + LENGTH(RAM2);
+REGION_ALIAS("REGION_PGM", FLASH);
 
 SECTIONS
 {
-    .text :
+    .text : ALIGN (2048)
     {
+        KEEP (*(.dbghdr))
+        . = ALIGN(2048);
         _text = .;
         KEEP(*(.interrupt_vector))
 
@@ -80,7 +80,7 @@ SECTIONS
 
         __text_section_guard = .;
         LONG(0);
-    } > RAM
+    } > REGION_PGM
 
     /*
      * for exception handling/unwind - some Newlib functions (in common
@@ -89,20 +89,20 @@ SECTIONS
     .ARM.extab : ALIGN(4)
     {
         *(.ARM.extab* .gnu.linkonce.armextab.*)
-    } > RAM
+    } > REGION_PGM
     
     .ARM :
     {
         __exidx_start = .;
         *(.ARM.exidx*)
         __exidx_end = .;
-    } > RAM
+    } > REGION_PGM
 
     _etext = .;
 
     __init_data = .;
 
-    .data : /*AT(__init_data)*/
+    .data : 
     {
         _data = .;
         *(.data*)
@@ -114,7 +114,7 @@ SECTIONS
         LONG(ABSOLUTE(ADDR(.ovly0))); LONG(SIZEOF(.ovly0)); LONG(LOADADDR(.ovly0));
         LONG(ABSOLUTE(ADDR(.ovly1))); LONG(SIZEOF(.ovly1)); LONG(LOADADDR(.ovly1));
 */
-    } > RAM
+    } > RAM AT>REGION_PGM
 
     .bss :
     {
