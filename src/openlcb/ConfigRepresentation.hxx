@@ -273,6 +273,15 @@ public:
 /// Closes a CDI group structure definition.
 #define CDI_GROUP_END() CDI_GROUP_END_HELPER(__LINE__)
 
+/// Sets a given variable to its default value. Usage:
+///     SET_PARAM_TO_DEFAULT(fd, opts_.short_retry_delay);
+/// assuming that there is something like
+///   CDI_GROUP_ENTRY(short_retry_delay, Uint8ConfigEntry, Default(13));
+/// in the CDI group whose type opts_ is.
+/// Will generate compile error if the variable does not have a default value
+/// in the configuration group entry.
+#define SET_PARAM_TO_DEFAULT(FD, PARAM) PARAM().write(fd, PARAM ## _options().defaultvalue())
+
 /// Defines a repeated group of a given type and a given number of repeats.
 ///
 /// Typical usage:
