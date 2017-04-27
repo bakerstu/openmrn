@@ -259,12 +259,12 @@ void timer5a_interrupt_handler(void)
         rest_pattern = blinker_pattern;
 }
 
-void timer4a_interrupt_handler(void)
+void timer3a_interrupt_handler(void)
 {
     //
     // Clear the timer interrupt.
     //
-    MAP_TimerIntClear(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerIntClear(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
 
 #ifndef FAKE_CHARLIE
     stat_leds.tick();
@@ -338,12 +338,19 @@ void hw_preinit(void)
     MAP_TimerEnable(TIMER5_BASE, TIMER_A);
 
     /* Charlieplexed pins */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER4);
-    MAP_TimerLoadSet(TIMER4_BASE, TIMER_A, configCPU_CLOCK_HZ / 10000);
-    MAP_IntEnable(INT_TIMER4A);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
+    MAP_TimerLoadSet(TIMER3_BASE, TIMER_A, configCPU_CLOCK_HZ / 10000);
+    MAP_IntEnable(INT_TIMER3A);
     // Still above kernel but not prio zero
-    MAP_IntPrioritySet(INT_TIMER4A, 0x80);
+    MAP_IntPrioritySet(INT_TIMER3A, 0x80);
 
+    // A tick timer
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_WTIMER2);
+    MAP_TimerConfigure(WTIMER2_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC_UP);
+    MAP_TimerLoadSet(WTIMER2_BASE, TIMER_A, 1U<<31);
+    MAP_TimerLoadSet(WTIMER2_BASE, TIMER_B, 1U<<31);
+    MAP_TimerEnable(WTIMER2_BASE, TIMER_A | TIMER_B);
+    
     /* Checks the SW1 pin at boot time in case we want to allow for a debugger
      * to connect. */
     asm volatile ("cpsie i\n");
@@ -363,8 +370,8 @@ void hw_postinit(void)
 {
     // Enables charlieplexing interrupt only after the static initialization
     // has created the object itself.
-    MAP_TimerIntEnable(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
-    MAP_TimerEnable(TIMER4_BASE, TIMER_A);
+    MAP_TimerIntEnable(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerEnable(TIMER3_BASE, TIMER_A);
 }
 
 }
