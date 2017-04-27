@@ -133,6 +133,12 @@ inline unsigned node_low(NodeID id) {
     return id & 0xffffffffU;
 }
 
+/// Helper function to send an event report to the bus. Performs
+/// synchronous (dynamic) memory allocation so use it sparingly and when
+/// there is sufficient amount of RAM available.
+/// @param event_id is the event to send off.
+extern void send_event(Node* src_node, uint64_t event_id);
+
 /** This class is used in the dispatching of incoming or outgoing NMRAnet
  * messages to the message handlers at the protocol-agnostic level (i.e. not
  * CAN or TCP-specific).

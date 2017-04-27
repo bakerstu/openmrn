@@ -121,6 +121,15 @@ void buffer_to_error(const Payload &payload, uint16_t *error_code,
     }
 }
 
+void send_event(Node* src_node, uint64_t event_id);
+{
+    auto *b = src_node->iface()->global_message_write_flow()->alloc();
+    b->data()->reset(Defs::MTI_EVENT_REPORT, node()->node_id(),
+                     eventid_to_buffer(event_id));
+    src_node->iface()->global_message_write_flow()->send(b);
+}
+
+
 string EMPTY_PAYLOAD;
 
 /*Buffer *node_id_to_buffer(NodeID id)
