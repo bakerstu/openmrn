@@ -32,6 +32,8 @@
  * @date 5 Jun 2015
  */
 
+#define LOGLEVEL INFO
+
 #include "os/os.h"
 #include "nmranet_config.h"
 
@@ -44,10 +46,8 @@
 #include "config.hxx"
 #include "hardware.hxx"
 
-#include "freertos_drivers/common/RamDisk.hxx"
 #include "CC32xxWiFi.hxx"
-
-RamDisk eeprom("/dev/eeprom", 1500);
+#include "utils/stdio_logging.h"
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
@@ -83,7 +83,7 @@ openlcb::ConfigDef cfg(0);
 // Defines weak constants used by the stack to tell it which device contains
 // the volatile configuration information. This device name appears in
 // HwInit.cxx that creates the device drivers.
-extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
+extern const char *const openlcb::CONFIG_FILENAME = "/usr/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
@@ -93,6 +93,70 @@ static_assert(openlcb::CONFIG_FILE_SIZE <= 1500, "Need to adjust eeprom size");
 // simpler to keep them together.
 extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
     openlcb::CONFIG_FILENAME;
+
+class EepromTimerFlow : public StateFlowBase, protected Atomic
+{
+public:
+    EepromTimerFlow()
+        : StateFlowBase(stack.service())
+        , isWaiting_(0)
+        , isDirty_(0)
+    {
+        start_flow(STATE(test_and_sleep));
+    }
+
+    void wakeup() {
+        AtomicHolder h(this);
+        isDirty_ = 1;
+        if (isWaiting_) {
+            isWaiting_ = 0;
+            notify();
+        }
+    }
+
+private:
+    Action test_and_sleep()
+    {
+        AtomicHolder h(this);
+        if (isDirty_)
+        {
+            isDirty_ = 0;
+            return sleep_and_call(
+                &timer_, MSEC_TO_NSEC(1000), STATE(test_and_flush));
+        }
+        isWaiting_ = 1;
+        return wait();
+    }
+
+    Action test_and_flush()
+    {
+        {
+            AtomicHolder h(this);
+            if (isDirty_)
+            {
+                // we received another write during the sleep. Go back to sleep.
+                isDirty_ = 0;
+                return sleep_and_call(
+                    &timer_, MSEC_TO_NSEC(1000), STATE(test_and_flush));
+            }
+        }
+        extern void eeprom_flush();
+        eeprom_flush();
+        return call_immediately(STATE(test_and_sleep));
+    }
+
+    StateFlowTimer timer_{this};
+    // 1 if the flow is sleeping and needs to be notified to wake up.
+    unsigned isWaiting_ : 1;
+    // 1 if we received a notification from the eeprom handler.
+    unsigned isDirty_ : 1;
+} eepromTimerFlow_;
+
+extern "C" {
+void eeprom_updated_notification() {
+    eepromTimerFlow_.wakeup();
+}
+}
 
 // Defines the GPIO ports used for the producers and the consumers.
 

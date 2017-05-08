@@ -51,6 +51,7 @@
 #include "CC32xxSPI.hxx"
 #include "CC32xxWiFi.hxx"
 #include "MCP2515Can.hxx"
+#include "CC32xxEEPROMEmulation.hxx"
 #include "hardware.hxx"
 #include "bootloader_hal.h"
 
@@ -69,8 +70,19 @@ static CC32xxUart uart0("/dev/ser0", UARTA0_BASE, INT_UARTA0);
 /** Wi-Fi instance */
 CC32xxWiFi wifi;
 
+static CC32xxEEPROMEmulation eeprom("/usr/eeprom", 1500);
+
+extern void eeprom_flush() {
+    eeprom.flush();
+}
+
 extern "C"
 {
+
+void __attribute__((__weak__)) eeprom_updated_notification() {
+    eeprom_flush();
+}
+
 
 extern void (* const __interrupt_vector[])(void);
 void hw_set_to_safe(void);
@@ -157,7 +169,7 @@ void hw_preinit(void)
     PRCMCC3200MCUInit();
 
     /* initilize pin modes:
-     *   PIN_01:  PIN_MODE_3 - GT_PWM07
+     *   PIN_01:  PIN_MODE_0 - GPIO10
      *   PIN_02:  PIN_MODE_0 - GPIO11
      *   PIN_04:  PIN_MODE_0 - GPIO13
      *   PIN_05:  PIN_MODE_7 - GSPI_CLK
@@ -169,7 +181,7 @@ void hw_preinit(void)
      *   PIN_57:  PIN_MODE_3 - UARTA0_RX
      *   PIN_64:  PIN_MODE_0 - GPIO9
      */
-    MAP_PinTypeTimer(PIN_01, PIN_MODE_3);
+    MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
     MAP_PinTypeSPI(PIN_05, PIN_MODE_7);
@@ -193,7 +205,7 @@ void hw_preinit(void)
     MAP_TimerEnable(TIMERA2_BASE, TIMER_A);
 
     /* Checks the SW2 pin at boot time in case we want to allow for a debugger
-     * to connect. 
+     * to connect.
     asm volatile ("cpsie i\n");
     do {
       if (SW2_Pin::get()) {
@@ -220,6 +232,12 @@ void hw_init(void)
  */
 void hw_postinit(void)
 {
+    SyncNotifiable n;
+    wifi.run_on_network_thread([&n]() {
+        eeprom.mount();
+        n.notify();
+    });
+    n.wait_for_notification();
 }
 
 } /* extern "C" */
