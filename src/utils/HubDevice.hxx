@@ -108,9 +108,9 @@ protected:
             else
             {
                 hasError_ = 1;
-                ::close(fd_);
             }
         }
+        ::close(fd_);
         unregister_write_port();
     }
 
