@@ -222,7 +222,7 @@ int CC32xxSocket::bind(int socket, const struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        return -1;
     }
 
     SlSockAddr_t sl_address;
@@ -252,7 +252,7 @@ int CC32xxSocket::listen(int socket, int backlog)
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        return -1;
     }
 
     int result = sl_Listen(s->sd, backlog);
@@ -282,7 +282,7 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        return -1;
     }
 
     if (!s->listenActive)
@@ -374,7 +374,7 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        return -1;
     }
 
     SlSockAddr_t sl_address;
@@ -428,7 +428,7 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        return -1;
     }
 
     int result = sl_Recv(s->sd, buffer, length, flags);
@@ -475,7 +475,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        return -1;
     }
 
     int result = sl_Send(s->sd, buffer, length, flags);
@@ -518,7 +518,7 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        return -1;
     }
 
     int result;
@@ -590,7 +590,7 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        return -1;
     }
 
     int result;
