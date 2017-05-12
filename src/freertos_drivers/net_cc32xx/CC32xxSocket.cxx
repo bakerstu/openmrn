@@ -680,8 +680,14 @@ int CC32xxSocket::close(File *file)
     if (--references_ == 0)
     {
         mutex.unlock();
-        /* request that the socket be closed */
-        CC32xxWiFi::instance()->select_wakeup(s->sd);
+        /* request that the socket be removed from managment */
+        int16_t sd = s->sd;
+        CC32xxWiFi::instance()->fd_remove(sd);
+        portENTER_CRITICAL();
+        remove_instance_from_sd(sd);
+        portEXIT_CRITICAL();
+        delete this;
+        sl_Close(sd);
     }
     else
     {

@@ -538,13 +538,7 @@ void CC32xxWiFi::wlan_task()
 
     wakeup = sl_Socket(SL_AF_INET, SL_SOCK_DGRAM, 0);
     HASSERT(wakeup >= 0);
-#if 0
-    /* make socket non-blocking */
-    SlSockNonblocking_t sl_option_value;
-    sl_option_value.NonblockingEnabled = 1;
-    result = sl_SetSockOpt(wakeup, SL_SOL_SOCKET, SL_SO_NONBLOCKING,
-                           &sl_option_value, sizeof(sl_option_value));
-#endif
+
     address.sin_family = SL_AF_INET;
     address.sin_port = sl_Htons(8000);
     address.sin_addr.s_addr = SL_INADDR_ANY;
@@ -612,34 +606,8 @@ void CC32xxWiFi::wlan_task()
                 if (slSockets[i] == wakeup)
                 {
                     /* this is the socket we use as a signal */
-                    int16_t data;
-                    int status = sl_Recv(wakeup, &data, 2, 0);
-                    if (status < 2)
-                    {
-                        continue;
-                    }
-                    switch (data)
-                    {
-                        default:
-                            /* special action to close socket */
-                            HASSERT(data >= 0);
-                            portENTER_CRITICAL();
-                            SL_FD_CLR(data, &rfds);
-                            SL_FD_CLR(data, &wfds);
-                            SL_FD_CLR(data, &efds);
-                            del_socket(data);
-                            delete CC32xxSocket::get_instance_from_sd(data);
-                            CC32xxSocket::remove_instance_from_sd(data);
-                            portEXIT_CRITICAL();
-
-                            sl_Close(data);
-                        case SELECT_WAKE_NO_ACTION:
-                            break;
-                        case SELECT_WAKE_EXIT:
-                            /* shutdown Wi-Fi stack and helper thread */
-                            sl_Close(wakeup);
-                            return;
-                    }
+                    char data;
+                    sl_Recv(wakeup, &data, 1, 0);
                 }
                 else
                 {
@@ -680,7 +648,7 @@ void CC32xxWiFi::wlan_task()
 /*
  * CC32xxWiFi::select_wakeup()
  */
-void CC32xxWiFi::select_wakeup(int16_t data)
+void CC32xxWiFi::select_wakeup()
 {
     if (wakeup >= 0)
     {
@@ -690,12 +658,14 @@ void CC32xxWiFi::select_wakeup(int16_t data)
         address.sin_port = sl_Htons(8000);
         address.sin_addr.s_addr = sl_Htonl(SL_IPV4_VAL(127,0,0,1));
 
-        int result = sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
-        while (result == SL_EAGAIN && data != SELECT_WAKE_NO_ACTION);
-        {
-            result = sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
-            usleep(10000);
-        }
+        /* note that loopback messages only work as long as the we are
+         * connected to an AP, or acting as an AP ourselves.  If neither of
+         * these is the case, the wakeup of sl_Select() using this method is
+         * not necessary.  The sl_Select() API has a timeout to maintain state
+         * periodically.
+         */
+        char data = -1;
+        sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address, length);
     }
 }
 
@@ -706,6 +676,19 @@ void CC32xxWiFi::run_on_network_thread(std::function<void()> callback)
         callbacks_.emplace_back(std::move(callback));
     }
     select_wakeup();
+}
+
+/*
+ * CC32xxWiFi::fd_remove()
+ */
+void CC32xxWiFi::fd_remove(int16_t socket)
+{
+    portENTER_CRITICAL();
+    SL_FD_CLR(socket, &rfds);
+    SL_FD_CLR(socket, &wfds);
+    SL_FD_CLR(socket, &efds);
+    del_socket(socket);
+    portEXIT_CRITICAL();
 }
 
 /*
