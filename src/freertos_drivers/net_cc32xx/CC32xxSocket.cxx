@@ -311,7 +311,7 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
                 SlCheckResult(result);
                 break;
             case SL_ENSOCK:
-                errno = ENOMEM;
+                errno = EMFILE;
                 break;
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
