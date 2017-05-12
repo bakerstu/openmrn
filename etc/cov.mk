@@ -25,7 +25,7 @@ CXXFLAGS = $(CSHAREDFLAGS) -std=c++0x -D__STDC_FORMAT_MACROS \
 
 LDFLAGS = $(ARCHOPTIMIZATION) -pg -Wl,-Map="$(@:%=%.map)"
 SYSLIB_SUBDIRS +=
-SYSLIBRARIES = -lrt -lpthread -lgcov $(SYSLIBRARIESEXTRA)
+SYSLIBRARIES = -lrt -lpthread -lgcov -lavahi-client -lavahi-common $(SYSLIBRARIESEXTRA)
 
 EXTENTION =
 

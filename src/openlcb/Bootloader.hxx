@@ -563,6 +563,18 @@ void handle_addressed_message(Defs::MTI mti)
             memcpy(state_.output_frame.data + 2, &PIP_REPLY, 6);
             break;
         }
+        case Defs::MTI_VERIFY_NODE_ID_ADDRESSED:
+        {
+            if (state_.output_frame_full)
+            {
+                // No buffer. Re-try next round.
+                return;
+            }
+            set_can_frame_global(Defs::MTI_VERIFIED_NODE_ID_NUMBER);
+            set_can_frame_nodeid();
+            state_.input_frame_full = 0;
+            return;
+        }
         case Defs::MTI_DATAGRAM_OK:
         {
             if (state_.datagram_reply_waiting)
@@ -647,6 +659,23 @@ void handle_addressed_message(Defs::MTI mti)
 /// Handles incoming global message.
 void handle_global_message(Defs::MTI mti)
 {
+    switch (mti)
+    {
+        case Defs::MTI_VERIFY_NODE_ID_GLOBAL:
+        {
+            if (state_.output_frame_full)
+            {
+                // No buffer. Re-try next round.
+                return;
+            }
+            set_can_frame_global(Defs::MTI_VERIFIED_NODE_ID_NUMBER);
+            set_can_frame_nodeid();
+            state_.input_frame_full = 0;
+            return;
+        }
+    default:
+        break;
+    }
     // Drop to the floor.
     state_.input_frame_full = 0;
     /// @todo(balazs.racz) what about global identify messages?

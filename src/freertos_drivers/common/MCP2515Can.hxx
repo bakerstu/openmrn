@@ -210,6 +210,16 @@ private:
         RXB1D7,
     };
 
+    /** Fields of the control register */
+    enum ControlFields
+    {
+        CLKPRE = 0x03, /**< clockout pin prescaler */
+        CLKEN  = 0x04, /**< clockout pin enable */
+        OSM    = 0x08, /**< one-shot mode */
+        ABAT   = 0x10, /**< abort all pending transmissions */
+        REQOP  = 0xE0, /**< request operation mode */
+    };
+
     /** interrupt flag masks */
     enum InterruptFlags
     {
@@ -221,6 +231,19 @@ private:
         ERRI = 0x20, /**< error interrupt bit */
         WAKI = 0x40, /**< wake-up interrupt bit */
         MERR = 0x80, /**< message error interrupt bit */
+    };
+
+    /** interrupt flag masks */
+    enum ErrorFlags
+    {
+        EWARN  = 0x01, /**< set when TEC or REC is equal to or greater than 96 */
+        RXWARN = 0x02, /**< set when REC is equal to or greater than 96 */
+        TXWARN = 0x04, /**< set when TEC is equal to or greater than 96 */
+        RXEP   = 0x08, /**< set when REC is equal to or greater than 128 */
+        TXEP   = 0x10, /**< set when TEC is equal to or greater than 128 */
+        TXBO   = 0x20, /**< set when TEC reaches 255 (bus-off) */
+        RX0OVR = 0x40, /**< receiver buffer 0 overflow flag */
+        RX1OVR = 0x80, /**< receiver buffer 1 overflow flag */
     };
 
     /** SPI transaction instructions */
@@ -551,7 +574,7 @@ private:
     int spi; /**< SPI bus that accesses MCP2515 */
     OSSem sem; /**< semaphore for posting events */
 #if MCP2515_DEBUG
-    uint8_t regs[128]; /**< debug copy of MCP2515 registers */
+    volatile uint8_t regs[128]; /**< debug copy of MCP2515 registers */
 #endif
 
     /** baud rate settings table */

@@ -350,6 +350,25 @@ void CC32xxWiFi::wlan_mac(uint8_t mac[6])
     sl_NetCfgGet(SL_MAC_ADDRESS_GET, nullptr, &len, mac);
 }
 
+#ifndef SL_API_V2
+void *vSimpleLinkSpawnTask(void *pvParameters)
+{
+    tSimpleLinkSpawnMsg Msg;
+    portBASE_TYPE ret=pdFAIL;
+
+    for(;;)
+    {
+        ret = xQueueReceive( xSimpleLinkSpawnQueue, &Msg, portMAX_DELAY );
+        if(ret == pdPASS)
+        {
+                Msg.pEntry(Msg.pValue);
+        }
+    }
+    return nullptr;
+}
+extern TaskHandle_t xSimpleLinkSpawnTaskHndl;
+#endif
+
 /*
  * CC32xxWiFi::start()
  */
@@ -360,10 +379,16 @@ void CC32xxWiFi::start(WlanRole role)
     os_thread_create(nullptr, "SimpleLink Task", configMAX_PRIORITIES - 1, 2048,
         sl_Task, nullptr);
 #else
+#if 0
     VStartSimpleLinkSpawnTask(configMAX_PRIORITIES - 1);
+#else
+    xSimpleLinkSpawnQueue = xQueueCreate(3, sizeof( tSimpleLinkSpawnMsg ) );
+    os_thread_create(&xSimpleLinkSpawnTaskHndl, "SimpleLink",
+                     configMAX_PRIORITIES - 1, 2048, vSimpleLinkSpawnTask, NULL);
+#endif // if 0
 #endif
     os_thread_create(nullptr, "Wlan Task", configMAX_PRIORITIES - 1, 2048,
-                     wlan_task_entry, (void *)role);
+                     wlan_task_entry, nullptr);
 }
 
 /*
@@ -513,7 +538,13 @@ void CC32xxWiFi::wlan_task()
 
     wakeup = sl_Socket(SL_AF_INET, SL_SOCK_DGRAM, 0);
     HASSERT(wakeup >= 0);
-
+#if 0
+    /* make socket non-blocking */
+    SlSockNonblocking_t sl_option_value;
+    sl_option_value.NonblockingEnabled = 1;
+    result = sl_SetSockOpt(wakeup, SL_SOL_SOCKET, SL_SO_NONBLOCKING,
+                           &sl_option_value, sizeof(sl_option_value));
+#endif
     address.sin_family = SL_AF_INET;
     address.sin_port = sl_Htons(8000);
     address.sin_addr.s_addr = SL_INADDR_ANY;
@@ -1048,6 +1079,22 @@ std::string CC32xxWiFi::get_version() {
     return v;
 }
 
+// Override weak MDNS implementations for the CC32xx platform
+
+/*
+ * mdns_publish()
+ */
+void mdns_publish(const char *name, const char *service, uint16_t port)
+{
+        string full_name(name);
+        full_name.push_back('.');
+        full_name.append(service);
+        full_name.append(".local");
+        sl_NetAppMDNSRegisterService((const signed char*)full_name.c_str(),
+                                     full_name.size(),
+                                     (const signed char*)"OLCB", strlen("OLCB"), 
+                                     port, 200, 0);
+}
 
 extern "C"
 {
@@ -1153,3 +1200,4 @@ int slcb_SetErrno(int Errno)
 #endif 
 
 } /* extern "C" */
+

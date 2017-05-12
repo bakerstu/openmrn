@@ -1,1 +1,1 @@
-../ti-cc3200-generic/startup.c
+../ti-cc3220sf-generic/startup.c
