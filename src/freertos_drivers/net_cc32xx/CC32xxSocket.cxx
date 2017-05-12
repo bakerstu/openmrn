@@ -326,6 +326,7 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     int reserved = reserve_socket();
     if (reserved < 0)
     {
+        sl_Close(result);
         return -1;
     }
 
