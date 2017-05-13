@@ -108,17 +108,17 @@ void new_highest()
 }
 
 /** Add an interesting socket.
- * @param socket number to add
+ * @param sd number to add
  */
-void add_socket(int16_t socket)
+void add_socket(int16_t sd)
 {
-    if (socket > fdHighest)
+    if (sd > fdHighest)
     {
-        fdHighest = socket;
+        fdHighest = sd;
     }
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
-        if (slSockets[i] == socket)
+        if (slSockets[i] == sd)
         {
             /* already known */
             return;
@@ -128,20 +128,20 @@ void add_socket(int16_t socket)
     {
         if (slSockets[i] == -1)
         {
-            slSockets[i] = socket;
+            slSockets[i] = sd;
             break;
         }
     }
 }
 
 /** Delete an interesting socket.
- * @parqam socket number to delete
+ * @parqam sd number to delete
  */
-void del_socket(int16_t socket)
+void del_socket(int16_t sd)
 {
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
-        if (slSockets[i] == socket)
+        if (slSockets[i] == sd)
         {
             slSockets[i] = -1;
             break;
@@ -681,30 +681,30 @@ void CC32xxWiFi::run_on_network_thread(std::function<void()> callback)
 /*
  * CC32xxWiFi::fd_remove()
  */
-void CC32xxWiFi::fd_remove(int16_t socket)
+void CC32xxWiFi::fd_remove(int16_t sd)
 {
     portENTER_CRITICAL();
-    SL_FD_CLR(socket, &rfds);
-    SL_FD_CLR(socket, &wfds);
-    SL_FD_CLR(socket, &efds);
-    del_socket(socket);
+    SL_FD_CLR(sd, &rfds);
+    SL_FD_CLR(sd, &wfds);
+    SL_FD_CLR(sd, &efds);
+    del_socket(sd);
     portEXIT_CRITICAL();
 }
 
 /*
  * CC32xxWiFi::fd_set_read()
  */
-void CC32xxWiFi::fd_set_read(int16_t socket)
+void CC32xxWiFi::fd_set_read(int16_t sd)
 {
     portENTER_CRITICAL();
-    if (SL_FD_ISSET(socket, &rfds))
+    if (SL_FD_ISSET(sd, &rfds))
     {
         /* already set */
         portEXIT_CRITICAL();
         return;
     }
-    SL_FD_SET(socket, &rfds);
-    add_socket(socket);
+    SL_FD_SET(sd, &rfds);
+    add_socket(sd);
     portEXIT_CRITICAL();
     select_wakeup();
 }
@@ -712,17 +712,17 @@ void CC32xxWiFi::fd_set_read(int16_t socket)
 /*
  * CC32xxWiFi::fd_set_write()
  */
-void CC32xxWiFi::fd_set_write(int16_t socket)
+void CC32xxWiFi::fd_set_write(int16_t sd)
 {
     portENTER_CRITICAL();
-    if (SL_FD_ISSET(socket, &wfds))
+    if (SL_FD_ISSET(sd, &wfds))
     {
         /* already set */
         portEXIT_CRITICAL();
         return;
     }
-    SL_FD_SET(socket, &wfds);
-    add_socket(socket);
+    SL_FD_SET(sd, &wfds);
+    add_socket(sd);
     portEXIT_CRITICAL();
     select_wakeup();
 }

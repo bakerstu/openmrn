@@ -370,18 +370,19 @@ private:
 
     /** Remove a socket from the known sockets that might be part of the
      * sl_Select fdset.
+     * @param sd socket descriptor to remove
      */
-    void fd_remove(int16_t socket);
+    void fd_remove(int16_t sd);
 
     /** Add socket to the read fd set.
-     * @param socket socket descriptor to add
+     * @param sd socket descriptor to add
      */
-    void fd_set_read(int16_t socket);
+    void fd_set_read(int16_t sd);
 
     /** Add socket to the write fd set.
-     * @param socket socket descriptor to add
+     * @param sd socket descriptor to add
      */
-    void fd_set_write(int16_t socket);
+    void fd_set_write(int16_t sd);
 
     /** Get the IP address for a http request.
      * @return string representation of the IP address
