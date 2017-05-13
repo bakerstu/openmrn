@@ -106,6 +106,7 @@ static int16_t slSockets[SL_MAX_SOCKETS];
  */
 void new_highest()
 {
+    newHighest = 0;
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
         if (slSockets[i] != -1)
