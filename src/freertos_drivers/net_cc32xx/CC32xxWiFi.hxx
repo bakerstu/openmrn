@@ -335,14 +335,6 @@ public:
     static std::string get_version();
     
 private:
-    /** Internal helper thread select wakeup codes.
-     */
-    enum SelectWakeupType : int16_t
-    {
-        SELECT_WAKE_NO_ACTION = -1, /**< generic select helper wakeup */
-        SELECT_WAKE_EXIT      = -2, /**< exit the select helper thread */
-    };
-
     /** Translates the SecurityType enum to the internal SimpleLink code.
      * @param sec_type security type
      * @return simplelink security type
@@ -373,21 +365,24 @@ private:
     void wlan_task();
 
     /** Asynchronously wakeup the select call.
-     * @param data -1 for no action,
-     * @param data -2 to exit thread,
-                   else socket descriptor if socket shall be closed.
      */
-    void select_wakeup(int16_t data = SELECT_WAKE_NO_ACTION);
+    void select_wakeup();
+
+    /** Remove a socket from the known sockets that might be part of the
+     * sl_Select fdset.
+     * @param sd socket descriptor to remove
+     */
+    void fd_remove(int16_t sd);
 
     /** Add socket to the read fd set.
-     * @param socket socket descriptor to add
+     * @param sd socket descriptor to add
      */
-    void fd_set_read(int16_t socket);
+    void fd_set_read(int16_t sd);
 
     /** Add socket to the write fd set.
-     * @param socket socket descriptor to add
+     * @param sd socket descriptor to add
      */
-    void fd_set_write(int16_t socket);
+    void fd_set_write(int16_t sd);
 
     /** Get the IP address for a http request.
      * @return string representation of the IP address

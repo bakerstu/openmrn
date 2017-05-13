@@ -68,28 +68,45 @@ struct CC32xxWiFi::FatalErrorEvent : public ::SlDeviceFatal_t {};
 
 CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;
 
-/** these are not class members so that including CC32xxWiFi.hxx does not
- * pollute the namespace with simplelink APIs
+/** This is not a class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs.
  */
-/*static*/ SlFdSet_t rfds;
-/** these are not class members so that including CC32xxWiFi.hxx does not
- * pollute the namespace with simplelink APIs
+static SlFdSet_t rfds;
+
+/** This is not a class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs.
  */
-/*static*/ SlFdSet_t wfds;
-/** these are not class members so that including CC32xxWiFi.hxx does not
- * pollute the namespace with simplelink APIs
+static SlFdSet_t wfds;
+
+/** This is not a class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs.
  */
-/*static*/ SlFdSet_t efds;
+static SlFdSet_t efds;
 
 /** the highest file descriptor to select on */
-/*static*/ int fdHighest;
+static int fdHighest;
 
-/*static*/ int16_t slSockets[SL_MAX_SOCKETS];
+/** This is not a class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs.  @ref slSockets keeps track of
+ * all the possible CC32x sockets.  On the CC3200, SL_MAX_SOCKETS is 8.  On the
+ * CC3220, SL_MAX_SOCKETS is 16.  Unused slots will have a value of -1, which
+ * is initialized in the @ref CC32xxWifi class constructor.  If a socket
+ * becomes interesting (is added to a select() call list), it will be added to
+ * an open slot in @ref slSockets by its CC32xx socket descriptor space value.
+ * When a socket is closed, it is removed from the from @ref slSockets and the
+ * resulting empty slot is returned to a value of -1.
+ *
+ * Note:  not all socket descriptors will be added to @ref slSockets for
+ * tracking.  Only those sockets which are added to a select() call list will
+ * be tracked by @ref slSockets.
+ */
+static int16_t slSockets[SL_MAX_SOCKETS];
 
 /** Find the new highest fd to select on.
  */
 void new_highest()
 {
+    fdHighest = 0;
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
         if (slSockets[i] != -1)
@@ -108,17 +125,17 @@ void new_highest()
 }
 
 /** Add an interesting socket.
- * @param socket number to add
+ * @param sd number to add
  */
-void add_socket(int16_t socket)
+void add_socket(int16_t sd)
 {
-    if (socket > fdHighest)
+    if (sd > fdHighest)
     {
-        fdHighest = socket;
+        fdHighest = sd;
     }
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
-        if (slSockets[i] == socket)
+        if (slSockets[i] == sd)
         {
             /* already known */
             return;
@@ -128,20 +145,20 @@ void add_socket(int16_t socket)
     {
         if (slSockets[i] == -1)
         {
-            slSockets[i] = socket;
+            slSockets[i] = sd;
             break;
         }
     }
 }
 
 /** Delete an interesting socket.
- * @parqam socket number to delete
+ * @parqam sd number to delete
  */
-void del_socket(int16_t socket)
+void del_socket(int16_t sd)
 {
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
-        if (slSockets[i] == socket)
+        if (slSockets[i] == sd)
         {
             slSockets[i] = -1;
             break;
@@ -538,13 +555,7 @@ void CC32xxWiFi::wlan_task()
 
     wakeup = sl_Socket(SL_AF_INET, SL_SOCK_DGRAM, 0);
     HASSERT(wakeup >= 0);
-#if 0
-    /* make socket non-blocking */
-    SlSockNonblocking_t sl_option_value;
-    sl_option_value.NonblockingEnabled = 1;
-    result = sl_SetSockOpt(wakeup, SL_SOL_SOCKET, SL_SO_NONBLOCKING,
-                           &sl_option_value, sizeof(sl_option_value));
-#endif
+
     address.sin_family = SL_AF_INET;
     address.sin_port = sl_Htons(8000);
     address.sin_addr.s_addr = SL_INADDR_ANY;
@@ -612,34 +623,8 @@ void CC32xxWiFi::wlan_task()
                 if (slSockets[i] == wakeup)
                 {
                     /* this is the socket we use as a signal */
-                    int16_t data;
-                    int status = sl_Recv(wakeup, &data, 2, 0);
-                    if (status < 2)
-                    {
-                        continue;
-                    }
-                    switch (data)
-                    {
-                        default:
-                            /* special action to close socket */
-                            HASSERT(data >= 0);
-                            portENTER_CRITICAL();
-                            SL_FD_CLR(data, &rfds);
-                            SL_FD_CLR(data, &wfds);
-                            SL_FD_CLR(data, &efds);
-                            del_socket(data);
-                            delete CC32xxSocket::get_instance_from_sd(data);
-                            CC32xxSocket::remove_instance_from_sd(data);
-                            portEXIT_CRITICAL();
-
-                            sl_Close(data);
-                        case SELECT_WAKE_NO_ACTION:
-                            break;
-                        case SELECT_WAKE_EXIT:
-                            /* shutdown Wi-Fi stack and helper thread */
-                            sl_Close(wakeup);
-                            return;
-                    }
+                    char data;
+                    sl_Recv(wakeup, &data, 1, 0);
                 }
                 else
                 {
@@ -680,7 +665,7 @@ void CC32xxWiFi::wlan_task()
 /*
  * CC32xxWiFi::select_wakeup()
  */
-void CC32xxWiFi::select_wakeup(int16_t data)
+void CC32xxWiFi::select_wakeup()
 {
     if (wakeup >= 0)
     {
@@ -690,12 +675,14 @@ void CC32xxWiFi::select_wakeup(int16_t data)
         address.sin_port = sl_Htons(8000);
         address.sin_addr.s_addr = sl_Htonl(SL_IPV4_VAL(127,0,0,1));
 
-        int result = sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
-        while (result == SL_EAGAIN && data != SELECT_WAKE_NO_ACTION);
-        {
-            result = sl_SendTo(wakeup, &data, 2, 0, (SlSockAddr_t*)&address, length);
-            usleep(10000);
-        }
+        /* note that loopback messages only work as long as the we are
+         * connected to an AP, or acting as an AP ourselves.  If neither of
+         * these is the case, the wakeup of sl_Select() using this method is
+         * not necessary.  The sl_Select() API has a timeout to maintain state
+         * periodically.
+         */
+        char data = -1;
+        sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address, length);
     }
 }
 
@@ -709,19 +696,32 @@ void CC32xxWiFi::run_on_network_thread(std::function<void()> callback)
 }
 
 /*
- * CC32xxWiFi::fd_set_read()
+ * CC32xxWiFi::fd_remove()
  */
-void CC32xxWiFi::fd_set_read(int16_t socket)
+void CC32xxWiFi::fd_remove(int16_t sd)
 {
     portENTER_CRITICAL();
-    if (SL_FD_ISSET(socket, &rfds))
+    SL_FD_CLR(sd, &rfds);
+    SL_FD_CLR(sd, &wfds);
+    SL_FD_CLR(sd, &efds);
+    del_socket(sd);
+    portEXIT_CRITICAL();
+}
+
+/*
+ * CC32xxWiFi::fd_set_read()
+ */
+void CC32xxWiFi::fd_set_read(int16_t sd)
+{
+    portENTER_CRITICAL();
+    if (SL_FD_ISSET(sd, &rfds))
     {
         /* already set */
         portEXIT_CRITICAL();
         return;
     }
-    SL_FD_SET(socket, &rfds);
-    add_socket(socket);
+    SL_FD_SET(sd, &rfds);
+    add_socket(sd);
     portEXIT_CRITICAL();
     select_wakeup();
 }
@@ -729,17 +729,17 @@ void CC32xxWiFi::fd_set_read(int16_t socket)
 /*
  * CC32xxWiFi::fd_set_write()
  */
-void CC32xxWiFi::fd_set_write(int16_t socket)
+void CC32xxWiFi::fd_set_write(int16_t sd)
 {
     portENTER_CRITICAL();
-    if (SL_FD_ISSET(socket, &wfds))
+    if (SL_FD_ISSET(sd, &wfds))
     {
         /* already set */
         portEXIT_CRITICAL();
         return;
     }
-    SL_FD_SET(socket, &wfds);
-    add_socket(socket);
+    SL_FD_SET(sd, &wfds);
+    add_socket(sd);
     portEXIT_CRITICAL();
     select_wakeup();
 }

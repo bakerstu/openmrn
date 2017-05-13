@@ -222,7 +222,8 @@ int CC32xxSocket::bind(int socket, const struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     SlSockAddr_t sl_address;
@@ -252,7 +253,8 @@ int CC32xxSocket::listen(int socket, int backlog)
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     int result = sl_Listen(s->sd, backlog);
@@ -282,7 +284,8 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     if (!s->listenActive)
@@ -311,7 +314,7 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
                 SlCheckResult(result);
                 break;
             case SL_ENSOCK:
-                errno = ENOMEM;
+                errno = EMFILE;
                 break;
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
@@ -326,6 +329,7 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     int reserved = reserve_socket();
     if (reserved < 0)
     {
+        sl_Close(result);
         return -1;
     }
 
@@ -373,7 +377,8 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     SlSockAddr_t sl_address;
@@ -427,7 +432,8 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     int result = sl_Recv(s->sd, buffer, length, flags);
@@ -474,7 +480,8 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     int result = sl_Send(s->sd, buffer, length, flags);
@@ -517,7 +524,8 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     int result;
@@ -589,7 +597,8 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     int result;
@@ -679,8 +688,14 @@ int CC32xxSocket::close(File *file)
     if (--references_ == 0)
     {
         mutex.unlock();
-        /* request that the socket be closed */
-        CC32xxWiFi::instance()->select_wakeup(s->sd);
+        /* request that the socket be removed from managment */
+        int16_t sd = s->sd;
+        CC32xxWiFi::instance()->fd_remove(sd);
+        portENTER_CRITICAL();
+        remove_instance_from_sd(sd);
+        portEXIT_CRITICAL();
+        delete this;
+        sl_Close(sd);
     }
     else
     {
