@@ -68,23 +68,39 @@ struct CC32xxWiFi::FatalErrorEvent : public ::SlDeviceFatal_t {};
 
 CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;
 
-/** these are not class members so that including CC32xxWiFi.hxx does not
- * pollute the namespace with simplelink APIs
+/** This is not a class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs.
  */
-/*static*/ SlFdSet_t rfds;
-/** these are not class members so that including CC32xxWiFi.hxx does not
- * pollute the namespace with simplelink APIs
+static SlFdSet_t rfds;
+
+/** This is not a class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs.
  */
-/*static*/ SlFdSet_t wfds;
-/** these are not class members so that including CC32xxWiFi.hxx does not
- * pollute the namespace with simplelink APIs
+static SlFdSet_t wfds;
+
+/** This is not a class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs.
  */
-/*static*/ SlFdSet_t efds;
+static SlFdSet_t efds;
 
 /** the highest file descriptor to select on */
-/*static*/ int fdHighest;
+static int fdHighest;
 
-/*static*/ int16_t slSockets[SL_MAX_SOCKETS];
+/** This is not a class members so that including CC32xxWiFi.hxx does not
+ * pollute the namespace with simplelink APIs.  @ref slSockets keeps track of
+ * all the possible CC32x sockets.  On the CC3200, SL_MAX_SOCKETS is 8.  On the
+ * CC3220, SL_MAX_SOCKETS is 16.  Unused slots will have a value of -1, which
+ * is initialized in the @ref CC32xxWifi class constructor.  If a socket
+ * becomes interesting (is added to a select() call list), it will be added to
+ * an open slot in @ref slSockets by its CC32xx socket descriptor space value.
+ * When a socket is closed, it is removed from the from @ref slSockets and the
+ * resulting empty slot is returned to a value of -1.
+ *
+ * Note:  not all socket descriptors will be added to @ref slSockets for
+ * tracking.  Only those sockets which are added to a select() call list will
+ * be tracked by @ref slSockets.
+ */
+static int16_t slSockets[SL_MAX_SOCKETS];
 
 /** Find the new highest fd to select on.
  */
