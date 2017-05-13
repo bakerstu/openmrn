@@ -205,16 +205,14 @@ void CC32xxUart::interrupt_handler()
         }
         else
         {
-            if (MAP_UARTTxIntModeGet(base) == UART_TXINT_MODE_EOT)
+            /* no more data left to send */
+            HASSERT(MAP_UARTTxIntModeGet(base) == UART_TXINT_MODE_EOT);
+            if (txEnableDeassert)
             {
-                /* no more data left to send */
-                if (txEnableDeassert)
-                {
-                    txEnableDeassert();
-                }
-                txPending = false;
-                MAP_UARTIntDisable(base, UART_INT_TX);
+                txEnableDeassert();
             }
+            txPending = false;
+            MAP_UARTIntDisable(base, UART_INT_TX);
         }
     }
     os_isr_exit_yield_test(woken);
