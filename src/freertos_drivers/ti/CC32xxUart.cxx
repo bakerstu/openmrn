@@ -164,9 +164,7 @@ void CC32xxUart::tx_char()
         send();
         txPending = true;
 
-        MAP_IntDisable(interrupt);
         MAP_UARTIntEnable(base, UART_INT_TX);
-        MAP_IntEnable(interrupt);
         txBuf->signal_condition();
     }
 }
