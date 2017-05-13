@@ -222,6 +222,7 @@ int CC32xxSocket::bind(int socket, const struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
+        /* get_instance_from_fd() sets the errno appropriately */
         return -1;
     }
 
@@ -252,6 +253,7 @@ int CC32xxSocket::listen(int socket, int backlog)
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
+        /* get_instance_from_fd() sets the errno appropriately */
         return -1;
     }
 
@@ -282,6 +284,7 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
+        /* get_instance_from_fd() sets the errno appropriately */
         return -1;
     }
 
@@ -374,6 +377,7 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
+        /* get_instance_from_fd() sets the errno appropriately */
         return -1;
     }
 
@@ -428,6 +432,7 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
+        /* get_instance_from_fd() sets the errno appropriately */
         return -1;
     }
 
@@ -475,6 +480,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
+        /* get_instance_from_fd() sets the errno appropriately */
         return -1;
     }
 
@@ -518,6 +524,7 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
+        /* get_instance_from_fd() sets the errno appropriately */
         return -1;
     }
 
@@ -590,6 +597,7 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
+        /* get_instance_from_fd() sets the errno appropriately */
         return -1;
     }
 
