@@ -484,12 +484,32 @@ public:
     /** Get the monotonic time since the system started.
      * @return time in nanoseconds since system start
      */
-    static long long get_monotonic(void)
+    static long long get_monotonic()
     {
         return os_get_time_monotonic();
     }
 
+    /** Get the current RTC time.
+     * @return time in nanoseconds of the RTC time.
+     */
+    static long long get_realtime()
+    {
+        /// @todo need to fill in the Real Time Clock infrastructure
+        return get_monotonic() + rtcOffset;
+    }
+
+    /** Set the current RTC time.
+     */
+    static void set_realtime(long long time)
+    {
+        /// @todo need to fill in the Real Time Clock infrastructure
+        rtcOffset = time - get_monotonic();
+    }
+
 private:
+    /** realtime clock offset */
+    static long long rtcOffset;
+
     DISALLOW_COPY_AND_ASSIGN(OSTime);
 
     /* Private default constructor prevents instantiating this class. */

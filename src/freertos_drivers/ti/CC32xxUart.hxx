@@ -67,11 +67,12 @@ public:
      * @param interrupt interrupt number of this device
      * @param baud desired baud rate
      * @param mode to configure the UART for
+     * @param hw_fifo true if hardware fifo is to be enabled, else false.
      * @param tx_enable_assert callback to assert the transmit enable
      * @param tx_enable_deassert callback to deassert the transmit enable
      */
     CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
-               uint32_t baud = 115200, uint32_t mode = CS8,
+               uint32_t baud = 115200, uint32_t mode = CS8, bool hw_fifo = true,
                TxEnableMethod tx_enable_assert = nullptr,
                TxEnableMethod tx_enable_deassert = nullptr);
 
@@ -90,9 +91,14 @@ private:
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
 
+
     /** Try and transmit a message.
      */
     void tx_char() override;
+
+    /** Send data until there is no more space left.
+     */
+    void send();
 
     /** function pointer to a method that asserts the transmit enable. */
     TxEnableMethod txEnableAssert;
@@ -103,6 +109,7 @@ private:
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
     bool txPending; /**< transmission currently pending */
+    bool hwFIFO; /**< true if hardware fifo is to be enabled, else false */
 
     /** Default constructor.
      */
