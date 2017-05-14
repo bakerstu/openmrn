@@ -1,0 +1,14 @@
+// Compile and link this file into the application binary in order to enable
+// downloading directly to FLASH on the CC3220SF. This only works when a debug
+// image is installed on the serial flash and you use the JTAG port to download
+// the code directly into the on-chip flash. The magic signature will prevent
+// the ROM bootloader from overwriting the flash from the mcuflashimg.bin file
+// on the serial flash.
+
+__attribute__ ((section (".dbghdr")))
+const unsigned long ulDebugHeader[]=
+{
+                0x5AA5A55A,
+                0x000FF800,
+                0xEFA3247D
+};
