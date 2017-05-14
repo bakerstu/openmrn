@@ -30,6 +30,9 @@ extern "C" {
 #define SL_SCAN_SEC_TYPE_WPA2 SL_WLAN_SEC_TYPE_WPA_WPA2
 #define FS_MODE_OPEN_WRITE SL_FS_WRITE
 #define FS_MODE_OPEN_READ SL_FS_READ
+#define _FS_FILE_OPEN_FLAG_SECURE SL_FS_CREATE_SECURE
+#define _FS_FILE_OPEN_FLAG_COMMIT SL_FS_CREATE_FAILSAFE
+#define _FS_FILE_PUBLIC_WRITE SL_FS_CREATE_PUBLIC_WRITE
 
 #define SL_POLICY_CONNECTION SL_WLAN_POLICY_CONNECTION
 #define SL_POLICY_SCAN SL_WLAN_POLICY_SCAN
@@ -206,7 +209,7 @@ extern "C" {
     SL_WLAN_CONNECTION_POLICY(Auto, Fast, anyP2P, autoSmartConfig)
 #define SL_SCAN_POLICY(enable) SL_WLAN_SCAN_POLICY(enable, 0)
 #define FS_MODE_OPEN_CREATE(_maxSize_, _flag_)                                 \
-    (SL_FS_CREATE | SL_FS_CREATE_MAX_SIZE(_maxSize_))
+    (SL_FS_CREATE | SL_FS_CREATE_MAX_SIZE(_maxSize_) | _flag_)
 /*** Updatetd Function ***/
 #define sl_WlanRxFilterSet(opcode, maskeSize, mask)                            \
     sl_WlanSet(SL_WLAN_RX_FILTERS_ID, opcode, mask, maskeSize)
