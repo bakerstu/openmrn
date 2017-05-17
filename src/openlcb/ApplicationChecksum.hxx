@@ -37,7 +37,7 @@
 
 #include "freertos/bootloader_hal.h"
 
-
+extern "C" {
 /** @returns true if the application checksum currently in flash is correct. */
 bool check_application_checksum()
 {
@@ -71,6 +71,7 @@ bool check_application_checksum()
         return false;
     }
     return true;
+}
 }
 
 #endif // _OPENLCB_APPLICATIONCHECKSUM_HXX_
