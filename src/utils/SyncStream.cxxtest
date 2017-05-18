@@ -114,6 +114,31 @@ TEST(HeaderStreamTest, MultipleWrite) {
     EXPECT_EQ("0123456789abc", hdr);
 }
 
+TEST(MaxLengthStreamTest, SingleWrite) {
+    char testdata[13];
+    StrictMock<MockStream>* impl = new StrictMock<MockStream>();
+    MaxLengthStream str(6, impl);
+
+    EXPECT_CALL(*impl, write(testdata, 6)).WillOnce(Return(6));
+    auto ret = str.write_all(testdata, 13);
+    EXPECT_EQ(6, ret);
+    ret = str.write_all(testdata, 17);
+    EXPECT_EQ(0, ret);
+}
+
+TEST(MaxLengthStreamTest, MultipleWrite) {
+    char testdata[13];
+    StrictMock<MockStream>* impl = new StrictMock<MockStream>();
+    MaxLengthStream str(6, impl);
+
+    EXPECT_CALL(*impl, write(testdata, 6)).WillOnce(Return(2));
+    EXPECT_CALL(*impl, write(testdata+2, 4)).WillOnce(Return(1));
+    EXPECT_CALL(*impl, write(testdata+3, 3)).WillOnce(Return(3));
+    auto ret = str.write_all(testdata, 13);
+    EXPECT_EQ(6, ret);
+    ret = str.write_all(testdata, 17);
+    EXPECT_EQ(0, ret);
+}
 
 class TestDelegate : public DelegateStream {
 public:
