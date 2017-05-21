@@ -207,6 +207,11 @@ extern void write_flash(
 extern void raw_write_flash(
     const void *address, const void *data, uint32_t size_bytes);
 
+/** Signals that the bootloading operation is complete.
+ * @return 0 upon success or an OpenLCB error code (e.g. 0x1000 for permanent
+ * error). */
+extern uint16_t flash_complete(void);
+
 /** Computes checksum over a block of data.
  *
  * @param data is the data to be checksummed.

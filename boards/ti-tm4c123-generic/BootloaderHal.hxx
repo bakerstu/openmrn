@@ -233,6 +233,11 @@ void get_flash_page_info(const void *address, const void **page_start,
     *page_length_bytes = 1024;
 }
 
+uint16_t flash_complete(void)
+{
+    return 0;
+}
+
 void ignore_fn(void)
 {
 }

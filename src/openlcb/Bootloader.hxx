@@ -382,6 +382,13 @@ void handle_memory_config_frame()
                 set_error_code(DatagramDefs::INVALID_ARGUMENTS);
                 return;
             }
+            uint16_t r = flash_complete();
+            if (r != 0) {
+                // Invalid request.
+                reject_datagram();
+                set_error_code(r);
+                return;
+            }
             // fall through
         }
         case MemoryConfigDefs::COMMAND_RESET:
