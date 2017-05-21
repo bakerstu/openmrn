@@ -39,6 +39,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "utils/macros.h"
+
 class SyncStream
 {
 public:
@@ -59,6 +61,7 @@ public:
      * release resources. Return 0 on success, <0 on failure. */
     virtual int finalize()
     {
+        return 0;
     }
 
     /** Repeatedly writes until all data has been consumed or an error
@@ -140,7 +143,8 @@ private:
 class WrappedStream : public SyncStream
 {
 public:
-    WrappedStream(SyncStream *delegate), delegate_(delegate)
+    WrappedStream(SyncStream *delegate)
+        : delegate_(delegate)
     {
     }
 
@@ -222,10 +226,21 @@ public:
         , buffer_(nullptr)
         , bufLength_(0)
         , minWriteLength_(min_write_length)
-        ,
+        , fillByte_(fill_byte)
+        , needsFill_(1)
     {
     }
 
+    MinWriteStream(
+        uint8_t min_write_length, SyncStream *delegate)
+        : WrappedStream(delegate)
+        , buffer_(nullptr)
+        , bufLength_(0)
+        , minWriteLength_(min_write_length)
+        , needsFill_(0)
+    {
+    }
+    
     ~MinWriteStream()
     {
         delete[] buffer_;
@@ -262,7 +277,7 @@ public:
             // Too small write. Must copy stuff to the buffer.
             if (!buffer_)
             {
-                buffer_ = new uint32_t[minWriteLength_ / 4];
+                buffer_ = (uint8_t *)new uint32_t[minWriteLength_ / 4];
             }
             memcpy(buffer_, data, len);
             bufLength_ = len;
@@ -270,6 +285,21 @@ public:
         }
         auto ret = delegate_->write(data, len);
         return ret;
+    }
+
+    int finalize() override
+    {
+        if (bufLength_)
+        {
+            memset(
+                buffer_ + bufLength_, fillByte_, minWriteLength_ - bufLength_);
+            auto ret = delegate_->write(buffer_, minWriteLength_);
+            if (ret < 0)
+                return ret;
+            if (ret == 0)
+                return -1; // dropped data.
+        }
+        return delegate_->finalize();
     }
 
 private:
@@ -282,6 +312,30 @@ private:
     /// What byte to append to the stream at finalize time when we still have
     /// bytes to send onwards.
     uint8_t fillByte_;
+    /// Whether to do fill (1: yes, 0: no).
+    uint8_t needsFill_;
+};
+
+/** Simple stream implementation that appends all data to a given
+ * std::string. */
+class StringAppendStream : public SyncStream {
+public:
+    /// @param output is the string to write the data to. Does NOT take
+    /// ownership of the pointer.
+    StringAppendStream(std::string* output)
+        : output_(output) {}
+
+    void set_output(std::string* output) {
+        output_ = output;
+    }
+    
+    ssize_t write(const void *data, size_t len) override {
+        output_->append((const char*)data, len);
+        return len;
+    }
+
+private:
+    std::string* output_;
 };
 
 /** Stream implementation that allows running a state machine of different
