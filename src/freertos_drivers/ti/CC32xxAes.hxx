@@ -45,6 +45,8 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/aes.h"
 
+#include "utils/SyncStream.hxx"
+
 /// Helper class for doing CCM encryption-with-authentication using the
 /// CC32xx's hardware AES engine.
 class CCMHelper
@@ -101,9 +103,16 @@ public:
     void decrypt_init(const std::string &aes_key, const std::string &nonce,
         const std::string &auth_data, unsigned data_len, uint8_t tag_len)
     {
-        reset();
-        tagLength_ = tag_len;
+        // will set the strings on each write.
+        outputStream_ = new StringAppendStream(nullptr); 
+        decryptorStream_.reset(create_decryptor_stream(aes_key, nonce, auth_data, data_len, tag_len, outputStream_, &tagOut_));
+    }
 
+    static void static_decrypt_init(const std::string &aes_key,
+        const std::string &nonce, const std::string &auth_data,
+        unsigned data_len, uint8_t tag_len)
+    {
+        reset();
         // Sets configuration
         unsigned mode = AES_CFG_DIR_DECRYPT | AES_CFG_MODE_CCM |
             AES_CFG_CTR_WIDTH_32 |
@@ -132,9 +141,6 @@ public:
             MAP_AESDataWrite(AES_BASE, (uint8_t *)&auth_data[ofs],
                 std::min(16u, auth_data.size() - ofs));
         }
-
-        // Sets up the temporary buffer.
-        writeBufferLength_ = 0;
     }
 
     /// Process streaming encryption data.
@@ -144,41 +150,11 @@ public:
     /// be both shorter or longer than payload by a block size.
     void data_process(const std::string &payload, std::string *payload_out)
     {
-        payload_out->resize(payload.size() + 16);
-        const uint8_t *dstart = (uint8_t *)payload.data();
-        const uint8_t *dend = (uint8_t *)payload.data() + payload.size();
-        uint8_t *dout = (uint8_t *)payload_out->data();
-        uint8_t *const douts = dout;
-        unsigned clen;
-        // First part matched with the temporary holder.
-        if (writeBufferLength_ > 0)
-        {
-            clen = std::min(dend - dstart, 16 - writeBufferLength_);
-            memcpy(writeBuffer_ + writeBufferLength_, dstart, clen);
-            dstart += clen;
-            writeBufferLength_ += clen;
-            if (writeBufferLength_ >= 16)
-            {
-                process_block(writeBuffer_, dout);
-                dout += 16;
-                writeBufferLength_ = 0;
-            }
-        }
-        // Middle blocks.
-        while (dstart + 16 <= dend)
-        {
-            process_block(dstart, dout);
-            dstart += 16;
-            dout += 16;
-        }
-        // Last part goes to the holder.
-        clen = std::min(dend - dstart, 16 - writeBufferLength_);
-        memcpy(writeBuffer_ + writeBufferLength_, dstart, clen);
-        dstart += clen;
-        writeBufferLength_ += clen;
-
-        // Finalize output size.
-        payload_out->resize(dout - douts);
+        payload_out->clear();
+        payload_out->reserve(payload.size() + 16);
+        outputStream_->set_output(payload_out);
+        auto ret = decryptorStream_->write_all(payload.data(), payload.size());
+        HASSERT(ret == (ssize_t)payload.size());
     }
 
     /// Completes the streaming operation.
@@ -187,26 +163,91 @@ public:
     /// @param tag_out will be filled with the authentication tag.
     void data_finalize(std::string *payload_out, std::string *tag_out)
     {
-        if (writeBufferLength_)
-        {
-            payload_out->resize(16);
-            uint8_t *dout = (uint8_t *)payload_out->data();
-            memset(
-                writeBuffer_ + writeBufferLength_, 0, 16 - writeBufferLength_);
-            process_block(writeBuffer_, dout);
-        }
-        payload_out->resize(writeBufferLength_);
-        //
-        // Wait for the context data regsiters to be ready.
-        //
-        while ((AES_CTRL_SVCTXTRDY & (HWREG(AES_BASE + AES_O_CTRL))) == 0)
+        payload_out->clear();
+        outputStream_->set_output(payload_out);
+        auto ret = decryptorStream_->finalize();
+        HASSERT(ret == 0);
+        tag_out->swap(tagOut_);
+    }
+
+    /// Creates a stream for on-the-fly receiving encrypted data and passing on
+    /// decrypted data to a consumer stream.
+    /// @param aes_key is the secret key, has to be 16, 24 or 32 bytes long for
+    /// AES-128, 192 and 256.
+    /// @param nonce is the public part of the initialization vector that came
+    /// with the message.
+    /// @param auth_data is the cleartext header whose signature needs to be
+    /// verified.
+    /// @param data_len is the length of the ciphertext. You must send exactly
+    /// this many bytes to the stream.
+    /// @param tag_len is the length of the signature in bytes; even number
+    /// from 4 to 16 (recommended 16).
+    /// @param consumer is the stream that will receive the decrypted
+    /// bytes. Takes ownership of it.
+    /// @param tag_out will be set to the authentication tag after the stream
+    /// is finalized.
+    /// @return a stream to which the encrypted bytes need to be written. The
+    /// caller owns this stream and is required to finalize() it in order to
+    /// read the tag bytes.
+    static SyncStream *create_decryptor_stream(const std::string &aes_key,
+        const std::string &nonce, const std::string &auth_data,
+        unsigned data_len, uint8_t tag_len, SyncStream *consumer,
+        std::string *tag_out)
+    {
+        static_decrypt_init(aes_key, nonce, auth_data, data_len, tag_len);
+        tag_out->resize(tag_len);
+        return new MinWriteStream(
+            16, new DecryptorStream(
+                    tag_out, new MaxLengthStream(data_len, consumer)));
+    }
+
+    class DecryptorStream : public WrappedStream
+    {
+    public:
+        DecryptorStream(std::string *tag_out, SyncStream *consumer)
+            : WrappedStream(consumer)
+            , tagOut_(tag_out)
         {
         }
 
-        tag_out->resize(16);
-        MAP_AESTagRead(AES_BASE, (uint8_t *)&(tag_out->at(0)));
-        tag_out->resize(tagLength_);
-    }
+        ssize_t write(const void *data, size_t len) override
+        {
+            if (len < 16)
+                return -1;
+            unsigned ll = 0;
+            auto rp = (const uint8_t *)(data);
+            auto wp = (uint8_t *)(data);
+            while (len >= 16)
+            {
+                process_block(rp, wp);
+                rp += 16;
+                wp += 16;
+                ll += 16;
+                len -= 16;
+            }
+            delegate_->write_all(data, ll);
+            return ll;
+        }
+
+        int finalize() override
+        {
+            unsigned tag_len = tagOut_->size();
+            tagOut_->resize(16);
+            //
+            // Wait for the context data regsiters to be ready.
+            //
+            while ((AES_CTRL_SVCTXTRDY & (HWREG(AES_BASE + AES_O_CTRL))) == 0)
+            {
+            }
+
+            MAP_AESTagRead(AES_BASE, (uint8_t *)&(tagOut_->at(0)));
+            tagOut_->resize(tag_len);
+            return 0;
+        }
+
+    private:
+        std::string *tagOut_;
+    };
 
 private:
     /// Resets / turns on the AES engine.
@@ -314,18 +355,19 @@ private:
     /// data. (cleartext/ciphertext, not the authentication data).
     /// @param din unaligned pointer to 16 bytes of input.
     /// @param dout unaligned pointer to 16 bytes of output space.
-    void process_block(const uint8_t *din, uint8_t *dout)
+    static void process_block(const uint8_t *din, uint8_t *dout)
     {
-        MAP_AESDataWrite(AES_BASE, (uint8_t*)din, 16);
+        MAP_AESDataWrite(AES_BASE, (uint8_t *)din, 16);
         MAP_AESDataRead(AES_BASE, dout, 16);
     }
 
-    /// Holds up to one block of data to work around incorrectly aligned input.
-    uint8_t writeBuffer_[16];
-    /// Number of live bytes in writeBuffer_.
-    uint8_t writeBufferLength_;
-    /// How many bytes we need to have in the tag output.
-    uint8_t tagLength_;
+    /// Implementation object.
+    std::unique_ptr<SyncStream> decryptorStream_;
+    /// Stream that catches the decrypted output in the user-provided
+    /// strings. Owned by decryptorStream_.
+    StringAppendStream* outputStream_;
+    /// Variable that will receive the output tag.
+    std::string tagOut_;
 };
 
 #endif // _CC32xxAESCCM_HXX_
