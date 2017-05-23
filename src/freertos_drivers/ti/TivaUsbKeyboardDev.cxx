@@ -109,6 +109,38 @@ static const uint8_t *const g_ppui8StringDescriptors[] = {g_pui8LangDescriptor,
 //
 //*****************************************************************************
 static const int8_t g_ppi8KeyUsageCodes[][2] = {
+    {0, 0},                                          // 0x00
+    {0, 0},                                          // 0x01
+    {0, 0},                                          // 0x02
+    {0, 0},                                          // 0x03
+    {0, 0},                                          // 0x04
+    {0, 0},                                          // 0x05
+    {0, 0},                                          // 0x06
+    {0, 0},                                          // 0x07
+    {0, HID_KEYB_USAGE_BACKSPACE},                   // 0x08  '\b'
+    {0, 0},                                          // 0x09
+    {0, HID_KEYB_USAGE_ENTER},                       // 0x0a  '\n'
+    {0, 0},                                          // 0x0b
+    {0, 0},                                          // 0x0c
+    {0, 0},                                          // 0x0d
+    {0, 0},                                          // 0x0e
+    {0, 0},                                          // 0x0f
+    {0, 0},                                          // 0x10
+    {0, 0},                                          // 0x11
+    {0, 0},                                          // 0x12
+    {0, 0},                                          // 0x13
+    {0, 0},                                          // 0x14
+    {0, 0},                                          // 0x15
+    {0, 0},                                          // 0x16
+    {0, 0},                                          // 0x17
+    {0, 0},                                          // 0x18
+    {0, 0},                                          // 0x19
+    {0, 0},                                          // 0x1a
+    {0, 0},                                          // 0x1b
+    {0, 0},                                          // 0x1c
+    {0, 0},                                          // 0x1d
+    {0, 0},                                          // 0x1e
+    {0, 0},                                          // 0x1f
     {0, HID_KEYB_USAGE_SPACE},                       //   0x20
     {HID_KEYB_LEFT_SHIFT, HID_KEYB_USAGE_1},         // ! 0x21
     {HID_KEYB_LEFT_SHIFT, HID_KEYB_USAGE_FQUOTE},    // " 0x22
@@ -262,7 +294,7 @@ bool TivaUsbKeyboardDev::send_next_event()
     txPending_ = true;
     uint8_t *data;
     txBuf->data_read_pointer(&data);
-    uint32_t ui32Char = (*data) - ' ';
+    uint32_t ui32Char = (*data);
     if (keyUpPending_)
     {
         if (USBDHIDKeyboardKeyStateChange((void *)&tivaKeyboardDevice_, 0,
