@@ -170,13 +170,13 @@ Atomic g_bootloader_lock;
         Defs::FIRMWARE_UPGRADE_ACTIVE)
 #endif
 /// We manually convert to big-endian to store this value in .rodata.
-static const uint64_t PIP_REPLY =        //
-    (PIP_REPLY_VALUE >> 40) |            //
-    ((PIP_REPLY_VALUE >> 24) & 0xff00) | //
-    ((PIP_REPLY_VALUE >> 8) & 0xff0000) |
-    ((PIP_REPLY_VALUE << 8) & 0xff000000) |
-    ((PIP_REPLY_VALUE << 24) & 0xff00000000) |
-    ((PIP_REPLY_VALUE << 40) & 0xff0000000000);
+static const uint64_t PIP_REPLY =         //
+    ((PIP_REPLY_VALUE >> 40) & 0xff) |    //
+    ((PIP_REPLY_VALUE >> 24) & 0xff00) |  //
+    ((PIP_REPLY_VALUE >> 8) & 0xff0000) | //
+    ((PIP_REPLY_VALUE & 0xff0000) << 8) | //
+    ((PIP_REPLY_VALUE & 0xff00) << 24) |  //
+    ((PIP_REPLY_VALUE & 0xff) << 40);
 
 /** Clears out the stream state in state_. */
 void reset_stream_state();
