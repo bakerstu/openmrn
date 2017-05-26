@@ -234,7 +234,7 @@ public:
             unsigned tag_len = tagOut_->size();
             tagOut_->resize(16);
             //
-            // Wait for the context data regsiters to be ready.
+            // Wait for the context data registers to be ready.
             //
             while ((AES_CTRL_SVCTXTRDY & (HWREG(AES_BASE + AES_O_CTRL))) == 0)
             {
