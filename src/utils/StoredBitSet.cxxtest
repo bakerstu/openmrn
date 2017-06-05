@@ -1,0 +1,304 @@
+#include "utils/StoredBitSet.hxx"
+
+#include "utils/test_main.hxx"
+
+using ::testing::Combine;
+using ::testing::Values;
+using ::testing::Range;
+
+class TestBitSet : public ShadowedStoredBitSet
+{
+public:
+    TestBitSet(unsigned size, uint8_t granularity)
+        : ShadowedStoredBitSet(size, granularity)
+    {
+    }
+
+    void flush() override
+    {
+        // do nothing
+    }
+
+    // exposes protected API in public land.
+    using ShadowedStoredBitSet::cell_offs_t;
+    using ShadowedStoredBitSet::bit_offs_t;
+
+    using ShadowedStoredBitSet::NO_CELL;
+
+    cell_offs_t next_dirty()
+    {
+        return ShadowedStoredBitSet::next_dirty();
+    }
+
+    void clear_dirty(cell_offs_t cell)
+    {
+        return ShadowedStoredBitSet::clear_dirty(cell);
+    }
+
+    bool is_dirty(cell_offs_t cell)
+    {
+        return ShadowedStoredBitSet::is_dirty(cell);
+    }
+
+    cell_offs_t num_cells()
+    {
+        return ShadowedStoredBitSet::num_cells();
+    }
+};
+
+TEST(ShadowedBitSetSingleTest, size)
+{
+    TestBitSet s1(375, 13);
+    EXPECT_EQ(375, s1.size());
+    EXPECT_EQ(29, s1.num_cells());
+}
+
+class BitSetMultiTest
+    : public ::testing::TestWithParam<std::tr1::tuple<unsigned, int>>
+{
+protected:
+    BitSetMultiTest()
+    {
+    }
+
+    unsigned get_size()
+    {
+        return std::tr1::get<0>(GetParam());
+    }
+    uint8_t get_granularity()
+    {
+        return std::tr1::get<1>(GetParam());
+    }
+
+#define expect_all_zero(x...)                                                  \
+    do                                                                         \
+    {                                                                          \
+        SCOPED_TRACE("expect all zero");                                       \
+        expect_all_zero_impl(x);                                               \
+    } while (0)
+
+    void expect_all_zero_impl(
+        unsigned exception_offset = 0, unsigned exception_len = 0)
+    {
+        for (unsigned j = 0; j < get_size(); ++j)
+        {
+            if (j >= exception_offset && j < (exception_offset + exception_len))
+                continue;
+            if (s_.get_bit(j))
+            {
+                FAIL() << "Expected all zero but bit " << j << " is one.";
+                return;
+            }
+        }
+    }
+
+#define expect_all_one(x...)                                                   \
+    do                                                                         \
+    {                                                                          \
+        SCOPED_TRACE("expect all one");                                        \
+        expect_all_one_impl(x);                                                \
+    } while (0)
+
+    void expect_all_one_impl(
+        unsigned exception_offset = 0, unsigned exception_len = 0)
+    {
+        for (unsigned j = 0; j < get_size(); ++j)
+        {
+            if (j >= exception_offset && j < (exception_offset + exception_len))
+                continue;
+            if (!s_.get_bit(j))
+            {
+                FAIL() << "Expected all one but bit " << j << " is zero.";
+                return;
+            }
+        }
+    }
+
+    void clear_all_dirty()
+    {
+        for (unsigned i = 0;
+             i < (get_size() + get_granularity() - 1) / get_granularity(); ++i)
+        {
+            s_.clear_dirty(i);
+        }
+        auto c = s_.NO_CELL;
+        EXPECT_EQ(c, s_.next_dirty());
+    }
+
+    TestBitSet s_{get_size(), get_granularity()};
+};
+
+TEST_P(BitSetMultiTest, create)
+{
+    EXPECT_EQ(get_size(), s_.size());
+    expect_all_zero();
+    auto c = s_.NO_CELL;
+    EXPECT_EQ(c, s_.next_dirty());
+}
+
+TEST_P(BitSetMultiTest, getset_0)
+{
+    for (unsigned i = 0; i < get_size(); ++i)
+    {
+        s_.set_bit(i, false);
+    }
+    clear_all_dirty();
+
+    for (unsigned i = 0; i < get_size(); ++i)
+    {
+        ASSERT_FALSE(HasFailure());
+        SCOPED_TRACE(i);
+        s_.set_bit(i, true);
+        EXPECT_TRUE(s_.get_bit(i));
+        expect_all_zero(i, 1);
+
+        s_.set_bit(i, false);
+        EXPECT_FALSE(s_.get_bit(i));
+        expect_all_zero();
+
+        s_.set_bit(i, true);
+        EXPECT_TRUE(s_.get_bit(i));
+        expect_all_zero(i, 1);
+
+        s_.set_bit(i, false);
+        expect_all_zero();
+        EXPECT_FALSE(s_.get_bit(i));
+        auto cell = i / get_granularity();
+        EXPECT_EQ(cell, s_.next_dirty());
+        EXPECT_EQ(cell, s_.next_dirty());
+        EXPECT_TRUE(s_.is_dirty(cell));
+        s_.clear_dirty(cell);
+        EXPECT_FALSE(s_.is_dirty(cell));
+        auto c = s_.NO_CELL;
+        EXPECT_EQ(c, s_.next_dirty());
+    }
+}
+
+TEST_P(BitSetMultiTest, getset_1)
+{
+    for (unsigned i = 0; i < get_size(); ++i)
+    {
+        s_.set_bit(i, true);
+    }
+
+    for (unsigned i = 0; i < get_size(); ++i)
+    {
+        ASSERT_FALSE(HasFailure());
+        SCOPED_TRACE(i);
+        s_.set_bit(i, false);
+        EXPECT_FALSE(s_.get_bit(i));
+        expect_all_one(i, 1);
+
+        s_.set_bit(i, true);
+        EXPECT_TRUE(s_.get_bit(i));
+        expect_all_one();
+
+        s_.set_bit(i, false);
+        EXPECT_FALSE(s_.get_bit(i));
+        expect_all_one(i, 1);
+
+        s_.set_bit(i, true);
+        EXPECT_TRUE(s_.get_bit(i));
+        expect_all_one();
+    }
+}
+
+TEST_P(BitSetMultiTest, get_multi_small)
+{
+    expect_all_zero();
+    s_.set_bit(0, true);
+    s_.set_bit(1, false);
+    s_.set_bit(2, true);
+    s_.set_bit(3, true);
+    EXPECT_EQ(13, s_.get_multi(0, 4));
+    EXPECT_EQ(5, s_.get_multi(0, 3));
+    EXPECT_EQ(1, s_.get_multi(0, 2));
+    EXPECT_EQ(1, s_.get_multi(0, 1));
+
+    EXPECT_EQ(0, s_.get_multi(1, 1));
+    EXPECT_EQ(2, s_.get_multi(1, 2));
+    EXPECT_EQ(6, s_.get_multi(1, 3));
+    EXPECT_EQ(6, s_.get_multi(1, 4));
+    EXPECT_EQ(6, s_.get_multi(1, 5));
+
+    EXPECT_EQ(1, s_.get_multi(2, 1));
+    EXPECT_EQ(3, s_.get_multi(2, 2));
+    EXPECT_EQ(3, s_.get_multi(2, 3));
+}
+
+TEST_P(BitSetMultiTest, set_multi_mask)
+{
+    for (unsigned i = 0; i < get_size(); ++i)
+    {
+        s_.set_bit(i, true);
+    }
+    for (unsigned i = 1; i < get_size() - 7; ++i)
+    {
+        ASSERT_FALSE(HasFailure());
+        SCOPED_TRACE(i);
+        EXPECT_EQ(0b11111111, s_.get_multi(i - 1, 8));
+        s_.set_multi(i, 6, 0b010100);
+        expect_all_one(i, 6);
+        EXPECT_EQ(0b10101001, s_.get_multi(i - 1, 8));
+        s_.set_multi(i, 6, 0b111111);
+        expect_all_one();
+    }
+}
+
+TEST_P(BitSetMultiTest, set_multi_small)
+{
+    expect_all_zero();
+    for (unsigned i = 0; i < get_size() - 6; ++i)
+    {
+        ASSERT_FALSE(HasFailure());
+        SCOPED_TRACE(i);
+        s_.set_multi(i, 6, 0b110111);
+        expect_all_zero(i, 6);
+        EXPECT_EQ(0b110111, s_.get_multi(i, 6));
+        s_.set_multi(i, 6, 0);
+
+        s_.set_multi(i, 6, 0b110111);
+        s_.set_multi(i + 1, 4, 0);
+        EXPECT_EQ(0b100001, s_.get_multi(i, 6));
+
+        s_.set_multi(i, 6, 0);
+        expect_all_zero();
+    }
+
+    expect_all_zero();
+    for (unsigned i = 0; i < (get_size() & (~31)); i += 32)
+    {
+        s_.set_multi(i, 32, 0xFFFFFFFFU);
+    }
+    for (unsigned i = (get_size() & (~31)); i < get_size(); i++)
+    {
+        s_.set_bit(i, true);
+    }
+    expect_all_one();
+}
+
+INSTANTIATE_TEST_CASE_P(AllTests, BitSetMultiTest,
+    Combine(Values(7, 31, 32, 33, 67, 131, 254), Range(1, 33)));
+
+using BitSetMultiLargeTest = BitSetMultiTest;
+
+TEST_P(BitSetMultiLargeTest, multi_dirty)
+{
+    auto slist = {13, 30, 66, 31};
+    std::set<uint8_t> dlist;
+    for (auto e: slist) {
+        s_.set_bit(e, false);
+        dlist.insert(e / get_granularity());
+    }
+    std::set<uint8_t> actual;
+    uint8_t c;
+    auto eof = s_.NO_CELL;
+    while ((c = s_.next_dirty()) != eof) {
+        actual.insert(c);
+        s_.clear_dirty(c);
+    }
+    EXPECT_EQ(dlist, actual);
+}
+
+INSTANTIATE_TEST_CASE_P(AllTests, BitSetMultiLargeTest,
+    Combine(Values(67, 131, 254), Range(1, 33)));
