@@ -40,6 +40,7 @@
 #include <unistd.h>
 
 #include "utils/macros.h"
+#include "utils/logging.h"
 
 class SyncStream
 {
@@ -58,8 +59,11 @@ public:
     virtual ssize_t write(const void *data, size_t len) = 0;
 
     /** Called once after all data has been written to close the stream and
-     * release resources. Return 0 on success, <0 on failure. */
-    virtual int finalize()
+     * release resources. Return 0 on success, <0 on failure.
+     *
+     * @param status is an error code seen by wrapping streams. Default 0 (OK),
+     * if negative, streams might want to roll back their changes. */
+    virtual int finalize(int status)
     {
         return 0;
     }
@@ -156,17 +160,17 @@ public:
         if (delegate_)
         {
             // TODO: discards error value.
-            delegate_->finalize();
+            delegate_->finalize(-1);
         }
         delegate_.reset(delegate);
     }
 
-    int finalize() override
+    int finalize(int status) override
     {
         int ret = 0;
         if (delegate_)
         {
-            ret = delegate_->finalize();
+            ret = delegate_->finalize(status);
             delegate_.reset();
         }
         return ret;
@@ -190,6 +194,10 @@ public:
     {
     }
 
+    ~MaxLengthStream() {
+        LOG(INFO, "deleting maxlengthstream remaining=%d", (int) remaining_);
+    }
+    
     ssize_t write(const void *data, size_t len) override
     {
         if (remaining_ == 0)
@@ -221,7 +229,7 @@ class MinWriteStream : public WrappedStream
 {
 public:
     MinWriteStream(
-        uint8_t min_write_length, uint8_t fill_byte, SyncStream *delegate)
+        unsigned min_write_length, uint8_t fill_byte, SyncStream *delegate)
         : WrappedStream(delegate)
         , buffer_(nullptr)
         , bufLength_(0)
@@ -232,7 +240,7 @@ public:
     }
 
     MinWriteStream(
-        uint8_t min_write_length, SyncStream *delegate)
+        unsigned min_write_length, SyncStream *delegate)
         : WrappedStream(delegate)
         , buffer_(nullptr)
         , bufLength_(0)
@@ -243,6 +251,7 @@ public:
     
     ~MinWriteStream()
     {
+        LOG(INFO, "deleting minwritestream l=%d", (int) minWriteLength_);
         delete[] buffer_;
     }
 
@@ -267,7 +276,7 @@ public:
                 auto ret = delegate_->write_all(buffer_, bufLength_);
                 if (ret <= 0)
                     return ret;
-                HASSERT(ret == bufLength_);
+                HASSERT(ret == (int)bufLength_);
                 bufLength_ = 0;
             }
             return cp;
@@ -287,7 +296,7 @@ public:
         return ret;
     }
 
-    int finalize() override
+    int finalize(int status) override
     {
         if (bufLength_)
         {
@@ -299,16 +308,16 @@ public:
             if (ret == 0)
                 return -1; // dropped data.
         }
-        return delegate_->finalize();
+        return delegate_->finalize(status);
     }
 
 private:
     uint8_t *buffer_;
     /// Number of used bytes in the buffer.
-    uint8_t bufLength_;
+    unsigned bufLength_;
     /// Total length of the buffer. All writes to the downstream object will be
     /// at least this long.
-    uint8_t minWriteLength_;
+    unsigned minWriteLength_;
     /// What byte to append to the stream at finalize time when we still have
     /// bytes to send onwards.
     uint8_t fillByte_;
@@ -370,7 +379,7 @@ protected:
     /// delegate which will start returning EOF).
     virtual void on_eof()
     {
-        delegate_->finalize();
+        delegate_->finalize(0);
         delegate_.reset();
     }
 

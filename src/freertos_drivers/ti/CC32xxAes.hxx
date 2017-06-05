@@ -105,7 +105,7 @@ public:
     {
         // will set the strings on each write.
         outputStream_ = new StringAppendStream(nullptr); 
-        decryptorStream_.reset(create_decryptor_stream(aes_key, nonce, auth_data, data_len, tag_len, outputStream_, &tagOut_));
+        decryptorStream_.reset(create_decryptor_stream(aes_key, nonce, auth_data, data_len, tag_len, outputStream_, &tagOut_, nullptr));
     }
 
     static void static_decrypt_init(const std::string &aes_key,
@@ -165,7 +165,7 @@ public:
     {
         payload_out->clear();
         outputStream_->set_output(payload_out);
-        auto ret = decryptorStream_->finalize();
+        auto ret = decryptorStream_->finalize(0);
         HASSERT(ret == 0);
         tag_out->swap(tagOut_);
     }
@@ -186,27 +186,31 @@ public:
     /// bytes. Takes ownership of it.
     /// @param tag_out will be set to the authentication tag after the stream
     /// is finalized.
+    /// @param expected_tag if not null, will be compared to the actual tag in
+    /// case of mismatch a finalization error will be generated.
     /// @return a stream to which the encrypted bytes need to be written. The
     /// caller owns this stream and is required to finalize() it in order to
     /// read the tag bytes.
     static SyncStream *create_decryptor_stream(const std::string &aes_key,
         const std::string &nonce, const std::string &auth_data,
         unsigned data_len, uint8_t tag_len, SyncStream *consumer,
-        std::string *tag_out)
+                                               std::string *tag_out, const std::string* expected_tag)
     {
         static_decrypt_init(aes_key, nonce, auth_data, data_len, tag_len);
         tag_out->resize(tag_len);
         return new MinWriteStream(
             16, new DecryptorStream(
-                    tag_out, new MaxLengthStream(data_len, consumer)));
+                tag_out, expected_tag, new MaxLengthStream(data_len, consumer)));
     }
 
     class DecryptorStream : public WrappedStream
     {
     public:
-        DecryptorStream(std::string *tag_out, SyncStream *consumer)
+        DecryptorStream(std::string *tag_out, const std::string *expected_tag,
+            SyncStream *consumer)
             : WrappedStream(consumer)
             , tagOut_(tag_out)
+            , expectedTag_(expected_tag)
         {
         }
 
@@ -229,7 +233,7 @@ public:
             return ll;
         }
 
-        int finalize() override
+        int finalize(int status) override
         {
             unsigned tag_len = tagOut_->size();
             tagOut_->resize(16);
@@ -242,11 +246,16 @@ public:
 
             MAP_AESTagRead(AES_BASE, (uint8_t *)&(tagOut_->at(0)));
             tagOut_->resize(tag_len);
-            return 0;
+
+            if (expectedTag_ && (*expectedTag_ != *tagOut_)) {
+                status = -2;
+            }
+            return WrappedStream::finalize(status);
         }
 
     private:
         std::string *tagOut_;
+        const std::string *expectedTag_;
     };
 
 private:
