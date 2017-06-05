@@ -125,9 +125,9 @@ private:
     /// only ever one bit can be read to be non-zero, and setting any other bit
     /// than the desired has no effect. This allows write with 0xff and 0x00 to
     /// set/clear and read != 0 to test. @return memory address.
-    constexpr uint8_t *pin_address() const
+    constexpr volatile uint8_t *pin_address() const
     {
-        return reinterpret_cast<uint8_t *>(
+        return reinterpret_cast<volatile uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
     }
 };
@@ -165,14 +165,14 @@ public:
     /// will be set to HIGH, otherwise to LOW.
     static void __attribute__((always_inline)) set(bool value)
     {
-        uint8_t *ptr = reinterpret_cast<uint8_t *>(
+        volatile uint8_t *ptr = reinterpret_cast<uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
     }
     /// @return current value of the input pin: if true HIGH.
     static bool __attribute__((always_inline)) get()
     {
-        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+        const volatile uint8_t *ptr = reinterpret_cast<const uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }
@@ -256,7 +256,7 @@ public:
     /// @return true if the pin input is seeing HIGH.
     static bool get()
     {
-        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+        const volatile uint8_t *ptr = reinterpret_cast<const uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }
