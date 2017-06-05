@@ -39,8 +39,8 @@
 #endif
 
 #ifdef SL_API_V2
-#include "sl_compat.h"
 #include "CC3220/user.h"
+#include "sl_compat.h"
 #include "ti/drivers/net/wifi/simplelink.h"
 #else
 #include "simplelink_v1.h"
