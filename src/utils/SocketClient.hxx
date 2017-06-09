@@ -190,8 +190,12 @@ private:
 
             if (mdns_)
             {
+                LOG(INFO, "mdns lookup for %s", mdns_);
                 /* try mDNS address resolution */
                 ai_ret = MDNS::lookup(mdns_, &hints, &addr_);
+                if (ai_ret != 0 || addr_ == nullptr) {
+                    LOG(INFO, "mdns lookup for %s failed.", mdns_);
+                }
             }
             if ((ai_ret != 0 || addr_ == nullptr) && host_)
             {
