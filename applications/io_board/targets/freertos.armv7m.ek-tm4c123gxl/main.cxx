@@ -42,6 +42,7 @@
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
+#include "freertos_drivers/common/PersistentGPIO.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
 
@@ -90,13 +91,18 @@ extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
 
 // Defines the GPIO ports used for the producers and the consumers.
 
+// These wrappers will save the output pin state to EEPROM.
+constexpr PersistentGpio PinRed(LED_RED_Pin::instance(), 0);
+constexpr PersistentGpio PinGreen(LED_GREEN_Pin::instance(), 1);
+constexpr PersistentGpio PinBlue(LED_BLUE_Pin::instance(), 2);
+
 // List of GPIO objects that will be used for the output pins. You should keep
 // the constexpr declaration, because it will produce a compile error in case
 // the list of pointers cannot be compiled into a compiler constant and thus
 // would be placed into RAM instead of ROM.
-constexpr const Gpio *const kOutputGpio[] = {LED_RED_Pin::instance(),
-                                             LED_GREEN_Pin::instance(),
-                                             LED_BLUE_Pin::instance()};
+constexpr const Gpio *const kOutputGpio[] = {&PinRed,
+                                             &PinGreen,
+                                             &PinBlue};
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The MultiConfiguredConsumer class takes care of most of the
@@ -131,6 +137,11 @@ int appl_main(int argc, char *argv[])
     stack.check_version_and_factory_reset(
         cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
 
+    // Restores pin states from EEPROM.
+    PinRed.restore();
+    PinGreen.restore();
+    PinBlue.restore();
+    
     // The necessary physical ports must be added to the stack.
     //
     // It is okay to enable multiple physical ports, in which case the stack
