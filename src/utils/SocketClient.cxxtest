@@ -108,10 +108,14 @@ TEST_F(SocketClientTest, connect_host)
 
 TEST_F(SocketClientTest, connect_mdns)
 {
+    LOG(INFO, "create");
     MDNS *mdns = new MDNS();
+    LOG(INFO, "publish");
     mdns->publish("openmrn_service", "_openlcbtest._tcp", LISTEN_PORT);
+    LOG(INFO, "commit");
     mdns->commit();
 
+    LOG(INFO, "waiting for export to take hold");
     sleep(1);
 
     SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
@@ -154,5 +158,3 @@ TEST_F(SocketClientTest, connect_mdns_not_published)
     delete sl;
     delete sc;
 }
-
-
