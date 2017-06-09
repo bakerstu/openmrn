@@ -33,6 +33,7 @@ public:
     MOCK_METHOD0(request_bootloader, bool());
     MOCK_METHOD0(application_entry, void());
     MOCK_METHOD0(bootloader_reboot, void());
+    MOCK_METHOD0(flash_complete, uint16_t());
     MOCK_METHOD0(nmranet_nodeid, uint64_t());
     MOCK_METHOD0(nmranet_alias, uint16_t());
     // Argument is the offset from the beginning of virtual_flash.
@@ -130,6 +131,11 @@ void application_entry()
 void bootloader_reboot()
 {
     return g_mock_bootloader_hal->bootloader_reboot();
+}
+
+uint16_t flash_complete()
+{
+    return g_mock_bootloader_hal->flash_complete();
 }
 
 bool read_can_frame(struct can_frame *frame)
@@ -406,6 +412,7 @@ protected:
     void exit_bootloader()
     {
         wait();
+        //EXPECT_CALL(mock_, flash_complete()).Times(1).WillOnce(Return(0));
         EXPECT_CALL(mock_, bootloader_reboot());
         expect_packet(":X19A28428N0111;");
         send_packet(":X1A428111N20A9;");
@@ -597,6 +604,7 @@ TEST_F(BootloaderTest, Unfreeze)
     proper_startup();
 
     wait();
+    EXPECT_CALL(mock_, flash_complete()).Times(1).WillOnce(Return(0));
     EXPECT_CALL(mock_, bootloader_reboot());
     expect_packet(":X19A28428N0111;");
     // Unfreeze on the proper space ID is equivalent to reboot.
@@ -982,6 +990,7 @@ protected:
             EXPECT_CALL(mock_, write_flash(i * sendBlockSize_ + offset,
                                    expected, expected.size()));
         }
+        EXPECT_CALL(mock_, flash_complete()).Times(1).WillOnce(Return(0));
         EXPECT_CALL(mock_, bootloader_reboot());
     }
 

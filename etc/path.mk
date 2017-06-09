@@ -288,6 +288,18 @@ TICC3220SDKPATH:=$(TRYPATH)
 endif
 endif #TICC3220SDKPATH
 
+################### TI-UNIFLASH-V4 #####################
+ifndef TIUNIFLASH4PATH
+SEARCHPATH := \
+  /opt/ti/uniflash/v4-default  \
+  /opt/ti/uniflash/uniflash_4.1  \
+
+TRYPATH:=$(call findfirst,dslite.sh,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TIUNIFLASH4PATH:=$(TRYPATH)
+endif
+endif #TIUNIFLASH4PATH
+
 ################### PRU-ICSS #####################
 ifndef PRUICSSPATH
 SEARCHPATH := \

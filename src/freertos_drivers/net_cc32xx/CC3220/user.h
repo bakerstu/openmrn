@@ -666,6 +666,9 @@ typedef signed int _SlFd_t;
 // we prefer the system's errno header first
 #include <sys/errno.h>
 
+#ifdef __SIMPLELINK_H__
+#error wrong include order. You must not include simplelink.h before our custom user.h.
+#endif
 // prevent recursive inclusion
 #define __SIMPLELINK_H__
 // Include all the nonstandard error numbers too

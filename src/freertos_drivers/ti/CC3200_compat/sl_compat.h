@@ -17,9 +17,6 @@
 #ifndef __SL_COMPAT_H__
 #define __SL_COMPAT_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #ifdef SUPPORT_SL_R1_API
 /* Updated Macro Definitions */
 #define SL_DEVICE_GENERAL_CONFIGURATION SL_DEVICE_GENERAL
@@ -216,9 +213,6 @@ extern "C" {
 #define sl_DevSet sl_DeviceSet
 #define sl_DevGet sl_DeviceGet
 #endif // SUPPORT_SL_R1_API
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
 
 #include "ti/drivers/net/wifi/simplelink.h"
 #include "ti/drivers/net/wifi/fs.h"
