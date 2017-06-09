@@ -89,8 +89,14 @@ public:
     StoredBitSet &set_bit(unsigned offset, bool value) override {
         HASSERT(offset < size_);
         if (value) {
+            if (shadow_[offset >> 5] & ((UINT32_C(1) << (offset & 31)))) {
+                return *this; // nothing to do
+            }
             shadow_[offset >> 5] |= (UINT32_C(1) << (offset & 31));
         } else {
+            if (!(shadow_[offset >> 5] & ((UINT32_C(1) << (offset & 31))))) {
+                return *this; // nothing to do
+            }
             shadow_[offset >> 5] &= ~(UINT32_C(1) << (offset & 31));
         }
         cell_offs_t d = offset / granularity_;
@@ -164,6 +170,9 @@ public:
     }
     
 protected:
+    /// @param size is the total number of bits we store.
+    /// @param granularity tells how many bits fit into a single cell. The base
+    /// class will then keep track of dirty cells.
     ShadowedStoredBitSet(unsigned size, uint8_t granularity)
         : size_(size), granularity_(granularity) {
         unsigned ssize = (size + 31) >> 5;
@@ -184,6 +193,8 @@ protected:
     typedef uint8_t cell_offs_t;
     /// Type indexing all bits.
     typedef unsigned bit_offs_t;
+
+    static constexpr cell_offs_t NO_CELL = static_cast<cell_offs_t>(-1);
 
     /// @return the cell number of the next dirty cell, or NO_CELL if nothing
     /// is dirty anymore.
@@ -233,19 +244,16 @@ protected:
         return dirty_[cell >>5] & (UINT32_C(1)<<(cell & 31));
     }
     
-    static constexpr cell_offs_t NO_CELL = static_cast<cell_offs_t>(-1);
-
     /// @return how many cells we have, each with granularity_ bits stored.
     cell_offs_t num_cells() {
         return (size_ + granularity_ - 1) / granularity_;
     }
     
 private:
-    /// Return how many uint32 are there in the dirty_ array.
+    /// @return how many uint32 are there in the dirty_ array.
     unsigned dirty_size_uint32() {
         return (num_cells() + 31) / 32;
     }
-
 
     /// Total number of bits.
     const unsigned size_;
