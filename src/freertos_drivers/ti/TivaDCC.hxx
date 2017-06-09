@@ -997,6 +997,8 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timings[DCC_ONE].period);
     MAP_IntEnable(HW::INTERVAL_INTERRUPT);
 
+    // The OS interrupt does not come from the hardware timer.
+    MAP_TimerIntDisable(HW::CCP_BASE, 0xFFFFFFFF);
     // The OS interrupt comes under the freertos kernel.
     MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
     MAP_IntEnable(HW::OS_INTERRUPT);
