@@ -798,8 +798,7 @@ public:
     /// least size bytes. This class will advertise producing size * 256 events
     /// contiguous from event_base. event_base will set byte 0 to value 0,
     /// event_base + 1 will set byte 0 to value 1, event_base + 256 will set
-    /// byte
-    /// 1 to value zero, event_base + 257 will set byte 1 to value 1, etc.
+    /// byte 1 to value zero, event_base + 257 will set byte 1 to value 1, etc.
     ByteRangeEventP(Node *node, uint64_t event_base, uint8_t *backing_store,
                     unsigned size);
 
