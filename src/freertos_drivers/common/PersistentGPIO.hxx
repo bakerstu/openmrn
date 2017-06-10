@@ -57,19 +57,19 @@ public:
     void write(Value new_state) const OVERRIDE
     {
         impl_->write(new_state);
-        g_gpio_stored_bit_set->set_bit(bit_, new_state).flush();
+        g_gpio_stored_bit_set->set_bit(bit_, new_state).lock_and_flush();
     }
 
     void set() const OVERRIDE
     {
         impl_->set();
-        g_gpio_stored_bit_set->set_bit(bit_, true).flush();
+        g_gpio_stored_bit_set->set_bit(bit_, true).lock_and_flush();
     }
 
     void clr() const OVERRIDE
     {
         impl_->clr();
-        g_gpio_stored_bit_set->set_bit(bit_, false).flush();
+        g_gpio_stored_bit_set->set_bit(bit_, false).lock_and_flush();
     }
 
     Value read() const OVERRIDE

@@ -39,6 +39,7 @@
 #include <string.h>
 
 #include "utils/macros.h"
+#include "utils/Atomic.hxx"
 
 /** Abstract class for representing a set of numbered bits that are stored
  * persistently in some backing store.
@@ -46,7 +47,7 @@
 class StoredBitSet
 {
 public:
-    /// Sets an individual bit to a specific value.
+    /// Sets an individual bit to a specific value. This call is thread-safe.
     /// @param offset is the bit number to set.
     /// @param value is the new value for that bit.
     /// @return *this.
@@ -57,7 +58,7 @@ public:
     /// @return the last set bit value.
     virtual bool get_bit(unsigned offset) = 0;
 
-    /// Sets a block of consecutive bits.
+    /// Sets a block of consecutive bits. This call is thread-safe.
     /// @param offset is the number of the first bit to set.
     /// @param size is the number of bits to set.
     /// @param value contains the data to write, LSB (bit 0) goes to "offset",
@@ -79,30 +80,33 @@ public:
     /// 0..size()-1.
     virtual unsigned size() = 0;
 
-    /// Writes the current values to persistent storage.
+    /// Writes the current values to persistent storage. The caller is
+    /// responsible for locking.
     virtual void flush() = 0;
+
+    /// Grabs a lock and writes the current values to persistent storage.
+    virtual void lock_and_flush() = 0;
 };
 
-class ShadowedStoredBitSet : public StoredBitSet
+class ShadowedStoredBitSet : public StoredBitSet, protected Atomic
 {
 public:
     StoredBitSet &set_bit(unsigned offset, bool value) override {
         HASSERT(offset < size_);
+        auto* shadow_ptr = shadow_ + (offset >> 5);
+        auto bit = (UINT32_C(1) << (offset & 31));
         if (value) {
-            if (shadow_[offset >> 5] & ((UINT32_C(1) << (offset & 31)))) {
+            if (__atomic_fetch_or(shadow_ptr, bit, __ATOMIC_SEQ_CST) & bit) {
                 return *this; // nothing to do
             }
-            shadow_[offset >> 5] |= (UINT32_C(1) << (offset & 31));
         } else {
-            if (!(shadow_[offset >> 5] & ((UINT32_C(1) << (offset & 31))))) {
+            if ((__atomic_fetch_and(shadow_ptr, ~bit, __ATOMIC_SEQ_CST) & bit) == 0) {
                 return *this; // nothing to do
             }
-            shadow_[offset >> 5] &= ~(UINT32_C(1) << (offset & 31));
         }
         cell_offs_t d = offset / granularity_;
-        dirty_[d >> 5] |= (UINT32_C(1) << (d & 31));
-        if (d < lowestDirty_) lowestDirty_ = d;
-        if (d > highestDirty_) highestDirty_ = d;
+        __atomic_fetch_or(dirty_ + (d >> 5), UINT32_C(1) << (d & 31), __ATOMIC_SEQ_CST);
+        update_dirty_bounds(d);
         return *this;
     }
 
@@ -125,25 +129,39 @@ public:
         smask <<= (offset & 31); // moves them to the right place
         uint32_t sval = value;
         sval <<= (offset & 31);
-        shadow_[sidx] &= ~smask;
-        shadow_[sidx] |= sval;
-        // Writes any leftover bits to the next word.
         int rollover = size + (offset & 31) - 32;
-        if (rollover > 0) {
-            // rollover can never be 32 so this works.
-            smask = (UINT32_C(1) << rollover) - 1;
-            sval = value >> (size - rollover);
-            sidx++;
-            shadow_[sidx] &= ~smask;
-            shadow_[sidx] |= sval;
+        if (rollover > 0) {  // there are leftover bits for a second word
+            uint32_t smask2 = (UINT32_C(1) << rollover) - 1;
+            uint32_t sval2 = value >> (size - rollover);
+            // we need to atomically update two cells.
+            uint32_t old1 = shadow_[sidx], new1, old2 = shadow_[sidx + 1], new2;
+            do
+            {
+                new1 = (old1 & ~smask) | sval;
+                new2 = (old2 & ~smask2) | sval2;
+            } while (!__atomic_compare_exchange_n(shadow_ + sidx, &old1, new1,
+                         false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST) ||
+                !__atomic_compare_exchange_n(shadow_ + sidx + 1, &old2, new2,
+                    false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+        }
+        else
+        {
+            // just one cell
+            uint32_t old1 = shadow_[sidx], new1;
+            do
+            {
+                new1 = (old1 & ~smask) | sval;
+            } while (!__atomic_compare_exchange_n(shadow_ + sidx, &old1, new1,
+                         false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
         }
         // Sets dirty bits.
         unsigned d = offset / granularity_;
-        if (d < lowestDirty_) lowestDirty_ = d;
+        update_dirty_bounds(d);
         unsigned de = (offset + size - 1)/granularity_;
+        update_dirty_bounds(de);
         if (de > highestDirty_) highestDirty_ = de;
         while (d <= de) {
-            dirty_[d >> 5]|=(1<<(d & 31));
+            __atomic_fetch_or(dirty_ + (d >> 5),(UINT32_C(1)<<(d & 31)), __ATOMIC_SEQ_CST);
             d++;
         }
         return *this;
@@ -164,9 +182,13 @@ public:
         return val;
     }
     
-    
     unsigned size() override {
         return size_;
+    }
+
+    void lock_and_flush() override {
+        AtomicHolder h(this);
+        flush();
     }
     
 protected:
@@ -253,6 +275,26 @@ private:
     /// @return how many uint32 are there in the dirty_ array.
     unsigned dirty_size_uint32() {
         return (num_cells() + 31) / 32;
+    }
+
+    /// updates lowestDirty_ and highestDirty_ for a given cell.
+    /// @param d cell offset to set dirty
+    void update_dirty_bounds(cell_offs_t d)
+    {
+        cell_offs_t old_val = lowestDirty_;
+        do
+        {
+            if (d >= old_val)
+                break;
+        } while (!__atomic_compare_exchange_n(&lowestDirty_, &old_val, d, false,
+                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+        old_val = highestDirty_;
+        do
+        {
+            if (d <= old_val)
+                break;
+        } while (!__atomic_compare_exchange_n(&highestDirty_, &old_val, d,
+                     false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
     }
 
     /// Total number of bits.
