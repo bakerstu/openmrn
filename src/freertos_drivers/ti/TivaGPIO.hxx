@@ -140,9 +140,9 @@ private:
     /// than the desired has no effect. This allows write with 0xff and 0x00 to
     /// set/clear and read != 0 to test.
     /// @return magic address.
-    constexpr uint8_t *pin_address() const
+    constexpr volatile uint8_t *pin_address() const
     {
-        return reinterpret_cast<uint8_t *>(
+        return reinterpret_cast<volatile uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
     }
 };

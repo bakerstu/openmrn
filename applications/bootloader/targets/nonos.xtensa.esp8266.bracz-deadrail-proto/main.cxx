@@ -221,6 +221,11 @@ void get_flash_page_info(
     *page_length_bytes = FLASH_BLOCK_SIZE;
 }
 
+uint16_t flash_complete(void)
+{
+    return 0;
+}
+
 extern char WIFI_SSID[];
 extern char WIFI_PASS[];
 extern char WIFI_HUB_HOSTNAME[];

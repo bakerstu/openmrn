@@ -1,10 +1,10 @@
-/** \copyright
- * Copyright (c) 2016, Balazs Racz
+/** @copyright
+ * Copyright (c) 2017, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- *
+ * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,28 +24,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file simplelink.h
- * Compatibility header for including before the CC3220-sdk.
+ * @file OS.cxx
+ * This file represents a C++ language abstraction of common operating
+ * system calls.
  *
- * @author Balazs Racz
- * @date 18 Mar 2017
+ * @author Stuart W. Baker
+ * @date 7 May 2017
  */
 
-#ifndef _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_
-#define _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_
+#include "os/OS.hxx"
 
-#ifndef __USER_H__
-#define __USER_H__
-#endif
+long long OSTime::rtcOffset = 0;
 
-#ifdef SL_API_V2
-#include "CC3220/user.h"
-#include "sl_compat.h"
-#include "ti/drivers/net/wifi/simplelink.h"
-#else
-#include "simplelink_v1.h"
-#include "CC3200/user.h"
-#include "simplelink/include/simplelink.h"
-#endif
-
-#endif // _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_

@@ -1,1 +1,1 @@
-../ti-cc3200-generic/target.ld
+../ti-cc3220sf-generic/target.ld

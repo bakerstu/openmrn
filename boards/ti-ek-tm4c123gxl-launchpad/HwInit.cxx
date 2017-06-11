@@ -55,6 +55,7 @@
 
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
+#include "TivaEEPROMBitSet.hxx"
 #include "DummyGPIO.hxx"
 #include "bootloader_hal.h"
 
@@ -101,6 +102,10 @@ const size_t EEPROMEmulation::SECTOR_SIZE = (4*1024);
 
 static TivaEEPROMEmulation eeprom("/dev/eeprom", 1500);
 
+extern StoredBitSet* g_gpio_stored_bit_set;
+StoredBitSet* g_gpio_stored_bit_set = nullptr;
+constexpr unsigned EEPROM_BIT_COUNT = 84;
+constexpr unsigned EEPROM_BITS_PER_CELL = 28;
 
 extern "C" {
 void hw_set_to_safe(void);
@@ -202,17 +207,10 @@ struct DccHwDefs {
   // Peripherals to enable at boot.
   static const auto CCP_PERIPH = SYSCTL_PERIPH_TIMER1;
   static const auto INTERVAL_PERIPH = SYSCTL_PERIPH_TIMER0;
-  static const auto PIN_H_GPIO_PERIPH = SYSCTL_PERIPH_GPIOB;
-  static const auto PIN_L_GPIO_PERIPH = SYSCTL_PERIPH_GPIOB;
 
-  static const auto PIN_H_GPIO_CONFIG = GPIO_PB6_T0CCP0;
-  static const auto PIN_L_GPIO_CONFIG = GPIO_PB7_T0CCP1;
-
-  static const auto PIN_H_GPIO_BASE = GPIO_PORTB_BASE;
-  static const auto PIN_L_GPIO_BASE = GPIO_PORTB_BASE;
-
-  static const auto PIN_H_GPIO_PIN = GPIO_PIN_6;
-  static const auto PIN_L_GPIO_PIN = GPIO_PIN_7;
+  using PIN_H = ::BOOSTER_H_Pin;
+  using PIN_L = ::BOOSTER_L_Pin;
+  using BOOSTER_ENABLE_Pin = DummyPin;
 
   /** Defines whether the high driver pin is inverted or not. A non-inverted
    *  (value==false) pin will be driven high during the first half of the DCC
@@ -248,15 +246,13 @@ struct DccHwDefs {
 
 
   // Pins defined for railcom
-  //DECL_PIN(RAILCOM_TRIGGER, B, 4);
-    /// @todo (balazs.racz) move these to tivagpio.
-  DECL_PIN(RAILCOM_TRIGGER, D, 6);
+  using RAILCOM_TRIGGER_Pin = ::RAILCOM_TRIGGER_Pin;
   static const auto RAILCOM_TRIGGER_INVERT = true;
+  static const auto RAILCOM_TRIGGER_DELAY_USEC = 6;
 
   static const auto RAILCOM_UART_BASE = UART1_BASE;
   static const auto RAILCOM_UART_PERIPH = SYSCTL_PERIPH_UART1;
-  DECL_PIN(RAILCOM_UARTPIN, B, 0);
-  static const auto RAILCOM_UARTPIN_CONFIG = GPIO_PB0_U1RX;
+  using RAILCOM_UARTPIN = ::RAILCOM_CH1_Pin;
 };
 
 
@@ -381,7 +377,10 @@ void hw_preinit(void)
         blinker_pattern = 0;
       }
     } while (blinker_pattern || rest_pattern);
+
     asm volatile ("cpsid i\n");
+
+    g_gpio_stored_bit_set = new EEPROMStoredBitSet<TivaEEPROMHwDefs<EEPROM_BIT_COUNT, EEPROM_BITS_PER_CELL>>(2, 2);
 }
 
 /** Timer interrupt for DCC packet handling.

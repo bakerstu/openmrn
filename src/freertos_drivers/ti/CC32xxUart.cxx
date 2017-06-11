@@ -53,11 +53,12 @@ static CC32xxUart *instances[2] = {NULL};
  * @param interrupt interrupt number of this device
  * @param baud desired baud rate
  * @param mode to configure the UART for
+ * @param hw_fifo true if hardware fifo is to be enabled, else false.
  * @param tx_enable_assert callback to assert the transmit enable
  * @param tx_enable_deassert callback to deassert the transmit enable
  */
 CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
-                       uint32_t baud, uint32_t mode,
+                       uint32_t baud, uint32_t mode, bool hw_fifo,
                        TxEnableMethod tx_enable_assert,
                        TxEnableMethod tx_enable_deassert)
     : Serial(name)
@@ -66,6 +67,7 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
     , base(base)
     , interrupt(interrupt)
     , txPending(false)
+    , hwFIFO(hw_fifo)
 {
     
     switch (base)
@@ -84,9 +86,6 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
     
     MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, baud,
                             mode | UART_CONFIG_PAR_NONE);
-    MAP_UARTFIFOEnable(base);
-    //MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_FIFO);
-    MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
     MAP_IntDisable(interrupt);
     /* We set the priority so that it is slightly lower than the highest needed
      * for FreeRTOS compatibility. This will ensure that CAN interrupts take
@@ -102,7 +101,14 @@ void CC32xxUart::enable()
 {
     MAP_IntEnable(interrupt);
     MAP_UARTEnable(base);
-    MAP_UARTFIFOEnable(base);
+    if (hwFIFO)
+    {
+        MAP_UARTFIFOEnable(base);
+    }
+    else
+    {
+        MAP_UARTFIFODisable(base);
+    }
 }
 
 /** Disable use of the device.
@@ -113,28 +119,53 @@ void CC32xxUart::disable()
     MAP_UARTDisable(base);
 }
 
+/** Send data until there is no more space left.
+ */
+void CC32xxUart::send()
+{
+    do
+    {
+        uint8_t data = 0;
+        if (txBuf->get(&data, 1))
+        {
+            MAP_UARTCharPutNonBlocking(base, data);
+
+        }
+        else
+        {
+            break;
+        }
+    }
+    while (MAP_UARTSpaceAvail(base));
+
+    if (txBuf->pending())
+    {
+        /* more data to send later */
+        MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_FIFO);
+    }
+    else
+    {
+        /* no more data left to send */
+        MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
+    }
+}
+
 /** Try and transmit a message.
  */
 void CC32xxUart::tx_char()
 {
     if (txPending == false)
     {
-        uint8_t data = 0;
-
-        if (txBuf->get(&data, 1))
+        if (txEnableAssert)
         {
-            if (txEnableAssert)
-            {
-                txEnableAssert();
-            }
-            MAP_UARTCharPutNonBlocking(base, data);
-
-            MAP_IntDisable(interrupt);
-            txPending = true;
-            MAP_UARTIntEnable(base, UART_INT_TX);
-            MAP_IntEnable(interrupt);
-            txBuf->signal_condition();
+            txEnableAssert();
         }
+
+        send();
+        txPending = true;
+
+        MAP_UARTIntEnable(base, UART_INT_TX);
+        txBuf->signal_condition();
     }
 }
 
@@ -159,51 +190,29 @@ void CC32xxUart::interrupt_handler()
             unsigned char c = data;
             if (rxBuf->put(&c, 1) == 0)
             {
-                overrunCount++;
+                ++overrunCount;
             }
             rxBuf->signal_condition_from_isr();
         }
     }
     /* transmit a character if we have pending tx data */
-    if (txPending)
+    if (txPending && (status & UART_INT_TX))
     {
-        while (MAP_UARTSpaceAvail(base))
+        if (txBuf->pending())
         {
-#if 0           
-            if (MAP_UARTTxIntModeGet(base) == UART_TXINT_MODE_EOT)
+            send();
+            txBuf->signal_condition_from_isr();
+        }
+        else
+        {
+            /* no more data left to send */
+            HASSERT(MAP_UARTTxIntModeGet(base) == UART_TXINT_MODE_EOT);
+            if (txEnableDeassert)
             {
-                MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_FIFO);
-                if (txBuf->pending() == 0)
-                {
-                    txEnableDeassert();
-                    txPending = false;
-                    MAP_UARTIntDisable(base, UART_INT_TX);
-                    break;
-                }
+                txEnableDeassert();
             }
-#endif
-            unsigned char data;
-            if (txBuf->get(&data, 1) != 0)
-            {
-                MAP_UARTCharPutNonBlocking(base, data);
-                txBuf->signal_condition_from_isr();
-            }
-            else
-            {
-                /* no more data pending */
-#if 0
-                if (txEnableDeassert)
-                {
-                    MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
-                }
-                else
-#endif
-                {
-                    txPending = false;
-                    MAP_UARTIntDisable(base, UART_INT_TX);
-                }
-                break;
-            }
+            txPending = false;
+            MAP_UARTIntDisable(base, UART_INT_TX);
         }
     }
     os_isr_exit_yield_test(woken);
