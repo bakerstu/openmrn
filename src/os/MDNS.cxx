@@ -63,9 +63,13 @@ void mdns_publish(const char *name, const char *service, uint16_t port)
 int mdns_lookup(const char *service, struct addrinfo *hints,
                 struct addrinfo **addr)
 {
+#if defined(__FreeRTOS__) || defined(__MACH__)
     string mdns_name(service);
     mdns_name.append(".local");
     return ::getaddrinfo(nullptr, mdns_name.c_str(), hints, addr);
+#else
+    DIE("Your OS does not support mDNS");
+#endif
 }
 
 /** Start continuous scan for mDNS service name.

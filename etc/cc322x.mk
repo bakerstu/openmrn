@@ -3,7 +3,7 @@ include $(OPENMRNPATH)/etc/path.mk
 DEPS += TICC3220SDKPATH
 
 ifdef TICC3220SDKPATH
-INCLUDES += -DSL_PLATFORM_MULTI_THREADED -DSL_API_V2 \
+INCLUDES += -DSL_PLATFORM_MULTI_THREADED -DSL_API_V2 -DTARGET_IS_CC3220 \
             -I$(OPENMRNPATH)/src/freertos_drivers/ti/CC3200_compat \
             -I$(OPENMRNPATH)/src/freertos_drivers/ti \
             -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx \

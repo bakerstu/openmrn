@@ -6,6 +6,7 @@ CXXSRCS += TivaCan.cxx \
            TivaI2C.cxx \
            TivaUart.cxx \
            TivaUsbCdcDevice.cxx \
+           TivaUsbKeyboardDev.cxx \
            TivaFlash.cxx \
            TivaEEPROMEmulation.cxx \
 

@@ -48,6 +48,7 @@
 #include "openlcb/CanDefs.hxx"
 #include "openlcb/DatagramDefs.hxx"
 #include "openlcb/MemoryConfig.hxx"
+#include "openlcb/ApplicationChecksum.hxx"
 #include "can_frame.h"
 
 namespace openlcb
@@ -169,51 +170,16 @@ Atomic g_bootloader_lock;
         Defs::FIRMWARE_UPGRADE_ACTIVE)
 #endif
 /// We manually convert to big-endian to store this value in .rodata.
-static const uint64_t PIP_REPLY =        //
-    (PIP_REPLY_VALUE >> 40) |            //
-    ((PIP_REPLY_VALUE >> 24) & 0xff00) | //
-    ((PIP_REPLY_VALUE >> 8) & 0xff0000) |
-    ((PIP_REPLY_VALUE << 8) & 0xff000000) |
-    ((PIP_REPLY_VALUE << 24) & 0xff00000000) |
-    ((PIP_REPLY_VALUE << 40) & 0xff0000000000);
+static const uint64_t PIP_REPLY =         //
+    ((PIP_REPLY_VALUE >> 40) & 0xff) |    //
+    ((PIP_REPLY_VALUE >> 24) & 0xff00) |  //
+    ((PIP_REPLY_VALUE >> 8) & 0xff0000) | //
+    ((PIP_REPLY_VALUE & 0xff0000) << 8) | //
+    ((PIP_REPLY_VALUE & 0xff00) << 24) |  //
+    ((PIP_REPLY_VALUE & 0xff) << 40);
 
 /** Clears out the stream state in state_. */
 void reset_stream_state();
-
-/** @returns true if the application checksum currently in flash is correct. */
-bool check_application_checksum()
-{
-    uint32_t checksum[CHECKSUM_COUNT];
-    const void *flash_min;
-    const void *flash_max;
-    const struct app_header *app_header_ptr;
-    get_flash_boundaries(&flash_min, &flash_max, &app_header_ptr);
-
-    struct app_header app_header;
-    memcpy(&app_header, app_header_ptr, sizeof(app_header));
-
-    uint32_t pre_size = reinterpret_cast<const uint8_t *>(app_header_ptr) -
-        static_cast<const uint8_t *>(flash_min);
-    checksum_data(flash_min, pre_size, checksum);
-    if (memcmp(app_header.checksum_pre, checksum, sizeof(checksum)))
-    {
-        return false;
-    }
-    size_t flash_size = (size_t)flash_max - (size_t)flash_min;
-    if (app_header.app_size > flash_size) return false;
-    uint32_t post_offset = sizeof(struct app_header) +
-        (reinterpret_cast<const uint8_t *>(app_header_ptr) -
-         static_cast<const uint8_t *>(flash_min));
-    uint32_t post_size = (post_offset < app_header.app_size)
-        ? app_header.app_size - post_offset
-        : 0;
-    checksum_data(app_header_ptr + 1, post_size, checksum);
-    if (memcmp(app_header.checksum_post, checksum, sizeof(checksum)))
-    {
-        return false;
-    }
-    return true;
-}
 
 /// Prepares the outgoing frame buffer for a frame to be sent.
 void setup_can_frame()
@@ -414,6 +380,13 @@ void handle_memory_config_frame()
                 // Invalid request.
                 reject_datagram();
                 set_error_code(DatagramDefs::INVALID_ARGUMENTS);
+                return;
+            }
+            uint16_t r = flash_complete();
+            if (r != 0) {
+                // Invalid request.
+                reject_datagram();
+                set_error_code(r);
                 return;
             }
             // fall through

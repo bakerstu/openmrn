@@ -35,9 +35,8 @@
 #ifndef _OS_MDNS_HXX_
 #define _OS_MDNS_HXX_
 
-#include <netdb.h>
-
 #if defined (__linux__)
+#include <netdb.h>
 #include <stdio.h>
 #include <semaphore.h>
 #include <avahi-client/client.h>
@@ -48,7 +47,12 @@
 #include <avahi-common/simple-watch.h>
 
 #include "os/OS.hxx"
+
+#elif defined(__FreeRTOS__)
+#include <netdb.h>
 #endif
+
+struct addrinfo;
 
 #include "utils/macros.h"
 
