@@ -115,6 +115,11 @@ public:
     static int lookup(const char *service, struct addrinfo *hints,
                       struct addrinfo **addr);
 
+    /** Start continuous scan for mDNS service name.
+     * @param service servicename to scan
+     */
+    static void scan(const char *service);
+
 private:
 #if defined (__linux__)
     struct LookupUserdata
