@@ -26,7 +26,7 @@ INCLUDES += -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx \
             -I$(TICC3200SDKPATH)/driverlib \
             -I$(TICC3200SDKPATH)/inc
 
-CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
+CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3200/user.h \
             -D__USER_H__
 
 
