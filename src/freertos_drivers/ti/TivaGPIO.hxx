@@ -50,8 +50,10 @@
     static const auto NAME##_PERIPH = SYSCTL_PERIPH_GPIO##PORT;                \
     static const auto NAME##_BASE = GPIO_PORT##PORT##_BASE;                    \
     static const auto NAME##_PIN = GPIO_PIN_##NUM;                             \
-    static constexpr uint8_t * NAME##_PINADDR =                                     \
-        (uint8_t *)(GPIO_BASE + (((unsigned)GPIO_PIN) << 2))
+    static constexpr uint8_t *NAME##_NULLPTR = nullptr;                        \
+    static constexpr intptr_t NAME##_PINADDRI =                                \
+        ((intptr_t)GPIO_BASE + (((intptr_t)GPIO_PIN) << 2));                   \
+    static constexpr uint8_t *NAME##_PINADDR = NAME##_NULLPTR + NAME##_PINADDRI
 
 /// Helper macro for declaring a GPIO pin wiht a specific hardware config (not
 /// GPIO but a different hardware muxed onto the same pin).
