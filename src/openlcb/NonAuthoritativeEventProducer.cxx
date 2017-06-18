@@ -104,12 +104,12 @@ void BitRangeNonAuthoritativeEventP::handle_consumer_identified(
         if (event->event >= eventBaseOn_ &&
             event->event < (eventBaseOn_ + size_))
         {
-            stateCallback_((event->event - eventBase_) / 2, value);
+            stateCallback_((event->event - eventBase_), value);
         }
         else if (event->event >= eventBaseOff_ &&
                  event->event < (eventBaseOff_ + size_))
         {
-            stateCallback_((event->event - eventBase_) / 2, !value);
+            stateCallback_((event->event - eventBase_), !value);
         }
     }        
 }
