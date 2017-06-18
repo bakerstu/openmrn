@@ -62,6 +62,12 @@ void BitRangeNonAuthoritativeEventP::handle_consumer_identified(
                                                 BarrierNotifiable *done)
 {
     done->notify();
+    if (!stateCallback_)
+    {
+        // there is nobody to notify
+        return;
+    }
+
     bool value;
     if (event->state == EventState::VALID)
     {
@@ -75,8 +81,7 @@ void BitRangeNonAuthoritativeEventP::handle_consumer_identified(
     {
         return; // nothing to learn from this message.
     }
-    if (stateCallback_ && event->event >= eventBase_ &&
-        event->event < (eventBase_ + (size_ * 2)) )
+    if (event->event >= eventBase_ && event->event < (eventBase_ + (size_ * 2)))
     {
         if ((event->event % 2) == 0)
         {
