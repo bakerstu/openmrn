@@ -73,12 +73,15 @@ public:
     ///
     /// @param node the node that the producer will be bound to
     DccAccyProducer(Node *node,
-                   std::function<void(unsigned, bool)> state_callback = nullptr)
+               std::function<void(unsigned, bool)> dcc_state_callback = nullptr)
         : CallableFlow<DccAccyProducerInput>(node->iface())
         , BitRangeNonAuthoritativeEventP(node,
                         TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
                         TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
-                        MAX_ADDRESS, state_callback)
+                        MAX_ADDRESS,
+                        std::bind(&DccAccyProducer::state_callback, this,
+                                  std::placeholders::_1, std::placeholders::_2))
+        , dccStateCallback_(dcc_state_callback)
         , writer_()
     {
     }
@@ -138,6 +141,25 @@ private:
     {
         return message()->data();
     }
+
+    /// Callback called when there is a notification of event (DCC accessory
+    /// address) state.  Pass to the next level up after accounting for DCC
+    /// address range starting at 1.
+    ///
+    /// @param bit bit index within event pair range
+    /// @param value value of the event pair
+    void state_callback(unsigned bit, bool value)
+    {
+        if (dccStateCallback_)
+        {
+            // add one to bit because the DCC address range starts at 1, not 0
+            dccStateCallback_(bit + 1, value);
+        }
+    }
+
+    /// Callback method that will be invoked when a consumer identified
+    /// message is received with a known state.
+    std::function<void(unsigned, bool)> dccStateCallback_;
 
     WriteHelper writer_; ///< statically allocated buffer
 
