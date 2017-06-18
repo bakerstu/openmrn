@@ -89,7 +89,7 @@ void BitRangeNonAuthoritativeEventP::handle_event_report(
         else if (event->event >= eventBaseOff_ &&
                  event->event < (eventBaseOff_ + size_))
         {
-            stateCallback_((event->event - eventBase_), !false);
+            stateCallback_((event->event - eventBase_), false);
         }
     }
 }
@@ -163,7 +163,7 @@ void BitRangeNonAuthoritativeEventP::set(unsigned bit, bool new_value,
     HASSERT(bit < size_);
 
     uint64_t event;
-    if (new_value == false)
+    if (new_value)
     {
         event = eventBaseOff_ == 0 ? eventBase_ + (bit * 2) :
                                      eventBaseOn_ + bit;
