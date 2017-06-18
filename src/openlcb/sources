@@ -18,8 +18,8 @@ CXXSRCS += \
            IfCan.cxx \
            IfImpl.cxx \
            NodeInitializeFlow.cxx \
-	   PIPClient.cxx \
-	   RoutingLogic.cxx \
+           PIPClient.cxx \
+           RoutingLogic.cxx \
            TractionDefs.cxx \
            TractionCvSpace.cxx \
            TractionThrottle.cxx \
@@ -35,6 +35,7 @@ CXXSRCS += \
            TractionTestTrain.cxx \
            TractionProxy.cxx \
            nmranet_constants.cxx \
+           NonAuthoritativeEventProducer.cxx
 
 
 DEAD_CXX +=  \
