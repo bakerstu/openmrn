@@ -51,13 +51,13 @@ struct DccAccyProducerInput : public CallableFlowRequestBase
     /// Possible subflow commands
     enum Command
     {
-        CMD_QUERY,
-        CMD_SET,
+        CMD_QUERY, ///< state query
+        CMD_SET, ///< state set/change
     };
 
     Command cmd; ///< subflow command
     uint16_t address; ///< DCC accessory address
-    bool value; ///< DCC accessory addres value
+    bool value; ///< DCC accessory address value
 
 };
 
