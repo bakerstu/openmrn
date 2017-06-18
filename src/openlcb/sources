@@ -8,6 +8,7 @@ CXXSRCS += \
            CanDefs.cxx \
            ConfigEntry.cxx \
            ConfigUpdateFlow.cxx \
+           DccAccyProducer.cxx \
            DefaultNode.cxx \
            DefaultCdi.cxx \
            EventHandler.cxx \
@@ -18,6 +19,7 @@ CXXSRCS += \
            IfCan.cxx \
            IfImpl.cxx \
            NodeInitializeFlow.cxx \
+           NonAuthoritativeEventProducer.cxx \
            PIPClient.cxx \
            RoutingLogic.cxx \
            TractionDefs.cxx \
@@ -34,8 +36,7 @@ CXXSRCS += \
            SimpleStack.cxx \
            TractionTestTrain.cxx \
            TractionProxy.cxx \
-           nmranet_constants.cxx \
-           NonAuthoritativeEventProducer.cxx
+           nmranet_constants.cxx
 
 
 DEAD_CXX +=  \
