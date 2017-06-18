@@ -154,6 +154,38 @@ void BitRangeNonAuthoritativeEventP::handle_consumer_identified(
 }
 
 //
+// BitRangeNonauthoritativeEventP::handle_identify_producer()
+//
+void BitRangeNonAuthoritativeEventP::handle_identify_global(
+                                                const EventRegistryEntry& entry,
+                                                EventReport *event,
+                                                BarrierNotifiable *done)
+{
+    if (event->dst_node && event->dst_node != node_)
+    {
+        done->notify();
+    }
+    else
+    {
+        event_write_helper1.WriteAsync(node_,
+                                       Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
+                                       WriteHelper::global(),
+                                       eventid_to_buffer(event->event), done);
+    }
+}
+
+//
+// BitRangeNonauthoritativeEventP::handle_identify_producer()
+//
+void BitRangeNonAuthoritativeEventP::handle_identify_producer(
+                                                const EventRegistryEntry& entry,
+                                                EventReport *event,
+                                                BarrierNotifiable *done)
+{
+    handle_identify_global(entry, event, done);
+}
+
+//
 // BitRangeNonauthoritativeEventP::set()
 //
 void BitRangeNonAuthoritativeEventP::set(unsigned bit, bool new_value,

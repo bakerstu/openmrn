@@ -166,6 +166,24 @@ public:
                                     EventReport *event,
                                     BarrierNotifiable *done) override;
 
+    /// Handle an incoming identify producer message.
+    ///
+    /// @param entry reference to this entry in the event registry
+    /// @param event event metadata
+    /// @param done notifible to wakup when finished
+    void handle_identify_global(const EventRegistryEntry &entry,
+                                EventReport *event,
+                                BarrierNotifiable *done) override;
+
+    /// Handle an incoming identify producer message.
+    ///
+    /// @param entry reference to this entry in the event registry
+    /// @param event event metadata
+    /// @param done notifible to wakup when finished
+    void handle_identify_producer(const EventRegistryEntry &entry,
+                                  EventReport *event,
+                                  BarrierNotifiable *done) override;
+
 private:
     Node *node_; ///< Node ID that this producer is attached to
     union
