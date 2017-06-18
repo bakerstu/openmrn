@@ -48,9 +48,11 @@ void BitRangeNonAuthoritativeEventP::send_query_consumer(unsigned bit,
                                                         BarrierNotifiable *done)
 {
     HASSERT(bit < size_);
+    uint64_t event = eventBaseOff_ == 0 ? eventBase_ + (bit * 2) :
+                                          eventBaseOn_ + bit;
     writer->WriteAsync(node_, Defs::MTI_CONSUMER_IDENTIFY,
                        WriteHelper::global(),
-                       eventid_to_buffer(eventBase_ + (bit * 2)), done);
+                       eventid_to_buffer(event), done);
 }
 
 //
@@ -81,21 +83,35 @@ void BitRangeNonAuthoritativeEventP::handle_consumer_identified(
     {
         return; // nothing to learn from this message.
     }
-    if (event->event >= eventBase_ && event->event < (eventBase_ + (size_ * 2)))
+
+    if (eventBaseOff_ == 0)
     {
-        if ((event->event % 2) == 0)
+        if (event->event >= eventBase_ &&
+            event->event < (eventBase_ + (size_ * 2)))
         {
-            stateCallback_((event->event - eventBase_) / 2, value);
-        }
-        else
-        {
-            stateCallback_((event->event - eventBase_) / 2, !value);
+            if ((event->event % 2) == 0)
+            {
+                stateCallback_((event->event - eventBase_) / 2, value);
+            }
+            else
+            {
+                stateCallback_((event->event - eventBase_) / 2, !value);
+            }
         }
     }
     else
     {
-        return; // uninteresting event id.
-    }
+        if (event->event >= eventBaseOn_ &&
+            event->event < (eventBaseOn_ + size_))
+        {
+            stateCallback_((event->event - eventBase_) / 2, value);
+        }
+        else if (event->event >= eventBaseOff_ &&
+                 event->event < (eventBaseOff_ + size_))
+        {
+            stateCallback_((event->event - eventBase_) / 2, !value);
+        }
+    }        
 }
 
 //
@@ -106,11 +122,19 @@ void BitRangeNonAuthoritativeEventP::set(unsigned bit, bool new_value,
                                          BarrierNotifiable *done)
 {
     HASSERT(bit < size_);
-    uint64_t event = eventBase_ + (bit * 2);
+
+    uint64_t event;
     if (new_value == false)
     {
-        ++event;
+        event = eventBaseOff_ == 0 ? eventBase_ + (bit * 2) :
+                                     eventBaseOn_ + bit;
     }
+    else
+    {
+        event = eventBaseOff_ == 0 ? eventBase_ + (bit * 2) + 1 :
+                                     eventBaseOff_ + bit;
+    }
+
     writer->WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
                        eventid_to_buffer(event), done);
 }

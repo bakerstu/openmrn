@@ -81,12 +81,46 @@ public:
                   std::function<void(unsigned, bool)> state_callback = nullptr)
         : node_(node)
         , eventBase_(event_base)
+        , eventBaseOff_(0)
         , size_(size)
         , stateCallback_(state_callback)
     {
         unsigned mask = EventRegistry::align_mask(&event_base, size * 2);
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, event_base), mask);
+    }
+
+    /// Constructor.  Creates a new bit range producer.
+    ///
+    /// @param node the node that the producer will be bound to
+    /// @param event_base_on the starting event ID for the "on" event range
+    /// @param event_base_off the starting event ID for the "off" event range
+    /// @param size The total event range size in "pairs" of events.  Each
+    ///             pair of sequential events represents a single "bit" with
+    ///             a binary state.
+    /// @param state_callback Callback method for delivering the results of a
+    ///                       consumer identified.  The first unsigned parameter
+    ///                       represents the bit offset for the range and
+    ///                       the second bool parameter indicates the state as
+    ///                       true for valid and false for invalid
+    BitRangeNonAuthoritativeEventP(Node *node, uint64_t event_base_on,
+                  uint64_t event_base_off, uint32_t size,
+                  std::function<void(unsigned, bool)> state_callback = nullptr)
+        : node_(node)
+        , eventBaseOn_(event_base_on)
+        , eventBaseOff_(event_base_off)
+        , size_(size)
+        , stateCallback_(state_callback)
+    {
+        unsigned mask;
+
+        mask = EventRegistry::align_mask(&event_base_on, size);
+        EventRegistry::instance()->register_handler(
+            EventRegistryEntry(this, event_base_on), mask);
+
+        mask = EventRegistry::align_mask(&event_base_off, size);
+        EventRegistry::instance()->register_handler(
+            EventRegistryEntry(this, event_base_off), mask);
     }
 
     /// Destructor.
@@ -125,7 +159,12 @@ public:
 
 private:
     Node *node_; ///< Node ID that this producer is attached to
-    uint64_t eventBase_; ///< base event ID of the full range
+    union
+    {
+        uint64_t eventBase_; ///< base event ID of the full range
+        uint64_t eventBaseOn_; ///< base event ID for "on" range
+    };
+    uint64_t eventBaseOff_; ///< base event ID for "off" range
     unsigned size_; ///< number of bits stored
 
     /// Callback method that will be invoked when a consumer identified
