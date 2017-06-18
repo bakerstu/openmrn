@@ -66,6 +66,13 @@ class DccAccyProducer : public CallableFlow<DccAccyProducerInput>,
                         protected BitRangeNonAuthoritativeEventP
 {
 public:
+    /// DCC accessory activation values
+    enum
+    {
+        NORMAL = false, ///< normal route
+        REVERSE = true, ///< reverse route
+    };
+
     /// highest possible DCC address supported
     static constexpr uint16_t MAX_ADDRESS = 2040;
 
@@ -77,7 +84,6 @@ public:
         : CallableFlow<DccAccyProducerInput>(node->iface())
         , BitRangeNonAuthoritativeEventP(node,
                         TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
-                        TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
                         MAX_ADDRESS,
                         std::bind(&DccAccyProducer::state_callback, this,
                                   std::placeholders::_1, std::placeholders::_2))
@@ -117,7 +123,7 @@ private:
     ///         freed.
     Action send_query()
     {
-        send_query_consumer(input()->address - 1, &writer_, &input()->done);
+        send_query_consumer(input()->address + 4, &writer_, &input()->done);
         return wait_and_return_ok();
     }
 
@@ -128,7 +134,7 @@ private:
     ///         freed.
     Action set()
     {
-        BitRangeNonAuthoritativeEventP::set(input()->address - 1,
+        BitRangeNonAuthoritativeEventP::set(input()->address + 3,
                                             input()->value, &writer_,
                                             &input()->done);
         return wait_and_return_ok();
@@ -150,10 +156,10 @@ private:
     /// @param value value of the event pair
     void state_callback(unsigned bit, bool value)
     {
-        if (dccStateCallback_)
+        if (dccStateCallback_ && bit >= 4)
         {
-            // add one to bit because the DCC address range starts at 1, not 0
-            dccStateCallback_(bit + 1, value);
+            // add four to bit because the DCC address range starts at 1, not 0
+            dccStateCallback_(bit - 3, value);
         }
     }
 
