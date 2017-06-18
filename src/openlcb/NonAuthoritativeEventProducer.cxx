@@ -56,6 +56,45 @@ void BitRangeNonAuthoritativeEventP::send_query_consumer(unsigned bit,
 }
 
 //
+// BitRangeNonauthoritativeEventP::handle_event_report()
+//
+void BitRangeNonAuthoritativeEventP::handle_event_report(
+                                                const EventRegistryEntry& entry,
+                                                EventReport *event,
+                                                BarrierNotifiable *done)
+{
+    done->notify();
+    if (!stateCallback_)
+    {
+        // there is nobody to notify
+        return;
+    }
+
+    if (eventBaseOff_ == 0)
+    {
+        if (event->event >= eventBase_ &&
+            event->event < (eventBase_ + (size_ * 2)))
+        {
+            bool value = (event->event % 2);
+            stateCallback_((event->event - eventBase_) / 2, value);
+        }
+    }
+    else
+    {
+        if (event->event >= eventBaseOn_ &&
+            event->event < (eventBaseOn_ + size_))
+        {
+            stateCallback_((event->event - eventBase_), true);
+        }
+        else if (event->event >= eventBaseOff_ &&
+                 event->event < (eventBaseOff_ + size_))
+        {
+            stateCallback_((event->event - eventBase_), !false);
+        }
+    }
+}
+
+//
 // BitRangeNonauthoritativeEventP::handle_consumer_identified()
 //
 void BitRangeNonAuthoritativeEventP::handle_consumer_identified(
@@ -111,7 +150,7 @@ void BitRangeNonAuthoritativeEventP::handle_consumer_identified(
         {
             stateCallback_((event->event - eventBase_), !value);
         }
-    }        
+    }
 }
 
 //

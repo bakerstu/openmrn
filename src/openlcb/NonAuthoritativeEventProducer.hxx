@@ -148,7 +148,16 @@ public:
     void set(unsigned bit, bool new_value, WriteHelper *writer,
              BarrierNotifiable *done);
 
-    /// handle an incoming consumer identified message
+    /// Handle an incoming event.
+    ///
+    /// @param entry reference to this entry in the event registry
+    /// @param event event metadata
+    /// @param done notifible to wakup when finished
+    void handle_event_report(const EventRegistryEntry &entry,
+                             EventReport *event,
+                             BarrierNotifiable *done) override;
+
+    /// Handle an incoming consumer identified message.
     ///
     /// @param entry reference to this entry in the event registry
     /// @param event event metadata
