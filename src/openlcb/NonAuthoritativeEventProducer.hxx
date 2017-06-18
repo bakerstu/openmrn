@@ -60,6 +60,7 @@ namespace openlcb
     IGNOREFN(handle_identify_producer);
 #endif
 
+/// Event producer for range of bits (event pairs) that is non-autoritative.
 class BitRangeNonAuthoritativeEventP : public SimpleEventHandler
 {
 public:
@@ -71,8 +72,8 @@ public:
     ///             pair of sequential events represents a single "bit" with
     ///             a binary state.
     /// @param state_callback Callback method for delivering the results of a
-    ///                       consumer identified.  the first unsigned parameter
-    ///                       represents the bit index offset for the range and
+    ///                       consumer identified.  The first unsigned parameter
+    ///                       represents the bit offset for the range and
     ///                       the second bool parameter indicates the state as
     ///                       true for valid and false for invalid
     BitRangeNonAuthoritativeEventP(Node *node, uint64_t event_base,
@@ -108,16 +109,16 @@ public:
     ///
     /// @param bit is the offset of the bit to set (0 <= bit < size)
     /// @param new_value is the new value of the bit
-    /// @param writer is the output flow to be used.
-    /// @param done is the notification callback.
+    /// @param writer is the output flow to be used
+    /// @param done notifible to wakup when finished
     void set(unsigned bit, bool new_value, WriteHelper *writer,
              BarrierNotifiable *done);
 
     /// handle an incoming consumer identified message
     ///
-    /// @param entry
-    /// @param event
-    /// @param done
+    /// @param entry reference to this entry in the event registry
+    /// @param event event metadata
+    /// @param done notifible to wakup when finished
     void handle_consumer_identified(const EventRegistryEntry &entry,
                                     EventReport *event,
                                     BarrierNotifiable *done) override;
