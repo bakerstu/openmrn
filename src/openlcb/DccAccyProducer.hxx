@@ -123,7 +123,7 @@ private:
     ///         freed.
     Action send_query()
     {
-        send_query_consumer(input()->address + 4, &writer_, &input()->done);
+        send_query_consumer(input()->address + 3, &writer_, &input()->done);
         return wait_and_return_ok();
     }
 
