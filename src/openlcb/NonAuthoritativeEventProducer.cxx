@@ -167,10 +167,26 @@ void BitRangeNonAuthoritativeEventP::handle_identify_global(
     }
     else
     {
+        uint64_t range;
+        if (entry.event == eventBase_)
+        {
+            range = EncodeRange(eventBase_,
+                                eventBaseOff_ == 0 ? size_ * 2 : size_);
+        }
+        else if (entry.event == eventBaseOff_ && eventBaseOff_ != 0)
+        {
+            range = EncodeRange(eventBaseOff_, size_);
+        }
+        else
+        {
+            // uninteresting event range
+            return;
+        }
         event_write_helper1.WriteAsync(node_,
-                                       Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
+                                       Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
                                        WriteHelper::global(),
-                                       eventid_to_buffer(event->event), done);
+                                       eventid_to_buffer(range),
+                                       done);
     }
 }
 
