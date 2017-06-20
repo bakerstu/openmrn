@@ -198,7 +198,36 @@ void BitRangeNonAuthoritativeEventP::handle_identify_producer(
                                                 EventReport *event,
                                                 BarrierNotifiable *done)
 {
-    handle_identify_global(entry, event, done);
+    bool valid = false;
+    if (eventBaseOff_ == 0)
+    {
+        if (event->event >= eventBase_ &&
+            event->event < (eventBase_ + (size_ * 2)))
+        {
+            valid = true;
+        }
+    }
+    else
+    {
+        if (event->event >= eventBaseOn_ &&
+            event->event < (eventBaseOn_ + size_))
+        {
+            valid = true;
+        }
+        else if (event->event >= eventBaseOff_ &&
+                 event->event < (eventBaseOff_ + size_))
+        {
+            valid = true;
+        }
+    }
+    if (valid)
+    {
+        event_write_helper1.WriteAsync(node_,
+                                       Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
+                                       WriteHelper::global(),
+                                       eventid_to_buffer(event->event),
+                                       done);
+    }
 }
 
 //
