@@ -1,0 +1,114 @@
+#include "utils/async_if_test_helper.hxx"
+
+#include "NonAuthoritativeEventProducer.hxx"
+
+using ::testing::_;
+using ::testing::Mock;
+using ::testing::StrictMock;
+
+namespace openlcb
+{
+
+static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
+
+class BitRangeNonAuthoritativeEventPTest : public AsyncNodeTest
+{
+protected:
+    BitRangeNonAuthoritativeEventPTest()
+        : brp_(node_, kEventBase, 11)
+        , brp2_(node_, kEventBase + 64, kEventBase + 64 + 32, 11)
+    {
+    }
+
+    BitRangeNonAuthoritativeEventP brp_;
+    BitRangeNonAuthoritativeEventP brp2_;
+    WriteHelper writer_;
+};
+
+TEST_F(BitRangeNonAuthoritativeEventPTest, Set)
+{
+    // single range
+    expect_packet(":X195B422AN05010101FFFF0000;");
+    brp_.set(0, true, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN05010101FFFF0001;");
+    brp_.set(0, false, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN05010101FFFF0014;");
+    brp_.set(10, true, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN05010101FFFF0015;");
+    brp_.set(10, false, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    // dual range
+    expect_packet(":X195B422AN05010101FFFF0040;");
+    brp2_.set(0, true, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN05010101FFFF0060;");
+    brp2_.set(0, false, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN05010101FFFF004A;");
+    brp2_.set(10, true, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN05010101FFFF006A;");
+    brp2_.set(10, false, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+}
+
+TEST_F(BitRangeNonAuthoritativeEventPTest, GlobalIdentify)
+{
+    // single range
+    expect_packet(":X1952422AN05010101FFFF001F;");
+
+    // dual range
+    expect_packet(":X1952422AN05010101FFFF004F;");
+    expect_packet(":X1952422AN05010101FFFF006F;");
+
+    send_packet(":X19970001N;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+}
+
+TEST_F(BitRangeNonAuthoritativeEventPTest, GlobalIdentifyAddressed)
+{
+    // single range
+    expect_packet(":X1952422AN05010101FFFF001F;");
+
+    // dual range
+    expect_packet(":X1952422AN05010101FFFF004F;");
+    expect_packet(":X1952422AN05010101FFFF006F;");
+
+    send_packet(":X19970001N022A;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+}
+
+TEST_F(BitRangeNonAuthoritativeEventPTest, IdentifyProducer)
+{
+    // single range
+    send_packet_and_expect_response(":X19914001N05010101FFFF0000;",
+                                    ":X1954722AN05010101FFFF0000;");
+    send_packet_and_expect_response(":X19914001N05010101FFFF0001;",
+                                    ":X1954722AN05010101FFFF0001;");
+    send_packet_and_expect_response(":X19914001N05010101FFFF0014;",
+                                    ":X1954722AN05010101FFFF0014;");
+    send_packet_and_expect_response(":X19914001N05010101FFFF0015;",
+                                    ":X1954722AN05010101FFFF0015;");
+
+    // dual range
+    send_packet_and_expect_response(":X19914001N05010101FFFF0040;",
+                                    ":X1954722AN05010101FFFF0040;");
+    send_packet_and_expect_response(":X19914001N05010101FFFF0060;",
+                                    ":X1954722AN05010101FFFF0060;");
+    send_packet_and_expect_response(":X19914001N05010101FFFF004A;",
+                                    ":X1954722AN05010101FFFF004A;");
+    send_packet_and_expect_response(":X19914001N05010101FFFF006A;",
+                                    ":X1954722AN05010101FFFF006A;");
+}
+
+} // namespace openlcb
