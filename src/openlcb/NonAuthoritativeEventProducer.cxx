@@ -70,27 +70,33 @@ void BitRangeNonAuthoritativeEventP::handle_event_report(
         return;
     }
 
-    if (eventBaseOff_ == 0)
+    switch (entry.user_arg)
     {
-        if (event->event >= eventBase_ &&
-            event->event < (eventBase_ + (size_ * 2)))
-        {
-            bool value = (event->event % 2) == (eventBase_ % 2);
-            stateCallback_((event->event - eventBase_) / 2, value);
-        }
-    }
-    else
-    {
-        if (event->event >= eventBaseOn_ &&
-            event->event < (eventBaseOn_ + size_))
-        {
-            stateCallback_((event->event - eventBase_), true);
-        }
-        else if (event->event >= eventBaseOff_ &&
-                 event->event < (eventBaseOff_ + size_))
-        {
-            stateCallback_((event->event - eventBase_), false);
-        }
+        default:
+            // uninteresting event range, should never get here
+            HASSERT(0);
+        case EVENT_BASE:
+            if (event->event >= eventBase_ &&
+                event->event < (eventBase_ + (size_ * 2)))
+            {
+                bool value = (event->event % 2) == (eventBase_ % 2);
+                stateCallback_((event->event - eventBase_) / 2, value);
+            }
+            break;
+        case EVENT_BASE_ON:
+            if (event->event >= eventBaseOn_ &&
+                event->event < (eventBaseOn_ + size_))
+            {
+                stateCallback_((event->event - eventBaseOn_), true);
+            }
+            break;
+        case EVENT_BASE_OFF:
+            if (event->event >= eventBaseOff_ &&
+                event->event < (eventBaseOff_ + size_))
+            {
+                stateCallback_((event->event - eventBaseOff_), false);
+            }
+            break;
     }
 }
 
@@ -123,33 +129,36 @@ void BitRangeNonAuthoritativeEventP::handle_consumer_identified(
         return; // nothing to learn from this message.
     }
 
-    if (eventBaseOff_ == 0)
+    switch (entry.user_arg)
     {
-        if (event->event >= eventBase_ &&
-            event->event < (eventBase_ + (size_ * 2)))
-        {
-            if ((event->event % 2) == (eventBase_ % 2))
+        default:
+            // uninteresting event range, should never get here
+            HASSERT(0);
+        case EVENT_BASE:
+            if (event->event >= eventBase_ &&
+                event->event < (eventBase_ + (size_ * 2)))
             {
+                if ((event->event % 2) != (eventBase_ % 2))
+                {
+                    value = !value;
+                }
                 stateCallback_((event->event - eventBase_) / 2, value);
             }
-            else
+            break;
+        case EVENT_BASE_ON:
+            if (event->event >= eventBaseOn_ &&
+                event->event < (eventBaseOn_ + size_))
             {
-                stateCallback_((event->event - eventBase_) / 2, !value);
+                stateCallback_((event->event - eventBase_), value);
             }
-        }
-    }
-    else
-    {
-        if (event->event >= eventBaseOn_ &&
-            event->event < (eventBaseOn_ + size_))
-        {
-            stateCallback_((event->event - eventBase_), value);
-        }
-        else if (event->event >= eventBaseOff_ &&
-                 event->event < (eventBaseOff_ + size_))
-        {
-            stateCallback_((event->event - eventBase_), !value);
-        }
+            break;
+        case EVENT_BASE_OFF:
+            if (event->event >= eventBaseOff_ &&
+                event->event < (eventBaseOff_ + size_))
+            {
+                stateCallback_((event->event - eventBaseOff_), !value);
+            }
+            break;
     }
 }
 
@@ -168,19 +177,20 @@ void BitRangeNonAuthoritativeEventP::handle_identify_global(
     else
     {
         uint64_t range;
-        if (entry.event == eventBase_)
+        switch (entry.user_arg)
         {
-            range = EncodeRange(eventBase_,
-                                eventBaseOff_ == 0 ? size_ * 2 : size_);
-        }
-        else if (entry.event == eventBaseOff_ && eventBaseOff_ != 0)
-        {
-            range = EncodeRange(eventBaseOff_, size_);
-        }
-        else
-        {
-            // uninteresting event range
-            return;
+            default:
+                // uninteresting event range, should never get here
+                HASSERT(0);
+            case EVENT_BASE:
+                range = EncodeRange(eventBase_, size_ * 2);
+                break;
+            case EVENT_BASE_ON:
+                range = EncodeRange(eventBaseOn_, size_);
+                break;
+            case EVENT_BASE_OFF:
+                range = EncodeRange(eventBaseOff_, size_);
+                break;
         }
         event_write_helper1.WriteAsync(node_,
                                        Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
@@ -199,27 +209,34 @@ void BitRangeNonAuthoritativeEventP::handle_identify_producer(
                                                 BarrierNotifiable *done)
 {
     bool valid = false;
-    if (eventBaseOff_ == 0)
+    switch (entry.user_arg)
     {
-        if (event->event >= eventBase_ &&
-            event->event < (eventBase_ + (size_ * 2)))
-        {
-            valid = true;
-        }
+        default:
+            // uninteresting event range, should never get here
+            HASSERT(0);
+        case EVENT_BASE:
+            if (event->event >= eventBase_ &&
+                event->event < (eventBase_ + (size_ * 2)))
+            {
+                valid = true;
+            }
+            break;
+        case EVENT_BASE_ON:
+            if (event->event >= eventBaseOn_ &&
+                event->event < (eventBaseOn_ + size_))
+            {
+                valid = true;
+            }
+            break;
+        case EVENT_BASE_OFF:
+            if (event->event >= eventBaseOff_ &&
+                event->event < (eventBaseOff_ + size_))
+            {
+                valid = true;
+            }
+            break;
     }
-    else
-    {
-        if (event->event >= eventBaseOn_ &&
-            event->event < (eventBaseOn_ + size_))
-        {
-            valid = true;
-        }
-        else if (event->event >= eventBaseOff_ &&
-                 event->event < (eventBaseOff_ + size_))
-        {
-            valid = true;
-        }
-    }
+
     if (valid)
     {
         event_write_helper1.WriteAsync(node_,
@@ -227,6 +244,10 @@ void BitRangeNonAuthoritativeEventP::handle_identify_producer(
                                        WriteHelper::global(),
                                        eventid_to_buffer(event->event),
                                        done);
+    }
+    else
+    {
+        done->notify();
     }
 }
 
