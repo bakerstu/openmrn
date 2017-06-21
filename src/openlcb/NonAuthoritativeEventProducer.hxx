@@ -81,10 +81,10 @@ public:
     ///             pair of sequential events represents a single "bit" with
     ///             a binary state.
     /// @param state_callback Callback method for delivering the results of a
-    ///                       consumer identified.  The first unsigned parameter
-    ///                       represents the bit offset for the range and
-    ///                       the second bool parameter indicates the state as
-    ///                       true for valid and false for invalid
+    ///                       consumer identified or event report.  The first
+    ///                       unsigned parameter represents the bit offset for
+    ///                       the range and the second bool parameter indicates
+    ///                       the state as true for valid and false for invalid.
     BitRangeNonAuthoritativeEventP(Node *node, uint64_t event_base_on,
                   uint64_t event_base_off, uint32_t size,
                   std::function<void(unsigned, bool)> state_callback = nullptr)
@@ -126,7 +126,7 @@ public:
     /// @param bit is the offset of the bit to set (0 <= bit < size)
     /// @param new_value is the new value of the bit
     /// @param writer is the output flow to be used
-    /// @param done notifible to wakup when finished
+    /// @param done notifible to wakup when query is sent on the bus
     void set(unsigned bit, bool new_value, WriteHelper *writer,
              BarrierNotifiable *done);
 
@@ -134,7 +134,7 @@ public:
     ///
     /// @param entry reference to this entry in the event registry
     /// @param event event metadata
-    /// @param done notifible to wakup when finished
+    /// @param done notifible to wakup when finished with the report processing
     void handle_event_report(const EventRegistryEntry &entry,
                              EventReport *event,
                              BarrierNotifiable *done) override;
@@ -143,16 +143,16 @@ public:
     ///
     /// @param entry reference to this entry in the event registry
     /// @param event event metadata
-    /// @param done notifible to wakup when finished
+    /// @param done notifible to wakup when finished with the report processing
     void handle_consumer_identified(const EventRegistryEntry &entry,
                                     EventReport *event,
                                     BarrierNotifiable *done) override;
 
-    /// Handle an incoming identify producer message.
+    /// Handle an incoming identify global or addressed message.
     ///
     /// @param entry reference to this entry in the event registry
     /// @param event event metadata
-    /// @param done notifible to wakup when finished
+    /// @param done notifible to wakup when finished with the report processing
     void handle_identify_global(const EventRegistryEntry &entry,
                                 EventReport *event,
                                 BarrierNotifiable *done) override;
@@ -161,7 +161,7 @@ public:
     ///
     /// @param entry reference to this entry in the event registry
     /// @param event event metadata
-    /// @param done notifible to wakup when finished
+    /// @param done notifible to wakup when finished with the report processing
     void handle_identify_producer(const EventRegistryEntry &entry,
                                   EventReport *event,
                                   BarrierNotifiable *done) override;
