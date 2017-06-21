@@ -69,7 +69,7 @@ public:
     {
         unsigned mask = EventRegistry::align_mask(&event_base, size * 2);
         EventRegistry::instance()->register_handler(
-            EventRegistryEntry(this, event_base), mask);
+            EventRegistryEntry(this, event_base, EVENT_BASE), mask);
     }
 
     /// Constructor.  Creates a new bit range producer.
@@ -98,11 +98,11 @@ public:
 
         mask = EventRegistry::align_mask(&event_base_on, size);
         EventRegistry::instance()->register_handler(
-            EventRegistryEntry(this, event_base_on), mask);
+            EventRegistryEntry(this, event_base_on, EVENT_BASE_ON), mask);
 
         mask = EventRegistry::align_mask(&event_base_off, size);
         EventRegistry::instance()->register_handler(
-            EventRegistryEntry(this, event_base_off), mask);
+            EventRegistryEntry(this, event_base_off, EVENT_BASE_OFF), mask);
     }
 
     /// Destructor.
@@ -167,6 +167,15 @@ public:
                                   BarrierNotifiable *done) override;
 
 private:
+    /// Identifiers for the types of event range registration.
+    enum EventBaseType : unsigned
+    {
+        // start counting at 1 as 0 is reserved or unused
+        EVENT_BASE = 1, /// one unified range starting at @ref eventBase_
+        EVENT_BASE_ON, /// on range starting at @ref eventBaseOn_
+        EVENT_BASE_OFF, /// on range starting at @ref eventBaseOff_
+    };
+
     Node *node_; ///< Node ID that this producer is attached to
     union
     {
