@@ -49,7 +49,7 @@ processor.
 
 @subsection application_target Application target
 
-Application targets are found under `$(APP_ROOT)/targets` directory, for
+Application targets are found under `\$ (APP_ROOT)/targets` directory, for
 example
 https://github.com/bakerstu/openmrn/tree/master/applications/hub/targets.  Each
 application target will turn into one binary. The above example shows that this
@@ -339,10 +339,197 @@ to it from different places), applications that are placed elsewhere in the
 filesystem need to set OPENMRNPATH explicitly or in the user startup script
 (e.g., in `~/.bashrc` writing `export OPENMRNPATH=~/openmrn`).
 
-@subsubsection app_structure Application directory structure
+@subsubsection app_structure Application directory and code structure
 
 From the toplevel application directory we have the following files and
 subdirectories:
+
+- {@code Makefile} This is usually always the same, just copy an example.
+
+- {@code subdirs} Describes the list of application libraries.
+
+- {@code config.mk} By convention, included at the top of all target Makefiles
+  to defince common build settings for all targets. This is typically where we
+  set OPENMRNPATH if not found in the environment.
+
+- {@code main.cxx} Any `*.c`, and `*.cxx` files in the application toplevel
+  directory will be compiled and included as `.o` files on the linker
+  commandline. If there is a `main.cxx` in the toplevel directory, that will
+  typically contain the application entry point `int appl_main(int argc, char
+  *argv[])` and it will also instantiate all the necessary global objects (such
+  as the OpenLCB stack, producers, consumers, etc) in this file. You can use
+  conditional compilation in this file if you want slightly different behavior
+  for different targets, a really complex example is {@ref
+  applications/async_blink/main.cxx}. Some trees don't have `main.cxx` here but
+  supply them separately for each application target.
+
+- {@code automata
+commandstation
+mobilestation
+custom
+server
+src}
+These are application library directories in the
+https://github.com/balazsracz/openmrn_cue/tree/master/cs application. They
+contain sources and headers for various aspects. All pplication libraries get
+compiled once per application target, and supplied to the commandline as
+archives. If no object is instantiated in `main` from a specific application
+library, the linker will optimize and remove all of its code. Note that `src` is
+actually a library here as well, will compile into libsrc.a.
+
+- {@code targets} Contains the individual application targets (see {@link
+  application_target}). Each target is for a combination of a specific OS,
+  specific microcontroller and specific board, since the result of a target is
+  a binary that is ready to run/download.
+
+  - {@code Makefile} contains the list of target subdirectories to recurse into.
+
+  - {@code freertos.armv7m.ek-tm4c1294xl} An example target directory from
+https://github.com/bakerstu/openmrn/tree/master/applications/io_board/targets/freertos.armv7m.ek-tm4c123gxl
+The contents are compiled and added to the linker commandline as `*.o` files
+directly. The following files are here (typical for an MCU application target):
+
+    - {@code HwInit.cxx} Symlinked from the board directory. Contains device
+      driver instantiations, and various hardware initialization routines that
+      run during the MCU boot process. Initializes hardware
+      resources. Typically contains the interrupt handlers too.
+
+    - {@code config.hxx} Specific to OpenLCB applications, this file declares
+      the memory layout and documentation of the user configuration. The build
+      process will create the XML code of the configuration description from
+      this, while the header can be included to the necessary `*.cxx` files in
+      order to reference the configuration space offsets in a type-case manner.
+
+    - {@code hardware.hxx} Symlinked from the board directory. Contains
+      declarations (but no definitions) for hardware resources, such as pinout
+      of GPIOs with symbolic names and certain template structures that are
+      used by the drivers. This file is usually `#include`d into HwInit.cxx and
+      main.cxx. Usually when a board revision is made it is enough to update
+      `hardware.hxx` but the same `HwInit.cxx` and `main.cxx` can be used.
+
+    - {@code main.cxx} This application has the main files implemented
+      separately for each target. In this specific case the reason for that is
+      to avoid having the complexity of conditional compilation for beginner
+      users. This might be also be desirable when the different targets have
+      dramatically different behavior, such as for the openmrn_cue, where the
+      targets range from a railcom detector through an IO board, a simple cue
+      node to a full-featured command station.
+
+    - {@code NodeId.cxx} For some OpenLCB applications we separate the
+      `main.cxx` which contains the application code from the OpenLCB Node ID,
+      which has to be unique to each board. This allows compiling multiple
+      targets and connecting them to the same network. Sometimes the address
+      can also be overridden by executing `make ADDRESS=0x42`. For a production
+      environment this file will have to be aligned with the bulk flash
+      programmer of the manufacturer.
+
+    - {@code memory_map.ld} Linker script that describes the size and location
+      of the flash and ram for the given MCU. Included in
+      `target.ld`. Typically one specific per MCU vendor-family-model,
+      symlinked from the board directory.
+
+    - {@code startup.c} Interrupt vector table and core handlers (such as
+      reset_handler, hard_fault_handler) for the specific MCU. Symlinked from
+      the board directory.
+
+    - {@code target.ld} Linker script. Symlinked from the board directory. This
+      script is usually the same for large classes of MCUs, like
+      Cortex-M0/M3/M4.
+
+    - {@code automata
+commandstation
+mobilestation
+custom
+server
+src} Subdirectories corresponding to the application libraries will be
+automatically created to host the compilation output of the application
+libraries. Most simple application have no application libraries.
+
+    - {@code lib} Stores symlinks to all application libraries and core
+      libraries that are needed for the final linking. Automatically created if
+      needed.
+
+@section dependencies Dependencies
+
+Compiling certain parts of OpenMRN, certain applications, certain device
+drivers and middleware requires specific dependencies to be present. These
+dependencies may be toolchains (compilers, linkers, etc for the host or
+cross-compilingfor the target), source code for certain libraries (such as XML
+parser or FreeRTOS), various MCU vendor middlewares or tools for debugging or flashing microcontrollers (OpenOCD for example).
+
+@subsection dep_lookup Dependency lookup process
+
+Each dependency is represented by a specific path on the file system, where the
+given library/toolchain/etc is installed. The path is stored in a variable
+specific to that dependency, by convention these variables look like
+SOMETHINGPATH. If the dependency is not found, the variable is set to an empty
+string.
+
+All known dependencies are listed in `openmrn/etc/path.mk` with a list of
+possible locations on where to look for them on the filesystem. The build
+system tries each location in turn, and uses the first one it finds and
+recognizes as the specific tool's install root directory to put into the
+SOMETHINGPATH variable. If none of the registered paths contain the given tool,
+the variable is set to empty.
+
+It is fine to add new search path entries for these specific tools. Just add an
+additional line to the search list, and send a pull request on GitHub. It is
+also possible to override the specific toolpath on a more permanent basis by
+setting the given variable in the user's environment, for example adding to
+`~/.bashrc`: ${code export SOMETHINGPATH=/opt/path/to/something}
+
+@subsection dep_eval Dependency evaluation process
+
+In every directory where source files are compiled (that is: core target lib
+dir; various freertos_drivers subdirs; application target lib dir; application
+target dir), there is a local list of required dependencies. The build system
+first checks those dependencies. If any of those dependencies are missing
+(meaning the respective PATH variable is empty), the build is aborted in that
+directory and the build proceeds to other targets/dirs. At the same time a
+warning message is printed, pointing out what dependency was missing:
+
+@{code
+** Ignoring target freertos.armv7m, because the following libraries are not installed: STM32CUBEF3PATH. This is not an error, so please do not report as a bug. If you care about target freertos.armv7m, make sure the quoted libraries are installed. For most libraries you can check /usr/local/google/home/bracz/train/openlcb/openmrn/etc/path.mk to see where we looked for these dependencies.}
+
+The list of dependencies for a given directory are listed in the DEPS variable, so in the above directory there was a line in the Makefile or in the included `helper.mk` files that said: {@code DEPS += STM32CUBEF3PATH}
+
+@subsection dep_location_versioning Dependency location and versioning
+
+The dependency search path can contain any directory, but by convention, we
+install most dependencies into `/opt`. Sometimes these dependencies are updated
+and when the new version comes out, we download it but do not overwrite the
+previous version in order to allow safely switching back and forth. The typical
+directory to look for would be as follows:
+
+{@code
+$ ls /opt/ti/CC3200SDK -l
+total 114780
+drwxr-x--- 3 bracz restricted     4096 Jul  2  2016 CC3200SDK_1.2.0
+drwxr-x--- 3 bracz restricted     4096 Apr 18 14:27 CC3200SDK_1.3.0
+lrwxrwxrwx 1 bracz restricted       15 Apr 24 05:43 default -> CC3200SDK_1.3.0
+}
+
+This means that inside `/opt` we have a vendor-specific directory `/opt/ti` for
+Texas Instruments; within that there is a package specific directory
+`/opt/ti/CC3200SDK`. Within that we install the different versions in
+directories named after the versions. Then we create a symlink `default` that
+points to the version we'd like to use. This way adjusting the symlink is a
+quick way to downgrade/upgrade a given dependency and check that compilation
+and binaries still work. The search path for CC3200SDKPATH looks like this in `openmrn/etc/path.mk`:
+
+{@code
+################### TI-CC3200-SDK #####################
+ifndef TICC3200SDKPATH
+SEARCHPATH := \
+  /opt/ti/CC3200SDK/default/cc3200-sdk
+
+
+TRYPATH:=$(call findfirst,readme.txt,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TICC3200SDKPATH:=$(TRYPATH)
+endif
+endif #TICC3200SDKPATH
+}
 
 
 
