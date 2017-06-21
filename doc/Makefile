@@ -1,4 +1,5 @@
-SRCS = $(wildcard ../src/os/*.h) $(wildcard ../src/os/*.cxx) \
+SRCS = $(wildcard *.dox) $(wildcard *.md) \
+       $(wildcard ../src/os/*.h) $(wildcard ../src/os/*.cxx) \
        $(wildcard ../src/os/*.c) $(wildcard ../src/os/*.hxx) \
        $(wildcard ../src/if/*.h) $(wildcard ../src/if/*.cxx) \
        $(wildcard ../src/if/*.c) $(wildcard ../src/if/*.hxx) \
@@ -12,7 +13,7 @@ SRCS = $(wildcard ../src/os/*.h) $(wildcard ../src/os/*.cxx) \
        $(wildcard ../src/freertos_drivers/ti/*.c) \
        $(wildcard ../src/freertos_drivers/ti/*.hxx) \
        $(wildcard ../src/freertos_drivers/ti/*.cxx)
-       
+
 
 all:
 

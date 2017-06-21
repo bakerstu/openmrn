@@ -1,0 +1,213 @@
+/**
+@page build_system_page Build system
+
+@tableofcontents
+
+@section Overview
+
+The key added value of the OpenMRN build system is that it allows compiling a
+multitude of applications across vastly different hardware architectures from a
+single set of source files. It allows selecting different toolchains (e.g. g++
+or clang for linux, mingw for windows, armgcc for cortex-m3, emscripten-clang
+for node.js), providing different compilation options and selecting different
+set of source files to compile on each specific port. Applications can share
+operating system support files, drivers, networking stack, system libraries, or
+libraries defining application logic.
+
+@section core_concepts Concepts
+
+The OpenMRN build system is based upon recursive make. Each directory contains
+a Makefile, and during the compilation process these makefiles instruct the
+build program to recurse into the relevant subdirectories and execute `make`
+there.
+
+The most important concept is the *target*.
+- It defines the toolchain and compiler settings to be used;
+- defines which operating system the code shall be compiled for;
+- sets all the compilation flags;
+- defines the code that shall be compiled vs skipped.
+
+Generally, all code in `openmrn/src` gets compiled once per *core target*, and
+all code in the application tree gets compiled once per *application target*.
+
+@subsection core_target Core target
+
+A core target is represented by a directory under `openmrn/targets/`. There is
+one core target for each operating system + processor combination, so you find
+items here like `linux.x86` or `freertos.armv7m`, meaning a Cortex-M3/M4
+microcontroller run under the FreeRTOS operating system.
+
+Code that is part of the `openmrn/src` tree but is hardware-specific (usually
+under the `freertos_drivers` subdirectory) is organized into separate
+directories for each vendor and hardware model/line, so that the availability
+of necessary dependencies can get checked and the hardware-specific compilation
+flags, such as include paths can be generated.
+
+The output of the compilation of a core target is a set of libraries and object
+files that can be linked into an application for that specific OS and
+processor.
+
+@subsection application_target Application target
+
+Application targets are found under `$(APP_ROOT)/targets` directory, for
+example
+https://github.com/bakerstu/openmrn/tree/master/applications/hub/targets.  Each
+application target will turn into one binary. The above example shows that this
+application has ports for linux on a PC, linux on a Raspberry Pi / BeagleBone,
+and MacOS using x86 processor. A different example
+https://github.com/bakerstu/openmrn/tree/master/applications/io_board/targets
+shows that we have one such target directory for each different hardware board
+(and sometimes HW revision) that the application supports; this allows
+adjusting the compilation to different GPIO pinouts, and link in different
+device drivers.
+
+Each application target selects a core target from which to link, usually with
+the code `TARGET := freertos.armv7m` inside the Makefile. If not specified,
+then the application target name will be used as the core target, which works
+fine for examples like linux.x86 or linux.armv7a.
+
+@section directory_structure Directory structure
+
+In the OpenMRN distribution we have the following structure:
+
+- {@code applications} Ccontains a number of example applications. The
+  application tree is described below.
+
+- {@code bin} Scripts and tools not directly used by the build system.
+
+- {@code boards} Hhardware-specific code that can be shared by different
+  applications that run on the same board or MCU family, such as interrupt
+  vector tables, hardware initialization routines and GPIO pinouts. The code
+  that is committed here usually gets symlinked into the application target
+  directory. Some examples:
+
+  - {@code armv7m} General definitions for all Cortex-M3/M4 MCUs
+
+  - {@code ti-cc3200-generic} Interrupt vector table, linker scripts and some
+    utilities for the CC3200 series MCU from TI (Texas Instruments). These
+    files will be used by all CC3200-based targets.
+
+  - {@code ti-cc3200-launchpad} Pin definitions and hardware initialization
+    code for the CC3200-LAUNCHXL launchpad. References files from the
+    `ti-cc3200-generic` directory.
+
+- {@code doc} The documentation using Doxygen, and the make scripts to
+  generate it. Run `make docs` in this directory to generate the HTML output of
+  the documentation.
+
+- {@code etc} Makefile libraries that are used by the build system. The `*.mk`
+  files here get included into the makefiles.
+
+- {@code include} Header files that are global (not library-specific). There
+  are very few of these, mostly for FreeRTOS and some used for patching broken
+  libc and middleware distributions.
+
+- {@code src} The source code of OpenMRN core libraries. These are:
+
+  - {@code console} A telnet-like server that you can use to present a
+    commandline console. It can operate via network socket or serial
+    connection.
+
+  - {@code dcc} Declarations and classes for implementing and representing DCC
+    protocol; used by command stations, mobile decoders and RailCom detectors.
+
+  - {@code executor} Core library for co-routine based collaborative
+    multi-tasking. Allows time division multi-tasking on a single thread,
+    including running a large number of state machines interacting with message
+    queues to for protocol stacks.
+  
+  - {@code freertos_drivers} Posix-compatible hardware abstraction layer
+    running on FreeRTOS, with driver implementations for a number of popular
+    microcontrollers' common hardware (such as UART, USB, and CAN-bus drivers).
+
+    - {@code common} Base classes for drivers and posix device abstraction.
+    - {@code esp8266} Implementations for the Espressif ESP8266 MCU.
+    - {@code net_cc32xx} Socket layer for the Texas Instruments CC32xx Wifi MCUs.
+    - {@code net_freertos_tcp} Socket layer using FreeRTOSPlus TCP.
+    - {@code nxp} Drivers for the NXP LPC17xx/40xx and 11Cxx MCUs.
+    - {@code pic32mx} Drivers for the Microchip PIC32 series, a MIPS4K based MCU.
+
+    - {@code st} Drivers for various stm32 MCUs, including F0, F1, F4 lines,
+  which are low-cost Cortex-M0 / M3 / M4 based MCUs.
+
+    - {@code ti} General drivers (CAN, UART, USB, GPIO) for Texas Instruments
+      Tiva and CC32xx MCUs.
+  
+  - {@code openlcb} LCC / OpenLCB protocol stack. Most of this protocol stack
+    is implemented using protocol state flows and can operate on
+    single-threaded environments using the Executor framework.
+  
+  - {@code os} OS abstraction layer with common concepts cross Linux, Mac,
+    FreeRTOS, and to some extent windows. The concepts include threads,
+    mutexes, sempahores, timers, support for select, GPIOs, mDNS.
+   
+  - {@code utils} A large number of diverse utility classes for data
+    structures, buffers & queues, logging, testing, printing and formatting
+    data, creating and using streams and sockets. Helper classes for
+    implementing data hubs / repeaters, including tying them to various device
+    drivers such as CAN-bus or USB.
+
+  - {@code withrottle} Implementation for JMRI's wireless throttle protocol.\
+
+- {@code targets} All core targets. These are listed in importance order, not alphabetically:
+
+  - {@code cov} Target for compiling and running unit tests (on the host) and
+    test coverage generation.
+
+  - {@code linux.x86} Host target using 'g++' as the compiler. This can be used
+    to compile for the host OS under linux. It also work on a Raspberry Pi.
+
+  - {@code linux.llvm} Host target under linux using 'llvm-c++' as the
+    compiler. This is only used occasionally due to the more advanced static
+    verification features of LLVM.
+
+  - {@code mach.x86 and mach.x86_64} Host target on a Mac using the Xcode compiler.
+
+  - {@code linux.armv7a} Cross-compilation target for compiling to the
+    Raspberry Pi and Beaglebone single-board computers using a PC host.
+
+  - {@code js.emscripten} Cross-compilation target for creating a javascript
+    library using the empscripten++ compiler, an LLVM backend turning code into
+    javascript.
+
+  - {@code mingw.x86} Cross-compilation target for creating a windows output
+    executable using the MinGW libraries on a linux host. Does not work very
+    well due to some incompatibilities between Windows and POSIX file
+    descriptors and socket API.
+
+  The remaining targets are various forms of microcontrollers, all needing the
+  specific cross-compilation toolchain:
+
+  - {@code freertos.armv7m} Cortex-M3/M4 using FreeRTOS microkernel. The most
+    often used target. A number of vendor-specific driver directories are
+    included inside that are each compiled using the specific vendor middleware
+    into `.o` or `.a` files to be linked into applications using the specific
+    MCU family.
+
+  - {@code freertos.armv6m} Cortex-M0/M0+ using FreeRTOS.
+
+  - {@code freertos.armv4t} ARM7TDMI microcontrollers (e.g. NXP LPC2367) using
+    FreeRTOS.
+
+  - {@code freertos.mips4k} PIC32MX microcontrollers using FreeRTOS.
+
+  - {@code nonos.xtensa-lx106.esp8266} The ESP8266 WiFi microcontroller using
+    the "NonOS" SDK, i.e. in single threaded mode.
+
+  - {@code bare.armv7m} Cortex-M3/M4 microcontrollers without a microkernel, in
+    single-threaded mode. This target is used for implementing really thin
+    applications without the OS abstraction layer, such as bootloaders.
+
+  - {@code bare.pruv3} The realtime processor cores from the select TI Sitara
+    processors. These are found on the BeagleBone Black for example.
+
+  - {@code freertos.armv7m.mbed-1768} Deprecated, should be removed.
+
+- {@code test} Specific independent applications that can be loaded to various
+  targets and exercise certain aspects of the target, mostly for blackbox
+  testing and load testing of device drivers. An example such application would
+  be a "Serial loopback for USB" that can be loaded into a Tiva Launchpad,
+  connected to a host to test the performance and correctness of the USB device
+  driver. Usually equipped with a host-side testing script as well.
+
+*/
