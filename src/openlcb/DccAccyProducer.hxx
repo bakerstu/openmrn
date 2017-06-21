@@ -67,7 +67,7 @@ class DccAccyProducer : public CallableFlow<DccAccyProducerInput>,
 {
 public:
     /// DCC accessory activation values
-    enum
+    enum Route
     {
         NORMAL = false, ///< normal route
         REVERSE = true, ///< reverse route
@@ -79,6 +79,12 @@ public:
     /// Constructor.  Creates a new DCC Accessory range producer.
     ///
     /// @param node the node that the producer will be bound to
+    /// @param dcc_state_callback Callback method for delivering the results of
+    ///                           a consumer identified or event report.  The
+    ///                           first unsigned parameter represents the bit
+    ///                           offset for the range and the second bool
+    ///                           parameter indicates the state as indicated by
+    ///                           @ref Route.
     DccAccyProducer(Node *node,
                std::function<void(unsigned, bool)> dcc_state_callback = nullptr)
         : CallableFlow<DccAccyProducerInput>(node->iface())
@@ -158,7 +164,7 @@ private:
     {
         if (dccStateCallback_)
         {
-            // add four to bit because the DCC address range starts at 1, not 0
+            // add 1 to bit because the DCC address range starts at 1, not 0
             dccStateCallback_(bit + 1, value);
         }
     }
