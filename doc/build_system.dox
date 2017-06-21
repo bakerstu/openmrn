@@ -49,7 +49,7 @@ processor.
 
 @subsection application_target Application target
 
-Application targets are found under `\$ (APP_ROOT)/targets` directory, for
+Application targets are found under `$ (APP_ROOT)/targets` directory, for
 example
 https://github.com/bakerstu/openmrn/tree/master/applications/hub/targets.  Each
 application target will turn into one binary. The above example shows that this
@@ -531,6 +531,19 @@ endif
 endif #TICC3200SDKPATH
 }
 
+@section help Help!
 
+<b>This is all very complicated, how do I get started?</b>
+
+If you like the synthetize method, then
+- make a copy of `openmrn/applications/empty_app`
+- add your target
+- symlink the board files and add a `main.cxx`.
+
+If you like the deconstructing method, then
+- make a copy of `openmrn/applications/io_board`
+- delete all targets except the one you need
+- remove deleted targets from `your_app/targets/Makefile`
+- edit `main.cxx` for the target you left.
 
 */
