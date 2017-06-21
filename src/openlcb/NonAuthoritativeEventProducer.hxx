@@ -41,24 +41,6 @@
 
 namespace openlcb
 {
-#if 0
-    DEFPROXYFN(handle_event_report);
-    DEFPROXYFN(handle_consumer_identified);
-    DEFPROXYFN(handle_consumer_range_identified);
-    DEFPROXYFN(handle_producer_identified);
-    DEFPROXYFN(handle_producer_range_identified);
-    DEFPROXYFN(handle_identify_global);
-    DEFPROXYFN(handle_identify_consumer);
-    DEFPROXYFN(handle_identify_producer);
-
-    IGNOREFN(handle_event_report);
-    IGNOREFN(handle_consumer_identified);
-    IGNOREFN(handle_consumer_range_identified);
-    IGNOREFN(handle_producer_identified);
-    IGNOREFN(handle_producer_range_identified);
-    IGNOREFN(handle_identify_consumer);
-    IGNOREFN(handle_identify_producer);
-#endif
 
 /// Event producer for range of bits (event pairs) that is non-autoritative.
 class BitRangeNonAuthoritativeEventP : public SimpleEventHandler
