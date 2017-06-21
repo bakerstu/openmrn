@@ -113,11 +113,9 @@ private:
         switch (input()->cmd)
         {
             case Command::CMD_QUERY:
-                call_immediately(STATE(send_query));
-                break;
+                return call_immediately(STATE(send_query));
             case Command::CMD_SET:
-                call_immediately(STATE(set));
-                break;
+                return call_immediately(STATE(set));
             default:
                 return return_with_error(Defs::ERROR_INVALID_ARGS);
         }
