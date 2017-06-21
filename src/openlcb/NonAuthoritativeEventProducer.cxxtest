@@ -9,18 +9,30 @@ using ::testing::StrictMock;
 namespace openlcb
 {
 
-static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
+using namespace std::placeholders;
+
+static const uint64_t kEventBase = 0x0501010118FF0000ULL;
 
 class BitRangeNonAuthoritativeEventPTest : public AsyncNodeTest
 {
+public:
+    MOCK_METHOD2(state_callback, void(unsigned, bool));
+
 protected:
     BitRangeNonAuthoritativeEventPTest()
-        : brp_(node_, kEventBase, 11)
-        , brp2_(node_, kEventBase + 64, kEventBase + 64 + 32, 11)
+        : brp_(node_, kEventBase, 11,
+               std::bind(&BitRangeNonAuthoritativeEventPTest::state_callback,
+                         this, _1, _2))
+        , brp2_(node_, kEventBase + 66, kEventBase + 66 + 32, 11,
+                std::bind(&BitRangeNonAuthoritativeEventPTest::state_callback,
+                          this, _1, _2))
     {
     }
 
+    // power of 2 offset, single range
     BitRangeNonAuthoritativeEventP brp_;
+
+    // two disconnected ranges offset by non-power of 2
     BitRangeNonAuthoritativeEventP brp2_;
     WriteHelper writer_;
 };
@@ -28,48 +40,99 @@ protected:
 TEST_F(BitRangeNonAuthoritativeEventPTest, Set)
 {
     // single range
-    expect_packet(":X195B422AN05010101FFFF0000;");
+    expect_packet(":X195B422AN0501010118FF0000;");
+    EXPECT_CALL(*this, state_callback(0, true)).Times(1);
     brp_.set(0, true, &writer_, get_notifiable());
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
-    expect_packet(":X195B422AN05010101FFFF0001;");
+    expect_packet(":X195B422AN0501010118FF0001;");
+    EXPECT_CALL(*this, state_callback(0, false)).Times(1);
     brp_.set(0, false, &writer_, get_notifiable());
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
-    expect_packet(":X195B422AN05010101FFFF0014;");
+    expect_packet(":X195B422AN0501010118FF0014;");
+    EXPECT_CALL(*this, state_callback(10, true)).Times(1);
     brp_.set(10, true, &writer_, get_notifiable());
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
-    expect_packet(":X195B422AN05010101FFFF0015;");
+    expect_packet(":X195B422AN0501010118FF0015;");
+    EXPECT_CALL(*this, state_callback(10, false)).Times(1);
     brp_.set(10, false, &writer_, get_notifiable());
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
     // dual range
-    expect_packet(":X195B422AN05010101FFFF0040;");
+    expect_packet(":X195B422AN0501010118FF0042;");
+    EXPECT_CALL(*this, state_callback(0, true)).Times(1);
     brp2_.set(0, true, &writer_, get_notifiable());
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
-    expect_packet(":X195B422AN05010101FFFF0060;");
+    expect_packet(":X195B422AN0501010118FF0062;");
+    EXPECT_CALL(*this, state_callback(0, false)).Times(1);
     brp2_.set(0, false, &writer_, get_notifiable());
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
-    expect_packet(":X195B422AN05010101FFFF004A;");
+    expect_packet(":X195B422AN0501010118FF004C;");
+    EXPECT_CALL(*this, state_callback(10, true)).Times(1);
     brp2_.set(10, true, &writer_, get_notifiable());
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
-    expect_packet(":X195B422AN05010101FFFF006A;");
+    expect_packet(":X195B422AN0501010118FF006C;");
+    EXPECT_CALL(*this, state_callback(10, false)).Times(1);
     brp2_.set(10, false, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+}
+
+TEST_F(BitRangeNonAuthoritativeEventPTest, EventReport)
+{
+    // single range
+    EXPECT_CALL(*this, state_callback(0, true)).Times(1);
+    send_packet(":X195B422AN0501010118FF0000;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    EXPECT_CALL(*this, state_callback(0, false)).Times(1);
+    send_packet(":X195B422AN0501010118FF0001;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    EXPECT_CALL(*this, state_callback(10, true)).Times(1);
+    send_packet(":X195B422AN0501010118FF0014;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    EXPECT_CALL(*this, state_callback(10, false)).Times(1);
+    send_packet(":X195B422AN0501010118FF0015;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    // dual range
+    EXPECT_CALL(*this, state_callback(0, true)).Times(1);
+    send_packet(":X195B422AN0501010118FF0042;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    EXPECT_CALL(*this, state_callback(0, false)).Times(1);
+    send_packet(":X195B422AN0501010118FF0062;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    EXPECT_CALL(*this, state_callback(10, true)).Times(1);
+    send_packet(":X195B422AN0501010118FF004C;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    EXPECT_CALL(*this, state_callback(10, false)).Times(1);
+    send_packet(":X195B422AN0501010118FF006C;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    // out of range event report, should not produce a callback
+    EXPECT_CALL(*this, state_callback(_, _)).Times(0);
+    send_packet(":X195B422AN0501010118FF0040;");
+    send_packet(":X195B422AN0501010118FF006D;");
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
 TEST_F(BitRangeNonAuthoritativeEventPTest, GlobalIdentify)
 {
     // single range
-    expect_packet(":X1952422AN05010101FFFF001F;");
+    expect_packet(":X1952422AN0501010118FF001F;");
 
     // dual range
-    expect_packet(":X1952422AN05010101FFFF004F;");
-    expect_packet(":X1952422AN05010101FFFF006F;");
+    expect_packet(":X1952422AN0501010118FF004F;");
+    expect_packet(":X1952422AN0501010118FF006F;");
 
     send_packet(":X19970001N;");
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
@@ -78,37 +141,79 @@ TEST_F(BitRangeNonAuthoritativeEventPTest, GlobalIdentify)
 TEST_F(BitRangeNonAuthoritativeEventPTest, GlobalIdentifyAddressed)
 {
     // single range
-    expect_packet(":X1952422AN05010101FFFF001F;");
+    expect_packet(":X1952422AN0501010118FF001F;");
 
     // dual range
-    expect_packet(":X1952422AN05010101FFFF004F;");
-    expect_packet(":X1952422AN05010101FFFF006F;");
+    expect_packet(":X1952422AN0501010118FF004F;");
+    expect_packet(":X1952422AN0501010118FF006F;");
 
     send_packet(":X19970001N022A;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    // send to another address, expect no response
+    send_packet(":X19970001N0002;");
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
 TEST_F(BitRangeNonAuthoritativeEventPTest, IdentifyProducer)
 {
     // single range
-    send_packet_and_expect_response(":X19914001N05010101FFFF0000;",
-                                    ":X1954722AN05010101FFFF0000;");
-    send_packet_and_expect_response(":X19914001N05010101FFFF0001;",
-                                    ":X1954722AN05010101FFFF0001;");
-    send_packet_and_expect_response(":X19914001N05010101FFFF0014;",
-                                    ":X1954722AN05010101FFFF0014;");
-    send_packet_and_expect_response(":X19914001N05010101FFFF0015;",
-                                    ":X1954722AN05010101FFFF0015;");
+    send_packet_and_expect_response(":X19914001N0501010118FF0000;",
+                                    ":X1954722AN0501010118FF0000;");
+    send_packet_and_expect_response(":X19914001N0501010118FF0001;",
+                                    ":X1954722AN0501010118FF0001;");
+    send_packet_and_expect_response(":X19914001N0501010118FF0014;",
+                                    ":X1954722AN0501010118FF0014;");
+    send_packet_and_expect_response(":X19914001N0501010118FF0015;",
+                                    ":X1954722AN0501010118FF0015;");
+    // send outside range, expect no response
+    send_packet(":X19914001N0501010118FF0016;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
     // dual range
-    send_packet_and_expect_response(":X19914001N05010101FFFF0040;",
-                                    ":X1954722AN05010101FFFF0040;");
-    send_packet_and_expect_response(":X19914001N05010101FFFF0060;",
-                                    ":X1954722AN05010101FFFF0060;");
-    send_packet_and_expect_response(":X19914001N05010101FFFF004A;",
-                                    ":X1954722AN05010101FFFF004A;");
-    send_packet_and_expect_response(":X19914001N05010101FFFF006A;",
-                                    ":X1954722AN05010101FFFF006A;");
+    send_packet_and_expect_response(":X19914001N0501010118FF0042;",
+                                    ":X1954722AN0501010118FF0042;");
+    send_packet_and_expect_response(":X19914001N0501010118FF0062;",
+                                    ":X1954722AN0501010118FF0062;");
+    send_packet_and_expect_response(":X19914001N0501010118FF004C;",
+                                    ":X1954722AN0501010118FF004C;");
+    send_packet_and_expect_response(":X19914001N0501010118FF006C;",
+                                    ":X1954722AN0501010118FF006C;");
+    // send outside range, expect no response
+    send_packet(":X19914001N0501010118FF0040;");
+    send_packet(":X19914001N0501010118FF0060;");
+    send_packet(":X19914001N0501010118FF004D;");
+    send_packet(":X19914001N0501010118FF006D;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+}
+
+TEST_F(BitRangeNonAuthoritativeEventPTest, QueryConusmer)
+{
+    expect_packet(":X198F422AN0501010118FF0000;");
+    brp_.send_query_consumer(0, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X198F422AN0501010118FF0014;");
+    brp_.send_query_consumer(10, &writer_, get_notifiable());
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+}
+
+TEST_F(BitRangeNonAuthoritativeEventPTest, ConsumerIdentified)
+{
+    // valid
+    EXPECT_CALL(*this, state_callback(0, true)).Times(1);
+    send_packet(":X194C422AN0501010118FF0000;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    // invalid
+    EXPECT_CALL(*this, state_callback(0, false)).Times(1);
+    send_packet(":X194C522AN0501010118FF0000;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    // unknown
+    EXPECT_CALL(*this, state_callback(_, _)).Times(0);
+    send_packet(":X194C722AN0501010118FF0000;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
 } // namespace openlcb
