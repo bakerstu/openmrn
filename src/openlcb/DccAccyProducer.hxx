@@ -95,6 +95,7 @@ public:
                                 std::placeholders::_1, std::placeholders::_2))
         , dccStateCallback_(dcc_state_callback)
         , writer_()
+        , bn_()
     {
     }
 
@@ -129,7 +130,7 @@ private:
     ///         freed.
     Action send_query()
     {
-        send_query_consumer(input()->address - 1, &writer_, &input()->done);
+        send_query_consumer(input()->address - 1, &writer_, bn_.reset(this));
         return wait_and_return_ok();
     }
 
@@ -142,7 +143,7 @@ private:
     {
         BitRangeNonAuthoritativeEventP::set(input()->address - 1,
                                             input()->value, &writer_,
-                                            &input()->done);
+                                            bn_.reset(this));
         return wait_and_return_ok();
     }
 
@@ -174,6 +175,7 @@ private:
     std::function<void(unsigned, bool)> dccStateCallback_;
 
     WriteHelper writer_; ///< statically allocated buffer
+    BarrierNotifiable bn_;
 
     DISALLOW_COPY_AND_ASSIGN(DccAccyProducer);
 };
