@@ -36,12 +36,27 @@
 #ifndef _OPENLCB_DCCACCYPRODUCER_HXX_
 #define _OPENLCB_DCCACCYPRODUCER_HXX_
 
+#include <vector>
+
 #include "executor/CallableFlow.hxx"
 #include "openlcb/NonAuthoritativeEventProducer.hxx"
 #include "openlcb/TractionDefs.hxx"
 
 namespace openlcb
 {
+/// C++ Namespace for collecting all commands that can be sent to the
+/// DccAccyProducer flow.
+struct DccAccyProducerCommands
+{
+    enum Query
+    {
+        QUERY,
+    };
+    enum Set
+    {
+        SET,
+    };
+};
 
 /// Request structure used to send requests to the TractionThrottle
 /// class. Contains parametrized reset calls for properly supporting
@@ -55,15 +70,28 @@ struct DccAccyProducerInput : public CallableFlowRequestBase
         CMD_SET, ///< state set/change
     };
 
-    Command cmd; ///< subflow command
-    uint16_t address; ///< DCC accessory address
-    bool value; ///< DCC accessory address value
+    void reset(const DccAccyProducerCommands::Query &,
+               const uint16_t address)
+    {
+        cmd_ = CMD_QUERY;
+        address_ = address;
+    }
 
+    void reset(const DccAccyProducerCommands::Set &, const uint16_t address,
+               bool value)
+    {
+        cmd_ = CMD_SET;
+        address_ = address;
+        value_ = value;
+    }
+
+    Command cmd_; ///< subflow command
+    uint16_t address_; ///< DCC accessory address
+    bool value_; ///< DCC accessory address value
 };
 
 /// DCC accessory address event producer for the Well-Known DCC Accessory range.
-class DccAccyProducer : public CallableFlow<DccAccyProducerInput>,
-                        protected BitRangeNonAuthoritativeEventP
+class DccAccyProducer : public CallableFlow<DccAccyProducerInput>
 {
 public:
     /// DCC accessory activation values
@@ -74,7 +102,7 @@ public:
     };
 
     /// highest possible DCC address supported
-    static constexpr uint16_t MAX_ADDRESS = 2040;
+    static constexpr uint16_t MAX_ADDRESS = 2044;
 
     /// Constructor.  Creates a new DCC Accessory range producer.
     ///
@@ -88,15 +116,33 @@ public:
     DccAccyProducer(Node *node,
                std::function<void(unsigned, bool)> dcc_state_callback = nullptr)
         : CallableFlow<DccAccyProducerInput>(node->iface())
-        , BitRangeNonAuthoritativeEventP(node,
-                      TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE + 8,
-                      MAX_ADDRESS,
-                      std::bind(&DccAccyProducer::state_callback, this,
-                                std::placeholders::_1, std::placeholders::_2))
         , dccStateCallback_(dcc_state_callback)
         , writer_()
         , bn_()
     {
+        AtomicHolder h(this);
+        if (instances_.empty())
+        {
+            eventProducer_ = new BitRangeNonAuthoritativeEventP(
+                      node,
+                      TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE + 8,
+                      MAX_ADDRESS, state_callback);
+        }
+        instances_.push_back(this);
+    }
+
+    /// Destructor.  Remove "this" instance from @ref instances_ vector
+    ~DccAccyProducer()
+    {
+        AtomicHolder h(this);
+        for (unsigned i = 0; i < instances_.size(); ++i)
+        {
+            if (instances_[i] == this)
+            {
+                instances_.erase(instances_.begin() + i);
+                break;
+            }
+        }
     }
 
 private:
@@ -109,11 +155,11 @@ private:
     ///         Defs::ERROR_INVALID_ARGS on error
     Action entry() override
     {
-        HASSERT(input()->address > 0 && input()->address <= MAX_ADDRESS);
-        switch (input()->cmd)
+        HASSERT(input()->address_ > 0 && input()->address_ <= MAX_ADDRESS);
+        switch (input()->cmd_)
         {
             case Command::CMD_QUERY:
-                return call_immediately(STATE(send_query));
+                return call_immediately(STATE(query));
             case Command::CMD_SET:
                 return call_immediately(STATE(set));
             default:
@@ -126,9 +172,10 @@ private:
     /// @return waits for the query message to go out and advances to the
     ///         parent flow's next state once the memory holding the message is
     ///         freed.
-    Action send_query()
+    Action query()
     {
-        send_query_consumer(input()->address - 1, &writer_, bn_.reset(this));
+        eventProducer_->send_query_consumer(input()->address_ - 1, &writer_,
+                                            bn_.reset(this));
         return wait_and_return_ok();
     }
 
@@ -139,9 +186,8 @@ private:
     ///         freed.
     Action set()
     {
-        BitRangeNonAuthoritativeEventP::set(input()->address - 1,
-                                            input()->value, &writer_,
-                                            bn_.reset(this));
+        eventProducer_->set(input()->address_ - 1, input()->value_, &writer_,
+                            bn_.reset(this));
         return wait_and_return_ok();
     }
 
@@ -159,21 +205,31 @@ private:
     ///
     /// @param bit bit index within event pair range
     /// @param value value of the event pair
-    void state_callback(unsigned bit, bool value)
+    static void state_callback(unsigned bit, bool value)
     {
-        if (dccStateCallback_)
+        for (DccAccyProducer* instance : instances_)
         {
-            // add 1 to bit because the DCC address range starts at 1, not 0
-            dccStateCallback_(bit + 1, value);
+            if (instance->dccStateCallback_)
+            {
+                instance->dccStateCallback_(bit + 1, value);
+            }
         }
     }
+
+    /// Singleton instance of a BitRangeNonAuthoritativeEventP for the DCC
+    /// accessory address Well-Known Event ID range.
+    static BitRangeNonAuthoritativeEventP *eventProducer_;
+
+    /// Vector of all the subscribers to the DCC accessory address Well-Known
+    /// Event ID Range
+    static std::vector<DccAccyProducer*> instances_;
 
     /// Callback method that will be invoked when a consumer identified
     /// message is received with a known state.
     std::function<void(unsigned, bool)> dccStateCallback_;
 
     WriteHelper writer_; ///< statically allocated buffer
-    BarrierNotifiable bn_;
+    BarrierNotifiable bn_; ///< notfiable for unblocking the next state
 
     DISALLOW_COPY_AND_ASSIGN(DccAccyProducer);
 };

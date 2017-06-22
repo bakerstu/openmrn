@@ -34,3 +34,11 @@
  */
 
 #include "openlcb/DccAccyProducer.hxx"
+
+namespace openlcb
+{
+
+BitRangeNonAuthoritativeEventP *DccAccyProducer::eventProducer_;
+std::vector<DccAccyProducer*> DccAccyProducer::instances_;
+
+} // namespace openlcb
