@@ -48,17 +48,20 @@ namespace openlcb
 /// DccAccyProducer flow.
 struct DccAccyProducerCommands
 {
+    /// QUERY command.
     enum Query
     {
-        QUERY,
+        QUERY, ///< QUERY command
     };
+
+    /// SET command.
     enum Set
     {
-        SET,
+        SET, ///< SET command
     };
 };
 
-/// Request structure used to send requests to the TractionThrottle
+/// Request structure used to send requests to the DccAccyProducer
 /// class. Contains parametrized reset calls for properly supporting
 /// @ref StateFlowBase::invoke_subflow_and_wait() syntax.
 struct DccAccyProducerInput : public CallableFlowRequestBase
@@ -70,6 +73,8 @@ struct DccAccyProducerInput : public CallableFlowRequestBase
         CMD_SET, ///< state set/change
     };
 
+    /// Reset method for @ref CMD_QUERY.
+    /// @param address DCC accessory decoder address
     void reset(const DccAccyProducerCommands::Query &,
                const uint16_t address)
     {
@@ -77,6 +82,9 @@ struct DccAccyProducerInput : public CallableFlowRequestBase
         address_ = address;
     }
 
+    /// Reset method for @ref CMD_SET.
+    /// @param address DCC accessory decoder address
+    /// @param value desired value to command
     void reset(const DccAccyProducerCommands::Set &, const uint16_t address,
                bool value)
     {
@@ -91,6 +99,8 @@ struct DccAccyProducerInput : public CallableFlowRequestBase
 };
 
 /// DCC accessory address event producer for the Well-Known DCC Accessory range.
+/// We implement the event mapping scheme referred to as "Vendor B" in the
+/// OpenLCB EventIdentifiersTN document.
 class DccAccyProducer : public CallableFlow<DccAccyProducerInput>
 {
 public:
