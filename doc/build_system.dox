@@ -17,25 +17,25 @@ libraries defining application logic.
 @section core_concepts Concepts
 
 The OpenMRN build system is based upon recursive make. Each directory contains
-a Makefile, and during the compilation process these makefiles instruct the
+a Makefile, and during the compilation process these Makefiles instruct the
 build program to recurse into the relevant subdirectories and execute `make`
 there.
 
-The most important concept is the *target*.
-- It defines the toolchain and compiler settings to be used;
-- defines which operating system the code shall be compiled for;
-- sets all the compilation flags;
+The most important concept is the *target*:
+- it defines the toolchain and compiler settings to be used,
+- defines which operating system the code shall be compiled for,
+- sets all the compilation flags,
 - defines the code that shall be compiled vs skipped.
 
-Generally, all code in `openmrn/src` gets compiled once per *core target*, and
-all code in the application tree gets compiled once per *application target*.
+Generally, all code in `openmrn/src` gets compiled once per @ref core_target, and
+all code in the application tree gets compiled once per @ref application_target.
 
 @subsection core_target Core target
 
 A core target is represented by a directory under `openmrn/targets/`. There is
 one core target for each operating system + processor combination, so you find
 items here like `linux.x86` or `freertos.armv7m`, meaning a Cortex-M3/M4
-microcontroller run under the FreeRTOS operating system.
+microcontroller run under the FreeRTOS microkernel.
 
 Code that is part of the `openmrn/src` tree but is hardware-specific (usually
 under the `freertos_drivers` subdirectory) is organized into separate
@@ -49,7 +49,7 @@ processor.
 
 @subsection application_target Application target
 
-Application targets are found under `$ (APP_ROOT)/targets` directory, for
+Application targets are found under `$``(APP_PATH)/targets` directory, for
 example
 https://github.com/bakerstu/openmrn/tree/master/applications/hub/targets.  Each
 application target will turn into one binary. The above example shows that this
@@ -70,12 +70,12 @@ fine for examples like linux.x86 or linux.armv7a.
 
 In the OpenMRN distribution we have the following structure:
 
-- {@code applications} Ccontains a number of example applications. The
+- {@code applications} Contains a number of example applications. The
   application tree is described below.
 
 - {@code bin} Scripts and tools not directly used by the build system.
 
-- {@code boards} Hhardware-specific code that can be shared by different
+- {@code boards} Hardware-specific code that can be shared by different
   applications that run on the same board or MCU family, such as interrupt
   vector tables, hardware initialization routines and GPIO pinouts. The code
   that is committed here usually gets symlinked into the application target
@@ -96,7 +96,7 @@ In the OpenMRN distribution we have the following structure:
   the documentation.
 
 - {@code etc} Makefile libraries that are used by the build system. The `*.mk`
-  files here get included into the makefiles.
+  files here get included into the Makefiles.
 
 - {@code include} Header files that are global (not library-specific). There
   are very few of these, mostly for FreeRTOS and some used for patching broken
@@ -149,7 +149,8 @@ MCU.
     implementing data hubs / repeaters, including tying them to various device
     drivers such as CAN-bus or USB.
 
-  - {@code withrottle} Implementation for JMRI's wireless throttle protocol.\
+  - {@code withrottle} Implementation for JMRI's wireless throttle
+    protocol. Note: this implementation is not complete yet.
 
 - {@code targets} All core targets. These are listed in importance order, not
 alphabetically:
@@ -158,7 +159,7 @@ alphabetically:
     test coverage generation.
 
   - {@code linux.x86} Host target using 'g++' as the compiler. This can be used
-    to compile for the host OS under linux. It also work on a Raspberry Pi.
+    to compile for the host OS under linux. It also works on a Raspberry Pi.
 
   - {@code linux.llvm} Host target under linux using 'llvm-c++' as the
     compiler. This is only used occasionally due to the more advanced static
@@ -252,7 +253,7 @@ too, such as `cue`, `if`, `core`.
   sources are coming from the `src/freertos_drivers` tree, while in other
   places we are compiling vendor-supplied middleware using the OpenMRN build
   compiler and settings. None of these directories contain source files; only
-  makefiles and `sources` files that describe where to find the sources and
+  Makefiles and `sources` files that describe where to find the sources and
   what c/c++ files to compile from there. Sometimes the `sources` file is in
   the specific targets subdirectory, sometimes in the equivalent
   `src/freertos_drivers` directory.
@@ -315,13 +316,13 @@ of an externally shipped application.
 @subsubsection app_dir_location Locating application and OpenMRN directory
 
 An application directory can be located anywhere in the file system. The
-compilation can be started inside the application's toplevel directory (will
+compilation can be started inside the application's top-level directory (will
 compile all application targets and their corresponding OpenMRN core targets),
 or inside a single application target directory (will compile only that target
 and its corresponding OpenMRN core target). `make` will ensure to only execute
 compilation steps whose input files have changed, so most of the times
 compiling the respective OpenMRN core target is very quick as nothing has
-changed. For sample applications that are shipped with OpenMRN in the
+changed. For the sample applications that are shipped with OpenMRN in the
 `openmrn/applications` tree, a compilation started at the openmrn root will
 recurse and build all of these applications with all of their targets.
 
@@ -329,15 +330,24 @@ In order to start a compilation inside an application or an application target
 directory, it is essential that the build system can find the OpenMRN root
 directory. This is ensured by setting the variable `OPENMRNPATH` to the
 appropriate absolute directory path. Everything inside the OpenMRN tree will
-then be referenced from this path, including makefile helper libraries, finding
+then be referenced from this path, including Makefile helper libraries, finding
 the core targets and their compilation outputs, include path for `*.h` and
 `*.hxx` files, etc... Usually at the beginning of the Makefile we set
-OPENMRNPATH if it's not already set in the environment. For applications that
-are shipped within the OpenMRN tree we just set `OPENMRNPATH=$(realpath ..)`
+`OPENMRNPATH` if it's not already set in the environment. For applications that
+are shipped within the OpenMRN tree we just set `OPENMRNPATH=$(realpath ../..)`
 (it's important that this path be absolute and not relative since we'll refer
 to it from different places), applications that are placed elsewhere in the
-filesystem need to set OPENMRNPATH explicitly or in the user startup script
+filesystem need to set `OPENMRNPATH` explicitly or in the user startup script
 (e.g., in `~/.bashrc` writing `export OPENMRNPATH=~/openmrn`).
+
+@note When setting the path in a Makefile, you cannot use `~` to refer to your home directory. `~` is a bash expansion, and make does not perform bash expansion before setting variables. If needed, always refer to your home directory as `$``(HOME)`. Example: {@code OPENMRNPATH=$(realpath $(HOME)/openmrn)}
+
+Similar to how the `OPENMRNPATH` variable is used to find the OpenMRN
+distribution, we also use a variable called `APP_PATH` to find the top-level of
+the application tree. This is usually set at the beginning of `config.mk` or at
+the beginning of the application target directory's Makefile. If you start
+developing your application by copying an example from OpenMRN, this variable
+will be set correctly for you.
 
 @subsubsection app_structure Application directory and code structure
 
@@ -349,7 +359,7 @@ subdirectories:
 - {@code subdirs} Describes the list of application libraries.
 
 - {@code config.mk} By convention, included at the top of all target Makefiles
-  to defince common build settings for all targets. This is typically where we
+  to define common build settings for all targets. This is typically where we
   set OPENMRNPATH if not found in the environment.
 
 - {@code main.cxx} Any `*.c`, and `*.cxx` files in the application toplevel
@@ -371,11 +381,11 @@ server
 src}
 These are application library directories in the
 https://github.com/balazsracz/openmrn_cue/tree/master/cs application. They
-contain sources and headers for various aspects. All pplication libraries get
+contain sources and headers for various aspects. All application libraries get
 compiled once per application target, and supplied to the commandline as
 archives. If no object is instantiated in `main` from a specific application
 library, the linker will optimize and remove all of its code. Note that `src` is
-actually a library here as well, will compile into libsrc.a.
+actually a library here as well, and will compile into libsrc.a.
 
 - {@code targets} Contains the individual application targets (see {@link
   application_target}). Each target is for a combination of a specific OS,
@@ -537,7 +547,8 @@ endif #TICC3200SDKPATH
 
 If you like the synthetize method, then
 - make a copy of `openmrn/applications/empty_app`
-- add your target
+- add your target directory
+- enter your target into `your_app/targets/Makefile`
 - symlink the board files and add a `main.cxx`.
 
 If you like the deconstructing method, then
