@@ -27,7 +27,8 @@
  * @file DccAccyProducer.hxx
  *
  * Producer class that represents 2044 consecutive bits out of DCC accessory
- * control Well-Known Event ID space.
+ * control Well-Known Event ID space.  This is inteded for use in throttle
+ * implementations.
  *
  * @author Stuart Baker
  * @date 17 June 2017
