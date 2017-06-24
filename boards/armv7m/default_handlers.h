@@ -117,6 +117,9 @@ void reset_handler(void)
 }
 #endif // SKIP_RESET_HANDLER
 
+static uint32_t g_saved_lr;
+static uint32_t g_saved_pc;
+
 __attribute__((__naked__)) static void hard_fault_handler(void)
 {
     __asm volatile
@@ -129,9 +132,14 @@ __attribute__((__naked__)) static void hard_fault_handler(void)
         " mov   r2, lr               \n"
         // Simulates a BL instruction from the original PC. Moves the PC to LR,
         // overwrites PC with our return address.
+        " ldr   r2, =g_saved_lr      \n"
+        " ldr   r1, [r0, 20]         \n"
+        " str   r1, [r2]             \n"
+        " ldr   r2, =g_saved_pc      \n"
         " ldr   r1, [r0, 24]         \n"
+        " str   r1, [r2]             \n"
         " str   r1, [r0, 20]         \n"
-        // Overwrite hard fault return address with our breakpoint.
+        // Overwrites hard fault return address with our breakpoint.
         " ldr   r3, =hard_fault_stub \n"
         " str   r3, [r0, 24]         \n"
         " bx    r2\n"
@@ -139,6 +147,7 @@ __attribute__((__naked__)) static void hard_fault_handler(void)
 //        " b     hard_fault_handler_c \n"
         " bx    lr                   \n"
     );
+    g_saved_lr = g_saved_pc = 0;
 }
 
 void hard_fault_stub(void) {
