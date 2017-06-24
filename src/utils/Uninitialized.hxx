@@ -45,44 +45,66 @@
 ///
 /// Using this class is inherently unsafe, so avoid if possible. After c++17
 /// this class will be replaceable by std::optional.
-template<class T> class uninitialized : private std::aligned_storage<sizeof(T), alignof(T) > {
+template <class T>
+class uninitialized
+{
 public:
-    const T* operator->() const {
+    /// @return the embedded object
+    const T *operator->() const
+    {
         return tptr();
     }
-    T* operator->() {
+    /// @return the embedded object
+    T *operator->()
+    {
         return tptr();
     }
-    T& operator*() {
+    /// @return the embedded object
+    T &operator*()
+    {
         return *tptr();
     }
-    const T& operator*() const {
+    /// @return the embedded object
+    const T &operator*() const
+    {
         return *tptr();
     }
-
-    T& value() {
+    /// @return the embedded object
+    T &value()
+    {
         return *tptr();
     }
-    const T & value() const {
+    /// @return the embedded object
+    const T &value() const
+    {
         return *tptr();
     };
 
-    template< class... Args >
-    T& emplace( Args&&... args ) {
+    /// Constructs the embedded object.
+    template <class... Args> T &emplace(Args &&... args)
+    {
         new (this) T(std::forward<Args>(args)...);
         return *tptr();
     }
 
-    void reset() {
+    /// Destructs the embedded object.
+    void reset()
+    {
         this->~T();
     }
 
 private:
-    T* tptr() {
-        return reinterpret_cast<T*>(this);
+    typename std::aligned_storage<sizeof(T), alignof(T)>::type data;
+
+    /// @return the embedded object
+    T *tptr()
+    {
+        return reinterpret_cast<T *>(&data);
     }
-    const T* tptr() const {
-        return reinterpret_cast<const T*>(this);
+    /// @return the embedded object
+    const T *tptr() const
+    {
+        return reinterpret_cast<const T *>(&data);
     }
 };
 
