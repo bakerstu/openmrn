@@ -63,15 +63,28 @@ public:
 private:
     Action test_and_sleep()
     {
-        AtomicHolder h(this);
-        if (isDirty_)
+        bool need_sleep = false;
         {
-            isDirty_ = 0;
+            AtomicHolder h(this);
+            if (isDirty_)
+            {
+                isDirty_ = 0;
+                need_sleep = true;
+            }
+            else
+            {
+                isWaiting_ = 1;
+            }
+        }
+        if (need_sleep)
+        {
             return sleep_and_call(
                 &timer_, MSEC_TO_NSEC(1000), STATE(test_and_flush));
         }
-        isWaiting_ = 1;
-        return wait();
+        else
+        {
+            return wait();
+        }
     }
 
     Action test_and_flush()
