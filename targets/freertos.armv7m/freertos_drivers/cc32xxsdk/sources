@@ -36,3 +36,6 @@ CFLAGS += -Wno-strict-prototypes \
 
 CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3200/user.h \
             -D__USER_H__
+
+
+cc_pal.o: CFLAGS+= -Wno-error=misleading-indentation
