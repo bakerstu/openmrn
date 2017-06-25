@@ -151,9 +151,19 @@ __attribute__((__naked__)) static void hard_fault_handler(void)
 }
 
 void hard_fault_stub(void) {
+    const uint32_t C_DEBUGEN = 0x00000001;
+    uint32_t debugreg = *(volatile uint32_t*)0xE000EDF0;
+    if (debugreg & C_DEBUGEN) {
     __asm volatile(
         " BKPT #1\n"
         );
+    } else {
+        resetblink(BLINK_DIE_HARDFAULT);
+        __asm(
+            "	mov r1, %0 \n"
+            "	msr basepri, r1 \n"
+            :: "i" ( 0x20 ) : "r1");
+    }
     while (1);
 }
 
