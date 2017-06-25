@@ -72,9 +72,17 @@ sudo apt-get install git
 sudo apt-get install doxygen
 cd ~
 git clone https://github.com/bakerstu/openmrn/
-cd openmrn/doc
+```
+## Building and Viewing the Documentation
+
+At this point you can build, and then view the documentation. Here are the steps
+to build the documentation:
+
+```
+cd ~openmrn/doc
 make html
 ```
+
 That should create the HTML files. Now open the **Files** application, navigate
 to Home/openmrn/doc and double-click **index.html**. This will open the OpenMRN
 documentation in your browser (which is Firefox by default).

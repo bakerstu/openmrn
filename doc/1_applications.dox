@@ -8,46 +8,54 @@
 
 The easiest way to get started for many people is with samples. We've provided
 the source for some applications. Some of these applications you can run
-directly from the command line. While others will require a device.
+directly from the command line, while others will require a device.
 
 @section application_folders Directory Organization
 
 The sample applications typically have the following folder structure:
 
+@code
     targets/
     config.mk
     Makefile
     subdirs
+@endcode
 
-The code for an application typcially consists of two parts: shared and
-target-specific. The shared code will be at the top folder for the application.
-While the target-specific information will be under a target folder. As an
-example, the blink_raw application has shared code here:
+The code for an application typically consists of two parts: shared and
+target-specific. The shared code will be at the top folder for the application,
+while the target-specific information will be under a target folder. As an
+example, the blink_raw application has these files among the shared and target-
+specific code, respectively:
 
+@code
     applications/blink_raw/
         main.cxx
         targets/freertos.armv7m.mbed-1768/
             hw_init.cxx
+@endcode
 
 The idea is that you can have target-specific (platform-specific) code that
-allows customizing the shared code for different platforms.
+allows customizing the shared code for different platforms. This is typically
+for initializing hardware, while the shared code is used typically for the
+application behavior.
 
 @subsection application_build Building a Sample
 
 Generally when you build a sample, you'll want to do so from a single target
-directory, as that will build faster and only build what you need. Here we're
+directory, as that will build faster and only build what you need. Below we're
 going to build the Linux versions so you can run them without needing a
-specific board.
+specific board, starting with the @ref hub_application example.
 
 @section grid_connect GridConnect Protocol
 
 Some of the sample applications use a protocol referred to here as the
-GridConnect protocol. This is an ASCII protocol that is used by USB-to-CAN
-interfaces sold by [GridConnect](http://gridconnect.com/).
+GridConnect protocol to represent CAN-bus frames. This is an ASCII protocol
+that is used by USB-to-CAN interfaces sold by
+[GridConnect](http://gridconnect.com/).
 
 A normal CAN message in GidConnect format looks like this:
 
-:X <_Identifier_> <N> <_Data-0_><_Data-1_>...<_Data-7_>;
+    :X <_Identifier_> <N> <_Data-0_><_Data-1_>...<_Data-7_>;
 
 This ASCII format is used for TCP messages. On the CAN network all traffic is
 binary.
@@ -56,10 +64,10 @@ Here is an actual example:
 
     :X19545415N0502010202000000;
 
-The ID is 19545415. LCC uses 29-bit CAN identifiers. The data bytes are encoded
-as HEX.
+The ID is 19545415. LCC uses 29-bit CAN identifiers. The identifier and data
+bytes are encoded as HEX.
 
-You can also have messages that contains no extra data. For example:
+You can also have messages that contain no extra data. For example:
 
     :X17050415N;
 
@@ -76,7 +84,7 @@ rather than alphabetical order.
 
 The hub application will run from the command line and it's a great place to
 start with working on an LCC application. You can send CAN packets to the hub
-over TCP and it will display the packets, and also forward them to any others
+over TCP and it will display the packets, and also forward them to any other
 programs that have connected to the same port. This application knows about CAN
 packets, but nothing about LCC. It will forward all CAN packets, regardless of
 their format.
@@ -88,9 +96,11 @@ your desktop computer.
 As mentioned above in the @ref application_folders section, you should typically
 build samples from within a platform-specific folder. For example:
 
-    cd ~/openmrn/applications/hub/targets/linux.x86
-    make
-    ./hub -h
+@code
+cd ~/openmrn/applications/hub/targets/linux.x86
+make
+./hub -h
+@endcode
 
 This will build the application, and then show you the options for the hub
 application. You can run the hub application without any parameters to start
@@ -101,7 +111,7 @@ async_blink, will send out such traffic.
 
 This is a more involved application, and is a good place to start with LCC. This
 application can be run from the command line, or it can be hosted on a
-micro controller to act as a very simple node.
+microcontroller to act as a very simple node.
 
 This node sends out a "blink" event every second.
 
@@ -109,8 +119,10 @@ The Node ID is defined at the target level rather than the shared level. For
 example, if you look at the linux.x86 target folder, you'll find the following
 in the **NodeId.cxx** file:
 
-*   extern const openlcb::NodeID NODE_ID;
-*   const openlcb::NodeID NODE_ID = 0x050101011410ULL;
+@code
+extern const openlcb::NodeID NODE_ID;
+const openlcb::NodeID NODE_ID = 0x050101011410ULL;
+@endcode
 
 * **Note:** Node IDs are required to be unique, so you must obtain your own ID
 before you ship anything using code you built with OpenMRN.
@@ -126,8 +138,8 @@ with both the sample applications, and applications you write. In other words,
 you can start writing and testing the LCC aspects of your application without
 an actual device.
 
-Why is this useful? In general, desktop develop is faster than embedded
-development, as you're delaing with software that is running locally on a much
+Why is this useful? In general, desktop development is faster than embedded
+development, as you're dealing with software that is running locally on a much
 faster machine with richer debugging tools available. As mentioned in
 @ref application_folders, you can easily create two versions of an application
 that share a certain amount of code. So that means you can share your LCC code
