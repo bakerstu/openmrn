@@ -89,15 +89,20 @@ private:
 
     Action test_and_flush()
     {
+        bool need_sleep = false;
         {
             AtomicHolder h(this);
             if (isDirty_)
             {
                 // we received another write during the sleep. Go back to sleep.
                 isDirty_ = 0;
-                return sleep_and_call(
-                    &timer_, MSEC_TO_NSEC(1000), STATE(test_and_flush));
+                need_sleep = true;
             }
+        }
+        if (need_sleep)
+        {
+            return sleep_and_call(
+                &timer_, MSEC_TO_NSEC(1000), STATE(test_and_flush));
         }
         eeprom_flush();
         return call_immediately(STATE(test_and_sleep));
