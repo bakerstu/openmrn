@@ -45,13 +45,14 @@ Some of the sample applications use a protocol referred to here as the
 GridConnect protocol. This is an ASCII protocol that is used by USB-to-CAN
 interfaces sold by [GridConnect](http://gridconnect.com/).
 
-A normal CAN message has the following format:
+A normal CAN message in GidConnect format looks like this:
 
 :X <_Identifier_> <N> <_Data-0_><_Data-1_>...<_Data-7_>;
 
-These messages are sent within a single network (such as a CAN network or over
-TCP) as binary. But if you're using one of the GridConnect devices, their
-I/O format is text. Here is an actual example:
+This ASCII format is used for TCP messages. On the CAN network all traffic is
+binary.
+
+Here is an actual example:
 
     :X19545415N0502010202000000;
 
@@ -63,8 +64,7 @@ You can also have messages that contains no extra data. For example:
     :X17050415N;
 
 A couple of the sample applications output this format to the console in order
-to display the traffic. But, again, the actual CAN/TCP messages will be
-binary messages.
+to display the traffic.
 
 @section application_list Applications
 
@@ -77,13 +77,13 @@ rather than alphabetical order.
 The hub application will run from the command line and it's a great place to
 start with working on an LCC application. You can send CAN packets to the hub
 over TCP and it will display the packets, and also forward them to any others
-programs listening on the same port. This application knows about CAN packets,
-but nothing about LCC. It will forward all CAN packets, regardless of their
-format.
+programs that have connected to the same port. This application knows about CAN
+packets, but nothing about LCC. It will forward all CAN packets, regardless of
+their format.
 
 In addition, you can connect this application to an actual USB-to-CAN interface
-in order to have packets flow between the LCC bus and programs running on your
-desktop computer.
+in order to have packets flow between an LCC CAN segment and programs running on
+your desktop computer.
 
 As mentioned above in the @ref application_folders section, you should typically
 build samples from within a platform-specific folder. For example:
@@ -115,24 +115,27 @@ in the **NodeId.cxx** file:
 * **Note:** Node IDs are required to be unique, so you must obtain your own ID
 before you ship anything using code you built with OpenMRN.
 
+- http://registry.openlcb.org/uniqueidranges
+- http://registry.openlcb.org/requestuniqueidrange
+
 @section application_with_jmri Using JMRI's OpenLCB support
 
 The two samples above both work on Linux using TCP traffic on port 12021. This
 is the same port that JMRI can use, which means you can use JMRI to interact
 with both the sample applications, and applications you write. In other words,
 you can start writing and testing the LCC aspects of your application without
-and actual device.
+an actual device.
 
 Why is this useful? In general, desktop develop is faster than embedded
 development, as you're delaing with software that is running locally on a much
-faster machine. As mentioned in @ref application_folders, you can easily create
-two versions of an application that share a certain amount of code. So that
-means you can share your LCC code between a desktop application and an embedded
-application.
+faster machine with richer debugging tools available. As mentioned in
+@ref application_folders, you can easily create two versions of an application
+that share a certain amount of code. So that means you can share your LCC code
+between a desktop application and an embedded application.
 
 @subsection jmri_adding_openlcb Adding OpenLCB
 
-In order to beging using JMRI with OpenLCB, assuming you have it installed,
+In order to begin using JMRI with OpenLCB, assuming you have it installed,
 you'll need to add an OpenLCB connection to JMRI, following these steps:
 
 - Open the **Edit** menu and click **Preferences**.
