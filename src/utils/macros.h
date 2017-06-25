@@ -177,7 +177,7 @@ extern const char* g_death_file;
 /// Static (aka compile-time) assertion for C implementation files. For C++ use
 /// the language's builtin static_assert functionality.
 #define C_STATIC_ASSERT(expr, name) \
-    typedef unsigned char __static_assert_##name[expr ? 0 : -1];
+    typedef unsigned char __attribute__((unused)) __static_assert_##name[expr ? 0 : -1]
 
 #ifndef ESP_NONOS
 /// Declares (on the ESP8266) that the current function is not executed too
