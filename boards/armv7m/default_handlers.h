@@ -74,6 +74,8 @@ extern void hw_set_to_safe(void);
  */
 void reset_handler(void)
 {
+    asm("cpsid i\n");
+
     unsigned long *section_table_addr = &__data_section_table;
 
     /* copy ram load sections from flash to ram */
@@ -132,12 +134,12 @@ __attribute__((__naked__)) static void hard_fault_handler(void)
         " mov   r2, lr               \n"
         // Simulates a BL instruction from the original PC. Moves the PC to LR,
         // overwrites PC with our return address.
-        " ldr   r2, =g_saved_lr      \n"
+        " ldr   r3, =g_saved_lr      \n"
         " ldr   r1, [r0, 20]         \n"
-        " str   r1, [r2]             \n"
-        " ldr   r2, =g_saved_pc      \n"
+        " str   r1, [r3]             \n"
+        " ldr   r3, =g_saved_pc      \n"
         " ldr   r1, [r0, 24]         \n"
-        " str   r1, [r2]             \n"
+        " str   r1, [r3]             \n"
         " str   r1, [r0, 20]         \n"
         // Overwrites hard fault return address with our breakpoint.
         " ldr   r3, =hard_fault_stub \n"
