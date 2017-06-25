@@ -56,8 +56,14 @@ using std::pair;
 #define EXPECT_DEATH(x...) 
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern int g_death_lineno;
 extern const char* g_death_file;
+#ifdef __cplusplus
+}
+#endif
 
 #if defined(__FreeRTOS__)
 
