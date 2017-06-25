@@ -16,8 +16,8 @@ page will give you a good idea of status of the specifications.
 
 OpenMRN is a set of C++ code that is designed to make it easier to implement
 support for LCC. This might be in accessory decoders, in a command station, in a
-throttle, or any other device. The code is designed to be able to run on micro
-controllers. There are currently a number of different 32-bit micro controllers
+throttle, or any other device. The code is designed to be able to run on
+microcontrollers. There are currently a number of different 32-bit microcontrollers
 supported. To find the full list, you'll need to check the boards folder.
 
 **Note:** The software license terms are 2-clause BSD in order to be commercial
@@ -37,7 +37,7 @@ virtual machine. Below are some high-level instructions on getting started.
 
 ## Create a Linux Virtual Machine
 
-* Install Oracle [VirtualBox](https://www.virtualbox.org/) with is available for
+* Install Oracle [VirtualBox](https://www.virtualbox.org/) which is available for
 free.
 * Create a virtual machine
     * Ideally, this should be a 64-bit virtual machine
