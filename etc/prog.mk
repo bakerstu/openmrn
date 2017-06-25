@@ -142,7 +142,7 @@ lib/timestamp : FORCE $(BUILDDIRS)
 
 # Detect when we have a compound toplevel build and use the toplevel build
 # timestamp to decide whether we need to recurse into the target
-# directory. Tihs saves a lot of makefile recursion when there are multiple
+# directory. This saves a lot of makefile recursion when there are multiple
 # application targets built together that refer of the same openmrn lib target.
 ifdef HAVE_BUILD_TIMESTAMP
 LIBBUILDDEP:=$(HAVE_BUILD_TIMESTAMP)

@@ -37,6 +37,10 @@ ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
 OPENOCDARGS = -c 'set TRANSPORT swd' -f board/ti-cc3200-launchxl.cfg
 #OPENOCDARGS = -f interface/ftdi/ti-icdi.cfg -f interface/ftdi/swd-resistor-hack.cfg -f target/cc32xx.cfg
 #OPENOCDARGS = -f interface/ftdi/olimex-arm-usb-tiny-h.cfg -f interface/ftdi/swd-resistor-hack.cfg -f target/cc32xx.cfg
+# This is for the RedBear wifi mini board
+#OPENOCDARGS = -f interface/cmsis-dap.cfg -c 'cmsis_dap_vid_pid 0x0D28 0x0204' -c 'transport select swd' -c 'reset_config srst_only srst_gates_jtag' -f target/cc32xx.cfg
+
+
 
 run: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
 	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi

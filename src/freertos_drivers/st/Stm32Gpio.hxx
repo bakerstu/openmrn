@@ -230,6 +230,6 @@ struct GpioInputNP : public GpioInputPin<Defs, GPIO_NOPULL>
 ///  ...
 ///  FOO_Pin::set(true);
 #define GPIO_PIN(NAME, BaseClass, PORTNAME, NUM)                               \
-    typedef BaseClass<Stm32GpioDefs<(uint32_t)(GPIO ## PORTNAME), GPIO_PIN_ ## NUM, NUM>> NAME##_Pin
+    typedef BaseClass<Stm32GpioDefs<(uint32_t)(GPIO ## PORTNAME ## _BASE), GPIO_PIN_ ## NUM, NUM>> NAME##_Pin
 
 #endif // _FREERTOS_DRIVERS_ST_STM32GPIO_HXX_
