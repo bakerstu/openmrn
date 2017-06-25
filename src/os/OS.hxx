@@ -478,6 +478,12 @@ private:
 
 /** Allows for OS abstracted access to time.
  */
+
+extern "C"
+{
+extern long long rtcOffset;
+}
+
 class OSTime
 {
 public:
@@ -507,9 +513,6 @@ public:
     }
 
 private:
-    /** realtime clock offset */
-    static long long rtcOffset;
-
     DISALLOW_COPY_AND_ASSIGN(OSTime);
 
     /* Private default constructor prevents instantiating this class. */
