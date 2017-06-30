@@ -42,7 +42,7 @@ TRYPATH:=$(call findfirst,flock,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 FLOCKPATH:=$(TRYPATH)
 endif
-endif #TIVAWAREPATH
+endif #FLOCKPATH
 
 ################ tivaware ##################
 ifndef TIVAWAREPATH

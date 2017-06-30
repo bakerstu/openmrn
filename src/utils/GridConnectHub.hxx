@@ -105,7 +105,8 @@ public:
 
 /** Create this port for a CAN hub and all packets will be written to stdout in
  * gridconnect format. */
-class GcPacketPrinter {
+class GcPacketPrinter
+{
 public:
     /// constructor
     ///

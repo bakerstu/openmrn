@@ -89,6 +89,9 @@ int g_death_lineno;
 /** Captures point of death (file). */
 const char* g_death_file;
 
+/** clock management **/
+long long rtcOffset = 0;
+
 
 /* This section of code is required because CodeSourcery's mips-gcc
  * distribution contains a strangely compiled NewLib (in the unhosted-libc.a
