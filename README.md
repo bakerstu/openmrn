@@ -79,7 +79,7 @@ At this point you can build, and then view the documentation. Here are the steps
 to build the documentation:
 
 ```
-cd ~openmrn/doc
+cd ~/openmrn/doc
 make html
 ```
 
