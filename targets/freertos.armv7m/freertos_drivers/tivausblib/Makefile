@@ -1,4 +1,4 @@
-OPENMRNPATH ?= $(realpath ../../..)
+OPENMRNPATH ?= $(realpath ../../../..)
 include $(OPENMRNPATH)/etc/lib.mk
 
 SUBDIRS = device host

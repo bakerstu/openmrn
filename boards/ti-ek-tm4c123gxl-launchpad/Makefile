@@ -19,7 +19,7 @@ endif
 
 OPENOCDARGS = -f board/ek-lm4f120xl.cfg
 
-SYSLIBRARIESEXTRA = -ltivausblib -ltivausblib_device -ltivadriverlib
+SYSLIBRARIESEXTRA = -lfreertos_drivers_tivausblib -lfreertos_drivers_tivausblib_device -lfreertos_drivers_tivadriverlib
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUart.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaI2C.o \
