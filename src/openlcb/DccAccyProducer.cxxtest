@@ -1,0 +1,274 @@
+#include "utils/async_if_test_helper.hxx"
+
+#include "DccAccyProducer.hxx"
+
+namespace openlcb
+{
+
+using namespace std::placeholders;
+
+class DccAccyProducerTest : public AsyncNodeTest
+{
+public:
+    MOCK_METHOD2(state_callback1, void(unsigned, bool));
+    MOCK_METHOD2(state_callback2, void(unsigned, bool));
+
+protected:
+    DccAccyProducerTest()
+    {
+        print_all_packets();
+        wait();
+    }
+
+public:
+    SyncNotifiable n_;
+
+    class ImplFlow : public StateFlowBase
+    {
+    public:
+        ImplFlow(DccAccyProducerTest *test)
+            : StateFlowBase(test->ifCan_.get())
+            , dap1_(test->node_,
+                 std::bind(&DccAccyProducerTest::state_callback1, test, _1, _2))
+            , dap2_(test->node_,
+                 std::bind(&DccAccyProducerTest::state_callback2, test, _1, _2))
+            , test_(test)
+        {
+        }
+
+        ~ImplFlow()
+        {
+            auto *b1 = full_allocation_result(&dap1_);
+            auto *b2 = full_allocation_result(&dap2_);
+            if (b1)
+            {
+                b1->unref();
+            }
+            if (b2)
+            {
+                b2->unref();
+            }
+        }
+
+        DccAccyProducerInput *response1()
+        {
+            return full_allocation_result(&dap1_)->data();
+        }
+
+        DccAccyProducerInput *response2()
+        {
+            return full_allocation_result(&dap2_)->data();
+        }
+
+        DccAccyProducer dap1_;
+        DccAccyProducer dap2_;
+
+        DccAccyProducerTest *test_;
+    };
+
+};
+
+TEST_F(DccAccyProducerTest, SendSet)
+{
+    wait();
+    clear_expect();
+
+    class TestFlow : public ImplFlow
+    {
+    public:
+        TestFlow(DccAccyProducerTest *t)
+            : ImplFlow(t)
+        {
+        }
+
+        void start(uint16_t address, bool value)
+        {
+            address_ = address;
+            value_ = value;
+            start_flow(STATE(send_set));
+        }
+
+        Action send_set()
+        {
+            return invoke_subflow_and_wait(&dap1_, STATE(set_done),
+                                           DccAccyProducerCommands::SET,
+                                           address_, value_);
+        }
+
+        Action set_done()
+        {
+            test_->n_.notify();
+            return exit();
+        }
+
+        uint16_t address_;
+        uint16_t value_;
+    } flow(this);
+
+    expect_packet(":X195B422AN0101020000FF0008;");
+    EXPECT_CALL(*this, state_callback1(1, DccAccyProducer::REVERSE)).Times(1);
+    EXPECT_CALL(*this, state_callback2(1, DccAccyProducer::REVERSE)).Times(1);
+    flow.start(1, DccAccyProducer::REVERSE);
+    n_.wait_for_notification();
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN0101020000FF0009;");
+    EXPECT_CALL(*this, state_callback1(1, DccAccyProducer::NORMAL)).Times(1);
+    EXPECT_CALL(*this, state_callback2(1, DccAccyProducer::NORMAL)).Times(1);
+    flow.start(1, DccAccyProducer::NORMAL);
+    n_.wait_for_notification();
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN0101020000FF0200;");
+    EXPECT_CALL(*this, state_callback1(253, DccAccyProducer::REVERSE)).Times(1);
+    EXPECT_CALL(*this, state_callback2(253, DccAccyProducer::REVERSE)).Times(1);
+    flow.start(253, DccAccyProducer::REVERSE);
+    n_.wait_for_notification();
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN0101020000FF0201;");
+    EXPECT_CALL(*this, state_callback1(253, DccAccyProducer::NORMAL)).Times(1);
+    EXPECT_CALL(*this, state_callback2(253, DccAccyProducer::NORMAL)).Times(1);
+    flow.start(253, DccAccyProducer::NORMAL);
+    n_.wait_for_notification();
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN0101020000FF0FF6;");
+    EXPECT_CALL(*this, state_callback1(2040, DccAccyProducer::REVERSE)).Times(1);
+    EXPECT_CALL(*this, state_callback2(2040, DccAccyProducer::REVERSE)).Times(1);
+    flow.start(2040, DccAccyProducer::REVERSE);
+    n_.wait_for_notification();
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    expect_packet(":X195B422AN0101020000FF0FF7;");
+    EXPECT_CALL(*this, state_callback1(2040, DccAccyProducer::NORMAL)).Times(1);
+    EXPECT_CALL(*this, state_callback2(2040, DccAccyProducer::NORMAL)).Times(1);
+    flow.start(2040, DccAccyProducer::NORMAL);
+    n_.wait_for_notification();
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    wait();
+}
+
+TEST_F(DccAccyProducerTest, SendQuery_and_Response)
+{
+    wait();
+    clear_expect();
+
+    class TestFlow : public ImplFlow
+    {
+    public:
+        TestFlow(DccAccyProducerTest *t)
+            : ImplFlow(t)
+        {
+        }
+
+        void start(uint16_t address)
+        {
+            address_ = address;
+            start_flow(STATE(send_query));
+        }
+
+        Action send_query()
+        {
+            return invoke_subflow_and_wait(&dap1_, STATE(query_done),
+                                           DccAccyProducerCommands::QUERY,
+                                           address_);
+        }
+
+        Action query_done()
+        {
+            test_->n_.notify();
+            return exit();
+        }
+
+        uint16_t address_;
+    } flow(this);
+
+    // valid response
+    expect_packet(":X198F422AN0101020000FF0008;");
+    EXPECT_CALL(*this, state_callback1(1, DccAccyProducer::REVERSE)).Times(1);
+    EXPECT_CALL(*this, state_callback2(1, DccAccyProducer::REVERSE)).Times(1);
+    send_packet(":X194C4001N0101020000FF0008;");
+    flow.start(1);
+    n_.wait_for_notification();
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    // invalid response
+    expect_packet(":X198F422AN0101020000FF0008;");
+    EXPECT_CALL(*this, state_callback1(1, DccAccyProducer::NORMAL)).Times(1);
+    EXPECT_CALL(*this, state_callback2(1, DccAccyProducer::NORMAL)).Times(1);
+    send_packet(":X194C5001N0101020000FF0008;");
+    flow.start(1);
+    n_.wait_for_notification();
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    // unknown response
+    expect_packet(":X198F422AN0101020000FF0008;");
+    EXPECT_CALL(*this, state_callback1(_, _)).Times(0);
+    EXPECT_CALL(*this, state_callback2(_, _)).Times(0);
+    send_packet(":X194C7001N0101020000FF0008;");
+    flow.start(1);
+    n_.wait_for_notification();
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    wait();
+}
+
+TEST_F(DccAccyProducerTest, EventReport)
+{
+    wait();
+    clear_expect();
+
+    class TestFlow : public ImplFlow
+    {
+    public:
+        TestFlow(DccAccyProducerTest *t)
+            : ImplFlow(t)
+        {
+        }
+
+        void start(uint16_t address)
+        {
+            address_ = address;
+            start_flow(STATE(send_query));
+        }
+
+        Action send_query()
+        {
+            return invoke_subflow_and_wait(&dap1_, STATE(query_done),
+                                           DccAccyProducerCommands::QUERY,
+                                           address_);
+        }
+
+        Action query_done()
+        {
+            test_->n_.notify();
+            return exit();
+        }
+
+        uint16_t address_;
+    } flow(this);
+
+    // reverse event repoprt
+    EXPECT_CALL(*this, state_callback1(1, DccAccyProducer::REVERSE)).Times(1);
+    EXPECT_CALL(*this, state_callback2(1, DccAccyProducer::REVERSE)).Times(1);
+    send_packet(":X195B4001N0101020000FF0008;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    // normal event report
+    EXPECT_CALL(*this, state_callback1(1, DccAccyProducer::NORMAL)).Times(1);
+    EXPECT_CALL(*this, state_callback2(1, DccAccyProducer::NORMAL)).Times(1);
+    send_packet(":X195B4001N0101020000FF0009;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    // event report out of range
+    EXPECT_CALL(*this, state_callback1(_, _)).Times(0);
+    EXPECT_CALL(*this, state_callback2(_, _)).Times(0);
+    send_packet(":X195B4001N0101020000FF0007;");
+    wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
+
+    wait();
+}
+
+} // namespace openlcb
