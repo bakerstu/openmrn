@@ -17,9 +17,6 @@ include $(OPENMRNPATH)/etc/tivaware.mk
 # Find FreeRTOSTCP
 include $(OPENMRNPATH)/etc/freertos_tcp.mk
 
-SYSLIBRARIESEXTRA = -lfreertos_drivers_tivausblib -lfreertos_drivers_tivausblib_device -lfreertos_drivers_tivadriverlib \
-           -lfreertos_drivers_freertos_tcp -lfreertos_drivers_net_freertos_tcp
-
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUart.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUsbCdcDevice.o \
