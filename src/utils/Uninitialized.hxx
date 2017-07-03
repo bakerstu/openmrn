@@ -90,7 +90,7 @@ public:
     /// Destructs the embedded object.
     void reset()
     {
-        this->~T();
+        tptr()->~T();
     }
 
 private:
