@@ -167,7 +167,7 @@ string uint64_to_string_hex(uint64_t value, unsigned padding)
 {
     string ret;
     char tmp[17];
-    uint64_integer_to_buffer(value, tmp);
+    uint64_integer_to_buffer_hex(value, tmp);
     ret.append(tmp);
     if (padding > ret.size())
     {
