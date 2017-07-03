@@ -42,6 +42,7 @@
 #include "executor/CallableFlow.hxx"
 #include "openlcb/NonAuthoritativeEventProducer.hxx"
 #include "openlcb/TractionDefs.hxx"
+#include "utils/Uninitialized.hxx"
 
 namespace openlcb
 {
@@ -134,10 +135,11 @@ public:
         AtomicHolder h(this);
         if (instances_.empty())
         {
-            eventProducer_ = new BitRangeNonAuthoritativeEventP(
+            uint32_t max_address = MAX_ADDRESS;
+            eventProducer_.emplace(
                       node,
                       TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE + 8,
-                      MAX_ADDRESS, state_callback);
+                      max_address, state_callback);
         }
         instances_.push_back(this);
     }
@@ -153,6 +155,10 @@ public:
                 instances_.erase(instances_.begin() + i);
                 break;
             }
+        }
+        if (instances_.empty())
+        {
+            eventProducer_.reset();
         }
     }
 
@@ -229,7 +235,7 @@ private:
 
     /// Singleton instance of a BitRangeNonAuthoritativeEventP for the DCC
     /// accessory address Well-Known Event ID range.
-    static BitRangeNonAuthoritativeEventP *eventProducer_;
+    static uninitialized<BitRangeNonAuthoritativeEventP> eventProducer_;
 
     /// Vector of all the subscribers to the DCC accessory address Well-Known
     /// Event ID Range

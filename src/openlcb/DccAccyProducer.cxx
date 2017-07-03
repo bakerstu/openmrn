@@ -38,7 +38,7 @@
 namespace openlcb
 {
 
-BitRangeNonAuthoritativeEventP *DccAccyProducer::eventProducer_;
+uninitialized<BitRangeNonAuthoritativeEventP> DccAccyProducer::eventProducer_;
 std::vector<DccAccyProducer*> DccAccyProducer::instances_;
 
 } // namespace openlcb
