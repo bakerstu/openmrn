@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,15 +24,21 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file OS.cxx
- * This file represents a C++ language abstraction of common operating
- * system calls.
+ * @file DccAccyProducer.cxx
  *
- * @author Stuart W. Baker
- * @date 7 May 2017
+ * Producer class that represents 2044 consecutive bits out of DCC accessory
+ * control Well-Known Event ID space.
+ *
+ * @author Stuart Baker
+ * @date 17 June 2017
  */
 
-#include "os/OS.hxx"
+#include "openlcb/DccAccyProducer.hxx"
 
-long long OSTime::rtcOffset = 0;
+namespace openlcb
+{
 
+uninitialized<BitRangeNonAuthoritativeEventP> DccAccyProducer::eventProducer_;
+std::vector<DccAccyProducer*> DccAccyProducer::instances_;
+
+} // namespace openlcb

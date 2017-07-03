@@ -199,6 +199,7 @@ protected:
     StateFlowBase(Service *service)
         : service_(service)
         , state_(STATE(terminated))
+        , allocationResult_(nullptr)
     {
     }
 

@@ -55,6 +55,7 @@
 
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
+#include "TivaEEPROMBitSet.hxx"
 #include "DummyGPIO.hxx"
 #include "bootloader_hal.h"
 
@@ -101,6 +102,10 @@ const size_t EEPROMEmulation::SECTOR_SIZE = (4*1024);
 
 static TivaEEPROMEmulation eeprom("/dev/eeprom", 1500);
 
+extern StoredBitSet* g_gpio_stored_bit_set;
+StoredBitSet* g_gpio_stored_bit_set = nullptr;
+constexpr unsigned EEPROM_BIT_COUNT = 84;
+constexpr unsigned EEPROM_BITS_PER_CELL = 28;
 
 extern "C" {
 void hw_set_to_safe(void);
@@ -372,7 +377,10 @@ void hw_preinit(void)
         blinker_pattern = 0;
       }
     } while (blinker_pattern || rest_pattern);
+
     asm volatile ("cpsid i\n");
+
+    g_gpio_stored_bit_set = new EEPROMStoredBitSet<TivaEEPROMHwDefs<EEPROM_BIT_COUNT, EEPROM_BITS_PER_CELL>>(2, 2);
 }
 
 /** Timer interrupt for DCC packet handling.

@@ -340,7 +340,10 @@ to it from different places), applications that are placed elsewhere in the
 filesystem need to set `OPENMRNPATH` explicitly or in the user startup script
 (e.g., in `~/.bashrc` writing `export OPENMRNPATH=~/openmrn`).
 
-@note When setting the path in a Makefile, you cannot use `~` to refer to your home directory. `~` is a bash expansion, and make does not perform bash expansion before setting variables. If needed, always refer to your home directory as `$``(HOME)`. Example: {@code OPENMRNPATH=$(realpath $(HOME)/openmrn)}
+@note When setting the path in a Makefile, you cannot use `~` to refer to your
+home directory. `~` is a bash expansion, and make does not perform bash
+expansion before setting variables. If needed, always refer to your home
+directory as `$``(HOME)`. Example: {@code OPENMRNPATH=$(realpath $(HOME)/openmrn)}
 
 Similar to how the `OPENMRNPATH` variable is used to find the OpenMRN
 distribution, we also use a variable called `APP_PATH` to find the top-level of
@@ -465,7 +468,8 @@ Compiling certain parts of OpenMRN, certain applications, certain device
 drivers and middleware requires specific dependencies to be present. These
 dependencies may be toolchains (compilers, linkers, etc for the host or
 cross-compilingfor the target), source code for certain libraries (such as XML
-parser or FreeRTOS), various MCU vendor middlewares or tools for debugging or flashing microcontrollers (OpenOCD for example).
+parser or FreeRTOS), various MCU vendor middlewares or tools for debugging or
+flashing microcontrollers (OpenOCD for example).
 
 @subsection dep_lookup Dependency lookup process
 
@@ -499,9 +503,16 @@ directory and the build proceeds to other targets/dirs. At the same time a
 warning message is printed, pointing out what dependency was missing:
 
 @{code
-** Ignoring target freertos.armv7m, because the following libraries are not installed: STM32CUBEF3PATH. This is not an error, so please do not report as a bug. If you care about target freertos.armv7m, make sure the quoted libraries are installed. For most libraries you can check /usr/local/google/home/bracz/train/openlcb/openmrn/etc/path.mk to see where we looked for these dependencies.}
+** Ignoring target freertos.armv7m, because the following libraries are not
+installed: STM32CUBEF3PATH. This is not an error, so please do not report as a
+bug. If you care about target freertos.armv7m, make sure the quoted libraries
+are installed. For most libraries you can check
+/usr/local/google/home/bracz/train/openlcb/openmrn/etc/path.mk to see where we
+looked for these dependencies.}
 
-The list of dependencies for a given directory are listed in the DEPS variable, so in the above directory there was a line in the Makefile or in the included `helper.mk` files that said: {@code DEPS += STM32CUBEF3PATH}
+The list of dependencies for a given directory are listed in the DEPS variable,
+so in the above directory there was a line in the Makefile or in the included
+`helper.mk` files that said: {@code DEPS += STM32CUBEF3PATH}
 
 @subsection dep_location_versioning Dependency location and versioning
 
