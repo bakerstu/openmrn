@@ -693,9 +693,9 @@ private:
         response_.push_back(available_commands >> 8);
         response_.push_back(available_commands & 0xff);
         // Write lengths
-        response_.push_back(
+        response_.push_back(static_cast<char> (
             MemoryConfigDefs::LENGTH_1 | MemoryConfigDefs::LENGTH_2 |
-            MemoryConfigDefs::LENGTH_4 | MemoryConfigDefs::LENGTH_ARBITRARY);
+            MemoryConfigDefs::LENGTH_4 | MemoryConfigDefs::LENGTH_ARBITRARY));
 
         uint8_t min_space = 0xFF;
         uint8_t max_space = 0;

@@ -148,7 +148,9 @@ private:
                                 BarrierNotifiable *done)
     {
         Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID;
-        if (pins_[registry_entry.user_arg >> 1]->is_clr())
+        unsigned b1 = pins_[registry_entry.user_arg >> 1]->is_set() ? 1 : 0;
+        unsigned b2 = registry_entry.user_arg & 1;  // on or off event? 
+        if (b1 ^ b2)
         {
             mti++; // INVALID
         }
