@@ -141,7 +141,10 @@ public:
     {
         delete [] pool;
     }
-    
+
+    /** Visible for testing. Check internal consistency. */
+    int check_consistency();
+
 private:
     enum
     {
