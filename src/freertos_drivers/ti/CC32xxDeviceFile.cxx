@@ -120,6 +120,16 @@ int CC32xxDeviceFile::open(File* file, const char *path, int flags, int mode)
             lock_.unlock();
             switch (result)
             {
+                case SL_FS_ERR_INVALID_MAGIC_NUM:
+                    sl_FsDel((const unsigned char *)path, 0);
+                    sl_FsOpen((const unsigned char *)path,
+                              FS_MODE_OPEN_CREATE(maxSizeOnCreate, 0),
+                              nullptr, &handle);
+                    sl_FsClose(handle, nullptr, nullptr, 0);
+                    // This error happens when the file was created but not
+                    // closed and thus the FAT entry is not correctly
+                    // written. The workaround is to re-create the file, so
+                    // we'll return as if it was nonexistant.
                 case SL_FS_FILE_HAS_NOT_BEEN_CLOSE_CORRECTLY:
                     // we fake a not existent error here. When the file gets
                     // opened for write, that will work.
