@@ -296,4 +296,4 @@ void AliasCache::touch(Metadata* metadata)
     }
 }
 
-};
+}
