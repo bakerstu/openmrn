@@ -117,10 +117,12 @@ private:
 
 extern EepromTimerFlow eepromTimerFlow_;
 
+#ifndef SKIP_UPDATED_CALLBACK
 extern "C" {
 void eeprom_updated_notification() {
     eepromTimerFlow_.wakeup();
 }
 }
+#endif
 
 #endif // FREERTOS_DRIVERS_TI_CC32XXEEPROMFLUSHFLOW_HXX_
