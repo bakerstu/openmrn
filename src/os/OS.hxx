@@ -91,6 +91,15 @@ public:
         return handle != 0;
     }
 
+    /** Inherits the current thread. */
+    void inherit()
+    {
+        HASSERT(!is_created());
+        handle = os_thread_self();
+        entry();
+        handle = 0;
+    }
+
     /** Return the current thread priority.
      * @param thread handle to thread of interest
      * @return current thread priority

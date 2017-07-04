@@ -152,6 +152,9 @@ public:
     /// @return the thread handle.
     os_thread_t thread_handle() { return OSThread::get_handle(); }
 
+    /// Die if we are not on the current executor.
+    void assert_current() { HASSERT(os_thread_self() == thread_handle()); }
+    
     /// @return a number that gets incremented by one every time an executable
     /// runs.
     virtual uint32_t sequence() = 0;
@@ -345,8 +348,7 @@ public:
      * be called to run the executor loop. It will exit when the execut gets
      * shut down. Useful for having an executor loop run in the main thread. */
     void thread_body() {
-        HASSERT(!is_created());
-        entry();
+        inherit();
     }
 
     /// @return true if there are no executables waiting on this thread to be
