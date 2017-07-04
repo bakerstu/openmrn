@@ -95,12 +95,14 @@ public:
     /// @returns the alias cache for local nodes (vnodes and proxies)
     AliasCache *local_aliases()
     {
+        executor()->assert_current();
         return &localAliases_;
     }
 
     /// @returns the alias cache for remote nodes on this IF
     AliasCache *remote_aliases()
     {
+        executor()->assert_current();
         return &remoteAliases_;
     }
 
