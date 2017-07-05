@@ -299,7 +299,7 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixed)
 TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
 {
     EXPECT_CALL(canBus_, mwrite(":X1910022BN02010D000004;")).Times(1);
-    ifCan_->local_aliases()->add(TEST_NODE_ID + 1, 0x22B);
+    run_x([this](){ifCan_->local_aliases()->add(TEST_NODE_ID + 1, 0x22B);});
     DefaultNode other_node(ifCan_.get(), TEST_NODE_ID + 1);
 
     send_packet(":X1B22A555N3031323334353637;");
@@ -487,7 +487,7 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheHit)
 {
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
     NodeHandle h{TEST_NODE_ID + 3, 0};
-    ifCan_->remote_aliases()->add(h.id, 0x77C);
+    run_x([this, &h](){ifCan_->remote_aliases()->add(h.id, 0x77C);});
     expect_packet(":X1A77C22AN30313233343536;");
     auto *b = ifCan_->dispatcher()->alloc();
     b->set_done(get_notifiable());
@@ -518,7 +518,7 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
     wait_for_notification();
     EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS, c->result());
     // Checks that the new lookup value got into the cache.
-    EXPECT_EQ(0x210U, ifCan_->remote_aliases()->lookup(h.id));
+    run_x([this, &h](){EXPECT_EQ(0x210U, ifCan_->remote_aliases()->lookup(h.id));});
 }
 
 TEST_F(AsyncDatagramTest, ResponseOKWithCode)

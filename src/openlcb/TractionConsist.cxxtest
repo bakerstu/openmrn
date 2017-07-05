@@ -15,9 +15,9 @@ class ConsistTest : public TractionTest {
 protected:
     ConsistTest() {
         create_allocated_alias();
-        otherIf_.local_aliases()->add(nodeIdLead, 0x771);
+        run_x([this](){otherIf_.local_aliases()->add(nodeIdLead, 0x771);
         otherIf_.local_aliases()->add(nodeIdC1, 0x772);
-        otherIf_.local_aliases()->add(nodeIdC2, 0x773);
+        otherIf_.local_aliases()->add(nodeIdC2, 0x773);});
         nodeLead_.reset(new TrainNodeForProxy(&trainService_, &trainLead_));
         nodeC1_.reset(new TrainNodeForProxy(&trainService_, &trainC1_));
         nodeC2_.reset(new TrainNodeForProxy(&trainService_, &trainC2_));

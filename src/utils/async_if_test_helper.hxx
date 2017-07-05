@@ -318,7 +318,7 @@ protected:
         : pendingAliasAllocation_(false)
     {
         ifCan_.reset(new IfCan(&g_executor, &can_hub0, local_alias_cache_size, remote_alias_cache_size, local_node_count));
-        ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A);
+        run_x([this](){ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A);});
         ifCan_->set_alias_allocator(
             new AliasAllocator(TEST_NODE_ID, ifCan_.get()));
 
@@ -351,7 +351,7 @@ protected:
             ifCan_->set_alias_allocator(
                 new AliasAllocator(TEST_NODE_ID, ifCan_.get()));
         }
-        ifCan_->alias_allocator()->TEST_add_allocated_alias(alias, repeat);
+        run_x([this, alias, repeat](){ifCan_->alias_allocator()->TEST_add_allocated_alias(alias, repeat);});
     }
 
     void expect_next_alias_allocation(NodeAlias a = 0)

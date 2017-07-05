@@ -35,6 +35,8 @@ TEST_F(AsyncIfTest, InjectFrame)
     wait();
 }
 
+#define RX(args) run_x([this](){args;})
+
 TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
 {
     StrictMock<MockCanFrameHandler> h;
@@ -91,29 +93,40 @@ TEST_F(AsyncIfTest, RemoteAliasLearned)
 {
     send_packet(":X10701782N010203040506;");
     wait();
-    EXPECT_EQ(0x782U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040506)));
-    EXPECT_EQ(
-        UINT64_C(0x010203040506), ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
+    RX({
+        EXPECT_EQ(
+            0x782U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040506)));
+        EXPECT_EQ(UINT64_C(0x010203040506),
+                  ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
+    });
 
     // let's re-learn it.
     send_packet(":X10701782N010203040507;");
     wait();
-    EXPECT_EQ(0U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040506)));
-    EXPECT_EQ(
-        UINT64_C(0x010203040507), ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
-    EXPECT_EQ(0x782U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040507)));
+    RX({
+        EXPECT_EQ(
+            0U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040506)));
+        EXPECT_EQ(UINT64_C(0x010203040507),
+            ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
+        EXPECT_EQ(
+            0x782U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040507)));
+    });
 
     // then forget
     send_packet(":X10703782N010203040507;");
     wait();
-    EXPECT_EQ(0U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040506)));
-    EXPECT_EQ(0U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040507)));
-    EXPECT_EQ(0ULL, ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
+    RX({
+        EXPECT_EQ(
+            0U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040506)));
+        EXPECT_EQ(
+            0U, ifCan_->remote_aliases()->lookup(UINT64_C(0x010203040507)));
+        EXPECT_EQ(0ULL, ifCan_->remote_aliases()->lookup(NodeAlias(0x782U)));
+    });
 }
 
 TEST_F(AsyncIfTest, AMESupport)
 {
-    ifCan_->local_aliases()->add(UINT64_C(0x050101011877), 0x729U);
+    RX(ifCan_->local_aliases()->add(UINT64_C(0x050101011877), 0x729U));
     send_packet_and_expect_response(":X10702643N050101011877;",
                                     ":X10701729N050101011877;");
     wait();
@@ -335,26 +348,26 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
     b->set_done(get_notifiable());
     ifCan_->global_message_write_flow()->send(b);
     wait_for_notification();
-    EXPECT_EQ(0x33AU, ifCan_->local_aliases()->lookup(TEST_NODE_ID + 1));
+    RX({EXPECT_EQ(0x33AU, ifCan_->local_aliases()->lookup(TEST_NODE_ID + 1));
     EXPECT_EQ(TEST_NODE_ID + 1,
-              ifCan_->local_aliases()->lookup(NodeAlias(0x33A)));
+              ifCan_->local_aliases()->lookup(NodeAlias(0x33A)));});
 }
 
 TEST_F(AsyncMessageCanTests, AliasConflictAllocatedNode)
 {
     // This alias is in the cache since the setup routine.
-    EXPECT_EQ(TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A)));
+    RX(EXPECT_EQ(TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A))));
     // If someone else uses it (not for CID frame)
     send_packet(":X1800022AN;");
     wait();
     // Then it disappears from there.
-    EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x22A)));
+    RX(EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x22A))));
 }
 
 TEST_F(AsyncMessageCanTests, AliasConflictCIDReply)
 {
     // This alias is in the cache since the setup routine.
-    EXPECT_EQ(TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A)));
+    RX(EXPECT_EQ(TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A))));
     // If someone else sends a CID frame, then we respond with an RID frame
 
     send_packet_and_expect_response(":X1700022AN;", ":X1070022AN;");
@@ -366,7 +379,7 @@ TEST_F(AsyncMessageCanTests, AliasConflictCIDReply)
     send_packet_and_expect_response(":X1478922AN;", ":X1070022AN;");
 
     // And we still have it in the cache.
-    EXPECT_EQ(TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A)));
+    RX(EXPECT_EQ(TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A))));
 }
 
 TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
@@ -379,7 +392,7 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
      * detected at the time the next outgoing virtual node tries to allocate
      * that alias, and we'll test that it actually generates a new one
      * instead. */
-    ifCan_->local_aliases()->remove(NodeAlias(0x22A)); // resets the cache.
+    RX(ifCan_->local_aliases()->remove(NodeAlias(0x22A))); // resets the cache.
     auto* b = ifCan_->global_message_write_flow()->alloc();
     create_allocated_alias();
     expect_next_alias_allocation();
@@ -391,18 +404,18 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     usleep(250000);
     wait();
     // Here we have the next reserved alias.
-    EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
-              ifCan_->local_aliases()->lookup(NodeAlias(0x44C)));
+    RX(EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+                 ifCan_->local_aliases()->lookup(NodeAlias(0x44C))));
     // A CID packet gets replied to.
     send_packet_and_expect_response(":X1478944CN;", ":X1070044CN;");
 
     // We still have it in the cache.
-    EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
-              ifCan_->local_aliases()->lookup(NodeAlias(0x44C)));
+    RX(EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+                 ifCan_->local_aliases()->lookup(NodeAlias(0x44C))));
     // We kick it out with a regular frame.
     send_packet(":X1800044CN;");
     wait();
-    EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x44C)));
+    RX(EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x44C))));
 
     // At this point we have an invalid alias in the reserved_aliases()
     // queue. We check here that a new node gets a new alias.
@@ -420,11 +433,11 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     ifCan_->global_message_write_flow()->send(b);
     wait_for_notification();
 
-    EXPECT_EQ(TEST_NODE_ID + 1,
-              ifCan_->local_aliases()->lookup(NodeAlias(0x44D)));
+    RX(EXPECT_EQ(TEST_NODE_ID + 1,
+                 ifCan_->local_aliases()->lookup(NodeAlias(0x44D))));
     usleep(250000);
-    EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
-              ifCan_->local_aliases()->lookup(NodeAlias(0x6AA)));
+    RX(EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+                 ifCan_->local_aliases()->lookup(NodeAlias(0x6AA))));
 }
 
 TEST_F(AsyncIfTest, PassGlobalMessageToIf)
@@ -447,7 +460,7 @@ TEST_F(AsyncIfTest, PassGlobalMessageToIf)
             _));
     ifCan_->dispatcher()->register_handler(&h, 0x5B4, 0xffff);
 
-    ifCan_->remote_aliases()->add(id, alias);
+    RX(ifCan_->remote_aliases()->add(id, alias));
 
     send_packet(":X195B4210N0102030405060708;");
     wait();
@@ -496,7 +509,7 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIf)
             _));
     ifCan_->dispatcher()->register_handler(&h, 0x488, 0xffff);
 
-    ifCan_->remote_aliases()->add(id, alias);
+    RX(ifCan_->remote_aliases()->add(id, alias));
 
     // The "verify nodeid handler" will respond.
     send_packet_and_expect_response(":X19488210N022A;",
@@ -627,7 +640,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithCachedAlias)
 
     expect_packet(":X1948822AN0210050101FFFFDD;");
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
-    ifCan_->remote_aliases()->add(id, alias);
+    RX(ifCan_->remote_aliases()->add(id, alias));
     b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {id, 0},
                      node_id_to_buffer(id));
@@ -643,7 +656,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageNoPayload)
 
     expect_packet(":X1948822AN0210;");
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
-    ifCan_->remote_aliases()->add(id, alias);
+    RX(ifCan_->remote_aliases()->add(id, alias));
     b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {id, 0},
                      EMPTY_PAYLOAD);
@@ -661,7 +674,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeWithConflictingAlias)
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
     // Both the cache and the caller gives an alias. System should use the
     // cache.
-    ifCan_->remote_aliases()->add(id, alias);
+    RX(ifCan_->remote_aliases()->add(id, alias));
     b->data()->reset(Defs::MTI_VERIFY_NODE_ID_ADDRESSED,
                      TEST_NODE_ID, {id, 0x111},
                      node_id_to_buffer(id));
@@ -738,9 +751,9 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCachedAlias)
     static const NodeID id = 0x050101FFFFDDULL;
 
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
-    ifCan_->remote_aliases()->add(id, alias);
+    RX(ifCan_->remote_aliases()->add(id, alias));
     // Simulate cache miss on local alias cache.
-    ifCan_->local_aliases()->remove(0x22A);
+    RX(ifCan_->local_aliases()->remove(0x22A));
     create_allocated_alias();
     expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000003;"); // AMD for our new alias.
@@ -760,7 +773,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMiss)
 
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
     // Simulate cache miss on local alias cache.
-    ifCan_->local_aliases()->remove(0x22A);
+    RX(ifCan_->local_aliases()->remove(0x22A));
     create_allocated_alias();
     expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000003;"); // AMD for our new alias.
@@ -787,7 +800,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMissTimeout)
 
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
     // Simulate cache miss on local alias cache.
-    ifCan_->local_aliases()->remove(0x22A);
+    RX(ifCan_->local_aliases()->remove(0x22A));
     create_allocated_alias();
     expect_next_alias_allocation();
     expect_packet(":X1070133AN02010D000003;"); // AMD for our new alias.

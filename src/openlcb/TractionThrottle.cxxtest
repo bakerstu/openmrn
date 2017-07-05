@@ -16,7 +16,7 @@ protected:
     {
         print_all_packets();
         create_allocated_alias();
-        otherIf_.local_aliases()->add(TRAIN_NODE_ID, 0x771);
+        run_x([this](){otherIf_.local_aliases()->add(TRAIN_NODE_ID, 0x771);});
         trainNode_.reset(new TrainNodeForProxy(&trainService_, &trainImpl_));
         wait();
     }
