@@ -87,7 +87,7 @@ TEST_F(ThrottleTest, SendAssign)
         Action send_assign()
         {
             return invoke_subflow_and_wait(&throttle_, STATE(assign_done),
-                TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+                TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID, false);
         }
 
         Action assign_done()
@@ -131,7 +131,7 @@ TEST_F(ThrottleTest, SendAssignRelease)
         Action send_assign()
         {
             return invoke_subflow_and_wait(&throttle_, STATE(assign_done),
-                TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+                TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID, false);
         }
 
         Action send_release()
@@ -191,7 +191,7 @@ TEST_F(ThrottleTest, SendQuery)
         Action send_assign()
         {
             return invoke_subflow_and_wait(&throttle_, STATE(assign_done),
-                TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+                TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID, false);
         }
 
         Action send_load()
@@ -252,8 +252,8 @@ TEST_F(ThrottleClientTest, SendConsistAdd)
 {
     NodeID n1 = 0x050101011837;
 
-    auto b = invoke_flow(
-        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, false);
     ASSERT_EQ(0, b->data()->resultCode);
 
     b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD,
@@ -268,8 +268,8 @@ TEST_F(ThrottleClientTest, SendConsistAddDel)
     NodeID n1 = 0x050101011837;
     NodeID n2 = 0x050101012188;
 
-    auto b = invoke_flow(
-        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, false);
     ASSERT_EQ(0, b->data()->resultCode);
 
     b = invoke_flow(
@@ -308,8 +308,8 @@ TEST_F(ThrottleClientTest, SendConsistQry)
     NodeID n1 = 0x050101011837;
     NodeID n2 = 0x050101012188;
 
-    auto b = invoke_flow(
-        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, false);
     ASSERT_EQ(0, b->data()->resultCode);
     wait();
 
@@ -375,8 +375,8 @@ TEST_F(ThrottleClientTest, SendSelfConsist)
 {
     NodeID n1 = TRAIN_NODE_ID;
 
-    auto b = invoke_flow(
-        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, TRAIN_NODE_ID);
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, false);
     ASSERT_EQ(0, b->data()->resultCode);
 
     b = invoke_flow(

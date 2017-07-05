@@ -44,7 +44,7 @@ TEST_F(ConsistTest, CreateDestroy) {
 
 TEST_F(ConsistTest, CreateAndRunConsist) {
     auto b = invoke_flow(
-        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, nodeIdLead);
+        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, nodeIdLead, false);
     ASSERT_EQ(0, b->data()->resultCode);
     wait();
 

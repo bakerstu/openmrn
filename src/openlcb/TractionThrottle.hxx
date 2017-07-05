@@ -95,10 +95,11 @@ struct TractionThrottleInput : public CallableFlowRequestBase
         CMD_CONSIST_QRY,
     };
 
-    void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst)
+    void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst, bool listen)
     {
         cmd = CMD_ASSIGN_TRAIN;
         this->dst = dst;
+        this->flags = listen ? 1 : 0;
     }
 
     void reset(const TractionThrottleCommands::ReleaseTrain &)
@@ -388,6 +389,32 @@ private:
             return return_with_error(Defs::ERROR_REJECTED);
         }
         set_assigned();
+        if (input()->flags) {
+            // need to add consist listener
+            handler_.wait_for_response(
+                NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+            send_traction_message(TractionDefs::consist_add_payload(
+                node_->node_id(),
+                TractionDefs::CNSTFLAGS_HIDE | TractionDefs::CNSTFLAGS_LINKF0 |
+                    TractionDefs::CNSTFLAGS_LINKFN));
+            return sleep_and_call(
+                &timer_, TIMEOUT_NSEC, STATE(assign_consist_response));
+        }
+        return return_ok();
+    }
+
+    Action assign_consist_response() {
+        // All error responses are actually okay here; we succeeded in the
+        // assignment but the listener setup didn't work.
+        handler_.wait_timeout();
+        if (!handler_.response())
+        {
+            return return_ok();
+        }
+
+        AutoReleaseBuffer<GenMessage> rb(handler_.response());
+        // Marks that we are owning the listener.
+        listenConsist_ = true;
         return return_ok();
     }
 
@@ -629,6 +656,8 @@ private:
     StateFlowTimer timer_{this};
     /// True if the assign controller has returned positive.
     bool assigned_{false};
+    /// True if we also have a consist link with the assigned loco.
+    bool listenConsist_{false};
     NodeID dst_;
     Node *node_;
     /// Helper class for stateful query/return flows.

@@ -146,9 +146,11 @@ struct TractionDefs {
         CNSTRESP_DETACH_NODE = CNSTREQ_DETACH_NODE,
         CNSTRESP_QUERY_NODES = CNSTREQ_QUERY_NODES,
 
+        CNSTFLAGS_ALIASVALID = 0x01,
         CNSTFLAGS_REVERSE = 0x02,
         CNSTFLAGS_LINKF0 = 0x04,
         CNSTFLAGS_LINKFN = 0x08,
+        CNSTFLAGS_HIDE = 0x80,
 
         // Byte 1 of Traction Management replies
         MGMTRESP_RESERVE = MGMTREQ_RESERVE,
