@@ -56,7 +56,7 @@ TEST_F(AsyncEventTest, EventReportFields)
 {
     static const NodeAlias alias = 0x621U;
     static const NodeID node_id = 0x050101FFFF3DULL;
-    run_x([this](){ifCan_->remote_aliases()->add(node_id, alias);});
+    run_x([this]() { ifCan_->remote_aliases()->add(node_id, alias); });
     EventRegistry::instance()->register_handler(EventRegistryEntry(&h1_, 0), 64);
     EXPECT_CALL(
         h1_,

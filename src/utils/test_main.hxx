@@ -131,11 +131,16 @@ private:
 };
 
 /// Helper class to run a lambda in the main executor.
-class FnExecutable : public Executable {
+class FnExecutable : public Executable
+{
 public:
-    FnExecutable(std::function<void()>&& fn) : fn_(std::move(fn)) {}
+    FnExecutable(std::function<void()> &&fn)
+        : fn_(std::move(fn))
+    {
+    }
 
-    void run() OVERRIDE {
+    void run() OVERRIDE
+    {
         fn_();
         n.notify();
     }
@@ -147,7 +152,8 @@ private:
 };
 
 /// Synchronously runs a function in the main executor.
-void run_x(std::function<void()> fn) {
+void run_x(std::function<void()> fn)
+{
     FnExecutable e(std::move(fn));
     g_executor.add(&e);
     e.n.wait_for_notification();

@@ -32,7 +32,9 @@ class TractionCvTestBase : public TractionTest
 protected:
     TractionCvTestBase()
     {
-        run_x([this](){ifCan_->local_aliases()->add(0x0601000000AFULL, 0x272U);});
+        run_x([this]() {
+            ifCan_->local_aliases()->add(0x0601000000AFULL, 0x272U);
+        });
         expect_packet(":X19100272N0601000000AF;");
     }
 
