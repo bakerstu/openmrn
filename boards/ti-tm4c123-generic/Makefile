@@ -9,9 +9,6 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 # Find TivaWare
 include $(OPENMRNPATH)/etc/tivaware.mk
 
-LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
-               -L$(TIVAWAREPATH)/usblib/gcc
-SYSLIBRARIESEXTRA = -lusb -ldriver
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/TivaCan.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/TivaUart.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/TivaUsbCdcDevice.o

@@ -14,13 +14,8 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 # Find TivaWare
 include $(OPENMRNPATH)/etc/tivaware.mk
 
-LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
-               -L$(TIVAWAREPATH)/usblib/gcc
-
 # Find FreeRTOSTCP
 include $(OPENMRNPATH)/etc/freertos_tcp.mk
-
-SYSLIBRARIESEXTRA = -lusb -ldriver -lfreertos_drivers_freertos_tcp -lfreertos_drivers_net_freertos_tcp
 
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUart.o \
