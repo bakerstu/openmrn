@@ -17,7 +17,10 @@ endif
 SRCDIR := $(OPENMRNPATH)/src/$(REL_DIR)
 TGTDIR := $(OPENMRNPATH)/targets/$(TARGET)/$(REL_DIR)
 
+ifndef VPATH
 VPATH = $(SRCDIR)
+endif
+
 export PARENTDIR := $(REL_DIR)
 export PARENTLIB := $(LIBBASENAME)
 

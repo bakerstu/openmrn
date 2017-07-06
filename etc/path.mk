@@ -55,6 +55,10 @@ SEARCHPATH := \
 TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 TIVAWAREPATH:=$(TRYPATH)
+TRYPATH:=$(call findfirst,inc/hw_onewire.h,$(TRYPATH))
+ifneq ($TRYPATH),)
+BUILDTIVAWARE:=$(TRYPATH)
+endif
 endif
 endif #TIVAWAREPATH
 

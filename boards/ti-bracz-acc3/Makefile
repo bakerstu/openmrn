@@ -16,9 +16,6 @@ export TARGET ?= freertos.armv7m
 export BOARD := BOARD_BRACZ_ACC
 export DEFAULT_ADDRESS := 0x4c
 
-LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
-
-SYSLIBRARIESEXTRA = -ldriver
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUart.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaI2C.o \
