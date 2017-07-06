@@ -1,0 +1,101 @@
+/** \copyright
+ * Copyright (c) 2017, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file MemoryConfigClient.cxxtest
+ *
+ * Unit tests for Memory Config Client
+ *
+ * @author Balazs Racz
+ * @date 4 Feb 2017
+ */
+
+#include "openlcb/MemoryConfigClient.hxx"
+#include "openlcb/DatagramCan.hxx"
+
+#include "utils/async_if_test_helper.hxx"
+
+namespace openlcb
+{
+
+Pool* const g_incoming_datagram_allocator = mainBufferPool;
+
+static const NodeID TWO_NODE_ID = 0x02010d0000ddULL;
+
+class MemoryConfigClientTest : public AsyncNodeTest
+{
+public:
+    MemoryConfigClientTest()
+    {
+        EXPECT_CALL(canBus_, mwrite(":X10701FF2N02010D0000DD;")).Times(1);
+        EXPECT_CALL(canBus_, mwrite(":X19100FF2N02010D0000DD;")).Times(1);
+        eb_.release_block();
+        run_x([this](){ifTwo_.alias_allocator()->TEST_add_allocated_alias(0xFF2);});
+        wait();
+        memCfg_.registry()->insert(node_, 0x51, &srvSpace_);
+        for (unsigned i = 0; i < dataContents_.size(); ++i) {
+            dataContents_[i] = i*23;
+        }
+    }
+
+    ~MemoryConfigClientTest() {
+        wait();
+    }
+
+    BlockExecutor eb_{&g_executor};
+
+    IfCan ifTwo_{&g_executor, &can_hub0, local_alias_cache_size,
+        remote_alias_cache_size, local_node_count};
+    AddAliasAllocator alloc_{TWO_NODE_ID, &ifTwo_};
+    DefaultNode nodeTwo_{&ifTwo_, TWO_NODE_ID};
+
+    CanDatagramService dgService_{ifCan_.get(), 10, 2};
+    CanDatagramService dgServiceTwo_{&ifTwo_, 10, 2};
+
+    MemoryConfigHandler memCfg_{&dgService_, node_, 3};
+    MemoryConfigHandler memCfgTwo_{&dgServiceTwo_, &nodeTwo_, 3};
+
+    std::array<uint8_t, 231> dataContents_;
+    ReadWriteMemoryBlock srvSpace_{&dataContents_[0], (unsigned)dataContents_.size()};
+
+    MemoryConfigClient clientTwo_{&nodeTwo_, &memCfgTwo_};
+};
+
+TEST_F(MemoryConfigClientTest, create)
+{
+}
+
+TEST_F(MemoryConfigClientTest, readall)
+{
+    expect_any_packet();
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::READ,
+                         NodeHandle(TEST_NODE_ID), 0x51);
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_EQ(dataContents_.size(), b->data()->payload.size());
+    EXPECT_EQ(0, memcmp(&dataContents_[0], b->data()->payload.data(), dataContents_.size()));
+}
+
+
+} // namespace openlcb
