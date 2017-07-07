@@ -308,7 +308,7 @@ struct TractionDefs {
         num <<= 8;
         num |= uint8_t(p[3]);
         *address = num;
-        *value = (((uint16_t)p[4]) << 8) | p[5];
+        *value = (((uint16_t)p[4]) << 8) | uint8_t(p[5]);
         return true;
     }
 
