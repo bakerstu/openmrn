@@ -98,7 +98,8 @@ struct TractionDefs {
     /// Node ID space allocated for the MTH DCS protocol.
     static const uint64_t NODE_ID_MTH_DCS = 0x060400000000ULL;
 
-    enum {
+    enum
+    {
         // Byte 0 of request commands.
         REQ_SET_SPEED = 0x00,
         REQ_SET_FN = 0x01,
@@ -155,7 +156,6 @@ struct TractionDefs {
         // Byte 1 of Traction Management replies
         MGMTRESP_RESERVE = MGMTREQ_RESERVE,
 
-
         PROXYREQ_ALLOCATE = 0x01,
         PROXYREQ_ATTACH = 0x02,
         PROXYREQ_DETACH = 0x03,
@@ -180,7 +180,6 @@ struct TractionDefs {
         PROXYTYPE_SELECTRIX = 6,
         PROXYTYPE_MTH_DCS = 7,
         PROXYTYPE_LIONEL_TMCC = 8,
-        
 
         /** This is the memory space number for accessing an NMRA DCC
          * locomotive's functions via the memory config protocol. */

@@ -95,7 +95,8 @@ struct TractionThrottleInput : public CallableFlowRequestBase
         CMD_CONSIST_QRY,
     };
 
-    void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst, bool listen)
+    void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst,
+        bool listen)
     {
         cmd = CMD_ASSIGN_TRAIN;
         this->dst = dst;
@@ -273,7 +274,8 @@ public:
     /// @param update_callback will be executed when a different throttle
     /// changes the train state. fn is the function number changed, or -1 for
     /// speed update.
-    void set_throttle_listener(std::function<void(int fn)> update_callback) {
+    void set_throttle_listener(std::function<void(int fn)> update_callback)
+    {
         updateCallback_ = std::move(update_callback);
     }
 
@@ -430,7 +432,8 @@ private:
             return return_with_error(Defs::ERROR_REJECTED);
         }
         set_assigned();
-        if (input()->flags) {
+        if (input()->flags)
+        {
             // need to add consist listener
             handler_.wait_for_response(
                 NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
@@ -444,7 +447,8 @@ private:
         return return_ok();
     }
 
-    Action assign_consist_response() {
+    Action assign_consist_response()
+    {
         // All error responses are actually okay here; we succeeded in the
         // assignment but the listener setup didn't work.
         handler_.wait_timeout();
@@ -658,7 +662,8 @@ private:
                 if (TractionDefs::speed_get_parse_last(p, &v))
                 {
                     lastSetSpeed_ = v;
-                    if (updateCallback_) updateCallback_(-1);
+                    if (updateCallback_)
+                        updateCallback_(-1);
                 }
                 return;
             }
@@ -670,7 +675,8 @@ private:
                 if (TractionDefs::fn_get_parse(p, &v, &num))
                 {
                     lastKnownFn_[num] = v;
-                    if (updateCallback_) updateCallback_(num);
+                    if (updateCallback_)
+                        updateCallback_(num);
                 }
                 return;
             }
@@ -689,14 +695,18 @@ private:
         iface()->addressed_message_write_flow()->send(b);
     }
 
-    void set_listening() {
+    void set_listening()
+    {
         listenConsist_ = true;
-        iface()->dispatcher()->register_handler(&listenReplyHandler_, Defs::MTI_TRACTION_CONTROL_COMMAND, Defs::MTI_EXACT);
+        iface()->dispatcher()->register_handler(&listenReplyHandler_,
+            Defs::MTI_TRACTION_CONTROL_COMMAND, Defs::MTI_EXACT);
     }
 
-    void clear_listening() {
+    void clear_listening()
+    {
         listenConsist_ = false;
-        iface()->dispatcher()->unregister_handler(&listenReplyHandler_, Defs::MTI_TRACTION_CONTROL_COMMAND, Defs::MTI_EXACT);
+        iface()->dispatcher()->unregister_handler(&listenReplyHandler_,
+            Defs::MTI_TRACTION_CONTROL_COMMAND, Defs::MTI_EXACT);
     }
 
     void set_assigned()

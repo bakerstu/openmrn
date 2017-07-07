@@ -79,10 +79,12 @@ TEST(Fp16Test, ThirtySevenAndAHalf)
     EXPECT_EQ(37.5, s.speed());
 }
 
-TEST(ParseGenerateTest, Overflow) {
+TEST(ParseGenerateTest, Overflow)
+{
     unsigned a;
     uint16_t v;
-    EXPECT_TRUE(TractionDefs::fn_get_parse(TractionDefs::fn_set_payload(0x00ff00, 0x00ff), &v, &a));
+    EXPECT_TRUE(TractionDefs::fn_get_parse(
+        TractionDefs::fn_set_payload(0x00ff00, 0x00ff), &v, &a));
     EXPECT_EQ(0x00ff00u, a);
     EXPECT_EQ(0x00ffu, v);
 }
