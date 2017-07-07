@@ -293,13 +293,21 @@ struct TractionDefs {
     /** Parses the response payload of a GET_FN packet.
      * @returns true if there is a valid function value.
      * @param p is the response payload.
-     * @param value will be set to the output value. */
-    static bool fn_get_parse(const Payload &p, uint16_t *value)
+     * @param value will be set to the output value.
+     * @param address will be set to the function address. */
+    static bool fn_get_parse(
+        const Payload &p, uint16_t *value, unsigned *address)
     {
         if (p.size() < 6)
         {
             return false;
         }
+        unsigned num = uint8_t(p[1]);
+        num <<= 8;
+        num |= uint8_t(p[2]);
+        num <<= 8;
+        num |= uint8_t(p[3]);
+        *address = num;
         *value = (((uint16_t)p[4]) << 8) | p[5];
         return true;
     }

@@ -387,4 +387,130 @@ TEST_F(ThrottleClientTest, SendSelfConsist)
     EXPECT_EQ(0, trainNode_->query_consist_length());
 }
 
+TEST_F(ThrottleClientTest, AssignWithListener)
+{
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, true);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_QRYCONSIST(node_->node_id(), 0x8C, 0);
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::RELEASE_TRAIN);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+}
+
+TEST_F(ThrottleClientTest, ReassignWithListener)
+{
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, true);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_QRYCONSIST(node_->node_id(), 0x8C, 0);
+
+    static auto TRAIN_NODE_ID2 = TRAIN_NODE_ID + 1;
+    run_x(
+        [this]() { otherIf_.local_aliases()->add(TRAIN_NODE_ID2, 0x772); });
+    LoggingTrain train_impl2{1373};
+    TrainNodeForProxy node2(&trainService_, &train_impl2);
+    wait();
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+                         TRAIN_NODE_ID2, true);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    EXPECT_EQ(1, node2.query_consist_length());
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::RELEASE_TRAIN);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    EXPECT_EQ(0, node2.query_consist_length());
+
+    wait();
+}
+
+TEST_F(ThrottleClientTest, ReassignWithoutListener)
+{
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, true);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+
+    static auto TRAIN_NODE_ID2 = TRAIN_NODE_ID + 1;
+    run_x(
+        [this]() { otherIf_.local_aliases()->add(TRAIN_NODE_ID2, 0x772); });
+    LoggingTrain train_impl2{1373};
+    TrainNodeForProxy node2(&trainService_, &train_impl2);
+    wait();
+
+    b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+                         TRAIN_NODE_ID2, false);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0, trainNode_->query_consist_length());
+    EXPECT_EQ(0, node2.query_consist_length());
+
+    wait();
+}
+
+class ListenerInterface {
+public:
+    virtual void update(int fn) = 0;
+};
+
+class MockListener : public ListenerInterface {
+public:
+    MOCK_METHOD1(update, void(int));
+};
+
+TEST_F(ThrottleClientTest, ListenerCallback)
+{
+    StrictMock<MockListener> l;
+    throttle_.set_throttle_listener(std::bind(&ListenerInterface::update, &l, std::placeholders::_1));
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, true);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    // The first call might bounce back because the remote alias cache will
+    // have a miss. This is not ideal but not a deal breaker.
+    EXPECT_CALL(l, update(_)).Times(AtLeast(0));
+    Velocity v;
+    v.set_mph(5);
+    v.reverse();
+    throttle_.set_speed(v);
+    wait();
+
+    Mock::VerifyAndClear(&l);
+    // Setting state will not cause callback.
+    throttle_.set_fn(23, 1);
+    wait();
+    Mock::VerifyAndClear(&l);
+    EXPECT_NEAR(5, throttle_.get_speed().mph(), 0.1);
+    EXPECT_EQ(Velocity::REVERSE, throttle_.get_speed().direction());
+
+    // Directly setting state on the target train will cause returned calls.
+    EXPECT_CALL(l, update(-1));
+    send_packet(":X195EB330N07710045D0;");  // speed 13 mph
+    wait();
+    Mock::VerifyAndClear(&l);
+    EXPECT_NEAR(13, throttle_.get_speed().mph(), 0.1);
+    EXPECT_EQ(Velocity::FORWARD, throttle_.get_speed().direction());
+
+    // Test with function set as well.
+    EXPECT_CALL(l, update(10));
+    EXPECT_EQ(TractionThrottle::FN_NOT_KNOWN, throttle_.get_fn(10));
+    send_packet(":X195EB330N07710100000a0001;");  // fn 10 = 1
+    wait();
+    Mock::VerifyAndClear(&l);
+    EXPECT_EQ(1, throttle_.get_fn(10));
+}
+
 } // namespace openlcb
