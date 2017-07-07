@@ -663,7 +663,9 @@ private:
                 {
                     lastSetSpeed_ = v;
                     if (updateCallback_)
+                    {
                         updateCallback_(-1);
+                    }
                 }
                 return;
             }
@@ -676,7 +678,9 @@ private:
                 {
                     lastKnownFn_[num] = v;
                     if (updateCallback_)
+                    {
                         updateCallback_(num);
+                    }
                 }
                 return;
             }
