@@ -527,7 +527,7 @@ private:
             {
                 pending_reply_arrived();
                 uint16_t v;
-                uint32_t num;
+                unsigned num;
                 if (TractionDefs::fn_get_parse(p, &v, &num))
                 {
                     lastKnownFn_[num] = v;
