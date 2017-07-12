@@ -87,7 +87,7 @@ StateFlowBase::Action ServerCommandLoco::address_long()
         dcc::TrainAddressType::DCC_LONG_ADDRESS, value);
 
     return invoke_subflow_and_wait(&throttle->olcbThrottle, STATE(assign_train),
-               openlcb::TractionThrottleCommands::ASSIGN_TRAIN, node_id);
+        openlcb::TractionThrottleCommands::ASSIGN_TRAIN, node_id, 0);
 }
 
 /*
@@ -129,4 +129,3 @@ StateFlowBase::Action ServerCommandLoco::load_state()
 }
 
 } /* namespace withrottle */
-
