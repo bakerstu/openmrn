@@ -23,6 +23,7 @@
 extern "C" {
 #endif
 
+#include <time.h>
 #include <string.h>
 #include <ti/drivers/net/wifi/porting/cc_pal.h>
 
@@ -672,7 +673,11 @@ typedef signed int _SlFd_t;
 // prevent recursive inclusion
 #define __SIMPLELINK_H__
 // Include all the nonstandard error numbers too
+#ifdef SIMPLELINK_SDK_V1_4
+#include <ti/drivers/net/wifi/bsd/errno.h>
+#else
 #include <ti/drivers/net/wifi/sys/errno.h>
+#endif
 #undef __SIMPLELINK_H__
 
 #undef OK
@@ -759,6 +764,179 @@ typedef signed int _SlFd_t;
 
 
 #endif //SL_PLATFORM_MULTI_THREADED
+
+
+#ifdef SIMPLELINK_SDK_V1_4
+/*!
+	\brief 	type definition for a sync object container
+
+	Sync object is object used to synchronize between two threads or thread and interrupt handler.
+	One thread is waiting on the object and the other thread send a signal, which then
+	release the waiting thread.
+	The signal must be able to be sent from interrupt context.
+	This object is generally implemented by binary semaphore or events.
+
+	\note	On each configuration or platform the type could be whatever is needed - integer, structure etc.
+
+    \note       belongs to \ref configuration_sec
+*/
+#define _SlSyncObj_t			    SemaphoreP_Handle
+
+    
+/*!
+	\brief 	This function creates a sync object
+
+	The sync object is used for synchronization between diffrent thread or ISR and
+	a thread.
+
+	\param	pSyncObj	-	pointer to the sync object control block
+
+	\return upon successful creation the function should return 0
+			Otherwise, a negative value indicating the error code shall be returned
+
+    \note       belongs to \ref configuration_sec
+    \warning
+*/
+#define sl_SyncObjCreate(pSyncObj,pName)            Semaphore_create_handle(pSyncObj)
+
+
+/*!
+	\brief 	This function deletes a sync object
+
+	\param	pSyncObj	-	pointer to the sync object control block
+
+	\return upon successful deletion the function should return 0
+			Otherwise, a negative value indicating the error code shall be returned
+    \note       belongs to \ref configuration_sec
+    \warning
+*/
+#define sl_SyncObjDelete(pSyncObj)                  SemaphoreP_delete_handle(pSyncObj)
+
+
+/*!
+	\brief 		This function generates a sync signal for the object.
+
+	All suspended threads waiting on this sync object are resumed
+
+	\param		pSyncObj	-	pointer to the sync object control block
+
+	\return 	upon successful signaling the function should return 0
+				Otherwise, a negative value indicating the error code shall be returned
+	\note		the function could be called from ISR context
+    \warning
+*/
+#define sl_SyncObjSignal(pSyncObj)                SemaphoreP_post_handle(pSyncObj)
+
+
+/*!
+	\brief 		This function generates a sync signal for the object from Interrupt
+
+	This is for RTOS that should signal from IRQ using a dedicated API
+
+	\param		pSyncObj	-	pointer to the sync object control block
+
+	\return 	upon successful signaling the function should return 0
+				Otherwise, a negative value indicating the error code shall be returned
+	\note		the function could be called from ISR context
+	\warning
+*/
+#define sl_SyncObjSignalFromIRQ(pSyncObj)           SemaphoreP_post_handle(pSyncObj)
+
+
+/*!
+	\brief 	This function waits for a sync signal of the specific sync object
+
+	\param	pSyncObj	-	pointer to the sync object control block
+	\param	Timeout		-	numeric value specifies the maximum number of mSec to
+							stay suspended while waiting for the sync signal
+							Currently, the SimpleLink driver uses only two values:
+								- OSI_WAIT_FOREVER
+								- OSI_NO_WAIT
+
+	\return upon successful reception of the signal within the timeout window return 0
+			Otherwise, a negative value indicating the error code shall be returned
+    \note       belongs to \ref configuration_sec
+    \warning
+*/
+#define sl_SyncObjWait(pSyncObj,Timeout)            SemaphoreP_pend((*(pSyncObj)),Timeout)
+
+
+/*!
+	\brief 	type definition for a locking object container
+
+	Locking object are used to protect a resource from mutual accesses of two or more threads.
+	The locking object should suppurt reentrant locks by a signal thread.
+	This object is generally implemented by mutex semaphore
+
+	\note	On each configuration or platform the type could be whatever is needed - integer, structure etc.
+    \note       belongs to \ref configuration_sec
+*/
+#define _SlLockObj_t 			             MutexP_Handle
+
+/*!
+	\brief 	This function creates a locking object.
+
+	The locking object is used for protecting a shared resources between different
+	threads.
+
+	\param	pLockObj	-	pointer to the locking object control block
+
+	\return upon successful creation the function should return 0
+			Otherwise, a negative value indicating the error code shall be returned
+    \note       belongs to \ref configuration_sec
+    \warning
+*/
+#define sl_LockObjCreate(pLockObj, pName)     Mutex_create_handle(pLockObj)
+
+
+/*!
+	\brief 	This function deletes a locking object.
+
+	\param	pLockObj	-	pointer to the locking object control block
+
+	\return upon successful deletion the function should return 0
+			Otherwise, a negative value indicating the error code shall be returned
+    \note       belongs to \ref configuration_sec
+    \warning
+*/
+#define sl_LockObjDelete(pLockObj)                  MutexP_delete_handle(pLockObj)
+
+
+/*!
+	\brief 	This function locks a locking object.
+
+	All other threads that call this function before this thread calls
+	the osi_LockObjUnlock would be suspended
+
+	\param	pLockObj	-	pointer to the locking object control block
+	\param	Timeout		-	numeric value specifies the maximum number of mSec to
+							stay suspended while waiting for the locking object
+							Currently, the SimpleLink driver uses only two values:
+								- OSI_WAIT_FOREVER
+								- OSI_NO_WAIT
+
+
+	\return upon successful reception of the locking object the function should return 0
+			Otherwise, a negative value indicating the error code shall be returned
+    \note       belongs to \ref configuration_sec
+    \warning
+*/
+#define sl_LockObjLock(pLockObj,Timeout)          Mutex_lock(*(pLockObj))
+
+
+/*!
+	\brief 	This function unlock a locking object.
+
+	\param	pLockObj	-	pointer to the locking object control block
+
+	\return upon successful unlocking the function should return 0
+			Otherwise, a negative value indicating the error code shall be returned
+    \note       belongs to \ref configuration_sec
+    \warning
+*/
+#define sl_LockObjUnlock(pLockObj)                   Mutex_unlock(*(pLockObj))
+
+#else  // simplelink SDK 1.3.*
 
 /*!
 	\brief 	type definition for a sync object container
@@ -894,7 +1072,6 @@ typedef signed int _SlFd_t;
 */
 #define sl_LockObjDelete(pLockObj)                  MutexP_delete(*(pLockObj))
 
-
 /*!
 	\brief 	This function locks a locking object.
 
@@ -928,6 +1105,8 @@ typedef signed int _SlFd_t;
     \warning
 */
 #define sl_LockObjUnlock(pLockObj)                   Mutex_unlock(*(pLockObj))
+
+#endif // which SDK version we have
 
 
 /*!
@@ -1351,7 +1530,6 @@ typedef signed int _SlFd_t;
  @}
 
  */
-
 
 #ifdef  __cplusplus
 }
