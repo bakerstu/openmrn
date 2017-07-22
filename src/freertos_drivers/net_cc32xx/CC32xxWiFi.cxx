@@ -415,6 +415,7 @@ void CC32xxWiFi::stop()
 {
     ipAcquired = false;
     connected = false;
+    sl_Stop(0xFF);
 }
 
 /*
@@ -756,7 +757,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
 
     switch (event->SL_Event)
     {
-        case SL_WLAN_CONNECT_EVENT:
+        case SL_WLAN_EVENT_CONNECT:
         {
             connected = 1;
             connectionFailed = 0;
@@ -787,7 +788,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             //
             break;
         }
-        case SL_WLAN_DISCONNECT_EVENT:
+        case SL_WLAN_EVENT_DISCONNECT:
         {
             const auto *event_data =
                 &event->SL_EventData.STAandP2PModeDisconnected;
@@ -807,55 +808,11 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             }
             break;
         }
-        case SL_WLAN_STA_CONNECTED_EVENT:
+        case SL_WLAN_EVENT_STA_ADDED:
             // when device is in AP mode and any client connects to device cc3xxx
             break;
-        case SL_WLAN_STA_DISCONNECTED_EVENT:
+        case SL_WLAN_EVENT_STA_REMOVED:
             // when client disconnects from device (AP)
-            connected = 0;
-            ipLeased = 0;
-
-            //
-            // Information about the connected client (like SSID, MAC etc) will
-            // be available in 'slPeerInfoAsyncResponse_t' - Applications
-            // can use it if required
-            //
-            // slPeerInfoAsyncResponse_t *event_data = NULL;
-            // event_data = &event->EventData.APModestaDisconnected;
-            //
-            break;
-            //case SL_WLAN_SMART_CONFIG_COMPLETE_EVENT:
-
-            //
-            // Information about the SmartConfig details (like Status, SSID, 
-            // Token etc) will be available in 'slSmartConfigStartAsyncResponse_t' 
-            // - Applications can use it if required
-            //
-            //  slSmartConfigStartAsyncResponse_t *event_data = NULL;
-            //  event_data = &event->EventData.smartConfigStartResponse;
-            //
-            break;
-            //case SL_WLAN_SMART_CONFIG_STOP_EVENT:
-            // SmartConfig operation finished
-
-            //
-            // Information about the SmartConfig details (like Status, padding 
-            // etc) will be available in 'slSmartConfigStopAsyncResponse_t' - 
-            // Applications can use it if required
-            //
-            // slSmartConfigStopAsyncResponse_t *event_data = NULL;
-            // event_data = &event->EventData.smartConfigStopResponse;
-            //
-            break;
-            //case SL_WLAN_P2P_DEV_FOUND_EVENT:
-            HASSERT(0);
-            break;
-            //case SL_WLAN_P2P_NEG_REQ_RECEIVED_EVENT:
-            HASSERT(0);
-            break;
-            // case SL_WLAN_CONNECTION_FAILED_EVENT:
-            // If device gets any connection failed event in P2P mode
-            // connectionFailed = 1;
             break;
         default:
             HASSERT(0);
