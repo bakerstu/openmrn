@@ -832,14 +832,19 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
 
     switch (event->SL_Event)
     {
-        case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
+#if defined (SL_API_V2)
+        case SL_NETAPP_EVENT_DHCP_IPV4_ACQUIRE_TIMEOUT:
+            /* DHCP acquisition still continues, this is just a warning */
+            break;
+#endif
+        case SL_NETAPP_EVENT_IPV4_ACQUIRED:
         {
             //SlIpV4AcquiredAsync_t *event_data = NULL;
             const auto* event_data = &event->SL_EventData.SL_ipAcquiredV4;
             ipAddress = event_data->SL_ip;
         }
         // fall through
-        case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
+        case SL_NETAPP_EVENT_IPV6_ACQUIRED:
             ipAcquired = 1;
 
             //
@@ -858,7 +863,7 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             // event_data = &event->EventData.ipAcquiredV6;
             //
             break;
-        case SL_NETAPP_IP_LEASED_EVENT:
+        case SL_NETAPP_EVENT_DHCPV4_LEASED:
         {
             ipLeased = 1;
 
@@ -875,7 +880,7 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             ipAddress = event_data->SL_ip_address;
             break;
         }
-        case SL_NETAPP_IP_RELEASED_EVENT:
+        case SL_NETAPP_EVENT_DHCPV4_RELEASED:
             ipLeased = 0;
 
             //
@@ -943,7 +948,7 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
 
     switch (event->Event)
     {
-        case SL_NETAPP_HTTPGETTOKENVALUE_EVENT:
+        case SL_NETAPP_EVENT_HTTP_TOKEN_GET:
         {
             unsigned char *ptr;
 
@@ -969,7 +974,7 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
             }
             break;
         }
-        case SL_NETAPP_HTTPPOSTTOKENVALUE_EVENT:
+        case SL_NETAPP_EVENT_HTTP_TOKEN_POST:
         {
             break;
         }
