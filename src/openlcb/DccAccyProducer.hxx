@@ -241,15 +241,6 @@ private:
                 instances_->at(i)->dccStateCallback_(bit + 1, value);
             }
         }
-#if 0
-        for (DccAccyProducer* instance : *instances_)
-        {
-            if (instance->dccStateCallback_)
-            {
-                instance->dccStateCallback_(bit + 1, value);
-            }
-        }
-#endif
     }
 
     /// Singleton instance of a BitRangeNonAuthoritativeEventP for the DCC
