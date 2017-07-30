@@ -100,4 +100,27 @@ struct DummyPinWithRead : public DummyPin
     }
 };
 
+/// GPIO Pin definition structure with no actual pin behind it. All writes to
+/// this pin will be silently ignored. Reads will always return false.
+struct DummyPinWithReadHigh : public DummyPin
+{
+    /// @return the input pin level.
+    static bool get()
+    {
+        return true;
+    }
+
+    /// @return true if this is an output pin, false if an input pin.
+    static bool is_output()
+    {
+        return false;
+    }
+
+    /// @return the static Gpio instance.
+    static const Gpio *instance()
+    {
+        return GpioWrapper<DummyPinWithReadHigh>::instance();
+    }
+};
+
 #endif // _FREERTOS_DRIVERS_COMMON_DUMMYGPIO_HXX_
