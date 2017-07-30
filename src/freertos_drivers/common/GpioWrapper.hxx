@@ -109,4 +109,25 @@ public:
 /// Defines the linker symbol for the wrapped Gpio instance.
 template <class PIN> const GpioWrapper<PIN> GpioWrapper<PIN>::instance_;
 
+/// Creates a hardware GPIO adaptor that inverts the pin state.
+template<class PIN> class InvertedGpio {
+public:
+    static void hw_init() { PIN::hw_init(); }
+    static void hw_set_to_safe() { PIN::hw_set_to_safe(); }
+
+    static void set(bool value) { PIN::set(!value); }
+    static bool get() { return !PIN::get(); }
+
+    static void toggle() { PIN::toggle(); }
+    static bool is_output() { return PIN::is_output(); }
+    static void set_output(bool o) { PIN::set_output(o); }
+    
+    /// @return the static Gpio object instance controlling this pin.
+    static constexpr const Gpio *instance()
+    {
+        return GpioWrapper<InvertedGpio<PIN>>::instance();
+    }
+};
+
+
 #endif // _FREERTOS_DRIVERS_COMMON_GPIOWRAPPER_HXX_
