@@ -76,3 +76,4 @@ clean: clean-stripped
 
 clean-stripped:
 	rm -f $(wildcard lib/*.a lib/*.o lib/*.stripped)
+	rm -f arpreproc ldpreproc
