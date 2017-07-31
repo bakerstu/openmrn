@@ -1,0 +1,103 @@
+/**
+
+@page your_application Your Application
+
+@tableofcontents
+
+The next step after working with some of the sample applications is to create
+your own application. This should be done in a completely different folder
+from where you cloned the OpenMRN files.
+
+@section async_blink Layout of async_blink
+
+The async_blink sample application is a nice starting point, as it's not a
+very complicated application, but it does illustrate how to use the build
+system effectively. Looknig at a single target, here is how the application
+is organized:
+
+@code{.unparsed}
+~/openmrn/
+  default_config.mk
+  Makefile
+  applications/
+    default_config.mk
+    Makefile
+    async_blink/
+      config.mk -> ../default.config.mk
+      main.cxx
+      Maikefile
+      subdirs
+      targets/
+        Makefile
+        freertos.armv7m.ti-launchpad-cc3200\
+          hardware.hxx -> ~/openmrn/boards/ti-cc3200-launchpad/hardware.hxx
+          HwInit.cxx -> ~/openmrn/boards/ti-cc3200-launchpad/HwInit.cxx
+          Makefile -> ~/openmrn/boards/ti-cc3200-launchpad/Makefile
+          memory_map.ld -> ~/openmrn/boards/ti-cc3200-launchpad/memory_map.ld
+          NodeId.cxx
+          startup.c -> ~/openmrn/boards/ti-cc3200-launchpad/startup.c
+          targetId -> ~/openmrn/boards/ti-cc3200-launchpad/target.ld
+          wifi_params.c
+@endcode
+
+@note
+The actual links in line 15-21 are all relative paths, such as
+../../../../boards/ti-cc3200-launchpad/hardware.hxx. However, they've been
+replaced with absolute paths here help setting up the correct links for the
+copy, as described below.
+
+@par
+Notice in particular lines 15 through 22. A number of these are actually
+links to OpenMRN files for specific platforms. In this case, these links are
+for the TI CC3200 Launchpad device (line 14).
+
+@subsection your_application_copy_async_blink Copy async_blink
+
+A good way to understand how to setup your own application is to start by
+copying an existing application and them modifying it. In this case, we'll
+copy the async_blink application from the OpenMRN tree into your own tree.
+Doing this will require you to set the links correctly.
+
+- Create a new directory. For example, ~/myapp
+- Create a targets directory: ~/myapp/targets
+- Copy the appropriate target directory from async_blink. For this example,
+  we're copying freertos.armv7m.ti-launchpad-cc3200
+- Copy the files from the async_blink directory (config.mk, main.cxx, Makefile,
+  and subdirs)
+- Inside this copied target directory, run ls -l
+
+@subsection your_application_fix_links Fix Simlinks
+
+At this point you'll see the same symlinks that were in the original sample,
+but they'll show as as broken because the relative location isn't correct now.
+You can either re-create them with the now correct relative link, or you can
+use the ~/openmrn root. For example:
+
+@code
+rm hardware.hxx
+ln -s ~/openmrn/boards/ti-cc3200-launchpad/hardware.hxx
+@endcode
+
+Fix all of the other links as well.
+
+@subsection your_application_fix_paths Fix Paths
+
+The Makefile will look for a file two levels up:
+
+@code
+APP_PATH ?= $(realpath ../..)
+-include $(APP_PATH)/config.mk
+@endcode
+
+The APP_PATH value here refers to our ~/myapp directory, which is fine.
+However, if you look a thte config.mk file copied above, it's actually a symlink
+that is currently broken. Go ahead and delete ~/myapp/config.mk and then create
+a new file:
+
+@code
+ifndef OPENMRNPATH
+OPENMRNPATH := $(realpath $(APP_PATH)/../openmrn)
+endif
+@endcode
+
+*/

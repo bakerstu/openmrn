@@ -1,164 +1,171 @@
 /**
- * @page getting_started Getting Started Guide
- *
- * @tableofcontents
- *
- * @section linux Linux
- * This section describes how to use Linux as a development environment for
- * OpenMRN applications.
- *
- * @subsection openmrn_location OpenMRN Location
- * The build system for OpenMRN is quite intelligent.  It is designed to
- * find the OpenMRN source tree in one of three separate locations in the
- * following order:
- * -# OPENMRNPATH environment variable
- * -# /opt/openmrn
- * -# ~/openmrn
- *
- * Sometimes it is useful to use a symbolic link to point one of these paths
- * to an alternate OpenMRN source tree.
- *
- * @subsection targets Targets
- * The build system for OpenMRN allows the source code to be easily targeted to
- * many different architectures including, but not limited to, linux.x86 and
- * freertos.armv7m.  Supporting new targets is as simple as adding a target
- * specific makefile to the etc/ directory and duplicating a build tree in the
- * targets/ directory.  If a given target's tool chain is not installed, the
- * build system will skip the build of the target and display a simple warning.
- * In this way, a developer can install tools only for the targets they are
- * interested in, and build only for the targets they are interested in.
- *
- * @subsubsection x86linux x86 Linux
- * Most Linux distributions will contain everything needed to build the example
- * for the linux.x86 target in their base install.  The minimum requirements
- * are gcc, g++, binutils, and GNU Make.  To build the example, simply navigate
- * to the root of the OpenMRN tree and run make.
- *
- * Running of the example requires a USB-to-CAN converter that uses the Grid
- * Connect protocol.  TCH (http://www.tchtechnology.com/index.html) is a
- * source of these devices.  One can navagate to the test/targets/linux.x86
- * directory and run "./test /dev/ttyUSB0".  /dev/ttyUSB0 is the default path
- * for accessing the USB-to-CAN device if no other USB to serial adaptors are
- * in use.  It is highly likely that the device may also be found at
- * /dev/ttyUSB1, /dev/ttyUSB2, etc...  The example periodically produces an
- * event and consumes an event.  The example demonstrates the internal
- * loopback capability in addition to interaction on the CAN bus.  Using JMRI
- * and a second USB-to-CAN adaptor, one can view the node interacting on the
- * bus.
- *
- * @subsubsection armv7freertos ARMv7-m FreeRTOS
- * The armv7m.freertos target requires additional tools to be installed on the
- * system.
- *
- * The compiler used is the free ARM EABI GCC derived Code Sourcery
- * Lite.  This compiler may be downloaded from the Mentor Graphics web site
- * (http://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/).
- * The OpenMRN build system will look for the compiler at /opt/CodeSourcery or
- * ~/CodeSourcery.  The compiler includes a copy of Newlib used by OpenMRN.
- *
- * The file inside the download should be named "arm-2013.05-23-arm-none-eabi-i686-pc-linux-gnu.tar". 
- * More variants of the compiler are available, be sure to select this one.
- * Unpacking this file gives a directory named arm-2013.05
- * 
- * In the code below, please change the location of the arm2013.05 directory accordingly. 
- *
- * @code
- * $ mkdir ~/CodeSourcery
- * $ ln -s ~/arm-2013.05 ~/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI
- * 
- * or
- *
- * $ sudo mkdir /opt/CodeSourcery
- * $ sudo ln -s /opt/arm2013.05 /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI
- * @endcode
- *
- * If you have troubles getting the source to compile, don't set eny 
- * environment variables but look closely to the location of the files and directories because
- * most likely a mistake is made there.
- *
- * The build system also looks for a version of the FreeRTOS tree.  Version
- * 7.3.0 has been used for testing, however any version 7 or later should work.
- * FreeRTOS can be downloaded from the FreeRTOS web site
- * (http://www.freertos.org/).  The build system will look for the FreeRTOS
- * source tree at /opt/FreeRTOS or ~/FreeRTOS.  It is often convenent to use
- * a symbolic link to locate the tree.  For example:
- * @code
- * $ cd ~/
- * $ ln -s FreeRTOSV7.3.0/FreeRTOS FreeRTOS
- *
- * or
- *
- * $ cd /opt
- * $ sudo ln -s FreeRTOSV7.3.0/FreeRTOS FreeRTOS
- * @endcode
- *
- *
- * If your target is a TI Stellaris ARM Cortex-M3 or Cortex-M4F,
- * OpenMRN includes drivers that use TI StellarisWare.  The build system will
- * look for a copy of StellarisWare at /opt/StellarisWare or ~/StellarisWare.
- * StellarisWare can be downloaded from the TI website
- * (http://www.ti.com/tool/sw-lm3s).  Though the file extension is .exe, the
- * file is nothing more than a self extracting ZIP file.  Unpacking on a Linux
- * system can be done with the unzip command.  For example:
- * @code
- * $ unzip SW-LM3S-9453.exe
- * $ sudo cp -rf StellarisWare /opt/StellarisWare
- * @endcode
- *
- * There are two supported targets for the example application.  One of the
- * examples can run on the DK-LM3S9D96 development board while the other runs
- * on the EK-LM4F120XL development board, otherwise known as the Stellaris
- * LaunchPad.  Building for both targets is as simple as running make in the
- * top level OpenMRN directory.  After the build completes, the resulting
- * executables can be found at test/targets/freertos.armv7m.dk-lm3s9d96/test.elf
- * and test/targets/freertos.armv7m.ek-lm4f120xl/test.elf.  See the @ref
- * openocdlinux
- * section for more details on downloading and stepping through the code.
- *
- *
- *
- * @subsubsection armv7mnuttx ARMv7-m Nuttx
- * The armv7m.nuttx target is still under development.  This target is not
- * recommended for stable development.
- *
- * @subsection openocdlinux OpenOCD JTAG Debugger
- * OpenOCD is an Open Source debug tool chain that can be used for debugging
- * of embedded targets using JTAG.  To use the on-board ICDI JTAG debugger on
- * the EK-LM4F120XL LaunchPad, download, build, and install the newest version
- * of OpenOCD software.  The latest version can be downloaded from the OpenOCD
- * web site (http://openocd.sourceforge.net/).
- * The version prepackaged into your Linux distribution software repositories
- * is likely too old to have TI Stellaris ICDI support.
- * Eclipse CDT with the Zylin plug-in is a valuable front end GUI to the GNU
- * GDB debugger used by OpenOCD.  Eclipse CDT is typically available though your
- * Linux distribution repositories, however, it can also be obtained from the
- * Eclipse web site (http://www.eclipse.org/).  Zylin plug-in instructions can
- * be obtained from the Zylin web site
- * (http://opensource.zylin.com/embeddedcdt.html).
- *
- * Screen-shots of Eclipse setup with OpenOCD and Zylin:
- * @image html EclipseRunExternalTools.png
- * @image html EclipseExternalTools.png
- * @image html EclipseDebugConfigurations.png
- * @image html EclipseDebugConfigurationsMain.png
- * @image html EclipseDebugConfigurationsDebugger.png
- * @image html EclipseDebugConfigurationsCommands.png
- * @image html EclipseDebugConfigurations
- * @image html EclipseLaunchExternalTools.png
- * @image html EclipseLaunchExternalToolsDebug.png
- * @image html EclipseLaunchStellaris.png
- * @image html EclipseLaunchStellarisDebug.png
- * @image latex EclipseRunExternalTools.eps width=5cm
- *
- *
- * @section windows Windows
- * This section describes how to use Windows as a development environment for
- * OpenMRN applications.
- *
- * @section macos MacOS
- * This section describes how to use MacOS as a development environment for
- * OpenMRN applications.
- *
- *
- *
- */
+@page getting_started Getting Started Guide
+
+@tableofcontents
+
+@section linux Linux
+This section describes how to use Linux as a development environment for
+OpenMRN applications.
+
+@subsection openmrn_location OpenMRN Location
+The build system for OpenMRN is quite intelligent.  It is designed to
+find the OpenMRN source tree in one of three separate locations in the
+following order:
+
+-# OPENMRNPATH environment variable
+-# /opt/openmrn
+-# ~/openmrn
+
+Sometimes it is useful to use a symbolic link to point one of these paths
+to an alternate OpenMRN source tree.
+
+@subsection targets Targets
+The build system for OpenMRN allows the source code to be easily targeted to
+many different architectures including, but not limited to, linux.x86 and
+freertos.armv7m.  Supporting new targets is as simple as adding a target
+specific makefile to the etc/ directory and duplicating a build tree in the
+targets/ directory.  If a given target's tool chain is not installed, the
+build system will skip the build of the target and display a simple warning.
+In this way, a developer can install tools only for the targets they are
+interested in, and build only for the targets they are interested in.
+
+@subsubsection x86linux x86 Linux
+Most Linux distributions will contain everything needed to build the example
+for the linux.x86 target in their base install.  The minimum requirements
+are gcc, g++, binutils, and GNU Make.  To build the example, simply navigate
+to the root of the OpenMRN tree and run make.
+
+Running of the example requires a USB-to-CAN converter that uses the Grid
+Connect protocol.  TCH (http://www.tchtechnology.com/index.html) is a
+source of these devices.  One can navagate to the test/targets/linux.x86
+directory and run "./test /dev/ttyUSB0".  /dev/ttyUSB0 is the default path
+for accessing the USB-to-CAN device if no other USB to serial adaptors are
+in use.  It is highly likely that the device may also be found at
+/dev/ttyUSB1, /dev/ttyUSB2, etc...  The example periodically produces an
+event and consumes an event.  The example demonstrates the internal
+loopback capability in addition to interaction on the CAN bus.  Using JMRI
+and a second USB-to-CAN adaptor, one can view the node interacting on the
+bus.
+
+@subsubsection armv7freertos ARMv7-m FreeRTOS
+The armv7m.freertos target requires additional tools to be installed on the
+system.
+
+The compiler used is the free ARM EABI GCC derived Code Sourcery
+Lite.  This compiler may be downloaded from the Mentor Graphics web site
+(http://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/).
+The OpenMRN build system will look for the compiler at /opt/CodeSourcery or
+~/CodeSourcery.  The compiler includes a copy of Newlib used by OpenMRN.
+
+The file inside the download should be named "arm-2013.05-23-arm-none-eabi-i686-pc-linux-gnu.tar". 
+More variants of the compiler are available, be sure to select this one.
+Unpacking this file gives a directory named arm-2013.05
+
+In the code below, please change the location of the arm2013.05 directory accordingly. 
+
+@code
+$ mkdir ~/CodeSourcery
+$ ln -s ~/arm-2013.05 ~/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI
+@endcode
+
+or
+
+@code
+$ sudo mkdir /opt/CodeSourcery
+$ sudo ln -s /opt/arm2013.05 /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI
+@endcode
+
+If you have troubles getting the source to compile, don't set eny 
+environment variables but look closely to the location of the files and directories because
+most likely a mistake is made there.
+
+The build system also looks for a version of the FreeRTOS tree.  Version
+7.3.0 has been used for testing, however any version 7 or later should work.
+FreeRTOS can be downloaded from the FreeRTOS web site
+(http://www.freertos.org/).  The build system will look for the FreeRTOS
+source tree at /opt/FreeRTOS or ~/FreeRTOS.  It is often convenent to use
+a symbolic link to locate the tree.  For example:
+
+@code
+$ cd ~/
+$ ln -s FreeRTOSV7.3.0/FreeRTOS FreeRTOS
+@endcode
+
+or
+
+@code
+$ cd /opt
+$ sudo ln -s FreeRTOSV7.3.0/FreeRTOS FreeRTOS
+@endcode
+
+
+If your target is a TI Stellaris ARM Cortex-M3 or Cortex-M4F,
+OpenMRN includes drivers that use TI StellarisWare.  The build system will
+look for a copy of StellarisWare at /opt/StellarisWare or ~/StellarisWare.
+StellarisWare can be downloaded from the TI website
+(http://www.ti.com/tool/sw-lm3s).  Though the file extension is .exe, the
+file is nothing more than a self extracting ZIP file.  Unpacking on a Linux
+system can be done with the unzip command.  For example:
+
+@code
+$ unzip SW-LM3S-9453.exe
+$ sudo cp -rf StellarisWare /opt/StellarisWare
+@endcode
+
+There are two supported targets for the example application.  One of the
+examples can run on the DK-LM3S9D96 development board while the other runs
+on the EK-LM4F120XL development board, otherwise known as the Stellaris
+LaunchPad.  Building for both targets is as simple as running make in the
+top level OpenMRN directory.  After the build completes, the resulting
+executables can be found at test/targets/freertos.armv7m.dk-lm3s9d96/test.elf
+and test/targets/freertos.armv7m.ek-lm4f120xl/test.elf.  See the @ref
+openocdlinux
+section for more details on downloading and stepping through the code.
+
+
+
+@subsubsection armv7mnuttx ARMv7-m Nuttx
+The armv7m.nuttx target is still under development.  This target is not
+recommended for stable development.
+
+@subsection openocdlinux OpenOCD JTAG Debugger
+OpenOCD is an Open Source debug tool chain that can be used for debugging
+of embedded targets using JTAG.  To use the on-board ICDI JTAG debugger on
+the EK-LM4F120XL LaunchPad, download, build, and install the newest version
+of OpenOCD software.  The latest version can be downloaded from the OpenOCD
+web site (http://openocd.sourceforge.net/).
+The version prepackaged into your Linux distribution software repositories
+is likely too old to have TI Stellaris ICDI support.
+Eclipse CDT with the Zylin plug-in is a valuable front end GUI to the GNU
+GDB debugger used by OpenOCD.  Eclipse CDT is typically available though your
+Linux distribution repositories, however, it can also be obtained from the
+Eclipse web site (http://www.eclipse.org/).  Zylin plug-in instructions can
+be obtained from the Zylin web site
+(http://opensource.zylin.com/embeddedcdt.html).
+
+Screen-shots of Eclipse setup with OpenOCD and Zylin:
+@image html EclipseRunExternalTools.png
+@image html EclipseExternalTools.png
+@image html EclipseDebugConfigurations.png
+@image html EclipseDebugConfigurationsMain.png
+@image html EclipseDebugConfigurationsDebugger.png
+@image html EclipseDebugConfigurationsCommands.png
+@image html EclipseDebugConfigurations
+@image html EclipseLaunchExternalTools.png
+@image html EclipseLaunchExternalToolsDebug.png
+@image html EclipseLaunchStellaris.png
+@image html EclipseLaunchStellarisDebug.png
+@image latex EclipseRunExternalTools.eps width=5cm
+
+
+@section windows Windows
+This section describes how to use Windows as a development environment for
+OpenMRN applications.
+
+@section macos MacOS
+This section describes how to use MacOS as a development environment for
+OpenMRN applications.
+
+
+
+*/

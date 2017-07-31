@@ -36,8 +36,9 @@ OpenMRN application will also contain an @ref idle_thread and a
 @ref timer_thread.  OpenMRN is designed to support
 a number of different operating systems, and a thin abstraction is provided
 in order to hide any OS specific differences.  The OS abstraction is
-provided by @ref OS.hxx, and applications are encouraged to make use of when
-accessing OS features such as threads, mutexes, semaphores, etc...
+provided by @ref OS.hxx, and applications are encouraged to make use of the
+classes in @ref OS.hxx when accessing OS features such as threads, mutexes,
+semaphores, etc...
 
 @subsection main_thread Main Thread
 The main thread is the thread of execution that os_main() is called with,
