@@ -89,6 +89,7 @@ void CC32xxEEPROMEmulation::mount()
         {
             SlCheckResult(ret);
         }
+        SlCheckResult(sl_FsClose(handle, nullptr, nullptr, 0));
     } else {
         LOG(VERBOSE, "EEPROM: no read sector");
     }
