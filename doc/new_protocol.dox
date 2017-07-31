@@ -3,7 +3,7 @@
 @page adding_a_protocol Adding suport for a new OpenLCB protocol
 
 
-@section introduction Introduction
+@section protocol_introduction Introduction
 
 This page will guide you through the work needed to add support for a new
 OpenLCB protocol. We will take the example of the PIP protocol (Protocol
@@ -43,7 +43,7 @@ namespace nmranet {
 }  // namespace nmranet 
 @endcode
 
-@subsection class_decl Class Declaration
+@subsection new_protocol_class_decl Class Declaration
 
 There is a base class for writing NMRAnet message handlers, called
 IncomingMessageStateFlow. This will get high-level NMRAnet messages and is

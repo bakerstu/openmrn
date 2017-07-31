@@ -1,7 +1,7 @@
 /**
  * @page hub_router_gateway_page Hubs, Routers, and Gateways
- * @section tableofcontents Table of Contents
- * - @ref introduction
+ * @section router_gateway_tableofcontents Table of Contents
+ * - @ref hub_gateway_introduction
  * - @ref hub
  * - @ref router
  * - @ref gateway
@@ -9,7 +9,7 @@
  *
  *
  *
- * @section introduction Introduction
+ * @section hub_gateway_introduction Introduction
  * OpenMRN can be used to logically connect two physical network interfaces.
  * The details of this design are ongoing and the documentation will be udated
  * as the design progresses.  The term "bridge" is purposely avoided in this

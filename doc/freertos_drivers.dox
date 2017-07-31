@@ -1,21 +1,10 @@
 /**
  * @page freertos_drivers FreeRTOS Drivers
- * @section tableofcontents Table of Contents
- * - @ref introduction
- * - @ref device
- * - @ref node
- * - @ref file
- * - @ref callgraph
- *   - @ref opencallgraph
- *   - @ref writecallgraph
- * - @ref devicebuffer
- * - @ref tutorial
- *   - @ref uartexample
- *   - @ref canexample
  * 
+ * @tableofcontents
  *
  *
- * @section introduction Introduction
+ * @section freertos_introduction Introduction
  * OpenMRN is designed to be easily portable between many different operating
  * systems including FreeRTOS, Linux, MacOS, and Windows (MinGW).  The common
  * theme with all of these OS ports, with the exception of FreeRTOS, is that

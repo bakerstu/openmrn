@@ -1,6 +1,6 @@
 /**
  * @page user_api User API
- * @section tableofcontents Table of Contents
+ * @section user_api_tableofcontents Table of Contents
  * - @ref configuration
  *   - @ref freertos_configuration
  *     - @ref freertos_stellaris_configuration

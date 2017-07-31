@@ -4,8 +4,6 @@
  * @tableofcontents
  *
  *
- *
- *
  * @section intro_section Introduction
  * OpenMRN is a networking stack specifically designed for use in model
  * model railroading.  The initial goal is to provide support for the NMRAnet
@@ -14,14 +12,6 @@
  * designed to be agnostic of the physical medium over which messages travel.
  * The OpenMRN provides support for multiple physical medium, such as CAN, while
  * abstracting physical medium specific details from the application layers.
- *
- * @section main_getting_started Getting Started Guide
- * See the @ref getting_started for instructions on setting up the tools and
- * running the example applications.
- *
- * @section main_user_api User API
- * See the @ref user_api page for direction on how an application can use the
- * stack.
  *
  * @section copyright Copyright Licenses
  * A description of open source licenses can be found on the Open Source
@@ -154,73 +144,4 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  *
- * @section layering Layering Model
- * The OpenMRN software is broken down into distinct layers of.  The lowest
- * layer is acutely aware of the physical medium and the individual frames of
- * data that pass over it.  As one moves up in the layers, the constructs
- * become more abstract and more object oriented.
- *
- * @dot
- * graph layer_model
- * {
- *     a [shape=box label = "User API"];
- *     n [shape=record,label="{{<e> Event | <d> Datagram | <s> Stream} | <n> Node}"];
- *     i [shape=box label = "Network"];
- *     g [shape=box label = "CAN Network"];
- *     h [shape=box label = "IP Network\n(Ethernet, WiFi, 6LoWPAN, ...)"];
- *     
- *     a -- n:e;
- *     a -- n:d;
- *     a -- n:s;
- *     n:n -- i;
- *     i -- g [style=dotted];
- *     i -- h [style=dotted];
- * }
- * @enddot
- *
- * @section threading Threading Model
- * An OpenMRN application always contains a minimum of one thread
- * of execution managed by an operating system.  In the case of FreeRTOS, an
- * OpenMRN application will also contain an @ref idle_thread and a
- * @ref timer_thread.  OpenMRN is designed to support
- * a number of different operating systems, and a thin abstraction is provided
- * in order to hide any OS specific differences.  The OS abstraction is
- * provided by @ref OS.hxx, and applications are encouraged to make use of when
- * accessing OS features such as threads, mutexes, semaphores, etc...
- *
- * @subsection main_thread Main Thread
- * The main thread is the thread of execution that os_main() is called with,
- * os_main() being the entry point of an application.
- * This thread is used for the application to initialize the stack.  Typically,
- * once any onetime initialization is complete, the OpenLCB stack inherits the
- * main thread for its own use with a SimpleCanStack::loop_executor() call.
- * 
- * @subsection timer_thread Timer Thread
- * FreeRTOS internally creates a thread for handling timers and events.  This
- * thread is managed by the RTOS and used by the RTOS.  It is not available for
- * application use.
- *
- * @subsection idle_thread Idle Thread
- * Some of the OS ports, such as FreeRTOS utilize an idle thread hook.  This
- * hook is used as a diagnostic tool to check the high water mark or each
- * thread's stack.  This can aid the developer in choosing the right stack size
- * for each thread as to not overflow their stack and minimize total RAM usage.
- *
- * @subsection additional_threads Additional Threads
- * An application may instantiate additional threads of its own using the
- * threading API found in OS.hxx.
- *
- * @subsection executor_service_stateflow Executors, Services, State Flows and Dispatch Flows
- * OpenMRN contains a further abstraction of the threading model, which is used
- * by the OpenLCB stack.  It is also available for application use and is
- * described on the @ref executor_service_stateflow_page page.
- *
- * @section hub_router_gateway Hubs, Routers, and Gateways
- * OpenMRN is designed to implement Hubs, Routers, and Gateways that can be
- * used to logically connect separate physical communications interfaces.  More
- * details can be found on the @ref hub_router_gateway_page page.
- *
- * @section coding_guidelines Coding Guidelines
- * OpenMRN source code adheres to very strict coding guidelines.  The
- * guidelines can be found in the @ref style_guide.
  */

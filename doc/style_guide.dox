@@ -5,7 +5,7 @@
  *
  *
  *
- * @section introduction Introduction
+ * @section style_guide_introduction Introduction
  * OpenMRN source code adheres to strict coding guidelines.  These guidelines
  * apply to all C and C++ source code and all text files where applicable.  The
  * coding guidelines are broken down into two parts:  @ref coding_style and

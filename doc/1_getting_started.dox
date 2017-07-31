@@ -1,18 +1,7 @@
 /**
  * @page getting_started Getting Started Guide
  *
- * @section tableofcontents Table of Contents
- * - @ref linux
- *   - @ref openmrn_location
- *   - @ref targets
- *     - @ref x86linux
- *     - @ref armv7freertos
- *     - @ref armv7mnuttx
- *   - @ref openocdlinux
- * - @ref windows
- * - @ref macos
- *
- *
+ * @tableofcontents
  *
  * @section linux Linux
  * This section describes how to use Linux as a development environment for
@@ -165,8 +154,6 @@
  * @section windows Windows
  * This section describes how to use Windows as a development environment for
  * OpenMRN applications.
- *
- *
  *
  * @section macos MacOS
  * This section describes how to use MacOS as a development environment for
