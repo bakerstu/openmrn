@@ -37,6 +37,7 @@
 
 #include "os/Gpio.hxx"
 #include "inc/hw_types.h"
+#include "inc/hw_ints.h"
 #include "driverlib/gpio.h"
 #include "driverlib/prcm.h"
 #include "inc/hw_memmap.h"
@@ -49,7 +50,9 @@
 #define DECL_PIN(NAME, PORT, NUM)                           \
     static const auto NAME##_PERIPH = PRCM_GPIO##PORT;      \
     static const auto NAME##_BASE = GPIO##PORT##_BASE; \
-    static const auto NAME##_PIN = GPIO_PIN_##NUM
+    static const auto NAME##_PIN = GPIO_PIN_##NUM; \
+    static const auto NAME##_INT = INT_GPIO##PORT
+    
 
 template <class Defs, bool SAFE_VALUE> struct GpioOutputPin;
 template <class Defs> struct GpioInputPin;
