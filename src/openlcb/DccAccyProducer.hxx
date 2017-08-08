@@ -132,8 +132,9 @@ public:
         , writer_()
         , bn_()
     {
+        once_.once();
         AtomicHolder h(this);
-        if (instances_.empty())
+        if (instances_->empty())
         {
             uint32_t max_address = MAX_ADDRESS;
             eventProducer_.emplace(
@@ -141,22 +142,22 @@ public:
                       TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE + 8,
                       max_address, state_callback);
         }
-        instances_.push_back(this);
+        instances_->push_back(this);
     }
 
     /// Destructor.  Remove "this" instance from @ref instances_ vector
     ~DccAccyProducer()
     {
         AtomicHolder h(this);
-        for (unsigned i = 0; i < instances_.size(); ++i)
+        for (unsigned i = 0; i < instances_->size(); ++i)
         {
-            if (instances_[i] == this)
+            if (instances_->at(i) == this)
             {
-                instances_.erase(instances_.begin() + i);
+                instances_->erase(instances_->begin() + i);
                 break;
             }
         }
-        if (instances_.empty())
+        if (instances_->empty())
         {
             eventProducer_.reset();
         }
@@ -164,6 +165,13 @@ public:
 
 private:
     using Command = DccAccyProducerInput::Command;
+
+    /** Called once.
+     */
+    static void once_routine()
+    {
+        instances_.emplace();
+    }
 
     /// Entry point to sub-flow that dispatches the next state based on the
     /// incoming command.
@@ -224,11 +232,13 @@ private:
     /// @param value value of the event pair
     static void state_callback(unsigned bit, bool value)
     {
-        for (DccAccyProducer* instance : instances_)
+        /// @todo (Stuart Baker) should this be protected by a mutex with the
+        /// constructor and destructor?
+        for (unsigned i = 0; i < instances_->size(); ++i)
         {
-            if (instance->dccStateCallback_)
+            if (instances_->at(i)->dccStateCallback_)
             {
-                instance->dccStateCallback_(bit + 1, value);
+                instances_->at(i)->dccStateCallback_(bit + 1, value);
             }
         }
     }
@@ -239,7 +249,10 @@ private:
 
     /// Vector of all the subscribers to the DCC accessory address Well-Known
     /// Event ID Range
-    static std::vector<DccAccyProducer*> instances_;
+    static uninitialized<std::vector<DccAccyProducer*>> instances_;
+
+    /// one time execution helper
+    static OSThreadOnce once_;
 
     /// Callback method that will be invoked when a consumer identified
     /// message is received with a known state.
