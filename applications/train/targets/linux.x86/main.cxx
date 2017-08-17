@@ -68,7 +68,7 @@ int port = 12021;
 const char *host = "localhost";
 const char *device_path = nullptr;
 const char *name = "Deadrail Train";
-int address = 1726;
+int address = 1732;
 OVERRIDE_CONST(num_memory_spaces, 4);
 
 namespace openlcb
