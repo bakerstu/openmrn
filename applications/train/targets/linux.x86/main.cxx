@@ -55,8 +55,6 @@ openlcb::SimpleCanStack stack(NODE_ID);
 
 openlcb::TrainService traction_service(stack.iface());
 
-openlcb::MockSNIPUserFile snip_user_file("Deadrail Train",
-                                         "Deadrail--description");
 const char *const openlcb::SNIP_DYNAMIC_FILENAME = openlcb::MockSNIPUserFile::snip_user_file_path;
 
 using openlcb::Node;
@@ -69,7 +67,8 @@ using openlcb::WriteHelper;
 int port = 12021;
 const char *host = "localhost";
 const char *device_path = nullptr;
-int address = 1726;
+const char *name = "Deadrail Train";
+int address = 1732;
 OVERRIDE_CONST(num_memory_spaces, 4);
 
 namespace openlcb
@@ -82,7 +81,7 @@ void usage(const char *e)
 {
     fprintf(stderr,
             "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) "
-            "           [-a address]\n",
+            "[-a address] [-n name]\n\n",
             e);
     fprintf(stderr,
             "Connects to an openlcb bus and exports a virtual train.\n");
@@ -100,7 +99,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:i:d:a:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:d:a:n:")) >= 0)
     {
         switch (opt)
         {
@@ -119,6 +118,9 @@ void parse_args(int argc, char *argv[])
             case 'a':
                 address = atoi(optarg);
                 break;
+            case 'n':
+                name = optarg;
+                break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
                 usage(argv[0]);
@@ -129,6 +131,9 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
+    LOG(INFO, "Train name: %s", name);
+    openlcb::MockSNIPUserFile snip_user_file(name, "Deadrail--description");
+
     if (device_path)
     {
         stack.add_gridconnect_port(device_path);
@@ -138,7 +143,7 @@ int appl_main(int argc, char *argv[])
         stack.connect_tcp_gridconnect_hub(host, port);
     }
 
-    openlcb::LoggingTrain train_impl(1732);
+    openlcb::LoggingTrain train_impl(address);
     openlcb::TrainNodeForProxy train_node(&traction_service, &train_impl);
     openlcb::FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>
     is_train_event_handler(&train_node);
