@@ -64,6 +64,16 @@ public:
     {
     }
 
+    const payload_type &last_payload()
+    {
+        return buffer_;
+    }
+
+    void clear_last_payload()
+    {
+        buffer_.clear();
+    }
+
     void set_wait_for_local_loopback(bool wait = true)
     {
         waitForLocalLoopback_ = (wait ? 1 : 0);
