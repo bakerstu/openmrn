@@ -880,6 +880,13 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             ipAddress = event_data->SL_ip_address;
             break;
         }
+#if defined (SL_API_V2)
+        case SL_NETAPP_EVENT_IPV4_LOST:
+        {
+            ipAddress = 0;
+            break;
+        }
+#endif
         case SL_NETAPP_EVENT_DHCPV4_RELEASED:
             ipLeased = 0;
 
@@ -1162,4 +1169,3 @@ int slcb_SetErrno(int Errno)
 #endif 
 
 } /* extern "C" */
-
