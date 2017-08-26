@@ -33,8 +33,8 @@
  * @date 3 Feb 2017
  */
 
-#ifndef _NMRANET_DCCACCYCONSUMER_HXX_
-#define _NMRANET_DCCACCYCONSUMER_HXX_
+#ifndef _OPENLCB_DCCACCYCONSUMER_HXX_
+#define _OPENLCB_DCCACCYCONSUMER_HXX_
 
 #include "openlcb/TractionDefs.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
@@ -220,4 +220,4 @@ private:
 
 } // namespace openlcb
 
-#endif
+#endif  // _OPENLCB_DCCACCYCONSUMER_HXX_

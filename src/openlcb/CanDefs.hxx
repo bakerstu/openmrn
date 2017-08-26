@@ -31,8 +31,8 @@
  * @date 18 September 2013
  */
 
-#ifndef _NMRANET_CANDEFS_HXX_
-#define _NMRANET_CANDEFS_HXX_
+#ifndef _OPENLCB_CANDEFS_HXX_
+#define _OPENLCB_CANDEFS_HXX_
 
 #include <cstdint>
 
@@ -370,4 +370,4 @@ private:
 
 }  // namespace openlcb
 
-#endif /* _NMRAnetIfCan_hxx_ */
+#endif // _OPENLCB_CANDEFS_HXX_

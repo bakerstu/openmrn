@@ -32,8 +32,8 @@
  * @date 10 Mar 2015
  */
 
-#ifndef _NMRANET_SIMPLESTACK_HXX_
-#define _NMRANET_SIMPLESTACK_HXX_
+#ifndef _OPENLCB_SIMPLESTACK_HXX_
+#define _OPENLCB_SIMPLESTACK_HXX_
 
 #include <fcntl.h>
 
@@ -440,4 +440,4 @@ private:
 
 } // namespace openlcb
 
-#endif //  _NMRANET_SIMPLESTACK_HXX_
+#endif //  _OPENLCB_SIMPLESTACK_HXX_

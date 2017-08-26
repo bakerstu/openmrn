@@ -31,8 +31,8 @@
  * @date 13 Jul 2014
  */
 
-#ifndef _NMRANET_REFRESHLOOP_HXX_
-#define _NMRANET_REFRESHLOOP_HXX_
+#ifndef _OPENLCB_REFRESHLOOP_HXX_
+#define _OPENLCB_REFRESHLOOP_HXX_
 
 #include <vector>
 
@@ -112,4 +112,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_REFRESHLOOP_HXX_
+#endif // _OPENLCB_REFRESHLOOP_HXX_

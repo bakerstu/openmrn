@@ -32,8 +32,8 @@
  * @date 5 May 2014
  */
 
-#ifndef _NMRANET_TRACTIONTRAIN_HXX_
-#define _NMRANET_TRACTIONTRAIN_HXX_
+#ifndef _OPENLCB_TRACTIONTRAIN_HXX_
+#define _OPENLCB_TRACTIONTRAIN_HXX_
 
 #include <set>
 
@@ -254,4 +254,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_TRACTIONTRAIN_HXX_
+#endif // _OPENLCB_TRACTIONTRAIN_HXX_

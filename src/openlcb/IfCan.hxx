@@ -32,8 +32,8 @@
  * @date 3 Dec 2013
  */
 
-#ifndef _NMRANET_IFCAN_HXX_
-#define _NMRANET_IFCAN_HXX_
+#ifndef _OPENLCB_IFCAN_HXX_
+#define _OPENLCB_IFCAN_HXX_
 
 #include <memory>
 
@@ -353,4 +353,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_IFCAN_HXX_
+#endif // _OPENLCB_IFCAN_HXX_

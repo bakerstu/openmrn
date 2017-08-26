@@ -32,8 +32,8 @@
  * @date 22 Jul 2013
  */
 
-#ifndef _NMRANET_SIMPLEINFOPROTOCOL_HXX_
-#define _NMRANET_SIMPLEINFOPROTOCOL_HXX_
+#ifndef _OPENLCB_SIMPLEINFOPROTOCOL_HXX_
+#define _OPENLCB_SIMPLEINFOPROTOCOL_HXX_
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -420,4 +420,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_SIMPLEINFOPROTOCOL_HXX_
+#endif // _OPENLCB_SIMPLEINFOPROTOCOL_HXX_

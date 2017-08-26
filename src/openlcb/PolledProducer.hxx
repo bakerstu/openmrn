@@ -32,8 +32,8 @@
  * @date 13 Jul 2014
  */
 
-#ifndef _NMRANET_POLLEDPRODUCER_HXX_
-#define _NMRANET_POLLEDPRODUCER_HXX_
+#ifndef _OPENLCB_POLLEDPRODUCER_HXX_
+#define _OPENLCB_POLLEDPRODUCER_HXX_
 
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/RefreshLoop.hxx"
@@ -87,4 +87,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_POLLEDPRODUCER_HXX_
+#endif // _OPENLCB_POLLEDPRODUCER_HXX_

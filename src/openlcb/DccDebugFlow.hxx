@@ -32,8 +32,8 @@
  * @date 13 Dec 2015
  */
 
-#ifndef _NMRANET_DCCDEBUGFLOW_HXX_
-#define _NMRANET_DCCDEBUGFLOW_HXX_
+#ifndef _OPENLCB_DCCDEBUGFLOW_HXX_
+#define _OPENLCB_DCCDEBUGFLOW_HXX_
 
 namespace openlcb {
 
@@ -114,4 +114,4 @@ class DccDebugDecodeFlow : public dcc::DccDecodeFlow {
 
 } // namespace
 
-#endif // _NMRANET_DCCDEBUGFLOW_HXX_
+#endif // _OPENLCB_DCCDEBUGFLOW_HXX_

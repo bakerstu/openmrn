@@ -33,8 +33,8 @@
  * @date 19 October 2013
  */
 
-#ifndef _NMRANET_EVENTHANDLERTEMPLATES_HXX_
-#define _NMRANET_EVENTHANDLERTEMPLATES_HXX_
+#ifndef _OPENLCB_EVENTHANDLERTEMPLATES_HXX_
+#define _OPENLCB_EVENTHANDLERTEMPLATES_HXX_
 
 #include "openlcb/EventHandler.hxx"
 #include "openlcb/WriteHelper.hxx"
@@ -844,4 +844,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_EVENTHANDLERTEMPLATES_HXX_
+#endif // _OPENLCB_EVENTHANDLERTEMPLATES_HXX_

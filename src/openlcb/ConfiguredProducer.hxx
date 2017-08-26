@@ -33,8 +33,8 @@
  * @date 13 June 2015
  */
 
-#ifndef _NMRANET_CONFIGUREDPRODUCER_HXX_
-#define _NMRANET_CONFIGUREDPRODUCER_HXX_
+#ifndef _OPENLCB_CONFIGUREDPRODUCER_HXX_
+#define _OPENLCB_CONFIGUREDPRODUCER_HXX_
 
 #include "openlcb/PolledProducer.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
@@ -152,4 +152,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_CONFIGUREDPRODUCER_HXX_
+#endif // _OPENLCB_CONFIGUREDPRODUCER_HXX_

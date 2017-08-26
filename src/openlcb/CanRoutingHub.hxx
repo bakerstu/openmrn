@@ -33,8 +33,8 @@
  * @date 23 May 2016
  */
 
-#ifndef _NMRANET_CANROUTNGHUB_HXX_
-#define _NMRANET_CANROUTNGHUB_HXX_
+#ifndef _OPENLCB_CANROUTNGHUB_HXX_
+#define _OPENLCB_CANROUTNGHUB_HXX_
 
 #include "openlcb/RoutingLogic.hxx"
 #include "openlcb/CanDefs.hxx"
@@ -439,4 +439,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_CANROUTNGHUB_HXX_
+#endif // _OPENLCB_CANROUTNGHUB_HXX_

@@ -32,8 +32,8 @@
  * @date 25 Jan 2014
  */
 
-#ifndef _NMRANET_DATAGRAM_HXX_
-#define _NMRANET_DATAGRAM_HXX_
+#ifndef _OPENLCB_DATAGRAM_HXX_
+#define _OPENLCB_DATAGRAM_HXX_
 
 #include "utils/NodeHandlerMap.hxx"
 #include "utils/Queue.hxx"
@@ -248,4 +248,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_DATAGRAM_HXX_
+#endif // _OPENLCB_DATAGRAM_HXX_

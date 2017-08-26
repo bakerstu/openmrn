@@ -33,12 +33,12 @@
  * @date 8 Dec 2014
  */
 
-#ifdef _NMRANET_BOOTLOADER_HXX_
+#ifdef _OPENLCB_BOOTLOADER_HXX_
 #error Bootloader.hxx should be included only once.
 #endif
 
 /// include guard macro
-#define _NMRANET_BOOTLOADER_HXX_
+#define _OPENLCB_BOOTLOADER_HXX_
 
 #include <string.h>
 #include <unistd.h>

@@ -33,8 +33,8 @@
  * @date 23 May 2016
  */
 
-#ifndef _NMRANET_ROUTNGLOGIC_HXX_
-#define _NMRANET_ROUTNGLOGIC_HXX_
+#ifndef _OPENLCB_ROUTNGLOGIC_HXX_
+#define _OPENLCB_ROUTNGLOGIC_HXX_
 
 #include <set>
 #include <map>
@@ -235,4 +235,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_ROUTNGLOGIC_HXX_
+#endif // _OPENLCB_ROUTNGLOGIC_HXX_
