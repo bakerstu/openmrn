@@ -1,12 +1,12 @@
 #ifndef _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
 #define _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
 
-#include "nmranet/ConfiguredConsumer.hxx"
-#include "nmranet/ConfiguredProducer.hxx"
-#include "nmranet/ConfigRepresentation.hxx"
-#include "nmranet/MemoryConfig.hxx"
+#include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredProducer.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
+#include "openlcb/MemoryConfig.hxx"
 
-namespace nmranet
+namespace openlcb
 {
 
 /// Defines the identification information for the node. The arguments are:
@@ -23,8 +23,8 @@ namespace nmranet
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "Test IO Board - Fake (linux)",
-    "linux.x86", "1.01"};
+    4,               "OpenMRN", "Test IO Board - Fake (js.emscripten)",
+    "javascript", "1.01"};
 
 #define NUM_OUTPUTS 4
 #define NUM_INPUTS 2
