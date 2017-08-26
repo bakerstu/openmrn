@@ -66,8 +66,6 @@ struct CC32xxWiFi::HttpServerResponse : public ::SlHttpServerResponse_t {};
 struct CC32xxWiFi::FatalErrorEvent : public ::SlDeviceFatal_t {};
 #endif
 
-CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;
-
 /** This is not a class members so that including CC32xxWiFi.hxx does not
  * pollute the namespace with simplelink APIs.
  */
@@ -180,8 +178,6 @@ CC32xxWiFi::CC32xxWiFi()
     , ipAcquired(0)
     , ipLeased(0)
 {
-    HASSERT(instance_ == nullptr);
-    instance_ = this;
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
         slSockets[i] = -1;

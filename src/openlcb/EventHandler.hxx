@@ -39,6 +39,7 @@
 #include "executor/Notifiable.hxx"
 #include "utils/AsyncMutex.hxx"
 #include "utils/macros.h"
+#include "utils/Singleton.hxx"
 #include "openlcb/WriteHelper.hxx"
 
 namespace openlcb
@@ -228,18 +229,10 @@ class EventIterator;
 /// requirements of your binary. In the event handlers constructor, register
 /// the event handler via the singleton pointer.
 ///
-/// @TODO(balazs.racz) transition to the usual Singleton class instead of
-/// hand-initialized singleton pointer.
-class EventRegistry
+class EventRegistry : public Singleton<EventRegistry>
 {
 public:
     virtual ~EventRegistry();
-
-    static EventRegistry *instance()
-    {
-        HASSERT(instance_);
-        return instance_;
-    }
 
     /** Computes the alignment mask for registering an event range. Updates the
      * event by rounding and returns the mask value to be sent to the
