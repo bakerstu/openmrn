@@ -37,8 +37,6 @@
 namespace openlcb
 {
 
-EventRegistry *EventRegistry::instance_ = nullptr;
-
 AsyncMutex event_handler_mutex;
 WriteHelper event_write_helper1;
 WriteHelper event_write_helper2;
@@ -48,14 +46,10 @@ BarrierNotifiable event_barrier;
 
 EventRegistry::EventRegistry()
 {
-    HASSERT(instance_ == nullptr);
-    instance_ = this;
 }
 
 EventRegistry::~EventRegistry()
 {
-    HASSERT(instance_ == this);
-    instance_ = nullptr;
 }
 
 // static

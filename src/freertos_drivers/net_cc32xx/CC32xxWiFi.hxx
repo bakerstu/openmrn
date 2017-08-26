@@ -39,6 +39,7 @@
 #include <string>
 
 #include "os/OS.hxx"
+#include "utils/Singleton.hxx"
 #include "utils/format_utils.hxx"
 #include "freertos_drivers/common/WifiDefs.hxx"
 
@@ -48,7 +49,7 @@ class CC32xxSocket;
  * CC32xx Wi-Fi stack.  This is designed to be a singleton.  It should only
  * be instantiated once.
  */
-class CC32xxWiFi
+class CC32xxWiFi : public Singleton<CC32xxWiFi>
 {
 public:
     /** CC32xx SimpleLink forward declaration */
@@ -156,15 +157,6 @@ public:
     /** Updates the blinker based on connection state. Noop if wlan_ready()
      * returns true.*/
     void connecting_update_blinker();
-
-    /** Get the singleton instance pointer.
-     * @return singleton instance pointer
-     */
-    static CC32xxWiFi *instance()
-    {
-        HASSERT(instance_);
-        return instance_;
-    }
 
     /** Add a saved WLAN profile.
      * @param ssid WLAN SSID of the profile to save

@@ -39,7 +39,6 @@
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
 
-#include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
