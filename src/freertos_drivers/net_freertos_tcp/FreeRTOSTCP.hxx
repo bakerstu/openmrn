@@ -36,6 +36,7 @@
 #define _FREERTOS_DRIVERS_NET_FREERTOSTCP_FREERTOSTCP_HXX_
 
 #include "os/OS.hxx"
+#include "utils/Singleton.hxx"
 
 class FreeRTOSTCPSocket;
 
@@ -46,7 +47,7 @@ typedef void *Socket_t;
  * FreeRTOSTCP stack.  This is designed to be a singleton.  It should only
  * be instantiated once.
  */
-class FreeRTOSTCP
+class FreeRTOSTCP : public Singleton<FreeRTOSTCP>
 {
 public:
     /** Constructor.
@@ -62,15 +63,6 @@ public:
     /** Startup the networking processes.
      */
     void start();
-
-    /** Get the singleton instance pointer.
-     * @return singleton instance pointer
-     */
-    static FreeRTOSTCP *instance()
-    {
-        HASSERT(instance_);
-        return instance_;
-    }
 
 private:
     /** Thread that will manage the network connection.
