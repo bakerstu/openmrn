@@ -103,7 +103,13 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 
 // change #if to 1 in order to enable asserts for the kernel
 #if 1
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern int g_death_lineno;
+#ifdef __cplusplus
+}
+#endif  // cplusplus
 #define configASSERT( x ) do { if (!(x)) { g_death_lineno = __LINE__; diewith(BLINK_DIE_ASSERT); }} while(0)
 #endif
 
