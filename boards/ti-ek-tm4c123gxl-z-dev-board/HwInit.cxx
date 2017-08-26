@@ -49,6 +49,8 @@
 
 #include "hardware.hxx"
 
+#define TIVADCC_TIVA
+
 #include "TivaDev.hxx"
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
@@ -71,6 +73,7 @@ struct Debug {
   typedef DummyPin RailcomPackets;
 
   typedef DummyPin RailcomCh2Data;
+  typedef DummyPin RailcomRxActivate;
 };
 #include "TivaRailcom.hxx"
 
