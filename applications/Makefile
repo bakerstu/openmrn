@@ -10,6 +10,7 @@ SUBDIRS = \
 	blink_raw \
 	bootloader \
 	bootloader_client \
+	can_eth \
 	reflash_bootloader \
 	clinic_app \
 	hub \
