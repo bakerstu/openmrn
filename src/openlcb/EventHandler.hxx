@@ -31,8 +31,8 @@
  * @date 29 September 2013
  */
 
-#ifndef _NMRANET_EVENTHANDLER_HXX_
-#define _NMRANET_EVENTHANDLER_HXX_
+#ifndef _OPENLCB_EVENTHANDLER_HXX_
+#define _OPENLCB_EVENTHANDLER_HXX_
 
 #include <stdint.h>
 
@@ -289,4 +289,4 @@ private:
 
 }; /* namespace openlcb */
 
-#endif // _NMRANET_EVENTHANDLER_HXX_
+#endif // _OPENLCB_EVENTHANDLER_HXX_

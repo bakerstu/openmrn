@@ -34,8 +34,8 @@
  * @date 20 April 2014
  */
 
-#ifndef _NMRANET_EVENTSERVICEIMPL_HXX_
-#define _NMRANET_EVENTSERVICEIMPL_HXX_
+#ifndef _OPENLCB_EVENTSERVICEIMPL_HXX_
+#define _OPENLCB_EVENTSERVICEIMPL_HXX_
 
 #include <memory>
 #include <vector>
@@ -199,4 +199,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_GLOBAL_EVENT_HANDLER_IMPL_
+#endif // _OPENLCB_EVENTSERVICEIMPL_HXX_

@@ -32,8 +32,8 @@
  * @date 23 Feb 2014
  */
 
-#ifndef _NMRANET_MEMORYCONFIG_HXX_
-#define _NMRANET_MEMORYCONFIG_HXX_
+#ifndef _OPENLCB_MEMORYCONFIG_HXX_
+#define _OPENLCB_MEMORYCONFIG_HXX_
 
 #include "openlcb/DatagramDefs.hxx"
 #include "openlcb/DatagramHandlerDefault.hxx"
@@ -1097,4 +1097,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_MEMORYCONFIG_HXX_
+#endif // _OPENLCB_MEMORYCONFIG_HXX_

@@ -33,8 +33,8 @@
  * @date 18 December 2015
  */
 
-#ifndef _NMRANET_CALLBACKEVENTHANDLER_HXX_
-#define _NMRANET_CALLBACKEVENTHANDLER_HXX_
+#ifndef _OPENLCB_CALLBACKEVENTHANDLER_HXX_
+#define _OPENLCB_CALLBACKEVENTHANDLER_HXX_
 
 #include <functional>
 
@@ -164,4 +164,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_CALLBACKEVENTHANDLER_HXX_
+#endif // _OPENLCB_CALLBACKEVENTHANDLER_HXX_

@@ -32,8 +32,8 @@
  * @date 31 May 2015
  */
 
-#ifndef _NMRANET_CONFIGENTRY_HXX_
-#define _NMRANET_CONFIGENTRY_HXX_
+#ifndef _OPENLCB_CONFIGENTRY_HXX_
+#define _OPENLCB_CONFIGENTRY_HXX_
 
 #include <sys/types.h>
 #include <stdint.h>
@@ -311,4 +311,4 @@ public:
 
 } // namespace openlcb
 
-#endif // _NMRANET_CONFIGENTRY_HXX_
+#endif // _OPENLCB_CONFIGENTRY_HXX_

@@ -32,8 +32,8 @@
  * @date 7 December 2013
  */
 
-#ifndef _NMRANET_DEFAULTNODE_HXX_
-#define _NMRANET_DEFAULTNODE_HXX_
+#ifndef _OPENLCB_DEFAULTNODE_HXX_
+#define _OPENLCB_DEFAULTNODE_HXX_
 
 #include "openlcb/Node.hxx"
 
@@ -84,4 +84,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_DEFAULTNODE_HXX_
+#endif // _OPENLCB_DEFAULTNODE_HXX_

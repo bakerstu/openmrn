@@ -34,8 +34,8 @@
  * @date 13 June 2015
  */
 
-#ifndef _NMRANET_CONFIGUPDATEFLOW_HXX_
-#define _NMRANET_CONFIGUPDATEFLOW_HXX_
+#ifndef _OPENLCB_CONFIGUPDATEFLOW_HXX_
+#define _OPENLCB_CONFIGUPDATEFLOW_HXX_
 
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
@@ -186,4 +186,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_CONFIGUPDATEFLOW_HXX_
+#endif // _OPENLCB_CONFIGUPDATEFLOW_HXX_

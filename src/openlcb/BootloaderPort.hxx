@@ -33,8 +33,8 @@
  * @date 19 Jun 2016
  */
 
-#ifndef _NMRANET_BOOTLOADERPORT_HXX_
-#define _NMRANET_BOOTLOADERPORT_HXX_
+#ifndef _OPENLCB_BOOTLOADERPORT_HXX_
+#define _OPENLCB_BOOTLOADERPORT_HXX_
 
 #include "utils/Hub.hxx"
 
@@ -93,5 +93,5 @@ private:
 
 }  // namespace openlcb
 
-#endif //_NMRANET_BOOTLOADERPORT_HXX_
+#endif //_OPENLCB_BOOTLOADERPORT_HXX_
 

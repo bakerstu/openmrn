@@ -32,8 +32,8 @@
  * @date 20 May 2014
  */
 
-#ifndef _NMRANET_TRACTIONTHROTTLE_HXX_
-#define _NMRANET_TRACTIONTHROTTLE_HXX_
+#ifndef _OPENLCB_TRACTIONTHROTTLE_HXX_
+#define _OPENLCB_TRACTIONTHROTTLE_HXX_
 
 #include "openlcb/TractionClient.hxx"
 #include "openlcb/TractionDefs.hxx"
@@ -773,4 +773,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_TRACTIONTHROTTLE_HXX_
+#endif // _OPENLCB_TRACTIONTHROTTLE_HXX_

@@ -32,8 +32,8 @@
  * @date 20 Mar 2016
  */
 
-#ifndef _NMRANET_TRACTIONCVCDI_HXX_
-#define _NMRANET_TRACTIONCVCDI_HXX_
+#ifndef _OPENLCB_TRACTIONCVCDI_HXX_
+#define _OPENLCB_TRACTIONCVCDI_HXX_
 
 #include "openlcb/ConfigRepresentation.hxx"
 
@@ -52,4 +52,4 @@ static_assert(TractionShortCvSpace::size() == 5, "Traction CV space's size not a
 
 }  // namespace openlcb
 
-#endif // _NMRANET_TRACTIONCVCDI_HXX_
+#endif // _OPENLCB_TRACTIONCVCDI_HXX_

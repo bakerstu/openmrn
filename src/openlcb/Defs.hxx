@@ -31,8 +31,8 @@
  * @date 18 September 2013
  */
 
-#ifndef _NMRANET_DEFS_HXX_
-#define _NMRANET_DEFS_HXX_
+#ifndef _OPENLCB_DEFS_HXX_
+#define _OPENLCB_DEFS_HXX_
 
 #include <cstdint>
 
@@ -325,4 +325,4 @@ inline Defs::MTI& operator -- (Defs::MTI &value)
 
 }; /* namespace openlcb */
 
-#endif /* _NMRANET_DEFS_HXX_ */
+#endif  // _OPENLCB_DEFS_HXX_

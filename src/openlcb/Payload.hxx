@@ -33,8 +33,8 @@
  * @date 18 May 2014
  */
 
-#ifndef _NMRANET_PAYLOAD_HXX_
-#define _NMRANET_PAYLOAD_HXX_
+#ifndef _OPENLCB_PAYLOAD_HXX_
+#define _OPENLCB_PAYLOAD_HXX_
 
 #include <string>
 
@@ -44,4 +44,4 @@ typedef string Payload;
 
 } // namespace openlcb
 
-#endif // _NMRANET_PAYLOAD_HXX_
+#endif // _OPENLCB_PAYLOAD_HXX_

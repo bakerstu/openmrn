@@ -32,8 +32,8 @@
  * @date 31 May 2014
  */
 
-#ifndef _NMRANET_CONFIGREPRESENTATION_HXX_
-#define _NMRANET_CONFIGREPRESENTATION_HXX_
+#ifndef _OPENLCB_CONFIGREPRESENTATION_HXX_
+#define _OPENLCB_CONFIGREPRESENTATION_HXX_
 
 #include "openlcb/ConfigEntry.hxx"
 #include "openlcb/MemoryConfig.hxx"
@@ -469,4 +469,4 @@ template <> inline void render_all_cdi<0>()
         render_all_cdi<N - 1>();                                               \
     }
 
-#endif // _NMRANET_CONFIGREPRESENTATION_HXX_
+#endif // _OPENLCB_CONFIGREPRESENTATION_HXX_

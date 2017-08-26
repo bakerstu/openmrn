@@ -32,8 +32,8 @@
  * @date 10 May 2014
  */
 
-#ifndef _NMRANET_TRAININTERFACE_HXX_
-#define _NMRANET_TRAININTERFACE_HXX_
+#ifndef _OPENLCB_TRAININTERFACE_HXX_
+#define _OPENLCB_TRAININTERFACE_HXX_
 
 #include "openlcb/TractionDefs.hxx"
 #include "dcc/Defs.hxx"
@@ -92,5 +92,5 @@ public:
 
 }  // namespace openlcb
 
-#endif // _NMRANET_TRAININTERFACE_HXX_
+#endif // _OPENLCB_TRAININTERFACE_HXX_
  

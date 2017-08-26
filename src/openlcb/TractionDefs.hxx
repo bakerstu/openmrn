@@ -33,8 +33,8 @@
  * @date 5 May 2014
  */
 
-#ifndef _NMRANET_TRACTIONDEFS_HXX_
-#define _NMRANET_TRACTIONDEFS_HXX_
+#ifndef _OPENLCB_TRACTIONDEFS_HXX_
+#define _OPENLCB_TRACTIONDEFS_HXX_
 
 #include <cmath>
 #include <stdint.h>
@@ -409,4 +409,4 @@ struct TractionDefs {
 
 }  // namespace openlcb
 
-#endif //_NMRANET_TRACTIONDEFS_HXX_
+#endif // _OPENLCB_TRACTIONDEFS_HXX_

@@ -33,8 +33,8 @@
  * @date 13 June 2015
  */
 
-#ifndef _NMRANET_CONFIGUREDCONSUMER_HXX_
-#define _NMRANET_CONFIGUREDCONSUMER_HXX_
+#ifndef _OPENLCB_CONFIGUREDCONSUMER_HXX_
+#define _OPENLCB_CONFIGUREDCONSUMER_HXX_
 
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
@@ -281,4 +281,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_CONFIGUREDCONSUMER_HXX_
+#endif // _OPENLCB_CONFIGUREDCONSUMER_HXX_
