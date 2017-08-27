@@ -205,8 +205,24 @@ uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
     }
 }
 
-CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(uint8_t sec_type)
+CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(unsigned sec_type)
 {
+#ifdef SL_API_V2
+    auto t = SL_WLAN_SCAN_RESULT_SEC_TYPE_BITMAP(sec_type);
+    switch (t)
+    {
+        default:
+        case SL_WLAN_SECURITY_TYPE_BITMAP_OPEN:
+            return SEC_OPEN;
+        case SL_WLAN_SECURITY_TYPE_BITMAP_WEP:
+            return SEC_WEP;
+        case SL_WLAN_SECURITY_TYPE_BITMAP_WPA:
+        case SL_WLAN_SECURITY_TYPE_BITMAP_WPA2:
+        case SL_WLAN_SECURITY_TYPE_BITMAP_WPA |
+            SL_WLAN_SECURITY_TYPE_BITMAP_WPA2:
+            return SEC_WPA2;
+    }
+#else
     switch (sec_type)
     {
         default:
@@ -220,6 +236,7 @@ CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(uint8_t sec_t
         case SL_SEC_TYPE_WPA_WPA2:
             return SEC_WPA2;
     }
+#endif    
 }
 
 /*

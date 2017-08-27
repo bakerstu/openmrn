@@ -337,7 +337,7 @@ private:
      * @param sec_type simplelink security type
      * @return security type
      */
-    SecurityType security_type_from_simplelink(uint8_t sec_type);
+    SecurityType security_type_from_simplelink(unsigned sec_type);
 
     /** Set the CC32xx to its default state, including station mode.
      */
