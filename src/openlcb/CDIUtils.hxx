@@ -124,6 +124,7 @@ public:
         while (node)
         {
             free(node->user);
+            node->user = nullptr;
             node = XMLNode_next(node);
         }
     }
