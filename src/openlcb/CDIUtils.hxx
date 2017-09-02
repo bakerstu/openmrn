@@ -62,12 +62,13 @@ public:
     /// Helper class for deleting sxml strings.
     struct SXmlStringDeleter
     {
-        void operator()(const SXML_CHAR* data) {
-            free(const_cast<SXML_CHAR*>(data));
+        void operator()(const SXML_CHAR *data)
+        {
+            free(const_cast<SXML_CHAR *>(data));
         }
     };
     typedef std::unique_ptr<const SXML_CHAR, SXmlStringDeleter> xmlstring_t;
-    
+
     /// Searches the list of children for the first child with a specific tag.
     /// @param parent is the node whose children to search.
     /// @param tag is which child to look for.
@@ -90,7 +91,7 @@ public:
     /// @param node is a CDI element (segment, group, or config element).
     /// @return finds a child tag <name> and returns its contents. Returns
     /// empty string if no <name> was found.
-    static string find_node_name(XMLNode *node, const char *def)
+    static string find_node_name(const XMLNode *node, const char *def)
     {
         auto *n = find_child_or_null(node, "name");
         if (n == nullptr || n->text == nullptr)
@@ -103,7 +104,7 @@ public:
     /// @param node is a CDI element (segment, group, or config element).
     /// @return finds a child tag <description> and returns its
     /// contents. Returns empty string if no <description> was found.
-    static string find_node_description(XMLNode *node)
+    static string find_node_description(const XMLNode *node)
     {
         auto *n = find_child_or_null(node, "description");
         if (n == nullptr || n->text == nullptr)
@@ -186,7 +187,7 @@ public:
     {
         const SXML_CHAR *attr_value;
         XMLNode_get_attribute_with_default(
-            const_cast<XMLNode*>(node), attr_name, &attr_value, nullptr);
+            const_cast<XMLNode *>(node), attr_name, &attr_value, nullptr);
         xmlstring_t d(attr_value);
         if ((!attr_value) || (attr_value[0] == 0))
         {
@@ -295,6 +296,21 @@ public:
         /// the group. For repeated groups this is meaningful only with a given
         /// repetition of a group.
         unsigned address_;
+
+        CDINodeRep()
+            : node_(nullptr)
+            , address_(0)
+        {
+        }
+
+        /// Initializes a group rep from an arbitrary XML element (e.g. the cdi
+        /// root). Tihs does not allow child computations.
+        /// @param node is the XML element.
+        CDINodeRep(const XMLNode *node, std::nullptr_t)
+            : node_(node)
+            , address_(0)
+        {
+        }
 
         /// Initializes a group rep from a segment root.
         /// @param segment is the XML element representing the segment root.
