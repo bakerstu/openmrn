@@ -121,6 +121,7 @@ struct BootloaderState
 };
 
 /// Global state variables.
+extern BootloaderState state_;
 BootloaderState state_;
 
 //#define WRITE_BUFFER_SIZE 1024
