@@ -59,12 +59,21 @@ public:
     /// Smart pointer class for holding XML documents.
     typedef std::unique_ptr<XMLDoc, XMLDocDeleter> xmldoc_ptr_t;
 
+    /// Helper class for deleting sxml strings.
+    struct SXmlStringDeleter
+    {
+        void operator()(const SXML_CHAR* data) {
+            free(const_cast<SXML_CHAR*>(data));
+        }
+    };
+    typedef std::unique_ptr<const SXML_CHAR, SXmlStringDeleter> xmlstring_t;
+    
     /// Searches the list of children for the first child with a specific tag.
     /// @param parent is the node whose children to search.
     /// @param tag is which child to look for.
     /// @return nullptr if not found, else the first occurrence of tag in the
     /// children.
-    static XMLNode *find_child_or_null(XMLNode *parent, const char *tag)
+    static XMLNode *find_child_or_null(const XMLNode *parent, const char *tag)
     {
         auto count = XMLNode_get_children_count(parent);
         for (int i = 0; i < count; ++i)
@@ -153,7 +162,7 @@ public:
     /// what the userinfo has been allocated to.
     /// @param node is the XML element node whose userinfo we are trying to
     /// fetch
-    template <class T> static void get_userinfo(T **info, XMLNode *node)
+    template <class T> static void get_userinfo(T **info, const XMLNode *node)
     {
         HASSERT(node);
         *info = static_cast<T *>(node->user);
@@ -173,11 +182,12 @@ public:
     };
 
     static int get_numeric_attribute(
-        XMLNode *node, const char *attr_name, int def = 0)
+        const XMLNode *node, const char *attr_name, int def = 0)
     {
         const SXML_CHAR *attr_value;
         XMLNode_get_attribute_with_default(
-            node, attr_name, &attr_value, nullptr);
+            const_cast<XMLNode*>(node), attr_name, &attr_value, nullptr);
+        xmlstring_t d(attr_value);
         if ((!attr_value) || (attr_value[0] == 0))
         {
             return def;
@@ -266,6 +276,88 @@ public:
             }
         }
     }
+
+    /// @return the number of replicas a group has, if it is a repeated group,
+    /// or 1 if it is a non-repeated group.
+    static int get_replication(XMLNode *group)
+    {
+        HASSERT(strcmp(group->tag, "group") == 0);
+        return get_numeric_attribute(group, "replication", 1);
+    }
+
+    struct CDINodeRep
+    {
+        /// Element in the XML where we are. This is a segment or a group node.
+        const XMLNode *node_;
+        /// address in the current space of the beginning of the current
+        /// node. For segments, this is the origin; for groups this is the
+        /// address of the virtual zero-length data element at the beginning of
+        /// the group. For repeated groups this is meaningful only with a given
+        /// repetition of a group.
+        unsigned address_;
+
+        /// Initializes a group rep from a segment root.
+        /// @param segment is the XML element representing the segment root.
+        CDINodeRep(const XMLNode *segment)
+        {
+            NodeInfo *info;
+            get_userinfo(&info, segment);
+            HASSERT(info);
+            node_ = segment;
+            address_ = info->offset_from_parent;
+        }
+
+        /// Initializes a group rep which has no replication.
+        /// @param parent is the Node representation of the parent group or
+        /// segment.
+        /// @param group is the XML element for the current (child) group. it
+        /// must have no replication.
+        CDINodeRep(const CDINodeRep *parent, XMLNode *group)
+        {
+            HASSERT(group->father == parent->node_);
+            node_ = group;
+            HASSERT(get_replication(group) == 1);
+            address_ = parent->get_child_address(group);
+        }
+
+        /// Initializes a group rep for a given replica.
+        /// @param parent is the Node representation of the parent group or
+        /// segment.
+        /// @param group is the XML element for the current (child) group. it
+        /// must have replication.
+        /// @param replica is the number of the replication (zero to
+        /// replication - 1).
+        CDINodeRep(const CDINodeRep *parent, XMLNode *group, unsigned replica)
+        {
+            HASSERT(group->father == parent->node_);
+            node_ = group;
+            int replication = get_replication(group);
+            HASSERT(replication > 1);
+            NodeInfo *info;
+            get_userinfo(&info, group);
+            HASSERT(info);
+            unsigned base_address = parent->get_child_address(group);
+            unsigned stride = info->size / replication;
+            address_ = base_address + stride * replica;
+        }
+
+        /// Resets the current representation. Use any constructor argument
+        /// set.
+        template <typename... Args> void reset(Args &&... args)
+        {
+            new (this) CDINodeRep(std::forward<Args>(args)...);
+        }
+
+        /// Gets the absolute address of a given child in the current segment.
+        unsigned get_child_address(XMLNode *child) const
+        {
+            HASSERT(child->father == node_);
+            NodeInfo *info;
+            get_userinfo(&info, child);
+            HASSERT(info);
+            return address_ + info->offset_from_parent;
+        }
+    };
 
 private:
     // Static class; never instantiated.
