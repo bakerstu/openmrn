@@ -336,10 +336,10 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
     wait();
 }
 
-class MockDatagramHandler : public DatagramHandlerFlow
+class MockDatagramHandler : public DefaultDatagramHandler
 {
 public:
-    MockDatagramHandler() : DatagramHandlerFlow(&g_service)
+    MockDatagramHandler(DatagramService* srv) : DefaultDatagramHandler(srv)
     {
     }
 
@@ -348,13 +348,13 @@ public:
     Action entry() OVERRIDE
     {
         handle_datagram(message()->data());
-        return release_and_exit();
+        return respond_ok(0);
     }
 };
 
 TEST_F(AsyncDatagramTest, DispatchTest)
 {
-    StrictMock<MockDatagramHandler> dg;
+    StrictMock<MockDatagramHandler> dg(&datagram_support_);
     datagram_support_.registry()->insert(nullptr, 0x30, &dg);
     EXPECT_CALL(
         dg, handle_datagram(Pointee(AllOf(
@@ -521,6 +521,34 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
     run_x([this, &h]() {
         EXPECT_EQ(0x210U, ifCan_->remote_aliases()->lookup(h.id));
     });
+}
+
+TEST_F(AsyncDatagramTest, SendLoopback)
+{
+    StrictMock<MockDatagramHandler> dg(&datagram_support_);
+    datagram_support_.registry()->insert(nullptr, 0x30, &dg);
+    EXPECT_CALL(dg, handle_datagram(Pointee(
+                        AllOf(Field(&IncomingDatagram::src,
+                                  Field(&NodeHandle::id, node_->node_id())),
+                            Field(&IncomingDatagram::dst, node_),
+                            // Field(&IncomingDatagram::payload, NotNull()),
+                            Field(&IncomingDatagram::payload,
+                                  IsBufferValueString("01234567")) //,
+                            ))));
+    wait();
+    
+    DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
+    NodeHandle h{node_->node_id(), 0};
+
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("01234567"));
+    b->set_done(get_notifiable());
+    c->write_datagram(b);
+    wait();
+    wait_for_notification();
+    // Releases client.
+    datagram_support_.client_allocator()->insert(c);
 }
 
 TEST_F(AsyncDatagramTest, ResponseOKWithCode)
