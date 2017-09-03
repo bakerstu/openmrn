@@ -35,12 +35,10 @@
 #include "openlcb/MemoryConfigClient.hxx"
 #include "openlcb/DatagramCan.hxx"
 
-#include "utils/async_if_test_helper.hxx"
+#include "utils/async_datagram_test_helper.hxx"
 
 namespace openlcb
 {
-
-Pool* const g_incoming_datagram_allocator = mainBufferPool;
 
 static const NodeID TWO_NODE_ID = 0x02010d0000ddULL;
 
@@ -97,5 +95,29 @@ TEST_F(MemoryConfigClientTest, readall)
     EXPECT_EQ(0, memcmp(&dataContents_[0], b->data()->payload.data(), dataContents_.size()));
 }
 
+
+class MemoryConfigLocalClientTest : public AsyncDatagramTest {
+protected:
+    MemoryConfigHandler memCfg_{&datagram_support_, node_, 3};
+
+    std::array<uint8_t, 231> dataContents_;
+    ReadWriteMemoryBlock srvSpace_{&dataContents_[0], (unsigned)dataContents_.size()};
+
+    MemoryConfigClient client_{node_, &memCfg_};
+};
+
+TEST_F(MemoryConfigLocalClientTest, readfromlocal)
+{
+    // In this test we read from the local node, to test that the
+    // service-client interaction is without any deadlock.
+    memCfg_.registry()->insert(node_, 0x52, &srvSpace_);
+
+    expect_any_packet();
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ,
+                         NodeHandle(node_->node_id()), 0x52);
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_EQ(dataContents_.size(), b->data()->payload.size());
+    EXPECT_EQ(0, memcmp(&dataContents_[0], b->data()->payload.data(), dataContents_.size()));
+}
 
 } // namespace openlcb
