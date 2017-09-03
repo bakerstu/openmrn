@@ -265,8 +265,7 @@ public:
                 // handle groups with repetitions
                 get_userinfo(&info, current_child);
                 get_userinfo(&parent_info, current_parent);
-                int repcount =
-                    get_numeric_attribute(current_child, "replication", 1);
+                int repcount = get_replication(current_child);
                 info->size *= repcount;
                 parent_info->size += info->size;
             }
@@ -280,7 +279,7 @@ public:
 
     /// @return the number of replicas a group has, if it is a repeated group,
     /// or 1 if it is a non-repeated group.
-    static int get_replication(XMLNode *group)
+    static int get_replication(const XMLNode *group)
     {
         HASSERT(strcmp(group->tag, "group") == 0);
         return get_numeric_attribute(group, "replication", 1);
@@ -328,7 +327,7 @@ public:
         /// segment.
         /// @param group is the XML element for the current (child) group. it
         /// must have no replication.
-        CDINodeRep(const CDINodeRep *parent, XMLNode *group)
+        CDINodeRep(const CDINodeRep *parent, const XMLNode *group)
         {
             HASSERT(group->father == parent->node_);
             node_ = group;
@@ -343,7 +342,7 @@ public:
         /// must have replication.
         /// @param replica is the number of the replication (zero to
         /// replication - 1).
-        CDINodeRep(const CDINodeRep *parent, XMLNode *group, unsigned replica)
+        CDINodeRep(const CDINodeRep *parent, const XMLNode *group, unsigned replica)
         {
             HASSERT(group->father == parent->node_);
             node_ = group;
@@ -365,7 +364,7 @@ public:
         }
 
         /// Gets the absolute address of a given child in the current segment.
-        unsigned get_child_address(XMLNode *child) const
+        unsigned get_child_address(const XMLNode *child) const
         {
             HASSERT(child->father == node_);
             NodeInfo *info;
