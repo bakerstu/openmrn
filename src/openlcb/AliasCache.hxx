@@ -75,14 +75,14 @@ public:
           removeCallback(remove_callback),
           context(context)
     {
-        clear();
+        clear(true);
     }
 
     /** This NodeID will be used for reserved but unused local aliases. */
     static const NodeID RESERVED_ALIAS_NODE_ID;
 
     /** Reinitializes the entire map. */
-    void clear();
+    void clear(bool ignore_pre_check = false);
 
     /** Add an alias to an alias cache.
      * @param id 48-bit NMRAnet Node ID to associate alias with

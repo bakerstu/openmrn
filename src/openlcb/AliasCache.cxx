@@ -33,6 +33,7 @@
 
 #include "openlcb/AliasCache.hxx"
 
+#include <set>
 #include "os/OS.hxx"
 
 namespace openlcb
@@ -40,10 +41,16 @@ namespace openlcb
 
 #define CONSTANT 0x1B0CA37ABA9 /**< constant for random number generation */
 
+volatile int g_last_consistency_check_result = 0;
+#define ALIAS_CHECK_CONSISTENCY() do { g_last_consistency_check_result = check_consistency(); HASSERT(g_last_consistency_check_result == 0); } while(0)
+
 const NodeID AliasCache::RESERVED_ALIAS_NODE_ID = 1;
 
-void AliasCache::clear()
+void AliasCache::clear(bool ignore_pre_check)
 {
+    if (!ignore_pre_check) {
+        ALIAS_CHECK_CONSISTENCY();
+    }
     idMap.clear();
     aliasMap.clear();
     oldest = nullptr;
@@ -56,6 +63,100 @@ void AliasCache::clear()
         pool[i].next = freeList;
         freeList = pool + i;
     }
+    ALIAS_CHECK_CONSISTENCY();
+}
+
+int AliasCache::check_consistency() {
+    if (idMap.size() > aliasMap.size()) return 1;
+    if (aliasMap.size() == entries) {
+        if (freeList != nullptr) return 2;
+    } else {
+        if (freeList == nullptr) return 3;
+    }
+    if (aliasMap.size() == 0 &&
+        (oldest != nullptr || newest != nullptr)) {
+        return 4;
+    }
+    std::set<void*> free_entries;
+    for (Metadata* m = freeList; m; m=m->next) {
+        if (free_entries.count(m)) {
+            return 5; // duplicate entry on freelist
+        }
+        free_entries.insert(m);
+    }
+    if (free_entries.size() + aliasMap.size() != entries) {
+        return 6; // lost some metadata entries
+    }
+    for (auto kv : aliasMap) {
+        if (free_entries.count(kv.second)) {
+            return 19;
+        }
+    }
+    for (auto kv : idMap) {
+        if (free_entries.count(kv.second)) {
+            return 20;
+        }
+    }
+    if (aliasMap.size() == 0) {
+        if (oldest != nullptr) return 7;
+        if (newest != nullptr) return 8;
+    } else {
+        if (oldest == nullptr) return 9;
+        if (newest == nullptr) return 10;
+    }
+    if (free_entries.count(oldest)) {
+        return 11; // oldest is free
+    }
+    if (free_entries.count(newest)) {
+        return 12; // newest is free
+    }
+    if (aliasMap.size() == 0) return 0;
+    // Check linking.
+    {
+        Metadata* prev = oldest;
+        unsigned count = 1;
+        if (prev->older) return 13;
+        while (prev->newer) {
+            auto* next = prev->newer;
+            ++count;
+            if (free_entries.count(next)) {
+                return 21;
+            }
+            if (next->older != prev) return 14;
+            prev = next;
+        }
+        if (prev != newest) return 18;
+        if (count != aliasMap.size()) return 27;
+    }
+    {
+        Metadata* next = newest;
+        if (next->newer) return 15;
+        while (next->older) {
+            auto* prev = next->older;
+            if (free_entries.count(prev)) {
+                return 22;
+            }
+            if (prev->newer != next) return 16;
+            next = prev;
+        }
+        if (next != oldest) return 17;
+    }
+    unsigned count_reserved_aliases = 0;
+    for (unsigned i = 0; i < entries; ++i) {
+        if (free_entries.count(pool+i)) continue;
+        auto* e = pool+i;
+        if (idMap.find(e->id) == idMap.end()) return 23;
+        if (e->id == RESERVED_ALIAS_NODE_ID) ++count_reserved_aliases;
+        if ((e->id != RESERVED_ALIAS_NODE_ID) && idMap[e->id] != e) return 24;
+        if (aliasMap.find(e->alias) == aliasMap.end()) return 25;
+        if (aliasMap[e->alias] != e) return 26;
+    }
+    if (count_reserved_aliases > 0) --count_reserved_aliases;
+    if (idMap.size() + count_reserved_aliases != aliasMap.size()) {
+        return 28;
+    }
+    return 0;
+    // next ID 29.
 }
 
 /** Add an alias to an alias cache.
@@ -66,7 +167,9 @@ void AliasCache::add(NodeID id, NodeAlias alias)
 {
     HASSERT(id != 0);
     HASSERT(alias != 0);
-    
+
+    ALIAS_CHECK_CONSISTENCY();
+
     Metadata *insert;
 
     AliasMap::Iterator it = aliasMap.find(alias);
@@ -139,7 +242,9 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     }
 
     newest = insert;
-    
+
+    ALIAS_CHECK_CONSISTENCY();
+
     return;
 }
 
@@ -150,6 +255,8 @@ void AliasCache::add(NodeID id, NodeAlias alias)
  */
 void AliasCache::remove(NodeAlias alias)
 {
+    ALIAS_CHECK_CONSISTENCY();
+
     AliasMap::Iterator it = aliasMap.find(alias);
 
     if (it != aliasMap.end())
@@ -178,7 +285,8 @@ void AliasCache::remove(NodeAlias alias)
         metadata->next = freeList;
         freeList = metadata;
     }
-    
+
+    ALIAS_CHECK_CONSISTENCY();
 }
 
 bool AliasCache::retrieve(unsigned entry, NodeID* node, NodeAlias* alias)
@@ -278,7 +386,7 @@ NodeAlias AliasCache::generate()
 void AliasCache::touch(Metadata* metadata)
 {
     metadata->timestamp = OSTime::get_monotonic();
-
+    ALIAS_CHECK_CONSISTENCY();
     if (metadata != newest)
     {
         if (metadata == oldest)
@@ -297,6 +405,7 @@ void AliasCache::touch(Metadata* metadata)
         newest->newer = metadata;
         newest = metadata;
     }
+    ALIAS_CHECK_CONSISTENCY();
 }
 
 }
