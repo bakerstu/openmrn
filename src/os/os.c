@@ -92,6 +92,9 @@ const char* g_death_file;
 /** clock management **/
 long long rtcOffset = 0;
 
+/** This magic value is written to a task's taskList entry in order to signal
+ * the idle task to pick it out of the taskList structure. */
+#define DELETED_TASK_MAGIC 0xb5c5d5e5
 
 /* This section of code is required because CodeSourcery's mips-gcc
  * distribution contains a strangely compiled NewLib (in the unhosted-libc.a
@@ -317,16 +320,14 @@ static void os_thread_start(void *arg)
     (*priv->entry)(priv->arg);
 
     vTaskSuspendAll();
-    TaskList** prev_ptr = &taskList;
-    while ((*prev_ptr)->task != xTaskGetCurrentTaskHandle())
+    TaskList* tl;
+    for (tl = taskList; tl != NULL && tl->task != xTaskGetCurrentTaskHandle(); tl = tl->next)
     {
-        prev_ptr = &(*prev_ptr)->next;
-        HASSERT(*prev_ptr);
     }
-
-    TaskList *to_delete = *prev_ptr;
-    *prev_ptr = (*prev_ptr)->next;
-    free(to_delete);
+    if (tl) {
+        tl->task = NULL;
+        tl->unused = DELETED_TASK_MAGIC;
+    }
     xTaskResumeAll();
 
     free(priv->reent);
@@ -819,6 +820,17 @@ void vApplicationIdleHook( void )
 {
     hw_idle_hook();
     vTaskSuspendAll();
+    // First we clean up all deleted tasks.
+    for (TaskList** ptl = &taskList; *ptl != NULL;) {
+        if ((*ptl)->unused == DELETED_TASK_MAGIC) {
+            TaskList* tl = *ptl;
+            *ptl = tl->next;
+            free(tl);
+        } else {
+            ptl = &((*ptl)->next);
+        }
+    }
+    // Then we scan through the tasks and update the free stack values.
     for (TaskList *tl = taskList; tl != NULL; tl = tl->next)
     {
         if (tl->task)
