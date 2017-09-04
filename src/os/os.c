@@ -320,11 +320,13 @@ static void os_thread_start(void *arg)
     (*priv->entry)(priv->arg);
 
     vTaskSuspendAll();
-    TaskList* tl;
-    for (tl = taskList; tl != NULL && tl->task != xTaskGetCurrentTaskHandle(); tl = tl->next)
+    TaskList *tl;
+    for (tl = taskList; tl != NULL && tl->task != xTaskGetCurrentTaskHandle();
+         tl = tl->next)
     {
     }
-    if (tl) {
+    if (tl)
+    {
         tl->task = NULL;
         tl->unused = DELETED_TASK_MAGIC;
     }
@@ -821,12 +823,16 @@ void vApplicationIdleHook( void )
     hw_idle_hook();
     vTaskSuspendAll();
     // First we clean up all deleted tasks.
-    for (TaskList** ptl = &taskList; *ptl != NULL;) {
-        if ((*ptl)->unused == DELETED_TASK_MAGIC) {
-            TaskList* tl = *ptl;
+    for (TaskList **ptl = &taskList; *ptl != NULL;)
+    {
+        if ((*ptl)->unused == DELETED_TASK_MAGIC)
+        {
+            TaskList *tl = *ptl;
             *ptl = tl->next;
             free(tl);
-        } else {
+        }
+        else
+        {
             ptl = &((*ptl)->next);
         }
     }
