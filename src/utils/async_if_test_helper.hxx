@@ -12,6 +12,7 @@
 #include "openlcb/EventService.hxx"
 #include "openlcb/DefaultNode.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
+#include "executor/CallableFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
 #include "utils/test_main.hxx"
@@ -282,18 +283,6 @@ protected:
   /// Helper object for setting expectations on the packets sent on the bus.
   StrictMock<MockSend> canBus1_;
 };
-
-/** Helper function for testing flow invocations. */
-template<class T, typename... Args>
-BufferPtr<T> invoke_flow(FlowInterface<Buffer<T>>* flow, Args &&... args) {
-    SyncNotifiable n;
-    BufferPtr<T> b(flow->alloc());
-    b->data()->reset(std::forward<Args>(args)...);
-    b->data()->done.reset(&n);
-    flow->send(b->ref());
-    n.wait_for_notification();
-    return b;
-}
 
 namespace openlcb
 {
