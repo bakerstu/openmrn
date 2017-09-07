@@ -461,17 +461,12 @@ int appl_main(int argc, char *argv[])
     g_executor.start_thread("g_executor", 0, 1024);
     usleep(400000);
 
-    SyncNotifiable n;
-    BarrierNotifiable bn(&n);
-    Buffer<openlcb::MemoryConfigClientRequest> *b;
-    mainBufferPool->alloc(&b);
-
-    b->set_done(&bn);
     openlcb::NodeHandle dst;
     dst.alias = destination_alias;
     dst.id = destination_nodeid;
     HASSERT(do_read);
-    b->data()->reset(openlcb::MemoryConfigClientRequest::READ, dst, memory_space_id);
+    auto b = invoke_flow(&g_memcfg_cli, openlcb::MemoryConfigClientRequest::READ, dst, memory_space_id);
+
     if (0 && do_write)
     {
         b->data()->payload = read_file_to_string(filename);
@@ -481,14 +476,12 @@ int appl_main(int argc, char *argv[])
             b->data()->payload.size(), filename, memory_space_id);
     }
 
-    g_memcfg_cli.send(b);
-    n.wait_for_notification();
     printf("Result: %04x\n", b->data()->resultCode);
 
     if (do_read)
     {
         write_string_to_file(filename, b->data()->payload);
-        printf("Written %" PRIdPTR " bytes to file %s.\n",
+        fprintf(stderr, "Written %" PRIdPTR " bytes to file %s.\n",
             b->data()->payload.size(), filename);
     }
 
