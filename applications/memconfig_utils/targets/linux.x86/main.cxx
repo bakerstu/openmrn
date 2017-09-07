@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2013 - 2017, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,10 +26,10 @@
  *
  * \file main.cxx
  *
- * An application for updating the firmware of a remote node on the bus.
+ * An application for downloading an entire memory space from a node.
  *
  * @author Balazs Racz
- * @date 3 Aug 2013
+ * @date 7 Sep 2017
  */
 
 #include <fcntl.h>
@@ -59,8 +59,6 @@
 #include "openlcb/MemoryConfig.hxx"
 #include "openlcb/MemoryConfigClient.hxx"
 #include "utils/socket_listener.hxx"
-
-#include "freertos/bootloader_hal.h"
 
 NO_THREAD nt;
 Executor<1> g_executor(nt);
@@ -171,268 +169,6 @@ void parse_args(int argc, char *argv[])
         usage(argv[0]);
     }
 }
-
-
-/*
-namespace openlcb
-{
-
-struct MemConfigUtilsResponse;
-
-struct MemConfigUtilsRequest
-{
-    enum Command
-    {
-        READ,
-        WRITE
-    };
-    Command cmd;
-    /// Node to send the bootload request to.
-    NodeHandle dst;
-    uint8_t memory_space;
-    string payload;
-    MemConfigUtilsResponse *response = nullptr;
-};
-
-struct MemConfigUtilsResponse
-{
-    int error_code = 0;
-    string error_details;
-    string payload;
-};
-
-class MemConfigUtilsFlow
-    : public StateFlow<Buffer<MemConfigUtilsRequest>, QList<1>>
-{
-    static constexpr unsigned SIZE = 64;
-
-public:
-    MemConfigUtilsFlow(Node *node, DatagramService *datagram_service)
-        : StateFlow<Buffer<MemConfigUtilsRequest>, QList<1>>(datagram_service)
-        , node_(node)
-        , datagramService_(datagram_service)
-    {
-    }
-
-    Action entry() override
-    {
-        return allocate_and_call(
-            STATE(got_dg_client), datagramService_->client_allocator());
-    }
-
-    Action got_dg_client()
-    {
-        dgClient_ =
-            full_allocation_result(datagramService_->client_allocator());
-        offset = 0;
-
-        if (request()->cmd == MemConfigUtilsRequest::READ)
-        {
-            return call_immediately(STATE(send_read_dg));
-        }
-        else HASSERT(0);
-
-            if (request()->cmd == MemConfigUtilsRequest::WRITE)
-        {
-            return call_immediately(STATE(send_write_dg));
-            }
-    }
-
-    /// Datagram handler that listens to the incoming memoryconfig datagram for
-    /// the write stream response message.
-    class ResponseHandler : public DefaultDatagramHandler
-    {
-    public:
-        ResponseHandler(MemConfigUtilsFlow *parent)
-            : DefaultDatagramHandler(parent->datagram_service())
-            , parent_(parent)
-        {
-        }
-
-        Action entry() override
-        {
-            IncomingDatagram *datagram = message()->data();
-
-            if (datagram->dst != parent_->node() ||
-                !parent_->node()->iface()->matching_node(
-                    parent_->dst(), datagram->src) ||
-                datagram->payload.size() < 6 ||
-                datagram->payload[0] != DatagramDefs::CONFIGURATION ||
-                ((datagram->payload[1] & 0xF4) !=
-                    MemoryConfigDefs::COMMAND_WRITE_STREAM_REPLY))
-            {
-                // Uninteresting datagram.
-                return respond_reject(DatagramDefs::PERMANENT_ERROR);
-            }
-            return respond_ok(DatagramDefs::FLAGS_NONE);
-        }
-
-        Action ok_response_sent() override
-        {
-            parent_->response_datagram_arrived(transfer_message());
-            return exit();
-        }
-
-    private:
-        MemConfigUtilsFlow *parent_;
-    } responseHandler_{this};
-
-    void response_datagram_arrived(Buffer<IncomingDatagram> *datagram)
-    {
-        if (responseDatagram_)
-        {
-            LOG_ERROR("Multiple response datagrams arrived from the "
-                       "target node.");
-            responseDatagram_->unref();
-        }
-        responseDatagram_ = datagram;
-        if (sleeping_)
-        {
-            timer_.trigger();
-        } // else we will be woken up by the datagram client.
-    }
-
-    void register_response_handler()
-    {
-        datagramService_->registry()->insert(
-            node_, DatagramDefs::CONFIGURATION, &responseHandler_);
-        responseRegistered_ = true;
-    }
-
-    void unregister_response_handler()
-    {
-        if (responseRegistered_)
-        {
-            responseRegistered_ = false;
-            datagramService_->registry()->erase(
-                node_, DatagramDefs::CONFIGURATION, &responseHandler_);
-        }
-    }
-
-    Action send_read_dg()
-    {
-        if (offset >= request()->payload.size())
-        {
-            return completed();
-        }
-
-        Buffer<GenMessage> *b;
-        mainBufferPool->alloc(&b);
-        DatagramPayload payload;
-        payload.push_back(DatagramDefs::CONFIGURATION);
-        payload.push_back(MemoryConfigDefs::COMMAND_READ);
-        payload.push_back(offset >> 24);
-        payload.push_back(offset >> 16);
-        payload.push_back(offset >> 8);
-        payload.push_back(offset);
-        payload.push_back(request()->memory_space);
-        payload.push_back(SIZE);
-        b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(),
-            message()->data()->dst, payload);
-        b->set_done(n_.reset(this));
-
-        register_response_handler();
-
-        dgClient_->write_datagram(b);
-        return wait_and_call(STATE(read_sent));
-    }
-
-    Action read_sent() {
-        uint32_t dg_result =
-            dgClient_->result() & DatagramClient::RESPONSE_CODE_MASK;
-        if (dg_result != DatagramClient::OPERATION_SUCCESS) {
-            return complete(dg_result, "Read rejected.");
-        }
-        if (responseDatagram_) {
-            return call_immediately(STATE(read_done));
-        } else {
-            sleeping_ = true;
-            return sleep_and_call(&timer_, SEC_TO_NSEC(3), STATE(read_done));
-        }
-    }
-
-    Action read_done()
-    {
-        unregister_response_handler();
-        sleeping_ = false;
-        if (!responseDatagram_)
-        {
-            return return_error(DatagramClient::RESEND_OK,
-                "Timed out waiting for response datagram.");
-        }
-        const auto &payload = responseDatagram_->data()->payload;
-        if ((payload[1] & 0xFC) == MemoryConfigDefs::COMMAND_READ_FAILED)
-        {
-            uint16_t error_code = DatagramClient::PERMANENT_ERROR;
-            unsigned error_ofs = 6;
-            if (payload[1] == MemoryConfigDefs::COMMAND_READ_FAILED)
-            {
-                ++error_ofs;
-            }
-            LOG(WARNING,
-                "payload length %" PRIdPTR " error offset %u data %02x %02x",
-                payload.size(), error_ofs, payload[error_ofs],
-                payload[error_ofs + 1]);
-            error_code =
-                (payload[error_ofs] << 8) | ((uint8_t)payload[error_ofs + 1]);
-            error_ofs += 2;
-            return complete(
-                error_code, "Read rejected " + payload.substr(error_ofs));
-        }
-        if ((payload[1] & 0xFC) == MemoryConfigDefs::COMMAND_READ_REPLY)
-        {
-            unsigned data_ofs =
-                (payload[1] == MemoryConfigDefs::COMMAND_READ_REPLY ? 7 : 6);
-            string part = payload.substr(data_ofs);
-            response()->payload.append(part);
-            LOG(WARNING, "Offset %zd received data ", offset);
-            offset = response()->payload.size();
-            return call_immediately(send_read_dg());
-        }
-    }
-
-    Action completed(int code = 0, string details = "")
-    {
-        datagramService_->client_allocator()->typed_insert(dgClient_);
-        response()->error_code = code;
-        response()->error_details = details;
-        return release_and_exit();
-    }
-
-    MemConfigUtilsRequest *request()
-    {
-        return message()->data();
-    }
-
-    MemConfigUtilsRequest *response()
-    {
-        return request()->response;
-    }
-
-    const NodeHandle& dst() {
-        return request()->dst;
-    }
-
-    Node* node() { return node_; }
-
-    DatagramService *datagram_service() { return datagramService_; }
-    
-private:
-    Node *node_;
-    DatagramService *datagramService_;
-    DatagramClient* dgClient_;
-    size_t offset;
-    StateFlowTimer timer_{this};
-    Buffer<IncomingDatagram> *responseDatagram_ = nullptr;
-    bool sleeping_ = false;
-};
-
-} // namespace openlcb
-
-openlcb::MemConfigUtilsFlow flow(&g_node, &g_datagram_can);
-
-*/
-
 
 /** Entry point to application.
  * @param argc number of command line arguments
