@@ -73,7 +73,7 @@ protected:
         T **p = &head_;
         while (*p && *p != this)
         {
-            p = &((*p)->link_);
+            p = &((*p)->LinkedObject<T>::link_);
         }
         if (*p == this)
         {
