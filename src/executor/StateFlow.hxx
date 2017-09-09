@@ -44,6 +44,7 @@
 #include "executor/Timer.hxx"
 #include "utils/Buffer.hxx"
 #include "utils/Queue.hxx"
+#include "utils/LinkedObject.hxx"
 
 /// Turns a function name into an argument to be supplied to functions
 /// expecting a state. Usage:
@@ -940,7 +941,7 @@ template <class T, class S> class StateFlow;
 
 /** A state flow that has an incoming message queue, pends on that queue, and
  * runs a flow for every message that comes in from that queue. */
-class StateFlowWithQueue : public StateFlowBase, protected Atomic
+class StateFlowWithQueue : public StateFlowBase, protected Atomic, public LinkedObject<StateFlowWithQueue>
 {
 public:
     ~StateFlowWithQueue();
@@ -1059,12 +1060,6 @@ protected:
 private:
     STATE_FLOW_STATE(wait_for_message);
 
-    /// Next flow (global linkage of all state flows).
-    StateFlowWithQueue* link_;
-    /// Head of static linked list.
-    static StateFlowWithQueue* head_;
-    /// Mutex protecting the state flow linked lists.
-    static Atomic headMu_;
     /// For debugging: how many entries are currently waiting in the queue of
     /// this stateflow.
     unsigned queueSize_;
