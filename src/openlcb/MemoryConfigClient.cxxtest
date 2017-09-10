@@ -98,6 +98,10 @@ TEST_F(MemoryConfigClientTest, readall)
 
 class MemoryConfigLocalClientTest : public AsyncDatagramTest {
 protected:
+    ~MemoryConfigLocalClientTest() {
+        wait();
+    }
+
     MemoryConfigHandler memCfg_{&datagram_support_, node_, 3};
 
     std::array<uint8_t, 231> dataContents_;
