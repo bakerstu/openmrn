@@ -18,6 +18,7 @@ SUBDIRS = \
 	js_hub \
 	js_client \
 	js_cdi_server \
+	memconfig_utils \
 	send_datagram \
 	simple_client \
 	tractionproxy \
