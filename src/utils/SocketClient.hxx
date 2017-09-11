@@ -46,6 +46,10 @@
 #include "utils/Atomic.hxx"
 #include "utils/format_utils.hxx"
 
+/** Connection status that can be sent back to the "owner" of the socket so
+ * it can update display or status information while the connection attempts
+ * are progressing.
+ */
 enum class SocketStatus
 {
     MDNS_LOOKUP,
@@ -80,6 +84,8 @@ public:
      *                      connecting on error.
      * @param timeout_seconds time in seconds that the connect is supposed to
      *                        timeout and look for a possible shutdown.
+     * @param status callback method for status as the connection attempt
+     *               progresses
      */
     SocketClient(Service *service, const char *mdns, const char *host,
                  uint16_t port,
