@@ -98,4 +98,16 @@ protected:
     }
 };
 
+/** Helper function for testing flow invocations. */
+template<class T, typename... Args>
+BufferPtr<T> invoke_flow(FlowInterface<Buffer<T>>* flow, Args &&... args) {
+    SyncNotifiable n;
+    BufferPtr<T> b(flow->alloc());
+    b->data()->reset(std::forward<Args>(args)...);
+    b->data()->done.reset(&n);
+    flow->send(b->ref());
+    n.wait_for_notification();
+    return b;
+}
+
 #endif // _EXECUTOR_CALLABLEFLOW_HXX_
