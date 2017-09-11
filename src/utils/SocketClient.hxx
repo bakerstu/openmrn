@@ -46,6 +46,15 @@
 #include "utils/Atomic.hxx"
 #include "utils/format_utils.hxx"
 
+enum class SocketStatus
+{
+    MDNS_LOOKUP,
+    MDNS_CONNECT,
+    STATIC_CONNECT,
+    CONNECTED,
+    CONNECT_FAILED,
+};
+
 class SocketClient : public StateFlowBase, private OSThread, private Atomic
 {
 public:
@@ -75,13 +84,15 @@ public:
     SocketClient(Service *service, const char *mdns, const char *host,
                  uint16_t port,
                  std::function<void(int, struct addrinfo *, Notifiable*)>callback,
-                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255)
+                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255,
+                 std::function<void(SocketStatus)>status = nullptr)
         : StateFlowBase(service)
         , OSThread()
         , mdns_(mdns)
         , host_(host)
         , port_(port)
         , callback_(callback)
+        , statusCallback_(status)
         , retrySeconds_(retry_seconds)
         , timeoutSeconds_(timeout_seconds)
         , state_(STATE_CREATED)
@@ -154,8 +165,17 @@ private:
         STATE_SHUTDOWN, /**< shutdown */
     };
 
-    /** thread that will handle the blocking address resolution.
-     * @return should never return
+    /** Called from a new thread that is created by this workflow when it calls
+     * the start method. This method handles address resolution, which is a
+     * blocking operation. This method only exits when this client shuts down.
+     *
+     * When this method is first called, the state should be STATE_CREATED. This
+     * will then switch to STATE_STARTED and remain there for most of the
+     * lifetime of this method. It will switch to STATE_SHUTDOWN_REQUESTED after
+     * the shutdown() method is called, and then to STATE_SHUTDOWN once it
+     * finishes shutting down.
+     *
+     * @return does not return a value, but exits after shutdown
      */
     void *entry() override
     {
@@ -192,14 +212,22 @@ private:
             {
                 LOG(INFO, "mdns lookup for %s", mdns_);
                 /* try mDNS address resolution */
+                update_status(SocketStatus::MDNS_LOOKUP);
                 ai_ret = MDNS::lookup(mdns_, &hints, &addr_);
-                if (ai_ret != 0 || addr_ == nullptr) {
+                if (ai_ret != 0 || addr_ == nullptr)
+                {
                     LOG(INFO, "mdns lookup for %s failed.", mdns_);
                 }
+                else
+                {
+                    update_status(SocketStatus::MDNS_CONNECT);
+                }
+                
             }
             if ((ai_ret != 0 || addr_ == nullptr) && host_)
             {
                 /* try address resolution without mDNS */
+                update_status(SocketStatus::STATIC_CONNECT);
                 char port_str[30];
                 integer_to_buffer(port_, port_str);
                 ai_ret = getaddrinfo(host_, port_str, &hints, &addr_);
@@ -232,6 +260,7 @@ private:
                     }
                     else
                     {
+                        update_status(SocketStatus::CONNECT_FAILED);
                         /* connect failed */
                         close(fd_);
                     }
@@ -255,7 +284,16 @@ private:
         return nullptr;
     }
 
-    /** Entry point into the state flow.
+    void update_status(SocketStatus status)
+    {
+        if (statusCallback_ != nullptr)
+        {
+            statusCallback_(status);
+        }
+    }
+
+    /** Entry point into the state flow. Create a new thread, which will then
+     * call the entry() method of this class.
      * @return next state is do_connect()
      */
     Action spawn_thread()
@@ -293,9 +331,12 @@ private:
     int port_;
 
     /** callback to call on connection success */
-    std::function<void(int, struct addrinfo *, Notifiable*)> callback_;
+    std::function<void(int, struct addrinfo *, Notifiable*)> callback_ = nullptr;
 
-    /** number of seconds between retries */
+    /** callback to call on connection status */
+    std::function<void(SocketStatus)> statusCallback_ = nullptr;
+    
+        /** number of seconds between retries */
     uint8_t retrySeconds_;
     uint8_t timeoutSeconds_;
 
