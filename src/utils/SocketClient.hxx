@@ -46,23 +46,22 @@
 #include "utils/Atomic.hxx"
 #include "utils/format_utils.hxx"
 
-/** Connection status that can be sent back to the "owner" of the socket so
- * it can update display or status information while the connection attempts
- * are progressing.
- */
-enum class SocketStatus
-{
-    MDNS_LOOKUP,
-    MDNS_CONNECT,
-    STATIC_CONNECT,
-    CONNECTED,
-    CONNECT_FAILED,
-};
-
 class SocketClient : public StateFlowBase, private OSThread, private Atomic
 {
 public:
-    /** Constructor.
+    /** Connection status that can be sent back to the "owner" of the socket so
+    * it can update display or status information while the connection attempts
+    * are progressing.
+    */
+    enum class Status
+    {
+        MDNS_LOOKUP,
+        MDNS_CONNECT,
+        STATIC_CONNECT,
+        CONNECT_FAILED,
+    };
+    
+     /** Constructor.
      * @param service service that the StateFlowBase will be bound to.
      * @param mdns service name to connect to, nullptr to force use
      *                  hostname and port
@@ -80,25 +79,26 @@ public:
      *                   peer
      *                 - Third param is a pointer to "this" class to notify
      *                   on exit that the socket has been torn down.
+     * @param status_callback method for status as the connection attempt
+     *                        progresses. This callback will most likely be from
+     *                        a different thread.
      * @param retry_seconds time in seconds that the client shall wait to retry
      *                      connecting on error.
      * @param timeout_seconds time in seconds that the connect is supposed to
      *                        timeout and look for a possible shutdown.
-     * @param status callback method for status as the connection attempt
-     *               progresses
      */
     SocketClient(Service *service, const char *mdns, const char *host,
                  uint16_t port,
-                 std::function<void(int, struct addrinfo *, Notifiable*)>callback,
-                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255,
-                 std::function<void(SocketStatus)>status = nullptr)
+                 std::function<void(int, struct addrinfo *, Notifiable*)> callback,
+                 std::function<void(Status)> status_callback = nullptr,
+                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255)
         : StateFlowBase(service)
         , OSThread()
         , mdns_(mdns)
         , host_(host)
         , port_(port)
         , callback_(callback)
-        , statusCallback_(status)
+        , statusCallback_(status_callback)
         , retrySeconds_(retry_seconds)
         , timeoutSeconds_(timeout_seconds)
         , state_(STATE_CREATED)
@@ -171,9 +171,9 @@ private:
         STATE_SHUTDOWN, /**< shutdown */
     };
 
-    /** Called from a new thread that is created by this workflow when it calls
-     * the start method. This method handles address resolution, which is a
-     * blocking operation. This method only exits when this client shuts down.
+    /** Entry point to the thread; this thread performs the synchronous network
+     * calls (address resolution and connect). The function returns only when
+     * the thread needs to be terminated (i.e. after shutdown() is invoked).
      *
      * When this method is first called, the state should be STATE_CREATED. This
      * will then switch to STATE_STARTED and remain there for most of the
@@ -218,7 +218,7 @@ private:
             {
                 LOG(INFO, "mdns lookup for %s", mdns_);
                 /* try mDNS address resolution */
-                update_status(SocketStatus::MDNS_LOOKUP);
+                update_status(Status::MDNS_LOOKUP);
                 ai_ret = MDNS::lookup(mdns_, &hints, &addr_);
                 if (ai_ret != 0 || addr_ == nullptr)
                 {
@@ -226,14 +226,14 @@ private:
                 }
                 else
                 {
-                    update_status(SocketStatus::MDNS_CONNECT);
+                    update_status(Status::MDNS_CONNECT);
                 }
                 
             }
             if ((ai_ret != 0 || addr_ == nullptr) && host_)
             {
                 /* try address resolution without mDNS */
-                update_status(SocketStatus::STATIC_CONNECT);
+                update_status(Status::STATIC_CONNECT);
                 char port_str[30];
                 integer_to_buffer(port_, port_str);
                 ai_ret = getaddrinfo(host_, port_str, &hints, &addr_);
@@ -266,7 +266,7 @@ private:
                     }
                     else
                     {
-                        update_status(SocketStatus::CONNECT_FAILED);
+                        update_status(Status::CONNECT_FAILED);
                         /* connect failed */
                         close(fd_);
                     }
@@ -290,7 +290,7 @@ private:
         return nullptr;
     }
 
-    void update_status(SocketStatus status)
+    void update_status(Status status)
     {
         if (statusCallback_ != nullptr)
         {
@@ -340,7 +340,7 @@ private:
     std::function<void(int, struct addrinfo *, Notifiable*)> callback_ = nullptr;
 
     /** callback to call on connection status */
-    std::function<void(SocketStatus)> statusCallback_ = nullptr;
+    std::function<void(Status)> statusCallback_ = nullptr;
     
         /** number of seconds between retries */
     uint8_t retrySeconds_;
