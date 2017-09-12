@@ -36,6 +36,7 @@ CXXSRCS += \
            SimpleStack.cxx \
            TractionTestTrain.cxx \
            TractionProxy.cxx \
+           TcpDefs.cxx \
            nmranet_constants.cxx
 
 
