@@ -126,7 +126,6 @@ public:
     void shutdown()
     {
         start_shutdown();
-        sem_.post();
         while (state_ != STATE_SHUTDOWN)
         {
             usleep(1000);
@@ -144,11 +143,14 @@ public:
      */
     void start_shutdown()
     {
-        AtomicHolder h(this);
-        if (state_ != STATE_SHUTDOWN)
         {
-            state_ = STATE_SHUTDOWN_REQUESTED;
+            AtomicHolder h(this);
+            if (state_ != STATE_SHUTDOWN)
+            {
+                state_ = STATE_SHUTDOWN_REQUESTED;
+            }
         }
+        sem_.post();
     }
 
     /** Connects a tcp socket to the specified remote host:port. Returns -1 if
