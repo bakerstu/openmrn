@@ -125,19 +125,32 @@ public:
      */
     void shutdown()
     {
-        {
-            AtomicHolder h(this);
-            if (state_ == STATE_SHUTDOWN)
-            {
-                return;
-            }
-            state_ = STATE_SHUTDOWN_REQUESTED;
-        }
-        sem_.post();
+        start_shutdown();
         while (state_ != STATE_SHUTDOWN)
         {
             usleep(1000);
         }
+    }
+
+    /** Reports if this instance has finished shutting down
+     */
+    bool is_shutdown()
+    {
+        return state_ == STATE_SHUTDOWN;
+    }
+
+    /** Request that this client shutdown and exit the other thread.
+     */
+    void start_shutdown()
+    {
+        {
+            AtomicHolder h(this);
+            if (state_ != STATE_SHUTDOWN)
+            {
+                state_ = STATE_SHUTDOWN_REQUESTED;
+            }
+        }
+        sem_.post();
     }
 
     /** Connects a tcp socket to the specified remote host:port. Returns -1 if
