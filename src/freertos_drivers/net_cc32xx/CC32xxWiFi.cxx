@@ -205,7 +205,7 @@ uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
     }
 }
 
-CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(unsigned sec_type)
+CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_scan(unsigned sec_type)
 {
 #ifdef SL_API_V2
     auto t = SL_WLAN_SCAN_RESULT_SEC_TYPE_BITMAP(sec_type);
@@ -223,6 +223,13 @@ CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(unsigned sec_
             return SEC_WPA2;
     }
 #else
+    return security_type_from_simplelink(sec_type);
+#endif    
+}
+
+
+CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(uint8_t sec_type)
+{
     switch (sec_type)
     {
         default:
@@ -236,7 +243,6 @@ CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(unsigned sec_
         case SL_SEC_TYPE_WPA_WPA2:
             return SEC_WPA2;
     }
-#endif    
 }
 
 /*
@@ -359,7 +365,7 @@ int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
     for (int i = 0; i < result; ++i)
     {
         entries[i].ssid.assign((char*)sl_entries[i].SL_ssid, sl_entries[i].SL_ssid_len);
-        entries[i].sec_type = security_type_from_simplelink(sl_entries[i].SL_sec_type);
+        entries[i].sec_type = security_type_from_scan(sl_entries[i].SL_sec_type);
         entries[i].rssi = sl_entries[i].SL_rssi;
     }
 

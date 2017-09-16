@@ -337,8 +337,15 @@ private:
      * @param sec_type simplelink security type
      * @return security type
      */
-    SecurityType security_type_from_simplelink(unsigned sec_type);
+    SecurityType security_type_from_simplelink(uint8_t sec_type);
 
+    /** Translates the SimpleLink code from the network scan to SecurityType
+     * enum.
+     * @param sec_type simplelink network scan security result
+     * @return security type
+     */
+    SecurityType security_type_from_scan(unsigned sec_type);
+    
     /** Set the CC32xx to its default state, including station mode.
      */
     void set_default_state();
