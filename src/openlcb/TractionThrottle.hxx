@@ -156,12 +156,27 @@ struct TractionThrottleInput : public CallableFlowRequestBase
     uint8_t consistIndex;
 };
 
+class TractionThrottleInterface
+    : public openlcb::TrainImpl
+{
+public:
+    virtual void toggle_fn(uint32_t fn) = 0;
+
+    virtual bool is_train_assigned() = 0;
+
+    virtual openlcb::Node* throttle_node() = 0;
+
+    virtual void set_throttle_listener(std::function<void(int fn)> update_callback) = 0;
+
+    virtual openlcb::NodeID target_node() = 0;
+};
+
 /** Interface for a single throttle for running a train node.
  *
  */
 class TractionThrottle
     : public CallableFlow<TractionThrottleInput>,
-      public openlcb::TrainImpl
+      public TractionThrottleInterface
 {
 public:
     /// @param node is the openlcb node from which this throttle will be
@@ -225,7 +240,8 @@ public:
         return FN_NOT_KNOWN;
     }
 
-    void toggle_fn(uint32_t fn) {
+    void toggle_fn(uint32_t fn) override
+    {
         auto fnstate = get_fn(fn);
         if (fnstate == FN_NOT_KNOWN)
         {
@@ -250,18 +266,20 @@ public:
 
     /// Determine if a train is currently assigned to this trottle.
     /// @return true if a train is assigned, else false
-    bool is_train_assigned()
+    bool is_train_assigned() override
     {
         return assigned_;
     }
 
     /// @return the controlling node (virtual node of the throttle, i.e., us.)
-    openlcb::Node* throttle_node() {
+    openlcb::Node* throttle_node() override
+    {
         return node_;
     }
 
     /// @return the controlled node (the train node) ID.
-    openlcb::NodeID target_node() {
+    openlcb::NodeID target_node() override
+    {
         return dst_;
     }
 
@@ -274,7 +292,7 @@ public:
     /// @param update_callback will be executed when a different throttle
     /// changes the train state. fn is the function number changed, or -1 for
     /// speed update.
-    void set_throttle_listener(std::function<void(int fn)> update_callback)
+    void set_throttle_listener(std::function<void(int fn)> update_callback) override
     {
         updateCallback_ = std::move(update_callback);
     }
