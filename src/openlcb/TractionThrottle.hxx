@@ -162,12 +162,25 @@ class TractionThrottleInterface
 public:
     virtual void toggle_fn(uint32_t fn) = 0;
 
+    /// Determine if a train is currently assigned to this trottle.
+    /// @return true if a train is assigned, else false
     virtual bool is_train_assigned() = 0;
 
+    /// @return the controlling node (virtual node of the throttle, i.e., us.)
     virtual openlcb::Node* throttle_node() = 0;
 
+    /// Sets up a callback for listening for remote throttle updates. When a
+    /// different throttle modifies the train node's state, and the
+    /// ASSIGN_TRAIN command was executed with "listen==true" parameter, we
+    /// will get notifications about those remote changes. The notifications
+    /// update the cached state in TractionThrottle, and call this update
+    /// callback. Repeat with nullptr if the callbacks are not desired anymore.
+    /// @param update_callback will be executed when a different throttle
+    /// changes the train state. fn is the function number changed, or -1 for
+    /// speed update.
     virtual void set_throttle_listener(std::function<void(int fn)> update_callback) = 0;
 
+    /// @return the controlled node (the train node) ID.
     virtual openlcb::NodeID target_node() = 0;
 };
 
