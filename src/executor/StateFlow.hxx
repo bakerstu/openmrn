@@ -1276,7 +1276,7 @@ public:
 
     /** Destructor.
      */
-    ~TypedStateFlow()
+    virtual ~TypedStateFlow()
     {
     }
 
