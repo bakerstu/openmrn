@@ -43,6 +43,7 @@
 
 #include "driverlib/sysctl.h"
 
+#include "freertos_drivers/common/MCP23017GPIO.hxx"
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/PersistentGPIO.hxx"
@@ -194,6 +195,18 @@ extern "C"
   } // reboot  
 } // extern
 
+/** interrupt_enable */
+void ief()
+{
+}
+
+/** interrupt_disable */
+void idf()
+{
+}
+
+MCP23017 the_port(NULL,ief,idf);
+MCP23017GPIO the_light(&the_port,0);
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -209,6 +222,18 @@ int appl_main(int argc, char *argv[])
     PinRed.restore();
     PinGreen.restore();
     PinBlue.restore();
+
+    the_port.init("/dev/i2c1",0x21);
+
+    the_light.set_direction(Gpio::Direction::OUTPUT);
+    
+    for ( ; /** forever */ ; )
+    {
+      the_light.set();
+      usleep(100000);
+      the_light.clr();
+      usleep(200000);
+    }
     
     // The necessary physical ports must be added to the stack.
     //
