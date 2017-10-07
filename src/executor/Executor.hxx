@@ -44,6 +44,7 @@
 #include "executor/Timer.hxx"
 #include "utils/Queue.hxx"
 #include "utils/SimpleQueue.hxx"
+#include "utils/LinkedObject.hxx"
 #include "utils/logging.h"
 #include "utils/macros.h"
 #include "os/OSSelectWakeup.hxx"
@@ -58,7 +59,7 @@ class ActiveTimers;
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
-class ExecutorBase : protected OSThread, protected Executable
+class ExecutorBase : protected OSThread, protected Executable, public LinkedObject<ExecutorBase>
 {
 public:
     /** Constructor.
@@ -221,12 +222,6 @@ private:
 
     /** name of this Executor */
     const char *name_;
-
-    /** next executor in the lookup list */
-    ExecutorBase *next_;
-
-    /** executor list for lookup purposes */
-    static ExecutorBase *list;
 
     /** Currently executing closure. USeful for debugging crashes. */
     Executable* current_;
