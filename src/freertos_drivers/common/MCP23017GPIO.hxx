@@ -43,17 +43,19 @@ class MCP23017 : public OSThread
 {
 public:
     /** Constructor.
-     * @param name name of the I2C device in the file system
      * @param interrupt_enable callback to enable the interrupt
      * @param interrupt_disable callback to disable the interrupt
+     * @param interrupt_lockout_time the time in nanoseconds to enable the
+     *                               next interrupt (optional debounce)
      */
-    MCP23017(const char *name,
-             void (*interrupt_enable)(), void (*interrupt_disable)())
+    MCP23017(void (*interrupt_enable)(), void (*interrupt_disable)(),
+             long long interrupt_lockout_time = 0)
 
         : OSThread()
         , interrupt_enable(interrupt_enable)
         , interrupt_disable(interrupt_disable)
         , sem_()
+        , intLockTime_(interrupt_lockout_time)
         , fd_(-1)
         , data_(0)
         , dataShaddow_(0)
@@ -212,6 +214,9 @@ private:
 
     /** semaphore for notifying the thread from an ISR */
     OSSem sem_;
+
+    /** time to lockout interrupts for debounce */
+    long long intLockTime_;
 
     /** file descriptor for the I2C interface */
     int fd_;
