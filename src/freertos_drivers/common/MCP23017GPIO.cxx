@@ -65,10 +65,8 @@ void *MCP23017::entry()
     register_write(GPPUA, 0xFF);
     register_write(GPPUB, 0xFF);
 
-    dataA_ = register_read(GPIOA);
-    dataB_ = register_read(GPIOB);
-
-    dataShaddow_ = data_;
+    dataInA_ = register_read(GPIOA);
+    dataInB_ = register_read(GPIOB);
 
     long long interrupt_lockout = 0;
 
@@ -100,29 +98,8 @@ void *MCP23017::entry()
         }
 
         /* read remote data and update local data copy*/
-        uint16_t port_data;
-        port_data = register_read(GPIOA);
-        port_data += register_read(GPIOB) << 8;
-
-        /* update the local copy of port data */
-        portENTER_CRITICAL();
-        uint16_t changed = (data_ ^ port_data) & direction_;
-        uint16_t changed_to_low = port_data & changed;
-        uint16_t changed_to_high = changed_to_low ^ changed;
-
-        data_ |= changed_to_high;
-        data_ &= ~changed_to_low;
-#if 0
-        if (port_data & 0x02)
-        {
-            data_ |= 0x02;
-        }
-        else
-        {
-            data_ &= ~0x02;
-        }
-#endif
-        portEXIT_CRITICAL();
+        dataInA_ = register_read(GPIOA);
+        dataInB_ = register_read(GPIOB) << 8;
 
         if (directionShaddow_ != direction_)
         {
@@ -133,14 +110,13 @@ void *MCP23017::entry()
         }
 
         portENTER_CRITICAL();
-        if ((dataShaddow_ & ~direction_) != (data_ & ~direction_))
+        if ((dataShaddow_ & ~direction_) != (dataOut_ & ~direction_))
         {
-            data_ |= dataShaddow_ & ~direction_;
-            data_ &= ~(dataShaddow_ & ~direction_);
+            dataOut_ = dataShaddow_;
             portEXIT_CRITICAL();
 
-            register_write(OLATA, data_ & 0xFF);
-            register_write(OLATB, data_ >> 8);
+            register_write(OLATA, dataOut_ & 0xFF);
+            register_write(OLATB, dataOut_ >> 8);
         }
         else
         {

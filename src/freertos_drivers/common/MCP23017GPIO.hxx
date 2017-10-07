@@ -57,7 +57,8 @@ public:
         , sem_()
         , intLockTime_(interrupt_lockout_time)
         , fd_(-1)
-        , data_(0)
+        , dataIn_(0)
+        , dataOut_(0)
         , dataShaddow_(0)
         , direction_(0xFFFF)
         , directionShaddow_(0xFFFF)
@@ -104,7 +105,7 @@ public:
      */
     Gpio::Value read(uint8_t bit)
     {
-        return (data_ & (0x1 << bit)) ? Gpio::SET : Gpio::CLR;
+        return (dataIn_ & (0x1 << bit)) ? Gpio::SET : Gpio::CLR;
     }   
 
     /** Sets the GPIO output pin to high.
@@ -224,11 +225,22 @@ private:
     union
     {
         /** local copy of the I/O expansion bits */
-        uint16_t data_;
+        uint16_t dataIn_;
         struct
         {
-            uint8_t dataA_;
-            uint8_t dataB_;
+            uint8_t dataInA_;
+            uint8_t dataInB_;
+        };
+    };
+
+    union
+    {
+        /** local copy of the I/O expansion bits */
+        uint16_t dataOut_;
+        struct
+        {
+            uint8_t dataOutA_;
+            uint8_t dataOutB_;
         };
     };
 
