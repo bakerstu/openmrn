@@ -69,23 +69,42 @@ void *MCP23017::entry()
     dataB_ = register_read(GPIOB);
 
     dataShaddow_ = data_;
-    
+
+    long long interrupt_lockout = 0;
+
     for ( ; /* forever */ ; )
     {
-        interrupt_enable();
-        sem_.wait();
+        bool wait = true;
+        long long now = OSTime::get_monotonic();
+        if (now < interrupt_lockout)
+        {
+            /* we need to enable interrupts only after a debounce delay */
+            wait = (sem_.timedwait(interrupt_lockout - now) != 0);
+        }
+        if (wait)
+        {
+            /* wait for interrupt or application write */
+            interrupt_enable();
+            sem_.wait();
+        }
         interrupt_disable();
 
         /* read interrupt status */
-        volatile uint16_t int_status;
+        uint16_t int_status;
         int_status = register_read(INTFA);
         int_status += register_read(INTFB) << 8;
+
+        if (int_status)
+        {
+            interrupt_lockout = OSTime::get_monotonic() + intLockTime_;
+        }
 
         /* read remote data and update local data copy*/
         uint16_t port_data;
         port_data = register_read(GPIOA);
         port_data += register_read(GPIOB) << 8;
 
+        /* update the local copy of port data */
         portENTER_CRITICAL();
         uint16_t changed = (data_ ^ port_data) & direction_;
         uint16_t changed_to_low = port_data & changed;
@@ -97,7 +116,7 @@ void *MCP23017::entry()
 
         if (directionShaddow_ != direction_)
         {
-            /* update direction */
+            /* flush any direction changes */
             direction_ = directionShaddow_;
             register_write(IODIRA, direction_ & 0xFF);
             register_write(IODIRB, direction_ >> 8);
@@ -108,7 +127,7 @@ void *MCP23017::entry()
         {
             data_ = dataShaddow_;
             portEXIT_CRITICAL();
-            /* write new data */
+            /* flush andy new new write data */
             register_write(OLATA, data_ & 0xFF);
             register_write(OLATB, data_ >> 8);
         }
