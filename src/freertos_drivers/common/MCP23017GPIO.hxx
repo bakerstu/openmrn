@@ -243,6 +243,7 @@ private:
 
 class MCP23017GPIO : public Gpio
 {
+public:
     MCP23017GPIO(MCP23017 *instance, uint8_t bit)
         : Gpio()
         , instance_(instance)
