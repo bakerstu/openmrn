@@ -112,7 +112,7 @@ void *MCP23017::entry()
 
         data_ |= changed_to_high;
         data_ &= ~changed_to_low;
-
+#if 0
         if (port_data & 0x02)
         {
             data_ |= 0x02;
@@ -121,6 +121,7 @@ void *MCP23017::entry()
         {
             data_ &= ~0x02;
         }
+#endif
         portEXIT_CRITICAL();
 
         if (directionShaddow_ != direction_)
