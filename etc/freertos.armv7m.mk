@@ -56,7 +56,7 @@ CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
           $(CFLAGSENV) $(CFLAGSEXTRA) \
 
 
-CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
+CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
             -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
             -fno-exceptions -fno-rtti \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
