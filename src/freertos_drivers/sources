@@ -21,6 +21,7 @@ CXXSRCS += Fileio.cxx \
            Socket.cxx \
            DeviceFile.cxx \
            MCP2515Can.cxx \
+           MCP23017GPIO.cxx \
            WifiDefs.cxx
 
 
