@@ -112,6 +112,15 @@ void *MCP23017::entry()
 
         data_ |= changed_to_high;
         data_ &= ~changed_to_low;
+
+        if (port_data & 0x02)
+        {
+            data_ |= 0x02;
+        }
+        else
+        {
+            data_ &= ~0x02;
+        }
         portEXIT_CRITICAL();
 
         if (directionShaddow_ != direction_)
@@ -125,9 +134,10 @@ void *MCP23017::entry()
         portENTER_CRITICAL();
         if ((dataShaddow_ & ~direction_) != (data_ & ~direction_))
         {
-            data_ = dataShaddow_;
+            data_ |= dataShaddow_ & ~direction_;
+            data_ &= ~(dataShaddow_ & ~direction_);
             portEXIT_CRITICAL();
-            /* flush andy new new write data */
+
             register_write(OLATA, data_ & 0xFF);
             register_write(OLATB, data_ >> 8);
         }
