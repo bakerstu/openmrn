@@ -26,8 +26,8 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4,               "OpenMRN", "TxN Plant - Tiva Launchpad 123",
     "ek-tm4c123gxl", "0.01"};
 
-#define NUM_OUTPUTS 3
-#define NUM_INPUTS 2
+#define NUM_OUTPUTS 4
+#define NUM_INPUTS 3
 
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout

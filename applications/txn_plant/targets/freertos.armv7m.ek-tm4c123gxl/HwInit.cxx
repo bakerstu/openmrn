@@ -60,6 +60,7 @@
 #include "TivaEEPROMBitSet.hxx"
 #include "DummyGPIO.hxx"
 #include "bootloader_hal.h"
+#include "MCP23017GPIO.hxx"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
@@ -260,6 +261,7 @@ struct DccHwDefs {
   using RAILCOM_UARTPIN = ::RAILCOM_CH1_Pin;
 };
 
+extern MCP23017 the_port;
 
 static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline", &railcom_driver);
 
@@ -362,6 +364,11 @@ void hw_preinit(void)
     MAP_GPIOPinTypeI2C(GPIO_PORTA_BASE, GPIO_PIN_7);
     MAP_I2CMasterInitExpClk(I2C1_BASE, SysCtlClockGet(), false);
 
+    /* MCP23017 gpio Controller gpio interrupt initialization */
+    GPIOIntTypeSet(GPIO_PORTA_BASE, GPIO_PIN_5, GPIO_LOW_LEVEL);
+    MAP_IntPrioritySet(INT_GPIOA, configKERNEL_INTERRUPT_PRIORITY);
+    MAP_IntEnable(INT_GPIOA);
+    
     /* Blinker timer initialization. */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER5);
     MAP_TimerConfigure(TIMER5_BASE, TIMER_CFG_PERIODIC);
@@ -402,4 +409,17 @@ void timer1a_interrupt_handler(void)
     tivaDCC.interrupt_handler();
 }
 
+/** PORTA3 interrupt handler.
+ */
+void porta_interrupt_handler(void)
+{
+    long status = GPIOIntStatus(GPIO_PORTA_BASE, true);
+
+    if (status & GPIO_PIN_5)
+    {
+        /* MCP23017 GPIO Controller interrupt */
+        the_port.interrupt_handler();
+    }
+}
+  
 }

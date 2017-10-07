@@ -47,6 +47,9 @@
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/PersistentGPIO.hxx"
+
+#include "utils/format_utils.hxx"
+
 #include "config.hxx"
 #include "hardware.hxx"
 
@@ -86,7 +89,7 @@ extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 300, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 400, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -94,6 +97,23 @@ extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
     openlcb::CONFIG_FILENAME;
 
 // Defines the GPIO ports used for the producers and the consumers.
+
+
+/** interrupt_enable */
+void ief()
+{
+  GPIOIntEnable(GPIO_PORTA_BASE, GPIO_PIN_5);
+}
+
+/** interrupt_disable */
+void idf()
+{
+  GPIOIntDisable(GPIO_PORTA_BASE, GPIO_PIN_5);
+}
+
+MCP23017 the_port(ief,idf, MSEC_TO_NSEC(10));
+MCP23017GPIO the_light(&the_port,0);
+MCP23017GPIO the_button(&the_port,1);
 
 // These wrappers will save the output pin state to EEPROM.
 constexpr PersistentGpio PinRed(LED_RED_Pin::instance(), 0);
@@ -106,7 +126,8 @@ constexpr PersistentGpio PinBlue(LED_BLUE_Pin::instance(), 2);
 // would be placed into RAM instead of ROM.
 constexpr const Gpio *const kOutputGpio[] = {&PinRed,
                                              &PinGreen,
-                                             &PinBlue};
+                                             &PinBlue,
+                                             &the_light};
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The MultiConfiguredConsumer class takes care of most of the
@@ -124,12 +145,14 @@ openlcb::ConfiguredProducer producer_sw1(
     stack.node(), cfg.seg().producers().entry<0>(), SW1_Pin());
 openlcb::ConfiguredProducer producer_sw2(
     stack.node(), cfg.seg().producers().entry<1>(), SW2_Pin());
+openlcb::ConfiguredProducer producer_sw3(
+    stack.node(), cfg.seg().producers().entry<2>(), (const Gpio*)&the_button);
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
 openlcb::RefreshLoop loop(
-    stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
+			  stack.node(), {producer_sw1.polling(), producer_sw2.polling(), producer_sw3.polling()});
 
 
 class Configuration : private DefaultConfigUpdateListener {
@@ -175,9 +198,13 @@ private:
   void factory_reset(int fd)
   {
     for( int i=0; i<NUM_INPUTS;++i) {
+      //char tmp[10];
+      //string str;
+      //unsigned_integer_to_buffer(i, tmp);
+      //cfg.seg().producers().entry(i).description().write(fd,tmp);
       cfg.seg().producers().entry(i).debounce().write(fd,3);
-      cfg.seg().producers().entry(i).event_on().write(fd, (NODE_ID << 16) + 6+(i*2) );
-      cfg.seg().producers().entry(i).event_off().write(fd, (NODE_ID << 16) + 7+(i*2) );						    
+      cfg.seg().producers().entry(i).event_on().write(fd,(NODE_ID << 16) + 8+(i*2) );
+      cfg.seg().producers().entry(i).event_off().write(fd,(NODE_ID << 16) + 9+(i*2) );						    
     } // for
     for( int i=0; i<NUM_OUTPUTS;++i) {
       cfg.seg().consumers().entry(i).event_on().write(fd, (NODE_ID << 16) + 0+(i*2) );
@@ -195,18 +222,6 @@ extern "C"
   } // reboot  
 } // extern
 
-/** interrupt_enable */
-void ief()
-{
-}
-
-/** interrupt_disable */
-void idf()
-{
-}
-
-MCP23017 the_port(NULL,ief,idf);
-MCP23017GPIO the_light(&the_port,0);
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -227,13 +242,13 @@ int appl_main(int argc, char *argv[])
 
     the_light.set_direction(Gpio::Direction::OUTPUT);
     
-    for ( ; /** forever */ ; )
-    {
-      the_light.set();
-      usleep(100000);
-      the_light.clr();
-      usleep(200000);
-    }
+    //    for ( ; /** forever */ ; )
+    //    {
+    //the_light.clr();
+      //      usleep(100000);
+      //      the_light.clr();
+      //      usleep(200000);
+      //    }
     
     // The necessary physical ports must be added to the stack.
     //
