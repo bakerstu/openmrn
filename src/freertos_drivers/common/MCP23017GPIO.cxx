@@ -50,6 +50,8 @@ void MCP23017::init(const char *i2c_name, uint8_t i2c_address)
 
     ioctl(fd_, I2C_SLAVE, i2c_address);
     i2cAddress_ = i2c_address;
+
+    start("mcp23017", 0, 1024);
 }
 
 /*
