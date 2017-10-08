@@ -99,7 +99,7 @@ void *MCP23017::entry()
 
         /* read remote data and update local data copy*/
         dataInA_ = register_read(GPIOA);
-        dataInB_ = register_read(GPIOB) << 8;
+        dataInB_ = register_read(GPIOB);
 
         if (directionShaddow_ != direction_)
         {
