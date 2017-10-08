@@ -46,6 +46,7 @@ public:
     /// Helper class for unique_ptr to delete an XML document correctly.
     struct XMLDocDeleter
     {
+        /// Deletion operator. @param doc the object to be freed.
         void operator()(XMLDoc *doc)
         {
             if (!doc)
@@ -62,11 +63,14 @@ public:
     /// Helper class for deleting sxml strings.
     struct SXmlStringDeleter
     {
+        /// Deletion operator. @param data the SXML string to be freed.
         void operator()(const SXML_CHAR *data)
         {
             free(const_cast<SXML_CHAR *>(data));
         }
     };
+    /// Smart pointer class for holding C strings from sxml. Appropriately
+    /// frees the string upon going out of scope.
     typedef std::unique_ptr<const SXML_CHAR, SXmlStringDeleter> xmlstring_t;
 
     /// Searches the list of children for the first child with a specific tag.
@@ -89,6 +93,8 @@ public:
     /// Finds the name of a CDI element.
     ///
     /// @param node is a CDI element (segment, group, or config element).
+    /// @param def is the default to return if no <name> element exists or if
+    /// it has no text.
     /// @return finds a child tag <name> and returns its contents. Returns
     /// empty string if no <name> was found.
     static string find_node_name(const XMLNode *node, const char *def)
@@ -182,6 +188,14 @@ public:
         int size = 0;
     };
 
+    /// Helper function to find and convert an attribute to a number.
+    /// @param node is the XML node of the element whose attribute we're looking
+    /// for
+    /// @param attr_name is a C-string for the attribute name we're looking for
+    /// @param def is the default value that will be returned if the attribute
+    /// is not found.
+    /// @return attribute value, or `def` if not found, or zero if the
+    /// attribute is found but the value is not convertible to an integer.
     static int get_numeric_attribute(
         const XMLNode *node, const char *attr_name, int def = 0)
     {
@@ -198,6 +212,7 @@ public:
 
     /// Allocates all userinfo structures within a segment and performs the
     /// offset layout algorithm.
+    /// @param segment is the XML node of the <segment> element.
     static void layout_segment(XMLNode *segment)
     {
         HASSERT(strcmp(segment->tag, "segment") == 0);
@@ -279,6 +294,7 @@ public:
 
     /// @return the number of replicas a group has, if it is a repeated group,
     /// or 1 if it is a non-repeated group.
+    /// @param group is the XML node of the <group> element to query.
     static int get_replication(const XMLNode *group)
     {
         HASSERT(strcmp(group->tag, "group") == 0);
@@ -296,6 +312,8 @@ public:
         /// repetition of a group.
         unsigned address_;
 
+        /// Default constructor. Probably should not be used; maybe only for
+        /// the root of the CDI which is not inside any segment.
         CDINodeRep()
             : node_(nullptr)
             , address_(0)
@@ -364,6 +382,8 @@ public:
         }
 
         /// Gets the absolute address of a given child in the current segment.
+        /// @param child an element which is a child of node_
+        /// @return the absolute address within the CDI segment of child.
         unsigned get_child_address(const XMLNode *child) const
         {
             HASSERT(child->father == node_);
@@ -375,7 +395,7 @@ public:
     };
 
 private:
-    // Static class; never instantiated.
+    /// Static class; never instantiated.
     CDIUtils();
 };
 
