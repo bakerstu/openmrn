@@ -41,34 +41,44 @@
 #include "i2c-dev.h"
 
 /*
- * MCP23017::init()
+ * MCP23017Base::init()
  */
-void MCP23017::init(const char *i2c_name, uint8_t i2c_address)
+void MCP23017Base::init(const char *i2c_name, uint8_t i2c_address)
 {
     fd_ = ::open(i2c_name, O_RDWR);
     HASSERT(fd_ >= 0);
 
-    ioctl(fd_, I2C_SLAVE, i2c_address);
     i2cAddress_ = i2c_address;
+    ioctl(fd_, I2C_SLAVE, i2cAddress_);
 
     start("mcp23017", 0, 1024);
 }
 
 /*
- * MCP23017::entry()
+ * MCP23017Base::entry()
  */
-void *MCP23017::entry()
+void *MCP23017Base::entry()
 {
-    register_write(IOCON, 0x68);
-    register_write(GPINTENA, 0xFF);
-    register_write(GPINTENB, 0xFF);
-    register_write(GPPUA, 0xFF);
-    register_write(GPPUB, 0xFF);
-
-    dataInA_ = register_read(GPIOA);
-    dataInB_ = register_read(GPIOB);
-
     long long interrupt_lockout = 0;
+    uint16_t data_out_last[chips()];
+    uint16_t direction_last[chips()];
+
+    for (uint8_t i = 0; i < chips(); ++i)
+    {
+        /* initialize last data */
+        data_out_last[i] = get_data_out(i);
+        direction_last[i] = get_direction(i);
+
+        /* initialize the device */
+        reg_write(IOCON, 0x68, i);
+        reg_write(GPINTENA, 0xFF, i);
+        reg_write(GPINTENB, 0xFF, i);
+        reg_write(GPPUA, 0xFF, i);
+        reg_write(GPPUB, 0xFF, i);
+
+        /* get the starting input port data */
+        set_data_in(reg_read(GPIOA, i) + (reg_read(GPIOB, i) << 8), i);
+    }
 
     for ( ; /* forever */ ; )
     {
@@ -85,42 +95,45 @@ void *MCP23017::entry()
             interrupt_enable();
             sem_.wait();
         }
-        interrupt_disable();
 
-        /* read interrupt status */
-        uint16_t int_status;
-        int_status = register_read(INTFA);
-        int_status += register_read(INTFB) << 8;
-
+        /* possibly reset the interrupt debounce hold off */
+        now = OSTime::get_monotonic();
+        uint8_t int_status = 0;
+        for (uint8_t i = 0; i < chips(); ++i)
+        {
+            /* flag a possible interrupt status being active */
+            int_status |= reg_read(INTFA, i);
+            int_status |= reg_read(INTFB, i);
+        }
         if (int_status)
         {
-            interrupt_lockout = OSTime::get_monotonic() + intLockTime_;
+            /* there was an interrupt driven change */
+            interrupt_lockout = now + intLockTime_;
         }
 
-        /* read remote data and update local data copy*/
-        dataInA_ = register_read(GPIOA);
-        dataInB_ = register_read(GPIOB);
-
-        if (directionShaddow_ != direction_)
+        for (uint8_t i = 0; i < chips(); ++i)
         {
-            /* flush any direction changes */
-            direction_ = directionShaddow_;
-            register_write(IODIRA, direction_ & 0xFF);
-            register_write(IODIRB, direction_ >> 8);
-        }
+            /* read remote input port data and update local copy*/
+            set_data_in(reg_read(GPIOA, i) + (reg_read(GPIOB, i) << 8), i);
 
-        portENTER_CRITICAL();
-        if ((dataShaddow_ & ~direction_) != (dataOut_ & ~direction_))
-        {
-            dataOut_ = dataShaddow_;
-            portEXIT_CRITICAL();
+            if (data_out_last[i] != get_data_out(i))
+            {
+                /* flush any output latch changes */
+                data_out_last[i] = get_data_out(i);
+                reg_write(OLATA, data_out_last[i] & 0xFF, i);
+                reg_write(OLATB, data_out_last[i] >> 8, i);
+            }
 
-            register_write(OLATA, dataOut_ & 0xFF);
-            register_write(OLATB, dataOut_ >> 8);
-        }
-        else
-        {
-            portEXIT_CRITICAL();
+            if (direction_last[i] != get_direction(i))
+            {
+                /* flush any direction changes */
+                direction_last[i] = get_direction(i);
+                reg_write(IODIRA, direction_last[i] & 0xFF, i);
+                reg_write(IODIRB, direction_last[i] >> 8, i);
+                /* disable interrupts on outputs */
+                reg_write(GPINTENA, direction_last[i], i);
+                reg_write(GPINTENB, direction_last[i], i);
+            }
         }
     }
 
@@ -128,36 +141,45 @@ void *MCP23017::entry()
 }
 
 /*
- * MCP23017::register_write()
+ * MCP23017Base::reg_write()
  */
-void MCP23017::register_write(Registers reg, uint8_t value)
+void MCP23017Base::reg_write(Registers reg, uint8_t value, uint8_t index)
 {
     uint8_t wr_buf[] = {reg, value};
 
-    ::write(fd_, wr_buf, sizeof(wr_buf));
+    struct i2c_msg msg[1];
+
+    msg[0].addr = i2cAddress_ + index;
+    msg[0].flags = 0;
+    msg[0].len = 1;
+    msg[0].buf = wr_buf;
+
+    struct i2c_rdwr_ioctl_data rdwr_ioctl_data = {msg, 1};
+
+    ::ioctl(fd_, I2C_RDWR, &rdwr_ioctl_data);
 }
 
 /*
- * MCP23017::register_read()
+ * MCP23017Base::reg_read()
  */
-uint8_t MCP23017::register_read(Registers reg)
+uint8_t MCP23017Base::reg_read(Registers reg, uint8_t index)
 {
-    uint8_t wr_reg = reg;
+    uint8_t wr_buf[] = {reg};
     uint8_t rd_data;
 
-    struct i2c_msg read_msg[2];
+    struct i2c_msg msg[2];
 
-    read_msg[0].addr = i2cAddress_;
-    read_msg[0].flags = 0;
-    read_msg[0].len = 1;
-    read_msg[0].buf = &wr_reg;
+    msg[0].addr = i2cAddress_ + index;
+    msg[0].flags = 0;
+    msg[0].len = 1;
+    msg[0].buf = wr_buf;
 
-    read_msg[1].addr = i2cAddress_;
-    read_msg[1].flags = I2C_M_RD;
-    read_msg[1].len = 1;
-    read_msg[1].buf = &rd_data;
+    msg[1].addr = i2cAddress_ + index;
+    msg[1].flags = I2C_M_RD;
+    msg[1].len = 1;
+    msg[1].buf = &rd_data;
 
-    struct i2c_rdwr_ioctl_data rdwr_ioctl_data = {read_msg, 2};
+    struct i2c_rdwr_ioctl_data rdwr_ioctl_data = {msg, 2};
 
     ::ioctl(fd_, I2C_RDWR, &rdwr_ioctl_data);
 
@@ -166,9 +188,9 @@ uint8_t MCP23017::register_read(Registers reg)
 
 
 /* 
- * interrupt_handler()
+ * MCP23017Base::interrupt_handler()
  */
-void MCP23017::interrupt_handler()
+void MCP23017Base::interrupt_handler()
 {
     int woken = false;
     interrupt_disable();
