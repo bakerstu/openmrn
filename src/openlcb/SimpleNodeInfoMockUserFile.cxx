@@ -33,6 +33,8 @@
  * @date 22 Mar 2015
  */
 
+#define  _POSIX_C_SOURCE  200112L
+
 #include "SimpleNodeInfoMockUserFile.hxx"
 
 #ifdef __FreeRTOS__
