@@ -210,6 +210,44 @@ public:
         return atoi(attr_value);
     }
 
+    /// Used to classify elements.
+    enum class DataType {
+        UNKNOWN = 0,
+        GROUP,
+        INT,
+        FLOAT,
+        STRING,
+        EVENTID
+    };
+
+    /// Classifies XML elements to node types.
+    /// @param child is an XML element under a group.
+    /// @return node type or UNKNOWN
+    static DataType get_type_from_node(XMLNode *child)
+    {
+        if (strcmp(child->tag, "group") == 0)
+        {
+            return DataType::GROUP;
+        }
+        if (strcmp(child->tag, "int") == 0)
+        {
+            return DataType::INT;
+        }
+        if (strcmp(child->tag, "eventid") == 0)
+        {
+            return DataType::EVENTID;
+        }
+        if (strcmp(child->tag, "string") == 0)
+        {
+            return DataType::STRING;
+        }
+        if (strcmp(child->tag, "float") == 0)
+        {
+            return DataType::FLOAT;
+        }
+        return DataType::UNKNOWN;
+    };
+
     /// Allocates all userinfo structures within a segment and performs the
     /// offset layout algorithm.
     /// @param segment is the XML node of the <segment> element.
@@ -239,28 +277,33 @@ public:
                 parent_info->size +=
                     get_numeric_attribute(current_child, "offset", 0);
                 info->offset_from_parent = parent_info->size;
-                if (strcmp(current_child->tag, "eventid") == 0)
+                auto type = get_type_from_node(current_child);
+                switch (type)
                 {
-                    info->size = 8;
-                }
-                else if (strcmp(current_child->tag, "string") == 0 ||
-                    strcmp(current_child->tag, "int") == 0 ||
-                    strcmp(current_child->tag, "float") == 0)
-                {
-                    info->size =
-                        get_numeric_attribute(current_child, "size", 1);
-                }
-                else if (strcmp(current_child->tag, "group") == 0)
-                {
-                    if (XMLNode_get_children_count(current_child) > 0)
-                    {
-                        current_parent = current_child;
-                        current_child = XMLNode_get_child(current_parent, 0);
-                        get_userinfo(&parent_info, current_parent);
-                        continue;
-                    }
-                    // an empty group has size == 0 and we don't need to do
-                    // anything here.
+                    case DataType::UNKNOWN:
+                        // Probably should not get here.
+                        break;
+                    case DataType::EVENTID:
+                        info->size = 8;
+                        break;
+                    case DataType::STRING:
+                    case DataType::INT:
+                    case DataType::FLOAT:
+                        info->size =
+                            get_numeric_attribute(current_child, "size", 1);
+                        break;
+                    case DataType::GROUP:
+                        if (XMLNode_get_children_count(current_child) > 0)
+                        {
+                            current_parent = current_child;
+                            current_child =
+                                XMLNode_get_child(current_parent, 0);
+                            get_userinfo(&parent_info, current_parent);
+                            continue;
+                        }
+                        // an empty group has size == 0 and we don't need to do
+                        // anything here.
+                        break;
                 }
                 parent_info->size += info->size;
             }
