@@ -60,6 +60,18 @@ int appl_main(int argc, char *argv[])
     return RUN_ALL_TESTS();
 }
 
+bool mute_log_output = false;
+extern "C" {
+
+void log_output(char* buf, int size) {
+    if (size <= 0 || mute_log_output) return;
+    fwrite(buf, size, 1, stderr);
+    fwrite("\n", 1, 1, stderr);
+}
+
+}
+
+
 /// Global executor thread for tests.
 extern Executor<1> g_executor;
 
@@ -237,8 +249,8 @@ public:
     /// @param new_value what should be the new value of variable during this
     /// code block.
     ///
-    template <class T>
-    ScopedOverride(T *variable, T new_value)
+    template <class T, typename U>
+    ScopedOverride(T *variable, U new_value)
         : holder_(new Holder<T>(variable, new_value))
     {
     }
