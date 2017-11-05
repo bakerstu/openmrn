@@ -345,7 +345,7 @@ public:
     {
     }
 
-    void render_cdi(string *s) const
+    template <typename... Args> void render_cdi(string *s, Args... args) const
     {
         *s += StringPrintf("<group offset='%u'/>", size_);
     }
