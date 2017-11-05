@@ -15,11 +15,7 @@ CC = clang
 CXX = clang++
 AR = llvm-ar
 LD = clang++
-
-# llvm-objdump is not 100% compatible with GCC conventions.  It turns out that
-# newer versionf of llvm remove the -symbolize option causing errors.  For
-# now, we just disable OBJDUMP for the llvm target.
-OBJDUMP = #llvm-objdump
+OBJDUMP = llvm-objdump
 
 OBJDUMPOPTS=-symbolize 
 
