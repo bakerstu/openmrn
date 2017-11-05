@@ -61,7 +61,7 @@ ifndef CUSTOM_EXEC
 # This target actually runs the test. We jump through some hoops to collect the
 # coverage files into a separate directory. Since they are in a separate directory, we need to put the original .gcno files there as well.
 %.testout : %.testmd5
-	$(EMU) $(<:.testmd5=.test$(EXTENTION)) --gtest_death_test_style=threadsafe
+	$(EMU) $(<:.testmd5=.test$(EXTENTION)) --gtest_death_test_style=threadsafe $(TESTARGS)
 	touch $@
 
 endif

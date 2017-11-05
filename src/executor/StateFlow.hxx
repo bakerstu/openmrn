@@ -433,6 +433,17 @@ protected:
         return wait();
     }
 
+    /** Place the current flow to the back of the executor, and re-try the
+     * current state after we get the CPU again.  Similar to @ref again, except
+     * we place this flow on the back of the Executor queue.
+     * @return function pointer to be returned from state function
+     */
+    Action yield()
+    {
+        notify();
+        return wait();
+    }
+
     /** Use this timer class to deliver the timeout notification to a stateflow.
      *
      * Usage:

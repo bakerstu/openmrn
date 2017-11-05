@@ -6,7 +6,13 @@
 extern "C" {
 #endif
 
-void log_output(char* buf, int size) {
+#if defined(__linux__) || defined(__MACH__) || defined(__EMSCRIPTEN__)
+#define LOGWEAK __attribute__((weak))
+#else
+#define LOGWEAK
+#endif
+
+LOGWEAK void log_output(char* buf, int size) {
     if (size <= 0) return;
     fwrite(buf, size, 1, stderr);
     fwrite("\n", 1, 1, stderr);
