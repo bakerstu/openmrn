@@ -308,6 +308,7 @@ template <int NUM_PRIO>
 DispatchFlowBase<NUM_PRIO>::DispatchFlowBase(Service *service)
     : UntypedStateFlow<QList<NUM_PRIO>>(service)
     , negateMatch_(false)
+    , lastHandlerToCall_(nullptr)
 {
 }
 
