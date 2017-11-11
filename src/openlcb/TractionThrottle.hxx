@@ -166,9 +166,11 @@ public:
     /// @return true if a train is assigned, else false
     virtual bool is_train_assigned() = 0;
 
+private:    
     /// @return the controlling node (virtual node of the throttle, i.e., us.)
     virtual openlcb::Node* throttle_node() = 0;
-
+public:
+    
     /// Sets up a callback for listening for remote throttle updates. When a
     /// different throttle modifies the train node's state, and the
     /// ASSIGN_TRAIN command was executed with "listen==true" parameter, we
@@ -180,6 +182,7 @@ public:
     /// speed update.
     virtual void set_throttle_listener(std::function<void(int fn)> update_callback) = 0;
 
+private:    
     /// @return the controlled node (the train node) ID.
     virtual openlcb::NodeID target_node() = 0;
 };
