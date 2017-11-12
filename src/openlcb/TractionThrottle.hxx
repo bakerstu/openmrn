@@ -167,6 +167,7 @@ public:
     virtual bool is_train_assigned() = 0;
 
     /// @return the controlling node (virtual node of the throttle, i.e., us.)
+    /// @todo this function should not be here
     virtual openlcb::Node* throttle_node() = 0;
 
     /// Sets up a callback for listening for remote throttle updates. When a
@@ -181,6 +182,7 @@ public:
     virtual void set_throttle_listener(std::function<void(int fn)> update_callback) = 0;
 
     /// @return the controlled node (the train node) ID.
+    /// @todo this function should not be here
     virtual openlcb::NodeID target_node() = 0;
 };
 
