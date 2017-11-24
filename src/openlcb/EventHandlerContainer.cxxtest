@@ -303,6 +303,13 @@ TEST_F(EventHandlerTests, GlobalAndLocal)
     wait();
 }
 
+static EventHandler *h(int n)
+{
+    return reinterpret_cast<EventHandler *>(0x100 + n);
+}
+
+
+template<class T>
 class TreeEventHandlerTest : public ::testing::Test
 {
 public:
@@ -326,11 +333,6 @@ public:
         return r;
     }
 
-    EventHandler *h(int n)
-    {
-        return reinterpret_cast<EventHandler *>(0x100 + n);
-    }
-
     void add_handler(int n, uint64_t eventid, unsigned mask)
     {
         handlers_.register_handler(EventRegistryEntry(h(n), eventid), mask);
@@ -338,86 +340,90 @@ public:
 
 protected:
     EventReport report_;
-    TreeEventHandlers handlers_;
+    T handlers_;
     std::unique_ptr<EventIterator> iter_;
 };
 
-TEST_F(TreeEventHandlerTest, Empty)
+
+typedef ::testing::Types<TreeEventHandlers, VectorEventHandlers> MyTypes;
+TYPED_TEST_CASE(TreeEventHandlerTest, MyTypes);
+
+TYPED_TEST(TreeEventHandlerTest, Empty)
 {
-    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF), ElementsAre());
+    EXPECT_THAT(this->get_all_matching(0, 0xFFFFFFFFFFFFFFFF), ElementsAre());
 }
 
-TEST_F(TreeEventHandlerTest, MatchAllCorrect)
+TYPED_TEST(TreeEventHandlerTest, MatchAllCorrect)
 {
-    add_handler(1, 0, 64);
-    add_handler(3, 0, 64);
-    add_handler(2, 0, 64);
-    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF),
+    this->add_handler(1, 0, 64);
+    this->add_handler(3, 0, 64);
+    this->add_handler(2, 0, 64);
+    EXPECT_THAT(this->get_all_matching(0, 0xFFFFFFFFFFFFFFFF),
                 ElementsAre(h(1), h(2), h(3)));
 }
 
-TEST_F(TreeEventHandlerTest, SingleLookup)
+TYPED_TEST(TreeEventHandlerTest, SingleLookup)
 {
-    add_handler(1, 0x3FF, 0);
-    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF), ElementsAre(h(1)));
-    EXPECT_THAT(get_all_matching(0x300, 0xFF), ElementsAre(h(1)));
-    EXPECT_THAT(get_all_matching(0x300, 0x7F), ElementsAre());
-    EXPECT_THAT(get_all_matching(0x3FF, 0), ElementsAre(h(1)));
-    EXPECT_THAT(get_all_matching(0x3FE, 0), ElementsAre());
+    this->add_handler(1, 0x3FF, 0);
+    EXPECT_THAT(this->get_all_matching(0, 0xFFFFFFFFFFFFFFFF), ElementsAre(h(1)));
+    EXPECT_THAT(this->get_all_matching(0x300, 0xFF), ElementsAre(h(1)));
+    EXPECT_THAT(this->get_all_matching(0x300, 0x7F), ElementsAre());
+    EXPECT_THAT(this->get_all_matching(0x3FF, 0), ElementsAre(h(1)));
+    EXPECT_THAT(this->get_all_matching(0x3FE, 0), ElementsAre());
 
-    EXPECT_THAT(get_all_matching(0x103FF, 0), ElementsAre());
+    EXPECT_THAT(this->get_all_matching(0x103FF, 0), ElementsAre());
 }
 
-TEST_F(TreeEventHandlerTest, MultiLookup)
+TYPED_TEST(TreeEventHandlerTest, MultiLookup)
 {
-    add_handler(1, 0x3FF, 0);
-    add_handler(12, 0x10300, 8);
-    add_handler(13, 0x10300, 5);
-    add_handler(14, 0x10300, 4);
-    add_handler(15, 0x300, 8);
-    add_handler(16, 0x300, 5);
-    add_handler(17, 0x300, 4);
-    add_handler(3, 0x3F0, 4);
-    add_handler(4, 0x3E0, 4);
-    add_handler(5, 0x3E0, 5);
-    EXPECT_THAT(get_all_matching(0, 0xFFFFFFFFFFFFFFFF),
+    this->add_handler(1, 0x3FF, 0);
+    this->add_handler(12, 0x10300, 8);
+    this->add_handler(13, 0x10300, 5);
+    this->add_handler(14, 0x10300, 4);
+    this->add_handler(15, 0x300, 8);
+    this->add_handler(16, 0x300, 5);
+    this->add_handler(17, 0x300, 4);
+    this->add_handler(3, 0x3F0, 4);
+    this->add_handler(4, 0x3E0, 4);
+    this->add_handler(5, 0x3E0, 5);
+    EXPECT_THAT(this->get_all_matching(0, 0xFFFFFFFFFFFFFFFF),
                 ElementsAre(h(1), h(3), h(4), h(5), h(12), h(13), h(14), h(15),
                             h(16), h(17)));
-    EXPECT_THAT(get_all_matching(0x300, 0x7F),
+    EXPECT_THAT(this->get_all_matching(0x300, 0x7F),
                 ElementsAre(h(15), h(16), h(17)));
-    EXPECT_THAT(get_all_matching(0x380, 0x7F),
+    EXPECT_THAT(this->get_all_matching(0x380, 0x7F),
                 ElementsAre(h(1), h(3), h(4), h(5), h(15)));
-    EXPECT_THAT(get_all_matching(0x3FF, 0),
+    EXPECT_THAT(this->get_all_matching(0x3FF, 0),
                 ElementsAre(h(1), h(3), h(5), h(15)));
-    EXPECT_THAT(get_all_matching(0x3FE, 0), ElementsAre(h(3), h(5), h(15)));
+    EXPECT_THAT(this->get_all_matching(0x3FE, 0), ElementsAre(h(3), h(5), h(15)));
 }
 
-TEST_F(TreeEventHandlerTest, Erase)
+TYPED_TEST(TreeEventHandlerTest, Erase)
 {
-    add_handler(1, 32, 0);
-    add_handler(1, 33, 0);
-    add_handler(1, 34, 0);
-    add_handler(2, 48, 0);
-    add_handler(3, 48, 0);
-    add_handler(4, 48, 0);
-    add_handler(5, 48, 0);
-    add_handler(6, 64, 0);
+    this->add_handler(1, 32, 0);
+    this->add_handler(1, 33, 0);
+    this->add_handler(1, 34, 0);
+    this->add_handler(2, 48, 0);
+    this->add_handler(3, 48, 0);
+    this->add_handler(4, 48, 0);
+    this->add_handler(5, 48, 0);
+    this->add_handler(6, 64, 0);
     // bug: if this one is the last it will cause a lot more additional entries
     // to be deleted from the tail.
-    add_handler(1, 96, 0);
-    EXPECT_THAT(get_all_matching(32, 0), ElementsAre(h(1)));
-    EXPECT_THAT(get_all_matching(33, 0), ElementsAre(h(1)));
-    EXPECT_THAT(get_all_matching(34, 0), ElementsAre(h(1)));
-    EXPECT_THAT(get_all_matching(35, 0), ElementsAre());
-    EXPECT_THAT(get_all_matching(48, 0), ElementsAre(h(2), h(3), h(4), h(5)));
-    EXPECT_THAT(get_all_matching(64, 0), ElementsAre(h(6)));
-    handlers_.unregister_handler(h(1));
-    EXPECT_THAT(get_all_matching(32, 0), ElementsAre());
-    EXPECT_THAT(get_all_matching(33, 0), ElementsAre());
-    EXPECT_THAT(get_all_matching(34, 0), ElementsAre());
-    EXPECT_THAT(get_all_matching(35, 0), ElementsAre());
-    EXPECT_THAT(get_all_matching(48, 0), ElementsAre(h(2), h(3), h(4), h(5)));
-    EXPECT_THAT(get_all_matching(64, 0), ElementsAre(h(6)));
+    this->add_handler(1, 96, 0);
+    EXPECT_THAT(this->get_all_matching(32, 0), ElementsAre(h(1)));
+    EXPECT_THAT(this->get_all_matching(33, 0), ElementsAre(h(1)));
+    EXPECT_THAT(this->get_all_matching(34, 0), ElementsAre(h(1)));
+    EXPECT_THAT(this->get_all_matching(35, 0), ElementsAre());
+    EXPECT_THAT(this->get_all_matching(48, 0), ElementsAre(h(2), h(3), h(4), h(5)));
+    EXPECT_THAT(this->get_all_matching(64, 0), ElementsAre(h(6)));
+    this->handlers_.unregister_handler(h(1));
+    EXPECT_THAT(this->get_all_matching(32, 0), ElementsAre());
+    EXPECT_THAT(this->get_all_matching(33, 0), ElementsAre());
+    EXPECT_THAT(this->get_all_matching(34, 0), ElementsAre());
+    EXPECT_THAT(this->get_all_matching(35, 0), ElementsAre());
+    EXPECT_THAT(this->get_all_matching(48, 0), ElementsAre(h(2), h(3), h(4), h(5)));
+    EXPECT_THAT(this->get_all_matching(64, 0), ElementsAre(h(6)));
 }
 
 } // namespace openlcb
