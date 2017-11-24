@@ -34,6 +34,8 @@
 
 #include "openlcb/EventHandlerContainer.hxx"
 
+#include <algorithm>
+
 namespace openlcb
 {
 
@@ -41,6 +43,7 @@ void TreeEventHandlers::register_handler(const EventRegistryEntry &entry,
                                          unsigned mask)
 {
     AtomicHolder h(this);
+    LOG(VERBOSE, "%p: register %p", this, entry.handler);
     set_dirty();
     handlers_[mask].insert(EventRegistryEntry(entry));
 }
@@ -49,17 +52,24 @@ void TreeEventHandlers::unregister_handler(EventHandler *handler)
 {
     AtomicHolder h(this);
     set_dirty();
+    LOG(VERBOSE, "%p: unregister %p", this, handler);
     bool found = false;
-    for (auto r = handlers_.begin(); r != handlers_.end(); ++r) {
-        for (auto it = r->second.begin(); it != r->second.end(); ++it) {
-            if (it->handler == handler)
-            {
-                r->second.erase(it);
-                found = true;
-            }
+    for (auto r = handlers_.begin(); r != handlers_.end(); ++r)
+    {
+        auto begin_it = r->second.begin();
+        auto end_it = r->second.end();
+        auto erase_it = std::remove_if(
+            begin_it, end_it, [handler](const EventRegistryEntry &reg) {
+                return reg.handler == handler;
+            });
+        if (erase_it != end_it)
+        {
+            r->second.erase(erase_it, end_it);
+            found = true;
         }
     }
-    if (found) return;
+    if (found)
+        return;
     DIE("tried to unregister a handler that was not registered");
 }
 
