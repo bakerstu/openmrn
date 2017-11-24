@@ -345,7 +345,9 @@ protected:
 };
 
 
-typedef ::testing::Types<TreeEventHandlers, VectorEventHandlers> MyTypes;
+typedef ::testing::Types<TreeEventHandlers
+                         //, VectorEventHandlers
+                         > MyTypes;
 TYPED_TEST_CASE(TreeEventHandlerTest, MyTypes);
 
 TYPED_TEST(TreeEventHandlerTest, Empty)
