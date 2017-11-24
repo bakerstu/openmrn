@@ -39,6 +39,37 @@
 namespace openlcb
 {
 
+/// EventIterator that produces every single entry in a given container (which
+/// can be any STL-compatible container with begin() and end() methods).
+template<class C> class FullContainerIterator : public EventIterator {
+public:
+    FullContainerIterator(C* container)
+        : container_(container) {
+        clear_iteration();
+    }
+    EventRegistryEntry* next_entry() OVERRIDE {
+        if (it_ == container_->end()) return nullptr;
+        EventRegistryEntry* h = &*it_;
+        ++it_;
+        return h;
+    }
+    void clear_iteration() OVERRIDE {
+        it_ = container_->end();
+    }
+    void init_iteration(EventReport*) OVERRIDE {
+        it_ = container_->begin();
+    }
+
+private:
+    typename C::iterator it_;
+    C* container_;
+};
+
+// Creates a new event iterator. Caller takes ownership of object.
+EventIterator* VectorEventHandlers::create_iterator() {
+    return new FullContainerIterator<HandlersList>(&handlers_);
+}
+
 void TreeEventHandlers::register_handler(const EventRegistryEntry &entry,
                                          unsigned mask)
 {

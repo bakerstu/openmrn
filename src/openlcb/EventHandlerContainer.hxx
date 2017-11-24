@@ -81,32 +81,6 @@ public:
     virtual void clear_iteration() = 0;
 };
 
-/// EventIterator that produces every single entry in a given container (which
-/// can be any STL-compatible container with begin() and end() methods).
-template<class C> class FullContainerIterator : public EventIterator {
-public:
-    FullContainerIterator(C* container)
-        : container_(container) {
-        clear_iteration();
-    }
-    EventRegistryEntry* next_entry() OVERRIDE {
-        if (it_ == container_->end()) return nullptr;
-        EventRegistryEntry* h = &*it_;
-        ++it_;
-        return h;
-    }
-    void clear_iteration() OVERRIDE {
-        it_ = container_->end();
-    }
-    void init_iteration(EventReport*) OVERRIDE {
-        it_ = container_->begin();
-    }
-
-private:
-    typename C::iterator it_;
-    C* container_;
-};
-
 /// EventRegistry implementation that keeps all event handlers in a vector and
 /// forwards every single call to each event handler.
 class VectorEventHandlers : public EventRegistry {
@@ -114,9 +88,7 @@ class VectorEventHandlers : public EventRegistry {
     VectorEventHandlers() {}
 
     // Creates a new event iterator. Caller takes ownership of object.
-    EventIterator* create_iterator() OVERRIDE {
-        return new FullContainerIterator<HandlersList>(&handlers_);
-    }
+    EventIterator* create_iterator() OVERRIDE;
 
   void register_handler(const EventRegistryEntry& entry, unsigned mask) OVERRIDE {
     // @TODO(balazs.racz): need some kind of locking here.
