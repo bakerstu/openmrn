@@ -93,6 +93,9 @@ class VectorEventHandlers : public EventRegistry {
   void register_handler(const EventRegistryEntry& entry, unsigned mask) OVERRIDE {
     // @TODO(balazs.racz): need some kind of locking here.
     handlers_.push_front(entry);
+    HASSERT(mask < 64);
+    HASSERT((user_arg >> MASK_SHIFT) == 0);
+    handlers_.front().user_arg |= (mask << MASK_SHIFT);
     set_dirty();
   }
   void unregister_handler(EventHandler *handler) OVERRIDE
@@ -116,6 +119,7 @@ class VectorEventHandlers : public EventRegistry {
   }
 
  private:
+  static constexpr unsigned MASK_SHIFT = 26;
   typedef std::forward_list<EventRegistryEntry> HandlersList;
   HandlersList handlers_;
 };

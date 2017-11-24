@@ -48,21 +48,27 @@ public:
         clear_iteration();
     }
     EventRegistryEntry* next_entry() OVERRIDE {
-        if (it_ == container_->end()) return nullptr;
-        EventRegistryEntry* h = &*it_;
-        ++it_;
-        return h;
+        while (it_ != container_->end()) {
+            EventRegistryEntry* h = &*it_;
+            ++it_;
+            //mask = h->user_arg >> MASK_SHIFT;
+            //if ((h->event >> mask) == 
+            return h;
+        }
+        return nullptr;
     }
     void clear_iteration() OVERRIDE {
         it_ = container_->end();
     }
-    void init_iteration(EventReport*) OVERRIDE {
+    void init_iteration(EventReport* rep) OVERRIDE {
         it_ = container_->begin();
+        rep_ = rep;
     }
 
 private:
     typename C::iterator it_;
     C* container_;
+    EventReport* rep_;
 };
 
 // Creates a new event iterator. Caller takes ownership of object.
