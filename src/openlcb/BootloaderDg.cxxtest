@@ -44,7 +44,7 @@ public:
 
 static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
 
-#define FLASH_SIZE 13 * 1024
+#define FLASH_SIZE 13 * 1024u
 static uint8_t virtual_flash[FLASH_SIZE];
 #define APP_HEADER_OFFSET 131 * 4
 

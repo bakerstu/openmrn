@@ -41,35 +41,35 @@ TEST(RangeToBitCountTest, simple) {
     EventId e;
     e = 0b11100;
     EXPECT_EQ(2, event_range_to_bit_count(&e));
-    EXPECT_EQ(0b11100, e);
+    EXPECT_EQ(0b11100u, e);
 
     e = 0b11101;
     EXPECT_EQ(1, event_range_to_bit_count(&e));
-    EXPECT_EQ(0b11100, e);
+    EXPECT_EQ(0b11100u, e);
 
     e = 0b11101111;
     EXPECT_EQ(4, event_range_to_bit_count(&e));
-    EXPECT_EQ(0b11100000, e);
+    EXPECT_EQ(0b11100000u, e);
 
     e = 0x50FFFFFFFF;
     EXPECT_EQ(32, event_range_to_bit_count(&e));
-    EXPECT_EQ(0x5000000000, e);
+    EXPECT_EQ(0x5000000000u, e);
 
     e = 0x8000000000000000;
     EXPECT_EQ(63, event_range_to_bit_count(&e));
-    EXPECT_EQ(0x8000000000000000, e);
+    EXPECT_EQ(0x8000000000000000u, e);
 
     e = 0x7FFFFFFFFFFFFFFF;
     EXPECT_EQ(63, event_range_to_bit_count(&e));
-    EXPECT_EQ(0, e);
+    EXPECT_EQ(0u, e);
 
     e = 0xFFFFFFFFFFFFFFFF;
     EXPECT_EQ(64, event_range_to_bit_count(&e));
-    EXPECT_EQ(0, e);
+    EXPECT_EQ(0u, e);
 
     e = 0;
     EXPECT_EQ(64, event_range_to_bit_count(&e));
-    EXPECT_EQ(0, e);
+    EXPECT_EQ(0u, e);
 }
 
 class RoutingLogicTest : public ::testing::Test {

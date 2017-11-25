@@ -60,31 +60,31 @@ CDI_GROUP_END();
 
 TEST(GroupConfig, LengthAndOffsetsAreCorrect)
 {
-    EXPECT_EQ(25, TestNodeConfig::size());
-    EXPECT_EQ(3, TestGroup::size());
-    EXPECT_EQ(9, TestNodeConfig::TestRepeat::size());
+    EXPECT_EQ(25u, TestNodeConfig::size());
+    EXPECT_EQ(3u, TestGroup::size());
+    EXPECT_EQ(9u, TestNodeConfig::TestRepeat::size());
     TestNodeConfig cfg(11);
-    EXPECT_EQ(4, sizeof(cfg));
+    EXPECT_EQ(4u, sizeof(cfg));
 
-    EXPECT_EQ(11, cfg.offset());
+    EXPECT_EQ(11u, cfg.offset());
 
-    EXPECT_EQ(11, cfg.version().offset());
-    EXPECT_EQ(12, cfg.test_short().offset());
-    EXPECT_EQ(14, cfg.test64().offset());
-    EXPECT_EQ(22, cfg.test32().offset());
+    EXPECT_EQ(11u, cfg.version().offset());
+    EXPECT_EQ(12u, cfg.test_short().offset());
+    EXPECT_EQ(14u, cfg.test64().offset());
+    EXPECT_EQ(22u, cfg.test32().offset());
 
-    EXPECT_EQ(26, cfg.testgroup().offset());
+    EXPECT_EQ(26u, cfg.testgroup().offset());
 
-    EXPECT_EQ(26, cfg.testgroup().entry<0>().offset());
-    EXPECT_EQ(26, cfg.testgroup().entry<0>().e1().offset());
-    EXPECT_EQ(27, cfg.testgroup().entry<0>().e2().offset());
+    EXPECT_EQ(26u, cfg.testgroup().entry<0>().offset());
+    EXPECT_EQ(26u, cfg.testgroup().entry<0>().e1().offset());
+    EXPECT_EQ(27u, cfg.testgroup().entry<0>().e2().offset());
 
-    EXPECT_EQ(29, cfg.testgroup().entry<1>().offset());
+    EXPECT_EQ(29u, cfg.testgroup().entry<1>().offset());
 
-    EXPECT_EQ(29, cfg.testgroup().entry<1>().e1().offset());
-    EXPECT_EQ(33, cfg.testgroup().entry<2>().e2().offset());
+    EXPECT_EQ(29u, cfg.testgroup().entry<1>().e1().offset());
+    EXPECT_EQ(33u, cfg.testgroup().entry<2>().e2().offset());
 
-    EXPECT_EQ(35, cfg.last().offset());
+    EXPECT_EQ(35u, cfg.last().offset());
 }
 
 CDI_GROUP(HoleTestGroup);
@@ -97,12 +97,12 @@ CDI_GROUP_END();
 TEST(GroupConfig, WithHoles)
 {
     HoleTestGroup cfg(17);
-    EXPECT_EQ(18, HoleTestGroup::size());
-    EXPECT_EQ(18, cfg.size());
-    EXPECT_EQ(17, cfg.version().offset());
-    EXPECT_EQ(18, cfg.blocked().offset());
-    EXPECT_EQ(23, cfg.event().offset());
-    EXPECT_EQ(31, cfg.last().offset());
+    EXPECT_EQ(18u, HoleTestGroup::size());
+    EXPECT_EQ(18u, cfg.size());
+    EXPECT_EQ(17u, cfg.version().offset());
+    EXPECT_EQ(18u, cfg.blocked().offset());
+    EXPECT_EQ(23u, cfg.event().offset());
+    EXPECT_EQ(31u, cfg.last().offset());
 }
 
 CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG),
@@ -130,20 +130,20 @@ TEST(FullCdi, SegmentOffset)
     EXPECT_EQ(-2, def.group_opts().segment());
 
     EXPECT_EQ(INT_MAX, def.ident().group_opts().offset());
-    EXPECT_EQ(0, def.ident().group_opts().get_segment_offset());
-    EXPECT_EQ(0, def.ident().offset());
+    EXPECT_EQ(0u, def.ident().group_opts().get_segment_offset());
+    EXPECT_EQ(0u, def.ident().offset());
     EXPECT_EQ(1000, def.ident().group_opts().segment());
     EXPECT_EQ(1000, def.acdi().group_opts().segment());
 
-    EXPECT_EQ(1, def.userinfo().offset());
+    EXPECT_EQ(1u, def.userinfo().offset());
     EXPECT_EQ(0xFB, def.userinfo().group_opts().segment());
-    EXPECT_EQ(1, def.userinfo().name().offset());
+    EXPECT_EQ(1u, def.userinfo().name().offset());
 
     EXPECT_EQ(128, def.seg().group_opts().offset());
-    EXPECT_EQ(128, def.seg().offset());
+    EXPECT_EQ(128u, def.seg().offset());
 
-    EXPECT_EQ(128, def.seg().first().offset());
-    EXPECT_EQ(0, def.seg2().first().offset());
+    EXPECT_EQ(128u, def.seg().first().offset());
+    EXPECT_EQ(0u, def.seg2().first().offset());
 }
 
 TempDir dir;
@@ -287,11 +287,11 @@ CDI_GROUP_END();
 
 TEST(Test2GroupTest, Offsets) {
     TestGroup grp(11);
-    EXPECT_EQ(13, TestGroup::size());
-    EXPECT_EQ(11, grp.testi8().offset());
-    EXPECT_EQ(12, grp.testi32().offset());
-    EXPECT_EQ(16, grp.testi64().offset());
-    EXPECT_EQ(24, grp.end_offset());
+    EXPECT_EQ(13u, TestGroup::size());
+    EXPECT_EQ(11u, grp.testi8().offset());
+    EXPECT_EQ(12u, grp.testi32().offset());
+    EXPECT_EQ(16u, grp.testi64().offset());
+    EXPECT_EQ(24u, grp.end_offset());
 }
 
 } // namespace test2
