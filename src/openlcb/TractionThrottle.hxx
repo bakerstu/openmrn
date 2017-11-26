@@ -35,6 +35,7 @@
 #ifndef _OPENLCB_TRACTIONTHROTTLE_HXX_
 #define _OPENLCB_TRACTIONTHROTTLE_HXX_
 
+#include "openlcb/SimpleNodeInfo.hxx"
 #include "openlcb/TractionClient.hxx"
 #include "openlcb/TractionDefs.hxx"
 #include "openlcb/TrainInterface.hxx"
@@ -231,6 +232,13 @@ public:
         // TODO: if we don't know the current speed, we should probably go and
         // ask.
         return lastSetSpeed_;
+    }
+
+    /// Get the name of the train node.
+    /// @return name of train node
+    string get_name()
+    {
+        return name_;
     }
 
     void set_emergencystop() override
@@ -498,8 +506,22 @@ private:
 
     Action load_state()
     {
-        pendingQueries_ = 1;
+        pendingQueries_ = 2;
+
+        // ask for train name
+        iface()->dispatcher()->register_handler(&snipResponseHandler_,
+                                            openlcb::Defs::MTI_IDENT_INFO_REPLY,
+                                            openlcb::Defs::MTI_EXACT);
+        auto *b = iface()->addressed_message_write_flow()->alloc();
+        b->data()->reset(openlcb::Defs::MTI_IDENT_INFO_REQUEST,
+                         node_->node_id(),
+                         NodeHandle(dst_), openlcb::EMPTY_PAYLOAD);
+        node_->iface()->addressed_message_write_flow()->send(b);
+
+        // ask for speed
         send_traction_message(TractionDefs::speed_get_payload());
+
+        // ask for function status
         for (int i = 0; i <= MAX_FN_QUERY; ++i)
         {
             pendingQueries_++;
@@ -510,6 +532,9 @@ private:
 
     Action load_done()
     {
+        iface()->dispatcher()->unregister_handler(&snipResponseHandler_,
+                                            openlcb::Defs::MTI_IDENT_INFO_REPLY,
+                                            openlcb::Defs::MTI_EXACT);
         if (!timer_.is_triggered())
         {
             // timed out
@@ -720,6 +745,46 @@ private:
         }
     }
 
+    /// Callback when a SNIP response arrives from the network.
+    /// @param b OpenLCB message buffer
+    void snip_reply(Buffer<openlcb::GenMessage>* b)
+    {
+        auto bd = get_buffer_deleter(b);
+        if (target_node() != b->data()->src.id)
+        {
+            /* SNIP response for unknown node */
+            return;
+        }
+
+        const auto& payload = b->data()->payload;
+        openlcb::SnipDecodedData decoded_data;
+        openlcb::decode_snip_response(payload, &decoded_data);
+
+        if (!decoded_data.user_name.empty())
+        {
+            name_ = std::move(decoded_data.user_name);
+        }
+        else if (!decoded_data.user_description.empty())
+        {
+            name_ = std::move(decoded_data.user_description);
+        }
+        else if (!decoded_data.model_name.empty())
+        {
+            name_ = std::move(decoded_data.model_name);
+        }
+        else if (!decoded_data.manufacturer_name.empty())
+        {
+            name_ = std::move(decoded_data.manufacturer_name);
+        }
+        else
+        {
+            // Could not figure out node name from SNIP response.
+            name_ = "*";
+        }
+
+        pending_reply_arrived();
+    }
+
     /** Allocates (synchronously) an outgoing openlcb buffer with traction
      * request MTI and the given payload and sends off the message to the bus
      * for dst_. */
@@ -784,6 +849,10 @@ private:
         this, &TractionThrottle::speed_reply};
     MessageHandler::GenericHandler listenReplyHandler_{
         this, &TractionThrottle::listen_reply};
+    /// Message handler for SNIP replies.
+    MessageHandler::GenericHandler snipResponseHandler_{
+        this, &TractionThrottle:: snip_reply};
+
     /// How many speed/fn query requests I have sent off to the train node that
     /// have not yet seen a reply.
     unsigned pendingQueries_{0};
@@ -794,6 +863,8 @@ private:
     bool listenConsist_{false};
     NodeID dst_;
     Node *node_;
+    /// Name of the train.
+    string name_;
     /// Helper class for stateful query/return flows.
     TractionResponseHandler handler_{iface(), node_};
     /// Function to call when a different controller updates the train.
