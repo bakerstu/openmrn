@@ -41,5 +41,6 @@ namespace openlcb
 uninitialized<BitRangeNonAuthoritativeEventP> DccAccyProducer::eventProducer_;
 uninitialized<std::vector<DccAccyProducer*>> DccAccyProducer::instances_;
 OSThreadOnce DccAccyProducer::once_(DccAccyProducer::once_routine);
+Atomic DccAccyProducer::instancesLock_;
 
 } // namespace openlcb

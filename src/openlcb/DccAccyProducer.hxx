@@ -133,7 +133,7 @@ public:
         , bn_()
     {
         once_.once();
-        AtomicHolder h(this);
+        AtomicHolder h(&instancesLock_);
         if (instances_->empty())
         {
             uint32_t max_address = MAX_ADDRESS;
@@ -148,7 +148,7 @@ public:
     /// Destructor.  Remove "this" instance from @ref instances_ vector
     ~DccAccyProducer()
     {
-        AtomicHolder h(this);
+        AtomicHolder h(&instancesLock_);
         for (unsigned i = 0; i < instances_->size(); ++i)
         {
             if (instances_->at(i) == this)
@@ -250,6 +250,9 @@ private:
     /// Vector of all the subscribers to the DCC accessory address Well-Known
     /// Event ID Range
     static uninitialized<std::vector<DccAccyProducer*>> instances_;
+
+    /// This lock protects the instances_ vector;
+    static Atomic instancesLock_;
 
     /// one time execution helper
     static OSThreadOnce once_;
