@@ -69,7 +69,9 @@ void TreeEventHandlers::unregister_handler(EventHandler *handler)
         }
     }
     if (found)
+    {
         return;
+    }
     DIE("tried to unregister a handler that was not registered");
 }
 
