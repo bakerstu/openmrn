@@ -66,8 +66,10 @@ public:
     ~SimpleUpdateLoop();
 
     /** Adds a new refresh source to the background refresh packets. */
-    void add_refresh_source(dcc::PacketSource *source) OVERRIDE
+    void add_refresh_source(
+        dcc::PacketSource *source, unsigned priority) OVERRIDE
     {
+        /// @todo implement priority refresh.
         AtomicHolder h(this);
         refreshSources_.push_back(source);
     }
