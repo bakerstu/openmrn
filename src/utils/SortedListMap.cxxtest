@@ -41,12 +41,12 @@ TEST_F(SortedListMapTest, add_size)
     map_.insert(3);
     map_.insert(5);
     map_.insert(9);
-    EXPECT_EQ(3, map_.size());
+    EXPECT_EQ(3u, map_.size());
 
     EXPECT_THAT(elements(), ElementsAre(3, 5, 9));
 
     map_.insert(2);
-    EXPECT_EQ(4, map_.size());
+    EXPECT_EQ(4u, map_.size());
     EXPECT_THAT(elements(), ElementsAre(2, 3, 5, 9));
 }
 
@@ -69,18 +69,18 @@ TEST_F(SortedListMapTest, erase)
 {
     add({9, 3, 5, 2});
     EXPECT_THAT(elements(), ElementsAre(2, 3, 5, 9));
-    EXPECT_EQ(4, map_.size());
+    EXPECT_EQ(4u, map_.size());
     EXPECT_EQ(4, map_.end() - map_.begin());
     auto old_e = map_.end();
     map_.erase(map_.begin() + 2);
     auto new_e = map_.end();
     EXPECT_NE(old_e, new_e);
-    EXPECT_EQ(3, map_.size());
+    EXPECT_EQ(3u, map_.size());
     EXPECT_EQ(3, new_e - map_.begin());
     EXPECT_THAT(elements(), ElementsAre(2, 3, 9));
 
     map_.clear();
-    EXPECT_EQ(0, map_.size());
+    EXPECT_EQ(0u, map_.size());
     EXPECT_THAT(elements(), ElementsAre());
 }
 
@@ -88,13 +88,13 @@ TEST_F(SortedListMapTest, erase_last)
 {
     add({9, 3, 5, 2});
     EXPECT_THAT(elements(), ElementsAre(2, 3, 5, 9));
-    EXPECT_EQ(4, map_.size());
+    EXPECT_EQ(4u, map_.size());
     EXPECT_EQ(4, map_.end() - map_.begin());
     auto old_e = map_.end();
     map_.erase(map_.begin() + 3);
     auto new_e = map_.end();
     EXPECT_NE(old_e, new_e);
-    EXPECT_EQ(3, map_.size());
+    EXPECT_EQ(3u, map_.size());
     EXPECT_EQ(3, new_e - map_.begin());
     EXPECT_THAT(elements(), ElementsAre(2, 3, 5));
 }
@@ -112,7 +112,7 @@ TEST_F(SortedListMapTest, duplicate)
     // refresh internally.
     auto new_e = map_.end();
     auto new_b = map_.begin();
-    EXPECT_EQ(3, map_.size());
+    EXPECT_EQ(3u, map_.size());
     EXPECT_EQ(3, new_e - new_b);
     EXPECT_THAT(elements(), ElementsAre(2, 3, 9));
 }
