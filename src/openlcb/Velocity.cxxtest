@@ -32,6 +32,8 @@
  * @date 15 September 2013
  */
 
+#include <math.h>
+
 #include "os/os.h"
 #include "gtest/gtest.h"
 #include "openlcb/Velocity.hxx"
@@ -41,8 +43,8 @@ using namespace openlcb;
 
 TEST(NMRAnetVelocityTest, size)
 {
-    EXPECT_EQ(4, sizeof(Velocity));
-    EXPECT_EQ(2, sizeof(float16_t));
+    EXPECT_EQ(4u, sizeof(Velocity));
+    EXPECT_EQ(2u, sizeof(float16_t));
 }
 
 TEST(NMRAnetVelocityTest, constructor_int)

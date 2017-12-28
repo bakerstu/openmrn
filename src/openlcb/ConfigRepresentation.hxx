@@ -273,6 +273,11 @@ public:
 /// Closes a CDI group structure definition.
 #define CDI_GROUP_END() CDI_GROUP_END_HELPER(__LINE__)
 
+/// Performs factory reset on a CDI variable. The variable must have a default
+/// value defined.
+#define CDI_FACTORY_RESET(PATH)                                                \
+    PATH().write(fd, PATH##_options().defaultvalue())
+
 /// Defines a repeated group of a given type and a given number of repeats.
 ///
 /// Typical usage:
