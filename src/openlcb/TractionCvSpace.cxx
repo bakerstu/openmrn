@@ -178,7 +178,7 @@ StateFlowBase::Action TractionCvSpace::fill_read1_packet()
         b->data()->add_dcc_address(dcc::DccShortAddress(dccAddress_));
     }
     b->data()->add_dcc_pom_read1(cvNumber_);
-    b->data()->feedback_key = reinterpret_cast<size_t>(this);
+    b->data()->feedback_key = reinterpret_cast<uintptr_t>(this);
     railcomHub_->register_port(this);
     errorCode_ = ERROR_PENDING;
     track_->send(b);
@@ -279,7 +279,7 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
         b->data()->add_dcc_address(dcc::DccShortAddress(dccAddress_));
     }
     b->data()->add_dcc_pom_write1(cvNumber_, cvData_);
-    b->data()->feedback_key = reinterpret_cast<size_t>(this);
+    b->data()->feedback_key = reinterpret_cast<uintptr_t>(this);
     railcomHub_->register_port(this);
     errorCode_ = ERROR_PENDING;
     track_->send(b);
@@ -330,7 +330,7 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
     if (errorCode_ != ERROR_PENDING)
         return;
     const dcc::Feedback &f = *b->data();
-    if (f.feedbackKey != (uint32_t)(reinterpret_cast<size_t>(this)) || f.channel == 0xff)
+    if (f.feedbackKey != (reinterpret_cast<uintptr_t>(this)) || f.channel == 0xff)
     {
         // Skip railcom from other packets; also skip the railcom-based
         // occupancy information packets.
