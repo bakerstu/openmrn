@@ -125,5 +125,14 @@ TEST(DccDebug, F21_28)
     EXPECT_EQ("[dcc] Short Address 3 F[21-28]=01101001", packet_to_string(pkt));
 }
 
+TEST(DccDebug, marklin)
+{
+    Packet pkt;
+    pkt.start_mm_packet();
+    pkt.add_mm_address(MMAddress(13), true);
+    pkt.add_mm_speed(2);
+    EXPECT_EQ("[marklin]", packet_to_string(pkt));
+}
+
 } // namespace
 } // namespace dcc
