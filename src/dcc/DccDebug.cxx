@@ -117,21 +117,22 @@ string packet_to_string(const DCCPacket &pkt)
         options += " SPD ";
         options += is_forward ? 'F' : 'R';
         uint8_t speed = ((cmd & 0xF) << 1) | ((cmd & 0x10) >> 4);
-        switch (speed) {
-        case 0:
-            options += " 0";
-            break;
-        case 1:
-            options += " 0'";
-            break;
-        case 2:
-            options += " E-STOP";
-            break;
-        case 3:
-            options += " E-STOP'";
-            break;
-        default: 
-            options += StringPrintf(" %u", speed - 3);
+        switch (speed)
+        {
+            case 0:
+                options += " 0";
+                break;
+            case 1:
+                options += " 0'";
+                break;
+            case 2:
+                options += " E-STOP";
+                break;
+            case 3:
+                options += " E-STOP'";
+                break;
+            default:
+                options += StringPrintf(" %u", speed - 3);
         }
     }
     else if ((cmd >> 5) == 0b100)
@@ -158,16 +159,23 @@ string packet_to_string(const DCCPacket &pkt)
     {
         // expansion
         uint8_t c = cmd & 0x1F;
-        if ((c & ~1) == 0b11110) {
-            if (c & 1) {
+        if ((c & ~1) == 0b11110)
+        {
+            if (c & 1)
+            {
                 options += " F[21-28]=";
-            } else {
+            }
+            else
+            {
                 options += " F[13-20]=";
             }
             c = pkt.payload[ofs];
             ofs++;
-            for (int i = 0; i < 8; ++i, c>>=1) options += '0' + (c&1);
-        } else {
+            for (int i = 0; i < 8; ++i, c >>= 1)
+                options += '0' + (c & 1);
+        }
+        else
+        {
             /// @todo
         }
     }
