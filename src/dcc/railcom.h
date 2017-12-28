@@ -55,7 +55,7 @@ typedef struct dcc_feedback
     /// Opaque identifier that allows linking outgoing dcc::Packet sent to the
     /// DCC waveform generator to the incoming dcc::Feedback structure read
     /// back from the railcom driver.
-    uint32_t feedbackKey;
+    uintptr_t feedbackKey;
 } DCCFeedback;
 
 #ifdef __cplusplus
