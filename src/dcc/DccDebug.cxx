@@ -49,7 +49,6 @@ string packet_to_string(const DCCPacket &pkt)
     if (pkt.packet_header.is_marklin)
     {
         options += "[marklin]";
-        return options;
     }
     else
     {
@@ -71,6 +70,13 @@ string packet_to_string(const DCCPacket &pkt)
     if (!pkt.dlc)
     {
         return options + " no payload";
+    }
+    if (pkt.packet_header.is_marklin) {
+        for (unsigned i = 0; i < pkt.dlc; ++i)
+        {
+            options += StringPrintf(" 0x%02x", pkt.payload[i]);
+        }
+        return options;
     }
     unsigned ofs = 0;
     bool is_idle_packet = false;
