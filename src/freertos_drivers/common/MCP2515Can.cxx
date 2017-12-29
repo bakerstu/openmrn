@@ -143,7 +143,6 @@ void MCP2515Can::enable()
     if (!is_created())
     {
         /* start the thread at the highest priority in the system */
-        /** @todo make this the highest possible thread priority */
         start(name, configMAX_PRIORITIES - 1, 1024);
     }
 
