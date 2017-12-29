@@ -355,11 +355,15 @@ void *MCP2515Can::entry()
             rx_msg(1);
         }
 
-        /* write the latest GPO data */
-        register_write(BFPCTRL, 0x0C | (gpoData << 4));
+        if (ioPending)
+        {
+            ioPending = false;
+            /* write the latest GPO data */
+            register_write(BFPCTRL, 0x0C | (gpoData << 4));
 
-        /* get the latest GPI data */
-        gpiData = (register_read(TXRTSCTRL) >> 3) & 0x7;
+            /* get the latest GPI data */
+            gpiData = (register_read(TXRTSCTRL) >> 3) & 0x7;
+        }
         lock_.unlock();
 
         interrupt_enable();

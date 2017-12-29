@@ -66,6 +66,7 @@ public:
         , txPending(0)
         , gpoData(0x0)
         , gpiData(0x7)
+        , ioPending(false)
         , spi(-1)
         , sem()
     {
@@ -576,10 +577,20 @@ private:
         ::write(spi, &rts, 1);
     }
 
+    void request_io_operation()
+    {
+        if (!ioPending)
+        {
+            ioPending = true;
+            sem.post();
+        }
+    }
+
     unsigned txPending : 2; /**< transmission in flight */
-    unsigned gpoData   : 2; /**< local copy of the I/O expantion output data */
-    unsigned gpiData   : 3; /**< local copy of the I/O expantion input data */
-    unsigned reserved  : 25; /**< unused bits */
+    unsigned gpoData   : 2; /**< local copy of the I/O expansion output data */
+    unsigned gpiData   : 3; /**< local copy of the I/O expansion input data */
+    unsigned ioPending : 1; /**< true if an I/O update is pending */
+    unsigned reserved  : 24; /**< unused bits */
 
     int spi; /**< SPI bus that accesses MCP2515 */
     OSSem sem; /**< semaphore for posting events */
@@ -643,7 +654,7 @@ public:
         portENTER_CRITICAL();
         instance_->gpoData |= 0x1 << bit_;
         portEXIT_CRITICAL();
-        instance_->sem.post();
+        instance_->request_io_operation();
     }
 
     /** Clears the GPO pin to low.
@@ -653,7 +664,7 @@ public:
         portENTER_CRITICAL();
         instance_->gpoData &= ~(0x1 << bit_);
         portEXIT_CRITICAL();
-        instance_->sem.post();
+        instance_->request_io_operation();
     }
 
     /** Sets the GPO direction (does nothing).
@@ -661,6 +672,7 @@ public:
      */
     void set_direction(Gpio::Direction dir) const override
     {
+        HASSERT(dir == Gpio::Direction::OUTPUT);
     }
 
     /** Gets the GPO direction.
@@ -703,6 +715,7 @@ public:
      */
     Value read() const override
     {
+        instance_->request_io_operation();
         return instance_->gpiData & (0x1 << bit_) ? Gpio::SET : Gpio::CLR;
     }
 
@@ -711,6 +724,7 @@ public:
      */
     void set_direction(Gpio::Direction dir) const override
     {
+        HASSERT(dir == Gpio::Direction::INPUT);
     }
 
     /** Gets the GPI direction.
