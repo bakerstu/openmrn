@@ -656,6 +656,13 @@ public:
         instance_->sem.post();
     }
 
+    /** Sets the GPO direction (does nothing).
+     * @param dir @ref INPUT or @ref OUTPUT
+     */
+    void set_direction(Gpio::Direction dir) const override
+    {
+    }
+
     /** Gets the GPO direction.
      * @return always returns @ref OUTPUT
      */
@@ -697,6 +704,13 @@ public:
     Value read() const override
     {
         return instance_->gpiData & (0x1 << bit_) ? Gpio::SET : Gpio::CLR;
+    }
+
+    /** Sets the GPI direction (does nothing).
+     * @param dir @ref INPUT or @ref OUTPUT
+     */
+    void set_direction(Gpio::Direction dir) const override
+    {
     }
 
     /** Gets the GPI direction.
