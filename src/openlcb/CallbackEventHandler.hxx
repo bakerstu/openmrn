@@ -96,10 +96,13 @@ public:
             EventRegistryEntry(this, event, entry_bits), 0);
     }
 
-    void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
-        BarrierNotifiable *done) override
+    void handle_event_report(const EventRegistryEntry &entry,
+        EventReport *event, BarrierNotifiable *done) override
     {
-        reportHandler_(entry, event, done);
+        if (reportHandler_)
+        {
+            reportHandler_(entry, event, done);
+        }
         done->notify();
     }
 
@@ -141,7 +144,8 @@ protected:
     void SendProducerIdentified(const EventRegistryEntry &entry,
         EventReport *event, BarrierNotifiable *done)
     {
-        EventState state = stateHandler_(entry, event);
+        EventState state =
+            stateHandler_ ? stateHandler_(entry, event) : EventState::UNKNOWN;
         Defs::MTI mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID + state;
         event_write_helper1.WriteAsync(node_, mti, WriteHelper::global(),
             eventid_to_buffer(entry.event), done->new_child());
@@ -150,7 +154,8 @@ protected:
     void SendConsumerIdentified(const EventRegistryEntry &entry,
         EventReport *event, BarrierNotifiable *done)
     {
-        EventState state = stateHandler_(entry, event);
+        EventState state =
+            stateHandler_ ? stateHandler_(entry, event) : EventState::UNKNOWN;
         Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID + state;
         event_write_helper3.WriteAsync(node_, mti, WriteHelper::global(),
             eventid_to_buffer(entry.event), done->new_child());
