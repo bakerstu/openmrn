@@ -577,7 +577,9 @@ private:
         ::write(spi, &rts, 1);
     }
 
-    void request_io_operation()
+    /** Request that the GPIO cache be refreshed.
+     */
+    void request_gpio_operation()
     {
         if (!ioPending)
         {
@@ -590,7 +592,6 @@ private:
     unsigned gpoData   : 2; /**< local copy of the I/O expansion output data */
     unsigned gpiData   : 3; /**< local copy of the I/O expansion input data */
     unsigned ioPending : 1; /**< true if an I/O update is pending */
-    unsigned reserved  : 24; /**< unused bits */
 
     int spi; /**< SPI bus that accesses MCP2515 */
     OSSem sem; /**< semaphore for posting events */
@@ -651,20 +652,26 @@ public:
      */
     void set() const override
     {
-        portENTER_CRITICAL();
-        instance_->gpoData |= 0x1 << bit_;
-        portEXIT_CRITICAL();
-        instance_->request_io_operation();
+        if (!(instance_->gpoData & (0x1 << bit_)))
+        {
+            portENTER_CRITICAL();
+            instance_->gpoData |= 0x1 << bit_;
+            portEXIT_CRITICAL();
+            instance_->request_gpio_operation();
+        }
     }
 
     /** Clears the GPO pin to low.
      */
     void clr() const override
     {
-        portENTER_CRITICAL();
-        instance_->gpoData &= ~(0x1 << bit_);
-        portEXIT_CRITICAL();
-        instance_->request_io_operation();
+        if ((instance_->gpoData & (0x1 << bit_)))
+        {
+            portENTER_CRITICAL();
+            instance_->gpoData &= ~(0x1 << bit_);
+            portEXIT_CRITICAL();
+            instance_->request_gpio_operation();
+        }
     }
 
     /** Sets the GPO direction (does nothing).
@@ -715,7 +722,7 @@ public:
      */
     Value read() const override
     {
-        instance_->request_io_operation();
+        instance_->request_gpio_operation();
         return instance_->gpiData & (0x1 << bit_) ? Gpio::SET : Gpio::CLR;
     }
 
