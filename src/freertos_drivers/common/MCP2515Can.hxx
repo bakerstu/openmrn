@@ -39,9 +39,13 @@
 #include "Can.hxx"
 #include "SPI.hxx"
 
+#include "os/Gpio.hxx"
 #include "os/OS.hxx"
 
 #define MCP2515_DEBUG 0
+
+class MCP2515GPO;
+class MCP2515GPI;
 
 /** Specialization of CAN driver for Tiva CAN.
  */
@@ -60,6 +64,8 @@ public:
         , interrupt_enable(interrupt_enable)
         , interrupt_disable(interrupt_disable)
         , txPending(0)
+        , gpoData(0x0)
+        , gpiData(0x7)
         , spi(-1)
         , sem()
     {
@@ -570,7 +576,11 @@ private:
         ::write(spi, &rts, 1);
     }
 
-    unsigned txPending; /**< transmission in flight */
+    unsigned txPending : 2; /**< transmission in flight */
+    unsigned gpoData   : 2; /**< local copy of the I/O expantion output data */
+    unsigned gpiData   : 3; /**< local copy of the I/O expantion input data */
+    unsigned reserved  : 25; /**< unused bits */
+
     int spi; /**< SPI bus that accesses MCP2515 */
     OSSem sem; /**< semaphore for posting events */
 #if MCP2515_DEBUG
@@ -584,7 +594,127 @@ private:
      */
     MCP2515Can();
 
+    /** Allow access to MCP2515Can from MCP2515GPO */
+    friend class MCP2515GPO;
+
+    /** Allow access to MCP2515Can from MCP2515GPI */
+    friend class MCP2515GPI;
+
     DISALLOW_COPY_AND_ASSIGN(MCP2515Can);
+};
+
+/** General Purpose Output (GPO) instance on the MCP2515.
+ */
+class MCP2515GPO : public Gpio
+{
+public:
+    /** Constructor.
+     * @param instance parrent MCP2515Can instance that "owns" the interface.
+     * @param bit bit index (0 through 1) of the output.
+     */
+    MCP2515GPO(MCP2515Can *instance, uint8_t bit)
+        : Gpio()
+        , instance_(instance)
+        , bit_(bit)
+    {
+        HASSERT(bit < 2);
+    }
+
+    /** Writes a GPO pin (set or clear to a specific state).
+     * @param new_state the desired output state.  See @ref Value.
+     */
+    void write(Value new_state) const override
+    {
+        new_state ? set() : clr();
+    }
+
+    /** Retrieves the current @ref Value of a GPO output sate (requested).
+     * @return @ref SET if currently high, @ref CLR if currently low
+     */
+    Value read() const override
+    {
+        return instance_->gpoData & (0x1 << bit_) ? Gpio::SET : Gpio::CLR;
+    }
+
+    /** Sets the GPO pin to high.
+     */
+    void set() const override
+    {
+        portENTER_CRITICAL();
+        instance_->gpoData |= 0x1 << bit_;
+        portEXIT_CRITICAL();
+        instance_->sem.post();
+    }
+
+    /** Clears the GPO pin to low.
+     */
+    void clr() const override
+    {
+        portENTER_CRITICAL();
+        instance_->gpoData &= ~(0x1 << bit_);
+        portEXIT_CRITICAL();
+        instance_->sem.post();
+    }
+
+    /** Gets the GPO direction.
+     * @return always returns @ref OUTPUT
+     */
+    Direction direction() const override
+    {
+        return Gpio::Direction::OUTPUT;
+    }
+
+private:
+    /** reference to chip instance */
+    MCP2515Can *instance_;
+
+    /** bit number representative of the bit */
+    uint8_t bit_;
+
+    DISALLOW_COPY_AND_ASSIGN(MCP2515GPO);
+};
+
+/** General Purpose Input (GPI) instance on the MCP2515.
+ */
+class MCP2515GPI : public Gpio
+{
+public:
+    /** Constructor.
+     * @param instance parrent MCP2515Can instance that "owns" the interface.
+     * @param bit bit index (0 through 2) of the input.
+     */
+    MCP2515GPI(MCP2515Can *instance, uint8_t bit)
+        : Gpio()
+        , instance_(instance)
+        , bit_(bit)
+    {
+        HASSERT(bit < 3);
+    }
+
+    /** Retrieves the current @ref Value of a GPI input pin.
+     * @return @ref SET if currently high, @ref CLR if currently low
+     */
+    Value read() const override
+    {
+        return instance_->gpiData & (0x1 << bit_) ? Gpio::SET : Gpio::CLR;
+    }
+
+    /** Gets the GPI direction.
+     * @return always returns @ref INPUT
+     */
+    Direction direction() const override
+    {
+        return Gpio::Direction::INPUT;
+    }
+
+private:
+    /** reference to chip instance */
+    MCP2515Can *instance_;
+
+    /** bit number representative of the bit */
+    uint8_t bit_;
+
+    DISALLOW_COPY_AND_ASSIGN(MCP2515GPI);
 };
 
 #endif /* _FREERTOS_DRIVERS_COMMON_MCP2515CAN_HXX_ */

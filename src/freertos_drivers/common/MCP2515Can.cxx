@@ -115,6 +115,11 @@ void MCP2515Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
             register_write(RXB0CTRL, 0x60);
             register_write(RXB1CTRL, 0x60);
 
+            /* setup TXnRTS and RXnBF pins as inputs and outputs respectively */
+            register_write(BFPCTRL, 0x0C | (gpoData << 4));
+            register_write(TXRTSCTRL, 0x00);
+            gpiData = (register_read(TXRTSCTRL) >> 3) & 0x7;
+
             /* put the device into normal operation mode */
             register_write(CANCTRL, 0x00);
 
@@ -350,6 +355,12 @@ void *MCP2515Can::entry()
             /* receive interrupt active */
             rx_msg(1);
         }
+
+        /* write the latest GPO data */
+        register_write(BFPCTRL, 0x0C | (gpoData << 4));
+
+        /* get the latest GPI data */
+        gpiData = (register_read(TXRTSCTRL) >> 3) & 0x7;
         lock_.unlock();
 
         interrupt_enable();
