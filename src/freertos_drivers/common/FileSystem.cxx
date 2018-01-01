@@ -36,20 +36,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#ifdef TARGET_LPC11Cxx
-#define NUM_OPEN_FILES     4
-#else
-/// How many concurrently open fd we support.
-#define NUM_OPEN_FILES     20 //12
-#endif
-
-Device *Device::first = NULL;
+FileSystem *FileSystem::first = NULL;
 
 /** Constructor.
  * @param name name of device in file system. Pointer must be valid
  * throughout the entire lifetime.
  */
-Device::Device(const char *name)
+FileSystem::FileSystem(const char *name)
     : FileIO(name)
 {
     mutex.lock();
@@ -65,7 +58,7 @@ Device::Device(const char *name)
 
 /** Destructor.
  */
-Device::~Device()
+FileSystem::~FileSystem()
 {
     mutex.lock();
     if (first == this)
@@ -90,7 +83,7 @@ Device::~Device()
  * @param mode open mode, ignored in this implementation
  * @return 0 upon success, -1 upon failure with errno containing the cause
  */
-int Device::open(struct _reent *reent, const char *path, int flags, int mode)
+int FileSystem::open(struct _reent *reent, const char *path, int flags, int mode)
 {
     mutex.lock();
     int fd = fd_alloc();
@@ -101,24 +94,39 @@ int Device::open(struct _reent *reent, const char *path, int flags, int mode)
         return -1;
     }
     files[fd].flags = flags;
-    for (Device *dev = first; dev != NULL; dev = dev->next)
+    for (FileSystem *fs = first; fs != NULL; fs = fs->next)
     {
-        if (dev->name)
+        if (fs->name == nullptr)        
         {
-            if (!strcmp(dev->name, path))
-            {
-                files[fd].dev = dev;
-                files[fd].device = true;
-                int result = files[fd].dev->open(&files[fd], path, flags, mode);
-                if (result < 0)
-                {
-                    fd_free(fd);
-                    errno = -result;
-                    return -1;
-                }
-                return fd;
-            }
+            /* mount path has no name */
+            continue;
         }
+        if (strlen(fs->name) > strlen(path))
+        {
+            /* path less than mount path */
+            continue;
+        }
+        if (strncmp(fs->name, path, strlen(fs->name)))
+        {
+            /* no basename match */
+            continue;
+        }
+        if (path[strlen(fs->name)] != '/')
+        {
+            /* not a directory break */
+            continue;
+        }
+
+        files[fd].dev = fs;
+        files[fd].device = false;
+        int result = files[fd].dev->open(&files[fd], path, flags, mode);
+        if (result < 0)
+        {
+            fd_free(fd);
+            errno = -result;
+            return -1;
+        }
+        return fd;
     }
     // No device found.
     fd_free(fd);
@@ -131,7 +139,7 @@ int Device::open(struct _reent *reent, const char *path, int flags, int mode)
  * @param fd file descriptor to close
  * @return 0 upon success, -1 upon failure with errno containing the cause
  */
-int Device::close(struct _reent *reent, int fd)
+int FileSystem::close(struct _reent *reent, int fd)
 {
     File* f = file_lookup(fd);
     if (!f) 

@@ -45,7 +45,7 @@
 off_t EEPROM::lseek(File* file, off_t offset, int whence)
 {
     lock_.lock();
-    off_t result = Device::lseek(file, offset, whence);
+    off_t result = FileIO::lseek(file, offset, whence);
     if (result > (off_t)fileSize)
     {
         file->offset = fileSize;

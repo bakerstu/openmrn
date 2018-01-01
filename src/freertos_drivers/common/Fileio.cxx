@@ -36,7 +36,293 @@
 #include <cstdarg>
 #include <fcntl.h>
 #include <reent.h>
+#include <unistd.h>
 #include <sys/select.h>
+
+#ifdef TARGET_LPC11Cxx
+#define NUM_OPEN_FILES     4
+#else
+/// How many concurrently open fd we support.
+#define NUM_OPEN_FILES     20 //12
+#endif
+
+OSMutex FileIO::mutex;
+File FileIO::files[NUM_OPEN_FILES];
+
+/** Allocate a free file descriptor.
+ * @return file number on success, else -1 on failure
+ */
+int FileIO::fd_alloc(void)
+{
+    for (unsigned int i = 0; i < NUM_OPEN_FILES; i++)
+    {
+        if (files[i].inuse == false)
+        {
+            files[i].inuse = true;
+            files[i].priv = nullptr;
+            files[i].dev = nullptr;
+            files[i].offset = 0;
+            files[i].flags = 0;
+            return i;
+        }
+    }
+    return -1;
+}
+
+/** Free up a file descriptor.
+ * @param fd number to free up
+ */
+void FileIO::fd_free(int fd)
+{
+    files[fd].inuse = false;
+}
+
+/** Looks up a reference to a File corresponding to a given file descriptor.
+ * @param fd is a file descriptor as supplied to the read-write-close-ioctl
+ *        commands.
+ * @returns NULL and sets errno if fd is invalid, otherwise the File
+ *          reference.
+ */
+File* FileIO::file_lookup(int fd)
+{
+    if (fd < 0 || fd >= NUM_OPEN_FILES)
+    {
+        errno = EBADF;
+        return nullptr;
+    }
+    if (files[fd].inuse == 0)
+    {
+        errno = EBADF;
+        return nullptr;
+    }
+    return &files[fd];
+}
+
+/** Looks up a file descriptor corresponding to a given File reference.
+ * @param file is a reference to a File structure.
+ * @returns file descriptor (assert on error).
+ */
+int FileIO::fd_lookup(File *file)
+{
+    HASSERT(file >= files && file <= (files + NUM_OPEN_FILES) && file->inuse);
+
+    return (file - files);
+}
+
+/** Read from a file or device.
+ * @param reent thread save reentrant structure
+ * @param fd file descriptor to read
+ * @param buf location to place read data
+ * @param count number of bytes to read
+ * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+ */
+ssize_t FileIO::read(struct _reent *reent, int fd, void *buf, size_t count)
+{
+    File* f = file_lookup(fd);
+    if (!f)
+    {
+        /* errno should already be set appropriately */
+        return -1;
+    }
+    ssize_t result = f->dev->read(f, buf, count);
+    if (result < 0)
+    {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
+/** Write to a file or device.
+ * @param reent thread save reentrant structure
+ * @param fd file descriptor to write
+ * @param buf location to find write data
+ * @param count number of bytes to write
+ * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+ */
+ssize_t FileIO::write(struct _reent *reent, int fd, const void *buf, size_t count)
+{
+    File* f = file_lookup(fd);
+    if (!f)
+    {
+        /* errno should already be set appropriately */
+        return -1;
+    }
+    ssize_t result = f->dev->write(f, buf, count);
+    if (result < 0)
+    {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
+/** Change the offset index of a file or device.
+ * @param reent thread save reentrant structure
+ * @param fd file descriptor to seek
+ * @param offset offset within file
+ * @param whence type of seek to complete
+ * @return resulting offset from beginning of file, -1 upon failure with errno containing the cause
+ */
+_off_t FileIO::lseek(struct _reent *reent, int fd, _off_t offset, int whence)
+{
+    File* f = file_lookup(fd);
+    if (!f)
+    {
+        /* errno should already be set appropriately */
+        return (_off_t) -1;
+    }
+    off_t result = f->dev->lseek(f, offset, whence);
+    if (result < 0)
+    {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
+/** Get the status information of a file or device.
+ * @param reent thread safe reentrant structure
+ * @param fd file descriptor to get status of
+ * @param stat structure to fill status info into
+ * @return 0 upon success, -1 upon failure with errno containing the cause
+ */
+int FileIO::fstat(struct _reent *reent, int fd, struct stat *stat)
+{
+    File* f = file_lookup(fd);
+    if (!f)
+    {
+        /* errno should already be set appropriately */
+        return -1;
+    }
+    ssize_t result = f->dev->fstat(f, stat);
+    if (result < 0)
+    {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
+
+/** Request and ioctl transaction.
+ * @param fd file descriptor
+ * @param key ioctl key
+ * @param data key data
+ * @return 0 upon success, -1 upon failure with errno containing the cause
+ */
+int FileIO::ioctl(int fd, unsigned long int key, unsigned long data)
+{
+    File* f = file_lookup(fd);
+    if (!f)
+    {
+        /* errno should already be set appropriately */
+        return -1;
+    }
+    int result = f->dev->ioctl(f, key, data);
+    if (result < 0)
+    {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
+/** Manipulate a file descriptor.
+ * @param fd file descriptor
+ * @param cmd operation to perform
+ * @param data parameter to the cmd operation
+ * @return dependent on the operation (POSIX compliant where applicable) or
+ *         -1 on error with errno set appropriately
+ */
+int FileIO::fcntl(int fd, int cmd, unsigned long data)
+{
+    File *file = file_lookup(fd);
+
+    if (!file)
+    {
+        errno = EBADF;
+        return -1;
+    }
+
+    switch (cmd)
+    {
+        case F_SETFL:
+            /* on this platform, we ignore O_ASYNC, O_DIRECT, and O_NOATIME */
+            data &= (O_APPEND | O_NONBLOCK);
+            file->flags &= ~(O_APPEND | O_NONBLOCK);
+            file->flags |= data;
+            /* fall through */
+        default:
+        {
+            File* f = file_lookup(fd);
+            if (!f)
+            {
+                /* errno should already be set appropriately */
+                return -1;
+            }
+            int result = f->dev->fcntl(f, cmd, data);
+            if (result < 0)
+            {
+                errno = -result;
+                return -1;
+            }
+            return result;
+        }
+        case F_GETFL:
+            return file->flags;
+    }
+}
+
+/** Seek method.
+ * @param f file reference for this device
+ * @param offset offset in bytes from whence directive
+ * @param whence SEEK_SET if to set the file offset to an abosolute position,
+ *               SEEK_CUR if to set the file offset from current position
+ * @return current offset, or -1 with errno set upon error.
+ */
+off_t FileIO::lseek(File* f, off_t offset, int whence)
+{
+    switch (whence)
+    {
+        case SEEK_SET:
+            f->offset = offset;
+            return offset;
+        case SEEK_CUR:
+            f->offset += offset;
+            return f->offset;
+    }
+    return (off_t)-EINVAL;
+}
+
+/** Request an ioctl transaction
+ * @param file file reference for this device
+ * @param key ioctl key
+ * @param data key data
+ * @return 0 upon success or negative error number upon error.
+ */
+int FileIO::ioctl(File *, unsigned long int, unsigned long) {
+    return -EINVAL;
+}
+
+/** Manipulate a file descriptor.
+ * @param file file reference for this device
+ * @param cmd operation to perform
+ * @param data parameter to the cmd operation
+ * @return dependent on the operation (POSIX compliant where applicable)
+ *         or negative error number upon error.
+ */
+int FileIO::fcntl(File *file, int cmd, unsigned long data)
+{
+    if (cmd == F_SETFL)
+    {
+        return 0;
+    }
+    else
+    {
+        return -EINVAL;
+    }
+}
 
 extern "C" {
 
@@ -49,7 +335,13 @@ extern "C" {
  */
 int _open_r(struct _reent *reent, const char *path, int flags, int mode)
 {
-    return Device::open(reent, path, flags, mode);
+    int result = Device::open(reent, path, flags, mode);
+    if (result < 0 && errno == ENODEV)
+    {
+        return FileSystem::open(reent, path, flags, mode);
+    }
+
+    return result;
 }
 
 /** Close a file or device.
@@ -59,7 +351,8 @@ int _open_r(struct _reent *reent, const char *path, int flags, int mode)
  */
 int _close_r(struct _reent *reent, int fd)
 {
-    return Device::close(reent, fd);
+    return FileIO::is_device(fd) ?     Device::close(reent, fd) :
+                                   FileSystem::close(reent, fd);
 }
 
 /** Read from a file or device.
@@ -71,7 +364,7 @@ int _close_r(struct _reent *reent, int fd)
  */
 ssize_t _read_r(struct _reent *reent, int fd, void *buf, size_t count)
 {
-    return Device::read(reent, fd, buf, count);
+    return FileIO::read(reent, fd, buf, count);
 }
 
 /** Write to a file or device.
@@ -83,7 +376,7 @@ ssize_t _read_r(struct _reent *reent, int fd, void *buf, size_t count)
  */
 ssize_t _write_r(struct _reent *reent, int fd, const void *buf, size_t count)
 {
-    return Device::write(reent, fd, buf, count);
+    return FileIO::write(reent, fd, buf, count);
 }
 
 /** Get the status information of a file or device.
@@ -94,7 +387,7 @@ ssize_t _write_r(struct _reent *reent, int fd, const void *buf, size_t count)
  */
 int _fstat_r(struct _reent *reent, int fd, struct stat *stat)
 {
-    return Device::fstat(reent, fd, stat);
+    return FileIO::fstat(reent, fd, stat);
 }
 
 /** Get the tty information of a file or device.
@@ -116,7 +409,7 @@ int _isatty_r(struct _reent *reent, int fd)
  */
 _off_t _lseek_r(struct _reent *reent, int fd, _off_t offset, int whence)
 {
-    return Device::lseek(reent, fd, offset, whence);
+    return FileIO::lseek(reent, fd, offset, whence);
 }
 
 /** Request and ioctl transaction.
@@ -130,7 +423,7 @@ int ioctl(int fd, unsigned long int key, ...)
     va_list ap;
     va_start(ap, key);
 
-    int result = Device::ioctl(fd, key, va_arg(ap, unsigned long));
+    int result = FileIO::ioctl(fd, key, va_arg(ap, unsigned long));
     
     va_end(ap);
     return result;
@@ -172,7 +465,7 @@ int fcntl(int fd, int cmd, ...)
     va_list ap;
     va_start(ap, cmd);
 
-    int result = Device::fcntl(fd, cmd, va_arg(ap, unsigned long));
+    int result = FileIO::fcntl(fd, cmd, va_arg(ap, unsigned long));
 
     va_end(ap);
     return result;

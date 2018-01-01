@@ -39,7 +39,9 @@
 #include <sys/select.h>
 #include "os/OS.hxx"
 
+class FileIO;
 class Device;
+class FileSystem;
 class Notifiable;
 class DeviceBufferBase;
 
@@ -47,45 +49,18 @@ class DeviceBufferBase;
  */
 struct File
 {
-    Device *dev; /**< file operations */
+    FileIO *dev; /**< file operations */
     /** Data that the device driver wants to store about this fd. */
     void *priv;
     off_t offset; /**< current offset within file */
     int flags;    /**< open flags */
-    bool inuse;   /**< true if this is an open fd. */
+    uint8_t inuse  : 1; /**< true if this is an open fd. */
+    uint8_t device : 1; /**< true if this is a device, false if file ssytem */
 };
 
-/** Device tab structure.
- */
-struct Device
+class FileIO
 {
 public:
-    /** Constructor.
-     * @param name name of device in file system. Pointer must be valid
-     * throughout the entire lifetime.
-     */
-    Device(const char *name);
-
-    /** Destructor */
-    virtual ~Device();
-
-    /** Open a file or device.
-     * @param reent thread save reentrant structure
-     * @param path file or device name
-     * @param flags open flags
-     * @param mode open mode, ignored in this implementation
-     * @return 0 upon success, -1 upon failure with errno containing the cause
-     */
-    static int open(struct _reent *reent, const char *path, int flags,
-                    int mode);
-
-    /** Close a file or device.
-     * @param reent thread save reentrant structure
-     * @param fd file descriptor to close
-     * @return 0 upon success, -1 upon failure with errno containing the cause
-     */
-    static int close(struct _reent *reent, int fd);
-
     /** Read from a file or device.
      * @param reent thread save reentrant structure
      * @param fd file descriptor to read
@@ -132,23 +107,6 @@ public:
      */
     static int ioctl(int fd, unsigned long int key, unsigned long data);
 
-    /** POSIX select().
-     * @param nfds highest numbered file descriptor in any of the three, sets plus 1
-     * @param readfds fd_set of file descritpors to pend on read active
-     * @param writefds fd_set of file descritpors to pend on write active
-     * @param exceptfds fd_set of file descritpors to pend on error active
-     * @param timeout timeout in nsec to wait, if 0, return immediately, if < 0
-     *                wait forever
-     * @return on success, number of file descriptors in the three sets that are
-     *         active, 0 on timeout, -1 with errno set appropriately upon error.
-     */
-    static int select(int nfds, fd_set *readfds, fd_set *writefds,
-                      fd_set *exceptfds, long long timeout);
-
-    /** Clears the current thread's select bits. This is used by ::select and
-     * ::pselect to ensure the necessary atomicity. */
-    static void select_clear();
-
     /** Manipulate a file descriptor.
      * @param fd file descriptor
      * @param cmd operation to perform
@@ -158,7 +116,30 @@ public:
      */
     static int fcntl(int fd, int cmd, unsigned long data);
 
+    /** Test if the file descriptor belongs to a device.
+     * @param fd file descriptor
+     * @return true if fd belongs to a device, false if belongs to a file system
+     */
+    static bool is_device(int fd)
+    {
+        return file_lookup(fd)->device;
+    }
+
 protected:
+    /** Constructor.
+     * @param name name of mount point in the root file system.
+     *             Pointer must be valid throughout the entire lifetime.
+     */
+    FileIO(const char *name)
+        : name(name)
+    {
+    }
+
+    /** Destructor */
+    virtual ~FileIO()
+    {
+    }
+
     /** Open method. @return negative errno on failure, or positive fd on
      * success. */
     virtual int open(File *, const char *, int, int) = 0;
@@ -215,38 +196,10 @@ protected:
      *        exceptions
      * @return true if active, false if inactive
      */
-    virtual bool select(File* file, int mode);
-
-    /** Select wakeup information.
-     */
-    struct SelectInfo
+    virtual bool select(File* file, int mode)
     {
-        /** Default constructor.
-         */
-        SelectInfo()
-            : event(0)
-        {
-        }
-
-        /** bit mask of clients that need woken */
-        OSEventType event;
-    };
-
-    /** Add client to list of clients needing woken.
-     * @param info wakeup event instance
-     */
-    static void select_insert(SelectInfo *info);
-
-    /** Wakeup the list of clients needing woken.
-     * @param info wakeup event instance
-     */
-    static void select_wakeup(SelectInfo *info);
-
-    /** Wakeup the list of clients needing woken. from ISR context.
-     * @param info wakeup event instance
-     * @param woken is the task woken up
-     */
-    static void select_wakeup_from_isr(SelectInfo *info, int *woken);
+        return true;
+    }
 
     /** Allocate a free file descriptor.  This call must be made with the
      * static Device::mutex locked.
@@ -279,12 +232,147 @@ protected:
     /** mutual exclusion for fileio */
     static OSMutex mutex;
 
-    /** allow class DeviceBuffer access to select() related members. */
-    friend class DeviceBufferBase;
-    friend class OSSelectWakeup;
+    const char *name; /**< device name */
+
+    /** Allow access from Device class */
+    friend class Device;
+
+    /** Allow access from FileSystem class */
+    friend class FileSystem;
+
+private:
+    DISALLOW_COPY_AND_ASSIGN(FileIO);
+};
+
+class FileSystem : public FileIO
+{
+public:
+    /** Constructor.
+     * @param name name of mount point in the root file system.
+     *             Pointer must be valid throughout the entire lifetime.
+     */
+    FileSystem(const char *name);
+
+    /** Destructor */
+    virtual ~FileSystem();
+
+    /** Open a file or device.
+     * @param reent thread save reentrant structure
+     * @param path file or device name
+     * @param flags open flags
+     * @param mode open mode, ignored in this implementation
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int open(struct _reent *reent, const char *path, int flags,
+                    int mode);
+
+    /** Close a file or device.
+     * @param reent thread save reentrant structure
+     * @param fd file descriptor to close
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int close(struct _reent *reent, int fd);
+
+private:
+    /** first device in linked list */
+    static FileSystem *first;
+
+    /** next device in linked list */
+    FileSystem *next;
+
+    /** previous device in linked list */
+    FileSystem *prev;
+
+    DISALLOW_COPY_AND_ASSIGN(FileSystem);
+};
+
+
+/** Device tab structure.
+ */
+struct Device : public FileIO
+{
+public:
+    /** Constructor.
+     * @param name name of device in file system. Pointer must be valid
+     * throughout the entire lifetime.
+     */
+    Device(const char *name);
+
+    /** Destructor */
+    virtual ~Device();
+
+    /** Open a file or device.
+     * @param reent thread save reentrant structure
+     * @param path file or device name
+     * @param flags open flags
+     * @param mode open mode, ignored in this implementation
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int open(struct _reent *reent, const char *path, int flags,
+                    int mode);
+
+    /** Close a file or device.
+     * @param reent thread save reentrant structure
+     * @param fd file descriptor to close
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int close(struct _reent *reent, int fd);
+
+    /** POSIX select().
+     * @param nfds highest numbered file descriptor in any of the three,
+     *             sets plus 1
+     * @param readfds fd_set of file descritpors to pend on read active
+     * @param writefds fd_set of file descritpors to pend on write active
+     * @param exceptfds fd_set of file descritpors to pend on error active
+     * @param timeout timeout in nsec to wait, if 0, return immediately, if < 0
+     *                wait forever
+     * @return on success, number of file descriptors in the three sets that are
+     *         active, 0 on timeout, -1 with errno set appropriately upon error.
+     */
+    static int select(int nfds, fd_set *readfds, fd_set *writefds,
+                      fd_set *exceptfds, long long timeout);
+
+    /** Clears the current thread's select bits. This is used by ::select and
+     * ::pselect to ensure the necessary atomicity. */
+    static void select_clear();
 
 protected:
-    const char *name; /**< device name */
+    /** Select wakeup information.
+     */
+    struct SelectInfo
+    {
+        /** Default constructor.
+         */
+        SelectInfo()
+            : event(0)
+        {
+        }
+
+        /** bit mask of clients that need woken */
+        OSEventType event;
+    };
+
+    /** Add client to list of clients needing woken.
+     * @param info wakeup event instance
+     */
+    static void select_insert(SelectInfo *info);
+
+    /** Wakeup the list of clients needing woken.
+     * @param info wakeup event instance
+     */
+    static void select_wakeup(SelectInfo *info);
+
+    /** Wakeup the list of clients needing woken. from ISR context.
+     * @param info wakeup event instance
+     * @param woken is the task woken up
+     */
+    static void select_wakeup_from_isr(SelectInfo *info, int *woken);
+
+    /** allow class DeviceBuffer access to select() related members. */
+    friend class DeviceBufferBase;
+
+    /** allow class OSSelectWakeup access to select() related members. */
+    friend class OSSelectWakeup;
 
 private:
     /** first device in linked list */
