@@ -104,7 +104,7 @@ void DccTrain<Payload>::get_next_packet(unsigned code, Packet *packet)
     else
     {
         // User action. Up repeat count.
-        packet->packet_header.rept_count = 1;
+        packet->packet_header.rept_count = 2;
     }
     switch (code)
     {

@@ -245,7 +245,7 @@ TEST(CdiRender, Render)
 </cdi>
 )data";
     EXPECT_EQ(kExpectedTestNodeCdi, s);
-    EXPECT_EQ(1, cfg.testseg().e2().offset());
+    EXPECT_EQ(1u, cfg.testseg().e2().offset());
 }
 
 CDI_GROUP(OtherSegment, Name("testseg"), Description("test seg desc"),
@@ -299,7 +299,7 @@ TEST(CdiRender, RenderIdent)
 </cdi>
 )data";
     EXPECT_EQ(kExpectedTestNodeCdi, s);
-    EXPECT_EQ(34, cfg.testseg().e2().offset());
+    EXPECT_EQ(34u, cfg.testseg().e2().offset());
 }
 
 } // namespace

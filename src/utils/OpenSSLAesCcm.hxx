@@ -73,8 +73,8 @@ void CCMEncrypt(const std::string &aes_key, const std::string &iv,
     const std::string &auth_data, const std::string &plain, std::string *cipher,
     std::string *tag)
 {
-    ASSERT_EQ(32, aes_key.size());
-    ASSERT_EQ(11, iv.size());
+    ASSERT_EQ(32u, aes_key.size());
+    ASSERT_EQ(11u, iv.size());
 
     EVP_CIPHER_CTX *ctx;
     ctx = EVP_CIPHER_CTX_new();
@@ -107,7 +107,7 @@ void CCMEncrypt(const std::string &aes_key, const std::string &iv,
     LOG(INFO, "encupdate: in=%d, ret=%d", (int)plain.size(), outlen);
     cipher->resize(outlen);
     // CCM always outputs the same number of bytes than the input.
-    ASSERT_EQ(plain.size(), outlen);
+    ASSERT_EQ((int)plain.size(), outlen);
     int ret = -1;
     ASSERT_EQ(1, EVP_EncryptFinal_ex(ctx, (uint8_t *)&((*cipher)[0]), &ret));
     ASSERT_EQ(0, ret);

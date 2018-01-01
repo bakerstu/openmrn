@@ -160,7 +160,7 @@ TEST_F(ThrottleTest, SendAssignRelease)
     wait();
     EXPECT_EQ(0, flow.response()->resultCode);
     actual_ctrl_id = trainNode_->get_controller().id;
-    EXPECT_EQ(0, actual_ctrl_id);
+    EXPECT_EQ(0u, actual_ctrl_id);
 
     wait();
 }
@@ -341,7 +341,7 @@ TEST_F(ThrottleClientTest, SendConsistQry)
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(1, b->data()->consistCount);
     EXPECT_EQ(0xff, b->data()->consistIndex);
-    EXPECT_EQ(0, b->data()->dst);
+    EXPECT_EQ(0u, b->data()->dst);
 
     b = invoke_flow(
         &throttle_, TractionThrottleCommands::CONSIST_ADD, n2, 0x42);
@@ -368,7 +368,7 @@ TEST_F(ThrottleClientTest, SendConsistQry)
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(2, b->data()->consistCount);
     EXPECT_EQ(0xff, b->data()->consistIndex);
-    EXPECT_EQ(0, b->data()->dst);
+    EXPECT_EQ(0u, b->data()->dst);
 }
 
 TEST_F(ThrottleClientTest, SendSelfConsist)

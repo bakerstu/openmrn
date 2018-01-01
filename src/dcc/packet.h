@@ -101,7 +101,7 @@ typedef struct dcc_packet
      * the dcc::Feedback structure. If the key is non-zero it is guaranteed
      * that some feedback (maybe empty) will be sent back after the packet is
      * transmitted to the track. */
-    uint32_t feedback_key;
+    uintptr_t feedback_key;
 } DCCPacket;
 
 #ifdef __cplusplus

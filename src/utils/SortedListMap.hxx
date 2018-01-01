@@ -37,6 +37,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "utils/macros.h"
+
 /// An mostly std::set<> compatible class that stores the internal data in a
 /// sorted vector. Has low memory overhead; insertion cost is pretty high and
 /// lookup cost is logarithmic. Useful when a few insertions happen (for
@@ -127,7 +129,17 @@ public:
     /// Removes an entry from the vector, pointed by an iterator.
     void erase(const iterator &it)
     {
+        HASSERT(sortedCount_ > 0);
         container_.erase(it);
+        --sortedCount_;
+    }
+
+    /// Removes a sequence of entries from the vector, pointed by a pair of
+    /// iterators.
+    void erase(const iterator &it_b, const iterator& it_e)
+    {
+        container_.erase(it_b, it_e);
+        lazy_init(); // will set sortedCount_.
     }
 
     /// Removes all entries.
@@ -135,7 +147,7 @@ public:
         container_.clear();
         sortedCount_ = 0;
     }
-    
+
 private:
     /// Reestablishes sorted order in case anything was inserted or removed.
     void lazy_init()

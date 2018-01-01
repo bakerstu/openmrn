@@ -1,5 +1,5 @@
-/** @copyright
- * Copyright (c) 2017, Stuart W Baker
+/** \copyright
+ * Copyright (c) 2017, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,23 +24,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file DccAccyProducer.cxx
+ * \file DccDebug.hxx
  *
- * Producer class that represents 2044 consecutive bits out of DCC accessory
- * control Well-Known Event ID space.
+ * Defines helper functions for debugging DCC packets
  *
- * @author Stuart Baker
- * @date 17 June 2017
+ * @author Balazs Racz
+ * @date 28 Dec 2017
  */
 
-#include "openlcb/DccAccyProducer.hxx"
+#ifndef _DCC_DCCDEBUG_HXX_
+#define _DCC_DCCDEBUG_HXX_
 
-namespace openlcb
-{
+#include "dcc/Packet.hxx"
 
-uninitialized<BitRangeNonAuthoritativeEventP> DccAccyProducer::eventProducer_;
-uninitialized<std::vector<DccAccyProducer*>> DccAccyProducer::instances_;
-OSThreadOnce DccAccyProducer::once_(DccAccyProducer::once_routine);
-Atomic DccAccyProducer::instancesLock_;
+namespace dcc {
 
-} // namespace openlcb
+/// Renders a DCC packet as a debug string.
+///
+/// @param pkt DCC packet
+///
+/// @return debug string
+///
+string packet_to_string(const DCCPacket& pkt);
+
+}  // namespace dcc
+
+#endif // _DCC_DCCDEBUG_HXX_
