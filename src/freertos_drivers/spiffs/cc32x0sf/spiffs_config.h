@@ -186,9 +186,7 @@ typedef unsigned char  u8_t;
 // a magic in all sectors to determine if this is a valid spiffs system or
 // not on mount point. If not, SPIFFS_format must be called prior to mounting
 // again.
-#ifndef SPIFFS_USE_MAGIC
-#define SPIFFS_USE_MAGIC                (0)
-#endif
+#define SPIFFS_USE_MAGIC                (1)
 
 #if SPIFFS_USE_MAGIC
 // Only valid when SPIFFS_USE_MAGIC is enabled. If SPIFFS_USE_MAGIC_LENGTH is
@@ -196,22 +194,21 @@ typedef unsigned char  u8_t;
 // For example, a filesystem configured and formatted for 4 megabytes will not
 // be accepted for mounting with a configuration defining the filesystem as 2
 // megabytes.
-#ifndef SPIFFS_USE_MAGIC_LENGTH
-#define SPIFFS_USE_MAGIC_LENGTH         (0)
-#endif
+#define SPIFFS_USE_MAGIC_LENGTH         (1)
 #endif
 
 // SPIFFS_LOCK and SPIFFS_UNLOCK protects spiffs from reentrancy on api level
 // These should be defined on a multithreaded system
 
+struct spiffs_t;
+extern void extern_spiffs_lock(struct spiffs_t *fs);
+extern void extern_spiffs_unlock(struct spiffs_t *fs);
+
 // define this to enter a mutex if you're running on a multithreaded system
-#ifndef SPIFFS_LOCK
-#define SPIFFS_LOCK(fs)
-#endif
+#define SPIFFS_LOCK(fs) extern_spiffs_lock(fs)
+
 // define this to exit a mutex if you're running on a multithreaded system
-#ifndef SPIFFS_UNLOCK
-#define SPIFFS_UNLOCK(fs)
-#endif
+#define SPIFFS_UNLOCK(fs) extern_spiffs_unlock(fs)
 
 // Enable if only one spiffs instance with constant configuration will exist
 // on the target. This will reduce calculations, flash and memory accesses.
@@ -247,7 +244,7 @@ typedef unsigned char  u8_t;
 
 // Enable this if you want the HAL callbacks to be called with the spiffs struct
 #ifndef SPIFFS_HAL_CALLBACK_EXTRA
-#define SPIFFS_HAL_CALLBACK_EXTRA         0
+#define SPIFFS_HAL_CALLBACK_EXTRA         1
 #endif
 
 // Enable this if you want to add an integer offset to all file handles

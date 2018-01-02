@@ -55,9 +55,10 @@ struct File
     off_t offset; /**< current offset within file */
     int flags;    /**< open flags */
     uint8_t inuse  : 1; /**< true if this is an open fd. */
-    uint8_t device : 1; /**< true if this is a device, false if file ssytem */
+    uint8_t device : 1; /**< true if this is a device, false if file system */
 };
 
+/** Base class for both Device and FileSystem objects */
 class FileIO
 {
 public:
@@ -140,22 +141,39 @@ protected:
     {
     }
 
-    /** Open method. @return negative errno on failure, or positive fd on
-     * success. */
-    virtual int open(File *, const char *, int, int) = 0;
+    /** Open a file or device.
+     * @param file file reference for this device
+     * @param path file or device name
+     * @param flags open flags
+     * @param mode open mode, ignored in this implementation
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    virtual int open(File *file, const char *path, int flags, int mode) = 0;
 
-    /** Close method. Returns negative errno on failure.
-     * @param file reference to close
-     * @return 0 upon success or negative error number upon error.
+    /** Close a file or device.
+     * @param file file reference for this device
+     * @param fd file descriptor to close
+     * @return 0 upon success, -1 upon failure with errno containing the cause
      */
     virtual int close(File *file) = 0;
 
-    /** Read method. @return negative errno on failure, positive number of
-     * bytes read on success. */
-    virtual ssize_t read(File *, void *, size_t) = 0;
-    /** Write method. @return negative errno on failure, positive number of
-     * bytes written on success. */
-    virtual ssize_t write(File *, const void *, size_t) = 0;
+    /** Read from a file or device.
+     * @param file file reference for this device
+     * @param buf location to place read data
+     * @param count number of bytes to read
+     * @return number of bytes read upon success, -1 upon failure with errno
+     *         containing the cause
+     */
+    virtual ssize_t read(File *file, void *buf, size_t count) = 0;
+
+    /** Write to a file or device.
+     * @param file file reference for this device
+     * @param buf location to find write data
+     * @param count number of bytes to write
+     * @return number of bytes written upon success, -1 upon failure with errno
+     *         containing the cause
+     */
+    virtual ssize_t write(File *file, const void *buf, size_t count) = 0;
 
     /** Seek method.
      * @param f file reference for this device
@@ -244,17 +262,32 @@ private:
     DISALLOW_COPY_AND_ASSIGN(FileIO);
 };
 
+/** Base class for all File systems. */
 class FileSystem : public FileIO
 {
 public:
     /** Constructor.
-     * @param name name of mount point in the root file system.
-     *             Pointer must be valid throughout the entire lifetime.
      */
-    FileSystem(const char *name);
+    FileSystem();
 
     /** Destructor */
     virtual ~FileSystem();
+
+    /** Mount the file system.
+     * @param mount_point path in the root file system for the mount point
+     *                    Must not contain any trailing '/' characters, e.g.
+     *                    "/usr", not "/usr/".  Unlike in linux, each mount
+     *                    must be entirely unique point in the system.  For
+     *                    example, mounting of both "/usr" and "/usr/bin" is
+     *                    is not supported.  However, "/usr" and "/usr1" is
+     *                    supported.  This saves on file open logic.
+     */
+    virtual void mount(const char *mount_point) = 0;
+
+    /** Format the file system, all data will be lost.  The file system must
+     * not be mounted at the time of calling this.
+     */
+    virtual void format() = 0;
 
     /** Open a file or device.
      * @param reent thread save reentrant structure

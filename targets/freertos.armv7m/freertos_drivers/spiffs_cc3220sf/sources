@@ -1,23 +1,21 @@
-#include $(OPENMRNPATH)/etc/cc322x.mk
 DEPS += SPIFFSPATH
 
-VPATH := $(SPIFFSPATH)/src
+VPATH := $(SPIFFSPATH)/src: \
+         $(OPENMRNPATH)/src/freertos_drivers/spiffs
 
 CSRCS += spiffs_cache.c \
          spiffs_check.c \
          spiffs_gc.c \
          spiffs_hydrogen.c \
          spiffs_nucleus.c \
-         spiffs_nucleus.c
+         spiffs_nucleus.c \
+
+CXXSRCS += SPIFFS.cxx
 
 INCLUDES += -I$(SPIFFSPATH)/src \
             -I$(OPENMRNPATH)/src/freertos_drivers/spiffs/cc32x0sf
-
-
-CXXSRCS +=
 
 CFLAGS += -DNO_TEST
 
 CXXFLAGS += 
 
-#device.o : CFLAGS+= -DTRUE=1 -DFALSE=0

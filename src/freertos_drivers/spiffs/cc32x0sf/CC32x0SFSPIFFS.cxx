@@ -33,12 +33,9 @@
 
 #include "CC32x0SFSPIFFS.hxx"
 
-/** Instance pointers help us get context from the interrupt handler(s) */
-static CC32x0SFSPI *instances[1] = {NULL};
-
-/*
- * CC32x0SFSPIFFS::CC32x0SFSPIFFS()
- */
+//
+// CC32x0SFSPIFFS::CC32x0SFSPIFFS()
+//
 CC32x0SFSPIFFS::CC32x0SFSPIFFS()
 {
 }

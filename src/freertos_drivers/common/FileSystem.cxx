@@ -42,8 +42,8 @@ FileSystem *FileSystem::first = NULL;
  * @param name name of device in file system. Pointer must be valid
  * throughout the entire lifetime.
  */
-FileSystem::FileSystem(const char *name)
-    : FileIO(name)
+FileSystem::FileSystem()
+    : FileIO(nullptr)
 {
     mutex.lock();
     next = first;
@@ -98,7 +98,7 @@ int FileSystem::open(struct _reent *reent, const char *path, int flags, int mode
     {
         if (fs->name == nullptr)        
         {
-            /* mount path has no name */
+            /* mount path has no name, probably not mounted yet */
             continue;
         }
         if (strlen(fs->name) > strlen(path))
@@ -119,7 +119,8 @@ int FileSystem::open(struct _reent *reent, const char *path, int flags, int mode
 
         files[fd].dev = fs;
         files[fd].device = false;
-        int result = files[fd].dev->open(&files[fd], path, flags, mode);
+        const char *subpath = path + strlen(fs->name) + 1;
+        int result = files[fd].dev->open(&files[fd], subpath, flags, mode);
         if (result < 0)
         {
             fd_free(fd);

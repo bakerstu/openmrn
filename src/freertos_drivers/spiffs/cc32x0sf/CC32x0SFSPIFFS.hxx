@@ -34,57 +34,22 @@
 #ifndef _FREERTOS_DRIVERS_SPIFFS_CC3220SF_CC32XXSPIFFS_HXX_
 #define _FREERTOS_DRIVERS_SPIFFS_CC3220SF_CC32XXSPIFFS_HXX_
 
-#ifndef gcc
-#define gcc
-#endif
-
 #include <cstdint>
 
-#include "spiffs.h"
-
-/** Specialization of Serial SPI driver for CC32xx devices.
- */
-class CC32xxSPIFFS : public SPI
+/// Specialization of Serial SPIFFS driver for CC32xx devices.
+class CC32xxSPIFFS : public SPIFFS
 {
 public:
-    /** Constructor.
-     */
-    CC32xxSPIFFS(const char *name, unsigned long base, uint32_t interrupt,
-            ChipSelectMethod cs_assert, ChipSelectMethod cs_deassert,
-            OSMutex *bus_lock = nullptr);
+    /// Constructor.
+    CC32xxSPIFFS();
 
-    /** Destructor.
-     */
+    /// Destructor.
     ~CC32xxSPIFFS()
     {
     }
 
 private:
-    void enable() override {} /**< function to enable device */
-    void disable() override {} /**< function to disable device */
-
-    /** Method to transmit/receive the data.
-     * @param msg message(s) to transact.
-     * @return bytes transfered upon success, -errno upon failure
-     */
-    int transfer(struct spi_ioc_transfer *msg) override;
-
-    /** Update the configuration of the bus.
-     * @return >= 0 upon success, -errno upon failure
-     */
-    int update_configuration() override;
-
-    unsigned long base; /**< base address of this device */
-    unsigned long clock; /**< clock rate supplied to the module */
-    unsigned long interrupt; /**< interrupt of this device */
-    struct spi_ioc_transfer *msg_; /**< message for current transaction */
-    bool stop_; /**< current transaction ends in a stop if true */
-    int count_; /**< current count index within transaction */
-
-    /** Semaphore to wakeup task level from ISR */
-    OSSem sem;
-
     DISALLOW_COPY_AND_ASSIGN(CC32xxSPIFFS);
 };
 
-#endif _FREERTOS_DRIVERS_SPIFFS_CC3220SF_CC32XXSPIFFS_HXX_
+#endif // _FREERTOS_DRIVERS_SPIFFS_CC3220SF_CC32XXSPIFFS_HXX_
