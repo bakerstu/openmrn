@@ -93,16 +93,14 @@ public:
     /// @param fs reference to the file system instance
     static void extern_lock(struct spiffs_t *fs)
     {
-        SPIFFS *myself = static_cast<SPIFFS*>(fs->user_data);
-        myself->lock_.lock();
+        static_cast<SPIFFS*>(fs->user_data)->lock_.lock();
     }
 
     /// Porovide mutex unlock.
     /// @param fs reference to the file system instance
     static void extern_unlock(struct spiffs_t *fs)
     {
-        SPIFFS *myself = static_cast<SPIFFS*>(fs->user_data);
-        myself->lock_.unlock();
+        static_cast<SPIFFS*>(fs->user_data)->lock_.unlock();
     }
 
 protected:
@@ -131,21 +129,18 @@ protected:
     static s32_t flash_read(struct spiffs_t *fs, u32_t addr, u32_t size,
                             u8_t *dst)
     {
-        SPIFFS *myself = static_cast<SPIFFS*>(fs->user_data);
-        return myself->flash_read(addr, size, dst);
+        return static_cast<SPIFFS*>(fs->user_data)->flash_read(addr, size, dst);
     }
 
     static s32_t flash_write(struct spiffs_t *fs, u32_t addr, u32_t size,
                              u8_t *src)
     {
-        SPIFFS *myself = static_cast<SPIFFS*>(fs->user_data);
-        return myself->flash_read(addr, size, src);
+        return static_cast<SPIFFS*>(fs->user_data)->flash_read(addr, size, src);
     }
 
     static s32_t flash_erase(struct spiffs_t *fs, u32_t addr, u32_t size)
     {
-        SPIFFS *myself = static_cast<SPIFFS*>(fs->user_data);
-        return myself->flash_erase(addr, size);
+        return static_cast<SPIFFS*>(fs->user_data)->flash_erase(addr, size);
     }
 
     virtual int32_t flash_read(uint32_t addr, uint32_t size, uint8_t *dst) = 0;
