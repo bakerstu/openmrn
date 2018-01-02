@@ -76,7 +76,8 @@ StateFlowBase::Action EventCallerFlow::entry()
 StateFlowBase::Action EventCallerFlow::perform_call()
 {
     EventHandlerCall *c = message()->data();
-    if (c->epoch != EventRegistry::instance()->get_epoch()) {
+    if (c->epoch != EventRegistry::instance()->get_epoch())
+    {
         // Event registry was invalidated since this call was scheduled. Ignore.
         return call_immediately(STATE(call_done));
     }
@@ -322,7 +323,8 @@ void InlineEventIteratorFlow::no_more_matches()
 
 StateFlowBase::Action InlineEventIteratorFlow::perform_call()
 {
-    if (eventRegistryEpoch_ != eventService_->impl()->registry->get_epoch()) {
+    if (eventRegistryEpoch_ != eventService_->impl()->registry->get_epoch())
+    {
         // Will restart iteration.
         return call_immediately(STATE(iterate_next));
     }
