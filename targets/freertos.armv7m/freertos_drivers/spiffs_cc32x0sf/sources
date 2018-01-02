@@ -1,7 +1,8 @@
 DEPS += SPIFFSPATH
 
 VPATH := $(SPIFFSPATH)/src: \
-         $(OPENMRNPATH)/src/freertos_drivers/spiffs
+         $(OPENMRNPATH)/src/freertos_drivers/spiffs: \
+         $(OPENMRNPATH)/src/freertos_drivers/spiffs/cc32x0sf
 
 CSRCS += spiffs_cache.c \
          spiffs_check.c \
@@ -10,9 +11,12 @@ CSRCS += spiffs_cache.c \
          spiffs_nucleus.c \
          spiffs_nucleus.c \
 
-CXXSRCS += SPIFFS.cxx
+CXXSRCS += SPIFFS.cxx \
+           CC32x0SFSPIFFS.cxx
+            
 
 INCLUDES += -I$(SPIFFSPATH)/src \
+            -I$(OPENMRNPATH)/src/freertos_drivers/spiffs \
             -I$(OPENMRNPATH)/src/freertos_drivers/spiffs/cc32x0sf
 
 CFLAGS += -DNO_TEST

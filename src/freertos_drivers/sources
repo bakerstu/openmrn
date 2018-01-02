@@ -35,7 +35,7 @@ SUBDIRS += mbed_lpc1768 drivers_lpc1768 tivaware lpc_chip_175x_6x \
            cc3220sdk net_cc3220 cc3220 cc3220driverlib \
            cc32xxsdk net_cc32xx cc32xx \
            net_freertos_tcp freertos_tcp ti_grlib \
-           spiffs_cc3220sf
+           spiffs_cc32x0sf
 
 ifdef BUILDTIVAWARE
 SUBDIRS += tivadriverlib tivausblib
