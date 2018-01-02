@@ -126,27 +126,52 @@ protected:
         delete[] workBuffer_;
     }
 
+    /// SPIFFS callback to read flash.
+    /// @param fs reference to SPIFFS instance
+    /// @param addr adddress location to read
+    /// @param size size of read in bytes
+    /// @param dst destination buffer for read
     static s32_t flash_read(struct spiffs_t *fs, u32_t addr, u32_t size,
                             u8_t *dst)
     {
         return static_cast<SPIFFS*>(fs->user_data)->flash_read(addr, size, dst);
     }
 
+    /// SPIFFS callback to write flash.
+    /// @param fs reference to SPIFFS instance
+    /// @param addr adddress location to write
+    /// @param size size of write in bytes
+    /// @param src source buffer for write
     static s32_t flash_write(struct spiffs_t *fs, u32_t addr, u32_t size,
                              u8_t *src)
     {
         return static_cast<SPIFFS*>(fs->user_data)->flash_read(addr, size, src);
     }
 
+    /// SPIFFS callback to erase flash.
+    /// @param fs reference to SPIFFS instance
+    /// @param addr adddress location to erase
+    /// @param size size of erase region in bytes
     static s32_t flash_erase(struct spiffs_t *fs, u32_t addr, u32_t size)
     {
         return static_cast<SPIFFS*>(fs->user_data)->flash_erase(addr, size);
     }
 
+    /// SPIFFS callback to read flash, in context.
+    /// @param addr adddress location to read
+    /// @param size size of read in bytes
+    /// @param dst destination buffer for read
     virtual int32_t flash_read(uint32_t addr, uint32_t size, uint8_t *dst) = 0;
 
+    /// SPIFFS callback to write flash, in context.
+    /// @param addr adddress location to write
+    /// @param size size of write in bytes
+    /// @param src source buffer for write
     virtual int32_t flash_write(uint32_t addr, uint32_t size, uint8_t *src) = 0;
 
+    /// SPIFFS callback to erase flash, in context.
+    /// @param addr adddress location to erase
+    /// @param size size of erase region in bytes
     virtual int32_t flash_erase(uint32_t addr, uint32_t size) = 0;
 
     /// configuration parameters for SPIFFS

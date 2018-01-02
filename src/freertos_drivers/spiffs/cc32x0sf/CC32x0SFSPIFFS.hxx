@@ -62,10 +62,21 @@ private:
     /// size of an erase page in FLASH
     static constexpr size_t ERASE_PAGE_SIZE = 2 * 1024;
 
+    /// SPIFFS callback to read flash, in context.
+    /// @param addr adddress location to read
+    /// @param size size of read in bytes
+    /// @param dst destination buffer for read
     int32_t flash_read(uint32_t addr, uint32_t size, uint8_t *dst) override;
 
+    /// SPIFFS callback to write flash, in context.
+    /// @param addr adddress location to write
+    /// @param size size of write in bytes
+    /// @param src source buffer for write
     int32_t flash_write(uint32_t addr, uint32_t size, uint8_t *src) override;
 
+    /// SPIFFS callback to erase flash, in context.
+    /// @param addr adddress location to erase
+    /// @param size size of erase region in bytes
     int32_t flash_erase(uint32_t addr, uint32_t size) override;
 
     DISALLOW_COPY_AND_ASSIGN(CC32x0SFSPIFFS);
