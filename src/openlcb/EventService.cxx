@@ -75,8 +75,12 @@ StateFlowBase::Action EventCallerFlow::entry()
 
 StateFlowBase::Action EventCallerFlow::perform_call()
 {
-    n_.reset(this);
     EventHandlerCall *c = message()->data();
+    if (c->epoch != EventRegistry::instance()->get_epoch()) {
+        // Event registry was invalidated since this call was scheduled. Ignore.
+        return call_immediately(STATE(call_done));
+    }
+    n_.reset(this);
     (c->registry_entry->handler->*(c->fn))(*c->registry_entry, c->rep, &n_);
     return wait_and_call(STATE(call_done));
 }
@@ -285,7 +289,7 @@ StateFlowBase::Action EventIteratorFlow::dispatch_event(const EventRegistryEntry
      * made fixed size. */
     eventService_->impl()->callerFlow_.pool()->alloc(&b, nullptr);
     HASSERT(b);
-    b->data()->reset(entry, &eventReport_, fn_);
+    b->data()->reset(entry, eventRegistryEpoch_, &eventReport_, fn_);
     n_.reset(this);
     b->set_done(&n_);
     eventService_->impl()->callerFlow_.send(b, priority());
@@ -318,6 +322,10 @@ void InlineEventIteratorFlow::no_more_matches()
 
 StateFlowBase::Action InlineEventIteratorFlow::perform_call()
 {
+    if (eventRegistryEpoch_ != eventService_->impl()->registry->get_epoch()) {
+        // Will restart iteration.
+        return call_immediately(STATE(iterate_next));
+    }
     n_.reset(this);
     // It is required to hold on to a child to call abort_if_almost_done.
     auto *c = n_.new_child();
