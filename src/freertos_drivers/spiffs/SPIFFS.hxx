@@ -154,6 +154,9 @@ protected:
 
     virtual int32_t flash_erase(uint32_t addr, uint32_t size) = 0;
 
+    /// configuration parameters for SPIFFS
+    spiffs_config config_;
+
 private:
     /// Open a file or device.
     /// @param file file reference for this device
@@ -206,9 +209,6 @@ private:
 
     /// file system instance metadata
     spiffs fs_;
-
-    /// configuration parameters for SPIFFS
-    spiffs_config config_;
 
     /// work buffer for the file system
     uint8_t *workBuffer_;

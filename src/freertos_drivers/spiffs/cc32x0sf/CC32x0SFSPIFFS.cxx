@@ -33,11 +33,81 @@
 
 #include "CC32x0SFSPIFFS.hxx"
 
+#include "inc/hw_types.h"
+#include "driverlib/flash.h"
+
 //
-// CC32x0SFSPIFFS::CC32x0SFSPIFFS()
+// CC32x0SFSPIFFS::flash_read()
 //
-CC32x0SFSPIFFS::CC32x0SFSPIFFS()
+int32_t CC32x0SFSPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
 {
+    HASSERT(addr >= config_.phys_addr &&
+            (addr + size) < (config_.phys_addr  + config_.phys_size));
+
+    memcpy(dst, (void*)addr, size);
+
+    return 0;
 }
 
-} // extern C
+//
+// CC32x0SFSPIFFS::flash_write()
+//
+int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
+{
+    HASSERT(addr >= config_.phys_addr &&
+            (addr + size) < (config_.phys_addr  + config_.phys_size));
+
+    int misaligned = (addr + size) % 4;
+    if (misaligned != 0)
+    {
+        // last write unaligned data
+        uint32_t data = 0xFFFFFFFF;
+
+        memcpy(&data, src + size - misaligned, misaligned);
+        HASSERT(FlashProgram(&data, (addr + size) & (~0x3), 4) == 0);
+        size -= misaligned;
+    }
+
+    misaligned = addr % 4;
+    if (misaligned != 0)
+    {
+        // first write unaligned data
+        uint32_t data = 0xFFFFFFFF;
+        memcpy(&data + misaligned, src, 4 - misaligned);
+        HASSERT(FlashProgram(&data, addr & (~0x3), 4) == 0);
+        addr += 4 - misaligned;
+        size -= 4 - misaligned;
+        src  += 4 - misaligned;
+    }
+
+    HASSERT((addr % 4) == 0);
+    HASSERT((size % 4) == 0);
+
+    if (size)
+    {
+        // the rest of the aligned data
+        HASSERT(FlashProgram((unsigned long*)src, addr, size) == 0);
+    }
+
+
+    return 0;
+}
+
+//
+// CC32x0SFSPIFFS::flash_erase()
+//
+int32_t CC32x0SFSPIFFS::flash_erase(uint32_t addr, uint32_t size)
+{
+    HASSERT(addr >= config_.phys_addr &&
+            (addr + size) < (config_.phys_addr  + config_.phys_size));
+
+    while (size)
+    {
+        HASSERT(FlashErase(addr) == 0);
+        addr += ERASE_PAGE_SIZE;
+        size -= ERASE_PAGE_SIZE;
+    }
+
+    return 0;
+}
+

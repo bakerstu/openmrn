@@ -163,3 +163,14 @@ int FileSystem::close(struct _reent *reent, int fd)
     return 0;
 }
 
+/** Get the status information of a file or device.
+ * @param file file reference for this device
+ * @param stat structure to fill status info into
+ * @return 0 upon successor or negative error number upon error.
+ */
+int FileSystem::fstat(File* file, struct stat *stat)
+{
+    memset(stat, 0, sizeof(*stat));
+    return 0;
+}
+

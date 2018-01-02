@@ -306,6 +306,14 @@ public:
      */
     static int close(struct _reent *reent, int fd);
 
+protected:
+    /** Get the status information of a file or device.
+     * @param file file reference for this device
+     * @param stat structure to fill status info into
+     * @return 0 upon successor or negative error number upon error.
+     */
+    virtual int fstat(File* file, struct stat *stat) override;
+
 private:
     /** first device in linked list */
     static FileSystem *first;

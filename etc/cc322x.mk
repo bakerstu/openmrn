@@ -10,6 +10,11 @@ INCLUDES += -DSL_PLATFORM_MULTI_THREADED -DSL_API_V2 -DTARGET_IS_CC3220 \
             -I$(TICC3220SDKPATH)/source/ti/devices/cc32xx \
             -I$(TICC3220SDKPATH)/source/ti/devices/cc32xx/driverlib \
 
+ifneq ($(SPIFFSPATH),)
+INCLUDES += -I$(SPIFFSPATH)/src \
+            -I$(OPENMRNPATH)/src/freertos_drivers/spiffs \
+            -I$(OPENMRNPATH)/src/freertos_drivers/spiffs/cc32x0sf
+endif
 
 SYSLIBRARIESEXTRA += $(TICC3220SDKPATH)/source/ti/devices/cc32xx/driverlib/gcc/Release/driverlib.a \
                      -lfreertos_drivers_cc3220 \
@@ -18,9 +23,13 @@ SYSLIBRARIESEXTRA += $(TICC3220SDKPATH)/source/ti/devices/cc32xx/driverlib/gcc/R
                      -lfreertos_drivers_net_cc3220 \
                      -lutils
 
+ifneq ($(SPIFFSPATH),)
+SYSLIBRARIESEXTRA += -lfreertos_drivers_spiffs_cc32x0sf
+endif
 
 INCLUDES += -I$(OPENMRNPATH)/src/freertos_drivers/net_cc322x \
             -I$(TICC3220SDKPATH)/source
+
 
 ifeq ($(wildcard $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/sys/errno.h),)
 #new version of SDK

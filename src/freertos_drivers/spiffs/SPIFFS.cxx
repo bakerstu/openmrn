@@ -71,8 +71,6 @@ SPIFFS::SPIFFS(size_t physical_address, size_t size_on_disk,
                size_t cache_pages,
                std::function<void()> post_format_hook)
     : FileSystem()
-    , postFormatHook_(post_format_hook)
-    , lock_()
     , config_({.hal_read_f       = flash_read,
                .hal_write_f      = flash_write,
                .hal_erase_f      = flash_erase,
@@ -81,6 +79,8 @@ SPIFFS::SPIFFS(size_t physical_address, size_t size_on_disk,
                .phys_erase_block = erase_block_size,
                .log_block_size   = logical_block_size,
                .log_page_size    = logical_page_size})
+    , postFormatHook_(post_format_hook)
+    , lock_()
     , workBuffer_(new uint8_t[logical_page_size * 2])
     , fdSpaceSize_(max_num_open_descriptors * sizeof(spiffs_fd))
     , fdSpace_(new uint8_t[fdSpaceSize_])
