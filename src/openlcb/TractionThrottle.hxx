@@ -184,6 +184,10 @@ public:
     /// @return the controlled node (the train node) ID.
     /// @todo this function should not be here
     virtual openlcb::NodeID target_node() = 0;
+
+    /// Releases this throttles control over the train
+    /// @dispath is true to dispatch instead of release (WiThrottle specific)
+    virtual void release_train(bool dispath) = 0;
 };
 
 /** Interface for a single throttle for running a train node.
@@ -310,6 +314,10 @@ public:
     void set_throttle_listener(std::function<void(int fn)> update_callback) override
     {
         updateCallback_ = std::move(update_callback);
+    }
+
+    void release_train(bool dispath) override
+    {
     }
 
 private:
