@@ -31,11 +31,11 @@
  * @date 6 January 2018
  */
 
-#include "I2C.hxx"
-#include "PWM.hxx"
-
 #include <fcntl.h>
 #include <unistd.h>
+
+#include "I2C.hxx"
+#include "PWM.hxx"
 
 #include "os/OS.hxx"
 
@@ -102,6 +102,9 @@ public:
         Mode2 mode2;
         mode2.och = 1;
         register_write(MODE2, mode2.byte);
+
+        /* start the thread at the highest priority in the system */
+        start(name, configMAX_PRIORITIES - 1, 1024);
     }
 
     /// Destructor.
@@ -374,8 +377,10 @@ private:
 /// Specialization of the PWM abstract interface for the PCA9685
 class PCA9685PWMBit : public PWM
 {
-private:
+public:
     /// Constructor.
+    /// @param instance reference to the chip
+    /// @param index channel index on the chip (0 through 15) 
     PCA9685PWMBit(PCA9685PWM *instance, unsigned index)
         : PWM()
         , instance_(instance)
@@ -389,6 +394,7 @@ private:
     {
     }
 
+private:
     /// Set PWM period.
     /// @param PWM period in counts
     void set_period(uint32_t counts) override
