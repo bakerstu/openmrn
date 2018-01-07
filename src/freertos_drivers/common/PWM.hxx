@@ -33,6 +33,8 @@
 
 #include "utils/macros.h"
 
+#include "os/Gpio.hxx"
+
 /// Abstract interface for a PWM driver.
 class PWM
 {
@@ -89,4 +91,77 @@ protected:
 private:
 
     DISALLOW_COPY_AND_ASSIGN(PWM);
+};
+
+/// General Purpose Output specialization of a PWM Bit.
+class PWMGPO : public Gpio
+{
+public:
+    /// Constructor.
+    /// @param instance reference to the chip
+    /// @param on_counts PWM count for the "on" state
+    /// @param off_counts PWM count for the "off" state
+    PWMGPO(PWM *instance, uint16_t on_counts, uint16_t off_counts)
+        : Gpio()
+        , instance_(instance)
+        , onCounts_(on_counts)
+        , offCounts_(off_counts)
+    {
+    }
+
+    ~PWMGPO()
+    {
+    }
+
+    /// Writes a GPO pin (set or clear to a specific state).
+    /// @param new_state the desired output state.  See @ref Value.
+    void write(Value new_state) const override
+    {
+        new_state ? set() : clr();
+    }
+
+    /// Retrieves the current @ref Value of a GPO output sate (requested).
+    /// @return @ref SET if currently high, @ref CLR if currently low
+    Value read() const override
+    {
+        return instance_->get_duty() == onCounts_ ? Gpio::SET : Gpio::CLR;
+    }
+
+    /// Sets the GPO pin to high.
+    void set() const override
+    {
+        instance_->set_duty(onCounts_);
+    }
+
+    /// Clears the GPO pin to low.
+    void clr() const override
+    {
+        instance_->set_duty(offCounts_);
+    }
+
+    /// Sets the GPO direction (does nothing).
+    /// @param dir @ref INPUT or @ref OUTPUT
+    void set_direction(Gpio::Direction dir) const override
+    {
+        HASSERT(dir == Gpio::Direction::OUTPUT);
+    }
+
+    /// Gets the GPO direction.
+    /// @return always returns @ref OUTPUT
+    Direction direction() const override
+    {
+        return Gpio::Direction::OUTPUT;
+    }
+
+private:
+    /// PWM instance
+    PWM *instance_;
+
+    /// PWM counts for when the GPO is "on"
+    uint32_t onCounts_;
+
+    /// PWM counts for when the GPO is "off"
+    uint32_t offCounts_;
+
+    DISALLOW_COPY_AND_ASSIGN(PWMGPO);
 };
