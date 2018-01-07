@@ -113,131 +113,95 @@ public:
     }
 
 private:
-    /// Device register offsets
+    /// Important device register offsets
     enum Registers
     {
-        MODE1 = 0,
-        MODE2,
+        MODE1 = 0, ///< mode 1 settings
+        MODE2, ///< mode 2 settings
 
-        LED0_ON_L = 6,
-        LED0_ON_H,
-        LED0_OFF_L,
-        LED0_OFF_H,
-        LED1_ON_L,
-        LED1_ON_H,
-        LED1_OFF_L,
-        LED1_OFF_H,
-        LED2_ON_L,
-        LED2_ON_H,
-        LED2_OFF_L,
-        LED2_OFF_H,
-        LED3_ON_L,
-        LED3_ON_H,
-        LED3_OFF_L,
-        LED3_OFF_H,
-        LED4_ON_L,
-        LED4_ON_H,
-        LED4_OFF_L,
-        LED4_OFF_H,
-        LED5_ON_L,
-        LED5_ON_H,
-        LED5_OFF_L,
-        LED5_OFF_H,
-        LED6_ON_L,
-        LED6_ON_H,
-        LED6_OFF_L,
-        LED6_OFF_H,
-        LED7_ON_L,
-        LED7_ON_H,
-        LED7_OFF_L,
-        LED7_OFF_H,
-        LED8_ON_L,
-        LED8_ON_H,
-        LED8_OFF_L,
-        LED8_OFF_H,
-        LED9_ON_L,
-        LED9_ON_H,
-        LED9_OFF_L,
-        LED9_OFF_H,
-        LED10_ON_L,
-        LED10_ON_H,
-        LED10_OFF_L,
-        LED10_OFF_H,
+        LED0_ON_L = 6, ///< first LED control register
 
-        PRE_SCALE = 254,
+        PRE_SCALE = 254, ///< clock prescale divider
     };
 
+    /// Represent the mode 1 register.
     union Mode1
     {
+        /// Constructor
         Mode1()
             : byte(0x01)
         {
         }
 
-        uint8_t byte;
+        uint8_t byte; ///< full byte value
         struct
         {
-            uint8_t allCall : 1;
-            uint8_t sub3    : 1;
-            uint8_t sub2    : 1;
-            uint8_t sub1    : 1;
-            uint8_t sleep   : 1;
-            uint8_t aI      : 1;
-            uint8_t extClk  : 1;
-            uint8_t restart : 1;
+            uint8_t allCall : 1; ///< respond to "all call" address
+            uint8_t sub3    : 1; ///< sub-address 3
+            uint8_t sub2    : 1; ///< sub-address 2
+            uint8_t sub1    : 1; ///< sub-address 1
+            uint8_t sleep   : 1; ///< sleep enabled
+            uint8_t aI      : 1; ///< auto increment
+            uint8_t extClk  : 1; ///< external clock
+            uint8_t restart : 1; ///< restart
         };
     };
 
+    /// Represent the mode 2 register.
     union Mode2
     {
+        /// Constructor.
         Mode2()
             : byte(0x04)
         {
         }
 
-        uint8_t byte;
+        uint8_t byte; ///< full byte data
         struct
         {
-            uint8_t outNE  : 2;
-            uint8_t outDrv : 1;
-            uint8_t och    : 1;
-            uint8_t invert : 1;
-            uint8_t unused : 3;
+            uint8_t outNE  : 2; ///< output not enable
+            uint8_t outDrv : 1; ///< 1 = push/pull, 0 = open drain
+            uint8_t och    : 1; ///< 1 = updata on ack, 0 = update on stop
+            uint8_t invert : 1; ///< invert output
+            uint8_t unused : 3; ///< unused
         };
     };
 
+    /// Representation of the replicative 4 LED control register
     struct LedCtl
     {
         union On
         {
+            /// Constructor.
             On()
                 : word(0x0000)
             {
             }
-            uint16_t word;
+            uint16_t word; ///< full word data
             struct
             {
-                uint16_t counts : 12;
-                uint16_t fullOn : 1;
-                uint16_t unused : 3;
+                uint16_t counts : 12; ///< turn on counts
+                uint16_t fullOn :  1; ///< set if full on
+                uint16_t unused :  3; ///< unused
             };
         };
         union Off
         {
+            /// Constructor.
             Off()
                 : word(0x1000)
             {
             }
-            uint16_t word;
+            uint16_t word; ///< full word data
             struct
             {
-                uint16_t counts  : 12;
-                uint16_t fullOff : 1;
-                uint16_t unused  : 3;
+                uint16_t counts  : 12; ///< turn off counts
+                uint16_t fullOff :  1; ///< set if full off
+                uint16_t unused  :  3; ///< unused
             };
         };
-        On on;
-        Off off;
+        On on; ///< on registers instance
+        Off off; ///< off registers instance
     };
 
     /// User entry point for the created thread.
@@ -321,6 +285,8 @@ private:
         }
         else
         {
+            // the "256" count offset is to help average the current accross
+            // all 16 channels when the duty cycle is low
             ctl.on.counts = (channel * 256);
             ctl.off.counts = (counts + (channel * 256)) % 0x1000;
         }
@@ -440,7 +406,7 @@ private:
     /// instance pointer to the whole chip complement
     PCA9685PWM *instance_;
 
-    /// Bit index within PCA8685
+    /// bit index within PCA9685
     unsigned index_;
 
     DISALLOW_COPY_AND_ASSIGN(PCA9685PWMBit);
