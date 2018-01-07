@@ -101,7 +101,7 @@ public:
     /// @param instance reference to the chip
     /// @param on_counts PWM count for the "on" state
     /// @param off_counts PWM count for the "off" state
-    PWMGPO(PWM *instance, uint16_t on_counts, uint16_t off_counts)
+    PWMGPO(PWM *instance, uint32_t on_counts, uint32_t off_counts)
         : Gpio()
         , instance_(instance)
         , onCounts_(on_counts)
