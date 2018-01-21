@@ -145,7 +145,7 @@ protected:
     static s32_t flash_write(struct spiffs_t *fs, u32_t addr, u32_t size,
                              u8_t *src)
     {
-        return static_cast<SPIFFS*>(fs->user_data)->flash_read(addr, size, src);
+        return static_cast<SPIFFS*>(fs->user_data)->flash_write(addr, size, src);
     }
 
     /// SPIFFS callback to erase flash.
