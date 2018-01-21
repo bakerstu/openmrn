@@ -86,6 +86,7 @@ SPIFFS::SPIFFS(size_t physical_address, size_t size_on_disk,
     , fdSpace_(new uint8_t[fdSpaceSize_])
     , cacheSize_(sizeof(spiffs_cache) +
                  cache_pages * (sizeof(spiffs_cache_page) + logical_page_size))
+    , cache_(new uint8_t[cacheSize_])
     , formatted_(false)
 {
     fs_.user_data = this;
