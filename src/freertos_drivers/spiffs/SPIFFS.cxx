@@ -110,15 +110,15 @@ int SPIFFS::open(File *file, const char *path, int flags, int mode)
     {
         ffs_flags |= SPIFFS_O_CREAT;
     }
-    if (flags & O_RDONLY)
+    if ((flags & O_ACCMODE) == O_RDONLY)
     {
         ffs_flags |= SPIFFS_O_RDONLY;
     }
-    if (flags & O_WRONLY)
+    if ((flags & O_ACCMODE) == O_WRONLY)
     {
         ffs_flags |= SPIFFS_O_WRONLY;
     }
-    if (flags & O_RDWR)
+    if ((flags & O_ACCMODE) == O_RDWR)
     {
         ffs_flags |= SPIFFS_O_RDWR;
     }
