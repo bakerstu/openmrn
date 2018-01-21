@@ -42,7 +42,7 @@
 int32_t CC32x0SFSPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
 {
     HASSERT(addr >= config_.phys_addr &&
-            (addr + size) < (config_.phys_addr  + config_.phys_size));
+            (addr + size) <= (config_.phys_addr  + config_.phys_size));
 
     memcpy(dst, (void*)addr, size);
 
@@ -54,27 +54,52 @@ int32_t CC32x0SFSPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
 //
 int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 {
+    union WriteWord
+    {
+        uint8_t  data[4];
+        uint32_t data_word;
+    };
+
     HASSERT(addr >= config_.phys_addr &&
-            (addr + size) < (config_.phys_addr  + config_.phys_size));
+            (addr + size) <= (config_.phys_addr  + config_.phys_size));
+
+    if ((addr % 4) && ((addr % 4) + size) < 4)
+    {
+        // single unaligned write in the middle of a word.
+        WriteWord ww;
+        ww.data_word = 0xFFFFFFFF;
+
+        memcpy(ww.data + (addr % 4), src, size);
+        ww.data_word &= *((uint32_t*)(addr & (~0x3)));
+        HASSERT(FlashProgram(&ww.data_word, addr & (~0x3), 4) == 0);
+
+        return 0;
+    }
 
     int misaligned = (addr + size) % 4;
     if (misaligned != 0)
     {
         // last write unaligned data
-        uint32_t data = 0xFFFFFFFF;
+        WriteWord ww;
+        ww.data_word = 0xFFFFFFFF;
 
-        memcpy(&data, src + size - misaligned, misaligned);
-        HASSERT(FlashProgram(&data, (addr + size) & (~0x3), 4) == 0);
+        memcpy(&ww.data_word, src + size - misaligned, misaligned);
+        ww.data_word &= *((uint32_t*)((addr + size) & (~0x3)));
+        HASSERT(FlashProgram(&ww.data_word, (addr + size) & (~0x3), 4) == 0);
+
         size -= misaligned;
     }
 
     misaligned = addr % 4;
-    if (misaligned != 0)
+    if (size && misaligned != 0)
     {
         // first write unaligned data
-        uint32_t data = 0xFFFFFFFF;
-        memcpy(&data + misaligned, src, 4 - misaligned);
-        HASSERT(FlashProgram(&data, addr & (~0x3), 4) == 0);
+        WriteWord ww;
+        ww.data_word = 0xFFFFFFFF;
+
+        memcpy(ww.data + misaligned, src, 4 - misaligned);
+        ww.data_word &= *((uint32_t*)(addr & (~0x3)));
+        HASSERT(FlashProgram(&ww.data_word, addr & (~0x3), 4) == 0);
         addr += 4 - misaligned;
         size -= 4 - misaligned;
         src  += 4 - misaligned;
@@ -86,6 +111,15 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
     if (size)
     {
         // the rest of the aligned data
+        uint8_t *flash = (uint8_t*)addr;
+        for (uint32_t i = 0; i < size; i += 4)
+        {
+            src[i + 0] &= flash[i + 0];
+            src[i + 1] &= flash[i + 1];
+            src[i + 2] &= flash[i + 2];
+            src[i + 3] &= flash[i + 3];
+        }
+
         HASSERT(FlashProgram((unsigned long*)src, addr, size) == 0);
     }
 
@@ -99,7 +133,7 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 int32_t CC32x0SFSPIFFS::flash_erase(uint32_t addr, uint32_t size)
 {
     HASSERT(addr >= config_.phys_addr &&
-            (addr + size) < (config_.phys_addr  + config_.phys_size));
+            (addr + size) <= (config_.phys_addr  + config_.phys_size));
 
     while (size)
     {
