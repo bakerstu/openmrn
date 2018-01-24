@@ -59,6 +59,8 @@ int FileIO::fd_alloc(void)
         if (files[i].inuse == false)
         {
             files[i].inuse = true;
+            files[i].device = true;
+            files[i].dir = false;
             files[i].priv = nullptr;
             files[i].dev = nullptr;
             files[i].offset = 0;
