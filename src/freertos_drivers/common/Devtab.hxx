@@ -34,6 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_DEVTAB_HXX_
 #define _FREERTOS_DRIVERS_COMMON_DEVTAB_HXX_
 
+#include <dirent.h>
 #include <stropts.h>
 #include <sys/types.h>
 #include <sys/select.h>
@@ -321,6 +322,25 @@ public:
      */
     static int stat(struct _reent *reent, const char *path, struct stat *stat);
 
+    /** Close a directory.
+     * @param @dirp directory pointer to close
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int closedir(DIR *dirp);
+
+    /** Open a directory.
+     * @param name directory path
+     * @return pointer to the open directory on success, NULL on error
+     */
+    static DIR *opendir(const char *name);
+
+    /** Read the next entry in a directory.
+     * @param dirp directory pointer to read.
+     * @return pointer to a struct dirent representing the next directectory
+     *         entry
+     */
+    static struct dirent *readdir(DIR *dirp);
+
 protected:
     /** Get the status information of a file or device.
      * @param file file reference for this device
@@ -335,6 +355,26 @@ protected:
      * @return 0 upon success, -1 upon failure with errno containing the cause
      */
     virtual int stat(const char *path, struct stat *stat) = 0;
+
+    /** Close a directory.
+     * @param file file reference for this device
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    virtual int closedir(File *file) = 0;
+
+    /** Open a directory.
+     * @param file file reference for this device
+     * @param name directory path
+     * @return pointer to the open directory on success, NULL on error
+     */
+    virtual File *opendir(File *file, const char *name) = 0;
+
+    /** Read the next entry in a directory.
+     * @param file file reference for this device
+     * @return pointer to a struct dirent representing the next directectory
+     *         entry
+     */
+    virtual struct dirent *readdir(File *file) = 0;
 
 private:
     /** first device in linked list */

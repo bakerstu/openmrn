@@ -293,6 +293,78 @@ int SPIFFS::stat(const char *path, struct stat *stat)
     return 0;
 }
 
+//
+// SPIFFS::closedir()
+//
+int SPIFFS::closedir(File *file)
+{
+    OpenDir *dir = static_cast<OpenDir*>(file->priv);
+    int result = SPIFFS_closedir(&dir->dir_);
+
+    if (result == 0)
+    {
+        free(dir);
+        return 0;
+    }
+    else
+    {
+        return -errno_translate(result);
+    }
+}
+
+//
+// SPIFFS::opendir()
+//
+File *SPIFFS::opendir(File *file, const char *name)
+{
+    // special malloc is to reserve space for the full path name
+    OpenDir *dir = static_cast<OpenDir*>(malloc(sizeof(OpenDir) +
+                                                SPIFFS_OBJ_NAME_LEN +
+                                                strlen(this->name) + 1));
+
+    extern_lock(&fs_);
+    spiffs_DIR *result = SPIFFS_opendir(&fs_, name, &dir->dir_);
+    if (!result)
+    {
+        free(dir);
+        errno = errno_translate(fs_.err_code);
+    }
+    else
+    {
+        // no error occured
+        file->priv = dir;
+        file->dir = true;
+    }
+    extern_unlock(&fs_);
+
+    return file;
+}
+
+//
+// SPIFFS::readdir()
+//
+struct dirent *SPIFFS::readdir(File *file)
+{
+    OpenDir *dir = static_cast<OpenDir*>(file->priv);
+    spiffs_dirent dirent;
+
+    spiffs_dirent *result = SPIFFS_readdir(&dir->dir_, &dirent);
+
+    if (!result)
+    {
+        return nullptr;
+    }
+    else
+    {
+        dir->dirent_.d_ino = dirent.obj_id;
+        strcpy(dir->dirent_.d_name, this->name);
+        strcat(dir->dirent_.d_name, "/");
+        strcat(dir->dirent_.d_name, (char*)dirent.name);
+        return &dir->dirent_;
+    }
+}
+
+//
 // SPIFFS::errno_translate()
 //
 int SPIFFS::errno_translate(int spiffs_error)

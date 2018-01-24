@@ -214,3 +214,105 @@ int FileSystem::fstat(File* file, struct stat *stat)
     return 0;
 }
 
+/*
+ * FileSystem::closedir()
+ */
+int FileSystem::closedir(DIR *dirp)
+{
+    File *file = (File*)dirp;
+    FileSystem *fs = static_cast<FileSystem*>(file->dev);
+
+    if (!file->dir)
+    {
+        errno = EBADF;
+        return -1;
+    }
+    int result = fs->closedir(file);
+    if (result < 0)
+    {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
+/*
+ * FileSystem::opendir()
+ */
+DIR *FileSystem::opendir(const char *name)
+{
+    mutex.lock();
+    int fd = fd_alloc();
+    mutex.unlock();
+    if (fd < 0)
+    {
+        errno = EMFILE;
+        return NULL;
+    }
+    files[fd].flags = 0;
+    files[fd].dir = true;
+
+    FileSystem *fs = fs_lookup(name);
+    if (fs)
+    {
+        files[fd].dev = fs;
+        files[fd].device = false;
+        const char *subpath = name + strlen(fs->name) + 1;
+        DIR *result = (DIR*)fs->opendir(&files[fd], subpath);
+        if (result)
+        {
+            return result;
+        }
+    }
+    // No device found.
+    fd_free(fd);
+    errno = ENOENT;
+    return NULL;
+}
+
+/*
+ * FileSystem::readdir()
+ */
+struct dirent *FileSystem::readdir(DIR *dirp)
+{
+    File *file = (File*)dirp;
+    FileSystem *fs = static_cast<FileSystem*>(file->dev);
+
+    HASSERT(file->dir);
+
+    return fs->readdir(file);
+}
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * closedir()
+ */
+int closedir(DIR *dirp)
+{
+    return FileSystem::closedir(dirp);
+}
+
+/*
+ * opendir()
+ */
+DIR *opendir(const char *name)
+{
+    return FileSystem::opendir(name);
+}
+
+/*
+ * readdir()
+ */
+struct dirent *readdir(DIR *dirp)
+{
+    return FileSystem::readdir(dirp);
+}
+
+#ifdef __cplusplus
+}
+#endif
+

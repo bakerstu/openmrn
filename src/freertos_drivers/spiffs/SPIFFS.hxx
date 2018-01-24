@@ -222,6 +222,24 @@ private:
      */
     int stat(const char *path, struct stat *stat) override;
 
+    /// Close a directory.
+    /// @param file file reference for this device
+    /// @return 0 upon success, -1 upon failure with errno containing the cause
+
+    int closedir(File *file) override;
+
+    /// Open a directory.
+    /// @param file file reference for this device
+    /// @param name directory path
+    /// @return pointer to the open directory on success, NULL on error
+    File *opendir(File *file, const char *name) override;
+
+    /// Read the next entry in a directory.
+    /// @param file file reference for this device
+    /// @return pointer to a struct dirent representing the next directectory
+    ///        entry
+    struct dirent *readdir(File *file) override;
+
     /// Translate a SPIFFS specific error number to a standard POSIX errno.
     /// @param spiffs_error SPIFFS specific error number
     /// @return standard POSX errno
