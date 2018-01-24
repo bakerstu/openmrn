@@ -178,6 +178,13 @@ protected:
     spiffs_config config_;
 
 private:
+    /// Open directory metadata structure
+    struct OpenDir
+    {
+        spiffs_DIR    dir_; ///< directory object
+        struct dirent dirent_; ///< directory entry
+    };
+
     /// Open a file or device.
     /// @param file file reference for this device
     /// @param path file or device name
