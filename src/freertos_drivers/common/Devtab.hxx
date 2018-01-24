@@ -377,6 +377,12 @@ protected:
     virtual struct dirent *readdir(File *file) = 0;
 
 private:
+    /** Locate the file system for a given path.
+     * @param path full path to file/directory
+     * @return reference to file system on success, else nullptr
+     */
+    static FileSystem *fs_lookup(const char *path);
+
     /** first device in linked list */
     static FileSystem *first;
 
