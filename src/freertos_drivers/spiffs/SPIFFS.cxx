@@ -210,6 +210,34 @@ ssize_t SPIFFS::write(File *file, const void *buf, size_t count)
     {
         errno = errno_translate(result);
         return -1;
+///
+// SPIFFS::lseek()
+//
+off_t SPIFFS::lseek(File* file, off_t offset, int whence)
+{
+    spiffs_file fd = file->privInt;
+    int spiffs_whence;
+
+    switch (whence)
+    {
+        default:
+            return (off_t)-EINVAL;
+        case SEEK_SET:
+            spiffs_whence = SPIFFS_SEEK_SET;
+            break;
+        case SEEK_CUR:
+            spiffs_whence = SPIFFS_SEEK_CUR;
+            break;
+        case SEEK_END:
+            spiffs_whence = SPIFFS_SEEK_END;
+            break;
+    }
+
+    off_t result = SPIFFS_lseek(&fs_, fd, offset, spiffs_whence);
+
+    if (result < 0)
+    {
+        return -errno_translate(result);
     }
 
     return result;

@@ -220,6 +220,15 @@ private:
     ///         containing the cause
     ssize_t write(File *file, const void *buf, size_t count) override;
 
+    /// Seek method.
+    /// @param f file reference for this device
+    /// @param offset offset in bytes from whence directive
+    /// @param whence SEEK_SET if to set the file offset to an abosolute position,
+    ///               SEEK_CUR if to set the file offset from current position
+    ///               SEEK_END if to set the file offset to the end of the file
+    /// @return current offest or negative error number upon error.
+    off_t lseek(File* f, off_t offset, int whence) override;
+
     /** Get the status information of a file or device.
      * @param file file reference for this device
      * @param stat structure to fill status info into
