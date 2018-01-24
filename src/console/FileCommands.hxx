@@ -34,6 +34,8 @@
 #ifndef _CONSOLE_FILECOMMANDS_HXX_
 #define _CONSOLE_FILECOMMANDS_HXX_
 
+#include <dirent.h>
+
 #include "console/Console.hxx"
 
 /// Container for all the file system operations.
@@ -46,6 +48,8 @@ public:
     {
         console->add_command("cat", cat_command);
         console->add_command("echo", echo_command);
+        console->add_command("rm", rm_command);
+        console->add_command("ls", ls_command);
     }
 
 private:
@@ -135,40 +139,121 @@ private:
         return Console::COMMAND_ERROR;
     }
 
-
-#if 0
-    /// "cat" console command
-    class CatFlow : public Console::CommandFlow
+    /// Remove files or directories.
+    /// @param fp file pointer to console
+    /// @param argc number of arguments including the command itself
+    /// @param argv array of arguments starting with the command itself
+    /// @param context unused
+    /// @return COMMAND_OK
+    static Console::CommandStatus rm_command(FILE *fp, int argc,
+                                             const char *argv[], void *context)
     {
-    public:
-        /// Constructor.
-        /// @param console console instance to add the commands to
-        CatFlow(Console *console)
-            : CommandFlow(console, "cat")
+        if (argc == 0)
         {
+            fprintf(fp, "remove files or directories\n");
+            return Console::COMMAND_OK;
         }
 
-    private:
-        StateFlowBase::Action entry() override
+        if (argc < 2)
         {
-            int fd = ::open
-            fprintf(fp, "param: ");
-            return wait_for_line_and_call(STATE(input));
+            return Console::COMMAND_ERROR;
         }
 
-        StateFlowBase::Action input()
+        for (int i = 1; i < argc; ++i)
         {
-            EXPECT_EQ(CommandFlow::argc, 1);
-            EXPECT_TRUE(!strcmp(argv[0], "example"));
-            return record_status_and_exit(Console::COMMAND_OK);
+            if (::unlink(argv[i]) == 0)
+            {
+                continue;
+            }
+            if (errno == ENOENT)
+            {
+                fprintf(fp,
+                        "%s: cannot remove '%s': No such file or directory\n",
+                        argv[0], argv[i]);
+            }
         }
 
-        DISALLOW_COPY_AND_ASSIGN(CatFlow);
-    };
+        return Console::COMMAND_OK;
+    }
 
-    /// "cat" command instance
-    CatFlow cat;
-#endif
+    /// List directory contents.
+    /// @param fp file pointer to console
+    /// @param argc number of arguments including the command itself
+    /// @param argv array of arguments starting with the command itself
+    /// @param context unused
+    /// @return COMMAND_OK
+    static Console::CommandStatus ls_command(FILE *fp, int argc,
+                                             const char *argv[], void *context)
+    {
+        if (argc == 0)
+        {
+            fprintf(fp, "list directory contents\n");
+            return Console::COMMAND_OK;
+        }
+
+        if (argc != 2)
+        {
+            return Console::COMMAND_ERROR;
+        }
+
+        struct stat stat;
+        if (::stat(argv[1], &stat) != 0)
+        {
+            if (errno == ENOENT)
+            {
+                fprintf(fp,
+                        "%s: cannot access '%s': No such file or directory\n",
+                        argv[0], argv[1]);
+            }
+            return Console::COMMAND_ERROR;
+        }
+
+        if (S_ISDIR(stat.st_mode))
+        {
+            DIR *dir = opendir(argv[1]);
+            HASSERT(dir);
+            struct dirent *dirent;
+            do
+            {
+                dirent = readdir(dir);
+                if (dirent)
+                {
+                    HASSERT(::stat(dirent->d_name, &stat) == 0);
+                    ls_printline(fp, dirent->d_name, &stat);
+                }
+            } while (dirent);
+            closedir(dir);
+        }
+        else if (S_ISREG(stat.st_mode) || S_ISLNK(stat.st_mode))
+        {
+            ls_printline(fp, argv[1], &stat);
+        }
+
+        return Console::COMMAND_OK;
+    }
+
+    /// Helper method to print a single "ls" line.
+    /// @param fp file pointer to console
+    /// @param name name of the entry
+    /// @param stat status information about the entry
+    static void ls_printline(FILE *fp, const char *name, struct stat *stat)
+    {
+        char type;
+        type = S_ISDIR(stat->st_mode) ? 'd' : '-';
+        type = S_ISLNK(stat->st_mode) ? 'l' : type;
+
+        fprintf(fp, "%c%c%c%c%c%c%c%c%c%c %5ld %s\n", type,
+                stat->st_mode & S_IRUSR ? 'r' : '-',
+                stat->st_mode & S_IWUSR ? 'w' : '-',
+                stat->st_mode & S_IXUSR ? 'x' : '-',
+                stat->st_mode & S_IRGRP ? 'r' : '-',
+                stat->st_mode & S_IWGRP ? 'w' : '-',
+                stat->st_mode & S_IXGRP ? 'x' : '-',
+                stat->st_mode & S_IROTH ? 'r' : '-',
+                stat->st_mode & S_IWOTH ? 'w' : '-',
+                stat->st_mode & S_IXOTH ? 'x' : '-',
+                stat->st_size, name);
+    }
 
     DISALLOW_COPY_AND_ASSIGN(FileCommands);
 };
