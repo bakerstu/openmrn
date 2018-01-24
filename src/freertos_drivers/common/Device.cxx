@@ -154,3 +154,27 @@ int Device::close(struct _reent *reent, int fd)
     return 0;
 }
 
+/** Get the status information of a file or device.
+ * @param reent thread save reentrant structure
+ * @param path file or device name
+ * @param stat structure to fill status info into
+ * @return 0 upon success, -1 upon failure with errno containing the cause
+ */
+int Device::stat(struct _reent *reent, const char *path, struct stat *stat)
+{
+    for (Device *dev = first; dev != NULL; dev = dev->next)
+    {
+        if (dev->name)
+        {
+            if (!strcmp(dev->name, path))
+            {
+                memset(stat, 0, sizeof(*stat));
+                stat->st_mode = dev->get_mode();
+                return 0;
+            }
+        }
+    }
+
+    errno = ENOENT;
+    return -1;
+}

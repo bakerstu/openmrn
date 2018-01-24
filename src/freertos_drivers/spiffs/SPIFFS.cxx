@@ -201,6 +201,98 @@ ssize_t SPIFFS::write(File *file, const void *buf, size_t count)
 }
 
 //
+// SPIFFS::fstat()
+//
+int SPIFFS::fstat(File* file, struct stat *stat)
+{
+    spiffs_file fd = file->privInt;
+    spiffs_stat ffs_stat;
+
+    ssize_t result = SPIFFS_fstat(&fs_, fd, &ffs_stat);
+
+    if (result < 0)
+    {
+        return -errno_translate(result);
+    }
+
+    memset(stat, 0, sizeof(*stat));
+    stat->st_ino = ffs_stat.obj_id;
+    stat->st_size = ffs_stat.size;
+    switch (ffs_stat.type)
+    {
+        default:
+            break;
+        case SPIFFS_TYPE_FILE:
+            stat->st_mode = S_IFREG;
+            break;
+        case SPIFFS_TYPE_DIR:
+            stat->st_mode = S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;
+            break;
+        case SPIFFS_TYPE_HARD_LINK:
+            stat->st_mode = S_IFLNK | S_IXUSR | S_IXGRP | S_IXOTH;
+            break;
+        case SPIFFS_TYPE_SOFT_LINK:
+            stat->st_mode = S_IFLNK | S_IXUSR | S_IXGRP | S_IXOTH;
+            break;
+    }
+
+    stat->st_mode |= S_IRUSR | S_IRGRP | S_IROTH |
+                     S_IWUSR | S_IWGRP | S_IWOTH;
+
+    return 0;
+}
+
+//
+// SPIFFS::stat()
+//
+int SPIFFS::stat(const char *path, struct stat *stat)
+{
+    spiffs_stat ffs_stat;
+
+    if (!strcmp(path, "") || !strcmp(path, "/"))
+    {
+        // this is the root directory, which cannot be stat
+        ffs_stat.type = SPIFFS_TYPE_DIR;
+        ffs_stat.obj_id = 0;
+        ffs_stat.size = 0;
+    }
+    else
+    {
+        ssize_t result = SPIFFS_stat(&fs_, path, &ffs_stat);
+
+        if (result < 0)
+        {
+            return -errno_translate(result);
+        }
+    }
+
+    memset(stat, 0, sizeof(*stat));
+    stat->st_ino = ffs_stat.obj_id;
+    stat->st_size = ffs_stat.size;
+    switch (ffs_stat.type)
+    {
+        default:
+            break;
+        case SPIFFS_TYPE_FILE:
+            stat->st_mode = S_IFREG;
+            break;
+        case SPIFFS_TYPE_DIR:
+            stat->st_mode = S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;;
+            break;
+        case SPIFFS_TYPE_HARD_LINK:
+            stat->st_mode = S_IFLNK | S_IXUSR | S_IXGRP | S_IXOTH;;
+            break;
+        case SPIFFS_TYPE_SOFT_LINK:
+            stat->st_mode = S_IFLNK | S_IXUSR | S_IXGRP | S_IXOTH;;
+            break;
+    }
+
+    stat->st_mode |= S_IRUSR | S_IRGRP | S_IROTH |
+                     S_IWUSR | S_IWGRP | S_IWOTH;
+
+    return 0;
+}
+
 // SPIFFS::errno_translate()
 //
 int SPIFFS::errno_translate(int spiffs_error)

@@ -381,6 +381,23 @@ ssize_t _write_r(struct _reent *reent, int fd, const void *buf, size_t count)
 
 /** Get the status information of a file or device.
  * @param reent thread safe reentrant structure
+ * @param path file or device name
+ * @param stat structure to fill status info into
+ * @return 0 upon success, -1 upon failure with errno containing the cause
+ */
+int _stat_r(struct _reent *reent, const char *path, struct stat *stat)
+{
+    int result = Device::stat(reent, path, stat);
+    if (result < 0 && errno == ENOENT)
+    {
+        return FileSystem::stat(reent, path, stat);
+    }
+
+    return result;
+}
+
+/** Get the status information of a file or device.
+ * @param reent thread safe reentrant structure
  * @param fd file descriptor to get status of
  * @param stat structure to fill status info into
  * @return 0 upon success, -1 upon failure with errno containing the cause

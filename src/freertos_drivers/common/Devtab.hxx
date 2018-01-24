@@ -313,6 +313,14 @@ public:
      */
     static int close(struct _reent *reent, int fd);
 
+    /** Get the status information of a file or device.
+     * @param reent thread safe reentrant structure
+     * @param path file or device name
+     * @param stat structure to fill status info into
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int stat(struct _reent *reent, const char *path, struct stat *stat);
+
 protected:
     /** Get the status information of a file or device.
      * @param file file reference for this device
@@ -320,6 +328,13 @@ protected:
      * @return 0 upon successor or negative error number upon error.
      */
     virtual int fstat(File* file, struct stat *stat) override;
+
+    /** Get the status information of a file or device.
+     * @param path file or device name
+     * @param stat structure to fill status info into
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    virtual int stat(const char *path, struct stat *stat) = 0;
 
 private:
     /** first device in linked list */
@@ -366,6 +381,14 @@ public:
      */
     static int close(struct _reent *reent, int fd);
 
+    /** Get the status information of a file or device.
+     * @param reent thread save reentrant structure
+     * @param path file or device name
+     * @param stat structure to fill status info into
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int stat(struct _reent *reent, const char *path, struct stat *stat);
+
     /** POSIX select().
      * @param nfds highest numbered file descriptor in any of the three,
      *             sets plus 1
@@ -399,6 +422,14 @@ protected:
         /** bit mask of clients that need woken */
         OSEventType event;
     };
+
+    /** Get the mode of the device.
+     * @return mode of device.
+     */
+    virtual mode_t get_mode()
+    {
+        return 0;
+    }
 
     /** Add client to list of clients needing woken.
      * @param info wakeup event instance
@@ -477,7 +508,6 @@ protected:
      */
     virtual int fstat(File* file, struct stat *stat) override;
 
-protected:
     OSMutex lock_; ///< protects internal structures.
     /// File open mode, such as O_NONBLOCK.
     mode_t mode_;
@@ -485,6 +515,14 @@ protected:
     unsigned int references_; /**< number of open references */
 
 private:
+    /** Get the mode of the device.
+     * @return mode of device.
+     */
+    mode_t get_mode() override
+    {
+        return mode_;
+    }
+
     DISALLOW_COPY_AND_ASSIGN(Node);
 };
 

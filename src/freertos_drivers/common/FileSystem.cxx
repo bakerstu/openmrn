@@ -76,6 +76,40 @@ FileSystem::~FileSystem()
     mutex.unlock();
 }
 
+/** Locate the file system for a given path.
+ * @param path full path to file/directory
+ * @return reference to file system on success, else nullptr
+ */
+FileSystem *FileSystem::fs_lookup(const char *path)
+{
+    for (FileSystem *fs = first; fs != NULL; fs = fs->next)
+    {
+        if (fs->name == nullptr)        
+        {
+            /* mount path has no name, probably not mounted yet */
+            continue;
+        }
+        if (strlen(fs->name) > strlen(path))
+        {
+            /* path less than mount path */
+            continue;
+        }
+        if (strncmp(fs->name, path, strlen(fs->name)))
+        {
+            /* no basename match */
+            continue;
+        }
+        if (path[strlen(fs->name)] != '/' && strcmp(fs->name, path))
+        {
+            /* not a directory break or exact name match*/
+            continue;
+        }
+        return fs;
+    }
+
+    return nullptr;
+}
+
 /** Open a file or device.
  * @param reent thread save reentrant structure
  * @param path file or device name
@@ -94,29 +128,10 @@ int FileSystem::open(struct _reent *reent, const char *path, int flags, int mode
         return -1;
     }
     files[fd].flags = flags;
-    for (FileSystem *fs = first; fs != NULL; fs = fs->next)
-    {
-        if (fs->name == nullptr)        
-        {
-            /* mount path has no name, probably not mounted yet */
-            continue;
-        }
-        if (strlen(fs->name) > strlen(path))
-        {
-            /* path less than mount path */
-            continue;
-        }
-        if (strncmp(fs->name, path, strlen(fs->name)))
-        {
-            /* no basename match */
-            continue;
-        }
-        if (path[strlen(fs->name)] != '/')
-        {
-            /* not a directory break */
-            continue;
-        }
 
+    FileSystem *fs = fs_lookup(path);
+    if (fs)
+    {
         files[fd].dev = fs;
         files[fd].device = false;
         const char *subpath = path + strlen(fs->name) + 1;
@@ -161,6 +176,31 @@ int FileSystem::close(struct _reent *reent, int fd)
     }
     fd_free(fd);
     return 0;
+}
+
+/** Get the status information of a file or device.
+ * @param reent thread save reentrant structure
+ * @param path file or device name
+ * @param stat structure to fill status info into
+ * @return 0 upon success, -1 upon failure with errno containing the cause
+ */
+int FileSystem::stat(struct _reent *reent, const char *path, struct stat *stat)
+{
+    FileSystem *fs = fs_lookup(path);
+    if (fs)
+    {
+        const char *subpath = path + strlen(fs->name) + 1;
+        int result = fs->stat(subpath, stat);
+        if (result < 0)
+        {
+            errno = -result;
+            return -1;
+        }
+        return 0;
+    }
+
+    errno = ENOENT;
+    return -1;
 }
 
 /** Get the status information of a file or device.

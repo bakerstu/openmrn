@@ -208,6 +208,20 @@ private:
     ///         containing the cause
     ssize_t write(File *file, const void *buf, size_t count) override;
 
+    /** Get the status information of a file or device.
+     * @param file file reference for this device
+     * @param stat structure to fill status info into
+     * @return 0 upon successor or negative error number upon error.
+     */
+    int fstat(File* file, struct stat *stat) override;
+
+    /** Get the status information of a file or device.
+     * @param path file or device name
+     * @param stat structure to fill status info into
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    int stat(const char *path, struct stat *stat) override;
+
     /// Translate a SPIFFS specific error number to a standard POSIX errno.
     /// @param spiffs_error SPIFFS specific error number
     /// @return standard POSX errno
