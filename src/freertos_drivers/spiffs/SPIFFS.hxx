@@ -192,6 +192,11 @@ private:
     /// @return 0 upon success, -1 upon failure with errno containing the cause
     int close(File *file) override;
 
+    /// Remove a file.
+    /// @param path file name
+    /// @return 0 upon successor or negative error number upon error.
+    int unlink(const char *path) override;
+
     /// Read from a file or device.
     /// @param file file reference for this device
     /// @param buf location to place read data

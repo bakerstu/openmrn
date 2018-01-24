@@ -165,6 +165,21 @@ int SPIFFS::close(File *file)
 }
 
 //
+// SPIFFS::unlink()
+//
+int SPIFFS::unlink(const char *path)
+{
+    int result = SPIFFS_remove(&fs_, path);
+
+    if (result < 0)
+    {
+        return -errno_translate(result);
+    }
+
+    return 0;
+}
+
+//
 // SPIFFS::read()
 //
 ssize_t SPIFFS::read(File *file, void *buf, size_t count)

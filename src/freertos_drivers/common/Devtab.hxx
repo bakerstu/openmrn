@@ -314,6 +314,13 @@ public:
      */
     static int close(struct _reent *reent, int fd);
 
+    /** Remove a file.
+     * @param reent thread safe reentrant structure
+     * @param path file name
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int unlink(struct _reent *reent, const char *path);
+
     /** Get the status information of a file or device.
      * @param reent thread safe reentrant structure
      * @param path file or device name
@@ -342,6 +349,12 @@ public:
     static struct dirent *readdir(DIR *dirp);
 
 protected:
+    /** Remove a file.
+     * @param path file name
+     * @return 0 upon successor or negative error number upon error.
+     */
+    virtual int unlink(const char *path) = 0;
+
     /** Get the status information of a file or device.
      * @param file file reference for this device
      * @param stat structure to fill status info into

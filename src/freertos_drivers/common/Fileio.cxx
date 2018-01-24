@@ -206,7 +206,6 @@ int FileIO::fstat(struct _reent *reent, int fd, struct stat *stat)
     return result;
 }
 
-
 /** Request and ioctl transaction.
  * @param fd file descriptor
  * @param key ioctl key
@@ -417,6 +416,16 @@ int _fstat_r(struct _reent *reent, int fd, struct stat *stat)
 int _isatty_r(struct _reent *reent, int fd)
 {
     return 1;
+}
+
+/** remove a file.
+ * @param reent thread safe reentrant structure
+ * @param path file name
+ * @return 0 upon success, -1 upon failure with errno containing the cause
+ */
+int _unlink_r(struct _reent *reent, const char *path)
+{
+    return FileSystem::unlink(reent, path);
 }
 
 /** Change the offset index of a file or device.

@@ -178,6 +178,30 @@ int FileSystem::close(struct _reent *reent, int fd)
     return 0;
 }
 
+/** Remove a file.
+ * @param reent thread safe reentrant structure
+ * @param path file name
+ * @return 0 upon success, -1 upon failure with errno containing the cause
+ */
+int FileSystem::unlink(struct _reent *reent, const char *path)
+{
+    FileSystem *fs = fs_lookup(path);
+    if (fs)
+    {
+        const char *subpath = path + strlen(fs->name) + 1;
+        int result = fs->unlink(subpath);
+        if (result < 0)
+        {
+            errno = -result;
+            return -1;
+        }
+        return 0;
+    }
+
+    errno = ENOENT;
+    return -1;
+}
+
 /** Get the status information of a file or device.
  * @param reent thread save reentrant structure
  * @param path file or device name
