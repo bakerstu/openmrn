@@ -51,11 +51,18 @@ struct File
 {
     FileIO *dev; /**< file operations */
     /** Data that the device driver wants to store about this fd. */
-    void *priv;
+    union
+    {
+        void *priv; /**< file reference specific data "pointer" */
+        void *privPtr; /**< file reference specific data "pointer" */
+        unsigned privUint; /**< file reference specific data "unsigned" */
+        int privInt; /**< file reference specific data "int" */
+    };
     off_t offset; /**< current offset within file */
     int flags;    /**< open flags */
     uint8_t inuse  : 1; /**< true if this is an open fd. */
     uint8_t device : 1; /**< true if this is a device, false if file system */
+    uint8_t dir    : 1; /**< true if this is a directory, else false */
 };
 
 /** Base class for both Device and FileSystem objects */
