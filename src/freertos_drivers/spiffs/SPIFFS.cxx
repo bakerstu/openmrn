@@ -135,13 +135,12 @@ int SPIFFS::open(File *file, const char *path, int flags, int mode)
 
     if (fd < 0)
     {
-        errno = errno_translate(fd);
-        return -1;
+        return -errno_translate(fd);
     }
     else
     {
-        /* no error occured */
-        file->priv = (void*)static_cast<intptr_t>(fd);
+        // no error occured
+        file->privInt = fd;
         return 0;
     }
 }
@@ -151,14 +150,13 @@ int SPIFFS::open(File *file, const char *path, int flags, int mode)
 //
 int SPIFFS::close(File *file)
 {
-    spiffs_file fd = (spiffs_file)(intptr_t)(file->priv);
+    spiffs_file fd = file->privInt;
 
     int result = SPIFFS_close(&fs_, fd);
 
     if (result != SPIFFS_OK)
     {
-        errno = errno_translate(result);
-        return -1;
+        return -errno_translate(result);
     }
 
     return 0;
@@ -184,14 +182,13 @@ int SPIFFS::unlink(const char *path)
 //
 ssize_t SPIFFS::read(File *file, void *buf, size_t count)
 {
-    spiffs_file fd = (spiffs_file)(intptr_t)(file->priv);
+    spiffs_file fd = file->privInt;
 
     ssize_t result = SPIFFS_read(&fs_, fd, buf, count);
 
     if (result < 0)
     {
-        errno = errno_translate(result);
-        return -1;
+        return -errno_translate(result);
     }
 
     return result;
@@ -202,14 +199,18 @@ ssize_t SPIFFS::read(File *file, void *buf, size_t count)
 //
 ssize_t SPIFFS::write(File *file, const void *buf, size_t count)
 {
-    spiffs_file fd = (spiffs_file)(intptr_t)(file->priv);
+    spiffs_file fd = file->privInt;
 
     ssize_t result = SPIFFS_write(&fs_, fd, (void*)buf, count);
 
     if (result < 0)
     {
-        errno = errno_translate(result);
-        return -1;
+        return -errno_translate(result);
+    }
+
+    return result;
+}
+
 ///
 // SPIFFS::lseek()
 //
