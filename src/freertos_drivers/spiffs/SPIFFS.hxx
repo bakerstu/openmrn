@@ -234,6 +234,12 @@ private:
      */
     int stat(const char *path, struct stat *stat) override;
 
+    /** Synchronize (flush) a file to disk.
+     * @param file file reference for this device
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    int fsync(File *file) override;
+
     /// Close a directory.
     /// @param file file reference for this device
     /// @return 0 upon success, -1 upon failure with errno containing the cause

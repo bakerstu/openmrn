@@ -238,6 +238,30 @@ int FileSystem::fstat(File* file, struct stat *stat)
     return 0;
 }
 
+/** Synchronize (flush) a file to disk.
+ * @param fd file descriptor to sync
+ * @return 0 upon success, -1 upon failure with errno containing the cause
+ */
+int FileSystem::fsync(int fd)
+{
+    File *file = file_lookup(fd);
+    HASSERT(!file->device);
+
+    if (!file)
+    {
+        errno = EBADF;
+        return -1;
+    }
+
+    int result = static_cast<FileSystem*>(file->dev)->fsync(file);
+    if (result < 0)
+    {
+        errno = -result;
+        return -1;
+    }
+    return result;
+}
+
 /*
  * FileSystem::closedir()
  */

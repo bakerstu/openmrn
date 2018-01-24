@@ -329,6 +329,12 @@ public:
      */
     static int stat(struct _reent *reent, const char *path, struct stat *stat);
 
+    /** Synchronize (flush) a file to disk.
+     * @param fd file descriptor to sync
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    static int fsync(int fd);
+
     /** Close a directory.
      * @param @dirp directory pointer to close
      * @return 0 upon success, -1 upon failure with errno containing the cause
@@ -368,6 +374,12 @@ protected:
      * @return 0 upon success, -1 upon failure with errno containing the cause
      */
     virtual int stat(const char *path, struct stat *stat) = 0;
+
+    /** Synchronize (flush) a file to disk.
+     * @param file file reference for this device
+     * @return 0 upon success, -1 upon failure with errno containing the cause
+     */
+    virtual int fsync(File *file) = 0;
 
     /** Close a directory.
      * @param file file reference for this device

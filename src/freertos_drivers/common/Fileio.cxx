@@ -440,6 +440,15 @@ _off_t _lseek_r(struct _reent *reent, int fd, _off_t offset, int whence)
     return FileIO::lseek(reent, fd, offset, whence);
 }
 
+/** Synchronize (flush) a file to disk.
+ * @param fd file descriptor to synch
+ * @return 0 upon success, -1 upon failure with errno containing the cause
+ */
+int fsync(int fd)
+{
+    return FileSystem::fsync(fd);
+}
+
 /** Request and ioctl transaction.
  * @param fd file descriptor
  * @param key ioctl key

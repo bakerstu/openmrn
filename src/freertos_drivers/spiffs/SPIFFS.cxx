@@ -309,6 +309,21 @@ int SPIFFS::stat(const char *path, struct stat *stat)
 }
 
 //
+// SPIFFS::fsync()
+//
+int SPIFFS::fsync(File *file)
+{
+    spiffs_file fd = file->privInt;
+    int result = SPIFFS_fflush(&fs_, fd);
+    if (result < 0)
+    {
+        return -errno_translate(result);
+    }
+
+    return 0;
+}
+
+//
 // SPIFFS::closedir()
 //
 int SPIFFS::closedir(File *file)
