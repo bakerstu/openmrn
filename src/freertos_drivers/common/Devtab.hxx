@@ -475,7 +475,8 @@ public:
                       fd_set *exceptfds, long long timeout);
 
     /** Clears the current thread's select bits. This is used by ::select and
-     * ::pselect to ensure the necessary atomicity. */
+     * ::pselect to ensure the necessary atomicity.
+     */
     static void select_clear();
 
 protected:
