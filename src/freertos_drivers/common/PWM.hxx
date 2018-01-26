@@ -56,9 +56,10 @@ public:
     virtual uint32_t get_duty() = 0;
 
     /// Sets the duty cycle.
-    /// @param counts duty cycle in percent
+    /// @param counts duty cycle in percent, range 0 to 100
     void set_duty_percent(uint8_t percent)
     {
+        HASSERT(percent <= 100);
         set_duty(((get_period() * percent) + 50) / 100);
     }
 

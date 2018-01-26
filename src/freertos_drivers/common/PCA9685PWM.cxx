@@ -41,10 +41,12 @@ void *PCA9685PWM::entry()
     for ( ; /* forever */ ; )
     {
         sem_.wait();
+        uint16_t dirty_shaddow = dirty_;
+        dirty_ = 0;
 
         for (unsigned i = 0; i < NUM_CHANNELS; ++i)
         {
-            if (dirty_ & (0x1 << i))
+            if (dirty_shaddow & (0x1 << i))
             {
                 write_pwm_duty(i, duty_[i]);
             }

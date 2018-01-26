@@ -48,7 +48,7 @@ public:
     /// maximum number of PWM channels supported by the PCA9685
     static constexpr size_t NUM_CHANNELS = 16;
 
-    /// maximum number of PWM channels supported by the PCA9685
+    /// maximum number of PWM counts supported by the PCA9685
     static constexpr size_t MAX_PWM_COUNTS = 4096;
 
     /// Constructor.
@@ -211,7 +211,8 @@ private:
     /// Bit modify to an I2C register.
     /// @param address address to modify
     /// @param data data to modify
-    /// @param mask mask of data to modify
+    /// @param mask mask of data to modify, bits where mask is 1 will be
+    ///             overwritten, bits where mask is zero will be kept
     void bit_modify(Registers address, uint8_t data, uint8_t mask)
     {
         uint8_t addr = address;
@@ -233,7 +234,7 @@ private:
         };
         
         struct i2c_rdwr_ioctl_data ioctl_data =
-            {.msgs = msgs, .nmsgs = sizeof(msgs)/sizeof(struct i2c_msg)};
+            {.msgs = msgs, .nmsgs = ARRAYSIZE(msgs)};
 
         ::ioctl(i2c_, I2C_RDWR, &ioctl_data);
 
