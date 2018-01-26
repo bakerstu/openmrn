@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Device.cxx
+ * \file FileSystem.cxx
  * This file imlements Device level methods of the device file system.
  *
  * @author Stuart W. Baker
@@ -39,8 +39,6 @@
 FileSystem *FileSystem::first = NULL;
 
 /** Constructor.
- * @param name name of device in file system. Pointer must be valid
- * throughout the entire lifetime.
  */
 FileSystem::FileSystem()
     : FileIO(nullptr)
@@ -89,17 +87,18 @@ FileSystem *FileSystem::fs_lookup(const char *path)
             /* mount path has no name, probably not mounted yet */
             continue;
         }
-        if (strlen(fs->name) > strlen(path))
+        size_t fs_name_len = strlen(fs->name);
+        if (fs_name_len > strlen(path))
         {
             /* path less than mount path */
             continue;
         }
-        if (strncmp(fs->name, path, strlen(fs->name)))
+        if (strncmp(fs->name, path, fs_name_len))
         {
             /* no basename match */
             continue;
         }
-        if (path[strlen(fs->name)] != '/' && strcmp(fs->name, path))
+        if (path[fs_name_len] != '/' && strcmp(fs->name, path))
         {
             /* not a directory break or exact name match*/
             continue;
@@ -130,24 +129,26 @@ int FileSystem::open(struct _reent *reent, const char *path, int flags, int mode
     files[fd].flags = flags;
 
     FileSystem *fs = fs_lookup(path);
-    if (fs)
+
+    if (!fs)
     {
-        files[fd].dev = fs;
-        files[fd].device = false;
-        const char *subpath = path + strlen(fs->name) + 1;
-        int result = files[fd].dev->open(&files[fd], subpath, flags, mode);
-        if (result < 0)
-        {
-            fd_free(fd);
-            errno = -result;
-            return -1;
-        }
-        return fd;
+        // No device found.
+        fd_free(fd);
+        errno = ENODEV;
+        return -1;
     }
-    // No device found.
-    fd_free(fd);
-    errno = ENODEV;
-    return -1;
+
+    files[fd].dev = fs;
+    files[fd].device = false;
+    const char *subpath = path + strlen(fs->name) + 1;
+    int result = files[fd].dev->open(&files[fd], subpath, flags, mode);
+    if (result < 0)
+    {
+        fd_free(fd);
+        errno = -result;
+        return -1;
+    }
+    return fd;
 }
 
 /** Close a file or device.
@@ -186,20 +187,20 @@ int FileSystem::close(struct _reent *reent, int fd)
 int FileSystem::unlink(struct _reent *reent, const char *path)
 {
     FileSystem *fs = fs_lookup(path);
-    if (fs)
+    if (!fs)
     {
-        const char *subpath = path + strlen(fs->name) + 1;
-        int result = fs->unlink(subpath);
-        if (result < 0)
-        {
-            errno = -result;
-            return -1;
-        }
-        return 0;
+        errno = ENOENT;
+        return -1;
     }
 
-    errno = ENOENT;
-    return -1;
+    const char *subpath = path + strlen(fs->name) + 1;
+    int result = fs->unlink(subpath);
+    if (result < 0)
+    {
+        errno = -result;
+        return -1;
+    }
+    return 0;
 }
 
 /** Get the status information of a file or device.
@@ -211,20 +212,20 @@ int FileSystem::unlink(struct _reent *reent, const char *path)
 int FileSystem::stat(struct _reent *reent, const char *path, struct stat *stat)
 {
     FileSystem *fs = fs_lookup(path);
-    if (fs)
+    if (!fs)
     {
-        const char *subpath = path + strlen(fs->name) + 1;
-        int result = fs->stat(subpath, stat);
-        if (result < 0)
-        {
-            errno = -result;
-            return -1;
-        }
-        return 0;
+        errno = ENOENT;
+        return -1;
     }
 
-    errno = ENOENT;
-    return -1;
+    const char *subpath = path + strlen(fs->name) + 1;
+    int result = fs->stat(subpath, stat);
+    if (result < 0)
+    {
+        errno = -result;
+        return -1;
+    }
+    return 0;
 }
 
 /** Get the status information of a file or device.

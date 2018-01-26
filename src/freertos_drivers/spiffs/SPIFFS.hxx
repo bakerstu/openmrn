@@ -89,14 +89,14 @@ public:
         formatted_ = true;
     }
 
-    /// Porovide mutex lock.
+    /// Provide mutex lock.
     /// @param fs reference to the file system instance
     static void extern_lock(struct spiffs_t *fs)
     {
         static_cast<SPIFFS*>(fs->user_data)->lock_.lock();
     }
 
-    /// Porovide mutex unlock.
+    /// Provide mutex unlock.
     /// @param fs reference to the file system instance
     static void extern_unlock(struct spiffs_t *fs)
     {
@@ -226,21 +226,19 @@ private:
     /// @param whence SEEK_SET if to set the file offset to an abosolute position,
     ///               SEEK_CUR if to set the file offset from current position
     ///               SEEK_END if to set the file offset to the end of the file
-    /// @return current offest or negative error number upon error.
+    /// @return current offset or negative error number upon error.
     off_t lseek(File* f, off_t offset, int whence) override;
 
-    /** Get the status information of a file or device.
-     * @param file file reference for this device
-     * @param stat structure to fill status info into
-     * @return 0 upon successor or negative error number upon error.
-     */
+    /// Get the status information of a file or device.
+    /// @param file file reference for this device
+    /// @param stat structure to fill status info into
+    /// @return 0 upon successor or negative error number upon error.
     int fstat(File* file, struct stat *stat) override;
 
-    /** Get the status information of a file or device.
-     * @param path file or device name
-     * @param stat structure to fill status info into
-     * @return 0 upon success, -1 upon failure with errno containing the cause
-     */
+    /// Get the status information of a file or device.
+    /// @param path file or device name
+    /// @param stat structure to fill status info into
+    /// @return 0 upon success, -1 upon failure with errno containing the cause
     int stat(const char *path, struct stat *stat) override;
 
     /** Synchronize (flush) a file to disk.
@@ -254,6 +252,11 @@ private:
     /// @return 0 upon success, -1 upon failure with errno containing the cause
 
     int closedir(File *file) override;
+
+    /// Common post processing for SPIFFS::stat() and SPIFFS::fstat().
+    /// @param stat structure to fill status info into
+    /// @param ff_stat SPIFFS structure to gather info from
+    void stat_post_process(struct stat *stat, spiffs_stat *ffs_stat);
 
     /// Open a directory.
     /// @param file file reference for this device
@@ -304,7 +307,7 @@ private:
     /// memory for cache
     void *cache_;
 
-    /// has the file system been formatted?
+    /// has the file system been formatted since last reboot?
     bool formatted_;
 
     DISALLOW_COPY_AND_ASSIGN(SPIFFS);

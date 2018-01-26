@@ -160,7 +160,6 @@ protected:
 
     /** Close a file or device.
      * @param file file reference for this device
-     * @param fd file descriptor to close
      * @return 0 upon success, -1 upon failure with errno containing the cause
      */
     virtual int close(File *file) = 0;

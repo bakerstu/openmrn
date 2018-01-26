@@ -112,7 +112,7 @@ int FileIO::fd_lookup(File *file)
 }
 
 /** Read from a file or device.
- * @param reent thread save reentrant structure
+ * @param reent thread safe reentrant structure
  * @param fd file descriptor to read
  * @param buf location to place read data
  * @param count number of bytes to read
@@ -248,6 +248,8 @@ int FileIO::fcntl(int fd, int cmd, unsigned long data)
 
     switch (cmd)
     {
+        case F_GETFL:
+            return file->flags;
         case F_SETFL:
             /* on this platform, we ignore O_ASYNC, O_DIRECT, and O_NOATIME */
             data &= (O_APPEND | O_NONBLOCK);
@@ -270,8 +272,6 @@ int FileIO::fcntl(int fd, int cmd, unsigned long data)
             }
             return result;
         }
-        case F_GETFL:
-            return file->flags;
     }
 }
 

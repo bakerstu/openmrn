@@ -47,14 +47,17 @@
 
 extern "C"
 {
-/// Porovide mutex lock.
+/// global error number for the last SPIFFS error
+int globalLastSPIFFSError;
+
+/// Provide mutex lock.
 /// @param fs reference to the file system instance
 void extern_spiffs_lock(struct spiffs_t *fs)
 {
     SPIFFS::extern_lock(fs);
 }
 
-/// Porovide mutex unlock.
+/// Provide mutex unlock.
 /// @param fs reference to the file system instance
 void extern_spiffs_unlock(struct spiffs_t *fs)
 {
@@ -79,7 +82,7 @@ SPIFFS::SPIFFS(size_t physical_address, size_t size_on_disk,
                .phys_erase_block = erase_block_size,
                .log_block_size   = logical_block_size,
                .log_page_size    = logical_page_size})
-    , postFormatHook_(post_format_hook)
+    , postFormatHook_(std::move(post_format_hook))
     , lock_()
     , workBuffer_(new uint8_t[logical_page_size * 2])
     , fdSpaceSize_(max_num_open_descriptors * sizeof(spiffs_fd))
@@ -245,24 +248,14 @@ off_t SPIFFS::lseek(File* file, off_t offset, int whence)
 }
 
 //
-// SPIFFS::fstat()
+// SPIFFS::stat_post_process()
 //
-int SPIFFS::fstat(File* file, struct stat *stat)
+void SPIFFS::stat_post_process(struct stat *stat, spiffs_stat *ffs_stat)
 {
-    spiffs_file fd = file->privInt;
-    spiffs_stat ffs_stat;
-
-    ssize_t result = SPIFFS_fstat(&fs_, fd, &ffs_stat);
-
-    if (result < 0)
-    {
-        return -errno_translate(result);
-    }
-
     memset(stat, 0, sizeof(*stat));
-    stat->st_ino = ffs_stat.obj_id;
-    stat->st_size = ffs_stat.size;
-    switch (ffs_stat.type)
+    stat->st_ino = ffs_stat->obj_id;
+    stat->st_size = ffs_stat->size;
+    switch (ffs_stat->type)
     {
         default:
             break;
@@ -282,6 +275,25 @@ int SPIFFS::fstat(File* file, struct stat *stat)
 
     stat->st_mode |= S_IRUSR | S_IRGRP | S_IROTH |
                      S_IWUSR | S_IWGRP | S_IWOTH;
+
+}
+
+//
+// SPIFFS::fstat()
+//
+int SPIFFS::fstat(File* file, struct stat *stat)
+{
+    spiffs_file fd = file->privInt;
+    spiffs_stat ffs_stat;
+
+    ssize_t result = SPIFFS_fstat(&fs_, fd, &ffs_stat);
+
+    if (result < 0)
+    {
+        return -errno_translate(result);
+    }
+
+    stat_post_process(stat, &ffs_stat);
 
     return 0;
 }
@@ -310,29 +322,7 @@ int SPIFFS::stat(const char *path, struct stat *stat)
         }
     }
 
-    memset(stat, 0, sizeof(*stat));
-    stat->st_ino = ffs_stat.obj_id;
-    stat->st_size = ffs_stat.size;
-    switch (ffs_stat.type)
-    {
-        default:
-            break;
-        case SPIFFS_TYPE_FILE:
-            stat->st_mode = S_IFREG;
-            break;
-        case SPIFFS_TYPE_DIR:
-            stat->st_mode = S_IFDIR | S_IXUSR | S_IXGRP | S_IXOTH;;
-            break;
-        case SPIFFS_TYPE_HARD_LINK:
-            stat->st_mode = S_IFLNK | S_IXUSR | S_IXGRP | S_IXOTH;;
-            break;
-        case SPIFFS_TYPE_SOFT_LINK:
-            stat->st_mode = S_IFLNK | S_IXUSR | S_IXGRP | S_IXOTH;;
-            break;
-    }
-
-    stat->st_mode |= S_IRUSR | S_IRGRP | S_IROTH |
-                     S_IWUSR | S_IWGRP | S_IWOTH;
+    stat_post_process(stat, &ffs_stat);
 
     return 0;
 }
@@ -428,6 +418,8 @@ struct dirent *SPIFFS::readdir(File *file)
 //
 int SPIFFS::errno_translate(int spiffs_error)
 {
+    globalLastSPIFFSError = spiffs_error;
+
     switch (spiffs_error)
     {
         default:

@@ -134,6 +134,7 @@ int32_t CC32x0SFSPIFFS::flash_erase(uint32_t addr, uint32_t size)
 {
     HASSERT(addr >= config_.phys_addr &&
             (addr + size) <= (config_.phys_addr  + config_.phys_size));
+    HASSERT((size % ERASE_PAGE_SIZE) == 0);
 
     while (size)
     {

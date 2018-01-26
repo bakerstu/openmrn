@@ -64,7 +64,7 @@ DIR *opendir(const char *name);
 
 /** Read the next entry in a directory.
  * @param dirp directory pointer to read.
- * @return pointer to a struct dirent representing the next directectory entry
+ * @return pointer to a struct dirent representing the next directory entry
  */
 struct dirent *readdir(DIR *dirp);
 

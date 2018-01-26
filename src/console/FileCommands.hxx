@@ -39,6 +39,9 @@
 #include "console/Console.hxx"
 
 /// Container for all the file system operations.
+/// This class can be used by intantiating an instance of FileCommands and
+/// passing to the constructor a @ref Console instance reference.  The commands
+/// implemented by FileCommands will be added to the @ref Console instance.
 class FileCommands
 {
 public:
@@ -129,9 +132,11 @@ private:
                 }
                 else
                 {
-                    ::write(fd, argv[1], strlen(argv[1]));
+                    ssize_t wr_size = strlen(argv[1]);
+                    ssize_t result = ::write(fd, argv[1], wr_size);
                     close(fd);
-                    return Console::COMMAND_OK;
+                    return result == wr_size ? Console::COMMAND_OK :
+                                               Console::COMMAND_ERROR;
                 }
             }
         }
