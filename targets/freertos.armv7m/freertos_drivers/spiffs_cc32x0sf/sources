@@ -22,7 +22,7 @@ INCLUDES += -I$(SPIFFSPATH)/src \
             -I$(TICC3220SDKPATH)/source/ti/devices/cc32xx \
             -I$(TICC3220SDKPATH)/source/ti/devices/cc32xx/driverlib \
 
-CFLAGS += -DNO_TEST -O0
+CFLAGS += -DNO_TEST
 
-CXXFLAGS += -O0
+CXXFLAGS +=
 
