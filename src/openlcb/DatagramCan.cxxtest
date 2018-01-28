@@ -336,10 +336,10 @@ TEST_F(AsyncRawDatagramTest, MultiFrameIntermixedDst)
     wait();
 }
 
-class MockDatagramHandler : public DatagramHandlerFlow
+class MockDatagramHandler : public DefaultDatagramHandler
 {
 public:
-    MockDatagramHandler() : DatagramHandlerFlow(&g_service)
+    MockDatagramHandler(DatagramService* srv) : DefaultDatagramHandler(srv)
     {
     }
 
@@ -348,13 +348,13 @@ public:
     Action entry() OVERRIDE
     {
         handle_datagram(message()->data());
-        return release_and_exit();
+        return respond_ok(0);
     }
 };
 
 TEST_F(AsyncDatagramTest, DispatchTest)
 {
-    StrictMock<MockDatagramHandler> dg;
+    StrictMock<MockDatagramHandler> dg(&datagram_support_);
     datagram_support_.registry()->insert(nullptr, 0x30, &dg);
     EXPECT_CALL(
         dg, handle_datagram(Pointee(AllOf(
@@ -523,6 +523,34 @@ TEST_F(AsyncDatagramTest, SendByAddressCacheMiss)
     });
 }
 
+TEST_F(AsyncDatagramTest, SendLoopback)
+{
+    StrictMock<MockDatagramHandler> dg(&datagram_support_);
+    datagram_support_.registry()->insert(nullptr, 0x30, &dg);
+    EXPECT_CALL(dg, handle_datagram(Pointee(
+                        AllOf(Field(&IncomingDatagram::src,
+                                  Field(&NodeHandle::id, node_->node_id())),
+                            Field(&IncomingDatagram::dst, node_),
+                            // Field(&IncomingDatagram::payload, NotNull()),
+                            Field(&IncomingDatagram::payload,
+                                  IsBufferValueString("01234567")) //,
+                            ))));
+    wait();
+    
+    DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
+    NodeHandle h{node_->node_id(), 0};
+
+    auto *b = ifCan_->dispatcher()->alloc();
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("01234567"));
+    b->set_done(get_notifiable());
+    c->write_datagram(b);
+    wait();
+    wait_for_notification();
+    // Releases client.
+    datagram_support_.client_allocator()->insert(c);
+}
+
 TEST_F(AsyncDatagramTest, ResponseOKWithCode)
 {
     DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
@@ -557,6 +585,48 @@ TEST_F(AsyncDatagramTest, ResponseOKPendingReply)
     send_packet(":X19A2877CN022A80;"); // Received OK
     wait_for_notification();
     EXPECT_TRUE(c->result() & (DatagramClient::OK_REPLY_PENDING));
+}
+
+TEST_F(AsyncDatagramTest, MultipleDatagramsInterleaved)
+{
+    DatagramClient *c = datagram_support_.client_allocator()->next_blocking();
+    DatagramClient *c2 = datagram_support_.client_allocator()->next_blocking();
+    NodeHandle h{0, 0x77C};
+    clear_expect(true);
+    expect_packet(":X1A77C22AN3031323334353637;");
+    auto *b = ifCan_->dispatcher()->alloc();
+    BarrierNotifiable* bn = get_notifiable();
+    b->set_done(bn);
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("01234567"));
+    c->write_datagram(b);
+
+    wait();
+
+    SyncNotifiable n2;
+    BarrierNotifiable bn2(&n2);
+
+    b = ifCan_->dispatcher()->alloc();
+    b->set_done(&bn2);
+    b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), h,
+                     string_to_buffer("89012345"));
+    c2->write_datagram(b);
+
+    wait();
+    usleep(200);
+    
+    clear_expect(true);
+
+    send_packet_and_expect_response(":X19A2877CN022A00;",
+        ":X1A77C22AN3839303132333435;"); // Received OK, second DG sent.
+    wait();
+    EXPECT_TRUE(bn->is_done());
+    EXPECT_FALSE(bn2.is_done());
+    wait_for_notification();
+
+    send_packet(":X19A2877CN022A00;");
+    wait();
+    EXPECT_TRUE(bn2.is_done());
 }
 
 TEST_F(AsyncDatagramTest, Rejected)
@@ -903,7 +973,7 @@ public:
         {
             DIE("Unexpected notification from the datagram client.");
         }
-        if (!clientFlow_->result() & DatagramClient::OPERATION_SUCCESS)
+        if (!(clientFlow_->result() & DatagramClient::OPERATION_SUCCESS))
         {
             LOG(WARNING, "Error sending response datagram for PingPong: %x",
                 clientFlow_->result());

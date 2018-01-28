@@ -504,6 +504,35 @@ public:
         return &registry_;
     }
 
+    /// Overrides the default send method in orderto decide whether the queue
+    /// the incoming datagram in the server queue or the client queue.
+    void send(DefaultDatagramHandler::message_type *message, unsigned priority = UINT_MAX) override
+    {
+        size_t len = message->data()->payload.size();
+        const uint8_t *bytes = (const uint8_t *)message->data()->payload.data();
+        uint8_t cmd = ((len >= 2) && (client_ != nullptr)) ? bytes[1] : 0;
+        switch (cmd)
+        {
+            case MemoryConfigDefs::COMMAND_WRITE_REPLY:
+            case MemoryConfigDefs::COMMAND_WRITE_FAILED:
+            case MemoryConfigDefs::COMMAND_WRITE_STREAM_REPLY:
+            case MemoryConfigDefs::COMMAND_WRITE_STREAM_FAILED:
+            case MemoryConfigDefs::COMMAND_READ_REPLY:
+            case MemoryConfigDefs::COMMAND_READ_FAILED:
+            case MemoryConfigDefs::COMMAND_OPTIONS_REPLY:
+            case MemoryConfigDefs::COMMAND_INFORMATION_REPLY:
+            case MemoryConfigDefs::COMMAND_LOCK_REPLY:
+            case MemoryConfigDefs::COMMAND_UNIQUE_ID_REPLY:
+            {
+                client_->send(message, priority);
+                return;
+            }
+            default:
+                break;
+        }
+        DatagramHandlerFlow::send(message, priority);
+    }
+
     /// Registers a second handler to forward all the client interactions,
     /// i.e. everythingthat comes back with the RESPONSE bit set.
     void set_client(DatagramHandlerFlow* client) {

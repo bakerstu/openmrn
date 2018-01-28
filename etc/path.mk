@@ -44,6 +44,9 @@ FLOCKPATH:=$(TRYPATH)
 endif
 endif #FLOCKPATH
 
+
+ifndef OPENMRN_EXPLICIT_DEPS_ONLY
+
 ################ tivaware ##################
 ifndef TIVAWAREPATH
 SEARCHPATH := \
@@ -626,6 +629,6 @@ endif
 endif #SXMLCPATH
 
 
-
+endif # ifndef OPENMRN_EXPLICIT_DEPS_ONLY
 endif # if  $(OS)  != Windows_NT
 endif # ifndef OPENMRN_PATH_MK

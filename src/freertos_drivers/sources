@@ -5,6 +5,7 @@ CSRCS +=
 
 CXXSRCS += Fileio.cxx \
            Device.cxx \
+           FileSystem.cxx \
            DeviceBuffer.cxx \
            Node.cxx \
            Null.cxx \
@@ -22,7 +23,8 @@ CXXSRCS += Fileio.cxx \
            DeviceFile.cxx \
            MCP2515Can.cxx \
            MCP23017GPIO.cxx \
-           WifiDefs.cxx
+           WifiDefs.cxx \
+           PCA9685PWM.cxx
 
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
@@ -33,8 +35,9 @@ ifeq ($(TARGET),freertos.armv7m)
 SUBDIRS += mbed_lpc1768 drivers_lpc1768 tivaware lpc_chip_175x_6x \
            stm32cubef103xb stm32cubef303x_28x_58x_98x \
            cc3220sdk net_cc3220 cc3220 cc3220driverlib \
-	   cc32xxsdk net_cc32xx cc32xx \
-	   net_freertos_tcp freertos_tcp 
+           cc32xxsdk net_cc32xx cc32xx \
+           net_freertos_tcp freertos_tcp ti_grlib \
+           spiffs_cc32x0sf
 
 ifdef BUILDTIVAWARE
 SUBDIRS += tivadriverlib tivausblib
@@ -45,7 +48,7 @@ CXXSRCS += c++_operators.cxx
 endif
 
 ifeq ($(TARGET),bare.armv7m)
-SUBDIRS += cc32xxsdk
+SUBDIRS += cc32xxsdk ti_grlib 
 endif
 
 ifeq ($(TARGET),freertos.armv4t)

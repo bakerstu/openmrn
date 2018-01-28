@@ -34,7 +34,12 @@
 #ifndef _CONSOLE_CONSOLE_HXX_
 #define _CONSOLE_CONSOLE_HXX_
 
+#ifndef  _POSIX_SOURCE
+#define  _POSIX_SOURCE
+#endif
+
 #include <cstdio>
+#include <stdio.h>
 
 #include "utils/macros.h"
 #include "executor/Service.hxx"

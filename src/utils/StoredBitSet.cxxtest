@@ -49,7 +49,7 @@ public:
 TEST(ShadowedBitSetSingleTest, size)
 {
     TestBitSet s1(375, 13);
-    EXPECT_EQ(375, s1.size());
+    EXPECT_EQ(375u, s1.size());
     EXPECT_EQ(29, s1.num_cells());
 }
 
@@ -210,20 +210,20 @@ TEST_P(BitSetMultiTest, get_multi_small)
     s_.set_bit(1, false);
     s_.set_bit(2, true);
     s_.set_bit(3, true);
-    EXPECT_EQ(13, s_.get_multi(0, 4));
-    EXPECT_EQ(5, s_.get_multi(0, 3));
-    EXPECT_EQ(1, s_.get_multi(0, 2));
-    EXPECT_EQ(1, s_.get_multi(0, 1));
+    EXPECT_EQ(13u, s_.get_multi(0, 4));
+    EXPECT_EQ(5u, s_.get_multi(0, 3));
+    EXPECT_EQ(1u, s_.get_multi(0, 2));
+    EXPECT_EQ(1u, s_.get_multi(0, 1));
 
-    EXPECT_EQ(0, s_.get_multi(1, 1));
-    EXPECT_EQ(2, s_.get_multi(1, 2));
-    EXPECT_EQ(6, s_.get_multi(1, 3));
-    EXPECT_EQ(6, s_.get_multi(1, 4));
-    EXPECT_EQ(6, s_.get_multi(1, 5));
+    EXPECT_EQ(0u, s_.get_multi(1, 1));
+    EXPECT_EQ(2u, s_.get_multi(1, 2));
+    EXPECT_EQ(6u, s_.get_multi(1, 3));
+    EXPECT_EQ(6u, s_.get_multi(1, 4));
+    EXPECT_EQ(6u, s_.get_multi(1, 5));
 
-    EXPECT_EQ(1, s_.get_multi(2, 1));
-    EXPECT_EQ(3, s_.get_multi(2, 2));
-    EXPECT_EQ(3, s_.get_multi(2, 3));
+    EXPECT_EQ(1u, s_.get_multi(2, 1));
+    EXPECT_EQ(3u, s_.get_multi(2, 2));
+    EXPECT_EQ(3u, s_.get_multi(2, 3));
 }
 
 TEST_P(BitSetMultiTest, set_multi_mask)
@@ -236,10 +236,10 @@ TEST_P(BitSetMultiTest, set_multi_mask)
     {
         ASSERT_FALSE(HasFailure());
         SCOPED_TRACE(i);
-        EXPECT_EQ(0b11111111, s_.get_multi(i - 1, 8));
+        EXPECT_EQ(0b11111111u, s_.get_multi(i - 1, 8));
         s_.set_multi(i, 6, 0b010100);
         expect_all_one(i, 6);
-        EXPECT_EQ(0b10101001, s_.get_multi(i - 1, 8));
+        EXPECT_EQ(0b10101001u, s_.get_multi(i - 1, 8));
         s_.set_multi(i, 6, 0b111111);
         expect_all_one();
     }
@@ -254,12 +254,12 @@ TEST_P(BitSetMultiTest, set_multi_small)
         SCOPED_TRACE(i);
         s_.set_multi(i, 6, 0b110111);
         expect_all_zero(i, 6);
-        EXPECT_EQ(0b110111, s_.get_multi(i, 6));
+        EXPECT_EQ(0b110111u, s_.get_multi(i, 6));
         s_.set_multi(i, 6, 0);
 
         s_.set_multi(i, 6, 0b110111);
         s_.set_multi(i + 1, 4, 0);
-        EXPECT_EQ(0b100001, s_.get_multi(i, 6));
+        EXPECT_EQ(0b100001u, s_.get_multi(i, 6));
 
         s_.set_multi(i, 6, 0);
         expect_all_zero();

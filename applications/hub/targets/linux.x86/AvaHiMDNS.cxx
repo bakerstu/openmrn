@@ -116,6 +116,10 @@ void mdns_publish(const char *name, uint16_t port)
     if (!group)
     {
         group = avahi_entry_group_new(client, entry_group_callback, nullptr);
+        if (!group) {
+            fprintf(stderr, "avahi_entry_group_new() failed: %s\n",
+                avahi_strerror(avahi_client_errno(client)));
+        }
         HASSERT(group);
     }
 

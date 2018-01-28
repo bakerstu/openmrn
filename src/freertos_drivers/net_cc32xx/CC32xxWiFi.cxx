@@ -900,6 +900,8 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             break;
         }
 #if defined (SL_API_V2)
+        case SL_NETAPP_EVENT_IP_COLLISION:
+            break;
         case SL_NETAPP_EVENT_IPV4_LOST:
         {
             ipAddress = 0;
