@@ -44,6 +44,7 @@
 #include "driverlib/sysctl.h"
 
 #include "freertos_drivers/common/MCP23017GPIO.hxx"
+#include "freertos_drivers/common/PCA9685PWM.hxx"
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/PersistentGPIO.hxx"
@@ -89,7 +90,7 @@ extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 400, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 1500, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -115,6 +116,42 @@ MCP23017 the_port(ief,idf, MSEC_TO_NSEC(10));
 MCP23017GPIO the_light(&the_port,0);
 MCP23017GPIO the_button(&the_port,1);
 
+#define PWM
+#ifdef PWM
+PCA9685PWM pca9685pwm;
+PCA9685PWMBit pwmBit0(&pca9685pwm, 0);
+PCA9685PWMBit pwmBit1(&pca9685pwm, 1);
+PCA9685PWMBit pwmBit2(&pca9685pwm, 2);
+PCA9685PWMBit pwmBit3(&pca9685pwm, 3);
+PCA9685PWMBit pwmBit4(&pca9685pwm, 4);
+PCA9685PWMBit pwmBit5(&pca9685pwm, 5);
+PCA9685PWMBit pwmBit6(&pca9685pwm, 6);
+PCA9685PWMBit pwmBit7(&pca9685pwm, 7);
+PCA9685PWMBit pwmBit8(&pca9685pwm, 8);
+PCA9685PWMBit pwmBit9(&pca9685pwm, 9);
+PCA9685PWMBit pwmBit10(&pca9685pwm, 10);
+PCA9685PWMBit pwmBit11(&pca9685pwm, 11);
+PCA9685PWMBit pwmBit12(&pca9685pwm, 12);
+PCA9685PWMBit pwmBit13(&pca9685pwm, 13);
+PCA9685PWMBit pwmBit14(&pca9685pwm, 14);
+PCA9685PWMBit pwmBit15(&pca9685pwm, 15);
+PWMGPO servo0(&pwmBit0, 0xB4, 0x12C);
+PWMGPO servo1(&pwmBit1, 0xB4, 0x12C);
+PWMGPO servo2(&pwmBit2, 0xB4, 0x12C);
+PWMGPO servo3(&pwmBit3, 0xB4, 0x12C);
+PWMGPO servo4(&pwmBit4, 0xB4, 0x12C);
+PWMGPO servo5(&pwmBit5, 0xB4, 0x12C);
+PWMGPO servo6(&pwmBit6, 0xB4, 0x12C);
+PWMGPO servo7(&pwmBit7, 0xB4, 0x12C);
+PWMGPO servo8(&pwmBit8, 0xB4, 0x12C);
+PWMGPO servo9(&pwmBit9, 0xB4, 0x12C);
+PWMGPO servo10(&pwmBit10, 0xB4, 0x12C);
+PWMGPO servo11(&pwmBit11, 0xB4, 0x12C);
+PWMGPO servo12(&pwmBit12, 0xB4, 0x12C);
+PWMGPO servo13(&pwmBit13, 0xB4, 0x12C);
+PWMGPO servo14(&pwmBit14, 0xB4, 0x12C);
+PWMGPO servo15(&pwmBit15, 0xB4, 0x12C);
+#endif
 // These wrappers will save the output pin state to EEPROM.
 constexpr PersistentGpio PinRed(LED_RED_Pin::instance(), 0);
 constexpr PersistentGpio PinGreen(LED_GREEN_Pin::instance(), 1);
@@ -129,6 +166,15 @@ constexpr const Gpio *const kOutputGpio[] = {&PinRed,
                                              &PinBlue,
                                              &the_light};
 
+#ifdef PWM
+constexpr const Gpio *const servoOutputGpio[] =
+{
+    &servo0,  &servo1,  &servo2,  &servo3,
+    &servo4,  &servo5,  &servo6,  &servo7,
+    &servo8,  &servo9,  &servo10, &servo11,
+    &servo12, &servo13, &servo14, &servo15,
+};
+#endif
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The MultiConfiguredConsumer class takes care of most of the
 // complicated setup and operation requirements. We need to give it the virtual
@@ -139,7 +185,10 @@ constexpr const Gpio *const kOutputGpio[] = {&PinRed,
 // to the repetitions in the group in order.
 openlcb::MultiConfiguredConsumer consumers(
     stack.node(), kOutputGpio, ARRAYSIZE(kOutputGpio), cfg.seg().consumers());
-
+#ifdef PWM
+openlcb::MultiConfiguredConsumer servos(stack.node(), servoOutputGpio,
+                        ARRAYSIZE(servoOutputGpio), cfg.seg().servos());
+#endif
 // Similar syntax for the producers.
 openlcb::ConfiguredProducer producer_sw1(
     stack.node(), cfg.seg().producers().entry<0>(), SW1_Pin());
@@ -208,8 +257,16 @@ private:
     } // for
     for( int i=0; i<NUM_OUTPUTS;++i) {
       cfg.seg().consumers().entry(i).event_on().write(fd, (NODE_ID << 16) + 0+(i*2) );
-      cfg.seg().consumers().entry(i).event_off().write(fd, (NODE_ID << 16) + 1+(i*2) );						    
+      cfg.seg().consumers().entry(i).event_off().write(fd, (NODE_ID << 16) + 1+(i*2) );
     } // for
+
+#ifdef PWM
+    for (int i = 0; i < NUM_SERVOS; ++i)
+    {
+        cfg.seg().servos().entry(i).event_on().write(fd, (NODE_ID << 16) + 32 + (i*2));
+        cfg.seg().servos().entry(i).event_off().write(fd, (NODE_ID << 16) + 33 + (i*2));
+    }
+#endif
   } // factory_reset
 } my_updater;
 
@@ -239,7 +296,9 @@ int appl_main(int argc, char *argv[])
     PinBlue.restore();
 
     the_port.init("/dev/i2c1",0x21);
-
+#ifdef PWM
+    pca9685pwm.init("/dev/i2c1", 0x40, 50, -1);
+#endif
     the_light.set_direction(Gpio::Direction::OUTPUT);
     
     //    for ( ; /** forever */ ; )
