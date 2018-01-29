@@ -29,16 +29,19 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 #define NUM_OUTPUTS 4
 #define NUM_INPUTS 3
 
+#define NUM_SERVOS 16
+
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
 /// from their respective hxx file.
 using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
+using AllServos = RepeatedGroup<ConsumerConfig, NUM_SERVOS>;
 using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x184f;
+static constexpr uint16_t CANONICAL_VERSION = 0x1843;
 
 
 /// Defines the main segment in the configuration CDI. This is laid out at
@@ -47,6 +50,7 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
+CDI_GROUP_ENTRY(servos, AllServos, Name("Servo Outputs"));
 CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Output LEDs"));
 CDI_GROUP_ENTRY(producers, AllProducers, Name("Input bottuns"));
 CDI_GROUP_END();
