@@ -557,6 +557,8 @@ void CC32xxWiFi::set_default_state()
         /* auto connection policy */
         sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(1,0,0,0,0),
                          NULL,0); 
+        /* low latency policy */
+        sl_WlanPolicySet(SL_WLAN_POLICY_PM,SL_WLAN_ALWAYS_ON_POLICY, NULL, 0);
     }
 }
 
