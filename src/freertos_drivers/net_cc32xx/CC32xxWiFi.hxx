@@ -193,7 +193,7 @@ public:
                          uint32_t *priority);
 
     /** Test if there are any saved profiles.
-     * @return true if there are no provides saved, else false
+     * @return true if there are no profiles saved, else false
      */
     bool wlan_profile_test_none();
 
