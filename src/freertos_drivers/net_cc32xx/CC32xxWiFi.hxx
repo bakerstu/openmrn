@@ -79,6 +79,16 @@ public:
         SEC_WPA2, /**< WPA2 security mode */
     };
 
+    /** The WLAN power policy.
+     */
+    enum WlanPowerPolicy
+    {
+        WLAN_NORMAL_POLICY,      /**< WLAN power policy normal */
+        WLAN_LOW_LATENCY_POLICY, /**< WLAN power policy low latency */
+        WLAN_LOW_POWER_POLICY,   /**< WLAN power policy low power */
+        WLAN_ALWAYS_ON_POLICY,   /**< WLAN power policy always on */
+    };
+
     /** metadata for a WLAN netowrk entry.
      */
     struct WlanNetworkEntry
@@ -196,6 +206,18 @@ public:
      * @return true if there are no profiles saved, else false
      */
     bool wlan_profile_test_none();
+
+    /** Set the power policy.
+     * @param wpp power policy to set
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_power_policy_set(WlanPowerPolicy wpp);
+
+    /** Get the power policy.
+     * @param wpp power policy to returned
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_power_policy_get(WlanPowerPolicy *wpp);
 
     /** Get a list of available networks.
      * @param entries returns a list of available network entries
