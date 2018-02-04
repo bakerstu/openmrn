@@ -542,6 +542,31 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
 }
 
 /*
+ * CC32xxWiFi::wlan_wps_pbc_initiate()
+ */
+int CC32xxWiFi::wlan_wps_pbc_initiate()
+{
+    SlSecParams_t sec_params;
+    sec_params.Key = (signed char*)"";
+    sec_params.KeyLen = 0;
+    sec_params.Type = SL_WLAN_SEC_TYPE_WPS_PBC;
+
+    int result = sl_WlanConnect((signed char*)"WPS_AP", strlen("WPS_AP"), NULL,
+                                &sec_params, NULL);
+    HASSERT(result >= 0);
+
+    sleep(2);
+
+    for (int i = 0; i < 20 && !wlan_ready(); ++i)
+    {
+        connecting_update_blinker();
+        usleep(100000);
+    }
+
+    return wlan_ready() ? 0 : -1;
+}
+
+/*
  * CC32xxWiFi::wlan_setup_ap()
  */
 void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
