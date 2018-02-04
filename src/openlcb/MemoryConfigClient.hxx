@@ -333,8 +333,6 @@ private:
     BarrierNotifiable bn_;
     /// Next byte to read from the memory space.
     size_t offset_;
-    /// How many bytes are left to read.
-    size_t bytesLeft_;
     /// timing helper
     StateFlowTimer timer_{this};
     /// The data that came back from reading.
