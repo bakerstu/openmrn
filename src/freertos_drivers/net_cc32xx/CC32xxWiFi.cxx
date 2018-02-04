@@ -340,6 +340,88 @@ bool CC32xxWiFi::wlan_profile_test_none()
     return true;
 }
 
+/*
+ * CC32xxWiFi::wlan_power_policy_get()
+ */
+int CC32xxWiFi::wlan_power_policy_get(WlanPowerPolicy *wpp)
+{
+#ifdef SL_API_V2
+    uint8_t sl_wpp = 0;
+    SlWlanPmPolicyParams_t params;
+    int length = sizeof(params);
+
+    int result = sl_WlanPolicyGet(SL_WLAN_POLICY_PM, &sl_wpp, (uint8_t*)&params,
+                                  (uint8_t*)&length);
+
+    if (result != 0)
+    {
+        return -1;
+    }
+
+    switch (sl_wpp)
+    {
+        default:
+            return -1;
+        case SL_WLAN_ALWAYS_ON_POLICY:
+            *wpp = WLAN_ALWAYS_ON_POLICY;
+            break;
+        case SL_WLAN_LOW_LATENCY_POLICY:
+            *wpp = WLAN_LOW_LATENCY_POLICY;
+            break;
+        case SL_WLAN_NORMAL_POLICY:
+            *wpp = WLAN_NORMAL_POLICY;
+            break;
+        case SL_WLAN_LOW_POWER_POLICY:
+            *wpp = WLAN_LOW_POWER_POLICY;
+            break;
+    }
+
+    return 0;
+#else
+    return -1;
+#endif
+}
+
+/*
+ * CC32xxWiFi::wlan_power_policy_set()
+ */
+int CC32xxWiFi::wlan_power_policy_set(WlanPowerPolicy wpp)
+{
+    int result;
+#ifdef SL_API_V2
+    WlanPowerPolicy temp_wpp;
+    result = wlan_power_policy_get(&temp_wpp);
+    if (result != 0)
+    {
+        return -1;
+    }
+
+    if (temp_wpp != wpp)
+#endif
+    {
+        uint8_t sl_wpp;
+        switch (wpp)
+        {
+            default:
+                return -1;
+            case WLAN_ALWAYS_ON_POLICY:
+                sl_wpp = SL_WLAN_ALWAYS_ON_POLICY;
+                break;
+            case WLAN_LOW_LATENCY_POLICY:
+                sl_wpp = SL_WLAN_LOW_LATENCY_POLICY;
+                break;
+            case WLAN_NORMAL_POLICY:
+                sl_wpp = SL_WLAN_NORMAL_POLICY;
+                break;
+            case WLAN_LOW_POWER_POLICY:
+                sl_wpp = SL_WLAN_LOW_POWER_POLICY;
+                break;
+        }
+        result = sl_WlanPolicySet(SL_WLAN_POLICY_PM, sl_wpp, NULL, 0);
+    }
+
+    return (result != 0) ? -1 : 0;
+}
 
 /*
  * CC32xxWiFi::wlan_rescan()
@@ -557,8 +639,6 @@ void CC32xxWiFi::set_default_state()
         /* auto connection policy */
         sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(1,0,0,0,0),
                          NULL,0); 
-        /* low latency policy */
-        sl_WlanPolicySet(SL_WLAN_POLICY_PM,SL_WLAN_ALWAYS_ON_POLICY, NULL, 0);
     }
 }
 
