@@ -117,6 +117,13 @@ TEST_F(MemoryConfigClientTest, readsmallpart)
                      b->data()->payload.size()));
 }
 
+TEST_F(MemoryConfigClientTest, unsolicited)
+{
+    expect_any_packet();
+    send_packet(":1AFF2123N2050112233;");
+    wait();
+}
+
 class MemoryConfigLocalClientTest : public AsyncDatagramTest {
 protected:
     ~MemoryConfigLocalClientTest() {
@@ -143,6 +150,24 @@ TEST_F(MemoryConfigLocalClientTest, readfromlocal)
     EXPECT_EQ(0, b->data()->resultCode);
     ASSERT_EQ(dataContents_.size(), b->data()->payload.size());
     EXPECT_EQ(0, memcmp(&dataContents_[0], b->data()->payload.data(), dataContents_.size()));
+}
+
+TEST_F(MemoryConfigLocalClientTest, readfromlocalspecialspace)
+{
+    // In this test we read from the local node, to test that the
+    // service-client interaction is without any deadlock. We use a special
+    // space number (0xFD to 0xFF) to regression test a bug in the request
+    // routing.
+    memCfg_.registry()->insert(
+        node_, MemoryConfigDefs::SPACE_CONFIG, &srvSpace_);
+
+    expect_any_packet();
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ,
+        NodeHandle(node_->node_id()), MemoryConfigDefs::SPACE_CONFIG);
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_EQ(dataContents_.size(), b->data()->payload.size());
+    EXPECT_EQ(0, memcmp(&dataContents_[0], b->data()->payload.data(),
+                     dataContents_.size()));
 }
 
 } // namespace openlcb

@@ -511,24 +511,27 @@ public:
         size_t len = message->data()->payload.size();
         const uint8_t *bytes = (const uint8_t *)message->data()->payload.data();
         uint8_t cmd = ((len >= 2) && (client_ != nullptr)) ? bytes[1] : 0;
+        bool is_client_command = false;
+        if ((cmd < 0x80) && (cmd & 0x10))
+        {
+            is_client_command = true;
+        }
         switch (cmd)
         {
-            case MemoryConfigDefs::COMMAND_WRITE_REPLY:
-            case MemoryConfigDefs::COMMAND_WRITE_FAILED:
-            case MemoryConfigDefs::COMMAND_WRITE_STREAM_REPLY:
-            case MemoryConfigDefs::COMMAND_WRITE_STREAM_FAILED:
-            case MemoryConfigDefs::COMMAND_READ_REPLY:
-            case MemoryConfigDefs::COMMAND_READ_FAILED:
             case MemoryConfigDefs::COMMAND_OPTIONS_REPLY:
             case MemoryConfigDefs::COMMAND_INFORMATION_REPLY:
             case MemoryConfigDefs::COMMAND_LOCK_REPLY:
             case MemoryConfigDefs::COMMAND_UNIQUE_ID_REPLY:
             {
-                client_->send(message, priority);
-                return;
+                is_client_command = true;
             }
             default:
                 break;
+        }
+        if (is_client_command)
+        {
+            client_->send(message, priority);
+            return;
         }
         DatagramHandlerFlow::send(message, priority);
     }
