@@ -49,6 +49,11 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         READ
     };
 
+    enum ReadPartCmd
+    {
+        READ_PART
+    };
+
     /// Sets up a command to read an entire memory space.
     /// @param ReadCmd polymorphic matching arg; always set to READ.
     /// @param d is the destination node to query
@@ -59,16 +64,39 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         cmd = CMD_READ;
         memory_space = space;
         dst = d;
+        address = 0;
+        size = 0xffffffffu;
+        payload.clear();
+    }
+
+    /// Sets up a command to read a part of a memory space.
+    /// @param ReadPartCmd polymorphic matching arg; always set to READ_PART.
+    /// @param d is the destination node to query
+    /// @param space is the memory space to read out
+    /// @param offset if the address of the first byte to read
+    /// @param size is the number of bytes to read
+    void reset(ReadPartCmd, NodeHandle d, uint8_t space, unsigned offset,
+        unsigned size)
+    {
+        reset_base();
+        cmd = CMD_READ_PART;
+        memory_space = space;
+        dst = d;
+        this->address = offset;
+        this->size = size;
         payload.clear();
     }
 
     enum Command : uint8_t
     {
         CMD_READ,
+        CMD_READ_PART,
         CMD_WRITE
     };
     Command cmd;
     uint8_t memory_space;
+    unsigned address;
+    unsigned size;
     /// Node to send the request to.
     NodeHandle dst;
     string payload;
@@ -90,8 +118,9 @@ private:
         switch (request()->cmd)
         {
         case MemoryConfigClientRequest::CMD_READ:
-                return allocate_and_call(
-                    STATE(do_read), dg_service()->client_allocator());
+        case MemoryConfigClientRequest::CMD_READ_PART:
+            return allocate_and_call(
+                STATE(do_read), dg_service()->client_allocator());
         default: break;
         }
         return return_with_error(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
@@ -100,7 +129,7 @@ private:
     Action do_read()
     {
         dgClient_ = full_allocation_result(dg_service()->client_allocator());
-        offset_ = 0;
+        offset_ = request()->address;
         memoryConfigHandler_->set_client(&responseFlow_);
         return call_immediately(STATE(send_next_read));
     }
@@ -115,9 +144,14 @@ private:
     {
         auto *b = get_allocation_result(dg_service()->iface()->dispatcher());
         b->set_done(bn_.reset(this));
+        unsigned sz = request()->size > 64 ? 64 : request()->size;
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), request()->dst,
             MemoryConfigDefs::read_datagram(
-                             request()->memory_space, offset_, 64));
+                             request()->memory_space, offset_, sz));
+        if (request()->size < 0xffffffffu)
+        {
+            request()->size -= sz;
+        }
         isWaitingForTimer_ = 0;
         responseCode_ = DatagramClient::OPERATION_PENDING;
         dgClient_->write_datagram(b);
@@ -210,7 +244,7 @@ private:
         unsigned dlen = len - ofs;
         request()->payload.append((char *)(bytes + ofs), dlen);
         offset_ += dlen;
-        if (dlen < 64)
+        if ((dlen < 64) || (request()->size == 0))
         {
             return call_immediately(STATE(finish_read));
         }
@@ -299,6 +333,8 @@ private:
     BarrierNotifiable bn_;
     /// Next byte to read from the memory space.
     size_t offset_;
+    /// How many bytes are left to read.
+    size_t bytesLeft_;
     /// timing helper
     StateFlowTimer timer_{this};
     /// The data that came back from reading.

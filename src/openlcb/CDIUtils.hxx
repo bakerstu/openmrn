@@ -435,6 +435,16 @@ public:
             HASSERT(info);
             return address_ + info->offset_from_parent;
         }
+
+        /// Gets the size of a child (number of bytes occupied).
+        unsigned get_child_size(const XMLNode *child) const
+        {
+            HASSERT(child->father == node_);
+            NodeInfo *info;
+            get_userinfo(&info, child);
+            HASSERT(info);
+            return info->size;
+        }
     };
 
 private:
