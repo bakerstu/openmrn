@@ -67,9 +67,9 @@ protected:
                  long long interrupt_lockout_time = 0)
 
         : OSThread()
+        , sem_()
         , interrupt_enable(interrupt_enable)
         , interrupt_disable(interrupt_disable)
-        , sem_()
         , intLockTime_(interrupt_lockout_time)
         , fd_(-1)
         , i2cAddress_(0)
@@ -81,6 +81,9 @@ protected:
     ~MCP23017Base()
     {
     }
+
+    /** semaphore for notifying the thread from an ISR */
+    OSSem sem_;
 
 private:
     /** I2C registers. */
@@ -203,9 +206,6 @@ private:
      * @param index chip index to access
      */
     uint8_t reg_read(Registers reg, uint8_t index);
-
-    /** semaphore for notifying the thread from an ISR */
-    OSSem sem_;
 
     /** time to lockout interrupts for debounce */
     long long intLockTime_;
