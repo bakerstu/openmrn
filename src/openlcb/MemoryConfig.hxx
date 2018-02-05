@@ -156,9 +156,11 @@ struct MemoryConfigDefs {
         return space > SPACE_SPECIAL;
     }
 
-    static DatagramPayload write_datagram(uint8_t space, uint32_t offset) {
+    static DatagramPayload write_datagram(
+        uint8_t space, uint32_t offset, const string &data = "")
+    {
         DatagramPayload p;
-        p.reserve(7);
+        p.reserve(7 + data.size());
         p.push_back(DatagramDefs::CONFIGURATION);
         p.push_back(COMMAND_WRITE);
         p.push_back(0xff & (offset >> 24));
@@ -170,6 +172,7 @@ struct MemoryConfigDefs {
         } else {
             p.push_back(space);
         }
+        p += data;
         return p;
     }
 
@@ -528,6 +531,8 @@ public:
             default:
                 break;
         }
+        LOG(VERBOSE, "MemoryConfig incoming cmd 0x%02x is_client %d", cmd,
+            is_client_command);
         if (is_client_command)
         {
             client_->send(message, priority);
