@@ -261,7 +261,7 @@ struct DccHwDefs {
   using RAILCOM_UARTPIN = ::RAILCOM_CH1_Pin;
 };
 
-extern MCP23017 the_port;
+extern MCP23017<1> the_port;
 
 static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline", &railcom_driver);
 

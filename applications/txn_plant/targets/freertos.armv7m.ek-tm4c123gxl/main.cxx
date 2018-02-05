@@ -112,7 +112,7 @@ void idf()
   GPIOIntDisable(GPIO_PORTA_BASE, GPIO_PIN_5);
 }
 
-MCP23017 the_port(ief,idf, MSEC_TO_NSEC(10));
+MCP23017<1> the_port(ief,idf, MSEC_TO_NSEC(10));
 MCP23017GPIO the_light(&the_port,0);
 MCP23017GPIO the_button(&the_port,1);
 
@@ -301,13 +301,13 @@ int appl_main(int argc, char *argv[])
 #endif
     the_light.set_direction(Gpio::Direction::OUTPUT);
     
-    //    for ( ; /** forever */ ; )
-    //    {
-    //the_light.clr();
-      //      usleep(100000);
-      //      the_light.clr();
-      //      usleep(200000);
-      //    }
+        for ( ; /** forever */ ; )
+        {
+            the_light.set();
+            usleep(1000000);
+            the_light.clr();
+            usleep(2000000);
+          }
     
     // The necessary physical ports must be added to the stack.
     //
