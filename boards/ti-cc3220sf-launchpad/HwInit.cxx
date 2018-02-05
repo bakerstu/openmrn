@@ -183,13 +183,17 @@ void hw_preinit(void)
      */
     MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
+    MAP_PinTypeGPIO(PIN_03, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
-    MAP_PinTypeSPI(PIN_05, PIN_MODE_7);
-    MAP_PinTypeSPI(PIN_06, PIN_MODE_7);
-    MAP_PinTypeSPI(PIN_07, PIN_MODE_7);
+    MAP_PinTypeGPIO(PIN_05, PIN_MODE_0, false);
+    MAP_PinTypeGPIO(PIN_06, PIN_MODE_0, false);
+    //MAP_PinTypeSPI(PIN_05, PIN_MODE_7);
+    //MAP_PinTypeSPI(PIN_06, PIN_MODE_7);
+    //MAP_PinTypeSPI(PIN_07, PIN_MODE_7);
     MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
     MAP_PinTypeUART(PIN_55, PIN_MODE_3);
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
+    MAP_PinTypeGPIO(PIN_63, PIN_MODE_0, false);
     MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
     GpioInit::hw_init();
 
