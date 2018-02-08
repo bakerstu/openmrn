@@ -155,13 +155,17 @@ struct MemoryConfigDefs {
         ERROR_WRITE_TO_RO = Defs::ERROR_INVALID_ARGS | 0x0003,
     };
 
+    static constexpr unsigned MAX_DATAGRAM_RW_BYTES = 64;
+
     static bool is_special_space(uint8_t space) {
         return space > SPACE_SPECIAL;
     }
 
-    static DatagramPayload write_datagram(uint8_t space, uint32_t offset) {
+    static DatagramPayload write_datagram(
+        uint8_t space, uint32_t offset, const string &data = "")
+    {
         DatagramPayload p;
-        p.reserve(7);
+        p.reserve(7 + data.size());
         p.push_back(DatagramDefs::CONFIGURATION);
         p.push_back(COMMAND_WRITE);
         p.push_back(0xff & (offset >> 24));
@@ -173,6 +177,7 @@ struct MemoryConfigDefs {
         } else {
             p.push_back(space);
         }
+        p += data;
         return p;
     }
 
@@ -195,7 +200,77 @@ struct MemoryConfigDefs {
         p.push_back(length);
         return p;
     }
-    
+
+    /// @return true if the payload has minimum number of bytes you need in a
+    /// read or write datagram message to cover for the necessary fields
+    /// (command, offset, space).
+    /// @param payload is a datagram (read or write, request or response)
+    /// @param extra is the needed bytes after address and space, usually 0 for
+    /// write and 1 for read.
+    static bool payload_min_length_check(
+        const DatagramPayload &payload, unsigned extra)
+    {
+        auto *bytes = payload_bytes(payload);
+        size_t sz = payload.size();
+        if (sz < 6 + extra)
+        {
+            return false;
+        }
+        if (((bytes[1] & COMMAND_FLAG_MASK) == 0) && (sz < 7 + extra))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    /// @return addressed memory space number.
+    /// @param payload is a read or write datagram request or response message
+    static uint8_t get_space(const DatagramPayload &payload)
+    {
+        auto *bytes = payload_bytes(payload);
+        if (bytes[1] & COMMAND_FLAG_MASK)
+        {
+            return COMMAND_MASK + (bytes[1] & COMMAND_FLAG_MASK);
+        }
+        return bytes[6];
+    }
+
+    static unsigned get_payload_offset(const DatagramPayload &payload)
+    {
+        auto *bytes = payload_bytes(payload);
+        if (bytes[1] & COMMAND_FLAG_MASK)
+        {
+            return 6;
+        }
+        else
+        {
+            return 7;
+        }
+    }
+
+    /// @param payload is a datagram read or write request or response
+    /// @return the address field from the datagram
+    static uint32_t get_address(const DatagramPayload &payload)
+    {
+        auto *bytes = payload_bytes(payload);
+        uint32_t a = bytes[2];
+        a <<= 8;
+        a |= bytes[3];
+        a <<= 8;
+        a |= bytes[4];
+        a <<= 8;
+        a |= bytes[5];
+        return a;
+    }
+
+    /// Type casts a DatagramPayload to an array of bytes.
+    /// @param payload datagram
+    /// @return byte array pointing to the same memory
+    static const uint8_t *payload_bytes(const DatagramPayload &payload)
+    {
+        return (uint8_t *)payload.data();
+    }
+
 private:
     /** Do not instantiate this class. */
     MemoryConfigDefs();
@@ -535,6 +610,8 @@ public:
             default:
                 break;
         }
+        LOG(VERBOSE, "MemoryConfig incoming cmd 0x%02x is_client %d", cmd,
+            is_client_command);
         if (is_client_command)
         {
             client_->send(message, priority);

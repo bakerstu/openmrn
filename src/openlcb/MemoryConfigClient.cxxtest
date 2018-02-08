@@ -117,6 +117,44 @@ TEST_F(MemoryConfigClientTest, readsmallpart)
                      b->data()->payload.size()));
 }
 
+// Tests using the MemoryConfigClient to write a payload of more than one
+// datagram.
+TEST_F(MemoryConfigClientTest, writelarge)
+{
+    expect_any_packet();
+    string test_payload;
+    for (int i = 56; i < 56 + 75; ++i)
+    {
+        test_payload.push_back(i);
+    }
+    EXPECT_NE(0,
+        memcmp(&dataContents_[34], test_payload.data(), test_payload.size()));
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(TEST_NODE_ID), 0x51, 34, test_payload);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0,
+        memcmp(&dataContents_[34], test_payload.data(), test_payload.size()));
+}
+
+// Tests using the MemoryConfigClient to write a payload that fits into one
+// datagram.
+TEST_F(MemoryConfigClientTest, writesmall)
+{
+    expect_any_packet();
+    string test_payload;
+    for (int i = 56; i < 56 + 13; ++i)
+    {
+        test_payload.push_back(i);
+    }
+    EXPECT_NE(0,
+        memcmp(&dataContents_[34], test_payload.data(), test_payload.size()));
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(TEST_NODE_ID), 0x51, 34, test_payload);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0,
+        memcmp(&dataContents_[34], test_payload.data(), test_payload.size()));
+}
+
 TEST_F(MemoryConfigClientTest, unsolicited)
 {
     expect_any_packet();
