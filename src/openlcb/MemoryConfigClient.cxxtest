@@ -117,6 +117,8 @@ TEST_F(MemoryConfigClientTest, readsmallpart)
                      b->data()->payload.size()));
 }
 
+// Tests using the MemoryConfigClient to write a payload of more than one
+// datagram.
 TEST_F(MemoryConfigClientTest, writelarge)
 {
     expect_any_packet();
@@ -134,6 +136,8 @@ TEST_F(MemoryConfigClientTest, writelarge)
         memcmp(&dataContents_[34], test_payload.data(), test_payload.size()));
 }
 
+// Tests using the MemoryConfigClient to write a payload that fits into one
+// datagram.
 TEST_F(MemoryConfigClientTest, writesmall)
 {
     expect_any_packet();

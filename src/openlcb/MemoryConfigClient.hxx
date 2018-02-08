@@ -210,48 +210,28 @@ private:
             return handle_read_error(Defs::OPENMRN_TIMEOUT);
         }
         size_t len = responsePayload_.size();
-        uint8_t *bytes = (uint8_t *)responsePayload_.data();
-        if (len < 6)
+        const uint8_t *bytes =
+            MemoryConfigDefs::payload_bytes(responsePayload_);
+        if (!MemoryConfigDefs::payload_min_length_check(responsePayload_, 0))
         {
             LOG(INFO, "Memory Config client: response datagram payload not "
                       "long enough");
             return handle_read_error(
                 Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
         }
-        unsigned ofs;
-        unsigned a = bytes[2];
-        a <<= 8;
-        a |= bytes[3];
-        a <<= 8;
-        a |= bytes[4];
-        a <<= 8;
-        a |= bytes[5];
-        uint8_t space = 0;
-        uint8_t cmd = bytes[1];
-        if (a != offset_)
+        unsigned ofs = MemoryConfigDefs::get_payload_offset(responsePayload_);
+        unsigned address = MemoryConfigDefs::get_address(responsePayload_);
+        uint8_t space = MemoryConfigDefs::get_space(responsePayload_);
+        uint8_t cmd = bytes[1] & MemoryConfigDefs::COMMAND_MASK;
+        if (address != offset_)
         {
             return handle_read_error(Defs::ERROR_OUT_OF_ORDER);
-        }
-        if (cmd & 3)
-        {
-            ofs = 6;
-            space = 0xFC | (cmd & 3);
-        }
-        else
-        {
-            ofs = 7;
-            if (len < 7)
-            {
-                return handle_read_error(
-                    Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
-            }
-            space = bytes[6];
         }
         if (space != request()->memory_space)
         {
             return handle_read_error(Defs::ERROR_OUT_OF_ORDER);
         }
-        if ((cmd & ~3) == MemoryConfigDefs::COMMAND_READ_FAILED)
+        if (cmd == MemoryConfigDefs::COMMAND_READ_FAILED)
         {
             if (len < ofs + 2)
             {
@@ -263,7 +243,7 @@ private:
             error |= bytes[ofs];
             return handle_read_error(error);
         }
-        if ((cmd & ~3) != MemoryConfigDefs::COMMAND_READ_REPLY)
+        if (cmd != MemoryConfigDefs::COMMAND_READ_REPLY)
         {
             return handle_read_error(Defs::ERROR_UNIMPLEMENTED);
         }
@@ -317,8 +297,10 @@ private:
         auto *b = get_allocation_result(dg_service()->iface()->dispatcher());
         b->set_done(bn_.reset(this));
         unsigned sz = request()->payload.size() - payloadOffset_;
-        if (sz > 64)
-            sz = 64;
+        if (sz > MemoryConfigDefs::MAX_DATAGRAM_RW_BYTES)
+        {
+            sz = MemoryConfigDefs::MAX_DATAGRAM_RW_BYTES;
+        }
         writeLength_ = sz;
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), request()->dst,
             MemoryConfigDefs::write_datagram(request()->memory_space, offset_,
@@ -355,48 +337,28 @@ private:
             return handle_write_error(Defs::OPENMRN_TIMEOUT);
         }
         size_t len = responsePayload_.size();
-        uint8_t *bytes = (uint8_t *)responsePayload_.data();
-        if (len < 6)
+        const uint8_t *bytes =
+            MemoryConfigDefs::payload_bytes(responsePayload_);
+        if (!MemoryConfigDefs::payload_min_length_check(responsePayload_, 0))
         {
             LOG(INFO, "Memory Config client: response datagram payload not "
                       "long enough");
             return handle_write_error(
                 Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
         }
-        unsigned ofs;
-        unsigned a = bytes[2];
-        a <<= 8;
-        a |= bytes[3];
-        a <<= 8;
-        a |= bytes[4];
-        a <<= 8;
-        a |= bytes[5];
-        uint8_t space = 0;
-        uint8_t cmd = bytes[1];
-        if (a != offset_)
+        unsigned ofs = MemoryConfigDefs::get_payload_offset(responsePayload_);
+        unsigned address = MemoryConfigDefs::get_address(responsePayload_);
+        uint8_t space = MemoryConfigDefs::get_space(responsePayload_);
+        uint8_t cmd = bytes[1] & MemoryConfigDefs::COMMAND_MASK;
+        if (address != offset_)
         {
             return handle_write_error(Defs::ERROR_OUT_OF_ORDER);
-        }
-        if (cmd & 3)
-        {
-            ofs = 6;
-            space = 0xFC | (cmd & 3);
-        }
-        else
-        {
-            ofs = 7;
-            if (len < 7)
-            {
-                return handle_write_error(
-                    Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
-            }
-            space = bytes[6];
         }
         if (space != request()->memory_space)
         {
             return handle_write_error(Defs::ERROR_OUT_OF_ORDER);
         }
-        if ((cmd & ~3) == MemoryConfigDefs::COMMAND_WRITE_FAILED)
+        if (cmd == MemoryConfigDefs::COMMAND_WRITE_FAILED)
         {
             if (len < ofs + 2)
             {
@@ -408,7 +370,7 @@ private:
             error |= bytes[ofs];
             return handle_write_error(error);
         }
-        if ((cmd & ~3) != MemoryConfigDefs::COMMAND_WRITE_REPLY)
+        if (cmd != MemoryConfigDefs::COMMAND_WRITE_REPLY)
         {
             return handle_write_error(Defs::ERROR_UNIMPLEMENTED);
         }
