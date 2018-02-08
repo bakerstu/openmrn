@@ -120,6 +120,8 @@ TEST_F(MemoryConfigClientTest, readsmallpart)
 TEST_F(MemoryConfigClientTest, unsolicited)
 {
     expect_any_packet();
+    // Tests that we don't crash if no client is registered and an unsolicited
+    // response packet shows up.
     send_packet(":1AFF2123N2050112233;");
     wait();
 }
@@ -157,7 +159,8 @@ TEST_F(MemoryConfigLocalClientTest, readfromlocalspecialspace)
     // In this test we read from the local node, to test that the
     // service-client interaction is without any deadlock. We use a special
     // space number (0xFD to 0xFF) to regression test a bug in the request
-    // routing.
+    // routing. The bug was that responses for those space numbers were not
+    // routed to the client.
     memCfg_.registry()->insert(
         node_, MemoryConfigDefs::SPACE_CONFIG, &srvSpace_);
 
