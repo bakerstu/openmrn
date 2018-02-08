@@ -64,6 +64,8 @@ struct MemoryConfigDefs {
         COMMAND_MASK              = 0xFC,
         COMMAND_FLAG_MASK         = 0x03, /**< mask for special memory space flags */
         COMMAND_PRESENT_MASK      = 0x01, /**< mask for address space present bit */
+        COMMAND_REPLY_BIT_FOR_RW  = 0x10, /**< This bit is present in REPLY commands for read-write commands. */
+
         COMMAND_WRITE             = 0x00, /**< command to write data to address space */
         COMMAND_WRITE_UNDER_MASK  = 0x08, /**< command to write data under mask */
         COMMAND_WRITE_REPLY       = 0x10, /**< reply to write data to address space */
@@ -75,6 +77,7 @@ struct MemoryConfigDefs {
         COMMAND_READ_REPLY        = 0x50, /**< reply to read data from address space */
         COMMAND_READ_FAILED       = 0x58, /**< failed to read data from address space */
         COMMAND_READ_STREAM       = 0x60, /**< command to read data using a stream */
+        COMMAND_MAX_FOR_RW        = 0x80, /**< command <= this value have fixed bit arrangement. */
         COMMAND_OPTIONS           = 0x80,
         COMMAND_OPTIONS_REPLY     = 0x82,
         COMMAND_INFORMATION       = 0x84,
@@ -511,24 +514,31 @@ public:
         size_t len = message->data()->payload.size();
         const uint8_t *bytes = (const uint8_t *)message->data()->payload.data();
         uint8_t cmd = ((len >= 2) && (client_ != nullptr)) ? bytes[1] : 0;
+        bool is_client_command = false;
+        // To recognize replies for read & write commands, we need to look at a
+        // bit.
+        if ((cmd < MemoryConfigDefs::COMMAND_MAX_FOR_RW) &&
+            (cmd & MemoryConfigDefs::COMMAND_REPLY_BIT_FOR_RW))
+        {
+            is_client_command = true;
+        }
+        // For the rest of the commands we can enumerate which are replies.
         switch (cmd)
         {
-            case MemoryConfigDefs::COMMAND_WRITE_REPLY:
-            case MemoryConfigDefs::COMMAND_WRITE_FAILED:
-            case MemoryConfigDefs::COMMAND_WRITE_STREAM_REPLY:
-            case MemoryConfigDefs::COMMAND_WRITE_STREAM_FAILED:
-            case MemoryConfigDefs::COMMAND_READ_REPLY:
-            case MemoryConfigDefs::COMMAND_READ_FAILED:
             case MemoryConfigDefs::COMMAND_OPTIONS_REPLY:
             case MemoryConfigDefs::COMMAND_INFORMATION_REPLY:
             case MemoryConfigDefs::COMMAND_LOCK_REPLY:
             case MemoryConfigDefs::COMMAND_UNIQUE_ID_REPLY:
             {
-                client_->send(message, priority);
-                return;
+                is_client_command = true;
             }
             default:
                 break;
+        }
+        if (is_client_command)
+        {
+            client_->send(message, priority);
+            return;
         }
         DatagramHandlerFlow::send(message, priority);
     }
