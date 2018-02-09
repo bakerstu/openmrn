@@ -118,7 +118,64 @@ public:
         return n->text;
     }
 
-    /// Clears out al luserinfo structure pointers. This is necessary to use
+    /// Finds the min value of the xml integer, if there isn't one it returns
+    /// a null pointer
+    /// @param "node" is a CDI element (segment, group, or config element).
+    /// @param "found" will be set to true if there was a minimum found, false if 
+    /// the XML did not contain the respective tag.
+    /// @return contents of the <min> tag, unspecified if !found. 
+    static int find_node_min(const XMLNode *node, bool* found)
+    {
+        auto *n = find_child_or_null(node, "min");
+        // if there is no min defined set bool to false, return any value
+        if (n == nullptr || n->text == nullptr){
+            *found = false;
+            return 0;//there is no defined min
+        }
+        // if the min was found set the bool to true and return the min
+        *found = true;
+        return atoi(n->text); //convert to int and return min value
+    }
+
+    /// Finds the max value of the xml integer, if there isn't one it returns
+    /// a null pointer
+    /// @param "node" is a CDI element (segment, group, or config element).
+    /// @param "found" will be set to true if there was a maximum found, false if 
+    /// the XML did not contain the respective tag.
+    /// @return contents of the <max> tag, unspecified if !found. 
+    static int find_node_max(const XMLNode *node, bool* found)
+    {
+        auto *n = find_child_or_null(node, "max");
+        // if there is no max defined set bool to false, return any value
+        if (n == nullptr || n->text == nullptr){
+            *found = false;
+            return 0;//there is no defined max
+        }
+        // if the max was found set the bool to true and return the max
+        *found = true;
+        return atoi(n->text); //convert to int and return max value
+    }
+
+    /// Finds the default value of the xml integer, if there isn't one it returns
+    /// a null pointer
+    /// @param "node" is a CDI element (segment, group, or config element).
+    /// @param "found" will be set to true if there was a defaultimum found, false if 
+    /// the XML did not contain the respective tag.
+    /// @return contents of the <default> tag, unspecified if !found. 
+    static int find_node_default(const XMLNode *node, bool* found)
+    {
+        auto *n = find_child_or_null(node, "default");
+        // if there is no default defined set bool to false, return any value
+        if (n == nullptr || n->text == nullptr){
+            *found = false;
+            return 0;//there is no defined default
+        }
+        // if the default was found set the bool to true and return the default
+        *found = true;
+        return atoi(n->text); //convert to int and return default value
+    }
+    
+    /// Clears out all user info structure pointers. This is necessary to use
     /// the new_userinfo call below. Call this after the XML has been
     /// successfully parsed.
     /// @param doc document to prepare up.
