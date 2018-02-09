@@ -383,17 +383,20 @@ public:
             address_ = info->offset_from_parent;
         }
 
-        /// Initializes a group rep which has no replication.
+        /// Initializes a group rep which has no replication or an entry rep.
         /// @param parent is the Node representation of the parent group or
         /// segment.
-        /// @param group is the XML element for the current (child) group. it
-        /// must have no replication.
-        CDINodeRep(const CDINodeRep *parent, const XMLNode *group)
+        /// @param child is the XML element for the current (child). If it is a
+        /// group, it must have no replication.
+        CDINodeRep(const CDINodeRep *parent, const XMLNode *child)
         {
-            HASSERT(group->father == parent->node_);
-            node_ = group;
-            HASSERT(get_replication(group) == 1);
-            address_ = parent->get_child_address(group);
+            HASSERT(child->father == parent->node_);
+            node_ = child;
+            if (strcmp(child->tag, "group") == 0)
+            {
+                HASSERT(get_replication(child) == 1);
+            }
+            address_ = parent->get_child_address(child);
         }
 
         /// Initializes a group rep for a given replica.
