@@ -61,6 +61,27 @@ public:
     /// averaged over the past short amount of time.
     uint8_t get_load();
 
+    /// Return the maximum consecutive count that busy was measured, clipped to
+    /// 255.
+    uint8_t get_max_consecutive() {
+        return maxConsecutive_;
+    }
+
+    /// Reset the maximum consecutive busy count.
+    void clear_max_consecutive() {
+        maxConsecutive_ = 0;
+    }
+
+    /// Returns the peak count over 16 ticks.
+    uint8_t get_peak_over_16_counts() {
+        return peakOver16Counts_;
+    }
+
+    /// Reset the peak count over 16 ticks.
+    void clear_peak_over_16_counts() {
+        peakOver16Counts_ = 0;
+    }
+    
 private:
     friend void cpuload_tick(void);
     /// Adds a value to the rolling average.
@@ -71,6 +92,15 @@ private:
     /// point format, the top 8 bits are always 0 to allow overflow-less
     /// multiplication. 0x01000000 would be 1.0, 0x00ffffff is 0.99999...
     uint32_t avg_{0};
+
+    /// Streak of busy ticks.
+    uint8_t consecutive_{0};
+    /// Longest streak we've seen.
+    uint8_t maxConsecutive_{0};
+    /// Rolling window of the last 16 counts.
+    uint16_t last16Bits_{0};
+    /// Largest value we've seen of how busy we were over 16 counts.
+    uint8_t peakOver16Counts_{0};
 };
 
 #endif // _OS_CPULOAD_HXX_
