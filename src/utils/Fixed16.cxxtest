@@ -129,6 +129,19 @@ TEST(Fixed16Test, Arithmetics)
     EXPECT_THAT(v1.to_float(), FloatNear(16.5, 1e-5));
 }
 
+TEST(Fixed16Test, Division)
+{
+    Fixed16 v1(256);
+    v1 /= 3579;
+    EXPECT_EQ(4687, v1.frac());
+
+    Fixed16 multiplier = 256;
+    Fixed16 diff = ((233<<4) - (2<<4));
+    multiplier /= diff;
+    EXPECT_EQ(4539, multiplier.frac());
+    EXPECT_EQ(0, multiplier.trunc());
+}
+
 TEST(Fixed16Test, Sign)
 {
     Fixed16 v1(13);

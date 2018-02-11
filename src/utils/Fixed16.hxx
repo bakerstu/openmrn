@@ -42,21 +42,10 @@
 class Fixed16
 {
 public:
-    Fixed16(int16_t integer, uint16_t frac = 0)
+    constexpr Fixed16(int16_t integer, uint16_t frac = 0)
+        : value_(((integer < 0 ? -integer : integer) << 16) | frac)
+        , sign_(integer < 0 ? 1 : 0)
     {
-        value_ = 0;
-        if (integer < 0)
-        {
-            sign_ = 1;
-            integer = -integer;
-        }
-        else
-        {
-            sign_ = 0;
-        }
-        uint32_t v = integer & 0x7fff;
-        v <<= 16;
-        value_ |= v | frac;
     }
 
     Fixed16(const Fixed16 &o) = default;
@@ -107,10 +96,10 @@ public:
 
     Fixed16 &operator/=(Fixed16 o)
     {
-        uint32_t rec = UINT32_C(0x80000000) / o.value_;
-        uint64_t v = rec;
-        v *= value_;
-        v >>= 15;
+        uint64_t v = value_;
+        v <<= 32;
+        v /= o.value_;
+        v >>= 16;
         value_ = v;
         sign_ ^= o.sign_;
         return *this;
@@ -208,7 +197,7 @@ private:
         }
     }
 
-    /// Overwritesthe current value from a signed fixed-point 32-bit integer.
+    /// Overwrites the current value from a signed fixed-point 32-bit integer.
     void from_int(int32_t v) {
         if (v<0) {
             sign_ = 1;
