@@ -42,6 +42,7 @@
 #include <avahi-common/error.h>
 
 #include "utils/macros.h"
+#include "openlcb/TcpDefs.hxx"
 
 static AvahiEntryGroup *group = nullptr;
 static AvahiSimplePoll *simplePoll = nullptr;
@@ -126,10 +127,9 @@ void mdns_publish(const char *name, uint16_t port)
     char r[128];
 
     int result = avahi_entry_group_add_service(group, AVAHI_IF_UNSPEC,
-                                               AVAHI_PROTO_UNSPEC,
-                                               (AvahiPublishFlags)0, name,
-                                               "_openlcb._tcp", NULL, NULL,
-                                               port, "test=blah", r, NULL);
+        AVAHI_PROTO_UNSPEC, (AvahiPublishFlags)0, name,
+        openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN, NULL, NULL, port,
+        "platform=linux-x86-openmrn", r, NULL);
 
     if (result != 0)
     {
