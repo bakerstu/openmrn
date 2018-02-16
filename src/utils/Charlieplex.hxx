@@ -72,6 +72,46 @@ const uint8_t CharlieplexHelper<3>::pinlist[] = {
     2, 0, //
 };
 
+/// Helper structure for the charlieplexing implementation.
+template <> struct CharlieplexHelper<4>
+{
+    /// Flattened list of pars of output pin numbers to use for a given LED.
+    static const uint8_t pinlist[];
+    /// @return How many LEDs are we driving.
+    static unsigned num_bits()
+    {
+        return 12;
+    }
+
+    /// Which pin to drive high for a given LED. @param bit is the number of
+    /// the LED, from 0..num_bits()-1. @return index of the GPIO to drive high.
+    static unsigned pin_high(unsigned bit)
+    {
+        return pinlist[bit << 1];
+    }
+    /// Which pin to drive low for a given LED. @param bit is the number of
+    /// the LED, from 0..num_bits()-1. @return index of the GPIO to drive low.
+    static unsigned pin_low(unsigned bit)
+    {
+        return pinlist[(bit << 1) | 1];
+    }
+};
+
+const uint8_t CharlieplexHelper<4>::pinlist[] = {
+    3, 0, //
+    2, 0, //
+    1, 0, //
+    3, 1, //
+    3, 2, //
+    2, 1, //
+    2, 3, //
+    1, 2, //
+    0, 2, //
+    0, 3, //
+    0, 1, //
+    1, 3, //
+};
+
 /// Class that implements a Charlieplexing LED driver, operating N choose 2
 /// output LEDs from N GPIO pins.
 /// 
