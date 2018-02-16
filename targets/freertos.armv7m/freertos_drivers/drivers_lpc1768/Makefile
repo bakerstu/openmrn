@@ -1,6 +1,8 @@
 OPENMRNPATH ?= $(realpath ../../../..)
 include $(OPENMRNPATH)/etc/lib.mk
 
+DEPS += MBEDPATH
+
 CORECFLAGS += -DTARGET_LPC1768 -DINTERRUPT_ATTRIBUTE=
 INCLUDES += \
 	-I"$(MBEDPATH)/mbed/vendor/NXP/capi" \
