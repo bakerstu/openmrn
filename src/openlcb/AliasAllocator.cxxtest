@@ -154,11 +154,13 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
     get_next_alias();
     EXPECT_EQ(0xAA5U, b_->data()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, b_->data()->state);
-    // This one should be marked as reserved.
-    EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
-              ifCan_->local_aliases()->lookup(NodeAlias(0xAA5)));
-    // This one should be unknown.
-    EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x555)));
+    run_x([this]() {
+        // This one should be marked as reserved.
+        EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+            ifCan_->local_aliases()->lookup(NodeAlias(0xAA5)));
+        // This one should be unknown.
+        EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x555)));
+    });
 }
 
 TEST_F(AsyncAliasAllocatorTest, LateAllocationConflict)

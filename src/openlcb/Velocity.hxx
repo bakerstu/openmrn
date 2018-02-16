@@ -31,8 +31,8 @@
  * @date 2 August 2013
  */
 
-#ifndef _NMRANET_VELOCITY_HXX_
-#define _NMRANET_VELOCITY_HXX_
+#ifndef _OPENLCB_VELOCITY_HXX_
+#define _OPENLCB_VELOCITY_HXX_
 
 #include <cmath>
 #include <cstdint>
@@ -489,4 +489,4 @@ private:
 
 }; /* namespace openlcb */
 
-#endif /* _NMRANET_VELOCITY_HXX_ */
+#endif // _OPENLCB_VELOCITY_HXX_

@@ -66,8 +66,6 @@ struct CC32xxWiFi::HttpServerResponse : public ::SlHttpServerResponse_t {};
 struct CC32xxWiFi::FatalErrorEvent : public ::SlDeviceFatal_t {};
 #endif
 
-CC32xxWiFi *CC32xxWiFi::instance_ = nullptr;
-
 /** This is not a class members so that including CC32xxWiFi.hxx does not
  * pollute the namespace with simplelink APIs.
  */
@@ -180,8 +178,6 @@ CC32xxWiFi::CC32xxWiFi()
     , ipAcquired(0)
     , ipLeased(0)
 {
-    HASSERT(instance_ == nullptr);
-    instance_ = this;
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
         slSockets[i] = -1;
@@ -208,6 +204,29 @@ uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
             return SL_SEC_TYPE_WPA_WPA2;
     }
 }
+
+CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_scan(unsigned sec_type)
+{
+#ifdef SL_API_V2
+    auto t = SL_WLAN_SCAN_RESULT_SEC_TYPE_BITMAP(sec_type);
+    switch (t)
+    {
+        default:
+        case SL_WLAN_SECURITY_TYPE_BITMAP_OPEN:
+            return SEC_OPEN;
+        case SL_WLAN_SECURITY_TYPE_BITMAP_WEP:
+            return SEC_WEP;
+        case SL_WLAN_SECURITY_TYPE_BITMAP_WPA:
+        case SL_WLAN_SECURITY_TYPE_BITMAP_WPA2:
+        case SL_WLAN_SECURITY_TYPE_BITMAP_WPA |
+            SL_WLAN_SECURITY_TYPE_BITMAP_WPA2:
+            return SEC_WPA2;
+    }
+#else
+    return security_type_from_simplelink(sec_type);
+#endif    
+}
+
 
 CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(uint8_t sec_type)
 {
@@ -321,6 +340,88 @@ bool CC32xxWiFi::wlan_profile_test_none()
     return true;
 }
 
+/*
+ * CC32xxWiFi::wlan_power_policy_get()
+ */
+int CC32xxWiFi::wlan_power_policy_get(WlanPowerPolicy *wpp)
+{
+#ifdef SL_API_V2
+    uint8_t sl_wpp = 0;
+    SlWlanPmPolicyParams_t params;
+    int length = sizeof(params);
+
+    int result = sl_WlanPolicyGet(SL_WLAN_POLICY_PM, &sl_wpp, (uint8_t*)&params,
+                                  (uint8_t*)&length);
+
+    if (result != 0)
+    {
+        return -1;
+    }
+
+    switch (sl_wpp)
+    {
+        default:
+            return -1;
+        case SL_WLAN_ALWAYS_ON_POLICY:
+            *wpp = WLAN_ALWAYS_ON_POLICY;
+            break;
+        case SL_WLAN_LOW_LATENCY_POLICY:
+            *wpp = WLAN_LOW_LATENCY_POLICY;
+            break;
+        case SL_WLAN_NORMAL_POLICY:
+            *wpp = WLAN_NORMAL_POLICY;
+            break;
+        case SL_WLAN_LOW_POWER_POLICY:
+            *wpp = WLAN_LOW_POWER_POLICY;
+            break;
+    }
+
+    return 0;
+#else
+    return -1;
+#endif
+}
+
+/*
+ * CC32xxWiFi::wlan_power_policy_set()
+ */
+int CC32xxWiFi::wlan_power_policy_set(WlanPowerPolicy wpp)
+{
+    int result;
+#ifdef SL_API_V2
+    WlanPowerPolicy temp_wpp;
+    result = wlan_power_policy_get(&temp_wpp);
+    if (result != 0)
+    {
+        return -1;
+    }
+
+    if (temp_wpp != wpp)
+#endif
+    {
+        uint8_t sl_wpp;
+        switch (wpp)
+        {
+            default:
+                return -1;
+            case WLAN_ALWAYS_ON_POLICY:
+                sl_wpp = SL_WLAN_ALWAYS_ON_POLICY;
+                break;
+            case WLAN_LOW_LATENCY_POLICY:
+                sl_wpp = SL_WLAN_LOW_LATENCY_POLICY;
+                break;
+            case WLAN_NORMAL_POLICY:
+                sl_wpp = SL_WLAN_NORMAL_POLICY;
+                break;
+            case WLAN_LOW_POWER_POLICY:
+                sl_wpp = SL_WLAN_LOW_POWER_POLICY;
+                break;
+        }
+        result = sl_WlanPolicySet(SL_WLAN_POLICY_PM, sl_wpp, NULL, 0);
+    }
+
+    return (result != 0) ? -1 : 0;
+}
 
 /*
  * CC32xxWiFi::wlan_rescan()
@@ -346,7 +447,7 @@ int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
     for (int i = 0; i < result; ++i)
     {
         entries[i].ssid.assign((char*)sl_entries[i].SL_ssid, sl_entries[i].SL_ssid_len);
-        entries[i].sec_type = security_type_from_simplelink(sl_entries[i].SL_sec_type);
+        entries[i].sec_type = security_type_from_scan(sl_entries[i].SL_sec_type);
         entries[i].rssi = sl_entries[i].SL_rssi;
     }
 
@@ -415,6 +516,7 @@ void CC32xxWiFi::stop()
 {
     ipAcquired = false;
     connected = false;
+    sl_Stop(0xFF);
 }
 
 /*
@@ -756,7 +858,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
 
     switch (event->SL_Event)
     {
-        case SL_WLAN_CONNECT_EVENT:
+        case SL_WLAN_EVENT_CONNECT:
         {
             connected = 1;
             connectionFailed = 0;
@@ -787,7 +889,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             //
             break;
         }
-        case SL_WLAN_DISCONNECT_EVENT:
+        case SL_WLAN_EVENT_DISCONNECT:
         {
             const auto *event_data =
                 &event->SL_EventData.STAandP2PModeDisconnected;
@@ -807,55 +909,11 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             }
             break;
         }
-        case SL_WLAN_STA_CONNECTED_EVENT:
+        case SL_WLAN_EVENT_STA_ADDED:
             // when device is in AP mode and any client connects to device cc3xxx
             break;
-        case SL_WLAN_STA_DISCONNECTED_EVENT:
+        case SL_WLAN_EVENT_STA_REMOVED:
             // when client disconnects from device (AP)
-            connected = 0;
-            ipLeased = 0;
-
-            //
-            // Information about the connected client (like SSID, MAC etc) will
-            // be available in 'slPeerInfoAsyncResponse_t' - Applications
-            // can use it if required
-            //
-            // slPeerInfoAsyncResponse_t *event_data = NULL;
-            // event_data = &event->EventData.APModestaDisconnected;
-            //
-            break;
-            //case SL_WLAN_SMART_CONFIG_COMPLETE_EVENT:
-
-            //
-            // Information about the SmartConfig details (like Status, SSID, 
-            // Token etc) will be available in 'slSmartConfigStartAsyncResponse_t' 
-            // - Applications can use it if required
-            //
-            //  slSmartConfigStartAsyncResponse_t *event_data = NULL;
-            //  event_data = &event->EventData.smartConfigStartResponse;
-            //
-            break;
-            //case SL_WLAN_SMART_CONFIG_STOP_EVENT:
-            // SmartConfig operation finished
-
-            //
-            // Information about the SmartConfig details (like Status, padding 
-            // etc) will be available in 'slSmartConfigStopAsyncResponse_t' - 
-            // Applications can use it if required
-            //
-            // slSmartConfigStopAsyncResponse_t *event_data = NULL;
-            // event_data = &event->EventData.smartConfigStopResponse;
-            //
-            break;
-            //case SL_WLAN_P2P_DEV_FOUND_EVENT:
-            HASSERT(0);
-            break;
-            //case SL_WLAN_P2P_NEG_REQ_RECEIVED_EVENT:
-            HASSERT(0);
-            break;
-            // case SL_WLAN_CONNECTION_FAILED_EVENT:
-            // If device gets any connection failed event in P2P mode
-            // connectionFailed = 1;
             break;
         default:
             HASSERT(0);
@@ -875,14 +933,19 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
 
     switch (event->SL_Event)
     {
-        case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
+#if defined (SL_API_V2)
+        case SL_NETAPP_EVENT_DHCP_IPV4_ACQUIRE_TIMEOUT:
+            /* DHCP acquisition still continues, this is just a warning */
+            break;
+#endif
+        case SL_NETAPP_EVENT_IPV4_ACQUIRED:
         {
             //SlIpV4AcquiredAsync_t *event_data = NULL;
             const auto* event_data = &event->SL_EventData.SL_ipAcquiredV4;
             ipAddress = event_data->SL_ip;
         }
         // fall through
-        case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
+        case SL_NETAPP_EVENT_IPV6_ACQUIRED:
             ipAcquired = 1;
 
             //
@@ -901,7 +964,7 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             // event_data = &event->EventData.ipAcquiredV6;
             //
             break;
-        case SL_NETAPP_IP_LEASED_EVENT:
+        case SL_NETAPP_EVENT_DHCPV4_LEASED:
         {
             ipLeased = 1;
 
@@ -918,7 +981,16 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             ipAddress = event_data->SL_ip_address;
             break;
         }
-        case SL_NETAPP_IP_RELEASED_EVENT:
+#if defined (SL_API_V2)
+        case SL_NETAPP_EVENT_IP_COLLISION:
+            break;
+        case SL_NETAPP_EVENT_IPV4_LOST:
+        {
+            ipAddress = 0;
+            break;
+        }
+#endif
+        case SL_NETAPP_EVENT_DHCPV4_RELEASED:
             ipLeased = 0;
 
             //
@@ -986,7 +1058,7 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
 
     switch (event->Event)
     {
-        case SL_NETAPP_HTTPGETTOKENVALUE_EVENT:
+        case SL_NETAPP_EVENT_HTTP_TOKEN_GET:
         {
             unsigned char *ptr;
 
@@ -1012,7 +1084,7 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
             }
             break;
         }
-        case SL_NETAPP_HTTPPOSTTOKENVALUE_EVENT:
+        case SL_NETAPP_EVENT_HTTP_TOKEN_POST:
         {
             break;
         }
@@ -1200,4 +1272,3 @@ int slcb_SetErrno(int Errno)
 #endif 
 
 } /* extern "C" */
-

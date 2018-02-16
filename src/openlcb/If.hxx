@@ -32,8 +32,8 @@
  * @date 3 Dec 2013
  */
 
-#ifndef _NMRANET_IF_HXX_
-#define _NMRANET_IF_HXX_
+#ifndef _OPENLCB_IF_HXX_
+#define _OPENLCB_IF_HXX_
 
 /// @todo(balazs.racz) remove this dep
 #include <string>
@@ -436,4 +436,4 @@ public:
 
 } // namespace openlcb
 
-#endif // _NMRANET_IF_HXX_
+#endif // _OPENLCB_IF_HXX_

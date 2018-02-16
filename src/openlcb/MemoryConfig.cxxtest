@@ -105,6 +105,55 @@ using testing::DoAll;
 using testing::WithArgs;
 using testing::SetArgPointee;
 
+TEST(MemoryConfigDefsTest, datagram_address_and_space)
+{
+    auto dg = MemoryConfigDefs::write_datagram(0x51, 0x33445566, "abcd");
+    EXPECT_EQ(0x51u, MemoryConfigDefs::get_space(dg));
+    EXPECT_EQ(0x33445566u, MemoryConfigDefs::get_address(dg));
+    EXPECT_EQ('a', MemoryConfigDefs::payload_bytes(
+                       dg)[MemoryConfigDefs::get_payload_offset(dg)]);
+
+    dg = MemoryConfigDefs::read_datagram(0x42, 0x11223344, 10);
+    EXPECT_EQ(0x42u, MemoryConfigDefs::get_space(dg));
+    EXPECT_EQ(0x11223344u, MemoryConfigDefs::get_address(dg));
+    EXPECT_EQ(10u, MemoryConfigDefs::payload_bytes(
+                       dg)[MemoryConfigDefs::get_payload_offset(dg)]);
+}
+
+TEST(MemoryConfigDefsTest, datagram_space_for_special_spaces)
+{
+    auto dg = MemoryConfigDefs::write_datagram(0xFD, 0x33445566, "abcd");
+    EXPECT_EQ(0xFDu, MemoryConfigDefs::get_space(dg));
+    EXPECT_EQ('a', MemoryConfigDefs::payload_bytes(
+                       dg)[MemoryConfigDefs::get_payload_offset(dg)]);
+
+    dg = MemoryConfigDefs::read_datagram(0xFE, 0x11223344, 10);
+    EXPECT_EQ(0xFEu, MemoryConfigDefs::get_space(dg));
+    EXPECT_EQ(10u, MemoryConfigDefs::payload_bytes(
+                       dg)[MemoryConfigDefs::get_payload_offset(dg)]);
+}
+
+TEST(MemoryConfigDefsTest, datagram_min_size)
+{
+    auto dg = MemoryConfigDefs::write_datagram(0xFD, 0x33445566, "a");
+    EXPECT_TRUE(MemoryConfigDefs::payload_min_length_check(dg, 0));
+    dg.pop_back();
+    EXPECT_TRUE(MemoryConfigDefs::payload_min_length_check(dg, 0));
+    dg.pop_back();
+    EXPECT_FALSE(MemoryConfigDefs::payload_min_length_check(dg, 0));
+
+    dg = MemoryConfigDefs::read_datagram(0x13, 0x11223344, 10);
+    EXPECT_TRUE(MemoryConfigDefs::payload_min_length_check(dg, 1));
+    dg.pop_back();
+    EXPECT_FALSE(MemoryConfigDefs::payload_min_length_check(dg, 1));
+
+    dg.clear();
+    EXPECT_FALSE(MemoryConfigDefs::payload_min_length_check(dg, 0));
+
+    dg = "\x20\x00\x01\x02\x03";
+    EXPECT_FALSE(MemoryConfigDefs::payload_min_length_check(dg, 0));
+}
+
 TEST_F(MemoryConfigTest, MockMemoryConfigRead)
 {
     memoryOne_.registry()->insert(node_, 0x27, &space);

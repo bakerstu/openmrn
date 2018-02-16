@@ -36,10 +36,6 @@
 
 #include "executor/StateFlow.hxx"
 
-// static
-StateFlowWithQueue* StateFlowWithQueue::head_ = nullptr;
-Atomic StateFlowWithQueue::headMu_;
-
 const unsigned StateFlowWithQueue::MAX_PRIORITY_;
 
 StateFlowWithQueue::StateFlowWithQueue(Service *service)
@@ -50,23 +46,10 @@ StateFlowWithQueue::StateFlowWithQueue(Service *service)
   , isWaiting_(1)
 {
     reset_flow(STATE(wait_for_message));
-    AtomicHolder h(&headMu_);
-    link_ = head_;
-    head_ = this;
 }
 
 StateFlowWithQueue::~StateFlowWithQueue()
 {
-    AtomicHolder h(&headMu_);
-    StateFlowWithQueue** p = &head_;
-    while (*p && *p != this) {
-        p = &((*p)->link_);
-    }
-    if (*p == this) {
-        *p = this->link_;
-    } else {
-        HASSERT(0);
-    }
 }
 
 

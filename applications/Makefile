@@ -10,6 +10,7 @@ SUBDIRS = \
 	blink_raw \
 	bootloader \
 	bootloader_client \
+	can_eth \
 	reflash_bootloader \
 	clinic_app \
 	hub \
@@ -17,6 +18,7 @@ SUBDIRS = \
 	js_hub \
 	js_client \
 	js_cdi_server \
+	memconfig_utils \
 	send_datagram \
 	simple_client \
 	tractionproxy \

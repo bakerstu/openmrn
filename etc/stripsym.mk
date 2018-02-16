@@ -25,10 +25,12 @@ endef
 ### Argument: "foo" if there is a "lib/libfoo.a" from a subdir called "lib"
 define LIBSTRIP_template
 
-lib/lib$(1).stripped: $(1)/lib$(1).a arpreproc | build-$(1)
+lib/lib$(1).stripped: $(1)/lib$(1).a arpreproc
 	rm lib/lib$(1).a
 	$(OBJCOPY) @arpreproc $(1)/lib$(1).a lib/lib$(1).a
 	touch $$@
+
+$(1)/lib$(1).a: build-$(1)
 
 $(EXECUTABLE)$(EXTENTION): lib/lib$(1).stripped
 
@@ -74,3 +76,4 @@ clean: clean-stripped
 
 clean-stripped:
 	rm -f $(wildcard lib/*.a lib/*.o lib/*.stripped)
+	rm -f arpreproc ldpreproc

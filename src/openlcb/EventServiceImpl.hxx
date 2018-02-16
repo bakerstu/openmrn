@@ -34,8 +34,8 @@
  * @date 20 April 2014
  */
 
-#ifndef _NMRANET_EVENTSERVICEIMPL_HXX_
-#define _NMRANET_EVENTSERVICEIMPL_HXX_
+#ifndef _OPENLCB_EVENTSERVICEIMPL_HXX_
+#define _OPENLCB_EVENTSERVICEIMPL_HXX_
 
 #include <memory>
 #include <vector>
@@ -58,12 +58,14 @@ struct EventHandlerCall
     const EventRegistryEntry *registry_entry;
     EventReport *rep;
     EventHandlerFunction fn;
-    void reset(const EventRegistryEntry *entry, EventReport *rep,
-               EventHandlerFunction fn)
+    unsigned epoch;
+    void reset(const EventRegistryEntry *entry, unsigned epoch,
+        EventReport *rep, EventHandlerFunction fn)
     {
         this->registry_entry = entry;
         this->rep = rep;
         this->fn = fn;
+        this->epoch = epoch;
     }
 };
 
@@ -199,4 +201,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_GLOBAL_EVENT_HANDLER_IMPL_
+#endif // _OPENLCB_EVENTSERVICEIMPL_HXX_

@@ -31,14 +31,15 @@
  * @date 29 September 2013
  */
 
-#ifndef _NMRANET_EVENTHANDLER_HXX_
-#define _NMRANET_EVENTHANDLER_HXX_
+#ifndef _OPENLCB_EVENTHANDLER_HXX_
+#define _OPENLCB_EVENTHANDLER_HXX_
 
 #include <stdint.h>
 
 #include "executor/Notifiable.hxx"
 #include "utils/AsyncMutex.hxx"
 #include "utils/macros.h"
+#include "utils/Singleton.hxx"
 #include "openlcb/WriteHelper.hxx"
 
 namespace openlcb
@@ -228,18 +229,10 @@ class EventIterator;
 /// requirements of your binary. In the event handlers constructor, register
 /// the event handler via the singleton pointer.
 ///
-/// @TODO(balazs.racz) transition to the usual Singleton class instead of
-/// hand-initialized singleton pointer.
-class EventRegistry
+class EventRegistry : public Singleton<EventRegistry>
 {
 public:
     virtual ~EventRegistry();
-
-    static EventRegistry *instance()
-    {
-        HASSERT(instance_);
-        return instance_;
-    }
 
     /** Computes the alignment mask for registering an event range. Updates the
      * event by rounding and returns the mask value to be sent to the
@@ -289,4 +282,4 @@ private:
 
 }; /* namespace openlcb */
 
-#endif // _NMRANET_EVENTHANDLER_HXX_
+#endif // _OPENLCB_EVENTHANDLER_HXX_

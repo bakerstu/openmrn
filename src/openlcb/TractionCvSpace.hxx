@@ -33,8 +33,8 @@
  * @date 16 May 2015
  */
 
-#ifndef _NMRANET_TRACTIONCVSPACE_HXX_
-#define _NMRANET_TRACTIONCVSPACE_HXX_
+#ifndef _OPENLCB_TRACTIONCVSPACE_HXX_
+#define _OPENLCB_TRACTIONCVSPACE_HXX_
 
 #include "openlcb/MemoryConfig.hxx"
 #include "executor/StateFlow.hxx"
@@ -149,4 +149,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_TRACTIONCVSPACE_HXX_
+#endif // _OPENLCB_TRACTIONCVSPACE_HXX_

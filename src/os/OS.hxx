@@ -91,6 +91,15 @@ public:
         return handle != 0;
     }
 
+    /** Inherits the current thread. */
+    void inherit()
+    {
+        HASSERT(!is_created());
+        handle = os_thread_self();
+        entry();
+        handle = 0;
+    }
+
     /** Return the current thread priority.
      * @param thread handle to thread of interest
      * @return current thread priority
@@ -478,6 +487,12 @@ private:
 
 /** Allows for OS abstracted access to time.
  */
+
+extern "C"
+{
+extern long long rtcOffset;
+}
+
 class OSTime
 {
 public:
@@ -507,9 +522,6 @@ public:
     }
 
 private:
-    /** realtime clock offset */
-    static long long rtcOffset;
-
     DISALLOW_COPY_AND_ASSIGN(OSTime);
 
     /* Private default constructor prevents instantiating this class. */

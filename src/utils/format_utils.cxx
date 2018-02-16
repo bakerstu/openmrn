@@ -65,10 +65,62 @@ char* unsigned_integer_to_buffer_hex(unsigned int value, char* buffer)
     return ret;
 }
 
+char* uint64_integer_to_buffer_hex(uint64_t value, char* buffer)
+{
+    int num_digits = 0;
+    uint64_t tmp = value;
+    do
+    {
+        num_digits++;
+        tmp /= 16;
+    } while (tmp > 0);
+    char* ret = buffer + num_digits--;
+    *ret = 0;
+    tmp = value;
+    do
+    {
+        HASSERT(num_digits >= 0);
+        uint64_t tmp2 = tmp % 16;
+        if (tmp2 <= 9)
+        {
+            buffer[num_digits--] = '0' + tmp2;
+        }
+        else
+        {
+            buffer[num_digits--] = 'a' + (tmp2 - 10);
+        }
+        tmp /= 16;
+    } while (tmp);
+    HASSERT(num_digits == -1);
+    return ret;
+}
+
 char* unsigned_integer_to_buffer(int value, char* buffer)
 {
     int num_digits = 0;
     int tmp = value;
+    do
+    {
+        num_digits++;
+        tmp /= 10;
+    } while (tmp > 0);
+    char* ret = buffer + num_digits--;
+    *ret = 0;
+    tmp = value;
+    do
+    {
+        HASSERT(num_digits >= 0);
+        buffer[num_digits--] = '0' + (tmp % 10);
+        tmp /= 10;
+    } while (tmp);
+    HASSERT(num_digits == -1);
+    return ret;
+}
+
+char* uint64_integer_to_buffer(uint64_t value, char* buffer)
+{
+    int num_digits = 0;
+    uint64_t tmp = value;
     do
     {
         num_digits++;
@@ -96,6 +148,32 @@ char* integer_to_buffer(int value, char* buffer)
         value = -value;
     }
     return unsigned_integer_to_buffer(value, buffer);
+}
+
+string uint64_to_string(uint64_t value, unsigned padding)
+{
+    string ret;
+    char tmp[21];
+    uint64_integer_to_buffer(value, tmp);
+    ret.append(tmp);
+    if (padding > ret.size())
+    {
+        ret.insert(0, padding - ret.size(), ' ');
+    }
+    return ret;
+}
+
+string uint64_to_string_hex(uint64_t value, unsigned padding)
+{
+    string ret;
+    char tmp[17];
+    uint64_integer_to_buffer_hex(value, tmp);
+    ret.append(tmp);
+    if (padding > ret.size())
+    {
+        ret.insert(0, padding - ret.size(), ' ');
+    }
+    return ret;
 }
 
 string mac_to_string(uint8_t mac[6], bool colon)

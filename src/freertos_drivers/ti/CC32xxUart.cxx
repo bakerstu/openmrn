@@ -147,6 +147,7 @@ void CC32xxUart::send()
     {
         /* no more data left to send */
         MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
+        MAP_UARTIntClear(base, UART_INT_TX);
     }
 }
 

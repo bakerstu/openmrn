@@ -32,8 +32,8 @@
  * @date 31 May 2014
  */
 
-#ifndef _NMRANET_CONFIGREPRESENTATION_HXX_
-#define _NMRANET_CONFIGREPRESENTATION_HXX_
+#ifndef _OPENLCB_CONFIGREPRESENTATION_HXX_
+#define _OPENLCB_CONFIGREPRESENTATION_HXX_
 
 #include "openlcb/ConfigEntry.hxx"
 #include "openlcb/MemoryConfig.hxx"
@@ -273,14 +273,17 @@ public:
 /// Closes a CDI group structure definition.
 #define CDI_GROUP_END() CDI_GROUP_END_HELPER(__LINE__)
 
-/// Sets a given variable to its default value. Usage:
-///     SET_PARAM_TO_DEFAULT(fd, opts_.short_retry_delay);
+/// Performs factory reset on a CDI variable. The variable must have a default
+/// value defined. Usage:
+///     CDI_FACTORY_RESET(opts_.short_retry_delay);
 /// assuming that there is something like
 ///   CDI_GROUP_ENTRY(short_retry_delay, Uint8ConfigEntry, Default(13));
-/// in the CDI group whose type opts_ is.
+/// in the CDI group whose type opts_ is, and there is a local variable `fd` for
+/// writing to the configuration file.
 /// Will generate compile error if the variable does not have a default value
 /// in the configuration group entry.
-#define SET_PARAM_TO_DEFAULT(FD, PARAM) PARAM().write(fd, PARAM ## _options().defaultvalue())
+#define CDI_FACTORY_RESET(PATH)                                                \
+    PATH().write(fd, PATH##_options().defaultvalue())
 
 /// Defines a repeated group of a given type and a given number of repeats.
 ///
@@ -478,4 +481,4 @@ template <> inline void render_all_cdi<0>()
         render_all_cdi<N - 1>();                                               \
     }
 
-#endif // _NMRANET_CONFIGREPRESENTATION_HXX_
+#endif // _OPENLCB_CONFIGREPRESENTATION_HXX_

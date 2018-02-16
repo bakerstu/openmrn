@@ -32,8 +32,8 @@
  * @date 4 Dec 2013
  */
 
-#ifndef _NMRANET_ALIASALLOCATOR_HXX_
-#define _NMRANET_ALIASALLOCATOR_HXX_
+#ifndef _OPENLCB_ALIASALLOCATOR_HXX_
+#define _OPENLCB_ALIASALLOCATOR_HXX_
 
 #include "openlcb/IfCan.hxx"
 #include "openlcb/Defs.hxx"
@@ -216,4 +216,4 @@ public:
 }  // namespace openlcb
 
 
-#endif // _NMRANET_ALIASALLOCATOR_HXX_
+#endif // _OPENLCB_ALIASALLOCATOR_HXX_

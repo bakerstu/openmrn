@@ -32,8 +32,8 @@
  * @date 3 Dec 2013
  */
 
-#ifndef _NMRANET_IFCAN_HXX_
-#define _NMRANET_IFCAN_HXX_
+#ifndef _OPENLCB_IFCAN_HXX_
+#define _OPENLCB_IFCAN_HXX_
 
 #include <memory>
 
@@ -95,12 +95,14 @@ public:
     /// @returns the alias cache for local nodes (vnodes and proxies)
     AliasCache *local_aliases()
     {
+        executor()->assert_current();
         return &localAliases_;
     }
 
     /// @returns the alias cache for remote nodes on this IF
     AliasCache *remote_aliases()
     {
+        executor()->assert_current();
         return &remoteAliases_;
     }
 
@@ -351,4 +353,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_IFCAN_HXX_
+#endif // _OPENLCB_IFCAN_HXX_

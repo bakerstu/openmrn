@@ -32,8 +32,8 @@
  * @date 7 December 2013
  */
 
-#ifndef _NMRANET_NODE_HXX_
-#define _NMRANET_NODE_HXX_
+#ifndef _OPENLCB_NODE_HXX_
+#define _OPENLCB_NODE_HXX_
 
 #include "openlcb/Defs.hxx"  // for NodeID
 
@@ -73,4 +73,4 @@ public:
 
 } // namespace openlcb
 
-#endif // _NMRANET_NODE_HXX_
+#endif // _OPENLCB_NODE_HXX_

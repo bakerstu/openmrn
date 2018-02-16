@@ -32,8 +32,8 @@
  * @date 25 Jan 2014
  */
 
-#ifndef _NMRANET_DATAGRAMCAN_HXX_
-#define _NMRANET_DATAGRAMCAN_HXX_
+#ifndef _OPENLCB_DATAGRAMCAN_HXX_
+#define _OPENLCB_DATAGRAMCAN_HXX_
 
 #include "openlcb/IfCan.hxx"
 #include "openlcb/Datagram.hxx"
@@ -68,4 +68,4 @@ Executable *TEST_CreateCanDatagramParser(IfCan *if_can);
 
 } // namespace openlcb
 
-#endif // _NMRANET_DATAGRAMCAN_HXX_
+#endif // _OPENLCB_DATAGRAMCAN_HXX_

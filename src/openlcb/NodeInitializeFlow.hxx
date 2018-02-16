@@ -32,8 +32,8 @@
  * @date 7 December 2013
  */
 
-#ifndef _NMRANET_NODEINITIALIZEFLOW_HXX_
-#define _NMRANET_NODEINITIALIZEFLOW_HXX_
+#ifndef _OPENLCB_NODEINITIALIZEFLOW_HXX_
+#define _OPENLCB_NODEINITIALIZEFLOW_HXX_
 
 #include "openlcb/DefaultNode.hxx"
 #include "openlcb/If.hxx"
@@ -192,4 +192,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_NODEINITIALIZEFLOW_HXX_
+#endif // _OPENLCB_NODEINITIALIZEFLOW_HXX_

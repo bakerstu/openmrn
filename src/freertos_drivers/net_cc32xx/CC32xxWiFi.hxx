@@ -39,6 +39,7 @@
 #include <string>
 
 #include "os/OS.hxx"
+#include "utils/Singleton.hxx"
 #include "utils/format_utils.hxx"
 #include "freertos_drivers/common/WifiDefs.hxx"
 
@@ -48,7 +49,7 @@ class CC32xxSocket;
  * CC32xx Wi-Fi stack.  This is designed to be a singleton.  It should only
  * be instantiated once.
  */
-class CC32xxWiFi
+class CC32xxWiFi : public Singleton<CC32xxWiFi>
 {
 public:
     /** CC32xx SimpleLink forward declaration */
@@ -76,6 +77,16 @@ public:
         SEC_OPEN, /**< open (no security) */
         SEC_WEP,  /**< WEP security mode */
         SEC_WPA2, /**< WPA2 security mode */
+    };
+
+    /** The WLAN power policy.
+     */
+    enum WlanPowerPolicy
+    {
+        WLAN_NORMAL_POLICY,      /**< WLAN power policy normal */
+        WLAN_LOW_LATENCY_POLICY, /**< WLAN power policy low latency */
+        WLAN_LOW_POWER_POLICY,   /**< WLAN power policy low power */
+        WLAN_ALWAYS_ON_POLICY,   /**< WLAN power policy always on */
     };
 
     /** metadata for a WLAN netowrk entry.
@@ -157,15 +168,6 @@ public:
      * returns true.*/
     void connecting_update_blinker();
 
-    /** Get the singleton instance pointer.
-     * @return singleton instance pointer
-     */
-    static CC32xxWiFi *instance()
-    {
-        HASSERT(instance_);
-        return instance_;
-    }
-
     /** Add a saved WLAN profile.
      * @param ssid WLAN SSID of the profile to save
      * @param sec_type @ref SecurityType of the profile to be saved
@@ -201,9 +203,21 @@ public:
                          uint32_t *priority);
 
     /** Test if there are any saved profiles.
-     * @return true if there are no provides saved, else false
+     * @return true if there are no profiles saved, else false
      */
     bool wlan_profile_test_none();
+
+    /** Set the power policy.
+     * @param wpp power policy to set
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_power_policy_set(WlanPowerPolicy wpp);
+
+    /** Get the power policy.
+     * @param wpp power policy to returned
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_power_policy_get(WlanPowerPolicy *wpp);
 
     /** Get a list of available networks.
      * @param entries returns a list of available network entries
@@ -347,6 +361,13 @@ private:
      */
     SecurityType security_type_from_simplelink(uint8_t sec_type);
 
+    /** Translates the SimpleLink code from the network scan to SecurityType
+     * enum.
+     * @param sec_type simplelink network scan security result
+     * @return security type
+     */
+    SecurityType security_type_from_scan(unsigned sec_type);
+    
     /** Set the CC32xx to its default state, including station mode.
      */
     void set_default_state();

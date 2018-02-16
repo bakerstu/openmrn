@@ -311,7 +311,7 @@ void Stm32Can::rx_interrupt_handler()
         ++msg_receive_count;
     }
 
-    if (msg_receive_count);
+    if (msg_receive_count)
     {
         /* advance the "zero copy" buffer by the number of messages received */
         rxBuf->advance(msg_receive_count);

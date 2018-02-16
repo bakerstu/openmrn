@@ -50,10 +50,40 @@ static constexpr uint32_t ADD_RATE = 0x1 << 24;
 
 void CpuLoad::record_value(bool busy) {
     avg_ *= AVG_RATE;
-    if (busy) {
+    if (busy)
+    {
         avg_ += ADD_RATE;
     }
     avg_ >>= SHIFT_RATE;
+    // Check streak
+    if (busy)
+    {
+        if (consecutive_ < 255)
+        {
+            ++consecutive_;
+        }
+        if (consecutive_ > maxConsecutive_)
+        {
+            maxConsecutive_ = consecutive_;
+        }
+    }
+    else
+    {
+        consecutive_ = 0;
+    }
+    // Check window of 16.
+    last16Bits_ <<= 1;
+    last16Bits_ |= (busy ? 1 : 0);
+    // sums up last 16 bits.
+    unsigned v = last16Bits_;
+    v = (v & 0x5555) + ((v & 0xaaaa) >> 1);
+    v = (v & 0x3333) + ((v & 0xcccc) >> 2);
+    v = (v & 0x0F0F) + ((v & 0xF0F0) >> 4);
+    v = (v & 0x00FF) + ((v & 0xFF00) >> 8);
+    if (v > peakOver16Counts_)
+    {
+        peakOver16Counts_ = v;
+    }
 }
 
 uint8_t CpuLoad::get_load() {
@@ -75,3 +105,5 @@ void cpuload_tick(void)
     }
 }
 }
+
+DEFINE_SINGLETON_INSTANCE(CpuLoad);

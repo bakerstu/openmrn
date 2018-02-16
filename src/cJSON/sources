@@ -1,7 +1,0 @@
-VPATH := $(SRCDIR)
-         
-CSRCS += cJSON.c
-
-CXXSRCS +=
-
-CFLAGS += -Wno-char-subscripts

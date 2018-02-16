@@ -32,6 +32,8 @@
  * @date 5 December 2013
  */
 
+#include <set>
+
 #include "os/os.h"
 #include "gtest/gtest.h"
 #include "openlcb/AliasCache.hxx"
@@ -59,7 +61,7 @@ TEST(AliasCacheTest, constructor)
     aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
     
     EXPECT_EQ(count, 0);
-    EXPECT_EQ(2, aliasCache->size());
+    EXPECT_EQ(2u, aliasCache->size());
 
     aliasCache->add(101, 10);
     aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
@@ -422,6 +424,179 @@ TEST(AliasCacheTest, reinsert_flush)
 
     aliasCache->add((NodeID)105, (NodeAlias)99);
     aliasCache->add((NodeID)108, (NodeAlias)99);
+}
+
+
+class AliasStressTest : public ::testing::Test {
+protected:
+    unsigned get_random(unsigned range) {
+        return rand_r(&seed_) % range;
+    }
+
+    static NodeID get_id(unsigned ofs) {
+        return 0x050101011800 + ofs;
+    }
+
+    static NodeAlias get_alias(unsigned ofs, bool block = false) {
+        NodeAlias a = 0x800+ofs;
+        if (block) a += 0x100;
+        return a;
+    }
+
+    void add(NodeID node_id, NodeAlias alias)
+    {
+        NodeAlias old_alias = c_.lookup(node_id);
+        if (old_alias == alias)
+        {
+            // No change.
+            return;
+        }
+        if (old_alias)
+        {
+            c_.remove(old_alias);
+        }
+        c_.add(node_id, alias);
+    }
+
+    unsigned int seed_{42};
+    unsigned nodeCount_{15};
+    AliasCache c_{get_id(0x33), 10};
+};
+
+namespace openlcb {
+int AliasCache::check_consistency() {
+    if (idMap.size() != aliasMap.size()) return 1;
+    if (aliasMap.size() == entries) {
+        if (freeList != nullptr) return 2;
+    } else {
+        if (freeList == nullptr) return 3;
+    }
+    if (aliasMap.size() == 0 &&
+        (oldest != nullptr || newest != nullptr)) {
+        return 4;
+    }
+    std::set<void*> free_entries;
+    for (Metadata* m = freeList; m; m=m->next) {
+        if (free_entries.count(m)) {
+            return 5; // duplicate entry on freelist
+        }
+        free_entries.insert(m);
+    }
+    if (free_entries.size() + aliasMap.size() != entries) {
+        return 6; // lost some metadata entries
+    }
+    for (auto kv : aliasMap) {
+        if (free_entries.count(kv.second)) {
+            return 19;
+        }
+    }
+    for (auto kv : idMap) {
+        if (free_entries.count(kv.second)) {
+            return 20;
+        }
+    }
+    if (aliasMap.size() == 0) {
+        if (oldest != nullptr) return 7;
+        if (newest != nullptr) return 8;
+    } else {
+        if (oldest == nullptr) return 9;
+        if (newest == nullptr) return 10;
+    }
+    if (free_entries.count(oldest)) {
+        return 11; // oldest is free
+    }
+    if (free_entries.count(newest)) {
+        return 12; // newest is free
+    }
+    if (aliasMap.size() == 0) return 0;
+    // Check linking.
+    {
+        Metadata* prev = oldest;
+        unsigned count = 1;
+        if (prev->older) return 13;
+        while (prev->newer) {
+            auto* next = prev->newer;
+            ++count;
+            if (free_entries.count(next)) {
+                return 21;
+            }
+            if (next->older != prev) return 14;
+            prev = next;
+        }
+        if (prev != newest) return 18;
+        if (count != aliasMap.size()) return 27;
+    }
+    {
+        Metadata* next = newest;
+        if (next->newer) return 15;
+        while (next->older) {
+            auto* prev = next->older;
+            if (free_entries.count(prev)) {
+                return 22;
+            }
+            if (prev->newer != next) return 16;
+            next = prev;
+        }
+        if (next != oldest) return 17;
+    }
+    for (unsigned i = 0; i < entries; ++i) {
+        if (free_entries.count(pool+i)) continue;
+        auto* e = pool+i;
+        if (idMap.find(e->id) == idMap.end()) return 23;
+        if (idMap[e->id] != e) return 24;
+        if (aliasMap.find(e->alias) == aliasMap.end()) return 25;
+        if (aliasMap[e->alias] != e) return 26;
+    }
+    return 0;
+}
+
+}
+
+TEST_F(AliasStressTest, stress_test)
+{
+    for (int step = 0; step < 100000; ++step) {
+        auto n = get_random(nodeCount_);
+        auto m = get_random(nodeCount_);
+        auto b = get_random(2);
+        auto bb = get_random(2);
+        auto cmd = get_random(6);
+        switch (cmd)
+        {
+            case 5:
+            case 0:
+            {
+                // insert a random entry with own alias
+                add(get_id(n), get_alias(n, b));
+                break;
+            }
+            case 1:
+            {
+                // Lookup a random node
+                c_.lookup(get_id(n));
+                break;
+            }
+            case 2:
+            {
+                // Lookup a random alias
+                c_.lookup(get_alias(n, b));
+                break;
+            }
+            case 3:
+            {
+                // possibly switch alias for an existing node
+                //c_.remove(get_alias(n, b));
+                add(get_id(n), get_alias(n, bb));
+                break;
+            }
+            case 4:
+            {
+                // insert a random entry with a different alias
+                add(get_id(n), get_alias(m, b));
+                break;
+            }
+        }
+        ASSERT_EQ(0, c_.check_consistency()) << "iter " << step << " cmd " << cmd << " n " << n << " m " << m << " b " << b << " bb " << bb;
+    }
 }
 
 int appl_main(int argc, char* argv[])

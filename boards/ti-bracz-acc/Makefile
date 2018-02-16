@@ -15,9 +15,6 @@ include $(OPENMRNPATH)/etc/tivaware.mk
 export TARGET := freertos.armv7m
 export BOARD := BOARD_BRACZ_ACC
 
-LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
-
-SYSLIBRARIESEXTRA = -ldriver
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
 
 #           $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUart.o \

@@ -33,8 +33,8 @@
  * @date 5 May 2014
  */
 
-#ifndef _NMRANET_TRACTIONDEFS_HXX_
-#define _NMRANET_TRACTIONDEFS_HXX_
+#ifndef _OPENLCB_TRACTIONDEFS_HXX_
+#define _OPENLCB_TRACTIONDEFS_HXX_
 
 #include <cmath>
 #include <stdint.h>
@@ -98,7 +98,8 @@ struct TractionDefs {
     /// Node ID space allocated for the MTH DCS protocol.
     static const uint64_t NODE_ID_MTH_DCS = 0x060400000000ULL;
 
-    enum {
+    enum
+    {
         // Byte 0 of request commands.
         REQ_SET_SPEED = 0x00,
         REQ_SET_FN = 0x01,
@@ -146,13 +147,14 @@ struct TractionDefs {
         CNSTRESP_DETACH_NODE = CNSTREQ_DETACH_NODE,
         CNSTRESP_QUERY_NODES = CNSTREQ_QUERY_NODES,
 
+        CNSTFLAGS_ALIASVALID = 0x01,
         CNSTFLAGS_REVERSE = 0x02,
         CNSTFLAGS_LINKF0 = 0x04,
         CNSTFLAGS_LINKFN = 0x08,
+        CNSTFLAGS_HIDE = 0x80,
 
         // Byte 1 of Traction Management replies
         MGMTRESP_RESERVE = MGMTREQ_RESERVE,
-
 
         PROXYREQ_ALLOCATE = 0x01,
         PROXYREQ_ATTACH = 0x02,
@@ -178,7 +180,6 @@ struct TractionDefs {
         PROXYTYPE_SELECTRIX = 6,
         PROXYTYPE_MTH_DCS = 7,
         PROXYTYPE_LIONEL_TMCC = 8,
-        
 
         /** This is the memory space number for accessing an NMRA DCC
          * locomotive's functions via the memory config protocol. */
@@ -291,14 +292,22 @@ struct TractionDefs {
     /** Parses the response payload of a GET_FN packet.
      * @returns true if there is a valid function value.
      * @param p is the response payload.
-     * @param value will be set to the output value. */
-    static bool fn_get_parse(const Payload &p, uint16_t *value)
+     * @param value will be set to the output value.
+     * @param address will be set to the function address. */
+    static bool fn_get_parse(
+        const Payload &p, uint16_t *value, unsigned *address)
     {
         if (p.size() < 6)
         {
             return false;
         }
-        *value = (((uint16_t)p[4]) << 8) | p[5];
+        unsigned num = uint8_t(p[1]);
+        num <<= 8;
+        num |= uint8_t(p[2]);
+        num <<= 8;
+        num |= uint8_t(p[3]);
+        *address = num;
+        *value = (((uint16_t)p[4]) << 8) | uint8_t(p[5]);
         return true;
     }
 
@@ -400,4 +409,4 @@ struct TractionDefs {
 
 }  // namespace openlcb
 
-#endif //_NMRANET_TRACTIONDEFS_HXX_
+#endif // _OPENLCB_TRACTIONDEFS_HXX_

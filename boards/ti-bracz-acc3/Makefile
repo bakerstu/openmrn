@@ -16,9 +16,6 @@ export TARGET ?= freertos.armv7m
 export BOARD := BOARD_BRACZ_ACC
 export DEFAULT_ADDRESS := 0x4c
 
-LDFLAGSEXTRA = -L$(TIVAWAREPATH)/driverlib/gcc \
-
-SYSLIBRARIESEXTRA = -ldriver
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaUart.o \
            $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaI2C.o \
@@ -29,7 +26,8 @@ CXXFLAGSEXTRA += -DPART_TM4C123AE6PM
 include $(OPENMRNPATH)/etc/prog.mk
 include $(OPENMRNPATH)/etc/node_id.mk
 
-OPENOCDARGS = -f ~/bin/olimex-armtinyh.cfg -f ~/bin/swd.cfg --file ~/bin/olcb-myb.cfg
+#OPENOCDARGS = -f ~/bin/olimex-armtinyh.cfg -f ~/bin/swd.cfg --file ~/bin/olcb-myb.cfg
+OPENOCDARGS = -f ~/bin/olimex-armtinyh.cfg  --file ~/bin/olcb-myb.cfg
 #OPENOCDARGS = -f interface/olimex-arm-usb-tiny-h.cfg -f  ~/bin/olcb-myb.cfg
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)

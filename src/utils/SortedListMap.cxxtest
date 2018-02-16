@@ -1,0 +1,129 @@
+#include "utils/test_main.hxx"
+
+#include "utils/SortedListMap.hxx"
+
+#include <initializer_list>
+#include <vector>
+
+using ::testing::ElementsAre;
+
+class SortedListMapTest : public ::testing::Test
+{
+protected:
+    std::vector<int> elements()
+    {
+        std::vector<int> r;
+        for (auto it = map_.begin(); it != map_.end(); ++it)
+        {
+            r.push_back(*it);
+        }
+        return r;
+    }
+
+    void add(std::initializer_list<int> l)
+    {
+        for (int e : l)
+        {
+            int p = e;
+            map_.insert(std::move(p));
+        }
+    }
+
+    SortedListSet<int, std::less<int>> map_;
+};
+
+TEST_F(SortedListMapTest, create)
+{
+}
+
+TEST_F(SortedListMapTest, add_size)
+{
+    map_.insert(3);
+    map_.insert(5);
+    map_.insert(9);
+    EXPECT_EQ(3u, map_.size());
+
+    EXPECT_THAT(elements(), ElementsAre(3, 5, 9));
+
+    map_.insert(2);
+    EXPECT_EQ(4u, map_.size());
+    EXPECT_THAT(elements(), ElementsAre(2, 3, 5, 9));
+}
+
+TEST_F(SortedListMapTest, sort)
+{
+    map_.insert(9);
+    map_.insert(3);
+    map_.insert(5);
+    map_.insert(2);
+    EXPECT_THAT(elements(), ElementsAre(2, 3, 5, 9));
+}
+
+TEST_F(SortedListMapTest, sort2)
+{
+    add({9, 3, 5, 2});
+    EXPECT_THAT(elements(), ElementsAre(2, 3, 5, 9));
+}
+
+TEST_F(SortedListMapTest, erase)
+{
+    add({9, 3, 5, 2});
+    EXPECT_THAT(elements(), ElementsAre(2, 3, 5, 9));
+    EXPECT_EQ(4u, map_.size());
+    EXPECT_EQ(4, map_.end() - map_.begin());
+    auto old_e = map_.end();
+    map_.erase(map_.begin() + 2);
+    auto new_e = map_.end();
+    EXPECT_NE(old_e, new_e);
+    EXPECT_EQ(3u, map_.size());
+    EXPECT_EQ(3, new_e - map_.begin());
+    EXPECT_THAT(elements(), ElementsAre(2, 3, 9));
+
+    map_.clear();
+    EXPECT_EQ(0u, map_.size());
+    EXPECT_THAT(elements(), ElementsAre());
+}
+
+TEST_F(SortedListMapTest, erase_last)
+{
+    add({9, 3, 5, 2});
+    EXPECT_THAT(elements(), ElementsAre(2, 3, 5, 9));
+    EXPECT_EQ(4u, map_.size());
+    EXPECT_EQ(4, map_.end() - map_.begin());
+    auto old_e = map_.end();
+    map_.erase(map_.begin() + 3);
+    auto new_e = map_.end();
+    EXPECT_NE(old_e, new_e);
+    EXPECT_EQ(3u, map_.size());
+    EXPECT_EQ(3, new_e - map_.begin());
+    EXPECT_THAT(elements(), ElementsAre(2, 3, 5));
+}
+
+TEST_F(SortedListMapTest, duplicate)
+{
+    add({9, 3, 5, 5, 5, 2});
+    EXPECT_THAT(elements(), ElementsAre(2, 3, 5, 5, 5, 9));
+    auto pp = map_.equal_range(5);
+    std::vector<int> v(pp.first, pp.second);
+    EXPECT_THAT(v, ElementsAre(5, 5, 5));
+
+    map_.erase(pp.first, pp.second);
+    // We do it purposefully in separate lines as begin() is doing some cache
+    // refresh internally.
+    auto new_e = map_.end();
+    auto new_b = map_.begin();
+    EXPECT_EQ(3u, map_.size());
+    EXPECT_EQ(3, new_e - new_b);
+    EXPECT_THAT(elements(), ElementsAre(2, 3, 9));
+}
+
+TEST_F(SortedListMapTest, find)
+{
+    add({9, 3, 5, 2});
+    auto it = map_.find(5);
+    ASSERT_NE(map_.end(), it);
+    EXPECT_EQ(5, *it);
+
+    it = map_.find(7);
+    EXPECT_EQ(map_.end(), it);
+}

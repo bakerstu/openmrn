@@ -1,0 +1,214 @@
+/** \copyright
+ * Copyright (c) 2017, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file MemoryConfigClient.cxxtest
+ *
+ * Unit tests for Memory Config Client
+ *
+ * @author Balazs Racz
+ * @date 4 Feb 2017
+ */
+
+#include "openlcb/MemoryConfigClient.hxx"
+#include "openlcb/DatagramCan.hxx"
+
+#include "utils/async_datagram_test_helper.hxx"
+
+namespace openlcb
+{
+
+static const NodeID TWO_NODE_ID = 0x02010d0000ddULL;
+
+class MemoryConfigClientTest : public AsyncNodeTest
+{
+public:
+    MemoryConfigClientTest()
+    {
+        EXPECT_CALL(canBus_, mwrite(":X10701FF2N02010D0000DD;")).Times(1);
+        EXPECT_CALL(canBus_, mwrite(":X19100FF2N02010D0000DD;")).Times(1);
+        eb_.release_block();
+        run_x([this](){ifTwo_.alias_allocator()->TEST_add_allocated_alias(0xFF2);});
+        wait();
+        memCfg_.registry()->insert(node_, 0x51, &srvSpace_);
+        for (unsigned i = 0; i < dataContents_.size(); ++i) {
+            dataContents_[i] = i*23;
+        }
+    }
+
+    ~MemoryConfigClientTest() {
+        wait();
+    }
+
+    BlockExecutor eb_{&g_executor};
+
+    IfCan ifTwo_{&g_executor, &can_hub0, local_alias_cache_size,
+        remote_alias_cache_size, local_node_count};
+    AddAliasAllocator alloc_{TWO_NODE_ID, &ifTwo_};
+    DefaultNode nodeTwo_{&ifTwo_, TWO_NODE_ID};
+
+    CanDatagramService dgService_{ifCan_.get(), 10, 2};
+    CanDatagramService dgServiceTwo_{&ifTwo_, 10, 2};
+
+    MemoryConfigHandler memCfg_{&dgService_, node_, 3};
+    MemoryConfigHandler memCfgTwo_{&dgServiceTwo_, &nodeTwo_, 3};
+
+    std::array<uint8_t, 231> dataContents_;
+    ReadWriteMemoryBlock srvSpace_{&dataContents_[0], (unsigned)dataContents_.size()};
+
+    MemoryConfigClient clientTwo_{&nodeTwo_, &memCfgTwo_};
+};
+
+TEST_F(MemoryConfigClientTest, create)
+{
+}
+
+TEST_F(MemoryConfigClientTest, readall)
+{
+    expect_any_packet();
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::READ,
+                         NodeHandle(TEST_NODE_ID), 0x51);
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_EQ(dataContents_.size(), b->data()->payload.size());
+    EXPECT_EQ(0, memcmp(&dataContents_[0], b->data()->payload.data(), dataContents_.size()));
+}
+
+TEST_F(MemoryConfigClientTest, readpart)
+{
+    expect_any_packet();
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(TEST_NODE_ID), 0x51, 34, 73);
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_EQ(73u, b->data()->payload.size());
+    EXPECT_EQ(0, memcmp(&dataContents_[34], b->data()->payload.data(),
+                     b->data()->payload.size()));
+}
+
+TEST_F(MemoryConfigClientTest, readsmallpart)
+{
+    expect_any_packet();
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(TEST_NODE_ID), 0x51, 34, 14);
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_EQ(14u, b->data()->payload.size());
+    EXPECT_EQ(0, memcmp(&dataContents_[34], b->data()->payload.data(),
+                     b->data()->payload.size()));
+}
+
+// Tests using the MemoryConfigClient to write a payload of more than one
+// datagram.
+TEST_F(MemoryConfigClientTest, writelarge)
+{
+    expect_any_packet();
+    string test_payload;
+    for (int i = 56; i < 56 + 75; ++i)
+    {
+        test_payload.push_back(i);
+    }
+    EXPECT_NE(0,
+        memcmp(&dataContents_[34], test_payload.data(), test_payload.size()));
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(TEST_NODE_ID), 0x51, 34, test_payload);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0,
+        memcmp(&dataContents_[34], test_payload.data(), test_payload.size()));
+}
+
+// Tests using the MemoryConfigClient to write a payload that fits into one
+// datagram.
+TEST_F(MemoryConfigClientTest, writesmall)
+{
+    expect_any_packet();
+    string test_payload;
+    for (int i = 56; i < 56 + 13; ++i)
+    {
+        test_payload.push_back(i);
+    }
+    EXPECT_NE(0,
+        memcmp(&dataContents_[34], test_payload.data(), test_payload.size()));
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(TEST_NODE_ID), 0x51, 34, test_payload);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0,
+        memcmp(&dataContents_[34], test_payload.data(), test_payload.size()));
+}
+
+TEST_F(MemoryConfigClientTest, unsolicited)
+{
+    expect_any_packet();
+    // Tests that we don't crash if no client is registered and an unsolicited
+    // response packet shows up.
+    send_packet(":1AFF2123N2050112233;");
+    wait();
+}
+
+class MemoryConfigLocalClientTest : public AsyncDatagramTest {
+protected:
+    ~MemoryConfigLocalClientTest() {
+        wait();
+    }
+
+    MemoryConfigHandler memCfg_{&datagram_support_, node_, 3};
+
+    std::array<uint8_t, 231> dataContents_;
+    ReadWriteMemoryBlock srvSpace_{&dataContents_[0], (unsigned)dataContents_.size()};
+
+    MemoryConfigClient client_{node_, &memCfg_};
+};
+
+TEST_F(MemoryConfigLocalClientTest, readfromlocal)
+{
+    // In this test we read from the local node, to test that the
+    // service-client interaction is without any deadlock.
+    memCfg_.registry()->insert(node_, 0x52, &srvSpace_);
+
+    expect_any_packet();
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ,
+                         NodeHandle(node_->node_id()), 0x52);
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_EQ(dataContents_.size(), b->data()->payload.size());
+    EXPECT_EQ(0, memcmp(&dataContents_[0], b->data()->payload.data(), dataContents_.size()));
+}
+
+TEST_F(MemoryConfigLocalClientTest, readfromlocalspecialspace)
+{
+    // In this test we read from the local node, to test that the
+    // service-client interaction is without any deadlock. We use a special
+    // space number (0xFD to 0xFF) to regression test a bug in the request
+    // routing. The bug was that responses for those space numbers were not
+    // routed to the client.
+    memCfg_.registry()->insert(
+        node_, MemoryConfigDefs::SPACE_CONFIG, &srvSpace_);
+
+    expect_any_packet();
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ,
+        NodeHandle(node_->node_id()), MemoryConfigDefs::SPACE_CONFIG);
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_EQ(dataContents_.size(), b->data()->payload.size());
+    EXPECT_EQ(0, memcmp(&dataContents_[0], b->data()->payload.data(),
+                     dataContents_.size()));
+}
+
+} // namespace openlcb

@@ -32,8 +32,8 @@
  * @date 23 Feb 2014
  */
 
-#ifndef _NMRANET_MEMORYCONFIG_HXX_
-#define _NMRANET_MEMORYCONFIG_HXX_
+#ifndef _OPENLCB_MEMORYCONFIG_HXX_
+#define _OPENLCB_MEMORYCONFIG_HXX_
 
 #include "openlcb/DatagramDefs.hxx"
 #include "openlcb/DatagramHandlerDefault.hxx"
@@ -64,6 +64,8 @@ struct MemoryConfigDefs {
         COMMAND_MASK              = 0xFC,
         COMMAND_FLAG_MASK         = 0x03, /**< mask for special memory space flags */
         COMMAND_PRESENT_MASK      = 0x01, /**< mask for address space present bit */
+        COMMAND_REPLY_BIT_FOR_RW  = 0x10, /**< This bit is present in REPLY commands for read-write commands. */
+
         COMMAND_WRITE             = 0x00, /**< command to write data to address space */
         COMMAND_WRITE_UNDER_MASK  = 0x08, /**< command to write data under mask */
         COMMAND_WRITE_REPLY       = 0x10, /**< reply to write data to address space */
@@ -75,6 +77,7 @@ struct MemoryConfigDefs {
         COMMAND_READ_REPLY        = 0x50, /**< reply to read data from address space */
         COMMAND_READ_FAILED       = 0x58, /**< failed to read data from address space */
         COMMAND_READ_STREAM       = 0x60, /**< command to read data using a stream */
+        COMMAND_MAX_FOR_RW        = 0x80, /**< command <= this value have fixed bit arrangement. */
         COMMAND_OPTIONS           = 0x80,
         COMMAND_OPTIONS_REPLY     = 0x82,
         COMMAND_INFORMATION       = 0x84,
@@ -152,13 +155,17 @@ struct MemoryConfigDefs {
         ERROR_WRITE_TO_RO = Defs::ERROR_INVALID_ARGS | 0x0003,
     };
 
+    static constexpr unsigned MAX_DATAGRAM_RW_BYTES = 64;
+
     static bool is_special_space(uint8_t space) {
         return space > SPACE_SPECIAL;
     }
 
-    static DatagramPayload write_datagram(uint8_t space, uint32_t offset) {
+    static DatagramPayload write_datagram(
+        uint8_t space, uint32_t offset, const string &data = "")
+    {
         DatagramPayload p;
-        p.reserve(7);
+        p.reserve(7 + data.size());
         p.push_back(DatagramDefs::CONFIGURATION);
         p.push_back(COMMAND_WRITE);
         p.push_back(0xff & (offset >> 24));
@@ -170,6 +177,7 @@ struct MemoryConfigDefs {
         } else {
             p.push_back(space);
         }
+        p += data;
         return p;
     }
 
@@ -192,7 +200,77 @@ struct MemoryConfigDefs {
         p.push_back(length);
         return p;
     }
-    
+
+    /// @return true if the payload has minimum number of bytes you need in a
+    /// read or write datagram message to cover for the necessary fields
+    /// (command, offset, space).
+    /// @param payload is a datagram (read or write, request or response)
+    /// @param extra is the needed bytes after address and space, usually 0 for
+    /// write and 1 for read.
+    static bool payload_min_length_check(
+        const DatagramPayload &payload, unsigned extra)
+    {
+        auto *bytes = payload_bytes(payload);
+        size_t sz = payload.size();
+        if (sz < 6 + extra)
+        {
+            return false;
+        }
+        if (((bytes[1] & COMMAND_FLAG_MASK) == 0) && (sz < 7 + extra))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    /// @return addressed memory space number.
+    /// @param payload is a read or write datagram request or response message
+    static uint8_t get_space(const DatagramPayload &payload)
+    {
+        auto *bytes = payload_bytes(payload);
+        if (bytes[1] & COMMAND_FLAG_MASK)
+        {
+            return COMMAND_MASK + (bytes[1] & COMMAND_FLAG_MASK);
+        }
+        return bytes[6];
+    }
+
+    static unsigned get_payload_offset(const DatagramPayload &payload)
+    {
+        auto *bytes = payload_bytes(payload);
+        if (bytes[1] & COMMAND_FLAG_MASK)
+        {
+            return 6;
+        }
+        else
+        {
+            return 7;
+        }
+    }
+
+    /// @param payload is a datagram read or write request or response
+    /// @return the address field from the datagram
+    static uint32_t get_address(const DatagramPayload &payload)
+    {
+        auto *bytes = payload_bytes(payload);
+        uint32_t a = bytes[2];
+        a <<= 8;
+        a |= bytes[3];
+        a <<= 8;
+        a |= bytes[4];
+        a <<= 8;
+        a |= bytes[5];
+        return a;
+    }
+
+    /// Type casts a DatagramPayload to an array of bytes.
+    /// @param payload datagram
+    /// @return byte array pointing to the same memory
+    static const uint8_t *payload_bytes(const DatagramPayload &payload)
+    {
+        return (uint8_t *)payload.data();
+    }
+
 private:
     /** Do not instantiate this class. */
     MemoryConfigDefs();
@@ -504,6 +582,44 @@ public:
         return &registry_;
     }
 
+    /// Overrides the default send method in orderto decide whether the queue
+    /// the incoming datagram in the server queue or the client queue.
+    void send(DefaultDatagramHandler::message_type *message, unsigned priority = UINT_MAX) override
+    {
+        size_t len = message->data()->payload.size();
+        const uint8_t *bytes = (const uint8_t *)message->data()->payload.data();
+        uint8_t cmd = ((len >= 2) && (client_ != nullptr)) ? bytes[1] : 0;
+        bool is_client_command = false;
+        // To recognize replies for read & write commands, we need to look at a
+        // bit.
+        if ((cmd < MemoryConfigDefs::COMMAND_MAX_FOR_RW) &&
+            (cmd & MemoryConfigDefs::COMMAND_REPLY_BIT_FOR_RW))
+        {
+            is_client_command = true;
+        }
+        // For the rest of the commands we can enumerate which are replies.
+        switch (cmd)
+        {
+            case MemoryConfigDefs::COMMAND_OPTIONS_REPLY:
+            case MemoryConfigDefs::COMMAND_INFORMATION_REPLY:
+            case MemoryConfigDefs::COMMAND_LOCK_REPLY:
+            case MemoryConfigDefs::COMMAND_UNIQUE_ID_REPLY:
+            {
+                is_client_command = true;
+            }
+            default:
+                break;
+        }
+        LOG(VERBOSE, "MemoryConfig incoming cmd 0x%02x is_client %d", cmd,
+            is_client_command);
+        if (is_client_command)
+        {
+            client_->send(message, priority);
+            return;
+        }
+        DatagramHandlerFlow::send(message, priority);
+    }
+
     /// Registers a second handler to forward all the client interactions,
     /// i.e. everythingthat comes back with the RESPONSE bit set.
     void set_client(DatagramHandlerFlow* client) {
@@ -693,9 +809,9 @@ private:
         response_.push_back(available_commands >> 8);
         response_.push_back(available_commands & 0xff);
         // Write lengths
-        response_.push_back(
+        response_.push_back(static_cast<char> (
             MemoryConfigDefs::LENGTH_1 | MemoryConfigDefs::LENGTH_2 |
-            MemoryConfigDefs::LENGTH_4 | MemoryConfigDefs::LENGTH_ARBITRARY);
+            MemoryConfigDefs::LENGTH_4 | MemoryConfigDefs::LENGTH_ARBITRARY));
 
         uint8_t min_space = 0xFF;
         uint8_t max_space = 0;
@@ -1097,4 +1213,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_MEMORYCONFIG_HXX_
+#endif // _OPENLCB_MEMORYCONFIG_HXX_

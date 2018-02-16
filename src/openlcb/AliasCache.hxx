@@ -31,8 +31,8 @@
  * @date 21 September 2013
  */
 
-#ifndef _NMRANET_ALIASCACHE_HXX_
-#define _NMRANET_ALIASCACHE_HXX_
+#ifndef _OPENLCB_ALIASCACHE_HXX_
+#define _OPENLCB_ALIASCACHE_HXX_
 
 #include "openlcb/Defs.hxx"
 #include "utils/macros.h"
@@ -141,7 +141,10 @@ public:
     {
         delete [] pool;
     }
-    
+
+    /** Visible for testing. Check internal consistency. */
+    int check_consistency();
+
 private:
     enum
     {

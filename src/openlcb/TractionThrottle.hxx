@@ -32,8 +32,8 @@
  * @date 20 May 2014
  */
 
-#ifndef _NMRANET_TRACTIONTHROTTLE_HXX_
-#define _NMRANET_TRACTIONTHROTTLE_HXX_
+#ifndef _OPENLCB_TRACTIONTHROTTLE_HXX_
+#define _OPENLCB_TRACTIONTHROTTLE_HXX_
 
 #include "openlcb/TractionClient.hxx"
 #include "openlcb/TractionDefs.hxx"
@@ -95,10 +95,12 @@ struct TractionThrottleInput : public CallableFlowRequestBase
         CMD_CONSIST_QRY,
     };
 
-    void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst)
+    void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst,
+        bool listen)
     {
         cmd = CMD_ASSIGN_TRAIN;
         this->dst = dst;
+        this->flags = listen ? 1 : 0;
     }
 
     void reset(const TractionThrottleCommands::ReleaseTrain &)
@@ -154,12 +156,42 @@ struct TractionThrottleInput : public CallableFlowRequestBase
     uint8_t consistIndex;
 };
 
+class TractionThrottleInterface
+    : public openlcb::TrainImpl
+{
+public:
+    virtual void toggle_fn(uint32_t fn) = 0;
+
+    /// Determine if a train is currently assigned to this trottle.
+    /// @return true if a train is assigned, else false
+    virtual bool is_train_assigned() = 0;
+
+    /// @return the controlling node (virtual node of the throttle, i.e., us.)
+    /// @todo this function should not be here
+    virtual openlcb::Node* throttle_node() = 0;
+
+    /// Sets up a callback for listening for remote throttle updates. When a
+    /// different throttle modifies the train node's state, and the
+    /// ASSIGN_TRAIN command was executed with "listen==true" parameter, we
+    /// will get notifications about those remote changes. The notifications
+    /// update the cached state in TractionThrottle, and call this update
+    /// callback. Repeat with nullptr if the callbacks are not desired anymore.
+    /// @param update_callback will be executed when a different throttle
+    /// changes the train state. fn is the function number changed, or -1 for
+    /// speed update.
+    virtual void set_throttle_listener(std::function<void(int fn)> update_callback) = 0;
+
+    /// @return the controlled node (the train node) ID.
+    /// @todo this function should not be here
+    virtual openlcb::NodeID target_node() = 0;
+};
+
 /** Interface for a single throttle for running a train node.
  *
  */
 class TractionThrottle
     : public CallableFlow<TractionThrottleInput>,
-      public openlcb::TrainImpl
+      public TractionThrottleInterface
 {
 public:
     /// @param node is the openlcb node from which this throttle will be
@@ -223,7 +255,8 @@ public:
         return FN_NOT_KNOWN;
     }
 
-    void toggle_fn(uint32_t fn) {
+    void toggle_fn(uint32_t fn) override
+    {
         auto fnstate = get_fn(fn);
         if (fnstate == FN_NOT_KNOWN)
         {
@@ -248,21 +281,37 @@ public:
 
     /// Determine if a train is currently assigned to this trottle.
     /// @return true if a train is assigned, else false
-    bool is_train_assigned()
+    bool is_train_assigned() override
     {
         return assigned_;
     }
 
     /// @return the controlling node (virtual node of the throttle, i.e., us.)
-    openlcb::Node* throttle_node() {
+    openlcb::Node* throttle_node() override
+    {
         return node_;
     }
 
     /// @return the controlled node (the train node) ID.
-    openlcb::NodeID target_node() {
+    openlcb::NodeID target_node() override
+    {
         return dst_;
     }
-    
+
+    /// Sets up a callback for listening for remote throttle updates. When a
+    /// different throttle modifies the train node's state, and the
+    /// ASSIGN_TRAIN command was executed with "listen==true" parameter, we
+    /// will get notifications about those remote changes. The notifications
+    /// update the cached state in TractionThrottle, and call this update
+    /// callback. Repeat with nullptr if the callbacks are not desired anymore.
+    /// @param update_callback will be executed when a different throttle
+    /// changes the train state. fn is the function number changed, or -1 for
+    /// speed update.
+    void set_throttle_listener(std::function<void(int fn)> update_callback) override
+    {
+        updateCallback_ = std::move(update_callback);
+    }
+
 private:
     Action entry() override
     {
@@ -340,6 +389,34 @@ private:
 
     Action release_train()
     {
+        if (listenConsist_)
+        {
+            handler_.wait_for_response(
+                NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+            send_traction_message(
+                TractionDefs::consist_del_payload(node_->node_id()));
+            return sleep_and_call(
+                &timer_, TIMEOUT_NSEC, STATE(release_listener_response));
+        }
+        else
+        {
+            return call_immediately(STATE(release_step_2));
+        }
+    }
+
+    Action release_listener_response()
+    {
+        handler_.wait_timeout();
+        if (handler_.response())
+        {
+            handler_.response()->unref();
+        }
+        clear_listening();
+        return call_immediately(STATE(release_step_2));
+    }
+
+    Action release_step_2()
+    {
         send_traction_message(TractionDefs::release_controller_payload(node_));
         clear_assigned();
         clear_cache();
@@ -388,6 +465,34 @@ private:
             return return_with_error(Defs::ERROR_REJECTED);
         }
         set_assigned();
+        if (input()->flags)
+        {
+            // need to add consist listener
+            handler_.wait_for_response(
+                NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+            send_traction_message(TractionDefs::consist_add_payload(
+                node_->node_id(),
+                TractionDefs::CNSTFLAGS_HIDE | TractionDefs::CNSTFLAGS_LINKF0 |
+                    TractionDefs::CNSTFLAGS_LINKFN));
+            return sleep_and_call(
+                &timer_, TIMEOUT_NSEC, STATE(assign_consist_response));
+        }
+        return return_ok();
+    }
+
+    Action assign_consist_response()
+    {
+        // All error responses are actually okay here; we succeeded in the
+        // assignment but the listener setup didn't work.
+        handler_.wait_timeout();
+        if (!handler_.response())
+        {
+            return return_ok();
+        }
+
+        AutoReleaseBuffer<GenMessage> rb(handler_.response());
+        // Marks that we are owning the listener.
+        set_listening();
         return return_ok();
     }
 
@@ -455,13 +560,9 @@ private:
             {
                 pending_reply_arrived();
                 uint16_t v;
-                if (TractionDefs::fn_get_parse(p, &v))
+                unsigned num;
+                if (TractionDefs::fn_get_parse(p, &v, &num))
                 {
-                    uint32_t num = p[1];
-                    num <<= 8;
-                    num |= p[2];
-                    num <<= 8;
-                    num |= p[3];
                     lastKnownFn_[num] = v;
                 }
             }
@@ -575,6 +676,50 @@ private:
         return return_ok();
     }
 
+    void listen_reply(Buffer<GenMessage> *msg)
+    {
+        AutoReleaseBuffer<GenMessage> rb(msg);
+        if (!iface()->matching_node(msg->data()->src, NodeHandle(dst_)))
+        {
+            return;
+        }
+        const Payload &p = msg->data()->payload;
+        if (p.size() < 1)
+            return;
+        switch (p[0])
+        {
+            case TractionDefs::REQ_SET_SPEED:
+            {
+                Velocity v;
+                // speed get and set have the same signature for what we care
+                if (TractionDefs::speed_get_parse_last(p, &v))
+                {
+                    lastSetSpeed_ = v;
+                    if (updateCallback_)
+                    {
+                        updateCallback_(-1);
+                    }
+                }
+                return;
+            }
+            case TractionDefs::REQ_SET_FN:
+            {
+                uint16_t v;
+                unsigned num;
+                // function get and set have the same signature
+                if (TractionDefs::fn_get_parse(p, &v, &num))
+                {
+                    lastKnownFn_[num] = v;
+                    if (updateCallback_)
+                    {
+                        updateCallback_(num);
+                    }
+                }
+                return;
+            }
+        }
+    }
+
     /** Allocates (synchronously) an outgoing openlcb buffer with traction
      * request MTI and the given payload and sends off the message to the bus
      * for dst_. */
@@ -585,6 +730,20 @@ private:
         b->data()->reset(Defs::MTI_TRACTION_CONTROL_COMMAND, node_->node_id(),
             NodeHandle(dst_), payload);
         iface()->addressed_message_write_flow()->send(b);
+    }
+
+    void set_listening()
+    {
+        listenConsist_ = true;
+        iface()->dispatcher()->register_handler(&listenReplyHandler_,
+            Defs::MTI_TRACTION_CONTROL_COMMAND, Defs::MTI_EXACT);
+    }
+
+    void clear_listening()
+    {
+        listenConsist_ = false;
+        iface()->dispatcher()->unregister_handler(&listenReplyHandler_,
+            Defs::MTI_TRACTION_CONTROL_COMMAND, Defs::MTI_EXACT);
     }
 
     void set_assigned()
@@ -623,16 +782,22 @@ private:
 
     MessageHandler::GenericHandler speedReplyHandler_{
         this, &TractionThrottle::speed_reply};
+    MessageHandler::GenericHandler listenReplyHandler_{
+        this, &TractionThrottle::listen_reply};
     /// How many speed/fn query requests I have sent off to the train node that
     /// have not yet seen a reply.
     unsigned pendingQueries_{0};
     StateFlowTimer timer_{this};
     /// True if the assign controller has returned positive.
     bool assigned_{false};
+    /// True if we also have a consist link with the assigned loco.
+    bool listenConsist_{false};
     NodeID dst_;
     Node *node_;
     /// Helper class for stateful query/return flows.
     TractionResponseHandler handler_{iface(), node_};
+    /// Function to call when a different controller updates the train.
+    std::function<void(int fn)> updateCallback_;
     /// Cache: Velocity value that we last commanded to the train.
     SpeedType lastSetSpeed_;
     /// Cache: all known function values.
@@ -641,4 +806,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_TRACTIONTHROTTLE_HXX_
+#endif // _OPENLCB_TRACTIONTHROTTLE_HXX_

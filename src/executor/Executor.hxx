@@ -44,6 +44,7 @@
 #include "executor/Timer.hxx"
 #include "utils/Queue.hxx"
 #include "utils/SimpleQueue.hxx"
+#include "utils/LinkedObject.hxx"
 #include "utils/logging.h"
 #include "utils/macros.h"
 #include "os/OSSelectWakeup.hxx"
@@ -58,7 +59,7 @@ class ActiveTimers;
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
-class ExecutorBase : protected OSThread, protected Executable
+class ExecutorBase : protected OSThread, protected Executable, public LinkedObject<ExecutorBase>
 {
 public:
     /** Constructor.
@@ -152,6 +153,9 @@ public:
     /// @return the thread handle.
     os_thread_t thread_handle() { return OSThread::get_handle(); }
 
+    /// Die if we are not on the current executor.
+    void assert_current() { HASSERT(os_thread_self() == thread_handle()); }
+    
     /// @return a number that gets incremented by one every time an executable
     /// runs.
     virtual uint32_t sequence() = 0;
@@ -218,12 +222,6 @@ private:
 
     /** name of this Executor */
     const char *name_;
-
-    /** next executor in the lookup list */
-    ExecutorBase *next_;
-
-    /** executor list for lookup purposes */
-    static ExecutorBase *list;
 
     /** Currently executing closure. USeful for debugging crashes. */
     Executable* current_;
@@ -345,8 +343,7 @@ public:
      * be called to run the executor loop. It will exit when the execut gets
      * shut down. Useful for having an executor loop run in the main thread. */
     void thread_body() {
-        HASSERT(!is_created());
-        entry();
+        inherit();
     }
 
     /// @return true if there are no executables waiting on this thread to be

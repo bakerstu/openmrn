@@ -47,8 +47,6 @@
 #include "FreeRTOSTCP.hxx"
 #include "FreeRTOSTCPSocket.hxx"
 
-FreeRTOSTCP *FreeRTOSTCP::instance_ = nullptr;
-
 static SocketSet_t socket_set = NULL;
 
 static QueueHandle_t close_queue = NULL;
@@ -68,8 +66,6 @@ FreeRTOSTCP::FreeRTOSTCP()
     : ipAddress(0)
     , wakeup(NULL)
 {
-    HASSERT(instance_ == nullptr);
-    instance_ = this;
 }
 
 /*

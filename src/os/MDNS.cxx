@@ -41,6 +41,7 @@
 void mdns_publish(const char *name, const char *service, uint16_t port) __attribute__ ((weak));
 int mdns_lookup(const char *service, struct addrinfo *hints,
                 struct addrinfo **addr) __attribute__ ((weak));
+void mdns_scan(const char *service) __attribute__ ((weak));
 
 /** Publish an mDNS name.
  * @param name local "username" or "nodename" of the service
@@ -62,13 +63,21 @@ void mdns_publish(const char *name, const char *service, uint16_t port)
 int mdns_lookup(const char *service, struct addrinfo *hints,
                 struct addrinfo **addr)
 {
-#if defined(__FreeRTOS__) || defined(__MACH__)
+#if defined(__FreeRTOS__)
     string mdns_name(service);
     mdns_name.append(".local");
     return ::getaddrinfo(nullptr, mdns_name.c_str(), hints, addr);
 #else
     DIE("Your OS does not support mDNS");
 #endif
+}
+
+/** Start continuous scan for mDNS service name.
+ * @param service servicename to scan
+ */
+void mdns_scan(const char *service)
+{
+    HASSERT(0);
 }
 #endif
 
@@ -200,6 +209,16 @@ fail:
 #endif
 }
 
+/*
+ * MDNS::scan()
+ */
+void MDNS::scan(const char *service)
+{
+#if defined (__linux__)
+#else
+    mdns_scan(service);
+#endif
+}
 
 #if defined (__linux__)
 /*

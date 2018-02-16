@@ -42,7 +42,10 @@ TRYPATH:=$(call findfirst,flock,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 FLOCKPATH:=$(TRYPATH)
 endif
-endif #TIVAWAREPATH
+endif #FLOCKPATH
+
+
+ifndef OPENMRN_EXPLICIT_DEPS_ONLY
 
 ################ tivaware ##################
 ifndef TIVAWAREPATH
@@ -55,6 +58,10 @@ SEARCHPATH := \
 TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 TIVAWAREPATH:=$(TRYPATH)
+TRYPATH:=$(call findfirst,inc/hw_onewire.h,$(TRYPATH))
+ifneq ($TRYPATH),)
+BUILDTIVAWARE:=$(TRYPATH)
+endif
 endif
 endif #TIVAWAREPATH
 
@@ -622,6 +629,6 @@ endif
 endif #SXMLCPATH
 
 
-
+endif # ifndef OPENMRN_EXPLICIT_DEPS_ONLY
 endif # if  $(OS)  != Windows_NT
 endif # ifndef OPENMRN_PATH_MK

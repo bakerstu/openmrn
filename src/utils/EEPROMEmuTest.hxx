@@ -101,18 +101,18 @@ public:
 
 private:
     void flash_erase(unsigned sector) override {
-        ASSERT_LE(0, sector);
+        ASSERT_LE(0u, sector);
         ASSERT_GT(EELEN / SECTOR_SIZE, sector);
         void* address = &foo::__eeprom_start[sector * SECTOR_SIZE];
         memset(address, 0xff, SECTOR_SIZE);
     }
 
     void flash_program(unsigned sector, unsigned block, uint32_t *data, uint32_t byte_count) override {
-        ASSERT_LE(0, sector);
+        ASSERT_LE(0u, sector);
         ASSERT_GT(EELEN / SECTOR_SIZE, sector);
-        ASSERT_LE(0, block);
+        ASSERT_LE(0u, block);
         ASSERT_GT(SECTOR_SIZE/BLOCK_SIZE, block);
-        ASSERT_EQ(0, byte_count % BLOCK_SIZE);
+        ASSERT_EQ(0u, byte_count % BLOCK_SIZE);
         uint8_t* address = &foo::__eeprom_start[sector * SECTOR_SIZE + block * BLOCK_SIZE];
         memcpy(address, data, byte_count);
     }
@@ -133,7 +133,7 @@ TEST(EepromStaticTest, assertions) {
 
     ASSERT_EQ(p1, p2);
     ASSERT_EQ(p1 + EELEN, e1);
-    ASSERT_EQ(0, p1 % 4); // alignment
+    ASSERT_EQ(0u, p1 % 4); // alignment
 }
 
 /// Test fixture class for testing the EEPROM emulation.
@@ -194,7 +194,7 @@ protected:
 
 #define EXPECT_AT(ofs, PAYLOAD) { string p(PAYLOAD); string ret(p.size(), 0); ee()->read(ofs, &ret[0], p.size()); EXPECT_EQ(p, ret); }
 
-#define EXPECT_SLOT(block_number, address, payload) { EXPECT_EQ(address, block_address(block_number)); EXPECT_EQ(string(payload), block_data(block_number)); }
+#define EXPECT_SLOT(block_number, address, payload) { EXPECT_EQ((unsigned)address, block_address(block_number)); EXPECT_EQ(string(payload), block_data(block_number)); }
 
     static constexpr unsigned eeprom_size = 1000; ///< test eeprom size
     std::unique_ptr<MyEEPROM> e; ///< EEPROM under test.
@@ -204,7 +204,7 @@ protected:
 TEST_F(EepromTest, create) {
     create();
     EXPECT_EQ(0, e->activeSector_);
-    EXPECT_EQ(8, e->sector_count());
+    EXPECT_EQ(8u, e->sector_count());
     EXPECT_EQ((uint32_t*)&__eeprom_start, e->block(0, 0));
     EXPECT_EQ((uint32_t*)&foo::__eeprom_start[4*1024], e->block(1, 0));
 }

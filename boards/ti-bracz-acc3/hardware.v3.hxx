@@ -6,6 +6,7 @@
 #include "TivaGPIO.hxx"
 #include "DummyGPIO.hxx"
 
+#include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
 #include "inc/hw_timer.h"

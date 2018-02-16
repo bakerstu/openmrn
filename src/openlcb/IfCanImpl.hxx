@@ -32,8 +32,8 @@
  * @date 27 Jan 2013
  */
 
-#ifndef _NMRANET_IFCANIMPL_HXX_
-#define _NMRANET_IFCANIMPL_HXX_
+#ifndef _OPENLCB_IFCANIMPL_HXX_
+#define _OPENLCB_IFCANIMPL_HXX_
 
 #include "openlcb/CanDefs.hxx"
 #include "executor/StateFlow.hxx"
@@ -509,4 +509,4 @@ protected:
 };
 } // namespace openlcb
 
-#endif //_NMRANET_IFCANIMPL_HXX_
+#endif // _OPENLCB_IFCANIMPL_HXX_

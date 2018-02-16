@@ -230,6 +230,12 @@ OS_INLINE int os_thread_once(os_thread_once_t *once, void (*routine)(void))
  */
 #define NSEC_TO_SEC(_nsec) (((long long)_nsec) / 1000000000LL)
 
+/** Convert a nanosecond value to minutes.
+ * @param _nsec nanosecond value to convert
+ * @return minutes value
+ */
+#define NSEC_TO_MIN(_nsec) (((long long)_nsec) / 60000000000LL)
+
 /** Convert a microsecond value to a nanosecond value.
  * @param _usec microsecond value to convert
  * @return nanosecond value

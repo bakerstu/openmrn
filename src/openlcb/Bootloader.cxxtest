@@ -46,7 +46,7 @@ public:
 
 static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
 
-#define FLASH_SIZE 13 * 1024
+#define FLASH_SIZE 13 * 1024u
 static uint8_t virtual_flash[FLASH_SIZE];
 #define APP_HEADER_OFFSET 131 * 4
 
@@ -895,7 +895,7 @@ TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
 
 TEST_F(BootloaderClientTest, WriteSmallData)
 {
-    ifCan_->local_aliases()->add(TEST_NODE_ID, 0x3CC);
+    run_x([this]() { ifCan_->local_aliases()->add(TEST_NODE_ID, 0x3CC); });
     //print_all_packets();
     expect_any_packet();
     startup();

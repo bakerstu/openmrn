@@ -32,8 +32,8 @@
  * @date 4 Aug 2014
  */
 
-#ifndef _NMRANET_TRACTIONTESTTRAIN_HXX_
-#define _NMRANET_TRACTIONTESTTRAIN_HXX_
+#ifndef _OPENLCB_TRACTIONTESTTRAIN_HXX_
+#define _OPENLCB_TRACTIONTESTTRAIN_HXX_
 
 #include <map>
 
@@ -64,4 +64,4 @@ private:
 
 } // namespace openlcb
 
-#endif
+#endif  // _OPENLCB_TRACTIONTESTTRAIN_HXX_

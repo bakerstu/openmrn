@@ -42,7 +42,7 @@ namespace dcc {
 enum class TrainAddressType
 {
     /// DCC packets with short address (1..127)
-    DCC_SHORT_ADDRESS,
+    DCC_SHORT_ADDRESS = 1,
     /// DCC packets with long address (128..~10000)
     DCC_LONG_ADDRESS,
     /// Marklin-motorola packets. Addresses 1..80 are supported.

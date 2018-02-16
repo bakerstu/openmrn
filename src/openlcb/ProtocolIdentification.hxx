@@ -32,8 +32,8 @@
  * @date 2 February 2015
  */
 
-#ifndef _NMRANET_PROTOCOLIDENTIFICATION_HXX_
-#define _NMRANET_PROTOCOLIDENTIFICATION_HXX_
+#ifndef _OPENLCB_PROTOCOLIDENTIFICATION_HXX_
+#define _OPENLCB_PROTOCOLIDENTIFICATION_HXX_
 
 #include "openlcb/Defs.hxx"
 //#include "openlcb/
@@ -121,4 +121,4 @@ private:
 
 } /* namespace openlcb */
 
-#endif // _NMRANET_PROTOCOLIDENTIFICATION_HXX_
+#endif // _OPENLCB_PROTOCOLIDENTIFICATION_HXX_

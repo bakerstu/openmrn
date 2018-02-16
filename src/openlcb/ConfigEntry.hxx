@@ -32,8 +32,8 @@
  * @date 31 May 2015
  */
 
-#ifndef _NMRANET_CONFIGENTRY_HXX_
-#define _NMRANET_CONFIGENTRY_HXX_
+#ifndef _OPENLCB_CONFIGENTRY_HXX_
+#define _OPENLCB_CONFIGENTRY_HXX_
 
 #include <sys/types.h>
 #include <stdint.h>
@@ -309,6 +309,53 @@ public:
     }
 };
 
+/// Implementation class for internal data bytes configuration entries. These
+/// are stored like a pascal string: the first byte is the length, the rest is
+/// the payload. The template argument is the storage size. These data elements
+/// are not rendered in the CDI in a user-visible form.
+template <unsigned SIZE> class BytesConfigEntry : public ConfigEntryBase
+{
+public:
+    INHERIT_CONSTEXPR_CONSTRUCTOR(BytesConfigEntry, ConfigEntryBase)
+
+    static_assert(SIZE <= 256, "BytesConfigEntry cannot store longer than 255");
+    
+    /// Storage bytes occupied by the instance in the config file.
+    ///
+    /// @return number of bytes that the config parser offset will be
+    /// incremented by this entry.
+    ///
+    static constexpr unsigned size()
+    {
+        return SIZE;
+    }
+
+    constexpr unsigned end_offset() const
+    {
+        return offset() + size();
+    }
+
+    static constexpr EmptyGroupConfigRenderer config_renderer()
+    {
+        return EmptyGroupConfigRenderer(size());
+    }
+
+    string read(int fd) const
+    {
+        string s(size(), '\0');
+        repeated_read(fd, &s[0], size());
+        size_t real_len = (unsigned char)s[0];
+        return s.substr(1, real_len);
+    }
+
+    void write(int fd, string data) const
+    {
+        HASSERT(data.size() < size());
+        data.insert(0, 1, data.size());
+        repeated_write(fd, data.data(), data.size());
+    }
+};
+
 } // namespace openlcb
 
-#endif // _NMRANET_CONFIGENTRY_HXX_
+#endif // _OPENLCB_CONFIGENTRY_HXX_

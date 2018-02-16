@@ -75,6 +75,19 @@ protected:
         return return_with_error(0);
     }
 
+    /// Waits to be notified before moving onto the next state for termination.
+    Action wait_and_return_ok()
+    {
+        return this->wait_and_call(STATE(wait_done));
+    }
+
+    /// Terminates the flow and returns the request buffer to the caller with
+    /// an error code of OK (zero).
+    Action wait_done()
+    {
+        return return_ok();
+    }
+
     /// Terminates the flow and returns the request buffer to the caller with
     /// an specific error code.
     Action return_with_error(int error)
@@ -84,5 +97,17 @@ protected:
         return this->exit();
     }
 };
+
+/** Helper function for testing flow invocations. */
+template<class T, typename... Args>
+BufferPtr<T> invoke_flow(FlowInterface<Buffer<T>>* flow, Args &&... args) {
+    SyncNotifiable n;
+    BufferPtr<T> b(flow->alloc());
+    b->data()->reset(std::forward<Args>(args)...);
+    b->data()->done.reset(&n);
+    flow->send(b->ref());
+    n.wait_for_notification();
+    return b;
+}
 
 #endif // _EXECUTOR_CALLABLEFLOW_HXX_
