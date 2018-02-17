@@ -455,6 +455,9 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
             case SL_ECONNREFUSED:
                 s->readActive = true;
                 return 0;
+            case SL_EBADF:
+                errno = EBADF;
+                break;
         }
         return -1;
     }
@@ -496,6 +499,9 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
                 break;
             case SL_EAGAIN:
                 errno = EAGAIN;
+                break;
+            case SL_EBADF:
+                errno = EBADF;
                 break;
             default:
                 /// @todo (stbaker): handle errors via the callback.
