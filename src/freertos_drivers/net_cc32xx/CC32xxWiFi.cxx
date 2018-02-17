@@ -490,9 +490,10 @@ extern TaskHandle_t xSimpleLinkSpawnTaskHndl;
 /*
  * CC32xxWiFi::start()
  */
-void CC32xxWiFi::start(WlanRole role)
+void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy)
 {
     wlanRole = role;
+    wlanPowerPolicy = power_policy;
 #ifdef SL_API_V2
     os_thread_create(nullptr, "SimpleLink Task", configMAX_PRIORITIES - 1, 2048,
         sl_Task, nullptr);
@@ -638,7 +639,12 @@ void CC32xxWiFi::set_default_state()
 
         /* auto connection policy */
         sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(1,0,0,0,0),
-                         NULL,0); 
+                         NULL,0);
+
+        if (wlanPowerPolicy != WLAN_NO_CHANGE_POLICY)
+        {
+            wlan_power_policy_set(wlanPowerPolicy);
+        }
     }
 }
 
