@@ -56,6 +56,7 @@
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
 #include "TivaEEPROMBitSet.hxx"
+#include "TivaGPIO.hxx"
 #include "DummyGPIO.hxx"
 #include "bootloader_hal.h"
 
@@ -140,12 +141,6 @@ void enter_bootloader()
 #define STARTUP_DELAY_CYCLES 2
 #define DEADBAND_ADJUST      80
 
-#define DECL_PIN(NAME, PORT, NUM)                \
-  static const auto NAME##_PERIPH = SYSCTL_PERIPH_GPIO##PORT; \
-  static const auto NAME##_BASE = GPIO_PORT##PORT##_BASE; \
-  static const auto NAME##_PIN = GPIO_PIN_##NUM
-
-
 struct RailcomDefs
 {
     static const uint32_t CHANNEL_COUNT = 1;
@@ -183,8 +178,13 @@ struct RailcomDefs
         if (!CH1_Pin::get()) ret |= 1;
         return ret;
     }
+
+    static unsigned get_timer_tick() {
+        return MAP_TimerValueGet(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
+    }
 };
 
+uint32_t feedback_sample_overflow_count;
 const uint32_t RailcomDefs::UART_BASE[] = {UART1_BASE};
 const uint32_t RailcomDefs::UART_PERIPH[] = {SYSCTL_PERIPH_UART1};
 

@@ -274,7 +274,14 @@ public:
 #define CDI_GROUP_END() CDI_GROUP_END_HELPER(__LINE__)
 
 /// Performs factory reset on a CDI variable. The variable must have a default
-/// value defined.
+/// value defined. Usage:
+///     CDI_FACTORY_RESET(opts_.short_retry_delay);
+/// assuming that there is something like
+///   CDI_GROUP_ENTRY(short_retry_delay, Uint8ConfigEntry, Default(13));
+/// in the CDI group whose type opts_ is, and there is a local variable `fd` for
+/// writing to the configuration file.
+/// Will generate compile error if the variable does not have a default value
+/// in the configuration group entry.
 #define CDI_FACTORY_RESET(PATH)                                                \
     PATH().write(fd, PATH##_options().defaultvalue())
 

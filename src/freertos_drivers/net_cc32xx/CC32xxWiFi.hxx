@@ -87,6 +87,7 @@ public:
         WLAN_LOW_LATENCY_POLICY, /**< WLAN power policy low latency */
         WLAN_LOW_POWER_POLICY,   /**< WLAN power policy low power */
         WLAN_ALWAYS_ON_POLICY,   /**< WLAN power policy always on */
+        WLAN_NO_CHANGE_POLICY,   /**< WLAN power policy to be left alone */
     };
 
     /** metadata for a WLAN netowrk entry.
@@ -110,8 +111,10 @@ public:
 
     /** Startup the Wi-Fi.
      * @param device role
+     * @param power_policy desired power policy
      */
-    void start(WlanRole role = WlanRole::STA);
+    void start(WlanRole role = WlanRole::STA,
+               WlanPowerPolicy power_policy = WLAN_NO_CHANGE_POLICY);
 
     /** Stops the Wi-Fi in preparation for a reboot. TODO: does this need to be
      * called from a critical section?
@@ -437,6 +440,7 @@ private:
     int16_t rssi; /**< receive signal strength indicator */
 
     WlanRole wlanRole; /**< the Wi-Fi role we are in */
+    WlanPowerPolicy wlanPowerPolicy; /**< the desired power policy */
 
     unsigned connected        : 1; /**< AP connected state */
     unsigned connectionFailed : 1; /**< Connection attempt failed status */

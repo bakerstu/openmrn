@@ -118,7 +118,58 @@ public:
         return n->text;
     }
 
-    /// Clears out al luserinfo structure pointers. This is necessary to use
+    // this is a helper function that checks to see if the passed node has an 
+    // element named by *tag in it. Sets the bool found to true or false
+    // accordingly and also returns a nullptr (if element is undefined)
+    // otherwise it will return the value of the element
+    static int find_numeric_element(
+        const XMLNode *parent, const char *tag, bool *found)
+    {
+        auto *n = find_child_or_null(parent, tag);
+        // if there is no element defined set bool to false, return any value
+        if (n == nullptr || n->text == nullptr){
+            *found = false;
+            return 0;// there is no defined element
+        }
+        // if the numeric element was found set the bool to true and return it
+        *found = true;
+        return atoi(n->text); // convert to int and return element value
+    }
+
+    /// Finds the min value of the xml integer, if there isn't one it returns
+    /// a null pointer
+    /// @param "node" is a CDI element (segment, group, or config element).
+    /// @param "found" will be set to true if there was a minimum found, false if 
+    /// the XML did not contain the respective tag.
+    /// @return contents of the <min> tag, unspecified if !found. 
+    static int find_node_min(const XMLNode *node, bool *found)
+    {
+        return find_numeric_element(node, "min", found);
+    }
+
+    /// Finds the max value of the xml integer, if there isn't one it returns
+    /// a null pointer
+    /// @param "node" is a CDI element (segment, group, or config element).
+    /// @param "found" will be set to true if there was a maximum found, false if 
+    /// the XML did not contain the respective tag.
+    /// @return contents of the <max> tag, unspecified if !found. 
+    static int find_node_max(const XMLNode *node, bool *found)
+    {
+        return find_numeric_element(node, "max", found);
+    }
+
+    /// Finds the default value of the xml integer, if there isn't one it returns
+    /// a null pointer
+    /// @param "node" is a CDI element (segment, group, or config element).
+    /// @param "found" will be set to true if there was a defaultimum found, false if 
+    /// the XML did not contain the respective tag.
+    /// @return contents of the <default> tag, unspecified if !found. 
+    static int find_node_default(const XMLNode *node, bool *found)
+    {
+        return find_numeric_element(node, "default", found);
+    }
+    
+    /// Clears out all user info structure pointers. This is necessary to use
     /// the new_userinfo call below. Call this after the XML has been
     /// successfully parsed.
     /// @param doc document to prepare up.
@@ -383,17 +434,20 @@ public:
             address_ = info->offset_from_parent;
         }
 
-        /// Initializes a group rep which has no replication.
+        /// Initializes a group rep which has no replication or an entry rep.
         /// @param parent is the Node representation of the parent group or
         /// segment.
-        /// @param group is the XML element for the current (child) group. it
-        /// must have no replication.
-        CDINodeRep(const CDINodeRep *parent, const XMLNode *group)
+        /// @param child is the XML element for the current (child). If it is a
+        /// group, it must have no replication.
+        CDINodeRep(const CDINodeRep *parent, const XMLNode *child)
         {
-            HASSERT(group->father == parent->node_);
-            node_ = group;
-            HASSERT(get_replication(group) == 1);
-            address_ = parent->get_child_address(group);
+            HASSERT(child->father == parent->node_);
+            node_ = child;
+            if (strcmp(child->tag, "group") == 0)
+            {
+                HASSERT(get_replication(child) == 1);
+            }
+            address_ = parent->get_child_address(child);
         }
 
         /// Initializes a group rep for a given replica.
@@ -434,6 +488,16 @@ public:
             get_userinfo(&info, child);
             HASSERT(info);
             return address_ + info->offset_from_parent;
+        }
+
+        /// Gets the size of a child (number of bytes occupied).
+        unsigned get_child_size(const XMLNode *child) const
+        {
+            HASSERT(child->father == node_);
+            NodeInfo *info;
+            get_userinfo(&info, child);
+            HASSERT(info);
+            return info->size;
         }
     };
 

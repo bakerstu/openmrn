@@ -258,11 +258,18 @@ protected:
     /// Adds a sample for a preamble bit. @param sample is the next sample to
     /// return to the application layer (usually a bitmask setting which
     /// channels are active).
-    void add_sample(uint8_t sample) {
-        if (feedbackQueue_.full()) return;
+    void add_sample(int sample) {
+        if (sample < 0) return; // skipped sampling
+        if (feedbackQueue_.full()) {
+            extern uint32_t feedback_sample_overflow_count;
+            ++feedback_sample_overflow_count;
+            return;
+        }
         feedbackQueue_.back().reset(feedbackKey_);
         feedbackQueue_.back().channel = HW::get_feedback_channel();
         feedbackQueue_.back().add_ch1_data(sample);
+        uint32_t tick_timer = HW::get_timer_tick();
+        memcpy(feedbackQueue_.back().ch2Data, &tick_timer, 4);
         feedbackQueue_.increment_back();
         MAP_IntPendSet(HW::OS_INTERRUPT);
     }
