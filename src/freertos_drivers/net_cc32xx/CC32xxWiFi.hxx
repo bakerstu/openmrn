@@ -87,7 +87,7 @@ public:
         WLAN_LOW_LATENCY_POLICY, /**< WLAN power policy low latency */
         WLAN_LOW_POWER_POLICY,   /**< WLAN power policy low power */
         WLAN_ALWAYS_ON_POLICY,   /**< WLAN power policy always on */
-        WLAN_DEFAULT_POLICY,     /**< WLAN power policy in default state */
+        WLAN_NO_CHANGE_POLICY,   /**< WLAN power policy to be left alone */
     };
 
     /** metadata for a WLAN netowrk entry.
@@ -114,7 +114,7 @@ public:
      * @param power_policy desired power policy
      */
     void start(WlanRole role = WlanRole::STA,
-               WlanPowerPolicy power_policy = WLAN_DEFAULT_POLICY);
+               WlanPowerPolicy power_policy = WLAN_NO_CHANGE_POLICY);
 
     /** Stops the Wi-Fi in preparation for a reboot. TODO: does this need to be
      * called from a critical section?

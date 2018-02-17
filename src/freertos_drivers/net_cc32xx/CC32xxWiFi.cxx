@@ -641,7 +641,7 @@ void CC32xxWiFi::set_default_state()
         sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(1,0,0,0,0),
                          NULL,0);
 
-        if (wlanPowerPolicy != WLAN_DEFAULT_POLICY)
+        if (wlanPowerPolicy != WLAN_NO_CHANGE_POLICY)
         {
             wlan_power_policy_set(wlanPowerPolicy);
         }
