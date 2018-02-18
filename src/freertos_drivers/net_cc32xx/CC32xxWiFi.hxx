@@ -52,6 +52,9 @@ class CC32xxSocket;
 class CC32xxWiFi : public Singleton<CC32xxWiFi>
 {
 public:
+    /** the value passed to wlan_profile_del() to remove all profiles */
+    static constexpr int PROFILE_DELETE_ALL = 0xFF;
+
     /** CC32xx SimpleLink forward declaration */
     struct WlanEvent;
 
