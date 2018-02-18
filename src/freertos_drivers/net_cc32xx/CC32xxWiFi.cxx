@@ -173,6 +173,7 @@ CC32xxWiFi::CC32xxWiFi()
     , wakeup(-1)
     , rssi(0)
     , wlanRole(WlanRole::UNKNOWN)
+    , started(false)
     , connected(0)
     , connectionFailed(0)
     , ipAcquired(0)
@@ -517,6 +518,7 @@ void CC32xxWiFi::stop()
 {
     ipAcquired = false;
     connected = false;
+    started = false;
     sl_Stop(0xFF);
 }
 
@@ -671,6 +673,7 @@ void CC32xxWiFi::set_default_state()
             wlan_power_policy_set(wlanPowerPolicy);
         }
     }
+    started = true;
 }
 
 /*

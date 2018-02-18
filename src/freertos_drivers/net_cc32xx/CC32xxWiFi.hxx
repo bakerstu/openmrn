@@ -121,6 +121,14 @@ public:
      */
     void stop();
 
+    /** Get the started state of the network processor.
+     * @return true if started, else false
+     */
+    bool is_started()
+    {
+        return started;
+    }
+
     /** Connect to access point.
      * @param ssid access point ssid
      * @param security_key access point security key
@@ -442,9 +450,10 @@ private:
     WlanRole wlanRole; /**< the Wi-Fi role we are in */
     WlanPowerPolicy wlanPowerPolicy; /**< the desired power policy */
 
+    unsigned started          : 1; /**< network processor started */
     unsigned connected        : 1; /**< AP connected state */
     unsigned connectionFailed : 1; /**< Connection attempt failed status */
-    unsigned ipAcquired        : 1; /**< IP address aquired state */
+    unsigned ipAcquired       : 1; /**< IP address aquired state */
     unsigned ipLeased         : 1; /**< IP address leased to a client(AP mode)*/
     unsigned smartConfigStart : 1; /**< Smart config in progress */
 
