@@ -64,4 +64,24 @@ private:
 /// Actual class that keeps 8 log entries of one byte each.
 typedef SimpleLog<uint64_t> LogBuffer;
 
+
+/// Alternative for hundreds of entries.
+template<class T, int N> class LogRing {
+public:
+    void add(T data) {
+        data_[next_] = data;
+        last_ = data_ + next_;
+        if (next_) {
+            --next_;
+        } else {
+            next_ = N-1;
+        }
+    }
+    
+private:
+    T data_[N];
+    unsigned next_{N};
+    T* last_{data_};
+};
+
 #endif // _FREERTOS_DRIVERS_COMMON_SIMPLELOG_HXX_
