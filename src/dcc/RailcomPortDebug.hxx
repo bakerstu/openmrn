@@ -154,9 +154,20 @@ public:
         parent_->register_port(this);
     }
 
+    RailcomToOpenLCBDebugProxy(Node *node)
+        : dcc::RailcomHubPort(node->iface())
+        , parent_(nullptr)
+        , node_(node)
+        , occupancyPort_(nullptr)
+    {
+    }
+    
     ~RailcomToOpenLCBDebugProxy()
     {
-        parent_->unregister_port(this);
+        if (parent_)
+        {
+            parent_->unregister_port(this);
+        }
     }
 
     Action entry() override
@@ -232,7 +243,7 @@ public:
         return release_and_exit();
     }
 
-    dcc::RailcomHubFlow *parent_;
+    dcc::RailcomHubFlow *parent_{nullptr};
     Node *node_;
     dcc::RailcomHubPort *occupancyPort_;
 };
