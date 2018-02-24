@@ -222,8 +222,8 @@ private:
     bool sampleActive_ = false;
     /// Seems unused? @todo delete.
     unsigned lastLevel_;
-    /// Seems unused? @todo delete.
-    bool overflowed_ = false;
+    /// if true then sampling will be suspended until the timer overflows.
+    bool waitSampleForOverflow_ = false;
     /// True if the current internal state is the cutout state.
     bool inCutout_ = false;
     /// True for the last bit time before the cutout, to prevent sampling fro
@@ -308,15 +308,19 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         uint32_t old_value = lastTimerValue_;
         if (raw_new_value > old_value) {
             // Timer has overflowed.
-            old_value += HW::TIMER_MAX_VALUE;
             if (nextSample_ < old_value) {
                 nextSample_ += HW::TIMER_MAX_VALUE;
             }
+            old_value += HW::TIMER_MAX_VALUE;
+            waitSampleForOverflow_ = false;
+            Debug::CapTimerOverflow::set(false);
         }
-        if (raw_new_value < nextSample_) {
+        if (raw_new_value < nextSample_ && !waitSampleForOverflow_) {
             sampleActive_ = true;
             if (nextSample_ <= HW::SAMPLE_PERIOD_CLOCKS) {
                 nextSample_ += HW::TIMER_MAX_VALUE;
+                waitSampleForOverflow_ = true;
+                Debug::CapTimerOverflow::set(true);
             }
             nextSample_ -= HW::SAMPLE_PERIOD_CLOCKS;
         }
