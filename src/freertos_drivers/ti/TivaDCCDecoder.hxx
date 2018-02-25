@@ -301,7 +301,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
     if (status & HW::TIMER_CAP_EVENT)
     {
         //Debug::DccDecodeInterrupts::toggle();
-
+        HW::cap_event_hook();
         MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
         uint32_t raw_new_value;
         raw_new_value = MAP_TimerValueGet(HW::TIMER_BASE, HW::TIMER);
