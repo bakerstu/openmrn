@@ -332,14 +332,14 @@ private:
 
     // RailcomDriver interface
     void feedback_sample() OVERRIDE {
-        HW::enable_measurement();
+        HW::enable_measurement(true);
         this->add_sample(HW::sample());
         HW::disable_measurement();
     }
 
     void start_cutout() OVERRIDE
     {
-        HW::enable_measurement();
+        HW::enable_measurement(false);
         const bool need_ch1_cutout = HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
         Debug::RailcomRxActivate::set(true);
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
