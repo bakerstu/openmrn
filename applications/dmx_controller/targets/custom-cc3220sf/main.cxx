@@ -48,6 +48,7 @@
 
 #include "CC32xxWiFi.hxx"
 #include "utils/stdio_logging.h"
+#include "freertos/tc_ioctl.h"
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
@@ -64,7 +65,7 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 // Specifies the 48-bit OpenLCB node identifier. This must be unique for every
 // hardware manufactured, so in production this should be replaced by some
 // easily incrementable method.
-extern const openlcb::NodeID NODE_ID = 0x050101011809ULL;
+extern const openlcb::NodeID NODE_ID = 0x050101011808ULL;
 
 // Sets up a comprehensive OpenLCB stack for a single virtual node. This stack
 // contains everything needed for a usual peripheral node -- all
@@ -157,6 +158,52 @@ void eeprom_updated_notification() {
 }
 }
 
+class DmxDriver : public StateFlowBase {
+public:
+    DmxDriver() : StateFlowBase(stack.service()) {
+        memset(channelData_, 0, sizeof(channelData_));
+        fd_ = ::open("/dev/ser0", O_RDWR);
+        HASSERT(fd_ >= 0);
+        RS485_TX_EN_Pin::set(true);
+        start_flow(STATE(wait_state));
+    }
+
+    void set_channel_value(unsigned ch, uint8_t value) {
+        HASSERT(ch < NUM_CHANNEL);
+        channelData_[ch + HEADER_PAYLOAD] = value;
+    }
+
+    uint8_t* get_channels() {
+        return channelData_ + HEADER_PAYLOAD;
+    }
+    
+    Action wait_state() {
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(5), STATE(send_data));
+    }
+
+    Action send_data() {
+        // send break
+        ::ioctl(fd_, TCSBRK, 0);
+        return write_repeated(&helper_, fd_, channelData_, sizeof(channelData_),
+            STATE(wait_state));
+    }
+    
+    static constexpr unsigned NUM_CHANNEL = 32;
+
+private:
+    static constexpr unsigned HEADER_PAYLOAD = 1;
+
+    StateFlowTimer timer_{this};
+    StateFlowSelectHelper helper_{this};
+    
+    /// Serial device FD.
+    int fd_;
+
+    /// Raw data of what to send to the bus.
+    uint8_t channelData_[NUM_CHANNEL + HEADER_PAYLOAD];
+} g_dmx_driver;
+
+
 // Defines the GPIO ports used for the producers and the consumers.
 
 // List of GPIO objects that will be used for the output pins. You should keep
@@ -220,12 +267,16 @@ int appl_main(int argc, char *argv[])
         wifi.connecting_update_blinker();
     }
 
+    
     resetblink(WIFI_BLINK_CONNECTING);
     extern char WIFI_HUB_HOSTNAME[];
     extern int WIFI_HUB_PORT;
     stack.connect_tcp_gridconnect_hub(WIFI_HUB_HOSTNAME, WIFI_HUB_PORT);
     resetblink(0);
 
+    openlcb::ReadWriteMemoryBlock dmx_space(g_dmx_driver.get_channels(), g_dmx_driver.NUM_CHANNEL);
+    stack.memory_config_handler()->registry()->insert(stack.node(), 72, &dmx_space);
+    
     // This command donates the main thread to the operation of the
     // stack. Alternatively the stack could be started in a separate stack and
     // then application-specific business logic could be executed ion a busy

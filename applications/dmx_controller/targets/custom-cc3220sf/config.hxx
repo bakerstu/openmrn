@@ -51,6 +51,23 @@ CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Output LEDs"));
 CDI_GROUP_ENTRY(producers, AllProducers, Name("Input buttons"));
 CDI_GROUP_END();
 
+CDI_GROUP(DmxSegment, Segment(72), Offset(0));
+CDI_GROUP_ENTRY(ch1, Uint8ConfigEntry, Name("Channel 1"));
+CDI_GROUP_ENTRY(ch2, Uint8ConfigEntry, Name("Channel 2"));
+CDI_GROUP_ENTRY(ch3, Uint8ConfigEntry, Name("Channel 3"));
+CDI_GROUP_ENTRY(ch4, Uint8ConfigEntry, Name("Channel 4"));
+CDI_GROUP_ENTRY(ch5, Uint8ConfigEntry, Name("Channel 5"));
+CDI_GROUP_ENTRY(ch6, Uint8ConfigEntry, Name("Channel 6"));
+CDI_GROUP_ENTRY(ch7, Uint8ConfigEntry, Name("Channel 7"));
+CDI_GROUP_ENTRY(ch8, Uint8ConfigEntry, Name("Channel 8"));
+CDI_GROUP_ENTRY(ch9, Uint8ConfigEntry, Name("Channel 9"));
+CDI_GROUP_ENTRY(cha, Uint8ConfigEntry, Name("Channel 10"));
+CDI_GROUP_ENTRY(chb, Uint8ConfigEntry, Name("Channel 11"));
+CDI_GROUP_ENTRY(chc, Uint8ConfigEntry, Name("Channel 12"));
+CDI_GROUP_ENTRY(chd, Uint8ConfigEntry, Name("Channel 13"));
+CDI_GROUP_ENTRY(che, Uint8ConfigEntry, Name("Channel 14"));
+CDI_GROUP_END();
+
 /// The main structure of the CDI. ConfigDef is the symbol we use in main.cxx
 /// to refer to the configuration defined here.
 CDI_GROUP(ConfigDef, MainCdi());
@@ -63,6 +80,7 @@ CDI_GROUP_ENTRY(acdi, Acdi);
 CDI_GROUP_ENTRY(userinfo, UserInfoSegment);
 /// Adds the main configuration segment.
 CDI_GROUP_ENTRY(seg, IoBoardSegment);
+CDI_GROUP_ENTRY(dmxseg, DmxSegment);
 CDI_GROUP_END();
 
 } // namespace openlcb
