@@ -65,25 +65,23 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 /** override stderr */
 const char *STDERR_DEVICE = "/dev/ser0";
 
-/** Assert the RS-485 transmit enable line.
- */
+/*
+// Assert the RS-485 transmit enable line.
 static void rs485_enable_assert()
 {
     RS485_TX_EN_Pin::set(true);
     UtilsDelay(100);
 }
 
-/** Deassert the RS-485 transmit enable line.
- */
+// Deassert the RS-485 transmit enable line.
 static void rs485_enable_deassert()
 {
     RS485_TX_EN_Pin::set(false);
-}
+}*/
 
 /** UART 0 serial driver instance */
 static CC32xxUart uart0("/dev/ser0", UARTA0_BASE, INT_UARTA0, 250000,
-                        CC32xxUart::CS8, true,
-                        rs485_enable_assert, rs485_enable_deassert);
+                        CC32xxUart::CS8 | CC32xxUart::CSTOPB, true);
 
 /** Wi-Fi instance */
 CC32xxWiFi wifi;
