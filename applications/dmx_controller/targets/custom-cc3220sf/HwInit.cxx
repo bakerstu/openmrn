@@ -177,7 +177,7 @@ void timer1a_interrupt_handler(void)
     //
     // Clear the timer interrupt.
     //
-    MAP_TimerIntClear(TIMERA2_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerIntClear(BLINKER_TIMER_BASE, BLINKER_TIMER_TIMEOUT);
     // Set output LED.
     BLINKER_RAW_Pin::set((rest_pattern & 1));
 
@@ -228,6 +228,8 @@ void hw_preinit(void)
 
     // initilize pin modes:
     init_pinmux<0>();
+    GpioInit::hw_init();
+
 
     /* Blinker timer initialization. */
     MAP_PRCMPeripheralClkEnable(PRCM_TIMERA1, PRCM_RUN_MODE_CLK);
@@ -292,7 +294,7 @@ void hw_init(void)
     // Initialize the SPI driver for the CC32xx network processor connection.
     extern void SPI_init(void);
     SPI_init();
-
+    
     wifi.instance()->start();
 }
 
