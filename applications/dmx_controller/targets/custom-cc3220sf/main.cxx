@@ -223,11 +223,11 @@ constexpr const Gpio *const kOutputGpio[] = {LED_5_Pin::instance(),
 // in which there is a repeated group 'consumers'. The GPIO pins get assigned
 // to the repetitions in the group in order.
 openlcb::MultiConfiguredConsumer consumers(
-    stack.node(), kOutputGpio, ARRAYSIZE(kOutputGpio), cfg.seg().consumers());
+    stack.node(), kOutputGpio, ARRAYSIZE(kOutputGpio), cfg.seg().legacy().consumers());
 
 // Similar syntax for the producers.
 openlcb::ConfiguredProducer producer_sw1(
-    stack.node(), cfg.seg().producers().entry<0>(), SW1_Pin());
+    stack.node(), cfg.seg().legacy().producers().entry<0>(), SW1_Pin());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
@@ -243,7 +243,7 @@ openlcb::RefreshLoop loop(
 int appl_main(int argc, char *argv[])
 {
     stack.check_version_and_factory_reset(
-        cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
+        cfg.seg().legacy().internal_config(), openlcb::CANONICAL_VERSION, false);
 
     // The necessary physical ports must be added to the stack.
     //
