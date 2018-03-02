@@ -41,6 +41,8 @@
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/MultiConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
+#include "openlcb/EventHandler.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
 
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "config.hxx"
@@ -87,7 +89,7 @@ extern const char *const openlcb::CONFIG_FILENAME = "/usr/dmxeeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 1500, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 3000, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -203,6 +205,175 @@ private:
     uint8_t channelData_[NUM_CHANNEL + HEADER_PAYLOAD];
 } g_dmx_driver;
 
+class DmxSceneConsumer : private DefaultConfigUpdateListener,
+                         private openlcb::SimpleEventHandler
+{
+public:
+    DmxSceneConsumer(const dmx::AllSceneConfig &cfg, openlcb::Node *node,
+        uint8_t *dmx_data, unsigned dmx_size)
+        : cfg_(cfg)
+        , node_(node)
+        , dmxData_(dmx_data)
+        , dmxSize_(dmx_size)
+    {
+    }
+
+private:
+    /// Called when the config file is loaded or changed.
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done) override
+    {
+        AutoNotify an(done);
+        fd_ = fd;
+        if (!parameterData_.empty())
+        {
+            openlcb::EventRegistry::instance()->unregister_handler(this);
+        }
+        unsigned cnt = 0;
+        // first count all channels.
+        for (unsigned i = 0; i < cfg_.num_repeats(); ++i)
+        {
+            const auto &e = cfg_.entry(i);
+            for (unsigned c = 0; c < e.channels().num_repeats(); ++c)
+            {
+                const auto &ch = e.channels().entry(c);
+                auto dmx_channel = ch.channel().read(fd);
+                if (dmx_channel > 0 && dmx_channel <= 512)
+                {
+                    ++cnt;
+                }
+            }
+        }
+        // allocates memory
+        parameterData_.resize(cnt);
+        cnt = 0;
+        // caches configuration in that memory and registers event handlers
+        for (unsigned i = 0; i < cfg_.num_repeats(); ++i)
+        {
+            const auto &e = cfg_.entry(i);
+            unsigned sequence_start = cnt;
+            for (unsigned c = 0; c < e.channels().num_repeats(); ++c)
+            {
+                const auto &ch = e.channels().entry(c);
+                auto dmx_channel = ch.channel().read(fd);
+                if (dmx_channel > 0 && dmx_channel <= 512)
+                {
+                    auto &param = parameterData_[cnt];
+                    param.delay = ch.delay().read(fd);
+                    param.channel = dmx_channel;
+                    param.value = ch.value().read(fd);
+                    param.end = 0;
+                    ++cnt;
+                }
+            }
+            openlcb::EventId event = e.event().read(fd);
+            if (cnt > sequence_start && event > 0)
+            {
+                // there was at least one channel set and the event id seems
+                // valid
+
+                // set sentinel
+                parameterData_[cnt - 1].end = 1;
+                // register event handler
+                openlcb::EventRegistry::instance()->register_handler(
+                    EventRegistryEntry(this, event, sequence_start), 0);
+            }
+        }
+
+        if (parameterData_.empty())
+        {
+            return UPDATED;
+        }
+        else
+        {
+            return REINIT_NEEDED;
+        }
+    }
+
+    void factory_reset(int fd) override
+    {
+        fd_ = fd;
+        for (unsigned i = 0; i < cfg_.num_repeats(); ++i)
+        {
+            const auto &e = cfg_.entry(i);
+            // events are factory reset automatically.
+            e.name().write(fd, "");
+            for (unsigned c = 0; c < e.channels().num_repeats(); ++c)
+            {
+                const auto &ch = e.channels().entry(c);
+                CDI_FACTORY_RESET(ch.delay);
+                CDI_FACTORY_RESET(ch.channel);
+                CDI_FACTORY_RESET(ch.value);
+            }
+        }
+    }
+
+    void handle_event_report(const EventRegistryEntry &registry_entry,
+        EventReport *event, BarrierNotifiable *done) override
+    {
+        AutoNotify an(done);
+        // Applies the parameter values we have stored.
+        for (unsigned next = registry_entry.user_arg;
+             next < parameterData_.size(); ++next)
+        {
+            const auto &d = parameterData_[next];
+            if (d.channel < dmxSize_)
+            {
+                dmxData_[d.channel - 1] = d.value;
+            }
+            if (d.end)
+                break;
+        }
+    }
+
+    void handle_identify_global(const EventRegistryEntry &registry_entry,
+        EventReport *event, BarrierNotifiable *done) override
+    {
+        AutoNotify an(done);
+        if (event->dst_node && event->dst_node != node_)
+        {
+            return;
+        }
+        openlcb::event_write_helper1.WriteAsync(node_,
+            openlcb::Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN,
+            openlcb::WriteHelper::global(),
+            openlcb::eventid_to_buffer(registry_entry.event),
+            done->new_child());
+    }
+
+    void handle_identify_consumer(const EventRegistryEntry &registry_entry,
+        EventReport *event, BarrierNotifiable *done) OVERRIDE
+    {
+        return handle_identify_global(registry_entry, event, done);
+    }
+
+    struct ParameterConfig
+    {
+        /// Delay in msec from the trigger.
+        uint16_t delay;
+        /// DMX channel number, 1..512 (0 not allowed).
+        uint16_t channel : 10;
+        /// Is this the end of the trigger sequence.
+        uint16_t end : 1;
+        /// Value to set on DMX channel.
+        uint8_t value;
+    };
+
+    /// Stores all loaded parameters.
+    std::vector<ParameterConfig> parameterData_;
+
+    /// Configuration file offsets.
+    dmx::AllSceneConfig cfg_;
+    /// Configuration file FD.
+    int fd_{-1};
+    /// OpenLCB node to use as consumer.
+    openlcb::Node *node_;
+    /// The output DMX buffer. Has channel 1 data at offset 0.
+    uint8_t *dmxData_;
+    /// The number of channels supported.
+    unsigned dmxSize_;
+} g_scene_consumer{cfg.seg().scenes(), stack.node(),
+    g_dmx_driver.get_channels(), g_dmx_driver.NUM_CHANNEL};
 
 // Defines the GPIO ports used for the producers and the consumers.
 
@@ -234,6 +405,23 @@ openlcb::ConfiguredProducer producer_sw1(
 // producers to it.
 openlcb::RefreshLoop loop(
     stack.node(), {producer_sw1.polling()});
+
+
+class DefaultName : private DefaultConfigUpdateListener {
+private:
+    void factory_reset(int fd) override
+    {
+        cfg.userinfo().name().write(fd, "DMX controller board");
+        cfg.userinfo().description().write(fd, "");
+    }
+
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done) override
+    {
+        AutoNotify an(done);
+        return UPDATED;
+    }
+} g_default_name;
 
 /** Entry point to application.
  * @param argc number of command line arguments

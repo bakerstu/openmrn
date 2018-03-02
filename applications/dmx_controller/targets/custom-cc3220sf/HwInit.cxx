@@ -86,7 +86,7 @@ static CC32xxUart uart0("/dev/ser0", UARTA0_BASE, INT_UARTA0, 250000,
 /** Wi-Fi instance */
 CC32xxWiFi wifi;
 
-static CC32xxEEPROMEmulation eeprom("/usr/dmxeeprom", 1500);
+static CC32xxEEPROMEmulation eeprom("/usr/dmxeeprom", 3000);
 
 /** Assert the chip select for the MCP2515 CAN controller.
  */

@@ -39,7 +39,7 @@ using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x184f;
+static constexpr uint16_t CANONICAL_VERSION = 0x124f;
 
 
 CDI_GROUP(LegacyConfig);
@@ -55,10 +55,11 @@ CDI_GROUP_END();
 /// origin 128 to give space for the ACDI user data at the beginning.
 CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 CDI_GROUP_ENTRY(legacy, LegacyConfig, FixedSize(64));
-CDI_GROUP_ENTRY(scenes, dmx::AllSceneConfig, Name("Scenes"), Description("Scenes allow loading specific visual configurations by LCC events."));
+CDI_GROUP_ENTRY(scenes, dmx::AllSceneConfig, Name("Scenes"), Description("Scenes allow loading specific visual configurations by LCC events."), RepName("Scene"));
 CDI_GROUP_END();
 
-CDI_GROUP(DmxSegment, Segment(72), Offset(0));
+CDI_GROUP(DmxSegment, Segment(72), Offset(0), Name("Direct DMX edit"),
+    Description("Allows directly setting the DMX channel data."));
 CDI_GROUP_ENTRY(ch1, Uint8ConfigEntry, Name("Channel 1"));
 CDI_GROUP_ENTRY(ch2, Uint8ConfigEntry, Name("Channel 2"));
 CDI_GROUP_ENTRY(ch3, Uint8ConfigEntry, Name("Channel 3"));
@@ -87,6 +88,7 @@ CDI_GROUP_ENTRY(acdi, Acdi);
 CDI_GROUP_ENTRY(userinfo, UserInfoSegment);
 /// Adds the main configuration segment.
 CDI_GROUP_ENTRY(seg, IoBoardSegment);
+CDI_GROUP_ENTRY(dmxseg, DmxSegment);
 CDI_GROUP_END();
 
 } // namespace openlcb

@@ -68,11 +68,11 @@ CDI_GROUP_ENTRY(name, openlcb::StringConfigEntry<SCENE_CONFIG_NAME_LEN>,
     Description("User description for the scene. This does not impact the "
                 "device's operation."));
 CDI_GROUP_ENTRY(event, openlcb::EventConfigEntry,
-    Name("Event to call up scene."),
-    Description("When this event is received, the scene will be activated. You "
+    Name("Event to call up scene"),
+    Description("When this event is consumed, the scene will be activated. You "
                 "can have one event activate multiple scenes if you need to "
                 "set more channels than the parameters below."));
-CDI_GROUP_ENTRY(channels, SceneChannelConfig, RepName("Entry"),
+CDI_GROUP_ENTRY(channels, AllChannelConfig, RepName("Entry"),
     Name("Scene parameters"),
     Description("Sets individual DMX channels to specific values when the "
                 "scene gets activated."));
