@@ -1,1 +1,1 @@
-../../../../boards/ti-cc3220sf-launchpad/memory_map.ld
+memory_map.blflash.ld

@@ -56,6 +56,9 @@
 #include "hardware.hxx"
 #include "bootloader_hal.h"
 
+#include "CC3200_compat/simplelink.h"
+//#include "netapp.h"
+
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
 
@@ -137,6 +140,30 @@ void __attribute__((__weak__)) eeprom_updated_notification() {
 extern void (* const __interrupt_vector[])(void);
 void hw_set_to_safe(void);
 
+/// Called by all functions that turn off the MCU (reboot, poweroff/hibernate,
+/// bootloader entry) to save all in-memory state.
+void sync_state()
+{
+    eeprom.flush();
+    wifi.stop();
+    hw_set_to_safe();
+    /* Globally disables interrupts. */
+    asm("cpsid i\n");
+}
+
+void reboot()
+{
+    sync_state();
+    MAP_PRCMMCUReset(false);
+    DIE("Failed to reset");
+}
+
+void enter_bootloader()
+{
+    __bootloader_magic_ptr = REQUEST_BOOTLOADER;
+    reboot();
+}
+
 static uint32_t nsec_per_clock = 0;
 /// Calculate partial timing information from the tick counter.
 long long hw_get_partial_tick_time_nsec(void)
@@ -210,9 +237,23 @@ void hw_preinit(void)
 
     nsec_per_clock = 1000000000 / cm3_cpu_clock_hz;
 
-    /* Setup the interrupt vector table */
-    MAP_IntVTableBaseSet((unsigned long)&__interrupt_vector[0]);
+    // Setup the interrupt vector table
 
+    // Check if we need to move the interrupt vector table to RAM.
+    extern uint8_t __ram_vectors, __ram_start, __ram_end, __interrupt_vector_start, __interrupt_vector_end;
+    uint8_t* current_vector = (uint8_t*)&__interrupt_vector[0];
+    if ((&__ram_start <= current_vector) && (current_vector <= &__ram_end))
+    {
+        // not needed to move
+        MAP_IntVTableBaseSet((unsigned long)current_vector);
+    }
+    else
+    {
+        unsigned len = &__interrupt_vector_end - &__interrupt_vector_start;
+        memcpy(&__ram_vectors, __interrupt_vector, len);
+        MAP_IntVTableBaseSet((unsigned long)&__ram_vectors);
+    }
+    
     // Disables all interrupts that the bootloader might have enabled.
     HWREG(NVIC_DIS0) = 0xffffffffU;
     HWREG(NVIC_DIS1) = 0xffffffffU;
@@ -304,6 +345,8 @@ void hw_postinit(void)
     SyncNotifiable n;
     wifi.run_on_network_thread([&n]() {
         eeprom.mount();
+        string service = "tcs_cs_090099dd0204._openlcb._tcp.local";
+        sl_NetAppMDNSUnRegisterService((const signed char*)service.c_str(), service.size(), 0);
         n.notify();
     });
     n.wait_for_notification();

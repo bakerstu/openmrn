@@ -1,1 +1,1 @@
-target-ram.ld
+target.flash.ld

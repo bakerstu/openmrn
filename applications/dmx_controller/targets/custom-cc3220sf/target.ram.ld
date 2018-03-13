@@ -6,16 +6,11 @@ GROUP(-lgcc -lc)
 /* include device specific memory map */
 INCLUDE memory_map.ld
 
-REGION_ALIAS("REGION_PGM", FLASH);
-
 SECTIONS
 {
-    .dbghdr : ALIGN (2048) {
-        KEEP (*(.dbghdr))
-    } > FLASH_HDR
-
-    .text : ALIGN (1024)
+    .text :
     {
+        _text = .;
         KEEP(*(.interrupt_vector))
 
         /* Makes place for the app header to be filled in by the bootloader
@@ -103,7 +98,7 @@ SECTIONS
 
     __init_data = .;
 
-    .data : 
+    .data : /*AT(__init_data)*/
     {
         _data = .;
         *(.data*)
@@ -115,7 +110,7 @@ SECTIONS
         LONG(ABSOLUTE(ADDR(.ovly0))); LONG(SIZEOF(.ovly0)); LONG(LOADADDR(.ovly0));
         LONG(ABSOLUTE(ADDR(.ovly1))); LONG(SIZEOF(.ovly1)); LONG(LOADADDR(.ovly1));
 */
-    } > RAM AT>REGION_PGM
+    } > REGION_RAM
 
     .bss :
     {
@@ -123,7 +118,7 @@ SECTIONS
         *(.bss*)
         *(COMMON)
         _ebss = .;
-    } > RAM
+    } > REGION_RAM
         
     
     /* DEFAULT NOINIT SECTION */
@@ -133,8 +128,8 @@ SECTIONS
         *(.noinit*) 
          . = ALIGN(4) ;
         _end_noinit = .;
-    } > RAM
-    
+    } > REGION_RAM
+
     PROVIDE(_pvHeapStart = .);
     PROVIDE(__cs3_heap_start = .);
 /*
