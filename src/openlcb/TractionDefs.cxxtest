@@ -10,11 +10,45 @@ TEST(TractionDefsTest, node_name)
                          dcc::TrainAddressType::DCC_SHORT_ADDRESS, 13));
     EXPECT_EQ("013L", TractionDefs::train_node_name_from_legacy(
                           dcc::TrainAddressType::DCC_LONG_ADDRESS, 13));
+    EXPECT_EQ("00L", TractionDefs::train_node_name_from_legacy(
+                         dcc::TrainAddressType::DCC_LONG_ADDRESS, 0));
     EXPECT_EQ("13M", TractionDefs::train_node_name_from_legacy(
                          dcc::TrainAddressType::MM, 13));
 
     EXPECT_EQ("415", TractionDefs::train_node_name_from_legacy(
                          dcc::TrainAddressType::DCC_LONG_ADDRESS, 415));
+}
+
+void address_test_helper(dcc::TrainAddressType type, uint32_t address)
+{
+    auto node_id = TractionDefs::train_node_id_from_legacy(type, address);
+    dcc::TrainAddressType decoded_type;
+    uint32_t decoded_address = 0xFFFF;
+    ASSERT_TRUE(TractionDefs::legacy_address_from_train_node_id(
+        node_id, &decoded_type, &decoded_address));
+    EXPECT_EQ(type, decoded_type);
+    EXPECT_EQ(address, decoded_address);
+}
+
+TEST(TractionDefsTest, address_render)
+{
+    // Tests that rendering then re-parsing an address results the same address
+    // for all sorts of different corner cases.
+    address_test_helper(dcc::TrainAddressType::MM, 13);
+    address_test_helper(dcc::TrainAddressType::MM, 254);
+    address_test_helper(dcc::TrainAddressType::MM, 81);
+
+    address_test_helper(dcc::TrainAddressType::DCC_SHORT_ADDRESS, 0);
+    address_test_helper(dcc::TrainAddressType::DCC_LONG_ADDRESS, 0);
+
+    address_test_helper(dcc::TrainAddressType::DCC_SHORT_ADDRESS, 13);
+    address_test_helper(dcc::TrainAddressType::DCC_LONG_ADDRESS, 13);
+
+    address_test_helper(dcc::TrainAddressType::DCC_SHORT_ADDRESS, 127);
+    address_test_helper(dcc::TrainAddressType::DCC_LONG_ADDRESS, 127);
+
+    address_test_helper(dcc::TrainAddressType::DCC_LONG_ADDRESS, 451);
+    address_test_helper(dcc::TrainAddressType::DCC_LONG_ADDRESS, 10239);
 }
 
 } // namespace openlcb

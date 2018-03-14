@@ -98,6 +98,8 @@ struct TractionDefs {
     static const uint64_t NODE_ID_MARKLIN_MOTOROLA = 0x060300000000ULL;
     /// Node ID space allocated for the MTH DCS protocol.
     static const uint64_t NODE_ID_MTH_DCS = 0x060400000000ULL;
+    /// Node ID space mask.
+    static const uint64_t NODE_ID_MASK = 0xFFFF00000000ULL;
 
     enum
     {
@@ -231,6 +233,44 @@ struct TractionDefs {
             default:
                 DIE("Unknown train address type");
         }
+    }
+
+    /** Converts a node ID to a legacy address if possible.
+        @param id is an openLCB NodeID
+        @param type (must be not null) will be filled with the legacy train
+       address type
+        @param addr (must be not null) will be filled with the legacy train
+       address.
+        @return true if the address was recognized and type, addr was filled
+       with values. Returns false if the address was not recognized as a legacy
+       train node's address.
+    */
+    static bool legacy_address_from_train_node_id(
+        NodeID id, dcc::TrainAddressType *type, uint32_t *addr)
+    {
+        HASSERT(type);
+        HASSERT(addr);
+        if ((id & NODE_ID_MASK) == NODE_ID_DCC)
+        {
+            *addr = (id & 0x3FFF);
+            if (((id & 0xC000) == 0xC000) || (*addr >= 128u))
+            {
+                // overlapping long address
+                *type = dcc::TrainAddressType::DCC_LONG_ADDRESS;
+            }
+            else
+            {
+                *type = dcc::TrainAddressType::DCC_SHORT_ADDRESS;
+            }
+            return true;
+        }
+        else if ((id & NODE_ID_MASK) == NODE_ID_MARKLIN_MOTOROLA)
+        {
+            *type = dcc::TrainAddressType::MM;
+            *addr = (id & 0x3FFF);
+            return true;
+        }
+        return false;
     }
 
     /** Converts a legacy address to a user-visible name.
