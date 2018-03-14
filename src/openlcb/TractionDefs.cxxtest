@@ -1,24 +1,20 @@
-#include "utils/test_main.hxx"
 #include "openlcb/TractionDefs.hxx"
+#include "utils/test_main.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
 TEST(TractionDefsTest, node_name)
 {
-    EXPECT_EQ("13S",
-        TractionDefs::train_node_name_from_legacy(
-            dcc::TrainAddressType::DCC_SHORT_ADDRESS, 13));
-    EXPECT_EQ("013L",
-        TractionDefs::train_node_name_from_legacy(
-            dcc::TrainAddressType::DCC_LONG_ADDRESS, 13));
-    EXPECT_EQ("13M",
-        TractionDefs::train_node_name_from_legacy(
-            dcc::TrainAddressType::MM, 13));
+    EXPECT_EQ("13S", TractionDefs::train_node_name_from_legacy(
+                         dcc::TrainAddressType::DCC_SHORT_ADDRESS, 13));
+    EXPECT_EQ("013L", TractionDefs::train_node_name_from_legacy(
+                          dcc::TrainAddressType::DCC_LONG_ADDRESS, 13));
+    EXPECT_EQ("13M", TractionDefs::train_node_name_from_legacy(
+                         dcc::TrainAddressType::MM, 13));
 
-    EXPECT_EQ("415",
-        TractionDefs::train_node_name_from_legacy(
-            dcc::TrainAddressType::DCC_LONG_ADDRESS, 415));
+    EXPECT_EQ("415", TractionDefs::train_node_name_from_legacy(
+                         dcc::TrainAddressType::DCC_LONG_ADDRESS, 415));
 }
 
 } // namespace openlcb
-

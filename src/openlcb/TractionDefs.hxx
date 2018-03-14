@@ -39,10 +39,10 @@
 #include <cmath>
 #include <stdint.h>
 
-#include "openlcb/Velocity.hxx"
-#include "openlcb/Payload.hxx"
-#include "openlcb/If.hxx"
 #include "dcc/Defs.hxx"
+#include "openlcb/If.hxx"
+#include "openlcb/Payload.hxx"
+#include "openlcb/Velocity.hxx"
 #include "utils/format_utils.hxx"
 
 namespace openlcb {
@@ -244,14 +244,13 @@ struct TractionDefs {
         dcc::TrainAddressType type, uint32_t addr)
     {
         string ret(14, 0);
-        char* s = &ret[0];
-        if ((type == dcc::TrainAddressType::DCC_LONG_ADDRESS) &&
-            (addr < 128))
+        char *s = &ret[0];
+        if ((type == dcc::TrainAddressType::DCC_LONG_ADDRESS) && (addr < 128))
         {
             s[0] = '0';
             s++;
         }
-        char* e = integer_to_buffer(addr, s);
+        char *e = integer_to_buffer(addr, s);
         ret.resize(e - &ret[0]);
         if (type == dcc::TrainAddressType::MM)
         {
@@ -270,7 +269,7 @@ struct TractionDefs {
         }
         return ret;
     }
-    
+
     static Payload estop_set_payload() {
         Payload p(1, 0);
         p[0] = REQ_EMERGENCY_STOP;
