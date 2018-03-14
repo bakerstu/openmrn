@@ -49,6 +49,11 @@ TEST(TractionDefsTest, address_render)
 
     address_test_helper(dcc::TrainAddressType::DCC_LONG_ADDRESS, 451);
     address_test_helper(dcc::TrainAddressType::DCC_LONG_ADDRESS, 10239);
+
+    dcc::TrainAddressType decoded_type;
+    uint32_t decoded_address = 0xFFFF;
+    EXPECT_FALSE(TractionDefs::legacy_address_from_train_node_id(
+                     0x0501010118F0, &decoded_type, &decoded_address));
 }
 
 } // namespace openlcb
