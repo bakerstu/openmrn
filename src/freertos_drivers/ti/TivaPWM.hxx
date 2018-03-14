@@ -1,5 +1,5 @@
-/** \copyright
- * Copyright (c) 2014, Balazs Racz
+/** @copyright
+ * Copyright (c) 2018 Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,64 +24,55 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file SimpleLog.hxx
- *
- * A very simple logging mechanism of driver events that is capable of logging
- * a few entries of an 8-byte enum value, in a gdb-friendly way.
+ * @file TivaPWM.hxx
+ * This file implements a PWM driver for the Tiva timers.
  *
  * @author Balazs Racz
- * @date 14 September 2014
+ * @date 12 March 2018
  */
 
-#ifndef _FREERTOS_DRIVERS_COMMON_SIMPLELOG_HXX_
-#define _FREERTOS_DRIVERS_COMMON_SIMPLELOG_HXX_
 
-/// A very simple logging mechanism of driver events that is capable of logging
-/// a few entries of an 8-bit enum value, in a gdb-friendly way.
-///
-/// C is typically uint64_t.
-template <typename C> class SimpleLog
-{
+#ifndef _FREEERTOS_DRIVERS_TI_TIVAPWM_HXX_
+#define _FREEERTOS_DRIVERS_TI_TIVAPWM_HXX_
+
+#include "PWM.hxx"
+
+#include "driverlib/timer.h"
+
+
+class TivaPWM : public PWM {
 public:
-    SimpleLog()
-        : log_(0)
-    {
+    TivaPWM(unsigned timer_base, unsigned timer, unsigned period, unsigned duty)
+        : base_(timer_base), timer_(timer) {
+        set_period(period);
+        set_duty(duty);
+        MAP_TimerControlLevel(base_, timer_, true);
+        MAP_TimerEnable(base_, timer_);
     }
-
-    /// Append a byte worth of data to the end of the log buffer. Rotates out
-    /// some old data.
-    void log(uint8_t value)
-    {
-        log_ <<= 8;
-        log_ |= value;
+    
+    void set_period(uint32_t counts) override {
+        MAP_TimerLoadSet(base_, timer_, counts);
     }
-
-private:
-    /// The raw log buffer.
-    C log_;
-};
-
-/// Actual class that keeps 8 log entries of one byte each.
-typedef SimpleLog<uint64_t> LogBuffer;
-
-
-/// Alternative for hundreds of entries.
-template<class T, int N> class LogRing {
-public:
-    void add(T data) {
-        data_[next_] = data;
-        last_ = data_ + next_;
-        if (next_) {
-            --next_;
-        } else {
-            next_ = N-1;
-        }
+    virtual uint32_t get_period() override {
+        return MAP_TimerLoadGet(base_, timer_);
+    };
+    void set_duty(uint32_t counts) override {
+        MAP_TimerMatchSet(base_, timer_, counts);
+    }
+    virtual uint32_t get_duty() override {
+        return MAP_TimerMatchGet(base_, timer_);
+    }
+    virtual uint32_t get_period_max() override {
+        // @TODO figure out what is the max period
+        return 0;
+    }
+    virtual uint32_t get_period_min() override {
+        return 2;
     }
     
 private:
-    T data_[N];
-    unsigned next_{N};
-    T* last_{data_};
+    unsigned base_;
+    unsigned timer_;
 };
 
-#endif // _FREERTOS_DRIVERS_COMMON_SIMPLELOG_HXX_
+#endif // _FREEERTOS_DRIVERS_TI_TIVAPWM_HXX_

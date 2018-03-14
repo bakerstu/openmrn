@@ -54,8 +54,9 @@ static TivaI2C *instances[10] = {NULL};
  * @param name name of this device instance in the file system
  * @param base base address of this device
  * @param interrupt interrupt number of this device
+ * @param fast_mode true for 400kHz, false for 100kHz operation
  */
-TivaI2C::TivaI2C(const char *name, unsigned long base, uint32_t interrupt)
+TivaI2C::TivaI2C(const char *name, unsigned long base, uint32_t interrupt, bool fast_mode)
     : I2C(name)
     , base(base)
     , interrupt(interrupt)
@@ -112,7 +113,7 @@ TivaI2C::TivaI2C(const char *name, unsigned long base, uint32_t interrupt)
     }
 
     /* default to 100 KHz mode */
-    MAP_I2CMasterInitExpClk(base, cm3_cpu_clock_hz, false);
+    MAP_I2CMasterInitExpClk(base, cm3_cpu_clock_hz, fast_mode);
 
     /* We set the priority so that it is slightly lower than the highest needed
      * for FreeRTOS compatibility. This will ensure that CAN interrupts take

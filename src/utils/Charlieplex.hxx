@@ -35,6 +35,8 @@
 #define _UTILS_CHARLIEPLEXING_HXX_
 
 #include "os/Gpio.hxx"
+#include "utils/Fixed16.hxx"
+#include "utils/Uninitialized.hxx"
 
 template <unsigned N> struct CharlieplexHelper;
 
@@ -78,7 +80,7 @@ template <> struct CharlieplexHelper<4>
     /// Flattened list of pars of output pin numbers to use for a given LED.
     static const uint8_t pinlist[];
     /// @return How many LEDs are we driving.
-    static unsigned num_bits()
+    static constexpr unsigned num_bits()
     {
         return 12;
     }
@@ -184,5 +186,96 @@ private:
     unsigned nextBit_;        ///< LED that comes next
     unsigned bits_;           ///< Desired output state of LEDs.
 };
+
+/// Variant of the {@link Charlieplex} class that allows intensity to be set
+/// for each individual pin.
+template <unsigned N, class helper = CharlieplexHelper<N>> class WeightedCharlieplex
+{
+public:
+    /// Constructor.
+    ///
+    /// @param pins an array of Gpio object pointers defining the output pins to
+    /// use. This array may be in flash (.rodata).
+    ///
+    WeightedCharlieplex(const Gpio *const pins[helper::num_bits()])
+        : pins_(pins)
+        , nextBit_(0)
+        , bits_(0)
+    {
+        for (unsigned i = 0; i < N; ++i)
+        {
+            pins_[i]->set_direction(Gpio::Direction::INPUT);
+        }
+        for (unsigned i = 0; i < helper::num_bits(); ++i) {
+            actualIntensity_[i].emplace(0);
+            desiredIntensity_[i] = 0;
+        }
+    }
+
+    /// Switches to the next output configuration of the charlieplexing
+    /// pins. Call this repeatedly, for example from a hardware timer
+    /// interrupt.
+    void tick()
+    {
+        pins_[helper::pin_high(nextBit_)]->set_direction(
+            Gpio::Direction::INPUT);
+        pins_[helper::pin_low(nextBit_)]->set_direction(Gpio::Direction::INPUT);
+        nextBit_++;
+        if (nextBit_ >= helper::num_bits()) {
+            nextBit_ = 0;
+        }
+        bool lit = false;
+        if (bits_ & (1 << nextBit_))
+        {
+            lit = true;
+        }
+        else if (desiredIntensity_[nextBit_] > 0)
+        {
+            (*actualIntensity_[nextBit_]) *= EWMA_RATIO;
+            if (actualIntensity_[nextBit_]->round() <
+                desiredIntensity_[nextBit_])
+            {
+                lit = true;
+                (*actualIntensity_[nextBit_]) += EWMA_SUM;
+            }
+        }
+        if (lit)
+        {
+            pins_[helper::pin_high(nextBit_)]->set_direction(
+                Gpio::Direction::OUTPUT);
+            pins_[helper::pin_high(nextBit_)]->set();
+            pins_[helper::pin_low(nextBit_)]->set_direction(
+                Gpio::Direction::OUTPUT);
+            pins_[helper::pin_low(nextBit_)]->clr();
+        }
+    }
+
+    /// @return the storage representing the state of the output bits. Bit 0 is
+    /// LED0, bit 1 is LED1, etc.
+    unsigned *payload()
+    {
+        return &bits_;
+    }
+
+    /// @return the storage where the desired intensity can be written for
+    /// partial lighting.
+    uint8_t *desired_intensity()
+    {
+        return desiredIntensity_;
+    }
+
+private:
+    static constexpr Fixed16 EWMA_RATIO{0, 0xF000};
+    static constexpr Fixed16 EWMA_SUM{16, 0};
+    
+    const Gpio *const *pins_; ///< array of all GPIO pins to use
+    unsigned nextBit_;        ///< LED that comes next
+    unsigned bits_;           ///< Desired output state of LEDs.
+    uint8_t desiredIntensity_[helper::num_bits()]; ///< Partial lighting of each output.
+    uninitialized<Fixed16> actualIntensity_[helper::num_bits()]; ///< How much we actually lit a given pin.
+};
+
+template<unsigned N, typename helper>
+constexpr Fixed16 WeightedCharlieplex<N, helper>::EWMA_SUM;
 
 #endif // _UTILS_CHARLIEPLEXING_HXX_
