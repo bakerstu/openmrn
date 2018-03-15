@@ -213,6 +213,46 @@ TEST_F(MemoryConfigClientTest, reboot_reboot)
         invoke_client_no_block(MemoryConfigClientRequest::REBOOT, dstThree_);
     EXPECT_EQ(MemoryConfigClient::OPERATION_PENDING, b->data()->resultCode);
     send_packet(":X19100499N050101011400;");
+    wait(); // we purposefully do not do timed wait here; the init complete
+            // message sould terminate the timeout timer.
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_TRUE(b->data()->done.is_done());
+}
+
+TEST_F(MemoryConfigClientTest, update_complete)
+{
+    twait();
+    expect_packet(":X1A499FF2N20A8;");
+    auto b = invoke_client_no_block(
+        MemoryConfigClientRequest::UPDATE_COMPLETE, dstThree_);
+    EXPECT_EQ(MemoryConfigClient::OPERATION_PENDING, b->data()->resultCode);
+    send_packet(":X19A28499N0FF2;");
+    wait();
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_TRUE(b->data()->done.is_done());
+}
+
+TEST_F(MemoryConfigClientTest, freeze)
+{
+    twait();
+    expect_packet(":X1A499FF2N20A1EA;");
+    auto b = invoke_client_no_block(
+        MemoryConfigClientRequest::FREEZE, dstThree_, 0xEA);
+    EXPECT_EQ(MemoryConfigClient::OPERATION_PENDING, b->data()->resultCode);
+    send_packet(":X19A28499N0FF2;");
+    wait();
+    EXPECT_EQ(0, b->data()->resultCode);
+    ASSERT_TRUE(b->data()->done.is_done());
+}
+
+TEST_F(MemoryConfigClientTest, unfreeze)
+{
+    twait();
+    expect_packet(":X1A499FF2N20A0EA;");
+    auto b = invoke_client_no_block(
+        MemoryConfigClientRequest::UNFREEZE, dstThree_, 0xEA);
+    EXPECT_EQ(MemoryConfigClient::OPERATION_PENDING, b->data()->resultCode);
+    send_packet(":X19A28499N0FF2;");
     wait();
     EXPECT_EQ(0, b->data()->resultCode);
     ASSERT_TRUE(b->data()->done.is_done());
