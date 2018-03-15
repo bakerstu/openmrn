@@ -152,23 +152,23 @@ struct GenMessage
     GenMessage()
         : src({0, 0}), dst({0, 0}), flagsSrc(0), flagsDst(0) {}
 
-    void reset(Defs::MTI mti, NodeID src, NodeHandle dst, const string &payload)
+    void reset(Defs::MTI mti, NodeID src, NodeHandle dst, string payload)
     {
         this->mti = mti;
         this->src = {src, 0};
         this->dst = dst;
-        this->payload = payload;
+        this->payload = std::move(payload);
         this->dstNode = nullptr;
         this->flagsSrc = 0;
         this->flagsDst = 0;
     }
 
-    void reset(Defs::MTI mti, NodeID src, const string &payload)
+    void reset(Defs::MTI mti, NodeID src, string payload)
     {
         this->mti = mti;
         this->src = {src, 0};
         this->dst = {0, 0};
-        this->payload = payload;
+        this->payload = std::move(payload);
         this->dstNode = nullptr;
         this->flagsSrc = 0;
         this->flagsDst = 0;
