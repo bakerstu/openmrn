@@ -45,11 +45,47 @@
 
 class CC32xxSocket;
 
+/** Interface that aids in unit testing.
+ */
+class CC32xxWiFiInterface
+{
+public:
+    /** Security types.
+     */
+    enum SecurityType
+    {
+        SEC_OPEN, /**< open (no security) */
+        SEC_WEP,  /**< WEP security mode */
+        SEC_WPA2, /**< WPA2 security mode */
+    };
+
+protected:
+    /** Destructor.
+     */
+    virtual ~CC32xxWiFiInterface()
+    {
+    }
+
+    /** Setup access point role credentials.
+     * @param ssid access point ssid
+     * @param security_key access point security key
+     * @param security_type specifies security type
+     */
+    virtual void wlan_setup_ap(const char *ssid, const char *security_key,
+                               SecurityType security_type) = 0;
+
+    /** Delete a saved WLAN profile.
+     * @param index index within saved profile list to remove, 0xFF removes all
+     * @return 0 upon success, else -1 on error
+     */
+    virtual int wlan_profile_del(int index) = 0;
+};
+
 /** Provides the startup and mantainance methods for configuring and using the
  * CC32xx Wi-Fi stack.  This is designed to be a singleton.  It should only
  * be instantiated once.
  */
-class CC32xxWiFi : public Singleton<CC32xxWiFi>
+class CC32xxWiFi : public CC32xxWiFiInterface, public Singleton<CC32xxWiFi>
 {
 public:
     /** the value passed to wlan_profile_del() to remove all profiles */
@@ -73,15 +109,6 @@ public:
     /** CC32xx SimpleLink forward declaration */
     struct FatalErrorEvent;
     
-    /** Security types.
-     */
-    enum SecurityType
-    {
-        SEC_OPEN, /**< open (no security) */
-        SEC_WEP,  /**< WEP security mode */
-        SEC_WPA2, /**< WPA2 security mode */
-    };
-
     /** The WLAN power policy.
      */
     enum WlanPowerPolicy
@@ -152,7 +179,7 @@ public:
      * @param security_type specifies security type 
      */
     void wlan_setup_ap(const char *ssid, const char *security_key,
-                       SecurityType security_type);
+                       SecurityType security_type) override;
 
     /** @return true if the wlan interface is ready to establish outgoing
      * connections. */
@@ -209,7 +236,7 @@ public:
      * @param index index within saved profile list to remove, 0xFF removes all
      * @return 0 upon success, else -1 on error
      */
-    int wlan_profile_del(int index);
+    int wlan_profile_del(int index) override;
 
     /** Get a saved WLAN profile by index.
      * @param index index within saved profile list to get
