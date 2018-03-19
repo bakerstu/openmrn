@@ -432,7 +432,6 @@ private:
         return ipv4_to_string(ipAddress);
     }
 
-    static CC32xxWiFi *instance_; /**< singleton instance pointer. */
     uint32_t ipAddress; /**< assigned IP adress */
     char ssid[33]; /**< SSID of AP we are connected to */
 
