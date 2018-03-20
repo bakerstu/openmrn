@@ -36,7 +36,7 @@
 
 #include <cstdint>
 
-#if defined(STM32F072xB)
+#if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_hal_dma.h"
 #include "stm32f0xx_hal_uart.h"
 #elif defined(STM32F103xB)
