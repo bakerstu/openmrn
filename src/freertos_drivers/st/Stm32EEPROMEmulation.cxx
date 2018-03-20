@@ -98,7 +98,7 @@ void Stm32EEPROMEmulation::flash_erase(unsigned sector)
     
     uint32_t page_error;
     FLASH_EraseInitTypeDef erase_init;
-    erase_init.TypeErase = TYPEERASE_PAGES;
+    erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
     erase_init.PageAddress = (uint32_t)address;
     erase_init.NbPages = SECTOR_SIZE / PAGE_SIZE;
 
@@ -148,7 +148,7 @@ void Stm32EEPROMEmulation::flash_program(
     {
         portENTER_CRITICAL();
         HAL_FLASH_Unlock();
-        HAL_FLASH_Program(TYPEPROGRAM_WORD, uint_address, *data);
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, uint_address, *data);
         HAL_FLASH_Lock();
         portEXIT_CRITICAL();
 
