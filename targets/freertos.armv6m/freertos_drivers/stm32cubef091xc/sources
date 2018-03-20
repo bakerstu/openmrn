@@ -2,7 +2,7 @@ include $(OPENMRNPATH)/etc/stm32cubef0.mk
 VPATH = $(OPENMRNPATH)/src/freertos_drivers/st \
         $(STM32CUBEF0PATH)/Drivers/STM32F0xx_HAL_Driver/Src
 
-CFLAGS += -DSTM32F091xC
+CFLAGS += -DSTM32F091xC -DHAL_RCC_GetSysClockFreq=OBSOLETE
 CXXFLAGS += -DSTM32F091xC
 
 CSRCS += stm32f0xx_hal_adc.c \
