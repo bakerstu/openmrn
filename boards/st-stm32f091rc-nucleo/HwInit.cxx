@@ -125,7 +125,7 @@ static void clock_setup(void)
     while (!(RCC->CR & RCC_CR_HSIRDY))
         ;
 
-#define USE_EXTERNAL_8_MHz_CLOCK_SOURCE 0
+#define USE_EXTERNAL_8_MHz_CLOCK_SOURCE 1
 /* configure PLL:  8 MHz * 6 = 48 MHz */
 #if USE_EXTERNAL_8_MHz_CLOCK_SOURCE
     RCC->CR |= RCC_CR_HSEON;
@@ -175,14 +175,14 @@ void hw_preinit(void)
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
 
-    /* USART1 pinmux on PA9 and PA10 */
+    /* USART2 pinmux on PA2 and PA3 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
     gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
-    gpio_init.Alternate = GPIO_AF1_USART1;
-    gpio_init.Pin = GPIO_PIN_9;
+    gpio_init.Alternate = GPIO_AF1_USART2;
+    gpio_init.Pin = GPIO_PIN_2;
     HAL_GPIO_Init(GPIOA, &gpio_init);
-    gpio_init.Pin = GPIO_PIN_10;
+    gpio_init.Pin = GPIO_PIN_3;
     HAL_GPIO_Init(GPIOA, &gpio_init);
 
     /* CAN pinmux on PB8 and PB9 */
