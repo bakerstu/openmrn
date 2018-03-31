@@ -302,8 +302,10 @@ private:
                 // Malformed message inbound.
                 return;
             }
-            NodeID rebooted = buffer_to_node_id(message->payload);
-            if (rebooted == nmsg()->dst.id) {
+            NodeHandle rebooted(message->src);
+            rebooted.id = buffer_to_node_id(message->payload);
+            if (if_can()->matching_node(nmsg()->dst, rebooted))
+            {
                 // Destination node has rebooted. Kill datagram flow.
                 result_ |= DST_REBOOT;
                 return stop_waiting_for_response();
