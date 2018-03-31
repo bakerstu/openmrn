@@ -72,11 +72,25 @@ public:
 
     enum RegistryEntryBits
     {
+        /// Set this bit in the param entry_bits in order to mark the event as
+        /// being produced. See {@ref add_entry}.
         IS_PRODUCER = (1U << 31),
+        /// Set this bit in the param entry_bits in order to mark the event as
+        /// being consumed. See {@ref add_entry}.
         IS_CONSUMER = (1U << 30),
+        /// This is the mask of bits that can be used by the caller for storing
+        /// arbitrary information next to the event registration.
         USER_BIT_MASK = IS_CONSUMER - 1,
     };
 
+    /// Constructor.
+    /// @param node defines which openlcb virtual node this event handler
+    /// should export itself.
+    /// @param report_handler will be called when an event report comes in from
+    /// the network. May be null (e.g. if this is a producer only).
+    /// @param state_handler will be called when the network inquires about the
+    /// state of the current producer/consumer. May be null, in which case it
+    /// will be reported as UNKNOWN state.
     CallbackEventHandler(Node *node, EventReportHandlerFn report_handler,
         EventStateHandlerFn state_handler)
         : reportHandler_(std::move(report_handler))
@@ -90,10 +104,27 @@ public:
         EventRegistry::instance()->unregister_handler(this);
     }
 
+    /// Registers this event handler for a given event ID in the global event
+    /// service's registry. This call is what actually creates the
+    /// consumer/producer. It may be called multiple times to have a single
+    /// object get notifications about multiple event IDs. All the calls from
+    /// all entries will be forwarded to the same callback functions given in
+    /// the constructor.
+    /// @param event is the event ID to create the producer/consumer for.
+    /// @param entry_bits set IS_PRODUCER to create a producer, IS_CONCUMER to
+    /// create a consumer (or set both). The bits denoted by USER_BIT_MASK can
+    /// be freely used to store arbitrary data, which will be available to the
+    /// handler functions as registry_entry.user_arg.
     void add_entry(EventId event, uint32_t entry_bits)
     {
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, event, entry_bits), 0);
+    }
+
+    /// @return the node pointer for which this handler is exported.
+    Node *node()
+    {
+        return node_;
     }
 
     void handle_event_report(const EventRegistryEntry &entry,
@@ -111,7 +142,7 @@ public:
     {
         if (registry_entry.user_arg & IS_CONSUMER)
         {
-            SendConsumerIdentified(registry_entry, event, done);
+            send_consumer_identified(registry_entry, event, done);
         }
         done->notify();
     };
@@ -121,7 +152,7 @@ public:
     {
         if (registry_entry.user_arg & IS_PRODUCER)
         {
-            SendProducerIdentified(registry_entry, event, done);
+            send_producer_identified(registry_entry, event, done);
         }
         done->notify();
     };
@@ -131,17 +162,18 @@ public:
     {
         if (registry_entry.user_arg & IS_PRODUCER)
         {
-            SendProducerIdentified(registry_entry, event, done);
+            send_producer_identified(registry_entry, event, done);
         }
         if (registry_entry.user_arg & IS_CONSUMER)
         {
-            SendConsumerIdentified(registry_entry, event, done);
+            send_consumer_identified(registry_entry, event, done);
         }
         done->notify();
     };
 
 protected:
-    void SendProducerIdentified(const EventRegistryEntry &entry,
+    /// Helper function for implementations.
+    void send_producer_identified(const EventRegistryEntry &entry,
         EventReport *event, BarrierNotifiable *done)
     {
         EventState state =
@@ -151,7 +183,8 @@ protected:
             eventid_to_buffer(entry.event), done->new_child());
     }
 
-    void SendConsumerIdentified(const EventRegistryEntry &entry,
+    /// Helper function for implementations.
+    void send_consumer_identified(const EventRegistryEntry &entry,
         EventReport *event, BarrierNotifiable *done)
     {
         EventState state =
@@ -162,8 +195,12 @@ protected:
     }
 
 private:
+    /// Stores the user callback for event reports.
     EventReportHandlerFn reportHandler_;
+    /// Stores the user callback for getting state for event identified
+    /// responses.
     EventStateHandlerFn stateHandler_;
+    /// Node on which we are registered.
     Node *node_;
 };
 
