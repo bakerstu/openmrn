@@ -121,6 +121,12 @@ public:
             EventRegistryEntry(this, event, entry_bits), 0);
     }
 
+    /// @return the node pointer for which this handler is exported.
+    Node *node()
+    {
+        return node_;
+    }
+
     void handle_event_report(const EventRegistryEntry &entry,
         EventReport *event, BarrierNotifiable *done) override
     {
