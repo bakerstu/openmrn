@@ -35,7 +35,7 @@
 
 #include <stdint.h>
 
-#if defined (STM32F072xB)
+#if defined (STM32F072xB) || defined (STM32F091xC)
 
 #include "stm32f0xx_hal_cortex.h"
 #define CAN_IRQN CEC_CAN_IRQn
@@ -398,7 +398,7 @@ extern "C" {
 /** This is the interrupt handler for the can device.
  */
 
-#if defined (STM32F072xB)
+#if defined (STM32F072xB) || defined (STM32F091xC)
 void cec_can_interrupt_handler(void)
 {
     Stm32Can::instances[0]->rx_interrupt_handler();

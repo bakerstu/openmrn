@@ -38,7 +38,7 @@
 
 #include "Can.hxx"
 
-#if defined(STM32F072xB)
+#if defined(STM32F072xB) || defined(STM32F091xC) 
 #include "stm32f0xx_hal_can.h"
 #elif defined(STM32F103xB)
 #include "stm32f1xx_hal_can.h"
