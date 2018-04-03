@@ -63,9 +63,9 @@
 
  *  The compiler used is GCC as distributed with ARM's GNU Embedded Toolchain
  * (as of this writing, we're using version `6-2017-q1-update`). This compiler
- * may be [downloaded the ARM Developer site](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads).
- * The OpenMRN build system will look for the compiler at `/opt/armgcc` (for
- * specific path matching, see `etc/path.mk`).
+ * may be [downloaded from the ARM Developer site](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads).
+ * The OpenMRN build system will look for the compiler at `/opt/armgcc/default`
+ * (for specific path matching, see `etc/path.mk`).
  * 
  * If you're running the compiler on a Linux 64-bit machine, you'll likely
  * download a `.tar.bz2` package. Move the extracted folder (named something
