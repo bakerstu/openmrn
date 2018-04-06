@@ -132,6 +132,7 @@ public:
     /// @todo(balazs.racz): implement
     void factory_reset(int fd) OVERRIDE
     {
+        cfg_.description().write(fd, "");
     }
 
 private:
