@@ -31,37 +31,43 @@
  * @date 28 Feb 2018
  */
 
-#ifndef _DMX_DMXSCENECONFIG_HXX_
-#define _DMX_DMXSCENECONFIG_HXX_
+#ifndef _MODBUS_MODBUSSCENECONFIG_HXX_
+#define _MODBUS_MODBUSSCENECONFIG_HXX_
 
 #include "openlcb/ConfigRepresentation.hxx"
 
-namespace dmx
+namespace modbus
 {
 
 constexpr unsigned SCENE_CONFIG_NAME_LEN = 32;
-constexpr unsigned SCENE_CONFIG_CHANNEL_COUNT = 8;
+constexpr unsigned SCENE_CONFIG_CHANNEL_COUNT = 4;
 constexpr unsigned SCENE_CONFIG_SCENE_COUNT = 16;
 
-// A SceneChannelConfig is 5 bytes of memory
-CDI_GROUP(SceneChannelConfig);
-CDI_GROUP_ENTRY(delay, openlcb::Uint16ConfigEntry, Name("Time delay (ms)"),
-    Default(0), Min(0),
-    Description("When non-zero, this channel change will happen the given time "
-                "(in milliseconds) later than the scene was called up. A value "
-                "of 1000 is one second delay."));
-CDI_GROUP_ENTRY(channel, openlcb::Uint16ConfigEntry, Name("DMX channel"),
-    Default(0), Min(0), Max(512),
-    Description("Sets the DMX channel of the light/parameter to change. Set to "
-                "zero to not change anything."));
-CDI_GROUP_ENTRY(value, openlcb::Uint8ConfigEntry, Name("Value"), Default(0),
-    Min(0), Max(255), Description("What value to set the DMX parameter to."));
+CDI_GROUP(ScenePacketConfig, FixedSize(32));
+CDI_GROUP_ENTRY(packet, openlcb::StringConfigEntry<24>, Name("MODBUS request"),
+    Description(
+        "Modbus ASCII packet to send. Must begin with :. If ends with ! then "
+        "the trailing ! will be replaced with a checksum byte. CRLF is added "
+        "automatically. Example: :F7031389000A! or :F7031389000A60. If empty, "
+        "a register write will be created from the components below."));
+CDI_GROUP_ENTRY(channel, openlcb::Uint8ConfigEntry, Name("Slave address"),
+    Default(0), Min(0), Max(255),
+    Description("Sets the modbus client (slave) address."));
+CDI_GROUP_ENTRY(function, openlcb::Uint8ConfigEntry, Name("Function Code"),
+    Default(6), Min(1), Max(255),
+    Description("Sets the function code to invoke. Default of 6 is 'write "
+                "holding register'."));
+CDI_GROUP_ENTRY(address, openlcb::Uint16ConfigEntry,
+    Name("Register number"), Default(5001), Min(0), Max(65536),
+    Description("Sets the holding register to write."));
+CDI_GROUP_ENTRY(value, openlcb::Uint16ConfigEntry, Name("Register value"),
+    Default(0), Min(0), Max(65536),
+    Description("Sets the value to write to the register."));
 CDI_GROUP_END();
 
-using AllChannelConfig =
-    openlcb::RepeatedGroup<SceneChannelConfig, SCENE_CONFIG_CHANNEL_COUNT>;
+using AllPacketConfig =
+    openlcb::RepeatedGroup<ScenePacketConfig, SCENE_CONFIG_CHANNEL_COUNT>;
 
-// A sceneconfig is 32+8+8*5 = 80 bytes long.
 CDI_GROUP(SceneConfig);
 CDI_GROUP_ENTRY(name, openlcb::StringConfigEntry<SCENE_CONFIG_NAME_LEN>,
     Name("Name"),
@@ -72,14 +78,14 @@ CDI_GROUP_ENTRY(event, openlcb::EventConfigEntry,
     Description("When this event is consumed, the scene will be activated. You "
                 "can have one event activate multiple scenes if you need to "
                 "set more channels than the parameters below."));
-CDI_GROUP_ENTRY(channels, AllChannelConfig, RepName("Entry"),
-    Name("Scene parameters"),
-    Description("Sets individual DMX channels to specific values when the "
-                "scene gets activated."));
+CDI_GROUP_ENTRY(packets, AllPacketConfig, RepName("Packet"),
+    Name("MODBus Packets to send"),
+    Description(
+        "Sends individual MODBUS packets when the scene gets activated."));
 CDI_GROUP_END();
 
 using AllSceneConfig = openlcb::RepeatedGroup<SceneConfig, SCENE_CONFIG_SCENE_COUNT>;
 
-} // namespace dmx
+} // namespace modbus
 
-#endif // _DMX_DMXSCENECONFIG_HXX_
+#endif // _MODBUS_MODBUSSCENECONFIG_HXX_

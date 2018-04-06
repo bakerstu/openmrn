@@ -1,4 +1,5 @@
 SUBDIRS = \
+	custom-cc3220sf \
 
 
 #	freertos.armv7m.ek-tm4c123gxl \

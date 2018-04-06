@@ -68,7 +68,7 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 /** override stderr */
 const char *STDERR_DEVICE = "/dev/ser0";
 
-/*
+
 // Assert the RS-485 transmit enable line.
 static void rs485_enable_assert()
 {
@@ -80,16 +80,17 @@ static void rs485_enable_assert()
 static void rs485_enable_deassert()
 {
     RS485_TX_EN_Pin::set(false);
-}*/
+}
+
 
 /** UART 0 serial driver instance */
-static CC32xxUart uart0("/dev/ser0", UARTA0_BASE, INT_UARTA0, 250000,
-                        CC32xxUart::CS8 | CC32xxUart::CSTOPB, true);
+static CC32xxUart uart0("/dev/ser0", UARTA0_BASE, INT_UARTA0, 19200,
+                        CC32xxUart::CS8, false, rs485_enable_assert, rs485_enable_deassert);
 
 /** Wi-Fi instance */
 CC32xxWiFi wifi;
 
-static CC32xxEEPROMEmulation eeprom("/usr/dmxeeprom", 3000);
+static CC32xxEEPROMEmulation eeprom("/usr/modbuseeprom", 3000);
 
 /** Assert the chip select for the MCP2515 CAN controller.
  */

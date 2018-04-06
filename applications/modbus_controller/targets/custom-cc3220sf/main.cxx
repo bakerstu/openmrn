@@ -34,6 +34,10 @@
 
 #define LOGLEVEL INFO
 
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+
 #include "os/os.h"
 #include "nmranet_config.h"
 
@@ -49,7 +53,12 @@
 #include "hardware.hxx"
 
 #include "CC32xxWiFi.hxx"
-#include "utils/stdio_logging.h"
+#include "freertos_drivers/common/WifiDefs.hxx"
+#include "console/FileCommands.hxx"
+
+#include "utils/TcpLogging.hxx"
+#include "utils/SocketClient.hxx"
+#include "openlcb/TcpDefs.hxx"
 #include "freertos/tc_ioctl.h"
 
 // These preprocessor symbols are used to select which physical connections
@@ -85,7 +94,7 @@ openlcb::ConfigDef cfg(0);
 // Defines weak constants used by the stack to tell it which device contains
 // the volatile configuration information. This device name appears in
 // HwInit.cxx that creates the device drivers.
-extern const char *const openlcb::CONFIG_FILENAME = "/usr/dmxeeprom";
+extern const char *const openlcb::CONFIG_FILENAME = "/usr/modbuseeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
@@ -160,61 +169,112 @@ void eeprom_updated_notification() {
 }
 }
 
-class DmxDriver : public StateFlowBase {
+
+class ModbusReceiveLog : public StateFlowBase {
 public:
-    DmxDriver() : StateFlowBase(stack.service()) {
-        memset(channelData_, 0, sizeof(channelData_));
-        fd_ = ::open("/dev/ser0", O_RDWR);
-        HASSERT(fd_ >= 0);
-        RS485_TX_EN_Pin::set(true);
-        start_flow(STATE(wait_state));
+    ModbusReceiveLog(int fd) : StateFlowBase(stack.service()), fd_(fd) {
+        start_flow(STATE(wait_for_data));
     }
-
-    void set_channel_value(unsigned ch, uint8_t value) {
-        HASSERT(ch < NUM_CHANNEL);
-        channelData_[ch + HEADER_PAYLOAD] = value;
-    }
-
-    uint8_t* get_channels() {
-        return channelData_ + HEADER_PAYLOAD;
-    }
-    
-    Action wait_state() {
-        return sleep_and_call(&timer_, MSEC_TO_NSEC(5), STATE(send_data));
-    }
-
-    Action send_data() {
-        // send break
-        ::ioctl(fd_, TCSBRK, 0);
-        return write_repeated(&helper_, fd_, channelData_, sizeof(channelData_),
-            STATE(wait_state));
-    }
-    
-    static constexpr unsigned NUM_CHANNEL = 32;
 
 private:
-    static constexpr unsigned HEADER_PAYLOAD = 1;
+    Action wait_for_data() {
+        ofs_ = 0;
+        return read_single(
+            &helper_, fd_, buf_, BUFLEN - 1, STATE(complete_line));
+    }
 
-    StateFlowTimer timer_{this};
+    Action complete_line() {
+        ofs_ += BUFLEN - helper_.remaining_;
+        return read_repeated_with_timeout(&helper_, MSEC_TO_NSEC(50), fd_,
+            buf_ + ofs_, BUFLEN - ofs_ - 1, STATE(timedout));
+    }
+
+    Action timedout() {
+        ofs_ = BUFLEN - helper_.remaining_;
+        buf_[ofs_] = 0;
+        LOG(WARNING, "modbus input: %s", buf_);
+        return call_immediately(STATE(wait_for_data));
+    }
+
+    StateFlowTimedSelectHelper helper_{this};
+
+    static constexpr unsigned BUFLEN = 30;
+    char buf_[BUFLEN];
+    unsigned ofs_;
+    /// serial port file des.
+    int fd_;
+};
+
+class ModbusDriver : public StateFlow<Buffer<string>, QList<1>> {
+public:
+    ModbusDriver() : StateFlow<Buffer<string>, QList<1>>(stack.service()) {
+        fd_ = ::open("/dev/ser0", O_RDWR);
+        HASSERT(fd_ >= 0);
+        ::fcntl(fd_, F_SETFL, O_NONBLOCK);
+        new ModbusReceiveLog(fd_);
+    }
+
+    Action entry() {
+        LOG(INFO, "sending packet: %s", message()->data()->c_str());
+        return write_repeated(&helper_, fd_, message()->data()->data(),
+            message()->data()->size(), STATE(done_state));
+    }
+
+    Action done_state() {
+        return release_and_exit();
+    }
+    
+private:
     StateFlowSelectHelper helper_{this};
     
     /// Serial device FD.
     int fd_;
+} g_modbus_driver;
 
-    /// Raw data of what to send to the bus.
-    uint8_t channelData_[NUM_CHANNEL + HEADER_PAYLOAD];
-} g_dmx_driver;
+static const char HEX_DIGITS[] = "0123456789ABCDEF";
 
-class DmxSceneConsumer : private DefaultConfigUpdateListener,
+static string byte_to_hex(uint8_t data) {
+    string ret(2, ' ');
+    ret[0] = HEX_DIGITS[data >> 4];
+    ret[1] = HEX_DIGITS[data & 0xf];
+    return ret;
+}
+
+static string uint16_to_hex(uint16_t data) {
+    string ret(4, ' ');
+    ret[0] = HEX_DIGITS[(data >> 12) & 0xf];
+    ret[1] = HEX_DIGITS[(data >> 8) & 0xf];
+    ret[2] = HEX_DIGITS[(data >> 4) & 0xf];
+    ret[3] = HEX_DIGITS[data & 0xf];
+    return ret;
+}
+
+static uint8_t get_nibble(char b) {
+    if ('0' <= b && b <= '9') {
+        return b - '0';
+    }
+    if ('a' <= b && b <= 'f') {
+        return b - 'a' + 10;
+    }
+    if ('A' <= b && b <= 'F') {
+        return b - 'A' + 10;
+    }
+    return 0xff;
+}
+
+static uint8_t hex_to_byte(const char* data) {
+    return (get_nibble(data[0]) << 4) | get_nibble(data[1]);
+}
+
+class ModbusSceneConsumer : private DefaultConfigUpdateListener,
                          private openlcb::SimpleEventHandler
 {
 public:
-    DmxSceneConsumer(const dmx::AllSceneConfig &cfg, openlcb::Node *node,
-        uint8_t *dmx_data, unsigned dmx_size)
+    ModbusSceneConsumer(const modbus::AllSceneConfig &cfg, openlcb::Node *node,
+                        FlowInterface<Buffer<string>> *modbus_driver)
         : cfg_(cfg)
         , node_(node)
-        , dmxData_(dmx_data)
-        , dmxSize_(dmx_size)
+        , driver_(modbus_driver)
     {
     }
 
@@ -234,11 +294,12 @@ private:
         for (unsigned i = 0; i < cfg_.num_repeats(); ++i)
         {
             const auto &e = cfg_.entry(i);
-            for (unsigned c = 0; c < e.channels().num_repeats(); ++c)
+            for (unsigned c = 0; c < e.packets().num_repeats(); ++c)
             {
-                const auto &ch = e.channels().entry(c);
-                auto dmx_channel = ch.channel().read(fd);
-                if (dmx_channel > 0 && dmx_channel <= 512)
+                const auto &ch = e.packets().entry(c);
+                auto modbus_channel = ch.channel().read(fd);
+                auto payload = ch.packet().read(fd);
+                if (modbus_channel > 0 || !payload.empty())
                 {
                     ++cnt;
                 }
@@ -252,19 +313,33 @@ private:
         {
             const auto &e = cfg_.entry(i);
             unsigned sequence_start = cnt;
-            for (unsigned c = 0; c < e.channels().num_repeats(); ++c)
+            for (unsigned c = 0; c < e.packets().num_repeats(); ++c)
             {
-                const auto &ch = e.channels().entry(c);
-                auto dmx_channel = ch.channel().read(fd);
-                if (dmx_channel > 0 && dmx_channel <= 512)
-                {
-                    auto &param = parameterData_[cnt];
-                    param.delay = ch.delay().read(fd);
-                    param.channel = dmx_channel;
-                    param.value = ch.value().read(fd);
-                    param.end = 0;
-                    ++cnt;
+                const auto &ch = e.packets().entry(c);
+                string packet = ch.packet().read(fd);
+                auto modbus_channel = ch.channel().read(fd);
+                if (packet.empty() && modbus_channel > 0) {
+                    packet.push_back(':');
+                    packet += byte_to_hex(modbus_channel);
+                    packet += byte_to_hex(ch.function().read(fd));
+                    packet += uint16_to_hex(ch.address().read(fd));
+                    packet += uint16_to_hex(ch.value().read(fd));
+                    packet += '!';
                 }
+                if (packet.back() == '!') {
+                    packet.pop_back();
+                    uint8_t sum = 0;
+                    for (unsigned p = 1; p < packet.size() - 1; p += 2) {
+                        sum += hex_to_byte(packet.data() + p);
+                    }
+                    sum = -sum;
+                    packet += byte_to_hex(sum);
+                }
+                if (packet.empty()) continue;
+                packet.push_back(0x0d);
+                packet.push_back(0x0a);
+                parameterData_[cnt].packet = std::move(packet);
+                ++cnt;
             }
             openlcb::EventId event = e.event().read(fd);
             if (cnt > sequence_start && event > 0)
@@ -298,11 +373,13 @@ private:
             const auto &e = cfg_.entry(i);
             // events are factory reset automatically.
             e.name().write(fd, "");
-            for (unsigned c = 0; c < e.channels().num_repeats(); ++c)
+            for (unsigned c = 0; c < e.packets().num_repeats(); ++c)
             {
-                const auto &ch = e.channels().entry(c);
-                CDI_FACTORY_RESET(ch.delay);
+                const auto &ch = e.packets().entry(c);
+                ch.packet().write(fd, "");
                 CDI_FACTORY_RESET(ch.channel);
+                CDI_FACTORY_RESET(ch.function);
+                CDI_FACTORY_RESET(ch.address);
                 CDI_FACTORY_RESET(ch.value);
             }
         }
@@ -312,17 +389,19 @@ private:
         EventReport *event, BarrierNotifiable *done) override
     {
         AutoNotify an(done);
+        LOG(WARNING, "seen event report");
         // Applies the parameter values we have stored.
         for (unsigned next = registry_entry.user_arg;
              next < parameterData_.size(); ++next)
         {
             const auto &d = parameterData_[next];
-            if (d.channel < dmxSize_)
-            {
-                dmxData_[d.channel - 1] = d.value;
-            }
+            auto* b = driver_->alloc();
+            b->data()->assign(d.packet);
+            driver_->send(b);
             if (d.end)
+            {
                 break;
+            }
         }
     }
 
@@ -349,31 +428,22 @@ private:
 
     struct ParameterConfig
     {
-        /// Delay in msec from the trigger.
-        uint16_t delay;
-        /// DMX channel number, 1..512 (0 not allowed).
-        uint16_t channel : 10;
-        /// Is this the end of the trigger sequence.
-        uint16_t end : 1;
-        /// Value to set on DMX channel.
-        uint8_t value;
+        string packet;
+        uint8_t end;
     };
 
     /// Stores all loaded parameters.
     std::vector<ParameterConfig> parameterData_;
 
     /// Configuration file offsets.
-    dmx::AllSceneConfig cfg_;
+    modbus::AllSceneConfig cfg_;
     /// Configuration file FD.
     int fd_{-1};
     /// OpenLCB node to use as consumer.
     openlcb::Node *node_;
-    /// The output DMX buffer. Has channel 1 data at offset 0.
-    uint8_t *dmxData_;
-    /// The number of channels supported.
-    unsigned dmxSize_;
-} g_scene_consumer{cfg.seg().scenes(), stack.node(),
-    g_dmx_driver.get_channels(), g_dmx_driver.NUM_CHANNEL};
+    /// Flow where to forward the packets to send.
+    FlowInterface<Buffer<string>> *driver_;
+} g_scene_consumer{cfg.seg().scenes(), stack.node(), &g_modbus_driver};
 
 // Defines the GPIO ports used for the producers and the consumers.
 
@@ -411,7 +481,7 @@ class DefaultName : private DefaultConfigUpdateListener {
 private:
     void factory_reset(int fd) override
     {
-        cfg.userinfo().name().write(fd, "DMX controller board");
+        cfg.userinfo().name().write(fd, "MODBUS controller board");
         cfg.userinfo().description().write(fd, "");
     }
 
@@ -423,6 +493,26 @@ private:
     }
 } g_default_name;
 
+/** Callback that is called when the connection completes successfully.
+ * @param fd socket descriptor
+ * @param addr information about the other end of the connection
+ * @param on_exit who to wakeup when the socket is closed
+ */
+void client_connect_callback(int fd, struct addrinfo *addr,
+                             Notifiable *on_exit)
+{
+    /// @todo should we set the socket to non-blocking once select is supported?
+    //::fcntl(fd_, F_SETFL, O_NONBLOCK);
+
+    //stack.add_can_port_select(fd, on_error);
+    create_gc_port_for_can_hub(stack.can_hub(), fd, on_exit);
+    // Re-acquires all aliases and send out initialization complete.
+    stack.restart_stack();
+    resetblink(0);
+}
+
+SocketClient* g_socket_client = nullptr;
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -433,6 +523,9 @@ int appl_main(int argc, char *argv[])
     stack.check_version_and_factory_reset(
         cfg.seg().legacy().internal_config(), openlcb::CANONICAL_VERSION, false);
 
+    TcpLoggingServer log_server(stack.service(), 12345);
+    stack.start_tcp_hub_server(12021);
+    
     // The necessary physical ports must be added to the stack.
     //
     // It is okay to enable multiple physical ports, in which case the stack
@@ -455,16 +548,11 @@ int appl_main(int argc, char *argv[])
         wifi.connecting_update_blinker();
     }
 
-    
     resetblink(WIFI_BLINK_CONNECTING);
-    extern char WIFI_HUB_HOSTNAME[];
-    extern int WIFI_HUB_PORT;
-    stack.connect_tcp_gridconnect_hub(WIFI_HUB_HOSTNAME, WIFI_HUB_PORT);
-    resetblink(0);
+    g_socket_client = new SocketClient(stack.service(),
+        openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN, WIFI_HUB_HOSTNAME,
+        WIFI_HUB_PORT, client_connect_callback);
 
-    openlcb::ReadWriteMemoryBlock dmx_space(g_dmx_driver.get_channels(), g_dmx_driver.NUM_CHANNEL);
-    stack.memory_config_handler()->registry()->insert(stack.node(), 72, &dmx_space);
-    
     // This command donates the main thread to the operation of the
     // stack. Alternatively the stack could be started in a separate stack and
     // then application-specific business logic could be executed ion a busy
