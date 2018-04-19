@@ -169,9 +169,8 @@ public:
 
 
     /** Initiate a WPS Push Button Control connection.
-     * @return 0 upon success, else -1 on error
      */
-    int wlan_wps_pbc_initiate();
+    void wlan_wps_pbc_initiate();
 
     /** Setup access point role credentials.
      * @param ssid access point ssid
