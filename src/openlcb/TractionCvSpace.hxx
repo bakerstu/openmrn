@@ -130,11 +130,13 @@ private:
         _ERROR_TIMEOUT = 8,
     };
 
+public:
     enum {
         OFFSET_CV_INDEX = 0x7F000000,
         OFFSET_CV_VALUE = 0x7F000004,
     };
 
+private:
     uint8_t spaceId_;
     /// Stores the last node for which the CV index was written.
     uint16_t lastIndexedNode_;
