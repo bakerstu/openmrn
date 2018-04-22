@@ -76,14 +76,6 @@ struct TractionDefs {
     static const uint64_t IS_TRAIN_EVENT = 0x0101000000000303ULL;
     /// This event should be produced by traction proxy nodes.
     static const uint64_t IS_PROXY_EVENT = 0x0101000000000304ULL;
-    /// Producing this event causes all operations to stop (usually by turning
-    /// off the command station power output).
-    /// @TODO : there is a mistake in this constant. It should start with
-    /// 0100 by the standard (instead of 0101).
-    static const uint64_t EMERGENCY_STOP_EVENT = 0x010000000000FFFFULL;
-    /// Producing this event resumes all operations (usually by turning power
-    /// back on).
-    static const uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010000000000FFFEULL;
     /// Base address of DCC accessory decoder well-known event range (active)
     static constexpr uint64_t ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE = 0x0101020000FF0000ULL;
     /// Base address of DCC accessory decoder well-known event range (inactive)

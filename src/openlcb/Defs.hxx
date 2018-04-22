@@ -211,6 +211,14 @@ struct Defs
         RESERVED_MASK           = 0x00000FFFFFFF
     };
 
+    /// Producing this event causes all operations to stop (usually by
+    /// turning off the command station power output).
+    static constexpr uint64_t EMERGENCY_OFF_EVENT = 0x010000000000FFFFULL;
+
+    /// Producing this event resumes all operations (usually by turning
+    /// power back on).
+    static constexpr uint64_t CLEAR_EMERGENCY_OFF_EVENT = 0x010000000000FFFEULL;
+
     /** Status of the pysical layer link */
     enum LinkStatus
     {
