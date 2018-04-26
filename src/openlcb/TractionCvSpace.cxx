@@ -268,6 +268,10 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
 {
     auto *b = get_allocation_result(track_);
     b->data()->start_dcc_packet();
+    // POM write packets need to appear at least twice on non-back-to-back
+    // packets by the standard. We make 4 back to back packets and that
+    // fulfills the requirement.
+    b->data()->packet_header.rept_count = 3;
     /** @TODO(balazs.racz) here we make bad assumptions about how to decide
      * between long and short addresses */
     if (dccAddress_ >= 0x80)
