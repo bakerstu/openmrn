@@ -104,7 +104,12 @@ private:
     Action fill_write1_packet();
     Action write_returned();
 
-
+    Action pgm_verify();
+    Action pgm_verify_reset();
+    Action pgm_verify_packet();
+    Action pgm_verify_done();
+    Action pgm_verify_exit();
+    
     // Railcom feedback
     void send(Buffer<dcc::RailcomHubData> *b, unsigned priority) OVERRIDE;
     void record_railcom_status(unsigned code);
@@ -134,12 +139,15 @@ public:
     enum {
         OFFSET_CV_INDEX = 0x7F000000,
         OFFSET_CV_VALUE = 0x7F000004,
+        OFFSET_CV_VERIFY_VALUE = 0x7F000005,
+        OFFSET_CV_VERIFY_RESULT = 0x7F000006,
     };
 
 private:
     uint8_t spaceId_;
     /// Stores the last node for which the CV index was written.
     uint16_t lastIndexedNode_;
+    uint8_t lastVerifyValue_;
     /// Stores the last CV index (for indirect CV lookup).
     uint32_t lastIndexedCv_;
 

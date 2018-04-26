@@ -35,6 +35,7 @@
 
 #include "openlcb/TractionCvSpace.hxx"
 #include "openlcb/TractionDefs.hxx"
+#include "dcc/ProgrammingTrackBackend.hxx"
 
 
 // We try this many times to write a CV using railcom if we keep getting an
@@ -116,7 +117,7 @@ size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
         if (len > 3) dst[3] = lastcv[0];
         return std::min(len, size_t(4));
     }
-    if (source == OFFSET_CV_VALUE) {
+    if (source == OFFSET_CV_VALUE || source == OFFSET_CV_VERIFY_RESULT) {
         if (dccAddress_ != lastIndexedNode_) {
             *error = Defs::ERROR_PERMANENT;
             return 0;
@@ -148,11 +149,72 @@ size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
     errorCode_ = ERROR_NOOP;
     cvData_ = 0;
     numTry_ = 0;
-    start_flow(STATE(try_read1));
+    if (source == OFFSET_CV_VALUE) {
+        start_flow(STATE(try_read1));
+
+    } else if (source == OFFSET_CV_VERIFY_RESULT) {
+        start_flow(STATE(pgm_verify));
+    }
     *error = ERROR_AGAIN;
     deadline_ = os_get_time_monotonic() + MSEC_TO_NSEC(RAILCOM_POM_OP_TIMEOUT_MSEC);
     return 0;
 }
+
+StateFlowBase::Action TractionCvSpace::pgm_verify()
+{
+    return invoke_subflow_and_wait(
+        Singleton<ProgrammingTrackBackend>::instance(), STATE(pgm_verify_reset),
+        ProgrammingTrackRequest::ENTER_SERVICE_MODE);
+}
+
+StateFlowBase::Action TractionCvSpace::pgm_verify_reset()
+{
+    auto b = get_buffer_deleter(
+        full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
+    return invoke_subflow_and_wait(Singleton<ProgrammingTrackBackend>::instance(),
+        STATE(pgm_verify_packet), ProgrammingTrackRequest::SEND_RESET, 15);
+}
+
+StateFlowBase::Action TractionCvSpace::pgm_verify_packet()
+{
+    auto b = get_buffer_deleter(
+        full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
+
+    dcc::Packet pkt;
+    pkt.start_dcc_packet();
+    pkt.payload[0] = 0b01110100 | ((lastIndexedCv_ >> 8) & 0b11);
+    pkt.payload[1] = (lastIndexedCv_ & 0xff);
+    pkt.payload[2] = lastVerifyValue_;
+    pkt.dlc = 3;
+    pkt.add_dcc_checksum();
+    return invoke_subflow_and_wait(Singleton<ProgrammingTrackBackend>::instance(),
+        STATE(pgm_verify_done),
+                                   ProgrammingTrackRequest::SEND_PROGRAMMING_PACKET, pkt, 15);
+}
+
+StateFlowBase::Action TractionCvSpace::pgm_verify_done()
+{
+    auto b = get_buffer_deleter(
+        full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
+    if (b->data()->hasAck_) {
+        cvData_ = 1;
+    } else {
+        cvData_ = 0;
+    }
+    errorCode_ = ERROR_OK;
+
+    return invoke_subflow_and_wait(Singleton<ProgrammingTrackBackend>::instance(),
+        STATE(pgm_verify_exit),
+        ProgrammingTrackRequest::EXIT_SERVICE_MODE);
+}
+
+StateFlowBase::Action TractionCvSpace::pgm_verify_exit()
+{
+    auto b = get_buffer_deleter(
+        full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
+    done_->notify();
+    return exit();
+}    
 
 StateFlowBase::Action TractionCvSpace::try_read1()
 {
@@ -225,6 +287,10 @@ size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
         if (len > 2) lastcv[1] = src[2];
         if (len > 3) lastcv[0] = src[3];
         return std::min(len, size_t(4));
+    }
+    if (destination == OFFSET_CV_VERIFY_VALUE) {
+        lastVerifyValue_ = src[0];
+        return 1;
     }
     if (destination == OFFSET_CV_VALUE) {
         if (dccAddress_ != lastIndexedNode_) {
