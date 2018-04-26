@@ -36,8 +36,16 @@
 #include <functional>
 
 #include "dcc/Packet.hxx"
+#include "dcc/PacketSource.hxx"
+#include "dcc/UpdateLoop.hxx"
 #include "executor/CallableFlow.hxx"
 #include "openlcb/Datagram.hxx"
+#include "utils/Singleton.hxx"
+
+extern "C" {
+void enable_dcc();
+
+}
 
 struct ProgrammingTrackRequest : public CallableFlowRequestBase
 {
@@ -150,7 +158,8 @@ private:
 };
 
 class ProgrammingTrackBackend : public CallableFlow<ProgrammingTrackRequest>,
-                                private dcc::NonTrainPacketSource
+                                private dcc::NonTrainPacketSource,
+                                public Singleton<ProgrammingTrackBackend>
 {
 public:
     ProgrammingTrackBackend(Service *service,
