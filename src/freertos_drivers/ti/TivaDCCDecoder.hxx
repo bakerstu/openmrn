@@ -416,6 +416,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             if (nextPacketData_)
             {
                 nextPacketData_->header_raw_data = 0;
+                nextPacketData_->packet_header.skip_ec = 1;
                 nextPacketData_->dlc = decoder_.packet_length();
                 memcpy(nextPacketData_->payload, decoder_.packet_data(),
                     decoder_.packet_length());
