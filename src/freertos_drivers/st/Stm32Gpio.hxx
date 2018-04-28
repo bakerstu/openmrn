@@ -39,7 +39,7 @@
 #include "os/Gpio.hxx"
 #include "GpioWrapper.hxx"
 
-#if defined(STM32F072xB)
+#if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_hal_gpio.h"
 #elif defined(STM32F103xB)
 #include "stm32f1xx_hal_gpio.h"
@@ -125,7 +125,7 @@ template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
         gpio_init.Pin = pin();
         gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
         gpio_init.Pull = GPIO_NOPULL;
-        gpio_init.Speed = GPIO_SPEED_LOW;
+        gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
         HAL_GPIO_Init(port(), &gpio_init);
     }
     /// Sets the output pin to a safe value.
@@ -172,7 +172,7 @@ template <class Defs, uint32_t PULL_MODE> struct GpioInputPin : public Defs
         gpio_init.Pin = pin();
         gpio_init.Mode = GPIO_MODE_INPUT;
         gpio_init.Pull = PULL_MODE;
-        gpio_init.Speed = GPIO_SPEED_LOW;
+        gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
         HAL_GPIO_Init(port(), &gpio_init);
     }
     /// Sets the hardware pin to a safe state.

@@ -57,7 +57,7 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-// static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
+static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
 
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
@@ -88,6 +88,11 @@ void setblink(uint32_t pattern)
 {
     resetblink(pattern);
 }
+
+
+const uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
+const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
+
 
 void timer14_interrupt_handler(void)
 {
@@ -125,7 +130,7 @@ static void clock_setup(void)
     while (!(RCC->CR & RCC_CR_HSIRDY))
         ;
 
-#define USE_EXTERNAL_8_MHz_CLOCK_SOURCE 0
+#define USE_EXTERNAL_8_MHz_CLOCK_SOURCE 1
 /* configure PLL:  8 MHz * 6 = 48 MHz */
 #if USE_EXTERNAL_8_MHz_CLOCK_SOURCE
     RCC->CR |= RCC_CR_HSEON;
@@ -168,21 +173,21 @@ void hw_preinit(void)
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
-    __HAL_RCC_USART1_CLK_ENABLE();
+    __HAL_RCC_USART2_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
     __HAL_RCC_TIM14_CLK_ENABLE();
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
 
-    /* USART1 pinmux on PA9 and PA10 */
+    /* USART2 pinmux on PA2 and PA3 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
     gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
-    gpio_init.Alternate = GPIO_AF1_USART1;
-    gpio_init.Pin = GPIO_PIN_9;
+    gpio_init.Alternate = GPIO_AF1_USART2;
+    gpio_init.Pin = GPIO_PIN_2;
     HAL_GPIO_Init(GPIOA, &gpio_init);
-    gpio_init.Pin = GPIO_PIN_10;
+    gpio_init.Pin = GPIO_PIN_3;
     HAL_GPIO_Init(GPIOA, &gpio_init);
 
     /* CAN pinmux on PB8 and PB9 */
