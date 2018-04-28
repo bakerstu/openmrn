@@ -289,6 +289,11 @@ void timer2a_interrupt_handler(void)
   nrz0.rcom_interrupt_handler();
 }
 
+void wide_timer2a_interrupt_handler(void)
+{
+  nrz0.os_interrupt_handler();
+}
+  
 void uart1_interrupt_handler(void)
 {
   railcom_driver.os_interrupt_handler();

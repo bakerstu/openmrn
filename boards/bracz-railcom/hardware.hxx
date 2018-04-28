@@ -450,7 +450,7 @@ struct DCCDecode
     static const auto SAMPLE_PERIOD_CLOCKS = 60000;
     //static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMA_TIMEOUT;
     static const auto RCOM_INTERRUPT = INT_TIMER2A;
-    //static const auto OS_INTERRUPT = INT_TIMER2A;
+    static const auto OS_INTERRUPT = INT_WTIMER2A;
     typedef DCC_IN_Pin NRZ_Pin;
 
     // 16-bit timer max + use 7 bits of prescaler.
