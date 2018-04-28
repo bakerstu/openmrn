@@ -268,10 +268,6 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
 {
     auto *b = get_allocation_result(track_);
     b->data()->start_dcc_packet();
-    // POM write packets need to appear at least twice on non-back-to-back
-    // packets by the standard. We make 4 back to back packets and that
-    // fulfills the requirement.
-    b->data()->packet_header.rept_count = 3;
     /** @TODO(balazs.racz) here we make bad assumptions about how to decide
      * between long and short addresses */
     if (dccAddress_ >= 0x80)
@@ -284,6 +280,10 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
     }
     b->data()->add_dcc_pom_write1(cvNumber_, cvData_);
     b->data()->feedback_key = reinterpret_cast<uintptr_t>(this);
+    // POM write packets need to appear at least twice on non-back-to-back
+    // packets by the standard. We make 4 back to back packets and that
+    // fulfills the requirement.
+    b->data()->packet_header.rept_count = 3;
     railcomHub_->register_port(this);
     errorCode_ = ERROR_PENDING;
     track_->send(b);
@@ -357,7 +357,11 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
             break;
         case dcc::RailcomPacket::NACK:
             if (new_status == ERROR_PENDING) {
-                new_status = ERROR_NACK;
+                // We ignore NACK responses because certain versions ofthe
+                // standard had NACK interpreted the same way as ACK as well as
+                // it was being used as a filler. There are locomotives out
+                // there who do this.
+                // new_status = ERROR_NACK;
             }
             break;
         case dcc::RailcomPacket::ACK:
