@@ -250,6 +250,75 @@ openlcb::MultiConfiguredConsumer portde_consumers(stack.node(), kPortDEGpio,
     ARRAYSIZE(kPortDEGpio), cfg.seg().portde_consumers());
 
 
+class SpiOutputShiftRegister : public StateFlowBase
+{
+public:
+    SpiOutputShiftRegister(Service *dedicated_executor, const char *port,
+        AsyncMutex *mutex, const Gpio *latch, uint32_t *output_storage,
+        unsigned output_len_bytes, uint32_t *input_storage = nullptr,
+        unsigned input_len_bytes = 0, unsigned delay_msec = 50)
+        : StateFlowBase(dedicated_executor)
+        , asyncMutex_(mutex)
+        , latch_(latch)
+        , delayMsec_(delay_msec)
+        , outputStorage_(output_storage)
+        , outputLenBytes_(len_bytes)
+    {
+        fd_ = ::open(port, O_WRONLY);
+        HASSERT(fd_ >= 0);
+        // test alignment
+        HASSERT((((uintptr_t)output_storage) & 3) == 0);
+        start_flow(STATE(wait_delay));
+    }
+
+private:
+    Action wait_delay()
+    {
+        return sleep_and_call(
+            &timer_, MSEC_TO_NSEC(delayMsec_), STATE(refresh));
+    }
+
+    Action refresh()
+    {
+        if (asyncMutex_) {
+            return allocate_and_call(STATE(locked), asyncMutex_);
+        } else {
+            return call_immediately(STATE(locked));
+        }
+    }
+
+    Action locked() {
+        ::write(fd_, outputStorage_, outputLenBytes_);
+        latch_->write(Gpio::SET);
+        usleep(15);
+        latch_->write(Gpio::CLR);
+        if (asyncMutex_) {
+            asyncMutex_->Unlock();
+        }
+        return call_immediately(STATE(wait_delay));
+    }
+
+    /// Helper structure.
+    StateFlowTimer timer_{this};
+    /// File descriptor for the SPI port.
+    int fd_;
+    /// Async mutex if the SPI port needs it
+    AsyncMutex* asyncMutex_;
+    /// Latch to trigger activating the output.
+    const Gpio* latch_;
+    /// How much time to sleep between two refreshes.
+    unsigned delayMsec_;
+    /// Bit stream of the data to be written. This is purposefully aligned.
+    uint32_t* outputStorage_;
+    /// How many bytes of data to shift out.
+    unsigned outputLenBytes_;
+    /// Bit stream of the data to be read. This is purposefully aligned.
+    uint32_t* inputStorage_;
+    /// How many bytes of data to shift in.
+    unsigned inputLenBytes_;
+};
+
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
