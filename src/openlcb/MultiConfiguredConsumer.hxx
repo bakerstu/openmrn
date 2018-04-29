@@ -62,7 +62,7 @@ public:
         , size_(N)
         , offset_(config)
     {
-        HASSERT(size_ == N);
+        HASSERT(size == N);
         ConfigUpdateService::instance()->register_update_listener(this);
     }
 
