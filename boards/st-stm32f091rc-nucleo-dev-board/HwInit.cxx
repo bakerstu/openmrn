@@ -63,9 +63,12 @@ static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
 static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
-static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1000);
 
-const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
+/** How many bytes of flash should hold the entire dataset. Must be an integer
+ * multiple of the minimum erase length (which is the flash page length, for
+ * the STM32F0 it is 2 kbytes). The file size maximum is half this value. */
+const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
 
 extern "C" {
 
