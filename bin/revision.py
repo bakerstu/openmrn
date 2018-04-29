@@ -35,6 +35,9 @@ parser.add_option("-g", "--gcc", dest="gcc", metavar="`gcc -dumpversion`",
 if (options.input == None) :
     parser.error('missing parameter -i')
 
+print options.input
+
+options.input = options.input.replace('  ', ' ')
 inputs = options.input.split(" ")
 
 orig_dir = os.path.abspath('./')
@@ -42,9 +45,11 @@ output = '#include <cstddef>\n\n'
 output += 'const char *REVISIONS[] = \n{\n'
 
 if options.gcc != None :
-    output += '    {gcc-' + options.gcc + '},\n'
+    options.gcc = options.gcc.replace('.', '-')
+    output += '    "gcc-' + options.gcc + '",\n'
 
 for x in inputs :
+    print x
     # go into the root of the repo
     os.chdir(orig_dir)
     os.chdir(x)
@@ -73,7 +78,7 @@ for x in inputs :
     output += '",\n'
 
 os.chdir(orig_dir)
-output += '    NULL\n'
+output += '    nullptr\n'
 output += '};\n'
 output_file = open(options.output, 'w')
 output_file.write(output)
