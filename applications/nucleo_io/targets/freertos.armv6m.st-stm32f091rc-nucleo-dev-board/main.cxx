@@ -36,7 +36,7 @@
 #include "nmranet_config.h"
 
 #include "openlcb/SimpleStack.hxx"
-#include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/MultiConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
 
 #include "freertos_drivers/st/Stm32Gpio.hxx"
@@ -81,7 +81,7 @@ extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 300, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 1000, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -109,6 +109,37 @@ openlcb::ConfiguredProducer producer_sw1(
 // producers to it.
 openlcb::RefreshLoop loop(
     stack.node(), {producer_sw1.polling()});
+
+// List of GPIO objects that will be used for the output pins. You should keep
+// the constexpr declaration, because it will produce a compile error in case
+// the list of pointers cannot be compiled into a compiler constant and thus
+// would be placed into RAM instead of ROM.
+constexpr const Gpio *const kDirectGpio[] = {
+    TDRV1_Pin::instance(), TDRV2_Pin::instance(), //
+    TDRV3_Pin::instance(), TDRV4_Pin::instance(), //
+    TDRV5_Pin::instance(), TDRV6_Pin::instance(), //
+    TDRV7_Pin::instance(), TDRV8_Pin::instance()  //
+};
+
+openlcb::MultiConfiguredConsumer direct_consumers(stack.node(), kDirectGpio,
+    ARRAYSIZE(kDirectGpio), cfg.seg().direct_consumers());
+
+
+class FactoryResetHelper : public DefaultConfigUpdateListener {
+public:
+    UpdateAction apply_configuration(int fd, bool initial_load,
+                                     BarrierNotifiable *done) OVERRIDE {
+        AutoNotify n(done);
+        return UPDATED;
+    }
+
+    void factory_reset(int fd) override
+    {
+        cfg.userinfo().name().write(fd, "Nucleo IO board");
+        cfg.userinfo().description().write(
+            fd, "OpenLCB DevKit + F091RC dev board.");
+    }
+} factory_reset_helper;
 
 /** Entry point to application.
  * @param argc number of command line arguments
