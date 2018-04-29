@@ -42,6 +42,7 @@
 #include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/common/MmapGPIO.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
 
@@ -149,6 +150,105 @@ public:
             fd, "OpenLCB DevKit + F091RC dev board.");
     }
 } factory_reset_helper;
+
+class SpiOutputShiftRegister : public StateFlowBase
+{
+public:
+    SpiOutputShiftRegister(Service *dedicated_executor, const char *port,
+        AsyncMutex *mutex, const Gpio *latch, uint32_t *storage, unsigned len_bytes,
+        unsigned delay_msec = 50)
+        : StateFlowBase(dedicated_executor)
+        , asyncMutex_(mutex)
+        , latch_(latch)
+        , delayMsec_(delay_msec)
+        , storage_(storage)
+        , lenBytes_(len_bytes)
+    {
+        fd_ = ::open(port, O_WRONLY);
+        HASSERT(fd_ >= 0);
+        // test alignment
+        HASSERT((((uintptr_t)storage) & 3) == 0);
+        start_flow(STATE(wait_delay));
+    }
+
+private:
+    Action wait_delay()
+    {
+        return sleep_and_call(
+            &timer_, MSEC_TO_NSEC(delayMsec_), STATE(refresh));
+    }
+
+    Action refresh()
+    {
+        if (asyncMutex_) {
+            return allocate_and_call(STATE(locked), asyncMutex_);
+        } else {
+            return call_immediately(STATE(locked));
+        }
+    }
+
+    Action locked() {
+        ::write(fd_, storage_, lenBytes_);
+        latch_->write(Gpio::SET);
+        usleep(15);
+        latch_->write(Gpio::CLR);
+        if (asyncMutex_) {
+            asyncMutex_->Unlock();
+        }
+        return call_immediately(STATE(wait_delay));
+    }
+
+    /// Helper structure.
+    StateFlowTimer timer_{this};
+    /// File descriptor for the SPI port.
+    int fd_;
+    /// Async mutex if the SPI port needs it
+    AsyncMutex* asyncMutex_;
+    /// Latch to trigger activating the output.
+    const Gpio* latch_;
+    /// How much time to sleep between two refreshes.
+    unsigned delayMsec_;
+    /// Bit stream of the data to be written. This is purposefully aligned.
+    uint32_t* storage_;
+    /// How many bytes of data to shift out.
+    unsigned lenBytes_;
+};
+
+Executor<1> io_executor("io_thread", 1, 1300);
+Service io_service(&io_executor);
+
+uint32_t output_register[1] = {0x000050A0};
+
+SpiOutputShiftRegister internal_outputs(&io_service, "/dev/spi1.ioboard", nullptr, OUT_LAT_Pin::instance(), output_register, 2);
+
+constexpr const MmapGpio PORTD_LINE1(output_register, 7, true);
+constexpr const MmapGpio PORTD_LINE2(output_register, 6, true);
+constexpr const MmapGpio PORTD_LINE3(output_register, 5, true);
+constexpr const MmapGpio PORTD_LINE4(output_register, 4, true);
+constexpr const MmapGpio PORTD_LINE5(output_register, 3, true);
+constexpr const MmapGpio PORTD_LINE6(output_register, 2, true);
+constexpr const MmapGpio PORTD_LINE7(output_register, 1, true);
+constexpr const MmapGpio PORTD_LINE8(output_register, 0, true);
+
+constexpr const MmapGpio PORTE_LINE1(output_register, 15, true);
+constexpr const MmapGpio PORTE_LINE2(output_register, 14, true);
+constexpr const MmapGpio PORTE_LINE3(output_register, 13, true);
+constexpr const MmapGpio PORTE_LINE4(output_register, 12, true);
+constexpr const MmapGpio PORTE_LINE5(output_register, 11, true);
+constexpr const MmapGpio PORTE_LINE6(output_register, 10, true);
+constexpr const MmapGpio PORTE_LINE7(output_register, 9, true);
+constexpr const MmapGpio PORTE_LINE8(output_register, 8, true);
+
+constexpr const Gpio *const kPortDEGpio[] = {
+    &PORTD_LINE1, &PORTD_LINE2, &PORTD_LINE3, &PORTD_LINE4, //
+    &PORTD_LINE5, &PORTD_LINE6, &PORTD_LINE7, &PORTD_LINE8, //
+    &PORTE_LINE1, &PORTE_LINE2, &PORTE_LINE3, &PORTE_LINE4, //
+    &PORTE_LINE5, &PORTE_LINE6, &PORTE_LINE7, &PORTE_LINE8  //
+};
+
+openlcb::MultiConfiguredConsumer portde_consumers(stack.node(), kPortDEGpio,
+    ARRAYSIZE(kPortDEGpio), cfg.seg().portde_consumers());
+
 
 /** Entry point to application.
  * @param argc number of command line arguments
