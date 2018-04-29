@@ -44,6 +44,7 @@
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
+#include "Stm32SPI.hxx"
 #include "Stm32EEPROMEmulation.hxx"
 #include "hardware.hxx"
 
@@ -69,6 +70,33 @@ static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1000);
  * multiple of the minimum erase length (which is the flash page length, for
  * the STM32F0 it is 2 kbytes). The file size maximum is half this value. */
 const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
+
+
+/// Recursive mutex for SPI1 peripheral.
+OSMutex spi1_lock(true);
+
+static void noop_cs() {
+}
+
+/// SPI1 driver for io-board peripherals
+static Stm32SPI spi1_0(
+    "/dev/spi1.ioboard", SPI1, SPI1_IRQn, &noop_cs, &noop_cs, &spi1_lock);
+
+
+static void spi1_ext_cs_assert() {
+    EXT_CS_Pin::set(false);
+}
+
+static void spi1_ext_cs_deassert() {
+    EXT_CS_Pin::set(true);
+}
+
+/// SPI1 driver for the expansion port.
+static Stm32SPI spi1_1("/dev/spi1.ext", SPI1, SPI1_IRQn, &spi1_ext_cs_assert,
+    &spi1_ext_cs_deassert, &spi1_lock);
+
+/// SPI2 driver for the onboard input ports.
+static Stm32SPI spi2("/dev/spi2", SPI2, SPI2_IRQn, &noop_cs, &noop_cs, nullptr);
 
 extern "C" {
 
@@ -204,6 +232,18 @@ void hw_preinit(void)
     gpio_init.Pin = GPIO_PIN_8;
     HAL_GPIO_Init(GPIOB, &gpio_init);
     gpio_init.Pin = GPIO_PIN_9;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+
+    /* SPI1 pinmux on PB3, PB4, and PB5 */
+    gpio_init.Mode = GPIO_MODE_AF_PP;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Alternate = GPIO_AF0_SPI1;
+    gpio_init.Pin = GPIO_PIN_3;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_4;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_5;
     HAL_GPIO_Init(GPIOB, &gpio_init);
 
     GpioInit::hw_init();

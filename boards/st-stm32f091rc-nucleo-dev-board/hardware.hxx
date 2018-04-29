@@ -26,11 +26,21 @@ GPIO_PIN(TDRV6, GpioOutputSafeLow, A, 4);
 GPIO_PIN(TDRV7, GpioOutputSafeLow, C, 3);
 GPIO_PIN(TDRV8, GpioOutputSafeLow, C, 0);
 
+// Chip select line on the expansion port
+GPIO_PIN(EXT_CS, GpioOutputSafeHigh, C, 10);
+// Latch line assigned to the expansion port
+GPIO_PIN(EXT_LAT, GpioOutputSafeLow, C, 11);
+// Latch line on the onboard outputs
+GPIO_PIN(OUT_LAT, GpioOutputSafeLow, A, 8);
+// Latch line on the onboard inputs
+GPIO_PIN(INP_LAT, GpioOutputSafeLow, A, 6);
+
 typedef GpioInitializer<LED_GREEN_RAW_Pin, SW_USER_Pin, //
     SRV1_Pin, SRV2_Pin, SRV3_Pin, SRV4_Pin,             //
     SRV5_Pin, SRV6_Pin, SRV7_Pin, SRV8_Pin,             //
     TDRV1_Pin, TDRV2_Pin, TDRV3_Pin, TDRV4_Pin,         //
     TDRV5_Pin, TDRV6_Pin, TDRV7_Pin, TDRV8_Pin,         //
+    EXT_CS_Pin, EXT_LAT_Pin, OUT_LAT_Pin, INP_LAT_Pin,  //
     DummyPin>
     GpioInit;
 
