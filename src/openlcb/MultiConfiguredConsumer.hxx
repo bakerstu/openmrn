@@ -37,6 +37,7 @@
 #define _OPENLCB_MULTICONFIGUREDCONSUMER_HXX_
 
 #include "openlcb/ConfigRepresentation.hxx"
+#include "openlcb/ConfiguredConsumer.hxx"
 
 namespace openlcb
 {
@@ -102,6 +103,28 @@ public:
     /// @todo(balazs.racz): implement
     void factory_reset(int fd) OVERRIDE
     {
+        RepeatedGroup<config_entry_type, UINT_MAX> grp_ref(offset_.offset());
+        for (unsigned i = 0; i < size_; ++i)
+        {
+            grp_ref.entry(i).description().write(fd, "");
+        }
+    }
+
+    /// Factory reset helper function. Sets all names to something 1..N.
+    /// @param fd pased on from factory reset argument.
+    /// @param basename name of repeats.
+    void factory_reset_names(int fd, const char *basename)
+    {
+        RepeatedGroup<config_entry_type, UINT_MAX> grp_ref(offset_.offset());
+        for (unsigned i = 0; i < size_; ++i)
+        {
+            string v(basename);
+            v.push_back(' ');
+            char buf[10];
+            unsigned_integer_to_buffer(i+1, buf);
+            v += buf;
+            grp_ref.entry(i).description().write(fd, v);
+        }
     }
 
     // Implementations for the event handler functions.

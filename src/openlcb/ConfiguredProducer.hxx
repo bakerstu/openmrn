@@ -54,6 +54,7 @@ CDI_GROUP_ENTRY(description, StringConfigEntry<15>, //
 /// Configures the debounce parameter.
 CDI_GROUP_ENTRY(
     debounce, Uint8ConfigEntry, Name("Debounce parameter"),
+    Default(3),
     Description("Amount of time to wait for the input to stabilize before "
                 "producing the event. Unit is 30 msec of time. Usually a value "
                 "of 2-3 works well in a non-noisy environment. In high noise "
@@ -135,9 +136,10 @@ public:
         return UPDATED;
     }
 
-    /// @todo(balazs.racz): implement
     void factory_reset(int fd) OVERRIDE
     {
+        cfg_.description().write(fd, "");
+        CDI_FACTORY_RESET(cfg_.debounce);
     }
 
     Polling *polling()
