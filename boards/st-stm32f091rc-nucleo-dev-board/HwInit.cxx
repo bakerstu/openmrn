@@ -137,7 +137,7 @@ static void clock_setup(void)
 #define USE_EXTERNAL_8_MHz_CLOCK_SOURCE 1
 /* configure PLL:  8 MHz * 6 = 48 MHz */
 #if USE_EXTERNAL_8_MHz_CLOCK_SOURCE
-    RCC->CR |= RCC_CR_HSEON;
+    RCC->CR |= RCC_CR_HSEON | RCC_CR_HSEBYP;
     while (!(RCC->CR & RCC_CR_HSERDY))
         ;
     RCC->CFGR = RCC_CFGR_PLLMUL6 | RCC_CFGR_PLLSRC_HSE_PREDIV | RCC_CFGR_SW_HSE;
@@ -178,6 +178,7 @@ void hw_preinit(void)
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
     __HAL_RCC_USART2_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
     __HAL_RCC_TIM14_CLK_ENABLE();
