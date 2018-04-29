@@ -8,6 +8,9 @@
 
 from optparse import OptionParser
 import os
+import time
+import platform
+import getpass
 
 usage = "usage: %prog [options]\n\n" + \
         "  %prog -i $(APP_PATH) -o revisions.cxxout\n"
@@ -25,10 +28,18 @@ parser.add_option("-d", "--dirty", dest="dirty", action="store_true",
 parser.add_option("-u", "--untracked", dest="untracked", action="store_true",
                   default=False,
                   help="add the \"untracked files\" suffix: -u")
-
 parser.add_option("-g", "--gcc", dest="gcc", metavar="`gcc -dumpversion`",
                   default=None,
                   help="add the GNU GCC version")
+parser.add_option("-t", "--time", dest="date", action="store_true",
+                  default=False,
+                  help="add the date/time to the output")
+parser.add_option("-H", "--host", dest="hostname", action="store_true",
+                  default=False,
+                  help="add the hostname to the output")
+parser.add_option("-U", "--username", dest="username", action="store_true",
+                  default=False,
+                  help="add the username and hostname to the output")
 
 (options, args) = parser.parse_args()
 
@@ -44,6 +55,21 @@ orig_dir = os.path.abspath('./')
 output = '#include <cstddef>\n\n'
 output += 'const char *REVISIONS[] = \n{\n'
 
+# add data/time
+if options.date :
+    output += '    "' + time.strftime("%a, %d %b %Y %H:%M:%S %Z") + '",\n'
+
+# add user and host names
+if options.username or options.hostname :
+    output += '    "'
+    if options.username :
+        output += getpass.getuser() + '@'
+        options.hostname = True
+    if options.hostname :
+        output += platform.node()
+    output +='",\n'
+
+# add GCC version
 if options.gcc != None :
     options.gcc = options.gcc.replace('.', '-')
     output += '    "gcc-' + options.gcc + '",\n'
