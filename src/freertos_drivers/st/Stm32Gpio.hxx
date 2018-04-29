@@ -127,6 +127,7 @@ template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
         gpio_init.Pull = GPIO_NOPULL;
         gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
         HAL_GPIO_Init(port(), &gpio_init);
+        set(SAFE_VALUE);
     }
     /// Sets the output pin to a safe value.
     static void hw_set_to_safe()
