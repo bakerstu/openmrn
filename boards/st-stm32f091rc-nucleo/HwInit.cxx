@@ -79,8 +79,9 @@ void hw_set_to_safe(void)
 
 void resetblink(uint32_t pattern)
 {
-    BLINKER_RAW_Pin::set(pattern ? true : false);
     blinker_pattern = pattern;
+    rest_pattern = pattern ? 1 : 0;
+    BLINKER_RAW_Pin::set(pattern ? true : false);
     /* make a timer event trigger immediately */
 }
 
