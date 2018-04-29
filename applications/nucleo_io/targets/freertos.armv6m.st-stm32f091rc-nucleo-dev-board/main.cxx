@@ -98,11 +98,11 @@ extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
 // the individual entries to the individual consumers. Each consumer gets its
 // own GPIO pin.
 openlcb::ConfiguredConsumer consumer_green(
-    stack.node(), cfg.seg().consumers().entry<0>(), LED_GREEN_Pin());
+    stack.node(), cfg.seg().nucleo_onboard().green_led(), LED_GREEN_Pin());
 
 // Similar syntax for the producers.
 openlcb::ConfiguredProducer producer_sw1(
-    stack.node(), cfg.seg().producers().entry<0>(), SW_USER_Pin());
+    stack.node(), cfg.seg().nucleo_onboard().user_btn(), SW_USER_Pin());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
@@ -124,6 +124,15 @@ constexpr const Gpio *const kDirectGpio[] = {
 openlcb::MultiConfiguredConsumer direct_consumers(stack.node(), kDirectGpio,
     ARRAYSIZE(kDirectGpio), cfg.seg().direct_consumers());
 
+constexpr const Gpio *const kServoGpio[] = {
+    SRV1_Pin::instance(), SRV2_Pin::instance(), //
+    SRV3_Pin::instance(), SRV4_Pin::instance(), //
+    SRV5_Pin::instance(), SRV6_Pin::instance(), //
+    SRV7_Pin::instance(), SRV8_Pin::instance()  //
+};
+
+openlcb::MultiConfiguredConsumer servo_consumers(stack.node(), kServoGpio,
+    ARRAYSIZE(kServoGpio), cfg.seg().servo_consumers());
 
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:
