@@ -1,1 +1,1 @@
-../../../../boards/st-stm32f091rc-nucleo/hardware.hxx
+../../../../boards/st-stm32f091rc-nucleo-dev-board/hardware.hxx

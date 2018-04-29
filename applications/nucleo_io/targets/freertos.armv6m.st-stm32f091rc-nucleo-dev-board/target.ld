@@ -1,1 +1,1 @@
-../../../../boards/st-stm32f091rc-nucleo/target.ld
+../../../../boards/st-stm32f091rc-nucleo-dev-board/target.ld

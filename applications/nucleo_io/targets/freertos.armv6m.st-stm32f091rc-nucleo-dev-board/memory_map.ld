@@ -1,1 +1,1 @@
-../../../../boards/st-stm32f091rc-nucleo/memory_map.ld
+../../../../boards/st-stm32f091rc-nucleo-dev-board/memory_map.ld

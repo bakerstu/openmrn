@@ -1,1 +1,1 @@
-../../../../boards/st-stm32f091rc-nucleo/Makefile
+../../../../boards/st-stm32f091rc-nucleo-dev-board/Makefile

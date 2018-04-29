@@ -1,1 +1,1 @@
-../../../../boards/st-stm32f091rc-nucleo/startup.c
+../../../../boards/st-stm32f091rc-nucleo-dev-board/startup.c
