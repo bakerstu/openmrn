@@ -46,6 +46,7 @@
 #include "Stm32Can.hxx"
 #include "Stm32SPI.hxx"
 #include "Stm32EEPROMEmulation.hxx"
+#include "Stm32PWM.hxx"
 #include "hardware.hxx"
 
 /** override stdin */
