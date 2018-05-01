@@ -45,6 +45,7 @@
 #include "freertos_drivers/common/MmapGPIO.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
+#include "PWM.hxx"
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
@@ -125,9 +126,16 @@ constexpr const Gpio *const kDirectGpio[] = {
 openlcb::MultiConfiguredConsumer direct_consumers(stack.node(), kDirectGpio,
     ARRAYSIZE(kDirectGpio), cfg.seg().direct_consumers());
 
+const unsigned servo_min = configCPU_CLOCK_HZ * 1 / 1000;
+const unsigned servo_max = configCPU_CLOCK_HZ * 2 / 1000;
+
+PWMGPO srv1_gpo(servo_channels[0], servo_min, servo_max);
+PWMGPO srv2_gpo(servo_channels[1], servo_min, servo_max);
+PWMGPO srv3_gpo(servo_channels[2], servo_min, servo_max);
+PWMGPO srv4_gpo(servo_channels[3], servo_min, servo_max);
+
 constexpr const Gpio *const kServoGpio[] = {
-    SRV1_Pin::instance(), SRV2_Pin::instance(), //
-    SRV3_Pin::instance(), SRV4_Pin::instance(), //
+    &srv1_gpo, &srv2_gpo, &srv3_gpo, &srv4_gpo, //
     SRV5_Pin::instance(), SRV6_Pin::instance(), //
     SRV7_Pin::instance(), SRV8_Pin::instance()  //
 };
@@ -399,6 +407,11 @@ int appl_main(int argc, char *argv[])
     stack.check_version_and_factory_reset(
         cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
 
+    srv1_gpo.clr();
+    srv2_gpo.clr();
+    srv3_gpo.clr();
+    srv4_gpo.clr();
+    
     // The necessary physical ports must be added to the stack.
     //
     // It is okay to enable multiple physical ports, in which case the stack
