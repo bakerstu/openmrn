@@ -64,7 +64,7 @@ static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
 static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
-static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1000);
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1500);
 
 /** How many bytes of flash should hold the entire dataset. Must be an integer
  * multiple of the minimum erase length (which is the flash page length, for
@@ -246,6 +246,17 @@ void hw_preinit(void)
     gpio_init.Pin = GPIO_PIN_5;
     HAL_GPIO_Init(GPIOB, &gpio_init);
 
+    /* SPI2 pinmux on PC2 (MISO2), and PB10 (SCK) */
+    gpio_init.Mode = GPIO_MODE_AF_PP;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Alternate = GPIO_AF5_SPI2;
+    gpio_init.Pin = GPIO_PIN_10;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Alternate = GPIO_AF1_SPI2;
+    gpio_init.Pin = GPIO_PIN_2;
+    HAL_GPIO_Init(GPIOC, &gpio_init);
+    
     GpioInit::hw_init();
 
     /* Initializes the blinker timer. */
