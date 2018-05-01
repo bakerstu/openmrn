@@ -138,9 +138,10 @@ int Stm32SPI::update_configuration()
     }
 
     // Computes the lowest divisor that gets us under the desired max speed Hz.
-    uint32_t pclock = HAL_RCC_GetPCLK1Freq();
+    uint32_t pclock = 0; //cm3_cpu_clock_hz;  //HAL_RCC_GetPCLK1Freq();
+    pclock = (configCPU_CLOCK_HZ >> APBPrescTable[(RCC->CFGR & RCC_CFGR_PPRE) >> RCC_CFGR_PPRE_BITNUMBER]);
     unsigned ofs = 0;
-    while (baud_rate_table[ofs] && (pclock / baud_rate_table[ofs]) > speedHz)
+    while (baud_rate_table[ofs] && ((pclock / baud_rate_table[ofs]) > speedHz))
     {
         ofs += 2;
     }
@@ -233,6 +234,7 @@ int Stm32SPI::transfer(struct spi_ioc_transfer *msg)
         return 0;
     }
     HAL_StatusTypeDef ret = HAL_OK;
+    unsigned bytes = msg->len;
     if (!msg->tx_buf)
     {
         // doing receive
@@ -261,9 +263,20 @@ int Stm32SPI::transfer(struct spi_ioc_transfer *msg)
         }
         if (ret == HAL_OK && msg->len)
         {
-            HAL_SPI_Transmit(&spiHandle_, (uint8_t *)msg->tx_buf, msg->len,
-                SPI_DEFAULT_TIMEOUT);
+            ret = HAL_SPI_Transmit(&spiHandle_, (uint8_t *)msg->tx_buf,
+                msg->len, SPI_DEFAULT_TIMEOUT);
         }
+        // Wait for transmit to complete
+        while (__HAL_SPI_GET_FLAG(&spiHandle_, SPI_FLAG_BSY))
+        {
+        }
+        // Flush receive buffer otherwise an upcoming receive will get weird
+        // stuff.
+        while (__HAL_SPI_GET_FLAG(&spiHandle_, SPI_FLAG_RXNE))
+        {
+            *(__IO uint8_t *)&spiHandle_.Instance->DR;
+        }
+        
     }
     else
     {
@@ -291,5 +304,5 @@ int Stm32SPI::transfer(struct spi_ioc_transfer *msg)
     {
         return -EIO;
     }
-    return msg->len;
+    return bytes;
 }
