@@ -75,6 +75,9 @@ public:
     ~TractionCvSpace();
 
 private:
+    // this value is taking into account CV's are 1-1024, in other parts of
+    // the code we account for the one off, at this point the valid range is
+    // 0-1023
     static const unsigned MAX_CV = 1023;
 
     bool set_node(Node *node) OVERRIDE;
@@ -130,11 +133,13 @@ private:
         _ERROR_TIMEOUT = 8,
     };
 
+public: 
     enum {
         OFFSET_CV_INDEX = 0x7F000000,
         OFFSET_CV_VALUE = 0x7F000004,
     };
 
+private:
     uint8_t spaceId_;
     /// Stores the last node for which the CV index was written.
     uint16_t lastIndexedNode_;

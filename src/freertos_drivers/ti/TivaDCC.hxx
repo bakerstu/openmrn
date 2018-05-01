@@ -933,13 +933,13 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
 
     unsigned h_deadband = 2 * (HW::H_DEADBAND_DELAY_NSEC / 1000);
     unsigned railcom_part = 0;
-    fill_timing(RAILCOM_CUTOUT_PRE, 6 - railcom_part, 0);
+    fill_timing(RAILCOM_CUTOUT_PRE, 21, 0);
     railcom_part = 6;
     // was: 210
     fill_timing(RAILCOM_CUTOUT_FIRST, 175 - railcom_part, 0);
     railcom_part = 175;
     fill_timing(RAILCOM_CUTOUT_SECOND, 471 - railcom_part, 0);
-    railcom_part = 471;
+    railcom_part = 555;
     // remaining time
     fill_timing(RAILCOM_CUTOUT_POST, 5*56*2 - railcom_part + h_deadband, 0);
 
