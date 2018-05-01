@@ -72,6 +72,15 @@ static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1500);
  * the STM32F0 it is 2 kbytes). The file size maximum is half this value. */
 const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
 
+Stm32PWMGroup servo_timer(TIM3, (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,
+                          configCPU_CLOCK_HZ * 6 / 1000);
+
+extern PWM* servo_channels[];
+/// The order of these channels follows the schematic arrangement of MCU pins
+/// to logical servo ports.
+PWM *servo_channels[4] = { //
+    servo_timer.get_channel(4), servo_timer.get_channel(2),
+    servo_timer.get_channel(3), servo_timer.get_channel(1)};
 
 /// Recursive mutex for SPI1 peripheral.
 OSMutex spi1_lock(true);
@@ -211,6 +220,7 @@ void hw_preinit(void)
     __HAL_RCC_USART2_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
     __HAL_RCC_TIM14_CLK_ENABLE();
+    __HAL_RCC_TIM3_CLK_ENABLE();
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
@@ -259,6 +269,22 @@ void hw_preinit(void)
     HAL_GPIO_Init(GPIOC, &gpio_init);
     
     GpioInit::hw_init();
+
+
+    // Switches over servo timer pins to timer mode.
+    // PC6-7-8-9
+    gpio_init.Mode = GPIO_MODE_AF_PP;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Alternate = GPIO_AF0_TIM3;
+    gpio_init.Pin = GPIO_PIN_6;
+    HAL_GPIO_Init(GPIOC, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_7;
+    HAL_GPIO_Init(GPIOC, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_8;
+    HAL_GPIO_Init(GPIOC, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_9;
+    HAL_GPIO_Init(GPIOC, &gpio_init);
 
     /* Initializes the blinker timer. */
     TIM_HandleTypeDef TimHandle;
