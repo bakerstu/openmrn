@@ -132,7 +132,7 @@ void Stm32EEPROMEmulation::flash_program(
 {
     HASSERT(relative_sector < sectorCount_);
     HASSERT((count % BLOCK_SIZE) == 0);
-    HASSERT(start_block + (count / BLOCK_SIZE) < rawBlockCount_);
+    HASSERT(start_block + (count / BLOCK_SIZE) <= rawBlockCount_);
     auto* address = get_block(relative_sector, start_block);
 
     uintptr_t uint_address = (uintptr_t)address;
