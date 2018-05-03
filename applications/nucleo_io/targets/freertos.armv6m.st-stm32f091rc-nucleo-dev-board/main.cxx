@@ -83,7 +83,7 @@ extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 1500, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 1900, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -105,6 +105,7 @@ openlcb::ConfiguredConsumer consumer_green(
 // Similar syntax for the producers.
 openlcb::ConfiguredProducer producer_sw1(
     stack.node(), cfg.seg().nucleo_onboard().user_btn(), SW_USER_Pin());
+
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
@@ -326,6 +327,23 @@ constexpr const Gpio *const kPortDEGpio[] = {
 openlcb::MultiConfiguredConsumer portde_consumers(stack.node(), kPortDEGpio,
     ARRAYSIZE(kPortDEGpio), cfg.seg().portde_consumers());
 
+openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_1(
+    stack.node(), cfg.seg().snap_switches().entry<0>(), (const Gpio*)&PORTD_LINE1);
+openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_2(
+    stack.node(), cfg.seg().snap_switches().entry<1>(), (const Gpio*)&PORTD_LINE2);
+openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_3(
+    stack.node(), cfg.seg().snap_switches().entry<2>(), (const Gpio*)&PORTD_LINE3);
+openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_4(
+    stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE4);
+openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_5(
+    stack.node(), cfg.seg().snap_switches().entry<4>(), TDRV5_Pin::instance());
+openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_6(
+    stack.node(), cfg.seg().snap_switches().entry<5>(), TDRV6_Pin::instance());
+openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_7(
+    stack.node(), cfg.seg().snap_switches().entry<6>(), TDRV7_Pin::instance());
+openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_8(
+    stack.node(), cfg.seg().snap_switches().entry<7>(), TDRV8_Pin::instance());
+
 uint32_t input_register[2] = {0};
 
 SpiIOShiftRegister internal_inputs(&io_service, "/dev/spi2", nullptr, INP_LAT_Pin::instance(), nullptr, 0, input_register, 3);
@@ -384,7 +402,6 @@ openlcb::ConfiguredProducer producer_b7(
 openlcb::ConfiguredProducer producer_b8(
     stack.node(), cfg.seg().portab_producers().entry<15>(), (const Gpio*)&PORTB_LINE8);
 
-
 openlcb::RefreshLoop loopab(stack.node(),
     {
         producer_a1.polling(), producer_a2.polling(), //
@@ -394,7 +411,15 @@ openlcb::RefreshLoop loopab(stack.node(),
         producer_b1.polling(), producer_b2.polling(), //
         producer_b3.polling(), producer_b4.polling(), //
         producer_b5.polling(), producer_b6.polling(), //
-        producer_b7.polling(), producer_b8.polling()  //
+        producer_b7.polling(), producer_b8.polling(), //
+        &turnout_pulse_consumer_1,                    //
+        &turnout_pulse_consumer_2,                    //
+        &turnout_pulse_consumer_3,                    //
+        &turnout_pulse_consumer_4,                    //
+        &turnout_pulse_consumer_5,                    //
+        &turnout_pulse_consumer_6,                    //
+        &turnout_pulse_consumer_7,                    //
+        &turnout_pulse_consumer_8                    //
     });
 
 /** Entry point to application.
