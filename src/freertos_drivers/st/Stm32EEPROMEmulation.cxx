@@ -42,7 +42,7 @@
  || defined (STM32F072xB) || defined (STM32F078xx) \
  || defined (STM32F091xC) || defined (STM32F098xx)
 #include "stm32f0xx_hal_flash.h"
-#elif defined(STM32F303xC)
+#elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_hal_flash.h"
 #else
 #error "stm32EEPROMEmulation unsupported STM32 device"
@@ -55,7 +55,7 @@ const size_t Stm32EEPROMEmulation::PAGE_SIZE = 0x400;
 #elif defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
    || defined (STM32F072xB) || defined (STM32F078xx) \
    || defined (STM32F091xC) || defined (STM32F098xx) \
-   || defined (STM32F303xC)
+   || defined (STM32F303xC) || defined (STM32F303xE)
 const size_t Stm32EEPROMEmulation::PAGE_SIZE = 0x800;
 #endif
 const size_t EEPROMEmulation::BLOCK_SIZE = 4;

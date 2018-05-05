@@ -52,7 +52,7 @@
 #define CAN CAN1
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
 
-#elif defined (STM32F303xC)
+#elif defined (STM32F303xC) || defined (STM32F303xE)
 
 #include "stm32f3xx_hal_cortex.h"
 #define SPLIT_INT
@@ -404,7 +404,7 @@ void cec_can_interrupt_handler(void)
     Stm32Can::instances[0]->rx_interrupt_handler();
     Stm32Can::instances[0]->tx_interrupt_handler();
 }
-#elif defined (STM32F103xB) || defined (STM32F303xC)
+#elif defined (STM32F103xB) || defined (STM32F303xC) || defined (STM32F303xE)
 
 void usb_hp_can1_tx_interrupt_handler(void)
 {

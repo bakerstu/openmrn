@@ -37,7 +37,7 @@
 #include "stm32f0xx_hal_cortex.h"
 #elif defined(STM32F103xB)
 #include "stm32f1xx_hal_cortex.h"
-#elif defined(STM32F303xC)
+#elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_hal_cortex.h"
 #else
 #error Dont know what STM32 chip you have.
@@ -51,7 +51,7 @@ Stm32Uart *Stm32Uart::instances[2] = {NULL};
 #elif defined (STM32F070xB) || defined (STM32F071xB) || defined (STM32F072xB) \
    || defined (STM32F078xx)
 Stm32Uart *Stm32Uart::instances[4] = {NULL};
-#elif defined (STM32F303xC)
+#elif defined (STM32F303xC) || defined (STM32F303xE)
 Stm32Uart *Stm32Uart::instances[5] = {NULL};
 #define USART4 UART4
 #define USART5 UART5
@@ -99,7 +99,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     {
         instances[4] = this;
     }
-#if !defined (STM32F303xC)
+#if !defined (STM32F303xC) && !defined(STM32F303xE)
     else if (base == USART6)
     {
         instances[5] = this;

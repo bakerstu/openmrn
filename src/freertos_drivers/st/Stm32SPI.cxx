@@ -35,6 +35,16 @@
 
 #include "Stm32SPI.hxx"
 
+#if defined(STM32F072xB) || defined(STM32F091xC)
+#include "stm32f0xx_ll_rcc.h"
+#elif defined(STM32F103xB)
+#include "stm32f1xx_ll_rcc.h"
+#elif defined(STM32F303xC) || defined(STM32F303xE)
+#include "stm32f3xx_ll_rcc.h"
+#else
+#error Dont know what STM32 chip you have.
+#endif
+
 #define SPI_DEFAULT_TIMEOUT 100u
 
 // Enables the clock and resets the SPI peripheral.
@@ -139,7 +149,12 @@ int Stm32SPI::update_configuration()
 
     // Computes the lowest divisor that gets us under the desired max speed Hz.
     uint32_t pclock = 0; //cm3_cpu_clock_hz;  //HAL_RCC_GetPCLK1Freq();
-    pclock = (configCPU_CLOCK_HZ >> APBPrescTable[(RCC->CFGR & RCC_CFGR_PPRE) >> RCC_CFGR_PPRE_BITNUMBER]);
+    /// @todo this might not be the correct clock value for the F303
+//#ifdef __LL_RCC_CALC_PCLK1_FREQ
+    pclock = __LL_RCC_CALC_PCLK1_FREQ(configCPU_CLOCK_HZ, LL_RCC_GetAPB1Prescaler());
+//    #else
+//    pclock = __LL_RCC_CALC_PCLK_FREQ(configCPU_CLOCK_HZ, LL_RCC_GetAPBPrescaler());
+//#endif    
     unsigned ofs = 0;
     while (baud_rate_table[ofs] && ((pclock / baud_rate_table[ofs]) > speedHz))
     {
