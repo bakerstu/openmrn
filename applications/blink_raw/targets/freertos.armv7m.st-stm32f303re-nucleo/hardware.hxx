@@ -1,0 +1,1 @@
+../../../../boards/st-stm32f303re-nucleo/hardware.hxx
