@@ -240,4 +240,9 @@ void hw_preinit(void)
     NVIC_EnableIRQ(TIM17_IRQn);
 }
 
+void usart2_interrupt_handler(void)
+{
+    Stm32Uart::interrupt_handler(1);
+}
+
 }
