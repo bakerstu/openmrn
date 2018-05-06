@@ -121,7 +121,6 @@ uint32_t SystemCoreClock;
 const uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
 const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
 
-
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow : 
@@ -153,6 +152,7 @@ static void clock_setup(void)
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
     RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+    RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
 
     HAL_RCC_OscConfig(&RCC_OscInitStruct); 
     	
@@ -168,7 +168,8 @@ static void clock_setup(void)
 
     HASSERT(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) == HAL_OK);
 
-    SystemCoreClock = cm3_cpu_clock_hz;
+    // This will fail if the clocks are somehow misconfigured.
+    HASSERT(SystemCoreClock == cm3_cpu_clock_hz);
 }
 
 /** Initialize the processor hardware.
@@ -178,9 +179,9 @@ void hw_preinit(void)
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
 
-    /* these FLASH settings enable opertion at 48 MHz */
+    /* these FLASH settings enable opertion at 72 MHz */
     __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
-    __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_1);
+    __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_2);
 
     /* setup the system clock */
     clock_setup();
