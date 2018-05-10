@@ -552,7 +552,7 @@ void CC32xxWiFi::wlan_wps_pbc_initiate()
     SlSecParams_t sec_params;
     sec_params.Key = (signed char*)"";
     sec_params.KeyLen = 0;
-    sec_params.Type = SL_WLAN_SEC_TYPE_WPS_PBC;
+    sec_params.Type = SL_SEC_TYPE_WPS_PBC;
 
     int result = sl_WlanConnect((signed char*)"WPS_AP", strlen("WPS_AP"), NULL,
                                 &sec_params, NULL);

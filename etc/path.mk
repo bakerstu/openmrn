@@ -175,6 +175,7 @@ ifndef FREERTOSPATH
 SEARCHPATH := \
   /opt/FreeRTOS \
   /opt/FreeRTOS/default \
+  /opt/FreeRTOS/default/FreeRTOS \
   $(HOME)/FreeRTOS \
   /d/FreeRTOS/default
 
