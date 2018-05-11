@@ -105,7 +105,7 @@ bool TractionCvSpace::set_node(Node *node)
 
 const unsigned TractionCvSpace::MAX_CV;
 
-size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
+size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
                              errorcode_t *error, Notifiable *again)
 {
     if (source == OFFSET_CV_INDEX) {
@@ -117,23 +117,24 @@ size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
         if (len > 3) dst[3] = lastcv[0];
         return std::min(len, size_t(4));
     }
+    uint32_t cv = -1;
     if (source == OFFSET_CV_VALUE || source == OFFSET_CV_VERIFY_RESULT) {
         if (dccAddress_ != lastIndexedNode_) {
             *error = Defs::ERROR_PERMANENT;
             return 0;
         }
         // Translate from user-visible CV to wire protocol CV.
-        source = lastIndexedCv_ - 1;
+        cv = lastIndexedCv_ - 1;
         // fall through to regular processing
     }
-    LOG(INFO, "cv read %" PRId32, source);
-    if (source > MAX_CV)
+    LOG(INFO, "cv read %" PRIu32, cv);
+    if (cv > MAX_CV)
     {
         *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
         errorCode_ = ERROR_NOOP;
         return 0;
     }
-    if (source == cvNumber_) {
+    if (cv == cvNumber_) {
         if (errorCode_ == ERROR_OK) {
             *dst = cvData_;
             errorCode_ = ERROR_NOOP;
@@ -145,15 +146,16 @@ size_t TractionCvSpace::read(address_t source, uint8_t *dst, size_t len,
         }
     }
     done_ = again;
-    cvNumber_ = source;
+    cvNumber_ = cv;
     errorCode_ = ERROR_NOOP;
     cvData_ = 0;
     numTry_ = 0;
     if (source == OFFSET_CV_VALUE) {
         start_flow(STATE(try_read1));
-
     } else if (source == OFFSET_CV_VERIFY_RESULT) {
         start_flow(STATE(pgm_verify));
+    } else {
+        DIE("Have not started the flow but will return AGAIN.");
     }
     *error = ERROR_AGAIN;
     deadline_ = os_get_time_monotonic() + MSEC_TO_NSEC(RAILCOM_POM_OP_TIMEOUT_MSEC);
@@ -214,7 +216,7 @@ StateFlowBase::Action TractionCvSpace::pgm_verify_exit()
         full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
     done_->notify();
     return exit();
-}    
+}
 
 StateFlowBase::Action TractionCvSpace::try_read1()
 {
