@@ -32,6 +32,10 @@
  * @date 5 Jun 2015
  */
 
+#define _DEFAULT_SOURCE
+
+#include <unistd.h>
+
 #include "os/os.h"
 #include "nmranet_config.h"
 
