@@ -42,10 +42,11 @@ void packet_processor_notify_update(PacketSource* source, unsigned code) {
 }
 
 /** Adds a new refresh source to the background refresh loop. */
-void packet_processor_add_refresh_source(
+bool packet_processor_add_refresh_source(
     PacketSource *source, unsigned priority)
 {
-    Singleton<UpdateLoopBase>::instance()->add_refresh_source(source, priority);
+    return Singleton<UpdateLoopBase>::instance()->add_refresh_source(
+        source, priority);
 }
 
 /** Removes a refresh source from the background refresh loop. */

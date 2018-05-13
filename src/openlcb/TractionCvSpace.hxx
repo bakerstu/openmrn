@@ -146,6 +146,14 @@ public:
     };
 
 private:
+    /// Helper function for completing asynchronous processing.
+    Action async_done()
+    {
+        done_->notify();
+        done_ = nullptr;
+        return exit();
+    }
+
     uint8_t spaceId_;
     /// Stores the last node for which the CV index was written.
     uint16_t lastIndexedNode_;

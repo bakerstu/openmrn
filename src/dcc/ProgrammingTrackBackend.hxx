@@ -237,8 +237,12 @@ private:
         enableProgramTrackMode_();
         // @todo: do we need to flush the packet queue here?
         // maybe send 6-8 reset packets at the beginning instead of 3?
-        packet_processor_add_refresh_source(
-            this, dcc::UpdateLoopBase::PROGRAMMING_PRIORITY);
+        if (!packet_processor_add_refresh_source(
+                this, dcc::UpdateLoopBase::PROGRAMMING_PRIORITY)) {
+            // There was another high priority source, probably we are in ESTOP.
+            packet_processor_remove_refresh_source(this);
+            return return_with_error(openlcb::Defs::ERROR_OUT_OF_ORDER);
+        }
         //enable_dcc();
         return return_ok();
     }

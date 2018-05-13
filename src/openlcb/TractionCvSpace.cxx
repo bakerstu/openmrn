@@ -143,6 +143,10 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
             *error = Defs::ERROR_OPENLCB_TIMEOUT;
             errorCode_ = ERROR_NOOP;
             return 0;
+        } else if (errorCode_ == _ERROR_BUSY) {
+            *error = Defs::ERROR_OUT_OF_ORDER;
+            errorCode_ = ERROR_NOOP;
+            return 0;
         }
     }
     done_ = again;
@@ -174,6 +178,12 @@ StateFlowBase::Action TractionCvSpace::pgm_verify_wait_flush()
 {
     auto b = get_buffer_deleter(
         full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
+    if (b->data()->resultCode != 0) {
+        // Failed to enter service mode. Maybe we are in ESTOP.
+        errorCode_ = _ERROR_BUSY;
+        done_->notify();
+        return exit();
+    }
     return sleep_and_call(&timer_, MSEC_TO_NSEC(10), STATE(pgm_verify_reset));
 }
 
@@ -227,8 +237,7 @@ StateFlowBase::Action TractionCvSpace::pgm_verify_exit()
 {
     auto b = get_buffer_deleter(
         full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
-    done_->notify();
-    return exit();
+    return async_done();
 }
 
 StateFlowBase::Action TractionCvSpace::try_read1()
@@ -287,8 +296,7 @@ StateFlowBase::Action TractionCvSpace::read_returned()
         }
         return call_immediately(STATE(try_read1));
     }
-    done_->notify();
-    return exit();
+    return async_done();
 }
 
 size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
@@ -398,8 +406,7 @@ StateFlowBase::Action TractionCvSpace::write_returned()
         /// @TODO(balazs.racz) keep a timestamp to not keep trying forever.
         return call_immediately(STATE(try_write1));
     }
-    done_->notify();
-    return exit();
+    return async_done();
 }
 
 void TractionCvSpace::record_railcom_status(unsigned code)
