@@ -163,6 +163,12 @@ public:
         initialize(currentState_);
     }
 
+    /// Retrieves the currently set options.
+    const Options &options()
+    {
+        return opts_;
+    }
+
     /// Initilalize the debouncer. @param state is the current input state at
     /// initialization time, which will be taken over as is (without debouncing
     /// because we don't have any information based on which to debounce).
