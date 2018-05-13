@@ -285,6 +285,17 @@ public:
 #define CDI_FACTORY_RESET(PATH)                                                \
     PATH().write(fd, PATH##_options().defaultvalue())
 
+/// Requests a readout of a numeric variable with trimming. If the value
+/// currently present in the config file is less than the defined minimum, then
+/// sets the value to the minimum in the config file (overwriting), same for
+/// max. Returns the current value after trimming.
+///
+/// Usage:
+///   uint16_t my_value = CDI_READ_TRIMMED(cfg.seg().foo_bar, fd);
+#define CDI_READ_TRIMMED(PATH, fd)                                             \
+    PATH().read_or_write_trimmed(                                              \
+        fd, PATH##_options().minvalue(), PATH##_options().maxvalue())
+
 /// Defines a repeated group of a given type and a given number of repeats.
 ///
 /// Typical usage:
