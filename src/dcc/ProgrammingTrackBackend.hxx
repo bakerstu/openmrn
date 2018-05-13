@@ -105,6 +105,7 @@ struct ProgrammingTrackRequest : public CallableFlowRequestBase
     {
         reset_base();
         cmd_ = Type::SEND_SERVICE_PACKET;
+        packetToSend_ = pkt;
         repeatCount_ = count;
         terminateOnAck_ = terminate_on_ack ? 1 : 0;
     }
@@ -130,7 +131,7 @@ struct ProgrammingTrackRequest : public CallableFlowRequestBase
 
     /// How many times maximum to repeat the packet before timing out on no
     /// acknowledgement, or how many reset packets to send.
-    unsigned repeatCount_ : 8;
+    unsigned repeatCount_ : 16;
 
     /// Should we short-cut sending the packet repetitions when we've seen an
     /// ack. If 1, returns immediately upon seeing the ack.
@@ -238,7 +239,7 @@ private:
         // maybe send 6-8 reset packets at the beginning instead of 3?
         packet_processor_add_refresh_source(
             this, dcc::UpdateLoopBase::PROGRAMMING_PRIORITY);
-        enable_dcc();
+        //enable_dcc();
         return return_ok();
     }
 
@@ -256,6 +257,7 @@ private:
     {
         // record that we want to send reset packets.
         request()->packetToSend_.set_dcc_reset_all_decoders();
+        request()->packetToSend_.packet_header.send_long_preamble = 1;
         return call_immediately(STATE(send_service_packet));
     }
 
@@ -264,6 +266,7 @@ private:
         isWaitingForPackets_ = 1;
         // This pauses the flow until somebody calls notify(), then continues
         // in the given state.
+        request()->packetToSend_.packet_header.send_long_preamble = 1;
         return wait_and_call(STATE(packets_sent));
     }
 
