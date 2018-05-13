@@ -541,13 +541,20 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             break;
         case PREAMBLE:
+        {
             current_bit = DCC_ONE;
-            if (++preamble_count == HW::dcc_preamble_count())
+            int preamble_needed = HW::dcc_preamble_count();
+            if (packet->packet_header.send_long_preamble)
+            {
+                preamble_needed = 21;
+            }
+            if (++preamble_count == preamble_needed)
             {
                 state_ = START;
                 preamble_count = 0;
             }
             break;
+        }
         case START:
             current_bit = DCC_ZERO;
             count = 0;
@@ -578,14 +585,19 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             break;
         case DCC_MAYBE_RAILCOM:
-            if (HW::railcom_cutout() && output_enabled) {
+            if (HW::railcom_cutout() && output_enabled &&
+                // do not send cutouts for service mode packets
+                (packet->packet_header.send_long_preamble == 0))
+            {
                 //current_bit = RAILCOM_CUTOUT_PRE;
                 current_bit = DCC_ONE;
                 // We change the time of the next IRQ.
                 MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                                  timings[RAILCOM_CUTOUT_PRE].period);
                 state_ = DCC_CUTOUT_PRE;
-            } else {
+            }
+            else
+            {
                 current_bit = DCC_ONE;
                 state_ = DCC_LEADOUT;
             }
