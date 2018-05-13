@@ -165,14 +165,20 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
 StateFlowBase::Action TractionCvSpace::pgm_verify()
 {
     return invoke_subflow_and_wait(
-        Singleton<ProgrammingTrackBackend>::instance(), STATE(pgm_verify_reset),
+        Singleton<ProgrammingTrackBackend>::instance(),
+        STATE(pgm_verify_wait_flush),
         ProgrammingTrackRequest::ENTER_SERVICE_MODE);
+}
+
+StateFlowBase::Action TractionCvSpace::pgm_verify_wait_flush()
+{
+    auto b = get_buffer_deleter(
+        full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
+    return sleep_and_call(&timer_, MSEC_TO_NSEC(10), STATE(pgm_verify_reset));
 }
 
 StateFlowBase::Action TractionCvSpace::pgm_verify_reset()
 {
-    auto b = get_buffer_deleter(
-        full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
     return invoke_subflow_and_wait(Singleton<ProgrammingTrackBackend>::instance(),
         STATE(pgm_verify_packet), ProgrammingTrackRequest::SEND_RESET, 15);
 }
@@ -189,9 +195,9 @@ StateFlowBase::Action TractionCvSpace::pgm_verify_packet()
     pkt.payload[2] = lastVerifyValue_;
     pkt.dlc = 3;
     pkt.add_dcc_checksum();
-    return invoke_subflow_and_wait(Singleton<ProgrammingTrackBackend>::instance(),
-        STATE(pgm_verify_done),
-                                   ProgrammingTrackRequest::SEND_PROGRAMMING_PACKET, pkt, 15);
+    return invoke_subflow_and_wait(
+        Singleton<ProgrammingTrackBackend>::instance(), STATE(pgm_verify_done),
+        ProgrammingTrackRequest::SEND_PROGRAMMING_PACKET, pkt, 15);
 }
 
 StateFlowBase::Action TractionCvSpace::pgm_verify_done()
@@ -204,9 +210,16 @@ StateFlowBase::Action TractionCvSpace::pgm_verify_done()
         cvData_ = 0;
     }
     errorCode_ = ERROR_OK;
+    return invoke_subflow_and_wait(
+        Singleton<ProgrammingTrackBackend>::instance(),
+        STATE(pgm_verify_reset_done), ProgrammingTrackRequest::SEND_RESET, 15);
+}
 
-    return invoke_subflow_and_wait(Singleton<ProgrammingTrackBackend>::instance(),
-        STATE(pgm_verify_exit),
+StateFlowBase::Action TractionCvSpace::pgm_verify_reset_done() {
+    auto b = get_buffer_deleter(
+        full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
+    return invoke_subflow_and_wait(
+        Singleton<ProgrammingTrackBackend>::instance(), STATE(pgm_verify_exit),
         ProgrammingTrackRequest::EXIT_SERVICE_MODE);
 }
 

@@ -105,11 +105,13 @@ private:
     Action write_returned();
 
     Action pgm_verify();
+    Action pgm_verify_wait_flush();
     Action pgm_verify_reset();
     Action pgm_verify_packet();
     Action pgm_verify_done();
+    Action pgm_verify_reset_done();
     Action pgm_verify_exit();
-    
+
     // Railcom feedback
     void send(Buffer<dcc::RailcomHubData> *b, unsigned priority) OVERRIDE;
     void record_railcom_status(unsigned code);
