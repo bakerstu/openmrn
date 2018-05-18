@@ -47,7 +47,7 @@
 #include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
-#include "freertos_drivers/common/MmapGPIO.hxx"
+#include "os/MmapGpio.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
 #include "PWM.hxx"
