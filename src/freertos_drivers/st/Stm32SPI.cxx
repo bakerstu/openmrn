@@ -116,7 +116,6 @@ static void spi_reset(SPI_TypeDef *port)
 Stm32SPI::Stm32SPI(const char *name, SPI_TypeDef *port, uint32_t interrupt,
     ChipSelectMethod cs_assert, ChipSelectMethod cs_deassert,
     OSMutex *bus_lock)
-
     : SPI(name, cs_assert, cs_deassert, bus_lock)
 {
     spi_reset(port);
@@ -127,7 +126,8 @@ Stm32SPI::Stm32SPI(const char *name, SPI_TypeDef *port, uint32_t interrupt,
     HASSERT(update_configuration() == 0);
 }
 
-static const uint32_t baud_rate_table[] = {
+static const uint32_t baud_rate_table[] =
+{
     2, SPI_BAUDRATEPRESCALER_2,     //
     4, SPI_BAUDRATEPRESCALER_4,     //
     8, SPI_BAUDRATEPRESCALER_8,     //
@@ -150,11 +150,7 @@ int Stm32SPI::update_configuration()
     // Computes the lowest divisor that gets us under the desired max speed Hz.
     uint32_t pclock = 0; //cm3_cpu_clock_hz;  //HAL_RCC_GetPCLK1Freq();
     /// @todo this might not be the correct clock value for the F303
-//#ifdef __LL_RCC_CALC_PCLK1_FREQ
     pclock = __LL_RCC_CALC_PCLK1_FREQ(configCPU_CLOCK_HZ, LL_RCC_GetAPB1Prescaler());
-//    #else
-//    pclock = __LL_RCC_CALC_PCLK_FREQ(configCPU_CLOCK_HZ, LL_RCC_GetAPBPrescaler());
-//#endif    
     unsigned ofs = 0;
     while (baud_rate_table[ofs] && ((pclock / baud_rate_table[ofs]) > speedHz))
     {
@@ -291,7 +287,7 @@ int Stm32SPI::transfer(struct spi_ioc_transfer *msg)
         {
             *(__IO uint8_t *)&spiHandle_.Instance->DR;
         }
-        
+
     }
     else
     {

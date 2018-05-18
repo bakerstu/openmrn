@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2018, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,10 +26,11 @@
  *
  * \file main.cxx
  *
- * Main file for the io board application on the Tiva Launchpad board.
+ * Main file for the io board application on the Nucleo board with the DevKit IO
+ * board plugged in.
  *
  * @author Balazs Racz
- * @date 5 Jun 2015
+ * @date 18 April 2018
  */
 
 #define _DEFAULT_SOURCE

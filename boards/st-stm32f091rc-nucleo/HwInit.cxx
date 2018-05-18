@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2012, Stuart W Baker
+ * Copyright (c) 2018, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +25,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file HwInit.cxx
- * This file represents the hardware initialization for the TI Tiva MCU.
+ * This file represents the hardware initialization for the STM32F091RC Nucelo
+ * board (bare).
  *
- * @author Stuart W. Baker
- * @date 5 January 2013
+ * @author Balazs Racz
+ * @date April 18, 2018
  */
 
 #include <new>
