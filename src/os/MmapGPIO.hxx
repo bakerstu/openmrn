@@ -32,8 +32,8 @@
  * @date 29 April 2018
  */
 
-#ifndef _FREERTOS_DRIVERS_COMMON_MMAPGPIO_HXX_
-#define _FREERTOS_DRIVERS_COMMON_MMAPGPIO_HXX_
+#ifndef _OS_MMAPGPIO_HXX_
+#define _OS_MMAPGPIO_HXX_
 
 #include "os/Gpio.hxx"
 
@@ -110,4 +110,4 @@ private:
     const unsigned isOutput_ : 1;
 };
 
-#endif // _FREERTOS_DRIVERS_COMMON_MMAPGPIO_HXX_
+#endif // _OS_MMAPGPIO_HXX_
