@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2012, Stuart W Baker
+ * Copyright (c) 2018, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +25,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file HwInit.cxx
- * This file represents the hardware initialization for the TI Tiva MCU.
+ * This file represents the hardware initialization for the STM32F091RC Nucelo
+ * board (bare).
  *
- * @author Stuart W. Baker
- * @date 5 January 2013
+ * @author Balazs Racz
+ * @date April 18, 2018
  */
 
 #include <new>
@@ -79,8 +80,9 @@ void hw_set_to_safe(void)
 
 void resetblink(uint32_t pattern)
 {
-    BLINKER_RAW_Pin::set(pattern ? true : false);
     blinker_pattern = pattern;
+    rest_pattern = pattern ? 1 : 0;
+    BLINKER_RAW_Pin::set(pattern ? true : false);
     /* make a timer event trigger immediately */
 }
 
@@ -133,7 +135,7 @@ static void clock_setup(void)
 #define USE_EXTERNAL_8_MHz_CLOCK_SOURCE 1
 /* configure PLL:  8 MHz * 6 = 48 MHz */
 #if USE_EXTERNAL_8_MHz_CLOCK_SOURCE
-    RCC->CR |= RCC_CR_HSEON;
+    RCC->CR |= RCC_CR_HSEON | RCC_CR_HSEBYP;
     while (!(RCC->CR & RCC_CR_HSERDY))
         ;
     RCC->CFGR = RCC_CFGR_PLLMUL6 | RCC_CFGR_PLLSRC_HSE_PREDIV | RCC_CFGR_SW_HSE;
