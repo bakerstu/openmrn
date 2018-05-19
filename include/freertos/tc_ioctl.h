@@ -34,7 +34,12 @@
 #ifndef _FREERTOS_TC_IOCTL_H_
 #define _FREERTOS_TC_IOCTL_H_
 
-#define TCSBRK		0x5409
+#include "freertos/stropts.h"
+
+/** Magic number for this driver's ioctl calls */
+#define TERMIOS_IOC_MAGIC ('T')
+
+#define TCSBRK		IO(TERMIOS_IOC_MAGIC, 9)
 
 #endif // _FREERTOS_TC_IOCTL_H_
 
