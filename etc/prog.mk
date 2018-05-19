@@ -177,7 +177,9 @@ rclean: clean
 
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp $(OPENMRNPATH)/etc/$(TARGET).mk 
 	$(OPENMRNPATH)/bin/revision.py $(REVISIONFLAGS) -i "$(GITREPOS)" -g "`$(CC) -dumpversion`"
-	$(CXX) $(CXXFLAGS) -x c++ revisions.cxxout -o revisions.o
+	mv revisions.cxxout revisions.cxx
+	$(CXX) $(CXXFLAGS) -x c++ revisions.cxx -o revisions.o
+	mv revisions.cxx revisions.cxxout
 	$(LD) $(OBJS) revisions.o $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP) -o $@ 
 ifdef SIZE
 	$(SIZE) $@
