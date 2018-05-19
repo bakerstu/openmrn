@@ -123,6 +123,19 @@ protected:
         wait_for_main_executor();
     }
 
+    /** Delays the current thread until all asynchronous processing and all
+     * pending timers have completed. */
+    void twait()
+    {
+        wait_for_main_executor();
+        while (!g_executor.active_timers()->empty())
+        {
+            usleep(20000);
+            wait_for_main_executor();
+        }
+        wait_for_main_executor();
+    }
+
 #ifdef __EMSCRIPTEN__
     void usleep(unsigned long usecs) {
         long long deadline = usecs;

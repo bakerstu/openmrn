@@ -39,10 +39,11 @@
 #include <cmath>
 #include <stdint.h>
 
-#include "openlcb/Velocity.hxx"
-#include "openlcb/Payload.hxx"
-#include "openlcb/If.hxx"
 #include "dcc/Defs.hxx"
+#include "openlcb/If.hxx"
+#include "openlcb/Payload.hxx"
+#include "openlcb/Velocity.hxx"
+#include "utils/format_utils.hxx"
 
 namespace openlcb {
 
@@ -75,14 +76,6 @@ struct TractionDefs {
     static const uint64_t IS_TRAIN_EVENT = 0x0101000000000303ULL;
     /// This event should be produced by traction proxy nodes.
     static const uint64_t IS_PROXY_EVENT = 0x0101000000000304ULL;
-    /// Producing this event causes all operations to stop (usually by turning
-    /// off the command station power output).
-    /// @TODO : there is a mistake in this constant. It should start with
-    /// 0100 by the standard (instead of 0101).
-    static const uint64_t EMERGENCY_STOP_EVENT = 0x010000000000FFFFULL;
-    /// Producing this event resumes all operations (usually by turning power
-    /// back on).
-    static const uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010000000000FFFEULL;
     /// Base address of DCC accessory decoder well-known event range (active)
     static constexpr uint64_t ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE = 0x0101020000FF0000ULL;
     /// Base address of DCC accessory decoder well-known event range (inactive)
@@ -97,6 +90,8 @@ struct TractionDefs {
     static const uint64_t NODE_ID_MARKLIN_MOTOROLA = 0x060300000000ULL;
     /// Node ID space allocated for the MTH DCS protocol.
     static const uint64_t NODE_ID_MTH_DCS = 0x060400000000ULL;
+    /// Node ID space mask.
+    static const uint64_t NODE_ID_MASK = 0xFFFF00000000ULL;
 
     enum
     {
@@ -230,6 +225,81 @@ struct TractionDefs {
             default:
                 DIE("Unknown train address type");
         }
+    }
+
+    /** Converts a node ID to a legacy address if possible.
+        @param id is an openLCB NodeID
+        @param type (must be not null) will be filled with the legacy train
+       address type
+        @param addr (must be not null) will be filled with the legacy train
+       address.
+        @return true if the address was recognized and type, addr was filled
+       with values. Returns false if the address was not recognized as a legacy
+       train node's address.
+    */
+    static bool legacy_address_from_train_node_id(
+        NodeID id, dcc::TrainAddressType *type, uint32_t *addr)
+    {
+        HASSERT(type);
+        HASSERT(addr);
+        if ((id & NODE_ID_MASK) == NODE_ID_DCC)
+        {
+            *addr = (id & 0x3FFF);
+            if (((id & 0xC000) == 0xC000) || (*addr >= 128u))
+            {
+                // overlapping long address
+                *type = dcc::TrainAddressType::DCC_LONG_ADDRESS;
+            }
+            else
+            {
+                *type = dcc::TrainAddressType::DCC_SHORT_ADDRESS;
+            }
+            return true;
+        }
+        else if ((id & NODE_ID_MASK) == NODE_ID_MARKLIN_MOTOROLA)
+        {
+            *type = dcc::TrainAddressType::MM;
+            *addr = (id & 0x3FFF);
+            return true;
+        }
+        return false;
+    }
+
+    /** Converts a legacy address to a user-visible name.
+
+      @param type defines what address type it is (dcc-short, dcc-long or MM)
+      @param addr is the legacy address, the valid values are defined by the
+      specific protocols.
+      @return user-readable address.
+    */
+    static string train_node_name_from_legacy(
+        dcc::TrainAddressType type, uint32_t addr)
+    {
+        string ret(14, 0);
+        char *s = &ret[0];
+        if ((type == dcc::TrainAddressType::DCC_LONG_ADDRESS) && (addr < 128))
+        {
+            s[0] = '0';
+            s++;
+        }
+        char *e = integer_to_buffer(addr, s);
+        ret.resize(e - &ret[0]);
+        if (type == dcc::TrainAddressType::MM)
+        {
+            ret.push_back('M');
+        }
+        else if (addr < 128)
+        {
+            if (type == dcc::TrainAddressType::DCC_SHORT_ADDRESS)
+            {
+                ret.push_back('S');
+            }
+            else
+            {
+                ret.push_back('L');
+            }
+        }
+        return ret;
     }
 
     static Payload estop_set_payload() {

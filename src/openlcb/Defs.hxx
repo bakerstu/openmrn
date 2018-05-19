@@ -211,6 +211,16 @@ struct Defs
         RESERVED_MASK           = 0x00000FFFFFFF
     };
 
+    /// Producing this event causes an Emergency Off (de-energize).  For
+    /// example, a DCC command station or booster may react to this by turning
+    /// off the command station or booster power output.
+    static constexpr uint64_t EMERGENCY_OFF_EVENT = 0x010000000000FFFFULL;
+
+    /// Producing this event clears an Emergency Off (energize).  For example,
+    /// a DCC command station or booster mauy react to this by restoring
+    /// track power.
+    static constexpr uint64_t CLEAR_EMERGENCY_OFF_EVENT = 0x010000000000FFFEULL;
+
     /** Status of the pysical layer link */
     enum LinkStatus
     {

@@ -36,7 +36,6 @@ CSRCS += stm32f3xx_hal.c \
          stm32f3xx_hal_pccard.c \
          stm32f3xx_hal_pcd.c \
          stm32f3xx_hal_pcd_ex.c \
-         stm32f3xx_hal_ppp.c \
          stm32f3xx_hal_pwr.c \
          stm32f3xx_hal_pwr_ex.c \
          stm32f3xx_hal_rcc.c \
@@ -57,6 +56,11 @@ CSRCS += stm32f3xx_hal.c \
          stm32f3xx_hal_usart.c \
          stm32f3xx_hal_wwdg.c \
          stm32f3xx_ll_fmc.c
+
+# this does not seem to exist anymore
+#         stm32f3xx_hal_ppp.c \
+
+
 
 CXXSRCS += Stm32Can.cxx \
            Stm32Uart.cxx \

@@ -173,6 +173,7 @@ CC32xxWiFi::CC32xxWiFi()
     , wakeup(-1)
     , rssi(0)
     , wlanRole(WlanRole::UNKNOWN)
+    , started(false)
     , connected(0)
     , connectionFailed(0)
     , ipAcquired(0)
@@ -517,6 +518,7 @@ void CC32xxWiFi::stop()
 {
     ipAcquired = false;
     connected = false;
+    started = false;
     sl_Stop(0xFF);
 }
 
@@ -543,6 +545,21 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
 }
 
 /*
+ * CC32xxWiFi::wlan_wps_pbc_initiate()
+ */
+void CC32xxWiFi::wlan_wps_pbc_initiate()
+{
+    SlSecParams_t sec_params;
+    sec_params.Key = (signed char*)"";
+    sec_params.KeyLen = 0;
+    sec_params.Type = SL_SEC_TYPE_WPS_PBC;
+
+    int result = sl_WlanConnect((signed char*)"WPS_AP", strlen("WPS_AP"), NULL,
+                                &sec_params, NULL);
+    HASSERT(result >= 0);
+}
+
+/*
  * CC32xxWiFi::wlan_setup_ap()
  */
 void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
@@ -551,46 +568,21 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
     HASSERT(strlen(ssid) <= 32);
     HASSERT(strlen(security_key) <= 64);
 
-    int sec_type = security_type_to_simplelink(security_type);
-    uint16_t len;
-    uint16_t config_opt;
+    uint8_t sec_type = security_type_to_simplelink(security_type);
 
-    char old_ssid[32];
-    len = 32;
-    config_opt = WLAN_AP_OPT_SSID;
-    sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt , &len, (uint8_t*)old_ssid);
-    // simplify strcmp by null terminating the old_ssid
-    if (len != strlen(ssid) || strncmp(old_ssid, ssid, len))
-    {
-        sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SSID, strlen(ssid),
-                   (uint8_t*)ssid);
-    }
+    sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SSID, strlen(ssid),
+               (uint8_t*)ssid);
 
-    uint8_t old_sec_type;
-    len = 1;
-    config_opt = WLAN_AP_OPT_SECURITY_TYPE;
-    sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt , &len, (uint8_t*)&old_sec_type);
-    if (old_sec_type != sec_type)
-    {
-        uint8_t sec_type = sec_type;
-        sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SECURITY_TYPE, 1,
-                   (uint8_t*)&sec_type);
-    }
+    sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SECURITY_TYPE, 1,
+               (uint8_t*)&sec_type);
 
     if (sec_type == SL_SEC_TYPE_OPEN)
     {
         return;
     }
 
-    char old_password[64];
-    len = 64;
-    config_opt = WLAN_AP_OPT_PASSWORD;
-    sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt , &len, (uint8_t*)old_password);
-    if (len != strlen(security_key) || strncmp(old_password, security_key, len))
-    {
-        sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_PASSWORD,
-                   strlen(security_key), (uint8_t*)security_key);
-    }
+    sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_PASSWORD,
+               strlen(security_key), (uint8_t*)security_key);
 }
 
 void CC32xxWiFi::connecting_update_blinker()
@@ -652,6 +644,7 @@ void CC32xxWiFi::set_default_state()
             wlan_power_policy_set(wlanPowerPolicy);
         }
     }
+    started = true;
 }
 
 /*

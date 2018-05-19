@@ -151,6 +151,9 @@ struct Debug
     //typedef LED_BLUE_Pin MeasurementEnabled;
 
     typedef DummyPin NSampling;
+    typedef DummyPin CapTimerOverflow;
+    typedef DummyPin GndControlSwitch1;
+    typedef DummyPin GndControlSwitch2;
 
 };
 
@@ -174,7 +177,7 @@ struct RailcomDefs
         return true;
     }
 
-    static void enable_measurement();
+    static void enable_measurement(bool);
     static void disable_measurement();
 
     static uint8_t feedbackChannel_;
@@ -441,11 +444,13 @@ struct DCCDecode
       HWREG(TIMER_BASE + TIMER_O_TAMR) |= (TIMER_TAMR_TAMIE);
     }
 
+    static void cap_event_hook() {}
+
     static const auto RCOM_TIMER = TIMER_A;
     static const auto SAMPLE_PERIOD_CLOCKS = 60000;
     //static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMA_TIMEOUT;
     static const auto RCOM_INTERRUPT = INT_TIMER2A;
-    //static const auto OS_INTERRUPT = INT_TIMER2A;
+    static const auto OS_INTERRUPT = INT_WTIMER2A;
     typedef DCC_IN_Pin NRZ_Pin;
 
     // 16-bit timer max + use 7 bits of prescaler.

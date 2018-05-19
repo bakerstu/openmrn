@@ -165,12 +165,12 @@ void hw_preinit(void)
     clock_setup();
 
     /* enable peripheral clocks */
-    __GPIOA_CLK_ENABLE();
-    __GPIOB_CLK_ENABLE();
-    __GPIOC_CLK_ENABLE();
-    __USART1_CLK_ENABLE();
-    __CAN_CLK_ENABLE();
-    __TIM14_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_USART1_CLK_ENABLE();
+    __HAL_RCC_CAN1_CLK_ENABLE();
+    __HAL_RCC_TIM14_CLK_ENABLE();
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
@@ -178,7 +178,7 @@ void hw_preinit(void)
     /* USART1 pinmux on PA9 and PA10 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
-    gpio_init.Speed = GPIO_SPEED_HIGH;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
     gpio_init.Alternate = GPIO_AF1_USART1;
     gpio_init.Pin = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOA, &gpio_init);
@@ -188,7 +188,7 @@ void hw_preinit(void)
     /* CAN pinmux on PB8 and PB9 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
-    gpio_init.Speed = GPIO_SPEED_HIGH;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
     gpio_init.Alternate = GPIO_AF4_CAN;
     gpio_init.Pin = GPIO_PIN_8;
     HAL_GPIO_Init(GPIOB, &gpio_init);

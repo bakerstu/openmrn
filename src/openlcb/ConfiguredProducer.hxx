@@ -54,6 +54,7 @@ CDI_GROUP_ENTRY(description, StringConfigEntry<15>, //
 /// Configures the debounce parameter.
 CDI_GROUP_ENTRY(
     debounce, Uint8ConfigEntry, Name("Debounce parameter"),
+    Default(3),
     Description("Amount of time to wait for the input to stabilize before "
                 "producing the event. Unit is 30 msec of time. Usually a value "
                 "of 2-3 works well in a non-noisy environment. In high noise "
@@ -127,7 +128,7 @@ public:
             auto saved_node = producer_.node();
             // Need to reinitialize the producer. We do this with in-place
             // destruction and construction.
-            producer_.~ProducerClass();
+            producer_.ProducerClass::~ProducerClass();
             new (&producer_) ProducerClass(
                 QuiesceDebouncer::Options(debounce_arg), saved_node,
                 cfg_event_on, cfg_event_off, saved_gpio);

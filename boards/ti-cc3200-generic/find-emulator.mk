@@ -10,6 +10,9 @@ OPENOCDARGS = -f interface/ftdi/olimex-arm-usb-tiny-h.cfg -f interface/ftdi/swd-
 else ifneq ($(findstring 0451:c32a,$(USBLIST)),)
 $(info emulator TI CC3200 launchpad FTDI)
 OPENOCDARGS = -c 'set TRANSPORT swd' -f board/ti-cc3200-launchxl.cfg
+else ifneq ($(findstring 0451:bef3,$(USBLIST)),)
+$(info emulator TI CC3220SF launchpad CMSIS-DAP)
+OPENOCDARGS = -c 'set TRANSPORT swd' -f board/ti_cc3220sf_launchpad.cfg 
 else
 OPENOCDARGS = " -emulator-not-found-add-your-usb-device-to-openmrn_boards_ti-cc3200-generic_find-emulator.mk "
 endif

@@ -222,6 +222,27 @@ public:
         return endian_convert(raw_read<TR>(fd));
     }
 
+    /// Reads data from configuration file obeying a specific trimming. If the
+    /// value violates the trimming constraints, the configuration file will be
+    /// overwritten with a trimmed value.
+    ///
+    /// @param fd the descriptor of the config file.
+    /// @param min_value minimum acceptable value
+    /// @param max_value maximum acceptable value
+    /// @return current value after trimming.
+    TR read_or_write_trimmed(int fd, TR min_value, TR max_value) {
+        TR value = read(fd);
+        if (value < min_value) {
+            value = min_value;
+            write(fd, value);
+        }
+        if (value > max_value) {
+            value = max_value;
+            write(fd, value);
+        }
+        return value;
+    }
+    
     /// Writes the data to the configuration file.
     ///
     /// @param fd file descriptor of the config file.

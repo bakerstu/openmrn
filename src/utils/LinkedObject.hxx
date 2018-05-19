@@ -38,6 +38,15 @@
 
 #include "utils/Atomic.hxx"
 
+/// This static object is factored into a separate namespace because current
+/// GDB crashes when trying to print an object with a static Atomic member
+/// variable.
+template <class T> class LinkedObjectHeadMutex
+{
+public:
+    static Atomic headMu_;
+};
+
 /// Using this class as a base class will cause the given class to have all its
 /// instances linked up in a list. The cost is 4 bytes per object, and some CPU
 /// cost in the destructor (to walk the list).
@@ -51,6 +60,11 @@ public:
         return static_cast<T *>(link_);
     }
 
+    /// Locks the list for modification (at any entry!).
+    static Atomic* head_mu() {
+        return &LinkedObjectHeadMutex<T>::headMu_;
+    }
+
 protected:
     /// @return the current subclass pointer.
     T *link_this()
@@ -61,7 +75,7 @@ protected:
     /// Constructor. Puts *this on the linked list.
     LinkedObject()
     {
-        AtomicHolder h(&headMu_);
+        AtomicHolder h(head_mu());
         link_ = head_;
         head_ = link_this();
     }
@@ -69,7 +83,7 @@ protected:
     /// Constructor. Removes *this from the linked list.
     ~LinkedObject()
     {
-        AtomicHolder h(&headMu_);
+        AtomicHolder h(head_mu());
         T **p = &head_;
         while (*p && *p != this)
         {
@@ -89,12 +103,10 @@ protected:
     T *link_;
     /// Beginning of the list.
     static T *head_;
-    /// Locks the list for modification (at any entry!).
-    static Atomic headMu_;
 };
 
 // static
 template <class T> T *LinkedObject<T>::head_{nullptr};
-template <class T> Atomic LinkedObject<T>::headMu_;
+template <class T> Atomic LinkedObjectHeadMutex<T>::headMu_;
 
 #endif // _UTILS_LINKEDOBJECT_HXX_

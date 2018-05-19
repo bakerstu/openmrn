@@ -34,12 +34,7 @@
 #include <new>
 #include <cstdint>
 
-#include "stm32f3xx_hal_rcc.h"
-#include "stm32f3xx_hal_flash.h"
-#include "stm32f3xx_hal_gpio.h"
-#include "stm32f3xx_hal_gpio_ex.h"
-#include "stm32f3xx_hal_dma.h"
-#include "stm32f3xx_hal_tim.h"
+#include "stm32f3xx_hal_conf.h"
 
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
@@ -132,6 +127,9 @@ void diewith(uint32_t pattern)
 /** CPU clock speed. */
 const unsigned long cm3_cpu_clock_hz = 72000000;
 uint32_t SystemCoreClock;
+const uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
+const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
+
 
 /**
   * @brief  System Clock Configuration
@@ -196,12 +194,12 @@ void hw_preinit(void)
     clock_setup();
 
     /* enable peripheral clocks */
-    __GPIOA_CLK_ENABLE();
-    __GPIOB_CLK_ENABLE();
-    __GPIOE_CLK_ENABLE();
-    __USART1_CLK_ENABLE();
-    __CAN_CLK_ENABLE();
-    __TIM7_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+    __HAL_RCC_USART1_CLK_ENABLE();
+    __HAL_RCC_CAN1_CLK_ENABLE();
+    __HAL_RCC_TIM7_CLK_ENABLE();
 
     GpioInit::hw_init();
 
@@ -210,7 +208,7 @@ void hw_preinit(void)
     /* USART1 pinmux on PA9 and PA10 */
     gpio_init.Mode      = GPIO_MODE_AF_PP;
     gpio_init.Pull      = GPIO_PULLUP;
-    gpio_init.Speed     = GPIO_SPEED_HIGH;
+    gpio_init.Speed     = GPIO_SPEED_FREQ_HIGH;
     gpio_init.Alternate = GPIO_AF7_USART1;
     gpio_init.Pin       = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOA, &gpio_init);
@@ -220,7 +218,7 @@ void hw_preinit(void)
     /* CAN pinmux on PB8 and PB9 */
     gpio_init.Mode      = GPIO_MODE_AF_PP;
     gpio_init.Pull      = GPIO_PULLUP;
-    gpio_init.Speed     = GPIO_SPEED_HIGH;
+    gpio_init.Speed     = GPIO_SPEED_FREQ_HIGH;
     gpio_init.Alternate = GPIO_AF9_CAN;
     gpio_init.Pin       = GPIO_PIN_8;
     HAL_GPIO_Init(GPIOB, &gpio_init);
