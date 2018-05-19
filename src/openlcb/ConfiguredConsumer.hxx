@@ -120,7 +120,7 @@ public:
             // Need to reinitialize the consumer. We do this with in-place
             // destruction and construction.
             consumer_.~BitEventConsumer();
-            impl_.~Impl();
+            impl_.Impl::~Impl();
             new (&impl_)
                 Impl(saved_node, cfg_event_on, cfg_event_off, saved_gpio);
             new (&consumer_) BitEventConsumer(&impl_);
