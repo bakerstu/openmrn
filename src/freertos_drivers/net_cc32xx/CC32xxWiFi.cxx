@@ -604,7 +604,8 @@ void CC32xxWiFi::set_default_state()
 {
     long result = sl_Start(0, 0, 0);
 #ifdef SL_API_V2
-    if (result == SL_ERROR_ROLE_STA_ERR) {
+    if (result == SL_ERROR_ROLE_STA_ERR)
+    {
         sl_Stop(0xFF);
         result = sl_Start(0, 0, 0);
     }
