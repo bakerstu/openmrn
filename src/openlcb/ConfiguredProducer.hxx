@@ -63,7 +63,8 @@ CDI_GROUP_ENTRY(
                 "signal.\nFormally, the parameter tells how many times of "
                 "tries, each 30 msec apart, the input must have the same value "
                 "in order for that value to be accepted and the event "
-                "transition produced."));
+                "transition produced."),
+    Default(3));
 /// This event will be produced when the input goes to HIGH.
 CDI_GROUP_ENTRY(
     event_on, EventConfigEntry, //

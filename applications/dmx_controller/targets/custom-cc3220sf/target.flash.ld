@@ -6,17 +6,17 @@ GROUP(-lgcc -lc)
 /* include device specific memory map */
 INCLUDE memory_map.ld
 
-REGION_ALIAS("REGION_PGM", FLASH);
-
 SECTIONS
 {
     .dbghdr : ALIGN (2048) {
         KEEP (*(.dbghdr))
     } > FLASH_HDR
 
-    .text : ALIGN (1024)
+    .text : ALIGN(1024)
     {
+        __interrupt_vector_start = .;
         KEEP(*(.interrupt_vector))
+        __interrupt_vector_end = .;
 
         /* Makes place for the app header to be filled in by the bootloader
         checksum program. */
@@ -26,16 +26,14 @@ SECTIONS
         LONG(0); /* App header: data size */
         QUAD(0); /* App header: checksum for payload. */
         QUAD(0);
-        
+
         /* Global Section Table */
         . = ALIGN(4) ;
         __section_table_start = .;
         __data_section_table = .;
-        /* Since the entire application is already in RAM, the data section
-           does not need to move.
         LONG(LOADADDR(.data));
         LONG(    ADDR(.data));
-        LONG(  SIZEOF(.data)); */
+        LONG(  SIZEOF(.data));
         __data_section_table_end = .;
         __bss_section_table = .;
         LONG(    ADDR(.bss));
@@ -44,34 +42,36 @@ SECTIONS
         __section_table_end = . ;
         /* End of Global Section Table */
 
+        *(.after_vectors*)
+
         *(SORT(.text*))
         *(.rodata)
-        *(SORT(.rodata*))
-        *(.ARM.extab* .gnu.linkonce.armextab.*)
+        *(SORT(.rodata.*))
+        . = ALIGN(4);
 
         /* C++ constructors etc */
         . = ALIGN(4);
         KEEP(*(.init))
-        
+
         . = ALIGN(4);
         __preinit_array_start = .;
         KEEP (*(.preinit_array))
         __preinit_array_end = .;
-        
+
         . = ALIGN(4);
         __init_array_start = .;
         KEEP (*(SORT(.init_array.*)))
         KEEP (*(.init_array))
         __init_array_end = .;
-        
+
         KEEP(*(.fini));
-        
+
         . = ALIGN(4);
         KEEP (*crtbegin.o(.ctors))
         KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
         KEEP (*(SORT(.ctors.*)))
         KEEP (*crtend.o(.ctors))
-        
+
         . = ALIGN(4);
         KEEP (*crtbegin.o(.dtors))
         KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
@@ -91,40 +91,66 @@ SECTIONS
     {
         *(.ARM.extab* .gnu.linkonce.armextab.*)
     } > REGION_PGM
-    
-    .ARM :
+    __exidx_start = .;
+
+    .ARM.exidx : ALIGN(4)
     {
-        __exidx_start = .;
-        *(.ARM.exidx*)
-        __exidx_end = .;
+        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
     } > REGION_PGM
+    __exidx_end = .;
 
     _etext = .;
 
-    __init_data = .;
+    __interrupt_vector_len = __interrupt_vector_end - __interrupt_vector_start;
 
-    .data : 
+    .ram_vectors : ALIGN(1024)
+    {            
+        __ram_vectors = .;
+        /* reserve space for interrupt vectors in RAM */
+        . = . + __interrupt_vector_len;
+        __ram_vectors_end = .;
+    } > RAM
+
+    .uninit_RESERVED : ALIGN(4)
     {
+        KEEP(*(.bss.$RESERVED*))
+        . = ALIGN(4) ;
+        _end_uninit_RESERVED = .;
+    } > RAM
+
+    /* It seems that in order for LPCXpresso to properly flash the data
+    section, an alignment of 256 bytes is necessary. Otherwise the separate
+    flashing of the data section will corrupt the end of the text section. */
+    .data : ALIGN(256)
+    {
+        FILL(0xff)
         _data = .;
+        *(vtable)
+        __impure_data_start = .;
+        *(.data.impure_data)
+        __impure_data_end = .;
         *(.data*)
+
+        /* this magic is needed for the device tables of openMRN */
         . = ALIGN (8);
+        KEEP(*( SORT (.device.table.*))) ;
+        . = ALIGN (4);
+
         _edata = .;
-        . = ALIGN(4);
-        __ovly_table = .;
-/*
-        LONG(ABSOLUTE(ADDR(.ovly0))); LONG(SIZEOF(.ovly0)); LONG(LOADADDR(.ovly0));
-        LONG(ABSOLUTE(ADDR(.ovly1))); LONG(SIZEOF(.ovly1)); LONG(LOADADDR(.ovly1));
-*/
     } > RAM AT>REGION_PGM
 
-    .bss :
+
+    /* MAIN BSS SECTION */
+    .bss : ALIGN(4)
     {
         _bss = .;
         *(.bss*)
         *(COMMON)
+        . = ALIGN(4) ;
         _ebss = .;
+        PROVIDE(end = .);
     } > RAM
-        
+
     
     /* DEFAULT NOINIT SECTION */
     .noinit (NOLOAD): ALIGN(4)
@@ -134,10 +160,9 @@ SECTIONS
          . = ALIGN(4) ;
         _end_noinit = .;
     } > RAM
-    
+
     PROVIDE(_pvHeapStart = .);
     PROVIDE(__cs3_heap_start = .);
-/*
-    PROVIDE(__impure_data_size = __impure_data_end - __impure_data_start);
-*/
+
+    __impure_data_size = (__impure_data_end - __impure_data_start);
 }

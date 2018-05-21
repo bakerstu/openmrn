@@ -10,13 +10,15 @@ MEMORY
   FLASH_HDR (rx) : ORIGIN = 0x01000000, LENGTH = 2K
 }
 
-REGION_ALIAS("REGION_PGM", RAM);
-REGION_ALIAS("REGION_RAM", RAM);
+REGION_ALIAS("REGION_PGM", FLASH_APP);
+
+__ram_start = ORIGIN(RAM);
+__ram_end = ORIGIN(RAM) + LENGTH(RAM);
 
 /* TODO: the bootloader specific defines need to be revised once we know how the bootloader will work at all. */
-__application_code_start = ORIGIN(RAM);
+/*__application_code_start = ORIGIN(RAM);
 __application_code_end = ORIGIN(RAM) + LENGTH(RAM);
-__app_header_address = ORIGIN(RAM) + 0x270;
+__app_header_address = ORIGIN(RAM) + 0x270;*/
 __bootloader_magic_ptr = 0x4402FC24;
 /* This pointer will be written to the SP register at reset. */
 PROVIDE(__stack = ORIGIN(RAM) + LENGTH(RAM) - 4);
