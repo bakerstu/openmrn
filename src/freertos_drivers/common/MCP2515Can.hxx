@@ -91,6 +91,9 @@ public:
     void interrupt_handler();
 
 private:
+    /** maximum SPI clock speed in Hz */
+    static constexpr uint32_t SPI_MAX_SPEED_HZ = 10000000;
+
     /** SPI registers */
     enum Registers
     {
