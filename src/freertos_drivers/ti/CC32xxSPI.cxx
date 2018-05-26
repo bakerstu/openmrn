@@ -180,7 +180,6 @@ int CC32xxSPI::transfer(struct spi_ioc_transfer *msg)
             MAP_SPIIntClear(base, SPI_INT_DMARX);
             MAP_SPIIntEnable(base, SPI_INT_DMARX);
             MAP_SPIWordCountSet(base, dmaTransferSize_);
-            MAP_IntEnable(interrupt);
 
             /* Enable channels & start DMA transfers */
             MAP_uDMAChannelEnable(dmaChannelIndexTx_);
@@ -253,6 +252,7 @@ int CC32xxSPI::update_configuration()
     MAP_SPIFIFOEnable(base, SPI_RX_FIFO | SPI_TX_FIFO);
     MAP_SPIFIFOLevelSet(base, 1, 1);
     MAP_IntPrioritySet(interrupt, configKERNEL_INTERRUPT_PRIORITY);
+    MAP_IntEnable(interrupt);
 
     return 0;
 }
@@ -269,9 +269,20 @@ __attribute__((optimize("-O3")))
 void CC32xxSPI::interrupt_handler()
 {
     int woken = 0;
+#if 0
+    volatile unsigned long raw_status = SPIIntStatus(base, false);
+    volatile unsigned long mask_status = SPIIntStatus(base, true);
+
+    (void)raw_status;
+    (void)mask_status;
+#endif
+    if (MAP_uDMAChannelIsEnabled(dmaChannelIndexRx_))
+    {
+           /* DMA has not completed if the channel is still enabled */
+           return;
+    }
 
     /* RX DMA channel has completed */
-    MAP_IntDisable(interrupt);
     MAP_SPIDmaDisable(base, SPI_RX_DMA | SPI_TX_DMA);
     MAP_SPIIntDisable(base, SPI_INT_DMARX);
     MAP_SPIIntClear(base, SPI_INT_DMARX);
