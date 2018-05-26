@@ -6,7 +6,7 @@ MAKE_INC_MAKE_UTILS_MK := 1
 define REDIRECT_helper_template
 
 $(1):
-	$(MAKE) -C $(2) $(1)
+	+$(MAKE) -C $(2) $(1)
 
 endef
 
