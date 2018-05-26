@@ -42,6 +42,8 @@
 
 #include "SPI.hxx"
 
+#include "driverlib/udma.h"
+
 /** Specialization of Serial SPI driver for CC32xx devices.
  */
 class CC32xxSPI : public SPI
@@ -57,10 +59,16 @@ public:
      * @param bus_lock the user must provide a shared mutex if the device
      *                 instance represents more than one chip select on the
      *                 same bus interface.
+     * @param dma_threshold the threshold in bytes to use a DMA transaction,
+     *                      0 = DMA always disabled
+     * @param dma_channel_index_tx UDMA_CH7_GSPI_TX or UDMA_CH31_GSPI_TX
+     * @param dma_channel_index_rx UDMA_CH6_GSPI_RX or UDMA_CH30_GSPI_RX
      */
     CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
             ChipSelectMethod cs_assert, ChipSelectMethod cs_deassert,
-            OSMutex *bus_lock = nullptr);
+            OSMutex *bus_lock = nullptr, size_t dma_threshold = 0,
+            uint32_t dma_channel_index_tx = UDMA_CH7_GSPI_TX,
+            uint32_t dma_channel_index_rx = UDMA_CH6_GSPI_RX);
 
     /** Destructor.
      */
@@ -74,6 +82,32 @@ public:
     void interrupt_handler();
 
 private:
+    /** Maximum number of bytes transferred in a single DMA transaction */
+    static constexpr size_t MAX_DMA_TRANSFER_AMOUNT = 1024;
+
+    /**
+     * This lookup table is used to configure the DMA channels for the appropriate
+     * (8bit, 16bit or 32bit) transfer sizes.
+     * Table for an SPI DMA RX channel.
+     */
+    static constexpr uint32_t dmaRxConfig_ =
+        UDMA_SIZE_8  | UDMA_SRC_INC_NONE | UDMA_DST_INC_8  | UDMA_ARB_1;
+
+    /**
+     * This lookup table is used to configure the DMA channels for the appropriate
+     * (8bit, 16bit or 32bit) transfer sizes.
+     * Table for an SPI DMA TX channel
+     */
+    static constexpr uint32_t dmaTxConfig_ =
+        UDMA_SIZE_8  | UDMA_SRC_INC_8  | UDMA_DST_INC_NONE | UDMA_ARB_1;
+
+    /**
+     * This lookup table is used to configure the DMA channels for the appropriate
+     * (8bit, 16bit or 32bit) transfer sizes when either txBuf or rxBuf are NULL.
+     */
+    static constexpr uint32_t dmaNullConfig_ =
+        UDMA_SIZE_8  | UDMA_SRC_INC_NONE | UDMA_DST_INC_NONE | UDMA_ARB_1;
+
     void enable() override {} /**< function to enable device */
     void disable() override {} /**< function to disable device */
 
@@ -91,12 +125,16 @@ private:
     unsigned long base; /**< base address of this device */
     unsigned long clock; /**< clock rate supplied to the module */
     unsigned long interrupt; /**< interrupt of this device */
+    size_t dmaThreshold_; /**< threshold in bytes to start using DMA */
+    uint32_t dmaChannelIndexTx_; /**< TX DMA channel index */
+    uint32_t dmaChannelIndexRx_; /**< RX DMA channel index */
+    size_t dmaTransferSize_; /**< current DMA transfer size in bytes */
     struct spi_ioc_transfer *msg_; /**< message for current transaction */
     bool stop_; /**< current transaction ends in a stop if true */
     int count_; /**< current count index within transaction */
 
     /** Semaphore to wakeup task level from ISR */
-    OSSem sem;
+    OSSem sem_;
 
     /** Default constructor.
      */

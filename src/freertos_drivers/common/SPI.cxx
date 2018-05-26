@@ -43,6 +43,7 @@
  * @param count number of bytes to read
  * @return number of bytes read upon success, -errno upon failure
  */
+__attribute__((optimize("-O3")))
 ssize_t SPI::read(File *file, void *buf, size_t count)
 {
     int result;
@@ -78,6 +79,7 @@ ssize_t SPI::read(File *file, void *buf, size_t count)
  * @param count number of bytes to write
  * @return number of bytes written upon success, -errno upon failure
  */
+__attribute__((optimize("-O3")))
 ssize_t SPI::write(File *file, const void *buf, size_t count)
 {
     int result;
@@ -113,6 +115,7 @@ ssize_t SPI::write(File *file, const void *buf, size_t count)
  * @param data key data
  * @return 0 upon success, -errno upon failure
  */
+__attribute__((optimize("-O3")))
 int SPI::ioctl(File *file, unsigned long int key, unsigned long data)
 {
     HASSERT(IOC_TYPE(key) == SPI_IOC_MAGIC);
@@ -198,6 +201,7 @@ int SPI::ioctl(File *file, unsigned long int key, unsigned long data)
  * @param num number of messages to transfer
  * @return total number of bytes transfered, -errno upon failure
  */
+__attribute__((optimize("-O3")))
 int SPI::transfer_messages(struct spi_ioc_transfer *msgs, int num)
 {
     HASSERT(num > 0);

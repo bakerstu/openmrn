@@ -367,6 +367,7 @@ private:
         /** Constructor.
          * @param can_frame reference to a can_frame metadata structure.
          */
+        __attribute__((optimize("-O3")))
         Buffer(struct can_frame *can_frame)
             : sidh(can_frame->can_eff ? (can_frame->can_id & 0x1FE00000) >> 21 :
                                         (can_frame->can_id & 0x000007F8) >> 3)
@@ -394,6 +395,7 @@ private:
         /** Take the contents of the Buffer and fill in a can_frame structure.
          * @param can_frame CAN frame structure to fill in
          */
+        __attribute__((optimize("-O3")))
         void build_struct_can_frame(struct can_frame *can_frame)
         {
             can_frame->can_eff = exide;
@@ -461,6 +463,7 @@ private:
     void disable() override; /**< function to disable device */
 
     /** Function to try and transmit a message. */
+    __attribute__((optimize("-O3")))
     void tx_msg() override
     {
         /* The caller has us in a critical section, we need to exchange a
@@ -495,6 +498,7 @@ private:
      * @param address address to read from
      * @return data read
      */
+    __attribute__((optimize("-O3")))
     uint8_t register_read(Registers address)
     {
         spi_ioc_transfer xfer[2];
@@ -515,6 +519,7 @@ private:
      * @param index buffer index to read from (valid values are 0 and 1)
      * @param buffer pointer to a buffer structure to fill in with the result
      */
+    __attribute__((optimize("-O3")))
     void buffer_read(int index, void *buffer)
     {
         spi_ioc_transfer xfer[2];
@@ -533,6 +538,7 @@ private:
      * @param address address to write to
      * @param data data to write
      */
+    __attribute__((optimize("-O3")))
     void register_write(Registers address, uint8_t data)
     {
         uint8_t payload[] = {WRITE, address, data};
@@ -543,6 +549,7 @@ private:
      * @param index buffer index to write to (valid values are 0 through 2)
      * @param buffer pointer to a buffer structure to fill in with the result
      */
+    __attribute__((optimize("-O3")))
     void buffer_write(int index, void *buffer)
     {
         spi_ioc_transfer xfer[2];
@@ -571,6 +578,7 @@ private:
     /** Request a transmit buffer to send.
      * @param index buffer index to request (valid values are 0 through 2)
      */
+    __attribute__((optimize("-O3")))
     void request_to_send(int index)
     {
         uint8_t rts = RTS | (0x01 << index);

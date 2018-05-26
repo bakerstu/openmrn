@@ -36,11 +36,14 @@
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
+#include "inc/hw_mcspi.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/spi.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/prcm.h"
+
+#include <ti/drivers/dma/UDMACC32XX.h>
 
 #include "CC32xxSPI.hxx"
 
@@ -60,14 +63,20 @@ static CC32xxSPI *instances[1] = {NULL};
  */
 CC32xxSPI::CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
                      ChipSelectMethod cs_assert, ChipSelectMethod cs_deassert,
-                     OSMutex *bus_lock)
+                     OSMutex *bus_lock, size_t dma_threshold,
+                     uint32_t dma_channel_index_tx,
+                     uint32_t dma_channel_index_rx)
     : SPI(name, cs_assert, cs_deassert, bus_lock)
     , base(base)
     , interrupt(interrupt)
+    , dmaThreshold_(dma_threshold)
+    , dmaChannelIndexTx_(dma_channel_index_tx)
+    , dmaChannelIndexRx_(dma_channel_index_rx)
+    , dmaTransferSize_(0)
     , msg_(NULL)
     , stop_(false)
     , count_(0)
-    , sem()
+    , sem_()
 {
     switch (base)
     {
@@ -88,10 +97,111 @@ CC32xxSPI::CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
  * @param msg message(s) to transact.
  * @return bytes transfered upon success, -errno upon failure
  */
+__attribute__((optimize("-O3")))
 int CC32xxSPI::transfer(struct spi_ioc_transfer *msg)
 {
-    SPITransfer(base, (unsigned char*)msg->tx_buf,
+    if (msg->len < dmaThreshold_ || dmaThreshold_ == 0)
+    {
+        MAP_SPIEnable(base);
+        SPITransfer(base, (unsigned char*)msg->tx_buf,
                     (unsigned char*)msg->rx_buf, msg->len, 0);
+        MAP_SPIDisable(base);
+    }
+    else
+    {
+        uint32_t len = msg->len;
+        unsigned long tx_buf = msg->tx_buf;
+        unsigned long rx_buf = msg->rx_buf;
+        while (len)
+        {
+            /* use DMA */
+            uint32_t scratch_buffer __attribute__((aligned(4))) = 0;
+
+            void *buf;
+            uint32_t channel_control_options;
+
+            /*
+             * The DMA has a max transfer amount of 1024.  If the transaction is
+             * greater; we must transfer it in chunks.
+             */
+            dmaTransferSize_ = len > MAX_DMA_TRANSFER_AMOUNT ?
+                                                  MAX_DMA_TRANSFER_AMOUNT : len;
+
+            if (tx_buf)
+            {
+                channel_control_options = dmaTxConfig_;
+                buf = (void*)tx_buf;
+            }
+            else
+            {
+                channel_control_options = dmaNullConfig_;
+                buf = &scratch_buffer;
+            }
+
+            /* Setup the TX transfer characteristics & buffers */
+            MAP_uDMAChannelControlSet(dmaChannelIndexTx_ | UDMA_PRI_SELECT,
+                                      channel_control_options);
+            MAP_uDMAChannelAttributeDisable(dmaChannelIndexTx_,
+                                            UDMA_ATTR_ALTSELECT);
+            MAP_uDMAChannelTransferSet(dmaChannelIndexTx_ | UDMA_PRI_SELECT,
+                                       UDMA_MODE_BASIC, buf,
+                                       (void*)(base + MCSPI_O_TX0),
+                                       dmaTransferSize_);
+
+            if (rx_buf)
+            {
+                channel_control_options = dmaRxConfig_;
+                buf = (void*)rx_buf;
+            }
+            else
+            {
+                channel_control_options = dmaNullConfig_;
+                buf = &scratch_buffer;
+            }
+
+            /* Setup the RX transfer characteristics & buffers */
+            MAP_uDMAChannelControlSet(dmaChannelIndexRx_ | UDMA_PRI_SELECT,
+                                      channel_control_options);
+            MAP_uDMAChannelAttributeDisable(dmaChannelIndexRx_,
+                                            UDMA_ATTR_ALTSELECT);
+            MAP_uDMAChannelTransferSet(dmaChannelIndexRx_ | UDMA_PRI_SELECT,
+                                       UDMA_MODE_BASIC,
+                                       (void*)(base + MCSPI_O_RX0),
+                                       buf, dmaTransferSize_);
+
+            /* A lock is needed because we are accessing shared uDMA memory */
+            portENTER_CRITICAL();
+
+            MAP_uDMAChannelAssign(dmaChannelIndexTx_);
+            MAP_uDMAChannelAssign(dmaChannelIndexRx_);
+
+            /* Enable DMA to generate interrupt on SPI peripheral */
+            MAP_SPIDmaEnable(base, SPI_RX_DMA | SPI_TX_DMA);
+            MAP_SPIIntClear(base, SPI_INT_DMARX);
+            MAP_SPIIntEnable(base, SPI_INT_DMARX);
+            MAP_SPIWordCountSet(base, dmaTransferSize_);
+            MAP_IntEnable(interrupt);
+
+            /* Enable channels & start DMA transfers */
+            MAP_uDMAChannelEnable(dmaChannelIndexTx_);
+            MAP_uDMAChannelEnable(dmaChannelIndexRx_);
+
+            portEXIT_CRITICAL();
+
+            MAP_SPIEnable(base);
+            sem_.wait();
+
+            len -= dmaTransferSize_;
+            if (tx_buf)
+            {
+                tx_buf += dmaTransferSize_;
+            }
+            if (rx_buf)
+            {
+                rx_buf += dmaTransferSize_;
+            }
+        }
+    }
 
     return msg->len;
 }
@@ -140,7 +250,9 @@ int CC32xxSPI::update_configuration()
     MAP_SPIReset(base);
     MAP_SPIConfigSetExpClk(base, clock, speedHz, SPI_MODE_MASTER, new_mode,
                            (SPI_3PIN_MODE | SPI_TURBO_OFF | bits_per_word));
-    MAP_SPIEnable(base);
+    MAP_SPIFIFOEnable(base, SPI_RX_FIFO | SPI_TX_FIFO);
+    MAP_SPIFIFOLevelSet(base, 1, 1);
+    MAP_IntPrioritySet(interrupt, configKERNEL_INTERRUPT_PRIORITY);
 
     return 0;
 }
@@ -153,101 +265,26 @@ volatile uint32_t g_status;
 
 /** Common interrupt handler for all SPI devices.
  */
+__attribute__((optimize("-O3")))
 void CC32xxSPI::interrupt_handler()
 {
-#if 0
     int woken = 0;
-    uint32_t error;
-    uint32_t status;
 
-    g_error = error = SPIMasterErr(base);
-    g_status = status = MAP_SPIMasterIntStatusEx(base, true);
-    MAP_SPIMasterIntClearEx(base, status);
-
-    if (error & SPI_MCS_ARBLST)
-    {
-        count_ = -EIO;
-        goto post;
-    }
-    else if (error & SPI_MCS_DATACK)
-    {
-        count_ = -EIO;
-        goto post;
-    }
-    else if (error & SPI_MCS_ADRACK)
-    {
-        count_ = -EIO;
-        goto post;
-    }
-    else if (status & SPI_MASTER_INT_TIMEOUT)
-    {
-        count_ = -ETIMEDOUT;
-        goto post;
-    }
-    else if (status & SPI_MASTER_INT_DATA)
-    {
-        if (msg_->flags & SPI_M_RD)
-        {
-            /* this is a read transfer */
-            msg_->buf[count_++] = SPIMasterDataGet(base);
-            if (count_ == msg_->len)
-            {
-                /* transfer is complete */
-                goto post;
-            }
-            if (stop_ && count_ == (msg_->len - 1))
-            {
-                /* single byte transfer with stop */
-                MAP_SPIMasterControl(base, SPI_MASTER_CMD_BURST_RECEIVE_FINISH);
-            }
-            else
-            {
-                /* more than one byte left to transfer */
-                MAP_SPIMasterControl(base, SPI_MASTER_CMD_BURST_RECEIVE_CONT);
-            }
-        }
-        else
-        {
-            /* this is a write transfer */
-            if (++count_ == msg_->len)
-            {
-                /* transfer is complete */
-                goto post;
-            }
-            MAP_SPIMasterDataPut(base, msg_->buf[count_]);
-            if (stop_ && count_ == (msg_->len - 1))
-            {
-                /* single byte transfer with stop */
-                MAP_SPIMasterControl(base, SPI_MASTER_CMD_BURST_SEND_FINISH);
-            }
-            else
-            {
-                /* more than one byte left to transfer */
-                MAP_SPIMasterControl(base, SPI_MASTER_CMD_BURST_SEND_CONT);
-            }
-        }
-        return;
-    }
-    else// if (error)
-    {
-        count_ = -EIO;
-        goto post;
-    }
-/*    else
-    {
-        // should never get here
-        HASSERT(0 && "SPI invalid status");
-        }*/
-post:
+    /* RX DMA channel has completed */
     MAP_IntDisable(interrupt);
-    sem.post_from_isr(&woken);
+    MAP_SPIDmaDisable(base, SPI_RX_DMA | SPI_TX_DMA);
+    MAP_SPIIntDisable(base, SPI_INT_DMARX);
+    MAP_SPIIntClear(base, SPI_INT_DMARX);
+    MAP_SPIDisable(base);
+
+    sem_.post_from_isr(&woken);
     os_isr_exit_yield_test(woken);
-#endif
 }
 
 extern "C" {
 /** SPI0 interrupt handler.
  */
+__attribute__((optimize("-O3")))
 void spi0_interrupt_handler(void)
 {
     if (instances[0])

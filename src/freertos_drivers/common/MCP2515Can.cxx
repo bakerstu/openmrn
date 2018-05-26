@@ -177,6 +177,7 @@ void MCP2515Can::disable()
 /* 
  * tx_msg_locked()
  */
+__attribute__((optimize("-O3")))
 void MCP2515Can::tx_msg_locked()
 {
     /* the node lock_ will be locked by the caller */
@@ -218,6 +219,7 @@ void MCP2515Can::tx_msg_locked()
 /*
  * rx_msg()
  */
+__attribute__((optimize("-O3")))
 void MCP2515Can::rx_msg(int index)
 {
     /* Read the rx buffer.  The RXnIF flag is automatically cleared at the
@@ -246,6 +248,7 @@ void MCP2515Can::rx_msg(int index)
 /*
  * entry()
  */
+__attribute__((optimize("-O3")))
 void *MCP2515Can::entry()
 {
     for ( ; /* forever */ ; )
@@ -375,6 +378,7 @@ void *MCP2515Can::entry()
 /* 
  * interrupt_handler()
  */
+__attribute__((optimize("-O3")))
 void MCP2515Can::interrupt_handler()
 {
     int woken = false;
