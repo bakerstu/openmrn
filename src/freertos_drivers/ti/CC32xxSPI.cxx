@@ -100,12 +100,55 @@ CC32xxSPI::CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
 __attribute__((optimize("-O3")))
 int CC32xxSPI::transfer(struct spi_ioc_transfer *msg)
 {
+    uint32_t scratch_buffer __attribute__((aligned(4))) = 0;
+    uint32_t len = msg->len;
+    unsigned long tx_buf = msg->tx_buf;
+    unsigned long rx_buf = msg->rx_buf;
+
     if (msg->len < dmaThreshold_ || dmaThreshold_ == 0)
     {
-        MAP_SPIEnable(base);
+#if 0
+        //SPIEnable(base);
         SPITransfer(base, (unsigned char*)msg->tx_buf,
                     (unsigned char*)msg->rx_buf, msg->len, 0);
-        MAP_SPIDisable(base);
+        //SPIDisable(base);
+#else
+        uint32_t rx_len = len;
+        long result;
+        while (rx_len || len)
+        {
+            while (len)
+            {
+                unsigned long data = tx_buf ? *((unsigned char*)tx_buf) : 0xFF;
+                result = SPIDataPutNonBlocking(base, data);
+                if (result == 0)
+                {
+                    break;
+                }
+                if (tx_buf)
+                {
+                    ++tx_buf;
+                }
+                --len;
+            }
+
+            while (rx_len)
+            {
+                unsigned long data;
+                result = SPIDataGetNonBlocking(base, &data);
+                if (result == 0)
+                {
+                    break;
+                }
+                if (rx_buf)
+                {
+                    *((unsigned char*)rx_buf) = data;
+                    ++rx_buf;
+                }
+                --rx_len;
+            }
+        }
+#endif
     }
     else
     {
@@ -115,8 +158,6 @@ int CC32xxSPI::transfer(struct spi_ioc_transfer *msg)
         while (len)
         {
             /* use DMA */
-            uint32_t scratch_buffer __attribute__((aligned(4))) = 0;
-
             void *buf;
             uint32_t channel_control_options;
 
@@ -253,6 +294,7 @@ int CC32xxSPI::update_configuration()
     MAP_SPIFIFOLevelSet(base, 1, 1);
     MAP_IntPrioritySet(interrupt, configKERNEL_INTERRUPT_PRIORITY);
     MAP_IntEnable(interrupt);
+    MAP_SPIEnable(base);
 
     return 0;
 }

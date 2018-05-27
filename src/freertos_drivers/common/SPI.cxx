@@ -211,11 +211,11 @@ int SPI::transfer_messages(struct spi_ioc_transfer *msgs, int num)
 
     lock_.lock();
     bus_lock();
-    for (int i = 0; i < num; ++i)
+    for (int i = 0; i < num; ++i, ++msgs)
     {
-        count += msgs[i].len;
+        count += msgs->len;
         csAssert();
-        result = transfer(msgs + i);
+        result = transfer(msgs);
         if (result < 0)
         {
             /* something bad happened, reset the bus and bail */
@@ -224,11 +224,11 @@ int SPI::transfer_messages(struct spi_ioc_transfer *msgs, int num)
             lock_.unlock();
             return result;
         }
-        if (msgs[i].cs_change)
+        if (msgs->cs_change)
         {
-            if (msgs[i].delay_usec)
+            if (msgs->delay_usec)
             {
-                usleep(msgs[i].delay_usec);
+                usleep(msgs->delay_usec);
             }
             csDeassert();
         }

@@ -432,7 +432,7 @@ private:
             return &sidh;
         }
 
-    private:
+    protected:
         uint8_t sidh; /**< standard identifier high byte */
         struct
         {
@@ -452,6 +452,170 @@ private:
             uint8_t unused4 : 1; /**< unused bit */
         };
         uint8_t data[8]; /** all 8 data bytes */
+    };
+
+    /** Setup a bit modify transfer structure.
+     */
+    class BitModify
+    {
+    public:
+        /** Constructor.
+         * @param address address to modify
+         * @param data data to modify
+         * @param mask mask of data to modify
+         */
+        BitModify(Registers address, uint8_t data, uint8_t mask)
+            : command_(BIT_MODIFY)
+            , address_(address)
+            , mask_(mask)
+            , data_(data)
+        {
+        }
+
+        /** Constructor.
+         * @param xfer transfer object to setup
+         * @param address address to modify
+         * @param data data to modify
+         * @param mask mask of data to modify
+         */
+        BitModify(spi_ioc_transfer *xfer,
+                  Registers address, uint8_t data, uint8_t mask)
+            : command_(BIT_MODIFY)
+            , address_(address)
+            , mask_(mask)
+            , data_(data)
+        {
+            setup_xfer(xfer);
+        }
+
+        /** Setup the transfer.
+         * @param xfer transfer object to setup
+         */
+        void setup_xfer(spi_ioc_transfer *xfer) const
+        {
+            xfer->tx_buf = (unsigned long)payload_;
+            xfer->len = sizeof(payload_);
+            xfer->cs_change = 1;
+        }
+
+        /** Get the number of transfers for a BitModify.
+         * @return number of transfers for a BitModify
+         */
+        static int xfer_count()
+        {
+            return 1;
+        }
+
+        /** Get a pointer to the data.
+         * @return a pointer to the data
+         */
+        void *data_ptr()
+        {
+            return payload_;
+        }
+
+        /** Get the data size.
+         * @return the data size in bytes
+         */
+        unsigned data_size()
+        {
+            return sizeof(payload_);
+        }
+
+    private:
+        union
+        {
+            uint8_t payload_[4]; /**< message payload */
+            struct
+            {
+                uint8_t command_; /**< transfer command */
+                uint8_t address_; /**< register address */
+                uint8_t mask_; /**< data mask */
+                uint8_t data_; /**< data */
+            };
+        };
+    };
+
+    /** Setup a buffer read transfer structure.
+     */
+    class BufferRead : public Buffer
+    {
+    public:
+        /** Constructor.
+         * @param xfer two transfer objects to setup
+         * @param index buffer index to read from (valid values are 0 and 1)
+         */
+        BufferRead(spi_ioc_transfer xfer[2], int index)
+            : Buffer()
+            , command_(READ_RX_BUF | (index == 0 ? 0x00 : 0x40))
+        {
+            xfer[0].tx_buf = (unsigned long)&command_;
+            xfer[0].len = sizeof(command_);
+            xfer[1].rx_buf = (unsigned long)get_payload();
+            xfer[1].len = 13;
+            xfer[1].cs_change = 1;
+        }
+
+        /** Constructor.
+         */
+        BufferRead()
+            : Buffer()
+            , command_(0)
+        {
+        }
+
+        /** Get the number of transfers for a BufferRead.
+         * @return number of transfers for a BufferRead
+         */
+        static int xfer_count()
+        {
+            return 2;
+        }
+
+    private:
+        uint8_t command_; /**< transfer command */
+    };
+
+    /** Setup a buffer read transfer structure.
+     */
+    class BufferWrite : public Buffer
+    {
+    public:
+        /** Constructor.
+         * @param xfer two transfer objects to setup
+         * @param index buffer index to read from (valid values are 0 and 1)
+         * @param can_frame reference to a can_frame metadata structure.
+         */
+        BufferWrite(spi_ioc_transfer xfer[2], int index,
+                    struct can_frame *can_frame)
+            : Buffer(can_frame)
+            , command_(LOAD_TX_BUF + (index << 1))
+        {
+            xfer[0].tx_buf = (unsigned long)&command_;
+            xfer[0].len = sizeof(command_);
+            xfer[1].tx_buf = (unsigned long)get_payload();
+            xfer[1].len = 5 + dlc;
+            xfer[1].cs_change = 1;
+        }
+
+        /** Constructor.
+         */
+        BufferWrite()
+            : Buffer()
+            , command_(0)
+        {
+        }
+
+        /** Get the number of transfers for a BufferWrite.
+         * @return number of transfers for a BufferWrite
+         */
+        static int xfer_count()
+        {
+            return 2;
+        }
+
+    private:
+        uint8_t command_; /**< transfer command */
     };
 
     /** User entry point for the created thread.
@@ -612,6 +776,22 @@ private:
 
     /** baud rate settings table */
     static const MCP2515Baud baudTable[];
+
+    static const BitModify tx0ClrIntEnable;
+    static const BitModify tx0ClrIntFlag;
+    static const BitModify tx1ClrIntEnable;
+    static const BitModify tx1ClrIntFlag;
+    static const BitModify tx0IncPriority;
+    static const BitModify tx1IncPriority;
+    static const BitModify tx0RequestToSend;
+    static const BitModify tx1RequestToSend;
+    static const BitModify tx0TransmitEnable;
+    static const BitModify tx1TransmitEnable;
+
+    BufferRead rx_buf;
+    BufferWrite tx_buf;
+    spi_ioc_transfer xfer[20];
+
 
     /** Default constructor.
      */
