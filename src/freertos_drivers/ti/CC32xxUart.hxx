@@ -87,6 +87,10 @@ public:
      */
     void interrupt_handler();
 
+    /** Request an ioctl transaction. Currently the only supported ioctl is
+     * TCSBRK. */
+    int ioctl(File *file, unsigned long int key, unsigned long data) override;
+
 private:
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */

@@ -47,4 +47,5 @@ CSRCS += stm32f0xx_hal_adc.c \
 
 CXXSRCS += Stm32Can.cxx \
            Stm32Uart.cxx \
+           Stm32SPI.cxx \
            Stm32EEPROMEmulation.cxx

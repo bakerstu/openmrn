@@ -216,6 +216,16 @@ public:
         return device_buffer;
     }
 
+    typedef T member_type;
+    
+    /** @return the size of each member in bytes. */
+    static constexpr unsigned member_size()
+    {
+        return sizeof(T);
+    }
+
+    
+    
     /** Destroy an existing DeviceBuffer instance.
      */
     void destroy()
