@@ -70,67 +70,84 @@ private:
 
     class Displayer : public StateFlow<Buffer<Chunk>, QList<1> > {
     public:
-        Displayer(Service* s) : StateFlow<Buffer<Chunk>, QList<1> >(s) {}
+        Displayer(Service* s) : StateFlow<Buffer<Chunk>, QList<1> >(s) {
+            endp_ = output;
+            thisLineLimit_ = endp_ + MIN_LINE;
+        }
 
         Action entry() override {
             nextOfs_ = 0;
-            outOfs_ = 0;
+            //outOfs_ = 0;
             //GLOBAL_LOG_OUTPUT((char*)message()->data()->data, sizeof(message()->data()->data));
             //return release_and_exit();
             return call_immediately(STATE(render));
         }
 
         Action render() {
-            char* endp = output + outOfs_;
-            char* limit = output + sizeof(output) - 12;
-            char* lineLimit = output + lineOfs_ + MIN_LINE;
             while (true) {
                 bool send_off = false;
-                if (nextOfs_ >= BUFSIZE) {
-                    send_off = true;
-                } else if (message()->data()->data[nextOfs_] == EOLN) {
-                    if (endp < lineLimit) {
-                        *endp++ = '|';
-                    } else if ((endp + MIN_LINE * 2) <= (output + sizeof(output)))
-                    {
-                        *endp++ = '\n';
-                        lineLimit = endp + MIN_LINE;
-                        lineOfs_ = endp - output;
-                    } else {
-                        send_off = true;
-                        lineOfs_ = endp - output;
-                    }
-                } else if (endp > limit) {
-                    send_off = true;
-                }
-
-                if (send_off) {
-                    outOfs_ = endp - output;
-                    lineOfs_ = ((int)outOfs_) - lineOfs_; // will be negative
-                    GLOBAL_LOG_OUTPUT(output, outOfs_);
-                    outOfs_ = 0;
-                    endp = output;
-                    lineLimit = output + lineOfs_ + MIN_LINE;
-                }
-
                 if (nextOfs_ >= BUFSIZE) {
                     return release_and_exit();
                 }
                 auto d = message()->data()->data[nextOfs_];
-                if (d != EOLN) {
-                    endp = unsigned_integer_to_buffer(d, endp);
-                    *endp = ' ';
-                    endp++;
+                if (d == EOLN) {
+                    if (!line_prefer_end()) {
+                        *endp_++ = '|';
+                    }
+                    else if (fits_next_line())
+                    {
+                        *endp_++ = '\n';
+                        thisLineLimit_ = endp_ + MIN_LINE;
+                    }
+                    else
+                    {
+                        send_off = true;
+                    }
                 }
-                outOfs_ = endp - output;
+                else if (!has_one_number())
+                {
+                    send_off = true;
+                }
+
+                if (send_off) {
+                    GLOBAL_LOG_OUTPUT(output, endp_ - output);
+                    endp_ = output;
+                    thisLineLimit_ = endp_ + MIN_LINE;
+                }
+
+                if (d != EOLN) {
+                    endp_ = unsigned_integer_to_buffer(d, endp_);
+                    *endp_ = ' ';
+                    endp_++;
+                }
                 if (++nextOfs_  % 30 == 0) return yield();
             }
         }
 
     private:
+        /// @return true if we still have a numbers' worth of buffer.
+        bool has_one_number() {
+            return endp_ < (output_limit() - 12);
+        }
+
+        /// @return true if this line end should be a physical line end
+        bool line_prefer_end() {
+            return endp_ >= thisLineLimit_;
+        }
+
+        /// @return true if we can fit the next line within the buffer.
+        bool fits_next_line() {
+            return endp_ + (MIN_LINE * 3) <= output_limit();
+        }
+
+        /// @return pointer to the end of the physical buffer.
+        char* output_limit() {
+            return output + sizeof(output);
+        }
+
+        char* endp_;
+        char* thisLineLimit_;
         uint16_t nextOfs_;
-        uint16_t outOfs_;
-        int16_t lineOfs_ = 0;
         char output[320];
         static constexpr uint8_t MIN_LINE = 60;
     };
