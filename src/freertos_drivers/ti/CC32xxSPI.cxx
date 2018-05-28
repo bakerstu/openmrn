@@ -137,13 +137,12 @@ int CC32xxSPI::transfer_messages(struct spi_ioc_transfer *msgs, int num)
     }
     else
     {
-        /* use DMA
-         * make sure that the global uDMA initialization is complete
-         */
-        HASSERT(UDMACC32XX_open());
-
+        /* use DMA */
         dmaMsg = msgs;
         dmaMsgNum = num;
+        SPIDmaEnable(base, SPI_RX_DMA | SPI_TX_DMA);
+        SPIIntClear(base, SPI_INT_DMARX);
+        SPIIntEnable(base, SPI_INT_DMARX);
         config_dma(false);
         sem_.wait();
     }
@@ -206,95 +205,6 @@ int CC32xxSPI::transfer(struct spi_ioc_transfer *msg)
     //MAP_SPIDisable(base);
 
     return msg->len;
-}
-
-/** Configure a DMA transaction.
- * @param from_isr true if called from an ISR, else false
- */
-__attribute__((optimize("-O3")))
-void CC32xxSPI::config_dma(bool from_isr)
-{
-    static uint32_t scratch_buffer __attribute__((aligned(4))) = 0;
-
-    /* use DMA */
-    void *buf;
-    uint32_t channel_control_options;
-
-    /** @todo support longer SPI transactions */
-    HASSERT(dmaMsg->len <= MAX_DMA_TRANSFER_AMOUNT);
-
-    if (dmaMsg->tx_buf)
-    {
-        channel_control_options = dmaTxConfig_;
-        buf = (void*)dmaMsg->tx_buf;
-    }
-    else
-    {
-        channel_control_options = dmaNullConfig_;
-        buf = &scratch_buffer;
-    }
-
-    /* Setup the TX transfer characteristics & buffers */
-    uDMAChannelControlSet(dmaChannelIndexTx_ | UDMA_PRI_SELECT,
-                              channel_control_options);
-    uDMAChannelAttributeDisable(dmaChannelIndexTx_,
-                                    UDMA_ATTR_ALTSELECT);
-    uDMAChannelTransferSet(dmaChannelIndexTx_ | UDMA_PRI_SELECT,
-                               UDMA_MODE_BASIC, buf,
-                               (void*)(base + MCSPI_O_TX0), dmaMsg->len);
-
-    if (dmaMsg->rx_buf)
-    {
-        channel_control_options = dmaRxConfig_;
-        buf = (void*)dmaMsg->rx_buf;
-    }
-    else
-    {
-        channel_control_options = dmaNullConfig_;
-        buf = &scratch_buffer;
-    }
-
-    /* Setup the RX transfer characteristics & buffers */
-    uDMAChannelControlSet(dmaChannelIndexRx_ | UDMA_PRI_SELECT,
-                              channel_control_options);
-    uDMAChannelAttributeDisable(dmaChannelIndexRx_,
-                                    UDMA_ATTR_ALTSELECT);
-    uDMAChannelTransferSet(dmaChannelIndexRx_ | UDMA_PRI_SELECT,
-                               UDMA_MODE_BASIC,
-                               (void*)(base + MCSPI_O_RX0), buf, dmaMsg->len);
-
-    /* A lock is needed because we are accessing shared uDMA memory */
-    //if (!from_isr)
-    {
-        //portENTER_CRITICAL();
-    }
-
-    /* Globally disables interrupts. */
-    asm("cpsid i\n");
-
-    uDMAChannelAssign(dmaChannelIndexRx_);
-    uDMAChannelAssign(dmaChannelIndexTx_);
-
-    /* assert chip select */
-    csAssert();
-
-    /* Enable DMA to generate interrupt on SPI peripheral */
-    SPIDmaEnable(base, SPI_RX_DMA | SPI_TX_DMA);
-    SPIIntClear(base, SPI_INT_DMARX);
-    SPIIntEnable(base, SPI_INT_DMARX);
-    SPIWordCountSet(base, dmaMsg->len);
-
-    /* Enable channels & start DMA transfers */
-    uDMAChannelEnable(dmaChannelIndexTx_);
-    uDMAChannelEnable(dmaChannelIndexRx_);
-
-    //if (!from_isr)
-    {
-        //portEXIT_CRITICAL();
-    }
-    asm("cpsie i\n");
-
-    //MAP_SPIEnable(base);
 }
 
 /** Update the configuration of the bus.
@@ -370,9 +280,7 @@ void CC32xxSPI::interrupt_handler()
     }
 
     /* RX DMA channel has completed */
-    SPIDmaDisable(base, SPI_RX_DMA | SPI_TX_DMA);
-    SPIIntDisable(base, SPI_INT_DMARX);
-    SPIIntClear(base, SPI_INT_DMARX);
+    //SPIIntClear(base, SPI_INT_DMARX);
     //MAP_SPIDisable(base);
 
     if (dmaMsg->cs_change)
@@ -383,10 +291,13 @@ void CC32xxSPI::interrupt_handler()
     {
         /* do the next transaction */
         ++dmaMsg;
+        SPIIntClear(base, SPI_INT_DMARX);
         config_dma(true);
         return;
     }
 
+    SPIDmaDisable(base, SPI_RX_DMA | SPI_TX_DMA);
+    SPIIntDisable(base, SPI_INT_DMARX);
     sem_.post_from_isr(&woken);
     os_isr_exit_yield_test(woken);
 }
