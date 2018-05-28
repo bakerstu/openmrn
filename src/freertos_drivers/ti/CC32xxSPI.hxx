@@ -117,10 +117,22 @@ private:
      */
     int transfer(struct spi_ioc_transfer *msg) override;
 
+    /** Conduct multiple message transfers with one stop at the end.
+     * @param msgs array of messages to transfer
+     * @param num number of messages to transfer
+     * @return total number of bytes transfered, -errno upon failure
+     */
+    int transfer_messages(struct spi_ioc_transfer *msgs, int num) override;
+
     /** Update the configuration of the bus.
      * @return >= 0 upon success, -errno upon failure
      */
     int update_configuration() override;
+
+    /** Configure a DMA transaction.
+     * @param from_isr true if called from an ISR, else false
+     */
+    void config_dma(bool from_isr);
 
     unsigned long base; /**< base address of this device */
     unsigned long clock; /**< clock rate supplied to the module */
@@ -128,13 +140,15 @@ private:
     size_t dmaThreshold_; /**< threshold in bytes to start using DMA */
     uint32_t dmaChannelIndexTx_; /**< TX DMA channel index */
     uint32_t dmaChannelIndexRx_; /**< RX DMA channel index */
-    size_t dmaTransferSize_; /**< current DMA transfer size in bytes */
-    struct spi_ioc_transfer *msg_; /**< message for current transaction */
-    bool stop_; /**< current transaction ends in a stop if true */
-    int count_; /**< current count index within transaction */
 
     /** Semaphore to wakeup task level from ISR */
     OSSem sem_;
+
+    /** a pointer to the message sequence the DMA is working on */
+    volatile spi_ioc_transfer *dmaMsg;
+
+    /** total length of the agrigate DMA segments in a message sequence */
+    volatile uint32_t dmaMsgNum;
 
     /** Default constructor.
      */

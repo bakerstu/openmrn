@@ -369,10 +369,12 @@ private:
     public:
         /** Constructor.
          * @param can_frame reference to a can_frame metadata structure.
+         * @param command corresponding command for the buffer
          */
         __attribute__((optimize("-O3")))
-        Buffer(struct can_frame *can_frame)
-            : sidh(can_frame->can_eff ? (can_frame->can_id & 0x1FE00000) >> 21 :
+        Buffer(struct can_frame *can_frame, uint8_t command = 0)
+            : command(command)
+            , sidh(can_frame->can_eff ? (can_frame->can_id & 0x1FE00000) >> 21 :
                                         (can_frame->can_id & 0x000007F8) >> 3)
             , eid(can_frame->can_eff ? (can_frame->can_id & 0x00030000) >> 16 :
                                        0)
@@ -390,8 +392,10 @@ private:
         }
 
         /** Constructor.
+         * @param command corresponding command for the buffer
          */
-        Buffer()
+        Buffer( uint8_t command = 0)
+            : command(command)
         {
         }
 
@@ -429,10 +433,11 @@ private:
          */
         void *get_payload()
         {
-            return &sidh;
+            return &command;
         }
 
     protected:
+        uint8_t command;
         uint8_t sidh; /**< standard identifier high byte */
         struct
         {
@@ -546,21 +551,18 @@ private:
          * @param index buffer index to read from (valid values are 0 and 1)
          */
         BufferRead(spi_ioc_transfer xfer[2], int index)
-            : Buffer()
-            , command_(READ_RX_BUF | (index == 0 ? 0x00 : 0x40))
+            : Buffer(READ_RX_BUF | (index == 0 ? 0x00 : 0x40))
         {
-            xfer[0].tx_buf = (unsigned long)&command_;
-            xfer[0].len = sizeof(command_);
-            xfer[1].rx_buf = (unsigned long)get_payload();
-            xfer[1].len = 13;
-            xfer[1].cs_change = 1;
+            xfer[0].tx_buf = (unsigned long)get_payload();
+            xfer[0].rx_buf = (unsigned long)get_payload();
+            xfer[0].len = 14;
+            xfer[0].cs_change = 1;
         }
 
         /** Constructor.
          */
         BufferRead()
             : Buffer()
-            , command_(0)
         {
         }
 
@@ -569,11 +571,8 @@ private:
          */
         static int xfer_count()
         {
-            return 2;
+            return 1;
         }
-
-    private:
-        uint8_t command_; /**< transfer command */
     };
 
     /** Setup a buffer read transfer structure.
@@ -588,21 +587,18 @@ private:
          */
         BufferWrite(spi_ioc_transfer xfer[2], int index,
                     struct can_frame *can_frame)
-            : Buffer(can_frame)
-            , command_(LOAD_TX_BUF + (index << 1))
+            : Buffer(can_frame, LOAD_TX_BUF + (index << 1))
         {
-            xfer[0].tx_buf = (unsigned long)&command_;
-            xfer[0].len = sizeof(command_);
-            xfer[1].tx_buf = (unsigned long)get_payload();
-            xfer[1].len = 5 + dlc;
-            xfer[1].cs_change = 1;
+            xfer[0].tx_buf = (unsigned long)get_payload();
+            xfer[0].tx_buf = (unsigned long)get_payload();
+            xfer[0].len = 6 + dlc;
+            xfer[0].cs_change = 1;
         }
 
         /** Constructor.
          */
         BufferWrite()
             : Buffer()
-            , command_(0)
         {
         }
 
@@ -611,11 +607,10 @@ private:
          */
         static int xfer_count()
         {
-            return 2;
+            return 1;
         }
 
     private:
-        uint8_t command_; /**< transfer command */
     };
 
     /** User entry point for the created thread.
@@ -790,7 +785,7 @@ private:
 
     BufferRead rx_buf;
     BufferWrite tx_buf;
-    spi_ioc_transfer xfer[20];
+    spi_ioc_transfer xfer_[25];
 
 
     /** Default constructor.

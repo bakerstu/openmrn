@@ -159,7 +159,7 @@ void MCP2515Can::enable()
     if (!is_created())
     {
         /* start the thread at the highest priority in the system */
-        start(name, configMAX_PRIORITIES - 1, 1024);
+        start(name, configMAX_PRIORITIES - 1, 2048);
     }
 
     /* clear interrupt flags */
@@ -207,24 +207,24 @@ void MCP2515Can::tx_msg_locked()
         portENTER_CRITICAL();
         if (txBuf->data_read_pointer(&can_frame))
         {
-            int count = 0;
-            memset(xfer, 0, sizeof(xfer));
+            unsigned count = 0;
+            memset(xfer_, 0, sizeof(xfer_));
 
             /* bump up priority of the other buffer so it will transmit
              * first if it is pending
              */
             if (index == 0)
             {
-                tx1IncPriority.setup_xfer(xfer + count);
+                tx1IncPriority.setup_xfer(xfer_ + count);
             }
             else
             {
-                tx0IncPriority.setup_xfer(xfer + count);
+                tx0IncPriority.setup_xfer(xfer_ + count);
             }
             ++count;
 
             /* load the tranmsit buffer */
-            new (&tx_buf) BufferWrite(xfer + count, index, can_frame);
+            new (&tx_buf) BufferWrite(xfer_ + count, index, can_frame);
             txBuf->consume(1);
             txBuf->signal_condition();
             portEXIT_CRITICAL();
@@ -235,19 +235,22 @@ void MCP2515Can::tx_msg_locked()
             /* request to send at lowest priority */
             if (index == 0)
             {
-                tx0RequestToSend.setup_xfer(xfer + count);
+                tx0RequestToSend.setup_xfer(xfer_ + count);
                 ++count;
-                tx0TransmitEnable.setup_xfer(xfer + count);
+                tx0TransmitEnable.setup_xfer(xfer_ + count);
             }
             else
             {
-                tx1RequestToSend.setup_xfer(xfer + count);
+                tx1RequestToSend.setup_xfer(xfer_ + count);
                 ++count;
-                tx1TransmitEnable.setup_xfer(xfer + count);
+                tx1TransmitEnable.setup_xfer(xfer_ + count);
             }
             ++count;
+
+            HASSERT(count <= ARRAYSIZE(xfer_));
+
             // tranfer the messages
-            ::ioctl(spi, SPI_IOC_MESSAGE(count), xfer);
+            ::ioctl(spi, SPI_IOC_MESSAGE(count), xfer_);
         }
         else
         {
@@ -361,13 +364,13 @@ void *MCP2515Can::entry()
 
         bool receive = false;
 
-        int count = 0;
-        memset(xfer, 0, sizeof(xfer));
+        unsigned count = 0;
+        memset(xfer_, 0, sizeof(xfer_));
 
         if (canintf & RX0I)
         {
             /* receive interrupt active */
-            new (&rx_buf) BufferRead(xfer + count, 0);
+            new (&rx_buf) BufferRead(xfer_ + count, 0);
             count += rx_buf.xfer_count();
             receive = true;
         }
@@ -378,18 +381,18 @@ void *MCP2515Can::entry()
             if (canintf & TX0I)
             {
                 txPending &= ~0x1;
-                tx0ClrIntEnable.setup_xfer(xfer + count);
+                tx0ClrIntEnable.setup_xfer(xfer_ + count);
                 ++count;
-                tx0ClrIntFlag.setup_xfer(xfer + count);
+                tx0ClrIntFlag.setup_xfer(xfer_ + count);
                 ++count;
                 ++numTransmittedPackets_;
             }
             if (canintf & TX1I)
             {
                 txPending &= ~0x2;
-                tx1ClrIntEnable.setup_xfer(xfer + count);
+                tx1ClrIntEnable.setup_xfer(xfer_ + count);
                 ++count;
-                tx1ClrIntFlag.setup_xfer(xfer + count);
+                tx1ClrIntFlag.setup_xfer(xfer_ + count);
                 ++count;
                 ++numTransmittedPackets_;
             }
@@ -410,16 +413,16 @@ void *MCP2515Can::entry()
                      */
                     if (index == 0)
                     {
-                        tx1IncPriority.setup_xfer(xfer + count);
+                        tx1IncPriority.setup_xfer(xfer_ + count);
                     }
                     else
                     {
-                        tx0IncPriority.setup_xfer(xfer + count);
+                        tx0IncPriority.setup_xfer(xfer_ + count);
                     }
                     ++count;
 
                     /* load the tranmsit buffer */
-                    new (&tx_buf) BufferWrite(xfer + count, index, can_frame);
+                    new (&tx_buf) BufferWrite(xfer_ + count, index, can_frame);
                     txBuf->consume(1);
                     txBuf->signal_condition();
                     portEXIT_CRITICAL();
@@ -430,15 +433,15 @@ void *MCP2515Can::entry()
                     /* request to send at lowest priority */
                     if (index == 0)
                     {
-                        tx0RequestToSend.setup_xfer(xfer + count);
+                        tx0RequestToSend.setup_xfer(xfer_ + count);
                         ++count;
-                        tx0TransmitEnable.setup_xfer(xfer + count);
+                        tx0TransmitEnable.setup_xfer(xfer_ + count);
                     }
                     else
                     {
-                        tx1RequestToSend.setup_xfer(xfer + count);
+                        tx1RequestToSend.setup_xfer(xfer_ + count);
                         ++count;
-                        tx1TransmitEnable.setup_xfer(xfer + count);
+                        tx1TransmitEnable.setup_xfer(xfer_ + count);
                     }
                     ++count;
                 }
@@ -449,8 +452,13 @@ void *MCP2515Can::entry()
             }
         }
 
+        HASSERT(count <= ARRAYSIZE(xfer_));
+
         // tranfer the messages
-        ::ioctl(spi, SPI_IOC_MESSAGE(count), xfer);
+        if (count)
+        {
+            ::ioctl(spi, SPI_IOC_MESSAGE(count), xfer_);
+        }
 
         if (receive)
         {
