@@ -590,7 +590,6 @@ private:
             : Buffer(can_frame, LOAD_TX_BUF + (index << 1))
         {
             xfer[0].tx_buf = (unsigned long)get_payload();
-            xfer[0].tx_buf = (unsigned long)get_payload();
             xfer[0].len = 6 + dlc;
             xfer[0].cs_change = 1;
         }
@@ -785,7 +784,7 @@ private:
 
     BufferRead rx_buf;
     BufferWrite tx_buf;
-    spi_ioc_transfer xfer_[25];
+    spi_ioc_transfer xfer_[12];
 
 
     /** Default constructor.
