@@ -34,9 +34,8 @@
  */
 
 #include "openlcb/TractionCvSpace.hxx"
-#include "openlcb/TractionDefs.hxx"
 #include "dcc/ProgrammingTrackBackend.hxx"
-
+#include "openlcb/TractionDefs.hxx"
 
 // We try this many times to write a CV using railcom if we keep getting an
 // unknown railcom response. After that we try to verify with a read.
@@ -106,7 +105,7 @@ bool TractionCvSpace::set_node(Node *node)
 const unsigned TractionCvSpace::MAX_CV;
 
 size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
-                             errorcode_t *error, Notifiable *again)
+    errorcode_t *error, Notifiable *again)
 {
     if (source == OFFSET_CV_INDEX) {
         lastIndexedNode_ = dccAddress_;
@@ -118,7 +117,8 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
         return std::min(len, size_t(4));
     }
     uint32_t cv = -1;
-    if (source == OFFSET_CV_VALUE || source == OFFSET_CV_VERIFY_RESULT) {
+    if (source == OFFSET_CV_VALUE || source == OFFSET_CV_VERIFY_RESULT)
+    {
         if (dccAddress_ != lastIndexedNode_) {
             *error = Defs::ERROR_PERMANENT;
             return 0;
@@ -134,7 +134,8 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
         errorCode_ = ERROR_NOOP;
         return 0;
     }
-    if (cv == cvNumber_) {
+    if (cv == cvNumber_)
+    {
         if (errorCode_ == ERROR_OK) {
             *dst = cvData_;
             errorCode_ = ERROR_NOOP;
@@ -143,7 +144,9 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
             *error = Defs::ERROR_OPENLCB_TIMEOUT;
             errorCode_ = ERROR_NOOP;
             return 0;
-        } else if (errorCode_ == _ERROR_BUSY) {
+        }
+        else if (errorCode_ == _ERROR_BUSY)
+        {
             *error = Defs::ERROR_OUT_OF_ORDER;
             errorCode_ = ERROR_NOOP;
             return 0;
@@ -154,11 +157,16 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
     errorCode_ = ERROR_NOOP;
     cvData_ = 0;
     numTry_ = 0;
-    if (source == OFFSET_CV_VALUE) {
+    if (source == OFFSET_CV_VALUE)
+    {
         start_flow(STATE(try_read1));
-    } else if (source == OFFSET_CV_VERIFY_RESULT) {
+    }
+    else if (source == OFFSET_CV_VERIFY_RESULT)
+    {
         start_flow(STATE(pgm_verify));
-    } else {
+    }
+    else
+    {
         DIE("Have not started the flow but will return AGAIN.");
     }
     *error = ERROR_AGAIN;
@@ -178,7 +186,8 @@ StateFlowBase::Action TractionCvSpace::pgm_verify_wait_flush()
 {
     auto b = get_buffer_deleter(
         full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
-    if (b->data()->resultCode != 0) {
+    if (b->data()->resultCode != 0)
+    {
         // Failed to enter service mode. Maybe we are in ESTOP.
         errorCode_ = _ERROR_BUSY;
         done_->notify();
@@ -189,7 +198,8 @@ StateFlowBase::Action TractionCvSpace::pgm_verify_wait_flush()
 
 StateFlowBase::Action TractionCvSpace::pgm_verify_reset()
 {
-    return invoke_subflow_and_wait(Singleton<ProgrammingTrackBackend>::instance(),
+    return invoke_subflow_and_wait(
+        Singleton<ProgrammingTrackBackend>::instance(),
         STATE(pgm_verify_packet), ProgrammingTrackRequest::SEND_RESET, 15);
 }
 
@@ -214,9 +224,12 @@ StateFlowBase::Action TractionCvSpace::pgm_verify_done()
 {
     auto b = get_buffer_deleter(
         full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
-    if (b->data()->hasAck_) {
+    if (b->data()->hasAck_)
+    {
         cvData_ = 1;
-    } else {
+    }
+    else
+    {
         cvData_ = 0;
     }
     errorCode_ = ERROR_OK;
@@ -225,7 +238,8 @@ StateFlowBase::Action TractionCvSpace::pgm_verify_done()
         STATE(pgm_verify_reset_done), ProgrammingTrackRequest::SEND_RESET, 15);
 }
 
-StateFlowBase::Action TractionCvSpace::pgm_verify_reset_done() {
+StateFlowBase::Action TractionCvSpace::pgm_verify_reset_done()
+{
     auto b = get_buffer_deleter(
         full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
     return invoke_subflow_and_wait(
@@ -311,7 +325,8 @@ size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
         if (len > 3) lastcv[0] = src[3];
         return std::min(len, size_t(4));
     }
-    if (destination == OFFSET_CV_VERIFY_VALUE) {
+    if (destination == OFFSET_CV_VERIFY_VALUE)
+    {
         lastVerifyValue_ = src[0];
         return 1;
     }

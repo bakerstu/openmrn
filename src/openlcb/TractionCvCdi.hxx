@@ -47,12 +47,18 @@ CDI_GROUP_ENTRY(number, Uint32ConfigEntry, Name("CV number"));
 /// Value of the given CV.
 CDI_GROUP_ENTRY(value, Uint8ConfigEntry, Name("CV value"));
 /// Verify value
-CDI_GROUP_ENTRY(verify_value, Uint8ConfigEntry, Name("Verify CV value"), Description("Write this value first to send out programming track verify commands"));
-CDI_GROUP_ENTRY(verify_result, Uint8ConfigEntry, Name("Verify CV result"), Description("Refresh this line to verify CV value. Return 0=no ack, 1=ack."));
+CDI_GROUP_ENTRY(verify_value, Uint8ConfigEntry, Name("Verify CV value"),
+    Description("Write this value first to send out programming track verify "
+                "commands"));
+CDI_GROUP_ENTRY(
+    verify_result, Uint8ConfigEntry, Name("Verify CV result"),
+    Description(
+        "Refresh this line to verify CV value. Return 0=no ack, 1=ack."));
 
 CDI_GROUP_END();
 
-static_assert(TractionShortCvSpace::size() == 7, "Traction CV space's size not as expected.");
+static_assert(TractionShortCvSpace::size() == 7,
+    "Traction CV space's size not as expected.");
 
 }  // namespace openlcb
 

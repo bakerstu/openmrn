@@ -44,7 +44,6 @@
 
 extern "C" {
 void enable_dcc();
-
 }
 
 struct ProgrammingTrackRequest : public CallableFlowRequestBase
@@ -201,8 +200,12 @@ public:
 
     /// Call this function when the service mode acknowledgement is detected by
     /// the short detector.
-    void notify_service_mode_ack() {
-        if (!request()) { return; }
+    void notify_service_mode_ack()
+    {
+        if (!request())
+        {
+            return;
+        }
         request()->hasAck_ = 1;
         if (request()->terminateOnAck_ && isWaitingForPackets_)
         {
@@ -238,12 +241,13 @@ private:
         // @todo: do we need to flush the packet queue here?
         // maybe send 6-8 reset packets at the beginning instead of 3?
         if (!packet_processor_add_refresh_source(
-                this, dcc::UpdateLoopBase::PROGRAMMING_PRIORITY)) {
+                this, dcc::UpdateLoopBase::PROGRAMMING_PRIORITY))
+        {
             // There was another high priority source, probably we are in ESTOP.
             packet_processor_remove_refresh_source(this);
             return return_with_error(openlcb::Defs::ERROR_OUT_OF_ORDER);
         }
-        //enable_dcc();
+        // enable_dcc();
         return return_ok();
     }
 
@@ -292,7 +296,7 @@ private:
             packet->set_dcc_reset_all_decoders();
             return;
         }
-        
+
         *packet = request()->packetToSend_;
         if (request()->repeatCount_ > 0)
         {
@@ -314,7 +318,7 @@ private:
     std::function<void()> enableProgramTrackMode_;
     /// Callback to connect to the program track hardware control.
     std::function<void()> disableProgramTrackMode_;
-    
+
     /// 1 if the flow is blocked waiting for sending out the respective number
     /// of packets.
     unsigned isWaitingForPackets_ : 1;

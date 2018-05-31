@@ -61,7 +61,8 @@ void packet_processor_notify_update(PacketSource *source, unsigned code);
  * added now. In case of false, the source was still added but will not receive
  * polling until the higher priority source goes away.
 */
-bool packet_processor_add_refresh_source(PacketSource *source, unsigned priority = 0);
+bool packet_processor_add_refresh_source(
+    PacketSource *source, unsigned priority = 0);
 
 /** Removes a refresh source from the background refresh loop. */
 void packet_processor_remove_refresh_source(PacketSource *source);

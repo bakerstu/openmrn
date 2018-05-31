@@ -138,7 +138,8 @@ private:
     };
 
 public:
-    enum {
+    enum
+    {
         OFFSET_CV_INDEX = 0x7F000000,
         OFFSET_CV_VALUE = 0x7F000004,
         OFFSET_CV_VERIFY_VALUE = 0x7F000005,

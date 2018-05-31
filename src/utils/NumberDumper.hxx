@@ -70,16 +70,19 @@ private:
 
     class Displayer : public StateFlow<Buffer<Chunk>, QList<1> > {
     public:
-        Displayer(Service* s) : StateFlow<Buffer<Chunk>, QList<1> >(s) {
+        Displayer(Service *s)
+            : StateFlow<Buffer<Chunk>, QList<1>>(s)
+        {
             endp_ = output;
             thisLineLimit_ = endp_ + MIN_LINE;
         }
 
         Action entry() override {
             nextOfs_ = 0;
-            //outOfs_ = 0;
-            //GLOBAL_LOG_OUTPUT((char*)message()->data()->data, sizeof(message()->data()->data));
-            //return release_and_exit();
+            // outOfs_ = 0;
+            // GLOBAL_LOG_OUTPUT((char*)message()->data()->data,
+            // sizeof(message()->data()->data));
+            // return release_and_exit();
             return call_immediately(STATE(render));
         }
 
@@ -90,8 +93,10 @@ private:
                     return release_and_exit();
                 }
                 auto d = message()->data()->data[nextOfs_];
-                if (d == EOLN) {
-                    if (!line_prefer_end()) {
+                if (d == EOLN)
+                {
+                    if (!line_prefer_end())
+                    {
                         *endp_++ = '|';
                     }
                     else if (fits_next_line())
@@ -126,27 +131,31 @@ private:
 
     private:
         /// @return true if we still have a numbers' worth of buffer.
-        bool has_one_number() {
+        bool has_one_number()
+        {
             return endp_ < (output_limit() - 12);
         }
 
         /// @return true if this line end should be a physical line end
-        bool line_prefer_end() {
+        bool line_prefer_end()
+        {
             return endp_ >= thisLineLimit_;
         }
 
         /// @return true if we can fit the next line within the buffer.
-        bool fits_next_line() {
+        bool fits_next_line()
+        {
             return endp_ + (MIN_LINE * 3) <= output_limit();
         }
 
         /// @return pointer to the end of the physical buffer.
-        char* output_limit() {
+        char *output_limit()
+        {
             return output + sizeof(output);
         }
 
-        char* endp_;
-        char* thisLineLimit_;
+        char *endp_;
+        char *thisLineLimit_;
         uint16_t nextOfs_;
         char output[320];
         static constexpr uint8_t MIN_LINE = 60;
