@@ -38,7 +38,7 @@
 namespace dcc
 {
 
-string packet_to_string(const DCCPacket &pkt)
+string packet_to_string(const DCCPacket &pkt, bool bin_payload)
 {
     if (pkt.packet_header.is_pkt)
     {
@@ -71,13 +71,16 @@ string packet_to_string(const DCCPacket &pkt)
     {
         return options + " no payload";
     }
-    options += "[";
-    for (unsigned i = 0; i < pkt.dlc; ++i)
+    if (bin_payload || pkt.packet_header.is_marklin)
     {
-        options += StringPrintf("%02x ", pkt.payload[i]);
+        options += "[";
+        for (unsigned i = 0; i < pkt.dlc; ++i)
+        {
+            options += StringPrintf("%02x ", pkt.payload[i]);
+        }
+        options.pop_back();
+        options += "]";
     }
-    options.pop_back();
-    options += "]";
     if (pkt.packet_header.is_marklin) {
         return options;
     }

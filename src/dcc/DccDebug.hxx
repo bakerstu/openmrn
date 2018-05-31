@@ -42,10 +42,11 @@ namespace dcc {
 /// Renders a DCC packet as a debug string.
 ///
 /// @param pkt DCC packet
+/// @param bin_payload if true, displays all bytes in hex
 ///
 /// @return debug string
 ///
-string packet_to_string(const DCCPacket& pkt);
+string packet_to_string(const DCCPacket& pkt, bool bin_payload = false);
 
 }  // namespace dcc
 
