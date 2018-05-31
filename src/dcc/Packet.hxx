@@ -103,7 +103,7 @@ struct Packet : public DCCPacket
     {
         header_raw_data = 0;
         dlc = 0;
-        header.packet_header.send_long_preamble = true;
+        packet_header.send_long_preamble = true;
     }
 
     /// Adds the header to the packet needed for addressing a DCC

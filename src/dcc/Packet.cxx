@@ -280,7 +280,7 @@ void Packet::set_dcc_svc_verify_bit(
 {
     start_dcc_svc_packet();
     uint8_t vvv = DCC_SVC_BITVAL_VERIFY |
-        (expected ? DCC_SVC_BITVAL_VALUE : 0) | (bit & 3);
+        (expected ? DCC_SVC_BITVAL_VALUE : 0) | (bit & 7);
     add_dcc_prog_command(DCC_SVC_BIT_MANIPULATE, cv_number, vvv);
 }
 
@@ -289,7 +289,7 @@ void Packet::set_dcc_svc_write_bit(
 {
     start_dcc_svc_packet();
     uint8_t vvv =
-        DCC_SVC_BITVAL_WRITE | (desired ? DCC_SVC_BITVAL_VALUE : 0) | (bit & 3);
+        DCC_SVC_BITVAL_WRITE | (desired ? DCC_SVC_BITVAL_VALUE : 0) | (bit & 7);
     add_dcc_prog_command(DCC_SVC_BIT_MANIPULATE, cv_number, vvv);
 }
 
