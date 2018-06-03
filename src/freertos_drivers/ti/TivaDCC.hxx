@@ -994,7 +994,7 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timings[DCC_ONE].transition_b);
 
     MAP_IntDisable(HW::INTERVAL_INTERRUPT);
-    MAP_IntPrioritySet(HW::INTERVAL_INTERRUPT, 0);
+    MAP_IntPrioritySet(HW::INTERVAL_INTERRUPT, 0x20);
     MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
 
     MAP_TimerEnable(HW::CCP_BASE, TIMER_A);
