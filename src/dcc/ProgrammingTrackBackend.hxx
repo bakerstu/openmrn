@@ -33,6 +33,9 @@
  * @date 23 April 2018
  */
 
+#ifndef _DCC_PROGRAMMINGTRACKBACKEND_HXX_
+#define _DCC_PROGRAMMINGTRACKBACKEND_HXX_
+
 #include <functional>
 
 #include "dcc/Packet.hxx"
@@ -323,3 +326,5 @@ private:
     /// of packets.
     unsigned isWaitingForPackets_ : 1;
 };
+
+#endif // _DCC_PROGRAMMINGTRACKBACKEND_HXX_
