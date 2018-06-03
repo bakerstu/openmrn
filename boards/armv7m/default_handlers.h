@@ -218,7 +218,7 @@ __attribute__((optimize("-O0"),unused)) void hard_fault_handler_step_2(unsigned 
     fault_info->_BFAR = (*((volatile unsigned long *)(0xE000ED38))) ;
 
     hw_set_to_safe();
-    diewith(BLINK_DIE_HARDFAULT);
+    asm volatile ("cpsid i\n");
 
     // Simulates a BL instruction from the original PC. Moves the PC to LR,
     // overwrites PC with our return address.
@@ -249,6 +249,7 @@ void hard_fault_handler_step_3(void) {
     __asm(
         " mov r1, %0 \n"
         " msr basepri, r1 \n"
+        " cpsie i\n"
         " ldr r0, =faultInfo \n"
         " ldr r3, [r0, 12]   \n"
         " ldr r2, [r0, 8]    \n"
