@@ -209,12 +209,14 @@ StateFlowBase::Action TractionCvSpace::pgm_verify_packet()
         full_allocation_result(Singleton<ProgrammingTrackBackend>::instance()));
 
     dcc::Packet pkt;
-    pkt.start_dcc_packet();
+    pkt.set_dcc_svc_verify_byte(lastIndexedCv_, lastVerifyValue_);
+    pkt.set_dcc_svc_verify_bit(0, 7, 0);
+    /*pkt.start_dcc_packet();
     pkt.payload[0] = 0b01110100 | ((lastIndexedCv_ >> 8) & 0b11);
     pkt.payload[1] = (lastIndexedCv_ & 0xff);
     pkt.payload[2] = lastVerifyValue_;
     pkt.dlc = 3;
-    pkt.add_dcc_checksum();
+    pkt.add_dcc_checksum();*/
     return invoke_subflow_and_wait(
         Singleton<ProgrammingTrackBackend>::instance(), STATE(pgm_verify_done),
         ProgrammingTrackRequest::SEND_PROGRAMMING_PACKET, pkt, 15);
