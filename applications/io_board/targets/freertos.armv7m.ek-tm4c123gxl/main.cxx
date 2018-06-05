@@ -32,6 +32,8 @@
  * @date 5 Jun 2015
  */
 
+#define LOGLEVEL INFO
+
 #include "os/os.h"
 #include "nmranet_config.h"
 
@@ -41,10 +43,14 @@
 #include "openlcb/ConfiguredProducer.hxx"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "freertos_drivers/ti/TivaCpuLoad.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/PersistentGPIO.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
+
+// Writes all log data to stderr.
+#include "utils/TcpLogging.hxx"
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
@@ -69,6 +75,40 @@ extern const openlcb::NodeID NODE_ID = 0x050101011804ULL;
 // CAN-bus-specific components, a virtual node, PIP, SNIP, Memory configuration
 // protocol, ACDI, CDI, a bunch of memory spaces, etc.
 openlcb::SimpleCanStack stack(NODE_ID);
+
+SerialLoggingServer log_server(stack.service(), "/dev/ser0");
+
+TivaCpuLoad<TivaCpuLoadDefHw> load_monitor;
+extern "C" {
+void timer4a_interrupt_handler(void)
+{
+    load_monitor.interrupt_handler();
+}
+}
+
+class CpuLoadLog : public StateFlowBase
+{
+public:
+    CpuLoadLog()
+        : StateFlowBase(stack.service())
+    {
+        start_flow(STATE(log_and_wait));
+    }
+
+private:
+    Action log_and_wait()
+    {
+        auto *l = CpuLoad::instance();
+        LOG(INFO, "Load: avg %3d max streak %d max of 16 %d", l->get_load(),
+            l->get_max_consecutive(), l->get_peak_over_16_counts());
+        l->clear_max_consecutive();
+        l->clear_peak_over_16_counts();
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(log_and_wait));
+    }
+
+    StateFlowTimer timer_{this};
+} load_logger;
+
 
 // ConfigDef comes from config.hxx and is specific to the particular device and
 // target. It defines the layout of the configuration memory space and is also
