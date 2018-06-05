@@ -35,11 +35,14 @@
 #define _OS_CPULOAD_HXX_
 
 #include "utils/Singleton.hxx"
+#include "utils/SimpleQueue.hxx"
 
 extern "C" {
 /// Call this function repeatedly from a hardware timer to feed the CPUload
 /// class.
-void cpuload_tick(void);
+/// @param irq should be zero if parent is the main context, otherwise the irq
+/// number.
+void cpuload_tick(unsigned irq);
 }
  
 /// Singleton class that records the CPU load under FreeRTOS.
@@ -57,6 +60,12 @@ class CpuLoad : public Singleton<CpuLoad> {
 public:
     CpuLoad() {}
 
+    ~CpuLoad() {
+        while (!perKeyCost_.empty()) {
+            delete perKeyCost_.pop_front();
+        }
+    }
+    
     /// @returns the CPU load as an integer between 0 and 100. The load is
     /// averaged over the past short amount of time.
     uint8_t get_load();
@@ -81,17 +90,75 @@ public:
     void clear_peak_over_16_counts() {
         peakOver16Counts_ = 0;
     }
-    
+
+    /// @return 0 if we have not found a new key recently, otherwise the value
+    /// of the new key found. Clears the new key.
+    uintptr_t new_key() {
+        auto k = newKey_;
+        newKey_ = 0;
+        return k;
+    }
+
+    /// Defines how to print a given key. Must be called from the main executor.
+    void set_key_description(uintptr_t key, string description) {
+        auto it = perKeyCost_.begin();
+        for (; it != perKeyCost_.end(); ++it) {
+            if (it->key == key) {
+                it->description = std::move(description);
+                return;
+            }
+        }
+        auto* kk = new KeyInfo;
+        kk->key = key;
+        kk->description = std::move(description);
+        perKeyCost_.insert(it, kk);
+    }
+
+    /// Returns delta usage since last call by utilization key.
+    /// @param output will be populated with data, utilization (number of ticks
+    /// in this key since last invocation).
+    void get_utilization_delta(std::vector<pair<unsigned, string*> >* output) {
+        HASSERT(output);
+        output->clear();
+        for(auto it = perKeyCost_.begin(); it != perKeyCost_.end(); ++it) {
+            volatile unsigned curr = it->rolling_count;
+            unsigned diff = curr - it->last_count;
+            it->last_count = curr;
+            if (diff > 0)
+            {
+                output->emplace_back(diff, &it->description);
+            }
+        }
+    }
+
 private:
-    friend void cpuload_tick(void);
+    friend void cpuload_tick(unsigned);
     /// Adds a value to the rolling average.
-    /// @param true if CPU is busy at this time, false if it is free.
-    inline void record_value(bool busy);
+    /// @param key 0 if CPU is idle at this time, otherwise a key on what is
+    /// taking time.
+    inline void record_value(uintptr_t key);
 
     /// Internal state for the rolling average (EWMA). This is a 0+24bit fixed
     /// point format, the top 8 bits are always 0 to allow overflow-less
     /// multiplication. 0x01000000 would be 1.0, 0x00ffffff is 0.99999...
     uint32_t avg_{0};
+
+    /// Temporary buffer that the interrupt can write unknown keys to.
+    uintptr_t newKey_{0};
+
+    struct KeyInfo : public QMember {
+        /// Which cost key this entry belongs to
+        uintptr_t key;
+        /// textual description on how to print the cost key
+        string description;
+        /// what is the last printed cost offset
+        uint32_t last_count{0};
+        /// rolling count of cost offsets updated by the interrupt
+        uint32_t rolling_count{0};
+    };
+
+    /// Collects cost information on a per-key basis.
+    TypedQueue<KeyInfo> perKeyCost_;
 
     /// Streak of busy ticks.
     uint8_t consecutive_{0};
