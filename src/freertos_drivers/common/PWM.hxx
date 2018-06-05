@@ -31,6 +31,9 @@
  * @date 6 January 2018
  */
 
+#ifndef _FREERTOS_DRIVERS_COMMON_PWM_HXX_
+#define _FREERTOS_DRIVERS_COMMON_PWM_HXX_
+
 #include "utils/macros.h"
 
 #include "os/Gpio.hxx"
@@ -166,3 +169,5 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(PWMGPO);
 };
+
+#endif // _FREERTOS_DRIVERS_COMMON_PWM_HXX_

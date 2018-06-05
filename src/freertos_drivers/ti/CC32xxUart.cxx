@@ -41,6 +41,8 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/prcm.h"
+#include "driverlib/utils.h"
+#include "freertos/tc_ioctl.h"
 
 #include "CC32xxUart.hxx"
 
@@ -117,6 +119,30 @@ void CC32xxUart::disable()
 {
     MAP_IntDisable(interrupt);
     MAP_UARTDisable(base);
+}
+
+/** Request an ioctl transaction
+ * @param file file reference for this device
+ * @param key ioctl key
+ * @param data key data
+ * @return 0 upon success, -errno upon failure
+ */
+int CC32xxUart::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    switch (key)
+    {
+        default:
+            return -EINVAL;
+        case TCSBRK:
+            MAP_UARTBreakCtl(base, true);
+            // need to wait at least two frames here
+            MAP_UtilsDelay(100 * 26);
+            MAP_UARTBreakCtl(base, false);
+            MAP_UtilsDelay(12 * 26);
+            break;
+    }
+
+    return 0;
 }
 
 /** Send data until there is no more space left.
