@@ -48,6 +48,7 @@
 #include "freertos_drivers/ti/TivaCpuLoad.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/PersistentGPIO.hxx"
+#include "freertos_drivers/common/cpu_profile.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
 
@@ -84,6 +85,8 @@ TivaCpuLoad<TivaCpuLoadDefHw> load_monitor;
 extern "C" {
 volatile unsigned* exception_args;
 volatile unsigned is_process;
+volatile unsigned saved_sp;
+unsigned saved_frame[8];
 void timer4a_interrupt_handler(void)
 {
     __asm volatile
@@ -97,6 +100,28 @@ void timer4a_interrupt_handler(void)
         " ldr r1, =is_process \n"
         " str lr, [r1] \n"
         : : : "r0", "r1" );
+    fill_phase2_vrs(exception_args);
+/*
+    //memcpy(saved_frame, (void*)exception_args, sizeof(saved_frame));
+    __asm volatile (
+        " ldr r1, =saved_sp     \n"
+        " str sp, [r1]          \n"
+        " ldr r1, =exception_args     \n"
+        " ldr sp, [r1]       \n"
+        " ldr lr, [sp, 20]   \n"
+//        " add sp, 32   \n"
+        " push {r4, lr}  \n"
+        );*/
+    take_cpu_trace();
+
+/*    __asm volatile (
+        " pop {r4, lr}  \n"
+        " ldr r1, =saved_sp     \n"
+        " ldr sp, [r1]          \n"
+        );
+        //memcpy((void*)exception_args, saved_frame, sizeof(saved_frame));
+*/
+
     load_monitor.interrupt_handler(is_process & 4 ? 0 : 1);
 }
 }

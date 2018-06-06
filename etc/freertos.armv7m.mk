@@ -35,7 +35,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 
 #ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
-ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
+ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections -funwind-tables
 
 ARCHFLAGS = -g -MD -MP -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
 
