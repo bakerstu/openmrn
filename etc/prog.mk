@@ -94,6 +94,11 @@ MKSUBDIR_OPENMRNINCLUDE=applib.mk
 
 ifneq ($(SUBDIRS),)
 include $(OPENMRNPATH)/etc/recurse.mk
+else
+all: mksubdirs
+
+mksubdirs:
+
 endif
 
 all: $(EXECUTABLE)$(EXTENTION)

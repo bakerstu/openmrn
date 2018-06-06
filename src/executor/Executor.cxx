@@ -92,7 +92,7 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
     for (; /* forever */;)
     {
         {
-            AtomicHolder hld(&headMu_);
+            AtomicHolder hld(head_mu());
             ExecutorBase *current = head_;
             while (current)
             {

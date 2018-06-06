@@ -36,10 +36,10 @@
 
 #include "EEPROMEmulation.hxx"
 
-/** Emulates EEPROM in FLASH for the STM32F0xx platform.
- * The EEPROM file size is limited to the @ref SECTOR_SIZE / 2.  For the STM32,
- * the erase size is technically a "page" boundary, so what we call SECTOR_SIZE
- * in this driver really refers to what ST calls a "page" size.
+/** Emulates EEPROM in FLASH for the STM32F0xx platform.  The EEPROM file size
+ * is limited to the @ref SECTOR_SIZE / 2.  For the STM32, the erase size is
+ * technically a "page" boundary, so the minimum value of what we call
+ * SECTOR_SIZE in this driver is what ST calls a "page" size.
  */
 class Stm32EEPROMEmulation : public EEPROMEmulation
 {

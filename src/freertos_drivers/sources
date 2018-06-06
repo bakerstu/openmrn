@@ -32,7 +32,7 @@ endif
 
 ifeq ($(TARGET),freertos.armv7m)
 SUBDIRS += mbed_lpc1768 drivers_lpc1768 tivaware lpc_chip_175x_6x \
-           stm32cubef103xb stm32cubef303x_28x_58x_98x \
+           stm32cubef103xb stm32cubef303x_28x_58x_98x stm32cubef303xe \
            cc3220sdk net_cc3220 cc3220 cc3220driverlib \
            cc32xxsdk net_cc32xx cc32xx \
            net_freertos_tcp freertos_tcp ti_grlib \

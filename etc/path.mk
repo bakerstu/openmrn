@@ -492,6 +492,7 @@ ifndef EMSDKPATH
 SEARCHPATH := \
   /opt/emscripten/default/emscripten/master \
   /opt/emscripten/emsdk_portable/emscripten/master \
+  $(wildcard /opt/emscripten/default/emsdk/emscripten/*) \
   /usr/bin
 
 
@@ -506,6 +507,7 @@ ifndef EMLLVMPATH
 SEARCHPATH := \
   /opt/emscripten/default/clang/fastcomp/build_master_64/bin \
   /opt/emscripten/default/clang/fastcomp/build_master_32/bin \
+  $(wildcard /opt/emscripten/default/emsdk/clang/*) \
   /usr/bin
 
 
