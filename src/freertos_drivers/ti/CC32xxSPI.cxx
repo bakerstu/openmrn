@@ -34,15 +34,19 @@
 #include <algorithm>
 #include <unistd.h>
 
+#include "inc/hw_gpio.h"
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
 #include "inc/hw_mcspi.h"
+#include "inc/hw_udma.h"
+#include "driverlib/gpio.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/spi.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/prcm.h"
+#include "driverlib/udma.h"
 
 #include <ti/drivers/dma/UDMACC32XX.h>
 
@@ -88,123 +92,6 @@ CC32xxSPI::CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
     }
 
     update_configuration();
-}
-
-/** Conduct multiple message transfers with one stop at the end.
- * @param msgs array of messages to transfer
- * @param num number of messages to transfer
- * @return total number of bytes transfered, -errno upon failure
- */
-__attribute__((optimize("-O3")))
-int CC32xxSPI::transfer_messages(struct spi_ioc_transfer *msgs, int num)
-{
-    HASSERT(num > 0);
-
-    unsigned count = 0;
-    int result;
-
-    for (int i = 0; i < num; ++i)
-    {
-        count += msgs[i].len;
-    }
-
-    lock_.lock();
-    bus_lock();
-    if (count < dmaThreshold_ || dmaThreshold_ == 0)
-    {
-        /* use polled mode */
-        for (int i = 0; i < num; ++i, ++msgs)
-        {
-            csAssert();
-            result = transfer(msgs);
-            if (result < 0)
-            {
-                /* something bad happened, reset the bus and bail */
-                csDeassert();
-                bus_unlock();
-                lock_.unlock();
-                return result;
-            }
-            if (msgs->cs_change)
-            {
-                if (msgs->delay_usec)
-                {
-                    usleep(msgs->delay_usec);
-                }
-                csDeassert();
-            }
-        }
-    }
-    else
-    {
-        /* use DMA */
-        dmaMsg = msgs;
-        dmaMsgNum = num;
-        SPIDmaEnable(base, SPI_RX_DMA | SPI_TX_DMA);
-        SPIIntClear(base, SPI_INT_DMARX);
-        SPIIntEnable(base, SPI_INT_DMARX);
-        config_dma(false);
-        sem_.wait();
-    }
-    bus_unlock();
-    lock_.unlock();
-
-    return count;
-}
-
-/** Method to transmit/receive the data.
- * @param msg message(s) to transact.
- * @return bytes transfered upon success, -errno upon failure
- */
-__attribute__((optimize("-O3")))
-int CC32xxSPI::transfer(struct spi_ioc_transfer *msg)
-{
-    uint32_t tx_len = msg->len;
-    uint32_t rx_len = msg->len;
-    unsigned long tx_buf = msg->tx_buf;
-    unsigned long rx_buf = msg->rx_buf;
-    long result;
-
-    /** @todo It is assumed that 8 bit per word is used, need to extend */
-    //MAP_SPIEnable(base);
-    while (tx_len || rx_len)
-    {
-        /* fill TX FIFO */
-        while (tx_len)
-        {
-            unsigned long data = tx_buf ? *((unsigned char*)tx_buf) : 0xFF;
-            result = SPIDataPutNonBlocking(base, data);
-            if (result == 0)
-            {
-                break;
-            }
-            if (tx_buf)
-            {
-                ++tx_buf;
-            }
-            --tx_len;
-        }
-
-        /* empty RX FIFO */
-        while (rx_len)
-        {
-            unsigned long data;
-            result = SPIDataGetNonBlocking(base, &data);
-            if (result == 0)
-            {
-                break;
-            }
-            if (rx_buf)
-            {
-                *((unsigned char*)rx_buf) = data;
-                ++rx_buf;
-            }
-            --rx_len;
-        }
-    }
-    //MAP_SPIDisable(base);
-
-    return msg->len;
 }
 
 /** Update the configuration of the bus.
@@ -260,44 +147,161 @@ int CC32xxSPI::update_configuration()
     return 0;
 }
 
+/** Method to transmit/receive the data.
+ * @param msg message(s) to transact.
+ * @return bytes transfered upon success, -errno upon failure
+ */
+__attribute__((optimize("-O3")))
+int CC32xxSPI::transfer(struct spi_ioc_transfer *msg)
+{
+    if (msg->len < dmaThreshold_ || dmaThreshold_ == 0)
+    {
+        uint32_t tx_len = msg->len;
+        uint32_t rx_len = msg->len;
+        unsigned long tx_buf = msg->tx_buf;
+        unsigned long rx_buf = msg->rx_buf;
+        long result;
+
+        /** @todo It is assumed that 8 bit per word is used, need to extend */
+        while (tx_len || rx_len)
+        {
+            /* fill TX FIFO */
+            while (tx_len)
+            {
+                unsigned long data = tx_buf ? *((unsigned char*)tx_buf) : 0xFF;
+                result = SPIDataPutNonBlocking(base, data);
+                if (result == 0)
+                {
+                    break;
+                }
+                if (tx_buf)
+                {
+                    ++tx_buf;
+                }
+                --tx_len;
+            }
+
+            /* empty RX FIFO */
+            while (rx_len)
+            {
+                unsigned long data;
+                result = SPIDataGetNonBlocking(base, &data);
+                if (result == 0)
+                {
+                    break;
+                }
+                if (rx_buf)
+                {
+                    *((unsigned char*)rx_buf) = data;
+                    ++rx_buf;
+                }
+                --rx_len;
+            }
+        }
+    }
+    else
+    {
+        /* use DMA */
+        config_dma(msg);
+    }
+
+    return msg->len;
+}
+
+/** Configure a DMA transaction.
+ * @param msg message to transact.
+ */
+__attribute__((optimize("-O3")))
+void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
+{
+    static uint32_t scratch_buffer __attribute__((aligned(4))) = 0;
+
+    /* use DMA */
+    void *buf;
+    uint32_t channel_control_options;
+
+    /** @todo support longer SPI transactions */
+    HASSERT(msg->len <= MAX_DMA_TRANSFER_AMOUNT);
+
+    if (msg->tx_buf)
+    {
+        channel_control_options = dmaTxConfig_;
+        buf = (void*)msg->tx_buf;
+    }
+    else
+    {
+        channel_control_options = dmaNullConfig_;
+        buf = &scratch_buffer;
+    }
+
+    /* Setup the TX transfer characteristics & buffers */
+    uDMAChannelControlSet(dmaChannelIndexTx_ | UDMA_PRI_SELECT,
+                              channel_control_options);
+#if 0
+    uDMAChannelAttributeDisable(dmaChannelIndexTx_,
+                                    UDMA_ATTR_ALTSELECT);
+#else
+    HWREG(UDMA_BASE + UDMA_O_ALTCLR) = 1 << (dmaChannelIndexTx_ & 0x1f);
+#endif
+    uDMAChannelTransferSet(dmaChannelIndexTx_ | UDMA_PRI_SELECT,
+                               UDMA_MODE_BASIC, buf,
+                               (void*)(base + MCSPI_O_TX0), msg->len);
+
+    if (msg->rx_buf)
+    {
+        channel_control_options = dmaRxConfig_;
+        buf = (void*)msg->rx_buf;
+    }
+    else
+    {
+        channel_control_options = dmaNullConfig_;
+        buf = &scratch_buffer;
+    }
+
+    /* Setup the RX transfer characteristics & buffers */
+    uDMAChannelControlSet(dmaChannelIndexRx_ | UDMA_PRI_SELECT,
+                              channel_control_options);
+#if 0
+    uDMAChannelAttributeDisable(dmaChannelIndexRx_,
+                                    UDMA_ATTR_ALTSELECT);
+#else
+    HWREG(UDMA_BASE + UDMA_O_ALTCLR) = 1 << (dmaChannelIndexRx_ & 0x1f);
+#endif
+    uDMAChannelTransferSet(dmaChannelIndexRx_ | UDMA_PRI_SELECT,
+                               UDMA_MODE_BASIC,
+                               (void*)(base + MCSPI_O_RX0), buf, msg->len);
+
+    /* Globally disables interrupts. */
+    asm("cpsid i\n");
+
+    uDMAChannelAssign(dmaChannelIndexRx_);
+    uDMAChannelAssign(dmaChannelIndexTx_);
+
+    /* Enable channels & start DMA transfers */
+    uDMAChannelEnable(dmaChannelIndexTx_);
+    uDMAChannelEnable(dmaChannelIndexRx_);
+
+    /* enable interrupts */
+    asm("cpsie i\n");
+
+    sem_.wait();
+}
+
 /** Common interrupt handler for all SPI devices.
  */
 __attribute__((optimize("-O3")))
 void CC32xxSPI::interrupt_handler()
 {
-    int woken = 0;
-#if 0
-    volatile unsigned long raw_status = SPIIntStatus(base, false);
-    volatile unsigned long mask_status = SPIIntStatus(base, true);
-
-    (void)raw_status;
-    (void)mask_status;
-#endif
     if (MAP_uDMAChannelIsEnabled(dmaChannelIndexRx_))
     {
-           /* DMA has not completed if the channel is still enabled */
-           return;
-    }
-
-    /* RX DMA channel has completed */
-    //SPIIntClear(base, SPI_INT_DMARX);
-    //MAP_SPIDisable(base);
-
-    if (dmaMsg->cs_change)
-    {
-        csDeassert();
-    }
-    if (--dmaMsgNum)
-    {
-        /* do the next transaction */
-        ++dmaMsg;
-        SPIIntClear(base, SPI_INT_DMARX);
-        config_dma(true);
+        /* DMA has not completed if the channel is still enabled */
         return;
     }
 
     SPIDmaDisable(base, SPI_RX_DMA | SPI_TX_DMA);
     SPIIntDisable(base, SPI_INT_DMARX);
+
+    int woken = 0;
     sem_.post_from_isr(&woken);
     os_isr_exit_yield_test(woken);
 }
