@@ -69,16 +69,16 @@ public:
 
         MAP_IntDisable(HW::TIMER_INTERRUPT);
         MAP_IntPrioritySet(
-            HW::TIMER_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
+            HW::TIMER_INTERRUPT, 0);
         MAP_TimerIntEnable(HW::TIMER_BASE, TIMER_TIMA_TIMEOUT);
         MAP_TimerEnable(HW::TIMER_BASE, TIMER_A);
         MAP_IntEnable(HW::TIMER_INTERRUPT);
     }
 
     /// Call this function from extern "C" void timer4a_interrupt_handler().
-    void interrupt_handler() {
+    void interrupt_handler(unsigned p) {
         MAP_TimerIntClear(HW::TIMER_BASE, TIMER_TIMA_TIMEOUT);
-        cpuload_tick();
+        cpuload_tick(p);
     }
 
     /// The singleton. implementation we delegate collecting the CPULoad
