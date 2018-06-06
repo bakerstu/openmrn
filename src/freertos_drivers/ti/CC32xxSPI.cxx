@@ -38,7 +38,6 @@
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
-#include "inc/hw_mcspi.h"
 #include "inc/hw_udma.h"
 #include "driverlib/gpio.h"
 #include "driverlib/rom.h"
@@ -74,7 +73,8 @@ CC32xxSPI::CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
     : SPI(name, cs_assert, cs_deassert, bus_lock)
     , base(base)
     , interrupt(interrupt)
-    , dmaThreshold_(dma_threshold)
+    , dmaThreshold_(dma_threshold < DMA_THRESHOLD_BYTES ? dma_threshold :
+                                                          DMA_THRESHOLD_BYTES)
     , dmaChannelIndexTx_(dma_channel_index_tx)
     , dmaChannelIndexRx_(dma_channel_index_rx)
     , sem_()
@@ -154,50 +154,87 @@ int CC32xxSPI::update_configuration()
 __attribute__((optimize("-O3")))
 int CC32xxSPI::transfer(struct spi_ioc_transfer *msg)
 {
-    if (msg->len < dmaThreshold_ || dmaThreshold_ == 0)
+    /** @todo It is assumed that 8 bit per word is used, need to extend */
+    if (msg->len < dmaThreshold_)
     {
-        uint32_t tx_len = msg->len;
-        uint32_t rx_len = msg->len;
-        unsigned long tx_buf = msg->tx_buf;
-        unsigned long rx_buf = msg->rx_buf;
-        long result;
+        uint8_t *tx_buf = msg->tx_buf ? (uint8_t*)msg->tx_buf : dummyBuf;
+        uint8_t *rx_buf = msg->rx_buf ? (uint8_t*)msg->rx_buf : dummyBuf;
+        unsigned long data;
 
-        /** @todo It is assumed that 8 bit per word is used, need to extend */
-        while (tx_len || rx_len)
+#if 0
+        uint32_t len = msg->len < FIFO_SIZE_BYTES ? msg->len : FIFO_SIZE_BYTES;
+        SPIFIFOLevelSet(base, 1, len);
+        SPIIntClear(base, SPI_INT_RX_FULL);
+
+        for (unsigned i = 0; i < len; ++i, ++tx_buf)
         {
-            /* fill TX FIFO */
-            while (tx_len)
-            {
-                unsigned long data = tx_buf ? *((unsigned char*)tx_buf) : 0xFF;
-                result = SPIDataPutNonBlocking(base, data);
-                if (result == 0)
-                {
-                    break;
-                }
-                if (tx_buf)
-                {
-                    ++tx_buf;
-                }
-                --tx_len;
-            }
+            data = tx_buf ? *((unsigned char*)tx_buf) : 0xFF;
+            SPIDataPutNonBlocking(base, data);
+        }
 
-            /* empty RX FIFO */
-            while (rx_len)
+        if (msg->len > 4)
+        {
+            SPIIntEnable(base, SPI_INT_RX_FULL);
+            sem_.wait();
+
+            while (len--)
             {
-                unsigned long data;
-                result = SPIDataGetNonBlocking(base, &data);
-                if (result == 0)
-                {
-                    break;
-                }
+                SPIDataGetNonBlocking(base, &data);
                 if (rx_buf)
                 {
                     *((unsigned char*)rx_buf) = data;
                     ++rx_buf;
                 }
-                --rx_len;
             }
         }
+        else
+        {
+            long result;
+            /* empty RX FIFO */
+            while (len)
+            {
+                result = SPIDataGetNonBlocking(base, &data);
+                if (result != 0)
+                {
+                    --len;
+                    if (rx_buf)
+                    {
+                        *((unsigned char*)rx_buf) = data;
+                        ++rx_buf;
+                    }
+                }
+            }
+        }
+#else
+        uint32_t tx_len = msg->len;
+        uint32_t rx_len = msg->len;
+
+        SPIDataPut(base, *tx_buf++);
+        --tx_len;
+
+        while (tx_len || rx_len)
+        {
+            /* fill TX FIFO */
+            if (tx_len)
+            {
+                if (SPIDataPutNonBlocking(base, *tx_buf) != 0)
+                {
+                    --tx_len;
+                    ++tx_buf;
+                }
+            }
+
+            /* empty RX FIFO */
+            if (rx_len)
+            {
+                if (SPIDataGetNonBlocking(base, &data) != 0)
+                {
+                    --rx_len;
+                    *rx_buf++ = data;
+                }
+            }
+        }
+#endif
     }
     else
     {
@@ -277,6 +314,11 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
     uDMAChannelAssign(dmaChannelIndexRx_);
     uDMAChannelAssign(dmaChannelIndexTx_);
 
+    SPIFIFOLevelSet(base, 1, 1);
+    SPIDmaEnable(base, SPI_RX_DMA | SPI_TX_DMA);
+    SPIIntClear(base, SPI_INT_DMARX);
+    SPIIntEnable(base, SPI_INT_DMARX);
+
     /* Enable channels & start DMA transfers */
     uDMAChannelEnable(dmaChannelIndexTx_);
     uDMAChannelEnable(dmaChannelIndexRx_);
@@ -292,14 +334,21 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
 __attribute__((optimize("-O3")))
 void CC32xxSPI::interrupt_handler()
 {
-    if (MAP_uDMAChannelIsEnabled(dmaChannelIndexRx_))
+    if (SPIIntStatus(base, true) & SPI_INT_RX_FULL)
     {
-        /* DMA has not completed if the channel is still enabled */
-        return;
+        SPIIntDisable(base, SPI_INT_RX_FULL);
     }
+    else
+    {
+        if (uDMAChannelIsEnabled(dmaChannelIndexRx_))
+        {
+            /* DMA has not completed if the channel is still enabled */
+            return;
+        }
 
-    SPIDmaDisable(base, SPI_RX_DMA | SPI_TX_DMA);
-    SPIIntDisable(base, SPI_INT_DMARX);
+        SPIDmaDisable(base, SPI_RX_DMA | SPI_TX_DMA);
+        SPIIntDisable(base, SPI_INT_DMARX);
+    }
 
     int woken = 0;
     sem_.post_from_isr(&woken);

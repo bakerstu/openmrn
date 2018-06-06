@@ -42,6 +42,7 @@
 
 #include "SPI.hxx"
 
+#include "inc/hw_mcspi.h"
 
 /** Specialization of Serial SPI driver for CC32xx devices.
  */
@@ -65,7 +66,8 @@ public:
      */
     CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
             ChipSelectMethod cs_assert, ChipSelectMethod cs_deassert,
-            OSMutex *bus_lock = nullptr, size_t dma_threshold = 0,
+            OSMutex *bus_lock = nullptr,
+            size_t dma_threshold = DMA_THRESHOLD_BYTES,
             uint32_t dma_channel_index_tx = UDMA_CH7_GSPI_TX,
             uint32_t dma_channel_index_rx = UDMA_CH6_GSPI_RX);
 
@@ -81,6 +83,8 @@ public:
     void interrupt_handler();
 
 private:
+    static constexpr size_t DMA_THRESHOLD_BYTES = 32;
+
     /** Maximum number of bytes transferred in a single DMA transaction */
     static constexpr size_t MAX_DMA_TRANSFER_AMOUNT = 1024;
 
@@ -126,6 +130,80 @@ private:
      */
     void config_dma(struct spi_ioc_transfer *msg);
 
+    long SPIDataGetNonBlocking(unsigned long ulBase, unsigned long *pulData)
+    {
+        unsigned long ulRegVal;
+
+        //
+        // Read register status register
+        //
+        ulRegVal = HWREG(ulBase + MCSPI_O_CH0STAT);
+
+        //
+        // Check is data is available
+        //
+        if(ulRegVal & MCSPI_CH0STAT_RXS)
+        {
+            *pulData = HWREG(ulBase + MCSPI_O_RX0);
+            return(1);
+        }
+
+        return(0);
+    }
+
+    void SPIDataGet(unsigned long ulBase, unsigned long *pulData)
+    {
+        //
+        // Wait for Rx data
+        //
+        while(!(HWREG(ulBase + MCSPI_O_CH0STAT) & MCSPI_CH0STAT_RXS))
+        {
+        }
+
+        //
+        // Read the value
+        //
+        *pulData = HWREG(ulBase + MCSPI_O_RX0);
+    }
+
+    long SPIDataPutNonBlocking(unsigned long ulBase, unsigned long ulData)
+    {
+        unsigned long ulRegVal;
+
+        //
+        // Read status register
+        //
+        ulRegVal = HWREG(ulBase + MCSPI_O_CH0STAT);
+
+        //
+        // Write value into Tx register/FIFO
+        // if space is available
+        //
+        if(ulRegVal & MCSPI_CH0STAT_TXS)
+        {
+            HWREG(ulBase + MCSPI_O_TX0) = ulData;
+            return(1);
+        }
+
+        return(0);
+    }
+
+    void SPIDataPut(unsigned long ulBase, unsigned long ulData)
+    {
+        //
+        // Wait for space in FIFO
+        //
+        while(!(HWREG(ulBase + MCSPI_O_CH0STAT)&MCSPI_CH0STAT_TXS))
+        {
+        }
+
+        //
+        // Write the data
+        //
+        HWREG(ulBase + MCSPI_O_TX0) = ulData;
+    }
+
+
     unsigned long base; /**< base address of this device */
     unsigned long clock; /**< clock rate supplied to the module */
     unsigned long interrupt; /**< interrupt of this device */
@@ -135,6 +213,9 @@ private:
 
     /** Semaphore to wakeup task level from ISR */
     OSSem sem_;
+
+    /** dummy buffer for polled mode */
+    uint8_t dummyBuf[DMA_THRESHOLD_BYTES];
 
     /** Default constructor.
      */
