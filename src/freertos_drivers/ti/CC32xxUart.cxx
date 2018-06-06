@@ -245,11 +245,32 @@ void CC32xxUart::interrupt_handler()
     os_isr_exit_yield_test(woken);
 }
 
+extern volatile unsigned current_interrupt;
+
+class SetInterrupt {
+public:
+    SetInterrupt(unsigned new_value) {
+        old_value = current_interrupt;
+        current_interrupt = new_value;
+    }
+
+    ~SetInterrupt() {
+        current_interrupt = old_value;
+    }
+
+private:
+    unsigned old_value;
+};
+
+
+
+
 extern "C" {
 /** UART0 interrupt handler.
  */
 void uart0_interrupt_handler(void)
 {
+    SetInterrupt si(9);
     if (instances[0])
     {
         instances[0]->interrupt_handler();
@@ -260,6 +281,7 @@ void uart0_interrupt_handler(void)
  */
 void __attribute__((__weak__)) uart1_interrupt_handler(void)
 {
+    SetInterrupt si(10);
     if (instances[1])
     {
         instances[1]->interrupt_handler();

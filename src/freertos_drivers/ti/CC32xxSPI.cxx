@@ -302,12 +302,31 @@ void CC32xxSPI::interrupt_handler()
     os_isr_exit_yield_test(woken);
 }
 
+
+extern volatile unsigned current_interrupt;
+
+class SetInterrupt {
+public:
+    SetInterrupt(unsigned new_value) {
+        old_value = current_interrupt;
+        current_interrupt = new_value;
+    }
+
+    ~SetInterrupt() {
+        current_interrupt = old_value;
+    }
+
+private:
+    unsigned old_value;
+};
+
 extern "C" {
 /** SPI0 interrupt handler.
  */
 __attribute__((optimize("-O3")))
 void spi0_interrupt_handler(void)
 {
+    SetInterrupt si(11);
     if (instances[0])
     {
         instances[0]->interrupt_handler();
