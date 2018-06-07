@@ -87,7 +87,7 @@ volatile unsigned* exception_args;
 volatile unsigned is_process;
 volatile unsigned saved_sp;
 unsigned saved_frame[8];
-void timer4a_interrupt_handler(void)
+void __attribute__((__naked__)) timer4a_interrupt_handler(void)
 {
     __asm volatile
     (
@@ -99,7 +99,12 @@ void timer4a_interrupt_handler(void)
         " str r0, [r1] \n"
         " ldr r1, =is_process \n"
         " str lr, [r1] \n"
+        " ldr r0,  =load_monitor_interrupt_handler  \n"
+        " bx  r0  \n"
         : : : "r0", "r1" );
+}
+
+void load_monitor_interrupt_handler() {
     fill_phase2_vrs(exception_args);
 /*
     //memcpy(saved_frame, (void*)exception_args, sizeof(saved_frame));
@@ -124,6 +129,9 @@ void timer4a_interrupt_handler(void)
 
     load_monitor.interrupt_handler(is_process & 4 ? 0 : 1);
 }
+
+
+
 }
 
 class CpuLoadLog : public StateFlowBase
