@@ -514,6 +514,11 @@ public:
     Result next()
     {
         AtomicHolder h(lock());
+        return next_locked();
+    }
+
+    Result next_locked()
+    {
         for (unsigned i = 0; i < ITEMS; ++i)
         {
             QMember *result = list[i].next_locked().item;

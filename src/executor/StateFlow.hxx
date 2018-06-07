@@ -1230,7 +1230,7 @@ protected:
     void send(BufferBase *msg, unsigned priority = UINT_MAX)
     {
         AtomicHolder h(this);
-        queue_.insert(msg, priority);
+        queue_.insert_locked(msg, priority);
         queueSize_ = queue_.size();
         if (isWaiting_)
         {
@@ -1250,7 +1250,7 @@ protected:
      fomr the queue. */
     QMember *queue_next(unsigned *priority) OVERRIDE
     {
-        typename QueueType::Result r = queue_.next();
+        typename QueueType::Result r = queue_.next_locked();
         if (r.item)
         {
             *priority = r.index;
