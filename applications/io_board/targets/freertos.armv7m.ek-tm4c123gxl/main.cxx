@@ -48,7 +48,6 @@
 #include "freertos_drivers/ti/TivaCpuLoad.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/PersistentGPIO.hxx"
-#include "freertos_drivers/common/cpu_profile.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
 
@@ -82,57 +81,10 @@ openlcb::SimpleCanStack stack(NODE_ID);
 SerialLoggingServer log_server(stack.service(), "/dev/ser0");
 
 TivaCpuLoad<TivaCpuLoadDefHw> load_monitor;
-extern "C" {
-volatile unsigned* exception_args;
-volatile unsigned is_process;
-volatile unsigned saved_sp;
-unsigned saved_frame[8];
-void __attribute__((__naked__)) timer4a_interrupt_handler(void)
-{
-    __asm volatile
-    (
-        " tst   lr, #4               \n"
-        " ite   eq                   \n"
-        " mrseq r0, msp              \n"
-        " mrsne r0, psp              \n"
-        " ldr r1, =exception_args \n"
-        " str r0, [r1] \n"
-        " ldr r1, =is_process \n"
-        " str lr, [r1] \n"
-        " ldr r0,  =load_monitor_interrupt_handler  \n"
-        " bx  r0  \n"
-        : : : "r0", "r1" );
-}
 
-void load_monitor_interrupt_handler() {
-    fill_phase2_vrs(exception_args);
-/*
-    //memcpy(saved_frame, (void*)exception_args, sizeof(saved_frame));
-    __asm volatile (
-        " ldr r1, =saved_sp     \n"
-        " str sp, [r1]          \n"
-        " ldr r1, =exception_args     \n"
-        " ldr sp, [r1]       \n"
-        " ldr lr, [sp, 20]   \n"
-//        " add sp, 32   \n"
-        " push {r4, lr}  \n"
-        );*/
-    take_cpu_trace();
+#include "freertos_drivers/common/cpu_profile.hxx"
 
-/*    __asm volatile (
-        " pop {r4, lr}  \n"
-        " ldr r1, =saved_sp     \n"
-        " ldr sp, [r1]          \n"
-        );
-        //memcpy((void*)exception_args, saved_frame, sizeof(saved_frame));
-*/
-
-    load_monitor.interrupt_handler(is_process & 4 ? 0 : 1);
-}
-
-
-
-}
+DEFINE_CPU_PROFILE_INTERRUPT_HANDLER(timer4a_interrupt_handler);
 
 class CpuLoadLog : public StateFlowBase
 {

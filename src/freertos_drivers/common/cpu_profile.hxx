@@ -246,4 +246,43 @@ void take_cpu_trace()
     }
 }
 
+bool enable_profiling = 0;
+
+volatile unsigned* exception_args;
+volatile unsigned is_process;
+volatile unsigned saved_sp;
+
+extern "C" {
+void load_monitor_interrupt_handler()
+{
+    if (enable_profiling)
+    {
+        fill_phase2_vrs(exception_args);
+        take_cpu_trace();
+    }
+    load_monitor.interrupt_handler(is_process & 4 ? 0 : 1);
+}
+}
+
+#define DEFINE_CPU_PROFILE_INTERRUPT_HANDLER(irq_handler_name)                 \
+    extern "C"                                                                 \
+    {                                                                          \
+        void __attribute__((__naked__)) irq_handler_name(void)                 \
+        {                                                                      \
+            __asm volatile(" tst   lr, #4               \n"                    \
+                           " ite   eq                   \n"                    \
+                           " mrseq r0, msp              \n"                    \
+                           " mrsne r0, psp              \n"                    \
+                           " ldr r1, =exception_args \n"                       \
+                           " str r0, [r1] \n"                                  \
+                           " ldr r1, =is_process \n"                           \
+                           " str lr, [r1] \n"                                  \
+                           " ldr r0,  =load_monitor_interrupt_handler  \n"     \
+                           " bx  r0  \n"                                       \
+                           :                                                   \
+                           :                                                   \
+                           : "r0", "r1");                                      \
+        }                                                                      \
+    }
+
 #endif // _FREERTOS_DRIVERS_COMMON_CPU_PROFILE_HXX_
