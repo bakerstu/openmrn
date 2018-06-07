@@ -98,7 +98,7 @@ protected:
     unsigned int busOffCount; /**< bus-off count */
     unsigned int softErrorCount; /**< soff error count */
 
-private:
+protected:
     /** Read from a file or device.
     * @param file file reference for this device
     * @param buf location to place read data
@@ -115,6 +115,7 @@ private:
     */
     ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
 
+private:
     /** Device select method. Default impementation returns true.
      * @param file reference to the file
      * @param mode FREAD for read active, FWRITE for write active, 0 for
