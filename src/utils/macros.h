@@ -47,7 +47,7 @@ using std::string;
 using std::pair;
 #endif
 
-#define IGNORE_HASSERT
+//#define IGNORE_HASSERT
 
 #include <stdlib.h>   // for abort
 
@@ -94,7 +94,9 @@ extern const char* g_death_file;
 #else
 
 #define HASSERT(x) do { if (!(x)) { RECORD_DEATH(); abort(); } } while(0)
+#define HDASSERT(x) HASSERT(x)
 #define HHASSERT(x) HASSERT(x)
+#define HXASSERT(x) HASSERT(x)
 
 #endif
 
@@ -125,6 +127,8 @@ extern const char* g_death_file;
 #define HASSERT(x) do { if (!(x)) { fprintf(stderr, "Assertion failed in file " __FILE__ " line %d: assert(" #x ")", __LINE__); g_death_file = __FILE__; g_death_lineno = __LINE__; abort();} } while(0)
 
 #define HHASSERT(x) HASSERT(x)
+#define HDASSERT(x) HASSERT(x)
+#define HXASSERT(x) HASSERT(x)
 
 #else
 /// Checks that the value of expression x is true, else terminates the current
@@ -132,6 +136,8 @@ extern const char* g_death_file;
 /// @param x is the assertion expression that should evaluate to true.
 #define HASSERT(x) do { assert(x); } while(0)
 #define HHASSERT(x) HASSERT(x)
+#define HDASSERT(x) HASSERT(x)
+#define HXASSERT(x) HASSERT(x)
 
 #endif
 
@@ -153,7 +159,8 @@ extern const char* g_death_file;
 /** Debug assertion facility. Will terminate the program if the program was
    compiled without NDEBUG symbol.
  */
-#define DASSERT(x) do { assert(x); } while(0) //HASSERT(x)
+//#define DASSERT(x) do { assert(x); } while(0) //HASSERT(x)
+#define DASSERT(x) HXASSERT(x)
 
 #endif
 
