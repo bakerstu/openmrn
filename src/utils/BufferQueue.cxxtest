@@ -50,8 +50,10 @@ TEST(QTest, insert_assert_2)
     Item qm2;
     q.insert(&qm);
     q.insert(&qm2);
-
+    
+#ifdef NDEBUG
     EXPECT_DEATH(q.insert(&qm), "next == nullptr");
+#endif
 }
 
 TEST(QTest, insert_assert_1)
@@ -65,7 +67,9 @@ TEST(QTest, insert_assert_1)
     Item qm;
     q.insert(&qm);
 
+#ifdef NDEBUG
     EXPECT_DEATH(q.insert(&qm), "item != tail");
+#endif
 }
 
 TEST(QTest, all)

@@ -442,7 +442,8 @@ protected:
     StateFlowPipeTest()
     {
         int pipefd[2];
-        HASSERT(::pipe2(pipefd, O_NONBLOCK) == 0);
+        auto ret = ::pipe2(pipefd, O_NONBLOCK);
+        HASSERT(ret == 0);
         fdRecv_ = pipefd[0];
         fdSend_ = pipefd[1];
     }

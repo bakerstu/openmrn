@@ -208,7 +208,7 @@ public:
             HASSERT(node);
             node->key = key;
             node->value = (Value)0;
-            HASSERT(RB_INSERT(tree, &head, node) == NULL);
+            HHASSERT(RB_INSERT(tree, &head, node) == NULL);
             it = Iterator(this, node);
         }
         return (*it).second;

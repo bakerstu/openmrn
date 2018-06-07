@@ -70,6 +70,7 @@ TEST_F(BarrierTests, AlmostDone) {
   EXPECT_FALSE(parent_.is_done());
 }
 
+#ifndef IGNORE_HASSERT
 TEST(BarrierDies, WhenFailedToCallmaybe_done) {
   EXPECT_DEATH({
       TestNotifiable parent;
@@ -78,6 +79,7 @@ TEST(BarrierDies, WhenFailedToCallmaybe_done) {
       c->notify();
     }, "!count_");
 }
+#endif
 
 TEST(CrashDies, EveryTime) {
   EXPECT_DEATH({

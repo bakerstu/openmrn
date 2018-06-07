@@ -32,6 +32,7 @@ TEST(SingletonTest, CreateAndGetMultiple) {
   }
 }
 
+#ifndef IGNORE_HASSERT
 TEST(SingletonTest, DieEmptyRef) {
   MyClass* p;
   EXPECT_DEATH({
@@ -57,6 +58,7 @@ TEST(SingletonTest, DieMultipleInstances) {
     }, "instance_ == nullptr");
   EXPECT_NE(p, nullptr);
 }
+#endif // ignore hassert
 
 int appl_main(int argc, char* argv[]) {
   testing::InitGoogleTest(&argc, argv);

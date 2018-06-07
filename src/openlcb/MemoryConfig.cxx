@@ -104,7 +104,8 @@ void FileMemorySpace::ensure_file_open()
     if (fileSize_ == AUTO_LEN)
     {
         struct stat buf;
-        HASSERT(fstat(fd_, &buf) >= 0);
+        auto ret = fstat(fd_, &buf);
+        HASSERT(ret >= 0);
         fileSize_ = buf.st_size;
     }
 }

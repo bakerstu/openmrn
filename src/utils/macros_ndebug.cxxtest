@@ -10,11 +10,13 @@ TEST(AssertTest, AssertSuccess) {
     HASSERT(true);
 }
 
+#ifndef IGNORE_HASSERT
 TEST(AssertTest, AssertFailed) {
     EXPECT_DEATH({
-            HASSERT(false);
+            HHASSERT(false);
     }, "false");
 }
+#endif
 
 TEST(AssertTest, DAssertSuccessNonDebug) {
     DASSERT(true);

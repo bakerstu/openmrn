@@ -81,15 +81,15 @@ public:
 #elif !defined(__WINNT__)
         // Blocks SIGUSR1 in the signal mask of the current thread.
         sigset_t usrmask;
-        HASSERT(!sigemptyset(&usrmask));
-        HASSERT(!sigaddset(&usrmask, WAKEUP_SIG));
-        HASSERT(!sigprocmask(SIG_BLOCK, &usrmask, &origMask_));
-        HASSERT(!sigdelset(&origMask_, WAKEUP_SIG));
+        HHASSERT(!sigemptyset(&usrmask));
+        HHASSERT(!sigaddset(&usrmask, WAKEUP_SIG));
+        HHASSERT(!sigprocmask(SIG_BLOCK, &usrmask, &origMask_));
+        HHASSERT(!sigdelset(&origMask_, WAKEUP_SIG));
         struct sigaction action;
         action.sa_handler = &empty_signal_handler;
-        HASSERT(!sigemptyset(&action.sa_mask));
+        HHASSERT(!sigemptyset(&action.sa_mask));
         action.sa_flags = 0;
-        HASSERT(!sigaction(WAKEUP_SIG, &action, nullptr));
+        HHASSERT(!sigaction(WAKEUP_SIG, &action, nullptr));
 #endif
     }
 

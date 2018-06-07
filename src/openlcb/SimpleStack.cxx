@@ -200,7 +200,8 @@ int SimpleCanStackBase::create_config_file_if_needed(
     }
     ::close(fd);
     fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
-    HASSERT(fstat(fd, &statbuf) == 0);
+    auto ret = fstat(fd, &statbuf);
+    HASSERT(ret == 0);
     if (statbuf.st_size < (ssize_t)file_size) {
         extend = true;
     }

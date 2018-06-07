@@ -47,6 +47,8 @@ using std::string;
 using std::pair;
 #endif
 
+#define IGNORE_HASSERT
+
 #include <stdlib.h>   // for abort
 
 #if defined(__EMSCRIPTEN__) 
@@ -81,8 +83,17 @@ extern const char* g_death_file;
    An example would be to check a pointer being not-NULL before dereferencing
    it. The resulting fault is typically much harder to debug than an assert.
  */
-#define HASSERT(x) do { if (!(x)) { RECORD_DEATH(); abort(); } } while(0)
+#ifdef IGNORE_HASSERT
 
+#define HASSERT(x) do { ; } while(0)
+#define HHASSERT(x) do { (void)(x); } while(0)
+
+#else
+
+#define HASSERT(x) do { if (!(x)) { RECORD_DEATH(); abort(); } } while(0)
+#define HHASSERT(x) HASSERT(x)
+
+#endif
 
 #define DIE(MSG) abort()
 
@@ -100,13 +111,23 @@ extern const char* g_death_file;
 #include <assert.h>
 #include <stdio.h>
 
-#ifdef NDEBUG
+#ifdef IGNORE_HASSERT
+
+#define HASSERT(x) do { ; } while(0)
+#define HHASSERT(x) do { (void)(x); } while(0)
+
+#elif defined(NDEBUG)
 #define HASSERT(x) do { if (!(x)) { fprintf(stderr, "Assertion failed in file " __FILE__ " line %d: assert(" #x ")", __LINE__); g_death_file = __FILE__; g_death_lineno = __LINE__; abort();} } while(0)
+
+#define HHASSERT(x) HASSERT(x)
+
 #else
 /// Checks that the value of expression x is true, else terminates the current
 /// process.
 /// @param x is the assertion expression that should evaluate to true.
 #define HASSERT(x) do { assert(x); } while(0)
+#define HHASSERT(x) HASSERT(x)
+
 #endif
 
 /// Unconditionally terminates the current process with a message.
@@ -127,10 +148,11 @@ extern const char* g_death_file;
 /** Debug assertion facility. Will terminate the program if the program was
    compiled without NDEBUG symbol.
  */
-#define DASSERT(x) HASSERT(x)
+#define DASSERT(x) do { assert(x); } while(0) //HASSERT(x)
 
 #endif
 
+//#define ASSERT_RESULT( expr, test ) HASSERT(expr test)
 
 /**
    Removes default copy-constructor and assignment added by C++.
