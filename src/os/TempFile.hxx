@@ -58,7 +58,7 @@ public:
     dirName_ = "./openmrntmpdirXXXXXX";
 #endif
     dirName_.c_str();
-    HASSERT(mkdtemp(&dirName_[0]));
+    HHASSERT(mkdtemp(&dirName_[0]));
   }
 #endif
 

@@ -90,7 +90,7 @@ public:
                 it->second.segmenter_.frame_buffer(&ret);
                 LOG(VERBOSE, "sending frame: %s", ret.c_str());
                 auto *cb = deliveryFlow_.alloc();
-                HASSERT(it->second.segmenter_.parse_frame_to_output(
+                HHASSERT(it->second.segmenter_.parse_frame_to_output(
                     cb->data()->mutable_frame()));
                 cb->data()->skipMember_ = reinterpret_cast<
                     FlowInterface<Buffer<HubContainer<CanFrameContainer>>> *>(
