@@ -24,21 +24,21 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file TivaCanNullTx.hxx
- * This file implements a test driver for CAN on Tiva.
+ * @file BenchmarkCan.hxx
+ * This file implements a fake CAN driver used for benchmarking the stack.
  *
  * @author Stuart W. Baker
  * @date 6 June 2018
  */
 
-#ifndef _FREERTOS_DRIVERS_TI_TIVACANNULLTX_HXX_
-#define _FREERTOS_DRIVERS_TI_TIVACANNULLTX_HXX_
+#ifndef _FREERTOS_DRIVERS_COMMON_BENCHMARKCAN_HXX_
+#define _FREERTOS_DRIVERS_COMMON_BENCHMARKCAN_HXX_
 
-#include "TivaDev.hxx"
+#include "freertos_driver/common/Can.hxx"
 
-/** Specialization of Tiva CAN driver for testing purposes.
+/** Generic CAN driver for throughput testing purposes.
  */
-class TivaCanNullTx : public TivaCan
+class BenchmarkCan : public Can, private Atomic
 {
 public:
     /** Constructor.
@@ -46,48 +46,52 @@ public:
      * @param base base address of this device
      * @param interrupt interrupt number of this device
      */
-    TivaCanNullTx(const char *name, unsigned long base, uint32_t interrupt)
-        : TivaCan(name, base, interrupt)
+    BenchmarkCan(const char *name)
+        : Can(name)
         , readTimeFirst_(0)
-        , readTime10000_(0)
+        , readTimeLast_(0)
         , readCount_(0)
     {
     }
 
     /** Destructor.
      */
-    ~TivaCanNullTx()
+    ~BenchmarkCan()
     {
+    }
+
+    /** Start a benchmarking run. Causes the same frame from being injected
+     * count times as if it was received from the CAN-bus.
+     * @param frame is the frame to inject to the stack.
+     * @param count how many copies of this frame to inject.
+     */
+    void start_benchmark(const struct can_frame *frame, unsigned count)
+    {
+        bool need_signal = false;
+        {
+            AtomicHolder h(this);
+            packet_ = *frame;
+            readCount_ = count;
+            need_signal = refill_locked();
+        }
+        if (need_signal)
+        {
+            rxBuf->signal_condition();
+        }
     }
 
     /** Get the latest performance time stamp.
-     * @param count the number of messages that have been received in total
-     * @return if count < @ref MESSAGE_COUNT, the time since the first message
-     *         was received, else, the time between the first message received
-     *         and the 10,000th message received.
+     * @param count the number of messages still left from the performance run,
+     * zero if the performance run is completed.
+     * @return the time when the last message was read by the stack.
      */
-    long long get_timestamp_and_count(unsigned *count)
+    long long get_timestamp(unsigned *count)
     {
-        long long result;
-
-        portENTER_CRITICAL();
         *count = readCount_;
-        if (readCount_ >= MESSAGE_COUNT)
-        {
-            result = readTime10000_ - readTimeFirst_;
-        }
-        else
-        {
-            result = OSTime::get_monotonic() - readTimeFirst_;
-        }
-        portEXIT_CRITICAL();
-
-        return result;
+        return readTimeLast_;
     }
 
 private:
-    static constexpr size_t MESSAGE_COUNT = 10000;
-
     /** Read from a file or device.
     * @param file file reference for this device
     * @param buf location to place read data
@@ -99,21 +103,22 @@ private:
     {
         ssize_t result = Can::read(file, buf, count);
 
+        bool need_signal = false;
         if (result > 0)
         {
-            if (readCount_ == 0)
-            {
-                readTimeFirst_ = OSTime::get_monotonic();
+            AtomicLock lock(this);
+            readTimeLast_ = OSTime::get_monotonic();
+            unsigned num_frames = result / sizeof(struct can_frame);
+            if (readCount_ > num_frames) {
+                readCount_ -= num_frames;
+            } else {
+                readCount_ = 0;
             }
-
-            readCount_ += result / sizeof(struct can_frame);
-
-            if (readCount_ >= MESSAGE_COUNT && readTime10000_ == 0)
-            {
-                readTime10000_ = OSTime::get_monotonic();
-            }
+            need_signal = refill_locked();
         }
-
+        if (need_signal) {
+            rxBuf->signal_condition();
+        }
         return result;
     }
 
@@ -126,14 +131,29 @@ private:
     */
     ssize_t write(File *file, const void *buf, size_t count) override
     {
-        /* drop all the write data on the floor */
+        /* drop all the written data on the floor */
         return count;
     }
 
-    long long readTimeFirst_; /**< timestamp of first read in nsec */
-    long long readTime10000_; /**< timestamp of 10,000th read in nsec */
+    /** Refills the rxBuf from the packet_ and readCount. Must be called within
+     * a critical section lock. @return true if the condition needs to be
+     * signaled. */
+    bool refill_locked() {
+        bool need_signal = false;
+        while ((rxBuf->pending() < readCount_) && (rxBuf->space()))
+        {
+            if (rxBuf->pending() == 0)
+            {
+                need_signal = true;
+            }
+            rxBuf->put(&packet_, 1);
+        }
+        return need_signal;
+    }
 
-    size_t readCount_; /**< running count of all the reads */
+    struct can_frame packet_; /**< packet to inject. */
+    long long readTimeLast_; /**< timestamp of last read in OS time */
+    size_t readCount_; /**< count of packets still to inject */
 
     DISALLOW_COPY_AND_ASSIGN(TivaCanNullTx);
 };
