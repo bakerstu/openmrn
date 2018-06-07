@@ -130,7 +130,14 @@ int strace_len;
 _Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
 {
     void *ip = (void *)_Unwind_GetIP(context);
-    if (strace_len > 0 && stacktrace[strace_len - 1] == ip)
+    if (strace_len == 0)
+    {
+        //stacktrace[strace_len++] = ip;
+        // By taking the beginning of the function for the immediate interrupt
+        // we will attempt to coalesce more traces.
+        //ip = (void *)_Unwind_GetRegionStart(context);
+    }
+    else if (stacktrace[strace_len - 1] == ip)
     {
         return _URC_END_OF_STACK;
     }
