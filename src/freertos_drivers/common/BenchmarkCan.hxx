@@ -34,7 +34,8 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_BENCHMARKCAN_HXX_
 #define _FREERTOS_DRIVERS_COMMON_BENCHMARKCAN_HXX_
 
-#include "freertos_driver/common/Can.hxx"
+#include "freertos_drivers/common/Can.hxx"
+#include "utils/Atomic.hxx"
 
 /** Generic CAN driver for throughput testing purposes.
  */
@@ -48,7 +49,6 @@ public:
      */
     BenchmarkCan(const char *name)
         : Can(name)
-        , readTimeFirst_(0)
         , readTimeLast_(0)
         , readCount_(0)
     {
@@ -106,7 +106,7 @@ private:
         bool need_signal = false;
         if (result > 0)
         {
-            AtomicLock lock(this);
+            AtomicHolder lock(this);
             readTimeLast_ = OSTime::get_monotonic();
             unsigned num_frames = result / sizeof(struct can_frame);
             if (readCount_ > num_frames) {
@@ -151,11 +151,15 @@ private:
         return need_signal;
     }
 
+    void enable() override {}
+    void disable() override {}
+    void tx_msg() override {}
+
     struct can_frame packet_; /**< packet to inject. */
     long long readTimeLast_; /**< timestamp of last read in OS time */
     size_t readCount_; /**< count of packets still to inject */
 
-    DISALLOW_COPY_AND_ASSIGN(TivaCanNullTx);
+    DISALLOW_COPY_AND_ASSIGN(BenchmarkCan);
 };
 
-#endif /* _FREERTOS_DRIVERS_TI_TIVACANNULLTX_HXX_ */
+#endif /* _FREERTOS_DRIVERS_COMMON_BENCHMARKCAN_HXX_ */
