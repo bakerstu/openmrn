@@ -35,7 +35,7 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
 
 #ARCHOPTIMIZATION = -D__NEWLIB__
 #ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
-ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections -funwind-tables
+ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections -funwind-tables
 
 ARCHFLAGS = -g -MD -MP -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
 
@@ -46,7 +46,7 @@ endif
 
 ASFLAGS = -c $(ARCHFLAGS)
 
-CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
+CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas -Wno-unused-variable -Wno-unused-but-set-variable \
              -fdata-sections -ffunction-sections \
              -fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
              -D__FreeRTOS__ -DGCC_ARMCM3 -D_REENT_SMALL

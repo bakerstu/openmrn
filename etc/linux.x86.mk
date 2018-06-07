@@ -25,7 +25,7 @@ ENDGROUP := -Wl,--end-group
 
 ARCHOPTIMIZATION = -g -fdata-sections -ffunction-sections
 
-CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE
+CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE -Wno-unused-variable -Wno-unused-but-set-variable
 
 CFLAGS = $(CSHAREDFLAGS) -std=gnu99
 

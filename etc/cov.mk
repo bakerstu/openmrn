@@ -16,7 +16,7 @@ ENDGROUP := -Wl,--end-group
 
 ARCHOPTIMIZATION = -g -O0 -fprofile-arcs -ftest-coverage
 
-CSHAREDFLAGS = -c -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/') $(ARCHOPTIMIZATION) $(INCLUDES) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE -DGTEST
+CSHAREDFLAGS = -c -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/') $(ARCHOPTIMIZATION) $(INCLUDES) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE -DGTEST -Wno-unused-variable -Wno-unused-but-set-variable
 
 CFLAGS = $(CSHAREDFLAGS) -std=gnu99
 
