@@ -429,8 +429,7 @@ StateFlowBase::Action DispatchFlowBase<NUM_PRIO>::iterate()
             {
                 // This was the first we found.
                 lastHandlerToCall_ = handlers_[currentIndex_].handler;
-                ++currentIndex_;
-                return again();
+                continue;
             }            
             break;
         }
