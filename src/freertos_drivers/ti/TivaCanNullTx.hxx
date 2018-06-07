@@ -97,15 +97,15 @@ private:
     */
     ssize_t read(File *file, void *buf, size_t count) override
     {
-        if (readCount_ == 0)
-        {
-            readTimeFirst_ = OSTime::get_monotonic();
-        }
-
         ssize_t result = Can::read(file, buf, count);
 
         if (result > 0)
         {
+            if (readCount_ == 0)
+            {
+                readTimeFirst_ = OSTime::get_monotonic();
+            }
+
             readCount_ += result / sizeof(struct can_frame);
 
             if (readCount_ >= MESSAGE_COUNT && readTime10000_ == 0)
