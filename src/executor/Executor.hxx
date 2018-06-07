@@ -172,23 +172,6 @@ protected:
     OSSelectWakeup selectHelper_;
 
 private:
-#ifndef ESP_NONOS
-    /** Wait for an item from the front of the queue.
-     * @param timeout time to wait in nanoseconds
-     * @param priority pass back the priority of the queue pulled from
-     * @return item retrieved from queue, else NULL with errno set:
-     *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
-     */
-    virtual Executable *timedwait(long long timeout, unsigned *priority) = 0;
-#endif
-
-    /** Wait for an item from the front of the queue.
-     * @param priority pass back the priority of the queue pulled from
-     * @return item retrieved from queue, else NULL with errno set:
-     *         EINTR - woken up asynchronously
-     */
-    virtual Executable *wait(unsigned *priority) = 0;
-
     /** Retrieve an item from the front of the queue.
      * @param priority pass back the priority of the queue pulled from
      * @return item retrieved from queue, else NULL if queue is empty.
@@ -333,7 +316,7 @@ public:
      */
     void add_from_isr(Executable *msg, unsigned priority = UINT_MAX) override
     {
-        queue_.insert_from_isr(
+        queue_.insert_locked(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
         selectHelper_.wakeup_from_isr();
     }
@@ -356,33 +339,6 @@ public:
     uint32_t sequence() OVERRIDE { return sequence_; }
 
 private:
-#ifndef ESP_NONOS
-    /** Wait for an item from the front of the queue.
-     * @param timeout time to wait in nanoseconds
-     * @param priority pass back the priority of the queue pulled from
-     * @return item retrieved from queue, else NULL with errno set:
-     *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
-     */
-    Executable *timedwait(long long timeout, unsigned *priority) OVERRIDE
-    {
-        auto result = queue_.timedwait(timeout);
-        *priority = result.index;
-        return static_cast<Executable*>(result.item);
-    }
-#endif
-
-    /** Wait for an item from the front of the queue.
-     * @param priority pass back the priority of the queue pulled from
-     * @return item retrieved from queue, else NULL with errno set:
-     *         EINTR - woken up asynchronously
-     */
-    Executable *wait(unsigned *priority) OVERRIDE
-    {
-        auto result = queue_.wait();
-        *priority = result.index;
-        return static_cast<Executable*>(result.item);
-    }
-
     /** Retrieve an item from the front of the queue.
      * @param priority pass back the priority of the queue pulled from
      * @return item retrieved from queue, else NULL if none waiting.
@@ -401,7 +357,7 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Executor);
 
     /// Internal queue of executables waiting to be scheduled.
-    QListProtectedWait<NUM_PRIO> queue_;
+    QListProtected<NUM_PRIO> queue_;
 };
 
 /** This class can be given an executor, and will notify itself when that
