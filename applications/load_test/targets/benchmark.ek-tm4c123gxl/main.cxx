@@ -43,22 +43,26 @@
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/MultiConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
+#include "utils/gc_format.h"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/ti/TivaCpuLoad.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/PersistentGPIO.hxx"
+#include "freertos_drivers/common/BenchmarkCan.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
 
 // Writes all log data to stderr.
 #include "utils/TcpLogging.hxx"
 
+BenchmarkCan benchmark_can("/dev/fakecan0");
+
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
 //#define SNIFF_ON_SERIAL
 //#define SNIFF_ON_USB
-#define HAVE_PHYSICAL_CAN_PORT
+//#define HAVE_PHYSICAL_CAN_PORT
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
@@ -85,6 +89,61 @@ TivaCpuLoad<TivaCpuLoadDefHw> load_monitor;
 #include "freertos_drivers/common/cpu_profile.hxx"
 
 DEFINE_CPU_PROFILE_INTERRUPT_HANDLER(timer4a_interrupt_handler);
+
+class BenchmarkDriver : public StateFlowBase
+{
+public:
+    BenchmarkDriver()
+        : StateFlowBase(stack.service())
+    {
+        start_flow(STATE(log_and_wait));
+    }
+
+private:
+    Action log_and_wait() {
+        if (!SW1_Pin::get()) {
+            return call_immediately(STATE(do_benchmark));
+        }
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(100), STATE(log_and_wait));
+    }
+
+    Action do_benchmark() {
+        struct can_frame frame;
+        LOG(INFO, "Starting benchmark.");
+        HASSERT(0 == gc_format_parse("X195B4123N0501010118FF0123", &frame));
+        startTime_ = OSTime::get_monotonic();
+        benchmark_can.start_benchmark(&frame, COUNT);
+        enable_profiling = 0;
+        return sleep_and_call(
+            &timer_, MSEC_TO_NSEC(100), STATE(check_benchmark_state));
+    }
+
+    Action check_benchmark_state() {
+        unsigned count = 1;
+        auto end_time = benchmark_can.get_timestamp(&count);
+        if (!count) {
+            enable_profiling = 0;
+            float spd = COUNT;
+            float time = (end_time - startTime_);
+            time /= 1e9;
+            spd /= time;
+            LOG(INFO, "Benchmark done. Time %d msec, speed %d pkt/sec",
+                static_cast<int>((end_time - startTime_ + 500000) / 1000000),
+                static_cast<int>(spd));
+            return call_immediately(STATE(log_and_wait));
+        } else {
+            LOG(INFO, "benchmark: %u pkt left", count);
+        }
+        return sleep_and_call(
+            &timer_, MSEC_TO_NSEC(100), STATE(check_benchmark_state));
+
+    }
+
+    static constexpr unsigned COUNT = 10000;
+
+    long long startTime_;
+    StateFlowTimer timer_{this};
+} benchmark_driver;
 
 class CpuLoadLog : public StateFlowBase
 {
@@ -197,25 +256,8 @@ int appl_main(int argc, char *argv[])
     PinRed.restore();
     PinGreen.restore();
     PinBlue.restore();
-    
-    // The necessary physical ports must be added to the stack.
-    //
-    // It is okay to enable multiple physical ports, in which case the stack
-    // will behave as a bridge between them. For example enabling both the
-    // physical CAN port and the USB port will make this firmware act as an
-    // USB-CAN adapter in addition to the producers/consumers created above.
-    //
-    // If a port is enabled, it must be functional or else the stack will
-    // freeze waiting for that port to send the packets out.
-#if defined(HAVE_PHYSICAL_CAN_PORT)
-    stack.add_can_port_select("/dev/can0");
-#endif
-#if defined(SNIFF_ON_USB)
-    stack.add_gridconnect_port("/dev/serUSB0");
-#endif
-#if defined(SNIFF_ON_SERIAL)
-    stack.add_gridconnect_port("/dev/ser0");
-#endif
+
+    stack.add_can_port_select("/dev/fakecan0");
 
     // This command donates the main thread to the operation of the
     // stack. Alternatively the stack could be started in a separate stack and
