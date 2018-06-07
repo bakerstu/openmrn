@@ -143,6 +143,7 @@ TEST_F(BitRangeEventTest, IgnoreUnrelated) {
   wait_for_event_thread();
 }
 
+#ifndef IGNORE_HASSERT
 TEST_F(BitRangeEventTest, DeathTooHighSet) {
   // Death tests are expensive for IfTests because they wait for the alias
   // reserve timeout, which is 1 second. Use them sparingly.
@@ -150,6 +151,7 @@ TEST_F(BitRangeEventTest, DeathTooHighSet) {
       handler_.Set(3000, false, &event_write_helper1, get_notifiable());
     }, "bit < size");
 }
+#endif
 
 class ByteRangeCTest : public AsyncNodeTest {
  protected:

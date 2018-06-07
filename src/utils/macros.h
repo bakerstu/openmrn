@@ -84,6 +84,7 @@ extern const char* g_death_file;
    it. The resulting fault is typically much harder to debug than an assert.
  */
 #ifdef IGNORE_HASSERT
+#define NDEBUG
 
 #define HASSERT(x) do { ; } while(0)
 #define HHASSERT(x) do { (void)(x); } while(0)
@@ -112,6 +113,7 @@ extern const char* g_death_file;
 #include <stdio.h>
 
 #ifdef IGNORE_HASSERT
+#define NDEBUG
 
 #define HASSERT(x) do { ; } while(0)
 #define HHASSERT(x) do { (void)(x); } while(0)
