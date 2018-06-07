@@ -175,8 +175,8 @@ public:
      */
     void start(long long period = -1)
     {
-        HASSERT(!isActive_);
-        HASSERT(!isExpired_);
+        HDASSERT(!isActive_);
+        HDASSERT(!isExpired_);
         isActive_ = 1;
         isCancelled_ = 0;
         when_ = OSTime::get_monotonic() + period;
@@ -189,8 +189,8 @@ public:
      * @param expiry_time_nsec absolute time when the timer should expire in nanoseconds. If less than the current time, the timer will expire immediately. */
     void start_absolute(long long expiry_time_nsec)
     {
-        HASSERT(!isActive_);
-        HASSERT(!isExpired_);
+        HDASSERT(!isActive_);
+        HDASSERT(!isExpired_);
         isActive_ = 1;
         isCancelled_ = 0;
         when_ = expiry_time_nsec;
@@ -230,7 +230,7 @@ public:
         /// @todo(balazs.racz) assert here that we are on the given executor.
         if (isExpired_)
             return;
-        HASSERT(isActive_);
+        HDASSERT(isActive_);
         isCancelled_ = 1;
         when_ = 2; // in the past
         activeTimers_->update_timer(this);
@@ -252,7 +252,7 @@ public:
     {
         when_ = INT64_MAX;  // This will ensure the we don't get from active to
                             // expired from now on.
-        HASSERT(!isExpired_);
+        HDASSERT(!isExpired_);
         isCancelled_ = 1;
         if (isActive_) {
             activeTimers_->remove_timer(this);

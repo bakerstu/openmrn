@@ -623,13 +623,13 @@ public:
     /// Registers a second handler to forward all the client interactions,
     /// i.e. everythingthat comes back with the RESPONSE bit set.
     void set_client(DatagramHandlerFlow* client) {
-        HASSERT(client_ == nullptr || client_ == client);
+        HDASSERT(client_ == nullptr || client_ == client);
         client_ = client;
     }
 
     /// Unregisters the previously registered second handler.
     void clear_client(DatagramHandlerFlow* client) {
-        HASSERT(client_ == client);
+        HDASSERT(client_ == client);
         client_ = nullptr;
     }
     
@@ -642,8 +642,8 @@ private:
         response_.clear();
         const uint8_t *bytes = in_bytes();
         size_t len = message()->data()->payload.size();
-        HASSERT(len >= 1);
-        HASSERT(bytes[0] == DATAGRAM_ID);
+        HDASSERT(len >= 1);
+        HDASSERT(bytes[0] == DATAGRAM_ID);
         if (len < 2)
         {
             return respond_reject(Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
@@ -750,7 +750,7 @@ private:
 
     Action cleanup()
     {
-        HASSERT(!message());
+        HDASSERT(!message());
         return exit();
     }
 

@@ -92,7 +92,7 @@ public:
         , node_(node)
         , responseFlow_(response_flow)
     {
-        HASSERT(SNIP_STATIC_DATA.version == 4);
+        HDASSERT(SNIP_STATIC_DATA.version == 4);
         iface->dispatcher()->register_handler(
             this, Defs::MTI_IDENT_INFO_REQUEST, Defs::MTI_EXACT);
     }

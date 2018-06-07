@@ -329,7 +329,7 @@ public:
 
     Group entry(unsigned k)
     {
-        HASSERT(k < N);
+        HDASSERT(k < N);
         return Group(offset_ + (k * Group::size()));
     }
 

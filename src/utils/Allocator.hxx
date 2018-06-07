@@ -140,7 +140,7 @@ public:
     {
         if (init == false)
         {
-            HASSERT(entries != 0);
+            HDASSERT(entries != 0);
             init = true;
             FreeList *newList = (FreeList*)malloc(sizeof(FreeList) * max_size());
             for (size_t i = 0; i < max_size(); ++i)
@@ -149,8 +149,8 @@ public:
                 freeList = newList + i;
             }
         }
-        HASSERT(freeList != NULL);
-        HASSERT(cnt == 1);
+        HDASSERT(freeList != NULL);
+        HDASSERT(cnt == 1);
         
         T *newT = &(freeList->data);
         freeList = freeList->next;
@@ -163,7 +163,7 @@ public:
      */
     void deallocate(T *p, size_t n)
     {
-        HASSERT(n == 1);
+        HDASSERT(n == 1);
         FreeList *pFreeList = (FreeList*)p;
         pFreeList->next = freeList;
         freeList = pFreeList;

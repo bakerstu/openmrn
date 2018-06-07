@@ -77,11 +77,11 @@ public:
         // attempts to do so.
         if (dir == Direction::OUTPUT)
         {
-            HASSERT(PIN::is_output());
+            HXASSERT(PIN::is_output());
         }
         else
         {
-            HASSERT(!PIN::is_output());
+            HXASSERT(!PIN::is_output());
         }
     }
 

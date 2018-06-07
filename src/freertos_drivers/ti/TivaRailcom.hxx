@@ -185,7 +185,7 @@ private:
             IOC_SIZE(key) == NOTIFIABLE_TYPE && key == CAN_IOC_READ_ACTIVE)
         {
             Notifiable *n = reinterpret_cast<Notifiable *>(data);
-            HASSERT(n);
+            HDASSERT(n);
             // If there is no data for reading, we put the incoming notification
             // into the holder. Otherwise we notify it immediately.
             if (feedbackQueue_.empty())

@@ -53,7 +53,7 @@ public:
           list(NULL)
     {
         /* dynamic allocation not supported */
-        HASSERT(0);
+        DIE("dynamic allocation is not supported.");
     }
 
     /** Constructor that limits the number of mappings to a static pool.
@@ -214,7 +214,7 @@ public:
     void erase(Iterator it)
     {
         ssize_t i = it.index;
-        HASSERT(i < (ssize_t)used && i >= 0);
+        HDASSERT(i < (ssize_t)used && i >= 0);
 
         /* scrunch up the list if we are able */
         if (i != (ssize_t)--used)
@@ -238,7 +238,7 @@ public:
             }
         }
         
-        HASSERT(used < entries);
+        HDASSERT(used < entries);
         
         list[used].key = key;
         list[used].value = 0;

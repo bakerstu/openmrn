@@ -54,7 +54,7 @@ public:
     /// override this function. It is not virtual because not all
     /// implementation expect Notify calls.
     void notify() override {
-        HASSERT(0 && "unexpected call to notify in Executable");
+        DIE("unexpected call to notify in Executable");
     }
 
     /** Return the result of an alloc_async() from a memory @ref Pool
@@ -62,7 +62,7 @@ public:
      */
     virtual void alloc_result(QMember *item)
     {
-        HASSERT(0 && "unexpected call to alloc_result");
+        DIE("unexpected call to alloc_result");
     }
 };
 

@@ -73,19 +73,19 @@ public:
     /// @param token is the value to check.
     void CheckToken(QMember *token)
     {
-        HASSERT(token == &token_);
+        HDASSERT(token == &token_);
     }
 
     /// Crashes if the mutex is not locked.
     void AssertLocked()
     {
-        HASSERT(empty());
+        HDASSERT(empty());
     }
 
     /// Crashes if the mutex is locked.
     void AssertUnlocked()
     {
-        HASSERT(!empty());
+        HDASSERT(!empty());
     }
 
     /// Unlocks the mutex. Crashes if the mutex is unlocked.

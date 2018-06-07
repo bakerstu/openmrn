@@ -115,7 +115,7 @@ public:
         switch (mode)
         {
             default:
-                HASSERT(0);
+                DIE("Unknown direction mode.");
             case GPIO_DIR_MODE_IN:
                 return Direction::INPUT;
             case GPIO_DIR_MODE_OUT:

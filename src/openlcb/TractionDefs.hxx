@@ -240,8 +240,8 @@ struct TractionDefs {
     static bool legacy_address_from_train_node_id(
         NodeID id, dcc::TrainAddressType *type, uint32_t *addr)
     {
-        HASSERT(type);
-        HASSERT(addr);
+        HDASSERT(type);
+        HDASSERT(addr);
         if ((id & NODE_ID_MASK) == NODE_ID_DCC)
         {
             *addr = (id & 0x3FFF);

@@ -62,7 +62,7 @@ protected:
      */
     ~I2C()
     {
-        HASSERT(0);
+        DIE("Should never destruct.");
     }
 
     /** Method to transmit/receive the data.

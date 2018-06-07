@@ -95,7 +95,7 @@ protected:
         }
         else
         {
-            HASSERT(0);
+            HDASSERT(0);
         }
     }
 

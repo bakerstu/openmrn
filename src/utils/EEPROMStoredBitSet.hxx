@@ -129,9 +129,9 @@ private:
     {
         unsigned vcell_ofs_bits =
             (sizeof(eeprom_t) * 8) - HW::bits_per_cell() - 1;
-        HASSERT(vcell_ofs_bits < 32);
-        HASSERT((1U << vcell_ofs_bits) - 2 >= HW::virtual_cell_count());
-        HASSERT(
+        HDASSERT(vcell_ofs_bits < 32);
+        HDASSERT((1U << vcell_ofs_bits) - 2 >= HW::virtual_cell_count());
+        HDASSERT(
             HW::virtual_cell_count() + 2 <= (HW::physical_cell_count() / 2));
         eeprom_t magic = HW::read_cell(FIRST_MAGIC_OFS);
         if ((magic & ~MARKER_MASK) != MAGIC)

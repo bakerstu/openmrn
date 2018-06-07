@@ -147,7 +147,7 @@ public:
     void add_can_port_blocking(const char *device)
     {
         int can_fd = ::open(device, O_RDWR);
-        HASSERT(can_fd >= 0);
+        HDASSERT(can_fd >= 0);
         auto *port = new FdHubPort<CanHubFlow>(
             &canHub0_, can_fd, EmptyNotifiable::DefaultInstance());
         additionalComponents_.emplace_back(port);
@@ -216,7 +216,7 @@ public:
     void connect_tcp_gridconnect_hub(const char *host, int port)
     {
         int fd = ConnectSocket(host, port);
-        HASSERT(fd >= 0);
+        HDASSERT(fd >= 0);
         create_gc_port_for_can_hub(&canHub0_, fd);
     }
 

@@ -98,7 +98,7 @@ public:
         else
         {
             // We don't support synchronous sending anymore.
-            HASSERT(0);
+            DIE("We don't support synchronous sending");
         }
         if (!node ||
             (!node->is_initialized() && mti != Defs::MTI_INITIALIZATION_COMPLETE))
@@ -159,7 +159,7 @@ private:
 
     void run() override
     {
-        HASSERT(0);
+        DIE("Should never get executed."); //HASSERT(0);
     }
 
     unsigned waitForLocalLoopback_ : 1;

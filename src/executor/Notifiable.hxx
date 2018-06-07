@@ -142,7 +142,7 @@ public:
     /// asynchronous processing.
     Notifiable* NewCallback(Notifiable* parent)
     {
-        HASSERT(!parent_);
+        HDASSERT(!parent_);
         parent_ = parent;
         return this;
     }
@@ -158,7 +158,7 @@ private:
     void notify() override
     {
         Notifiable* p = parent_;
-        HASSERT(p);
+        HDASSERT(p);
         parent_ = nullptr;
         p->notify();
     }
@@ -228,7 +228,7 @@ public:
     bool abort_if_almost_done()
     {
         AtomicHolder h(this);
-        HASSERT(!is_done());
+        HDASSERT(!is_done());
         if (count_ == 1)
         {
             count_ = 0;

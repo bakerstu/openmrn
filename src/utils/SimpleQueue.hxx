@@ -57,7 +57,7 @@ public:
 
     /// Adds an entry to the front of the queue. @param member entry to add.
     void push_front(QMember* member) {
-        HASSERT(!member->next);
+        HDASSERT(!member->next);
         member->next = head_;
         head_ = member;
     }
@@ -65,7 +65,7 @@ public:
     /// Removes the entry at the front of the queue. @return the entry at the
     /// front of the queue.
     QMember* pop_front() {
-        HASSERT(head_);
+        HDASSERT(head_);
         QMember* f = head_;
         head_ = f->next;
         f->next = nullptr;
@@ -85,7 +85,7 @@ public:
     public:
         /// Constructor. @param link pointer to link.
         iterator(QMember** link): link_(link) {
-            HASSERT(link_);
+            HDASSERT(link_);
         }
 
         bool operator==(const iterator& o) const {
@@ -105,7 +105,7 @@ public:
         }
 
         iterator& operator++() {
-            HASSERT(*link_);
+            HDASSERT(*link_);
             link_ = &(*link_)->next;
             return *this;
         }
@@ -158,7 +158,7 @@ public:
      * @param entry what to insert before *position.
      */
     void insert(const iterator& position, QMember* entry) {
-        HASSERT(!entry->next);
+        HDASSERT(!entry->next);
         entry->next = *position.link_;
         *position.link_ = entry;
     }
@@ -170,7 +170,7 @@ public:
      * @param position iterator to entry to remove */
     void erase(const iterator& position) {
         QMember* m = *position.link_;
-        HASSERT(m);
+        HDASSERT(m);
         *position.link_ = m->next;
         m->next = nullptr;
     }

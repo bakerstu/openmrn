@@ -309,8 +309,8 @@ public:
     template <class BufferType>
     static void alloc_async_init(BufferBase *base, Buffer<BufferType> **result)
     {
-        HASSERT(base);
-        HASSERT(sizeof(Buffer<BufferType>) == base->size());
+        HDASSERT(base);
+        HDASSERT(sizeof(Buffer<BufferType>) == base->size());
         *result = static_cast<Buffer<BufferType> *>(base);
         new (*result) Buffer<BufferType>(base->pool());
     }
@@ -390,7 +390,7 @@ public:
         {
             ++count;
             int next = va_arg(ap, int);
-            HASSERT(next > current || next == 0);
+            HDASSERT(next > current || next == 0);
             current = next;
         }
 
@@ -643,7 +643,7 @@ private:
  */
 template <class T> void Buffer<T>::unref()
 {
-    HASSERT(sizeof(Buffer<T>) <= size_);
+    HDASSERT(sizeof(Buffer<T>) <= size_);
     if (--count_ == 0)
     {
         this->~Buffer();

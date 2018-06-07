@@ -110,7 +110,7 @@ private:
     Action do_benchmark() {
         struct can_frame frame;
         LOG(INFO, "Starting benchmark.");
-        HASSERT(0 == gc_format_parse("X195B4123N0501010118FF0123", &frame));
+        HHASSERT(0 == gc_format_parse("X195B4123N0501010118FF0123", &frame));
         startTime_ = OSTime::get_monotonic();
         benchmark_can.start_benchmark(&frame, COUNT);
         enable_profiling = 0;

@@ -57,7 +57,7 @@ public:
         , readFlow_(this)
         , writeFlow_(this)
     {
-        HASSERT(fd_ >= 0);
+        HDASSERT(fd_ >= 0);
         hub_->register_port(write_port());
     }
 

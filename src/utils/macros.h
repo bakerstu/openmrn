@@ -87,7 +87,9 @@ extern const char* g_death_file;
 #define NDEBUG
 
 #define HASSERT(x) do { ; } while(0)
+#define HDASSERT(x) do { ; } while(0)
 #define HHASSERT(x) do { (void)(x); } while(0)
+#define HXASSERT(x) do { if (!(x)) { RECORD_DEATH(); abort(); } } while(0)
 
 #else
 
@@ -116,6 +118,7 @@ extern const char* g_death_file;
 #define NDEBUG
 
 #define HASSERT(x) do { ; } while(0)
+#define HDASSERT(x) do { ; } while(0)
 #define HHASSERT(x) do { (void)(x); } while(0)
 
 #elif defined(NDEBUG)

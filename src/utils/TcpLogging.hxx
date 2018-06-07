@@ -171,7 +171,7 @@ public:
         : FdLoggingServer(service)
     {
         fd_ = ::open(name, O_WRONLY);
-        HASSERT(fd_ >= 0);
+        HDASSERT(fd_ >= 0);
     }
 };
 

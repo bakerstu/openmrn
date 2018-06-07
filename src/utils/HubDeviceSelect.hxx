@@ -62,8 +62,8 @@ template <> struct SelectBufferInfo<HubFlow::buffer_type>
     /// bytes we did not fill.
     static void check_target_size(HubFlow::buffer_type *b, int remaining)
     {
-        HASSERT(remaining >= 0);
-        HASSERT(remaining <= 64);
+        HDASSERT(remaining >= 0);
+        HDASSERT(remaining <= 64);
         b->data()->resize(64 - remaining);
     }
     /// @return false because we can deal with a partial read.
@@ -89,7 +89,7 @@ struct SelectBufferInfo<Buffer<HubContainer<StructContainer<T>>>>
     /// bytes are empty.
     static void check_target_size(buffer_type *b, int remaining)
     {
-        HASSERT(remaining == 0);
+        HDASSERT(remaining == 0);
     }
     /// @return true because struct buffers always need to be completely read
     /// before forwarding to lower levels.
@@ -117,7 +117,7 @@ struct SelectBufferInfo<Buffer<CanHubData>> {
     /// bytes are empty.
     static void check_target_size(buffer_type *b, int remaining)
     {
-        HASSERT(remaining == 0);
+        HDASSERT(remaining == 0);
     }
     /// @return true because CAN buffers always need to be completely read
     /// before forwarding to lower levels.
@@ -154,7 +154,7 @@ public:
         , readFlow_(this)
         , writeFlow_(this)
     {
-        HASSERT(fd_ >= 0);
+        HDASSERT(fd_ >= 0);
         barrier_.new_child();
         hub_->register_port(write_port());
     }
@@ -175,7 +175,7 @@ public:
         , readFlow_(this)
         , writeFlow_(this)
     {
-        HASSERT(fd_ >= 0);
+        HDASSERT(fd_ >= 0);
         barrier_.new_child();
 #ifdef __WINNT__
         unsigned long par = 1;

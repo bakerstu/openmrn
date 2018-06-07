@@ -266,7 +266,7 @@ protected:
      */
     void start_flow(Callback c)
     {
-        HASSERT(is_terminated());
+        HDASSERT(is_terminated());
         yield_and_call(c);
     }
 
@@ -732,7 +732,7 @@ protected:
         // verify that the fd is a socket
         struct stat stat;
         fstat(fd, &stat);
-        HASSERT(S_ISSOCK(stat.st_mode));
+        HDASSERT(S_ISSOCK(stat.st_mode));
 
         helper->reset(Selectable::READ, fd, Selectable::MAX_PRIO);
         helper->set_wakeup(this);
@@ -751,7 +751,7 @@ protected:
         // verify that the fd is a socket
         struct stat stat;
         fstat(fd, &stat);
-        HASSERT(S_ISSOCK(stat.st_mode));
+        HDASSERT(S_ISSOCK(stat.st_mode));
 
         helper->reset(Selectable::WRITE, fd, Selectable::MAX_PRIO);
         helper->set_wakeup(this);
@@ -1040,7 +1040,7 @@ protected:
      * one reference of ownership.
      * @param priority what prio to run the flow on.*/
     void reset_message(BufferBase* message, unsigned priority) {
-        HASSERT(!currentMessage_);
+        HDASSERT(!currentMessage_);
         currentMessage_ = message;
         set_priority(priority);
     }

@@ -64,7 +64,7 @@ struct SimpleInfoResponse
                const SimpleInfoDescriptor *desc,
                Defs::MTI response_mti)
     {
-        HASSERT(msg_to_respond->dstNode);
+        HDASSERT(msg_to_respond->dstNode);
         src = msg_to_respond->dstNode;
         dst = msg_to_respond->src;
         descriptor = desc;
@@ -161,8 +161,8 @@ public:
 private:
     Action entry() OVERRIDE
     {
-        HASSERT(message()->data()->src);
-        HASSERT(message()->data()->descriptor);
+        HDASSERT(message()->data()->src);
+        HDASSERT(message()->data()->descriptor);
         entryOffset_ = 0;
         byteOffset_ = 0;
         isFirstMessage_ = 1;
@@ -187,7 +187,7 @@ private:
     {
         const SimpleInfoDescriptor &d = current_descriptor();
         const char* new_file_name = reinterpret_cast<const char*>(d.data);
-        HASSERT(new_file_name);
+        HDASSERT(new_file_name);
         if (!(fileName_ == new_file_name ||
               (fileName_ && d.data && !strcmp(fileName_, new_file_name)))) {
             fileName_ = new_file_name;
@@ -195,10 +195,10 @@ private:
                 ::close(fd_);
             }
             fd_ = ::open(fileName_, O_RDONLY);
-            HASSERT(fd_ >= 0);
+            HDASSERT(fd_ >= 0);
         }
         int ret = lseek(fd_, d.arg2, SEEK_SET);
-        HASSERT(ret != -1);
+        HDASSERT(ret != -1);
     }
 
     /** Call this function after updating entryOffset_. */
@@ -223,7 +223,7 @@ private:
             case SimpleInfoDescriptor::CHAR_ARRAY:
                 byteOffset_ = 0;
                 currentLength_ = d.arg;
-                HASSERT(currentLength_);
+                HDASSERT(currentLength_);
                 break;
             case SimpleInfoDescriptor::FILE_LITERAL_BYTE:
             {
@@ -245,10 +245,10 @@ private:
     /** Returns the next byte from the file data, advancing the file offset. */
     uint8_t file_read_current_byte()
     {
-        HASSERT(fd_ >= 0);
+        HDASSERT(fd_ >= 0);
         uint8_t ret;
         int result = ::read(fd_, &ret, 1);
-        HASSERT(result >= 0);
+        HDASSERT(result >= 0);
         if (result == 0) ret = 0;
         return ret;
     }
@@ -263,7 +263,7 @@ private:
                 return 0;
             case SimpleInfoDescriptor::LITERAL_BYTE: {
                 if (d.data) {
-                    HASSERT(d.arg == *d.data);
+                    HDASSERT(d.arg == *d.data);
                 }
                 return d.arg;
             }
@@ -300,7 +300,7 @@ private:
             case SimpleInfoDescriptor::FILE_LITERAL_BYTE:
             {
                 uint8_t fdata = file_read_current_byte();
-                HASSERT(d.arg == fdata);
+                HDASSERT(d.arg == fdata);
                 return d.arg;
             }
             case SimpleInfoDescriptor::FILE_CHAR_ARRAY:

@@ -206,8 +206,8 @@ public:
      */
     static DeviceBuffer *create(size_t size, size_t level = 0)
     {
-        HASSERT(size <= UINT16_MAX);
-        HASSERT(level <= size);
+        HDASSERT(size <= UINT16_MAX);
+        HDASSERT(level <= size);
         DeviceBuffer *device_buffer =
             (DeviceBuffer*)malloc(sizeof(DeviceBuffer) + (size * sizeof(T)));
         /* placement new allows for runtime ring buffer size */

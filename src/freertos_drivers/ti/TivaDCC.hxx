@@ -100,26 +100,26 @@ public:
 
     /// Returns the head of the FIFO (next element to read).
     T& front() {
-        HASSERT(!empty());
+        HDASSERT(!empty());
         return storage_[rdIndex_];
     }
 
     /// Removes the head of the FIFO from the queue.
     void increment_front() {
-        HASSERT(!empty());
+        HDASSERT(!empty());
         if (++rdIndex_ >= SIZE) rdIndex_ = 0;
         __atomic_fetch_add(&count_, -1, __ATOMIC_SEQ_CST);
     }
 
     /// Returns the space to write the next element to.
     T& back() {
-        HASSERT(!full());
+        HDASSERT(!full());
         return storage_[wrIndex_];
     }
 
     /// Commits the element at back() into the queue.
     void increment_back() {
-        HASSERT(!full());
+        HDASSERT(!full());
         if (++wrIndex_ >= SIZE) wrIndex_ = 0;
         __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
     }
@@ -133,7 +133,7 @@ public:
      * number of such entries can be reserved (up to the number of free entries
      * in the queue). */
     void noncommit_back() {
-        HASSERT(has_noncommit_space());
+        HDASSERT(has_noncommit_space());
         if (++wrIndex_ >= SIZE) wrIndex_ = 0;
     }
 
@@ -147,7 +147,7 @@ public:
 
     /** Commits the oldest entry reserved by noncommit_back. */
     void commit_back() {
-        HASSERT(count_ <= SIZE);
+        HDASSERT(count_ <= SIZE);
         __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
     }
 
@@ -895,7 +895,7 @@ void TivaDCC<HW>::fill_timing_turnon(BitEnum ofs, uint32_t period_usec,
 {
     auto* timing = &timings[ofs];
     timing->period = usec_to_clocks(period_usec);
-    HASSERT(timing->period <= 65534);
+    HDASSERT(timing->period <= 65534);
     if (fill_usec >= period_usec / 2) {
         fill_usec = period_usec / 2;
     }
@@ -1054,7 +1054,7 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
             packet->payload[4] = packet->payload[1];
             packet->payload[5] = packet->payload[2];
         } else {
-            HASSERT(packet->dlc == 6);
+            HDASSERT(packet->dlc == 6);
         }
     }
 
@@ -1083,7 +1083,7 @@ int TivaDCC<HW>::ioctl(File *file, unsigned long int key, unsigned long data)
         IOC_SIZE(key) == NOTIFIABLE_TYPE &&
         key == CAN_IOC_WRITE_ACTIVE) {
         Notifiable* n = reinterpret_cast<Notifiable*>(data);
-        HASSERT(n);
+        HDASSERT(n);
         // If there is no space for writing, we put the incomng notification
         // into the holder. Otherwise we notify it immediately.
         if (packetQueue_.full())

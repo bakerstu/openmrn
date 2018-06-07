@@ -382,8 +382,8 @@ public:
             *s += " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
                   "xsi:noNamespaceSchemaLocation=\"http://openlcb.org/schema/"
                   "cdi/1/1/cdi.xsd\"";
-            HASSERT(replication_ == 1);
-            HASSERT(opts.name() == nullptr && opts.description() == nullptr);
+            HDASSERT(replication_ == 1);
+            HDASSERT(opts.name() == nullptr && opts.description() == nullptr);
         }
         else if (opts.segment() == -1)
         {
@@ -405,7 +405,7 @@ public:
             {
                 *s += StringPrintf(" origin='%d'", opts.get_segment_offset());
             }
-            HASSERT(replication_ == 1);
+            HDASSERT(replication_ == 1);
         }
         *s += ">\n";
         opts.render_cdi(s);

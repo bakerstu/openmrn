@@ -94,7 +94,7 @@ public:
     /** Inherits the current thread. */
     void inherit()
     {
-        HASSERT(!is_created());
+        HDASSERT(!is_created());
         handle = os_thread_self();
         entry();
         handle = 0;
@@ -120,8 +120,8 @@ protected:
      */
     virtual void *entry()
     {
-        HASSERT(0 && "forgot to overload OSThread entry point. This thread "
-                     "would do nothing.");
+        DIE("forgot to overload OSThread entry point. This thread "
+            "would do nothing.");
         return NULL;
     }
     
@@ -254,7 +254,7 @@ public:
     OSMQ(size_t length, size_t item_size)
         : handle(os_mq_create(length, item_size))
     {
-        HASSERT(handle != NULL);
+        HDASSERT(handle != NULL);
     }
     
     /** Destructor.
@@ -552,7 +552,7 @@ public:
     OSEvent()
         : event(xEventGroupCreate())
     {
-        HASSERT(event);
+        HDASSERT(event);
     }
 
     /** Destructor.

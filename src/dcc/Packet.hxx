@@ -87,7 +87,7 @@ struct Packet : public DCCPacket
     void set_cmd(uint8_t cmd)
     {
         dlc = 0;
-        HASSERT(cmd & 1);
+        HDASSERT(cmd & 1);
         header_raw_data = cmd;
     }
 

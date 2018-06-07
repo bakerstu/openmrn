@@ -92,7 +92,7 @@ class ShadowedStoredBitSet : public StoredBitSet, protected Atomic
 {
 public:
     StoredBitSet &set_bit(unsigned offset, bool value) override {
-        HASSERT(offset < size_);
+        HDASSERT(offset < size_);
         auto* shadow_ptr = shadow_ + (offset >> 5);
         auto bit = (UINT32_C(1) << (offset & 31));
         if (value) {
@@ -111,17 +111,17 @@ public:
     }
 
     bool get_bit(unsigned offset) override {
-        HASSERT(offset < size_);
+        HDASSERT(offset < size_);
         return shadow_[offset >> 5] & (UINT32_C(1) << (offset & 31));
     }
 
     StoredBitSet &set_multi(
         unsigned offset, unsigned size, unsigned value) override {
-        HASSERT(size <= 32);
-        HASSERT(size > 0);
-        HASSERT(offset + size <= size_);
+        HDASSERT(size <= 32);
+        HDASSERT(size > 0);
+        HDASSERT(offset + size <= size_);
         if (size < 32) {
-            HASSERT((value >> size) == 0);
+            HDASSERT((value >> size) == 0);
         }
         unsigned sidx = offset >> 5;
         uint32_t smask = UINT32_C(0xFFFFFFFF);
@@ -168,9 +168,9 @@ public:
     }
 
     unsigned get_multi(unsigned offset, unsigned size) override {
-        HASSERT(size <= 32);
-        HASSERT(size > 0);
-        HASSERT(offset + size <= size_);
+        HDASSERT(size <= 32);
+        HDASSERT(size > 0);
+        HDASSERT(offset + size <= size_);
         unsigned val = shadow_[offset >> 5] >> (offset & 31);
         int rollover = size + (offset & 31) - 32;
         if (rollover > 0) {
@@ -203,7 +203,7 @@ protected:
         unsigned dsize = (num_cells() + 31) >> 5;
         dirty_ = new uint32_t[dsize];
         memset(dirty_, 0, dsize * 4);
-        HASSERT(num_cells() < NO_CELL);
+        HDASSERT(num_cells() < NO_CELL);
     }
 
     ~ShadowedStoredBitSet() {
@@ -252,7 +252,7 @@ protected:
     /// Clears the dirty bit for a given cell.
     /// @param cell is the number of the cell, 0..num_cells()-1.
     void clear_dirty(cell_offs_t cell) {
-        HASSERT(cell < num_cells());
+        HDASSERT(cell < num_cells());
         dirty_[cell >> 5] &= ~(UINT32_C(1)<<(cell & 31));
         if (cell == lowestDirty_) {
             ++lowestDirty_;
@@ -262,7 +262,7 @@ protected:
     /// @return true if the given cell is dirty.
     /// @param cell is the number of the cell, 0..num_cells()-1.
     bool is_dirty(cell_offs_t cell) {
-        HASSERT(cell < num_cells());
+        HDASSERT(cell < num_cells());
         return dirty_[cell >>5] & (UINT32_C(1)<<(cell & 31));
     }
     

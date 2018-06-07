@@ -79,7 +79,7 @@ public:
         , offset_(config)
     {
         // Mismatched sizing of the GPIO array from the configuration array.
-        HASSERT(size == N);
+        HDASSERT(size == N);
         ConfigUpdateService::instance()->register_update_listener(this);
     }
 

@@ -80,7 +80,7 @@ private:
 
     Action entry() OVERRIDE
     {
-        HASSERT(message()->data()->node);
+        HDASSERT(message()->data()->node);
         return allocate_and_call(
             node()->iface()->global_message_write_flow(),
             STATE(send_initialized));

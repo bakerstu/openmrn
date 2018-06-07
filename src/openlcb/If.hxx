@@ -273,13 +273,13 @@ public:
     /** @return Flow to send global messages to the NMRAnet bus. */
     MessageHandler *global_message_write_flow()
     {
-        HASSERT(globalWriteFlow_);
+        HDASSERT(globalWriteFlow_);
         return globalWriteFlow_;
     }
     /** @return Flow to send addressed messages to the NMRAnet bus. */
     MessageHandler *addressed_message_write_flow()
     {
-        HASSERT(addressedWriteFlow_);
+        HDASSERT(addressedWriteFlow_);
         return addressedWriteFlow_;
     }
 
@@ -308,7 +308,7 @@ public:
     void add_local_node(Node *node)
     {
         NodeID id = node->node_id();
-        HASSERT(localNodes_.find(id) == localNodes_.end());
+        HDASSERT(localNodes_.find(id) == localNodes_.end());
         localNodes_[id] = node;
     }
 
@@ -385,7 +385,7 @@ public:
 protected:
     void remove_local_node_from_map(Node *node) {
         auto it = localNodes_.find(node->node_id());
-        HASSERT(it != localNodes_.end());
+        HDASSERT(it != localNodes_.end());
         localNodes_.erase(it);
     }
 

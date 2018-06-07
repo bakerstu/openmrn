@@ -50,7 +50,7 @@ struct DccShortAddress {
     /// Constructor. @param v is the address value (0<=v<128);
     explicit DccShortAddress(uint8_t v)
         : value(v) {
-        HASSERT(value < 128);
+        HDASSERT(value < 128);
     }
 };
 
@@ -63,7 +63,7 @@ struct DccLongAddress {
     /// Constructor. @param v is the address value (0<=v<10239);
     explicit DccLongAddress(uint16_t v)
         : value(v) {
-        HASSERT(value <= 10239);
+        HDASSERT(value <= 10239);
     }
 };
 
@@ -75,7 +75,7 @@ struct MMAddress {
     /// Constructor. @param v is the address value (0<=v<81);
     explicit MMAddress(uint8_t v)
         : value(v) {
-        HASSERT(v <= 80);
+        HDASSERT(v <= 80);
     }
 };
 

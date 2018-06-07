@@ -118,7 +118,7 @@ public:
     /// @param output will be populated with data, utilization (number of ticks
     /// in this key since last invocation).
     uint32_t get_utilization_delta(std::vector<pair<unsigned, string*> >* output) {
-        HASSERT(output);
+        HDASSERT(output);
         output->clear();
         for(auto it = perKeyCost_.begin(); it != perKeyCost_.end(); ++it) {
             volatile unsigned curr = it->rolling_count;

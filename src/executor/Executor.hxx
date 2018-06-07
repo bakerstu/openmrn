@@ -154,7 +154,7 @@ public:
     os_thread_t thread_handle() { return OSThread::get_handle(); }
 
     /// Die if we are not on the current executor.
-    void assert_current() { HASSERT(os_thread_self() == thread_handle()); }
+    void assert_current() { HDASSERT(os_thread_self() == thread_handle()); }
     
     /// @return a number that gets incremented by one every time an executable
     /// runs.

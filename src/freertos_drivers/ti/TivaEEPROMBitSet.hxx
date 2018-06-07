@@ -54,7 +54,7 @@ protected:
         : blockStart_(block_start)
         , blockCount_(block_count)
     {
-        HASSERT((block_start % block_count) == 0);
+        HDASSERT((block_start % block_count) == 0);
         MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
         do
         {
@@ -64,11 +64,11 @@ protected:
             MAP_SysCtlDelay(100000);
         } while(true);
         auto num_blocks = MAP_EEPROMBlockCountGet();
-        HASSERT(block_start + block_count < num_blocks);
+        HDASSERT(block_start + block_count < num_blocks);
         uint32_t total_size = MAP_EEPROMSizeGet();
         // The hardware for which this driver is written has 16 words per
         // block.
-        HASSERT(total_size / num_blocks == 64);
+        HDASSERT(total_size / num_blocks == 64);
     }
 
     /// @return how many user bits we store per physical cell.
