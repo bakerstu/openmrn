@@ -175,6 +175,15 @@ public:
     Result next()
     {
         AtomicHolder h(this);
+        return next_locked();
+    }
+
+    /** Get an item from the front of the queue.
+     * @return @ref Result structure with item retrieved from queue, NULL if
+     *         no item available
+     */
+    Result next_locked()
+    {
         if (head == NULL)
         {
             return Result();
@@ -190,7 +199,7 @@ public:
 
         return Result(qm, 0);
     }
-
+    
     /** Get the number of pending items in the queue.
      * @param index in the list to operate on
      * @return number of pending items in the queue
@@ -460,18 +469,20 @@ public:
     }
 
     typedef ::Result Result;
-    
+
+    Atomic *lock()
+    {
+        return list[0].lock();
+    }
+
     /** Add an item to the back of the queue.
      * @param item to add to queue
      * @param index in the list to operate on
      */
     void insert(QMember *item, unsigned index)
     {
-        if (index >= ITEMS)
-        {
-            index = ITEMS - 1;
-        }
-        list[index].insert(item);
+        AtomicHolder h(lock());
+        insert_locked(item, index);
     }
 
     /** Add an item to the back of the queue. Needs external locking.
@@ -493,7 +504,8 @@ public:
      */
     QMember *next(unsigned index)
     {
-        return list[index].next().item;
+        AtomicHolder h(lock());
+        return list[index].next_locked().item;
     }
 
     /** Get an item from the front of the queue queue in priority order.
@@ -501,12 +513,10 @@ public:
      */
     Result next()
     {
-        // @todo we probably don't want to keep locking and unlocking all of
-        // the queues here. There should probably be only one lock for this
-        // entire iteration.
+        AtomicHolder h(lock());
         for (unsigned i = 0; i < ITEMS; ++i)
         {
-            QMember *result = list[i].next(0);
+            QMember *result = list[i].next_locked().item;
             if (result)
             {
                 return Result(result, i);
@@ -560,6 +570,7 @@ public:
      */
     bool empty()
     {
+        AtomicHolder h(lock());
         for (unsigned i = 0; i < ITEMS; ++i)
         {
             if (!list[i].empty())
