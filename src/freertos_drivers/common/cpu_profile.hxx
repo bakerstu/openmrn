@@ -173,7 +173,12 @@ void fill_phase2_vrs(volatile unsigned* fault_args) {
     main_context.core.r[2] = fault_args[2];
     main_context.core.r[3] = fault_args[3];
     main_context.core.r[12] = fault_args[4];
-    main_context.core.r[14] = fault_args[6]+2;
+    // We add +2 here because first thing libgcc does with the lr value is
+    // subtract two, presuming that lr points to after a branch
+    // instruction. However, exception entry's saved PC can point to the first
+    // instruction of a function and we don't want to have the backtrace end up
+    // showing the previous function.
+    main_context.core.r[14] = fault_args[6] + 2;
     main_context.core.r[15] = fault_args[6];
     saved_lr = fault_args[5];
     main_context.core.r[13] = (unsigned)(fault_args + 8); // stack pointer
