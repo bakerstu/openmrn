@@ -67,7 +67,8 @@ public:
         , gpoData(0x0)
         , gpiData(0x7)
         , ioPending(false)
-        , spi(-1)
+        , spiFd(-1)
+        , spi(nullptr)
         , sem()
     {
     }
@@ -652,7 +653,7 @@ private:
     void reset()
     {
         uint8_t reset = RESET;
-        ::write(spi, &reset, 1);
+        ::write(spiFd, &reset, 1);
     }
 
     /** Read from a SPI register.
@@ -671,7 +672,8 @@ private:
         xfer[1].rx_buf = (unsigned long)rd_data;
         xfer[1].len = sizeof(rd_data);
         xfer[1].cs_change = 1;
-        ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
+
+        SPI::transfer_messages(spi, xfer, 2);
 
         return rd_data[0];
     }
@@ -692,7 +694,7 @@ private:
         xfer[1].rx_buf = (unsigned long)buffer;
         xfer[1].len = 13;
         xfer[1].cs_change = 1;
-        ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
+        ::ioctl(spiFd, SPI_IOC_MESSAGE(2), xfer);
     }
 
     /** Write to a SPI register.
@@ -702,8 +704,15 @@ private:
     __attribute__((optimize("-O3")))
     void register_write(Registers address, uint8_t data)
     {
+        spi_ioc_transfer xfer[1];
+        memset(xfer, 0, sizeof(xfer));
         uint8_t payload[] = {WRITE, address, data};
-        ::write(spi, payload, sizeof(payload));
+
+        xfer[0].tx_buf = (unsigned long)payload;
+        xfer[0].len = sizeof(payload);
+        xfer[0].cs_change = 1;
+
+        SPI::transfer_messages(spi, xfer, 1);
     }
 
     /** Write to a TX buffer.
@@ -722,7 +731,7 @@ private:
         xfer[1].tx_buf = (unsigned long)buffer;
         xfer[1].len = 13;
         xfer[1].cs_change = 1;
-        ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
+        ::ioctl(spiFd, SPI_IOC_MESSAGE(2), xfer);
     }
 
     /** Bit modify to a SPI register.
@@ -733,7 +742,7 @@ private:
     void bit_modify(Registers address, uint8_t data, uint8_t mask)
     {
         uint8_t payload[] = {BIT_MODIFY, address, mask, data};
-        ::write(spi, payload, sizeof(payload));
+        ::write(spiFd, payload, sizeof(payload));
     }
 
     /** Request a transmit buffer to send.
@@ -743,7 +752,7 @@ private:
     void request_to_send(int index)
     {
         uint8_t rts = RTS | (0x01 << index);
-        ::write(spi, &rts, 1);
+        ::write(spiFd, &rts, 1);
     }
 
     /** Request that the GPIO cache be refreshed.
@@ -762,7 +771,9 @@ private:
     unsigned gpiData   : 3; /**< local copy of the I/O expansion input data */
     unsigned ioPending : 1; /**< true if an I/O update is pending */
 
-    int spi; /**< SPI bus that accesses MCP2515 */
+    int spiFd; /**< SPI bus that accesses MCP2515 */
+    SPI *spi; /**< pointer to a SPI object instance */
+
     OSSem sem; /**< semaphore for posting events */
 #if MCP2515_DEBUG
     volatile uint8_t regs[128]; /**< debug copy of MCP2515 registers */

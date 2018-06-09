@@ -97,8 +97,11 @@ const MCP2515Can::BitModify MCP2515Can::tx1TransmitEnable(CANINTE, TX0I << 1,
  */
 void MCP2515Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
 {
-    spi = ::open(spi_name, O_RDWR);
-    HASSERT(spi >= 0);
+    spiFd = ::open(spi_name, O_RDWR);
+    HASSERT(spiFd >= 0);
+
+    ::ioctl(spiFd, SPI_IOC_GET_OBJECT_REFERENCE, &spi);
+    HASSERT(spi);
 
     /* configure SPI bus settings */
     uint8_t spi_mode = SPI_MODE_0;
@@ -108,9 +111,9 @@ void MCP2515Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     {
         spi_max_speed_hz = SPI_MAX_SPEED_HZ;
     }
-    ::ioctl(spi, SPI_IOC_WR_MODE, &spi_mode);
-    ::ioctl(spi, SPI_IOC_WR_BITS_PER_WORD, &spi_bpw);
-    ::ioctl(spi, SPI_IOC_WR_MAX_SPEED_HZ, &spi_max_speed_hz);
+    ::ioctl(spiFd, SPI_IOC_WR_MODE, &spi_mode);
+    ::ioctl(spiFd, SPI_IOC_WR_BITS_PER_WORD, &spi_bpw);
+    ::ioctl(spiFd, SPI_IOC_WR_MAX_SPEED_HZ, &spi_max_speed_hz);
 
     /* reset device */
     reset();
@@ -247,10 +250,11 @@ void MCP2515Can::tx_msg_locked()
             }
             ++count;
 
-            HASSERT(count <= ARRAYSIZE(xfer_));
+            //HASSERT(count <= ARRAYSIZE(xfer_));
 
             // tranfer the messages
-            ::ioctl(spi, SPI_IOC_MESSAGE(count), xfer_);
+            //::ioctl(spiFd, SPI_IOC_MESSAGE(count), xfer_);
+            SPI::transfer_messages(spi, xfer_, count);
         }
         else
         {
@@ -310,7 +314,7 @@ void *MCP2515Can::entry()
             xfer[1].rx_buf = (unsigned long)regs;
             xfer[1].len = sizeof(regs);
             xfer[1].cs_change = 1;
-            ::ioctl(spi, SPI_IOC_MESSAGE(2), xfer);
+            ::ioctl(spiFd, SPI_IOC_MESSAGE(2), xfer);
             lock_.unlock();
             continue;
         }
@@ -375,7 +379,7 @@ void *MCP2515Can::entry()
             {
                 /* receive interrupt active */
                 new (&rx_buf) BufferRead(xfer_ + count, 0);
-                count += rx_buf.xfer_count();
+                ++count;
                 receive = true;
             }
 
@@ -430,7 +434,7 @@ void *MCP2515Can::entry()
                         txBuf->consume(1);
                         portEXIT_CRITICAL();
 
-                        count += tx_buf.xfer_count();
+                        ++count;;
                         txPending |= (0x1 << index);
 
                         /* request to send at lowest priority */
@@ -456,7 +460,7 @@ void *MCP2515Can::entry()
                 }
             }
 
-            HASSERT(count <= ARRAYSIZE(xfer_));
+            //HASSERT(count <= ARRAYSIZE(xfer_));
 
             // tranfer the messages
             if (count == 0)
@@ -465,7 +469,7 @@ void *MCP2515Can::entry()
             }
             else
             {
-                ::ioctl(spi, SPI_IOC_MESSAGE(count), xfer_);
+                SPI::transfer_messages(spi, xfer_, count);
             }
 
             if (receive)

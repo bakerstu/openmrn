@@ -123,7 +123,52 @@ private:
     /** Method to transmit/receive the data.
      * @param msg message to transact.
      */
-    int transfer(struct spi_ioc_transfer *msg) override;
+    __attribute__((optimize("-O3")))
+    int transfer(struct spi_ioc_transfer *msg) override
+    {
+        /** @todo It is assumed that 8 bit per word is used, need to extend */
+        if (msg->len < dmaThreshold_)
+        {
+            uint8_t *tx_buf = msg->tx_buf ? (uint8_t*)msg->tx_buf : dummyBuf;
+            uint8_t *rx_buf = msg->rx_buf ? (uint8_t*)msg->rx_buf : dummyBuf;
+            unsigned long data;
+            uint32_t tx_len = msg->len;
+            uint32_t rx_len = msg->len;
+
+            SPIDataPut(base, *tx_buf++);
+            --tx_len;
+
+            while (tx_len || rx_len)
+            {
+                /* fill TX FIFO */
+                if (tx_len)
+                {
+                    if (SPIDataPutNonBlocking(base, *tx_buf) != 0)
+                    {
+                        --tx_len;
+                        ++tx_buf;
+                    }
+                }
+
+                /* empty RX FIFO */
+                if (rx_len)
+                {
+                    if (SPIDataGetNonBlocking(base, &data) != 0)
+                    {
+                        --rx_len;
+                        *rx_buf++ = data;
+                    }
+                }
+            }
+        }
+        else
+        {
+            /* use DMA */
+            config_dma(msg);
+        }
+
+        return msg->len;
+    }
 
     /** Configure a DMA transaction.
      * @param msg message to transact.
@@ -149,21 +194,6 @@ private:
         }
 
         return(0);
-    }
-
-    void SPIDataGet(unsigned long ulBase, unsigned long *pulData)
-    {
-        //
-        // Wait for Rx data
-        //
-        while(!(HWREG(ulBase + MCSPI_O_CH0STAT) & MCSPI_CH0STAT_RXS))
-        {
-        }
-
-        //
-        // Read the value
-        //
-        *pulData = HWREG(ulBase + MCSPI_O_RX0);
     }
 
     long SPIDataPutNonBlocking(unsigned long ulBase, unsigned long ulData)
@@ -193,7 +223,7 @@ private:
         //
         // Wait for space in FIFO
         //
-        while(!(HWREG(ulBase + MCSPI_O_CH0STAT)&MCSPI_CH0STAT_TXS))
+        //while(!(HWREG(ulBase + MCSPI_O_CH0STAT)&MCSPI_CH0STAT_TXS))
         {
         }
 

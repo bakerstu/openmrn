@@ -34,7 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_SPI_HXX_
 #define _FREERTOS_DRIVERS_COMMON_SPI_HXX_
 
-
+#include <unistd.h>
 
 #include "BlockOrWakeUp.hxx"
 #include "SimpleLog.hxx"
@@ -53,6 +53,18 @@ class SPI : public Node
 public:
     /** Function point for the chip select assert and deassert methods */
     typedef void (*ChipSelectMethod)();
+
+    /** Conduct multiple message transfers with one stop at the end.
+     * @param self pointer to a SPI object instance
+     * @param msgs array of messages to transfer
+     * @param num number of messages to transfer
+     * @return total number of bytes transfered, -errno upon failure
+     */
+    static int transfer_messages(SPI *self,
+                                 struct spi_ioc_transfer *msgs, int num)
+    {
+        return self->transfer_messages(msgs, num);
+    }
 
 protected:
     /** Constructor
@@ -113,7 +125,43 @@ protected:
      * @param num number of messages to transfer
      * @return total number of bytes transfered, -errno upon failure
      */
-    virtual int transfer_messages(struct spi_ioc_transfer *msgs, int num);
+    __attribute__((optimize("-O3")))
+    int transfer_messages(struct spi_ioc_transfer *msgs, int num)
+    {
+        //HASSERT(num > 0);
+
+        int count = 0;
+        int result;
+
+        //lock_.lock();
+        //bus_lock();
+        for (int i = 0; i < num; ++i, ++msgs)
+        {
+            count += msgs->len;
+            csAssert();
+            result = transfer(msgs);
+            if (result < 0)
+            {
+                /* something bad happened, reset the bus and bail */
+                csDeassert();
+                //bus_unlock();
+                //lock_.unlock();
+                return result;
+            }
+            if (msgs->cs_change)
+            {
+                //if (msgs->delay_usec)
+                {
+                    //usleep(msgs->delay_usec);
+                }
+                csDeassert();
+            }
+        }
+        //bus_unlock();
+        //lock_.unlock();
+
+        return count;
+    }
 
     /** Update the configuration of the bus.
      * @return >= 0 upon success, -errno upon failure

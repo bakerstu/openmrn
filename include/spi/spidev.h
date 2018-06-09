@@ -132,6 +132,10 @@
      */
     #define SPI_IOC_WR_MAX_SPEED_HZ IOW(SPI_IOC_MAGIC, 4, sizeof(uint32_t))
 
+    /** Get an object pointer for the SPI device
+     */
+    #define SPI_IOC_GET_OBJECT_REFERENCE IOR(SPI_IOC_MAGIC, 5, sizeof(void*))
+
 #else
     #error SPI drivers not supported on this OS
 #endif
