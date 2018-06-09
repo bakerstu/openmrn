@@ -408,6 +408,8 @@ StateFlowBase::Action DispatchFlowBase<NUM_PRIO>::iterate()
 {
     ID id = get_message_id();
     {
+        // @todo(balazs.racz) make the registered handlers structure for the
+        // dispatcher lock-free. This mutex here is very expensive.
         OSMutexLock l(&lock_);
         for (; currentIndex_ < handlers_.size(); ++currentIndex_)
         {
