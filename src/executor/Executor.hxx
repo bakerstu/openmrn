@@ -363,23 +363,27 @@ private:
 /** This class can be given an executor, and will notify itself when that
  *   executor is out of work. Callers can pend on the sync notifiable to wait
  *   for that. */
-class ExecutorGuard : private Executable, public SyncNotifiable
+class ExecutorGuard : private ::Timer, public SyncNotifiable
 {
 public:
     /// Constructor. @param e is the executor to look for being empty.
-    ExecutorGuard(ExecutorBase* e)
-        : executor_(e) {
-        executor_->add(this);  // lowest priority
+    ExecutorGuard(ExecutorBase *e)
+        : ::Timer(e->active_timers())
+        , executor_(e)
+    {
+        start();  // expire immediately
     }
 
     /// Implementation of the guard functionality. Called on the executor.
-    void run() override {
+    long long timeout() override {
         if (executor_->empty()) {
             SyncNotifiable::notify();
+            return NONE;
         } else {
-            executor_->add(this);  // wait more on the lowest priority
+            return RESTART;  // wait more on the lowest priority
         }
     }
+
 private:
     /// Parent.
     ExecutorBase* executor_;
