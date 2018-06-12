@@ -817,7 +817,7 @@ public:
      * @param item item to add to queue
      * @param index in the list to operate on
      */
-    void insert(QMember *item, unsigned index) override
+    void insert(QMember *item, unsigned index)
     {
         QListProtected<items>::insert(item, index);
         post();
@@ -842,7 +842,7 @@ public:
     /** Get an item from the front of the queue.
      * @return item retrieved from one of the queues
      */
-    Result next() override
+    Result next()
     {
         Result result = QListProtected<items>::next();
         if (result.item != NULL)
