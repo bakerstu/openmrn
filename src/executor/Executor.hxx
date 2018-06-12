@@ -371,7 +371,8 @@ public:
         : ::Timer(e->active_timers())
         , executor_(e)
     {
-        start();  // expire immediately
+        // We wait on the front of the timer queue by expiring immediately.
+        start();
     }
 
     /// Implementation of the guard functionality. Called on the executor.
@@ -380,7 +381,7 @@ public:
             SyncNotifiable::notify();
             return NONE;
         } else {
-            return RESTART;  // wait more on the lowest priority
+            return RESTART;  // wait more on the front of the timer queue
         }
     }
 
