@@ -368,46 +368,17 @@ private:
     class Buffer
     {
     public:
-        /** Constructor.
-         * @param can_frame reference to a can_frame metadata structure.
-         * @param command corresponding command for the buffer
-         */
-        __attribute__((optimize("-O3")))
-        Buffer(struct can_frame *can_frame, uint8_t command = 0)
-            : command(command)
-            , sidh(can_frame->can_eff ? (can_frame->can_id & 0x1FE00000) >> 21 :
-                                        (can_frame->can_id & 0x000007F8) >> 3)
-            , eid(can_frame->can_eff ? (can_frame->can_id & 0x00030000) >> 16 :
-                                       0)
-            , exide(can_frame->can_eff)
-            , sid(can_frame->can_eff ? (can_frame->can_id & 0x001C0000) >> 18 :
-                                       (can_frame->can_id & 0x000007F8) >> 3)
-            , eid8(can_frame->can_eff ? (can_frame->can_id & 0x0000FF00) >> 8 :
-                                        0)
-            , eid0(can_frame->can_eff ? (can_frame->can_id & 0x000000FF) >> 0 :
-                                        0)
-            , dlc(can_frame->can_dlc)
-            , rtr(can_frame->can_rtr)
-        {
-            memcpy(data, can_frame->data, 8);
-        }
-
-        /** Constructor.
-         * @param command corresponding command for the buffer
-         */
-        Buffer( uint8_t command = 0)
-            : command(command)
-        {
-        }
+        /** The SPI transfer size in bytes of a buffer transfer */
+        static const size_t TRANSFER_SIZE = 14;
 
         /** Take the contents of the Buffer and fill in a can_frame structure.
          * @param can_frame CAN frame structure to fill in
          */
         __attribute__((optimize("-O3")))
-        void build_struct_can_frame(struct can_frame *can_frame)
+        void build_struct_can_frame(struct can_frame *can_frame, SPI *spi)
         {
             can_frame->can_eff = exide;
-            if (exide)
+            if (LIKELY(exide))
             {
                 /* extended frame */
                 can_frame->can_rtr = rtr;
@@ -425,7 +396,7 @@ private:
                                     ((uint32_t)sidh << 3);
             }
             can_frame->can_err = 0;
-            memcpy(can_frame->data, data, 8);
+            *((uint64_t*)can_frame->data) = *((uint64_t*)data);
             can_frame->can_dlc = dlc;
         }
 
@@ -438,7 +409,61 @@ private:
         }
 
     protected:
-        uint8_t command;
+        /** Constructor.
+         * @param can_frame reference to a can_frame metadata structure.
+         * @param command corresponding command for the buffer
+         */
+        __attribute__((optimize("-O3")))
+        Buffer(struct can_frame *can_frame, uint8_t command)
+            : command(command)
+#if 0
+            , sidh(can_frame->can_eff ? (can_frame->can_id & 0x1FE00000) >> 21 :
+                                        (can_frame->can_id & 0x000007F8) >> 3)
+            , eid(can_frame->can_eff ? (can_frame->can_id & 0x00030000) >> 16 :
+                                       0)
+            , exide(can_frame->can_eff)
+            , sid(can_frame->can_eff ? (can_frame->can_id & 0x001C0000) >> 18 :
+                                       (can_frame->can_id & 0x000007F8) >> 3)
+            , eid8(can_frame->can_eff ? (can_frame->can_id & 0x0000FF00) >> 8 :
+                                        0)
+            , eid0(can_frame->can_eff ? (can_frame->can_id & 0x000000FF) >> 0 :
+                                        0)
+#endif
+            , dlc(can_frame->can_dlc)
+            , rtr(can_frame->can_rtr)
+        {
+            if (LIKELY(can_frame->can_eff))
+            {
+                sidh = (can_frame->can_id & 0x1FE00000) >> 21;
+                eid = (can_frame->can_id & 0x00030000) >> 16;
+                exide = 1;
+                sid = (can_frame->can_id & 0x001C0000) >> 18;
+                eid8 = (can_frame->can_id & 0x0000FF00) >> 8;
+                eid0 = (can_frame->can_id & 0x000000FF) >> 0;
+            }
+            else
+            {
+                sidh = (can_frame->can_id & 0x000007F8) >> 3;
+                eid = 0;
+                exide = 0;
+                sid = (can_frame->can_id & 0x000007F8) >> 3;
+                eid8 = 0;
+                eid0 = 0;
+            }
+            //memcpy(data, can_frame->data, 8);
+            *((uint64_t*)data) = *((uint64_t*)can_frame->data);
+        }
+
+        /** Constructor.
+         * @param command corresponding command for the buffer
+         */
+        Buffer( uint8_t command)
+            : command(command)
+        {
+        }
+
+        uint8_t pad[2]; /**< force the data to 64-bit allign */
+        uint8_t command; /**< the transaction command */
         uint8_t sidh; /**< standard identifier high byte */
         struct
         {
@@ -460,119 +485,17 @@ private:
         uint8_t data[8]; /** all 8 data bytes */
     };
 
-    /** Setup a bit modify transfer structure.
-     */
-    class BitModify
-    {
-    public:
-        /** Constructor.
-         * @param address address to modify
-         * @param data data to modify
-         * @param mask mask of data to modify
-         */
-        BitModify(Registers address, uint8_t data, uint8_t mask)
-            : command_(BIT_MODIFY)
-            , address_(address)
-            , mask_(mask)
-            , data_(data)
-        {
-        }
-
-        /** Constructor.
-         * @param xfer transfer object to setup
-         * @param address address to modify
-         * @param data data to modify
-         * @param mask mask of data to modify
-         */
-        BitModify(spi_ioc_transfer *xfer,
-                  Registers address, uint8_t data, uint8_t mask)
-            : command_(BIT_MODIFY)
-            , address_(address)
-            , mask_(mask)
-            , data_(data)
-        {
-            setup_xfer(xfer);
-        }
-
-        /** Setup the transfer.
-         * @param xfer transfer object to setup
-         */
-        void setup_xfer(spi_ioc_transfer *xfer) const
-        {
-            xfer->tx_buf = (unsigned long)payload_;
-            xfer->len = sizeof(payload_);
-            xfer->cs_change = 1;
-        }
-
-        /** Get the number of transfers for a BitModify.
-         * @return number of transfers for a BitModify
-         */
-        static int xfer_count()
-        {
-            return 1;
-        }
-
-        /** Get a pointer to the data.
-         * @return a pointer to the data
-         */
-        void *data_ptr()
-        {
-            return payload_;
-        }
-
-        /** Get the data size.
-         * @return the data size in bytes
-         */
-        unsigned data_size()
-        {
-            return sizeof(payload_);
-        }
-
-    private:
-        union
-        {
-            uint8_t payload_[4]; /**< message payload */
-            struct
-            {
-                uint8_t command_; /**< transfer command */
-                uint8_t address_; /**< register address */
-                uint8_t mask_; /**< data mask */
-                uint8_t data_; /**< data */
-            };
-        };
-    };
-
     /** Setup a buffer read transfer structure.
      */
     class BufferRead : public Buffer
     {
     public:
         /** Constructor.
-         * @param xfer two transfer objects to setup
          * @param index buffer index to read from (valid values are 0 and 1)
          */
-        BufferRead(spi_ioc_transfer xfer[2], int index)
+        BufferRead(int index)
             : Buffer(READ_RX_BUF | (index == 0 ? 0x00 : 0x40))
         {
-            xfer[0].tx_buf = (unsigned long)get_payload();
-            xfer[0].rx_buf = (unsigned long)get_payload();
-            xfer[0].len = 14;
-            xfer[0].cs_change = 1;
-        }
-
-        /** Constructor.
-         */
-        BufferRead()
-            : Buffer()
-        {
-        }
-
-        /** Get the number of transfers for a BufferRead.
-         * @return number of transfers for a BufferRead
-         */
-        static int xfer_count()
-        {
-            return 1;
         }
     };
 
@@ -582,32 +505,12 @@ private:
     {
     public:
         /** Constructor.
-         * @param xfer two transfer objects to setup
          * @param index buffer index to read from (valid values are 0 and 1)
          * @param can_frame reference to a can_frame metadata structure.
          */
-        BufferWrite(spi_ioc_transfer xfer[2], int index,
-                    struct can_frame *can_frame)
+        BufferWrite(int index, struct can_frame *can_frame)
             : Buffer(can_frame, LOAD_TX_BUF + (index << 1))
         {
-            xfer[0].tx_buf = (unsigned long)get_payload();
-            xfer[0].len = 6 + dlc;
-            xfer[0].cs_change = 1;
-        }
-
-        /** Constructor.
-         */
-        BufferWrite()
-            : Buffer()
-        {
-        }
-
-        /** Get the number of transfers for a BufferWrite.
-         * @return number of transfers for a BufferWrite
-         */
-        static int xfer_count()
-        {
-            return 1;
         }
 
     private:
@@ -643,11 +546,6 @@ private:
     /** Function to try and transmit a message while holding a lock. */
     void tx_msg_locked();
 
-    /** Function to receive a message.
-     * @param index buffer index, 0 or 1
-     */
-    void rx_msg(int index);
-
     /** Reset the device.
      */
     void reset()
@@ -663,38 +561,16 @@ private:
     __attribute__((optimize("-O3")))
     uint8_t register_read(Registers address)
     {
-        spi_ioc_transfer xfer[2];
-        memset(xfer, 0, sizeof(xfer));
-        uint8_t wr_data[2] = {READ, address};
-        uint8_t rd_data[1];
-        xfer[0].tx_buf = (unsigned long)wr_data;
-        xfer[0].len = sizeof(wr_data);
-        xfer[1].rx_buf = (unsigned long)rd_data;
-        xfer[1].len = sizeof(rd_data);
-        xfer[1].cs_change = 1;
+        spi_ioc_transfer xfer;
+        uint8_t data[3] = {READ, address, 0};
 
-        SPI::transfer_messages(spi, xfer, 2);
+        xfer.tx_buf = (unsigned long)data;
+        xfer.rx_buf = (unsigned long)data;
+        xfer.len = sizeof(data);
 
-        return rd_data[0];
-    }
+        SPI::transfer(spi, &xfer);
 
-    /** Read from a RX buffer.
-     * @param index buffer index to read from (valid values are 0 and 1)
-     * @param buffer pointer to a buffer structure to fill in with the result
-     */
-    __attribute__((optimize("-O3")))
-    void buffer_read(int index, void *buffer)
-    {
-        spi_ioc_transfer xfer[2];
-        memset(xfer, 0, sizeof(xfer));
-        uint8_t wr_data[1];
-        wr_data[0] = READ_RX_BUF | (index == 0 ? 0x00 : 0x40);
-        xfer[0].tx_buf = (unsigned long)wr_data;
-        xfer[0].len = sizeof(wr_data);
-        xfer[1].rx_buf = (unsigned long)buffer;
-        xfer[1].len = 13;
-        xfer[1].cs_change = 1;
-        ::ioctl(spiFd, SPI_IOC_MESSAGE(2), xfer);
+        return data[2];
     }
 
     /** Write to a SPI register.
@@ -704,34 +580,14 @@ private:
     __attribute__((optimize("-O3")))
     void register_write(Registers address, uint8_t data)
     {
-        spi_ioc_transfer xfer[1];
-        memset(xfer, 0, sizeof(xfer));
+        spi_ioc_transfer xfer;
         uint8_t payload[] = {WRITE, address, data};
 
-        xfer[0].tx_buf = (unsigned long)payload;
-        xfer[0].len = sizeof(payload);
-        xfer[0].cs_change = 1;
+        xfer.tx_buf = (unsigned long)payload;
+        xfer.rx_buf = 0;
+        xfer.len = sizeof(payload);
 
-        SPI::transfer_messages(spi, xfer, 1);
-    }
-
-    /** Write to a TX buffer.
-     * @param index buffer index to write to (valid values are 0 through 2)
-     * @param buffer pointer to a buffer structure to fill in with the result
-     */
-    __attribute__((optimize("-O3")))
-    void buffer_write(int index, void *buffer)
-    {
-        spi_ioc_transfer xfer[2];
-        memset(xfer, 0, sizeof(xfer));
-        uint8_t instruction[1];
-        instruction[0] = LOAD_TX_BUF + (index << 1);
-        xfer[0].tx_buf = (unsigned long)instruction;
-        xfer[0].len = sizeof(instruction);
-        xfer[1].tx_buf = (unsigned long)buffer;
-        xfer[1].len = 13;
-        xfer[1].cs_change = 1;
-        ::ioctl(spiFd, SPI_IOC_MESSAGE(2), xfer);
+        SPI::transfer(spi, &xfer);
     }
 
     /** Bit modify to a SPI register.
@@ -741,18 +597,40 @@ private:
      */
     void bit_modify(Registers address, uint8_t data, uint8_t mask)
     {
+        spi_ioc_transfer xfer;
         uint8_t payload[] = {BIT_MODIFY, address, mask, data};
-        ::write(spiFd, payload, sizeof(payload));
+
+        xfer.tx_buf = (unsigned long)payload;
+        xfer.rx_buf = 0;
+        xfer.len = sizeof(payload);
+        SPI::transfer(spi, &xfer);
     }
 
-    /** Request a transmit buffer to send.
-     * @param index buffer index to request (valid values are 0 through 2)
+    /** Read a message to into a receive buffer.
+     * @param buf BuffeRead object to fill in
+     * @param index buffer index to read from (valid values are 0 and 1)
      */
-    __attribute__((optimize("-O3")))
-    void request_to_send(int index)
+    void buffer_read(BufferRead *buf, int index)
     {
-        uint8_t rts = RTS | (0x01 << index);
-        ::write(spiFd, &rts, 1);
+        spi_ioc_transfer xfer;
+        xfer.tx_buf = (unsigned long)buf->get_payload();
+        xfer.rx_buf = (unsigned long)buf->get_payload();
+        xfer.len = buf->TRANSFER_SIZE;
+        SPI::transfer(spi, &xfer);
+    }
+
+    /** Write a message to a transmit buffer.
+     * @param buf BufferWrite object to write out over SPI
+     * @param index buffer index to write to (valid values are 0 and 1)
+     * @param can_frame reference to a can_frame metadata structure.
+     */
+    void buffer_write(BufferWrite *buf, int index, struct can_frame *can_frame)
+    {
+        spi_ioc_transfer xfer;
+        xfer.tx_buf = (unsigned long)buf->get_payload();
+        xfer.rx_buf = 0;
+        xfer.len = buf->TRANSFER_SIZE;
+        SPI::transfer(spi, &xfer);
     }
 
     /** Request that the GPIO cache be refreshed.
@@ -781,22 +659,6 @@ private:
 
     /** baud rate settings table */
     static const MCP2515Baud baudTable[];
-
-    static const BitModify tx0ClrIntEnable;
-    static const BitModify tx0ClrIntFlag;
-    static const BitModify tx1ClrIntEnable;
-    static const BitModify tx1ClrIntFlag;
-    static const BitModify tx0IncPriority;
-    static const BitModify tx1IncPriority;
-    static const BitModify tx0RequestToSend;
-    static const BitModify tx1RequestToSend;
-    static const BitModify tx0TransmitEnable;
-    static const BitModify tx1TransmitEnable;
-
-    BufferRead rx_buf;
-    BufferWrite tx_buf;
-    spi_ioc_transfer xfer_[12];
-
 
     /** Default constructor.
      */

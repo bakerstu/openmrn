@@ -82,6 +82,17 @@ public:
      */
     void interrupt_handler();
 
+    /** This method provides a reference to the Mutex used by this device
+     * driver.  It can be passed into another SPI driver instance as a bus
+     * wide lock such that a SPI bus can be shared between this driver and
+     * another use case with another chip select.
+     * @return a reference to this device driver instance lock
+     */
+    OSMutex *get_lock()
+    {
+        return &lock_;
+    }
+
 private:
     static constexpr size_t DMA_THRESHOLD_BYTES = 32;
 
@@ -127,7 +138,7 @@ private:
     int transfer(struct spi_ioc_transfer *msg) override
     {
         /** @todo It is assumed that 8 bit per word is used, need to extend */
-        if (msg->len < dmaThreshold_)
+        if (LIKELY(msg->len < dmaThreshold_))
         {
             uint8_t *tx_buf = msg->tx_buf ? (uint8_t*)msg->tx_buf : dummyBuf;
             uint8_t *rx_buf = msg->rx_buf ? (uint8_t*)msg->rx_buf : dummyBuf;
@@ -223,7 +234,7 @@ private:
         //
         // Wait for space in FIFO
         //
-        //while(!(HWREG(ulBase + MCSPI_O_CH0STAT)&MCSPI_CH0STAT_TXS))
+        while(UNLIKELY(!(HWREG(ulBase + MCSPI_O_CH0STAT)&MCSPI_CH0STAT_TXS)))
         {
         }
 

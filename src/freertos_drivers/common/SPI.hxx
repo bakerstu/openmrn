@@ -35,6 +35,7 @@
 #define _FREERTOS_DRIVERS_COMMON_SPI_HXX_
 
 #include <unistd.h>
+#include <compiler.h>
 
 #include "BlockOrWakeUp.hxx"
 #include "SimpleLog.hxx"
@@ -53,6 +54,20 @@ class SPI : public Node
 public:
     /** Function point for the chip select assert and deassert methods */
     typedef void (*ChipSelectMethod)();
+
+    /** Method to transmit/receive the data.  Chip select will be asserted at
+     * start of the transfer and deasserted at the end of the transfer.
+     * @param self pointer to a SPI object instance
+     * @param msg message(s) to transact.
+     * @return bytes transfered upon success, -errno upon failure
+     */
+    static int transfer(SPI *self,struct spi_ioc_transfer *msg)
+    {
+        self->csAssert();
+        int result = self->transfer(msg);
+        self->csDeassert();
+        return result;
+    }
 
     /** Conduct multiple message transfers with one stop at the end.
      * @param self pointer to a SPI object instance
@@ -133,32 +148,32 @@ protected:
         int count = 0;
         int result;
 
-        //lock_.lock();
-        //bus_lock();
+        lock_.lock();
+        bus_lock();
         for (int i = 0; i < num; ++i, ++msgs)
         {
             count += msgs->len;
             csAssert();
             result = transfer(msgs);
-            if (result < 0)
+            if (UNLIKELY(result < 0))
             {
                 /* something bad happened, reset the bus and bail */
                 csDeassert();
-                //bus_unlock();
-                //lock_.unlock();
+                bus_unlock();
+                lock_.unlock();
                 return result;
             }
             if (msgs->cs_change)
             {
-                //if (msgs->delay_usec)
+                if (UNLIKELY(msgs->delay_usec))
                 {
-                    //usleep(msgs->delay_usec);
+                    usleep(msgs->delay_usec);
                 }
                 csDeassert();
             }
         }
-        //bus_unlock();
-        //lock_.unlock();
+        bus_unlock();
+        lock_.unlock();
 
         return count;
     }
@@ -175,13 +190,13 @@ protected:
      * @return >= 0 upon success, -errno upon failure
      */
     int ioctl(File *file, unsigned long int key, unsigned long data) override;
-
+public:
     /** function pointer to a method that asserts chip select. */
     ChipSelectMethod csAssert;
 
     /** function pointer to a method that deasserts chip select. */
     ChipSelectMethod csDeassert;
-
+protected:
     /** Max default speed in Hz */
     uint32_t speedHz;
 

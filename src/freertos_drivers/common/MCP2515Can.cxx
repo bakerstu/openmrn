@@ -34,6 +34,7 @@
 #include "MCP2515Can.hxx"
 
 #include <fcntl.h>
+#include <compiler.h>
 
 const MCP2515Can::MCP2515Baud MCP2515Can::baudTable[] =
 {
@@ -78,19 +79,6 @@ const MCP2515Can::MCP2515Baud MCP2515Can::baudTable[] =
                       {(7 - 1), (4 - 1), 0, 1},
                       {(4 - 1), 0, 0}}
 };
-
-const MCP2515Can::BitModify MCP2515Can::tx0ClrIntEnable(CANINTE, 0, TX0I);
-const MCP2515Can::BitModify MCP2515Can::tx0ClrIntFlag(CANINTF, 0, TX0I);
-const MCP2515Can::BitModify MCP2515Can::tx1ClrIntEnable(CANINTE, 0, TX1I);
-const MCP2515Can::BitModify MCP2515Can::tx1ClrIntFlag(CANINTF, 0, TX1I);
-const MCP2515Can::BitModify MCP2515Can::tx0IncPriority(TXB0CTRL, 0x01, 0x03);
-const MCP2515Can::BitModify MCP2515Can::tx1IncPriority(TXB1CTRL, 0x01, 0x03);
-const MCP2515Can::BitModify MCP2515Can::tx0RequestToSend(TXB0CTRL, 0x08, 0x0B);
-const MCP2515Can::BitModify MCP2515Can::tx1RequestToSend(TXB1CTRL, 0x08, 0x0B);
-const MCP2515Can::BitModify MCP2515Can::tx0TransmitEnable(CANINTE, TX0I << 0,
-                                                          TX0I << 0);
-const MCP2515Can::BitModify MCP2515Can::tx1TransmitEnable(CANINTE, TX0I << 1,
-                                                          TX0I << 1);
 
 /*
  * init()
@@ -199,6 +187,7 @@ void MCP2515Can::disable()
 __attribute__((optimize("-O3")))
 void MCP2515Can::tx_msg_locked()
 {
+#if 1
     /* the node lock_ will be locked by the caller */
     if (txPending < 3)
     {
@@ -210,86 +199,42 @@ void MCP2515Can::tx_msg_locked()
         portENTER_CRITICAL();
         if (txBuf->data_read_pointer(&can_frame))
         {
-            unsigned count = 0;
-            memset(xfer_, 0, sizeof(xfer_));
-
-            /* bump up priority of the other buffer so it will transmit
-             * first if it is pending
-             */
-            if (index == 0)
-            {
-                tx1IncPriority.setup_xfer(xfer_ + count);
-            }
-            else
-            {
-                tx0IncPriority.setup_xfer(xfer_ + count);
-            }
-            ++count;
-
-            /* load the tranmsit buffer */
-            new (&tx_buf) BufferWrite(xfer_ + count, index, can_frame);
+            /* build up a transmit BufferWrite structure */
+            BufferWrite buffer(index, can_frame);
             txBuf->consume(1);
-            txBuf->signal_condition();
             portEXIT_CRITICAL();
 
-            count += tx_buf.xfer_count();
+            /* bump up priority of the other buffer so it will
+             * transmit first if it is pending
+             */
+            bit_modify(index == 0 ? TXB1CTRL : TXB0CTRL, 0x01, 0x03);
+
+            /* load the tranmit buffer */
+            buffer_write(&buffer, index, can_frame);
+
             txPending |= (0x1 << index);
 
             /* request to send at lowest priority */
-            if (index == 0)
-            {
-                tx0RequestToSend.setup_xfer(xfer_ + count);
-                ++count;
-                tx0TransmitEnable.setup_xfer(xfer_ + count);
-            }
-            else
-            {
-                tx1RequestToSend.setup_xfer(xfer_ + count);
-                ++count;
-                tx1TransmitEnable.setup_xfer(xfer_ + count);
-            }
-            ++count;
-
-            //HASSERT(count <= ARRAYSIZE(xfer_));
-
-            // tranfer the messages
-            //::ioctl(spiFd, SPI_IOC_MESSAGE(count), xfer_);
-            SPI::transfer_messages(spi, xfer_, count);
+            bit_modify(index == 0 ? TXB0CTRL : TXB1CTRL, 0x08, 0x0B);
+            bit_modify(CANINTE, TX0I << index, TX0I << index);
+            txBuf->signal_condition();
         }
         else
         {
             portEXIT_CRITICAL();
         }
     }
-}
-
-/*
- * rx_msg()
- */
-__attribute__((optimize("-O3")))
-void MCP2515Can::rx_msg(int index)
-{
-    /* Read the rx buffer.  The RXnIF flag is automatically cleared at the
-     * end of the SPI transaction
-     */
-    Buffer rx_buf;
-    buffer_read(index, rx_buf.get_payload());
+#else
     struct can_frame *can_frame;
 
     portENTER_CRITICAL();
-    if (rxBuf->data_write_pointer(&can_frame))
+    if (txBuf->data_read_pointer(&can_frame))
     {
-        rx_buf.build_struct_can_frame(can_frame);
-        rxBuf->advance(1);
-        ++numReceivedPackets_;
-        rxBuf->signal_condition();
-    }
-    else
-    {
-        /* receive overrun occured */
-        ++overrunCount;
+        txBuf->consume(1);
+        txBuf->signal_condition();
     }
     portEXIT_CRITICAL();
+#endif
 }
 
 /*
@@ -302,10 +247,10 @@ void *MCP2515Can::entry()
     {
 #if MCP2515_DEBUG
         int result = sem.timedwait(SEC_TO_NSEC(1));
-        lock_.lock();
 
         if (result != 0)
         {
+            lock_.lock();
             spi_ioc_transfer xfer[2];
             memset(xfer, 0, sizeof(xfer));
             uint8_t wr_data[2] = {READ, 0};
@@ -320,205 +265,136 @@ void *MCP2515Can::entry()
         }
 #else
         sem.wait();
-        lock_.lock();
 #endif
-        bool receive = false;
-        bool received = false;
-        bool transmited = false;
+        lock_.lock();
+        spi->csDeassert();
 
-        for ( ; /* forever */ ; )
+        /* read status flags */
+        uint8_t canintf = register_read(CANINTF);
+
+        if (UNLIKELY((canintf & ERRI)) || UNLIKELY((canintf & MERR)))
         {
-            /* read status flags */
-            uint8_t canintf = register_read(CANINTF);
+            /* error handling, read error flag register */
+            uint8_t eflg = register_read(EFLG);
 
-            if ((canintf & ERRI) || (canintf & MERR))
+            /* clear error status flag */
+            bit_modify(CANINTF, 0, ERRI | MERR);
+
+            if (eflg & (RX0OVR | RX1OVR))
             {
-                /* error handling, read error flag register */
-                uint8_t eflg = register_read(EFLG);
+                /* receive overrun */
+                ++overrunCount;
 
-                /* clear error status flag */
-                bit_modify(CANINTF, 0, ERRI | MERR);
-
-                if (eflg & (RX0OVR | RX1OVR))
-                {
-                    /* receive overrun */
-                    ++overrunCount;
-
-                    /* clear error flag */
-                    bit_modify(EFLG, 0, (RX0OVR | RX1OVR));
-                }
-                if (eflg & TXBO)
-                {
-                    /* bus off */
-                    ++busOffCount;
-                }
-                if ((eflg & TXEP) || (eflg & RXEP))
-                {
-                    /* error passive state */
-                    ++softErrorCount;
-
-                    /* flush out any transmit data in the pipleline */
-                    register_write(TXB0CTRL, 0x00);
-                    register_write(TXB1CTRL, 0x00);
-                    bit_modify(CANINTE, 0, TX0I | TX1I);
-                    bit_modify(CANINTF, 0, TX0I | TX1I);
-
-                    portENTER_CRITICAL();
-                    txBuf->flush();
-                    txBuf->signal_condition();
-                    portEXIT_CRITICAL();
-
-                    txPending = 0;
-                }
+                /* clear error flag */
+                bit_modify(EFLG, 0, (RX0OVR | RX1OVR));
             }
-
-            unsigned count = 0;
-            memset(xfer_, 0, sizeof(xfer_));
-
-            if (canintf & RX0I)
+            if (eflg & TXBO)
             {
-                /* receive interrupt active */
-                new (&rx_buf) BufferRead(xfer_ + count, 0);
-                ++count;
-                receive = true;
+                /* bus off */
+                ++busOffCount;
             }
-
-            if (txPending)
+            if ((eflg & TXEP) || (eflg & RXEP))
             {
-                /* transmit interrupt active and transmission complete */
-                if (canintf & TX0I)
-                {
-                    txPending &= ~0x1;
-                    tx0ClrIntEnable.setup_xfer(xfer_ + count);
-                    ++count;
-                    tx0ClrIntFlag.setup_xfer(xfer_ + count);
-                    ++count;
-                    ++numTransmittedPackets_;
-                }
-                if (canintf & TX1I)
-                {
-                    txPending &= ~0x2;
-                    tx1ClrIntEnable.setup_xfer(xfer_ + count);
-                    ++count;
-                    tx1ClrIntFlag.setup_xfer(xfer_ + count);
-                    ++count;
-                    ++numTransmittedPackets_;
-                }
+                /* error passive state */
+                ++softErrorCount;
 
-                /* the node lock_ will be locked by the caller */
-                if (txPending < 3)
-                {
-                    struct can_frame *can_frame;
+                /* flush out any transmit data in the pipleline */
+                register_write(TXB0CTRL, 0x00);
+                register_write(TXB1CTRL, 0x00);
+                bit_modify(CANINTE, 0, TX0I | TX1I);
+                bit_modify(CANINTF, 0, TX0I | TX1I);
 
-                    /* find an empty buffer */
-                    int index = (txPending & 0x1) ? 1 : 0;
+                portENTER_CRITICAL();
+                txBuf->flush();
+                portEXIT_CRITICAL();
+                txBuf->signal_condition();
 
-                    portENTER_CRITICAL();
-                    if (txBuf->data_read_pointer(&can_frame))
-                    {
-                        /* bump up priority of the other buffer so it will transmit
-                         * first if it is pending
-                         */
-                        if (index == 0)
-                        {
-                            tx1IncPriority.setup_xfer(xfer_ + count);
-                        }
-                        else
-                        {
-                            tx0IncPriority.setup_xfer(xfer_ + count);
-                        }
-                        ++count;
-
-                        /* load the tranmsit buffer */
-                        new (&tx_buf) BufferWrite(xfer_ + count, index, can_frame);
-                        txBuf->consume(1);
-                        portEXIT_CRITICAL();
-
-                        ++count;;
-                        txPending |= (0x1 << index);
-
-                        /* request to send at lowest priority */
-                        if (index == 0)
-                        {
-                            tx0RequestToSend.setup_xfer(xfer_ + count);
-                            ++count;
-                            tx0TransmitEnable.setup_xfer(xfer_ + count);
-                        }
-                        else
-                        {
-                            tx1RequestToSend.setup_xfer(xfer_ + count);
-                            ++count;
-                            tx1TransmitEnable.setup_xfer(xfer_ + count);
-                        }
-                        ++count;
-                        transmited = true;
-                    }
-                    else
-                    {
-                        portEXIT_CRITICAL();
-                    }
-                }
+                txPending = 0;
             }
+        }
 
-            //HASSERT(count <= ARRAYSIZE(xfer_));
+        if (canintf & RX0I)
+        {
+            /* receive interrupt active */
+            BufferRead buffer(0);
+            buffer_read(&buffer, 0);
+            struct can_frame *can_frame;
 
-            // tranfer the messages
-            if (count == 0)
+            portENTER_CRITICAL();
+            if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
             {
-                break;
+                buffer.build_struct_can_frame(can_frame, spi);
+                rxBuf->advance(1);
+        spi->csAssert();
+                rxBuf->signal_condition();
+        spi->csDeassert();
+                ++numReceivedPackets_;
             }
             else
             {
-                SPI::transfer_messages(spi, xfer_, count);
+                /* receive overrun occured */
+                ++overrunCount;
+            }
+            portEXIT_CRITICAL();
+        }
+
+        if (txPending)
+        {
+            /* transmit interrupt active and transmission complete */
+            if (canintf & TX0I)
+            {
+                txPending &= ~0x1;
+                bit_modify(CANINTE, 0, TX0I);
+                bit_modify(CANINTF, 0, TX0I);
+                ++numTransmittedPackets_;
+            }
+            if (canintf & TX1I)
+            {
+                txPending &= ~0x2;
+                bit_modify(CANINTE, 0, TX1I);
+                bit_modify(CANINTF, 0, TX1I);
+                ++numTransmittedPackets_;
             }
 
-            if (receive)
+            while (txPending < 3)
             {
                 struct can_frame *can_frame;
 
+                /* find an empty buffer */
+                int index = (txPending & 0x1) ? 1 : 0;
+
                 portENTER_CRITICAL();
-                if (rxBuf->data_write_pointer(&can_frame))
+                if (txBuf->data_read_pointer(&can_frame))
                 {
-                    rx_buf.build_struct_can_frame(can_frame);
-                    rxBuf->advance(1);
-                    ++numReceivedPackets_;
-                    received = true;
+                    /* build up a transmit BufferWrite structure */
+                    BufferWrite buffer(index, can_frame);
+                    txBuf->consume(1);
+                    portEXIT_CRITICAL();
+
+                    /* bump up priority of the other buffer so it will
+                     * transmit first if it is pending
+                     */
+                    bit_modify(index == 0 ? TXB1CTRL : TXB0CTRL, 0x01, 0x03);
+
+                    /* load the tranmit buffer */
+                    buffer_write(&buffer, index, can_frame);
+
+                    txPending |= (0x1 << index);
+
+                    /* request to send at lowest priority */
+                    bit_modify(index == 0 ? TXB0CTRL : TXB1CTRL, 0x08, 0x0B);
+                    bit_modify(CANINTE, TX0I << index, TX0I << index);
+                    txBuf->signal_condition();
                 }
                 else
                 {
-                    /* receive overrun occured */
-                    ++overrunCount;
+                    portEXIT_CRITICAL();
+                    break;
                 }
-                portEXIT_CRITICAL();
             }
-
-    #if 0
-            /* Refresh status flags just in case RX1 buffer became active
-             * before we could finish reading out RX0 buffer.  This ussually
-             * won't happen because we should be able to respond to incoming
-             * messages fast enough to only use RX0 buffer.
-             */
-            canintf = register_read(CANINTF);
-
-            if (canintf & RX1I)
-            {
-                /* receive interrupt active */
-                rx_msg(1);
-            }
-    #endif
         }
 
-        /** consolidate the signals from above */
-        if (received)
-        {
-            rxBuf->signal_condition();
-        }
-        if (transmited)
-        {
-            txBuf->signal_condition();
-        }
-
-        if (ioPending)
+        if (UNLIKELY(ioPending))
         {
             ioPending = false;
             /* write the latest GPO data */
@@ -527,7 +403,9 @@ void *MCP2515Can::entry()
             /* get the latest GPI data */
             gpiData = (register_read(TXRTSCTRL) >> 3) & 0x7;
         }
+        spi->csAssert();
         lock_.unlock();
+        spi->csDeassert();
 
         interrupt_enable();
     }
@@ -541,6 +419,7 @@ void *MCP2515Can::entry()
 __attribute__((optimize("-O3")))
 void MCP2515Can::interrupt_handler()
 {
+    spi->csAssert();
     int woken = false;
     interrupt_disable();
     sem.post_from_isr(&woken);
