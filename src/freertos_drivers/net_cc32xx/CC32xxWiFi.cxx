@@ -493,6 +493,11 @@ extern TaskHandle_t xSimpleLinkSpawnTaskHndl;
  */
 void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy)
 {
+    /* We use OSThread::get_priority_max() - 1 for the thread priorities because
+     * we want a to be among the highest, but want to reserve one higher
+     * priority so that device drivers have the option of using the highest
+     * priority for deferred processing.
+     */
     wlanRole = role;
     wlanPowerPolicy = power_policy;
 #ifdef SL_API_V2
