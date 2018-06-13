@@ -73,8 +73,7 @@ CC32xxSPI::CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
     : SPI(name, cs_assert, cs_deassert, bus_lock)
     , base(base)
     , interrupt(interrupt)
-    , dmaThreshold_(dma_threshold < DMA_THRESHOLD_BYTES ? dma_threshold :
-                                                          DMA_THRESHOLD_BYTES)
+    , dmaThreshold_(dma_threshold)
     , dmaChannelIndexTx_(dma_channel_index_tx)
     , dmaChannelIndexRx_(dma_channel_index_rx)
     , sem_()

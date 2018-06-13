@@ -67,7 +67,7 @@ public:
     CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
             ChipSelectMethod cs_assert, ChipSelectMethod cs_deassert,
             OSMutex *bus_lock = nullptr,
-            size_t dma_threshold = DMA_THRESHOLD_BYTES,
+            size_t dma_threshold = DEFAULT_DMA_THRESHOLD_BYTES,
             uint32_t dma_channel_index_tx = UDMA_CH7_GSPI_TX,
             uint32_t dma_channel_index_rx = UDMA_CH6_GSPI_RX);
 
@@ -94,7 +94,7 @@ public:
     }
 
 private:
-    static constexpr size_t DMA_THRESHOLD_BYTES = 32;
+    static constexpr size_t DEFAULT_DMA_THRESHOLD_BYTES = 32;
 
     /** Maximum number of bytes transferred in a single DMA transaction */
     static constexpr size_t MAX_DMA_TRANSFER_AMOUNT = 1024;
@@ -140,37 +140,7 @@ private:
         /** @todo It is assumed that 8 bit per word is used, need to extend */
         if (LIKELY(msg->len < dmaThreshold_))
         {
-            uint8_t *tx_buf = msg->tx_buf ? (uint8_t*)msg->tx_buf : dummyBuf;
-            uint8_t *rx_buf = msg->rx_buf ? (uint8_t*)msg->rx_buf : dummyBuf;
-            unsigned long data;
-            uint32_t tx_len = msg->len;
-            uint32_t rx_len = msg->len;
-
-            SPIDataPut(base, *tx_buf++);
-            --tx_len;
-
-            while (tx_len || rx_len)
-            {
-                /* fill TX FIFO */
-                if (tx_len)
-                {
-                    if (SPIDataPutNonBlocking(base, *tx_buf) != 0)
-                    {
-                        --tx_len;
-                        ++tx_buf;
-                    }
-                }
-
-                /* empty RX FIFO */
-                if (rx_len)
-                {
-                    if (SPIDataGetNonBlocking(base, &data) != 0)
-                    {
-                        --rx_len;
-                        *rx_buf++ = data;
-                    }
-                }
-            }
+            return transfer_polled(msg);
         }
         else
         {
@@ -181,67 +151,105 @@ private:
         return msg->len;
     }
 
+    /** Method to transmit/receive the data.
+     * @param msg message to transact.
+     */
+    __attribute__((optimize("-O3")))
+    int transfer_polled(struct spi_ioc_transfer *msg) override
+    {
+        static uint8_t dummy = 0xFF;
+
+        /* we are assuming that at least one byte will be transferred, and
+         * we want to start tranfering data as soon as possible
+         */
+        data_put(msg->tx_buf ? *((uint8_t*)msg->tx_buf) : 0xFF);
+
+        uint8_t *tx_buf = msg->tx_buf ? (uint8_t*)msg->tx_buf + 1 : &dummy;
+        uint8_t *rx_buf = (uint8_t*)msg->rx_buf;
+        unsigned long data;
+        uint32_t tx_len = msg->len - 1;
+        uint32_t rx_len = msg->len;
+
+        do
+        {
+            /* fill TX FIFO */
+            if (tx_len)
+            {
+                if (data_put_non_blocking(*tx_buf) != 0)
+                {
+                    if (msg->tx_buf)
+                    {
+                        ++tx_buf;
+                    }
+                    --tx_len;
+                }
+            }
+
+            /* empty RX FIFO */
+            if (rx_len)
+            {
+                if (data_get_non_blocking(&data) != 0)
+                {
+                    if (msg->rx_buf)
+                    {
+                        *rx_buf++ = data;
+                    }
+                    --rx_len;
+                }
+            }
+        }
+        while (tx_len || rx_len);
+
+        return msg->len;
+    }
+
     /** Configure a DMA transaction.
      * @param msg message to transact.
      */
     void config_dma(struct spi_ioc_transfer *msg);
 
-    long SPIDataGetNonBlocking(unsigned long ulBase, unsigned long *pulData)
+    /** Receives a word from the specified port.  This function gets a SPI word
+     * from the receive FIFO for the specified port.
+     * @param data is pointer to receive data variable.
+     * @return Returns the number of elements read from the receive FIFO.
+     */
+    long data_get_non_blocking(unsigned long *data)
     {
-        unsigned long ulRegVal;
-
-        //
-        // Read register status register
-        //
-        ulRegVal = HWREG(ulBase + MCSPI_O_CH0STAT);
-
-        //
-        // Check is data is available
-        //
-        if(ulRegVal & MCSPI_CH0STAT_RXS)
+        if(HWREG(base + MCSPI_O_CH0STAT) & MCSPI_CH0STAT_RXS)
         {
-            *pulData = HWREG(ulBase + MCSPI_O_RX0);
-            return(1);
+            *data = HWREG(base + MCSPI_O_RX0);
+            return 1;
         }
 
-        return(0);
+        return 0;
     }
 
-    long SPIDataPutNonBlocking(unsigned long ulBase, unsigned long ulData)
+    /** Transmits a word on the specified port.  This function transmits a SPI
+     * word on the transmit FIFO for the specified port.
+     * @param data is data to be transmitted.
+     * @return Returns the number of elements written to the transmit FIFO.
+     */
+    long data_put_non_blocking(unsigned long data)
     {
-        unsigned long ulRegVal;
-
-        //
-        // Read status register
-        //
-        ulRegVal = HWREG(ulBase + MCSPI_O_CH0STAT);
-
-        //
-        // Write value into Tx register/FIFO
-        // if space is available
-        //
-        if(ulRegVal & MCSPI_CH0STAT_TXS)
+        if(HWREG(base + MCSPI_O_CH0STAT) & MCSPI_CH0STAT_TXS)
         {
-            HWREG(ulBase + MCSPI_O_TX0) = ulData;
-            return(1);
+            HWREG(base + MCSPI_O_TX0) = data;
+            return 1;
         }
 
-        return(0);
+        return 0;
     }
 
-    void SPIDataPut(unsigned long ulBase, unsigned long ulData)
+    /** Waits until the word is transmitted on the specified port.  This
+     * function transmits a SPI word on the transmit FIFO for the specified
+     * port. This function waits until the space is available on transmit FIFO.
+     * @param data is data to be transmitted.
+     */
+    void data_put(unsigned long data)
     {
-        //
-        // Wait for space in FIFO
-        //
-        while(UNLIKELY(!(HWREG(ulBase + MCSPI_O_CH0STAT)&MCSPI_CH0STAT_TXS)))
-        {
-        }
+        while(UNLIKELY(!(HWREG(base + MCSPI_O_CH0STAT)&MCSPI_CH0STAT_TXS)));
 
-        //
-        // Write the data
-        //
-        HWREG(ulBase + MCSPI_O_TX0) = ulData;
+        HWREG(base + MCSPI_O_TX0) = data;
     }
 
 
@@ -254,9 +262,6 @@ private:
 
     /** Semaphore to wakeup task level from ISR */
     OSSem sem_;
-
-    /** dummy buffer for polled mode */
-    uint8_t dummyBuf[DMA_THRESHOLD_BYTES];
 
     /** Default constructor.
      */

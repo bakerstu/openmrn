@@ -568,7 +568,7 @@ private:
         xfer.rx_buf = (unsigned long)data;
         xfer.len = sizeof(data);
 
-        SPI::transfer(spi, &xfer);
+        SPI::transfer_polled(spi, &xfer);
 
         return data[2];
     }
@@ -587,7 +587,7 @@ private:
         xfer.rx_buf = 0;
         xfer.len = sizeof(payload);
 
-        SPI::transfer(spi, &xfer);
+        SPI::transfer_polled(spi, &xfer);
     }
 
     /** Bit modify to a SPI register.
@@ -603,7 +603,7 @@ private:
         xfer.tx_buf = (unsigned long)payload;
         xfer.rx_buf = 0;
         xfer.len = sizeof(payload);
-        SPI::transfer(spi, &xfer);
+        SPI::transfer_polled(spi, &xfer);
     }
 
     /** Read a message to into a receive buffer.
@@ -616,7 +616,7 @@ private:
         xfer.tx_buf = (unsigned long)buf->get_payload();
         xfer.rx_buf = (unsigned long)buf->get_payload();
         xfer.len = buf->TRANSFER_SIZE;
-        SPI::transfer(spi, &xfer);
+        SPI::transfer_polled(spi, &xfer);
     }
 
     /** Write a message to a transmit buffer.
@@ -630,7 +630,7 @@ private:
         xfer.tx_buf = (unsigned long)buf->get_payload();
         xfer.rx_buf = 0;
         xfer.len = buf->TRANSFER_SIZE;
-        SPI::transfer(spi, &xfer);
+        SPI::transfer_polled(spi, &xfer);
     }
 
     /** Request that the GPIO cache be refreshed.

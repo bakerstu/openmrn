@@ -61,10 +61,27 @@ public:
      * @param msg message(s) to transact.
      * @return bytes transfered upon success, -errno upon failure
      */
+    __attribute__((optimize("-O3")))
     static int transfer(SPI *self,struct spi_ioc_transfer *msg)
     {
         self->csAssert();
         int result = self->transfer(msg);
+        self->csDeassert();
+        return result;
+    }
+
+    /** Method to transmit/receive the data.  Chip select will be asserted at
+     * start of the transfer and deasserted at the end of the transfer.  This
+     * will always be a polled transaction no matter what.
+     * @param self pointer to a SPI object instance
+     * @param msg message(s) to transact.
+     * @return bytes transfered upon success, -errno upon failure
+     */
+    __attribute__((optimize("-O3")))
+    static int transfer_polled(SPI *self,struct spi_ioc_transfer *msg)
+    {
+        self->csAssert();
+        int result = self->transfer_polled(msg);
         self->csDeassert();
         return result;
     }
@@ -134,6 +151,12 @@ protected:
      * @return bytes transfered upon success, -errno upon failure
      */
     virtual int transfer(struct spi_ioc_transfer *msg) = 0;
+
+    /** Method to transmit/receive the data, but always in polled mode.
+     * @param msg message(s) to transact.
+     * @return bytes transfered upon success, -errno upon failure
+     */
+    virtual int transfer_polled(struct spi_ioc_transfer *msg) = 0;
 
     /** Conduct multiple message transfers with one stop at the end.
      * @param msgs array of messages to transfer
