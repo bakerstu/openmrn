@@ -117,7 +117,7 @@ public:
     /// Returns delta usage since last call by utilization key.
     /// @param output will be populated with data, utilization (number of ticks
     /// in this key since last invocation).
-    void get_utilization_delta(std::vector<pair<unsigned, string*> >* output) {
+    uint32_t get_utilization_delta(std::vector<pair<unsigned, string*> >* output) {
         HASSERT(output);
         output->clear();
         for(auto it = perKeyCost_.begin(); it != perKeyCost_.end(); ++it) {
@@ -129,19 +129,26 @@ public:
                 output->emplace_back(diff, &it->description);
             }
         }
+        uint32_t ret = countSinceUpdate_;
+        countSinceUpdate_ = 0;
+        return ret;
     }
 
 private:
     friend void cpuload_tick(unsigned);
     /// Adds a value to the rolling average.
+    /// @param busy false when idle
     /// @param key 0 if CPU is idle at this time, otherwise a key on what is
     /// taking time.
-    inline void record_value(uintptr_t key);
+    inline void record_value(bool busy, uintptr_t key);
 
     /// Internal state for the rolling average (EWMA). This is a 0+24bit fixed
     /// point format, the top 8 bits are always 0 to allow overflow-less
     /// multiplication. 0x01000000 would be 1.0, 0x00ffffff is 0.99999...
     uint32_t avg_{0};
+
+    /// Number of ticks we've seen since last updating the key info.
+    uint32_t countSinceUpdate_{0};
 
     /// Temporary buffer that the interrupt can write unknown keys to.
     uintptr_t newKey_{0};
