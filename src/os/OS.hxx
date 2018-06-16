@@ -100,13 +100,38 @@ public:
         handle = 0;
     }
 
-    /** Return the current thread priority.
+    /** Return the current thread priority.  Depricated, use get_priority().
      * @param thread handle to thread of interest
      * @return current thread priority
      */
     static int getpriority(OSThread *thread)
     {
-        return os_thread_getpriority(thread->handle);
+        return get_priority(thread);
+    }
+
+    /** Return the current thread priority.
+     * @param thread handle to thread of interest
+     * @return current thread priority
+     */
+    static int get_priority(OSThread *thread)
+    {
+        return os_thread_get_priority(thread->handle);
+    }
+
+    /** Get the minimum thread priority.
+     * @return minimum trhead priority
+     */
+    static int get_priority_min()
+    {
+        return os_thread_get_priority_min();
+    }
+
+    /** Get the maximum thread priority.
+     * @return maximum trhead priority
+     */
+    static int get_priority_max()
+    {
+        return os_thread_get_priority_max();
     }
 
     /// @return the thread handle for os_xxx operations.

@@ -34,7 +34,8 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_SPI_HXX_
 #define _FREERTOS_DRIVERS_COMMON_SPI_HXX_
 
-
+#include <unistd.h>
+#include <compiler.h>
 
 #include "BlockOrWakeUp.hxx"
 #include "SimpleLog.hxx"
@@ -54,6 +55,49 @@ public:
     /** Function point for the chip select assert and deassert methods */
     typedef void (*ChipSelectMethod)();
 
+    /** Method to transmit/receive the data.  Chip select will be asserted at
+     * start of the transfer and deasserted at the end of the transfer.
+     * @param self pointer to a SPI object instance
+     * @param msg message(s) to transact.
+     * @return bytes transfered upon success, -errno upon failure
+     */
+    __attribute__((optimize("-O3")))
+    static int transfer(SPI *self,struct spi_ioc_transfer *msg)
+    {
+        self->csAssert();
+        int result = self->transfer(msg);
+        self->csDeassert();
+        return result;
+    }
+
+    /** Method to transmit/receive the data.  Chip select will be asserted at
+     * start of the transfer and deasserted at the end of the transfer.  This
+     * will always be a polled transaction no matter what.
+     * @param self pointer to a SPI object instance
+     * @param msg message(s) to transact.
+     * @return bytes transfered upon success, -errno upon failure
+     */
+    __attribute__((optimize("-O3")))
+    static int transfer_polled(SPI *self,struct spi_ioc_transfer *msg)
+    {
+        self->csAssert();
+        int result = self->transfer_polled(msg);
+        self->csDeassert();
+        return result;
+    }
+
+    /** Conduct multiple message transfers with one stop at the end.
+     * @param self pointer to a SPI object instance
+     * @param msgs array of messages to transfer
+     * @param num number of messages to transfer
+     * @return total number of bytes transfered, -errno upon failure
+     */
+    static int transfer_messages(SPI *self,
+                                 struct spi_ioc_transfer *msgs, int num)
+    {
+        return self->transfer_messages(msgs, num);
+    }
+
 protected:
     /** Constructor
      * @param name device name in file system
@@ -67,12 +111,12 @@ protected:
     SPI(const char *name, ChipSelectMethod cs_assert,
         ChipSelectMethod cs_deassert, OSMutex *bus_lock = nullptr)
         : Node(name)
+        , csAssert(cs_assert)
+        , csDeassert(cs_deassert)
         , speedHz(1000000)
         , bitsPerWord(8)
         , mode(SPI_MODE_0)
         , lsbFirst(false)
-        , csAssert(cs_assert)
-        , csDeassert(cs_deassert)
         , busLock(bus_lock)
     {
     }
@@ -84,11 +128,78 @@ protected:
         HASSERT(0);
     }
 
+    /** Lock the bus shared by many chip selects. */
+    void bus_lock()
+    {
+        if (busLock)
+        {
+            busLock->lock();
+        }
+    }
+
+    /** Unlock the bus shared by many chip selects. */
+    void bus_unlock()
+    {
+        if (busLock)
+        {
+            busLock->unlock();
+        }
+    }
+
     /** Method to transmit/receive the data.
      * @param msg message(s) to transact.
      * @return bytes transfered upon success, -errno upon failure
      */
     virtual int transfer(struct spi_ioc_transfer *msg) = 0;
+
+    /** Method to transmit/receive the data, but always in polled mode.
+     * @param msg message(s) to transact.
+     * @return bytes transfered upon success, -errno upon failure
+     */
+    virtual int transfer_polled(struct spi_ioc_transfer *msg) = 0;
+
+    /** Conduct multiple message transfers with one stop at the end.
+     * @param msgs array of messages to transfer
+     * @param num number of messages to transfer
+     * @return total number of bytes transfered, -errno upon failure
+     */
+    __attribute__((optimize("-O3")))
+    int transfer_messages(struct spi_ioc_transfer *msgs, int num)
+    {
+        //HASSERT(num > 0);
+
+        int count = 0;
+        int result;
+
+        lock_.lock();
+        bus_lock();
+        for (int i = 0; i < num; ++i, ++msgs)
+        {
+            count += msgs->len;
+            csAssert();
+            result = transfer(msgs);
+            if (UNLIKELY(result < 0))
+            {
+                /* something bad happened, reset the bus and bail */
+                csDeassert();
+                bus_unlock();
+                lock_.unlock();
+                return result;
+            }
+            if (msgs->cs_change)
+            {
+                if (UNLIKELY(msgs->delay_usec))
+                {
+                    usleep(msgs->delay_usec);
+                }
+                csDeassert();
+            }
+        }
+        bus_unlock();
+        lock_.unlock();
+
+        return count;
+    }
 
     /** Update the configuration of the bus.
      * @return >= 0 upon success, -errno upon failure
@@ -102,7 +213,13 @@ protected:
      * @return >= 0 upon success, -errno upon failure
      */
     int ioctl(File *file, unsigned long int key, unsigned long data) override;
+public:
+    /** function pointer to a method that asserts chip select. */
+    ChipSelectMethod csAssert;
 
+    /** function pointer to a method that deasserts chip select. */
+    ChipSelectMethod csDeassert;
+protected:
     /** Max default speed in Hz */
     uint32_t speedHz;
 
@@ -132,39 +249,8 @@ private:
      */
     ssize_t write(File *file, const void *buf, size_t count) override;
 
-    /** Conduct multiple message transfers with one stop at the end.
-     * @param msgs array of messages to transfer
-     * @param num number of messages to transfer
-     * @return total number of bytes transfered, -errno upon failure
-     */
-    int transfer_messages(struct spi_ioc_transfer *msgs, int num);
-
     /** Discards all pending buffers. Called after disable(). */
     void flush_buffers() override {}
-
-    /** lock the bus shared by many chip selects */
-    void bus_lock()
-    {
-        if (busLock)
-        {
-            busLock->lock();
-        }
-    }
-
-    /** unlock the bus shared by many chip selects */
-    void bus_unlock()
-    {
-        if (busLock)
-        {
-            busLock->unlock();
-        }
-    }
-
-    /** function pointer to a method that asserts chip select. */
-    ChipSelectMethod csAssert;
-
-    /** function pointer to a method that deasserts chip select. */
-    ChipSelectMethod csDeassert;
 
     /** Mutual exclusion for the bus among many chip selects */
     OSMutex *busLock;
