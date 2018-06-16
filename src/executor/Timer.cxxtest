@@ -263,7 +263,7 @@ TEST_F(TimerTest, NoRestartSkew)
     EXPECT_EQ(5, t1.count());
     usleep(100000);
 
-    // All of this happens within a short time, increasing the cound form 5 to
+    // All of this happens within a short time, increasing the count form 5 to
     // 15.
     EXPECT_EQ(5, t1.count());
     b.release_block();

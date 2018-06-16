@@ -408,6 +408,8 @@ StateFlowBase::Action DispatchFlowBase<NUM_PRIO>::iterate()
 {
     ID id = get_message_id();
     {
+        // @todo(balazs.racz) make the registered handlers structure for the
+        // dispatcher lock-free. This mutex here is very expensive.
         OSMutexLock l(&lock_);
         for (; currentIndex_ < handlers_.size(); ++currentIndex_)
         {
@@ -424,20 +426,19 @@ StateFlowBase::Action DispatchFlowBase<NUM_PRIO>::iterate()
             {
                 continue;
             }
+            // At this point: we have another handler.
+            if (!lastHandlerToCall_)
+            {
+                // This was the first we found.
+                lastHandlerToCall_ = handlers_[currentIndex_].handler;
+                continue;
+            }            
             break;
         }
     }
     if (currentIndex_ >= handlers_.size())
     {
-        return call_immediately(STATE(iteration_done));
-    }
-    // At this point: we have another handler.
-    if (!lastHandlerToCall_)
-    {
-        // This was the first we found.
-        lastHandlerToCall_ = handlers_[currentIndex_].handler;
-        ++currentIndex_;
-        return again();
+        return iteration_done();
     }
     // Now: we have at least two different handler. We need to clone the
     // message. We use the pool of the last handler to call by default.
