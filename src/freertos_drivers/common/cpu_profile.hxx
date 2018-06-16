@@ -266,9 +266,6 @@ void take_cpu_trace()
 /// Change this value to runtime disable and enable the CPU profile gathering
 /// code.
 bool enable_profiling = 0;
-volatile unsigned* exception_args;
-volatile unsigned is_process;
-volatile unsigned saved_sp;
 
 /// Helper function to declare the CPU usage tick interrupt.
 /// @param irq_handler_name is the name of the interrupt to declare, for example
@@ -279,15 +276,14 @@ volatile unsigned saved_sp;
     extern "C"                                                                 \
     {                                                                          \
         void __attribute__((__noinline__)) load_monitor_interrupt_handler(     \
-            /*volatile unsigned *exception_args, */ unsigned                   \
-                exception_return_code)                                         \
+            volatile unsigned *exception_args, unsigned exception_return_code) \
         {                                                                      \
             if (enable_profiling)                                              \
             {                                                                  \
                 fill_phase2_vrs(exception_args);                               \
                 take_cpu_trace();                                              \
             }                                                                  \
-            cpuload_tick(is_process & 4 ? 0 : 255);                            \
+            cpuload_tick(exception_return_code & 4 ? 0 : 255);                 \
             CLEAR_IRQ_FLAG;                                                    \
         }                                                                      \
         void __attribute__((__naked__)) irq_handler_name(void)                 \
@@ -311,15 +307,12 @@ volatile unsigned saved_sp;
                            " ite   eq                   \n"                    \
                            " mrseq r0, msp              \n"                    \
                            " mrsne r0, psp              \n"                    \
-                           " ldr r1, =exception_args \n"                       \
-                           " str r0, [r1] \n"                                  \
-                           " ldr r1, =is_process \n"                           \
-                           " str lr, [r1] \n"                                  \
-                           " ldr r0,  =load_monitor_interrupt_handler  \n"     \
-                           " bx  r0  \n"                                       \
+                           " mov r1, lr \n"                                    \
+                           " ldr r2,  =load_monitor_interrupt_handler  \n"     \
+                           " bx  r2  \n"                                       \
                            :                                                   \
                            :                                                   \
-                           : "r0", "r1");                                      \
+                           : "r0", "r1", "r2");                                \
         }                                                                      \
     }
 
