@@ -36,7 +36,7 @@
 #include <fcntl.h>
 #include <compiler.h>
 
-const MCP2515Can::MCP2515Baud MCP2515Can::baudTable[] =
+const MCP2515Can::MCP2515Baud MCP2515Can::BAUD_TABLE[] =
 {
     /* 20 MHz clock source
      * TQ = (2 * BRP) / freq = (2 * 5) / 20 MHz = 500 nsec
@@ -85,11 +85,11 @@ const MCP2515Can::MCP2515Baud MCP2515Can::baudTable[] =
  */
 void MCP2515Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
 {
-    spiFd = ::open(spi_name, O_RDWR);
-    HASSERT(spiFd >= 0);
+    spiFd_ = ::open(spi_name, O_RDWR);
+    HASSERT(spiFd_ >= 0);
 
-    ::ioctl(spiFd, SPI_IOC_GET_OBJECT_REFERENCE, &spi);
-    HASSERT(spi);
+    ::ioctl(spiFd_, SPI_IOC_GET_OBJECT_REFERENCE, &spi_);
+    HASSERT(spi_);
 
     /* configure SPI bus settings */
     uint8_t spi_mode = SPI_MODE_0;
@@ -99,9 +99,9 @@ void MCP2515Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     {
         spi_max_speed_hz = SPI_MAX_SPEED_HZ;
     }
-    ::ioctl(spiFd, SPI_IOC_WR_MODE, &spi_mode);
-    ::ioctl(spiFd, SPI_IOC_WR_BITS_PER_WORD, &spi_bpw);
-    ::ioctl(spiFd, SPI_IOC_WR_MAX_SPEED_HZ, &spi_max_speed_hz);
+    ::ioctl(spiFd_, SPI_IOC_WR_MODE, &spi_mode);
+    ::ioctl(spiFd_, SPI_IOC_WR_BITS_PER_WORD, &spi_bpw);
+    ::ioctl(spiFd_, SPI_IOC_WR_MAX_SPEED_HZ, &spi_max_speed_hz);
 
     /* reset device */
     reset();
@@ -110,22 +110,23 @@ void MCP2515Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     while ((register_read(CANSTAT) & 0xE0) != 0x80);
 
     /* find valid timing settings for the requested frequency and buad rates */
-    for (size_t i = 0; i < (sizeof(baudTable) / sizeof(baudTable[0])); ++i)
+    for (size_t i = 0; i < ARRAYSIZE(BAUD_TABLE); ++i)
     {
-        if (baudTable[i].freq == freq && baudTable[i].baud == baud)
+        if (BAUD_TABLE[i].freq_ == freq && BAUD_TABLE[i].baud_ == baud)
         {
-            register_write(CNF1, baudTable[i].cnf1.data);
-            register_write(CNF2, baudTable[i].cnf2.data);
-            register_write(CNF3, baudTable[i].cnf3.data);
+            register_write(CNF1, BAUD_TABLE[i].cnf1_.data_);
+            register_write(CNF2, BAUD_TABLE[i].cnf2_.data_);
+            register_write(CNF3, BAUD_TABLE[i].cnf3_.data_);
 
-            /* setup RX Buf 0 and 1 to receive any message */
-            register_write(RXB0CTRL, 0x60);
+            /* setup RX Buf 0 to receive any message, and if RX Buf 0 is full,
+             * the new message will roll over into RX Buf 1 */
+            register_write(RXB0CTRL, 0x64);
             register_write(RXB1CTRL, 0x60);
 
             /* setup TXnRTS and RXnBF pins as inputs and outputs respectively */
-            register_write(BFPCTRL, 0x0C | (gpoData << 4));
+            register_write(BFPCTRL, 0x0C | (gpoData_ << 4));
             register_write(TXRTSCTRL, 0x00);
-            gpiData = (register_read(TXRTSCTRL) >> 3) & 0x7;
+            gpiData_ = (register_read(TXRTSCTRL) >> 3) & 0x7;
 
             /* put the device into normal operation mode */
             register_write(CANCTRL, 0x00);
@@ -159,7 +160,7 @@ void MCP2515Can::enable()
     /* enable error and receive interrupts */
     register_write(CANINTE, MERR | ERRI | RX1I | RX0I);
 
-    interrupt_enable();
+    interruptEnable_();
 }
 
 /*
@@ -167,7 +168,7 @@ void MCP2515Can::enable()
  */
 void MCP2515Can::disable()
 {
-    interrupt_disable();
+    interruptDisable_();
 
     /* disable all interrupt sources */
     register_write(CANINTE, 0);
@@ -177,7 +178,7 @@ void MCP2515Can::disable()
     portENTER_CRITICAL();
     /* flush out any transmit data in the pipleline */
     txBuf->flush();
-    txPending = 0;
+    txPending_ = 0;
     portEXIT_CRITICAL();
 }
 
@@ -187,14 +188,25 @@ void MCP2515Can::disable()
 __attribute__((optimize("-O3")))
 void MCP2515Can::tx_msg_locked()
 {
-#if 1
+#if MCP2515_NULL_TX
+    /* throw away the CAN frames after consuming them */
+    struct can_frame *can_frame;
+
+    portENTER_CRITICAL();
+    if (txBuf->data_read_pointer(&can_frame))
+    {
+        txBuf->consume(1);
+        txBuf->signal_condition();
+    }
+    portEXIT_CRITICAL();
+#else
     /* the node lock_ will be locked by the caller */
-    if (txPending < 3)
+    if (txPending_ < 3)
     {
         struct can_frame *can_frame;
 
         /* find an empty buffer */
-        int index = (txPending & 0x1) ? 1 : 0;
+        int index = (txPending_ & 0x1) ? 1 : 0;
 
         portENTER_CRITICAL();
         if (txBuf->data_read_pointer(&can_frame))
@@ -212,7 +224,7 @@ void MCP2515Can::tx_msg_locked()
             /* load the tranmit buffer */
             buffer_write(&buffer, index, can_frame);
 
-            txPending |= (0x1 << index);
+            txPending_ |= (0x1 << index);
 
             /* request to send at lowest priority */
             bit_modify(index == 0 ? TXB0CTRL : TXB1CTRL, 0x08, 0x0B);
@@ -224,16 +236,6 @@ void MCP2515Can::tx_msg_locked()
             portEXIT_CRITICAL();
         }
     }
-#else
-    struct can_frame *can_frame;
-
-    portENTER_CRITICAL();
-    if (txBuf->data_read_pointer(&can_frame))
-    {
-        txBuf->consume(1);
-        txBuf->signal_condition();
-    }
-    portEXIT_CRITICAL();
 #endif
 }
 
@@ -259,15 +261,15 @@ void *MCP2515Can::entry()
             xfer[1].rx_buf = (unsigned long)regs;
             xfer[1].len = sizeof(regs);
             xfer[1].cs_change = 1;
-            ::ioctl(spiFd, SPI_IOC_MESSAGE(2), xfer);
+            ::ioctl(spiFd_, SPI_IOC_MESSAGE(2), xfer);
             lock_.unlock();
             continue;
         }
 #else
-        sem.wait();
+        sem_.wait();
 #endif
         lock_.lock();
-        spi->csDeassert();
+        spi_->csDeassert();
 
         /* read status flags */
         uint8_t canintf = register_read(CANINTF);
@@ -309,59 +311,92 @@ void *MCP2515Can::entry()
                 portEXIT_CRITICAL();
                 txBuf->signal_condition();
 
-                txPending = 0;
+                txPending_ = 0;
             }
         }
 
         if (canintf & RX0I)
         {
-            /* receive interrupt active */
-            BufferRead buffer(0);
-            buffer_read(&buffer, 0);
-            struct can_frame *can_frame;
+            {
+                /* receive interrupt active */
+                BufferRead buffer(0);
+                buffer_read(&buffer, 0);
+                struct can_frame *can_frame;
 
-            portENTER_CRITICAL();
-            if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
-            {
-                buffer.build_struct_can_frame(can_frame, spi);
-                rxBuf->advance(1);
-        spi->csAssert();
-                rxBuf->signal_condition();
-        spi->csDeassert();
-                ++numReceivedPackets_;
+                portENTER_CRITICAL();
+                if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
+                {
+                    buffer.build_struct_can_frame(can_frame);
+                    rxBuf->advance(1);
+
+                    spi_->csAssert();
+                    rxBuf->signal_condition();
+                    spi_->csDeassert();
+
+                    ++numReceivedPackets_;
+                }
+                else
+                {
+                    /* receive overrun occured */
+                    ++overrunCount;
+                }
+                portEXIT_CRITICAL();
             }
-            else
+
+            /* RX Buf 1 can only be full if RX Buf 0 was also previously full.
+             * It is extremely unlikely that RX Buf 1 will ever be full. */
+            if (UNLIKELY(canintf & RX1I))
             {
-                /* receive overrun occured */
-                ++overrunCount;
+                /* receive interrupt active */
+                BufferRead buffer(1);
+                buffer_read(&buffer, 1);
+                struct can_frame *can_frame;
+
+                portENTER_CRITICAL();
+                if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
+                {
+                    buffer.build_struct_can_frame(can_frame);
+                    rxBuf->advance(1);
+
+                    spi_->csAssert();
+                    rxBuf->signal_condition();
+                    spi_->csDeassert();
+
+                    ++numReceivedPackets_;
+                }
+                else
+                {
+                    /* receive overrun occured */
+                    ++overrunCount;
+                }
+                portEXIT_CRITICAL();
             }
-            portEXIT_CRITICAL();
         }
 
-        if (txPending)
+        if (txPending_)
         {
             /* transmit interrupt active and transmission complete */
             if (canintf & TX0I)
             {
-                txPending &= ~0x1;
+                txPending_ &= ~0x1;
                 bit_modify(CANINTE, 0, TX0I);
                 bit_modify(CANINTF, 0, TX0I);
                 ++numTransmittedPackets_;
             }
             if (canintf & TX1I)
             {
-                txPending &= ~0x2;
+                txPending_ &= ~0x2;
                 bit_modify(CANINTE, 0, TX1I);
                 bit_modify(CANINTF, 0, TX1I);
                 ++numTransmittedPackets_;
             }
 
-            while (txPending < 3)
+            while (txPending_ < 3)
             {
                 struct can_frame *can_frame;
 
                 /* find an empty buffer */
-                int index = (txPending & 0x1) ? 1 : 0;
+                int index = (txPending_ & 0x1) ? 1 : 0;
 
                 portENTER_CRITICAL();
                 if (txBuf->data_read_pointer(&can_frame))
@@ -379,7 +414,7 @@ void *MCP2515Can::entry()
                     /* load the tranmit buffer */
                     buffer_write(&buffer, index, can_frame);
 
-                    txPending |= (0x1 << index);
+                    txPending_ |= (0x1 << index);
 
                     /* request to send at lowest priority */
                     bit_modify(index == 0 ? TXB0CTRL : TXB1CTRL, 0x08, 0x0B);
@@ -394,20 +429,20 @@ void *MCP2515Can::entry()
             }
         }
 
-        if (UNLIKELY(ioPending))
+        if (UNLIKELY(ioPending_))
         {
-            ioPending = false;
+            ioPending_ = false;
             /* write the latest GPO data */
-            register_write(BFPCTRL, 0x0C | (gpoData << 4));
+            register_write(BFPCTRL, 0x0C | (gpoData_ << 4));
 
             /* get the latest GPI data */
-            gpiData = (register_read(TXRTSCTRL) >> 3) & 0x7;
+            gpiData_ = (register_read(TXRTSCTRL) >> 3) & 0x7;
         }
-        spi->csAssert();
+        spi_->csAssert();
         lock_.unlock();
-        spi->csDeassert();
+        spi_->csDeassert();
 
-        interrupt_enable();
+        interruptEnable_();
     }
 
     return NULL;
@@ -419,9 +454,9 @@ void *MCP2515Can::entry()
 __attribute__((optimize("-O3")))
 void MCP2515Can::interrupt_handler()
 {
-    spi->csAssert();
+    spi_->csAssert();
     int woken = false;
-    interrupt_disable();
-    sem.post_from_isr(&woken);
+    interruptDisable_();
+    sem_.post_from_isr(&woken);
     os_isr_exit_yield_test(woken);
 }

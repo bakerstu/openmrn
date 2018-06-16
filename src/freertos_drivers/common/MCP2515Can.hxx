@@ -43,6 +43,7 @@
 #include "os/OS.hxx"
 
 #define MCP2515_DEBUG 0
+#define MCP2515_NULL_TX 0
 
 class MCP2515GPO;
 class MCP2515GPI;
@@ -61,15 +62,15 @@ public:
                void (*interrupt_enable)(), void (*interrupt_disable)())
         : Can(name)
         , OSThread()
-        , interrupt_enable(interrupt_enable)
-        , interrupt_disable(interrupt_disable)
-        , txPending(0)
-        , gpoData(0x0)
-        , gpiData(0x7)
-        , ioPending(false)
-        , spiFd(-1)
-        , spi(nullptr)
-        , sem()
+        , interruptEnable_(interrupt_enable)
+        , interruptDisable_(interrupt_disable)
+        , txPending_(0)
+        , gpoData_(0x0)
+        , gpiData_(0x7)
+        , ioPending_(false)
+        , spiFd_(-1)
+        , spi_(nullptr)
+        , sem_()
     {
     }
 
@@ -279,18 +280,18 @@ private:
          * @param sjw initial value
          */
         Config1(uint8_t brp, uint8_t sjw)
-            : brp(brp)
-            , sjw(sjw)
+            : brp_(brp)
+            , sjw_(sjw)
         {
         }
 
         union
         {
-            uint8_t data; /**< raw data for register */
+            uint8_t data_; /**< raw data for register */
             struct
             {
-                uint8_t brp : 6; /**< baud rate prescaler bits */
-                uint8_t sjw : 2; /**< synchronization jump width length bits */
+                uint8_t brp_ : 6; /**< baud rate prescaler bits */
+                uint8_t sjw_ : 2; /**< synchronization jump width length bits */
             };
         };
     };
@@ -305,22 +306,22 @@ private:
          * @param bltmode initial value
          */
         Config2(uint8_t prseg, uint8_t prseg1, uint8_t sam, uint8_t bltmode)
-            : prseg(prseg)
-            , prseg1(prseg1)
-            , sam(sam)
-            , bltmode(bltmode)
+            : prseg_(prseg)
+            , prseg1_(prseg1)
+            , sam_(sam)
+            , bltmode_(bltmode)
         {
         }
 
         union
         {
-            uint8_t data; /**< raw data for register */
+            uint8_t data_; /**< raw data for register */
             struct
             {
-                uint8_t prseg   : 3; /**< propagation segment length bits */
-                uint8_t prseg1  : 3; /**< PS1 length bits */
-                uint8_t sam     : 1; /**< sample point configuration bit */
-                uint8_t bltmode : 1; /**< PS2 bit time length bit */
+                uint8_t prseg_   : 3; /**< propagation segment length bits */
+                uint8_t prseg1_  : 3; /**< PS1 length bits */
+                uint8_t sam_     : 1; /**< sample point configuration bit */
+                uint8_t bltmode_ : 1; /**< PS2 bit time length bit */
             };
         };
     };
@@ -334,22 +335,22 @@ private:
          * @param sof initial value
          */
         Config3(uint8_t phseg2, uint8_t wakfil, uint8_t sof)
-            : phseg2(phseg2)
-            , unused(0)
-            , wakfil(wakfil)
-            , sof(sof)
+            : phseg2_(phseg2)
+            , unused_(0)
+            , wakfil_(wakfil)
+            , sof_(sof)
         {
         }
 
         union
         {
-            uint8_t data; /**< raw data for register */
+            uint8_t data_; /**< raw data for register */
             struct
             {
-                uint8_t phseg2 : 3; /**< PS2 length bits */
-                uint8_t unused : 3; /**< unused bits */
-                uint8_t wakfil : 1; /**< wake-up filter bit */
-                uint8_t sof    : 1; /**< start of frame signal bit */
+                uint8_t phseg2_ : 3; /**< PS2 length bits */
+                uint8_t unused_ : 3; /**< unused bits */
+                uint8_t wakfil_ : 1; /**< wake-up filter bit */
+                uint8_t sof_    : 1; /**< start of frame signal bit */
             };
         };
     };
@@ -357,11 +358,11 @@ private:
     /** Baud rate table entry */
     struct MCP2515Baud
     {
-        uint32_t freq; /**< incoming frequency */
-        uint32_t baud; /**< target baud rate */
-        Config1 cnf1; /**< Configuration registers CNF1 */
-        Config2 cnf2; /**< Configuration registers CNF2 */
-        Config3 cnf3; /**< Configuration registers CNF3 */
+        uint32_t freq_; /**< incoming frequency */
+        uint32_t baud_; /**< target baud rate */
+        Config1 cnf1_; /**< Configuration registers CNF1 */
+        Config2 cnf2_; /**< Configuration registers CNF2 */
+        Config3 cnf3_; /**< Configuration registers CNF3 */
     };
 
     /** CAN TX and RX buffer structure */
@@ -375,29 +376,29 @@ private:
          * @param can_frame CAN frame structure to fill in
          */
         __attribute__((optimize("-O3")))
-        void build_struct_can_frame(struct can_frame *can_frame, SPI *spi)
+        void build_struct_can_frame(struct can_frame *can_frame)
         {
-            can_frame->can_eff = exide;
-            if (LIKELY(exide))
+            can_frame->can_eff = exide_;
+            if (LIKELY(exide_))
             {
                 /* extended frame */
-                can_frame->can_rtr = rtr;
-                can_frame->can_id = ((uint32_t)eid0 <<  0) +
-                                    ((uint32_t)eid8 <<  8) +
-                                    ((uint32_t)eid  << 16) +
-                                    ((uint32_t)sid  << 18) +
-                                    ((uint32_t)sidh << 21);
+                can_frame->can_rtr = rtr_;
+                can_frame->can_id = ((uint32_t)eid0_ <<  0) +
+                                    ((uint32_t)eid8_ <<  8) +
+                                    ((uint32_t)eid_  << 16) +
+                                    ((uint32_t)sid_  << 18) +
+                                    ((uint32_t)sidh_ << 21);
             }
             else
             {
                 /* standard frame */
-                can_frame->can_rtr = srr;
-                can_frame->can_id = ((uint32_t)sid  << 0) +
-                                    ((uint32_t)sidh << 3);
+                can_frame->can_rtr = srr_;
+                can_frame->can_id = ((uint32_t)sid_  << 0) +
+                                    ((uint32_t)sidh_ << 3);
             }
             can_frame->can_err = 0;
-            *((uint64_t*)can_frame->data) = *((uint64_t*)data);
-            can_frame->can_dlc = dlc;
+            *((uint64_t*)can_frame->data) = *((uint64_t*)data_);
+            can_frame->can_dlc = dlc_;
         }
 
         /** Get a pointer to the buffer payload.
@@ -405,7 +406,7 @@ private:
          */
         void *get_payload()
         {
-            return &command;
+            return &command_;
         }
 
     protected:
@@ -415,74 +416,60 @@ private:
          */
         __attribute__((optimize("-O3")))
         Buffer(struct can_frame *can_frame, uint8_t command)
-            : command(command)
-#if 0
-            , sidh(can_frame->can_eff ? (can_frame->can_id & 0x1FE00000) >> 21 :
-                                        (can_frame->can_id & 0x000007F8) >> 3)
-            , eid(can_frame->can_eff ? (can_frame->can_id & 0x00030000) >> 16 :
-                                       0)
-            , exide(can_frame->can_eff)
-            , sid(can_frame->can_eff ? (can_frame->can_id & 0x001C0000) >> 18 :
-                                       (can_frame->can_id & 0x000007F8) >> 3)
-            , eid8(can_frame->can_eff ? (can_frame->can_id & 0x0000FF00) >> 8 :
-                                        0)
-            , eid0(can_frame->can_eff ? (can_frame->can_id & 0x000000FF) >> 0 :
-                                        0)
-#endif
-            , dlc(can_frame->can_dlc)
-            , rtr(can_frame->can_rtr)
+            : command_(command)
+            , dlc_(can_frame->can_dlc)
+            , rtr_(can_frame->can_rtr)
         {
             if (LIKELY(can_frame->can_eff))
             {
-                sidh = (can_frame->can_id & 0x1FE00000) >> 21;
-                eid = (can_frame->can_id & 0x00030000) >> 16;
-                exide = 1;
-                sid = (can_frame->can_id & 0x001C0000) >> 18;
-                eid8 = (can_frame->can_id & 0x0000FF00) >> 8;
-                eid0 = (can_frame->can_id & 0x000000FF) >> 0;
+                sidh_ = (can_frame->can_id & 0x1FE00000) >> 21;
+                eid_ = (can_frame->can_id & 0x00030000) >> 16;
+                exide_ = 1;
+                sid_ = (can_frame->can_id & 0x001C0000) >> 18;
+                eid8_ = (can_frame->can_id & 0x0000FF00) >> 8;
+                eid0_ = (can_frame->can_id & 0x000000FF) >> 0;
             }
             else
             {
-                sidh = (can_frame->can_id & 0x000007F8) >> 3;
-                eid = 0;
-                exide = 0;
-                sid = (can_frame->can_id & 0x000007F8) >> 3;
-                eid8 = 0;
-                eid0 = 0;
+                sidh_ = (can_frame->can_id & 0x000007F8) >> 3;
+                eid_ = 0;
+                exide_ = 0;
+                sid_ = (can_frame->can_id & 0x000007F8) >> 3;
+                eid8_ = 0;
+                eid0_ = 0;
             }
-            //memcpy(data, can_frame->data, 8);
-            *((uint64_t*)data) = *((uint64_t*)can_frame->data);
+            *((uint64_t*)data_) = *((uint64_t*)can_frame->data);
         }
 
         /** Constructor.
          * @param command corresponding command for the buffer
          */
         Buffer( uint8_t command)
-            : command(command)
+            : command_(command)
         {
         }
 
-        uint8_t pad[2]; /**< force the data to 64-bit allign */
-        uint8_t command; /**< the transaction command */
-        uint8_t sidh; /**< standard identifier high byte */
+        uint8_t pad_[2];          /**< force the data to 64-bit allign */
+        uint8_t command_;         /**< the transaction command */
+        uint8_t sidh_;            /**< standard identifier high byte */
         struct
         {
-            uint8_t eid     : 2; /**< extended identifier bits 16 and 17 */
-            uint8_t unused1 : 1; /**< unused bit */
-            uint8_t exide   : 1; /**< extended identifer enable */
-            uint8_t srr     : 1; /**< standard frame RTR */
-            uint8_t sid     : 3; /**< standard identifier low bits */
+            uint8_t eid_     : 2; /**< extended identifier bits 16 and 17 */
+            uint8_t unused1_ : 1; /**< unused bit */
+            uint8_t exide_   : 1; /**< extended identifer enable */
+            uint8_t srr_     : 1; /**< standard frame RTR */
+            uint8_t sid_     : 3; /**< standard identifier low bits */
         };
-        uint8_t eid8; /**< extended identifier high byte */
-        uint8_t eid0; /**< extended identifier low byte */
+        uint8_t eid8_;            /**< extended identifier high byte */
+        uint8_t eid0_;            /**< extended identifier low byte */
         struct
         {
-            uint8_t dlc     : 4; /**< data length code */
-            uint8_t unused3 : 2; /**< unused bits */
-            uint8_t rtr     : 1; /**< remote transmit request bit */
-            uint8_t unused4 : 1; /**< unused bit */
+            uint8_t dlc_     : 4; /**< data length code */
+            uint8_t unused3_ : 2; /**< unused bits */
+            uint8_t rtr_     : 1; /**< remote transmit request bit */
+            uint8_t unused4_ : 1; /**< unused bit */
         };
-        uint8_t data[8]; /** all 8 data bytes */
+        uint8_t data_[8];          /** all 8 data bytes */
     };
 
     /** Setup a buffer read transfer structure.
@@ -512,17 +499,12 @@ private:
             : Buffer(can_frame, LOAD_TX_BUF + (index << 1))
         {
         }
-
-    private:
     };
 
     /** User entry point for the created thread.
      * @return exit status
      */
     void *entry() override; /**< entry point to thread */
-
-    void (*interrupt_enable)(); /**< enable interrupt callback */
-    void (*interrupt_disable)(); /**< disable interrupt callback */
 
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
@@ -550,8 +532,14 @@ private:
      */
     void reset()
     {
+        spi_ioc_transfer xfer;
         uint8_t reset = RESET;
-        ::write(spiFd, &reset, 1);
+
+        xfer.tx_buf = (unsigned long)&reset;
+        xfer.rx_buf = 0;
+        xfer.len = sizeof(reset);
+
+        SPI::transfer_polled(spi_, &xfer);
     }
 
     /** Read from a SPI register.
@@ -568,7 +556,7 @@ private:
         xfer.rx_buf = (unsigned long)data;
         xfer.len = sizeof(data);
 
-        SPI::transfer_polled(spi, &xfer);
+        SPI::transfer_polled(spi_, &xfer);
 
         return data[2];
     }
@@ -587,7 +575,7 @@ private:
         xfer.rx_buf = 0;
         xfer.len = sizeof(payload);
 
-        SPI::transfer_polled(spi, &xfer);
+        SPI::transfer_polled(spi_, &xfer);
     }
 
     /** Bit modify to a SPI register.
@@ -603,7 +591,7 @@ private:
         xfer.tx_buf = (unsigned long)payload;
         xfer.rx_buf = 0;
         xfer.len = sizeof(payload);
-        SPI::transfer_polled(spi, &xfer);
+        SPI::transfer_polled(spi_, &xfer);
     }
 
     /** Read a message to into a receive buffer.
@@ -616,7 +604,7 @@ private:
         xfer.tx_buf = (unsigned long)buf->get_payload();
         xfer.rx_buf = (unsigned long)buf->get_payload();
         xfer.len = buf->TRANSFER_SIZE;
-        SPI::transfer_polled(spi, &xfer);
+        SPI::transfer_polled(spi_, &xfer);
     }
 
     /** Write a message to a transmit buffer.
@@ -630,35 +618,35 @@ private:
         xfer.tx_buf = (unsigned long)buf->get_payload();
         xfer.rx_buf = 0;
         xfer.len = buf->TRANSFER_SIZE;
-        SPI::transfer_polled(spi, &xfer);
+        SPI::transfer_polled(spi_, &xfer);
     }
 
     /** Request that the GPIO cache be refreshed.
      */
     void request_gpio_operation()
     {
-        if (!ioPending)
+        if (!ioPending_)
         {
-            ioPending = true;
-            sem.post();
+            ioPending_ = true;
+            sem_.post();
         }
     }
 
-    unsigned txPending : 2; /**< transmission in flight */
-    unsigned gpoData   : 2; /**< local copy of the I/O expansion output data */
-    unsigned gpiData   : 3; /**< local copy of the I/O expansion input data */
-    unsigned ioPending : 1; /**< true if an I/O update is pending */
-
-    int spiFd; /**< SPI bus that accesses MCP2515 */
-    SPI *spi; /**< pointer to a SPI object instance */
-
-    OSSem sem; /**< semaphore for posting events */
+    void (*interruptEnable_)(); /**< enable interrupt callback */
+    void (*interruptDisable_)(); /**< disable interrupt callback */
+    unsigned txPending_ : 2; /**< transmission in flight */
+    unsigned gpoData_   : 2; /**< local copy of the I/O expansion output data */
+    unsigned gpiData_   : 3; /**< local copy of the I/O expansion input data */
+    unsigned ioPending_ : 1; /**< true if an I/O update is pending */
+    int spiFd_; /**< SPI bus that accesses MCP2515 */
+    SPI *spi_; /**< pointer to a SPI object instance */
+    OSSem sem_; /**< semaphore for posting events */
 #if MCP2515_DEBUG
-    volatile uint8_t regs[128]; /**< debug copy of MCP2515 registers */
+    volatile uint8_t regs_[128]; /**< debug copy of MCP2515 registers */
 #endif
 
     /** baud rate settings table */
-    static const MCP2515Baud baudTable[];
+    static const MCP2515Baud BAUD_TABLE[];
 
     /** Default constructor.
      */
@@ -703,17 +691,17 @@ public:
      */
     Value read() const override
     {
-        return instance_->gpoData & (0x1 << bit_) ? Gpio::SET : Gpio::CLR;
+        return instance_->gpoData_ & (0x1 << bit_) ? Gpio::SET : Gpio::CLR;
     }
 
     /** Sets the GPO pin to high.
      */
     void set() const override
     {
-        if (!(instance_->gpoData & (0x1 << bit_)))
+        if (!(instance_->gpoData_ & (0x1 << bit_)))
         {
             portENTER_CRITICAL();
-            instance_->gpoData |= 0x1 << bit_;
+            instance_->gpoData_ |= 0x1 << bit_;
             portEXIT_CRITICAL();
             instance_->request_gpio_operation();
         }
@@ -723,10 +711,10 @@ public:
      */
     void clr() const override
     {
-        if ((instance_->gpoData & (0x1 << bit_)))
+        if ((instance_->gpoData_ & (0x1 << bit_)))
         {
             portENTER_CRITICAL();
-            instance_->gpoData &= ~(0x1 << bit_);
+            instance_->gpoData_ &= ~(0x1 << bit_);
             portEXIT_CRITICAL();
             instance_->request_gpio_operation();
         }
@@ -781,7 +769,7 @@ public:
     Value read() const override
     {
         instance_->request_gpio_operation();
-        return instance_->gpiData & (0x1 << bit_) ? Gpio::SET : Gpio::CLR;
+        return instance_->gpiData_ & (0x1 << bit_) ? Gpio::SET : Gpio::CLR;
     }
 
     /** Sets the GPI direction (does nothing).
