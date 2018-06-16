@@ -46,9 +46,8 @@ extern int strace_len;
 void call_unwind(void);
 }
 
-// We have a custom unidirectional allocator so we can take traces from
-// interrupts.
-
+/// A custom unidirectional memory allocator so we can take traces from
+/// interrupts.
 class TraceAllocator {
 public:
     void* alloc(unsigned size) {
@@ -64,10 +63,15 @@ public:
 
 
 private:
+    /// Storage of the trace buffer.
     unsigned buffer[TRACE_BUFFER_LENGTH_WORDS];
+    /// index into buffer[] to denote first free element.
     unsigned endOffset{0};
 public:
+    /// how many times did we run into the MAX_STRACE limit.
     unsigned limitReached{0};
+    /// How many times did we apply the backtrace hack to work around
+    /// single-entry backtraces.
     unsigned singleLenHack{0};
 } allocator;
 
@@ -86,6 +90,10 @@ struct trace
 
 struct trace *all_traces = nullptr;
 
+/// Computes a 24-bit hash code for a stack trace.
+/// @param len is the number of entries in the stack trace (each 4 bytes)
+/// @param buf is the first element (leaf) of the trace.
+/// @return hash code.
 unsigned hash_trace(unsigned len, unsigned *buf)
 {
     unsigned ret = 0;
@@ -97,6 +105,11 @@ unsigned hash_trace(unsigned len, unsigned *buf)
     return ret & 0xFFFFFF;
 }
 
+/// Finds if the current trace exists in the trace map.
+/// @param hash is the previously computed hash value for the current trace.
+/// @return nullptr if the current trace is not matching anything in the trace
+/// buffer, otherwise the storage pointer to the copy of the current trace in
+/// the trace buffer.
 struct trace *find_current_trace(unsigned hash)
 {
     for (struct trace *t = all_traces; t; t = t->next)
@@ -114,6 +127,10 @@ struct trace *find_current_trace(unsigned hash)
     return nullptr;
 }
 
+/// Adds the current trace to the trace buffer.
+/// @param hash is the hash value ofthe current trace.
+/// @return pointer to the trace in the trace buffer. The stats of the new
+/// entry are not yet updated. Returns nullptr if the trace buffer is full.
 struct trace *add_new_trace(unsigned hash)
 {
     unsigned total_size = sizeof(struct trace) + strace_len * sizeof(stacktrace[0]);
@@ -128,7 +145,9 @@ struct trace *add_new_trace(unsigned hash)
     return t;
 }
 
+/// Current stacktrace buffer. This will be written from an interrupt.
 void *stacktrace[MAX_STRACE];
+/// Number of entries in stacktrace.
 int strace_len;
 
 
@@ -147,7 +166,10 @@ typedef struct
   struct core_regs core;
 } phase2_vrs;
 
+/// We store what we know about the external context at interrupt entry in this
+/// structure.
 phase2_vrs main_context;
+/// Saved value of the lr register at the exception entry.
 unsigned saved_lr;
 
 /// Takes registers from the core state and the saved exception context and
@@ -189,8 +211,10 @@ __gnu_Unwind_Backtrace(_Unwind_Trace_Fn trace, void * trace_argument,
                        phase2_vrs * entry_vrs);
 }
 
+/// Static variable for trace_func.
 void* last_ip;
 
+/// Callback from the unwind backtrace function.
 _Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
 {
     void *ip;
@@ -223,6 +247,8 @@ _Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
     return _URC_NO_REASON;
 }
 
+/// Called from the interrupt handler to take a CPU trace for the current
+/// exception.
 void take_cpu_trace()
 {
     memset(stacktrace, 0, sizeof(stacktrace));
@@ -251,27 +277,33 @@ void take_cpu_trace()
     }
 }
 
+/// Change this value to runtime disable and enable the CPU profile gathering
+/// code.
 bool enable_profiling = 0;
-
 volatile unsigned* exception_args;
 volatile unsigned is_process;
 volatile unsigned saved_sp;
 
-extern "C" {
-void load_monitor_interrupt_handler()
-{
-    if (enable_profiling)
-    {
-        fill_phase2_vrs(exception_args);
-        take_cpu_trace();
-    }
-    load_monitor.interrupt_handler(is_process & 4 ? 0 : 1);
-}
-}
-
-#define DEFINE_CPU_PROFILE_INTERRUPT_HANDLER(irq_handler_name)                 \
+/// Helper function to declare the CPU usage tick interrupt.
+/// @param irq_handler_name is the name of the interrupt to declare, for example
+/// timer4a_interrupt_handler.
+/// @param CLEAR_IRQ_FLAG is a c++ statement or statements in { ... } that will
+/// be executed before returning from the interrupt to clear the timer IRQ flag.
+#define DEFINE_CPU_PROFILE_INTERRUPT_HANDLER(irq_handler_name, CLEAR_IRQ_FLAG) \
     extern "C"                                                                 \
     {                                                                          \
+        void __attribute__((noinline)) load_monitor_interrupt_handler(         \
+            volatile unsigned *exception_args, unsigned exception_return_code) \
+        {                                                                      \
+            if (enable_profiling)                                              \
+            {                                                                  \
+                fill_phase2_vrs(exception_args);                               \
+                take_cpu_trace();                                              \
+            }                                                                  \
+            cpuload_tick(p);                                                   \
+            load_monitor.interrupt_handler(is_process & 4 ? 0 : 1);            \
+            CLEAR_IRQ_FLAG;                                                    \
+        }                                                                      \
         void __attribute__((__naked__)) irq_handler_name(void)                 \
         {                                                                      \
             __asm volatile(" tst   lr, #4               \n"                    \
