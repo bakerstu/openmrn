@@ -92,6 +92,15 @@ public:
      */
     void interrupt_handler();
 
+    /** Return a mutex that can be used by another SPI driver instance sharing
+     * the same bus as its bus lock.
+     * @return a reference to a mutex that can be used as a bus lock
+     */
+    OSMutex *get_spi_bus_lock()
+    {
+        return &lock_;
+    }
+
 private:
     /** maximum SPI clock speed in Hz */
     static constexpr uint32_t SPI_MAX_SPEED_HZ = 10000000;
