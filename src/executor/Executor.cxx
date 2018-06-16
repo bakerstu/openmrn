@@ -286,12 +286,15 @@ void *ExecutorBase::entry()
     {
         Executable *msg = nullptr;
         unsigned priority = UINT_MAX;
-        if (!selectPrescaler_ || ((msg = next(&priority)) == nullptr)) {
+        if (!selectPrescaler_ || ((msg = next(&priority)) == nullptr))
+        {
             long long wait_length = activeTimers_.get_next_timeout();
             wait_with_select(wait_length);
             selectPrescaler_ = config_executor_select_prescaler();
             msg = next(&priority);
-        } else {
+        }
+        else
+        {
             --selectPrescaler_;
         }
         if (msg == this)

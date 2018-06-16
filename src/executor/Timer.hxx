@@ -155,7 +155,7 @@ public:
      * the virtual method timeout(). */
     void run() override;
 
-    /** Special return values frombtim the timeout function. */
+    /** Special return values from the timeout function. */
     enum
     {
         NONE = 0,    /**< Do not restart the timer */
