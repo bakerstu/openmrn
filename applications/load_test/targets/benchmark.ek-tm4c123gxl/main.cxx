@@ -87,6 +87,7 @@ SerialLoggingServer log_server(stack.service(), "/dev/ser0");
 
 TivaCpuLoad<TivaCpuLoadDefHw> load_monitor;
 
+#define TRACE_BUFFER_LENGTH_WORDS 1000 // 4 kbytes
 #include "freertos_drivers/common/cpu_profile.hxx"
 
 DEFINE_CPU_PROFILE_INTERRUPT_HANDLER(timer4a_interrupt_handler,

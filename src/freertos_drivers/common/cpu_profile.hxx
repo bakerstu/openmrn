@@ -38,7 +38,10 @@
 #include <unwind.h>
 
 #define MAX_STRACE 20
+
+#ifndef TRACE_BUFFER_LENGTH_WORDS
 #define TRACE_BUFFER_LENGTH_WORDS 3000 // 12 kbytes
+#endif
 
 extern "C" {
 extern void *stacktrace[MAX_STRACE];
