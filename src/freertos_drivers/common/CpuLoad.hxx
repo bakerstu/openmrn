@@ -34,8 +34,12 @@
 #ifndef _OS_CPULOAD_HXX_
 #define _OS_CPULOAD_HXX_
 
+#include <algorithm>
+
 #include "utils/Singleton.hxx"
+#include "utils/StringPrintf.hxx"
 #include "utils/SimpleQueue.hxx"
+#include "executor/StateFlow.hxx"
 
 extern "C" {
 /// Call this function repeatedly from a hardware timer to feed the CPUload
@@ -175,6 +179,46 @@ private:
     uint16_t last16Bits_{0};
     /// Largest value we've seen of how busy we were over 16 counts.
     uint8_t peakOver16Counts_{0};
+};
+
+class CpuLoadLog : public StateFlowBase
+{
+public:
+    CpuLoadLog(Service* service)
+        : StateFlowBase(service)
+    {
+        start_flow(STATE(log_and_wait));
+    }
+
+private:
+    Action log_and_wait()
+    {
+        auto *l = CpuLoad::instance();
+        LOG(INFO, "Load: avg %3d max streak %d max of 16 %d", l->get_load(),
+            l->get_max_consecutive(), l->get_peak_over_16_counts());
+        l->clear_max_consecutive();
+        l->clear_peak_over_16_counts();
+        vector<pair<unsigned, string*> > per_task_ticks;
+        unsigned c = l->get_utilization_delta(&per_task_ticks);
+        std::sort(per_task_ticks.begin(), per_task_ticks.end(), std::greater<>());
+        string details;
+        for (volatile auto it : per_task_ticks) {
+            int perc = it.first * 1000 / c;
+            details += StringPrintf(" | %d.%d:", perc / 10, perc % 10);
+            details += *it.second;
+        }
+        log_output((char*)details.data(), details.size());
+        auto k = l->new_key();
+        if (k > 300) {
+            char* name = pcTaskGetName((TaskHandle_t)k);
+            l->set_key_description(k, name);
+        } else {
+            l->set_key_description(k, StringPrintf("irq-%u", k));
+        }
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(2000), STATE(log_and_wait));
+    }
+
+    StateFlowTimer timer_{this};
 };
 
 #endif // _OS_CPULOAD_HXX_

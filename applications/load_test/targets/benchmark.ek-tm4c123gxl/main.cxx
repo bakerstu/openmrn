@@ -50,6 +50,7 @@
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/PersistentGPIO.hxx"
 #include "freertos_drivers/common/BenchmarkCan.hxx"
+#include "freertos_drivers/common/CpuLoad.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
 
@@ -145,45 +146,7 @@ private:
     StateFlowTimer timer_{this};
 } benchmark_driver;
 
-class CpuLoadLog : public StateFlowBase
-{
-public:
-    CpuLoadLog()
-        : StateFlowBase(stack.service())
-    {
-        start_flow(STATE(log_and_wait));
-    }
-
-private:
-    Action log_and_wait()
-    {
-        auto *l = CpuLoad::instance();
-        LOG(INFO, "Load: avg %3d max streak %d max of 16 %d", l->get_load(),
-            l->get_max_consecutive(), l->get_peak_over_16_counts());
-        l->clear_max_consecutive();
-        l->clear_peak_over_16_counts();
-        vector<pair<unsigned, string*> > per_task_ticks;
-        unsigned c = l->get_utilization_delta(&per_task_ticks);
-        std::sort(per_task_ticks.begin(), per_task_ticks.end(), std::greater<>());
-        string details;
-        for (volatile auto it : per_task_ticks) {
-            int perc = it.first * 1000 / c;
-            details += StringPrintf(" | %d.%d:", perc / 10, perc % 10);
-            details += *it.second;
-        }
-        log_output((char*)details.data(), details.size());
-        auto k = l->new_key();
-        if (k > 300) {
-            char* name = pcTaskGetName((TaskHandle_t)k);
-            l->set_key_description(k, name);
-        } else {
-            l->set_key_description(k, StringPrintf("irq-%u", k));
-        }
-        return sleep_and_call(&timer_, MSEC_TO_NSEC(2000), STATE(log_and_wait));
-    }
-
-    StateFlowTimer timer_{this};
-} load_logger;
+CpuLoadLog load_logger(stack.service());
 
 // ConfigDef comes from config.hxx and is specific to the particular device and
 // target. It defines the layout of the configuration memory space and is also
