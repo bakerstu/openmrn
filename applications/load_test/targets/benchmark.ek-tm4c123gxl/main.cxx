@@ -32,6 +32,10 @@
  * @date 5 Jun 2015
  */
 
+#define LOGLEVEL INFO
+
+#include <algorithm>
+
 #include "os/os.h"
 #include "nmranet_config.h"
 
@@ -39,39 +43,27 @@
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/MultiConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
+#include "utils/gc_format.h"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
+#include "freertos_drivers/ti/TivaCpuLoad.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
+#include "freertos_drivers/common/PersistentGPIO.hxx"
+#include "freertos_drivers/common/BenchmarkCan.hxx"
+#include "freertos_drivers/common/CpuLoad.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
-#include "freertos_drivers/ti/TivaTestPacketSource.hxx"
-#include "freertos_drivers/ti/TivaCpuLoad.hxx"
-#include "utils/HubDeviceSelect.hxx"
-#include "utils/CpuDisplay.hxx"
 
+// Writes all log data to stderr.
+#include "utils/TcpLogging.hxx"
 
-
-
-TivaTestPacketSource<TivaTestPktDefHw> load_dev("/dev/load");
-TivaCpuLoad<TivaCpuLoadDefHw> load_monitor;
-
-
-extern "C" {
-void timer3a_interrupt_handler(void)
-{
-    load_dev.timer_isr();
-}
-void timer4a_interrupt_handler(void)
-{
-    load_monitor.interrupt_handler();
-}
-}
+BenchmarkCan benchmark_can("/dev/fakecan0");
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
 //#define SNIFF_ON_SERIAL
 //#define SNIFF_ON_USB
-#define HAVE_PHYSICAL_CAN_PORT
+//#define HAVE_PHYSICAL_CAN_PORT
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
@@ -90,6 +82,79 @@ extern const openlcb::NodeID NODE_ID = 0x050101011804ULL;
 // CAN-bus-specific components, a virtual node, PIP, SNIP, Memory configuration
 // protocol, ACDI, CDI, a bunch of memory spaces, etc.
 openlcb::SimpleCanStack stack(NODE_ID);
+
+SerialLoggingServer log_server(stack.service(), "/dev/ser0");
+
+TivaCpuLoad<TivaCpuLoadDefHw> load_monitor;
+
+#define TRACE_BUFFER_LENGTH_WORDS 1000 // 4 kbytes
+#include "freertos_drivers/common/cpu_profile.hxx"
+
+DEFINE_CPU_PROFILE_INTERRUPT_HANDLER(timer4a_interrupt_handler,
+    MAP_TimerIntClear(TIMER4_BASE, TIMER_TIMA_TIMEOUT));
+
+class BenchmarkDriver : public StateFlowBase
+{
+public:
+    BenchmarkDriver()
+        : StateFlowBase(stack.service())
+    {
+        start_flow(STATE(log_and_wait));
+    }
+
+private:
+    Action log_and_wait()
+    {
+        if (!SW1_Pin::get())
+        {
+            return call_immediately(STATE(do_benchmark));
+        }
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(100), STATE(log_and_wait));
+    }
+
+    Action do_benchmark()
+    {
+        struct can_frame frame;
+        LOG(INFO, "Starting benchmark.");
+        HASSERT(0 == gc_format_parse("X195B4123N0501010118FF0123", &frame));
+        startTime_ = OSTime::get_monotonic();
+        benchmark_can.start_benchmark(&frame, COUNT);
+        enable_profiling = 1;
+        return sleep_and_call(
+            &timer_, MSEC_TO_NSEC(100), STATE(check_benchmark_state));
+    }
+
+    Action check_benchmark_state()
+    {
+        unsigned count = 1;
+        auto end_time = benchmark_can.get_timestamp(&count);
+        if (!count)
+        {
+            enable_profiling = 0;
+            float spd = COUNT;
+            float time = (end_time - startTime_);
+            time /= 1e9;
+            spd /= time;
+            LOG(INFO, "Benchmark done. Time %d msec, speed %d pkt/sec",
+                static_cast<int>((end_time - startTime_ + 500000) / 1000000),
+                static_cast<int>(spd));
+            return call_immediately(STATE(log_and_wait));
+        }
+        else
+        {
+            LOG(INFO, "benchmark: %u pkt left", count);
+        }
+        return sleep_and_call(
+            &timer_, MSEC_TO_NSEC(100), STATE(check_benchmark_state));
+    }
+
+    static constexpr unsigned COUNT = 10000;
+
+    long long startTime_;
+    StateFlowTimer timer_{this};
+} benchmark_driver;
+
+CpuLoadLog load_logger(stack.service());
 
 // ConfigDef comes from config.hxx and is specific to the particular device and
 // target. It defines the layout of the configuration memory space and is also
@@ -112,13 +177,16 @@ extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
 
 // Defines the GPIO ports used for the producers and the consumers.
 
+// These wrappers will save the output pin state to EEPROM.
+constexpr PersistentGpio PinRed(LED_RED_Pin::instance(), 0);
+constexpr PersistentGpio PinGreen(LED_GREEN_Pin::instance(), 1);
+constexpr PersistentGpio PinBlue(LED_BLUE_Pin::instance(), 2);
+
 // List of GPIO objects that will be used for the output pins. You should keep
 // the constexpr declaration, because it will produce a compile error in case
 // the list of pointers cannot be compiled into a compiler constant and thus
 // would be placed into RAM instead of ROM.
-constexpr const Gpio *const kOutputGpio[] = {LED_RED_Pin::instance(),
-                                             LED_GREEN_Pin::instance(),
-                                             LED_BLUE_Pin::instance()};
+constexpr const Gpio *const kOutputGpio[] = {&PinRed, &PinGreen, &PinBlue};
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The MultiConfiguredConsumer class takes care of most of the
@@ -143,30 +211,6 @@ openlcb::ConfiguredProducer producer_sw2(
 openlcb::RefreshLoop loop(
     stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 
-extern HubFlow thub;
-HubFlow thub(stack.service());
-Destructable* loadport;
-Destructable* printport;
-
-CpuDisplay load_display(stack.service(), LED_RED_Pin::instance(), LED_GREEN_Pin::instance());
-
-
-class SpdPrintThread : public OSThread {
-public:
-    SpdPrintThread() {
-        start("spd_print", 0, 900);
-    }
-
-    void* entry() override {
-        Ewma speed_avg(0.5);
-        while (true) {
-            usleep(1000000);
-            speed_avg.add_absolute(load_dev.absolute_offset());
-            printf("%d bytes/sec\r\n", (int)speed_avg.avg());
-        }
-    }
-} print_thread;
-
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -174,32 +218,16 @@ public:
  */
 int appl_main(int argc, char *argv[])
 {
-    // The necessary physical ports must be added to the stack.
-    //
-    // It is okay to enable multiple physical ports, in which case the stack
-    // will behave as a bridge between them. For example enabling both the
-    // physical CAN port and the USB port will make this firmware act as an
-    // USB-CAN adapter in addition to the producers/consumers created above.
-    //
-    // If a port is enabled, it must be functional or else the stack will
-    // freeze waiting for that port to send the packets out.
-#if defined(HAVE_PHYSICAL_CAN_PORT)
-    stack.add_can_port_select("/dev/can0");
-#endif
-#if defined(SNIFF_ON_USB)
-    stack.add_gridconnect_port("/dev/serUSB0");
-#endif
-#if defined(SNIFF_ON_SERIAL)
-    //stack.add_gridconnect_port("/dev/ser0");
-#endif
+    stack.check_version_and_factory_reset(
+        cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
 
-    //loadport = new HubDeviceSelect<HubFlow>(&thub, "/dev/load");
-    //printport = new HubDeviceSelect<HubFlow>(&thub, "/dev/ser0");
+    // Restores pin states from EEPROM.
+    PinRed.restore();
+    PinGreen.restore();
+    PinBlue.restore();
 
-    //DisplayPort dport(stack.service(), true);
-    //thub.register_port(&dport);
-    //HubDeviceSelect printport(&thub, "/dev/load");
-    stack.add_gridconnect_port("/dev/load");
+    stack.add_can_port_select("/dev/fakecan0");
+
     // This command donates the main thread to the operation of the
     // stack. Alternatively the stack could be started in a separate stack and
     // then application-specific business logic could be executed ion a busy

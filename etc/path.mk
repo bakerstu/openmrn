@@ -33,6 +33,11 @@ ifeq ($(OS),Windows_NT)
 include $(OPENMRNPATH)/etc/path_windows.mk
 else
 
+################ shell ##################
+# Various commands in the makefiles are using the bash syntax. We ignore the
+# user's login shell preferences and use a specific shell instead.
+export SHELL :=/bin/bash
+
 ################ flock ##################
 ifndef FLOCKPATH
 SEARCHPATH := \

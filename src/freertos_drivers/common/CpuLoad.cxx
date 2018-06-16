@@ -48,8 +48,10 @@ static constexpr uint8_t AVG_RATE = 0xff;
 /// If the last measurement was busy, we add this much weight
 static constexpr uint32_t ADD_RATE = 0x1 << 24;
 
-void CpuLoad::record_value(bool busy) {
+void CpuLoad::record_value(bool busy, uintptr_t key)
+{
     avg_ *= AVG_RATE;
+    ++countSinceUpdate_;
     if (busy)
     {
         avg_ += ADD_RATE;
@@ -84,25 +86,41 @@ void CpuLoad::record_value(bool busy) {
     {
         peakOver16Counts_ = v;
     }
+    // Record per-key information
+    if (key == 0)
+        return;
+    bool found = false;
+    for (auto it = perKeyCost_.begin(); it != perKeyCost_.end(); ++it)
+    {
+        if (it->key == key)
+        {
+            found = true;
+            ++it->rolling_count;
+            break;
+        }
+    }
+    if (!found && newKey_ == 0)
+    {
+        newKey_ = key;
+    }
 }
 
 uint8_t CpuLoad::get_load() {
     return (avg_ * 100) >> SHIFT_ONE;
 }
 
-void cpuload_tick(void)
+void cpuload_tick(unsigned irq)
 {
     if (!Singleton<CpuLoad>::exists())
         return;
-    bool is_idle = xTaskGetIdleTaskHandle() == xTaskGetCurrentTaskHandle();
-    if (is_idle)
+    if (irq != 0)
     {
-        Singleton<CpuLoad>::instance()->record_value(0);
+        Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
+        return;
     }
-    else
-    {
-        Singleton<CpuLoad>::instance()->record_value(100);
-    }
+    auto hdl = xTaskGetCurrentTaskHandle();
+    bool is_idle = xTaskGetIdleTaskHandle() == hdl;
+    Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
 }
 }
 

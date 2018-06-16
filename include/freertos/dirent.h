@@ -35,6 +35,7 @@
 #define _EXTENDED_DIRENT_H_
 
 #include <sys/types.h>
+#include <inttypes.h>
 
 #ifdef __cplusplus
 extern "C" {
