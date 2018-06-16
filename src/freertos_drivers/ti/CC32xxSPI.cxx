@@ -31,6 +31,8 @@
  * @date 30 May 2016
  */
 
+#include "CC32xxSPI.hxx"
+
 #include <algorithm>
 #include <unistd.h>
 
@@ -45,14 +47,11 @@
 #include "driverlib/spi.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/prcm.h"
-#include "driverlib/udma.h"
 
 #include <ti/drivers/dma/UDMACC32XX.h>
 
-#include "CC32xxSPI.hxx"
-
 /** Instance pointers help us get context from the interrupt handler(s) */
-static CC32xxSPI *instances[1] = {NULL};
+static CC32xxSPI *instances_[1] = {NULL};
 
 /** Constructor.
  * @param name name of this device instance in the file system
@@ -71,22 +70,22 @@ CC32xxSPI::CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
                      uint32_t dma_channel_index_tx,
                      uint32_t dma_channel_index_rx)
     : SPI(name, cs_assert, cs_deassert, bus_lock)
-    , base(base)
-    , interrupt(interrupt)
+    , base_(base)
+    , interrupt_(interrupt)
     , dmaThreshold_(dma_threshold)
     , dmaChannelIndexTx_(dma_channel_index_tx)
     , dmaChannelIndexRx_(dma_channel_index_rx)
     , sem_()
 {
-    switch (base)
+    switch (base_)
     {
         default:
             HASSERT(0);
         case GSPI_BASE:
             MAP_PRCMPeripheralClkEnable(PRCM_GSPI, PRCM_RUN_MODE_CLK);
             MAP_PRCMPeripheralReset(PRCM_GSPI);
-            clock = MAP_PRCMPeripheralClockGet(PRCM_GSPI);
-            instances[0] = this;
+            clock_ = MAP_PRCMPeripheralClockGet(PRCM_GSPI);
+            instances_[0] = this;
             break;
     }
 
@@ -101,7 +100,7 @@ int CC32xxSPI::update_configuration()
     unsigned long new_mode;
     unsigned long bits_per_word;
 
-    switch (mode)
+    switch (mode_)
     {
         default:
         case SPI_MODE_0:
@@ -133,15 +132,15 @@ int CC32xxSPI::update_configuration()
             break;
     }
 
-    MAP_SPIDisable(base);
-    MAP_SPIReset(base);
-    MAP_SPIConfigSetExpClk(base, clock, speedHz, SPI_MODE_MASTER, new_mode,
+    MAP_SPIDisable(base_);
+    MAP_SPIReset(base_);
+    MAP_SPIConfigSetExpClk(base_, clock_, speedHz, SPI_MODE_MASTER, new_mode,
                            (SPI_3PIN_MODE | SPI_TURBO_OFF | bits_per_word));
-    MAP_SPIFIFOEnable(base, SPI_RX_FIFO | SPI_TX_FIFO);
-    MAP_SPIFIFOLevelSet(base, 1, 1);
-    MAP_IntPrioritySet(interrupt, configKERNEL_INTERRUPT_PRIORITY);
-    MAP_IntEnable(interrupt);
-    MAP_SPIEnable(base);
+    MAP_SPIFIFOEnable(base_, SPI_RX_FIFO | SPI_TX_FIFO);
+    MAP_SPIFIFOLevelSet(base_, 1, 1);
+    MAP_IntPrioritySet(interrupt_, configKERNEL_INTERRUPT_PRIORITY);
+    MAP_IntEnable(interrupt_);
+    MAP_SPIEnable(base_);
 
     return 0;
 }
@@ -174,7 +173,7 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
 
     /* Setup the TX transfer characteristics & buffers */
     uDMAChannelControlSet(dmaChannelIndexTx_ | UDMA_PRI_SELECT,
-                              channel_control_options);
+                          channel_control_options);
 #if 0
     uDMAChannelAttributeDisable(dmaChannelIndexTx_,
                                     UDMA_ATTR_ALTSELECT);
@@ -183,7 +182,7 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
 #endif
     uDMAChannelTransferSet(dmaChannelIndexTx_ | UDMA_PRI_SELECT,
                                UDMA_MODE_BASIC, buf,
-                               (void*)(base + MCSPI_O_TX0), msg->len);
+                               (void*)(base_ + MCSPI_O_TX0), msg->len);
 
     if (msg->rx_buf)
     {
@@ -207,7 +206,7 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
 #endif
     uDMAChannelTransferSet(dmaChannelIndexRx_ | UDMA_PRI_SELECT,
                                UDMA_MODE_BASIC,
-                               (void*)(base + MCSPI_O_RX0), buf, msg->len);
+                               (void*)(base_ + MCSPI_O_RX0), buf, msg->len);
 
     /* Globally disables interrupts. */
     asm("cpsid i\n");
@@ -215,10 +214,10 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
     uDMAChannelAssign(dmaChannelIndexRx_);
     uDMAChannelAssign(dmaChannelIndexTx_);
 
-    SPIFIFOLevelSet(base, 1, 1);
-    SPIDmaEnable(base, SPI_RX_DMA | SPI_TX_DMA);
-    SPIIntClear(base, SPI_INT_DMARX);
-    SPIIntEnable(base, SPI_INT_DMARX);
+    SPIFIFOLevelSet(base_, 1, 1);
+    SPIDmaEnable(base_, SPI_RX_DMA | SPI_TX_DMA);
+    SPIIntClear(base_, SPI_INT_DMARX);
+    SPIIntEnable(base_, SPI_INT_DMARX);
 
     /* Enable channels & start DMA transfers */
     uDMAChannelEnable(dmaChannelIndexTx_);
@@ -235,9 +234,9 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
 __attribute__((optimize("-O3")))
 void CC32xxSPI::interrupt_handler()
 {
-    if (SPIIntStatus(base, true) & SPI_INT_RX_FULL)
+    if (SPIIntStatus(base_, true) & SPI_INT_RX_FULL)
     {
-        SPIIntDisable(base, SPI_INT_RX_FULL);
+        SPIIntDisable(base_, SPI_INT_RX_FULL);
     }
     else
     {
@@ -247,8 +246,8 @@ void CC32xxSPI::interrupt_handler()
             return;
         }
 
-        SPIDmaDisable(base, SPI_RX_DMA | SPI_TX_DMA);
-        SPIIntDisable(base, SPI_INT_DMARX);
+        SPIDmaDisable(base_, SPI_RX_DMA | SPI_TX_DMA);
+        SPIIntDisable(base_, SPI_INT_DMARX);
     }
 
     int woken = 0;
@@ -262,9 +261,9 @@ extern "C" {
 __attribute__((optimize("-O3")))
 void spi0_interrupt_handler(void)
 {
-    if (instances[0])
+    if (instances_[0])
     {
-        instances[0]->interrupt_handler();
+        instances_[0]->interrupt_handler();
     }
 }
 } // extern C

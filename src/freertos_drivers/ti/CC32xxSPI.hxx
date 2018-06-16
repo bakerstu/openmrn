@@ -43,6 +43,8 @@
 #include "SPI.hxx"
 
 #include "inc/hw_mcspi.h"
+#include "inc/hw_types.h"
+#include "driverlib/udma.h"
 
 /** Specialization of Serial SPI driver for CC32xx devices.
  */
@@ -215,9 +217,9 @@ private:
      */
     long data_get_non_blocking(unsigned long *data)
     {
-        if(HWREG(base + MCSPI_O_CH0STAT) & MCSPI_CH0STAT_RXS)
+        if(HWREG(base_ + MCSPI_O_CH0STAT) & MCSPI_CH0STAT_RXS)
         {
-            *data = HWREG(base + MCSPI_O_RX0);
+            *data = HWREG(base_ + MCSPI_O_RX0);
             return 1;
         }
 
@@ -231,9 +233,9 @@ private:
      */
     long data_put_non_blocking(unsigned long data)
     {
-        if(HWREG(base + MCSPI_O_CH0STAT) & MCSPI_CH0STAT_TXS)
+        if(HWREG(base_ + MCSPI_O_CH0STAT) & MCSPI_CH0STAT_TXS)
         {
-            HWREG(base + MCSPI_O_TX0) = data;
+            HWREG(base_ + MCSPI_O_TX0) = data;
             return 1;
         }
 
@@ -247,15 +249,15 @@ private:
      */
     void data_put(unsigned long data)
     {
-        while(UNLIKELY(!(HWREG(base + MCSPI_O_CH0STAT)&MCSPI_CH0STAT_TXS)));
+        while(UNLIKELY(!(HWREG(base_ + MCSPI_O_CH0STAT)&MCSPI_CH0STAT_TXS)));
 
-        HWREG(base + MCSPI_O_TX0) = data;
+        HWREG(base_ + MCSPI_O_TX0) = data;
     }
 
 
-    unsigned long base; /**< base address of this device */
-    unsigned long clock; /**< clock rate supplied to the module */
-    unsigned long interrupt; /**< interrupt of this device */
+    unsigned long base_; /**< base address of this device */
+    unsigned long clock_; /**< clock rate supplied to the module */
+    unsigned long interrupt_; /**< interrupt of this device */
     size_t dmaThreshold_; /**< threshold in bytes to start using DMA */
     uint32_t dmaChannelIndexTx_; /**< TX DMA channel index */
     uint32_t dmaChannelIndexRx_; /**< RX DMA channel index */
