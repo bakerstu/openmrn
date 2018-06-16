@@ -113,7 +113,7 @@ private:
         HASSERT(0 == gc_format_parse("X195B4123N0501010118FF0123", &frame));
         startTime_ = OSTime::get_monotonic();
         benchmark_can.start_benchmark(&frame, COUNT);
-        enable_profiling = 0;
+        enable_profiling = 1;
         return sleep_and_call(
             &timer_, MSEC_TO_NSEC(100), STATE(check_benchmark_state));
     }
