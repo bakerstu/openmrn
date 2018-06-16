@@ -43,33 +43,37 @@
 #define TRACE_BUFFER_LENGTH_WORDS 3000 // 12 kbytes
 #endif
 
-extern "C" {
-extern void *stacktrace[MAX_STRACE];
-extern int strace_len;
-void call_unwind(void);
+extern "C"
+{
+    extern void *stacktrace[MAX_STRACE];
+    extern int strace_len;
+    void call_unwind(void);
 }
 
 /// A custom unidirectional memory allocator so we can take traces from
 /// interrupts.
-class TraceAllocator {
+class TraceAllocator
+{
 public:
-    void* alloc(unsigned size) {
+    void *alloc(unsigned size)
+    {
         size += 3;
         size /= 4;
-        if (endOffset + size > TRACE_BUFFER_LENGTH_WORDS) {
+        if (endOffset + size > TRACE_BUFFER_LENGTH_WORDS)
+        {
             return nullptr;
         }
-        void* ret = buffer + endOffset;
+        void *ret = buffer + endOffset;
         endOffset += size;
         return ret;
     }
-
 
 private:
     /// Storage of the trace buffer.
     unsigned buffer[TRACE_BUFFER_LENGTH_WORDS];
     /// index into buffer[] to denote first free element.
     unsigned endOffset{0};
+
 public:
     /// how many times did we run into the MAX_STRACE limit.
     unsigned limitReached{0};
@@ -136,9 +140,11 @@ struct trace *find_current_trace(unsigned hash)
 /// entry are not yet updated. Returns nullptr if the trace buffer is full.
 struct trace *add_new_trace(unsigned hash)
 {
-    unsigned total_size = sizeof(struct trace) + strace_len * sizeof(stacktrace[0]);
-    struct trace* t = (struct trace*)allocator.alloc(total_size);
-    if (!t) return nullptr;
+    unsigned total_size =
+        sizeof(struct trace) + strace_len * sizeof(stacktrace[0]);
+    struct trace *t = (struct trace *)allocator.alloc(total_size);
+    if (!t)
+        return nullptr;
     memcpy(t + 1, stacktrace, strace_len * sizeof(stacktrace[0]));
     t->hash = hash;
     t->len = strace_len;
@@ -153,20 +159,19 @@ void *stacktrace[MAX_STRACE];
 /// Number of entries in stacktrace.
 int strace_len;
 
-
 /// This struct definition mimics the internal structures of libgcc in
 /// arm-none-eabi binary. It's not portable and might break in the future.
 struct core_regs
 {
-  unsigned r[16];
+    unsigned r[16];
 };
 
 /// This struct definition mimics the internal structures of libgcc in
 /// arm-none-eabi binary. It's not portable and might break in the future.
 typedef struct
 {
-  unsigned demand_save_flags;
-  struct core_regs core;
+    unsigned demand_save_flags;
+    struct core_regs core;
 } phase2_vrs;
 
 /// We store what we know about the external context at interrupt entry in this
@@ -177,7 +182,8 @@ unsigned saved_lr;
 
 /// Takes registers from the core state and the saved exception context and
 /// fills in the structure necessary for the LIBGCC unwinder.
-void fill_phase2_vrs(volatile unsigned* fault_args) {
+void fill_phase2_vrs(volatile unsigned *fault_args)
+{
     main_context.demand_save_flags = 0;
     main_context.core.r[0] = fault_args[0];
     main_context.core.r[1] = fault_args[1];
@@ -194,14 +200,14 @@ void fill_phase2_vrs(volatile unsigned* fault_args) {
     saved_lr = fault_args[5];
     main_context.core.r[13] = (unsigned)(fault_args + 8); // stack pointer
 }
-extern "C" {
-_Unwind_Reason_Code
-__gnu_Unwind_Backtrace(_Unwind_Trace_Fn trace, void * trace_argument,
-                       phase2_vrs * entry_vrs);
+extern "C"
+{
+    _Unwind_Reason_Code __gnu_Unwind_Backtrace(
+        _Unwind_Trace_Fn trace, void *trace_argument, phase2_vrs *entry_vrs);
 }
 
 /// Static variable for trace_func.
-void* last_ip;
+void *last_ip;
 
 /// Callback from the unwind backtrace function.
 _Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
@@ -210,26 +216,27 @@ _Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
     ip = (void *)_Unwind_GetIP(context);
     if (strace_len == 0)
     {
-        //stacktrace[strace_len++] = ip;
+        // stacktrace[strace_len++] = ip;
         // By taking the beginning of the function for the immediate interrupt
         // we will attempt to coalesce more traces.
-        //ip = (void *)_Unwind_GetRegionStart(context);
+        // ip = (void *)_Unwind_GetRegionStart(context);
     }
     else if (last_ip == ip)
     {
-        if (strace_len == 1 && saved_lr != _Unwind_GetGR (context, 14)) {
-            _Unwind_SetGR (context, 14, saved_lr);
+        if (strace_len == 1 && saved_lr != _Unwind_GetGR(context, 14))
+        {
+            _Unwind_SetGR(context, 14, saved_lr);
             allocator.singleLenHack++;
             return _URC_NO_REASON;
         }
         return _URC_END_OF_STACK;
     }
-    if (strace_len >= MAX_STRACE-1)
+    if (strace_len >= MAX_STRACE - 1)
     {
         ++allocator.limitReached;
         return _URC_END_OF_STACK;
     }
-    //stacktrace[strace_len++] = ip;
+    // stacktrace[strace_len++] = ip;
     last_ip = ip;
     ip = (void *)_Unwind_GetRegionStart(context);
     stacktrace[strace_len++] = ip;
@@ -249,7 +256,8 @@ void take_cpu_trace()
     // exception trigger does not have a stack saved LR. In this case the
     // backtrace will fail after the first step. We manually append the second
     // step to have at least some idea of what's going on.
-    if (strace_len == 1) {
+    if (strace_len == 1)
+    {
         main_context.core.r[14] = saved_lr;
         main_context.core.r[15] = saved_lr;
         __gnu_Unwind_Backtrace(&trace_func, 0, &main_context);

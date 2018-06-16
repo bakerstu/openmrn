@@ -103,14 +103,17 @@ public:
     }
 
 private:
-    Action log_and_wait() {
-        if (!SW1_Pin::get()) {
+    Action log_and_wait()
+    {
+        if (!SW1_Pin::get())
+        {
             return call_immediately(STATE(do_benchmark));
         }
         return sleep_and_call(&timer_, MSEC_TO_NSEC(100), STATE(log_and_wait));
     }
 
-    Action do_benchmark() {
+    Action do_benchmark()
+    {
         struct can_frame frame;
         LOG(INFO, "Starting benchmark.");
         HASSERT(0 == gc_format_parse("X195B4123N0501010118FF0123", &frame));
@@ -121,10 +124,12 @@ private:
             &timer_, MSEC_TO_NSEC(100), STATE(check_benchmark_state));
     }
 
-    Action check_benchmark_state() {
+    Action check_benchmark_state()
+    {
         unsigned count = 1;
         auto end_time = benchmark_can.get_timestamp(&count);
-        if (!count) {
+        if (!count)
+        {
             enable_profiling = 0;
             float spd = COUNT;
             float time = (end_time - startTime_);
@@ -134,12 +139,13 @@ private:
                 static_cast<int>((end_time - startTime_ + 500000) / 1000000),
                 static_cast<int>(spd));
             return call_immediately(STATE(log_and_wait));
-        } else {
+        }
+        else
+        {
             LOG(INFO, "benchmark: %u pkt left", count);
         }
         return sleep_and_call(
             &timer_, MSEC_TO_NSEC(100), STATE(check_benchmark_state));
-
     }
 
     static constexpr unsigned COUNT = 10000;
@@ -180,9 +186,7 @@ constexpr PersistentGpio PinBlue(LED_BLUE_Pin::instance(), 2);
 // the constexpr declaration, because it will produce a compile error in case
 // the list of pointers cannot be compiled into a compiler constant and thus
 // would be placed into RAM instead of ROM.
-constexpr const Gpio *const kOutputGpio[] = {&PinRed,
-                                             &PinGreen,
-                                             &PinBlue};
+constexpr const Gpio *const kOutputGpio[] = {&PinRed, &PinGreen, &PinBlue};
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The MultiConfiguredConsumer class takes care of most of the

@@ -36,17 +36,17 @@
 
 #include <algorithm>
 
+#include "executor/StateFlow.hxx"
+#include "utils/SimpleQueue.hxx"
 #include "utils/Singleton.hxx"
 #include "utils/StringPrintf.hxx"
-#include "utils/SimpleQueue.hxx"
-#include "executor/StateFlow.hxx"
 
 extern "C" {
-/// Call this function repeatedly from a hardware timer to feed the CPUload
-/// class.
-/// @param irq should be zero if parent is the main context, otherwise the irq
-/// number.
-void cpuload_tick(unsigned irq);
+    /// Call this function repeatedly from a hardware timer to feed the CPUload
+    /// class.
+    /// @param irq should be zero if parent is the main context, otherwise the
+    /// irq number.
+    void cpuload_tick(unsigned irq);
 }
  
 /// Singleton class that records the CPU load under FreeRTOS.
@@ -64,12 +64,14 @@ class CpuLoad : public Singleton<CpuLoad> {
 public:
     CpuLoad() {}
 
-    ~CpuLoad() {
-        while (!perKeyCost_.empty()) {
+    ~CpuLoad()
+    {
+        while (!perKeyCost_.empty())
+        {
             delete perKeyCost_.pop_front();
         }
     }
-    
+
     /// @returns the CPU load as an integer between 0 and 100. The load is
     /// averaged over the past short amount of time.
     uint8_t get_load();
@@ -97,22 +99,26 @@ public:
 
     /// @return 0 if we have not found a new key recently, otherwise the value
     /// of the new key found. Clears the new key.
-    uintptr_t new_key() {
+    uintptr_t new_key()
+    {
         auto k = newKey_;
         newKey_ = 0;
         return k;
     }
 
     /// Defines how to print a given key. Must be called from the main executor.
-    void set_key_description(uintptr_t key, string description) {
+    void set_key_description(uintptr_t key, string description)
+    {
         auto it = perKeyCost_.begin();
-        for (; it != perKeyCost_.end(); ++it) {
-            if (it->key == key) {
+        for (; it != perKeyCost_.end(); ++it)
+        {
+            if (it->key == key)
+            {
                 it->description = std::move(description);
                 return;
             }
         }
-        auto* kk = new KeyInfo;
+        auto *kk = new KeyInfo;
         kk->key = key;
         kk->description = std::move(description);
         perKeyCost_.insert(it, kk);
@@ -121,10 +127,13 @@ public:
     /// Returns delta usage since last call by utilization key.
     /// @param output will be populated with data, utilization (number of ticks
     /// in this key since last invocation).
-    uint32_t get_utilization_delta(std::vector<pair<unsigned, string*> >* output) {
+    uint32_t get_utilization_delta(
+        std::vector<pair<unsigned, string *>> *output)
+    {
         HASSERT(output);
         output->clear();
-        for(auto it = perKeyCost_.begin(); it != perKeyCost_.end(); ++it) {
+        for (auto it = perKeyCost_.begin(); it != perKeyCost_.end(); ++it)
+        {
             volatile unsigned curr = it->rolling_count;
             unsigned diff = curr - it->last_count;
             it->last_count = curr;
@@ -157,7 +166,8 @@ private:
     /// Temporary buffer that the interrupt can write unknown keys to.
     uintptr_t newKey_{0};
 
-    struct KeyInfo : public QMember {
+    struct KeyInfo : public QMember
+    {
         /// Which cost key this entry belongs to
         uintptr_t key;
         /// textual description on how to print the cost key
@@ -184,7 +194,7 @@ private:
 class CpuLoadLog : public StateFlowBase
 {
 public:
-    CpuLoadLog(Service* service)
+    CpuLoadLog(Service *service)
         : StateFlowBase(service)
     {
         start_flow(STATE(log_and_wait));
@@ -198,21 +208,26 @@ private:
             l->get_max_consecutive(), l->get_peak_over_16_counts());
         l->clear_max_consecutive();
         l->clear_peak_over_16_counts();
-        vector<pair<unsigned, string*> > per_task_ticks;
+        vector<pair<unsigned, string *>> per_task_ticks;
         unsigned c = l->get_utilization_delta(&per_task_ticks);
-        std::sort(per_task_ticks.begin(), per_task_ticks.end(), std::greater<>());
+        std::sort(
+            per_task_ticks.begin(), per_task_ticks.end(), std::greater<>());
         string details;
-        for (volatile auto it : per_task_ticks) {
+        for (volatile auto it : per_task_ticks)
+        {
             int perc = it.first * 1000 / c;
             details += StringPrintf(" | %d.%d:", perc / 10, perc % 10);
             details += *it.second;
         }
-        log_output((char*)details.data(), details.size());
+        log_output((char *)details.data(), details.size());
         auto k = l->new_key();
-        if (k > 300) {
-            char* name = pcTaskGetName((TaskHandle_t)k);
+        if (k > 300)
+        {
+            char *name = pcTaskGetName((TaskHandle_t)k);
             l->set_key_description(k, name);
-        } else {
+        }
+        else
+        {
             l->set_key_description(k, StringPrintf("irq-%u", k));
         }
         return sleep_and_call(&timer_, MSEC_TO_NSEC(2000), STATE(log_and_wait));

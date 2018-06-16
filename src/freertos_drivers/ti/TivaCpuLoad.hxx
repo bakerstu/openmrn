@@ -66,7 +66,8 @@ public:
     }
 
     /// Creates the timer configuration for the tick interrupt.
-    static void setup() {
+    static void setup()
+    {
         MAP_SysCtlPeripheralEnable(HW::TIMER_PERIPH);
         MAP_TimerDisable(HW::TIMER_BASE, HW::TIMER);
         MAP_TimerClockSourceSet(HW::TIMER_BASE, TIMER_CLOCK_SYSTEM);
@@ -77,15 +78,15 @@ public:
         MAP_IntDisable(HW::TIMER_INTERRUPT);
         // We interrupt all other interrupts in order to ensure we measure
         // correct cpu usage.
-        MAP_IntPrioritySet(
-            HW::TIMER_INTERRUPT, 0);
+        MAP_IntPrioritySet(HW::TIMER_INTERRUPT, 0);
         MAP_TimerIntEnable(HW::TIMER_BASE, TIMER_TIMA_TIMEOUT);
         MAP_TimerEnable(HW::TIMER_BASE, HW::TIMER);
         MAP_IntEnable(HW::TIMER_INTERRUPT);
     }
 
     /// Call this function from extern "C" void timer4a_interrupt_handler().
-    void interrupt_handler(unsigned p) {
+    void interrupt_handler(unsigned p)
+    {
         MAP_TimerIntClear(HW::TIMER_BASE, TIMER_TIMA_TIMEOUT);
         cpuload_tick(p);
     }

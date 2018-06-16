@@ -93,12 +93,12 @@ public:
 
 private:
     /** Read from a file or device.
-    * @param file file reference for this device
-    * @param buf location to place read data
-    * @param count number of bytes to read
-    * @return number of bytes read upon success, -1 upon failure with errno
-    *         containing the cause
-    */
+     * @param file file reference for this device
+     * @param buf location to place read data
+     * @param count number of bytes to read
+     * @return number of bytes read upon success, -1 upon failure with errno
+     *         containing the cause
+     */
     ssize_t read(File *file, void *buf, size_t count) override
     {
         ssize_t result = Can::read(file, buf, count);
@@ -109,26 +109,30 @@ private:
             AtomicHolder lock(this);
             readTimeLast_ = OSTime::get_monotonic();
             unsigned num_frames = result / sizeof(struct can_frame);
-            if (readCount_ > num_frames) {
+            if (readCount_ > num_frames)
+            {
                 readCount_ -= num_frames;
-            } else {
+            }
+            else
+            {
                 readCount_ = 0;
             }
             need_signal = refill_locked();
         }
-        if (need_signal) {
+        if (need_signal)
+        {
             rxBuf->signal_condition();
         }
         return result;
     }
 
     /** Write to a file or device.
-    * @param file file reference for this device
-    * @param buf location to find write data
-    * @param count number of bytes to write
-    * @return number of bytes written upon success, -1 upon failure with errno
-    *         containing the cause
-    */
+     * @param file file reference for this device
+     * @param buf location to find write data
+     * @param count number of bytes to write
+     * @return number of bytes written upon success, -1 upon failure with errno
+     *         containing the cause
+     */
     ssize_t write(File *file, const void *buf, size_t count) override
     {
         /* drop all the written data on the floor */
@@ -138,7 +142,8 @@ private:
     /** Refills the rxBuf from the packet_ and readCount. Must be called within
      * a critical section lock. @return true if the condition needs to be
      * signaled. */
-    bool refill_locked() {
+    bool refill_locked()
+    {
         bool need_signal = false;
         while ((rxBuf->pending() < readCount_) && (rxBuf->space()))
         {
@@ -151,13 +156,19 @@ private:
         return need_signal;
     }
 
-    void enable() override {}
-    void disable() override {}
-    void tx_msg() override {}
+    void enable() override
+    {
+    }
+    void disable() override
+    {
+    }
+    void tx_msg() override
+    {
+    }
 
     struct can_frame packet_; /**< packet to inject. */
-    long long readTimeLast_; /**< timestamp of last read in OS time */
-    size_t readCount_; /**< count of packets still to inject */
+    long long readTimeLast_;  /**< timestamp of last read in OS time */
+    size_t readCount_;        /**< count of packets still to inject */
 
     DISALLOW_COPY_AND_ASSIGN(BenchmarkCan);
 };
