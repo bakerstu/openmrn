@@ -89,7 +89,8 @@ TivaCpuLoad<TivaCpuLoadDefHw> load_monitor;
 
 #include "freertos_drivers/common/cpu_profile.hxx"
 
-DEFINE_CPU_PROFILE_INTERRUPT_HANDLER(timer4a_interrupt_handler);
+DEFINE_CPU_PROFILE_INTERRUPT_HANDLER(timer4a_interrupt_handler,
+    MAP_TimerIntClear(TIMER4_BASE, TIMER_TIMA_TIMEOUT));
 
 class BenchmarkDriver : public StateFlowBase
 {

@@ -292,7 +292,7 @@ volatile unsigned saved_sp;
 #define DEFINE_CPU_PROFILE_INTERRUPT_HANDLER(irq_handler_name, CLEAR_IRQ_FLAG) \
     extern "C"                                                                 \
     {                                                                          \
-        void __attribute__((noinline)) load_monitor_interrupt_handler(         \
+        void __attribute__((__noinline__)) load_monitor_interrupt_handler(     \
             volatile unsigned *exception_args, unsigned exception_return_code) \
         {                                                                      \
             if (enable_profiling)                                              \
@@ -300,8 +300,7 @@ volatile unsigned saved_sp;
                 fill_phase2_vrs(exception_args);                               \
                 take_cpu_trace();                                              \
             }                                                                  \
-            cpuload_tick(p);                                                   \
-            load_monitor.interrupt_handler(is_process & 4 ? 0 : 1);            \
+            cpuload_tick(is_process & 4 ? 0 : 255);                            \
             CLEAR_IRQ_FLAG;                                                    \
         }                                                                      \
         void __attribute__((__naked__)) irq_handler_name(void)                 \
