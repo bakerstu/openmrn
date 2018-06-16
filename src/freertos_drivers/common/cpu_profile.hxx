@@ -175,20 +175,6 @@ unsigned saved_lr;
 /// Takes registers from the core state and the saved exception context and
 /// fills in the structure necessary for the LIBGCC unwinder.
 void fill_phase2_vrs(volatile unsigned* fault_args) {
-    __asm volatile (
-        "mov  r0, %0 \n"
-        "str  r4, [r0, 4*4] \n"
-        "str  r5, [r0, 5*4] \n"
-        "str  r6, [r0, 6*4] \n"
-        "str  r7, [r0, 7*4] \n"
-        "str  r8, [r0, 8*4] \n"
-        "str  r9, [r0, 9*4] \n"
-        "str  r10, [r0, 10*4] \n"
-        "str  r11, [r0, 11*4] \n"
-        "str  r12, [r0, 12*4] \n"
-        "str  r13, [r0, 13*4] \n"
-        "str  r14, [r0, 14*4] \n"
-        : : "r"(main_context.core.r)  : "r0"   );
     main_context.demand_save_flags = 0;
     main_context.core.r[0] = fault_args[0];
     main_context.core.r[1] = fault_args[1];
@@ -293,7 +279,8 @@ volatile unsigned saved_sp;
     extern "C"                                                                 \
     {                                                                          \
         void __attribute__((__noinline__)) load_monitor_interrupt_handler(     \
-            volatile unsigned *exception_args, unsigned exception_return_code) \
+            /*volatile unsigned *exception_args, */ unsigned                   \
+                exception_return_code)                                         \
         {                                                                      \
             if (enable_profiling)                                              \
             {                                                                  \
@@ -305,6 +292,21 @@ volatile unsigned saved_sp;
         }                                                                      \
         void __attribute__((__naked__)) irq_handler_name(void)                 \
         {                                                                      \
+            __asm volatile("mov  r0, %0 \n"                                    \
+                           "str  r4, [r0, 4*4] \n"                             \
+                           "str  r5, [r0, 5*4] \n"                             \
+                           "str  r6, [r0, 6*4] \n"                             \
+                           "str  r7, [r0, 7*4] \n"                             \
+                           "str  r8, [r0, 8*4] \n"                             \
+                           "str  r9, [r0, 9*4] \n"                             \
+                           "str  r10, [r0, 10*4] \n"                           \
+                           "str  r11, [r0, 11*4] \n"                           \
+                           "str  r12, [r0, 12*4] \n"                           \
+                           "str  r13, [r0, 13*4] \n"                           \
+                           "str  r14, [r0, 14*4] \n"                           \
+                           :                                                   \
+                           : "r"(main_context.core.r)                          \
+                           : "r0");                                            \
             __asm volatile(" tst   lr, #4               \n"                    \
                            " ite   eq                   \n"                    \
                            " mrseq r0, msp              \n"                    \
