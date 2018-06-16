@@ -248,7 +248,7 @@ void *MCP2515Can::entry()
     for ( ; /* forever */ ; )
     {
 #if MCP2515_DEBUG
-        int result = sem.timedwait(SEC_TO_NSEC(1));
+        int result = sem_.timedwait(SEC_TO_NSEC(1));
 
         if (result != 0)
         {
@@ -258,8 +258,8 @@ void *MCP2515Can::entry()
             uint8_t wr_data[2] = {READ, 0};
             xfer[0].tx_buf = (unsigned long)wr_data;
             xfer[0].len = sizeof(wr_data);
-            xfer[1].rx_buf = (unsigned long)regs;
-            xfer[1].len = sizeof(regs);
+            xfer[1].rx_buf = (unsigned long)regs_;
+            xfer[1].len = sizeof(regs_);
             xfer[1].cs_change = 1;
             ::ioctl(spiFd_, SPI_IOC_MESSAGE(2), xfer);
             lock_.unlock();
