@@ -62,9 +62,13 @@ public:
         return ret;
     }
 
+
 private:
     unsigned buffer[TRACE_BUFFER_LENGTH_WORDS];
     unsigned endOffset{0};
+public:
+    unsigned limitReached{0};
+    unsigned singleLenHack{0};
 } allocator;
 
 /// Linked list entry type for a call-stack backtrace.
@@ -127,28 +131,6 @@ struct trace *add_new_trace(unsigned hash)
 void *stacktrace[MAX_STRACE];
 int strace_len;
 
-_Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
-{
-    void *ip = (void *)_Unwind_GetIP(context);
-    if (strace_len == 0)
-    {
-        //stacktrace[strace_len++] = ip;
-        // By taking the beginning of the function for the immediate interrupt
-        // we will attempt to coalesce more traces.
-        //ip = (void *)_Unwind_GetRegionStart(context);
-    }
-    else if (stacktrace[strace_len - 1] == ip)
-    {
-        return _URC_END_OF_STACK;
-    }
-    if (strace_len >= MAX_STRACE)
-    {
-        return _URC_END_OF_STACK;
-    }
-    stacktrace[strace_len++] = ip;
-    return _URC_NO_REASON;
-}
-
 
 /// This struct definition mimics the internal structures of libgcc in
 /// arm-none-eabi binary. It's not portable and might break in the future.
@@ -191,7 +173,7 @@ void fill_phase2_vrs(volatile unsigned* fault_args) {
     main_context.core.r[2] = fault_args[2];
     main_context.core.r[3] = fault_args[3];
     main_context.core.r[12] = fault_args[4];
-    main_context.core.r[14] = fault_args[6];
+    main_context.core.r[14] = fault_args[6]+2;
     main_context.core.r[15] = fault_args[6];
     saved_lr = fault_args[5];
     main_context.core.r[13] = (unsigned)(fault_args + 8); // stack pointer
@@ -202,17 +184,55 @@ __gnu_Unwind_Backtrace(_Unwind_Trace_Fn trace, void * trace_argument,
                        phase2_vrs * entry_vrs);
 }
 
+void* last_ip;
+
+_Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
+{
+    void *ip;
+    ip = (void *)_Unwind_GetIP(context);
+    if (strace_len == 0)
+    {
+        //stacktrace[strace_len++] = ip;
+        // By taking the beginning of the function for the immediate interrupt
+        // we will attempt to coalesce more traces.
+        //ip = (void *)_Unwind_GetRegionStart(context);
+    }
+    else if (last_ip == ip)
+    {
+        if (strace_len == 1 && saved_lr != _Unwind_GetGR (context, 14)) {
+            _Unwind_SetGR (context, 14, saved_lr);
+            allocator.singleLenHack++;
+            return _URC_NO_REASON;
+        }
+        return _URC_END_OF_STACK;
+    }
+    if (strace_len >= MAX_STRACE-1)
+    {
+        ++allocator.limitReached;
+        return _URC_END_OF_STACK;
+    }
+    //stacktrace[strace_len++] = ip;
+    last_ip = ip;
+    ip = (void *)_Unwind_GetRegionStart(context);
+    stacktrace[strace_len++] = ip;
+    return _URC_NO_REASON;
+}
+
 void take_cpu_trace()
 {
     memset(stacktrace, 0, sizeof(stacktrace));
     strace_len = 0;
-    __gnu_Unwind_Backtrace(&trace_func, 0, &main_context);
+    last_ip = nullptr;
+    phase2_vrs first_context = main_context;
+    __gnu_Unwind_Backtrace(&trace_func, 0, &first_context);
     // This is a workaround for the case when the function in which we had the
     // exception trigger does not have a stack saved LR. In this case the
     // backtrace will fail after the first step. We manually append the second
     // step to have at least some idea of what's going on.
     if (strace_len == 1) {
-        stacktrace[strace_len++] = (void*)saved_lr;
+        main_context.core.r[14] = saved_lr;
+        main_context.core.r[15] = saved_lr;
+        __gnu_Unwind_Backtrace(&trace_func, 0, &main_context);
     }
     unsigned h = hash_trace(strace_len, (unsigned *)stacktrace);
     struct trace *t = find_current_trace(h);
