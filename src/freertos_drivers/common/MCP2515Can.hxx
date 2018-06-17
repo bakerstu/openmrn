@@ -458,7 +458,7 @@ private:
         {
         }
 
-        uint8_t pad_[2];          /**< force the data to 64-bit allign */
+        uint8_t pad_[2];          /**< force the data to 32/64-bit allign */
         uint8_t command_;         /**< the transaction command */
         uint8_t sidh_;            /**< standard identifier high byte */
         struct
@@ -478,7 +478,7 @@ private:
             uint8_t rtr_     : 1; /**< remote transmit request bit */
             uint8_t unused4_ : 1; /**< unused bit */
         };
-        uint8_t data_[8];          /** all 8 data bytes */
+        uint8_t data_[8];         /**< all 8 data bytes */
     };
 
     /** Setup a buffer read transfer structure.
@@ -548,7 +548,7 @@ private:
         xfer.rx_buf = 0;
         xfer.len = sizeof(reset);
 
-        SPI::transfer_polled(spi_, &xfer);
+        spi_->transfer_with_cs_assert_polled(&xfer);
     }
 
     /** Read from a SPI register.
@@ -565,7 +565,7 @@ private:
         xfer.rx_buf = (unsigned long)data;
         xfer.len = sizeof(data);
 
-        SPI::transfer_polled(spi_, &xfer);
+        spi_->transfer_with_cs_assert_polled(&xfer);
 
         return data[2];
     }
@@ -584,7 +584,7 @@ private:
         xfer.rx_buf = 0;
         xfer.len = sizeof(payload);
 
-        SPI::transfer_polled(spi_, &xfer);
+        spi_->transfer_with_cs_assert_polled(&xfer);
     }
 
     /** Bit modify to a SPI register.
@@ -600,7 +600,7 @@ private:
         xfer.tx_buf = (unsigned long)payload;
         xfer.rx_buf = 0;
         xfer.len = sizeof(payload);
-        SPI::transfer_polled(spi_, &xfer);
+        spi_->transfer_with_cs_assert_polled(&xfer);
     }
 
     /** Read a message to into a receive buffer.
@@ -612,7 +612,7 @@ private:
         xfer.tx_buf = (unsigned long)buf->get_payload();
         xfer.rx_buf = (unsigned long)buf->get_payload();
         xfer.len = buf->TRANSFER_SIZE;
-        SPI::transfer_polled(spi_, &xfer);
+        spi_->transfer_with_cs_assert_polled(&xfer);
     }
 
     /** Write a message to a transmit buffer.
@@ -625,7 +625,7 @@ private:
         xfer.tx_buf = (unsigned long)buf->get_payload();
         xfer.rx_buf = 0;
         xfer.len = buf->TRANSFER_SIZE;
-        SPI::transfer_polled(spi_, &xfer);
+        spi_->SPI::transfer_with_cs_assert_polled(&xfer);
     }
 
     /** Request that the GPIO cache be refreshed.

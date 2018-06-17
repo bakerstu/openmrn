@@ -57,45 +57,74 @@ public:
 
     /** Method to transmit/receive the data.  Chip select will be asserted at
      * start of the transfer and deasserted at the end of the transfer.
-     * @param self pointer to a SPI object instance
      * @param msg message(s) to transact.
      * @return bytes transfered upon success, -errno upon failure
      */
     __attribute__((optimize("-O3")))
-    static int transfer(SPI *self,struct spi_ioc_transfer *msg)
+    int transfer_with_cs_assert(struct spi_ioc_transfer *msg)
     {
-        self->csAssert();
-        int result = self->transfer(msg);
-        self->csDeassert();
+        csAssert();
+        int result = transfer(msg);
+        csDeassert();
         return result;
     }
 
     /** Method to transmit/receive the data.  Chip select will be asserted at
      * start of the transfer and deasserted at the end of the transfer.  This
      * will always be a polled transaction no matter what.
-     * @param self pointer to a SPI object instance
      * @param msg message(s) to transact.
      * @return bytes transfered upon success, -errno upon failure
      */
     __attribute__((optimize("-O3")))
-    static int transfer_polled(SPI *self,struct spi_ioc_transfer *msg)
+    int transfer_with_cs_assert_polled(struct spi_ioc_transfer *msg)
     {
-        self->csAssert();
-        int result = self->transfer_polled(msg);
-        self->csDeassert();
+        csAssert();
+        int result = transfer_polled(msg);
+        csDeassert();
         return result;
     }
 
     /** Conduct multiple message transfers with one stop at the end.
-     * @param self pointer to a SPI object instance
      * @param msgs array of messages to transfer
      * @param num number of messages to transfer
      * @return total number of bytes transfered, -errno upon failure
      */
-    static int transfer_messages(SPI *self,
-                                 struct spi_ioc_transfer *msgs, int num)
+    __attribute__((optimize("-O3")))
+    int transfer_messages(struct spi_ioc_transfer *msgs, int num)
     {
-        return self->transfer_messages(msgs, num);
+        //HASSERT(num > 0);
+
+        int count = 0;
+        int result;
+
+        lock_.lock();
+        bus_lock();
+        for (int i = 0; i < num; ++i, ++msgs)
+        {
+            count += msgs->len;
+            csAssert();
+            result = transfer(msgs);
+            if (UNLIKELY(result < 0))
+            {
+                /* something bad happened, reset the bus and bail */
+                csDeassert();
+                bus_unlock();
+                lock_.unlock();
+                return result;
+            }
+            if (msgs->cs_change)
+            {
+                if (UNLIKELY(msgs->delay_usec))
+                {
+                    usleep(msgs->delay_usec);
+                }
+                csDeassert();
+            }
+        }
+        bus_unlock();
+        lock_.unlock();
+
+        return count;
     }
 
 protected:
@@ -158,49 +187,6 @@ protected:
      */
     virtual int transfer_polled(struct spi_ioc_transfer *msg) = 0;
 
-    /** Conduct multiple message transfers with one stop at the end.
-     * @param msgs array of messages to transfer
-     * @param num number of messages to transfer
-     * @return total number of bytes transfered, -errno upon failure
-     */
-    __attribute__((optimize("-O3")))
-    int transfer_messages(struct spi_ioc_transfer *msgs, int num)
-    {
-        //HASSERT(num > 0);
-
-        int count = 0;
-        int result;
-
-        lock_.lock();
-        bus_lock();
-        for (int i = 0; i < num; ++i, ++msgs)
-        {
-            count += msgs->len;
-            csAssert();
-            result = transfer(msgs);
-            if (UNLIKELY(result < 0))
-            {
-                /* something bad happened, reset the bus and bail */
-                csDeassert();
-                bus_unlock();
-                lock_.unlock();
-                return result;
-            }
-            if (msgs->cs_change)
-            {
-                if (UNLIKELY(msgs->delay_usec))
-                {
-                    usleep(msgs->delay_usec);
-                }
-                csDeassert();
-            }
-        }
-        bus_unlock();
-        lock_.unlock();
-
-        return count;
-    }
-
     /** Update the configuration of the bus.
      * @return >= 0 upon success, -errno upon failure
      */
@@ -213,13 +199,13 @@ protected:
      * @return >= 0 upon success, -errno upon failure
      */
     int ioctl(File *file, unsigned long int key, unsigned long data) override;
-public:
+
     /** function pointer to a method that asserts chip select. */
     ChipSelectMethod csAssert;
 
     /** function pointer to a method that deasserts chip select. */
     ChipSelectMethod csDeassert;
-protected:
+
     /** Max default speed in Hz */
     uint32_t speedHz;
 

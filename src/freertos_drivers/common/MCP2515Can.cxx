@@ -269,7 +269,6 @@ void *MCP2515Can::entry()
         sem_.wait();
 #endif
         lock_.lock();
-        spi_->csDeassert();
 
         /* read status flags */
         uint8_t canintf = register_read(CANINTF);
@@ -327,11 +326,7 @@ void *MCP2515Can::entry()
             {
                 buffer.build_struct_can_frame(can_frame);
                 rxBuf->advance(1);
-
-                spi_->csAssert();
                 rxBuf->signal_condition();
-                spi_->csDeassert();
-
                 ++numReceivedPackets_;
             }
             else
@@ -357,11 +352,7 @@ void *MCP2515Can::entry()
             {
                 buffer.build_struct_can_frame(can_frame);
                 rxBuf->advance(1);
-
-                spi_->csAssert();
                 rxBuf->signal_condition();
-                spi_->csDeassert();
-
                 ++numReceivedPackets_;
             }
             else
@@ -437,9 +428,7 @@ void *MCP2515Can::entry()
             /* get the latest GPI data */
             gpiData_ = (register_read(TXRTSCTRL) >> 3) & 0x7;
         }
-        spi_->csAssert();
         lock_.unlock();
-        spi_->csDeassert();
 
         interruptEnable_();
     }
@@ -453,7 +442,6 @@ void *MCP2515Can::entry()
 __attribute__((optimize("-O3")))
 void MCP2515Can::interrupt_handler()
 {
-    spi_->csAssert();
     int woken = false;
     interruptDisable_();
     sem_.post_from_isr(&woken);
