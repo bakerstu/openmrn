@@ -210,8 +210,8 @@ private:
         l->clear_peak_over_16_counts();
         vector<pair<unsigned, string *>> per_task_ticks;
         unsigned c = l->get_utilization_delta(&per_task_ticks);
-        std::sort(
-            per_task_ticks.begin(), per_task_ticks.end(), std::greater<>());
+        std::sort(per_task_ticks.begin(), per_task_ticks.end(),
+                  std::greater<decltype(per_task_ticks)::value_type>());
         string details;
         for (volatile auto it : per_task_ticks)
         {
