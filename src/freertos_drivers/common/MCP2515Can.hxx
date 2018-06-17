@@ -605,9 +605,8 @@ private:
 
     /** Read a message to into a receive buffer.
      * @param buf BuffeRead object to fill in
-     * @param index buffer index to read from (valid values are 0 and 1)
      */
-    void buffer_read(BufferRead *buf, int index)
+    void buffer_read(BufferRead *buf)
     {
         spi_ioc_transfer xfer;
         xfer.tx_buf = (unsigned long)buf->get_payload();
@@ -618,10 +617,9 @@ private:
 
     /** Write a message to a transmit buffer.
      * @param buf BufferWrite object to write out over SPI
-     * @param index buffer index to write to (valid values are 0 and 1)
      * @param can_frame reference to a can_frame metadata structure.
      */
-    void buffer_write(BufferWrite *buf, int index, struct can_frame *can_frame)
+    void buffer_write(BufferWrite *buf, struct can_frame *can_frame)
     {
         spi_ioc_transfer xfer;
         xfer.tx_buf = (unsigned long)buf->get_payload();

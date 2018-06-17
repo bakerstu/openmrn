@@ -222,7 +222,7 @@ void MCP2515Can::tx_msg_locked()
             bit_modify(index == 0 ? TXB1CTRL : TXB0CTRL, 0x01, 0x03);
 
             /* load the tranmit buffer */
-            buffer_write(&buffer, index, can_frame);
+            buffer_write(&buffer, can_frame);
 
             txPending_ |= (0x1 << index);
 
@@ -320,8 +320,8 @@ void *MCP2515Can::entry()
             {
                 /* receive interrupt active */
                 BufferRead buffer(0);
-                buffer_read(&buffer, 0);
                 struct can_frame *can_frame;
+            buffer_read(&buffer);
 
                 portENTER_CRITICAL();
                 if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
@@ -349,7 +349,6 @@ void *MCP2515Can::entry()
             {
                 /* receive interrupt active */
                 BufferRead buffer(1);
-                buffer_read(&buffer, 1);
                 struct can_frame *can_frame;
 
                 portENTER_CRITICAL();
@@ -357,6 +356,7 @@ void *MCP2515Can::entry()
                 {
                     buffer.build_struct_can_frame(can_frame);
                     rxBuf->advance(1);
+            buffer_read(&buffer);
 
                     spi_->csAssert();
                     rxBuf->signal_condition();
@@ -412,7 +412,7 @@ void *MCP2515Can::entry()
                     bit_modify(index == 0 ? TXB1CTRL : TXB0CTRL, 0x01, 0x03);
 
                     /* load the tranmit buffer */
-                    buffer_write(&buffer, index, can_frame);
+                    buffer_write(&buffer, can_frame);
 
                     txPending_ |= (0x1 << index);
 
