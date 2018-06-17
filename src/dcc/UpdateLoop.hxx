@@ -86,9 +86,9 @@ public:
     /// Priority value for exclusive sources.
     static constexpr unsigned EXCLUSIVE_MIN_PRIORITY = 0x100;
     /// Priority value to be used for service mode programming source.
-    static constexpr unsigned PROGRAMMING_PRIORITY = 0x108;
+    static constexpr unsigned PROGRAMMING_PRIORITY = 0x110;
     /// Priority value to be used for global emergency stop packet source.
-    static constexpr unsigned ESTOP_PRIORITY = 0x110;
+    static constexpr unsigned ESTOP_PRIORITY = 0x108;
 };
 
 } // namespace dcc
