@@ -143,7 +143,7 @@ struct ProgrammingTrackRequest : public CallableFlowRequestBase
     unsigned hasAck_ : 1;
 
     /// Set to 1 if the programming track has reached the current limit.
-    /// @TODO(balazs.racz) we need to figure out how to recover from a program
+    /// @todo(balazs.racz) we need to figure out how to recover from a program
     /// track short.
     unsigned hasShortCircuit_ : 1;
 
@@ -214,7 +214,7 @@ public:
         {
             // Early exit criteria reached. Wake up the flow and return.
             isWaitingForPackets_ = 0;
-            // @todo: wait for flushing the packets to the track.
+            /// @todo: wait for flushing the packets to the track.
             // resume flow
             notify();
         }
@@ -228,7 +228,7 @@ public:
             return;
         }
         request()->hasShortCircuit_ = 1;
-        // @todo do we need to do something else here?
+        /// @todo do we need to do something else here?
     }
 
 private:
@@ -241,8 +241,7 @@ private:
         // 3. switch the power outputs to the programming track. That's
         // dependant on the hardware revision.
         enableProgramTrackMode_();
-        // @todo: do we need to flush the packet queue here?
-        // maybe send 6-8 reset packets at the beginning instead of 3?
+        /// @todo: do we need to flush the packet queue here?
         if (!packet_processor_add_refresh_source(
                 this, dcc::UpdateLoopBase::PROGRAMMING_PRIORITY))
         {
@@ -257,9 +256,9 @@ private:
     Action exit_service_mode()
     {
         packet_processor_remove_refresh_source(this);
-        // @todo: maybe we need to flush the packet queue here as well,
-        // otherwise we might be sending out service mode reset packets to the
-        // mainline.
+        /// @todo: maybe we need to flush the packet queue here as well,
+        /// otherwise we might be sending out service mode reset packets to the
+        /// mainline.
         disableProgramTrackMode_();
         return return_ok();
     }
@@ -284,7 +283,7 @@ private:
     Action packets_sent()
     {
         // this will terminate the current flow with a 0 error value.
-        // @TODO actually send back an error value if we've seen a short maybe?
+        /// @todo actually send back an error value if we've seen a short maybe?
         return return_ok();
     }
 
@@ -310,7 +309,7 @@ private:
             if (isWaitingForPackets_)
             {
                 isWaitingForPackets_ = 0;
-                // @todo: wait for flushing the packets to the track.
+                /// @todo: wait for flushing the packets to the track.
                 // resume flow
                 notify();
             }

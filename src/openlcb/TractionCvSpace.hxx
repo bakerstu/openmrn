@@ -158,6 +158,7 @@ private:
     uint8_t spaceId_;
     /// Stores the last node for which the CV index was written.
     uint16_t lastIndexedNode_;
+    /// Stores the CV value that we're checking the CV against to verify.
     uint8_t lastVerifyValue_;
     /// Stores the last CV index (for indirect CV lookup).
     uint32_t lastIndexedCv_;

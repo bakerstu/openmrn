@@ -119,7 +119,8 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
     uint32_t cv = -1;
     if (source == OFFSET_CV_VALUE || source == OFFSET_CV_VERIFY_RESULT)
     {
-        if (dccAddress_ != lastIndexedNode_) {
+        if (dccAddress_ != lastIndexedNode_)
+        {
             *error = Defs::ERROR_PERMANENT;
             return 0;
         }
@@ -136,11 +137,14 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
     }
     if (cv == cvNumber_)
     {
-        if (errorCode_ == ERROR_OK) {
+        if (errorCode_ == ERROR_OK)
+        {
             *dst = cvData_;
             errorCode_ = ERROR_NOOP;
             return 1;
-        } else if (errorCode_ == _ERROR_TIMEOUT) {
+        }
+        else if (errorCode_ == _ERROR_TIMEOUT)
+        {
             *error = Defs::ERROR_OPENLCB_TIMEOUT;
             errorCode_ = ERROR_NOOP;
             return 0;
@@ -170,7 +174,8 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
         DIE("Have not started the flow but will return AGAIN.");
     }
     *error = ERROR_AGAIN;
-    deadline_ = os_get_time_monotonic() + MSEC_TO_NSEC(RAILCOM_POM_OP_TIMEOUT_MSEC);
+    deadline_ =
+        os_get_time_monotonic() + MSEC_TO_NSEC(RAILCOM_POM_OP_TIMEOUT_MSEC);
     return 0;
 }
 
@@ -374,7 +379,7 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
 {
     auto *b = get_allocation_result(track_);
     b->data()->start_dcc_packet();
-    /** @TODO(balazs.racz) here we make bad assumptions about how to decide
+    /** @todo(balazs.racz) here we make bad assumptions about how to decide
      * between long and short addresses */
     if (dccAddress_ >= 0x80)
     {
@@ -399,29 +404,32 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
 StateFlowBase::Action TractionCvSpace::write_returned()
 {
     LOG(WARNING, "railcom write returned status %d value %d", errorCode_, cvData_);
-    switch (errorCode_) {
-    case ERROR_PENDING:
-        errorCode_ = _ERROR_TIMEOUT;
-        railcomHub_->unregister_port(this);
-        break;
-    case ERROR_OK:
-        break;
-    default:
-    case ERROR_UNKNOWN_RESPONSE:
-        if (numTry_ >= WRITE_RETRY_COUNT_ON_UNKNOWN) {
-            // We switch from writing to reading if we had tried many enough
-            // times. Maybe the write was actually successful.
-            return call_immediately(STATE(try_read1));
-        }
-        numTry_++;
-        return call_immediately(STATE(try_write1));
-    case _ERROR_BUSY:
-        if (os_get_time_monotonic() > deadline_) {
+    switch (errorCode_)
+    {
+        case ERROR_PENDING:
             errorCode_ = _ERROR_TIMEOUT;
+            railcomHub_->unregister_port(this);
             break;
-        }
-        /// @TODO(balazs.racz) keep a timestamp to not keep trying forever.
-        return call_immediately(STATE(try_write1));
+        case ERROR_OK:
+            break;
+        default:
+        case ERROR_UNKNOWN_RESPONSE:
+            if (numTry_ >= WRITE_RETRY_COUNT_ON_UNKNOWN)
+            {
+                // We switch from writing to reading if we had tried many enough
+                // times. Maybe the write was actually successful.
+                return call_immediately(STATE(try_read1));
+            }
+            numTry_++;
+            return call_immediately(STATE(try_write1));
+        case _ERROR_BUSY:
+            if (os_get_time_monotonic() > deadline_)
+            {
+                errorCode_ = _ERROR_TIMEOUT;
+                break;
+            }
+            /// @todo(balazs.racz) keep a timestamp to not keep trying forever.
+            return call_immediately(STATE(try_write1));
     }
     return async_done();
 }
