@@ -490,7 +490,7 @@ private:
          * @param index buffer index to read from (valid values are 0 and 1)
          */
         BufferRead(int index)
-            : Buffer(READ_RX_BUF | (index == 0 ? 0x00 : 0x40))
+            : Buffer(READ_RX_BUF | (index == 0 ? 0x00 : 0x04))
         {
         }
     };
