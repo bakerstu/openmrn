@@ -35,6 +35,7 @@
 #define _FREERTOS_DRIVERS_COMMON_MCP2515CAN_HXX_
 
 #include <unistd.h>
+#include <cstddef>
 
 #include "Can.hxx"
 #include "SPI.hxx"
@@ -406,8 +407,9 @@ private:
                                     ((uint32_t)sidh_ << 3);
             }
             can_frame->can_err = 0;
-            *((uint64_t*)can_frame->data) = *((uint64_t*)data_);
             can_frame->can_dlc = dlc_;
+            static_assert(offsetof(Buffer, data_) == 8, "data_ misaligned");
+            *((uint64_t*)can_frame->data) = *((uint64_t*)data_);
         }
 
         /** Get a pointer to the buffer payload.
@@ -447,6 +449,7 @@ private:
                 eid8_ = 0;
                 eid0_ = 0;
             }
+            static_assert(offsetof(Buffer, data_) == 8, "data_ misaligned");
             *((uint64_t*)data_) = *((uint64_t*)can_frame->data);
         }
 
