@@ -10,7 +10,6 @@ MEMORY
   FLASH_HDR (rx) : ORIGIN = 0x01000000, LENGTH = 2K
 }
 
-REGION_ALIAS("REGION_PGM", RAM);
 REGION_ALIAS("REGION_RAM", RAM);
 
 /* TODO: the bootloader specific defines need to be revised once we know how the bootloader will work at all. */
