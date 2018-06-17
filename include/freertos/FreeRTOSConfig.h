@@ -366,8 +366,8 @@ typedef struct task_switched_in
 #ifndef TARGET_LPC11Cxx
 /** This trace macro is called from the tick interrupt; we use it for
  * collecting CPU load information. */
-void cpuload_tick(void);
-#define traceTASK_INCREMENT_TICK( count ) cpuload_tick()
+void cpuload_tick(unsigned);
+//#define traceTASK_INCREMENT_TICK( count ) cpuload_tick()
 #endif
 
 #endif
