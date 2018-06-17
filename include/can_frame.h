@@ -80,8 +80,13 @@
         uint8_t  res0; /**< reserved */
         uint8_t  res1; /**< reserved */
 
-        /** CAN message data (0-8 byte) */
-        uint8_t  data[8] __attribute__((aligned(8)));
+        union
+        {
+            /** CAN message data (64-bit) */
+            uint64_t data64 __attribute__((aligned(8)));
+            /** CAN message data (0-8 byte) */
+            uint8_t  data[8] __attribute__((aligned(8)));
+        };
     };
 
     #define SET_CAN_FRAME_EFF(_frame) (_frame).can_eff = 1

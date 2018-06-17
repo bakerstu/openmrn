@@ -48,8 +48,6 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/prcm.h"
 
-#include <ti/drivers/dma/UDMACC32XX.h>
-
 /** Instance pointers help us get context from the interrupt handler(s) */
 static CC32xxSPI *instances_[1] = {NULL};
 
