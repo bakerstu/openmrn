@@ -317,60 +317,59 @@ void *MCP2515Can::entry()
 
         if (canintf & RX0I)
         {
-            {
-                /* receive interrupt active */
-                BufferRead buffer(0);
-                struct can_frame *can_frame;
+            /* receive interrupt active */
+            BufferRead buffer(0);
             buffer_read(&buffer);
+            struct can_frame *can_frame;
 
-                portENTER_CRITICAL();
-                if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
-                {
-                    buffer.build_struct_can_frame(can_frame);
-                    rxBuf->advance(1);
-
-                    spi_->csAssert();
-                    rxBuf->signal_condition();
-                    spi_->csDeassert();
-
-                    ++numReceivedPackets_;
-                }
-                else
-                {
-                    /* receive overrun occured */
-                    ++overrunCount;
-                }
-                portEXIT_CRITICAL();
-            }
-
-            /* RX Buf 1 can only be full if RX Buf 0 was also previously full.
-             * It is extremely unlikely that RX Buf 1 will ever be full. */
-            if (UNLIKELY(canintf & RX1I))
+            portENTER_CRITICAL();
+            if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
             {
-                /* receive interrupt active */
-                BufferRead buffer(1);
-                struct can_frame *can_frame;
+                buffer.build_struct_can_frame(can_frame);
+                rxBuf->advance(1);
 
-                portENTER_CRITICAL();
-                if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
-                {
-                    buffer.build_struct_can_frame(can_frame);
-                    rxBuf->advance(1);
-            buffer_read(&buffer);
+                spi_->csAssert();
+                rxBuf->signal_condition();
+                spi_->csDeassert();
 
-                    spi_->csAssert();
-                    rxBuf->signal_condition();
-                    spi_->csDeassert();
-
-                    ++numReceivedPackets_;
-                }
-                else
-                {
-                    /* receive overrun occured */
-                    ++overrunCount;
-                }
-                portEXIT_CRITICAL();
+                ++numReceivedPackets_;
             }
+            else
+            {
+                /* receive overrun occured */
+                ++overrunCount;
+            }
+            portEXIT_CRITICAL();
+        }
+
+        /* RX Buf 1 can only be full if RX Buf 0 was also previously full.
+         * It is extremely unlikely that RX Buf 1 will ever be full.
+         */
+        if (UNLIKELY(canintf & RX1I))
+        {
+            /* receive interrupt active */
+            BufferRead buffer(1);
+            buffer_read(&buffer);
+            struct can_frame *can_frame;
+
+            portENTER_CRITICAL();
+            if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
+            {
+                buffer.build_struct_can_frame(can_frame);
+                rxBuf->advance(1);
+
+                spi_->csAssert();
+                rxBuf->signal_condition();
+                spi_->csDeassert();
+
+                ++numReceivedPackets_;
+            }
+            else
+            {
+                /* receive overrun occured */
+                ++overrunCount;
+            }
+            portEXIT_CRITICAL();
         }
 
         if (txPending_)
