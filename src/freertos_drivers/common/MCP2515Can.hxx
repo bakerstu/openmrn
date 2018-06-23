@@ -409,7 +409,7 @@ private:
             can_frame->can_err = 0;
             can_frame->can_dlc = dlc_;
             static_assert(offsetof(Buffer, data_) == 8, "data_ misaligned");
-            *((uint64_t*)can_frame->data) = *((uint64_t*)data_);
+            can_frame->data64 = data64_;
         }
 
         /** Get a pointer to the buffer payload.
@@ -450,7 +450,7 @@ private:
                 eid0_ = 0;
             }
             static_assert(offsetof(Buffer, data_) == 8, "data_ misaligned");
-            *((uint64_t*)data_) = *((uint64_t*)can_frame->data);
+            data64_ = can_frame->data64;
         }
 
         /** Constructor.
@@ -481,7 +481,11 @@ private:
             uint8_t rtr_     : 1; /**< remote transmit request bit */
             uint8_t unused4_ : 1; /**< unused bit */
         };
-        uint8_t data_[8];         /**< all 8 data bytes */
+        union
+        {
+            uint64_t data64_; /**< 64-bit data */
+            uint8_t  data_[8];     /**< all 8 data bytes */
+        };
     };
 
     /** Setup a buffer read transfer structure.
