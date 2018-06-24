@@ -256,11 +256,22 @@ void take_cpu_trace()
     // exception trigger does not have a stack saved LR. In this case the
     // backtrace will fail after the first step. We manually append the second
     // step to have at least some idea of what's going on.
+    if (strace_len == 0)
+    {
+        stacktrace[0] = (void*)main_context.core.r[15];
+        strace_len++;
+    }
     if (strace_len == 1)
     {
         main_context.core.r[14] = saved_lr;
         main_context.core.r[15] = saved_lr;
+        last_ip = nullptr;
         __gnu_Unwind_Backtrace(&trace_func, 0, &main_context);
+    }
+    if (strace_len == 1)
+    {
+        stacktrace[1] = (void*)saved_lr;
+        strace_len++;
     }
     unsigned h = hash_trace(strace_len, (unsigned *)stacktrace);
     struct trace *t = find_current_trace(h);
@@ -277,6 +288,27 @@ void take_cpu_trace()
 /// Change this value to runtime disable and enable the CPU profile gathering
 /// code.
 bool enable_profiling = 0;
+/// Current interrupt number for detecting per-interrupt costs.
+volatile unsigned current_interrupt = 0;
+
+/// Helper class for keeping track of current interrupt number.
+class SetInterrupt
+{
+public:
+    SetInterrupt(unsigned new_value)
+    {
+        old_value = current_interrupt;
+        current_interrupt = new_value;
+    }
+
+    ~SetInterrupt()
+    {
+        current_interrupt = old_value;
+    }
+
+private:
+    unsigned old_value;
+};
 
 /// Helper function to declare the CPU usage tick interrupt.
 /// @param irq_handler_name is the name of the interrupt to declare, for example
@@ -294,7 +326,9 @@ bool enable_profiling = 0;
                 fill_phase2_vrs(exception_args);                               \
                 take_cpu_trace();                                              \
             }                                                                  \
-            cpuload_tick(exception_return_code & 4 ? 0 : 255);                 \
+            cpuload_tick(exception_return_code & 4                             \
+                    ? 0                                                        \
+                    : current_interrupt > 0 ? current_interrupt : 255);        \
             CLEAR_IRQ_FLAG;                                                    \
         }                                                                      \
         void __attribute__((__naked__)) irq_handler_name(void)                 \
