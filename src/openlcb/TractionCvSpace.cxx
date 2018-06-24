@@ -128,6 +128,10 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
         cv = lastIndexedCv_ - 1;
         // fall through to regular processing
     }
+    if (source < OFFSET_CV_INDEX)
+    {
+        cv = source;
+    }
     LOG(INFO, "cv read %" PRIu32, cv);
     if (cv > MAX_CV)
     {
@@ -161,7 +165,7 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
     errorCode_ = ERROR_NOOP;
     cvData_ = 0;
     numTry_ = 0;
-    if (source == OFFSET_CV_VALUE)
+    if ((source == OFFSET_CV_VALUE) || (source <= MAX_CV))
     {
         start_flow(STATE(try_read1));
     }
