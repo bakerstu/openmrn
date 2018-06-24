@@ -11,7 +11,7 @@ namespace
 TEST(DccDebug, Idle)
 {
     EXPECT_EQ(
-        "[dcc][ff 00 ff] Idle packet", packet_to_string(Packet(Packet::DCC_IDLE())));
+        "[dcc] Idle packet", packet_to_string(Packet(Packet::DCC_IDLE())));
 }
 
 TEST(DccDebug, BroadcastEstop)
@@ -19,7 +19,7 @@ TEST(DccDebug, BroadcastEstop)
     Packet pkt;
     pkt.set_dcc_speed14(
         DccShortAddress(0), true, false, Packet::EMERGENCY_STOP);
-    EXPECT_EQ("[dcc][00 61 61] Broadcast SPD F E-STOP", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Broadcast SPD F E-STOP", packet_to_string(pkt));
 }
 
 TEST(DccDebug, ShortAddressEstop)
@@ -27,7 +27,7 @@ TEST(DccDebug, ShortAddressEstop)
     Packet pkt;
     pkt.set_dcc_speed14(
         DccShortAddress(42), true, false, Packet::EMERGENCY_STOP);
-    EXPECT_EQ("[dcc][2a 61 4b] Short Address 42 SPD F E-STOP", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 42 SPD F E-STOP", packet_to_string(pkt));
 }
 
 TEST(DccDebug, LongAddressEstop)
@@ -35,50 +35,50 @@ TEST(DccDebug, LongAddressEstop)
     Packet pkt;
     pkt.set_dcc_speed14(
         DccLongAddress(842), true, false, Packet::EMERGENCY_STOP);
-    EXPECT_EQ("[dcc][c3 4a 61 e8] Long Address 842 SPD F E-STOP", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Long Address 842 SPD F E-STOP", packet_to_string(pkt));
     pkt.clear();
     pkt.set_dcc_speed14(
         DccLongAddress(42), true, false, Packet::EMERGENCY_STOP);
-    EXPECT_EQ("[dcc][c0 2a 61 8b] Long Address 42 SPD F E-STOP", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Long Address 42 SPD F E-STOP", packet_to_string(pkt));
 }
 
 TEST(DccDebug, Speed28_0)
 {
     Packet pkt;
     pkt.set_dcc_speed28(DccShortAddress(42), true, 0);
-    EXPECT_EQ("[dcc][2a 60 4a] Short Address 42 SPD F 0", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 42 SPD F 0", packet_to_string(pkt));
     pkt.clear();
     pkt.set_dcc_speed28(DccShortAddress(42), false, 0);
-    EXPECT_EQ("[dcc][2a 40 6a] Short Address 42 SPD R 0", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 42 SPD R 0", packet_to_string(pkt));
     pkt.clear();
     pkt.set_dcc_speed28(DccLongAddress(42), false, 0);
-    EXPECT_EQ("[dcc][c0 2a 40 aa] Long Address 42 SPD R 0", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Long Address 42 SPD R 0", packet_to_string(pkt));
 }
 
 TEST(DccDebug, Speed28_1)
 {
     Packet pkt;
     pkt.set_dcc_speed28(DccShortAddress(42), true, 1);
-    EXPECT_EQ("[dcc][2a 62 48] Short Address 42 SPD F 1", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 42 SPD F 1", packet_to_string(pkt));
     pkt.clear();
     pkt.set_dcc_speed28(DccShortAddress(42), false, 1);
-    EXPECT_EQ("[dcc][2a 42 68] Short Address 42 SPD R 1", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 42 SPD R 1", packet_to_string(pkt));
     pkt.clear();
     pkt.set_dcc_speed28(DccLongAddress(42), false, 1);
-    EXPECT_EQ("[dcc][c0 2a 42 a8] Long Address 42 SPD R 1", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Long Address 42 SPD R 1", packet_to_string(pkt));
 }
 
 TEST(DccDebug, Speed28_others)
 {
     Packet pkt;
     pkt.set_dcc_speed28(DccShortAddress(42), true, 13);
-    EXPECT_EQ("[dcc][2a 68 42] Short Address 42 SPD F 13", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 42 SPD F 13", packet_to_string(pkt));
     pkt.clear();
     pkt.set_dcc_speed28(DccShortAddress(42), false, 28);
-    EXPECT_EQ("[dcc][2a 5f 75] Short Address 42 SPD R 28", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 42 SPD R 28", packet_to_string(pkt));
     pkt.clear();
     pkt.set_dcc_speed28(DccLongAddress(42), false, 28);
-    EXPECT_EQ("[dcc][c0 2a 5f b5] Long Address 42 SPD R 28", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Long Address 42 SPD R 28", packet_to_string(pkt));
 }
 
 TEST(DccDebug, F0_4)
@@ -86,11 +86,11 @@ TEST(DccDebug, F0_4)
     Packet pkt;
     pkt.add_dcc_address(DccShortAddress(3));
     pkt.add_dcc_function0_4(0b10111);
-    EXPECT_EQ("[dcc][03 9b 98] Short Address 3 F[0-4]=11101", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 3 F[0-4]=11101", packet_to_string(pkt));
     pkt.clear();
     pkt.add_dcc_address(DccShortAddress(3));
     pkt.add_dcc_function0_4(0b10110);
-    EXPECT_EQ("[dcc][03 8b 88] Short Address 3 F[0-4]=01101", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 3 F[0-4]=01101", packet_to_string(pkt));
 }
 
 TEST(DccDebug, F5_8)
@@ -98,7 +98,7 @@ TEST(DccDebug, F5_8)
     Packet pkt;
     pkt.add_dcc_address(DccShortAddress(3));
     pkt.add_dcc_function5_8(0b1011);
-    EXPECT_EQ("[dcc][03 bb b8] Short Address 3 F[5-8]=1101", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 3 F[5-8]=1101", packet_to_string(pkt));
 }
 
 TEST(DccDebug, F9_12)
@@ -106,7 +106,7 @@ TEST(DccDebug, F9_12)
     Packet pkt;
     pkt.add_dcc_address(DccShortAddress(3));
     pkt.add_dcc_function9_12(0b1101);
-    EXPECT_EQ("[dcc][03 ad ae] Short Address 3 F[9-12]=1011", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 3 F[9-12]=1011", packet_to_string(pkt));
 }
 
 TEST(DccDebug, F13_20)
@@ -114,7 +114,7 @@ TEST(DccDebug, F13_20)
     Packet pkt;
     pkt.add_dcc_address(DccShortAddress(3));
     pkt.add_dcc_function13_20(0b10010110);
-    EXPECT_EQ("[dcc][03 de 96 4b] Short Address 3 F[13-20]=01101001", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 3 F[13-20]=01101001", packet_to_string(pkt));
 }
 
 TEST(DccDebug, F21_28)
@@ -122,7 +122,7 @@ TEST(DccDebug, F21_28)
     Packet pkt;
     pkt.add_dcc_address(DccShortAddress(3));
     pkt.add_dcc_function21_28(0b10010110);
-    EXPECT_EQ("[dcc][03 df 96 4a] Short Address 3 F[21-28]=01101001", packet_to_string(pkt));
+    EXPECT_EQ("[dcc] Short Address 3 F[21-28]=01101001", packet_to_string(pkt));
 }
 
 TEST(DccDebug, marklin)
@@ -131,7 +131,7 @@ TEST(DccDebug, marklin)
     pkt.start_mm_packet();
     pkt.add_mm_address(MMAddress(13), true);
     pkt.add_mm_speed(2);
-    EXPECT_EQ("[marklin][repeat 2 times][03 f3 f0]", packet_to_string(pkt));
+    EXPECT_EQ("[marklin][repeat 2 times] 0x03 0xf3 0xf0", packet_to_string(pkt));
 }
 
 } // namespace
