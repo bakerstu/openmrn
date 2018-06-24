@@ -131,7 +131,7 @@ TEST(DccDebug, marklin)
     pkt.start_mm_packet();
     pkt.add_mm_address(MMAddress(13), true);
     pkt.add_mm_speed(2);
-    EXPECT_EQ("[marklin][repeat 2 times] 0x03 0xf3 0xf0", packet_to_string(pkt));
+    EXPECT_EQ("[marklin][repeat 2 times][03 f3 f0]", packet_to_string(pkt));
 }
 
 } // namespace
