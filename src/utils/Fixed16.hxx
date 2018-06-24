@@ -54,7 +54,7 @@ public:
     };
 
     constexpr Fixed16(FromDouble, double value)
-        : value_(fabs(value) * 65536 + 0.5)
+        : value_(value < 0 ? -value * 65536 + 0.5 : value * 65536 + 0.5)
         , sign_(value < 0 ? 1 : 0)
     {
         // it would be nice to make this work:
@@ -71,7 +71,7 @@ public:
         return *this;
     }
 
-    template <class T> Fixed16 operator+(T o)
+    template <class T> Fixed16 operator+(T o) const
     {
         Fixed16 ret(*this);
         ret += o;
@@ -84,7 +84,7 @@ public:
         return *this;
     }
 
-    template <typename T> Fixed16 operator-(T o)
+    template <typename T> Fixed16 operator-(T o) const
     {
         Fixed16 ret(*this);
         ret -= o;
@@ -101,7 +101,7 @@ public:
         return *this;
     }
 
-    template <typename T> Fixed16 operator*(T o)
+    template <typename T> Fixed16 operator*(T o) const
     {
         Fixed16 ret(*this);
         ret *= o;
@@ -119,7 +119,7 @@ public:
         return *this;
     }
 
-    template <typename T> Fixed16 operator/(T o)
+    template <typename T> Fixed16 operator/(T o) const
     {
         Fixed16 ret(*this);
         ret /= o;
@@ -140,7 +140,7 @@ public:
     }
     
     /// @return the integer part, rounded down
-    int16_t trunc()
+    int16_t trunc() const
     {
         int16_t b = value_ >> 16;
         if (sign_) return -b;
@@ -148,12 +148,12 @@ public:
     }
 
     /// @return the fractional part, as an uint16 value between 0 and 0xffff
-    uint16_t frac()
+    uint16_t frac() const
     {
         return value_ & 0xffff;
     }
 
-    float to_float()
+    float to_float() const
     {
         if (!value_) {
             if (sign_)
