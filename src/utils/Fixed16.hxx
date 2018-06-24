@@ -48,6 +48,20 @@ public:
     {
     }
 
+    enum FromDouble
+    {
+        FROM_DOUBLE
+    };
+
+    constexpr Fixed16(FromDouble, double value)
+        : value_(fabs(value) * 65536 + 0.5)
+        , sign_(value < 0 ? 1 : 0)
+    {
+        // it would be nice to make this work:
+        // static_assert(value < 32767 && value > -32767,
+        //   "fixed16 constructor out of range");
+    }
+    
     Fixed16(const Fixed16 &o) = default;
     Fixed16 &operator=(const Fixed16 &o) = default;
 
