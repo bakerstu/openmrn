@@ -58,7 +58,6 @@ int ConfigUpdateFlow::open_file(const char *path)
 void ConfigUpdateFlow::init_flow()
 {
     trigger_update();
-    isInitialLoad_ = 1;
 }
 
 void ConfigUpdateFlow::factory_reset()
