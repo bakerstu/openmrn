@@ -65,6 +65,11 @@ void ConfigUpdateFlow::factory_reset()
     for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
         it->factory_reset(fd_);
     }
+    for (auto it = pendingListeners_.begin(); it != pendingListeners_.end();
+         ++it)
+    {
+        it->factory_reset(fd_);
+    }
 }
 
 extern const char *const CONFIG_FILENAME __attribute__((weak)) = nullptr;
