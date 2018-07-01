@@ -58,12 +58,16 @@ int ConfigUpdateFlow::open_file(const char *path)
 void ConfigUpdateFlow::init_flow()
 {
     trigger_update();
-    isInitialLoad_ = 1;
 }
 
 void ConfigUpdateFlow::factory_reset()
 {
     for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
+        it->factory_reset(fd_);
+    }
+    for (auto it = pendingListeners_.begin(); it != pendingListeners_.end();
+         ++it)
+    {
         it->factory_reset(fd_);
     }
 }
