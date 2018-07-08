@@ -34,24 +34,60 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_CAN_HXX_
 #define _FREERTOS_DRIVERS_COMMON_CAN_HXX_
 
-#include "Devtab.hxx"
 #include "can_frame.h"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
-#include "executor/Notifiable.hxx"
 #include "DeviceBuffer.hxx"
 
-/** Private data for a can device */
-class Can : public NonBlockNode
+/** Base class for a can device */
+class Can
 {
 public:
     static unsigned numReceivedPackets_;
     static unsigned numTransmittedPackets_;
+
+    /// @return number of CAN frames available for read (input frames).
+    int available() {
+        return rxBuf->pending();
+    }
+
+    /// @return number of CAN frames available for write (space in output
+    /// buffer).
+    int availableForWrite() {
+        return txBuf->space();
+    }
+
+    /// Read a frame if there is one available.
+    /// @param frame will be filled with the input CAN frame.
+    /// @return 0 or 1 depending on whether a frame was read or not.
+    int read(struct can_frame* frame) {
+        portENTER_CRITICAL();
+        auto ret = rxBuf->get(frame, 1);
+        portEXIT_CRITICAL();
+        return ret;
+    }
+
+    /// Send a frame if there is space available.
+    /// @param frame the output CAN frame.
+    /// @return 0 or 1 depending on whether the write happened or not.
+    int write(const struct can_frame* frame) {
+        portENTER_CRITICAL();
+        auto ret = txBuf->put(frame, 1);
+        if (ret) {
+            tx_msg();
+        }
+        portEXIT_CRITICAL();
+        return ret;
+    }
+
+    virtual void enable() = 0; /**< function to enable device */
+    virtual void disable() = 0; /**< function to disable device */
+    
 protected:
     /** Constructor
-     * @param name device name in file system
+     * @param name ignored, may be null
      */
-    Can(const char *name)
+    Can(const char *ignored)
         : NonBlockNode(name)
         , txBuf(DeviceBuffer<struct can_frame>::create(config_can_tx_buffer_size(), 
                                                        config_can_tx_buffer_size()/2))
@@ -70,60 +106,15 @@ protected:
         rxBuf->destroy();
     }
 
-    void enable() override = 0; /**< function to enable device */
-    void disable() override = 0; /**< function to disable device */
     virtual void tx_msg() = 0; /**< function to try and transmit a message */
-
-    /** @todo (Stuart Baker) remove once we switch over to select().
-     * @return true if there is space in the transmit buffer, false if transmit
-     * buffers are full (i.e. a transmit would block).
-     */
-    bool has_tx_buffer_space() OVERRIDE {
-        return txBuf->space();
-    }
-
-    /** @todo (Stuart Baker) remove once we switch over to select().
-     * @return true if there is data in the receive buffer, false if all data
-     * has been consumed.
-     */
-    bool has_rx_buffer_data() OVERRIDE {
-        return rxBuf->pending();
-    }
-
-    void flush_buffers() OVERRIDE; /**< called after disable */
 
     DeviceBuffer<struct can_frame> *txBuf; /**< transmit buffer */
     DeviceBuffer<struct can_frame> *rxBuf; /**< receive buffer */
     unsigned int overrunCount; /**< overrun count */
     unsigned int busOffCount; /**< bus-off count */
-    unsigned int softErrorCount; /**< soff error count */
-
-protected:
-    /** Read from a file or device.
-    * @param file file reference for this device
-    * @param buf location to place read data
-    * @param count number of bytes to read
-    * @return number of bytes read upon success, -1 upon failure with errno containing the cause
-    */
-    ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
-
-    /** Write to a file or device.
-    * @param file file reference for this device
-    * @param buf location to find write data
-    * @param count number of bytes to write
-    * @return number of bytes written upon success, -1 upon failure with errno containing the cause
-    */
-    ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
+    unsigned int softErrorCount; /**< soft error count */
 
 private:
-    /** Device select method. Default impementation returns true.
-     * @param file reference to the file
-     * @param mode FREAD for read active, FWRITE for write active, 0 for
-     *        exceptions
-     * @return true if active, false if inactive
-     */
-    bool select(File* file, int mode) OVERRIDE;
-
     DISALLOW_COPY_AND_ASSIGN(Can);
 };
 
