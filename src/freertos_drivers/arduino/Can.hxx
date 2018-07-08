@@ -88,8 +88,7 @@ protected:
      * @param name ignored, may be null
      */
     Can(const char *ignored)
-        : NonBlockNode(name)
-        , txBuf(DeviceBuffer<struct can_frame>::create(config_can_tx_buffer_size(), 
+        : txBuf(DeviceBuffer<struct can_frame>::create(config_can_tx_buffer_size(), 
                                                        config_can_tx_buffer_size()/2))
         , rxBuf(DeviceBuffer<struct can_frame>::create(config_can_rx_buffer_size()))
         , overrunCount(0)
