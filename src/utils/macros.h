@@ -41,10 +41,13 @@
 #include <string>
 #include <utility>
 
-using std::vector;
+#ifndef ARDUINO
 using std::map;
+#endif
+using std::vector;
 using std::string;
 using std::pair;
+
 #endif
 
 #include <stdlib.h>   // for abort
@@ -87,7 +90,7 @@ extern const char* g_death_file;
 #define DIE(MSG) abort()
 
 
-#elif defined(ESP_NONOS)
+#elif defined(ESP_NONOS) || defined(ARDUINO)
 
 #include <stdio.h>
 

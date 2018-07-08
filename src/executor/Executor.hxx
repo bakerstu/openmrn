@@ -394,7 +394,7 @@ template <unsigned NUM_PRIO>
 /** Destructs the executor. Waits for the executor to run out of work first. */
 Executor<NUM_PRIO>::~Executor()
 {
-    shutdown();
+    // ~ExecutorBase will call shutdown().
 }
 
 #endif /* _EXECUTOR_EXECUTOR_HXX_ */
