@@ -36,7 +36,7 @@
 
 #include <cstdint>
 
-#include "Can.hxx"
+#include "freertos_drivers/common/Can.hxx"
 
 #if defined(STM32F072xB) || defined(STM32F091xC) 
 #include "stm32f0xx_hal_can.h"

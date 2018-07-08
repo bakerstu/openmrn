@@ -1010,6 +1010,9 @@ int main(int argc, char *argv[])
 #endif
 }
 
+#if defined(ARDUINO)
+unsigned critical_nesting;
+#endif
 
 #if 0 && defined(ESP_NONOS)
 struct _reent *_impure_ptr = NULL;
