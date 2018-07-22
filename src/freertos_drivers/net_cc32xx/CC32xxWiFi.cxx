@@ -170,6 +170,7 @@ void del_socket(int16_t sd)
  */
 CC32xxWiFi::CC32xxWiFi()
     : ipAddress(0)
+    , ipAcquiredCallback_(nullptr)
     , wakeup(-1)
     , rssi(0)
     , wlanRole(WlanRole::UNKNOWN)
@@ -593,13 +594,16 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
 
 void CC32xxWiFi::connecting_update_blinker()
 {
-    if (!connected)
+    if (ipAcquiredCallback_ != nullptr)
     {
-        resetblink(WIFI_BLINK_NOTASSOCIATED);
-    }
-    else if (!ipAcquired)
-    {
-        resetblink(WIFI_BLINK_ASSOC_NOIP);
+        if (!connected)
+        {
+            resetblink(WIFI_BLINK_NOTASSOCIATED);
+        }
+        else if (!ipAcquired)
+        {
+            resetblink(WIFI_BLINK_ASSOC_NOIP);
+        }
     }
 }
 
@@ -909,7 +913,10 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             connected = 0;
             ipAcquired = 0;
             ssid[0] = '\0';
-
+            if (ipAcquiredCallback_)
+            {
+                ipAcquiredCallback_(false);
+            }
 
             // If the user has initiated 'Disconnect' request, 
             //'reason_code' is SL_USER_INITIATED_DISCONNECTION 
@@ -975,6 +982,10 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             // SlIpV6AcquiredAsync_t *event_data = NULL;
             // event_data = &event->EventData.ipAcquiredV6;
             //
+            if (ipAcquiredCallback_)
+            {
+                ipAcquiredCallback_(true);
+            }
             break;
         case SL_NETAPP_EVENT_DHCPV4_LEASED:
         {
@@ -999,6 +1010,10 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
         case SL_NETAPP_EVENT_IPV4_LOST:
         {
             ipAddress = 0;
+            if (ipAcquiredCallback_)
+            {
+                ipAcquiredCallback_(false);
+            }
             break;
         }
 #endif

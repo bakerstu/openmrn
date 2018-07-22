@@ -305,6 +305,11 @@ public:
         return rssi;
     }
 
+    void add_ip_acquired_callback(std::function<void(bool)> callback)
+    {
+        ipAcquiredCallback_ = callback;
+    }
+
     /** Executes the given function on the network thread. @param callback
      * isthe function to execute.*/
     void run_on_network_thread(std::function<void()> callback);
@@ -392,7 +397,7 @@ public:
     /** Returns a string contianing the version numbers of the network
      * interface. */
     static std::string get_version();
-    
+
 private:
     /** Translates the SecurityType enum to the internal SimpleLink code.
      * @param sec_type security type
@@ -460,6 +465,9 @@ private:
 
     uint32_t ipAddress; /**< assigned IP adress */
     char ssid[33]; /**< SSID of AP we are connected to */
+
+    /// Callback for when IP is acquired
+    std::function<void(bool)> ipAcquiredCallback_;
 
     /// List of callbacks to execute on the network thread.
     std::vector<std::function<void()> > callbacks_;
