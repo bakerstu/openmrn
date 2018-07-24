@@ -259,7 +259,7 @@ public:
     void restart_stack();
 
     friend class ::OpenMRN;
-    
+
     /// Donates the current thread to the executor. Never returns.
     /// @param delay_start if true, then prevents sending traffic to the bus
     void loop_executor(bool delay_start = false)

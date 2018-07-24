@@ -181,7 +181,8 @@ private:
                 listeners_.push_front(l);
             }
         }
-        if (!l) {
+        if (!l)
+        {
             return apply_action();
         }
         return call_listener(l, true);

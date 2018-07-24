@@ -217,17 +217,17 @@ private:
                 }
                 break;
             }
-#ifndef ARDUINO            
+#ifndef ARDUINO
             case SimpleInfoDescriptor::FILE_CHAR_ARRAY:
                 open_and_seek_next_file();
                 // fall through
-#endif                
+#endif
             case SimpleInfoDescriptor::CHAR_ARRAY:
                 byteOffset_ = 0;
                 currentLength_ = d.arg;
                 HASSERT(currentLength_);
                 break;
-#ifndef ARDUINO            
+#ifndef ARDUINO
             case SimpleInfoDescriptor::FILE_LITERAL_BYTE:
             {
                 open_and_seek_next_file();
@@ -239,8 +239,8 @@ private:
                 currentLength_ = d.arg;
                 byteOffset_ = 0;
                 break;
-            } 
-#endif            
+            }
+#endif
             default:
                 currentLength_ = 0;
         }

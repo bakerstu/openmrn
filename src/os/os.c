@@ -338,7 +338,7 @@ static void os_thread_start(void *arg)
 }
 #endif
 
-#if !(defined (__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO))
+#if !(defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO))
 
 #if defined(__FreeRTOS__)
 #if (configSUPPORT_STATIC_ALLOCATION == 1)
@@ -620,7 +620,8 @@ long long os_get_time_monotonic(void)
     static uint32_t last_millis = 0;
     auto new_millis = millis();
     static uint32_t overflow_millis = 0;
-    if (new_millis < last_millis) {
+    if (new_millis < last_millis)
+    {
         ++overflow_millis;
     }
     time = overflow_millis;

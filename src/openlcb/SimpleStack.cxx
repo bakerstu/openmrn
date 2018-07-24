@@ -42,8 +42,8 @@
 #include <termios.h> /* tc* functions */
 #endif
 #if defined(__linux__)
-#include <linux/sockios.h>
 #include "utils/HubDeviceSelect.hxx"
+#include <linux/sockios.h>
 #endif
 
 #include <sys/stat.h>
@@ -76,7 +76,7 @@ void SimpleCanStackBase::start_stack(bool delay_start)
     // listeners.
     configUpdateFlow_.open_file(CONFIG_FILENAME);
     configUpdateFlow_.init_flow();
-#endif    
+#endif
 
     if (!delay_start) {
         // Bootstraps the alias allocation process.
@@ -114,7 +114,7 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_ACDI_USR, space);
         additionalComponents_.emplace_back(space);
     }
-#endif    
+#endif
     size_t cdi_size = strlen(CDI_DATA);
     if (cdi_size > 0)
     {
@@ -125,9 +125,9 @@ void SimpleCanStackBase::default_start_node()
         additionalComponents_.emplace_back(space);
     }
 #if defined(ARDUINO)
-    // @todo (balazs.racz): find a solution for storing configuration on an
-    // arduino binary.
-#else    
+// @todo (balazs.racz): find a solution for storing configuration on an
+// arduino binary.
+#else
     if (CONFIG_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(CONFIG_FILENAME, CONFIG_FILE_SIZE);
@@ -135,7 +135,7 @@ void SimpleCanStackBase::default_start_node()
             node(), openlcb::MemoryConfigDefs::SPACE_CONFIG, space);
         additionalComponents_.emplace_back(space);
     }
-#endif    
+#endif
 }
 
 SimpleTrainCanStack::SimpleTrainCanStack(

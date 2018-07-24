@@ -67,7 +67,7 @@ public:
     {
 #ifdef ARDUINO
         handle = os_thread_self();
-#endif        
+#endif
     }
 
    /** Starts the thread.  This call can be used when OSThread is inherited and
@@ -251,7 +251,7 @@ public:
         os_sem_wait(&handle);
     }
 
-#if !(defined(ESP_NONOS)||defined(ARDUINO))
+#if !(defined(ESP_NONOS) || defined(ARDUINO))
     /** Wait on (decrement) a semaphore with timeout condition.
      * @param timeout timeout in nanoseconds, else OPENMRN_OS_WAIT_FOREVER to wait forever
      * @return 0 upon success, else -1 with errno set to indicate error

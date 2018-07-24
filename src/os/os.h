@@ -162,7 +162,8 @@ typedef struct
  */
 extern long long os_get_time_monotonic(void);
 
-#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
+#if defined(__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) ||  \
+    defined(ARDUINO)
 /** @ref os_thread_once states.
  */
 enum
@@ -178,7 +179,8 @@ enum
 #define OS_THREAD_ONCE_INIT PTHREAD_ONCE_INIT
 #endif
 
-#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
+#if defined(__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) ||  \
+    defined(ARDUINO)
 /** One time intialization routine
  * @param once one time instance
  * @param routine method to call once
@@ -407,7 +409,7 @@ OS_INLINE int os_mutex_init(os_mutex_t *mutex)
     mutex->recursive = 0;
     mutex->sem = xSemaphoreCreateMutex();
 
-    return 0;    
+    return 0;
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     mutex->locked = 0;
     mutex->recursive = 0;
@@ -427,7 +429,7 @@ OS_INLINE int os_recursive_mutex_init(os_mutex_t *mutex)
     mutex->recursive = 1;
     mutex->sem = xSemaphoreCreateRecursiveMutex();
 
-    return 0;    
+    return 0;
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     mutex->locked = 0;
     mutex->recursive = 1;
@@ -461,7 +463,7 @@ OS_INLINE int os_mutex_destroy(os_mutex_t *mutex)
 #if defined (__FreeRTOS__)
     vSemaphoreDelete(mutex->sem);
 
-    return 0;    
+    return 0;
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     mutex->locked = 0;
     return 0;

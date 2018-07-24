@@ -406,9 +406,9 @@ struct GcHubPort : public Executable
         if (use_select) {
 #ifdef ARDUINO
             DIE("select is not supported on Arduino");
-#else            
+#else
             gcWrite_.reset(new HubDeviceSelect<HubFlow>(&gcHub_, fd, this));
-#endif            
+#endif
         } else {
             gcWrite_.reset(new FdHubPort<HubFlow>(&gcHub_, fd, this));
         }
