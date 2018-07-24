@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -31,10 +31,9 @@
  * @date 28 December 2012
  */
 
-#include <cstdint>
 #include "Can.hxx"
 #include "can_frame.h"
+#include <cstdint>
 
 unsigned Can::numReceivedPackets_{0};
 unsigned Can::numTransmittedPackets_{0};
-

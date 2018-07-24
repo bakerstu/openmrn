@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -34,10 +34,10 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_CAN_HXX_
 #define _FREERTOS_DRIVERS_COMMON_CAN_HXX_
 
+#include "DeviceBuffer.hxx"
 #include "can_frame.h"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
-#include "DeviceBuffer.hxx"
 
 /** Base class for a can device */
 class Can
@@ -47,20 +47,23 @@ public:
     static unsigned numTransmittedPackets_;
 
     /// @return number of CAN frames available for read (input frames).
-    int available() {
+    int available()
+    {
         return rxBuf->pending();
     }
 
     /// @return number of CAN frames available for write (space in output
     /// buffer).
-    int availableForWrite() {
+    int availableForWrite()
+    {
         return txBuf->space();
     }
 
     /// Read a frame if there is one available.
     /// @param frame will be filled with the input CAN frame.
     /// @return 0 or 1 depending on whether a frame was read or not.
-    int read(struct can_frame* frame) {
+    int read(struct can_frame *frame)
+    {
         portENTER_CRITICAL();
         auto ret = rxBuf->get(frame, 1);
         portEXIT_CRITICAL();
@@ -70,32 +73,35 @@ public:
     /// Send a frame if there is space available.
     /// @param frame the output CAN frame.
     /// @return 0 or 1 depending on whether the write happened or not.
-    int write(const struct can_frame* frame) {
+    int write(const struct can_frame *frame)
+    {
         portENTER_CRITICAL();
         auto ret = txBuf->put(frame, 1);
-        if (ret) {
+        if (ret)
+        {
             tx_msg();
         }
         portEXIT_CRITICAL();
         return ret;
     }
 
-    virtual void enable() = 0; /**< function to enable device */
+    virtual void enable() = 0;  /**< function to enable device */
     virtual void disable() = 0; /**< function to disable device */
-    
+
 protected:
     /** Constructor
      * @param name ignored, may be null
      */
     Can(const char *ignored)
-        : txBuf(DeviceBuffer<struct can_frame>::create(config_can_tx_buffer_size(), 
-                                                       config_can_tx_buffer_size()/2))
-        , rxBuf(DeviceBuffer<struct can_frame>::create(config_can_rx_buffer_size()))
+        : txBuf(DeviceBuffer<struct can_frame>::create(
+              config_can_tx_buffer_size(), config_can_tx_buffer_size() / 2))
+        , rxBuf(DeviceBuffer<struct can_frame>::create(
+              config_can_rx_buffer_size()))
         , overrunCount(0)
         , busOffCount(0)
         , softErrorCount(0)
     {
-    }    
+    }
 
     /** Destructor.
      */
@@ -109,9 +115,9 @@ protected:
 
     DeviceBuffer<struct can_frame> *txBuf; /**< transmit buffer */
     DeviceBuffer<struct can_frame> *rxBuf; /**< receive buffer */
-    unsigned int overrunCount; /**< overrun count */
-    unsigned int busOffCount; /**< bus-off count */
-    unsigned int softErrorCount; /**< soft error count */
+    unsigned int overrunCount;             /**< overrun count */
+    unsigned int busOffCount;              /**< bus-off count */
+    unsigned int softErrorCount;           /**< soft error count */
 
 private:
     DISALLOW_COPY_AND_ASSIGN(Can);
