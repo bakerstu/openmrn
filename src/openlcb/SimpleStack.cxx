@@ -43,6 +43,7 @@
 #endif
 #if defined(__linux__)
 #include <linux/sockios.h>
+#include "utils/HubDeviceSelect.hxx"
 #endif
 
 #include <sys/stat.h>
@@ -362,7 +363,7 @@ void SimpleCanStackBase::add_socketcan_port_select(
     setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask));
     strcpy(ifr.ifr_name, device);
 
-    ioctl(s, SIOCGIFINDEX, &ifr);
+    ::ioctl(s, SIOCGIFINDEX, &ifr);
 
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;

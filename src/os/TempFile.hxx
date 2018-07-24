@@ -40,6 +40,7 @@
 
 #include <fcntl.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "utils/logging.h"
 
 /** This class creates a temporary directory for the test, and removes it when
@@ -63,7 +64,7 @@ public:
 #endif
 
   ~TempDir() {
-    if (rmdir(dirName_.c_str()) != 0) {
+      if (::rmdir(dirName_.c_str()) != 0) {
       LOG(WARNING, "Error deleting temporary directory %s: %s",
           dirName_.c_str(), strerror(errno));
     }
