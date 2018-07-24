@@ -89,4 +89,11 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Stm32Can);
 };
 
+#ifdef ARDUINO
+
+extern void arduino_can_pinmap(PinName tx_pin, PinName rx_pin);
+
+#endif
+
+
 #endif /* _FREERTOS_DRIVERS_ST_STM32F0XXCAN_HXX_ */
