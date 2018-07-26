@@ -72,6 +72,42 @@ void ConfigUpdateFlow::factory_reset()
     }
 }
 
+void ConfigUpdateFlow::register_update_listener(ConfigUpdateListener *listener)
+{
+    AtomicHolder h(this);
+    pendingListeners_.push_front(listener);
+    if (is_state(exit().next_state()))
+    {
+        start_flow(STATE(do_initial_load));
+    }
+}
+
+void ConfigUpdateFlow::unregister_update_listener(
+    ConfigUpdateListener *listener)
+{
+    AtomicHolder h(this);
+    for (auto it = listeners_.begin(); it != listeners_.end();)
+    {
+        if (it.operator->() == listener)
+        {
+            listeners_.erase(it);
+            continue;
+        }
+        ++it;
+    }
+    for (auto it = pendingListeners_.begin(); it != pendingListeners_.end();)
+    {
+        if (it.operator->() == listener)
+        {
+            pendingListeners_.erase(it);
+            continue;
+        }
+        ++it;
+    }
+    // We invalidated the iterators due to the erase.
+    nextRefresh_ = listeners_.begin();
+}
+
 extern const char *const CONFIG_FILENAME __attribute__((weak)) = nullptr;
 extern const size_t CONFIG_FILE_SIZE __attribute__((weak)) = 0;
 
