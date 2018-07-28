@@ -15,6 +15,7 @@ include $(OPENMRNPATH)/etc/$(TARGET).mk
 
 include $(OPENMRNPATH)/etc/path.mk
 
+GITREPOS += $(OPENMRNPATH)
 
 VPATH = $(abspath ../../)
 
@@ -175,7 +176,11 @@ rclean: clean
 
 
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp $(OPENMRNPATH)/etc/$(TARGET).mk 
-	$(LD) $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP) -o $@ 
+	$(OPENMRNPATH)/bin/revision.py $(REVISIONFLAGS) -i "$(GITREPOS)" -g "`$(CC) -dumpversion`"
+	mv revisions.cxxout revisions.cxx
+	$(CXX) $(CXXFLAGS) -x c++ revisions.cxx -o revisions.o
+	mv revisions.cxx revisions.cxxout
+	$(LD) $(OBJS) revisions.o $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP) -o $@ 
 ifdef SIZE
 	$(SIZE) $@
 endif
