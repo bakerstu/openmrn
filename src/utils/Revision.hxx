@@ -19,7 +19,7 @@
  *
  * @file Revision.hxx
  *
- * Untility for obtaining build revision info.
+ * Utility for obtaining build revision info.
  *
  * @author Stuart Baker
  * @date 28 July 2018
