@@ -19,6 +19,7 @@
 *.tag
 *.cout
 *.cxxout
+*.hxxout
 *.output
 *.ods#
 .project
