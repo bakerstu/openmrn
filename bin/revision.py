@@ -127,7 +127,7 @@ for x in inputs :
         outputcxx += '-u'
         outputhxx += '-u'
     outputcxx += '",\n'
-    outputhxx += '\\n"\n'
+    outputhxx += '"\n'
 
 outputcxx += '    nullptr\n'
 outputcxx += '};\n'
@@ -186,4 +186,4 @@ os.system('rm -f ' + options.output + 'Try.hxxout')
 os.system('rm -f ' + options.output + 'Try.cxxout')
 os.system('rm -f /tmp/git_hash')
 os.system('rm -f /tmp/git_untracked')
-
+f_null.close()

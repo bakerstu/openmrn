@@ -103,20 +103,19 @@ mksubdirs:
 endif
 
 # handle the revision metadata
-all: revision
-	$(MAKE) $(EXECUTABLE)$(EXTENTION)
+all: $(EXECUTABLE)$(EXTENTION)
 
 -include *.d
 
-.PHONY: revision
-revision:
+.PHONY: FORCE
+Revision.hxxout: FORCE
 	$(OPENMRNPATH)/bin/revision.py $(REVISIONFLAGS) -t -i "$(GITREPOS)" -g "`$(CC) -dumpversion`"
 
 OBJEXTRA += Revision.o
 
 $(EXECUTABLE)$(EXTENTION): Revision.o
 
-Revision.o : Revision.cxxout
+Revision.o : Revision.cxxout Revision.hxxout
 	$(CXX) $(CXXFLAGS) -x c++ Revision.cxxout -o $@
 
 
@@ -136,8 +135,10 @@ cdi.o : compile_cdi
 	mv cdi.cxx cdi.cxxout
 	rm -f cdi.d
 
-compile_cdi: Revision.hxxout config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
+compile_cdi: config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
+
+config.hxx: Revision.hxxout
 
 clean: clean_cdi
 
