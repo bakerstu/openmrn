@@ -7,18 +7,22 @@
 # @data 28 April 2018
 
 from optparse import OptionParser
+import subprocess
 import os
 import time
 import platform
 import getpass
+import filecmp
+
+f_null = open(os.devnull, "w")
 
 usage = "usage: %prog [options]\n\n" + \
         "  %prog -i $(APP_PATH) -o revisions.cxxout\n"
 
 parser = OptionParser(usage=usage)
 parser.add_option("-o", "--output", dest="output", metavar="FILE",
-                  default="revisions.cxxout",
-                  help="generated output file")
+                  default="Revision",
+                  help="generated output files (without the file extentions)")
 parser.add_option("-i", "--input", dest="input", metavar="FILE",
                   default=None,
                   help="space seperated list of repository root paths")
@@ -52,27 +56,42 @@ options.input = options.input.replace('  ', ' ')
 inputs = options.input.split(" ")
 
 orig_dir = os.path.abspath('./')
-output = '#include <cstddef>\n\n'
-output += 'const char *REVISIONS[] = \n{\n'
+outputcxx = '#include <cstddef>\n\n'
+outputcxx += '#include "utils/macros.h"\n'
+outputcxx += '#include "utils/Revision.hxx"\n\n'
+outputcxx += 'const char* Revision::REVISION[] = \n{\n'
+
+#initialize hxx output to nothing
+outputhxx = ''
 
 # add data/time
 if options.date :
-    output += '    "' + time.strftime("%a, %d %b %Y %H:%M:%S %Z") + '",\n'
+    now = time.strftime("%a, %d %b %Y %H:%M:%S %Z")
+    outputcxx += '    "' + now + '",\n'
+    outputhxx += '"' + now + '\\n"\n'
 
 # add user and host names
 if options.username or options.hostname :
-    output += '    "'
+    outputcxx += '    "'
+    outputhxx += '"'
     if options.username :
-        output += getpass.getuser() + '@'
+        username = getpass.getuser() + '@'
+        outputcxx += username
+        outputhxx += username
         options.hostname = True
     if options.hostname :
-        output += platform.node()
-    output +='",\n'
+        hostname = platform.node()
+        outputcxx += hostname
+        outputhxx += hostname
+    outputcxx +='",\n'
+    outputhxx +='\\n"\n'
 
 # add GCC version
 if options.gcc != None :
     options.gcc = options.gcc.replace('.', '-')
-    output += '    "gcc-' + options.gcc + '",\n'
+    gcc = 'gcc-' + options.gcc
+    outputcxx += '    "' + gcc + '",\n'
+    outputhxx += '"' + gcc + '\\n"\n'
 
 for x in inputs :
     print x
@@ -91,25 +110,80 @@ for x in inputs :
 
     # format the output
     git_hash_file = open('/tmp/git_hash', 'r')
-    output += '    "'
-    output += git_hash_file.read(7)
-    output += ':' + os.path.split(os.path.abspath(x))[1]
+    git_hash = git_hash_file.read(7)
+    git_hash_file.close()
+    outputcxx += '    "'
+    outputcxx += git_hash
+    outputcxx += ':' + os.path.split(os.path.abspath(x))[1]
+    outputhxx += '"' + git_hash + ':' + os.path.split(os.path.abspath(x))[1]
 
     if dirty or os.stat('/tmp/git_untracked').st_size != 0 :
-        output += ':'
+        outputcxx += ':'
+        outputhxx += ':'
     if dirty :
-        output += '-d'
+        outputcxx += '-d'
+        outputhxx += '-d'
     if os.stat('/tmp/git_untracked').st_size != 0 :
-        output += '-u'
-    output += '",\n'
+        outputcxx += '-u'
+        outputhxx += '-u'
+    outputcxx += '",\n'
+    outputhxx += '\\n"\n'
+
+outputcxx += '    nullptr\n'
+outputcxx += '};\n'
+outputhxx = outputhxx[:-1]
+outputhxx = outputhxx.replace('\n', '\n                      ')
+outputhxx =  'CDI_GROUP(BuildRevisions, Name("Build Revisions"),\n' + \
+             '          Description(' + outputhxx
+outputhxx += '));\n'
+outputhxx += 'CDI_GROUP_END();'
 
 os.chdir(orig_dir)
-output += '    nullptr\n'
-output += '};\n'
-output_file = open(options.output, 'w')
-output_file.write(output)
+
+# generate the *.hxxout file
+output_file = open(options.output + 'Try.hxxout', 'w')
+output_file.write(outputhxx)
 output_file.close()
 
+# generate the *.cxxout file
+outputcxx += '\nsize_t Revision::count()\n'
+outputcxx += '{\n'
+outputcxx += '    return ARRAYSIZE(REVISION) - 1;\n'
+outputcxx += '}\n'
+output_file = open(options.output + 'Try.cxxout', 'w')
+output_file.write(outputcxx)
+output_file.close()
+
+# because a build may always run the script, we only want to replace the actual
+# output files that get built if something has changed
+
+diffhxx = subprocess.call(["diff",
+                           "-I", """Sun, """, "-I", """Mon, """,
+                           "-I", """Tue, """, "-I", """Wed, """,
+                           "-I", """Thu, """, "-I", """Fri, """,
+                           "-I", """Sat, """,
+                           options.output + 'Try.hxxout',
+                           options.output + '.hxxout'], stdout=f_null)
+diffcxx = subprocess.call(['diff',
+                           "-I", """Sun, """, "-I", """Mon, """,
+                           "-I", """Tue, """, "-I", """Wed, """,
+                           "-I", """Thu, """, "-I", """Fri, """,
+                           "-I", """Sat, """,
+                           options.output + 'Try.cxxout',
+                           options.output + '.cxxout'], stdout=f_null)
+
+if diffhxx != 0 :
+    os.system('rm -f ' + options.output + '.hxxout')
+    os.system('mv ' + options.output + 'Try.hxxout ' + options.output + '.hxxout')
+
+if diffcxx != 0 :
+    os.system('rm -f ' + options.output + '.cxxout')
+    os.system('mv ' + options.output + 'Try.cxxout ' + options.output + '.cxxout')
+
+
+
+os.system('rm -f ' + options.output + 'Try.hxxout')
+os.system('rm -f ' + options.output + 'Try.cxxout')
 os.system('rm -f /tmp/git_hash')
 os.system('rm -f /tmp/git_untracked')
 

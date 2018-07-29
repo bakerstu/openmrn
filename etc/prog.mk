@@ -102,9 +102,22 @@ mksubdirs:
 
 endif
 
-all: $(EXECUTABLE)$(EXTENTION)
+# handle the revision metadata
+all: revision $(EXECUTABLE)$(EXTENTION)
 
 -include *.d
+
+.PHONY: revision
+revision:
+	$(OPENMRNPATH)/bin/revision.py $(REVISIONFLAGS) -t -i "$(GITREPOS)" -g "`$(CC) -dumpversion`"
+
+OBJEXTRA += Revision.o
+
+$(EXECUTABLE)$(EXTENTION): Revision.o
+
+Revision.o : Revision.cxxout
+	$(CXX) $(CXXFLAGS) -x c++ Revision.cxxout -o $@
+
 
 # This part detects whether we have a config.hxx defining CDI data and if yes,
 # then compiles it into an xml and object file.
@@ -122,16 +135,15 @@ cdi.o : compile_cdi
 	mv cdi.cxx cdi.cxxout
 	rm -f cdi.d
 
-compile_cdi: config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
+compile_cdi: Revision.hxxout config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 
-clean: clean_cdi
+clean: clean_cdi clean_revision
 
 .PHONY: clean_cdi
 
 clean_cdi:
-	rm -f cdi.xmlout cdi.nxml cdi.cxxout compile_cdi	
-
+	rm -f cdi.xmlout cdi.nxml cdi.cxxout compile_cdi
 endif
 
 # Makes sure the subdirectory builds are done before linking the binary.
@@ -176,11 +188,7 @@ rclean: clean
 
 
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp $(OPENMRNPATH)/etc/$(TARGET).mk 
-	$(OPENMRNPATH)/bin/revision.py $(REVISIONFLAGS) -i "$(GITREPOS)" -g "`$(CC) -dumpversion`"
-	mv revisions.cxxout revisions.cxx
-	$(CXX) $(CXXFLAGS) -x c++ revisions.cxx -o revisions.o
-	mv revisions.cxx revisions.cxxout
-	$(LD) $(OBJS) revisions.o $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP) -o $@ 
+	$(LD) $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP) -o $@ 
 ifdef SIZE
 	$(SIZE) $@
 endif
