@@ -111,14 +111,6 @@ all: $(EXECUTABLE)$(EXTENTION)
 Revision.hxxout: FORCE
 	$(OPENMRNPATH)/bin/revision.py $(REVISIONFLAGS) -t -i "$(GITREPOS)" -g "`$(CC) -dumpversion`"
 
-OBJEXTRA += Revision.o
-
-$(EXECUTABLE)$(EXTENTION): Revision.o
-
-Revision.o : Revision.cxxout Revision.hxxout
-	$(CXX) $(CXXFLAGS) -x c++ Revision.cxxout -o $@
-
-
 # This part detects whether we have a config.hxx defining CDI data and if yes,
 # then compiles it into an xml and object file.
 HAVE_CONFIG_CDI := $(shell grep ConfigDef config.hxx 2>/dev/null)

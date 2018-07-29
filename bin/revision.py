@@ -100,34 +100,38 @@ for x in inputs :
     os.chdir(x)
 
     # get the short hash
-    os.system('git rev-parse --short HEAD > /tmp/git_hash')
+    git_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'])
+    git_hash = git_hash[:7]
 
     # get the dirty flag
     dirty = os.system('git diff --quiet')
 
     # get the untracked flag
-    os.system('git status -u -s > /tmp/git_untracked')
+    untracked_files = subprocess.check_output(['git', 'status', '-u', '-s'])
+    untracked_files = untracked_files.splitlines()
+    untracked = False
+    for y in untracked_files :
+        if y[0] == '?':
+            untracked = True
+            break
 
     # format the output
-    git_hash_file = open('/tmp/git_hash', 'r')
-    git_hash = git_hash_file.read(7)
-    git_hash_file.close()
     outputcxx += '    "'
     outputcxx += git_hash
     outputcxx += ':' + os.path.split(os.path.abspath(x))[1]
     outputhxx += '"' + git_hash + ':' + os.path.split(os.path.abspath(x))[1]
 
-    if dirty or os.stat('/tmp/git_untracked').st_size != 0 :
+    if dirty or untracked :
         outputcxx += ':'
         outputhxx += ':'
     if dirty :
         outputcxx += '-d'
         outputhxx += '-d'
-    if os.stat('/tmp/git_untracked').st_size != 0 :
+    if untracked :
         outputcxx += '-u'
         outputhxx += '-u'
     outputcxx += '",\n'
-    outputhxx += '"\n'
+    outputhxx += '\\n"\n'
 
 outputcxx += '    nullptr\n'
 outputcxx += '};\n'
@@ -136,22 +140,20 @@ outputhxx = outputhxx.replace('\n', '\n                      ')
 outputhxx =  'CDI_GROUP(BuildRevisions, Name("Build Revisions"),\n' + \
              '          Description(' + outputhxx
 outputhxx += '));\n'
-outputhxx += 'CDI_GROUP_END();'
+outputhxx += 'CDI_GROUP_END();\n'
 
 os.chdir(orig_dir)
 
-# generate the *.hxxout file
-output_file = open(options.output + 'Try.hxxout', 'w')
-output_file.write(outputhxx)
-output_file.close()
-
-# generate the *.cxxout file
+# generate the *.cxxout style content
 outputcxx += '\nsize_t Revision::count()\n'
 outputcxx += '{\n'
 outputcxx += '    return ARRAYSIZE(REVISION) - 1;\n'
-outputcxx += '}\n'
-output_file = open(options.output + 'Try.cxxout', 'w')
+outputcxx += '}\n\n'
+
+# generate the *.hxxout file
+output_file = open(options.output + 'Try.hxxout', 'w')
 output_file.write(outputcxx)
+output_file.write(outputhxx)
 output_file.close()
 
 # because a build may always run the script, we only want to replace the actual
@@ -184,6 +186,4 @@ if diffcxx != 0 :
 
 os.system('rm -f ' + options.output + 'Try.hxxout')
 os.system('rm -f ' + options.output + 'Try.cxxout')
-os.system('rm -f /tmp/git_hash')
-os.system('rm -f /tmp/git_untracked')
 f_null.close()
