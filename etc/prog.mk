@@ -102,9 +102,20 @@ mksubdirs:
 
 endif
 
-all: $(EXECUTABLE)$(EXTENTION)
+all: Revision.hxxout $(EXECUTABLE)$(EXTENTION)
 
 -include *.d
+
+Revision.hxxout: $(OBJS) $(FULLPATHLIBS) $(OPENMRNPATH)/bin/revision.py
+	$(OPENMRNPATH)/bin/revision.py $(REVISIONFLAGS) -t -i "$(GITREPOS)" -g "`$(CC) -dumpversion`"
+	mv Revision.cxxout Revision.cxx
+	$(CXX) $(CXXFLAGS) -x c++ Revision.cxx -o Revision.o
+	mv Revision.cxx Revision.cxxout
+
+.PHONY: clean_revision
+clean_revision:
+	rm -f Revision.cxxout Revision.hxxout
+
 
 # This part detects whether we have a config.hxx defining CDI data and if yes,
 # then compiles it into an xml and object file.
@@ -114,6 +125,8 @@ ifeq ($(SKIP_CONFIG_CDI),)
 OBJS += cdi.o
 endif
 
+OBJEXTRA += Revision.o
+
 $(EXECUTABLE)$(EXTENTION): cdi.o
 
 cdi.o : compile_cdi
@@ -122,16 +135,14 @@ cdi.o : compile_cdi
 	mv cdi.cxx cdi.cxxout
 	rm -f cdi.d
 
-compile_cdi: config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
+compile_cdi: Revision.hxxout config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 
-clean: clean_cdi
+clean: clean_cdi clean_revision
 
 .PHONY: clean_cdi
-
 clean_cdi:
-	rm -f cdi.xmlout cdi.nxml cdi.cxxout compile_cdi	
-
+	rm -f cdi.xmlout cdi.nxml cdi.cxxout compile_cdi
 endif
 
 # Makes sure the subdirectory builds are done before linking the binary.
@@ -176,11 +187,7 @@ rclean: clean
 
 
 $(EXECUTABLE)$(EXTENTION): $(OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp $(OPENMRNPATH)/etc/$(TARGET).mk 
-	$(OPENMRNPATH)/bin/revision.py $(REVISIONFLAGS) -i "$(GITREPOS)" -g "`$(CC) -dumpversion`"
-	mv revisions.cxxout revisions.cxx
-	$(CXX) $(CXXFLAGS) -x c++ revisions.cxx -o revisions.o
-	mv revisions.cxx revisions.cxxout
-	$(LD) $(OBJS) revisions.o $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP) -o $@ 
+	$(LD) $(OBJS) $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(STARTGROUP) $(SYSLIBRARIES) $(ENDGROUP) -o $@ 
 ifdef SIZE
 	$(SIZE) $@
 endif
@@ -264,7 +271,7 @@ endif
 clean: clean-local
 
 clean-local:
-	rm -f $(wildcard *.o *.d *.a *.so *.output *.cout *.cxxout *.stripped lib/*.stripped lib/*.lst) $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst objcopy.params
+	rm -f $(wildcard *.o *.d *.a *.so *.output *.cout *.cxxout *.hxxout *.stripped lib/*.stripped lib/*.lst) $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst objcopy.params
 	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local clean
