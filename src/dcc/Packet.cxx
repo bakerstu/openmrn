@@ -74,9 +74,17 @@ enum
     DCC_PROG_WRITE1 = 0b11101100,
     DCC_PROG_READ4 = 0b11100000,
 
+    DCC_SVC_BIT_MANIPULATE = 0b01111000,
+    DCC_SVC_WRITE = 0b01111100,
+    DCC_SVC_VERIFY = 0b01110100,
+
+    DCC_SVC_BITVAL_WRITE = 0b11110000,
+    DCC_SVC_BITVAL_VERIFY = 0b11100000,
+    DCC_SVC_BITVAL_VALUE = 0b00001000,
+
     DCC_BASIC_ACCESSORY_B1 = 0b10000000,
     DCC_BASIC_ACCESSORY_B2 = 0b10000000,
-    
+
     // Extended packet: 128-step speed.
     DCC_EXT_SPEED = 0b00111111,
     DCC_EXT_SPEED_FORWARD = 0x80,
@@ -237,18 +245,52 @@ void Packet::add_dcc_function21_28(unsigned values)
     add_dcc_checksum();
 }
 
-void Packet::add_dcc_pom_read1(unsigned cv_number) {
-    payload[dlc++] = DCC_PROG_READ1 | ((cv_number >> 8) & 3);
-    payload[dlc++] = cv_number & 0xff;
-    payload[dlc++] = 0;
-    add_dcc_checksum();
-}
-
-void Packet::add_dcc_pom_write1(unsigned cv_number, uint8_t value) {
-    payload[dlc++] = DCC_PROG_WRITE1 | ((cv_number >> 8) & 3);
+void Packet::add_dcc_prog_command(
+    uint8_t cmd_hi, unsigned cv_number, uint8_t value)
+{
+    payload[dlc++] = (cmd_hi & (~3)) | ((cv_number >> 8) & 3);
     payload[dlc++] = cv_number & 0xff;
     payload[dlc++] = value;
     add_dcc_checksum();
+}
+
+void Packet::add_dcc_pom_read1(unsigned cv_number)
+{
+    add_dcc_prog_command(DCC_PROG_READ1, cv_number, 0);
+}
+
+void Packet::add_dcc_pom_write1(unsigned cv_number, uint8_t value) {
+    add_dcc_prog_command(DCC_PROG_WRITE1, cv_number, value);
+}
+
+void Packet::set_dcc_svc_verify_byte(unsigned cv_number, uint8_t value)
+{
+    start_dcc_svc_packet();
+    add_dcc_prog_command(DCC_SVC_VERIFY, cv_number, value);
+}
+
+void Packet::set_dcc_svc_write_byte(unsigned cv_number, uint8_t value)
+{
+    start_dcc_svc_packet();
+    add_dcc_prog_command(DCC_SVC_WRITE, cv_number, value);
+}
+
+void Packet::set_dcc_svc_verify_bit(
+    unsigned cv_number, unsigned bit, bool expected)
+{
+    start_dcc_svc_packet();
+    uint8_t vvv = DCC_SVC_BITVAL_VERIFY |
+        (expected ? DCC_SVC_BITVAL_VALUE : 0) | (bit & 7);
+    add_dcc_prog_command(DCC_SVC_BIT_MANIPULATE, cv_number, vvv);
+}
+
+void Packet::set_dcc_svc_write_bit(
+    unsigned cv_number, unsigned bit, bool desired)
+{
+    start_dcc_svc_packet();
+    uint8_t vvv =
+        DCC_SVC_BITVAL_WRITE | (desired ? DCC_SVC_BITVAL_VALUE : 0) | (bit & 7);
+    add_dcc_prog_command(DCC_SVC_BIT_MANIPULATE, cv_number, vvv);
 }
 
 void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate) {

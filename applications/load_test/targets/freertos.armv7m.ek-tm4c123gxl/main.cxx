@@ -69,9 +69,9 @@ void timer4a_interrupt_handler(void)
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
-#define SNIFF_ON_SERIAL
+//#define SNIFF_ON_SERIAL
 //#define SNIFF_ON_USB
-//#define HAVE_PHYSICAL_CAN_PORT
+#define HAVE_PHYSICAL_CAN_PORT
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.

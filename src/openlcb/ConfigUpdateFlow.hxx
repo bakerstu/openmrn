@@ -85,7 +85,6 @@ public:
     {
         AtomicHolder h(this);
         nextRefresh_ = listeners_.begin();
-        isInitialLoad_ = 0;
         needsReboot_ = 0;
         needsReInit_ = 0;
         if (is_state(exit().next_state()))
@@ -94,28 +93,8 @@ public:
         }
     }
 
-    void register_update_listener(ConfigUpdateListener *listener) OVERRIDE
-    {
-        AtomicHolder h(this);
-        listeners_.push_front(listener);
-    }
-
-    void unregister_update_listener(ConfigUpdateListener *listener) OVERRIDE
-    {
-        AtomicHolder h(this);
-        auto it = listeners_.begin();
-        while (it != listeners_.end() && it.operator->() != listener)
-        {
-            ++it;
-        }
-        if (it != listeners_.end())
-        {
-            listeners_.erase(it);
-        }
-        // We invalidated the iterators due to the erase.
-        nextRefresh_ = listeners_.begin();
-    }
-
+    void register_update_listener(ConfigUpdateListener *listener) override;
+    void unregister_update_listener(ConfigUpdateListener *listener) override;
 private:
     Action call_next_listener()
     {
@@ -124,37 +103,28 @@ private:
             AtomicHolder h(this);
             if (nextRefresh_ == listeners_.end())
             {
-                /// TODO(balazs.racz) apply the changes reported.
-                if (needsReboot_) {
-#ifdef __FreeRTOS__
-                    reboot();
-#endif                    
-                }
-                if (needsReInit_) {
-                    // Takes over ownership of itself, will delete when done.
-                    new ReinitAllNodes(static_cast<If*>(service()));
-                }
-                return exit();
+                return call_immediately(STATE(do_initial_load));
             }
             l = nextRefresh_.operator->();
         }
+        ++nextRefresh_;
+        return call_listener(l, false);
+    }
+
+    Action call_listener(ConfigUpdateListener *l, bool is_initial)
+    {
         if (fd_ < 0)
         {
             DIE("CONFIG_FILENAME not specified, or init() was not called, but "
                 "there are configuration listeners.");
         }
         ConfigUpdateListener::UpdateAction action =
-            l->apply_configuration(fd_, isInitialLoad_, n_.reset(this));
+            l->apply_configuration(fd_, is_initial, n_.reset(this));
         switch (action)
         {
             case ConfigUpdateListener::UPDATED:
             {
                 break;
-            }
-            case ConfigUpdateListener::RETRY:
-            {
-                // Will call ourselves again.
-                return wait();
             }
             case ConfigUpdateListener::REINIT_NEEDED:
             {
@@ -167,18 +137,54 @@ private:
                 break;
             }
         }
-        ++nextRefresh_;
         return wait();
+    }
+
+    Action do_initial_load()
+    {
+        ConfigUpdateListener *l = nullptr;
+        {
+            AtomicHolder h(this);
+            if (!pendingListeners_.empty())
+            {
+                l = pendingListeners_.pop_front();
+                listeners_.push_front(l);
+            }
+        }
+        if (!l) {
+            return apply_action();
+        }
+        return call_listener(l, true);
+    }
+
+    Action apply_action()
+    {
+        /// TODO(balazs.racz) apply the changes reported.
+        if (needsReboot_)
+        {
+#ifdef __FreeRTOS__
+            reboot();
+#endif
+        }
+        if (needsReInit_)
+        {
+            // Takes over ownership of itself, will delete when done.
+            new ReinitAllNodes(static_cast<If *>(service()));
+        }
+        return exit();
     }
 
     typedef TypedQueue<ConfigUpdateListener> queue_type;
     /// All registered update listeners. Protected by Atomic *this.
     queue_type listeners_;
+    /// All listeners that have not yet been added to listeners_ and their
+    /// initial load needs to be called.
+    queue_type pendingListeners_;
     /// Where are we in the refresh cycle.
     typename queue_type::iterator nextRefresh_;
-    /// are we in initial load?
-    unsigned isInitialLoad_ : 1;
+    /// did anybody request a reboot to happen?
     unsigned needsReboot_ : 1;
+    /// did anybody request a node reinit to happen?
     unsigned needsReInit_ : 1;
     int fd_;
     BarrierNotifiable n_;

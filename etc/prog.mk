@@ -103,7 +103,8 @@ mksubdirs:
 endif
 
 # handle the revision metadata
-all: revision $(EXECUTABLE)$(EXTENTION)
+all: revision
+	$(MAKE) $(EXECUTABLE)$(EXTENTION)
 
 -include *.d
 
@@ -138,10 +139,9 @@ cdi.o : compile_cdi
 compile_cdi: Revision.hxxout config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 
-clean: clean_cdi clean_revision
+clean: clean_cdi
 
 .PHONY: clean_cdi
-
 clean_cdi:
 	rm -f cdi.xmlout cdi.nxml cdi.cxxout compile_cdi
 endif
@@ -272,7 +272,7 @@ endif
 clean: clean-local
 
 clean-local:
-	rm -f $(wildcard *.o *.d *.a *.so *.output *.cout *.cxxout *.stripped lib/*.stripped lib/*.lst) $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst objcopy.params
+	rm -f $(wildcard *.o *.d *.a *.so *.output *.cout *.cxxout *.hxxout *.stripped lib/*.stripped lib/*.lst) $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst objcopy.params
 	rm -rf $(XMLSRCS:.xml=.c)
 
 veryclean: clean-local clean

@@ -86,6 +86,15 @@ private:
      */
     int transfer(struct spi_ioc_transfer *msg) override;
 
+    /** Method to transmit/receive the data.  This will be always polled mode.
+     * @param msg message(s) to transact.
+     * @return bytes transfered upon success, -errno upon failure
+     */
+    int transfer_polled(struct spi_ioc_transfer *msg) override
+    {
+        return transfer(msg);
+    }
+
     /** Update the configuration of the bus.
      * @return >= 0 upon success, -errno upon failure
      */

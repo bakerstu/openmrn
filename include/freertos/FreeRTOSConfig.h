@@ -315,7 +315,7 @@ extern unsigned long blinker_pattern;
 
 #define configUSE_TIMERS               1
 #define configTIMER_QUEUE_LENGTH       16
-#define configTIMER_TASK_PRIORITY      (configMAX_PRIORITIES - 1)
+#define configTIMER_TASK_PRIORITY      (configMAX_PRIORITIES - 2)
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle 1
 
 #if tskKERNEL_VERSION_MAJOR >= 9
@@ -366,8 +366,8 @@ typedef struct task_switched_in
 #ifndef TARGET_LPC11Cxx
 /** This trace macro is called from the tick interrupt; we use it for
  * collecting CPU load information. */
-void cpuload_tick(void);
-#define traceTASK_INCREMENT_TICK( count ) cpuload_tick()
+void cpuload_tick(unsigned);
+//#define traceTASK_INCREMENT_TICK( count ) cpuload_tick()
 #endif
 
 #endif

@@ -33,6 +33,11 @@ ifeq ($(OS),Windows_NT)
 include $(OPENMRNPATH)/etc/path_windows.mk
 else
 
+################ shell ##################
+# Various commands in the makefiles are using the bash syntax. We ignore the
+# user's login shell preferences and use a specific shell instead.
+export SHELL :=/bin/bash
+
 ################ flock ##################
 ifndef FLOCKPATH
 SEARCHPATH := \
@@ -492,6 +497,7 @@ ifndef EMSDKPATH
 SEARCHPATH := \
   /opt/emscripten/default/emscripten/master \
   /opt/emscripten/emsdk_portable/emscripten/master \
+  $(wildcard /opt/emscripten/default/emsdk/emscripten/*) \
   /usr/bin
 
 
@@ -506,6 +512,7 @@ ifndef EMLLVMPATH
 SEARCHPATH := \
   /opt/emscripten/default/clang/fastcomp/build_master_64/bin \
   /opt/emscripten/default/clang/fastcomp/build_master_32/bin \
+  $(wildcard /opt/emscripten/default/emsdk/clang/*) \
   /usr/bin
 
 
