@@ -177,6 +177,7 @@ private:
         auto b = get_buffer_deleter(get_allocation_result(sendTarget_));
         TcpDefs::render_tcp_message(*nmsg(), gatewayId_,
             sequenceNumberGenerator_->get_sequence_number(), b->data());
+        b->data()->skipMember_ = skipMember_;
         sendTarget_->send(b.release());
         return release_and_exit();
     }
@@ -193,8 +194,9 @@ private:
     HubPortInterface *skipMember_;
     /// Populated into the source gateway field of the outgoing messages.
     NodeID gatewayId_;
-    /// Responsible for generating thesequence numbers of the outgoing messages.
-    std::unique_ptr<SequenceNumberGenerator> sequenceNumberGenerator_;
+    /// Responsible for generating the sequence numbers of the outgoing
+    /// messages.
+    SequenceNumberGenerator* sequenceNumberGenerator_;
 };
 }
 

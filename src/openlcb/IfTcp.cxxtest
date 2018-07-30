@@ -1,28 +1,12 @@
 
-#include "utils/test_main.hxx"
 #include "openlcb/IfTcpImpl.hxx"
+#include "utils/test_main.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
-class TestSequenceGenerator : public SequenceNumberGenerator {
-public:
-    long long get_sequence_number() override {
-        return seq_++;
-    }
-    
-    long long seq_{42};
-};
-
-class TcpRenderingTest : public ::testing::Test {
-    
-    
-};
-
-
-TEST_F(TcpRenderingTest, create) {}
-
-
-TEST_F(TcpRenderingTest, render_global_message) {
+TEST(TcpRenderingTest, render_global_message)
+{
     GenMessage msg;
     msg.src.id = 0x050102030405ULL;
     msg.dst.id = 0;
@@ -42,7 +26,8 @@ TEST_F(TcpRenderingTest, render_global_message) {
         data);
 }
 
-TEST_F(TcpRenderingTest, render_addressed_message) {
+TEST(TcpRenderingTest, render_addressed_message)
+{
     GenMessage msg;
     msg.src.id = 0x050102030405ULL;
     msg.dst.id = 0x151112131415ULL;
@@ -51,18 +36,112 @@ TEST_F(TcpRenderingTest, render_addressed_message) {
     string data;
 
     TcpDefs::render_tcp_message(msg, 0x101112131415ULL, 0x42, &data);
-    EXPECT_EQ(string("\x80\x00"                          // flags
-                     "\x00\x00\x28"                      // length: 28
-                     "\x10\x11\x12\x13\x14\x15"          // gateway node ID
-                     "\x00\x00\x00\x00\x00\x42"          // timestamp / seq no
-                     "\x0A\x08"                          // MTI
-                     "\x05\x01\x02\x03\x04\x05"          // src node ID
-                     "\x15\x11\x12\x13\x14\x15"          // dst node ID
-                     "abcdefghijklmn", // payload: event ID
-                  14 + 26 + 5 ),
+    EXPECT_EQ(string("\x80\x00"                 // flags
+                     "\x00\x00\x28"             // length: 28
+                     "\x10\x11\x12\x13\x14\x15" // gateway node ID
+                     "\x00\x00\x00\x00\x00\x42" // timestamp / seq no
+                     "\x0A\x08"                 // MTI
+                     "\x05\x01\x02\x03\x04\x05" // src node ID
+                     "\x15\x11\x12\x13\x14\x15" // dst node ID
+                     "abcdefghijklmn",          // payload: event ID
+                  14 + 26 + 5),
         data);
 }
 
+class TestSequenceGenerator : public SequenceNumberGenerator
+{
+public:
+    long long get_sequence_number() override
+    {
+        return seq_++;
+    }
+
+    long long seq_ {42};
+};
+
+class TcpSendFlowTest : public ::testing::Test
+{
+protected:
+    ~TcpSendFlowTest()
+    {
+        for (auto *buf : sentFrames_)
+        {
+            buf->unref();
+        }
+    }
+
+    vector<Buffer<HubData> *> sentFrames_;
+    class FakeSend : public HubPortInterface
+    {
+    public:
+        FakeSend(vector<Buffer<HubData> *> *output)
+            : output_(output)
+        {
+        }
+
+        void send(Buffer<HubData> *buf, unsigned prio) override
+        {
+            output_->push_back(buf);
+        }
+
+    private:
+        vector<Buffer<HubData> *> *output_;
+    } fakeSendTarget_{&sentFrames_};
+
+    void wait()
+    {
+        wait_for_main_executor();
+    }
+
+    HubPortInterface *fakeSource_ = (HubPortInterface *)123456;
+    TestSequenceGenerator seq_;
+    static constexpr uint64_t GW_NODE_ID = 0x101112131415ULL;
+    TcpSendFlow sendFlow_ {
+        &g_service, GW_NODE_ID, &fakeSendTarget_, fakeSource_, &seq_};
+};
+
+TEST_F(TcpSendFlowTest, create)
+{
+}
+
+TEST_F(TcpSendFlowTest, flow_send_frame)
+{
+    auto* buf = sendFlow_.alloc();
+    buf->data()->reset(Defs::MTI_EVENT_REPORT, 0x050102030405ULL,
+        eventid_to_buffer(0x0102030405060708ULL));
+    sendFlow_.send(buf);
+    wait();
+    ASSERT_EQ(1u, sentFrames_.size());
+    EXPECT_EQ(string("\x80\x00"                          // flags
+                     "\x00\x00\x1C"                      // length: 28
+                     "\x10\x11\x12\x13\x14\x15"          // gateway node ID
+                     "\x00\x00\x00\x00\x00\x2a"          // timestamp / seq no
+                     "\x05\xB4"                          // MTI
+                     "\x05\x01\x02\x03\x04\x05"          // src node ID
+                     "\x01\x02\x03\x04\x05\x06\x07\x08", // payload: event ID
+                  28 + 5),
+        string(*sentFrames_[0]->data()));
+
+    EXPECT_EQ(fakeSource_, sentFrames_[0]->data()->skipMember_);
+
+    // Send another to check sequence numbers being used.
+    buf = sendFlow_.alloc();
+    buf->data()->reset(Defs::MTI_EVENT_REPORT, 0x050102030405ULL,
+        eventid_to_buffer(0x0102030405060708ULL));
+    sendFlow_.send(buf);
+    wait();
+    ASSERT_EQ(2u, sentFrames_.size());
+    EXPECT_EQ(string("\x80\x00"                          // flags
+                     "\x00\x00\x1C"                      // length: 28
+                     "\x10\x11\x12\x13\x14\x15"          // gateway node ID
+                     "\x00\x00\x00\x00\x00\x2b"          // timestamp / seq no
+                     "\x05\xB4"                          // MTI
+                     "\x05\x01\x02\x03\x04\x05"          // src node ID
+                     "\x01\x02\x03\x04\x05\x06\x07\x08", // payload: event ID
+                  28 + 5),
+        string(*sentFrames_[1]->data()));
+
+}
 
 
 } // namespace openlcb
