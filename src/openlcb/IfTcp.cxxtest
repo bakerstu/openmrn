@@ -30,8 +30,16 @@ TEST_F(TcpRenderingTest, render_global_message) {
     msg.payload = eventid_to_buffer(0x0102030405060708ULL);
     string data;
 
-    TcpDefs::render_tcp_message(msg, 0x101112131415ULL, 42, &data);
-    EXPECT_EQ("\x", data);
+    TcpDefs::render_tcp_message(msg, 0x101112131415ULL, 0x42, &data);
+    EXPECT_EQ(string("\x80\x00"                          // flags
+                     "\x00\x00\x1C"                      // length: 28
+                     "\x10\x11\x12\x13\x14\x15"          // gateway node ID
+                     "\x00\x00\x00\x00\x00\x42"          // timestamp / seq no
+                     "\x05\xB4"                          // MTI
+                     "\x05\x01\x02\x03\x04\x05"          // src node ID
+                     "\x01\x02\x03\x04\x05\x06\x07\x08", // payload: event ID
+                  28 + 5),
+        data);
 }
 
 

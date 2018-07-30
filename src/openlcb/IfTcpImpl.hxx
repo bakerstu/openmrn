@@ -53,14 +53,17 @@ public:
      * @param sequence is a 48-bit millisecond value that's monotonic.
      * @param target is the buffer into which to render the message. */
     static void render_tcp_message(const GenMessage &msg,
-        NodeID gateway_node_id, long long sequence, string *target)
+        NodeID gateway_node_id, long long sequence, string *tgt)
     {
         bool has_dst = Defs::get_mti_address(msg.mti);
-        target->resize(HDR_SIZE + msg.payload.size() +
-            (has_dst ? MSG_ADR_PAYLOAD_OFS : MSG_GLOBAL_PAYLOAD_OFS));
+        HASSERT(tgt);
+        string& target = *tgt;
+        target.assign(HDR_SIZE + msg.payload.size() +
+                (has_dst ? MSG_ADR_PAYLOAD_OFS : MSG_GLOBAL_PAYLOAD_OFS),
+            '\0');
         uint16_t flags = FLAGS_OPENLCB_MSG;
         error_to_data(flags, &target[HDR_FLAG_OFS]);
-        unsigned sz = target->size() - HDR_SIZE_OFS - 3;
+        unsigned sz = target.size() - HDR_SIZE_OFS - 3;
         target[HDR_SIZE_OFS] = (sz >> 16) & 0xff;
         target[HDR_SIZE_OFS + 1] = (sz >> 8) & 0xff;
         target[HDR_SIZE_OFS + 2] = sz & 0xff;
