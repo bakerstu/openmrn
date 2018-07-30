@@ -32,8 +32,8 @@
  * @date 3 Nov 2013
  */
 
-#ifndef _NMRANET_WRITEHELPER_HXX_
-#define _NMRANET_WRITEHELPER_HXX_
+#ifndef _OPENLCB_WRITEHELPER_HXX_
+#define _OPENLCB_WRITEHELPER_HXX_
 
 #include <string>
 
@@ -62,6 +62,16 @@ public:
     WriteHelper()
         : waitForLocalLoopback_(0)
     {
+    }
+
+    const payload_type &last_payload()
+    {
+        return buffer_;
+    }
+
+    void clear_last_payload()
+    {
+        buffer_.clear();
     }
 
     void set_wait_for_local_loopback(bool wait = true)
@@ -162,4 +172,4 @@ private:
 
 }; /* namespace openlcb */
 
-#endif /* _NMRANET_WRITEHELPER_HXX_ */
+#endif // _OPENLCB_WRITEHELPER_HXX_

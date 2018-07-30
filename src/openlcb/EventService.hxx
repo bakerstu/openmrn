@@ -35,8 +35,8 @@
  * @date 22 May 2014
  */
 
-#ifndef _NMRANET_EVENTSERVICE_HXX_
-#define _NMRANET_EVENTSERVICE_HXX_
+#ifndef _OPENLCB_EVENTSERVICE_HXX_
+#define _OPENLCB_EVENTSERVICE_HXX_
 
 // This is a workaround for missing shared_ptr.h causing compilation errors. We
 // do not use shared_ptr.
@@ -96,4 +96,4 @@ private:
 
 }; /* namespace openlcb */
 
-#endif // _NMRANET_EVENTSERVICE_HXX_
+#endif // _OPENLCB_EVENTSERVICE_HXX_

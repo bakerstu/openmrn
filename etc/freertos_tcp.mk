@@ -7,7 +7,7 @@ INCLUDES += -I$(FREERTOSTCPPATH) \
             -I$(OPENMRNPATH)/src/freertos_drivers/ti \
             -I$(OPENMRNPATH)/src/freertos_drivers/net_freertos_tcp
 
-SYSLIBRARIESEXTRA += -ldriver -lfreertos_drivers_freertos_tcp \
+SYSLIBRARIESEXTRA += -lfreertos_drivers_freertos_tcp \
                      -lfreertos_drivers_net_freertos_tcp
 TARGET := freertos.armv7m
 endif

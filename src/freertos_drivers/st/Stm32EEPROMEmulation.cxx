@@ -42,7 +42,7 @@
  || defined (STM32F072xB) || defined (STM32F078xx) \
  || defined (STM32F091xC) || defined (STM32F098xx)
 #include "stm32f0xx_hal_flash.h"
-#elif defined(STM32F303xC)
+#elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_hal_flash.h"
 #else
 #error "stm32EEPROMEmulation unsupported STM32 device"
@@ -55,7 +55,7 @@ const size_t Stm32EEPROMEmulation::PAGE_SIZE = 0x400;
 #elif defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
    || defined (STM32F072xB) || defined (STM32F078xx) \
    || defined (STM32F091xC) || defined (STM32F098xx) \
-   || defined (STM32F303xC)
+   || defined (STM32F303xC) || defined (STM32F303xE)
 const size_t Stm32EEPROMEmulation::PAGE_SIZE = 0x800;
 #endif
 const size_t EEPROMEmulation::BLOCK_SIZE = 4;
@@ -98,7 +98,7 @@ void Stm32EEPROMEmulation::flash_erase(unsigned sector)
     
     uint32_t page_error;
     FLASH_EraseInitTypeDef erase_init;
-    erase_init.TypeErase = TYPEERASE_PAGES;
+    erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
     erase_init.PageAddress = (uint32_t)address;
     erase_init.NbPages = SECTOR_SIZE / PAGE_SIZE;
 
@@ -132,7 +132,7 @@ void Stm32EEPROMEmulation::flash_program(
 {
     HASSERT(relative_sector < sectorCount_);
     HASSERT((count % BLOCK_SIZE) == 0);
-    HASSERT(start_block + (count / BLOCK_SIZE) < rawBlockCount_);
+    HASSERT(start_block + (count / BLOCK_SIZE) <= rawBlockCount_);
     auto* address = get_block(relative_sector, start_block);
 
     uintptr_t uint_address = (uintptr_t)address;
@@ -148,7 +148,7 @@ void Stm32EEPROMEmulation::flash_program(
     {
         portENTER_CRITICAL();
         HAL_FLASH_Unlock();
-        HAL_FLASH_Program(TYPEPROGRAM_WORD, uint_address, *data);
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, uint_address, *data);
         HAL_FLASH_Lock();
         portEXIT_CRITICAL();
 

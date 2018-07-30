@@ -176,17 +176,6 @@ int Device::select(int nfds, fd_set *readfds, fd_set *writefds,
     }
 }
 
-/** Device select method. Default impementation returns true.
- * @param file reference to the file
- * @param mode FREAD for read active, FWRITE for write active, 0 for
- *        exceptions
- * @return true if active, false if inactive
- */
-bool Device::select(File* file, int mode)
-{
-    return true;
-}
-
 /** Add client to list of clients needing woken,
  * @param info wakeup event instance
  */

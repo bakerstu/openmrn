@@ -44,6 +44,7 @@
 #include "executor/Timer.hxx"
 #include "utils/Queue.hxx"
 #include "utils/SimpleQueue.hxx"
+#include "utils/LinkedObject.hxx"
 #include "utils/logging.h"
 #include "utils/macros.h"
 #include "os/OSSelectWakeup.hxx"
@@ -58,7 +59,7 @@ class ActiveTimers;
 
 /** This class implements an execution of tasks pulled off an input queue.
  */
-class ExecutorBase : protected OSThread, protected Executable
+class ExecutorBase : protected OSThread, protected Executable, public LinkedObject<ExecutorBase>
 {
 public:
     /** Constructor.
@@ -152,6 +153,9 @@ public:
     /// @return the thread handle.
     os_thread_t thread_handle() { return OSThread::get_handle(); }
 
+    /// Die if we are not on the current executor.
+    void assert_current() { HASSERT(os_thread_self() == thread_handle()); }
+    
     /// @return a number that gets incremented by one every time an executable
     /// runs.
     virtual uint32_t sequence() = 0;
@@ -168,23 +172,6 @@ protected:
     OSSelectWakeup selectHelper_;
 
 private:
-#ifndef ESP_NONOS
-    /** Wait for an item from the front of the queue.
-     * @param timeout time to wait in nanoseconds
-     * @param priority pass back the priority of the queue pulled from
-     * @return item retrieved from queue, else NULL with errno set:
-     *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
-     */
-    virtual Executable *timedwait(long long timeout, unsigned *priority) = 0;
-#endif
-
-    /** Wait for an item from the front of the queue.
-     * @param priority pass back the priority of the queue pulled from
-     * @return item retrieved from queue, else NULL with errno set:
-     *         EINTR - woken up asynchronously
-     */
-    virtual Executable *wait(unsigned *priority) = 0;
-
     /** Retrieve an item from the front of the queue.
      * @param priority pass back the priority of the queue pulled from
      * @return item retrieved from queue, else NULL if queue is empty.
@@ -218,12 +205,6 @@ private:
 
     /** name of this Executor */
     const char *name_;
-
-    /** next executor in the lookup list */
-    ExecutorBase *next_;
-
-    /** executor list for lookup purposes */
-    static ExecutorBase *list;
 
     /** Currently executing closure. USeful for debugging crashes. */
     Executable* current_;
@@ -335,7 +316,7 @@ public:
      */
     void add_from_isr(Executable *msg, unsigned priority = UINT_MAX) override
     {
-        queue_.insert_from_isr(
+        queue_.insert_locked(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
         selectHelper_.wakeup_from_isr();
     }
@@ -345,8 +326,7 @@ public:
      * be called to run the executor loop. It will exit when the execut gets
      * shut down. Useful for having an executor loop run in the main thread. */
     void thread_body() {
-        HASSERT(!is_created());
-        entry();
+        inherit();
     }
 
     /// @return true if there are no executables waiting on this thread to be
@@ -359,33 +339,6 @@ public:
     uint32_t sequence() OVERRIDE { return sequence_; }
 
 private:
-#ifndef ESP_NONOS
-    /** Wait for an item from the front of the queue.
-     * @param timeout time to wait in nanoseconds
-     * @param priority pass back the priority of the queue pulled from
-     * @return item retrieved from queue, else NULL with errno set:
-     *         ETIMEDOUT - timeout occured, EINTR - woken up asynchronously
-     */
-    Executable *timedwait(long long timeout, unsigned *priority) OVERRIDE
-    {
-        auto result = queue_.timedwait(timeout);
-        *priority = result.index;
-        return static_cast<Executable*>(result.item);
-    }
-#endif
-
-    /** Wait for an item from the front of the queue.
-     * @param priority pass back the priority of the queue pulled from
-     * @return item retrieved from queue, else NULL with errno set:
-     *         EINTR - woken up asynchronously
-     */
-    Executable *wait(unsigned *priority) OVERRIDE
-    {
-        auto result = queue_.wait();
-        *priority = result.index;
-        return static_cast<Executable*>(result.item);
-    }
-
     /** Retrieve an item from the front of the queue.
      * @param priority pass back the priority of the queue pulled from
      * @return item retrieved from queue, else NULL if none waiting.
@@ -404,29 +357,34 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Executor);
 
     /// Internal queue of executables waiting to be scheduled.
-    QListProtectedWait<NUM_PRIO> queue_;
+    QListProtected<NUM_PRIO> queue_;
 };
 
 /** This class can be given an executor, and will notify itself when that
  *   executor is out of work. Callers can pend on the sync notifiable to wait
  *   for that. */
-class ExecutorGuard : private Executable, public SyncNotifiable
+class ExecutorGuard : private ::Timer, public SyncNotifiable
 {
 public:
     /// Constructor. @param e is the executor to look for being empty.
-    ExecutorGuard(ExecutorBase* e)
-        : executor_(e) {
-        executor_->add(this);  // lowest priority
+    ExecutorGuard(ExecutorBase *e)
+        : ::Timer(e->active_timers())
+        , executor_(e)
+    {
+        // We wait on the front of the timer queue by expiring immediately.
+        start();
     }
 
     /// Implementation of the guard functionality. Called on the executor.
-    void run() override {
+    long long timeout() override {
         if (executor_->empty()) {
             SyncNotifiable::notify();
+            return NONE;
         } else {
-            executor_->add(this);  // wait more on the lowest priority
+            return RESTART;  // wait more on the front of the timer queue
         }
     }
+
 private:
     /// Parent.
     ExecutorBase* executor_;

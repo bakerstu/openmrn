@@ -17,7 +17,7 @@ class MockTrackIf : public dcc::PacketFlowInterface
 {
 public:
     MOCK_METHOD2(packet,
-                 void(const vector<uint8_t> &payload, size_t feedback_key));
+                 void(const vector<uint8_t> &payload, uintptr_t feedback_key));
     void send(Buffer<dcc::Packet> *b, unsigned prio) OVERRIDE
     {
         vector<uint8_t> payload;
@@ -32,7 +32,9 @@ class TractionCvTestBase : public TractionTest
 protected:
     TractionCvTestBase()
     {
-        ifCan_->local_aliases()->add(0x0601000000AFULL, 0x272U);
+        run_x([this]() {
+            ifCan_->local_aliases()->add(0x0601000000AFULL, 0x272U);
+        });
         expect_packet(":X19100272N0601000000AF;");
     }
 
@@ -60,12 +62,12 @@ protected:
         wait();
     }
 
-    size_t expected_feedback_key()
+    uintptr_t expected_feedback_key()
     {
-        return reinterpret_cast<size_t>(&cv_space_);
+        return (uintptr_t)(&cv_space_);
     }
 
-    void send_railcom_response(size_t feedback_key,
+    void send_railcom_response(uintptr_t feedback_key,
                                const vector<uint8_t> &ch2_data)
     {
         auto *b = railcom_hub_.alloc();
@@ -104,6 +106,7 @@ TEST_F(TractionCvTest, SingleCvRead)
                                   expected_feedback_key())).Times(1);
     send_packet(":X1A272883N204000000037EF01;");
     wait();
+    Mock::VerifyAndClear(&track_if_);
     expect_packet(":X1A883272N205000000037EFC5;");
     send_railcom_response(expected_feedback_key(), {0b10100101, 0b10100110});
     wait();

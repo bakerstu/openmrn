@@ -49,6 +49,36 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         READ
     };
 
+    enum ReadPartCmd
+    {
+        READ_PART
+    };
+
+    enum WriteCmd
+    {
+        WRITE
+    };
+
+    enum UpdateCompleteCmd
+    {
+        UPDATE_COMPLETE
+    };
+
+    enum RebootCmd
+    {
+        REBOOT
+    };
+
+    enum FreezeCmd
+    {
+        FREEZE
+    };
+
+    enum UnfreezeCmd
+    {
+        UNFREEZE
+    };
+
     /// Sets up a command to read an entire memory space.
     /// @param ReadCmd polymorphic matching arg; always set to READ.
     /// @param d is the destination node to query
@@ -59,16 +89,122 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         cmd = CMD_READ;
         memory_space = space;
         dst = d;
+        address = 0;
+        size = 0xffffffffu;
         payload.clear();
+    }
+
+    /// Sets up a command to read a part of a memory space.
+    /// @param ReadPartCmd polymorphic matching arg; always set to READ_PART.
+    /// @param d is the destination node to query
+    /// @param space is the memory space to read out
+    /// @param offset if the address of the first byte to read
+    /// @param size is the number of bytes to read
+    void reset(ReadPartCmd, NodeHandle d, uint8_t space, unsigned offset,
+        unsigned size)
+    {
+        reset_base();
+        cmd = CMD_READ_PART;
+        memory_space = space;
+        dst = d;
+        this->address = offset;
+        this->size = size;
+        payload.clear();
+    }
+
+    /// Sets up a command to read a part of a memory space.
+    /// @param WriteCmd polymorphic matching arg; always set to WRITE.
+    /// @param d is the destination node to query
+    /// @param space is the memory space to write to
+    /// @param offset if the address of the first byte to read
+    /// @param data is the data to write
+    void reset(
+        WriteCmd, NodeHandle d, uint8_t space, unsigned offset, string data)
+    {
+        reset_base();
+        cmd = CMD_WRITE;
+        memory_space = space;
+        dst = d;
+        this->address = offset;
+        this->size = size;
+        payload = std::move(data);
+    }
+
+    /// Sets up a command to send an Update Complete request to a remote node.
+    /// @param UpdateCompleteCmd polymorphic matching arg; always set to
+    /// UPDATE_COMPLETE.
+    /// @param d is the destination node
+    void reset(UpdateCompleteCmd, NodeHandle d)
+    {
+        reset_base();
+        cmd = CMD_META_REQUEST;
+        dst = d;
+        payload.clear();
+        payload.reserve(2);
+        payload.push_back(DatagramDefs::CONFIGURATION);
+        payload.push_back(MemoryConfigDefs::COMMAND_UPDATE_COMPLETE);
+    }
+
+    /// Sets up a command to send a Reboot request to a remote node.
+    /// @param RebootCmd polymorphic matching arg; always set to
+    /// REBOOT.
+    /// @param d is the destination node
+    void reset(RebootCmd, NodeHandle d)
+    {
+        reset_base();
+        cmd = CMD_META_REQUEST;
+        dst = d;
+        payload.clear();
+        payload.reserve(2);
+        payload.push_back(DatagramDefs::CONFIGURATION);
+        payload.push_back(MemoryConfigDefs::COMMAND_RESET);
+    }
+
+    /// Sets up a command to send a Freeze request to a remote node.
+    /// @param FreezeCmd polymorphic matching arg; always set to
+    /// FREEZE.
+    /// @param d is the destination node
+    /// @param space is the memry space to freeze.
+    void reset(FreezeCmd, NodeHandle d, uint8_t space)
+    {
+        reset_base();
+        cmd = CMD_META_REQUEST;
+        dst = d;
+        payload.clear();
+        payload.reserve(3);
+        payload.push_back(DatagramDefs::CONFIGURATION);
+        payload.push_back(MemoryConfigDefs::COMMAND_FREEZE);
+        payload.push_back(space);
+    }
+
+    /// Sets up a command to send a Unfreeze request to a remote node.
+    /// @param UnfreezeCmd polymorphic matching arg; always set to
+    /// UNFREEZE.
+    /// @param d is the destination node
+    /// @param space is the memry space to unfreeze.
+    void reset(UnfreezeCmd, NodeHandle d, uint8_t space)
+    {
+        reset_base();
+        cmd = CMD_META_REQUEST;
+        dst = d;
+        payload.clear();
+        payload.reserve(3);
+        payload.push_back(DatagramDefs::CONFIGURATION);
+        payload.push_back(MemoryConfigDefs::COMMAND_UNFREEZE);
+        payload.push_back(space);
     }
 
     enum Command : uint8_t
     {
         CMD_READ,
-        CMD_WRITE
+        CMD_READ_PART,
+        CMD_WRITE,
+        CMD_META_REQUEST
     };
     Command cmd;
     uint8_t memory_space;
+    unsigned address;
+    unsigned size;
     /// Node to send the request to.
     NodeHandle dst;
     string payload;
@@ -84,15 +220,35 @@ public:
     {
     }
 
+    /// These result codes are written into request()->resultCode during and as
+    /// a return from the flow.
+    enum ResultCodes
+    {
+        // Internal error codes generated by the send flow
+        OPERATION_PENDING =
+            DatagramClient::OPERATION_PENDING, ///< cleared when done is called.
+        TIMEOUT = Defs::ERROR_PERMANENT |
+            Defs::OPENMRN_TIMEOUT, ///< Timeout waiting for ack/nack.
+    };
+
 private:
     Action entry() override
     {
+        request()->resultCode = OPERATION_PENDING;
         switch (request()->cmd)
         {
-        case MemoryConfigClientRequest::CMD_READ:
+            case MemoryConfigClientRequest::CMD_READ:
+            case MemoryConfigClientRequest::CMD_READ_PART:
                 return allocate_and_call(
                     STATE(do_read), dg_service()->client_allocator());
-        default: break;
+            case MemoryConfigClientRequest::CMD_WRITE:
+                return allocate_and_call(
+                    STATE(do_write), dg_service()->client_allocator());
+            case MemoryConfigClientRequest::CMD_META_REQUEST:
+                return allocate_and_call(
+                    STATE(do_meta_request), dg_service()->client_allocator());
+            default:
+                break;
         }
         return return_with_error(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
     }
@@ -100,7 +256,7 @@ private:
     Action do_read()
     {
         dgClient_ = full_allocation_result(dg_service()->client_allocator());
-        offset_ = 0;
+        offset_ = request()->address;
         memoryConfigHandler_->set_client(&responseFlow_);
         return call_immediately(STATE(send_next_read));
     }
@@ -115,9 +271,14 @@ private:
     {
         auto *b = get_allocation_result(dg_service()->iface()->dispatcher());
         b->set_done(bn_.reset(this));
+        unsigned sz = request()->size > 64 ? 64 : request()->size;
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), request()->dst,
             MemoryConfigDefs::read_datagram(
-                             request()->memory_space, offset_, 64));
+                             request()->memory_space, offset_, sz));
+        if (request()->size < 0xffffffffu)
+        {
+            request()->size -= sz;
+        }
         isWaitingForTimer_ = 0;
         responseCode_ = DatagramClient::OPERATION_PENDING;
         dgClient_->write_datagram(b);
@@ -150,48 +311,28 @@ private:
             return handle_read_error(Defs::OPENMRN_TIMEOUT);
         }
         size_t len = responsePayload_.size();
-        uint8_t *bytes = (uint8_t *)responsePayload_.data();
-        if (len < 6)
+        const uint8_t *bytes =
+            MemoryConfigDefs::payload_bytes(responsePayload_);
+        if (!MemoryConfigDefs::payload_min_length_check(responsePayload_, 0))
         {
             LOG(INFO, "Memory Config client: response datagram payload not "
                       "long enough");
             return handle_read_error(
                 Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
         }
-        unsigned ofs;
-        unsigned a = bytes[2];
-        a <<= 8;
-        a |= bytes[3];
-        a <<= 8;
-        a |= bytes[4];
-        a <<= 8;
-        a |= bytes[5];
-        uint8_t space = 0;
-        uint8_t cmd = bytes[1];
-        if (a != offset_)
+        unsigned ofs = MemoryConfigDefs::get_payload_offset(responsePayload_);
+        unsigned address = MemoryConfigDefs::get_address(responsePayload_);
+        uint8_t space = MemoryConfigDefs::get_space(responsePayload_);
+        uint8_t cmd = bytes[1] & MemoryConfigDefs::COMMAND_MASK;
+        if (address != offset_)
         {
             return handle_read_error(Defs::ERROR_OUT_OF_ORDER);
-        }
-        if (cmd & 3)
-        {
-            ofs = 6;
-            space = 0xFC | (cmd & 3);
-        }
-        else
-        {
-            ofs = 7;
-            if (len < 7)
-            {
-                return handle_read_error(
-                    Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
-            }
-            space = bytes[6];
         }
         if (space != request()->memory_space)
         {
             return handle_read_error(Defs::ERROR_OUT_OF_ORDER);
         }
-        if ((cmd & ~3) == MemoryConfigDefs::COMMAND_READ_FAILED)
+        if (cmd == MemoryConfigDefs::COMMAND_READ_FAILED)
         {
             if (len < ofs + 2)
             {
@@ -203,14 +344,14 @@ private:
             error |= bytes[ofs];
             return handle_read_error(error);
         }
-        if ((cmd & ~3) != MemoryConfigDefs::COMMAND_READ_REPLY)
+        if (cmd != MemoryConfigDefs::COMMAND_READ_REPLY)
         {
             return handle_read_error(Defs::ERROR_UNIMPLEMENTED);
         }
         unsigned dlen = len - ofs;
         request()->payload.append((char *)(bytes + ofs), dlen);
         offset_ += dlen;
-        if (dlen < 64)
+        if ((dlen < 64) || (request()->size == 0))
         {
             return call_immediately(STATE(finish_read));
         }
@@ -236,7 +377,175 @@ private:
         cleanup_read();
         return return_ok();
     }
-    
+
+    Action do_write()
+    {
+        dgClient_ = full_allocation_result(dg_service()->client_allocator());
+        offset_ = request()->address;
+        payloadOffset_ = 0;
+        memoryConfigHandler_->set_client(&responseFlow_);
+        return call_immediately(STATE(send_next_write));
+    }
+
+    Action send_next_write()
+    {
+        return allocate_and_call(
+            dg_service()->iface()->dispatcher(), STATE(send_write_datagram));
+    }
+
+    Action send_write_datagram()
+    {
+        auto *b = get_allocation_result(dg_service()->iface()->dispatcher());
+        b->set_done(bn_.reset(this));
+        unsigned sz = request()->payload.size() - payloadOffset_;
+        if (sz > MemoryConfigDefs::MAX_DATAGRAM_RW_BYTES)
+        {
+            sz = MemoryConfigDefs::MAX_DATAGRAM_RW_BYTES;
+        }
+        writeLength_ = sz;
+        b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), request()->dst,
+            MemoryConfigDefs::write_datagram(request()->memory_space, offset_,
+                             request()->payload.substr(payloadOffset_, sz)));
+        isWaitingForTimer_ = 0;
+        responseCode_ = DatagramClient::OPERATION_PENDING;
+        dgClient_->write_datagram(b);
+        return wait_and_call(STATE(write_complete));
+    }
+
+    Action write_complete()
+    {
+        if (!(dgClient_->result() & DatagramClient::OPERATION_SUCCESS))
+        {
+            // some error occurred.
+            return handle_write_error(dgClient_->result());
+        }
+        if (responseCode_ & DatagramClient::OPERATION_PENDING)
+        {
+            isWaitingForTimer_ = 1;
+            return sleep_and_call(
+                &timer_, SEC_TO_NSEC(3), STATE(write_response_timeout));
+        }
+        else
+        {
+            return call_immediately(STATE(write_response_timeout));
+        }
+    }
+
+    Action write_response_timeout()
+    {
+        if (responseCode_ & DatagramClient::OPERATION_PENDING)
+        {
+            return handle_write_error(Defs::OPENMRN_TIMEOUT);
+        }
+        size_t len = responsePayload_.size();
+        const uint8_t *bytes =
+            MemoryConfigDefs::payload_bytes(responsePayload_);
+        if (!MemoryConfigDefs::payload_min_length_check(responsePayload_, 0))
+        {
+            LOG(INFO, "Memory Config client: response datagram payload not "
+                      "long enough");
+            return handle_write_error(
+                Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+        }
+        unsigned ofs = MemoryConfigDefs::get_payload_offset(responsePayload_);
+        unsigned address = MemoryConfigDefs::get_address(responsePayload_);
+        uint8_t space = MemoryConfigDefs::get_space(responsePayload_);
+        uint8_t cmd = bytes[1] & MemoryConfigDefs::COMMAND_MASK;
+        if (address != offset_)
+        {
+            return handle_write_error(Defs::ERROR_OUT_OF_ORDER);
+        }
+        if (space != request()->memory_space)
+        {
+            return handle_write_error(Defs::ERROR_OUT_OF_ORDER);
+        }
+        if (cmd == MemoryConfigDefs::COMMAND_WRITE_FAILED)
+        {
+            if (len < ofs + 2)
+            {
+                return handle_write_error(
+                    Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+            }
+            uint16_t error = bytes[ofs++];
+            error <<= 8;
+            error |= bytes[ofs];
+            return handle_write_error(error);
+        }
+        if (cmd != MemoryConfigDefs::COMMAND_WRITE_REPLY)
+        {
+            return handle_write_error(Defs::ERROR_UNIMPLEMENTED);
+        }
+        // write success.
+        offset_ += writeLength_;
+        payloadOffset_ += writeLength_;
+        if (payloadOffset_ >= request()->payload.size())
+        {
+            return call_immediately(STATE(finish_write));
+        }
+        return call_immediately(STATE(send_next_write));
+    }
+
+    Action handle_write_error(int error)
+    {
+        if (error == MemoryConfigDefs::ERROR_OUT_OF_BOUNDS)
+        {
+            return finish_write();
+        }
+        cleanup_write();
+        return return_with_error(error);
+    }
+
+    void cleanup_write()
+    {
+        responsePayload_.clear();
+        dg_service()->client_allocator()->typed_insert(dgClient_);
+        memoryConfigHandler_->clear_client(&responseFlow_);
+        dgClient_ = nullptr;
+    }
+
+    Action finish_write()
+    {
+        cleanup_write();
+        return return_ok();
+    }
+
+    Action do_meta_request()
+    {
+        dgClient_ = full_allocation_result(dg_service()->client_allocator());
+        // Meta requests do not have a response, so we are not registering the
+        // response flow here.
+        return allocate_and_call(
+            dg_service()->iface()->dispatcher(), STATE(send_meta_datagram));
+    }
+
+    Action send_meta_datagram()
+    {
+        auto *b = get_allocation_result(dg_service()->iface()->dispatcher());
+        b->set_done(bn_.reset(this));
+        b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), request()->dst,
+            std::move(request()->payload));
+        isWaitingForTimer_ = 0;
+        dgClient_->write_datagram(b);
+        return wait_and_call(STATE(meta_complete));
+    }
+
+    Action meta_complete()
+    {
+        auto result = dgClient_->result();
+        dg_service()->client_allocator()->typed_insert(dgClient_);
+        dgClient_ = nullptr;
+        result &= DatagramClient::RESPONSE_CODE_MASK;
+        if (result == DatagramClient::DST_REBOOT ||
+            result == DatagramClient::OPERATION_SUCCESS)
+        {
+            return return_ok();
+        }
+        else
+        {
+            return return_with_error(result);
+        }
+    }
+
     class ResponseFlow : public DefaultDatagramHandler
     {
     public:
@@ -266,6 +575,13 @@ private:
                 case MemoryConfigDefs::COMMAND_READ_REPLY:
                 case MemoryConfigDefs::COMMAND_READ_FAILED:
                 {
+                    if (parent_->request()->cmd !=
+                            MemoryConfigClientRequest::CMD_READ &&
+                        parent_->request()->cmd !=
+                            MemoryConfigClientRequest::CMD_READ_PART)
+                    {
+                        break;
+                    }
                     parent_->responseCode_ = 0;
                     message()->data()->payload.swap(parent_->responsePayload_);
                     if (parent_->isWaitingForTimer_)
@@ -274,6 +590,20 @@ private:
                     }
                     return respond_ok(0);
                 }
+                case MemoryConfigDefs::COMMAND_WRITE_REPLY:
+                case MemoryConfigDefs::COMMAND_WRITE_FAILED:
+                    if (parent_->request()->cmd !=
+                        MemoryConfigClientRequest::CMD_WRITE)
+                    {
+                        break;
+                    }
+                    parent_->responseCode_ = 0;
+                    message()->data()->payload.swap(parent_->responsePayload_);
+                    if (parent_->isWaitingForTimer_)
+                    {
+                        parent_->timer_.trigger();
+                    }
+                    return respond_ok(0);
             }
             return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
         }
@@ -298,7 +628,11 @@ private:
     /// Notify helper.
     BarrierNotifiable bn_;
     /// Next byte to read from the memory space.
-    size_t offset_;
+    uint32_t offset_;
+    /// Next byte in the payload to write.
+    uint32_t payloadOffset_;
+    /// How many bytes we wrote in this datagram.
+    uint16_t writeLength_;
     /// timing helper
     StateFlowTimer timer_{this};
     /// The data that came back from reading.

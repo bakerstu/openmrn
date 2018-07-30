@@ -99,8 +99,19 @@
 #define configKERNEL_INTERRUPT_PRIORITY         255
 /* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY     191 /* equivalent to 0xa0, or priority 5. */
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY     0xa0 /* equivalent to 191, or priority 5. */
 
+// change #if to 1 in order to enable asserts for the kernel
+#if 1
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern int g_death_lineno;
+#ifdef __cplusplus
+}
+#endif  // cplusplus
+#define configASSERT( x ) do { if (!(x)) { g_death_lineno = __LINE__; diewith(BLINK_DIE_ASSERT); }} while(0)
+#endif
 
 /// @todo(balazs.racz) i implemented diewith for the launchpad ek-xxx, so this is not needed anymore.
 //#define diewith( x ) abort()
@@ -304,7 +315,7 @@ extern unsigned long blinker_pattern;
 
 #define configUSE_TIMERS               1
 #define configTIMER_QUEUE_LENGTH       16
-#define configTIMER_TASK_PRIORITY      (configMAX_PRIORITIES - 1)
+#define configTIMER_TASK_PRIORITY      (configMAX_PRIORITIES - 2)
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle 1
 
 #if tskKERNEL_VERSION_MAJOR >= 9
@@ -355,8 +366,8 @@ typedef struct task_switched_in
 #ifndef TARGET_LPC11Cxx
 /** This trace macro is called from the tick interrupt; we use it for
  * collecting CPU load information. */
-void cpuload_tick(void);
-#define traceTASK_INCREMENT_TICK( count ) cpuload_tick()
+void cpuload_tick(unsigned);
+//#define traceTASK_INCREMENT_TICK( count ) cpuload_tick()
 #endif
 
 #endif

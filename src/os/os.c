@@ -89,6 +89,12 @@ int g_death_lineno;
 /** Captures point of death (file). */
 const char* g_death_file;
 
+/** clock management **/
+long long rtcOffset = 0;
+
+/** This magic value is written to a task's taskList entry in order to signal
+ * the idle task to pick it out of the taskList structure. */
+#define DELETED_TASK_MAGIC 0xb5c5d5e5
 
 /* This section of code is required because CodeSourcery's mips-gcc
  * distribution contains a strangely compiled NewLib (in the unhosted-libc.a
@@ -135,7 +141,7 @@ typedef struct task_list
 } TaskList;
 
 /** List of all the tasks in the system */
-static TaskList taskList;
+static TaskList *taskList = NULL;
 
 /** Mutex for os_thread_once. */
 static os_mutex_t onceMutex = OS_MUTEX_INITIALIZER;
@@ -313,18 +319,17 @@ static void os_thread_start(void *arg)
     _impure_ptr = priv->reent;
     (*priv->entry)(priv->arg);
 
-    TaskList *current = &taskList;
-    TaskList *last = &taskList;
     vTaskSuspendAll();
-    while (current->task != xTaskGetCurrentTaskHandle())
+    TaskList *tl;
+    for (tl = taskList; tl != NULL && tl->task != xTaskGetCurrentTaskHandle();
+         tl = tl->next)
     {
-        last = current;
-        current = current->next;
-        HASSERT(current);
     }
-
-    last->next = current->next;
-    free(current);
+    if (tl)
+    {
+        tl->task = NULL;
+        tl->unused = DELETED_TASK_MAGIC;
+    }
     xTaskResumeAll();
 
     free(priv->reent);
@@ -381,8 +386,18 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **pxTimerTaskTCBBuffer,
     *ulTimerTaskStackSize = configMINIMAL_STACK_SIZE;
 }
 #endif // configSUPPORT_STATIC_ALLOCATION
-#endif // FreeRTOS
 
+/** Add a thread to the task list for tracking.
+ * @param task_new metadata for new task
+ */
+static void add_thread_to_task_list(TaskList *task_new)
+{
+    vTaskSuspendAll();
+    task_new->next = taskList;
+    taskList = task_new;
+    xTaskResumeAll();
+}
+#endif // FreeRTOS
 
 /** Create a thread.
  * @param thread handle to the created thread
@@ -433,19 +448,8 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         stack_size = 2048;
     }
 
-    TaskList *current = &taskList;
-    vTaskSuspendAll();
-    while (current->next != NULL)
-    {
-        current = current->next;
-    }
-    
     TaskList *task_new = malloc(sizeof(TaskList));
-    task_new->task = NULL;
-    task_new->next = NULL;
     task_new->unused = stack_size;
-    current->next = task_new;
-    xTaskResumeAll();
     
 #if (configSUPPORT_STATIC_ALLOCATION == 1)
     if (thread)
@@ -526,6 +530,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         task_new->name = (char*)pcTaskGetTaskName(task_handle);
     }
 #endif
+    add_thread_to_task_list(task_new);
 
     return 0;
 #else // not freertos
@@ -815,17 +820,33 @@ void hw_idle_hook(void)
  */
 void vApplicationIdleHook( void )
 {
-    vTaskSuspendAll();
-    xTaskResumeAll();
     hw_idle_hook();
-    for (TaskList *tl = &taskList; tl != NULL; tl = tl->next)
+    vTaskSuspendAll();
+    // First we clean up all deleted tasks.
+    for (TaskList **ptl = &taskList; *ptl != NULL;)
+    {
+        if ((*ptl)->unused == DELETED_TASK_MAGIC)
+        {
+            TaskList *tl = *ptl;
+            *ptl = tl->next;
+            free(tl);
+        }
+        else
+        {
+            ptl = &((*ptl)->next);
+        }
+    }
+    // Then we scan through the tasks and update the free stack values.
+    for (TaskList *tl = taskList; tl != NULL; tl = tl->next)
     {
         if (tl->task)
         {
-            tl->name = (char*)pcTaskGetTaskName(tl->task);
             tl->unused = uxTaskGetStackHighWaterMark(tl->task) * sizeof(portSTACK_TYPE);
         }
+        xTaskResumeAll();
+        vTaskSuspendAll();
     }
+    xTaskResumeAll();
 }
 
 #ifdef TARGET_PIC32MX
@@ -856,19 +877,19 @@ void main_thread(void *arg)
 
     /* setup the monitoring entries for the timer and idle tasks */
 #if configUSE_TIMERS
-    taskList.next = malloc(sizeof(TaskList)*2);
-    taskList.next->task = xTimerGetTimerDaemonTaskHandle();
-    taskList.next->unused = uxTaskGetStackHighWaterMark(taskList.next->task);
-    taskList.next->next = taskList.next + 1;
-    taskList.next->next->task = xTaskGetIdleTaskHandle();
-    taskList.next->next->unused = uxTaskGetStackHighWaterMark(taskList.next->next->task);
-    taskList.next->next->next = NULL;
+    TaskList *task_new = malloc(sizeof(TaskList) * 2);
+    task_new->task = xTimerGetTimerDaemonTaskHandle();
+    task_new->name = (char*)pcTaskGetTaskName(task_new->task);
+    task_new->unused = uxTaskGetStackHighWaterMark(task_new->task);
+    add_thread_to_task_list(task_new);
+    ++task_new;
 #else
-    taskList.next = malloc(sizeof(TaskList));
-    taskList.next->task = xTaskGetIdleTaskHandle();
-    taskList.next->unused = uxTaskGetStackHighWaterMark(taskList.next->task);
-    taskList.next->next = NULL;
+    TaskList *task_new = malloc(sizeof(TaskList));
 #endif
+    task_new->task = xTaskGetIdleTaskHandle();
+    task_new->name = (char*)pcTaskGetTaskName(task_new->task);
+    task_new->unused = uxTaskGetStackHighWaterMark(task_new->task);
+    add_thread_to_task_list(task_new);
 
     /* Allow any library threads to run that must run ahead of main */
     os_yield_trampoline();
@@ -960,9 +981,11 @@ int main(int argc, char *argv[])
                        (long unsigned int *)stack_malloc(config_main_thread_stack_size()),
                        NULL);
 #endif
-    taskList.task = task_handle;
-    taskList.unused = config_main_thread_stack_size();
-    taskList.name = "thread.main";
+    TaskList *task_new = malloc(sizeof(TaskList));
+    task_new->task = task_handle;
+    task_new->unused = config_main_thread_stack_size();
+    task_new->name = "thread.main";
+    add_thread_to_task_list(task_new);
 
     vTaskStartScheduler();
 #else

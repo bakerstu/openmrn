@@ -1,0 +1,1 @@
+../ti-cc3220sf-generic/target.ld

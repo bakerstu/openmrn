@@ -33,12 +33,12 @@
  * @date 8 Dec 2014
  */
 
-#ifdef _NMRANET_BOOTLOADER_HXX_
+#ifdef _OPENLCB_BOOTLOADER_HXX_
 #error Bootloader.hxx should be included only once.
 #endif
 
 /// include guard macro
-#define _NMRANET_BOOTLOADER_HXX_
+#define _OPENLCB_BOOTLOADER_HXX_
 
 #include <string.h>
 #include <unistd.h>
@@ -48,6 +48,7 @@
 #include "openlcb/CanDefs.hxx"
 #include "openlcb/DatagramDefs.hxx"
 #include "openlcb/MemoryConfig.hxx"
+#include "openlcb/ApplicationChecksum.hxx"
 #include "can_frame.h"
 
 namespace openlcb
@@ -120,6 +121,7 @@ struct BootloaderState
 };
 
 /// Global state variables.
+extern BootloaderState state_;
 BootloaderState state_;
 
 //#define WRITE_BUFFER_SIZE 1024
@@ -169,51 +171,16 @@ Atomic g_bootloader_lock;
         Defs::FIRMWARE_UPGRADE_ACTIVE)
 #endif
 /// We manually convert to big-endian to store this value in .rodata.
-static const uint64_t PIP_REPLY =        //
-    (PIP_REPLY_VALUE >> 40) |            //
-    ((PIP_REPLY_VALUE >> 24) & 0xff00) | //
-    ((PIP_REPLY_VALUE >> 8) & 0xff0000) |
-    ((PIP_REPLY_VALUE << 8) & 0xff000000) |
-    ((PIP_REPLY_VALUE << 24) & 0xff00000000) |
-    ((PIP_REPLY_VALUE << 40) & 0xff0000000000);
+static const uint64_t PIP_REPLY =         //
+    ((PIP_REPLY_VALUE >> 40) & 0xff) |    //
+    ((PIP_REPLY_VALUE >> 24) & 0xff00) |  //
+    ((PIP_REPLY_VALUE >> 8) & 0xff0000) | //
+    ((PIP_REPLY_VALUE & 0xff0000) << 8) | //
+    ((PIP_REPLY_VALUE & 0xff00) << 24) |  //
+    ((PIP_REPLY_VALUE & 0xff) << 40);
 
 /** Clears out the stream state in state_. */
 void reset_stream_state();
-
-/** @returns true if the application checksum currently in flash is correct. */
-bool check_application_checksum()
-{
-    uint32_t checksum[CHECKSUM_COUNT];
-    const void *flash_min;
-    const void *flash_max;
-    const struct app_header *app_header_ptr;
-    get_flash_boundaries(&flash_min, &flash_max, &app_header_ptr);
-
-    struct app_header app_header;
-    memcpy(&app_header, app_header_ptr, sizeof(app_header));
-
-    uint32_t pre_size = reinterpret_cast<const uint8_t *>(app_header_ptr) -
-        static_cast<const uint8_t *>(flash_min);
-    checksum_data(flash_min, pre_size, checksum);
-    if (memcmp(app_header.checksum_pre, checksum, sizeof(checksum)))
-    {
-        return false;
-    }
-    size_t flash_size = (size_t)flash_max - (size_t)flash_min;
-    if (app_header.app_size > flash_size) return false;
-    uint32_t post_offset = sizeof(struct app_header) +
-        (reinterpret_cast<const uint8_t *>(app_header_ptr) -
-         static_cast<const uint8_t *>(flash_min));
-    uint32_t post_size = (post_offset < app_header.app_size)
-        ? app_header.app_size - post_offset
-        : 0;
-    checksum_data(app_header_ptr + 1, post_size, checksum);
-    if (memcmp(app_header.checksum_post, checksum, sizeof(checksum)))
-    {
-        return false;
-    }
-    return true;
-}
 
 /// Prepares the outgoing frame buffer for a frame to be sent.
 void setup_can_frame()
@@ -416,6 +383,13 @@ void handle_memory_config_frame()
                 set_error_code(DatagramDefs::INVALID_ARGUMENTS);
                 return;
             }
+            uint16_t r = flash_complete();
+            if (r != 0) {
+                // Invalid request.
+                reject_datagram();
+                set_error_code(r);
+                return;
+            }
             // fall through
         }
         case MemoryConfigDefs::COMMAND_RESET:
@@ -563,6 +537,18 @@ void handle_addressed_message(Defs::MTI mti)
             memcpy(state_.output_frame.data + 2, &PIP_REPLY, 6);
             break;
         }
+        case Defs::MTI_VERIFY_NODE_ID_ADDRESSED:
+        {
+            if (state_.output_frame_full)
+            {
+                // No buffer. Re-try next round.
+                return;
+            }
+            set_can_frame_global(Defs::MTI_VERIFIED_NODE_ID_NUMBER);
+            set_can_frame_nodeid();
+            state_.input_frame_full = 0;
+            return;
+        }
         case Defs::MTI_DATAGRAM_OK:
         {
             if (state_.datagram_reply_waiting)
@@ -647,6 +633,23 @@ void handle_addressed_message(Defs::MTI mti)
 /// Handles incoming global message.
 void handle_global_message(Defs::MTI mti)
 {
+    switch (mti)
+    {
+        case Defs::MTI_VERIFY_NODE_ID_GLOBAL:
+        {
+            if (state_.output_frame_full)
+            {
+                // No buffer. Re-try next round.
+                return;
+            }
+            set_can_frame_global(Defs::MTI_VERIFIED_NODE_ID_NUMBER);
+            set_can_frame_nodeid();
+            state_.input_frame_full = 0;
+            return;
+        }
+    default:
+        break;
+    }
     // Drop to the floor.
     state_.input_frame_full = 0;
     /// @todo(balazs.racz) what about global identify messages?

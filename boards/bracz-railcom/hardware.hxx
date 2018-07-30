@@ -12,6 +12,8 @@
 
 // note : this might cause problems in the bootloader compilation
 #include "DummyGPIO.hxx"
+#include "BlinkerGPIO.hxx"
+#include "utils/Debouncer.hxx"
 
 
 GPIO_PIN(SW1, GpioInputPU, F, 4);
@@ -22,6 +24,7 @@ GPIO_PIN(LED_GREEN, LedPin, F, 3);
 GPIO_PIN(LED_BLUE, LedPin, F, 2);
 
 typedef LED_RED_RAW_Pin BLINKER_RAW_Pin;
+typedef BLINKER_Pin LED_RED_Pin;
 
 GPIO_HWPIN(UART0RX, GpioHwPin, A, 0, U0RX, UART);
 GPIO_HWPIN(UART0TX, GpioHwPin, A, 1, U0TX, UART);
@@ -122,7 +125,8 @@ struct Debug
 
     // Flips every timer capture interrupt from the dcc deocder flow.
     // typedef LED_BLUE_SW_Pin DccDecodeInterrupts;
-    typedef LED_GREEN_Pin DccDecodeInterrupts;
+    typedef DummyPin DccDecodeInterrupts;
+    //typedef LED_GREEN_Pin DccDecodeInterrupts;
 
     // Flips every timer capture interrupt from the dcc deocder flow.
     // typedef DBG_SIGNAL_Pin RailcomE0;
@@ -143,10 +147,13 @@ struct Debug
     typedef DummyPin DetectRepeat;
 
 
-    //typedef DummyPin MeasurementEnabled;
-    typedef LED_BLUE_Pin MeasurementEnabled;
+    typedef DummyPin MeasurementEnabled;
+    //typedef LED_BLUE_Pin MeasurementEnabled;
 
     typedef DummyPin NSampling;
+    typedef DummyPin CapTimerOverflow;
+    typedef DummyPin GndControlSwitch1;
+    typedef DummyPin GndControlSwitch2;
 
 };
 
@@ -170,7 +177,7 @@ struct RailcomDefs
         return true;
     }
 
-    static void enable_measurement();
+    static void enable_measurement(bool);
     static void disable_measurement();
 
     static uint8_t feedbackChannel_;
@@ -240,39 +247,111 @@ struct RailcomDefs
         RAILCOM_CH5_Pin::GPIO_BASE, RAILCOM_CH5_Pin::GPIO_PIN, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);*/
     }
 
+    static std::vector<CountingDebouncer> debouncers_;
+    static volatile bool enableOvercurrent_;
+
+    static void setup_debouncer_opts(CountingDebouncer::Options opts) {
+        enableOvercurrent_ = 0;
+        debouncers_.clear();
+        for (unsigned i = 0; i < 6; ++i) {
+            debouncers_.emplace_back(opts);
+            debouncers_.back().initialize(false);
+        }
+        enableOvercurrent_ = 1;
+    }
+    
     /** @returns a bitmask telling which pins are active. Bit 0 will be set if
      * channel 0 is active (drawing current).*/
-    static uint8_t sample()
+    static int sample()
     {
         uint8_t ret = 0;
-        if (feedbackChannel_ == 0xff) {
-            extern volatile uint32_t sample_count;
-            sample_count++;
-        }
         Debug::NSampling::set(false);
         MAP_SysCtlDelay(5*26);
-        if (!RAILCOM_CH0_Pin::get()) {
-            extern volatile uint32_t ch0_count;
-            if (feedbackChannel_ == 0xff) {
-                ch0_count++;
+        if (feedbackChannel_ == 0xfe) {
+            if (!enableOvercurrent_) {
+                Debug::NSampling::set(true);
+                return -1;
             }
+            bool any_changed = false;
+            if (debouncers_[0].update_state(!RAILCOM_CH0_Pin::get())) {
+                any_changed = true;
+                bool is_shorted = debouncers_[0].current_state();
+                if (is_shorted) {
+                    ret |= 1<<0;
+                    // disable output
+                    OUTPUT_EN0_Pin::set(true);
+                }
+            }
+            if (debouncers_[1].update_state(!RAILCOM_CH1_Pin::get())) {
+                any_changed = true;
+                bool is_shorted = debouncers_[1].current_state();
+                if (is_shorted) {
+                    ret |= 1<<1;
+                    // disable output
+                    OUTPUT_EN1_Pin::set(true);
+                }
+            }
+            if (debouncers_[2].update_state(!RAILCOM_CH2_Pin::get())) {
+                any_changed = true;
+                bool is_shorted = debouncers_[2].current_state();
+                if (is_shorted) {
+                    ret |= 1<<2;
+                    // disable output
+                    OUTPUT_EN2_Pin::set(true);
+                }
+            }
+            if (debouncers_[3].update_state(!RAILCOM_CH3_Pin::get())) {
+                any_changed = true;
+                bool is_shorted = debouncers_[3].current_state();
+                if (is_shorted) {
+                    ret |= 1<<3;
+                    // disable output
+                    OUTPUT_EN3_Pin::set(true);
+                }
+            }
+            if (debouncers_[4].update_state(!RAILCOM_CH4_Pin::get())) {
+                any_changed = true;
+                bool is_shorted = debouncers_[4].current_state();
+                if (is_shorted) {
+                    ret |= 1<<4;
+                    // disable output
+                    OUTPUT_EN4_Pin::set(true);
+                }
+            }
+            if (debouncers_[5].update_state(!RAILCOM_CH5_Pin::get())) {
+                any_changed = true;
+                bool is_shorted = debouncers_[5].current_state();
+                if (is_shorted) {
+                    ret |= 1<<5;
+                    // disable output
+                    OUTPUT_EN5_Pin::set(true);
+                }
+            }
+            Debug::NSampling::set(true);
+            if (any_changed) {
+                return ret;
+            } else {
+                return -1;
+            }
+        }
+        if (!RAILCOM_CH0_Pin::get()) {
             ret |= 1;
         }
         if (!RAILCOM_CH1_Pin::get()) {
-            extern volatile uint32_t ch1_count;
-            if (feedbackChannel_ == 0xff) {
-                ch1_count++;
-            }
             ret |= 2;
         }
-        if (!RAILCOM_CH2_Pin::get())
+        if (!RAILCOM_CH2_Pin::get()) {
             ret |= 4;
-        if (!RAILCOM_CH3_Pin::get())
+        }
+        if (!RAILCOM_CH3_Pin::get()) {
             ret |= 8;
-        if (!RAILCOM_CH4_Pin::get())
+        }
+        if (!RAILCOM_CH4_Pin::get()) {
             ret |= 16;
-        if (!RAILCOM_CH5_Pin::get())
+        }
+        if (!RAILCOM_CH5_Pin::get()) {
             ret |= 32;
+        }
         Debug::NSampling::set(true);
 
         /*if (feedbackChannel_ == 0xff) {
@@ -292,6 +371,12 @@ struct RailcomDefs
           }*/
 
         return ret;
+    }
+
+
+#define portNVIC_SYSTICK_CURRENT_VALUE_REG	( * ( ( volatile uint32_t * ) 0xe000e018 ) )
+    static uint32_t get_timer_tick() {
+        return TimerValueGet(WTIMER2_BASE, TIMER_A);
     }
 };
 
@@ -359,11 +444,13 @@ struct DCCDecode
       HWREG(TIMER_BASE + TIMER_O_TAMR) |= (TIMER_TAMR_TAMIE);
     }
 
+    static void cap_event_hook() {}
+
     static const auto RCOM_TIMER = TIMER_A;
     static const auto SAMPLE_PERIOD_CLOCKS = 60000;
     //static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMA_TIMEOUT;
     static const auto RCOM_INTERRUPT = INT_TIMER2A;
-    //static const auto OS_INTERRUPT = INT_TIMER2A;
+    static const auto OS_INTERRUPT = INT_WTIMER2A;
     typedef DCC_IN_Pin NRZ_Pin;
 
     // 16-bit timer max + use 7 bits of prescaler.

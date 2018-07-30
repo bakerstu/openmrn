@@ -113,13 +113,13 @@ private:
             return;
         if (fb.ch1Size && fb.channel != 0xff)
         {
-            LOG(INFO, "Railcom %x CH1 data(%" PRIu32 "): %s", fb.channel,
+            LOG(INFO, "Railcom %x CH1 data(%" PRIuPTR "): %s", fb.channel,
                 fb.feedbackKey,
                 display_railcom_data(fb.ch1Data, fb.ch1Size).c_str());
         }
         if (fb.ch2Size && fb.channel != 0xff)
         {
-            LOG(INFO, "Railcom %x CH2 data(%" PRIu32 "): %s", fb.channel,
+            LOG(INFO, "Railcom %x CH2 data(%" PRIuPTR "): %s", fb.channel,
                 fb.feedbackKey,
                 display_railcom_data(fb.ch2Data, fb.ch2Size).c_str());
         }
@@ -154,9 +154,20 @@ public:
         parent_->register_port(this);
     }
 
+    RailcomToOpenLCBDebugProxy(Node *node)
+        : dcc::RailcomHubPort(node->iface())
+        , parent_(nullptr)
+        , node_(node)
+        , occupancyPort_(nullptr)
+    {
+    }
+    
     ~RailcomToOpenLCBDebugProxy()
     {
-        parent_->unregister_port(this);
+        if (parent_)
+        {
+            parent_->unregister_port(this);
+        }
     }
 
     Action entry() override
@@ -232,7 +243,7 @@ public:
         return release_and_exit();
     }
 
-    dcc::RailcomHubFlow *parent_;
+    dcc::RailcomHubFlow *parent_{nullptr};
     Node *node_;
     dcc::RailcomHubPort *occupancyPort_;
 };

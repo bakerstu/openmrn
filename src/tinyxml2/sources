@@ -1,7 +1,0 @@
-VPATH := $(SRCDIR)
-         
-CSRCS += 
-
-CXXSRCS +=
-
-CPPSRCS += tinyxml2.cpp

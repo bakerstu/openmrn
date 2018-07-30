@@ -31,8 +31,8 @@
  * @date 5 October 2013
  */
 
-#ifndef _NMRANET_DATAGRAMDEFS_HXX_
-#define _NMRANET_DATAGRAMDEFS_HXX_
+#ifndef _OPENLCB_DATAGRAMDEFS_HXX_
+#define _OPENLCB_DATAGRAMDEFS_HXX_
 
 #include <stdint.h>
 
@@ -156,5 +156,5 @@ private:
 }  // namespace openlcb
 
 
-#endif // _NMRANET_DATAGRAMDEFS_HXX_
+#endif // _OPENLCB_DATAGRAMDEFS_HXX_
 

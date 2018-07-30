@@ -1,0 +1,571 @@
+/**
+@page build_system_page Build system
+
+@tableofcontents
+
+@section Overview
+
+The key added value of the OpenMRN build system is that it allows compiling a
+multitude of applications across vastly different hardware architectures from a
+single set of source files. It allows selecting different toolchains (e.g. g++
+or clang for linux, mingw for windows, armgcc for cortex-m3, emscripten-clang
+for node.js), providing different compilation options and selecting different
+set of source files to compile on each specific port. Applications can share
+operating system support files, drivers, networking stack, system libraries, or
+libraries defining application logic.
+
+@section core_concepts Concepts
+
+The OpenMRN build system is based upon recursive make. Each directory contains
+a Makefile, and during the compilation process these Makefiles instruct the
+build program to recurse into the relevant subdirectories and execute `make`
+there.
+
+The most important concept is the *target*:
+- it defines the toolchain and compiler settings to be used,
+- defines which operating system the code shall be compiled for,
+- sets all the compilation flags,
+- defines the code that shall be compiled vs skipped.
+
+Generally, all code in `openmrn/src` gets compiled once per @ref core_target, and
+all code in the application tree gets compiled once per @ref application_target.
+
+@subsection core_target Core target
+
+A core target is represented by a directory under `openmrn/targets/`. There is
+one core target for each operating system + processor combination, so you find
+items here like `linux.x86` or `freertos.armv7m`, meaning a Cortex-M3/M4
+microcontroller run under the FreeRTOS microkernel.
+
+Code that is part of the `openmrn/src` tree but is hardware-specific (usually
+under the `freertos_drivers` subdirectory) is organized into separate
+directories for each vendor and hardware model/line, so that the availability
+of necessary dependencies can get checked and the hardware-specific compilation
+flags, such as include paths can be generated.
+
+The output of the compilation of a core target is a set of libraries and object
+files that can be linked into an application for that specific OS and
+processor.
+
+@subsection application_target Application target
+
+Application targets are found under `$``(APP_PATH)/targets` directory, for
+example
+https://github.com/bakerstu/openmrn/tree/master/applications/hub/targets.  Each
+application target will turn into one binary. The above example shows that this
+application has ports for linux on a PC, linux on a Raspberry Pi / BeagleBone,
+and MacOS using x86 processor. A different example
+https://github.com/bakerstu/openmrn/tree/master/applications/io_board/targets
+shows that we have one such target directory for each different hardware board
+(and sometimes HW revision) that the application supports; this allows
+adjusting the compilation to different GPIO pinouts, and link in different
+device drivers.
+
+Each application target selects a core target from which to link, usually with
+the code `TARGET := freertos.armv7m` inside the Makefile. If not specified,
+then the application target name will be used as the core target, which works
+fine for examples like linux.x86 or linux.armv7a.
+
+@section directory_structure Directory structure
+
+In the OpenMRN distribution we have the following structure:
+
+- {@code applications} Contains a number of example applications. The
+  application tree is described below.
+
+- {@code bin} Scripts and tools not directly used by the build system.
+
+- {@code boards} Hardware-specific code that can be shared by different
+  applications that run on the same board or MCU family, such as interrupt
+  vector tables, hardware initialization routines and GPIO pinouts. The code
+  that is committed here usually gets symlinked into the application target
+  directory. Some examples:
+
+  - {@code armv7m} General definitions for all Cortex-M3/M4 MCUs
+
+  - {@code ti-cc3200-generic} Interrupt vector table, linker scripts and some
+    utilities for the CC3200 series MCU from TI (Texas Instruments). These
+    files will be used by all CC3200-based targets.
+
+  - {@code ti-cc3200-launchpad} Pin definitions and hardware initialization
+    code for the CC3200-LAUNCHXL launchpad. References files from the
+    `ti-cc3200-generic` directory.
+
+- {@code doc} The documentation using Doxygen, and the make scripts to
+  generate it. Run `make docs` in this directory to generate the HTML output of
+  the documentation.
+
+- {@code etc} Makefile libraries that are used by the build system. The `*.mk`
+  files here get included into the Makefiles.
+
+- {@code include} Header files that are global (not library-specific). There
+  are very few of these, mostly for FreeRTOS and some used for patching broken
+  libc and middleware distributions.
+
+- {@code src} The source code of OpenMRN core libraries. These are:
+
+  - {@code console} A telnet-like server that you can use to present a
+    commandline console. It can operate via network socket or serial
+    connection.
+
+  - {@code dcc} Declarations and classes for implementing and representing DCC
+    protocol; used by command stations, mobile decoders and RailCom detectors.
+
+  - {@code executor} Core library for co-routine based collaborative
+    multi-tasking. Allows time division multi-tasking on a single thread,
+    including running a large number of state machines interacting with message
+    queues to for protocol stacks.
+
+  - {@code freertos_drivers} Posix-compatible hardware abstraction layer
+    running on FreeRTOS, with driver implementations for a number of popular
+    microcontrollers' common hardware (such as UART, USB, and CAN-bus drivers).
+
+    - {@code common} Base classes for drivers and posix device abstraction.
+    - {@code esp8266} Implementations for the Espressif ESP8266 MCU.
+    - {@code net_cc32xx} Socket layer for the Texas Instruments CC32xx Wifi
+MCUs.
+    - {@code net_freertos_tcp} Socket layer using FreeRTOSPlus TCP.
+    - {@code nxp} Drivers for the NXP LPC17xx/40xx and 11Cxx MCUs.
+    - {@code pic32mx} Drivers for the Microchip PIC32 series, a MIPS4K based
+MCU.
+
+    - {@code st} Drivers for various stm32 MCUs, including F0, F1, F4 lines,
+  which are low-cost Cortex-M0 / M3 / M4 based MCUs.
+
+    - {@code ti} General drivers (CAN, UART, USB, GPIO) for Texas Instruments
+      Tiva and CC32xx MCUs.
+
+  - {@code openlcb} LCC / OpenLCB protocol stack. Most of this protocol stack
+    is implemented using protocol state flows and can operate on
+    single-threaded environments using the Executor framework.
+
+  - {@code os} OS abstraction layer with common concepts cross Linux, Mac,
+    FreeRTOS, and to some extent windows. The concepts include threads,
+    mutexes, sempahores, timers, support for select, GPIOs, mDNS.
+
+  - {@code utils} A large number of diverse utility classes for data
+    structures, buffers & queues, logging, testing, printing and formatting
+    data, creating and using streams and sockets. Helper classes for
+    implementing data hubs / repeaters, including tying them to various device
+    drivers such as CAN-bus or USB.
+
+  - {@code withrottle} Implementation for JMRI's wireless throttle
+    protocol. Note: this implementation is not complete yet.
+
+- {@code targets} All core targets. These are listed in importance order, not
+alphabetically:
+
+  - {@code cov} Target for compiling and running unit tests (on the host) and
+    test coverage generation.
+
+  - {@code linux.x86} Host target using 'g++' as the compiler. This can be used
+    to compile for the host OS under linux. It also works on a Raspberry Pi.
+
+  - {@code linux.llvm} Host target under linux using 'llvm-c++' as the
+    compiler. This is only used occasionally due to the more advanced static
+    verification features of LLVM.
+
+  - {@code mach.x86 and mach.x86_64} Host target on a Mac using the Xcode
+compiler.
+
+  - {@code linux.armv7a} Cross-compilation target for compiling to the
+    Raspberry Pi and Beaglebone single-board computers using a PC host.
+
+  - {@code js.emscripten} Cross-compilation target for creating a javascript
+    library using the empscripten++ compiler, an LLVM backend turning code into
+    javascript.
+
+  - {@code mingw.x86} Cross-compilation target for creating a windows output
+    executable using the MinGW libraries on a linux host. Does not work very
+    well due to some incompatibilities between Windows and POSIX file
+    descriptors and socket API.
+
+  The remaining targets are various forms of microcontrollers, all needing the
+  specific cross-compilation toolchain:
+
+  - {@code freertos.armv7m} Cortex-M3/M4 using FreeRTOS microkernel. The most
+    often used target. A number of vendor-specific driver directories are
+    included inside that are each compiled using the specific vendor middleware
+    into `.o` or `.a` files to be linked into applications using the specific
+    MCU family.
+
+  - {@code freertos.armv6m} Cortex-M0/M0+ using FreeRTOS.
+
+  - {@code freertos.armv4t} ARM7TDMI microcontrollers (e.g. NXP LPC2367) using
+    FreeRTOS.
+
+  - {@code freertos.mips4k} PIC32MX microcontrollers using FreeRTOS.
+
+  - {@code nonos.xtensa-lx106.esp8266} The ESP8266 WiFi microcontroller using
+    the "NonOS" SDK, i.e. in single threaded mode.
+
+  - {@code bare.armv7m} Cortex-M3/M4 microcontrollers without a microkernel, in
+    single-threaded mode. This target is used for implementing really thin
+    applications without the OS abstraction layer, such as bootloaders.
+
+  - {@code bare.pruv3} The realtime processor cores from the select TI Sitara
+    processors. These are found on the BeagleBone Black for example.
+
+  - {@code freertos.armv7m.mbed-1768} Deprecated, should be removed.
+
+- {@code test} Specific independent applications that can be loaded to various
+  targets and exercise certain aspects of the target, mostly for blackbox
+  testing and load testing of device drivers. An example such application would
+  be a "Serial loopback for USB" that can be loaded into a Tiva Launchpad,
+  connected to a host to test the performance and correctness of the USB device
+  driver. Usually equipped with a host-side testing script as well.
+
+@subsection core_target_dir Core target
+
+This is the directory structure under a core target, which we will demonstrate
+using the `openmrn/targets/freertos.armv7m` target, which is the most complex.
+
+The directories are listed in importance order, not alphabetically.
+
+- {@code console
+ dcc
+ executor
+ openlcb
+ os
+ utils
+ withrottle}
+These directories correspond to the core libraries. Each core library is
+built inside the respective directory. In the git repository these directories
+only contain the Makefile, and when building they will be filled with `*.o`
+files respective to the compiled sources. The result of the core library
+compilation is a single `.a` archive, for example `openlcb.a`. There are a
+couple of deprecated (empty) core target directories which need to be deleted,
+too, such as `cue`, `if`, `core`.
+
+- {@code lib} Contains all the core library archive files. This is the place
+  where the application targets will go look for the core libraries for
+  linking.
+
+- {@code cJSON, tinyxml2} These are dependent libraries that are redistributed
+  with the OpenMRN code. They get compiled like a core library.
+
+- {@code freertos} Compiles the FreeRTOS microkernel code. See the
+  `freertos/sources` file to see a description of where the source will be
+  looked for, and which files to compile.
+
+- {@code freertos_drivers} Contains the build code for all harware-specific
+  sources, and the compilation outputs (`*.o` and `*.a` files). Some of the
+  sources are coming from the `src/freertos_drivers` tree, while in other
+  places we are compiling vendor-supplied middleware using the OpenMRN build
+  compiler and settings. None of these directories contain source files; only
+  Makefiles and `sources` files that describe where to find the sources and
+  what c/c++ files to compile from there. Sometimes the `sources` file is in
+  the specific targets subdirectory, sometimes in the equivalent
+  `src/freertos_drivers` directory.
+
+  This directory will also host the build files for the shared code from
+  `src/freertos_drivers/common`. The files to compile as well as the list of
+  subdirectories to recurse into are described in
+  `src/freertos_drivers/sources`.
+
+  - {@code cc3220} OpenMRN device drivers compiled for the CC3220 MCU.
+
+  - {@code cc3220driverlib} TI middleware drivers for the CC3220 MCU.
+
+  - {@code cc3220sdk} TI SimpleLink middleware for the CC3220 MCU network
+    processor.
+
+  - {@code cc32xx} OpenMRN device drivers compiled for the CC3200 MCU.
+
+  - {@code cc32xxsdk} TI SimpleLink middleware for the CC3220 MCU network
+    processor.
+
+  - {@code drivers_lpc1768} OpenMRN device drivers using the mbed library
+    abstraction..
+
+  - {@code freertos_tcp} TCP stack provided by the FreeRTOSPlus project.
+
+  - {@code lpc_chip_175x_6x} Vendor middleware drivers for the NXP LPC175x/176x
+    microcontrollers.
+
+  - {@code mbed_lpc1768} Compiles the mbed libraries as middleware for the
+    LPC1768 target.
+
+  - {@code net_cc3220} OpenMRN posix-compatible socket layer compiled for the
+    CC3220 network MCU.
+
+  - {@code net_cc32xx} OpenMRN posix-compatible socket layer compiled for the
+    CC3200 network MCU.
+
+  - {@code net_freertos_tcp} OpenMRN posix-compatible socket layer for the
+    FreeRTOSPlus TCP stack.
+
+  - {@code stm32cubef103xb} Vendor middleware forthe STM32F1 processors
+    (specifically compiled for the STM32F103xB).
+
+  - {@code stm32cubef303x_28x_58x_98x} Vendor middleware for a range of
+    STM32F3 processors.
+
+  - {@code tivaware} OpenMRN device drivers for the Texas Instruments ARM
+    Cortem-M4 Tiva processors (Tm4C123x and Tm4C129x).
+
+@subsection application_dir Applications
+
+Some example application directories to look at are:
+
+- https://github.com/bakerstu/openmrn/tree/master/applications/io_board
+- https://github.com/bakerstu/openmrn/tree/master/applications/hub
+- https://github.com/balazsracz/openmrn_cue/tree/master/cs , which is an example
+of an externally shipped application.
+
+@subsubsection app_dir_location Locating application and OpenMRN directory
+
+An application directory can be located anywhere in the file system. The
+compilation can be started inside the application's top-level directory (will
+compile all application targets and their corresponding OpenMRN core targets),
+or inside a single application target directory (will compile only that target
+and its corresponding OpenMRN core target). `make` will ensure to only execute
+compilation steps whose input files have changed, so most of the times
+compiling the respective OpenMRN core target is very quick as nothing has
+changed. For the sample applications that are shipped with OpenMRN in the
+`openmrn/applications` tree, a compilation started at the openmrn root will
+recurse and build all of these applications with all of their targets.
+
+In order to start a compilation inside an application or an application target
+directory, it is essential that the build system can find the OpenMRN root
+directory. This is ensured by setting the variable `OPENMRNPATH` to the
+appropriate absolute directory path. Everything inside the OpenMRN tree will
+then be referenced from this path, including Makefile helper libraries, finding
+the core targets and their compilation outputs, include path for `*.h` and
+`*.hxx` files, etc... Usually at the beginning of the Makefile we set
+`OPENMRNPATH` if it's not already set in the environment. For applications that
+are shipped within the OpenMRN tree we just set `OPENMRNPATH=$(realpath ../..)`
+(it's important that this path be absolute and not relative since we'll refer
+to it from different places), applications that are placed elsewhere in the
+filesystem need to set `OPENMRNPATH` explicitly or in the user startup script
+(e.g., in `~/.bashrc` writing `export OPENMRNPATH=~/openmrn`).
+
+@note When setting the path in a Makefile, you cannot use `~` to refer to your
+home directory. `~` is a bash expansion, and make does not perform bash
+expansion before setting variables. If needed, always refer to your home
+directory as `$``(HOME)`. Example: {@code OPENMRNPATH=$(realpath $(HOME)/openmrn)}
+
+Similar to how the `OPENMRNPATH` variable is used to find the OpenMRN
+distribution, we also use a variable called `APP_PATH` to find the top-level of
+the application tree. This is usually set at the beginning of `config.mk` or at
+the beginning of the application target directory's Makefile. If you start
+developing your application by copying an example from OpenMRN, this variable
+will be set correctly for you.
+
+@subsubsection app_structure Application directory and code structure
+
+From the toplevel application directory we have the following files and
+subdirectories:
+
+- {@code Makefile} This is usually always the same, just copy an example.
+
+- {@code subdirs} Describes the list of application libraries.
+
+- {@code config.mk} By convention, included at the top of all target Makefiles
+  to define common build settings for all targets. This is typically where we
+  set OPENMRNPATH if not found in the environment.
+
+- {@code main.cxx} Any `*.c`, and `*.cxx` files in the application toplevel
+  directory will be compiled and included as `.o` files on the linker
+  commandline. If there is a `main.cxx` in the toplevel directory, that will
+  typically contain the application entry point `int appl_main(int argc, char
+  *argv[])` and it will also instantiate all the necessary global objects (such
+  as the OpenLCB stack, producers, consumers, etc) in this file. You can use
+  conditional compilation in this file if you want slightly different behavior
+  for different targets, a really complex example is {@ref
+  applications/async_blink/main.cxx}. Some trees don't have `main.cxx` here but
+  supply them separately for each application target.
+
+- {@code automata
+commandstation
+mobilestation
+custom
+server
+src}
+These are application library directories in the
+https://github.com/balazsracz/openmrn_cue/tree/master/cs application. They
+contain sources and headers for various aspects. All application libraries get
+compiled once per application target, and supplied to the commandline as
+archives. If no object is instantiated in `main` from a specific application
+library, the linker will optimize and remove all of its code. Note that `src` is
+actually a library here as well, and will compile into libsrc.a.
+
+- {@code targets} Contains the individual application targets (see {@link
+  application_target}). Each target is for a combination of a specific OS,
+  specific microcontroller and specific board, since the result of a target is
+  a binary that is ready to run/download.
+
+  - {@code Makefile} contains the list of target subdirectories to recurse into.
+
+  - {@code freertos.armv7m.ek-tm4c1294xl} An example target directory from
+https://github.com/bakerstu/openmrn/tree/master/applications/io_board/targets/freertos.armv7m.ek-tm4c123gxl
+The contents are compiled and added to the linker commandline as `*.o` files
+directly. The following files are here (typical for an MCU application target):
+
+    - {@code HwInit.cxx} Symlinked from the board directory. Contains device
+      driver instantiations, and various hardware initialization routines that
+      run during the MCU boot process. Initializes hardware
+      resources. Typically contains the interrupt handlers too.
+
+    - {@code config.hxx} Specific to OpenLCB applications, this file declares
+      the memory layout and documentation of the user configuration. The build
+      process will create the XML code of the configuration description from
+      this, while the header can be included to the necessary `*.cxx` files in
+      order to reference the configuration space offsets in a type-case manner.
+
+    - {@code hardware.hxx} Symlinked from the board directory. Contains
+      declarations (but no definitions) for hardware resources, such as pinout
+      of GPIOs with symbolic names and certain template structures that are
+      used by the drivers. This file is usually `#include`d into HwInit.cxx and
+      main.cxx. Usually when a board revision is made it is enough to update
+      `hardware.hxx` but the same `HwInit.cxx` and `main.cxx` can be used.
+
+    - {@code main.cxx} This application has the main files implemented
+      separately for each target. In this specific case the reason for that is
+      to avoid having the complexity of conditional compilation for beginner
+      users. This might be also be desirable when the different targets have
+      dramatically different behavior, such as for the openmrn_cue, where the
+      targets range from a railcom detector through an IO board, a simple cue
+      node to a full-featured command station.
+
+    - {@code NodeId.cxx} For some OpenLCB applications we separate the
+      `main.cxx` which contains the application code from the OpenLCB Node ID,
+      which has to be unique to each board. This allows compiling multiple
+      targets and connecting them to the same network. Sometimes the address
+      can also be overridden by executing `make ADDRESS=0x42`. For a production
+      environment this file will have to be aligned with the bulk flash
+      programmer of the manufacturer.
+
+    - {@code memory_map.ld} Linker script that describes the size and location
+      of the flash and ram for the given MCU. Included in
+      `target.ld`. Typically one specific per MCU vendor-family-model,
+      symlinked from the board directory.
+
+    - {@code startup.c} Interrupt vector table and core handlers (such as
+      reset_handler, hard_fault_handler) for the specific MCU. Symlinked from
+      the board directory.
+
+    - {@code target.ld} Linker script. Symlinked from the board directory. This
+      script is usually the same for large classes of MCUs, like
+      Cortex-M0/M3/M4.
+
+    - {@code automata
+commandstation
+mobilestation
+custom
+server
+src} Subdirectories corresponding to the application libraries will be
+automatically created to host the compilation output of the application
+libraries. Most simple application have no application libraries.
+
+    - {@code lib} Stores symlinks to all application libraries and core
+      libraries that are needed for the final linking. Automatically created if
+      needed.
+
+@section dependencies Dependencies
+
+Compiling certain parts of OpenMRN, certain applications, certain device
+drivers and middleware requires specific dependencies to be present. These
+dependencies may be toolchains (compilers, linkers, etc for the host or
+cross-compilingfor the target), source code for certain libraries (such as XML
+parser or FreeRTOS), various MCU vendor middlewares or tools for debugging or
+flashing microcontrollers (OpenOCD for example).
+
+@subsection dep_lookup Dependency lookup process
+
+Each dependency is represented by a specific path on the file system, where the
+given library/toolchain/etc is installed. The path is stored in a variable
+specific to that dependency, by convention these variables look like
+SOMETHINGPATH. If the dependency is not found, the variable is set to an empty
+string.
+
+All known dependencies are listed in `openmrn/etc/path.mk` with a list of
+possible locations on where to look for them on the filesystem. The build
+system tries each location in turn, and uses the first one it finds and
+recognizes as the specific tool's install root directory to put into the
+SOMETHINGPATH variable. If none of the registered paths contain the given tool,
+the variable is set to empty.
+
+It is fine to add new search path entries for these specific tools. Just add an
+additional line to the search list, and send a pull request on GitHub. It is
+also possible to override the specific toolpath on a more permanent basis by
+setting the given variable in the user's environment, for example adding to
+`~/.bashrc`: ${code export SOMETHINGPATH=/opt/path/to/something}
+
+@subsection dep_eval Dependency evaluation process
+
+In every directory where source files are compiled (that is: core target lib
+dir; various freertos_drivers subdirs; application target lib dir; application
+target dir), there is a local list of required dependencies. The build system
+first checks those dependencies. If any of those dependencies are missing
+(meaning the respective PATH variable is empty), the build is aborted in that
+directory and the build proceeds to other targets/dirs. At the same time a
+warning message is printed, pointing out what dependency was missing:
+
+@{code
+** Ignoring target freertos.armv7m, because the following libraries are not
+installed: STM32CUBEF3PATH. This is not an error, so please do not report as a
+bug. If you care about target freertos.armv7m, make sure the quoted libraries
+are installed. For most libraries you can check
+/usr/local/google/home/bracz/train/openlcb/openmrn/etc/path.mk to see where we
+looked for these dependencies.}
+
+The list of dependencies for a given directory are listed in the DEPS variable,
+so in the above directory there was a line in the Makefile or in the included
+`helper.mk` files that said: {@code DEPS += STM32CUBEF3PATH}
+
+@subsection dep_location_versioning Dependency location and versioning
+
+The dependency search path can contain any directory, but by convention, we
+install most dependencies into `/opt`. Sometimes these dependencies are updated
+and when the new version comes out, we download it but do not overwrite the
+previous version in order to allow safely switching back and forth. The typical
+directory to look for would be as follows:
+
+{@code
+$ ls /opt/ti/CC3200SDK -l
+total 114780
+drwxr-x--- 3 bracz restricted     4096 Jul  2  2016 CC3200SDK_1.2.0
+drwxr-x--- 3 bracz restricted     4096 Apr 18 14:27 CC3200SDK_1.3.0
+lrwxrwxrwx 1 bracz restricted       15 Apr 24 05:43 default -> CC3200SDK_1.3.0
+}
+
+This means that inside `/opt` we have a vendor-specific directory `/opt/ti` for
+Texas Instruments; within that there is a package specific directory
+`/opt/ti/CC3200SDK`. Within that we install the different versions in
+directories named after the versions. Then we create a symlink `default` that
+points to the version we'd like to use. This way adjusting the symlink is a
+quick way to downgrade/upgrade a given dependency and check that compilation
+and binaries still work. The search path for CC3200SDKPATH looks like this in `openmrn/etc/path.mk`:
+
+{@code
+################### TI-CC3200-SDK #####################
+ifndef TICC3200SDKPATH
+SEARCHPATH := \
+  /opt/ti/CC3200SDK/default/cc3200-sdk
+
+
+TRYPATH:=$(call findfirst,readme.txt,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TICC3200SDKPATH:=$(TRYPATH)
+endif
+endif #TICC3200SDKPATH
+}
+
+@section help Help!
+
+<b>This is all very complicated, how do I get started?</b>
+
+If you like the synthetize method, then
+- make a copy of `openmrn/applications/empty_app`
+- add your target directory
+- enter your target into `your_app/targets/Makefile`
+- symlink the board files and add a `main.cxx`.
+
+If you like the deconstructing method, then
+- make a copy of `openmrn/applications/io_board`
+- delete all targets except the one you need
+- remove deleted targets from `your_app/targets/Makefile`
+- edit `main.cxx` for the target you left.
+
+*/

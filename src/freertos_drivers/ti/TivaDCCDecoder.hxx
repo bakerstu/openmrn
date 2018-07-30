@@ -93,6 +93,7 @@ public:
 
     ~TivaDccDecoder()
     {
+        inputData_->destroy();
     }
 
     /** Handles a raw interrupt. */
@@ -112,7 +113,29 @@ private:
      * @return number of bytes read upon success, -1 upon failure with errno
      * containing the cause
      */
-    ssize_t read(File *file, void *buf, size_t count) OVERRIDE;
+    ssize_t read(File *file, void *buf, size_t count) OVERRIDE {
+        HASSERT((count % inputData_->member_size()) == 0);
+        unsigned max = count / inputData_->member_size();
+        while (true)
+        {
+            portENTER_CRITICAL();
+            unsigned copied = inputData_->get((input_data_type *)buf, max);
+            if (!nextPacketData_ && inputData_->space())
+            {
+                inputData_->data_write_pointer(&nextPacketData_);
+            }
+            portEXIT_CRITICAL();
+            if (copied > 0)
+            {
+                return copied * inputData_->member_size();
+            }
+            if (file->flags & O_NONBLOCK)
+            {
+                return -EAGAIN;
+            }
+            inputData_->block_until_condition(file, true);
+        }
+    }
 
     /** Write to a file or device.
      * @param file file reference for this device
@@ -126,12 +149,34 @@ private:
         return -EINVAL;
     }
 
-    /** Request an ioctl transaction
-     * @param file file reference for this device
-     * @param key ioctl key
-     * @param data key data
+    /** Device select method. Default impementation returns true.
+     * @param file reference to the file
+     * @param mode FREAD for read active, FWRITE for write active, 0 for
+     *        exceptions
+     * @return true if active, false if inactive
      */
-    int ioctl(File *file, unsigned long int key, unsigned long data) OVERRIDE;
+    bool select(File *file, int mode)
+    {
+        bool retval = false;
+        portENTER_CRITICAL();
+        switch (mode)
+        {
+            case FREAD:
+                if (inputData_->pending() > 0)
+                {
+                    retval = true;
+                }
+                else
+                {
+                    inputData_->select_insert();
+                }
+                break;
+            default:
+                break;
+        }
+        portEXIT_CRITICAL();
+        return retval;
+    }
 
     void enable() override;  /**< function to enable device */
     void disable() override; /**< function to disable device */
@@ -140,10 +185,7 @@ private:
      */
     void flush_buffers() override
     {
-        while (!inputData_.empty())
-        {
-            inputData_.increment_front();
-        }
+        inputData_->flush();
     };
 
     /*
@@ -210,8 +252,11 @@ private:
         MAP_TimerEnable(HW::TIMER_BASE, HW::RCOM_TIMER);
     }
 
-    /// Not used yet.
-    FixedQueue<uint32_t, HW::Q_SIZE> inputData_;
+    typedef DCCPacket input_data_type;
+    DeviceBuffer<DCCPacket>* inputData_{
+        DeviceBuffer<DCCPacket>::create(HW::Q_SIZE)};
+    DCCPacket* nextPacketData_{nullptr};
+    bool nextPacketFilled_{false};
     /// Holds the value ofthe free running timer at the time we captured the
     /// previous edge.
     uint32_t lastTimerValue_;
@@ -222,8 +267,8 @@ private:
     bool sampleActive_ = false;
     /// Seems unused? @todo delete.
     unsigned lastLevel_;
-    /// Seems unused? @todo delete.
-    bool overflowed_ = false;
+    /// if true then sampling will be suspended until the timer overflows.
+    bool waitSampleForOverflow_ = false;
     /// True if the current internal state is the cutout state.
     bool inCutout_ = false;
     /// True for the last bit time before the cutout, to prevent sampling fro
@@ -232,8 +277,6 @@ private:
     /// Which window of the cutout we are in.
     uint32_t cutoutState_;
 
-    /// Notifiable to mark when the feedback channel becomes readable.
-    Notifiable *readableNotifiable_ = nullptr;
     /// notified for cutout events.
     RailcomDriver *railcomDriver_;
 
@@ -268,14 +311,22 @@ template <class HW> void TivaDccDecoder<HW>::enable()
     MAP_TimerClockSourceSet(HW::TIMER_BASE, TIMER_CLOCK_SYSTEM);
     MAP_TimerControlStall(HW::TIMER_BASE, HW::TIMER, true);
 
+    if (!nextPacketData_)
+    {
+        if (inputData_->space())
+        {
+            inputData_->data_write_pointer(&nextPacketData_);
+        }
+    }
+
     set_cap_timer_capture();
 
     MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
 
     MAP_IntPrioritySet(HW::TIMER_INTERRUPT, 0);
     MAP_IntPrioritySet(HW::RCOM_INTERRUPT, 0);
-    //MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
-    //MAP_IntEnable(HW::OS_INTERRUPT);
+    MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
+    MAP_IntEnable(HW::OS_INTERRUPT);
     MAP_IntEnable(HW::TIMER_INTERRUPT);
     MAP_IntEnable(HW::RCOM_INTERRUPT);
 }
@@ -284,7 +335,7 @@ template <class HW> void TivaDccDecoder<HW>::disable()
 {
     MAP_IntDisable(HW::TIMER_INTERRUPT);
     MAP_IntDisable(HW::RCOM_INTERRUPT);
-    //MAP_IntDisable(HW::OS_INTERRUPT);
+    MAP_IntDisable(HW::OS_INTERRUPT);
     MAP_TimerDisable(HW::TIMER_BASE, HW::TIMER);
     MAP_TimerDisable(HW::TIMER_BASE, HW::RCOM_TIMER);
 }
@@ -301,22 +352,26 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
     if (status & HW::TIMER_CAP_EVENT)
     {
         //Debug::DccDecodeInterrupts::toggle();
-
+        HW::cap_event_hook();
         MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
         uint32_t raw_new_value;
         raw_new_value = MAP_TimerValueGet(HW::TIMER_BASE, HW::TIMER);
         uint32_t old_value = lastTimerValue_;
         if (raw_new_value > old_value) {
             // Timer has overflowed.
-            old_value += HW::TIMER_MAX_VALUE;
             if (nextSample_ < old_value) {
                 nextSample_ += HW::TIMER_MAX_VALUE;
             }
+            old_value += HW::TIMER_MAX_VALUE;
+            waitSampleForOverflow_ = false;
+            Debug::CapTimerOverflow::set(false);
         }
-        if (raw_new_value < nextSample_) {
+        if (raw_new_value < nextSample_ && !waitSampleForOverflow_) {
             sampleActive_ = true;
             if (nextSample_ <= HW::SAMPLE_PERIOD_CLOCKS) {
                 nextSample_ += HW::TIMER_MAX_VALUE;
+                waitSampleForOverflow_ = true;
+                Debug::CapTimerOverflow::set(true);
             }
             nextSample_ -= HW::SAMPLE_PERIOD_CLOCKS;
         }
@@ -357,6 +412,19 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             HW::dcc_packet_finished_hook();
             prepCutout_ = false;
             cutout_just_finished = true;
+            // Record packet to send back to userspace
+            if (nextPacketData_)
+            {
+                nextPacketData_->header_raw_data = 0;
+                nextPacketData_->packet_header.skip_ec = 1;
+                nextPacketData_->dlc = decoder_.packet_length();
+                memcpy(nextPacketData_->payload, decoder_.packet_data(),
+                    decoder_.packet_length());
+                nextPacketData_ = nullptr;
+                nextPacketFilled_ = true;
+                
+                MAP_IntPendSet(HW::OS_INTERRUPT);
+            }
         }
         lastTimerValue_ = raw_new_value;
         if (sampleActive_ && HW::NRZ_Pin::get() &&
@@ -368,10 +436,6 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             railcomDriver_->feedback_sample();
             HW::after_feedback_hook();
         }
-        // We are not currently writing anything to the inputData_ queue, thus
-        // we don't need to send our OS interrupt either. Once we fix to start
-        // emitting the actual packets, we need to reenable this interrupt.
-        // MAP_IntPendSet(HW::OS_INTERRUPT);
     }
 }
 
@@ -417,81 +481,15 @@ TivaDccDecoder<HW>::rcom_interrupt_handler()
 template <class HW>
 __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::os_interrupt_handler()
 {
-    if (!inputData_.empty())
-    {
-        Notifiable *n = readableNotifiable_;
-        readableNotifiable_ = nullptr;
-        if (n)
+    if (nextPacketFilled_) {
+        inputData_->advance(1);
+        nextPacketFilled_ = false;
+        inputData_->signal_condition_from_isr();
+    }
+    if (!nextPacketData_) {
+        if (inputData_->space())
         {
-            n->notify_from_isr();
-            os_isr_exit_yield_test(true);
+            inputData_->data_write_pointer(&nextPacketData_);
         }
     }
-}
-
-template <class HW>
-int TivaDccDecoder<HW>::ioctl(File *file, unsigned long int key,
-                              unsigned long data)
-{
-    if (IOC_TYPE(key) == CAN_IOC_MAGIC && IOC_SIZE(key) == NOTIFIABLE_TYPE &&
-        key == CAN_IOC_READ_ACTIVE)
-    {
-        Notifiable *n = reinterpret_cast<Notifiable *>(data);
-        HASSERT(n);
-        // If there is no data for reading, we put the incoming notification
-        // into the holder. Otherwise we notify it immediately.
-        if (inputData_.empty())
-        {
-            portENTER_CRITICAL();
-            if (inputData_.empty())
-            {
-                // We are in a critical section now. If we got into this
-                // branch, then the buffer was full at the beginning of the
-                // critical section. If the hardware interrupt kicks in now,
-                // and sets the os_interrupt to pending, the os interrupt will
-                // not happen until we leave the critical section, and thus the
-                // swap will be in effect by then.
-                std::swap(n, readableNotifiable_);
-            }
-            portEXIT_CRITICAL();
-        }
-        if (n)
-        {
-            n->notify();
-        }
-        return 0;
-    }
-    errno = EINVAL;
-    return -1;
-}
-
-/** Read from a file or device.
- * @param file file reference for this device
- * @param buf location to place read data
- * @param count number of bytes to read
- * @return number of bytes read upon success, -1 upon failure with errno
- * containing the cause
- */
-template <class HW>
-ssize_t TivaDccDecoder<HW>::read(File *file, void *buf, size_t count)
-{
-    if (count != 4)
-    {
-        return -EINVAL;
-    }
-    // We only need this critical section to prevent concurrent threads from
-    // reading at the same time.
-    portENTER_CRITICAL();
-    if (inputData_.empty())
-    {
-        portEXIT_CRITICAL();
-        return -EAGAIN;
-    }
-    uint32_t v = reinterpret_cast<uint32_t>(buf);
-    HASSERT((v & 3) == 0); // alignment check.
-    uint32_t *pv = static_cast<uint32_t *>(buf);
-    *pv = inputData_.front();
-    inputData_.increment_front();
-    portEXIT_CRITICAL();
-    return count;
 }

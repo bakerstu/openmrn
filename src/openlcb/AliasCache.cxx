@@ -46,6 +46,9 @@ void AliasCache::clear()
 {
     idMap.clear();
     aliasMap.clear();
+    oldest = nullptr;
+    newest = nullptr;
+    freeList = nullptr;
     /* initialize the freeList */
     for (size_t i = 0; i < entries; ++i)
     {
@@ -296,4 +299,4 @@ void AliasCache::touch(Metadata* metadata)
     }
 }
 
-};
+}

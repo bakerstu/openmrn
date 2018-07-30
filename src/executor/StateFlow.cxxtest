@@ -334,10 +334,10 @@ TEST(StaticStateFlowTest, SizeSmall)
 #if INTPTR_MAX == UINT32_MAX
     EXPECT_EQ(4U, sizeof(QMember));
     // This value is not correct. Needs update.
-    EXPECT_EQ(208U, sizeof(StateFlow<Buffer<string>, QList<1>>));
+    EXPECT_EQ(192U, sizeof(StateFlow<Buffer<string>, QList<1>>));
 #else
     EXPECT_EQ(8U, sizeof(QMember));
-    EXPECT_EQ(208U, sizeof(StateFlow<Buffer<string>, QList<1>>));
+    EXPECT_EQ(192U, sizeof(StateFlow<Buffer<string>, QList<1>>));
 #endif
 }
 
@@ -516,7 +516,7 @@ TEST_F(StateFlowPipeTest, TestReadSingle)
     EXPECT_FALSE(bnOut_.is_done());
     ASSERT_EQ(2, write(fdSend_, sndBuf_, 2));
     outOfTestState_.wait_for_notification();
-    EXPECT_EQ(3, flow.selectHelper_.remaining_);
+    EXPECT_EQ(3u, flow.selectHelper_.remaining_);
     EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 2),
         std::vector<char>(recvBuf_, recvBuf_ + 2));
 }
@@ -534,12 +534,12 @@ TEST_F(StateFlowPipeTest, TestReadRepeated)
     usleep(50000);
     wait_for_main_executor();
     // Still not exited wait
-    EXPECT_EQ(3, flow.selectHelper_.remaining_);
+    EXPECT_EQ(3u, flow.selectHelper_.remaining_);
     EXPECT_FALSE(bnOut_.is_done());
     // Write the rest
     ASSERT_EQ(7, write(fdSend_, sndBuf_ + 2, 7));
     outOfTestState_.wait_for_notification();
-    EXPECT_EQ(0, flow.selectHelper_.remaining_);
+    EXPECT_EQ(0u, flow.selectHelper_.remaining_);
     EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4),
         std::vector<char>(recvBuf_, recvBuf_ + 4));
 }
@@ -557,12 +557,12 @@ TEST_F(StateFlowPipeTest, TestReadRepeatedWithTimedHelper)
     usleep(50000);
     wait_for_main_executor();
     // Still not exited wait
-    EXPECT_EQ(3, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(3u, flow.timedSelectHelper_.remaining_);
     EXPECT_FALSE(bnOut_.is_done());
     // Write the rest
     ASSERT_EQ(7, write(fdSend_, sndBuf_ + 2, 7));
     outOfTestState_.wait_for_notification();
-    EXPECT_EQ(0, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(0u, flow.timedSelectHelper_.remaining_);
     EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4),
         std::vector<char>(recvBuf_, recvBuf_ + 4));
 }
@@ -582,12 +582,12 @@ TEST_F(StateFlowPipeTest, TestReadWithTimeoutLongTimeout)
     usleep(50000);
     wait_for_main_executor();
     // Still not exited wait
-    EXPECT_EQ(3, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(3u, flow.timedSelectHelper_.remaining_);
     EXPECT_FALSE(bnOut_.is_done());
     // Write the rest
     ASSERT_EQ(7, write(fdSend_, sndBuf_ + 2, 7));
     outOfTestState_.wait_for_notification();
-    EXPECT_EQ(0, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(0u, flow.timedSelectHelper_.remaining_);
     EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 4),
         std::vector<char>(recvBuf_, recvBuf_ + 4));
 }
@@ -609,7 +609,7 @@ TEST_F(StateFlowPipeTest, TestReadWithTimeoutShortTimeout)
     ASSERT_LT(MSEC_TO_NSEC(69), elapsed);
     ASSERT_GT(MSEC_TO_NSEC(500), elapsed);
     EXPECT_TRUE(bnOut_.is_done());
-    EXPECT_EQ(3, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(3u, flow.timedSelectHelper_.remaining_);
     EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 2),
         std::vector<char>(recvBuf_, recvBuf_ + 2));
 }
@@ -624,7 +624,7 @@ TEST_F(StateFlowPipeTest, TestReadWithTimeoutZeroTimeout)
     usleep(50000);
     EXPECT_TRUE(bnOut_.is_done());
     outOfTestState_.wait_for_notification();
-    EXPECT_EQ(5, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(5u, flow.timedSelectHelper_.remaining_);
 }
 
 TEST_F(StateFlowPipeTest, TestReadWithTimeoutZeroTimeoutReadyData)
@@ -638,7 +638,7 @@ TEST_F(StateFlowPipeTest, TestReadWithTimeoutZeroTimeoutReadyData)
     inTestState_.wait_for_notification();
     outOfTestState_.wait_for_notification();
     long long elapsed = OSTime::get_monotonic() - t_start;
-    EXPECT_EQ(3, flow.timedSelectHelper_.remaining_);
+    EXPECT_EQ(3u, flow.timedSelectHelper_.remaining_);
     EXPECT_EQ(std::vector<char>(sndBuf_, sndBuf_ + 2),
         std::vector<char>(recvBuf_, recvBuf_ + 2));
     LOG(INFO, "elapsed time %lld usec", elapsed / 1000);

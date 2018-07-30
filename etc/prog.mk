@@ -94,6 +94,11 @@ MKSUBDIR_OPENMRNINCLUDE=applib.mk
 
 ifneq ($(SUBDIRS),)
 include $(OPENMRNPATH)/etc/recurse.mk
+else
+all: mksubdirs
+
+mksubdirs:
+
 endif
 
 all: $(EXECUTABLE)$(EXTENTION)
@@ -142,7 +147,7 @@ lib/timestamp : FORCE $(BUILDDIRS)
 
 # Detect when we have a compound toplevel build and use the toplevel build
 # timestamp to decide whether we need to recurse into the target
-# directory. Tihs saves a lot of makefile recursion when there are multiple
+# directory. This saves a lot of makefile recursion when there are multiple
 # application targets built together that refer of the same openmrn lib target.
 ifdef HAVE_BUILD_TIMESTAMP
 LIBBUILDDEP:=$(HAVE_BUILD_TIMESTAMP)
@@ -209,8 +214,9 @@ ifndef CGMINSIZE
 CGMINSIZE=300
 endif
 
+# You can also try make cg.svg CGARGS=--focus=appl_main
 cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
-	$(OPENMRNPATH)/bin/callgraph.py --max_indep 6 --min_size $(CGMINSIZE) --map $(EXECUTABLE).map < $(EXECUTABLE).ndlst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
+	$(OPENMRNPATH)/bin/callgraph.py --max_indep 6 --min_size $(CGMINSIZE) $(CGARGS) --map $(EXECUTABLE).map < $(EXECUTABLE).ndlst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
 
 -include $(OBJS:.o=.d)
 -include $(TESTOBJS:.o=.d)

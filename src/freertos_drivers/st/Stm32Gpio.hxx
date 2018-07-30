@@ -39,11 +39,11 @@
 #include "os/Gpio.hxx"
 #include "GpioWrapper.hxx"
 
-#if defined(STM32F072xB)
+#if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_hal_gpio.h"
 #elif defined(STM32F103xB)
 #include "stm32f1xx_hal_gpio.h"
-#elif defined(STM32F303xC)
+#elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_hal_gpio.h"
 #else
 #error Dont know what STM32 chip you have.
@@ -73,7 +73,8 @@ template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
     {
         if (value)
         {
-#if defined(STM32F303xC)
+// These alternatives are needed for old releases of STM32F HAL library.
+#if 0 && (defined(STM32F303xC) || defined(STM32F303xE))
             port()->BSRRL = pin();
 #else
             port()->BSRR = pin();
@@ -81,7 +82,7 @@ template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
         }
         else
         {
-#if defined(STM32F303xC)
+#if 0 && (defined(STM32F303xC) || defined(STM32F303xE))
             port()->BSRRH = pin();
 #else
             port()->BSRR = pin() << 16;
@@ -125,8 +126,9 @@ template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
         gpio_init.Pin = pin();
         gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
         gpio_init.Pull = GPIO_NOPULL;
-        gpio_init.Speed = GPIO_SPEED_LOW;
+        gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
         HAL_GPIO_Init(port(), &gpio_init);
+        set(SAFE_VALUE);
     }
     /// Sets the output pin to a safe value.
     static void hw_set_to_safe()
@@ -172,7 +174,7 @@ template <class Defs, uint32_t PULL_MODE> struct GpioInputPin : public Defs
         gpio_init.Pin = pin();
         gpio_init.Mode = GPIO_MODE_INPUT;
         gpio_init.Pull = PULL_MODE;
-        gpio_init.Speed = GPIO_SPEED_LOW;
+        gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
         HAL_GPIO_Init(port(), &gpio_init);
     }
     /// Sets the hardware pin to a safe state.
@@ -230,6 +232,6 @@ struct GpioInputNP : public GpioInputPin<Defs, GPIO_NOPULL>
 ///  ...
 ///  FOO_Pin::set(true);
 #define GPIO_PIN(NAME, BaseClass, PORTNAME, NUM)                               \
-    typedef BaseClass<Stm32GpioDefs<(uint32_t)(GPIO ## PORTNAME), GPIO_PIN_ ## NUM, NUM>> NAME##_Pin
+    typedef BaseClass<Stm32GpioDefs<(uint32_t)(GPIO ## PORTNAME ## _BASE), GPIO_PIN_ ## NUM, NUM>> NAME##_Pin
 
 #endif // _FREERTOS_DRIVERS_ST_STM32GPIO_HXX_

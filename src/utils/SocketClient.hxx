@@ -38,14 +38,30 @@
 #include <functional>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 #include "executor/StateFlow.hxx"
 #include "executor/Timer.hxx"
+#include "os/MDNS.hxx"
+#include "utils/Atomic.hxx"
+#include "utils/format_utils.hxx"
 
-class SocketClient : public StateFlowBase, private OSThread
+class SocketClient : public StateFlowBase, private OSThread, private Atomic
 {
 public:
-    /** Constructor.
+    /** Connection status that can be sent back to the "owner" of the socket so
+    * it can update display or status information while the connection attempts
+    * are progressing.
+    */
+    enum class Status
+    {
+        MDNS_LOOKUP,
+        MDNS_CONNECT,
+        STATIC_CONNECT,
+        CONNECT_FAILED,
+    };
+    
+     /** Constructor.
      * @param service service that the StateFlowBase will be bound to.
      * @param mdns service name to connect to, nullptr to force use
      *                  hostname and port
@@ -63,22 +79,29 @@ public:
      *                   peer
      *                 - Third param is a pointer to "this" class to notify
      *                   on exit that the socket has been torn down.
+     * @param status_callback method for status as the connection attempt
+     *                        progresses. This callback will most likely be from
+     *                        a different thread.
      * @param retry_seconds time in seconds that the client shall wait to retry
      *                      connecting on error.
+     * @param timeout_seconds time in seconds that the connect is supposed to
+     *                        timeout and look for a possible shutdown.
      */
-    SocketClient(Service *service, const char *mdns, const char * host,
-                 int port,
-                 std::function<void(int, struct addrinfo *, Notifiable*)>callback,
-                 unsigned retry_seconds = 5)
+    SocketClient(Service *service, const char *mdns, const char *host,
+                 uint16_t port,
+                 std::function<void(int, struct addrinfo *, Notifiable*)> callback,
+                 std::function<void(Status)> status_callback = nullptr,
+                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255)
         : StateFlowBase(service)
         , OSThread()
         , mdns_(mdns)
         , host_(host)
         , port_(port)
         , callback_(callback)
+        , statusCallback_(status_callback)
         , retrySeconds_(retry_seconds)
-        , selectHelper_(this)
-        , timer_(this)
+        , timeoutSeconds_(timeout_seconds)
+        , state_(STATE_CREATED)
         , fd_(-1)
         , addr_(nullptr)
         , sem_()
@@ -91,15 +114,87 @@ public:
      */
     ~SocketClient()
     {
+        shutdown();
         if (addr_)
         {
             freeaddrinfo(addr_);
         }
     }
 
+    /** Shutdown the client so that it can be deleted.
+     */
+    void shutdown()
+    {
+        start_shutdown();
+        while (state_ != STATE_SHUTDOWN)
+        {
+            usleep(1000);
+        }
+    }
+
+    /** Reports if this instance has finished shutting down
+     */
+    bool is_shutdown()
+    {
+        return state_ == STATE_SHUTDOWN;
+    }
+
+    /** Request that this client shutdown and exit the other thread.
+     */
+    void start_shutdown()
+    {
+        {
+            AtomicHolder h(this);
+            if (state_ != STATE_SHUTDOWN)
+            {
+                state_ = STATE_SHUTDOWN_REQUESTED;
+            }
+        }
+        sem_.post();
+    }
+
+    /** Connects a tcp socket to the specified remote host:port. Returns -1 if
+     *  unsuccessful; returns the fd if successful.
+     *
+     *  @param host hostname to connect to
+     *  @param port TCP port number to connect to
+     *
+     *  @return fd of the connected socket.
+     */
+    static int connect(const char *host, int port);
+
+    /** Connects a tcp socket to the specified remote host:port. Returns -1 if
+     *  unsuccessful; returns the fd if successful.
+     *
+     *  @param host hostname to connect to. Shall be null for mDNS target.
+     *  @param port_str TCP port number or mDNS hostname to connect to.
+     *
+     *  @return fd of the connected socket.
+     */
+    static int connect(const char *host, const char* port_str);
+
 private:
-    /** thread that will handle the blocking address resolution.
-     * @return should never return
+    /** Execution state.
+     */
+    enum State
+    {
+        STATE_CREATED = 0, /**< constructed */
+        STATE_STARTED,     /**< thread started */
+        STATE_SHUTDOWN_REQUESTED, /**< shutdown requested */
+        STATE_SHUTDOWN, /**< shutdown */
+    };
+
+    /** Entry point to the thread; this thread performs the synchronous network
+     * calls (address resolution and connect). The function returns only when
+     * the thread needs to be terminated (i.e. after shutdown() is invoked).
+     *
+     * When this method is first called, the state should be STATE_CREATED. This
+     * will then switch to STATE_STARTED and remain there for most of the
+     * lifetime of this method. It will switch to STATE_SHUTDOWN_REQUESTED after
+     * the shutdown() method is called, and then to STATE_SHUTDOWN once it
+     * finishes shutting down.
+     *
+     * @return does not return a value, but exits after shutdown
      */
     void *entry() override
     {
@@ -116,122 +211,133 @@ private:
 
         for ( ; /* forever */ ; )
         {
+            {
+                AtomicHolder h(this);
+                switch (state_)
+                {
+                    case STATE_CREATED:
+                        state_ = STATE_STARTED;
+                    case STATE_STARTED:
+                        break;
+                    case STATE_SHUTDOWN_REQUESTED:
+                        state_ = STATE_SHUTDOWN;
+                    case STATE_SHUTDOWN:
+                        return nullptr;
+                }
+            }
+            long long start_time = OSTime::get_monotonic();
+
             if (mdns_)
             {
-                /* mdns address resolution */
-                ai_ret = getaddrinfo(nullptr, mdns_, &hints, &addr_);
+                LOG(INFO, "mdns lookup for %s", mdns_);
+                /* try mDNS address resolution */
+                update_status(Status::MDNS_LOOKUP);
+                ai_ret = MDNS::lookup(mdns_, &hints, &addr_);
+                if (ai_ret != 0 || addr_ == nullptr)
+                {
+                    LOG(INFO, "mdns lookup for %s failed.", mdns_);
+                }
+                else
+                {
+                    update_status(Status::MDNS_CONNECT);
+                }
+                
             }
-            if (ai_ret != 0 || addr_ == nullptr)
+            if ((ai_ret != 0 || addr_ == nullptr) && host_)
             {
+                /* try address resolution without mDNS */
+                update_status(Status::STATIC_CONNECT);
                 char port_str[30];
                 integer_to_buffer(port_, port_str);
                 ai_ret = getaddrinfo(host_, port_str, &hints, &addr_);
             }
+
             if (ai_ret == 0 && addr_)
             {
-                notify();
-                sem_.wait();
+                /* able to resolve the hostname */
+                fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                if (fd_ >= 0)
+                {
+                    {
+                        struct timeval tm;
+                        tm.tv_sec = timeoutSeconds_;
+                        tm.tv_usec = 0;
+                        ERRNOCHECK("setsockopt_timeout", setsockopt(fd_,
+                                                                    SOL_SOCKET,
+                                                                    SO_RCVTIMEO,
+                                                                    &tm,
+                                                                    sizeof(tm))
+                                  );
+                    }
+                    /* socket available */
+                    int ret = ::connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
+                    if (ret == 0)
+                    {
+                        /* connect successful */
+                        notify();
+                        sem_.wait();
+                    }
+                    else
+                    {
+                        update_status(Status::CONNECT_FAILED);
+                        /* connect failed */
+                        close(fd_);
+                    }
+                }
             }
+
             if (addr_)
             {
                 freeaddrinfo(addr_);
+                addr_ = nullptr;
             }
-            sleep(retrySeconds_);
+
+            long long diff_time = OSTime::get_monotonic() - start_time;
+            if (NSEC_TO_SEC(diff_time) < retrySeconds_)
+            {
+                sleep(retrySeconds_ - NSEC_TO_SEC(diff_time));
+            }
         }
 
+        /* should never get here */
         return nullptr;
     }
 
-    /** Entry point into the state flow.
-     * @return next state is find_host()
+    void update_status(Status status)
+    {
+        if (statusCallback_ != nullptr)
+        {
+            statusCallback_(status);
+        }
+    }
+
+    /** Entry point into the state flow. Create a new thread, which will then
+     * call the entry() method of this class.
+     * @return next state is do_connect()
      */
     Action spawn_thread()
     {
-        start("socket_client", 0, 2048);
-        return call_immediately(STATE(find_host));
+        start("socket_client", 0, 1536);
+        return call_immediately(STATE(do_connect));
     }
 
-    /** Kick off host name resolution.
-     * @return next state is do_connect() upon successful host name resolution
-     */
-    Action find_host()
-    {
-        sem_.post();
-        return wait_and_call(STATE(do_connect));
-    }
-
-    /** Start the connection attempt.
-     * @return next stat is connect_active() on success or connect in progress,
-     *         else find_host() after timeout on error
+    /** Kick off connection attempt.
+     * @return next state is connected() upon successful connection
      */
     Action do_connect()
     {
-        fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-        if (fd_ < 0)
-        {
-            /* no available socket */
-            return sleep_and_call(&timer_, SEC_TO_NSEC(retrySeconds_),
-                                  STATE(find_host));
-        }
-
-        /* set to non-blocking */
-        ::fcntl(fd_, F_SETFL, O_NONBLOCK);
-
-        int ret = connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
-        if (ret == 0)
-        {
-            /* connect successful */
-            return call_immediately(STATE(connect_active));
-        }
-        else if (ret < 0 && errno == EINPROGRESS)
-        {
-            /* connection pending */
-            return connect_and_call(&selectHelper_, fd_, STATE(connect_active));
-        }
-        else
-        {
-            /* connect failed */
-            close(fd_);
-            return sleep_and_call(&timer_, SEC_TO_NSEC(retrySeconds_),
-                                  STATE(find_host));
-        }
+        sem_.post();
+        return wait_and_call(STATE(connected));
     }
 
-    /** Change in connect state
-     * @return next state is connect_active_delayed() after a timeout
+    /** Connected successfully, notify user through a callback.
+     * @return next state is do_connect() after the connection has been broken
      */
-    Action connect_active()
+    Action connected()
     {
-#if defined (__FreeRTOS__)
-        /// @todo small delay seems to be required for CC32xx.  Not sure why.
-        return sleep_and_call(&timer_, MSEC_TO_NSEC(100),
-                              STATE(connect_active_delayed));
-#else
-        return call_immediately(STATE(connect_active_delayed));
-#endif
-    }
-
-    /** complete the connection attempt
-     * @return next state is find_host() after a timeout upon error, or upon
-     *         success, after the connection has been broken
-     */
-    Action connect_active_delayed()
-    {
-        int ret = connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
-        if (ret < 0)
-        {
-            if (errno != EISCONN)
-            {
-                /* connection failed or timed out */
-                close(fd_);
-                return sleep_and_call(&timer_, SEC_TO_NSEC(retrySeconds_),
-                                      STATE(find_host));
-            }
-        }
-
         /* connect successful */
         callback_(fd_, addr_, this);
-        return wait_and_call(STATE(find_host));
+        return wait_and_call(STATE(do_connect));
     }
 
     /** mDNS service name */
@@ -244,16 +350,16 @@ private:
     int port_;
 
     /** callback to call on connection success */
-    std::function<void(int, struct addrinfo *, Notifiable*)> callback_;
+    std::function<void(int, struct addrinfo *, Notifiable*)> callback_ = nullptr;
 
-    /** number of seconds between retries */
-    unsigned retrySeconds_;
+    /** callback to call on connection status */
+    std::function<void(Status)> statusCallback_ = nullptr;
+    
+        /** number of seconds between retries */
+    uint8_t retrySeconds_;
+    uint8_t timeoutSeconds_;
 
-    /** helper for non-blocking connect */
-    StateFlowSelectHelper selectHelper_;
-
-    /** retry timer */
-    StateFlowTimer timer_;
+    volatile State state_;
 
     /** socket descriptor */
     int fd_;

@@ -541,13 +541,20 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             break;
         case PREAMBLE:
+        {
             current_bit = DCC_ONE;
-            if (++preamble_count == HW::dcc_preamble_count())
+            int preamble_needed = HW::dcc_preamble_count();
+            if (packet->packet_header.send_long_preamble)
+            {
+                preamble_needed = 21;
+            }
+            if (++preamble_count == preamble_needed)
             {
                 state_ = START;
                 preamble_count = 0;
             }
             break;
+        }
         case START:
             current_bit = DCC_ZERO;
             count = 0;
@@ -578,14 +585,19 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             break;
         case DCC_MAYBE_RAILCOM:
-            if (HW::railcom_cutout() && output_enabled) {
+            if (HW::railcom_cutout() && output_enabled &&
+                // do not send cutouts for service mode packets
+                (packet->packet_header.send_long_preamble == 0))
+            {
                 //current_bit = RAILCOM_CUTOUT_PRE;
                 current_bit = DCC_ONE;
                 // We change the time of the next IRQ.
                 MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                                  timings[RAILCOM_CUTOUT_PRE].period);
                 state_ = DCC_CUTOUT_PRE;
-            } else {
+            }
+            else
+            {
                 current_bit = DCC_ONE;
                 state_ = DCC_LEADOUT;
             }
@@ -982,7 +994,7 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timings[DCC_ONE].transition_b);
 
     MAP_IntDisable(HW::INTERVAL_INTERRUPT);
-    MAP_IntPrioritySet(HW::INTERVAL_INTERRUPT, 0);
+    MAP_IntPrioritySet(HW::INTERVAL_INTERRUPT, 0x20);
     MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
 
     MAP_TimerEnable(HW::CCP_BASE, TIMER_A);
@@ -997,6 +1009,8 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timings[DCC_ONE].period);
     MAP_IntEnable(HW::INTERVAL_INTERRUPT);
 
+    // The OS interrupt does not come from the hardware timer.
+    MAP_TimerIntDisable(HW::CCP_BASE, 0xFFFFFFFF);
     // The OS interrupt comes under the freertos kernel.
     MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
     MAP_IntEnable(HW::OS_INTERRUPT);

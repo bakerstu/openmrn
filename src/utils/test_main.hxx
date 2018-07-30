@@ -60,6 +60,18 @@ int appl_main(int argc, char *argv[])
     return RUN_ALL_TESTS();
 }
 
+bool mute_log_output = false;
+extern "C" {
+
+void log_output(char* buf, int size) {
+    if (size <= 0 || mute_log_output) return;
+    fwrite(buf, size, 1, stderr);
+    fwrite("\n", 1, 1, stderr);
+}
+
+}
+
+
 /// Global executor thread for tests.
 extern Executor<1> g_executor;
 
@@ -130,6 +142,34 @@ private:
     void* arg_; ///< argument to pass to function.
 };
 
+/// Helper class to run a lambda in the main executor.
+class FnExecutable : public Executable
+{
+public:
+    FnExecutable(std::function<void()> &&fn)
+        : fn_(std::move(fn))
+    {
+    }
+
+    void run() OVERRIDE
+    {
+        fn_();
+        n.notify();
+    }
+
+    SyncNotifiable n;
+
+private:
+    std::function<void()> fn_;
+};
+
+/// Synchronously runs a function in the main executor.
+void run_x(std::function<void()> fn)
+{
+    FnExecutable e(std::move(fn));
+    g_executor.add(&e);
+    e.n.wait_for_notification();
+}
 
 /** Utility class to block an executor for a while.
  *
@@ -209,8 +249,8 @@ public:
     /// @param new_value what should be the new value of variable during this
     /// code block.
     ///
-    template <class T>
-    ScopedOverride(T *variable, T new_value)
+    template <class T, typename U>
+    ScopedOverride(T *variable, U new_value)
         : holder_(new Holder<T>(variable, new_value))
     {
     }

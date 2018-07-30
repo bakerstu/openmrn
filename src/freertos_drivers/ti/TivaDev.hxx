@@ -239,8 +239,10 @@ public:
      * @param name name of this device instance in the file system
      * @param base base address of this device
      * @param interrupt interrupt number of this device
+     * @param fast_mode true for 400kHz, false for 100kHz operation
      */
-    TivaI2C(const char *name, unsigned long base, uint32_t interrupt);
+    TivaI2C(const char *name, unsigned long base, uint32_t interrupt,
+        bool fast_mode = false);
 
     /** Destructor.
      */

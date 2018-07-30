@@ -39,18 +39,58 @@
 #include <string>
 
 #include "os/OS.hxx"
+#include "utils/Singleton.hxx"
 #include "utils/format_utils.hxx"
 #include "freertos_drivers/common/WifiDefs.hxx"
 
 class CC32xxSocket;
 
+/** Interface that aids in unit testing.
+ */
+class CC32xxWiFiInterface
+{
+public:
+    /** Security types.
+     */
+    enum SecurityType
+    {
+        SEC_OPEN, /**< open (no security) */
+        SEC_WEP,  /**< WEP security mode */
+        SEC_WPA2, /**< WPA2 security mode */
+    };
+
+protected:
+    /** Destructor.
+     */
+    virtual ~CC32xxWiFiInterface()
+    {
+    }
+
+    /** Setup access point role credentials.
+     * @param ssid access point ssid
+     * @param security_key access point security key
+     * @param security_type specifies security type
+     */
+    virtual void wlan_setup_ap(const char *ssid, const char *security_key,
+                               SecurityType security_type) = 0;
+
+    /** Delete a saved WLAN profile.
+     * @param index index within saved profile list to remove, 0xFF removes all
+     * @return 0 upon success, else -1 on error
+     */
+    virtual int wlan_profile_del(int index) = 0;
+};
+
 /** Provides the startup and mantainance methods for configuring and using the
  * CC32xx Wi-Fi stack.  This is designed to be a singleton.  It should only
  * be instantiated once.
  */
-class CC32xxWiFi
+class CC32xxWiFi : public CC32xxWiFiInterface, public Singleton<CC32xxWiFi>
 {
 public:
+    /** the value passed to wlan_profile_del() to remove all profiles */
+    static constexpr int PROFILE_DELETE_ALL = 0xFF;
+
     /** CC32xx SimpleLink forward declaration */
     struct WlanEvent;
 
@@ -66,13 +106,18 @@ public:
     /** CC32xx SimpleLink forward declaration */
     struct HttpServerResponse;
 
-    /** Security types.
+    /** CC32xx SimpleLink forward declaration */
+    struct FatalErrorEvent;
+    
+    /** The WLAN power policy.
      */
-    enum SecurityType
+    enum WlanPowerPolicy
     {
-        SEC_OPEN, /**< open (no security) */
-        SEC_WEP,  /**< WEP security mode */
-        SEC_WPA2, /**< WPA2 security mode */
+        WLAN_NORMAL_POLICY,      /**< WLAN power policy normal */
+        WLAN_LOW_LATENCY_POLICY, /**< WLAN power policy low latency */
+        WLAN_LOW_POWER_POLICY,   /**< WLAN power policy low power */
+        WLAN_ALWAYS_ON_POLICY,   /**< WLAN power policy always on */
+        WLAN_NO_CHANGE_POLICY,   /**< WLAN power policy to be left alone */
     };
 
     /** metadata for a WLAN netowrk entry.
@@ -96,13 +141,23 @@ public:
 
     /** Startup the Wi-Fi.
      * @param device role
+     * @param power_policy desired power policy
      */
-    void start(WlanRole role = WlanRole::STA);
+    void start(WlanRole role = WlanRole::STA,
+               WlanPowerPolicy power_policy = WLAN_NO_CHANGE_POLICY);
 
     /** Stops the Wi-Fi in preparation for a reboot. TODO: does this need to be
      * called from a critical section?
      */
     void stop();
+
+    /** Get the started state of the network processor.
+     * @return true if started, else false
+     */
+    bool is_started()
+    {
+        return started;
+    }
 
     /** Connect to access point.
      * @param ssid access point ssid
@@ -113,13 +168,17 @@ public:
                       SecurityType security_type);
 
 
+    /** Initiate a WPS Push Button Control connection.
+     */
+    void wlan_wps_pbc_initiate();
+
     /** Setup access point role credentials.
      * @param ssid access point ssid
      * @param security_key access point security key
      * @param security_type specifies security type 
      */
     void wlan_setup_ap(const char *ssid, const char *security_key,
-                       SecurityType security_type);
+                       SecurityType security_type) override;
 
     /** @return true if the wlan interface is ready to establish outgoing
      * connections. */
@@ -154,15 +213,6 @@ public:
      * returns true.*/
     void connecting_update_blinker();
 
-    /** Get the singleton instance pointer.
-     * @return singleton instance pointer
-     */
-    static CC32xxWiFi *instance()
-    {
-        HASSERT(instance_);
-        return instance_;
-    }
-
     /** Add a saved WLAN profile.
      * @param ssid WLAN SSID of the profile to save
      * @param sec_type @ref SecurityType of the profile to be saved
@@ -185,7 +235,7 @@ public:
      * @param index index within saved profile list to remove, 0xFF removes all
      * @return 0 upon success, else -1 on error
      */
-    int wlan_profile_del(int index);
+    int wlan_profile_del(int index) override;
 
     /** Get a saved WLAN profile by index.
      * @param index index within saved profile list to get
@@ -198,9 +248,21 @@ public:
                          uint32_t *priority);
 
     /** Test if there are any saved profiles.
-     * @return true if there are no provides saved, else false
+     * @return true if there are no profiles saved, else false
      */
     bool wlan_profile_test_none();
+
+    /** Set the power policy.
+     * @param wpp power policy to set
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_power_policy_set(WlanPowerPolicy wpp);
+
+    /** Get the power policy.
+     * @param wpp power policy to returned
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_power_policy_get(WlanPowerPolicy *wpp);
 
     /** Get a list of available networks.
      * @param entries returns a list of available network entries
@@ -321,19 +383,17 @@ public:
     void http_server_callback(HttpServerEvent *event,
                               HttpServerResponse *response);
 
+    /** This Function Handles the Fatal errors
+     *  @param  event - Contains the fatal error data
+     *  @return     None
+     */
+    void fatal_error_callback(FatalErrorEvent* event);
+
     /** Returns a string contianing the version numbers of the network
      * interface. */
     static std::string get_version();
     
 private:
-    /** Internal helper thread select wakeup codes.
-     */
-    enum SelectWakeupType : int16_t
-    {
-        SELECT_WAKE_NO_ACTION = -1, /**< generic select helper wakeup */
-        SELECT_WAKE_EXIT      = -2, /**< exit the select helper thread */
-    };
-
     /** Translates the SecurityType enum to the internal SimpleLink code.
      * @param sec_type security type
      * @return simplelink security type
@@ -346,6 +406,13 @@ private:
      */
     SecurityType security_type_from_simplelink(uint8_t sec_type);
 
+    /** Translates the SimpleLink code from the network scan to SecurityType
+     * enum.
+     * @param sec_type simplelink network scan security result
+     * @return security type
+     */
+    SecurityType security_type_from_scan(unsigned sec_type);
+    
     /** Set the CC32xx to its default state, including station mode.
      */
     void set_default_state();
@@ -364,21 +431,24 @@ private:
     void wlan_task();
 
     /** Asynchronously wakeup the select call.
-     * @param data -1 for no action,
-     * @param data -2 to exit thread,
-                   else socket descriptor if socket shall be closed.
      */
-    void select_wakeup(int16_t data = SELECT_WAKE_NO_ACTION);
+    void select_wakeup();
+
+    /** Remove a socket from the known sockets that might be part of the
+     * sl_Select fdset.
+     * @param sd socket descriptor to remove
+     */
+    void fd_remove(int16_t sd);
 
     /** Add socket to the read fd set.
-     * @param socket socket descriptor to add
+     * @param sd socket descriptor to add
      */
-    void fd_set_read(int16_t socket);
+    void fd_set_read(int16_t sd);
 
     /** Add socket to the write fd set.
-     * @param socket socket descriptor to add
+     * @param sd socket descriptor to add
      */
-    void fd_set_write(int16_t socket);
+    void fd_set_write(int16_t sd);
 
     /** Get the IP address for a http request.
      * @return string representation of the IP address
@@ -388,7 +458,6 @@ private:
         return ipv4_to_string(ipAddress);
     }
 
-    static CC32xxWiFi *instance_; /**< singleton instance pointer. */
     uint32_t ipAddress; /**< assigned IP adress */
     char ssid[33]; /**< SSID of AP we are connected to */
 
@@ -407,10 +476,12 @@ private:
     int16_t rssi; /**< receive signal strength indicator */
 
     WlanRole wlanRole; /**< the Wi-Fi role we are in */
+    WlanPowerPolicy wlanPowerPolicy; /**< the desired power policy */
 
+    unsigned started          : 1; /**< network processor started */
     unsigned connected        : 1; /**< AP connected state */
     unsigned connectionFailed : 1; /**< Connection attempt failed status */
-    unsigned ipAcquired        : 1; /**< IP address aquired state */
+    unsigned ipAcquired       : 1; /**< IP address aquired state */
     unsigned ipLeased         : 1; /**< IP address leased to a client(AP mode)*/
     unsigned smartConfigStart : 1; /**< Smart config in progress */
 

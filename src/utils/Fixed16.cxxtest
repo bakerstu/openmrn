@@ -93,6 +93,34 @@ TEST(Fixed16Test, ToFloat)
     EXPECT_THAT(v1.to_float(), FloatNear(1.52588e-05, 1e-6));
 }
 
+TEST(Fixed16Test, FromDouble)
+{
+    Fixed16 v1(Fixed16::FROM_DOUBLE, 3.1415);
+    EXPECT_THAT(v1.to_float(), FloatNear(3.1415, 1e-4));
+    v1 = {Fixed16::FROM_DOUBLE, 158.9999};
+    EXPECT_THAT(v1.to_float(), FloatNear(158.9999, 1e-4));
+    // some difficult rounding situations
+    v1 = {Fixed16::FROM_DOUBLE, -0.0001};
+    EXPECT_THAT(v1.to_float(), FloatNear(-0.0001, 1.0/65535));
+    v1 = {Fixed16::FROM_DOUBLE, 10.9999};
+    EXPECT_THAT(v1.to_float(), FloatNear(10.9999, 1.0/65535));
+    v1 = {Fixed16::FROM_DOUBLE, 4.4999};
+    EXPECT_THAT(v1.to_float(), FloatNear(4.4999, 1.0/65535));
+    v1 = {Fixed16::FROM_DOUBLE, -4.4999};
+    EXPECT_THAT(v1.to_float(), FloatNear(-4.4999, 1.0/65535));
+    v1 = {Fixed16::FROM_DOUBLE, -9.9999};
+    EXPECT_THAT(v1.to_float(), FloatNear(-9.9999, 1.0/65535));
+}
+
+static constexpr Fixed16 v1 = {Fixed16::FROM_DOUBLE, 3.1415};
+static constexpr Fixed16 v2 = {5, 0x8000};
+    
+TEST(Fixed16Test, Constexpr)
+{
+    EXPECT_THAT(v1.to_float(), FloatNear(3.1415, 1.0/65535));
+    EXPECT_THAT(v2.to_float(), FloatNear(5.5, 1.0/65535));
+}
+
 TEST(Fixed16Test, Arithmetics)
 {
     Fixed16 v1(13);
@@ -127,6 +155,19 @@ TEST(Fixed16Test, Arithmetics)
     v1 += Fixed16(1) / 2;
     EXPECT_EQ(16, v1.trunc());
     EXPECT_THAT(v1.to_float(), FloatNear(16.5, 1e-5));
+}
+
+TEST(Fixed16Test, Division)
+{
+    Fixed16 v1(256);
+    v1 /= 3579;
+    EXPECT_EQ(4687, v1.frac());
+
+    Fixed16 multiplier = 256;
+    Fixed16 diff = ((233<<4) - (2<<4));
+    multiplier /= diff;
+    EXPECT_EQ(4539, multiplier.frac());
+    EXPECT_EQ(0, multiplier.trunc());
 }
 
 TEST(Fixed16Test, Sign)

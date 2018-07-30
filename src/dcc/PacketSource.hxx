@@ -58,6 +58,38 @@ public:
     virtual void get_next_packet(unsigned code, Packet* packet) = 0;
 };
 
+/// Abstract class that is a packet source but not a TrainImpl. Provides dummy
+/// implementations for the TrainImpl interface virtual functions.
+class NonTrainPacketSource : public PacketSource
+{
+private:
+    void set_speed(SpeedType speed) override
+    {
+    }
+    SpeedType get_speed() override
+    {
+        return SpeedType();
+    }
+    void set_emergencystop() override
+    {
+    }
+    void set_fn(uint32_t address, uint16_t value) override
+    {
+    }
+    uint16_t get_fn(uint32_t address) override
+    {
+        return 0;
+    }
+    uint32_t legacy_address() override
+    {
+        return 0;
+    }
+    dcc::TrainAddressType legacy_address_type() override
+    {
+        return dcc::TrainAddressType::DCC_SHORT_ADDRESS;
+    }
+};
+
 }  // namespace dcc
 
 

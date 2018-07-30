@@ -48,30 +48,80 @@ static constexpr uint8_t AVG_RATE = 0xff;
 /// If the last measurement was busy, we add this much weight
 static constexpr uint32_t ADD_RATE = 0x1 << 24;
 
-void CpuLoad::record_value(bool busy) {
+void CpuLoad::record_value(bool busy, uintptr_t key)
+{
     avg_ *= AVG_RATE;
-    if (busy) {
+    ++countSinceUpdate_;
+    if (busy)
+    {
         avg_ += ADD_RATE;
     }
     avg_ >>= SHIFT_RATE;
+    // Check streak
+    if (busy)
+    {
+        if (consecutive_ < 255)
+        {
+            ++consecutive_;
+        }
+        if (consecutive_ > maxConsecutive_)
+        {
+            maxConsecutive_ = consecutive_;
+        }
+    }
+    else
+    {
+        consecutive_ = 0;
+    }
+    // Check window of 16.
+    last16Bits_ <<= 1;
+    last16Bits_ |= (busy ? 1 : 0);
+    // sums up last 16 bits.
+    unsigned v = last16Bits_;
+    v = (v & 0x5555) + ((v & 0xaaaa) >> 1);
+    v = (v & 0x3333) + ((v & 0xcccc) >> 2);
+    v = (v & 0x0F0F) + ((v & 0xF0F0) >> 4);
+    v = (v & 0x00FF) + ((v & 0xFF00) >> 8);
+    if (v > peakOver16Counts_)
+    {
+        peakOver16Counts_ = v;
+    }
+    // Record per-key information
+    if (key == 0)
+        return;
+    bool found = false;
+    for (auto it = perKeyCost_.begin(); it != perKeyCost_.end(); ++it)
+    {
+        if (it->key == key)
+        {
+            found = true;
+            ++it->rolling_count;
+            break;
+        }
+    }
+    if (!found && newKey_ == 0)
+    {
+        newKey_ = key;
+    }
 }
 
 uint8_t CpuLoad::get_load() {
     return (avg_ * 100) >> SHIFT_ONE;
 }
 
-void cpuload_tick(void)
+void cpuload_tick(unsigned irq)
 {
     if (!Singleton<CpuLoad>::exists())
         return;
-    bool is_idle = xTaskGetIdleTaskHandle() == xTaskGetCurrentTaskHandle();
-    if (is_idle)
+    if (irq != 0)
     {
-        Singleton<CpuLoad>::instance()->record_value(0);
+        Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
+        return;
     }
-    else
-    {
-        Singleton<CpuLoad>::instance()->record_value(100);
-    }
+    auto hdl = xTaskGetCurrentTaskHandle();
+    bool is_idle = xTaskGetIdleTaskHandle() == hdl;
+    Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
 }
 }
+
+DEFINE_SINGLETON_INSTANCE(CpuLoad);

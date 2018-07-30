@@ -270,7 +270,8 @@ int Pipe::close(File *file)
     if (--references_ == 0)
     {
         mutex.unlock();
-        delete file->dev;
+        HASSERT(file->device);
+        delete static_cast<Device *>(file->dev);
     }
     else
     {

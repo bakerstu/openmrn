@@ -35,6 +35,7 @@ public:
     MOCK_METHOD0(request_bootloader, bool());
     MOCK_METHOD0(application_entry, void());
     MOCK_METHOD0(bootloader_reboot, void());
+    MOCK_METHOD0(flash_complete, uint16_t());
     MOCK_METHOD0(nmranet_nodeid, uint64_t());
     MOCK_METHOD0(nmranet_alias, uint16_t());
     // Argument is the offset from the beginning of virtual_flash.
@@ -45,7 +46,7 @@ public:
 
 static MockBootloaderHAL *g_mock_bootloader_hal = nullptr;
 
-#define FLASH_SIZE 13 * 1024
+#define FLASH_SIZE 13 * 1024u
 static uint8_t virtual_flash[FLASH_SIZE];
 #define APP_HEADER_OFFSET 131 * 4
 
@@ -81,6 +82,11 @@ void application_entry()
 void bootloader_reboot()
 {
     return g_mock_bootloader_hal->bootloader_reboot();
+}
+
+uint16_t flash_complete()
+{
+    return g_mock_bootloader_hal->flash_complete();
 }
 
 bool read_can_frame(struct can_frame *frame)
@@ -520,6 +526,7 @@ TEST_F(BootloaderTest, Unfreeze)
     proper_startup();
 
     wait();
+    EXPECT_CALL(mock_, flash_complete()).Times(1).WillOnce(Return(0));
     EXPECT_CALL(mock_, bootloader_reboot());
     expect_packet(":X19A284AAN0111;");
     // Unfreeze on the proper space ID is equivalent to reboot.
@@ -558,6 +565,31 @@ TEST_F(BootloaderTest, PIPReply)
 
     expect_packet(":X196684AAN0321700010000000;");
     send_packet(":X19828321N04AA;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    exit_bootloader();
+}
+
+
+TEST_F(BootloaderTest, VerifyAddressed)
+{
+    proper_startup();
+
+    expect_packet(":X191704AAN1A2A3A4A5A6A;");
+    send_packet(":X19488321N04AA;");
+    wait();
+    Mock::VerifyAndClear(&canBus_);
+
+    exit_bootloader();
+}
+
+TEST_F(BootloaderTest, VerifyGlobal)
+{
+    proper_startup();
+
+    expect_packet(":X191704AAN1A2A3A4A5A6A;");
+    send_packet(":X19490321N;");
     wait();
     Mock::VerifyAndClear(&canBus_);
 
@@ -818,6 +850,7 @@ protected:
             EXPECT_CALL(mock_,
                 write_flash(i * 256 + offset, expected, expected.size()));
         }
+        EXPECT_CALL(mock_, flash_complete()).Times(1).WillOnce(Return(0));
         EXPECT_CALL(mock_, bootloader_reboot());
     }
 
@@ -862,13 +895,11 @@ TEST_F(BootloaderClientTest, WriteSomeDataNoBootloader)
 
 TEST_F(BootloaderClientTest, WriteSmallData)
 {
-    ifCan_->local_aliases()->add(TEST_NODE_ID, 0x3CC);
+    run_x([this]() { ifCan_->local_aliases()->add(TEST_NODE_ID, 0x3CC); });
     //print_all_packets();
     expect_any_packet();
     startup();
-    // TODO: we should wait for the first startup to complete correctly and
-    // only after that add the following expectation. Otherwise there is a race
-    // condition on which startup this patcher matches.
+    wait();
     expect_packet(":X191004AAN1A2A3A4A5A6A;");
 
     request_->data()->dst.id = 0x1A2A3A4A5A6A;

@@ -98,6 +98,14 @@ struct Packet : public DCCPacket
         dlc = 0;
     }
 
+    /** Initializes the packet structure for a regular DCC packet. */
+    void start_dcc_svc_packet()
+    {
+        header_raw_data = 0;
+        dlc = 0;
+        packet_header.send_long_preamble = true;
+    }
+
     /// Adds the header to the packet needed for addressing a DCC
     /// locomotive. @param address is the DCC (short) address.
     void add_dcc_address(DccShortAddress address);
@@ -177,14 +185,50 @@ struct Packet : public DCCPacket
      * to send to the loco. */
     void add_dcc_function21_28(unsigned values);
 
+    /** Helper function for adding programming mode packets. */
+    void add_dcc_prog_command(
+        uint8_t cmd_hi, unsigned cv_number, uint8_t value);
+
     /** Adds a DCC POM read single CV command and the xor byte. This should be
      * called after add_dcc_address. @param cv_number which CV to read. */
     void add_dcc_pom_read1(unsigned cv_number);
 
     /** Adds a DCC POM write single CV command and the xor byte. This should be
-     * called after add_dcc_address. @param cv_number which CV to write, @param
-     * value is the value to set it to. */
+     * called after add_dcc_address.
+     * @param cv_number which CV to write - 1,
+     * @param value is the value to set it to. */
     void add_dcc_pom_write1(unsigned cv_number, uint8_t value);
+
+    /** Sets the packet to a DCC service mode packet verifying the contents of
+     * an entire CV. This function does not need a DCC address. (Includes the
+     * checksum.)
+     * @param cv_number which CV to test - 1,
+     * @param value is the value to test. */
+    void set_dcc_svc_verify_byte(unsigned cv_number, uint8_t value);
+
+    /** Sets the packet to a DCC service mode packet writing the contents of
+     * an entire CV. This function does not need a DCC address. (Includes the
+     * checksum.)
+     * @param cv_number which CV to write - 1,
+     * @param value is the value to write. */
+    void set_dcc_svc_write_byte(unsigned cv_number, uint8_t value);
+
+    /** Sets the packet to a DCC service mode packet verifying the contents of
+     * a single bit in a CV. This function does not need a DCC address.
+     * (Includes the checksum.)
+     * @param cv_number which CV to test - 1,
+     * @param bit is 0..7 to set which bit to test
+     * @param desired is true if bit==1 should be tested */
+    void set_dcc_svc_verify_bit(
+        unsigned cv_number, unsigned bit, bool expected);
+
+    /** Sets the packet to a DCC service mode packet verifying the contents of
+     * a single bit in a CV. This function does not need a DCC address.
+     * (Includes the checksum.)
+     * @param cv_number which CV to edit - 1,
+     * @param bit is 0..7 to define which bit to edit
+     * @param desired is true if bit:=1 should be written */
+    void set_dcc_svc_write_bit(unsigned cv_number, unsigned bit, bool desired);
 
     /** Adds a DCC basic accessory decoder command packet and the checksum
      * byte.

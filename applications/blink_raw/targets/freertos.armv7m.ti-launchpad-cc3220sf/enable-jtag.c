@@ -1,0 +1,1 @@
+../../../../boards/ti-cc3220sf-launchpad/enable-jtag.c_example

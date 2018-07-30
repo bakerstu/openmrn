@@ -31,10 +31,13 @@
  * @date 30 December 2016
  */
 
+#define SUPPORT_SL_R1_API
+
 #include "freertos_drivers/ti/CC32xxHelper.hxx"
 
 #include "utils/logging.h"
 #include "utils/macros.h"
+#include "simplelink.h"
 #include "fs.h"
 
 volatile int g_last_sl_result;

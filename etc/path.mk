@@ -33,6 +33,11 @@ ifeq ($(OS),Windows_NT)
 include $(OPENMRNPATH)/etc/path_windows.mk
 else
 
+################ shell ##################
+# Various commands in the makefiles are using the bash syntax. We ignore the
+# user's login shell preferences and use a specific shell instead.
+export SHELL :=/bin/bash
+
 ################ flock ##################
 ifndef FLOCKPATH
 SEARCHPATH := \
@@ -42,7 +47,10 @@ TRYPATH:=$(call findfirst,flock,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 FLOCKPATH:=$(TRYPATH)
 endif
-endif #TIVAWAREPATH
+endif #FLOCKPATH
+
+
+ifndef OPENMRN_EXPLICIT_DEPS_ONLY
 
 ################ tivaware ##################
 ifndef TIVAWAREPATH
@@ -55,6 +63,10 @@ SEARCHPATH := \
 TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 TIVAWAREPATH:=$(TRYPATH)
+TRYPATH:=$(call findfirst,inc/hw_onewire.h,$(TRYPATH))
+ifneq ($TRYPATH),)
+BUILDTIVAWARE:=$(TRYPATH)
+endif
 endif
 endif #TIVAWAREPATH
 
@@ -168,6 +180,7 @@ ifndef FREERTOSPATH
 SEARCHPATH := \
   /opt/FreeRTOS \
   /opt/FreeRTOS/default \
+  /opt/FreeRTOS/default/FreeRTOS \
   $(HOME)/FreeRTOS \
   /d/FreeRTOS/default
 
@@ -274,6 +287,31 @@ ifneq ($(TRYPATH),)
 TICC3200SDKPATH:=$(TRYPATH)
 endif
 endif #TICC3200SDKPATH
+
+################### TI-CC3220-SDK #####################
+ifndef TICC3220SDKPATH
+SEARCHPATH := \
+  /opt/ti/CC3220SDK/default  \
+  /opt/ti/CC3220SDK/simplelink_cc32xx_sdk_1_30_01_03 \
+
+
+TRYPATH:=$(call findfirst,source/ti/devices/cc32xx/driverlib/gpio.c,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TICC3220SDKPATH:=$(TRYPATH)
+endif
+endif #TICC3220SDKPATH
+
+################### TI-UNIFLASH-V4 #####################
+ifndef TIUNIFLASH4PATH
+SEARCHPATH := \
+  /opt/ti/uniflash/v4-default  \
+  /opt/ti/uniflash/uniflash_4.1  \
+
+TRYPATH:=$(call findfirst,dslite.sh,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TIUNIFLASH4PATH:=$(TRYPATH)
+endif
+endif #TIUNIFLASH4PATH
 
 ################### PRU-ICSS #####################
 ifndef PRUICSSPATH
@@ -459,6 +497,7 @@ ifndef EMSDKPATH
 SEARCHPATH := \
   /opt/emscripten/default/emscripten/master \
   /opt/emscripten/emsdk_portable/emscripten/master \
+  $(wildcard /opt/emscripten/default/emsdk/emscripten/*) \
   /usr/bin
 
 
@@ -473,6 +512,7 @@ ifndef EMLLVMPATH
 SEARCHPATH := \
   /opt/emscripten/default/clang/fastcomp/build_master_64/bin \
   /opt/emscripten/default/clang/fastcomp/build_master_32/bin \
+  $(wildcard /opt/emscripten/default/emsdk/clang/*) \
   /usr/bin
 
 
@@ -597,6 +637,6 @@ endif
 endif #SXMLCPATH
 
 
-
+endif # ifndef OPENMRN_EXPLICIT_DEPS_ONLY
 endif # if  $(OS)  != Windows_NT
 endif # ifndef OPENMRN_PATH_MK

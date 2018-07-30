@@ -26,7 +26,7 @@
  *
  * @file MDNS.hxx
  *
- * A simple abstraction to publish mDNS sevices.
+ * A simple abstraction to publish/lookup mDNS sevices.
  *
  * @author Stuart Baker
  * @date 30 January 2017
@@ -35,29 +35,27 @@
 #ifndef _OS_MDNS_HXX_
 #define _OS_MDNS_HXX_
 
-#if !defined (__linux__) && \
-    !defined (TARGET_IS_CC3200)
-#error target not support for MDNS
-#endif
-
 #if defined (__linux__)
+#include <netdb.h>
 #include <stdio.h>
 #include <semaphore.h>
 #include <avahi-client/client.h>
+#include <avahi-client/lookup.h>
+#include <avahi-client/publish.h>
 #include <avahi-common/error.h>
 #include <avahi-common/malloc.h>
-#include <avahi-client/publish.h>
 #include <avahi-common/simple-watch.h>
+
 #include "os/OS.hxx"
+
+#elif defined(__FreeRTOS__)
+#include <netdb.h>
 #endif
 
-#if defined (TARGET_IS_CC3200)
-#include <string>
-#include "netapp.h"
-#undef OK // this is to fix the namespace polution in netapp.h
-#endif
+struct addrinfo;
 
 #include "utils/macros.h"
+
 
 /** MDNS abstraction object.
  */
@@ -73,16 +71,16 @@ public:
 #if defined (__linux__)
         : 
           OSThread()
-        , sem()
-        , group(nullptr)
-        , simplePoll(nullptr)
-        , client(nullptr)
+        , sem_()
+        , group_(nullptr)
+        , simplePoll_(nullptr)
+        , client_(nullptr)
 #endif
     {
 #if defined (__linux__)
         start("mDNS Server", 0, 2048);
-        printf("client start\n");        
-        sem.wait();
+        printf("mDNS client start\n");        
+        sem_.wait();
 #endif
     }
 
@@ -93,118 +91,133 @@ public:
     }
 
     /** Publish an mDNS name.
+     * @param name local "username" or "nodename" of the service
+     * @param service service name, example: "_openlcb._tcp"
+     * @param port port number
      */
-    void publish(const char *name, const char *service, uint16_t port)
-    {
-#if defined (__linux__)
-        name = avahi_strdup(name);
+    void publish(const char *name, const char *service, uint16_t port);
 
-        if (!group)
-        {
-            group = avahi_entry_group_new(client, entry_group_callback, this);
-            HASSERT(group);
-        }
-
-        int result = avahi_entry_group_add_service(group, AVAHI_IF_UNSPEC,
-                                                   AVAHI_PROTO_UNSPEC,
-                                                   (AvahiPublishFlags)0, name,
-                                                   service, NULL, NULL,
-                                                   port, NULL);
-        
-        if (result != 0)
-        {
-            fprintf(stderr, "Error exporting mDNS name (%d) %s\n", result,
-                    avahi_strerror(result));
-            return;
-        }
-        HASSERT(result == 0);
-#elif defined (TARGET_IS_CC3200)
-        string full_name(name);
-        full_name.append(1, '.');
-        full_name.append(service);
-        full_name.append(".local");
-        sl_NetAppMDNSRegisterService((const signed char*)full_name.c_str(),
-                                     full_name.length(),
-                                     (const signed char*)"OLCB", strlen("OLCB"), 
-                                     port, 200, 0);
-#endif
-    }
-
+    /** Commit the mDNS publisher.
+     */
     void commit()
     {
 #if defined (__linux__)
-        avahi_entry_group_commit(group);
+        avahi_entry_group_commit(group_);
 #endif
     }
 
+    /** Lookup an mDNS name.
+     * @param service servicename to lookup
+     * @param hints hints about limiting the types of services that will respond
+     * @param addrinfo structure containing one or more service addressess that
+     *                 match the enquery, else nullptr if no matching service
+     *                 found
+     * @return 0 upon success, or appropriate EAI_* error on failure, use
+     *         ::freeaddrinfo() to free up memory allocated to the non nullptr
+     *         *addr returned
+     */
+    static int lookup(const char *service, struct addrinfo *hints,
+                      struct addrinfo **addr);
+
+    /** Start continuous scan for mDNS service name.
+     * @param service servicename to scan
+     */
+    static void scan(const char *service);
+
 private:
 #if defined (__linux__)
+    struct LookupUserdata
+    {
+        LookupUserdata(const struct addrinfo *h)
+            : count(0)
+            , done(0)
+            , c(nullptr)
+            , sp(nullptr)
+            , hints(h)
+            , addr(nullptr)
+        {
+        }
+
+        unsigned count : 31;
+        unsigned done  :  1;
+        AvahiClient *c;
+        AvahiSimplePoll *sp;
+        const struct addrinfo *hints;
+        struct addrinfo *addr;
+    };
+
+    /** Avahi service resolve callback
+     * @param r Avahi service resolver
+     * @param interface network interface result has come in on
+     * @param protocol protocol of the result
+     * @param event the type of callback
+     * @param name name of service
+     * @param type type of service
+     * @param domain domain of service
+     * @param host_name name of service host
+     * @param address ip address of service host
+     * @param port port number of service host
+     * @param flags flags associated with the lookup
+     * @param userdata user specified context
+     */
+    static void resolve_callback(AvahiServiceResolver *r,
+                                 AvahiIfIndex interface, AvahiProtocol protocol,
+                                 AvahiResolverEvent event, const char *name,
+                                 const char *type, const char *domain,
+                                 const char *host_name,
+                                 const AvahiAddress *address, uint16_t port,
+                                 AvahiStringList *txt,
+                                 AvahiLookupResultFlags flags, void* userdata);
+
+    /** Avahi browse callback.
+     * @param b Avahi service browser
+     * @param interface network interface result has come in on
+     * @param protocol protocol of the result
+     * @param event the type of callback
+     * @param name name of service
+     * @param type type of service
+     * @param domain domain of service
+     * @param flags flags associated with the lookup
+     * @param userdata user specified context
+     */
+    static void browse_callback(AvahiServiceBrowser *b, AvahiIfIndex interface,
+                                AvahiProtocol protocol, AvahiBrowserEvent event,
+                                const char *name, const char *type,
+                                const char *domain,
+                                AvahiLookupResultFlags flags, void* userdata);
+
     /** Avahi group callback.
+     * @param g Avahi entry group
+     * @param state Avahi entry group state
+     * @param userdata user specified context
      */
     static void entry_group_callback(AvahiEntryGroup *g,
-                                     AvahiEntryGroupState state, void *userdata)
-    {
-        MDNS *mdns = static_cast<MDNS *>(userdata);
-        mdns->group = g;
-    }
+                                     AvahiEntryGroupState state, void *userdata);
 
     /** Avahi client callback.
+     * @param c Avahi client
+     * @param state Avahi client state
+     * @param userdata user specified context
      */
     static void client_callback(AvahiClient *c, AvahiClientState state,
-                                void * userdata)
-    {
-        switch (state)
-        {
-            default:
-                break;
-            case AVAHI_CLIENT_S_RUNNING:
-                printf("client running\n");
-                break;
-        }
-    }
+                                void * userdata);
 
     /** mdns polling thread.
      * @return should never return
      */
-    void *entry() override
-    {
-        int error;
-
-        simplePoll = avahi_simple_poll_new();
-        HASSERT(simplePoll);
-
-        client = avahi_client_new(avahi_simple_poll_get(simplePoll),
-                                  (AvahiClientFlags)0, client_callback, this,
-                                  &error);
-        if (!client)
-        {
-            fprintf(stderr, "Error creating AvaHi client (%d) %s\nmDNS export "
-                            "will not be functional.\n",
-                error, avahi_strerror(error));
-            return nullptr;
-        }
-        printf("client created\n");
-        HASSERT(client);
-
-        sem.post();
-        avahi_simple_poll_loop(simplePoll);
-
-        printf("mdns_thread exit\n");
-
-        return nullptr;
-    }
+    void *entry() override;
 
     /** Synchronize the startup of AVAHI */
-    OSSem sem;
+    OSSem sem_;
 
     /** AVAHI group */
-    AvahiEntryGroup *group;
+    AvahiEntryGroup *group_;
 
     /** AVAHI polling client */
-    AvahiSimplePoll *simplePoll;
+    AvahiSimplePoll *simplePoll_;
 
     /** AVAHI client */
-    AvahiClient *client;
+    AvahiClient *client_;
 #endif
 
     DISALLOW_COPY_AND_ASSIGN(MDNS);

@@ -171,7 +171,7 @@ extern unsigned long _ebss;
 
 /** Get the system clock requency.
  * @return SystemCoreClock
- */
+*/
 uint32_t HAL_RCC_GetSysClockFreq(void)
 {
     return cpu_clock_hz;

@@ -33,8 +33,8 @@
  * @date 13 June 2015
  */
 
-#ifndef _NMRANET_CONFIGUREDCONSUMER_HXX_
-#define _NMRANET_CONFIGUREDCONSUMER_HXX_
+#ifndef _OPENLCB_CONFIGUREDCONSUMER_HXX_
+#define _OPENLCB_CONFIGUREDCONSUMER_HXX_
 
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
@@ -75,7 +75,7 @@ CDI_GROUP_ENTRY(
         "Receiving this event ID will generate a pulse on the output."));
 /// Allows the user to configure the output pulse length.
 CDI_GROUP_ENTRY(
-    duration, Uint8ConfigEntry, //
+    duration, Uint8ConfigEntry, Default(3), //
     Name("Pulse duration"),
     Description("Length of the pulse to output (unit of 30 msec)."));
 CDI_GROUP_END();
@@ -120,7 +120,7 @@ public:
             // Need to reinitialize the consumer. We do this with in-place
             // destruction and construction.
             consumer_.~BitEventConsumer();
-            impl_.~Impl();
+            impl_.Impl::~Impl();
             new (&impl_)
                 Impl(saved_node, cfg_event_on, cfg_event_off, saved_gpio);
             new (&consumer_) BitEventConsumer(&impl_);
@@ -129,9 +129,9 @@ public:
         return UPDATED;
     }
 
-    /// @todo(balazs.racz): implement
     void factory_reset(int fd) OVERRIDE
     {
+        cfg_.description().write(fd, "");
     }
 
 private:
@@ -191,9 +191,10 @@ public:
         return REINIT_NEEDED; // Causes events identify.
     }
 
-    /// @todo(balazs.racz): implement
     void factory_reset(int fd) OVERRIDE
     {
+        cfg_.description().write(fd, "");
+        CDI_FACTORY_RESET(cfg_.duration);
     }
 
 private:
@@ -281,4 +282,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_CONFIGUREDCONSUMER_HXX_
+#endif // _OPENLCB_CONFIGUREDCONSUMER_HXX_

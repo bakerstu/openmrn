@@ -33,8 +33,8 @@
  * @date 4 Dec 2013
  */
 
-#ifndef _NMRANET_IFIMPL_HXX_
-#define _NMRANET_IFIMPL_HXX_
+#ifndef _OPENLCB_IFIMPL_HXX_
+#define _OPENLCB_IFIMPL_HXX_
 
 #include "openlcb/If.hxx"
 
@@ -268,4 +268,4 @@ private:
 };
 } // namespace openlcb
 
-#endif // _NMRANET_IFIMPL_HXX_
+#endif // _OPENLCB_IFIMPL_HXX_

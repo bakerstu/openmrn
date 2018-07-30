@@ -51,8 +51,18 @@ class PacketSource;
  * the get_next_packet callback. It should not be zero.*/
 void packet_processor_notify_update(PacketSource *source, unsigned code);
 
-/** Adds a new refresh source to the background refresh loop. */
-void packet_processor_add_refresh_source(PacketSource *source);
+/** Adds a new refresh source to the background refresh loop.
+ * @param source is the packet source to add
+ * @param priority represents the packet source priority. If at least
+ * EXCLUSIVE_MIN_PRIORITY, then all packet slots will be assigned to this
+ * packet source, effectively stopping all background refresh. Only the largest
+ * priority will receive slots, until it gets unregistered.
+ * @return true if there was no higher priority exclusive source than the one
+ * added now. In case of false, the source was still added but will not receive
+ * polling until the higher priority source goes away.
+*/
+bool packet_processor_add_refresh_source(
+    PacketSource *source, unsigned priority = 0);
 
 /** Removes a refresh source from the background refresh loop. */
 void packet_processor_remove_refresh_source(PacketSource *source);
@@ -69,8 +79,16 @@ class UpdateLoopBase : public Singleton<UpdateLoopBase>
 public:
     virtual ~UpdateLoopBase();
     virtual void notify_update(PacketSource *source, unsigned code) = 0;
-    virtual void add_refresh_source(PacketSource *source) = 0;
+    virtual bool add_refresh_source(
+        PacketSource *source, unsigned priority = 0) = 0;
     virtual void remove_refresh_source(PacketSource *source) = 0;
+
+    /// Priority value for exclusive sources.
+    static constexpr unsigned EXCLUSIVE_MIN_PRIORITY = 0x100;
+    /// Priority value to be used for service mode programming source.
+    static constexpr unsigned PROGRAMMING_PRIORITY = 0x110;
+    /// Priority value to be used for global emergency stop packet source.
+    static constexpr unsigned ESTOP_PRIORITY = 0x108;
 };
 
 } // namespace dcc

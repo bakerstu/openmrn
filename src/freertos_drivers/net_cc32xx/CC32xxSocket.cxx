@@ -31,6 +31,8 @@
  * @date 18 March 2016
  */
 
+#define SUPPORT_SL_R1_API
+
 #include "CC32xxSocket.hxx"
 #include "CC32xxWiFi.hxx"
 #include "CC32xxHelper.hxx"
@@ -43,7 +45,12 @@
 #include <netinet/tcp.h>
 
 // Simplelink includes
-#include "socket.h"
+#include "CC3200_compat/simplelink.h"
+#ifdef SL_API_V2
+//#include "sl_socket.h"
+#else
+//#include "socket.h"
+#endif
 
 #include "utils/format_utils.hxx"
 
@@ -215,7 +222,8 @@ int CC32xxSocket::bind(int socket, const struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     SlSockAddr_t sl_address;
@@ -245,7 +253,8 @@ int CC32xxSocket::listen(int socket, int backlog)
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     int result = sl_Listen(s->sd, backlog);
@@ -275,7 +284,8 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     if (!s->listenActive)
@@ -304,7 +314,7 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
                 SlCheckResult(result);
                 break;
             case SL_ENSOCK:
-                errno = ENOMEM;
+                errno = EMFILE;
                 break;
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
@@ -319,6 +329,7 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     int reserved = reserve_socket();
     if (reserved < 0)
     {
+        sl_Close(result);
         return -1;
     }
 
@@ -366,7 +377,8 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     SlSockAddr_t sl_address;
@@ -420,7 +432,8 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     int result = sl_Recv(s->sd, buffer, length, flags);
@@ -442,6 +455,9 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
             case SL_ECONNREFUSED:
                 s->readActive = true;
                 return 0;
+            case SL_EBADF:
+                errno = EBADF;
+                break;
         }
         return -1;
     }
@@ -467,7 +483,8 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     int result = sl_Send(s->sd, buffer, length, flags);
@@ -482,6 +499,9 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
                 break;
             case SL_EAGAIN:
                 errno = EAGAIN;
+                break;
+            case SL_EBADF:
+                errno = EBADF;
                 break;
             default:
                 /// @todo (stbaker): handle errors via the callback.
@@ -510,7 +530,8 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     int result;
@@ -521,7 +542,6 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
             errno = EINVAL;
             return -1;
         case SOL_SOCKET:
-            level = SL_SOL_SOCKET;
             switch (option_name)
             {
                 default:
@@ -531,6 +551,19 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
                     /* CC32xx does not care about SO_REUSEADDR, ignore it */
                     result = 0;
                     break;
+                case SO_RCVTIMEO:
+                {
+                    const struct timeval *tm;
+                    struct SlTimeval_t timeval;
+
+                    tm = static_cast<const struct timeval *>(option_value);
+                    timeval.tv_sec = tm->tv_sec;
+                    timeval.tv_usec = tm->tv_usec;
+                    result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
+                                           SL_SO_RCVTIMEO, &timeval,
+                                           sizeof(timeval));
+                    break;
+                }
             }
             break;
         case IPPROTO_TCP:
@@ -570,7 +603,8 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
     CC32xxSocket *s = get_instance_from_fd(socket);
     if (s == nullptr)
     {
-        return - 1;
+        /* get_instance_from_fd() sets the errno appropriately */
+        return -1;
     }
 
     int result;
@@ -581,7 +615,6 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
             errno = EINVAL;
             return -1;
         case SOL_SOCKET:
-            level = SL_SOL_SOCKET;
             switch (option_name)
             {
                 default:
@@ -596,6 +629,21 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
                     *so_reuseaddr = 1;
                     *option_len = sizeof(int);
                     result = 0;
+                    break;
+                }
+                case SO_RCVTIMEO:
+                {
+                    struct timeval *tm;
+                    struct SlTimeval_t timeval;
+                    SlSocklen_t sl_option_len = sizeof(timeval);
+
+                    tm = static_cast<struct timeval *>(option_value);
+                    result = sl_GetSockOpt(s->sd, SL_SOL_SOCKET,
+                                           SL_SO_RCVTIMEO, &timeval,
+                                           &sl_option_len);
+                    tm->tv_sec = timeval.tv_sec;
+                    tm->tv_usec = timeval.tv_usec;
+                    *option_len = sizeof(struct timeval);
                     break;
                 }
             }
@@ -646,8 +694,14 @@ int CC32xxSocket::close(File *file)
     if (--references_ == 0)
     {
         mutex.unlock();
-        /* request that the socket be closed */
-        CC32xxWiFi::instance()->select_wakeup(s->sd);
+        /* request that the socket be removed from managment */
+        int16_t sd = s->sd;
+        CC32xxWiFi::instance()->fd_remove(sd);
+        portENTER_CRITICAL();
+        remove_instance_from_sd(sd);
+        portEXIT_CRITICAL();
+        delete this;
+        sl_Close(sd);
     }
     else
     {
@@ -816,7 +870,7 @@ int CC32xxSocket::fcntl(File *file, int cmd, unsigned long data)
         case F_SETFL:
         {
             SlSockNonblocking_t sl_option_value;
-            sl_option_value.NonblockingEnabled = data & O_NONBLOCK ? 1 : 0;
+            sl_option_value.SL_NonblockingEnabled = data & O_NONBLOCK ? 1 : 0;
             int result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
                                        SL_SO_NONBLOCKING, &sl_option_value,
                                        sizeof(sl_option_value));
@@ -995,6 +1049,10 @@ const char *gai_strerror (int __ecode)
 void freeaddrinfo(struct addrinfo *ai)
 {
     delete ai->ai_addr;
+    if (ai->ai_canonname)
+    {
+        delete ai->ai_canonname;
+    }
     delete ai;
 }
 

@@ -51,6 +51,7 @@
 #include "utils/Charlieplex.hxx"
 #include "TivaDev.hxx"
 #include "TivaEEPROMEmulation.hxx"
+#include "TivaEEPROMBitSet.hxx"
 #include "DummyGPIO.hxx"
 #include "hardware.hxx"
 #include "TivaDCCDecoder.hxx"
@@ -181,7 +182,7 @@ unsigned *stat_led_ptr() {
 #endif
 }
 
-void RailcomDefs::enable_measurement() {
+void RailcomDefs::enable_measurement(bool) {
   Debug::MeasurementEnabled::set(true);
   bypass_control.set(false);
   SysCtlDelay(26);
@@ -197,6 +198,12 @@ static TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
 /** The input pin for detecting the DCC signal. */
 static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
 
+namespace bracz_custom {
+extern StoredBitSet* g_gpio_stored_bit_set;
+StoredBitSet* g_gpio_stored_bit_set = nullptr;
+}
+constexpr unsigned EEPROM_BIT_COUNT = 84;
+constexpr unsigned EEPROM_BITS_PER_CELL = 28;
 
 extern "C" {
 /** Blink LED */
@@ -259,12 +266,12 @@ void timer5a_interrupt_handler(void)
         rest_pattern = blinker_pattern;
 }
 
-void timer4a_interrupt_handler(void)
+void timer3a_interrupt_handler(void)
 {
     //
     // Clear the timer interrupt.
     //
-    MAP_TimerIntClear(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerIntClear(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
 
 #ifndef FAKE_CHARLIE
     stat_leds.tick();
@@ -282,6 +289,11 @@ void timer2a_interrupt_handler(void)
   nrz0.rcom_interrupt_handler();
 }
 
+void wide_timer2a_interrupt_handler(void)
+{
+  nrz0.os_interrupt_handler();
+}
+  
 void uart1_interrupt_handler(void)
 {
   railcom_driver.os_interrupt_handler();
@@ -289,7 +301,7 @@ void uart1_interrupt_handler(void)
 
 void diewith(uint32_t pattern)
 {
-    vPortClearInterruptMask(0x20);
+    vPortClearInterruptMask(0xA0);
     asm("cpsie i\n");
 
     resetblink(pattern);
@@ -338,14 +350,19 @@ void hw_preinit(void)
     MAP_TimerEnable(TIMER5_BASE, TIMER_A);
 
     /* Charlieplexed pins */
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER4);
-    MAP_TimerLoadSet(TIMER4_BASE, TIMER_A, configCPU_CLOCK_HZ / 10000);
-    MAP_IntEnable(INT_TIMER4A);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
+    MAP_TimerLoadSet(TIMER3_BASE, TIMER_A, configCPU_CLOCK_HZ / 10000);
+    MAP_IntEnable(INT_TIMER3A);
     // Still above kernel but not prio zero
-    MAP_IntPrioritySet(INT_TIMER4A, 0x80);
-    MAP_TimerIntEnable(TIMER4_BASE, TIMER_TIMA_TIMEOUT);
-    MAP_TimerEnable(TIMER4_BASE, TIMER_A);
+    MAP_IntPrioritySet(INT_TIMER3A, 0x80);
 
+    // A tick timer
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_WTIMER2);
+    MAP_TimerConfigure(WTIMER2_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC_UP);
+    MAP_TimerLoadSet(WTIMER2_BASE, TIMER_A, 1U<<31);
+    MAP_TimerLoadSet(WTIMER2_BASE, TIMER_B, 1U<<31);
+    MAP_TimerEnable(WTIMER2_BASE, TIMER_A | TIMER_B);
+    
     /* Checks the SW1 pin at boot time in case we want to allow for a debugger
      * to connect. */
     asm volatile ("cpsie i\n");
@@ -357,6 +374,18 @@ void hw_preinit(void)
       }
     } while (blinker_pattern || rest_pattern);
     asm volatile ("cpsid i\n");
+}
+
+/** Initialize the processor hardware.
+ */
+void hw_postinit(void)
+{
+    // Enables charlieplexing interrupt only after the static initialization
+    // has created the object itself.
+    MAP_TimerIntEnable(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerEnable(TIMER3_BASE, TIMER_A);
+
+    bracz_custom::g_gpio_stored_bit_set = new EEPROMStoredBitSet<TivaEEPROMHwDefs<EEPROM_BIT_COUNT, EEPROM_BITS_PER_CELL>>(2, 2);
 }
 
 }

@@ -41,6 +41,7 @@
 #include "driverlib/pin_map.h"
 #include "driverlib/sysctl.h"
 #include "inc/hw_memmap.h"
+#include "inc/hw_gpio.h"
 #include "driverlib/rom_map.h"
 
 /// Helper macro for declaring a pin.
@@ -49,7 +50,7 @@
 #define DECL_PIN(NAME, PORT, NUM)                                              \
     static const auto NAME##_PERIPH = SYSCTL_PERIPH_GPIO##PORT;                \
     static const auto NAME##_BASE = GPIO_PORT##PORT##_BASE;                    \
-    static const auto NAME##_PIN = GPIO_PIN_##NUM
+    static const auto NAME##_PIN = GPIO_PIN_##NUM;                             \
 
 /// Helper macro for declaring a GPIO pin wiht a specific hardware config (not
 /// GPIO but a different hardware muxed onto the same pin).
@@ -138,9 +139,9 @@ private:
     /// than the desired has no effect. This allows write with 0xff and 0x00 to
     /// set/clear and read != 0 to test.
     /// @return magic address.
-    constexpr uint8_t *pin_address() const
+    constexpr volatile uint8_t *pin_address() const
     {
-        return reinterpret_cast<uint8_t *>(
+        return reinterpret_cast<volatile uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
     }
 };
@@ -174,6 +175,23 @@ public:
     {
         hw_init();
     }
+    /// Used to unlock special consideration pins such as JTAG or NMI pins.
+    static void unlock()
+    {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_SysCtlDelay(26);
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+        HWREG(GPIO_BASE + GPIO_O_CR) |= GPIO_PIN;
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
+    }
+    /// Used to lock special consideration pins such as JTAG or NMI pins.
+    static void lock()
+    {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+        HWREG(GPIO_BASE + GPIO_O_CR) &= ~GPIO_PIN;
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
+    }  
     /// Sets the output pin to a specified value; @param value if true, output
     /// is set to HIGH otherwise LOW.
     static void set(bool value)
@@ -319,6 +337,23 @@ public:
     {
         hw_init();
     }
+    /// Used to unlock special consideration pins such as JTAG or NMI pins.
+    static void unlock()
+    {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_SysCtlDelay(26);
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+        HWREG(GPIO_BASE + GPIO_O_CR) |= GPIO_PIN;
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
+    }
+    /// Used to lock special consideration pins such as JTAG or NMI pins.
+    static void lock()
+    {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+        HWREG(GPIO_BASE + GPIO_O_CR) &= ~GPIO_PIN;
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
+    }
     /// @return true if the pin is currently seeing a high value on the input..
     static bool get()
     {
@@ -442,6 +477,25 @@ template <class Defs> struct GpioHwPin : public Defs
         /// safe.  Options are drive low, drive high, input std, input wpu,
         /// input wpd.
         hw_init();
+    }
+
+    /// Used to unlock special consideration pins such as JTAG or NMI pins.
+    static void unlock()
+    {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_SysCtlDelay(26);
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+        HWREG(GPIO_BASE + GPIO_O_CR) |= GPIO_PIN;
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
+    }
+
+    /// Used to lock special consideration pins such as JTAG or NMI pins.
+    static void lock()
+    {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+        HWREG(GPIO_BASE + GPIO_O_CR) &= ~GPIO_PIN;
+        HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
     }
 
     /** Switches the GPIO pin to the hardware peripheral. */

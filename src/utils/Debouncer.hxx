@@ -151,22 +151,22 @@ public:
         , lastCount_(0)
         , currentState_(0)
     {
-        if (opts_.window_size > 32)
-        {
-            opts_.window_size = 32;
-        }
-        if (opts_.window_size == 0)
-        {
-            opts_.window_size = 1;
-        }
-        if (opts_.min_count == 0)
-        {
-            opts_.min_count = 1;
-        }
-        if (opts_.min_count > opts_.window_size)
-        {
-            opts_.min_count = opts_.window_size;
-        }
+        trim_options();
+    }
+
+    /// Re-creates the debouncer with new options.
+    /// @param opts new options.
+    void reset_options(const Options &opts)
+    {
+        opts_ = opts;
+        trim_options();
+        initialize(currentState_);
+    }
+
+    /// Retrieves the currently set options.
+    const Options &options()
+    {
+        return opts_;
     }
 
     /// Initilalize the debouncer. @param state is the current input state at
@@ -174,7 +174,15 @@ public:
     /// because we don't have any information based on which to debounce).
     void initialize(bool state)
     {
-        currentState_ = state ? 1 : 0;
+        if (state) {
+            currentState_ = 1;
+            window_ = 0xFFFFFFFFu;
+            lastCount_ = opts_.window_size;
+        } else {
+            currentState_ = 0;
+            window_ = 0;
+            lastCount_ = 0;
+        }
     }
 
     /// Overrides the debounced state to a given value, irrespective of what is
@@ -215,6 +223,26 @@ public:
     }
 
 private:
+    void trim_options()
+    {
+        if (opts_.window_size > 32)
+        {
+            opts_.window_size = 32;
+        }
+        if (opts_.window_size == 0)
+        {
+            opts_.window_size = 1;
+        }
+        if (opts_.min_count == 0)
+        {
+            opts_.min_count = 1;
+        }
+        if (opts_.min_count > opts_.window_size)
+        {
+            opts_.min_count = opts_.window_size;
+        }
+    }
+
     uint32_t window_{0}; ///< bit-map of last observations. bit 0 is latest.
     Options opts_; ///< options
     unsigned lastCount_ : 6; ///< how many 1 bits we have in the window

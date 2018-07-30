@@ -156,6 +156,8 @@ void bootloader_reboot(void)
 
 void application_entry(void)
 {
+    extern uint64_t __application_node_id;
+    __application_node_id = nmranet_nodeid();
     extern char __flash_start;
     // We store the application reset in interrupt vecor 13, which is reserved
     // / unused on all Cortex_M3 processors.
@@ -229,6 +231,11 @@ void get_flash_page_info(const void *address, const void **page_start,
     value &= ~1023;
     *page_start = (const void *)value;
     *page_length_bytes = 1024;
+}
+
+uint16_t flash_complete(void)
+{
+    return 0;
 }
 
 void ignore_fn(void)

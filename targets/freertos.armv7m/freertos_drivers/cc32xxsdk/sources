@@ -6,7 +6,7 @@ VPATH := $(TICC3200SDKPATH)/simplelink/source \
          $(TICC3200SDKPATH)/oslib
 
 INCLUDES += -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx \
-            -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/dummy \
+            -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3200/dummy \
             -I$(TICC3200SDKPATH)/simplelink/include \
             -I$(TICC3200SDKPATH)/simplelink/source \
             -I$(TICC3200SDKPATH)/simplelink \
@@ -31,8 +31,13 @@ CSRCS += osi_freertos.c
 CXXSRCS +=
 
 CFLAGS += -Wno-strict-prototypes \
-          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
+          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3200/user.h \
           -D__USER_H__
 
-CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/user.h \
+CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3200/user.h \
             -D__USER_H__
+
+
+ifeq (6,$(ARMGCCMAJORVERSION))
+cc_pal.o: CFLAGS+= -Wno-error=misleading-indentation
+endif

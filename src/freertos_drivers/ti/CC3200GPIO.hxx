@@ -37,6 +37,7 @@
 
 #include "os/Gpio.hxx"
 #include "inc/hw_types.h"
+#include "inc/hw_ints.h"
 #include "driverlib/gpio.h"
 #include "driverlib/prcm.h"
 #include "inc/hw_memmap.h"
@@ -49,7 +50,9 @@
 #define DECL_PIN(NAME, PORT, NUM)                           \
     static const auto NAME##_PERIPH = PRCM_GPIO##PORT;      \
     static const auto NAME##_BASE = GPIO##PORT##_BASE; \
-    static const auto NAME##_PIN = GPIO_PIN_##NUM
+    static const auto NAME##_PIN = GPIO_PIN_##NUM; \
+    static const auto NAME##_INT = INT_GPIO##PORT
+    
 
 template <class Defs, bool SAFE_VALUE> struct GpioOutputPin;
 template <class Defs> struct GpioInputPin;
@@ -125,9 +128,9 @@ private:
     /// only ever one bit can be read to be non-zero, and setting any other bit
     /// than the desired has no effect. This allows write with 0xff and 0x00 to
     /// set/clear and read != 0 to test. @return memory address.
-    constexpr uint8_t *pin_address() const
+    constexpr volatile uint8_t *pin_address() const
     {
-        return reinterpret_cast<uint8_t *>(
+        return reinterpret_cast<volatile uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
     }
 };
@@ -165,14 +168,14 @@ public:
     /// will be set to HIGH, otherwise to LOW.
     static void __attribute__((always_inline)) set(bool value)
     {
-        uint8_t *ptr = reinterpret_cast<uint8_t *>(
+        volatile uint8_t *ptr = reinterpret_cast<uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
     }
     /// @return current value of the input pin: if true HIGH.
     static bool __attribute__((always_inline)) get()
     {
-        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+        const volatile uint8_t *ptr = reinterpret_cast<const uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }
@@ -256,7 +259,7 @@ public:
     /// @return true if the pin input is seeing HIGH.
     static bool get()
     {
-        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+        const volatile uint8_t *ptr = reinterpret_cast<const uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         return *ptr;
     }

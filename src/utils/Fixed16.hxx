@@ -42,23 +42,26 @@
 class Fixed16
 {
 public:
-    Fixed16(int16_t integer, uint16_t frac = 0)
+    constexpr Fixed16(int16_t integer, uint16_t frac = 0)
+        : value_(((integer < 0 ? -integer : integer) << 16) | frac)
+        , sign_(integer < 0 ? 1 : 0)
     {
-        value_ = 0;
-        if (integer < 0)
-        {
-            sign_ = 1;
-            integer = -integer;
-        }
-        else
-        {
-            sign_ = 0;
-        }
-        uint32_t v = integer & 0x7fff;
-        v <<= 16;
-        value_ |= v | frac;
     }
 
+    enum FromDouble
+    {
+        FROM_DOUBLE
+    };
+
+    constexpr Fixed16(FromDouble, double value)
+        : value_(value < 0 ? -value * 65536 + 0.5 : value * 65536 + 0.5)
+        , sign_(value < 0 ? 1 : 0)
+    {
+        // it would be nice to make this work:
+        // static_assert(value < 32767 && value > -32767,
+        //   "fixed16 constructor out of range");
+    }
+    
     Fixed16(const Fixed16 &o) = default;
     Fixed16 &operator=(const Fixed16 &o) = default;
 
@@ -68,7 +71,7 @@ public:
         return *this;
     }
 
-    template <class T> Fixed16 operator+(T o)
+    template <class T> Fixed16 operator+(T o) const
     {
         Fixed16 ret(*this);
         ret += o;
@@ -81,7 +84,7 @@ public:
         return *this;
     }
 
-    template <typename T> Fixed16 operator-(T o)
+    template <typename T> Fixed16 operator-(T o) const
     {
         Fixed16 ret(*this);
         ret -= o;
@@ -98,7 +101,7 @@ public:
         return *this;
     }
 
-    template <typename T> Fixed16 operator*(T o)
+    template <typename T> Fixed16 operator*(T o) const
     {
         Fixed16 ret(*this);
         ret *= o;
@@ -107,16 +110,16 @@ public:
 
     Fixed16 &operator/=(Fixed16 o)
     {
-        uint32_t rec = UINT32_C(0x80000000) / o.value_;
-        uint64_t v = rec;
-        v *= value_;
-        v >>= 15;
+        uint64_t v = value_;
+        v <<= 32;
+        v /= o.value_;
+        v >>= 16;
         value_ = v;
         sign_ ^= o.sign_;
         return *this;
     }
 
-    template <typename T> Fixed16 operator/(T o)
+    template <typename T> Fixed16 operator/(T o) const
     {
         Fixed16 ret(*this);
         ret /= o;
@@ -137,7 +140,7 @@ public:
     }
     
     /// @return the integer part, rounded down
-    int16_t trunc()
+    int16_t trunc() const
     {
         int16_t b = value_ >> 16;
         if (sign_) return -b;
@@ -145,12 +148,12 @@ public:
     }
 
     /// @return the fractional part, as an uint16 value between 0 and 0xffff
-    uint16_t frac()
+    uint16_t frac() const
     {
         return value_ & 0xffff;
     }
 
-    float to_float()
+    float to_float() const
     {
         if (!value_) {
             if (sign_)
@@ -208,7 +211,7 @@ private:
         }
     }
 
-    /// Overwritesthe current value from a signed fixed-point 32-bit integer.
+    /// Overwrites the current value from a signed fixed-point 32-bit integer.
     void from_int(int32_t v) {
         if (v<0) {
             sign_ = 1;

@@ -37,6 +37,7 @@
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
+#include "inc/hw_nvic.h"
 #include "inc/hw_gpio.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
@@ -53,6 +54,8 @@
 #include "hardware.hxx"
 #include "bootloader_hal.h"
 
+//#define USE_MCP2515
+
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
 
@@ -65,6 +68,7 @@ const char *STDERR_DEVICE = "/dev/ser0";
 /** UART 0 serial driver instance */
 static CC32xxUart uart0("/dev/ser0", UARTA0_BASE, INT_UARTA0);
 
+#if defined(USE_MCP2515)
 static void mcp2515_cs_assert();
 static void mcp2515_cs_deassert();
 static void mcp2515_int_enable();
@@ -104,7 +108,7 @@ static void mcp2515_int_disable()
 {
     GPIOIntDisable(GPIOA0_BASE, GPIO_INT_PIN_7);
 }
-
+#endif
 /** Wi-Fi instance */
 static CC32xxWiFi wifi;
 
@@ -163,6 +167,7 @@ void timer2a_interrupt_handler(void)
         rest_pattern = blinker_pattern;
 }
 
+#if defined(USE_MCP2515)
 /** PORTA0 interrupt handler.
  */
 void porta0_interrupt_handler(void)
@@ -175,6 +180,7 @@ void porta0_interrupt_handler(void)
         can0.interrupt_handler();
     }
 }
+#endif
 
 void diewith(uint32_t pattern)
 {
@@ -197,6 +203,14 @@ void hw_preinit(void)
 
     /* Setup the interrupt vector table */
     MAP_IntVTableBaseSet((unsigned long)&__interrupt_vector[0]);
+
+    // Disables all interrupts that the bootloader might have enabled.
+    HWREG(NVIC_DIS0) = 0xffffffffU;
+    HWREG(NVIC_DIS1) = 0xffffffffU;
+    HWREG(NVIC_DIS2) = 0xffffffffU;
+    HWREG(NVIC_DIS3) = 0xffffffffU;
+    HWREG(NVIC_DIS4) = 0xffffffffU;
+    HWREG(NVIC_DIS5) = 0xffffffffU;
 
     /* Setup the system clock. */
     PRCMCC3200MCUInit();
@@ -237,6 +251,7 @@ void hw_preinit(void)
     MAP_TimerIntEnable(TIMERA2_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMERA2_BASE, TIMER_A);
 
+#if defined(USE_MCP2515)
     /* MCP2515 CAN Controller reset hold */
     MCP2515_RESET_N_Pin::set(false);
 
@@ -253,7 +268,7 @@ void hw_preinit(void)
 
     /* MCP2515 CAN Controller reset release */
     MCP2515_RESET_N_Pin::set(true);
-
+#endif
     //GPIOPinWrite(unsigned long GPIO, unsigned char ucPins, unsigned char ucVal)
 #if 0
     /* Checks the SW2 pin at boot time in case we want to allow for a debugger
@@ -281,7 +296,9 @@ void hw_init(void)
  */
 void hw_postinit(void)
 {
+#if defined(USE_MCP2515)
     can0.init("/dev/spidev0.0", 8000000, config_nmranet_can_bitrate());
+#endif
 }
 
 } /* extern "C" */

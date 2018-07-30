@@ -34,8 +34,8 @@
  * @date 7 December 2013
  */
 
-#ifndef _NMRANET_EVENTHANDLERMOCK_HXX_
-#define _NMRANET_EVENTHANDLERMOCK_HXX_
+#ifndef _OPENLCB_EVENTHANDLERMOCK_HXX_
+#define _OPENLCB_EVENTHANDLERMOCK_HXX_
 
 #include "gmock/gmock.h"
 #include "openlcb/EventHandler.hxx"
@@ -68,6 +68,6 @@ public:
 
 }  // namespace openlcb
 
-#endif // _NMRAnetEventHandlerTemplates_hxx_
+#endif // _OPENLCB_EVENTHANDLERMOCK_HXX_
 
 

@@ -32,8 +32,8 @@
  * @date 3 Dec 2013
  */
 
-#ifndef _NMRANET_IF_HXX_
-#define _NMRANET_IF_HXX_
+#ifndef _OPENLCB_IF_HXX_
+#define _OPENLCB_IF_HXX_
 
 /// @todo(balazs.racz) remove this dep
 #include <string>
@@ -133,6 +133,12 @@ inline unsigned node_low(NodeID id) {
     return id & 0xffffffffU;
 }
 
+/// Helper function to send an event report to the bus. Performs
+/// synchronous (dynamic) memory allocation so use it sparingly and when
+/// there is sufficient amount of RAM available.
+/// @param event_id is the event to send off.
+extern void send_event(Node* src_node, uint64_t event_id);
+
 /** This class is used in the dispatching of incoming or outgoing NMRAnet
  * messages to the message handlers at the protocol-agnostic level (i.e. not
  * CAN or TCP-specific).
@@ -146,23 +152,23 @@ struct GenMessage
     GenMessage()
         : src({0, 0}), dst({0, 0}), flagsSrc(0), flagsDst(0) {}
 
-    void reset(Defs::MTI mti, NodeID src, NodeHandle dst, const string &payload)
+    void reset(Defs::MTI mti, NodeID src, NodeHandle dst, string payload)
     {
         this->mti = mti;
         this->src = {src, 0};
         this->dst = dst;
-        this->payload = payload;
+        this->payload = std::move(payload);
         this->dstNode = nullptr;
         this->flagsSrc = 0;
         this->flagsDst = 0;
     }
 
-    void reset(Defs::MTI mti, NodeID src, const string &payload)
+    void reset(Defs::MTI mti, NodeID src, string payload)
     {
         this->mti = mti;
         this->src = {src, 0};
         this->dst = {0, 0};
-        this->payload = payload;
+        this->payload = std::move(payload);
         this->dstNode = nullptr;
         this->flagsSrc = 0;
         this->flagsDst = 0;
@@ -430,4 +436,4 @@ public:
 
 } // namespace openlcb
 
-#endif // _NMRANET_IF_HXX_
+#endif // _OPENLCB_IF_HXX_

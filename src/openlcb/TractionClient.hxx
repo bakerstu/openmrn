@@ -32,8 +32,8 @@
  * @date 20 May 2014
  */
 
-#ifndef _NMRANET_TRACTIONCLIENT_HXX_
-#define _NMRANET_TRACTIONCLIENT_HXX_
+#ifndef _OPENLCB_TRACTIONCLIENT_HXX_
+#define _OPENLCB_TRACTIONCLIENT_HXX_
 
 #include "openlcb/If.hxx"
 #include "openlcb/Defs.hxx"
@@ -219,4 +219,4 @@ private:
 
 } // namespace openlcb
 
-#endif // _NMRANET_TRACTIONCLIENT_HXX_
+#endif // _OPENLCB_TRACTIONCLIENT_HXX_

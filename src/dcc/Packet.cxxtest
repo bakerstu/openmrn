@@ -178,6 +178,33 @@ TEST_F(PacketTest, DccBasicAccyOn)
     EXPECT_THAT(get_packet(), ElementsAre(b1, b2, b1 ^ b2));
 }
 
+TEST_F(PacketTest, SvcProgDirectByte)
+{
+    pkt_.set_dcc_svc_verify_byte(651, 0x55);
+    // 651 = 0b10 10001011
+    uint8_t b1 = 0b01110110;
+    uint8_t b2 = 0b10001011;
+    EXPECT_THAT(get_packet(), ElementsAre(b1, b2, 0x55, b1 ^ b2 ^ 0x55));
+
+    pkt_.set_dcc_svc_write_byte(651, 0x55);
+    b1 = 0b01111110;
+    EXPECT_THAT(get_packet(), ElementsAre(b1, b2, 0x55, b1 ^ b2 ^ 0x55));
+}
+
+TEST_F(PacketTest, SvcProgDirectBit)
+{
+    pkt_.set_dcc_svc_verify_bit(651, 5, true);
+    // 651 = 0b10 10001011
+    uint8_t b1 = 0b01111010;
+    uint8_t b2 = 0b10001011;
+    uint8_t b3 = 0b11101101;
+    EXPECT_THAT(get_packet(), ElementsAre(b1, b2, b3, b1 ^ b2 ^ b3));
+
+    pkt_.set_dcc_svc_write_bit(651, 5, false);
+    b3 = 0b11110101;
+    EXPECT_THAT(get_packet(), ElementsAre(b1, b2, b3, b1 ^ b2 ^ b3));
+}
+
 TEST_F(PacketTest, MMOld)
 {
     pkt_.start_mm_packet();
@@ -300,10 +327,11 @@ void packet_processor_notify_update(PacketSource *source, unsigned code)
     g_update_loop->send_update(source, code);
 }
 
-void packet_processor_add_refresh_source(PacketSource *source)
+bool packet_processor_add_refresh_source(PacketSource *source, unsigned priority)
 {
     HASSERT(g_update_loop);
     g_update_loop->register_source(source);
+    return true;
 }
 
 void packet_processor_remove_refresh_source(PacketSource *source)

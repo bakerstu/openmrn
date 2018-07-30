@@ -57,30 +57,39 @@
  * and a second USB-to-CAN adaptor, one can view the node interacting on the
  * bus.
  *
- * @subsubsection armv7freertos ARMv7-m FreeRTOS
- * The armv7m.freertos target requires additional tools to be installed on the
+ * @subsubsection armv7freertos ARM Cortex-M FreeRTOS
+ * The ARM Cortex-M FreeRTOS targets require additional tools to be installed on the
  * system.
- *
- * The compiler used is the free ARM EABI GCC derived Code Sourcery
- * Lite.  This compiler may be downloaded from the Mentor Graphics web site
- * (http://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/).
- * The OpenMRN build system will look for the compiler at /opt/CodeSourcery or
- * ~/CodeSourcery.  The compiler includes a copy of Newlib used by OpenMRN.
- *
- * The file inside the download should be named "arm-2013.05-23-arm-none-eabi-i686-pc-linux-gnu.tar". 
- * More variants of the compiler are available, be sure to select this one.
- * Unpacking this file gives a directory named arm-2013.05
+
+ *  The compiler used is GCC as distributed with ARM's GNU Embedded Toolchain
+ * (as of this writing, we're using version `6-2017-q1-update`). This compiler
+ * may be [downloaded from the ARM Developer site](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads).
+ * The OpenMRN build system will look for the compiler at `/opt/armgcc/default`
+ * (for specific path matching, see `etc/path.mk`).
  * 
- * In the code below, please change the location of the arm2013.05 directory accordingly. 
- *
+ * If you're running the compiler on a Linux 64-bit machine, you'll likely
+ * download a `.tar.bz2` package. Move the extracted folder (named something
+ * like `gcc-arm-none-eabi-7-2017-...`) into /opt/armgcc and make a symbolic
+ * link named `default` that points to this folder. Example:
  * @code
- * $ mkdir ~/CodeSourcery
- * $ ln -s ~/arm-2013.05 ~/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI
+ * $ cd Downloads/
+ * $ tar -xf gcc-arm-none-eabi-7-2017-q4-major-linux.tar.bz2
+ * $ sudo mkdir /opt/armgcc
+ * $ sudo mv gcc-arm-none-eabi-7-2017-q4-major /opt/armgcc
+ * $ cd /opt/armgcc
+ * $ sudo ln -s gcc-arm-none-eabi-7-2017-q4-major default
+ * @endcode
+ * If you did this correctly, the output of `ls -l /opt/armgcc` should be, roughly:
+ * @code
+ * lrwxrwxrwx 1 root root   34 Apr  1 11:52 default -> gcc-arm-none-eabi-6-2017-q1-update
+ * drwxrwxrwx 6 root root 4096 Apr  1 11:47 gcc-arm-none-eabi-6-2017-q1-update
+ * @endcode
  * 
- * or
- *
- * $ sudo mkdir /opt/CodeSourcery
- * $ sudo ln -s /opt/arm2013.05 /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_ARM_EABI
+ * Compile the `blink_raw` application for the
+ * `freertos-armv6m-st-stm32f091rc-nucleo` target like this:
+ * @code
+ * $ cd openmrn/applications/blink_raw/targets/freertos-armv6m-st-stm32f091rc-nucleo
+ * $ make
  * @endcode
  *
  * If you have troubles getting the source to compile, don't set eny 

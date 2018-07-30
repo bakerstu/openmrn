@@ -336,7 +336,7 @@ public:
         handlers_.register_handler(EventRegistryEntry(h(n), eventid), mask);
     }
 
-private:
+protected:
     EventReport report_;
     TreeEventHandlers handlers_;
     std::unique_ptr<EventIterator> iter_;
@@ -390,6 +390,34 @@ TEST_F(TreeEventHandlerTest, MultiLookup)
     EXPECT_THAT(get_all_matching(0x3FF, 0),
                 ElementsAre(h(1), h(3), h(5), h(15)));
     EXPECT_THAT(get_all_matching(0x3FE, 0), ElementsAre(h(3), h(5), h(15)));
+}
+
+TEST_F(TreeEventHandlerTest, Erase)
+{
+    add_handler(1, 32, 0);
+    add_handler(1, 33, 0);
+    add_handler(1, 34, 0);
+    add_handler(2, 48, 0);
+    add_handler(3, 48, 0);
+    add_handler(4, 48, 0);
+    add_handler(5, 48, 0);
+    add_handler(6, 64, 0);
+    // bug: if this one is the last it will cause a lot more additional entries
+    // to be deleted from the tail.
+    add_handler(1, 96, 0);
+    EXPECT_THAT(get_all_matching(32, 0), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(33, 0), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(34, 0), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(35, 0), ElementsAre());
+    EXPECT_THAT(get_all_matching(48, 0), ElementsAre(h(2), h(3), h(4), h(5)));
+    EXPECT_THAT(get_all_matching(64, 0), ElementsAre(h(6)));
+    handlers_.unregister_handler(h(1));
+    EXPECT_THAT(get_all_matching(32, 0), ElementsAre());
+    EXPECT_THAT(get_all_matching(33, 0), ElementsAre());
+    EXPECT_THAT(get_all_matching(34, 0), ElementsAre());
+    EXPECT_THAT(get_all_matching(35, 0), ElementsAre());
+    EXPECT_THAT(get_all_matching(48, 0), ElementsAre(h(2), h(3), h(4), h(5)));
+    EXPECT_THAT(get_all_matching(64, 0), ElementsAre(h(6)));
 }
 
 } // namespace openlcb

@@ -62,8 +62,6 @@ void speed_to_fp16(SpeedType speed, void *fp16) {
 
 const uint64_t TractionDefs::IS_TRAIN_EVENT;
 const uint64_t TractionDefs::IS_PROXY_EVENT;
-const uint64_t TractionDefs::EMERGENCY_STOP_EVENT;
-const uint64_t TractionDefs::CLEAR_EMERGENCY_STOP_EVENT;
 
 const uint64_t TractionDefs::NODE_ID_DC_BLOCK;
 const uint64_t TractionDefs::NODE_ID_DCC;

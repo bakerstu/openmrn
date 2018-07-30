@@ -12,6 +12,7 @@
 #include "openlcb/EventService.hxx"
 #include "openlcb/DefaultNode.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
+#include "executor/CallableFlow.hxx"
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
 #include "utils/test_main.hxx"
@@ -119,6 +120,19 @@ protected:
         processing has completed. */
     void wait()
     {
+        wait_for_main_executor();
+    }
+
+    /** Delays the current thread until all asynchronous processing and all
+     * pending timers have completed. */
+    void twait()
+    {
+        wait_for_main_executor();
+        while (!g_executor.active_timers()->empty())
+        {
+            usleep(20000);
+            wait_for_main_executor();
+        }
         wait_for_main_executor();
     }
 
@@ -283,18 +297,6 @@ protected:
   StrictMock<MockSend> canBus1_;
 };
 
-/** Helper function for testing flow invocations. */
-template<class T, typename... Args>
-BufferPtr<T> invoke_flow(FlowInterface<Buffer<T>>* flow, Args &&... args) {
-    SyncNotifiable n;
-    BufferPtr<T> b(flow->alloc());
-    b->data()->reset(std::forward<Args>(args)...);
-    b->data()->done.reset(&n);
-    flow->send(b->ref());
-    n.wait_for_notification();
-    return b;
-}
-
 namespace openlcb
 {
 
@@ -318,7 +320,7 @@ protected:
         : pendingAliasAllocation_(false)
     {
         ifCan_.reset(new IfCan(&g_executor, &can_hub0, local_alias_cache_size, remote_alias_cache_size, local_node_count));
-        ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A);
+        run_x([this]() { ifCan_->local_aliases()->add(TEST_NODE_ID, 0x22A); });
         ifCan_->set_alias_allocator(
             new AliasAllocator(TEST_NODE_ID, ifCan_.get()));
 
@@ -351,7 +353,9 @@ protected:
             ifCan_->set_alias_allocator(
                 new AliasAllocator(TEST_NODE_ID, ifCan_.get()));
         }
-        ifCan_->alias_allocator()->TEST_add_allocated_alias(alias, repeat);
+        run_x([this, alias, repeat]() {
+            ifCan_->alias_allocator()->TEST_add_allocated_alias(alias, repeat);
+        });
     }
 
     void expect_next_alias_allocation(NodeAlias a = 0)

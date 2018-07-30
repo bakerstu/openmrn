@@ -52,13 +52,15 @@ long long DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(3);
 /// The base class of AddressedCanMessageWriteFlow is responsible for the
 /// discovery and address resolution of the destination node.
 class CanDatagramClient : public DatagramClient,
-                          public AddressedCanMessageWriteFlow
+                          public AddressedCanMessageWriteFlow,
+                          public LinkedObject<CanDatagramClient>
 {
 public:
     CanDatagramClient(IfCan *iface)
         : AddressedCanMessageWriteFlow(iface)
         , listener_(this)
         , isSleeping_(0)
+        , sendPending_(0)
     {
         /** This flow does not use the incoming queue that we inherited from
          * AddressedCanMessageWriteFlow. We skip the wait state.
@@ -77,13 +79,37 @@ public:
         }
         HASSERT(b->data()->mti == Defs::MTI_DATAGRAM);
         result_ = OPERATION_PENDING;
-        register_handlers();
         reset_message(b, priority);
-        /// @TODO(balazs.racz) this will not work for loopback messages because
-        /// it calls transfer_message().
-        start_flow(STATE(addressed_entry));
+        start_flow(STATE(acquire_srcdst_lock));
     }
 
+    Action acquire_srcdst_lock()
+    {
+        // First check if there is another datagram client sending a datagram
+        // to the same target node.
+        {
+            AtomicHolder h(LinkedObject<CanDatagramClient>::head_mu());
+            for (CanDatagramClient* c = LinkedObject<CanDatagramClient>::head_;
+                 c;
+                 c = c->LinkedObject<CanDatagramClient>::link_next()) {
+                // this will catch c == this.
+                if (!c->sendPending_) continue;
+                if (c->nmsg()->src.id != nmsg()->src.id) continue; 
+                if (!async_if()->matching_node(c->nmsg()->dst, nmsg()->dst))
+                    continue;
+                // Now: there is another datagram client sending a datagram to
+                // this destination. We need to wait for that transaction to
+                // complete.
+                c->waitingClients_.push_front(this);
+                return wait();
+            }
+        }
+        register_handlers();
+        /// @TODO(balazs.racz) this will not work for loopback messages because
+        /// it calls transfer_message().
+        return call_immediately(STATE(addressed_entry));
+    }
+    
     Action send_to_local_node() OVERRIDE
     {
         return allocate_and_call(async_if()->dispatcher(),
@@ -126,6 +152,7 @@ private:
     {
         hasResponse_ = 0;
         isSleeping_ = 0;
+        sendPending_ = 1;
         if_can()->dispatcher()->register_handler(&listener_, MTI_1, MASK_1);
         if_can()->dispatcher()->register_handler(&listener_, MTI_2, MASK_2);
         if_can()->dispatcher()->register_handler(&listener_, MTI_3, MASK_3);
@@ -204,6 +231,7 @@ private:
     Action timeout_looking_for_dst() OVERRIDE
     {
         result_ |= PERMANENT_ERROR | DST_NOT_FOUND;
+        unregister_response_handler();
         return call_immediately(STATE(datagram_finalize));
     }
 
@@ -224,10 +252,19 @@ private:
         if_can()->dispatcher()->unregister_handler(&listener_, MTI_1, MASK_1);
         if_can()->dispatcher()->unregister_handler(&listener_, MTI_2, MASK_2);
         if_can()->dispatcher()->unregister_handler(&listener_, MTI_3, MASK_3);
+        sendPending_ = 0;
+        if (!waitingClients_.empty()) {
+            CanDatagramClient* c = static_cast<CanDatagramClient*>(waitingClients_.pop_front());
+            // Hands off all waiting clients to c.
+            HASSERT(c->waitingClients_.empty());
+            std::swap(waitingClients_, c->waitingClients_);
+            c->notify();
+        }
     }
 
     Action datagram_finalize()
     {
+        HASSERT(!sendPending_);
         HASSERT(result_ & OPERATION_PENDING);
         result_ &= ~OPERATION_PENDING;
         release();
@@ -265,8 +302,10 @@ private:
                 // Malformed message inbound.
                 return;
             }
-            NodeID rebooted = buffer_to_node_id(message->payload);
-            if (rebooted == nmsg()->dst.id) {
+            NodeHandle rebooted(message->src);
+            rebooted.id = buffer_to_node_id(message->payload);
+            if (if_can()->matching_node(nmsg()->dst, rebooted))
+            {
                 // Destination node has rebooted. Kill datagram flow.
                 result_ |= DST_REBOOT;
                 return stop_waiting_for_response();
@@ -396,8 +435,17 @@ private:
     }
 
     ReplyListener listener_;
+    /// List of other datagram clients that are trying to send to the same
+    /// target node. We need to wake up one of this list when we are done
+    /// sending.
+    TypedQueue<Executable> waitingClients_;
+    /// 1 when we are in the sleep call waiting for the datagram Ack or Reject
+    /// message.
     unsigned isSleeping_ : 1;
     unsigned hasResponse_ : 1;
+    /// 1 when we have the handlers registered. During this time we have
+    /// exclusive lock on the specific src/dst node pair.
+    unsigned sendPending_ : 1;
 };
 
 /** Frame handler that assembles incoming datagram fragments into a single

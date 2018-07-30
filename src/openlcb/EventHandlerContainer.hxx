@@ -34,8 +34,8 @@
  * @date 3 November 2013
  */
 
-#ifndef _NMRANET_EVENTHANDLERCONTAINER_HXX_
-#define _NMRANET_EVENTHANDLERCONTAINER_HXX_
+#ifndef _OPENLCB_EVENTHANDLERCONTAINER_HXX_
+#define _OPENLCB_EVENTHANDLERCONTAINER_HXX_
 
 #include <algorithm>
 #include <vector>
@@ -191,4 +191,4 @@ private:
 
 }; /* namespace openlcb */
 
-#endif  // _NMRANET_EVENTHANDLERCONTAINER_HXX_
+#endif  // _OPENLCB_EVENTHANDLERCONTAINER_HXX_

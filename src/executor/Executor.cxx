@@ -58,8 +58,6 @@ extern "C" {
 #include "executor/Service.hxx"
 #include "nmranet_config.h"
 
-ExecutorBase *ExecutorBase::list = NULL;
-
 void __attribute__((weak,noinline)) Executable::test_deletion() {} 
 
 Executable::~Executable() {
@@ -71,25 +69,11 @@ Executable::~Executable() {
  */
 ExecutorBase::ExecutorBase()
     : name_(NULL) /** @todo (Stuart Baker) is "name" still in use? */
-    , next_(NULL)
     , activeTimers_(this)
     , done_(0)
     , started_(0)
     , selectPrescaler_(0)
 {
-    /** @todo (Stuart Baker) we need a locking mechanism here to protect
-     *  the list.
-     */
-    if (list == NULL)
-    {
-        list = this;
-        next_ = NULL;
-    }
-    else
-    {
-        next_ = list;
-        list = this;
-    }
     FD_ZERO(&selectRead_);
     FD_ZERO(&selectWrite_);
     FD_ZERO(&selectExcept_);
@@ -107,14 +91,17 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
      */
     for (; /* forever */;)
     {
-        ExecutorBase *current = list;
-        while (current)
         {
-            if (!strcmp(name, current->name_))
+            AtomicHolder hld(head_mu());
+            ExecutorBase *current = head_;
+            while (current)
             {
-                return current;
+                if (!strcmp(name, current->name_))
+                {
+                    return current;
+                }
+                current = current->link_next();
             }
-            current = current->next_;
         }
         if (wait)
         {
@@ -299,14 +286,16 @@ void *ExecutorBase::entry()
     {
         Executable *msg = nullptr;
         unsigned priority = UINT_MAX;
-        long long wait_length = activeTimers_.get_next_timeout();
-        if (!selectPrescaler_ || empty()) {
+        if (!selectPrescaler_ || ((msg = next(&priority)) == nullptr))
+        {
+            long long wait_length = activeTimers_.get_next_timeout();
             wait_with_select(wait_length);
             selectPrescaler_ = config_executor_select_prescaler();
             msg = next(&priority);
-        } else {
+        }
+        else
+        {
             --selectPrescaler_;
-            msg = next(&priority);
         }
         if (msg == this)
         {

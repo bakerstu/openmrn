@@ -32,8 +32,8 @@
  * @date 10 Mar 2015
  */
 
-#ifndef _NMRANET_SIMPLESTACK_HXX_
-#define _NMRANET_SIMPLESTACK_HXX_
+#ifndef _OPENLCB_SIMPLESTACK_HXX_
+#define _OPENLCB_SIMPLESTACK_HXX_
 
 #include <fcntl.h>
 
@@ -289,12 +289,15 @@ public:
     /// @param expected_verison is the correct version of the config file.
     ///
     /// @param file_size is the minimum required size of the config file.
-    void create_config_file_if_needed(const InternalConfigData &ofs,
+    ///
+    /// @return file descriptor for config file.
+    int create_config_file_if_needed(const InternalConfigData &ofs,
         uint16_t expected_version, unsigned file_size);
 
     /// Checks the version information in the EEPROM and performs a factory
     /// reset if incorrect or if force is set.
-    void check_version_and_factory_reset(const InternalConfigData &ofs,
+    /// @return file descriptor for config file.
+    int check_version_and_factory_reset(const InternalConfigData &ofs,
         uint16_t expected_version, bool force = false);
 
     /// Overwrites all events in the eeprom with a brand new event ID.
@@ -440,4 +443,4 @@ private:
 
 } // namespace openlcb
 
-#endif //  _NMRANET_SIMPLESTACK_HXX_
+#endif //  _OPENLCB_SIMPLESTACK_HXX_

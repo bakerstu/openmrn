@@ -35,9 +35,14 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {4, "OpenMRN",
 using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
 using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
+/// Modify this value every time the EEPROM needs to be cleared on the node
+/// after an update.
+static constexpr uint16_t CANONICAL_VERSION = 0x182f;
+
 /// Defines the main segment in the configuration CDI. This is laid out at
 /// origin 128 to give space for the ACDI user data at the beginning.
 CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
+CDI_GROUP_ENTRY(internal_config, InternalConfigData);
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Output LEDs"));

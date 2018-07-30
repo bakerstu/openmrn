@@ -56,12 +56,22 @@ using std::pair;
 #define EXPECT_DEATH(x...) 
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern int g_death_lineno;
 extern const char* g_death_file;
+#ifdef __cplusplus
+}
+#endif
 
 #if defined(__FreeRTOS__)
 
+#ifdef RECORD_DEATH_FILE
+#define RECORD_DEATH() do { g_death_file = __FILE__ ; g_death_lineno = __LINE__; } while(0)
+#else
 #define RECORD_DEATH() do { g_death_lineno = __LINE__; } while(0)
+#endif
 
 /**
    Hard assertion facility. These checks will remain in production code, and
@@ -173,7 +183,7 @@ extern const char* g_death_file;
 /// Static (aka compile-time) assertion for C implementation files. For C++ use
 /// the language's builtin static_assert functionality.
 #define C_STATIC_ASSERT(expr, name) \
-    typedef unsigned char __static_assert_##name[expr ? 0 : -1];
+    typedef unsigned char __attribute__((unused)) __static_assert_##name[expr ? 0 : -1]
 
 #ifndef ESP_NONOS
 /// Declares (on the ESP8266) that the current function is not executed too

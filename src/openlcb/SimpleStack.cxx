@@ -175,7 +175,7 @@ void SimpleCanStackBase::restart_stack()
     StartInitializationFlow(node());
 }
 
-void SimpleCanStackBase::create_config_file_if_needed(
+int SimpleCanStackBase::create_config_file_if_needed(
     const InternalConfigData &cfg, uint16_t expected_version,
     unsigned file_size)
 {
@@ -208,7 +208,7 @@ void SimpleCanStackBase::create_config_file_if_needed(
         reset = true;
     }
     if (!reset && !extend)
-        return;
+        return fd;
 
     // Clears the file, preserving the node name and desription if any.
     if (extend && !reset) {
@@ -244,9 +244,10 @@ void SimpleCanStackBase::create_config_file_if_needed(
     Uint8ConfigEntry(0).write(fd, 2);
     factory_reset_all_events(cfg, fd);
     configUpdateFlow_.factory_reset();
+    return fd;
 }
 
-void SimpleCanStackBase::check_version_and_factory_reset(
+int SimpleCanStackBase::check_version_and_factory_reset(
     const InternalConfigData &cfg, uint16_t expected_version, bool force)
 {
     HASSERT(CONFIG_FILENAME);
@@ -270,6 +271,7 @@ void SimpleCanStackBase::check_version_and_factory_reset(
         factory_reset_all_events(cfg, fd);
         configUpdateFlow_.factory_reset();
     }
+    return fd;
 }
 
 /// Contains an array describing each position in the Configuration space that

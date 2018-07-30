@@ -73,7 +73,10 @@ struct Debug {
     typedef DummyPin RailcomDataReceived;
     typedef DummyPin RailcomAnyData;
     typedef DummyPin RailcomPackets;
-
+    typedef DummyPin RailcomCh2Data;
+    typedef DummyPin RailcomRxActivate;
+    typedef DummyPin CapTimerOverflow;
+    
 
   typedef LED_GOLD_SW_Pin DetectRepeat;
 };

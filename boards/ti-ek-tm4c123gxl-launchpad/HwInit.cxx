@@ -55,6 +55,8 @@
 
 #include "TivaDCC.hxx"
 #include "TivaEEPROMEmulation.hxx"
+#include "TivaEEPROMBitSet.hxx"
+#include "TivaGPIO.hxx"
 #include "DummyGPIO.hxx"
 #include "bootloader_hal.h"
 
@@ -74,6 +76,7 @@ struct Debug {
   typedef DummyPin RailcomPackets;
 
   typedef DummyPin RailcomCh2Data;
+  typedef DummyPin RailcomRxActivate;
 };
 #include "TivaRailcom.hxx"
 
@@ -100,6 +103,10 @@ const size_t EEPROMEmulation::SECTOR_SIZE = (4*1024);
 
 static TivaEEPROMEmulation eeprom("/dev/eeprom", 1500);
 
+extern StoredBitSet* g_gpio_stored_bit_set;
+StoredBitSet* g_gpio_stored_bit_set = nullptr;
+constexpr unsigned EEPROM_BIT_COUNT = 84;
+constexpr unsigned EEPROM_BITS_PER_CELL = 28;
 
 extern "C" {
 void hw_set_to_safe(void);
@@ -134,12 +141,6 @@ void enter_bootloader()
 #define STARTUP_DELAY_CYCLES 2
 #define DEADBAND_ADJUST      80
 
-#define DECL_PIN(NAME, PORT, NUM)                \
-  static const auto NAME##_PERIPH = SYSCTL_PERIPH_GPIO##PORT; \
-  static const auto NAME##_BASE = GPIO_PORT##PORT##_BASE; \
-  static const auto NAME##_PIN = GPIO_PIN_##NUM
-
-
 struct RailcomDefs
 {
     static const uint32_t CHANNEL_COUNT = 1;
@@ -165,7 +166,7 @@ struct RailcomDefs
         CH1_Pin::set_hw();
     }
 
-    static void enable_measurement() {}
+    static void enable_measurement(bool) {}
     static void disable_measurement() {}
     static bool need_ch1_cutout() { return true; }
     static uint8_t get_feedback_channel() { return 0xff; }
@@ -177,8 +178,13 @@ struct RailcomDefs
         if (!CH1_Pin::get()) ret |= 1;
         return ret;
     }
+
+    static unsigned get_timer_tick() {
+        return MAP_TimerValueGet(TIMER5_BASE, TIMER_TIMA_TIMEOUT);
+    }
 };
 
+uint32_t feedback_sample_overflow_count;
 const uint32_t RailcomDefs::UART_BASE[] = {UART1_BASE};
 const uint32_t RailcomDefs::UART_PERIPH[] = {SYSCTL_PERIPH_UART1};
 
@@ -201,17 +207,10 @@ struct DccHwDefs {
   // Peripherals to enable at boot.
   static const auto CCP_PERIPH = SYSCTL_PERIPH_TIMER1;
   static const auto INTERVAL_PERIPH = SYSCTL_PERIPH_TIMER0;
-  static const auto PIN_H_GPIO_PERIPH = SYSCTL_PERIPH_GPIOB;
-  static const auto PIN_L_GPIO_PERIPH = SYSCTL_PERIPH_GPIOB;
 
-  static const auto PIN_H_GPIO_CONFIG = GPIO_PB6_T0CCP0;
-  static const auto PIN_L_GPIO_CONFIG = GPIO_PB7_T0CCP1;
-
-  static const auto PIN_H_GPIO_BASE = GPIO_PORTB_BASE;
-  static const auto PIN_L_GPIO_BASE = GPIO_PORTB_BASE;
-
-  static const auto PIN_H_GPIO_PIN = GPIO_PIN_6;
-  static const auto PIN_L_GPIO_PIN = GPIO_PIN_7;
+  using PIN_H = ::BOOSTER_H_Pin;
+  using PIN_L = ::BOOSTER_L_Pin;
+  using BOOSTER_ENABLE_Pin = DummyPin;
 
   /** Defines whether the high driver pin is inverted or not. A non-inverted
    *  (value==false) pin will be driven high during the first half of the DCC
@@ -247,15 +246,13 @@ struct DccHwDefs {
 
 
   // Pins defined for railcom
-  //DECL_PIN(RAILCOM_TRIGGER, B, 4);
-    /// @todo (balazs.racz) move these to tivagpio.
-  DECL_PIN(RAILCOM_TRIGGER, D, 6);
+  using RAILCOM_TRIGGER_Pin = ::RAILCOM_TRIGGER_Pin;
   static const auto RAILCOM_TRIGGER_INVERT = true;
+  static const auto RAILCOM_TRIGGER_DELAY_USEC = 6;
 
   static const auto RAILCOM_UART_BASE = UART1_BASE;
   static const auto RAILCOM_UART_PERIPH = SYSCTL_PERIPH_UART1;
-  DECL_PIN(RAILCOM_UARTPIN, B, 0);
-  static const auto RAILCOM_UARTPIN_CONFIG = GPIO_PB0_U1RX;
+  using RAILCOM_UARTPIN = ::RAILCOM_CH1_Pin;
 };
 
 
@@ -380,7 +377,10 @@ void hw_preinit(void)
         blinker_pattern = 0;
       }
     } while (blinker_pattern || rest_pattern);
+
     asm volatile ("cpsid i\n");
+
+    g_gpio_stored_bit_set = new EEPROMStoredBitSet<TivaEEPROMHwDefs<EEPROM_BIT_COUNT, EEPROM_BITS_PER_CELL>>(2, 2);
 }
 
 /** Timer interrupt for DCC packet handling.
