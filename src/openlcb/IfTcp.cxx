@@ -38,4 +38,30 @@
 namespace openlcb
 {
 
+void IfTcp::delete_local_node(Node *node)
+{
+    remove_local_node_from_map(node);
+}
+
+void IfTcp::add_owned_flow(Executable *e)
+{
+    ownedFlows_.emplace_back(e);
+}
+
+bool IfTcp::matching_node(NodeHandle expected, NodeHandle actual)
+{
+    if (expected.id && actual.id)
+    {
+        return expected.id == actual.id;
+    }
+    // Cannot reconcile.
+    LOG(VERBOSE, "Cannot reconcile expected and actual NodeHandles for "
+                 "equality testing.");
+    return false;
+}
+
+IfTcp::~IfTcp()
+{
+}
+
 } // namespace openlcb

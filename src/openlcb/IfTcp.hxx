@@ -43,13 +43,15 @@ class IfTcp : public If {
 public:
     IfTcp(ExecutorBase* executor, int fd, int local_nodes_count, Notifiable* on_close);
 
+    ~IfTcp();
+
     void add_owned_flow(Executable *e) override;
     void delete_local_node(Node *node) override;
     bool matching_node(NodeHandle expected, NodeHandle actual) override;
 
 private:
-    
-    
+    /// Various implementation control flows that this interface owns.
+    std::vector<std::unique_ptr<Executable>> ownedFlows_;
 };
 
 

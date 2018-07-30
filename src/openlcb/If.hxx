@@ -319,13 +319,6 @@ public:
      * removed from the data structures.
      */
     virtual void delete_local_node(Node *node) = 0;
-        /*
-    {
-        HASSERT(0);
-        auto it = localNodes_.find(node->node_id());
-        HASSERT(it != localNodes_.end());
-        localNodes_.erase(it);
-        }*/
 
     /** Looks up a node ID in the local nodes' registry. This function must be
      * called from the interface's executor.

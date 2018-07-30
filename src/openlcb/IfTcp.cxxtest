@@ -140,7 +140,6 @@ TEST_F(TcpSendFlowTest, flow_send_frame)
                      "\x01\x02\x03\x04\x05\x06\x07\x08", // payload: event ID
                   28 + 5),
         string(*sentFrames_[1]->data()));
-
 }
 
 
