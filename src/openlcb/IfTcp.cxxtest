@@ -42,6 +42,27 @@ TEST_F(TcpRenderingTest, render_global_message) {
         data);
 }
 
+TEST_F(TcpRenderingTest, render_addressed_message) {
+    GenMessage msg;
+    msg.src.id = 0x050102030405ULL;
+    msg.dst.id = 0x151112131415ULL;
+    msg.mti = Defs::MTI_IDENT_INFO_REPLY;
+    msg.payload = "abcdefghijklmn";
+    string data;
+
+    TcpDefs::render_tcp_message(msg, 0x101112131415ULL, 0x42, &data);
+    EXPECT_EQ(string("\x80\x00"                          // flags
+                     "\x00\x00\x28"                      // length: 28
+                     "\x10\x11\x12\x13\x14\x15"          // gateway node ID
+                     "\x00\x00\x00\x00\x00\x42"          // timestamp / seq no
+                     "\x0A\x08"                          // MTI
+                     "\x05\x01\x02\x03\x04\x05"          // src node ID
+                     "\x15\x11\x12\x13\x14\x15"          // dst node ID
+                     "abcdefghijklmn", // payload: event ID
+                  14 + 26 + 5 ),
+        data);
+}
+
 
 
 } // namespace openlcb
