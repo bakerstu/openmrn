@@ -57,8 +57,6 @@ public:
     {
         /// No additional step is necessary.
         UPDATED = 0,
-        /// The call needs to be re-tried.
-        RETRY,
         /// Need to perform application-level reinitialization. (In case of
         /// OpenLCB this means an identify all events procedure is needed.)
         REINIT_NEEDED,
