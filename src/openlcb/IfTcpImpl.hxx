@@ -84,6 +84,38 @@ public:
         }
     }
 
+    /// Parses a TCP message format (from binary payload) into a general
+    /// OpenLCB message.
+    /// @param src the rendered TCP message.
+    /// @param tgt the output generic message
+    /// @return false if the message is not well formatted or
+    /// it is not an OpenLCB message.
+    static bool parse_tcp_message(const string& src, GenMessage* tgt)
+    {
+        if (src.size() < HDR_SIZE + MSG_GLOBAL_PAYLOAD_OFS) {
+            return false;
+        }
+        uint16_t flags = data_to_error(&src[0]);
+        if ((flags & FLAGS_OPENLCB_MSG) == 0)
+        {
+            return false;
+        }
+        HASSERT((flags & FLAGS_CHAINING) == 0);
+        uint32_t sz = (uint8_t)src[HDR_SIZE_OFS];
+        sz <<= 8;
+        sz |= (uint8_t)src[HDR_SIZE_OFS + 1];
+        sz <<= 8;
+        sz |= (uint8_t)src[HDR_SIZE_OFS + 2];
+        if ((sz + HDR_SIZE_OFS) > src.size()) {
+            LOG(WARNING, "Incomplete TCP message.");
+            return false;
+        }
+        if ((sz + HDR_SIZE_OFS) < src.size()) {
+            LOG(WARNING, "Garbage at the end of a TCP message.");
+        }
+        
+    }
+
     enum
     {
         FLAGS_OPENLCB_MSG = 0x8000,

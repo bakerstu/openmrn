@@ -107,6 +107,9 @@ extern string error_to_buffer(uint16_t error_code);
 /** Writes an error code into a payload object at a given pointer. */
 extern void error_to_data(uint16_t error_code, void* data);
 
+/** Parses an error code from a payload object at a given pointer. */
+extern uint16_t data_to_error(const void* data);
+
 /** Appends an error to the end of an existing buffer. */
 extern void append_error_to_buffer(uint16_t error_code, Payload* p);
 

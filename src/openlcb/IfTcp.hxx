@@ -39,6 +39,15 @@
 
 namespace openlcb {
 
+
+struct TcpMessage {
+    /// Destination node, or {0,0} for broadcast. Helper function for routing.
+    NodeHandle dst;
+    /// Rendered string for the message payload. Includes the header (flags and
+    /// length as well).
+    string data;
+};
+
 class IfTcp : public If {
 public:
     IfTcp(ExecutorBase* executor, int fd, int local_nodes_count, Notifiable* on_close);
