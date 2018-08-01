@@ -257,7 +257,6 @@ int SimpleCanStackBase::check_version_and_factory_reset(
         /// @todo (balazs.racz): We need to clear the eeprom. Best would be if
         /// there was an ioctl to return the eeprom to factory default state by
         /// just erasing the segments.
-        cfg.version().write(fd, expected_version);
         cfg.next_event().write(fd, 0);
         // ACDI version byte. This is not very nice because we cannot be
         // certain that the EEPROM starts with the ACDI data. We'll check it
@@ -270,6 +269,7 @@ int SimpleCanStackBase::check_version_and_factory_reset(
     {
         factory_reset_all_events(cfg, fd);
         configUpdateFlow_.factory_reset();
+        cfg.version().write(fd, expected_version);
     }
     return fd;
 }
