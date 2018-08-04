@@ -29,10 +29,8 @@ TEST(TcpRenderingTest, render_global_message)
 TEST(TcpRenderingTest, render_addressed_message)
 {
     GenMessage msg;
-    msg.src.id = 0x050102030405ULL;
-    msg.dst.id = 0x151112131415ULL;
-    msg.mti = Defs::MTI_IDENT_INFO_REPLY;
-    msg.payload = "abcdefghijklmn";
+    msg.reset(Defs::MTI_IDENT_INFO_REPLY, 0x050102030405ULL,
+        {0x151112131415ULL, 0}, "abcdefghijklmn");
     string data;
 
     TcpDefs::render_tcp_message(msg, 0x101112131415ULL, 0x42, &data);
