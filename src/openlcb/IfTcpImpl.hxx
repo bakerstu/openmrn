@@ -63,7 +63,7 @@ public:
             '\0');
         uint16_t flags = FLAGS_OPENLCB_MSG;
         error_to_data(flags, &target[HDR_FLAG_OFS]);
-        unsigned sz = target.size() - HDR_SIZE_OFS - 3;
+        unsigned sz = target.size() - HDR_SIZE_END;
         target[HDR_SIZE_OFS] = (sz >> 16) & 0xff;
         target[HDR_SIZE_OFS + 1] = (sz >> 8) & 0xff;
         target[HDR_SIZE_OFS + 2] = sz & 0xff;
@@ -90,9 +90,10 @@ public:
     /// @param tgt the output generic message
     /// @return false if the message is not well formatted or
     /// it is not an OpenLCB message.
-    static bool parse_tcp_message(const string& src, GenMessage* tgt)
+    static bool parse_tcp_message(const string &src, GenMessage *tgt)
     {
-        if (src.size() < HDR_SIZE + MSG_GLOBAL_PAYLOAD_OFS) {
+        if (src.size() < HDR_SIZE + MSG_GLOBAL_PAYLOAD_OFS)
+        {
             return false;
         }
         uint16_t flags = data_to_error(&src[0]);
@@ -101,19 +102,58 @@ public:
             return false;
         }
         HASSERT((flags & FLAGS_CHAINING) == 0);
+        tgt->flagsDst = 0;
+        tgt->flagsSrc = 0;
+        if (flags & FLAGS_FRAGMENT_NOT_FIRST)
+        {
+            tgt->set_flag_dst(GenMessage::DSTFLAG_NOT_FIRST_MESSAGE);
+        }
+        if (flags & FLAGS_FRAGMENT_NOT_LAST)
+        {
+            tgt->set_flag_dst(GenMessage::DSTFLAG_NOT_LAST_MESSAGE);
+        }
+        // Contents of the size field in the header.
         uint32_t sz = (uint8_t)src[HDR_SIZE_OFS];
         sz <<= 8;
         sz |= (uint8_t)src[HDR_SIZE_OFS + 1];
         sz <<= 8;
         sz |= (uint8_t)src[HDR_SIZE_OFS + 2];
-        if ((sz + HDR_SIZE_OFS) > src.size()) {
+        if ((sz + HDR_SIZE_OFS) > src.size())
+        {
             LOG(WARNING, "Incomplete TCP message.");
             return false;
         }
-        if ((sz + HDR_SIZE_OFS) < src.size()) {
+        if ((sz + HDR_SIZE_OFS) < src.size())
+        {
             LOG(WARNING, "Garbage at the end of a TCP message.");
         }
-        
+        const char *msg = &src[HDR_SIZE];
+        // We have already checked the size to be long enough for a global
+        // message with 0 bytes payload. So source address and MTI is ok to
+        // parse now.
+        tgt->mti = (Defs::MTI)data_to_error(msg + MSG_MTI_OFS);
+        tgt->src.clear();
+        tgt->dst.clear();
+        tgt->src.id = data_to_node_id(msg + MSG_SRC_OFS);
+        // now contains the length of the message after the header.
+        int payload_bytes = sz - (HDR_SIZE - HDR_SIZE_END);
+        int payload_ofs;
+        if (Defs::get_mti_address(tgt->mti))
+        {
+            payload_ofs = MSG_ADR_PAYLOAD_OFS;
+            tgt->dst.id = data_to_node_id(msg + MSG_DST_OFS);
+        }
+        else
+        {
+            payload_ofs = MSG_GLOBAL_PAYLOAD_OFS;
+        }
+        payload_bytes -= payload_ofs;
+        if (payload_bytes < 0)
+        {
+            LOG(WARNING, "TCP message to short.");
+            return false;
+        }
+        tgt->payload.assign(msg + payload_ofs, payload_bytes);
     }
 
     enum
@@ -128,6 +168,7 @@ public:
         HDR_FLAG_OFS = 0,
         HDR_SIZE_OFS = 2,
         HDR_GATEWAY_OFS = 2 + 3,
+        HDR_SIZE_END = HDR_GATEWAY_OFS,
         HDR_TIMESTAMP_OFS = 2 + 3 + 6,
         HDR_SIZE = 2 + 3 + 6 + 6,
 
