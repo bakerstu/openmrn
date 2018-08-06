@@ -132,6 +132,8 @@ compile_cdi: config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 
 config.hxx: Revision.hxxout
 
+$(OBJS): compile_cdi
+
 clean: clean_cdi
 
 .PHONY: clean_cdi
