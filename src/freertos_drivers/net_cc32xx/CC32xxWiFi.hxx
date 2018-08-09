@@ -305,7 +305,7 @@ public:
         return rssi;
     }
 
-    void add_ip_acquired_callback(std::function<void(bool)> callback)
+    void set_ip_acquired_callback(std::function<void(bool)> callback)
     {
         ipAcquiredCallback_ = callback;
     }

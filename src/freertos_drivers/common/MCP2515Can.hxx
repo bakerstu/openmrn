@@ -659,7 +659,7 @@ private:
 
     void (*interruptEnable_)(); /**< enable interrupt callback */
     void (*interruptDisable_)(); /**< disable interrupt callback */
-    uint32_t state_; /**< present bus state */
+    unsigned state_     : 4; /**< present bus state */
     unsigned txPending_ : 2; /**< transmission in flight */
     unsigned gpoData_   : 2; /**< local copy of the I/O expansion output data */
     unsigned gpiData_   : 3; /**< local copy of the I/O expansion input data */

@@ -594,16 +594,13 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
 
 void CC32xxWiFi::connecting_update_blinker()
 {
-    if (ipAcquiredCallback_ != nullptr)
+    if (!connected)
     {
-        if (!connected)
-        {
-            resetblink(WIFI_BLINK_NOTASSOCIATED);
-        }
-        else if (!ipAcquired)
-        {
-            resetblink(WIFI_BLINK_ASSOC_NOIP);
-        }
+        resetblink(WIFI_BLINK_NOTASSOCIATED);
+    }
+    else if (!ipAcquired)
+    {
+        resetblink(WIFI_BLINK_ASSOC_NOIP);
     }
 }
 
