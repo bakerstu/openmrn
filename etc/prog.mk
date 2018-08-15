@@ -58,6 +58,7 @@ else
 endif
 ifdef BOARD
 INCLUDES += -D$(BOARD)
+CDIEXTRA += -D$(BOARD)
 endif
 CFLAGS += $(INCLUDES)
 CXXFLAGS += $(INCLUDES)
