@@ -62,10 +62,8 @@ struct CC32xxWiFi::HttpServerEvent : public ::SlNetAppHttpServerEvent_t {};
 /** CC32xx forward declaration Helper */
 struct CC32xxWiFi::HttpServerResponse : public ::SlNetAppHttpServerResponse_t {};
 
-#ifdef SL_API_V2
 /** CC32xx forward declaration Helper */
 struct CC32xxWiFi::FatalErrorEvent : public ::SlDeviceFatal_t {};
-#endif
 
 /** This is not a class members so that including CC32xxWiFi.hxx does not
  * pollute the namespace with simplelink APIs.
@@ -210,7 +208,6 @@ uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
 
 CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_scan(unsigned sec_type)
 {
-#ifdef SL_API_V2
     auto t = SL_WLAN_SCAN_RESULT_SEC_TYPE_BITMAP(sec_type);
     switch (t)
     {
@@ -225,9 +222,6 @@ CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_scan(unsigned sec_type)
             SL_WLAN_SECURITY_TYPE_BITMAP_WPA2:
             return SEC_WPA2;
     }
-#else
-    return security_type_from_simplelink(sec_type);
-#endif    
 }
 
 
@@ -348,7 +342,6 @@ bool CC32xxWiFi::wlan_profile_test_none()
  */
 int CC32xxWiFi::wlan_power_policy_get(WlanPowerPolicy *wpp)
 {
-#ifdef SL_API_V2
     uint8_t sl_wpp = 0;
     SlWlanPmPolicyParams_t params;
     int length = sizeof(params);
@@ -380,9 +373,6 @@ int CC32xxWiFi::wlan_power_policy_get(WlanPowerPolicy *wpp)
     }
 
     return 0;
-#else
-    return -1;
-#endif
 }
 
 /*
@@ -391,7 +381,6 @@ int CC32xxWiFi::wlan_power_policy_get(WlanPowerPolicy *wpp)
 int CC32xxWiFi::wlan_power_policy_set(WlanPowerPolicy wpp)
 {
     int result;
-#ifdef SL_API_V2
     WlanPowerPolicy temp_wpp;
     result = wlan_power_policy_get(&temp_wpp);
     if (result != 0)
@@ -400,7 +389,6 @@ int CC32xxWiFi::wlan_power_policy_set(WlanPowerPolicy wpp)
     }
 
     if (temp_wpp != wpp)
-#endif
     {
         uint8_t sl_wpp;
         switch (wpp)
@@ -463,32 +451,10 @@ int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
  */
 void CC32xxWiFi::wlan_mac(uint8_t mac[6])
 {
-#ifdef SL_API_V2
     uint16_t  len = 6;
-#else
-    uint8_t  len = 6;
-#endif
+
     sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, nullptr, &len, mac);
 }
-
-#ifndef SL_API_V2
-void *vSimpleLinkSpawnTask(void *pvParameters)
-{
-    tSimpleLinkSpawnMsg Msg;
-    portBASE_TYPE ret=pdFAIL;
-
-    for(;;)
-    {
-        ret = xQueueReceive( xSimpleLinkSpawnQueue, &Msg, portMAX_DELAY );
-        if(ret == pdPASS)
-        {
-                Msg.pEntry(Msg.pValue);
-        }
-    }
-    return nullptr;
-}
-extern TaskHandle_t xSimpleLinkSpawnTaskHndl;
-#endif
 
 /*
  * CC32xxWiFi::start()
@@ -502,7 +468,7 @@ void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy)
      */
     wlanRole = role;
     wlanPowerPolicy = power_policy;
-#ifdef SL_API_V2
+
     /* note, sl_Task MUST be a pthread because the Wi-Fi task uses the pthread
      * interface such as pthread_self().
      */
@@ -515,16 +481,7 @@ void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy)
     pthread_attr_setschedparam(&attr, &sched_param);
     pthread_attr_setstacksize(&attr, 2048);
     pthread_create(&thread, &attr, sl_Task, nullptr);
-#else
-#if 0
-    VStartSimpleLinkSpawnTask(OSThread::get_priority_max() - 1);
-#else
-    xSimpleLinkSpawnQueue = xQueueCreate(3, sizeof( tSimpleLinkSpawnMsg ) );
-    os_thread_create(&xSimpleLinkSpawnTaskHndl, "SimpleLink",
-                     OSThread::get_priority_max() - 1, 2048,
-                     vSimpleLinkSpawnTask, NULL);
-#endif // if 0
-#endif
+
     os_thread_create(nullptr, "Wlan Task", OSThread::get_priority_max() - 1,
                      2048, wlan_task_entry, nullptr);
 }
@@ -621,13 +578,12 @@ void CC32xxWiFi::connecting_update_blinker()
 void CC32xxWiFi::set_default_state()
 {
     long result = sl_Start(0, 0, 0);
-#ifdef SL_API_V2
     if (result == SL_ERROR_ROLE_STA_ERR)
     {
         sl_Stop(0xFF);
         result = sl_Start(0, 0, 0);
     }
-#endif    
+
     SlCheckError(result);
     if (wlanRole == WlanRole::AP)
     {
@@ -950,11 +906,9 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
 
     switch (event->Id)
     {
-#if defined (SL_API_V2)
         case SL_NETAPP_EVENT_DHCP_IPV4_ACQUIRE_TIMEOUT:
             /* DHCP acquisition still continues, this is just a warning */
             break;
-#endif
         case SL_NETAPP_EVENT_IPV4_ACQUIRED:
         {
             const auto* ip_aquired = &event->Data.IpAcquiredV4;
@@ -1001,7 +955,6 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             ipAddress = ip_leased->IpAddress;
             break;
         }
-#if defined (SL_API_V2)
         case SL_NETAPP_EVENT_IP_COLLISION:
             break;
         case SL_NETAPP_EVENT_IPV4_LOST:
@@ -1013,7 +966,6 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             }
             break;
         }
-#endif
         case SL_NETAPP_EVENT_DHCPV4_RELEASED:
             ipLeased = 0;
 
@@ -1241,8 +1193,6 @@ void SimpleLinkHttpServerEventHandler(
         static_cast<CC32xxWiFi::HttpServerResponse *>(pHttpServerResponse));
 }
 
-#ifdef SL_API_V2
-
 /**
  *  \brief      This function handles resource request
  *  \param[in]  pNetAppRequest - Contains the resource requests
@@ -1290,7 +1240,5 @@ int slcb_SetErrno(int Errno)
     errno = Errno;
     return 0;
 }
-
-#endif 
 
 } /* extern "C" */
