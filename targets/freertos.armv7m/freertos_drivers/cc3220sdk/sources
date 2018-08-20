@@ -15,7 +15,7 @@ CSRCS += device.c \
          sl_socket.c \
          spawn.c \
          wlan.c \
-	 cc_pal.c \
+         cc_pal.c \
          eventreg.c \
 
 #	 maybe we don't need this because we are not using dynamic event
@@ -28,13 +28,8 @@ CSRCS += device.c \
          
 CXXSRCS +=
 
-CFLAGS += -Wno-strict-prototypes \
-          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
-          -D__USER_H__
+CFLAGS += -Wno-strict-prototypes
 
-CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
-            -D__USER_H__
-
-
+CXXFLAGS +=
 
 device.o : CFLAGS+= -DTRUE=1 -DFALSE=0

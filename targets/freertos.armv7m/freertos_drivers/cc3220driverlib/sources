@@ -6,8 +6,8 @@ VPATH := $(TICC3220SDKPATH)/source/ti/drivers \
          $(TICC3220SDKPATH)/source/ti/drivers/dma \
          $(TICC3220SDKPATH)/source/ti/drivers/power \
          $(TICC3220SDKPATH)/source/ti/drivers/utils \
+         $(TICC3220SDKPATH)/source/ti/posix/freertos \
          $(TICC3220SDKPATH)/kernel/freertos/dpl \
-	 $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220 \
 
 CSRCS += SPI.c \
          HwiPCC32XX_freertos.c \
@@ -17,8 +17,11 @@ CSRCS += SPI.c \
          SPICC32XXDMA.c \
          UDMACC32XX.c \
          PowerCC32XX.c \
-         List.c \
-	 semaphore_freertos_patch.c \
+         List.c
+
+CSRCS += pthread.c \
+         pthread_mutex.c \
+         sched.c
 
 
 # CSRCS += osi_freertos.c
@@ -29,7 +32,5 @@ CFLAGS += -Wno-strict-prototypes
 
 PowerCC32XX.o : CFLAGS+= -Wno-error -Wno-maybe-uninitialized
 
-SemaphoreP_freertos.o : CFLAGS+= -DSemaphoreP_pend=BrokenSemaphoreP_pend
-
-
-device.o : CFLAGS+= -DTRUE=1 -DFALSE=0
+device.o : CFLAGS += -DTRUE=1 -DFALSE=0
+pthread.o : CFLAGS += -DconfigPOSIX_STACK_SIZE=512 -Wno-error=unused-variable
