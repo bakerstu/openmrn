@@ -383,6 +383,7 @@ SEARCHPATH := \
   $(GMOCKPATH)/gtest \
   /opt/gmock/default/gtest \
   /opt/gtest/gtest \
+  /opt/gtest/default \
   /usr \
 
 TRYPATH:=$(call findfirst,include/gtest/gtest.h,$(SEARCHPATH))

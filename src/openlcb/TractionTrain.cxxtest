@@ -12,14 +12,14 @@ namespace openlcb
 TEST(Fp16Test, NanToSpeedIsNan)
 {
     SpeedType nan_speed = nan_to_speed();
-    EXPECT_TRUE(isnan(nan_speed.speed()));
+    EXPECT_TRUE(std::isnan(nan_speed.speed()));
 }
 
 TEST(Fp16Test, FFFFToSpeedIsNan)
 {
     uint16_t nan_fp16 = 0xffffU;
     SpeedType nan_speed = fp16_to_speed(&nan_fp16);
-    EXPECT_TRUE(isnan(nan_speed.speed()));
+    EXPECT_TRUE(std::isnan(nan_speed.speed()));
 
     uint32_t fp_nan = 0;
     memcpy(&fp_nan, &nan_speed, 4);
