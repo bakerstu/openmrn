@@ -37,9 +37,7 @@
 
 namespace openlcb {
 
-const char TcpDefs::MDNS_SERVICE_NAME_TCP[] = "_openlcb._tcp";
-// @todo(balazs.racz) this constant is incorrect. Migrate to the standards
-// compliant name.
-const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN[] = "_openlcb_can._tcp";
+const char TcpDefs::MDNS_SERVICE_NAME_TCP[] = "_openlcb-hub._tcp";
+const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN[] = "_openlcb-can._tcp";
 
 }  // namespace openlcb
