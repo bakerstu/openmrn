@@ -49,6 +49,11 @@ struct TractionThrottleInput;
 /// TractionThrottle flow.
 struct TractionThrottleCommands
 {
+    enum SetDst
+    {
+        SET_DST,
+    };
+
     enum AssignTrain
     {
         ASSIGN_TRAIN,
@@ -87,6 +92,7 @@ struct TractionThrottleInput : public CallableFlowRequestBase
 {
     enum Command
     {
+        CMD_SET_DST,
         CMD_ASSIGN_TRAIN,
         CMD_RELEASE_TRAIN,
         CMD_LOAD_STATE,
@@ -94,6 +100,14 @@ struct TractionThrottleInput : public CallableFlowRequestBase
         CMD_CONSIST_DEL,
         CMD_CONSIST_QRY,
     };
+
+    /// Sets the destination node to send messages to without sending assign
+    /// commands to that train node.
+    void reset(const TractionThrottleCommands::SetDst &, const NodeID &dst)
+    {
+        cmd = CMD_SET_DST;
+        this->dst = dst;
+    }
 
     void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst,
         bool listen)
@@ -218,6 +232,7 @@ public:
         /// Upon a load state request, how far do we go into the function list?
         MAX_FN_QUERY = 28,
         ERROR_UNASSIGNED = 0x4000000,
+        ERROR_ASSIGNED = 0x4010000,
     };
 
     void set_speed(SpeedType speed) override
@@ -317,6 +332,15 @@ private:
     {
         switch (message()->data()->cmd)
         {
+            case Command::CMD_SET_DST:
+            {
+                if (assigned_)
+                {
+                    return return_with_error(ERROR_ASSIGNED);
+                }
+                dst_ = input()->dst;
+                return return_ok();
+            }
             case Command::CMD_ASSIGN_TRAIN:
             {
                 if (assigned_)
