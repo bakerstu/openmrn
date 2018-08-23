@@ -317,6 +317,9 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
             case SL_ERROR_BSD_EAGAIN:
                 errno = EAGAIN;
                 break;
+            case SL_RET_CODE_STOP_IN_PROGRESS:
+                errno = ECONNABORTED;
+                break;
         }
         return -1;
     }
@@ -452,6 +455,9 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
                 return 0;
             case SL_ERROR_BSD_EBADF:
                 errno = EBADF;
+                break;
+            case SL_RET_CODE_STOP_IN_PROGRESS:
+                errno = ECONNRESET;
                 break;
         }
         return -1;
