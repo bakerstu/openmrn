@@ -596,7 +596,7 @@ void CC32xxWiFi::set_default_state()
     }
     else
     {
-        if (true || wlan_profile_test_none())
+        if (wlan_profile_test_none())
         {
             /* no profiles saved, add the default profile */
             wlan_profile_add(WIFI_SSID,
