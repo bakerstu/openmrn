@@ -31,6 +31,10 @@
  * @date 10 May 2014
  */
 
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
+#endif
+
 #include "console/Console.hxx"
 
 #if defined (CONSOLE_NETWORKING)
@@ -42,6 +46,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <cstdio>
 
 /*
  * Console::Console()
@@ -250,7 +255,25 @@ StateFlowBase::Action Console::Listen::accept()
 #endif
 
 /*
- * Console::Listen::process_read()
+ * Console::Session::Session()
+ */
+Console::Session::Session(Service *service, int fd_in, int fd_out)
+    : StateFlowBase(service)
+    , fdIn(fd_in)
+    , fdOut(fd_out)
+    , fp(fdopen(fd_out, "w"))
+    , line((char*)malloc(64))
+    , line_size(64)
+    , pos(0)
+    , selectHelper(this)
+    , command(nullptr)
+{
+    prompt(fp);
+    start_flow(STATE(entry));
+}
+
+/*
+ * Console::Session::process_read()
  */
 StateFlowBase::Action Console::Session::process_read()
 {
