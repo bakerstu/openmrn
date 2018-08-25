@@ -34,7 +34,5 @@ INCLUDES += -idirafter $(TICC3220SDKPATH)/source/ti/drivers/net/wifi \
             -I$(TICC3220SDKPATH)/source/
 endif
 
-TiDrivers.o : CFLAGS+= -Wno-strict-prototypes
-
 endif
 
