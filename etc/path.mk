@@ -483,6 +483,7 @@ SEARCHPATH := \
   /opt/openocd/default/openocd/tcl \
   /opt/openocd/default/tcl \
   /opt/openocd/default/scripts \
+  /opt/openocd/default/share/openocd/scripts \
   /usr/local/share/openocd/scripts \
   /usr/share/openocd/scripts \
 
