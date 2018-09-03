@@ -128,14 +128,29 @@ void hard_fault_handler_step_3(void);
 
 __attribute__((__naked__)) static void hard_fault_handler(void)
 {
+// set switch to 0 in order to alternatively recreate the previous stack frame
+// and hald the CPU
+#if 1
     __asm volatile
     (
         " tst   lr, #4               \n"
         " ite   eq                   \n"
         " mrseq r0, msp              \n"
         " mrsne r0, psp              \n"
-        " ldr r1, =hard_fault_handler_step_2 \n"
-        " bx r1 \n");
+        " ldr r1, [r0, #24]          \n"
+        " ldr r2, =hard_fault_handler_step_2 \n"
+        " bx r2 \n");
+#else
+    __asm volatile
+    (
+        " tst   lr, #4 \n"
+        " ite   eq     \n"
+        " mrseq r0, msp\n"
+        " mrsne r0, psp\n"
+        " mov   sp, r0 \n"
+        " bkpt  #1     \n"
+    );
+#endif
 #if 0
     // saves our return address
         " mov   r2, lr               \n"
