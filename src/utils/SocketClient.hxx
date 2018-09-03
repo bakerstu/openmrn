@@ -255,7 +255,7 @@ private:
 
             if (ai_ret == 0 && addr_)
             {
-                /* able to resolve the hostname */
+                /* able to resolve the hostname to an address */
                 bool addr_okay = true;
                 if (addr_->ai_addr->sa_family != AF_INET)
                 {
@@ -264,6 +264,7 @@ private:
                 }
                 if (addr_okay)
                 {
+                    /* get the addresses of all of our interfaces */
                     struct ifaddrs *ifa;
                     int result = getifaddrs(&ifa);
                     if (result == 0)
@@ -272,21 +273,27 @@ private:
                         struct ifaddrs *ifa_free = ifa;
                         while (ifa)
                         {
-                            if (ifa->ifa_addr->sa_family == AF_INET)
+                            if (ifa->ifa_addr)
                             {
-                                struct sockaddr_in *ai_addr_in =
-                                    (struct sockaddr_in*)addr_->ai_addr;
-                                struct sockaddr_in *if_addr_in =
-                                    (struct sockaddr_in*)ifa->ifa_addr;
-                                if (ai_addr_in->sin_addr.s_addr ==
-                                    if_addr_in->sin_addr.s_addr)
+                                /* ifa_addr pointer valid */
+                                if (ifa->ifa_addr->sa_family == AF_INET)
                                 {
-                                    /* trying to connected to myself */
-                                    addr_okay = false;
-                                }
-                                if (if_addr_in->sin_addr.s_addr != 0)
-                                {
-                                    has_address = true;
+                                    /* have a valid IPv4 address */
+                                    struct sockaddr_in *ai_addr_in =
+                                        (struct sockaddr_in*)addr_->ai_addr;
+                                    struct sockaddr_in *if_addr_in =
+                                        (struct sockaddr_in*)ifa->ifa_addr;
+                                    if (ai_addr_in->sin_addr.s_addr ==
+                                        if_addr_in->sin_addr.s_addr)
+                                    {
+                                        /* trying to connected to myself */
+                                        addr_okay = false;
+                                    }
+                                    if (if_addr_in->sin_addr.s_addr != 0)
+                                    {
+                                        /* no IPv4 address is assigned */
+                                        has_address = true;
+                                    }
                                 }
                             }
                             ifa = ifa->ifa_next;
@@ -307,6 +314,7 @@ private:
                 }
                 if (addr_okay)
                 {
+                    /* we have a valid IPv4 address that is not ourselves */
                     fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
                     if (fd_ >= 0)
                     {
