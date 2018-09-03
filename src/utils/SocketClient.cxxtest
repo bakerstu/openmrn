@@ -108,7 +108,7 @@ TEST_F(SocketClientTest, connect_host)
     delete sc;
 }
 
-TEST_F(SocketClientTest, DISABLED_connect_mdns)
+TEST_F(SocketClientTest, connect_mdns)
 {
     LOG(INFO, "create");
     MDNS *mdns = new MDNS();
@@ -140,7 +140,7 @@ TEST_F(SocketClientTest, DISABLED_connect_mdns)
     delete sc;
 }
 
-TEST_F(SocketClientTest, DISABLED_connect_mdns_not_published)
+TEST_F(SocketClientTest, connect_mdns_not_published)
 {
     SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
 
