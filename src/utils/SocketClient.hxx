@@ -307,7 +307,6 @@ private:
                 }
                 if (addr_okay)
                 {
-                    //__asm volatile(" bkpt  #1     \n");
                     fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
                     if (fd_ >= 0)
                     {
