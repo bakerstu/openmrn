@@ -39,6 +39,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
 
 #include "executor/StateFlow.hxx"
 #include "executor/Timer.hxx"
@@ -255,33 +256,82 @@ private:
             if (ai_ret == 0 && addr_)
             {
                 /* able to resolve the hostname */
-                fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-                if (fd_ >= 0)
+                bool addr_okay = true;
+                if (addr_->ai_addr->sa_family != AF_INET)
                 {
+                    /* we only support IPv4 addresses */
+                    addr_okay = false;
+                }
+                if (addr_okay)
+                {
+                    struct ifaddrs *ifa;
+                    int result = getifaddrs(&ifa);
+                    if (result == 0)
                     {
-                        struct timeval tm;
-                        tm.tv_sec = timeoutSeconds_;
-                        tm.tv_usec = 0;
-                        ERRNOCHECK("setsockopt_timeout", setsockopt(fd_,
-                                                                    SOL_SOCKET,
-                                                                    SO_RCVTIMEO,
-                                                                    &tm,
-                                                                    sizeof(tm))
-                                  );
+                        bool has_address = false;
+                        struct ifaddrs *ifa_free = ifa;
+                        while (ifa)
+                        {
+                            if (ifa->ifa_addr->sa_family == AF_INET)
+                            {
+                                struct sockaddr_in *ai_addr_in =
+                                    (struct sockaddr_in*)addr_->ai_addr;
+                                struct sockaddr_in *if_addr_in =
+                                    (struct sockaddr_in*)ifa->ifa_addr;
+                                if (ai_addr_in->sin_addr.s_addr ==
+                                    if_addr_in->sin_addr.s_addr)
+                                {
+                                    /* trying to connected to myself */
+                                    addr_okay = false;
+                                }
+                                if (if_addr_in->sin_addr.s_addr != 0)
+                                {
+                                    has_address = true;
+                                }
+                            }
+                            ifa = ifa->ifa_next;
+                        }
+                        freeifaddrs(ifa_free);
+                        if (!has_address)
+                        {
+                            /* none of the network interfaces have a valid
+                             * address
+                             */
+                            addr_okay = false;
+                        }
                     }
-                    /* socket available */
-                    int ret = ::connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
-                    if (ret == 0)
+                }
+                if (addr_okay)
+                {
+                    //__asm volatile(" bkpt  #1     \n");
+                    fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                    if (fd_ >= 0)
                     {
-                        /* connect successful */
-                        notify();
-                        sem_.wait();
-                    }
-                    else
-                    {
-                        update_status(Status::CONNECT_FAILED);
-                        /* connect failed */
-                        close(fd_);
+                        {
+                            struct timeval tm;
+                            tm.tv_sec = timeoutSeconds_;
+                            tm.tv_usec = 0;
+                            ERRNOCHECK("setsockopt_timeout",
+                                       setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO,
+                                                  &tm, sizeof(tm)
+                                                 )
+                                      );
+                        }
+                        /* socket available */
+                        int ret = ::connect(fd_, addr_->ai_addr,
+                                            addr_->ai_addrlen);
+                        if (ret == 0)
+                        {
+                            /* connect successful */
+                            notify();
+                            sem_.wait();
+                        }
+                        else
+                        {
+                            update_status(Status::CONNECT_FAILED);
+                            /* connect failed */
+                            close(fd_);
+                        }
                     }
                 }
             }
