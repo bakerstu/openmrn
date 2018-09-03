@@ -295,10 +295,14 @@ private:
                         if (!has_address)
                         {
                             /* none of the network interfaces have a valid
-                             * address
+                             * IPv4 address
                              */
                             addr_okay = false;
                         }
+                    }
+                    else
+                    {
+                        addr_okay = false;
                     }
                 }
                 if (addr_okay)
