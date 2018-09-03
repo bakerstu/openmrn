@@ -60,6 +60,7 @@ public:
         MDNS_CONNECT,
         STATIC_CONNECT,
         CONNECT_FAILED,
+        CONNECT_FAILED_SELF,
     };
     
      /** Constructor.
@@ -310,6 +311,10 @@ private:
                              * IPv4 address
                              */
                             addr_okay = false;
+                        }
+                        if (!addr_okay)
+                        {
+                            update_status(Status::CONNECT_FAILED_SELF);
                         }
                     }
                     else
