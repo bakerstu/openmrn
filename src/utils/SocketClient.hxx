@@ -87,12 +87,14 @@ public:
      *                      connecting on error.
      * @param timeout_seconds time in seconds that the connect is supposed to
      *                        timeout and look for a possible shutdown.
+     * @param disallow_local disallow local connections to one's self
      */
     SocketClient(Service *service, const char *mdns, const char *host,
                  uint16_t port,
                  std::function<void(int, struct addrinfo *, Notifiable*)> callback,
                  std::function<void(Status)> status_callback = nullptr,
-                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255)
+                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255,
+                 bool disallow_local = false)
         : StateFlowBase(service)
         , OSThread()
         , mdns_(mdns)
@@ -102,6 +104,7 @@ public:
         , statusCallback_(status_callback)
         , retrySeconds_(retry_seconds)
         , timeoutSeconds_(timeout_seconds)
+        , disallowLocal_(disallow_local)
         , state_(STATE_CREATED)
         , fd_(-1)
         , addr_(nullptr)
@@ -262,9 +265,11 @@ private:
                     /* we only support IPv4 addresses */
                     addr_okay = false;
                 }
-                if (addr_okay)
+                if (addr_okay && disallowLocal_)
                 {
-                    /* get the addresses of all of our interfaces */
+                    /* We don't permit local connections to self, get the
+                     * addresses of all of our interfaces and check for this
+                     */
                     struct ifaddrs *ifa;
                     int result = getifaddrs(&ifa);
                     if (result == 0)
@@ -416,10 +421,18 @@ private:
     /** callback to call on connection status */
     std::function<void(Status)> statusCallback_ = nullptr;
     
-        /** number of seconds between retries */
+    /** number of seconds between retries */
     uint8_t retrySeconds_;
+
+    /** time in seconds that the connect is supposed to
+     *  timeout and look for a possible shutdown
+     */
     uint8_t timeoutSeconds_;
 
+    /** disallow local connections to one's self */
+    bool disallowLocal_;
+
+    /** current state in the objects lifecycle */
     volatile State state_;
 
     /** socket descriptor */
