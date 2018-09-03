@@ -1305,27 +1305,25 @@ int getifaddrs(struct ifaddrs **ifap)
  */
 void freeifaddrs(struct ifaddrs *ifa)
 {
-    struct ifaddrs *current = ifa;
-
-    while (current)
+    while (ifa)
     {
-        struct ifaddrs *next = current->ifa_next;
+        struct ifaddrs *next = ifa->ifa_next;
 
-        HASSERT(current->ifa_data == nullptr);
-        HASSERT(current->ifa_ifu.ifu_broadaddr == nullptr);
-        HASSERT(current->ifa_netmask == nullptr);
+        HASSERT(ifa->ifa_data == nullptr);
+        HASSERT(ifa->ifa_ifu.ifu_broadaddr == nullptr);
+        HASSERT(ifa->ifa_netmask == nullptr);
 
-        if (current->ifa_addr)
+        if (ifa->ifa_addr)
         {
-            delete current->ifa_addr;
+            delete ifa->ifa_addr;
         }
-        if (current->ifa_name)
+        if (ifa->ifa_name)
         {
-            delete[] current->ifa_name;
+            delete[] ifa->ifa_name;
         }
-        delete current;
+        delete ifa;
 
-        current = next;
+        ifa = next;
     }
 }
 
