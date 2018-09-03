@@ -1086,7 +1086,7 @@ int getaddrinfo(const char *nodename, const char *servname,
     std::unique_ptr<struct sockaddr> sa(new struct sockaddr);
     if (sa.get() == nullptr)
     {
-        free(*res);
+        ai.reset();
         return EAI_MEMORY;
     }
     memset(sa.get(), 0, sizeof(struct sockaddr));
