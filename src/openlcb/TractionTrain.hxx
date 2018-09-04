@@ -128,8 +128,14 @@ public:
      * already in the target list, true if it was newly added. */
     bool add_consist(NodeID tgt, uint8_t flags)
     {
-        if (!tgt) return false;
-        if (tgt == node_id()) return false;
+        if (!tgt)
+        {
+            return false;
+        }
+        if (tgt == node_id())
+        {
+            return false;
+        }
         auto it = consistSlaves_.begin();
         for (; it != consistSlaves_.end(); ++it)
         {
