@@ -44,7 +44,8 @@
 #include <unistd.h>
 
 // Simplelink includes
-#include "CC3200_compat/simplelink.h"
+#include <ti/drivers/net/wifi/simplelink.h>
+#include <ti/drivers/net/wifi/source/protocol.h>
 
 /** CC32xx forward declaration Helper */
 struct CC32xxWiFi::WlanEvent : public ::SlWlanEvent_t {};
@@ -56,15 +57,13 @@ struct CC32xxWiFi::NetAppEvent : public ::SlNetAppEvent_t {};
 struct CC32xxWiFi::SockEvent : public ::SlSockEvent_t {};
 
 /** CC32xx forward declaration Helper */
-struct CC32xxWiFi::HttpServerEvent : public ::SlHttpServerEvent_t {};
+struct CC32xxWiFi::HttpServerEvent : public ::SlNetAppHttpServerEvent_t {};
 
 /** CC32xx forward declaration Helper */
-struct CC32xxWiFi::HttpServerResponse : public ::SlHttpServerResponse_t {};
+struct CC32xxWiFi::HttpServerResponse : public ::SlNetAppHttpServerResponse_t {};
 
-#ifdef SL_API_V2
 /** CC32xx forward declaration Helper */
 struct CC32xxWiFi::FatalErrorEvent : public ::SlDeviceFatal_t {};
-#endif
 
 /** This is not a class members so that including CC32xxWiFi.hxx does not
  * pollute the namespace with simplelink APIs.
@@ -111,9 +110,9 @@ void new_highest()
         {
             if (slSockets[i] > fdHighest)
             {
-                if (SL_FD_ISSET(slSockets[i], &rfds) ||
-                    SL_FD_ISSET(slSockets[i], &wfds) ||
-                    SL_FD_ISSET(slSockets[i], &efds))
+                if (SL_SOCKET_FD_ISSET(slSockets[i], &rfds) ||
+                    SL_SOCKET_FD_ISSET(slSockets[i], &wfds) ||
+                    SL_SOCKET_FD_ISSET(slSockets[i], &efds))
                 {
                     fdHighest = slSockets[i];
                 }
@@ -184,9 +183,9 @@ CC32xxWiFi::CC32xxWiFi()
     {
         slSockets[i] = -1;
     }
-    SL_FD_ZERO(&rfds);
-    SL_FD_ZERO(&wfds);
-    SL_FD_ZERO(&efds);
+    SL_SOCKET_FD_ZERO(&rfds);
+    SL_SOCKET_FD_ZERO(&wfds);
+    SL_SOCKET_FD_ZERO(&efds);
     ssid[0] = '\0';
 
     add_http_get_callback(make_pair(bind(&CC32xxWiFi::http_get_ip_address,
@@ -199,17 +198,16 @@ uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
     {
         default:
         case SEC_OPEN:
-            return SL_SEC_TYPE_OPEN;
+            return SL_WLAN_SEC_TYPE_OPEN;
         case SEC_WEP:
-            return SL_SEC_TYPE_WEP;
+            return SL_WLAN_SEC_TYPE_WEP;
         case SEC_WPA2:
-            return SL_SEC_TYPE_WPA_WPA2;
+            return SL_WLAN_SEC_TYPE_WPA_WPA2;
     }
 }
 
 CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_scan(unsigned sec_type)
 {
-#ifdef SL_API_V2
     auto t = SL_WLAN_SCAN_RESULT_SEC_TYPE_BITMAP(sec_type);
     switch (t)
     {
@@ -224,9 +222,6 @@ CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_scan(unsigned sec_type)
             SL_WLAN_SECURITY_TYPE_BITMAP_WPA2:
             return SEC_WPA2;
     }
-#else
-    return security_type_from_simplelink(sec_type);
-#endif    
 }
 
 
@@ -235,14 +230,14 @@ CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(uint8_t sec_t
     switch (sec_type)
     {
         default:
-        case SL_SEC_TYPE_OPEN:
+        case SL_WLAN_SEC_TYPE_OPEN:
             return SEC_OPEN;
-        case SL_SEC_TYPE_WEP:
+        case SL_WLAN_SEC_TYPE_WEP:
             return SEC_WEP;
-        case SL_SEC_TYPE_WPS_PBC:
-        case SL_SEC_TYPE_WPS_PIN:
-        case SL_SEC_TYPE_WPA_ENT:
-        case SL_SEC_TYPE_WPA_WPA2:
+        case SL_WLAN_SEC_TYPE_WPS_PBC:
+        case SL_WLAN_SEC_TYPE_WPS_PIN:
+        case SL_WLAN_SEC_TYPE_WPA_ENT:
+        case SL_WLAN_SEC_TYPE_WPA_WPA2:
             return SEC_WPA2;
     }
 }
@@ -253,7 +248,7 @@ CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(uint8_t sec_t
 int CC32xxWiFi::wlan_profile_add(const char *ssid, SecurityType sec_type,
                                  const char *key, unsigned priority)
 {
-    SlSecParams_t sec_params;
+    SlWlanSecParams_t sec_params;
     sec_params.Key = (int8_t*)key;
     sec_params.KeyLen = (key == nullptr) ? 0 : strlen(key);
     sec_params.Type = security_type_to_simplelink(sec_type);
@@ -304,7 +299,7 @@ int CC32xxWiFi::wlan_profile_del(const char *ssid)
 int CC32xxWiFi::wlan_profile_get(int index, char ssid[],
                                  SecurityType *sec_type, uint32_t *priority)
 {
-    SlSecParams_t sec_params;
+    SlWlanSecParams_t sec_params;
     int16_t ssid_len;
     
     int16_t result = sl_WlanProfileGet(index, (int8_t*)ssid, &ssid_len,
@@ -347,7 +342,6 @@ bool CC32xxWiFi::wlan_profile_test_none()
  */
 int CC32xxWiFi::wlan_power_policy_get(WlanPowerPolicy *wpp)
 {
-#ifdef SL_API_V2
     uint8_t sl_wpp = 0;
     SlWlanPmPolicyParams_t params;
     int length = sizeof(params);
@@ -379,9 +373,6 @@ int CC32xxWiFi::wlan_power_policy_get(WlanPowerPolicy *wpp)
     }
 
     return 0;
-#else
-    return -1;
-#endif
 }
 
 /*
@@ -390,7 +381,6 @@ int CC32xxWiFi::wlan_power_policy_get(WlanPowerPolicy *wpp)
 int CC32xxWiFi::wlan_power_policy_set(WlanPowerPolicy wpp)
 {
     int result;
-#ifdef SL_API_V2
     WlanPowerPolicy temp_wpp;
     result = wlan_power_policy_get(&temp_wpp);
     if (result != 0)
@@ -399,7 +389,6 @@ int CC32xxWiFi::wlan_power_policy_set(WlanPowerPolicy wpp)
     }
 
     if (temp_wpp != wpp)
-#endif
     {
         uint8_t sl_wpp;
         switch (wpp)
@@ -433,7 +422,7 @@ void CC32xxWiFi::wlan_rescan()
     // This will trigger an immediate rescan and then every 10 minutes a new
     // scan will be done if we have no connection.
     unsigned long intervalInSeconds = 600;
-    sl_WlanPolicySet(SL_POLICY_SCAN, 1 /*enable*/, (unsigned char *)
+    sl_WlanPolicySet(SL_WLAN_POLICY_SCAN, 1 /*enable*/, (unsigned char *)
                      &intervalInSeconds,sizeof(intervalInSeconds));    
 }
     
@@ -442,15 +431,15 @@ void CC32xxWiFi::wlan_rescan()
  */
 int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
 {
-    Sl_WlanNetworkEntry_t* sl_entries = new Sl_WlanNetworkEntry_t[count];
+    SlWlanNetworkEntry_t* sl_entries = new SlWlanNetworkEntry_t[count];
 
     int result = sl_WlanGetNetworkList(0, count, sl_entries);
 
     for (int i = 0; i < result; ++i)
     {
-        entries[i].ssid.assign((char*)sl_entries[i].SL_ssid, sl_entries[i].SL_ssid_len);
-        entries[i].sec_type = security_type_from_scan(sl_entries[i].SL_sec_type);
-        entries[i].rssi = sl_entries[i].SL_rssi;
+        entries[i].ssid.assign((char*)sl_entries[i].Ssid, sl_entries[i].SsidLen);
+        entries[i].sec_type = security_type_from_scan(sl_entries[i].SecurityInfo);
+        entries[i].rssi = sl_entries[i].Rssi;
     }
 
     delete [] sl_entries;
@@ -462,32 +451,10 @@ int CC32xxWiFi::wlan_network_list_get(WlanNetworkEntry *entries, size_t count)
  */
 void CC32xxWiFi::wlan_mac(uint8_t mac[6])
 {
-#ifdef SL_API_V2
     uint16_t  len = 6;
-#else
-    uint8_t  len = 6;
-#endif
-    sl_NetCfgGet(SL_MAC_ADDRESS_GET, nullptr, &len, mac);
-}
 
-#ifndef SL_API_V2
-void *vSimpleLinkSpawnTask(void *pvParameters)
-{
-    tSimpleLinkSpawnMsg Msg;
-    portBASE_TYPE ret=pdFAIL;
-
-    for(;;)
-    {
-        ret = xQueueReceive( xSimpleLinkSpawnQueue, &Msg, portMAX_DELAY );
-        if(ret == pdPASS)
-        {
-                Msg.pEntry(Msg.pValue);
-        }
-    }
-    return nullptr;
+    sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, nullptr, &len, mac);
 }
-extern TaskHandle_t xSimpleLinkSpawnTaskHndl;
-#endif
 
 /*
  * CC32xxWiFi::start()
@@ -501,19 +468,20 @@ void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy)
      */
     wlanRole = role;
     wlanPowerPolicy = power_policy;
-#ifdef SL_API_V2
-    os_thread_create(nullptr, "SimpleLink Task",
-                     OSThread::get_priority_max() - 1, 2048, sl_Task, nullptr);
-#else
-#if 0
-    VStartSimpleLinkSpawnTask(OSThread::get_priority_max() - 1);
-#else
-    xSimpleLinkSpawnQueue = xQueueCreate(3, sizeof( tSimpleLinkSpawnMsg ) );
-    os_thread_create(&xSimpleLinkSpawnTaskHndl, "SimpleLink",
-                     OSThread::get_priority_max() - 1, 2048,
-                     vSimpleLinkSpawnTask, NULL);
-#endif // if 0
-#endif
+
+    /* note, sl_Task MUST be a pthread because the Wi-Fi task uses the pthread
+     * interface such as pthread_self().
+     */
+    pthread_t thread;
+    pthread_attr_t attr;
+    struct sched_param sched_param;
+
+    pthread_attr_init(&attr);
+    sched_param.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    pthread_attr_setschedparam(&attr, &sched_param);
+    pthread_attr_setstacksize(&attr, 2048);
+    pthread_create(&thread, &attr, sl_Task, nullptr);
+
     os_thread_create(nullptr, "Wlan Task", OSThread::get_priority_max() - 1,
                      2048, wlan_task_entry, nullptr);
 }
@@ -535,7 +503,7 @@ void CC32xxWiFi::stop()
 void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
                               SecurityType security_type)
 {
-    SlSecParams_t sec_params;
+    SlWlanSecParams_t sec_params;
     sec_params.Key = (_i8*)security_key;
     sec_params.KeyLen = strlen(security_key);
     sec_params.Type = security_type_to_simplelink(security_type);
@@ -556,10 +524,10 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
  */
 void CC32xxWiFi::wlan_wps_pbc_initiate()
 {
-    SlSecParams_t sec_params;
+    SlWlanSecParams_t sec_params;
     sec_params.Key = (signed char*)"";
     sec_params.KeyLen = 0;
-    sec_params.Type = SL_SEC_TYPE_WPS_PBC;
+    sec_params.Type = SL_WLAN_SEC_TYPE_WPS_PBC;
 
     int result = sl_WlanConnect((signed char*)"WPS_AP", strlen("WPS_AP"), NULL,
                                 &sec_params, NULL);
@@ -577,18 +545,18 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
 
     uint8_t sec_type = security_type_to_simplelink(security_type);
 
-    sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SSID, strlen(ssid),
+    sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SSID, strlen(ssid),
                (uint8_t*)ssid);
 
-    sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SECURITY_TYPE, 1,
+    sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SECURITY_TYPE, 1,
                (uint8_t*)&sec_type);
 
-    if (sec_type == SL_SEC_TYPE_OPEN)
+    if (sec_type == SL_WLAN_SEC_TYPE_OPEN)
     {
         return;
     }
 
-    sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_PASSWORD,
+    sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_PASSWORD,
                strlen(security_key), (uint8_t*)security_key);
 }
 
@@ -610,13 +578,12 @@ void CC32xxWiFi::connecting_update_blinker()
 void CC32xxWiFi::set_default_state()
 {
     long result = sl_Start(0, 0, 0);
-#ifdef SL_API_V2
     if (result == SL_ERROR_ROLE_STA_ERR)
     {
         sl_Stop(0xFF);
         result = sl_Start(0, 0, 0);
     }
-#endif    
+
     SlCheckError(result);
     if (wlanRole == WlanRole::AP)
     {
@@ -629,7 +596,7 @@ void CC32xxWiFi::set_default_state()
     }
     else
     {
-        if (true || wlan_profile_test_none())
+        if (wlan_profile_test_none())
         {
             /* no profiles saved, add the default profile */
             wlan_profile_add(WIFI_SSID,
@@ -644,8 +611,8 @@ void CC32xxWiFi::set_default_state()
         }
 
         /* auto connection policy */
-        sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(1,0,0,0,0),
-                         NULL,0);
+        sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION,
+                         SL_WLAN_CONNECTION_POLICY(1,0,0,0), NULL, 0);
 
         if (wlanPowerPolicy != WLAN_NO_CHANGE_POLICY)
         {
@@ -678,7 +645,7 @@ void CC32xxWiFi::wlan_task()
     HASSERT(result >= 0);
 
     portENTER_CRITICAL();
-    SL_FD_SET(wakeup, &rfds);
+    SL_SOCKET_FD_SET(wakeup, &rfds);
     add_socket(wakeup);
     portEXIT_CRITICAL();
 
@@ -716,7 +683,7 @@ void CC32xxWiFi::wlan_task()
         {
             next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
             /* timeout, get the RSSI value */
-            SlGetRxStatResponse_t response;
+            SlWlanGetRxStatResponse_t response;
             if (sl_WlanRxStatGet(&response, 0) == 0)
             {
                 if (response.AvarageMgMntRssi) {
@@ -732,7 +699,7 @@ void CC32xxWiFi::wlan_task()
                 /* socket slot not in use */
                 continue;
             }
-            if (SL_FD_ISSET(slSockets[i], &rfds_tmp))
+            if (SL_SOCKET_FD_ISSET(slSockets[i], &rfds_tmp))
             {
                 --result;
                 if (slSockets[i] == wakeup)
@@ -745,7 +712,7 @@ void CC32xxWiFi::wlan_task()
                 {
                     /* standard application level socket */
                     portENTER_CRITICAL();
-                    SL_FD_CLR(slSockets[i], &rfds);
+                    SL_SOCKET_FD_CLR(slSockets[i], &rfds);
                     new_highest();
                     CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
                     portEXIT_CRITICAL();
@@ -753,22 +720,22 @@ void CC32xxWiFi::wlan_task()
                     s->select_wakeup(&s->selInfoRd);
                 }
             }
-            if (SL_FD_ISSET(slSockets[i], &wfds_tmp))
+            if (SL_SOCKET_FD_ISSET(slSockets[i], &wfds_tmp))
             {
                 --result;
                 portENTER_CRITICAL();
-                SL_FD_CLR(slSockets[i], &wfds);
+                SL_SOCKET_FD_CLR(slSockets[i], &wfds);
                 new_highest();
                 CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
                 portEXIT_CRITICAL();
                 s->writeActive = true;
                 s->select_wakeup(&s->selInfoWr);
             }
-            if (SL_FD_ISSET(slSockets[i], &efds_tmp))
+            if (SL_SOCKET_FD_ISSET(slSockets[i], &efds_tmp))
             {
                 --result;
                 portENTER_CRITICAL();
-                SL_FD_CLR(slSockets[i], &efds);
+                SL_SOCKET_FD_CLR(slSockets[i], &efds);
                 new_highest();
                 portEXIT_CRITICAL();
                 /* currently we don't handle any errors */
@@ -816,9 +783,9 @@ void CC32xxWiFi::run_on_network_thread(std::function<void()> callback)
 void CC32xxWiFi::fd_remove(int16_t sd)
 {
     portENTER_CRITICAL();
-    SL_FD_CLR(sd, &rfds);
-    SL_FD_CLR(sd, &wfds);
-    SL_FD_CLR(sd, &efds);
+    SL_SOCKET_FD_CLR(sd, &rfds);
+    SL_SOCKET_FD_CLR(sd, &wfds);
+    SL_SOCKET_FD_CLR(sd, &efds);
     del_socket(sd);
     portEXIT_CRITICAL();
 }
@@ -829,13 +796,13 @@ void CC32xxWiFi::fd_remove(int16_t sd)
 void CC32xxWiFi::fd_set_read(int16_t sd)
 {
     portENTER_CRITICAL();
-    if (SL_FD_ISSET(sd, &rfds))
+    if (SL_SOCKET_FD_ISSET(sd, &rfds))
     {
         /* already set */
         portEXIT_CRITICAL();
         return;
     }
-    SL_FD_SET(sd, &rfds);
+    SL_SOCKET_FD_SET(sd, &rfds);
     add_socket(sd);
     portEXIT_CRITICAL();
     select_wakeup();
@@ -847,13 +814,13 @@ void CC32xxWiFi::fd_set_read(int16_t sd)
 void CC32xxWiFi::fd_set_write(int16_t sd)
 {
     portENTER_CRITICAL();
-    if (SL_FD_ISSET(sd, &wfds))
+    if (SL_SOCKET_FD_ISSET(sd, &wfds))
     {
         /* already set */
         portEXIT_CRITICAL();
         return;
     }
-    SL_FD_SET(sd, &wfds);
+    SL_SOCKET_FD_SET(sd, &wfds);
     add_socket(sd);
     portEXIT_CRITICAL();
     select_wakeup();
@@ -869,26 +836,19 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
         return;
     }
 
-    switch (event->SL_Event)
+    switch (event->Id)
     {
         case SL_WLAN_EVENT_CONNECT:
         {
             connected = 1;
             connectionFailed = 0;
 
-            const auto *event_data =
-                &event->SL_EventData.STAandP2PModeWlanConnected;
-#ifndef SL_API_V2
-            if (event_data->connection_type != 0)
-            {
-                break;
-            }
-#endif
             {
                 /* Station mode */
+                auto connect = &event->Data.Connect;
                 portENTER_CRITICAL();
-                memcpy(ssid, event_data->SL_ssid_name, event_data->SL_ssid_len);
-                ssid[event_data->SL_ssid_len] = '\0';
+                memcpy(ssid, connect->SsidName, connect->SsidLen);
+                ssid[connect->SsidLen] = '\0';
                 portEXIT_CRITICAL();
             }
         
@@ -904,8 +864,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
         }
         case SL_WLAN_EVENT_DISCONNECT:
         {
-            const auto *event_data =
-                &event->SL_EventData.STAandP2PModeDisconnected;
+            const auto *disconnect = &event->Data.Disconnect;
 
             connected = 0;
             ipAcquired = 0;
@@ -915,9 +874,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
                 ipAcquiredCallback_(false);
             }
 
-            // If the user has initiated 'Disconnect' request, 
-            //'reason_code' is SL_USER_INITIATED_DISCONNECTION 
-            if(SL_USER_INITIATED_DISCONNECTION == event_data->SL_reason_code)
+            if(SL_WLAN_DISCONNECT_USER_INITIATED == disconnect->ReasonCode)
             {
             }
             else
@@ -947,18 +904,15 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
         return;
     }
 
-    switch (event->SL_Event)
+    switch (event->Id)
     {
-#if defined (SL_API_V2)
         case SL_NETAPP_EVENT_DHCP_IPV4_ACQUIRE_TIMEOUT:
             /* DHCP acquisition still continues, this is just a warning */
             break;
-#endif
         case SL_NETAPP_EVENT_IPV4_ACQUIRED:
         {
-            //SlIpV4AcquiredAsync_t *event_data = NULL;
-            const auto* event_data = &event->SL_EventData.SL_ipAcquiredV4;
-            ipAddress = event_data->SL_ip;
+            const auto* ip_aquired = &event->Data.IpAcquiredV4;
+            ipAddress = ip_aquired->Ip;
         }
         // fall through
         case SL_NETAPP_EVENT_IPV6_ACQUIRED:
@@ -997,11 +951,10 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             // event_data = &event->EventData.ipLeased;
             //
 
-            SlIpLeasedAsync_t *event_data = &event->SL_EventData.SL_ipLeased;
-            ipAddress = event_data->SL_ip_address;
+            SlIpLeasedAsync_t *ip_leased = &event->Data.IpLeased;
+            ipAddress = ip_leased->IpAddress;
             break;
         }
-#if defined (SL_API_V2)
         case SL_NETAPP_EVENT_IP_COLLISION:
             break;
         case SL_NETAPP_EVENT_IPV4_LOST:
@@ -1013,7 +966,6 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             }
             break;
         }
-#endif
         case SL_NETAPP_EVENT_DHCPV4_RELEASED:
             ipLeased = 0;
 
@@ -1049,16 +1001,16 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
     switch (event->Event)
     {
         case SL_SOCKET_TX_FAILED_EVENT:
-            switch (event->SL_socketAsyncEvent.SockTxFailData.SL_status)
+            switch (event->SocketAsyncEvent.SockTxFailData.Status)
             {
-                case SL_ECLOSE: 
+                case SL_ERROR_BSD_ECLOSE: 
                     break;
                 default: 
                     break;
             }
             break;
         case SL_SOCKET_ASYNC_EVENT:
-            switch (event->SL_socketAsyncEvent.SockAsyncData.SL_type)
+            switch (event->SocketAsyncEvent.SockAsyncData.Type)
             {
                 default:
                     break;
@@ -1086,12 +1038,12 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
         {
             unsigned char *ptr;
 
-            ptr = response->ResponseData.SL_token_value.SL_data;
-            response->ResponseData.SL_token_value.SL_len = 0;
+            ptr = response->ResponseData.TokenValue.pData;
+            response->ResponseData.TokenValue.Len = 0;
 
             for (unsigned i = 0; i < httpGetCallbacks_.size(); ++i)
             {
-                if (strcmp((const char *)event->EventData.SL_httpTokenName.SL_data,
+                if (strcmp((const char *)event->EventData.HttpTokenName.pData,
                            httpGetCallbacks_[i].second) == 0)
                 {
                     string result = httpGetCallbacks_[i].first();
@@ -1102,7 +1054,7 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
                     }
                     memcpy(ptr, result.c_str(), result.size());
                     ptr += result.size();
-                    response->ResponseData.SL_token_value.SL_len += result.size();
+                    response->ResponseData.TokenValue.Len += result.size();
                     break;
                 }
             }
@@ -1133,6 +1085,7 @@ static void append_num(std::string* s, uint32_t d) {
     s->append(num);
 }
 
+
 template<class NUM>
 static void append_ver_4(std::string* s, NUM d[4]) {
     for (int i = 0; i < 4; ++i) {
@@ -1143,16 +1096,12 @@ static void append_ver_4(std::string* s, NUM d[4]) {
 
 std::string CC32xxWiFi::get_version() {
     std::string v;
-    SlVersionFull ver;
-    uint8_t ucConfigOpt = SL_DEVICE_GENERAL_VERSION;
-#ifdef SL_API_V2
-    uint16_t ucConfigLen = sizeof(ver);
-#else
-    uint8_t ucConfigLen = sizeof(ver);
-#endif
+    SlDeviceVersion_t ver;
+    uint8_t config_opt = SL_DEVICE_GENERAL_VERSION;
+    uint16_t config_len = sizeof(ver);
     
-    int lRetVal = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &ucConfigOpt, 
-                            &ucConfigLen, (unsigned char *)(&ver));
+    int lRetVal = sl_DeviceGet(SL_DEVICE_GENERAL, &config_opt, 
+                               &config_len, (unsigned char *)(&ver));
     HASSERT(lRetVal == 0);
 
     v.push_back('H');
@@ -1160,18 +1109,18 @@ std::string CC32xxWiFi::get_version() {
     v += " N";
     append_ver_4(&v, ver.NwpVersion);
     v += " F";
-    append_ver_4(&v, SL_ChipFwAndPhyVersion(ver).FwVersion);
+    append_ver_4(&v, ver.FwVersion);
     v += " P";
     uint32_t pv[4];
-    pv[0] = SL_ChipFwAndPhyVersion(ver).PhyVersion[0];
-    pv[1] = SL_ChipFwAndPhyVersion(ver).PhyVersion[1];
-    pv[2] = SL_ChipFwAndPhyVersion(ver).PhyVersion[2];
-    pv[3] = SL_ChipFwAndPhyVersion(ver).PhyVersion[3];
+    pv[0] = ver.PhyVersion[0];
+    pv[1] = ver.PhyVersion[1];
+    pv[2] = ver.PhyVersion[2];
+    pv[3] = ver.PhyVersion[3];
     append_ver_4(&v, pv);
     v += " R";
     append_num(&v, ver.RomVersion);
     v += " C";
-    append_num(&v, SL_ChipFwAndPhyVersion(ver).ChipId);
+    append_num(&v, ver.ChipId);
     return v;
 }
 
@@ -1235,15 +1184,14 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
  * @param pSlHttpServerEvent pointer indicating http server event
  * @param pSlHttpServerResponse pointer indicating http server response
  */
-void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpServerEvent, 
-                                  SlHttpServerResponse_t *pHttpServerResponse)
+void SimpleLinkHttpServerEventHandler(
+                             SlNetAppHttpServerEvent_t *pHttpServerEvent, 
+                             SlNetAppHttpServerResponse_t *pHttpServerResponse)
 {
     CC32xxWiFi::instance()->http_server_callback(
         static_cast<CC32xxWiFi::HttpServerEvent *>(pHttpServerEvent),
         static_cast<CC32xxWiFi::HttpServerResponse *>(pHttpServerResponse));
 }
-
-#ifdef SL_API_V2
 
 /**
  *  \brief      This function handles resource request
@@ -1292,7 +1240,5 @@ int slcb_SetErrno(int Errno)
     errno = Errno;
     return 0;
 }
-
-#endif 
 
 } /* extern "C" */

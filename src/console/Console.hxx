@@ -34,13 +34,6 @@
 #ifndef _CONSOLE_CONSOLE_HXX_
 #define _CONSOLE_CONSOLE_HXX_
 
-#ifndef  _POSIX_SOURCE
-#define  _POSIX_SOURCE
-#endif
-
-#include <cstdio>
-#include <stdio.h>
-
 #include "utils/macros.h"
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
@@ -364,20 +357,7 @@ private:
          * @param fd_in input file descriptor for the session
          * @param fd_out output file descriptor for the session
          */
-        Session(Service *service, int fd_in, int fd_out)
-            : StateFlowBase(service)
-            , fdIn(fd_in)
-            , fdOut(fd_out)
-            , fp(fdopen(fd_out, "w"))
-            , line((char*)malloc(64))
-            , line_size(64)
-            , pos(0)
-            , selectHelper(this)
-            , command(nullptr)
-        {
-            prompt(fp);
-            start_flow(STATE(entry));
-        }
+        Session(Service *service, int fd_in, int fd_out);
 
         /** Desctructor.
          */
