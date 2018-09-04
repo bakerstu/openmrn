@@ -38,6 +38,7 @@
 
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfiguredConsumer.hxx"
+#include "utils/format_utils.hxx"
 
 namespace openlcb
 {
