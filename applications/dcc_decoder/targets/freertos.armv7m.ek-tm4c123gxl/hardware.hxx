@@ -25,6 +25,11 @@ GPIO_HWPIN(UART0TX, GpioHwPin, A, 1, U0TX, UART);
 GPIO_PIN(USB1, GpioUSBAPin, D, 4);
 GPIO_PIN(USB2, GpioUSBAPin, D, 5);
 
+// It is important for this pin to not be moved elsewhere. B1 is specifically
+// chosen because the input buffer on the Tiva 123 MCU is NOT 5V tolerant,
+// meaning that it has clamping diodes both to GND and to VDD. The injection
+// current specifications allow the DCC signal to be input through a
+// sufficiently large series resistor.
 GPIO_HWPIN(DCC_IN, GpioHwPin, B, 1, T2CCP1, Timer);
 
 GPIO_HWPIN(CAN0RX, GpioHwPin, E, 4, CAN0RX, CAN);
