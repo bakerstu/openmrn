@@ -45,4 +45,9 @@ clean-objcopy-params:
 flash: $(EXECUTABLE).phy.hex
 	misc/pic32prog $<
 
+gdb:
+	killall -9 ejtagproxy || true
+	misc/ejtagproxy &
+	$(PREFIX)gdb $(EXECUTABLE).elf -x misc/gdb_boot.gdb
+
 endif  #MISSING_DEPS
