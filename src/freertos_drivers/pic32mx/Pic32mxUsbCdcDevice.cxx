@@ -33,17 +33,17 @@
  * @date 9 Sep 2018
  */
 
-
 #include "freertos_drivers/common/Serial.hxx"
 #include "system_config.h"
 
-extern "C" {
+extern "C"
+{
 #include "driver/usb/usbfs/drv_usbfs.h"
 #include "usb/usb_device.h"
 #include "usb/usb_device_cdc.h"
 
-extern const DRV_USBFS_INIT drvUSBFSInit;
-extern const USB_DEVICE_INIT usbDevInitData;
+    extern const DRV_USBFS_INIT drvUSBFSInit;
+    extern const USB_DEVICE_INIT usbDevInitData;
 } // extern "C"
 
 #include "os/os.h"
@@ -86,13 +86,18 @@ public:
         USB_DEVICE_CDC_EVENT event, void *pData);
 
 private:
-
     /** Function to try and transmit a character.  Unused by this device driver.
      */
-    void tx_char() override {}
+    void tx_char() override
+    {
+    }
 
-    void enable() override {} /**< function to enable device */
-    void disable() override {} /**< function to disable device */
+    void enable() override
+    {
+    } /**< function to enable device */
+    void disable() override
+    {
+    } /**< function to disable device */
 
 #if 0
     /** Write to a file or device.
@@ -148,10 +153,10 @@ private:
 
 #endif
 
-    //tUSBDCDCDevice usbdcdcDevice; /**< CDC serial device instance */
-    SYS_MODULE_OBJ  drvUSBObject;
-    SYS_MODULE_OBJ  usbDevObject0;
-    USB_DEVICE_HANDLE deviceHandle{USB_DEVICE_HANDLE_INVALID};
+    // tUSBDCDCDevice usbdcdcDevice; /**< CDC serial device instance */
+    SYS_MODULE_OBJ drvUSBObject;
+    SYS_MODULE_OBJ usbDevObject0;
+    USB_DEVICE_HANDLE deviceHandle {USB_DEVICE_HANDLE_INVALID};
     USB_CDC_LINE_CODING lineCodingData;
 
     unsigned needAttach : 1;
@@ -175,17 +180,21 @@ private:
 // Instantiates the driver.
 Pic32mxCdc usbCdc0("/dev/serUSB0");
 
-void* usb_device_task(void*) {
-    while (1) {
+void *usb_device_task(void *)
+{
+    while (1)
+    {
         usbCdc0.device_tasks();
         vTaskDelay(configTICK_RATE_HZ / 20);
     }
 }
 
-extern "C" {
-void usb_interrupt() {
-    usbCdc0.interrupt_handler();
-}
+extern "C"
+{
+    void usb_interrupt()
+    {
+        usbCdc0.interrupt_handler();
+    }
 }
 
 Pic32mxCdc::Pic32mxCdc(const char *name)
@@ -193,7 +202,8 @@ Pic32mxCdc::Pic32mxCdc(const char *name)
     , needAttach(0)
     , isConfigured(0)
 {
-    drvUSBObject = DRV_USBFS_Initialize(DRV_USBFS_INDEX_0, (SYS_MODULE_INIT *) &drvUSBFSInit);
+    drvUSBObject = DRV_USBFS_Initialize(
+        DRV_USBFS_INDEX_0, (SYS_MODULE_INIT *)&drvUSBFSInit);
 
     /* Set priority of USB interrupt source. This has to be within kernel
      * interrupt priority. */
@@ -204,7 +214,8 @@ Pic32mxCdc::Pic32mxCdc(const char *name)
 
     /* Initialize Middleware */
     /* Initialize the USB device layer */
-    usbDevObject0 = USB_DEVICE_Initialize (USB_DEVICE_INDEX_0 , ( SYS_MODULE_INIT* ) & usbDevInitData);
+    usbDevObject0 = USB_DEVICE_Initialize(
+        USB_DEVICE_INDEX_0, (SYS_MODULE_INIT *)&usbDevInitData);
 
     os_thread_t tid;
     os_thread_create(&tid, "usb_tasks", 1, 512, &usb_device_task, nullptr);
@@ -216,7 +227,8 @@ Pic32mxCdc::Pic32mxCdc(const char *name)
 }
 
 static void usb_device_event_handler(
-    USB_DEVICE_EVENT event, void *pData, uintptr_t context) {
+    USB_DEVICE_EVENT event, void *pData, uintptr_t context)
+{
     usbCdc0.event_hander_from_isr(event, pData);
 }
 
@@ -225,24 +237,27 @@ void Pic32mxCdc::device_tasks()
     DRV_USBFS_Tasks(drvUSBObject);
     USB_DEVICE_Tasks(usbDevObject0);
 
-    do {
-        if (deviceHandle != USB_DEVICE_HANDLE_INVALID) {
+    do
+    {
+        if (deviceHandle != USB_DEVICE_HANDLE_INVALID)
+        {
             break;
         }
         deviceHandle =
             USB_DEVICE_Open(USB_DEVICE_INDEX_0, DRV_IO_INTENT_READWRITE);
-        if (deviceHandle == USB_DEVICE_HANDLE_INVALID) {
+        if (deviceHandle == USB_DEVICE_HANDLE_INVALID)
+        {
             break;
         }
-        USB_DEVICE_EventHandlerSet(deviceHandle, APP_USBDeviceEventHandler, 0);
+        USB_DEVICE_EventHandlerSet(deviceHandle, &usb_device_event_handler, 0);
         needAttach = 1;
     } while (0);
 
-    if (needAttach) {
+    if (needAttach)
+    {
         USB_DEVICE_Attach(deviceHandle);
         needAttach = 0;
     }
-
 }
 
 static USB_DEVICE_CDC_EVENT_RESPONSE cdc_device_event_handler(
@@ -252,11 +267,12 @@ static USB_DEVICE_CDC_EVENT_RESPONSE cdc_device_event_handler(
     return usbCdc0.cdc_event_hander_from_isr(event, pData);
 }
 
-void Pic32mxCdc::event_hander_from_isr(USB_DEVICE_EVENT event, void *pData) {
-    switch( event )
+void Pic32mxCdc::event_hander_from_isr(USB_DEVICE_EVENT event, void *pData)
+{
+    switch (event)
     {
         case USB_DEVICE_EVENT_POWER_REMOVED:
-            USB_DEVICE_Detach (appData.deviceHandle);
+            USB_DEVICE_Detach(deviceHandle);
             break;
         case USB_DEVICE_EVENT_POWER_DETECTED:
             needAttach = 1;
@@ -266,25 +282,29 @@ void Pic32mxCdc::event_hander_from_isr(USB_DEVICE_EVENT event, void *pData) {
             isConfigured = 0;
             break;
         case USB_DEVICE_EVENT_CONFIGURED:
-            auto v = ((USB_DEVICE_EVENT_DATA_CONFIGURED *)pData)->configurationValue;
-            if (v != 1) { break; }
+        {
+            auto v =
+                ((USB_DEVICE_EVENT_DATA_CONFIGURED *)pData)->configurationValue;
+            if (v != 1)
+            {
+                break;
+            }
 
             /* Register the CDC Device application event handler here.
              * Note how the appData object pointer is passed as the
              * user data */
-            USB_DEVICE_CDC_EventHandlerSet(
-                0, APP_USBDeviceCDCEventHandler, 0);
+            USB_DEVICE_CDC_EventHandlerSet(0, &cdc_device_event_handler, 0);
             isConfigured = 1;
             break;
-    case USB_DEVICE_EVENT_SUSPENDED:
-        break;
+        }
+        case USB_DEVICE_EVENT_SUSPENDED:
+            break;
         case USB_DEVICE_EVENT_RESUMED:
-        break;
+            break;
 
-    default:
-        break;
+        default:
+            break;
     }
-
 }
 
 USB_DEVICE_CDC_EVENT_RESPONSE Pic32mxCdc::cdc_event_hander_from_isr(
@@ -312,7 +332,7 @@ USB_DEVICE_CDC_EVENT_RESPONSE Pic32mxCdc::cdc_event_hander_from_isr(
              * data from the host */
 
             USB_DEVICE_ControlReceive(
-                deviceHandle, lineCodingData, sizeof(USB_CDC_LINE_CODING));
+                deviceHandle, &lineCodingData, sizeof(USB_CDC_LINE_CODING));
 
             break;
 
