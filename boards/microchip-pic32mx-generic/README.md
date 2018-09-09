@@ -122,3 +122,12 @@ Caveats:
 - I suspect There is something wrong with the clocks, and the processor is not
   running at the appropriate frequency. This is a problem due to the CAN clock
   being incorrectly set when running inside the debugger.
+
+## Drivers
+
+Driver sources are located at `src/freertos_drivers/pic32mx`.
+
+### Interrupts
+
+To add a driver that uses an interrupt, edit the file `ISRwrapper.S`. Interrupts
+must save and restore FreeRTOS context using the logic in this file.
