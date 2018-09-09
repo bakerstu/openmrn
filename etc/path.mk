@@ -459,6 +459,17 @@ PIC32MXLEGACYPLIBPATH:=$(TRYPATH)
 endif
 endif #PIC32MXLEGACYPLIBPATH
 
+################### PIC32HARMONY #####################
+ifndef PIC32HARMONYPATH
+SEARCHPATH := \
+  /opt/microchip/harmony/default \
+
+TRYPATH:=$(call findfirst,framework/usb/usb_cdc.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+PIC32HARMONYPATH:=$(TRYPATH)
+endif
+endif #PIC32HARMONYPATH
+
 ##################### OPENOCD ######################
 ifndef OPENOCDPATH
 SEARCHPATH := \
