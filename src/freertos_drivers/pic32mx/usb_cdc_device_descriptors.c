@@ -4,15 +4,43 @@
 
 #include "system_config.h"
 
+uint8_t __attribute__((aligned(512))) endPointTable[DRV_USBFS_ENDPOINTS_NUMBER * 32];
+const DRV_USBFS_INIT drvUSBFSInit =
+{
+    /* Assign the endpoint table */
+    .endpointTable= endPointTable,
+
+    /* Interrupt Source for USB module */
+    .interruptSource = INT_SOURCE_USB_1,
+
+    /* System module initialization */
+    .moduleInit = {SYS_MODULE_POWER_RUN_FULL},
+
+    /* Operation Mode */
+    .operationMode = DRV_USBFS_OPMODE_DEVICE,
+
+    .operationSpeed = USB_SPEED_FULL,
+
+    /* Stop in idle */
+    .stopInIdle = false,
+
+    /* Suspend in sleep */
+    .suspendInSleep = false,
+
+    /* Identifies peripheral (PLIB-level) ID */
+    .usbID = USB_ID_1,
+
+};
+
 /**************************************************
  * USB Device Function Driver Init Data
  **************************************************/
-    const USB_DEVICE_CDC_INIT cdcInit0 =
-    {
-        .queueSizeRead = 1,
-        .queueSizeWrite = 1,
-        .queueSizeSerialStateNotification = 1
-    };
+const USB_DEVICE_CDC_INIT cdcInit0 =
+{
+    .queueSizeRead = 1,
+    .queueSizeWrite = 1,
+    .queueSizeSerialStateNotification = 1
+};
 /**************************************************
  * USB Device Layer Function Driver Registration
  * Table

@@ -42,9 +42,11 @@ extern "C" {
 #include "usb/usb_device.h"
 #include "usb/usb_device_cdc.h"
 
-uint8_t __attribute__((aligned(512))) endPointTable[DRV_USBFS_ENDPOINTS_NUMBER * 32];
+extern const DRV_USBFS_INIT drvUSBFSInit;
 extern const USB_DEVICE_INIT usbDevInitData;
 } // extern "C"
+
+#include "os/os.h"
 
 /** Device driver for PIC32MX USB virtual serial port. */
 class Pic32mxCdc : public Serial
@@ -64,7 +66,15 @@ public:
 
     /** handle an interrupt.
      */
-    void interrupt_handler();
+    void interrupt_handler()
+    {
+        DRV_USBFS_Tasks_ISR(drvUSBObject);
+    }
+
+    /** Background thread for doing USB device driver tasks. Must be called
+     * aobut once per second in order to initialize, register with the USB
+     * hosts, etc. */
+    void device_tasks();
 
 private:
 
@@ -146,37 +156,30 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Pic32mxCdc);
 };
 
+// Instantiates the driver.
+Pic32mxCdc usbCdc0("/dev/serUSB0");
+
+void* usb_device_task(void*) {
+    while (1) {
+        usbCdc0.device_tasks();
+        vTaskDelay(configTICK_RATE_HZ / 20);
+    }
+}
+
+extern "C" {
+void usb_interrupt() {
+    usbCdc0.interrupt_handler();
+}
+}
+
 Pic32mxCdc::Pic32mxCdc(const char *name)
     : Serial(name)
 {
-    DRV_USBFS_INIT drvUSBFSInit;
-    /* Assign the endpoint table */
-    drvUSBFSInit.endpointTable= endPointTable;
-
-    /* Interrupt Source for USB module */
-    drvUSBFSInit.interruptSource = INT_SOURCE_USB_1;
-
-    /* System module initialization */
-    drvUSBFSInit.moduleInit = {SYS_MODULE_POWER_RUN_FULL};
-
-    /* Operation Mode */
-    drvUSBFSInit.operationMode = DRV_USBFS_OPMODE_DEVICE;
-
-    drvUSBFSInit.operationSpeed = USB_SPEED_FULL;
-
-    /* Stop in idle */
-    drvUSBFSInit.stopInIdle = false;
-
-    /* Suspend in sleep */
-    drvUSBFSInit.suspendInSleep = false;
-
-    /* Identifies peripheral (PLIB-level) ID */
-    drvUSBFSInit.usbID = USB_ID_1;
-
     drvUSBObject = DRV_USBFS_Initialize(DRV_USBFS_INDEX_0, (SYS_MODULE_INIT *) &drvUSBFSInit);
 
-    /* Set priority of USB interrupt source */
-    SYS_INT_VectorPrioritySet(INT_VECTOR_USB1, INT_PRIORITY_LEVEL4);
+    /* Set priority of USB interrupt source. This has to be within kernel
+     * interrupt priority. */
+    SYS_INT_VectorPrioritySet(INT_VECTOR_USB1, INT_PRIORITY_LEVEL2);
 
     /* Set Sub-priority of USB interrupt source */
     SYS_INT_VectorSubprioritySet(INT_VECTOR_USB1, INT_SUBPRIORITY_LEVEL0);
@@ -185,8 +188,11 @@ Pic32mxCdc::Pic32mxCdc(const char *name)
     /* Initialize the USB device layer */
     usbDevObject0 = USB_DEVICE_Initialize (USB_DEVICE_INDEX_0 , ( SYS_MODULE_INIT* ) & usbDevInitData);
 
-
+    os_thread_t tid;
+    os_thread_create(&tid, "usb_tasks", 1, 512, &usb_device_task, nullptr);
 }
 
-// Instantiates the driver.
-Pic32mxCdc usbCdc0("/dev/serUSB0");
+void Pic32mxCdc::device_tasks() {
+    DRV_USBFS_Tasks(drvUSBObject);
+    USB_DEVICE_Tasks(usbDevObject0);
+}
