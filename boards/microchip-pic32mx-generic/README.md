@@ -123,6 +123,18 @@ Caveats:
   running at the appropriate frequency. This is a problem due to the CAN clock
   being incorrectly set when running inside the debugger.
 
+### Connecting via JTAG
+
+It seems that using an Olimex ARM-USB-TINY-H emulator it is possible to connect
+to the PIC32 with JTAG. The same software needs to be used as above.  The wiring
+is in the datasheet: RB10,11,12,13 for TMS, TDO, TCK, TDI, respectively. The
+reset does not need to be connected.
+
+Connecting, pausing, running, backtrace, memory evaluation works fine.
+
+Breakpoints do not seem to work.
+
+
 ## Drivers
 
 Driver sources are located at `src/freertos_drivers/pic32mx`.
