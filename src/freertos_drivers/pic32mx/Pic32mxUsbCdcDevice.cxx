@@ -353,7 +353,8 @@ void Pic32mxCdc::start_read_atomic()
     DASSERT(!buf->pending());
     buf->flush();
     uint8_t *data;
-    HASSERT(buf->data_read_pointer(&data) >= USB_CDC_BUFFER_SIZE);
+    volatile unsigned rem = buf->data_write_pointer(&data);
+    HASSERT(rem >= USB_CDC_BUFFER_SIZE);
     auto ret = USB_DEVICE_CDC_Read(
         USB_DEVICE_CDC_INDEX_0, &readHandle, data, USB_CDC_BUFFER_SIZE);
     if (ret != USB_DEVICE_CDC_RESULT_OK)
