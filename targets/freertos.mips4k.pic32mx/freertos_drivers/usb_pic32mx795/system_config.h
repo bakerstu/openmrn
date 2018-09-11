@@ -57,8 +57,6 @@ SUBSTITUTE GOODS, TECHNOLOGY, SERVICES, OR ANY CLAIMS BY THIRD PARTIES
 /*  This section Includes other configuration headers necessary to completely
     define this configuration.
 */
-//#include "bsp.h"
-
 
 // DOM-IGNORE-BEGIN
 #ifdef __cplusplus  // Provide C++ Compatibility
@@ -155,42 +153,6 @@ unsigned int __attribute__((nomips16)) INTDisableInterrupts(void);
    write. Applicable to all instances of the
    function driver */
 #define USB_DEVICE_CDC_QUEUE_DEPTH_COMBINED 3
-
-#if 0
-
-/*** Application Instance 0 Configuration ***/
-/*** Application Instance 0 Configuration ***/
-/* Tick time in 1msec units */
-
-#define APP_USB_SWITCH_DEBOUNCE_COUNT_FS (200)
-#define APP_USB_SWITCH_DEBOUNCE_COUNT_HS (200)
-
-/* Application USB Device CDC Read Buffer Size. This should be a multiple of
- * the CDC Bulk Endpoint size */
-
-#define APP_READ_BUFFER_SIZE 64
-
-/* Macro defines USB internal DMA Buffer criteria*/
-
-#define APP_MAKE_BUFFER_DMA_READY
-
-/* Macros defines board specific led */
-
-#define APP_USB_LED_1    BSP_LED_1
-
-/* Macros defines board specific led */
-
-#define APP_USB_LED_2    BSP_LED_2
-
-/* Macros defines board specific led */
-
-#define APP_USB_LED_3    BSP_LED_3
-
-/* Macros defines board specific switch */
-
-#define APP_USB_SWITCH_1    BSP_SWITCH_1
-
-#endif
 
 //DOM-IGNORE-BEGIN
 #ifdef __cplusplus

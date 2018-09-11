@@ -45,8 +45,10 @@ extern "C"
 #include "usb/usb_device.h"
 #include "usb/usb_device_cdc.h"
 
-    extern const DRV_USBFS_INIT drvUSBFSInit;
-    extern const USB_DEVICE_INIT usbDevInitData;
+/// Initialization structure in flash
+extern const DRV_USBFS_INIT drvUSBFSInit;
+/// Initialization structure in flash
+extern const USB_DEVICE_INIT usbDevInitData;
 } // extern "C"
 
 #include "os/os.h"
@@ -199,7 +201,12 @@ private:
     /// true when we have a configured host.
     unsigned isConfigured : 1;
     /// Index of the buffer for current (userspace) reads. This buffer is
-    /// considered full, even if it has zero bytes remaining. The stea
+    /// considered full, even if it has zero bytes remaining. The steady state,
+    /// when all input bytes are already consumed by the application layer, is
+    /// that rxBuffer[currentReadBuffer] has zero bytes pending, rxPending is
+    /// true, and rxBuffers[currentReadBuffer ^ 1] has its pointer submitted to
+    /// the USB driver stack to receive the next urb from the host, whenever it
+    /// comes.
     unsigned currentReadBuffer : 1;
     /// true when we have an outstanding read request with the USB driver.
     unsigned rxPending : 1;
@@ -218,14 +225,6 @@ private:
     /// to use double buffering with the USB middleware; specifically we always
     /// need to provide a free 64-byte buffer for the read command.
     DeviceBuffer<uint8_t> *rxBuffers[2];
-
-#if 0
-    bool connected; /**< connection status */
-    bool enabled; /**< enabled status */
-    int woken; /**< task woken metadata for ISR */
-    bool txPending; /**< true if a transmission is in progress or pending */
-    SelectInfo selInfoWr; /**< Metadata for select() logic */
-#endif
 
     /** Default constructor.
      */
