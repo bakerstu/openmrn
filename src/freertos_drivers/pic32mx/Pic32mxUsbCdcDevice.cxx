@@ -677,7 +677,7 @@ USB_DEVICE_CDC_EVENT_RESPONSE Pic32mxCdc::cdc_event_hander_from_isr(
             auto *params =
                 static_cast<USB_DEVICE_CDC_EVENT_DATA_WRITE_COMPLETE *>(pData);
             DASSERT(params->length == txPendingBytes);
-            txBuf->advance(params->length);
+            txBuf->consume(params->length);
             txPendingBytes = 0;
             if (txBuf->pending())
             {
