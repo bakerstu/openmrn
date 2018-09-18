@@ -336,6 +336,7 @@ public:
         if (e->is_selected(&helper_))
         {
             e->unselect(&helper_);
+            helper_.remaining_ = 0;
         }
         set_terminated();
     }
