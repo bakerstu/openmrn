@@ -232,4 +232,28 @@ protected:
     int fd_{-1};
 };
 
+/** Shared base class for thread-based and select-based hub devices. */
+class FdHubPortService : public FdHubPortInterface, public Service {
+public:
+    /// Callback from the write flow when it encounters an error.
+    virtual void report_write_error() = 0;
+
+    /// Callback from the readflow when it encounters an error.
+    virtual void report_read_error() = 0;
+    
+protected:
+    // For barrier_.
+    template<class HFlow> friend class HubDeviceSelectReadFlow;
+    
+    FdHubPortService(ExecutorBase *exec, int fd)
+        : FdHubPortInterface(fd)
+        , Service(exec)
+    {
+    }
+
+    /// This notifiable will be called (if not NULL) upon read or write error.
+    BarrierNotifiable barrier_;
+};
+
+
 #endif // _UTILS_HUB_HXX_
