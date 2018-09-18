@@ -227,7 +227,7 @@ struct GenMessage
     /** Returns the NMRAnet-defined priority band, in the range of 0..3. */
     unsigned priority()
     {
-        return (mti & Defs::MTI_PRIORITY_MASK) >> Defs::MTI_PRIORITY_SHIFT;
+        return Defs::mti_priority(mti);
     }
 
     enum DstFlags {
