@@ -67,7 +67,7 @@ struct FdUtils
     /// @param buf the location of the data to write
     /// @param size how many bytes to write
     ///
-    static void repeated_write(int fd, const void *buf, size_t size) const
+    static void repeated_write(int fd, const void *buf, size_t size)
     {
         const uint8_t *dst = static_cast<const uint8_t *>(buf);
         while (size)
