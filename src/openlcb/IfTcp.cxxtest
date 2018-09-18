@@ -3,6 +3,7 @@
 #include "openlcb/IfTcpImpl.hxx"
 #include "utils/test_main.hxx"
 #include "utils/FdUtils.hxx"
+#include "utils/HubDeviceSelect.hxx"
 
 namespace openlcb
 {
@@ -142,14 +143,28 @@ TEST_F(TcpSendFlowTest, flow_send_frame)
         string(*sentFrames_[1]->data()));
 }
 
+class MockHubPortService : public FdHubPortService {
+public:
+    MockHubPortService(int fd)
+        : FdHubPortService(&g_executor, fd) {
+        barrier_.reset(EmptyNotifiable::DefaultInstance());
+    }
+
+    MOCK_METHOD0(report_write_error, void());
+    MOCK_METHOD0(report_read_error, void());
+};
+
 class TcpRecvFlowTest : public TcpSendFlowTest {
 protected:
     TcpRecvFlowTest() {
+        //ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fds));
         ERRNOCHECK("pipe", ::pipe(fds));
         ERRNOCHECK("fcntl",
             fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL, 0) | O_NONBLOCK));
+        hubPortService_.reset(
+            new ::testing::StrictMock<MockHubPortService>(fds[0]));
         recvFlow_.reset(new FdToTcpParser(
-            &g_service, fds[0], &fakeSendTarget_, fakeSource_));
+            hubPortService_.get(), &fakeSendTarget_, fakeSource_));
     }
 
     ~TcpRecvFlowTest() {
@@ -209,6 +224,7 @@ protected:
     std::vector<string> expectedFrames_;
     
     int fds[2];
+    std::unique_ptr<MockHubPortService> hubPortService_;
     std::unique_ptr<FdToTcpParser> recvFlow_;
 };
 
@@ -297,6 +313,19 @@ TEST_F(TcpRecvFlowTest, joined_small_overflow) {
     send_frame(s);
     wait_for_packets(2);
     test_frames_correct();
+}
+
+TEST_F(TcpRecvFlowTest, error_exit) {
+    auto s = create_frame(35);
+    send_frame(s);
+    wait_for_packets(1);
+    test_frames_correct();
+
+    //::shutdown(fds[1], SHUT_RDWR);
+    EXPECT_CALL(*hubPortService_, report_read_error());
+    ::close(fds[1]);
+    usleep(2000);
+    wait();
 }
 
 } // namespace openlcb

@@ -317,13 +317,12 @@ private:
 class FdToTcpParser : public StateFlowBase
 {
 public:
-    FdToTcpParser(Service *s, int fd, HubPortInterface *dst, void *skipMember)
+    FdToTcpParser(FdHubPortService* s, HubPortInterface *dst, void *skipMember)
         : StateFlowBase(s)
-        , fd_(fd)
         , dst_(dst)
         , skipMember_(skipMember)
     {
-        HASSERT(fd_ >= 0);
+        HASSERT(s->fd() >= 0);
         bufEnd_ = 0;
         bufOfs_ = 0;
         start_flow(STATE(start_msg));
@@ -339,9 +338,14 @@ public:
             helper_.remaining_ = 0;
         }
         set_terminated();
+        notify_barrier();
     }
 
 private:
+    FdHubPortService* device() {
+        return static_cast<FdHubPortService*>(service());
+    }
+
     Action start_msg()
     {
         msg_.clear();
@@ -409,12 +413,18 @@ private:
             bufOfs_ = 0;
             bufEnd_ = 0;
         }
-        return read_single(&helper_, fd_, buffer_ + bufEnd_,
+        return read_single(&helper_, device()->fd(), buffer_ + bufEnd_,
             READ_BUFFER_SIZE - bufEnd_, STATE(read_done), READ_PRIO);
     }
 
     Action read_done()
     {
+        if (helper_.hasError_) {
+            notify_barrier();
+            set_terminated();
+            device()->report_read_error();
+            return exit();
+        }
         bufEnd_ = READ_BUFFER_SIZE - helper_.remaining_;
         return parse_bytes();
     }
@@ -435,6 +445,17 @@ private:
         return call_immediately(STATE(start_msg));
     }
 
+    /** Calls into the parent flow's barrier notify, but makes sure to
+     * only do this once in the lifetime of *this. */
+    void notify_barrier()
+    {
+        if (barrierOwned_)
+        {
+            barrierOwned_ = false;
+            device()->barrier_.notify();
+        }
+    }
+    
     /// We attempt to read this many bytes in one go from the FD.
     static constexpr unsigned READ_BUFFER_SIZE = 300;
     /// If we have to guess at the size of the packet, we start by allocating
@@ -445,10 +466,10 @@ private:
     /// What priority to use for reads from fds.
     static constexpr unsigned READ_PRIO = Selectable::MAX_PRIO;
 
-    /// File descriptor to read from.
-    int fd_;
     /// Temporary buffer to read into from the FD.
     uint8_t buffer_[READ_BUFFER_SIZE];
+    /// true iff pending parent->barrier_.notify()
+    uint8_t barrierOwned_{1};
     /// Offset of the end in the read buffer.
     uint16_t bufEnd_;
     /// First active byte (offset of the beginning) in the read buffer.

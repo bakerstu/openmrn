@@ -232,6 +232,10 @@ protected:
     int fd_{-1};
 };
 
+namespace openlcb {
+class FdToTcpParser;
+}
+
 /** Shared base class for thread-based and select-based hub devices. */
 class FdHubPortService : public FdHubPortInterface, public Service {
 public:
@@ -244,6 +248,7 @@ public:
 protected:
     // For barrier_.
     template<class HFlow> friend class HubDeviceSelectReadFlow;
+    friend class openlcb::FdToTcpParser;
     
     FdHubPortService(ExecutorBase *exec, int fd)
         : FdHubPortInterface(fd)
