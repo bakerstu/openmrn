@@ -329,6 +329,17 @@ public:
         start_flow(STATE(start_msg));
     }
 
+    /// Stops listening and terminates the flow.
+    void shutdown()
+    {
+        auto *e = this->service()->executor();
+        if (e->is_selected(&helper_))
+        {
+            e->unselect(&helper_);
+        }
+        set_terminated();
+    }
+
 private:
     Action start_msg()
     {

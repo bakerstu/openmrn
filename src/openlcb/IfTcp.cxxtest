@@ -1,6 +1,8 @@
+#include <unistd.h>
 
 #include "openlcb/IfTcpImpl.hxx"
 #include "utils/test_main.hxx"
+#include "utils/FdUtils.hxx"
 
 namespace openlcb
 {
@@ -140,5 +142,161 @@ TEST_F(TcpSendFlowTest, flow_send_frame)
         string(*sentFrames_[1]->data()));
 }
 
+class TcpRecvFlowTest : public TcpSendFlowTest {
+protected:
+    TcpRecvFlowTest() {
+        ERRNOCHECK("pipe", ::pipe(fds));
+        ERRNOCHECK("fcntl",
+            fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL, 0) | O_NONBLOCK));
+        recvFlow_.reset(new FdToTcpParser(
+            &g_service, fds[0], &fakeSendTarget_, fakeSource_));
+    }
+
+    ~TcpRecvFlowTest() {
+        run_x([this](){recvFlow_->shutdown();});
+        ::close(fds[0]);
+        ::close(fds[1]);
+        wait();
+    }
+
+    /// Waits until the receiver has found count many packets or a timeout
+    /// occurs.
+    void wait_for_packets(unsigned count) {
+        unsigned msec = 0;
+        while (sentFrames_.size() < count && (msec < 1000)) {
+            usleep(2000);
+            msec += 2;
+        }
+        ASSERT_EQ(count, sentFrames_.size());
+    }
+
+    void test_frames_correct() {
+        ASSERT_EQ(expectedFrames_.size(), sentFrames_.size());
+        for (unsigned i = 0; i < expectedFrames_.size(); ++i) {
+            EXPECT_EQ(expectedFrames_[i], *sentFrames_[i]->data());
+        }
+    }
+
+    string create_frame(unsigned payload_length, unsigned salt = 13) {
+        openlcb::GenMessage msg;
+        string pl(payload_length, ' ');
+        for (unsigned i = 0; i < payload_length; ++i) {
+            pl.at(i) = 'a' + ((salt*i) % 26);
+        }
+        NodeHandle dst;
+        dst.id = 0x0102030405;
+        msg.reset(
+            openlcb::Defs::MTI_TRACTION_CONTROL_COMMAND, TEST_NODE_ID, dst, pl);
+        string rendered;
+        TcpDefs::render_tcp_message(
+            msg, GW_NODE_ID, seq_.get_sequence_number(), &rendered);
+        expectedFrames_.push_back(rendered);
+        return rendered;
+    }
+
+    void send_frame(const string& f, unsigned chunk_len = 1000) {
+        unsigned ofs = 0;
+        while (ofs < f.size()) {
+            unsigned len = std::min(chunk_len, (unsigned)f.size() - ofs);
+            FdUtils::repeated_write(fds[1], f.data() + ofs, len);
+            ofs += len;
+            usleep(2000);
+        }
+    }
+    
+    static constexpr uint64_t TEST_NODE_ID = 0x101212231225ULL;
+    /// Stores a copy of frames that we sent.
+    std::vector<string> expectedFrames_;
+    
+    int fds[2];
+    std::unique_ptr<FdToTcpParser> recvFlow_;
+};
+
+TEST_F(TcpRecvFlowTest, zeroframes) {
+    wait_for_packets(0);
+    test_frames_correct();
+}
+
+TEST_F(TcpRecvFlowTest, singleshortframe) {
+    wait_for_packets(0);
+    test_frames_correct();
+
+    auto s = create_frame(35);
+    send_frame(s);
+    wait_for_packets(1);
+    test_frames_correct();
+}
+
+TEST_F(TcpRecvFlowTest, singleshortframe_in_fragments) {
+    wait_for_packets(0);
+    test_frames_correct();
+
+    auto s = create_frame(35);
+    send_frame(s,7);
+    wait_for_packets(1);
+    test_frames_correct();
+
+    s = create_frame(23);
+    send_frame(s, 3);
+    wait_for_packets(2);
+    test_frames_correct();
+
+    s = create_frame(75);
+    send_frame(s, 15);
+    wait_for_packets(3);
+    test_frames_correct();
+}
+
+TEST_F(TcpRecvFlowTest, joined_large_fragment) {
+    wait_for_packets(0);
+    test_frames_correct();
+
+    auto s = create_frame(35);
+    s += create_frame(40, 2);
+    s += create_frame(8, 4);
+    s += create_frame(8, 5);
+    
+    send_frame(s, 1000);
+    wait_for_packets(4);
+    test_frames_correct();
+}
+
+TEST_F(TcpRecvFlowTest, joined_small_fragment) {
+    wait_for_packets(0);
+    test_frames_correct();
+
+    auto s = create_frame(35);
+    s += create_frame(40, 2);
+    s += create_frame(8, 4);
+    s += create_frame(8, 5);
+    
+    send_frame(s, 2);
+    wait_for_packets(4);
+    test_frames_correct();
+}
+
+TEST_F(TcpRecvFlowTest, jumbo_frame) {
+    wait_for_packets(0);
+    test_frames_correct();
+
+    auto s = create_frame(3000);
+    send_frame(s);
+    wait_for_packets(1);
+    test_frames_correct();
+}
+
+TEST_F(TcpRecvFlowTest, joined_small_overflow) {
+    wait_for_packets(0);
+    test_frames_correct();
+
+    auto s = create_frame(300-2-TcpDefs::MIN_ADR_MESSAGE_SIZE);
+    // here the second frame will have the first two bytes arriving with the
+    // initial read.
+    ASSERT_EQ(298u, s.size());
+    s += create_frame(40, 2);
+    send_frame(s);
+    wait_for_packets(2);
+    test_frames_correct();
+}
 
 } // namespace openlcb
