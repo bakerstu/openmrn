@@ -57,8 +57,8 @@ public:
     {
         bool has_dst = Defs::get_mti_address(msg.mti);
         HASSERT(tgt);
-        string& target = *tgt;
-        target.assign(HDR_SIZE + msg.payload.size() +
+        string &target = *tgt;
+        target.assign(HDR_LEN + msg.payload.size() +
                 (has_dst ? MSG_ADR_PAYLOAD_OFS : MSG_GLOBAL_PAYLOAD_OFS),
             '\0');
         uint16_t flags = FLAGS_OPENLCB_MSG;
@@ -69,19 +69,42 @@ public:
         target[HDR_SIZE_OFS + 2] = sz & 0xff;
         node_id_to_data(gateway_node_id, &target[HDR_GATEWAY_OFS]);
         node_id_to_data(sequence, &target[HDR_TIMESTAMP_OFS]);
-        error_to_data(msg.mti, &target[HDR_SIZE + MSG_MTI_OFS]);
-        node_id_to_data(msg.src.id, &target[HDR_SIZE + MSG_SRC_OFS]);
+        error_to_data(msg.mti, &target[HDR_LEN + MSG_MTI_OFS]);
+        node_id_to_data(msg.src.id, &target[HDR_LEN + MSG_SRC_OFS]);
         if (has_dst)
         {
-            node_id_to_data(msg.dst.id, &target[HDR_SIZE + MSG_DST_OFS]);
-            memcpy(&target[HDR_SIZE + MSG_ADR_PAYLOAD_OFS], msg.payload.data(),
+            node_id_to_data(msg.dst.id, &target[HDR_LEN + MSG_DST_OFS]);
+            memcpy(&target[HDR_LEN + MSG_ADR_PAYLOAD_OFS], msg.payload.data(),
                 msg.payload.size());
         }
         else
         {
-            memcpy(&target[HDR_SIZE + MSG_GLOBAL_PAYLOAD_OFS],
+            memcpy(&target[HDR_LEN + MSG_GLOBAL_PAYLOAD_OFS],
                 msg.payload.data(), msg.payload.size());
         }
+    }
+
+    /// Guesses the length of a tcp message from looking at the prefix of the
+    /// payload.
+    ///
+    /// @param data is the prefix of the incoming stream.
+    /// @param len is the number of available bytes in this prefix.
+    /// @return -1 if there is not enough bytes in the prefix yet to know the
+    /// length. Otherwise the total number of bytes that constitute this
+    /// packet.
+    static int get_tcp_message_len(const void *data, size_t len)
+    {
+        if (len < HDR_SIZE_END)
+        {
+            return -1;
+        }
+        const uint8_t *src = static_cast<const uint8_t *>(data);
+        uint32_t sz = src[HDR_SIZE_OFS];
+        sz <<= 8;
+        sz |= src[HDR_SIZE_OFS + 1];
+        sz <<= 8;
+        sz |= src[HDR_SIZE_OFS + 2];
+        return sz + HDR_SIZE_END;
     }
 
     /// Parses a TCP message format (from binary payload) into a general
@@ -92,8 +115,10 @@ public:
     /// it is not an OpenLCB message.
     static bool parse_tcp_message(const string &src, GenMessage *tgt)
     {
-        if (src.size() < HDR_SIZE + MSG_GLOBAL_PAYLOAD_OFS)
+        int expected_size = get_tcp_message_len(src.data(), src.size());
+        if (expected_size > (int)src.size() || expected_size < MIN_MESSAGE_SIZE)
         {
+            LOG(WARNING, "Incomplete or incorrectly formatted TCP message.");
             return false;
         }
         uint16_t flags = data_to_error(&src[0]);
@@ -120,14 +145,9 @@ public:
         sz |= (uint8_t)src[HDR_SIZE_OFS + 2];
         if ((sz + HDR_SIZE_OFS) > src.size())
         {
-            LOG(WARNING, "Incomplete TCP message.");
             return false;
         }
-        if ((sz + HDR_SIZE_OFS) < src.size())
-        {
-            LOG(WARNING, "Garbage at the end of a TCP message.");
-        }
-        const char *msg = &src[HDR_SIZE];
+        const char *msg = &src[HDR_LEN];
         // We have already checked the size to be long enough for a global
         // message with 0 bytes payload. So source address and MTI is ok to
         // parse now.
@@ -136,7 +156,7 @@ public:
         tgt->dst.clear();
         tgt->src.id = data_to_node_id(msg + MSG_SRC_OFS);
         // now contains the length of the message after the header.
-        int payload_bytes = sz - (HDR_SIZE - HDR_SIZE_END);
+        int payload_bytes = expected_size - HDR_LEN;
         int payload_ofs;
         if (Defs::get_mti_address(tgt->mti))
         {
@@ -156,6 +176,19 @@ public:
         tgt->payload.assign(msg + payload_ofs, payload_bytes);
     }
 
+    /// @param tcp_payload is a message holding a TCP protocol frame.
+    /// @return the OpenLCB priority in range 0..3 or uint_max if the message
+    /// is broken.
+    static unsigned guess_priority(const string &tcp_payload)
+    {
+        if (tcp_payload.size() < ABS_MTI_OFS + 2)
+        {
+            return UINT_MAX;
+        }
+        auto mti = (Defs::MTI)data_to_error(tcp_payload.data() + ABS_MTI_OFS);
+        return Defs::mti_priority(mti);
+    }
+
     enum
     {
         FLAGS_OPENLCB_MSG = 0x8000,
@@ -170,7 +203,7 @@ public:
         HDR_GATEWAY_OFS = 2 + 3,
         HDR_SIZE_END = HDR_GATEWAY_OFS,
         HDR_TIMESTAMP_OFS = 2 + 3 + 6,
-        HDR_SIZE = 2 + 3 + 6 + 6,
+        HDR_LEN = 2 + 3 + 6 + 6,
 
         MSG_MTI_OFS = 0,
         MSG_SRC_OFS = 2,
@@ -178,9 +211,14 @@ public:
         MSG_ADR_PAYLOAD_OFS = 2 + 6 + 6,
 
         MSG_GLOBAL_PAYLOAD_OFS = MSG_DST_OFS,
+
+        MIN_MESSAGE_SIZE = MSG_GLOBAL_PAYLOAD_OFS + HDR_LEN,
+        MIN_ADR_MESSAGE_SIZE = MSG_ADR_PAYLOAD_OFS + HDR_LEN,
+
+        ABS_MTI_OFS = HDR_LEN + MSG_MTI_OFS,
     };
 
-private:
+private :
     /// No usable constructor; this is a static-only class.
     TcpDefs();
 };
@@ -251,16 +289,16 @@ private:
         TcpDefs::render_tcp_message(*nmsg(), gatewayId_,
             sequenceNumberGenerator_->get_sequence_number(), b->data());
         b->data()->skipMember_ = skipMember_;
-        sendTarget_->send(b.release());
+        sendTarget_->send(b.release(), nmsg()->priority());
         return release_and_exit();
     }
 
-    /// Returns the NMRAnet message we are trying to send.
+    /// Returns the abstract message we are trying to send.
     GenMessage *nmsg()
     {
         return message()->data();
     }
-    
+
     /// Where to send the rendered messages to.
     HubPortInterface *sendTarget_;
     /// This value will be populated to the skipMember_ field.
@@ -269,8 +307,152 @@ private:
     NodeID gatewayId_;
     /// Responsible for generating the sequence numbers of the outgoing
     /// messages.
-    SequenceNumberGenerator* sequenceNumberGenerator_;
+    SequenceNumberGenerator *sequenceNumberGenerator_;
 };
-}
+
+
+/// This flow is listening to data from a TCP connection, segments the incoming
+/// data into TcpMessages based on the incoing size, and forwards packets
+/// containing the TCP message as string payload.
+class FdToTcpParser : public StateFlowBase
+{
+public:
+    FdToTcpParser(Service *s, int fd, HubPortInterface *dst, void *skipMember)
+        : StateFlowBase(s)
+        , fd_(fd)
+        , dst_(dst)
+        , skipMember_(skipMember)
+    {
+        HASSERT(fd_ >= 0);
+        bufEnd_ = 0;
+        bufOfs_ = 0;
+        start_flow(STATE(start_msg));
+    }
+
+private:
+    Action start_msg()
+    {
+        msg_.clear();
+        expectedLen_ = -1;
+        return parse_bytes();
+    }
+
+    Action parse_bytes()
+    {
+        if (bufEnd_ <= bufOfs_)
+        {
+            return call_immediately(STATE(read_more_bytes));
+        }
+        int available = bufEnd_ - bufOfs_;
+        if (expectedLen_ < 0)
+        {
+            // We have bytes in the read buffer but don't know the expected
+            // size yet, so none in the assembly buffer. Let's guess at the
+            // desired size of the assembly buffer.
+            expectedLen_ =
+                TcpDefs::get_tcp_message_len(buffer_ + bufOfs_, available);
+            if (expectedLen_ < 0)
+            {
+                // failed. Not enough bytes. Maybe move existing bytes to the
+                // beginning of the buffer and try to read more bytes.
+                if (bufOfs_ > (READ_BUFFER_SIZE / 2))
+                {
+                    memmove(buffer_, buffer_ + bufOfs_, available);
+                    bufEnd_ -= bufOfs_;
+                    bufOfs_ = 0;
+                }
+                return call_immediately(STATE(read_more_bytes));
+            }
+        }
+        // now: we have an expected length.
+        DASSERT(expectedLen_ > 0);
+        if (msg_.empty())
+        {
+            msg_.reserve(expectedLen_);
+        }
+        // Copy some bytes to the assembly buffer.
+        int needed = expectedLen_ - msg_.size();
+        if (needed > available)
+        {
+            needed = available;
+        }
+        msg_.append((const char*)(buffer_ + bufOfs_), needed);
+        bufOfs_ += needed;
+        if (msg_.size() >= (unsigned)expectedLen_)
+        {
+            // we're done.
+            return send_entry();
+        }
+        else
+        {
+            HASSERT(bufOfs_ >= bufEnd_);
+            return call_immediately(STATE(read_more_bytes));
+        }
+    }
+
+    Action read_more_bytes()
+    {
+        if (bufEnd_ <= bufOfs_)
+        {
+            bufOfs_ = 0;
+            bufEnd_ = 0;
+        }
+        return read_single(&helper_, fd_, buffer_ + bufEnd_,
+            READ_BUFFER_SIZE - bufEnd_, STATE(read_done), READ_PRIO);
+    }
+
+    Action read_done()
+    {
+        bufEnd_ = READ_BUFFER_SIZE - helper_.remaining_;
+        return parse_bytes();
+    }
+
+    Action send_entry()
+    {
+        return allocate_and_call(dst_, STATE(have_alloc_msg));
+    }
+
+    Action have_alloc_msg()
+    {
+        auto *b = get_allocation_result(dst_);
+        auto prio = TcpDefs::guess_priority(msg_);
+        b->data()->assign(std::move(msg_));
+        b->data()->skipMember_ =
+            reinterpret_cast<HubPortInterface *>(skipMember_);
+        dst_->send(b, prio);
+        return call_immediately(STATE(start_msg));
+    }
+
+    /// We attempt to read this many bytes in one go from the FD.
+    static constexpr unsigned READ_BUFFER_SIZE = 300;
+    /// If we have to guess at the size of the packet, we start by allocating
+    /// this many bytes.
+    static constexpr unsigned DEFAULT_PACKET_SIZE =
+        TcpDefs::MIN_ADR_MESSAGE_SIZE + 16;
+    static constexpr unsigned MIN_SIZE_GUESS = TcpDefs::HDR_SIZE_END;
+    /// What priority to use for reads from fds.
+    static constexpr unsigned READ_PRIO = Selectable::MAX_PRIO;
+
+    /// File descriptor to read from.
+    int fd_;
+    /// Temporary buffer to read into from the FD.
+    uint8_t buffer_[READ_BUFFER_SIZE];
+    /// Offset of the end in the read buffer.
+    uint16_t bufEnd_;
+    /// First active byte (offset of the beginning) in the read buffer.
+    uint16_t bufOfs_;
+    /// How many bytes we think the current message will be. -1 if we don't
+    /// know yet.
+    int expectedLen_;
+    /// Assembly buffer. Holds the captured message so far.
+    string msg_;
+    /// Where to send parsed messages to.
+    HubPortInterface *dst_;
+    /// Parsed messages will be initialized to this skipMember_.
+    void *skipMember_;
+    StateFlowSelectHelper helper_ {this};
+};
+
+}  // namespace openlcb
 
 #endif // _OPENLCB_IFTCPIMPL_HXX_
