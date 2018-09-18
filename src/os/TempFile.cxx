@@ -1,9 +1,9 @@
-/** \copyright
- * Copyright (c) 2016, Balazs Racz
+/** @copyright
+ * Copyright (c) 2018, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,28 +24,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file simplelink.h
- * Compatibility header for including before the CC3220-sdk.
+ * @file TempFile.cxx
  *
- * @author Balazs Racz
- * @date 18 Mar 2017
+ * Helper classes for creating temporary files for testing and mock
+ * implementations.
+ *
+ * @author Stuart Baker
+ * @date 21 August 2018
  */
 
-#ifndef _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_
-#define _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_
-
-#ifndef __USER_H__
-#define __USER_H__
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200112L
 #endif
 
-#ifdef SL_API_V2
-#include "CC3220/user.h"
-#include "sl_compat.h"
-#include "ti/drivers/net/wifi/simplelink.h"
-#else
-#include "simplelink_v1.h"
-#include "CC3200/user.h"
-#include "simplelink/include/simplelink.h"
-#endif
+#include "os/TempFile.hxx"
 
-#endif // _FREEERTOS_DRIVERS_TI_CC3200_COMPAT_SIMPLELINK_H_
+//
+// TempFile::TempFile()
+//
+TempFile::TempFile(const TempDir& dir, const string& basename)
+{
+    fileName_ = dir.name() + "/" + basename + ".XXXXXX";
+    fileName_.c_str();
+    fd_ = mkstemp((char*)fileName_.c_str());
+}

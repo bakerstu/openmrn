@@ -181,6 +181,7 @@ void hw_preinit(void)
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
+    memset(&gpio_init, 0, sizeof(gpio_init));
 
     /* USART2 pinmux on PA2 and PA3 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
@@ -206,6 +207,7 @@ void hw_preinit(void)
 
     /* Initializes the blinker timer. */
     TIM_HandleTypeDef TimHandle;
+    memset(&TimHandle, 0, sizeof(TimHandle));
     TimHandle.Instance = TIM14;
     TimHandle.Init.Period = configCPU_CLOCK_HZ / 10000 / 8;
     TimHandle.Init.Prescaler = 10000;

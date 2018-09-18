@@ -62,7 +62,7 @@ void CC32xxEEPROMEmulation::mount()
     // First we need to find what was the last written segment.
     for (unsigned sector = 0; sector < SECTOR_COUNT; ++sector)
     {
-        int handle = open_file(sector, FS_MODE_OPEN_READ, true);
+        int handle = open_file(sector, SL_FS_READ, true);
         if (handle < 0)
         {
             LOG(VERBOSE, "EEPROM: sector %u: could not open.", sector);
@@ -83,7 +83,7 @@ void CC32xxEEPROMEmulation::mount()
     if (have_rot)
     {
         LOG(VERBOSE, "EEPROM: read sector %u:", readSector_);
-        int handle = open_file(readSector_, FS_MODE_OPEN_READ);
+        int handle = open_file(readSector_, SL_FS_READ);
         int ret = sl_FsRead(handle, 4, data_, file_size());
         if (ret < 0)
         {
@@ -110,11 +110,12 @@ void CC32xxEEPROMEmulation::flush_buffers()
     if (readSector_ >= SECTOR_COUNT)
         readSector_ = 0;
     LOG(VERBOSE, "EEPROM: write sector %u version %u", readSector_, fileVersion_);
-    int handle = open_file(readSector_, FS_MODE_OPEN_WRITE, true);
+    int handle = open_file(readSector_, SL_FS_WRITE, true);
     if (handle < 0)
     {
         handle =
-            open_file(readSector_, FS_MODE_OPEN_CREATE(file_size() + 4, 0));
+            open_file(readSector_,
+                      SL_FS_CREATE | SL_FS_CREATE_MAX_SIZE(file_size() + 4));
     }
     SlCheckResult(sl_FsWrite(handle, 0, (uint8_t *)&fileVersion_, 4), 4);
     SlCheckResult(sl_FsWrite(handle, 4, data_, file_size()), file_size());
@@ -128,14 +129,12 @@ int CC32xxEEPROMEmulation::open_file(
     string filename(name);
     filename.push_back('.');
     filename.push_back('0' + sector);
-    int32_t handle = -1;
-    int ret = sl_FsOpen((uint8_t *)filename.c_str(), open_mode, NULL, &handle);
-    if (!ignore_error)
+    int ret = sl_FsOpen((uint8_t *)filename.c_str(), open_mode, NULL);
+    if (!ignore_error && ret < 0)
     {
         SlCheckResult(ret);
-        HASSERT(handle >= 0);
     }
-    return handle;
+    return ret;
 }
 
 void CC32xxEEPROMEmulation::write(

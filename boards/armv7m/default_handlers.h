@@ -77,7 +77,7 @@ extern void hw_set_to_safe(void);
  */
 void reset_handler(void)
 {
-    asm("cpsid i\n");
+    __asm("cpsid i\n");
 
     unsigned long *section_table_addr = &__data_section_table;
 
@@ -218,7 +218,7 @@ __attribute__((optimize("-O0"),unused)) void hard_fault_handler_step_2(unsigned 
     fault_info->_BFAR = (*((volatile unsigned long *)(0xE000ED38))) ;
 
     hw_set_to_safe();
-    asm volatile ("cpsid i\n");
+    __asm volatile ("cpsid i\n");
 
     // Simulates a BL instruction from the original PC. Moves the PC to LR,
     // overwrites PC with our return address.

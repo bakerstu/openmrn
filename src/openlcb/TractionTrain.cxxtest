@@ -12,14 +12,14 @@ namespace openlcb
 TEST(Fp16Test, NanToSpeedIsNan)
 {
     SpeedType nan_speed = nan_to_speed();
-    EXPECT_TRUE(isnan(nan_speed.speed()));
+    EXPECT_TRUE(std::isnan(nan_speed.speed()));
 }
 
 TEST(Fp16Test, FFFFToSpeedIsNan)
 {
     uint16_t nan_fp16 = 0xffffU;
     SpeedType nan_speed = fp16_to_speed(&nan_fp16);
-    EXPECT_TRUE(isnan(nan_speed.speed()));
+    EXPECT_TRUE(std::isnan(nan_speed.speed()));
 
     uint32_t fp_nan = 0;
     memcpy(&fp_nan, &nan_speed, 4);
@@ -307,7 +307,7 @@ TEST_F(TractionSingleMockTest, Consisting)
     EXPECT_EQ(n1, trainNode_->query_consist(0, &flags));
     EXPECT_EQ(0, flags);
     // add existing with flags update
-    EXPECT_TRUE(trainNode_->add_consist(n1, 0x5A));
+    EXPECT_FALSE(trainNode_->add_consist(n1, 0x5A));
     EXPECT_EQ(1, trainNode_->query_consist_length());
     EXPECT_EQ(n1, trainNode_->query_consist(0, &flags));
     EXPECT_EQ(0x5A, flags);
@@ -324,13 +324,14 @@ TEST_F(TractionSingleMockTest, Consisting)
     // add again
     EXPECT_TRUE(trainNode_->add_consist(n1, 0));
     EXPECT_TRUE(trainNode_->add_consist(n2, 0));
-    EXPECT_TRUE(trainNode_->add_consist(n2, 0x3A));
+    EXPECT_FALSE(trainNode_->add_consist(n2, 0x3A));
     EXPECT_EQ(2, trainNode_->query_consist_length());
 
     // query again
-    EXPECT_EQ(n2, trainNode_->query_consist(0, &flags));
+    EXPECT_EQ(n1, trainNode_->query_consist(0, &flags));
+    EXPECT_EQ(0, flags);
+    EXPECT_EQ(n2, trainNode_->query_consist(1, &flags));
     EXPECT_EQ(0x3A, flags);
-    EXPECT_EQ(n1, trainNode_->query_consist(1, nullptr));
     EXPECT_FALSE(trainNode_->query_consist(2, nullptr));
     EXPECT_FALSE(trainNode_->query_consist(3, nullptr));
 
@@ -348,11 +349,11 @@ TEST_F(TractionSingleMockTest, Consisting)
     EXPECT_TRUE(trainNode_->add_consist(n1, 0));
     EXPECT_TRUE(trainNode_->add_consist(n2, 0));
     EXPECT_EQ(2, trainNode_->query_consist_length());
-    EXPECT_TRUE(trainNode_->remove_consist(n2));
-    EXPECT_EQ(1, trainNode_->query_consist_length());
-    EXPECT_EQ(n1, trainNode_->query_consist(0, nullptr));
-    EXPECT_FALSE(trainNode_->query_consist(1, nullptr));
     EXPECT_TRUE(trainNode_->remove_consist(n1));
+    EXPECT_EQ(1, trainNode_->query_consist_length());
+    EXPECT_EQ(n2, trainNode_->query_consist(0, nullptr));
+    EXPECT_FALSE(trainNode_->query_consist(1, nullptr));
+    EXPECT_TRUE(trainNode_->remove_consist(n2));
     EXPECT_EQ(0, trainNode_->query_consist_length());
     EXPECT_FALSE(trainNode_->query_consist(0, nullptr));
 }

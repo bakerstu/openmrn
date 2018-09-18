@@ -4,6 +4,13 @@ DEPS += TICC3220SDKPATH
 VPATH := $(TICC3220SDKPATH)/source/ti/drivers/net/wifi \
          $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/source \
          $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/porting \
+         $(TICC3220SDKPATH)/source/ti/drivers \
+         $(TICC3220SDKPATH)/source/ti/drivers/spi \
+         $(TICC3220SDKPATH)/source/ti/drivers/dma \
+         $(TICC3220SDKPATH)/source/ti/drivers/power \
+         $(TICC3220SDKPATH)/source/ti/drivers/utils \
+         $(TICC3220SDKPATH)/source/ti/posix/freertos \
+         $(TICC3220SDKPATH)/kernel/freertos/dpl
 
 CSRCS += device.c \
          driver.c \
@@ -15,26 +22,27 @@ CSRCS += device.c \
          sl_socket.c \
          spawn.c \
          wlan.c \
-	 cc_pal.c \
+         cc_pal.c \
          eventreg.c \
 
-#	 maybe we don't need this because we are not using dynamic event
-#         registration:
-#
+CSRCS += SPI.c \
+         HwiPCC32XX_freertos.c \
+         SemaphoreP_freertos.c \
+         MutexP_freertos.c \
+         ClockP_freertos.c \
+         SPICC32XXDMA.c \
+         UDMACC32XX.c \
+         PowerCC32XX.c \
+         List.c
 
+CSRCS += pthread.c \
+         pthread_mutex.c \
+         sched.c
 
-
-# CSRCS += osi_freertos.c
-         
 CXXSRCS +=
 
-CFLAGS += -Wno-strict-prototypes \
-          -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
-          -D__USER_H__
+CFLAGS += -Wno-strict-prototypes
 
-CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3220/user.h \
-            -D__USER_H__
+CXXFLAGS +=
 
-
-
-device.o : CFLAGS+= -DTRUE=1 -DFALSE=0
+pthread.o : CFLAGS += -DconfigPOSIX_STACK_SIZE=512 -Wno-error=unused-variable

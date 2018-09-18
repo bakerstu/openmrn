@@ -45,12 +45,7 @@
 #include <netinet/tcp.h>
 
 // Simplelink includes
-#include "CC3200_compat/simplelink.h"
-#ifdef SL_API_V2
-//#include "sl_socket.h"
-#else
-//#include "socket.h"
-#endif
+#include <ti/drivers/net/wifi/simplelink.h>
 
 #include "utils/format_utils.hxx"
 
@@ -167,28 +162,28 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
             default:
                 SlCheckResult(result);
                 break;
-            case SL_EAFNOSUPPORT:
+            case SL_ERROR_BSD_EAFNOSUPPORT:
                 errno = EAFNOSUPPORT;
                 break;
-            case SL_EPROTOTYPE:
+            case SL_ERROR_BSD_EPROTOTYPE:
                 errno = EPROTOTYPE;
                 break;
-            case SL_EACCES:
+            case SL_ERROR_BSD_EACCES:
                 errno = EACCES;
                 break;
-            case SL_ENSOCK:
+            case SL_ERROR_BSD_ENSOCK:
                 errno = EMFILE;
                 break;
-            case SL_ENOMEM:
+            case SL_ERROR_BSD_ENOMEM:
                 errno = ENOMEM;
                 break;
-            case SL_EINVAL:
+            case SL_ERROR_BSD_EINVAL:
                 errno = EINVAL;
                 break;
-            case SL_EPROTONOSUPPORT:
+            case SL_ERROR_BSD_EPROTONOSUPPORT:
                 errno = EPROTONOSUPPORT;
                 break;
-            case SL_EOPNOTSUPP:
+            case SL_ERROR_BSD_EOPNOTSUPP:
                 errno = EOPNOTSUPP;
                 break;
         }
@@ -313,14 +308,17 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
             default:
                 SlCheckResult(result);
                 break;
-            case SL_ENSOCK:
+            case SL_ERROR_BSD_ENSOCK:
                 errno = EMFILE;
                 break;
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
                 /* fall through */
-            case SL_EAGAIN:
+            case SL_ERROR_BSD_EAGAIN:
                 errno = EAGAIN;
+                break;
+            case SL_RET_CODE_STOP_IN_PROGRESS:
+                errno = ECONNABORTED;
                 break;
         }
         return -1;
@@ -396,13 +394,13 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
                 SlCheckResult(result);
                 break;
             }
-            case SL_EISCONN:
+            case SL_ERROR_BSD_EISCONN:
                 errno = EISCONN;
                 break;
-            case SL_ECONNREFUSED:
+            case SL_ERROR_BSD_ECONNREFUSED:
                 errno = ECONNREFUSED;
                 break;
-            case SL_EALREADY:
+            case SL_ERROR_BSD_EALREADY:
                 /** @todo the return value for a non-blocking connect is
                  * supposed to be EINPROGRESS, but the CC32xx returns EALREADY
                  * instead.
@@ -412,7 +410,7 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
             /* fall through */
-            case SL_EAGAIN:
+            case SL_ERROR_BSD_EAGAIN:
                 errno = EAGAIN;
                 break;
         }
@@ -448,15 +446,18 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
             case SL_POOL_IS_EMPTY:
                 usleep(10000);
                 /* fall through */
-            case SL_EAGAIN:
+            case SL_ERROR_BSD_EAGAIN:
                 errno = EAGAIN;
                 s->readActive = false;
                 break;
-            case SL_ECONNREFUSED:
+            case SL_ERROR_BSD_ECONNREFUSED:
                 s->readActive = true;
                 return 0;
-            case SL_EBADF:
+            case SL_ERROR_BSD_EBADF:
                 errno = EBADF;
+                break;
+            case SL_RET_CODE_STOP_IN_PROGRESS:
+                errno = ECONNRESET;
                 break;
         }
         return -1;
@@ -493,14 +494,14 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
     {
         switch (result)
         {
-            case SL_SOC_ERROR:
+            case SL_ERROR_BSD_SOC_ERROR:
                 /// @todo (stbaker): handle errors via the callback.
                 errno = ECONNRESET;
                 break;
-            case SL_EAGAIN:
+            case SL_ERROR_BSD_EAGAIN:
                 errno = EAGAIN;
                 break;
-            case SL_EBADF:
+            case SL_ERROR_BSD_EBADF:
                 errno = EBADF;
                 break;
             default:
@@ -870,7 +871,7 @@ int CC32xxSocket::fcntl(File *file, int cmd, unsigned long data)
         case F_SETFL:
         {
             SlSockNonblocking_t sl_option_value;
-            sl_option_value.SL_NonblockingEnabled = data & O_NONBLOCK ? 1 : 0;
+            sl_option_value.NonBlockingEnabled = data & O_NONBLOCK ? 1 : 0;
             int result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
                                        SL_SO_NONBLOCKING, &sl_option_value,
                                        sizeof(sl_option_value));
@@ -1127,11 +1128,11 @@ int getaddrinfo(const char *nodename, const char *servname,
             default:
             case SL_POOL_IS_EMPTY:
                 return EAI_AGAIN;
-            case SL_NET_APP_DNS_QUERY_NO_RESPONSE:
-            case SL_NET_APP_DNS_NO_SERVER:
-            case SL_NET_APP_DNS_QUERY_FAILED:
-            case SL_NET_APP_DNS_MALFORMED_PACKET:
-            case SL_NET_APP_DNS_MISMATCHED_RESPONSE:
+            case SL_ERROR_NET_APP_DNS_QUERY_NO_RESPONSE:
+            case SL_ERROR_NET_APP_DNS_NO_SERVER:
+            case SL_ERROR_NET_APP_DNS_QUERY_FAILED:
+            case SL_ERROR_NET_APP_DNS_MALFORMED_PACKET:
+            case SL_ERROR_NET_APP_DNS_MISMATCHED_RESPONSE:
                 return EAI_FAIL;
         }
     }

@@ -40,6 +40,7 @@
 
 #include <fcntl.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "utils/logging.h"
 
 /** This class creates a temporary directory for the test, and removes it when
@@ -93,11 +94,7 @@ public:
     /// @param dir isthe temp directory to create the file within.
     /// @param basename will be the prefix of the name. A unique suffix will be
     /// appended for each file.
-  TempFile(const TempDir& dir, const string& basename) {
-    fileName_ = dir.name() + "/" + basename + ".XXXXXX";
-    fileName_.c_str();
-    fd_ = mkstemp((char*)fileName_.c_str());
-  }
+  TempFile(const TempDir& dir, const string& basename);
 
   ~TempFile() {
     ::close(fd_);

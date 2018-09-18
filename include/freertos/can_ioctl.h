@@ -34,6 +34,7 @@
 #ifndef _FREERTOS_CAN_IOCTL_H_
 #define _FREERTOS_CAN_IOCTL_H_
 
+#include <stdint.h>
 #include "freertos/stropts.h"
 
 #if defined (__cplusplus)
@@ -51,6 +52,33 @@ extern "C" {
 
 /** write active ioctl. Argument is a literal pointer to a Notifiable. */
 #define CAN_IOC_WRITE_ACTIVE IOW(CAN_IOC_MAGIC, 2, NOTIFIABLE_TYPE)
+
+/** CAN state type */
+typedef uint32_t can_state_t;
+
+/** Read the CAN state */
+#define SIOCGCANSTATE IOR(CAN_IOC_MAGIC, 3, sizeof(can_state_t))
+
+/** CAN bus active */
+#define CAN_STATE_ACTIVE            0
+
+/** CAN bus error warning */
+#define CAN_STATE_BUS_WARNING       1
+
+/** CAN bus error passibe */
+#define CAN_STATE_BUS_PASSIVE       2
+
+/** CAN bus off */
+#define CAN_STATE_BUS_OFF           3
+
+/** CAN bus scanning baud rate (CANFD) */
+#define CAN_STATE_SCANNING_BAUDRATE 4
+
+/** CAN bus stopped */
+#define CAN_STATE_STOPPED           5
+
+/** CAN bus sleeping */
+#define CAN_STATE_SLEEPING          6
 
 #if defined (__cplusplus)
 }

@@ -58,15 +58,13 @@ void SlDeleteFile(const void* filename)
 {
     const uint8_t* name = (const uint8_t*)filename;
     int ret = sl_FsDel(name, 0);
-    if (ret == SL_FS_FILE_HAS_NOT_BEEN_CLOSE_CORRECTLY)
+    if (ret == SL_ERROR_FS_FILE_HAS_NOT_BEEN_CLOSE_CORRECTLY)
     {
-        int32_t sl_file_handle = -1;
-        ret = sl_FsOpen(
-            name, FS_MODE_OPEN_WRITE, nullptr, &sl_file_handle);
+        ret = sl_FsOpen( name, SL_FS_WRITE, nullptr);
         LOG(INFO, "recreate %s: %d", name, ret);
-        if (sl_file_handle >= 0)
+        if (ret >= 0)
         {
-            ret = sl_FsClose(sl_file_handle, nullptr, nullptr, 0);
+            ret = sl_FsClose(ret, nullptr, nullptr, 0);
             LOG(INFO, "recreate-close %s: %d", name, ret);
         }
         ret = sl_FsDel(name, 0);
