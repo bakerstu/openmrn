@@ -490,6 +490,32 @@ private:
 
 using TcpHubDeviceSelect = HubDeviceSelect<HubFlow, FdToTcpParser>; 
 
+/// Simple stateless translator for incoming TCP messages from binary format
+/// into the structured format. Drops everything to the floor that is not a
+/// valid TCP message. Performs synchronous allocation and keeps the done
+/// callback passed along.
+class TcpRecvFlow : public HubPortInterface, public Destructable {
+public:
+    /// @param target is where to send the parsed messages. Usually the
+    /// interface's dispatcher flow.
+    TcpRecvFlow(MessageHandler* target)
+        : target_(target) {}
+
+    void send(Buffer<HubData> *data, unsigned prio) override
+    {
+        auto src = get_buffer_deleter(data);
+        auto dst = get_buffer_deleter(target_->alloc());
+        dst->set_done(data->new_child());
+        if (TcpDefs::parse_tcp_message(*src->data(), dst->data()))
+        {
+            target_->send(dst.release(), prio);
+        }
+    }
+
+private:
+    MessageHandler* target_;
+};
+
 }  // namespace openlcb
 
 #endif // _OPENLCB_IFTCPIMPL_HXX_
