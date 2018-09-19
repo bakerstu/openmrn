@@ -175,6 +175,7 @@ public:
             return false;
         }
         tgt->payload.assign(msg + payload_ofs, payload_bytes);
+        return true;
     }
 
     /// @param tcp_payload is a message holding a TCP protocol frame.

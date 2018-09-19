@@ -44,9 +44,52 @@ TEST(TcpRenderingTest, render_addressed_message)
                      "\x0A\x08"                 // MTI
                      "\x05\x01\x02\x03\x04\x05" // src node ID
                      "\x15\x11\x12\x13\x14\x15" // dst node ID
-                     "abcdefghijklmn",          // payload: event ID
+                     "abcdefghijklmn",          // payload: data for ident
                   14 + 26 + 5),
         data);
+}
+
+TEST(TcpParsingTest, parse_global_message)
+{
+    string s("\x80\x00"                          // flags
+             "\x00\x00\x1C"                      // length: 28
+             "\x10\x11\x12\x13\x14\x15"          // gateway node ID
+             "\x00\x00\x00\x00\x00\x42"          // timestamp / seq no
+             "\x05\xB4"                          // MTI
+             "\x05\x01\x02\x03\x04\x05"          // src node ID
+             "\x01\x02\x03\x04\x05\x06\x07\x08", // payload: event ID
+             28 + 5);
+    GenMessage msg;
+    EXPECT_TRUE(TcpDefs::parse_tcp_message(s, &msg));
+    EXPECT_EQ(0x050102030405ULL, msg.src.id);
+    EXPECT_EQ(0u, msg.src.alias);
+    EXPECT_EQ(0ULL, msg.dst.id);
+    EXPECT_EQ(0u, msg.dst.alias);
+    EXPECT_EQ(Defs::MTI_EVENT_REPORT, msg.mti);
+    EXPECT_EQ(8u, msg.payload.size());
+    EXPECT_EQ(0x0102030405060708ULL, data_to_eventid(msg.payload.data()));
+}
+
+TEST(TcpParsingTest, parse_addressed_message)
+{
+    string s("\x80\x00"                 // flags
+             "\x00\x00\x28"             // length: 28
+             "\x10\x11\x12\x13\x14\x15" // gateway node ID
+             "\x00\x00\x00\x00\x00\x42" // timestamp / seq no
+             "\x0A\x08"                 // MTI
+             "\x05\x01\x02\x03\x04\x05" // src node ID
+             "\x15\x11\x12\x13\x14\x15" // dst node ID
+             "abcdefghijklmn",          // payload: data for ident
+        14 + 26 + 5);
+    GenMessage msg;
+    EXPECT_TRUE(TcpDefs::parse_tcp_message(s, &msg));
+    EXPECT_EQ(0x050102030405ULL, msg.src.id);
+    EXPECT_EQ(0u, msg.src.alias);
+    EXPECT_EQ(0x151112131415ULL, msg.dst.id);
+    EXPECT_EQ(0u, msg.dst.alias);
+    EXPECT_EQ(Defs::MTI_IDENT_INFO_REPLY, msg.mti);
+    EXPECT_EQ(14u, msg.payload.size());
+    EXPECT_EQ("abcdefghijklmn", msg.payload);
 }
 
 class TestSequenceGenerator : public SequenceNumberGenerator
