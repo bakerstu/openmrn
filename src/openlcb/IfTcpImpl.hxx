@@ -37,6 +37,7 @@
 
 #include "openlcb/If.hxx"
 #include "utils/Hub.hxx"
+#include "utils/HubDeviceSelect.hxx"
 
 namespace openlcb
 {
@@ -485,6 +486,8 @@ private:
     void *skipMember_;
     StateFlowSelectHelper helper_ {this};
 };
+
+using TcpHubDeviceSelect = HubDeviceSelect<HubFlow, FdToTcpParser>; 
 
 }  // namespace openlcb
 
