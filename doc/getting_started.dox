@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @page getting_started Getting Started Guide
  *
  * @section tableofcontents Table of Contents
@@ -16,7 +16,22 @@
  *
  * @section linux Linux
  * This section describes how to use Linux as a development environment for
- * OpenMRN applications.
+ * OpenMRN applications. Before you begin, a couple of pointers on packages 
+ * you may want to have before you begin the procedure:
+ * -# gcc
+ * -# make
+ * -# binutils
+ * -# git
+ * -# doxygen
+ * -# avahi
+ *
+ * **Note** Use Oracle’s JRE instead of the OpenJDK’s offering if you want to use JMRI or STM32CubeMX.
+ *
+ * Using the OpenJDK version of JRE (on Debian and related distros) currently 
+ * causes a total hang of JMRI on launch.
+ *
+ * Use your package manager for the distro that you are running to verify they
+ * exist on your system, or install them so you are ready.
  *
  * @subsection openmrn_location OpenMRN Location
  * The build system for OpenMRN is quite intelligent.  It is designed to
@@ -46,24 +61,32 @@
  * to the root of the OpenMRN tree and run make.
  *
  * Running of the example requires a USB-to-CAN converter that uses the Grid
- * Connect protocol.  TCH (http://www.tchtechnology.com/index.html) is a
+ * Connect protocol.  RR-Cirkits (http://www.rr-cirkits.com) is the current
  * source of these devices.  One can navagate to the test/targets/linux.x86
  * directory and run "./test /dev/ttyUSB0".  /dev/ttyUSB0 is the default path
  * for accessing the USB-to-CAN device if no other USB to serial adaptors are
  * in use.  It is highly likely that the device may also be found at
- * /dev/ttyUSB1, /dev/ttyUSB2, etc...  The example periodically produces an
+ * /dev/ttyUSB1, /dev/ttyACM0, etc... 
+ *
+ * You may need, depending upon your distribution, to add your user account
+ * to the dialout group and/or set the device object (aka /dev/ttyACM0 or whatever device your USB-to-CAN has made itself) to security 
+ * mode 666 (aka Read and Execute).
+ *
+ * The example periodically produces an
  * event and consumes an event.  The example demonstrates the internal
  * loopback capability in addition to interaction on the CAN bus.  Using JMRI
  * and a second USB-to-CAN adaptor, one can view the node interacting on the
  * bus.
+ * 
  *
  * @subsubsection armv7freertos ARM Cortex-M FreeRTOS
- * The ARM Cortex-M FreeRTOS targets require additional tools to be installed on the
- * system.
+ * The ARM Cortex-M FreeRTOS targets require additional tools to be installed 
+ * on the system.
 
  *  The compiler used is GCC as distributed with ARM's GNU Embedded Toolchain
  * (as of this writing, we're using version `6-2017-q1-update`). This compiler
- * may be [downloaded from the ARM Developer site](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads).
+ * may be [downloaded from the ARM Developer site](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads). 
+ * Please note that the 2018 Q2 version will cause errors on compile. The 2017 Q2 is known good at this time.
  * The OpenMRN build system will look for the compiler at `/opt/armgcc/default`
  * (for specific path matching, see `etc/path.mk`).
  * 
@@ -96,11 +119,22 @@
  * environment variables but look closely to the location of the files and directories because
  * most likely a mistake is made there.
  *
+ * @subsection A couple of quick hints about make:
+ * @code
+ * $make clean
+ * @endcode
+ * Deletes the files that a make creates; use this after you tweak the source, but before you recompile with a plain make.
+ * The output of the make process will leave you with a *.elf file. To make it a binary that you can drop onto the Nucleo, run:
+* @code
+ * $ objcopy -O binary blink_raw.elf blink_raw.bin
+ * @endcode
+ *
+ * @subsection FreeRTOS
  * The build system also looks for a version of the FreeRTOS tree.  Version
- * 7.3.0 has been used for testing, however any version 7 or later should work.
+ * 7.3.0 has been used for testing, however any version 7 or later should work. FreeRTOSV10.1.1 has been tested successfully as part of the Nucleo & DevKit combo.
  * FreeRTOS can be downloaded from the FreeRTOS web site
  * (http://www.freertos.org/).  The build system will look for the FreeRTOS
- * source tree at /opt/FreeRTOS or ~/FreeRTOS.  It is often convenent to use
+ * source tree at /opt/FreeRTOS or ~/FreeRTOS.  It is often convenient to use
  * a symbolic link to locate the tree.  For example:
  * @code
  * $ cd ~/
@@ -110,6 +144,8 @@
  *
  * $ cd /opt
  * $ sudo ln -s FreeRTOSV7.3.0/FreeRTOS FreeRTOS
+ * $ cd FreeRTOS
+ * $ sudo ln -s . default
  * @endcode
  *
  *
