@@ -34,6 +34,7 @@
 
 #include "openlcb/IfTcp.hxx"
 #include "openlcb/IfTcpImpl.hxx"
+#include "openlcb/IfImpl.hxx"
 
 namespace openlcb
 {
@@ -60,8 +61,23 @@ bool IfTcp::matching_node(NodeHandle expected, NodeHandle actual)
     return false;
 }
 
+IfTcp::IfTcp(NodeID gateway_node_id, HubFlow* device, int local_nodes_count)
+    : If(device->service()->executor(), local_nodes_count)
+{
+    add_owned_flow(new VerifyNodeIdHandler(this));
+    seq_ = new ClockBaseSequenceNumberGenerator;
+    add_owned_flow(seq_);
+    recvFlow_ = new TcpRecvFlow(dispatcher());
+    add_owned_flow(recvFlow_);
+    sendFlow_ = new TcpSendFlow(this, gateway_node_id, device, recvFlow_, seq_);
+    add_owned_flow(sendFlow_);
+    globalWriteFlow_ = sendFlow_;
+    addressedWriteFlow_ = sendFlow_;
+}
+
 IfTcp::~IfTcp()
 {
+    device_->unregister_port(recvFlow_);
 }
 
 } // namespace openlcb
