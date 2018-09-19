@@ -63,6 +63,7 @@ bool IfTcp::matching_node(NodeHandle expected, NodeHandle actual)
 
 IfTcp::IfTcp(NodeID gateway_node_id, HubFlow* device, int local_nodes_count)
     : If(device->service()->executor(), local_nodes_count)
+    , device_(device)
 {
     add_owned_flow(new VerifyNodeIdHandler(this));
     seq_ = new ClockBaseSequenceNumberGenerator;
@@ -73,6 +74,7 @@ IfTcp::IfTcp(NodeID gateway_node_id, HubFlow* device, int local_nodes_count)
     add_owned_flow(sendFlow_);
     globalWriteFlow_ = sendFlow_;
     addressedWriteFlow_ = sendFlow_;
+    device_->register_port(recvFlow_);
 }
 
 IfTcp::~IfTcp()
