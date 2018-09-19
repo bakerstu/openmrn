@@ -228,7 +228,7 @@ private :
 /**
    Virtual clock interface. Implementations are not required to be thread-safe.
 */
-class SequenceNumberGenerator
+class SequenceNumberGenerator : public Destructable
 {
 public:
     /** Returns the next strictly monotonic sequence number. */
@@ -443,6 +443,9 @@ private:
         b->data()->assign(std::move(msg_));
         b->data()->skipMember_ =
             reinterpret_cast<HubPortInterface *>(skipMember_);
+        /// @todo (balazs.racz): there should be some form of throttling here,
+        /// ot not read more bytes from the tcp socket than how much RAM we
+        /// have available.
         dst_->send(b, prio);
         return call_immediately(STATE(start_msg));
     }
