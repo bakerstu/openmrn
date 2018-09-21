@@ -150,8 +150,9 @@ protected:
     HubPortInterface *fakeSource_ = (HubPortInterface *)123456;
     TestSequenceGenerator seq_;
     static constexpr uint64_t GW_NODE_ID = 0x101112131415ULL;
+    LocalIf localIf_{10};
     TcpSendFlow sendFlow_ {
-        &g_service, GW_NODE_ID, &fakeSendTarget_, fakeSource_, &seq_};
+        &localIf_, GW_NODE_ID, &fakeSendTarget_, fakeSource_, &seq_};
 };
 
 TEST_F(TcpSendFlowTest, create)

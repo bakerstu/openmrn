@@ -61,6 +61,31 @@ bool IfTcp::matching_node(NodeHandle expected, NodeHandle actual)
     return false;
 }
 
+/// Component that drops incoming addressed messages that are not destined for
+/// a local node.
+class LocalMessageFilter : public MessageHandler, public Destructable
+{
+public:
+    LocalMessageFilter(If *iface)
+        : iface_(iface)
+    {
+    }
+
+    void send(Buffer<GenMessage> *b, unsigned prio) override
+    {
+        auto id = b->data()->dst.id;
+        if ((id == 0) || (iface_->lookup_local_node(id) != nullptr))
+        {
+            iface_->dispatcher()->send(b, prio);
+            return;
+        }
+        b->unref();
+    }
+
+private:
+    If *iface_;
+};
+
 IfTcp::IfTcp(NodeID gateway_node_id, HubFlow* device, int local_nodes_count)
     : If(device->service()->executor(), local_nodes_count)
     , device_(device)
@@ -68,7 +93,9 @@ IfTcp::IfTcp(NodeID gateway_node_id, HubFlow* device, int local_nodes_count)
     add_owned_flow(new VerifyNodeIdHandler(this));
     seq_ = new ClockBaseSequenceNumberGenerator;
     add_owned_flow(seq_);
-    recvFlow_ = new TcpRecvFlow(dispatcher());
+    auto filter = new LocalMessageFilter(this);
+    add_owned_flow(filter);
+    recvFlow_ = new TcpRecvFlow(filter);
     add_owned_flow(recvFlow_);
     sendFlow_ = new TcpSendFlow(this, gateway_node_id, device, recvFlow_, seq_);
     add_owned_flow(sendFlow_);

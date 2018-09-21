@@ -268,7 +268,7 @@ private:
 class TcpSendFlow : public MessageStateFlowBase
 {
 public:
-    TcpSendFlow(Service *service, NodeID gateway_node_id,
+    TcpSendFlow(If *service, NodeID gateway_node_id,
         HubPortInterface *send_target, HubPortInterface *skip_member,
         SequenceNumberGenerator *sequence)
         : MessageStateFlowBase(service)
@@ -282,6 +282,19 @@ public:
 private:
     Action entry() override
     {
+        auto id = nmsg()->dst.id;
+        if (id)
+        {
+            auto *n = iface()->lookup_local_node(id);
+            if (n)
+            {
+                // Addressed message loopback.
+                auto *b = transfer_message();
+                b->data()->dstNode = n;
+                iface()->dispatcher()->send(b, priority());
+                return release_and_exit();
+            }
+        }
         return allocate_and_call(sendTarget_, STATE(render_src_message));
     }
 
@@ -292,15 +305,26 @@ private:
             sequenceNumberGenerator_->get_sequence_number(), b->data());
         b->data()->skipMember_ = skipMember_;
         sendTarget_->send(b.release(), nmsg()->priority());
+
+        // Checks and performs global loopback.
+        if (!nmsg()->dst.id)
+        {
+            iface()->dispatcher()->send(transfer_message(), priority());
+        }
         return release_and_exit();
     }
 
-    /// Returns the abstract message we are trying to send.
+    /// @return the abstract message we are trying to send.
     GenMessage *nmsg()
     {
         return message()->data();
     }
 
+    /// @return owning interface object.
+    If* iface() {
+        return static_cast<If*>(service());
+    }
+    
     /// Where to send the rendered messages to.
     HubPortInterface *sendTarget_;
     /// This value will be populated to the skipMember_ field.
