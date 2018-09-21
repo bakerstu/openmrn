@@ -449,6 +449,7 @@ protected:
     do                                                                         \
     {                                                                          \
         GenMessage actual;                                                     \
+        actual.clear();                                                        \
         EXPECT_TRUE(TcpDefs::parse_tcp_message(pkt, &actual));                 \
         GenMessage expected;                                                   \
         expected.reset(x);                                                     \
@@ -535,6 +536,15 @@ TEST_F(TcpIfTest, send_message_addressed) {
                      "abcdefghijklmn",          // payload: data for ident
                   14 + 26 + 5 - 6),
         lastPacket_);
+}
+
+TEST_F(TcpIfTest, send_short_event)
+{
+    capture_next_packet();
+    // this is not a standards compliant message but should still work.
+    generate_output_message(Defs::MTI_EVENT_REPORT, TEST_NODE_ID, "abcde");
+    expect_packet_is(
+        lastPacket_, Defs::MTI_EVENT_REPORT, TEST_NODE_ID, "abcde");
 }
 
 TEST_F(TcpIfTest, global_loopback) {
@@ -637,6 +647,29 @@ TEST_F(TcpNodeTest, verify_addressed_with_wrong_address) {
     generate_input_message(Defs::MTI_VERIFY_NODE_ID_ADDRESSED, REMOTE_NODE_ID,
         NodeHandle(TEST_NODE_ID+1), node_id_to_buffer(TEST_NODE_ID));
     // should have no output.
+}
+
+TEST_F(TcpNodeTest, addressed_loopback) {
+    StrictMock<MockMessageHandler> h;
+    EXPECT_CALL(
+        h,
+        handle_message(
+            Pointee(AllOf(
+                Field(&GenMessage::mti, Defs::MTI_EVENTS_IDENTIFY_ADDRESSED),
+                Field(&GenMessage::payload,
+                      IsBufferValue(UINT64_C(0x0102030405060708))),
+                Field(&GenMessage::src,
+                      Field(&NodeHandle::id, REMOTE_NODE_ID)),
+                Field(&GenMessage::dst,
+                      Field(&NodeHandle::id, TEST_NODE_ID)),
+                Field(&GenMessage::dstNode, node_))),
+            _));
+    ifTcp_.dispatcher()->register_handler(&h, 0, 0);
+
+    generate_output_message(Defs::MTI_EVENTS_IDENTIFY_ADDRESSED, REMOTE_NODE_ID,
+        NodeHandle(TEST_NODE_ID),
+        eventid_to_buffer(UINT64_C(0x0102030405060708)));
+    // There should be nothing sent to the bus.
 }
 
 } // namespace openlcb

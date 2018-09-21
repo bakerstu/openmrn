@@ -155,6 +155,10 @@ struct GenMessage
     GenMessage()
         : src({0, 0}), dst({0, 0}), flagsSrc(0), flagsDst(0) {}
 
+    void clear() {
+        reset((Defs::MTI)0, 0, EMPTY_PAYLOAD);
+    }
+    
     void reset(Defs::MTI mti, NodeID src, NodeHandle dst, string payload)
     {
         this->mti = mti;
