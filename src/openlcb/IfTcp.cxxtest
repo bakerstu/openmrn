@@ -655,7 +655,7 @@ TEST_F(TcpIfTest, drop_wrong_addressed_message)
 
 TEST_F(TcpNodeTest, init)
 {
-    // The verify for node init complete is in the constructor.
+    // The expectation verifying node init complete is in the constructor.
 }
 
 TEST_F(TcpNodeTest, verify_global)
