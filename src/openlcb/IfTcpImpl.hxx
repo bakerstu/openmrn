@@ -343,7 +343,7 @@ private:
 class FdToTcpParser : public StateFlowBase
 {
 public:
-    FdToTcpParser(FdHubPortService* s, HubPortInterface *dst, void *skipMember)
+    FdToTcpParser(FdHubPortService* s, HubPortInterface *dst, HubPortInterface *skipMember)
         : StateFlowBase(s)
         , dst_(dst)
         , skipMember_(skipMember)
@@ -465,8 +465,7 @@ private:
         auto *b = get_allocation_result(dst_);
         auto prio = TcpDefs::guess_priority(msg_);
         b->data()->assign(std::move(msg_));
-        b->data()->skipMember_ =
-            reinterpret_cast<HubPortInterface *>(skipMember_);
+        b->data()->skipMember_ = skipMember_;
         /// @todo (balazs.racz): there should be some form of throttling here,
         /// ot not read more bytes from the tcp socket than how much RAM we
         /// have available.
@@ -511,7 +510,7 @@ private:
     /// Where to send parsed messages to.
     HubPortInterface *dst_;
     /// Parsed messages will be initialized to this skipMember_.
-    void *skipMember_;
+    HubPortInterface *skipMember_;
     StateFlowSelectHelper helper_ {this};
 };
 

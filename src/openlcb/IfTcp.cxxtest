@@ -439,12 +439,22 @@ protected:
     ///       eventid_to_buffer(UINT64_C(0x0102030405060708)));
     template <typename... Args>
     void generate_output_message(Args &&... args) {
-        auto*f = ifTcp_.global_message_write_flow();
+        generate_output_message(&ifTcp_, std::forward<Args>(args)...);
+    }
+
+    /// Creates a GenMessage and sends it out via the IfTcp.
+    /// @param args same arguments as GenMessage::reset(). Example
+    /// reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
+    ///       eventid_to_buffer(UINT64_C(0x0102030405060708)));
+    template <typename... Args>
+    void generate_output_message(IfTcp* iface, Args &&... args) {
+        auto*f = iface->global_message_write_flow();
         auto *b = f->alloc();
         b->data()->reset(std::forward<Args>(args)...);
         f->send(b);
         wait();
     }
+    
 
 #define expect_packet_is(pkt, x...)                                            \
     do                                                                         \
@@ -672,5 +682,244 @@ TEST_F(TcpNodeTest, addressed_loopback) {
         eventid_to_buffer(UINT64_C(0x0102030405060708)));
     // There should be nothing sent to the bus.
 }
+
+class RemoteTcpIfTest : public TcpIfTest {
+protected:
+    RemoteTcpIfTest() {
+        // We expect write failures to occur but we want to handle them where
+        // the error occurs rather than in a SIGPIPE handler.
+        signal(SIGPIPE, SIG_IGN);
+        ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fds_));      
+    }
+
+    ~RemoteTcpIfTest() {
+        wait();
+    }
+    
+    int fds_[2];
+};
+
+TEST_F(RemoteTcpIfTest, create) {}
+
+TEST_F(RemoteTcpIfTest, connect) {
+    ifTcp_.add_network_fd(fds_[0]);
+}
+
+TEST_F(RemoteTcpIfTest, connect_close_1) {
+    ifTcp_.add_network_fd(fds_[0]);
+    wait();
+    LOG_ERROR("start_close");
+    ::close(fds_[1]);
+    LOG_ERROR("closed");
+    wait();
+    LOG_ERROR("closed-wait");
+}
+
+TEST_F(RemoteTcpIfTest, connect_close_0) {
+    ifTcp_.add_network_fd(fds_[0]);
+    wait();
+    ::close(fds_[0]);
+    wait();
+}
+
+TEST_F(RemoteTcpIfTest, output_packet) {
+    ifTcp_.add_network_fd(fds_[0]);
+    capture_next_packet();
+    generate_output_message(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
+                     eventid_to_buffer(UINT64_C(0x0102030405060708)));
+    usleep(1000);
+    wait();
+    ERRNOCHECK("fcntl",
+        fcntl(fds_[1], F_SETFL, fcntl(fds_[1], F_GETFL, 0) | O_NONBLOCK));
+    char buf[100];
+    ssize_t ret = ::read(fds_[1], buf, sizeof(buf));
+    ASSERT_LT(0, ret);
+    string remote_packet(buf, ret);
+    EXPECT_EQ(lastPacket_, remote_packet);
+}
+
+TEST_F(RemoteTcpIfTest, input_packet) {
+    ifTcp_.add_network_fd(fds_[0]);
+    string s("\x80\x00"                          // flags
+             "\x00\x00\x1C"                      // length: 28
+             "\x10\x11\x12\x13\x14\x15"          // gateway node ID
+             "\x00\x00\x00\x00\x00\x42"          // timestamp / seq no
+             "\x05\xB4"                          // MTI
+             "\x05\x01\x02\x03\x04\x05"          // src node ID
+             "\x01\x02\x03\x04\x05\x06\x07\x08", // payload: event ID
+             28 + 5);
+    StrictMock<MockMessageHandler> h;
+    EXPECT_CALL(
+        h, handle_message(
+               Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                             // Field(&GenMessage::payload, NotNull()),
+                             Field(&GenMessage::src,
+                                   Field(&NodeHandle::id, 0x050102030405ULL)),
+                             Field(&GenMessage::payload,
+                                   IsBufferValue(UINT64_C(0x0102030405060708))))),
+               _));
+    ifTcp_.dispatcher()->register_handler(&h, 0, 0);
+
+    capture_next_packet();
+    FdUtils::repeated_write(fds_[1], s.data(), s.size());
+    wait();
+    expect_packet_is(lastPacket_, Defs::MTI_EVENT_REPORT, 0x050102030405ULL,
+        eventid_to_buffer(0x0102030405060708ULL));
+    ERRNOCHECK("fcntl",
+        fcntl(fds_[1], F_SETFL, fcntl(fds_[1], F_GETFL, 0) | O_NONBLOCK));
+    char buf[100];
+    // We check that nothing came back.
+    ssize_t ret = ::read(fds_[1], buf, sizeof(buf));
+    auto e = errno;
+    EXPECT_EQ(-1, ret);
+    EXPECT_EQ(EAGAIN, e);
+}
+
+class MultiTcpIfTest: public TcpIfTest {
+protected:
+    MultiTcpIfTest()
+    {
+#ifdef __linux__
+        // We expect write failures to occur but we want to handle them where
+        // the error occurs rather than in a SIGPIPE handler.
+        signal(SIGPIPE, SIG_IGN);
+#endif
+    }
+
+    ~MultiTcpIfTest() {
+        wait();
+    }
+
+    friend struct ClientIf;
+
+    struct ClientIf {
+        ClientIf(MultiTcpIfTest* parent, NodeID node_id)
+            : parent_(parent), nodeId_(node_id) {
+            ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fds_));
+            ERRNOCHECK("fcntl",
+                fcntl(
+                    fds_[0], F_SETFL, fcntl(fds_[0], F_GETFL, 0) | O_NONBLOCK));
+            ERRNOCHECK("fcntl",
+                fcntl(
+                    fds_[1], F_SETFL, fcntl(fds_[1], F_GETFL, 0) | O_NONBLOCK));
+            ifTcp_.add_network_fd(fds_[1]);
+            parent->ifTcp_.add_network_fd(fds_[0]);
+        }
+        int fds_[2];
+        MultiTcpIfTest* parent_;
+        NodeID nodeId_;
+        HubFlow device_{&g_service};
+        IfTcp ifTcp_{nodeId_, &device_, parent_->local_node_count};
+    };
+
+    void add_client(NodeID node_id) {
+        clients_.emplace_back(new ClientIf(this, node_id));
+    }
+    
+    vector<std::unique_ptr<ClientIf>> clients_;
+};
+
+
+TEST_F(MultiTcpIfTest, create_empty) {}
+
+TEST_F(MultiTcpIfTest, create_with_port_and_send_message) {
+    add_client(TEST_NODE_ID + 1);
+    capture_next_packet();
+    generate_output_message(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
+                     eventid_to_buffer(UINT64_C(0x0102030405060708)));
+    usleep(1000);
+}
+
+TEST_F(MultiTcpIfTest, create_with_ports) {
+    add_client(TEST_NODE_ID + 1);
+    add_client(TEST_NODE_ID + 2);
+    add_client(TEST_NODE_ID + 3);
+    wait();
+}
+
+TEST_F(MultiTcpIfTest, receive_broadcast_from_hub) {
+    add_client(TEST_NODE_ID + 1);
+    add_client(TEST_NODE_ID + 2);
+    add_client(TEST_NODE_ID + 3);
+    wait();
+    capture_next_packet();
+    StrictMock<MockMessageHandler> h0, h1, h2;
+    EXPECT_CALL(
+        h0, handle_message(
+               Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                             Field(&GenMessage::src,
+                                   Field(&NodeHandle::id, TEST_NODE_ID)),
+                             Field(&GenMessage::payload,
+                                   IsBufferValue(UINT64_C(0x0102030405060708))))),
+               _));
+    EXPECT_CALL(
+        h1, handle_message(
+               Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                             Field(&GenMessage::src,
+                                   Field(&NodeHandle::id, TEST_NODE_ID)),
+                             Field(&GenMessage::payload,
+                                   IsBufferValue(UINT64_C(0x0102030405060708))))),
+               _));
+    EXPECT_CALL(
+        h2, handle_message(
+               Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                             Field(&GenMessage::src,
+                                   Field(&NodeHandle::id, TEST_NODE_ID)),
+                             Field(&GenMessage::payload,
+                                   IsBufferValue(UINT64_C(0x0102030405060708))))),
+               _));
+    
+    clients_[0]->ifTcp_.dispatcher()->register_handler(&h0, 0, 0);
+    clients_[1]->ifTcp_.dispatcher()->register_handler(&h1, 0, 0);
+    clients_[2]->ifTcp_.dispatcher()->register_handler(&h2, 0, 0);
+
+    generate_output_message(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
+                     eventid_to_buffer(UINT64_C(0x0102030405060708)));
+    wait();
+}
+
+TEST_F(MultiTcpIfTest, hub_routes_global) {
+    add_client(TEST_NODE_ID + 1);
+    add_client(TEST_NODE_ID + 2);
+    add_client(TEST_NODE_ID + 3);
+    wait();
+    capture_next_packet();
+    // Here we add the expectation to the central, client0 and client2. The
+    // input will come from client1.
+    StrictMock<MockMessageHandler> h0, h, h2;
+    EXPECT_CALL(
+        h0, handle_message(
+               Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                             Field(&GenMessage::src,
+                                   Field(&NodeHandle::id, TEST_NODE_ID+1)),
+                             Field(&GenMessage::payload,
+                                   IsBufferValue(UINT64_C(0x0102030405060708))))),
+               _));
+    EXPECT_CALL(
+        h, handle_message(
+               Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                             Field(&GenMessage::src,
+                                   Field(&NodeHandle::id, TEST_NODE_ID+1)),
+                             Field(&GenMessage::payload,
+                                   IsBufferValue(UINT64_C(0x0102030405060708))))),
+               _));
+    EXPECT_CALL(
+        h2, handle_message(
+               Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_EVENT_REPORT),
+                             Field(&GenMessage::src,
+                                   Field(&NodeHandle::id, TEST_NODE_ID+1)),
+                             Field(&GenMessage::payload,
+                                   IsBufferValue(UINT64_C(0x0102030405060708))))),
+               _));
+    
+    clients_[0]->ifTcp_.dispatcher()->register_handler(&h0, 0, 0);
+    ifTcp_.dispatcher()->register_handler(&h, 0, 0);
+    clients_[2]->ifTcp_.dispatcher()->register_handler(&h2, 0, 0);
+
+    generate_output_message(&clients_[1]->ifTcp_, Defs::MTI_EVENT_REPORT,
+        TEST_NODE_ID + 1, eventid_to_buffer(UINT64_C(0x0102030405060708)));
+    wait();
+}
+
 
 } // namespace openlcb

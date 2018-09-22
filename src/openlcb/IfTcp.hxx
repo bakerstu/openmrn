@@ -73,9 +73,17 @@ public:
     {
         ownedFlows_.emplace_back(e);
     }
+    /// Finds a given pointer in the owned flows list, deletes it and removes
+    /// it from the list.
+    void delete_owned_flow(Destructable* d);
     void delete_local_node(Node *node) override;
     bool matching_node(NodeHandle expected, NodeHandle actual) override;
 
+    /// Adds a network client connection to the device.
+    /// @param fd is the socket going towards the client
+    /// @param on_error will be invoked when a socket error is encountered.
+    void add_network_fd(int fd, Notifiable* on_error = nullptr);
+    
 private:
     /// Where to send traffic to.
     HubFlow* device_;

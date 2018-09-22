@@ -238,8 +238,8 @@ private:
 /// HubPort that connects a select-aware device to a strongly typed Hub.
 ///
 /// The device is given by either the path to the device or the fd to an opened
-/// device instance. The device will be put to nonblocking mode and all
-/// processing will be performed in the executor of the hub, by using
+/// device instance or socket. The device will be put to nonblocking mode and
+/// all processing will be performed in the executor of the hub, by using
 /// ExecutorBase::select(). No additional threads are started.
 ///
 /// Reads and writes will be performed in the units defined by the type of the
@@ -294,6 +294,7 @@ public:
         hub_->register_port(write_port());
     }
 
+    /// If the barrier has not been called yet, will notify it inline.
     virtual ~HubDeviceSelect()
     {
         if (fd_ >= 0) {
@@ -332,6 +333,7 @@ public:
     /// Removes the current write port from the registry of the source hub.
     void unregister_write_port()
     {
+        LOG(VERBOSE, "HubDeviceSelect::unregister write port %p %p", write_port(), &writeFlow_);
         hub_->unregister_port(&writeFlow_);
         /* We put an empty message at the end of the queue. This will cause
          * wait until all pending messages are dealt with, and then ping the
@@ -339,6 +341,13 @@ public:
         auto *b = writeFlow_.alloc();
         b->set_done(&barrier_);
         writeFlow_.send(b);
+    }
+
+    /// @return true if there is no pending data to write. Can be used to check
+    /// safe destruction.
+    bool write_done()
+    {
+        return writeFlow_.is_waiting();
     }
 
 protected:
@@ -355,7 +364,11 @@ protected:
         {
         }
 
-        /// Unregisters this oebject from the flows.
+        ~WriteFlow() {
+            HASSERT(this->is_waiting());
+        }
+
+        /// Unregisters this object from the flows.
         void shutdown()
         {
             // The fd must be set to negative already to ensure the shutdown
