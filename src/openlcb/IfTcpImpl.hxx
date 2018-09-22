@@ -220,7 +220,7 @@ public:
         ABS_MTI_OFS = HDR_LEN + MSG_MTI_OFS,
     };
 
-private :
+private:
     /// No usable constructor; this is a static-only class.
     TcpDefs();
 };
@@ -321,10 +321,11 @@ private:
     }
 
     /// @return owning interface object.
-    If* iface() {
-        return static_cast<If*>(service());
+    If *iface()
+    {
+        return static_cast<If *>(service());
     }
-    
+
     /// Where to send the rendered messages to.
     HubPortInterface *sendTarget_;
     /// This value will be populated to the skipMember_ field.
@@ -336,14 +337,14 @@ private:
     SequenceNumberGenerator *sequenceNumberGenerator_;
 };
 
-
 /// This flow is listening to data from a TCP connection, segments the incoming
 /// data into TcpMessages based on the incoing size, and forwards packets
 /// containing the TCP message as string payload.
 class FdToTcpParser : public StateFlowBase
 {
 public:
-    FdToTcpParser(FdHubPortService* s, HubPortInterface *dst, HubPortInterface *skipMember)
+    FdToTcpParser(FdHubPortService *s, HubPortInterface *dst,
+        HubPortInterface *skipMember)
         : StateFlowBase(s)
         , dst_(dst)
         , skipMember_(skipMember)
@@ -368,8 +369,9 @@ public:
     }
 
 private:
-    FdHubPortService* device() {
-        return static_cast<FdHubPortService*>(service());
+    FdHubPortService *device()
+    {
+        return static_cast<FdHubPortService *>(service());
     }
 
     Action start_msg()
@@ -418,7 +420,7 @@ private:
         {
             needed = available;
         }
-        msg_.append((const char*)(buffer_ + bufOfs_), needed);
+        msg_.append((const char *)(buffer_ + bufOfs_), needed);
         bufOfs_ += needed;
         if (msg_.size() >= (unsigned)expectedLen_)
         {
@@ -445,7 +447,8 @@ private:
 
     Action read_done()
     {
-        if (helper_.hasError_) {
+        if (helper_.hasError_)
+        {
             notify_barrier();
             set_terminated();
             device()->report_read_error();
@@ -483,7 +486,7 @@ private:
             device()->barrier_.notify();
         }
     }
-    
+
     /// We attempt to read this many bytes in one go from the FD.
     static constexpr unsigned READ_BUFFER_SIZE = 300;
     /// If we have to guess at the size of the packet, we start by allocating
@@ -511,21 +514,24 @@ private:
     HubPortInterface *dst_;
     /// Parsed messages will be initialized to this skipMember_.
     HubPortInterface *skipMember_;
-    StateFlowSelectHelper helper_ {this};
+    StateFlowSelectHelper helper_{this};
 };
 
-using TcpHubDeviceSelect = HubDeviceSelect<HubFlow, FdToTcpParser>; 
+using TcpHubDeviceSelect = HubDeviceSelect<HubFlow, FdToTcpParser>;
 
 /// Simple stateless translator for incoming TCP messages from binary format
 /// into the structured format. Drops everything to the floor that is not a
 /// valid TCP message. Performs synchronous allocation and keeps the done
 /// callback passed along.
-class TcpRecvFlow : public HubPortInterface, public Destructable {
+class TcpRecvFlow : public HubPortInterface, public Destructable
+{
 public:
     /// @param target is where to send the parsed messages. Usually the
     /// interface's dispatcher flow.
-    TcpRecvFlow(MessageHandler* target)
-        : target_(target) {}
+    TcpRecvFlow(MessageHandler *target)
+        : target_(target)
+    {
+    }
 
     void send(Buffer<HubData> *data, unsigned prio) override
     {
@@ -539,9 +545,9 @@ public:
     }
 
 private:
-    MessageHandler* target_;
+    MessageHandler *target_;
 };
 
-}  // namespace openlcb
+} // namespace openlcb
 
 #endif // _OPENLCB_IFTCPIMPL_HXX_

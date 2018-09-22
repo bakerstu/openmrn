@@ -302,9 +302,13 @@ namespace openlcb
 
 static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
 
-class LocalIf : public If {
+class LocalIf : public If
+{
 public:
-    LocalIf(int local_nodes_count) : If(&g_executor, local_nodes_count) {}
+    LocalIf(int local_nodes_count)
+        : If(&g_executor, local_nodes_count)
+    {
+    }
 
     void add_owned_flow(Executable *e) override
     {
@@ -323,14 +327,13 @@ public:
             return expected.id == actual.id;
         }
         // Cannot reconcile.
-        LOG(VERBOSE,
-            "Cannot reconcile expected and actual NodeHandles for "
-            "equality testing.");
+        LOG(VERBOSE, "Cannot reconcile expected and actual NodeHandles for "
+                     "equality testing.");
         return false;
     }
 
 private:
-    std::vector<std::unique_ptr<Destructable> > ownedFlows_;
+    std::vector<std::unique_ptr<Destructable>> ownedFlows_;
 };
 
 /** Test fixture base class with helper methods for exercising the asynchronous

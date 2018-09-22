@@ -33,8 +33,8 @@
  */
 
 #include "openlcb/IfTcp.hxx"
-#include "openlcb/IfTcpImpl.hxx"
 #include "openlcb/IfImpl.hxx"
+#include "openlcb/IfTcpImpl.hxx"
 
 namespace openlcb
 {
@@ -51,8 +51,10 @@ void IfTcp::add_owned_flow(Executable *e)
 
 void IfTcp::delete_owned_flow(Destructable *d)
 {
-    for (auto it = ownedFlows_.begin(); it != ownedFlows_.end(); ++it) {
-        if (it->get() == d) {
+    for (auto it = ownedFlows_.begin(); it != ownedFlows_.end(); ++it)
+    {
+        if (it->get() == d)
+        {
             ownedFlows_.erase(it);
             return;
         }
@@ -72,7 +74,8 @@ bool IfTcp::matching_node(NodeHandle expected, NodeHandle actual)
     return false;
 }
 
-void IfTcp::add_network_fd(int fd, Notifiable* on_error) {
+void IfTcp::add_network_fd(int fd, Notifiable *on_error)
+{
     // What are the cases we need to support:
     //
     // - the remote server closing the socket. on_error shall be called and the
@@ -87,23 +90,29 @@ void IfTcp::add_network_fd(int fd, Notifiable* on_error) {
     // notifiable is called, the HubDeviceSelect has been unregistered,
     // flushed, and can be deleted, even if we are on the main executor.
     //
-    struct RemotePort : public Executable {
-        RemotePort(IfTcp* parent, Notifiable* on_error)
-            : parent_(parent), onError_(on_error) {}
-        ~RemotePort() {
-            //auto* p = port_->write_port();
-            //LOG_ERROR("remoteport::delete %p %p", p, this);
+    struct RemotePort : public Executable
+    {
+        RemotePort(IfTcp *parent, Notifiable *on_error)
+            : parent_(parent)
+            , onError_(on_error)
+        {
+        }
+        ~RemotePort()
+        {
+            // auto* p = port_->write_port();
+            // LOG_ERROR("remoteport::delete %p %p", p, this);
             deleting_ = true;
             port_.reset();
-            //LOG_ERROR("remoteport::delete done %p", p);
+            // LOG_ERROR("remoteport::delete done %p", p);
         }
-        IfTcp* parent_;
+        IfTcp *parent_;
         std::unique_ptr<TcpHubDeviceSelect> port_;
-        Notifiable* onError_;
+        Notifiable *onError_;
         bool deleting_{false};
-        void notify() override {
-            //auto* p = port_->write_port();
-            //LOG(VERBOSE, "remoteport::notify %d %p %p", deleting_, p, this);
+        void notify() override
+        {
+            // auto* p = port_->write_port();
+            // LOG(VERBOSE, "remoteport::notify %d %p %p", deleting_, p, this);
             if (onError_)
             {
                 onError_->notify();
@@ -154,7 +163,9 @@ public:
             if (dst)
             {
                 b->data()->dstNode = dst;
-            } else {
+            }
+            else
+            {
                 b->unref();
                 return;
             }
@@ -166,7 +177,7 @@ private:
     If *iface_;
 };
 
-IfTcp::IfTcp(NodeID gateway_node_id, HubFlow* device, int local_nodes_count)
+IfTcp::IfTcp(NodeID gateway_node_id, HubFlow *device, int local_nodes_count)
     : If(device->service()->executor(), local_nodes_count)
     , device_(device)
 {
@@ -187,7 +198,8 @@ IfTcp::IfTcp(NodeID gateway_node_id, HubFlow* device, int local_nodes_count)
 IfTcp::~IfTcp()
 {
     device_->unregister_port(recvFlow_);
-    while (!ownedFlows_.empty()) {
+    while (!ownedFlows_.empty())
+    {
         ownedFlows_.resize(ownedFlows_.size() - 1);
     }
 }

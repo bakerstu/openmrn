@@ -38,10 +38,12 @@
 #include "openlcb/If.hxx"
 #include "utils/Hub.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
 /// This is not used at the moment, as TCP packet routing is not supported yet.
-struct TcpMessage {
+struct TcpMessage
+{
     /// Destination node, or {0,0} for broadcast. Helper function for routing.
     NodeHandle dst;
     /// Rendered string for the message payload. Includes the header (flags and
@@ -49,12 +51,12 @@ struct TcpMessage {
     string data;
 };
 
-
 class ClockBaseSequenceNumberGenerator;
 class TcpSendFlow;
 class TcpRecvFlow;
 
-class IfTcp : public If {
+class IfTcp : public If
+{
 public:
     /// Creates a TCP interface.
     /// @param gateway_node_id will be stamped on outgoing messages as the
@@ -64,7 +66,7 @@ public:
     /// this device will be used for processing the packets in this interface.
     /// @param local_nodes_count is the maximum number of virtual nodes that
     /// this interface will support.
-    IfTcp(NodeID gateway_node_id, HubFlow* device, int local_nodes_count);
+    IfTcp(NodeID gateway_node_id, HubFlow *device, int local_nodes_count);
 
     ~IfTcp();
 
@@ -75,34 +77,29 @@ public:
     }
     /// Finds a given pointer in the owned flows list, deletes it and removes
     /// it from the list.
-    void delete_owned_flow(Destructable* d);
+    void delete_owned_flow(Destructable *d);
     void delete_local_node(Node *node) override;
     bool matching_node(NodeHandle expected, NodeHandle actual) override;
 
     /// Adds a network client connection to the device.
     /// @param fd is the socket going towards the client
     /// @param on_error will be invoked when a socket error is encountered.
-    void add_network_fd(int fd, Notifiable* on_error = nullptr);
-    
+    void add_network_fd(int fd, Notifiable *on_error = nullptr);
+
 private:
     /// Where to send traffic to.
-    HubFlow* device_;
+    HubFlow *device_;
     /// Various implementation control flows that this interface owns.
     std::vector<std::unique_ptr<Destructable>> ownedFlows_;
     /// Sequence number generator for outgoing TCP packets.
-    ClockBaseSequenceNumberGenerator* seq_;
+    ClockBaseSequenceNumberGenerator *seq_;
     /// Flow used for converting GenMessage into the binary
     /// representation. Owned by ownedFlows_.
-    TcpSendFlow* sendFlow_;
+    TcpSendFlow *sendFlow_;
     /// Flow for parsing incoming messages. Owned by ownedFlows_.
-    TcpRecvFlow* recvFlow_;
+    TcpRecvFlow *recvFlow_;
 };
 
-
-}  // namespace openlcb
-
-
-
-
+} // namespace openlcb
 
 #endif // _OPENLCB_IFTCP_HXX_

@@ -128,8 +128,7 @@ struct SelectBufferInfo<Buffer<CanHubData>> {
 };
 
 /// State flow implementing select-aware fd reads.
-template<class HFlow>
-class HubDeviceSelectReadFlow : public StateFlowBase
+template <class HFlow> class HubDeviceSelectReadFlow : public StateFlowBase
 {
 public:
     /// Buffer type.
@@ -224,9 +223,9 @@ private:
     }
 
     /// true iff pending parent->barrier_.notify()
-    bool barrierOwned_ {true};
+    bool barrierOwned_{true};
     /// Helper object for read/write FD asynchronously.
-    StateFlowSelectHelper selectHelper_ {this};
+    StateFlowSelectHelper selectHelper_{this};
     /// Buffer that we are currently filling.
     buffer_type *b_;
     /// Where do we forward the messages we created.
@@ -246,7 +245,7 @@ private:
 /// hub: for string-typed hubs in 64 bytes units; for hubs of specific
 /// structures (such as CAN frame, dcc Packets or dcc Feedback structures) in
 /// the units ofthe size of the structure.
-template <class HFlow, class ReadFlow = HubDeviceSelectReadFlow<HFlow> >
+template <class HFlow, class ReadFlow = HubDeviceSelectReadFlow<HFlow>>
 class HubDeviceSelect : public FdHubPortService, private Atomic
 {
 public:
@@ -333,7 +332,8 @@ public:
     /// Removes the current write port from the registry of the source hub.
     void unregister_write_port()
     {
-        LOG(VERBOSE, "HubDeviceSelect::unregister write port %p %p", write_port(), &writeFlow_);
+        LOG(VERBOSE, "HubDeviceSelect::unregister write port %p %p",
+            write_port(), &writeFlow_);
         hub_->unregister_port(&writeFlow_);
         /* We put an empty message at the end of the queue. This will cause
          * wait until all pending messages are dealt with, and then ping the
@@ -351,7 +351,6 @@ public:
     }
 
 protected:
-
     /// Base stateflow for the WriteFlow.
     typedef StateFlow<typename HFlow::buffer_type, QList<1>> WriteFlowBase;
     /// State flow implementing select-aware fd writes.
@@ -364,7 +363,8 @@ protected:
         {
         }
 
-        ~WriteFlow() {
+        ~WriteFlow()
+        {
             HASSERT(this->is_waiting());
         }
 

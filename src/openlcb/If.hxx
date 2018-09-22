@@ -108,7 +108,7 @@ extern string error_to_buffer(uint16_t error_code);
 extern void error_to_data(uint16_t error_code, void* data);
 
 /** Parses an error code from a payload object at a given pointer. */
-extern uint16_t data_to_error(const void* data);
+extern uint16_t data_to_error(const void *data);
 
 /** Appends an error to the end of an existing buffer. */
 extern void append_error_to_buffer(uint16_t error_code, Payload* p);
@@ -155,10 +155,11 @@ struct GenMessage
     GenMessage()
         : src({0, 0}), dst({0, 0}), flagsSrc(0), flagsDst(0) {}
 
-    void clear() {
+    void clear()
+    {
         reset((Defs::MTI)0, 0, EMPTY_PAYLOAD);
     }
-    
+
     void reset(Defs::MTI mti, NodeID src, NodeHandle dst, string payload)
     {
         this->mti = mti;
