@@ -2,6 +2,8 @@
 
 #include "openlcb/IfTcp.hxx"
 #include "openlcb/IfTcpImpl.hxx"
+#include "openlcb/PIPClient.hxx"
+#include "openlcb/ProtocolIdentification.hxx"
 #include "utils/async_if_test_helper.hxx"
 #include "utils/FdUtils.hxx"
 #include "utils/HubDeviceSelect.hxx"
@@ -417,6 +419,20 @@ protected:
         EXPECT_CALL(listenPort_, send(_, _)).WillOnce(SaveArg<0>(&lastPacket_));
     }
 
+    /// Instructs the mock device to ignore all sent packets.
+    void ignore_all_packets()
+    {
+        EXPECT_CALL(listenPort_, send(_, _)).Times(AtLeast(0));
+    }
+
+    /// Instructs the mock device to ignore all sent packets.
+    void capture_all_packets()
+    {
+        EXPECT_CALL(listenPort_, send(_, _))
+            .WillRepeatedly(WithArg<0>(
+                Invoke([this](const string &d) { allPackets_.push_back(d); })));
+    }
+    
     /// Creates a GenMessage, renders it to binary format, and injects it as if
     /// it came as an input from the network.
     /// @param args same arguments as GenMessage::reset(). Example
@@ -474,6 +490,8 @@ protected:
     ::testing::StrictMock<MockHubPort> listenPort_;
     /// Stores the data from capture_next_packet.
     string lastPacket_;
+    /// Stores data from capture all packets.
+    vector<string> allPackets_;
     
     static constexpr NodeID TEST_NODE_ID = 0x101212231225ULL;
     static constexpr NodeID REMOTE_NODE_ID = 0x050902030405ULL;
@@ -919,6 +937,62 @@ TEST_F(MultiTcpIfTest, hub_routes_global) {
     generate_output_message(&clients_[1]->ifTcp_, Defs::MTI_EVENT_REPORT,
         TEST_NODE_ID + 1, eventid_to_buffer(UINT64_C(0x0102030405060708)));
     wait();
+}
+
+
+// here we use a high level protocol handler and a high level protocol client
+// to have two nodes talk to each other via a hub.
+TEST_F(MultiTcpIfTest, hub_routes_addressed) {
+    add_client(REMOTE_NODE_ID + 0);
+    add_client(REMOTE_NODE_ID + 1);
+    add_client(REMOTE_NODE_ID + 2);
+    
+    capture_all_packets();
+    DefaultNode nc(&ifTcp_, TEST_NODE_ID);
+    DefaultNode n0(&clients_[0]->ifTcp_, REMOTE_NODE_ID+0);
+    DefaultNode n1(&clients_[1]->ifTcp_, REMOTE_NODE_ID+1);
+    DefaultNode n2(&clients_[2]->ifTcp_, REMOTE_NODE_ID+2);
+    wait();
+    usleep(1000);
+    expect_packet_is(allPackets_[0], Defs::MTI_INITIALIZATION_COMPLETE,
+        TEST_NODE_ID, node_id_to_buffer(TEST_NODE_ID));
+    expect_packet_is(allPackets_[1], Defs::MTI_INITIALIZATION_COMPLETE,
+        REMOTE_NODE_ID + 0, node_id_to_buffer(REMOTE_NODE_ID + 0));
+    expect_packet_is(allPackets_[2], Defs::MTI_INITIALIZATION_COMPLETE,
+        REMOTE_NODE_ID + 1, node_id_to_buffer(REMOTE_NODE_ID + 1));
+    expect_packet_is(allPackets_[3], Defs::MTI_INITIALIZATION_COMPLETE,
+        REMOTE_NODE_ID + 2, node_id_to_buffer(REMOTE_NODE_ID + 2));
+    EXPECT_EQ(4u, allPackets_.size());
+
+    StrictMock<MockMessageHandler> h1;
+    clients_[0]->ifTcp_.dispatcher()->register_handler(&h1, 0, 0);
+    EXPECT_CALL(h1,
+        handle_message(Pointee(AllOf(Field(&GenMessage::mti,
+                                         Defs::MTI_PROTOCOL_SUPPORT_INQUIRY),
+                           Field(&GenMessage::payload, Eq("")),
+                           Field(&GenMessage::src,
+                               Field(&NodeHandle::id, REMOTE_NODE_ID + 2)),
+                           Field(&GenMessage::dst,
+                               Field(&NodeHandle::id, REMOTE_NODE_ID + 0)),
+                           Field(&GenMessage::dstNode, &n0))),
+            _));
+
+    PIPClient pip_client(&clients_[2]->ifTcp_);
+    uint64_t pip_data = Defs::DATAGRAM | Defs::MEMORY_CONFIGURATION | Defs::TRACTION_FDI;
+    ProtocolIdentificationHandler pip_handler(&n0, pip_data);
+    wait();
+    SyncNotifiable sync_n;
+    pip_client.request(NodeHandle(NodeID(REMOTE_NODE_ID + 0)), &n2, &sync_n);
+    usleep(1000);
+    wait();
+    EXPECT_LE(5u, allPackets_.size());
+    expect_packet_is(allPackets_[4], Defs::MTI_PROTOCOL_SUPPORT_INQUIRY,
+        n2.node_id(), NodeHandle(NodeID(REMOTE_NODE_ID + 0)), EMPTY_PAYLOAD);
+
+    sync_n.wait_for_notification();
+    EXPECT_EQ(PIPClient::OPERATION_SUCCESS, pip_client.error_code());
+    EXPECT_EQ(pip_data, pip_client.response());
+    EXPECT_EQ(6u, allPackets_.size());
 }
 
 

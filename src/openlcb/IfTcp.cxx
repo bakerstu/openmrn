@@ -148,12 +148,18 @@ public:
     void send(Buffer<GenMessage> *b, unsigned prio) override
     {
         auto id = b->data()->dst.id;
-        if ((id == 0) || (iface_->lookup_local_node(id) != nullptr))
+        if (id)
         {
-            iface_->dispatcher()->send(b, prio);
-            return;
+            auto *dst = iface_->lookup_local_node(id);
+            if (dst)
+            {
+                b->data()->dstNode = dst;
+            } else {
+                b->unref();
+                return;
+            }
         }
-        b->unref();
+        iface_->dispatcher()->send(b, prio);
     }
 
 private:
