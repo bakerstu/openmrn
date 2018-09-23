@@ -1,4 +1,6 @@
-# DCC decoder application
+# DCC decoder application {#dcc_application}
+
+[TOC]
 
 This application can be loaded to a TIVA LaunchPad, connected to a DCC track,
 and it will print all DCC packets it receives in a human readable form to the
