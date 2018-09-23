@@ -4,9 +4,11 @@ export TARGET := freertos.mips4k.pic32mx
 
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.mips4k.pic32mx/freertos_drivers/drivers_pic32mx795/Pic32mxCan.o \
 	$(OPENMRNPATH)/targets/freertos.mips4k.pic32mx/freertos_drivers/drivers_pic32mx795/p32mx795f512h.o \
+	$(OPENMRNPATH)/targets/freertos.mips4k.pic32mx/freertos_drivers/usb_pic32mx795/Pic32mxUsbCdcDevice.o \
 
-SYSLIBRARIESEXTRA = -lfreertos_drivers_plib_pic32mx795
+SYSLIBRARIESEXTRA = -lfreertos_drivers_plib_pic32mx795 -lfreertos_drivers_usb_pic32mx795
 
+-include local_config.mk
 include $(OPENMRNPATH)/etc/prog.mk
 
 CORECFLAGS += -D_SUPPRESS_PLIB_WARNING
@@ -45,9 +47,18 @@ clean-objcopy-params:
 flash: $(EXECUTABLE).phy.hex
 	misc/pic32prog $<
 
+# These commands can be used to debug the pic32mx target using a pickit2.
+gdbpk2:
+	true # killall -9 ejtagproxy || true
+	true # misc/ejtagproxy & disown # needs to be launched in a separate window.
+	$(GDB) $(EXECUTABLE).elf -x misc/gdb_boot.gdb
+
+OPENOCDARGS = -f interface/ftdi/olimex-arm-usb-tiny-h.cfg -c 'transport select jtag' -c 'adapter_khz 1000' -c 'set CPUTAPID 0x1430e053' -f target/pic32mx.cfg -c 'gdb_memory_map disable'
+
 gdb:
-	killall -9 ejtagproxy || true
-	misc/ejtagproxy &
-	$(PREFIX)gdb $(EXECUTABLE).elf -x misc/gdb_boot.gdb
+	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
+	$(GDB) $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex " set remote hardware-breakpoint-limit 6" -ex "set remote hardware-watchpoint-limit 2"
+
+
 
 endif  #MISSING_DEPS

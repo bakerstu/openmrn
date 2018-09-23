@@ -59,7 +59,33 @@ vCan1InterruptWrapper:
 .section .vector_46,"ax",%progbits
         j vCan1InterruptWrapper
         nop
+
 .text
+        // USB interrupt
+/* Ensure correct instructions is used. */
+        .set	nomips16
+        .set 	noreorder
+        .set    noat
+
+/* Interrupt entry point. */
+vUSBInterruptWrapper:
+
+  /* Save the current task context.  This line MUST be included! */
+  portSAVE_CONTEXT
+
+  /* Call the C function to handle the interrupt. */
+  jal usb_interrupt
+  nop
+
+  /* Restore the context of the next task to execute.  This line
+  MUST be included! */
+  portRESTORE_CONTEXT
+
+  .end  vUSBInterruptWrapper        
+
+.section .vector_45,"ax",%progbits
+        j vUSBInterruptWrapper
+        nop
         
 // See p32mx440f256h.h etc. for vector assignments for specific processor.
 // Create wrappers for ISRs used in a specific application.

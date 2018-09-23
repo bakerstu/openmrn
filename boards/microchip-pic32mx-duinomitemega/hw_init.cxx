@@ -133,8 +133,8 @@ void hw_preinit(void) {
   setblink(0x8000CA);
 
   // Sets the main clock ot 80 MHz through PLL.
-  //OSCConfig(OSC_POSC_PLL, OSC_PLL_MULT_20, OSC_PLL_POST_1, OSC_FRC_POST_1);
-  OSCConfig(OSC_FRC_PLL, OSC_PLL_MULT_20, OSC_PLL_POST_1, OSC_FRC_POST_1);
+  OSCConfig(OSC_POSC_PLL, OSC_PLL_MULT_20, OSC_PLL_POST_1, OSC_FRC_POST_1);
+  //OSCConfig(OSC_FRC_PLL, OSC_PLL_MULT_20, OSC_PLL_POST_1, OSC_FRC_POST_1);
   HASSERT(configCPU_CLOCK_HZ == 80000000);
 
   // Configure the device for maximum performance but do not change PBDIV
