@@ -56,7 +56,7 @@ OVERRIDE_CONST(serial_tx_buffer_size, 2048);
 int appl_main(int argc, char *argv[])
 {
     setblink(0);
-    int fd = ::open("/dev/nrz0", O_RDONLY);
+    int fd = ::open("/dev/dcc_decoder0", O_RDONLY);
     HASSERT(fd >= 0);
     int wfd = ::open("/dev/serUSB0", O_RDWR);
     HASSERT(wfd >= 0);

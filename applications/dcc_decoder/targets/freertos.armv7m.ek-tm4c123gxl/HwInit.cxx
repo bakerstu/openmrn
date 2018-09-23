@@ -172,7 +172,7 @@ struct DCCDecode
 NoRailcomDriver railcom_driver;
 
 /** The input pin for detecting the DCC signal. */
-static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
+static TivaDccDecoder<DCCDecode> dcc_decoder0("/dev/dcc_decoder0", &railcom_driver);
 
 extern "C" {
 /** Blink LED */
@@ -234,17 +234,17 @@ void diewith(uint32_t pattern)
 
 void timer2b_interrupt_handler(void)
 {
-  nrz0.interrupt_handler();
+  dcc_decoder0.interrupt_handler();
 }
 
 void timer2a_interrupt_handler(void)
 {
-  nrz0.rcom_interrupt_handler();
+  dcc_decoder0.rcom_interrupt_handler();
 }
 
 void wide_timer2a_interrupt_handler(void)
 {
-  nrz0.os_interrupt_handler();
+  dcc_decoder0.os_interrupt_handler();
 }
 
 /** Initialize the processor hardware.
