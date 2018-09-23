@@ -1,6 +1,8 @@
-# Board support files for PIC32MX boards
+# PIC32MX board support {#boards_pic32}
 
-## Compiler
+[TOC]
+
+# Compiler
 
 The compilation and linking of binaries for the Microchip PIC32MX in OpenMRN
 does not use the official Microchip toolchains. Instead, a vanilla
@@ -18,7 +20,7 @@ syntax that they added into their compiler fork of GCC will not work. This is
 usually a problem only if low-level code (e.g. interrupt vector routines) needs
 to be ported from Microchip example code to OpenMRN.
 
-## Booting
+# Booting
 
 The PIC32MX has two flash banks: a large (e.g. 512K) user flash and a small
 (e.g. 12K) boot flash. The processor always boots from the boot flash. Therefore
@@ -35,7 +37,7 @@ interrupt vectors into the boot flash, and the application code starting at the
 user flash. This assumes there is no bootloader and when flashed, will overwrite
 if a bootloader is present.
 
-## Bootloader
+# Bootloader
 
 A compiled binary of the AN1388 bootloader for PIC32MX using USB-HID is in
 `bootloader.hex`. This assumes LED and button pinout of the Duinomite Mega
@@ -50,7 +52,7 @@ appropriate changes and makefiles:
 
 https://github.com/balazsracz/mr-misc/tree/master/pic32/bootloader
 
-## Flashing
+# Flashing
 
 To flash a standalone binary, use the PicKit, and use the program pic32prog. The
 source code including compiled binaries are available at
@@ -60,7 +62,7 @@ A linux-64 binary is deposited here in the `misc` folder.
 *NOTE:* A common program for HID based microchip bootloaders called `mphidflash`
 will NOT work.
 
-### To flash the bootloader
+## To flash the bootloader
 
 Plug in the PicKit to the computer and the board (make sure your udev rules are
 set up so your user can access it), then:
@@ -69,7 +71,7 @@ set up so your user can access it), then:
 pic32prog bootloader.hex
 ```
 
-### To flash an application binary via the bootloader
+## To flash an application binary via the bootloader
 
 The same flashing tool knows how to talk to the AN1388 bootloader. Plug in the
 board via USB. Press and hold the BUT button. Press brifly the RST button. The
@@ -88,7 +90,7 @@ to be applied for the bootloader to be able to write to the flash.
 The application binary must have been created using the `target.ld` file
 designed for use with the bootloader.
 
-### To flash an application binary using no bootloader
+## To flash an application binary using no bootloader
 
 Unplug the board from USB. Plug in the PicKit to the computer and the board,
 then:
@@ -101,7 +103,7 @@ The application binary must have been created using the
 `target_no_bootloader.ld` file designed for use standalone. This process will
 erase a bootloader if one was present.
 
-## Debugging
+# Debugging
 
 There is a tool to use as gdbserver for the PicKit 2/3:
 https://github.com/sergev/ejtagproxy
@@ -123,7 +125,7 @@ Caveats:
   running at the appropriate frequency. This is a problem due to the CAN clock
   being incorrectly set when running inside the debugger.
 
-### Connecting via JTAG
+## Connecting via JTAG
 
 It seems that using an Olimex ARM-USB-TINY-H emulator it is possible to connect
 to the PIC32 with JTAG. The same software needs to be used as above.  The wiring
@@ -135,11 +137,11 @@ Connecting, pausing, running, backtrace, memory evaluation works fine.
 Breakpoints do not seem to work.
 
 
-## Drivers
+# Drivers
 
 Driver sources are located at `src/freertos_drivers/pic32mx`.
 
-### Interrupts
+## Interrupts
 
 To add a driver that uses an interrupt, edit the file `ISRwrapper.S`. Interrupts
 must save and restore FreeRTOS context using the logic in this file.
