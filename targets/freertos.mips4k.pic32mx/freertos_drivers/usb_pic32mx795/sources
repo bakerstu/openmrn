@@ -11,12 +11,12 @@ BASEDEFS += -D__PIC32_FEATURE_SET__=795
 CXXSRCS += Pic32mxUsbCdcDevice.cxx
 
 CSRCS += usb_device.c \
-	usb_device_cdc.c \
-	usb_device_cdc_acm.c \
-	drv_usbfs.c \
-	drv_usbfs_device.c \
-	sys_int_pic32.c \
-        usb_cdc_device_descriptors.c \
+         usb_device_cdc.c \
+         usb_device_cdc_acm.c \
+         drv_usbfs.c \
+         drv_usbfs_device.c \
+         sys_int_pic32.c \
+         usb_cdc_device_descriptors.c \
 
 INCLUDES += -I$(PIC32HARMONYPATH)/framework
 

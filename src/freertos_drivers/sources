@@ -27,8 +27,9 @@ CXXSRCS += Fileio.cxx \
 
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
-SUBDIRS += drivers_pic32mx530 plib_pic32mx530 drivers_pic32mx795 plib_pic32mx795 \
-	usb_pic32mx795
+SUBDIRS += drivers_pic32mx530 plib_pic32mx530 \
+           drivers_pic32mx795 plib_pic32mx795 \
+           usb_pic32mx795
 endif
 
 ifeq ($(TARGET),freertos.armv7m)
