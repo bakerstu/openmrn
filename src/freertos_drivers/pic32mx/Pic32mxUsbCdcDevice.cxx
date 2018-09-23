@@ -185,11 +185,17 @@ private:
         return rxBuffers[currentReadBuffer ^ 1];
     }
 
+    /// Module pointer for USB core device.
     SYS_MODULE_OBJ drvUSBObject;
+    /// Module pointer for USB middleware device.
     SYS_MODULE_OBJ usbDevObject0;
+    /// Equivalent of an fd for the USB core driver.
     USB_DEVICE_HANDLE deviceHandle {USB_DEVICE_HANDLE_INVALID};
+    /// Holds last set line coding data that came from the host.
     USB_CDC_LINE_CODING lineCodingData;
+    /// Handle for the current pending read.
     USB_DEVICE_CDC_TRANSFER_HANDLE readHandle;
+    /// Handle for the current pending write.
     USB_DEVICE_CDC_TRANSFER_HANDLE writeHandle;
 
     // ==== These variables are protected by Atomic *this. ====
