@@ -47,9 +47,10 @@ clean-objcopy-params:
 flash: $(EXECUTABLE).phy.hex
 	misc/pic32prog $<
 
-gdbold:
+# These commands can be used to debug the pic32mx target using a pickit2.
+gdbpk2:
 	true # killall -9 ejtagproxy || true
-	true # misc/ejtagproxy & disown
+	true # misc/ejtagproxy & disown # needs to be launched in a separate window.
 	$(GDB) $(EXECUTABLE).elf -x misc/gdb_boot.gdb
 
 OPENOCDARGS = -f interface/ftdi/olimex-arm-usb-tiny-h.cfg -c 'transport select jtag' -c 'adapter_khz 1000' -c 'set CPUTAPID 0x1430e053' -f target/pic32mx.cfg -c 'gdb_memory_map disable'
