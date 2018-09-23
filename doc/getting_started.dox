@@ -73,18 +73,18 @@
  * /dev/ttyUSB1, /dev/ttyACM0, etc... 
  *
  * You may need, depending upon your distribution, to add your user account
- * to the dialout group and/or set the device object (aka /dev/ttyACM0 or whatever device your USB-to-CAN has made itself) to security 
+ * to the dialout group and/or set the device object (aka /dev/ttyACM0 or whatever device your USB-to-CAN device has made itself) to security 
  * mode 666 (aka Read and Execute).
  *
  * The example periodically produces an
  * event and consumes an event.  The example demonstrates the internal
  * loopback capability in addition to interaction on the CAN bus.  Using JMRI
- * and a second USB-to-CAN adaptor, one can view the node interacting on the
+ * and a second USB-to-CAN adapter, one can view the node interacting on the
  * bus.
  * 
  *
  * @subsection armv7freertos ARM Cortex-M FreeRTOS
- * The current common hardware platform is the STM32 series development boards from ST. The various Nucleo boards are inexpensive and powerful. The openmrn software uses the FreeRTOS (Free Real Time Operating System) to provide a basic level of functionality. This base level lets openmrn provide the OpenLCB (LCC) functions without having to worry about a bunch of housekeeping tasks. (Think of this as an application running on top of an operating system.) With that in mind, we will need to add the FreeRTOS software and set it up to be found when the software is complied.
+ * The current common hardware platform is the STM32 series development boards from ST. The various Nucleo boards are inexpensive and powerful. The openmrn software uses the FreeRTOS (Free Real Time Operating System) to provide a basic level of functionality. This base level lets openmrn provide the OpenLCB (LCC) functions without having to worry about a bunch of housekeeping tasks. (Think of this as an application running on top of an operating system.) With that in mind, we will need to add the FreeRTOS software and set it up to be found when the software is compiled.
  *
  * We will also need the GCC compiler for ARMs AND the STM F3 library. We will tackle ARM-GCC, FreeRTOS and then the STM library. If you try to compile without the F3 library, you will get a `Ignoring target freertos.armv7m, because the following libraries are not installed: STM32CUBEF3PATH.` error.
  *
@@ -117,8 +117,7 @@
  * 
  *
  * @subsubsection FreeRTOS
- * The build system also looks for a version of the FreeRTOS tree.  Version
- * 7.3.0 has been used for testing, however any version 7 or later should work. FreeRTOSV10.1.1 has been tested successfully as part of the Nucleo & DevKit combo.
+ * The build system also looks for a version of the FreeRTOS tree.  Versions that are acceptable are 8.2 and newer. At this time, version 9 or newer would be recommended. If you are working on a clean build platform (in other words, if you aren’t building any other FreeRTOS based projects on this same machine), then Version 10 is suggested. FreeRTOSV10.1.1 has been tested successfully as part of the Nucleo & DevKit combo.
  * FreeRTOS can be downloaded from the FreeRTOS web site
  * (http://www.freertos.org/).  The build system will look for the FreeRTOS
  * source tree at /opt/FreeRTOS or ~/FreeRTOS.  It is often convenient to use
@@ -157,6 +156,11 @@
  * $cd /opt/st
  * $sudo ln -s STM32Cube_FW_F3_V1.10.0/ STM32Cube_FW_F3
  * @endcode
+ * 
+ * An alternate paradigm is using the ‘default’ link target, like so:
+ * @code
+ * $sudo ln -s STM32Cube_FW_F3_V1.10.0/ default
+ * @endcode
  *
  * Now, your output of an ls -l should look something like this:
  * @code
@@ -189,6 +193,16 @@
  * @endcode
  * Will just commence the software build, according the makefile. You should not have to mess with the makefile so if the output from make is a bunch of errors, check your paths and libraries. The openmrn build system is good about giving hints on what’s missing.
  *
+ * @code
+ * $make -j5
+ * @endcode
+ * The -j switch is to increase the number of jobs (commands) to be run simultaneously. If you have multiple processor cores, the -j switch will speed the compile. The suggested use of the command is you add the number of virtual cores to 1 to get your number. For a CPU without hyperthreading, but 2 cores, you would use **-j3**, but if you had a 4 core CPU, with hyperthreading, then you would use **-j9** as from a logical perspective, you have 8 cores.
+ *
+ * @code
+ * $make flash
+ * @endcode
+ * If you have OpenOCD installed, this option will build the software, create the binary automatically, and download it onto the board in one fell swoop. Please note that the OpenOCD installation instructions are still in progress.
+ *
  * @subsection build Building the software
  * Compile the `blink_raw` application for the
  * `freertos-armv6m-st-stm32f091rc-nucleo` target like this:
@@ -197,7 +211,7 @@
  * $ make
  * @endcode
  *
- * If you have troubles getting the source to compile, don't set eny 
+ * If you have troubles getting the source to compile, don't set any 
  * environment variables but look closely to the location of the files and  
  * directories because most likely a mistake is made there.
  *
@@ -253,7 +267,7 @@ total 12
  * recommended for stable development.
  *
  * @subsection openocdlinux OpenOCD JTAG Debugger
- * Before we begin, please note that simply building (complying) the software does not require setting up OpenOCD or Eclipse. You can happily and simply use the command line tools available to do so. That said, let’s outline the neat things possible.
+ * Before we begin, please note that simply building (compiling) the software does not require setting up OpenOCD or Eclipse. You can happily and simply use the command line tools available to do so. That said, let’s outline the neat things possible.
  *
  * OpenOCD is an Open Source debug tool chain that can be used for debugging
  * of embedded targets using JTAG.  To use the on-board ICDI JTAG debugger on
