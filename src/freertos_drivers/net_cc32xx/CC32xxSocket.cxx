@@ -1087,7 +1087,6 @@ int getaddrinfo(const char *nodename, const char *servname,
     std::unique_ptr<struct sockaddr> sa(new struct sockaddr);
     if (sa.get() == nullptr)
     {
-        ai.reset();
         return EAI_MEMORY;
     }
     memset(sa.get(), 0, sizeof(struct sockaddr));
@@ -1238,7 +1237,6 @@ int getifaddrs(struct ifaddrs **ifap)
     std::unique_ptr<char[]> ifa_name(new char[6]);
     if (ifa_name.get() == nullptr)
     {
-        ia.reset();
         errno = ENOMEM;
         return -1;
     }
@@ -1246,8 +1244,6 @@ int getifaddrs(struct ifaddrs **ifap)
     std::unique_ptr<struct sockaddr> ifa_addr(new struct sockaddr);
     if (ifa_addr == nullptr)
     {
-        ifa_name.reset();
-        ia.reset();
         errno = ENOMEM;
         return -1;
     }
@@ -1258,9 +1254,6 @@ int getifaddrs(struct ifaddrs **ifap)
     std::unique_ptr<struct sockaddr> ifa_netmask(new struct sockaddr);
     if (ifa_netmask == nullptr)
     {
-        ifa_addr.reset();
-        ifa_name.reset();
-        ia.reset();
         errno = ENOMEM;
         return -1;
     }
@@ -1269,10 +1262,6 @@ int getifaddrs(struct ifaddrs **ifap)
     std::unique_ptr<struct sockaddr> ifa_broadaddr(new struct sockaddr);
     if (ifa_broadaddr == nullptr)
     {
-        ifa_netmask.reset();
-        ifa_addr.reset();
-        ifa_name.reset();
-        ia.reset();
         errno = ENOMEM;
         return -1;
     }

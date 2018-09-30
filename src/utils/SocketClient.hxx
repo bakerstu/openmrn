@@ -268,58 +268,11 @@ private:
                 }
                 if (addr_okay && disallowLocal_)
                 {
-                    /* We don't permit local connections to self, get the
-                     * addresses of all of our interfaces and check for this
-                     */
-                    struct ifaddrs *ifa;
-                    int result = getifaddrs(&ifa);
-                    if (result == 0)
+                    /* test for trying to connect to self */
+                    addr_okay = !local_test(addr_);
+                    if (!addr_okay)
                     {
-                        bool has_address = false;
-                        struct ifaddrs *ifa_free = ifa;
-                        while (ifa)
-                        {
-                            if (ifa->ifa_addr)
-                            {
-                                /* ifa_addr pointer valid */
-                                if (ifa->ifa_addr->sa_family == AF_INET)
-                                {
-                                    /* have a valid IPv4 address */
-                                    struct sockaddr_in *ai_addr_in =
-                                        (struct sockaddr_in*)addr_->ai_addr;
-                                    struct sockaddr_in *if_addr_in =
-                                        (struct sockaddr_in*)ifa->ifa_addr;
-                                    if (ai_addr_in->sin_addr.s_addr ==
-                                        if_addr_in->sin_addr.s_addr)
-                                    {
-                                        /* trying to connected to myself */
-                                        addr_okay = false;
-                                    }
-                                    if (if_addr_in->sin_addr.s_addr != 0)
-                                    {
-                                        /* no IPv4 address is assigned */
-                                        has_address = true;
-                                    }
-                                }
-                            }
-                            ifa = ifa->ifa_next;
-                        }
-                        freeifaddrs(ifa_free);
-                        if (!has_address)
-                        {
-                            /* none of the network interfaces have a valid
-                             * IPv4 address
-                             */
-                            addr_okay = false;
-                        }
-                        if (!addr_okay)
-                        {
-                            update_status(Status::CONNECT_FAILED_SELF);
-                        }
-                    }
-                    else
-                    {
-                        addr_okay = false;
+                        update_status(Status::CONNECT_FAILED_SELF);
                     }
                 }
                 if (addr_okay)
@@ -343,9 +296,20 @@ private:
                                             addr_->ai_addrlen);
                         if (ret == 0)
                         {
-                            /* connect successful */
-                            notify();
-                            sem_.wait();
+                            /* test for possible connection to self, again */
+                            if (local_test(addr_))
+                            {
+                                /* connected to self */
+                                update_status(Status::CONNECT_FAILED_SELF);
+                                /* connect failed */
+                                close(fd_);
+                            }
+                            else
+                            {
+                                /* connect successful */
+                                notify();
+                                sem_.wait();
+                            }
                         }
                         else
                         {
@@ -410,6 +374,12 @@ private:
         callback_(fd_, addr_, this);
         return wait_and_call(STATE(do_connect));
     }
+
+    /** Test if a given address is local.
+     * @param addr address info to test
+     * @return true if local, else false if not local
+     */
+    bool local_test(struct addrinfo *addr);
 
     /** mDNS service name */
     const char *mdns_;
