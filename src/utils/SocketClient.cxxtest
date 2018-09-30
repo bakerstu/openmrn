@@ -176,6 +176,7 @@ TEST_F(SocketClientTest, connect_host_disallow_local)
         std::bind(&SocketClientTest::status_callback, this, _1), 1, 1, true);
 
     EXPECT_CALL(*this, connect_callback(_, _, sc)).Times(0);
+    EXPECT_CALL(*this, status_callback(SocketClient::Status::STATIC_CONNECT)).Times(AtLeast(1));
     EXPECT_CALL(*this, status_callback(SocketClient::Status::CONNECT_FAILED_SELF)).Times(AtLeast(1));
 
     usleep(40000);

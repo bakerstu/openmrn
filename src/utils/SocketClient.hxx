@@ -297,7 +297,7 @@ private:
                         if (ret == 0)
                         {
                             /* test for possible connection to self, again */
-                            if (local_test(addr_))
+                            if (disallowLocal_ && local_test(addr_))
                             {
                                 /* connected to self */
                                 update_status(Status::CONNECT_FAILED_SELF);
