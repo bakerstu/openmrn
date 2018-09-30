@@ -39,6 +39,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
 
 #include "executor/StateFlow.hxx"
 #include "executor/Timer.hxx"
@@ -59,6 +60,7 @@ public:
         MDNS_CONNECT,
         STATIC_CONNECT,
         CONNECT_FAILED,
+        CONNECT_FAILED_SELF,
     };
     
      /** Constructor.
@@ -86,12 +88,14 @@ public:
      *                      connecting on error.
      * @param timeout_seconds time in seconds that the connect is supposed to
      *                        timeout and look for a possible shutdown.
+     * @param disallow_local disallow local connections to one's self
      */
     SocketClient(Service *service, const char *mdns, const char *host,
                  uint16_t port,
                  std::function<void(int, struct addrinfo *, Notifiable*)> callback,
                  std::function<void(Status)> status_callback = nullptr,
-                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255)
+                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255,
+                 bool disallow_local = false)
         : StateFlowBase(service)
         , OSThread()
         , mdns_(mdns)
@@ -99,12 +103,13 @@ public:
         , port_(port)
         , callback_(callback)
         , statusCallback_(status_callback)
-        , retrySeconds_(retry_seconds)
-        , timeoutSeconds_(timeout_seconds)
         , state_(STATE_CREATED)
         , fd_(-1)
         , addr_(nullptr)
         , sem_()
+        , retrySeconds_(retry_seconds)
+        , timeoutSeconds_(timeout_seconds)
+        , disallowLocal_(disallow_local)
     {
         HASSERT(mdns_ || (host_ && port_));
         start_flow(STATE(spawn_thread));
@@ -254,34 +259,64 @@ private:
 
             if (ai_ret == 0 && addr_)
             {
-                /* able to resolve the hostname */
-                fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-                if (fd_ >= 0)
+                /* able to resolve the hostname to an address */
+                bool addr_okay = true;
+                if (addr_->ai_addr->sa_family != AF_INET)
                 {
+                    /* we only support IPv4 addresses */
+                    addr_okay = false;
+                }
+                if (addr_okay && disallowLocal_)
+                {
+                    /* test for trying to connect to self */
+                    addr_okay = !local_test(addr_);
+                    if (!addr_okay)
                     {
-                        struct timeval tm;
-                        tm.tv_sec = timeoutSeconds_;
-                        tm.tv_usec = 0;
-                        ERRNOCHECK("setsockopt_timeout", setsockopt(fd_,
-                                                                    SOL_SOCKET,
-                                                                    SO_RCVTIMEO,
-                                                                    &tm,
-                                                                    sizeof(tm))
-                                  );
+                        update_status(Status::CONNECT_FAILED_SELF);
                     }
-                    /* socket available */
-                    int ret = ::connect(fd_, addr_->ai_addr, addr_->ai_addrlen);
-                    if (ret == 0)
+                }
+                if (addr_okay)
+                {
+                    /* we have a valid IPv4 address that is not ourselves */
+                    fd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+                    if (fd_ >= 0)
                     {
-                        /* connect successful */
-                        notify();
-                        sem_.wait();
-                    }
-                    else
-                    {
-                        update_status(Status::CONNECT_FAILED);
-                        /* connect failed */
-                        close(fd_);
+                        {
+                            struct timeval tm;
+                            tm.tv_sec = timeoutSeconds_;
+                            tm.tv_usec = 0;
+                            ERRNOCHECK("setsockopt_timeout",
+                                       setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO,
+                                                  &tm, sizeof(tm)
+                                                 )
+                                      );
+                        }
+                        /* socket available */
+                        int ret = ::connect(fd_, addr_->ai_addr,
+                                            addr_->ai_addrlen);
+                        if (ret == 0)
+                        {
+                            /* test for possible connection to self, again */
+                            if (disallowLocal_ && local_test(addr_))
+                            {
+                                /* connected to self */
+                                update_status(Status::CONNECT_FAILED_SELF);
+                                /* connect failed */
+                                close(fd_);
+                            }
+                            else
+                            {
+                                /* connect successful */
+                                notify();
+                                sem_.wait();
+                            }
+                        }
+                        else
+                        {
+                            update_status(Status::CONNECT_FAILED);
+                            /* connect failed */
+                            close(fd_);
+                        }
                     }
                 }
             }
@@ -340,6 +375,12 @@ private:
         return wait_and_call(STATE(do_connect));
     }
 
+    /** Test if a given address is local.
+     * @param addr address info to test
+     * @return true if local, else false if not local
+     */
+    bool local_test(struct addrinfo *addr);
+
     /** mDNS service name */
     const char *mdns_;
 
@@ -355,10 +396,7 @@ private:
     /** callback to call on connection status */
     std::function<void(Status)> statusCallback_ = nullptr;
     
-        /** number of seconds between retries */
-    uint8_t retrySeconds_;
-    uint8_t timeoutSeconds_;
-
+    /** current state in the objects lifecycle */
     volatile State state_;
 
     /** socket descriptor */
@@ -369,6 +407,17 @@ private:
 
     /** Semaphore for synchronizing with the helper thread */
     OSSem sem_;
+
+    /** number of seconds between retries */
+    uint8_t retrySeconds_;
+
+    /** time in seconds that the connect is supposed to
+     *  timeout and look for a possible shutdown
+     */
+    uint8_t timeoutSeconds_;
+
+    /** disallow local connections to one's self */
+    bool disallowLocal_;
 
     DISALLOW_COPY_AND_ASSIGN(SocketClient);
 };

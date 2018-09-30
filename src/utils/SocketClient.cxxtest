@@ -47,6 +47,8 @@ public:
     MOCK_METHOD3(connect_callback, void(int fd, struct addrinfo *addr,
                                         Notifiable *on_exit));
 
+    MOCK_METHOD1(status_callback, void(SocketClient::Status));
+
 protected:
     SocketClientTest()
     {
@@ -108,7 +110,7 @@ TEST_F(SocketClientTest, connect_host)
     delete sc;
 }
 
-TEST_F(SocketClientTest, DISABLED_connect_mdns)
+TEST_F(SocketClientTest, connect_mdns)
 {
     LOG(INFO, "create");
     MDNS *mdns = new MDNS();
@@ -140,7 +142,7 @@ TEST_F(SocketClientTest, DISABLED_connect_mdns)
     delete sc;
 }
 
-TEST_F(SocketClientTest, DISABLED_connect_mdns_not_published)
+TEST_F(SocketClientTest, connect_mdns_not_published)
 {
     SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
 
@@ -155,6 +157,31 @@ TEST_F(SocketClientTest, DISABLED_connect_mdns_not_published)
     usleep(10000);
     wait();
     usleep(10000);
+    wait();
+
+    sl->shutdown();
+    sc->shutdown();
+    delete sl;
+    delete sc;
+}
+
+TEST_F(SocketClientTest, connect_host_disallow_local)
+{
+    SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
+
+    SocketClient *sc = new SocketClient(
+        node_->iface()->dispatcher()->service(), nullptr, "127.0.0.1",
+        LISTEN_PORT,
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2, _3),
+        std::bind(&SocketClientTest::status_callback, this, _1), 1, 1, true);
+
+    EXPECT_CALL(*this, connect_callback(_, _, sc)).Times(0);
+    EXPECT_CALL(*this, status_callback(SocketClient::Status::STATIC_CONNECT)).Times(AtLeast(1));
+    EXPECT_CALL(*this, status_callback(SocketClient::Status::CONNECT_FAILED_SELF)).Times(AtLeast(1));
+
+    usleep(40000);
+    wait();
+    usleep(40000);
     wait();
 
     sl->shutdown();
