@@ -103,13 +103,13 @@ public:
         , port_(port)
         , callback_(callback)
         , statusCallback_(status_callback)
-        , retrySeconds_(retry_seconds)
-        , timeoutSeconds_(timeout_seconds)
-        , disallowLocal_(disallow_local)
         , state_(STATE_CREATED)
         , fd_(-1)
         , addr_(nullptr)
         , sem_()
+        , retrySeconds_(retry_seconds)
+        , timeoutSeconds_(timeout_seconds)
+        , disallowLocal_(disallow_local)
     {
         HASSERT(mdns_ || (host_ && port_));
         start_flow(STATE(spawn_thread));
@@ -396,17 +396,6 @@ private:
     /** callback to call on connection status */
     std::function<void(Status)> statusCallback_ = nullptr;
     
-    /** number of seconds between retries */
-    uint8_t retrySeconds_;
-
-    /** time in seconds that the connect is supposed to
-     *  timeout and look for a possible shutdown
-     */
-    uint8_t timeoutSeconds_;
-
-    /** disallow local connections to one's self */
-    bool disallowLocal_;
-
     /** current state in the objects lifecycle */
     volatile State state_;
 
@@ -418,6 +407,17 @@ private:
 
     /** Semaphore for synchronizing with the helper thread */
     OSSem sem_;
+
+    /** number of seconds between retries */
+    uint8_t retrySeconds_;
+
+    /** time in seconds that the connect is supposed to
+     *  timeout and look for a possible shutdown
+     */
+    uint8_t timeoutSeconds_;
+
+    /** disallow local connections to one's self */
+    bool disallowLocal_;
 
     DISALLOW_COPY_AND_ASSIGN(SocketClient);
 };
