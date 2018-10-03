@@ -301,10 +301,12 @@ private:
         HW::BOOSTER_ENABLE_Pin::set(true);
         HW::PIN_H::set_hw();
         HW::PIN_L::set_hw();
+        HW::enable_output();
     }
 
     /// Helper function for turning off the output.
     static void internal_disable_output() {
+        HW::disable_output();
         output_enabled = false;
         HW::BOOSTER_ENABLE_Pin::set(false);
         HW::PIN_H::set(HW::PIN_H_INVERT);
