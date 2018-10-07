@@ -42,9 +42,26 @@
 #include "peripheral/timer.h"
 #include "utils/blinker.h"
 
+#include "freertos_drivers/pic32mx/Pic32mxUart.hxx"
+
 //DigitalIn startpin(P1_4);
 
+Pic32mxUart uart5("/dev/ser0", UART5, 0);
+
 extern "C" {
+
+void uart5_interrupt()
+{
+    uart5.interrupt_handler();
+}
+
+void uart1_interrupt()
+{
+}
+
+void uart3_interrupt()
+{
+}
 
 const unsigned long pic32_cpu_clock_hz = 80000000UL;
 const unsigned long pic32_periph_clock_hz = 40000000UL;

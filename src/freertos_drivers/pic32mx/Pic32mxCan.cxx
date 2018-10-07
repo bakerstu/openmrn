@@ -27,7 +27,7 @@
  * \file Pic32mxCan.cxx
  *
  * This file implements a can device driver layer for the pic32mx using the
- * Microschip plib CAN library.
+ * Microchip plib CAN library.
  *
  * @author Balazs Racz
  * @date 12 Aug 2013
@@ -432,7 +432,7 @@ void Pic32mxCan::enable()
 
     if (hw_ == CAN1)
     {
-        INTSetVectorPriority(INT_CAN_1_VECTOR, INT_PRIORITY_LEVEL_3);
+        INTSetVectorPriority(INT_CAN_1_VECTOR, INT_PRIORITY_LEVEL_2);
         INTSetVectorSubPriority(INT_CAN_1_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
         INTEnable(INT_CAN1, INT_ENABLED);
     }

@@ -87,7 +87,99 @@ vUSBInterruptWrapper:
         j vUSBInterruptWrapper
         nop
         
-// See p32mx440f256h.h etc. for vector assignments for specific processor.
+
+
+        // ===================== UART1 interrupt =======================
+
+.text
+        // UART1 interrupt
+/* Ensure correct instructions is used. */
+        .set	nomips16
+        .set 	noreorder
+        .set    noat
+
+/* Interrupt entry point. */
+vUART1InterruptWrapper:
+
+  /* Save the current task context.  This line MUST be included! */
+  portSAVE_CONTEXT
+
+  /* Call the C function to handle the interrupt. */
+  jal uart1_interrupt
+  nop
+
+  /* Restore the context of the next task to execute.  This line
+  MUST be included! */
+  portRESTORE_CONTEXT
+
+  .end  vUART1InterruptWrapper        
+
+.section .vector_24,"ax",%progbits
+        j vUART1InterruptWrapper
+        nop
+        
+
+
+        // ===================== UART3 interrupt =======================
+
+.text
+        // UART3 interrupt
+/* Ensure correct instructions is used. */
+        .set	nomips16
+        .set 	noreorder
+        .set    noat
+
+/* Interrupt entry point. */
+vUART3InterruptWrapper:
+
+  /* Save the current task context.  This line MUST be included! */
+  portSAVE_CONTEXT
+
+  /* Call the C function to handle the interrupt. */
+  jal uart3_interrupt
+  nop
+
+  /* Restore the context of the next task to execute.  This line
+  MUST be included! */
+  portRESTORE_CONTEXT
+
+  .end  vUART3InterruptWrapper        
+
+.section .vector_32,"ax",%progbits
+        j vUART3InterruptWrapper
+        nop
+
+        // ===================== UART5 interrupt =======================
+
+.text
+        // UART5 interrupt
+/* Ensure correct instructions is used. */
+        .set	nomips16
+        .set 	noreorder
+        .set    noat
+
+/* Interrupt entry point. */
+vUART5InterruptWrapper:
+
+  /* Save the current task context.  This line MUST be included! */
+  portSAVE_CONTEXT
+
+  /* Call the C function to handle the interrupt. */
+  jal uart5_interrupt
+  nop
+
+  /* Restore the context of the next task to execute.  This line
+  MUST be included! */
+  portRESTORE_CONTEXT
+
+  .end  vUART5InterruptWrapper        
+
+.section .vector_51,"ax",%progbits
+        j vUART5InterruptWrapper
+        nop
+
+
+        // See p32mx440f256h.h etc. for vector assignments for specific processor.
 // Create wrappers for ISRs used in a specific application.
 //	ISR_wrapper  4,c_vector_4_ISR   // timer 1 (POSIX time emulation, delay manager support)
 //	ISR_wrapper	24,c_vector_24_ISR  // UART 1 - RS232 (SN10, diagnostics)
