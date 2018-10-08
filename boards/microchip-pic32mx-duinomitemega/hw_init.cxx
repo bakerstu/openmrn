@@ -46,7 +46,8 @@
 
 //DigitalIn startpin(P1_4);
 
-Pic32mxUart uart5("/dev/ser0", UART5, 0);
+Pic32mxUart uart5("/dev/ser1", UART5, 0);
+Pic32mxUart uart2("/dev/ser0", UART2, 0);
 
 extern "C" {
 
@@ -57,6 +58,11 @@ void uart5_interrupt()
 
 void uart1_interrupt()
 {
+}
+
+void uart2_interrupt()
+{
+    uart2.interrupt_handler();
 }
 
 void uart3_interrupt()
