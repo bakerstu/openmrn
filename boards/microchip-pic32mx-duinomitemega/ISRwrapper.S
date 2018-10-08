@@ -119,6 +119,35 @@ vUART1InterruptWrapper:
         nop
         
 
+        // ===================== UART2 interrupt =======================
+
+.text
+        // UART2 interrupt
+/* Ensure correct instructions is used. */
+        .set	nomips16
+        .set 	noreorder
+        .set    noat
+
+/* Interrupt entry point. */
+vUART2InterruptWrapper:
+
+  /* Save the current task context.  This line MUST be included! */
+  portSAVE_CONTEXT
+
+  /* Call the C function to handle the interrupt. */
+  jal uart2_interrupt
+  nop
+
+  /* Restore the context of the next task to execute.  This line
+  MUST be included! */
+  portRESTORE_CONTEXT
+
+  .end  vUART2InterruptWrapper        
+
+.section .vector_32,"ax",%progbits
+        j vUART2InterruptWrapper
+        nop
+        
 
         // ===================== UART3 interrupt =======================
 
@@ -145,10 +174,10 @@ vUART3InterruptWrapper:
 
   .end  vUART3InterruptWrapper        
 
-.section .vector_32,"ax",%progbits
+.section .vector_31,"ax",%progbits
         j vUART3InterruptWrapper
         nop
-
+        
         // ===================== UART5 interrupt =======================
 
 .text
