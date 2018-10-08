@@ -94,17 +94,7 @@ public:
         if (INTGetFlag(rx_int()))
         {
             numIrqRx_++;
-            bool has = false;
-            while (UARTReceivedDataIsAvailable(hw_))
-            {
-                auto d = UARTGetDataByte(hw_);
-                if (rxBuf->put(&d, 1) == 0)
-                {
-                    ++overrunCount;
-                }
-                has = true;
-            }
-            if (has)
+            if (receive_some_data())
             {
                 rxBuf->signal_condition_from_isr();
             }
@@ -131,6 +121,25 @@ public:
     }
 
 private:
+    /// Copies data from the RX fifo into the receive ring buffer. Must be
+    /// called from critical section or interrupt. Throws away data if the
+    /// receive buffer is full (marking overrunCount).
+    /// @return true is some data showed up.
+    bool receive_some_data()
+    {
+        bool has = false;
+        while (UARTReceivedDataIsAvailable(hw_))
+        {
+            auto d = UARTGetDataByte(hw_);
+            if (rxBuf->put(&d, 1) == 0)
+            {
+                ++overrunCount;
+            }
+            has = true;
+        }
+        return has;
+    }
+
     /// Copies data from the tx buffer to the hardware send register /
     /// fifo. Updates the TX interrupt enable flag depending on why we stopped.
     /// Must be called from a critical section or interrupt.
