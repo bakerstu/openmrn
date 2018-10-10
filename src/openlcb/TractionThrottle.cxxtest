@@ -282,8 +282,8 @@ TEST_F(ThrottleClientTest, SendConsistAddDel)
         &throttle_, TractionThrottleCommands::CONSIST_ADD, n2, 0x42);
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(2, trainNode_->query_consist_length());
-    EXPECT_QRYCONSIST(n2, 0x42, 0);
-    EXPECT_QRYCONSIST(n1, 0x5A, 1);
+    EXPECT_QRYCONSIST(n1, 0x5A, 0);
+    EXPECT_QRYCONSIST(n2, 0x42, 1);
 
     b = invoke_flow(
         &throttle_, TractionThrottleCommands::CONSIST_DEL, n1);
@@ -347,22 +347,22 @@ TEST_F(ThrottleClientTest, SendConsistQry)
         &throttle_, TractionThrottleCommands::CONSIST_ADD, n2, 0x42);
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(2, trainNode_->query_consist_length());
-    EXPECT_QRYCONSIST(n2, 0x42, 0);
-    EXPECT_QRYCONSIST(n1, 0x5A, 1);
+    EXPECT_QRYCONSIST(n1, 0x5A, 0);
+    EXPECT_QRYCONSIST(n2, 0x42, 1);
 
     b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_QRY, 1);
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(2, b->data()->consistCount);
     EXPECT_EQ(1, b->data()->consistIndex);
-    EXPECT_EQ(0x5A, b->data()->flags);
-    EXPECT_EQ(n1, b->data()->dst);
+    EXPECT_EQ(0x42, b->data()->flags);
+    EXPECT_EQ(n2, b->data()->dst);
 
     b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_QRY, 0);
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(2, b->data()->consistCount);
     EXPECT_EQ(0, b->data()->consistIndex);
-    EXPECT_EQ(0x42, b->data()->flags);
-    EXPECT_EQ(n2, b->data()->dst);
+    EXPECT_EQ(0x5A, b->data()->flags);
+    EXPECT_EQ(n1, b->data()->dst);
 
     b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_QRY, 2);
     EXPECT_EQ(0, b->data()->resultCode);

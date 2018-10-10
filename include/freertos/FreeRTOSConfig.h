@@ -251,7 +251,7 @@ standard names - or at least those used in the unmodified vector table. */
 #define configCPU_CLOCK_HZ             ( pic32_cpu_clock_hz )
 #define configPERIPHERAL_CLOCK_HZ      ( pic32_periph_clock_hz )
 #define configMINIMAL_STACK_SIZE       ( 90 )
-#define configISR_STACK_SIZE           ( 120 )
+#define configISR_STACK_SIZE           ( 512 )
 #define configTOTAL_HEAP_SIZE          ( ( size_t ) 9000 )
 #define configTIMER_TASK_STACK_DEPTH   ( 190 )
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 0

@@ -53,6 +53,7 @@
 
 #include "openlcb/EventHandler.hxx"
 #include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/NodeInitializeFlow.hxx"
 
 namespace openlcb
 {
@@ -171,8 +172,10 @@ void SimpleCanStackBase::restart_stack()
 
     // Bootstraps the fresh alias allocation process.
     ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
-    extern void StartInitializationFlow(Node * node);
-    StartInitializationFlow(node());
+    // Causes all nodes to grab a new alias and send out node initialization
+    // done messages. This object owns itself and will do `delete this;` at the
+    // end of the process.
+    new ReinitAllNodes(&ifCan_);
 }
 
 int SimpleCanStackBase::create_config_file_if_needed(

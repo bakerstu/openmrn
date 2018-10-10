@@ -43,6 +43,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <ifaddrs.h>
 
 // Simplelink includes
 #include <ti/drivers/net/wifi/simplelink.h>
@@ -1086,7 +1087,6 @@ int getaddrinfo(const char *nodename, const char *servname,
     std::unique_ptr<struct sockaddr> sa(new struct sockaddr);
     if (sa.get() == nullptr)
     {
-        free(*res);
         return EAI_MEMORY;
     }
     memset(sa.get(), 0, sizeof(struct sockaddr));
@@ -1215,6 +1215,105 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t size)
     }
 
     return org;
+}
+
+/*
+ * ::getifaddrs()
+ */
+int getifaddrs(struct ifaddrs **ifap)
+{
+    /* start with something "safe" in case we bail out early */
+    *ifap = nullptr;
+
+    /* allocate all the structure memory */
+    std::unique_ptr<struct ifaddrs> ia(new struct ifaddrs);
+    if (ia.get() == nullptr)
+    {
+        errno = ENOMEM;
+        return -1;
+    }
+    memset(ia.get(), 0, sizeof(struct ifaddrs));
+
+    std::unique_ptr<char[]> ifa_name(new char[6]);
+    if (ifa_name.get() == nullptr)
+    {
+        errno = ENOMEM;
+        return -1;
+    }
+
+    std::unique_ptr<struct sockaddr> ifa_addr(new struct sockaddr);
+    if (ifa_addr == nullptr)
+    {
+        errno = ENOMEM;
+        return -1;
+    }
+    memset(ifa_addr.get(), 0, sizeof(struct sockaddr));
+
+    /** @todo support netmask and broadcast */
+#if 0
+    std::unique_ptr<struct sockaddr> ifa_netmask(new struct sockaddr);
+    if (ifa_netmask == nullptr)
+    {
+        errno = ENOMEM;
+        return -1;
+    }
+    memset(ifa_netmask.get(), 0, sizeof(struct sockaddr));
+
+    std::unique_ptr<struct sockaddr> ifa_broadaddr(new struct sockaddr);
+    if (ifa_broadaddr == nullptr)
+    {
+        errno = ENOMEM;
+        return -1;
+    }
+    memset(ifa_broadaddr.get(), 0, sizeof(struct sockaddr));
+#endif
+
+    /* setup interface address data */
+    strcpy(ifa_name.get(), "wlan0");
+
+    struct sockaddr_in *addr_in = (struct sockaddr_in*)ifa_addr.get();
+    addr_in->sin_family = AF_INET;
+    addr_in->sin_addr.s_addr = htonl(CC32xxWiFi::instance()->wlan_ip());
+
+    /* build up meta structure */
+    ia.get()->ifa_next = nullptr;
+    ia.get()->ifa_name = ifa_name.release();
+    ia.get()->ifa_flags = 0; /** @todo we don't support/check flags */
+    ia.get()->ifa_addr = ifa_addr.release();
+    ia.get()->ifa_netmask = nullptr;
+    ia.get()->ifa_ifu.ifu_broadaddr = nullptr;
+    ia.get()->ifa_data = nullptr;
+
+    /* report results */
+    *ifap = ia.release();
+    return 0;
+}
+
+/*
+ * ::getifaddrs()
+ */
+void freeifaddrs(struct ifaddrs *ifa)
+{
+    while (ifa)
+    {
+        struct ifaddrs *next = ifa->ifa_next;
+
+        HASSERT(ifa->ifa_data == nullptr);
+        HASSERT(ifa->ifa_ifu.ifu_broadaddr == nullptr);
+        HASSERT(ifa->ifa_netmask == nullptr);
+
+        if (ifa->ifa_addr)
+        {
+            delete ifa->ifa_addr;
+        }
+        if (ifa->ifa_name)
+        {
+            delete[] ifa->ifa_name;
+        }
+        delete ifa;
+
+        ifa = next;
+    }
 }
 
 } /* extern "C" */

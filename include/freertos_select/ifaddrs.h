@@ -1,5 +1,5 @@
-/** \copyright
- * Copyright (c) 2016, Stuart W Baker
+/** @copyright
+ * Copyright (c) 2018, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,52 +24,53 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file inet.h
- * This file implements POSIX arpa/inet.h prototypes.
+ * @file ifaddr.h
+ * This file implements Linux/BSD compatible ifaddr.h prototypes.
  *
  * @author Stuart W. Baker
- * @date 19 March 2016
+ * @date 2 September 2018
  */
 
-#ifndef _ARPA_INET_H_
-#define _ARPA_INET_H_
+#ifndef _IFADDRS_H_
+#define _IFADDRS_H_
 
-#include <netinet/in.h>
+#include <sys/socket.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/// Converts a number-and-dot notation internet address to binary form.
-///
-/// @param name standard argument
-/// @param addr standard argument
-///
-/// @return error code
-///
-int inet_aton (const char *name, struct in_addr *addr);
+/// network interface address list member
+struct ifaddrs
+{
+    struct ifaddrs  *ifa_next;    ///< next item in list
+    char            *ifa_name;    ///< name of interface.
+    unsigned int    *ifa_flags;   ///< flags from SIOCGIFFLAGS
+    struct sockaddr *ifa_addr;    ///< address of interface
+    struct sockaddr *ifa_netmask; ///< netmask of interface
+    union
+    {
+        struct sockaddr *ifu_broadaddr; ///< broadcast address of interface
+        struct sockaddr *ifu_dstadr;    ///< point-to-point destination address
+    } ifa_ifu;
+    void            *ifa_data;    ///< address-specific data
+};
 
-/// Converts a number-and-dot notation internet address to network byte order
-/// form. @param name is the text representation. @return the 32-bit address in
-/// ntwork byte order, or -1 if there is an error.
-uint32_t inet_addr (const char *name);
-    
-/// Converts an address to textual representation. Not reentrant. @param addr
-/// is the address. @return the textual form of the address (statically
-/// allocated buffer).
-char *inet_ntoa (struct in_addr addr);
+/// Create a linked list of structures describing the network interfaces of the
+/// local system.
+///
+/// @param ifap the first item in the list is in *ifap
+/// @return 0 upon success, else -1 with errno set appropriately
+int getifaddrs(struct ifaddrs **ifap);
 
-/** Convert the network address in src to a character string in src.
- * @param af address family, AF_INET or AF_INET6
- * @param src source address in network byte order
- * @param dst resulting address string
- * @param size max number characters allowed for the result
- * @return on success non-null pointer to dst, else NULL with errno set on error
- */
-const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
+/// Free a previously generated linked list of structures describing the network
+/// interfaces of the local system.
+///
+/// @param ifa pointer to the list that will be freed
+void freeifaddrs(struct ifaddrs *ifa);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _ARPA_INET_H_ */
+#endif /* _IFADDRS_H_ */
