@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Tue Oct 9 21:19:14 2018
-//  Last Modified : <181013.2314>
+//  Last Modified : <181014.1601>
 //
 //  Description	
 //
@@ -106,8 +106,8 @@ public:
         FILE *fp = fopen("/sys/class/gpio/export","w");
         fprintf(fp,"%d\n",PIN);
         fclose(fp);
-        // 250ms delay needed while kernel changes ownership of created GPIO directory
-        usleep(250000); 
+        // 50ms delay might be needed while kernel changes ownership of created GPIO directory
+        //usleep(50000); 
     }
     
     /// Sets pin to output.
@@ -279,7 +279,7 @@ public:
     {
         return GpioWrapper<GpioInputPin<Base>>::instance();
     }
-    static void get()
+    static bool get()
     {
         if (ACTIVE_HIGH)
         {
