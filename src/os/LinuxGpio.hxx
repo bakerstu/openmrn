@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Tue Oct 9 21:19:14 2018
-//  Last Modified : <181013.2257>
+//  Last Modified : <181013.2314>
 //
 //  Description	
 //
@@ -106,8 +106,8 @@ public:
         FILE *fp = fopen("/sys/class/gpio/export","w");
         fprintf(fp,"%d\n",PIN);
         fclose(fp);
-        // 50ms delay needed while kernel changes ownership of created GPIO directory
-        usleep(50000); 
+        // 250ms delay needed while kernel changes ownership of created GPIO directory
+        usleep(250000); 
     }
     
     /// Sets pin to output.
