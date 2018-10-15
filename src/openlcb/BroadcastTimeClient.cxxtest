@@ -2,19 +2,187 @@
 
 #include "openlcb/BroadcastTimeClient.hxx"
 
+#include <inttypes.h>
+
+// test helper
+::testing::AssertionResult IsBetweenInclusive(int val, int a, int b)
+{
+    if((val >= a) && (val <= b))
+        return ::testing::AssertionSuccess();
+    else
+        return ::testing::AssertionFailure()
+               << val << " is outside the range " << a << " to " << b;
+}
+
 namespace openlcb
 {
 
-class BroadcastTimeConsumerTest : public AsyncNodeTest
+class MockBroadcastTimeClient : public BroadcastTimeClient
 {
-protected:
-    BroadcastTimeConsumerTest()
+public:
+    MockBroadcastTimeClient(Node *node, NodeID clock_id,
+                            bool configure_agent = false)
+        : BroadcastTimeClient(node, clock_id, configure_agent)
     {
+        snprintf(clockIDString_, 13, "%012" PRIX64, clock_id);
     }
+
+
+    char clockIDString_[13];
 };
 
-TEST_F(BroadcastTimeConsumerTest, Create)
+
+class BroadcastTimeClientTest : public AsyncNodeTest
 {
+protected:
+    BroadcastTimeClientTest()
+        : client1_(node_, BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID)
+        , client2_(node_, BroadcastTimeDefs::DEFAULT_REALTIME_CLOCK_ID, true)
+    {
+    }
+
+    // build up a packet to send
+    void send_packet_helper(MockBroadcastTimeClient *client,
+                            const char can_mti[4], const char suffix[5])
+    {
+        string payload(":X19");
+        payload += can_mti;
+        payload += "001N";
+        payload += client->clockIDString_;
+        payload += suffix;
+        payload += ';';
+        send_packet(payload.c_str());
+    }
+        
+    // send start
+    void send_start(MockBroadcastTimeClient *client, bool identify = false)
+    {
+        send_packet_helper(client, identify ? "544" : "5B4", "F002");
+    }
+
+    // send stop
+    void send_stop(MockBroadcastTimeClient *client, bool identify = false)
+    {
+        send_packet_helper(client, identify ? "544" : "5B4", "F001");
+    }
+
+    // send report rate
+    void send_report_rate(MockBroadcastTimeClient *client,
+                          int rate, bool identify = false)
+    {
+        char srate[5];
+        snprintf(srate, 5, "4%03x", rate);
+        send_packet_helper(client, identify ? "544" : "5B4", srate);
+    }
+
+    // send report year
+    void send_report_year(MockBroadcastTimeClient *client,
+                          unsigned year, bool identify = false)
+    {
+        char syear[5];
+        snprintf(syear, 5, "3%03x", year);
+        send_packet_helper(client, identify ? "544" : "5B4", syear);
+    }
+
+    // send report date
+    void send_report_date(MockBroadcastTimeClient *client,
+                          unsigned month = 0, unsigned day = 0,
+                          bool identify = false)
+    {
+        char sdate[5];
+        snprintf(sdate, 5, "2%1x%02x", month, day);
+        send_packet_helper(client, identify ? "544" : "5B4", sdate);
+    }
+
+    // send report time
+    void send_report_time(MockBroadcastTimeClient *client,
+                          unsigned hour = 0, unsigned minute = 0,
+                          bool identify = false)
+    {
+        char stime[5];
+        snprintf(stime, 5, "%02x%02x", hour, minute);
+
+#if 0
+        if (is_running() && rate() > 0 && !identify && hour = 0 && minute = 0)
+        {
+            
+        }
+#endif
+        send_packet_helper(client, identify ? "544" : "5B4", stime);
+    }
+
+    // send the synchronization sequence
+    void sync(MockBroadcastTimeClient *client, int rate = 0, unsigned year = 0,
+              unsigned month = 0, unsigned day = 0, unsigned hour = 0,
+              unsigned minute = 0, unsigned delay_msec = 0)
+    {
+        client->is_started() ? send_start(client, true) :
+                               send_stop(client, true);
+        send_report_rate(client, rate, true);
+        send_report_year(client, year, true);
+        send_report_date(client, month, day, true);
+        send_report_time(client, hour, minute, true);
+        usleep(delay_msec * 1000);
+        send_report_time(client, hour, minute + 1);
+    }
+
+    MockBroadcastTimeClient client1_; // not a configure agent
+    MockBroadcastTimeClient client2_; // configure agent
+};
+
+TEST_F(BroadcastTimeClientTest, Create)
+{
+    print_all_packets();
+
+    // receive query
+    expect_packet(":X195B422AN010100000100F000;");
+    expect_packet(":X195B422AN010100000101F000;");
+    wait_for_event_thread();
+
+    // expect consumer identify range and producder idenfied query (unknown)
+    expect_packet(":X194A422AN010100000100FFFF;");
+    expect_packet(":X1954722AN010100000100F000;");
+
+    // configure agent
+    // expect consumer identify range and producer identify range
+    expect_packet(":X194A422AN0101000001010000;");
+    expect_packet(":X1952422AN0101000001018000;");
+
+    send_packet(":X19970001N;");
+    wait_for_event_thread();
+
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(client1_.time(), 0);
+    EXPECT_EQ(client2_.time(), 0);
+};
+
+TEST_F(BroadcastTimeClientTest, Start)
+{
+    print_all_packets();
+
+    // receive query
+    expect_packet(":X195B422AN010100000100F000;");
+    expect_packet(":X195B422AN010100000101F000;");
+    wait_for_event_thread();
+
+    // start clock, time will be midnight Jan 1st 1970 for simplicity, rate = 1
+    //send_packet(":X19544001N010100000100F002;"); // start
+    //send_packet(":X19544001N0101000001004004;"); // rate = 1
+    //send_packet(":X19544001N01010000010037B2;"); // year = 1970
+    //send_packet(":X19544001N0101000001002101;"); // month = 1, day = 1
+    //send_packet(":X19544001N0101000001000000;"); // hour = 0, minute = 0
+    //usleep(500000);                              // wait 500 msec
+    //send_packet(":X195B4001N0101000001000001;"); // hour = 0, minute = 1 (event)
+    send_start(&client1_);
+    sync(&client1_, 4, 1970, 1, 1, 0, 0, 500);
+    usleep(200000);                              // wait 500 msec
+    
+    
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 60, 62));
+
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(client2_.time(), 0);
 };
 
 } // namespace openlcb

@@ -92,10 +92,12 @@ struct BroadcastTimeDefs
         EVENT_MINUTES_SHIFT = 0, ///< minutes mask
         EVENT_MONTH_SHIFT   = 8, ///< month mask
         EVENT_DAY_SHIFT     = 0, ///< day mask
-        EVENT_YEAR_SHIFT     = 0, ///< day mask
+        EVENT_YEAR_SHIFT    = 0, ///< day mask
         EVENT_RATE_SHIFT    = 0, ///< rate mask
 
-        QUERY_EVENT_SUFFIX     = 0xF000, ///< Query event suffix value
+        QUERY_EVENT_SUFFIX = 0xF000, ///< query event suffix value
+        STOP_EVENT_SUFFIX  = 0xF001, ///< stop clock event suffix value
+        START_EVENT_SUFFIX = 0xF002, ///< start clock event suffix value
     };
 
     /// Get the EventTuype from the event suffix number.

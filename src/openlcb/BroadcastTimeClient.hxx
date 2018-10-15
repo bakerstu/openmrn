@@ -58,6 +58,7 @@ public:
         , node_(node)
         , clockID_((uint64_t)clock_id << 16)
         , writer_()
+        , writer2_()
         , timer_(this)
         , configureAgent_(configure_agent)
         , started_(false)
@@ -67,8 +68,12 @@ public:
         , seconds_(0)
         , rate_(0)
     {
+        // use a process-local timezone
+        clear_timezone();
+
         time_t time = 0;
         ::gmtime_r(&time, &tm_);
+        tm_.tm_isdst = 0;
 
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, clockID_), 16);
@@ -103,7 +108,7 @@ public:
         if (configureAgent_)
         {
             // we can configure our complementary time server
-            writer_.WriteAsync(
+            writer2_.WriteAsync(
                 node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
                 WriteHelper::global(),
                 eventid_to_buffer(EncodeRange(entry.event + 0x8000, 0x1 << 15)),
@@ -112,7 +117,7 @@ public:
         else
         {
             // we cannot configure our complementary time server
-            writer_.WriteAsync(
+            writer2_.WriteAsync(
                 node_, Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
                 WriteHelper::global(),
                 eventid_to_buffer(entry.event +
@@ -231,7 +236,31 @@ public:
         return tm.tm_yday;
     }
 
+    /// Report the clock rate as a 12-bit fixed point number
+    /// (-512.00 to 511.75).
+    /// @return clock rate 
+    int16_t rate()
+    {
+        return rate_;
+    }
+
+    /// Test of the clock is running.
+    /// @return true if running, else false
+    bool is_running()
+    {
+        return rate_ != 0 && started_;
+    }
+
+    /// Test of the clock is started (rate could still be 0).
+    /// @return true if started, else false
+    bool is_started()
+    {
+        return started_;
+    }
+
 private:
+    void clear_timezone();
+
     /// Handle an incoming time update.
     /// @param entry registry entry for the event range
     /// @report true of this an event report, false if a Producer Identified
@@ -318,6 +347,7 @@ private:
     Node *node_; ///< OpenLCB node to export the consumer on
     uint64_t clockID_; ///< 48-bit unique identifier for the clock instance
     WriteHelper writer_; ///< helper for sending event messages
+    WriteHelper writer2_; ///< helper for sending event messages
     StateFlowTimer timer_; ///< timer helper
     unsigned configureAgent_  : 1; ///< instance can be used to configure clock
     unsigned started_         : 1; ///< true if clock is started
