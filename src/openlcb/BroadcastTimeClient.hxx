@@ -68,7 +68,7 @@ public:
         , rate_(0)
     {
         time_t time = 0;
-        gmtime_r(&time, &tm_);
+        ::gmtime_r(&time, &tm_);
 
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, clockID_), 16);
@@ -198,14 +198,21 @@ public:
         }
     }
 
+    /// Get the time as a standard struct tm.
+    /// @param result a pointer to the structure that will hold the result
+    /// @return pointer to the passed in result on success, nullptr on failure
+    struct tm *gmtime_r(struct tm *result)
+    {
+        time_t now = time();
+        return ::gmtime_r(&now, result);
+    }
+
     /// Get the day of the week.
     /// @returns day of the week (0 - 6) upon success, else -1 on failure
     int day_of_week()
     {
-        errno = 0;
         struct tm tm;
-        time_t now = time();
-        if (::gmtime_r(&now, &tm) == nullptr)
+        if (gmtime_r(&tm) == nullptr)
         {
             return -1;
         }
@@ -216,10 +223,8 @@ public:
     /// @returns day of the year (0 - 365) upon success, else -1 on failure
     int day_of_year()
     {
-        errno = 0;
         struct tm tm;
-        time_t now = time();
-        if (::gmtime_r(&now, &tm) == nullptr)
+        if (gmtime_r(&tm) == nullptr)
         {
             return -1;
         }
