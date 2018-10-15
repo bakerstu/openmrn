@@ -96,11 +96,11 @@ void BroadcastTimeClient::handle_updates(EventReport *event, bool report)
             }
             break;
         case BroadcastTimeDefs::STOP:
-            started_ = false;
-            break;
+            start_stop_logic(false);
+            return;
         case BroadcastTimeDefs::START:
-            started_ = true;
-            break;
+            start_stop_logic(true);
+            return;
         default:
             // uninteresting event type
             return;

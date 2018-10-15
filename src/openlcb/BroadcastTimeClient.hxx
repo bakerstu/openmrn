@@ -63,9 +63,12 @@ public:
         , started_(false)
         , sleeping_(false)
         , rolloverPending_(false)
+        , timestamp_(OSTime::get_monotonic())
+        , seconds_(0)
         , rate_(0)
     {
-        memset(&tm_, 0, sizeof(tm));
+        time_t time = 0;
+        gmtime_r(&time, &tm_);
 
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, clockID_), 16);
@@ -228,6 +231,22 @@ private:
     /// @param entry registry entry for the event range
     /// @report true of this an event report, false if a Producer Identified
     void handle_updates(EventReport *event, bool report);
+
+    /// Perform a bit of logic that is required whenever the clock's running
+    /// state is changed.
+    /// @param started true if the clock is started, else false
+    void start_stop_logic(bool started)
+    {
+        // this bit of logic ensures that 
+        AtomicHolder h(this);
+        if (!started)
+        {
+            seconds_ = time();
+            ::gmtime_r(&seconds_, &tm_);
+        }
+        timestamp_ = OSTime::get_monotonic();
+        started_ = started;
+    }
 
     /// Initialize client by sending a time query.
     /// @return next state is initialize_done
