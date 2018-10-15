@@ -1,0 +1,20 @@
+#include "utils/async_if_test_helper.hxx"
+
+#include "openlcb/BroadcastTimeClient.hxx"
+
+namespace openlcb
+{
+
+class BroadcastTimeConsumerTest : public AsyncNodeTest
+{
+protected:
+    BroadcastTimeConsumerTest()
+    {
+    }
+};
+
+TEST_F(BroadcastTimeConsumerTest, Create)
+{
+};
+
+} // namespace openlcb

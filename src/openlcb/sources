@@ -5,6 +5,7 @@ CSRCS +=
 CXXSRCS += \
            AliasAllocator.cxx \
            AliasCache.cxx \
+           BroadcastTimeClient.cxx \
            CanDefs.cxx \
            ConfigEntry.cxx \
            ConfigUpdateFlow.cxx \
