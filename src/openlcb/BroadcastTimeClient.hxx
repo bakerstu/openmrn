@@ -182,9 +182,11 @@ public:
         AtomicHolder h(this);
         if (started_)
         {
-            time_t now = NSEC_TO_SEC(OSTime::get_monotonic() + MSEC_TO_NSEC(500));
-            time_t elapsed = (((now - timestamp_) * rate_) + 2) / 4;
-            return seconds_ + elapsed;
+            long long now = OSTime::get_monotonic();
+            long long elapsed = now - timestamp_;
+            elapsed = ((elapsed * rate_) + 2) / 4;
+
+            return seconds_ + (time_t)NSEC_TO_SEC(elapsed + MSEC_TO_NSEC(500));
         }
         else
         {
@@ -274,11 +276,12 @@ private:
         /// @todo As of 14 October 2018, newlib for armgcc uses 32-bit time_t.
         /// It seems that 64-bit time_t may become the default soon.
 
-        time_t last_seconds = seconds_;
-        seconds_ = ::mktime(&tm_);
-        long long now = OSTime::get_monotonic();
-        now += MSEC_TO_NSEC(500); // rounding offset
-        timestamp_ = NSEC_TO_SEC(now);
+        time_t last_seconds = time();
+        {
+            AtomicHolder h(this);
+            seconds_ = ::mktime(&tm_);
+            timestamp_ = OSTime::get_monotonic();
+        }
 
         if ((last_seconds - 1) > seconds_ || (last_seconds + 1) < seconds_)
         {
@@ -299,7 +302,7 @@ private:
     unsigned rolloverPending_ : 1; ///< a day rollover is about to occur
 
     struct tm tm_;
-    time_t timestamp_; ///< monotonic timestamp from last server update
+    long long timestamp_; ///< monotonic timestamp from last server update
     time_t seconds_; ///< seconds clock time in seconds
     int16_t rate_; ///< clock rate, negative if invalid or unknown
 
