@@ -117,6 +117,7 @@ void BroadcastTimeClient::handle_updates(EventReport *event, bool report)
 
     if (sleeping_)
     {
+        // we are sleeping, we have a previously notify pending completion
         if (immediateUpdate_)
         {
             // this happens only if we receive a time event report
