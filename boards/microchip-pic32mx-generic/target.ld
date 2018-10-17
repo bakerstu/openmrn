@@ -4,6 +4,7 @@
 ** initialization from power-on reset, interrupt vectors, etc.
 **
 ** History:
+**   20181017 bracz: Refactor for external included memory map
 **   20090926 DRNadler: Per CodeSourcery, ENTRY is __cs3_reset_PIC32MX
 **   20090830 DRNadler: Minimal C++ demonstration version (KSEG1)
 **   20090713 DRNadler: Reset reason stored in RAM0
@@ -34,8 +35,10 @@ OUTPUT_ARCH(mips)
 ENTRY(__cs3_reset_PIC32MX) /* for debugger support, use actual HW-level entry and not _start */
 SEARCH_DIR(.)
 /* Force repeated search of CS3 and GCC libraries */
-GROUP(-lcs3hal -lgcc -lc -lcs3)
+GROUP(-lcs3hal -lgcc -lc -lcs3 -lcs3unhosted)
 /**/
+
+INCLUDE memory_map.ld
 
 /*
 ** NOTE: Device programmers require PIC32MX "physical" addresses.
@@ -49,31 +52,33 @@ GROUP(-lcs3hal -lgcc -lc -lcs3)
 
 MEMORY
 {
-  ram0 (!r!x) : ORIGIN = 0xA0000000, LENGTH = 16     /* tiny part of RAM reserved for startup code */
-  ram  (!r!x) : ORIGIN = 0xA0000010, LENGTH = 64K-16 /* not read-only, not executable */
+  /* tiny part of RAM reserved for startup code */
+  ram0 (!r!x) : ORIGIN = 0xA0000000, LENGTH = 16
+  ram  (!r!x) : ORIGIN = 0xA0000010, LENGTH = ___user_ram_size - 16
   /*
   ** Memory map here is based on executing in KSEG1 mode.
   ** PIC32MX flash is broken into user flash and boot flash.
   ** Boot flash contains the configuration words required for reset.
   ** The following are KSEG1 logical addresses (??? should change to KSEG0 to enable caches).
   */
-  PIC32MX_flash_userboot (rx) : ORIGIN = 0x9D000000, LENGTH = 0x1000
-  PIC32MX_flash_user (rx) : ORIGIN = 0x9D001000, LENGTH = 512K - 4K /*we skipped the first page to allow for the interrupt vector table. There is a lot of free space there, but linking needs to flow around existing absolute sections there. */
+  flash_user (rx) : ORIGIN = 0x9D000000, LENGTH = ___user_flash_size
+  
   /*
   ** When PIC32MX comes out of reset, it branches to the start of the boot flash
   ** The last (4kb) page in Boot Flash Memory contains the DEBUG Page, which is reserved for 
   ** use by (some) debugger tool while debugging (by convention, not by hardware).
   */
-  PIC32MX_flash_boot (rx) : ORIGIN = 0xBFC00000, LENGTH = 0x0 /* Don't allow stuff in the boot flash, there is a bootloader there */
+  flash_boot (rx) : ORIGIN = 0x9FC00000, LENGTH = ___boot_flash_size - 16
+  flash_cfg  (r!x): ORIGIN = 0x9FC00000 + ___boot_flash_size - 16, LENGTH = 16
 }
+
+/* This include defines region aliases to select whether we are building with bootloader or without. */
+INCLUDE region.ld
 
 /*
 ** Interrupt vector spacing 1 (ie 0x20 or 32 bytes/vector).
-** TEMPORARY: located at end of bootflash for now (this is "debug page")...
-** 0xBFC03000-(0x10 config registers + 0x200+ (64 vectors * x20))= 0xBFC025F0
 */
 _vector_spacing = 0x00000001;
-_ebase_address  = 0x9D000000; /* must be on a 4kb page boundary; rounded down */
 
 /* These force the linker to search for particular symbols from
  * the start of the link process and thus ensure the user's
@@ -94,7 +99,7 @@ EXTERN(__cs3_start_c main __cs3_stack __cs3_heap_end) */
  *                     the command line using the linker's --defsym option.
  */
 EXTERN (_min_stack_size _min_heap_size)
-PROVIDE(_min_stack_size = 9k) ;
+PROVIDE(_min_stack_size = 2k) ;
 PROVIDE(_min_heap_size  = 9k) ;
 PROVIDE(__cs3_heap_start = _end );
 PROVIDE(__cs3_heap_end = __cs3_region_start_ram + __cs3_region_size_ram - _min_stack_size);
@@ -120,182 +125,7 @@ SECTIONS
     __cs3_reset = __cs3_reset_PIC32MX;
     *(.cs3.reset)
 
-  } >PIC32MX_flash_userboot
-
-  /*
-  ** "Normal" code in user flash
-  */
-  .text :
-  {
-    CREATE_OBJECT_SYMBOLS /* create symbols for each input file - why ??? */
-
-    __cs3_region_start_rom = .;
-    *(.cs3.region-head.rom)
-    ASSERT (. == __cs3_region_start_rom, ".cs3.region-head.rom not permitted");
-
-    /* "normal" code follows... */
-    *(.text .text.* .gnu.linkonce.t.*)
-
-    . = ALIGN(0x4);
-    KEEP (*crtbegin.o(.jcr))
-    KEEP (*(EXCLUDE_FILE (*crtend.o) .jcr))
-    KEEP (*crtend.o(.jcr))
-
-    . = ALIGN(0x4);
-    *(.gcc_except_table .gcc_except_table.*)
-    *(.gnu_extab .gnu_extab.*)
-  } >PIC32MX_flash_user
-  
-  .eh_frame_hdr : ALIGN (4)
-  {
-    KEEP (*(.eh_frame_hdr))
-    *(.eh_frame_entry .eh_frame_entry.*)
-  } >PIC32MX_flash_user
-  
-  .eh_frame : ALIGN (4)
-  {
-    KEEP (*(.eh_frame .eh_frame.*))
-  }  >PIC32MX_flash_user
-  
-  /* MDI semihosting uses a pointer in this section.  */
-  .sdeosabi : ALIGN (4)
-  {
-    *(.sdeosabi)
-  } >ram
-  
-  .rodata : ALIGN (4)
-  {
-    *(.rodata .rodata.* .gnu.linkonce.r.*)
-
-    . = ALIGN(4);
-    KEEP(*(.init))
-
-    . = ALIGN(4);
-    __preinit_array_start = .;
-    KEEP (*(.preinit_array))
-    __preinit_array_end = .;
-
-    . = ALIGN(4);
-    __init_array_start = .;
-    KEEP (*(SORT(.init_array.*)))
-    KEEP (*(.init_array))
-    __init_array_end = .;
-
-    . = ALIGN(4);
-    KEEP(*(.fini))
-
-    . = ALIGN(4);
-    __fini_array_start = .;
-    KEEP (*(.fini_array))
-    KEEP (*(SORT(.fini_array.*)))
-    __fini_array_end = .;
-
-    . = ALIGN(0x4);
-    KEEP (*crtbegin.o(.ctors))
-    KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
-    KEEP (*(SORT(.ctors.*)))
-    KEEP (*crtend.o(.ctors))
-
-    . = ALIGN(0x4);
-    KEEP (*crtbegin.o(.dtors))
-    KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
-    KEEP (*(SORT(.dtors.*)))
-    KEEP (*crtend.o(.dtors))
-
-    *(.lit)
-
-    . = ALIGN(4);
-    __cs3_regions = .;
-    LONG (0)
-    LONG (__cs3_region_init_ram)
-    LONG (__cs3_region_start_ram)
-    LONG (__cs3_region_init_size_ram)
-    LONG (__cs3_region_zero_size_ram)
-    __cs3_regions_end = .;
-
-    . = ALIGN (8);
-    /* Redundant, removed: . = ALIGN (8); */
-
-    _etext = .; /* first double-word past end of text, and start address for RAM initialization data stored in ROM */
-  }  >PIC32MX_flash_user
-  
-  __cs3_region_size_rom = LENGTH(PIC32MX_flash_user); /* just total size of flash */
-
-  /*
-  ** Initialized data is linked for RAM, but placed in ROM using the AT> directive.
-  ** Startup code copies it to RAM during initialization.
-  ** WARNING: Must follow _etext !!
-  */
-  .data : ALIGN (8)
-  {
-    __cs3_region_start_ram = .;
-    *(.got.plt) *(.got)
-    *(.shdata)
-    *(.data .data.* .gnu.linkonce.d.*)
-    . = ALIGN(8);
-    /*
-    ** GP-relative addressing permits fast access via single instruction addressing,
-    ** using a signed 16-bit offset (i.e. -32768 to 32767) from the gp register.
-    ** Set GP to the middle of the "small data" area, then link in up to 64k
-    ** of "small data"....
-    */
-    _gp = . + 0x8000; /* beginning of "small data" plus 32k */
-    *(.lit8)
-    *(.lit4)
-    *(.sdata .sdata.* .gnu.linkonce.s.*)
-
-    /* this magic is needed for the device tables of openMRN */
-    . = ALIGN (8);
-    KEEP(*( SORT (.device.table.*))) ;
-
-    . = ALIGN (8);
-    *(.ram)
-    _edata = .;
-  } >ram  AT>PIC32MX_flash_user
-
-  /* Wrong, length just gives 256k size of flash: USER_FLASH_USED = LENGTH(PIC32MX_flash_user)+SIZEOF(.data); */
-  
-  /* DRN: The following is wrong; doesn't mark end of RAM copy...
-  /* For diagnostic use only, mark end of initialized-data copy in ROM */
-  /* .edata_copy_end :
-  /* {
-  /*   _edata_copy_end = .;
-  /*   LONG(0) /* force LD to output this section (empty sections are discarded) */
-  /* } >PIC32MX_flash_user
-  */
-
-  /* data written by startup code and NOT to be initialized by CS3 */
-  .startup_data :
-  {
-    *(.reset_data)
-  } >ram0
-
-  /* Un-initialized data, zero'd by CS3 C-language initialization module */
-  .bss :
-  {
-    *(.sbss .sbss.* .gnu.linkonce.sb.*)
-    *(.scommon)
-    *(.shbss)
-    *(.bss .bss.* .gnu.linkonce.b.*)
-    *(COMMON)
-    . = ALIGN (8);
-    *(.ram.b)
-    _end = .;
-    __end = .;
-  } >ram
-
-  /* __cs3_region_end_ram is deprecated */
-  /*__cs3_region_end_ram = __cs3_region_start_ram + LENGTH(ram);*/
-  __cs3_region_size_ram = LENGTH(ram);
-  /* WRONG: load address is PHYSICAL, not logical address:  __cs3_region_init_ram = LOADADDR (.data);  WRONG */
-  /*  __cs3_region_init_ram = _etext; DRN updated this; seems correct...  bracz: not really. */
-  __cs3_region_init_ram = LOADADDR(.data);
-  __cs3_region_init_size_ram = _edata - ADDR (.data);
-  __cs3_region_zero_size_ram = _end - _edata;
-
-  /* Compute space available for stack+heap... */
-  AVAILABLE_RAM_FOR_STACK_PLUS_HEAP = LENGTH(ram)-(SIZEOF(.data)+SIZEOF(.bss));
-
+  } >REGION_RESET
 
   /* ============================  Interrupt Branch Vectors  =========================== */
   .gen_exception _ebase_address + 0x180 :
@@ -625,6 +455,183 @@ SECTIONS
   }
   ASSERT (_vector_spacing == 0 || SIZEOF(.vector_63) <= (_vector_spacing << 5), "function at exception vector 63 too large")
   /* ============================  End Interrupt Branch Vectors  =========================== */
+
+
+  /*
+  ** "Normal" code in user flash
+  */
+  .text :
+  {
+    CREATE_OBJECT_SYMBOLS /* create symbols for each input file - why ??? */
+
+    __cs3_region_start_rom = .;
+    *(.cs3.region-head.rom)
+    ASSERT (. == __cs3_region_start_rom, ".cs3.region-head.rom not permitted");
+
+    /* "normal" code follows... */
+    *(.text .text.* .gnu.linkonce.t.*)
+
+    . = ALIGN(0x4);
+    KEEP (*crtbegin.o(.jcr))
+    KEEP (*(EXCLUDE_FILE (*crtend.o) .jcr))
+    KEEP (*crtend.o(.jcr))
+
+    . = ALIGN(0x4);
+    *(.gcc_except_table .gcc_except_table.*)
+    *(.gnu_extab .gnu_extab.*)
+  } >REGION_PGM
+  
+  .eh_frame_hdr : ALIGN (4)
+  {
+    KEEP (*(.eh_frame_hdr))
+    *(.eh_frame_entry .eh_frame_entry.*)
+  } >REGION_PGM
+  
+  .eh_frame : ALIGN (4)
+  {
+    KEEP (*(.eh_frame .eh_frame.*))
+  } >REGION_PGM
+  
+  /* MDI semihosting uses a pointer in this section.  */
+  .sdeosabi : ALIGN (4)
+  {
+    *(.sdeosabi)
+  } >ram
+  
+  .rodata : ALIGN (4)
+  {
+    *(.rodata .rodata.* .gnu.linkonce.r.*)
+
+    . = ALIGN(4);
+    KEEP(*(.init))
+
+    . = ALIGN(4);
+    __preinit_array_start = .;
+    KEEP (*(.preinit_array))
+    __preinit_array_end = .;
+
+    . = ALIGN(4);
+    __init_array_start = .;
+    KEEP (*(SORT(.init_array.*)))
+    KEEP (*(.init_array))
+    __init_array_end = .;
+
+    . = ALIGN(4);
+    KEEP(*(.fini))
+
+    . = ALIGN(4);
+    __fini_array_start = .;
+    KEEP (*(.fini_array))
+    KEEP (*(SORT(.fini_array.*)))
+    __fini_array_end = .;
+
+    . = ALIGN(0x4);
+    KEEP (*crtbegin.o(.ctors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*crtend.o(.ctors))
+
+    . = ALIGN(0x4);
+    KEEP (*crtbegin.o(.dtors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*crtend.o(.dtors))
+
+    *(.lit)
+
+    . = ALIGN(4);
+    __cs3_regions = .;
+    LONG (0)
+    LONG (__cs3_region_init_ram)
+    LONG (__cs3_region_start_ram)
+    LONG (__cs3_region_init_size_ram)
+    LONG (__cs3_region_zero_size_ram)
+    __cs3_regions_end = .;
+
+    . = ALIGN (8);
+    /* Redundant, removed: . = ALIGN (8); */
+
+    _etext = .; /* first double-word past end of text, and start address for RAM initialization data stored in ROM */
+  }  >REGION_PGM
+  
+  __cs3_region_size_rom = LENGTH(flash_user); /* just total size of flash */
+
+  /*
+  ** Initialized data is linked for RAM, but placed in ROM using the AT> directive.
+  ** Startup code copies it to RAM during initialization.
+  ** WARNING: Must follow _etext !!
+  */
+  .data : ALIGN (8)
+  {
+    __cs3_region_start_ram = .;
+    *(.got.plt) *(.got)
+    *(.shdata)
+    *(.data .data.* .gnu.linkonce.d.*)
+    . = ALIGN(8);
+    /*
+    ** GP-relative addressing permits fast access via single instruction addressing,
+    ** using a signed 16-bit offset (i.e. -32768 to 32767) from the gp register.
+    ** Set GP to the middle of the "small data" area, then link in up to 64k
+    ** of "small data"....
+    */
+    _gp = . + 0x8000; /* beginning of "small data" plus 32k */
+    *(.lit8)
+    *(.lit4)
+    *(.sdata .sdata.* .gnu.linkonce.s.*)
+
+    /* this magic is needed for the device tables of openMRN */
+    . = ALIGN (8);
+    KEEP(*( SORT (.device.table.*))) ;
+
+    . = ALIGN (8);
+    *(.ram)
+    _edata = .;
+  } >ram  AT>REGION_PGM
+
+  /* Wrong, length just gives 256k size of flash: USER_FLASH_USED = LENGTH(PIC32MX_flash_user)+SIZEOF(.data); */
+  
+  /* DRN: The following is wrong; doesn't mark end of RAM copy...
+  /* For diagnostic use only, mark end of initialized-data copy in ROM */
+  /* .edata_copy_end :
+  /* {
+  /*   _edata_copy_end = .;
+  /*   LONG(0) /* force LD to output this section (empty sections are discarded) */
+  /* } >PIC32MX_flash_user
+  */
+
+  /* data written by startup code and NOT to be initialized by CS3 */
+  .startup_data :
+  {
+    *(.reset_data)
+  } >ram0
+
+  /* Un-initialized data, zero'd by CS3 C-language initialization module */
+  .bss :
+  {
+    *(.sbss .sbss.* .gnu.linkonce.sb.*)
+    *(.scommon)
+    *(.shbss)
+    *(.bss .bss.* .gnu.linkonce.b.*)
+    *(COMMON)
+    . = ALIGN (8);
+    *(.ram.b)
+    _end = .;
+    __end = .;
+  } >ram
+
+  /* __cs3_region_end_ram is deprecated */
+  /*__cs3_region_end_ram = __cs3_region_start_ram + LENGTH(ram);*/
+  __cs3_region_size_ram = LENGTH(ram);
+  /* WRONG: load address is PHYSICAL, not logical address:  __cs3_region_init_ram = LOADADDR (.data);  WRONG */
+  /*  __cs3_region_init_ram = _etext; DRN updated this; seems correct...  bracz: not really. */
+  __cs3_region_init_ram = LOADADDR(.data);
+  __cs3_region_init_size_ram = _edata - ADDR (.data);
+  __cs3_region_zero_size_ram = _end - _edata;
+
+  /* Compute space available for stack+heap... */
+  AVAILABLE_RAM_FOR_STACK_PLUS_HEAP = LENGTH(ram)-(SIZEOF(.data)+SIZEOF(.bss));
+
+
   
 
 
