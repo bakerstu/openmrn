@@ -28,6 +28,12 @@
         .globl \C_PURE_ISR_NAME
 	.section .vector_\_XX,"ax",%progbits
 	j	\C_PURE_ISR_NAME
+	/* We have a bunch of NOPs here to ensure that if anyone else has
+	   any code in the .vector_NN section then we trigger a linker error */
+	nop
+	nop
+	nop
+	nop
 	nop
 
         
