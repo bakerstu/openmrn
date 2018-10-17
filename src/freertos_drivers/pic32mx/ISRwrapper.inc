@@ -35,7 +35,7 @@
 
         .macro  ISR_wrapper     _XX:req,C_ISR_NAME:req
 
-        RAW_ISR_wrapper         _XX,vector_\_XX\()_ISR_wrapper
+        RAW_ISR_wrapper         \_XX,vector_\_XX\()_ISR_wrapper
 
   /*
   ** First, fill in interrupt vector to branch to the ISR wrapper
@@ -131,3 +131,38 @@ vector_\_XX\()_ISR_wrapper:
 	.end	vector_\_XX\()_ISR_wrapper
 
         .endm
+
+/* Header file in which portSAVE_CONTEXT and portRESTORE_CONTEXT are defined. */
+#include "ISR_Support.h"
+
+	.macro  FREERTOS_ISR_wrapper     _XX:req,C_ISR_NAME:req
+
+	RAW_ISR_wrapper		\_XX,\C_ISR_NAME\()_wrapper
+
+	.section .rodata.\C_ISR_NAME\()_vector_number
+	.align 4
+	.globl  \C_ISR_NAME\()_vector_number
+	.type	\C_ISR_NAME\()_vector_number, %object
+\C_ISR_NAME\()_vector_number:	
+	.4byte	\_XX
+	
+	.section .text,"ax",%progbits
+        .align  2
+        .set    nomips16
+	.set	noreorder
+	.set	noat
+	.globl  \C_ISR_NAME\()_wrapper
+	.type	\C_ISR_NAME\()_wrapper, %function
+	.ent	\C_ISR_NAME\()_wrapper
+\C_ISR_NAME\()_wrapper:
+	portSAVE_CONTEXT
+	jal	\C_ISR_NAME
+	nop
+	portRESTORE_CONTEXT
+
+	.set	macro
+	.set	reorder
+	.end	\C_ISR_NAME\()_wrapper
+	
+	.endm
+
