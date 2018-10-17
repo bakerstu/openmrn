@@ -189,10 +189,17 @@ private:
         return (INT_VECTOR)(INT_VECTOR_UART(hw_));
     }
 
+    /// Enum describing which uart module we are using. We need to pass this to
+    /// the middleware calls.
     UART_MODULE hw_;
+    /// This is the hardware vector number for the UART module. That is NOT the
+    /// same as the INT_VECTOR enum.
     unsigned intVector_;
+    /// Stats variable.
     unsigned numIrq_ = 0;
+    /// Stats variable.
     unsigned numIrqTx_ = 0;
+    /// Stats variable.
     unsigned numIrqRx_ = 0;
 };
 
