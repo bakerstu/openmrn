@@ -99,8 +99,6 @@ EXTERN(__cs3_start_c main __cs3_stack __cs3_heap_end) */
  *                     the command line using the linker's --defsym option.
  */
 EXTERN (_min_stack_size _min_heap_size)
-PROVIDE(_min_stack_size = 2k) ;
-PROVIDE(_min_heap_size  = 9k) ;
 PROVIDE(__cs3_heap_start = _end );
 PROVIDE(__cs3_heap_end = __cs3_region_start_ram + __cs3_region_size_ram - _min_stack_size);
 PROVIDE(__cs3_stack = __cs3_region_start_ram + __cs3_region_size_ram); /* stack grows down from end of RAM */
