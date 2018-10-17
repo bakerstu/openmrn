@@ -47,10 +47,11 @@ extern "C"
 class Pic32mxUart : public Serial
 {
 public:
-    Pic32mxUart(const char *name, UART_MODULE periph, uint32_t interrupt,
+    Pic32mxUart(const char *name, UART_MODULE periph, uint32_t int_vec,
         unsigned baud = 115200, bool enable_rts_cts = false)
         : Serial(name)
         , hw_(periph)
+        , intVector_(int_vec)
     {
         unsigned rtscfg = UART_ENABLE_PINS_TX_RX_ONLY;
         if (enable_rts_cts)
@@ -189,6 +190,7 @@ private:
     }
 
     UART_MODULE hw_;
+    unsigned intVector_;
     unsigned numIrq_ = 0;
     unsigned numIrqTx_ = 0;
     unsigned numIrqRx_ = 0;
