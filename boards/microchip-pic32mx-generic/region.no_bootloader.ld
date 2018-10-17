@@ -1,9 +1,11 @@
 
 REGION_ALIAS("REGION_RESET", flash_boot);
+REGION_ALIAS("REGION_INT", flash_boot);
 REGION_ALIAS("REGION_PGM", flash_user);
 
 /* must be on a 4kb page boundary; rounded down */
 _ebase_address  = ORIGIN(flash_boot);
+_textoffs = ORIGIN(REGION_PGM) + 0;
 
 SECTIONS
 {
