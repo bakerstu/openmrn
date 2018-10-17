@@ -52,6 +52,22 @@ appropriate changes and makefiles:
 
 https://github.com/balazsracz/mr-misc/tree/master/pic32/bootloader
 
+# Fuses and Clock configuration
+
+For the PIC32MX the default oscialltor configuration comes out of flash fuses
+called configuration words. These set the default clock source, multipliers
+etc. By default it is the bootloader .HEX file that sets the fuses.
+
+The configuration of the aforementioned USB bootloader is the following:
+
+- external 8MHz crystal
+- 80MHz CPU clock (using PLL)
+- 40Mhz peripheral clock (PBCLK)
+
+When flashing an independent binary, the configuration fuse bits are defined in
+the file `pic32mx_cfg_init.c`.
+
+
 # Flashing
 
 To flash a standalone binary, use the PicKit, and use the program pic32prog. The
@@ -145,3 +161,6 @@ Driver sources are located at `src/freertos_drivers/pic32mx`.
 
 To add a driver that uses an interrupt, edit the file `ISRwrapper.S`. Interrupts
 must save and restore FreeRTOS context using the logic in this file.
+
+Interrupt priorities are as follows: priorities numbered 0..3 are within kernel
+priority. Priorities numbered 4..7 are raw interrupts.

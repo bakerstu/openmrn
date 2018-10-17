@@ -280,7 +280,7 @@ Pic32mxCdc::Pic32mxCdc(const char *name)
 
     // Set priority of USB interrupt source. This has to be within kernel
     // interrupt priority.
-    SYS_INT_VectorPrioritySet(INT_VECTOR_USB1, INT_PRIORITY_LEVEL2);
+    SYS_INT_VectorPrioritySet(INT_VECTOR_USB1, INT_PRIORITY_LEVEL1);
 
     // Set Sub-priority of USB interrupt source
     SYS_INT_VectorSubprioritySet(INT_VECTOR_USB1, INT_SUBPRIORITY_LEVEL0);
