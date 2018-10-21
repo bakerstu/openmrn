@@ -77,7 +77,7 @@ extern void hw_set_to_safe(void);
  */
 void reset_handler(void)
 {
-    asm("cpsid i\n");
+    __asm("cpsid i\n");
 
     unsigned long *section_table_addr = &__data_section_table;
 
@@ -128,14 +128,29 @@ void hard_fault_handler_step_3(void);
 
 __attribute__((__naked__)) static void hard_fault_handler(void)
 {
+// set switch to 0 in order to alternatively recreate the previous stack frame
+// and hald the CPU
+#if 1
     __asm volatile
     (
         " tst   lr, #4               \n"
         " ite   eq                   \n"
         " mrseq r0, msp              \n"
         " mrsne r0, psp              \n"
-        " ldr r1, =hard_fault_handler_step_2 \n"
-        " bx r1 \n");
+        " ldr r1, [r0, #24]          \n"
+        " ldr r2, =hard_fault_handler_step_2 \n"
+        " bx r2 \n");
+#else
+    __asm volatile
+    (
+        " tst   lr, #4 \n"
+        " ite   eq     \n"
+        " mrseq r0, msp\n"
+        " mrsne r0, psp\n"
+        " mov   sp, r0 \n"
+        " bkpt  #1     \n"
+    );
+#endif
 #if 0
     // saves our return address
         " mov   r2, lr               \n"
@@ -218,7 +233,7 @@ __attribute__((optimize("-O0"),unused)) void hard_fault_handler_step_2(unsigned 
     fault_info->_BFAR = (*((volatile unsigned long *)(0xE000ED38))) ;
 
     hw_set_to_safe();
-    diewith(BLINK_DIE_HARDFAULT);
+    __asm volatile ("cpsid i\n");
 
     // Simulates a BL instruction from the original PC. Moves the PC to LR,
     // overwrites PC with our return address.
@@ -249,6 +264,7 @@ void hard_fault_handler_step_3(void) {
     __asm(
         " mov r1, %0 \n"
         " msr basepri, r1 \n"
+        " cpsie i\n"
         " ldr r0, =faultInfo \n"
         " ldr r3, [r0, 12]   \n"
         " ldr r2, [r0, 8]    \n"

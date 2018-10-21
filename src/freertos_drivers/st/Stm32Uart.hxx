@@ -36,13 +36,13 @@
 
 #include <cstdint>
 
-#if defined(STM32F072xB)
+#if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_hal_dma.h"
 #include "stm32f0xx_hal_uart.h"
 #elif defined(STM32F103xB)
 #include "stm32f1xx_hal_dma.h"
 #include "stm32f1xx_hal_uart.h"
-#elif defined(STM32F303xC)
+#elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_hal_dma.h"
 #include "stm32f3xx_hal_uart.h"
 #else
@@ -106,7 +106,7 @@ private:
    || defined (STM32F078xx)
     /** Instance pointers help us get context from the interrupt handler(s) */
     static Stm32Uart *instances[4];
-#elif defined (STM32F303xC)
+#elif defined (STM32F303xC) || defined (STM32F303xE)
     static Stm32Uart *instances[5];
 #elif defined (STM32F030xC)
     /** Instance pointers help us get context from the interrupt handler(s) */

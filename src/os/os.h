@@ -326,7 +326,7 @@ OS_INLINE os_thread_t os_thread_self(void)
  * @param thread handle to thread of interest
  * @return current thread priority
  */
-OS_INLINE int os_thread_getpriority(os_thread_t thread)
+OS_INLINE int os_thread_get_priority(os_thread_t thread)
 {
 #if defined (__FreeRTOS__)
     return uxTaskPriorityGet(thread);
@@ -337,6 +337,34 @@ OS_INLINE int os_thread_getpriority(os_thread_t thread)
     int policy;
     pthread_getschedparam(thread, &policy, &params);
     return params.sched_priority;
+#endif
+}
+
+/** Get the minimum thread priority.
+ * @return minimum trhead priority
+ */
+OS_INLINE int os_thread_get_priority_min(void)
+{
+#if defined (__FreeRTOS__)
+    return 1;
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+    return 0xdeadbeef;
+#else
+    return sched_get_priority_min(SCHED_FIFO);
+#endif
+}
+
+/** Get the maximum thread priority.
+ * @return maximum trhead priority
+ */
+OS_INLINE int os_thread_get_priority_max(void)
+{
+#if defined (__FreeRTOS__)
+    return configMAX_PRIORITIES - 1;
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+    return 0xdeadbeef;
+#else
+    return sched_get_priority_max(SCHED_FIFO);
 #endif
 }
 

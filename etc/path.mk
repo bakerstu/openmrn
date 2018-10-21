@@ -33,6 +33,11 @@ ifeq ($(OS),Windows_NT)
 include $(OPENMRNPATH)/etc/path_windows.mk
 else
 
+################ shell ##################
+# Various commands in the makefiles are using the bash syntax. We ignore the
+# user's login shell preferences and use a specific shell instead.
+export SHELL :=/bin/bash
+
 ################ flock ##################
 ifndef FLOCKPATH
 SEARCHPATH := \
@@ -59,7 +64,7 @@ TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 TIVAWAREPATH:=$(TRYPATH)
 TRYPATH:=$(call findfirst,inc/hw_onewire.h,$(TRYPATH))
-ifneq ($TRYPATH),)
+ifneq ($(TRYPATH),)
 BUILDTIVAWARE:=$(TRYPATH)
 endif
 endif
@@ -175,6 +180,7 @@ ifndef FREERTOSPATH
 SEARCHPATH := \
   /opt/FreeRTOS \
   /opt/FreeRTOS/default \
+  /opt/FreeRTOS/default/FreeRTOS \
   $(HOME)/FreeRTOS \
   /d/FreeRTOS/default
 
@@ -377,6 +383,7 @@ SEARCHPATH := \
   $(GMOCKPATH)/gtest \
   /opt/gmock/default/gtest \
   /opt/gtest/gtest \
+  /opt/gtest/default \
   /usr \
 
 TRYPATH:=$(call findfirst,include/gtest/gtest.h,$(SEARCHPATH))
@@ -405,12 +412,8 @@ SEARCHPATH := \
   /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_MIPS_ELF \
   /opt/MentorGraphics/default_mips_elf \
 
-
-# To download go here https://sourcery.mentor.com/GNUToolchain/release3215
-
-# or the aggregate page:
-# https://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/
-# and make sure to select the ELF release for MIPS processor.
+# Master page for releases is https://sourcery.mentor.com/GNUToolchain/subscription3537?lite=MIPS
+# To download latest release (2016-05) go here https://sourcery.mentor.com/GNUToolchain/release3215
 
 TRYPATH:=$(call findfirst,bin/mips-sde-elf-g++,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
@@ -456,6 +459,17 @@ PIC32MXLEGACYPLIBPATH:=$(TRYPATH)
 endif
 endif #PIC32MXLEGACYPLIBPATH
 
+################### PIC32HARMONY #####################
+ifndef PIC32HARMONYPATH
+SEARCHPATH := \
+  /opt/microchip/harmony/default \
+
+TRYPATH:=$(call findfirst,framework/usb/usb_cdc.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+PIC32HARMONYPATH:=$(TRYPATH)
+endif
+endif #PIC32HARMONYPATH
+
 ##################### OPENOCD ######################
 ifndef OPENOCDPATH
 SEARCHPATH := \
@@ -476,6 +490,7 @@ SEARCHPATH := \
   /opt/openocd/default/openocd/tcl \
   /opt/openocd/default/tcl \
   /opt/openocd/default/scripts \
+  /opt/openocd/default/share/openocd/scripts \
   /usr/local/share/openocd/scripts \
   /usr/share/openocd/scripts \
 
@@ -491,6 +506,7 @@ ifndef EMSDKPATH
 SEARCHPATH := \
   /opt/emscripten/default/emscripten/master \
   /opt/emscripten/emsdk_portable/emscripten/master \
+  $(wildcard /opt/emscripten/default/emsdk/emscripten/*) \
   /usr/bin
 
 
@@ -505,6 +521,7 @@ ifndef EMLLVMPATH
 SEARCHPATH := \
   /opt/emscripten/default/clang/fastcomp/build_master_64/bin \
   /opt/emscripten/default/clang/fastcomp/build_master_32/bin \
+  $(wildcard /opt/emscripten/default/emsdk/clang/*) \
   /usr/bin
 
 

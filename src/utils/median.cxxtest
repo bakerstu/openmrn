@@ -1,0 +1,59 @@
+#include "utils/test_main.hxx"
+
+#include "utils/median.hxx"
+
+class Median5Test : public ::testing::Test
+{
+protected:
+    /// Tests all permutations of a given set;
+    void test_one_set(std::vector<unsigned> entries)
+    {
+        ASSERT_EQ(5u, entries.size());
+        unsigned actual = median_5(
+            entries[0], entries[1], entries[2], entries[3], entries[4]);
+        std::sort(entries.begin(), entries.end());
+        unsigned expected = entries[3];
+        EXPECT_EQ(expected, actual);
+    }
+
+    void test_all_permutations(std::vector<unsigned> entries)
+    {
+        ASSERT_EQ(5u, entries.size());
+        std::sort(entries.begin(), entries.end());
+        unsigned expected = entries[2];
+        while (std::next_permutation(entries.begin(), entries.end()))
+        {
+            unsigned actual = median_5(
+                entries[0], entries[1], entries[2], entries[3], entries[4]);
+            ASSERT_EQ(expected, actual)
+                << "Failed for [" << entries[0] << "," << entries[1] << ","
+                << entries[2] << "," << entries[3] << "," << entries[4] << "]";
+            ++numTests_;
+        }
+    }
+
+    void test_next_element(unsigned idx)
+    {
+        if (idx >= 5)
+        {
+            test_all_permutations(elements_);
+            return;
+        }
+        for (unsigned v = 1; v <= 5; ++v)
+        {
+            elements_[idx] = v;
+            test_next_element(idx + 1);
+        }
+    }
+
+    std::vector<unsigned> elements_;
+    unsigned numTests_;
+};
+
+TEST_F(Median5Test, test_all)
+{
+    elements_.resize(5);
+    test_next_element(0);
+    fprintf(stderr, "num tests %u\n", numTests_);
+    EXPECT_GE(numTests_, 5u*5*5*5 * 4*3);
+}

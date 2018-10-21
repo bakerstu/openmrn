@@ -92,7 +92,7 @@ ExecutorBase *ExecutorBase::by_name(const char *name, bool wait)
     for (; /* forever */;)
     {
         {
-            AtomicHolder hld(&headMu_);
+            AtomicHolder hld(head_mu());
             ExecutorBase *current = head_;
             while (current)
             {
@@ -286,14 +286,16 @@ void *ExecutorBase::entry()
     {
         Executable *msg = nullptr;
         unsigned priority = UINT_MAX;
-        long long wait_length = activeTimers_.get_next_timeout();
-        if (!selectPrescaler_ || empty()) {
+        if (!selectPrescaler_ || ((msg = next(&priority)) == nullptr))
+        {
+            long long wait_length = activeTimers_.get_next_timeout();
             wait_with_select(wait_length);
             selectPrescaler_ = config_executor_select_prescaler();
             msg = next(&priority);
-        } else {
+        }
+        else
+        {
             --selectPrescaler_;
-            msg = next(&priority);
         }
         if (msg == this)
         {

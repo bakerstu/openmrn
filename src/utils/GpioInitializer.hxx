@@ -49,6 +49,10 @@ template <> struct GpioInitHelper<std::tuple<>>
     static void hw_set_to_safe()
     {
     }
+    /// set part of the end of the recursion.
+    static void set(bool value)
+    {
+    }
 };
 
 /// General recursion step. Calls the hw_init / hw_set_to_safe function on the
@@ -67,6 +71,12 @@ struct GpioInitHelper<std::tuple<Head, Tail...>>
     {
         Head::hw_set_to_safe();
         GpioInitHelper<std::tuple<Tail...>>::hw_set_to_safe();
+    }
+    /// Middle step of the recursion for an individual pin.
+    static void set(bool value)
+    {
+        Head::set(value);
+        GpioInitHelper<std::tuple<Tail...>>::set(value);
     }
 };
 
@@ -98,6 +108,11 @@ public:
     static void hw_set_to_safe()
     {
         GpioInitHelper<std::tuple<Args...>>::hw_set_to_safe();
+    }
+    /// Calls the set() function for all declared pins.
+    static void set(bool value)
+    {
+        GpioInitHelper<std::tuple<Args...>>::set(value);
     }
 };
 

@@ -1,1 +1,1 @@
-../../../../boards/mc-pic32mx-lccbuffer/Makefile
+../../../../boards/microchip-pic32mx-lccbuffer/Makefile

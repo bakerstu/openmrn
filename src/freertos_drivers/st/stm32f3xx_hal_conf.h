@@ -118,6 +118,12 @@
 /// Enable module
 #define HAL_WWDG_MODULE_ENABLED
 
+/* Workaround for the broken UNUSED macro */
+#include "stm32f3xx_hal_def.h"
+#undef UNUSED
+#define UNUSED(x) ((void)((uint32_t)(x)))
+ 
+ 
 /* ########################## HSE/HSI Values adaptation ##################### */
 /**
   * @brief Adjust the value of External High Speed oscillator (HSE) used in your application.
@@ -168,6 +174,13 @@
  #define LSE_VALUE  ((uint32_t)32768)    /*!< Value of the External Low Speed oscillator in Hz */
 #endif /* LSE_VALUE */     
 
+/**
+  * @brief Time out for LSE start up value in ms.
+  */
+#if !defined  (LSE_STARTUP_TIMEOUT)
+  #define LSE_STARTUP_TIMEOUT  5000U     /*!< Time out for LSE start up, in ms */
+#endif /* LSE_STARTUP_TIMEOUT */
+ 
 /**
   * @brief External clock source for I2S peripheral
   *        This value is used by the I2S HAL module to compute the I2S clock source 

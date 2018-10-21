@@ -38,8 +38,7 @@
 
 #include <fcntl.h>
 
-#include "CC3200_compat/simplelink.h"
-#include "fs.h"
+#include <ti/drivers/net/wifi/simplelink.h>
 
 /*
  * CC32xxDeviceFile::open()
@@ -97,55 +96,58 @@ int CC32xxDeviceFile::open(File* file, const char *path, int flags, int mode)
         if (flags & O_CREAT)
         {
             result = sl_FsOpen((const unsigned char *)path,
-                               FS_MODE_OPEN_CREATE(maxSizeOnCreate, 0),
-                               nullptr, &handle);
+                               SL_FS_CREATE |
+                               SL_FS_CREATE_MAX_SIZE(maxSizeOnCreate),
+                               nullptr);
             writeEnable = true;
         }
         else if (flags & O_WRONLY)
         {
-            result = sl_FsOpen((const unsigned char *)path, FS_MODE_OPEN_WRITE,
-                               nullptr, &handle);
+            result = sl_FsOpen((const unsigned char *)path, SL_FS_WRITE,
+                               nullptr);
             writeEnable = true;
         }
         else
         {
-            result = sl_FsOpen((const unsigned char *)path, FS_MODE_OPEN_READ,
-                               nullptr, &handle);
+            result = sl_FsOpen((const unsigned char *)path, SL_FS_READ,
+                               nullptr);
             writeEnable = false;
         }
-        if (result != 0)
+        if (result < 0)
         {
             /* error occured in opening file */
             handle = -1;
             lock_.unlock();
             switch (result)
             {
-                case SL_FS_ERR_INVALID_MAGIC_NUM:
+                case SL_ERROR_FS_INVALID_MAGIC_NUM:
                     sl_FsDel((const unsigned char *)path, 0);
-                    sl_FsOpen((const unsigned char *)path,
-                              FS_MODE_OPEN_CREATE(maxSizeOnCreate, 0),
-                              nullptr, &handle);
+                    handle = sl_FsOpen((const unsigned char *)path,
+                              SL_FS_CREATE |
+                              SL_FS_CREATE_MAX_SIZE(maxSizeOnCreate),
+                              nullptr);
                     sl_FsClose(handle, nullptr, nullptr, 0);
                     // This error happens when the file was created but not
                     // closed and thus the FAT entry is not correctly
                     // written. The workaround is to re-create the file, so
                     // we'll return as if it was nonexistant.
-                case SL_FS_FILE_HAS_NOT_BEEN_CLOSE_CORRECTLY:
+                case SL_ERROR_FS_FILE_HAS_NOT_BEEN_CLOSE_CORRECTLY:
                     // we fake a not existent error here. When the file gets
                     // opened for write, that will work.
 
                     return -ENOENT;
-                case SL_FS_ERR_FILE_NOT_EXISTS:
+                case SL_ERROR_FS_FILE_NOT_EXISTS:
                     return -ENOENT;
                 default:
                     SlCheckError(result);
                     return -ENOENT;
             }
         }
+        handle = result;
         SlFsFileInfo_t info;
         sl_FsGetInfo((const unsigned char *)path, 0, &info);
-        size = info.SL_FileLen;
-        maxSize = info.SL_AllocatedLen;
+        size = info.Len;
+        maxSize = info.MaxSize;
     }
     lock_.unlock();
 
@@ -214,7 +216,7 @@ int CC32xxDeviceFile::fstat(File* file, struct stat *stat) {
     SlFsFileInfo_t fs_file_info;
     int ret = sl_FsGetInfo((const uint8_t*)name, 0, &fs_file_info);
     SlCheckResult(ret);
-    stat->st_size = fs_file_info.SL_FileLen;
-    stat->st_blocks = fs_file_info.SL_AllocatedLen / 512;
+    stat->st_size = fs_file_info.Len;
+    stat->st_blocks = fs_file_info.MaxSize / 512;
     return 0;
 }

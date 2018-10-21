@@ -66,22 +66,41 @@ TEST_F(ConfigUpdateFlowTest, CreateDestroy)
 {
 }
 
-TEST_F(ConfigUpdateFlowTest, CallListener)
+TEST_F(ConfigUpdateFlowTest, CallListenerWithInitial)
 {
-    updateFlow_.register_update_listener(&l1);
+    wait_for_main_executor();
     updateFlow_.TEST_set_fd(23);
+    EXPECT_CALL(l1, apply_configuration(23, true, _))
+        .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
+                        Return(ConfigUpdateListener::UPDATED)));
+    updateFlow_.register_update_listener(&l1);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&l1);
+
     EXPECT_CALL(l1, apply_configuration(23, false, _))
         .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
                         Return(ConfigUpdateListener::UPDATED)));
+
     updateFlow_.trigger_update();
     wait_for_main_executor();
 }
 
 TEST_F(ConfigUpdateFlowTest, CallMultipleListener)
 {
+    updateFlow_.TEST_set_fd(23);
+
+    EXPECT_CALL(l1, apply_configuration(23, true, _))
+        .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
+                        Return(ConfigUpdateListener::UPDATED)));
+    EXPECT_CALL(l2, apply_configuration(23, true, _))
+        .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
+                        Return(ConfigUpdateListener::UPDATED)));
+
     updateFlow_.register_update_listener(&l1);
     updateFlow_.register_update_listener(&l2);
-    updateFlow_.TEST_set_fd(23);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&l1);
+    Mock::VerifyAndClear(&l2);
 
     EXPECT_CALL(l1, apply_configuration(23, false, _))
         .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
@@ -89,29 +108,35 @@ TEST_F(ConfigUpdateFlowTest, CallMultipleListener)
     EXPECT_CALL(l2, apply_configuration(23, false, _))
         .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
                         Return(ConfigUpdateListener::UPDATED)));
+
     updateFlow_.trigger_update();
     wait_for_main_executor();
 }
 
 TEST_F(ConfigUpdateFlowTest, AsyncListenerCall)
 {
-    updateFlow_.register_update_listener(&l1);
-    updateFlow_.register_update_listener(&l2);
     updateFlow_.TEST_set_fd(17);
-
-    Notifiable* d = nullptr;
-    EXPECT_CALL(l2, apply_configuration(17, false, _))
-        .WillOnce(DoAll(SaveArg<2>(&d),
-                        Return(ConfigUpdateListener::RETRY)));
-    updateFlow_.trigger_update();
-    wait_for_main_executor();
-    // The second listener will not be called until the first reports done.
-    wait_for_main_executor();
-    // The first will also be called again as a retry.
-    EXPECT_CALL(l2, apply_configuration(17, false, _))
+    EXPECT_CALL(l1, apply_configuration(17, true, _))
         .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
                         Return(ConfigUpdateListener::UPDATED)));
+    EXPECT_CALL(l2, apply_configuration(17, true, _))
+        .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
+                        Return(ConfigUpdateListener::UPDATED)));
+    updateFlow_.register_update_listener(&l1);
+    updateFlow_.register_update_listener(&l2);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&l1);
+    Mock::VerifyAndClear(&l2);
+
+    Notifiable* d = nullptr;
     EXPECT_CALL(l1, apply_configuration(17, false, _))
+        .WillOnce(DoAll(SaveArg<2>(&d),
+                        Return(ConfigUpdateListener::UPDATED)));
+    updateFlow_.trigger_update();
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&l1);
+    // The second will also be called now.
+    EXPECT_CALL(l2, apply_configuration(17, false, _))
         .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
                         Return(ConfigUpdateListener::UPDATED)));
     d->notify();
@@ -120,12 +145,26 @@ TEST_F(ConfigUpdateFlowTest, AsyncListenerCall)
 
 TEST_F(ConfigUpdateFlowTest, InitialLoad)
 {
+    updateFlow_.~ConfigUpdateFlow();
+    // This code simulates what happens during startup in a real
+    // binary. Specifically, the executor is not running yet when things get
+    // registered.
+    BlockExecutor block(nullptr);
+    new (&updateFlow_) ConfigUpdateFlow(ifCan_.get());
+    updateFlow_.open_file("/dev/zero");
+    updateFlow_.init_flow();
     updateFlow_.register_update_listener(&l1);
     EXPECT_CALL(l1, apply_configuration(::testing::Gt(0), true, _))
         .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
                         Return(ConfigUpdateListener::UPDATED)));
-    updateFlow_.open_file("/dev/zero");
-    updateFlow_.init_flow();
+    block.release_block();
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&l1);
+
+    EXPECT_CALL(l1, apply_configuration(::testing::Gt(0), false, _))
+        .WillOnce(DoAll(WithArg<2>(Invoke(&InvokeNotification)),
+                        Return(ConfigUpdateListener::UPDATED)));
+    updateFlow_.trigger_update();
     wait_for_main_executor();
 }
 

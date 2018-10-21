@@ -12,8 +12,9 @@ SRCS = $(wildcard *.dox) $(wildcard *.md) \
        $(wildcard ../src/freertos_drivers/ti/*.h) \
        $(wildcard ../src/freertos_drivers/ti/*.c) \
        $(wildcard ../src/freertos_drivers/ti/*.hxx) \
-       $(wildcard ../src/freertos_drivers/ti/*.cxx)
-
+       $(wildcard ../src/freertos_drivers/ti/*.cxx) \
+       $(wildcard ../applications/*/*.md) \
+       Doxyfile
 
 all:
 

@@ -51,6 +51,7 @@
 #include "utils/Charlieplex.hxx"
 #include "TivaDev.hxx"
 #include "TivaEEPROMEmulation.hxx"
+#include "TivaEEPROMBitSet.hxx"
 #include "DummyGPIO.hxx"
 #include "hardware.hxx"
 #include "TivaDCCDecoder.hxx"
@@ -181,7 +182,7 @@ unsigned *stat_led_ptr() {
 #endif
 }
 
-void RailcomDefs::enable_measurement() {
+void RailcomDefs::enable_measurement(bool) {
   Debug::MeasurementEnabled::set(true);
   bypass_control.set(false);
   SysCtlDelay(26);
@@ -197,6 +198,12 @@ static TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
 /** The input pin for detecting the DCC signal. */
 static TivaDccDecoder<DCCDecode> nrz0("/dev/nrz0", &railcom_driver);
 
+namespace bracz_custom {
+extern StoredBitSet* g_gpio_stored_bit_set;
+StoredBitSet* g_gpio_stored_bit_set = nullptr;
+}
+constexpr unsigned EEPROM_BIT_COUNT = 84;
+constexpr unsigned EEPROM_BITS_PER_CELL = 28;
 
 extern "C" {
 /** Blink LED */
@@ -282,6 +289,11 @@ void timer2a_interrupt_handler(void)
   nrz0.rcom_interrupt_handler();
 }
 
+void wide_timer2a_interrupt_handler(void)
+{
+  nrz0.os_interrupt_handler();
+}
+  
 void uart1_interrupt_handler(void)
 {
   railcom_driver.os_interrupt_handler();
@@ -372,6 +384,8 @@ void hw_postinit(void)
     // has created the object itself.
     MAP_TimerIntEnable(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMER3_BASE, TIMER_A);
+
+    bracz_custom::g_gpio_stored_bit_set = new EEPROMStoredBitSet<TivaEEPROMHwDefs<EEPROM_BIT_COUNT, EEPROM_BITS_PER_CELL>>(2, 2);
 }
 
 }

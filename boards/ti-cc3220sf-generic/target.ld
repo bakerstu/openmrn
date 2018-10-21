@@ -10,11 +10,12 @@ REGION_ALIAS("REGION_PGM", FLASH);
 
 SECTIONS
 {
-    .text : ALIGN (2048)
-    {
+    .dbghdr : ALIGN (2048) {
         KEEP (*(.dbghdr))
-        . = ALIGN(2048);
-        _text = .;
+    } > FLASH_HDR
+
+    .text : ALIGN (1024)
+    {
         KEEP(*(.interrupt_vector))
 
         /* Makes place for the app header to be filled in by the bootloader

@@ -135,7 +135,12 @@ void SocketListener::AcceptThreadBody() {
                     (struct sockaddr *)&addr,
                     &namelen);
     if (connfd < 0) {
-      if (errno == EINTR || errno == EAGAIN || errno == EMFILE) continue;
+      if (errno == EINTR || errno == EAGAIN || errno == EMFILE) {
+        continue;
+      }
+      else if (errno == ECONNABORTED) {
+        break;
+      }
       print_errno_and_exit("accept");
       return;
     }

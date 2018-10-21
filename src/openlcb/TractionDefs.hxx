@@ -76,14 +76,6 @@ struct TractionDefs {
     static const uint64_t IS_TRAIN_EVENT = 0x0101000000000303ULL;
     /// This event should be produced by traction proxy nodes.
     static const uint64_t IS_PROXY_EVENT = 0x0101000000000304ULL;
-    /// Producing this event causes all operations to stop (usually by turning
-    /// off the command station power output).
-    /// @TODO : there is a mistake in this constant. It should start with
-    /// 0100 by the standard (instead of 0101).
-    static const uint64_t EMERGENCY_STOP_EVENT = 0x010000000000FFFFULL;
-    /// Producing this event resumes all operations (usually by turning power
-    /// back on).
-    static const uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010000000000FFFEULL;
     /// Base address of DCC accessory decoder well-known event range (active)
     static constexpr uint64_t ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE = 0x0101020000FF0000ULL;
     /// Base address of DCC accessory decoder well-known event range (inactive)
@@ -308,6 +300,32 @@ struct TractionDefs {
             }
         }
         return ret;
+    }
+
+    /** Renders a guess at the traction node name. If it is a recognized train
+     * node range, renders te default name for that protocol, otherwise a mac
+     * address format.
+     *
+     * @param node_id is the train node OpenLCB node ID
+     * @return a user-visible node name */
+    static string guess_train_node_name(NodeID node_id)
+    {
+        dcc::TrainAddressType decoded_type;
+        uint32_t decoded_address = 0xFFFF;
+        if (legacy_address_from_train_node_id(
+                node_id, &decoded_type, &decoded_address))
+        {
+            // We recognized this as a legacy address. Use the legacy node name
+            // to display.
+            return train_node_name_from_legacy(decoded_type, decoded_address);
+        }
+        else
+        {
+            // Format the node MAC address.
+            uint8_t idbuf[6];
+            node_id_to_data(node_id, idbuf); // convert to big-endian
+            return mac_to_string(idbuf);
+        }
     }
 
     static Payload estop_set_payload() {

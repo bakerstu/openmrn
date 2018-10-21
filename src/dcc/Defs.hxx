@@ -47,6 +47,11 @@ enum class TrainAddressType
     DCC_LONG_ADDRESS,
     /// Marklin-motorola packets. Addresses 1..80 are supported.
     MM,
+    /// Unsupported address type (e.g. a protocol we don't have an
+    /// implementation for).
+    UNSUPPORTED = 255,
+    /// Unspecified address type (default / match any).
+    UNSPECIFIED = 254,
 };
 
 }  // namespace dcc

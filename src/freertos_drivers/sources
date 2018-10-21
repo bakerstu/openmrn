@@ -27,14 +27,15 @@ CXXSRCS += Fileio.cxx \
 
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
-SUBDIRS += drivers_pic32mx530 plib_pic32mx530 drivers_pic32mx795 plib_pic32mx795
+SUBDIRS += drivers_pic32mx530 plib_pic32mx530 \
+           drivers_pic32mx795 plib_pic32mx795 \
+           usb_pic32mx795
 endif
 
 ifeq ($(TARGET),freertos.armv7m)
 SUBDIRS += mbed_lpc1768 drivers_lpc1768 tivaware lpc_chip_175x_6x \
-           stm32cubef103xb stm32cubef303x_28x_58x_98x \
-           cc3220sdk net_cc3220 cc3220 cc3220driverlib \
-           cc32xxsdk net_cc32xx cc32xx \
+           stm32cubef103xb stm32cubef303x_28x_58x_98x stm32cubef303xe \
+           cc3220sdk net_cc3220 cc3220 \
            net_freertos_tcp freertos_tcp ti_grlib \
            spiffs_cc32x0sf
 
@@ -55,7 +56,7 @@ SUBDIRS += drivers_lpc2368
 endif
 
 ifeq ($(TARGET),freertos.armv6m)
-SUBDIRS += drivers_lpc11cxx stm32cubef071xb_2xb
+SUBDIRS += drivers_lpc11cxx stm32cubef071xb_2xb stm32cubef091xc
 # Avoids exception handling from operator new.
 CXXSRCS += c++_operators.cxx
 endif

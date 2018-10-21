@@ -53,6 +53,7 @@
 
 #include "openlcb/EventHandler.hxx"
 #include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/NodeInitializeFlow.hxx"
 
 namespace openlcb
 {
@@ -171,11 +172,13 @@ void SimpleCanStackBase::restart_stack()
 
     // Bootstraps the fresh alias allocation process.
     ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
-    extern void StartInitializationFlow(Node * node);
-    StartInitializationFlow(node());
+    // Causes all nodes to grab a new alias and send out node initialization
+    // done messages. This object owns itself and will do `delete this;` at the
+    // end of the process.
+    new ReinitAllNodes(&ifCan_);
 }
 
-void SimpleCanStackBase::create_config_file_if_needed(
+int SimpleCanStackBase::create_config_file_if_needed(
     const InternalConfigData &cfg, uint16_t expected_version,
     unsigned file_size)
 {
@@ -208,7 +211,7 @@ void SimpleCanStackBase::create_config_file_if_needed(
         reset = true;
     }
     if (!reset && !extend)
-        return;
+        return fd;
 
     // Clears the file, preserving the node name and desription if any.
     if (extend && !reset) {
@@ -244,9 +247,10 @@ void SimpleCanStackBase::create_config_file_if_needed(
     Uint8ConfigEntry(0).write(fd, 2);
     factory_reset_all_events(cfg, fd);
     configUpdateFlow_.factory_reset();
+    return fd;
 }
 
-void SimpleCanStackBase::check_version_and_factory_reset(
+int SimpleCanStackBase::check_version_and_factory_reset(
     const InternalConfigData &cfg, uint16_t expected_version, bool force)
 {
     HASSERT(CONFIG_FILENAME);
@@ -256,7 +260,6 @@ void SimpleCanStackBase::check_version_and_factory_reset(
         /// @todo (balazs.racz): We need to clear the eeprom. Best would be if
         /// there was an ioctl to return the eeprom to factory default state by
         /// just erasing the segments.
-        cfg.version().write(fd, expected_version);
         cfg.next_event().write(fd, 0);
         // ACDI version byte. This is not very nice because we cannot be
         // certain that the EEPROM starts with the ACDI data. We'll check it
@@ -269,7 +272,9 @@ void SimpleCanStackBase::check_version_and_factory_reset(
     {
         factory_reset_all_events(cfg, fd);
         configUpdateFlow_.factory_reset();
+        cfg.version().write(fd, expected_version);
     }
+    return fd;
 }
 
 /// Contains an array describing each position in the Configuration space that
