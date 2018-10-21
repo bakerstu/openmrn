@@ -123,6 +123,13 @@ private:
         return (INT_SOURCE)(INT_SOURCE_CAN(hw_));
     }
 
+    /// @return the interrupt vector enum as used by the internal tables of the
+    /// peripheral library.
+    INT_VECTOR can_vector()
+    {
+        return (INT_VECTOR)(INT_VECTOR_CAN(hw_));
+    }
+
     /// Hardware (enumeration value).
     CAN_MODULE hw_;
     /// How many times did we drop a frame because we did not have enough

@@ -40,8 +40,6 @@
 #include "can_frame.h"
 #include <fcntl.h>
 
-volatile int* g_pic32_last_stack_ptr;
-
 Pic32mxCan::Pic32mxCan(CAN_MODULE module, const char *dev, unsigned irq_vector)
     : Node(dev)
     , hw_(module)
@@ -383,20 +381,9 @@ void Pic32mxCan::enable()
      * The interrrupt peripheral library is used to enable
      * the CAN interrupt to the CPU. */
 
-    if (hw_ == CAN1)
-    {
-        INTSetVectorPriority(INT_CAN_1_VECTOR, INT_PRIORITY_LEVEL_2);
-        INTSetVectorSubPriority(INT_CAN_1_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
-        INTEnable(INT_CAN1, INT_ENABLED);
-    }
-#ifdef _CAN2
-    else
-    {
-        INTSetVectorPriority(INT_CAN_2_VECTOR, INT_PRIORITY_LEVEL_2);
-        INTSetVectorSubPriority(INT_CAN_2_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
-        INTEnable(INT_CAN2, INT_ENABLED);
-    }
-#endif
+    INTSetVectorPriority(can_vector(), INT_PRIORITY_LEVEL_2);
+    INTSetVectorSubPriority(can_vector(), INT_SUB_PRIORITY_LEVEL_0);
+    INTEnable(can_int(), INT_ENABLED);
     /* Step 7: Switch the CAN mode
      * to normal mode. */
 
@@ -410,35 +397,8 @@ void Pic32mxCan::disable()
     /* If the transmit buffer is not empty, we should crash here. Otherweise it
      * is possible that the user sends some frames, then closes the device and
      * the frames never get sent really. */
-    if (hw_ == CAN1)
-    {
-        INTEnable(INT_CAN1, INT_DISABLED);
-    }
-#ifdef _CAN2
-    else
-    {
-        INTEnable(INT_CAN2, INT_DISABLED);
-    }
-#endif
+    INTEnable(can_int(), INT_DISABLED);
     CANEnableModule(hw_, FALSE);
-}
-
-#ifdef _CAN2
-/// Filesystem device node for the second CAN device.
-//Pic32mxCan can1(CAN2, "/dev/can1");
-#endif
-
-extern "C" {
-
-/// Hardware interrupt for CAN2.
-void can2_interrupt(void)
-{
-#ifdef _CAN2
-//    can1.isr();
-    INTClearFlag(INT_CAN2);
-#endif
-}
-
 }
 
 /// @todo: process receive buffer overflow flags.
