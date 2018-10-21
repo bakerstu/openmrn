@@ -264,6 +264,7 @@ public:
     }
 
 private:
+    /// Reset our process local timezone environment to GMT0.
     void clear_timezone();
 
     /// Handle an incoming time update.
@@ -348,6 +349,7 @@ private:
         }
         else
         {
+            sleeping_ = false;
             return call_immediately(STATE(client_update_commit));
         }
     }
@@ -406,6 +408,7 @@ private:
         }
         else
         {
+            sleeping_ = false;
             // A date rollover sequence failed.  Query the clock in order to
             // resync.  In the meantime, continue using our internal time.
             return call_immediately(STATE(initialize));
@@ -450,12 +453,12 @@ private:
     unsigned started_         : 1; ///< true if clock is started
     unsigned immediateUpdate_ : 1; ///< true if the update should be immediate
     unsigned sleeping_        : 1; ///< true if stateflow is waiting on timer
-    unsigned waiting_         : 1;
+    unsigned waiting_         : 1; ///< true if stateflow is waiting
     unsigned rolloverPending_ : 1; ///< a day rollover is about to occur
     unsigned rolloverPendingDate_ : 1; ///< a day rollover is about to occur
     unsigned rolloverPendingYear_ : 1; ///< a day rollover is about to occur
 
-    struct tm tm_;
+    struct tm tm_; ///< the time we are last set to as a struct tm
     long long timestamp_; ///< monotonic timestamp from last server update
     time_t seconds_; ///< seconds clock time in seconds
     int16_t rate_; ///< effective clock rate
