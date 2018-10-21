@@ -4,6 +4,12 @@
 
 #include <inttypes.h>
 
+#if 1
+#define PRINT_ALL_PACKETS() print_all_packets()
+#else
+#define PRINT_ALL_PACKETS()
+#endif
+
 // test helper
 ::testing::AssertionResult IsBetweenInclusive(int val, int a, int b)
 {
@@ -23,11 +29,62 @@ public:
     MockBroadcastTimeClient(Node *node, NodeID clock_id,
                             bool configure_agent = false)
         : BroadcastTimeClient(node, clock_id, configure_agent)
+        , time_(0)
+        , mochRate_(1)
+        , mochStarted_(false)
     {
         snprintf(clockIDString_, 13, "%012" PRIX64, clock_id);
     }
 
+    void settime(int rate = 0, unsigned year = 0, unsigned month = 0,
+                 unsigned day = 1, unsigned hour = 0, unsigned minute = 0)
+    {
+        mochRate_ = rate;
+        tmMock_.tm_sec = 0;
+        tmMock_.tm_min = minute;
+        tmMock_.tm_hour = hour;
+        tmMock_.tm_mday = day;
+        tmMock_.tm_mon = month - 1;
+        tmMock_.tm_year = year - 1900;
+        tmMock_.tm_isdst = 0;
+        time_ = ::mktime(&tmMock_);
+    }
 
+    void advance_time_minute()
+    {
+        time_ += mochRate_ >= 0 ? 60 : -60;
+        ::gmtime_r(&time_, &tmMock_);
+    }
+
+    int getyear()
+    {
+        return tmMock_.tm_year + 1900;
+    }
+
+    int getmonth()
+    {
+        return tmMock_.tm_mon + 1;
+    }
+
+    int getday()
+    {
+        return tmMock_.tm_mday;
+    }
+
+    int gethour()
+    {
+        return tmMock_.tm_hour;
+    }
+
+    int getminute()
+    {
+        return tmMock_.tm_min;
+    }
+
+    time_t time_;
+    struct tm tmMock_;
+    int mochRate_;
+    bool mochStarted_;
     char clockIDString_[13];
 };
 
@@ -58,72 +115,89 @@ protected:
     void send_start(MockBroadcastTimeClient *client, bool identify = false)
     {
         send_packet_helper(client, identify ? "544" : "5B4", "F002");
+        client->mochStarted_ = true;
     }
 
     // send stop
     void send_stop(MockBroadcastTimeClient *client, bool identify = false)
     {
         send_packet_helper(client, identify ? "544" : "5B4", "F001");
+        client->mochStarted_ = false;
     }
 
     // send report rate
     void send_report_rate(MockBroadcastTimeClient *client,
-                          int rate, bool identify = false)
+                          bool identify = false)
     {
         char srate[5];
-        snprintf(srate, 5, "4%03x", rate);
+        snprintf(srate, 5, "4%03x", client->mochRate_);
         send_packet_helper(client, identify ? "544" : "5B4", srate);
     }
 
     // send report year
     void send_report_year(MockBroadcastTimeClient *client,
-                          unsigned year, bool identify = false)
+                          bool identify = false)
     {
         char syear[5];
-        snprintf(syear, 5, "3%03x", year);
+        snprintf(syear, 5, "3%03x", client->getyear());
         send_packet_helper(client, identify ? "544" : "5B4", syear);
     }
 
     // send report date
     void send_report_date(MockBroadcastTimeClient *client,
-                          unsigned month = 0, unsigned day = 0,
                           bool identify = false)
     {
         char sdate[5];
-        snprintf(sdate, 5, "2%1x%02x", month, day);
+        snprintf(sdate, 5, "2%1x%02x", client->getmonth(), client->getday());
         send_packet_helper(client, identify ? "544" : "5B4", sdate);
     }
 
     // send report time
     void send_report_time(MockBroadcastTimeClient *client,
-                          unsigned hour = 0, unsigned minute = 0,
                           bool identify = false)
     {
+        bool rollover = false;
         char stime[5];
-        snprintf(stime, 5, "%02x%02x", hour, minute);
+        snprintf(stime, 5, "%02x%02x", client->gethour(), client->getminute());
 
-#if 0
-        if (is_running() && rate() > 0 && !identify && hour = 0 && minute = 0)
+        if (client->mochStarted_ && client->mochRate_ > 0 &&
+            !identify && client->gethour() == 0 && client->getminute() == 0)
         {
-            
+            // rollover running forward
+            rollover = true;
         }
-#endif
+        if (client->mochStarted_ && client->mochRate_ < 0 &&
+            !identify && client->gethour() == 23 && client->getminute() == 59)
+        {
+            // rollover running backward
+            rollover = true;
+        }
+
+        if (rollover)
+        {
+            send_packet_helper(client, "5B4", "F003");
+        }
         send_packet_helper(client, identify ? "544" : "5B4", stime);
+        if (rollover)
+        {
+            sleep(3);
+            send_report_year(client);
+            send_report_date(client);
+        }
     }
 
     // send the synchronization sequence
-    void sync(MockBroadcastTimeClient *client, int rate = 0, unsigned year = 0,
-              unsigned month = 0, unsigned day = 0, unsigned hour = 0,
-              unsigned minute = 0, unsigned delay_msec = 0)
+    void sync(MockBroadcastTimeClient *client, unsigned delay_msec = 0)
     {
-        client->is_started() ? send_start(client, true) :
+        client->mochStarted_ ? send_start(client, true) :
                                send_stop(client, true);
-        send_report_rate(client, rate, true);
-        send_report_year(client, year, true);
-        send_report_date(client, month, day, true);
-        send_report_time(client, hour, minute, true);
+        send_report_rate(client, true);
+        send_report_year(client, true);
+        send_report_date(client, true);
+        send_report_time(client, true);
         usleep(delay_msec * 1000);
-        send_report_time(client, hour, minute + 1);
+        client->advance_time_minute();
+        send_report_time(client);
     }
 
     MockBroadcastTimeClient client1_; // not a configure agent
@@ -132,7 +206,7 @@ protected:
 
 TEST_F(BroadcastTimeClientTest, Create)
 {
-    print_all_packets();
+    PRINT_ALL_PACKETS();
 
     // receive query
     expect_packet(":X195B422AN010100000100F000;");
@@ -165,24 +239,55 @@ TEST_F(BroadcastTimeClientTest, Start)
     expect_packet(":X195B422AN010100000101F000;");
     wait_for_event_thread();
 
-    // start clock, time will be midnight Jan 1st 1970 for simplicity, rate = 1
-    //send_packet(":X19544001N010100000100F002;"); // start
-    //send_packet(":X19544001N0101000001004004;"); // rate = 1
-    //send_packet(":X19544001N01010000010037B2;"); // year = 1970
-    //send_packet(":X19544001N0101000001002101;"); // month = 1, day = 1
-    //send_packet(":X19544001N0101000001000000;"); // hour = 0, minute = 0
-    //usleep(500000);                              // wait 500 msec
-    //send_packet(":X195B4001N0101000001000001;"); // hour = 0, minute = 1 (event)
+    // start the clock, synchronize the client
     send_start(&client1_);
-    sync(&client1_, 4, 1970, 1, 1, 0, 0, 500);
-    usleep(200000);                              // wait 500 msec
+    client1_.settime(4, 1970, 1, 1, 0, 0);
+    sync(&client1_, 500);
+    usleep(200000);
     
     
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 60, 62));
+};
 
-    // time is not setup, clock is not running, expect 0 as default
-    EXPECT_EQ(client2_.time(), 0);
+TEST_F(BroadcastTimeClientTest, DateRolloverForward)
+{
+    PRINT_ALL_PACKETS();
+
+    // receive query
+    expect_packet(":X195B422AN010100000100F000;");
+    expect_packet(":X195B422AN010100000101F000;");
+    wait_for_event_thread();
+
+    // start the clock, synchronize the client
+    send_start(&client1_);
+    client1_.settime(4, 1970, 1, 1, 23, 59);
+    sync(&client1_, 500);
+    usleep(200000);
+    
+    
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 86402, 86404));
+};
+
+TEST_F(BroadcastTimeClientTest, DateRolloverBackward)
+{
+    PRINT_ALL_PACKETS();
+
+    // receive query
+    expect_packet(":X195B422AN010100000100F000;");
+    expect_packet(":X195B422AN010100000101F000;");
+    wait_for_event_thread();
+
+    // start the clock, synchronize the client
+    send_start(&client1_);
+    client1_.settime(-4, 1970, 1, 2, 0, 0);
+    sync(&client1_, 500);
+    usleep(200000);
+    
+    
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 86336, 86338));
 };
 
 } // namespace openlcb

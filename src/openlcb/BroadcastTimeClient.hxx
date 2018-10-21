@@ -63,7 +63,10 @@ public:
         , configureAgent_(configure_agent)
         , started_(false)
         , sleeping_(false)
+        , waiting_(false)
         , rolloverPending_(false)
+        , rolloverPendingDate_(false)
+        , rolloverPendingYear_(false)
         , timestamp_(OSTime::get_monotonic())
         , seconds_(0)
         , rate_(0)
@@ -271,21 +274,30 @@ private:
     /// @param started true if the clock is started, else false
     void start_stop_logic(bool started)
     {
-        // this bit of logic ensures that 
         AtomicHolder h(this);
-        if (!started)
+        if (started_ != started)
         {
-            seconds_ = time();
-            ::gmtime_r(&seconds_, &tm_);
+            if (!started)
+            {
+                seconds_ = time();
+            }
+            timestamp_ = OSTime::get_monotonic();
+            if (!started)
+            {
+                ::gmtime_r(&seconds_, &tm_);
+            }
+            started_ = started;
         }
-        timestamp_ = OSTime::get_monotonic();
-        started_ = started;
     }
 
     /// Initialize client by sending a time query.
     /// @return next state is initialize_done
     Action initialize()
     {
+        rolloverPending_ = false;
+        rolloverPendingDate_ = false;
+        rolloverPendingYear_ = false;
+
         writer_.WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
             eventid_to_buffer(clockID_ + BroadcastTimeDefs::QUERY_EVENT_SUFFIX),
             this);
@@ -296,35 +308,64 @@ private:
     /// @return next state client_update.
     Action initialize_done()
     {
+        waiting();
         return wait_and_call(STATE(client_update));
     }
 
     /// Notification arived that we should update our state.
-    /// @return next state client_update_commit.
+    /// @return next state client_update_commit if an update is to be made,
+    ///         else next state client_update_wait if we are expecting more
+    ///         incoming clock set events or producer identifieds
     Action client_update()
     {
-        if (immediateUpdate_)
+        if (immediateUpdate_ || rolloverPending_)
         {
             return call_immediately(STATE(client_update_commit));
         }
         else
         {
-            /// because the set time sometimes comes in bursts, we will wait
-            /// a little while for them to finish coming in.
-            sleeping_ = true;
-            return sleep_and_call(&timer_, MSEC_TO_NSEC(200),
-                                  STATE(client_update_commit));
+            // because the set time sometimes comes in bursts, we will wait
+            // a little while for them to finish coming in.  This avoids
+            // extra redundant processing.
+            sleeping();
+            return sleep_and_call(&timer_, MSEC_TO_NSEC(100),
+                                  STATE(client_update_maybe));
+        }
+    }
+
+    /// Test if we are ready to update the client, or if we may want to wait
+    /// for more messages (in the form of a burst) to come in first.
+    /// @return next state client_updeate_commit if the burst is interrupted
+    ///         else next state client_update if the burtst is still in
+    ///         progress
+    Action client_update_maybe()
+    {
+        if (timer_.is_triggered())
+        {
+            return call_immediately(STATE(client_update));
+        }
+        else
+        {
+            return call_immediately(STATE(client_update_commit));
         }
     }
 
     /// commit the client update.
-    /// @return next state client_update
+    /// @return next state rollover_pending if a date rollover is in progress,
+    ///         else next state client_update
     Action client_update_commit()
     {
+        if (rolloverPendingDate_ || rolloverPendingYear_)
+        {
+            // initiate timeout, in case the time server doesn't complete the
+            // sequence successfully.
+            sleeping();
+            return sleep_and_call(&timer_, SEC_TO_NSEC(6),
+                                  STATE(rollover_pending));
+        }
+
         // we are about to commit an updated time, reset all the flags
         immediateUpdate_ = false;
-        sleeping_ = false;
-        rolloverPending_ = false;
 
         /// @todo As of 14 October 2018, newlib for armgcc uses 32-bit time_t.
         /// It seems that 64-bit time_t may become the default soon.
@@ -334,6 +375,12 @@ private:
             AtomicHolder h(this);
             seconds_ = ::mktime(&tm_);
             timestamp_ = OSTime::get_monotonic();
+            if (rolloverPending_)
+            {
+                // roll forward/back the 3 second delay for the year/date report
+                seconds_ += rate_ >= 0 ? 3 : -3;
+                rolloverPending_ = false;
+            }
         }
 
         if ((last_seconds - 1) > seconds_ || (last_seconds + 1) < seconds_)
@@ -341,7 +388,54 @@ private:
             /// @todo a jump in time has occured, invalidated state information
         }
 
+        waiting();
         return wait_and_call(STATE(client_update));
+    }
+
+    /// Wait on the completion of a date rollover sequence.
+    /// @return next state client_update_commit if timer triggered, else
+    ///         next state initialize
+    Action rollover_pending()
+    {
+        if (timer_.is_triggered())
+        {
+            return call_immediately(STATE(client_update_commit));
+        }
+        else
+        {
+            // A date rollover sequence failed.  Query the clock in order to
+            // resync.  In the meantime, continue using our internal time.
+            return call_immediately(STATE(initialize));
+        }
+    }
+
+    /// Setup the state flags to reflect that we are in a wait_and_call().
+    void waiting()
+    {
+        waiting_ = true;
+        sleeping_ = false;
+    }
+
+    /// Setup the state flags to reflect that we are in a sleep_and_call().
+    void sleeping()
+    {
+        waiting_ = false;
+        sleeping_ = true;
+    }
+
+    /// wakeup the state machine.
+    void wakeup()
+    {
+        if (waiting_)
+        {
+            notify();
+            waiting_ = false;
+        }
+        if (sleeping_)
+        {
+            timer_.trigger();
+            sleeping_ = false;
+        }
     }
 
     Node *node_; ///< OpenLCB node to export the consumer on
@@ -353,7 +447,10 @@ private:
     unsigned started_         : 1; ///< true if clock is started
     unsigned immediateUpdate_ : 1; ///< true if the update should be immediate
     unsigned sleeping_        : 1; ///< true if stateflow is waiting on timer
+    unsigned waiting_         : 1;
     unsigned rolloverPending_ : 1; ///< a day rollover is about to occur
+    unsigned rolloverPendingDate_ : 1; ///< a day rollover is about to occur
+    unsigned rolloverPendingYear_ : 1; ///< a day rollover is about to occur
 
     struct tm tm_;
     long long timestamp_; ///< monotonic timestamp from last server update

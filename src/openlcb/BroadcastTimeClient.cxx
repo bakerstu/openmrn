@@ -69,10 +69,7 @@ void BroadcastTimeClient::handle_updates(EventReport *event, bool report)
                 tm_.tm_sec = 0;
                 tm_.tm_min = min;
                 tm_.tm_hour = hour;
-                if (report)
-                {
-                    immediateUpdate_ = true;
-                }
+                immediateUpdate_ = true;
                 break;
             }
             // invalid event data, bail
@@ -86,6 +83,10 @@ void BroadcastTimeClient::handle_updates(EventReport *event, bool report)
             {
                 tm_.tm_mday = day;
                 tm_.tm_mon = month - 1;
+                if (report)
+                {
+                    rolloverPendingDate_ = false;
+                }
                 break;
             }
             // invalid event data, bail
@@ -93,8 +94,11 @@ void BroadcastTimeClient::handle_updates(EventReport *event, bool report)
         }
         case BroadcastTimeDefs::REPORT_YEAR:
         {
-            tm_.tm_year = BroadcastTimeDefs::event_to_year(event->event) -
-                         1900;
+            tm_.tm_year = BroadcastTimeDefs::event_to_year(event->event) - 1900;
+            if (report)
+            {
+                rolloverPendingYear_ = false;
+            }
             break;
         }
         case BroadcastTimeDefs::REPORT_RATE:
@@ -105,45 +109,25 @@ void BroadcastTimeClient::handle_updates(EventReport *event, bool report)
         case BroadcastTimeDefs::DATE_ROLLOVER:
             if (report)
             {
+                rolloverPendingDate_ = true;
+                rolloverPendingYear_ = true;
                 rolloverPending_ = true;
             }
             break;
         case BroadcastTimeDefs::STOP:
             start_stop_logic(false);
+            // no further processing required
             return;
         case BroadcastTimeDefs::START:
             start_stop_logic(true);
+            // no further processing required
             return;
         default:
             // uninteresting event type
             return;
     }
 
-    if (report &&
-        type != BroadcastTimeDefs::DATE_ROLLOVER &&
-        type != BroadcastTimeDefs::REPORT_TIME)
-    {
-        // this should never happen when rolloverPending_ == true, but
-        // just in case something arrived out of prescribed sequence...
-        rolloverPending_ = false;
-    }
-
-    if (sleeping_)
-    {
-        // we are sleeping, we have a previously notify pending completion
-        if (immediateUpdate_)
-        {
-            // this happens only if we receive a time event report
-            // while we are holding off in case of a burst
-            // (meaning sub-minute offset is 0)
-            timer_.trigger();
-        }
-    }
-    else
-    {
-        // wakeup waiting state flow
-        notify();
-    }
+    wakeup();
 }
 
 } // namespace openlcb
