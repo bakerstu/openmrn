@@ -50,7 +50,7 @@
 //DigitalIn startpin(P1_4);
 
 Pic32mxUart uart5("/dev/ser1", UART5, uart5_interrupt_vector_number);
-Pic32mxUart uart2("/dev/ser0", UART2, uart2_interrupt_vector_number+usb_interrupt_vector_number + can1_interrupt_vector_number);
+Pic32mxUart uart2("/dev/ser0", UART2, uart2_interrupt_vector_number);
 
 Pic32mxCan can0(CAN1, "/dev/can0", can1_interrupt_vector_number);
 
