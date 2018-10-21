@@ -43,6 +43,7 @@
 #include "utils/blinker.h"
 
 #include "freertos_drivers/pic32mx/Pic32mxUart.hxx"
+#include "freertos_drivers/pic32mx/Pic32mxCan.hxx"
 #include "freertos_drivers/pic32mx/int_pic32mx795/int_defines.h"
 
 
@@ -50,6 +51,8 @@
 
 Pic32mxUart uart5("/dev/ser1", UART5, uart5_interrupt_vector_number);
 Pic32mxUart uart2("/dev/ser0", UART2, uart2_interrupt_vector_number+usb_interrupt_vector_number + can1_interrupt_vector_number);
+
+Pic32mxCan can0(CAN1, "/dev/can0", can1_interrupt_vector_number);
 
 extern "C" {
 
@@ -61,6 +64,12 @@ void uart5_interrupt()
 void uart2_interrupt()
 {
     uart2.interrupt_handler();
+}
+
+/// Hardware interrupt for CAN1.
+void can1_interrupt(void)
+{
+    can0.isr();
 }
 
 const unsigned long pic32_cpu_clock_hz = 80000000UL;
