@@ -103,7 +103,7 @@ void BroadcastTimeClient::handle_updates(EventReport *event, bool report)
         }
         case BroadcastTimeDefs::REPORT_RATE:
         {
-            rate_ = BroadcastTimeDefs::event_to_rate(event->event);
+            rateRequested_ = BroadcastTimeDefs::event_to_rate(event->event);
             break;
         }
         case BroadcastTimeDefs::DATE_ROLLOVER:

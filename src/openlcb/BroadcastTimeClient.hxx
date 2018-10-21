@@ -70,6 +70,7 @@ public:
         , timestamp_(OSTime::get_monotonic())
         , seconds_(0)
         , rate_(0)
+        , rateRequested_(0)
     {
         // use a process-local timezone
         clear_timezone();
@@ -251,6 +252,7 @@ public:
     /// @return true if running, else false
     bool is_running()
     {
+        AtomicHolder h(this);
         return rate_ != 0 && started_;
     }
 
@@ -373,6 +375,7 @@ private:
         time_t last_seconds = time();
         {
             AtomicHolder h(this);
+            rate_ = rateRequested_;
             seconds_ = ::mktime(&tm_);
             timestamp_ = OSTime::get_monotonic();
             if (rolloverPending_)
@@ -455,7 +458,8 @@ private:
     struct tm tm_;
     long long timestamp_; ///< monotonic timestamp from last server update
     time_t seconds_; ///< seconds clock time in seconds
-    int16_t rate_; ///< clock rate, negative if invalid or unknown
+    int16_t rate_; ///< effective clock rate
+    int16_t rateRequested_; ///< pending clock rate
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeClient);
 };
