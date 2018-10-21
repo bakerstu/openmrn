@@ -227,7 +227,11 @@ TEST_F(BroadcastTimeClientTest, Create)
 
     // time is not setup, clock is not running, expect 0 as default
     EXPECT_EQ(client1_.time(), 0);
+    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_.day_of_year(), 0);
     EXPECT_EQ(client2_.time(), 0);
+    EXPECT_EQ(client2_.day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client2_.day_of_year(), 0);
 };
 
 TEST_F(BroadcastTimeClientTest, Start)
@@ -248,6 +252,8 @@ TEST_F(BroadcastTimeClientTest, Start)
     
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 60, 62));
+    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_.day_of_year(), 0);
 };
 
 TEST_F(BroadcastTimeClientTest, DateRolloverForward)
@@ -268,6 +274,8 @@ TEST_F(BroadcastTimeClientTest, DateRolloverForward)
     
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 86402, 86404));
+    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::FRIDAY);
+    EXPECT_EQ(client1_.day_of_year(), 1);
 };
 
 TEST_F(BroadcastTimeClientTest, DateRolloverBackward)
@@ -288,6 +296,8 @@ TEST_F(BroadcastTimeClientTest, DateRolloverBackward)
     
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 86336, 86338));
+    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_.day_of_year(), 0);
 };
 
 } // namespace openlcb

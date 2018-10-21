@@ -101,6 +101,17 @@ struct BroadcastTimeDefs
         DATE_ROLLOVER_EVENT_SUFFIX = 0xF003, ///< rollover the date suffix value
     };
 
+    enum
+    {
+        SUNDAY = 0, ///< Day of the week value Sunday
+        MONDAY, ///< Day of the week value Monday
+        TUESDAY, ///< Day of the week value Tuesday
+        WEDNESDAY, ///< Day of the week value Wednesday
+        THURSDAY, ///< Day of the week value Thursday
+        FRIDAY, ///< Day of the week value Friday
+        SATURDAY, ///< Day of the week value Saturday
+    };
+
     /// Get the EventTuype from the event suffix number.
     /// @param suffix 16-bit event suffix
     /// @return the EventType
