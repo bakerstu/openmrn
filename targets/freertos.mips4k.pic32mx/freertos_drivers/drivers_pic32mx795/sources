@@ -1,4 +1,4 @@
-VPATH=$(OPENMRNPATH)/src/freertos_drivers/pic32mx:$(PIC32MXLIBPATH)/pic32-libs/proc/32MX795F512H
+VPATH=$(OPENMRNPATH)/src/freertos_drivers/pic32mx:$(OPENMRNPATH)/src/freertos_drivers/pic32mx/int_pic32mx795:$(PIC32MXLIBPATH)/pic32-libs/proc/32MX795F512H
 INCLUDES += -idirafter $(PIC32MXLIBPATH)/pic32-libs/include
 CORECFLAGS += -D_SUPPRESS_PLIB_WARNING
 PIC32PROC=795F512H
@@ -6,3 +6,4 @@ BASEDEFS += -D__PIC32_FEATURE_SET__=795
 CFLAGS += -fgnu89-inline
 CXXSRCS += Pic32mxCan.cxx
 ASMSRCS += p32mx795f512h.S
+ASMSRCS += $(foreach i,$(wildcard $(OPENMRNPATH)/src/freertos_drivers/pic32mx/int_pic32mx795/*.S),$(notdir $(i)))

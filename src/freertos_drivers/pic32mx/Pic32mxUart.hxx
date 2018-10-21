@@ -47,10 +47,11 @@ extern "C"
 class Pic32mxUart : public Serial
 {
 public:
-    Pic32mxUart(const char *name, UART_MODULE periph, uint32_t interrupt,
+    Pic32mxUart(const char *name, UART_MODULE periph, uint32_t int_vec,
         unsigned baud = 115200, bool enable_rts_cts = false)
         : Serial(name)
         , hw_(periph)
+        , intVector_(int_vec)
     {
         unsigned rtscfg = UART_ENABLE_PINS_TX_RX_ONLY;
         if (enable_rts_cts)
@@ -188,9 +189,17 @@ private:
         return (INT_VECTOR)(INT_VECTOR_UART(hw_));
     }
 
+    /// Enum describing which uart module we are using. We need to pass this to
+    /// the middleware calls.
     UART_MODULE hw_;
+    /// This is the hardware vector number for the UART module. That is NOT the
+    /// same as the INT_VECTOR enum.
+    unsigned intVector_;
+    /// Stats variable.
     unsigned numIrq_ = 0;
+    /// Stats variable.
     unsigned numIrqTx_ = 0;
+    /// Stats variable.
     unsigned numIrqRx_ = 0;
 };
 

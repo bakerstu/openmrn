@@ -33,77 +33,28 @@
  * @date 12 Aug 2013
  */
 
-#include "Devtab.hxx"
+#include "freertos_drivers/pic32mx/Pic32mxCan.hxx"
+
 #include "DeviceBuffer.hxx"
 #include "nmranet_config.h"
 #include "can_frame.h"
 #include <fcntl.h>
 
-#include "GenericTypeDefs.h"
-#include <xc.h>
-
-extern "C" {
-#include "peripheral/CAN.h"
-#include "peripheral/int.h"
+Pic32mxCan::Pic32mxCan(CAN_MODULE module, const char *dev, unsigned irq_vector)
+    : Node(dev)
+    , hw_(module)
+    , overrunCount_(0)
+    , irqVector_(irq_vector)
+{
+    messageFifoArea_ = malloc(
+        (config_can_tx_buffer_size() + config_can_rx_buffer_size()) * 16);
 }
 
-volatile int* g_pic32_last_stack_ptr;
-
-/// CAN-bus device driver for the Pic32MX.
-class Pic32mxCan : public Node
+Pic32mxCan::~Pic32mxCan()
 {
-public:
-    /// Constructor.
-    ///
-    /// @param module defines which CAN hardware to use. (can0 or can1).
-    /// @param dev filename of the device to create (e.g. "/dev/can0");
-    Pic32mxCan(CAN_MODULE module, const char *dev)
-        : Node(dev)
-        , hw_(module)
-        , overrunCount_(0)
-    {
-        messageFifoArea_ = malloc(
-            (config_can_tx_buffer_size() + config_can_rx_buffer_size()) * 16);
-    }
-
-    ~Pic32mxCan()
-    {
-        disable();
-        free(messageFifoArea_);
-    }
-
-    /// Implementation of the interrupt handler.
-    void isr();
-
-private:
-    void enable();  /**< function to enable device */
-    void disable(); /**< function to disable device */
-    void flush_buffers() OVERRIDE {} /**< function to disable device */
-
-    ssize_t read(File *file, void *buf, size_t count);
-    ssize_t write(File *file, const void *buf, size_t count);
-    /** Device select method. Default impementation returns true.
-     * @param file reference to the file
-     * @param mode FREAD for read active, FWRITE for write active, 0 for
-     *        exceptions
-     * @return true if active, false if inactive
-     */
-    bool select(File* file, int mode) OVERRIDE;
-
-    /// Hordware (pointer into address space).
-    CAN_MODULE hw_;
-    /// How many times did we drop a frame because we did not have enough
-    /// hardware buffers.
-    int overrunCount_;
-    /// Points to the shared RAM area between the hardware and the driver.
-    void *messageFifoArea_;
-    // Select for the transmit buffers.
-    SelectInfo txSelect_;
-    // Select for the receive buffers.
-    SelectInfo rxSelect_;
-
-    DISALLOW_COPY_AND_ASSIGN(Pic32mxCan);
-};
+    disable();
+    free(messageFifoArea_);
+}
 
 /// Translates a hardware buffer to a struct can_frame.
 ///
@@ -430,20 +381,9 @@ void Pic32mxCan::enable()
      * The interrrupt peripheral library is used to enable
      * the CAN interrupt to the CPU. */
 
-    if (hw_ == CAN1)
-    {
-        INTSetVectorPriority(INT_CAN_1_VECTOR, INT_PRIORITY_LEVEL_2);
-        INTSetVectorSubPriority(INT_CAN_1_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
-        INTEnable(INT_CAN1, INT_ENABLED);
-    }
-#ifdef _CAN2
-    else
-    {
-        INTSetVectorPriority(INT_CAN_2_VECTOR, INT_PRIORITY_LEVEL_2);
-        INTSetVectorSubPriority(INT_CAN_2_VECTOR, INT_SUB_PRIORITY_LEVEL_0);
-        INTEnable(INT_CAN2, INT_ENABLED);
-    }
-#endif
+    INTSetVectorPriority(can_vector(), INT_PRIORITY_LEVEL_2);
+    INTSetVectorSubPriority(can_vector(), INT_SUB_PRIORITY_LEVEL_0);
+    INTEnable(can_int(), INT_ENABLED);
     /* Step 7: Switch the CAN mode
      * to normal mode. */
 
@@ -457,94 +397,8 @@ void Pic32mxCan::disable()
     /* If the transmit buffer is not empty, we should crash here. Otherweise it
      * is possible that the user sends some frames, then closes the device and
      * the frames never get sent really. */
-    if (hw_ == CAN1)
-    {
-        INTEnable(INT_CAN1, INT_DISABLED);
-    }
-#ifdef _CAN2
-    else
-    {
-        INTEnable(INT_CAN2, INT_DISABLED);
-    }
-#endif
+    INTEnable(can_int(), INT_DISABLED);
     CANEnableModule(hw_, FALSE);
 }
 
-/// Filesystem device node for the first CAN device.
-Pic32mxCan can0(CAN1, "/dev/can0");
-#ifdef _CAN2
-/// Filesystem device node for the second CAN device.
-Pic32mxCan can1(CAN2, "/dev/can1");
-#endif
-
-void Pic32mxCan::isr()
-{
-    int woken = 0;
-    if ((CANGetModuleEvent(hw_) & CAN_RX_EVENT) != 0)
-    //    if(CANGetPendingEventCode(hw_) == CAN_CHANNEL1_EVENT)
-    {
-        /* This means that channel 1 caused the event.
-         * The CAN_RX_CHANNEL_NOT_EMPTY event is persistent. You
-         * could either read the channel in the ISR
-         * to clear the event condition or as done
-         * here, disable the event source, and set
-         * an application flag to indicate that a message
-         * has been received. The event can be
-         * enabled by the application when it has processed
-         * one message.
-         *
-         * Note that leaving the event enabled would
-         * cause the CPU to keep executing the ISR since
-         * the CAN_RX_CHANNEL_NOT_EMPTY event is persistent (unless
-         * the not empty condition is cleared.)
-         * */
-        CANEnableChannelEvent(hw_, CAN_CHANNEL1, CAN_RX_CHANNEL_NOT_EMPTY,
-                              FALSE);
-        Device::select_wakeup_from_isr(&rxSelect_, &woken);
-    }
-    if ((CANGetModuleEvent(hw_) & CAN_TX_EVENT) != 0)
-    //    if(CANGetPendingEventCode(hw_) == CAN_CHANNEL0_EVENT)
-    {
-        /* Same with the TX event. */
-        CANEnableChannelEvent(hw_, CAN_CHANNEL0, CAN_TX_CHANNEL_NOT_FULL,
-                              FALSE);
-        Device::select_wakeup_from_isr(&txSelect_, &woken);
-    }
-    g_pic32_last_stack_ptr = &woken;
-}
-
-extern "C" {
-
-/// Hardware interrupt for CAN1.
-void can1_interrupt(void)
-{
-    can0.isr();
-    INTClearFlag(INT_CAN1);
-}
-
-
-/// Hardware interrupt for CAN2.
-void can2_interrupt(void)
-{
-#ifdef _CAN2
-    can1.isr();
-    INTClearFlag(INT_CAN2);
-#endif
-}
-
-}
-
-// void __attribute__((section(".vector_46"))) can1_int_trampoline(void)
-//    asm("b   can1_interrupt");
-
-/// Places a jump instruction to can1_interrupt to the proper interrupt vector
-/// location.
-//asm("\n\t.section .vector_46,\"ax\",%progbits\n\tj "
-//    "can1_interrupt\n\tnop\n.text\n");
-/*
-/// Places a jump instruction to can2_interrupt to the proper interrupt vector
-/// location.
-asm("\n\t.section .vector_47,\"ax\",%progbits\n\tj "
-    "can2_interrupt\n\tnop\n.text\n");
-*/
 /// @todo: process receive buffer overflow flags.

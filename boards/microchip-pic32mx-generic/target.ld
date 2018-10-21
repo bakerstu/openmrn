@@ -554,6 +554,13 @@ SECTIONS
   
   __cs3_region_size_rom = LENGTH(flash_user); /* just total size of flash */
 
+
+  /* data written by startup code and NOT to be initialized by CS3 */
+  .startup_data :
+  {
+    *(.reset_data)
+  } >ram0
+
   /*
   ** Initialized data is linked for RAM, but placed in ROM using the AT> directive.
   ** Startup code copies it to RAM during initialization.
@@ -596,12 +603,6 @@ SECTIONS
   /*   LONG(0) /* force LD to output this section (empty sections are discarded) */
   /* } >PIC32MX_flash_user
   */
-
-  /* data written by startup code and NOT to be initialized by CS3 */
-  .startup_data :
-  {
-    *(.reset_data)
-  } >ram0
 
   /* Un-initialized data, zero'd by CS3 C-language initialization module */
   .bss : ALIGN (8)
