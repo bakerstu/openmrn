@@ -130,7 +130,8 @@ protected:
                           bool identify = false)
     {
         char srate[5];
-        snprintf(srate, 5, "4%03x", client->mochRate_);
+        uint16_t rate12 = client->mochRate_ & 0xFFF;
+        snprintf(srate, 5, "4%03x", rate12);
         send_packet_helper(client, identify ? "544" : "5B4", srate);
     }
 
@@ -299,5 +300,60 @@ TEST_F(BroadcastTimeClientTest, DateRolloverBackward)
     EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(client1_.day_of_year(), 0);
 };
+
+TEST_F(BroadcastTimeClientTest, ProgressionForwardFast)
+{
+    print_all_packets();
+
+    // receive query
+    expect_packet(":X195B422AN010100000100F000;");
+    expect_packet(":X195B422AN010100000101F000;");
+    wait_for_event_thread();
+
+    // start the clock, synchronize the client
+    send_start(&client1_);
+    // rate = 500 (500 * 4 = 2000)
+    client1_.settime(500 * 4, 1970, 1, 1, 0, 0);
+    // after sync, time should be Jan 1, 1970 00:01:00
+    sync(&client1_, 500);
+
+    // wait 960 fast seconds (16 minutes).
+    // 960 / 500 = 1.92 fast seconds
+    usleep(1920000);
+
+
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 1020, 1021));
+    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_.day_of_year(), 0);
+};
+
+TEST_F(BroadcastTimeClientTest, ProgressionReverseFast)
+{
+    print_all_packets();
+
+    // receive query
+    expect_packet(":X195B422AN010100000100F000;");
+    expect_packet(":X195B422AN010100000101F000;");
+    wait_for_event_thread();
+
+    // start the clock, synchronize the client
+    send_start(&client1_);
+    // rate = -500 (-500 * 4 = -2000)
+    client1_.settime(-500 * 4, 1970, 1, 1, 0, 20);
+    // after sync, time should be Jan 1, 1970 00:19:00
+    sync(&client1_, 500);
+
+    // wait 960 fast seconds (16 minutes).
+    // 960 / 500 = 1.92 fast seconds
+    usleep(1920000);
+
+
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 179, 181));
+    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_.day_of_year(), 0);
+};
+
 
 } // namespace openlcb
