@@ -42,6 +42,7 @@
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
 #include "Stm32SPI.hxx"
+#include "Stm32I2C.hxx"
 #include "Stm32EEPROMEmulation.hxx"
 #include "Stm32PWM.hxx"
 #include "hardware.hxx"
@@ -63,6 +64,9 @@ static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
 static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1900);
+
+/** UART 0 serial driver instance */
+static Stm32I2C i2c1("/dev/i2c0", I2C1, I2C1_EV_IRQn, I2C1_ER_IRQn);
 
 /** How many bytes of flash should hold the entire dataset. Must be an integer
  * multiple of the minimum erase length (which is the flash page length, for
@@ -127,6 +131,13 @@ void setblink(uint32_t pattern)
     resetblink(pattern);
 }
 
+void i2c1_ev_interrupt_handler(void) {
+    i2c1.event_interrupt_handler();
+}
+
+void i2c1_er_interrupt_handler(void) {
+    i2c1.error_interrupt_handler();
+}
 
 /// TIM17 shares this interrupt with certain features of timer1
 void tim1_trg_com_interrupt_handler(void)
@@ -285,8 +296,17 @@ void hw_preinit(void)
     HAL_GPIO_Init(GPIOB, &gpio_init);
     gpio_init.Pin = GPIO_PIN_13;
     HAL_GPIO_Init(GPIOB, &gpio_init);
-    
-    
+
+    /* I2C1 pinmux on PB6 (SCL), and PB7 (SDA) */
+    gpio_init.Mode = GPIO_MODE_AF_OD;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
+    gpio_init.Alternate = GPIO_AF4_I2C1;
+    gpio_init.Pin = GPIO_PIN_6;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_7;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+
     GpioInit::hw_init();
 
     // Switches over servo timer pins to timer mode.
