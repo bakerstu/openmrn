@@ -24,10 +24,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Stm32I2C.hxx
+ * \file MCP23017Gpio.hxx
  *
- * This file implements an I2C device driver layer on top of the STM32 Cube
- * middleware.
+ * Hardware-independent driver for the MCP23017 IO extender chip using the
+ * generic I2C driver.
  *
  * @author Balazs Racz
  * @date 28 Oct 2018
@@ -43,7 +43,7 @@
 
 #include "executor/Executor.hxx"
 
-class MCP23017 {
+class MCP23017 : private Atomic {
 public:
     // 50 Hz polling
     static constexpr long long POLLING_DELAY = MSEC_TO_NSEC(20);
@@ -134,15 +134,34 @@ private:
     /// Updates the output direction and latch registers if any of it is dirty.
     void update_out()
     {
-        if (dirty_ & DIRTY_DIR)
+        bool push_dir = false;
+        bool push_lat = false;
+        uint8_t d[2];
+        uint8_t l[2];
         {
-            dirty_ &= ~DIRTY_DIR;
-            register_write(IODIRA, dir_, 2);
+            AtomicHolder h(this);
+            d[0] = dir_[0];
+            d[1] = dir_[1];
+            l[0] = lat_[0];
+            l[1] = lat_[1];
+            if (dirty_ & DIRTY_DIR)
+            {
+                dirty_ &= ~DIRTY_DIR;
+                push_dir = true;
+            }
+            if (dirty_ & DIRTY_LAT)
+            {
+                dirty_ &= ~DIRTY_LAT;
+                push_lat = true;
+            }
         }
-        if (dirty_ & DIRTY_LAT)
+        if (push_dir)
         {
-            dirty_ &= ~DIRTY_LAT;
-            register_write(OLATA, lat_, 2);
+            register_write(IODIRA, d, 2);
+        }
+        if (push_lat)
+        {
+            register_write(OLATA, l, 2);
         }
     }
 
@@ -209,6 +228,8 @@ private:
         ::ioctl(fd_, I2C_RDWR, &ioctl_data);
     }
 
+    /// This timer runs in the parent executor and upon every timeout it
+    /// executes the update / polling of the IO expander.
     class RefreshTimer : public ::Timer {
     public:
         RefreshTimer(MCP23017 *parent)
@@ -234,18 +255,19 @@ private:
     RefreshTimer timer_{this};
     /// I2C port file descriptor.
     int fd_;
+
+    /// Shadow of the direction registers.
+    uint8_t dir_[2];
+    /// Shadow of the latch registers.
+    uint8_t lat_[2];
+    /// Shadow of the input registers.
+    uint8_t gpio_[2];
+
     /// Address of this particular device on the I2C port.
     uint8_t i2cAddress_;
 
     /// Bit mask of registers that need updating.
     uint8_t dirty_ = 0;
-
-    /// Shadow of the direction registers.
-    uint8_t dir_[2];
-    /// Shadow of the input registers.
-    uint8_t gpio_[2];
-    /// Shadow of the latch registers.
-    uint8_t lat_[2];
 };
 
 
@@ -268,6 +290,7 @@ public:
 
     void write(Value new_state) const override
     {
+        AtomicHolder h(parent_);
         bool old_state = !!(parent_->lat_[port_] & pinBit_);
         if (new_state != old_state)
         {
@@ -285,11 +308,21 @@ public:
 
     Value read() const override
     {
-        return (parent_->gpio_[port_] & pinBit_) ? HIGH : LOW;
+        if (parent_->dir_[port_] & pinBit_)
+        {
+            // input. Use gpio_.
+            return (parent_->gpio_[port_] & pinBit_) ? HIGH : LOW;
+        }
+        else
+        {
+            // output. Use lat_.
+            return (parent_->lat_[port_] & pinBit_) ? HIGH : LOW;
+        }
     }
 
     void set_direction(Direction dir) const override
     {
+        AtomicHolder h(parent_);
         uint8_t desired = (dir == Direction::OUTPUT) ? 0 : pinBit_;
         if (desired != ((parent_->dir_[port_] & pinBit_)))
         {
