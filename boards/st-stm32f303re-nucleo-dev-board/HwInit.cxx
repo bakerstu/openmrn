@@ -63,7 +63,7 @@ static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
 static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
-static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1900);
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 4000);
 
 /** UART 0 serial driver instance */
 static Stm32I2C i2c1("/dev/i2c0", I2C1, I2C1_EV_IRQn, I2C1_ER_IRQn);
@@ -71,7 +71,7 @@ static Stm32I2C i2c1("/dev/i2c0", I2C1, I2C1_EV_IRQn, I2C1_ER_IRQn);
 /** How many bytes of flash should hold the entire dataset. Must be an integer
  * multiple of the minimum erase length (which is the flash page length, for
  * the STM32F0 it is 2 kbytes). The file size maximum is half this value. */
-const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
+const size_t EEPROMEmulation::SECTOR_SIZE = 8192;
 
 Stm32PWMGroup servo_timer(TIM3, (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,
                           configCPU_CLOCK_HZ * 6 / 1000);

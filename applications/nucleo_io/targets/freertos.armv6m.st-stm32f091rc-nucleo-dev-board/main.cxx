@@ -47,10 +47,13 @@
 #include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/common/MCP23017Gpio.hxx"
 #include "os/MmapGpio.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
 #include "PWM.hxx"
+#include "i2c.h"
+#include "i2c-dev.h"
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
@@ -88,7 +91,7 @@ extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 1900, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 4000, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -161,7 +164,7 @@ public:
     {
         cfg.userinfo().name().write(fd, "Nucleo IO board");
         cfg.userinfo().description().write(
-            fd, "OpenLCB DevKit + F091RC dev board.");
+            fd, "OpenLCB DevKit + Nucleo dev board.");
     }
 } factory_reset_helper;
 
@@ -407,8 +410,92 @@ openlcb::ConfiguredProducer producer_b7(
 openlcb::ConfiguredProducer producer_b8(
     stack.node(), cfg.seg().portab_producers().entry<15>(), (const Gpio*)&PORTB_LINE8);
 
+MCP23017 exp0(&io_executor, 0, 0, 0);
+MCP23017 exp1(&io_executor, 0, 0, 1);
+
+constexpr const MCP23017Gpio IOEXT0_A0(&exp0, MCP23017::PORTA, 0);
+constexpr const MCP23017Gpio IOEXT0_A1(&exp0, MCP23017::PORTA, 1);
+constexpr const MCP23017Gpio IOEXT0_A2(&exp0, MCP23017::PORTA, 2);
+constexpr const MCP23017Gpio IOEXT0_A3(&exp0, MCP23017::PORTA, 3);
+constexpr const MCP23017Gpio IOEXT0_A4(&exp0, MCP23017::PORTA, 4);
+constexpr const MCP23017Gpio IOEXT0_A5(&exp0, MCP23017::PORTA, 5);
+constexpr const MCP23017Gpio IOEXT0_A6(&exp0, MCP23017::PORTA, 6);
+constexpr const MCP23017Gpio IOEXT0_A7(&exp0, MCP23017::PORTA, 7);
+
+constexpr const MCP23017Gpio IOEXT0_B0(&exp0, MCP23017::PORTB, 0);
+constexpr const MCP23017Gpio IOEXT0_B1(&exp0, MCP23017::PORTB, 1);
+constexpr const MCP23017Gpio IOEXT0_B2(&exp0, MCP23017::PORTB, 2);
+constexpr const MCP23017Gpio IOEXT0_B3(&exp0, MCP23017::PORTB, 3);
+constexpr const MCP23017Gpio IOEXT0_B4(&exp0, MCP23017::PORTB, 4);
+constexpr const MCP23017Gpio IOEXT0_B5(&exp0, MCP23017::PORTB, 5);
+constexpr const MCP23017Gpio IOEXT0_B6(&exp0, MCP23017::PORTB, 6);
+constexpr const MCP23017Gpio IOEXT0_B7(&exp0, MCP23017::PORTB, 7);
+
+constexpr const MCP23017Gpio IOEXT1_A0(&exp1, MCP23017::PORTA, 0);
+constexpr const MCP23017Gpio IOEXT1_A1(&exp1, MCP23017::PORTA, 1);
+constexpr const MCP23017Gpio IOEXT1_A2(&exp1, MCP23017::PORTA, 2);
+constexpr const MCP23017Gpio IOEXT1_A3(&exp1, MCP23017::PORTA, 3);
+constexpr const MCP23017Gpio IOEXT1_A4(&exp1, MCP23017::PORTA, 4);
+constexpr const MCP23017Gpio IOEXT1_A5(&exp1, MCP23017::PORTA, 5);
+constexpr const MCP23017Gpio IOEXT1_A6(&exp1, MCP23017::PORTA, 6);
+constexpr const MCP23017Gpio IOEXT1_A7(&exp1, MCP23017::PORTA, 7);
+
+constexpr const MCP23017Gpio IOEXT1_B0(&exp1, MCP23017::PORTB, 0);
+constexpr const MCP23017Gpio IOEXT1_B1(&exp1, MCP23017::PORTB, 1);
+constexpr const MCP23017Gpio IOEXT1_B2(&exp1, MCP23017::PORTB, 2);
+constexpr const MCP23017Gpio IOEXT1_B3(&exp1, MCP23017::PORTB, 3);
+constexpr const MCP23017Gpio IOEXT1_B4(&exp1, MCP23017::PORTB, 4);
+constexpr const MCP23017Gpio IOEXT1_B5(&exp1, MCP23017::PORTB, 5);
+constexpr const MCP23017Gpio IOEXT1_B6(&exp1, MCP23017::PORTB, 6);
+constexpr const MCP23017Gpio IOEXT1_B7(&exp1, MCP23017::PORTB, 7);
+
+
+class MCPTest : public OSThread {
+public:
+    MCPTest() : OSThread() {
+        start("mcp_thread", 0, 1500);
+    }
+
+    void* entry() override {
+        //exp0.init("/dev/i2c0");
+        IOEXT0_A0.set_direction(Gpio::Direction::OUTPUT);
+        IOEXT0_A1.set_direction(Gpio::Direction::INPUT);
+        IOEXT0_A6.set_direction(Gpio::Direction::OUTPUT);
+        while(true) {
+            for (int i = 0; i < 10; ++i) {
+                usleep(50000);
+                IOEXT0_A6.write(IOEXT0_A1.read());
+            }
+            resetblink(0);
+            IOEXT0_A0.set();
+            for (int i = 0; i < 10; ++i) {
+                usleep(50000);
+                IOEXT0_A6.write(IOEXT0_A1.read());
+            }
+            resetblink(1);
+            IOEXT0_A0.clr();
+        }
+    }
+
+} mcp_test;
+
+constexpr const Gpio *const kPortExt0[] = {
+    &IOEXT0_A0, &IOEXT0_A1, &IOEXT0_A2, &IOEXT0_A3, //
+    &IOEXT0_A4, &IOEXT0_A5, &IOEXT0_A6, &IOEXT0_A7, //
+    &IOEXT0_B0, &IOEXT0_B1, &IOEXT0_B2, &IOEXT0_B3, //
+    &IOEXT0_B4, &IOEXT0_B5, &IOEXT0_B6, &IOEXT0_B7, //
+    &IOEXT1_A0, &IOEXT1_A1, &IOEXT1_A2, &IOEXT1_A3, //
+    &IOEXT1_A4, &IOEXT1_A5, &IOEXT1_A6, &IOEXT1_A7, //
+    &IOEXT1_B0, &IOEXT1_B1, &IOEXT1_B2, &IOEXT1_B3, //
+    &IOEXT1_B4, &IOEXT1_B5, &IOEXT1_B6, &IOEXT1_B7  //
+};
+
+openlcb::MultiConfiguredPC ext0_pcs(
+    stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
+
 openlcb::RefreshLoop loopab(stack.node(),
     {
+        ext0_pcs.polling(),                           //
         producer_a1.polling(), producer_a2.polling(), //
         producer_a3.polling(), producer_a4.polling(), //
         producer_a5.polling(), producer_a6.polling(), //
@@ -424,7 +511,7 @@ openlcb::RefreshLoop loopab(stack.node(),
         &turnout_pulse_consumer_5,                    //
         &turnout_pulse_consumer_6,                    //
         &turnout_pulse_consumer_7,                    //
-        &turnout_pulse_consumer_8                    //
+        &turnout_pulse_consumer_8                     //
     });
 
 /** Entry point to application.
@@ -437,6 +524,12 @@ int appl_main(int argc, char *argv[])
     stack.check_version_and_factory_reset(
         cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
 
+    {
+        int i2cfd = ::open("/dev/i2c0", O_RDWR);
+        exp0.init(i2cfd);
+        exp1.init(i2cfd);
+    }
+    
     srv1_gpo.clr();
     srv2_gpo.clr();
     srv3_gpo.clr();

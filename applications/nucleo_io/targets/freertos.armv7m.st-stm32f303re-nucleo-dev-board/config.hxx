@@ -5,6 +5,7 @@
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/MemoryConfig.hxx"
+#include "openlcb/MultiConfiguredPC.hxx"
 
 namespace openlcb
 {
@@ -42,9 +43,12 @@ using PortABProducers = RepeatedGroup<ProducerConfig, 16>;
 
 using PulseConsumers = RepeatedGroup<PulseConsumerConfig, 12>;
 
+using Ext0PC = RepeatedGroup<PCConfig, 32>;
+
+
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x1422;
+static constexpr uint16_t CANONICAL_VERSION = 0x1427;
 
 CDI_GROUP(NucleoGroup, Name("Nucleo peripherals"), Description("These are physically located on the nucleo CPU daughterboard."));
 CDI_GROUP_ENTRY(green_led, ConsumerConfig, Name("Nucleo user LED"), Description("Green led (LD2)."));
@@ -63,6 +67,7 @@ CDI_GROUP_ENTRY(direct_consumers, DirectConsumers, Name("Tortoise/Hi-Power outpu
 CDI_GROUP_ENTRY(servo_consumers, DirectConsumers, Name("Servo Pin outputs"), Description("Temporary solution to test servo output pins."), RepName("Line"));
 CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Description("Line 1-8 is port D, Line 9-16 is port E"), RepName("Line"));
 CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
+CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("Expansion board 0 lines"), Description("Line 1-8 is port Even/A, Line 9-16 is port Even/B, Line 17-24 is Odd/A, Line 25-32 is Odd/B"), RepName("Line"));
 CDI_GROUP_END();
 
 /// This segment is only needed temporarily until there is program code to set
