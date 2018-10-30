@@ -36,9 +36,15 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
 using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
+using DirectConsumers = RepeatedGroup<ConsumerConfig, 8>;
+using PortDEConsumers = RepeatedGroup<ConsumerConfig, 16>;
+using PortABProducers = RepeatedGroup<ProducerConfig, 16>;
+
+using PulseConsumers = RepeatedGroup<PulseConsumerConfig, 12>;
+
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x184f;
+static constexpr uint16_t CANONICAL_VERSION = 0x184e;
 
 
 /// Defines the main segment in the configuration CDI. This is laid out at
@@ -49,6 +55,11 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
 CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Output LEDs"));
 CDI_GROUP_ENTRY(producers, AllProducers, Name("Input buttons"));
+CDI_GROUP_ENTRY(snap_switches, PulseConsumers, Name("Consumers for snap switches"), Description("These are on port D"), RepName("Line"));
+CDI_GROUP_ENTRY(direct_consumers, DirectConsumers, Name("Tortoise/Hi-Power outputs"), RepName("Line"));
+CDI_GROUP_ENTRY(servo_consumers, DirectConsumers, Name("Servo Pin outputs"), Description("Temporary solution to test servo output pins."), RepName("Line"));
+CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Description("Line 1-8 is port D, Line 9-16 is port E"), RepName("Line"));
+CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
 CDI_GROUP_END();
 
 /// The main structure of the CDI. ConfigDef is the symbol we use in main.cxx
