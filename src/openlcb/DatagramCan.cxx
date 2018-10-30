@@ -456,10 +456,11 @@ public:
     enum
     {
         CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
-                     (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
-                     (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
+            (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
+            (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
         CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
-                   CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK,
+            CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK |
+            CanDefs::CAN_FRAME_TYPE_MASK,
     };
 
     CanDatagramParser(IfCan *iface);
@@ -688,13 +689,27 @@ CanDatagramService::~CanDatagramService()
 CanDatagramParser::CanDatagramParser(IfCan *iface)
     : CanFrameStateFlow(iface)
 {
-    if_can()->frame_dispatcher()->register_handler(this, CAN_FILTER, CAN_MASK);
+    if_can()->frame_dispatcher()->register_handler(this,
+        CAN_FILTER |
+            (CanDefs::DATAGRAM_ONE_FRAME << CanDefs::CAN_FRAME_TYPE_SHIFT),
+        CAN_MASK);
+    if_can()->frame_dispatcher()->register_handler(this,
+        CAN_FILTER |
+            (CanDefs::DATAGRAM_FIRST_FRAME << CanDefs::CAN_FRAME_TYPE_SHIFT),
+        CAN_MASK);
+    if_can()->frame_dispatcher()->register_handler(this,
+        CAN_FILTER |
+            (CanDefs::DATAGRAM_MIDDLE_FRAME << CanDefs::CAN_FRAME_TYPE_SHIFT),
+        CAN_MASK);
+    if_can()->frame_dispatcher()->register_handler(this,
+        CAN_FILTER |
+            (CanDefs::DATAGRAM_FINAL_FRAME << CanDefs::CAN_FRAME_TYPE_SHIFT),
+        CAN_MASK);
 }
 
 CanDatagramParser::~CanDatagramParser()
 {
-    if_can()->frame_dispatcher()->unregister_handler(this, CAN_FILTER,
-                                                     CAN_MASK);
+    if_can()->frame_dispatcher()->unregister_handler_all(this);
 }
 
 } // namespace openlcb
