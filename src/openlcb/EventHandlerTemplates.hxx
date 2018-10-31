@@ -151,8 +151,8 @@ public:
         {
             return done->notify();
         }
-        event->event_write_helper<1>()->WriteAsync(
-            node_, openlcb::Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
+        event->event_write_helper<1>()->WriteAsync(node_,
+            openlcb::Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
             WriteHelper::global(), openlcb::eventid_to_buffer(EVENT_ID), done);
     }
 

@@ -88,7 +88,7 @@ typedef struct
 
 private:
     /// Static objects usable by all event handler implementations.
-    WriteHelper* write_helpers;
+    WriteHelper *write_helpers;
 } EventReport;
 
 /// Structure used in registering event handlers.

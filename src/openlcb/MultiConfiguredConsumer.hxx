@@ -185,8 +185,7 @@ private:
     /// Sends out a ConsumerIdentified message for the given registration
     /// entry.
     void SendConsumerIdentified(const EventRegistryEntry &registry_entry,
-                                EventReport *event,
-                                BarrierNotifiable *done)
+        EventReport *event, BarrierNotifiable *done)
     {
         Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID;
         unsigned b1 = pins_[registry_entry.user_arg >> 1]->is_set() ? 1 : 0;
