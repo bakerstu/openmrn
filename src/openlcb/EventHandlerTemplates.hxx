@@ -151,7 +151,7 @@ public:
         {
             return done->notify();
         }
-        event_write_helper1.WriteAsync(
+        event->event_write_helper<1>()->WriteAsync(
             node_, openlcb::Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
             WriteHelper::global(), openlcb::eventid_to_buffer(EVENT_ID), done);
     }
@@ -503,7 +503,7 @@ protected:
     ///
     /// @TODO: for consistency of API this function should be changed to notify
     /// the barrier. The caller should always use new_child.
-    void SendProducerIdentified(BarrierNotifiable *done);
+    void SendProducerIdentified(EventReport *event, BarrierNotifiable *done);
 
     /// Sends off two packets using event_write_helper{3,4} of
     /// ConsumerIdentified
@@ -512,7 +512,7 @@ protected:
     ///
     /// @TODO: for consistency of API this function should be changed to notify
     /// the barrier. The caller should always use new_child.
-    void SendConsumerIdentified(BarrierNotifiable *done);
+    void SendConsumerIdentified(EventReport *event, BarrierNotifiable *done);
 
     /// Checks if the event in the report is something we are interested in, and
     /// if so, sends off a {Producer|Consumer}Identified{Valid|Invalid} message

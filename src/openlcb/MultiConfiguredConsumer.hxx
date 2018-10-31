@@ -154,7 +154,7 @@ public:
         {
             return done->notify();
         }
-        SendConsumerIdentified(registry_entry, done);
+        SendConsumerIdentified(registry_entry, event, done);
     }
 
     void handle_identify_consumer(const EventRegistryEntry &registry_entry,
@@ -165,7 +165,7 @@ public:
         {
             return done->notify();
         }
-        SendConsumerIdentified(registry_entry, done);
+        SendConsumerIdentified(registry_entry, event, done);
     }
 
     void handle_event_report(const EventRegistryEntry &registry_entry,
@@ -185,6 +185,7 @@ private:
     /// Sends out a ConsumerIdentified message for the given registration
     /// entry.
     void SendConsumerIdentified(const EventRegistryEntry &registry_entry,
+                                EventReport *event,
                                 BarrierNotifiable *done)
     {
         Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID;
@@ -194,9 +195,9 @@ private:
         {
             mti++; // INVALID
         }
-        event_write_helper3.WriteAsync(node_, mti, WriteHelper::global(),
-                                       eventid_to_buffer(registry_entry.event),
-                                       done);
+        event->event_write_helper<3>()->WriteAsync(node_, mti,
+            WriteHelper::global(), eventid_to_buffer(registry_entry.event),
+            done);
     }
 
     /// Removed registration of this event handler from the global event

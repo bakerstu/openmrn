@@ -232,7 +232,7 @@ void BitRangeEventPC::HandleIdentifyBase(Defs::MTI mti_valid,
         mti++; // mti INVALID
     }
 
-    event_write_helper1.WriteAsync(node_, mti, WriteHelper::global(),
+    event->event_write_helper<1>()->WriteAsync(node_, mti, WriteHelper::global(),
                                    eventid_to_buffer(event->event), done);
 }
 
@@ -267,10 +267,10 @@ void BitRangeEventPC::handle_identify_global(const EventRegistryEntry& entry, Ev
         return done->notify();
     }
     uint64_t range = EncodeRange(event_base_, size_ * 2);
-    event_write_helper1.WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
+    event->event_write_helper<1>()->WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
                                    WriteHelper::global(),
                                    eventid_to_buffer(range), done->new_child());
-    event_write_helper2.WriteAsync(node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
+    event->event_write_helper<2>()->WriteAsync(node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
                                    WriteHelper::global(),
                                    eventid_to_buffer(range), done->new_child());
     done->maybe_done();
@@ -352,7 +352,7 @@ void ByteRangeEventC::handle_identify_consumer(const EventRegistryEntry& entry, 
     {
         mti++; // mti INVALID
     }
-    event_write_helper1.WriteAsync(node_, mti, WriteHelper::global(),
+    event->event_write_helper<1>()->WriteAsync(node_, mti, WriteHelper::global(),
                                    eventid_to_buffer(event->event), done);
 }
 
@@ -364,7 +364,7 @@ void ByteRangeEventC::handle_identify_global(const EventRegistryEntry& entry, Ev
         return done->notify();
     }
     uint64_t range = EncodeRange(event_base_, size_ * 256);
-    event_write_helper1.WriteAsync(node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
+    event->event_write_helper<1>()->WriteAsync(node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
                                    WriteHelper::global(),
                                    eventid_to_buffer(range), done->new_child());
     done->maybe_done();
@@ -416,9 +416,10 @@ void ByteRangeEventP::handle_identify_producer(const EventRegistryEntry& entry, 
     {
         mti++; // mti INVALID
         // We also send off the currently valid value.
-        Update(storage - data_, &event_write_helper2, done->new_child());
+        Update(
+            storage - data_, event->event_write_helper<2>(), done->new_child());
     }
-    event_write_helper1.WriteAsync(node_, mti, WriteHelper::global(),
+    event->event_write_helper<1>()->WriteAsync(node_, mti, WriteHelper::global(),
                                    eventid_to_buffer(event->event),
                                    done->new_child());
     done->maybe_done();
@@ -431,7 +432,7 @@ void ByteRangeEventP::handle_identify_global(const EventRegistryEntry& entry, Ev
         return done->notify();
     }
     uint64_t range = EncodeRange(event_base_, size_ * 256);
-    event_write_helper1.WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
+    event->event_write_helper<1>()->WriteAsync(node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
                                    WriteHelper::global(),
                                    eventid_to_buffer(range), done);
 }
@@ -463,7 +464,7 @@ void ByteRangeEventP::handle_consumer_identified(const EventRegistryEntry& entry
     {
         return done->notify();
     }
-    Update(storage - data_, &event_write_helper1, done);
+    Update(storage - data_, event->event_write_helper<1>(), done);
 }
 
 void ByteRangeEventP::handle_consumer_range_identified(const EventRegistryEntry& entry, EventReport *event,
@@ -502,19 +503,19 @@ void ByteRangeEventP::handle_consumer_range_identified(const EventRegistryEntry&
     unsigned cur = start_offset;
     if (cur < end_offset)
     {
-        Update(cur++, &event_write_helper1, done->new_child());
+        Update(cur++, event->event_write_helper<1>(), done->new_child());
     }
     if (cur < end_offset)
     {
-        Update(cur++, &event_write_helper2, done->new_child());
+        Update(cur++, event->event_write_helper<2>(), done->new_child());
     }
     if (cur < end_offset)
     {
-        Update(cur++, &event_write_helper3, done->new_child());
+        Update(cur++, event->event_write_helper<3>(), done->new_child());
     }
     if (cur < end_offset)
     {
-        Update(cur++, &event_write_helper4, done->new_child());
+        Update(cur++, event->event_write_helper<4>(), done->new_child());
     }
     // This will crash if more than four packets are to be produced. The above
     // code should be replaced by a background iteration in that case.
@@ -555,28 +556,28 @@ void BitEventHandler::unregister_handler()
     EventRegistry::instance()->unregister_handler(this);
 }
 
-void BitEventHandler::SendProducerIdentified(BarrierNotifiable *done)
+void BitEventHandler::SendProducerIdentified(EventReport* event, BarrierNotifiable *done)
 {
     EventState state = bit_->get_current_state();
     Defs::MTI mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID + state;
-    event_write_helper1.WriteAsync(bit_->node(), mti, WriteHelper::global(),
+    event->event_write_helper<1>()->WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(bit_->event_on()),
                                    done->new_child());
     mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID + invert_event_state(state);
-    event_write_helper2.WriteAsync(bit_->node(), mti, WriteHelper::global(),
+    event->event_write_helper<2>()->WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(bit_->event_off()),
                                    done->new_child());
 }
 
-void BitEventHandler::SendConsumerIdentified(BarrierNotifiable *done)
+void BitEventHandler::SendConsumerIdentified(EventReport* event, BarrierNotifiable *done)
 {
     EventState state = bit_->get_current_state();
     Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID + state;
-    event_write_helper3.WriteAsync(bit_->node(), mti, WriteHelper::global(),
+    event->event_write_helper<3>()->WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(bit_->event_on()),
                                    done->new_child());
     mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID + invert_event_state(state);
-    event_write_helper4.WriteAsync(bit_->node(), mti, WriteHelper::global(),
+    event->event_write_helper<4>()->WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(bit_->event_off()),
                                    done->new_child());
 }
@@ -623,7 +624,7 @@ void BitEventHandler::HandlePCIdentify(Defs::MTI mti, EventReport *event,
         return;
     }
     mti = mti + active;
-    event_write_helper1.WriteAsync(bit_->node(), mti, WriteHelper::global(),
+    event->event_write_helper<1>()->WriteAsync(bit_->node(), mti, WriteHelper::global(),
                                    eventid_to_buffer(event->event), done);
 }
 
@@ -693,7 +694,7 @@ void BitEventProducer::handle_identify_global(const EventRegistryEntry& entry, E
     {
         return done->notify();
     }
-    SendProducerIdentified(done);
+    SendProducerIdentified(event, done);
     done->maybe_done();
 }
 
@@ -722,7 +723,7 @@ void BitEventConsumer::handle_identify_global(const EventRegistryEntry& entry, E
     {
         return done->notify();
     }
-    SendConsumerIdentified(done);
+    SendConsumerIdentified(event, done);
     done->maybe_done();
 }
 
@@ -740,8 +741,8 @@ void BitEventPC::handle_identify_global(const EventRegistryEntry& entry, EventRe
     {
         return done->notify();
     }
-    SendProducerIdentified(done);
-    SendConsumerIdentified(done);
+    SendProducerIdentified(event, done);
+    SendConsumerIdentified(event, done);
     done->maybe_done();
 }
 

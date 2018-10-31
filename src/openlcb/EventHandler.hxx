@@ -76,6 +76,19 @@ typedef struct
     /// producer/consumer as the sender of the message
     /// (valid/invalid/unknown/reserved).
     EventState state;
+
+    /// These allow event handlers to produce up to four messages per
+    /// invocation. They are always available at the entry to an event handler
+    /// function.
+    template <int N> WriteHelper *event_write_helper()
+    {
+        static_assert(1 <= N && N <= 4, "WriteHelper out of range.");
+        return write_helpers + (N - 1);
+    }
+
+private:
+    /// Static objects usable by all event handler implementations.
+    WriteHelper* write_helpers;
 } EventReport;
 
 /// Structure used in registering event handlers.
@@ -104,16 +117,6 @@ public:
     {
     }
 };
-
-// Static objects usable by all event handler implementations
-
-// These allow event handlers to produce up to four messages per
-// invocation. They are locked by the event-handler_mutex and always available
-// at the entry to an event handler function.
-extern WriteHelper event_write_helper1;
-extern WriteHelper event_write_helper2;
-extern WriteHelper event_write_helper3;
-extern WriteHelper event_write_helper4;
 
 /// Abstract base class for all event handlers. Instances of this class can
 /// get registered with the event service to receive notifications of incoming
