@@ -56,7 +56,7 @@ class EventHandler;
 
 /// Shared notification structure that is assembled for each incoming
 /// event-related message, and passed around to all event handlers.
-typedef struct
+struct EventReport
 {
     /// The event ID from the incoming message.
     EventId event;
@@ -87,9 +87,16 @@ typedef struct
     }
 
 private:
+    /// Constrained access to the constructors. We do this because the
+    /// EventReport structure is pretty expensive due to the statically
+    /// allocated memory of the write helpers. Only the EventIteratorFlow
+    /// should have objects of this type.
+    EventReport() {}
+    friend class EventIteratorFlow;
+    
     /// Static objects usable by all event handler implementations.
-    WriteHelper *write_helpers;
-} EventReport;
+    WriteHelper write_helpers[4];
+};
 
 /// Structure used in registering event handlers.
 class EventRegistryEntry
