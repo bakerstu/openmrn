@@ -222,29 +222,28 @@ private:
         {
             return done->notify();
         }
-        SendConsumerIdentified(done);
+        SendConsumerIdentified(event, done);
     }
 
-    void SendConsumerIdentified(BarrierNotifiable *done)
+    void SendConsumerIdentified(EventReport *event, BarrierNotifiable *done)
     {
         Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID;
         if (!pulseRemaining_)
         {
             mti++; // INVALID
         }
-        event_write_helper3.WriteAsync(node_, mti, WriteHelper::global(),
-                                       eventid_to_buffer(event_), done);
+        event->event_write_helper<3>()->WriteAsync(
+            node_, mti, WriteHelper::global(), eventid_to_buffer(event_), done);
     }
 
     void handle_identify_consumer(const EventRegistryEntry &registry_entry,
-                                EventReport *event, BarrierNotifiable *done)
-        OVERRIDE
+        EventReport *event, BarrierNotifiable *done) OVERRIDE
     {
         if (event->event != event_)
         {
             return done->notify();
         }
-        SendConsumerIdentified(done);
+        SendConsumerIdentified(event, done);
     }
 
     void handle_event_report(const EventRegistryEntry &registry_entry,

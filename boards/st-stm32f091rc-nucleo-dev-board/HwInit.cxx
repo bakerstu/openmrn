@@ -158,9 +158,6 @@ void timer14_interrupt_handler(void)
 
 void diewith(uint32_t pattern)
 {
-    asm("cpsid i\n");
-    NVIC_SystemReset();
-    
     // vPortClearInterruptMask(0x20);
     asm("cpsie i\n");
 
