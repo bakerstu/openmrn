@@ -54,6 +54,11 @@ class EventHandler;
   EVENT_ALL_MASK = 0xffffffffffffffffULL
   };*/
 
+enum TestingEnum
+{
+    FOR_TESTING
+};
+
 /// Shared notification structure that is assembled for each incoming
 /// event-related message, and passed around to all event handlers.
 struct EventReport
@@ -86,6 +91,11 @@ struct EventReport
         return write_helpers + (N - 1);
     }
 
+    /// Public constructor for use in tests only.
+    EventReport(TestingEnum)
+    {
+    }
+
 private:
     /// Constrained access to the constructors. We do this because the
     /// EventReport structure is pretty expensive due to the statically
@@ -93,7 +103,8 @@ private:
     /// should have objects of this type.
     EventReport() {}
     friend class EventIteratorFlow;
-    
+    friend class DecoderRangeTest;
+
     /// Static objects usable by all event handler implementations.
     WriteHelper write_helpers[4];
 };
