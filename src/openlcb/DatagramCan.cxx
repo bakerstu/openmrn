@@ -692,19 +692,15 @@ CanDatagramParser::CanDatagramParser(IfCan *iface)
     if_can()->frame_dispatcher()->register_handler(this,
         CAN_FILTER |
             (CanDefs::DATAGRAM_ONE_FRAME << CanDefs::CAN_FRAME_TYPE_SHIFT),
-        CAN_MASK);
-    if_can()->frame_dispatcher()->register_handler(this,
-        CAN_FILTER |
-            (CanDefs::DATAGRAM_FIRST_FRAME << CanDefs::CAN_FRAME_TYPE_SHIFT),
-        CAN_MASK);
+        CAN_MASK &
+            ~((CanDefs::DATAGRAM_ONE_FRAME ^ CanDefs::DATAGRAM_FIRST_FRAME)
+                << CanDefs::CAN_FRAME_TYPE_SHIFT));
     if_can()->frame_dispatcher()->register_handler(this,
         CAN_FILTER |
             (CanDefs::DATAGRAM_MIDDLE_FRAME << CanDefs::CAN_FRAME_TYPE_SHIFT),
-        CAN_MASK);
-    if_can()->frame_dispatcher()->register_handler(this,
-        CAN_FILTER |
-            (CanDefs::DATAGRAM_FINAL_FRAME << CanDefs::CAN_FRAME_TYPE_SHIFT),
-        CAN_MASK);
+        CAN_MASK &
+            ~((CanDefs::DATAGRAM_MIDDLE_FRAME ^ CanDefs::DATAGRAM_FINAL_FRAME)
+                << CanDefs::CAN_FRAME_TYPE_SHIFT));
 }
 
 CanDatagramParser::~CanDatagramParser()
