@@ -26,10 +26,11 @@
  *
  * \file main.cxx
  *
- * Main file for the io board application on the Tiva Launchpad board.
+ * Main file for the benchmark application on the STM32F091 Nucleo Dev Kit
+ * board.
  *
  * @author Balazs Racz
- * @date 5 Jun 2015
+ * @date 29 Oct 2018
  */
 
 #define LOGLEVEL INFO
