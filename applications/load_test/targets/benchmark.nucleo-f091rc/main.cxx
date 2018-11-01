@@ -203,28 +203,18 @@ openlcb::MultiConfiguredConsumer servo_consumers(stack.node(), kDirectGpio,
 // would be placed into RAM instead of ROM.
 constexpr const Gpio *const kOutputGpio[] = {DummyPinWithRead::instance(), DummyPinWithRead::instance(), DummyPinWithRead::instance()};
 
-// Instantiates the actual producer and consumer objects for the given GPIO
-// pins from above. The MultiConfiguredConsumer class takes care of most of the
-// complicated setup and operation requirements. We need to give it the virtual
-// node pointer, the hardware pin definition and the configuration from the CDI
-// definition. The virtual node pointer comes from the stack object. The
-// configuration structure comes from the CDI definition object, segment 'seg',
-// in which there is a repeated group 'consumers'. The GPIO pins get assigned
-// to the repetitions in the group in order.
-openlcb::MultiConfiguredConsumer consumers(
-    stack.node(), kOutputGpio, ARRAYSIZE(kOutputGpio), cfg.seg().consumers());
+openlcb::ConfiguredConsumer consumer_green(
+    stack.node(), cfg.seg().nucleo_onboard().green_led(), LED_GREEN_Pin());
 
 // Similar syntax for the producers.
 openlcb::ConfiguredProducer producer_sw1(
-    stack.node(), cfg.seg().producers().entry<0>(), SW_USER_Pin());
-openlcb::ConfiguredProducer producer_sw2(
-    stack.node(), cfg.seg().producers().entry<1>(), SW_USER_Pin());
+    stack.node(), cfg.seg().nucleo_onboard().user_btn(), SW_USER_Pin());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
 openlcb::RefreshLoop loop(
-    stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
+    stack.node(), {producer_sw1.polling()});
 
 uint32_t output_register[1] = {0x00000000};
 constexpr const MmapGpio PORTD_LINE1(output_register, 7, true);
