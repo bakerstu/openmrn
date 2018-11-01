@@ -1,22 +1,3 @@
-// -!- c++ -!- //////////////////////////////////////////////////////////////
-//
-//  System        : 
-//  Module        : 
-//  Object Name   : $RCSfile$
-//  Revision      : $Revision$
-//  Date          : $Date$
-//  Author        : $Author$
-//  Created By    : Robert Heller
-//  Created       : Tue Oct 9 21:19:14 2018
-//  Last Modified : <181031.2137>
-//
-//  Description	
-//
-//  Notes
-//
-//  History
-//
-
 /** \copyright
  *
  *    Copyright (C) 2018  Robert Heller D/B/A Deepwoods Software
