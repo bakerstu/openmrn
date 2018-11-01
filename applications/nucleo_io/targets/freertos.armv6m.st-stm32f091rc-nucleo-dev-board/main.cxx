@@ -410,6 +410,8 @@ openlcb::ConfiguredProducer producer_b7(
 openlcb::ConfiguredProducer producer_b8(
     stack.node(), cfg.seg().portab_producers().entry<15>(), (const Gpio*)&PORTB_LINE8);
 
+#if NUM_EXTBOARDS > 0
+
 MCP23017 exp0(&io_executor, 0, 0, 0);
 MCP23017 exp1(&io_executor, 0, 0, 1);
 
@@ -449,36 +451,6 @@ constexpr const MCP23017Gpio IOEXT1_B5(&exp1, MCP23017::PORTB, 5);
 constexpr const MCP23017Gpio IOEXT1_B6(&exp1, MCP23017::PORTB, 6);
 constexpr const MCP23017Gpio IOEXT1_B7(&exp1, MCP23017::PORTB, 7);
 
-
-class MCPTest : public OSThread {
-public:
-    MCPTest() : OSThread() {
-        start("mcp_thread", 0, 1500);
-    }
-
-    void* entry() override {
-        //exp0.init("/dev/i2c0");
-        IOEXT0_A0.set_direction(Gpio::Direction::OUTPUT);
-        IOEXT0_A1.set_direction(Gpio::Direction::INPUT);
-        IOEXT0_A6.set_direction(Gpio::Direction::OUTPUT);
-        while(true) {
-            for (int i = 0; i < 10; ++i) {
-                usleep(50000);
-                IOEXT0_A6.write(IOEXT0_A1.read());
-            }
-            resetblink(0);
-            IOEXT0_A0.set();
-            for (int i = 0; i < 10; ++i) {
-                usleep(50000);
-                IOEXT0_A6.write(IOEXT0_A1.read());
-            }
-            resetblink(1);
-            IOEXT0_A0.clr();
-        }
-    }
-
-} mcp_test;
-
 constexpr const Gpio *const kPortExt0[] = {
     &IOEXT0_A0, &IOEXT0_A1, &IOEXT0_A2, &IOEXT0_A3, //
     &IOEXT0_A4, &IOEXT0_A5, &IOEXT0_A6, &IOEXT0_A7, //
@@ -493,9 +465,13 @@ constexpr const Gpio *const kPortExt0[] = {
 openlcb::MultiConfiguredPC ext0_pcs(
     stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
 
+#endif // if num extboards > 0
+
 openlcb::RefreshLoop loopab(stack.node(),
     {
+#if NUM_EXTBOARDS > 0
         ext0_pcs.polling(),                           //
+#endif
         producer_a1.polling(), producer_a2.polling(), //
         producer_a3.polling(), producer_a4.polling(), //
         producer_a5.polling(), producer_a6.polling(), //
@@ -524,12 +500,14 @@ int appl_main(int argc, char *argv[])
     stack.check_version_and_factory_reset(
         cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
 
+#if NUM_EXTBOARDS > 0
     {
         int i2cfd = ::open("/dev/i2c0", O_RDWR);
         exp0.init(i2cfd);
         exp1.init(i2cfd);
     }
-    
+#endif
+
     srv1_gpo.clr();
     srv2_gpo.clr();
     srv3_gpo.clr();

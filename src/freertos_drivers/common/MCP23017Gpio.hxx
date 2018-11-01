@@ -43,7 +43,8 @@
 
 #include "executor/Executor.hxx"
 
-class MCP23017 : private Atomic {
+class MCP23017 : private Atomic
+{
 public:
     // 50 Hz polling
     static constexpr long long POLLING_DELAY = MSEC_TO_NSEC(20);
@@ -52,16 +53,20 @@ public:
     /// @param a2 address bit 2
     /// @param a1 address bit 1
     /// @param a0 address bit 0
-    MCP23017(ExecutorBase* executor, bool a2, bool a1, bool a0)
-        : executor_(executor) {
+    MCP23017(ExecutorBase *executor, bool a2, bool a1, bool a0)
+        : executor_(executor)
+    {
         unsigned num = 0;
-        if (a2) {
+        if (a2)
+        {
             num |= 0b100;
         }
-        if (a1) {
+        if (a1)
+        {
             num |= 0b010;
         }
-        if (a0) {
+        if (a0)
+        {
             num |= 0b001;
         }
         i2cAddress_ = BASE_ADDRESS | num;
@@ -69,7 +74,8 @@ public:
 
     /// Initializes the device.
     /// @param i2c_path is the path to the device driver of the i2c port.
-    void init(const char* i2c_path) {
+    void init(const char *i2c_path)
+    {
         int fd = ::open(i2c_path, O_RDWR);
         HASSERT(fd >= 0);
         init(fd);
@@ -89,7 +95,8 @@ public:
         timer_.start(POLLING_DELAY);
     }
 
-    enum {
+    enum
+    {
         PORTA = 0,
         PORTB = 1,
     };
@@ -99,7 +106,8 @@ private:
 
     friend class MCP23017Gpio;
 
-    enum Registers {
+    enum Registers
+    {
         IODIRA = 0x0,
         IODIRB = 0x1,
         IPOLA = 0x2,
@@ -123,7 +131,8 @@ private:
         OLATB = 0x15
     };
 
-    enum {
+    enum
+    {
         /// I2C address of the first device.
         BASE_ADDRESS = 0b0100000,
 
@@ -176,26 +185,23 @@ private:
     /// @param data payload to write
     /// @param len number of bytes to write.
     /// Returns when the write is complete.
-    void register_write(uint8_t reg, const uint8_t* data, uint16_t len) {
+    void register_write(uint8_t reg, const uint8_t *data, uint16_t len)
+    {
         uint8_t dat[3];
         dat[0] = reg;
         dat[1] = data[0];
-        if (len > 1) {
+        if (len > 1)
+        {
             dat[2] = data[1];
         }
         HASSERT(len <= 2);
-        struct i2c_msg msgs[] =
-        {
-            {
-                .addr = i2cAddress_,
-                .flags = 0,
-                .len = (uint16_t)(len + 1),
-                .buf = dat
-            }
-        };
+        struct i2c_msg msgs[] = {{.addr = i2cAddress_,
+            .flags = 0,
+            .len = (uint16_t)(len + 1),
+            .buf = dat}};
 
-        struct i2c_rdwr_ioctl_data ioctl_data =
-            {.msgs = msgs, .nmsgs = ARRAYSIZE(msgs)};
+        struct i2c_rdwr_ioctl_data ioctl_data = {
+            .msgs = msgs, .nmsgs = ARRAYSIZE(msgs)};
 
         ::ioctl(fd_, I2C_RDWR, &ioctl_data);
     }
@@ -205,32 +211,22 @@ private:
     /// @param data where to write payload
     /// @param len number of registers to read.
     /// Returns when the read is complete.
-    void register_read(uint8_t reg, uint8_t* data, uint16_t len) {
-        struct i2c_msg msgs[] =
-        {
-            {
-                .addr = i2cAddress_,
-                .flags = 0,
-                .len = 1,
-                .buf = &reg
-            },
-            {
-                .addr = i2cAddress_,
-                .flags = I2C_M_RD,
-                .len = len,
-                .buf = data
-            }
-        };
+    void register_read(uint8_t reg, uint8_t *data, uint16_t len)
+    {
+        struct i2c_msg msgs[] = {
+            {.addr = i2cAddress_, .flags = 0, .len = 1, .buf = &reg},
+            {.addr = i2cAddress_, .flags = I2C_M_RD, .len = len, .buf = data}};
 
-        struct i2c_rdwr_ioctl_data ioctl_data =
-            {.msgs = msgs, .nmsgs = ARRAYSIZE(msgs)};
+        struct i2c_rdwr_ioctl_data ioctl_data = {
+            .msgs = msgs, .nmsgs = ARRAYSIZE(msgs)};
 
         ::ioctl(fd_, I2C_RDWR, &ioctl_data);
     }
 
     /// This timer runs in the parent executor and upon every timeout it
     /// executes the update / polling of the IO expander.
-    class RefreshTimer : public ::Timer {
+    class RefreshTimer : public ::Timer
+    {
     public:
         RefreshTimer(MCP23017 *parent)
             : ::Timer(parent->executor_->active_timers())
@@ -246,11 +242,11 @@ private:
         };
 
     private:
-        MCP23017* parent_;
+        MCP23017 *parent_;
     };
 
     /// Executor. We will be blocking this for the I2C IO.
-    ExecutorBase* executor_;
+    ExecutorBase *executor_;
     /// Timer instance to schedule work on the executor.
     RefreshTimer timer_{this};
     /// I2C port file descriptor.
@@ -270,8 +266,8 @@ private:
     uint8_t dirty_ = 0;
 };
 
-
-class MCP23017Gpio : public Gpio {
+class MCP23017Gpio : public Gpio
+{
 public:
     constexpr MCP23017Gpio(MCP23017 *const parent, unsigned port, unsigned pin)
         : parent_(parent)
@@ -280,11 +276,13 @@ public:
     {
     }
 
-    void set() const override {
+    void set() const override
+    {
         write(HIGH);
     }
 
-    void clr() const override {
+    void clr() const override
+    {
         write(LOW);
     }
 
@@ -347,12 +345,11 @@ public:
 private:
     DISALLOW_COPY_AND_ASSIGN(MCP23017Gpio);
 
-    MCP23017* const parent_;
+    MCP23017 *const parent_;
     /// 0 or 1 for portA/B
     const uint8_t port_;
     /// one bit that denotes the output pin.
     const uint8_t pinBit_;
 };
-
 
 #endif // _FREERTOS_DRIVERS_COMMON_MCP23017GPIO_HXX_

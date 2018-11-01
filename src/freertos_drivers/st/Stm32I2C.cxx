@@ -114,7 +114,7 @@ static void i2c_reset(I2C_TypeDef *port)
 
 // This timing is assuming 72 MHz main clock, the I2C module being clocked from
 // the main clock, and gives 400 kHz clock (fast mode).
-#define I2C_TIMING      (__LL_I2C_CONVERT_TIMINGS(8, 0x3, 0x3, 0x3, 0x9))
+#define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(8, 0x3, 0x3, 0x3, 0x9))
 
 /** Constructor.
  * @param name name of this device instance in the file system
@@ -147,13 +147,12 @@ Stm32I2C::Stm32I2C(const char *name, I2C_TypeDef *port, uint32_t ev_interrupt,
     // We save the object pointer in order to get back to *this in the callback
     // routines. This field of the Init structure is not used after the Init
     // call above.
-    i2cHandle_.Init.Timing = (uint32_t)this;
+    i2cHandle_.Init.Timing = (uint32_t) this;
 
     NVIC_SetPriority((IRQn_Type)ev_interrupt, configKERNEL_INTERRUPT_PRIORITY);
     HAL_NVIC_EnableIRQ((IRQn_Type)ev_interrupt);
     NVIC_SetPriority((IRQn_Type)er_interrupt, configKERNEL_INTERRUPT_PRIORITY);
     HAL_NVIC_EnableIRQ((IRQn_Type)er_interrupt);
-    //HASSERT(update_configuration() == 0);
 }
 
 int Stm32I2C::transfer(struct i2c_msg *msg, bool stop)
@@ -174,7 +173,9 @@ int Stm32I2C::transfer(struct i2c_msg *msg, bool stop)
         if (stop)
         {
             xfer_options = I2C_FIRST_AND_LAST_FRAME;
-        } else {
+        }
+        else
+        {
             xfer_options = I2C_FIRST_FRAME;
         }
 
@@ -192,7 +193,9 @@ int Stm32I2C::transfer(struct i2c_msg *msg, bool stop)
         if (stop)
         {
             xfer_options = I2C_FIRST_AND_LAST_FRAME;
-        } else {
+        }
+        else
+        {
             xfer_options = I2C_FIRST_FRAME;
         }
         if (HAL_I2C_Master_Sequential_Transmit_IT(&i2cHandle_,
@@ -208,18 +211,20 @@ int Stm32I2C::transfer(struct i2c_msg *msg, bool stop)
     return error_ < 0 ? error_ : bytes;
 }
 
-
-Stm32I2C* dev_from_handle(I2C_HandleTypeDef *hi2c) {
-    return (Stm32I2C*)hi2c->Init.Timing;
+Stm32I2C *dev_from_handle(I2C_HandleTypeDef *hi2c)
+{
+    return (Stm32I2C *)hi2c->Init.Timing;
 }
 
-void Stm32I2C::complete_from_isr() {
+void Stm32I2C::complete_from_isr()
+{
     int woken = 0;
     sem.post_from_isr(&woken);
     os_isr_exit_yield_test(woken);
 }
 
-void Stm32I2C::error_from_isr() {
+void Stm32I2C::error_from_isr()
+{
     auto error = i2cHandle_.ErrorCode;
 
     if (error & HAL_I2C_ERROR_ARLO)
@@ -246,11 +251,13 @@ void Stm32I2C::error_from_isr() {
 
 extern "C" {
 
-void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c) {
+void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c)
+{
     dev_from_handle(hi2c)->complete_from_isr();
 }
 
-void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c) {
+void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
+{
     dev_from_handle(hi2c)->complete_from_isr();
 }
 
@@ -258,6 +265,4 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
 {
     dev_from_handle(hi2c)->error_from_isr();
 }
-
-
 }

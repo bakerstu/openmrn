@@ -281,11 +281,11 @@ public:
         unsigned pin = registry_entry.user_arg >> 1;
         if (pins_[pin]->direction() == Gpio::Direction::INPUT)
         {
-            SendProducerIdentified(registry_entry, done);
+            SendProducerIdentified(registry_entry, event, done);
         }
         else
         {
-            SendConsumerIdentified(registry_entry, done);
+            SendConsumerIdentified(registry_entry, event, done);
         }
     }
 
@@ -300,7 +300,7 @@ public:
         unsigned pin = registry_entry.user_arg >> 1;
         if (pins_[pin]->direction() == Gpio::Direction::OUTPUT)
         {
-            SendConsumerIdentified(registry_entry, done);
+            SendConsumerIdentified(registry_entry, event, done);
         }
     }
 
@@ -315,7 +315,7 @@ public:
         unsigned pin = registry_entry.user_arg >> 1;
         if (pins_[pin]->direction() == Gpio::Direction::INPUT)
         {
-            SendProducerIdentified(registry_entry, done);
+            SendProducerIdentified(registry_entry, event, done);
         }
     }
 
@@ -345,8 +345,8 @@ private:
 
     /// Sends out a ConsumerIdentified message for the given registration
     /// entry.
-    void SendConsumerIdentified(
-        const EventRegistryEntry &registry_entry, BarrierNotifiable *done)
+    void SendConsumerIdentified(const EventRegistryEntry &registry_entry,
+        EventReport *event, BarrierNotifiable *done)
     {
         Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID;
         unsigned b1 = pins_[registry_entry.user_arg >> 1]->is_set() ? 1 : 0;
@@ -355,14 +355,15 @@ private:
         {
             mti++; // INVALID
         }
-        event_write_helper3.WriteAsync(node_, mti, WriteHelper::global(),
-            eventid_to_buffer(registry_entry.event), done->new_child());
+        event->event_write_helper<3>()->WriteAsync(node_, mti,
+            WriteHelper::global(), eventid_to_buffer(registry_entry.event),
+            done->new_child());
     }
 
     /// Sends out a ProducerIdentified message for the given registration
     /// entry.
-    void SendProducerIdentified(
-        const EventRegistryEntry &registry_entry, BarrierNotifiable *done)
+    void SendProducerIdentified(const EventRegistryEntry &registry_entry,
+        EventReport *event, BarrierNotifiable *done)
     {
         Defs::MTI mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID;
         unsigned b1 = pins_[registry_entry.user_arg >> 1]->is_set() ? 1 : 0;
@@ -371,8 +372,9 @@ private:
         {
             mti++; // INVALID
         }
-        event_write_helper4.WriteAsync(node_, mti, WriteHelper::global(),
-            eventid_to_buffer(registry_entry.event), done->new_child());
+        event->event_write_helper<4>()->WriteAsync(node_, mti,
+            WriteHelper::global(), eventid_to_buffer(registry_entry.event),
+            done->new_child());
     }
 
     // Variables used for asynchronous state during the polling loop.
@@ -397,7 +399,6 @@ private:
     /// One debouncer per pin, created for produced pins. We own this memory.
     debouncer_type *debouncers_;
 };
-
 }
 
 #endif // _OPENLCB_MULTICONFIGUREDPC_HXX_

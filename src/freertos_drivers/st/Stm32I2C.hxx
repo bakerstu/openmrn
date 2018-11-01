@@ -36,9 +36,7 @@
 #ifndef _FREERTOS_DRIVERS_ST_STM32I2C_HXX_
 #define _FREERTOS_DRIVERS_ST_STM32I2C_HXX_
 
-
 #include "I2C.hxx"
-
 
 #if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_hal_conf.h"
@@ -49,7 +47,6 @@
 #else
 #error Dont know what STM32 chip you have.
 #endif
-
 
 /** Specialization of I2C driver for STM32 devices.
  */
@@ -62,7 +59,8 @@ public:
      * @param ev_interrupt event interrupt vector number
      * @param er_interrupt error interrupt vector number
      */
-    Stm32I2C(const char *name, I2C_TypeDef *port, uint32_t ev_interrupt, uint32_t er_interrupt);
+    Stm32I2C(const char *name, I2C_TypeDef *port, uint32_t ev_interrupt,
+        uint32_t er_interrupt);
 
     /** Destructor.
      */
@@ -71,12 +69,14 @@ public:
     }
 
     /// Call this function from the specific i2c interrupt routine in HwInit.
-    void event_interrupt_handler() {
+    void event_interrupt_handler()
+    {
         HAL_I2C_EV_IRQHandler(&i2cHandle_);
     }
 
     /// Call this function from the specific i2c interrupt routine in HwInit.
-    void error_interrupt_handler() {
+    void error_interrupt_handler()
+    {
         HAL_I2C_ER_IRQHandler(&i2cHandle_);
     }
 
@@ -109,7 +109,5 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(Stm32I2C);
 };
-
-
 
 #endif // _FREERTOS_DRIVERS_ST_STM32I2C_HXX_

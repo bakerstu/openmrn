@@ -131,11 +131,13 @@ void setblink(uint32_t pattern)
     resetblink(pattern);
 }
 
-void i2c1_ev_interrupt_handler(void) {
+void i2c1_ev_interrupt_handler(void)
+{
     i2c1.event_interrupt_handler();
 }
 
-void i2c1_er_interrupt_handler(void) {
+void i2c1_er_interrupt_handler(void)
+{
     i2c1.error_interrupt_handler();
 }
 
