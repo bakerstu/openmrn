@@ -54,9 +54,14 @@ class EventHandler;
   EVENT_ALL_MASK = 0xffffffffffffffffULL
   };*/
 
+enum TestingEnum
+{
+    FOR_TESTING
+};
+
 /// Shared notification structure that is assembled for each incoming
 /// event-related message, and passed around to all event handlers.
-typedef struct
+struct EventReport
 {
     /// The event ID from the incoming message.
     EventId event;
@@ -76,7 +81,33 @@ typedef struct
     /// producer/consumer as the sender of the message
     /// (valid/invalid/unknown/reserved).
     EventState state;
-} EventReport;
+
+    /// These allow event handlers to produce up to four messages per
+    /// invocation. They are always available at the entry to an event handler
+    /// function.
+    template <int N> WriteHelper *event_write_helper()
+    {
+        static_assert(1 <= N && N <= 4, "WriteHelper out of range.");
+        return write_helpers + (N - 1);
+    }
+
+    /// Public constructor for use in tests only.
+    EventReport(TestingEnum)
+    {
+    }
+
+private:
+    /// Constrained access to the constructors. We do this because the
+    /// EventReport structure is pretty expensive due to the statically
+    /// allocated memory of the write helpers. Only the EventIteratorFlow
+    /// should have objects of this type.
+    EventReport() {}
+    friend class EventIteratorFlow;
+    friend class DecoderRangeTest;
+
+    /// Static objects usable by all event handler implementations.
+    WriteHelper write_helpers[4];
+};
 
 /// Structure used in registering event handlers.
 class EventRegistryEntry
@@ -104,16 +135,6 @@ public:
     {
     }
 };
-
-// Static objects usable by all event handler implementations
-
-// These allow event handlers to produce up to four messages per
-// invocation. They are locked by the event-handler_mutex and always available
-// at the entry to an event handler function.
-extern WriteHelper event_write_helper1;
-extern WriteHelper event_write_helper2;
-extern WriteHelper event_write_helper3;
-extern WriteHelper event_write_helper4;
 
 /// Abstract base class for all event handlers. Instances of this class can
 /// get registered with the event service to receive notifications of incoming
