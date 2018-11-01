@@ -34,6 +34,10 @@
 
 #include "openlcb/If.hxx"
 
+/// Ensures that the largest bucket in the main buffer pool is exactly the size
+/// of a GenMessage.
+const unsigned LARGEST_BUFFERPOOL_BUCKET = sizeof(Buffer<openlcb::GenMessage>);
+
 namespace openlcb
 {
 
