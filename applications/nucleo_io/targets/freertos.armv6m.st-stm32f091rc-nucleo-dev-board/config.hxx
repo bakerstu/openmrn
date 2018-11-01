@@ -29,6 +29,8 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
 
+#define NUM_EXTBOARDS 0
+
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
