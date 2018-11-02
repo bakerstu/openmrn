@@ -179,8 +179,9 @@ protected:
         EventState state =
             stateHandler_ ? stateHandler_(entry, event) : EventState::UNKNOWN;
         Defs::MTI mti = Defs::MTI_PRODUCER_IDENTIFIED_VALID + state;
-        event_write_helper1.WriteAsync(node_, mti, WriteHelper::global(),
-            eventid_to_buffer(entry.event), done->new_child());
+        event->event_write_helper<1>()->WriteAsync(node_, mti,
+            WriteHelper::global(), eventid_to_buffer(entry.event),
+            done->new_child());
     }
 
     /// Helper function for implementations.
@@ -190,8 +191,9 @@ protected:
         EventState state =
             stateHandler_ ? stateHandler_(entry, event) : EventState::UNKNOWN;
         Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID + state;
-        event_write_helper3.WriteAsync(node_, mti, WriteHelper::global(),
-            eventid_to_buffer(entry.event), done->new_child());
+        event->event_write_helper<3>()->WriteAsync(node_, mti,
+            WriteHelper::global(), eventid_to_buffer(entry.event),
+            done->new_child());
     }
 
 private:

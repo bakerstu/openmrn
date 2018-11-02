@@ -1,5 +1,6 @@
 APP_PATH ?= $(realpath ../..)
 -include $(APP_PATH)/config.mk
+-include local_config.mk
 
 OPENMRNPATH ?= $(shell \
 sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
@@ -22,6 +23,19 @@ OPENOCDARGS = -f board/st_nucleo_f0.cfg
 
 TARGET := freertos.armv6m
 include $(OPENMRNPATH)/etc/prog.mk
+
+ifndef DEFAULT_ADDRESS
+DEFAULT_ADDRESS=0x15
+endif
+
+include $(OPENMRNPATH)/etc/node_id.mk
+
+all: $(EXECUTABLE).bin
+
+# How to use: make multibin ADDRESS=0x20 ADDRHIGH=0x45 NUM=3
+# starting address, high bits (user range), count
+multibin:
+	for i in $$(seq 1 $(NUM)) ; do $(MAKE) $(EXECUTABLE).bin ADDRESS=$$(printf 0x%02x $$(($(ADDRESS)+$$i))) ; cp $(EXECUTABLE).bin $(EXECUTABLE).f091.$$(printf %02x%02x $(ADDRHIGH) $$(($(ADDRESS)+$$i-1))).bin ; done
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
 

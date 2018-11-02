@@ -174,12 +174,12 @@ struct GenMessage
         this->flagsDst = 0;
     }
 
-    /// OpenLCB MTI of the incoming message.
-    Defs::MTI mti;
     /// Source node.
     NodeHandle src;
     /// Destination node.
     NodeHandle dst;
+    /// OpenLCB MTI of the incoming message.
+    Defs::MTI mti;
     /// If the destination node is local, this value is non-NULL.
     Node *dstNode;
     /// Data content in the message body. Owned by the dispatcher.

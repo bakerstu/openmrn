@@ -38,6 +38,7 @@
 #include "freertos_drivers/common/Serial.hxx"
 #include "system_config.h"
 #include "utils/Atomic.hxx"
+#include "freertos_drivers/pic32mx/int_pic32mx795/int_defines.h"
 
 extern "C"
 {
@@ -227,6 +228,10 @@ private:
     /// we can recover from them.
     unsigned driverErrors : 10;
 
+    /// unused. Do not remove -- needed to force linking in the interrupt
+    /// trampoline.
+    unsigned irqVector : 5;
+
     /// Receive buffers. We have these separate from ::Serial, because we need
     /// to use double buffering with the USB middleware; specifically we always
     /// need to provide a free 64-byte buffer for the read command.
@@ -269,6 +274,7 @@ Pic32mxCdc::Pic32mxCdc(const char *name)
     , nextReadBufferFull(0)
     , txPendingBytes(0)
     , driverErrors(0)
+    , irqVector(usb_interrupt_vector_number)
 {
     // Allocates receive buffers.
     rxBuffers[0] = DeviceBuffer<uint8_t>::create(USB_CDC_BUFFER_SIZE);
@@ -280,7 +286,7 @@ Pic32mxCdc::Pic32mxCdc(const char *name)
 
     // Set priority of USB interrupt source. This has to be within kernel
     // interrupt priority.
-    SYS_INT_VectorPrioritySet(INT_VECTOR_USB1, INT_PRIORITY_LEVEL2);
+    SYS_INT_VectorPrioritySet(INT_VECTOR_USB1, INT_PRIORITY_LEVEL1);
 
     // Set Sub-priority of USB interrupt source
     SYS_INT_VectorSubprioritySet(INT_VECTOR_USB1, INT_SUBPRIORITY_LEVEL0);

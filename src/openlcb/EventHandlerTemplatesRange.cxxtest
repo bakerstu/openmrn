@@ -9,6 +9,8 @@ static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
 namespace openlcb {
 
+WriteHelper write_helper;
+
 class BitRangeEventTest : public AsyncNodeTest {
  protected:
   BitRangeEventTest()
@@ -104,18 +106,18 @@ TEST_F(BitRangeEventTest, IdentifyGlobal) {
 
 TEST_F(BitRangeEventTest, ProduceBits) {
   expect_packet(":X195B422AN05010101FFFF0280;");
-  handler_.Set(320, true, &event_write_helper1, get_notifiable());
+  handler_.Set(320, true, &write_helper, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   // Another set will not produce another event.
-  handler_.Set(320, true, &event_write_helper1, get_notifiable());
+  handler_.Set(320, true, &write_helper, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   expect_packet(":X195B422AN05010101FFFF0281;");
-  handler_.Set(320, false, &event_write_helper1, get_notifiable());
+  handler_.Set(320, false, &write_helper, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
-  handler_.Set(320, false, &event_write_helper1, get_notifiable());
+  handler_.Set(320, false, &write_helper, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
@@ -146,9 +148,8 @@ TEST_F(BitRangeEventTest, IgnoreUnrelated) {
 TEST_F(BitRangeEventTest, DeathTooHighSet) {
   // Death tests are expensive for IfTests because they wait for the alias
   // reserve timeout, which is 1 second. Use them sparingly.
-  EXPECT_DEATH({
-      handler_.Set(3000, false, &event_write_helper1, get_notifiable());
-    }, "bit < size");
+  EXPECT_DEATH({ handler_.Set(3000, false, &write_helper, get_notifiable()); },
+      "bit < size");
 }
 
 class ByteRangeCTest : public AsyncNodeTest {
