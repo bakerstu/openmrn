@@ -1,0 +1,1 @@
+../microchip-pic32mx-generic/region.no_bootloader.ld

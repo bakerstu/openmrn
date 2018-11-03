@@ -42,9 +42,35 @@
 #include "peripheral/timer.h"
 #include "utils/blinker.h"
 
+#include "freertos_drivers/pic32mx/Pic32mxUart.hxx"
+#include "freertos_drivers/pic32mx/Pic32mxCan.hxx"
+#include "freertos_drivers/pic32mx/int_pic32mx795/int_defines.h"
+
+
 //DigitalIn startpin(P1_4);
 
+Pic32mxUart uart5("/dev/ser1", UART5, uart5_interrupt_vector_number);
+Pic32mxUart uart2("/dev/ser0", UART2, uart2_interrupt_vector_number);
+
+Pic32mxCan can0(CAN1, "/dev/can0", can1_interrupt_vector_number);
+
 extern "C" {
+
+void uart5_interrupt()
+{
+    uart5.interrupt_handler();
+}
+
+void uart2_interrupt()
+{
+    uart2.interrupt_handler();
+}
+
+/// Hardware interrupt for CAN1.
+void can1_interrupt(void)
+{
+    can0.isr();
+}
 
 const unsigned long pic32_cpu_clock_hz = 80000000UL;
 const unsigned long pic32_periph_clock_hz = 40000000UL;
@@ -123,8 +149,10 @@ void __attribute__((nomips16)) _general_exception_context(void)
 }
 
 void hw_preinit(void) {
-  mPORTBSetPinsDigitalOut( BIT_12 | BIT_15 );
+  // This will make all analog pins be available for digital uses.
+  AD1PCFG = 0xFFFFFFFF;
 
+  mPORTBSetPinsDigitalOut( BIT_12 | BIT_15 );
 
   // We want 8 ticks per second.
   OpenTimer2(T2_ON | T2_IDLE_CON | T2_GATE_OFF | T2_PS_1_256 | T2_32BIT_MODE_OFF | T2_SOURCE_INT, configPERIPHERAL_CLOCK_HZ / 256 / 8);

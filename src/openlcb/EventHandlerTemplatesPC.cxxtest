@@ -7,6 +7,8 @@ namespace openlcb {
 
 static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
+WriteHelper write_helper;
+
 class BitEventPcTest : public AsyncNodeTest {
  protected:
   BitEventPcTest()
@@ -155,7 +157,7 @@ TEST_F(NetworkInitializedBitTest, LocalSetToExport) {
 
     // Now let's communicate to the network.
     expect_packet(":X195B422AN05010101FFFF0001;");
-    pc_.SendEventReport(&event_write_helper1, get_notifiable());
+    pc_.SendEventReport(&write_helper, get_notifiable());
     wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
     wait_for_notification();
 
@@ -202,7 +204,7 @@ TEST_F(NetworkInitializedBitTest, QueryWithRemoteResponse) {
     
     // Send out a query.
     expect_packet(":X1991422AN05010101FFFF0000;");
-    pc_.SendQueryProducer(&event_write_helper1, get_notifiable());
+    pc_.SendQueryProducer(&write_helper, get_notifiable());
     wait_for_notification();
     wait();
 

@@ -951,9 +951,9 @@ private:
         }
         if (error)
         {
-            response_bytes[response_data_offset] = error >> 8;
-            response_bytes[response_data_offset + 1] = error & 0xff;
             response_.resize(response_data_offset + 2);
+            out_bytes()[response_data_offset] = error >> 8;
+            out_bytes()[response_data_offset + 1] = error & 0xff;
         }
         else
         {

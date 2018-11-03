@@ -94,7 +94,7 @@ struct DummyPinWithRead : public DummyPin
     }
 
     /// @return the static Gpio instance.
-    static const Gpio *instance()
+    static constexpr const Gpio *instance()
     {
         return GpioWrapper<DummyPinWithRead>::instance();
     }
@@ -117,7 +117,7 @@ struct DummyPinWithReadHigh : public DummyPin
     }
 
     /// @return the static Gpio instance.
-    static const Gpio *instance()
+    static constexpr const Gpio *instance()
     {
         return GpioWrapper<DummyPinWithReadHigh>::instance();
     }

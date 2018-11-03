@@ -7,6 +7,8 @@ static const uint64_t kEventBase = 0x05010101FFFF0000ULL;
 
 namespace openlcb {
 
+WriteHelper write_helper;
+
 class BitEventProducerTest : public AsyncNodeTest {
  protected:
   BitEventProducerTest()
@@ -26,21 +28,21 @@ class BitEventProducerTest : public AsyncNodeTest {
 TEST_F(BitEventProducerTest, SimpleOnOff) {
   storage_ = 0;
   expect_packet(":X195B422AN05010101FFFF0001;");
-  producer_.Update(&event_write_helper1, get_notifiable());
+  producer_.Update(&write_helper, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 1;
   expect_packet(":X195B422AN05010101FFFF0000;");
-  producer_.Update(&event_write_helper1, get_notifiable());
+  producer_.Update(&write_helper, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   expect_packet(":X195B422AN05010101FFFF0003;");
-  producer2_.Update(&event_write_helper1, get_notifiable());
+  producer2_.Update(&write_helper, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 
   storage_ = 3;
   expect_packet(":X195B422AN05010101FFFF0002;");
-  producer2_.Update(&event_write_helper1, get_notifiable());
+  producer2_.Update(&write_helper, get_notifiable());
   wait_for_event_thread(); Mock::VerifyAndClear(&canBus_);
 }
 
