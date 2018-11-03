@@ -70,9 +70,7 @@ public:
         , rolloverPendingDate_(false)
         , rolloverPendingYear_(false)
         , timestamp_(OSTime::get_monotonic())
-        , timestampNotify_(0)
         , seconds_(0)
-        , secondsNotify_(0)
         , rate_(0)
         , rateRequested_(0)
     {
@@ -201,6 +199,15 @@ public:
         return std::make_pair(time(), rate_);
     }
 
+    /// Get the difference in time scaled to real time.
+    /// @param t1 time 1 to compare
+    /// @param t2 time 2 to compare
+    /// @return (t1 - t2) scaled to real time.
+    time_t compare_realtime(time_t t1, time_t t2)
+    {
+        return ((t1 - t2) * (rate_ + 2)) / 4;
+    }
+
     /// Get the time as a value of seconds relative to the system epoch.
     /// @return time in seconds relative to the system epoch
     time_t time()
@@ -280,8 +287,11 @@ public:
     /// Register a callback for when the time synchronization is updated.  The
     /// context of the caller will be from a state flow on the Node Interface
     /// executor.
-    /// @param callback function callback to be called
-    void update_subscribe(std::function<void()> callback)
+    /// @param callback function callback to be called.  First parameter is the
+    ///                 current time in seconds since the Epoch.  Second
+    ///                 parameter is the clock rate.  Third parameter is the
+    ///                 running state (true == running, false == stopped)
+    void update_subscribe(std::function<void(time_t, int16_t, bool)> callback)
     {
         callbacks_.emplace_back(callback);
     }
@@ -300,19 +310,33 @@ private:
     /// @param started true if the clock is started, else false
     void start_stop_logic(bool started)
     {
-        AtomicHolder h(this);
-        if (started_ != started)
+        bool notify = false;
+        bool running;
         {
-            if (!started)
+            AtomicHolder h(this);
+            if (started_ != started)
             {
-                seconds_ = time();
+                if (!started)
+                {
+                    seconds_ = time();
+                }
+                timestamp_ = OSTime::get_monotonic();
+                if (!started)
+                {
+                    ::gmtime_r(&seconds_, &tm_);
+                }
+                started_ = started;
+                notify = true;
+                running = is_running();
             }
-            timestamp_ = OSTime::get_monotonic();
-            if (!started)
+            // release AtomicHolder
+        }
+        if (notify)
+        {
+            for (auto n : callbacks_)
             {
-                ::gmtime_r(&seconds_, &tm_);
+                n(seconds_, rate_, running);
             }
-            started_ = started;
         }
     }
 
@@ -399,8 +423,21 @@ private:
 
         {
             bool notify = false;
+            bool running;
             {
                 AtomicHolder h(this);
+                time_t old_seconds;
+                if (rate_ != rateRequested_)
+                {
+                    // rate changed, we should notify, not need to redundantly
+                    // check for jitter.
+                    notify = true;
+                }
+                else
+                {
+                    old_seconds = time();
+                }
+
                 rate_ = rateRequested_;
                 seconds_ = ::mktime(&tm_);
                 timestamp_ = OSTime::get_monotonic();
@@ -412,18 +449,20 @@ private:
                     rolloverPending_ = false;
                 }
 
-                // Check for a drift of more than +/-3 seconds.  3 seconds is
-                // chosen because it is within the magnitude of normal network
-                // jitter.
-                time_t drift = secondsNotify_ +
-                               NSEC_TO_SEC(timestamp_ - timestampNotify_);
-                if (std::abs(drift - seconds_) > 3)
+                if (notify == false)
                 {
-                    // we've had some significant drift, notify all the
-                    // subscibers
-                    secondsNotify_ = seconds_;
-                    timestampNotify_ = timestamp_;
-                    notify = true;
+                    if (std::abs(compare_realtime(seconds_, old_seconds)) > 3)
+                    {
+                        // We hadd a drift of more than 3 real seconds.  3 real
+                        // seconds is chosen because it is within the magnitude
+                        // of normal network jitter.
+                        notify = true;
+                    }
+                }
+
+                if (notify == true)
+                {
+                    running = is_running();
                 }
                 // release AtomicHolder
             }
@@ -431,7 +470,7 @@ private:
             {
                 for (auto n : callbacks_)
                 {
-                    n();
+                    n(seconds_, rate_, running);
                 }
             }
         }
@@ -489,7 +528,9 @@ private:
 
     Node *node_; ///< OpenLCB node to export the consumer on
     uint64_t clockID_; ///< 48-bit unique identifier for the clock instance
-    std::vector<std::function<void()>> callbacks_; ///< update subscribers
+
+    /// update subscribers
+    std::vector<std::function<void(time_t, int16_t, bool)>> callbacks_;
     WriteHelper writer_; ///< helper for sending event messages
     StateFlowTimer timer_; ///< timer helper
     unsigned configureAgent_  : 1; ///< instance can be used to configure clock
@@ -503,9 +544,7 @@ private:
 
     struct tm tm_; ///< the time we are last set to as a struct tm
     long long timestamp_; ///< monotonic timestamp from last server update
-    long long timestampNotify_; ///< monotonic timestamp from last notify
     time_t seconds_; ///< clock time in seconds from last server update
-    time_t secondsNotify_; ///< clock time in seconds from last notify
     int16_t rate_; ///< effective clock rate
     int16_t rateRequested_; ///< pending clock rate
 
