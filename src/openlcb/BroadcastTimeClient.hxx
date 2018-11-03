@@ -61,7 +61,6 @@ public:
         , clockID_((uint64_t)clock_id << 16)
         , callbacks_()
         , writer_()
-        , writer2_()
         , timer_(this)
         , configureAgent_(configure_agent)
         , started_(false)
@@ -111,14 +110,14 @@ public:
             return;
         }
         /// @todo use the global write helpers (1 & 2)
-        writer_.WriteAsync(
+        event->event_write_helper<1>()->WriteAsync(
             node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
             eventid_to_buffer(EncodeRange(entry.event, 0x1 << 16)),
             done->new_child());
         if (configureAgent_)
         {
             // we can configure our complementary time server
-            writer2_.WriteAsync(
+            event->event_write_helper<2>()->WriteAsync(
                 node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
                 WriteHelper::global(),
                 eventid_to_buffer(EncodeRange(entry.event + 0x8000, 0x1 << 15)),
@@ -127,7 +126,7 @@ public:
         else
         {
             // we cannot configure our complementary time server
-            writer2_.WriteAsync(
+            event->event_write_helper<2>()->WriteAsync(
                 node_, Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
                 WriteHelper::global(),
                 eventid_to_buffer(entry.event +
@@ -150,7 +149,7 @@ public:
         {
             // we cannot configure our complementary time server, therefore
             // we only produce one event.
-            writer_.WriteAsync(
+            event->event_write_helper<1>()->WriteAsync(
                 node_, Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
                 WriteHelper::global(),
                 eventid_to_buffer(entry.event +
@@ -492,7 +491,6 @@ private:
     uint64_t clockID_; ///< 48-bit unique identifier for the clock instance
     std::vector<std::function<void()>> callbacks_; ///< update subscribers
     WriteHelper writer_; ///< helper for sending event messages
-    WriteHelper writer2_; ///< helper for sending event messages
     StateFlowTimer timer_; ///< timer helper
     unsigned configureAgent_  : 1; ///< instance can be used to configure clock
     unsigned started_         : 1; ///< true if clock is started
