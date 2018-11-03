@@ -35,6 +35,8 @@
 #ifndef _OPENLCB_BROADCASTTIMECLIENT_HXX_
 #define _OPENLCB_BROADCASTTIMECLIENT_HXX_
 
+#include <functional>
+
 #include "openlcb/BroadcastTimeDefs.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 
@@ -57,6 +59,7 @@ public:
         : StateFlowBase(node->iface())
         , node_(node)
         , clockID_((uint64_t)clock_id << 16)
+        , callbacks_()
         , writer_()
         , writer2_()
         , timer_(this)
@@ -68,7 +71,9 @@ public:
         , rolloverPendingDate_(false)
         , rolloverPendingYear_(false)
         , timestamp_(OSTime::get_monotonic())
+        , timestampNotify_(0)
         , seconds_(0)
+        , secondsNotify_(0)
         , rate_(0)
         , rateRequested_(0)
     {
@@ -105,6 +110,7 @@ public:
             // not for us
             return;
         }
+        /// @todo use the global write helpers (1 & 2)
         writer_.WriteAsync(
             node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
             eventid_to_buffer(EncodeRange(entry.event, 0x1 << 16)),
@@ -187,6 +193,15 @@ public:
         handle_updates(event, true);
     }
 
+    /// Get the time as a value of seconds relative to the system epoch.  At the
+    /// same time get an atomic matching pair of the rate
+    /// @return pair<time in seconds relative to the system epoch, rate>
+    std::pair<time_t, int16_t> time_and_rate()
+    {
+        AtomicHolder h(this);
+        return std::make_pair(time(), rate_);
+    }
+
     /// Get the time as a value of seconds relative to the system epoch.
     /// @return time in seconds relative to the system epoch
     time_t time()
@@ -261,6 +276,15 @@ public:
     bool is_started()
     {
         return started_;
+    }
+
+    /// Register a callback for when the time synchronization is updated.  The
+    /// context of the caller will be from a state flow on the Node Interface
+    /// executor.
+    /// @param callback function callback to be called
+    void update_subscribe(std::function<void()> callback)
+    {
+        callbacks_.emplace_back(callback);
     }
 
 private:
@@ -374,23 +398,43 @@ private:
         /// @todo As of 14 October 2018, newlib for armgcc uses 32-bit time_t.
         /// It seems that 64-bit time_t may become the default soon.
 
-        time_t last_seconds = time();
         {
-            AtomicHolder h(this);
-            rate_ = rateRequested_;
-            seconds_ = ::mktime(&tm_);
-            timestamp_ = OSTime::get_monotonic();
-            if (rolloverPending_)
+            bool notify = false;
             {
-                // roll forward/back the 3 second delay for the year/date report
-                seconds_ += rate_ >= 0 ? 3 : -3;
-                rolloverPending_ = false;
-            }
-        }
+                AtomicHolder h(this);
+                rate_ = rateRequested_;
+                seconds_ = ::mktime(&tm_);
+                timestamp_ = OSTime::get_monotonic();
+                if (rolloverPending_)
+                {
+                    // roll forward/back the 3 second delay for the year/date
+                    // report
+                    seconds_ += rate_ >= 0 ? 3 : -3;
+                    rolloverPending_ = false;
+                }
 
-        if ((last_seconds - 1) > seconds_ || (last_seconds + 1) < seconds_)
-        {
-            /// @todo a jump in time has occured, invalidated state information
+                // Check for a drift of more than +/-3 seconds.  3 seconds is
+                // chosen because it is within the magnitude of normal network
+                // jitter.
+                time_t drift = secondsNotify_ +
+                               NSEC_TO_SEC(timestamp_ - timestampNotify_);
+                if (std::abs(drift - seconds_) > 3)
+                {
+                    // we've had some significant drift, notify all the
+                    // subscibers
+                    secondsNotify_ = seconds_;
+                    timestampNotify_ = timestamp_;
+                    notify = true;
+                }
+                // release AtomicHolder
+            }
+            if (notify)
+            {
+                for (auto n : callbacks_)
+                {
+                    n();
+                }
+            }
         }
 
         waiting();
@@ -446,6 +490,7 @@ private:
 
     Node *node_; ///< OpenLCB node to export the consumer on
     uint64_t clockID_; ///< 48-bit unique identifier for the clock instance
+    std::vector<std::function<void()>> callbacks_; ///< update subscribers
     WriteHelper writer_; ///< helper for sending event messages
     WriteHelper writer2_; ///< helper for sending event messages
     StateFlowTimer timer_; ///< timer helper
@@ -460,7 +505,9 @@ private:
 
     struct tm tm_; ///< the time we are last set to as a struct tm
     long long timestamp_; ///< monotonic timestamp from last server update
-    time_t seconds_; ///< seconds clock time in seconds
+    long long timestampNotify_; ///< monotonic timestamp from last notify
+    time_t seconds_; ///< clock time in seconds from last server update
+    time_t secondsNotify_; ///< clock time in seconds from last notify
     int16_t rate_; ///< effective clock rate
     int16_t rateRequested_; ///< pending clock rate
 
