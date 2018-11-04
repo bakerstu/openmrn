@@ -64,6 +64,8 @@ public:
         , timer_(this)
         , configureAgent_(configure_agent)
         , started_(false)
+        , immediateUpdate_(false)
+        , immediatePending_(false)
         , sleeping_(false)
         , waiting_(false)
         , rolloverPending_(false)
@@ -205,7 +207,7 @@ public:
     /// @return (t1 - t2) scaled to real time.
     time_t compare_realtime(time_t t1, time_t t2)
     {
-        return ((t1 - t2) * (rate_ + 2)) / 4;
+        return ((t1 - t2) * 4) / rate_;
     }
 
     /// Get the time as a value of seconds relative to the system epoch.
@@ -311,7 +313,6 @@ private:
     void start_stop_logic(bool started)
     {
         bool notify = false;
-        bool running;
         {
             AtomicHolder h(this);
             if (started_ != started)
@@ -327,7 +328,6 @@ private:
                 }
                 started_ = started;
                 notify = true;
-                running = is_running();
             }
             // release AtomicHolder
         }
@@ -335,7 +335,7 @@ private:
         {
             for (auto n : callbacks_)
             {
-                n(seconds_, rate_, running);
+                n(seconds_, rate_, rate_ != 0 && started_);
             }
         }
     }
@@ -415,28 +415,29 @@ private:
                                   STATE(rollover_pending));
         }
 
-        // we are about to commit an updated time, reset all the flags
-        immediateUpdate_ = false;
-
         /// @todo As of 14 October 2018, newlib for armgcc uses 32-bit time_t.
         /// It seems that 64-bit time_t may become the default soon.
 
         {
             bool notify = false;
-            bool running;
             {
                 AtomicHolder h(this);
                 time_t old_seconds;
-                if (rate_ != rateRequested_)
+                if (rate_ != rateRequested_ ||
+                    (immediateUpdate_ && immediatePending_))
                 {
-                    // rate changed, we should notify, not need to redundantly
-                    // check for jitter.
+                    // rate changed or an immediate update was pending.
                     notify = true;
                 }
                 else
                 {
+                    // we will need to check for jitter later
                     old_seconds = time();
                 }
+
+                // we are about to commit an updated time, reset the flags
+                immediateUpdate_ = false;
+                immediatePending_ = false;
 
                 rate_ = rateRequested_;
                 seconds_ = ::mktime(&tm_);
@@ -459,18 +460,13 @@ private:
                         notify = true;
                     }
                 }
-
-                if (notify == true)
-                {
-                    running = is_running();
-                }
                 // release AtomicHolder
             }
             if (notify)
             {
                 for (auto n : callbacks_)
                 {
-                    n(seconds_, rate_, running);
+                    n(seconds_, rate_, rate_ != 0 && started_);
                 }
             }
         }
@@ -533,12 +529,13 @@ private:
     std::vector<std::function<void(time_t, int16_t, bool)>> callbacks_;
     WriteHelper writer_; ///< helper for sending event messages
     StateFlowTimer timer_; ///< timer helper
-    unsigned configureAgent_  : 1; ///< instance can be used to configure clock
-    unsigned started_         : 1; ///< true if clock is started
-    unsigned immediateUpdate_ : 1; ///< true if the update should be immediate
-    unsigned sleeping_        : 1; ///< true if stateflow is waiting on timer
-    unsigned waiting_         : 1; ///< true if stateflow is waiting
-    unsigned rolloverPending_ : 1; ///< a day rollover is about to occur
+    unsigned configureAgent_   : 1; ///< instance can be used to configure clock
+    unsigned started_          : 1; ///< true if clock is started
+    unsigned immediateUpdate_  : 1; ///< true if the update should be immediate
+    unsigned immediatePending_ : 1; /// future immediate upate expected
+    unsigned sleeping_         : 1; ///< true if stateflow is waiting on timer
+    unsigned waiting_          : 1; ///< true if stateflow is waiting
+    unsigned rolloverPending_  : 1; ///< a day rollover is about to occur
     unsigned rolloverPendingDate_ : 1; ///< a day rollover is about to occur
     unsigned rolloverPendingYear_ : 1; ///< a day rollover is about to occur
 

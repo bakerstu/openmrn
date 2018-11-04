@@ -69,7 +69,7 @@ void BroadcastTimeClient::handle_updates(EventReport *event, bool report)
                 tm_.tm_sec = 0;
                 tm_.tm_min = min;
                 tm_.tm_hour = hour;
-                immediateUpdate_ = true;
+                immediateUpdate_ = report;
                 break;
             }
             // invalid event data, bail
@@ -125,6 +125,12 @@ void BroadcastTimeClient::handle_updates(EventReport *event, bool report)
         default:
             // uninteresting event type
             return;
+    }
+
+    if (!report)
+    {
+        // An immediate update is expected in the future
+        immediatePending_ = true;
     }
 
     wakeup();
