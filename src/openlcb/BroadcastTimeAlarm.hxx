@@ -123,9 +123,7 @@ private:
         /// on the CPU.
         void run() override
         {
-            {
-                alarm_->wakeup();
-            }
+            alarm_->wakeup();
             delete this;
         }
 
