@@ -257,12 +257,12 @@ TEST_F(BroadcastTimeClientTest, Start)
     EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
     send_start(client1_);
 
-    EXPECT_CALL(*client1_, update_callback(0, 4, true)).Times(1);
     client1_->settime(4, 1970, 1, 1, 0, 0);
 
+    EXPECT_CALL(*client1_, update_callback(0, 4, true)).Times(1);
     EXPECT_CALL(*client1_, update_callback(60, 4, true)).Times(1);
     sync(client1_, 500);
-    usleep(200000);
+    wait();
     
     
     // check the time, we give it a finite range just in case of some OS jitter
@@ -277,14 +277,14 @@ TEST_F(BroadcastTimeClientTest, DateRolloverForward)
     EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
     send_start(client1_);
 
-    // expect Jan 2, 1970, 11:59PM
-    EXPECT_CALL(*client1_, update_callback(86340, 4, true)).Times(1);
     client1_->settime(4, 1970, 1, 1, 23, 59);
 
+    // expect Jan 2, 1970, 11:59PM
+    EXPECT_CALL(*client1_, update_callback(86340, 4, true)).Times(1);
     // expect Jan 2, 1970, 12:00AM + 3 seconds
     EXPECT_CALL(*client1_, update_callback(86403, 4, true)).Times(1);
     sync(client1_, 500);
-    usleep(200000);
+    wait();
     
     
     // check the time, we give it a finite range just in case of some OS jitter
@@ -299,14 +299,14 @@ TEST_F(BroadcastTimeClientTest, DateRolloverBackward)
     EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
     send_start(client1_);
 
-    // expect Jan 2, 1970, 12:00AM
-    EXPECT_CALL(*client1_, update_callback(86400, -4, true)).Times(1);
     client1_->settime(-4, 1970, 1, 2, 0, 0);
 
+    // expect Jan 2, 1970, 12:00AM
+    EXPECT_CALL(*client1_, update_callback(86400, -4, true)).Times(1);
     // expect Jan 1, 1970, 11:59PM - 3 seconds
     EXPECT_CALL(*client1_, update_callback(86337, -4, true)).Times(1);
     sync(client1_, 500);
-    usleep(200000);
+    wait();
     
     
     // check the time, we give it a finite range just in case of some OS jitter
@@ -322,10 +322,10 @@ TEST_F(BroadcastTimeClientTest, ProgressionForwardFast)
     send_start(client1_);
 
     // rate = 500 (500 * 4 = 2000)
-    EXPECT_CALL(*client1_, update_callback(0, 2000, true)).Times(1);
     client1_->settime(500 * 4, 1970, 1, 1, 0, 0);
 
     // after sync, time should be Jan 1, 1970 00:01:00
+    EXPECT_CALL(*client1_, update_callback(0, 2000, true)).Times(1);
     sync(client1_, 500);
 
     // wait 960 fast seconds (16 minutes).
@@ -346,19 +346,80 @@ TEST_F(BroadcastTimeClientTest, ProgressionReverseFast)
     send_start(client1_);
 
     // rate = -500 (-500 * 4 = -2000)
-    EXPECT_CALL(*client1_, update_callback(1200, -2000, true)).Times(1);
     client1_->settime(-500 * 4, 1970, 1, 1, 0, 20);
 
     // after sync, time should be Jan 1, 1970 00:19:00
+    EXPECT_CALL(*client1_, update_callback(1200, -2000, true)).Times(1);
     sync(client1_, 500);
 
     // wait 960 fast seconds (16 minutes).
     // 960 / 500 = 1.92 fast seconds
     usleep(1920000);
 
-
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 179, 181));
+    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_->day_of_year(), 0);
+};
+
+TEST_F(BroadcastTimeClientTest, BurstImmediateExpected)
+{
+    // start the clock, synchronize the client
+    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    send_start(client1_);
+
+    client1_->settime(4, 1970, 1, 1, 0, 0);
+
+    EXPECT_CALL(*client1_, update_callback(60, 4, true)).Times(1);
+    sync(client1_, 0);
+    wait();
+
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 60, 62));
+    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_->day_of_year(), 0);
+};
+
+TEST_F(BroadcastTimeClientTest, NoUpdateCallbackExpected)
+{
+    // start the clock, synchronize the client
+    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    send_start(client1_);
+
+    client1_->settime(60 * 4, 1970, 1, 1, 0, 0);
+
+    EXPECT_CALL(*client1_, update_callback(60, 60 * 4, true)).Times(1);
+    sync(client1_, 0);
+    sleep(1);
+    client1_->settime(60 * 4, 1970, 1, 1, 0, 2);
+    send_report_time(client1_);
+    wait();
+
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 120, 122));
+    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_->day_of_year(), 0);
+};
+
+TEST_F(BroadcastTimeClientTest, DriftChangeUpdateCallbackExpected)
+{
+    // start the clock, synchronize the client
+    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    send_start(client1_);
+
+    client1_->settime(60 * 4, 1970, 1, 1, 0, 0);
+
+    EXPECT_CALL(*client1_, update_callback(60, 60 * 4, true)).Times(1);
+    sync(client1_, 0);
+    sleep(1);
+    EXPECT_CALL(*client1_, update_callback(60 * 5 * 4, 60 * 4, true)).Times(1);
+    client1_->settime(60 * 4, 1970, 1, 1, 0, 5 * 4);
+    send_report_time(client1_);
+    wait();
+
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 60 * 5 * 4,
+                                   (60 * 5 * 4) + 2));
     EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(client1_->day_of_year(), 0);
 };
