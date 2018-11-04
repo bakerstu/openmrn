@@ -23,6 +23,8 @@
 namespace openlcb
 {
 
+using namespace std::placeholders;
+
 class MockBroadcastTimeClient : public BroadcastTimeClient
 {
 public:
@@ -34,6 +36,8 @@ public:
         , mochStarted_(false)
     {
         snprintf(clockIDString_, 13, "%012" PRIX64, clock_id);
+        update_subscribe(std::bind(&MockBroadcastTimeClient::update_callback,
+                                   this, _1, _2, _3));
     }
 
     void settime(int rate = 0, unsigned year = 0, unsigned month = 0,
@@ -81,6 +85,8 @@ public:
         return tmMock_.tm_min;
     }
 
+    MOCK_METHOD3(update_callback, void(time_t time, int16_t rate, bool running));
+
     time_t time_;
     struct tm tmMock_;
     int mochRate_;
@@ -93,9 +99,26 @@ class BroadcastTimeClientTest : public AsyncNodeTest
 {
 protected:
     BroadcastTimeClientTest()
-        : client1_(node_, BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID)
-        , client2_(node_, BroadcastTimeDefs::DEFAULT_REALTIME_CLOCK_ID, true)
     {
+        PRINT_ALL_PACKETS();
+
+        // receive query
+        expect_packet(":X195B422AN010100000100F000;");
+        expect_packet(":X195B422AN010100000101F000;");
+
+        client1_ = new MockBroadcastTimeClient(
+            node_, BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID);
+        client2_ = new MockBroadcastTimeClient(
+            node_, BroadcastTimeDefs::DEFAULT_REALTIME_CLOCK_ID, true);
+        wait_for_event_thread();
+    }
+
+    ~BroadcastTimeClientTest()
+    {
+        wait();
+
+        delete client1_;
+        delete client2_;
     }
 
     // build up a packet to send
@@ -201,19 +224,12 @@ protected:
         send_report_time(client);
     }
 
-    MockBroadcastTimeClient client1_; // not a configure agent
-    MockBroadcastTimeClient client2_; // configure agent
+    MockBroadcastTimeClient *client1_; // not a configure agent
+    MockBroadcastTimeClient *client2_; // configure agent
 };
 
 TEST_F(BroadcastTimeClientTest, Create)
 {
-    PRINT_ALL_PACKETS();
-
-    // receive query
-    expect_packet(":X195B422AN010100000100F000;");
-    expect_packet(":X195B422AN010100000101F000;");
-    wait_for_event_thread();
-
     // expect consumer identify range and producder idenfied query (unknown)
     expect_packet(":X194A422AN010100000100FFFF;");
     expect_packet(":X1954722AN010100000100F000;");
@@ -227,95 +243,90 @@ TEST_F(BroadcastTimeClientTest, Create)
     wait_for_event_thread();
 
     // time is not setup, clock is not running, expect 0 as default
-    EXPECT_EQ(client1_.time(), 0);
-    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
-    EXPECT_EQ(client1_.day_of_year(), 0);
-    EXPECT_EQ(client2_.time(), 0);
-    EXPECT_EQ(client2_.day_of_week(), BroadcastTimeDefs::THURSDAY);
-    EXPECT_EQ(client2_.day_of_year(), 0);
+    EXPECT_EQ(client1_->time(), 0);
+    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_->day_of_year(), 0);
+    EXPECT_EQ(client2_->time(), 0);
+    EXPECT_EQ(client2_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client2_->day_of_year(), 0);
 };
 
 TEST_F(BroadcastTimeClientTest, Start)
 {
-    print_all_packets();
-
-    // receive query
-    expect_packet(":X195B422AN010100000100F000;");
-    expect_packet(":X195B422AN010100000101F000;");
-    wait_for_event_thread();
-
     // start the clock, synchronize the client
-    send_start(&client1_);
-    client1_.settime(4, 1970, 1, 1, 0, 0);
-    sync(&client1_, 500);
+    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    send_start(client1_);
+
+    EXPECT_CALL(*client1_, update_callback(0, 4, true)).Times(1);
+    client1_->settime(4, 1970, 1, 1, 0, 0);
+
+    EXPECT_CALL(*client1_, update_callback(60, 4, true)).Times(1);
+    sync(client1_, 500);
     usleep(200000);
     
     
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 60, 62));
-    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
-    EXPECT_EQ(client1_.day_of_year(), 0);
+    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 60, 62));
+    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_->day_of_year(), 0);
 };
 
 TEST_F(BroadcastTimeClientTest, DateRolloverForward)
 {
-    PRINT_ALL_PACKETS();
-
-    // receive query
-    expect_packet(":X195B422AN010100000100F000;");
-    expect_packet(":X195B422AN010100000101F000;");
-    wait_for_event_thread();
-
     // start the clock, synchronize the client
-    send_start(&client1_);
-    client1_.settime(4, 1970, 1, 1, 23, 59);
-    sync(&client1_, 500);
+    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    send_start(client1_);
+
+    // expect Jan 2, 1970, 11:59PM
+    EXPECT_CALL(*client1_, update_callback(86340, 4, true)).Times(1);
+    client1_->settime(4, 1970, 1, 1, 23, 59);
+
+    // expect Jan 2, 1970, 12:00AM + 3 seconds
+    EXPECT_CALL(*client1_, update_callback(86403, 4, true)).Times(1);
+    sync(client1_, 500);
     usleep(200000);
     
     
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 86402, 86404));
-    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::FRIDAY);
-    EXPECT_EQ(client1_.day_of_year(), 1);
+    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 86402, 86404));
+    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::FRIDAY);
+    EXPECT_EQ(client1_->day_of_year(), 1);
 };
 
 TEST_F(BroadcastTimeClientTest, DateRolloverBackward)
 {
-    PRINT_ALL_PACKETS();
-
-    // receive query
-    expect_packet(":X195B422AN010100000100F000;");
-    expect_packet(":X195B422AN010100000101F000;");
-    wait_for_event_thread();
-
     // start the clock, synchronize the client
-    send_start(&client1_);
-    client1_.settime(-4, 1970, 1, 2, 0, 0);
-    sync(&client1_, 500);
+    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    send_start(client1_);
+
+    // expect Jan 2, 1970, 12:00AM
+    EXPECT_CALL(*client1_, update_callback(86400, -4, true)).Times(1);
+    client1_->settime(-4, 1970, 1, 2, 0, 0);
+
+    // expect Jan 1, 1970, 11:59PM - 3 seconds
+    EXPECT_CALL(*client1_, update_callback(86337, -4, true)).Times(1);
+    sync(client1_, 500);
     usleep(200000);
     
     
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 86336, 86338));
-    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
-    EXPECT_EQ(client1_.day_of_year(), 0);
+    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 86336, 86338));
+    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_->day_of_year(), 0);
 };
 
 TEST_F(BroadcastTimeClientTest, ProgressionForwardFast)
 {
-    print_all_packets();
-
-    // receive query
-    expect_packet(":X195B422AN010100000100F000;");
-    expect_packet(":X195B422AN010100000101F000;");
-    wait_for_event_thread();
-
     // start the clock, synchronize the client
-    send_start(&client1_);
+    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    send_start(client1_);
+
     // rate = 500 (500 * 4 = 2000)
-    client1_.settime(500 * 4, 1970, 1, 1, 0, 0);
+    EXPECT_CALL(*client1_, update_callback(0, 2000, true)).Times(1);
+    client1_->settime(500 * 4, 1970, 1, 1, 0, 0);
+
     // after sync, time should be Jan 1, 1970 00:01:00
-    sync(&client1_, 500);
+    sync(client1_, 500);
 
     // wait 960 fast seconds (16 minutes).
     // 960 / 500 = 1.92 fast seconds
@@ -323,26 +334,23 @@ TEST_F(BroadcastTimeClientTest, ProgressionForwardFast)
 
 
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 1020, 1021));
-    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
-    EXPECT_EQ(client1_.day_of_year(), 0);
+    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 1020, 1021));
+    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_->day_of_year(), 0);
 };
 
 TEST_F(BroadcastTimeClientTest, ProgressionReverseFast)
 {
-    print_all_packets();
-
-    // receive query
-    expect_packet(":X195B422AN010100000100F000;");
-    expect_packet(":X195B422AN010100000101F000;");
-    wait_for_event_thread();
-
     // start the clock, synchronize the client
-    send_start(&client1_);
+    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    send_start(client1_);
+
     // rate = -500 (-500 * 4 = -2000)
-    client1_.settime(-500 * 4, 1970, 1, 1, 0, 20);
+    EXPECT_CALL(*client1_, update_callback(1200, -2000, true)).Times(1);
+    client1_->settime(-500 * 4, 1970, 1, 1, 0, 20);
+
     // after sync, time should be Jan 1, 1970 00:19:00
-    sync(&client1_, 500);
+    sync(client1_, 500);
 
     // wait 960 fast seconds (16 minutes).
     // 960 / 500 = 1.92 fast seconds
@@ -350,10 +358,9 @@ TEST_F(BroadcastTimeClientTest, ProgressionReverseFast)
 
 
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(client1_.time(), 179, 181));
-    EXPECT_EQ(client1_.day_of_week(), BroadcastTimeDefs::THURSDAY);
-    EXPECT_EQ(client1_.day_of_year(), 0);
+    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 179, 181));
+    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_->day_of_year(), 0);
 };
-
 
 } // namespace openlcb
