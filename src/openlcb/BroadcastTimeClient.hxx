@@ -97,7 +97,7 @@ public:
 
     /// Handle requested identification message.
     /// @param entry registry entry for the event range
-    /// @param event unused
+    /// @param event information about the incoming message
     /// @param done used to notify we are finished
     void handle_identify_global(const EventRegistryEntry &entry,
                                 EventReport *event,
@@ -109,7 +109,7 @@ public:
             // not for us
             return;
         }
-        /// @todo use the global write helpers (1 & 2)
+
         event->event_write_helper<1>()->WriteAsync(
             node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
             eventid_to_buffer(EncodeRange(entry.event, 0x1 << 16)),
@@ -137,7 +137,25 @@ public:
 
     /// Handle requested identification message.
     /// @param entry registry entry for the event range
-    /// @param event unused
+    /// @param event information about the incoming message
+    /// @param done used to notify we are finished
+    void handle_identify_consumer(const EventRegistryEntry &entry,
+                                  EventReport *event,
+                                  BarrierNotifiable *done) override
+    {
+        AutoNotify an(done);
+        if (event->event < (clockID_ + 0x5000))
+        {
+            event->event_write_helper<1>()->WriteAsync(
+                node_, Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN,
+                WriteHelper::global(), eventid_to_buffer(event->event),
+                done->new_child());
+        }
+    }
+
+    /// Handle requested identification message.
+    /// @param entry registry entry for the event range
+    /// @param event information about the incoming message
     /// @param done used to notify we are finished
     void handle_identify_producer(const EventRegistryEntry &entry,
                                   EventReport *event,
