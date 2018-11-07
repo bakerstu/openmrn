@@ -517,7 +517,7 @@ protected:
     /// Checks if the event in the report is something we are interested in, and
     /// if so, sends off a {Producer|Consumer}Identified{Valid|Invalid} message
     /// depending on the current state of the hardware bit. Uses
-    /// event_write_helper1. Notifies done.
+    /// event_write_helper<1>. Notifies done.
     void HandlePCIdentify(Defs::MTI mti_valid, EventReport *event,
                           BarrierNotifiable *done);
 
