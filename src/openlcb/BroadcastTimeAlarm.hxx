@@ -26,7 +26,7 @@
  *
  * @file BroadcastTimeAlarm.hxx
  *
- * Implementation of a Broadcast Time Protocol client.
+ * Implementation of Broadcast Time Protocol alarms.
  *
  * @author Stuart W. Baker
  * @date 29 October 2018
@@ -35,7 +35,7 @@
 #ifndef _OPENLCB_BROADCASTTIMEALARM_HXX_
 #define _OPENLCB_BROADCASTTIMEALARM_HXX_
 
-#include "openlcb/BroadcastTimeClient.hxx"
+#include "openlcb/BroadcastTime.hxx"
 
 namespace openlcb
 {
@@ -61,7 +61,7 @@ public:
     ///                 by reference is the time_t value which expired.  The
     ///                 value passed back by the time_t parameter is the next
     ///                 experation time if the alarm is restarted.
-    BroadcastTimeAlarm(Node *node, BroadcastTimeClient *clock,
+    BroadcastTimeAlarm(Node *node, BroadcastTime *clock,
                        std::function<Result(time_t*)> callback)
         : StateFlowBase(node->iface())
         , clock_(clock)
@@ -115,6 +115,7 @@ private:
         /// Constructor.
         /// @param alarm our parent alarm that we will awaken
         Wakeup(BroadcastTimeAlarm *alarm)
+            : alarm_(alarm)
         {
             alarm->service()->executor()->add(this);
         }
@@ -230,7 +231,7 @@ private:
             sleeping_ = false;
         }
     }
-    BroadcastTimeClient *clock_; ///< clock that our alarm is based off of
+    BroadcastTime *clock_; ///< clock that our alarm is based off of
 
     /// Callback for when alarm expires.  The return value is RESTART to restart
     /// the alarm, else the value is NONE.  The time_t parameter passed by
