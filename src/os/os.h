@@ -290,6 +290,55 @@ OS_INLINE int os_thread_once(os_thread_once_t *once, void (*routine)(void))
  */
 #define SEC_TO_MSEC(_sec) (((long long)_sec) * 1000LL)
 
+/** Convert a nanosecond value to a microsecond value.
+ * @param _nsec nanosecond value to convert
+ * @return microsecond value
+ */
+#define NSEC_TO_USEC_ROUNDED(_nsec) \
+    ((((long long)_nsec) + 500LL) / 1000LL)
+
+/** Convert a nanosecond value to a millisecond value.
+ * @param _nsec nanosecond value to convert
+ * @return milliosecond value
+ */
+#define NSEC_TO_MSEC_ROUNDED(_nsec) \
+    ((((long long)_nsec) + 500000LL) / 1000000LL)
+
+/** Convert a nanosecond value to a second value.
+ * @param _nsec nanosecond value to convert
+ * @return second value
+ */
+#define NSEC_TO_SEC_ROUNDED(_nsec) \
+    ((((long long)_nsec) + 500000000LL) / 1000000000LL)
+
+/** Convert a nanosecond value to minutes.
+ * @param _nsec nanosecond value to convert
+ * @return minutes value
+ */
+#define NSEC_TO_MIN_ROUNDED(_nsec) \
+    ((((long long)_nsec) + 30000000000LL) / 60000000000LL)
+
+/** Convert a microsecond value to a millisecond value.
+ * @param _usec microsecond value to convert
+ * @return millisecond value
+ */
+#define USEC_TO_MSEC_ROUNDED(_usec) \
+    ((((long long)_usec) + 500LL) / 1000LL)
+
+/** Convert a microsecond value to a second value.
+ * @param _usec microsecond value to convert
+ * @return second value
+ */
+#define USEC_TO_SEC_ROUNDED(_usec) \
+    ((((long long)_usec) +500000LL) / 1000000LL)
+
+/** Convert a millisecond value to a second value.
+ * @param _msec millisecond value to convert
+ * @return second value
+ */
+#define MSEC_TO_SEC_ROUNDED(_msec) \
+    ((((long long)_msec) + 500LL) / 1000LL)
+
 /** Creates a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
