@@ -95,6 +95,10 @@ struct BroadcastTimeDefs
         EVENT_YEAR_SHIFT    = 0, ///< day mask
         EVENT_RATE_SHIFT    = 0, ///< rate mask
 
+        TIME_EVENT_BASE_SUFFIX     = 0x0000, ///< time event base suffix
+        DATE_EVENT_BASE_SUFFIX     = 0x2000, ///< date event base suffix
+        YEAR_EVENT_BASE_SUFFIX     = 0x3000, ///< year event base suffix
+        RATE_EVENT_BASE_SUFFIX     = 0x4000, ///< rate event base suffix
         QUERY_EVENT_SUFFIX         = 0xF000, ///< query event suffix value
         STOP_EVENT_SUFFIX          = 0xF001, ///< stop clock event suffix value
         START_EVENT_SUFFIX         = 0xF002, ///< start clock event suffix value
@@ -238,7 +242,66 @@ struct BroadcastTimeDefs
 
         return rate.srate_;
     }
-    
+
+    /// Build an event from hours and minutes.
+    /// @param event_base base event ID of the event pool
+    /// @param hours hours (0 to 23)
+    /// @param minutes minutes (0 to 59)
+    /// @return resulting event ID
+    static uint64_t time_to_event(uint64_t event_base, int hours, int minutes)
+    {
+        HASSERT(minutes >= 0 && minutes <= 59);
+        HASSERT(hours >= 0 && hours <= 23);
+
+        return event_base + TIME_EVENT_BASE_SUFFIX +
+               (hours << EVENT_HOURS_SHIFT) + (minutes << EVENT_MINUTES_SHIFT);
+    }
+
+    /// Build an event from month and day.
+    /// @param event_base base event ID of the event pool
+    /// @param month month (1 to 12)
+    /// @param day day of month (1 to 31)
+    /// @return resulting event ID
+    static uint64_t date_to_event(uint64_t event_base, int month, int day)
+    {
+        HASSERT(month >= 1 && month <= 12);
+        HASSERT(day >= 1 && day <= 31);
+
+        return event_base + DATE_EVENT_BASE_SUFFIX +
+               (month << EVENT_MONTH_SHIFT) + (day << EVENT_DAY_SHIFT);
+    }
+
+    /// Build an event from year.
+    /// @param event_base base event ID of the event pool
+    /// @param year (0AD to 4095AD)
+    /// @return resulting event ID
+    static uint64_t year_to_event(uint64_t event_base, int year)
+    {
+        HASSERT(year >= 0 && year <= 4095);
+
+        return event_base + YEAR_EVENT_BASE_SUFFIX + (year << EVENT_YEAR_SHIFT);
+    }
+
+    /// Build an event from rate.
+    /// @param event_base base event ID of the event pool
+    /// @param year (0AD to 4095AD)
+    /// @return resulting event ID
+    static uint64_t rate_to_event(uint64_t event_base, int16_t rate)
+    {
+        HASSERT(rate >= -2048 && rate < 2048);
+
+        union Rate
+        {
+            uint16_t rate_;
+            int16_t srate_;
+        };
+
+        Rate r;
+        r.srate_ = rate;
+
+        return event_base + RATE_EVENT_BASE_SUFFIX +
+               ((r.rate_ & EVENT_RATE_MASK) << EVENT_RATE_SHIFT);
+    }
 };
 
 }  // namespace openlcb
