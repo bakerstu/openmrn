@@ -32,23 +32,10 @@
  * @date 14 October 2018
  */
 
-#ifndef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 200112L
-#endif
-
 #include "openlcb/BroadcastTimeClient.hxx"
 
 namespace openlcb
 {
-
-//
-// BroadcastTimeClient::clear_timezone
-//
-void BroadcastTimeClient::clear_timezone()
-{
-        setenv("TZ", "GMT0", 1);
-        tzset();
-}
 
 //
 // BroadcastTimeClient::handle_updates()

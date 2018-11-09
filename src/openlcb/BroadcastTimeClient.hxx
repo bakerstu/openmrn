@@ -35,18 +35,13 @@
 #ifndef _OPENLCB_BROADCASTTIMECLIENT_HXX_
 #define _OPENLCB_BROADCASTTIMECLIENT_HXX_
 
-#include <functional>
-
-#include "openlcb/BroadcastTimeDefs.hxx"
-#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/BroadcastTime.hxx"
 
 namespace openlcb
 {
 
 /// Implementation of a Broadcast Time Protocol client.
-class BroadcastTimeClient : public SimpleEventHandler
-                          , public StateFlowBase
-                          , private Atomic
+class BroadcastTimeClient : public BroadcastTime
 {
 public:
     /// Constructor.
@@ -56,14 +51,8 @@ public:
     /// @param configure_agent can configure clock servers.
     BroadcastTimeClient(Node *node, NodeID clock_id,
                         bool configure_agent = false)
-        : StateFlowBase(node->iface())
-        , node_(node)
-        , clockID_((uint64_t)clock_id << 16)
-        , callbacks_()
-        , writer_()
-        , timer_(this)
+        : BroadcastTime(node, clock_id)
         , configureAgent_(configure_agent)
-        , started_(false)
         , immediateUpdate_(false)
         , immediatePending_(false)
         , sleeping_(false)
@@ -71,18 +60,7 @@ public:
         , rolloverPending_(false)
         , rolloverPendingDate_(false)
         , rolloverPendingYear_(false)
-        , timestamp_(OSTime::get_monotonic())
-        , seconds_(0)
-        , rate_(0)
-        , rateRequested_(0)
     {
-        // use a process-local timezone
-        clear_timezone();
-
-        time_t time = 0;
-        ::gmtime_r(&time, &tm_);
-        tm_.tm_isdst = 0;
-
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, clockID_), 16);
 
@@ -210,116 +188,7 @@ public:
         handle_updates(event, true);
     }
 
-    /// Get the time as a value of seconds relative to the system epoch.  At the
-    /// same time get an atomic matching pair of the rate
-    /// @return pair<time in seconds relative to the system epoch, rate>
-    std::pair<time_t, int16_t> time_and_rate()
-    {
-        AtomicHolder h(this);
-        return std::make_pair(time(), rate_);
-    }
-
-    /// Get the difference in time scaled to real time.
-    /// @param t1 time 1 to compare
-    /// @param t2 time 2 to compare
-    /// @return (t1 - t2) scaled to real time.
-    time_t compare_realtime(time_t t1, time_t t2)
-    {
-        return ((t1 - t2) * 4) / rate_;
-    }
-
-    /// Get the time as a value of seconds relative to the system epoch.
-    /// @return time in seconds relative to the system epoch
-    time_t time()
-    {
-        AtomicHolder h(this);
-        if (started_)
-        {
-            long long now = OSTime::get_monotonic();
-            long long elapsed = now - timestamp_;
-            elapsed = ((elapsed * rate_) + 2) / 4;
-
-            return seconds_ + (time_t)NSEC_TO_SEC(elapsed + MSEC_TO_NSEC(500));
-        }
-        else
-        {
-            // clock is stopped, time is not progressing
-            return seconds_;
-        }
-    }
-
-    /// Get the time as a standard struct tm.
-    /// @param result a pointer to the structure that will hold the result
-    /// @return pointer to the passed in result on success, nullptr on failure
-    struct tm *gmtime_r(struct tm *result)
-    {
-        time_t now = time();
-        return ::gmtime_r(&now, result);
-    }
-
-    /// Get the day of the week.
-    /// @returns day of the week (0 - 6) upon success, else -1 on failure
-    int day_of_week()
-    {
-        struct tm tm;
-        if (gmtime_r(&tm) == nullptr)
-        {
-            return -1;
-        }
-        return tm.tm_wday;
-    }
-
-    /// Get the day of the year.
-    /// @returns day of the year (0 - 365) upon success, else -1 on failure
-    int day_of_year()
-    {
-        struct tm tm;
-        if (gmtime_r(&tm) == nullptr)
-        {
-            return -1;
-        }
-        return tm.tm_yday;
-    }
-
-    /// Report the clock rate as a 12-bit fixed point number
-    /// (-512.00 to 511.75).
-    /// @return clock rate 
-    int16_t rate()
-    {
-        return rate_;
-    }
-
-    /// Test of the clock is running.
-    /// @return true if running, else false
-    bool is_running()
-    {
-        AtomicHolder h(this);
-        return rate_ != 0 && started_;
-    }
-
-    /// Test of the clock is started (rate could still be 0).
-    /// @return true if started, else false
-    bool is_started()
-    {
-        return started_;
-    }
-
-    /// Register a callback for when the time synchronization is updated.  The
-    /// context of the caller will be from a state flow on the Node Interface
-    /// executor.
-    /// @param callback function callback to be called.  First parameter is the
-    ///                 current time in seconds since the Epoch.  Second
-    ///                 parameter is the clock rate.  Third parameter is the
-    ///                 running state (true == running, false == stopped)
-    void update_subscribe(std::function<void(time_t, int16_t, bool)> callback)
-    {
-        callbacks_.emplace_back(callback);
-    }
-
 private:
-    /// Reset our process local timezone environment to GMT0.
-    void clear_timezone();
-
     /// Handle an incoming time update.
     /// @param entry registry entry for the event range
     /// @report true of this an event report, false if a Producer Identified
@@ -351,10 +220,7 @@ private:
         }
         if (notify)
         {
-            for (auto n : callbacks_)
-            {
-                n(seconds_, rate_, rate_ != 0 && started_);
-            }
+            service_callbacks(seconds_, rate_, rate_ && started_);
         }
     }
 
@@ -482,10 +348,7 @@ private:
             }
             if (notify)
             {
-                for (auto n : callbacks_)
-                {
-                    n(seconds_, rate_, rate_ != 0 && started_);
-                }
+                service_callbacks(seconds_, rate_, rate_ && started_);
             }
         }
 
@@ -540,28 +403,15 @@ private:
         }
     }
 
-    Node *node_; ///< OpenLCB node to export the consumer on
-    uint64_t clockID_; ///< 48-bit unique identifier for the clock instance
+    uint16_t configureAgent_   : 1; ///< instance can be used to configure clock
+    uint16_t immediateUpdate_  : 1; ///< true if the update should be immediate
+    uint16_t immediatePending_ : 1; /// future immediate upate expected
+    uint16_t sleeping_         : 1; ///< true if stateflow is waiting on timer
+    uint16_t waiting_          : 1; ///< true if stateflow is waiting
+    uint16_t rolloverPending_  : 1; ///< a day rollover is about to occur
+    uint16_t rolloverPendingDate_ : 1; ///< a day rollover is about to occur
+    uint16_t rolloverPendingYear_ : 1; ///< a day rollover is about to occur
 
-    /// update subscribers
-    std::vector<std::function<void(time_t, int16_t, bool)>> callbacks_;
-    WriteHelper writer_; ///< helper for sending event messages
-    StateFlowTimer timer_; ///< timer helper
-    unsigned configureAgent_   : 1; ///< instance can be used to configure clock
-    unsigned started_          : 1; ///< true if clock is started
-    unsigned immediateUpdate_  : 1; ///< true if the update should be immediate
-    unsigned immediatePending_ : 1; /// future immediate upate expected
-    unsigned sleeping_         : 1; ///< true if stateflow is waiting on timer
-    unsigned waiting_          : 1; ///< true if stateflow is waiting
-    unsigned rolloverPending_  : 1; ///< a day rollover is about to occur
-    unsigned rolloverPendingDate_ : 1; ///< a day rollover is about to occur
-    unsigned rolloverPendingYear_ : 1; ///< a day rollover is about to occur
-
-    struct tm tm_; ///< the time we are last set to as a struct tm
-    long long timestamp_; ///< monotonic timestamp from last server update
-    time_t seconds_; ///< clock time in seconds from last server update
-    int16_t rate_; ///< effective clock rate
-    int16_t rateRequested_; ///< pending clock rate
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeClient);
 };
