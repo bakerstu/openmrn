@@ -44,13 +44,6 @@ namespace openlcb
 class BroadcastTimeAlarm : public StateFlowBase, private Atomic
 {
 public:
-    /// Return type for the alarm callback
-    enum Result
-    {
-        NONE = 0, ///< do nothing
-        RESTART, ///< restart alarm with a new value
-    };
-
     /// Constructor.
     /// @param node the virtual node that our StateFlowBase service will be
     ///             derived from
@@ -62,27 +55,47 @@ public:
     ///                 value passed back by the time_t parameter is the next
     ///                 experation time if the alarm is restarted.
     BroadcastTimeAlarm(Node *node, BroadcastTime *clock,
-                       std::function<Result(time_t*)> callback)
+        std::function<void()> callback)
         : StateFlowBase(node->iface())
         , clock_(clock)
+        , done_()
         , callback_(callback)
+        , timeAndRate_(clock->time_and_rate())
         , timer_(this)
         , expires_(0)
         , running_(false)
+        , clockRunning_(clock->is_running())
         , set_(false)
         , sleeping_(false)
         , waiting_(false)
     {
+        // By ensuring that the alarm runs in the same thread context as the
+        // clock which it uses, we can have much simpler logic for avoiding
+        // race conditions in this implementation.
+        HASSERT(service() == clock_->service());
         clock_->update_subscribe(std::bind(&BroadcastTimeAlarm::update_notify,
                                            this));
         start_flow(STATE(setup));
+    }
+
+    /// Destructor.
+    ~BroadcastTimeAlarm()
+    {
     }
 
     /// Start the alarm to expire at the given period from now.
     /// @time period in seconds from now to expire
     void set_period(time_t period)
     {
-        set(clock_->time() + period);
+        std::pair<time_t, int16_t> now = clock_->time_and_rate();
+        if (now.second > 0)
+        {
+            set(now.first + period);
+        }
+        else if (now.second < 0)
+        {
+            set(now.first - period);
+        }
     }
 
     /// Start the alarm to expire at the given time.
@@ -106,6 +119,16 @@ public:
         set_ = false;
         // rather than waking up the state flow, just let it expire naturally.
     }
+
+protected:
+    /// Called when the clock time has changed.
+    virtual void update_notify()
+    {
+        wakeup();
+    }
+
+    BroadcastTime *clock_; ///< clock that our alarm is based off of
+    BarrierNotifiable done_; ///< notifable that our child processing is done
 
 private:
     // Wakeup helper
@@ -144,20 +167,21 @@ private:
         {
             running_ = true;
             set_ = false;
-            std::pair<time_t, int16_t> time = clock_->time_and_rate();
+            timeAndRate_ = clock_->time_and_rate();
 
-            if ((time.first >= expires_ && time.second > 0) ||
-                (time.first <= expires_ && time.second < 0) ||
-                (time.first == expires_ && time.second == 0))
+            if ((timeAndRate_.first >= expires_ && timeAndRate_.second > 0) ||
+                (timeAndRate_.first <= expires_ && timeAndRate_.second < 0) ||
+                (timeAndRate_.first == expires_ && timeAndRate_.second == 0))
             {
                 // have already met the alarm conditions
                 return call_immediately(STATE(expired));
             }
             else
             {
+                long long timeout = clock_->rate_sec_to_real_nsec_period(
+                    timeAndRate_.first - expires_);
                 sleeping_ = true;
-                long long t = SEC_TO_NSEC(time.first) - OSTime::get_monotonic();
-                return sleep_and_call(&timer_, std::abs(t), STATE(timeout));
+                return sleep_and_call(&timer_, timeout, STATE(timeout));
             }
         }
     }
@@ -181,41 +205,13 @@ private:
     /// Handle action on timer expiration.
     Action expired()
     {
-        bool notify = false;
-        time_t alarm_value;
+        if (running_ && callback_)
         {
-            AtomicHolder h(this);
-            if (running_)
-            {
-                alarm_value = expires_;
-                notify = true;
-            }
-        }
-        if (notify)
-        {
-            Result result = callback_(&alarm_value);
-            if (result == RESTART)
-            {
-                set(alarm_value);
-            }
-            else
-            {
-                running_ = false;
-            }
+            callback_();
         }
         
-        return call_immediately(STATE(setup));
-    }
-
-    /// Called when the clock time has changed.
-    void update_notify()
-    {
-        AtomicHolder h(this);
-        if (running_)
-        {
-            new Wakeup(this);
-        }
-    }
+        return wait_and_call(STATE(setup));
+    }        
 
     /// wakeup the state machine.
     void wakeup()
@@ -231,26 +227,104 @@ private:
             sleeping_ = false;
         }
     }
-    BroadcastTime *clock_; ///< clock that our alarm is based off of
 
     /// Callback for when alarm expires.  The return value is RESTART to restart
     /// the alarm, else the value is NONE.  The time_t parameter passed by
     /// reference is the time_t value which expired.  The value passed back by
     /// the time_t parameter is the next experation time if the alarm is
     /// restarted.
-    std::function<Result(time_t *)> callback_;
+    std::function<void()> callback_;
+    std::pair<time_t, int16_t> timeAndRate_;
 
     StateFlowTimer timer_; ///< timer helper
     time_t expires_; ///< time at which the alarm expires
-    unsigned running_  : 1; ///< true if running, else false
-    unsigned set_      : 1; ///< true if a start request is pending
-    unsigned sleeping_ : 1; ///< true if sleeping
-    unsigned waiting_  : 1; ///< true if waiting
+    unsigned running_      : 1; ///< true if running, else false
+    unsigned clockRunning_ : 1; ///< true if our parent clock is running
+    unsigned set_          : 1; ///< true if a start request is pending
+    unsigned sleeping_     : 1; ///< true if sleeping
+    unsigned waiting_      : 1; ///< true if waiting
 
     /// make our wakeup agent a friend
     friend class BroadcastTimeAlarm::Wakeup;
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeAlarm);
+};
+
+/// Specialization of BroadcastTimeAlarm meant to expire at each date rollover
+class BroadcastTimeAlarmDate : public BroadcastTimeAlarm
+{
+public:
+    /// Constructor.
+    /// @param node the virtual node that our StateFlowBase service will be
+    ///             derived from
+    /// @param clock clock that our alarm is based off of
+    /// @param callback Callback for when alarm expires.  The return value is
+    ///                 RESTART to restart the alarm, else the value is NONE.
+    ///                 The time_t parameter passed
+    ///                 by reference is the time_t value which expired.  The
+    ///                 value passed back by the time_t parameter is the next
+    ///                 experation time if the alarm is restarted.
+    BroadcastTimeAlarmDate(Node *node, BroadcastTime *clock,
+        std::function<void()> callback)
+        : BroadcastTimeAlarm(
+              node, clock, std::bind(&BroadcastTimeAlarmDate::expired_callback,
+                                     this))
+        , callbackUser_(callback)
+    {
+    }
+
+    /// Destructor.
+    ~BroadcastTimeAlarmDate()
+    {
+    }
+
+private:
+    /// callback for when the alarm expires
+    void expired_callback()
+    {
+        if (callbackUser_)
+        {
+            callbackUser_();
+        }
+
+        if (clock_->rate() > 0)
+        {
+            set(clock_->time() + (60 * 60 * 24));
+        }
+        else if (clock_->rate() < 0)
+        {
+            set(clock_->time() - (60 * 60 * 24));
+        }
+    }
+
+    /// Called when the clock time has changed.
+    void update_notify() override
+    {
+        const struct tm *tm = clock_->gmtime_recalculate();
+        time_t seconds = clock_->time();
+
+        if (clock_->rate() > 0)
+        {
+            set(seconds + (60 - tm->tm_sec) +
+                          (60 * (59 - tm->tm_min)) +
+                          (60 * 60 * (23 - tm->tm_hour)));
+        }
+        else if (clock_->rate() < 0)
+        {
+            set(seconds - (tm->tm_sec + 60 * tm->tm_min + 60 * 60 * tm->tm_hour));
+        }
+        BroadcastTimeAlarm::update_notify();
+    }
+
+    /// Callback for when alarm expires.  The return value is RESTART to restart
+    /// the alarm, else the value is NONE.  The time_t parameter passed by
+    /// reference is the time_t value which expired.  The value passed back by
+    /// the time_t parameter is the next experation time if the alarm is
+    /// restarted.
+    std::function<void()> callbackUser_;
+
+
+    DISALLOW_COPY_AND_ASSIGN(BroadcastTimeAlarmDate);
 };
 
 } // namespace openlcb

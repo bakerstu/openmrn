@@ -37,7 +37,7 @@ public:
     {
         snprintf(clockIDString_, 13, "%012" PRIX64, clock_id);
         update_subscribe(std::bind(&MockBroadcastTimeClient::update_callback,
-                                   this, _1, _2, _3));
+                                   this));
     }
 
     void settime(int rate = 0, unsigned year = 0, unsigned month = 0,
@@ -85,7 +85,7 @@ public:
         return tmMock_.tm_min;
     }
 
-    MOCK_METHOD3(update_callback, void(time_t time, int16_t rate, bool running));
+    MOCK_METHOD0(update_callback, void());
 
     time_t time_;
     struct tm tmMock_;
@@ -254,13 +254,13 @@ TEST_F(BroadcastTimeClientTest, Create)
 TEST_F(BroadcastTimeClientTest, Start)
 {
     // start the clock, synchronize the client
-    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     send_start(client1_);
+    wait();
 
     client1_->settime(4, 1970, 1, 1, 0, 0);
 
-    EXPECT_CALL(*client1_, update_callback(0, 4, true)).Times(1);
-    EXPECT_CALL(*client1_, update_callback(60, 4, true)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(2);
     sync(client1_, 500);
     wait();
     
@@ -274,18 +274,17 @@ TEST_F(BroadcastTimeClientTest, Start)
 TEST_F(BroadcastTimeClientTest, DateRolloverForward)
 {
     // start the clock, synchronize the client
-    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     send_start(client1_);
+    wait();
 
     client1_->settime(4, 1970, 1, 1, 23, 59);
 
     // expect Jan 2, 1970, 11:59PM
-    EXPECT_CALL(*client1_, update_callback(86340, 4, true)).Times(1);
     // expect Jan 2, 1970, 12:00AM + 3 seconds
-    EXPECT_CALL(*client1_, update_callback(86403, 4, true)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(2);
     sync(client1_, 500);
     wait();
-    
     
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 86402, 86404));
@@ -296,15 +295,15 @@ TEST_F(BroadcastTimeClientTest, DateRolloverForward)
 TEST_F(BroadcastTimeClientTest, DateRolloverBackward)
 {
     // start the clock, synchronize the client
-    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     send_start(client1_);
+    wait();
 
     client1_->settime(-4, 1970, 1, 2, 0, 0);
 
     // expect Jan 2, 1970, 12:00AM
-    EXPECT_CALL(*client1_, update_callback(86400, -4, true)).Times(1);
     // expect Jan 1, 1970, 11:59PM - 3 seconds
-    EXPECT_CALL(*client1_, update_callback(86337, -4, true)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(2);
     sync(client1_, 500);
     wait();
     
@@ -318,14 +317,15 @@ TEST_F(BroadcastTimeClientTest, DateRolloverBackward)
 TEST_F(BroadcastTimeClientTest, ProgressionForwardFast)
 {
     // start the clock, synchronize the client
-    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     send_start(client1_);
 
     // rate = 500 (500 * 4 = 2000)
     client1_->settime(500 * 4, 1970, 1, 1, 0, 0);
+    wait();
 
     // after sync, time should be Jan 1, 1970 00:01:00
-    EXPECT_CALL(*client1_, update_callback(0, 2000, true)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     sync(client1_, 500);
 
     // wait 960 fast seconds (16 minutes).
@@ -342,14 +342,15 @@ TEST_F(BroadcastTimeClientTest, ProgressionForwardFast)
 TEST_F(BroadcastTimeClientTest, ProgressionReverseFast)
 {
     // start the clock, synchronize the client
-    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     send_start(client1_);
+    wait();
 
     // rate = -500 (-500 * 4 = -2000)
     client1_->settime(-500 * 4, 1970, 1, 1, 0, 20);
 
     // after sync, time should be Jan 1, 1970 00:19:00
-    EXPECT_CALL(*client1_, update_callback(1200, -2000, true)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     sync(client1_, 500);
 
     // wait 960 fast seconds (16 minutes).
@@ -365,12 +366,13 @@ TEST_F(BroadcastTimeClientTest, ProgressionReverseFast)
 TEST_F(BroadcastTimeClientTest, BurstImmediateExpected)
 {
     // start the clock, synchronize the client
-    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     send_start(client1_);
+    wait();
 
     client1_->settime(4, 1970, 1, 1, 0, 0);
 
-    EXPECT_CALL(*client1_, update_callback(60, 4, true)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     sync(client1_, 0);
     wait();
 
@@ -383,12 +385,13 @@ TEST_F(BroadcastTimeClientTest, BurstImmediateExpected)
 TEST_F(BroadcastTimeClientTest, NoUpdateCallbackExpected)
 {
     // start the clock, synchronize the client
-    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     send_start(client1_);
+    wait();
 
     client1_->settime(60 * 4, 1970, 1, 1, 0, 0);
 
-    EXPECT_CALL(*client1_, update_callback(60, 60 * 4, true)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     sync(client1_, 0);
     sleep(1);
     client1_->settime(60 * 4, 1970, 1, 1, 0, 2);
@@ -404,15 +407,16 @@ TEST_F(BroadcastTimeClientTest, NoUpdateCallbackExpected)
 TEST_F(BroadcastTimeClientTest, DriftChangeUpdateCallbackExpected)
 {
     // start the clock, synchronize the client
-    EXPECT_CALL(*client1_, update_callback(0, 0, false)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     send_start(client1_);
+    wait();
 
     client1_->settime(60 * 4, 1970, 1, 1, 0, 0);
 
-    EXPECT_CALL(*client1_, update_callback(60, 60 * 4, true)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     sync(client1_, 0);
     sleep(1);
-    EXPECT_CALL(*client1_, update_callback(60 * 5 * 4, 60 * 4, true)).Times(1);
+    EXPECT_CALL(*client1_, update_callback()).Times(1);
     client1_->settime(60 * 4, 1970, 1, 1, 0, 5 * 4);
     send_report_time(client1_);
     wait();

@@ -106,7 +106,7 @@ public:
             long long elapsed = OSTime::get_monotonic() - timestamp_;
             elapsed = ((elapsed * rate_) + 2) / 4;
 
-            return seconds_ + (time_t)NSEC_TO_SEC(elapsed);
+            return seconds_ + (time_t)NSEC_TO_SEC_ROUNDED(elapsed);
         }
         else
         {
@@ -171,6 +171,37 @@ public:
         return started_;
     }
 
+    /// Convert a period at the clock's current rate to a period in real nsec.
+    /// @param seconds period in seconds at the current clock rate
+    /// @return period in real nanoseconds
+    long long rate_sec_to_real_nsec_period(time_t seconds)
+    {
+        long long abs_seconds = std::abs(seconds);
+        return ((SEC_TO_NSEC(abs_seconds) * std::abs(rate_)) + 2) / 4;
+    }
+
+    /// Convert a period in real nanoseconds to a period in at the clock's
+    /// current rate in seconds.  Rounded to the nearest whole second
+    /// @param nsec period in real nanoseconds
+    /// @return period in seconds at the current clock rate
+    time_t real_nsec_to_rate_sec_period(long long nsec)
+    {
+        nsec = std::abs(nsec);
+        int16_t abs_rate = std::abs(rate_);
+        return (NSEC_TO_SEC_ROUNDED(nsec * 4) + (abs_rate >> 1)) / abs_rate;
+    }
+
+    /// Convert a period in real seconds to a period in at the clock's
+    /// current rate in seconds.  Rounded to the nearest whole second
+    /// @param seconds period in real seconds
+    /// @return period in seconds at the current clock rate
+    time_t real_sec_to_rate_sec_period(time_t seconds)
+    {
+        seconds = std::abs(seconds);
+        int16_t abs_rate = std::abs(rate_);
+        return ((seconds * 4) + (abs_rate >> 1)) / abs_rate;
+    }
+
     /// Register a callback for when the time synchronization is updated.  The
     /// context of the caller will be from a state flow on the Node Interface
     /// executor.
@@ -178,18 +209,47 @@ public:
     ///                 current time in seconds since the Epoch.  Second
     ///                 parameter is the clock rate.  Third parameter is the
     ///                 running state (true == running, false == stopped)
-    void update_subscribe(std::function<void(time_t, int16_t, bool)> callback)
+    void update_subscribe(std::function<void()> callback)
     {
         callbacks_.emplace_back(callback);
     }
 
+    /// Accessor method to get the Node reference
+    /// @return Node reference
+    Node *node()
+    {
+        return node_;
+    }
+
+    /// Accessor method to get the clock ID
+    /// @return clock ID
+    uint64_t clock_id()
+    {
+        return clockID_;
+    }
+
+    /// Recalculate the struct tm reprentation of time.
+    /// @return last calculated time in the form of a struct tm
+    const struct tm *gmtime_recalculate()
+    {
+        gmtime_r(&tm_);
+        return &tm_;
+    }
+
+    /// Get the last calculated reprentation of time.
+    /// @return last calculated time in the form of a struct tm
+    const struct tm *gmtime_get()
+    {
+        return &tm_;
+    }
+
 protected:
     /// Service all of the attached update subscribers
-    void service_callbacks(time_t seconds, int16_t rate, bool running)
+    void service_callbacks()
     {
         for (auto n : callbacks_)
         {
-            n(seconds, rate, running);
+            n();
         }
     }
 
@@ -201,7 +261,7 @@ protected:
     StateFlowTimer timer_; ///< timer helper
 
     /// update subscribers
-    std::vector<std::function<void(time_t, int16_t, bool)>> callbacks_;
+    std::vector<std::function<void()>> callbacks_;
 
     long long timestamp_; ///< monotonic timestamp from last server update
     time_t seconds_; ///< clock time in seconds from last server update

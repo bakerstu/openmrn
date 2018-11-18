@@ -7,6 +7,7 @@ CXXSRCS += \
            AliasCache.cxx \
            BroadcastTime.cxx \
            BroadcastTimeClient.cxx \
+           BroadcastTimeServer.cxx \
            CanDefs.cxx \
            ConfigEntry.cxx \
            ConfigUpdateFlow.cxx \

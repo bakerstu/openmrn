@@ -125,18 +125,35 @@ struct BroadcastTimeDefs
         {
             case 0x0000:
             case 0x1000:
+                if (valid_time(suffix))
+                {
+                    return REPORT_TIME;
+                }
+                break;
                 return REPORT_TIME;
             case 0x2000:
-                return REPORT_DATE;
+                if (valid_date(suffix))
+                {
+                    return REPORT_DATE;
+                }
+                break;
             case 0x3000:
                 return REPORT_YEAR;
             case 0x4000:
                 return REPORT_RATE;
             case 0x8000:
             case 0x9000:
-                return SET_TIME;
+                if (valid_time(suffix))
+                {
+                    return SET_TIME;
+                }
+                break;
             case 0xA000:
-                return SET_DATE;
+                if (valid_date(suffix))
+                {
+                    return SET_DATE;
+                }
+                break;
             case 0xB000:
                 return SET_YEAR;
             case 0xC000:
@@ -153,11 +170,32 @@ struct BroadcastTimeDefs
                     case 0x003:
                         return DATE_ROLLOVER;
                     default:
-                        return UNDEFINED;
+                        break;
                 }                        
             default:
-                return UNDEFINED;
+                break;
         }
+        return UNDEFINED;
+    }
+
+    /// Validate that this is a supported time event. Assume that the four most
+    /// significant bits have been seperately validated.
+    /// @return true of valid, else false
+    static bool valid_time(uint16_t suffix)
+    {
+        return (((suffix & EVENT_HOURS_MASK) >> EVENT_HOURS_SHIFT) <= 23 &&
+                ((suffix & EVENT_MINUTES_MASK) >> EVENT_MINUTES_SHIFT) <= 59);
+    }
+
+    /// Validate that this is a supported date event. Assume that the four most
+    /// significant bits have been seperately validated.
+    /// @return true of valid, else false
+    static bool valid_date(uint16_t suffix)
+    {
+        return (((suffix & EVENT_MONTH_MASK) >> EVENT_MONTH_SHIFT) >= 1 &&
+                ((suffix & EVENT_MONTH_MASK) >> EVENT_MONTH_SHIFT) <= 12 &&
+                ((suffix & EVENT_DAY_MASK) >> EVENT_DAY_SHIFT) >= 1 &&
+                ((suffix & EVENT_DAY_MASK) >> EVENT_DAY_SHIFT) <= 31);
     }
 
     /// Get the minutes from the event.  To save logic, the event is assumed to

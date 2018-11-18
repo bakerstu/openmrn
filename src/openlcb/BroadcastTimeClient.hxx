@@ -36,6 +36,7 @@
 #define _OPENLCB_BROADCASTTIMECLIENT_HXX_
 
 #include "openlcb/BroadcastTime.hxx"
+#include "openlcb/BroadcastTimeAlarm.hxx"
 
 namespace openlcb
 {
@@ -220,7 +221,7 @@ private:
         }
         if (notify)
         {
-            service_callbacks(seconds_, rate_, rate_ && started_);
+            service_callbacks();
         }
     }
 
@@ -348,7 +349,7 @@ private:
             }
             if (notify)
             {
-                service_callbacks(seconds_, rate_, rate_ && started_);
+                service_callbacks();
             }
         }
 

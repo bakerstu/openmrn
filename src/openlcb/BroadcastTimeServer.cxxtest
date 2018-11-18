@@ -38,6 +38,7 @@ protected:
         server_ = new BroadcastTimeServer(
             node_, BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID);
         wait_for_event_thread();
+        sleep(1);
     }
 
     ~BroadcastTimeServerTest()
@@ -68,6 +69,27 @@ TEST_F(BroadcastTimeServerTest, Create)
     EXPECT_EQ(server_->time(), 0);
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(server_->day_of_year(), 0);
+};
+
+TEST_F(BroadcastTimeServerTest, Start)
+{
+#if 0
+    EXPECT_CALL(*server_, update_callback(0, 0, false)).Times(1);
+    send_start(client1_);
+
+    client1_->settime(4, 1970, 1, 1, 0, 0);
+
+    EXPECT_CALL(*client1_, update_callback(0, 4, true)).Times(1);
+    EXPECT_CALL(*client1_, update_callback(60, 4, true)).Times(1);
+    sync(client1_, 500);
+    wait();
+    
+    
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 60, 62));
+    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(client1_->day_of_year(), 0);
+#endif
 };
 
 
