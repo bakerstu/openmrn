@@ -192,9 +192,6 @@ private:
             long long timeout = server_->timestamp_ +
                                 server_->rate_sec_to_real_nsec_period(elapsed);
 
-            printf("elapsed: %ld\n", elapsed);
-            printf("timeout: %lld\n", timeout - OSTime::get_monotonic());
-
             timeout = std::max(timeout - OSTime::get_monotonic(), 0LL);
 
             return sleep_and_call(&timer_, timeout,
@@ -469,6 +466,7 @@ public:
         , server_(server)
         , writer_()
         , timer_(this)
+        , requestCount_(0)
     {
     }
 
@@ -481,10 +479,15 @@ public:
     /// @param suffix the clock set event suffix
     void request_set(uint16_t suffix)
     {
-        // waiting for a sync sequence to start, abort
-        timer_.ensure_triggered();
+        if (requestCount_ != UINT8_MAX)
+        {
+            ++requestCount_;
 
-        invoke_subflow_and_ignore_result(this, suffix);
+            // waiting for a sync sequence to start, abort
+            timer_.ensure_triggered();
+
+            invoke_subflow_and_ignore_result(this, suffix);
+        }
     }
 
 private:
@@ -575,7 +578,7 @@ private:
             event_id -= 0x8000;
         }
 
-        printf("report\n");
+        //printf("report\n");
         writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
 
@@ -583,10 +586,18 @@ private:
     }
 
     /// The previous event write has completed.
-    /// @return next state send_sync after 3 second delay
+    /// @return next state send_sync after 3 second delay if no more pening
+    ///         requests, else if requests pending, return_ok()
     Action write_done()
     {
-        return sleep_and_call(&timer_, SEC_TO_NSEC(3), STATE(send_sync));
+        if (--requestCount_ == 0)
+        {
+            return sleep_and_call(&timer_, SEC_TO_NSEC(3), STATE(send_sync));
+        }
+        else
+        {
+            return return_ok();
+        }
     }
 
     /// Request the sync sequence if timer has not been triggered early.
@@ -604,6 +615,7 @@ private:
     BroadcastTimeServer *server_; ///< reference to our parent
     WriteHelper writer_; ///< helper for sending event messages
     StateFlowTimer timer_; ///< timer helper
+    uint8_t requestCount_; ///< counter to know when there are no more requests
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeServerSet);
 };

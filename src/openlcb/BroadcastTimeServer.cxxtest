@@ -38,14 +38,15 @@ protected:
         server_ = new BroadcastTimeServer(
             node_, BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID);
         wait_for_event_thread();
-        //server_->update_subscribe(
-        //    std::bind(&BroadcastTimeServerTest::update_callback, this));
+        server_->update_subscribe(
+            std::bind(&BroadcastTimeServerTest::update_callback, this));
     }
 
     ~BroadcastTimeServerTest()
     {
         server_->shutdown();
         wait();
+        twait();
         usleep(10000);
         while (!server_->is_shutdown())
         {
@@ -78,42 +79,42 @@ TEST_F(BroadcastTimeServerTest, Create)
 
 TEST_F(BroadcastTimeServerTest, StartSetTime)
 {
-    //EXPECT_CALL(*this, update_callback()).Times(1);
+    // set events
     expect_packet(":X195B422AN0101000001000000;");
     expect_packet(":X195B422AN0101000001002101;");
     expect_packet(":X195B422AN01010000010037B2;");
     expect_packet(":X195B422AN01010000010047D0;");
 
-#if 0
+    // start
     expect_packet(":X195B422AN010100000100F002;");
+
+    // sync seqeunce
     expect_packet(":X1954422AN010100000100F002;");
     expect_packet(":X1954422AN01010000010047D0;");
     expect_packet(":X1954422AN01010000010037B2;");
     expect_packet(":X1954422AN0101000001002101;");
     expect_packet(":X1954422AN0101000001000019;");
-    expect_packet(":X195B422AN0101000001000020;");
-#else
-    expect_packet(":X1954422AN010100000100F001;");
-    expect_packet(":X1954422AN01010000010047D0;");
-    expect_packet(":X1954422AN01010000010037B2;");
-    expect_packet(":X1954422AN0101000001002101;");
-    expect_packet(":X1954422AN0101000001000000;");
-#endif
+    expect_packet(":X195B422AN010100000100001A;");
+
+    // callbacks on clock update
+    EXPECT_CALL(*this, update_callback()).Times(5);
 
     server_->set_time(0, 0);
     server_->set_date(1, 1);
     server_->set_year(1970);
     server_->set_rate(2000);
 
-    //server_->start();
+    server_->start();
+
+    // allow time for the sync timeout
+    sleep(3);
+    wait_for_event_thread();
     wait();
-    
+
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 0, 1));
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 1500, 1501));
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(server_->day_of_year(), 0);
-
-    sleep(6);
 };
 #if 0
 TEST_F(BroadcastTimeServerTest, StartSetTime)

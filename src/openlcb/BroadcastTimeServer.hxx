@@ -145,6 +145,7 @@ private:
         {
             server->service()->executor()->add(this);
         }
+
     private:
         /// Entry point. This funciton will be called when *this gets scheduled
         /// on the CPU.
