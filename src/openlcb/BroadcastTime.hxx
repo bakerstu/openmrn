@@ -180,23 +180,25 @@ public:
         return (SEC_TO_NSEC(abs_seconds) / std::abs(rate_)) * 4;
     }
 
-    /// Convert a period in real nanoseconds to a period in at the clock's
+    /// Convert a period in real nanoseconds to a period at the clock's
     /// current rate in seconds.  Rounded to the nearest whole second
     /// @param nsec period in real nanoseconds
     /// @return period in seconds at the current clock rate
     time_t real_nsec_to_rate_sec_period(long long nsec)
     {
+        HASSERT(rate_);
         nsec = std::abs(nsec);
         int16_t abs_rate = std::abs(rate_);
         return (NSEC_TO_SEC_ROUNDED(nsec * 4) + (abs_rate >> 1)) / abs_rate;
     }
 
-    /// Convert a period in real seconds to a period in at the clock's
+    /// Convert a period in real seconds to a period in the clock's
     /// current rate in seconds.  Rounded to the nearest whole second
     /// @param seconds period in real seconds
     /// @return period in seconds at the current clock rate
     time_t real_sec_to_rate_sec_period(time_t seconds)
     {
+        HASSERT(rate_);
         seconds = std::abs(seconds);
         int16_t abs_rate = std::abs(rate_);
         return ((seconds * 4) + (abs_rate >> 1)) / abs_rate;
