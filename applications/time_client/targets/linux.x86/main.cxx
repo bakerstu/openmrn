@@ -72,6 +72,57 @@ extern const size_t openlcb::CONFIG_FILE_SIZE =
 extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
     openlcb::CONFIG_FILENAME;
 
+void time_update_callback();
+void minute_update_callback();
+
+// Main time protocol client.
+openlcb::BroadcastTimeClient time_client(stack.node(), openlcb::BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID);
+
+openlcb::BroadcastTimeAlarm time_alarm(stack.node(), &time_client, &minute_update_callback);
+
+void print_time(const char* prefix) {
+    auto* tm = time_client.gmtime_recalculate();
+    LOG(INFO, "%s%04d-%02d-%02d %02d:%02d, %s, rate %.2f", prefix, //
+        tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,           //
+        tm->tm_hour, tm->tm_min,                                   //
+        time_client.is_running() ? "running" : "stopped",          //
+        time_client.rate() * 1.0f / 4);
+}
+
+/// Computes the next timeout to expire when the minute changes, and sets the
+/// time_alarm to ring at that time.
+void install_alarm()
+{
+    auto tr = time_client.time_and_rate();
+    const time_t currenttime = tr.first;
+    struct tm t;
+    ::gmtime_r(&currenttime, &t);
+    int diff;
+    if (tr.second >= 0) {
+        diff = 60 - t.tm_sec;
+    } else {
+        diff = t.tm_sec + 1;
+    }
+    const time_t nexttime = currenttime + diff;
+    time_alarm.set(nexttime);
+}
+
+/// Callback from the alarm that we will make called on every minute change.
+void minute_update_callback()
+{
+    print_time("");
+    install_alarm();
+}
+
+/// Callback from the time client when the time jumps or is reset for any other
+/// reason.
+void time_update_callback()
+{
+    time_alarm.clear();
+    print_time("update: ");
+    install_alarm();
+}
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -81,8 +132,10 @@ int appl_main(int argc, char *argv[])
 {
     stack.create_config_file_if_needed(cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
     // Connects to a TCP hub on the internet.
-    //stack.connect_tcp_gridconnect_hub("28k.ch", 50007);
     stack.connect_tcp_gridconnect_hub("localhost", 12021);
+
+    time_client.update_subscribe(&time_update_callback);
+    
     // This command donates the main thread to the operation of the
     // stack. Alternatively the stack could be started in a separate stack and
     // then application-specific business logic could be executed ion a busy
