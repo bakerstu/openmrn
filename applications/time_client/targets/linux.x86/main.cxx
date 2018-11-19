@@ -37,6 +37,7 @@
 
 #include "config.hxx"
 #include "openlcb/SimpleStack.hxx"
+#include "openlcb/BroadcastTimeClient.hxx"
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
