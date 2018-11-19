@@ -58,13 +58,11 @@ public:
         std::function<void()> callback)
         : StateFlowBase(node->iface())
         , clock_(clock)
-        , done_()
         , callback_(callback)
         , timeAndRate_(clock->time_and_rate())
         , timer_(this)
         , expires_(0)
         , running_(false)
-        , clockRunning_(clock->is_running())
         , set_(false)
         , sleeping_(false)
         , waiting_(false)
@@ -128,7 +126,6 @@ protected:
     }
 
     BroadcastTime *clock_; ///< clock that our alarm is based off of
-    BarrierNotifiable done_; ///< notifable that our child processing is done
 
 private:
     // Wakeup helper
@@ -239,7 +236,6 @@ private:
     StateFlowTimer timer_; ///< timer helper
     time_t expires_; ///< time at which the alarm expires
     unsigned running_      : 1; ///< true if running, else false
-    unsigned clockRunning_ : 1; ///< true if our parent clock is running
     unsigned set_          : 1; ///< true if a start request is pending
     unsigned sleeping_     : 1; ///< true if sleeping
     unsigned waiting_      : 1; ///< true if waiting
