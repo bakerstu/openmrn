@@ -177,7 +177,7 @@ public:
     long long rate_sec_to_real_nsec_period(time_t seconds)
     {
         long long abs_seconds = std::abs(seconds);
-        return ((SEC_TO_NSEC(abs_seconds) * std::abs(rate_)) + 2) / 4;
+        return (SEC_TO_NSEC(abs_seconds) / std::abs(rate_)) * 4;
     }
 
     /// Convert a period in real nanoseconds to a period in at the clock's
