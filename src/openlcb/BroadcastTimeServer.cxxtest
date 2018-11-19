@@ -38,12 +38,15 @@ protected:
         server_ = new BroadcastTimeServer(
             node_, BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID);
         wait_for_event_thread();
-        sleep(1);
+        //server_->update_subscribe(
+        //    std::bind(&BroadcastTimeServerTest::update_callback, this));
     }
 
     ~BroadcastTimeServerTest()
     {
         server_->shutdown();
+        wait();
+        usleep(10000);
         while (!server_->is_shutdown())
         {
             usleep(10000);
@@ -52,6 +55,8 @@ protected:
 
         delete server_;
     }
+
+    MOCK_METHOD0(update_callback, void());
 
     BroadcastTimeServer *server_;
 };
@@ -71,26 +76,81 @@ TEST_F(BroadcastTimeServerTest, Create)
     EXPECT_EQ(server_->day_of_year(), 0);
 };
 
-TEST_F(BroadcastTimeServerTest, Start)
+TEST_F(BroadcastTimeServerTest, StartSetTime)
 {
+    //EXPECT_CALL(*this, update_callback()).Times(1);
+    expect_packet(":X195B422AN0101000001000000;");
+    expect_packet(":X195B422AN0101000001002101;");
+    expect_packet(":X195B422AN01010000010037B2;");
+    expect_packet(":X195B422AN01010000010047D0;");
+
 #if 0
-    EXPECT_CALL(*server_, update_callback(0, 0, false)).Times(1);
-    send_start(client1_);
+    expect_packet(":X195B422AN010100000100F002;");
+    expect_packet(":X1954422AN010100000100F002;");
+    expect_packet(":X1954422AN01010000010047D0;");
+    expect_packet(":X1954422AN01010000010037B2;");
+    expect_packet(":X1954422AN0101000001002101;");
+    expect_packet(":X1954422AN0101000001000019;");
+    expect_packet(":X195B422AN0101000001000020;");
+#else
+    expect_packet(":X1954422AN010100000100F001;");
+    expect_packet(":X1954422AN01010000010047D0;");
+    expect_packet(":X1954422AN01010000010037B2;");
+    expect_packet(":X1954422AN0101000001002101;");
+    expect_packet(":X1954422AN0101000001000000;");
+#endif
 
-    client1_->settime(4, 1970, 1, 1, 0, 0);
+    server_->set_time(0, 0);
+    server_->set_date(1, 1);
+    server_->set_year(1970);
+    server_->set_rate(2000);
 
-    EXPECT_CALL(*client1_, update_callback(0, 4, true)).Times(1);
-    EXPECT_CALL(*client1_, update_callback(60, 4, true)).Times(1);
-    sync(client1_, 500);
+    //server_->start();
+    wait();
+    
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 0, 1));
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    sleep(6);
+};
+#if 0
+TEST_F(BroadcastTimeServerTest, StartSetTime)
+{
+    //EXPECT_CALL(*this, update_callback()).Times(1);
+    expect_packet(":X195B422AN010100000100F002;");
+    server_->start();
+    wait();
+
+    //EXPECT_CALL(*this, update_callback()).Times(2);
+
+    expect_packet(":X195B422AN01010000010047D0;");
+
+    expect_packet(":X1954422AN010100000100F002;");
+    expect_packet(":X1954422AN01010000010047D0;");
+    expect_packet(":X1954422AN01010000010037B2;");
+    expect_packet(":X1954422AN0101000001002101;");
+    expect_packet(":X1954422AN0101000001000000;");
+    expect_packet(":X195B422AN0101000001000000;");
+
+    server_->set_time(0, 0);
+    server_->set_date(1, 1);
+    server_->set_year(1970);
+    server_->set_rate(2000);
+    //usleep(120000);
+
+    wait_for_event_thread();
     wait();
     
     
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 60, 62));
-    EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
-    EXPECT_EQ(client1_->day_of_year(), 0);
-#endif
-};
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 60, 62));
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
 
+    sleep(6);
+};
+#endif
 
 } // namespace openlcb

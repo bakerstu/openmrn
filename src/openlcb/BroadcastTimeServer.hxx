@@ -105,12 +105,13 @@ public:
     void shutdown()
     {
         shutdown_ = true;
+        alarmDate_.clear();
         //new Wakeup(this);
     }
 
     bool is_shutdown()
     {
-        return is_terminated();
+        return true;//is_terminated();
     }
 #endif
 

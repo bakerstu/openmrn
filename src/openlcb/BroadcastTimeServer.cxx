@@ -170,7 +170,7 @@ private:
     /// @return send_time_report_done()
     Action send_time_report()
     {
-        const struct tm *tm = server_->gmtime_get();
+        const struct tm *tm = server_->gmtime_recalculate();
 
         uint64_t event_id = BroadcastTimeDefs::time_to_event(
             server_->clock_id(), tm->tm_hour, tm->tm_min);
@@ -181,32 +181,37 @@ private:
     }
 
     /// If clock is running, sleep until next time report.
-    /// @return send_time_report_next() if running, release_and_exit()
+    /// @return send_time_report_next() if running, return_ok()
     Action send_time_report_done()
     {
         if (server_->is_running())
         {
             // setup to send the next time report
             time_t elapsed = server_->time() - server_->seconds_;
-            elapsed += server_->rate_ > 0 ? 1 : -1;
+            elapsed += server_->rate_ > 0 ? 60 : -60;
             long long timeout = server_->timestamp_ +
                                 server_->rate_sec_to_real_nsec_period(elapsed);
 
-            return sleep_and_call(&timer_, timeout - OSTime::get_monotonic(),
+            printf("elapsed: %ld\n", elapsed);
+            printf("timeout: %lld\n", timeout - OSTime::get_monotonic());
+
+            timeout = std::max(timeout - OSTime::get_monotonic(), 0LL);
+
+            return sleep_and_call(&timer_, timeout,
                                   STATE(send_time_report_next));
         }
-        return release_and_exit();
+        return return_ok();
     }        
 
     /// Send the Event Report message appropriate for the time event ID.
-    /// @return release_and_exit() if triggered early,
-    ///         else wait_and_call(release_and_exit()
+    /// @return return_ok() if triggered early,
+    ///         else wait_and_return_ok()
     Action send_time_report_next()
     {
         if (timer_.is_triggered())
         {
             // abort early because of a new sync
-            return release_and_exit();
+            return return_ok();
         }
 
         const struct tm *tm = server_->gmtime_recalculate();
@@ -216,7 +221,7 @@ private:
         writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
 
-        return wait_and_call(STATE(release_and_exit));        
+        return wait_and_return_ok();        
     }
 
     BroadcastTimeServer *server_; ///< reference to our parent
@@ -286,13 +291,13 @@ public:
 private:
     /// Wait the obligatory 3 seconds before sending the year/date report.
     /// @return normally wait_and_call(STATE(send_year_report)), else
-    ///         release_and_exit() on abort
+    ///         return_ok() on abort
     Action entry() override
     {
         // see if we need to flush any stale requests
         if (--abortCnt_ != 0)
         {
-            return release_and_exit();
+            return return_ok();
         }
 
         return sleep_and_call(&timer_, SEC_TO_NSEC(3), STATE(send_year_report));
@@ -300,13 +305,13 @@ private:
 
     /// Send the Event Report message appropriate for the year event ID.
     /// @return normally wait_and_call(STATE(send_date_report)), else
-    ///         release_and_exit() on trigger (abort)
+    ///         return_ok() on trigger (abort)
     Action send_year_report()
     {
         if (timer_.is_triggered())
         {
             // abort
-            return release_and_exit();
+            return return_ok();
         }
 
         const struct tm *tm = server_->gmtime_recalculate();
@@ -331,7 +336,7 @@ private:
     }
 
     /// Send the Event Report message appropriate for the date event ID.
-    /// @return wait_and_call(release_and_exit)
+    /// @return wait_and_return_ok()
     Action send_date_report()
     {
         const struct tm *tm = server_->gmtime_get();
@@ -342,7 +347,7 @@ private:
         writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
 
-        return wait_and_call(STATE(release_and_exit));
+        return wait_and_return_ok();
     }
 
     BroadcastTimeServer *server_; ///< reference to our parent
@@ -392,13 +397,14 @@ public:
 
 private:
     /// Send the date rollover event report.
-    /// @return wait_and_call(STATE(send_time_report))
+    /// @return wait_and_call(STATE(send_time_report)), else return_ok() if the
+    ///         clock is not running
     Action entry() override
     {
-        if (server_->rate() == 0)
+        if (!server_->is_running())
         {
             // we shouldn't get here, but it means the clock is not running
-            return release_and_exit();
+            return return_ok();
         }
 
         server_->gmtime_recalculate();
@@ -413,7 +419,7 @@ private:
     }
 
     /// Send the time event report, and schedule the year/date report.
-    /// return wait_and_call(release_and_exit)
+    /// return wait_and_return_ok()
     Action send_time_report()
     {
         const struct tm *tm = server_->gmtime_get();
@@ -426,7 +432,7 @@ private:
         // schedule the year and date event reports
         finish_.request_finish();
 
-        return wait_and_call(STATE(release_and_exit));
+        return wait_and_return_ok();
     }
 
     BroadcastTimeServerDateRolloverFinish finish_; ///< finsh the date rollover
@@ -484,10 +490,10 @@ public:
 private:
     /// Set a clock attribute and send the appropriate event report.
     /// @return wait_and_call(STATE(write_done)) if the time has changed, else
-    ///         release_and_exit();
+    ///         return_ok();
     Action entry() override
     {
-        bool changed = false;
+        bool start_or_stop = false;
         struct tm tm;
         server_->gmtime_r(&tm);
 
@@ -499,14 +505,14 @@ private:
                 if (!server_->started_)
                 {
                     server_->started_ = true;
-                    changed = true;
+                    start_or_stop = true;
                 }
                 break;
             case BroadcastTimeDefs::STOP:
                 if (!server_->started_)
                 {
                     server_->started_ = false;
-                    changed = true;
+                    start_or_stop = true;
                 }
                 break;
             case BroadcastTimeDefs::SET_TIME:
@@ -517,7 +523,6 @@ private:
                 {
                     tm.tm_hour = hour;
                     tm.tm_min = min;
-                    changed = true;
                 }
                 break;
             }
@@ -529,7 +534,6 @@ private:
                 {
                     tm.tm_mday = day;
                     tm.tm_mon = mon;
-                    changed = true;
                 }
                 break;
             }
@@ -539,7 +543,6 @@ private:
                 if (tm.tm_year != year)
                 {
                     tm.tm_year = year;
-                    changed = true;
                 }
                 break;
             }
@@ -549,18 +552,12 @@ private:
                     if (server_->rate_ != rate)
                     {
                         server_->rate_ = rate;
-                        changed = true;
                     }
                 break;
             }
             default:
-                HASSERT(0);
-        }
-
-        if (!changed)
-        {
-            // effectively nothing changes so there is nothing to do
-            return release_and_exit();
+                // should never get there
+                return return_ok();
         }
 
         {
@@ -571,8 +568,14 @@ private:
 
         server_->service_callbacks();
 
-        uint64_t event_id = server_->clock_id() + (suffix - 0x8000);
+        uint64_t event_id = server_->clock_id() + suffix;
 
+        if (!start_or_stop)
+        {
+            event_id -= 0x8000;
+        }
+
+        printf("report\n");
         writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
 
@@ -587,7 +590,7 @@ private:
     }
 
     /// Request the sync sequence if timer has not been triggered early.
-    /// @return release_and_exit()
+    /// @return return_ok()
     Action send_sync()
     {
         if (!timer_.is_triggered())
@@ -595,7 +598,7 @@ private:
             // we have not received any more set events for 3 seconds, sync
             server_->sync_->request_sync();
         }
-        return release_and_exit();
+        return return_ok();
     }
 
     BroadcastTimeServer *server_; ///< reference to our parent
@@ -648,19 +651,19 @@ void BroadcastTimeServer::Wakeup::run()
     {
         case SET_TIME:
             server_->set_->request_set(
-                BroadcastTimeDefs::time_to_event(0, data1_, data2_));
+                BroadcastTimeDefs::time_to_event(0, data1_, data2_) + 0x8000);
             break;
         case SET_DATE:
             server_->set_->request_set(
-                BroadcastTimeDefs::date_to_event(0, data1_, data2_));
+                BroadcastTimeDefs::date_to_event(0, data1_, data2_) + 0x8000);
             break;
         case SET_YEAR:
             server_->set_->request_set(
-                BroadcastTimeDefs::year_to_event(0, data1_));
+                BroadcastTimeDefs::year_to_event(0, data1_) + 0x8000);
             break;
         case SET_RATE:
             server_->set_->request_set(
-                BroadcastTimeDefs::rate_to_event(0, data1_));
+                BroadcastTimeDefs::rate_to_event(0, data1_) + 0x8000);
             break;
         case START:
             server_->set_->request_set(BroadcastTimeDefs::START_EVENT_SUFFIX);
