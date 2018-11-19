@@ -73,7 +73,7 @@ public:
         HASSERT(service() == clock_->service());
         clock_->update_subscribe(std::bind(&BroadcastTimeAlarm::update_notify,
                                            this));
-        start_flow(STATE(setup));
+        start_flow(STATE(entry));
     }
 
     /// Destructor.
@@ -112,13 +112,25 @@ public:
     /// Inactivate the alarm
     void clear()
     {
-        AtomicHolder h(this);
-        running_ = false;
-        set_ = false;
+        {
+            AtomicHolder h(this);
+            running_ = false;
+            set_ = false;
+        }
         // rather than waking up the state flow, just let it expire naturally.
+#if defined(GTEST)
+        new Wakeup(this);
+#endif
     }
 
 protected:
+    /// Entry point to state flow.
+    /// @return next state setup()
+    virtual Action entry()
+    {
+        return call_immediately(STATE(setup));
+    }
+
     /// Called when the clock time has changed.
     virtual void update_notify()
     {
@@ -275,6 +287,13 @@ public:
     }
 
 private:
+    Action entry() override
+    {
+        update_notify();
+
+        return BroadcastTimeAlarm::entry();
+    }
+
     /// callback for when the alarm expires
     void expired_callback()
     {
