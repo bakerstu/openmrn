@@ -485,8 +485,7 @@ public:
 
 private:
     /// Set a clock attribute and send the appropriate event report.
-    /// @return wait_and_call(STATE(write_done)) if the time has changed, else
-    ///         return_ok();
+    /// @return write_done()
     Action entry() override
     {
         bool start_or_stop = false;
