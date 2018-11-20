@@ -74,23 +74,17 @@ public:
     void request_sync()
     {
         {
-            AtomicHolder h(this);
-            if (syncRequired_)
-            {
-                // sync already pending
-                return;
-            }
-            else
+            if (!syncRequired_)
             {
                 // no sync pending, make it pending
                 syncRequired_ = true;
+
+                // abort the current sync if sleeping
+                timer_.ensure_triggered();
+
+                invoke_subflow_and_ignore_result(this);
             }
         }
-
-        // abort the current sync if sleeping
-        timer_.ensure_triggered();
-
-        invoke_subflow_and_ignore_result(this);
     }
 
 private:
