@@ -245,10 +245,17 @@ private:
                              EventReport *event,
                              BarrierNotifiable *done) override;
 
+    /// Entry to state machine.
+    /// @return query_response after timeout
     Action entry()
     {
-        return exit();
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(300),
+                              STATE(query_response));
     }
+
+    /// Respond to a query by scheduling a sync.
+    /// @return exit()
+    Action query_response();
 
     /// The date has rolled over into a new day.
     void alarm_date_callback();

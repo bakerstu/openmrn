@@ -628,8 +628,7 @@ BroadcastTimeServer::BroadcastTimeServer(Node *node, NodeID clock_id)
     EventRegistry::instance()->register_handler(
         EventRegistryEntry(this, clockID_), 16);
 
-    start_flow(STATE(entry));
-    sync_->request_sync();
+    start_flow(STATE(query_response));
 }
 
 //
@@ -672,6 +671,8 @@ void BroadcastTimeServer::Wakeup::run()
         case STOP:
             server_->set_->request_set(BroadcastTimeDefs::STOP_EVENT_SUFFIX);
             break;
+        default:
+            break;
     }
     delete this;
 }
@@ -695,9 +696,24 @@ void BroadcastTimeServer::handle_event_report(const EventRegistryEntry &entry,
         case BroadcastTimeDefs::STOP:
             set_->request_set(event->event);
             break;
+        case BroadcastTimeDefs::QUERY:
+            if (is_terminated())
+            {
+                start_flow(STATE(entry));
+            }
+            break;
         default:
             break;
     }
+}
+
+//
+// BroadcastTimeServer::query_response()
+//
+StateFlowBase::Action BroadcastTimeServer::query_response()
+{
+    sync_->request_sync();
+    return exit();
 }
 
 //
