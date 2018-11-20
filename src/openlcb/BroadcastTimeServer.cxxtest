@@ -120,7 +120,7 @@ TEST_F(BroadcastTimeServerTest, StartSetTime)
     wait_for_event_thread();
 
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 1500, 1501));
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 1499, 1501));
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(server_->day_of_year(), 0);
 };
