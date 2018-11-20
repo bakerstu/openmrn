@@ -273,18 +273,17 @@ public:
         // flow, we don't need an atomic lock.
 
         // terminate early so that we can invalidate the active request(s)
-        timer_.ensure_triggered();
 
-        if (abortCnt_ == 255)
+        if (abortCnt_ != UINT8_MAX)
         {
-            // We should never get here as this would mean that we have 127
-            // stacked requests.  This is here only as a fail safe.
-            return;
-        }
-        ++abortCnt_;
+            ++abortCnt_;
 
-        invoke_subflow_and_ignore_result(this);
+            timer_.ensure_triggered();
+
+            invoke_subflow_and_ignore_result(this);
+        }
     }
+
 private:
     /// Wait the obligatory 3 seconds before sending the year/date report.
     /// @return normally wait_and_call(STATE(send_year_report)), else
