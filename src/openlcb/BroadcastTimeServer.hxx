@@ -224,6 +224,7 @@ private:
                                     BarrierNotifiable *done) override
     {
         done->notify();
+
         if (BroadcastTimeDefs::get_event_type(event->event) ==
             BroadcastTimeDefs::REPORT_TIME)
         {
@@ -242,10 +243,7 @@ private:
     /// @param done used to notify we are finished
     void handle_event_report(const EventRegistryEntry &entry,
                              EventReport *event,
-                             BarrierNotifiable *done) override
-    {
-        done->notify();
-    }
+                             BarrierNotifiable *done) override;
 
     Action entry()
     {

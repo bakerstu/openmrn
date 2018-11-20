@@ -505,17 +505,12 @@ private:
         {
             case BroadcastTimeDefs::START:
                 if (!server_->started_)
-                {
-                    server_->started_ = true;
-                    start_or_stop = true;
-                }
+                server_->started_ = true;
+                start_or_stop = true;
                 break;
             case BroadcastTimeDefs::STOP:
-                if (!server_->started_)
-                {
-                    server_->started_ = false;
-                    start_or_stop = true;
-                }
+                server_->started_ = false;
+                start_or_stop = true;
                 break;
             case BroadcastTimeDefs::SET_TIME:
             {
@@ -559,6 +554,7 @@ private:
             }
             default:
                 // should never get there
+                --requestCount_;
                 return return_ok();
         }
 
@@ -570,14 +566,14 @@ private:
 
         server_->service_callbacks();
 
-        uint64_t event_id = server_->clock_id() + suffix;
-
-        if (!start_or_stop)
+        if (start_or_stop)
         {
-            event_id -= 0x8000;
+            // start or stop events do not produce events of their own
+            return call_immediately(STATE(write_done));
         }
 
-        //printf("report\n");
+        uint64_t event_id = server_->clock_id() + suffix - 0x8000;
+
         writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
 
@@ -684,6 +680,30 @@ void BroadcastTimeServer::Wakeup::run()
             break;
     }
     delete this;
+}
+
+//
+// BroadcastTimeServer::handle_event_report()
+//
+void BroadcastTimeServer::handle_event_report(const EventRegistryEntry &entry,
+                                              EventReport *event,
+                                              BarrierNotifiable *done)
+{
+    AutoNotify an(done);
+
+    switch(BroadcastTimeDefs::get_event_type(event->event))
+    {
+        case BroadcastTimeDefs::SET_TIME:
+        case BroadcastTimeDefs::SET_DATE:
+        case BroadcastTimeDefs::SET_YEAR:
+        case BroadcastTimeDefs::SET_RATE:
+        case BroadcastTimeDefs::START:
+        case BroadcastTimeDefs::STOP:
+            set_->request_set(event->event);
+            break;
+        default:
+            break;
+    }
 }
 
 //

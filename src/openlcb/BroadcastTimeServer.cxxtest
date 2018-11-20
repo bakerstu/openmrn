@@ -100,8 +100,7 @@ TEST_F(BroadcastTimeServerTest, StartSetTime)
 
     clear_expect(true);
 
-    // start
-    expect_packet(":X195B422AN010100000100F002;").InSequence(s2);
+    // start, no expectation
 
     // sync seqeunce
     expect_packet(":X1954422AN010100000100F002;").InSequence(s2);
@@ -145,8 +144,7 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForward)
 
     clear_expect(true);
 
-    // start
-    expect_packet(":X195B422AN010100000100F002;").InSequence(s2);
+    // start, no expectation
 
     // date rollover
     expect_packet(":X195B422AN010100000100F003;").InSequence(s2);
@@ -163,8 +161,8 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForward)
     expect_packet(":X195B422AN01010000010037B2;").InSequence(s2);
     expect_packet(":X195B422AN0101000001002102;").InSequence(s2);
 
-    // sync sequence continued
-    expect_packet(":X195B422AN0101000001000019;").InSequence(s2);
+    // sync sequence continued (might come before date rollover continued)
+    expect_packet(":X195B422AN0101000001000019;");
 
     EXPECT_CALL(*this, update_callback()).Times(1);
 
@@ -197,8 +195,7 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForwardOnTopOfSync)
     server_->set_rate(2000);
     wait_for_event_thread();
 
-    // start
-    expect_packet(":X195B422AN010100000100F002;").InSequence(s2);
+    // start, no expectation
 
     // date rollover
     expect_packet(":X195B422AN010100000100F003;").InSequence(s3);
