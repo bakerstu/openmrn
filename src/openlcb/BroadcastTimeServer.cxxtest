@@ -82,6 +82,26 @@ TEST_F(BroadcastTimeServerTest, Create)
     EXPECT_EQ(server_->day_of_year(), 0);
 };
 
+TEST_F(BroadcastTimeServerTest, Query)
+{
+    ::testing::Sequence s1;
+
+    // sync response
+    expect_packet(":X1954422AN010100000100F001;").InSequence(s1);
+    expect_packet(":X1954422AN0101000001004000;").InSequence(s1);
+    expect_packet(":X1954422AN01010000010037B2;").InSequence(s1);
+    expect_packet(":X1954422AN0101000001002101;").InSequence(s1);
+    expect_packet(":X1954422AN0101000001000000;").InSequence(s1);
+
+    send_packet(":X195B4001N010100000100F000;"); // query
+    wait_for_event_thread();
+
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+};
+
 TEST_F(BroadcastTimeServerTest, StartSetTime)
 {
     ::testing::Sequence s1, s2;
