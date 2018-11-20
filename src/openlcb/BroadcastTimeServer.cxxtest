@@ -39,6 +39,7 @@ protected:
 
         server_ = new BroadcastTimeServer(
             node_, BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID);
+
         wait_for_event_thread();
         server_->update_subscribe(
             std::bind(&BroadcastTimeServerTest::update_callback, this));
@@ -227,5 +228,60 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForwardOnTopOfSync)
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::FRIDAY);
     EXPECT_EQ(server_->day_of_year(), 1);
 };
+
+TEST_F(BroadcastTimeServerTest, DateRolloverForwardAllEventBasedSetup)
+{
+    ::testing::Sequence s1, s2;
+
+    // set events
+    expect_packet(":X195B422AN010100000100173B;").InSequence(s1);
+    expect_packet(":X195B422AN0101000001002101;").InSequence(s1);
+    expect_packet(":X195B422AN01010000010037B2;").InSequence(s1);
+    expect_packet(":X195B422AN01010000010047D0;").InSequence(s1);
+    EXPECT_CALL(*this, update_callback()).Times(4);
+
+    send_packet(":X195B4001N010100000100973B;"); // set time 23, 59
+    send_packet(":X195B4001N010100000100A101;"); // set date 1, 1
+    send_packet(":X195B4001N010100000100B7B2;"); // set year 1970
+    send_packet(":X195B4001N010100000100C7D0;"); // set rate 2000
+
+    wait_for_event_thread();
+
+    clear_expect(true);
+
+    // start, no expectation
+
+    // date rollover
+    expect_packet(":X195B422AN010100000100F003;").InSequence(s2);
+    expect_packet(":X195B422AN0101000001000000;").InSequence(s2);
+
+    // sync seqeunce
+    expect_packet(":X1954422AN010100000100F002;").InSequence(s2);
+    expect_packet(":X1954422AN01010000010047D0;").InSequence(s2);
+    expect_packet(":X1954422AN01010000010037B2;").InSequence(s2);
+    expect_packet(":X1954422AN0101000001002102;").InSequence(s2);
+    expect_packet(":X1954422AN0101000001000018;").InSequence(s2);
+
+    // date rollover continued
+    expect_packet(":X195B422AN01010000010037B2;").InSequence(s2);
+    expect_packet(":X195B422AN0101000001002102;").InSequence(s2);
+
+    // sync sequence continued (might come before date rollover continued)
+    expect_packet(":X195B422AN0101000001000019;");
+
+    EXPECT_CALL(*this, update_callback()).Times(1);
+
+    send_packet(":X195B4001N010100000100F002;"); // start
+
+    // allow time for the sync timeout
+    sleep(3);
+    wait_for_event_thread();
+
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 87840, 87841));
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::FRIDAY);
+    EXPECT_EQ(server_->day_of_year(), 1);
+};
+
 
 } // namespace openlcb
