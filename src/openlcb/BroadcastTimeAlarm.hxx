@@ -326,7 +326,7 @@ private:
         }
         else if (clock_->rate() < 0)
         {
-            set(seconds - (tm->tm_sec + 60 * tm->tm_min + 60 * 60 * tm->tm_hour));
+            set(seconds - (tm->tm_sec + 60 * (tm->tm_min + 1) + 60 * 60 * tm->tm_hour));
         }
         BroadcastTimeAlarm::update_notify();
     }

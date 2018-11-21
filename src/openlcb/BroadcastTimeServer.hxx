@@ -71,7 +71,7 @@ public:
     /// @param day day of month (1 to 31)
     void set_date(int month, int day)
     {
-        new Wakeup(this, Wakeup::Command::SET_DATE, day, month);
+        new Wakeup(this, Wakeup::Command::SET_DATE, month, day);
     }
 
     /// Set the time in seconds since the system Epoch.

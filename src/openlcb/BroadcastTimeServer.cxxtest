@@ -303,5 +303,57 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForwardAllEventBasedSetup)
     EXPECT_EQ(server_->day_of_year(), 1);
 };
 
+TEST_F(BroadcastTimeServerTest, DateRolloverBackward)
+{
+    ::testing::Sequence s1, s2;
+
+    // set events
+    expect_packet(":X195B422AN0101000001000000;").InSequence(s1);
+    expect_packet(":X195B422AN0101000001002102;").InSequence(s1);
+    expect_packet(":X195B422AN01010000010037B2;").InSequence(s1);
+    expect_packet(":X195B422AN0101000001004830;").InSequence(s1);
+    EXPECT_CALL(*this, update_callback()).Times(4);
+
+    server_->set_time(0, 0);
+    server_->set_date(1, 2);
+    server_->set_year(1970);
+    server_->set_rate(-2000);
+    wait_for_event_thread();
+
+    clear_expect(true);
+
+    // start, no expectation
+
+    // date rollover
+    expect_packet(":X195B422AN010100000100F003;").InSequence(s2);
+    expect_packet(":X195B422AN010100000100173B;").InSequence(s2);
+
+    // sync seqeunce
+    expect_packet(":X1954422AN010100000100F002;").InSequence(s2);
+    expect_packet(":X1954422AN0101000001004830;").InSequence(s2);
+    expect_packet(":X1954422AN01010000010037B2;").InSequence(s2);
+    expect_packet(":X1954422AN0101000001002101;").InSequence(s2);
+    expect_packet(":X1954422AN0101000001001723;").InSequence(s2);
+
+    // date rollover continued
+    expect_packet(":X195B422AN01010000010037B2;").InSequence(s2);
+    expect_packet(":X195B422AN0101000001002101;").InSequence(s2);
+
+    // sync sequence continued (might come before date rollover continued)
+    expect_packet(":X195B422AN0101000001001722;");
+
+    EXPECT_CALL(*this, update_callback()).Times(1);
+
+    server_->start();
+
+    // allow time for the sync timeout
+    sleep(3);
+    wait_for_event_thread();
+
+    // check the time, we give it a finite range just in case of some OS jitter
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 84900, 84902));
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+};
 
 } // namespace openlcb
