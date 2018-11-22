@@ -171,6 +171,20 @@ public:
         return started_;
     }
 
+    /// Convert an absolute rate time to nsec until it will occur.
+    /// @param seconds absolute seconds in rate time
+    /// @return period in nsec until it will occure
+    long long real_nsec_until_rate_time_abs(time_t seconds)
+    {
+        long long result;
+        {
+            AtomicHolder h(this);
+            result = timestamp_ +
+                     rate_sec_to_real_nsec_period(seconds - seconds_);
+        }
+        return result - OSTime::get_monotonic();
+    }
+
     /// Convert a period at the clock's current rate to a period in real nsec.
     /// @param seconds period in seconds at the current clock rate
     /// @return period in real nanoseconds

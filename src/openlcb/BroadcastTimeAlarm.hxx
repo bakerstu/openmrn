@@ -187,10 +187,10 @@ private:
             }
             else
             {
-                long long timeout = clock_->rate_sec_to_real_nsec_period(
-                    timeAndRate_.first - expires_);
                 sleeping_ = true;
-                return sleep_and_call(&timer_, timeout, STATE(timeout));
+                return sleep_and_call(&timer_,
+                    clock_->real_nsec_until_rate_time_abs(expires_),
+                    STATE(timeout));
             }
         }
     }
