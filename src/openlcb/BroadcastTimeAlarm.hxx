@@ -287,6 +287,8 @@ public:
     }
 
 private:
+    /// Entry point of the state machine.
+    /// @return BroadcastTimeAlarm::entry();
     Action entry() override
     {
         update_notify();
@@ -337,7 +339,6 @@ private:
     /// the time_t parameter is the next experation time if the alarm is
     /// restarted.
     std::function<void()> callbackUser_;
-
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeAlarmDate);
 };
