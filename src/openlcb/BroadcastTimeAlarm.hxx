@@ -182,7 +182,6 @@ private:
 #if defined(GTEST)
         if (shutdown_)
         {
-            printf("exited\n");
             return exit();
         }
 #endif

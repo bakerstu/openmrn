@@ -693,7 +693,6 @@ private:
     /// callback for when the alarm expires
     void expired_callback()
     {
-        printf("here\n");
         server_->time_->request_time();
         set(next_active_minute(clock_->time(), clock_->gmtime_recalculate()));
     }
@@ -724,8 +723,6 @@ private:
         // we will target to produce a time event every four real minutes.
         int rate_min_per_4_real_min = std::abs(clock_->rate());
 
-        printf("min per min: %i\n", rate_min_per_4_real_min);
-
         do
         {
             seconds += clock_->rate() > 0 ? 60 : -60;
@@ -742,7 +739,6 @@ private:
         while ((hour != tm->tm_hour || min != tm->tm_min) &&
                --rate_min_per_4_real_min > 0);
 
-        printf("hour: %i, min: %i\n", hour, min);
         return seconds;
     }
 
