@@ -51,13 +51,12 @@ protected:
     {
         server_->shutdown();
         wait();
-        twait();
-        usleep(10000);
         while (!server_->is_shutdown())
         {
             usleep(10000);
             wait();
         }
+        twait();
 
         delete server_;
     }
@@ -94,6 +93,7 @@ TEST_F(BroadcastTimeServerTest, Query)
     expect_packet(":X1954422AN0101000001000000;").InSequence(s1);
 
     send_packet(":X195B4001N010100000100F000;"); // query
+    usleep(300000); // wait for response agrigation
     wait_for_event_thread();
 
     // time is not setup, clock is not running, expect 0 as default
@@ -137,11 +137,11 @@ TEST_F(BroadcastTimeServerTest, StartSetTime)
     server_->start();
 
     // allow time for the sync timeout
-    sleep(3);
+    usleep(3200000);
     wait_for_event_thread();
 
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 1499, 1501));
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 1600, 1602));
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(server_->day_of_year(), 0);
 };
@@ -190,11 +190,11 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForward)
     server_->start();
 
     // allow time for the sync timeout
-    sleep(3);
+    usleep(3200000);
     wait_for_event_thread();
 
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 87840, 87841));
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 87940, 87941));
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::FRIDAY);
     EXPECT_EQ(server_->day_of_year(), 1);
 };
@@ -240,11 +240,11 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForwardOnTopOfSync)
     server_->start();
 
     // allow time for the sync timeout
-    sleep(3);
+    usleep(3200000);
     wait_for_event_thread();
 
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 87720, 87721));
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 87820, 87821));
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::FRIDAY);
     EXPECT_EQ(server_->day_of_year(), 1);
 };
@@ -294,11 +294,11 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForwardAllEventBasedSetup)
     send_packet(":X195B4001N010100000100F002;"); // start
 
     // allow time for the sync timeout
-    sleep(3);
+    usleep(3200000);
     wait_for_event_thread();
 
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 87840, 87841));
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 87940, 87941));
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::FRIDAY);
     EXPECT_EQ(server_->day_of_year(), 1);
 };
@@ -347,11 +347,11 @@ TEST_F(BroadcastTimeServerTest, DateRolloverBackward)
     server_->start();
 
     // allow time for the sync timeout
-    sleep(3);
+    usleep(3200000);
     wait_for_event_thread();
 
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 84900, 84902));
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 84800, 84802));
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(server_->day_of_year(), 0);
 };

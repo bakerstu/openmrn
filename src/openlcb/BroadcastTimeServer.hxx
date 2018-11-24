@@ -41,9 +41,10 @@
 namespace openlcb
 {
 
+class BroadcastTimeServerTime;
 class BroadcastTimeServerSync;
 class BroadcastTimeServerSet;
-class BroadcastTimeServerDateRollover;
+class BroadcastTimeServerAlarm;
 
 /// Implementation of a Broadcast Time Protocol client.
 class BroadcastTimeServer : public BroadcastTime
@@ -102,17 +103,9 @@ public:
     }
 
 #if defined(GTEST)
-    void shutdown()
-    {
-        shutdown_ = true;
-        alarmDate_.clear();
-        //new Wakeup(this);
-    }
+    void shutdown();
 
-    bool is_shutdown()
-    {
-        return true;//is_terminated();
-    }
+    bool is_shutdown();
 #endif
 
 private:
@@ -257,22 +250,22 @@ private:
     /// @return exit()
     Action query_response();
 
-    /// The date has rolled over into a new day.
-    void alarm_date_callback();
-
-    BroadcastTimeAlarmDate alarmDate_; ///< date rollover alarm
+    //BroadcastTimeAlarmDate alarmDate_; ///< date rollover alarm
     time_t secondsRequested_; ///< pending clock time in seconds
     uint16_t updateRequested_ : 1; ///< clock settings have change
 #if defined(GTEST)
     uint16_t shutdown_ : 1;
 #endif
 
+    BroadcastTimeServerTime *time_;
     BroadcastTimeServerSync *sync_;
     BroadcastTimeServerSet *set_;
-    BroadcastTimeServerDateRollover *dateRollover_;
+    BroadcastTimeServerAlarm *alarm_;
 
+    friend class BroadcastTimeServerTime;
     friend class BroadcastTimeServerSync;
     friend class BroadcastTimeServerSet;
+    friend class BroadcastTimeServerAlarm;
 
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeServer);

@@ -39,190 +39,6 @@
 namespace openlcb
 {
 
-/// Request structure used to send requests to the BroadcastTimeServerSync
-/// object.
-struct BroadcastTimeServerSyncInput : public CallableFlowRequestBase
-{
-    /// Setup "null" input.
-    void reset()
-    {
-    }
-};
-
-/// State machine for sending the clock sync sequence.
-class BroadcastTimeServerSync
-    : public CallableFlow<BroadcastTimeServerSyncInput>
-{
-public:
-    /// Constuctor.
-    /// @param server reference to our parent
-    BroadcastTimeServerSync(BroadcastTimeServer *server)
-        : CallableFlow<BroadcastTimeServerSyncInput>(server->node()->iface())
-        , server_(server)
-        , writer_()
-        , timer_(this)
-        , syncRequired_(false)
-    {
-    }
-
-    /// Destructor.
-    ~BroadcastTimeServerSync()
-    {
-    }
-
-    /// Request a sync.
-    void request_sync()
-    {
-        {
-            if (!syncRequired_)
-            {
-                // no sync pending, make it pending
-                syncRequired_ = true;
-
-                // abort the current sync if sleeping
-                timer_.ensure_triggered();
-
-                invoke_subflow_and_ignore_result(this);
-            }
-        }
-    }
-
-private:
-    /// Send the Producer Identified message appropriate for the start/stop
-    /// event ID.
-    /// @return wait_and_call(STATE(send_rate_report))
-    Action entry() override
-    {
-        server_->gmtime_recalculate();
-
-        uint64_t event_id = server_->clock_id();
-        event_id += server_->is_started() ?
-            BroadcastTimeDefs::START_EVENT_SUFFIX :
-            BroadcastTimeDefs::STOP_EVENT_SUFFIX;
-
-        syncRequired_ = false;
-        writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
-            WriteHelper::global(), eventid_to_buffer(event_id), this);
-
-        return wait_and_call(STATE(send_rate_report));
-    }
-
-    /// Send the Producer Identified message appropriate for the rate event ID.
-    /// @return wait_and_call(STATE(send_year_report))
-    Action send_rate_report()
-    {
-        uint64_t event_id = BroadcastTimeDefs::rate_to_event(
-            server_->clock_id(), server_->rate());
-
-        writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
-            WriteHelper::global(), eventid_to_buffer(event_id), this);
-
-        return wait_and_call(STATE(send_year_report));
-    }
-
-    /// Send the Producer Identified message appropriate for the year event ID.
-    /// @return wait_and_call(STATE(send_date_report))
-    Action send_year_report()
-    {
-        const struct tm *tm = server_->gmtime_get();
-
-        int year = tm->tm_year + 1900;
-        if (year < 0)
-        {
-            year = 0;
-        }
-        if (year > 4095)
-        {
-            year = 4095;
-        }
-
-        uint64_t event_id =
-            BroadcastTimeDefs::year_to_event(server_->clock_id(), year);
-
-        writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
-            WriteHelper::global(), eventid_to_buffer(event_id), this);
-
-        return wait_and_call(STATE(send_date_report));
-    }
-
-    /// Send the Producer Identified message appropriate for the date event ID.
-    /// @return wait_and_call(STATE(send_time_report))
-    Action send_date_report()
-    {
-        const struct tm *tm = server_->gmtime_get();
-
-        uint64_t event_id = BroadcastTimeDefs::date_to_event(
-            server_->clock_id(), tm->tm_mon + 1, tm->tm_mday);
-
-        writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
-            WriteHelper::global(), eventid_to_buffer(event_id), this);
-
-        return wait_and_call(STATE(send_time_report));
-    }
-
-    /// Send the Producer Identified message appropriate for the time event ID.
-    /// @return send_time_report_done()
-    Action send_time_report()
-    {
-        const struct tm *tm = server_->gmtime_recalculate();
-
-        uint64_t event_id = BroadcastTimeDefs::time_to_event(
-            server_->clock_id(), tm->tm_hour, tm->tm_min);
-        writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
-            WriteHelper::global(), eventid_to_buffer(event_id), this);
-
-        return wait_and_call(STATE(send_time_report_done));            
-    }
-
-    /// If clock is running, sleep until next time report.
-    /// @return send_time_report_next() if running, return_ok()
-    Action send_time_report_done()
-    {
-        if (server_->is_running())
-        {
-            // setup to send the next time report
-            time_t elapsed = server_->time() - server_->seconds_;
-            elapsed += server_->rate_ > 0 ? 60 : -60;
-            long long timeout = server_->timestamp_ +
-                                server_->rate_sec_to_real_nsec_period(elapsed);
-
-            timeout = std::max(timeout - OSTime::get_monotonic(), 0LL);
-
-            return sleep_and_call(&timer_, timeout,
-                                  STATE(send_time_report_next));
-        }
-        return return_ok();
-    }        
-
-    /// Send the Event Report message appropriate for the time event ID.
-    /// @return return_ok() if triggered early,
-    ///         else wait_and_return_ok()
-    Action send_time_report_next()
-    {
-        if (timer_.is_triggered())
-        {
-            // abort early because of a new sync
-            return return_ok();
-        }
-
-        const struct tm *tm = server_->gmtime_recalculate();
-
-        uint64_t event_id = BroadcastTimeDefs::time_to_event(
-            server_->clock_id(), tm->tm_hour, tm->tm_min);
-        writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
-            WriteHelper::global(), eventid_to_buffer(event_id), this);
-
-        return wait_and_return_ok();        
-    }
-
-    BroadcastTimeServer *server_; ///< reference to our parent
-    WriteHelper writer_; ///< helper for sending event messages
-    StateFlowTimer timer_; ///< timer helper
-    uint8_t syncRequired_ : 1; ///< flag to keep track of multiple sync requests   
-
-    DISALLOW_COPY_AND_ASSIGN(BroadcastTimeServerSync);
-};
-
 /// Request structure used to send requests to the
 /// BroadcastTimeServerDateRolloverFinish object.
 struct BroadcastTimeServerDateRolloverFinishInput
@@ -348,9 +164,10 @@ private:
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeServerDateRolloverFinish);
 };
 
-/// Request structure used to send requests to the
-/// BroadcastTimeServerDateRollover object.
-struct BroadcastTimeServerDateRolloverInput : public CallableFlowRequestBase
+
+/// Request structure used to send requests to the BroadcastTimeServerTime
+/// object.
+struct BroadcastTimeServerTimeInput : public CallableFlowRequestBase
 {
     /// Setup "null" input.
     void reset()
@@ -358,37 +175,42 @@ struct BroadcastTimeServerDateRolloverInput : public CallableFlowRequestBase
     }
 };
 
-/// State machine for sending the clock date rollover sequence.
-class BroadcastTimeServerDateRollover
-    : public CallableFlow<BroadcastTimeServerDateRolloverInput>
+/// State machine for sending the clock time events.
+class BroadcastTimeServerTime
+    : public CallableFlow<BroadcastTimeServerTimeInput>
 {
 public:
     /// Constuctor.
     /// @param server reference to our parent
-    BroadcastTimeServerDateRollover(BroadcastTimeServer *server)
-        : CallableFlow<BroadcastTimeServerDateRolloverInput>(
-              server->node()->iface())
+    BroadcastTimeServerTime(BroadcastTimeServer *server)
+        : CallableFlow<BroadcastTimeServerTimeInput>(server->node()->iface())
         , finish_(server)
         , server_(server)
         , writer_()
+        , timeRequired_(false)
+        , dateRollover_(false)
     {
     }
 
     /// Destructor.
-    ~BroadcastTimeServerDateRollover()
+    ~BroadcastTimeServerTime()
     {
     }
 
-    /// Request a date rollover.
-    void request_date_rollover()
+    /// Request a time event.
+    void request_time()
     {
-        invoke_subflow_and_ignore_result(this);
+        if (!timeRequired_)
+        {
+            // no time pending, make it pending
+            timeRequired_ = true;
+            invoke_subflow_and_ignore_result(this);
+        }
     }
 
 private:
-    /// Send the date rollover event report.
-    /// @return wait_and_call(STATE(send_time_report)), else return_ok() if the
-    ///         clock is not running
+    /// Send the date rollover event if appropriate.
+    /// @return if running send_time_report(), else return_ok()
     Action entry() override
     {
         if (!server_->is_running())
@@ -397,21 +219,33 @@ private:
             return return_ok();
         }
 
-        server_->gmtime_recalculate();
+        const struct tm *tm = server_->gmtime_recalculate();
 
-        uint64_t event_id = server_->clock_id();
-        event_id += BroadcastTimeDefs::DATE_ROLLOVER_EVENT_SUFFIX;
+        if ((server_->rate() > 0 && tm->tm_hour ==  0 && tm->tm_min ==  0) ||
+            (server_->rate() < 0 && tm->tm_hour == 23 && tm->tm_min == 59))
+        {
+            // date rollover
+            dateRollover_ = true;
 
-        writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
-            WriteHelper::global(), eventid_to_buffer(event_id), this);
+            uint64_t event_id = server_->clock_id();
+            event_id += BroadcastTimeDefs::DATE_ROLLOVER_EVENT_SUFFIX;
 
-        return wait_and_call(STATE(send_time_report));
+            writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
+                WriteHelper::global(), eventid_to_buffer(event_id), this);
+
+            return wait_and_call(STATE(send_time_report));
+        }
+        else
+        {
+            return call_immediately(STATE(send_time_report));
+        }
     }
 
-    /// Send the time event report, and schedule the year/date report.
-    /// return wait_and_return_ok()
+    /// Send the appropriate time report event.
+    /// @return wait_and_return_ok()
     Action send_time_report()
     {
+        timeRequired_ = false;
         const struct tm *tm = server_->gmtime_get();
 
         uint64_t event_id = BroadcastTimeDefs::time_to_event(
@@ -419,17 +253,221 @@ private:
         writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
 
-        // schedule the year and date event reports
-        finish_.request_finish();
+        if (dateRollover_)
+        {
+            dateRollover_ = false;
+            finish_.request_finish();
+        }
 
-        return wait_and_return_ok();
+        return wait_and_return_ok();        
     }
 
     BroadcastTimeServerDateRolloverFinish finish_; ///< finsh the date rollover
     BroadcastTimeServer *server_; ///< reference to our parent
     WriteHelper writer_; ///< helper for sending event messages
+    uint8_t timeRequired_ : 1; ///< flag to keep track of multiple tme requests
+    uint8_t dateRollover_ : 1; ///< processing a date rollover
 
-    DISALLOW_COPY_AND_ASSIGN(BroadcastTimeServerDateRollover);
+    DISALLOW_COPY_AND_ASSIGN(BroadcastTimeServerTime);
+};
+
+/// Request structure used to send requests to the BroadcastTimeServerSync
+/// object.
+struct BroadcastTimeServerSyncInput : public CallableFlowRequestBase
+{
+    /// Setup "null" input.
+    void reset()
+    {
+    }
+};
+
+/// State machine for sending the clock sync sequence.
+class BroadcastTimeServerSync
+    : public CallableFlow<BroadcastTimeServerSyncInput>
+{
+public:
+    /// Constuctor.
+    /// @param server reference to our parent
+    BroadcastTimeServerSync(BroadcastTimeServer *server)
+        : CallableFlow<BroadcastTimeServerSyncInput>(server->node()->iface())
+        , server_(server)
+        , writer_()
+        , timer_(this)
+        , syncRequired_(false)
+#if defined(GTEST)
+        , shutdown_(false)
+#endif
+    {
+    }
+
+    /// Destructor.
+    ~BroadcastTimeServerSync()
+    {
+    }
+
+    /// Request a sync.
+    void request_sync()
+    {
+        if (!syncRequired_)
+        {
+            // no sync pending, make it pending
+            syncRequired_ = true;
+
+            // abort the current sync if sleeping
+            timer_.ensure_triggered();
+
+            invoke_subflow_and_ignore_result(this);
+        }
+    }
+
+#if defined(GTEST)
+    void shutdown()
+    {
+        shutdown_ = true;
+        request_sync();
+    }
+
+    bool is_shutdown()
+    {
+        return is_terminated();
+    }
+#endif
+
+private:
+    /// Send the Producer Identified message appropriate for the start/stop
+    /// event ID.
+    /// @return wait_and_call(STATE(send_rate_report))
+    Action entry() override
+    {
+#if defined(GTEST)
+        if (shutdown_)
+        {
+            return StateFlowBase::exit();
+        }
+#endif
+        server_->gmtime_recalculate();
+
+        uint64_t event_id = server_->clock_id();
+        event_id += server_->is_started() ?
+            BroadcastTimeDefs::START_EVENT_SUFFIX :
+            BroadcastTimeDefs::STOP_EVENT_SUFFIX;
+
+        syncRequired_ = false;
+        writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
+            WriteHelper::global(), eventid_to_buffer(event_id), this);
+
+        return wait_and_call(STATE(send_rate_report));
+    }
+
+    /// Send the Producer Identified message appropriate for the rate event ID.
+    /// @return wait_and_call(STATE(send_year_report))
+    Action send_rate_report()
+    {
+        uint64_t event_id = BroadcastTimeDefs::rate_to_event(
+            server_->clock_id(), server_->rate());
+
+        writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
+            WriteHelper::global(), eventid_to_buffer(event_id), this);
+
+        return wait_and_call(STATE(send_year_report));
+    }
+
+    /// Send the Producer Identified message appropriate for the year event ID.
+    /// @return wait_and_call(STATE(send_date_report))
+    Action send_year_report()
+    {
+        const struct tm *tm = server_->gmtime_get();
+
+        int year = tm->tm_year + 1900;
+        if (year < 0)
+        {
+            year = 0;
+        }
+        if (year > 4095)
+        {
+            year = 4095;
+        }
+
+        uint64_t event_id =
+            BroadcastTimeDefs::year_to_event(server_->clock_id(), year);
+
+        writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
+            WriteHelper::global(), eventid_to_buffer(event_id), this);
+
+        return wait_and_call(STATE(send_date_report));
+    }
+
+    /// Send the Producer Identified message appropriate for the date event ID.
+    /// @return wait_and_call(STATE(send_time_report))
+    Action send_date_report()
+    {
+        const struct tm *tm = server_->gmtime_get();
+
+        uint64_t event_id = BroadcastTimeDefs::date_to_event(
+            server_->clock_id(), tm->tm_mon + 1, tm->tm_mday);
+
+        writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
+            WriteHelper::global(), eventid_to_buffer(event_id), this);
+
+        return wait_and_call(STATE(send_time_report));
+    }
+
+    /// Send the Producer Identified message appropriate for the time event ID.
+    /// @return send_time_report_done()
+    Action send_time_report()
+    {
+        const struct tm *tm = server_->gmtime_recalculate();
+
+        uint64_t event_id = BroadcastTimeDefs::time_to_event(
+            server_->clock_id(), tm->tm_hour, tm->tm_min);
+        writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
+            WriteHelper::global(), eventid_to_buffer(event_id), this);
+
+        return wait_and_call(STATE(send_time_report_done));
+    }
+
+    /// If clock is running, sleep until next time report.
+    /// @return send_time_report_next() if running, return_ok()
+    Action send_time_report_done()
+    {
+        if (server_->is_running())
+        {
+            // setup to send the next time report
+            time_t elapsed = server_->time() - server_->seconds_;
+            elapsed += server_->rate_ > 0 ? 60 : -60;
+            long long timeout = server_->timestamp_ +
+                                server_->rate_sec_to_real_nsec_period(elapsed);
+
+            timeout = std::max(timeout - OSTime::get_monotonic(), 0LL);
+
+            return sleep_and_call(&timer_, timeout,
+                                  STATE(send_time_report_next));
+        }
+        return return_ok();
+    }
+
+    /// Send the Event Report message appropriate for the time event ID.
+    /// @return return_ok() if triggered early,
+    ///         else wait_and_return_ok()
+    Action send_time_report_next()
+    {
+        if (!timer_.is_triggered())
+        {
+            server_->time_->request_time();
+        }
+
+        return return_ok();
+    }
+
+    BroadcastTimeServer *server_; ///< reference to our parent
+    WriteHelper writer_; ///< helper for sending event messages
+    StateFlowTimer timer_; ///< timer helper
+    uint8_t syncRequired_ : 1; ///< flag to keep track of multiple sync requests
+#if defined(GTEST)
+    uint8_t shutdown_ : 1;
+#endif
+
+    DISALLOW_COPY_AND_ASSIGN(BroadcastTimeServerSync);
 };
 
 /// Request structure used to send requests to the BroadcastTimeServerSet
@@ -468,7 +506,7 @@ public:
     {
     }
 
-    /// Request a sync.
+    /// Request a time parameter set.
     /// @param suffix the clock set event suffix
     void request_set(uint16_t suffix)
     {
@@ -608,21 +646,162 @@ private:
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeServerSet);
 };
 
+/// Specialization of the BroacastTimeAlarm to expire on the necessary clock
+/// minutes that must be produced.
+class BroadcastTimeServerAlarm : public BroadcastTimeAlarm
+{
+public:
+   /// Constructor.
+    /// @param clock clock that our alarm is based off of
+    BroadcastTimeServerAlarm(BroadcastTimeServer *server)
+        : BroadcastTimeAlarm(
+              server->node(), server,
+              std::bind(&BroadcastTimeServerAlarm::expired_callback, this))
+        , server_(server)
+    {
+        memset(activeMinutes_, 0, sizeof(activeMinutes_));
+    }
+
+    /// Destructor.
+    ~BroadcastTimeServerAlarm()
+    {
+    }
+
+    /// Add a time event subscriber.
+    /// @param hour hour to subscribe to
+    /// @param min minute to subscribe to
+    void subscribe(int hour, int min)
+    {
+        if (hour > 23 || min > 59)
+        {
+            return;
+        }
+        AtomicHolder h(this);
+        activeMinutes_[hour] |= 0x1 << min;
+    }
+
+private:
+    /// Entry point of the state machine.
+    /// @return BroadcastTimeAlarm::entry();
+    Action entry() override
+    {
+        update_notify();
+
+        return BroadcastTimeAlarm::entry();
+    }
+
+    /// callback for when the alarm expires
+    void expired_callback()
+    {
+        printf("here\n");
+        server_->time_->request_time();
+        set(next_active_minute(clock_->time(), clock_->gmtime_recalculate()));
+    }
+
+    /// Called when the clock time has changed.
+    void update_notify() override
+    {
+        if (clock_->is_running())
+        {
+            // send the very next minute on an update.
+            const struct tm *tm = clock_->gmtime_recalculate();
+            time_t seconds = clock_->time();
+
+            set(next_active_minute(seconds, tm));
+            BroadcastTimeAlarm::update_notify();
+        }
+    }
+
+    /// Get the next active minute that we will produce a time event on.
+    /// @param seconds current time in seconds
+    /// @param tm current time in struct tm format
+    /// @return the next time in rate seconds that we will expire
+    time_t next_active_minute(time_t seconds, const struct tm *tm)
+    {
+        int hour = tm->tm_hour;
+        int min = tm->tm_min;
+
+        // we will target to produce a time event every four real minutes.
+        int rate_min_per_4_real_min = std::abs(clock_->rate());
+
+        printf("min per min: %i\n", rate_min_per_4_real_min);
+
+        do
+        {
+            seconds += clock_->rate() > 0 ? 60 : -60;
+            if (next_minute(&hour, &min))
+            {
+                // date rollover, always produce the date rollover event
+                break;
+            }
+            if (activeMinutes_[hour] & (0x1 << min))
+            {
+                break;
+            }
+        }
+        while ((hour != tm->tm_hour || min != tm->tm_min) &&
+               --rate_min_per_4_real_min > 0);
+
+        printf("hour: %i, min: %i\n", hour, min);
+        return seconds;
+    }
+
+    /// Advance to the next hour/min based on rate setting.
+    /// @param hour input is current hour, output is hour for the next minute
+    /// @paran min input is the current minute, output is the next minute
+    /// @return true of we have a date rollover, else false
+    bool next_minute(int *hour, int *min)
+    {
+        bool result = false;
+        if (clock_->rate() > 0)
+        {
+            if (++(*min) == 60)
+            {
+                *min = 0;
+                if (++(*hour) == 24)
+                {
+                    *hour = 0;
+                    result = true;
+                }
+            }
+        }
+        else if (clock_->rate() < 0)
+        {
+            if (--(*min) < 0)
+            {
+                *min = 59;
+                if (--(*hour) < 0)
+                {
+                    *hour = 23;
+                    result = true;
+                }
+            }
+        }
+        return result;
+    }
+
+    BroadcastTimeServer *server_; ///< reference to our parent
+    uint64_t activeMinutes_[24]; ///< active minutes to produce events on
+
+    DISALLOW_COPY_AND_ASSIGN(BroadcastTimeServerAlarm);
+};
+
+
+
 //
 // BroadcastTimeServer::BroadcastTimeServer()
 //
 BroadcastTimeServer::BroadcastTimeServer(Node *node, NodeID clock_id)
     : BroadcastTime(node, clock_id)
-    , alarmDate_(node, this,
-                 std::bind(&BroadcastTimeServer::alarm_date_callback, this))
     , secondsRequested_(0)
     , updateRequested_(false)
 #if defined (GTEST)
     , shutdown_(false)
 #endif
+    , time_(new BroadcastTimeServerTime(this))
     , sync_(new BroadcastTimeServerSync(this))
     , set_(new BroadcastTimeServerSet(this))
-    , dateRollover_(new BroadcastTimeServerDateRollover(this))
+    , alarm_(new BroadcastTimeServerAlarm(this))
 {
     EventRegistry::instance()->register_handler(
         EventRegistryEntry(this, clockID_), 16);
@@ -636,10 +815,25 @@ BroadcastTimeServer::BroadcastTimeServer(Node *node, NodeID clock_id)
 BroadcastTimeServer::~BroadcastTimeServer()
 {
     EventRegistry::instance()->unregister_handler(this);
-    delete dateRollover_;
+    delete alarm_;
     delete set_;
     delete sync_;
+    delete time_;
 }
+
+#if defined(GTEST)
+void BroadcastTimeServer::shutdown()
+{
+    shutdown_ = true;
+    sync_->shutdown();
+    alarm_->shutdown();
+}
+
+bool BroadcastTimeServer::is_shutdown()
+{
+    return is_terminated() && alarm_->is_shutdown() && sync_->is_shutdown();
+}
+#endif
 
 //
 // BroadcastTimeServer::Wakeup::run()
@@ -713,14 +907,6 @@ StateFlowBase::Action BroadcastTimeServer::query_response()
 {
     sync_->request_sync();
     return exit();
-}
-
-//
-// BroadcastTimeServer::alarm_date_callback()
-//
-void BroadcastTimeServer::alarm_date_callback()
-{
-    dateRollover_->request_date_rollover();
 }
 
 } // namespace openlcb

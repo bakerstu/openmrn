@@ -41,7 +41,7 @@ namespace openlcb
 {
 
 /// Basic alarm type that all other alarms are based off of.
-class BroadcastTimeAlarm : public StateFlowBase, private Atomic
+class BroadcastTimeAlarm : public StateFlowBase, protected Atomic
 {
 public:
     /// Constructor.
@@ -59,13 +59,15 @@ public:
         : StateFlowBase(node->iface())
         , clock_(clock)
         , callback_(callback)
-        , timeAndRate_(clock->time_and_rate())
         , timer_(this)
         , expires_(0)
         , running_(false)
         , set_(false)
         , sleeping_(false)
         , waiting_(false)
+#if defined(GTEST)
+        , shutdown_(false)
+#endif
     {
         // By ensuring that the alarm runs in the same thread context as the
         // clock which it uses, we can have much simpler logic for avoiding
@@ -118,10 +120,20 @@ public:
             set_ = false;
         }
         // rather than waking up the state flow, just let it expire naturally.
-#if defined(GTEST)
-        new Wakeup(this);
-#endif
     }
+
+#if defined(GTEST)
+    void shutdown()
+    {
+        shutdown_ = true;
+        new Wakeup(this);
+    }
+
+    bool is_shutdown()
+    {
+        return is_terminated();
+    }
+#endif
 
 protected:
     /// Entry point to state flow.
@@ -134,7 +146,7 @@ protected:
     /// Called when the clock time has changed.
     virtual void update_notify()
     {
-        wakeup();
+        new Wakeup(this);
     }
 
     BroadcastTime *clock_; ///< clock that our alarm is based off of
@@ -166,6 +178,15 @@ private:
     /// Setup, or wait to setup alarm.
     Action setup()
     {
+        waiting_ = false;
+#if defined(GTEST)
+        if (shutdown_)
+        {
+            printf("exited\n");
+            return exit();
+        }
+#endif
+
         AtomicHolder h(this);
         if (!set_)
         {
@@ -176,18 +197,18 @@ private:
         {
             running_ = true;
             set_ = false;
-            timeAndRate_ = clock_->time_and_rate();
+            time_t now = clock_->time();
 
-            if ((timeAndRate_.first >= expires_ && timeAndRate_.second > 0) ||
-                (timeAndRate_.first <= expires_ && timeAndRate_.second < 0) ||
-                (timeAndRate_.first == expires_ && timeAndRate_.second == 0))
+            if ((now >= expires_ && clock_->rate() > 0) ||
+                (now <= expires_ && clock_->rate() < 0) ||
+                (now == expires_ && clock_->rate() == 0))
             {
-                // have already met the alarm conditions
+                // have already met the alarm conditions,
+                // typically won't get here
                 return call_immediately(STATE(expired));
             }
             else
             {
-                sleeping_ = true;
                 return sleep_and_call(&timer_,
                     clock_->real_nsec_until_rate_time_abs(expires_),
                     STATE(timeout));
@@ -214,26 +235,23 @@ private:
     /// Handle action on timer expiration.
     Action expired()
     {
-        if (running_ && callback_)
+        if (clock_->is_running() && callback_)
         {
             callback_();
         }
-        
+
+        waiting_ = true;
         return wait_and_call(STATE(setup));
     }        
 
     /// wakeup the state machine.
     void wakeup()
     {
+        timer_.ensure_triggered();
         if (waiting_)
         {
-            notify();
             waiting_ = false;
-        }
-        if (sleeping_)
-        {
-            timer_.trigger();
-            sleeping_ = false;
+            notify();
         }
     }
 
@@ -243,7 +261,6 @@ private:
     /// the time_t parameter is the next experation time if the alarm is
     /// restarted.
     std::function<void()> callback_;
-    std::pair<time_t, int16_t> timeAndRate_;
 
     StateFlowTimer timer_; ///< timer helper
     time_t expires_; ///< time at which the alarm expires
@@ -251,6 +268,10 @@ private:
     unsigned set_          : 1; ///< true if a start request is pending
     unsigned sleeping_     : 1; ///< true if sleeping
     unsigned waiting_      : 1; ///< true if waiting
+#if defined(GTEST)
+    unsigned shutdown_     : 1; ///< true if shutdown
+#endif
+
 
     /// make our wakeup agent a friend
     friend class BroadcastTimeAlarm::Wakeup;
