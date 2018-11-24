@@ -672,7 +672,7 @@ public:
     /// @param min minute to subscribe to
     void subscribe(int hour, int min)
     {
-        if (hour > 23 || min > 59)
+        if (hour > 23 || hour < 0 || min > 59 || min < 0)
         {
             return;
         }
@@ -864,6 +864,27 @@ void BroadcastTimeServer::Wakeup::run()
             break;
     }
     delete this;
+}
+
+//
+// BroadcastTimeServer::handle_event_report()
+//
+void BroadcastTimeServer::handle_consumer_identified(
+    const EventRegistryEntry &entry, EventReport *event,
+    BarrierNotifiable *done)
+{
+    done->notify();
+
+    if (BroadcastTimeDefs::get_event_type(event->event) ==
+        BroadcastTimeDefs::REPORT_TIME)
+    {
+        int min = BroadcastTimeDefs::event_to_min(event->event);
+        int hour = BroadcastTimeDefs::event_to_hour(event->event);
+        if (hour != -1 && min != -1)
+        {
+            alarm_->subscribe(hour, min);
+        }
+    }
 }
 
 //

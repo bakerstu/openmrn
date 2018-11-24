@@ -214,21 +214,7 @@ private:
     /// @param done used to notify we are finished
     void handle_consumer_identified(const EventRegistryEntry &entry,
                                     EventReport *event,
-                                    BarrierNotifiable *done) override
-    {
-        done->notify();
-
-        if (BroadcastTimeDefs::get_event_type(event->event) ==
-            BroadcastTimeDefs::REPORT_TIME)
-        {
-            int min = BroadcastTimeDefs::event_to_min(event->event);
-            int hour = BroadcastTimeDefs::event_to_hour(event->event);
-            if (min != -1 && hour != -1)
-            {
-                //timeSubscriptions_[hour] |= 0x1 << min;
-            }
-        }
-    }
+                                    BarrierNotifiable *done) override;
 
     /// Handle an incoming event report.
     /// @param entry registry entry for the event range
