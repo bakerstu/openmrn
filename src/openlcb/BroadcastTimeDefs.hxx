@@ -216,7 +216,7 @@ struct BroadcastTimeDefs
     static int event_to_hour(uint64_t event)
     {
         unsigned hour = (event & EVENT_HOURS_MASK) >> EVENT_HOURS_SHIFT;
-        if (hour <= 59)
+        if (hour <= 23)
         {
             return hour;
         }
