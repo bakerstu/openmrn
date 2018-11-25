@@ -63,7 +63,6 @@ public:
         , expires_(0)
         , running_(false)
         , set_(false)
-        , sleeping_(false)
         , waiting_(false)
 #if defined(GTEST)
         , shutdown_(false)
@@ -87,31 +86,31 @@ public:
     /// @time period in seconds from now to expire
     void set_period(time_t period)
     {
-        std::pair<time_t, int16_t> now = clock_->time_and_rate();
-        if (now.second > 0)
-        {
-            set(now.first + period);
-        }
-        else if (now.second < 0)
-        {
-            set(now.first - period);
-        }
+        set(clock_->time() + period);
     }
 
     /// Start the alarm to expire at the given time.
     /// @time time in seconds since epoch to expire
     void set(time_t time)
     {
+        bool need_wakeup = false;
         {
             AtomicHolder h(this);
-            running_ = false;
-            set_ = true;
             expires_ = time;
+            running_ = true;
+            if (!set_)
+            {
+                need_wakeup = true;
+                set_ = true;
+            }
         }
-        new Wakeup(this);
+        if (need_wakeup)
+        {
+            new Wakeup(this);
+        }
     }
 
-    /// Inactivate the alarm
+    /// Inactivate the alarm.
     void clear()
     {
         {
@@ -146,7 +145,19 @@ protected:
     /// Called when the clock time has changed.
     virtual void update_notify()
     {
-        new Wakeup(this);
+        bool need_wakeup = false;
+        {
+            AtomicHolder h(this);
+            if (running_ && !set_)
+            {
+                set_ = true;
+                need_wakeup = true;
+            }
+        }
+        if (need_wakeup)
+        {
+            new Wakeup(this);
+        }
     }
 
     BroadcastTime *clock_; ///< clock that our alarm is based off of
@@ -187,14 +198,8 @@ private:
 #endif
 
         AtomicHolder h(this);
-        if (!set_)
+        if (set_)
         {
-            waiting_ = true;
-            return wait_and_call(STATE(setup));
-        }
-        else
-        {
-            running_ = true;
             set_ = false;
             time_t now = clock_->time();
 
@@ -206,13 +211,16 @@ private:
                 // typically won't get here
                 return call_immediately(STATE(expired));
             }
-            else
+            else if (clock_->is_running())
             {
                 return sleep_and_call(&timer_,
                     clock_->real_nsec_until_rate_time_abs(expires_),
                     STATE(timeout));
             }
         }
+
+        waiting_ = true;
+        return wait_and_call(STATE(setup));
     }
 
     /// Wait for timeout or early trigger.
@@ -226,7 +234,6 @@ private:
         else
         {
             // timeout
-            sleeping_ = false;
             return call_immediately(STATE(expired));
         }
     }
@@ -234,8 +241,9 @@ private:
     /// Handle action on timer expiration.
     Action expired()
     {
-        if (clock_->is_running() && callback_)
+        if (running_ && clock_->is_running() && callback_)
         {
+            running_ = false;
             callback_();
         }
 
@@ -263,14 +271,12 @@ private:
 
     StateFlowTimer timer_; ///< timer helper
     time_t expires_; ///< time at which the alarm expires
-    unsigned running_      : 1; ///< true if running, else false
-    unsigned set_          : 1; ///< true if a start request is pending
-    unsigned sleeping_     : 1; ///< true if sleeping
-    unsigned waiting_      : 1; ///< true if waiting
+    uint8_t running_  : 1; ///< true if running, else false
+    uint8_t set_      : 1; ///< true if a start request is pending
+    uint8_t waiting_  : 1; ///< true if waiting
 #if defined(GTEST)
-    unsigned shutdown_     : 1; ///< true if shutdown
+    uint8_t shutdown_ : 1; ///< true if shutdown
 #endif
-
 
     /// make our wakeup agent a friend
     friend class BroadcastTimeAlarm::Wakeup;
