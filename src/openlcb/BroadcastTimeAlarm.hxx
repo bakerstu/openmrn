@@ -187,6 +187,9 @@ private:
     };
 
     /// Setup, or wait to setup alarm.
+    /// @return expired() if alarm is set and already expired,
+    ///         timeout() if alarm will expire in the future,
+    ///         setup() if clock and/or alarm is not currently active
     Action setup()
     {
         waiting_ = false;
@@ -224,6 +227,8 @@ private:
     }
 
     /// Wait for timeout or early trigger.
+    /// @return setup() if the timer is triggered prematurely, else
+    ///         expired() if the timer has expired
     Action timeout()
     {
         if (timer_.is_triggered())
@@ -239,6 +244,7 @@ private:
     }
 
     /// Handle action on timer expiration.
+    /// @return setup()
     Action expired()
     {
         if (running_ && clock_->is_running() && callback_)
