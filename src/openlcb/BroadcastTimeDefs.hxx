@@ -130,7 +130,6 @@ struct BroadcastTimeDefs
                     return REPORT_TIME;
                 }
                 break;
-                return REPORT_TIME;
             case 0x2000:
                 if (valid_date(suffix))
                 {
