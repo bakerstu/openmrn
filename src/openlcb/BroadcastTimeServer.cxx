@@ -672,12 +672,15 @@ public:
     /// @param min minute to subscribe to
     void subscribe(int hour, int min)
     {
-        if (hour > 23 || hour < 0 || min > 59 || min < 0)
+        if (hour <= 23 && hour >= 0 && min <= 59 && min >= 0)
         {
-            return;
+            AtomicHolder h(this);
+            if ((activeMinutes_[hour] & (0x1ULL << min)) == 0)
+            {
+                activeMinutes_[hour] |= 0x1ULL << min;
+                update_notify();
+            }
         }
-        AtomicHolder h(this);
-        activeMinutes_[hour] |= 0x1 << min;
     }
 
 private:
@@ -694,7 +697,7 @@ private:
     void expired_callback()
     {
         server_->time_->request_time();
-        set(next_active_minute(clock_->time(), clock_->gmtime_recalculate()));
+        update_notify();
     }
 
     /// Called when the clock time has changed.
@@ -702,11 +705,8 @@ private:
     {
         if (clock_->is_running())
         {
-            // send the very next minute on an update.
-            const struct tm *tm = clock_->gmtime_recalculate();
-            time_t seconds = clock_->time();
-
-            set(next_active_minute(seconds, tm));
+            set(next_active_minute(clock_->time(),
+                                   clock_->gmtime_recalculate()));
             BroadcastTimeAlarm::update_notify();
         }
     }
@@ -731,7 +731,7 @@ private:
                 // date rollover, always produce the date rollover event
                 break;
             }
-            if (activeMinutes_[hour] & (0x1 << min))
+            if (activeMinutes_[hour] & (0x1ULL << min))
             {
                 break;
             }
@@ -867,7 +867,7 @@ void BroadcastTimeServer::Wakeup::run()
 }
 
 //
-// BroadcastTimeServer::handle_event_report()
+// BroadcastTimeServer::handle_consumer_identified()
 //
 void BroadcastTimeServer::handle_consumer_identified(
     const EventRegistryEntry &entry, EventReport *event,
