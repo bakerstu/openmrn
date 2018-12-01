@@ -106,11 +106,24 @@ protected:
         expect_packet(":X195B422AN010100000100F000;");
         expect_packet(":X195B422AN010100000101F000;");
 
+        // expect consumer identify range and producder idenfied query (unknown)
+        expect_packet(":X194A422AN010100000100FFFF;");
+        expect_packet(":X1954722AN010100000100F000;");
+
+        // configure agent
+        // expect consumer identify range and producer identify range
+        expect_packet(":X194A422AN0101000001010000;");
+        expect_packet(":X1952422AN0101000001018000;");
+
         client1_ = new MockBroadcastTimeClient(
             node_, BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID);
         client2_ = new MockBroadcastTimeClient(
             node_, BroadcastTimeDefs::DEFAULT_REALTIME_CLOCK_ID, true);
+
+        send_packet(":X19970001N;");
         wait_for_event_thread();
+
+        clear_expect(true);
     }
 
     ~BroadcastTimeClientTest()
@@ -230,18 +243,6 @@ protected:
 
 TEST_F(BroadcastTimeClientTest, Create)
 {
-    // expect consumer identify range and producder idenfied query (unknown)
-    expect_packet(":X194A422AN010100000100FFFF;");
-    expect_packet(":X1954722AN010100000100F000;");
-
-    // configure agent
-    // expect consumer identify range and producer identify range
-    expect_packet(":X194A422AN0101000001010000;");
-    expect_packet(":X1952422AN0101000001018000;");
-
-    send_packet(":X19970001N;");
-    wait_for_event_thread();
-
     // time is not setup, clock is not running, expect 0 as default
     EXPECT_EQ(client1_->time(), 0);
     EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
