@@ -359,7 +359,7 @@ TEST_F(BroadcastTimeClientTest, ProgressionReverseFast)
     usleep(1920000);
 
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 179, 181));
+    EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 179, 182));
     EXPECT_EQ(client1_->day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(client1_->day_of_year(), 0);
 };
