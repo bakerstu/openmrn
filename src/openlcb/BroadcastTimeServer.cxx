@@ -828,41 +828,6 @@ bool BroadcastTimeServer::is_shutdown()
 #endif
 
 //
-// BroadcastTimeServer::Wakeup::run()
-//
-void BroadcastTimeServer::Wakeup::run()
-{
-    switch (command_)
-    {
-        case SET_TIME:
-            server_->set_->request_set(
-                BroadcastTimeDefs::time_to_event(0, data1_, data2_) + 0x8000);
-            break;
-        case SET_DATE:
-            server_->set_->request_set(
-                BroadcastTimeDefs::date_to_event(0, data1_, data2_) + 0x8000);
-            break;
-        case SET_YEAR:
-            server_->set_->request_set(
-                BroadcastTimeDefs::year_to_event(0, data1_) + 0x8000);
-            break;
-        case SET_RATE:
-            server_->set_->request_set(
-                BroadcastTimeDefs::rate_to_event(0, data1_) + 0x8000);
-            break;
-        case START:
-            server_->set_->request_set(BroadcastTimeDefs::START_EVENT_SUFFIX);
-            break;
-        case STOP:
-            server_->set_->request_set(BroadcastTimeDefs::STOP_EVENT_SUFFIX);
-            break;
-        default:
-            break;
-    }
-    delete this;
-}
-
-//
 // BroadcastTimeServer::handle_consumer_identified()
 //
 void BroadcastTimeServer::handle_consumer_identified(

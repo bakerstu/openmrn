@@ -64,7 +64,7 @@ public:
     /// @param minutes minutes (0 to 59)
     void set_time(int hours, int minutes)
     {
-        new Wakeup(this, Wakeup::Command::SET_TIME, hours, minutes);
+        new SetFlow(this, SetFlow::Command::SET_TIME, hours, minutes);
     }
 
     /// Set the time in seconds since the system Epoch.
@@ -72,14 +72,14 @@ public:
     /// @param day day of month (1 to 31)
     void set_date(int month, int day)
     {
-        new Wakeup(this, Wakeup::Command::SET_DATE, month, day);
+        new SetFlow(this, SetFlow::Command::SET_DATE, month, day);
     }
 
     /// Set the time in seconds since the system Epoch.
     /// @param year (0AD to 4095AD)
     void set_year(int year)
     {
-        new Wakeup(this, Wakeup::Command::SET_YEAR, year);
+        new SetFlow(this, SetFlow::Command::SET_YEAR, year);
     }
 
     /// Set Rate.
@@ -87,19 +87,19 @@ public:
     ///             rrrrrrrrrr.rr
     void set_rate(int16_t rate)
     {
-        new Wakeup(this, Wakeup::Command::SET_RATE, rate);
+        new SetFlow(this, SetFlow::Command::SET_RATE, rate);
     }
 
     /// Start clock
     void start()
     {
-        new Wakeup(this, Wakeup::Command::START);
+        new SetFlow(this, SetFlow::Command::START);
     }
 
     /// Stop clock
     void stop()
     {
-        new Wakeup(this, Wakeup::Command::STOP);
+        new SetFlow(this, SetFlow::Command::STOP);
     }
 
 #if defined(GTEST)
@@ -109,47 +109,6 @@ public:
 #endif
 
 private:
-    // Wakeup helper
-    class Wakeup : public Executable
-    {
-    public:
-        /// Supported operations.
-        enum Command
-        {
-            SET_TIME, ///< set time request
-            SET_DATE, ///< set date request
-            SET_YEAR, ///< set year reauest
-            SET_RATE, ///< set rate request
-            START, ///< stop request
-            STOP, ///< start request
-        };
-
-        /// Constructor.
-        /// @param server our parent time server that we will awaken
-        /// @param command operation to perform
-        /// @param data1 first data argument
-        /// @param data2 second data argument
-        Wakeup(BroadcastTimeServer *server, Command command, 
-               int data1 = 0, int data2 = 0)
-            : server_(server)
-            , command_(command)
-            , data1_(data1)
-            , data2_(data2)
-        {
-            server->service()->executor()->add(this);
-        }
-
-    private:
-        /// Entry point. This funciton will be called when *this gets scheduled
-        /// on the CPU.
-        void run() override;
-
-        BroadcastTimeServer *server_; ///< our parent alarm we will wakeup
-        Command command_; ///< operation to perform;
-        int data1_; ///< first data argument
-        int data2_; ///< second data argument
-    };
-
     /// Handle requested identification message.
     /// @param entry registry entry for the event range
     /// @param event information about the incoming message

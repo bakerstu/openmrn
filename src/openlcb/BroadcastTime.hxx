@@ -266,6 +266,90 @@ public:
     }
 
 protected:
+    class SetFlow : public StateFlowBase
+    {
+    public:
+        /// Supported operations.
+        enum Command
+        {
+            SET_TIME, ///< set time request
+            SET_DATE, ///< set date request
+            SET_YEAR, ///< set year reauest
+            SET_RATE, ///< set rate request
+            START, ///< stop request
+            STOP, ///< start request
+        };
+
+        /// Constructor.
+        /// @param clock the parent clock instance
+        /// @param command operation to perform
+        /// @param data1 first data argument
+        /// @param data2 second data argument
+        SetFlow(BroadcastTime *clock, Command command,
+               int data1 = 0, int data2 = 0)
+            : StateFlowBase(clock->node()->iface())
+            , clock_(clock)
+            , command_(command)
+            , data1_(data1)
+            , data2_(data2)
+        {
+            start_flow(STATE(send_event));
+        }
+
+    private:
+        /// Send the necessary event.
+        Action send_event()
+        {
+            uint64_t event_id;
+            switch (command_)
+            {
+                case SET_TIME:
+                    event_id = 0x8000 +
+                        BroadcastTimeDefs::time_to_event(clock_->clock_id(),
+                                                         data1_, data2_);
+                    break;
+                case SET_DATE:
+                    event_id = 0x8000 +
+                        BroadcastTimeDefs::date_to_event(clock_->clock_id(),
+                                                         data1_, data2_);
+                    break;
+                case SET_YEAR:
+                    event_id = 0x8000 +
+                        BroadcastTimeDefs::year_to_event(clock_->clock_id(),
+                                                         data1_);
+                    break;
+                case SET_RATE:
+                    event_id = 0x8000 +
+                        BroadcastTimeDefs::rate_to_event(clock_->clock_id(),
+                                                         data1_);
+                    break;
+                case START:
+                    event_id = clock_->clock_id() +
+                               BroadcastTimeDefs::START_EVENT_SUFFIX;
+                    break;
+                case STOP:
+                     event_id = clock_->clock_id() +
+                               BroadcastTimeDefs::STOP_EVENT_SUFFIX;
+                    break;
+                default:
+                    // should never get here.
+                    return delete_this();
+            }
+
+            writer_.WriteAsync(clock_->node(), Defs::MTI_EVENT_REPORT,
+                WriteHelper::global(), eventid_to_buffer(event_id), this);
+
+            return wait_and_call(STATE(delete_this));
+        }
+
+        WriteHelper writer_; ///< helper for sending event messages
+        BroadcastTime *clock_; ///< the parent clock instance
+        Command command_; ///< operation to perform;
+        int data1_; ///< first data argument
+        int data2_; ///< second data argument
+    };
+
+
     /// Service all of the attached update subscribers
     void service_callbacks()
     {
