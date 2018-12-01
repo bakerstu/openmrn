@@ -48,12 +48,7 @@ public:
     /// @param node the virtual node that our StateFlowBase service will be
     ///             derived from
     /// @param clock clock that our alarm is based off of
-    /// @param callback Callback for when alarm expires.  The return value is
-    ///                 RESTART to restart the alarm, else the value is NONE.
-    ///                 The time_t parameter passed
-    ///                 by reference is the time_t value which expired.  The
-    ///                 value passed back by the time_t parameter is the next
-    ///                 experation time if the alarm is restarted.
+    /// @param callback callback for when alarm expires
     BroadcastTimeAlarm(Node *node, BroadcastTime *clock,
         std::function<void()> callback)
         : StateFlowBase(node->iface())
@@ -268,13 +263,7 @@ private:
         }
     }
 
-    /// Callback for when alarm expires.  The return value is RESTART to restart
-    /// the alarm, else the value is NONE.  The time_t parameter passed by
-    /// reference is the time_t value which expired.  The value passed back by
-    /// the time_t parameter is the next experation time if the alarm is
-    /// restarted.
-    std::function<void()> callback_;
-
+    std::function<void()> callback_; ///< callback for when alarm expires
     StateFlowTimer timer_; ///< timer helper
     time_t expires_; ///< time at which the alarm expires
     uint8_t running_  : 1; ///< true if running, else false
@@ -290,7 +279,7 @@ private:
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeAlarm);
 };
 
-/// Specialization of BroadcastTimeAlarm meant to expire at each date rollover
+/// Specialization of BroadcastTimeAlarm meant to expire at each date rollover.
 class BroadcastTimeAlarmDate : public BroadcastTimeAlarm
 {
 public:
@@ -298,12 +287,7 @@ public:
     /// @param node the virtual node that our StateFlowBase service will be
     ///             derived from
     /// @param clock clock that our alarm is based off of
-    /// @param callback Callback for when alarm expires.  The return value is
-    ///                 RESTART to restart the alarm, else the value is NONE.
-    ///                 The time_t parameter passed
-    ///                 by reference is the time_t value which expired.  The
-    ///                 value passed back by the time_t parameter is the next
-    ///                 experation time if the alarm is restarted.
+    /// @param callback callback for when alarm expires
     BroadcastTimeAlarmDate(Node *node, BroadcastTime *clock,
         std::function<void()> callback)
         : BroadcastTimeAlarm(
@@ -331,11 +315,6 @@ private:
     /// callback for when the alarm expires
     void expired_callback()
     {
-        if (callbackUser_)
-        {
-            callbackUser_();
-        }
-
         if (clock_->rate() > 0)
         {
             set(clock_->time() + (60 * 60 * 24));
@@ -343,6 +322,11 @@ private:
         else if (clock_->rate() < 0)
         {
             set(clock_->time() - (60 * 60 * 24));
+        }
+
+        if (callbackUser_)
+        {
+            callbackUser_();
         }
     }
 
@@ -360,19 +344,90 @@ private:
         }
         else if (clock_->rate() < 0)
         {
-            set(seconds - (tm->tm_sec + 60 * (tm->tm_min + 1) + 60 * 60 * tm->tm_hour));
+            set(seconds - (tm->tm_sec +
+                           (60 * (tm->tm_min + 1)) +
+                           (60 * 60 * tm->tm_hour)));
         }
         BroadcastTimeAlarm::update_notify();
     }
 
-    /// Callback for when alarm expires.  The return value is RESTART to restart
-    /// the alarm, else the value is NONE.  The time_t parameter passed by
-    /// reference is the time_t value which expired.  The value passed back by
-    /// the time_t parameter is the next experation time if the alarm is
-    /// restarted.
-    std::function<void()> callbackUser_;
+    std::function<void()> callbackUser_; ///< callback for when alarm expires
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeAlarmDate);
+};
+
+/// Specialization of BroadcastTimeAlarm meant to expire at each minute.
+class BroadcastTimeAlarmMinute : public BroadcastTimeAlarm
+{
+public:
+    /// Constructor.
+    /// @param node the virtual node that our StateFlowBase service will be
+    ///             derived from
+    /// @param clock clock that our alarm is based off of
+    /// @param callback callback for when alarm expires
+    BroadcastTimeAlarmMinute(Node *node, BroadcastTime *clock,
+        std::function<void()> callback)
+        : BroadcastTimeAlarm(
+              node, clock,
+              std::bind(&BroadcastTimeAlarmMinute::expired_callback, this))
+        , callbackUser_(callback)
+    {
+    }
+
+    /// Destructor.
+    ~BroadcastTimeAlarmMinute()
+    {
+    }
+
+private:
+    /// Entry point of the state machine.
+    /// @return BroadcastTimeAlarm::entry();
+    Action entry() override
+    {
+        update_notify();
+
+        return BroadcastTimeAlarm::entry();
+    }
+
+    /// callback for when the alarm expires
+    void expired_callback()
+    {
+        if (clock_->rate() > 0)
+        {
+            set(clock_->time() + 60);
+        }
+        else if (clock_->rate() < 0)
+        {
+            set(clock_->time() - 60);
+        }
+
+        if (callbackUser_)
+        {
+            callbackUser_();
+        }
+    }
+
+    /// Called when the clock time has changed.
+    void update_notify() override
+    {
+        const struct tm *tm = clock_->gmtime_recalculate();
+        time_t seconds = clock_->time();
+
+        if (clock_->rate() > 0)
+        {
+            set(seconds + (60 - tm->tm_sec));
+        }
+        else if (clock_->rate() < 0)
+        {
+            set(seconds - tm->tm_sec);
+        }
+        BroadcastTimeAlarm::update_notify();
+    }
+
+    /// callback for when alarm expires
+    std::function<void()> callbackUser_;
+
+    DISALLOW_COPY_AND_ASSIGN(BroadcastTimeAlarmMinute);
 };
 
 } // namespace openlcb
