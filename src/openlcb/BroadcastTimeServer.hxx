@@ -165,6 +165,11 @@ private:
             return;
         }
 
+        if (is_terminated())
+        {
+            start_flow(STATE(query_response));
+        }
+
         event->event_write_helper<1>()->WriteAsync(
             node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE, WriteHelper::global(),
             eventid_to_buffer(EncodeRange(entry.event, 0x1 << 16)),

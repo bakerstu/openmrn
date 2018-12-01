@@ -65,7 +65,6 @@ public:
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, clockID_), 16);
 
-        start_flow(STATE(initialize));
     }
 
     /// Destructor.
@@ -87,6 +86,11 @@ public:
         {
             // not for us
             return;
+        }
+
+        if (is_terminated())
+        {
+            start_flow(STATE(initialize));
         }
 
         event->event_write_helper<1>()->WriteAsync(
