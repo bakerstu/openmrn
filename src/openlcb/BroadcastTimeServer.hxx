@@ -107,11 +107,16 @@ private:
                                   BarrierNotifiable *done) override
     {
         AutoNotify an(done);
-        // we can configure ourselves
-        event->event_write_helper<1>()->WriteAsync(
-            node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
-            eventid_to_buffer(EncodeRange(entry.event + 0x8000, 0x1 << 15)),
-            done->new_child());
+
+        if (event->event >= (clockID_ + 0x8000))
+        {
+            // we can configure ourselves
+            event->event_write_helper<1>()->WriteAsync(
+                node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
+                WriteHelper::global(),
+                eventid_to_buffer(EncodeRange(entry.event + 0x8000, 0x1 << 15)),
+                done->new_child());
+        }
     }
 
     /// Handle requested identification message.
