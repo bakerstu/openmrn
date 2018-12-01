@@ -93,7 +93,12 @@ public:
     /// @return (t1 - t2) scaled to real time.
     time_t compare_realtime(time_t t1, time_t t2)
     {
-        return ((t1 - t2) * 4) / rate_;
+        int rate = rate_;
+        if (!rate)
+        {
+            rate = 4;
+        }
+        return ((t1 - t2) * 4) / rate;
     }
 
     /// Get the time as a value of seconds relative to the system epoch.
