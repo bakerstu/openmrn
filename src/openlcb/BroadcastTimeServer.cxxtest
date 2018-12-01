@@ -30,6 +30,10 @@ protected:
 
         ::testing::Sequence s1;
 
+        // consumer/producer identify ranges
+        expect_packet(":X1952422AN010100000100FFFF;").InSequence(s1);
+        expect_packet(":X194A422AN0101000001008000;").InSequence(s1);
+
         // sync sequence
         expect_packet(":X1954422AN010100000100F001;").InSequence(s1);
         expect_packet(":X1954422AN0101000001004000;").InSequence(s1);
@@ -40,7 +44,10 @@ protected:
         server_ = new BroadcastTimeServer(
             node_, BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID);
 
+        send_packet(":X19970001N;");
         wait_for_event_thread();
+
+
         server_->update_subscribe(
             std::bind(&BroadcastTimeServerTest::update_callback, this));
 
@@ -68,13 +75,6 @@ protected:
 
 TEST_F(BroadcastTimeServerTest, Create)
 {
-    // consumer/producer identify ranges
-    expect_packet(":X1952422AN010100000100FFFF;");
-    expect_packet(":X194A422AN0101000001008000;");
-
-    send_packet(":X19970001N;");
-    wait_for_event_thread();
-
     // time is not setup, clock is not running, expect 0 as default
     EXPECT_EQ(server_->time(), 0);
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
@@ -93,7 +93,7 @@ TEST_F(BroadcastTimeServerTest, Query)
     expect_packet(":X1954422AN0101000001000000;").InSequence(s1);
 
     send_packet(":X195B4001N010100000100F000;"); // query
-    usleep(300000); // wait for response agrigation
+    usleep(400000); // wait for response agrigation
     wait_for_event_thread();
 
     // time is not setup, clock is not running, expect 0 as default
@@ -141,7 +141,7 @@ TEST_F(BroadcastTimeServerTest, StartSetTime)
     wait_for_event_thread();
 
     // check the time, we give it a finite range just in case of some OS jitter
-    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 1600, 1602));
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 1599, 1602));
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(server_->day_of_year(), 0);
 };

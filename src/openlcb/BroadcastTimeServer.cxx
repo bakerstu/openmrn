@@ -432,11 +432,18 @@ private:
     {
         if (server_->is_running())
         {
-            const struct tm *tm = server_->gmtime_recalculate();
+            const struct tm *tm = server_->gmtime_get();
 
             // setup to send the next time report
             time_t expires = server_->time();
-            expires += server_->rate() > 0 ? 60 - tm->tm_sec : tm->tm_sec;
+            if (server_->rate() > 0)
+            {
+                expires += 60 - tm->tm_sec;
+            }
+            else
+            {
+                 expires -= tm->tm_sec ? tm->tm_sec : 60;
+            }
 
             return sleep_and_call(&timer_,
                 server_->real_nsec_until_rate_time_abs(expires),
@@ -544,42 +551,24 @@ private:
                 break;
             case BroadcastTimeDefs::SET_TIME:
             {
-                int hour = BroadcastTimeDefs::event_to_hour(suffix);
-                int min = BroadcastTimeDefs::event_to_min(suffix);
-                if (tm.tm_hour != hour || tm.tm_min != min)
-                {
-                    tm.tm_hour = hour;
-                    tm.tm_min = min;
-                }
+                tm.tm_hour = BroadcastTimeDefs::event_to_hour(suffix);
+                tm.tm_min = BroadcastTimeDefs::event_to_min(suffix);
                 break;
             }
             case BroadcastTimeDefs::SET_DATE:
             {
-                int day = BroadcastTimeDefs::event_to_day(suffix);
-                int mon = BroadcastTimeDefs::event_to_month(suffix) - 1;
-                if (tm.tm_mday != day || tm.tm_mon != mon)
-                {
-                    tm.tm_mday = day;
-                    tm.tm_mon = mon;
-                }
+                tm.tm_mday = BroadcastTimeDefs::event_to_day(suffix);
+                tm.tm_mon = BroadcastTimeDefs::event_to_month(suffix) - 1;
                 break;
             }
             case BroadcastTimeDefs::SET_YEAR:
             {
-                int year = BroadcastTimeDefs::event_to_year(suffix) - 1900;
-                if (tm.tm_year != year)
-                {
-                    tm.tm_year = year;
-                }
+                tm.tm_year = BroadcastTimeDefs::event_to_year(suffix) - 1900;
                 break;
             }
             case BroadcastTimeDefs::SET_RATE:
             {
-                    int16_t rate = BroadcastTimeDefs::event_to_rate(suffix);
-                    if (server_->rate_ != rate)
-                    {
-                        server_->rate_ = rate;
-                    }
+                    server_->rate_ = BroadcastTimeDefs::event_to_rate(suffix);
                 break;
             }
             default:
@@ -692,7 +681,7 @@ private:
         return BroadcastTimeAlarm::entry();
     }
 
-    /// callback for when the alarm expires
+    /// callback for when the alarm expires.
     void expired_callback()
     {
         server_->time_->request_time();
@@ -723,7 +712,14 @@ private:
         int rate_min_per_4_real_min = std::abs(clock_->rate());
 
         // get the time_t value for the next whole minute
-        seconds += clock_->rate() > 0 ? 60 - tm->tm_sec : tm->tm_sec;
+        if (clock_->rate() > 0)
+        {
+            seconds += 60 - tm->tm_sec;
+        }
+        else
+        {
+             seconds -= tm->tm_sec ? tm->tm_sec : 60;
+        }
 
         do
         {
