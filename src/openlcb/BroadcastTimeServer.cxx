@@ -432,16 +432,15 @@ private:
     {
         if (server_->is_running())
         {
+            const struct tm *tm = server_->gmtime_recalculate();
+
             // setup to send the next time report
-            time_t elapsed = server_->time() - server_->seconds_;
-            elapsed += server_->rate_ > 0 ? 60 : -60;
-            long long timeout = server_->timestamp_ +
-                                server_->rate_sec_to_real_nsec_period(elapsed);
+            time_t expires = server_->time();
+            expires += server_->rate() > 0 ? 60 - tm->tm_sec : tm->tm_sec;
 
-            timeout = std::max(timeout - OSTime::get_monotonic(), 0LL);
-
-            return sleep_and_call(&timer_, timeout,
-                                  STATE(send_time_report_next));
+            return sleep_and_call(&timer_,
+                server_->real_nsec_until_rate_time_abs(expires),
+                STATE(send_time_report_next));
         }
         return return_ok();
     }
@@ -723,9 +722,11 @@ private:
         // we will target to produce a time event every four real minutes.
         int rate_min_per_4_real_min = std::abs(clock_->rate());
 
+        // get the time_t value for the next whole minute
+        seconds += clock_->rate() > 0 ? 60 - tm->tm_sec : tm->tm_sec;
+
         do
         {
-            seconds += clock_->rate() > 0 ? 60 : -60;
             if (next_minute(&hour, &min))
             {
                 // date rollover, always produce the date rollover event
@@ -735,6 +736,7 @@ private:
             {
                 break;
             }
+            seconds += clock_->rate() > 0 ? 60 : -60;
         }
         while ((hour != tm->tm_hour || min != tm->tm_min) &&
                --rate_min_per_4_real_min > 0);
@@ -801,8 +803,6 @@ BroadcastTimeServer::BroadcastTimeServer(Node *node, NodeID clock_id)
 {
     EventRegistry::instance()->register_handler(
         EventRegistryEntry(this, clockID_), 16);
-
-    start_flow(STATE(query_response));
 }
 
 //
