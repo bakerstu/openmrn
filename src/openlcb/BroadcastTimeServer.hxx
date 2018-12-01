@@ -145,6 +145,10 @@ private:
                              EventReport *event,
                              BarrierNotifiable *done) override;
 
+    /// Try the possible set event shortcut.
+    /// @param event event that we would be "setting"
+    virtual void set_shortcut(uint64_t event) override;
+
     /// Entry to state machine.
     /// @return query_response after timeout
     Action entry()

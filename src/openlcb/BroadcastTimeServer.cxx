@@ -857,7 +857,15 @@ void BroadcastTimeServer::handle_event_report(const EventRegistryEntry &entry,
 {
     AutoNotify an(done);
 
-    switch(BroadcastTimeDefs::get_event_type(event->event))
+    set_shortcut(event->event);
+}
+
+//
+// BroadcastTimeServer::set_shortcut
+//
+void BroadcastTimeServer::set_shortcut(uint64_t event)
+{
+    switch(BroadcastTimeDefs::get_event_type(event))
     {
         case BroadcastTimeDefs::SET_TIME:
         case BroadcastTimeDefs::SET_DATE:
@@ -865,7 +873,7 @@ void BroadcastTimeServer::handle_event_report(const EventRegistryEntry &entry,
         case BroadcastTimeDefs::SET_RATE:
         case BroadcastTimeDefs::START:
         case BroadcastTimeDefs::STOP:
-            set_->request_set(event->event);
+            set_->request_set(event);
             break;
         case BroadcastTimeDefs::QUERY:
             if (is_terminated())

@@ -340,7 +340,9 @@ protected:
         }
 
     private:
+
         /// Send the necessary event.
+        /// @return delete_this()
         Action send_event()
         {
             uint64_t event_id;
@@ -379,10 +381,20 @@ protected:
                     return delete_this();
             }
 
-            writer_.WriteAsync(clock_->node(), Defs::MTI_EVENT_REPORT,
-                WriteHelper::global(), eventid_to_buffer(event_id), this);
+            if (!clock_->node()->is_initialized())
+            {
+                // since the node is not yet initialized, events get thrown on
+                // the floor, we will try a shortcut instead
+                clock_->set_shortcut(event_id);
+                return delete_this();
+            }
+            else
+            {
+                writer_.WriteAsync(clock_->node(), Defs::MTI_EVENT_REPORT,
+                    WriteHelper::global(), eventid_to_buffer(event_id), this);
 
-            return wait_and_call(STATE(delete_this));
+                return wait_and_call(STATE(delete_this));
+            }
         }
 
         WriteHelper writer_; ///< helper for sending event messages
@@ -392,6 +404,11 @@ protected:
         int data2_; ///< second data argument
     };
 
+    /// Try the possible set event shortcut.
+    /// @param event event that we would be "setting"
+    virtual void set_shortcut(uint64_t event)
+    {
+    }
 
     /// Service all of the attached update subscribers
     void service_callbacks()
