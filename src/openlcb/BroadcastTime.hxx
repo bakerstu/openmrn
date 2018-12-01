@@ -78,6 +78,49 @@ public:
     {
     }
 
+    /// Set the time in seconds since the system Epoch.
+    /// @param hour hour (0 to 23)
+    /// @param minutes minutes (0 to 59)
+    void set_time(int hours, int minutes)
+    {
+        new SetFlow(this, SetFlow::Command::SET_TIME, hours, minutes);
+    }
+
+    /// Set the time in seconds since the system Epoch.
+    /// @param month month (1 to 12)
+    /// @param day day of month (1 to 31)
+    void set_date(int month, int day)
+    {
+        new SetFlow(this, SetFlow::Command::SET_DATE, month, day);
+    }
+
+    /// Set the time in seconds since the system Epoch.
+    /// @param year (0AD to 4095AD)
+    void set_year(int year)
+    {
+        new SetFlow(this, SetFlow::Command::SET_YEAR, year);
+    }
+
+    /// Set Rate.
+    /// @param rate clock rate ratio as 12 bit sign extended fixed point
+    ///             rrrrrrrrrr.rr
+    void set_rate(int16_t rate)
+    {
+        new SetFlow(this, SetFlow::Command::SET_RATE, rate);
+    }
+
+    /// Start clock
+    void start()
+    {
+        new SetFlow(this, SetFlow::Command::START);
+    }
+
+    /// Stop clock
+    void stop()
+    {
+        new SetFlow(this, SetFlow::Command::STOP);
+    }
+
     /// Get the time as a value of seconds relative to the system epoch.  At the
     /// same time get an atomic matching pair of the rate
     /// @return pair<time in seconds relative to the system epoch, rate>
