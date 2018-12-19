@@ -27,6 +27,11 @@
 #ifndef _UTILS_ENTRYMODEL_HXX_
 #define _UTILS_ENTRYMODEL_HXX_
 
+#include <algorithm>
+#include <cstring>
+
+#include "utils/format_utils.hxx"
+
 /** Implementation of a text entry menu.
  * @tparam N the size of the entry in max number of visible digits.
  */
