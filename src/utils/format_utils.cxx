@@ -95,6 +95,17 @@ char* uint64_integer_to_buffer_hex(uint64_t value, char* buffer)
     return ret;
 }
 
+char* int64_integer_to_buffer_hex(int64_t value, char* buffer)
+{
+    if (value < 0)
+    {
+        *buffer = '-';
+        ++buffer;
+        value = -value;
+    }
+    return uint64_integer_to_buffer_hex(value, buffer);
+}
+
 char* unsigned_integer_to_buffer(int value, char* buffer)
 {
     int num_digits = 0;
@@ -150,6 +161,17 @@ char* integer_to_buffer(int value, char* buffer)
     return unsigned_integer_to_buffer(value, buffer);
 }
 
+char* int64_integer_to_buffer(int64_t value, char* buffer)
+{
+    if (value < 0)
+    {
+        *buffer = '-';
+        ++buffer;
+        value = -value;
+    }
+    return uint64_integer_to_buffer(value, buffer);
+}
+
 string uint64_to_string(uint64_t value, unsigned padding)
 {
     string ret;
@@ -163,11 +185,37 @@ string uint64_to_string(uint64_t value, unsigned padding)
     return ret;
 }
 
+string int64_to_string(int64_t value, unsigned padding)
+{
+    string ret;
+    char tmp[22];
+    int64_integer_to_buffer(value, tmp);
+    ret.append(tmp);
+    if (padding > ret.size())
+    {
+        ret.insert(0, padding - ret.size(), ' ');
+    }
+    return ret;
+}
+
 string uint64_to_string_hex(uint64_t value, unsigned padding)
 {
     string ret;
     char tmp[17];
     uint64_integer_to_buffer_hex(value, tmp);
+    ret.append(tmp);
+    if (padding > ret.size())
+    {
+        ret.insert(0, padding - ret.size(), ' ');
+    }
+    return ret;
+}
+
+string int64_to_string_hex(int64_t value, unsigned padding)
+{
+    string ret;
+    char tmp[18];
+    int64_integer_to_buffer_hex(value, tmp);
     ret.append(tmp);
     if (padding > ret.size())
     {
