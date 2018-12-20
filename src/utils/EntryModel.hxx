@@ -29,13 +29,15 @@
 
 #include <algorithm>
 #include <cstring>
+#include <type_traits>
 
 #include "utils/format_utils.hxx"
 
 /** Implementation of a text entry menu.
+ * @tparam T the data type up to 64-bits in size
  * @tparam N the size of the entry in max number of visible digits.
  */
-template <size_t N> class EntryModel
+template <class T, size_t N> class EntryModel
 {
 public:
     /** Constructor.
@@ -67,9 +69,9 @@ public:
     /** Initialize with a value.
      * @param digits max number of significant digits in the base type
      * @param base base type, 10 or 16
-     * @param value unsigned value to initialize with
+     * @param value value to initialize with
      */
-    void init(unsigned digits, int base, uint64_t value)
+    void init(unsigned digits, int base, T value)
     {
         HASSERT(digits > 0 && digits <= N);
         digits_ = digits;
@@ -81,46 +83,27 @@ public:
             default:
                 HASSERT(0);
             case 10:
-                str = uint64_to_string(value, digits);
+                if (std::is_signed<T>::value)
+                {
+                    str = int64_to_string(value, digits);
+                }
+                else
+                {
+                    str = uint64_to_string(value, digits);
+                }
                 break;
             case 16:
-                str = uint64_to_string_hex(value, digits);
+                if (std::is_signed<T>::value)
+                {
+                    str = int64_to_string_hex(value, digits);
+                }
+                else
+                {
+                    str = uint64_to_string_hex(value, digits);
+                }
                 if (transform_)
                 {
                     /* equires all characters in upper case */
-                    transform(str.begin(), str.end(), str.begin(), toupper);
-                }
-                break;
-        }
-        strncpy(data_, str.c_str(), sizeof(data_) - 1);
-        data_[sizeof(data_) - 1] = '\0';
-        hasInitial_ = true;
-    }
-
-    /** Initialize with a signed value.
-     * @param digits max number of significant digits in the base type
-     * @param base base type, 10 or 16
-     * @param value unsigned value to initialize with
-     */
-    void init_signed(unsigned digits, int base, int64_t value)
-    {
-        HASSERT(digits > 0 && digits <= N);
-        digits_ = digits;
-        clear();
-
-        string str;
-        switch (base)
-        {
-            default:
-                HASSERT(0);
-            case 10:
-                str = int64_to_string(value, digits);
-                break;
-            case 16:
-                str = int64_to_string_hex(value, digits);
-                if (transform_)
-                {
-                    /* requires all characters in upper case */
                     transform(str.begin(), str.end(), str.begin(), toupper);
                 }
                 break;
@@ -183,6 +166,7 @@ public:
             }
             data_[index_++] = transform_ ? toupper(c) : c;
         }
+        clamp();
         return refresh;
     }
 
@@ -195,6 +179,7 @@ public:
             data_[--index_] = ' ';
             hasInitial_ = false;
         }
+        clamp();
     }
 
     /** Set the radix base.
@@ -207,37 +192,27 @@ public:
     }
 
     /** Set the value, keep the digits and base the same.
-     * @param value unsigned value to initialize with
+     * @param value value to initialize with
      */
-    void set_value(uint64_t value)
+    void set_value(T value)
     {
         init(digits_, base_, value);
     }
 
-    /** Set the signed value, keep the digits and base the same.
-     * @param value signed value to initialize with
-     */
-    void set_value_signed(int64_t value)
-    {
-        init_signed(digits_, base_, value);
-    }
-
     /** Get the entry as an unsigned integer value.
      * @param start_index starting index in string to start conversion
-     * @return unsigned integer value representation of the string
+     * @return value representation of the string
      */
-    uint64_t get_value(int start_index = 0)
+    T get_value(unsigned start_index = 0)
     {
-        return strtoull(data_ + start_index, NULL, base_);
-    }
-
-    /** Get the entry as a signed integer value.
-     * @param start_index starting index in string to start conversion
-     * @return unsigned integer value representation of the string
-     */
-    int64_t get_value_signed(int start_index = 0)
-    {
-        return strtoll(data_ + start_index, NULL, base_);
+        if (std::is_signed<T>::value)
+        {
+            return strtoll(data_ + start_index, NULL, base_);
+        }
+        else
+        {
+            return strtoull(data_ + start_index, NULL, base_);
+        }
     }
 
     /** Get the C style string representing the menu entry.
@@ -282,6 +257,34 @@ public:
         memcpy(buf + start_index, data_, digits);
     }
 
+    /** Change the sign of the data.
+     */
+    void change_sign()
+    {
+        HASSERT(std::is_signed<T>::value);
+        if (hasInitial_)
+        {
+            set_value(-get_value());
+        }
+        else if (data_[0] == '-')
+        {
+            memmove(data_, data_ + 1, digits_ - 1);
+            data_[digits_] = ' ';
+        }
+        else
+        {
+            memmove(data_ + 1, data_, digits_ - 1);
+            data_[0] = '-';
+        }
+        clamp();
+    }
+
+protected:
+    /// Clamp the value at the min or max.
+    virtual void clamp()
+    {
+    }
+
 private:
     unsigned digits_     : 5; /**< number of significant digits */
     unsigned index_      : 5; /**< present write index */
@@ -293,6 +296,77 @@ private:
     char data_[N + 1]; /**< data string */
 
     DISALLOW_COPY_AND_ASSIGN(EntryModel);
+};
+
+/** Specialization of EntryModel with upper and lower bounds
+ * @tparam T the data type up to 64-bits in size
+ * @tparam N the size of the entry in max number of visible digits.
+ */
+template <class T, size_t N> class EntryModelBounded : public EntryModel<T, N>
+{
+public:
+    /** Constructor.
+     * @param transform force characters to be upper case
+     */
+    EntryModelBounded(bool transform = false)
+        : EntryModel<T, N>(transform)
+    {
+    }
+
+    /** Initialize with a value.
+     * @param digits max number of significant digits in the base type
+     * @param base base type, 10 or 16
+     * @param value unsigned value to initialize with
+     * @param min minumum value
+     * @param max maximum value
+     * @param default_val default value
+     */
+    void init(unsigned digits, int base, T value, T min, T max, T default_val)
+    {
+        min_ = min;
+        max_ = max;
+        default_ = default_val;
+        EntryModel<T, N>::init(digits, base, value);
+    }
+
+    /// Set the value to the minimum.
+    void set_min()
+    {
+        EntryModel<T, N>::set_value(min_);
+    }
+
+    /// Set the value to the maximum.
+    void set_max()
+    {
+        EntryModel<T, N>::set_value(max_);
+    }
+
+    /// Set the value to the default.
+    void set_default()
+    {
+        EntryModel<T, N>::set_value(default_);
+    }
+
+private:
+    /// Clamp the value at the min or max.
+    void clamp() override
+    {
+        T value = EntryModel<T, N>::get_value();
+        if (value < min_)
+        {
+            EntryModel<T, N>::set_value(min_);
+        }
+        else if (value > max_)
+        {
+            EntryModel<T, N>::set_value(max_);
+        }
+    }
+
+    T min_; ///< minimum value
+    T max_; ///< maximum value
+    T default_; ///< default value
+
+    DISALLOW_COPY_AND_ASSIGN(EntryModelBounded);
 };
 
 #endif /* _UTILS_ENTRYMODEL_HXX_ */
