@@ -279,6 +279,20 @@ public:
         clamp();
     }
 
+    /// Get the number of significant digits
+    /// @return number of significant digits
+    unsigned digits()
+    {
+        return digits_;
+    }
+
+    /// Determine if this object is holding an initial or modified value.
+    /// @return true if holding an initial value, else false if modified
+    bool has_initial()
+    {
+        return hasInitial_;
+    }
+
 protected:
     /// Clamp the value at the min or max.
     virtual void clamp()
