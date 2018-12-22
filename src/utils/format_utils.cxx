@@ -172,6 +172,19 @@ char* int64_integer_to_buffer(int64_t value, char* buffer)
     return uint64_integer_to_buffer(value, buffer);
 }
 
+string integer_to_string(int value, unsigned padding)
+{
+    string ret;
+    char tmp[12];
+    integer_to_buffer(value, tmp);
+    ret.append(tmp);
+    if (padding > ret.size())
+    {
+        ret.insert(0, padding - ret.size(), ' ');
+    }
+    return ret;
+}
+
 string uint64_to_string(uint64_t value, unsigned padding)
 {
     string ret;

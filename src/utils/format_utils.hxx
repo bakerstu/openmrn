@@ -86,6 +86,13 @@ char* uint64_integer_to_buffer_hex(uint64_t value, char* buffer);
  */
 char* int64_integer_to_buffer_hex(int64_t value, char* buffer);
 
+/** Renders an integer to std::string, left-justified.
+ * @param value will be rendered into the buffer.
+ * @param padding number of bytes that the resulting string should be.
+ * @returns the pointer to the null character at the end of the rendering.
+ */
+string integer_to_string(int value, unsigned padding = 0);
+
 /** Renders an uint64_t to std::string, left-justified.
  * @param value will be rendered into the buffer.
  * @param padding number of bytes that the resulting string should be.
