@@ -29,6 +29,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <functional>
 #include <type_traits>
 
 #include "utils/format_utils.hxx"
@@ -37,14 +38,18 @@
  * @tparam T the data type up to 64-bits in size
  * @tparam N the size of the entry in max number of visible digits.
  */
-template <class T, size_t N> class EntryModel
+template <class T, size_t N>
+class EntryModel
 {
 public:
     /** Constructor.
      * @param transform force characters to be upper case
+     * @param clamp_callback callback method to clamp min/max
      */
-    EntryModel(bool transform = false)
-        : digits_(0)
+    EntryModel(bool transform = false,
+               std::function<void()> clamp_callback = nullptr)
+        : clampCallback_(clamp_callback)
+        , digits_(0)
         , index_(0)
         , hasInitial_(false)
         , transform_(transform)
@@ -60,7 +65,7 @@ public:
      */
     void init(unsigned digits, int base)
     {
-        HASSERT(digits > 0 && digits <= N);
+        HASSERT(digits <= N);
         digits_ = digits;
         clear();
         hasInitial_ = true;
@@ -73,7 +78,7 @@ public:
      */
     void init(unsigned digits, int base, T value)
     {
-        HASSERT(digits > 0 && digits <= N);
+        HASSERT(digits <= N);
         digits_ = digits;
         clear();
 
@@ -205,6 +210,7 @@ public:
      */
     T get_value(unsigned start_index = 0)
     {
+        HASSERT(start_index < digits_);
         if (std::is_signed<T>::value)
         {
             return strtoll(data_ + start_index, NULL, base_);
@@ -293,13 +299,17 @@ public:
         return hasInitial_;
     }
 
-protected:
     /// Clamp the value at the min or max.
-    virtual void clamp()
+    void clamp()
     {
+        if (clampCallback_)
+        {
+            clampCallback_();
+        }
     }
 
 private:
+    std::function<void()> clampCallback_; /**< callback to clamp value */
     unsigned digits_     : 5; /**< number of significant digits */
     unsigned index_      : 5; /**< present write index */
     unsigned hasInitial_ : 1; /**< has an initial value */
@@ -323,7 +333,8 @@ public:
      * @param transform force characters to be upper case
      */
     EntryModelBounded(bool transform = false)
-        : EntryModel<T, N>(transform)
+        : EntryModel<T, N>(transform,
+                           std::bind(&EntryModelBounded::clamp, this))
     {
     }
 
@@ -363,9 +374,9 @@ public:
 
 private:
     /// Clamp the value at the min or max.
-    void clamp() override
+    void clamp()
     {
-        T value = EntryModel<T, N>::get_value();
+        volatile T value = EntryModel<T, N>::get_value();
         if (value < min_)
         {
             EntryModel<T, N>::set_value(min_);
