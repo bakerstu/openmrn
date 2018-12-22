@@ -179,11 +179,12 @@ public:
      */
     void backspace()
     {
-        if (index_ > 0)
+        if (index_ == 0)
         {
-            data_[--index_] = ' ';
-            hasInitial_ = false;
+            index_ = parsed().size();
         }
+        data_[--index_] = ' ';
+        hasInitial_ = false;
         clamp();
     }
 
