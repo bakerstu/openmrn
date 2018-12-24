@@ -380,6 +380,30 @@ public:
         EntryModel<T, N>::set_value(default_);
     }
 
+    /// Pre-increment value.
+    T operator ++()
+    {
+        T value = EntryModel<T, N>::get_value();
+        if (value < max_)
+        {
+            ++value;
+            EntryModel<T, N>::set_value(value);
+        }
+        return value;
+    }
+
+    /// Pre-decrement value.
+    T operator --()
+    {
+        T value = EntryModel<T, N>::get_value();
+        if (value > min_)
+        {
+            --value;
+            EntryModel<T, N>::set_value(value);
+        }
+        return value;
+    }
+
 private:
     /// Clamp the value at the min or max.
     void clamp()
