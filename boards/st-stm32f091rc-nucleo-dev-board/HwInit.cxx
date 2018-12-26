@@ -48,7 +48,6 @@
 #include "Stm32Can.hxx"
 #include "Stm32SPI.hxx"
 #include "Stm32EEPROMEmulation.hxx"
-#include "Stm32PWM.hxx"
 #include "hardware.hxx"
 
 /** override stdin */
@@ -73,16 +72,6 @@ static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1900);
  * multiple of the minimum erase length (which is the flash page length, for
  * the STM32F0 it is 2 kbytes). The file size maximum is half this value. */
 const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
-
-Stm32PWMGroup servo_timer(TIM3, (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,
-                          configCPU_CLOCK_HZ * 6 / 1000);
-
-extern PWM* servo_channels[];
-/// The order of these channels follows the schematic arrangement of MCU pins
-/// to logical servo ports.
-PWM *servo_channels[4] = { //
-    servo_timer.get_channel(4), servo_timer.get_channel(2),
-    servo_timer.get_channel(3), servo_timer.get_channel(1)};
 
 /// Recursive mutex for SPI1 peripheral.
 OSMutex spi1_lock(true);

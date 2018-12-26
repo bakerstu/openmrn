@@ -51,6 +51,7 @@
 #include "os/MmapGpio.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
+#include "Stm32PWM.hxx"
 #include "PWM.hxx"
 #include "i2c.h"
 #include "i2c-dev.h"
@@ -137,6 +138,15 @@ openlcb::MultiConfiguredConsumer direct_consumers(stack.node(), kDirectGpio,
 
 const unsigned servo_min = configCPU_CLOCK_HZ * 1 / 1000;
 const unsigned servo_max = configCPU_CLOCK_HZ * 2 / 1000;
+
+Stm32PWMGroup servo_timer(TIM3, (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,
+                          configCPU_CLOCK_HZ * 6 / 1000);
+
+/// The order of these channels follows the schematic arrangement of MCU pins
+/// to logical servo ports.
+PWM *servo_channels[4] = { //
+    servo_timer.get_channel(4), servo_timer.get_channel(2),
+    servo_timer.get_channel(3), servo_timer.get_channel(1)};
 
 PWMGPO srv1_gpo(servo_channels[0], servo_min, servo_max);
 PWMGPO srv2_gpo(servo_channels[1], servo_min, servo_max);
