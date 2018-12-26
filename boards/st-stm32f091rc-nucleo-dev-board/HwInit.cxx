@@ -81,8 +81,10 @@ extern PWM* servo_channels[];
 /// The order of these channels follows the schematic arrangement of MCU pins
 /// to logical servo ports.
 PWM *servo_channels[4] = { //
-    servo_timer.get_channel(4), servo_timer.get_channel(2),
-    servo_timer.get_channel(3), servo_timer.get_channel(1)};
+    Stm32PWMGroup::get_channel(&servo_timer, 4),
+    Stm32PWMGroup::get_channel(&servo_timer, 2),
+    Stm32PWMGroup::get_channel(&servo_timer, 3),
+    Stm32PWMGroup::get_channel(&servo_timer, 1)};
 
 /// Recursive mutex for SPI1 peripheral.
 OSMutex spi1_lock(true);
