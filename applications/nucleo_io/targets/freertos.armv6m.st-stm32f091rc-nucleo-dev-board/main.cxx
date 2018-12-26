@@ -185,7 +185,6 @@ public:
     /// 
     /// @param dedicated_executor is a serivce that is NOT on the main
     /// executor.
-    /// @param port is the character device name for the SPI port
     /// @param mutex if not null, this (async) mutex will be acquired before
     /// the SPI port is touched. Allows mutual exclusion of multiple stateflows
     /// of this class.
@@ -212,7 +211,7 @@ public:
     /// chained on the input. 
     /// @param delay_msec defines the delay between consecutive refreshes of
     /// the shift registers (inversely the refresh rate).
-    SpiIOShiftRegister(Service *dedicated_executor, const char *port,
+    SpiIOShiftRegister(Service *dedicated_executor,
         AsyncMutex *mutex, const Gpio *latch, uint32_t *output_storage,
         unsigned output_len_bytes, uint32_t *input_storage = nullptr,
         unsigned input_len_bytes = 0, unsigned delay_msec = 50)
@@ -224,7 +223,11 @@ public:
         , outputLenBytes_(output_len_bytes)
         , inputStorage_(input_storage)
         , inputLenBytes_(input_len_bytes)
-    {
+    {}
+
+    /// Initializes SPI port. Called via main() to not rely on static init ordering.
+    /// @param port is the character device name for the SPI port
+    void init(const char *port) {
         fd_ = ::open(port, O_RDWR);
         HASSERT(fd_ >= 0);
         // test alignment
@@ -305,7 +308,7 @@ Service io_service(&io_executor);
 
 uint32_t output_register[1] = {0x00000000};
 
-SpiIOShiftRegister internal_outputs(&io_service, "/dev/spi1.ioboard", nullptr, OUT_LAT_Pin::instance(), output_register, 2);
+SpiIOShiftRegister internal_outputs(&io_service, nullptr, OUT_LAT_Pin::instance(), output_register, 2);
 
 constexpr const MmapGpio PORTD_LINE1(output_register, 7, true);
 constexpr const MmapGpio PORTD_LINE2(output_register, 6, true);
@@ -354,7 +357,7 @@ openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_8(
 
 uint32_t input_register[2] = {0};
 
-SpiIOShiftRegister internal_inputs(&io_service, "/dev/spi2", nullptr, INP_LAT_Pin::instance(), nullptr, 0, input_register, 3);
+SpiIOShiftRegister internal_inputs(&io_service, nullptr, INP_LAT_Pin::instance(), nullptr, 0, input_register, 3);
 
 constexpr const MmapGpio PORTB_LINE1(input_register, 0, false);
 constexpr const MmapGpio PORTB_LINE2(input_register, 1, false);
@@ -507,6 +510,9 @@ int appl_main(int argc, char *argv[])
         exp1.init(i2cfd);
     }
 #endif
+
+    internal_outputs.init("/dev/spi1.ioboard");
+    internal_inputs.init("/dev/spi2");
 
     srv1_gpo.clr();
     srv2_gpo.clr();
