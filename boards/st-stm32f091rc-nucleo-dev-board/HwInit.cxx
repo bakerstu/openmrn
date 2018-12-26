@@ -77,10 +77,10 @@ const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
 Stm32PWMGroup servo_timer(TIM3, (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,
                           configCPU_CLOCK_HZ * 6 / 1000);
 
-extern PWM* servo_channels[];
+extern PWM* const servo_channels[];
 /// The order of these channels follows the schematic arrangement of MCU pins
 /// to logical servo ports.
-PWM *servo_channels[4] = { //
+PWM * const servo_channels[4] = { //
     Stm32PWMGroup::get_channel(&servo_timer, 4),
     Stm32PWMGroup::get_channel(&servo_timer, 2),
     Stm32PWMGroup::get_channel(&servo_timer, 3),

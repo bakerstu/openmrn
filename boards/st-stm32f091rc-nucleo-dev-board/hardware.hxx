@@ -48,4 +48,4 @@ typedef GpioInitializer<LED_GREEN_RAW_Pin, SW_USER_Pin, //
 typedef LED_GREEN_RAW_Pin BLINKER_RAW_Pin;
 typedef BLINKER_Pin LED_GREEN_Pin;
 
-extern PWM* servo_channels[];
+extern PWM* const servo_channels[];
