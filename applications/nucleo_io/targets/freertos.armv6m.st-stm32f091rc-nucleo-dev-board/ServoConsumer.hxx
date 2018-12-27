@@ -3,47 +3,10 @@
 
 #include "config.hxx"
 #include "os/MmapGpio.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 
 const unsigned servo_ticks_0 = configCPU_CLOCK_HZ * 1 / 1000;   // 48k
 const unsigned servo_ticks_180 = configCPU_CLOCK_HZ * 2 / 1000; // 96k
-
-uint8_t dummy_var[1] = {0x0};
-constexpr const MmapGpio8 DUMMY_GPIO(
-    dummy_var, /*offset=*/0, /*is_output=*/false);
-
-// GPIOBit has a <template HW> ctor that won't work if
-// supplied Gpio* is a PWMGPO; no idea why.
-class MyGPIOBit : public openlcb::BitEventInterface
-{
-public:
-    MyGPIOBit(openlcb::Node *node, openlcb::EventId event_on,
-        openlcb::EventId event_off, const Gpio *gpio)
-        : BitEventInterface(event_on, event_off)
-        , node_(node)
-        , gpio_(gpio)
-    {
-    }
-
-    openlcb::EventState get_current_state() override
-    {
-        return gpio_->is_set() ? openlcb::EventState::VALID
-                               : openlcb::EventState::INVALID;
-    }
-
-    void set_state(bool new_value) override
-    {
-        gpio_->write(new_value);
-    }
-
-    openlcb::Node *node() override
-    {
-        return node_;
-    }
-
-private:
-    openlcb::Node *node_;
-    const Gpio *gpio_;
-};
 
 // Basically a specialized ConfiguredConsumer.
 // Can't subclass ConfiguredConsumer here because ServoConsumerConfig
@@ -56,7 +19,7 @@ public:
         : DefaultConfigUpdateListener()
         , pwm_(pwm) // save for apply_config, where we actually use it.
         , pwm_gpo_(nullptr) // not initialized until apply_config
-        , gpio_impl_(node, 0, 0, &DUMMY_GPIO)
+        , gpio_impl_(node, 0, 0, DummyPinWithRead())
         , consumer_(&gpio_impl_) // don't connect consumer to PWM yet
         , cfg_(cfg)
     {
@@ -91,7 +54,7 @@ public:
             auto saved_node = gpio_impl_.node();
 
             consumer_.~BitEventConsumer();
-            gpio_impl_.~MyGPIOBit();
+            gpio_impl_.~GPIOBit();
             if (pwm_gpo_)
             {
                 delete pwm_gpo_;
@@ -103,7 +66,7 @@ public:
             pwm_gpo_->write(was_set ? Gpio::SET : Gpio::CLR);
 
             new (&gpio_impl_)
-                MyGPIOBit(saved_node, cfg_event_min, cfg_event_max, pwm_gpo_);
+                openlcb::GPIOBit(saved_node, cfg_event_min, cfg_event_max, pwm_gpo_);
             new (&consumer_) openlcb::BitEventConsumer(&gpio_impl_);
 
             return REINIT_NEEDED;
@@ -127,7 +90,7 @@ private:
     // pwm_gpo_ heap-allocated because it's nullptr until first config.
     PWMGPO *pwm_gpo_; // has PWM* and on/off counts
 
-    MyGPIOBit gpio_impl_;                // has on/off events, Node*, and Gpio*
+    openlcb::GPIOBit gpio_impl_;                // has on/off events, Node*, and Gpio*
     openlcb::BitEventConsumer consumer_; // has GPIOBit*
     const openlcb::ServoConsumerConfig cfg_;
 };
