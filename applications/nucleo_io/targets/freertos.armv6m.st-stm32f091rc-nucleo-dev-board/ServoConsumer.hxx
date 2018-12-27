@@ -1,6 +1,7 @@
 #ifndef _APPLICATIONS_IO_BOARD_TARGET_SERVOCONSUMER_HXX_
 #define _APPLICATIONS_IO_BOARD_TARGET_SERVOCONSUMER_HXX_
 
+#include <memory>
 #include "config.hxx"
 #include "os/MmapGpio.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
@@ -55,18 +56,14 @@ public:
 
             consumer_.~BitEventConsumer();
             gpioImpl_.~GPIOBit();
-            if (pwmGpo_)
-            {
-                delete pwmGpo_;
-            }
 
-            pwmGpo_ = new PWMGPO(pwm_,
+            pwmGpo_.reset(new PWMGPO(pwm_,
                 /*on_counts=*/cfg_srv_ticks_min,
-                /*off_counts=*/cfg_srv_ticks_max);
+                /*off_counts=*/cfg_srv_ticks_max));
             pwmGpo_->write(was_set ? Gpio::SET : Gpio::CLR);
 
             new (&gpioImpl_)
-                openlcb::GPIOBit(saved_node, cfg_event_min, cfg_event_max, pwmGpo_);
+                openlcb::GPIOBit(saved_node, cfg_event_min, cfg_event_max, pwmGpo_.get());
             new (&consumer_) openlcb::BitEventConsumer(&gpioImpl_);
 
             return REINIT_NEEDED;
@@ -88,7 +85,7 @@ private:
 
     // all the rest are owned and must be reset on config change.
     // pwmGpo_ heap-allocated because it's nullptr until first config.
-    PWMGPO *pwmGpo_; // has PWM* and on/off counts
+    std::unique_ptr<PWMGPO> pwmGpo_; // has PWM* and on/off counts
 
     openlcb::GPIOBit gpioImpl_;                // has on/off events, Node*, and Gpio*
     openlcb::BitEventConsumer consumer_; // has GPIOBit*
