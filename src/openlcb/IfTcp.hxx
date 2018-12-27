@@ -55,6 +55,14 @@ class ClockBaseSequenceNumberGenerator;
 class TcpSendFlow;
 class TcpRecvFlow;
 
+/// Network interface class for a character stream link that speaks the
+/// (point-to-point) TcpTransfer protocol. This is the class that needs to be
+/// given to the virtual node (Node*) on the constructor. The If class provides
+/// the API and owns all of the implementation for sending and receiving
+/// messages to/from this network link.
+///
+/// Today the IfTcp class supports a dumb hub on the device end. This allows
+/// creating servers although without any advanced routing logic.
 class IfTcp : public If
 {
 public:
@@ -68,9 +76,20 @@ public:
     /// this interface will support.
     IfTcp(NodeID gateway_node_id, HubFlow *device, int local_nodes_count);
 
+    /// Destructor.
     ~IfTcp();
 
+    /** Transfers ownership of a module to the interface. It will be brought
+     * down in the destructor. The destruction order is guaranteed such that
+     * all supporting structures are still available when the flow is destryed,
+     * but incoming messages can not come in anymore.
+     *
+     * @todo(balazs.racz) revise whether this needs to be virtual. */
     void add_owned_flow(Executable *e) override;
+    /** Transfers ownership of a module to the interface. It will be brought
+     * down in the destructor. The destruction order is guaranteed such that
+     * all supporting structures are still available when the flow is destryed,
+     * but incoming messages can not come in anymore. */
     void add_owned_flow(Destructable *e)
     {
         ownedFlows_.emplace_back(e);
@@ -78,7 +97,15 @@ public:
     /// Finds a given pointer in the owned flows list, deletes it and removes
     /// it from the list.
     void delete_owned_flow(Destructable *d);
+    /** Removes a local node from this interface. This function must be called
+     * from the interface's executor.
+     *
+     * @param node is the node to delete. The node will not be freed, just
+     * removed from the data structures.
+     */
     void delete_local_node(Node *node) override;
+    /** @return true if the two node handles match as far as we can tell
+     * without doing any network traffic. */
     bool matching_node(NodeHandle expected, NodeHandle actual) override;
 
     /// Adds a network client connection to the device.

@@ -192,6 +192,8 @@ public:
         }
     }
 
+    /// Called when the stateflow read call(s) are completed.
+    /// @return next state.
     Action read_done()
     {
         if (selectHelper_.hasError_)
@@ -363,6 +365,7 @@ protected:
         {
         }
 
+        /// Destructor.
         ~WriteFlow()
         {
             HASSERT(this->is_waiting());

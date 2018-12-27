@@ -252,6 +252,9 @@ protected:
     template <class HFlow> friend class HubDeviceSelectReadFlow;
     friend class openlcb::FdToTcpParser;
 
+    /// Constructor
+    /// @param exec executor for the service.
+    /// @param fd the device file descriptor
     FdHubPortService(ExecutorBase *exec, int fd)
         : FdHubPortInterface(fd)
         , Service(exec)

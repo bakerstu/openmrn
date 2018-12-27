@@ -42,17 +42,17 @@
 namespace openlcb
 {
 
-/** Static class for constants and utilities related to the TCP transport
- * protocol. */
+/// Static class for constants and utilities related to the TCP transport
+/// protocol.
 class TcpDefs
 {
 public:
-    /** Renders a TCP message into a single buffer, ready to transmit.
-     * @param msg is the OpenLCB message to render.
-     * @param gateway_node_id will be populated into the message header as the
-     * message source (last sending node ID).
-     * @param sequence is a 48-bit millisecond value that's monotonic.
-     * @param target is the buffer into which to render the message. */
+    /// Renders a TCP message into a single buffer, ready to transmit.
+    /// @param msg is the OpenLCB message to render.
+    /// @param gateway_node_id will be populated into the message header as the
+    /// message source (last sending node ID).
+    /// @param sequence is a 48-bit millisecond value that's monotonic.
+    /// @param target is the buffer into which to render the message.
     static void render_tcp_message(const GenMessage &msg,
         NodeID gateway_node_id, long long sequence, string *tgt)
     {
@@ -138,16 +138,6 @@ public:
         {
             tgt->set_flag_dst(GenMessage::DSTFLAG_NOT_LAST_MESSAGE);
         }
-        // Contents of the size field in the header.
-        uint32_t sz = (uint8_t)src[HDR_SIZE_OFS];
-        sz <<= 8;
-        sz |= (uint8_t)src[HDR_SIZE_OFS + 1];
-        sz <<= 8;
-        sz |= (uint8_t)src[HDR_SIZE_OFS + 2];
-        if ((sz + HDR_SIZE_OFS) > src.size())
-        {
-            return false;
-        }
         const char *msg = &src[HDR_LEN];
         // We have already checked the size to be long enough for a global
         // message with 0 bytes payload. So source address and MTI is ok to
@@ -193,30 +183,56 @@ public:
 
     enum
     {
+        /// Bit in the uint16 flags field in the header that signals frames that
+        /// carry an OpenLCB message.
         FLAGS_OPENLCB_MSG = 0x8000,
+        /// Chaining bit in the uint16 flags field. Means (according to the old
+        /// draft) that there will be anopther header embedded inside this.
         FLAGS_CHAINING = 0x4000,
+        /// Reserved bits in the flags field. Check as zero.
         FLAGS_RESVD1_ZERO_CHECK = 0x3000,
+        /// "not first" fragmenting bit in the flags field.
         FLAGS_FRAGMENT_NOT_FIRST = 0x0800,
+        /// "not last" fragmenting bit in the flags field.
         FLAGS_FRAGMENT_NOT_LAST = 0x0400,
+        /// Reserved bits in the flags field. Ignore (by the standard).
         FLAGS_RESVD2_IGNORED = 0x03FF,
 
+        /// Offset in the header of the flags field.
         HDR_FLAG_OFS = 0,
+        /// Offset in the header of the size field.
         HDR_SIZE_OFS = 2,
+        /// Offset in the header of the source gateway field.
         HDR_GATEWAY_OFS = 2 + 3,
+        /// Offset in the header of the end of the size field.
         HDR_SIZE_END = HDR_GATEWAY_OFS,
+        /// Offset in the header of the timestamp (seq no) field.
         HDR_TIMESTAMP_OFS = 2 + 3 + 6,
+        /// Total length of the fixed header.
         HDR_LEN = 2 + 3 + 6 + 6,
 
+        /// Offset in the message (=after the header) of the MTI field.
         MSG_MTI_OFS = 0,
+        /// Offset in the message (=after the header) of the src node ID field.
         MSG_SRC_OFS = 2,
+        /// Offset in the message (=after the header) of the dst node ID field
+        /// (for addressed MTI only).
         MSG_DST_OFS = 2 + 6,
+        /// Offset in the message (=after the header) of the message payload
+        /// (for addressed MTI only).
         MSG_ADR_PAYLOAD_OFS = 2 + 6 + 6,
 
+        /// Offset in the message (=after the header) of the message payload
+        /// (for global MTI only).
         MSG_GLOBAL_PAYLOAD_OFS = MSG_DST_OFS,
 
+        /// Minimum length of a valid message.
         MIN_MESSAGE_SIZE = MSG_GLOBAL_PAYLOAD_OFS + HDR_LEN,
+        /// Minimum length of a valid message that has an addressed MTI.
         MIN_ADR_MESSAGE_SIZE = MSG_ADR_PAYLOAD_OFS + HDR_LEN,
 
+        /// Offset from the header of the MTI field in the message. Assumes no
+        /// chaining.
         ABS_MTI_OFS = HDR_LEN + MSG_MTI_OFS,
     };
 
@@ -225,23 +241,21 @@ private:
     TcpDefs();
 };
 
-/**
-   Virtual clock interface. Implementations are not required to be thread-safe.
-*/
+///   Virtual clock interface. Implementations are not required to be
+///   thread-safe.
 class SequenceNumberGenerator : public Destructable
 {
 public:
-    /** Returns the next strictly monotonic sequence number. */
+    /// Returns the next strictly monotonic sequence number.
     virtual long long get_sequence_number() = 0;
 };
 
-/**
-   Implementation of sequence number generator that uses the real clock. Not
-   thread-safe.
- */
+/// Implementation of sequence number generator that uses the real clock. Not
+/// thread-safe.
 class ClockBaseSequenceNumberGenerator : public SequenceNumberGenerator
 {
 public:
+    /// @return next sequence number based on clock time.
     long long get_sequence_number() override
     {
         long long current_time_ms = os_get_time_monotonic() / 1000000;
@@ -261,13 +275,23 @@ private:
     long long sequence_ = 0;
 };
 
-/**
- * This flow renders outgoing OpenLCB messages to their TCP stream
- * representation.
- */
+/// This flow renders outgoing OpenLCB messages to their TCP stream
+/// representation.
 class TcpSendFlow : public MessageStateFlowBase
 {
 public:
+    /// Constructor.
+    ///
+    /// @param service the owning TCP interface.
+    /// @param gateway_node_id our own node ID that will be put into the gateway
+    /// node ID field of outgoing TCP messages.
+    /// @param send_target where to send rendered TCP messages (this is usually
+    /// either the device FD flow or a hub with the binary rendered packets).
+    /// @param skip_member outgoing packets will get their skipMember_ set to
+    /// this value. Usually the matching read flow of the interface to avoid
+    /// undesired echo.
+    /// @param sequence how to generate sequence numbers for the outgoing
+    /// packets.
     TcpSendFlow(If *service, NodeID gateway_node_id,
         HubPortInterface *send_target, HubPortInterface *skip_member,
         SequenceNumberGenerator *sequence)
@@ -280,6 +304,8 @@ public:
     }
 
 private:
+    /// Handler where dequeueing of messages to be sent starts.
+    /// @return next state
     Action entry() override
     {
         auto id = nmsg()->dst.id;
@@ -298,6 +324,10 @@ private:
         return allocate_and_call(sendTarget_, STATE(render_src_message));
     }
 
+    /// Callback state after allocation succeeded. Renders the message to binary
+    /// payload into the allocated buffer, send the message and exits the
+    /// processing.
+    /// @return back to the base state.
     Action render_src_message()
     {
         auto b = get_buffer_deleter(get_allocation_result(sendTarget_));
@@ -338,11 +368,17 @@ private:
 };
 
 /// This flow is listening to data from a TCP connection, segments the incoming
-/// data into TcpMessages based on the incoing size, and forwards packets
+/// data into TcpMessages based on the incoming size, and forwards packets
 /// containing the TCP message as string payload.
 class FdToTcpParser : public StateFlowBase
 {
 public:
+    /// Constructor.
+    /// @param s the parent (owning) service that holds the different flows
+    /// together.
+    /// @param dst where to forward the segmented packets.
+    /// @param skipMember all forwarded messages will have their skipMember set
+    /// to this value. Usually the output port.
     FdToTcpParser(FdHubPortService *s, HubPortInterface *dst,
         HubPortInterface *skipMember)
         : StateFlowBase(s)
@@ -369,11 +405,15 @@ public:
     }
 
 private:
+    /// @return the typed service
     FdHubPortService *device()
     {
         return static_cast<FdHubPortService *>(service());
     }
 
+    /// In this state the internal buffer (bufOfs_) points at the beginning of a
+    /// message.
+    /// @return next state.
     Action start_msg()
     {
         msg_.clear();
@@ -381,6 +421,12 @@ private:
         return parse_bytes();
     }
 
+    /// Intermediate state where we are
+    /// - figuring out what is the length of the message we are parsing
+    /// - allocating the output buffer
+    /// - copying bytes of the message from the internal buffer into the output
+    ///   buffer
+    /// @return next state
     Action parse_bytes()
     {
         if (bufEnd_ <= bufOfs_)
@@ -434,6 +480,9 @@ private:
         }
     }
 
+    /// Helper state to call the stateflow kernel to read bytes from the fd into
+    /// the internal buffer.
+    /// @return next state
     Action read_more_bytes()
     {
         if (bufEnd_ <= bufOfs_)
@@ -445,6 +494,8 @@ private:
             READ_BUFFER_SIZE - bufEnd_, STATE(read_done), READ_PRIO);
     }
 
+    /// Callback state when the kernel read is completed.
+    /// @return next state
     Action read_done()
     {
         if (helper_.hasError_)
@@ -458,11 +509,15 @@ private:
         return parse_bytes();
     }
 
+    /// Sends an assembled message (1) to the destination flow.
+    /// @return next state.
     Action send_entry()
     {
         return allocate_and_call(dst_, STATE(have_alloc_msg));
     }
 
+    /// Sends an assembled message (2) to the destination flow.
+    /// @return next state.
     Action have_alloc_msg()
     {
         auto *b = get_allocation_result(dst_);
@@ -476,8 +531,8 @@ private:
         return call_immediately(STATE(start_msg));
     }
 
-    /** Calls into the parent flow's barrier notify, but makes sure to
-     * only do this once in the lifetime of *this. */
+    /// Calls into the parent flow's barrier notify, but makes sure to
+    /// only do this once in the lifetime of *this.
     void notify_barrier()
     {
         if (barrierOwned_)
@@ -533,6 +588,10 @@ public:
     {
     }
 
+    /// Entry point for the incoming (binary) data. These are already segmented
+    /// correctly to openlcb-TCP packet boundaries.
+    /// @param data buffer
+    /// @param prio priority
     void send(Buffer<HubData> *data, unsigned prio) override
     {
         auto src = get_buffer_deleter(data);
@@ -545,6 +604,7 @@ public:
     }
 
 private:
+    /// Flow(interface) where to pass on the parsed GenMessage.
     MessageHandler *target_;
 };
 

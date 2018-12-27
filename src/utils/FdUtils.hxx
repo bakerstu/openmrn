@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file fd_utils.hxx
+ * \file FdUtils.hxx
  *
  * Helper functions for dealing with posix fds.
  *
@@ -44,7 +44,6 @@ struct FdUtils
     /// @param fd the file to read data from
     /// @param buf the location to write data to
     /// @param size how many bytes to read
-    ///
     static void repeated_read(int fd, void *buf, size_t size)
     {
         uint8_t *dst = static_cast<uint8_t *>(buf);
@@ -66,7 +65,6 @@ struct FdUtils
     /// @param fd the file to write data to
     /// @param buf the location of the data to write
     /// @param size how many bytes to write
-    ///
     static void repeated_write(int fd, const void *buf, size_t size)
     {
         const uint8_t *dst = static_cast<const uint8_t *>(buf);
