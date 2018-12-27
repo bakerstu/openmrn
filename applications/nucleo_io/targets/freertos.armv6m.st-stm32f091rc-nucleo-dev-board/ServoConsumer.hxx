@@ -78,8 +78,8 @@ public:
     void factory_reset(int fd) OVERRIDE
     {
         cfg_.description().write(fd, "");
-        cfg_.servo_min_percent().write(fd, 0);
-        cfg_.servo_max_percent().write(fd, 100);
+        CDI_FACTORY_RESET(cfg_.servo_min_percent);
+        CDI_FACTORY_RESET(cfg_.servo_max_percent);
     }
 
 private:
