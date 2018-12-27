@@ -107,6 +107,9 @@ extern string error_to_buffer(uint16_t error_code);
 /** Writes an error code into a payload object at a given pointer. */
 extern void error_to_data(uint16_t error_code, void* data);
 
+/** Parses an error code from a payload object at a given pointer. */
+extern uint16_t data_to_error(const void *data);
+
 /** Appends an error to the end of an existing buffer. */
 extern void append_error_to_buffer(uint16_t error_code, Payload* p);
 
@@ -151,6 +154,11 @@ struct GenMessage
 {
     GenMessage()
         : src({0, 0}), dst({0, 0}), flagsSrc(0), flagsDst(0) {}
+
+    void clear()
+    {
+        reset((Defs::MTI)0, 0, EMPTY_PAYLOAD);
+    }
 
     void reset(Defs::MTI mti, NodeID src, NodeHandle dst, string payload)
     {
@@ -224,7 +232,7 @@ struct GenMessage
     /** Returns the NMRAnet-defined priority band, in the range of 0..3. */
     unsigned priority()
     {
-        return (mti & Defs::MTI_PRIORITY_MASK) >> Defs::MTI_PRIORITY_SHIFT;
+        return Defs::mti_priority(mti);
     }
 
     enum DstFlags {
@@ -319,13 +327,6 @@ public:
      * removed from the data structures.
      */
     virtual void delete_local_node(Node *node) = 0;
-        /*
-    {
-        HASSERT(0);
-        auto it = localNodes_.find(node->node_id());
-        HASSERT(it != localNodes_.end());
-        localNodes_.erase(it);
-        }*/
 
     /** Looks up a node ID in the local nodes' registry. This function must be
      * called from the interface's executor.

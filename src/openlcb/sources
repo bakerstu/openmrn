@@ -18,6 +18,7 @@ CXXSRCS += \
            If.cxx \
            IfCan.cxx \
            IfImpl.cxx \
+           IfTcp.cxx \
            NodeInitializeFlow.cxx \
            NonAuthoritativeEventProducer.cxx \
            PIPClient.cxx \
