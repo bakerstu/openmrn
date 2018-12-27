@@ -52,6 +52,7 @@
 #include "config.hxx"
 #include "hardware.hxx"
 #include "PWM.hxx"
+#include "ServoConsumer.hxx"
 #include "i2c.h"
 #include "i2c-dev.h"
 
@@ -135,22 +136,15 @@ constexpr const Gpio *const kDirectGpio[] = {
 openlcb::MultiConfiguredConsumer direct_consumers(stack.node(), kDirectGpio,
     ARRAYSIZE(kDirectGpio), cfg.seg().direct_consumers());
 
-const unsigned servo_min = configCPU_CLOCK_HZ * 1 / 1000;
-const unsigned servo_max = configCPU_CLOCK_HZ * 2 / 1000;
-
-PWMGPO srv1_gpo(servo_channels[0], servo_min, servo_max);
-PWMGPO srv2_gpo(servo_channels[1], servo_min, servo_max);
-PWMGPO srv3_gpo(servo_channels[2], servo_min, servo_max);
-PWMGPO srv4_gpo(servo_channels[3], servo_min, servo_max);
-
-constexpr const Gpio *const kServoGpio[] = {
-    &srv1_gpo, &srv2_gpo, &srv3_gpo, &srv4_gpo, //
-    SRV5_Pin::instance(), SRV6_Pin::instance(), //
-    SRV7_Pin::instance(), SRV8_Pin::instance()  //
-};
-
-openlcb::MultiConfiguredConsumer servo_consumers(stack.node(), kServoGpio,
-    ARRAYSIZE(kServoGpio), cfg.seg().servo_consumers());
+// PWM* servo_channels[] defined in HwInit.cxx
+ServoConsumer srv0(
+    stack.node(), cfg.seg().servo_consumers().entry<0>(), servo_channels[0]);
+ServoConsumer srv1(
+    stack.node(), cfg.seg().servo_consumers().entry<1>(), servo_channels[1]);
+ServoConsumer srv2(
+    stack.node(), cfg.seg().servo_consumers().entry<2>(), servo_channels[2]);
+ServoConsumer srv3(
+    stack.node(), cfg.seg().servo_consumers().entry<3>(), servo_channels[3]);
 
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:
@@ -513,11 +507,6 @@ int appl_main(int argc, char *argv[])
 
     internal_outputs.init("/dev/spi1.ioboard");
     internal_inputs.init("/dev/spi2");
-
-    srv1_gpo.clr();
-    srv2_gpo.clr();
-    srv3_gpo.clr();
-    srv4_gpo.clr();
     
     // The necessary physical ports must be added to the stack.
     //

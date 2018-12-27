@@ -74,8 +74,9 @@ static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1900);
  * the STM32F0 it is 2 kbytes). The file size maximum is half this value. */
 const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
 
-Stm32PWMGroup servo_timer(TIM3, (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,
-                          configCPU_CLOCK_HZ * 6 / 1000);
+Stm32PWMGroup servo_timer(TIM3,
+    /*prescaler=*/ (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,
+    /*period_counts=*/ configCPU_CLOCK_HZ * 6 / 1000);
 
 extern PWM* const servo_channels[];
 /// The order of these channels follows the schematic arrangement of MCU pins

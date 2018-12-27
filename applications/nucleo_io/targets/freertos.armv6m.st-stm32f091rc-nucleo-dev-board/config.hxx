@@ -31,6 +31,25 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 
 #define NUM_EXTBOARDS 0
 
+CDI_GROUP(ServoConsumerConfig);
+CDI_GROUP_ENTRY(description, StringConfigEntry<16>, Name("Description"),
+	Description("User name of this output."));
+CDI_GROUP_ENTRY(event_rotate_min, EventConfigEntry, //
+	Name("Minimum Rotation Event ID"),
+	Description("Receiving this event ID will rotate the servo to its mimimum "
+                "configured point."));
+CDI_GROUP_ENTRY(event_rotate_max, EventConfigEntry, //
+	Name("Maximum Rotation Event ID"),
+	Description("Receiving this event ID will rotate the servo to its maximum "
+                "configured point."));
+CDI_GROUP_ENTRY(servo_min_percent, Uint8ConfigEntry, Default(0), Min(0),
+	Max(100), Name("Servo Minimum Stop Point Percentage"),
+	Description("Low-end stop point of the servo, 0-100."));
+CDI_GROUP_ENTRY(servo_max_percent, Uint8ConfigEntry, Default(100), Min(0),
+	Max(100), Name("Servo Maximum Stop Point Percentage"),
+	Description("High-end stop point of the servo, 0-100."));
+CDI_GROUP_END(); // ServoConsumerConfig
+
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
@@ -39,6 +58,7 @@ using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
 using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 using DirectConsumers = RepeatedGroup<ConsumerConfig, 8>;
+using ServoConsumers = RepeatedGroup<ServoConsumerConfig, 4>;
 using PortDEConsumers = RepeatedGroup<ConsumerConfig, 16>;
 using PortABProducers = RepeatedGroup<ProducerConfig, 16>;
 
@@ -62,7 +82,7 @@ CDI_GROUP_ENTRY(internal_config, InternalConfigData);
 CDI_GROUP_ENTRY(nucleo_onboard, NucleoGroup);
 CDI_GROUP_ENTRY(snap_switches, PulseConsumers, Name("Consumers for snap switches"), Description("These are on port D"), RepName("Line"));
 CDI_GROUP_ENTRY(direct_consumers, DirectConsumers, Name("Tortoise/Hi-Power outputs"), RepName("Line"));
-CDI_GROUP_ENTRY(servo_consumers, DirectConsumers, Name("Servo Pin outputs"), Description("Temporary solution to test servo output pins."), RepName("Line"));
+CDI_GROUP_ENTRY(servo_consumers, ServoConsumers, Name("Servo PWM outputs"), Description("3-pin servo outputs."), RepName("Line"));
 CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Description("Line 1-8 is port D, Line 9-16 is port E"), RepName("Line"));
 CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
 CDI_GROUP_END();

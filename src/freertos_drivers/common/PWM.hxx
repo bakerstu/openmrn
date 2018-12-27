@@ -113,7 +113,7 @@ public:
     {
     }
 
-    ~PWMGPO()
+    virtual ~PWMGPO()
     {
     }
 
@@ -155,6 +155,16 @@ public:
     Direction direction() const override
     {
         return Gpio::Direction::OUTPUT;
+    }
+
+    uint32_t get_on_counts() const
+    {
+        return onCounts_;
+    }
+
+    uint32_t get_off_counts() const
+    {
+        return offCounts_;
     }
 
 private:
