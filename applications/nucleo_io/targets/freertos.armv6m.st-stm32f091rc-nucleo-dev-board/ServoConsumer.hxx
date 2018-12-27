@@ -18,9 +18,9 @@ public:
         openlcb::Node *node, const openlcb::ServoConsumerConfig &cfg, PWM *pwm)
         : DefaultConfigUpdateListener()
         , pwm_(pwm) // save for apply_config, where we actually use it.
-        , pwm_gpo_(nullptr) // not initialized until apply_config
-        , gpio_impl_(node, 0, 0, DummyPinWithRead())
-        , consumer_(&gpio_impl_) // don't connect consumer to PWM yet
+        , pwmGpo_(nullptr) // not initialized until apply_config
+        , gpioImpl_(node, 0, 0, DummyPinWithRead())
+        , consumer_(&gpioImpl_) // don't connect consumer to PWM yet
         , cfg_(cfg)
     {
     }
@@ -43,31 +43,31 @@ public:
             servo_ticks_0 + (servo_range_ticks * (cfg_servo_max_pct / 100.0));
 
         // Defaults to CLR at startup.
-        const bool was_set = pwm_gpo_ && (pwm_gpo_->read() == Gpio::SET);
+        const bool was_set = pwmGpo_ && (pwmGpo_->read() == Gpio::SET);
 
-        if (!pwm_gpo_ || //
-            cfg_event_min != gpio_impl_.event_off() ||
-            cfg_event_max != gpio_impl_.event_on() ||
-            cfg_srv_ticks_min != pwm_gpo_->get_off_counts() ||
-            cfg_srv_ticks_max != pwm_gpo_->get_on_counts())
+        if (!pwmGpo_ || //
+            cfg_event_min != gpioImpl_.event_off() ||
+            cfg_event_max != gpioImpl_.event_on() ||
+            cfg_srv_ticks_min != pwmGpo_->get_off_counts() ||
+            cfg_srv_ticks_max != pwmGpo_->get_on_counts())
         {
-            auto saved_node = gpio_impl_.node();
+            auto saved_node = gpioImpl_.node();
 
             consumer_.~BitEventConsumer();
-            gpio_impl_.~GPIOBit();
-            if (pwm_gpo_)
+            gpioImpl_.~GPIOBit();
+            if (pwmGpo_)
             {
-                delete pwm_gpo_;
+                delete pwmGpo_;
             }
 
-            pwm_gpo_ = new PWMGPO(pwm_,
+            pwmGpo_ = new PWMGPO(pwm_,
                 /*on_counts=*/cfg_srv_ticks_min,
                 /*off_counts=*/cfg_srv_ticks_max);
-            pwm_gpo_->write(was_set ? Gpio::SET : Gpio::CLR);
+            pwmGpo_->write(was_set ? Gpio::SET : Gpio::CLR);
 
-            new (&gpio_impl_)
-                openlcb::GPIOBit(saved_node, cfg_event_min, cfg_event_max, pwm_gpo_);
-            new (&consumer_) openlcb::BitEventConsumer(&gpio_impl_);
+            new (&gpioImpl_)
+                openlcb::GPIOBit(saved_node, cfg_event_min, cfg_event_max, pwmGpo_);
+            new (&consumer_) openlcb::BitEventConsumer(&gpioImpl_);
 
             return REINIT_NEEDED;
         }
@@ -87,10 +87,10 @@ private:
     PWM *pwm_; // timer channel
 
     // all the rest are owned and must be reset on config change.
-    // pwm_gpo_ heap-allocated because it's nullptr until first config.
-    PWMGPO *pwm_gpo_; // has PWM* and on/off counts
+    // pwmGpo_ heap-allocated because it's nullptr until first config.
+    PWMGPO *pwmGpo_; // has PWM* and on/off counts
 
-    openlcb::GPIOBit gpio_impl_;                // has on/off events, Node*, and Gpio*
+    openlcb::GPIOBit gpioImpl_;                // has on/off events, Node*, and Gpio*
     openlcb::BitEventConsumer consumer_; // has GPIOBit*
     const openlcb::ServoConsumerConfig cfg_;
 };
