@@ -448,7 +448,7 @@ public:
     }
 
     template <class HW>
-    GPIOBit(Node *node, EventId event_on, EventId event_off, const HW &, const Gpio* g = HW::instance())
+    GPIOBit(Node *node, EventId event_on, EventId event_off, const HW &, const Gpio* g = HW::instance(), decltype(HW::instance)* = 0)
         : GPIOBit(node, event_on, event_off, g)
     {
     }
