@@ -33,15 +33,16 @@ public:
 
         const openlcb::EventId cfg_event_min = cfg_.event_rotate_min().read(fd);
         const openlcb::EventId cfg_event_max = cfg_.event_rotate_max().read(fd);
-        const uint8_t cfg_servo_min_pct = cfg_.servo_min_percent().read(fd);
-        const uint8_t cfg_servo_max_pct = cfg_.servo_max_percent().read(fd);
+        const int16_t cfg_servo_min_pct = cfg_.servo_min_percent().read(fd);
+        const int16_t cfg_servo_max_pct = cfg_.servo_max_percent().read(fd);
 
-        const unsigned servo_range_ticks = servo_ticks_180 - servo_ticks_0;
-
+        // Use a weighted average to determine num ticks for max/min.
         const unsigned cfg_srv_ticks_min =
-            servo_ticks_0 + (servo_range_ticks * (cfg_servo_min_pct / 100.0));
+            ((100 - cfg_servo_min_pct) * servo_ticks_0 +
+             cfg_servo_min_pct * servo_ticks_180) / 100;
         const unsigned cfg_srv_ticks_max =
-            servo_ticks_0 + (servo_range_ticks * (cfg_servo_max_pct / 100.0));
+            ((100 - cfg_servo_max_pct) * servo_ticks_0 +
+             cfg_servo_max_pct * servo_ticks_180) / 100;
 
         // Defaults to CLR at startup.
         const bool was_set = pwmGpo_ && (pwmGpo_->read() == Gpio::SET);
