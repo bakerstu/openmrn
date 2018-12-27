@@ -98,7 +98,7 @@ public:
     }
 
     template <class HW>
-    ConfiguredConsumer(Node *node, const ConsumerConfig &cfg, const HW &, const Gpio* g = HW::instance())
+    ConfiguredConsumer(Node *node, const ConsumerConfig &cfg, const HW &, const Gpio* g = HW::instance(), decltype(HW::instance)* = 0)
         : impl_(node, 0, 0, g)
         , consumer_(&impl_)
         , cfg_(cfg)
