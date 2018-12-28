@@ -312,7 +312,7 @@ void SimpleCanStackBase::add_gridconnect_port(
     int fd = ::open(path, O_RDWR);
     HASSERT(fd >= 0);
     LOG(INFO, "Adding device %s as fd %d", path, fd);
-    create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
+    create_gc_port_for_can_hub(&canHub0_, fd, on_exit, true);
 }
 
 #if defined(__linux__) || defined(__MACH__)

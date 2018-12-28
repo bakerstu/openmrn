@@ -362,6 +362,14 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     new_socket->sd = result;
     new_socket->references_ = 1;
 
+    // constrain the TCP receive window size
+    {
+        SlSockWinsize_t size;
+        size.WinSize = 3000;
+        sl_SetSockOpt(result, SL_SOL_SOCKET, SL_SO_RCVBUF, (uint8_t *)&size,
+                      sizeof(size));
+    }
+
     cc32xxSockets[reserved] = new_socket.release();
 
     return fd;  
@@ -417,6 +425,15 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
         }
         return -1;
     }
+
+    // constrain the TCP receive window size
+    {
+        SlSockWinsize_t size;
+        size.WinSize = 3000;
+        sl_SetSockOpt(s->sd, SL_SOL_SOCKET, SL_SO_RCVBUF, (uint8_t *)&size,
+                      sizeof(size));
+    }
+
     return result;  
 }
 

@@ -47,6 +47,10 @@
 #include <ti/drivers/net/wifi/simplelink.h>
 #include <ti/drivers/net/wifi/source/protocol.h>
 
+/** write monitoring is not supported, therefore, enable a "polling" workaround
+ */
+//#define SELECT_WRITE_WORKAROUND
+
 /** CC32xx forward declaration Helper */
 struct CC32xxWiFi::WlanEvent : public ::SlWlanEvent_t {};
 
@@ -669,8 +673,18 @@ void CC32xxWiFi::wlan_task()
         SlFdSet_t wfds_tmp = wfds;
         SlFdSet_t efds_tmp = efds;
         SlTimeval_t tv;
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
+#if defined(SELECT_WRITE_WORKAROUND)
+        if (wfds_tmp.fd_array[0] != 0)
+        {
+            tv.tv_sec = 0;
+            tv.tv_usec = 50000;
+        }
+        else
+#endif
+        {
+            tv.tv_sec = 1;
+            tv.tv_usec = 0;
+        }
 
         result = sl_Select(fdHighest + 1, &rfds_tmp, &wfds_tmp, &efds_tmp, &tv);
 
@@ -679,7 +693,7 @@ void CC32xxWiFi::wlan_task()
             continue;
         }
 
-        if (result == 0 || (os_get_time_monotonic() >> 20) > next_wrssi_poll)
+        if ((os_get_time_monotonic() >> 20) > next_wrssi_poll)
         {
             next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
             /* timeout, get the RSSI value */
@@ -692,6 +706,30 @@ void CC32xxWiFi::wlan_task()
             }
         }
 
+#if defined(SELECT_WRITE_WORKAROUND)
+        if (result == 0)
+        {
+            for (int i = 0; i < SL_MAX_SOCKETS; ++i)
+            {
+                if (slSockets[i] == -1)
+                {
+                    /* socket slot not in use */
+                    continue;
+                }
+                if (SL_SOCKET_FD_ISSET(slSockets[i], &wfds))
+                {
+                    portENTER_CRITICAL();
+                    SL_SOCKET_FD_CLR(slSockets[i], &wfds);
+                    new_highest();
+                    CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(
+                        slSockets[i]);
+                    portEXIT_CRITICAL();
+                    s->writeActive = true;
+                    s->select_wakeup(&s->selInfoWr);
+                }
+            }
+        }
+#endif
         for (int i = 0; i < SL_MAX_SOCKETS && result > 0; ++i)
         {
             if (slSockets[i] == -1)
@@ -764,7 +802,14 @@ void CC32xxWiFi::select_wakeup()
          * periodically.
          */
         char data = -1;
-        sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address, length);
+        ssize_t result = sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address,
+                                   length);
+        while (result != 1 && connected)
+        {
+            usleep(MSEC_TO_USEC(50));
+            result = sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address,
+                               length);
+        }
     }
 }
 
