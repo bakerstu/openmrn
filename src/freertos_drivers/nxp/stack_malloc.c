@@ -120,13 +120,3 @@ void *buffer_malloc(size_t length)
     void *volatile v = usb_malloc(length);
     return v;
 }
-
-/// Allocates a struct reent. Overrides the (weak) definition to put it to a
-/// separate RAM segment and leave more heap space free.
-/// @return a newly allocated struct reent. Cannot be freed.
-struct _reent* allocate_reent(void)
-{
-    struct _reent* data = usb_malloc(sizeof(struct _reent));
-    _REENT_INIT_PTR(data);
-    return data;
-}

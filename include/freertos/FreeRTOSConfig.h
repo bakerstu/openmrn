@@ -303,12 +303,13 @@ extern unsigned long blinker_pattern;
 #define configUSE_MUTEXES              1
 #define configUSE_RECURSIVE_MUTEXES    1
 #define configUSE_COUNTING_SEMAPHORES  1
+#define configUSE_NEWLIB_REENTRANT     1
 #define configUSE_CO_ROUTINES          0
 #ifndef configCHECK_FOR_STACK_OVERFLOW
 #define configCHECK_FOR_STACK_OVERFLOW 2
 #endif
 
-#define configMAX_PRIORITIES        ( 5 )
+#define configMAX_PRIORITIES            ( 5 )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
 
 #define configUSE_APPLICATION_TASK_TAG 1
@@ -349,24 +350,6 @@ to exclude the API function. */
 #define INCLUDE_xEventGroupSetBitFromISR 1
 #define INCLUDE_xTimerPendFunctionCall  1
 #ifndef __LANGUAGE_ASSEMBLY__
-
-/// Subset of the TaskPriv structure that contains the struct reent
-/// pointer. This is needed for compatibility of newlib with the task switching
-/// code of FreeRTOS.
-typedef struct task_switched_in
-{
-    struct _reent *reent; /**< newlib thread specific data (errno, etc...) */
-} TaskSwitchedIn;
-
-/* We can use this hook in order to change out the newlib struct __reent fo
- * each thread.  This is setup in os_thread_create. */
-#define traceTASK_SWITCHED_IN()                                           \
-{                                                                         \
-    TaskSwitchedIn *task_switched_in;                                      \
-    task_switched_in = (TaskSwitchedIn*)(prvGetTCBFromHandle(NULL)->pxTaskTag); \
-    if (task_switched_in) _impure_ptr = task_switched_in->reent;         \
-}
-
 #ifndef TARGET_LPC11Cxx
 /** This trace macro is called from the tick interrupt; we use it for
  * collecting CPU load information. */

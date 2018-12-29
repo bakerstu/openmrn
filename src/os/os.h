@@ -103,13 +103,6 @@ typedef struct
     unsigned char state; /**< keep track if already executed */
 } os_thread_once_t; /**< one time initialization type */
 typedef xSemaphoreHandle os_sem_t; /**< semaphore handle */
-typedef struct thread_priv
-{
-    struct _reent *reent; /**< newlib thread specific data (errno, etc...) */
-    EventBits_t selectEventBit; /**< bit used for waking up from select */
-    void *(*entry)(void*); /**< thread entry point */
-    void *arg; /** argument to thread */
-} ThreadPriv; /**< thread private data */
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
 typedef struct {
     int locked;
