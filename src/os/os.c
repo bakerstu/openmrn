@@ -108,22 +108,28 @@ long long rtcOffset = 0;
 #define _READ_WRITE_RETURN_TYPE ssize_t
 #endif
 
-int open(const char* b, int flags, ...) {
+int open(const char* b, int flags, ...)
+{
     return _open_r(_impure_ptr, b, flags, 0);
 }
-int close(int fd) {
+int close(int fd)
+{
     return _close_r(_impure_ptr, fd);
 }
-_READ_WRITE_RETURN_TYPE read(int fd, void* buf, size_t count) {
+_READ_WRITE_RETURN_TYPE read(int fd, void* buf, size_t count)
+{
     return _read_r(_impure_ptr, fd, buf, count);
 }
-_READ_WRITE_RETURN_TYPE write(int fd, const void* buf, size_t count) {
+_READ_WRITE_RETURN_TYPE write(int fd, const void* buf, size_t count)
+{
     return _write_r(_impure_ptr, fd, buf, count);
 }
-off_t lseek(int fd, off_t offset, int whence) {
+off_t lseek(int fd, off_t offset, int whence)
+{
     return _lseek_r(_impure_ptr, fd, offset, whence);
 }
-int fstat(int fd, struct stat* buf) {
+int fstat(int fd, struct stat* buf)
+{
     return _fstat_r(_impure_ptr, fd, buf);
 }
 
@@ -456,12 +462,9 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     if (thread)
     {
         *thread = xTaskCreateStatic(os_thread_start,
-                                    (const char *const)name,
-                                    stack_size/sizeof(portSTACK_TYPE),
-                                    priv,
-                                    priority,
-                                    (StackType_t *)stack_malloc(stack_size),
-                                    (StaticTask_t *) malloc(sizeof(StaticTask_t)));
+            (const char *const)name, stack_size/sizeof(portSTACK_TYPE), priv,
+            priority, (StackType_t *)stack_malloc(stack_size),
+            (StaticTask_t *) malloc(sizeof(StaticTask_t)));
         task_new->task = *thread;
         task_new->name = (char*)pcTaskGetTaskName(*thread);
     }
@@ -469,12 +472,9 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     {
         xTaskHandle task_handle;
         task_handle = xTaskCreateStatic(os_thread_start,
-                                        (const char *const)name,
-                                        stack_size/sizeof(portSTACK_TYPE),
-                                        priv,
-                                        priority,
-                                        (StackType_t *) stack_malloc(stack_size),
-                                        (StaticTask_t *) malloc(sizeof(StaticTask_t)));
+            (const char *const)name, stack_size/sizeof(portSTACK_TYPE), priv,
+            priority, (StackType_t *) stack_malloc(stack_size),
+            (StaticTask_t *) malloc(sizeof(StaticTask_t)));
         task_new->task = task_handle;
         task_new->name = (char*)pcTaskGetTaskName(task_handle);
     }
@@ -548,7 +548,8 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         return result;
     }
 
-#if !defined(__linux__) && !defined(__MACH__) /* Linux allocates stack as needed */
+/* Linux/Unix allocates stack as needed */
+#if !defined(__linux__) && !defined(__MACH__)
     struct sched_param sched_param;
     result = pthread_attr_setstacksize(&attr, stack_size);
     if (result != 0)
@@ -741,7 +742,9 @@ int usleep(useconds_t usec)
 
 void abort(void)
 {
-#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || defined(TARGET_LPC1768) || defined(GCC_ARMCM3) || defined (GCC_ARMCM0) || defined(TARGET_PIC32MX)
+#if defined(TARGET_LPC2368) || defined(TARGET_LPC11Cxx) || \
+    defined(TARGET_LPC1768) || defined(GCC_ARMCM3) || defined (GCC_ARMCM0) || \
+    defined(TARGET_PIC32MX)
     diewith(BLINK_DIE_ABORT);
 #endif
     for (;;)
@@ -842,7 +845,8 @@ void vApplicationIdleHook( void )
     {
         if (tl->task)
         {
-            tl->unused = uxTaskGetStackHighWaterMark(tl->task) * sizeof(portSTACK_TYPE);
+            tl->unused = uxTaskGetStackHighWaterMark(tl->task) *
+                         sizeof(portSTACK_TYPE);
         }
         xTaskResumeAll();
         vTaskSuspendAll();
@@ -851,16 +855,19 @@ void vApplicationIdleHook( void )
 }
 
 #ifdef TARGET_PIC32MX
-static void __attribute__((nomips16)) os_yield_trampoline(void) {
+static void __attribute__((nomips16)) os_yield_trampoline(void)
+{
     taskYIELD();
 }
 
-void __attribute__((nomips16)) os_isr_exit_yield_test(int woken) {
+void __attribute__((nomips16)) os_isr_exit_yield_test(int woken)
+{
    portEND_SWITCHING_ISR(woken); 
 }
 
 #else
-static inline void __attribute__((always_inline)) os_yield_trampoline(void) {
+static inline void __attribute__((always_inline)) os_yield_trampoline(void)
+{
     taskYIELD();
 }
 #endif
