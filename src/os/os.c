@@ -315,6 +315,7 @@ extern const void* stack_malloc(unsigned long length);
 static void os_thread_start(void *arg)
 {
     ThreadPriv *priv = arg;
+    vTaskSetThreadLocalStoragePointer(NULL, TLS_INDEX_SELECT_EVENT_BIT, NULL);
     vTaskSetApplicationTaskTag(NULL, arg);
     _impure_ptr = priv->reent;
     (*priv->entry)(priv->arg);
@@ -871,7 +872,8 @@ static inline void __attribute__((always_inline)) os_yield_trampoline(void) {
 void main_thread(void *arg)
 {
     ThreadPriv *priv = arg;
-    char *argv[2] = {"nmranet", NULL};
+    char *argv[2] = {"openmrn", NULL};
+    vTaskSetThreadLocalStoragePointer(NULL, TLS_INDEX_SELECT_EVENT_BIT, NULL);
     vTaskSetApplicationTaskTag(NULL, arg);
     _impure_ptr = priv->reent;
 

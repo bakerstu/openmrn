@@ -323,6 +323,10 @@ extern unsigned long blinker_pattern;
 #define configSUPPORT_DYNAMIC_ALLOCATION    1
 #endif
 
+/* Enable thread local storage */
+#define configNUM_THREAD_LOCAL_STORAGE_POINTERS 1
+#define TLS_INDEX_SELECT_EVENT_BIT 0
+
 /* backwards compatibility */
 #if !defined(vPortClearInterruptMask)
     #define vPortClearInterruptMask(x)      vPortSetBASEPRI(x)

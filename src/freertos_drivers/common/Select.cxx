@@ -45,19 +45,24 @@ static OSEvent wakeup;
 static OSEventType get_event()
 {
     static int thread_count = 0;
-    ThreadPriv *priv = (ThreadPriv*)xTaskGetApplicationTaskTag(NULL);
+    OSEventType event =
+        (OSEventType)pvTaskGetThreadLocalStoragePointer(
+        nullptr,
+        TLS_INDEX_SELECT_EVENT_BIT);
 
-    if (priv->selectEventBit == 0)
+    if (event == 0)
     {
         if(thread_count >= OSEvent::number_of_bits())
         {
             thread_count = 0;
         }
-        priv->selectEventBit = 0x1 << thread_count;
+        event = 0x1 << thread_count;
+        vTaskSetThreadLocalStoragePointer(nullptr, TLS_INDEX_SELECT_EVENT_BIT,
+                                          (void*)event);
         ++thread_count;
     }
 
-    return priv->selectEventBit;
+    return event;
 }
 
 void Device::select_clear()
