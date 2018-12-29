@@ -35,9 +35,11 @@ CSRCS += SPI.c \
          PowerCC32XX.c \
          List.c
 
-CSRCS += pthread.c \
+CSRCS += clock.c \
+         pthread.c \
          pthread_mutex.c \
-         sched.c
+         sched.c \
+         semaphore.c
 
 CXXSRCS +=
 
@@ -45,4 +47,5 @@ CFLAGS += -Wno-strict-prototypes
 
 CXXFLAGS +=
 
+clock.o : CFLAGS += -Wno-error=implicit-function-declaration
 pthread.o : CFLAGS += -DconfigPOSIX_STACK_SIZE=512 -Wno-error=unused-variable
