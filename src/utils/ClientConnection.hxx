@@ -113,7 +113,7 @@ protected:
     void connection_complete(int fd)
     {
         fd_ = fd;
-        create_gc_port_for_can_hub(hub_, fd, &closedNotify_, true);
+        create_gc_port_for_can_hub(hub_, fd, &closedNotify_);
     }
 
 private:

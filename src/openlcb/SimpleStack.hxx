@@ -217,7 +217,7 @@ public:
     {
         int fd = ConnectSocket(host, port);
         HASSERT(fd >= 0);
-        create_gc_port_for_can_hub(&canHub0_, fd, nullptr, true);
+        create_gc_port_for_can_hub(&canHub0_, fd);
     }
 
     /// Causes all CAN packets to be printed to stdout.

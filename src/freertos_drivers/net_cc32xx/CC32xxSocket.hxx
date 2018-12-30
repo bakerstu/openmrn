@@ -198,6 +198,8 @@ private:
         , readActive(true)
         , writeActive(true)
         , listenActive(false)
+        , writeActiveCnt(0)
+        , lastWriteTimestamp(0)
     {
     }    
 
@@ -240,6 +242,12 @@ private:
 
     /** This is a listen socket */
     uint8_t listenActive : 1;
+
+    /** @todo this is a hack for an sl_Send bandwidth issue in the CC3220 */
+    uint8_t writeActiveCnt : 5;
+
+    /** @todo this is a hack for an sl_Send bandwidth issue in the CC3220 */
+    long long lastWriteTimestamp;
 
     /** allow access to private members from CC32xxWiFi */
     friend class CC32xxWiFi;

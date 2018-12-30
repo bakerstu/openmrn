@@ -362,14 +362,6 @@ int CC32xxSocket::accept(int socket, struct sockaddr *address,
     new_socket->sd = result;
     new_socket->references_ = 1;
 
-    // constrain the TCP receive window size
-    {
-        SlSockWinsize_t size;
-        size.WinSize = 3000;
-        sl_SetSockOpt(result, SL_SOL_SOCKET, SL_SO_RCVBUF, (uint8_t *)&size,
-                      sizeof(size));
-    }
-
     cc32xxSockets[reserved] = new_socket.release();
 
     return fd;  
@@ -426,14 +418,6 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
         return -1;
     }
 
-    // constrain the TCP receive window size
-    {
-        SlSockWinsize_t size;
-        size.WinSize = 3000;
-        sl_SetSockOpt(s->sd, SL_SOL_SOCKET, SL_SO_RCVBUF, (uint8_t *)&size,
-                      sizeof(size));
-    }
-
     return result;  
 }
 
@@ -450,6 +434,18 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
     {
         /* get_instance_from_fd() sets the errno appropriately */
         return -1;
+    }
+
+    if (s->readActive == false)
+    {
+        errno = EAGAIN;
+        return -1;
+    }
+
+    if (length > 16000)
+    {
+        /* CC32xx has a limit of 16000 bytes per recv */
+        length = 16000;
     }
 
     int result = sl_Recv(s->sd, buffer, length, flags);
@@ -484,10 +480,7 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
     {
         s->readActive = false;
     }
-    else
-    {
-        s->readActive = true;
-    }
+
     return result;  
 }
 
@@ -506,7 +499,32 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
         return -1;
     }
 
+    /** @todo this is a hack for an sl_Send bandwidth issue in the CC3220 */
+    long long now = OSTime::get_monotonic();
+    portENTER_CRITICAL();
+    if (s->writeActive == false)
+    {
+        if (now < (s->lastWriteTimestamp + MSEC_TO_NSEC(5)))
+        {
+            portEXIT_CRITICAL();
+            errno = EAGAIN;
+            return -1;
+        }
+        s->writeActiveCnt = 0;
+        s->writeActive = true;
+    }
+    portEXIT_CRITICAL();
+
+    if (length > 1460)
+    {
+        /* CC32xx has a limit of 1460 bytes per send */
+        length = 1460;
+    }
+
     int result = sl_Send(s->sd, buffer, length, flags);
+
+    /** @todo this is a hack for an sl_Send bandwidth issue in the CC3220 */
+    s->lastWriteTimestamp = OSTime::get_monotonic();
 
     if (result < 0)
     {
@@ -518,6 +536,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
                 break;
             case SL_ERROR_BSD_EAGAIN:
                 errno = EAGAIN;
+                s->writeActive = false;
                 break;
             case SL_ERROR_BSD_EBADF:
                 errno = EBADF;
@@ -529,14 +548,20 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
         }
         return -1;
     }
+
     if ((size_t)result < length)
     {
         s->writeActive = false;
     }
-    else
+
+    /** @todo this is a hack for an sl_Send bandwidth issue in the CC3220 */
+    portENTER_CRITICAL();
+    if (++s->writeActiveCnt > 1)
     {
-        s->writeActive = true;
+        s->writeActive = false;
     }
+    portEXIT_CRITICAL();
+
     return result;
 }
 

@@ -47,10 +47,6 @@
 #include <ti/drivers/net/wifi/simplelink.h>
 #include <ti/drivers/net/wifi/source/protocol.h>
 
-/** write monitoring is not supported, therefore, enable a "polling" workaround
- */
-//#define SELECT_WRITE_WORKAROUND
-
 /** CC32xx forward declaration Helper */
 struct CC32xxWiFi::WlanEvent : public ::SlWlanEvent_t {};
 
@@ -673,18 +669,8 @@ void CC32xxWiFi::wlan_task()
         SlFdSet_t wfds_tmp = wfds;
         SlFdSet_t efds_tmp = efds;
         SlTimeval_t tv;
-#if defined(SELECT_WRITE_WORKAROUND)
-        if (wfds_tmp.fd_array[0] != 0)
-        {
-            tv.tv_sec = 0;
-            tv.tv_usec = 50000;
-        }
-        else
-#endif
-        {
-            tv.tv_sec = 1;
-            tv.tv_usec = 0;
-        }
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
 
         result = sl_Select(fdHighest + 1, &rfds_tmp, &wfds_tmp, &efds_tmp, &tv);
 
@@ -706,36 +692,27 @@ void CC32xxWiFi::wlan_task()
             }
         }
 
-#if defined(SELECT_WRITE_WORKAROUND)
-        if (result == 0)
-        {
-            for (int i = 0; i < SL_MAX_SOCKETS; ++i)
-            {
-                if (slSockets[i] == -1)
-                {
-                    /* socket slot not in use */
-                    continue;
-                }
-                if (SL_SOCKET_FD_ISSET(slSockets[i], &wfds))
-                {
-                    portENTER_CRITICAL();
-                    SL_SOCKET_FD_CLR(slSockets[i], &wfds);
-                    new_highest();
-                    CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(
-                        slSockets[i]);
-                    portEXIT_CRITICAL();
-                    s->writeActive = true;
-                    s->select_wakeup(&s->selInfoWr);
-                }
-            }
-        }
-#endif
         for (int i = 0; i < SL_MAX_SOCKETS && result > 0; ++i)
         {
             if (slSockets[i] == -1)
             {
                 /* socket slot not in use */
                 continue;
+            }
+            if (SL_SOCKET_FD_ISSET(slSockets[i], &wfds_tmp))
+            {
+                --result;
+                portENTER_CRITICAL();
+                SL_SOCKET_FD_CLR(slSockets[i], &wfds);
+                new_highest();
+                CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
+                portEXIT_CRITICAL();
+                /** @todo this is a hack for an sl_Send bandwidth issue in the
+                 * CC3220
+                 */
+                s->writeActiveCnt = 0;
+                s->writeActive = true;
+                s->select_wakeup(&s->selInfoWr);
             }
             if (SL_SOCKET_FD_ISSET(slSockets[i], &rfds_tmp))
             {
@@ -757,17 +734,6 @@ void CC32xxWiFi::wlan_task()
                     s->readActive = true;
                     s->select_wakeup(&s->selInfoRd);
                 }
-            }
-            if (SL_SOCKET_FD_ISSET(slSockets[i], &wfds_tmp))
-            {
-                --result;
-                portENTER_CRITICAL();
-                SL_SOCKET_FD_CLR(slSockets[i], &wfds);
-                new_highest();
-                CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
-                portEXIT_CRITICAL();
-                s->writeActive = true;
-                s->select_wakeup(&s->selInfoWr);
             }
             if (SL_SOCKET_FD_ISSET(slSockets[i], &efds_tmp))
             {

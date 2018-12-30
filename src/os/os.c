@@ -74,6 +74,7 @@
 
 #include "utils/macros.h"
 #include "os/os.h"
+#include "os/os_private.h"
 
 /** default stdin */
 extern const char *STDIN_DEVICE;
@@ -137,15 +138,6 @@ int fstat(int fd, struct stat* buf)
 
 
 #if defined (__FreeRTOS__)
-/** Task list entriy */
-typedef struct task_list
-{
-    xTaskHandle task; /**< list entry data */
-    char * name; /**< name of task */
-    size_t unused; /**< number of bytes left unused in the stack */
-    struct task_list *next; /**< next link in the list */
-} TaskList;
-
 /** List of all the tasks in the system */
 static TaskList *taskList = NULL;
 
@@ -324,18 +316,7 @@ static void os_thread_start(void *arg)
     vTaskSetThreadLocalStoragePointer(NULL, TLS_INDEX_SELECT_EVENT_BIT, NULL);
     (*priv->entry)(priv->arg);
 
-    vTaskSuspendAll();
-    TaskList *tl;
-    for (tl = taskList; tl != NULL && tl->task != xTaskGetCurrentTaskHandle();
-         tl = tl->next)
-    {
-    }
-    if (tl)
-    {
-        tl->task = NULL;
-        tl->unused = DELETED_TASK_MAGIC;
-    }
-    xTaskResumeAll();
+    del_thread_from_task_list(xTaskGetCurrentTaskHandle());
 
     free(arg);
     vTaskDelete(NULL);
@@ -394,11 +375,29 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **pxTimerTaskTCBBuffer,
 /** Add a thread to the task list for tracking.
  * @param task_new metadata for new task
  */
-static void add_thread_to_task_list(TaskList *task_new)
+void add_thread_to_task_list(TaskList *task_new)
 {
     vTaskSuspendAll();
     task_new->next = taskList;
     taskList = task_new;
+    xTaskResumeAll();
+}
+
+/** Delete a thread from the task list for tracking.
+ * @param task_handle FreeRTOS task handle to delete
+ */
+void del_thread_from_task_list(TaskHandle_t task_handle)
+{
+    vTaskSuspendAll();
+    TaskList *tl;
+    for (tl = taskList; tl != NULL && tl->task != task_handle; tl = tl->next)
+    {
+    }
+    if (tl)
+    {
+        tl->task = NULL;
+        tl->unused = DELETED_TASK_MAGIC;
+    }
     xTaskResumeAll();
 }
 #endif // FreeRTOS
@@ -413,9 +412,11 @@ static void add_thread_to_task_list(TaskList *task_new)
  * @param arg entry parameter to the thread
  * @return 0 upon success or error number upon failure
  */
-int os_thread_create(os_thread_t *thread, const char *name, int priority,
-                     size_t stack_size,
-                     void *(*start_routine) (void *), void *arg)
+int __attribute__((weak)) os_thread_create(os_thread_t *thread,
+                                           const char *name, int priority,
+                                           size_t stack_size,
+                                           void *(*start_routine) (void *),
+                                           void *arg)
 {
     static unsigned int count = 0;
     char auto_name[10];
@@ -844,7 +845,7 @@ static inline void __attribute__((always_inline)) os_yield_trampoline(void)
  * @param arg unused argument
  * @return NULL;
  */
-void main_thread(void *arg)
+static void main_thread(void *arg)
 {
     char *argv[2] = {"openmrn", NULL};
     vTaskSetThreadLocalStoragePointer(NULL, TLS_INDEX_SELECT_EVENT_BIT, NULL);

@@ -1,7 +1,8 @@
 include $(OPENMRNPATH)/etc/cc322x.mk
 DEPS += TICC3220SDKPATH
 
-VPATH := $(TICC3220SDKPATH)/source/ti/drivers/net/wifi \
+VPATH := $(OPENMRNPATH)/src/freertos_drivers/ti \
+         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi \
          $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/source \
          $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/porting \
          $(TICC3220SDKPATH)/source/ti/drivers \
@@ -41,7 +42,7 @@ CSRCS += clock.c \
          sched.c \
          semaphore.c
 
-CXXSRCS +=
+CXXSRCS += SimplelinkPthread.cxx
 
 CFLAGS += -Wno-strict-prototypes
 
