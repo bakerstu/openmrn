@@ -1,16 +1,11 @@
 #ifndef _OPENLCB_SERVOCONSUMER_HXX_
 #define _OPENLCB_SERVOCONSUMER_HXX_
 
-#include <memory>
-#include "os/MmapGpio.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
 #include "freertos_drivers/common/PWM.hxx"
 #include "openlcb/ServoConsumerConfig.hxx"
-
-// namespace {
-// const unsigned servo_ticks_0 = configCPU_CLOCK_HZ * 1 / 1000;
-// const unsigned servo_ticks_180 = configCPU_CLOCK_HZ * 2 / 1000;
-// }
+#include "os/MmapGpio.hxx"
+#include <memory>
 
 namespace openlcb
 {
@@ -21,13 +16,11 @@ namespace openlcb
 class ServoConsumer : public DefaultConfigUpdateListener
 {
 public:
-    ServoConsumer(
-        Node *node, const ServoConsumerConfig &cfg,
-        const uint32_t pwmCountPerMs,
-        PWM *pwm)
+    ServoConsumer(Node *node, const ServoConsumerConfig &cfg,
+        const uint32_t pwmCountPerMs, PWM *pwm)
         : DefaultConfigUpdateListener()
         , pwmCountPerMs_(pwmCountPerMs)
-        , pwm_(pwm) // save for apply_config, where we actually use it.
+        , pwm_(pwm)        // save for apply_config, where we actually use it.
         , pwmGpo_(nullptr) // not initialized until apply_config
         , gpioImpl_(node, 0, 0, DummyPinWithRead())
         , consumer_(&gpioImpl_) // don't connect consumer to PWM yet
@@ -53,10 +46,12 @@ public:
         // Use a weighted average to determine num ticks for max/min.
         const uint32_t cfg_srv_ticks_min =
             ((100 - cfg_servo_min_pct) * servo_ticks_0 +
-             cfg_servo_min_pct * servo_ticks_180) / 100;
+                cfg_servo_min_pct * servo_ticks_180) /
+            100;
         const uint32_t cfg_srv_ticks_max =
             ((100 - cfg_servo_max_pct) * servo_ticks_0 +
-             cfg_servo_max_pct * servo_ticks_180) / 100;
+                cfg_servo_max_pct * servo_ticks_180) /
+            100;
 
         // Defaults to CLR at startup.
         const bool was_set = pwmGpo_ && (pwmGpo_->read() == Gpio::SET);
@@ -77,8 +72,8 @@ public:
                 /*off_counts=*/cfg_srv_ticks_min));
             pwmGpo_->write(was_set ? Gpio::SET : Gpio::CLR);
 
-            new (&gpioImpl_)
-                GPIOBit(saved_node, cfg_event_min, cfg_event_max, pwmGpo_.get());
+            new (&gpioImpl_) GPIOBit(
+                saved_node, cfg_event_min, cfg_event_max, pwmGpo_.get());
             new (&consumer_) BitEventConsumer(&gpioImpl_);
 
             return REINIT_NEEDED;
@@ -105,7 +100,7 @@ private:
     // pwmGpo_ heap-allocated because it's nullptr until first config.
     std::unique_ptr<PWMGPO> pwmGpo_; // has PWM* and on/off counts
 
-    GPIOBit gpioImpl_;                // has on/off events, Node*, and Gpio*
+    GPIOBit gpioImpl_;          // has on/off events, Node*, and Gpio*
     BitEventConsumer consumer_; // has GPIOBit*
     const ServoConsumerConfig cfg_;
 };
