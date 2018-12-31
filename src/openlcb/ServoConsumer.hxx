@@ -1,13 +1,19 @@
-#ifndef _APPLICATIONS_IO_BOARD_TARGET_SERVOCONSUMER_HXX_
-#define _APPLICATIONS_IO_BOARD_TARGET_SERVOCONSUMER_HXX_
+#ifndef _OPENLCB_SERVOCONSUMER_HXX_
+#define _OPENLCB_SERVOCONSUMER_HXX_
 
 #include <memory>
-#include "config.hxx"
 #include "os/MmapGpio.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/common/PWM.hxx"
+#include "openlcb/ServoConsumerConfig.hxx"
 
-const unsigned servo_ticks_0 = configCPU_CLOCK_HZ * 1 / 1000;   // 48k
-const unsigned servo_ticks_180 = configCPU_CLOCK_HZ * 2 / 1000; // 96k
+// namespace {
+// const unsigned servo_ticks_0 = configCPU_CLOCK_HZ * 1 / 1000;
+// const unsigned servo_ticks_180 = configCPU_CLOCK_HZ * 2 / 1000;
+// }
+
+namespace openlcb
+{
 
 // Basically a specialized ConfiguredConsumer.
 // Can't subclass ConfiguredConsumer here because ServoConsumerConfig
@@ -16,8 +22,11 @@ class ServoConsumer : public DefaultConfigUpdateListener
 {
 public:
     ServoConsumer(
-        openlcb::Node *node, const openlcb::ServoConsumerConfig &cfg, PWM *pwm)
+        Node *node, const ServoConsumerConfig &cfg,
+        const uint32_t pwmCountPerMs,
+        PWM *pwm)
         : DefaultConfigUpdateListener()
+        , pwmCountPerMs_(pwmCountPerMs)
         , pwm_(pwm) // save for apply_config, where we actually use it.
         , pwmGpo_(nullptr) // not initialized until apply_config
         , gpioImpl_(node, 0, 0, DummyPinWithRead())
@@ -31,16 +40,21 @@ public:
     {
         AutoNotify n(done);
 
-        const openlcb::EventId cfg_event_min = cfg_.event_rotate_min().read(fd);
-        const openlcb::EventId cfg_event_max = cfg_.event_rotate_max().read(fd);
+        const EventId cfg_event_min = cfg_.event_rotate_min().read(fd);
+        const EventId cfg_event_max = cfg_.event_rotate_max().read(fd);
         const int16_t cfg_servo_min_pct = cfg_.servo_min_percent().read(fd);
         const int16_t cfg_servo_max_pct = cfg_.servo_max_percent().read(fd);
 
+        // 1ms duty cycle
+        const uint32_t servo_ticks_0 = pwmCountPerMs_ * 1;
+        // 2ms duty cycle
+        const uint32_t servo_ticks_180 = pwmCountPerMs_ * 2;
+
         // Use a weighted average to determine num ticks for max/min.
-        const unsigned cfg_srv_ticks_min =
+        const uint32_t cfg_srv_ticks_min =
             ((100 - cfg_servo_min_pct) * servo_ticks_0 +
              cfg_servo_min_pct * servo_ticks_180) / 100;
-        const unsigned cfg_srv_ticks_max =
+        const uint32_t cfg_srv_ticks_max =
             ((100 - cfg_servo_max_pct) * servo_ticks_0 +
              cfg_servo_max_pct * servo_ticks_180) / 100;
 
@@ -59,13 +73,13 @@ public:
             gpioImpl_.~GPIOBit();
 
             pwmGpo_.reset(new PWMGPO(pwm_,
-                /*on_counts=*/cfg_srv_ticks_min,
-                /*off_counts=*/cfg_srv_ticks_max));
+                /*on_counts=*/cfg_srv_ticks_max,
+                /*off_counts=*/cfg_srv_ticks_min));
             pwmGpo_->write(was_set ? Gpio::SET : Gpio::CLR);
 
             new (&gpioImpl_)
-                openlcb::GPIOBit(saved_node, cfg_event_min, cfg_event_max, pwmGpo_.get());
-            new (&consumer_) openlcb::BitEventConsumer(&gpioImpl_);
+                GPIOBit(saved_node, cfg_event_min, cfg_event_max, pwmGpo_.get());
+            new (&consumer_) BitEventConsumer(&gpioImpl_);
 
             return REINIT_NEEDED;
         }
@@ -81,6 +95,9 @@ public:
     }
 
 private:
+    // Used to compute PWM ticks for max/min servo rotation.
+    const uint32_t pwmCountPerMs_;
+
     // not owned; lives forever
     PWM *pwm_; // timer channel
 
@@ -88,9 +105,11 @@ private:
     // pwmGpo_ heap-allocated because it's nullptr until first config.
     std::unique_ptr<PWMGPO> pwmGpo_; // has PWM* and on/off counts
 
-    openlcb::GPIOBit gpioImpl_;                // has on/off events, Node*, and Gpio*
-    openlcb::BitEventConsumer consumer_; // has GPIOBit*
-    const openlcb::ServoConsumerConfig cfg_;
+    GPIOBit gpioImpl_;                // has on/off events, Node*, and Gpio*
+    BitEventConsumer consumer_; // has GPIOBit*
+    const ServoConsumerConfig cfg_;
 };
 
-#endif // _APPLICATIONS_IO_BOARD_TARGET_SERVOCONSUMER_HXX_
+} // namespace openlcb
+
+#endif // _OPENLCB_SERVOCONSUMER_HXX_

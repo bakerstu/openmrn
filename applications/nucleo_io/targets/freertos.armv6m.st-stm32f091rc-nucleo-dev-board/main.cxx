@@ -43,6 +43,7 @@
 #include "openlcb/SimpleStack.hxx"
 #include "openlcb/MultiConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
+#include "openlcb/ServoConsumer.hxx"
 
 #include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
@@ -52,7 +53,6 @@
 #include "config.hxx"
 #include "hardware.hxx"
 #include "PWM.hxx"
-#include "ServoConsumer.hxx"
 #include "i2c.h"
 #include "i2c-dev.h"
 
@@ -136,15 +136,20 @@ constexpr const Gpio *const kDirectGpio[] = {
 openlcb::MultiConfiguredConsumer direct_consumers(stack.node(), kDirectGpio,
     ARRAYSIZE(kDirectGpio), cfg.seg().direct_consumers());
 
+// servoPwmCountPerMs defined in hardware.hxx.
 // PWM* servo_channels[] defined in HwInit.cxx
-ServoConsumer srv0(
-    stack.node(), cfg.seg().servo_consumers().entry<0>(), servo_channels[0]);
-ServoConsumer srv1(
-    stack.node(), cfg.seg().servo_consumers().entry<1>(), servo_channels[1]);
-ServoConsumer srv2(
-    stack.node(), cfg.seg().servo_consumers().entry<2>(), servo_channels[2]);
-ServoConsumer srv3(
-    stack.node(), cfg.seg().servo_consumers().entry<3>(), servo_channels[3]);
+openlcb::ServoConsumer srv0(
+    stack.node(), cfg.seg().servo_consumers().entry<0>(),
+    servoPwmCountPerMs, servo_channels[0]);
+openlcb::ServoConsumer srv1(
+    stack.node(), cfg.seg().servo_consumers().entry<1>(),
+    servoPwmCountPerMs, servo_channels[1]);
+openlcb::ServoConsumer srv2(
+    stack.node(), cfg.seg().servo_consumers().entry<2>(),
+    servoPwmCountPerMs, servo_channels[2]);
+openlcb::ServoConsumer srv3(
+    stack.node(), cfg.seg().servo_consumers().entry<3>(),
+    servoPwmCountPerMs, servo_channels[3]);
 
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:

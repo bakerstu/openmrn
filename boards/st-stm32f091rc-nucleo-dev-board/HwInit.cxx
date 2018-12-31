@@ -75,8 +75,8 @@ static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1900);
 const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
 
 Stm32PWMGroup servo_timer(TIM3,
-    /*prescaler=*/ (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,
-    /*period_counts=*/ configCPU_CLOCK_HZ * 6 / 1000);
+    /*prescaler=*/ (servoPwmCountPerMs * 6 + 65535) / 65536,
+    /*period_counts=*/ servoPwmCountPerMs * 6);
 
 extern PWM* const servo_channels[];
 /// The order of these channels follows the schematic arrangement of MCU pins
@@ -203,6 +203,10 @@ static void clock_setup(void)
 }
 
 /** Initialize the processor hardware.
+ *
+ *  Don't depend on runtime-initialized global variables
+ *  in this function; these will be initialized after
+ *  hw_preinit in startup.c.
  */
 void hw_preinit(void)
 {
