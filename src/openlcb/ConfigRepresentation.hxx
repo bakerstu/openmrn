@@ -107,6 +107,7 @@ public:
     using Offset = GroupConfigOptions::Offset;
     using RepName = GroupConfigOptions::RepName;
     using FixedSize = GroupConfigOptions::FixedSize;
+    using Hidden = GroupConfigOptions::Hidden;
     using Manufacturer = IdentificationConfigOptions::Manufacturer;
     using Model = IdentificationConfigOptions::Model;
     using HwVersion = IdentificationConfigOptions::HwVersion;
