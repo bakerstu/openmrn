@@ -110,13 +110,7 @@ CDI_GROUP_ENTRY(host_name, StringConfigEntry<48>,
 CDI_GROUP_END();
 
 template <class LocalParams> CDI_GROUP(TcpClientConfig);
-enum SearchMode
-{
-    AUTO_MANUAL = 0,
-    MANUAL_AUTO = 1,
-    AUTO_ONLY = 2,
-    MANUAL_ONLY = 3
-};
+// This is of type SocketClientParams::SearchMode.
 CDI_GROUP_ENTRY(search_mode, Uint8ConfigEntry,
     Name(LocalParams::SEARCH_MODE_NAME),
     Description(LocalParams::SEARCH_MODE_DESCR), Min(0), Max(3), Default(0),
