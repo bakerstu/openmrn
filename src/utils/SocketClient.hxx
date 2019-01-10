@@ -47,7 +47,7 @@
 #include "utils/Atomic.hxx"
 #include "utils/format_utils.hxx"
 
-class SocketClient : public StateFlowBase, private OSThread, private Atomic
+class SocketClient : public StateFlowBase, private Atomic
 {
 public:
     /** Connection status that can be sent back to the "owner" of the socket so
@@ -62,54 +62,39 @@ public:
         CONNECT_FAILED,
         CONNECT_FAILED_SELF,
     };
-    
-     /** Constructor.
-     * @param service service that the StateFlowBase will be bound to.
-     * @param mdns service name to connect to, nullptr to force use
-     *                  hostname and port
-     * @param host host to connect to if mdns_name resolution fails,
-     *             nullptr to force use mDNS
-     * @param port port number to connect to if mdns_name resolution fails
-     * @param callback callback method to invoke when a client connection is
-     *                 made successfully.  It is the responsibility of the
-     *                 callee to register the notifiable (on close) if this
-     *                 client shall reattempt the connection if the socket
-     *                 is ever closed.
-     *                 - First param is the file descriptor of the resulting
-     *                   socket
-     *                 - Second param is the struct addrinfo for the connected
-     *                   peer
-     *                 - Third param is a pointer to "this" class to notify
-     *                   on exit that the socket has been torn down.
-     * @param status_callback method for status as the connection attempt
-     *                        progresses. This callback will most likely be from
-     *                        a different thread.
-     * @param retry_seconds time in seconds that the client shall wait to retry
-     *                      connecting on error.
-     * @param timeout_seconds time in seconds that the connect is supposed to
-     *                        timeout and look for a possible shutdown.
-     * @param disallow_local disallow local connections to one's self
+
+    /** Constructor.
+     * @param service service that the StateFlowBase will be bound to. This
+     * service will never be blocked. Externally owned.
+     * @param connect_executor is a thread on which DNS lookups and blocking
+     * connect calls will be attempted. Externally owned. May be shared between
+     * different SocketClients.
+     * @param mdns_executor is a thread on which mdns lookups will be
+     * attempted. May be null if mdns is never used (by the parameters) or may
+     * be the same executor as connect_executor if connect and mdns attempts
+     * ought to be serialized. Externally owned. May be shared between
+     * different SocketClients.
+     * @param params defines all the different parameters on whom to connect
+     * to. Takes ownership.
+     * @param connect_callback callback method to invoke when a client
+     * connection is made successfully. It is unspecified which thread this
+     * callback will be invoked upon.
+     * - First param is the file descriptor of the resulting socket
+     * - Second param is a notifiable (ownership is not transferred). The
+     * callee must invoke this notifiable when the socket has been torn down in
+     * order to restart the search with the same parameters.
      */
-    SocketClient(Service *service, const char *mdns, const char *host,
-                 uint16_t port,
-                 std::function<void(int, struct addrinfo *, Notifiable*)> callback,
-                 std::function<void(Status)> status_callback = nullptr,
-                 uint8_t retry_seconds = 5, uint8_t timeout_seconds = 255,
-                 bool disallow_local = false)
+    SocketClient(Service *service, ExecutorBase *connect_executor,
+        ExecutorBase *mdns_executor, std::unique_ptr<SocketClientParams> params,
+        std::function<void(int, Notifiable *)> connect_callback)
         : StateFlowBase(service)
-        , OSThread()
-        , mdns_(mdns)
-        , host_(host)
-        , port_(port)
+        , params_(std::move(params))
         , callback_(callback)
-        , statusCallback_(status_callback)
+        , connectExecutor_(connect_executor)
+        , mdnsExecutor_(mdns_executor)
         , state_(STATE_CREATED)
         , fd_(-1)
         , addr_(nullptr)
-        , sem_()
-        , retrySeconds_(retry_seconds)
-        , timeoutSeconds_(timeout_seconds)
-        , disallowLocal_(disallow_local)
     {
         HASSERT(mdns_ || (host_ && port_));
         start_flow(STATE(spawn_thread));
@@ -124,6 +109,16 @@ public:
         {
             freeaddrinfo(addr_);
         }
+    }
+
+    /// Updates the parameter structure for this socket client.
+    /// @param params is the parameter structure; ownership will be
+    /// transferred.
+    void reset_params(std::unique_ptr<SocketClientParams> params)
+    {
+        params_.reset(std::move(params));
+        /// @todo (balazs.racz): do we need to somehow wake up the flow and
+        /// make it attempt to reconnect?
     }
 
     /** Shutdown the client so that it can be deleted.
@@ -189,6 +184,79 @@ private:
         STATE_SHUTDOWN, /**< shutdown */
     };
 
+
+    /// Main entry point of the connection process.
+    Action start_connection() {
+        try_last_connect();
+        
+    }
+
+    /// Helper function to attempt to use the reconnect slot. If succeeds, then
+    /// enqueues an asynchronous connection.
+    void try_last_connect() {
+        if (!params_->enable_last()) {
+            return;
+        }
+        int port = params_->last_port();
+        if (port <= 0) {
+            return;
+        }
+        const char* host = params_->last_host_name();
+        if (!host || !*host) {
+            return;
+        }
+        schedule_connect(host, port);
+    }
+
+    /// Helper function to schedule asynchronous work on the connect
+    /// thread. Never blocks.
+    /// @param host hostname (or IP address in text form) to connect to
+    /// @param port port number to connect to.
+    void schedule_connect(const char* host, int port) {
+        connectExecutor_->add(new ConnectExecutable(this, host, port));
+    }
+
+    /// Helper class to schedule blocking work on a different executor. This
+    /// class calls connect_blocking. Owns itself.
+    class ConnectExecutable : public Executable {
+    public:
+        /// @param parent the SocketClient that created us
+        /// @param host hostname (or IP address in text form) to connect to
+        /// @param port port number to connect to.
+        ConnectExecutable(SocketClient* parent, string host, int port)
+            : parent_(parent)
+            , host_(std::move(host))
+            , port_(port) {
+        }
+
+        void run() override {
+            parent_->connect_blocking(host_, port_);
+            delete this;
+        }
+    };
+
+    /// Called on the connect executor.
+    /// @param host hostname (or IP address in text form) to connect to
+    /// @param port port number to connect to.
+    void connect_blocking(const string& host, int port) {
+        struct addrinfo hints;
+
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_flags = 0;
+        hints.ai_protocol = IPPROTO_TCP;
+
+        struct addrinfo* addr;
+        char port_str[30];
+        integer_to_buffer(port, port_str);
+        int ai_ret = getaddrinfo(host.c_str(), port_str, &hints, &addr);
+        std::unique_ptr<struct addrinfo, freeaddrinfo> addr_holder(addr);
+
+        // @todo check request shutdown here
+        
+    }
+    
     /** Entry point to the thread; this thread performs the synchronous network
      * calls (address resolution and connect). The function returns only when
      * the thread needs to be terminated (i.e. after shutdown() is invoked).
@@ -381,20 +449,17 @@ private:
      */
     bool local_test(struct addrinfo *addr);
 
-    /** mDNS service name */
-    const char *mdns_;
+    /// Stores the parameter structure.
+    std::unique_ptr<SocketClientParams> params_;
+    
+    /// callback to call on connection success
+    std::function<void(int, Notifiable*)> callback_ = nullptr;
 
-    /** hostname */
-    const char *host_;
-
-    /** port number */
-    int port_;
-
-    /** callback to call on connection success */
-    std::function<void(int, struct addrinfo *, Notifiable*)> callback_ = nullptr;
-
-    /** callback to call on connection status */
-    std::function<void(Status)> statusCallback_ = nullptr;
+    /// Executor for synchronous (blocking) connect calls. Externally owned.
+    ExecutorBase* connectExecutor_ = nullptr;
+    /// Executor for synchronous (blocking) mDNS lookup calls. Externally
+    /// owned, may be null.
+    ExecutorBase* mdnsExecutor_ = nullptr;
     
     /** current state in the objects lifecycle */
     volatile State state_;
@@ -404,20 +469,6 @@ private:
 
     /** address info metadata */
     struct addrinfo *addr_;
-
-    /** Semaphore for synchronizing with the helper thread */
-    OSSem sem_;
-
-    /** number of seconds between retries */
-    uint8_t retrySeconds_;
-
-    /** time in seconds that the connect is supposed to
-     *  timeout and look for a possible shutdown
-     */
-    uint8_t timeoutSeconds_;
-
-    /** disallow local connections to one's self */
-    bool disallowLocal_;
 
     DISALLOW_COPY_AND_ASSIGN(SocketClient);
 };

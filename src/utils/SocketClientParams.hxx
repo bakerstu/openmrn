@@ -38,7 +38,11 @@
 /// Abstract interface to represent parameters to the socket client. This
 /// interface can be implemented just purely based on compiled-in values,
 /// filled in from optargs or wrapping a configuration location in an openlcb
-/// config space..
+/// config space.
+///
+/// Implementations must be thread-safe (i.e. do locking internally; all
+/// functions of this class may be called from unspecified threads including
+/// also concurrently).
 class SocketClientParams
 {
 public:
@@ -86,7 +90,8 @@ public:
     /// @return the last successfully used port number.
     virtual int last_port() = 0;
 
-    /// This function is called when a connection is successfully established.
+    /// This function is called on an unspecified thread when a connection is
+    /// successfully established.
     /// @param hostname is filled with a dotted decimal representation of the
     /// connected remote host when the connection succeeds.
     /// @param port is the TCP port number.
@@ -113,7 +118,7 @@ public:
     };
 
     /// Notifies the caller about the current phase of the connection. This
-    /// function will be called from an arbitrary thread, so the callee is
+    /// function will be called from an unspecified thread, so the callee is
     /// responsible for locking.
     /// @param id is the enum of the message to emit.
     /// @param arg is a parameter to the message (usually hostname, IP address
@@ -122,8 +127,7 @@ public:
     {
     }
 
-    /// @return How long to wait after a failed connection attempt
-    /// before a new cycle is started.
+    /// @return Minimum time to spend between failed connection attempts.
     virtual int retry_seconds()
     {
         return 5;
