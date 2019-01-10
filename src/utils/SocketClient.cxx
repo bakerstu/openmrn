@@ -55,6 +55,17 @@
 #include "utils/macros.h"
 #include "utils/logging.h"
 
+struct AddrInfoDeleter
+{
+    void operator()(struct addrinfo *s)
+    {
+        if (s)
+        {
+            freeaddrinfo(s);
+        }
+    }
+};
+
 int ConnectSocket(const char *host, int port)
 {
     return SocketClient::connect(host, port);
@@ -96,16 +107,6 @@ int SocketClient::connect(const char *host, const char* port_str)
         return -1;
     }
 
-    struct AddrInfoDeleter
-    {
-        void operator()(struct addrinfo *s)
-        {
-            if (s)
-            {
-                freeaddrinfo(s);
-            }
-        }
-    };
     std::unique_ptr<struct addrinfo, AddrInfoDeleter> ai_deleter(addr);
 
     int fd = ::socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);

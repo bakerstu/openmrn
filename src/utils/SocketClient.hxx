@@ -46,6 +46,7 @@
 #include "os/MDNS.hxx"
 #include "utils/Atomic.hxx"
 #include "utils/format_utils.hxx"
+#include "utils/SocketClientParams.hxx"
 
 class SocketClient : public StateFlowBase, private Atomic
 {
@@ -89,14 +90,15 @@ public:
         std::function<void(int, Notifiable *)> connect_callback)
         : StateFlowBase(service)
         , params_(std::move(params))
-        , callback_(callback)
+        , callback_(connect_callback)
         , connectExecutor_(connect_executor)
         , mdnsExecutor_(mdns_executor)
         , state_(STATE_CREATED)
         , fd_(-1)
         , addr_(nullptr)
     {
-        HASSERT(mdns_ || (host_ && port_));
+        /// @todo copy this somewhere.
+        //HASSERT(mdns_ || (host_ && port_));
         start_flow(STATE(spawn_thread));
     }
 
@@ -116,7 +118,7 @@ public:
     /// transferred.
     void reset_params(std::unique_ptr<SocketClientParams> params)
     {
-        params_.reset(std::move(params));
+        params_ = std::move(params);
         /// @todo (balazs.racz): do we need to somehow wake up the flow and
         /// make it attempt to reconnect?
     }
@@ -150,7 +152,7 @@ public:
                 state_ = STATE_SHUTDOWN_REQUESTED;
             }
         }
-        sem_.post();
+        /// @todo wake up any pending tasks
     }
 
     /** Connects a tcp socket to the specified remote host:port. Returns -1 if
@@ -187,13 +189,18 @@ private:
 
     /// Main entry point of the connection process.
     Action start_connection() {
+        n_.reset(this);
+        fd_ = -1;
         try_last_connect();
-        
+
+        n_.notify();
+        return wait_and_call(STATE(try_last_complete));
     }
 
     /// Helper function to attempt to use the reconnect slot. If succeeds, then
     /// enqueues an asynchronous connection.
-    void try_last_connect() {
+    /// @return true if we will notify *this else
+    bool try_last_connect() {
         if (!params_->enable_last()) {
             return;
         }
@@ -209,52 +216,50 @@ private:
     }
 
     /// Helper function to schedule asynchronous work on the connect
-    /// thread. Never blocks.
-    /// @param host hostname (or IP address in text form) to connect to
+    /// thread. Never blocks. Will deliver exactly one notify to the barrier
+    /// notifiable n_.
+    /// @param host hostname (or IP address in text form) to connect to. Not
+    /// null.
     /// @param port port number to connect to.
-    void schedule_connect(const char* host, int port) {
-        connectExecutor_->add(new ConnectExecutable(this, host, port));
+    void schedule_connect(const char *host, int port)
+    {
+        // Copies the const char* to a string to ensure it remains in
+        // memory. Will be captured by value by the lambda.
+        string host_shadow(host);
+        // we take one barrier.
+        n_.new_child();
+        connectExecutor_->add(
+            new CallbackExecutable([this, host_shadow, port]() {
+                connect_blocking(host_shadow, port);
+            }));
     }
-
-    /// Helper class to schedule blocking work on a different executor. This
-    /// class calls connect_blocking. Owns itself.
-    class ConnectExecutable : public Executable {
-    public:
-        /// @param parent the SocketClient that created us
-        /// @param host hostname (or IP address in text form) to connect to
-        /// @param port port number to connect to.
-        ConnectExecutable(SocketClient* parent, string host, int port)
-            : parent_(parent)
-            , host_(std::move(host))
-            , port_(port) {
-        }
-
-        void run() override {
-            parent_->connect_blocking(host_, port_);
-            delete this;
-        }
-    };
 
     /// Called on the connect executor.
     /// @param host hostname (or IP address in text form) to connect to
     /// @param port port number to connect to.
     void connect_blocking(const string& host, int port) {
-        struct addrinfo hints;
+        fd_ = SocketClient::connect(host.c_str(), port);
+        if (fd_ >= 0) {
+            params_->set_last(host.c_str(), port);
+        }
+        n_.notify();
+    }
 
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_INET;
-        hints.ai_socktype = SOCK_STREAM;
-        hints.ai_flags = 0;
-        hints.ai_protocol = IPPROTO_TCP;
+    /// State that gets invoked once the reconnect attempt is complete.
+    Action try_last_complete() {
+        if (fd_ < 0) {
+            // reconnect failed
+            
+        } else {
+            return call_immediately(STATE(connected));
+            // we have a connection.
+        }
+    }
 
-        struct addrinfo* addr;
-        char port_str[30];
-        integer_to_buffer(port, port_str);
-        int ai_ret = getaddrinfo(host.c_str(), port_str, &hints, &addr);
-        std::unique_ptr<struct addrinfo, freeaddrinfo> addr_holder(addr);
-
-        // @todo check request shutdown here
-        
+    /// State that gets called when we have a completed connection in fd_.
+    Action connected() {
+        callback_(fd_, this);
+        return wait_and_call(STATE(start_connection));
     }
     
     /** Entry point to the thread; this thread performs the synchronous network
@@ -269,6 +274,7 @@ private:
      *
      * @return does not return a value, but exits after shutdown
      */
+#if 0        
     void *entry() override
     {
         int ai_ret = -1;
@@ -405,7 +411,9 @@ private:
         /* should never get here */
         return nullptr;
     }
-
+#endif
+    /// @todo celanup dead code above
+    
     void update_status(Status status)
     {
         if (statusCallback_ != nullptr)
@@ -464,6 +472,8 @@ private:
     /** current state in the objects lifecycle */
     volatile State state_;
 
+    BarrierNotifiable n_;
+    
     /** socket descriptor */
     int fd_;
 
