@@ -89,7 +89,6 @@ public:
         ExecutorBase *mdns_executor, std::unique_ptr<SocketClientParams> params,
         std::function<void(int, Notifiable *)> connect_callback)
         : StateFlowBase(service)
-        , params_(std::move(params))
         , callback_(connect_callback)
         , connectExecutor_(connect_executor)
         , mdnsExecutor_(mdns_executor)
@@ -97,6 +96,7 @@ public:
         , fd_(-1)
         , addr_(nullptr)
     {
+        reset_params(std::move(params));
         /// @todo copy this somewhere.
         //HASSERT(mdns_ || (host_ && port_));
         start_flow(STATE(spawn_thread));
@@ -112,6 +112,22 @@ public:
             freeaddrinfo(addr_);
         }
     }
+
+    /// This enum represents individual states of this state flow that we can
+    /// branch to. The configuration of connection strategy is a sequence of
+    /// these enum values.
+    enum class Attempt : uint8_t {
+        /// Connect to the reconnect slot.
+        RECONNECT,
+        /// Start mDNS lookup.
+        INITIATE_MDNS,
+        /// Connect to mDNS lookup result.
+        CONNECT_MDNS
+        /// Connect to static target.
+        CONNECT_STATIC,
+        /// Attempt complete. Start again.
+        WAIT_RETRY,
+    };
 
     /// Updates the parameter structure for this socket client.
     /// @param params is the parameter structure; ownership will be
@@ -175,7 +191,21 @@ public:
      */
     static int connect(const char *host, const char* port_str);
 
+    /// Converts a struct addrinfo to a dotted-decimal notation IP address.
+    static string address_to_string(struct addrinfo addr);
+    
 private:
+    struct AddrInfoDeleter
+    {
+        void operator()(struct addrinfo *s)
+            {
+                if (s)
+                {
+                    freeaddrinfo(s);
+                }
+            }
+    };
+
     /** Execution state.
      */
     enum State
@@ -186,13 +216,76 @@ private:
         STATE_SHUTDOWN, /**< shutdown */
     };
 
+    /// Parses the params_ configuration and fills in strategyConfig_.
+    void prepare_strategy()
+    {
+        unsigned ofs = 0;
+        auto search = params_->search_mode();
+        if (search != SocketClientParams::MANUAL_ONLY)
+        {
+            strategyConfig_[ofs++] = Attempt::INITIATE_MDNS;
+        }
+        if (params_->enable_last())
+        {
+            strategyConfig_[ofs++] = Attempt::RECONNECT;
+        }
+        switch (search)
+        {
+            case SocketClientParams::AUTO_MANUAL:
+                strategyConfig_[ofs++] = Attempt::CONNECT_MDNS;
+                strategyConfig_[ofs++] = Attempt::CONNECT_STATIC;
+                break;
+            case SocketClientParams::MANUAL_AUTO:
+                strategyConfig_[ofs++] = Attempt::CONNECT_STATIC;
+                strategyConfig_[ofs++] = Attempt::CONNECT_MDNS;
+                break;
+            case SocketClientParams::MANUAL_ONLY:
+                strategyConfig_[ofs++] = Attempt::CONNECT_STATIC;
+                break;
+            case SocketClientParams::AUTO_ONLY:
+                strategyConfig_[ofs++] = Attempt::CONNECT_MDNS;
+                break;
+        }
+        strategyConfig_[ofs++] = Attempt::WAIT_RETRY;
+        HASSERT(ofs <= strategyConfig_.size());
+    }
 
     /// Main entry point of the connection process.
     Action start_connection() {
+        prepare_strategy();
+        {
+            AtomicHolder h(this);
+            strategyOffset_ = 0;
+            mdnsPending_ = false;
+            mdnsJoin_ = false;
+        }
+        return call_immediately(STATE(next_step));
+        
+    }
+
+    /// Execute the next step of the strategy.
+    Action next_step() {
+        Attempt a = Attempt::WAIT_RETRY;
+        if (strategyOffset_ < strategyConfig_.size()) {
+            AtomicHolder h(this);
+            a = strategyConfig_[strategyOffset_++];
+        }
+        switch(a) {
+        case Attemt::WAIT_RETRY:
+            return wait_retry();
+        case Attempt::RECONNECT:
+            return try_last();
+        case Attempt::INITIATE_MDNS:
+            return start_mdns();
+        case Attempt::CONNECT_MDNS:
+            return connect_mdns();
+        }
+    }
+
+    Action try_last() {
         n_.reset(this);
         fd_ = -1;
         try_last_connect();
-
         n_.notify();
         return wait_and_call(STATE(try_last_complete));
     }
@@ -201,9 +294,6 @@ private:
     /// enqueues an asynchronous connection.
     /// @return true if we will notify *this else
     bool try_last_connect() {
-        if (!params_->enable_last()) {
-            return;
-        }
         int port = params_->last_port();
         if (port <= 0) {
             return;
@@ -249,10 +339,10 @@ private:
     Action try_last_complete() {
         if (fd_ < 0) {
             // reconnect failed
-            
+            return next_step();
         } else {
-            return call_immediately(STATE(connected));
             // we have a connection.
+            return connected();
         }
     }
 
@@ -261,7 +351,83 @@ private:
         callback_(fd_, this);
         return wait_and_call(STATE(start_connection));
     }
-    
+
+    /// Turns a parameter to a string.
+    /// @param p is a parameter; may be nullptr or empty.
+    /// @return empty string if p is null or empty, otherwise p (copied).
+    string to_string(const char* p) {
+        if (!p || !*p) return string();
+        return p;
+    }
+
+    /// State that initiates the mdns lookup asynchronously.
+    /// @return next step state.
+    Action start_mdns() {
+        HASSERT(mdnsExecutor_);
+        mdnsAddr_.reset();
+        string srv = to_string(params_->mdns_service_name());
+        string host = to_string(params_->mdns_host_name());
+        if (!srv.empty()) {
+            {
+                AtomicHolder h(this);
+                mdnsPending_ = true;
+            }
+            mdnsExecutor_->add(new CallbackExecutable(
+                [this, host, srv]() { mdns_lookup(host, srv); }));
+        }
+        return call_immediately(STATE(next_step));
+    }
+
+    /// Synchronous function that runs on the mdns executor. Performs the
+    /// lookup.
+    /// @param mdns_service is the service name to look up.
+    /// @param mdns_hostname is ignored for now.
+    void mdns_lookup(string mdns_hostname, string mdns_service) {
+        int ai_ret = -1;
+        struct addrinfo hints;
+
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_flags = 0;
+        hints.ai_protocol = IPPROTO_TCP;
+
+        struct addrinfo* addr = nullptr;
+        params_->log_message(SocketClientParams::MDNS_SEARCH, mdns_service);
+        ai_ret = MDNS::lookup(mdns_service.c_str(), &hints, &addr);
+        mdnsAddr_.reset(addr); // will take care of freeing it.
+        if (ai_ret != 0 || addr_ == nullptr)
+        {
+            params_->log_message(SocketClientParams::MDNS_NOT_FOUND);
+            //LOG(INFO, "mdns lookup for %s failed.", mdns_service.c_str());
+        }
+        else
+        {
+            params_->log_message(SocketClientParams::MDNS_FOUND);
+        }
+        {
+            AtomicHolder h(this);
+            mdnsPending_ = false;
+            if (mdnsJoin_)
+            {
+                // Flow is waiting for mdns result.
+                mdnsJoin_ = false;
+                notify();
+            }
+        }
+    }
+
+    Action connect_mdns() {
+        if (!mdnsAddr_.get()) {
+            // no address to connect to.
+            return call_immediately(STATE(next_step));
+        }
+        char buf[35];
+        if (!inet_ntop(af, sockaddr, buf, sizeof(buf))) {
+            // failed to convert to string.
+        }
+        
+    }
     /** Entry point to the thread; this thread performs the synchronous network
      * calls (address resolution and connect). The function returns only when
      * the thread needs to be terminated (i.e. after shutdown() is invoked).
@@ -468,6 +634,23 @@ private:
     /// Executor for synchronous (blocking) mDNS lookup calls. Externally
     /// owned, may be null.
     ExecutorBase* mdnsExecutor_ = nullptr;
+
+    /// Stores the sequence of operations we need to try.
+    std::array<Attempt, 5> strategyConfig_ = { WAIT_RETRY, };
+    /// What is the next step in the strategy. Index into the strategyConfig_
+    /// array. Guarded by Atomic *this.
+    uint8_t strategyOffset_ : 4;
+
+    /// true if there is a pending mdns lookup operation. Guarded by
+    /// Atomic *this.
+    uint8_t mdnsPending_ : 1;
+
+    /// true if the main flow is waiting for the mdns lookup to
+    /// complete. Guarded by Atomic *this.
+    uint8_t mdnsJoin_ : 1;
+
+    /// Holds the results of the mdns lookup. null if failed (or never ran).
+    std::unique_ptr<struct addrinfo*, AddrInfoDeleter> mdnsAddr_;
     
     /** current state in the objects lifecycle */
     volatile State state_;
