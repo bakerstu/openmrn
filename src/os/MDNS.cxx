@@ -92,6 +92,11 @@ void MDNS::publish(const char *name, const char *service, uint16_t port)
     if (!group_)
     {
         group_ = avahi_entry_group_new(client_, entry_group_callback, this);
+        if (!group_) {
+            fprintf(stderr, "avahi_entry_group_new() failed: %s\n",
+                avahi_strerror(avahi_client_errno(client_)));
+            return;
+        }
         HASSERT(group_);
     }
 
