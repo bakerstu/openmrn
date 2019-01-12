@@ -46,6 +46,20 @@
 class SocketClientParams
 {
 public:
+    /// @return a new socket client params instance that allows only manual
+    /// connection.
+    /// @param hostname is the manual hostname
+    /// @param port is the manual port number
+    static std::unique_ptr<SocketClientParams> from_static(string hostname, int port);
+
+    /// @return a new socket client params instance that allows only manual
+    /// connection.
+    /// @param hostname is the manual hostname
+    /// @param port is the manual port number
+    /// @param mdns_service is the mdns service name
+    static std::unique_ptr<SocketClientParams> from_static_and_mdns(
+        string hostname, int port, string mdns_service);
+
     virtual ~SocketClientParams()
     {
     }
@@ -73,7 +87,7 @@ public:
     /// @return null or empty string if no manual address is
     /// configured. Otherwise a dotted-decimal IP address or a DNS hostname
     /// (not mDNS) for manual address to connect to.
-    virtual const char *manual_address() = 0;
+    virtual const char *manual_host_name() = 0;
 
     /// @return port number to use for manual connection.
     virtual int manual_port() = 0;
@@ -123,7 +137,7 @@ public:
     /// @param id is the enum of the message to emit.
     /// @param arg is a parameter to the message (usually hostname, IP address
     /// etc. Sometimes empty).
-    virtual void log_message(LogMessage id, const string &arg)
+    virtual void log_message(LogMessage id, const string &arg = string())
     {
     }
 

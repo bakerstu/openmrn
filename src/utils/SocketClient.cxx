@@ -55,17 +55,6 @@
 #include "utils/macros.h"
 #include "utils/logging.h"
 
-struct AddrInfoDeleter
-{
-    void operator()(struct addrinfo *s)
-    {
-        if (s)
-        {
-            freeaddrinfo(s);
-        }
-    }
-};
-
 int ConnectSocket(const char *host, int port)
 {
     return SocketClient::connect(host, port);
@@ -132,6 +121,50 @@ int SocketClient::connect(const char *host, const char* port_str)
     return fd;
 }
 
+bool SocketClient::address_to_string(
+    struct addrinfo *addr, string *host, int *port)
+{
+    HASSERT(host && port);
+    *port = -1;
+    host->clear();
+    if (!addr || !addr->ai_addr)
+    {
+        return false;
+    }
+    const char *n = nullptr;
+    char buf[35];
+
+    switch (addr->ai_family)
+    {
+        case AF_INET:
+        {
+            auto *sa = (struct sockaddr_in *)addr->ai_addr;
+            *port = ntohs(sa->sin_port);
+            n = inet_ntop(addr->ai_family, &sa->sin_addr, buf, sizeof(buf));
+            break;
+        }
+        case AF_INET6:
+        {
+            auto *sa = (struct sockaddr_in6 *)addr->ai_addr;
+            *port = ntohs(sa->sin6_port);
+            n = inet_ntop(addr->ai_family, &sa->sin6_addr, buf, sizeof(buf));
+            break;
+        }
+        default:
+            LOG(INFO, "unsupported address type.");
+            errno = EAFNOSUPPORT;
+            return false;
+    }
+    if (!n)
+    {
+        // failed to convert to string.
+        LOG(INFO, "Failed to convert sockaddr to string: %s", strerror(errno));
+        return false;
+    }
+    *host = buf;
+    return true;
+}
+
 /*
  * SocketClient::local_test()
  */
@@ -171,5 +204,92 @@ bool SocketClient::local_test(struct addrinfo *addr)
 
     return local;
 }
+
+
+class DefaultSocketClientParams : public SocketClientParams {
+public:
+    /// @return search mode for how to locate the server.
+    SearchMode search_mode() override
+    {
+        return AUTO_MANUAL;
+    }
+
+    /// @return the service name to use for mDNS lookup; nullptr or empty
+    /// string if mdns is not to be used.
+    const char *mdns_service_name() override
+    {
+        return mdnsService_.c_str();
+    }
+
+    /// @return null or empty string if any mdns server is okay to connect
+    /// to. If nonempty, then only an mdns server will be chosen that has the
+    /// specific host name.
+    const char *mdns_host_name() override
+    {
+        return nullptr;
+    }
+
+    /// @return null or empty string if no manual address is
+    /// configured. Otherwise a dotted-decimal IP address or a DNS hostname
+    /// (not mDNS) for manual address to connect to.
+    const char *manual_host_name() override
+    {
+        return staticHost_.c_str();
+    }
+
+    /// @return port number to use for manual connection.
+    int manual_port() override
+    {
+        return staticPort_;
+    }
+
+    /// @return true if first attempt should be to connect to
+    /// last_host_name:last_port.
+    bool enable_last() override
+    {
+        return false;
+    }
+
+    /// @return the last successfully used IP address, as dotted
+    /// decimal. Nullptr or empty if no successful connection has ever been
+    /// made.
+    const char *last_host_name() override
+    {
+        return nullptr;
+    }
+
+    /// @return the last successfully used port number.
+    int last_port() override
+    {
+        return -1;
+    }
+
+private:
+    friend std::unique_ptr<SocketClientParams> SocketClientParams::from_static(
+        string hostname, int port);
+    friend std::unique_ptr<SocketClientParams> SocketClientParams::from_static_and_mdns(
+        string hostname, int port, string mdns_service);
+
+    string staticHost_;
+    int staticPort_ = -1;
+    string mdnsService_;
+};
+
+std::unique_ptr<SocketClientParams> SocketClientParams::from_static(string hostname, int port) {
+    std::unique_ptr<DefaultSocketClientParams> p(new DefaultSocketClientParams);
+    p->staticHost_ = std::move(hostname);
+    p->staticPort_ = port;
+    return p;
+}
+
+std::unique_ptr<SocketClientParams> SocketClientParams::from_static_and_mdns(
+    string hostname, int port, string mdns_service) {
+    std::unique_ptr<DefaultSocketClientParams> p(new DefaultSocketClientParams);
+    p->staticHost_ = std::move(hostname);
+    p->staticPort_ = port;
+    p->mdnsService_ = std::move(mdns_service);
+    return p;
+}
+
 
 #endif // __linux__
