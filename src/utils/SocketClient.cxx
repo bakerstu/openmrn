@@ -65,7 +65,8 @@ int ConnectSocket(const char *host, const char* port_str)
     return SocketClient::connect(host, port_str);
 }
 
-SocketClient::AddrinfoPtr SocketClient::string_to_address(const char *host, const char* port_str)
+SocketClient::AddrinfoPtr SocketClient::string_to_address(
+    const char *host, const char *port_str)
 {
     struct addrinfo *addr;
     struct addrinfo hints;
@@ -97,10 +98,10 @@ int SocketClient::connect(const char *host, const char *port_str)
     return fd;
 }
 
-int SocketClient::connect(struct addrinfo* addr)
+int SocketClient::connect(struct addrinfo *addr)
 {
 #ifdef __linux__
-    // We expect write failures to occur but we want to handle them where 
+    // We expect write failures to occur but we want to handle them where
     // the error occurs rather than in a SIGPIPE handler.
     signal(SIGPIPE, SIG_IGN);
 #endif
@@ -215,8 +216,8 @@ bool SocketClient::local_test(struct addrinfo *addr)
     return local;
 }
 
-
-class DefaultSocketClientParams : public EmptySocketClientParams {
+class DefaultSocketClientParams : public EmptySocketClientParams
+{
 public:
     /// @return the service name to use for mDNS lookup; nullptr or empty
     /// string if mdns is not to be used.
@@ -242,7 +243,8 @@ public:
 private:
     friend std::unique_ptr<SocketClientParams> SocketClientParams::from_static(
         string hostname, int port);
-    friend std::unique_ptr<SocketClientParams> SocketClientParams::from_static_and_mdns(
+    friend std::unique_ptr<SocketClientParams>
+    SocketClientParams::from_static_and_mdns(
         string hostname, int port, string mdns_service);
 
     string staticHost_;
@@ -250,7 +252,9 @@ private:
     string mdnsService_;
 };
 
-std::unique_ptr<SocketClientParams> SocketClientParams::from_static(string hostname, int port) {
+std::unique_ptr<SocketClientParams> SocketClientParams::from_static(
+    string hostname, int port)
+{
     std::unique_ptr<DefaultSocketClientParams> p(new DefaultSocketClientParams);
     p->staticHost_ = std::move(hostname);
     p->staticPort_ = port;
@@ -258,13 +262,13 @@ std::unique_ptr<SocketClientParams> SocketClientParams::from_static(string hostn
 }
 
 std::unique_ptr<SocketClientParams> SocketClientParams::from_static_and_mdns(
-    string hostname, int port, string mdns_service) {
+    string hostname, int port, string mdns_service)
+{
     std::unique_ptr<DefaultSocketClientParams> p(new DefaultSocketClientParams);
     p->staticHost_ = std::move(hostname);
     p->staticPort_ = port;
     p->mdnsService_ = std::move(mdns_service);
     return p;
 }
-
 
 #endif // __linux__

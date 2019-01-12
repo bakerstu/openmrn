@@ -73,7 +73,7 @@ class CallbackExecutable : public Executable
 public:
     /// Constructor. @param body is the function object that will be called
     /// when *this is executed, just before *this is deleted.
-    CallbackExecutable(std::function<void()>&& body)
+    CallbackExecutable(std::function<void()> &&body)
         : body_(std::move(body))
     {
     }

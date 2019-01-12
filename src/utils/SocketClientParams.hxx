@@ -50,7 +50,8 @@ public:
     /// connection.
     /// @param hostname is the manual hostname
     /// @param port is the manual port number
-    static std::unique_ptr<SocketClientParams> from_static(string hostname, int port);
+    static std::unique_ptr<SocketClientParams> from_static(
+        string hostname, int port);
 
     /// @return a new socket client params instance that allows only manual
     /// connection.

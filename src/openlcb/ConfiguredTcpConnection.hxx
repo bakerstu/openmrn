@@ -105,8 +105,8 @@ CDI_GROUP_END();
 template <class LocalParams> CDI_GROUP(TcpAutoAddress);
 CDI_GROUP_ENTRY(service_name, StringConfigEntry<48>,
     Name(LocalParams::SERVICE_NAME), Description(LocalParams::SERVICE_DESCR));
-CDI_GROUP_ENTRY(host_name, StringConfigEntry<48>,
-    Name(LocalParams::HOST_NAME), Description(LocalParams::HOST_DESCR));
+CDI_GROUP_ENTRY(host_name, StringConfigEntry<48>, Name(LocalParams::HOST_NAME),
+    Description(LocalParams::HOST_DESCR));
 CDI_GROUP_END();
 
 template <class LocalParams> CDI_GROUP(TcpClientConfig);
@@ -126,8 +126,7 @@ CDI_GROUP_ENTRY(reconnect, Uint8ConfigEntry, Name(LocalParams::RECONNECT_NAME),
     MapValues(LocalParams::RECONNECT_MAP));
 /// Internal storage for the last working address. If the IP address field is
 /// clear, there is no last known good address.
-CDI_GROUP_ENTRY(
-    last_address, TcpManualAddress<LocalParams>, Hidden(true));
+CDI_GROUP_ENTRY(last_address, TcpManualAddress<LocalParams>, Hidden(true));
 CDI_GROUP_END();
 
 } // namespace openlcb

@@ -159,9 +159,13 @@ TEST_F(SocketClientTest, connect_mdns)
     wait();
 }
 
-class LocalTestSocketClientParams : public EmptySocketClientParams {
+class LocalTestSocketClientParams : public EmptySocketClientParams
+{
 public:
-    LocalTestSocketClientParams(SocketClientTest* parent) : parent_(parent) {}
+    LocalTestSocketClientParams(SocketClientTest *parent)
+        : parent_(parent)
+    {
+    }
 
     const char *manual_host_name() override
     {
@@ -185,19 +189,22 @@ public:
     }
 
 private:
-    SocketClientTest* parent_;
+    SocketClientTest *parent_;
 };
 
 TEST_F(SocketClientTest, connect_host_disallow_local)
 {
     sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
         &g_connect_executor, &g_mdns_executor,
-                               std::make_unique<LocalTestSocketClientParams>(this),
+        std::make_unique<LocalTestSocketClientParams>(this),
         std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
 
     EXPECT_CALL(*this, connect_callback(_, sc_.get())).Times(0);
-    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_MANUAL, _)).Times(AtLeast(1));
-    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_FAILED_SELF, _)).Times(AtLeast(1));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_MANUAL, _))
+        .Times(AtLeast(1));
+    EXPECT_CALL(
+        *this, status_callback(SocketClientParams::CONNECT_FAILED_SELF, _))
+        .Times(AtLeast(1));
 
     usleep(40000);
     wait();
