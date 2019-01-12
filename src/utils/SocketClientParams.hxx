@@ -128,6 +128,8 @@ public:
         CONNECT_MDNS,
         /// Connecting to manual target. Arg is hostname:port.
         CONNECT_MANUAL,
+        /// Connection dropped because target is localhost.
+        CONNECT_FAILED_SELF,
         CONNECTION_LOST
     };
 
@@ -158,6 +160,67 @@ public:
     virtual bool disallow_local()
     {
         return false;
+    }
+};
+
+/// Default implementation that supplies no connection method.
+class EmptySocketClientParams : public SocketClientParams
+{
+public:
+    /// @return search mode for how to locate the server.
+    SearchMode search_mode() override
+    {
+        return AUTO_MANUAL;
+    }
+
+    /// @return the service name to use for mDNS lookup; nullptr or empty
+    /// string if mdns is not to be used.
+    const char *mdns_service_name() override
+    {
+        return nullptr;
+    }
+
+    /// @return null or empty string if any mdns server is okay to connect
+    /// to. If nonempty, then only an mdns server will be chosen that has the
+    /// specific host name.
+    const char *mdns_host_name() override
+    {
+        return nullptr;
+    }
+
+    /// @return null or empty string if no manual address is
+    /// configured. Otherwise a dotted-decimal IP address or a DNS hostname
+    /// (not mDNS) for manual address to connect to.
+    const char *manual_host_name() override
+    {
+        return nullptr;
+    }
+
+    /// @return port number to use for manual connection.
+    int manual_port() override
+    {
+        return -1;
+    }
+
+    /// @return true if first attempt should be to connect to
+    /// last_host_name:last_port.
+    bool enable_last() override
+    {
+        return false;
+    }
+
+    /// @return the last successfully used IP address, as dotted
+    /// decimal. Nullptr or empty if no successful connection has ever been
+    /// made.
+    const char *last_host_name() override
+    {
+        return nullptr;
+    }
+
+    /// @return the last successfully used port number.
+    int last_port() override
+    {
+        return -1;
     }
 };
 

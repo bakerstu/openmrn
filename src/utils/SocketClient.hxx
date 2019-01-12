@@ -97,6 +97,7 @@ public:
         , mdnsJoin_(false)
         , sleeping_(false)
         , requestShutdown_(false)
+        , isConnected_(false)
         , fd_(-1)
     {
         reset_params(std::move(params));
@@ -110,6 +111,19 @@ public:
         shutdown();
     }
 
+    struct AddrInfoDeleter
+    {
+        void operator()(struct addrinfo *s)
+            {
+                if (s)
+                {
+                    freeaddrinfo(s);
+                }
+            }
+    };
+
+    typedef std::unique_ptr<struct addrinfo, AddrInfoDeleter> AddrinfoPtr;
+    
     /// This enum represents individual states of this state flow that we can
     /// branch to. The configuration of connection strategy is a sequence of
     /// these enum values.
@@ -153,9 +167,18 @@ public:
     {
         {
             AtomicHolder h(this);
+            if (requestShutdown_)
+            {
+                return;
+            }
             requestShutdown_ = true;
             if (sleeping_) {
+                sleeping_ = false;
                 timer_.ensure_triggered();
+            }
+            if (isConnected_) {
+                isConnected_ = false;
+                notify();
             }
         }
         /// @todo wake up any pending tasks
@@ -169,7 +192,9 @@ public:
      *
      *  @return fd of the connected socket.
      */
-    static int connect(const char *host, int port);
+    static int connect(const char *host, int port) {
+        return connect(host, integer_to_string(port).c_str());
+    }
 
     /** Connects a tcp socket to the specified remote host:port. Returns -1 if
      *  unsuccessful; returns the fd if successful.
@@ -181,25 +206,42 @@ public:
      */
     static int connect(const char *host, const char* port_str);
 
+    /** Connects a tcp socket to the specified remote address. Returns -1 if
+     *  unsuccessful; returns the fd if successful.
+     *
+     *  @param addr IP(v4/v6) addrinfo structure describing the remote host. May
+     *  be null. Ownership is not transferred. Will not be used after the
+     *  funciton returns.
+     *
+     *  @return fd of the connected socket.
+     */
+    static int connect(struct addrinfo* addr);
+
     /// Converts a struct addrinfo to a dotted-decimal notation IP address.
     /// @param addr is an addrinfo returned by getaddrinfo or gethostbyname.
     /// @param host will be filled with dotted-decimal IP address.
     /// @param port will be filled with the port number.
     /// @return true on success.
-    static bool address_to_string(struct addrinfo* addr, string* host, int* port);
+    static bool address_to_string(
+        struct addrinfo *addr, string *host, int *port);
+
+    /// Converts a hostname string and port number to a struct addrinfo.
+    /// @param host hostname to connect to.
+    /// @param port port number to connect to.
+    /// @return a struct addrinfo; ownership is transferred.
+    static AddrinfoPtr string_to_address(const char* host, int port) {
+        return string_to_address(host, integer_to_string(port).c_str());
+    }
+
+    /// Converts a hostname string (or null) and port number (or service name)
+    /// to a struct addrinfo.
+    /// @param host hostname to connect to.
+    /// @param port port name or service name to connect to.
+    /// @return a struct addrinfo; ownership is transferred to the caller.
+    static AddrinfoPtr string_to_address(
+        const char *host, const char *port_str);
 
 private:
-    struct AddrInfoDeleter
-    {
-        void operator()(struct addrinfo *s)
-            {
-                if (s)
-                {
-                    freeaddrinfo(s);
-                }
-            }
-    };
-
     /** Execution state.
      */
     enum State
@@ -269,6 +311,7 @@ private:
             strategyOffset_ = 0;
             mdnsPending_ = false;
             mdnsJoin_ = false;
+            mdnsAddr_.reset();
         }
         return call_immediately(STATE(next_step));
     }
@@ -334,11 +377,16 @@ private:
     /// @param host hostname (or IP address in text form) to connect to
     /// @param port port number to connect to.
     void connect_blocking(const string& host, int port) {
-        fd_ = SocketClient::connect(host.c_str(), port);
+        AutoNotify an(&n_);
+        auto addr = SocketClient::string_to_address(host.c_str(), port);
+        if (params_->disallow_local() && local_test(addr.get())) {
+            params_->log_message(SocketClientParams::CONNECT_FAILED_SELF);
+            return;
+        }
+        fd_ = SocketClient::connect(addr.get());
         if (fd_ >= 0) {
             params_->set_last(host.c_str(), port);
         }
-        n_.notify();
     }
 
     /// State that gets invoked once the reconnect attempt is complete.
@@ -354,6 +402,10 @@ private:
 
     /// State that gets called when we have a completed connection in fd_.
     Action connected() {
+        {
+            AtomicHolder h(this);
+            isConnected_ = true;
+        }
         callback_(fd_, this);
         return wait_and_call(STATE(start_connection));
     }
@@ -457,6 +509,14 @@ private:
     /// until the timeout specified in the params, then goes back to the
     /// start_connection.
     Action wait_retry() {
+        {
+            AtomicHolder h(this);
+            if (requestShutdown_)
+            {
+                return exit();
+            }
+            sleeping_ = true;
+        }
         long long end_time = startTime_ + SEC_TO_NSEC(params_->retry_seconds());
         timer_.start_absolute(end_time);
         return wait_and_call(STATE(sleep_done));
@@ -650,7 +710,7 @@ private:
     std::array<Attempt, 5> strategyConfig_ = { Attempt::WAIT_RETRY, };
     /// What is the next step in the strategy. Index into the strategyConfig_
     /// array. Guarded by Atomic *this.
-    uint8_t strategyOffset_ : 4;
+    uint8_t strategyOffset_ : 3;
 
     /// true if there is a pending mdns lookup operation. Guarded by
     /// Atomic *this.
@@ -666,8 +726,12 @@ private:
     /// true if an external agent requested the flow to exit.
     uint8_t requestShutdown_ : 1;
 
+    /// true if we are connected and waiting for a client notification to
+    /// restart.
+    uint8_t isConnected_ : 1;
+
     /// Holds the results of the mdns lookup. null if failed (or never ran).
-    std::unique_ptr<struct addrinfo, AddrInfoDeleter> mdnsAddr_;
+    AddrinfoPtr mdnsAddr_;
 
     BarrierNotifiable n_;
 

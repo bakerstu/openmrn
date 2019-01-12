@@ -65,21 +65,7 @@ int ConnectSocket(const char *host, const char* port_str)
     return SocketClient::connect(host, port_str);
 }
 
-int SocketClient::connect(const char *host, int port)
-{
-#ifdef __linux__
-    // We expect write failures to occur but we want to handle them where 
-    // the error occurs rather than in a SIGPIPE handler.
-    signal(SIGPIPE, SIG_IGN);
-#endif
-
-    char port_str[30];
-    integer_to_buffer(port, port_str);
-
-    return SocketClient::connect(host, port_str);
-}
-
-int SocketClient::connect(const char *host, const char* port_str)
+SocketClient::AddrinfoPtr SocketClient::string_to_address(const char *host, const char* port_str)
 {
     struct addrinfo *addr;
     struct addrinfo hints;
@@ -93,11 +79,36 @@ int SocketClient::connect(const char *host, const char* port_str)
     {
         LOG_ERROR("getaddrinfo failed for '%s': %s", host,
                   gai_strerror(ai_ret));
-        return -1;
+        return {nullptr};
     }
 
-    std::unique_ptr<struct addrinfo, AddrInfoDeleter> ai_deleter(addr);
+    AddrinfoPtr ai_deleter(addr);
+    return ai_deleter;
+}
 
+int SocketClient::connect(const char *host, const char *port_str)
+{
+    int fd = connect(string_to_address(host, port_str).get());
+    if (fd >= 0)
+    {
+        LOG(INFO, "Connected to %s:%s. fd=%d", host ? host : "mDNS", port_str,
+            fd);
+    }
+    return fd;
+}
+
+int SocketClient::connect(struct addrinfo* addr)
+{
+#ifdef __linux__
+    // We expect write failures to occur but we want to handle them where 
+    // the error occurs rather than in a SIGPIPE handler.
+    signal(SIGPIPE, SIG_IGN);
+#endif
+
+    if (!addr)
+    {
+        return -1;
+    }
     int fd = ::socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (fd < 0)
     {
@@ -117,7 +128,6 @@ int SocketClient::connect(const char *host, const char* port_str)
     ERRNOCHECK("setsockopt(nodelay)",
                ::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)));
 
-    LOG(INFO, "Connected to %s:%s. fd=%d", host ? host : "mDNS", port_str, fd);
     return fd;
 }
 
@@ -206,27 +216,13 @@ bool SocketClient::local_test(struct addrinfo *addr)
 }
 
 
-class DefaultSocketClientParams : public SocketClientParams {
+class DefaultSocketClientParams : public EmptySocketClientParams {
 public:
-    /// @return search mode for how to locate the server.
-    SearchMode search_mode() override
-    {
-        return AUTO_MANUAL;
-    }
-
     /// @return the service name to use for mDNS lookup; nullptr or empty
     /// string if mdns is not to be used.
     const char *mdns_service_name() override
     {
         return mdnsService_.c_str();
-    }
-
-    /// @return null or empty string if any mdns server is okay to connect
-    /// to. If nonempty, then only an mdns server will be chosen that has the
-    /// specific host name.
-    const char *mdns_host_name() override
-    {
-        return nullptr;
     }
 
     /// @return null or empty string if no manual address is
@@ -241,27 +237,6 @@ public:
     int manual_port() override
     {
         return staticPort_;
-    }
-
-    /// @return true if first attempt should be to connect to
-    /// last_host_name:last_port.
-    bool enable_last() override
-    {
-        return false;
-    }
-
-    /// @return the last successfully used IP address, as dotted
-    /// decimal. Nullptr or empty if no successful connection has ever been
-    /// made.
-    const char *last_host_name() override
-    {
-        return nullptr;
-    }
-
-    /// @return the last successfully used port number.
-    int last_port() override
-    {
-        return -1;
     }
 
 private:
