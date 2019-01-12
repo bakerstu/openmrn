@@ -91,7 +91,7 @@ public:
         shutdown();
     }
 
-#if defined (__linux__)
+#if defined(__linux__)
     /// Requests that all exported services be cancelled, helper thread to exit,
     /// and all memory cleaned up. Blocks until the exit is completed.
     void shutdown();
