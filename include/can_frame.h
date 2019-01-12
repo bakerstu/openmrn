@@ -63,7 +63,7 @@
         (_frame).can_id += ((_value) & CAN_SFF_MASK);   \
     }
 
-#elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || defined (__WIN32__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || defined (__WIN32__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ESP32)
     #include <stdint.h>
 
     struct can_frame
@@ -103,35 +103,6 @@
     #define GET_CAN_FRAME_ID(_frame)      (_frame).can_id
     #define SET_CAN_FRAME_ID_EFF(_frame, _value)  (_frame).can_id = ((_value) & 0x1FFFFFFFU)
     #define SET_CAN_FRAME_ID(_frame, _value)     (_frame).can_id = ((_value) & 0x7ffU)
-#elif defined(ESP32)
-    #include "driver/can.h"
-    typedef can_message_t can_frame;
-
-    #define CAN_SFF_MASK 0x000007FFU /* standard frame format (SFF) */
-    #define CAN_EFF_MASK 0x1FFFFFFFU /* extended frame format (EFF) */
-
-    #define SET_CAN_FRAME_EFF(_frame) (_frame).flags |= CAN_MSG_FLAG_EXTD
-    #define SET_CAN_FRAME_RTR(_frame) (_frame).flags |= CAN_MSG_FLAG_RTR
-    #define SET_CAN_FRAME_ERR(_frame) (_frame).can_id |= CAN_ERR_FLAG
-    #define CLR_CAN_FRAME_EFF(_frame) (_frame).flags &= ~CAN_MSG_FLAG_EXTD
-    #define CLR_CAN_FRAME_RTR(_frame) (_frame).flags &= ~CAN_MSG_FLAG_RTR
-    #define CLR_CAN_FRAME_ERR(_frame) (_frame).can_id &= ~CAN_ERR_FLAG
-    #define IS_CAN_FRAME_EFF(_frame) ((_frame).can_id & CAN_MSG_FLAG_EXTD)
-    #define IS_CAN_FRAME_RTR(_frame) ((_frame).flags & CAN_MSG_FLAG_RTR)
-    #define IS_CAN_FRAME_ERR(_frame) ((_frame).can_id & CAN_ERR_FLAG)
-
-    #define GET_CAN_FRAME_ID_EFF(_frame) ((_frame).can_id & CAN_EFF_MASK)
-    #define GET_CAN_FRAME_ID(_frame)     ((_frame).identifier & CAN_SFF_MASK)
-    #define SET_CAN_FRAME_ID_EFF(_frame, _value) \
-    {                                            \
-        (_frame).can_id &= ~CAN_EFF_MASK;        \
-        (_frame).can_id += ((_value) & CAN_EFF_MASK);   \
-    }
-    #define SET_CAN_FRAME_ID(_frame, _value) \
-    {                                        \
-        (_frame).can_id &= ~CAN_SFF_MASK;    \
-        (_frame).can_id += ((_value) & CAN_SFF_MASK);   \
-    }
 #else
 #error No CAN frame representation for your OS
 #endif
