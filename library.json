@@ -1,0 +1,25 @@
+{
+    "name":"OpenMRN",
+    "description":"OpenMRN (Open Model Railroad Network) is a set of software libraries that are designed to make it easier to implement support for the NMRA's LCC (Layout Command Control) bus.",
+    "keywords":"openlcb",
+    "authors": [
+        {
+            "name":"Stuart Baker"
+        },
+        {
+            "name":"Balaza Racz"
+        }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/bakerstu/openmrn"
+    },
+    "version": "1.0.0",
+    "license": "BSD-2-Clause",
+    "frameworks": "arduino",
+    "platforms": "espressif32",
+    "build": {
+      "libCompatMode": 2
+    }  
+  }
+  

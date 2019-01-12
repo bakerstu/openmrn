@@ -37,6 +37,14 @@
 
 #include "utils/macros.h"
 
+#if defined(ESP32)
+#undef LOW
+#undef HIGH
+#undef INPUT
+#undef OUTPUT
+#endif
+
+
 /** OS-independent abstraction for GPIO.
  */
 class Gpio

@@ -39,7 +39,7 @@
 #include "utils/Atomic.hxx"
 #include "os/os.h"
 
-#ifdef __FreeRTOS__
+#if defined(__FreeRTOS__) && !defined(ESP32)
 #include "Devtab.hxx"
 #else
 #include <signal.h>
@@ -75,9 +75,10 @@ public:
     {
         // Gets the current thread.
         thread_ = os_thread_self();
-#ifdef __FreeRTOS__
+#if defined(__FreeRTOS__) && !defined(ESP32)
         Device::select_insert(&selectInfo_);
 #elif defined(ESP_NONOS)
+#elif defined(ESP32)
 #elif !defined(__WINNT__)
         // Blocks SIGUSR1 in the signal mask of the current thread.
         sigset_t usrmask;
@@ -107,12 +108,12 @@ public:
         }
         if (need_wakeup)
         {
-#ifdef __FreeRTOS__
+#if defined(__FreeRTOS__) && !defined(ESP32)
             HASSERT(selectInfo_.event);
             // We cannot destroy the thread ID in the local object.
             Device::SelectInfo copy(selectInfo_);
             Device::select_wakeup(&copy);
-#elif defined(__WINNT__) || defined(ESP_NONOS)
+#elif defined(__WINNT__) || defined(ESP_NONOS) || defined(ESP32)
 #else
             pthread_kill(thread_, WAKEUP_SIG);
 #endif
@@ -126,7 +127,7 @@ public:
         pendingWakeup_ = false;
     }
 
-#ifdef __FreeRTOS__
+#if defined(__FreeRTOS__) && !defined(ESP32)
     void wakeup_from_isr()
     {
         pendingWakeup_ = true;
@@ -167,12 +168,12 @@ public:
             }
             else
             {
-#ifdef __FreeRTOS__
+#if defined(__FreeRTOS__) && !defined(ESP32)
                 Device::select_clear();
 #endif
             }
         }
-#ifdef __FreeRTOS__
+#if defined(__FreeRTOS__) && !defined(ESP32)
         int ret =
             Device::select(nfds, readfds, writefds, exceptfds, deadline_nsec);
         if (!ret && pendingWakeup_)
@@ -180,7 +181,7 @@ public:
             ret = -1;
             errno = EINTR;
         }
-#elif defined(__WINNT__) || defined(ESP_NONOS)
+#elif defined(__WINNT__) || defined(ESP_NONOS) || defined(ESP32)
         struct timeval timeout;
         timeout.tv_sec = deadline_nsec / 1000000000;
         timeout.tv_usec = (deadline_nsec / 1000) % 1000000;
@@ -202,7 +203,7 @@ public:
     }
 
 private:
-#if !defined(__FreeRTOS__) && !defined(__WINNT__)
+#if !defined(__FreeRTOS__) && !defined(__WINNT__) && !defined(ESP32)
     /** This signal is used for the wakeup kill in a pthreads OS. */
     static const int WAKEUP_SIG = SIGUSR1;
 #endif
@@ -212,7 +213,7 @@ private:
     bool inSelect_;
     /// ID of the main thread we are engaged upon.
     os_thread_t thread_;
-#if defined(__FreeRTOS__)
+#if defined(__FreeRTOS__) && !defined(ESP32)
     Device::SelectInfo selectInfo_;
 #elif !defined(__WINNT__)
     /// Original signal mask. Used for pselect to reenable the signal we'll be

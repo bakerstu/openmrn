@@ -185,7 +185,7 @@ extern const char* g_death_file;
 #define C_STATIC_ASSERT(expr, name) \
     typedef unsigned char __attribute__((unused)) __static_assert_##name[expr ? 0 : -1]
 
-#ifndef ESP_NONOS
+#if !defined(ESP_NONOS) && !defined(ESP32)
 /// Declares (on the ESP8266) that the current function is not executed too
 /// often and should be placed in the SPI flash.
 #define ICACHE_FLASH_ATTR

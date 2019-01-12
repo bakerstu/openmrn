@@ -48,6 +48,11 @@
 #include <semphr.h>
 #include <event_groups.h>
 #elif defined(ESP_NONOS)
+#elif defined (ESP32)
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+#include <freertos/event_groups.h>
 #else
 #include <pthread.h>
 #include <semaphore.h>
