@@ -34,6 +34,7 @@
 #include "utils/SocketClient.hxx"
 
 #include "os/MDNS.hxx"
+#include "os/OS.hxx"
 #include "utils/socket_listener.hxx"
 #include "utils/async_if_test_helper.hxx"
 
@@ -50,6 +51,8 @@ public:
     MOCK_METHOD2(connect_callback, void(int fd, Notifiable *on_exit));
 
     MOCK_METHOD2(status_callback, void(SocketClientParams::LogMessage, string));
+
+    MOCK_METHOD2(last_callback, void(string, int));
 
 protected:
     SocketClientTest()
@@ -138,7 +141,7 @@ TEST_F(SocketClientTest, connect_mdns_not_published)
 TEST_F(SocketClientTest, connect_mdns)
 {
     LOG(INFO, "create");
-    MDNS *mdns = new MDNS();
+    std::unique_ptr<MDNS> mdns(new MDNS());
     LOG(INFO, "publish");
     mdns->publish("openmrn_service", "_openlcbtest._tcp", LISTEN_PORT);
     LOG(INFO, "commit");
@@ -194,17 +197,17 @@ private:
 
 TEST_F(SocketClientTest, connect_host_disallow_local)
 {
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_MANUAL, _))
+        .Times(AtLeast(1));
+    EXPECT_CALL(
+        *this, status_callback(SocketClientParams::CONNECT_FAILED_SELF, _))
+        .Times(AtLeast(1));
     sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
         &g_connect_executor, &g_mdns_executor,
         std::make_unique<LocalTestSocketClientParams>(this),
         std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
 
     EXPECT_CALL(*this, connect_callback(_, sc_.get())).Times(0);
-    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_MANUAL, _))
-        .Times(AtLeast(1));
-    EXPECT_CALL(
-        *this, status_callback(SocketClientParams::CONNECT_FAILED_SELF, _))
-        .Times(AtLeast(1));
 
     usleep(40000);
     wait();
@@ -212,6 +215,201 @@ TEST_F(SocketClientTest, connect_host_disallow_local)
     wait();
 }
 
-#if 0
+class TestSocketClientParams : public EmptySocketClientParams
+{
+public:
+    TestSocketClientParams(SocketClientTest *parent)
+        : parent_(parent)
+    {
+    }
 
-#endif
+    const char *manual_host_name() override
+    {
+        return manualHostName_.c_str();
+    }
+
+    int manual_port() override
+    {
+        return manualPort_;
+    }
+
+    const char *mdns_service_name() override
+    {
+        return mdnsServiceName_.c_str();
+    }
+
+    SearchMode search_mode() override
+    {
+        return (SearchMode)searchMode_;
+    }
+
+    void log_message(LogMessage id, const string &arg) override
+    {
+        OSMutexLock h(&lock_);
+        parent_->status_callback(id, arg);
+    }
+
+    bool enable_last() override
+    {
+        return enableLast_;
+    }
+
+    void set_last(const char *hostname, int port) override
+    {
+        OSMutexLock h(&lock_);
+        parent_->last_callback(hostname, port);
+    }
+
+    const char *last_host_name() override
+    {
+        return lastHostName_.c_str();
+    }
+
+    int last_port() override
+    {
+        return lastPort_;
+    }
+
+    SocketClientTest *parent_;
+    int searchMode_{AUTO_MANUAL};
+    bool enableLast_{true};
+    string manualHostName_;
+    int manualPort_{-1};
+    string mdnsServiceName_;
+    string lastHostName_;
+    int lastPort_{-1};
+
+    OSMutex lock_;
+};
+
+
+TEST_F(SocketClientTest, test_sequence)
+{
+    ::testing::InSequence seq;
+    auto p = std::make_unique<TestSocketClientParams>(this);
+    p->lastHostName_ = "127.0.0.2";
+    p->lastPort_ = LISTEN_PORT + 1; // should fail hopefully.
+    p->mdnsServiceName_ = "_nonexist823467284._tcp";
+    p->manualHostName_ = "127.0.0.3";
+    p->manualPort_ = LISTEN_PORT;
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_RE, "127.0.0.2:12248"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_SEARCH, "_nonexist823467284._tcp"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_NOT_FOUND, _));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_MANUAL, "127.0.0.3:12247"));
+    EXPECT_CALL(*this, last_callback("127.0.0.3",12247));
+    EXPECT_CALL(*this, connect_callback(_, _));
+
+    sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
+        &g_connect_executor, &g_mdns_executor, std::move(p),
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
+
+    while (!sc_->is_connected())
+    {
+        usleep(40000);
+        wait();
+    }
+}
+
+TEST_F(SocketClientTest, test_other_sequence)
+{
+    ::testing::InSequence seq;
+    auto p = std::make_unique<TestSocketClientParams>(this);
+    p->lastHostName_ = "127.0.0.2";
+    p->lastPort_ = LISTEN_PORT + 1; // should fail hopefully.
+    p->mdnsServiceName_ = "_nonexist823467284._tcp";
+    p->manualHostName_ = "127.0.0.3";
+    p->manualPort_ = LISTEN_PORT;
+    p->searchMode_ = SocketClientParams::MANUAL_ONLY;
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_RE, "127.0.0.2:12248"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_MANUAL, "127.0.0.3:12247"));
+    EXPECT_CALL(*this, last_callback("127.0.0.3",12247));
+    EXPECT_CALL(*this, connect_callback(_, _));
+
+    sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
+        &g_connect_executor, &g_mdns_executor, std::move(p),
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
+
+    while (!sc_->is_connected())
+    {
+        usleep(40000);
+        wait();
+    }
+}
+
+TEST_F(SocketClientTest, test_third_sequence)
+{
+    ::testing::InSequence seq;
+    auto p = std::make_unique<TestSocketClientParams>(this);
+    p->lastHostName_ = "127.0.0.2";
+    p->lastPort_ = LISTEN_PORT;
+    p->mdnsServiceName_ = "_nonexist823467284._tcp";
+    p->manualHostName_ = "127.0.0.3";
+    p->manualPort_ = LISTEN_PORT;
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_RE, "127.0.0.2:12247"));
+    EXPECT_CALL(*this, last_callback("127.0.0.2",12247));
+    EXPECT_CALL(*this, connect_callback(_, _));
+
+    // same executor for mdns and connect, so we will never get to mdns.
+    sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
+        &g_connect_executor, &g_connect_executor, std::move(p),
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
+
+    while (!sc_->is_connected())
+    {
+        usleep(40000);
+        wait();
+    }
+
+    ::testing::Mock::VerifyAndClearExpectations(this);
+
+    // try wakeup as well.
+    p = std::make_unique<TestSocketClientParams>(this);
+    p->lastHostName_ = "127.0.0.2";
+    p->lastPort_ = LISTEN_PORT + 1;
+    p->mdnsServiceName_ = "_nonexist823467284._tcp";
+    p->manualHostName_ = "127.0.0.3";
+    p->manualPort_ = LISTEN_PORT;
+    sc_->reset_params(std::move(p));
+
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_RE, "127.0.0.2:12248"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_SEARCH, "_nonexist823467284._tcp"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_NOT_FOUND, _));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_MANUAL, "127.0.0.3:12247"));
+    EXPECT_CALL(*this, last_callback("127.0.0.3",12247));
+    EXPECT_CALL(*this, connect_callback(_, _));
+
+    sc_->notify();
+    wait();
+    while (!sc_->is_connected())
+    {
+        usleep(40000);
+        wait();
+    }
+}
+
+TEST_F(SocketClientTest, test_fourth_sequence)
+{
+    ::testing::InSequence seq;
+    auto p = std::make_unique<TestSocketClientParams>(this);
+    p->lastHostName_ = "127.0.0.2";
+    p->lastPort_ = LISTEN_PORT + 1;
+    p->mdnsServiceName_ = "_nonexist823467284._tcp";
+    p->manualHostName_ = "127.0.0.3";
+    p->manualPort_ = LISTEN_PORT;
+    p->searchMode_ = SocketClientParams::MANUAL_AUTO;
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_RE, "127.0.0.2:12248"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::CONNECT_MANUAL, "127.0.0.3:12247"));
+    EXPECT_CALL(*this, last_callback("127.0.0.3",12247));
+    EXPECT_CALL(*this, connect_callback(_, _));
+
+    // same executor for mdns and connect, so we will never get to mdns.
+    sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
+        &g_connect_executor, &g_connect_executor, std::move(p),
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
+
+    while (!sc_->is_connected())
+    {
+        usleep(40000);
+        wait();
+    }
+}

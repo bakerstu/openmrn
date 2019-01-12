@@ -118,19 +118,19 @@ public:
     {
         CYCLE_START = 0,
         /// Attempting to reconnect. Arg is host:port.
-        CONNECT_RE,
+        CONNECT_RE = 1,
         /// Starting mDNS lookup. Argument: mdns [hostname.]service_name
-        MDNS_SEARCH,
+        MDNS_SEARCH = 2,
         /// mDNS lookup failed.
-        MDNS_NOT_FOUND,
+        MDNS_NOT_FOUND = 3,
         /// mDNS lookup suceeded.
-        MDNS_FOUND,
+        MDNS_FOUND = 4,
         /// Connecting to mDNS target. Arg is host:port.
-        CONNECT_MDNS,
+        CONNECT_MDNS = 5,
         /// Connecting to manual target. Arg is hostname:port.
-        CONNECT_MANUAL,
+        CONNECT_MANUAL = 6,
         /// Connection dropped because target is localhost.
-        CONNECT_FAILED_SELF,
+        CONNECT_FAILED_SELF = 7,
         CONNECTION_LOST
     };
 

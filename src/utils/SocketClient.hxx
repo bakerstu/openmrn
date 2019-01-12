@@ -156,10 +156,25 @@ public:
     void shutdown()
     {
         start_shutdown();
+        while (true)
+        {
+            AtomicHolder h(this);
+            if (!mdnsPending_)
+            {
+                break;
+            }
+        }
         while (!is_terminated())
         {
             usleep(1000);
         }
+    }
+
+    /// @return true if we have a working connection.
+    bool is_connected()
+    {
+        AtomicHolder h(this);
+        return isConnected_;
     }
 
     /** Request that this client shutdown and exit the other thread.
@@ -317,6 +332,7 @@ private:
             strategyOffset_ = 0;
             mdnsPending_ = false;
             mdnsJoin_ = false;
+            isConnected_ = false;
             mdnsAddr_.reset();
         }
         return call_immediately(STATE(next_step));
