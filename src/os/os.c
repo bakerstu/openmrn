@@ -616,7 +616,6 @@ long long os_get_time_monotonic(void)
     time = ((long long)tv.tv_sec * 1000LL * 1000LL * 1000LL) +
            ((long long)tv.tv_usec * 1000LL);
 #elif defined(ARDUINO)
-    /// @todo handle overflow of millis()
     static uint32_t last_millis = 0;
     auto new_millis = millis();
     static uint32_t overflow_millis = 0;
