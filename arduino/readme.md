@@ -33,3 +33,5 @@ lib/OpenMRN/src/openlcb/SimpleInfoProtocol.hxx:404:0: warning: ignoring #pragma 
 ^
 
 - two samples are available, they are 100% untested but may compile :)
+
+- filelist.txt contains a find output of files that are "in" the DCCppESP32/lib directory for OpenMRN to compile cleanly. Note the examples are not in the DCCppESP32/lib/OpenMRN tree as they were created directly in openmrn/arduino tree (they also wouldn't be compiled under DCCppESP32/lib/OpenMRN)
