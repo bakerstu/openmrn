@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file os_private.cxx
+ * @file os_private.hxx
  * This file is a bit of a hack and should only used under extreme caution.
  * its purpose is to allow alternate niche platform support for the OS API's
  *
@@ -40,22 +40,7 @@ extern "C" {
 #endif
 
 #if defined (__FreeRTOS__)
-/// Task list entriy
-typedef struct task_list
-{
-    xTaskHandle task; ///< list entry data
-    char * name; ///< name of task 
-    size_t unused; ///< number of bytes left unused in the stack
-    struct task_list *next; ///< next link in the list
-} TaskList;
-
-/// Add a thread to the task list for tracking.
-/// @param task_new metadata for new task
-void add_thread_to_task_list(TaskList *task_new);
-
-/// Delete a thread from the task list for tracking.
-/// @param task_handle FreeRTOS task handle to delete
-void del_thread_from_task_list(TaskHandle_t task_handle);
+extern void os_thread_start(void *arg);
 #endif // __FreeRTOS__)
 
 #ifdef __cplusplus

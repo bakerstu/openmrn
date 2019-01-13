@@ -44,78 +44,51 @@
 extern "C"
 {
 #if defined (__FreeRTOS__)
-extern void hw_postinit(void);
-
-/// default stdin
-extern const char *STDIN_DEVICE;
-
-/// default stdout
-extern const char *STDOUT_DEVICE;
-
-/// default stderr
-extern const char *STDERR_DEVICE;
-
-/// Private metadata for starting a thread.
 typedef struct
 {
-    void *(*entry)(void*); ///< thread entry point
-    void *arg; ///< argument to thread
-    TaskList *taskList; //< task list instance
-} OSThreadStartPriv;
+    TaskHandle_t freeRTOSTask;
+} PthreadObj;
 
-/// Entry point to a thread.
-/// @param arg metadata for entering the thread
-static void *os_thread_start(void *arg)
+//
+// ::os_thread_start_entry_hook()
+//
+void os_thread_start_entry_hook(void)
 {
-    OSThreadStartPriv *priv = (OSThreadStartPriv*)arg;
-    priv->taskList->task = xTaskGetCurrentTaskHandle();
-    add_thread_to_task_list(priv->taskList);
-    vTaskSetThreadLocalStoragePointer(NULL, TLS_INDEX_SELECT_EVENT_BIT, NULL);
+    // make sure that pthread_self() struct did not rot by asserting
+    // against the FreeRTOS task handle
+    PthreadObj *thread_handle = static_cast<PthreadObj*>(pthread_self());
+    HASSERT(thread_handle->freeRTOSTask == xTaskGetCurrentTaskHandle());
+}
 
-    void *result = (*priv->entry)(priv->arg);
-
-    del_thread_from_task_list(xTaskGetCurrentTaskHandle());
-
-    // We purposesly do not free priv->taskist.  Though it is technically a
-    // leak, we keep it around for diagnostic purposes.
-
-    free(arg);
-    pthread_exit(result);
-    return NULL;
+//
+// ::os_thread_start_exit_hook()
+//
+void os_thread_start_exit_hook(void *context)
+{
+    pthread_exit(context);
 }
 #else
 #error Unsupported OS
 #endif // __FreeRTOS__
 
-//
-// ::os_thread_create()
-//
-int os_thread_create(os_thread_t *thread, const char *name, int priority,
-                     size_t stack_size, void *(*start_routine) (void *),
-                     void *arg)
+/** Entry point to a thread, posix variant
+ * @param arg metadata for entering the thread
+ * @return unused, should never return.
+ */
+static void *os_thread_start_posix(void *arg)
 {
-    static unsigned int count = 0;
-    char auto_name[10];
+    os_thread_start(arg);
 
-    if (name == NULL)
-    {
-        strcpy(auto_name, "thread.");
-        auto_name[9] = '\0';
-        auto_name[8] = '0' + (count % 10);
-        auto_name[7] = '0' + (count / 10);
-        count++;
-        name = auto_name;
-    }
+    return NULL;
+}
 
-    if (priority == 0)
-    {
-        priority = sched_get_priority_max(SCHED_FIFO) / 2;
-    }
-    else if (priority > sched_get_priority_max(SCHED_FIFO))
-    {
-        priority = sched_get_priority_max(SCHED_FIFO);
-    }
-
+//
+// ::os_thread_create_helper()
+//
+int os_thread_create_helper(os_thread_t *thread, const char *name, int priority,
+                            size_t stack_size, void *priv)
+{
+    HASSERT(thread);
     pthread_attr_t attr;
 
     int result = pthread_attr_init(&attr);
@@ -143,111 +116,28 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         return result;
     }
 
-#if defined (__FreeRTOS__)
-    // TI's pthread port does not support setting names.
-
-    OSThreadStartPriv *priv =
-        (OSThreadStartPriv*)malloc(sizeof(OSThreadStartPriv));
-
-    priv->taskList = (TaskList*)malloc(sizeof(TaskList));
-
-    priv->taskList->name =
-        (char*)malloc(sizeof(char) * configMAX_TASK_NAME_LEN);
-
-    priv->entry = start_routine;
-    priv->arg = arg;
-
-    priv->taskList->unused = stack_size;
-    strncpy(priv->taskList->name, name, configMAX_TASK_NAME_LEN - 1);
-    priv->taskList->name[configMAX_TASK_NAME_LEN - 1] = '\0';
-#else
-#error Unsupported OS
-#endif
-
     pthread_t pthread;
-    result = pthread_create(&pthread, &attr, os_thread_start, priv);
+    result = pthread_create(&pthread, &attr, os_thread_start_posix, priv);
     if (result != 0)
     {
         return result;
     }
 
 #if defined (__FreeRTOS__)
-    if (thread != NULL)
-    {
-        // This is a hack.  Though not pretty, it allows us to get the FreeRTOS
-        // task handle from the pthread handle.
-        typedef struct
-        {
-            TaskHandle_t freeRTOSTask;
-        } PthreadObj;
-        *thread = ((PthreadObj*)pthread)->freeRTOSTask;
-    }
+    // Hack:  Though not pretty, it allows us to get the FreeRTOS
+    //        task handle from the pthread handle.
+    *thread = static_cast<PthreadObj*>(pthread)->freeRTOSTask;
+
+    // Hack:  The pthread API doesn't support setting the FreeRTOS task name
+    //        directly.  Call pcTaskGetName() and override the const pointer.
+    char *task_name = static_cast<char*>(pcTaskGetName(*thread));
+    strncpy(task_name, name, configMAX_TASK_NAME_LEN - 1);
+    task_name[configMAX_TASK_NAME_LEN - 1] = '\0';
 #else
 #error Unsupported OS
 #endif
 
     return result;
-}
-
-// 
-// ::main_thread()
-//
-static void *main_thread(void *unused)
-{
-    char *argv[2] = {(char*)"openmrn", NULL};
-#if defined (__FreeRTOS__)
-    taskYIELD();
-#else
-#error Unsupported OS
-#endif
-    hw_postinit();
-
-    appl_main(1, argv);
-
-    abort();
-    return NULL;
-}
-
-// 
-// ::main()
-//
-int main(int argc, char *argv[])
-{
-    /* initialize the processor hardware */
-    hw_init();
-
-    /* stdin */
-    if (open(STDIN_DEVICE, O_RDWR) < 0)
-    {
-        open("/dev/null", O_RDWR);
-    }
-    /* stdout */
-    if (open(STDOUT_DEVICE, O_RDWR) < 0)
-    {
-        open("/dev/null", O_RDWR);
-    }
-    /* stderr */
-    if (open(STDERR_DEVICE, O_WRONLY) < 0)
-    {
-        open("/dev/null", O_WRONLY);
-    }
-
-    int priority;
-    
-    if (config_main_thread_priority() == 0xdefa01)
-    {
-        priority = 0;
-    }
-    else
-    {
-        priority = config_main_thread_priority();
-    }
-
-    os_thread_t thread;
-    os_thread_create(&thread, "thread.main", priority,
-                     config_main_thread_stack_size(), main_thread, NULL);
-
-    vTaskStartScheduler();
 }
 
 } // extern "C"
