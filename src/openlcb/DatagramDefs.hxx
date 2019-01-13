@@ -36,6 +36,10 @@
 
 #include <stdint.h>
 
+#if defined(ESP32)
+#undef DISPLAY
+#endif
+
 namespace openlcb
 {
 
@@ -128,7 +132,15 @@ struct DatagramDefs
     {
         return error & BUFFER_UNAVAILABLE;
     }
-    
+
+    /** Constants used by the protocol_size function. */
+    enum
+    {
+        PROTOCOL_SIZE_2    = 0xE0, /**< possible return value for @ref protocol_size */
+        PROTOCOL_SIZE_6    = 0xF0, /**< possible return value for @ref protocol_size */
+        PROTOCOL_SIZE_MASK = 0xF0, /**< mask used when determining protocol size */
+    };
+
     /** Determine if the protocol ID is represented by one, two, or six bytes.
      * @param _protocol protocol ID to interrogate
      * @return number of bytes representing the protocol
@@ -140,13 +152,6 @@ struct DatagramDefs
     }
 
 private:
-    /** Constants used by the protocol_size function. */
-    enum
-    {
-        PROTOCOL_SIZE_2    = 0xE0, /**< possible return value for @ref protocol_size */
-        PROTOCOL_SIZE_6    = 0xF0, /**< possible return value for @ref protocol_size */
-        PROTOCOL_SIZE_MASK = 0xF0, /**< mask used when determining protocol size */
-    };
 
     /** Do not instantiate this class, ever. */
     DatagramDefs();
@@ -154,6 +159,10 @@ private:
 
 
 }  // namespace openlcb
+
+#if defined(ESP32)
+#define DISPLAY 0x1
+#endif
 
 
 #endif // _OPENLCB_DATAGRAMDEFS_HXX_

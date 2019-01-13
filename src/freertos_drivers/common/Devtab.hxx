@@ -46,6 +46,9 @@ class FileSystem;
 class Notifiable;
 class DeviceBufferBase;
 
+#ifdef ESP32
+#include <FS.h>
+#else
 /** File information.
  */
 struct File
@@ -65,6 +68,7 @@ struct File
     uint8_t device : 1; /**< true if this is a device, false if file system */
     uint8_t dir    : 1; /**< true if this is a directory, else false */
 };
+#endif
 
 /** Base class for both Device and FileSystem objects */
 class FileIO
@@ -131,7 +135,11 @@ public:
      */
     static bool is_device(int fd)
     {
+#if !defined(ESP32)
         return file_lookup(fd)->device;
+#else
+        return false;
+#endif
     }
 
 protected:

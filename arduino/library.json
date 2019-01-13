@@ -7,7 +7,9 @@
             "name":"Stuart Baker"
         },
         {
-            "name":"Balaza Racz"
+            "name":"Balaza Racz",
+            "email": "balazs.racz@gmail.com",
+            "maintainer": true
         }
     ],
     "repository": {
@@ -18,8 +20,9 @@
     "license": "BSD-2-Clause",
     "frameworks": "arduino",
     "platforms": "espressif32",
-    "build": {
-      "libCompatMode": 2
-    }  
+    "examples": [
+        "examples/SerialBridge/SerialBridge.ino",
+        "examples/AsyncTCPBridge/AsyncTCPBridge.ino"
+    ]
   }
   

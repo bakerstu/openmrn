@@ -38,12 +38,14 @@
 extern "C" {
 #endif
 
+#ifndef ESP32
 /** Request and ioctl transaction
  * @param fd file descriptor
  * @param key ioctl key
  * @param ... key data (as a pointer or unsigned long type)
  */
 int ioctl(int fd, unsigned long int key, ...);
+#endif
 
 /** ioctl key value for operation (not read or write) */
 #define IOC_NONE 0U

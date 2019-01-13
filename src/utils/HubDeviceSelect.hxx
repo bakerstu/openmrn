@@ -39,7 +39,9 @@
 #include <fcntl.h>
 
 #include "executor/StateFlow.hxx"
+#if !defined(ESP32)
 #include "freertos/can_ioctl.h"
+#endif
 #include "utils/Hub.hxx"
 
 /// Generic template for the buffer traits. HubDeviceSelect will not compile on

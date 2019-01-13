@@ -38,6 +38,10 @@
 
 #include "utils/macros.h"
 
+#if defined(ESP32)
+#undef DISPLAY
+#endif
+
 namespace openlcb
 {
 
@@ -334,5 +338,9 @@ inline Defs::MTI& operator -- (Defs::MTI &value)
 }
 
 }; /* namespace openlcb */
+
+#if defined(ESP32)
+#define DISPLAY 0x1
+#endif
 
 #endif  // _OPENLCB_DEFS_HXX_

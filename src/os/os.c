@@ -47,6 +47,10 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#elif defined (ESP32)
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #elif defined(__WIN32__)
 
 #include <winsock2.h>
@@ -130,7 +134,7 @@ int fstat(int fd, struct stat* buf) {
 #endif
 
 
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined(ESP32)
 /** Task list entriy */
 typedef struct task_list
 {
@@ -303,7 +307,7 @@ int pipe(int fildes[2])
 }
 #endif
 
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined(ESP32)
 extern const void* stack_malloc(unsigned long length);
 
 #endif  // FreeRTOS
@@ -311,12 +315,14 @@ extern const void* stack_malloc(unsigned long length);
 /** Entry point to a thread.
  * @param arg metadata for entering the thread
  */
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined(ESP32)
 static void os_thread_start(void *arg)
 {
     ThreadPriv *priv = arg;
     vTaskSetApplicationTaskTag(NULL, arg);
+#if !defined(ESP32)
     _impure_ptr = priv->reent;
+#endif
     (*priv->entry)(priv->arg);
 
     vTaskSuspendAll();
@@ -340,7 +346,7 @@ static void os_thread_start(void *arg)
 
 #if !defined (__EMSCRIPTEN__) && !defined(ESP_NONOS)
 
-#if defined(__FreeRTOS__)
+#if defined(__FreeRTOS__) || defined(ESP32)
 #if (configSUPPORT_STATIC_ALLOCATION == 1)
 /** Static memory allocators for idle system thread.
  * @param pxIdleTaskTCBBuffer pointer to pointer to TCB
@@ -426,7 +432,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         name = auto_name;
     }
 
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined(ESP32)
     ThreadPriv *priv = malloc(sizeof(ThreadPriv));
     
     priv->entry = start_routine;
@@ -595,7 +601,7 @@ long long os_get_time_monotonic(void)
 {
     static long long last = 0;
     long long time;
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined(ESP32)
     portTickType tick = xTaskGetTickCount();
     time = ((long long)tick) << NSEC_TO_TICK_SHIFT;
     time += hw_get_partial_tick_time_nsec();
@@ -667,7 +673,7 @@ int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 }
 #endif
 
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined(ESP32)
 /* standard C library hooks for multi-threading */
 
 /** Lock access to malloc.
@@ -748,6 +754,7 @@ void abort(void)
     }
 }
 
+#if !defined(ESP32)
 /* magic that allows for an optional second heap region */
 char __attribute__((weak)) __heap2_start_alias;
 extern char __heap2_start __attribute__((weak, alias ("__heap2_start_alias")));
@@ -806,6 +813,7 @@ void vApplicationStackOverflowHook(xTaskHandle task, signed portCHAR *name)
     overflowed_task_name = name;
     diewith(BLINK_DIE_STACKOVERFLOW);
 }
+#endif
 
 /** This method will be called repeatedly from the idle task. If needed, it can
  * be overridden in hw_init.c.
@@ -873,7 +881,9 @@ void main_thread(void *arg)
     ThreadPriv *priv = arg;
     char *argv[2] = {"nmranet", NULL};
     vTaskSetApplicationTaskTag(NULL, arg);
+#if !defined(ESP32)
     _impure_ptr = priv->reent;
+#endif
 
     /* setup the monitoring entries for the timer and idle tasks */
 #if configUSE_TIMERS
@@ -916,6 +926,7 @@ int ignore_fn(void)
 int main(int argc, char *argv[]) __attribute__ ((weak));
 #endif
 
+#if !defined(ESP32)
 /** Entry point to program.
  * @param argc number of command line arguments
  * @param argv array of command line aguments
@@ -997,6 +1008,7 @@ int main(int argc, char *argv[])
     return appl_main(argc, argv);
 #endif
 }
+#endif
 
 
 #if 0 && defined(ESP_NONOS)

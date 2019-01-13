@@ -44,7 +44,6 @@
 #undef OUTPUT
 #endif
 
-
 /** OS-independent abstraction for GPIO.
  */
 class Gpio
@@ -141,5 +140,13 @@ public:
      */
     virtual Direction direction() const = 0;
 };
+
+#if defined(ESP32)
+#define LOW               0x0
+#define HIGH              0x1
+#define INPUT             0x01
+#define OUTPUT            0x02
+#endif
+
 
 #endif /* _FREERTOS_DRIVERS_COMMON_GPIOGENERIC_HXX_ */

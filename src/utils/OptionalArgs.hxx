@@ -131,7 +131,7 @@ public:
 
     /// End of template recursion. Fails to link. @param f unknown argument
     /// specification. @return nothing
-    template <class Field> constexpr Field get(const F f) const
+    template <class Field> constexpr Field get(const Field f) const
     {
         return tried_to_get_unknown_argument() ? f : Field();
     }

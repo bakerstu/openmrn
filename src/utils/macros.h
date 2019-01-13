@@ -42,7 +42,9 @@
 #include <utility>
 
 using std::vector;
+#if !defined(ESP32)
 using std::map;
+#endif
 using std::string;
 using std::pair;
 #endif
@@ -192,6 +194,8 @@ extern const char* g_death_file;
 /// Declares (on the ESP8266) that the current function is executed
 /// often and should be placed in the instruction RAM.
 #define ICACHE_RAM_ATTR
+#elif defined(ESP32)
+#include <esp8266-compat.h>
 #endif
 
 #if defined (__linux__) || defined (__MACH__) || defined (GCC_ARMCM3)
