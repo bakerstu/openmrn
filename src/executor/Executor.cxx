@@ -415,19 +415,17 @@ void ExecutorBase::wait_with_select(long long wait_length)
 
 #endif
 
-#if defined(ARDUINO)
-ExecutorBase::~ExecutorBase()
-{
-    DIE("Should not destroy executors.");
-}
-#else
 void ExecutorBase::shutdown()
 {
     if (!started_) return;
     add(this);
     while (!done_)
     {
+#if defined(ARDUINO)
+        delay(1);
+#else
         usleep(100);
+#endif        
     }
 }
 
@@ -438,4 +436,3 @@ ExecutorBase::~ExecutorBase()
         shutdown();
     }
 }
-#endif
