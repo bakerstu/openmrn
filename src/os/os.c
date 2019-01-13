@@ -951,8 +951,7 @@ int main(int argc, char *argv[])
         priority = config_main_thread_priority();
     }
 
-    os_thread_t thread;
-    os_thread_create(&thread, "thread.main", priority,
+    os_thread_create(NULL, "thread.main", priority,
                      config_main_thread_stack_size(), main_thread, NULL);
 
     vTaskStartScheduler();
