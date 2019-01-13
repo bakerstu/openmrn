@@ -25,7 +25,24 @@
         "examples/AsyncTCPBridge/AsyncTCPBridge.ino"
     ],
     "build": {
-        "flags" : "-D __FreeRTOS__"
+        "flags" : "-D __FreeRTOS__",
+        "srcFilter" : [
+            "-<.git/>",
+            "-<examples/>",
+            "+<*>",
+            "-<freertos/dirent.h>",
+            "+<dcc/*>",
+            "+<executor/*>",
+            "+<freertos/*>",
+            "+<freertos_drivers/*>",
+            "+<openlcb/*>",
+            "-<openlcb/Stream.cpp>",
+            "+<os/*>",
+            "+<sys/*>",
+            "+<utils/*>"
+        ],
+        "libArchive" : true,
+        "libLDFMode" : "chain+"
     }
   }
   

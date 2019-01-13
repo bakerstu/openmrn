@@ -1,34 +1,27 @@
 # Arduino Lib notes
 
-to build in PlatformIO it is mandatory to add the following to the platformio.ini of the project:
+- to build in PlatformIO it is mandatory to add the following to the platformio.ini of the project:
 build_flags=-D__FreeRTOS__
-the project won't link currently due to:
-.pioenvs\esp32dev\src\main.cpp.o:(.literal._ZN7OpenMRN3runEv[OpenMRN::run()]+0x0): undefined reference to `ExecutorBase::loop_once()'
-.pioenvs\esp32dev\src\main.cpp.o:(.literal._ZN7OpenMRND5Ev[OpenMRN::~OpenMRN()]+0x4): undefined reference to `Executable::~Executable()'
-.pioenvs\esp32dev\src\main.cpp.o:(.literal._ZN7OpenMRNC5Ey[OpenMRN::OpenMRN(unsigned long long)]+0x0): undefined reference to `openlcb::SimpleCanStack::SimpleCanStack(unsigned long long)'
-.pioenvs\esp32dev\src\main.cpp.o:(.literal._ZN7OpenMRNC5Ey[OpenMRN::OpenMRN(unsigned long long)]+0x4): undefined reference to `openlcb::SimpleCanStackBase::start_stack(bool)'
-.pioenvs\esp32dev\src\main.cpp.o: In function `OpenMRN::run()':
-main.cpp:(.text._ZN7OpenMRN3runEv[OpenMRN::run()]+0x6): undefined reference to `ExecutorBase::loop_once()'
-.pioenvs\esp32dev\src\main.cpp.o: In function `OpenMRN::~OpenMRN()':
-main.cpp:(.text._ZN7OpenMRND2Ev[OpenMRN::~OpenMRN()]+0x17): undefined reference to `Executable::~Executable()'
-.pioenvs\esp32dev\src\main.cpp.o: In function `OpenMRN::OpenMRN(unsigned long long)':
-main.cpp:(.text._ZN7OpenMRNC2Ey[OpenMRN::OpenMRN(unsigned long long)]+0x4e): undefined reference to `openlcb::SimpleCanStack::SimpleCanStack(unsigned long long)'
-main.cpp:(.text._ZN7OpenMRNC2Ey[OpenMRN::OpenMRN(unsigned long long)]+0x5e): undefined reference to `openlcb::SimpleCanStackBase::start_stack(bool)'
-main.cpp:(.text._ZN7OpenMRNC2Ey[OpenMRN::OpenMRN(unsigned long long)]+0x72): undefined reference to `Executable::~Executable()'
-.pioenvs\esp32dev\src\main.cpp.o: In function `setup()':
-main.cpp:(.text._Z5setupv+0x22): undefined reference to `openlcb::SimpleCanStackBase::start_stack(bool)'
+
+- build is broken due to freertos_drivers/common/Can.cxx, freertos_drivers/common/Select.cxx
+needing to use Atomic instead of portENTER_CRITICAL() and portEXIT_CRITICAL(), these methods
+take an arg on the ESP32 and Atomic covers this use case but I was unsure how this should be
+implemented in these files.
 
 - library.json needs to be in the root of the repository for PlatformIO
-- library.properties needs to be in the root of the repository for Arduino IDE
 
-- src/dirent.h should not be present in the arduino lib as it is provided in the base libraries
+- library.json has been updated to include the required source trees and exclude a couple files
+that have been observed as bad, this includes include/freertos/dirent.h.
+
+- library.properties needs to be in the root of the repository for Arduino IDE
 
 - stropts.h is referenced from two paths:
 src/freertos/can_ioctl.h:#include "freertos/stropts.h"
 src/freertos_drivers/common/Devtab.hxx:#include <stropts.h>
 both are required for ESP32 build to work
 
-- all cxx files should get renamed to cpp, but this is not critical for PlatformIO.
+- all cxx files need to be renamed to cpp:
+find src -name '*.cxx' -print0 | sed 's/.cxx//g' | xargs -0 -I % mv %.cxx %.cpp
 
 - StreamBridge replaces both SerialBridge and CanBridge by using the base class of
 Stream from Arduino, this covers both Serial and can be used for ESP32 hardware

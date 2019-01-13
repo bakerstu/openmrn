@@ -38,7 +38,9 @@
 extern "C" {
 #endif
 
-#ifndef ESP32
+#if defined(ESP32)
+#include <sys/ioctl.h>
+#else
 /** Request and ioctl transaction
  * @param fd file descriptor
  * @param key ioctl key

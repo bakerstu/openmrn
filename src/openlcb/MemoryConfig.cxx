@@ -40,7 +40,10 @@
 #include <unistd.h>
 #include "utils/logging.h"
 #ifdef __FreeRTOS__
-#include "can_ioctl.h"
+#include "freertos/can_ioctl.h"
+#if defined(ESP32)
+#include <sys/ioctl.h>
+#endif
 #endif
 
 extern "C" {

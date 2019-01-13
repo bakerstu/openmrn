@@ -45,7 +45,11 @@
 #include "freertos/can_ioctl.h"
 #include "utils/Hub.hxx"
 
+#if defined(ESP32)
+#include <sys/ioctl.h>
+#else
 extern int ioctl(int fd, unsigned long int key, ...);
+#endif
 
 template <class HFlow> class HubDeviceNonBlock : public Destructable, private Atomic, public Service
 {
