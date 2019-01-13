@@ -46,9 +46,16 @@ const SimpleInfoDescriptor SNIPHandler::SNIP_RESPONSE[] = {
     {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.model_name},
     {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.hardware_version},
     {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.software_version},
+#ifdef ARDUINO
+    /// @todo(balazs.racz) Add eeprom support to arduino.
+    {SimpleInfoDescriptor::LITERAL_BYTE, 2, 0, nullptr},
+    {SimpleInfoDescriptor::LITERAL_BYTE, 0, 0, nullptr},
+    {SimpleInfoDescriptor::LITERAL_BYTE, 0, 0, nullptr},
+#else
     {SimpleInfoDescriptor::FILE_LITERAL_BYTE, 2, 0, SNIP_DYNAMIC_FILENAME},
     {SimpleInfoDescriptor::FILE_C_STRING, 63, 1, SNIP_DYNAMIC_FILENAME},
     {SimpleInfoDescriptor::FILE_C_STRING, 64, 64, SNIP_DYNAMIC_FILENAME},
+#endif
     {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
 
 void init_snip_user_file(int fd, const char *user_name,

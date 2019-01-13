@@ -751,7 +751,7 @@ public:
      */
     void set_direction(Gpio::Direction dir) const override
     {
-        HASSERT(dir == Gpio::Direction::OUTPUT);
+        HASSERT(dir == Gpio::Direction::DOUTPUT);
     }
 
     /** Gets the GPO direction.
@@ -759,7 +759,7 @@ public:
      */
     Direction direction() const override
     {
-        return Gpio::Direction::OUTPUT;
+        return Gpio::Direction::DOUTPUT;
     }
 
 private:
@@ -803,7 +803,7 @@ public:
      */
     void set_direction(Gpio::Direction dir) const override
     {
-        HASSERT(dir == Gpio::Direction::INPUT);
+        HASSERT(dir == Gpio::Direction::DINPUT);
     }
 
     /** Gets the GPI direction.
@@ -811,7 +811,7 @@ public:
      */
     Direction direction() const override
     {
-        return Gpio::Direction::INPUT;
+        return Gpio::Direction::DINPUT;
     }
 
 private:

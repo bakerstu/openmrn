@@ -56,9 +56,10 @@ public:
 #endif
 
   ~TempDir() {
-    if (rmdir(dirName_.c_str()) != 0) {
-      LOG(WARNING, "Error deleting temporary directory %s: %s",
-          dirName_.c_str(), strerror(errno));
+      if (::rmdir(dirName_.c_str()) != 0)
+      {
+          LOG(WARNING, "Error deleting temporary directory %s: %s",
+              dirName_.c_str(), strerror(errno));
     }
   }
 

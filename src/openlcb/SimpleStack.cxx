@@ -42,6 +42,7 @@
 #include <termios.h> /* tc* functions */
 #endif
 #if defined(__linux__)
+#include "utils/HubDeviceSelect.hxx"
 #include <linux/sockios.h>
 #endif
 
@@ -71,10 +72,12 @@ SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
 
 void SimpleCanStackBase::start_stack(bool delay_start)
 {
+#ifndef ARDUINO
     // Opens the eeprom file and sends configuration update commands to all
     // listeners.
     configUpdateFlow_.open_file(CONFIG_FILENAME);
     configUpdateFlow_.init_flow();
+#endif
 
     if (!delay_start) {
         // Bootstraps the alias allocation process.
@@ -104,6 +107,7 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_ACDI_SYS, space);
         additionalComponents_.emplace_back(space);
     }
+#ifndef ARDUINO
     {
         auto *space = new FileMemorySpace(
             SNIP_DYNAMIC_FILENAME, sizeof(SimpleNodeDynamicValues));
@@ -111,6 +115,7 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_ACDI_USR, space);
         additionalComponents_.emplace_back(space);
     }
+#endif
     size_t cdi_size = strlen(CDI_DATA);
     if (cdi_size > 0)
     {
@@ -120,6 +125,10 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_CDI, space);
         additionalComponents_.emplace_back(space);
     }
+#if defined(ARDUINO)
+// @todo (balazs.racz): find a solution for storing configuration on an
+// arduino binary.
+#else
     if (CONFIG_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(CONFIG_FILENAME, CONFIG_FILE_SIZE);
@@ -127,6 +136,7 @@ void SimpleCanStackBase::default_start_node()
             node(), openlcb::MemoryConfigDefs::SPACE_CONFIG, space);
         additionalComponents_.emplace_back(space);
     }
+#endif
 }
 
 SimpleTrainCanStack::SimpleTrainCanStack(
@@ -356,7 +366,7 @@ void SimpleCanStackBase::add_socketcan_port_select(
     setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask));
     strcpy(ifr.ifr_name, device);
 
-    ioctl(s, SIOCGIFINDEX, &ifr);
+    ::ioctl(s, SIOCGIFINDEX, &ifr);
 
     addr.can_family = AF_CAN;
     addr.can_ifindex = ifr.ifr_ifindex;

@@ -47,7 +47,7 @@
 #include <task.h>
 #include <semphr.h>
 #include <event_groups.h>
-#elif defined(ESP_NONOS)
+#elif defined(ESP_NONOS) || defined(ARDUINO)
 #else
 #include <pthread.h>
 #include <semaphore.h>
@@ -110,7 +110,7 @@ typedef struct thread_priv
     void *(*entry)(void*); /**< thread entry point */
     void *arg; /** argument to thread */
 } ThreadPriv; /**< thread private data */
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
 typedef struct {
     int locked;
     uint8_t recursive;
@@ -162,7 +162,8 @@ typedef struct
  */
 extern long long os_get_time_monotonic(void);
 
-#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#if defined(__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) ||  \
+    defined(ARDUINO)
 /** @ref os_thread_once states.
  */
 enum
@@ -178,7 +179,8 @@ enum
 #define OS_THREAD_ONCE_INIT PTHREAD_ONCE_INIT
 #endif
 
-#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#if defined(__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) ||  \
+    defined(ARDUINO)
 /** One time intialization routine
  * @param once one time instance
  * @param routine method to call once
@@ -315,7 +317,7 @@ OS_INLINE os_thread_t os_thread_self(void)
 {
 #if defined (__FreeRTOS__)
     return xTaskGetCurrentTaskHandle();
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     return 0xdeadbeef;
 #else
     return pthread_self();
@@ -330,7 +332,7 @@ OS_INLINE int os_thread_get_priority(os_thread_t thread)
 {
 #if defined (__FreeRTOS__)
     return uxTaskPriorityGet(thread);
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     return 2;
 #else
     struct sched_param params;
@@ -347,7 +349,7 @@ OS_INLINE int os_thread_get_priority_min(void)
 {
 #if defined (__FreeRTOS__)
     return 1;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     return 0xdeadbeef;
 #else
     return sched_get_priority_min(SCHED_FIFO);
@@ -361,7 +363,7 @@ OS_INLINE int os_thread_get_priority_max(void)
 {
 #if defined (__FreeRTOS__)
     return configMAX_PRIORITIES - 1;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     return 0xdeadbeef;
 #else
     return sched_get_priority_max(SCHED_FIFO);
@@ -373,7 +375,7 @@ OS_INLINE int os_thread_get_priority_max(void)
 #define OS_MUTEX_INITIALIZER {NULL, 0}
 /** Static initializer for recursive mutexes */
 #define OS_RECURSIVE_MUTEX_INITIALIZER {NULL, 1}
-#elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__) || defined(ARDUINO)
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER {0, 0}
 /** Static initializer for recursive mutexes */
@@ -407,8 +409,8 @@ OS_INLINE int os_mutex_init(os_mutex_t *mutex)
     mutex->recursive = 0;
     mutex->sem = xSemaphoreCreateMutex();
 
-    return 0;    
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+    return 0;
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     mutex->locked = 0;
     mutex->recursive = 0;
     return 0;
@@ -427,8 +429,8 @@ OS_INLINE int os_recursive_mutex_init(os_mutex_t *mutex)
     mutex->recursive = 1;
     mutex->sem = xSemaphoreCreateRecursiveMutex();
 
-    return 0;    
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+    return 0;
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     mutex->locked = 0;
     mutex->recursive = 1;
     return 0;
@@ -461,8 +463,8 @@ OS_INLINE int os_mutex_destroy(os_mutex_t *mutex)
 #if defined (__FreeRTOS__)
     vSemaphoreDelete(mutex->sem);
 
-    return 0;    
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+    return 0;
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     mutex->locked = 0;
     return 0;
 #else
@@ -500,7 +502,7 @@ OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
         xSemaphoreTake(mutex->sem, portMAX_DELAY);
     }
     return 0;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     if (mutex->locked && !mutex->recursive)
     {
         DIE("Mutex deadlock.");
@@ -528,7 +530,7 @@ OS_INLINE int os_mutex_unlock(os_mutex_t *mutex)
         xSemaphoreGive(mutex->sem);
     }
     return 0;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     if (mutex->locked <= 0)
     {
         DIE("Unlocking a not locked mutex");
@@ -553,7 +555,7 @@ OS_INLINE int os_sem_init(os_sem_t *sem, unsigned int value)
       abort();
     }
     return 0;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     sem->counter = value;
     return 0;
 #else
@@ -573,7 +575,7 @@ OS_INLINE int os_sem_destroy(os_sem_t *sem)
 #if defined (__FreeRTOS__)
     vSemaphoreDelete(*sem);
     return 0;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     return 0;
 #else
     pthread_cond_destroy(&sem->cond);
@@ -591,7 +593,7 @@ OS_INLINE int os_sem_post(os_sem_t *sem)
 #if defined (__FreeRTOS__)
     xSemaphoreGive(*sem);
     return 0;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     sem->counter++;
     return 0;
 #else
@@ -634,7 +636,7 @@ OS_INLINE int os_sem_wait(os_sem_t *sem)
     }
     --sem->counter;
     return 0;
-#elif defined(ESP_NONOS)
+#elif defined(ESP_NONOS) || defined(ARDUINO)
     if (!sem->counter) {
         DIE("Semaphore deadlock.");
     }
@@ -652,7 +654,7 @@ OS_INLINE int os_sem_wait(os_sem_t *sem)
 #endif
 }
 
-#ifndef ESP_NONOS
+#if !(defined(ESP_NONOS) || defined(ARDUINO))
 /** Wait on a semaphore with a timeout.
  * @param sem address of semaphore to decrement
  * @param timeout in nanoseconds, else OPENMRN_OS_WAIT_FOREVER to wait forever

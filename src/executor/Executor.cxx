@@ -206,7 +206,7 @@ long long ICACHE_FLASH_ATTR  ExecutorBase::loop_some() {
     return 0;
 }
 
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__)
 
 void executor_loop_some(void* arg)
 {
@@ -220,6 +220,14 @@ void *ExecutorBase::entry()
     sequence_ = 0;
     ExecutorBase* b = this;
     emscripten_set_main_loop_arg(&executor_loop_some, b, 100, true);
+    return nullptr;
+}
+
+#elif defined(ARDUINO)
+
+void *ExecutorBase::entry()
+{
+    DIE("Arduino code should not start the executor.");
     return nullptr;
 }
 
@@ -413,7 +421,11 @@ void ExecutorBase::shutdown()
     add(this);
     while (!done_)
     {
+#if defined(ARDUINO)
+        delay(1);
+#else
         usleep(100);
+#endif        
     }
 }
 
