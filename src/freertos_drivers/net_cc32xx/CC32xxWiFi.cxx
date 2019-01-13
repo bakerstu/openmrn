@@ -469,18 +469,8 @@ void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy)
     wlanRole = role;
     wlanPowerPolicy = power_policy;
 
-    /* note, sl_Task MUST be a pthread because the Wi-Fi task uses the pthread
-     * interface such as pthread_self().
-     */
-    pthread_t thread;
-    pthread_attr_t attr;
-    struct sched_param sched_param;
-
-    pthread_attr_init(&attr);
-    sched_param.sched_priority = sched_get_priority_max(SCHED_FIFO);
-    pthread_attr_setschedparam(&attr, &sched_param);
-    pthread_attr_setstacksize(&attr, 2048);
-    pthread_create(&thread, &attr, sl_Task, nullptr);
+    os_thread_create(nullptr, "sl_Task", OSThread::get_priority_max(), 2048,
+                     sl_Task, nullptr);
 
     os_thread_create(nullptr, "Wlan Task", OSThread::get_priority_max() - 1,
                      2048, wlan_task_entry, nullptr);
@@ -706,13 +696,9 @@ void CC32xxWiFi::wlan_task()
                 SL_SOCKET_FD_CLR(slSockets[i], &wfds);
                 new_highest();
                 CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
-                portEXIT_CRITICAL();
-                /** @todo this is a hack for an sl_Send bandwidth issue in the
-                 * CC3220
-                 */
-                s->writeActiveCnt = 0;
                 s->writeActive = true;
                 s->select_wakeup(&s->selInfoWr);
+                portEXIT_CRITICAL();
             }
             if (SL_SOCKET_FD_ISSET(slSockets[i], &rfds_tmp))
             {
@@ -730,9 +716,9 @@ void CC32xxWiFi::wlan_task()
                     SL_SOCKET_FD_CLR(slSockets[i], &rfds);
                     new_highest();
                     CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
-                    portEXIT_CRITICAL();
                     s->readActive = true;
                     s->select_wakeup(&s->selInfoRd);
+                    portEXIT_CRITICAL();
                 }
             }
             if (SL_SOCKET_FD_ISSET(slSockets[i], &efds_tmp))

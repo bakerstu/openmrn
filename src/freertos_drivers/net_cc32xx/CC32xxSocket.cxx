@@ -436,18 +436,6 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
         return -1;
     }
 
-    if (s->readActive == false)
-    {
-        errno = EAGAIN;
-        return -1;
-    }
-
-    if (length > 16000)
-    {
-        /* CC32xx has a limit of 16000 bytes per recv */
-        length = 16000;
-    }
-
     int result = sl_Recv(s->sd, buffer, length, flags);
 
     if (result < 0)
@@ -476,10 +464,6 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
         }
         return -1;
     }
-    if ((size_t)result < length)
-    {
-        s->readActive = false;
-    }
 
     return result;  
 }
@@ -499,32 +483,14 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
         return -1;
     }
 
-    /** @todo this is a hack for an sl_Send bandwidth issue in the CC3220 */
-    long long now = OSTime::get_monotonic();
-    portENTER_CRITICAL();
     if (s->writeActive == false)
     {
-        if (now < (s->lastWriteTimestamp + MSEC_TO_NSEC(5)))
-        {
-            portEXIT_CRITICAL();
-            errno = EAGAIN;
-            return -1;
-        }
-        s->writeActiveCnt = 0;
-        s->writeActive = true;
-    }
-    portEXIT_CRITICAL();
-
-    if (length > 1460)
-    {
-        /* CC32xx has a limit of 1460 bytes per send */
-        length = 1460;
+        /* typically we would never get here */
+        errno = EAGAIN;
+        return -1;
     }
 
     int result = sl_Send(s->sd, buffer, length, flags);
-
-    /** @todo this is a hack for an sl_Send bandwidth issue in the CC3220 */
-    s->lastWriteTimestamp = OSTime::get_monotonic();
 
     if (result < 0)
     {
@@ -548,19 +514,6 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
         }
         return -1;
     }
-
-    if ((size_t)result < length)
-    {
-        s->writeActive = false;
-    }
-
-    /** @todo this is a hack for an sl_Send bandwidth issue in the CC3220 */
-    portENTER_CRITICAL();
-    if (++s->writeActiveCnt > 1)
-    {
-        s->writeActive = false;
-    }
-    portEXIT_CRITICAL();
 
     return result;
 }
