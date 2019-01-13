@@ -314,20 +314,6 @@ int pipe(int fildes[2])
 #if defined (__FreeRTOS__)
 extern const void* stack_malloc(unsigned long length);
 
-/** Do any platform specific work at the beginning of os_thread_start().
- */
-void __attribute__((weak)) os_thread_start_entry_hook(void)
-{
-}
-
-/** Do any platform specific work at the end of os_thread_start().
- * @param thread return context
- */
-void __attribute__((weak)) os_thread_start_exit_hook(void *context)
-{
-    vTaskDelete(NULL);
-}
-
 /** Add a thread to the task list for tracking.
  * @param task_new metadata for new task
  */
@@ -358,6 +344,20 @@ void del_thread_from_task_list(TaskHandle_t task_handle)
     xTaskResumeAll();
 }
 
+/** Do any platform specific work at the beginning of os_thread_start().
+ */
+void __attribute__((weak)) os_thread_start_entry_hook(void)
+{
+}
+
+/** Do any platform specific work at the end of os_thread_start().
+ * @param thread return context
+ */
+void __attribute__((weak)) os_thread_start_exit_hook(void *context)
+{
+    vTaskDelete(NULL);
+}
+
 /** Entry point to a thread.
  * @param arg metadata for entering the thread
  */
@@ -369,7 +369,15 @@ void os_thread_start(void *arg)
     OSThreadStartPriv *priv = (OSThreadStartPriv*)arg;
     priv->taskList->task = xTaskGetCurrentTaskHandle();
     add_thread_to_task_list(priv->taskList);
+
+    // init thread local storage to
+#if tskKERNEL_VERSION_MAJOR >= 9
+    // FreeRTOS 9.x+ implementation
     vTaskSetThreadLocalStoragePointer(NULL, TLS_INDEX_SELECT_EVENT_BIT, NULL);
+#else
+    // legacy implementation uses task tag
+    vTaskSetApplicationTaskTag(NULL, NULL);
+#endif
 
     // execute thread entry point
     void *result = (*priv->entry)(priv->arg);

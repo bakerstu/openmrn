@@ -324,9 +324,9 @@ extern unsigned long blinker_pattern;
 #define configSUPPORT_DYNAMIC_ALLOCATION    1
 #endif
 
-/* Enable thread local storage */
+/* Enable thread local storage, only active on FreeRTOS 9.x+ */
 #define configNUM_THREAD_LOCAL_STORAGE_POINTERS 1
-#define TLS_INDEX_SELECT_EVENT_BIT 0
+#define TLS_INDEX_SELECT_EVENT_BIT 0 /* Wakeup event for platform select() */
 
 /* backwards compatibility */
 #if !defined(vPortClearInterruptMask)
