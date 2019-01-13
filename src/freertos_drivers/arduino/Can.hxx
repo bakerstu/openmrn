@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2012, Stuart W Baker
+ * Copyright (c) 2018, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file Can.hxx
- * This file implements a generic can device driver layer.
  *
- * @author Stuart W. Baker
- * @date 28 December 2012
+ * Alternative base class for CAN device drivers that can be compiled in an
+ * Arduino environment.
+ *
+ * @author Balazs Racz
+ * @date 8 July 2018
  */
 
+// This include is exclusive against freertos_drivers/common/Can.hxx
 #ifndef _FREERTOS_DRIVERS_COMMON_CAN_HXX_
 #define _FREERTOS_DRIVERS_COMMON_CAN_HXX_
 
@@ -39,7 +42,7 @@
 #include "nmranet_config.h"
 #include "os/OS.hxx"
 
-/** Base class for a can device */
+/** Base class for a CAN device for the Arduino environment. */
 class Can
 {
 public:

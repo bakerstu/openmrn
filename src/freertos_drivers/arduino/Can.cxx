@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2012, Stuart W Baker
+ * Copyright (c) 2018, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +25,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file Can.cxx
- * This file implements a generic can device driver layer.
  *
- * @author Stuart W. Baker
- * @date 28 December 2012
+ * Base class for CAN device drivers in the Arduino environment.
+ *
+ * @author Balazs Racz
+ * @date 8 July 2018
  */
 
 #include "Can.hxx"
