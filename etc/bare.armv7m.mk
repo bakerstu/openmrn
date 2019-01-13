@@ -40,11 +40,11 @@ CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
 	-fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
 	-D__FreeRTOS__ -DGCC_ARMCM3  
 
-CFLAGS = -c  $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu99 \
+CFLAGS = -c  $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
           -Wstrict-prototypes \
           $(CFLAGSENV) $(CFLAGSEXTRA)
 
-CXXFLAGS = -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=gnu++0x  \
+CXXFLAGS = -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
            -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
            -fno-exceptions -fno-rtti \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \

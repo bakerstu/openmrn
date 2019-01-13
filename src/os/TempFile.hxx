@@ -52,15 +52,7 @@
 class TempDir {
 public:
 #ifndef __FreeRTOS__
-  TempDir() {
-#ifdef __linux__
-    dirName_ = "/tmp/openmrntmpdirXXXXXX";
-#else
-    dirName_ = "./openmrntmpdirXXXXXX";
-#endif
-    dirName_.c_str();
-    HASSERT(mkdtemp(&dirName_[0]));
-  }
+  TempDir();
 #endif
 
   ~TempDir() {
@@ -95,11 +87,7 @@ public:
     /// @param dir isthe temp directory to create the file within.
     /// @param basename will be the prefix of the name. A unique suffix will be
     /// appended for each file.
-  TempFile(const TempDir& dir, const string& basename) {
-    fileName_ = dir.name() + "/" + basename + ".XXXXXX";
-    fileName_.c_str();
-    fd_ = mkstemp((char*)fileName_.c_str());
-  }
+  TempFile(const TempDir& dir, const string& basename);
 
   ~TempFile() {
     ::close(fd_);

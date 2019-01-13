@@ -27,8 +27,13 @@ endif
 
 .PHONY: FORCE
 
+ADRTEXT=\#define NODEID_LOW_BITS $(ADDRESS)
+ifdef ADDRHIGH
+ADRTEXT+=;\#define NODEID_HIGH_BITS $(ADDRHIGH)
+endif
+
 address.h: FORCE
-	@ADR="#define NODEID_LOW_BITS $(ADDRESS)" ; if [ ! -f $@ ] || [ "$$ADR" != "$$(<$@)" ] ; then echo $(notdir $(realpath .)): replacing address file. old: $$(<$@) new $$ADR ; echo "$$ADR" > $@ ; else echo address file up-to-date for $(notdir $(realpath .)):$@ / with $(ADDRESS); fi 
+	@ADR="$(ADRTEXT);" ; if [ ! -f $@ ] || [ "$$ADR" != "$$(tr '\n' ';' < $@)" ] ; then echo $(notdir $(realpath .)): replacing address file. old: $$(<$@) new $$ADR ; echo -n "$$ADR" | tr ';' '\n' > $@ ; else echo address file up-to-date for $(notdir $(realpath .)):$@ / with $(ADDRESS); fi 
 
 NodeId.o: address.h
 

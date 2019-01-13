@@ -1,1 +1,1 @@
-../../../../boards/mc-pic32mx-lccbuffer/ISRwrapper.S
+../../../../boards/microchip-pic32mx-lccbuffer/ISRwrapper.S

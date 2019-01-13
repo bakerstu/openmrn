@@ -47,10 +47,13 @@
 #include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
 #include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/common/MCP23017Gpio.hxx"
 #include "os/MmapGpio.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
 #include "PWM.hxx"
+#include "i2c.h"
+#include "i2c-dev.h"
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
@@ -68,7 +71,7 @@ OVERRIDE_CONST(main_thread_stack_size, 1300);
 // Specifies the 48-bit OpenLCB node identifier. This must be unique for every
 // hardware manufactured, so in production this should be replaced by some
 // easily incrementable method.
-extern const openlcb::NodeID NODE_ID = 0x050101011816ULL;
+extern const openlcb::NodeID NODE_ID;
 
 // Sets up a comprehensive OpenLCB stack for a single virtual node. This stack
 // contains everything needed for a usual peripheral node -- all
@@ -88,7 +91,7 @@ extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 1900, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 4000, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -161,7 +164,7 @@ public:
     {
         cfg.userinfo().name().write(fd, "Nucleo IO board");
         cfg.userinfo().description().write(
-            fd, "OpenLCB DevKit + F091RC dev board.");
+            fd, "OpenLCB DevKit + Nucleo dev board.");
     }
 } factory_reset_helper;
 
@@ -182,7 +185,6 @@ public:
     /// 
     /// @param dedicated_executor is a serivce that is NOT on the main
     /// executor.
-    /// @param port is the character device name for the SPI port
     /// @param mutex if not null, this (async) mutex will be acquired before
     /// the SPI port is touched. Allows mutual exclusion of multiple stateflows
     /// of this class.
@@ -209,7 +211,7 @@ public:
     /// chained on the input. 
     /// @param delay_msec defines the delay between consecutive refreshes of
     /// the shift registers (inversely the refresh rate).
-    SpiIOShiftRegister(Service *dedicated_executor, const char *port,
+    SpiIOShiftRegister(Service *dedicated_executor,
         AsyncMutex *mutex, const Gpio *latch, uint32_t *output_storage,
         unsigned output_len_bytes, uint32_t *input_storage = nullptr,
         unsigned input_len_bytes = 0, unsigned delay_msec = 50)
@@ -221,7 +223,11 @@ public:
         , outputLenBytes_(output_len_bytes)
         , inputStorage_(input_storage)
         , inputLenBytes_(input_len_bytes)
-    {
+    {}
+
+    /// Initializes SPI port. Called via main() to not rely on static init ordering.
+    /// @param port is the character device name for the SPI port
+    void init(const char *port) {
         fd_ = ::open(port, O_RDWR);
         HASSERT(fd_ >= 0);
         // test alignment
@@ -302,7 +308,7 @@ Service io_service(&io_executor);
 
 uint32_t output_register[1] = {0x00000000};
 
-SpiIOShiftRegister internal_outputs(&io_service, "/dev/spi1.ioboard", nullptr, OUT_LAT_Pin::instance(), output_register, 2);
+SpiIOShiftRegister internal_outputs(&io_service, nullptr, OUT_LAT_Pin::instance(), output_register, 2);
 
 constexpr const MmapGpio PORTD_LINE1(output_register, 7, true);
 constexpr const MmapGpio PORTD_LINE2(output_register, 6, true);
@@ -351,7 +357,7 @@ openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_8(
 
 uint32_t input_register[2] = {0};
 
-SpiIOShiftRegister internal_inputs(&io_service, "/dev/spi2", nullptr, INP_LAT_Pin::instance(), nullptr, 0, input_register, 3);
+SpiIOShiftRegister internal_inputs(&io_service, nullptr, INP_LAT_Pin::instance(), nullptr, 0, input_register, 3);
 
 constexpr const MmapGpio PORTB_LINE1(input_register, 0, false);
 constexpr const MmapGpio PORTB_LINE2(input_register, 1, false);
@@ -407,8 +413,68 @@ openlcb::ConfiguredProducer producer_b7(
 openlcb::ConfiguredProducer producer_b8(
     stack.node(), cfg.seg().portab_producers().entry<15>(), (const Gpio*)&PORTB_LINE8);
 
+#if NUM_EXTBOARDS > 0
+
+MCP23017 exp0(&io_executor, 0, 0, 0);
+MCP23017 exp1(&io_executor, 0, 0, 1);
+
+constexpr const MCP23017Gpio IOEXT0_A0(&exp0, MCP23017::PORTA, 0);
+constexpr const MCP23017Gpio IOEXT0_A1(&exp0, MCP23017::PORTA, 1);
+constexpr const MCP23017Gpio IOEXT0_A2(&exp0, MCP23017::PORTA, 2);
+constexpr const MCP23017Gpio IOEXT0_A3(&exp0, MCP23017::PORTA, 3);
+constexpr const MCP23017Gpio IOEXT0_A4(&exp0, MCP23017::PORTA, 4);
+constexpr const MCP23017Gpio IOEXT0_A5(&exp0, MCP23017::PORTA, 5);
+constexpr const MCP23017Gpio IOEXT0_A6(&exp0, MCP23017::PORTA, 6);
+constexpr const MCP23017Gpio IOEXT0_A7(&exp0, MCP23017::PORTA, 7);
+
+constexpr const MCP23017Gpio IOEXT0_B0(&exp0, MCP23017::PORTB, 0);
+constexpr const MCP23017Gpio IOEXT0_B1(&exp0, MCP23017::PORTB, 1);
+constexpr const MCP23017Gpio IOEXT0_B2(&exp0, MCP23017::PORTB, 2);
+constexpr const MCP23017Gpio IOEXT0_B3(&exp0, MCP23017::PORTB, 3);
+constexpr const MCP23017Gpio IOEXT0_B4(&exp0, MCP23017::PORTB, 4);
+constexpr const MCP23017Gpio IOEXT0_B5(&exp0, MCP23017::PORTB, 5);
+constexpr const MCP23017Gpio IOEXT0_B6(&exp0, MCP23017::PORTB, 6);
+constexpr const MCP23017Gpio IOEXT0_B7(&exp0, MCP23017::PORTB, 7);
+
+constexpr const MCP23017Gpio IOEXT1_A0(&exp1, MCP23017::PORTA, 0);
+constexpr const MCP23017Gpio IOEXT1_A1(&exp1, MCP23017::PORTA, 1);
+constexpr const MCP23017Gpio IOEXT1_A2(&exp1, MCP23017::PORTA, 2);
+constexpr const MCP23017Gpio IOEXT1_A3(&exp1, MCP23017::PORTA, 3);
+constexpr const MCP23017Gpio IOEXT1_A4(&exp1, MCP23017::PORTA, 4);
+constexpr const MCP23017Gpio IOEXT1_A5(&exp1, MCP23017::PORTA, 5);
+constexpr const MCP23017Gpio IOEXT1_A6(&exp1, MCP23017::PORTA, 6);
+constexpr const MCP23017Gpio IOEXT1_A7(&exp1, MCP23017::PORTA, 7);
+
+constexpr const MCP23017Gpio IOEXT1_B0(&exp1, MCP23017::PORTB, 0);
+constexpr const MCP23017Gpio IOEXT1_B1(&exp1, MCP23017::PORTB, 1);
+constexpr const MCP23017Gpio IOEXT1_B2(&exp1, MCP23017::PORTB, 2);
+constexpr const MCP23017Gpio IOEXT1_B3(&exp1, MCP23017::PORTB, 3);
+constexpr const MCP23017Gpio IOEXT1_B4(&exp1, MCP23017::PORTB, 4);
+constexpr const MCP23017Gpio IOEXT1_B5(&exp1, MCP23017::PORTB, 5);
+constexpr const MCP23017Gpio IOEXT1_B6(&exp1, MCP23017::PORTB, 6);
+constexpr const MCP23017Gpio IOEXT1_B7(&exp1, MCP23017::PORTB, 7);
+
+constexpr const Gpio *const kPortExt0[] = {
+    &IOEXT0_A0, &IOEXT0_A1, &IOEXT0_A2, &IOEXT0_A3, //
+    &IOEXT0_A4, &IOEXT0_A5, &IOEXT0_A6, &IOEXT0_A7, //
+    &IOEXT0_B0, &IOEXT0_B1, &IOEXT0_B2, &IOEXT0_B3, //
+    &IOEXT0_B4, &IOEXT0_B5, &IOEXT0_B6, &IOEXT0_B7, //
+    &IOEXT1_A0, &IOEXT1_A1, &IOEXT1_A2, &IOEXT1_A3, //
+    &IOEXT1_A4, &IOEXT1_A5, &IOEXT1_A6, &IOEXT1_A7, //
+    &IOEXT1_B0, &IOEXT1_B1, &IOEXT1_B2, &IOEXT1_B3, //
+    &IOEXT1_B4, &IOEXT1_B5, &IOEXT1_B6, &IOEXT1_B7  //
+};
+
+openlcb::MultiConfiguredPC ext0_pcs(
+    stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
+
+#endif // if num extboards > 0
+
 openlcb::RefreshLoop loopab(stack.node(),
     {
+#if NUM_EXTBOARDS > 0
+        ext0_pcs.polling(),                           //
+#endif
         producer_a1.polling(), producer_a2.polling(), //
         producer_a3.polling(), producer_a4.polling(), //
         producer_a5.polling(), producer_a6.polling(), //
@@ -424,7 +490,7 @@ openlcb::RefreshLoop loopab(stack.node(),
         &turnout_pulse_consumer_5,                    //
         &turnout_pulse_consumer_6,                    //
         &turnout_pulse_consumer_7,                    //
-        &turnout_pulse_consumer_8                    //
+        &turnout_pulse_consumer_8                     //
     });
 
 /** Entry point to application.
@@ -436,6 +502,17 @@ int appl_main(int argc, char *argv[])
 {
     stack.check_version_and_factory_reset(
         cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
+
+#if NUM_EXTBOARDS > 0
+    {
+        int i2cfd = ::open("/dev/i2c0", O_RDWR);
+        exp0.init(i2cfd);
+        exp1.init(i2cfd);
+    }
+#endif
+
+    internal_outputs.init("/dev/spi1.ioboard");
+    internal_inputs.init("/dev/spi2");
 
     srv1_gpo.clr();
     srv2_gpo.clr();

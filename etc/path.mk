@@ -64,7 +64,7 @@ TRYPATH:=$(call findfirst,driverlib,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 TIVAWAREPATH:=$(TRYPATH)
 TRYPATH:=$(call findfirst,inc/hw_onewire.h,$(TRYPATH))
-ifneq ($TRYPATH),)
+ifneq ($(TRYPATH),)
 BUILDTIVAWARE:=$(TRYPATH)
 endif
 endif
@@ -383,6 +383,7 @@ SEARCHPATH := \
   $(GMOCKPATH)/gtest \
   /opt/gmock/default/gtest \
   /opt/gtest/gtest \
+  /opt/gtest/default \
   /usr \
 
 TRYPATH:=$(call findfirst,include/gtest/gtest.h,$(SEARCHPATH))
@@ -411,12 +412,8 @@ SEARCHPATH := \
   /opt/CodeSourcery/Sourcery_CodeBench_Lite_for_MIPS_ELF \
   /opt/MentorGraphics/default_mips_elf \
 
-
-# To download go here https://sourcery.mentor.com/GNUToolchain/release3215
-
-# or the aggregate page:
-# https://www.mentor.com/embedded-software/sourcery-tools/sourcery-codebench/editions/lite-edition/
-# and make sure to select the ELF release for MIPS processor.
+# Master page for releases is https://sourcery.mentor.com/GNUToolchain/subscription3537?lite=MIPS
+# To download latest release (2016-05) go here https://sourcery.mentor.com/GNUToolchain/release3215
 
 TRYPATH:=$(call findfirst,bin/mips-sde-elf-g++,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
@@ -462,6 +459,17 @@ PIC32MXLEGACYPLIBPATH:=$(TRYPATH)
 endif
 endif #PIC32MXLEGACYPLIBPATH
 
+################### PIC32HARMONY #####################
+ifndef PIC32HARMONYPATH
+SEARCHPATH := \
+  /opt/microchip/harmony/default \
+
+TRYPATH:=$(call findfirst,framework/usb/usb_cdc.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+PIC32HARMONYPATH:=$(TRYPATH)
+endif
+endif #PIC32HARMONYPATH
+
 ##################### OPENOCD ######################
 ifndef OPENOCDPATH
 SEARCHPATH := \
@@ -482,6 +490,7 @@ SEARCHPATH := \
   /opt/openocd/default/openocd/tcl \
   /opt/openocd/default/tcl \
   /opt/openocd/default/scripts \
+  /opt/openocd/default/share/openocd/scripts \
   /usr/local/share/openocd/scripts \
   /usr/share/openocd/scripts \
 

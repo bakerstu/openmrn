@@ -63,6 +63,8 @@ namespace openlcb
 class AsyncIfTest;
 }
 
+extern const unsigned LARGEST_BUFFERPOOL_BUCKET;
+
 /** main buffer pool instance */
 extern DynamicPool *mainBufferPool;
 

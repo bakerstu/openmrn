@@ -93,38 +93,8 @@ public:
         }
     }
 
-    void register_update_listener(ConfigUpdateListener *listener) OVERRIDE
-    {
-        AtomicHolder h(this);
-        pendingListeners_.push_front(listener);
-        if (is_state(exit().next_state()))
-        {
-            start_flow(STATE(do_initial_load));
-        }
-    }
-
-    void unregister_update_listener(ConfigUpdateListener *listener) OVERRIDE
-    {
-        AtomicHolder h(this);
-        for (auto it = listeners_.begin(); it != listeners_.end(); ++it)
-        {
-            if (it.operator->() == listener)
-            {
-                listeners_.erase(it);
-            }
-        }
-        for (auto it = pendingListeners_.begin(); it != pendingListeners_.end();
-             ++it)
-        {
-            if (it.operator->() == listener)
-            {
-                pendingListeners_.erase(it);
-            }
-        }
-        // We invalidated the iterators due to the erase.
-        nextRefresh_ = listeners_.begin();
-    }
-
+    void register_update_listener(ConfigUpdateListener *listener) override;
+    void unregister_update_listener(ConfigUpdateListener *listener) override;
 private:
     Action call_next_listener()
     {

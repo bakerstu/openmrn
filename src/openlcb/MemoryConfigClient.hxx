@@ -231,6 +231,12 @@ public:
             Defs::OPENMRN_TIMEOUT, ///< Timeout waiting for ack/nack.
     };
 
+    /// @return OpenLCB node (ourselves) for outgoing communications.
+    Node *node()
+    {
+        return node_;
+    }
+
 private:
     Action entry() override
     {

@@ -112,7 +112,7 @@ TEST(NMRAnetVelocityTest, isnan)
 {
     Velocity v(nan_to_speed());
     EXPECT_TRUE(v.isnan());
-    EXPECT_TRUE(isnan(v.speed()));
+    EXPECT_TRUE(std::isnan(v.speed()));
     EXPECT_TRUE(nan_to_speed().isnan());
     Velocity w;
     w.set_wire(0xFFFFu);
@@ -128,7 +128,7 @@ TEST(NMRAnetVelocityTest, notnan)
 {
     Velocity v(13.5);
     EXPECT_FALSE(v.isnan());
-    EXPECT_FALSE(isnan(v.speed()));
+    EXPECT_FALSE(std::isnan(v.speed()));
 }
 
 TEST(NMRAnetVelocityTest, speed_positive)

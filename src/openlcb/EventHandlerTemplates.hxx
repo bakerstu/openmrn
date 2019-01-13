@@ -151,8 +151,8 @@ public:
         {
             return done->notify();
         }
-        event_write_helper1.WriteAsync(
-            node_, openlcb::Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
+        event->event_write_helper<1>()->WriteAsync(node_,
+            openlcb::Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
             WriteHelper::global(), openlcb::eventid_to_buffer(EVENT_ID), done);
     }
 
@@ -448,7 +448,7 @@ public:
     }
 
     template <class HW>
-    GPIOBit(Node *node, EventId event_on, EventId event_off, const HW &, const Gpio* g = HW::instance())
+    GPIOBit(Node *node, EventId event_on, EventId event_off, const HW &, const Gpio* g = HW::instance(), decltype(HW::instance)* = 0)
         : GPIOBit(node, event_on, event_off, g)
     {
     }
@@ -503,7 +503,7 @@ protected:
     ///
     /// @TODO: for consistency of API this function should be changed to notify
     /// the barrier. The caller should always use new_child.
-    void SendProducerIdentified(BarrierNotifiable *done);
+    void SendProducerIdentified(EventReport *event, BarrierNotifiable *done);
 
     /// Sends off two packets using event_write_helper{3,4} of
     /// ConsumerIdentified
@@ -512,12 +512,12 @@ protected:
     ///
     /// @TODO: for consistency of API this function should be changed to notify
     /// the barrier. The caller should always use new_child.
-    void SendConsumerIdentified(BarrierNotifiable *done);
+    void SendConsumerIdentified(EventReport *event, BarrierNotifiable *done);
 
     /// Checks if the event in the report is something we are interested in, and
     /// if so, sends off a {Producer|Consumer}Identified{Valid|Invalid} message
     /// depending on the current state of the hardware bit. Uses
-    /// event_write_helper1. Notifies done.
+    /// event_write_helper<1>. Notifies done.
     void HandlePCIdentify(Defs::MTI mti_valid, EventReport *event,
                           BarrierNotifiable *done);
 

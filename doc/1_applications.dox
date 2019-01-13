@@ -130,6 +130,10 @@ before you ship anything using code you built with OpenMRN.
 - http://registry.openlcb.org/uniqueidranges
 - http://registry.openlcb.org/requestuniqueidrange
 
+@subsection dcc_decoder DCC decoder application
+
+\subpage dcc_application "See documentation here"
+
 @section application_with_jmri Using JMRI's OpenLCB support
 
 The two samples above both work on Linux using TCP traffic on port 12021. This

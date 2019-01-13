@@ -240,6 +240,19 @@ void MCP2515Can::tx_msg_locked()
 }
 
 /*
+ * MCP2515Can::ioctl()
+ */
+int MCP2515Can::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    if (key == SIOCGCANSTATE)
+    {
+        *((can_state_t*)data) = state_;
+        return 0;
+    }
+    return -EINVAL;
+}
+
+/*
  * entry()
  */
 __attribute__((optimize("-O3")))
@@ -293,11 +306,13 @@ void *MCP2515Can::entry()
             {
                 /* bus off */
                 ++busOffCount;
+                state_ = CAN_STATE_BUS_OFF;
             }
             if ((eflg & TXEP) || (eflg & RXEP))
             {
                 /* error passive state */
                 ++softErrorCount;
+                state_ = CAN_STATE_BUS_PASSIVE;
 
                 /* flush out any transmit data in the pipleline */
                 register_write(TXB0CTRL, 0x00);
@@ -317,6 +332,7 @@ void *MCP2515Can::entry()
         if (canintf & RX0I)
         {
             /* receive interrupt active */
+            state_ = CAN_STATE_ACTIVE;
             BufferRead buffer(0);
             buffer_read(&buffer);
             struct can_frame *can_frame;
@@ -343,6 +359,7 @@ void *MCP2515Can::entry()
         if (UNLIKELY(canintf & RX1I))
         {
             /* receive interrupt active */
+            state_ = CAN_STATE_ACTIVE;
             BufferRead buffer(1);
             buffer_read(&buffer);
             struct can_frame *can_frame;
@@ -368,6 +385,7 @@ void *MCP2515Can::entry()
             /* transmit interrupt active and transmission complete */
             if (canintf & TX0I)
             {
+                state_ = CAN_STATE_ACTIVE;
                 txPending_ &= ~0x1;
                 bit_modify(CANINTE, 0, TX0I);
                 bit_modify(CANINTF, 0, TX0I);
@@ -375,6 +393,7 @@ void *MCP2515Can::entry()
             }
             if (canintf & TX1I)
             {
+                state_ = CAN_STATE_ACTIVE;
                 txPending_ &= ~0x2;
                 bit_modify(CANINTE, 0, TX1I);
                 bit_modify(CANINTF, 0, TX1I);

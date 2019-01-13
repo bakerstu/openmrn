@@ -43,6 +43,8 @@
 #include "os/Gpio.hxx"
 #include "os/OS.hxx"
 
+#include "can_ioctl.h"
+
 #define MCP2515_DEBUG 0
 #define MCP2515_NULL_TX 0
 
@@ -65,6 +67,7 @@ public:
         , OSThread()
         , interruptEnable_(interrupt_enable)
         , interruptDisable_(interrupt_disable)
+        , state_(CAN_STATE_STOPPED)
         , txPending_(0)
         , gpoData_(0x0)
         , gpiData_(0x7)
@@ -517,6 +520,14 @@ private:
         }
     };
 
+    /** Request an ioctl transaction.
+     * @param file file reference for this device
+     * @param key ioctl key
+     * @param data key data
+     * @return >= 0 upon success, -errno upon failure
+     */
+    int ioctl(File *file, unsigned long int key, unsigned long data) override;
+
     /** User entry point for the created thread.
      * @return exit status
      */
@@ -648,6 +659,7 @@ private:
 
     void (*interruptEnable_)(); /**< enable interrupt callback */
     void (*interruptDisable_)(); /**< disable interrupt callback */
+    unsigned state_     : 4; /**< present bus state */
     unsigned txPending_ : 2; /**< transmission in flight */
     unsigned gpoData_   : 2; /**< local copy of the I/O expansion output data */
     unsigned gpiData_   : 3; /**< local copy of the I/O expansion input data */

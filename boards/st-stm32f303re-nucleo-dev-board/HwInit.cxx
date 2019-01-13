@@ -42,6 +42,7 @@
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
 #include "Stm32SPI.hxx"
+#include "Stm32I2C.hxx"
 #include "Stm32EEPROMEmulation.hxx"
 #include "Stm32PWM.hxx"
 #include "hardware.hxx"
@@ -62,22 +63,27 @@ static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
 static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
-static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1900);
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 4000);
+
+/** UART 0 serial driver instance */
+static Stm32I2C i2c1("/dev/i2c0", I2C1, I2C1_EV_IRQn, I2C1_ER_IRQn);
 
 /** How many bytes of flash should hold the entire dataset. Must be an integer
  * multiple of the minimum erase length (which is the flash page length, for
  * the STM32F0 it is 2 kbytes). The file size maximum is half this value. */
-const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
+const size_t EEPROMEmulation::SECTOR_SIZE = 8192;
 
 Stm32PWMGroup servo_timer(TIM3, (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,
                           configCPU_CLOCK_HZ * 6 / 1000);
 
-extern PWM* servo_channels[];
+extern PWM* const servo_channels[];
 /// The order of these channels follows the schematic arrangement of MCU pins
 /// to logical servo ports.
-PWM *servo_channels[4] = { //
-    servo_timer.get_channel(4), servo_timer.get_channel(2),
-    servo_timer.get_channel(3), servo_timer.get_channel(1)};
+PWM * const servo_channels[4] = { //
+    Stm32PWMGroup::get_channel(&servo_timer, 4),
+    Stm32PWMGroup::get_channel(&servo_timer, 2),
+    Stm32PWMGroup::get_channel(&servo_timer, 3),
+    Stm32PWMGroup::get_channel(&servo_timer, 1)};
 
 /// Recursive mutex for SPI1 peripheral.
 OSMutex spi1_lock(true);
@@ -127,6 +133,15 @@ void setblink(uint32_t pattern)
     resetblink(pattern);
 }
 
+void i2c1_ev_interrupt_handler(void)
+{
+    i2c1.event_interrupt_handler();
+}
+
+void i2c1_er_interrupt_handler(void)
+{
+    i2c1.error_interrupt_handler();
+}
 
 /// TIM17 shares this interrupt with certain features of timer1
 void tim1_trg_com_interrupt_handler(void)
@@ -241,6 +256,7 @@ void hw_preinit(void)
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
+    memset(&gpio_init, 0, sizeof(gpio_init));
 
     /* USART2 pinmux on PA2 and PA3 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
@@ -284,8 +300,17 @@ void hw_preinit(void)
     HAL_GPIO_Init(GPIOB, &gpio_init);
     gpio_init.Pin = GPIO_PIN_13;
     HAL_GPIO_Init(GPIOB, &gpio_init);
-    
-    
+
+    /* I2C1 pinmux on PB6 (SCL), and PB7 (SDA) */
+    gpio_init.Mode = GPIO_MODE_AF_OD;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
+    gpio_init.Alternate = GPIO_AF4_I2C1;
+    gpio_init.Pin = GPIO_PIN_6;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_7;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+
     GpioInit::hw_init();
 
     // Switches over servo timer pins to timer mode.
@@ -305,6 +330,7 @@ void hw_preinit(void)
     
     /* Initializes the blinker timer. */
     TIM_HandleTypeDef TimHandle;
+    memset(&TimHandle, 0, sizeof(TimHandle));
     TimHandle.Instance = TIM17;
     TimHandle.Init.Period = configCPU_CLOCK_HZ / 10000 / 8;
     TimHandle.Init.Prescaler = 10000;

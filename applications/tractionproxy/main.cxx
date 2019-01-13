@@ -78,13 +78,6 @@ openlcb::EventService g_event_service(&g_if_can);
 openlcb::TrainService traction_service(&g_if_can);
 openlcb::TractionProxyService traction_proxy(&traction_service, &g_node);
 
-using openlcb::Node;
-using openlcb::SimpleEventHandler;
-using openlcb::EventRegistry;
-using openlcb::EventReport;
-using openlcb::event_write_helper1;
-using openlcb::WriteHelper;
-
 namespace openlcb
 {
 const SimpleNodeStaticValues SNIP_STATIC_DATA = {

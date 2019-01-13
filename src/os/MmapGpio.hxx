@@ -39,15 +39,17 @@
 
 /**
  * Gpio wrapper for a single bit in memory. This may be in a peripheral or in
- * SRAM. 32-bit access will be used. These objects can be allocated in flash,
- * not needing any SRAM or initialization. Use the following syntax:
+ * SRAM. Access width will be defined by the template parameter. These objects
+ * can be allocated in flash, not needing any SRAM or initialization. Use the
+ * following syntax:
  *
  * uint32_t output_register[1] = {0};  // in RAM
  *
  * constexpr const MmapGpio PORTD_LINE1(output_register, 7, true);
  *
  */
-class MmapGpio : public Gpio
+template<typename STORAGE>
+class MmapGpioTemplate : public Gpio
 {
 public:
     /// Constructor. Constexpr allowing storage in flash for these objects.
@@ -58,8 +60,8 @@ public:
     /// 32 or more and ptr will be auto adjusted.
     /// @param is_output true if we want to simulate an output gpio, false if
     /// an input gpio.
-    constexpr MmapGpio(
-        uint32_t *const ptr, const unsigned bit_ofs, const bool is_output)
+    constexpr MmapGpioTemplate(
+        STORAGE *const ptr, const unsigned bit_ofs, const bool is_output)
         : ptr_(ptr + (bit_ofs >> 5))
         , bit_(bit_ofs & 31)
         , isOutput_(is_output ? 1 : 0)
@@ -103,11 +105,14 @@ public:
 
 private:
     /// Pointer to storage.
-    uint32_t * const ptr_;
+    STORAGE * const ptr_;
     /// Which bit. 0 == LSB, from there it goes up towards MSB.
     const unsigned bit_ : 5;
     /// 1 if this GPIO is an output, 0 if it's an input.
     const unsigned isOutput_ : 1;
 };
+
+using MmapGpio = MmapGpioTemplate<uint32_t>;
+using MmapGpio8 = MmapGpioTemplate<uint8_t>;
 
 #endif // _OS_MMAPGPIO_HXX_

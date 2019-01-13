@@ -131,4 +131,44 @@ int SocketClient::connect(const char *host, const char* port_str)
     return fd;
 }
 
+/*
+ * SocketClient::local_test()
+ */
+bool SocketClient::local_test(struct addrinfo *addr)
+{
+    bool local = false;
+    struct ifaddrs *ifa;
+    int result = getifaddrs(&ifa);
+    if (result == 0)
+    {
+        struct ifaddrs *ifa_free = ifa;
+        while (ifa)
+        {
+            if (ifa->ifa_addr)
+            {
+                /* ifa_addr pointer valid */
+                if (ifa->ifa_addr->sa_family == AF_INET)
+                {
+                    /* have a valid IPv4 address */
+                    struct sockaddr_in *ai_addr_in =
+                        (struct sockaddr_in*)addr->ai_addr;
+                    struct sockaddr_in *if_addr_in =
+                        (struct sockaddr_in*)ifa->ifa_addr;
+                    if (ai_addr_in->sin_addr.s_addr ==
+                        if_addr_in->sin_addr.s_addr)
+                    {
+                        /* trying to connected to myself */
+                        local = true;
+                        break;
+                    }
+                }
+            }
+            ifa = ifa->ifa_next;
+        }
+        freeifaddrs(ifa_free);
+    }
+
+    return local;
+}
+
 #endif // __linux__

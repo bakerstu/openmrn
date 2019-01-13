@@ -1,0 +1,1 @@
+../microchip-pic32mx-generic/memory_map.mx530.ld

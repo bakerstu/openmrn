@@ -1,0 +1,32 @@
+VPATH=$(PIC32HARMONYPATH)/framework/usb/src/dynamic:$(PIC32HARMONYPATH)/framework/driver/usb/usbfs/src/dynamic:$(PIC32HARMONYPATH)/framework/system/int/src:$(OPENMRNPATH)/src/freertos_drivers/pic32mx
+#:$(PIC32MXLIBPATH)/pic32-libs/proc/32MX795F512H
+INCLUDES += -idirafter $(PIC32MXLIBPATH)/pic32-libs/include
+
+DEPS += PIC32HARMONYPATH
+#CORECFLAGS += -D_SUPPRESS_PLIB_WARNING
+PIC32PROC=795F512H
+BASEDEFS += -D__PIC32_FEATURE_SET__=795
+#CFLAGS += -fgnu89-inline
+
+CXXSRCS += Pic32mxUsbCdcDevice.cxx
+
+CSRCS += usb_device.c \
+         usb_device_cdc.c \
+         usb_device_cdc_acm.c \
+         drv_usbfs.c \
+         drv_usbfs_device.c \
+         sys_int_pic32.c \
+         usb_cdc_device_descriptors.c \
+
+INCLUDES += -I$(PIC32HARMONYPATH)/framework
+
+CFLAGS += -Wno-strict-prototypes -fgnu89-inline
+
+usb_device.o: ARCH=
+
+sys_int_pic32.o: ARCH=
+sys_int_pic32.o: CFLAGS+="-Wno-attributes"
+
+Pic32mxUsbCdcDevice.o: CXXFLAGS += -fpermissive -Wno-error
+
+#ASMSRCS += p32mx795f512h.S

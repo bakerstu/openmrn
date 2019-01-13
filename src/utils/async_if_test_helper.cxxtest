@@ -7,22 +7,22 @@
 
 namespace openlcb {
 
+WriteHelper write_helper;
+
 TEST_F(AsyncNodeTest, Setup) {}
 
 TEST_F(AsyncNodeTest, WriteMessageSync) {
   // We write a message using the WriteFlow class directly into the interface.
   expect_packet(":X195B422AN0102030405060708;");
-  event_write_helper1.WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
-                                 eventid_to_buffer(0x0102030405060708ULL),
-                                 get_notifiable());
+  write_helper.WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
+      eventid_to_buffer(0x0102030405060708ULL), get_notifiable());
 }
 
 TEST_F(AsyncNodeTest, WriteMessageASync) {
   // We write a message using the WriteFlow class asynchronously.
   expect_packet(":X195B422AN0102030405060708;");
-  event_write_helper1.WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
-                                 eventid_to_buffer(0x0102030405060708ULL),
-                                 get_notifiable());
+  write_helper.WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
+      eventid_to_buffer(0x0102030405060708ULL), get_notifiable());
   wait_for_notification();
 }
 

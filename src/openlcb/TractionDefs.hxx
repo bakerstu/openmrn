@@ -302,6 +302,32 @@ struct TractionDefs {
         return ret;
     }
 
+    /** Renders a guess at the traction node name. If it is a recognized train
+     * node range, renders te default name for that protocol, otherwise a mac
+     * address format.
+     *
+     * @param node_id is the train node OpenLCB node ID
+     * @return a user-visible node name */
+    static string guess_train_node_name(NodeID node_id)
+    {
+        dcc::TrainAddressType decoded_type;
+        uint32_t decoded_address = 0xFFFF;
+        if (legacy_address_from_train_node_id(
+                node_id, &decoded_type, &decoded_address))
+        {
+            // We recognized this as a legacy address. Use the legacy node name
+            // to display.
+            return train_node_name_from_legacy(decoded_type, decoded_address);
+        }
+        else
+        {
+            // Format the node MAC address.
+            uint8_t idbuf[6];
+            node_id_to_data(node_id, idbuf); // convert to big-endian
+            return mac_to_string(idbuf);
+        }
+    }
+
     static Payload estop_set_payload() {
         Payload p(1, 0);
         p[0] = REQ_EMERGENCY_STOP;

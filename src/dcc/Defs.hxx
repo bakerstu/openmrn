@@ -39,7 +39,7 @@ namespace dcc {
 
 /// Which address type this legacy train node uses. These address types
 /// translate to mutually independent packets on the track.
-enum class TrainAddressType
+enum class TrainAddressType : uint8_t
 {
     /// DCC packets with short address (1..127)
     DCC_SHORT_ADDRESS = 1,
@@ -47,6 +47,11 @@ enum class TrainAddressType
     DCC_LONG_ADDRESS,
     /// Marklin-motorola packets. Addresses 1..80 are supported.
     MM,
+    /// Unsupported address type (e.g. a protocol we don't have an
+    /// implementation for).
+    UNSUPPORTED = 255,
+    /// Unspecified address type (default / match any).
+    UNSPECIFIED = 254,
 };
 
 }  // namespace dcc
