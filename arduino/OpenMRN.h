@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -25,7 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file OpenMRN.h
- * 
+ *
  * Main include file for the OpenMRN library to be used in an Arduino
  * compilation environment.
  *
@@ -41,11 +41,17 @@
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
 
-/// Bridge class that connects an Arduino API style serial port to the OpenMRN
-/// core stack.
+/// Bridge class that connects an Arduino API style serial port (sending CAN
+/// frames via gridconnect format) to the OpenMRN core stack. This can be
+/// generally used for USB ports or TCP sockets.
 template <class SerialType> class SerialBridge : public Executable
 {
 public:
+    /// Constructor.
+    ///
+    /// @param port is the Arduino serial implementation (usually &Serial).
+    /// @param can_hub is the core CAN frame router of the OpenMRN stack,
+    /// usually comes from stack()->can_hub().
     SerialBridge(SerialType *port, CanHubFlow *can_hub)
         : service_(can_hub->service())
         , port_(port)
@@ -53,6 +59,9 @@ public:
         GCAdapterBase::CreateGridConnectAdapter(&txtHub_, can_hub, false);
         txtHub_.register_port(&writePort_);
     }
+
+    /// @todo (balazs.racz): add destructor and tear down the link without
+    /// memory leaks.
 
     /// Called by the loop.
     void run() override
@@ -62,16 +71,18 @@ public:
     }
 
 private:
-    /// Access to the stack's executor.
-    Service *service_;
-
+    /// Handles data going out of OpenMRN and towards the serial port.
     void loop_for_write()
     {
         if (!writeBuffer_)
+        {
             return;
+        }
         size_t len = port_->availableForWrite();
         if (!len)
+        {
             return;
+        }
         size_t to_write = writeBuffer_->data()->size() - writeOfs_;
         if (len > to_write)
             len = to_write;
@@ -86,53 +97,88 @@ private:
         }
     }
 
+    /// Handles data coming in from the serial port and sends it to OpenMRN.
     void loop_for_read()
     {
         int av = port_->available();
         if (av <= 0)
+        {
             return;
+        }
         // @todo build a buffer here and send to the hub
     }
 
     friend class WritePort;
+
+    /// Finite state machine running in the OpenMRN cooperative executor,
+    /// registered to receive data that needs to be sent to the port. It will
+    /// keep the pointer to the output buffer while the loop processes the data
+    /// in it.
     class WritePort : public HubPort
     {
     public:
+        /// Constructor.
+        ///
+        /// @param parent is the bridge object that owns *this.
+        /// @param service holds the cooperative executor coming from the
+        /// OpenMRN stack. Any service from OpenMRN will do.
         WritePort(SerialBridge *parent, Service *service)
             : HubPort(service)
             , parent_(parent)
         {
         }
 
+        /// State machine state when a new buffer of data to be sent shows
+        /// up. Must not block.
         Action entry() override
         {
             parent_->writeBuffer_ = message();
             parent_->writeOfs_ = 0;
+            // Pauses the state machine until an external event calls notify().
             return wait_and_call(STATE(write_done));
         }
 
+        /// We get to this state when the output buffer's data has fully been
+        /// sent to the hardware and the notofy() call was made. It releases
+        /// the memory and continues processing any further data piled up in
+        /// the input queue.
         Action write_done()
         {
             return release_and_exit();
         }
 
     private:
+        /// Parent that owns *this.
         SerialBridge *parent_;
-    } writePort_{this, service_};
+    };
 
+    /// Access to the stack's executor.
+    Service *service_;
+    /// Instance of the state machine.
+    WritePort writePort_ {this, service_};
     /// Arduino device instance.
     SerialType *port_;
-    /// Buffer we are writing the output from right now.
-    Buffer<HubData> *writeBuffer_{nullptr};
-    /// Offset in the output string of the next byte to write.
+    /// Buffer we are writing the output from right now. These bytes go from
+    /// OpenMRN to the device.
+    Buffer<HubData> *writeBuffer_ {nullptr};
+    /// Offset in the output buffer of the next byte to write.
     size_t writeOfs_;
     /// Hub for the textual data.
-    HubFlow txtHub_{service_};
+    HubFlow txtHub_ {service_};
 };
 
+/// Bridge class that connects a native CAN controller to the OpenMRN core
+/// stack, sending and receiving CAN frames directly. The CAN controller must
+/// have a driver matching the Can controller base class defined in
+/// OpenMRN/arduino.
 class CanBridge : public Executable
 {
 public:
+    /// Constructor.
+    ///
+    /// @param port is the CAN hardware driver implementation.
+    /// @param can_hub is the core CAN frame router of the OpenMRN stack,
+    /// usually comes from stack()->can_hub().
     CanBridge(Can *port, CanHubFlow *can_hub)
         : canHub_(can_hub)
         , port_(port)
@@ -154,21 +200,29 @@ public:
     }
 
 private:
+    /// Handles data going out of OpenMRN and towards the CAN port.
     void loop_for_write()
     {
         if (!writeBuffer_)
+        {
             return;
+        }
         if (port_->availableForWrite() <= 0)
+        {
             return;
+        }
         port_->write(writeBuffer_->data());
         writeBuffer_ = nullptr;
         writePort_.notify();
     }
 
+    /// Handles data coming from the CAN port.
     void loop_for_read()
     {
         if (!port_->available())
+        {
             return;
+        }
         auto *b = canHub_->alloc();
         port_->read(b->data());
         b->data()->skipMember_ = &writePort_;
@@ -203,21 +257,27 @@ private:
     /// Hardware driver.
     Can *port_;
     /// Next buffer we are trying to write into the driver's FIFO.
-    Buffer<CanHubData> *writeBuffer_{nullptr};
+    Buffer<CanHubData> *writeBuffer_ {nullptr};
     /// Connection to the stack.
     CanHubFlow *canHub_;
     /// State flow with queues for output frames generated by the stack.
-    WritePort writePort_{this};
+    WritePort writePort_ {this};
 };
 
+/// Main class to declare the OpenMRN stack. Create one instance of this in the
+/// root file of your sketch. Prefer to supply the Node ID during construction.
 class OpenMRN : private Executable
 {
 public:
+    /// Constructor if the Node ID is not known. Must call init(...) with the
+    /// Node ID beofre using anything related to the stack, including
+    /// instantiating objects that depend on the stack. Prefer the other
+    /// constructor.
     OpenMRN()
     {
     }
     /// Use this constructor if stack() needs to be accessed during the time of
-    /// the static construction. Then use init() with no arguments.
+    /// the static construction.
     OpenMRN(openlcb::NodeID node_id)
     {
         init(node_id);
@@ -230,13 +290,7 @@ public:
         stack_->start_stack(false);
     }
 
-    /// Call this function once if the constructor with Node ID was used.
-    void init()
-    {
-        stack_->start_stack(false);
-    }
-
-    /// @return pointer to the stack. Do not call before init().
+    /// @return pointer to the OpenMRN stack. Do not call before init().
     openlcb::SimpleCanStack *stack()
     {
         return stack_.operator->();
@@ -251,18 +305,36 @@ public:
         }
     }
 
+    /// Adds a serial port to the stack speaking the gridconnect protocol, for
+    /// example to do a USB connection to a computer. This is the protocol that
+    /// USB-CAN adapters for LCC are speaking to the computer.
+    ///
+    /// Example:
+    /// void setup() {
+    ///   openmrn.init()
+    ///   ...
+    ///   openmrn.add_gridconnect_port(&Serial);
+    ///   ...
+    /// }
+    ///
+    /// @param port is the serial port instance from Arduino.
     template <class SerialType> void add_gridconnect_port(SerialType *port)
     {
         loopMembers_.push_back(
             new SerialBridge<SerialType>(port, stack()->can_hub()));
     }
 
+    /// Adds a hardware CAN port to the stack. If multiple ports are added,
+    /// OpenMRN will be forwarding traffic frames between them: the simplest
+    /// CAN-USB sketch just adds the serial port connecting to the computer and
+    /// the hardware CAN port.
     void add_can_port(Can *port)
     {
         loopMembers_.push_back(new CanBridge(port, stack()->can_hub()));
     }
 
 private:
+    /// Callback from the loop() method. Internally called.
     void run() override
     {
         stack_->executor()->loop_once();
@@ -271,7 +343,7 @@ private:
     /// Storage space for the OpenLCB stack. Will be constructed in init().
     uninitialized<openlcb::SimpleCanStack> stack_;
     /// List of objects we need to call in each loop iteration.
-    vector<Executable *> loopMembers_{{this}};
+    vector<Executable *> loopMembers_ {{this}};
 };
 
 #endif // _ARDUINO_OPENMRN_H_
