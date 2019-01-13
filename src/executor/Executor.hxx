@@ -87,7 +87,7 @@ public:
      * the execution is completed. @param fn is the closure to run. */
     void sync_run(std::function<void()> fn);
 
-#if defined(__FreeRTOS__) && !defined(ESP32)
+#if defined(__FreeRTOS__)
     /** Send a message to this Executor's queue. Callable from interrupt
      * context.
      * @param action Executable instance to insert into the input queue
@@ -308,7 +308,7 @@ public:
 #endif
     }
 
-#if defined(__FreeRTOS__) && !defined(ESP32)
+#if defined(__FreeRTOS__)
     /** Send a message to this Executor's queue. Callable from interrupt
      * context.
      * @param msg Executable instance to insert into the input queue

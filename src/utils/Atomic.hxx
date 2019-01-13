@@ -39,9 +39,27 @@
 
 #ifdef __FreeRTOS__
 #include <stdint.h>
+#if defined(ESP32)
+#include "freertos/FreeRTOS.h"
+#include "freertos/portmacro.h"
+#else
 #include "FreeRTOS.h"
 #include "portmacro.h"
+#endif
 
+#if defined(ESP32)
+class Atomic {
+public:
+  void lock() {
+    portENTER_CRITICAL(&_mux);
+  }
+  void unlock() {
+    portEXIT_CRITICAL(&_mux);
+  }
+private:
+  portMUX_TYPE _mux = portMUX_INITIALIZER_UNLOCKED;
+};
+#else
 class Atomic {
 public:
   void lock() {
@@ -51,6 +69,7 @@ public:
     portEXIT_CRITICAL();
   }
 };
+#endif
 
 #else
 

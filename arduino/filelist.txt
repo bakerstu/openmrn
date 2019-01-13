@@ -43,6 +43,8 @@ OpenMRN/src/executor/StateFlow.cxx
 OpenMRN/src/executor/StateFlow.hxx
 OpenMRN/src/executor/Timer.cxx
 OpenMRN/src/executor/Timer.hxx
+OpenMRN/src/freertos/can_ioctl.h
+OpenMRN/src/freertos/stropts.h
 OpenMRN/src/freertos_drivers
 OpenMRN/src/freertos_drivers/common
 OpenMRN/src/freertos_drivers/common/Can.cxx
@@ -50,6 +52,7 @@ OpenMRN/src/freertos_drivers/common/Can.hxx
 OpenMRN/src/freertos_drivers/common/DeviceBuffer.cxx
 OpenMRN/src/freertos_drivers/common/DeviceBuffer.hxx
 OpenMRN/src/freertos_drivers/common/Devtab.hxx
+OpenMRN/src/freertos_drivers/common/devtab.h
 OpenMRN/src/freertos_drivers/stm32
 OpenMRN/src/freertos_drivers/stm32/Stm32Can.cxx
 OpenMRN/src/freertos_drivers/stm32/Stm32Can.hxx

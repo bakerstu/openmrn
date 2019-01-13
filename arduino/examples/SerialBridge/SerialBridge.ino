@@ -6,7 +6,7 @@ OpenMRN openmrn(NODE_ID);
 
 void setup() {
     Serial.begin(115200L);
-    openmrn.add_gridconnect_port(&Serial);
+    //openmrn.add_gridconnect_port(&Serial);
     openmrn.init();
 }
 

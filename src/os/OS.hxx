@@ -230,7 +230,7 @@ public:
     }
 
 
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     /** Post (increment) a semaphore from ISR context.
      * @param woken is the task woken up
      */
@@ -556,7 +556,7 @@ private:
     ~OSTime();
 };
 
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
 /** Event bit mask type */
 typedef EventBits_t OSEventType;
 /** Abstraction to a group of event bits that can support a masked pend.

@@ -23,6 +23,9 @@
     "examples": [
         "examples/SerialBridge/SerialBridge.ino",
         "examples/AsyncTCPBridge/AsyncTCPBridge.ino"
-    ]
+    ],
+    "build": {
+        "flags" : "-D __FreeRTOS__"
+    }
   }
   

@@ -43,17 +43,19 @@
 #include <stdint.h>
 
 #if defined (__FreeRTOS__)
+#if !defined(ESP32)
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
 #include <event_groups.h>
-#elif defined(ESP_NONOS)
-#elif defined (ESP32)
+#else
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 #include <freertos/event_groups.h>
 #define NSEC_TO_TICK_SHIFT             20
+#endif
+#elif defined(ESP_NONOS)
 #else
 #include <pthread.h>
 #include <semaphore.h>
@@ -87,7 +89,7 @@ extern "C" {
  */
 int appl_main(int argc, char *argv[]);
 
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
 
 extern void hw_init(void);
 
@@ -168,7 +170,7 @@ typedef struct
  */
 extern long long os_get_time_monotonic(void);
 
-#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ESP32)
+#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
 /** @ref os_thread_once states.
  */
 enum
@@ -184,7 +186,7 @@ enum
 #define OS_THREAD_ONCE_INIT PTHREAD_ONCE_INIT
 #endif
 
-#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ESP32)
+#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
 /** One time intialization routine
  * @param once one time instance
  * @param routine method to call once
@@ -319,7 +321,7 @@ void os_thread_cancel(os_thread_t thread);
  */
 OS_INLINE os_thread_t os_thread_self(void)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     return xTaskGetCurrentTaskHandle();
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     return 0xdeadbeef;
@@ -334,7 +336,7 @@ OS_INLINE os_thread_t os_thread_self(void)
  */
 OS_INLINE int os_thread_get_priority(os_thread_t thread)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     return uxTaskPriorityGet(thread);
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     return 2;
@@ -351,7 +353,7 @@ OS_INLINE int os_thread_get_priority(os_thread_t thread)
  */
 OS_INLINE int os_thread_get_priority_min(void)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     return 1;
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     return 0xdeadbeef;
@@ -365,7 +367,7 @@ OS_INLINE int os_thread_get_priority_min(void)
  */
 OS_INLINE int os_thread_get_priority_max(void)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     return configMAX_PRIORITIES - 1;
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     return 0xdeadbeef;
@@ -374,7 +376,7 @@ OS_INLINE int os_thread_get_priority_max(void)
 #endif
 }
 
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER {NULL, 0}
 /** Static initializer for recursive mutexes */
@@ -409,7 +411,7 @@ extern void os_emscripten_yield();
  */
 OS_INLINE int os_mutex_init(os_mutex_t *mutex)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     mutex->recursive = 0;
     mutex->sem = xSemaphoreCreateMutex();
 
@@ -429,7 +431,7 @@ OS_INLINE int os_mutex_init(os_mutex_t *mutex)
  */
 OS_INLINE int os_recursive_mutex_init(os_mutex_t *mutex)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     mutex->recursive = 1;
     mutex->sem = xSemaphoreCreateRecursiveMutex();
 
@@ -464,10 +466,10 @@ OS_INLINE int os_recursive_mutex_init(os_mutex_t *mutex)
  */
 OS_INLINE int os_mutex_destroy(os_mutex_t *mutex)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     vSemaphoreDelete(mutex->sem);
 
-    return 0;    
+    return 0;
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
     mutex->locked = 0;
     return 0;
@@ -482,7 +484,7 @@ OS_INLINE int os_mutex_destroy(os_mutex_t *mutex)
  */
 OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
 {
-#if (__FreeRTOS__) || defined(ESP32)
+#if defined(__FreeRTOS__)
     vTaskSuspendAll();
     if (mutex->sem == NULL)
     {
@@ -524,7 +526,7 @@ OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
  */
 OS_INLINE int os_mutex_unlock(os_mutex_t *mutex)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     if (mutex->recursive)
     {
         xSemaphoreGiveRecursive(mutex->sem);
@@ -553,7 +555,7 @@ OS_INLINE int os_mutex_unlock(os_mutex_t *mutex)
  */
 OS_INLINE int os_sem_init(os_sem_t *sem, unsigned int value)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     *sem = xSemaphoreCreateCounting(LONG_MAX, value);
     if (!*sem) {
       abort();
@@ -576,7 +578,7 @@ OS_INLINE int os_sem_init(os_sem_t *sem, unsigned int value)
  */
 OS_INLINE int os_sem_destroy(os_sem_t *sem)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     vSemaphoreDelete(*sem);
     return 0;
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
@@ -594,7 +596,7 @@ OS_INLINE int os_sem_destroy(os_sem_t *sem)
  */
 OS_INLINE int os_sem_post(os_sem_t *sem)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     xSemaphoreGive(*sem);
     return 0;
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
@@ -609,7 +611,7 @@ OS_INLINE int os_sem_post(os_sem_t *sem)
 #endif
 }
 
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
 /** Post a semaphore from the ISR context.
  * @param sem address of semaphore to increment
  * @param woken is the task woken up
@@ -630,7 +632,7 @@ OS_INLINE int os_sem_post_from_isr(os_sem_t *sem, int *woken)
  */
 OS_INLINE int os_sem_wait(os_sem_t *sem)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     xSemaphoreTake(*sem, portMAX_DELAY);
     return 0;
 #elif defined(__EMSCRIPTEN__)
@@ -670,7 +672,7 @@ OS_INLINE int os_sem_timedwait(os_sem_t *sem, long long timeout)
     {
         return os_sem_wait(sem);
     }
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     if (xSemaphoreTake(*sem, timeout >> NSEC_TO_TICK_SHIFT) == pdTRUE)
     {
         return 0;
@@ -726,7 +728,7 @@ OS_INLINE int os_sem_timedwait(os_sem_t *sem, long long timeout)
 #endif // #ifndef ESP_NONOS
 
 
-#if !defined (__FreeRTOS__) && !defined(ESP32)
+#if !defined (__FreeRTOS__)
 /** Private data structure for a queue, do not use directly
  */
 typedef struct queue_priv
@@ -749,7 +751,7 @@ typedef struct queue_priv
  */
 OS_INLINE os_mq_t os_mq_create(size_t length, size_t item_size)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     return xQueueCreate(length, item_size);
 #else
     QueuePriv *q = (QueuePriv*)malloc(sizeof(QueuePriv));
@@ -777,7 +779,7 @@ OS_INLINE os_mq_t os_mq_create(size_t length, size_t item_size)
  */
 OS_INLINE void os_mq_send(os_mq_t queue, const void *data)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     xQueueSend(queue, data, portMAX_DELAY);
 #else
     QueuePriv *q = (QueuePriv*)queue;
@@ -804,7 +806,7 @@ OS_INLINE void os_mq_send(os_mq_t queue, const void *data)
  */
 OS_INLINE int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
     
     if (xQueueSend(queue, data, ticks) != pdTRUE)
@@ -824,7 +826,7 @@ OS_INLINE int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout
  */
 OS_INLINE void os_mq_receive(os_mq_t queue, void *data)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     xQueueReceive(queue, data, portMAX_DELAY);
 #else
     QueuePriv *q = (QueuePriv*)queue;
@@ -851,7 +853,7 @@ OS_INLINE void os_mq_receive(os_mq_t queue, void *data)
  */
 OS_INLINE int os_mq_timedreceive(os_mq_t queue, void *data, long long timeout)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
 
     if (xQueueReceive(queue, data, ticks) != pdTRUE)
@@ -872,7 +874,7 @@ OS_INLINE int os_mq_timedreceive(os_mq_t queue, void *data, long long timeout)
  */
 OS_INLINE int os_mq_send_from_isr(os_mq_t queue, const void *data, int *woken)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     portBASE_TYPE local_woken;
     if (xQueueSendFromISR(queue, data, &local_woken) != pdTRUE)
     {
@@ -891,10 +893,10 @@ OS_INLINE int os_mq_send_from_isr(os_mq_t queue, const void *data, int *woken)
  */
 OS_INLINE int os_mq_is_full_from_isr(os_mq_t queue)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     return xQueueIsQueueFullFromISR(queue);
 #else
-    HASSERT(0);    
+    HASSERT(0);
 #endif
     return 1;
 }
@@ -908,7 +910,7 @@ OS_INLINE int os_mq_is_full_from_isr(os_mq_t queue)
  */
 OS_INLINE int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     portBASE_TYPE local_woken;
     if (xQueueReceiveFromISR(queue, data, &local_woken) != pdTRUE)
     {
@@ -916,7 +918,7 @@ OS_INLINE int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
     }
     *woken |= local_woken;
 #else
-    HASSERT(0);    
+    HASSERT(0);
 #endif
     return OS_MQ_NONE;
 }
@@ -927,7 +929,7 @@ OS_INLINE int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
  */
 OS_INLINE int os_mq_num_pending(os_mq_t queue)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     return uxQueueMessagesWaiting(queue);
 #else
     HASSERT(0);
@@ -941,7 +943,7 @@ OS_INLINE int os_mq_num_pending(os_mq_t queue)
  */
 OS_INLINE int os_mq_num_pending_from_isr(os_mq_t queue)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     return uxQueueMessagesWaitingFromISR(queue);
 #else
     HASSERT(0);
@@ -955,7 +957,7 @@ OS_INLINE int os_mq_num_pending_from_isr(os_mq_t queue)
  */
 OS_INLINE int os_mq_num_spaces(os_mq_t queue)
 {
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
     return uxQueueSpacesAvailable(queue);
 #else
     HASSERT(0);
@@ -963,7 +965,7 @@ OS_INLINE int os_mq_num_spaces(os_mq_t queue)
 #endif
 }
 
-#if defined (__FreeRTOS__) || defined(ESP32)
+#if defined (__FreeRTOS__)
 /** Some of the older ports of FreeRTOS don't yet have this macro, so define it.
  */
 #if !defined (portEND_SWITCHING_ISR)

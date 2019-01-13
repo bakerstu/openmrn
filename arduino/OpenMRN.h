@@ -6,13 +6,12 @@
 #include "utils/GridConnectHub.hxx"
 #include "freertos_drivers/common/Can.hxx"
 
-
-
 /// Bridge class that connects an Arduino API style stream to the OpenMRN
 /// core stack.
+template <class StreamType>
 class StreamBridge : public Executable {
 public:
-    StreamBridge(::Stream *port, CanHubFlow* can_hub)
+    StreamBridge(StreamType *port, CanHubFlow* can_hub)
         : service_(can_hub->service()), port_(port) {
         GCAdapterBase::CreateGridConnectAdapter(&txtHub_, can_hub, false);
         txtHub_.register_port(&writePort_);
@@ -75,7 +74,7 @@ private:
 
     
     /// Arduino device instance.
-    ::Stream* port_;
+    StreamType* port_;
     /// Buffer we are writing the output from right now.
     Buffer<HubData>* writeBuffer_{nullptr};
     /// Offset in the output string of the next byte to write.
@@ -96,12 +95,12 @@ public:
     /// Call this function once if the empty constructor was used.
     void init(openlcb::NodeID node_id) {
         stack_.emplace(node_id);
-        //stack_->start_stack(false);
+        stack_->start_stack(false);
     }
 
     /// Call this function once if the constructor with Node ID was used.
     void init() {
-        //stack_->start_stack(false);
+        stack_->start_stack(false);
     }
     
     /// @return pointer to the stack. Do not call before init().
@@ -116,9 +115,10 @@ public:
         }
     }
 
-    void add_gridconnect_port(::Stream* port) {
+    template<class StreamType>
+    void add_gridconnect_port(StreamType* port) {
       loopMembers_.push_back(
-          new StreamBridge<Stream>(port, stack()->can_hub()));
+          new StreamBridge<StreamType>(port, stack()->can_hub()));
     }
 /*
     void add_can_port(Can* port) {
@@ -135,6 +135,5 @@ private:
     /// List of objects we need to call in each loop iteration.
     vector<Executable*> loopMembers_{{this}};
 };
-
 
 #endif // _ARDUINO_OPENMRN_H_

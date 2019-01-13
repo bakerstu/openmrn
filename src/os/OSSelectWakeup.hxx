@@ -39,8 +39,12 @@
 #include "utils/Atomic.hxx"
 #include "os/os.h"
 
-#if defined(__FreeRTOS__) && !defined(ESP32)
+#if defined(__FreeRTOS__)
+#if defined(ESP32)
+#include "freertos_drivers/common/Devtab.hxx"
+#else
 #include "Devtab.hxx"
+#endif
 #else
 #include <signal.h>
 #endif
@@ -127,7 +131,7 @@ public:
         pendingWakeup_ = false;
     }
 
-#if defined(__FreeRTOS__) && !defined(ESP32)
+#if defined(__FreeRTOS__)
     void wakeup_from_isr()
     {
         pendingWakeup_ = true;
@@ -168,12 +172,12 @@ public:
             }
             else
             {
-#if defined(__FreeRTOS__) && !defined(ESP32)
+#if defined(__FreeRTOS__)
                 Device::select_clear();
 #endif
             }
         }
-#if defined(__FreeRTOS__) && !defined(ESP32)
+#if defined(__FreeRTOS__)
         int ret =
             Device::select(nfds, readfds, writefds, exceptfds, deadline_nsec);
         if (!ret && pendingWakeup_)
@@ -181,7 +185,7 @@ public:
             ret = -1;
             errno = EINTR;
         }
-#elif defined(__WINNT__) || defined(ESP_NONOS) || defined(ESP32)
+#elif defined(__WINNT__) || defined(ESP_NONOS)
         struct timeval timeout;
         timeout.tv_sec = deadline_nsec / 1000000000;
         timeout.tv_usec = (deadline_nsec / 1000) % 1000000;
@@ -203,7 +207,7 @@ public:
     }
 
 private:
-#if !defined(__FreeRTOS__) && !defined(__WINNT__) && !defined(ESP32)
+#if !defined(__FreeRTOS__) && !defined(__WINNT__)
     /** This signal is used for the wakeup kill in a pthreads OS. */
     static const int WAKEUP_SIG = SIGUSR1;
 #endif
@@ -213,7 +217,7 @@ private:
     bool inSelect_;
     /// ID of the main thread we are engaged upon.
     os_thread_t thread_;
-#if defined(__FreeRTOS__) && !defined(ESP32)
+#if defined(__FreeRTOS__)
     Device::SelectInfo selectInfo_;
 #elif !defined(__WINNT__)
     /// Original signal mask. Used for pselect to reenable the signal we'll be

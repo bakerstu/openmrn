@@ -12,47 +12,53 @@ OpenMRN openmrn(NODE_ID);
 
 AsyncServer server(12021);
 
-class AsyncClientStream : ::Stream {
+class AsyncClientStream : public ::Stream {
 public:
     AsyncClientStream(AsyncClient *client) :_client(client) {
         _client->setNoDelay(true);
-        _client->onData(std::bind(&AsyncClientStream::dataReader, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4), NULL);
-        _client->onDisconnect(std::bind(&AsyncClientStream::disconnectHandler, this, std::placeholders::_1, std::placeholders::_2), NULL);
-        _client->onError(std::bind(&AsyncClientStream::errorHandler, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), NULL);
-        _client->onTimeout(std::bind(&AsyncClientStream::timeoutHandler, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), NULL);
+        _client->onData([](void *arg, AsyncClient *client, void *data, size_t len) {
+          static_cast<AsyncClientStream *>(arg)->feed(data, len);
+        }, this);
         _buffer.reserve(256);
     }
+    void feed(void *data, size_t len) {
+      std::copy(static_cast<uint8_t *>(data), static_cast<uint8_t *>(data) + len, back_inserter(_buffer));
+    }
+    size_t availableForWrite() {
+      return _client->space();
+    }
     virtual size_t write(uint8_t data) {
-        _client->write(data);
+        return write(&data, 1);
+    }
+    size_t write(const char *buffer, size_t size) {
+      return _client->add(buffer, size);
     }
     virtual size_t write(const uint8_t *buffer, size_t size) {
-        _client->write(buffer, size);
+        return _client->add((const char *)buffer, size);
     }
     virtual int available() {
         return _buffer.size();
     }
     virtual int read() {
-        return _buffer.pop_front();
+        int data = *_buffer.begin();
+        _buffer.erase(_buffer.begin());
+        return data;
+    }
+    size_t read(HubData *buffer) {
+      size_t bytesRead = 0;
+      while(available()) {
+        buffer->push_back((char)read());
+        bytesRead++;
+      }
+      return bytesRead;
     }
     virtual int peek() {
-        return _buffer.front();
+        return *_buffer.begin();
     }
     virtual void flush() {
         _buffer.clear();
     }
 private:
-    void dataReader(void *arg, AsyncClient *client, void *data, size_t len) {
-        std::copy(data, data + len, back_inserter(_buffer));
-    }
-    void disconnectHandler(void *arg, AsyncClient *client) {
-        Serial.printf("\n client %s disconnected \n", client->remoteIP().toString().c_str());
-    }
-    void errorHandler(void *arg, AsyncClient *client, int8_t error) {
-        Serial.printf("\n connection error %s from client %s \n", client->errorToString(error), client->remoteIP().toString().c_str());
-    }
-    void timeoutHandler(void *arg, AsyncClient *client, uint32_t time) {
-        Serial.printf("\n client ACK timeout ip: %s \n", client->remoteIP().toString().c_str());
-    }
     AsyncClient *_client;
     std::vector<uint8_t> _buffer;
 };
@@ -72,9 +78,9 @@ void setup() {
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
 
-    server.onClient([]((void *arg, AsyncClient *client)) {
+    server.onClient([](void *arg, AsyncClient *client) {
         openmrn.add_gridconnect_port(new AsyncClientStream(client));
-    });
+    }, NULL);
 
     server.begin();
 
@@ -83,8 +89,4 @@ void setup() {
 
 void loop() {
     openmrn.loop();
-    WiFiClient client = server.available();   // listen for incoming clients
-    if(client) {
-
-    }
 }

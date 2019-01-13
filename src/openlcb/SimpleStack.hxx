@@ -329,10 +329,14 @@ public:
         node()->iface()->addressed_message_write_flow()->send(b);
     }
 
-protected:
+
+    // TODO: this was needed in public vs protected due to Arduino OpenMRN.h, it
+    // should be moved back to protected after resolving that dependency.
     /// Call this function once after the actual IO ports are set up. Calling
     /// before the executor starts looping is okay.
     void start_stack(bool delay_start);
+
+protected:
 
     /// Hook for clients to initialize the node-specific components.
     virtual void start_node() = 0;
