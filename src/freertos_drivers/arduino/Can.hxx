@@ -41,9 +41,10 @@
 #include "can_frame.h"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
+#include "utils/Atomic.hxx"
 
 /** Base class for a CAN device for the Arduino environment. */
-class Can
+class Can : protected Atomic
 {
 public:
     static unsigned numReceivedPackets_;
@@ -67,9 +68,8 @@ public:
     /// @return 0 or 1 depending on whether a frame was read or not.
     int read(struct can_frame *frame)
     {
-        portENTER_CRITICAL();
+        AtomicHolder h(this);
         auto ret = rxBuf->get(frame, 1);
-        portEXIT_CRITICAL();
         return ret;
     }
 
@@ -78,13 +78,12 @@ public:
     /// @return 0 or 1 depending on whether the write happened or not.
     int write(const struct can_frame *frame)
     {
-        portENTER_CRITICAL();
+        AtomicHolder h(this);
         auto ret = txBuf->put(frame, 1);
         if (ret)
         {
             tx_msg();
         }
-        portEXIT_CRITICAL();
         return ret;
     }
 
