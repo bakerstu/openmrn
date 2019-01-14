@@ -41,7 +41,7 @@ extern "C" {
 
 #if defined (__FreeRTOS__)
 extern void os_thread_start(void *arg);
-#endif // __FreeRTOS__)
+#endif // __FreeRTOS__
 
 #ifdef __cplusplus
 } // extern "C"
