@@ -180,7 +180,7 @@ public:
             ret = -1;
             errno = EINTR;
         }
-#elif defined(__WINNT__) || defined(ESP_NONOS)
+#elif defined(__WINNT__) || defined(ESP_NONOS) || defined(ESP32)
         struct timeval timeout;
         timeout.tv_sec = deadline_nsec / 1000000000;
         timeout.tv_usec = (deadline_nsec / 1000) % 1000000;
