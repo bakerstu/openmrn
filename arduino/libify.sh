@@ -41,6 +41,7 @@ mkdir ${TARGET_LIB_DIR}/src/freertos_drivers/arduino
 cp ${OPENMRN_ROOT}/src/freertos_drivers/arduino/* \
     ${OPENMRN_ROOT}/src/freertos_drivers/common/DeviceBuffer.cxx \
     ${OPENMRN_ROOT}/src/freertos_drivers/common/DeviceBuffer.hxx \
+    ${OPENMRN_ROOT}/src/freertos_drivers/common/GpioWrapper.hxx \
     ${TARGET_LIB_DIR}/src/freertos_drivers/arduino
 
 mkdir ${TARGET_LIB_DIR}/src/openlcb
@@ -65,6 +66,7 @@ cp ${OPENMRN_ROOT}/include/sys/tree.hxx \
 mkdir ${TARGET_LIB_DIR}/src/utils
 cp ${OPENMRN_ROOT}/src/utils/*.cxx \
     ${OPENMRN_ROOT}/src/utils/*.hxx \
+    ${OPENMRN_ROOT}/src/utils/*.c \
     ${OPENMRN_ROOT}/src/utils/*.h \
     ${TARGET_LIB_DIR}/src/utils
 
