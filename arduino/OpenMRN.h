@@ -106,9 +106,9 @@ private:
             return;
         }
         auto *b = txtHub_.alloc();
+        b->data()->resize(av);
         port_->read(b->data()->data(), b->data()->size());
         txtHub_.send(b);
-        // @todo build a buffer here and send to the hub
     }
 
     friend class WritePort;
