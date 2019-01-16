@@ -292,10 +292,7 @@ public:
     }
     /// Use this constructor if stack() needs to be accessed during the time of
     /// the static construction.
-    OpenMRN(openlcb::NodeID node_id)
-    {
-        init(node_id);
-    }
+    OpenMRN(openlcb::NodeID node_id);
 
     /// Call this function once if the empty constructor was used.
     void init(openlcb::NodeID node_id)

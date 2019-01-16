@@ -33,3 +33,9 @@
  */
 
 #include <OpenMRN.h>
+
+
+OpenMRN::OpenMRN(openlcb::NodeID node_id)
+{
+    init(node_id);
+}
