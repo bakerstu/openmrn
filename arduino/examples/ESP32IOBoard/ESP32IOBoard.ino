@@ -116,7 +116,7 @@ void setup() {
     printf("\nWiFi connected, IP address: %s\n", WiFi.localIP().toString().c_str());
 
     openmrn.stack()->print_all_packets();
-    openmrn.start_background_task();
+    //openmrn.start_background_task();
 
     openMRNServer.setNoDelay(true);
     openMRNServer.begin();
@@ -131,5 +131,6 @@ void loop() {
             openmrn.add_gridconnect_port(new WiFiClientAdapter(client));
         }
     }
-    vTaskDelay(pdMS_TO_TICKS(50));
+    openmrn.loop();
+    //vTaskDelay(pdMS_TO_TICKS(50));
 }
