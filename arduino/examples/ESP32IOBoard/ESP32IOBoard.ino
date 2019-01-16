@@ -52,11 +52,12 @@ const char* hostname = "esp32mrn";
 static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
 OpenMRN openmrn(NODE_ID);
 
+string somewhere("abcdef");
 // ConfigDef comes from config.hxx and is specific to the particular device and
 // target. It defines the layout of the configuration memory space and is also
 // used to generate the cdi.xml file. Here we instantiate the configuration
 // layout. The argument of offset zero is ignored and will be removed later.
-openlcb::ConfigDef cfg(0);
+static constexpr openlcb::ConfigDef cfg(0);
 
 #if !defined(LED_BUILTIN)
 //constexpr uint8_t LED_BUILTIN = 13;
@@ -64,8 +65,8 @@ openlcb::ConfigDef cfg(0);
 
 GPIO_PIN(LED, GpioOutputSafeLow, LED_BUILTIN);
 
-openlcb::ConfiguredConsumer onboard_led(
-    openmrn.stack()->node(), cfg.seg().consumers().entry<0>(), LED_Pin());
+//openlcb::ConfiguredConsumer onboard_led(
+//    openmrn.stack()->node(), cfg.seg().consumers().entry<0>(), LED_Pin());
 
 class WiFiClientAdapter {
 public:
