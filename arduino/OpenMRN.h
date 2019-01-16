@@ -40,6 +40,7 @@
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN
 /// frames via gridconnect format) to the OpenMRN core stack. This can be
@@ -374,7 +375,7 @@ private:
 #if defined(ESP32)
     static void openmrn_background_task(void *param)
     {
-        OpenMRN *openmrn = reinterpret_cast<OpenMRN *>(param)
+        OpenMRN *openmrn = reinterpret_cast<OpenMRN *>(param);
         while(true)
         {
             openmrn->loop();

@@ -39,7 +39,7 @@
 
 #include <OpenMRN.h>
 #include <openlcb/TcpDefs.hxx>
-#include "config.hxx"
+#include "config.h"
 
 constexpr uint16_t OPENMRN_TCP_PORT = 12021L;
 
@@ -59,7 +59,7 @@ OpenMRN openmrn(NODE_ID);
 openlcb::ConfigDef cfg(0);
 
 #if !defined(LED_BUILTIN)
-constexpr uint8_t LED_BUILTIN = 13;
+//constexpr uint8_t LED_BUILTIN = 13;
 #endif
 
 GPIO_PIN(LED, GpioOutputSafeLow, LED_BUILTIN);
@@ -115,7 +115,7 @@ void setup() {
     printf("\nWiFi connected, IP address: %s\n", WiFi.localIP().toString().c_str());
 
     openmrn.stack()->print_all_packets();
-    openmrn.startBackgroundTask();
+    openmrn.start_background_task();
 
     openMRNServer.setNoDelay(true);
     openMRNServer.begin();
