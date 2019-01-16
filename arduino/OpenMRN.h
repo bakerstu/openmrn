@@ -269,7 +269,7 @@ private:
 
 #if defined(ESP32)
 /// Default stack size to use for the OpenMRN background task on the ESP32 platform.
-constexpr uint32_t OPENMRN_STACK_SIZE = 10240L;
+constexpr uint32_t OPENMRN_STACK_SIZE = 5120L;
 
 /// Default thread priority for the OpenMRN background task on the ESP32 platform.
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
