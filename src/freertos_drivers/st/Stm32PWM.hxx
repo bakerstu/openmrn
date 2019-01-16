@@ -83,6 +83,14 @@ public:
         return &*channels_[id - 1];
     }
 
+    /// @return one PWM channel.
+    /// @param parent the PWMGroup object. Does not need to be initialized yet.
+    /// @param id is the channel number, 1..4
+    static constexpr PWM *get_channel(Stm32PWMGroup *parent, unsigned id)
+    {
+        return uninitialized<Channel>::cast_data(&parent->channels_[id - 1]);
+    }
+
 private:
     class Channel : public PWM
     {

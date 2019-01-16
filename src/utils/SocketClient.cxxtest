@@ -37,7 +37,7 @@
 #include "utils/socket_listener.hxx"
 #include "utils/async_if_test_helper.hxx"
 
-#define LISTEN_PORT 12345
+#define LISTEN_PORT 12245
 
 using namespace std::placeholders;
 
@@ -53,12 +53,24 @@ protected:
     SocketClientTest()
     {
         wait();
+        sl_.reset(new SocketListener(LISTEN_PORT, accept_callback));
+        while (!sl_->is_started())
+        {
+            usleep(10000);
+        }
+    }
+
+    ~SocketClientTest()
+    {
+        sl_->shutdown();
     }
 
     static void accept_callback(int fd)
     {
         printf("accept_callback\n");
     }
+
+    std::unique_ptr<SocketListener> sl_;
 };
 
 TEST_F(SocketClientTest, create)
@@ -67,8 +79,6 @@ TEST_F(SocketClientTest, create)
 
 TEST_F(SocketClientTest, connect_mdns_not_published_no_fallback)
 {
-    SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
-
     SocketClient *sc = new SocketClient(
         node_->iface()->dispatcher()->service(), "_openlcbtest._tcp", nullptr, 0,
         std::bind(&SocketClientTest::connect_callback, this, _1, _2, _3),
@@ -81,32 +91,30 @@ TEST_F(SocketClientTest, connect_mdns_not_published_no_fallback)
     usleep(10000);
     wait();
 
-    sl->shutdown();
     sc->shutdown();
-    delete sl;
     delete sc;
+}
+
+void connect_status(SocketClient::Status s)
+{
+    LOG(INFO, "Socket client at %d", (int)s);
 }
 
 TEST_F(SocketClientTest, connect_host)
 {
-    SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
+    EXPECT_CALL(*this, connect_callback(_, _, _)).Times(1);
 
-    SocketClient *sc = new SocketClient(
-        node_->iface()->dispatcher()->service(), nullptr, "127.0.0.1",
-        LISTEN_PORT,
+    SocketClient *sc = new SocketClient(node_->iface()->dispatcher()->service(),
+        nullptr, "127.0.0.1", LISTEN_PORT,
         std::bind(&SocketClientTest::connect_callback, this, _1, _2, _3),
-        nullptr, 1, 1);
-
-    EXPECT_CALL(*this, connect_callback(_, _, sc)).Times(1);
+        connect_status, 1, 1);
 
     usleep(10000);
     wait();
     usleep(10000);
     wait();
 
-    sl->shutdown();
     sc->shutdown();
-    delete sl;
     delete sc;
 }
 
@@ -122,8 +130,6 @@ TEST_F(SocketClientTest, connect_mdns)
     LOG(INFO, "waiting for export to take hold");
     sleep(1);
 
-    SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
-
     SocketClient *sc = new SocketClient(
         node_->iface()->dispatcher()->service(), "_openlcbtest._tcp", nullptr, 0,
         std::bind(&SocketClientTest::connect_callback, this, _1, _2, _3),
@@ -136,16 +142,12 @@ TEST_F(SocketClientTest, connect_mdns)
     usleep(10000);
     wait();
 
-    sl->shutdown();
     sc->shutdown();
-    delete sl;
     delete sc;
 }
 
 TEST_F(SocketClientTest, connect_mdns_not_published)
 {
-    SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
-
     SocketClient *sc = new SocketClient(
         node_->iface()->dispatcher()->service(), "_openlcbtest._tcp", "127.0.0.1",
         LISTEN_PORT,
@@ -159,16 +161,12 @@ TEST_F(SocketClientTest, connect_mdns_not_published)
     usleep(10000);
     wait();
 
-    sl->shutdown();
     sc->shutdown();
-    delete sl;
     delete sc;
 }
 
 TEST_F(SocketClientTest, connect_host_disallow_local)
 {
-    SocketListener *sl = new SocketListener(LISTEN_PORT, accept_callback);
-
     SocketClient *sc = new SocketClient(
         node_->iface()->dispatcher()->service(), nullptr, "127.0.0.1",
         LISTEN_PORT,
@@ -184,8 +182,6 @@ TEST_F(SocketClientTest, connect_host_disallow_local)
     usleep(40000);
     wait();
 
-    sl->shutdown();
     sc->shutdown();
-    delete sl;
     delete sc;
 }

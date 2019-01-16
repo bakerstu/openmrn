@@ -57,7 +57,11 @@
 #include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/HubDeviceNonBlock.hxx"
+#ifdef __FreeRTOS__
 #include "utils/HubDeviceSelect.hxx"
+#endif
+
+class OpenMRN;
 
 namespace openlcb
 {
@@ -253,6 +257,8 @@ public:
     /// Reinitializes the node. Useful to call after the connection has flapped
     /// (gone down and up).
     void restart_stack();
+
+    friend class ::OpenMRN;
 
     /// Donates the current thread to the executor. Never returns.
     /// @param delay_start if true, then prevents sending traffic to the bus

@@ -59,7 +59,7 @@ public:
 private:
     uint32_t legacyAddress_;
     SpeedType currentSpeed_;
-    map<uint32_t, uint16_t> fnValues_;
+    std::map<uint32_t, uint16_t> fnValues_;
 };
 
 } // namespace openlcb

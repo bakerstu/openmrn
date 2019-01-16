@@ -338,7 +338,7 @@ static void os_thread_start(void *arg)
 }
 #endif
 
-#if !defined (__EMSCRIPTEN__) && !defined(ESP_NONOS)
+#if !(defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO))
 
 #if defined(__FreeRTOS__)
 #if (configSUPPORT_STATIC_ALLOCATION == 1)
@@ -615,6 +615,18 @@ long long os_get_time_monotonic(void)
     gettimeofday(&tv, NULL);
     time = ((long long)tv.tv_sec * 1000LL * 1000LL * 1000LL) +
            ((long long)tv.tv_usec * 1000LL);
+#elif defined(ARDUINO)
+    static uint32_t last_millis = 0;
+    auto new_millis = millis();
+    static uint32_t overflow_millis = 0;
+    if (new_millis < last_millis)
+    {
+        ++overflow_millis;
+    }
+    time = overflow_millis;
+    time <<= 32;
+    time += new_millis;
+    time *= 1000000;
 #elif defined(ESP_NONOS)
     static uint32_t clockmul = 0;
     if (clockmul == 0) {
@@ -998,6 +1010,9 @@ int main(int argc, char *argv[])
 #endif
 }
 
+#if defined(ARDUINO)
+unsigned critical_nesting;
+#endif
 
 #if 0 && defined(ESP_NONOS)
 struct _reent *_impure_ptr = NULL;
