@@ -35,6 +35,10 @@
 #include <OpenMRN.h>
 
 
+extern const char DEFAULT_WIFI_NAME[] __attribute__((weak)) = "defaultap";
+extern const char DEFAULT_PASSWORD[] __attribute__((weak)) = "defaultpw";
+
+
 OpenMRN::OpenMRN(openlcb::NodeID node_id)
 {
     init(node_id);
