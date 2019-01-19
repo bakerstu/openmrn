@@ -23,11 +23,11 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "ESP32 IO Board",
-    "Arduino", "1.00"};
+    4,               "OpenMRN", "Arduino IO Board",
+    ARDUINO_VARIANT, "1.00"};
 
-#define NUM_OUTPUTS 4
-#define NUM_INPUTS 1
+constexpr uint8_t NUM_OUTPUTS = 8;
+constexpr uint8_t NUM_INPUTS = 8;
 
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout

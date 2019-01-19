@@ -74,48 +74,61 @@ string somewhere("abcdef");
 // layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
-#if !defined(LED_BUILTIN)
-//constexpr uint8_t LED_BUILTIN = 13;
-#endif
+// Declare output pins
+GPIO_PIN(IO0, GpioOutputSafeLow, 2);
+GPIO_PIN(IO1, GpioOutputSafeLow, 4);
+GPIO_PIN(IO2, GpioOutputSafeLow, 5);
+GPIO_PIN(IO3, GpioOutputSafeLow, 16);
+GPIO_PIN(IO4, GpioOutputSafeLow, 17);
+GPIO_PIN(IO5, GpioOutputSafeLow, 18);
+GPIO_PIN(IO6, GpioOutputSafeLow, 19);
+GPIO_PIN(IO7, GpioOutputSafeLow, 23);
 
-GPIO_PIN(LED, GpioOutputSafeLow, LED_BUILTIN);
+// Declare input pins, these are using analog pins as digital inputs
+// NOTE: pins 25 and 26 can not safely be used as analog pins while
+// WiFi is active.
+GPIO_PIN(IO8, GpioInputPU, 32);
+GPIO_PIN(IO9, GpioInputPU, 33);
+GPIO_PIN(IO10, GpioInputPU, 34);
+GPIO_PIN(IO11, GpioInputPU, 35);
+GPIO_PIN(IO12, GpioInputPU, 36);
+GPIO_PIN(IO13, GpioInputPU, 39);
+GPIO_PIN(IO14, GpioInputPU, 25);
+GPIO_PIN(IO15, GpioInputPU, 26);
 
-//openlcb::ConfiguredConsumer onboard_led(
-//    openmrn.stack()->node(), cfg.seg().consumers().entry<0>(), LED_Pin());
+openlcb::ConfiguredConsumer IO0_consumer(
+    openmrn.stack()->node(), cfg.seg().consumers().entry<0>(), IO0_Pin());
+openlcb::ConfiguredConsumer IO1_consumer(
+    openmrn.stack()->node(), cfg.seg().consumers().entry<1>(), IO1_Pin());
+openlcb::ConfiguredConsumer IO2_consumer(
+    openmrn.stack()->node(), cfg.seg().consumers().entry<2>(), IO2_Pin());
+openlcb::ConfiguredConsumer IO3_consumer(
+    openmrn.stack()->node(), cfg.seg().consumers().entry<3>(), IO3_Pin());
+openlcb::ConfiguredConsumer IO4_consumer(
+    openmrn.stack()->node(), cfg.seg().consumers().entry<4>(), IO4_Pin());
+openlcb::ConfiguredConsumer IO5_consumer(
+    openmrn.stack()->node(), cfg.seg().consumers().entry<5>(), IO5_Pin());
+openlcb::ConfiguredConsumer IO6_consumer(
+    openmrn.stack()->node(), cfg.seg().consumers().entry<6>(), IO6_Pin());
+openlcb::ConfiguredConsumer IO7_consumer(
+    openmrn.stack()->node(), cfg.seg().consumers().entry<7>(), IO7_Pin());
 
-class WiFiClientAdapter {
-public:
-    WiFiClientAdapter(WiFiClient client) : client_(client){
-        client_.setNoDelay(true);
-        printf("[%s] OpenMRN GridConnect client connected.\n",
-            client_.remoteIP().toString().c_str());
-    }
-    // on the ESP32 there is no TX limit method
-    size_t availableForWrite() {
-        return client_.connected();
-    }
-    size_t write(const char *buffer, size_t len) {
-        if(client_.connected()) {
-            return client_.write(buffer, len);  
-        }
-        return 0;
-    }
-    size_t available() {
-        if(client_.connected()) {
-            return client_.available();
-        }
-        return 0;
-    }
-    size_t read(const char *buffer, size_t len) {
-        size_t bytesRead = 0;
-        if(client_.connected()) {
-            bytesRead = client_.read((uint8_t *)buffer, len);
-        }
-        return bytesRead;
-    }
-private:
-    WiFiClient client_;
-};
+openlcb::ConfiguredProducer IO8_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<0>(), IO8_Pin());
+openlcb::ConfiguredProducer IO9_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<1>(), IO9_Pin());
+openlcb::ConfiguredProducer IO10_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<2>(), IO10_Pin());
+openlcb::ConfiguredProducer IO11_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<3>(), IO11_Pin());
+openlcb::ConfiguredProducer IO12_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<4>(), IO12_Pin());
+openlcb::ConfiguredProducer IO13_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<5>(), IO13_Pin());
+openlcb::ConfiguredProducer IO14_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<6>(), IO14_Pin());
+openlcb::ConfiguredProducer IO15_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<7>(), IO15_Pin());
 
 const char CDI_FILENAME[] = "/spiffs/cdi.xml";
 namespace openlcb {
@@ -154,9 +167,8 @@ void loop() {
     if(openMRNServer.hasClient()) {
         WiFiClient client = openMRNServer.available();
         if(client) {
-            openmrn.add_gridconnect_port(new WiFiClientAdapter(client));
+            openmrn.add_gridconnect_port(new Esp32WiFiClientAdapter(client));
         }
     }
     openmrn.loop();
-    //vTaskDelay(pdMS_TO_TICKS(50));
 }
