@@ -52,15 +52,7 @@
 class TempDir {
 public:
 #ifndef __FreeRTOS__
-  TempDir() {
-#ifdef __linux__
-    dirName_ = "/tmp/openmrntmpdirXXXXXX";
-#else
-    dirName_ = "./openmrntmpdirXXXXXX";
-#endif
-    dirName_.c_str();
-    HASSERT(mkdtemp(&dirName_[0]));
-  }
+  TempDir();
 #endif
 
   ~TempDir() {

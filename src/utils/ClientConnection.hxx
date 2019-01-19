@@ -47,6 +47,10 @@ public:
     /** Test the connection whether it is alive; establish the connection if it
      * is dead. @returns true if there is a live connection. */
     virtual bool ping() = 0;
+
+    virtual ~ConnectionClient()
+    {
+    }
 };
 
 /// Notification implementation that sets an external variable to -1 when
@@ -89,6 +93,10 @@ public:
     GCFdConnectionClient(const string &name, CanHubFlow *hub)
         : closedNotify_(&fd_, name)
         , hub_(hub)
+    {
+    }
+
+    virtual ~GCFdConnectionClient()
     {
     }
 
@@ -144,6 +152,10 @@ public:
     {
     }
 
+    virtual ~DeviceConnectionClient()
+    {
+    }
+
 private:
     /// Attempts to open the device.
     void try_connect() OVERRIDE
@@ -193,6 +205,9 @@ public:
     {
     }
 
+    virtual ~UpstreamConnectionClient()
+    {
+    }
 private:
     /// Implementation of connection method.
     void try_connect() OVERRIDE
