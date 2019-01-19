@@ -38,6 +38,9 @@
 
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
+#if defined(ESP32)
+#include "freertos_drivers/arduino/Esp32WiFiClientAdapter.hxx"
+#endif
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
