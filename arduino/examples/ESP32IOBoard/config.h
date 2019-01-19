@@ -1,5 +1,5 @@
-#ifndef _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
-#define _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
+#ifndef _ARDUINO_EXAMPLE_ESP32IOBOARD_CONFIG_H_
+#define _ARDUINO_EXAMPLE_ESP32IOBOARD_CONFIG_H_
 
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
@@ -23,7 +23,7 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "Test IO Board",
+    4,               "OpenMRN", "ESP32 IO Board",
     "Arduino", "1.00"};
 
 #define NUM_OUTPUTS 4
@@ -76,4 +76,4 @@ CDI_GROUP_END();
 
 } // namespace openlcb
 
-#endif // _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
+#endif // _ARDUINO_EXAMPLE_ESP32IOBOARD_CONFIG_H_
