@@ -44,7 +44,9 @@ class TcpDefs {
 public:
     static const char MDNS_PROTOCOL_TCP[];
     static const char MDNS_SERVICE_NAME_HUB[];
+    static const char MDNS_SERVICE_NAME_HUB_TCP[];
     static const char MDNS_SERVICE_NAME_GRIDCONNECT_CAN[];
+    static const char MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP[];
 
 private:
     /// Nobody can construct this class.
