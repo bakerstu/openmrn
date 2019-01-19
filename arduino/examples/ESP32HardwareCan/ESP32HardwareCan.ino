@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- *
+ * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,52 +24,38 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Esp32WiFiClientAdapter.hxx
- *
- * ESP32 adapter code using the WiFiClient provided by the WiFiServer code
- * for interfacing with the OpenMRN stack.
+ * \file HardwareCanAdapter.ino
+ * 
+ * Example application for the ESP32 showing how to configure the hardware CAN
+ * to communicate with OpenMRN
  *
  * @author Mike Dunston
- * @date 13 January 2019
+ * @date 19 January 2019
  */
-
-// This include is exclusive against freertos_drivers/arduino/Esp32WiFiClientAdapter.hxx
-#ifndef _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_
-#define _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <OpenMRN.h>
+#include <driver/can.h>
+#include <freertos/task.h>
 
-class Esp32WiFiClientAdapter {
-public:
-    Esp32WiFiClientAdapter(WiFiClient client) : client_(client){
-        client_.setNoDelay(true);
-    }
-    // on the ESP32 there is no TX limit method
-    size_t availableForWrite() {
-        return client_.connected();
-    }
-    size_t write(const char *buffer, size_t len) {
-        if(client_.connected()) {
-            return client_.write(buffer, len);  
-        }
-        return 0;
-    }
-    size_t available() {
-        if(client_.connected()) {
-            return client_.available();
-        }
-        return 0;
-    }
-    size_t read(const char *buffer, size_t len) {
-        size_t bytesRead = 0;
-        if(client_.connected()) {
-            bytesRead = client_.read((uint8_t *)buffer, len);
-        }
-        return bytesRead;
-    }
-private:
-    WiFiClient client_;
-};
+constexpr uint32_t     SERIAL_BAUD     = 115200L;
 
-#endif /* _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_ */
+static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
+OpenMRN openmrn(NODE_ID);
+
+void setup()
+{
+    Serial.begin(SERIAL_BAUD);
+    WiFi.mode(WIFI_MODE_NULL);
+
+    openmrn.stack()->print_all_packets();
+    openmrn.start_background_task();
+
+    openmrn.add_can_port(new Esp32HardwareCan("ESP32Can", GPIO_NUM_16, GPIO_NUM_17));
+}
+
+void loop()
+{
+    vTaskDelay(pdMS_TO_TICKS(50));
+}

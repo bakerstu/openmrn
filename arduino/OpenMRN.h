@@ -38,9 +38,6 @@
 
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
-#if defined(ESP32)
-#include "freertos_drivers/arduino/Esp32WiFiClientAdapter.hxx"
-#endif
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
@@ -285,6 +282,8 @@ constexpr uint32_t OPENMRN_STACK_SIZE = 5120L;
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
 
 constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(1);
+#include "freertos_drivers/arduino/Esp32WiFiClientAdapter.hxx"
+#include "freertos_drivers/arduino/Esp32HardwareCanAdapter.hxx"
 #endif
 
 /// Main class to declare the OpenMRN stack. Create one instance of this in the
@@ -385,6 +384,7 @@ private:
         while(true)
         {
             openmrn->loop();
+            // yield to other tasks that are running on the ESP32
             vTaskDelay(OPENMRN_TASK_TICK_DELAY);
         }
     }
