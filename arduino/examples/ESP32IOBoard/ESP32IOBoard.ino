@@ -45,7 +45,21 @@ constexpr uint16_t OPENMRN_TCP_PORT = 12021L;
 
 WiFiServer openMRNServer(OPENMRN_TCP_PORT);
 
+// Configuring WiFi accesspoint name and password
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+// There are two options:
+// 1) edit the sketch to set this information just below. Use quotes:
+//     const char* ssid     = "linksys";
+//     const char* password = "superSecret";
+// 2) add a new file to the sketch folder called something.cpp with the following contents:
+//     #include <OpenMRN.h>
+//
+//     const char DEFAULT_WIFI_NAME[] = "linksys";
+//     const char DEFAULT_PASSWORD[] = "theTRUEsupers3cr3t";
+
+/// This is the name of the WiFi network (access point) to connect to.
 const char* ssid     = DEFAULT_WIFI_NAME;
+/// Password of the wifi network.
 const char* password = DEFAULT_PASSWORD;
 const char* hostname = "esp32mrn";
 
