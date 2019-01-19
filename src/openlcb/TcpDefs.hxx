@@ -42,15 +42,15 @@ namespace openlcb {
 
 class TcpDefs {
 public:
-    // Protocol to be used for mDNS broadcast
+    /// Protocol to be used for mDNS broadcast
     static const char MDNS_PROTOCOL_TCP[];
-    // base name of the mDNS Service Name for mDNS broadcast as a hub
+    /// base name of the mDNS Service Name for mDNS broadcast as a hub
     static const char MDNS_SERVICE_NAME_HUB[];
-    // complete mDNS broadcast name for a TCP hub
+    /// complete mDNS broadcast name for a TCP hub
     static const char MDNS_SERVICE_NAME_HUB_TCP[];
-    // base name of the mDNS Service Name for mDNS broadcast as a client
+    /// base name of the mDNS Service Name for mDNS broadcast as a client
     static const char MDNS_SERVICE_NAME_GRIDCONNECT_CAN[];
-    // complete mDNS broadcast name for a TCP GridConnect protocol client
+    /// complete mDNS broadcast name for a TCP GridConnect protocol client
     static const char MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP[];
 
 private:
