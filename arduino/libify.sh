@@ -5,10 +5,12 @@ OPENMRNPATH=$2
 
 if [ "${TARGET_LIB_DIR}x" == "x" ]; then
     echo "TARGET_LIB_DIR NOT DEFINED"
+    exit 1
 fi
 
 if [ "${OPENMRNPATH}x" == "x" ]; then
     echo "OPENMRNPATH NOT DEFINED"
+    exit 1
 fi
 
 cp ${OPENMRNPATH}/arduino/library.json \
