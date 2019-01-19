@@ -36,11 +36,11 @@
 #ifndef _ARDUINO_OPENMRN_H_
 #define _ARDUINO_OPENMRN_H_
 
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
-#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 
 extern "C" {
 extern const char DEFAULT_WIFI_NAME[];
@@ -280,7 +280,7 @@ constexpr uint32_t OPENMRN_STACK_SIZE = 5120L;
 /// Default thread priority for the OpenMRN background task on the ESP32 platform.
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
 
-constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(50);
+constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(1);
 #endif
 
 /// Main class to declare the OpenMRN stack. Create one instance of this in the
