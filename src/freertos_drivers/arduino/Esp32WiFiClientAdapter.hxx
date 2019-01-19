@@ -42,7 +42,7 @@
 
 class Esp32WiFiClientAdapter {
 public:
-    WiFiClientAdapter(WiFiClient client) : client_(client){
+    Esp32WiFiClientAdapter(WiFiClient client) : client_(client){
         client_.setNoDelay(true);
     }
     // on the ESP32 there is no TX limit method
