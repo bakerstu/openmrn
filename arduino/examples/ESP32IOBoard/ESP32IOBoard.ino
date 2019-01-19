@@ -126,6 +126,8 @@ void setup() {
         delay(500);
         Serial.print(".");
     }
+    // This makes the wifi much more responsive. Since we are plugged in we don't care about the increased power usage. Disable when on battery.
+    WiFi.setSleep(false);
 
     printf("\nWiFi connected, IP address: %s\n", WiFi.localIP().toString().c_str());
 
