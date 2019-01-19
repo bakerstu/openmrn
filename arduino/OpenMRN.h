@@ -42,6 +42,11 @@
 #include "utils/Uninitialized.hxx"
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
 
+extern "C" {
+extern const char DEFAULT_WIFI_NAME[];
+extern const char DEFAULT_PASSWORD[];
+}
+
 /// Bridge class that connects an Arduino API style serial port (sending CAN
 /// frames via gridconnect format) to the OpenMRN core stack. This can be
 /// generally used for USB ports or TCP sockets.

@@ -45,8 +45,8 @@ constexpr uint16_t OPENMRN_TCP_PORT = 12021L;
 
 WiFiServer openMRNServer(OPENMRN_TCP_PORT);
 
-const char* ssid     = "apname";
-const char* password = "password";
+const char* ssid     = DEFAULT_WIFI_NAME;
+const char* password = DEFAULT_PASSWORD;
 const char* hostname = "esp32mrn";
 
 static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
