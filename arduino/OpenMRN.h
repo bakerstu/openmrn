@@ -281,7 +281,6 @@ constexpr uint32_t OPENMRN_STACK_SIZE = 5120L;
 /// Default thread priority for the OpenMRN background task on the ESP32 platform.
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
 
-constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(1);
 #include "freertos_drivers/arduino/Esp32WiFiClientAdapter.hxx"
 #include "freertos_drivers/arduino/Esp32HardwareCanAdapter.hxx"
 #endif
@@ -292,7 +291,7 @@ class OpenMRN : private Executable
 {
 public:
     /// Constructor if the Node ID is not known. Must call init(...) with the
-    /// Node ID beofre using anything related to the stack, including
+    /// Node ID before using anything related to the stack, including
     /// instantiating objects that depend on the stack. Prefer the other
     /// constructor.
     OpenMRN()
@@ -306,7 +305,19 @@ public:
     void init(openlcb::NodeID node_id)
     {
         stack_.emplace(node_id);
+    }
+
+    /// Call this function from the setup() function of the Arduino sketch
+    /// after initialization of SPIFFS (on ESP32)
+    void begin(bool create_background_task=false)
+    {
         stack_->start_stack(false);
+#if defined(ESP32)
+        if(create_background_task)
+        {
+            start_background_task();
+        }
+#endif
     }
 
     /// @return pointer to the OpenMRN stack. Do not call before init().
@@ -316,6 +327,9 @@ public:
     }
 
     /// Call this function from the loop() function of the Arduino sketch.
+    ///
+    /// This method is optional on the ESP32 if begin(true) or
+    /// start_background_task() has been called.
     void loop()
     {
         for (auto *e : loopMembers_)
@@ -330,12 +344,15 @@ public:
     /// Example:
     /// void setup() {
     ///   ...
-    ///   openmrn.startBackgroundTask();
+    ///   openmrn.start_background_task();
     ///   ...
     /// }
     ///
     /// When this is used it is not necessary to call openmrn.loop()
     /// from the loop() method.
+    ///
+    /// NOTE: passing true to the begin() method will automatically
+    /// call this method.
     void start_background_task()
     {
         xTaskCreate(openmrn_background_task, "OpenMRN",
@@ -385,7 +402,7 @@ private:
         {
             openmrn->loop();
             // yield to other tasks that are running on the ESP32
-            vTaskDelay(OPENMRN_TASK_TICK_DELAY);
+            vPortYield();
         }
     }
 #endif // ESP32

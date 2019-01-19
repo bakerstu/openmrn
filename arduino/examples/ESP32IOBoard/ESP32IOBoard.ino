@@ -36,6 +36,7 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include <vector>
+#include <SPIFFS.h>
 
 #include <OpenMRN.h>
 #include <openlcb/TcpDefs.hxx>
@@ -129,8 +130,20 @@ openlcb::ConfiguredProducer IO14_producer(
 openlcb::ConfiguredProducer IO15_producer(
     openmrn.stack()->node(), cfg.seg().producers().entry<7>(), IO15_Pin());
 
+
+namespace openlcb
+{
+    extern const char *const CONFIG_FILENAME = "/spiffs/openlcb_config";
+    // The size of the memory space to export over the above device.
+    extern const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
+    extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
+} // namespace openlcb
+
 void setup() {
     Serial.begin(115200L);
+
+    SPIFFS.begin(true);
+    openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
 
     printf("\nConnecting to: %s\n", ssid);
     WiFi.begin(ssid, password);

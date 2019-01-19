@@ -38,17 +38,26 @@
 #include <OpenMRN.h>
 #include <driver/can.h>
 #include <freertos/task.h>
+#include <SPIFFS.h>
 
 constexpr uint32_t     SERIAL_BAUD     = 115200L;
 
 static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
 OpenMRN openmrn(NODE_ID);
 
+namespace openlcb
+{
+    const char *const CONFIG_FILENAME = "/spiffs/openlcb_config";
+    const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
+} // namespace openlcb
+
 void setup()
 {
     Serial.begin(SERIAL_BAUD);
     WiFi.mode(WIFI_MODE_NULL);
     btStop();
+    SPIFFS.begin(true);
+    openmrn.begin();
 
     openmrn.stack()->print_all_packets();
     openmrn.start_background_task();

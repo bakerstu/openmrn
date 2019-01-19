@@ -35,6 +35,7 @@
 
 #include <Arduino.h>
 #include <OpenMRN.h>
+#include <SPIFFS.h>
 
 constexpr uint32_t  SERIAL_BAUD     = 115200L;
 constexpr uint8_t   SERIAL_RX_PIN   = 16;
@@ -43,9 +44,17 @@ constexpr uint8_t   SERIAL_TX_PIN   = 17;
 static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
 OpenMRN openmrn(NODE_ID);
 
+namespace openlcb
+{
+    const char *const CONFIG_FILENAME = "/spiffs/openlcb_config";
+    const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
+} // namespace openlcb
+
 void setup() {
     Serial.begin(SERIAL_BAUD);
     Serial1.begin(SERIAL_BAUD, SERIAL_8N1, SERIAL_RX_PIN, SERIAL_TX_PIN);
+    SPIFFS.begin(true);
+    openmrn.begin();
 
     printf("\nSerial(rx:%d, tx:%d, speed:%d) is ready to exchange grid connect packets.\n",
         SERIAL_TX_PIN, SERIAL_TX_PIN, SERIAL_BAUD);

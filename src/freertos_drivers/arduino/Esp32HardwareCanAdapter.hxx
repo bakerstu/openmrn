@@ -200,7 +200,7 @@ private:
                 }
             }
             // yield to other tasks that are running on the ESP32
-            vTaskDelay(OPENMRN_TASK_TICK_DELAY);
+            vPortYield();
         }
     }
     DISALLOW_COPY_AND_ASSIGN(Esp32Can);

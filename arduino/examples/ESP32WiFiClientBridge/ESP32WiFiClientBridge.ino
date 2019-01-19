@@ -37,6 +37,7 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include <vector>
+#include <SPIFFS.h>
 
 #include <OpenMRN.h>
 #include <openlcb/TcpDefs.hxx>
@@ -52,8 +53,17 @@ const char* hostname = "esp32mrn";
 static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
 OpenMRN openmrn(NODE_ID);
 
+namespace openlcb
+{
+    const char *const CONFIG_FILENAME = "/spiffs/openlcb_config";
+    const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
+} // namespace openlcb
+
 void setup() {
     Serial.begin(115200L);
+
+    SPIFFS.begin(true);
+    openmrn.begin();
 
     printf("\nConnecting to: %s\n", ssid);
     WiFi.begin(ssid, password);
