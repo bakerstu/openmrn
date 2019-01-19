@@ -48,6 +48,7 @@ void setup()
 {
     Serial.begin(SERIAL_BAUD);
     WiFi.mode(WIFI_MODE_NULL);
+    btStop();
 
     openmrn.stack()->print_all_packets();
     openmrn.start_background_task();
