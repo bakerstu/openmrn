@@ -112,6 +112,7 @@ void setup() {
         delay(500);
         Serial.print(".");
     }
+    WiFi.setSleep(false);
 
     printf("\nWiFi connected, IP address: %s\n", WiFi.localIP().toString().c_str());
 
