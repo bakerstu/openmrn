@@ -36,24 +36,24 @@
 #ifndef _ARDUINO_OPENMRN_H_
 #define _ARDUINO_OPENMRN_H_
 
-#ifdef ESP32
+#if defined(ESP32)
 #define HAVE_FILESYSTEM
 #endif
 
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
-#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 
-#ifdef HAVE_FILESYSTEM
+#if defined(HAVE_FILESYSTEM)
 string read_file_to_string(const string &filename);
 void write_string_to_file(const string &filename, const string &data);
 #endif
 
 extern "C" {
-extern const char DEFAULT_WIFI_NAME[];
-extern const char DEFAULT_PASSWORD[];
+    extern const char DEFAULT_WIFI_NAME[];
+    extern const char DEFAULT_PASSWORD[];
 }
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN
@@ -285,12 +285,12 @@ private:
 
 #if defined(ESP32)
 /// Default stack size to use for the OpenMRN background task on the ESP32 platform.
-constexpr uint32_t OPENMRN_STACK_SIZE = 5120L;
+constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
 /// Default thread priority for the OpenMRN background task on the ESP32 platform.
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
 
-constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(50);
+constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(1);
 #endif
 
 /// Main class to declare the OpenMRN stack. Create one instance of this in the
@@ -377,7 +377,7 @@ public:
         loopMembers_.push_back(new CanBridge(port, stack()->can_hub()));
     }
 
-#ifdef HAVE_FILESYSTEM
+#if defined(HAVE_FILESYSTEM)
     /// Creates the XML representation of the configuration structure and saves
     /// it to a file on the filesystem. Must be called after SPIFFS.begin() but
     /// before calling the {\link create_config_file_if_needed} method. The
@@ -437,7 +437,7 @@ public:
         stack()->memory_config_handler()->registry()->insert(
             stack()->node(), openlcb::MemoryConfigDefs::SPACE_CDI, space);
     }
-#endif
+#endif // HAVE_FILESYSTEM
 
 private:
     /// Callback from the loop() method. Internally called.
