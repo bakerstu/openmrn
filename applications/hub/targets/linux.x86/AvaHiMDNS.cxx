@@ -126,7 +126,8 @@ void mdns_publish(const char *name, uint16_t port)
 
     int result = avahi_entry_group_add_service(group, AVAHI_IF_UNSPEC,
         AVAHI_PROTO_UNSPEC, (AvahiPublishFlags)0, name,
-        openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN, NULL, NULL, port,
+        openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN,
+        openlcb::TcpDefs::MDNS_PROTOCOL_TCP, NULL, port,
         "platform=linux-x86-openmrn", NULL);
 
     if (result != 0)

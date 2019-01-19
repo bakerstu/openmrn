@@ -37,7 +37,8 @@
 
 namespace openlcb {
 
-const char TcpDefs::MDNS_SERVICE_NAME_TCP[] = "_openlcb-hub._tcp";
-const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN[] = "_openlcb-can._tcp";
+const char TcpDefs::MDNS_PROTOCOL_TCP[] = "_tcp";
+const char TcpDefs::MDNS_SERVICE_NAME_HUB[] = "_openlcb-hub";
+const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN[] = "_openlcb-can";
 
 }  // namespace openlcb

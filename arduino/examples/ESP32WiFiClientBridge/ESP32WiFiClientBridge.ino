@@ -105,7 +105,8 @@ void setup() {
     openMRNServer.setNoDelay(true);
     openMRNServer.begin();
     MDNS.begin(hostname);
-    MDNS.addService(openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN, "tcp", OPENMRN_TCP_PORT);
+    MDNS.addService(openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN,
+        openlcb::TcpDefs::MDNS_PROTOCOL_TCP, OPENMRN_TCP_PORT);
 }
 
 void loop() {
