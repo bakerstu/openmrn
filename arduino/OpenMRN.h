@@ -36,10 +36,11 @@
 #ifndef _ARDUINO_OPENMRN_H_
 #define _ARDUINO_OPENMRN_H_
 
-#include "freertos_drivers/common/Can.hxx"
+#include "freertos_drivers/arduino/Can.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN
 /// frames via gridconnect format) to the OpenMRN core stack. This can be
@@ -105,7 +106,10 @@ private:
         {
             return;
         }
-        // @todo build a buffer here and send to the hub
+        auto *b = txtHub_.alloc();
+        b->data()->resize(av);
+        port_->read(b->data()->data(), b->data()->size());
+        txtHub_.send(b);
     }
 
     friend class WritePort;
@@ -180,8 +184,8 @@ public:
     /// @param can_hub is the core CAN frame router of the OpenMRN stack,
     /// usually comes from stack()->can_hub().
     CanBridge(Can *port, CanHubFlow *can_hub)
-        : canHub_(can_hub)
-        , port_(port)
+        : port_(port)
+        , canHub_(can_hub)
     {
         port_->enable();
         can_hub->register_port(&writePort_);
@@ -264,6 +268,16 @@ private:
     WritePort writePort_ {this};
 };
 
+#if defined(ESP32)
+/// Default stack size to use for the OpenMRN background task on the ESP32 platform.
+constexpr uint32_t OPENMRN_STACK_SIZE = 5120L;
+
+/// Default thread priority for the OpenMRN background task on the ESP32 platform.
+constexpr UBaseType_t OPENMRN_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
+
+constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(50);
+#endif
+
 /// Main class to declare the OpenMRN stack. Create one instance of this in the
 /// root file of your sketch. Prefer to supply the Node ID during construction.
 class OpenMRN : private Executable
@@ -278,10 +292,7 @@ public:
     }
     /// Use this constructor if stack() needs to be accessed during the time of
     /// the static construction.
-    OpenMRN(openlcb::NodeID node_id)
-    {
-        init(node_id);
-    }
+    OpenMRN(openlcb::NodeID node_id);
 
     /// Call this function once if the empty constructor was used.
     void init(openlcb::NodeID node_id)
@@ -305,13 +316,31 @@ public:
         }
     }
 
+#if defined(ESP32)
+    /// Creates a background task to run the OpenMRN Stack executor.
+    /// This is only available on the ESP32
+    /// Example:
+    /// void setup() {
+    ///   ...
+    ///   openmrn.startBackgroundTask();
+    ///   ...
+    /// }
+    ///
+    /// When this is used it is not necessary to call openmrn.loop()
+    /// from the loop() method.
+    void start_background_task()
+    {
+        xTaskCreate(openmrn_background_task, "OpenMRN",
+            OPENMRN_STACK_SIZE, this, OPENMRN_TASK_PRIORITY, nullptr);
+    }
+#endif // ESP32
+
     /// Adds a serial port to the stack speaking the gridconnect protocol, for
     /// example to do a USB connection to a computer. This is the protocol that
     /// USB-CAN adapters for LCC are speaking to the computer.
     ///
     /// Example:
     /// void setup() {
-    ///   openmrn.init()
     ///   ...
     ///   openmrn.add_gridconnect_port(&Serial);
     ///   ...
@@ -339,6 +368,18 @@ private:
     {
         stack_->executor()->loop_once();
     }
+
+#if defined(ESP32)
+    static void openmrn_background_task(void *param)
+    {
+        OpenMRN *openmrn = reinterpret_cast<OpenMRN *>(param);
+        while(true)
+        {
+            openmrn->loop();
+            vTaskDelay(OPENMRN_TASK_TICK_DELAY);
+        }
+    }
+#endif // ESP32
 
     /// Storage space for the OpenLCB stack. Will be constructed in init().
     uninitialized<openlcb::SimpleCanStack> stack_;

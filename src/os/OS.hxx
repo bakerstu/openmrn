@@ -715,6 +715,8 @@ extern uint32_t SystemCoreClock;
 }
 #define cm3_cpu_clock_hz SystemCoreClock
 
+#if !defined(ESP32)
+
 #define portENTER_CRITICAL()                                                   \
     do                                                                         \
     {                                                                          \
@@ -736,6 +738,8 @@ extern uint32_t SystemCoreClock;
     } while (0)
 
 #define configKERNEL_INTERRUPT_PRIORITY (0xa0)
+
+#endif // ESP32
 
 #endif  // freertos
 

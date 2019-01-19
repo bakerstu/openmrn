@@ -924,6 +924,8 @@ int ignore_fn(void)
     return 0;
 }
 
+#if !defined(ESP32)
+
 #if !defined (__MINGW32__)
 int main(int argc, char *argv[]) __attribute__ ((weak));
 #endif
@@ -1009,6 +1011,8 @@ int main(int argc, char *argv[])
     return appl_main(argc, argv);
 #endif
 }
+
+#endif // ESP32
 
 #if defined(ARDUINO)
 unsigned critical_nesting;

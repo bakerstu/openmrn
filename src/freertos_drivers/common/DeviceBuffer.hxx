@@ -72,8 +72,8 @@ public:
      */
     void signal_condition_from_isr()
     {
-        int woken = 0;
 #ifndef ARDUINO
+        int woken = 0;
         Device::select_wakeup_from_isr(&selectInfo, &woken);
 #endif
     }
