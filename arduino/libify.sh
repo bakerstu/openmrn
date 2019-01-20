@@ -1,76 +1,100 @@
 #!/bin/bash
+#
+# 
+#
 
-TARGET_LIB_DIR=$1
-OPENMRNPATH=$2
+function usage() {
+    echo
+    echo 'usage: libify.sh path/to/arduino/library/output path/to/openmrn [-f] [-l]'
+    echo 'exports OpenMRN code as an arduino library.'
+    echo 'example: libify.sh ~/Arduino/libraries/OpenMRN .. -l'
+    echo '(options must come after the path specification)'
+    echo '-f will erase the target library before exporting.'
+    echo '-l will create symlinks instead of copying files.'
+    exit 1
+}
+
+TARGET_LIB_DIR=$(realpath $1)
+OPENMRNPATH=$(realpath $2)
+
+shift; shift
 
 if [ "${TARGET_LIB_DIR}x" == "x" ]; then
     echo "TARGET_LIB_DIR NOT DEFINED"
-    exit 1
+    usage
 fi
 
 if [ "${OPENMRNPATH}x" == "x" ]; then
     echo "OPENMRNPATH NOT DEFINED"
-    exit 1
+    usage
 fi
 
-cp ${OPENMRNPATH}/arduino/library.json \
-    ${OPENMRNPATH}/arduino/library.properties \
-    ${OPENMRNPATH}/arduino/keywords.txt \
-    ${TARGET_LIB_DIR}
-cp -r ${OPENMRNPATH}/arduino/examples \
-    ${TARGET_LIB_DIR}
+USE_LINK=
 
-mkdir ${TARGET_LIB_DIR}/src
-cp ${OPENMRNPATH}/arduino/OpenMRN.cpp \
-    ${OPENMRNPATH}/arduino/OpenMRN.h \
-    ${OPENMRNPATH}/include/can_frame.h \
-    ${OPENMRNPATH}/include/nmranet_config.h \
-    ${OPENMRNPATH}/include/freertos/endian.h \
-    ${TARGET_LIB_DIR}/src
+while [ "x$1" != "x" ] ; do
+    case $1 in
+        -f)
+            rm -rf ${TARGET_LIB_DIR}/*
+            ;;
+        -l)
+            USE_LINK=-s
+            ;;
+    esac
+    shift
+done
 
-mkdir ${TARGET_LIB_DIR}/src/dcc
-cp ${OPENMRNPATH}/src/dcc/*.hxx \
-    ${OPENMRNPATH}/src/dcc/*.h \
-    ${TARGET_LIB_DIR}/src/dcc
+# Arguments:
+# $1 is the relative path in the library directory
+# $2... is the relative path in openmrn tree with the filename
+# Will create necessary directories internally.
+function copy_file() {
+    REL_DIR=$1
+    shift
+    mkdir -p ${TARGET_LIB_DIR}/${REL_DIR}
+    pushd ${TARGET_LIB_DIR}/${REL_DIR} >/dev/null
+    while [ "x$1" != "x" ] ; do
+        cp -fax ${USE_LINK} ${OPENMRNPATH}/${1} .
+        shift
+    done
+    popd >/dev/null
+}
 
-mkdir ${TARGET_LIB_DIR}/src/executor
-cp ${OPENMRNPATH}/src/executor/*.hxx \
-    ${OPENMRNPATH}/src/executor/*.cxx \
-    ${TARGET_LIB_DIR}/src/executor
 
-mkdir ${TARGET_LIB_DIR}/src/freertos_drivers
-mkdir ${TARGET_LIB_DIR}/src/freertos_drivers/arduino
-cp ${OPENMRNPATH}/src/freertos_drivers/arduino/* \
-    ${OPENMRNPATH}/src/freertos_drivers/common/DeviceBuffer.cxx \
-    ${OPENMRNPATH}/src/freertos_drivers/common/DeviceBuffer.hxx \
-    ${OPENMRNPATH}/src/freertos_drivers/common/GpioWrapper.hxx \
-    ${TARGET_LIB_DIR}/src/freertos_drivers/arduino
+# Arguments:
+# $1 is the relative path in the library directory
+# $2 is the relative path in openmrn tree with the
+# Will create necessary target directories internally.
+function copy_dir() {
+    mkdir -p ${TARGET_LIB_DIR}/$1
+    pushd ${TARGET_LIB_DIR}/$1 >/dev/null
+    
+    cp -faxr ${USE_LINK} ${OPENMRNPATH}/$2 .
+    popd >/dev/null
+}
 
-mkdir ${TARGET_LIB_DIR}/src/openlcb
-cp ${OPENMRNPATH}/src/openlcb/*.cxx \
-    ${OPENMRNPATH}/src/openlcb/*.hxx \
-    ${TARGET_LIB_DIR}/src/openlcb
+copy_file . arduino/library.json arduino/library.properties arduino/keywords.txt
+copy_dir . arduino/examples
+
+copy_file src arduino/OpenMRN.{h,cpp} include/{can_frame.h,nmranet_config.h} include/freertos/endian.h
+
+copy_file src/dcc src/dcc/*.hxx src/dcc/*.h
+copy_file src/executor src/executor/*.hxx src/executor/*.cxx
+copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
 
 rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.hxx
 
-mkdir ${TARGET_LIB_DIR}/src/os
-cp ${OPENMRNPATH}/src/os/*.c \
-    ${OPENMRNPATH}/src/os/*.h \
-    ${OPENMRNPATH}/src/os/*.hxx \
-    ${TARGET_LIB_DIR}/src/os
+copy_file src/freertos_drivers/arduino \
+          src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
+          src/freertos_drivers/common/GpioWrapper.hxx \
+          src/freertos_drivers/arduino/*
 
-mkdir ${TARGET_LIB_DIR}/src/sys
-cp ${OPENMRNPATH}/include/sys/tree.hxx \
-    ${TARGET_LIB_DIR}/src/sys
+copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx
 
-mkdir ${TARGET_LIB_DIR}/src/utils
-cp ${OPENMRNPATH}/src/utils/*.cxx \
-    ${OPENMRNPATH}/src/utils/*.hxx \
-    ${OPENMRNPATH}/src/utils/*.c \
-    ${OPENMRNPATH}/src/utils/*.h \
-    ${TARGET_LIB_DIR}/src/utils
+copy_file src/sys include/sys/tree.hxx
+
+copy_file src/utils src/utils/*.{cxx,hxx,c,h}
 
 rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
     ${TARGET_LIB_DIR}/src/utils/HubDeviceSelect.cxx \
