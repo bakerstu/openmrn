@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Can.hxx
+ * \file Esp32WiFiClientAdapter.hxx
  *
  * ESP32 adapter code using the WiFiClient provided by the WiFiServer code
  * for interfacing with the OpenMRN stack.
