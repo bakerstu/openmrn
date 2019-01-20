@@ -1,4 +1,18 @@
 #!/bin/bash
+#
+# 
+#
+
+function usage() {
+    echo
+    echo 'usage: libify.sh path/to/arduino/library/output path/to/openmrn [-f] [-l]'
+    echo 'exports OpenMRN code as an arduino library.'
+    echo 'example: libify.sh ~/Arduino/libraries/OpenMRN .. -l'
+    echo '(options must come after the path specification)'
+    echo '-f will erase the target library before exporting.'
+    echo '-l will create symlinks instead of copying files.'
+    exit 1
+}
 
 TARGET_LIB_DIR=$(realpath $1)
 OPENMRNPATH=$(realpath $2)
@@ -7,10 +21,12 @@ shift; shift
 
 if [ "${TARGET_LIB_DIR}x" == "x" ]; then
     echo "TARGET_LIB_DIR NOT DEFINED"
+    usage
 fi
 
 if [ "${OPENMRNPATH}x" == "x" ]; then
     echo "OPENMRNPATH NOT DEFINED"
+    usage
 fi
 
 USE_LINK=
