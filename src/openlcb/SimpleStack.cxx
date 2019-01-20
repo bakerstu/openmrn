@@ -72,12 +72,12 @@ SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
 
 void SimpleCanStackBase::start_stack(bool delay_start)
 {
-#ifndef ARDUINO
+#if (!defined(ARDUINO)) || defined(ESP32)
     // Opens the eeprom file and sends configuration update commands to all
     // listeners.
     configUpdateFlow_.open_file(CONFIG_FILENAME);
     configUpdateFlow_.init_flow();
-#endif
+#endif // NOT ARDUINO, YES ESP32
 
     if (!delay_start) {
         // Bootstraps the alias allocation process.
@@ -107,7 +107,7 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_ACDI_SYS, space);
         additionalComponents_.emplace_back(space);
     }
-#ifndef ARDUINO
+#if (!defined(ARDUINO)) || defined(ESP32)
     {
         auto *space = new FileMemorySpace(
             SNIP_DYNAMIC_FILENAME, sizeof(SimpleNodeDynamicValues));
@@ -115,7 +115,7 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_ACDI_USR, space);
         additionalComponents_.emplace_back(space);
     }
-#endif
+#endif // NOT ARDUINO, YES ESP32
     size_t cdi_size = strlen(CDI_DATA);
     if (cdi_size > 0)
     {
@@ -125,10 +125,7 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_CDI, space);
         additionalComponents_.emplace_back(space);
     }
-#if defined(ARDUINO)
-// @todo (balazs.racz): find a solution for storing configuration on an
-// arduino binary.
-#else
+#if (!defined(ARDUINO)) || defined(ESP32)
     if (CONFIG_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(CONFIG_FILENAME, CONFIG_FILE_SIZE);
@@ -136,7 +133,7 @@ void SimpleCanStackBase::default_start_node()
             node(), openlcb::MemoryConfigDefs::SPACE_CONFIG, space);
         additionalComponents_.emplace_back(space);
     }
-#endif
+#endif // NOT ARDUINO, YES ESP32
 }
 
 SimpleTrainCanStack::SimpleTrainCanStack(

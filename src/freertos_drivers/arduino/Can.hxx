@@ -34,8 +34,8 @@
  */
 
 // This include is exclusive against freertos_drivers/common/Can.hxx
-#ifndef _FREERTOS_DRIVERS_COMMON_CAN_HXX_
-#define _FREERTOS_DRIVERS_COMMON_CAN_HXX_
+#ifndef _FREERTOS_DRIVERS_ARDUINO_CAN_HXX_
+#define _FREERTOS_DRIVERS_ARDUINO_CAN_HXX_
 
 #include "DeviceBuffer.hxx"
 #include "can_frame.h"
@@ -125,4 +125,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Can);
 };
 
-#endif /* _FREERTOS_DRIVERS_COMMON_CAN_HXX_ */
+#endif /* _FREERTOS_DRIVERS_ARDUINO_CAN_HXX_ */

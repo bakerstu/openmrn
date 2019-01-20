@@ -35,25 +35,81 @@
 
 #include <Arduino.h>
 #include <OpenMRN.h>
+#include <SPIFFS.h>
+#include "config.h"
 
 constexpr uint32_t  SERIAL_BAUD     = 115200L;
 constexpr uint8_t   SERIAL_RX_PIN   = 16;
 constexpr uint8_t   SERIAL_TX_PIN   = 17;
 
 static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
+
 OpenMRN openmrn(NODE_ID);
+
+// note the dummy string below is required due to a bug in the GCC compiler
+// for the ESP32
+string dummystring("abcdef");
+
+// ConfigDef comes from config.hxx and is specific to the particular device and
+// target. It defines the layout of the configuration memory space and is also
+// used to generate the cdi.xml file. Here we instantiate the configuration
+// layout. The argument of offset zero is ignored and will be removed later.
+static constexpr openlcb::ConfigDef cfg(0);
+
+namespace openlcb {
+    // Name of CDI.xml to generate dynamically.
+    const char CDI_FILENAME[] = "/spiffs/cdi.xml";
+
+    // This will stop openlcb from exporting the CDI memory space upon start.
+    const char CDI_DATA[] = "";
+
+    // Path to where OpenMRN should persist general configuration data.
+    const char *const CONFIG_FILENAME = "/spiffs/openlcb_config";
+
+    // The size of the memory space to export over the above device.
+    const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
+
+    // Default to store the dynamic SNIP data is stored in the same persistant
+    // data file as general configuration data.
+    const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
+}
 
 void setup() {
     Serial.begin(SERIAL_BAUD);
     Serial1.begin(SERIAL_BAUD, SERIAL_8N1, SERIAL_RX_PIN, SERIAL_TX_PIN);
 
+    // Initialize the SPIFFS filesystem as our persistence layer
+    if(!SPIFFS.begin())
+    {
+        printf("SPIFFS failed to mount, attempting to format and remount\n");
+        if(!SPIFFS.begin(true))
+        {
+            printf("SPIFFS mount failed even with format, giving up!\n");
+            while(1)
+            {
+                // Unable to start SPIFFS successfully, give up and wait
+                // for WDT to kick in
+            }
+        }
+    }
+
     printf("\nSerial(rx:%d, tx:%d, speed:%d) is ready to exchange grid connect packets.\n",
         SERIAL_TX_PIN, SERIAL_TX_PIN, SERIAL_BAUD);
-    openmrn.add_gridconnect_port(&Serial1);
-    openmrn.stack()->print_all_packets();
-    openmrn.start_background_task();
+
+    // Create the CDI.xml dynamically
+    openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
+
+    // Create the default internal configuration file
+    openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
+        openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
+
+    // Start the OpenMRN stack
+    openmrn.begin();
+
+    // Add Serial1 as a bridge
+    openmrn.add_gridconnect_port(new Esp32HardwareSerialAdapter(Serial1));
 }
 
 void loop() {
-    vTaskDelay(pdMS_TO_TICKS(50));
+    openmrn.loop();
 }
