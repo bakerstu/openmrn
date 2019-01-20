@@ -315,8 +315,8 @@ public:
     /// dyamically created instead of statically linked.
     /// @param offsets is a vector with the data. The last entry must be
     /// zero. This vector must outlive the SimpleStack object.
-    void set_event_offsets(const vector<uint16_t>* offsets);
-    
+    void set_event_offsets(const vector<uint16_t> *offsets);
+
     /// Helper function to send an event report to the bus. Performs
     /// synchronous (dynamic) memory allocation so use it sparingly and when
     /// there is sufficient amount of RAM available.

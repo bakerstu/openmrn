@@ -46,7 +46,6 @@
 #include "utils/Uninitialized.hxx"
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
 
-
 #ifdef HAVE_FILESYSTEM
 string read_file_to_string(const string &filename);
 void write_string_to_file(const string &filename, const string &data);
@@ -421,17 +420,14 @@ public:
         if (need_write)
         {
 
-            printf("Updating CDI file %s (len %u)", filename,
-                cdi_string.size());
+            printf(
+                "Updating CDI file %s (len %u)", filename, cdi_string.size());
             write_string_to_file(filename, cdi_string);
         }
 
         // Creates list of event IDs for factory reset.
-        auto* v = new vector<uint16_t>();
-        cfg.handle_events([v](unsigned o)
-        {
-            v->push_back(o);
-        });
+        auto *v = new vector<uint16_t>();
+        cfg.handle_events([v](unsigned o) { v->push_back(o); });
         v->push_back(0);
         stack()->set_event_offsets(v);
         // We leak v because it has to stay alive for the entire lifetime of

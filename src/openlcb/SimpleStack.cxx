@@ -293,7 +293,7 @@ int SimpleCanStackBase::check_version_and_factory_reset(
 /// exported by the cdi compilation mechanism (in CompileCdiMain.cxx) and
 /// defined by cdi.o for the linker.
 extern const uint16_t CDI_EVENT_OFFSETS[];
-const uint16_t* cdi_event_offsets_ptr = CDI_EVENT_OFFSETS;
+const uint16_t *cdi_event_offsets_ptr = CDI_EVENT_OFFSETS;
 
 void SimpleCanStackBase::set_event_offsets(const vector<uint16_t> *offsets)
 {
