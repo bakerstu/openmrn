@@ -34,6 +34,8 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_SPI_HXX_
 #define _FREERTOS_DRIVERS_COMMON_SPI_HXX_
 
+#define _DEFAULT_SOURCE
+
 #include <unistd.h>
 #include <compiler.h>
 

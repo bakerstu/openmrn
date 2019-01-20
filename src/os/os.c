@@ -32,6 +32,8 @@
  * @date 13 August 2012
  */
 
+#define _DEFAULT_SOURCE
+
 /// Forces one definition of each inline function to be compiled.
 #define OS_INLINE extern
 

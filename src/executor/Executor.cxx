@@ -33,6 +33,8 @@
  * @date 26 October 2013
  */
 
+#define _DEFAULT_SOURCE
+
 #include "executor/Executor.hxx"
 
 #include <unistd.h>

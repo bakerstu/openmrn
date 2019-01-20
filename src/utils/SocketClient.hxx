@@ -35,6 +35,8 @@
 #ifndef _UTILS_SOCKET_CLIENT_HXX_
 #define _UTILS_SOCKET_CLIENT_HXX_
 
+#define _DEFAULT_SOURCE
+
 #include <functional>
 #include <netdb.h>
 #include <arpa/inet.h>

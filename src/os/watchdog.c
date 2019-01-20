@@ -33,6 +33,8 @@
  * @date 26 May 2013
  */
 
+#define _DEFAULT_SOURCE
+
 #include <unistd.h>
 
 #include "os/watchdog.h"
