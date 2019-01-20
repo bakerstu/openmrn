@@ -45,28 +45,6 @@ Pool* init_main_buffer_pool()
     return mainBufferPool;
 }
 
-/** Expand the buffer by allocating a buffer double the size, copying the
- * contents to the new buffer, and freeing the old buffer.  The "this" pointer
- * of the caller will be used to free the buffer.
- * @return newly expanded buffer
- */
-BufferBase *BufferBase::expand()
-{
-    /* create the new buffer */
-    BufferBase *expanded_buffer = pool_->alloc_untyped(size_ * 2, NULL);
-    HASSERT(expanded_buffer);
-
-    /* copy uninitialized data over */
-    memcpy(expanded_buffer + 1, this + 1, size_ - sizeof(BufferBase));
-    expanded_buffer->count_ = count_;
-    expanded_buffer->done_ = done_;
-    
-    /* free the old buffer */
-    pool_->free(this);
-
-    return expanded_buffer;
-}
-
 /** Number of free items in the pool.
  * @return number of free items in the pool
  */
