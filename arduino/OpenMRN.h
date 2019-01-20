@@ -340,7 +340,7 @@ public:
         for (auto *e : loopMembers_)
         {
 #if defined(ESP32)
-            /// Feed the watchdog so it doesn't reset the ESP32
+            // Feed the watchdog so it doesn't reset the ESP32
             esp_task_wdt_reset();
 #endif // ESP32
             e->run();
@@ -442,15 +442,15 @@ public:
             write_string_to_file(filename, cdi_string);
         }
 
-        /// Creates list of event IDs for factory reset.
+        // Creates list of event IDs for factory reset.
         auto *v = new vector<uint16_t>();
         cfg.handle_events([v](unsigned o) { v->push_back(o); });
         v->push_back(0);
         stack()->set_event_offsets(v);
-        /// We leak v because it has to stay alive for the entire lifetime of
-        /// the stack.
+        // We leak v because it has to stay alive for the entire lifetime of
+        // the stack.
 
-        /// Exports the file memory space.
+        // Exports the file memory space.
         openlcb::MemorySpace *space = new openlcb::ROFileMemorySpace(filename);
         stack()->memory_config_handler()->registry()->insert(
             stack()->node(), openlcb::MemoryConfigDefs::SPACE_CDI, space);
@@ -470,10 +470,10 @@ private:
         OpenMRN *openmrn = reinterpret_cast<OpenMRN *>(param);
         while(true)
         {
-            /// Feed the watchdog so it doesn't reset the ESP32
+            // Feed the watchdog so it doesn't reset the ESP32
             esp_task_wdt_reset();
 
-            /// yield to other tasks that are running on the ESP32
+            // yield to other tasks that are running on the ESP32
             openmrn->loop();
             vTaskDelay(OPENMRN_TASK_TICK_DELAY);
         }

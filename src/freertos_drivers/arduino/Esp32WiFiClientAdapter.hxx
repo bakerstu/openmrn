@@ -33,7 +33,6 @@
  * @date 13 January 2019
  */
 
-// This include is exclusive against freertos_drivers/arduino/Esp32WiFiClientAdapter.hxx
 #ifndef _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_
 #define _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_
 

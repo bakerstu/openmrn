@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Esp32WiFiClientAdapter.hxx
+ * \file Esp32HardwareSerialAdapter.hxx
  *
  * On the ESP32 the HardwareSerial code does not have a read(const char *, size_t)
  * method so it is necessary to wrap it here.
@@ -33,7 +33,6 @@
  * @date 20 January 2019
  */
 
-// This include is exclusive against freertos_drivers/arduino/Esp32HardwareSerialAdapter.hxx
 #ifndef _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_
 #define _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_
 

@@ -58,9 +58,9 @@ WiFiServer openMRNServer(OPENMRN_TCP_PORT);
 //     const char DEFAULT_WIFI_NAME[] = "linksys";
 //     const char DEFAULT_PASSWORD[] = "theTRUEsupers3cr3t";
 
-// This is the name of the WiFi network (access point) to connect to.
+/// This is the name of the WiFi network (access point) to connect to.
 const char* ssid     = DEFAULT_WIFI_NAME;
-// Password of the wifi network.
+/// Password of the wifi network.
 const char* password = DEFAULT_PASSWORD;
 const char* hostname = "esp32mrn";
 
