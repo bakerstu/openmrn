@@ -461,7 +461,7 @@ private:
     /// Callback from the loop() method. Internally called.
     void run() override
     {
-        stack_->executor()->loop_once();
+        stack_->executor()->loop_some();
     }
 
 #if defined(ESP32)
