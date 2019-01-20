@@ -419,7 +419,6 @@ public:
         }
         if (need_write)
         {
-
             printf(
                 "Updating CDI file %s (len %u)", filename, cdi_string.size());
             write_string_to_file(filename, cdi_string);
