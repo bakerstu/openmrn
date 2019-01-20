@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,62 +24,48 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ESP32WiFiClientBridge.ino
- * 
- * Example application for the ESP32 showing how to configure a TCP/IP GridConnect
- * client adapter to the OpenMRN stack.
+ * \file Esp32WiFiClientAdapter.hxx
+ *
+ * On the ESP32 the HardwareSerial code does not have a read(const char *, size_t)
+ * method so it is necessary to wrap it here.
  *
  * @author Mike Dunston
- * @date 13 January 2019
+ * @date 20 January 2019
  */
 
-#include <Arduino.h>
-#include <WiFi.h>
-#include <ESPmDNS.h>
-#include <vector>
+// This include is exclusive against freertos_drivers/arduino/Esp32HardwareSerialAdapter.hxx
+#ifndef _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_
+#define _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_
 
-#include <OpenMRN.h>
-#include <openlcb/TcpDefs.hxx>
+#include <HardwareSerial.h>
 
-constexpr uint16_t OPENMRN_TCP_PORT = 12021L;
-
-WiFiServer openMRNServer(OPENMRN_TCP_PORT);
-
-const char* ssid     = "apname";
-const char* password = "password";
-const char* hostname = "esp32mrn";
-
-static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
-OpenMRN openmrn(NODE_ID);
-
-void setup() {
-    Serial.begin(115200L);
-
-    printf("\nConnecting to: %s\n", ssid);
-    WiFi.begin(ssid, password);
-
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
+class Esp32HardwareSerialAdapter {
+public:
+    Esp32HardwareSerialAdapter(HardwareSerial &serial) : serial_(serial)
+    {
     }
 
-    printf("\nWiFi connected, IP address: %s\n", WiFi.localIP().toString().c_str());
-
-    openmrn.stack()->print_all_packets();
-    openmrn.start_background_task();
-
-    openMRNServer.setNoDelay(true);
-    openMRNServer.begin();
-    MDNS.begin(hostname);
-    MDNS.addService(openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN,
-        openlcb::TcpDefs::MDNS_PROTOCOL_TCP, OPENMRN_TCP_PORT);
-}
-
-void loop() {
-    if(openMRNServer.hasClient()) {
-        WiFiClient client = openMRNServer.available();
-        if(client) {
-            openmrn.add_gridconnect_port(new Esp32WiFiClientAdapter(client));
-        }
+    size_t availableForWrite()
+    {
+        return serial_.availableForWrite();
     }
-}
+
+    size_t write(const char *buffer, size_t len)
+    {
+        return serial_.write((uint8_t *)buffer, len);  
+    }
+
+    size_t available()
+    {
+        return serial_.available();
+    }
+
+    size_t read(const char *buffer, size_t len)
+    {
+        return serial_.readBytes((char *)buffer, len);
+    }
+private:
+    HardwareSerial &serial_;
+};
+
+#endif /* _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_ */

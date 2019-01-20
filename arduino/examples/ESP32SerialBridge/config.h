@@ -1,5 +1,5 @@
-#ifndef _ARDUINO_EXAMPLE_ESP32IOBOARD_CONFIG_H_
-#define _ARDUINO_EXAMPLE_ESP32IOBOARD_CONFIG_H_
+#ifndef _ARDUINO_EXAMPLE_ESP32SERIALBRIDGE_CONFIG_H_
+#define _ARDUINO_EXAMPLE_ESP32SERIALBRIDGE_CONFIG_H_
 
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
@@ -23,18 +23,8 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "Arduino IO Board",
+    4,               "OpenMRN", "Arduino Serial Bridge",
     ARDUINO_VARIANT, "1.00"};
-
-constexpr uint8_t NUM_OUTPUTS = 8;
-constexpr uint8_t NUM_INPUTS = 8;
-
-/// Declares a repeated group of a given base group and number of repeats. The
-/// ProducerConfig and ConsumerConfig groups represent the configuration layout
-/// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
-/// from their respective hxx file.
-using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
-using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
@@ -46,8 +36,6 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
-CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Outputs"));
-CDI_GROUP_ENTRY(producers, AllProducers, Name("Inputs"));
 CDI_GROUP_END();
 
 /// This segment is only needed temporarily until there is program code to set
@@ -76,4 +64,4 @@ CDI_GROUP_END();
 
 } // namespace openlcb
 
-#endif // _ARDUINO_EXAMPLE_ESP32IOBOARD_CONFIG_H_
+#endif // _ARDUINO_EXAMPLE_ESP32SERIALBRIDGE_CONFIG_H_
