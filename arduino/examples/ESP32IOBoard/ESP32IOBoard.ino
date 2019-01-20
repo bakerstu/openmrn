@@ -34,11 +34,13 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <SPIFFS.h>
 #include <ESPmDNS.h>
 #include <vector>
 
 #include <OpenMRN.h>
 #include <openlcb/TcpDefs.hxx>
+#include <utils/FileUtils.hxx>
 #include "config.h"
 
 constexpr uint16_t OPENMRN_TCP_PORT = 12021L;
@@ -116,7 +118,47 @@ private:
     WiFiClient client_;
 };
 
+const char CDI_FILENAME[] = "/spiffs/cdi.xml";
+namespace openlcb {
+// This will stop openlcb from exporting the CDI memory space upon start.
+extern const char CDI_DATA[] = "";
+}
+
 void setup() {
+    SPIFFS.begin(true);
+    string cdi_string;
+    cfg.config_renderer().render_cdi(&cdi_string);
+
+    bool need_write = false;
+    FILE* ff = fopen(CDI_FILENAME, "rb");
+    if (!ff) {
+      need_write = true;
+    } else {
+      fclose(ff);
+      string current_str = read_file_to_string(CDI_FILENAME);
+      if (current_str != cdi_string) {
+        need_write = true;      
+      }
+    }
+    if (need_write) {
+
+       int fd = ::open(CDI_FILENAME, O_CREAT|O_TRUNC|O_RDWR, S_IRUSR | S_IWUSR);
+        if (fd < 0)
+        {
+            printf("Failed to create config file: fd %d errno %d: %s\n",
+                   fd, errno, strerror(errno));
+            DIE();
+        }
+        close(fd);
+      
+      printf("Updating CDI file %s (len %u)", CDI_FILENAME, cdi_string.size());
+      write_string_to_file(CDI_FILENAME, cdi_string);      
+    }
+
+    openlcb::MemorySpace* space = new openlcb::ROFileMemorySpace(CDI_FILENAME);
+    openmrn.stack()->memory_config_handler()->registry()->insert(
+            openmrn.stack()->node(), openlcb::MemoryConfigDefs::SPACE_CDI, space);
+
     Serial.begin(115200L);
 
     printf("\nConnecting to: %s\n", ssid);
