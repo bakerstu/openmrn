@@ -82,9 +82,7 @@ public:
     size_t write(const char *buffer, size_t len)
     {
         if(client_.connected()) {
-            size_t r = client_.write(buffer, len);
-            LOG(INFO, "w%u", len, r);
-            return r;
+            return client_.write(buffer, len);
         }
         return 0;
     }
