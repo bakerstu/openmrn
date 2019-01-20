@@ -72,7 +72,7 @@ struct Packet : public DCCPacket
     /// Resets the packet ot empty.
     void clear()
     {
-        memset(this, 0, sizeof(*this));
+        memset((DCCPacket*)this, 0, sizeof(*this));
     }
 
     /** @return true if this is a packet, false if it is a command to the
