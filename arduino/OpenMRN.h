@@ -36,11 +36,20 @@
 #ifndef _ARDUINO_OPENMRN_H_
 #define _ARDUINO_OPENMRN_H_
 
+#ifdef ESP32
+#define HAVE_FILESYSTEM
+#endif
+
 #include "freertos_drivers/arduino/Can.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
+
+#ifdef HAVE_FILESYSTEM
+string read_file_to_string(const string &filename);
+void write_string_to_file(const string &filename, const string &data);
+#endif
 
 extern "C" {
 extern const char DEFAULT_WIFI_NAME[];
@@ -367,6 +376,68 @@ public:
     {
         loopMembers_.push_back(new CanBridge(port, stack()->can_hub()));
     }
+
+#ifdef HAVE_FILESYSTEM
+    /// Creates the XML representation of the configuration structure and saves
+    /// it to a file on the filesystem. Must be called after SPIFFS.begin() but
+    /// before calling the {\link create_config_file_if_needed} method. The
+    /// config file will be re-written whenever there was a change in the
+    /// contents. It is also necessary to declare the static compiled-in CDI to
+    /// be empty:
+    /// ```
+    ///    namespace openlcb {
+    ///    // This will stop openlcb from exporting the CDI memory space
+    ///    // upon start.
+    ///    extern const char CDI_DATA[] = "";
+    ///    }  // namespace openlcb
+    /// ```
+    /// @param cfg is the global configuration instance (usually called cfg).
+    /// @param filename is where the xml file can be stored on the
+    /// filesystem. For example "/spiffs/cdi.xml".
+    template <class ConfigDef>
+    void create_config_descriptor_xml(
+        const ConfigDef &config, const char *filename)
+    {
+        string cdi_string;
+        ConfigDef cfg(config.offset());
+        cfg.config_renderer().render_cdi(&cdi_string);
+
+        bool need_write = false;
+        FILE *ff = fopen(filename, "rb");
+        if (!ff)
+        {
+            need_write = true;
+        }
+        else
+        {
+            fclose(ff);
+            string current_str = read_file_to_string(filename);
+            if (current_str != cdi_string)
+            {
+                need_write = true;
+            }
+        }
+        if (need_write)
+        {
+            printf(
+                "Updating CDI file %s (len %u)", filename, cdi_string.size());
+            write_string_to_file(filename, cdi_string);
+        }
+
+        // Creates list of event IDs for factory reset.
+        auto *v = new vector<uint16_t>();
+        cfg.handle_events([v](unsigned o) { v->push_back(o); });
+        v->push_back(0);
+        stack()->set_event_offsets(v);
+        // We leak v because it has to stay alive for the entire lifetime of
+        // the stack.
+
+        // Exports the file memory space.
+        openlcb::MemorySpace *space = new openlcb::ROFileMemorySpace(filename);
+        stack()->memory_config_handler()->registry()->insert(
+            stack()->node(), openlcb::MemoryConfigDefs::SPACE_CDI, space);
+    }
+#endif
 
 private:
     /// Callback from the loop() method. Internally called.

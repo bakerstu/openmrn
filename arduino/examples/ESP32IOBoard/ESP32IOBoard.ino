@@ -34,6 +34,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <SPIFFS.h>
 #include <ESPmDNS.h>
 #include <vector>
 
@@ -116,8 +117,16 @@ private:
     WiFiClient client_;
 };
 
+const char CDI_FILENAME[] = "/spiffs/cdi.xml";
+namespace openlcb {
+// This will stop openlcb from exporting the CDI memory space upon start.
+extern const char CDI_DATA[] = "";
+}
+
 void setup() {
+    SPIFFS.begin(true);
     Serial.begin(115200L);
+    openmrn.create_config_descriptor_xml(cfg, CDI_FILENAME);
 
     printf("\nConnecting to: %s\n", ssid);
     WiFi.begin(ssid, password);
