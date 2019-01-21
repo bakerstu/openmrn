@@ -53,6 +53,7 @@ constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(1);
 
 #include "freertos_drivers/arduino/Esp32WiFiClientAdapter.hxx"
 #include "freertos_drivers/arduino/Esp32HardwareSerialAdapter.hxx"
+#include "freertos_drivers/arduino/Esp32HardwareCanAdapter.hxx"
 #include <esp_task_wdt.h>
 
 /// On the ESP32 we have persistent file system access so enable
