@@ -43,10 +43,10 @@
 constexpr uint32_t        SERIAL_BAUD      = 115200L;
 
 /// This is the ESP32 pin connected to the SN6565HVD23x/MCP2551 R (TX) pin.
-constexpr gpio_pin_t      CAN_RX_PIN       = GPIO_NUM_18;
+constexpr gpio_num_t      CAN_RX_PIN       = GPIO_NUM_18;
 
 /// This is the ESP32 pin connected to the SN6565HVD23x/MCP2551 D (RX) pin.
-constexpr gpio_pin_t      CAN_TX_PIN       = GPIO_NUM_19;
+constexpr gpio_num_t      CAN_TX_PIN       = GPIO_NUM_19;
 
 /// This is the TCP/IP port which the ESP32 will listen on for incoming
 /// GridConnect formatted CAN frames.
@@ -111,6 +111,35 @@ namespace openlcb {
 
 void setup() {
     Serial.begin(SERIAL_BAUD);
+
+    printf("\nConnecting to: %s\n", ssid);
+    WiFi.begin(ssid, password);
+    uint8_t attempts = 30;
+    while (WiFi.status() != WL_CONNECTED && attempts--)
+    {
+        delay(500);
+        Serial.print(".");
+    }
+    if(WiFi.status() != WL_CONNECTED)
+    {
+        printf("\nFailed to connect to WiFi, restarting\n");
+        ESP.restart();
+
+        // in case the above call doesn't trigger restart, force WDT to restart the ESP32
+        while(1)
+        {
+            // The ESP32 has built in watchdog timers that as of arduino-esp32 1.0.1 are
+            // enabled on both core 0 (OS core) and core 1 (Arduino core). It usually
+            // takes a couple seconds of an endless loop such as this one to trigger the
+            // WDT to force a restart.
+        }
+    }
+
+    // This makes the wifi much more responsive. Since we are plugged in we don't care
+    // about the increased power usage. Disable when on battery.
+    WiFi.setSleep(false);
+
+    printf("\nWiFi connected, IP address: %s\n", WiFi.localIP().toString().c_str());
 
     // Initialize the SPIFFS filesystem as our persistence layer
     if(!SPIFFS.begin())
