@@ -35,7 +35,9 @@
 
 #include <Arduino.h>
 #include <OpenMRN.h>
+#include <openlcb/TcpDefs.hxx>
 #include <SPIFFS.h>
+#include <ESPmDNS.h>
 #include "config.h"
 
 /// This is the speed used for UART0 on the ESP32, this is primarily for
@@ -155,6 +157,18 @@ void setup() {
             }
         }
     }
+
+        // Start the TCP/IP listener
+    openMRNServer.setNoDelay(true);
+    openMRNServer.begin();
+
+    // Start the mDNS subsystem
+    MDNS.begin(hostname);
+
+    // Broadcast this node's hostname with the mDNS service name
+    // for a TCP GridConnect endpoint.
+    MDNS.addService(openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN,
+        openlcb::TcpDefs::MDNS_PROTOCOL_TCP, OPENMRN_TCP_PORT);
 
     // Create the CDI.xml dynamically
     openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
