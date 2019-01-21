@@ -155,7 +155,7 @@ void setup() {
 
     printf("\nConnecting to: %s\n", ssid);
     WiFi.begin(ssid, password);
-    uint8_t attempts = 60;
+    uint8_t attempts = 30;
     while (WiFi.status() != WL_CONNECTED && attempts--)
     {
         delay(500);
