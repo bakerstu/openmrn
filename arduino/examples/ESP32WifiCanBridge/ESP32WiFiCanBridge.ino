@@ -44,10 +44,10 @@
 /// debug/log messages.
 constexpr uint32_t        SERIAL_BAUD      = 115200L;
 
-/// This is the ESP32 pin connected to the SN6565HVD23x/MCP2551 R (TX) pin.
+/// This is the ESP32 pin connected to the SN6565HVD23x/MCP2551 R (RX) pin.
 constexpr gpio_num_t      CAN_RX_PIN       = GPIO_NUM_18;
 
-/// This is the ESP32 pin connected to the SN6565HVD23x/MCP2551 D (RX) pin.
+/// This is the ESP32 pin connected to the SN6565HVD23x/MCP2551 D (TX) pin.
 constexpr gpio_num_t      CAN_TX_PIN       = GPIO_NUM_19;
 
 /// This is the TCP/IP port which the ESP32 will listen on for incoming
