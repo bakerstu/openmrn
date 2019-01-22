@@ -60,8 +60,8 @@ public:
             .rx_io = rxPin,
             .clkout_io = (gpio_num_t)CAN_IO_UNUSED,
             .bus_off_io = (gpio_num_t)CAN_IO_UNUSED,
-            .tx_queue_len = (uint32_t)config_can_tx_buffer_size(),
-            .rx_queue_len = (uint32_t)config_can_rx_buffer_size(),
+            .tx_queue_len = (uint32_t)config_can_tx_buffer_size() / 2,
+            .rx_queue_len = (uint32_t)config_can_rx_buffer_size() / 2,
             .alerts_enabled = CAN_ALERT_NONE,
             .clkout_divider = 0
         };
@@ -76,9 +76,12 @@ public:
             LOG(FATAL, "Unable to create CAN TX mutex");
         }
         xTaskCreatePinnedToCore(rx_task, "CAN RX", OPENMRN_STACK_SIZE, this,
-            OPENMRN_TASK_PRIORITY, nullptr, tskNO_AFFINITY);
+            ESP_TASK_TCPIP_PRIO - 1, nullptr, tskNO_AFFINITY);
         xTaskCreatePinnedToCore(tx_task, "CAN TX", OPENMRN_STACK_SIZE, this,
-            OPENMRN_TASK_PRIORITY, nullptr, tskNO_AFFINITY);
+            ESP_TASK_TCPIP_PRIO - 1, nullptr, tskNO_AFFINITY);
+        // create a low priority task to monitor/report the can status
+        xTaskCreatePinnedToCore(can_monitor, "CAN MONITOR", OPENMRN_STACK_SIZE, this,
+            tskIDLE_PRIORITY, nullptr, tskNO_AFFINITY);
     }
 
     ~Esp32HardwareCan()
@@ -109,9 +112,13 @@ protected:
         {
             LOG(WARNING, "CAN BUS is not RUNNING: %d", status.state);
         }
-        else if(xSemaphoreGive(tx_mutex_) == pdPASS)
+        else
         {
-            xSemaphoreTake(tx_mutex_, portMAX_DELAY);
+            xSemaphoreGive(tx_mutex_);
+            while(xSemaphoreTake(tx_mutex_, pdMS_TO_TICKS(5)) != pdPASS) {
+                LOG(WARNING, "tx_task didn't return mutex");
+                vTaskDelay(pdMS_TO_TICKS(5));
+            }
         }
     }
 private:
@@ -121,6 +128,28 @@ private:
 
     SemaphoreHandle_t tx_mutex_;
 
+    static void can_monitor(void *unused)
+    {
+        TickType_t xLastWakeTime;
+        while(true)
+        {
+            xLastWakeTime = xTaskGetTickCount();
+            can_status_info_t status;
+            can_get_status_info(&status);
+            LOG(INFO, "CAN-STATUS: rx:%d, tx:%d, rx-err:%d, tx-err:%d, arb-lost:%d, bus-err:%d, state: %d",
+                status.msgs_to_rx, status.msgs_to_tx,
+                status.rx_error_counter, status.tx_error_counter,
+                status.arb_lost_count, status.bus_error_count,
+                status.state);
+            if(status.state == CAN_STATE_BUS_OFF)
+            {
+                LOG(INFO, "CAN BUS is OFF, initiating recovery");
+                can_initiate_recovery();
+            }
+            vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5000));
+        }
+    }
+
     static void tx_task(void *can)
     {
         Esp32HardwareCan *parent = reinterpret_cast<Esp32HardwareCan *>(can);
@@ -128,9 +157,9 @@ private:
         {
             esp_task_wdt_reset();
             can_message_t msg = {0};
-            bool tx_needed = false;
             if(xSemaphoreTake(parent->tx_mutex_, pdMS_TO_TICKS(50)) == pdPASS)
             {
+                bool tx_needed = false;
                 struct can_frame *can_frame = nullptr;
                 if(parent->txBuf->data_read_pointer(&can_frame) && can_frame != nullptr)
                 {
@@ -157,26 +186,26 @@ private:
                     tx_needed = true;
                 }
                 xSemaphoreGive(parent->tx_mutex_);
-            }
-            if(tx_needed)
-            {
-                LOG(INFO, "CAN-TX id:%08x, flags:%04x, dlc:%02d, data:%02x%02x%02x%02x%02x%02x%02x%02x",
-                    msg.identifier, msg.flags, msg.data_length_code,
-                    msg.data[0], msg.data[1], msg.data[2], msg.data[3],
-                    msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
-                // block here until the CAN driver accepts the message for transmit
-                bool tx_done = false;
-                while(!tx_done)
+                if(tx_needed)
                 {
-                    esp_task_wdt_reset();
-                    esp_err_t tx_res = can_transmit(&msg, pdMS_TO_TICKS(50));
-                    if(tx_res != ESP_ERR_TIMEOUT && tx_res != ESP_FAIL)
+                    LOG(INFO, "CAN-TX id:%08x, flags:%04x, dlc:%02d, data:%02x%02x%02x%02x%02x%02x%02x%02x",
+                        msg.identifier, msg.flags, msg.data_length_code,
+                        msg.data[0], msg.data[1], msg.data[2], msg.data[3],
+                        msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
+                    // block here until the CAN driver accepts the message for transmit
+                    bool tx_done = false;
+                    while(!tx_done)
                     {
-                        LOG(WARNING, "CAN-TX: %s", esp_err_to_name(tx_res));
-                        tx_done = true;
+                        esp_task_wdt_reset();
+                        esp_err_t tx_res = can_transmit(&msg, pdMS_TO_TICKS(250));
+                        if(tx_res != ESP_ERR_TIMEOUT && tx_res != ESP_ERR_INVALID_STATE)
+                        {
+                            LOG(WARNING, "CAN-TX: %s", esp_err_to_name(tx_res));
+                            tx_done = true;
+                        }
+                        // sleep for 1ms to allow driver to catch up
+                        vTaskDelay(pdMS_TO_TICKS(1));
                     }
-                    // sleep for 1ms to allow driver to catch up
-                    vTaskDelay(pdMS_TO_TICKS(1));
                 }
             }
         }
@@ -188,17 +217,9 @@ private:
         while(true)
         {
             esp_task_wdt_reset();
-            can_status_info_t status;
-            ESP_ERROR_CHECK_WITHOUT_ABORT(can_get_status_info(&status));
-            if(status.state == CAN_STATE_BUS_OFF)
+            can_message_t msg = {0};
+            if(can_receive(&msg, pdMS_TO_TICKS(250)) == ESP_OK)
             {
-                LOG(INFO, "Bus is OFF, initiating recovery");
-                can_initiate_recovery();
-            }
-            else if(status.state == CAN_STATE_RUNNING)
-            {
-                can_message_t msg = {0};
-                ESP_ERROR_CHECK_WITHOUT_ABORT(can_receive(&msg, portMAX_DELAY));
                 if(msg.flags & CAN_MSG_FLAG_DLC_NON_COMP)
                 {
                     LOG(WARNING, "Received non-spec CAN frame!");
@@ -239,8 +260,6 @@ private:
                     }
                 }
             }
-            // yield to other tasks that are running on the ESP32
-            vTaskDelay(pdMS_TO_TICKS(1));
         }
     }
     DISALLOW_COPY_AND_ASSIGN(Esp32HardwareCan);
