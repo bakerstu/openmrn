@@ -78,7 +78,7 @@ public:
         xTaskCreatePinnedToCore(rx_task, "CAN RX", OPENMRN_STACK_SIZE, this,
             ESP_TASK_TCPIP_PRIO - 1, nullptr, tskNO_AFFINITY);
         xTaskCreatePinnedToCore(tx_task, "CAN TX", OPENMRN_STACK_SIZE, this,
-            ESP_TASK_TCPIP_PRIO - 1, nullptr, tskNO_AFFINITY);
+            ESP_TASK_TCPIP_PRIO - 2, nullptr, tskNO_AFFINITY);
         // create a low priority task to monitor/report the can status
         xTaskCreatePinnedToCore(can_monitor, "CAN MONITOR", OPENMRN_STACK_SIZE, this,
             tskIDLE_PRIORITY, nullptr, tskNO_AFFINITY);

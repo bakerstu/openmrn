@@ -47,7 +47,7 @@
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
 /// Default thread priority for the OpenMRN background task on the ESP32 platform.
-constexpr UBaseType_t OPENMRN_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
+constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
 
 constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(1);
 
