@@ -39,9 +39,12 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
-class Esp32WiFiClientAdapter {
+class Esp32WiFiClientAdapter
+{
 public:
-    Esp32WiFiClientAdapter(WiFiClient client) : client_(client){
+    Esp32WiFiClientAdapter(WiFiClient client)
+        : client_(client)
+    {
         client_.setNoDelay(true);
     }
 
@@ -81,24 +84,30 @@ public:
 
     size_t write(const char *buffer, size_t len)
     {
-        if(client_.connected()) {
+        if (client_.connected())
+        {
             return client_.write(buffer, len);
         }
         return 0;
     }
-    size_t available() {
-        if(client_.connected()) {
+    size_t available()
+    {
+        if (client_.connected())
+        {
             return client_.available();
         }
         return 0;
     }
-    size_t read(const char *buffer, size_t len) {
+    size_t read(const char *buffer, size_t len)
+    {
         size_t bytesRead = 0;
-        if(client_.connected()) {
+        if (client_.connected())
+        {
             bytesRead = client_.read((uint8_t *)buffer, len);
         }
         return bytesRead;
     }
+
 private:
     WiFiClient client_;
 };
