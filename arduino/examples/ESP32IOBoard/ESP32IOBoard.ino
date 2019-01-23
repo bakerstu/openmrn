@@ -159,7 +159,10 @@ void setup() {
     printf("\nConnecting to: %s\n", ssid);
     WiFi.begin(ssid, password);
     uint8_t attempts = 30;
-    while (WiFi.status() != WL_CONNECTED && attempts--)
+    while ( WiFi.status() != WL_CONNECTED &&
+            WiFi.status() != WL_CONNECT_FAILED &&
+            WiFi.status() != WL_NO_SSID_AVAIL &&
+            attempts--)
     {
         delay(500);
         Serial.print(".");
