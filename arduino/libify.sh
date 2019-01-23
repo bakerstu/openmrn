@@ -30,14 +30,19 @@ if [ "${OPENMRNPATH}x" == "x" ]; then
 fi
 
 USE_LINK=
+VERBOSE=
 
 while [ "x$1" != "x" ] ; do
     case $1 in
         -f)
+            echo "Cleaning ${TARGET_LIB_DIR}"
             rm -rf ${TARGET_LIB_DIR}/*
             ;;
         -l)
             USE_LINK=-s
+            ;;
+        -v)
+            VERBOSE=1
             ;;
     esac
     shift
@@ -50,24 +55,35 @@ done
 function copy_file() {
     REL_DIR=$1
     shift
+    if [ "x$VERBOSE" != "x" ]; then
+        echo "Creating ${TARGET_LIB_DIR}/${REL_DIR}"
+    fi
     mkdir -p ${TARGET_LIB_DIR}/${REL_DIR}
     pushd ${TARGET_LIB_DIR}/${REL_DIR} >/dev/null
     while [ "x$1" != "x" ] ; do
+        if [ "x$VERBOSE" != "x" ]; then
+            echo "cp -fax ${USE_LINK} ${OPENMRNPATH}/${1} ${TARGET_LIB_DIR}/${REL_DIR}"
+        fi
         cp -fax ${USE_LINK} ${OPENMRNPATH}/${1} .
         shift
     done
     popd >/dev/null
 }
 
-
 # Arguments:
 # $1 is the relative path in the library directory
 # $2 is the relative path in openmrn tree with the
 # Will create necessary target directories internally.
 function copy_dir() {
+    if [ "x$VERBOSE" != "x" ]; then
+        echo "Creating ${TARGET_LIB_DIR}/$1"
+    fi
     mkdir -p ${TARGET_LIB_DIR}/$1
     pushd ${TARGET_LIB_DIR}/$1 >/dev/null
     
+    if [ "x$VERBOSE" != "x" ]; then
+        echo "cp -fax ${USE_LINK} ${OPENMRNPATH}/${2} ${TARGET_LIB_DIR}/$1"
+    fi
     cp -faxr ${USE_LINK} ${OPENMRNPATH}/$2 .
     popd >/dev/null
 }
@@ -90,6 +106,9 @@ copy_file src/freertos_drivers/arduino \
           src/freertos_drivers/common/GpioWrapper.hxx \
           src/freertos_drivers/arduino/*
 
+copy_file src/freertos_drivers/esp32 \
+          src/freertos_drivers/esp32/*
+
 copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx
 
 copy_file src/sys include/sys/tree.hxx
@@ -100,4 +119,7 @@ rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
     ${TARGET_LIB_DIR}/src/utils/HubDeviceSelect.cxx \
     ${TARGET_LIB_DIR}/src/utils/HubDeviceSelect.hxx
 
+if [ "x$VERBOSE" != "x" ]; then
+    echo "Renaming all cxx to cpp under ${TARGET_LIB_DIR}/src"
+fi
 find ${TARGET_LIB_DIR}/src -name '*.cxx' -print0 | sed 's/.cxx//g' | xargs -0 -I % mv %.cxx %.cpp

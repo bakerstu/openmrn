@@ -33,8 +33,8 @@
  * @date 13 January 2019
  */
 
-#ifndef _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_
-#define _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_
+#ifndef _FREERTOS_DRIVERS_ESP32_ESP32WIFI_HXX_
+#define _FREERTOS_DRIVERS_ESP32_ESP32WIFI_HXX_
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -71,4 +71,4 @@ private:
     WiFiClient client_;
 };
 
-#endif /* _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_ */
+#endif /* _FREERTOS_DRIVERS_ESP32_ESP32WIFI_HXX_ */

@@ -35,9 +35,8 @@
  * @date 19 January 2019
  */
 
-// This include is exclusive against freertos_drivers/arduino/Esp32HardwareCan.hxx
-#ifndef _FREERTOS_DRIVERS_ARDUINO_ESP32HWCAN_HXX_
-#define _FREERTOS_DRIVERS_ARDUINO_ESP32HWCAN_HXX_
+#ifndef _FREERTOS_DRIVERS_ESP32_ESP32HWCAN_HXX_
+#define _FREERTOS_DRIVERS_ESP32_ESP32HWCAN_HXX_
 
 #include "freertos_drivers/arduino/Can.hxx"
 #include <driver/can.h>
@@ -265,4 +264,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Esp32HardwareCan);
 };
 
-#endif /* _FREERTOS_DRIVERS_ARDUINO_ESP32HWCAN_HXX_ */
+#endif /* _FREERTOS_DRIVERS_ESP32_ESP32HWCAN_HXX_ */

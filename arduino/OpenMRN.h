@@ -36,6 +36,8 @@
 #ifndef _ARDUINO_OPENMRN_H_
 #define _ARDUINO_OPENMRN_H_
 
+#include <Arduino.h>
+
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
 #include "openlcb/SimpleStack.hxx"
@@ -43,6 +45,10 @@
 #include "utils/Uninitialized.hxx"
 
 #if defined(ESP32)
+
+#include <esp_task.h>
+#include <esp_task_wdt.h>
+
 /// Default stack size to use for the OpenMRN background task on the ESP32 platform.
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
@@ -51,10 +57,10 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
 
 constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(1);
 
-#include "freertos_drivers/arduino/Esp32WiFiClientAdapter.hxx"
-#include "freertos_drivers/arduino/Esp32HardwareSerialAdapter.hxx"
-#include "freertos_drivers/arduino/Esp32HardwareCanAdapter.hxx"
-#include <esp_task_wdt.h>
+#include "freertos_drivers/esp32/Esp32WiFiClientAdapter.hxx"
+#include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
+#include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
+#include "freertos_drivers/esp32/Esp32HardwareCan.hxx"
 
 /// On the ESP32 we have persistent file system access so enable
 /// dynamic CDI.xml generation support
