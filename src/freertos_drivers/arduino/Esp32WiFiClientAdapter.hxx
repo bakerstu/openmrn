@@ -71,7 +71,7 @@ public:
 
         if (FD_ISSET(fd, &set))
         {
-            return 500;
+            return WRITE_PACKET_SIZE;
         }
         else
         {
