@@ -76,6 +76,9 @@ string dummystring("abcdef");
 // layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
+OVERRIDE_CONST(gridconnect_buffer_size, 512);
+OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
+
 // Declare output pins
 GPIO_PIN(IO0, GpioOutputSafeLow, 2);
 GPIO_PIN(IO1, GpioOutputSafeLow, 4);
@@ -210,7 +213,7 @@ void setup() {
     // Dump all packets as they are sent/received.
     // Note: This should not be enabled in deployed nodes as it will
     // have performance impact.
-    openmrn.stack()->print_all_packets();
+    // openmrn.stack()->print_all_packets();
 
     // Start the TCP/IP listener
     openMRNServer.setNoDelay(true);
