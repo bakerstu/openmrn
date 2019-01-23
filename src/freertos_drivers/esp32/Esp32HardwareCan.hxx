@@ -47,13 +47,13 @@
 class Esp32Can : public Can
 {
 public:
-    Esp32Can(const char *name, gpio_num_t rxPin, gpio_num_t txPin) : Can(name)
+    Esp32Can(const char *name, gpio_num_t rxPin, gpio_num_t txPin)
+        : Can(name)
     {
-        rx_queue_ = CAN_init(txPin, rxPin,
-            CAN_speed_t::CAN_SPEED_250KBPS,
+        rx_queue_ = CAN_init(txPin, rxPin, CAN_speed_t::CAN_SPEED_250KBPS,
             config_can_rx_buffer_size() / 2);
         tx_mutex_ = xSemaphoreCreateMutex();
-        if(tx_mutex_ == NULL)
+        if (tx_mutex_ == NULL)
         {
             LOG(FATAL, "Unable to create CAN TX mutex");
         }
@@ -61,9 +61,6 @@ public:
             ESP_TASK_TCPIP_PRIO - 1, nullptr, tskNO_AFFINITY);
         xTaskCreatePinnedToCore(tx_task, "CAN TX", OPENMRN_STACK_SIZE, this,
             ESP_TASK_TCPIP_PRIO - 2, nullptr, tskNO_AFFINITY);
-        // create a low priority task to monitor/report the can status
-        //xTaskCreatePinnedToCore(can_monitor, "CAN MONITOR", OPENMRN_STACK_SIZE, this,
-        //    tskIDLE_PRIORITY, nullptr, tskNO_AFFINITY);
     }
 
     ~Esp32Can()
@@ -84,26 +81,20 @@ public:
         CAN_stop();
         LOG(INFO, "CAN driver disabled");
     }
+
 protected:
     /**< function to try and transmit a message */
     virtual void tx_msg()
     {
-        //can_status_info_t status;
-        //ESP_ERROR_CHECK_WITHOUT_ABORT(can_get_status_info(&status));
-        //if(status.state != CAN_STATE_RUNNING)
-        //{
-        //    LOG(WARNING, "CAN BUS is not RUNNING: %d", status.state);
-        //}
-        //else
+        LOG(INFO, "Sending frame for TX");
+        xSemaphoreGive(tx_mutex_);
+        while (xSemaphoreTake(tx_mutex_, pdMS_TO_TICKS(5)) != pdPASS)
         {
-            LOG(INFO, "Sending frame for TX");
-            xSemaphoreGive(tx_mutex_);
-            while(xSemaphoreTake(tx_mutex_, pdMS_TO_TICKS(5)) != pdPASS) {
-                LOG(WARNING, "tx_task didn't return mutex");
-                vTaskDelay(pdMS_TO_TICKS(5));
-            }
+            LOG(WARNING, "tx_task didn't return mutex");
+            vTaskDelay(pdMS_TO_TICKS(5));
         }
     }
+
 private:
     /** Default constructor.
      */
@@ -111,58 +102,43 @@ private:
 
     SemaphoreHandle_t tx_mutex_;
     QueueHandle_t rx_queue_;
-/*
-    static void can_monitor(void *unused)
-    {
-        TickType_t xLastWakeTime;
-        while(true)
-        {
-            xLastWakeTime = xTaskGetTickCount();
-            can_status_info_t status;
-            can_get_status_info(&status);
-            LOG(INFO, "CAN-STATUS: rx:%d, tx:%d, rx-err:%d, tx-err:%d, arb-lost:%d, bus-err:%d, state: %d",
-                status.msgs_to_rx, status.msgs_to_tx,
-                status.rx_error_counter, status.tx_error_counter,
-                status.arb_lost_count, status.bus_error_count,
-                status.state);
-            if(status.state == CAN_STATE_BUS_OFF)
-            {
-                LOG(INFO, "CAN BUS is OFF, initiating recovery");
-                can_initiate_recovery();
-            }
-            vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5000));
-        }
-    }
-*/
+
     static void tx_task(void *can)
     {
         Esp32Can *parent = reinterpret_cast<Esp32Can *>(can);
-        while(true)
+        while (true)
         {
             esp_task_wdt_reset();
             CAN_frame_t frame = {0};
-            if(xSemaphoreTake(parent->tx_mutex_, pdMS_TO_TICKS(50)) == pdPASS)
+            if (xSemaphoreTake(parent->tx_mutex_, pdMS_TO_TICKS(50)) == pdPASS)
             {
-                LOG(INFO, "txBuf: space: %d, pending: %d", parent->txBuf->space(), parent->txBuf->pending());
+                LOG(INFO, "txBuf: space: %d, pending: %d",
+                    parent->txBuf->space(), parent->txBuf->pending());
                 bool tx_needed = false;
                 struct can_frame *can_frame = nullptr;
-                if(parent->txBuf->data_read_pointer(&can_frame) && can_frame != nullptr)
+                if (parent->txBuf->data_read_pointer(&can_frame) &&
+                    can_frame != nullptr)
                 {
-                    LOG(INFO, "can_frame: id:%08x, eff:%d, rtr:%d, dlc:%d, data:%02x%02x%02x%02x%02x%02x%02x%02x",
-                        can_frame->can_id, can_frame->can_eff, can_frame->can_rtr, can_frame->can_dlc,
-                        can_frame->data[0], can_frame->data[1], can_frame->data[2], can_frame->data[3],
-                        can_frame->data[4], can_frame->data[5], can_frame->data[6], can_frame->data[7]);
+                    LOG(INFO,
+                        "can_frame: id:%08x, eff:%d, rtr:%d, dlc:%d, "
+                        "data:%02x%02x%02x%02x%02x%02x%02x%02x",
+                        can_frame->can_id, can_frame->can_eff,
+                        can_frame->can_rtr, can_frame->can_dlc,
+                        can_frame->data[0], can_frame->data[1],
+                        can_frame->data[2], can_frame->data[3],
+                        can_frame->data[4], can_frame->data[5],
+                        can_frame->data[6], can_frame->data[7]);
                     frame.MsgID = can_frame->can_id;
                     frame.FIR.B.DLC = can_frame->can_dlc;
-                    if(can_frame->can_eff)
+                    if (can_frame->can_eff)
                     {
                         frame.FIR.B.FF = CAN_frame_format_t::CAN_frame_ext;
                     }
-                    for(int i = 0; i < can_frame->can_dlc; i++)
+                    for (int i = 0; i < can_frame->can_dlc; i++)
                     {
                         frame.data.u8[i] = can_frame->data[i];
                     }
-                    if(can_frame->can_rtr)
+                    if (can_frame->can_rtr)
                     {
                         frame.FIR.B.RTR = CAN_RTR_t::CAN_RTR;
                     }
@@ -171,14 +147,18 @@ private:
                     tx_needed = true;
                 }
                 xSemaphoreGive(parent->tx_mutex_);
-                if(tx_needed)
+                if (tx_needed)
                 {
-                    LOG(INFO, "CAN-TX id:%08x, eff:%02d, rtr:%02d, dlc:%02d, data:%02x%02x%02x%02x%02x%02x%02x%02x",
-                        frame.MsgID, frame.FIR.B.FF, frame.FIR.B.RTR, frame.FIR.B.DLC,
-                        frame.data.u8[0], frame.data.u8[1], frame.data.u8[2], frame.data.u8[3],
-                        frame.data.u8[4], frame.data.u8[5], frame.data.u8[6], frame.data.u8[7]);
-                    // block here until the CAN driver accepts the message for transmit
-                    while(CAN_write_frame(&frame))
+                    LOG(INFO,
+                        "CAN-TX id:%08x, eff:%02d, rtr:%02d, dlc:%02d, "
+                        "data:%02x%02x%02x%02x%02x%02x%02x%02x",
+                        frame.MsgID, frame.FIR.B.FF, frame.FIR.B.RTR,
+                        frame.FIR.B.DLC, frame.data.u8[0], frame.data.u8[1],
+                        frame.data.u8[2], frame.data.u8[3], frame.data.u8[4],
+                        frame.data.u8[5], frame.data.u8[6], frame.data.u8[7]);
+                    // block here until the CAN driver accepts the message for
+                    // transmit
+                    while (CAN_write_frame(&frame))
                     {
                         esp_task_wdt_reset();
                         // sleep for 1ms to allow driver to catch up
@@ -192,33 +172,38 @@ private:
     static void rx_task(void *can)
     {
         Esp32Can *parent = reinterpret_cast<Esp32Can *>(can);
-        while(true)
+        while (true)
         {
             esp_task_wdt_reset();
             CAN_frame_t frame = {0};
-            if(xQueueReceive(parent->rx_queue_, &frame, pdMS_TO_TICKS(250)) == pdTRUE)
+            if (xQueueReceive(parent->rx_queue_, &frame, pdMS_TO_TICKS(250)) ==
+                pdTRUE)
             {
-                LOG(INFO, "CAN-RX id:%08x, eff:%02d, rtr:%02d, dlc:%02d, data:%02x%02x%02x%02x%02x%02x%02x%02x",
-                    frame.MsgID, frame.FIR.B.FF, frame.FIR.B.RTR, frame.FIR.B.DLC,
-                    frame.data.u8[0], frame.data.u8[1], frame.data.u8[2], frame.data.u8[3],
-                    frame.data.u8[4], frame.data.u8[5], frame.data.u8[6], frame.data.u8[7]);
+                LOG(INFO,
+                    "CAN-RX id:%08x, eff:%02d, rtr:%02d, dlc:%02d, "
+                    "data:%02x%02x%02x%02x%02x%02x%02x%02x",
+                    frame.MsgID, frame.FIR.B.FF, frame.FIR.B.RTR,
+                    frame.FIR.B.DLC, frame.data.u8[0], frame.data.u8[1],
+                    frame.data.u8[2], frame.data.u8[3], frame.data.u8[4],
+                    frame.data.u8[5], frame.data.u8[6], frame.data.u8[7]);
                 AtomicHolder h(parent);
                 struct can_frame *can_frame = nullptr;
-                if(parent->rxBuf->data_write_pointer(&can_frame) && can_frame != nullptr)
+                if (parent->rxBuf->data_write_pointer(&can_frame) &&
+                    can_frame != nullptr)
                 {
                     LOG(INFO, "CAN-RX: building can_frame");
                     memset(can_frame, 0, sizeof(struct can_frame));
                     can_frame->can_id = frame.MsgID;
                     can_frame->can_dlc = frame.FIR.B.DLC;
-                    for(int i = 0; i < frame.FIR.B.DLC; i++)
+                    for (int i = 0; i < frame.FIR.B.DLC; i++)
                     {
                         can_frame->data[i] = frame.data.u8[i];
                     }
-                    if(frame.FIR.B.FF)
+                    if (frame.FIR.B.FF)
                     {
                         can_frame->can_eff = 1;
                     }
-                    if(frame.FIR.B.RTR)
+                    if (frame.FIR.B.RTR)
                     {
                         can_frame->can_rtr = 1;
                     }

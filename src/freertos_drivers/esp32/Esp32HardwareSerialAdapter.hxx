@@ -26,8 +26,8 @@
  *
  * \file Esp32HardwareSerialAdapter.hxx
  *
- * On the ESP32 the HardwareSerial code does not have a read(const char *, size_t)
- * method so it is necessary to wrap it here.
+ * On the ESP32 the HardwareSerial code does not have a read(const char *,
+ * size_t) method so it is necessary to wrap it here.
  *
  * @author Mike Dunston
  * @date 20 January 2019
@@ -38,9 +38,11 @@
 
 #include <HardwareSerial.h>
 
-class Esp32HardwareSerialAdapter {
+class Esp32HardwareSerialAdapter
+{
 public:
-    Esp32HardwareSerialAdapter(HardwareSerial &serial) : serial_(serial)
+    Esp32HardwareSerialAdapter(HardwareSerial &serial)
+        : serial_(serial)
     {
     }
 
@@ -51,7 +53,7 @@ public:
 
     size_t write(const char *buffer, size_t len)
     {
-        return serial_.write((uint8_t *)buffer, len);  
+        return serial_.write((uint8_t *)buffer, len);
     }
 
     size_t available()
@@ -63,6 +65,7 @@ public:
     {
         return serial_.readBytes((char *)buffer, len);
     }
+
 private:
     HardwareSerial &serial_;
 };
