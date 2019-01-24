@@ -43,6 +43,8 @@
 #include "utils/Uninitialized.hxx"
 
 #if defined(ESP32)
+#include <esp_task.h>
+
 /// Default stack size to use for the OpenMRN background task on the ESP32 platform.
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
