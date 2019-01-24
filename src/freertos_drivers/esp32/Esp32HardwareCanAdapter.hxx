@@ -49,7 +49,7 @@ public:
     Esp32HardwareCan(const char *name, gpio_num_t rxPin, gpio_num_t txPin)
         : Can(name)
     {
-        can_timing_config_t can_timing_config = CAN_TIMING_CONFIG_250KBITS();
+        can_timing_config_t can_timing_config = CAN_TIMING_CONFIG_125KBITS();
         can_filter_config_t can_filter_config = CAN_FILTER_CONFIG_ACCEPT_ALL();
         // Note: not using the CAN_GENERAL_CONFIG_DEFAULT macro due to a missing
         // cast for CAN_IO_UNUSED.
@@ -70,23 +70,14 @@ public:
         ESP_ERROR_CHECK(can_driver_install(
             &can_general_config, &can_timing_config, &can_filter_config));
 
-        tx_mutex_ = xSemaphoreCreateMutex();
-        if (tx_mutex_ == NULL)
-        {
-            LOG(FATAL, "Unable to create CAN TX mutex");
-        }
         xTaskCreatePinnedToCore(rx_task, "CAN RX", OPENMRN_STACK_SIZE, this,
             ESP_TASK_TCPIP_PRIO - 1, nullptr, tskNO_AFFINITY);
         xTaskCreatePinnedToCore(tx_task, "CAN TX", OPENMRN_STACK_SIZE, this,
-            ESP_TASK_TCPIP_PRIO - 2, nullptr, tskNO_AFFINITY);
-        // create a low priority task to monitor/report the can status
-        xTaskCreatePinnedToCore(can_monitor, "CAN MONITOR", OPENMRN_STACK_SIZE,
-            this, tskIDLE_PRIORITY, nullptr, tskNO_AFFINITY);
+            ESP_TASK_TCPIP_PRIO - 2, &txTaskHandle_, tskNO_AFFINITY);
     }
 
     ~Esp32HardwareCan()
     {
-        vSemaphoreDelete(tx_mutex_);
     }
 
     /**< function to enable device */
@@ -105,23 +96,9 @@ public:
 
 protected:
     /**< function to try and transmit a message */
-    virtual void tx_msg()
+    void tx_msg() override
     {
-        can_status_info_t status;
-        ESP_ERROR_CHECK_WITHOUT_ABORT(can_get_status_info(&status));
-        if (status.state != CAN_STATE_RUNNING)
-        {
-            LOG(WARNING, "CAN BUS is not RUNNING: %d", status.state);
-        }
-        else
-        {
-            xSemaphoreGive(tx_mutex_);
-            while (xSemaphoreTake(tx_mutex_, pdMS_TO_TICKS(5)) != pdPASS)
-            {
-                LOG(WARNING, "tx_task didn't return mutex");
-                vTaskDelay(pdMS_TO_TICKS(5));
-            }
-        }
+        xTaskNotifyGive(txTaskHandle_);
     }
 
 private:
@@ -129,101 +106,96 @@ private:
      */
     Esp32HardwareCan();
 
-    SemaphoreHandle_t tx_mutex_;
-
-    static void can_monitor(void *unused)
-    {
-        TickType_t xLastWakeTime;
-        while (true)
-        {
-            xLastWakeTime = xTaskGetTickCount();
-            can_status_info_t status;
-            can_get_status_info(&status);
-            LOG(INFO,
-                "CAN-STATUS: rx:%d, tx:%d, rx-err:%d, tx-err:%d, arb-lost:%d, "
-                "bus-err:%d, state: %d",
-                status.msgs_to_rx, status.msgs_to_tx, status.rx_error_counter,
-                status.tx_error_counter, status.arb_lost_count,
-                status.bus_error_count, status.state);
-            if (status.state == CAN_STATE_BUS_OFF)
-            {
-                LOG(INFO, "CAN BUS is OFF, initiating recovery");
-                can_initiate_recovery();
-            }
-            vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5000));
-        }
-    }
+    TaskHandle_t txTaskHandle_;
 
     static void tx_task(void *can)
     {
         Esp32HardwareCan *parent = reinterpret_cast<Esp32HardwareCan *>(can);
+        TickType_t last_status_time = 0;
         while (true)
         {
             esp_task_wdt_reset();
-            can_message_t msg = {0};
-            if (xSemaphoreTake(parent->tx_mutex_, pdMS_TO_TICKS(50)) == pdPASS)
+            // periodic CAN driver monitoring task, also covers automatic bus
+            // recovery when the CAN driver disables the bus due to error
+            // conditions exceeding thresholds.
+            auto current_time = xTaskGetTickCount();
+            if (current_time > last_status_time + pdMS_TO_TICKS(5000))
             {
-                bool tx_needed = false;
-                struct can_frame *can_frame = nullptr;
-                if (parent->txBuf->data_read_pointer(&can_frame) &&
-                    can_frame != nullptr)
+                last_status_time = current_time;
+                can_status_info_t status;
+                can_get_status_info(&status);
+                LOG(INFO,
+                    "CAN-STATUS: rx-q:%d, tx-q:%d, rx-err:%d, tx-err:%d, "
+                    "arb-lost:%d, bus-err:%d, state: %d",
+                    status.msgs_to_rx, status.msgs_to_tx,
+                    status.rx_error_counter, status.tx_error_counter,
+                    status.arb_lost_count, status.bus_error_count,
+                    status.state);
+
+                if (status.state == CAN_STATE_BUS_OFF)
                 {
-                    LOG(INFO,
-                        "can_frame: id:%08x, eff:%d, rtr:%d, dlc:%d, "
-                        "data:%02x%02x%02x%02x%02x%02x%02x%02x",
-                        can_frame->can_id, can_frame->can_eff,
-                        can_frame->can_rtr, can_frame->can_dlc,
-                        can_frame->data[0], can_frame->data[1],
-                        can_frame->data[2], can_frame->data[3],
-                        can_frame->data[4], can_frame->data[5],
-                        can_frame->data[6], can_frame->data[7]);
-                    msg.identifier = can_frame->can_id;
-                    msg.data_length_code = can_frame->can_dlc;
-                    for (int i = 0; i < can_frame->can_dlc; i++)
-                    {
-                        msg.data[i] = can_frame->data[i];
-                    }
-                    if (can_frame->can_eff)
-                    {
-                        msg.flags |= CAN_MSG_FLAG_EXTD;
-                    }
-                    if (can_frame->can_rtr)
-                    {
-                        msg.flags |= CAN_MSG_FLAG_RTR;
-                    }
-                    parent->txBuf->consume(1);
-                    parent->txBuf->signal_condition();
-                    tx_needed = true;
-                }
-                xSemaphoreGive(parent->tx_mutex_);
-                if (tx_needed)
-                {
-                    LOG(INFO,
-                        "CAN-TX id:%08x, flags:%04x, dlc:%02d, "
-                        "data:%02x%02x%02x%02x%02x%02x%02x%02x",
-                        msg.identifier, msg.flags, msg.data_length_code,
-                        msg.data[0], msg.data[1], msg.data[2], msg.data[3],
-                        msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
-                    // block here until the CAN driver accepts the message for
-                    // transmit
-                    bool tx_done = false;
-                    while (!tx_done)
-                    {
-                        esp_task_wdt_reset();
-                        esp_err_t tx_res =
-                            can_transmit(&msg, pdMS_TO_TICKS(250));
-                        if (tx_res != ESP_ERR_TIMEOUT &&
-                            tx_res != ESP_ERR_INVALID_STATE)
-                        {
-                            LOG(WARNING, "CAN-TX: %s", esp_err_to_name(tx_res));
-                            tx_done = true;
-                        }
-                        // sleep for 1ms to allow driver to catch up
-                        vTaskDelay(pdMS_TO_TICKS(1));
-                    }
+                    LOG(INFO, "CAN BUS is OFF, initiating recovery");
+                    can_initiate_recovery();
                 }
             }
-        }
+            // check txBuf for any message to transmit
+            unsigned count;
+            struct can_frame *can_frame = nullptr;
+            {
+                AtomicHolder h(parent);
+                count = parent->txBuf->data_read_pointer(&can_frame);
+            }
+            if (!count || !can_frame)
+            {
+                // tx Buf empty; wait for tx_msg to be called.
+                ulTaskNotifyTake(pdTRUE, // clear on exit
+                    pdMS_TO_TICKS(250));
+                continue;
+            }
+
+            /// ESP32 native can driver frame
+            can_message_t msg = {0};
+
+            msg.flags = CAN_MSG_FLAG_NONE;
+            msg.identifier = can_frame->can_id;
+            msg.data_length_code = can_frame->can_dlc;
+            for (int i = 0; i < can_frame->can_dlc; i++)
+            {
+                msg.data[i] = can_frame->data[i];
+            }
+            if (IS_CAN_FRAME_EFF(*can_frame))
+            {
+                msg.flags |= CAN_MSG_FLAG_EXTD;
+            }
+            if (IS_CAN_FRAME_RTR(*can_frame))
+            {
+                msg.flags |= CAN_MSG_FLAG_RTR;
+            }
+            // Pass the generated CAN frame to the native driver
+            // for transmit, if the TX queue is full this will
+            // return ESP_ERR_TIMEOUT which will result in the
+            // the message being left in txBuf for the next iteration.
+            // if this call returns ESP_OK we consider the frame as
+            // transmitted by the driver and remove it from txBuf.
+            esp_err_t tx_res = can_transmit(&msg, pdMS_TO_TICKS(100));
+            if (tx_res == ESP_OK)
+            {
+                LOG(INFO,
+                    "CAN-TX OK id:%08x, flags:%04x, dlc:%02d, "
+                    "data:%02x%02x%02x%02x%02x%02x%02x%02x",
+                    msg.identifier, msg.flags, msg.data_length_code,
+                    msg.data[0], msg.data[1], msg.data[2], msg.data[3],
+                    msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
+                AtomicHolder h(parent);
+                parent->txBuf->consume(1);
+                parent->txBuf->signal_condition();
+            }
+            else if (tx_res != ESP_ERR_TIMEOUT)
+            {
+                LOG(WARNING, "CAN-TX: %s", esp_err_to_name(tx_res));
+                vTaskDelay(pdMS_TO_TICKS(100));
+            }
+        } // loop on task
     }
 
     static void rx_task(void *can)
@@ -237,7 +209,7 @@ private:
             {
                 if (msg.flags & CAN_MSG_FLAG_DLC_NON_COMP)
                 {
-                    LOG(WARNING, "Received non-spec CAN frame!");
+                    LOG(WARNING, "Received non-spec CAN frame, dropping frame!");
                 }
                 else
                 {
@@ -283,4 +255,4 @@ private:
     DISALLOW_COPY_AND_ASSIGN(Esp32HardwareCan);
 };
 
-#endif /* _FREERTOS_DRIVERS_ESP32_ESP32HWCAN_HXX_ */
+#endif /* _FREERTOS_DRIVERS_ARDUINO_ESP32HWCAN_HXX_ */
