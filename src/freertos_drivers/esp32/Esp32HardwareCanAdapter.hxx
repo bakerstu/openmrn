@@ -63,21 +63,25 @@ public:
             .alerts_enabled = CAN_ALERT_NONE,
             .clkout_divider = 0};
         LOG(INFO,
-            "Configuring CAN driver using RX: %d, TX: %d, TX-QUEUE: %d, "
-            "RX-QUEUE: %d",
+            "Configuring CAN driver using RX: %d, TX: %d, TX-Q: %d, "
+            "RX-Q: %d",
             can_general_config.rx_io, can_general_config.tx_io,
             can_general_config.rx_queue_len, can_general_config.tx_queue_len);
         ESP_ERROR_CHECK(can_driver_install(
             &can_general_config, &can_timing_config, &can_filter_config));
 
         xTaskCreatePinnedToCore(rx_task, "CAN RX", OPENMRN_STACK_SIZE, this,
-            ESP_TASK_TCPIP_PRIO - 1, nullptr, tskNO_AFFINITY);
+            ESP_TASK_TCPIP_PRIO - 1, &rxTaskHandle_, tskNO_AFFINITY);
         xTaskCreatePinnedToCore(tx_task, "CAN TX", OPENMRN_STACK_SIZE, this,
             ESP_TASK_TCPIP_PRIO - 2, &txTaskHandle_, tskNO_AFFINITY);
     }
 
     ~Esp32HardwareCan()
     {
+        vTaskSuspend(rxTaskHandle_);
+        vTaskDelete(rxTaskHandle_);
+        vTaskSuspend(txTaskHandle_);
+        vTaskDelete(txTaskHandle_);
     }
 
     /**< function to enable device */
@@ -106,15 +110,26 @@ private:
      */
     Esp32HardwareCan();
 
+    /// Handle for the tx_task that converts and transmits can_frame to the
+    /// native can driver.
     TaskHandle_t txTaskHandle_;
+
+    /// Handle for the rx_task that receives and converts the native can driver
+    /// frames to can_frame
+    TaskHandle_t rxTaskHandle_;
 
     static void tx_task(void *can)
     {
+        /// Get handle to our parent Esp32HardwareCan object to access the txBuf
         Esp32HardwareCan *parent = reinterpret_cast<Esp32HardwareCan *>(can);
+
+        /// Track the last time that we displayed the CAN driver status
         TickType_t last_status_time = 0;
         while (true)
         {
-            esp_task_wdt_reset();
+            // Feed the watchdog so it doesn't reset the ESP32
+            esp_task_wdt_feed();
+
             // periodic CAN driver monitoring task, also covers automatic bus
             // recovery when the CAN driver disables the bus due to error
             // conditions exceeding thresholds.
@@ -137,7 +152,12 @@ private:
                     LOG(INFO, "CAN BUS is OFF, initiating recovery");
                     can_initiate_recovery();
                 }
+                else if (status.state == CAN_STATE_RECOVERING)
+                {
+                    LOG(INFO, "CAN BUS is currently recovering");
+                }
             }
+
             // check txBuf for any message to transmit
             unsigned count;
             struct can_frame *can_frame = nullptr;
@@ -153,7 +173,7 @@ private:
                 continue;
             }
 
-            /// ESP32 native can driver frame
+            /// ESP32 native CAN driver frame
             can_message_t msg = {0};
 
             msg.flags = CAN_MSG_FLAG_NONE;
@@ -171,6 +191,7 @@ private:
             {
                 msg.flags |= CAN_MSG_FLAG_RTR;
             }
+
             // Pass the generated CAN frame to the native driver
             // for transmit, if the TX queue is full this will
             // return ESP_ERR_TIMEOUT which will result in the
@@ -193,23 +214,30 @@ private:
             else if (tx_res != ESP_ERR_TIMEOUT)
             {
                 LOG(WARNING, "CAN-TX: %s", esp_err_to_name(tx_res));
-                vTaskDelay(pdMS_TO_TICKS(100));
+                vTaskDelay(pdMS_TO_TICKS(250));
             }
         } // loop on task
     }
 
     static void rx_task(void *can)
     {
+        /// Get handle to our parent Esp32HardwareCan object to access the rxBuf
         Esp32HardwareCan *parent = reinterpret_cast<Esp32HardwareCan *>(can);
+
         while (true)
         {
-            esp_task_wdt_reset();
+            // Feed the watchdog so it doesn't reset the ESP32
+            esp_task_wdt_feed();
+
+            /// ESP32 native CAN driver frame
             can_message_t msg = {0};
             if (can_receive(&msg, pdMS_TO_TICKS(250)) == ESP_OK)
             {
+                // frame retrieved from the driver, convert to OpenMRN can_frame
                 if (msg.flags & CAN_MSG_FLAG_DLC_NON_COMP)
                 {
-                    LOG(WARNING, "Received non-spec CAN frame, dropping frame!");
+                    LOG(WARNING,
+                        "Received non-spec CAN frame, dropping frame!");
                 }
                 else
                 {
@@ -224,7 +252,7 @@ private:
                     if (parent->rxBuf->data_write_pointer(&can_frame) &&
                         can_frame != nullptr)
                     {
-                        LOG(INFO, "CAN-RX: building can_frame");
+                        LOG(INFO, "CAN-RX: converting to can_frame");
                         memset(can_frame, 0, sizeof(struct can_frame));
                         can_frame->can_id = msg.identifier;
                         can_frame->can_dlc = msg.data_length_code;

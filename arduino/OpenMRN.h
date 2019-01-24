@@ -60,10 +60,9 @@ constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(1);
 #include "freertos_drivers/esp32/Esp32WiFiClientAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
-#include "freertos_drivers/esp32/Esp32HardwareCan.hxx"
 
-/// On the ESP32 we have persistent file system access so enable
-/// dynamic CDI.xml generation support
+// On the ESP32 we have persistent file system access so enable
+// dynamic CDI.xml generation support
 #define HAVE_FILESYSTEM
 
 #endif // ESP32
@@ -348,7 +347,7 @@ public:
         {
 #if defined(ESP32)
             // Feed the watchdog so it doesn't reset the ESP32
-            esp_task_wdt_reset();
+            esp_task_wdt_feed();
 #endif // ESP32
             e->run();
         }
@@ -474,11 +473,13 @@ private:
 #if defined(ESP32)
     static void openmrn_background_task(void *param)
     {
+        /// Get handle to our parent OpenMRN object for the loop method access
         OpenMRN *openmrn = reinterpret_cast<OpenMRN *>(param);
+
         while(true)
         {
-            // Feed the watchdog so it doesn't reset the ESP32
-            esp_task_wdt_reset();
+            // feed the WDT to ensure the ESP32 doesn't reset unnecessarily
+            esp_task_wdt_feed();
 
             // yield to other tasks that are running on the ESP32
             openmrn->loop();
