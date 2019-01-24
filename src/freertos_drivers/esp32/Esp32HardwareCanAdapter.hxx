@@ -80,7 +80,7 @@ public:
             .alerts_enabled = CAN_ALERT_NONE,
             .clkout_divider = 0};
 
-        LOG(INFO,
+        LOG(VERBOSE,
             "ESP32-CAN driver configured using RX: %d, TX: %d, TX-Q: %d, "
             "RX-Q: %d",
             can_general_config.rx_io, can_general_config.tx_io,
@@ -103,14 +103,14 @@ public:
     virtual void enable()
     {
         ESP_ERROR_CHECK(can_start());
-        LOG(INFO, "ESP32-CAN driver enabled");
+        LOG(VERBOSE, "ESP32-CAN driver enabled");
     }
 
     /// Disables the ESP32 CAN driver
     virtual void disable()
     {
         ESP_ERROR_CHECK(can_stop());
-        LOG(INFO, "ESP32-CAN driver disabled");
+        LOG(VERBOSE, "ESP32-CAN driver disabled");
     }
 
 protected:
@@ -246,7 +246,7 @@ private:
             esp_err_t tx_res = can_transmit(&msg, pdMS_TO_TICKS(100));
             if (tx_res == ESP_OK)
             {
-                LOG(INFO,
+                LOG(VERBOSE,
                     "ESP32-CAN-TX OK id:%08x, flags:%04x, dlc:%02d, "
                     "data:%02x%02x%02x%02x%02x%02x%02x%02x",
                     msg.identifier, msg.flags, msg.data_length_code,
@@ -293,7 +293,7 @@ private:
                 }
                 else
                 {
-                    LOG(INFO,
+                    LOG(VERBOSE,
                         "ESP32-CAN-RX id:%08x, flags:%04x, dlc:%02d, "
                         "data:%02x%02x%02x%02x%02x%02x%02x%02x",
                         msg.identifier, msg.flags, msg.data_length_code,
@@ -304,7 +304,7 @@ private:
                     if (parent->rxBuf->data_write_pointer(&can_frame) &&
                         can_frame != nullptr)
                     {
-                        LOG(INFO, "ESP32-CAN-RX: converting to can_frame");
+                        LOG(VERBOSE, "ESP32-CAN-RX: converting to can_frame");
                         memset(can_frame, 0, sizeof(struct can_frame));
                         can_frame->can_id = msg.identifier;
                         can_frame->can_dlc = msg.data_length_code;
