@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -25,26 +25,31 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file ESP32IOBoard.ino
- * 
+ *
  * Main file for the io board application on an ESP32.
- * 
+ *
  * @author Mike Dunston
  * @date 13 January 2019
  */
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <SPIFFS.h>
 #include <ESPmDNS.h>
+#include <SPIFFS.h>
+#include <WiFi.h>
 #include <vector>
 
 #include <OpenMRN.h>
 #include <openlcb/TcpDefs.hxx>
+
 #include "config.h"
 
+/// This is the TCP/IP port which the ESP32 will listen on for incoming
+/// GridConnect formatted CAN frames.
 constexpr uint16_t OPENMRN_TCP_PORT = 12021L;
 
-WiFiServer openMRNServer(OPENMRN_TCP_PORT);
+/// This is the node id to assign to this device, this must be unique
+/// on the CAN bus.
+static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
 
 // Configuring WiFi accesspoint name and password
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -52,34 +57,45 @@ WiFiServer openMRNServer(OPENMRN_TCP_PORT);
 // 1) edit the sketch to set this information just below. Use quotes:
 //     const char* ssid     = "linksys";
 //     const char* password = "superSecret";
-// 2) add a new file to the sketch folder called something.cpp with the following contents:
+// 2) add a new file to the sketch folder called something.cpp with the
+// following contents:
 //     #include <OpenMRN.h>
 //
 //     const char DEFAULT_WIFI_NAME[] = "linksys";
 //     const char DEFAULT_PASSWORD[] = "theTRUEsupers3cr3t";
 
 /// This is the name of the WiFi network (access point) to connect to.
-const char* ssid     = DEFAULT_WIFI_NAME;
-/// Password of the wifi network.
-const char* password = DEFAULT_PASSWORD;
-const char* hostname = "esp32mrn";
+const char *ssid = DEFAULT_WIFI_NAME;
 
-static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
+/// Password of the wifi network.
+const char *password = DEFAULT_PASSWORD;
+
+/// This is the hostname which the ESP32 will advertise via mDNS, it should be
+/// unique.
+const char *hostname = "esp32mrn";
+
+/// This is the TCP/IP listener on the ESP32.
+WiFiServer openMRNServer(OPENMRN_TCP_PORT);
+
+/// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
 
 // note the dummy string below is required due to a bug in the GCC compiler
 // for the ESP32
 string dummystring("abcdef");
-// ConfigDef comes from config.hxx and is specific to the particular device and
-// target. It defines the layout of the configuration memory space and is also
-// used to generate the cdi.xml file. Here we instantiate the configuration
-// layout. The argument of offset zero is ignored and will be removed later.
+
+/// ConfigDef comes from config.h and is specific to this particular device and
+/// target. It defines the layout of the configuration memory space and is also
+/// used to generate the cdi.xml file. Here we instantiate the configuration
+/// layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
 OVERRIDE_CONST(gridconnect_buffer_size, 512);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 
 // Declare output pins
+// NOTE: pins 6-11 are connected to the onboard flash and can not be used for
+// any purpose and pins 34-39 are INPUT only.
 GPIO_PIN(IO0, GpioOutputSafeLow, 2);
 GPIO_PIN(IO1, GpioOutputSafeLow, 4);
 GPIO_PIN(IO2, GpioOutputSafeLow, 5);
@@ -135,67 +151,70 @@ openlcb::ConfiguredProducer IO14_producer(
 openlcb::ConfiguredProducer IO15_producer(
     openmrn.stack()->node(), cfg.seg().producers().entry<7>(), IO15_Pin());
 
-namespace openlcb {
-    // Name of CDI.xml to generate dynamically.
-    const char CDI_FILENAME[] = "/spiffs/cdi.xml";
+namespace openlcb
+{
+// Name of CDI.xml to generate dynamically.
+const char CDI_FILENAME[] = "/spiffs/cdi.xml";
 
-    // This will stop openlcb from exporting the CDI memory space upon start.
-    extern const char CDI_DATA[] = "";
+// This will stop openlcb from exporting the CDI memory space upon start.
+extern const char CDI_DATA[] = "";
 
-    // Path to where OpenMRN should persist general configuration data.
-    extern const char *const CONFIG_FILENAME = "/spiffs/openlcb_config";
+// Path to where OpenMRN should persist general configuration data.
+extern const char *const CONFIG_FILENAME = "/spiffs/openlcb_config";
 
-    // The size of the memory space to export over the above device.
-    extern const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
+// The size of the memory space to export over the above device.
+extern const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
 
-    // Default to store the dynamic SNIP data is stored in the same persistant
-    // data file as general configuration data.
-    extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
+// Default to store the dynamic SNIP data is stored in the same persistant
+// data file as general configuration data.
+extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }
 
-void setup() {
+void setup()
+{
     Serial.begin(115200L);
 
     printf("\nConnecting to: %s\n", ssid);
     WiFi.begin(ssid, password);
     uint8_t attempts = 30;
-    while ( WiFi.status() != WL_CONNECTED &&
-            WiFi.status() != WL_CONNECT_FAILED &&
-            WiFi.status() != WL_NO_SSID_AVAIL &&
-            attempts--)
+    while (WiFi.status() != WL_CONNECTED &&
+        WiFi.status() != WL_CONNECT_FAILED &&
+        WiFi.status() != WL_NO_SSID_AVAIL && attempts--)
     {
         delay(500);
         Serial.print(".");
     }
-    if(WiFi.status() != WL_CONNECTED)
+    if (WiFi.status() != WL_CONNECTED)
     {
         printf("\nFailed to connect to WiFi, restarting\n");
         ESP.restart();
 
-        // in case the above call doesn't trigger restart, force WDT to restart the ESP32
-        while(1)
+        // in case the above call doesn't trigger restart, force WDT to restart
+        // the ESP32
+        while (1)
         {
-            // The ESP32 has built in watchdog timers that as of arduino-esp32 1.0.1 are
-            // enabled on both core 0 (OS core) and core 1 (Arduino core). It usually
-            // takes a couple seconds of an endless loop such as this one to trigger the
-            // WDT to force a restart.
+            // The ESP32 has built in watchdog timers that as of
+            // arduino-esp32 1.0.1 are enabled on both core 0 (OS core) and core
+            // 1 (Arduino core). It usually takes a couple seconds of an endless
+            // loop such as this one to trigger the WDT to force a restart.
         }
     }
 
-    // This makes the wifi much more responsive. Since we are plugged in we don't care
-    // about the increased power usage. Disable when on battery.
+    // This makes the wifi much more responsive. Since we are plugged in we
+    // don't care about the increased power usage. Disable when on battery.
     WiFi.setSleep(false);
 
-    printf("\nWiFi connected, IP address: %s\n", WiFi.localIP().toString().c_str());
+    printf("\nWiFi connected, IP address: %s\n",
+        WiFi.localIP().toString().c_str());
 
     // Initialize the SPIFFS filesystem as our persistence layer
-    if(!SPIFFS.begin())
+    if (!SPIFFS.begin())
     {
         printf("SPIFFS failed to mount, attempting to format and remount\n");
-        if(!SPIFFS.begin(true))
+        if (!SPIFFS.begin(true))
         {
             printf("SPIFFS mount failed even with format, giving up!\n");
-            while(1)
+            while (1)
             {
                 // Unable to start SPIFFS successfully, give up and wait
                 // for WDT to kick in
@@ -231,17 +250,20 @@ void setup() {
         openlcb::TcpDefs::MDNS_PROTOCOL_TCP, OPENMRN_TCP_PORT);
 }
 
-void loop() {
+void loop()
+{
     // if the TCP/IP listener has a new client accept it and add it
     // as a new GridConnect port.
-    if(openMRNServer.hasClient()) {
+    if (openMRNServer.hasClient())
+    {
         WiFiClient client = openMRNServer.available();
-        if(client) {
+        if (client)
+        {
             openmrn.add_gridconnect_port(new Esp32WiFiClientAdapter(client));
         }
     }
 
     // Call the OpenMRN executor, this needs to be done as often
-    // as possible from the loop() method. 
+    // as possible from the loop() method.
     openmrn.loop();
 }

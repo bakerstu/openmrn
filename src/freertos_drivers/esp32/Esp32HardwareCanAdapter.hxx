@@ -43,13 +43,30 @@
 #include <driver/gpio.h>
 #include <esp_task_wdt.h>
 
+/// ESP32 CAN bus status strings, used for periodic status reporting
+static const char *ESP32_CAN_STATUS_STRINGS[] = {
+    "STOPPED",               // CAN_STATE_STOPPED
+    "RUNNING",               // CAN_STATE_RUNNING
+    "OFF / RECOVERY NEEDED", // CAN_STATE_BUS_OFF
+    "RECOVERY UNDERWAY"      // CAN_STATE_RECOVERY
+};
+
 class Esp32HardwareCan : public Can
 {
 public:
+    /// Constructor.
+    ///
+    /// @param name is the name for the CAN adapter, this is currently not used.
+    /// @param rxPin is the ESP32 pin that is connected to the external
+    /// transceiver RX.
+    /// @param txPin is the ESP32 pin that is connected to the external
+    /// transceiver TX.
     Esp32HardwareCan(const char *name, gpio_num_t rxPin, gpio_num_t txPin)
         : Can(name)
     {
+        // Configure the ESP32 CAN driver to use 125kbps.
         can_timing_config_t can_timing_config = CAN_TIMING_CONFIG_125KBITS();
+        // By default we accept all CAN frames.
         can_filter_config_t can_filter_config = CAN_FILTER_CONFIG_ACCEPT_ALL();
         // Note: not using the CAN_GENERAL_CONFIG_DEFAULT macro due to a missing
         // cast for CAN_IO_UNUSED.
@@ -62,52 +79,50 @@ public:
             .rx_queue_len = (uint32_t)config_can_rx_buffer_size() / 2,
             .alerts_enabled = CAN_ALERT_NONE,
             .clkout_divider = 0};
+
         LOG(INFO,
-            "Configuring CAN driver using RX: %d, TX: %d, TX-Q: %d, "
+            "ESP32-CAN driver configured using RX: %d, TX: %d, TX-Q: %d, "
             "RX-Q: %d",
             can_general_config.rx_io, can_general_config.tx_io,
             can_general_config.rx_queue_len, can_general_config.tx_queue_len);
+
         ESP_ERROR_CHECK(can_driver_install(
             &can_general_config, &can_timing_config, &can_filter_config));
 
-        xTaskCreatePinnedToCore(rx_task, "CAN RX", OPENMRN_STACK_SIZE, this,
-            ESP_TASK_TCPIP_PRIO - 1, &rxTaskHandle_, tskNO_AFFINITY);
-        xTaskCreatePinnedToCore(tx_task, "CAN TX", OPENMRN_STACK_SIZE, this,
-            ESP_TASK_TCPIP_PRIO - 2, &txTaskHandle_, tskNO_AFFINITY);
+        xTaskCreatePinnedToCore(rx_task, "ESP32-CAN RX", OPENMRN_STACK_SIZE,
+            this, RX_TASK_PRIORITY, &rxTaskHandle_, tskNO_AFFINITY);
+        xTaskCreatePinnedToCore(tx_task, "ESP32-CAN TX", OPENMRN_STACK_SIZE,
+            this, TX_TASK_PRIORITY, &txTaskHandle_, tskNO_AFFINITY);
     }
 
     ~Esp32HardwareCan()
     {
-        vTaskSuspend(rxTaskHandle_);
-        vTaskDelete(rxTaskHandle_);
-        vTaskSuspend(txTaskHandle_);
-        vTaskDelete(txTaskHandle_);
     }
 
-    /**< function to enable device */
+    /// Enables the ESP32 CAN driver
     virtual void enable()
     {
         ESP_ERROR_CHECK(can_start());
-        LOG(INFO, "CAN driver enabled");
+        LOG(INFO, "ESP32-CAN driver enabled");
     }
 
-    /**< function to disable device */
+    /// Disables the ESP32 CAN driver
     virtual void disable()
     {
         ESP_ERROR_CHECK(can_stop());
-        LOG(INFO, "CAN driver disabled");
+        LOG(INFO, "ESP32-CAN driver disabled");
     }
 
 protected:
-    /**< function to try and transmit a message */
+    /// function to try and transmit a message
     void tx_msg() override
     {
+        // wake up the tx_task so it can consume any can_frames from txBuf.
         xTaskNotifyGive(txTaskHandle_);
     }
 
 private:
-    /** Default constructor.
-     */
+    /// Default constructor.
     Esp32HardwareCan();
 
     /// Handle for the tx_task that converts and transmits can_frame to the
@@ -115,50 +130,80 @@ private:
     TaskHandle_t txTaskHandle_;
 
     /// Handle for the rx_task that receives and converts the native can driver
-    /// frames to can_frame
+    /// frames to can_frame.
     TaskHandle_t rxTaskHandle_;
 
+    /// Interval at which to print the ESP32 CAN bus status.
+    static constexpr TickType_t STATUS_PRINT_INTERVAL = pdMS_TO_TICKS(10000);
+
+    /// Interval to wait between iterations when the bus is recovering, a
+    /// transmit failure or there is nothing to transmit.
+    static constexpr TickType_t TX_DEFAULT_DELAY = pdMS_TO_TICKS(250);
+
+    /// Priority to use for the rx_task. This needs to be higher than the
+    /// tx_task and lower than @ref OPENMRN_TASK_PRIORITY.
+    static constexpr UBaseType_t RX_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
+
+    /// Priority to use for the tx_task. This should be lower than
+    /// @ref RX_TASK_PRIORITY and @ref OPENMRN_TASK_PRIORITY.
+    static constexpr UBaseType_t TX_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 2;
+
+    /// Background task that takes care of the conversion of the @ref can_frame
+    /// provided by the @ref txBuf into an ESP32 can_message_t which can be
+    /// processed by the native CAN driver. This task also covers the periodic
+    /// status reporting and BUS recovery when necessary.
     static void tx_task(void *can)
     {
-        /// Get handle to our parent Esp32HardwareCan object to access the txBuf
+        /// Get handle to our parent Esp32HardwareCan object to access the
+        /// txBuf.
         Esp32HardwareCan *parent = reinterpret_cast<Esp32HardwareCan *>(can);
 
-        /// Track the last time that we displayed the CAN driver status
-        TickType_t last_status_time = 0;
+        // Add this task to the WDT
+        esp_task_wdt_add(parent->txTaskHandle_);
+
+        /// Tracks the last time that we displayed the CAN driver status.
+        TickType_t next_status_display_tick_count = 0;
+
         while (true)
         {
             // Feed the watchdog so it doesn't reset the ESP32
-            esp_task_wdt_feed();
+            esp_task_wdt_reset();
 
-            // periodic CAN driver monitoring task, also covers automatic bus
-            // recovery when the CAN driver disables the bus due to error
+            // periodic CAN driver monitoring and reporting, this takes care of
+            // bus recovery when the CAN driver disables the bus due to error
             // conditions exceeding thresholds.
-            auto current_time = xTaskGetTickCount();
-            if (current_time > last_status_time + pdMS_TO_TICKS(5000))
+            can_status_info_t status;
+            can_get_status_info(&status);
+            auto current_tick_count = xTaskGetTickCount();
+            if (next_status_display_tick_count == 0 ||
+                current_tick_count < next_status_display_tick_count)
             {
-                last_status_time = current_time;
-                can_status_info_t status;
-                can_get_status_info(&status);
+                next_status_display_tick_count =
+                    current_tick_count + STATUS_PRINT_INTERVAL;
                 LOG(INFO,
-                    "CAN-STATUS: rx-q:%d, tx-q:%d, rx-err:%d, tx-err:%d, "
-                    "arb-lost:%d, bus-err:%d, state: %d",
+                    "ESP32-CAN: rx-q:%d, tx-q:%d, rx-err:%d, tx-err:%d, "
+                    "arb-lost:%d, bus-err:%d, state: %s",
                     status.msgs_to_rx, status.msgs_to_tx,
                     status.rx_error_counter, status.tx_error_counter,
                     status.arb_lost_count, status.bus_error_count,
-                    status.state);
-
-                if (status.state == CAN_STATE_BUS_OFF)
-                {
-                    LOG(INFO, "CAN BUS is OFF, initiating recovery");
-                    can_initiate_recovery();
-                }
-                else if (status.state == CAN_STATE_RECOVERING)
-                {
-                    LOG(INFO, "CAN BUS is currently recovering");
-                }
+                    ESP32_CAN_STATUS_STRINGS[status.state]);
+            }
+            if (status.state == CAN_STATE_BUS_OFF)
+            {
+                // When the bus is OFF we need to initiate recovery, transmit is
+                // not possible when in this state.
+                LOG(WARNING, "ESP32-CAN: initiating recovery");
+                can_initiate_recovery();
+                continue;
+            }
+            else if (status.state == CAN_STATE_RECOVERY)
+            {
+                // when the bus is in recovery mode transmit is not possible.
+                vTaskDelay(TX_DEFAULT_DELAY);
+                continue;
             }
 
-            // check txBuf for any message to transmit
+            // check txBuf for any message to transmit.
             unsigned count;
             struct can_frame *can_frame = nullptr;
             {
@@ -169,7 +214,7 @@ private:
             {
                 // tx Buf empty; wait for tx_msg to be called.
                 ulTaskNotifyTake(pdTRUE, // clear on exit
-                    pdMS_TO_TICKS(250));
+                    TX_DEFAULT_DELAY);
                 continue;
             }
 
@@ -192,7 +237,7 @@ private:
                 msg.flags |= CAN_MSG_FLAG_RTR;
             }
 
-            // Pass the generated CAN frame to the native driver
+            // Pass the converted CAN frame to the native driver
             // for transmit, if the TX queue is full this will
             // return ESP_ERR_TIMEOUT which will result in the
             // the message being left in txBuf for the next iteration.
@@ -202,7 +247,7 @@ private:
             if (tx_res == ESP_OK)
             {
                 LOG(INFO,
-                    "CAN-TX OK id:%08x, flags:%04x, dlc:%02d, "
+                    "ESP32-CAN-TX OK id:%08x, flags:%04x, dlc:%02d, "
                     "data:%02x%02x%02x%02x%02x%02x%02x%02x",
                     msg.identifier, msg.flags, msg.data_length_code,
                     msg.data[0], msg.data[1], msg.data[2], msg.data[3],
@@ -213,21 +258,27 @@ private:
             }
             else if (tx_res != ESP_ERR_TIMEOUT)
             {
-                LOG(WARNING, "CAN-TX: %s", esp_err_to_name(tx_res));
-                vTaskDelay(pdMS_TO_TICKS(250));
+                LOG(WARNING, "ESP32-CAN-TX: %s", esp_err_to_name(tx_res));
+                vTaskDelay(TX_DEFAULT_DELAY);
             }
         } // loop on task
     }
 
+    /// Background task that takes care of receiving can_message_t objects from
+    /// the ESP32 native CAN driver, when they are available, converting them to
+    /// a @ref can_frame and pushing them to the @ref rxBuf.
     static void rx_task(void *can)
     {
         /// Get handle to our parent Esp32HardwareCan object to access the rxBuf
         Esp32HardwareCan *parent = reinterpret_cast<Esp32HardwareCan *>(can);
 
+        // Add this task to the WDT
+        esp_task_wdt_add(parent->rxTaskHandle_);
+
         while (true)
         {
             // Feed the watchdog so it doesn't reset the ESP32
-            esp_task_wdt_feed();
+            esp_task_wdt_reset();
 
             /// ESP32 native CAN driver frame
             can_message_t msg = {0};
@@ -237,12 +288,13 @@ private:
                 if (msg.flags & CAN_MSG_FLAG_DLC_NON_COMP)
                 {
                     LOG(WARNING,
-                        "Received non-spec CAN frame, dropping frame!");
+                        "ESP32-CAN-RX: received non-compliant CAN frame, frame "
+                        "dropped!");
                 }
                 else
                 {
                     LOG(INFO,
-                        "CAN-RX id:%08x, flags:%04x, dlc:%02d, "
+                        "ESP32-CAN-RX id:%08x, flags:%04x, dlc:%02d, "
                         "data:%02x%02x%02x%02x%02x%02x%02x%02x",
                         msg.identifier, msg.flags, msg.data_length_code,
                         msg.data[0], msg.data[1], msg.data[2], msg.data[3],
@@ -252,7 +304,7 @@ private:
                     if (parent->rxBuf->data_write_pointer(&can_frame) &&
                         can_frame != nullptr)
                     {
-                        LOG(INFO, "CAN-RX: converting to can_frame");
+                        LOG(INFO, "ESP32-CAN-RX: converting to can_frame");
                         memset(can_frame, 0, sizeof(struct can_frame));
                         can_frame->can_id = msg.identifier;
                         can_frame->can_dlc = msg.data_length_code;
@@ -273,7 +325,8 @@ private:
                     }
                     else
                     {
-                        LOG(WARNING, "CAN-RX: buffer overrun");
+                        LOG(WARNING,
+                            "ESP32-CAN-RX: buffer overrun, frame dropped!");
                         parent->overrunCount++;
                     }
                 }

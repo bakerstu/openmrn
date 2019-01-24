@@ -42,6 +42,9 @@
 class Esp32WiFiClientAdapter
 {
 public:
+    /// Constructor.
+    ///
+    /// @param client is the client returned from the ESP32 WiFiServer.
     Esp32WiFiClientAdapter(WiFiClient client)
         : client_(client)
     {
@@ -52,7 +55,7 @@ public:
     /// socket is write active.
     static constexpr unsigned WRITE_PACKET_SIZE = 512;
 
-    // on the ESP32 there is no TX limit method
+    /// @return the capacity of the write buffer for the underlying WiFiClient.
     size_t availableForWrite()
     {
         if (!client_.connected())
@@ -82,6 +85,10 @@ public:
         }
     }
 
+    /// Writes a byte stream to the underlying WiFiClient.
+    ///
+    /// @param buffer byte stream to be transmitted.
+    /// @param len length of byte stream to be transmitted.
     size_t write(const char *buffer, size_t len)
     {
         if (client_.connected())
@@ -90,6 +97,8 @@ public:
         }
         return 0;
     }
+
+    /// @return the number of bytes available to read from the underlying WiFiClient.
     size_t available()
     {
         if (client_.connected())
@@ -98,6 +107,11 @@ public:
         }
         return 0;
     }
+
+    /// Reads a byte stream from the underlying WiFiClient.
+    ///
+    /// @param buffer buffer to read into.
+    /// @param len size of the buffer to read into.
     size_t read(const char *buffer, size_t len)
     {
         size_t bytesRead = 0;
@@ -109,6 +123,7 @@ public:
     }
 
 private:
+    /// WiFiClient being wrapped.
     WiFiClient client_;
 };
 
