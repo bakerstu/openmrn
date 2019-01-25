@@ -10,9 +10,9 @@
 namespace openlcb
 {
 
-// Basically a specialized ConfiguredConsumer.
-// Can't subclass ConfiguredConsumer here because ServoConsumerConfig
-// isn't a subclass of ConsumerConfig,
+/// Basically a specialized ConfiguredConsumer.
+/// Can't subclass ConfiguredConsumer here because ServoConsumerConfig
+/// isn't a subclass of ConsumerConfig,
 class ServoConsumer : public DefaultConfigUpdateListener
 {
 public:
@@ -90,18 +90,18 @@ public:
     }
 
 private:
-    // Used to compute PWM ticks for max/min servo rotation.
+    /// Used to compute PWM ticks for max/min servo rotation.
     const uint32_t pwmCountPerMs_;
 
-    // not owned; lives forever
-    PWM *pwm_; // timer channel
+    /// timer channel. not owned; lives forever
+    PWM *pwm_;
 
-    // all the rest are owned and must be reset on config change.
-    // pwmGpo_ heap-allocated because it's nullptr until first config.
+    /// all the rest are owned and must be reset on config change.
+    /// pwmGpo_ heap-allocated because it's nullptr until first config.
     std::unique_ptr<PWMGPO> pwmGpo_; // has PWM* and on/off counts
 
-    GPIOBit gpioImpl_;          // has on/off events, Node*, and Gpio*
-    BitEventConsumer consumer_; // has GPIOBit*
+    GPIOBit gpioImpl_;          /// has on/off events, Node*, and Gpio*
+    BitEventConsumer consumer_; /// has GPIOBit*
     const ServoConsumerConfig cfg_;
 };
 
