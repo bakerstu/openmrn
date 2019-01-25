@@ -93,7 +93,7 @@ copy_dir . arduino/examples
 
 copy_file src arduino/OpenMRN.{h,cpp} include/{can_frame.h,nmranet_config.h} include/freertos/endian.h
 
-copy_file src/dcc src/dcc/*.hxx src/dcc/*.h
+copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/Packet.cxx
 copy_file src/executor src/executor/*.hxx src/executor/*.cxx
 copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
 
