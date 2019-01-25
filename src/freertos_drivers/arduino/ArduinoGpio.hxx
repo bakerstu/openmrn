@@ -121,7 +121,7 @@ public:
             // pins 32 and below use the first GPIO controller
             if(PIN_NUM < 32)
             {
-                return GPIO.enable_w1ts & ((uint32_t)1 << PIN_NUM);
+                return GPIO.enable_w1ts & ((uint32_t)1 << (PIN_NUM & 31));
             }
             else
             {
