@@ -48,7 +48,7 @@ static const char *ESP32_CAN_STATUS_STRINGS[] = {
     "STOPPED",               // CAN_STATE_STOPPED
     "RUNNING",               // CAN_STATE_RUNNING
     "OFF / RECOVERY NEEDED", // CAN_STATE_BUS_OFF
-    "RECOVERY UNDERWAY"      // CAN_STATE_RECOVERY
+    "RECOVERY UNDERWAY"      // CAN_STATE_RECOVERING
 };
 
 class Esp32HardwareCan : public Can
@@ -176,7 +176,7 @@ private:
             can_get_status_info(&status);
             auto current_tick_count = xTaskGetTickCount();
             if (next_status_display_tick_count == 0 ||
-                current_tick_count < next_status_display_tick_count)
+                current_tick_count >= next_status_display_tick_count)
             {
                 next_status_display_tick_count =
                     current_tick_count + STATUS_PRINT_INTERVAL;
@@ -196,7 +196,7 @@ private:
                 can_initiate_recovery();
                 continue;
             }
-            else if (status.state == CAN_STATE_RECOVERY)
+            else if (status.state == CAN_STATE_RECOVERING)
             {
                 // when the bus is in recovery mode transmit is not possible.
                 vTaskDelay(TX_DEFAULT_DELAY);
