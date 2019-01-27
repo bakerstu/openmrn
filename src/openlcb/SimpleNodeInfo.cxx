@@ -46,7 +46,7 @@ const SimpleInfoDescriptor SNIPHandler::SNIP_RESPONSE[] = {
     {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.model_name},
     {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.hardware_version},
     {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.software_version},
-#ifdef ARDUINO
+#if defined(ARDUINO) && (!defined(ESP32))
     /// @todo(balazs.racz) Add eeprom support to arduino.
     {SimpleInfoDescriptor::LITERAL_BYTE, 2, 0, nullptr},
     {SimpleInfoDescriptor::LITERAL_BYTE, 0, 0, nullptr},

@@ -217,7 +217,7 @@ private:
                 }
                 break;
             }
-#ifndef ARDUINO
+#if (!defined(ARDUINO)) || defined(ESP32)
             case SimpleInfoDescriptor::FILE_CHAR_ARRAY:
                 open_and_seek_next_file();
                 // fall through
@@ -227,7 +227,7 @@ private:
                 currentLength_ = d.arg;
                 HASSERT(currentLength_);
                 break;
-#ifndef ARDUINO
+#if (!defined(ARDUINO)) || defined(ESP32)
             case SimpleInfoDescriptor::FILE_LITERAL_BYTE:
             {
                 open_and_seek_next_file();
@@ -240,7 +240,7 @@ private:
                 byteOffset_ = 0;
                 break;
             }
-#endif
+#endif // NOT ARDUINO, YES ESP32
             default:
                 currentLength_ = 0;
         }
