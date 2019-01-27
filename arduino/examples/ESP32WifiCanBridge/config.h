@@ -23,8 +23,11 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "Arduino WifiCan Bridge",
-    ARDUINO_VARIANT, "1.00"};
+    4,
+    "OpenMRN",
+    "Arduino WifiCan Bridge",
+    ARDUINO_VARIANT,
+    "1.00"};
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.

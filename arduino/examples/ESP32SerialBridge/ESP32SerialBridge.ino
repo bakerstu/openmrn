@@ -83,6 +83,22 @@ string dummystring("abcdef");
 // layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
+class FactoryResetHelper : public DefaultConfigUpdateListener {
+public:
+    UpdateAction apply_configuration(int fd, bool initial_load,
+                                     BarrierNotifiable *done) OVERRIDE {
+        AutoNotify n(done);
+        return UPDATED;
+    }
+
+    void factory_reset(int fd) override
+    {
+        cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
+        cfg.userinfo().description().write(
+            fd, "OpenLCB DevKit + Arduino-ESP32 on an ESP32 board.");
+    }
+} factory_reset_helper;
+
 namespace openlcb {
     // Name of CDI.xml to generate dynamically.
     const char CDI_FILENAME[] = "/spiffs/cdi.xml";

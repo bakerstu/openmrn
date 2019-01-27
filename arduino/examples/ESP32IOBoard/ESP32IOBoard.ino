@@ -43,13 +43,13 @@
 
 #include "openlcb/MultiConfiguredConsumer.hxx"
 
-#include "config.h"
-
 // Pick one mode below, if you select USE_WIFI it will expose this node on WIFI
 // if you select USE_CAN, this node will be available on CAN.
 
 #define USE_WIFI
 // #define USE_CAN
+
+#include "config.h"
 
 /// This is the node id to assign to this device, this must be unique
 /// on the CAN bus.
@@ -178,23 +178,48 @@ openlcb::ConfiguredProducer IO14_producer(
 openlcb::ConfiguredProducer IO15_producer(
     openmrn.stack()->node(), cfg.seg().producers().entry<7>(), IO15_Pin());
 
+class FactoryResetHelper : public DefaultConfigUpdateListener {
+public:
+    UpdateAction apply_configuration(int fd, bool initial_load,
+                                     BarrierNotifiable *done) OVERRIDE {
+        AutoNotify n(done);
+        return UPDATED;
+    }
+
+    void factory_reset(int fd) override
+    {
+        cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
+        cfg.userinfo().description().write(
+            fd, "OpenLCB DevKit + Arduino-ESP32 on an ESP32 board.");
+        for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
+        {
+            cfg.seg().consumers().entry(i).description().write(fd, "");
+        }
+        for(int i = 0; i < openlcb::NUM_INPUTS; i++)
+        {
+            cfg.seg().producers().entry(i).description().write(fd, "");
+            cfg.seg().producers().entry(i).debounce().write(fd, 3);
+        }
+    }
+} factory_reset_helper;
+
 namespace openlcb
 {
-// Name of CDI.xml to generate dynamically.
-const char CDI_FILENAME[] = "/spiffs/cdi.xml";
+    // Name of CDI.xml to generate dynamically.
+    const char CDI_FILENAME[] = "/spiffs/cdi.xml";
 
-// This will stop openlcb from exporting the CDI memory space upon start.
-extern const char CDI_DATA[] = "";
+    // This will stop openlcb from exporting the CDI memory space upon start.
+    extern const char CDI_DATA[] = "";
 
-// Path to where OpenMRN should persist general configuration data.
-extern const char *const CONFIG_FILENAME = "/spiffs/openlcb_config";
+    // Path to where OpenMRN should persist general configuration data.
+    extern const char *const CONFIG_FILENAME = "/spiffs/openlcb_config";
 
-// The size of the memory space to export over the above device.
-extern const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
+    // The size of the memory space to export over the above device.
+    extern const size_t CONFIG_FILE_SIZE = cfg.seg().size() + cfg.seg().offset();
 
-// Default to store the dynamic SNIP data is stored in the same persistant
-// data file as general configuration data.
-extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
+    // Default to store the dynamic SNIP data is stored in the same persistant
+    // data file as general configuration data.
+    extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }
 
 void setup()

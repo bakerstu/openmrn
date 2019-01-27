@@ -6,6 +6,11 @@
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/MemoryConfig.hxx"
 
+// catch invalid configuration at compile time
+#if !defined(USE_CAN) && !defined(USE_WIFI)
+#error "Invalid configuration detected, USE_CAN or USE_WIFI must be defined."
+#endif
+
 namespace openlcb
 {
 
@@ -23,8 +28,19 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "Arduino IO Board",
-    ARDUINO_VARIANT, "1.00"};
+    4,
+    "OpenMRN",
+#if defined(USE_WIFI) && !defined(USE_CAN)
+    "Arduino IO Board (WiFi)",
+#elif defined(USE_CAN) && !defined(USE_WIFI)
+    "Arduino IO Board (CAN)",
+#elif defined(USE_CAN) && defined(USE_WIFI)
+    "Arduino IO Board (WiFi/CAN)",
+#else
+    "Arduino IO Board",
+#endif
+    ARDUINO_VARIANT,
+    "1.00"};
 
 constexpr uint8_t NUM_OUTPUTS = 8;
 constexpr uint8_t NUM_INPUTS = 8;
