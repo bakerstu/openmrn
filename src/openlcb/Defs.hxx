@@ -221,7 +221,12 @@ struct Defs
     /// track power.
     static constexpr uint64_t CLEAR_EMERGENCY_OFF_EVENT = 0x010000000000FFFEULL;
 
-    /// Producing this event causes a node to revert to safe output defaults.
+    /// The Emergency Stop Event is a request for a node to command all of its
+    /// outputs to a safe state. A node receiving this event is not required
+    /// to de-energize any of its outputs. The meaning of “safe state” is not
+    /// prescribed for any given node, it is up to the node manufacturer and/or
+    /// user to prescribe what, if anything, should happen in the node if it
+    /// receives this event.
     /// For example, a DCC command station may react to this by sending a DCC
     /// emergency stop command packet to the track outputs.
     static constexpr uint64_t EMERGENCY_STOP_EVENT = 0x010000000000FFFDULL;
