@@ -221,6 +221,15 @@ struct Defs
     /// track power.
     static constexpr uint64_t CLEAR_EMERGENCY_OFF_EVENT = 0x010000000000FFFEULL;
 
+    /// Producing this event causes a node to revert to safe output defaults.
+    /// For example, a DCC command station may react to this by sending a DCC
+    /// emergency stop command packet to the track outputs.
+    static constexpr uint64_t EMERGENCY_STOP_EVENT = 0x010000000000FFFDULL;
+
+    /// Producing this event clears an Emergency Stop. For example, a DCC command
+    /// station may react to this by restoring locomotive speed settings.
+    static constexpr uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010000000000FFFCULL;
+
     /** Status of the pysical layer link */
     enum LinkStatus
     {
