@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2017, Balazs Racz
+ * Copyright (c) 2019, Mike Dunston
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,23 +24,47 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TcpDefs.cxx
+ * \file Esp32HardwareSerialAdapter.hxx
  *
- * Static declarations, enums and helper functions for the OpenLCB TCP
- * interfaces.
+ * On the ESP32 the HardwareSerial code does not have a read(const char *, size_t)
+ * method so it is necessary to wrap it here.
  *
- * @author Balazs Racz
- * @date 12 September 2017
+ * @author Mike Dunston
+ * @date 20 January 2019
  */
 
-#include "openlcb/TcpDefs.hxx"
+#ifndef _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_
+#define _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_
 
-namespace openlcb {
+#include <HardwareSerial.h>
 
-const char TcpDefs::MDNS_PROTOCOL_TCP[] = "_tcp";
-const char TcpDefs::MDNS_SERVICE_NAME_HUB[] = "_openlcb-hub";
-const char TcpDefs::MDNS_SERVICE_NAME_HUB_TCP[] = "_openlcb-hub._tcp";
-const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN[] = "_openlcb-can";
-const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP[] = "_openlcb-can._tcp";
+class Esp32HardwareSerialAdapter {
+public:
+    Esp32HardwareSerialAdapter(HardwareSerial &serial) : serial_(serial)
+    {
+    }
 
-}  // namespace openlcb
+    size_t availableForWrite()
+    {
+        return serial_.availableForWrite();
+    }
+
+    size_t write(const char *buffer, size_t len)
+    {
+        return serial_.write((uint8_t *)buffer, len);  
+    }
+
+    size_t available()
+    {
+        return serial_.available();
+    }
+
+    size_t read(const char *buffer, size_t len)
+    {
+        return serial_.readBytes((char *)buffer, len);
+    }
+private:
+    HardwareSerial &serial_;
+};
+
+#endif /* _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_ */

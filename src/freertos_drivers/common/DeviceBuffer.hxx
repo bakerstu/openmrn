@@ -36,25 +36,35 @@
 #define _FREERTOS_DRIVERS_COMMON_DEVICE_BUFFER_HXX_
 
 #include <new>
+#include <cstdint>
+#include <unistd.h>
+#include <stdlib.h>
+#include "utils/macros.h"
 
+#ifndef ARDUINO
 #include "Devtab.hxx"
+#endif
 
 /** Helper for DeviceBuffer which allows for methods to not be inlined.
  */
 class DeviceBufferBase
 {
 public:
+#ifndef ARDUINO
     /** Wait for blocking condition to become true.
      * @param file file to wait on
      * @param read true if this is a read operation, false for write operation
      */
     static void block_until_condition(File *file, bool read);
+#endif
 
     /** Signal the wakeup condition.  This will also wakeup select.
      */
     void signal_condition()
     {
+#ifndef ARDUINO
         Device::select_wakeup(&selectInfo);
+#endif        
     }
 
     /** Signal the wakeup condition from an ISR context.  This will also
@@ -62,8 +72,10 @@ public:
      */
     void signal_condition_from_isr()
     {
+#ifndef ARDUINO
         int woken = 0;
         Device::select_wakeup_from_isr(&selectInfo, &woken);
+#endif
     }
 
     /** flush all the data out of the buffer and reset the buffer.  It is
@@ -98,7 +110,9 @@ public:
      */
     void select_insert()
     {
+#ifndef ARDUINO
         return Device::select_insert(&selectInfo);
+#endif        
     }
 
     /** Remove a number of items from the buffer by advancing the readIndex.
@@ -152,8 +166,7 @@ protected:
      *        transmitting, unused for receive.
      */
     DeviceBufferBase(size_t size, size_t level)
-        : selectInfo()
-        , level(level)
+        : level(level)
         , size(size)
         , count(0)
         , readIndex(0)
@@ -167,9 +180,11 @@ protected:
     {
     }
 
+#ifndef ARDUINO
     /** Metadata for select() logic */
     Device::SelectInfo selectInfo;
-
+#endif
+    
     /** level of space required in buffer in order to wakeup, 0 if unused */
     uint16_t level;
     

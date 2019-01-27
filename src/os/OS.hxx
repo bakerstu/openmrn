@@ -65,6 +65,9 @@ public:
     OSThread()
         : handle(0)
     {
+#ifdef ARDUINO
+        handle = os_thread_self();
+#endif
     }
 
    /** Starts the thread.  This call can be used when OSThread is inherited and
@@ -248,7 +251,7 @@ public:
         os_sem_wait(&handle);
     }
 
-#ifndef ESP_NONOS
+#if !(defined(ESP_NONOS) || defined(ARDUINO))
     /** Wait on (decrement) a semaphore with timeout condition.
      * @param timeout timeout in nanoseconds, else OPENMRN_OS_WAIT_FOREVER to wait forever
      * @return 0 upon success, else -1 with errno set to indicate error
@@ -700,6 +703,44 @@ private:
     /** handle to event object */
     EventGroupHandle_t event;
 };
+#elif defined(ARDUINO)
+
+#include <Arduino.h>
+
+typedef uint32_t OSEventType;
+
+extern "C" {
+extern unsigned critical_nesting;
+extern uint32_t SystemCoreClock;
+}
+#define cm3_cpu_clock_hz SystemCoreClock
+
+#if !defined(ESP32)
+
+#define portENTER_CRITICAL()                                                   \
+    do                                                                         \
+    {                                                                          \
+        noInterrupts();                                                        \
+        ++critical_nesting;                                                    \
+    } while (0)
+#define portEXIT_CRITICAL()                                                    \
+    do                                                                         \
+    {                                                                          \
+        if (critical_nesting <= 1)                                             \
+        {                                                                      \
+            critical_nesting = 0;                                              \
+            interrupts();                                                      \
+        }                                                                      \
+        else                                                                   \
+        {                                                                      \
+            --critical_nesting;                                                \
+        }                                                                      \
+    } while (0)
+
+#define configKERNEL_INTERRUPT_PRIORITY (0xa0)
+
+#endif // ESP32
+
 #endif  // freertos
 
 #endif /* _OS_OS_HXX_ */

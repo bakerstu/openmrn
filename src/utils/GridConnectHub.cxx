@@ -41,7 +41,9 @@
 #include "utils/Buffer.hxx"
 #include "utils/BufferPort.hxx"
 #include "utils/HubDevice.hxx"
+#ifndef ARDUINO
 #include "utils/HubDeviceSelect.hxx"
+#endif
 #include "utils/Hub.hxx"
 #include "utils/GcStreamParser.hxx"
 #include "utils/gc_format.h"
@@ -402,7 +404,11 @@ struct GcHubPort : public Executable
     {
         LOG(VERBOSE, "gchub port %p", (Executable *)this);
         if (use_select) {
+#ifdef ARDUINO
+            DIE("select is not supported on Arduino");
+#else
             gcWrite_.reset(new HubDeviceSelect<HubFlow>(&gcHub_, fd, this));
+#endif
         } else {
             gcWrite_.reset(new FdHubPort<HubFlow>(&gcHub_, fd, this));
         }

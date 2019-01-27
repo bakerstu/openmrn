@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2017, Balazs Racz
+ * Copyright (c) 2018, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,23 +24,17 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TcpDefs.cxx
+ * \file Can.cxx
  *
- * Static declarations, enums and helper functions for the OpenLCB TCP
- * interfaces.
+ * Base class for CAN device drivers in the Arduino environment.
  *
  * @author Balazs Racz
- * @date 12 September 2017
+ * @date 8 July 2018
  */
 
-#include "openlcb/TcpDefs.hxx"
+#include "Can.hxx"
+#include "can_frame.h"
+#include <cstdint>
 
-namespace openlcb {
-
-const char TcpDefs::MDNS_PROTOCOL_TCP[] = "_tcp";
-const char TcpDefs::MDNS_SERVICE_NAME_HUB[] = "_openlcb-hub";
-const char TcpDefs::MDNS_SERVICE_NAME_HUB_TCP[] = "_openlcb-hub._tcp";
-const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN[] = "_openlcb-can";
-const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP[] = "_openlcb-can._tcp";
-
-}  // namespace openlcb
+unsigned Can::numReceivedPackets_{0};
+unsigned Can::numTransmittedPackets_{0};

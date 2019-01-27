@@ -57,7 +57,11 @@
 #include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/HubDeviceNonBlock.hxx"
+#ifdef __FreeRTOS__
 #include "utils/HubDeviceSelect.hxx"
+#endif
+
+class OpenMRN;
 
 namespace openlcb
 {
@@ -254,6 +258,8 @@ public:
     /// (gone down and up).
     void restart_stack();
 
+    friend class ::OpenMRN;
+
     /// Donates the current thread to the executor. Never returns.
     /// @param delay_start if true, then prevents sending traffic to the bus
     void loop_executor(bool delay_start = false)
@@ -302,6 +308,14 @@ public:
 
     /// Overwrites all events in the eeprom with a brand new event ID.
     void factory_reset_all_events(const InternalConfigData &ofs, int fd);
+
+    /// Call this function at the beginning of appl_main, just before {\link
+    /// check_version_and_factory_reset} or {\link
+    /// create_config_file_if_needed} if the list of event offsets are
+    /// dyamically created instead of statically linked.
+    /// @param offsets is a vector with the data. The last entry must be
+    /// zero. This vector must outlive the SimpleStack object.
+    void set_event_offsets(const vector<uint16_t> *offsets);
 
     /// Helper function to send an event report to the bus. Performs
     /// synchronous (dynamic) memory allocation so use it sparingly and when

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2017, Balazs Racz
+ * Copyright (c) 2019, Mike Dunston
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,23 +24,51 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TcpDefs.cxx
+ * \file Esp32WiFiClientAdapter.hxx
  *
- * Static declarations, enums and helper functions for the OpenLCB TCP
- * interfaces.
+ * ESP32 adapter code using the WiFiClient provided by the WiFiServer code
+ * for interfacing with the OpenMRN stack.
  *
- * @author Balazs Racz
- * @date 12 September 2017
+ * @author Mike Dunston
+ * @date 13 January 2019
  */
 
-#include "openlcb/TcpDefs.hxx"
+#ifndef _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_
+#define _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_
 
-namespace openlcb {
+#include <Arduino.h>
+#include <WiFi.h>
 
-const char TcpDefs::MDNS_PROTOCOL_TCP[] = "_tcp";
-const char TcpDefs::MDNS_SERVICE_NAME_HUB[] = "_openlcb-hub";
-const char TcpDefs::MDNS_SERVICE_NAME_HUB_TCP[] = "_openlcb-hub._tcp";
-const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN[] = "_openlcb-can";
-const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP[] = "_openlcb-can._tcp";
+class Esp32WiFiClientAdapter {
+public:
+    Esp32WiFiClientAdapter(WiFiClient client) : client_(client){
+        client_.setNoDelay(true);
+    }
+    // on the ESP32 there is no TX limit method
+    size_t availableForWrite() {
+        return client_.connected();
+    }
+    size_t write(const char *buffer, size_t len) {
+        if(client_.connected()) {
+            return client_.write(buffer, len);  
+        }
+        return 0;
+    }
+    size_t available() {
+        if(client_.connected()) {
+            return client_.available();
+        }
+        return 0;
+    }
+    size_t read(const char *buffer, size_t len) {
+        size_t bytesRead = 0;
+        if(client_.connected()) {
+            bytesRead = client_.read((uint8_t *)buffer, len);
+        }
+        return bytesRead;
+    }
+private:
+    WiFiClient client_;
+};
 
-}  // namespace openlcb
+#endif /* _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_ */

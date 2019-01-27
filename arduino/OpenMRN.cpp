@@ -1,10 +1,10 @@
 /** \copyright
- * Copyright (c) 2017, Balazs Racz
+ * Copyright (c) 2018, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- *
+ * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,23 +24,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TcpDefs.cxx
- *
- * Static declarations, enums and helper functions for the OpenLCB TCP
- * interfaces.
+ * \file OpenMRN.cpp
+ * 
+ * Implementation that needs to be compiled for the Arduino.
  *
  * @author Balazs Racz
- * @date 12 September 2017
+ * @date 24 July 2018
  */
 
-#include "openlcb/TcpDefs.hxx"
+#include <OpenMRN.h>
 
-namespace openlcb {
+#ifdef HAVE_FILESYSTEM
+#include "utils/FileUtils.hxx"
+#endif
 
-const char TcpDefs::MDNS_PROTOCOL_TCP[] = "_tcp";
-const char TcpDefs::MDNS_SERVICE_NAME_HUB[] = "_openlcb-hub";
-const char TcpDefs::MDNS_SERVICE_NAME_HUB_TCP[] = "_openlcb-hub._tcp";
-const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN[] = "_openlcb-can";
-const char TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP[] = "_openlcb-can._tcp";
+extern const char DEFAULT_WIFI_NAME[] __attribute__((weak)) = "defaultap";
+extern const char DEFAULT_PASSWORD[] __attribute__((weak)) = "defaultpw";
 
-}  // namespace openlcb
+
+OpenMRN::OpenMRN(openlcb::NodeID node_id)
+{
+    init(node_id);
+}

@@ -84,12 +84,12 @@ public:
 
     Value read() const OVERRIDE
     {
-        return *pin_address() ? HIGH : LOW;
+        return *pin_address() ? VHIGH : VLOW;
     }
 
     void set_direction(Direction dir) const OVERRIDE
     {
-        if (dir == Direction::OUTPUT)
+        if (dir == Direction::DOUTPUT)
         {
             MAP_GPIODirModeSet(GPIO_BASE, GPIO_PIN, GPIO_DIR_MODE_OUT);
         }
@@ -107,9 +107,9 @@ public:
             default:
                 HASSERT(0);
             case GPIO_DIR_MODE_IN:
-                return Direction::INPUT;
+                return Direction::DINPUT;
             case GPIO_DIR_MODE_OUT:
-                return Direction::OUTPUT;
+                return Direction::DOUTPUT;
         }
     }
 
