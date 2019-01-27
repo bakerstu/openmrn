@@ -61,8 +61,8 @@ public:
     /// transceiver RX.
     /// @param txPin is the ESP32 pin that is connected to the external
     /// transceiver TX.
-    Esp32HardwareCan(const char *name, gpio_num_t rxPin, gpio_num_t txPin)
-        : Can(name)
+    Esp32HardwareCan(const char *name, gpio_num_t rxPin, gpio_num_t txPin, bool reportStats=true)
+        : Can(name), reportStats_(reportStats)
     {
         // Configure the ESP32 CAN driver to use 125kbps.
         can_timing_config_t can_timing_config = CAN_TIMING_CONFIG_125KBITS();
@@ -125,6 +125,10 @@ private:
     /// Default constructor.
     Esp32HardwareCan();
 
+    /// Enables/Disables the periodic reporting of CAN bus statistics to the
+    /// default serial stream.
+    bool reportStats_;
+
     /// Handle for the tx_task that converts and transmits can_frame to the
     /// native can driver.
     TaskHandle_t txTaskHandle_;
@@ -175,8 +179,9 @@ private:
             can_status_info_t status;
             can_get_status_info(&status);
             auto current_tick_count = xTaskGetTickCount();
-            if (next_status_display_tick_count == 0 ||
-                current_tick_count >= next_status_display_tick_count)
+            if ((next_status_display_tick_count == 0 ||
+                current_tick_count >= next_status_display_tick_count) &&
+                parent->reportStats_)
             {
                 next_status_display_tick_count =
                     current_tick_count + STATUS_PRINT_INTERVAL;
