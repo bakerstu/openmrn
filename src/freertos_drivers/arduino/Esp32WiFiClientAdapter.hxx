@@ -39,34 +39,75 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
-class Esp32WiFiClientAdapter {
+class Esp32WiFiClientAdapter
+{
 public:
-    Esp32WiFiClientAdapter(WiFiClient client) : client_(client){
+    Esp32WiFiClientAdapter(WiFiClient client)
+        : client_(client)
+    {
         client_.setNoDelay(true);
     }
+
+    /// This is how many bytes we return as writeable when select says the
+    /// socket is write active.
+    static constexpr unsigned WRITE_PACKET_SIZE = 512;
+
     // on the ESP32 there is no TX limit method
-    size_t availableForWrite() {
-        return client_.connected();
+    size_t availableForWrite()
+    {
+        if (!client_.connected())
+        {
+            return 0;
+        }
+        int fd = client_.fd();
+        fd_set set;
+        struct timeval tv;
+        FD_ZERO(&set);    // empties the set
+        FD_SET(fd, &set); // adds FD to the set
+        tv.tv_sec = 0;
+        tv.tv_usec = 0;
+
+        if (select(fd + 1, NULL, &set, NULL, &tv) < 0)
+        {
+            return 0;
+        }
+
+        if (FD_ISSET(fd, &set))
+        {
+            return WRITE_PACKET_SIZE;
+        }
+        else
+        {
+            return 0;
+        }
     }
-    size_t write(const char *buffer, size_t len) {
-        if(client_.connected()) {
-            return client_.write(buffer, len);  
+
+    size_t write(const char *buffer, size_t len)
+    {
+        if (client_.connected())
+        {
+            return client_.write(buffer, len);
         }
         return 0;
     }
-    size_t available() {
-        if(client_.connected()) {
+    size_t available()
+    {
+        if (client_.connected())
+        {
             return client_.available();
         }
         return 0;
     }
-    size_t read(const char *buffer, size_t len) {
+    size_t read(const char *buffer, size_t len)
+    {
         size_t bytesRead = 0;
-        if(client_.connected()) {
+        if (client_.connected())
+        {
             bytesRead = client_.read((uint8_t *)buffer, len);
         }
         return bytesRead;
     }
+
 private:
     WiFiClient client_;
 };
