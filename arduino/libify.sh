@@ -14,8 +14,16 @@ function usage() {
     exit 1
 }
 
-TARGET_LIB_DIR=$(realpath $1)
-OPENMRNPATH=$(realpath $2)
+TARGET_LIB_DIR=$(realpath $1 2>/dev/null)
+OPENMRNPATH=$(realpath $2 2>/dev/null)
+
+if [[ -z ${TARGET_LIB_DIR} ]]; then
+  if [[ $1 ]]; then
+    echo "$1 does not exist, creating $1"
+    mkdir -p $1
+    TARGET_LIB_DIR=$(realpath $1 2>/dev/null)
+  fi
+fi
 
 shift; shift
 
