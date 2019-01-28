@@ -52,14 +52,11 @@
 /// Default stack size to use for all OpenMRN tasks on the ESP32 platform.
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
-/// Default thread priority for all OpenMRN tasks on the ESP32 platform.
-/// ESP32 hardware CAN RX and TX tasks use lower priority (-1 and -2
-/// respectively)
+/// Default thread priority for any OpenMRN owned tasks on the ESP32
+/// platform. ESP32 hardware CAN RX and TX tasks run at lower priority
+/// (-1 and -2 respectively) of this default priority to ensure timely
+/// consumption of CAN frames from the hardware driver.
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
-
-/// Default delay period between iterations of OpenMRN::loop() by the background
-/// task on the ESP32 platform when it has been enabled.
-constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(1);
 
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
@@ -474,32 +471,6 @@ private:
     {
         stack_->executor()->loop_some();
     }
-
-#if defined(ESP32)
-
-    /// Creates a FreeRTOS task on the ESP32 to automatically call the @ref loop
-    /// method. If the ESP32 hardware CAN device is in use the background task
-    /// is strongly suggested to be used. @ref start_background_task.
-    static void openmrn_background_task(void *param)
-    {
-        /// Get handle to our parent OpenMRN object for the loop method access
-        OpenMRN *openmrn = reinterpret_cast<OpenMRN *>(param);
-
-        // Add this task to the WDT, NULL is passed in to have the
-        // WDT code find the task handle automatically
-        esp_task_wdt_add(NULL);
-
-        while (true)
-        {
-            // it is not necessary to feed the WDT here as it is done internally
-            // as part of openmrn->loop().
-            openmrn->loop();
-
-            // yield to other tasks that are running on the ESP32
-            vTaskDelay(OPENMRN_TASK_TICK_DELAY);
-        }
-    }
-#endif // ESP32
 
     /// Storage space for the OpenLCB stack. Will be constructed in init().
     uninitialized<openlcb::SimpleCanStack> stack_;

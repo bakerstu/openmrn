@@ -43,11 +43,18 @@
 
 #include "openlcb/MultiConfiguredConsumer.hxx"
 
-// Pick one mode below, if you select USE_WIFI it will expose this node on WIFI
-// if you select USE_CAN, this node will be available on CAN.
+// Pick an operating mode below, if you select USE_WIFI it will expose
+// this node on WIFI if you select USE_CAN, this node will be available
+// on CAN.
+// Enabling both options will allow the ESP32 to be accessible from
+// both WiFi and CAN interfaces.
 
 #define USE_WIFI
 // #define USE_CAN
+
+// uncomment the line below to have all packets printed to the Serial
+// output. This is not recommended for production deployment.
+//#define PRINT_PACKETS
 
 #include "config.h"
 
@@ -92,7 +99,7 @@ OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 #endif // USE_WIFI
 
 #if defined(USE_CAN)
-/// This is the ESP32 pin connected to the SN6565HVD23x/MCP2551 R (RX) pin.
+/// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 /// Recommended pins: 4, 16, 21.
 /// Note: Any pin can be used for this other than 6-11 which are connected to
 /// the onboard flash.
@@ -100,7 +107,7 @@ OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 
-/// This is the ESP32 pin connected to the SN6565HVD23x/MCP2551 D (TX) pin.
+/// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
 /// Recommended pins: 5, 17, 22.
 /// Note: Any pin can be used for this other than 6-11 which are connected to
 /// the onboard flash and 34-39 which are input only.
@@ -139,19 +146,20 @@ GPIO_PIN(IO7, GpioOutputSafeLow, 27);
 // the constexpr declaration, because it will produce a compile error in case
 // the list of pointers cannot be compiled into a compiler constant and thus
 // would be placed into RAM instead of ROM.
-constexpr const Gpio *const kOutputGpio[] = {
+constexpr const Gpio *const outputGpioSet[] = {
     IO0_Pin::instance(), IO1_Pin::instance(), //
     IO2_Pin::instance(), IO3_Pin::instance(), //
     IO4_Pin::instance(), IO5_Pin::instance(), //
     IO6_Pin::instance(), IO7_Pin::instance()  //
 };
 
-openlcb::MultiConfiguredConsumer gpio_consumers(openmrn.stack()->node(), kOutputGpio,
-    ARRAYSIZE(kOutputGpio), cfg.seg().consumers());
+openlcb::MultiConfiguredConsumer gpio_consumers(openmrn.stack()->node(), outputGpioSet,
+    ARRAYSIZE(outputGpioSet), cfg.seg().consumers());
 
 // Declare input pins, these are using analog pins as digital inputs
 // NOTE: pins 25 and 26 can not safely be used as analog pins while
-// WiFi is active.
+// WiFi is active. All analog pins can safely be used for digital
+// inputs regardless of WiFi being active or not.
 GPIO_PIN(IO8, GpioInputPU, 32);
 GPIO_PIN(IO9, GpioInputPU, 33);
 GPIO_PIN(IO10, GpioInputPU, 34);
@@ -190,7 +198,7 @@ public:
     {
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
-            fd, "OpenLCB DevKit + Arduino-ESP32 on an ESP32 board.");
+            fd, "OpenLCB + Arduino-ESP32 on an ESP32.");
         for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
         {
             cfg.seg().consumers().entry(i).description().write(fd, "");
@@ -198,7 +206,7 @@ public:
         for(int i = 0; i < openlcb::NUM_INPUTS; i++)
         {
             cfg.seg().producers().entry(i).description().write(fd, "");
-            cfg.seg().producers().entry(i).debounce().write(fd, 3);
+            CDI_FACTORY_RESET(cfg.seg().producers().entry(i).debounce);
         }
     }
 } factory_reset_helper;
@@ -294,17 +302,14 @@ void setup()
     // Start the OpenMRN stack
     openmrn.begin();
 
+#if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
     // Note: This should not be enabled in deployed nodes as it will
     // have performance impact.
-    // openmrn.stack()->print_all_packets();
+    openmrn.stack()->print_all_packets();
+#endif // PRINT_PACKETS
 
 #if defined(USE_CAN)
-    // When using the hardware can device it is recommended to also utilize the
-    // background task on the ESP32 rather than call openmrn.loop() from the
-    // loop method.
-    openmrn.start_background_task();
-
     // Add the hardware CAN device as a bridge
     openmrn.add_can_port(
         new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
@@ -333,11 +338,7 @@ void loop()
     }
 #endif // USE_WIFI
 
-    // if we are using the CAN driver the following lines are not
-    // required as the background task will have been started already.
-#if !defined(USE_CAN)
     // Call the OpenMRN executor, this needs to be done as often
     // as possible from the loop() method.
     openmrn.loop();
-#endif
 }

@@ -45,13 +45,13 @@
 /// debug/log messages.
 constexpr uint32_t SERIAL_BAUD = 115200L;
 
-/// This is the ESP32 pin connected to the SN6565HVD23x/MCP2551 R (RX) pin.
+/// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 /// Recommended pins: 4, 16, 21.
 /// Note: Any pin can be used for this other than 6-11 which are connected to
 /// the onboard flash.
 constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 
-/// This is the ESP32 pin connected to the SN6565HVD23x/MCP2551 D (TX) pin.
+/// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
 /// Recommended pins: 5, 17, 22.
 /// Note: Any pin can be used for this other than 6-11 which are connected to
 /// the onboard flash and 34-39 which are input only.
@@ -116,7 +116,7 @@ public:
     {
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
-            fd, "OpenLCB DevKit + Arduino-ESP32 on an ESP32 board.");
+            fd, "OpenLCB + Arduino-ESP32 on an ESP32.");
     }
 } factory_reset_helper;
 
