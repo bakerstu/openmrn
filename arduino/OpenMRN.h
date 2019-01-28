@@ -355,26 +355,6 @@ public:
         }
     }
 
-#if defined(ESP32)
-    /// Creates a background task to run the OpenMRN Stack executor.
-    /// This is only available on the ESP32
-    /// Example:
-    /// void setup() {
-    ///   ...
-    ///   openmrn.begin();
-    ///   openmrn.start_background_task();
-    ///   ...
-    /// }
-    ///
-    /// When this is used it is not necessary to call openmrn.loop()
-    /// from the loop() method.
-    void start_background_task()
-    {
-        xTaskCreate(openmrn_background_task, "OpenMRN", OPENMRN_STACK_SIZE,
-            this, OPENMRN_TASK_PRIORITY, nullptr);
-    }
-#endif // ESP32
-
     /// Adds a serial port to the stack speaking the gridconnect protocol, for
     /// example to do a USB connection to a computer. This is the protocol that
     /// USB-CAN adapters for LCC are speaking to the computer.
