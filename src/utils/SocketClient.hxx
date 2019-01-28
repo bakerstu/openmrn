@@ -35,6 +35,7 @@
 #ifndef _UTILS_SOCKET_CLIENT_HXX_
 #define _UTILS_SOCKET_CLIENT_HXX_
 
+/// @todo(balazs.racz) remove this by moving all calls to usleep to the .cxx file.
 #define _DEFAULT_SOURCE
 
 #include <functional>
