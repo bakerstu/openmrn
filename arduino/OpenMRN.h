@@ -36,24 +36,39 @@
 #ifndef _ARDUINO_OPENMRN_H_
 #define _ARDUINO_OPENMRN_H_
 
-#ifdef ESP32
-#define HAVE_FILESYSTEM
-#endif
-
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
-#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 
-#ifdef HAVE_FILESYSTEM
+#if defined(ESP32)
+/// Default stack size to use for the OpenMRN background task on the ESP32 platform.
+constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
+
+/// Default thread priority for the OpenMRN background task on the ESP32 platform.
+constexpr UBaseType_t OPENMRN_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
+
+constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(1);
+
+#include "freertos_drivers/arduino/Esp32WiFiClientAdapter.hxx"
+#include "freertos_drivers/arduino/Esp32HardwareSerialAdapter.hxx"
+#include <esp_task_wdt.h>
+
+/// On the ESP32 we have persistent file system access so enable
+/// dynamic CDI.xml generation support
+#define HAVE_FILESYSTEM
+
+#endif // ESP32
+
+#if defined(HAVE_FILESYSTEM)
 string read_file_to_string(const string &filename);
 void write_string_to_file(const string &filename, const string &data);
-#endif
+#endif // HAVE_FILESYSTEM
 
 extern "C" {
-extern const char DEFAULT_WIFI_NAME[];
-extern const char DEFAULT_PASSWORD[];
+    extern const char DEFAULT_WIFI_NAME[];
+    extern const char DEFAULT_PASSWORD[];
 }
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN
@@ -283,16 +298,6 @@ private:
     WritePort writePort_ {this};
 };
 
-#if defined(ESP32)
-/// Default stack size to use for the OpenMRN background task on the ESP32 platform.
-constexpr uint32_t OPENMRN_STACK_SIZE = 5120L;
-
-/// Default thread priority for the OpenMRN background task on the ESP32 platform.
-constexpr UBaseType_t OPENMRN_TASK_PRIORITY = tskIDLE_PRIORITY + 1;
-
-constexpr TickType_t OPENMRN_TASK_TICK_DELAY = pdMS_TO_TICKS(50);
-#endif
-
 /// Main class to declare the OpenMRN stack. Create one instance of this in the
 /// root file of your sketch. Prefer to supply the Node ID during construction.
 class OpenMRN : private Executable
@@ -305,6 +310,7 @@ public:
     OpenMRN()
     {
     }
+
     /// Use this constructor if stack() needs to be accessed during the time of
     /// the static construction.
     OpenMRN(openlcb::NodeID node_id);
@@ -313,7 +319,6 @@ public:
     void init(openlcb::NodeID node_id)
     {
         stack_.emplace(node_id);
-        stack_->start_stack(false);
     }
 
     /// @return pointer to the OpenMRN stack. Do not call before init().
@@ -322,11 +327,22 @@ public:
         return stack_.operator->();
     }
 
+    /// Call this function from the setup() function of the Arduino sketch
+    /// after all other Arduino subsystems or libraries have been initialized.
+    void begin()
+    {
+        stack_->start_stack(false);
+    }
+
     /// Call this function from the loop() function of the Arduino sketch.
     void loop()
     {
         for (auto *e : loopMembers_)
         {
+#if defined(ESP32)
+            // Feed the watchdog so it doesn't reset the ESP32
+            esp_task_wdt_reset();
+#endif // ESP32
             e->run();
         }
     }
@@ -337,7 +353,8 @@ public:
     /// Example:
     /// void setup() {
     ///   ...
-    ///   openmrn.startBackgroundTask();
+    ///   openmrn.begin();
+    ///   openmrn.start_background_task();
     ///   ...
     /// }
     ///
@@ -357,6 +374,7 @@ public:
     /// Example:
     /// void setup() {
     ///   ...
+    ///   openmrn.begin();
     ///   openmrn.add_gridconnect_port(&Serial);
     ///   ...
     /// }
@@ -377,7 +395,7 @@ public:
         loopMembers_.push_back(new CanBridge(port, stack()->can_hub()));
     }
 
-#ifdef HAVE_FILESYSTEM
+#if defined(HAVE_FILESYSTEM)
     /// Creates the XML representation of the configuration structure and saves
     /// it to a file on the filesystem. Must be called after SPIFFS.begin() but
     /// before calling the {\link create_config_file_if_needed} method. The
@@ -419,7 +437,7 @@ public:
         }
         if (need_write)
         {
-            printf(
+            LOG(INFO,
                 "Updating CDI file %s (len %u)", filename, cdi_string.size());
             write_string_to_file(filename, cdi_string);
         }
@@ -437,13 +455,13 @@ public:
         stack()->memory_config_handler()->registry()->insert(
             stack()->node(), openlcb::MemoryConfigDefs::SPACE_CDI, space);
     }
-#endif
+#endif // HAVE_FILESYSTEM
 
 private:
     /// Callback from the loop() method. Internally called.
     void run() override
     {
-        stack_->executor()->loop_once();
+        stack_->executor()->loop_some();
     }
 
 #if defined(ESP32)
@@ -452,6 +470,10 @@ private:
         OpenMRN *openmrn = reinterpret_cast<OpenMRN *>(param);
         while(true)
         {
+            // Feed the watchdog so it doesn't reset the ESP32
+            esp_task_wdt_reset();
+
+            // yield to other tasks that are running on the ESP32
             openmrn->loop();
             vTaskDelay(OPENMRN_TASK_TICK_DELAY);
         }

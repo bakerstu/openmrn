@@ -23,11 +23,11 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "ESP32 IO Board",
-    "Arduino", "1.00"};
+    4,               "OpenMRN", "Arduino IO Board",
+    ARDUINO_VARIANT, "1.00"};
 
-#define NUM_OUTPUTS 4
-#define NUM_INPUTS 1
+constexpr uint8_t NUM_OUTPUTS = 8;
+constexpr uint8_t NUM_INPUTS = 8;
 
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
@@ -46,8 +46,8 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
-CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Output LEDs"));
-CDI_GROUP_ENTRY(producers, AllProducers, Name("Input buttons"));
+CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Outputs"));
+CDI_GROUP_ENTRY(producers, AllProducers, Name("Inputs"));
 CDI_GROUP_END();
 
 /// This segment is only needed temporarily until there is program code to set

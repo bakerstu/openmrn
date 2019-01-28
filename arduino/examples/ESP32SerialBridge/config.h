@@ -1,11 +1,10 @@
-#ifndef _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
-#define _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
+#ifndef _ARDUINO_EXAMPLE_ESP32SERIALBRIDGE_CONFIG_H_
+#define _ARDUINO_EXAMPLE_ESP32SERIALBRIDGE_CONFIG_H_
 
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/MemoryConfig.hxx"
-#include "openlcb/ServoConsumerConfig.hxx"
 
 namespace openlcb
 {
@@ -24,36 +23,12 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "OpenLCB Dev Board + Nucleo F091RC",
-    "Rev A", "1.01"};
-
-#define NUM_OUTPUTS 16
-#define NUM_INPUTS 1
-
-#define NUM_EXTBOARDS 0
-
-/// Declares a repeated group of a given base group and number of repeats. The
-/// ProducerConfig and ConsumerConfig groups represent the configuration layout
-/// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
-/// from their respective hxx file.
-using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
-using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
-
-using DirectConsumers = RepeatedGroup<ConsumerConfig, 8>;
-using ServoConsumers = RepeatedGroup<ServoConsumerConfig, 4>;
-using PortDEConsumers = RepeatedGroup<ConsumerConfig, 16>;
-using PortABProducers = RepeatedGroup<ProducerConfig, 16>;
-
-using PulseConsumers = RepeatedGroup<PulseConsumerConfig, 12>;
+    4,               "OpenMRN", "Arduino Serial Bridge",
+    ARDUINO_VARIANT, "1.00"};
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x1623;
-
-CDI_GROUP(NucleoGroup, Name("Nucleo peripherals"), Description("These are physically located on the nucleo CPU daughterboard."));
-CDI_GROUP_ENTRY(green_led, ConsumerConfig, Name("Nucleo user LED"), Description("Green led (LD2)."));
-CDI_GROUP_ENTRY(user_btn, ProducerConfig, Name("USER button"), Description("Button with blue cap."));
-CDI_GROUP_END();
+static constexpr uint16_t CANONICAL_VERSION = 0x1000;
 
 /// Defines the main segment in the configuration CDI. This is laid out at
 /// origin 128 to give space for the ACDI user data at the beginning.
@@ -61,13 +36,6 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
-CDI_GROUP_ENTRY(nucleo_onboard, NucleoGroup);
-CDI_GROUP_ENTRY(snap_switches, PulseConsumers, Name("Consumers for snap switches"), Description("These are on port D"), RepName("Line"));
-CDI_GROUP_ENTRY(direct_consumers, DirectConsumers, Name("Tortoise/Hi-Power outputs"), RepName("Line"));
-CDI_GROUP_ENTRY(servo_consumers, ServoConsumers, Name("Servo PWM outputs"), Description("3-pin servo outputs."), RepName("Line"));
-CDI_GROUP_ENTRY(hidden_servo_5_8, ServoConsumers, Hidden(true));
-CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Description("Line 1-8 is port D, Line 9-16 is port E"), RepName("Line"));
-CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
 CDI_GROUP_END();
 
 /// This segment is only needed temporarily until there is program code to set
@@ -96,4 +64,4 @@ CDI_GROUP_END();
 
 } // namespace openlcb
 
-#endif // _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
+#endif // _ARDUINO_EXAMPLE_ESP32SERIALBRIDGE_CONFIG_H_
