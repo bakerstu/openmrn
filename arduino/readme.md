@@ -26,7 +26,9 @@ work.
 On Windows the Arduino IDE stores the libraries under
 "Documents\Arduino\libraries", this can be accessed via the GitBash commandline
 as:
+```bash
     sh arduino/libify.sh "$USERPROFILE/Documents/Arduino/libraries/OpenMRN-lite" .
+```
 when executed from the OpenMRN repository root folder.
 
 #### PlatformIO IDE library generation
@@ -34,7 +36,9 @@ For PlatformIO IDE it would be recommended to put this into the project lib
 folder instead. By default the PlatformIO build process will inspect the lib
 folder for project specific libraries and will automatically include them in
 the compilation.
+```bash
     sh arduino/libify.sh "/path/to/project/lib/OpenMRN-lite" .
+```
 when executed from the OpenMRN repository root folder.
 
 # ESP32 supported hardware
@@ -49,16 +53,18 @@ observe failures in connecting to WiFi add the following compiler option
 to turn on additional diagnostic output from the
 [WiFi](https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi)
 library:
-    -DCORE_DEBUG_LEVEL=ARDUHAL_LOG_LEVEL_DEBUG
+    `-DCORE_DEBUG_LEVEL=ARDUHAL_LOG_LEVEL_DEBUG`
 This will give additional output on the Serial console which can help
 to resolve this connection issue. The following is an example of the output
 which could be observed:
+```
     [D][WiFiGeneric.cpp:342] _eventCallback(): Event: 5 - STA_DISCONNECTED
     [W][WiFiGeneric.cpp:357] _eventCallback(): Reason: 2 - AUTH_EXPIRE
     [D][WiFiGeneric.cpp:342] _eventCallback(): Event: 0 - WIFI_READY
     [D][WiFiGeneric.cpp:342] _eventCallback(): Event: 2 - STA_START
     [D][WiFiGeneric.cpp:342] _eventCallback(): Event: 2 - STA_START
     [D][WiFiGeneric.cpp:342] _eventCallback(): Event: 5 - STA_DISCONNECTED
+```
 If you observe this output this generally means there was a timeout condition
 where the ESP32 did not receive a response from the access point. This timeout
 is unfortuntely not configurable at this time. It is not known if this is due
@@ -67,15 +73,19 @@ solution for this appears to be power down the ESP32 and restart the AP. The
 ESP32 should successfully connect. Additional options to try if this does not
 resolve the connection issues:
 1. Before connecting to the AP add these lines:
+```C++
         WiFi.mode(WIFI_STA);
         WiFi.disconnect(true);
+```
     The above two lines should be set before the call to WiFi.begin();
 2. If the ESP32 board supports an external WiFi antenna use one, this will
 provide a higher signal strength which should allow a more successful
 connection.
 3. Clear the persistent WiFi connection details from NVS:
+```C
         #include <nvs_flash.h>
         nvs_flash_init();
+```
     This should be considered a last resort option as it will erase any
     data in the NVS partition. There is no recovery of data from NVS after
     executing the above function. This can also be achieved by using a flash
