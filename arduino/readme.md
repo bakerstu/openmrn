@@ -79,7 +79,7 @@ resolve the connection issues:
         WiFi.disconnect(true);
 ```
 
-    The above two lines should be set before the call to WiFi.begin();
+The above two lines should be set before the call to WiFi.begin();
 2. If the ESP32 board supports an external WiFi antenna use one, this will
 provide a higher signal strength which should allow a more successful
 connection.
@@ -89,10 +89,10 @@ connection.
         nvs_flash_init();
 ```
 
-    This should be considered a last resort option as it will erase any
-    data in the NVS partition. There is no recovery of data from NVS after
-    executing the above function. This can also be achieved by using a flash
-    erase tool (esptool.py erase_flash ...) and reflashing the ESP32.
+This should be considered a last resort option as it will erase any data in the
+NVS partition. There is no recovery of data from NVS after executing the above
+function. This can also be achieved by using a flash erase tool
+`esptool.py erase_flash ...` and reflashing the ESP32.
 
 ## ESP32 Hardware CAN support
 The ESP32 has a built in CAN Controller but lacks a CAN Transceiver. There are
