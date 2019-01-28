@@ -598,9 +598,9 @@ private:
     ExecutorBase *mdnsExecutor_ = nullptr;
 
     /// Stores the sequence of operations we need to try.
-    std::array<Attempt, 5> strategyConfig_ = {
-        Attempt::WAIT_RETRY,
-    };
+    std::array<Attempt, 5> strategyConfig_{{
+            Attempt::WAIT_RETRY,
+        }};
     /// What is the next step in the strategy. Index into the strategyConfig_
     /// array. Guarded by Atomic *this.
     uint8_t strategyOffset_ : 3;

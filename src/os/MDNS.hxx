@@ -88,7 +88,9 @@ public:
      */
     ~MDNS()
     {
+#if defined(__linux__)
         shutdown();
+#endif
     }
 
 #if defined(__linux__)

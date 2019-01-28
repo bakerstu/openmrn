@@ -154,6 +154,7 @@ bool SocketClient::address_to_string(
             n = inet_ntop(addr->ai_family, &sa->sin_addr, buf, sizeof(buf));
             break;
         }
+#ifdef __linux__        
         case AF_INET6:
         {
             auto *sa = (struct sockaddr_in6 *)addr->ai_addr;
@@ -161,6 +162,7 @@ bool SocketClient::address_to_string(
             n = inet_ntop(addr->ai_family, &sa->sin6_addr, buf, sizeof(buf));
             break;
         }
+#endif        
         default:
             LOG(INFO, "unsupported address type.");
             errno = EAFNOSUPPORT;
@@ -258,7 +260,7 @@ std::unique_ptr<SocketClientParams> SocketClientParams::from_static(
     std::unique_ptr<DefaultSocketClientParams> p(new DefaultSocketClientParams);
     p->staticHost_ = std::move(hostname);
     p->staticPort_ = port;
-    return p;
+    return std::move(p);
 }
 
 std::unique_ptr<SocketClientParams> SocketClientParams::from_static_and_mdns(
@@ -268,7 +270,7 @@ std::unique_ptr<SocketClientParams> SocketClientParams::from_static_and_mdns(
     p->staticHost_ = std::move(hostname);
     p->staticPort_ = port;
     p->mdnsService_ = std::move(mdns_service);
-    return p;
+    return std::move(p);
 }
 
 #endif // __linux__
