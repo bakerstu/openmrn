@@ -211,15 +211,33 @@ struct Defs
         RESERVED_MASK           = 0x00000FFFFFFF
     };
 
+    /// "Emergency off (de-energize)"
     /// Producing this event causes an Emergency Off (de-energize).  For
     /// example, a DCC command station or booster may react to this by turning
     /// off the command station or booster power output.
     static constexpr uint64_t EMERGENCY_OFF_EVENT = 0x010000000000FFFFULL;
 
+    /// "Clear emergency off (energize)"
     /// Producing this event clears an Emergency Off (energize).  For example,
     /// a DCC command station or booster mauy react to this by restoring
     /// track power.
     static constexpr uint64_t CLEAR_EMERGENCY_OFF_EVENT = 0x010000000000FFFEULL;
+
+    /// "Emergency stop of all operations"
+    /// The Emergency Stop Event is a request for a node to command all of its
+    /// outputs to a safe state. A node receiving this event is not required
+    /// to de-energize any of its outputs. The meaning of “safe state” is not
+    /// prescribed for any given node, it is up to the node manufacturer and/or
+    /// user to prescribe what, if anything, should happen in the node if it
+    /// receives this event.
+    /// For example, a DCC command station may react to this by sending a DCC
+    /// emergency stop command packet to the track outputs.
+    static constexpr uint64_t EMERGENCY_STOP_EVENT = 0x010000000000FFFDULL;
+
+    /// "Clear Emergency stop of all operations"
+    /// Producing this event clears an Emergency Stop. For example, a DCC command
+    /// station may react to this by restoring locomotive speed settings.
+    static constexpr uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010000000000FFFCULL;
 
     /** Status of the pysical layer link */
     enum LinkStatus
