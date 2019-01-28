@@ -583,7 +583,7 @@ private:
     /// When the last connection attempt was started.
     long long startTime_;
     /// Helper for sleeping.
-    StateFlowTimer timer_ {this};
+    StateFlowTimer timer_{this};
 
     /// Stores the parameter structure.
     std::unique_ptr<SocketClientParams> params_;
@@ -599,8 +599,8 @@ private:
 
     /// Stores the sequence of operations we need to try.
     std::array<Attempt, 5> strategyConfig_{{
-            Attempt::WAIT_RETRY,
-        }};
+        Attempt::WAIT_RETRY,
+    }};
     /// What is the next step in the strategy. Index into the strategyConfig_
     /// array. Guarded by Atomic *this.
     uint8_t strategyOffset_ : 3;

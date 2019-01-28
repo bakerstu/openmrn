@@ -338,7 +338,7 @@ static void os_thread_start(void *arg)
 }
 #endif
 
-#if !defined (__EMSCRIPTEN__) && !defined(ESP_NONOS)
+#if !defined(__EMSCRIPTEN__) && !defined(ESP_NONOS)
 
 #if defined(__FreeRTOS__)
 #if (configSUPPORT_STATIC_ALLOCATION == 1)

@@ -86,7 +86,6 @@ extern const char* g_death_file;
 
 #define DIE(MSG) abort()
 
-
 #elif defined(ESP_NONOS)
 
 #include <stdio.h>

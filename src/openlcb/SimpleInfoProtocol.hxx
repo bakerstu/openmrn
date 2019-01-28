@@ -236,7 +236,7 @@ private:
                 currentLength_ = d.arg;
                 byteOffset_ = 0;
                 break;
-            } 
+            }
             default:
                 currentLength_ = 0;
         }

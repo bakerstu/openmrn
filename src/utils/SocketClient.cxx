@@ -154,7 +154,7 @@ bool SocketClient::address_to_string(
             n = inet_ntop(addr->ai_family, &sa->sin_addr, buf, sizeof(buf));
             break;
         }
-#ifdef __linux__        
+#ifdef __linux__
         case AF_INET6:
         {
             auto *sa = (struct sockaddr_in6 *)addr->ai_addr;
@@ -162,7 +162,7 @@ bool SocketClient::address_to_string(
             n = inet_ntop(addr->ai_family, &sa->sin6_addr, buf, sizeof(buf));
             break;
         }
-#endif        
+#endif
         default:
             LOG(INFO, "unsupported address type.");
             errno = EAFNOSUPPORT;

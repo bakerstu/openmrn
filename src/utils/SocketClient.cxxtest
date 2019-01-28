@@ -126,8 +126,8 @@ TEST_F(SocketClientTest, connect_mdns_not_published)
 {
     sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
         &g_connect_executor, &g_mdns_executor,
-        SocketClientParams::from_static_and_mdns(
-            "127.0.0.1", LISTEN_PORT, "_openlcbtest._tcp"),
+        SocketClientParams::from_static_and_mdns("127.0.0.1", LISTEN_PORT,
+                                   "_openlcbtest._tcp"),
         std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
 
     EXPECT_CALL(*this, connect_callback(_, sc_.get())).Times(1);
@@ -271,13 +271,13 @@ public:
     }
 
     SocketClientTest *parent_;
-    int searchMode_ {AUTO_MANUAL};
-    bool enableLast_ {true};
+    int searchMode_{AUTO_MANUAL};
+    bool enableLast_{true};
     string manualHostName_;
-    int manualPort_ {-1};
+    int manualPort_{-1};
     string mdnsServiceName_;
     string lastHostName_;
-    int lastPort_ {-1};
+    int lastPort_{-1};
 
     OSMutex lock_;
 };
@@ -293,9 +293,8 @@ TEST_F(SocketClientTest, test_sequence)
     p->manualPort_ = LISTEN_PORT;
     EXPECT_CALL(*this,
         status_callback(SocketClientParams::CONNECT_RE, "127.0.0.2:12248"));
-    EXPECT_CALL(*this,
-        status_callback(
-            SocketClientParams::MDNS_SEARCH, "_nonexist823467284._tcp"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_SEARCH,
+                           "_nonexist823467284._tcp"));
     EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_NOT_FOUND, _));
     EXPECT_CALL(*this,
         status_callback(SocketClientParams::CONNECT_MANUAL, "127.0.0.3:12247"));
@@ -379,9 +378,8 @@ TEST_F(SocketClientTest, test_third_sequence)
 
     EXPECT_CALL(*this,
         status_callback(SocketClientParams::CONNECT_RE, "127.0.0.2:12248"));
-    EXPECT_CALL(*this,
-        status_callback(
-            SocketClientParams::MDNS_SEARCH, "_nonexist823467284._tcp"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_SEARCH,
+                           "_nonexist823467284._tcp"));
     EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_NOT_FOUND, _));
     EXPECT_CALL(*this,
         status_callback(SocketClientParams::CONNECT_MANUAL, "127.0.0.3:12247"));
