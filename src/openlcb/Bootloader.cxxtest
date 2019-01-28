@@ -54,7 +54,7 @@ BootloaderPort *g_bootloader_port = nullptr;
 
 extern "C" {
 
-extern unsigned g_bootloader_busy;
+extern volatile unsigned g_bootloader_busy;
 
 void bootloader_led(enum BootloaderLed led, bool value)
 {
