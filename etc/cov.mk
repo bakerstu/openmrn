@@ -6,7 +6,7 @@ include $(OPENMRNPATH)/etc/env.mk
 
 # Define this variable if you want to use a specific (suffixed) GCC version
 # instead of the system default.
-GCCVERSION=-8
+# GCCVERSION=-8
 
 CC = gcc$(GCCVERSION)
 CXX = g++$(GCCVERSION)
