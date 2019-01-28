@@ -240,8 +240,9 @@ struct GroupConfigDefs : public AtomConfigDefs
     DECLARE_OPTIONALARG(Segment, segment, int, 11, -1);
     DECLARE_OPTIONALARG(RepName, repname, const char*, 12, nullptr);
     DECLARE_OPTIONALARG(FixedSize, fixed_size, unsigned, 13, 0);
+    DECLARE_OPTIONALARG(Hidden, hidden, int, 14, 0);
     using Base = OptionalArg<GroupConfigDefs, Name, Description, Segment,
-                             Offset, RepName, FixedSize>;
+                             Offset, RepName, FixedSize, Hidden>;
 };
 
 /// Implementation class for the condifuration options of a CDI group element.
@@ -271,6 +272,11 @@ public:
     /// bytes, even if the contents are smaller. Creates a compile error if the
     /// size is bigger.
     DEFINE_OPTIONALARG(FixedSize, fixed_size, int);
+
+    /// If non-zero, the group contents will not be rendered in the CDI,
+    /// effectively hiding hte settings from the user. The space will still be
+    /// reserved and skipped.
+    DEFINE_OPTIONALARG(Hidden, hidden, int);
     
     /// Declares that this group is a toplevel CDI. Causes the group to render
     /// the xml header.
@@ -347,7 +353,7 @@ public:
 
     template <typename... Args> void render_cdi(string *s, Args... args) const
     {
-        *s += StringPrintf("<group offset='%u'/>", size_);
+        *s += StringPrintf("<group offset='%u'/>\n", size_);
     }
 
 private:
@@ -372,6 +378,11 @@ public:
     template <typename... Args> void render_cdi(string *s, Args... args)
     {
         GroupConfigOptions opts(args..., Body::group_opts());
+        if (opts.hidden())
+        {
+            EmptyGroupConfigRenderer(Body::size()).render_cdi(s);
+            return;
+        }
         const char *tag = nullptr;
         *s += "<";
         if (opts.is_cdi())

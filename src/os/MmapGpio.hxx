@@ -100,7 +100,7 @@ public:
 
     Direction direction() const OVERRIDE
     {
-        return isOutput_ ? Direction::OUTPUT : Direction::INPUT;
+        return isOutput_ ? Direction::DOUTPUT : Direction::DINPUT;
     }
 
 private:

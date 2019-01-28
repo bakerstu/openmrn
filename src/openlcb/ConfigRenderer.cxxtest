@@ -121,6 +121,12 @@ CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
 CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
 CDI_GROUP_END();
 
+CDI_GROUP(OtherTestGroup, Name("testgroup"), Description("test group desc"),
+          RepName("foorep"), Hidden(true));
+CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
+CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
+CDI_GROUP_END();
+
 CDI_GROUP(OtherGroup);
 CDI_GROUP_END();
 
@@ -136,6 +142,8 @@ CDI_GROUP_ENTRY(version, Uint8ConfigEntry, Name("Version"));
 CDI_GROUP_ENTRY(test_short, Uint16ConfigEntry, MapValues(TEST_MAP_VALUES));
 CDI_GROUP_ENTRY(ogrp, OtherGroup);
 CDI_GROUP_ENTRY(test64, Uint64ConfigEntry, Name("64"), Min(12), Max(34));
+CDI_GROUP_ENTRY(hidden, TestGroup, Hidden(true));
+CDI_GROUP_ENTRY(hidden2, OtherTestGroup);
 CDI_GROUP_ENTRY(test32, Uint32ConfigEntry, Default(18));
 using TestRepeat = RepeatedGroup<TestGroup, 3>;
 CDI_GROUP_ENTRY(testgroup, TestRepeat, Name("testgrouprept"));
@@ -165,6 +173,8 @@ TEST(ComplexGroupRender, RenderOk)
 <min>12</min>
 <max>34</max>
 </int>
+<group offset='6'/>
+<group offset='3'/>
 <int size='4'>
 <default>18</default>
 </int>

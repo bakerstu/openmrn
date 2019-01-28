@@ -74,6 +74,7 @@ struct CanFrameContainer : public StructContainer<can_frame>
      * default. */
     CanFrameContainer()
     {
+        can_id = 0;
         CLR_CAN_FRAME_ERR(*this);
         CLR_CAN_FRAME_RTR(*this);
         SET_CAN_FRAME_EFF(*this);

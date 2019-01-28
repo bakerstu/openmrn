@@ -120,14 +120,6 @@ public:
         return size_;
     }
 
-    /** Expand the buffer by allocating a buffer double the size, copying the
-     * contents to the new buffer, and freeing the old buffer.  The "this"
-     * pointer
-     * of the caller will be used to free the buffer.
-     * @return newly expanded buffer
-     */
-    BufferBase *expand();
-
 protected:
     /** Get a pointer to the pool that this buffer belongs to.
      * @return pool that this buffer belongs to

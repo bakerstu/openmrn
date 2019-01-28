@@ -32,6 +32,8 @@
  * @date 3 Aug 2013
  */
 
+#define _DEFAULT_SOURCE
+
 #include <stdio.h>
 #include <unistd.h>
 

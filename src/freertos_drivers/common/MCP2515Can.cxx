@@ -31,6 +31,8 @@
  * @date 3 January 2017
  */
 
+#define _DEFAULT_SOURCE
+
 #include "MCP2515Can.hxx"
 
 #include <fcntl.h>

@@ -31,6 +31,8 @@
  * @date 29 May 2016
  */
 
+#define _DEFAULT_SOURCE
+
 #include <cstdint>
 #include <fcntl.h>
 #include "Devtab.hxx"
