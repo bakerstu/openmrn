@@ -278,12 +278,12 @@ public:
 
     void set() const override
     {
-        write(HIGH);
+        write(VHIGH);
     }
 
     void clr() const override
     {
-        write(LOW);
+        write(VLOW);
     }
 
     void write(Value new_state) const override
@@ -309,19 +309,19 @@ public:
         if (parent_->dir_[port_] & pinBit_)
         {
             // input. Use gpio_.
-            return (parent_->gpio_[port_] & pinBit_) ? HIGH : LOW;
+            return (parent_->gpio_[port_] & pinBit_) ? VHIGH : VLOW;
         }
         else
         {
             // output. Use lat_.
-            return (parent_->lat_[port_] & pinBit_) ? HIGH : LOW;
+            return (parent_->lat_[port_] & pinBit_) ? VHIGH : VLOW;
         }
     }
 
     void set_direction(Direction dir) const override
     {
         AtomicHolder h(parent_);
-        uint8_t desired = (dir == Direction::OUTPUT) ? 0 : pinBit_;
+        uint8_t desired = (dir == Direction::DOUTPUT) ? 0 : pinBit_;
         if (desired != ((parent_->dir_[port_] & pinBit_)))
         {
             parent_->dir_[port_] =
@@ -334,11 +334,11 @@ public:
     {
         if (parent_->dir_[port_] & pinBit_)
         {
-            return Direction::INPUT;
+            return Direction::DINPUT;
         }
         else
         {
-            return Direction::OUTPUT;
+            return Direction::DOUTPUT;
         }
     }
 
