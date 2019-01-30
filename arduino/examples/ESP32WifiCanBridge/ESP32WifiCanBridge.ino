@@ -41,6 +41,10 @@
 
 #include "config.h"
 
+// uncomment the line below to have all packets printed to the Serial
+// output. This is not recommended for production deployment.
+//#define PRINT_PACKETS
+
 /// This is the speed used for UART0 on the ESP32, this is primarily for
 /// debug/log messages.
 constexpr uint32_t SERIAL_BAUD = 115200L;
@@ -213,15 +217,12 @@ void setup()
     // Start the OpenMRN stack
     openmrn.begin();
 
+#if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
     // Note: This should not be enabled in deployed nodes as it will
     // have performance impact.
-    // openmrn.stack()->print_all_packets();
-
-    // When using the hardware can device it is recommended to also utilize the
-    // background task on the ESP32 rather than call openmrn.loop() from the
-    // loop method.
-    openmrn.start_background_task();
+    openmrn.stack()->print_all_packets();
+#endif // PRINT_PACKETS
 
     // Add the hardware CAN device as a bridge
     openmrn.add_can_port(
@@ -240,4 +241,8 @@ void loop()
             openmrn.add_gridconnect_port(new Esp32WiFiClientAdapter(client));
         }
     }
+
+    // Call the OpenMRN executor, this needs to be done as often
+    // as possible from the loop() method.
+    openmrn.loop();
 }

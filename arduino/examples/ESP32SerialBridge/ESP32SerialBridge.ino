@@ -39,6 +39,10 @@
 
 #include "config.h"
 
+// uncomment the line below to have all packets printed to the Serial
+// output. This is not recommended for production deployment.
+//#define PRINT_PACKETS
+
 /// This is the speed used for UART0 AND UART1 on the ESP32.
 /// UART0 is primarily for debug/log messages.
 /// UART1 is used as the bridge device.
@@ -149,13 +153,15 @@ void setup() {
     // Start the OpenMRN stack
     openmrn.begin();
 
+#if defined(PRINT_PACKETS)
+    // Dump all packets as they are sent/received.
+    // Note: This should not be enabled in deployed nodes as it will
+    // have performance impact.
+    openmrn.stack()->print_all_packets();
+#endif // PRINT_PACKETS
+
     // Add Serial1 as a bridge
     openmrn.add_gridconnect_port(new Esp32HardwareSerialAdapter(Serial1));
-
-    // When using the hardware can device it is recommended to also utilize the
-    // background task on the ESP32 rather than call openmrn.loop() from the
-    // loop method.
-    openmrn.start_background_task();
 
     // Add the hardware CAN device as a bridge
     openmrn.add_can_port(
@@ -163,5 +169,7 @@ void setup() {
 }
 
 void loop() {
-    // nothing to do here
+    // Call the OpenMRN executor, this needs to be done as often
+    // as possible from the loop() method.
+    openmrn.loop();
 }
