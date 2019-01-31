@@ -225,4 +225,40 @@ public:
     }
 };
 
+class DefaultSocketClientParams : public EmptySocketClientParams
+{
+public:
+    /// @return the service name to use for mDNS lookup; nullptr or empty
+    /// string if mdns is not to be used.
+    const char *mdns_service_name() override
+    {
+        return mdnsService_.c_str();
+    }
+
+    /// @return null or empty string if no manual address is
+    /// configured. Otherwise a dotted-decimal IP address or a DNS hostname
+    /// (not mDNS) for manual address to connect to.
+    const char *manual_host_name() override
+    {
+        return staticHost_.c_str();
+    }
+
+    /// @return port number to use for manual connection.
+    int manual_port() override
+    {
+        return staticPort_;
+    }
+
+protected:
+    friend std::unique_ptr<SocketClientParams> SocketClientParams::from_static(
+        string hostname, int port);
+    friend std::unique_ptr<SocketClientParams>
+    SocketClientParams::from_static_and_mdns(
+        string hostname, int port, string mdns_service);
+
+    string staticHost_;
+    int staticPort_ = -1;
+    string mdnsService_;
+};
+
 #endif // _UTILS_SOCKETCLIENTPARAMS_HXX_
