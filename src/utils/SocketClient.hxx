@@ -51,19 +51,6 @@
 class SocketClient : public StateFlowBase, private Atomic
 {
 public:
-    /** Connection status that can be sent back to the "owner" of the socket so
-    * it can update display or status information while the connection attempts
-    * are progressing.
-    */
-    enum class Status
-    {
-        MDNS_LOOKUP,
-        MDNS_CONNECT,
-        STATIC_CONNECT,
-        CONNECT_FAILED,
-        CONNECT_FAILED_SELF,
-    };
-
     /** Constructor.
      * @param service service that the StateFlowBase will be bound to. This
      * service will never be blocked. Externally owned.
