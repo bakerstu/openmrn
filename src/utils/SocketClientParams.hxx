@@ -65,11 +65,16 @@ public:
     {
     }
 
+    /// Parameter that determines what order we will attempt to connect.
     enum SearchMode
     {
+        /// Try mDNS first, then (if it failed) try manual address.
         AUTO_MANUAL = 0,
+        /// Try manual address first, then (if it failed) try mDNS.
         MANUAL_AUTO = 1,
+        /// Try only mDNS, ignore manual address.
         AUTO_ONLY = 2,
+        /// Try only manual address, never try mDNS lookups.
         MANUAL_ONLY = 3
     };
 
@@ -114,6 +119,7 @@ public:
     {
     }
 
+    /// Enum for sending connection status updates to the caller.
     enum LogMessage
     {
         CYCLE_START = 0,
@@ -225,6 +231,8 @@ public:
     }
 };
 
+/// Default implementation that supplies parametrized values for static and
+/// mdns connection methods.
 class DefaultSocketClientParams : public EmptySocketClientParams
 {
 public:
@@ -256,8 +264,11 @@ protected:
     SocketClientParams::from_static_and_mdns(
         string hostname, int port, string mdns_service);
 
+    /// what to return for manual_host_name
     string staticHost_;
+    /// what to return for manual_port
     int staticPort_ = -1;
+    /// what to return for mdns_service_name
     string mdnsService_;
 };
 

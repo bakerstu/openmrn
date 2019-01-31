@@ -98,6 +98,7 @@ public:
         shutdown();
     }
 
+    /// Helper structure for creating a unique_ptr for struct addrinfo pointers.
     struct AddrInfoDeleter
     {
         void operator()(struct addrinfo *s)
@@ -109,6 +110,7 @@ public:
         }
     };
 
+    /// Custom unique pointer that knows how to delete a struct addrinfo.
     typedef std::unique_ptr<struct addrinfo, AddrInfoDeleter> AddrinfoPtr;
 
     /// This enum represents individual states of this state flow that we can
@@ -192,7 +194,9 @@ public:
                 notify();
             }
         }
-        /// @todo wake up any pending tasks
+        // NOTE: It would be nice to abort any pending asynchronous tasks we
+        // have such as a connect or a getaddrinfo call running on the
+        // secondary executors. However, there is no API to do that right now.
     }
 
     /** Connects a tcp socket to the specified remote host:port. Returns -1 if
@@ -255,16 +259,6 @@ public:
         const char *host, const char *port_str);
 
 private:
-    /** Execution state.
-     */
-    enum State
-    {
-        STATE_CREATED = 0, /**< constructed */
-        STATE_STARTED,     /**< thread started */
-        STATE_SHUTDOWN_REQUESTED, /**< shutdown requested */
-        STATE_SHUTDOWN, /**< shutdown */
-    };
-
     /// Parses the params_ configuration and fills in strategyConfig_.
     void prepare_strategy()
     {
@@ -443,7 +437,9 @@ private:
     string to_string(const char *p)
     {
         if (!p || !*p)
+        {
             return string();
+        }
         return p;
     }
 

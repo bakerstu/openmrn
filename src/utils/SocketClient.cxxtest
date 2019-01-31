@@ -102,11 +102,6 @@ TEST_F(SocketClientTest, connect_mdns_not_published_no_fallback)
     wait();
 }
 
-void connect_status(SocketClient::Status s)
-{
-    LOG(INFO, "Socket client at %d", (int)s);
-}
-
 TEST_F(SocketClientTest, connect_host)
 {
     EXPECT_CALL(*this, connect_callback(_, _)).Times(1);
