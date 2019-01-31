@@ -177,6 +177,12 @@ public:
         return isConnected_;
     }
 
+    /// @return true if the shutdown has completed.
+    bool is_shutdown()
+    {
+        return is_terminated();
+    }
+
     /** Request that this client shutdown and exit the other thread.
      */
     void start_shutdown()
