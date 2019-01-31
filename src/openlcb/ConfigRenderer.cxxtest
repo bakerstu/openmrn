@@ -122,7 +122,7 @@ CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
 CDI_GROUP_END();
 
 CDI_GROUP(OtherTestGroup, Name("testgroup"), Description("test group desc"),
-          RepName("foorep"), Hidden(true));
+    RepName("foorep"), Hidden(true));
 CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
 CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
 CDI_GROUP_END();
