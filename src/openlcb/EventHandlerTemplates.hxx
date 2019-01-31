@@ -384,7 +384,8 @@ protected:
     uint8_t localState_ : 1;
 };
 
-/// Speciallization of NetworkInitializedBit that adds callback support.
+/// Speciallization of NetworkInitializedBit that adds callback support when
+/// the state changes.
 class CallbackNetworkInitializedBit : public NetworkInitializedBit
 {
 public:
@@ -394,6 +395,8 @@ public:
     /// @param event_on event ID to set the state to true
     /// @param event_off event ID to set the state to false
     /// @param default_local_state Until there is a definite network state we
+    ///        return this state for a local query. Also determines what state
+    ///        a first local toggle() call will set to.
     CallbackNetworkInitializedBit(openlcb::Node *node, uint64_t event_on,
                                   uint64_t event_off, bool default_local_state)
         : NetworkInitializedBit(node, event_on, event_off, default_local_state)
@@ -430,7 +433,7 @@ public:
     }
     
 private:
-    /// This function is invoked when the state of the estop bit changes.
+    /// This function is invoked when the state of the bit changes.
     std::function<void()> callback_;
 };
 
