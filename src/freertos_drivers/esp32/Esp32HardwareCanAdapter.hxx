@@ -81,8 +81,8 @@ public:
             .clkout_divider = 0};
 
         LOG(VERBOSE,
-            "ESP32-CAN driver configured using RX: %d, TX: %d, TX-Q: %d, "
-            "RX-Q: %d",
+            "ESP32-CAN driver configured using RX: %d, TX: %d, RX-Q: %d, "
+            "TX-Q: %d",
             can_general_config.rx_io, can_general_config.tx_io,
             can_general_config.rx_queue_len, can_general_config.tx_queue_len);
 
@@ -287,55 +287,57 @@ private:
 
             /// ESP32 native CAN driver frame
             can_message_t msg = {0};
-            if (can_receive(&msg, pdMS_TO_TICKS(250)) == ESP_OK)
+            if (can_receive(&msg, pdMS_TO_TICKS(250)) != ESP_OK)
             {
-                // frame retrieved from the driver, convert to OpenMRN can_frame
-                if (msg.flags & CAN_MSG_FLAG_DLC_NON_COMP)
-                {
-                    LOG(WARNING,
-                        "ESP32-CAN-RX: received non-compliant CAN frame, frame "
-                        "dropped!");
-                }
-                else
-                {
-                    LOG(VERBOSE,
-                        "ESP32-CAN-RX id:%08x, flags:%04x, dlc:%02d, "
-                        "data:%02x%02x%02x%02x%02x%02x%02x%02x",
-                        msg.identifier, msg.flags, msg.data_length_code,
-                        msg.data[0], msg.data[1], msg.data[2], msg.data[3],
-                        msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
-                    AtomicHolder h(parent);
-                    struct can_frame *can_frame = nullptr;
-                    if (parent->rxBuf->data_write_pointer(&can_frame) &&
-                        can_frame != nullptr)
-                    {
-                        LOG(VERBOSE, "ESP32-CAN-RX: converting to can_frame");
-                        memset(can_frame, 0, sizeof(struct can_frame));
-                        can_frame->can_id = msg.identifier;
-                        can_frame->can_dlc = msg.data_length_code;
-                        for (int i = 0; i < msg.data_length_code; i++)
-                        {
-                            can_frame->data[i] = msg.data[i];
-                        }
-                        if (msg.flags & CAN_MSG_FLAG_EXTD)
-                        {
-                            can_frame->can_eff = 1;
-                        }
-                        if (msg.flags & CAN_MSG_FLAG_RTR)
-                        {
-                            can_frame->can_rtr = 1;
-                        }
-                        parent->rxBuf->advance(1);
-                        parent->rxBuf->signal_condition();
-                    }
-                    else
-                    {
-                        LOG(WARNING,
-                            "ESP32-CAN-RX: buffer overrun, frame dropped!");
-                        parent->overrunCount++;
-                    }
-                }
+                // native CAN driver did not give us a frame.
+                continue;
             }
+            // we have received a frame from the native CAN driver, verify if
+            // it is a standard frame, if not we drop it.
+            if (msg.flags & CAN_MSG_FLAG_DLC_NON_COMP)
+            {
+                LOG(WARNING,
+                    "ESP32-CAN-RX: received non-compliant CAN frame, frame "
+                    "dropped!");
+                continue;
+            }
+            LOG(VERBOSE,
+                "ESP32-CAN-RX id:%08x, flags:%04x, dlc:%02d, "
+                "data:%02x%02x%02x%02x%02x%02x%02x%02x",
+                msg.identifier, msg.flags, msg.data_length_code,
+                msg.data[0], msg.data[1], msg.data[2], msg.data[3],
+                msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
+            AtomicHolder h(parent);
+            struct can_frame *can_frame = nullptr;
+            // verify if we have space in the rxBuf, if not drop the frame and
+            // record the overrun.
+            if (!parent->rxBuf->data_write_pointer(&can_frame) ||
+                can_frame == nullptr)
+            {
+                LOG(WARNING,
+                    "ESP32-CAN-RX: buffer overrun, frame dropped!");
+                parent->overrunCount++;
+                continue;
+            }
+            // we have space in the rxBuf, start conversion
+            LOG(VERBOSE, "ESP32-CAN-RX: converting to can_frame");
+            memset(can_frame, 0, sizeof(struct can_frame));
+            can_frame->can_id = msg.identifier;
+            can_frame->can_dlc = msg.data_length_code;
+            for (int i = 0; i < msg.data_length_code; i++)
+            {
+                can_frame->data[i] = msg.data[i];
+            }
+            if (msg.flags & CAN_MSG_FLAG_EXTD)
+            {
+                SET_CAN_FRAME_EFF(*can_frame);
+            }
+            if (msg.flags & CAN_MSG_FLAG_RTR)
+            {
+                SET_CAN_FRAME_RTR(*can_frame);
+            }
+            parent->rxBuf->advance(1);
+            parent->rxBuf->signal_condition();
         }
     }
     DISALLOW_COPY_AND_ASSIGN(Esp32HardwareCan);
