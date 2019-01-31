@@ -77,7 +77,7 @@ public:
         thread_ = os_thread_self();
 #ifdef __FreeRTOS__
         Device::select_insert(&selectInfo_);
-#elif defined(ESP_NONOS)
+#elif defined(ESP_NONOS) || defined(ARDUINO)
 #elif !defined(__WINNT__)
         // Blocks SIGUSR1 in the signal mask of the current thread.
         sigset_t usrmask;
@@ -112,7 +112,7 @@ public:
             // We cannot destroy the thread ID in the local object.
             Device::SelectInfo copy(selectInfo_);
             Device::select_wakeup(&copy);
-#elif defined(__WINNT__) || defined(ESP_NONOS)
+#elif defined(__WINNT__) || defined(ESP_NONOS) || defined(ARDUINO)
 #else
             pthread_kill(thread_, WAKEUP_SIG);
 #endif
@@ -180,7 +180,7 @@ public:
             ret = -1;
             errno = EINTR;
         }
-#elif defined(__WINNT__) || defined(ESP_NONOS)
+#elif defined(__WINNT__) || defined(ESP_NONOS) || defined(ESP32)
         struct timeval timeout;
         timeout.tv_sec = deadline_nsec / 1000000000;
         timeout.tv_usec = (deadline_nsec / 1000) % 1000000;
