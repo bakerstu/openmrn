@@ -186,6 +186,31 @@ openlcb::ConfiguredProducer IO14_producer(
 openlcb::ConfiguredProducer IO15_producer(
     openmrn.stack()->node(), cfg.seg().producers().entry<7>(), IO15_Pin());
 
+
+// Create an initializer that can initialize all the GPIO pins in one shot
+typedef GpioInitializer<
+    IO0_Pin,  IO1_Pin,  IO2_Pin,  IO3_Pin,  // outputs 0-3
+    IO4_Pin,  IO5_Pin,  IO6_Pin,  IO7_Pin,  // outputs 4-7
+    IO8_Pin,  IO9_Pin,  IO10_Pin, IO11_Pin, // inputs 0-3
+    IO12_Pin, IO13_Pin, IO14_Pin, IO15_Pin, // inputs 4-7
+    > GpioInit;
+
+// The producers need to be polled repeatedly for changes and to execute the
+// debouncing algorithm. This class instantiates a refreshloop and adds the
+// producers to it.
+openlcb::RefreshLoop producer_refresh_loop(openmrn.stack()->node(),
+    {
+        IO8_producer.polling(),
+        IO9_producer.polling(),
+        IO10_producer.polling(),
+        IO11_producer.polling(),
+        IO12_producer.polling(),
+        IO13_producer.polling(),
+        IO14_producer.polling(),
+        IO15_producer.polling()
+    }
+);
+
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:
     UpdateAction apply_configuration(int fd, bool initial_load,
@@ -298,6 +323,9 @@ void setup()
     // Create the default internal configuration file
     openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
         openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
+
+    // initialize all declared GPIO pins
+    GpioInit::hw_init();
 
     // Start the OpenMRN stack
     openmrn.begin();

@@ -149,7 +149,6 @@ public:
     {
         Base::set(SAFE_VALUE);
         Base::set_output();
-        Base::set_gpio();
         Base::set(SAFE_VALUE);
     }
     /// Sets the hardware pin to a safe value.
@@ -225,7 +224,6 @@ public:
         {
             Base::set_pullup_off();
         }
-        Base::set_gpio();
     }
     /// Sets the hardware pin to a safe state.
     static void hw_set_to_safe()
