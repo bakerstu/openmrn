@@ -1,5 +1,5 @@
-#ifndef _ARDUINO_EXAMPLE_ESP32SERIALBRIDGE_CONFIG_H_
-#define _ARDUINO_EXAMPLE_ESP32SERIALBRIDGE_CONFIG_H_
+#ifndef _ARDUINO_EXAMPLE_ESP32WIFICANBRIDGE_CONFIG_H_
+#define _ARDUINO_EXAMPLE_ESP32WIFICANBRIDGE_CONFIG_H_
 
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
@@ -25,7 +25,7 @@ namespace openlcb
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4,
     "OpenMRN",
-    "Arduino Serial Bridge",
+    "Arduino WifiCan Bridge",
     ARDUINO_VARIANT,
     "1.00"};
 
@@ -67,4 +67,4 @@ CDI_GROUP_END();
 
 } // namespace openlcb
 
-#endif // _ARDUINO_EXAMPLE_ESP32SERIALBRIDGE_CONFIG_H_
+#endif // _ARDUINO_EXAMPLE_ESP32WIFICANBRIDGE_CONFIG_H_

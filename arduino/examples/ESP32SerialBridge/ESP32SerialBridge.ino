@@ -36,14 +36,45 @@
 #include <Arduino.h>
 #include <OpenMRN.h>
 #include <SPIFFS.h>
+
 #include "config.h"
 
+// uncomment the line below to have all packets printed to the Serial
+// output. This is not recommended for production deployment.
+//#define PRINT_PACKETS
+
+/// This is the speed used for UART0 AND UART1 on the ESP32.
+/// UART0 is primarily for debug/log messages.
+/// UART1 is used as the bridge device.
 constexpr uint32_t  SERIAL_BAUD     = 115200L;
+
+/// This is the pin to use for UART1 RX, this can not be the same as the CAN_RX_PIN below.
+/// Note: Any pin can be used for this other than 6-11 which are connected to
+/// the onboard flash.
 constexpr uint8_t   SERIAL_RX_PIN   = 16;
+
+/// This is the pin to use for UART1 TX, this can not be the same as the CAN_TX_PIN below.
+/// Note: Any pin can be used for this other than 6-11 which are connected to
+/// the onboard flash and 34-39 which are input only.
 constexpr uint8_t   SERIAL_TX_PIN   = 17;
 
+/// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
+/// Recommended pins: 4, 16, 21.
+/// Note: Any pin can be used for this other than 6-11 which are connected to
+/// the onboard flash.
+constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
+
+/// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
+/// Recommended pins: 5, 17, 22.
+/// Note: Any pin can be used for this other than 6-11 which are connected to
+/// the onboard flash and 34-39 which are input only.
+constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
+
+/// This is the node id to assign to this device, this must be unique
+/// on the CAN bus.
 static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
 
+/// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
 
 // note the dummy string below is required due to a bug in the GCC compiler
@@ -55,6 +86,22 @@ string dummystring("abcdef");
 // used to generate the cdi.xml file. Here we instantiate the configuration
 // layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
+
+class FactoryResetHelper : public DefaultConfigUpdateListener {
+public:
+    UpdateAction apply_configuration(int fd, bool initial_load,
+                                     BarrierNotifiable *done) OVERRIDE {
+        AutoNotify n(done);
+        return UPDATED;
+    }
+
+    void factory_reset(int fd) override
+    {
+        cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
+        cfg.userinfo().description().write(
+            fd, "OpenLCB + Arduino-ESP32 on an ESP32.");
+    }
+} factory_reset_helper;
 
 namespace openlcb {
     // Name of CDI.xml to generate dynamically.
@@ -106,10 +153,23 @@ void setup() {
     // Start the OpenMRN stack
     openmrn.begin();
 
+#if defined(PRINT_PACKETS)
+    // Dump all packets as they are sent/received.
+    // Note: This should not be enabled in deployed nodes as it will
+    // have performance impact.
+    openmrn.stack()->print_all_packets();
+#endif // PRINT_PACKETS
+
     // Add Serial1 as a bridge
     openmrn.add_gridconnect_port(new Esp32HardwareSerialAdapter(Serial1));
+
+    // Add the hardware CAN device as a bridge
+    openmrn.add_can_port(
+        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
 }
 
 void loop() {
+    // Call the OpenMRN executor, this needs to be done as often
+    // as possible from the loop() method.
     openmrn.loop();
 }

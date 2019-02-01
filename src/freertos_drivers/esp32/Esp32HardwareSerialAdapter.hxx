@@ -26,45 +26,62 @@
  *
  * \file Esp32HardwareSerialAdapter.hxx
  *
- * On the ESP32 the HardwareSerial code does not have a read(const char *, size_t)
- * method so it is necessary to wrap it here.
+ * On the ESP32 the HardwareSerial code does not have a read(const char *,
+ * size_t) method so it is necessary to wrap it here.
  *
  * @author Mike Dunston
  * @date 20 January 2019
  */
 
-#ifndef _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_
-#define _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_
+#ifndef _FREERTOS_DRIVERS_ESP32_ESP32SERIAL_HXX_
+#define _FREERTOS_DRIVERS_ESP32_ESP32SERIAL_HXX_
 
 #include <HardwareSerial.h>
 
-class Esp32HardwareSerialAdapter {
+class Esp32HardwareSerialAdapter
+{
 public:
-    Esp32HardwareSerialAdapter(HardwareSerial &serial) : serial_(serial)
+    /// Constructor.
+    ///
+    /// @param serial HardwareSerial device to use as a bridge to the OpenMRN system.
+    Esp32HardwareSerialAdapter(HardwareSerial &serial)
+        : serial_(serial)
     {
     }
 
+    /// Returns the usable capacity of the underlying HardwareSerial transmit buffer.
     size_t availableForWrite()
     {
         return serial_.availableForWrite();
     }
 
+    /// Writes a byte stream to the underlying HardwareSerial device.
+    ///
+    /// @param buffer byte stream to be transmitted.
+    /// @param len length of byte stream to be transmitted.
     size_t write(const char *buffer, size_t len)
     {
-        return serial_.write((uint8_t *)buffer, len);  
+        return serial_.write((uint8_t *)buffer, len);
     }
 
+    /// @return the number of bytes available to read from the underlying HardwareSerial device.
     size_t available()
     {
         return serial_.available();
     }
 
+    /// Reads a byte stream from the underlying HardwareSerial device.
+    ///
+    /// @param buffer buffer to read into.
+    /// @param len size of the buffer to read into.
     size_t read(const char *buffer, size_t len)
     {
         return serial_.readBytes((char *)buffer, len);
     }
+
 private:
+    /// HardwareSerial device being wrapped.
     HardwareSerial &serial_;
 };
 
-#endif /* _FREERTOS_DRIVERS_ARDUINO_ESP32SERIAL_HXX_ */
+#endif /* _FREERTOS_DRIVERS_ESP32_ESP32SERIAL_HXX_ */

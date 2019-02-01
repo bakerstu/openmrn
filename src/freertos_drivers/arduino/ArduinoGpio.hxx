@@ -38,6 +38,9 @@
 #include "os/Gpio.hxx"
 #include "GpioWrapper.hxx"
 #include <Arduino.h>
+#if defined(ESP32)
+#include <driver/gpio.h>
+#endif
 
 /// Defines a GPIO output pin. Writes to this structure will change the output
 /// level of the pin. Reads will return the pin's current level.
@@ -117,13 +120,14 @@ public:
 #if defined(ESP32)
         if(digitalPinIsValid(PIN_NUM) && digitalPinCanOutput(PIN_NUM))
         {
+            // pins 32 and below use the first GPIO controller
             if(PIN_NUM < 32)
             {
-                return GPIO.enable_w1ts & ((uint32_t)1 << PIN_NUM);
+                return GPIO.enable_w1ts & ((uint32_t)1 << (PIN_NUM & 31));
             }
             else
             {
-                return GPIO.enable1_w1ts.val & ((uint32_t)1 << (PIN_NUM - 32));
+                return GPIO.enable1_w1ts.val & ((uint32_t)1 << (PIN_NUM & 31));
             }
         }
 #endif
@@ -147,7 +151,6 @@ public:
     {
         Base::set(SAFE_VALUE);
         Base::set_output();
-        Base::set_gpio();
         Base::set(SAFE_VALUE);
     }
     /// Sets the hardware pin to a safe value.
@@ -223,7 +226,6 @@ public:
         {
             Base::set_pullup_off();
         }
-        Base::set_gpio();
     }
     /// Sets the hardware pin to a safe state.
     static void hw_set_to_safe()

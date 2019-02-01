@@ -1,5 +1,5 @@
 {
-    "name":"OpenMRN",
+    "name":"OpenMRN-lite",
     "description":"OpenMRN (Open Model Railroad Network) is a set of software libraries that are designed to make it easier to implement support for the NMRA's LCC (Layout Command Control) bus.",
     "keywords":"openlcb",
     "authors": [
