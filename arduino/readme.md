@@ -1,12 +1,14 @@
 # OpenMRN-lite Arduino Library
 The OpenMRN-lite Arduino Library is a packaged version of the OpenMRN code that
-has been designed to run in the Arduino environment. The primary features of the
-OpenMRN library are available through this library.
+has been designed to run in the Arduino environment. The OpenLCB features of
+OpenMRN are available through this library.
 
 ## Supported platforms/architectures
-At this time the only supported platform for execution is the ESP32 using the
-[arduino-esp32](https://github.com/espressif/arduino-esp32) core as the
-underlying stack.
+At this time the only supported platforms are:
+
+* ESP32 using the [arduino-esp32](https://github.com/espressif/arduino-esp32)
+core as the underlying stack.
+* STM32, but no examples are available at this time.
 
 Additional platforms may be added in the future.
 
@@ -78,7 +80,7 @@ which may be observed:
 If you observe this output, this generally means there was a timeout condition
 where the ESP32 did not receive a response from the access point. This timeout
 is unfortuntely not configurable at this time. It is not known if this is due
-to a poor signal quality or an underlying bug in the ESP-IDF WiFi driver. The
+to a poor signal strength or an underlying bug in the ESP-IDF WiFi driver. The
 solution for this appears to be power down the ESP32 and restart the AP. The
 ESP32 should successfully connect. Additional options to try if this does not
 resolve the connection issues:

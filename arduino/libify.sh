@@ -70,7 +70,7 @@ function copy_file() {
     pushd ${TARGET_LIB_DIR}/${REL_DIR} >/dev/null
     while [ "x$1" != "x" ] ; do
         if [ "x$VERBOSE" != "x" ]; then
-            echo "cp -fax ${USE_LINK} ${OPENMRNPATH}/${1} ${TARGET_LIB_DIR}/${REL_DIR}"
+            echo "${OPENMRNPATH}/${1} ==> ${TARGET_LIB_DIR}/${REL_DIR}"
         fi
         cp -fax ${USE_LINK} ${OPENMRNPATH}/${1} .
         shift
@@ -90,7 +90,7 @@ function copy_dir() {
     pushd ${TARGET_LIB_DIR}/$1 >/dev/null
     
     if [ "x$VERBOSE" != "x" ]; then
-        echo "cp -fax ${USE_LINK} ${OPENMRNPATH}/${2} ${TARGET_LIB_DIR}/$1"
+        echo "${OPENMRNPATH}/${2} ==> ${TARGET_LIB_DIR}/$1"
     fi
     cp -faxr ${USE_LINK} ${OPENMRNPATH}/$2 .
     popd >/dev/null
