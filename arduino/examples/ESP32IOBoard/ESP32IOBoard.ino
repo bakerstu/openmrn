@@ -193,7 +193,7 @@ typedef GpioInitializer<
     IO0_Pin,  IO1_Pin,  IO2_Pin,  IO3_Pin,  // outputs 0-3
     IO4_Pin,  IO5_Pin,  IO6_Pin,  IO7_Pin,  // outputs 4-7
     IO8_Pin,  IO9_Pin,  IO10_Pin, IO11_Pin, // inputs 0-3
-    IO12_Pin, IO13_Pin, IO14_Pin, IO15_Pin, // inputs 4-7
+    IO12_Pin, IO13_Pin, IO14_Pin, IO15_Pin // inputs 4-7
     > GpioInit;
 
 // The producers need to be polled repeatedly for changes and to execute the
