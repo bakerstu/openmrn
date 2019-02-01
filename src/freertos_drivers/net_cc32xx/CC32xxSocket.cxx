@@ -396,7 +396,7 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
                 break;
             }
             case SL_RET_CODE_STOP_IN_PROGRESS:
-                errno = EIO;
+                errno = ENETUNREACH;
                 break;
             case SL_ERROR_BSD_EISCONN:
                 errno = EISCONN;
