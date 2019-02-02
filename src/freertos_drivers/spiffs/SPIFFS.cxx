@@ -155,13 +155,14 @@ int SPIFFS::close(File *file)
 {
     spiffs_file fd = file->privInt;
 
+    file->dirty = false;
     int result = SPIFFS_close(&fs_, fd);
 
     if (result != SPIFFS_OK)
     {
         return -errno_translate(result);
     }
-
+    
     return 0;
 }
 
@@ -211,6 +212,12 @@ ssize_t SPIFFS::write(File *file, const void *buf, size_t count)
         return -errno_translate(result);
     }
 
+    {
+        AtomicHolder h(this);
+        file->dirty = true;
+        anyDirty_ = true;
+    }
+    
     return result;
 }
 
@@ -333,12 +340,13 @@ int SPIFFS::stat(const char *path, struct stat *stat)
 int SPIFFS::fsync(File *file)
 {
     spiffs_file fd = file->privInt;
+    file->dirty = false;
     int result = SPIFFS_fflush(&fs_, fd);
     if (result < 0)
     {
+        file->dirty = true;
         return -errno_translate(result);
     }
-
     return 0;
 }
 
