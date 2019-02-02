@@ -94,12 +94,12 @@ function copy_file() {
             echo "${OPENMRNPATH}/${1} ==> ${TARGET_LIB_DIR}/${REL_DIR}"
         fi
 
-	    if [[ "$OSTYPE" == "darwin"* ]]; then
-    	    cp -fa ${USE_LINK} ${OPENMRNPATH}/${1} .
-    	else
-    	    cp -fax ${USE_LINK} ${OPENMRNPATH}/${1} .
-    	fi
-    	
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            cp -fa ${USE_LINK} ${OPENMRNPATH}/${1} .
+        else
+            cp -fax ${USE_LINK} ${OPENMRNPATH}/${1} .
+        fi
+
         shift
     done
     popd >/dev/null
@@ -121,10 +121,10 @@ function copy_dir() {
     fi
 
     if [[ "$OSTYPE" == "darwin"* ]]; then
-	    cp -fa ${USE_LINK} ${OPENMRNPATH}/$2 .
-	else
-	    cp -faxr ${USE_LINK} ${OPENMRNPATH}/$2 .
-	fi
+        cp -fa ${USE_LINK} ${OPENMRNPATH}/$2 .
+    else
+        cp -faxr ${USE_LINK} ${OPENMRNPATH}/$2 .
+    fi
 
     popd >/dev/null
 }
