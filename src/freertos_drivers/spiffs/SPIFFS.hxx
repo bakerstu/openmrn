@@ -34,14 +34,14 @@
 #ifndef _FREERTOS_DRIVERS_SPIFFS_SPIFFS_HXX_
 #define _FREERTOS_DRIVERS_SPIFFS_SPIFFS_HXX_
 
-#include "Devtab.hxx"
-
 #include <functional>
 
+#include "Devtab.hxx"
 #include "spiffs.h"
+#include "utils/Atomic.hxx"
 
 /// Generic SPIFFS base class
-class SPIFFS : public FileSystem
+class SPIFFS : public FileSystem, private Atomic
 {
 public:
     /// Mount the file system.
@@ -87,6 +87,36 @@ public:
 
         HASSERT(SPIFFS_format(&fs_) == 0);
         formatted_ = true;
+    }
+
+    /// @return true if there was any file written on this filesystem since the
+    /// last call to is_any_dirty. (Transactionality guaranteed.) The caller
+    /// can create a background flush thread using this information.
+    bool is_any_dirty()
+    {
+        bool ret = false;
+        {
+            AtomicHolder h(this);
+            ret = anyDirty_;
+            anyDirty_ = false;
+        }
+        return ret;
+    }
+
+    /// Performs a sync on all files that have had a write but no fsync call
+    /// since then. This can be used by the caller to implement a background
+    /// flush thread.
+    void flush_cache()
+    {
+        mutex.lock();
+        for (unsigned int i = 0; i < NUM_OPEN_FILES; i++)
+        {
+            if (files[i].inuse && files[i].dev == this && files[i].dirty)
+            {
+                this->fsync(&files[i]);
+            }
+        }
+        mutex.unlock();
     }
 
     /// Provide mutex lock.
@@ -286,6 +316,9 @@ private:
     /// callback to be called post a formating operation
     std::function<void()> postFormatHook_;
 
+    /// callback to be called post a sync operation (when bytes are on disk)
+    std::function<void()> postSyncHook_;
+
     /// whole file system lock
     OSMutex lock_;
 
@@ -308,8 +341,11 @@ private:
     void *cache_;
 
     /// has the file system been formatted since last reboot?
-    bool formatted_;
+    bool formatted_ : 1;
 
+    /// Bit that is set to 1 when any write operation happens to this FS.
+    bool anyDirty_ : 1;
+    
     DISALLOW_COPY_AND_ASSIGN(SPIFFS);
 };
 
