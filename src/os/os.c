@@ -618,10 +618,10 @@ long long os_get_time_monotonic(void)
     time = ((long long)tv.tv_sec * 1000LL * 1000LL * 1000LL) +
            ((long long)tv.tv_usec * 1000LL);
 #elif defined(ARDUINO)
-	// redeclare micros() prototype to keep the compiler happy
-	unsigned long micros();
-	
-	time = micros();
+    // redeclare micros() prototype to keep the compiler happy
+    unsigned long micros();
+
+    time = micros();
 #elif defined(ESP_NONOS)
     static uint32_t clockmul = 0;
     if (clockmul == 0) {
