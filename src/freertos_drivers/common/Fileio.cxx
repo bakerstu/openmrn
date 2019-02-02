@@ -39,12 +39,6 @@
 #include <unistd.h>
 #include <sys/select.h>
 
-#ifdef TARGET_LPC11Cxx
-#define NUM_OPEN_FILES     4
-#else
-/// How many concurrently open fd we support.
-#define NUM_OPEN_FILES     20 //12
-#endif
 
 OSMutex FileIO::mutex;
 File FileIO::files[NUM_OPEN_FILES];
@@ -61,6 +55,7 @@ int FileIO::fd_alloc(void)
             files[i].inuse = true;
             files[i].device = true;
             files[i].dir = false;
+            files[i].dirty = false;
             files[i].priv = nullptr;
             files[i].dev = nullptr;
             files[i].offset = 0;
