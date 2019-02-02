@@ -316,9 +316,6 @@ private:
     /// callback to be called post a formating operation
     std::function<void()> postFormatHook_;
 
-    /// callback to be called post a sync operation (when bytes are on disk)
-    std::function<void()> postSyncHook_;
-
     /// whole file system lock
     OSMutex lock_;
 
