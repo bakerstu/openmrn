@@ -231,8 +231,13 @@ CDI_GROUP_ENTRY(e1, Uint8ConfigEntry, Name("e1"));
 CDI_GROUP_ENTRY(e2, Uint16ConfigEntry, Description("e2"));
 CDI_GROUP_END();
 
+CDI_GROUP(ThirdSegment);
+CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_END();
+
 CDI_GROUP(TestCdi1, MainCdi());
 CDI_GROUP_ENTRY(testseg, TestSegment);
+CDI_GROUP_ENTRY(seg3, ThirdSegment, Segment(13), Offset(142), Name("Foo"));
 CDI_GROUP_END();
 
 TEST(CdiRender, Render)
@@ -250,6 +255,11 @@ TEST(CdiRender, Render)
 </int>
 <int size='2'>
 <description>e2</description>
+</int>
+</segment>
+<segment space='13' origin='142'>
+<name>Foo</name>
+<int size='1'>
 </int>
 </segment>
 </cdi>
