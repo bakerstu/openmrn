@@ -253,6 +253,7 @@ public:
     {
         send_traction_message(TractionDefs::estop_set_payload());
         estopActive_ = true;
+        lastSetSpeed_.set_mph(0);
     }
 
     /// Get the current E-Stop state.
