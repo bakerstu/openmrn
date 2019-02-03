@@ -3,6 +3,8 @@
 # 
 #
 
+#set -x
+
 function usage() {
     echo
     echo 'usage: libify.sh path/to/arduino/library/output path/to/openmrn [-f] [-l]'
@@ -14,8 +16,27 @@ function usage() {
     exit 1
 }
 
-TARGET_LIB_DIR=$(realpath $1 2>/dev/null)
-OPENMRNPATH=$(realpath $2 2>/dev/null)
+function realpath_macOS() {
+  OURPWD=$PWD
+  cd "$(dirname "$1")"
+  LINK=$(readlink "$(basename "$1")")
+  while [ "$LINK" ]; do
+    cd "$(dirname "$LINK")"
+    LINK=$(readlink "$(basename "$1")")
+  done
+  REALPATH="$PWD/$(basename "$1")"
+  cd "$OURPWD"
+  echo "$REALPATH"
+}
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+REALPATH=realpath_macOS
+else
+REALPATH=realpath
+fi
+
+TARGET_LIB_DIR=$($REALPATH $1 2>/dev/null)
+OPENMRNPATH=$($REALPATH $2 2>/dev/null)
 
 if [[ -z ${TARGET_LIB_DIR} ]]; then
   if [[ $1 ]]; then
@@ -72,7 +93,13 @@ function copy_file() {
         if [ "x$VERBOSE" != "x" ]; then
             echo "${OPENMRNPATH}/${1} ==> ${TARGET_LIB_DIR}/${REL_DIR}"
         fi
-        cp -fax ${USE_LINK} ${OPENMRNPATH}/${1} .
+
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            cp -fa ${USE_LINK} ${OPENMRNPATH}/${1} .
+        else
+            cp -fax ${USE_LINK} ${OPENMRNPATH}/${1} .
+        fi
+
         shift
     done
     popd >/dev/null
@@ -92,7 +119,13 @@ function copy_dir() {
     if [ "x$VERBOSE" != "x" ]; then
         echo "${OPENMRNPATH}/${2} ==> ${TARGET_LIB_DIR}/$1"
     fi
-    cp -faxr ${USE_LINK} ${OPENMRNPATH}/$2 .
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        cp -fa ${USE_LINK} ${OPENMRNPATH}/$2 .
+    else
+        cp -faxr ${USE_LINK} ${OPENMRNPATH}/$2 .
+    fi
+
     popd >/dev/null
 }
 

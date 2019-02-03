@@ -24,11 +24,6 @@ the Git bash commandline will work. On Linux/MacOS the native bash shell will
 work.
     sh libify.sh {path to OpenMRN-lite creation directory} {path to OpenMRN}
 
-Note, on MacOS the script may require some edits for "realpath" and the "cp"
-command. Additionally the "link" feature should not be used on the MacOS at
-this time. An updated libify.sh script will be available soon that is more
-portable.
-
 #### Arduino IDE library generation
 On Windows the Arduino IDE stores the libraries under
 "Documents\Arduino\libraries", this can be accessed via the Git bash
@@ -38,8 +33,11 @@ commandline as:
 ```
 when executed from the OpenMRN repository root folder.
 
-On Linux or MacOS the location would normally be
+On Linux the location would normally be
 /home/{user}/Documents/Arduino/libraries.
+
+On macOS the location would normally be
+/Users/{user}/Documents/Arduino/libraries.
 
 #### PlatformIO IDE library generation
 For PlatformIO IDE it would be recommended to put this into the project lib
