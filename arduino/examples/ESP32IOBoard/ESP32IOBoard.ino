@@ -53,6 +53,12 @@
 #define USE_WIFI
 // #define USE_CAN
 
+// Uncomment the line below to have this node advertise itself via mDNS as a
+// hub. When this is enabled, other devices can find and connect to this node
+// via mDNS, treating it as a hub. Note this requires USE_WIFI to be enabled
+// above and should only be enabled on one node which is acting as a hub.
+// #define BROADCAST_MDNS
+
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
@@ -344,7 +350,7 @@ void setup()
         new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
 #endif // USE_CAN
 
-#if defined(USE_WIFI)
+#if defined(USE_WIFI) && defined(BROADCAST_MDNS)
     // Broadcast this node's hostname with the mDNS service name
     // for a TCP GridConnect endpoint.
     MDNS.addService(openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN,
