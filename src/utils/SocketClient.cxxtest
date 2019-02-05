@@ -165,7 +165,7 @@ public:
     {
     }
 
-    const char *manual_host_name() override
+    string manual_host_name() override
     {
         return "127.0.0.1";
     }
@@ -218,9 +218,9 @@ public:
     {
     }
 
-    const char *manual_host_name() override
+    string manual_host_name() override
     {
-        return manualHostName_.c_str();
+        return manualHostName_;
     }
 
     int manual_port() override
@@ -228,9 +228,9 @@ public:
         return manualPort_;
     }
 
-    const char *mdns_service_name() override
+    string mdns_service_name() override
     {
-        return mdnsServiceName_.c_str();
+        return mdnsServiceName_;
     }
 
     SearchMode search_mode() override
@@ -255,9 +255,9 @@ public:
         parent_->last_callback(hostname, port);
     }
 
-    const char *last_host_name() override
+    string last_host_name() override
     {
-        return lastHostName_.c_str();
+        return lastHostName_;
     }
 
     int last_port() override
