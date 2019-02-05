@@ -91,6 +91,9 @@ public:
     /** the value passed to wlan_profile_del() to remove all profiles */
     static constexpr int PROFILE_DELETE_ALL = 0xFF;
 
+    /** What is the maximum number for the profile index in the CC32xx. */
+    static constexpr int NUM_PROFILES = 7;
+
     /** CC32xx SimpleLink forward declaration */
     struct WlanEvent;
 
