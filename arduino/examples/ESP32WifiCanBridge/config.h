@@ -1,6 +1,7 @@
 #ifndef _ARDUINO_EXAMPLE_ESP32WIFICANBRIDGE_CONFIG_H_
 #define _ARDUINO_EXAMPLE_ESP32WIFICANBRIDGE_CONFIG_H_
 
+#include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
@@ -39,6 +40,7 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
+CDI_GROUP_ENTRY(wifi, WiFiConfiguration, Name("WiFi Configuration"));
 CDI_GROUP_END();
 
 /// This segment is only needed temporarily until there is program code to set

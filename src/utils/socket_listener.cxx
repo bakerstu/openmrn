@@ -32,7 +32,14 @@
  * @date 3 Aug 2013
  */
 
-#if defined (__linux__) || defined (__MACH__) || defined(__FreeRTOS__)
+#if defined (__linux__) || defined (__MACH__) || defined(__FreeRTOS__) || defined(ESP32)
+
+#if defined(ESP32)
+#include <Arduino.h>
+#include <lwip/sockets.h>
+#include <lwip/netdb.h>
+
+#else
 
 #define _DEFAULT_SOURCE
 
@@ -44,6 +51,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#endif // ESP32
 
 #include "utils/socket_listener.hxx"
 
@@ -57,13 +65,20 @@ static void* accept_thread_start(void* arg) {
   return NULL;
 }
 
+#ifndef ESP32
+static constexpr size_t listener_stack_size = 1000;
+#else
+static constexpr size_t listener_stack_size = 2048;
+#endif
+
 SocketListener::SocketListener(int port, connection_callback_t callback)
     : startupComplete_(0),
       shutdownRequested_(0),
       shutdownComplete_(0),
       port_(port),
       callback_(callback),
-      accept_thread_("accept_thread", 0, 1000, accept_thread_start, this) {
+      accept_thread_("accept_thread", 0, listener_stack_size,
+        accept_thread_start, this) {
 #ifdef __linux__
     // We expect write failures to occur but we want to handle them where the
     // error occurs rather than in a SIGPIPE handler.
@@ -102,7 +117,7 @@ void SocketListener::AcceptThreadBody() {
   ERRNOCHECK("bind",
              ::bind(listenfd, (struct sockaddr *) &addr, sizeof(addr)));
 
-#ifndef __FreeRTOS__  // no getsockname support
+#if !defined(__FreeRTOS__) && !defined(ESP32)  // no getsockname support
   namelen = sizeof(addr);
   ERRNOCHECK("getsockname",
              getsockname(listenfd, (struct sockaddr *) &addr, &namelen));
@@ -160,8 +175,5 @@ void SocketListener::AcceptThreadBody() {
   LOG(INFO, "Shutdown listening socket %d.", port_);
   shutdownComplete_ = 1;
 }
-
-
-
 
 #endif // __linux__

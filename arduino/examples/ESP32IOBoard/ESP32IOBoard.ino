@@ -33,15 +33,10 @@
  */
 
 #include <Arduino.h>
-#include <ESPmDNS.h>
-#include <SPIFFS.h>
-#include <WiFi.h>
-#include <vector>
-
-#include <OpenMRN.h>
-#include <openlcb/TcpDefs.hxx>
-
 #include <openlcb/MultiConfiguredConsumer.hxx>
+#include <openlcb/TcpDefs.hxx>
+#include <OpenMRN.h>
+#include <SPIFFS.h>
 #include <utils/GpioInitializer.hxx>
 
 // Pick an operating mode below, if you select USE_WIFI it will expose
@@ -52,12 +47,6 @@
 
 #define USE_WIFI
 // #define USE_CAN
-
-// Uncomment the line below to have this node advertise itself via mDNS as a
-// hub. When this is enabled, other devices can find and connect to this node
-// via mDNS, treating it as a hub. Note this requires USE_WIFI to be enabled
-// above and should only be enabled on one node which is acting as a hub.
-// #define BROADCAST_MDNS
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
@@ -70,10 +59,6 @@
 static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
 
 #if defined(USE_WIFI)
-/// This is the TCP/IP port which the ESP32 will listen on for incoming
-/// GridConnect formatted CAN frames.
-constexpr uint16_t OPENMRN_TCP_PORT = 12021L;
-
 // Configuring WiFi accesspoint name and password
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 // There are two options:
@@ -96,9 +81,6 @@ const char *password = DEFAULT_PASSWORD;
 /// This is the hostname which the ESP32 will advertise via mDNS, it should be
 /// unique.
 const char *hostname = "esp32mrn";
-
-/// This is the TCP/IP listener on the ESP32.
-WiFiServer openMRNServer(OPENMRN_TCP_PORT);
 
 OVERRIDE_CONST(gridconnect_buffer_size, 512);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
@@ -136,6 +118,11 @@ string dummystring("abcdef");
 /// used to generate the cdi.xml file. Here we instantiate the configuration
 /// layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
+
+#if defined(USE_WIFI)
+Esp32WiFiManager wifiManager(ssid, password, hostname, &openmrn, NODE_ID,
+    cfg.seg().wifi());
+#endif // USE_WIFI
 
 // Declare output pins
 // NOTE: pins 6-11 are connected to the onboard flash and can not be used for
@@ -266,49 +253,6 @@ void setup()
 {
     Serial.begin(115200L);
 
-#if defined(USE_WIFI)
-    printf("\nConnecting to: %s\n", ssid);
-    WiFi.begin(ssid, password);
-    uint8_t attempts = 30;
-    while (WiFi.status() != WL_CONNECTED &&
-        WiFi.status() != WL_CONNECT_FAILED &&
-        WiFi.status() != WL_NO_SSID_AVAIL && attempts--)
-    {
-        delay(500);
-        Serial.print(".");
-    }
-    if (WiFi.status() != WL_CONNECTED)
-    {
-        printf("\nFailed to connect to WiFi, restarting\n");
-        ESP.restart();
-
-        // in case the above call doesn't trigger restart, force WDT to restart
-        // the ESP32
-        while (1)
-        {
-            // The ESP32 has built in watchdog timers that as of
-            // arduino-esp32 1.0.1 are enabled on both core 0 (OS core) and core
-            // 1 (Arduino core). It usually takes a couple seconds of an endless
-            // loop such as this one to trigger the WDT to force a restart.
-        }
-    }
-
-    // This makes the wifi much more responsive. Since we are plugged in we
-    // don't care about the increased power usage. Disable when on battery.
-    WiFi.setSleep(false);
-
-    printf("\nWiFi connected, IP address: %s\n",
-        WiFi.localIP().toString().c_str());
-
-    // Start the TCP/IP listener
-    openMRNServer.setNoDelay(true);
-    openMRNServer.begin();
-
-    // Start the mDNS subsystem
-    MDNS.begin(hostname);
-
-#endif // USE_WIFI
-
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
     {
@@ -349,30 +293,10 @@ void setup()
     openmrn.add_can_port(
         new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
 #endif // USE_CAN
-
-#if defined(USE_WIFI) && defined(BROADCAST_MDNS)
-    // Broadcast this node's hostname with the mDNS service name
-    // for a TCP GridConnect endpoint.
-    MDNS.addService(openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN,
-        openlcb::TcpDefs::MDNS_PROTOCOL_TCP, OPENMRN_TCP_PORT);
-#endif // USE_WIFI
 }
 
 void loop()
 {
-#if defined(USE_WIFI)
-    // if the TCP/IP listener has a new client accept it and add it
-    // as a new GridConnect port.
-    if (openMRNServer.hasClient())
-    {
-        WiFiClient client = openMRNServer.available();
-        if (client)
-        {
-            openmrn.add_gridconnect_port(new Esp32WiFiClientAdapter(client));
-        }
-    }
-#endif // USE_WIFI
-
     // Call the OpenMRN executor, this needs to be done as often
     // as possible from the loop() method.
     openmrn.loop();

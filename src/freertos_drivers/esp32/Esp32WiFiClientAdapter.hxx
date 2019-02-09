@@ -49,6 +49,7 @@ public:
         : client_(client)
     {
         client_.setNoDelay(true);
+        // TODO: should we set the client RX/TX timeout?
     }
 
     /// This is how many bytes we return as writeable when select says the
@@ -120,6 +121,34 @@ public:
             bytesRead = client_.read((uint8_t *)buffer, len);
         }
         return bytesRead;
+    }
+
+    /// @return true if the underlying WiFiClient is still connected.
+    bool connected()
+    {
+        return client_.connected();
+    }
+
+    /// @return remote IP address from the underlying WiFiClient.
+    IPAddress remoteIP() const
+    {
+        return client_.remoteIP();
+    }
+
+    /// @return remote port from the underlying WiFiClient.
+    uint16_t remotePort() const
+    {
+        return client_.remotePort();
+    }
+
+    /// @return true if we successfully reconnected to the remote connection
+    bool reconnect()
+    {
+        if (connected())
+        {
+            return true;
+        }
+        return client_.connect(client_.remoteIP(), client_.remotePort());
     }
 
 private:

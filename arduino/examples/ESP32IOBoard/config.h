@@ -1,6 +1,7 @@
 #ifndef _ARDUINO_EXAMPLE_ESP32IOBOARD_CONFIG_H_
 #define _ARDUINO_EXAMPLE_ESP32IOBOARD_CONFIG_H_
 
+#include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
@@ -64,6 +65,9 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
 CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Outputs"));
 CDI_GROUP_ENTRY(producers, AllProducers, Name("Inputs"));
+#if defined(USE_WIFI)
+CDI_GROUP_ENTRY(wifi, WiFiConfiguration, Name("WiFi Configuration"));
+#endif
 CDI_GROUP_END();
 
 /// This segment is only needed temporarily until there is program code to set

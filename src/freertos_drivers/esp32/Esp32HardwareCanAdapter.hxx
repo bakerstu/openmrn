@@ -199,6 +199,7 @@ private:
                 // not possible when in this state.
                 LOG(WARNING, "ESP32-CAN: initiating recovery");
                 can_initiate_recovery();
+                parent->busOffCount++;
                 continue;
             }
             else if (status.state == CAN_STATE_RECOVERING)

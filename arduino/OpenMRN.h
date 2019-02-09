@@ -368,19 +368,40 @@ public:
     /// }
     ///
     /// @param port is the serial port instance from Arduino.
-    template <class SerialType> void add_gridconnect_port(SerialType *port)
+    /// @return @ref Executable instance representing the newly added port.
+    template <class SerialType> Executable *add_gridconnect_port(SerialType *port)
     {
-        loopMembers_.push_back(
-            new SerialBridge<SerialType>(port, stack()->can_hub()));
+        Executable *e = new SerialBridge<SerialType>(port, stack()->can_hub());
+        loopMembers_.push_back(e);
+        return e;
     }
 
     /// Adds a hardware CAN port to the stack. If multiple ports are added,
     /// OpenMRN will be forwarding traffic frames between them: the simplest
     /// CAN-USB sketch just adds the serial port connecting to the computer and
     /// the hardware CAN port.
-    void add_can_port(Can *port)
+    ///
+    /// @param port is the hardware CAN driver to be added.
+    /// @return Executable instance representing the newly added port.
+    Executable *add_can_port(Can *port)
     {
-        loopMembers_.push_back(new CanBridge(port, stack()->can_hub()));
+        Executable *e = new CanBridge(port, stack()->can_hub());
+        loopMembers_.push_back(e);
+        return e;
+    }
+
+    /// Removes an Executor from OpenMRN stack that was created via
+    /// @ref add_gridconnect_port or @ref add_can_port.
+    ///
+    /// @param exec is the @ref Executable to remove.
+    void remove_port(Executable *exec)
+    {
+        auto e = std::find(loopMembers_.begin(), loopMembers_.end(), exec);
+        if(e != loopMembers_.end())
+        {
+            loopMembers_.erase(e);
+        }
+        delete *e;
     }
 
 #if defined(HAVE_FILESYSTEM)

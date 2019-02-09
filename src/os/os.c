@@ -63,6 +63,10 @@
 #include <signal.h>
 #include <user_interface.h>
 
+#elif defined(ESP32)
+
+#include <Arduino.h>
+
 #else
 
 #include <sys/select.h>
@@ -74,6 +78,7 @@
 
 #include "nmranet_config.h"
 
+#include "utils/logging.h"
 #include "utils/macros.h"
 #include "os/os.h"
 
@@ -338,9 +343,17 @@ static void os_thread_start(void *arg)
     free(priv);
     vTaskDelete(NULL);
 }
+#elif defined(ESP32)
+static void os_thread_start(void *arg)
+{
+    ThreadPriv *priv = arg;
+    (*priv->entry)(priv->arg);
+    free(priv);
+    vTaskDelete(NULL);
+}
 #endif
 
-#if !(defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO))
+#if !(defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || (defined(ARDUINO) && !defined(ESP32)))
 
 #if defined(__FreeRTOS__)
 #if (configSUPPORT_STATIC_ALLOCATION == 1)
@@ -534,6 +547,28 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
 #endif
     add_thread_to_task_list(task_new);
 
+    return 0;
+#elif defined(ESP32)
+    if (priority == 0)
+    {
+        priority = configMAX_PRIORITIES / 2;
+    }
+    else if (priority >= configMAX_PRIORITIES)
+    {
+        priority = configMAX_PRIORITIES - 1;
+    }
+    
+    if (stack_size == 0)
+    {
+        stack_size = 2048;
+    }
+    ThreadPriv *priv = malloc(sizeof(ThreadPriv));
+    priv->entry = start_routine;
+    priv->arg = arg;
+    LOG(VERBOSE, "Creating task %s (priority: %d, stack: %d)",
+        name, priority, stack_size);
+    xTaskCreatePinnedToCore(os_thread_start, name, stack_size, priv, priority,
+        thread, tskNO_AFFINITY);
     return 0;
 #else // not freertos
     pthread_attr_t attr;
@@ -1019,7 +1054,6 @@ int main(int argc, char *argv[])
     return appl_main(argc, argv);
 #endif
 }
-
 #endif // ESP32
 
 #if defined(ARDUINO)

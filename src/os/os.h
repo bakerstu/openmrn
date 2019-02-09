@@ -47,6 +47,9 @@
 #include <task.h>
 #include <semphr.h>
 #include <event_groups.h>
+#elif defined(ESP32)
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #elif defined(ESP_NONOS) || defined(ARDUINO)
 #else
 #include <pthread.h>
@@ -123,7 +126,16 @@ typedef struct {
     unsigned counter;
 } os_sem_t;
 
+#if defined(ESP32)
+typedef TaskHandle_t os_thread_t; /**< thread handle */
+typedef struct thread_priv
+{
+    void *(*entry)(void*); /**< thread entry point */
+    void *arg; /** argument to thread */
+} ThreadPriv; /**< thread private data */
+#else
 typedef unsigned os_thread_t;
+#endif
 typedef void *os_mq_t; /**< message queue handle */
 
 #else
@@ -317,6 +329,8 @@ OS_INLINE os_thread_t os_thread_self(void)
 {
 #if defined (__FreeRTOS__)
     return xTaskGetCurrentTaskHandle();
+#elif defined(ESP32)
+    return NULL;
 #elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
     return 0xdeadbeef;
 #else
