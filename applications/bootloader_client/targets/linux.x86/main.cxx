@@ -309,24 +309,27 @@ void maybe_checksum(string *firmware)
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    int conn_fd = 0;
-    if (device_path)
+    if (!dump_filename)
     {
-        conn_fd = ::open(device_path, O_RDWR);
-    }
-    else
-    {
-        conn_fd = ConnectSocket(host, port);
-    }
-    HASSERT(conn_fd >= 0);
-    create_gc_port_for_can_hub(&can_hub0, conn_fd);
+        int conn_fd = 0;
+        if (device_path)
+        {
+            conn_fd = ::open(device_path, O_RDWR);
+        }
+        else
+        {
+            conn_fd = ConnectSocket(host, port);
+        }
+        HASSERT(conn_fd >= 0);
+        create_gc_port_for_can_hub(&can_hub0, conn_fd);
 
-    g_if_can.add_addressed_message_support();
-    // Bootstraps the alias allocation process.
-    g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
+        g_if_can.add_addressed_message_support();
+        // Bootstraps the alias allocation process.
+        g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
 
-    g_executor.start_thread("g_executor", 0, 1024);
-    usleep(400000);
+        g_executor.start_thread("g_executor", 0, 1024);
+        usleep(400000);
+    }
 
     SyncNotifiable n;
     BarrierNotifiable bn(&n);
@@ -349,15 +352,16 @@ int appl_main(int argc, char *argv[])
         b->data()->data.size(), filename, memory_space_id);
     maybe_checksum(&b->data()->data);
 
-    if (dump_filename) {
+    if (dump_filename)
+    {
         write_string_to_file(dump_filename, b->data()->data);
         exit(0);
     }
-    
+
     bootloader_client.send(b);
     n.wait_for_notification();
     printf("Result: %04x  %s\n", response.error_code,
         response.error_details.c_str());
-
+    exit(0);
     return 0;
 }
