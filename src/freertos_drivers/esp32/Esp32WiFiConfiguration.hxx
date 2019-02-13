@@ -42,7 +42,7 @@ class Esp32WiFiConfigurationParams
 {
 public:
     /// <map> of possible keys and descriptive values to show to the user for
-    /// the search_mode field.
+    /// the wifi_sleep and hub_mode fields.
     static constexpr const char *BOOLEAN_MAP =
         "<relation><property>0</property><value>No</value></relation>"
         "<relation><property>1</property><value>Yes</value></relation>";
