@@ -66,6 +66,7 @@
 #elif defined(ESP32)
 
 #include <Arduino.h>
+#include <freertos/task.h>
 
 #else
 
@@ -318,14 +319,17 @@ extern const void* stack_malloc(unsigned long length);
 /** Entry point to a thread.
  * @param arg metadata for entering the thread
  */
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined (ESP32)
 static void os_thread_start(void *arg)
 {
     ThreadPriv *priv = arg;
+#ifndef ESP32 // vTaskSetApplicationTaskTag is not supported on ESP32
     vTaskSetApplicationTaskTag(NULL, arg);
     _impure_ptr = priv->reent;
+#endif // ESP32
     (*priv->entry)(priv->arg);
 
+#ifndef ESP32 // ESP32 internally manages the task list
     vTaskSuspendAll();
     TaskList *tl;
     for (tl = taskList; tl != NULL && tl->task != xTaskGetCurrentTaskHandle();
@@ -340,14 +344,8 @@ static void os_thread_start(void *arg)
     xTaskResumeAll();
 
     free(priv->reent);
-    free(priv);
-    vTaskDelete(NULL);
-}
-#elif defined(ESP32)
-static void os_thread_start(void *arg)
-{
-    ThreadPriv *priv = arg;
-    (*priv->entry)(priv->arg);
+#endif // ESP32
+
     free(priv);
     vTaskDelete(NULL);
 }
@@ -441,14 +439,16 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         name = auto_name;
     }
 
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined(ESP32)
     ThreadPriv *priv = malloc(sizeof(ThreadPriv));
     
     priv->entry = start_routine;
-    priv->selectEventBit = 0;
     priv->arg = arg;
+#ifndef ESP32
+    priv->selectEventBit = 0;
     priv->reent = allocate_reent();
-    
+#endif // ESP32
+
     if (priority == 0)
     {
         priority = configMAX_PRIORITIES / 2;
@@ -463,10 +463,14 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         stack_size = 2048;
     }
 
+#ifndef ESP32 // ESP32 manages the task list via its IDLE task.
     TaskList *task_new = malloc(sizeof(TaskList));
     task_new->unused = stack_size;
-    
-#if (configSUPPORT_STATIC_ALLOCATION == 1)
+#endif
+
+// configSUPPORT_STATIC_ALLOCATION is disabled on ESP32 by default for
+// arduino-esp32 so exclude using it.
+#if (configSUPPORT_STATIC_ALLOCATION == 1) && !defined(ESP32)
     if (thread)
     {
         *thread = xTaskCreateStatic(os_thread_start,
@@ -492,7 +496,7 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         task_new->task = task_handle;
         task_new->name = (char*)pcTaskGetTaskName(task_handle);
     }
-#elif (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+#elif (configSUPPORT_DYNAMIC_ALLOCATION == 1) || defined(ESP32)
     if (thread)
     {
         xTaskCreate(os_thread_start,
@@ -501,8 +505,10 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
                     priv,
                     priority,
                     thread);
+#ifndef ESP32 // ESP32 manages the task list via its IDLE task.
         task_new->task = *thread;
         task_new->name = (char*)pcTaskGetTaskName(*thread);
+#endif // ESP32
     }
     else
     {
@@ -513,10 +519,12 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
                     priv,
                     priority,
                     &task_handle);
+#ifndef ESP32 // ESP32 manages the task list via its IDLE task.
         task_new->task = task_handle;
         task_new->name = (char*)pcTaskGetTaskName(task_handle);
+#endif // ESP32
     }
-#else  // prior to v9.0.0
+#elif !defined(ESP32)  // prior to v9.0.0 and not available on ESP32
     if (thread)
     {
         xTaskGenericCreate(os_thread_start,
@@ -545,32 +553,13 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
         task_new->name = (char*)pcTaskGetTaskName(task_handle);
     }
 #endif
+
+#ifndef ESP32 // ESP32 manages the task list via its IDLE task.
     add_thread_to_task_list(task_new);
+#endif // ESP32
 
     return 0;
-#elif defined(ESP32)
-    if (priority == 0)
-    {
-        priority = configMAX_PRIORITIES / 2;
-    }
-    else if (priority >= configMAX_PRIORITIES)
-    {
-        priority = configMAX_PRIORITIES - 1;
-    }
-    
-    if (stack_size == 0)
-    {
-        stack_size = 2048;
-    }
-    ThreadPriv *priv = malloc(sizeof(ThreadPriv));
-    priv->entry = start_routine;
-    priv->arg = arg;
-    LOG(VERBOSE, "Creating task %s (priority: %d, stack: %d)",
-        name, priority, stack_size);
-    xTaskCreatePinnedToCore(os_thread_start, name, stack_size, priv, priority,
-        thread, tskNO_AFFINITY);
-    return 0;
-#else // not freertos
+#else // not freertos or ESP32
     pthread_attr_t attr;
 
     int result = pthread_attr_init(&attr);
@@ -688,7 +677,7 @@ long long os_get_time_monotonic(void)
     clock_gettime(CLOCK_MONOTONIC, &ts);
 #endif
     time = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
-    
+
 #endif
     /* This logic ensures that every successive call is one value larger
      * than the last.  Each call returns a unique value.

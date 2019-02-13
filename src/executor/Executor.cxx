@@ -225,7 +225,7 @@ void *ExecutorBase::entry()
     return nullptr;
 }
 
-#elif defined(ARDUINO)
+#elif defined(ARDUINO) && (!defined(ESP32))
 
 void *ExecutorBase::entry()
 {

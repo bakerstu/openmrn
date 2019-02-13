@@ -78,10 +78,6 @@ const char *ssid = DEFAULT_WIFI_NAME;
 /// Password of the wifi network.
 const char *password = DEFAULT_PASSWORD;
 
-/// This is the hostname which the ESP32 will advertise via mDNS, it should be
-/// unique.
-const char *hostname = "esp32mrn";
-
 OVERRIDE_CONST(gridconnect_buffer_size, 512);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 
@@ -120,8 +116,7 @@ string dummystring("abcdef");
 static constexpr openlcb::ConfigDef cfg(0);
 
 #if defined(USE_WIFI)
-Esp32WiFiManager wifiManager(ssid, password, hostname, &openmrn, NODE_ID,
-    cfg.seg().wifi());
+Esp32WiFiManager wifiManager(ssid, password, &openmrn, cfg.seg().wifi());
 #endif // USE_WIFI
 
 // Declare output pins

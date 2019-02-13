@@ -83,10 +83,6 @@ const char *ssid = DEFAULT_WIFI_NAME;
 /// Password of the wifi network.
 const char *password = DEFAULT_PASSWORD;
 
-/// This is the hostname which the ESP32 will advertise via mDNS, it should be
-/// unique.
-const char *hostname = "esp32mrn";
-
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
 
@@ -100,8 +96,7 @@ string dummystring("abcdef");
 // layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
-Esp32WiFiManager wifiManager(ssid, password, hostname, &openmrn, NODE_ID,
-    cfg.seg().wifi());
+Esp32WiFiManager wifiManager(ssid, password, &openmrn, cfg.seg().wifi());
 
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:

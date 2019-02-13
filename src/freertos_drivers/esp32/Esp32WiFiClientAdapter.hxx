@@ -46,7 +46,8 @@ public:
     ///
     /// @param client is the client returned from the ESP32 WiFiServer.
     Esp32WiFiClientAdapter(WiFiClient client)
-        : client_(client)
+        : client_(client), remoteIP_(client.remoteIP()),
+        remotePort_(client.remotePort())
     {
         client_.setNoDelay(true);
         // TODO: should we set the client RX/TX timeout?
@@ -59,7 +60,7 @@ public:
     /// @return the capacity of the write buffer for the underlying WiFiClient.
     size_t availableForWrite()
     {
-        if (!client_.connected())
+        if (!connected())
         {
             return 0;
         }
@@ -92,7 +93,7 @@ public:
     /// @param len length of byte stream to be transmitted.
     size_t write(const char *buffer, size_t len)
     {
-        if (client_.connected())
+        if (connected())
         {
             return client_.write(buffer, len);
         }
@@ -102,7 +103,7 @@ public:
     /// @return the number of bytes available to read from the underlying WiFiClient.
     size_t available()
     {
-        if (client_.connected())
+        if (connected())
         {
             return client_.available();
         }
@@ -116,7 +117,7 @@ public:
     size_t read(const char *buffer, size_t len)
     {
         size_t bytesRead = 0;
-        if (client_.connected())
+        if (connected())
         {
             bytesRead = client_.read((uint8_t *)buffer, len);
         }
@@ -126,34 +127,62 @@ public:
     /// @return true if the underlying WiFiClient is still connected.
     bool connected()
     {
+        // Ensure we do not return true after stop() has been called since
+        // the underlying client_.connected() call may still return true since
+        // the fd has not been reset by calling client_.stop() but it has
+        // cleaned up resources already.
+        if(remotePort_ == 0 || remoteIP_ == INADDR_NONE)
+        {
+            return false;
+        }
         return client_.connected();
     }
 
     /// @return remote IP address from the underlying WiFiClient.
     IPAddress remoteIP() const
     {
-        return client_.remoteIP();
+        return remoteIP_;
     }
 
     /// @return remote port from the underlying WiFiClient.
     uint16_t remotePort() const
     {
-        return client_.remotePort();
+        return remotePort_;
     }
 
-    /// @return true if we successfully reconnected to the remote connection
+    /// @return true if we successfully reconnected to the remote connection.
     bool reconnect()
     {
         if (connected())
         {
             return true;
         }
-        return client_.connect(client_.remoteIP(), client_.remotePort());
+
+        // check for a previously disconnected connection and reject the
+        // attempt to reconnect to it.
+        if (remoteIP_ == INADDR_NONE || remotePort_ == 0)
+        {
+            return false;
+        }
+        return client_.connect(remoteIP_, remotePort_);
+    }
+
+    /// Disconnects the underlying WiFiClient connection. Note this will cause
+    /// the @ref reconnect method to return false. After calling this method
+    /// the instance of this adapter should be destroyed up rather than being
+    /// reused.
+    void stop()
+    {
+        client_.stop();
+        remoteIP_ = INADDR_NONE;
+        remotePort_ = 0;
     }
 
 private:
     /// WiFiClient being wrapped.
     WiFiClient client_;
+    IPAddress remoteIP_;
+    uint16_t remotePort_;
 };
 
 #endif /* _FREERTOS_DRIVERS_ARDUINO_ESP32WIFI_HXX_ */

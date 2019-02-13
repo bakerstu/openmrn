@@ -36,115 +36,53 @@
 #define _FREERTOS_DRIVERS_ESP32_ESP32WIFIMGR_HXX_
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <ESPmDNS.h>
-#include <WString.h>
-#include <vector>
+#include <IPAddress.h>
+#include <map>
 
 #include "freertos_drivers/esp32/Esp32WiFiClientAdapter.hxx"
+#include "freertos_drivers/esp32/Esp32WiFiConfiguration.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfiguredTcpConnection.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "openlcb/TcpDefs.hxx"
+#include "utils/ConfigUpdateListener.hxx"
 #include "utils/macros.h"
 #include "utils/SocketClientParams.hxx"
-#include "utils/socket_listener.hxx"
+#include "utils/GcTcpHub.hxx"
 
-using openlcb::Uint8ConfigEntry;
-using openlcb::Uint16ConfigEntry;
-using openlcb::StringConfigEntry;
-using openlcb::TcpClientDefaultParams;
-using openlcb::TcpClientConfig;
-using openlcb::TcpDefs;
-
-/// <map> of possible keys and descriptive values to show to the user for
-/// the search_mode field.
-static constexpr const char *BOOLEAN_MAP =
-    "<relation><property>0</property><value>No</value></relation>"
-    "<relation><property>1</property><value>Yes</value></relation>";
-
-/// Visible name for the WiFi Power Savings mode.
-static constexpr const char *WIFI_POWER_SAVE_NAME = "WiFi Power Savings Mode";
-
-/// Visible description for the WiFi Power Savings mode.
-static constexpr const char *WIFI_POWER_SAVE_DESC = 
-    "When enabled this allows the ESP32 WiFi radio to use power savings mode "
-    "which puts the radio to sleep except to receive beacon updates from the "
-    "connected SSID. This should generally not need to be enabled unless you "
-    "are powering the ESP32 from a battery.";
-
-/// Visible name for the Hub Configuration group.
-static constexpr const char *HUB_NAME = "Hub Configuration";
-
-/// Visible description for the Hub Configuration group.
-static constexpr const char *HUB_DESC = 
-    "Configuration settings for an OpenLCB Hub";
-
-/// Visible name for the hub_mode field.
-static constexpr const char *HUB_MODE_NAME = "Enable Hub Mode";
-
-/// Visible description for the hub_mode field.
-static constexpr const char *HUB_MODE_DESC = 
-    "Defines this node as a hub which can accept connections";
-
-/// Visible name for the hub_listener_port field.
-static constexpr const char *HUB_LISTENER_PORT_NAME =
-    "Hub Listener Port";
-
-/// Visible name for the hub_listener_port field.
-static constexpr const char *HUB_LISTENER_PORT_DESC = 
-    "Defines the TCP/IP listener port this node will use when operating as a "
-    "hub. Most of the time this does not need to be changed.";
-
-/// Visible name for the link_config group.
-static constexpr const char *LINK_NAME = "Node Connect Configuration";
-
-/// Visible name for the link_config group.
-static constexpr const char *LINK_DESC =
-    "Configures how this node will connect to other nodes.";
-
-CDI_GROUP(HubConfiguration);
-CDI_GROUP_ENTRY(enabled, Uint8ConfigEntry,
-    Name(HUB_MODE_NAME), Description(HUB_MODE_DESC), Min(0), Max(1),
-    Default(0), MapValues(BOOLEAN_MAP));
-CDI_GROUP_ENTRY(port, Uint16ConfigEntry,
-    Name(HUB_LISTENER_PORT_NAME),
-    Description(HUB_LISTENER_PORT_DESC),
-    Min(1), Max(65535), Default(TcpClientDefaultParams::DEFAULT_PORT))
-CDI_GROUP_ENTRY(service_name, StringConfigEntry<48>,
-    Name(TcpClientDefaultParams::SERVICE_NAME),
-    Description(TcpClientDefaultParams::SERVICE_DESCR));
-CDI_GROUP_END();
-
-CDI_GROUP(WiFiConfiguration);
-CDI_GROUP_ENTRY(wifi_sleep, Uint8ConfigEntry,
-    Name(WIFI_POWER_SAVE_NAME), Description(WIFI_POWER_SAVE_DESC),
-    Min(0), Max(1), Default(0), MapValues(BOOLEAN_MAP));
-CDI_GROUP_ENTRY(hub_config, HubConfiguration,
-    Name(HUB_NAME),
-    Description(HUB_DESC));
-CDI_GROUP_ENTRY(link_config, TcpClientConfig<TcpClientDefaultParams>,
-    Name(LINK_NAME),
-    Description(LINK_DESC));
-CDI_GROUP_END();
-
-class Esp32WiFiManager : public ConfigUpdateListener
+class Esp32WiFiManager : public DefaultConfigUpdateListener
 {
 public:
     /// Constructor.
     ///
+    /// With this constructor the ESP32 WiFi and MDNS systems will be managed
+    /// automatically by the Esp32WiFiManager class in addition to the inbound
+    /// and outbound connections. The WiFi and MDNS systems will only be
+    /// started after the initial loading of the CDI which occurs only after
+    /// the application code calls OpenMRN::begin().
+    ///
     /// @param ssid is the WiFi AP to connect to.
     /// @param password is the password for the WiFi AP being connected to.
-    /// @param hostname_prefix is the beginning part of the hostname that will
-    /// be advertised via mDNS and to the WiFi AP.
-    /// @param node_id is this node's unique ID, the last 32 bits are appended
-    /// to the hostname_prefix to generate a unique hostname.
+    /// @param openmrn is the OpenMRN class instance used by the node.
     /// @param cfg is the WiFiConfiguration instance used for this node. This
     /// will be monitored for changes and the WiFi behavior altered
     /// accordingly.
     Esp32WiFiManager(const char *ssid, const char *password,
-        const char *hostname_prefix, OpenMRN *stack,
-        const openlcb::NodeID node_id, const WiFiConfiguration &cfg);
+        OpenMRN *openmrn, const WiFiConfiguration &cfg);
+
+    /// Constructor.
+    ///
+    /// With this constructor the ESP32 WiFi and MDNS systems will not be
+    /// managed by the Esp32WiFiManager class, only the inbound and outbound
+    /// connections will be managed. This variation should only be used when
+    /// the application code starts the the WiFi and MDNS systems before
+    /// calling OpenMRN::begin().
+    ///
+    /// @param openmrn is the OpenMRN class instance used by the node.
+    /// @param cfg is the WiFiConfiguration instance used for this node. This
+    /// will be monitored for changes and the WiFi behavior altered
+    /// accordingly.
+    Esp32WiFiManager(OpenMRN *openmrn, const WiFiConfiguration &cfg);
 
     /// Updates the WiFiConfiguration settings used by this node.
     ///
@@ -167,15 +105,11 @@ private:
     Esp32WiFiManager();
 
     /// Starts the WiFi system and initiates the SSID connection process.
-    void startWiFiSystem();
+    void start_wifi_system();
 
     /// Starts the Esp32WiFiManager, this manages the WiFi subsystem as well as
     /// all interactions with other nodes.
-    void startWiFiTask();
-
-    /// Stops the Esp32WiFiManager, this will disable the WiFi subsystem and
-    /// all related interactions with other nodes.
-    void stopWiFiTask();
+    void start_wifi_task();
 
     /// Background task used by the Esp32WiFiManager to maintain health of any
     /// connections to other nodes.
@@ -184,39 +118,46 @@ private:
     /// @return true if we are already connected to the provided IPAddress.
     /// @param hostname is the remote hostname to be checked.
     /// @param ip is the remote IPAddress to be checked.
-    bool connectedTo(const String hostname, const IPAddress ip);
-
-    /// @return true if the passed hostname is our preferred hub or if we have
-    /// no preference.
-    /// @param hostname is the hostname to be checked.
-    bool isPreferredHub(const String hostname);
+    bool is_connected_to(const IPAddress ip, const uint16_t port);
 
     /// Connects to a remote hub if we are not already connected to it.
-    /// @param hubHostname is the hostname for the remote hub.
     /// @param ip is the remote hub ip address.
-    /// @param remotePort is the port on the hub to connect to.
+    /// @param port is the port on the hub to connect to.
     /// @return true if the connection to the hub was successful or if already
     /// connected to that hub, false otherwise.
-    bool connectToHub(String hubHostname, IPAddress ip, uint16_t remotePort);
+    bool connect_to_hub(const IPAddress ip, const uint16_t port);
 
-    /// Attempts to connect to a manually configured hub if this node is
-    /// configured to do so.
-    /// @return true if we successfully connected to the hub or if we need
-    /// to try mDNS.
-    bool connectToManualHubIfNeeded();
+    /// Attempts to connect to an mDNS discovered hub.
+    /// @return true if we successfully connected to a hub, false otherwise.
+    bool connect_to_mdns_hub(const std::string &preferred_hub_hostname,
+        const std::string &serviceName, const std::string &serviceProtocol);
 
-    /// Attempts to connect to any mDNS identified hubs that we are not already
-    /// connected to.
-    /// @return true if we successfully connected to at least one hub, false
-    /// otherwise.
-    bool connectToMDNSHubs();
+    /// Performs an orderly shutdown of the hub on this node, any connections
+    /// will be closed and removed from the stack.
+    void shutdown_hub(const std::string &serviceName,
+        const std::string &serviceProtocol);
 
-    /// Priority to use for the wifi_manager_task. This is currently set to 1
-    /// which matches the arduino-esp32 loop() task priority.
-    static constexpr UBaseType_t WIFI_TASK_PRIORITY = 1;
+    /// Starts @ref SocketListener for the hub on this node and advertises the
+    /// provided mDNS service name details.
+    void start_hub(const std::string &serviceName,
+        const std::string &serviceProtocol);
+
+    /// Performs orderly shutdown of any outbound connections from this node.
+    void disconnect_from_hubs();
+
+    /// Priority to use for the wifi_manager_task. This is currently set to
+    /// one priority level higher than the arduino-esp32 loopTask. The task
+    /// will primarily be in a sleep state so there will be limited impact on
+    /// the loopTask.
+    static constexpr UBaseType_t WIFI_TASK_PRIORITY = 2;
 
     /// Stack size for the wifi_manager_task.
-    static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2048L;
+    static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
+
+    /// Interval at which to all TCP/IP connections and establish new outbound
+    /// connections if required.
+    static constexpr TickType_t CONNECTION_CHECK_TICK_INTERVAL =
+        pdMS_TO_TICKS(30000);
 
     /// Handle for the wifi_manager_task that manages the WiFi stack, including
     /// periodic health checks of the connected hubs or clients.
@@ -225,17 +166,8 @@ private:
     /// Map of connections to any hubs that are to be maintained.
     std::map<Esp32WiFiClientAdapter *, Executable *> hubConnections_;
 
-    /// Map of connections from other nodes to be monitored.
-    std::map<Esp32WiFiClientAdapter *, Executable *> clientConnections_;
-
-    /// Internal flag to tell the wifi_manager_task to shutdown.
-    bool wifiTaskShutdownReq_{false};
-
-    /// Internal flag used by the wifi_manager_task to indicate it is running.
-    bool wifiTaskRunning_{false};
-
-    /// Dynamically generated hostname for this node.
-    String hostname_;
+    /// Dynamically generated hostname for this node, esp32_{node-id}.
+    std::string hostname_{"esp32_"};
 
     /// User provided SSID to connect to.
     const char *ssid_;
@@ -248,68 +180,25 @@ private:
 
     /// This is internally used to enable the management of the WiFi stack, in
     /// some environments this may be managed externally.
-    bool manageWiFi_;
+    const bool manageWiFi_;
 
     /// OpenMRN stack for the Arduino system
     OpenMRN *openmrn_;
 
-    /// Cached copy of this nodes wifi_sleep value. If this is true the WiFi
-    /// radio can go to into low power mode to conserve power. This is likely
-    /// only necessary for battery powered ESP32 devices.
-    bool wifiSleepMode_{false};
+    /// Cached copy of the file descriptor passed into apply_configuration.
+    /// This is internally used by the wifi_manager_task to processed deferred
+    /// configuration load.
+    int configFd_{-1};
 
-    /// Cached copy of this nodes hub_config.enabled value, if this is
-    /// true this node will advertise itself as a hub via mDNS and accept
-    /// incoming TCP/IP connections.
-    bool hubEnabled_{false};
+    /// Calculated MD5 of cfg_ data. Used to detect changes in configuration
+    /// which may require the wifi_manager_task to reload config.
+    std::string configMD5_{""};
 
-    /// Cached copy of this nodes hub_config.port
-    uint16_t hubPort_{TcpClientDefaultParams::DEFAULT_PORT};
+    /// Internal flag to request the wifi_manager_task reload configuration.
+    bool configReloadRequested_{true};
 
-    /// Cached copy of this nodes hub_config.service_name
-    String hubServiceName_{TcpDefs::MDNS_SERVICE_NAME_HUB_TCP};
-
-    /// Cached copy of this nodes hub_config.service_name split to not have
-    /// the protocol.
-    String hubServiceNameNoProtocol_{TcpDefs::MDNS_SERVICE_NAME_HUB};
-
-    /// Cached copy of this nodes hub_config.service_name split to only be
-    /// the protocol.
-    String hubServiceProtocol_{TcpDefs::MDNS_PROTOCOL_TCP};
-
-    /// Listener for this node when active as a hub.
-    SocketListener *hubSocket_;
-
-    /// Cached copy of this nodes link_config.search_mode
-    SocketClientParams::SearchMode tcpClientMode_{
-        SocketClientParams::SearchMode::AUTO_MANUAL};
-
-    /// Cached copy of this nodes link_config.auto_address.service_name
-    String tcpmDNSServiceName_{TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN};
-
-    /// Cached copy of this nodes link_config.auto_address.service_name
-    /// split to not have the protocol.
-    String tcpmDNSServiceNameNoProtocol_{TcpDefs::MDNS_SERVICE_NAME_HUB};
-
-    /// Cached copy of this nodes link_config.auto_address.service_name
-    /// split to only be the protocol.
-    String tcpmDNSServiceProtocol_{TcpDefs::MDNS_PROTOCOL_TCP};
-
-    /// Cached copy of this nodes link_config.auto_address.host_name
-    String tcpAutoHostName_{""};
-
-    /// Cached copy of this nodes link_config.manual_address.ip_address
-    String tcpManualHostName_{""};
-
-    /// Cached copy of this nodes link_config.manual_address.port
-    int tcpManualPort_{TcpClientDefaultParams::DEFAULT_PORT};
-
-    /// cached copy of the IPAddress for this nodes
-    /// link_config.manual_address.ip_address.
-    IPAddress tcpManualIP_;
-
-    /// Interval at which to perform mDNS scan for remote hubs
-    static constexpr TickType_t MDNS_SCAN_INTERVAL = pdMS_TO_TICKS(30000);
+    /// @ref GcTcpHub for this node's hub if enabled.
+    std::unique_ptr<GcTcpHub> hub_;
 
     DISALLOW_COPY_AND_ASSIGN(Esp32WiFiManager);
 };

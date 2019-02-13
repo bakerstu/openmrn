@@ -47,10 +47,17 @@ template <class Data> class FdHubWriteFlow;
 class FdHubPortBase : public FdHubPortInterface, private Atomic
 {
 public:
+#ifndef ESP32
     /// How many bytes of stack should we allocate to the write thread's stack.
     static const int kWriteThreadStackSize = 1000;
     /// How many bytes of stack should we allocate to the read thread's stack.
     static const int kReadThreadStackSize = 1000;
+#else
+    /// How many bytes of stack should we allocate to the write thread's stack.
+    static const int kWriteThreadStackSize = 1536;
+    /// How many bytes of stack should we allocate to the read thread's stack.
+    static const int kReadThreadStackSize = 1536;
+#endif
     /// Constructor.
     /// @param fd is the filedes to read/write
     /// @param done will be called when this file is closed and removed from

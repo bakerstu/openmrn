@@ -1,7 +1,7 @@
 #ifndef _ARDUINO_EXAMPLE_ESP32WIFICANBRIDGE_CONFIG_H_
 #define _ARDUINO_EXAMPLE_ESP32WIFICANBRIDGE_CONFIG_H_
 
-#include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
+#include "freertos_drivers/esp32/Esp32WiFiConfiguration.hxx"
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/ConfigRepresentation.hxx"

@@ -68,7 +68,7 @@ static void* accept_thread_start(void* arg) {
 #ifndef ESP32
 static constexpr size_t listener_stack_size = 1000;
 #else
-static constexpr size_t listener_stack_size = 2048;
+static constexpr size_t listener_stack_size = 1536;
 #endif
 
 SocketListener::SocketListener(int port, connection_callback_t callback)
