@@ -160,6 +160,14 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
         configReloadRequested_ = configMD5_.compare(configMD5);
         LOG(VERBOSE, "Config Change detected: %s",
             BOOLEAN_DISPLAY_STRINGS[configReloadRequested_]);
+
+        // If a configuration change has been detected, wake up the
+        // wifi_manager_task so it can consume the change prior to the next
+        // wake up interval.
+        if(configReloadRequested_)
+        {
+            xTaskNotifyGive(wifiTaskHandle_);
+        }
     }
     else
     {
@@ -468,11 +476,9 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
     const TcpManualAddress<TcpClientDefaultParams> &last_hub =
         link_cfg.last_address();
 
-    // Used to track our last wake-up tick count so we can process only every
-    // CONNECTION_CHECK_TICK_INTERVAL ticks.
-    TickType_t last_wake_up_tick = xTaskGetTickCount();
     while (true)
     {
+        // check if there are configuration changes to pick up.
         if(wifi->configReloadRequested_)
         {
             // Since the config has changed since we started, cleanup any
@@ -546,7 +552,7 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
                 BOOLEAN_DISPLAY_STRINGS[reconnect_to_last_hub],
                 last_hub_ip.toString().c_str(), last_hub_port,
                 tcp_service_name.c_str(), tcp_service_protocol.c_str(),
-                auto_hub_hostname.c_str(), manual_hub_ip.toString().c_str(),
+                auto_hub_hostname.c_str(), manual_hub_host.c_str(),
                 manual_hub_port);
             LOG(INFO, "WiFi-Sleep: %s",
                 BOOLEAN_DISPLAY_STRINGS[WiFi.getSleep()]);
@@ -668,8 +674,9 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             delete client;
         }
 
-        // go to sleep until the next check interval
-        vTaskDelayUntil(&last_wake_up_tick, CONNECTION_CHECK_TICK_INTERVAL);
+        // Sleep until the next check interval or if we are woken up early to
+        // consume a configuration update.
+        ulTaskNotifyTake(pdTRUE, CONNECTION_CHECK_TICK_INTERVAL);
     }
 
     return nullptr;
