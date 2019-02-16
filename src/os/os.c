@@ -32,6 +32,8 @@
  * @date 13 August 2012
  */
 
+#define _DEFAULT_SOURCE
+
 /// Forces one definition of each inline function to be compiled.
 #define OS_INLINE extern
 
@@ -616,17 +618,23 @@ long long os_get_time_monotonic(void)
     time = ((long long)tv.tv_sec * 1000LL * 1000LL * 1000LL) +
            ((long long)tv.tv_usec * 1000LL);
 #elif defined(ARDUINO)
-    static uint32_t last_millis = 0;
-    auto new_millis = millis();
-    static uint32_t overflow_millis = 0;
-    if (new_millis < last_millis)
+    // redeclare micros() prototype to remove compiler warning
+    unsigned long micros();
+    
+    static uint32_t last_micros = 0;
+    static uint32_t overflow_micros = 0;
+    
+    uint32_t new_micros = (uint32_t) micros();
+    if (new_micros < last_micros)
     {
-        ++overflow_millis;
+        ++overflow_micros;
     }
-    time = overflow_millis;
+    last_micros = new_micros;
+    
+    time = overflow_micros;
     time <<= 32;
-    time += new_millis;
-    time *= 1000000;
+    time += new_micros;
+    time *= 1000;    // Convert micros to nanos
 #elif defined(ESP_NONOS)
     static uint32_t clockmul = 0;
     if (clockmul == 0) {
@@ -924,6 +932,8 @@ int ignore_fn(void)
     return 0;
 }
 
+#if !defined(ESP32)
+
 #if !defined (__MINGW32__)
 int main(int argc, char *argv[]) __attribute__ ((weak));
 #endif
@@ -1009,6 +1019,8 @@ int main(int argc, char *argv[])
     return appl_main(argc, argv);
 #endif
 }
+
+#endif // ESP32
 
 #if defined(ARDUINO)
 unsigned critical_nesting;

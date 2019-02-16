@@ -22,6 +22,7 @@ namespace openlcb
 struct CanMessagePayload : public can_frame
 {
     CanMessagePayload() {
+        can_id = 0;
         CLR_CAN_FRAME_RTR(*this);
         CLR_CAN_FRAME_ERR(*this);
         SET_CAN_FRAME_EFF(*this);

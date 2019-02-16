@@ -123,43 +123,6 @@ public:
     MOCK_METHOD1(alloc_result, void(QMember *));
 };
 
-TEST(BufferBaseTest, expand)
-{
-    struct Item
-    {
-        uint32_t param1;
-        uint16_t param2;
-        uint16_t param3;
-        /* We need to make sizeof(Buffer<Item>) * 2 > largest bucket size so
-         * that it gets malloc-ed. */
-        char ballast[32];
-    };
-    
-    Buffer<Item> *buffer;
-    mainBufferPool->alloc<Item>(&buffer);
-    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 0);
-    buffer->data()->param1 = 1;
-    buffer->data()->param2 = 2;
-    buffer->data()->param3 = 3;
-    buffer->ref();
-    
-    buffer = static_cast<Buffer<Item> *>(buffer->expand());
-    
-    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 1);
-    EXPECT_TRUE(buffer->data()->param1 == 1);
-    EXPECT_TRUE(buffer->data()->param2 == 2);
-    EXPECT_TRUE(buffer->data()->param3 == 3);
-    EXPECT_TRUE(buffer->size() >= sizeof(Buffer<Item>) * 2);
-    buffer->unref();
-    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 1);
-    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>) * 2) == 0);
-    buffer->unref();
-    EXPECT_TRUE(mainBufferPool->free_items(sizeof(Buffer<Item>)) == 1);
-    EXPECT_EQ(0U, mainBufferPool->free_items(sizeof(Buffer<Item>) * 2))
-        << "new size " << 2 * sizeof(Buffer<Item>)
-        << " might be smaller than largest bucket in mainBufferPool.";
-}
-
 TEST(BufferBaseTest, alloc_async)
 {
     struct Item

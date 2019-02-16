@@ -105,9 +105,7 @@ private:
 
         /** Default constructor.  Does not initialize key or value.
          */
-        Node()
-        {
-        }
+        Node() = default;
     };
 
 public:

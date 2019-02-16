@@ -72,12 +72,12 @@ SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
 
 void SimpleCanStackBase::start_stack(bool delay_start)
 {
-#ifndef ARDUINO
+#if (!defined(ARDUINO)) || defined(ESP32)
     // Opens the eeprom file and sends configuration update commands to all
     // listeners.
     configUpdateFlow_.open_file(CONFIG_FILENAME);
     configUpdateFlow_.init_flow();
-#endif
+#endif // NOT ARDUINO, YES ESP32
 
     if (!delay_start) {
         // Bootstraps the alias allocation process.
@@ -107,7 +107,7 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_ACDI_SYS, space);
         additionalComponents_.emplace_back(space);
     }
-#ifndef ARDUINO
+#if (!defined(ARDUINO)) || defined(ESP32)
     {
         auto *space = new FileMemorySpace(
             SNIP_DYNAMIC_FILENAME, sizeof(SimpleNodeDynamicValues));
@@ -115,7 +115,7 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_ACDI_USR, space);
         additionalComponents_.emplace_back(space);
     }
-#endif
+#endif // NOT ARDUINO, YES ESP32
     size_t cdi_size = strlen(CDI_DATA);
     if (cdi_size > 0)
     {
@@ -125,10 +125,7 @@ void SimpleCanStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_CDI, space);
         additionalComponents_.emplace_back(space);
     }
-#if defined(ARDUINO)
-// @todo (balazs.racz): find a solution for storing configuration on an
-// arduino binary.
-#else
+#if (!defined(ARDUINO)) || defined(ESP32)
     if (CONFIG_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(CONFIG_FILENAME, CONFIG_FILE_SIZE);
@@ -136,7 +133,7 @@ void SimpleCanStackBase::default_start_node()
             node(), openlcb::MemoryConfigDefs::SPACE_CONFIG, space);
         additionalComponents_.emplace_back(space);
     }
-#endif
+#endif // NOT ARDUINO, YES ESP32
 }
 
 SimpleTrainCanStack::SimpleTrainCanStack(
@@ -225,10 +222,12 @@ int SimpleCanStackBase::create_config_file_if_needed(
 
     // Clears the file, preserving the node name and desription if any.
     if (extend && !reset) {
-        lseek(fd, statbuf.st_size, SEEK_SET);
+        auto ret = lseek(fd, statbuf.st_size, SEEK_SET);
+        HASSERT(ret == statbuf.st_size);
         file_size -= statbuf.st_size; // Clears nothing, just extends with 0xFF.
     } else if (statbuf.st_size >= 128) {
-        lseek(fd, 128, SEEK_SET);
+        auto ret = lseek(fd, 128, SEEK_SET);
+        HASSERT(ret == 128);
         file_size -= 128; // Clears less.
     } else {
         lseek(fd, 0, SEEK_SET);
@@ -293,6 +292,12 @@ int SimpleCanStackBase::check_version_and_factory_reset(
 /// exported by the cdi compilation mechanism (in CompileCdiMain.cxx) and
 /// defined by cdi.o for the linker.
 extern const uint16_t CDI_EVENT_OFFSETS[];
+const uint16_t *cdi_event_offsets_ptr = CDI_EVENT_OFFSETS;
+
+void SimpleCanStackBase::set_event_offsets(const vector<uint16_t> *offsets)
+{
+    cdi_event_offsets_ptr = &(*offsets)[0];
+}
 
 void SimpleCanStackBase::factory_reset_all_events(
     const InternalConfigData &cfg, int fd)
@@ -300,19 +305,19 @@ void SimpleCanStackBase::factory_reset_all_events(
     // First we find the event count.
     uint16_t new_next_event = cfg.next_event().read(fd);
     uint16_t next_event = new_next_event;
-    for (unsigned i = 0; CDI_EVENT_OFFSETS[i]; ++i)
+    for (unsigned i = 0; cdi_event_offsets_ptr[i]; ++i)
     {
         ++new_next_event;
     }
     // We block off the event IDs first.
     cfg.next_event().write(fd, new_next_event);
     // Then we write them to eeprom.
-    for (unsigned i = 0; CDI_EVENT_OFFSETS[i]; ++i)
+    for (unsigned i = 0; cdi_event_offsets_ptr[i]; ++i)
     {
         EventId id = node()->node_id();
         id <<= 16;
         id |= next_event++;
-        EventConfigEntry(CDI_EVENT_OFFSETS[i]).write(fd, id);
+        EventConfigEntry(cdi_event_offsets_ptr[i]).write(fd, id);
     }
 }
 

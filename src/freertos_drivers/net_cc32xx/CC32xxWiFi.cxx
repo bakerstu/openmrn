@@ -1138,7 +1138,7 @@ void mdns_publish(const char *name, const char *service, uint16_t port)
         sl_NetAppMDNSRegisterService((const signed char*)full_name.c_str(),
                                      full_name.size(),
                                      (const signed char*)"OLCB", strlen("OLCB"), 
-                                     port, 200, 0);
+                                     port, 200, SL_NETAPP_MDNS_OPTIONS_IS_NOT_PERSISTENT);
 }
 
 extern "C"

@@ -46,6 +46,13 @@ class FileSystem;
 class Notifiable;
 class DeviceBufferBase;
 
+#ifdef TARGET_LPC11Cxx
+#define NUM_OPEN_FILES     4
+#else
+/// How many concurrently open fd we support.
+#define NUM_OPEN_FILES     20 //12
+#endif
+
 /** File information.
  */
 struct File
@@ -64,6 +71,7 @@ struct File
     uint8_t inuse  : 1; /**< true if this is an open fd. */
     uint8_t device : 1; /**< true if this is a device, false if file system */
     uint8_t dir    : 1; /**< true if this is a directory, else false */
+    uint8_t dirty  : 1; /**< true if this file is dirty and needs flush */
 };
 
 /** Base class for both Device and FileSystem objects */
