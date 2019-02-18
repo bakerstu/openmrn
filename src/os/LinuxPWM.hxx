@@ -179,7 +179,7 @@ public:
     {
         return &instance_;
     }
-    static PwmWrapper instance_;
+    static const PwmWrapper instance_;
 };
 
 template <class PIN> const PwmWrapper<PIN> PwmWrapper<PIN>::instance_;
