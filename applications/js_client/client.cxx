@@ -50,6 +50,9 @@
 #include "openlcb/SimpleNodeInfoMockUserFile.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "utils/JSWebsocketClient.hxx"
+#include "utils/JSTcpClient.hxx"
+#include "utils/JSTcpHub.hxx"
+#include "utils/JSWebsocketServer.hxx"
 
 const openlcb::NodeID NODE_ID = 0x0501010114DFULL;
 
@@ -252,6 +255,44 @@ int appl_main(int argc, char *argv[])
     return 0;
 }
 
+/// Adds a new connection to the hub, connecting to a remote hub via TCP
+/// gridconnect protocol.
+/// @param host is the host name or IP address to connect to.
+/// @param port is the TCP port number
+void add_tcp_client(string host, int port)
+{
+    new JSTcpClient(stack.can_hub(), host, port);
+}
+
+/// Adds a new connection to the hub, connecting to a remote websocket server
+/// via the gridconnect-over-websocket protocol.
+/// @param url address of the websocket server.
+void add_websocket_client(string url)
+{
+    new JSWebsocketClient(stack.can_hub(), url);
+}
+
+/// Starts a server listening to a TCP port for incoming gridconnect-over-TCP
+/// connections.
+/// @param port port number to listen on (usually 12021)
+void start_tcp_hub(int port)
+{
+    new JSTcpHub(stack.can_hub(), port);
+}
+
+/// Starts a server listening to a TCP port for incoming HTTP to websocket
+/// connections. The websocket connections use gridconnect-over-websocket to
+/// connect to the LCC network.
+/// @param port port number to listen on
+/// @param static_dir files in this directory will be available on the HTTP
+/// server started on the given port. Can be html pages (e.g. panels) and js
+/// script in there.
+void start_websocket_server(int port, string static_dir)
+{
+    new JSWebsocketServer(stack.can_hub(), port, static_dir);
+}
+
+
 EMSCRIPTEN_BINDINGS(js_client_main)
 {
     emscripten::function("startStack", &start_stack);
@@ -259,4 +300,8 @@ EMSCRIPTEN_BINDINGS(js_client_main)
         .constructor<std::string, emscripten::val, std::string,
             emscripten::val>()
         .function("toggleState", &JSBitEventPC::toggleState);
+    emscripten::function("startWebsocketServer", &start_websocket_server);
+    emscripten::function("startTcpHub", &start_tcp_hub);
+    emscripten::function("addWebsocketClient", &add_websocket_client);
+    emscripten::function("addTcpClient", &add_tcp_client);
 }
