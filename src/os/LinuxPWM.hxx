@@ -30,13 +30,13 @@
  *
  * \file LinuxPWM.hxx
  *
- * Defines GPIO pins using the Linux sysfs ABI.
+ * Defines PWM pins using the Linux sysfs ABI.
  * 
- * \section HOWTOUSE How to use                                        
+ * \section HOWTOUSE How to use
  * TBD
  * 
  * @author Robert Heller
- * @date 10 October 2018
+ * @date 19 Feburary 2019
  */
 
 #ifndef __LINUXPWM_HXX
@@ -48,206 +48,93 @@
 #include <fcntl.h>
 #include <stdio.h>
 
-template <int CHIP_NUM, int PIN_NUM> class LinuxPWM {
+class LinuxPWM : public PWM
+{
 public:
-    /// Number of the chip
-    static constexpr const uint32_t CHIP = CHIP_NUM;
-    /// Number of the pin
-    static constexpr const uint32_t PIN  = PIN_NUM;
-    
-    /// Export pin
-    static void export_pin()
+    LinuxPWM(int chip, int channel) : channel_(channel), chip_(chip)
+    {
+    }
+    void exportPin()
     {
         char exportname[40];
-        snprintf(exportname,sizeof(exportname),"/sys/class/pwm/pwmchip%d/export", CHIP);
+        snprintf(exportname,sizeof(exportname),"/sys/class/pwm/pwmchip%d/export", chip_);
         FILE *fp = fopen(exportname,"w");
-        fprintf(fp,"%d\n",PIN);
+        fprintf(fp,"%d\n",channel_);
         fclose(fp);
-    }
-    static void set_period(uint32_t nanos)
+        enable();
+    }       
+    void set_period(uint32_t counts) override
     {
         char periodname[60];
-        snprintf(periodname,sizeof(periodname),"/sys/class/pwm/pwmchip%d/pwm%d/period",CHIP,PIN);
+        snprintf(periodname,sizeof(periodname),"/sys/class/pwm/pwmchip%d/pwm%d/period",chip_,channel_);
         FILE *fp = fopen(periodname,"w");
-        fprintf(fp,"%d\n",nanos);
+        fprintf(fp,"%d\n",counts);
         fclose(fp);
     }
-    static uint32_t get_period()
+    uint32_t get_period() override
     {
         char periodname[60];
-        uint32_t nanos;
-        snprintf(periodname,sizeof(periodname),"/sys/class/pwm/pwmchip%d/pwm%d/period",CHIP,PIN);
+        uint32_t counts;
+        snprintf(periodname,sizeof(periodname),"/sys/class/pwm/pwmchip%d/pwm%d/period",chip_,channel_);
         FILE *fp = fopen(periodname,"r");
-        fscanf(fp,"%d",&nanos);
+        fscanf(fp,"%d",&counts);
         fclose(fp);
-        return nanos;
+        return counts;
     }
-    static void set_duty(uint32_t nanos)
+    void set_duty(uint32_t counts) override
     {
         char duty_cyclename[60];
-        snprintf(duty_cyclename,sizeof(duty_cyclename),"/sys/class/pwm/pwmchip%d/pwm%d/duty_cycle",CHIP,PIN);
+        snprintf(duty_cyclename,sizeof(duty_cyclename),"/sys/class/pwm/pwmchip%d/pwm%d/duty_cycle",chip_,channel_);
         FILE *fp = fopen(duty_cyclename,"w");
-        fprintf(fp,"%d\n",nanos);
+        fprintf(fp,"%d\n",counts);
         fclose(fp);
     }
-    static uint32_t get_duty()
+    uint32_t get_duty() override
     {
         char duty_cyclename[60];
-        uint32_t nanos;
-        snprintf(duty_cyclename,sizeof(duty_cyclename),"/sys/class/pwm/pwmchip%d/pwm%d/duty_cycle",CHIP,PIN);
+        uint32_t counts;
+        snprintf(duty_cyclename,sizeof(duty_cyclename),"/sys/class/pwm/pwmchip%d/pwm%d/duty_cycle",chip_,channel_);
         FILE *fp = fopen(duty_cyclename,"r");
-        fscanf(fp,"%d",&nanos);
+        fscanf(fp,"%d",&counts);
         fclose(fp);
-        return nanos;
+        return counts;
     }
-    static void enable() {
+    uint32_t get_period_max() override
+    {
+        return 0xffffffff;
+    }
+    uint32_t get_period_min() override
+    {
+        return 0;
+    }
+    void enable() {
         char enablename[60];
-        snprintf(enablename,sizeof(enablename),"/sys/class/pwm/pwmchip%d/pwm%d/enable",CHIP,PIN);
+        snprintf(enablename,sizeof(enablename),"/sys/class/pwm/pwmchip%d/pwm%d/enable",chip_,channel_);
         int fd = open(enablename,O_WRONLY);
         write(fd,"1\n",2);
         close(fd);
     }
-    static void disable() {
+    void disable() {
         char enablename[60];
-        snprintf(enablename,sizeof(enablename),"/sys/class/pwm/pwmchip%d/pwm%d/enable",CHIP,PIN);
+        snprintf(enablename,sizeof(enablename),"/sys/class/pwm/pwmchip%d/pwm%d/enable",chip_,channel_);
         int fd = open(enablename,O_WRONLY);
         write(fd,"0\n",2);
         close(fd);
     }
-    static bool enabled() {
+    bool enabled() {
         char enablename[60], c;
-        snprintf(enablename,sizeof(enablename),"/sys/class/pwm/pwmchip%d/pwm%d/enable",CHIP,PIN);
+        snprintf(enablename,sizeof(enablename),"/sys/class/pwm/pwmchip%d/pwm%d/enable",chip_,channel_);
         int fd = open(enablename,O_RDONLY);
         read(fd,&c,1);
         close(fd);
         return (c == '1');
     }
-    static uint32_t get_period_max() {return 0xffffffff;}
-    static uint32_t get_period_min() {return 0;}
+private:
+    uint32_t channel_;
+    uint32_t chip_;
 };
+        
 
-/// Creates an implementation of an os-independent PWM object from a
-/// hardware-specific static PWM structure.
-
-template <class PIN> class PwmWrapper : public PWM
-{
-public:
-    /// This constructor is constexpr which ensures that the object can be
-    /// initialized in the data section.
-    constexpr  PwmWrapper()
-    {
-    }
-    
-    void set_period(uint32_t counts)
-    {
-        PIN::set_period(counts);
-    }
-    uint32_t get_period()
-    {
-        return PIN::get_period();
-    }
-    void set_duty(uint32_t counts)
-    {
-        PIN::set_duty(counts);
-    }
-    uint32_t get_duty()
-    {
-        return PIN::get_duty();
-    }
-    uint32_t get_period_max()
-    {
-        return PIN::get_period_max();
-    }
-    uint32_t get_period_min()
-    {
-        return PIN::get_period_min();
-    }
-    void enable()
-    {
-        PIN::enable();
-    }
-    void disable()
-    {
-        PIN::disable();
-    }
-    bool enabled()
-    {
-        return PIN::enabled();
-    }
-    /// @return the static PWM object instance controlling this pin.
-    static constexpr const PWM *instance()
-    {
-        return &instance_;
-    }
-    static const PwmWrapper instance_;
-};
-
-template <class PIN> const PwmWrapper<PIN> PwmWrapper<PIN>::instance_;
-
-template <class Base> struct PWMPin : public Base
-{
-public:
-    /// Initializes the hardware pin.
-    static void hw_init()
-    {
-        Base::export_pin();
-        Base::disable();
-        Base::set_period(0);
-        Base::set_duty(0);
-        Base::enable();
-    }
-    static void hw_set_to_safe()
-    {
-        Base::set_period(0);
-        Base::set_duty(0);
-        Base::enable();
-    }
-    static void set(bool unused) {}
-    static void set_period(uint32_t nanos)
-    {
-        Base::set_period(nanos);
-    }
-    static uint32_t get_period()
-    {
-        return Base::get_period();
-    }
-    static void set_duty(uint32_t nanos)
-    {
-        Base::set_duty(nanos);
-    }
-    static uint32_t get_duty()
-    {
-        return Base::get_duty();
-    }
-    static void enable()
-    {
-        Base::enable();
-    }
-    static void disable()
-    {
-        Base::disable();
-    }
-    static bool enabled()
-    {
-        return Base::enabled();
-    }
-    static uint32_t get_period_max()
-    {
-        return Base::get_period_max();
-    }
-    static uint32_t get_period_min()
-    {
-        return Base::get_period_min();
-    }
-    /// @return the static PWM instance.
-    static const PWM *instance()
-    {
-        return PwmWrapper<PWMPin<Base>>::instance();
-    }
-};
-
-#define PWM_PIN(NAME, CHIP, NUM) \
-    typedef PWMPin<LinuxPWM<CHIP, NUM>> NAME##_Pin
 
 #endif // __LINUXPWM_HXX
 
