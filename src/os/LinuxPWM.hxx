@@ -63,9 +63,8 @@ public:
         char exportname[50];
         strcpy(exportname,pwmdir);
         strcat(exportname,"/period");
-        FILE *fp = fopen(exportname,"r");
-        if (fp != NULL) {
-            fclose(fp);
+        if (access(exportname, F_OK) != -1)
+        {
             set_period(1);
             return;
         }
@@ -74,7 +73,7 @@ public:
         p = strrchr(exportname,'/');
         p++;
         strcpy(p,"export");
-        fp = fopen(exportname,"w");
+        FILE *fp = fopen(exportname,"w");
         fprintf(fp,"%d\n",channel_);
         fclose(fp);
         set_period(1);
