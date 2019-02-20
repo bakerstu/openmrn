@@ -47,35 +47,58 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 
 class LinuxPWM : public PWM
 {
 public:
-    LinuxPWM(int chip, int channel) : channel_(channel), chip_(chip)
+    LinuxPWM(int chip, int channel) : chip_(chip) , channel_(channel)
     {
+        snprintf(pwmdir,sizeof(pwmdir),
+                 "/sys/class/pwm/pwmchip%d/pwm%d",
+                 chip_,channel_);
     }
     void exportPin()
     {
-        char exportname[40];
-        snprintf(exportname,sizeof(exportname),"/sys/class/pwm/pwmchip%d/export", chip_);
-        FILE *fp = fopen(exportname,"w");
+        char exportname[50];
+        strcpy(exportname,pwmdir);
+        strcat(exportname,"/period");
+        FILE *fp = fopen(exportname,"r");
+        if (fp != NULL) {
+            fclose(fp);
+            set_period(1);
+            return;
+        }
+        char *p = strrchr(exportname,'/');
+        *p = '\0';
+        p = strrchr(exportname,'/');
+        p++;
+        strcpy(p,"export");
+        fp = fopen(exportname,"w");
         fprintf(fp,"%d\n",channel_);
         fclose(fp);
-        enable();
+        set_period(1);
     }       
     void set_period(uint32_t counts) override
     {
         char periodname[60];
-        snprintf(periodname,sizeof(periodname),"/sys/class/pwm/pwmchip%d/pwm%d/period",chip_,channel_);
+        strcpy(periodname,pwmdir);
+        strcat(periodname,"/period");
         FILE *fp = fopen(periodname,"w");
         fprintf(fp,"%d\n",counts);
         fclose(fp);
+        if (counts > 0) {
+            enable();
+        } else {
+            disable();
+        }
     }
     uint32_t get_period() override
     {
         char periodname[60];
         uint32_t counts;
-        snprintf(periodname,sizeof(periodname),"/sys/class/pwm/pwmchip%d/pwm%d/period",chip_,channel_);
+        strcpy(periodname,pwmdir);
+        strcat(periodname,"/period");
         FILE *fp = fopen(periodname,"r");
         fscanf(fp,"%d",&counts);
         fclose(fp);
@@ -84,16 +107,23 @@ public:
     void set_duty(uint32_t counts) override
     {
         char duty_cyclename[60];
-        snprintf(duty_cyclename,sizeof(duty_cyclename),"/sys/class/pwm/pwmchip%d/pwm%d/duty_cycle",chip_,channel_);
+        strcpy(duty_cyclename,pwmdir);
+        strcat(duty_cyclename,"/duty_cycle");
         FILE *fp = fopen(duty_cyclename,"w");
         fprintf(fp,"%d\n",counts);
         fclose(fp);
+        if (counts > 0) {
+            enable();
+        } else {
+            disable();
+        }
     }
     uint32_t get_duty() override
     {
         char duty_cyclename[60];
         uint32_t counts;
-        snprintf(duty_cyclename,sizeof(duty_cyclename),"/sys/class/pwm/pwmchip%d/pwm%d/duty_cycle",chip_,channel_);
+        strcpy(duty_cyclename,pwmdir);
+        strcat(duty_cyclename,"/duty_cycle");
         FILE *fp = fopen(duty_cyclename,"r");
         fscanf(fp,"%d",&counts);
         fclose(fp);
@@ -105,33 +135,37 @@ public:
     }
     uint32_t get_period_min() override
     {
-        return 0;
+        return 1;
     }
     void enable() {
         char enablename[60];
-        snprintf(enablename,sizeof(enablename),"/sys/class/pwm/pwmchip%d/pwm%d/enable",chip_,channel_);
+        strcpy(enablename,pwmdir);
+        strcat(enablename,"/enable");
         int fd = open(enablename,O_WRONLY);
         write(fd,"1\n",2);
         close(fd);
     }
     void disable() {
         char enablename[60];
-        snprintf(enablename,sizeof(enablename),"/sys/class/pwm/pwmchip%d/pwm%d/enable",chip_,channel_);
+        strcpy(enablename,pwmdir);
+        strcat(enablename,"/enable");
         int fd = open(enablename,O_WRONLY);
         write(fd,"0\n",2);
         close(fd);
     }
     bool enabled() {
         char enablename[60], c;
-        snprintf(enablename,sizeof(enablename),"/sys/class/pwm/pwmchip%d/pwm%d/enable",chip_,channel_);
+        strcpy(enablename,pwmdir);
+        strcat(enablename,"/enable");
         int fd = open(enablename,O_RDONLY);
         read(fd,&c,1);
         close(fd);
         return (c == '1');
     }
 private:
-    uint32_t channel_;
-    uint32_t chip_;
+    const uint32_t chip_;
+    const uint32_t channel_;
+    char pwmdir[40];
 };
         
 
