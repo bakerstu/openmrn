@@ -423,7 +423,7 @@ void ExecutorBase::shutdown()
     add(this);
     while (!done_)
     {
-#if defined(ARDUINO)
+#if defined(ARDUINO) && !defined(ESP32)
         delay(1);
 #else
         usleep(100);

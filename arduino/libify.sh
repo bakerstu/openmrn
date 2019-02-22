@@ -144,21 +144,24 @@ rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
 
 copy_file src/freertos_drivers/arduino \
           src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
+          src/freertos_drivers/common/DeviceFile.{hxx,cxx} \
+          src/freertos_drivers/common/Devtab.hxx \
+          src/freertos_drivers/common/Fileio.cxx \
           src/freertos_drivers/common/GpioWrapper.hxx \
-          src/freertos_drivers/arduino/*
+          src/freertos_drivers/common/Select.cxx \
+          src/freertos_drivers/arduino/* \
+          include/freertos/stropts.h
 
-copy_file src/freertos_drivers/esp32 \
-          src/freertos_drivers/esp32/*
+copy_dir src/freertos_drivers \
+          src/freertos_drivers/esp32
 
-copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx
+copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx src/os/OS.cxx
 
 copy_file src/sys include/sys/tree.hxx
 
 copy_file src/utils src/utils/*.{cxx,hxx,c,h}
 
-rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
-    ${TARGET_LIB_DIR}/src/utils/HubDeviceSelect.cxx \
-    ${TARGET_LIB_DIR}/src/utils/HubDeviceSelect.hxx
+rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx
 
 if [ "x$VERBOSE" != "x" ]; then
     echo "Renaming all cxx to cpp under ${TARGET_LIB_DIR}/src"

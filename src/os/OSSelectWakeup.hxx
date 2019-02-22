@@ -41,6 +41,8 @@
 
 #ifdef __FreeRTOS__
 #include "Devtab.hxx"
+#elif defined (ESP32)
+#include "freertos_drivers/arduino/Devtab.hxx"
 #else
 #include <signal.h>
 #endif
@@ -75,7 +77,7 @@ public:
     {
         // Gets the current thread.
         thread_ = os_thread_self();
-#ifdef __FreeRTOS__
+#if defined (__FreeRTOS__) || defined (ESP32)
         Device::select_insert(&selectInfo_);
 #elif defined(ESP_NONOS) || defined(ARDUINO)
 #elif !defined(__WINNT__)
@@ -107,7 +109,7 @@ public:
         }
         if (need_wakeup)
         {
-#ifdef __FreeRTOS__
+#if defined (__FreeRTOS__) || defined (ESP32)
             HASSERT(selectInfo_.event);
             // We cannot destroy the thread ID in the local object.
             Device::SelectInfo copy(selectInfo_);
@@ -126,7 +128,7 @@ public:
         pendingWakeup_ = false;
     }
 
-#ifdef __FreeRTOS__
+#if defined (__FreeRTOS__) || defined (ESP32)
     void wakeup_from_isr()
     {
         pendingWakeup_ = true;
@@ -136,7 +138,9 @@ public:
             Device::SelectInfo copy(selectInfo_);
             int woken;
             Device::select_wakeup_from_isr(&copy, &woken);
+#ifndef ESP32
             os_isr_exit_yield_test(woken);
+#endif
         }
     }
 #endif
@@ -167,12 +171,12 @@ public:
             }
             else
             {
-#ifdef __FreeRTOS__
+#if defined (__FreeRTOS__) || defined (ESP32)
                 Device::select_clear();
 #endif
             }
         }
-#ifdef __FreeRTOS__
+#if defined (__FreeRTOS__) || defined (ESP32)
         int ret =
             Device::select(nfds, readfds, writefds, exceptfds, deadline_nsec);
         if (!ret && pendingWakeup_)
@@ -202,7 +206,7 @@ public:
     }
 
 private:
-#if !defined(__FreeRTOS__) && !defined(__WINNT__)
+#if !defined(__FreeRTOS__) && !defined(__WINNT__) && !defined(ESP32)
     /** This signal is used for the wakeup kill in a pthreads OS. */
     static const int WAKEUP_SIG = SIGUSR1;
 #endif
@@ -212,7 +216,7 @@ private:
     bool inSelect_;
     /// ID of the main thread we are engaged upon.
     os_thread_t thread_;
-#if defined(__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined (ESP32)
     Device::SelectInfo selectInfo_;
 #elif !defined(__WINNT__)
     /// Original signal mask. Used for pselect to reenable the signal we'll be

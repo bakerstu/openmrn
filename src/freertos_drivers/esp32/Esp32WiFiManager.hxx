@@ -113,6 +113,7 @@ private:
 
     /// Background task used by the Esp32WiFiManager to maintain health of any
     /// connections to other nodes.
+    /// @param param is a pointer to the Esp32WiFiManager instance.
     static void *wifi_manager_task(void *param);
 
     /// @return true if we are already connected to the provided IPAddress.
@@ -128,36 +129,32 @@ private:
     bool connect_to_hub(const IPAddress ip, const uint16_t port);
 
     /// Attempts to connect to an mDNS discovered hub.
+    /// @param preferred_hub_hostname is the hostname of the hub this node
+    /// should prefer if found, can be blank.
+    /// @param serviceName is the mDNS service name to search for.
+    /// @param serviceProtocol is the mDNS service protocol to search for.
     /// @return true if we successfully connected to a hub, false otherwise.
     bool connect_to_mdns_hub(const std::string &preferred_hub_hostname,
         const std::string &serviceName, const std::string &serviceProtocol);
 
     /// Performs an orderly shutdown of the hub on this node, any connections
     /// will be closed and removed from the stack.
+    /// @param serviceName is the previously advertised mDNS service name.
+    /// @param serviceProtocol is the previously advertised mDNS service
+    /// protocol.
     void shutdown_hub(const std::string &serviceName,
         const std::string &serviceProtocol);
 
     /// Starts @ref SocketListener for the hub on this node and advertises the
     /// provided mDNS service name details.
-    void start_hub(const std::string &serviceName,
+    /// @param hub_port is the port to start the GcTcpHub on.
+    /// @param serviceName is the mDNS service name to advertise.
+    /// @param serviceProtocol is the mDNS service protocol to advertise.
+    void start_hub(const uint16_t hub_port, const std::string &serviceName,
         const std::string &serviceProtocol);
 
     /// Performs orderly shutdown of any outbound connections from this node.
     void disconnect_from_hubs();
-
-    /// Priority to use for the wifi_manager_task. This is currently set to
-    /// one priority level higher than the arduino-esp32 loopTask. The task
-    /// will primarily be in a sleep state so there will be limited impact on
-    /// the loopTask.
-    static constexpr UBaseType_t WIFI_TASK_PRIORITY = 2;
-
-    /// Stack size for the wifi_manager_task.
-    static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
-
-    /// Interval at which to all TCP/IP connections and establish new outbound
-    /// connections if required.
-    static constexpr TickType_t CONNECTION_CHECK_TICK_INTERVAL =
-        pdMS_TO_TICKS(30000);
 
     /// Handle for the wifi_manager_task that manages the WiFi stack, including
     /// periodic health checks of the connected hubs or clients.

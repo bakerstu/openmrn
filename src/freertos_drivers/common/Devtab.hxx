@@ -35,7 +35,11 @@
 #define _FREERTOS_DRIVERS_COMMON_DEVTAB_HXX_
 
 #include <dirent.h>
+#ifndef ARDUINO
 #include <stropts.h>
+#else
+#include "freertos_drivers/arduino/stropts.h"
+#endif
 #include <sys/types.h>
 #include <sys/select.h>
 #include "os/OS.hxx"

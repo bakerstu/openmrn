@@ -233,7 +233,7 @@ public:
     }
 
 
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined (ESP32)
     /** Post (increment) a semaphore from ISR context.
      * @param woken is the task woken up
      */
@@ -251,7 +251,7 @@ public:
         os_sem_wait(&handle);
     }
 
-#if !(defined(ESP_NONOS) || defined(ARDUINO))
+#if defined (ESP32) || !(defined(ESP_NONOS) || defined(ARDUINO))
     /** Wait on (decrement) a semaphore with timeout condition.
      * @param timeout timeout in nanoseconds, else OPENMRN_OS_WAIT_FOREVER to wait forever
      * @return 0 upon success, else -1 with errno set to indicate error
@@ -559,7 +559,7 @@ private:
     ~OSTime();
 };
 
-#if defined (__FreeRTOS__)
+#if defined (__FreeRTOS__) || defined (ESP32)
 /** Event bit mask type */
 typedef EventBits_t OSEventType;
 /** Abstraction to a group of event bits that can support a masked pend.
@@ -703,6 +703,17 @@ private:
     /** handle to event object */
     EventGroupHandle_t event;
 };
+
+#ifdef ESP32
+// The ESP32 doesn't guarantee support for vTaskSetApplicationTaskTag so an
+// alternative is used instead.
+extern "C" {
+ThreadPriv *getCurrentThreadPriv();
+void saveCurrentThreadPriv(ThreadPriv *priv);
+void eraseCurrentThreadPriv();
+}
+#endif
+
 #elif defined(ARDUINO)
 
 #include <Arduino.h>
@@ -714,8 +725,6 @@ extern unsigned critical_nesting;
 extern uint32_t SystemCoreClock;
 }
 #define cm3_cpu_clock_hz SystemCoreClock
-
-#if !defined(ESP32)
 
 #define portENTER_CRITICAL()                                                   \
     do                                                                         \
@@ -738,8 +747,6 @@ extern uint32_t SystemCoreClock;
     } while (0)
 
 #define configKERNEL_INTERRUPT_PRIORITY (0xa0)
-
-#endif // ESP32
 
 #endif  // freertos
 

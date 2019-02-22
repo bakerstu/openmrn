@@ -320,6 +320,10 @@ int FileIO::fcntl(File *file, int cmd, unsigned long data)
     }
 }
 
+// The ESP32 VFS layer provides the functions below and will have conflicts
+// if these are used instead.
+#ifndef ESP32
+
 extern "C" {
 
 /** Open a file or device.
@@ -504,3 +508,5 @@ int fcntl(int fd, int cmd, ...)
 }
 
 }
+
+#endif // ESP32

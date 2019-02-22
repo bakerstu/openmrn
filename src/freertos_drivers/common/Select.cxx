@@ -36,6 +36,25 @@
 
 #include "Devtab.hxx"
 
+#ifdef ESP32
+#include "os/OS.hxx"
+#include <freertos/task.h>
+
+// Since the ESP32 FreeRTOS is older it does not define a global critical
+// section for the portENTER_CRITICAL/portEXIT_CRITICAL APIs. The code below
+// defines a local mutex which is passed into the respective APIs.
+static portMUX_TYPE selectMux = portMUX_INITIALIZER_UNLOCKED;
+
+#define ENTER_CRITICAL_SECTION() portENTER_CRITICAL(&selectMux)
+#define EXIT_CRITICAL_SECTION() portEXIT_CRITICAL(&selectMux)
+
+#else
+
+#define ENTER_CRITICAL_SECTION() portENTER_CRITICAL()
+#define EXIT_CRITICAL_SECTION() portEXIT_CRITICAL()
+
+#endif
+
 /** event used to wakeup select calls */
 static OSEvent wakeup;
 
@@ -45,8 +64,11 @@ static OSEvent wakeup;
 static OSEventType get_event()
 {
     static int thread_count = 0;
+#ifndef ESP32
     ThreadPriv *priv = (ThreadPriv*)xTaskGetApplicationTaskTag(NULL);
-
+#else
+    ThreadPriv *priv = getCurrentThreadPriv();
+#endif
     if (priv->selectEventBit == 0)
     {
         if(thread_count >= OSEvent::number_of_bits())
@@ -62,9 +84,9 @@ static OSEventType get_event()
 
 void Device::select_clear()
 {
-    portENTER_CRITICAL();
+    ENTER_CRITICAL_SECTION();
     OSEventType event = get_event();
-    portEXIT_CRITICAL();
+    EXIT_CRITICAL_SECTION();
     wakeup.clear(event);
 }
 
@@ -99,9 +121,9 @@ int Device::select(int nfds, fd_set *readfds, fd_set *writefds,
     FD_ZERO(&wr_result);
     FD_ZERO(&ex_result);
 
-    portENTER_CRITICAL();
+    ENTER_CRITICAL_SECTION();
     OSEventType event = get_event();
-    portEXIT_CRITICAL();
+    EXIT_CRITICAL_SECTION();
 
     bool first = true;
 
@@ -184,9 +206,9 @@ void Device::select_insert(SelectInfo *info)
     /** @todo do we need the critical lock here, or are we always already
      * locked?
      */
-    portENTER_CRITICAL();
+    ENTER_CRITICAL_SECTION();
     info->event |= get_event();
-    portEXIT_CRITICAL();
+    EXIT_CRITICAL_SECTION();
 }
 
 /** Wakeup the list of clients needing woken,
@@ -194,13 +216,13 @@ void Device::select_insert(SelectInfo *info)
  */
 void Device::select_wakeup(SelectInfo *info)
 {
-    portENTER_CRITICAL();
+    ENTER_CRITICAL_SECTION();
     if (info->event != 0)
     {
         wakeup.set(info->event);
         info->event = 0;
     }
-    portEXIT_CRITICAL();
+    EXIT_CRITICAL_SECTION();
 }
 
 /** Wakeup the list of clients needing woken,
@@ -217,7 +239,7 @@ void Device::select_wakeup_from_isr(SelectInfo *info, int *woken)
     {
 #ifdef GCC_CM3
         portYIELD_FROM_ISR(*woken);
-#elif defined(THUMB_INTERWORK) // armv4t
+#elif defined(THUMB_INTERWORK) /* armv4t */ || defined(ESP32)
         if (*woken)
         {
             portYIELD_FROM_ISR();

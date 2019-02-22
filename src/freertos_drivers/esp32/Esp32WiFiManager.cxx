@@ -49,6 +49,10 @@ using openlcb::TcpDefs;
 using openlcb::TcpManualAddress;
 using std::string;
 
+// Enable select support on the ESP32 since it supports the usage of select for
+// tcp/ip sockets.
+OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
+
 /// String values for wifi_status_t values, WL_NO_SHIELD has been intentionally
 /// omitted as its value is 255 and is explicitly checked for.
 static constexpr char const *WIFI_STATUS[] =
@@ -62,20 +66,42 @@ static constexpr char const *WIFI_STATUS[] =
     "WiFi disconnected"     // WL_DISCONNECTED
 };
 
+/// String values for openlcb::SocketClientParams::SearchMode, used when
+/// logging the configuration used by the Esp32WiFiManager.
 static constexpr const char *CLIENT_SEARCH_MODE_STRINGS[] =
 {
-    "auto, manual",
-    "manual, auto",
-    "auto only",
-    "manual only"
+    "auto, manual",         // AUTO_MANUAL
+    "manual, auto",         // MANUAL_AUTO
+    "auto only",            // AUTO_ONLY
+    "manual only"           // MANUAL_ONLY
 };
 
+/// String values used for boolean flags in the CDI, used when logging the
+/// configuration used by the Esp32WiFiManager.
 static constexpr const char *BOOLEAN_DISPLAY_STRINGS[] =
 {
     "No",
     "Yes"
 };
 
+/// Priority to use for the wifi_manager_task. This is currently set to
+/// one priority level higher than the arduino-esp32 loopTask. The task
+/// will primarily be in a sleep state so there will be limited impact on
+/// the loopTask.
+static constexpr UBaseType_t WIFI_TASK_PRIORITY = 2;
+
+/// Stack size for the wifi_manager_task.
+static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
+
+/// Interval at which to all TCP/IP connections and establish new outbound
+/// connections if required.
+static constexpr TickType_t CONNECTION_CHECK_TICK_INTERVAL = pdMS_TO_TICKS(30000);
+
+/// Interval at which to check if the GcTcpHub has started or not.
+static constexpr TickType_t HUB_STARTUP_DELAY = pdMS_TO_TICKS(50); 
+
+// With this constructor being used the Esp32WiFiManager will manage the
+// WiFi connection, mDNS system and the hostname of the ESP32.
 Esp32WiFiManager::Esp32WiFiManager(const char *ssid, const char *password,
     OpenMRN *openmrn, const WiFiConfiguration &cfg) :
     DefaultConfigUpdateListener(), ssid_(ssid), password_(password),
@@ -106,6 +132,8 @@ Esp32WiFiManager::Esp32WiFiManager(const char *ssid, const char *password,
     }
 }
 
+// With this constructor being used, it will be the responsibility of the
+// application to manage the WiFi and mDNS systems.
 Esp32WiFiManager::Esp32WiFiManager(OpenMRN *openmrn,
     const WiFiConfiguration &cfg) : DefaultConfigUpdateListener(), cfg_(cfg),
     manageWiFi_(false), openmrn_(openmrn)
@@ -113,21 +141,25 @@ Esp32WiFiManager::Esp32WiFiManager(OpenMRN *openmrn,
     // Nothing to do here.
 }
 
+
 ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
     int fd, bool initial_load, BarrierNotifiable *done)
 {
     AutoNotify n(done);
     LOG(VERBOSE, "Esp32WiFiManager::apply_configuration(%d, %d)", fd,
         initial_load);
+
     // Cache the fd for later use by the wifi background task.
     configFd_ = fd;
     configReloadRequested_ = initial_load;
 
-    // Load our full config set into memory to do an MD5 check against our last
+    // Load the CDI entry into memory to do an MD5 check against our last
     // loaded configuration so we can avoid reloading configuration when there
-    // are no interesting changes.
+    // are no interesting changes. MD5Builder from the arduino-esp32 project is
+    // used for a relatively lightweight hash of the CDI entry.
     MD5Builder md5;
     std::unique_ptr<uint8_t[]> md5buf(new uint8_t[cfg_.size()]);
+
     // If we are unable to seek to the right position in the persistent storage
     // give up and request a reboot.
     if(lseek(fd, cfg_.offset(), SEEK_SET) != cfg_.offset())
@@ -152,6 +184,7 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
     LOG(VERBOSE, "existing config MD5: \"%s\", new MD5: \"%s\"",
         configMD5_.c_str(), configMD5.c_str());
 
+    // if this is not the initial loading of the CDI entry check the MD5 value.
     if(!initial_load)
     {
         // Check the MD5 against our last known MD5, it doesn't matter which is
@@ -171,6 +204,8 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
     }
     else
     {
+        // This is the initial loading of the CDI entry, start the background
+        // task that will manage the node's WiFi connection(s).
         start_wifi_task();
     }
 
@@ -183,9 +218,11 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
     return ConfigUpdateListener::UpdateAction::UPDATED;
 }
 
+// Factory reset handler for the WiFiConfiguration CDI entry.
 void Esp32WiFiManager::factory_reset(int fd)
 {
     LOG(VERBOSE, "Esp32WiFiManager::factory_reset(%d)", fd);
+
     // General WiFi configuration settings.
     CDI_FACTORY_RESET(cfg_.wifi_sleep);
 
@@ -216,11 +253,33 @@ void Esp32WiFiManager::factory_reset(int fd)
     CDI_FACTORY_RESET(cfg_.link_config().reconnect);
 }
 
+// If the Esp32WiFiManager is setup to manage the WiFi system, the following
+// steps are executed:
+// 1) Set the WiFi mode to STATION (WIFI_STA)
+// 2) Shutdown the WiFi system, this helps improve reliability in connecting
+// to the configured SSID.
+// 3) Enable the automatic reconnect to the SSID, this is managed internally
+// by the WiFi library provided with arduino-esp32. The ESP-IDF WiFi APIs do
+// not support this by default.
+// 4) Set the WiFi hostname based on the generated hostname.
+// 5) Begin the SSID connection process
+// 6) Verify successful SSID connection, if no connection was established
+// trigger an abort with FATAL log message.
+// 7) Start the mDNS system using the generated hostname.
 void Esp32WiFiManager::start_wifi_system()
 {
-    // If we do not need to manage the WiFi / MDNS systems exit early.
+    // If we do not need to manage the WiFi / mDNS systems exit early.
     if(!manageWiFi_)
     {
+        // Verify that the WiFi driver is not set to OFF (WIFI_NONE).
+        HASSERT(WiFi.getMode() != WIFI_MODE_NULL);
+
+        // Verify that the WiFi driver is already connected.
+        HASSERT(WiFi.isConnected());
+
+        // Unforutnately there is no way to verify mDNS has been started by
+        // the application so it is not verified, all calls will likely fail
+        // at runtime though.
         return;
     }
 
@@ -286,12 +345,14 @@ void Esp32WiFiManager::start_wifi_system()
     MDNS.begin(hostname_.c_str());
 }
 
+// Starts a background task for the Esp32WiFiManager.
 void Esp32WiFiManager::start_wifi_task()
 {
     os_thread_create(&wifiTaskHandle_, "OpenMRN-WiFiMgr", WIFI_TASK_PRIORITY,
         WIFI_TASK_STACK_SIZE, wifi_manager_task, this);
 }
 
+// Checks if there is an active connection to the ip/port.
 bool Esp32WiFiManager::is_connected_to(const IPAddress ip, const uint16_t port)
 {
     // Check if the passed ip is this node, port doesn't matter.
@@ -315,6 +376,7 @@ bool Esp32WiFiManager::is_connected_to(const IPAddress ip, const uint16_t port)
     return false;
 }
 
+// attempts to connect to a remote hub.
 bool Esp32WiFiManager::connect_to_hub(const IPAddress ip, const uint16_t port)
 {
     if (is_connected_to(ip, port))
@@ -323,7 +385,6 @@ bool Esp32WiFiManager::connect_to_hub(const IPAddress ip, const uint16_t port)
             ip.toString().c_str(), port);
         return true;
     }
-
 
     // Try and connect the provided ip and port as we are not currently
     // connected to it.
@@ -347,6 +408,9 @@ bool Esp32WiFiManager::connect_to_hub(const IPAddress ip, const uint16_t port)
     return true;
 }
 
+// Attempts to connect to an mDNS discovered hub. If a successful connection
+// is made it is recorded in the CDI entry under
+// WiFiConfiguration.link_config.last_address.
 bool Esp32WiFiManager::connect_to_mdns_hub(const string &preferred_hub_hostname,
     const string &serviceName, const string &serviceProtocol)
 {
@@ -383,6 +447,8 @@ bool Esp32WiFiManager::connect_to_mdns_hub(const string &preferred_hub_hostname,
     return connected;
 }
 
+// Shuts down the GcTcpHub (if started). No attempt is made at this time to
+// disconnect any clients from the hub.
 void Esp32WiFiManager::shutdown_hub(const string &serviceName,
     const string &serviceProtocol)
 {
@@ -392,7 +458,8 @@ void Esp32WiFiManager::shutdown_hub(const string &serviceName,
         LOG(INFO, "[HUB] Removing mDNS advertisement %s.%s",
             serviceName.c_str(), serviceProtocol.c_str());
 
-        // Note: not using MDNS wrapper as it doesn't expose this method.
+        // Note: not using ESPmDNS as it does not have a method for
+        // deregistering an advertised service name.
         mdns_service_remove(serviceName.c_str(), serviceProtocol.c_str());
     }
 
@@ -400,16 +467,17 @@ void Esp32WiFiManager::shutdown_hub(const string &serviceName,
     hub_.reset(nullptr);
 }
 
-void Esp32WiFiManager::start_hub(const string &serviceName,
-    const string &serviceProtocol)
+// Starts a GcTcpHub and advertises the configured mDNS service name.
+void Esp32WiFiManager::start_hub(const uint16_t hub_port,
+    const string &serviceName, const string &serviceProtocol)
 {
-    uint16_t hub_port = CDI_READ_TRIMMED(cfg_.hub_config().port, configFd_);
     LOG(INFO, "[HUB] Starting TCP/IP listener on port %d", hub_port);
     hub_.reset(new GcTcpHub(openmrn_->stack()->can_hub(), hub_port));
 
+    // wait for the hub to complete it's startup tasks
     while(!hub_->is_started())
     {
-        vTaskDelay(pdMS_TO_TICKS(250));
+        vTaskDelay(HUB_STARTUP_DELAY);
     }
 
     LOG(INFO, "[HUB] Advertising %s.%s:%d via mDNS",
@@ -419,6 +487,7 @@ void Esp32WiFiManager::start_hub(const string &serviceName,
     MDNS.addService(serviceName.c_str(), serviceProtocol.c_str(), hub_port);
 }
 
+// disconnects any outbound connections to other hubs.
 void Esp32WiFiManager::disconnect_from_hubs()
 {
     for (const auto &pair : hubConnections_)
@@ -433,6 +502,8 @@ void Esp32WiFiManager::disconnect_from_hubs()
     hubConnections_.clear();
 }
 
+// macro for splitting a service name since the ESPmDNS library requires the
+// service name and service protocol to be split.
 #define SPLIT_MDNS_SERVICE_NAME(service_name, service_protocol) \
     if(service_name.length() && service_name.find('.', 0) != string::npos) \
     { \
@@ -441,23 +512,27 @@ void Esp32WiFiManager::disconnect_from_hubs()
         service_name.resize(split_loc); \
     }
 
+// Background task for the Esp32WiFiManager. This handles all outbound
+// connection attempts, configuration loading and making this node as a hub.
 void *Esp32WiFiManager::wifi_manager_task(void *param)
 {
     Esp32WiFiManager *wifi = static_cast<Esp32WiFiManager *>(param);
 
+    // Start the WiFi system before proceeding with remaining tasks.
     wifi->start_wifi_system();
 
     // Cache of the currently running configuration, these will be updated
     // if/when configReloadRequested_ is set to true by the apply_configuration
     // method.
     bool hub_enabled = false;
+    string hub_service_name = TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN;
+    string hub_service_protocol = TcpDefs::MDNS_PROTOCOL_TCP;
+    uint16_t hub_port = TcpClientDefaultParams::DEFAULT_PORT;
     bool reconnect_to_last_hub = true;
     IPAddress last_hub_ip = INADDR_NONE;
     uint16_t last_hub_port = TcpClientDefaultParams::DEFAULT_PORT;
     SocketClientParams::SearchMode client_mode =
         SocketClientParams::SearchMode::AUTO_MANUAL;
-    string hub_service_name = TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN;
-    string hub_service_protocol = TcpDefs::MDNS_PROTOCOL_TCP;
     string tcp_service_name = TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN;
     string tcp_service_protocol = TcpDefs::MDNS_PROTOCOL_TCP;
     string auto_hub_hostname = "";
@@ -490,6 +565,7 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             hub_enabled = CDI_READ_TRIMMED(hub.enabled, wifi->configFd_);
             hub_service_name = hub.service_name().read(wifi->configFd_);
             hub_service_protocol = TcpDefs::MDNS_PROTOCOL_TCP;
+            hub_port = CDI_READ_TRIMMED(hub.port, wifi->configFd_);
             SPLIT_MDNS_SERVICE_NAME(hub_service_name, hub_service_protocol)
 
             auto_hub_hostname = autoaddr.host_name().read(wifi->configFd_);
@@ -502,12 +578,6 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             
             manual_hub_host = manaddr.ip_address().read(wifi->configFd_);
             manual_hub_port = CDI_READ_TRIMMED(manaddr.port, wifi->configFd_);
-
-            // This can make the wifi much more responsive. Since we are
-            // plugged in we don't care about the increased power usage. This
-            // should be disabled when on battery via CDI.
-            WiFi.setSleep(CDI_READ_TRIMMED(wifi->cfg_.wifi_sleep,
-                wifi->configFd_));
 
             reconnect_to_last_hub = CDI_READ_TRIMMED(link_cfg.reconnect,
                 wifi->configFd_);
@@ -540,10 +610,15 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
                 }
             }
 
+            // This can make the wifi much more responsive. This is disabled by
+            // default and should only be enabled if the node is plugged in to
+            // a regulated power supply (not a battery).
+            WiFi.setSleep(CDI_READ_TRIMMED(wifi->cfg_.wifi_sleep,
+                wifi->configFd_));
+
             LOG(INFO, "Esp32WiFiManager Configuration:");
             LOG(INFO, "Hub (enabled:%s, port: %d, mDNS: \"%s.%s\")",
-                BOOLEAN_DISPLAY_STRINGS[hub_enabled],
-                CDI_READ_TRIMMED(hub.port, wifi->configFd_),
+                BOOLEAN_DISPLAY_STRINGS[hub_enabled], hub_port,
                 hub_service_name.c_str(), hub_service_protocol.c_str());
             LOG(INFO, "Client (search-mode: %s, reconnect: %s, last-hub: "
                 "%s:%d, auto-addr-mDNS: \"%s.%s\", auto-pref-hub: \"%s\", "
@@ -560,11 +635,13 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             // If this node is configured as a hub, start the listener.
             if(hub_enabled)
             {
-                wifi->start_hub(hub_service_name, hub_service_protocol);
+                wifi->start_hub(hub_port, hub_service_name, hub_service_protocol);
             }
             wifi->configReloadRequested_ = false;
         }
 
+        // If we do not have a connection to a hub attempt to connect to one
+        // based on the loaded node configuration.
         if (wifi->hubConnections_.empty())
         {
             // Flag to track our connection state.
@@ -578,42 +655,53 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
                     last_hub_port);
             }
 
-            // If we have a manual hostname try and we have not
-            // successfully resolved it to an IP address try to resolve
-            // it now.
-            if (manual_hub_host.length() > 0 &&
-                manual_hub_ip == INADDR_NONE &&
-                !manual_hub_ip.fromString(manual_hub_host.c_str()))
-            {
-                // Note this call may block up to 2sec.
-                manual_hub_ip = MDNS.queryHost(manual_hub_host.c_str());
-
-                // Check if MDNS resolver was able to resolve it to a valid
-                // ip address.
-                if(manual_hub_ip == INADDR_NONE)
-                {
-                    LOG(WARNING,
-                        "[CLIENT] Unable to resolve the manually configured "
-                        "hostname \"%s\" to an IP.",
-                        manual_hub_host.c_str());
-                }
-            }
-
             // Check if we are in manual-auto or manual-only and attempt to
             // connect to the manually configured hub if we successfully
             // resolved the hostname to an ip.
             if(!connected &&
                 (client_mode == SocketClientParams::SearchMode::MANUAL_AUTO ||
-                client_mode == SocketClientParams::SearchMode::MANUAL_ONLY) &&
-                manual_hub_ip != INADDR_NONE)
+                client_mode == SocketClientParams::SearchMode::MANUAL_ONLY))
             {
-                connected = wifi->connect_to_hub(manual_hub_ip,
-                    manual_hub_port);
+                // If we have a manual hostname try and we have not
+                // successfully resolved it to an IP address try to resolve
+                // it now.
+                if (manual_hub_host.length() > 0 &&
+                    manual_hub_ip == INADDR_NONE &&
+                    !manual_hub_ip.fromString(manual_hub_host.c_str()))
+                {
+                    // Note this call can block up to 2sec.
+                    manual_hub_ip = MDNS.queryHost(manual_hub_host.c_str());
+
+                    // if mDNS failed to resolve the hostname try normal DNS
+                    if(manual_hub_ip == INADDR_NONE)
+                    {
+                        // no error check is done here as we will check the
+                        // resolved IP below.
+                        WiFi.hostByName(manual_hub_host.c_str(), manual_hub_ip);
+                    }
+
+                    // Check if mDNS resolver was able to resolve it to a valid
+                    // ip address.
+                    if(manual_hub_ip == INADDR_NONE)
+                    {
+                        LOG(WARNING,
+                            "[CLIENT] Unable to resolve the manually "
+                            "configured hostname \"%s\" to an IP.",
+                            manual_hub_host.c_str());
+                    }
+                }
+
+                // if we have resolved the hub's hostname to an IP attempt to
+                // connect.
+                if(manual_hub_ip != INADDR_NONE)
+                {
+                    connected = wifi->connect_to_hub(manual_hub_ip,
+                        manual_hub_port);
+                }
             }
 
-            // If we didn't connected to a manually configured hub and we
-            // are in one of the auto modes try and connect to an mDNS
-            // discovered hub.
+            // If we haven't connected to a hub and we are in one of the auto
+            // modes try discovering and connecting to a hub via mDNS.
             if (!connected &&
                 client_mode != SocketClientParams::SearchMode::MANUAL_ONLY)
             {
@@ -629,10 +717,6 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             {
                 // If we didn't connect to any hubs via mDNS, try and
                 // connect to a manually configured hub.
-                // NOTE: there is no check that we connected successfully
-                // here as we will loop through and check again for
-                // automatic entries and re-enter this block if we don't
-                // connect to one.
                 connected = wifi->connect_to_hub(manual_hub_ip,
                     manual_hub_port);
             }
@@ -655,22 +739,22 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
                 // connection has died, try to reconnect
                 if (!pair.first->reconnect())
                 {
-                    // remote hub is gone, remove it from the stack
+                    // reconnect failed, consider it a dead connection.
                     wifi->openmrn_->remove_port(pair.second);
                     deadHubConnections.push_back(pair.first);
                 }
             }
         }
+
         LOG(VERBOSE, "[CLIENT] %d active connections, %d pending cleanup.",
             wifi->hubConnections_.size() - deadHubConnections.size(),
             deadHubConnections.size());
+        // Cleanup any dead connections.
         for (auto client : deadHubConnections)
         {
             auto it = wifi->hubConnections_.find(client);
-            if (it != wifi->hubConnections_.end())
-            {
-                wifi->hubConnections_.erase(it);
-            }
+            HASSERT(it != wifi->hubConnections_.end());
+            wifi->hubConnections_.erase(it);
             delete client;
         }
 

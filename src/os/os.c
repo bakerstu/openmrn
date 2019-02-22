@@ -320,12 +320,15 @@ extern const void* stack_malloc(unsigned long length);
  * @param arg metadata for entering the thread
  */
 #if defined (__FreeRTOS__) || defined (ESP32)
+
 static void os_thread_start(void *arg)
 {
     ThreadPriv *priv = arg;
-#ifndef ESP32 // vTaskSetApplicationTaskTag is not supported on ESP32
+#ifndef ESP32 // vTaskSetApplicationTaskTag is not guaranteed to exist on ESP32
     vTaskSetApplicationTaskTag(NULL, arg);
     _impure_ptr = priv->reent;
+#else
+    saveThreadPriv(priv);
 #endif // ESP32
     (*priv->entry)(priv->arg);
 
@@ -344,6 +347,8 @@ static void os_thread_start(void *arg)
     xTaskResumeAll();
 
     free(priv->reent);
+#else
+    eraseCurrentThreadPriv();
 #endif // ESP32
 
     free(priv);
@@ -444,8 +449,8 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     
     priv->entry = start_routine;
     priv->arg = arg;
-#ifndef ESP32
     priv->selectEventBit = 0;
+#ifndef ESP32
     priv->reent = allocate_reent();
 #endif // ESP32
 

@@ -49,6 +49,27 @@
 #include <esp_task.h>
 #include <esp_task_wdt.h>
 
+// Check for and prevent namespace polution on the ESP32 by checking for
+// specific header defines from VFS libraries which will polute the global
+// namespace if not correctly handled.
+#ifdef _SD_H_
+#error "OpenMRN.h must be included prior to SD.h to prevent namespace polution."
+#elif defined(FS_H)
+#error "OpenMRN.h must be included prior to FS.h to prevent namespace polution."
+#elif defined(_SDMMC_H_)
+#error "OpenMRN.h must be included prior to SD_MMC.h to prevent namespace polution."
+#elif defined(_SPIFFS_H_)
+#error "OpenMRN.h must be included prior to SPIFFS.h to prevent namespace polution."
+#elif defined(_FFAT_H_)
+#error "OpenMRN.h must be included prior to FFat.h to prevent namespace polution."
+#endif
+
+// include the FS base library which is used by the various VFS libraries
+// above, by including it here we can prevent some of the namespace polution
+// by this library with the define below.
+#define FS_NO_GLOBALS
+#include <FS.h>
+
 /// Default stack size to use for all OpenMRN tasks on the ESP32 platform.
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
