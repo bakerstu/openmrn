@@ -36,18 +36,21 @@
 
 #include <unistd.h>
 
+#include "openmrn_features.h"
 #include "utils/Atomic.hxx"
 #include "os/os.h"
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_DEVICE_SELECT
 #include "Devtab.hxx"
-#else
+#endif
+
+#if OPENMRN_HAVE_PSELECT
 #include <signal.h>
 #endif
 
 #ifdef __WINNT__
 #include <winsock2.h>
-#else
+#elif OPENMRN_HAVE_SELECT
 #include <sys/select.h>
 #endif
 
@@ -75,10 +78,9 @@ public:
     {
         // Gets the current thread.
         thread_ = os_thread_self();
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_DEVICE_SELECT
         Device::select_insert(&selectInfo_);
-#elif defined(ESP_NONOS) || defined(ARDUINO)
-#elif !defined(__WINNT__)
+#elif OPENMRN_HAVE_PSELECT
         // Blocks SIGUSR1 in the signal mask of the current thread.
         sigset_t usrmask;
         HASSERT(!sigemptyset(&usrmask));
@@ -107,14 +109,16 @@ public:
         }
         if (need_wakeup)
         {
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_DEVICE_SELECT
             HASSERT(selectInfo_.event);
             // We cannot destroy the thread ID in the local object.
             Device::SelectInfo copy(selectInfo_);
             Device::select_wakeup(&copy);
-#elif defined(__WINNT__) || defined(ESP_NONOS) || defined(ARDUINO)
-#else
+#elif OPENMRN_HAVE_PSELECT
             pthread_kill(thread_, WAKEUP_SIG);
+#elif defined(ESP32)
+#elif !defined(OPENMRN_FEATURE_SINGLE_THREADED)
+            
 #endif
         }
     }
@@ -167,12 +171,12 @@ public:
             }
             else
             {
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_DEVICE_SELECT
                 Device::select_clear();
 #endif
             }
         }
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_DEVICE_SELECT
         int ret =
             Device::select(nfds, readfds, writefds, exceptfds, deadline_nsec);
         if (!ret && pendingWakeup_)
@@ -180,18 +184,20 @@ public:
             ret = -1;
             errno = EINTR;
         }
-#elif defined(__WINNT__) || defined(ESP_NONOS) || defined(ESP32)
-        struct timeval timeout;
-        timeout.tv_sec = deadline_nsec / 1000000000;
-        timeout.tv_usec = (deadline_nsec / 1000) % 1000000;
-        int ret =
-            ::select(nfds, readfds, writefds, exceptfds, &timeout);
-#else
+#elif OPENMRN_HAVE_PSELECT
         struct timespec timeout;
         timeout.tv_sec = deadline_nsec / 1000000000;
         timeout.tv_nsec = deadline_nsec % 1000000000;
         int ret =
             ::pselect(nfds, readfds, writefds, exceptfds, &timeout, &origMask_);
+#elif OPENMRN_HAVE_SELECT
+        struct timeval timeout;
+        timeout.tv_sec = deadline_nsec / 1000000000;
+        timeout.tv_usec = (deadline_nsec / 1000) % 1000000;
+        int ret =
+            ::select(nfds, readfds, writefds, exceptfds, &timeout);
+#elif !defined(OPENMRN_FEATURE_SINGLE_THREADED)
+        #error no select implementation in multi threaded OS.
 #endif
         {
             AtomicHolder l(this);
@@ -202,7 +208,7 @@ public:
     }
 
 private:
-#if !defined(__FreeRTOS__) && !defined(__WINNT__)
+#if OPENMRN_HAVE_PSELECT
     /** This signal is used for the wakeup kill in a pthreads OS. */
     static const int WAKEUP_SIG = SIGUSR1;
 #endif
@@ -212,9 +218,10 @@ private:
     bool inSelect_;
     /// ID of the main thread we are engaged upon.
     os_thread_t thread_;
-#if defined(__FreeRTOS__)
+#if OPENMRN_FEATURE_DEVICE_SELECT
     Device::SelectInfo selectInfo_;
-#elif !defined(__WINNT__)
+#endif    
+#if OPENMRN_HAVE_PSELECT
     /// Original signal mask. Used for pselect to reenable the signal we'll be
     /// using to wake up.
     sigset_t origMask_;

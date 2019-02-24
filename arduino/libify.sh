@@ -132,7 +132,7 @@ function copy_dir() {
 copy_file . arduino/library.json arduino/library.properties arduino/keywords.txt
 copy_dir . arduino/examples
 
-copy_file src arduino/OpenMRN.{h,cpp} include/{can_frame.h,nmranet_config.h} include/freertos/endian.h
+copy_file src arduino/OpenMRN.{h,cpp} include/{can_frame.h,nmranet_config.h,openmrn_features.h} include/freertos/endian.h
 
 copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/Packet.cxx
 copy_file src/executor src/executor/*.hxx src/executor/*.cxx
