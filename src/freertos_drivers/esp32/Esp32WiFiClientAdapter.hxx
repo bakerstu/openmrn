@@ -38,6 +38,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include "utils/logging.h"
 
 class Esp32WiFiClientAdapter
 {
@@ -62,6 +63,8 @@ public:
     {
         if (!connected())
         {
+            LOG(VERBOSE, "EOF detected for fd: %d, %d (%s)", client_.fd(),
+                errno, strerror(errno));
             return 0;
         }
         int fd = client_.fd();
@@ -93,11 +96,17 @@ public:
     /// @param len length of byte stream to be transmitted.
     size_t write(const char *buffer, size_t len)
     {
+        size_t bytesWritten = 0;
         if (connected())
         {
-            return client_.write(buffer, len);
+            bytesWritten = client_.write(buffer, len);
+            if(!bytesWritten)
+            {
+                LOG(VERBOSE, "EOF detected for fd: %d, %d (%s)", client_.fd(),
+                    errno, strerror(errno));
+            }
         }
-        return 0;
+        return bytesWritten;
     }
 
     /// @return the number of bytes available to read from the underlying WiFiClient.
@@ -107,6 +116,8 @@ public:
         {
             return client_.available();
         }
+        LOG(VERBOSE, "EOF detected for fd: %d, %d (%s)", client_.fd(), errno,
+            strerror(errno));
         return 0;
     }
 
@@ -120,6 +131,11 @@ public:
         if (connected())
         {
             bytesRead = client_.read((uint8_t *)buffer, len);
+        }
+        if(!bytesRead)
+        {
+            LOG(VERBOSE, "EOF detected for fd: %d, %d (%s)", client_.fd(),
+                errno, strerror(errno));
         }
         return bytesRead;
     }
@@ -173,6 +189,8 @@ public:
     /// reused.
     void stop()
     {
+        LOG(VERBOSE, "Disconnecting from %s:%d on fd: %d",
+            remoteIP_.toString().c_str(), remotePort_, client_.fd());
         client_.stop();
         remoteIP_ = INADDR_NONE;
         remotePort_ = 0;
