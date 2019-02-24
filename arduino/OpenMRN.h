@@ -355,6 +355,19 @@ public:
         }
     }
 
+    void start_executor_thread()
+    {
+        haveExecutorThread_ = true;
+        xTaskCreate(openmrn_background_task, "OpenMRN", OPENMRN_STACK_SIZE,
+            this, OPENMRN_TASK_PRIORITY, nullptr);
+    }
+
+    static void openmrn_background_task(void *arg)
+    {
+        OpenMRN *me = static_cast<OpenMRN *>(arg);
+        me->stack_->executor()->thread_body();
+    }
+
     /// Adds a serial port to the stack speaking the gridconnect protocol, for
     /// example to do a USB connection to a computer. This is the protocol that
     /// USB-CAN adapters for LCC are speaking to the computer.
@@ -449,7 +462,10 @@ private:
     /// Callback from the loop() method. Internally called.
     void run() override
     {
-        stack_->executor()->loop_some();
+        if (!haveExecutorThread_)
+        {
+            stack_->executor()->loop_some();
+        }
     }
 
     /// Storage space for the OpenLCB stack. Will be constructed in init().
@@ -457,6 +473,9 @@ private:
 
     /// List of objects we need to call in each loop iteration.
     vector<Executable *> loopMembers_{{this}};
+
+    /// True if there is a separate thread running the executor.
+    bool haveExecutorThread_{false};
 };
 
 #endif // _ARDUINO_OPENMRN_H_

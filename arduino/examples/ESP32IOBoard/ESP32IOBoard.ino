@@ -37,6 +37,7 @@
 #include <SPIFFS.h>
 #include <WiFi.h>
 #include <vector>
+#include "../vfs/esp_vfs_dev.h"
 
 #include <OpenMRN.h>
 #include <openlcb/TcpDefs.hxx>
@@ -50,8 +51,8 @@
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
 
-#define USE_WIFI
-// #define USE_CAN
+//#define USE_WIFI
+#define USE_CAN
 
 // Uncomment the line below to have this node advertise itself via mDNS as a
 // hub. When this is enabled, other devices can find and connect to this node
@@ -336,6 +337,9 @@ void setup()
 
     // Start the OpenMRN stack
     openmrn.begin();
+    esp_vfs_dev_uart_use_nonblocking(0);
+    esp_vfs_dev_uart_use_nonblocking(1);
+    openmrn.start_executor_thread();
 
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.

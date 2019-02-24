@@ -65,7 +65,7 @@ public:
     OSThread()
         : handle(0)
     {
-#ifdef ARDUINO
+#if defined(ARDUINO) && !defined(ESP32)
         handle = os_thread_self();
 #endif
     }
@@ -138,8 +138,22 @@ public:
     }
 
     /// @return the thread handle for os_xxx operations.
-    os_thread_t get_handle() {
+    os_thread_t get_handle()
+    {
         return handle;
+    }
+
+    /// Sets the thread handle to the current calling thread's. Needed for
+    /// multiplexing environments like Arduino.
+    void lock_to_thread()
+    {
+        handle = os_thread_self();
+    }
+
+    /// Resets the thread handle to none.
+    void unlock_from_thread()
+    {
+        handle = 0;
     }
 
 protected:
