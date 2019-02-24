@@ -404,7 +404,7 @@ struct GcHubPort : public Executable
     {
         LOG(VERBOSE, "gchub port %p", (Executable *)this);
         if (use_select) {
-#if !defined (ESP32) && defined(ARDUINO)
+#if (!defined (ESP32)) && defined(ARDUINO)
             DIE("select is not supported on Arduino");
 #else
             gcWrite_.reset(new HubDeviceSelect<HubFlow>(&gcHub_, fd, this));
