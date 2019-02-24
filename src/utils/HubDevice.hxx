@@ -165,7 +165,7 @@ protected:
                         continue;
                     }
 // Now: we have an error.
-#if defined(__linux__)
+#if defined(__linux__) || defined(ESP32)
                     if (!ret)
                     {
                         LOG_ERROR("EOF reading fd %d", port_->fd_);
@@ -250,7 +250,7 @@ public:
                 continue;
             }
 // now: we have an error.
-#ifdef __linux__
+#if defined(__linux__) || defined(ESP32)
             if (!ret)
             {
                 LOG_ERROR("EOF writing fd %d", port_->fd_);
