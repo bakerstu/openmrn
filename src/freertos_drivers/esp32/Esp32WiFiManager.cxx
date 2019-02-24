@@ -51,7 +51,8 @@ using std::string;
 
 // Enable select support on the ESP32 since it supports the usage of select for
 // tcp/ip sockets.
-OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
+// TODO: uncomment once OSSelectWakeup is confirmed working
+//OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
 
 /// String values for wifi_status_t values, WL_NO_SHIELD has been intentionally
 /// omitted as its value is 255 and is explicitly checked for.
@@ -348,6 +349,10 @@ void Esp32WiFiManager::start_wifi_system()
 // Starts a background task for the Esp32WiFiManager.
 void Esp32WiFiManager::start_wifi_task()
 {
+    // TBD: should this use xCreateTaskPinnedToCore instead? There appears to
+    // be a crash in the WiFi stack when CORE_DEBUG_LEVEL is set higher than
+    // ARDUHAL_LOG_LEVEL_INFO. Default for CORE_DEBUG_LEVEL is
+    // ARDUHAL_LOG_LEVEL_NONE so it doesn't show up under the typical use case.
     os_thread_create(&wifiTaskHandle_, "OpenMRN-WiFiMgr", WIFI_TASK_PRIORITY,
         WIFI_TASK_STACK_SIZE, wifi_manager_task, this);
 }
@@ -635,9 +640,49 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             // If this node is configured as a hub, start the listener.
             if(hub_enabled)
             {
-                wifi->start_hub(hub_port, hub_service_name, hub_service_protocol);
+                wifi->start_hub(hub_port, hub_service_name,
+                    hub_service_protocol);
             }
             wifi->configReloadRequested_ = false;
+        }
+
+        // Validate any hub connections to ensure they are all still active
+        // any that are dead we remove from the stack
+        std::vector<Esp32WiFiClientAdapter *> deadHubConnections;
+        for (const auto &pair : wifi->hubConnections_)
+        {
+            if (!pair.first->connected())
+            {
+                LOG(WARNING, "[CLIENT] Lost connection to %s:%d, attempting "
+                    "to reconnect.", pair.first->remoteIP().toString().c_str(),
+                    pair.first->remotePort());
+                // connection has died, try to reconnect
+                if (!pair.first->reconnect())
+                {
+                    LOG_ERROR("[CLIENT] Reconnection attempt failed.");
+                    // reconnect failed, consider it a dead connection.
+                    wifi->openmrn_->remove_port(pair.second);
+                    deadHubConnections.push_back(pair.first);
+                }
+                else
+                {
+                    LOG(INFO, "[CLIENT] Successfully reconnected to %s:%d.",
+                        pair.first->remoteIP().toString().c_str(),
+                        pair.first->remotePort());
+                }
+            }
+        }
+
+        LOG(VERBOSE, "[CLIENT] %d active connections, %d pending cleanup.",
+            wifi->hubConnections_.size() - deadHubConnections.size(),
+            deadHubConnections.size());
+        // Cleanup any dead connections.
+        for (auto client : deadHubConnections)
+        {
+            auto it = wifi->hubConnections_.find(client);
+            HASSERT(it != wifi->hubConnections_.end());
+            wifi->hubConnections_.erase(it);
+            delete client;
         }
 
         // If we do not have a connection to a hub attempt to connect to one
@@ -727,35 +772,6 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             {
                 LOG(WARNING, "[CLIENT] Failed to connect to any hubs.");
             }
-        }
-
-        // Validate any hub connections to ensure they are all still active
-        // any that are dead we remove from the stack
-        std::vector<Esp32WiFiClientAdapter *> deadHubConnections;
-        for (const auto &pair : wifi->hubConnections_)
-        {
-            if (!pair.first->connected())
-            {
-                // connection has died, try to reconnect
-                if (!pair.first->reconnect())
-                {
-                    // reconnect failed, consider it a dead connection.
-                    wifi->openmrn_->remove_port(pair.second);
-                    deadHubConnections.push_back(pair.first);
-                }
-            }
-        }
-
-        LOG(VERBOSE, "[CLIENT] %d active connections, %d pending cleanup.",
-            wifi->hubConnections_.size() - deadHubConnections.size(),
-            deadHubConnections.size());
-        // Cleanup any dead connections.
-        for (auto client : deadHubConnections)
-        {
-            auto it = wifi->hubConnections_.find(client);
-            HASSERT(it != wifi->hubConnections_.end());
-            wifi->hubConnections_.erase(it);
-            delete client;
         }
 
         // Sleep until the next check interval or if we are woken up early to
