@@ -43,7 +43,8 @@
 
 #include "os/TempFile.hxx"
 
-#ifndef __FreeRTOS__
+/// @todo mingw does not seem to have an mkdtemp call.
+#if !defined(__FreeRTOS__) && !defined(__WINNT__)
 TempDir::TempDir()
 {
 #if defined(__linux__) || defined(__MACH__)
