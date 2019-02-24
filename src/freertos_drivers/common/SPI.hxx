@@ -34,8 +34,10 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_SPI_HXX_
 #define _FREERTOS_DRIVERS_COMMON_SPI_HXX_
 
+#ifndef _DEFAULT_SOURCE
 /// @todo(balazs.racz) remove this by moving all usleep calls to the .cxx
 #define _DEFAULT_SOURCE
+#endif
 
 #include <unistd.h>
 #include <compiler.h>
