@@ -42,13 +42,18 @@
 #include <limits.h>
 #include <stdint.h>
 
-#if defined (__FreeRTOS__)
+#include "openmrn_features.h"
+
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
+#endif
+#if OPENMRN_FEATURE_DEVICE_SELECT
 #include <event_groups.h>
-#elif defined(ESP_NONOS) || defined(ARDUINO)
-#else
+#endif
+
+#if OPENMRN_FEATURE_MUTEX_PTHREAD
 #include <pthread.h>
 #include <semaphore.h>
 #endif
@@ -90,7 +95,9 @@ extern const size_t main_stack_size;
 
 /** priority of the main thread */
 extern const int main_priority;
+#endif
 
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
 typedef xTaskHandle os_thread_t; /**< thread handle */
 typedef struct
 {
@@ -105,12 +112,17 @@ typedef struct
 typedef xSemaphoreHandle os_sem_t; /**< semaphore handle */
 typedef struct thread_priv
 {
+#if OPENMRN_FEATURE_REENT
     struct _reent *reent; /**< newlib thread specific data (errno, etc...) */
+#endif    
+#if OPENMRN_FEATURE_DEVICE_SELECT
     EventBits_t selectEventBit; /**< bit used for waking up from select */
+#endif    
     void *(*entry)(void*); /**< thread entry point */
     void *arg; /** argument to thread */
 } ThreadPriv; /**< thread private data */
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
+#endif
+#if OPENMRN_FEATURE_MUTEX_FAKE
 typedef struct {
     int locked;
     uint8_t recursive;
@@ -125,8 +137,8 @@ typedef struct {
 
 typedef unsigned os_thread_t;
 typedef void *os_mq_t; /**< message queue handle */
-
-#else
+#endif
+#if OPENMRN_FEATURE_MUTEX_PTHREAD
 typedef pthread_t os_thread_t; /**< thread handle */
 typedef pthread_mutex_t os_mutex_t; /**< mutex handle */
 typedef void *os_mq_t; /**< message queue handle */
@@ -162,8 +174,7 @@ typedef struct
  */
 extern long long os_get_time_monotonic(void);
 
-#if defined(__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) ||  \
-    defined(ARDUINO)
+#ifndef OPENMRN_FEATURE_MUTEX_PTHREAD
 /** @ref os_thread_once states.
  */
 enum
@@ -179,8 +190,7 @@ enum
 #define OS_THREAD_ONCE_INIT PTHREAD_ONCE_INIT
 #endif
 
-#if defined(__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) ||  \
-    defined(ARDUINO)
+#ifndef OPENMRN_FEATURE_MUTEX_PTHREAD
 /** One time intialization routine
  * @param once one time instance
  * @param routine method to call once

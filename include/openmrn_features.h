@@ -41,6 +41,7 @@
 #ifdef __FreeRTOS__
 #define OPENMRN_FEATURE_DEVICE_SELECT 1
 #define OPENMRN_FEATURE_DEVTAB 1
+#define OPENMRN_FEATURE_REENT 1
 #endif
 
 /// @todo this should probably be a whitelist: __linux__ || __MACH__.
@@ -55,6 +56,14 @@
 #if (defined(ARDUINO) && !defined(ESP32)) || defined(ESP_NONOS) ||             \
     defined(__EMSCRIPTEN__)
 #define OPENMRN_FEATURE_SINGLE_THREADED 1
+#endif
+
+#if defined(__FreeRTOS__) || defined(ESP32)
+#define OPENMRN_FEATURE_MUTEX_FREERTOS 1
+#elif OPENMRN_FEATURE_SINGLE_THREADED
+#define OPENMRN_FEATURE_MUTEX_FAKE 1
+#else
+#define OPENMRN_FEATURE_MUTEX_PTHREAD 1
 #endif
 
 #endif // _INCLUDE_OPENMRN_FEATURES_
