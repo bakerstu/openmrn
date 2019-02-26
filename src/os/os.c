@@ -432,9 +432,13 @@ int os_thread_create(os_thread_t *thread, const char *name, int priority,
     ThreadPriv *priv = malloc(sizeof(ThreadPriv));
     
     priv->entry = start_routine;
+#if OPENMRN_FEATURE_DEVICE_SELECT    
     priv->selectEventBit = 0;
+#endif
     priv->arg = arg;
+#if OPENMRN_FEATURE_REENT
     priv->reent = allocate_reent();
+#endif    
     
     if (priority == 0)
     {
