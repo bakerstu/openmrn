@@ -45,9 +45,7 @@
 #include "openmrn_features.h"
 
 #if OPENMRN_FEATURE_MUTEX_FREERTOS
-#include <FreeRTOS.h>
-#include <task.h>
-#include <semphr.h>
+#include "freertos_includes.h"
 #endif
 #if OPENMRN_FEATURE_DEVICE_SELECT
 #include <event_groups.h>
@@ -677,7 +675,7 @@ OS_INLINE int os_sem_timedwait(os_sem_t *sem, long long timeout)
         return os_sem_wait(sem);
     }
 #if OPENMRN_FEATURE_MUTEX_FREERTOS
-    if (xSemaphoreTake(*sem, timeout >> NSEC_TO_TICK_SHIFT) == pdTRUE)
+    if (xSemaphoreTake(*sem, NSEC_TO_TICK(timeout)) == pdTRUE)
     {
         return 0;
     }
@@ -811,7 +809,7 @@ OS_INLINE void os_mq_send(os_mq_t queue, const void *data)
 OS_INLINE int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout)
 {
 #if OPENMRN_FEATURE_MUTEX_FREERTOS
-    portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
+    portTickType ticks = NSEC_TO_TICK(timeout);
     
     if (xQueueSend(queue, data, ticks) != pdTRUE)
     {
@@ -858,7 +856,7 @@ OS_INLINE void os_mq_receive(os_mq_t queue, void *data)
 OS_INLINE int os_mq_timedreceive(os_mq_t queue, void *data, long long timeout)
 {
 #if OPENMRN_FEATURE_MUTEX_FREERTOS
-    portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
+    portTickType ticks = NSEC_TO_TICK(timeout);
 
     if (xQueueReceive(queue, data, ticks) != pdTRUE)
     {
