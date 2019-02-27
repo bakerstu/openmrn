@@ -67,6 +67,14 @@ public:
     {
     }
 
+    ~OSSelectWakeup()
+    {
+#ifdef ESP32
+        esp_deallocate_vfs_fd();
+#endif      
+        
+    }
+
     /// @return the thread ID that we are engaged upon.
     os_thread_t main_thread() {
         return thread_;
@@ -78,6 +86,9 @@ public:
     {
         // Gets the current thread.
         thread_ = os_thread_self();
+#ifdef ESP32
+        esp_allocate_vfs_fd();
+#endif        
 #if OPENMRN_FEATURE_DEVICE_SELECT
         Device::select_insert(&selectInfo_);
 #elif OPENMRN_HAVE_PSELECT
@@ -117,8 +128,9 @@ public:
 #elif OPENMRN_HAVE_PSELECT
             pthread_kill(thread_, WAKEUP_SIG);
 #elif defined(ESP32)
+            esp_wakeup();
 #elif !defined(OPENMRN_FEATURE_SINGLE_THREADED)
-            
+            DIE("need wakeup code");
 #endif
         }
     }
@@ -191,6 +203,18 @@ public:
         int ret =
             ::pselect(nfds, readfds, writefds, exceptfds, &timeout, &origMask_);
 #elif OPENMRN_HAVE_SELECT
+#ifdef ESP32
+        fd_set newexcept;
+        if (!exceptfds)
+        {
+            FD_ZERO(&newexcept);
+            exceptfds = &newexcept;
+        }
+        FD_SET(vfsFd_, exceptfds);
+        if (vfsFd_ >= nfds) {
+            nfds = vfsFd_ + 1;
+        }
+#endif //ESP32      
         struct timeval timeout;
         timeout.tv_sec = deadline_nsec / 1000000000;
         timeout.tv_usec = (deadline_nsec / 1000) % 1000000;
@@ -208,6 +232,23 @@ public:
     }
 
 private:
+#ifdef ESP32
+    void esp_allocate_vfs_fd();
+    void esp_deallocate_vfs_fd();
+    void esp_wakeup();
+public:
+    void esp_start_select(void* signal_sem);
+private:
+    
+    /// FD for waking up select in ESP32 VFS implementation.
+    int vfsFd_{-1};
+    /// Semaphore for waking up LWIP select.
+    void* lwipSem_{nullptr};
+    /// Semaphore for waking up ESP32 select.
+    void* espSem_{nullptr};
+    /// true if we have already woken up select.
+    bool woken_{true};
+#endif    
 #if OPENMRN_HAVE_PSELECT
     /** This signal is used for the wakeup kill in a pthreads OS. */
     static const int WAKEUP_SIG = SIGUSR1;
