@@ -261,14 +261,13 @@ private:
     /// Handles data coming from the CAN port.
     void loop_for_read()
     {
-        if (!port_->available())
+        while (port_->available())
         {
-            return;
+            auto *b = canHub_->alloc();
+            port_->read(b->data());
+            b->data()->skipMember_ = &writePort_;
+            canHub_->send(b);
         }
-        auto *b = canHub_->alloc();
-        port_->read(b->data());
-        b->data()->skipMember_ = &writePort_;
-        canHub_->send(b);
     }
 
     friend class WritePort;
@@ -354,6 +353,25 @@ public:
             e->run();
         }
     }
+
+#ifndef OPENMRN_FEATURE_SINGLE_THREADED
+    void start_executor_thread()
+    {
+        haveExecutorThread_ = true;
+        xTaskCreate(openmrn_background_task, "OpenMRN", OPENMRN_STACK_SIZE,
+                    this, OPENMRN_TASK_PRIORITY, nullptr);
+        /// @todo: replace the above with the below once os_thread_create gets
+        /// implemented for the esp32.
+        // stack_->executor()->start_thread(
+        //     "OpenMRN", OPENMRN_TASK_PRIORITY, OPENMRN_STACK_SIZE);
+    }
+
+    static void openmrn_background_task(void *arg)
+    {
+        OpenMRN *me = static_cast<OpenMRN *>(arg);
+        me->stack_->executor()->thread_body();
+    }
+#endif
 
     /// Adds a serial port to the stack speaking the gridconnect protocol, for
     /// example to do a USB connection to a computer. This is the protocol that
@@ -449,7 +467,10 @@ private:
     /// Callback from the loop() method. Internally called.
     void run() override
     {
-        stack_->executor()->loop_some();
+        if (!haveExecutorThread_)
+        {
+            stack_->executor()->loop_some();
+        }
     }
 
     /// Storage space for the OpenLCB stack. Will be constructed in init().
@@ -457,6 +478,9 @@ private:
 
     /// List of objects we need to call in each loop iteration.
     vector<Executable *> loopMembers_{{this}};
+
+    /// True if there is a separate thread running the executor.
+    bool haveExecutorThread_{false};
 };
 
 #endif // _ARDUINO_OPENMRN_H_
