@@ -163,7 +163,7 @@ void ExecutorBase::sync_run(std::function<void()> fn)
 
 bool ExecutorBase::loop_once()
 {
-    OSThread::lock_to_thread();
+    ScopedSetThreadHandle h(this);
     unsigned priority;
     activeTimers_.get_next_timeout();
     Executable* msg = next(&priority);
@@ -184,7 +184,7 @@ bool ExecutorBase::loop_once()
 }
 
 long long ICACHE_FLASH_ATTR  ExecutorBase::loop_some() {
-    OSThread::lock_to_thread();
+    ScopedSetThreadHandle h(this);
     for (int i = 12; i > 0; --i) {
         Executable *msg = nullptr;
         unsigned priority = UINT_MAX;

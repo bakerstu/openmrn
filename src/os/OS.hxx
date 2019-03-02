@@ -65,9 +65,6 @@ public:
     OSThread()
         : handle(0)
     {
-#if defined(ARDUINO) && !defined(ESP32)
-        handle = os_thread_self();
-#endif
     }
 
    /** Starts the thread.  This call can be used when OSThread is inherited and
@@ -98,9 +95,8 @@ public:
     void inherit()
     {
         HASSERT(!is_created());
-        handle = os_thread_self();
+        ScopedSetThreadHandle h(this);
         entry();
-        handle = 0;
     }
 
     /** Return the current thread priority.  Depricated, use get_priority().
@@ -147,6 +143,7 @@ public:
     /// multiplexing environments like Arduino.
     void lock_to_thread()
     {
+        HASSERT(handle == 0);
         handle = os_thread_self();
     }
 
@@ -155,6 +152,24 @@ public:
     {
         handle = 0;
     }
+
+    /// Helper class for using lock_to_thread.
+    struct ScopedSetThreadHandle
+    {
+        ScopedSetThreadHandle(OSThread *parent)
+            : parent_(parent)
+        {
+            parent_->lock_to_thread();
+        }
+
+        ~ScopedSetThreadHandle()
+        {
+            parent_->unlock_from_thread();
+        }
+
+    private:
+        OSThread *parent_;
+    };
 
 protected:
     /** User entry point for the created thread.
