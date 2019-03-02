@@ -337,8 +337,6 @@ void setup()
 
     // Start the OpenMRN stack
     openmrn.begin();
-    esp_vfs_dev_uart_use_nonblocking(0);
-    esp_vfs_dev_uart_use_nonblocking(1);
     openmrn.start_executor_thread();
 
 #if defined(PRINT_PACKETS)
