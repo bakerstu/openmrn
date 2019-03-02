@@ -20,7 +20,6 @@ static pthread_once_t vfs_init_once = PTHREAD_ONCE_INIT;
 /// locked to any given calling thread.
 static pthread_key_t select_wakeup_key;
 static int wakeup_fd;
-Atomic mu;
 
 extern "C"
 {
@@ -33,6 +32,24 @@ static int esp_wakeup_open(const char * path, int flags, int mode) {
     return 0;
 }
 
+static void esp_end_select()
+{
+    OSSelectWakeup *parent =
+        (OSSelectWakeup *)pthread_getspecific(select_wakeup_key);
+    HASSERT(parent);
+    parent->esp_end_select();
+}
+
+/// This function is called inline from the ESP32's select implementation. It is
+/// passed in as a function pointer to the VFS API.
+/// @param nfds see standard select API
+/// @param readfds see standard select API
+/// @param writefds see standard select API
+/// @param exceptfds see standard select API
+/// @param signal_sem if non-NULL, the select can be woken up by notifying this
+/// semaphore. If NULL, the select can be woken up by notifying the LWIP
+/// semaphore. By the API contract this pointer needs to be passed into
+/// esp_vfs_select_triggered.
 static esp_err_t esp_start_select(int nfds, fd_set *readfds, fd_set *writefds,
     fd_set *exceptfds, SemaphoreHandle_t *signal_sem)
 {
@@ -46,26 +63,33 @@ static esp_err_t esp_start_select(int nfds, fd_set *readfds, fd_set *writefds,
 
 void OSSelectWakeup::esp_start_select(void *signal_sem)
 {
+    AtomicHolder h(this);
     espSem_ = signal_sem;
-    {
-        AtomicHolder h(&mu);
-        woken_ = false;
-    }
+    woken_ = false;
+}
+
+void OSSelectWakeup::esp_end_select()
+{
+    AtomicHolder h(this);
+    woken_ = true;
 }
 
 void OSSelectWakeup::esp_wakeup()
 {
+    if (woken_)
     {
-        AtomicHolder h(&mu);
-        if (woken_) {
-            return;
-        }
-        woken_ = true;
+        return;
     }
+    AtomicHolder h(this);
+    if (woken_)
+    {
+        return;
+    }
+    woken_ = true;
 #if 0
     esp_vfs_select_triggered((SemaphoreHandle_t *)espSem_);
 #else
-    LOG(INFO, "wakeup es %p %p lws %p", espSem_, *(unsigned*)espSem_, lwipSem_);
+    LOG(VERBOSE, "wakeup es %p %p lws %p", espSem_, *(unsigned*)espSem_, lwipSem_);
     if (espSem_)
     {
         esp_vfs_select_triggered((SemaphoreHandle_t *)espSem_);
@@ -88,6 +112,7 @@ static void esp_vfs_init()
     memset(&vfs, 0, sizeof(vfs));
     vfs.flags = ESP_VFS_FLAG_DEFAULT;
     vfs.start_select = &esp_start_select;
+    vfs.end_select = &esp_end_select;
     vfs.open = &esp_wakeup_open;
     ESP_ERROR_CHECK(esp_vfs_register("/dev/wakeup", &vfs, nullptr));
     HASSERT(0 == pthread_key_create(&select_wakeup_key, nullptr));

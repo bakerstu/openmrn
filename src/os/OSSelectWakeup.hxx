@@ -71,12 +71,12 @@ public:
     {
 #ifdef ESP32
         esp_deallocate_vfs_fd();
-#endif      
-        
+#endif
     }
 
     /// @return the thread ID that we are engaged upon.
-    os_thread_t main_thread() {
+    os_thread_t main_thread()
+    {
         return thread_;
     }
 
@@ -88,7 +88,7 @@ public:
         thread_ = os_thread_self();
 #ifdef ESP32
         esp_allocate_vfs_fd();
-#endif        
+#endif
 #if OPENMRN_FEATURE_DEVICE_SELECT
         Device::select_insert(&selectInfo_);
 #elif OPENMRN_HAVE_PSELECT
@@ -136,7 +136,7 @@ public:
     }
 
     /// Called from the main thread after being woken up. Enables further
-    /// wakeup signals to be colledted.
+    /// wakeup signals to be collected.
     void clear_wakeup()
     {
         pendingWakeup_ = false;
@@ -214,7 +214,7 @@ public:
         if (vfsFd_ >= nfds) {
             nfds = vfsFd_ + 1;
         }
-#endif //ESP32      
+#endif //ESP32
         struct timeval timeout;
         timeout.tv_sec = deadline_nsec / 1000000000;
         timeout.tv_usec = (deadline_nsec / 1000) % 1000000;
@@ -238,17 +238,18 @@ private:
     void esp_wakeup();
 public:
     void esp_start_select(void* signal_sem);
+    void esp_end_select();
+
 private:
-    
     /// FD for waking up select in ESP32 VFS implementation.
     int vfsFd_{-1};
     /// Semaphore for waking up LWIP select.
     void* lwipSem_{nullptr};
     /// Semaphore for waking up ESP32 select.
     void* espSem_{nullptr};
-    /// true if we have already woken up select.
+    /// true if we have already woken up select. protected by Atomic *this.
     bool woken_{true};
-#endif    
+#endif
 #if OPENMRN_HAVE_PSELECT
     /** This signal is used for the wakeup kill in a pthreads OS. */
     static const int WAKEUP_SIG = SIGUSR1;
@@ -261,7 +262,7 @@ private:
     os_thread_t thread_;
 #if OPENMRN_FEATURE_DEVICE_SELECT
     Device::SelectInfo selectInfo_;
-#endif    
+#endif
 #if OPENMRN_HAVE_PSELECT
     /// Original signal mask. Used for pselect to reenable the signal we'll be
     /// using to wake up.
