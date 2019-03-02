@@ -51,8 +51,8 @@
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
 
-//#define USE_WIFI
-#define USE_CAN
+#define USE_WIFI
+//#define USE_CAN
 
 // Uncomment the line below to have this node advertise itself via mDNS as a
 // hub. When this is enabled, other devices can find and connect to this node
