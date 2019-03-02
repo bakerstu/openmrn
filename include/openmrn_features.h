@@ -39,34 +39,46 @@
 
 
 #ifdef __FreeRTOS__
+/// Compiles the FreeRTOS event group based ::select() implementation.
 #define OPENMRN_FEATURE_DEVICE_SELECT 1
+/// Adds implementations for ::read ::write etc, with fd table.
 #define OPENMRN_FEATURE_DEVTAB 1
+/// Adds struct reent pointer to the FreeRTOS Task Priv structure and swaps it
+/// in when the tasks are swapped in.
 #define OPENMRN_FEATURE_REENT 1
 #endif
 
 /// @todo this should probably be a whitelist: __linux__ || __MACH__.
 #if !defined(__FreeRTOS__) && !defined(__WINNT__) && !defined(ESP32) && !defined(ARDUINO) && !defined(ESP_NONOS)
+/// Uses ::pselect in the Executor for sleep and pkill for waking up.
 #define OPENMRN_HAVE_PSELECT 1
 #endif
 
 #if defined(__WINNT__) || defined(ESP32) || defined(ESP_NONOS)
+/// Uses ::select in the executor to sleep (unsure how wakeup is handled)
 #define OPENMRN_HAVE_SELECT 1
 #endif
 
 #if (defined(ARDUINO) && !defined(ESP32)) || defined(ESP_NONOS) ||             \
     defined(__EMSCRIPTEN__)
+/// A loop() function is calling the executor in the single-threaded OS context.
 #define OPENMRN_FEATURE_SINGLE_THREADED 1
 #endif
 
 #if defined(__FreeRTOS__) || defined(ESP32)
+/// Use os_mutex_... implementation based on FreeRTOS mutex and semaphores.
 #define OPENMRN_FEATURE_MUTEX_FREERTOS 1
 #elif OPENMRN_FEATURE_SINGLE_THREADED
+/// Add a fake implementation for os_mutex_lock that crashes if there is a
+/// conflict.
 #define OPENMRN_FEATURE_MUTEX_FAKE 1
 #else
+/// Use pthread_mutex for os_mutex implementation.
 #define OPENMRN_FEATURE_MUTEX_PTHREAD 1
 #endif
 
 #if OPENMRN_FEATURE_MUTEX_FREERTOS || OPENMRN_FEATURE_MUTEX_PTHREAD || defined(__EMSCRIPTEN__)
+/// Compile os_sem_timedwait functions.
 #define OPENMRN_FEATURE_SEM_TIMEDWAIT 1
 #endif
 
