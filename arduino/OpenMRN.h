@@ -354,6 +354,7 @@ public:
         }
     }
 
+#ifndef OPENMRN_FEATURE_SINGLE_THREADED
     void start_executor_thread()
     {
         haveExecutorThread_ = true;
@@ -370,6 +371,7 @@ public:
         OpenMRN *me = static_cast<OpenMRN *>(arg);
         me->stack_->executor()->thread_body();
     }
+#endif
 
     /// Adds a serial port to the stack speaking the gridconnect protocol, for
     /// example to do a USB connection to a computer. This is the protocol that
