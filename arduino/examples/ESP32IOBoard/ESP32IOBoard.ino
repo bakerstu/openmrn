@@ -37,7 +37,6 @@
 #include <SPIFFS.h>
 #include <WiFi.h>
 #include <vector>
-#include "../vfs/esp_vfs_dev.h"
 
 #include <OpenMRN.h>
 #include <openlcb/TcpDefs.hxx>
