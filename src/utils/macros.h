@@ -94,9 +94,9 @@ extern const char* g_death_file;
 #include <stdio.h>
 #include <assert.h>
 
-#define HASSERT(x) do { if (!(x)) { printf("Assertion failed in file " __FILE__ " line %d: assert(%s)", __LINE__, #x); g_death_file = __FILE__; g_death_lineno = __LINE__; assert(0); abort();} } while(0)
+#define HASSERT(x) do { if (!(x)) { printf("Assertion failed in file " __FILE__ " line %d: assert(%s)\n", __LINE__, #x); g_death_file = __FILE__; g_death_lineno = __LINE__; assert(0); abort();} } while(0)
 
-#define DIE(MSG) do { printf("Crashed in file " __FILE__ " line %d: " MSG, __LINE__); assert(0); abort(); } while(0)
+#define DIE(MSG) do { printf("Crashed in file " __FILE__ " line %d: " MSG "\n", __LINE__); assert(0); abort(); } while(0)
 
 #else
 
