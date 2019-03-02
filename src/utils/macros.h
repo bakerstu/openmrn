@@ -226,5 +226,13 @@ extern const char* g_death_file;
 /// Macro to signal a function that the result must be used.
 #define MUST_USE_RESULT __attribute__((__warn_unused_result__))
 
+#ifdef ESP32
+/// Workaround for broken header in endian.h for the ESP32
+#include <endian.h>
+#ifndef __bswap64
+#define __bswap64(x) __bswap_64(x)
+#endif
+#endif
+
 
 #endif // _UTILS_MACROS_H_
