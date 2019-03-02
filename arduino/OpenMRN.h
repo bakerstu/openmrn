@@ -261,14 +261,13 @@ private:
     /// Handles data coming from the CAN port.
     void loop_for_read()
     {
-        if (!port_->available())
+        while (port_->available())
         {
-            return;
+            auto *b = canHub_->alloc();
+            port_->read(b->data());
+            b->data()->skipMember_ = &writePort_;
+            canHub_->send(b);
         }
-        auto *b = canHub_->alloc();
-        port_->read(b->data());
-        b->data()->skipMember_ = &writePort_;
-        canHub_->send(b);
     }
 
     friend class WritePort;
