@@ -49,7 +49,7 @@ ASFLAGS = -c $(ARCHFLAGS)
 CORECFLAGS = $(ARCHOPTIMIZATION) $(ARCHFLAGS) -Wall -Werror \
              -Wno-unknown-pragmas -fdata-sections -ffunction-sections \
              -fno-builtin -fno-stack-protector -D__FreeRTOS__ -DGCC_ARMCM0 \
-             -D_REENT_SMALL
+             -specs=nano.specs
 
 CFLAGS += -c $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  \
           $(CFLAGSENV) $(CFLAGSEXTRA)

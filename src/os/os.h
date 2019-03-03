@@ -108,17 +108,6 @@ typedef struct
     unsigned char state; /**< keep track if already executed */
 } os_thread_once_t; /**< one time initialization type */
 typedef xSemaphoreHandle os_sem_t; /**< semaphore handle */
-typedef struct thread_priv
-{
-#if OPENMRN_FEATURE_REENT
-    struct _reent *reent; /**< newlib thread specific data (errno, etc...) */
-#endif    
-#if OPENMRN_FEATURE_DEVICE_SELECT
-    EventBits_t selectEventBit; /**< bit used for waking up from select */
-#endif    
-    void *(*entry)(void*); /**< thread entry point */
-    void *arg; /** argument to thread */
-} ThreadPriv; /**< thread private data */
 #endif
 #if OPENMRN_FEATURE_MUTEX_FAKE
 typedef struct {
