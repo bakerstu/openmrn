@@ -243,6 +243,77 @@ CC32xxWiFi::SecurityType CC32xxWiFi::security_type_from_simplelink(uint8_t sec_t
 }
 
 /*
+ * CC32xxWiFi::wlan_country_code_get()
+ */
+CountryCode CC32xxWiFi::wlan_country_code_get()
+{
+    uint16_t config_option = SL_WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
+    uint16_t len = 3;
+    uint8_t country[3];
+
+    int result = sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &config_option, &len,
+                            (uint8_t*)country);
+    if (result >= 0)
+    {
+        if (!strcmp((const char*)country, "US"))
+        {
+            return CountryCode::US;
+        }
+        else if (!strcmp((const char*)country, "EU"))
+        {
+            return CountryCode::EU;
+        }
+        else if (!strcmp((const char*)country, "JP"))
+        {
+            return CountryCode::JP;
+        }
+    }
+
+    return CountryCode::UNKNOWN;
+}
+
+/*
+ * CC32xxWiFi::wlan_country_code_set()
+ */
+int CC32xxWiFi::wlan_country_code_set(CountryCode cc, bool restart)
+{
+    if (cc != wlan_country_code_get())
+    {
+        const char *country;
+        switch (cc)
+        {
+            case CountryCode::US:
+                country = "US";
+                break;
+            case CountryCode::EU:
+                country = "EU";
+                break;
+            case CountryCode::JP:
+                country = "JP";
+                break;
+            default:
+                return -1;
+        }
+
+        int result = sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+                                SL_WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2,
+                                (const uint8_t*)country);
+
+        if (result < 0)
+        {
+            return -1;
+        }
+        if (restart)
+        {
+            sl_Stop(0xFFFF);
+            sl_Start(0, 0, 0);
+        }
+    }
+
+    return 0;
+}
+
+/*
  * CC32xxWiFi::wlan_profile_add()
  */
 int CC32xxWiFi::wlan_profile_add(const char *ssid, SecurityType sec_type,
@@ -454,6 +525,94 @@ void CC32xxWiFi::wlan_mac(uint8_t mac[6])
     uint16_t  len = 6;
 
     sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, nullptr, &len, mac);
+}
+
+/*
+ * CC32xxWiFi::test_mode_start()
+ */
+void CC32xxWiFi::test_mode_start()
+{
+    /* note, sl_Task MUST be a pthread because the Wi-Fi task uses the pthread
+     * interface such as pthread_self().
+     */
+    pthread_t thread;
+    pthread_attr_t attr;
+    struct sched_param sched_param;
+
+    pthread_attr_init(&attr);
+    sched_param.sched_priority = sched_get_priority_max(SCHED_FIFO);
+    pthread_attr_setschedparam(&attr, &sched_param);
+    pthread_attr_setstacksize(&attr, 2048);
+    pthread_create(&thread, &attr, sl_Task, nullptr);
+
+    // the following code sequnce is taken from the Radio Test Tool
+    // application example.
+
+    #define CHANNEL_MASK_ALL 0x1FFF
+    #define RSSI_TH_MAX      -95
+
+    int mode = sl_Start(0, 0, 0);
+    if (mode != ROLE_STA)
+    {
+        mode = sl_WlanSetMode(ROLE_STA);
+        sl_Stop(0xFF);
+        sl_Start(0, 0, 0);
+    }
+
+    // set policy to auto only
+    sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION,
+                     SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), nullptr, 0);
+
+    // disable auto provisioning
+    sl_WlanProvisioning(SL_WLAN_PROVISIONING_CMD_STOP, 0xFF, 0, nullptr, 0);
+
+    //sl_WlanProfileDel(0xFF);
+
+    // enable DHCP client
+    sl_NetCfgSet(SL_NETCFG_IPV4_STA_ADDR_MODE, SL_NETCFG_ADDR_DHCP, 0, 0);
+
+    // disable IPv6
+    uint32_t if_bitmap = !(SL_NETCFG_IF_IPV6_STA_LOCAL |
+                           SL_NETCFG_IF_IPV6_STA_GLOBAL);
+    sl_NetCfgSet(SL_NETCFG_IF, SL_NETCFG_IF_STATE, sizeof(if_bitmap),
+                 (const uint8_t*)&if_bitmap);
+
+    // configure scan parameters to default
+    SlWlanScanParamCommand_t scan_default;
+    scan_default.ChannelsMask = CHANNEL_MASK_ALL;
+    scan_default.RssiThreshold = RSSI_TH_MAX;
+    sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+               SL_WLAN_GENERAL_PARAM_OPT_SCAN_PARAMS,
+               sizeof(scan_default), (uint8_t*)&scan_default);
+
+    // disable scans
+    uint8_t config_opt = SL_WLAN_SCAN_POLICY(0, 0);
+    sl_WlanPolicySet(SL_WLAN_POLICY_SCAN, config_opt, nullptr, 0);
+
+    // set TX power 1v1 to max
+    uint8_t power = 0;
+    sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+               SL_WLAN_GENERAL_PARAM_OPT_STA_TX_POWER, 1, (uint8_t*)&power);
+
+    // set NWP power policy to "normal"
+    sl_WlanSet(SL_WLAN_POLICY_PM, SL_WLAN_NORMAL_POLICY, 0, 0);
+
+    // unregister mDNS services
+    sl_NetAppMDNSUnRegisterService(0, 0, 0);
+
+    // remove all 64 RX filters (8*8)
+    SlWlanRxFilterOperationCommandBuff_t rx_filter_id_mask;
+    memset(rx_filter_id_mask.FilterBitmap, 0xFF, 8);
+    sl_WlanSet(SL_WLAN_RX_FILTERS_ID, SL_WLAN_RX_FILTER_REMOVE,
+               sizeof(SlWlanRxFilterOperationCommandBuff_t),
+               (uint8_t*)&rx_filter_id_mask);
+
+    // set NWP role as STA
+    sl_WlanSetMode(ROLE_STA);
+
+    // restart the NWP
+    sl_Stop(0xFF);
+    sl_Start(0, 0, 0);
 }
 
 /*
