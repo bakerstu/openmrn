@@ -30,14 +30,13 @@ endif
 
 include $(OPENMRNPATH)/etc/node_id.mk
 
-all: $(EXECUTABLE).bin
-
 # How to use: make multibin ADDRESS=0x20 ADDRHIGH=0x45 NUM=3
 # starting address, high bits (user range), count
 multibin:
 	for i in $$(seq 1 $(NUM)) ; do $(MAKE) $(EXECUTABLE).bin ADDRESS=$$(printf 0x%02x $$(($(ADDRESS)+$$i))) ; cp $(EXECUTABLE).bin $(EXECUTABLE).f091.$$(printf %02x%02x $(ADDRHIGH) $$(($(ADDRESS)+$$i-1))).bin ; done
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
+all: $(EXECUTABLE).bin
 
 flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
 	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi

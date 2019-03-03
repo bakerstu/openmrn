@@ -32,6 +32,10 @@
  * @date 13 August 2012
  */
 
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+
 /// Forces one definition of each inline function to be compiled.
 #define OS_INLINE extern
 
@@ -370,6 +374,7 @@ void os_thread_start(void *arg)
     priv->taskList->task = xTaskGetCurrentTaskHandle();
     add_thread_to_task_list(priv->taskList);
 
+#if OPENMRN_FEATURE_DEVICE_SELECT    
     // init thread local storage to
 #if tskKERNEL_VERSION_MAJOR >= 9
     // FreeRTOS 9.x+ implementation
@@ -378,6 +383,7 @@ void os_thread_start(void *arg)
     // legacy implementation uses task tag
     vTaskSetApplicationTaskTag(NULL, NULL);
 #endif
+#endif
 
     // execute thread entry point
     void *result = (*priv->entry)(priv->arg);
@@ -385,7 +391,7 @@ void os_thread_start(void *arg)
     // remove ourselves from task list
     del_thread_from_task_list(xTaskGetCurrentTaskHandle());
 
-    // We purposesly do not free priv->taskist.  Though it is technically a
+    // We purposesly do not free priv->taskList.  Though it is technically a
     // leak, we keep it around for diagnostic purposes.
 
     free(arg);
@@ -394,55 +400,9 @@ void os_thread_start(void *arg)
 }
 #endif
 
-#if !defined (__EMSCRIPTEN__) && !defined(ESP_NONOS)
+#if !(defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO))
 
 #if defined(__FreeRTOS__)
-#if (configSUPPORT_STATIC_ALLOCATION == 1)
-/** Static memory allocators for idle system thread.
- * @param pxIdleTaskTCBBuffer pointer to pointer to TCB
- * @param pxIdelTaskStackBuffer pointer to pointer to Stack
- * @param ulIdleTaskStackSize pointer to stack size
- */
-
-void vApplicationGetIdleTaskMemory(StaticTask_t **pxIdleTaskTCBBuffer,
-                                   StackType_t **pxIdleTaskStackBuffer,
-                                   uint32_t *ulIdleTaskStackSize);
-
-void vApplicationGetIdleTaskMemory(StaticTask_t **pxIdleTaskTCBBuffer,
-                                   StackType_t **pxIdleTaskStackBuffer,
-                                   uint32_t *ulIdleTaskStackSize)
-{
-    const uint32_t stksz = configMINIMAL_STACK_SIZE*sizeof(StackType_t);
-    *pxIdleTaskTCBBuffer = (StaticTask_t *) malloc(sizeof(StaticTask_t));
-    HASSERT(*pxIdleTaskTCBBuffer);
-    *pxIdleTaskStackBuffer = (StackType_t *) malloc(stksz);
-    HASSERT(*pxIdleTaskStackBuffer);
-    *ulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
-}
-
-/** Static memory allocators for timer system thread.
- * @param pxTimerTaskTCBBuffer pointer to pointer to TCB
- * @param pxIdelTaskStackBuffer pointer to pointer to Stack
- * @param ulTimerTaskStackSize pointer to stack size
- */
-
-void vApplicationGetTimerTaskMemory(StaticTask_t **pxTimerTaskTCBBuffer,
-                                   StackType_t **pxTimerTaskStackBuffer,
-                                   uint32_t *ulTimerTaskStackSize);
-
-void vApplicationGetTimerTaskMemory(StaticTask_t **pxTimerTaskTCBBuffer,
-                                   StackType_t **pxTimerTaskStackBuffer,
-                                   uint32_t *ulTimerTaskStackSize)
-{
-    const uint32_t stksz = configMINIMAL_STACK_SIZE*sizeof(StackType_t);
-    *pxTimerTaskTCBBuffer = (StaticTask_t *) malloc(sizeof(StaticTask_t));
-    HASSERT(*pxTimerTaskTCBBuffer);
-    *pxTimerTaskStackBuffer = (StackType_t *) malloc(stksz);
-    HASSERT(*pxTimerTaskStackBuffer);
-    *ulTimerTaskStackSize = configMINIMAL_STACK_SIZE;
-}
-#endif // configSUPPORT_STATIC_ALLOCATION
-
 /** Create a thread helper.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
@@ -627,6 +587,24 @@ long long os_get_time_monotonic(void)
     gettimeofday(&tv, NULL);
     time = ((long long)tv.tv_sec * 1000LL * 1000LL * 1000LL) +
            ((long long)tv.tv_usec * 1000LL);
+#elif defined(ARDUINO)
+    // redeclare micros() prototype to remove compiler warning
+    unsigned long micros();
+    
+    static uint32_t last_micros = 0;
+    static uint32_t overflow_micros = 0;
+    
+    uint32_t new_micros = (uint32_t) micros();
+    if (new_micros < last_micros)
+    {
+        ++overflow_micros;
+    }
+    last_micros = new_micros;
+    
+    time = overflow_micros;
+    time <<= 32;
+    time += new_micros;
+    time *= 1000;    // Convert micros to nanos
 #elif defined(ESP_NONOS)
     static uint32_t clockmul = 0;
     if (clockmul == 0) {
@@ -890,12 +868,16 @@ static void *main_thread(void *unused)
 {
     char *argv[2] = {(char*)"openmrn", NULL};
 
-    taskYIELD();
+    /* Allow any library threads to run that must run ahead of main */
+    os_yield_trampoline();
 
+    /* Give another chance to the board file to do work, this time coordinating
+     * between application and library threads. */
     hw_postinit();
 
     appl_main(1, argv);
-
+    // If the main thread returns, FreeRTOS usually crashes the CPU in a
+    // hard-to-debug state. Let's avoid that.
     abort();
     return NULL;
 }
@@ -907,6 +889,8 @@ int ignore_fn(void)
 {
     return 0;
 }
+
+#if !defined(ESP32)
 
 #if !defined (__MINGW32__)
 int main(int argc, char *argv[]) __attribute__ ((weak));
@@ -965,6 +949,11 @@ int main(int argc, char *argv[])
 #endif
 }
 
+#endif // ESP32
+
+#if defined(ARDUINO)
+unsigned critical_nesting;
+#endif
 
 #if 0 && defined(ESP_NONOS)
 struct _reent *_impure_ptr = NULL;

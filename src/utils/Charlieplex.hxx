@@ -147,7 +147,7 @@ public:
     {
         for (unsigned i = 0; i < N; ++i)
         {
-            pins_[i]->set_direction(Gpio::Direction::INPUT);
+            pins_[i]->set_direction(Gpio::Direction::DINPUT);
         }
     }
 
@@ -157,8 +157,8 @@ public:
     void tick()
     {
         pins_[helper::pin_high(nextBit_)]->set_direction(
-            Gpio::Direction::INPUT);
-        pins_[helper::pin_low(nextBit_)]->set_direction(Gpio::Direction::INPUT);
+            Gpio::Direction::DINPUT);
+        pins_[helper::pin_low(nextBit_)]->set_direction(Gpio::Direction::DINPUT);
         nextBit_++;
         if (nextBit_ >= helper::num_bits()) {
             nextBit_ = 0;
@@ -166,10 +166,10 @@ public:
         if (bits_ & (1 << nextBit_))
         {
             pins_[helper::pin_high(nextBit_)]->set_direction(
-                Gpio::Direction::OUTPUT);
+                Gpio::Direction::DOUTPUT);
             pins_[helper::pin_high(nextBit_)]->set();
             pins_[helper::pin_low(nextBit_)]->set_direction(
-                Gpio::Direction::OUTPUT);
+                Gpio::Direction::DOUTPUT);
             pins_[helper::pin_low(nextBit_)]->clr();
         }
     }
@@ -204,7 +204,7 @@ public:
     {
         for (unsigned i = 0; i < N; ++i)
         {
-            pins_[i]->set_direction(Gpio::Direction::INPUT);
+            pins_[i]->set_direction(Gpio::Direction::DINPUT);
         }
         for (unsigned i = 0; i < helper::num_bits(); ++i) {
             actualIntensity_[i].emplace(0);
@@ -218,8 +218,8 @@ public:
     void tick()
     {
         pins_[helper::pin_high(nextBit_)]->set_direction(
-            Gpio::Direction::INPUT);
-        pins_[helper::pin_low(nextBit_)]->set_direction(Gpio::Direction::INPUT);
+            Gpio::Direction::DINPUT);
+        pins_[helper::pin_low(nextBit_)]->set_direction(Gpio::Direction::DINPUT);
         nextBit_++;
         if (nextBit_ >= helper::num_bits()) {
             nextBit_ = 0;
@@ -242,10 +242,10 @@ public:
         if (lit)
         {
             pins_[helper::pin_high(nextBit_)]->set_direction(
-                Gpio::Direction::OUTPUT);
+                Gpio::Direction::DOUTPUT);
             pins_[helper::pin_high(nextBit_)]->set();
             pins_[helper::pin_low(nextBit_)]->set_direction(
-                Gpio::Direction::OUTPUT);
+                Gpio::Direction::DOUTPUT);
             pins_[helper::pin_low(nextBit_)]->clr();
         }
     }

@@ -62,17 +62,17 @@ public:
     {
         CLR = false,
         SET = true,
-        LOW = CLR,
-        HIGH = SET
+        VLOW = CLR,
+        VHIGH = SET
     };
 
     /** Defines the options for GPIO direction. This enum must always be used
-     * fully qualified (i.e. Gpio::Direction::INPUT and
-     * Gpio::Direction::OUTPUT). */
+     * fully qualified (i.e. Gpio::Direction::DINPUT and
+     * Gpio::Direction::DOUTPUT). */
     enum class Direction
     {
-        INPUT,
-        OUTPUT,
+        DINPUT,
+        DOUTPUT,
     };
 
     /** Writes a GPIO output pin (set or clear to a specific state).

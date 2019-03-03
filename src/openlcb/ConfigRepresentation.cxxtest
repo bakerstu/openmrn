@@ -114,6 +114,10 @@ CDI_GROUP(SecondSegment, Segment(MemoryConfigDefs::SPACE_CONFIG));
 CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
 CDI_GROUP_END();
 
+CDI_GROUP(ThirdSegment);
+CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_END();
+
 
 CDI_GROUP(ConfigDef, MainCdi());
 CDI_GROUP_ENTRY(ident, Identification);
@@ -121,6 +125,7 @@ CDI_GROUP_ENTRY(acdi, Acdi);
 CDI_GROUP_ENTRY(userinfo, UserInfoSegment);
 CDI_GROUP_ENTRY(seg, IoBoardSegment);
 CDI_GROUP_ENTRY(seg2, SecondSegment);
+CDI_GROUP_ENTRY(seg3, ThirdSegment, Segment(13), Offset(142));
 CDI_GROUP_END();
 
 TEST(FullCdi, SegmentOffset)
@@ -144,6 +149,9 @@ TEST(FullCdi, SegmentOffset)
 
     EXPECT_EQ(128u, def.seg().first().offset());
     EXPECT_EQ(0u, def.seg2().first().offset());
+
+    EXPECT_EQ(142u, def.seg3().first().offset());
+    EXPECT_EQ(13, def.seg3_options().segment());
 }
 
 TempDir dir;

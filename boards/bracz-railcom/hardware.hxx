@@ -356,17 +356,17 @@ struct RailcomDefs
 
         /*if (feedbackChannel_ == 0xff) {
           if (ret & 1) {
-            CHARLIE0_Pin::instance()->set_direction(Gpio::Direction::OUTPUT);
+            CHARLIE0_Pin::instance()->set_direction(Gpio::Direction::DOUTPUT);
             CHARLIE0_Pin::set(true);
           } else {
-            CHARLIE0_Pin::instance()->set_direction(Gpio::Direction::INPUT);
+            CHARLIE0_Pin::instance()->set_direction(Gpio::Direction::DINPUT);
           }
 
           if (ret & 2) {
-            CHARLIE1_Pin::instance()->set_direction(Gpio::Direction::OUTPUT);
+            CHARLIE1_Pin::instance()->set_direction(Gpio::Direction::DOUTPUT);
             CHARLIE1_Pin::set(true);
           } else {
-            CHARLIE1_Pin::instance()->set_direction(Gpio::Direction::INPUT);
+            CHARLIE1_Pin::instance()->set_direction(Gpio::Direction::DINPUT);
           }
           }*/
 

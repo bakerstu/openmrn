@@ -34,6 +34,8 @@
 
 #if defined (__linux__) || defined (__MACH__) || defined(__FreeRTOS__)
 
+#define _DEFAULT_SOURCE
+
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>

@@ -68,14 +68,14 @@ public:
 
     Value read() const OVERRIDE
     {
-        return PIN::get() ? HIGH : LOW;
+        return PIN::get() ? VHIGH : VLOW;
     }
 
     void set_direction(Direction dir) const OVERRIDE
     {
         // We cannot change the direction of a wrapped pin. Crash if the code
         // attempts to do so.
-        if (dir == Direction::OUTPUT)
+        if (dir == Direction::DOUTPUT)
         {
             HASSERT(PIN::is_output());
         }
@@ -89,11 +89,11 @@ public:
     {
         if (PIN::is_output())
         {
-            return Direction::OUTPUT;
+            return Direction::DOUTPUT;
         }
         else
         {
-            return Direction::INPUT;
+            return Direction::DINPUT;
         }
     }
 

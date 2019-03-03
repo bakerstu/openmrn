@@ -32,6 +32,7 @@
  * @date 6 November 2013
  */
 
+#define _DEFAULT_SOURCE
 #include <unistd.h>
 
 #include "utils/logging.h"

@@ -92,6 +92,12 @@ void MDNS::publish(const char *name, const char *service, uint16_t port)
     if (!group_)
     {
         group_ = avahi_entry_group_new(client_, entry_group_callback, this);
+        if (!group_)
+        {
+            fprintf(stderr, "avahi_entry_group_new() failed: %s\n",
+                avahi_strerror(avahi_client_errno(client_)));
+            return;
+        }
         HASSERT(group_);
     }
 
@@ -468,6 +474,34 @@ void *MDNS::entry()
 
     printf("mdns_thread exit\n");
 
+    if (group_)
+    {
+        avahi_entry_group_reset(group_);
+        avahi_entry_group_free(group_);
+        group_ = nullptr;
+    }
+
+    if (client_)
+    {
+        avahi_client_free(client_);
+        client_ = nullptr;
+    }
+
+    avahi_simple_poll_free(simplePoll_);
+    simplePoll_ = nullptr;
+
+    sem_.post();
     return nullptr;
 }
+
+void MDNS::shutdown()
+{
+    if (simplePoll_)
+    {
+        avahi_simple_poll_quit(simplePoll_);
+        sem_.wait();
+        HASSERT(!simplePoll_);
+    }
+}
+
 #endif

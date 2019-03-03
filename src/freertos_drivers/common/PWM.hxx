@@ -113,7 +113,7 @@ public:
     {
     }
 
-    ~PWMGPO()
+    virtual ~PWMGPO()
     {
     }
 
@@ -147,14 +147,24 @@ public:
     /// @param dir @ref INPUT or @ref OUTPUT
     void set_direction(Gpio::Direction dir) const override
     {
-        HASSERT(dir == Gpio::Direction::OUTPUT);
+        HASSERT(dir == Gpio::Direction::DOUTPUT);
     }
 
     /// Gets the GPO direction.
     /// @return always returns @ref OUTPUT
     Direction direction() const override
     {
-        return Gpio::Direction::OUTPUT;
+        return Gpio::Direction::DOUTPUT;
+    }
+
+    uint32_t get_on_counts() const
+    {
+        return onCounts_;
+    }
+
+    uint32_t get_off_counts() const
+    {
+        return offCounts_;
     }
 
 private:
