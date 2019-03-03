@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file os_private.hxx
+ * @file os_private.h
  * This file is a bit of a hack and should only used under extreme caution.
  * its purpose is to allow alternate niche platform support for the OS API's
  *
