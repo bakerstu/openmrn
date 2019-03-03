@@ -80,7 +80,7 @@ void write_string_to_file(const string &filename, const string &data);
 extern "C"
 {
     extern const char DEFAULT_WIFI_NAME[];
-    extern const char DEFAULT_PASSWORD[];
+    extern const char DEFAULT_WIFI_PASSWORD[];
 }
 
 namespace openmrn_arduino {
