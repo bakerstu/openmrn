@@ -488,7 +488,9 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
 
     if (s->writeActive == false)
     {
-        /* typically we would never get here */
+        /* typically we would never get here as callers usually go to select()
+         * before attempting a send again. */
+        HASSERT(s->mode_ & O_NONBLOCK);
         errno = EAGAIN;
         return -1;
     }
@@ -875,6 +877,14 @@ int CC32xxSocket::fcntl(File *file, int cmd, unsigned long data)
                                        SL_SO_NONBLOCKING, &sl_option_value,
                                        sizeof(sl_option_value));
             SlCheckResult(result, 0);
+            if (data & O_NONBLOCK)
+            {
+                mode_ |= O_NONBLOCK;
+            }
+            else
+            {
+                mode_ &= ~O_NONBLOCK;
+            }
             return 0;
         }
     }
