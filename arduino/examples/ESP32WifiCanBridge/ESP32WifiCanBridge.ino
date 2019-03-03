@@ -35,7 +35,7 @@
 
 #include <Arduino.h>
 #include <ESPmDNS.h>
-#include <OpenMRN.h>
+#include <OpenMRNLite.h>
 #include <SPIFFS.h>
 #include <openlcb/TcpDefs.hxx>
 
@@ -67,7 +67,7 @@ constexpr uint16_t OPENMRN_TCP_PORT = 12021L;
 
 /// This is the node id to assign to this device, this must be unique
 /// on the CAN bus.
-static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
+static constexpr uint64_t NODE_ID = UINT64_C(0x050101011821);
 
 // Configuring WiFi accesspoint name and password
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -77,16 +77,16 @@ static constexpr uint64_t NODE_ID = UINT64_C(0x050101011423);
 //     const char* password = "superSecret";
 // 2) add a new file to the sketch folder called something.cpp with the
 // following contents:
-//     #include <OpenMRN.h>
+//     #include <OpenMRNLite.h>
 //
 //     const char DEFAULT_WIFI_NAME[] = "linksys";
-//     const char DEFAULT_PASSWORD[] = "theTRUEsupers3cr3t";
+//     const char DEFAULT_WIFI_PASSWORD[] = "theTRUEsupers3cr3t";
 
 /// This is the name of the WiFi network (access point) to connect to.
 const char *ssid = DEFAULT_WIFI_NAME;
 
 /// Password of the wifi network.
-const char *password = DEFAULT_PASSWORD;
+const char *password = DEFAULT_WIFI_PASSWORD;
 
 /// This is the hostname which the ESP32 will advertise via mDNS, it should be
 /// unique.

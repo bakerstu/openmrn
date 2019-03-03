@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file OpenMRN.h
+ * \file OpenMRNLite.h
  *
  * Main include file for the OpenMRN library to be used in an Arduino
  * compilation environment.
@@ -33,8 +33,8 @@
  * @date 24 July 2018
  */
 
-#ifndef _ARDUINO_OPENMRN_H_
-#define _ARDUINO_OPENMRN_H_
+#ifndef _ARDUINO_OPENMRNLITE_H_
+#define _ARDUINO_OPENMRNLITE_H_
 
 #include <Arduino.h>
 
@@ -483,4 +483,4 @@ private:
 
 using openmrn_arduino::OpenMRN;
 
-#endif // _ARDUINO_OPENMRN_H_
+#endif // _ARDUINO_OPENMRNLITE_H_
