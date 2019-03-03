@@ -628,18 +628,8 @@ void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy)
     wlanRole = role;
     wlanPowerPolicy = power_policy;
 
-    /* note, sl_Task MUST be a pthread because the Wi-Fi task uses the pthread
-     * interface such as pthread_self().
-     */
-    pthread_t thread;
-    pthread_attr_t attr;
-    struct sched_param sched_param;
-
-    pthread_attr_init(&attr);
-    sched_param.sched_priority = sched_get_priority_max(SCHED_FIFO);
-    pthread_attr_setschedparam(&attr, &sched_param);
-    pthread_attr_setstacksize(&attr, 2048);
-    pthread_create(&thread, &attr, sl_Task, nullptr);
+    os_thread_create(nullptr, "sl_Task", OSThread::get_priority_max(), 2048,
+                     sl_Task, nullptr);
 
     os_thread_create(nullptr, "Wlan Task", OSThread::get_priority_max() - 1,
                      2048, wlan_task_entry, nullptr);
@@ -838,7 +828,7 @@ void CC32xxWiFi::wlan_task()
             continue;
         }
 
-        if (result == 0 || (os_get_time_monotonic() >> 20) > next_wrssi_poll)
+        if ((os_get_time_monotonic() >> 20) > next_wrssi_poll)
         {
             next_wrssi_poll = (os_get_time_monotonic() >> 20) + 800;
             /* timeout, get the RSSI value */
@@ -858,6 +848,17 @@ void CC32xxWiFi::wlan_task()
                 /* socket slot not in use */
                 continue;
             }
+            if (SL_SOCKET_FD_ISSET(slSockets[i], &wfds_tmp))
+            {
+                --result;
+                portENTER_CRITICAL();
+                SL_SOCKET_FD_CLR(slSockets[i], &wfds);
+                new_highest();
+                CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
+                s->writeActive = true;
+                s->select_wakeup(&s->selInfoWr);
+                portEXIT_CRITICAL();
+            }
             if (SL_SOCKET_FD_ISSET(slSockets[i], &rfds_tmp))
             {
                 --result;
@@ -874,21 +875,10 @@ void CC32xxWiFi::wlan_task()
                     SL_SOCKET_FD_CLR(slSockets[i], &rfds);
                     new_highest();
                     CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
-                    portEXIT_CRITICAL();
                     s->readActive = true;
                     s->select_wakeup(&s->selInfoRd);
+                    portEXIT_CRITICAL();
                 }
-            }
-            if (SL_SOCKET_FD_ISSET(slSockets[i], &wfds_tmp))
-            {
-                --result;
-                portENTER_CRITICAL();
-                SL_SOCKET_FD_CLR(slSockets[i], &wfds);
-                new_highest();
-                CC32xxSocket *s = CC32xxSocket::get_instance_from_sd(slSockets[i]);
-                portEXIT_CRITICAL();
-                s->writeActive = true;
-                s->select_wakeup(&s->selInfoWr);
             }
             if (SL_SOCKET_FD_ISSET(slSockets[i], &efds_tmp))
             {
@@ -923,7 +913,14 @@ void CC32xxWiFi::select_wakeup()
          * periodically.
          */
         char data = -1;
-        sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address, length);
+        ssize_t result = sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address,
+                                   length);
+        while (result != 1 && connected)
+        {
+            usleep(MSEC_TO_USEC(50));
+            result = sl_SendTo(wakeup, &data, 1, 0, (SlSockAddr_t*)&address,
+                               length);
+        }
     }
 }
 
