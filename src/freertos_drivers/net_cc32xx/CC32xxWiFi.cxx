@@ -566,7 +566,8 @@ void CC32xxWiFi::test_mode_start()
     // disable auto provisioning
     sl_WlanProvisioning(SL_WLAN_PROVISIONING_CMD_STOP, 0xFF, 0, nullptr, 0);
 
-    //sl_WlanProfileDel(0xFF);
+    // delete all stored Wi-Fi profiles
+    sl_WlanProfileDel(0xFF);
 
     // enable DHCP client
     sl_NetCfgSet(SL_NETCFG_IPV4_STA_ADDR_MODE, SL_NETCFG_ADDR_DHCP, 0, 0);
