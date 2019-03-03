@@ -49,6 +49,8 @@
 #include <esp_task.h>
 #include <esp_task_wdt.h>
 
+namespace openmrn_arduino {
+
 /// Default stack size to use for all OpenMRN tasks on the ESP32 platform.
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
@@ -57,6 +59,8 @@ constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 /// (-1 and -2 respectively) of this default priority to ensure timely
 /// consumption of CAN frames from the hardware driver.
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
+
+} // namespace openmrn_arduino
 
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
@@ -78,6 +82,8 @@ extern "C"
     extern const char DEFAULT_WIFI_NAME[];
     extern const char DEFAULT_PASSWORD[];
 }
+
+namespace openmrn_arduino {
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN
 /// frames via gridconnect format) to the OpenMRN core stack. This can be
@@ -482,5 +488,9 @@ private:
     /// True if there is a separate thread running the executor.
     bool haveExecutorThread_{false};
 };
+
+} // namespace openmrn_arduino
+
+using openmrn_arduino::OpenMRN;
 
 #endif // _ARDUINO_OPENMRN_H_
