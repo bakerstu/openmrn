@@ -364,18 +364,8 @@ public:
     void start_executor_thread()
     {
         haveExecutorThread_ = true;
-        xTaskCreate(openmrn_background_task, "OpenMRN", OPENMRN_STACK_SIZE,
-                    this, OPENMRN_TASK_PRIORITY, nullptr);
-        /// @todo: replace the above with the below once os_thread_create gets
-        /// implemented for the esp32.
-        // stack_->executor()->start_thread(
-        //     "OpenMRN", OPENMRN_TASK_PRIORITY, OPENMRN_STACK_SIZE);
-    }
-
-    static void openmrn_background_task(void *arg)
-    {
-        OpenMRN *me = static_cast<OpenMRN *>(arg);
-        me->stack_->executor()->thread_body();
+        stack_->executor()->start_thread(
+            "OpenMRN", OPENMRN_TASK_PRIORITY, OPENMRN_STACK_SIZE);
     }
 #endif
 
