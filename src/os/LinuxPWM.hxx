@@ -73,15 +73,19 @@ public:
         p = strrchr(exportname,'/');
         p++;
         strcpy(p,"export");
-        set_sysfs_file_value(exportname,channel_);
+        FILE *fp = fopen(exportname,"w");
+        if (fp == NULL) {
+            int err = errno;
+            LOG_ERROR("Cannot open %s for write: %s\n",exportname,strerror(errno));
+            exit(err);
+        }
+        fprintf(fp,"%d\n",channel_);
+        fclose(fp);
         set_period(1);
     }       
     void set_period(uint32_t counts) override
     {
-        char periodname[60];
-        strcpy(periodname,pwmdir);
-        strcat(periodname,"/period");
-        set_sysfs_file_value(periodname,counts);
+        set_sysfs_file_value("period",counts);
         if (counts > 0) {
             enable();
         } else {
@@ -90,17 +94,11 @@ public:
     }
     uint32_t get_period() override
     {
-        char periodname[60];
-        strcpy(periodname,pwmdir);
-        strcat(periodname,"/period");
-        return get_sysfs_file_value(periodname);
+        return get_sysfs_file_value("period");
     }
     void set_duty(uint32_t counts) override
     {
-        char duty_cyclename[60];
-        strcpy(duty_cyclename,pwmdir);
-        strcat(duty_cyclename,"/duty_cycle");
-        set_sysfs_file_value(duty_cyclename,counts);
+        set_sysfs_file_value("duty_cycle",counts);
         if (counts > 0) {
             enable();
         } else {
@@ -109,10 +107,7 @@ public:
     }
     uint32_t get_duty() override
     {
-        char duty_cyclename[60];
-        strcpy(duty_cyclename,pwmdir);
-        strcat(duty_cyclename,"/duty_cycle");
-        return get_sysfs_file_value(duty_cyclename);
+        return get_sysfs_file_value("duty_cycle");
     }
     uint32_t get_period_max() override
     {
@@ -123,36 +118,45 @@ public:
         return 1;
     }
     void enable() {
-        char enablename[60];
-        strcpy(enablename,pwmdir);
-        strcat(enablename,"/enable");
-        set_sysfs_file_value(enablename,1);
+        set_sysfs_file_value("enable",1);
     }
     void disable() {
-        char enablename[60];
-        strcpy(enablename,pwmdir);
-        strcat(enablename,"/enable");
-        set_sysfs_file_value(enablename,0);
+        set_sysfs_file_value("enable",0);
     }
     bool enabled() {
-        char enablename[60];
-        strcpy(enablename,pwmdir);
-        strcat(enablename,"/enable");
-        return get_sysfs_file_value(enablename) == 1;
+        return get_sysfs_file_value("enable") == 1;
     }
 private:
     const uint32_t chip_;
     const uint32_t channel_;
     char pwmdir[40];
     uint32_t get_sysfs_file_value(const char* basename) {
+        char sysfname[60];
+        strcpy(sysfname,pwmdir);
+        strcat(sysfname,"/");
+        strcat(sysfname,basename);
         uint32_t value;
-        FILE *fp = fopen(basename,"r");
+        FILE *fp = fopen(sysfname,"r");
+        if (fp == NULL) {
+            int err = errno;
+            LOG_ERROR("Cannot open %s for read: %s\n",sysfname,strerror(errno));
+            exit(err);
+        }
         fscanf(fp,"%d",&value);
         fclose(fp);
         return value;
     }
     void set_sysfs_file_value(const char* basename, uint32_t value) {
-        FILE *fp = fopen(basename,"w");
+        char sysfname[60];
+        strcpy(sysfname,pwmdir);
+        strcat(sysfname,"/");
+        strcat(sysfname,basename);
+        FILE *fp = fopen(sysfname,"w");
+        if (fp == NULL) {
+            int err = errno;
+            LOG_ERROR("Cannot open %s for write: %s\n",sysfname,strerror(errno));
+            exit(err);
+        }
         fprintf(fp,"%d\n",value);
         fclose(fp);
     }
