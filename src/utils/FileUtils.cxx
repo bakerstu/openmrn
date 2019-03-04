@@ -55,6 +55,7 @@ string read_file_to_string(const string &filename)
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 /// Opens a file, reads the entire contents, stores it in a c++ std::string and
 /// returns this string. Helper function in some client applications. Exits the
