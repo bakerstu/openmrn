@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file FileUtils.hxx
+ * \file FileUtils.cxx
  *
  * Utilities for dealing with files on host OSes.
  *
@@ -32,10 +32,9 @@
  * @date 4 Dec 2015
  */
 
-#ifndef _UTILS_FILEUTILS_HXX_
-#define _UTILS_FILEUTILS_HXX_
-
 #include <string>
+
+#include "utils/macros.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -115,5 +114,3 @@ void write_string_to_file(const string &filename, const string &data)
 }
 
 #endif
-
-#endif //_UTILS_JSFILEUTILS_HXX_
