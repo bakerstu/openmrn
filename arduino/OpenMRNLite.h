@@ -43,6 +43,7 @@
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
+#include "utils/FileUtils.hxx"
 
 #if defined(ESP32)
 
@@ -71,11 +72,6 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
 #define HAVE_FILESYSTEM
 
 #endif // ESP32
-
-#if defined(HAVE_FILESYSTEM)
-string read_file_to_string(const string &filename);
-void write_string_to_file(const string &filename, const string &data);
-#endif // HAVE_FILESYSTEM
 
 extern "C"
 {
