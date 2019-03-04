@@ -44,4 +44,16 @@ OpenMRN::OpenMRN(openlcb::NodeID node_id)
     init(node_id);
 }
 
+#ifdef ESP32
+extern "C" {
+
+/// Reboots the ESP32 via the arduino-esp32 provided restart function.
+void reboot()
+{
+    ESP.restart();
+}
+
+}
+#endif // ESP32
+
 } // namespace openmrn_arduino
