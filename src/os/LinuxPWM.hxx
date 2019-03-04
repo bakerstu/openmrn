@@ -80,17 +80,22 @@ public:
             set_period(1);
             return;
         }
+
         string export_file =
             StringPrintf("/sys/class/pwm/pwmchip%d/export", chip_);
         write_string_to_file(export_file, integer_to_string(channel_) + "\n");
+
         set_period(1);
     }
 
     void set_period(uint32_t counts) override
     {
+
         set_sysfs_file_value(PERIOD_FILE, counts);
         if (counts > 0)
         {
+
+
             enable();
         }
         else
@@ -101,14 +106,18 @@ public:
 
     uint32_t get_period() override
     {
+
         return get_sysfs_file_value(PERIOD_FILE);
+
     }
 
     void set_duty(uint32_t counts) override
     {
+
         set_sysfs_file_value(DUTY_CYCLE_FILE, counts);
         if (counts > 0)
         {
+
             enable();
         }
         else
@@ -119,7 +128,9 @@ public:
 
     uint32_t get_duty() override
     {
+
         return get_sysfs_file_value(DUTY_CYCLE_FILE);
+
     }
 
     uint32_t get_period_max() override
@@ -131,6 +142,7 @@ public:
     {
         return 1;
     }
+
 
     /// Enables the output PWM waveform.
     void enable()
@@ -148,6 +160,8 @@ public:
     bool enabled()
     {
         return get_sysfs_file_value(ENABLE_FILE) == 1;
+
+
     }
 
 private:
@@ -188,6 +202,7 @@ private:
         filename += basename;
         FILE *fp = fopen(filename.c_str(), "w");
         fprintf(fp, "%d\n", value);
+
         fclose(fp);
     }
 };
