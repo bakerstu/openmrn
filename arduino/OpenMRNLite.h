@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file OpenMRN.h
+ * \file OpenMRNLite.h
  *
  * Main include file for the OpenMRN library to be used in an Arduino
  * compilation environment.
@@ -33,8 +33,8 @@
  * @date 24 July 2018
  */
 
-#ifndef _ARDUINO_OPENMRN_H_
-#define _ARDUINO_OPENMRN_H_
+#ifndef _ARDUINO_OPENMRNLITE_H_
+#define _ARDUINO_OPENMRNLITE_H_
 
 #include <Arduino.h>
 
@@ -49,6 +49,8 @@
 #include <esp_task.h>
 #include <esp_task_wdt.h>
 
+namespace openmrn_arduino {
+
 /// Default stack size to use for all OpenMRN tasks on the ESP32 platform.
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
@@ -57,6 +59,8 @@ constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 /// (-1 and -2 respectively) of this default priority to ensure timely
 /// consumption of CAN frames from the hardware driver.
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
+
+} // namespace openmrn_arduino
 
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
@@ -76,8 +80,10 @@ void write_string_to_file(const string &filename, const string &data);
 extern "C"
 {
     extern const char DEFAULT_WIFI_NAME[];
-    extern const char DEFAULT_PASSWORD[];
+    extern const char DEFAULT_WIFI_PASSWORD[];
 }
+
+namespace openmrn_arduino {
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN
 /// frames via gridconnect format) to the OpenMRN core stack. This can be
@@ -261,14 +267,13 @@ private:
     /// Handles data coming from the CAN port.
     void loop_for_read()
     {
-        if (!port_->available())
+        while (port_->available())
         {
-            return;
+            auto *b = canHub_->alloc();
+            port_->read(b->data());
+            b->data()->skipMember_ = &writePort_;
+            canHub_->send(b);
         }
-        auto *b = canHub_->alloc();
-        port_->read(b->data());
-        b->data()->skipMember_ = &writePort_;
-        canHub_->send(b);
     }
 
     friend class WritePort;
@@ -354,6 +359,15 @@ public:
             e->run();
         }
     }
+
+#ifndef OPENMRN_FEATURE_SINGLE_THREADED
+    void start_executor_thread()
+    {
+        haveExecutorThread_ = true;
+        stack_->executor()->start_thread(
+            "OpenMRN", OPENMRN_TASK_PRIORITY, OPENMRN_STACK_SIZE);
+    }
+#endif
 
     /// Adds a serial port to the stack speaking the gridconnect protocol, for
     /// example to do a USB connection to a computer. This is the protocol that
@@ -449,7 +463,10 @@ private:
     /// Callback from the loop() method. Internally called.
     void run() override
     {
-        stack_->executor()->loop_some();
+        if (!haveExecutorThread_)
+        {
+            stack_->executor()->loop_some();
+        }
     }
 
     /// Storage space for the OpenLCB stack. Will be constructed in init().
@@ -457,6 +474,13 @@ private:
 
     /// List of objects we need to call in each loop iteration.
     vector<Executable *> loopMembers_{{this}};
+
+    /// True if there is a separate thread running the executor.
+    bool haveExecutorThread_{false};
 };
 
-#endif // _ARDUINO_OPENMRN_H_
+} // namespace openmrn_arduino
+
+using openmrn_arduino::OpenMRN;
+
+#endif // _ARDUINO_OPENMRNLITE_H_

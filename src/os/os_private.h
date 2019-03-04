@@ -1,10 +1,10 @@
-/** \copyright
- * Copyright (c) 2015, Balazs Racz
+/** @copyright
+ * Copyright (c) 2018, Stuart W Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- *
+ * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,35 +24,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file FileUtils.hxx
+ * @file os_private.h
+ * This file is a bit of a hack and should only used under extreme caution.
+ * its purpose is to allow alternate niche platform support for the OS API's
  *
- * Utilities for dealing with files on host OSes.
- *
- * @author Balazs Racz
- * @date 4 Dec 2015
+ * @author Stuart W. Baker
+ * @date 29 December 2018
  */
 
-#ifndef _UTILS_FILEUTILS_HXX_
-#define _UTILS_FILEUTILS_HXX_
+#ifndef _OS_OS_PRIVATE_H_
+#define _OS_OS_PRIVATE_H_
 
-#include <string>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/// Opens a file, reads the entire contents, stores it in a c++ std::string and
-/// returns this string. Helper function in some client applications. Exits the
-/// current application if there is an error.
-///
-/// @param filename name of file to open.
-///
-/// @return the file contents.
-///
-string read_file_to_string(const string &filename);
+#if defined (__FreeRTOS__)
+extern void os_thread_start(void *arg);
+#endif // __FreeRTOS__
 
-/// Opens (or creates) a file, truncates it and overwrites the contents with
-/// what is given in a string. Terminates the application if an error is
-/// encountered.
-///
-/// @param filename name of file to open.
-/// @param data what to write into the file.
-void write_string_to_file(const string &filename, const string &data);
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
-#endif //_UTILS_FILEUTILS_HXX_
+#endif // _OS_OS_PRIVATE_H_
+
