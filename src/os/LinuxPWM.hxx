@@ -83,6 +83,13 @@ public:
 
         string export_file =
             StringPrintf("/sys/class/pwm/pwmchip%d/export", chip_);
+        if (access(export_file.c_str(), W_OK) < 0) 
+        {
+            int err = errno;
+            LOG_ERROR("Cannot write to %s: %s\n",export_file.c_str(),
+                      strerror(errno));
+            exit(err);
+        }
         write_string_to_file(export_file, integer_to_string(channel_) + "\n");
 
         set_period(1);
@@ -188,6 +195,13 @@ private:
         filename += basename;
         uint32_t value = 0;
         FILE *fp = fopen(filename.c_str(), "r");
+        if (fp == NULL)
+        {
+            int err = errno;
+            LOG_ERROR("Cannot read from %s: %s\n",filename.c_str(),
+                      strerror(errno));
+            exit(err);
+        }
         fscanf(fp, "%d", &value);
         fclose(fp);
         return value;
@@ -201,6 +215,13 @@ private:
         string filename(pwmdir_);
         filename += basename;
         FILE *fp = fopen(filename.c_str(), "w");
+        if (fp == NULL)
+        {
+            int err = errno;
+            LOG_ERROR("Cannot write to %s: %s\n",filename.c_str(),
+                      strerror(errno));
+            exit(err);
+        }
         fprintf(fp, "%d\n", value);
 
         fclose(fp);
