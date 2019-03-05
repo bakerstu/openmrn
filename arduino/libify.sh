@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# 
+# This script exports the OpenMRN code into an Arduino compatible library
+# format.
 #
 
 #set -x
@@ -132,7 +133,10 @@ function copy_dir() {
 copy_file . arduino/{library.json,library.properties,keywords.txt,README.md,LICENSE}
 copy_dir . arduino/examples
 
-copy_file src arduino/OpenMRNLite.{h,cpp} include/{can_frame.h,nmranet_config.h,openmrn_features.h} include/freertos/{freertos_includes.h,endian.h}
+copy_file src arduino/OpenMRNLite.{h,cpp} \
+    include/{can_frame.h,nmranet_config.h,openmrn_features.h} \
+    include/freertos/{freertos_includes.h,endian.h} \
+    include/freertos_select/ifaddrs.h
 
 copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/Packet.cxx
 copy_file src/executor src/executor/*.hxx src/executor/*.cxx
@@ -150,7 +154,7 @@ copy_file src/freertos_drivers/arduino \
 copy_file src/freertos_drivers/esp32 \
           src/freertos_drivers/esp32/*
 
-copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx src/os/OSSelectWakeup.cxx
+copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx src/os/{MDNS.cxx,OSSelectWakeup.cxx}
 
 copy_file src/sys include/sys/tree.hxx
 

@@ -65,7 +65,7 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
 
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
-#include "freertos_drivers/esp32/Esp32WiFiClientAdapter.hxx"
+#include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 
 // On the ESP32 we have persistent file system access so enable
 // dynamic CDI.xml generation support
