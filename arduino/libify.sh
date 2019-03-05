@@ -129,7 +129,7 @@ function copy_dir() {
     popd >/dev/null
 }
 
-copy_file . arduino/{library.json,library.properties,keywords.txt,README.md,LICENSE}
+copy_file . arduino/{library.json,library.properties,keywords.txt,README.md,LICENSE,CONTRIBUTING.md}
 copy_dir . arduino/examples
 
 copy_file src arduino/OpenMRNLite.{h,cpp} include/{can_frame.h,nmranet_config.h,openmrn_features.h} include/freertos/{freertos_includes.h,endian.h}
