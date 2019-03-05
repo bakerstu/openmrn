@@ -396,6 +396,13 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
             // creating connections, this will be a no-op for initial startup.
             xTaskNotifyGive(wifiTaskHandle_);
             break;
+        case SYSTEM_EVENT_STA_LOST_IP:
+            // clear the flag that indicates we are connected and have an
+            // IPv4 address.
+            xEventGroupClearBits(wifiStatusEventGroup_, IPV4_GOTIP_BIT);
+            // Wake up the wifi_manager_task so it can clean up connections.
+            xTaskNotifyGive(wifiTaskHandle_);
+            break;
         case SYSTEM_EVENT_STA_DISCONNECTED:
             // check if we have already connected, this event can be raised
             // even before we have successfully connected during the SSID
@@ -521,14 +528,15 @@ void Esp32WiFiManager::start_wifi_system()
         {
             break;
         }
-        LOG(WARNING, "[WiFi] SSID has not provided an IP yet, attempt %d/%d.",
+        LOG(WARNING, "[WiFi] DHCP has not provided an IP yet, attempt %d/%d.",
             attempt, attempts);
     }
 
     // Check if we successfully connected or not. If not, force a reboot.
     if((bits & IPV4_GOTIP_BIT) != IPV4_GOTIP_BIT)
     {
-        LOG(FATAL, "[WiFi] Failed to connect to the configured SSID.");
+        LOG(FATAL, "[WiFi] Failed to obtain an IP address via DHCP or SSID "
+            "connect failed.");
     }
 
     // Initialize the mDNS system.
