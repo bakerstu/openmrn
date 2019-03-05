@@ -91,7 +91,8 @@ public:
             exit(err);
         }
         write_string_to_file(export_file, integer_to_string(channel_) + "\n");
-
+        // 50ms delay IS needed while kernel changes ownership of created GPIO directory
+        usleep(50000); 
         set_period(1);
     }
 
