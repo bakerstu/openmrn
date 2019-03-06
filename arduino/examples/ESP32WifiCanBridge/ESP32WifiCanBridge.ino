@@ -34,9 +34,9 @@
  */
 
 #include <Arduino.h>
-#include <OpenMRNLite.h>
 #include <SPIFFS.h>
-#include <openlcb/TcpDefs.hxx>
+
+#include <OpenMRNLite.h>
 
 #include "config.h"
 

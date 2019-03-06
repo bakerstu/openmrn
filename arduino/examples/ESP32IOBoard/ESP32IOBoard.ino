@@ -36,8 +36,9 @@
 #include <SPIFFS.h>
 
 #include <OpenMRNLite.h>
+#include <openlcb/ConfiguredConsumer.hxx>
+#include <openlcb/ConfiguredProducer.hxx>
 #include <openlcb/MultiConfiguredConsumer.hxx>
-#include <openlcb/TcpDefs.hxx>
 #include <utils/GpioInitializer.hxx>
 
 // Pick an operating mode below, if you select USE_WIFI it will expose
@@ -183,7 +184,6 @@ openlcb::ConfiguredProducer IO14_producer(
     openmrn.stack()->node(), cfg.seg().producers().entry<6>(), IO14_Pin());
 openlcb::ConfiguredProducer IO15_producer(
     openmrn.stack()->node(), cfg.seg().producers().entry<7>(), IO15_Pin());
-
 
 // Create an initializer that can initialize all the GPIO pins in one shot
 typedef GpioInitializer<
