@@ -38,6 +38,7 @@
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfiguredTcpConnection.hxx"
 
+/// Names and Descriptions for all ESP32 exposed WiFi configuration options.
 class Esp32WiFiConfigurationParams
 {
 public:
@@ -89,31 +90,40 @@ public:
         "Configures how this node will connect to other nodes.";
 };
 
+/// CDI Configuration for an @ref Esp32WiFiManager managed hub.
 CDI_GROUP(HubConfiguration);
+/// Allows the node to become a Grid Connect Hub.
 CDI_GROUP_ENTRY(enable, openlcb::Uint8ConfigEntry,
     Name(Esp32WiFiConfigurationParams::HUB_ENABLE_NAME),
     Description(Esp32WiFiConfigurationParams::HUB_ENABLE_DESC),
     Min(0), Max(1), Default(0),
     MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
+/// Specifies the port which should be used by the hub.
 CDI_GROUP_ENTRY(port, openlcb::Uint16ConfigEntry,
     Name(Esp32WiFiConfigurationParams::HUB_LISTENER_PORT_NAME),
     Description(Esp32WiFiConfigurationParams::HUB_LISTENER_PORT_DESC),
     Min(1), Max(65535),
     Default(openlcb::TcpClientDefaultParams::DEFAULT_PORT))
+/// Specifies the mDNS service name to advertise for the hub.
 CDI_GROUP_ENTRY(service_name, openlcb::StringConfigEntry<48>,
     Name(openlcb::TcpClientDefaultParams::SERVICE_NAME),
     Description(openlcb::TcpClientDefaultParams::SERVICE_DESCR));
 CDI_GROUP_END();
 
+/// CDI Configuration for an @ref Esp32WiFiManager managed node.
 CDI_GROUP(WiFiConfiguration);
+/// Allows the WiFi system to use power-saving techniques to conserve power
+/// when the node is powered via battery.
 CDI_GROUP_ENTRY(sleep, openlcb::Uint8ConfigEntry,
     Name(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_NAME),
     Description(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_DESC),
     Min(0), Max(1), Default(0),
     MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
+/// CDI Configuration to enable this node to be a hub.
 CDI_GROUP_ENTRY(hub, HubConfiguration,
     Name(Esp32WiFiConfigurationParams::HUB_NAME),
     Description(Esp32WiFiConfigurationParams::HUB_DESC));
+/// CDI Configuration for this node's connection to an uplink hub.
 CDI_GROUP_ENTRY(uplink,
     openlcb::TcpClientConfig<openlcb::TcpClientDefaultParams>,
     Name(Esp32WiFiConfigurationParams::UPLINK_NAME),

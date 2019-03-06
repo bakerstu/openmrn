@@ -51,9 +51,6 @@ using openlcb::TcpManualAddress;
 using std::string;
 using std::unique_ptr;
 
-// Uncomment to use ::select()
-//OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
-
 /// Priority to use for the wifi_manager_task. This is currently set to
 /// the same priority level as the arduino-esp32 loopTask. The task will
 /// be in a sleep state until woken up by Esp32WiFiManager::process_wifi_event
@@ -64,14 +61,24 @@ static constexpr UBaseType_t WIFI_TASK_PRIORITY = 1;
 static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
 
 /// Interval at which to check the WiFi connection status.
-static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(10000);
+static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
 
 /// Interval at which to check if the GcTcpHub has started or not.
 static constexpr TickType_t HUB_STARTUP_DELAY = pdMS_TO_TICKS(50);
 
 /// Bit designator for wifi_status_event_group which indicates we are connected
-/// and have an IPv4 address assigned via DHCP.
-static constexpr int IPV4_GOTIP_BIT = BIT0;
+/// to the SSID.
+static constexpr int WIFI_CONNECTED_BIT = BIT0;
+
+/// Bit designator for wifi_status_event_group which indicates we have an IPv4
+/// address assigned.
+static constexpr int DHCP_GOTIP_BIT = BIT1;
+
+/// Allow up to 36 checks to see if we have connected to the SSID and
+/// received an IPv4 address. This allows up to ~3 minutes for the entire
+/// process to complete, in most cases this should be complete in under 30
+/// seconds.
+static constexpr uint8_t MAX_CONNECTION_CHECK_ATTEMPTS = 36;
 
 /// Maximum number of milliseconds to wait for mDNS query responses.
 static constexpr uint32_t MDNS_QUERY_TIMEOUT = 3000;
@@ -380,6 +387,11 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
                 esp_wifi_connect();
             }
             break;
+        case SYSTEM_EVENT_STA_CONNECTED:
+            LOG(INFO, "[WiFi] Connected to SSID: %s", ssid_);
+            // Set the flag that indictes we are connected to the SSID.
+            xEventGroupSetBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
+            break;
         case SYSTEM_EVENT_STA_GOT_IP:
             // Retrieve the configured IP address from the TCP/IP stack.
             tcpip_adapter_ip_info_t ip_info;
@@ -387,10 +399,8 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
             LOG(INFO, "[WiFi] IP address is " IPSTR ", starting hub (if "
                 "enabled) and uplink.", IP2STR(&ip_info.ip));
 
-            // Set the flag that indictes we are connected and have an UPv4
-            // address. This will unblock the start_wifi_task method which
-            // waits for this flag.
-            xEventGroupSetBits(wifiStatusEventGroup_, IPV4_GOTIP_BIT);
+            // Set the flag that indictes we have an IPv4 address.
+            xEventGroupSetBits(wifiStatusEventGroup_, DHCP_GOTIP_BIT);
 
             // Wake up the wifi_manager_task so it can start connections
             // creating connections, this will be a no-op for initial startup.
@@ -399,7 +409,7 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
         case SYSTEM_EVENT_STA_LOST_IP:
             // clear the flag that indicates we are connected and have an
             // IPv4 address.
-            xEventGroupClearBits(wifiStatusEventGroup_, IPV4_GOTIP_BIT);
+            xEventGroupClearBits(wifiStatusEventGroup_, DHCP_GOTIP_BIT);
             // Wake up the wifi_manager_task so it can clean up connections.
             xTaskNotifyGive(wifiTaskHandle_);
             break;
@@ -407,13 +417,13 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
             // check if we have already connected, this event can be raised
             // even before we have successfully connected during the SSID
             // connect process.
-            if(xEventGroupGetBits(wifiStatusEventGroup_) & IPV4_GOTIP_BIT)
+            if(xEventGroupGetBits(wifiStatusEventGroup_) & WIFI_CONNECTED_BIT)
             {
-                LOG(INFO, "[WiFi] Disconnected from SSID, shutting down "
-                    "hub (if running) and uplink.");
-                // clear the flag that indicates we are connected and have an
-                // IPv4 address.
-                xEventGroupClearBits(wifiStatusEventGroup_, IPV4_GOTIP_BIT);
+                LOG(INFO, "[WiFi] Lost connection to SSID: %s", ssid_);
+                // clear the flag that indicates we are connected to the SSID.
+                xEventGroupClearBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
+                // clear the flag that indicates we have an IPv4 address.
+                xEventGroupClearBits(wifiStatusEventGroup_, DHCP_GOTIP_BIT);
 
                 // Wake up the wifi_manager_task so it can clean up
                 // connections.
@@ -510,33 +520,52 @@ void Esp32WiFiManager::start_wifi_system()
     LOG(INFO, "[WiFi] Starting WiFi stack");
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    // Allow up to 20 checks to see if we have connected to the SSID and
-    // received an IPv4 address. This allows up to ~2 minutes for the SSID
-    // connection to complete, in most cases this should be under 30 seconds.
-    static constexpr uint8_t attempts = 20;
     uint8_t attempt = 0;
     EventBits_t bits;
-    LOG(INFO, "[WiFi] Checking for IP address assignment");
-    while(++attempt <= attempts)
+    uint32_t bitMask = WIFI_CONNECTED_BIT;
+    while(++attempt <= MAX_CONNECTION_CHECK_ATTEMPTS)
     {
+        // If we have connected to the SSID we then are waiting for DHCP.
+        if(bits & WIFI_CONNECTED_BIT)
+        {
+            LOG(INFO, "[DHCP] [%d/%d] Waiting for IP address assignment.",
+                attempt, MAX_CONNECTION_CHECK_ATTEMPTS);
+        }
+        else
+        {
+            // Waiting for SSID connection
+            LOG(INFO, "[WiFi] [%d/%d] Waiting for SSID connection.",
+                attempt, MAX_CONNECTION_CHECK_ATTEMPTS);
+        }
         bits = xEventGroupWaitBits(wifiStatusEventGroup_,
-            IPV4_GOTIP_BIT, // bit we are interested in
+            bitMask,        // bits we are interested in
             pdFALSE,        // clear on exit
             pdTRUE,         // wait for all bits
             WIFI_CONNECT_CHECK_INTERVAL);
-        if(bits & IPV4_GOTIP_BIT)
+        // Check if have connected to the SSID
+        if(bits & WIFI_CONNECTED_BIT)
+        {
+            // Since we have connected to the SSID we now need to track that we
+            // get an IP via DHCP.
+            bitMask |= DHCP_GOTIP_BIT;
+        }
+        // Check if we have received an IP via DHCP.
+        if(bits & DHCP_GOTIP_BIT)
         {
             break;
         }
-        LOG(WARNING, "[WiFi] DHCP has not provided an IP yet, attempt %d/%d.",
-            attempt, attempts);
     }
 
     // Check if we successfully connected or not. If not, force a reboot.
-    if((bits & IPV4_GOTIP_BIT) != IPV4_GOTIP_BIT)
+    if((bits & WIFI_CONNECTED_BIT) != WIFI_CONNECTED_BIT)
     {
-        LOG(FATAL, "[WiFi] Failed to obtain an IP address via DHCP or SSID "
-            "connect failed.");
+        LOG(FATAL, "[WiFi] Failed to connect to SSID.");
+    }
+
+    // Check if we successfully connected or not. If not, force a reboot.
+    if((bits & DHCP_GOTIP_BIT) != DHCP_GOTIP_BIT)
+    {
+        LOG(FATAL, "[DHCP] Timeout waiting for an IP.");
     }
 
     // Initialize the mDNS system.
@@ -572,10 +601,10 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
     while (true)
     {
         EventBits_t bits = xEventGroupGetBits(wifi->wifiStatusEventGroup_);
-        if(bits & IPV4_GOTIP_BIT)
+        if(bits & DHCP_GOTIP_BIT)
         {
-            // If we have previously attempted to create an uplink connection
-            // force a config reload to restart the connection process.
+            // If we do not have not an uplink connection force a config reload
+            // to start the connection process.
             if(!wifi->uplink_)
             {
                 wifi->configReloadRequested_ = true;
@@ -583,44 +612,61 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
         }
         else
         {
+            // Since we do not have an IP address we need to shutdown any
+            // active connections since they will be invalid until a new IP
+            // has been provisioned.
             wifi->stop_hub();
             wifi->stop_uplink();
 
-            // make sure we don't try and reload configuration since we can't
+            // Make sure we don't try and reload configuration since we can't
             // create outbound connections at this time.
             wifi->configReloadRequested_ = false;
         }
 
-        // check if there are configuration changes to pick up.
+        // Check if there are configuration changes to pick up.
         if(wifi->configReloadRequested_)
         {
+            // Since we are loading configuration data, shutdown the hub and
+            // uplink if created previously.
             wifi->stop_hub();
             wifi->stop_uplink();
+
             if(CDI_READ_TRIMMED(wifi->cfg_.sleep, wifi->configFd_))
             {
+                // When sleep is enabled this will trigger the WiFi system to
+                // only wake up every DTIM period to receive beacon updates.
+                // no data loss is expected for this setting but it does delay
+                // receiption until the DTIM period.
                 ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MIN_MODEM));
             }
             else
             {
+                // When sleep is disabled the WiFi radio will always be active.
+                // This will increase power consumption of the ESP32 but it
+                // will result in a more reliable behavior when the ESP32 is
+                // connected to an always-on power supply (ie: not a battery).
                 ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
             }
 
             if(CDI_READ_TRIMMED(wifi->cfg_.hub().enable, wifi->configFd_))
             {
+                // Since hub mode is enabled start the HUB creation process.
                 wifi->start_hub();
             }
+            // Start the uplink connection process in the background.
             wifi->start_uplink();
             wifi->configReloadRequested_ = false;
         }
 
-        // Sleep until we are woken up again.
+        // Sleep until we are woken up again for configuration update or WiFi
+        // event.
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     }
 
     return nullptr;
 }
 
-// Shuts down the hub listener (if enabled) for this node.
+// Shuts down the hub listener (if enabled and running) for this node.
 void Esp32WiFiManager::stop_hub()
 {
     if(hub_)
@@ -632,7 +678,7 @@ void Esp32WiFiManager::stop_hub()
     }
 }
 
-// Creates a hub listener for this node after loading configuratino details.
+// Creates a hub listener for this node after loading configuration details.
 void Esp32WiFiManager::start_hub()
 {
     hubServiceName_ = cfg_.hub().service_name().read(configFd_);
@@ -649,7 +695,7 @@ void Esp32WiFiManager::start_hub()
     mdns_publish(NULL, hubServiceName_.c_str(), hub_port);
 }
 
-// Disconnects and shuts down the uplink connector socket
+// Disconnects and shuts down the uplink connector socket if running.
 void Esp32WiFiManager::stop_uplink()
 {
     if(uplink_)
