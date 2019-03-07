@@ -88,8 +88,9 @@ const char *password = DEFAULT_WIFI_PASSWORD;
 /// unique.
 const char *hostname = "esp32mrn";
 
-OVERRIDE_CONST(gridconnect_buffer_size, 512);
-OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
+// Uncomment this line to enable usage of ::select() within the Grid Connect
+// code.
+//OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
 
 #endif // USE_WIFI
 

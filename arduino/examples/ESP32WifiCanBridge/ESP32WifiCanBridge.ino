@@ -87,6 +87,10 @@ const char *password = DEFAULT_WIFI_PASSWORD;
 /// unique.
 const char *hostname = "esp32mrn";
 
+// Uncomment this line to enable usage of ::select() within the Grid Connect
+// code.
+//OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
+
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
 
