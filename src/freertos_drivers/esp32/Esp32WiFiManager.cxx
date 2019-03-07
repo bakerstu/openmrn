@@ -81,7 +81,7 @@ static constexpr int DHCP_GOTIP_BIT = BIT1;
 static constexpr uint8_t MAX_CONNECTION_CHECK_ATTEMPTS = 36;
 
 /// Maximum number of milliseconds to wait for mDNS query responses.
-static constexpr uint32_t MDNS_QUERY_TIMEOUT = 3000;
+static constexpr uint32_t MDNS_QUERY_TIMEOUT = 2000;
 
 /// Maximum number of results to capture for mDNS query requests.
 static constexpr size_t MDNS_MAX_RESULTS = 10;
