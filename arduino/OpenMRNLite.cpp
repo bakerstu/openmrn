@@ -32,17 +32,28 @@
  * @date 24 July 2018
  */
 
-#include <OpenMRN.h>
-
-#ifdef HAVE_FILESYSTEM
-#include "utils/FileUtils.hxx"
-#endif
+#include <OpenMRNLite.h>
 
 extern const char DEFAULT_WIFI_NAME[] __attribute__((weak)) = "defaultap";
-extern const char DEFAULT_PASSWORD[] __attribute__((weak)) = "defaultpw";
+extern const char DEFAULT_WIFI_PASSWORD[] __attribute__((weak)) = "defaultpw";
 
+namespace openmrn_arduino {
 
 OpenMRN::OpenMRN(openlcb::NodeID node_id)
 {
     init(node_id);
 }
+
+#ifdef ESP32
+extern "C" {
+
+/// Reboots the ESP32 via the arduino-esp32 provided restart function.
+void reboot()
+{
+    ESP.restart();
+}
+
+}
+#endif // ESP32
+
+} // namespace openmrn_arduino

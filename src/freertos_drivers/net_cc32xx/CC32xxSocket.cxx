@@ -420,6 +420,7 @@ int CC32xxSocket::connect(int socket, const struct sockaddr *address,
         }
         return -1;
     }
+
     return result;  
 }
 
@@ -466,14 +467,7 @@ ssize_t CC32xxSocket::recv(int socket, void *buffer, size_t length, int flags)
         }
         return -1;
     }
-    if ((size_t)result < length)
-    {
-        s->readActive = false;
-    }
-    else
-    {
-        s->readActive = true;
-    }
+
     return result;  
 }
 
@@ -492,6 +486,15 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
         return -1;
     }
 
+    if (s->writeActive == false)
+    {
+        /* typically we would never get here as callers usually go to select()
+         * before attempting a send again. */
+        HASSERT(s->mode_ & O_NONBLOCK);
+        errno = EAGAIN;
+        return -1;
+    }
+
     int result = sl_Send(s->sd, buffer, length, flags);
 
     if (result < 0)
@@ -504,6 +507,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
                 break;
             case SL_ERROR_BSD_EAGAIN:
                 errno = EAGAIN;
+                s->writeActive = false;
                 break;
             case SL_ERROR_BSD_EBADF:
                 errno = EBADF;
@@ -515,14 +519,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
         }
         return -1;
     }
-    if ((size_t)result < length)
-    {
-        s->writeActive = false;
-    }
-    else
-    {
-        s->writeActive = true;
-    }
+
     return result;
 }
 
@@ -880,6 +877,14 @@ int CC32xxSocket::fcntl(File *file, int cmd, unsigned long data)
                                        SL_SO_NONBLOCKING, &sl_option_value,
                                        sizeof(sl_option_value));
             SlCheckResult(result, 0);
+            if (data & O_NONBLOCK)
+            {
+                mode_ |= O_NONBLOCK;
+            }
+            else
+            {
+                mode_ &= ~O_NONBLOCK;
+            }
             return 0;
         }
     }
