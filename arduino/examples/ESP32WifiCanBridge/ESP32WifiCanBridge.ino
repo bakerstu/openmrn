@@ -74,14 +74,14 @@ static constexpr uint64_t NODE_ID = UINT64_C(0x050101011821);
 // following contents:
 //     #include <OpenMRNLite.h>
 //
-//     const char DEFAULT_WIFI_NAME[] = "linksys";
-//     const char DEFAULT_WIFI_PASSWORD[] = "theTRUEsupers3cr3t";
+//     char WIFI_SSID[] = "linksys";
+//     char WIFI_PASS[] = "theTRUEsupers3cr3t";
 
 /// This is the name of the WiFi network (access point) to connect to.
-const char *ssid = DEFAULT_WIFI_NAME;
+const char *ssid = WIFI_SSID;
 
 /// Password of the wifi network.
-const char *password = DEFAULT_WIFI_PASSWORD;
+const char *password = WIFI_PASS;
 
 /// This is the hostname which the ESP32 will advertise via mDNS, it should be
 /// unique.

@@ -48,6 +48,8 @@
 
 #include <freertos/event_groups.h>
 
+namespace openmrn_arduino {
+
 /// This class provides a simple way for ESP32 nodes to manage the WiFi and
 /// mDNS systems of the ESP32, the node being a hub and connecting to an
 /// uplink node to participate in the CAN bus.
@@ -198,4 +200,9 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(Esp32WiFiManager);
 };
+
+} // namespace openmrn_arduino
+
+using openmrn_arduino::Esp32WiFiManager;
+
 #endif // _FREERTOS_DRIVERS_ESP32_ESP32WIFIMGR_HXX_

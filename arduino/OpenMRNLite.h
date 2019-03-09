@@ -40,6 +40,7 @@
 
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
+#include "freertos_drivers/arduino/WiFiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
@@ -72,12 +73,6 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
 #define HAVE_FILESYSTEM
 
 #endif // ESP32
-
-extern "C"
-{
-    extern const char DEFAULT_WIFI_NAME[];
-    extern const char DEFAULT_WIFI_PASSWORD[];
-}
 
 namespace openmrn_arduino {
 

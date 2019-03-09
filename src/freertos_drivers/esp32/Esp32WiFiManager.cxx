@@ -51,6 +51,24 @@ using openlcb::TcpManualAddress;
 using std::string;
 using std::unique_ptr;
 
+
+// Start of global namespace block.
+
+// These must be declared *OUTSIDE* the openmrn_arduino namespace in order to
+// be visible in the MDNS.cxx code.
+
+/// Advertises an mDNS service name. This is a hook point for the MDNS class
+/// and is used as part of the Esp32 WiFi HUB support.
+void mdns_publish(const char *name, const char *service, uint16_t port);
+
+/// Removes advertisement of an mDNS service name. This is not currently
+/// exposed in the MDNS class but is supported on the ESP32.
+void mdns_unpublish(const char *service);
+
+// End of global namespace block.
+
+namespace openmrn_arduino {
+
 /// Priority to use for the wifi_manager_task. This is currently set to
 /// the same priority level as the arduino-esp32 loopTask. The task will
 /// be in a sleep state until woken up by Esp32WiFiManager::process_wifi_event
@@ -79,20 +97,6 @@ static constexpr int DHCP_GOTIP_BIT = BIT1;
 /// process to complete, in most cases this should be complete in under 30
 /// seconds.
 static constexpr uint8_t MAX_CONNECTION_CHECK_ATTEMPTS = 36;
-
-/// Maximum number of milliseconds to wait for mDNS query responses.
-static constexpr uint32_t MDNS_QUERY_TIMEOUT = 2000;
-
-/// Maximum number of results to capture for mDNS query requests.
-static constexpr size_t MDNS_MAX_RESULTS = 10;
-
-/// Advertises an mDNS service name. This is a hook point for the MDNS class
-/// and is used as part of the Esp32 WiFi HUB support.
-void mdns_publish(const char *name, const char *service, uint16_t port);
-
-/// Removes advertisement of an mDNS service name. This is not currently
-/// exposed in the MDNS class but is supported on the ESP32.
-void mdns_unpublish(const char *service);
 
 /// Event handler for the ESP32 WiFi system. This will receive events from the
 /// ESP-IDF event loop processor and pass them on to the Esp32WiFiManager for
@@ -727,6 +731,14 @@ void Esp32WiFiManager::on_uplink_created(int fd, Notifiable *on_exit)
     create_gc_port_for_can_hub(stack_->can_hub(), fd, on_exit, use_select);
 }
 
+} // namespace openmrn_arduino
+
+/// Maximum number of milliseconds to wait for mDNS query responses.
+static constexpr uint32_t MDNS_QUERY_TIMEOUT = 2000;
+
+/// Maximum number of results to capture for mDNS query requests.
+static constexpr size_t MDNS_MAX_RESULTS = 10;
+
 // macro for splitting a service name since the ESPmDNS library requires the
 // service name and service protocol to be split.
 #define SPLIT_MDNS_SERVICE_NAME(service_name, service_protocol) \
@@ -864,9 +876,14 @@ int mdns_lookup(const char *service, struct addrinfo *hints,
     return 0;
 }
 
-/*
- * ::getifaddrs()
- */
+// The functions below are not available via the standard ESP-IDF provided
+// API.
+
+/// Retrieves the IPv4 address from the ESP32 station interface.
+///
+/// @param ifap will hold the IPv4 address for the ESP32 station interface when
+/// successfully retrieved.
+/// @return zero for success, -1 for failure.
 int getifaddrs(struct ifaddrs **ifap)
 {
     tcpip_adapter_ip_info_t ip_info;
@@ -924,9 +941,9 @@ int getifaddrs(struct ifaddrs **ifap)
     return 0;
 }
 
-/*
- * ::getifaddrs()
- */
+/// Frees memory allocated as part of the call to @ref getifaddrs.
+///
+/// @param ifa is the ifaddrs struct to be freed.
 void freeifaddrs(struct ifaddrs *ifa)
 {
     while (ifa)
@@ -951,11 +968,7 @@ void freeifaddrs(struct ifaddrs *ifa)
     }
 }
 
-/**
- * see 'man gai_strerror'
- * @param __ecode is the error code
- * @return error string (statically allocated)
- */
+/// @return the string equivalant of the passed error code.
 const char *gai_strerror (int __ecode)
 {
     switch (__ecode)

@@ -38,6 +38,8 @@
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfiguredTcpConnection.hxx"
 
+namespace openmrn_arduino {
+
 /// Names and Descriptions for all ESP32 exposed WiFi configuration options.
 class Esp32WiFiConfigurationParams
 {
@@ -129,5 +131,9 @@ CDI_GROUP_ENTRY(uplink,
     Name(Esp32WiFiConfigurationParams::UPLINK_NAME),
     Description(Esp32WiFiConfigurationParams::UPLINK_DESC));
 CDI_GROUP_END();
+
+} // namespace openmrn_arduino
+
+using openmrn_arduino::WiFiConfiguration;
 
 #endif // _FREERTOS_DRIVERS_ESP32_ESP32WIFICONFIG_HXX_
