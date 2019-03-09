@@ -143,7 +143,9 @@ public:
     {
     }
 
-    /** Startup the Wi-Fi in test mode
+    /** Startup the Wi-Fi in test mode. This mode of operation does not support
+     * connection to an AP. This mode is only for RF testing. Test mode can be
+     * exited by @ref stop().
      */
     void test_mode_start();
 

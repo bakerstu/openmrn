@@ -532,18 +532,9 @@ void CC32xxWiFi::wlan_mac(uint8_t mac[6])
  */
 void CC32xxWiFi::test_mode_start()
 {
-    /* note, sl_Task MUST be a pthread because the Wi-Fi task uses the pthread
-     * interface such as pthread_self().
-     */
-    pthread_t thread;
-    pthread_attr_t attr;
-    struct sched_param sched_param;
-
-    pthread_attr_init(&attr);
-    sched_param.sched_priority = sched_get_priority_max(SCHED_FIFO);
-    pthread_attr_setschedparam(&attr, &sched_param);
-    pthread_attr_setstacksize(&attr, 2048);
-    pthread_create(&thread, &attr, sl_Task, nullptr);
+    os_thread_t thread;
+    os_thread_create(&thread, "sl_Task", os_thread_get_priority_max(), 2048,
+                     sl_Task, nullptr);
 
     // the following code sequnce is taken from the Radio Test Tool
     // application example.
