@@ -239,7 +239,9 @@ void start_stack()
     }
 }
 
-
+void after_start_exception() {
+    stack.executor()->thread().unlock_from_thread();
+}
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -297,6 +299,7 @@ void start_websocket_server(int port, string static_dir)
 EMSCRIPTEN_BINDINGS(js_client_main)
 {
     emscripten::function("startStack", &start_stack);
+    emscripten::function("afterStartStack", &after_start_exception);
     emscripten::class_<JSBitEventPC>("BitEventPC")
         .constructor<std::string, emscripten::val, std::string,
             emscripten::val>()

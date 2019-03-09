@@ -1,6 +1,7 @@
 var lcc;
 var mdns = require('mdns');
 var port = 12018
+var browser;
 
 require('./js_client.js')().then(function(Module) {
     lcc = Module
@@ -11,6 +12,7 @@ require('./js_client.js')().then(function(Module) {
     } catch (e) {
         if (e === 'SimulateInfiniteLoop') {
             console.log('stack started.');
+            lcc.afterStartStack();
         } else {
             console.log('unknown exception');
             throw e;
