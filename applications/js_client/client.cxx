@@ -422,6 +422,8 @@ public:
         HASSERT(bn_.is_done());
         response_.error_code = 0;
         response_.error_details.clear();
+        progressCb_ = std::move(progress_cb);
+        doneCb_ = std::move(done_cb);
         Buffer<openlcb::BootloaderRequest> *b = client_.alloc();
         b->set_done(bn_.reset(this));
         b->data()->dst = openlcb::NodeHandle(js_to_node_id(node_id));
@@ -429,6 +431,7 @@ public:
         b->data()->data = read_file_to_string(source_file_name);
         fileSize_ = b->data()->data.size();
         b->data()->response = &response_;
+        b->data()->progress_callback = [this](float f) { progressCb_(f); };
         client_.send(b);
     }
 
