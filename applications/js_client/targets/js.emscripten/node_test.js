@@ -20,6 +20,13 @@ require('./js_client.js')().then(function(Module) {
     }
     browser = new lcc.NodeBrowser(function(node_id) {
         console.log('new node ' + node_id)
+        new lcc.PIPClient().lookup(node_id, function(err, data) {
+            if (err) {
+                console.log("PIP lookup " + node_id + " error " + err); 
+            } else {
+                console.log("PIP lookup " + node_id + " data " + data); 
+            }
+        });
     })
 });
 

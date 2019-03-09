@@ -50,6 +50,8 @@
 #include "openlcb/SimpleNodeInfoMockUserFile.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/NodeBrowser.hxx"
+#include "openlcb/PIPClient.hxx"
+#include "utils/StringPrintf.hxx"
 #include "utils/JSWebsocketClient.hxx"
 #include "utils/JSTcpClient.hxx"
 #include "utils/JSTcpHub.hxx"
@@ -298,6 +300,102 @@ public:
     }
 };
 
+class JSPIPClient : private Notifiable
+{
+public:
+    /// Constructor.
+    JSPIPClient()
+    {
+    }
+
+    /// Performs a PIP request flow.
+    /// @param target is the node ID to query
+    /// @param callback is a javascript function(err, data). Upon successful
+    /// lookup err will be null and data will be a javascript object with ??
+    void lookup(std::shared_ptr<JSNodeID> target, emscripten::val callback)
+    {
+        HASSERT(!isPending_);
+        isPending_ = true;
+        callback_ = std::move(callback);
+        client_.request(
+            openlcb::NodeHandle(js_to_node_id(target)), stack.node(), this);
+    }
+
+private:
+    using PIPClient = openlcb::PIPClient;
+    /// Callback that will be invoked by PIPClient when it's done with the
+    /// lookup.
+    void notify() override
+    {
+        isPending_ = false;
+        if (client_.error_code() != PIPClient::OPERATION_SUCCESS)
+        {
+            callback_(
+                convert_error(client_.error_code()), emscripten::val::null());
+            return;
+        }
+        callback_(emscripten::val::null(), convert_value(client_.response()));
+    }
+
+    /// @param code the error code from the PIP client.
+    /// @return javascrit error object
+    emscripten::val convert_error(uint32_t code)
+    {
+        if (code == PIPClient::TIMEOUT)
+        {
+            return emscripten::val("Timed out.");
+        }
+        return emscripten::val(StringPrintf("LCC error %04x", code));
+    }
+
+#define HANDLE_PROTOCOL(protocol)                                              \
+    do                                                                         \
+    {                                                                          \
+        if (response & openlcb::Defs::protocol)                                \
+        {                                                                      \
+            ar.call<void>("push",emscripten::val(#protocol));           \
+        }                                                                      \
+    } while (0)
+
+    /// @param response is the 64-bit bit array returned by the PIP protocol.
+    /// @return the javascript version of this map.
+    emscripten::val convert_value(uint64_t response)
+    {
+        emscripten::val ar(emscripten::val::array());
+        
+        HANDLE_PROTOCOL(SIMPLE_PROTOCOL_SUBSET);
+        HANDLE_PROTOCOL(DATAGRAM);
+        HANDLE_PROTOCOL(STREAM);
+        HANDLE_PROTOCOL(MEMORY_CONFIGURATION);
+        HANDLE_PROTOCOL(RESERVATION);
+        HANDLE_PROTOCOL(EVENT_EXCHANGE);
+        HANDLE_PROTOCOL(IDENTIFICATION);
+        HANDLE_PROTOCOL(LEARN_CONFIGURATION);
+        HANDLE_PROTOCOL(REMOTE_BUTTON);
+        HANDLE_PROTOCOL(ABBREVIATED_DEFAULT_CDI);
+        HANDLE_PROTOCOL(DISPLAY_PROTOCOL);
+        HANDLE_PROTOCOL(SIMPLE_NODE_INFORMATION);
+        HANDLE_PROTOCOL(CDI);
+        HANDLE_PROTOCOL(TRACTION_CONTROL);
+        HANDLE_PROTOCOL(TRACTION_FDI);
+        HANDLE_PROTOCOL(TRACTION_PROXY);
+        HANDLE_PROTOCOL(TRACTION_SIMPLE_TRAIN_INFO);
+        HANDLE_PROTOCOL(FUNCTION_CONFIGURATION);
+        HANDLE_PROTOCOL(FIRMWARE_UPGRADE);
+        HANDLE_PROTOCOL(FIRMWARE_UPGRADE_ACTIVE);
+
+        return ar;
+    }
+
+#undef HANDLE_PROTOCOL
+
+    emscripten::val callback_ {emscripten::val::null()};
+    /// True if we are busy in a lookup.
+    bool isPending_ {false};
+    /// OpenLCB implementation flow.
+    PIPClient client_ {stack.iface()};
+};
+
 void start_stack()
 {
     if (!stack_started) {
@@ -370,6 +468,7 @@ void start_websocket_server(int port, string static_dir)
 
 EMSCRIPTEN_BINDINGS(js_client_main)
 {
+    emscripten::register_vector<std::string>("VectorString");
     emscripten::function("startStack", &start_stack);
     emscripten::function("afterStartStack", &after_start_exception);
     emscripten::class_<JSBitEventPC>("BitEventPC")
@@ -385,6 +484,9 @@ EMSCRIPTEN_BINDINGS(js_client_main)
         //.field("internalId", &JSNodeID::internalId_)
         .function("element", &JSNodeID::element)
         .function("toString", &JSNodeID::to_string);
+    emscripten::class_<JSPIPClient>("PIPClient")
+        .smart_ptr_constructor("PIPClient", &std::make_shared<JSPIPClient>)
+        .function("lookup", &JSPIPClient::lookup);
     emscripten::function("startWebsocketServer", &start_websocket_server);
     emscripten::function("startTcpHub", &start_tcp_hub);
     emscripten::function("addWebsocketClient", &add_websocket_client);
