@@ -40,6 +40,7 @@
 #include "openlcb/PIPClient.hxx"
 #include "openlcb/CanDefs.hxx"
 #include "openlcb/MemoryConfig.hxx"
+#include "openlcb/IfCan.hxx"
 #include "utils/Ewma.hxx"
 
 namespace openlcb
