@@ -83,7 +83,7 @@ public:
     };
 
     /// WiFi Interface Operating mode.
-    enum class InterfaceMode : uint8_t
+    enum class WiFiMode : uint8_t
     {
         /// Interface mode is not known.
         UNKNOWN = 0,
@@ -114,7 +114,7 @@ public:
     /// @param mode is the requested mode of the WiFi interface.
     /// @return zero upon successfully starting in the provided mode, non-zero
     /// otherwise.
-    int start(InterfaceMode mode = InterfaceMode::STATION);
+    int start(WiFiMode mode = WiFiMode::STATION);
 
     /// Stops the WiFi interface in preparation for a reboot.
     void stop();
@@ -127,7 +127,7 @@ public:
     /// @param ssid access point ssid.
     /// @param security_key access point security key.
     /// @param security_type specifies security type.
-    void connect(const char *ssid, const char *security_key,
+    void connect(const std::string &ssid, const std::string &security_key,
                  WiFiSecurity security_type);
 
     /// Connects to an access point based on stored SSID profiles.
@@ -145,19 +145,20 @@ public:
     /// @param ap_ip is the IP address for the access point.
     /// @param dns_ip is the DNS server IP address for the access point to
     /// provide to stations.
-    void setup_access_point(const char *ssid, const char *security_key,
-                            WiFiSecurity security_type, uint32_t ap_ip=0,
-                            uint32_t dns_ip=0);
+    void setup_access_point(const std::string &ssid,
+                            const std::string &security_key = "",
+                            WiFiSecurity security_type = WiFiSecurity::OPEN,
+                            uint32_t ap_ip = 0, uint32_t dns_ip = 0);
 
     /// Initiate the WPS Push Button Control connection process.
     ///
     /// @param timeout is the number of milliseconds to wait for the WPS
     /// process to complete. A value of zero indicates that the interface
     /// default timeout should be used.
-    void initiate_wps_connect(uint32_t timeout=0);
+    void initiate_wps_connect(const uint32_t timeout = 0);
 
     /// @return the current WiFi interface operating mode.
-    InterfaceMode get_mode();
+    WiFiMode get_mode();
 
     /// @return the current WiFi interface status.
     WiFiState get_state();
@@ -170,21 +171,21 @@ public:
     /// @param priority connection priority when more than one of the saved
     /// networks is available, 0 == lowest priority
     /// @return resulting index in the list of profiles, else -1 on error
-    int add_ssid_profile(const char *ssid, WiFiSecurity sec_type,
-                         const char *key, unsigned priority);
+    int add_ssid_profile(const std::string &ssid, const WiFiSecurity sec_type,
+                         const std::string &key, const uint8_t priority);
 
     /// Delete a saved SSID profile by it's SSID.
     ///
     /// @param ssid SSID of the profile to delete.
     /// @return 0 upon success, else -1 on error.
-    int del_ssid_profile(const char *ssid);
+    int del_ssid_profile(const std::string &ssid);
 
     /// Delete a saved SSID profile.
     ///
     /// @param index index within saved profile list to remove, a value of 0xFF
     /// will remove all stored profiles.
     /// @return 0 upon success, else -1 on error.
-    int del_ssid_profile(int index);
+    int del_ssid_profile(const int index);
 
     /// Retrieves a saved SSID profile by index.
     ///
@@ -193,8 +194,9 @@ public:
     /// @param sec_type is the security type of the profile.
     /// @param priority is the priority of the profile.
     /// @return 0 upon success, else -1 on error.
-    int get_ssid_profile(int index, char ssid[], WiFiSecurity *sec_type,
-                         uint32_t *priority);
+    int get_ssid_profile(const int index, const std::string &ssid,
+                         const WiFiSecurity &sec_type,
+                         const uint8_t &priority);
 
     /// @return true if there are no saved SSID profiles, false otherwise.
     bool are_ssid_profiles_empty();
@@ -206,28 +208,39 @@ public:
     /// @return number of network entries retrieved.
     int get_network_list(NetworkListEntry *entries, size_t count);
 
-    /// Initiate scanning available networks.
+    /// Initiate scanning for available access points.
     ///
     /// @param blocking will cause this method to block until the network scan
     /// completes.
     /// @return the number of networks found via scan, this value should be
     /// ignored when blocking is false (default).
-    int network_list_scan(bool blocking=false);
+    int network_list_scan(bool blocking = false);
 
     /// Retrieves the WiFi interface MAC address.
     ///
-    /// @param mac 6 byte array which will hold the resulting MAC address.
-    void get_mac(uint8_t mac[6]);
+    /// @param mac is a 6 byte array which will hold the resulting MAC address.
+    /// @param mode is the WiFi interface to retrieve the MAC address for, if
+    /// an interface does not support the passed mode it will set the mac to
+    /// all zeros.
+    /// @return zero for succesful retrieval of the MAC address, non-zero for
+    /// failure (ie: mode not supported).
+    int get_mac(uint8_t *mac, WiFiMode mode = WiFiMode::STATION);
 
-    /// @return the assigned IP address for the WiFi interface, if not
-    /// connected or unavailable this will return zero.
-    uint32_t get_ip();
+    /// Returns the IPv4 address assigned to the WiFi iterface.
+    ///
+    /// Note: This method can return zero if the passed mode is not supported
+    /// or the WiFi interface does not have an IPv4 address for a supported
+    /// WiFi WiFiMode.
+    ///
+    /// @param mode is the WiFi interface to return the IPv4 address for.
+    /// @return the IPv4 address for the WiFi interface for the mode provided.
+    uint32_t get_ip(WiFiMode mode = WiFiMode::STATION);
 
     /// @return SSID of the access point we are connected to, can return
     /// nullptr if not currently connected to an access point. When the
     /// interface is operating as an ACCESS POINT only this can return the 
     /// SSID of the ACCESS POINT operating on the WiFi interface.
-    const char *get_ssid();
+    const std::string get_ssid();
 
     /// @return RSSI value of the currently connected access point, can return
     /// zero if not currently connected or if it is unknown.
