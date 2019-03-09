@@ -44,18 +44,20 @@
 #include "can_frame.h"
 #include "nmranet_config.h"
 
-#include "os/TempFile.hxx"
+#include "openlcb/BootloaderClient.hxx"
 #include "openlcb/Defs.hxx"
-#include "openlcb/SimpleStack.hxx"
-#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/NodeBrowser.hxx"
 #include "openlcb/PIPClient.hxx"
-#include "utils/StringPrintf.hxx"
-#include "utils/JSWebsocketClient.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "os/TempFile.hxx"
 #include "utils/JSTcpClient.hxx"
 #include "utils/JSTcpHub.hxx"
+#include "utils/JSWebsocketClient.hxx"
 #include "utils/JSWebsocketServer.hxx"
+#include "utils/StringPrintf.hxx"
+#include "utils/FileUtils.hxx"
 
 const openlcb::NodeID NODE_ID = 0x0501010114DFULL;
 
@@ -396,6 +398,74 @@ private:
     PIPClient client_ {stack.iface()};
 };
 
+
+class JSBootloaderClient : private Notifiable {
+public:
+    JSBootloaderClient() {}
+
+    /// Invokes firmware upgrade on a remote node.
+    /// @param node_id is the target node to upgrade.
+    /// @param source_file_name contains the filename to the (binary) file to
+    /// send.
+    /// @param reboot_first true if the target node shall be rebooted before
+    /// downloading. Usually true if the target node is in operational mode, or
+    /// false if it is already in firmware upgrade mode. True is a safe choice.
+    /// @param progress_cb is a function(ratio){...} which will be called with
+    /// a float between 0.0 and 1.0 to mark the progress of the download. This
+    /// will be called multiple times.
+    /// @param done_cb is a function(err) {...} which will be called exactly
+    /// once, with null if the download is successful, or an error object.
+    void upgrade(std::shared_ptr<JSNodeID> node_id,
+        std::string source_file_name, bool reboot_first,
+        emscripten::val progress_cb, emscripten::val done_cb)
+    {
+        HASSERT(bn_.is_done());
+        response_.error_code = 0;
+        response_.error_details.clear();
+        Buffer<openlcb::BootloaderRequest> *b = client_.alloc();
+        b->set_done(bn_.reset(this));
+        b->data()->dst = openlcb::NodeHandle(js_to_node_id(node_id));
+        b->data()->request_reboot = reboot_first ? 1 : 0;
+        b->data()->data = read_file_to_string(source_file_name);
+        fileSize_ = b->data()->data.size();
+        b->data()->response = &response_;
+        client_.send(b);
+    }
+
+private:
+    /// Called when the client is done.
+    void notify() override
+    {
+        if (response_.error_code == 0)
+        {
+            progressCb_(1.0f);
+            doneCb_(emscripten::val::null());
+            return;
+        }
+        string ret = StringPrintf("Failed (%04x)", response_.error_code);
+        if (!response_.error_details.empty())
+        {
+            ret += ": ";
+            ret += response_.error_details;
+        }
+        doneCb_(ret);
+    }
+
+    /// Callback to javascript during download progress.
+    emscripten::val progressCb_{emscripten::val::null()};
+    /// Callback to javascript when downloading is done.
+    emscripten::val doneCb_{emscripten::val::null()};
+    /// Return value from the bootloader client.
+    openlcb::BootloaderResponse response_;
+    /// Helper object for notification.
+    BarrierNotifiable bn_;
+    /// number of bytes in the file we are sending.
+    size_t fileSize_;
+    /// The actual bootloader client.
+    openlcb::BootloaderClient client_ {
+        stack.node(), stack.dg_service(), stack.iface()};
+};
+
 void start_stack()
 {
     if (!stack_started) {
@@ -487,6 +557,10 @@ EMSCRIPTEN_BINDINGS(js_client_main)
     emscripten::class_<JSPIPClient>("PIPClient")
         .smart_ptr_constructor("PIPClient", &std::make_shared<JSPIPClient>)
         .function("lookup", &JSPIPClient::lookup);
+    emscripten::class_<JSBootloaderClient>("BootloaderClient")
+        .smart_ptr_constructor(
+            "BootloaderClient", &std::make_shared<JSBootloaderClient>)
+        .function("upgrade", &JSBootloaderClient::upgrade);
     emscripten::function("startWebsocketServer", &start_websocket_server);
     emscripten::function("startTcpHub", &start_tcp_hub);
     emscripten::function("addWebsocketClient", &add_websocket_client);
