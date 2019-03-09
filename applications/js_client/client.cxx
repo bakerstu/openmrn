@@ -49,6 +49,7 @@
 #include "openlcb/SimpleStack.hxx"
 #include "openlcb/SimpleNodeInfoMockUserFile.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/NodeBrowser.hxx"
 #include "utils/JSWebsocketClient.hxx"
 #include "utils/JSTcpClient.hxx"
 #include "utils/JSTcpHub.hxx"
@@ -225,6 +226,78 @@ private:
     openlcb::BitEventPC consumer_;
 };
 
+/// Wrapper of the Node ID object into a javascript-friendly function.
+struct JSNodeID {
+    JSNodeID(uint64_t nid)
+        : nodeId_(nid)
+    {
+    }
+    JSNodeID(const std::string& id_buffer)
+        : nodeId_(openlcb::buffer_to_node_id(id_buffer))
+    {
+    }
+    uint64_t nodeId_;
+    /// @param idx index 0 to 5 (0 is MSB)
+    /// @return the byte (0 to 255) at that index.
+    int element(int idx)
+    {
+        if (idx < 0 || idx >= 6)
+        {
+            return -1;
+        }
+        return 0xFF & (nodeId_ >> ((5-idx) * 8));
+    }
+    /// Implementation of the javascript .toString() function.
+    /// @return hex representation of the node ID, no dots, padded with zeros.
+    std::string to_string()
+    {
+        std::string r = uint64_to_string_hex(nodeId_, 12);
+        for (unsigned i = 0; i < r.size() && r[i] == ' '; ++i)
+        {
+            r[i] = '0';
+        }
+        return r;
+    }
+};
+
+/// Converts a C++ node ID to a javascript object.
+/// @param nid is the uint64 node ID.
+/// @return a javascript-compatible wrapper.
+std::shared_ptr<JSNodeID> node_id_to_js(openlcb::NodeID nid)
+{
+    return std::make_shared<JSNodeID>(nid);
+}
+
+/// Converts a javascript object to a C++ node ID.
+/// @param js_nid is the javascript node ID wrapper.
+/// @return the c++ representation of the node ID.
+openlcb::NodeID js_to_node_id(std::shared_ptr<JSNodeID> js_nid)
+{
+    return js_nid->nodeId_;
+}
+
+/// Javascript wrapper for the Node Browser class.  This gives a callback to
+/// javascript whenever a new node joins the bus, and allows pinging all live
+/// nodes.
+class JSNodeBrowser : public openlcb::NodeBrowser
+{
+public:
+    /// @param callback will be called with a JSNodeID object whenever a new
+    /// node joins the bus, or all existing nodes after the refresh function is
+    /// called.
+    JSNodeBrowser(emscripten::val callback)
+        : openlcb::NodeBrowser(stack.node(),
+              [callback](openlcb::NodeID id) { callback(node_id_to_js(id)); })
+    {
+    }
+
+    // This is needed because emscripten Bind cannot export a function
+    // inherited from the base class.
+    void refresh() {
+        openlcb::NodeBrowser::refresh();
+    }
+};
+
 void start_stack()
 {
     if (!stack_started) {
@@ -295,7 +368,6 @@ void start_websocket_server(int port, string static_dir)
     new JSWebsocketServer(stack.can_hub(), port, static_dir);
 }
 
-
 EMSCRIPTEN_BINDINGS(js_client_main)
 {
     emscripten::function("startStack", &start_stack);
@@ -304,6 +376,15 @@ EMSCRIPTEN_BINDINGS(js_client_main)
         .constructor<std::string, emscripten::val, std::string,
             emscripten::val>()
         .function("toggleState", &JSBitEventPC::toggleState);
+    emscripten::class_<JSNodeBrowser>("NodeBrowser")
+        .constructor<emscripten::val>()
+        .function("refresh", &JSNodeBrowser::refresh);
+    emscripten::class_<JSNodeID>("NodeID")
+        .smart_ptr_constructor<std::shared_ptr<JSNodeID>, const std::string&>(
+            "NodeID", &std::make_shared<JSNodeID>)
+        //.field("internalId", &JSNodeID::internalId_)
+        .function("element", &JSNodeID::element)
+        .function("toString", &JSNodeID::to_string);
     emscripten::function("startWebsocketServer", &start_websocket_server);
     emscripten::function("startTcpHub", &start_tcp_hub);
     emscripten::function("addWebsocketClient", &add_websocket_client);

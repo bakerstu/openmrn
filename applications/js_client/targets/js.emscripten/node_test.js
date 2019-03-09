@@ -18,6 +18,9 @@ require('./js_client.js')().then(function(Module) {
             throw e;
         }
     }
+    browser = new lcc.NodeBrowser(function(node_id) {
+        console.log('new node ' + node_id)
+    })
 });
 
 var ad = mdns.createAdvertisement(mdns.tcp('openlcb-can'), port, {name: 'openmrn-node-test'} );
