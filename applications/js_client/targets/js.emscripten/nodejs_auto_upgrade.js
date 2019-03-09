@@ -1,3 +1,8 @@
+/// This example will listen (and advertise on mdns) an LCC connection. Any
+/// nodes that connect will be tested for being in formware upgrade mode. If
+/// yes, and an update file is available for that node, a firmware upgrade
+/// process will be performed on that node.
+
 var lcc;
 var mdns = require('mdns');
 var port = 12018
