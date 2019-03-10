@@ -36,6 +36,7 @@
 
 #include <stdint.h>
 #include <string>
+#include <vector>
 
 /// Common interface for WiFi interfaces.
 class WiFiInterface
@@ -60,25 +61,26 @@ public:
         /// default state of the interface when the WiFiInterface instance is
         /// created.
         OFF = 0,
-        /// The interface is in an IDLE state (not STATION or ACCESS POINT) but
-        /// has been initialized. This is the expected state after calling
-        /// @ref stop. A call to @ref start would be required to prepare the
-        /// interface for use.
-        IDLE,
         /// The interface is currently in an initializing state. It is not
         /// expected to be usable at this point.
         INITIALIZING,
+        /// The interface is in an IDLE state (not STATION or ACCESS POINT) but
+        /// has been initialized. This is the expected state after calling
+        /// @ref stop. The WiFi interface may also use OFF instead of this
+        /// state. A call to @ref start would be required to prepare the
+        /// interface for use.
+        IDLE,
         /// The interface is currently connecting to an access point.
         CONNECTING,
         /// Interface is not associated with an access point. This state can be
         /// used in the event the interface has lost it's connection to the
         /// access point.
         NOT_ASSOCIATED,
-        /// Interface has not yet received an IP address from the connected
-        /// access point.
+        /// The WiFi interface has connected to an access point but has not yet
+        /// received an IP address from the access point.
         NO_IP,
-        /// The interface is in normal operating status and is ACTIVE as either
-        /// a STATION, ACCESS POINT or both (if supported).
+        /// The WiFi interface is in normal operating status and is ACTIVE as a
+        /// STATION, ACCESS POINT or both (if supported).
         ACTIVE
     };
 
@@ -98,6 +100,60 @@ public:
         STATION_AND_ACCESS_POINT
     };
 
+    /// Error codes used by the WiFiInterface APIs.
+    enum class WiFiErrorCode : uint8_t
+    {
+        /// API completed without error.
+        NO_ERROR = 0,
+        /// The requested API is not supported by the implementation.
+        UNSUPPORTED,
+        /// An invalid argument was passed to the API.
+        INVALID_ARGUMENT,
+
+        /// Requested SSID was not found via network scan or connection attempts.
+        SSID_NOT_FOUND,
+        /// Invalid password (or preshared key) was provided when connecting to
+        /// the requested access point.
+        INVALID_PASSWORD,
+        /// A timeout occurred for the SSID connection process.
+        CONNECT_TIMEOUT,
+
+        /// No networks were found via the network scan API.
+        NO_NETWORKS_FOUND,
+        /// The network scan operation timed out.
+        NETWORK_SCAN_TIMEOUT,
+        /// The network scan failed due to out of memory.
+        NETWORK_SCAN_NOMEM,
+        /// The network scan encountered a generic failure. This is WiFi
+        /// interface specific and should have corresponding log entries to
+        /// indicate the nature of the failure.
+        NETWORK_SCAN_GENERIC_FAILURE,
+        /// The network list is not available, this could indicate that no scan
+        /// was performed or the scan failed.
+        NETWORK_LIST_UNAVAILABLE,
+
+        /// The SSID profile was successfully stored.
+        PROFILE_CREATED,
+        /// The SSID profile was successfully removed.
+        PROFILE_DELETED,
+        /// A stored SSID profile was not found with the provided SSID or
+        /// the provided index is not valid.
+        PROFILE_NOT_FOUND,
+        /// The SSID profile could not be successfully stored as there was no
+        /// space.
+        PROFILE_OUT_OF_BOUNDS,
+        /// The SSID profile could not be successfully stored due to generic
+        /// failure. This is WiFi interface specific and should have
+        /// corresponding log entries to indicate the nature of the failure.
+        PROFILE_GENERIC_FAILURE,
+
+        /// The WiFi interface does not have an IPv4 address available.
+        IP_UNAVAILABLE,
+
+        /// RSSI value is not known or is otherwise unavailable.
+        RSSI_UNKNOWN
+    };
+
     /// Contains the metadata for an access point.
     struct NetworkListEntry
     {
@@ -109,112 +165,169 @@ public:
         int rssi;
     };
 
-    /// Startup the WiFi interface.
+    /// Start/Initialize the WiFi interface with the requested @ref mode.
     ///
     /// @param mode is the requested mode of the WiFi interface.
-    /// @return zero upon successfully starting in the provided mode, non-zero
-    /// otherwise.
-    int start(WiFiMode mode = WiFiMode::STATION);
+    ///
+    /// Note: If the WiFi interface has been started previously this API
+    /// is treated as a NOOP by the WiFi interface.
+    ///
+    /// @return @ref WiFiErrorCode as the result starting the WiFi interface.
+    virtual WiFiErrorCode start(WiFiMode mode = WiFiMode::STATION) = 0;
 
     /// Stops the WiFi interface in preparation for a reboot.
-    void stop();
-
-    /// @return true if WiFi interface has been started, false otherwise.
-    bool is_started();
+    ///
+    /// Note: If the WiFi interface has not been started previously this API
+    /// is treated as a NOOP by the WiFi interface.
+    ///
+    /// @return @ref WiFiErrorCode as the result starting the WiFi interface.
+    virtual WiFiErrorCode stop() = 0;
 
     /// Connect to access point.
     ///
+    /// Note: This API is synchronous and will block until the timeout value or
+    /// the SSID connection completes.
+    ///
     /// @param ssid access point ssid.
-    /// @param security_key access point security key.
+    /// @param password access point password (preshared key)
     /// @param security_type specifies security type.
-    void connect(const std::string &ssid, const std::string &security_key,
-                 WiFiSecurity security_type);
+    /// @param timeout is the number of milliseconds to allow for a connection
+    /// to the access point. A value of zero indicates block until a final
+    /// status has been reached (successful or otherwise).
+    ///
+    /// @return @ref WiFiErrorCode as the result of the connection attempt.
+    virtual WiFiErrorCode connect(const std::string &ssid,
+                                  const std::string &password,
+                                  WiFiSecurity security_type,
+                                  const uint32_t timeout = 0) = 0;
 
     /// Connects to an access point based on stored SSID profiles.
     ///
-    /// The SSID profiles will be ordered first by priority and second by
-    /// the RSSI value for the access point. Note that a successful connection
-    /// is not guaranteed by this method.
-    void connect();
+    /// The SSID profiles will be ordered first by priority and second by the
+    /// RSSI value for the access point. Note that a successful connection is
+    /// not guaranteed by this method.
+    ///
+    /// Note: This API is synchronous and will block until the timeout value or
+    /// the SSID connection completes.
+    ///
+    /// @param timeout is the number of milliseconds to allow for a connection
+    /// to the access point. A value of zero indicates block until a final
+    /// status has been reached (successful or otherwise).
+    ///
+    /// @return @ref WiFiErrorCode as the result of the connection attempt.
+    virtual WiFiErrorCode connect(const uint32_t timeout = 0) = 0;
 
     /// Creates an access point on this WiFi interface.
-    /// 
+    ///
+    /// Note: The ap_ip and dns_ip are in NETWORK byte order (big endian).
+    ///
     /// @param ssid access point ssid.
-    /// @param security_key access point security key.
-    /// @param security_type specifies security type.
+    /// @param password password of the access point (preshared key), a blank
+    /// string is only valid for @ref WiFiSecurity::OPEN.
+    /// @param security specifies security type.
     /// @param ap_ip is the IP address for the access point.
     /// @param dns_ip is the DNS server IP address for the access point to
     /// provide to stations.
-    void setup_access_point(const std::string &ssid,
-                            const std::string &security_key = "",
-                            WiFiSecurity security_type = WiFiSecurity::OPEN,
-                            uint32_t ap_ip = 0, uint32_t dns_ip = 0);
+    ///
+    /// @return @ref WiFiErrorCode as the result of setting up the access point.
+    virtual WiFiErrorCode setup_access_point(const std::string &ssid,
+                                             const std::string &password = "",
+                                             WiFiSecurity security = WiFiSecurity::OPEN,
+                                             uint32_t ap_ip = 0,
+                                             uint32_t dns_ip = 0) = 0;
 
     /// Initiate the WPS Push Button Control connection process.
     ///
+    /// @param blocking will cause this method to block until the WPS process
+    /// completes. Default is non-blocking.
     /// @param timeout is the number of milliseconds to wait for the WPS
     /// process to complete. A value of zero indicates that the interface
     /// default timeout should be used.
-    void initiate_wps_connect(const uint32_t timeout = 0);
+    ///
+    /// @return @ref WiFiErrorCode as the result of the connection attempt.
+    virtual WiFiErrorCode initiate_wps_connect(bool blocking = false,
+                                               const uint32_t timeout = 0) = 0;
 
     /// @return the current WiFi interface operating mode.
-    WiFiMode get_mode();
+    virtual WiFiMode get_mode() = 0;
 
     /// @return the current WiFi interface status.
-    WiFiState get_state();
+    virtual WiFiState get_state() = 0;
 
     /// Adds a saved SSID profile.
     ///
     /// @param ssid SSID of the profile to save.
-    /// @param sec_type @ref WiFiSecurity of the profile to be saved.
-    /// @param key password of the SSID, nullptr allowed if sec_type is OPEN.
+    /// @param password password of the SSID (preshared key), a blank string
+    /// is only valid for @ref WiFiSecurity::OPEN.
+    /// @param security @ref WiFiSecurity of the profile to be saved.
     /// @param priority connection priority when more than one of the saved
     /// networks is available, 0 == lowest priority
-    /// @return resulting index in the list of profiles, else -1 on error
-    int add_ssid_profile(const std::string &ssid, const WiFiSecurity sec_type,
-                         const std::string &key, const uint8_t priority);
+    /// @param profile_index will contain the index of the newly stored
+    /// profile, if successfully stored.
+    ///
+    /// @return @ref WiFiErrorCode as the result of storing the profile.
+    virtual WiFiErrorCode add_ssid_profile(const std::string &ssid,
+                                           const std::string &password,
+                                           const WiFiSecurity security,
+                                           const uint8_t priority,
+                                           uint8_t *profile_index) = 0;
 
     /// Delete a saved SSID profile by it's SSID.
     ///
     /// @param ssid SSID of the profile to delete.
-    /// @return 0 upon success, else -1 on error.
-    int del_ssid_profile(const std::string &ssid);
+    ///
+    /// @return @ref WiFiErrorCode as the result of the removal of the profile.
+    virtual WiFiErrorCode del_ssid_profile(const std::string &ssid) = 0;
 
-    /// Delete a saved SSID profile.
+    /// Delete a saved SSID profile by it's index.
     ///
     /// @param index index within saved profile list to remove, a value of 0xFF
     /// will remove all stored profiles.
-    /// @return 0 upon success, else -1 on error.
-    int del_ssid_profile(const int index);
+    ///
+    /// @return @ref WiFiErrorCode as the result of the removal of the profile.
+    virtual WiFiErrorCode del_ssid_profile(const int index) = 0;
 
     /// Retrieves a saved SSID profile by index.
     ///
     /// @param index of the stored profile to retrieve.
-    /// @param ssid is a 33 byte array containing the ssid of the profile.
-    /// @param sec_type is the security type of the profile.
-    /// @param priority is the priority of the profile.
-    /// @return 0 upon success, else -1 on error.
-    int get_ssid_profile(const int index, const std::string &ssid,
-                         const WiFiSecurity &sec_type,
-                         const uint8_t &priority);
+    /// @param ssid will contain the ssid of the profile.
+    /// @param security will contain the security type of the profile.
+    /// @param priority will contain the priority of the profile.
+    ///
+    /// @return @ref WiFiErrorCode as the result of the retrieval of the
+    /// profile.
+    virtual WiFiErrorCode get_ssid_profile(const int index, std::string *ssid,
+                                           WiFiSecurity *security,
+                                           uint8_t *priority) = 0;
 
     /// @return true if there are no saved SSID profiles, false otherwise.
-    bool are_ssid_profiles_empty();
-
-    /// Retrieves a list of available access points.
-    ///
-    /// @param entries will contain a list of available network entries.
-    /// @param count is the number of network entries to retrieve, max of 20.
-    /// @return number of network entries retrieved.
-    int get_network_list(NetworkListEntry *entries, size_t count);
+    virtual bool are_ssid_profiles_empty() = 0;
 
     /// Initiate scanning for available access points.
     ///
     /// @param blocking will cause this method to block until the network scan
-    /// completes.
-    /// @return the number of networks found via scan, this value should be
-    /// ignored when blocking is false (default).
-    int network_list_scan(bool blocking = false);
+    /// completes. Default is non-blocking.
+    /// @param timeout is the number of milliseconds to allow for the network
+    /// scan to complete. This is only valid when @ref blocking is true.
+    /// @param max_results is the maximum number of results to scan for. If the
+    /// WiFi interface supports a lower number than requested and in such case
+    /// the WiFi interface supported limit will be used instead.
+    ///
+    /// @return the number of networks found via scan, this value will be zero
+    /// when @ref blocking is false.
+    virtual int initiate_network_scan(bool blocking = false,
+                                      uint32_t timeout = 0,
+                                      uint8_t max_results = 20) = 0;
+
+    /// Retrieves a list of available access points.
+    ///
+    /// @param list will contain a list of available network entries. Note this
+    /// will be cleared prior to appending the retrieved entries.
+    ///
+    /// @return @ref WiFiErrorCode as the result of retrieving the network
+    /// list. When the network scan has not been completed this API should
+    /// return @ref WiFiErrorCode::NETWORK_LIST_UNAVAILABLE.
+    virtual WiFiErrorCode get_network_list(std::vector<NetworkListEntry> *list) = 0;
 
     /// Retrieves the WiFi interface MAC address.
     ///
@@ -222,29 +335,43 @@ public:
     /// @param mode is the WiFi interface to retrieve the MAC address for, if
     /// an interface does not support the passed mode it will set the mac to
     /// all zeros.
-    /// @return zero for succesful retrieval of the MAC address, non-zero for
-    /// failure (ie: mode not supported).
-    int get_mac(uint8_t *mac, WiFiMode mode = WiFiMode::STATION);
+    ///
+    /// @return @ref WiFiErrorCode as the result of retrieving the MAC address.
+    virtual WiFiErrorCode get_mac(uint8_t *mac,
+                                  WiFiMode mode = WiFiMode::STATION) = 0;
 
-    /// Returns the IPv4 address assigned to the WiFi iterface.
+    /// Retrieves the IPv4 address assigned to the WiFi iterface.
     ///
-    /// Note: This method can return zero if the passed mode is not supported
-    /// or the WiFi interface does not have an IPv4 address for a supported
-    /// WiFi WiFiMode.
-    ///
+    /// @param ip will contain the IP address for the requested WiFi interface.
     /// @param mode is the WiFi interface to return the IPv4 address for.
-    /// @return the IPv4 address for the WiFi interface for the mode provided.
-    uint32_t get_ip(WiFiMode mode = WiFiMode::STATION);
+    /// 
+    /// Note: The ip is in NETWORK byte order (big endian).
+    ///
+    /// @return @ref WiFiErrorCode as the result of retrieving the IPv4
+    /// address of the WiFi interface. If the requested @ref mode is not
+    /// supported by the WiFi interface it will return
+    /// @ref WiFiErrorCode::UNSUPPORTED. If there is no IPv4 address assigned
+    /// to the requested WiFi interface this will return
+    /// @ref WiFiErrorCode::IP_UNAVAILABLE.
+    virtual WiFiErrorCode get_ip(uint32_t *ip,
+                                 WiFiMode mode = WiFiMode::STATION) = 0;
 
-    /// @return SSID of the access point we are connected to, can return
-    /// nullptr if not currently connected to an access point. When the
+    /// @return SSID of the access point we are connected to, this can return
+    /// a blank string when not connected to an access point. When the WiFi
     /// interface is operating as an ACCESS POINT only this can return the 
     /// SSID of the ACCESS POINT operating on the WiFi interface.
-    const std::string get_ssid();
+    virtual const std::string get_ssid() = 0;
 
-    /// @return RSSI value of the currently connected access point, can return
-    /// zero if not currently connected or if it is unknown.
-    int get_rssi();
+    /// Retrieves the RSSI value for the WiFi interface.
+    ///
+    /// @param rssi will contain the RSSI value (if known).
+    ///
+    /// @return @ref WiFiErrorCode as the result of retrieval of the RSSI. When
+    /// the WiFi interface is operating in ACCESS POINT only mode this API
+    /// should return @ref WiFiErrorCode::INVALID_ARGUMENT. When the WiFi
+    /// interface is operating in STATION and ACCESS POINT mode only the
+    /// STATION RSSI will be retrieved.
+    virtual WiFiErrorCode get_rssi(int *rssi) = 0;
 };
 
 #endif // _FREERTOS_DRIVERS_COMMON_WIFI_IFACE_HXX_
