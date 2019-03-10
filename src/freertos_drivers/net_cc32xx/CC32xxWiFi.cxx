@@ -532,8 +532,7 @@ void CC32xxWiFi::wlan_mac(uint8_t mac[6])
  */
 void CC32xxWiFi::test_mode_start()
 {
-    os_thread_t thread;
-    os_thread_create(&thread, "sl_Task", os_thread_get_priority_max(), 2048,
+    os_thread_create(nullptr, "sl_Task", os_thread_get_priority_max(), 2048,
                      sl_Task, nullptr);
 
     // the following code sequnce is taken from the Radio Test Tool
