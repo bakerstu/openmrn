@@ -59,7 +59,7 @@ public:
         /// The interface has not been initialized or is otherwise not in a
         /// usable state. A call to @ref start would be required. This is the
         /// default state of the interface when the WiFiInterface instance is
-        /// created. When the @ref stop() method is called, this is the
+        /// created. When the @ref stop method is called, this is the
         /// expected state, although @ref IDLE could also be used.
         OFF = 0,
         /// The interface is currently in an initializing state. It is not
@@ -67,8 +67,8 @@ public:
         INITIALIZING,
         /// The interface is in an IDLE state but has been initialized. This is
         /// the expected state after calling @ref start. A call to:
-        /// @ref connect(), @ref wps_pbc_connect(), @ref wps_pin_connect or
-        /// @ref access_point_setup() will be required.
+        /// @ref connect, @ref wps_pbc_connect, @ref wps_pin_connect or
+        /// @ref access_point_setup will be required.
         IDLE,
         /// The interface is currently connecting to an access point.
         CONNECTING,
