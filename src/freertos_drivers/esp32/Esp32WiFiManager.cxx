@@ -847,11 +847,11 @@ int mdns_lookup(const char *service, struct addrinfo *hints,
             // if this result has an IPv4 address process it
             if(ipaddr->addr.type == IPADDR_TYPE_V4)
             {
-                LOG(INFO, "[mDNS] Found %s as providing service: %s.",
-                    res->hostname, service);
+                LOG(INFO, "[mDNS] Found %s as providing service: %s on port %d.",
+                    res->hostname, service, res->port);
                 inet_addr_from_ip4addr(&sa_in->sin_addr,
                     &ipaddr->addr.u_addr.ip4);
-                sa_in->sin_port = res->port;
+                sa_in->sin_port = htons(res->port);
                 match_found = true;
             }
             ipaddr = ipaddr->next;
