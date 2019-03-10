@@ -163,6 +163,10 @@ public:
         WiFiSecurity security;
         /// Receive Signal Strength Indicator of the access point.
         int rssi;
+        /// BSSID (MAC address) of the access point.
+        uint8_t bssid[6];
+        /// Primary channel used by the access point.
+        uint8_t channel;
     };
 
     /// Start/Initialize the WiFi interface with the requested @ref mode.
@@ -217,6 +221,32 @@ public:
     /// @return @ref WiFiErrorCode as the result of the connection attempt.
     virtual WiFiErrorCode connect(const uint32_t timeout = 0) = 0;
 
+    /// Connects to an access point via WPS Push Button Control.
+    ///
+    /// @param blocking will cause this method to block until the WPS process
+    /// completes. Default is non-blocking.
+    /// @param timeout is the number of milliseconds to wait for the WPS
+    /// process to complete. A value of zero indicates that the interface
+    /// default timeout should be used.
+    ///
+    /// @return @ref WiFiErrorCode as the result of the connection attempt.
+    virtual WiFiErrorCode wps_pbc_connect(bool blocking = false,
+                                          const uint32_t timeout = 0) = 0;
+
+    /// Initiate the WPS PIN connection process.
+    ///
+    /// @param pin is the PIN value to send as part of the WPS connect process.
+    /// @param blocking will cause this method to block until the WPS process
+    /// completes. Default is non-blocking.
+    /// @param timeout is the number of milliseconds to wait for the WPS
+    /// process to complete. A value of zero indicates that the interface
+    /// default timeout should be used.
+    ///
+    /// @return @ref WiFiErrorCode as the result of the connection attempt.
+    virtual WiFiErrorCode wps_pin_connect(const std::string pin,
+                                          bool blocking = false,
+                                          const uint32_t timeout = 0) = 0;
+
     /// Creates an access point on this WiFi interface.
     ///
     /// Note: The ap_ip and dns_ip are in NETWORK byte order (big endian).
@@ -230,23 +260,11 @@ public:
     /// provide to stations.
     ///
     /// @return @ref WiFiErrorCode as the result of setting up the access point.
-    virtual WiFiErrorCode setup_access_point(const std::string &ssid,
+    virtual WiFiErrorCode access_point_setup(const std::string &ssid,
                                              const std::string &password = "",
                                              WiFiSecurity security = WiFiSecurity::OPEN,
                                              uint32_t ap_ip = 0,
                                              uint32_t dns_ip = 0) = 0;
-
-    /// Initiate the WPS Push Button Control connection process.
-    ///
-    /// @param blocking will cause this method to block until the WPS process
-    /// completes. Default is non-blocking.
-    /// @param timeout is the number of milliseconds to wait for the WPS
-    /// process to complete. A value of zero indicates that the interface
-    /// default timeout should be used.
-    ///
-    /// @return @ref WiFiErrorCode as the result of the connection attempt.
-    virtual WiFiErrorCode initiate_wps_connect(bool blocking = false,
-                                               const uint32_t timeout = 0) = 0;
 
     /// @return the current WiFi interface operating mode.
     virtual WiFiMode get_mode() = 0;
@@ -266,7 +284,7 @@ public:
     /// profile, if successfully stored.
     ///
     /// @return @ref WiFiErrorCode as the result of storing the profile.
-    virtual WiFiErrorCode add_ssid_profile(const std::string &ssid,
+    virtual WiFiErrorCode ssid_profile_add(const std::string &ssid,
                                            const std::string &password,
                                            const WiFiSecurity security,
                                            const uint8_t priority,
@@ -277,7 +295,7 @@ public:
     /// @param ssid SSID of the profile to delete.
     ///
     /// @return @ref WiFiErrorCode as the result of the removal of the profile.
-    virtual WiFiErrorCode del_ssid_profile(const std::string &ssid) = 0;
+    virtual WiFiErrorCode ssid_profile_del(const std::string &ssid) = 0;
 
     /// Delete a saved SSID profile by it's index.
     ///
@@ -285,7 +303,7 @@ public:
     /// will remove all stored profiles.
     ///
     /// @return @ref WiFiErrorCode as the result of the removal of the profile.
-    virtual WiFiErrorCode del_ssid_profile(const int index) = 0;
+    virtual WiFiErrorCode ssid_profile_del(const int index) = 0;
 
     /// Retrieves a saved SSID profile by index.
     ///
@@ -296,14 +314,16 @@ public:
     ///
     /// @return @ref WiFiErrorCode as the result of the retrieval of the
     /// profile.
-    virtual WiFiErrorCode get_ssid_profile(const int index, std::string *ssid,
+    virtual WiFiErrorCode ssid_profile_get(const int index, std::string *ssid,
                                            WiFiSecurity *security,
                                            uint8_t *priority) = 0;
 
-    /// @return true if there are no saved SSID profiles, false otherwise.
-    virtual bool are_ssid_profiles_empty() = 0;
+    /// @return number of stored SSID profiles.
+    virtual uint8_t ssid_profile_count() = 0;
 
-    /// Initiate scanning for available access points.
+    /// Starts an access point scan.
+    ///
+    /// Note: This API will only execute *ONE* network scan per call.
     ///
     /// @param blocking will cause this method to block until the network scan
     /// completes. Default is non-blocking.
@@ -315,9 +335,25 @@ public:
     ///
     /// @return the number of networks found via scan, this value will be zero
     /// when @ref blocking is false.
-    virtual int initiate_network_scan(bool blocking = false,
-                                      uint32_t timeout = 0,
-                                      uint8_t max_results = 20) = 0;
+    virtual int network_scan_single(bool blocking = false,
+                                    uint32_t timeout = 0,
+                                    uint8_t max_results = 20) = 0;
+
+    /// Starts a continuous access point scan.
+    ///
+    /// Note: When there is already a network scan running, this will API will
+    /// be treated as a NOOP.
+    ///
+    /// @return @ref WiFiErrorCode as the result of starting the network scan.
+    virtual WiFiErrorCode network_scan_start() = 0;
+
+    /// Stops a continuous access point scan.
+    ///
+    /// Note: When there is not a network scan running, this will API be
+    /// treated as a NOOP.
+    ///
+    /// @return @ref WiFiErrorCode as the result of stopping the network scan.
+    virtual WiFiErrorCode network_scan_stop() = 0;
 
     /// Retrieves a list of available access points.
     ///
