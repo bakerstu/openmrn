@@ -40,6 +40,7 @@
 #include "utils/SimpleQueue.hxx"
 #include "utils/Singleton.hxx"
 #include "utils/StringPrintf.hxx"
+#include "freertos_includes.h"
 
 extern "C" {
     /// Call this function repeatedly from a hardware timer to feed the CPUload
@@ -204,8 +205,10 @@ private:
     Action log_and_wait()
     {
         auto *l = CpuLoad::instance();
-        LOG(INFO, "Load: avg %3d max streak %d max of 16 %d", l->get_load(),
-            l->get_max_consecutive(), l->get_peak_over_16_counts());
+        LOG(INFO, "FreeHeap %d|Buf %d|Load: avg %3d max streak %d max of 16 %d",
+            (int)os_get_free_heap(), (int)mainBufferPool->total_size(),
+            l->get_load(), l->get_max_consecutive(),
+            l->get_peak_over_16_counts());
         l->clear_max_consecutive();
         l->clear_peak_over_16_counts();
         vector<pair<unsigned, string *>> per_task_ticks;
@@ -223,7 +226,11 @@ private:
         auto k = l->new_key();
         if (k > 300)
         {
+#if tskKERNEL_VERSION_MAJOR < 9
+            char *name = pcTaskGetTaskName((TaskHandle_t)k);
+#else
             char *name = pcTaskGetName((TaskHandle_t)k);
+#endif            
             l->set_key_description(k, name);
         }
         else
