@@ -53,6 +53,11 @@ void reboot()
     ESP.restart();
 }
 
+ssize_t os_get_free_heap()
+{
+    return ESP.getFreeHeap();
+}
+
 }
 #endif // ESP32
 
