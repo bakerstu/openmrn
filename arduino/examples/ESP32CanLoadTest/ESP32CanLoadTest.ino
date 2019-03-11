@@ -37,12 +37,14 @@
 #include <SPIFFS.h>
 #include <WiFi.h>
 #include <vector>
+#include <esp_spi_flash.h>
 
 #include <OpenMRNLite.h>
 #include <openlcb/TcpDefs.hxx>
 
 #include <openlcb/MultiConfiguredConsumer.hxx>
 #include <utils/GpioInitializer.hxx>
+#include <freertos_drivers/arduino/CpuLoad.hxx>
 
 // Pick an operating mode below, if you select USE_WIFI it will expose
 // this node on WIFI if you select USE_CAN, this node will be available
@@ -51,7 +53,7 @@
 // both WiFi and CAN interfaces.
 
 #define USE_WIFI
-//#define USE_CAN
+#define USE_CAN
 
 // Uncomment the line below to have this node advertise itself via mDNS as a
 // hub. When this is enabled, other devices can find and connect to this node
@@ -100,8 +102,9 @@ const char *hostname = "esp32mrn";
 /// This is the TCP/IP listener on the ESP32.
 WiFiServer openMRNServer(OPENMRN_TCP_PORT);
 
-OVERRIDE_CONST(gridconnect_buffer_size, 512);
+OVERRIDE_CONST(gridconnect_buffer_size, 3512);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
+OVERRIDE_CONST(gc_generate_newlines, CONSTANT_FALSE);
 
 #endif // USE_WIFI
 
@@ -262,9 +265,25 @@ namespace openlcb
     extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }
 
+CpuLoad cpu_load;
+hw_timer_t * timer = nullptr;
+CpuLoadLog* cpu_log = nullptr;
+
+void IRAM_ATTR onTimer()
+{
+  if (spi_flash_cache_enabled()) {
+    cpuload_tick(0);
+  }
+}
+
 void setup()
 {
     Serial.begin(115200L);
+
+    timer = timerBegin(3, 80, true); // timer_id = 3; divider=80; countUp = true;
+    timerAttachInterrupt(timer, &onTimer, true); // edge = true
+    timerAlarmWrite(timer, 1000000/163, true);  //1000 ms
+    timerAlarmEnable(timer);
 
 #if defined(USE_WIFI)
     printf("\nConnecting to: %s\n", ssid);
@@ -337,6 +356,8 @@ void setup()
     // Start the OpenMRN stack
     openmrn.begin();
     openmrn.start_executor_thread();
+    cpu_log = new CpuLoadLog(openmrn.stack()->service());
+
 
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
