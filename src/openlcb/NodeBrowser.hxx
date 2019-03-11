@@ -72,10 +72,13 @@ private:
     class VerifiedHandler : public MessageHandler
     {
     public:
+        /// @param parent is the NodeBrowser that owns *this
         VerifiedHandler(NodeBrowser *parent);
+        /// @param b incoming message
         void send(Buffer<GenMessage> *b, unsigned) override;
 
     private:
+        /// NodeBrowser that owns *this.
         NodeBrowser *parent_;
     };
     friend class VerifiedHandler;
