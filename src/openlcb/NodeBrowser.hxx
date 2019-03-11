@@ -38,11 +38,13 @@
 
 #include "openlcb/If.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
 /// This class helps establishing a list of all (live) nodes on the
 /// network. Useful for configuration tools.
-class NodeBrowser {
+class NodeBrowser
+{
 public:
     /// Function prototype for the callback. This function will be called on
     /// the interface's executor.
@@ -54,12 +56,12 @@ public:
     /// bus.
     /// @param cb will be called for each newly arriving node, and for each
     /// existing node after the refresh command is executed.
-    NodeBrowser(Node* node, CallbackFunction cb);
+    NodeBrowser(Node *node, CallbackFunction cb);
 
     /// Destructor. After calling it is guaranteed not to receive any more
     /// callbacks.
     ~NodeBrowser();
-    
+
     /// Requests a pong from every live node. This function will return
     /// immediately, then callbacks will be called for each reply that arrives.
     void refresh();
@@ -67,23 +69,28 @@ public:
 private:
     /// Helper class to register in the dispatcher. Incomng response messages
     /// will be routed to this object.
-    class VerifiedHandler : public MessageHandler {
+    class VerifiedHandler : public MessageHandler
+    {
     public:
-        VerifiedHandler(NodeBrowser* parent);
-        void send(Buffer<GenMessage>* b, unsigned) override;
+        /// @param parent is the NodeBrowser that owns *this
+        VerifiedHandler(NodeBrowser *parent);
+        /// @param b incoming message
+        void send(Buffer<GenMessage> *b, unsigned) override;
+
     private:
-        NodeBrowser* parent_;
+        /// NodeBrowser that owns *this.
+        NodeBrowser *parent_;
     };
     friend class VerifiedHandler;
-    
+
     /// Register with the interface for messages we want to listen to.
     void register_callbacks();
     /// Remove callbacks from the interface.
     void unregister_callbacks();
     /// Me-node.
-    Node* node_;
+    Node *node_;
     /// Callback registerd in the interface.
-    VerifiedHandler handler_{this};
+    VerifiedHandler handler_ {this};
     /// Client callback for live or new nodes.
     CallbackFunction callback_;
 };
@@ -91,4 +98,3 @@ private:
 } // namespace openlcb
 
 #endif // _OPENLCB_NODEBROWSER_HXX_
-
