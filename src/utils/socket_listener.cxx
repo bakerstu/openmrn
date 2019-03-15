@@ -80,11 +80,11 @@ SocketListener::SocketListener(int port, connection_callback_t callback)
       accept_thread_("accept_thread", 0, listener_stack_size,
         accept_thread_start, this)
 {
-#if OPENMRN_BSD_SOCKETS_IGNORE_SIGPIPE
+#if OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
     // We expect write failures to occur but we want to handle them where the
     // error occurs rather than in a SIGPIPE handler.
     signal(SIGPIPE, SIG_IGN);
-#endif // OPENMRN_BSD_SOCKETS_IGNORE_SIGPIPE
+#endif // OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
 }
 
 SocketListener::~SocketListener() {

@@ -106,11 +106,11 @@ int SocketClient::connect(const char *host, const char *port_str)
 
 int SocketClient::connect(struct addrinfo *addr)
 {
-#if OPENMRN_BSD_SOCKETS_IGNORE_SIGPIPE
+#if OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
     // We expect write failures to occur but we want to handle them where
     // the error occurs rather than in a SIGPIPE handler.
     signal(SIGPIPE, SIG_IGN);
-#endif // OPENMRN_BSD_SOCKETS_IGNORE_SIGPIPE
+#endif // OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
 
     if (!addr)
     {

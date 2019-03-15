@@ -134,6 +134,4 @@ CDI_GROUP_END();
 
 } // namespace openmrn_arduino
 
-using openmrn_arduino::WiFiConfiguration;
-
 #endif // _FREERTOS_DRIVERS_ESP32_ESP32WIFICONFIG_HXX_

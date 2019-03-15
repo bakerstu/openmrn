@@ -167,7 +167,7 @@ protected:
                         continue;
                     }
 // Now: we have an error.
-#if OPENMRN_BSD_SOCKETS_REPORT_EOF_ERROR
+#if OPENMRN_FEATURE_BSD_SOCKETS_REPORT_EOF_ERROR
                     if (!ret)
                     {
                         LOG_ERROR("EOF reading fd %d", port_->fd_);
@@ -177,7 +177,7 @@ protected:
                         LOG_ERROR("Error reading fd %d: (%d) %s", port_->fd_,
                             errno, strerror(errno));
                     }
-#endif
+#endif // OPENMRN_FEATURE_BSD_SOCKETS_REPORT_EOF_ERROR
                     port_->report_error();
                     return NULL;
                 }
@@ -252,7 +252,7 @@ public:
                 continue;
             }
 // now: we have an error.
-#if OPENMRN_BSD_SOCKETS_REPORT_EOF_ERROR
+#if OPENMRN_FEATURE_BSD_SOCKETS_REPORT_EOF_ERROR
             if (!ret)
             {
                 LOG_ERROR("EOF writing fd %d", port_->fd_);
@@ -262,7 +262,7 @@ public:
                 LOG_ERROR("Error writing fd %d: (%d) %s", port_->fd_, errno,
                     strerror(errno));
             }
-#endif
+#endif // OPENMRN_FEATURE_BSD_SOCKETS_REPORT_EOF_ERROR
             port_->report_error();
             break;
         }

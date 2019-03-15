@@ -125,14 +125,14 @@
 #define OPENMRN_HAVE_BSD_SOCKETS_IPV6 1
 #endif
 
-#if defined(__linux__)
-/// Compiles suport for ignoring SIGPIPE write failures on sockets.
-#define OPENMRN_BSD_SOCKETS_IGNORE_SIGPIPE 1
+#if defined(__linux__) || defined(__MACH__)
+/// Ignores SIGPIPE signals to avoid write failures crashing the program.
+#define OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE 1
 #endif
 
-#if defined(__linux__) || defined(ESP32)
+#if defined(__linux__) || defined(__MACH__) || defined(ESP32)
 /// Compiles support for reporting EOF as an error for read/write.
-#define OPENMRN_BSD_SOCKETS_REPORT_EOF_ERROR 1
+#define OPENMRN_FEATURE_BSD_SOCKETS_REPORT_EOF_ERROR 1
 #endif
 
 #endif

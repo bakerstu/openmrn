@@ -104,7 +104,7 @@ string dummystring("abcdef");
 // layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
-Esp32WiFiManager wifiMgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
+Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:

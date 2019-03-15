@@ -61,10 +61,6 @@
 static constexpr uint64_t NODE_ID = UINT64_C(0x050101011823);
 
 #if defined(USE_WIFI)
-/// This is the TCP/IP port which the ESP32 will listen on for incoming
-/// GridConnect formatted CAN frames.
-constexpr uint16_t OPENMRN_TCP_PORT = 12021L;
-
 // Configuring WiFi accesspoint name and password
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 // There are two options:
@@ -127,7 +123,7 @@ string dummystring("abcdef");
 static constexpr openlcb::ConfigDef cfg(0);
 
 #if defined(USE_WIFI)
-Esp32WiFiManager wifiMgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
+Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
 
 // Declare output pins
@@ -146,15 +142,15 @@ GPIO_PIN(IO7, GpioOutputSafeLow, 27);
 // the constexpr declaration, because it will produce a compile error in case
 // the list of pointers cannot be compiled into a compiler constant and thus
 // would be placed into RAM instead of ROM.
-constexpr const Gpio *const outputGpioSet[] = {
+constexpr const Gpio *const output_gpio_set[] = {
     IO0_Pin::instance(), IO1_Pin::instance(), //
     IO2_Pin::instance(), IO3_Pin::instance(), //
     IO4_Pin::instance(), IO5_Pin::instance(), //
     IO6_Pin::instance(), IO7_Pin::instance()  //
 };
 
-openlcb::MultiConfiguredConsumer gpio_consumers(openmrn.stack()->node(), outputGpioSet,
-    ARRAYSIZE(outputGpioSet), cfg.seg().consumers());
+openlcb::MultiConfiguredConsumer gpio_consumers(openmrn.stack()->node(),
+    output_gpio_set, ARRAYSIZE(output_gpio_set), cfg.seg().consumers());
 
 // Declare input pins, these are using analog pins as digital inputs
 // NOTE: pins 25 and 26 can not safely be used as analog pins while
@@ -191,7 +187,7 @@ typedef GpioInitializer<
     IO0_Pin,  IO1_Pin,  IO2_Pin,  IO3_Pin,  // outputs 0-3
     IO4_Pin,  IO5_Pin,  IO6_Pin,  IO7_Pin,  // outputs 4-7
     IO8_Pin,  IO9_Pin,  IO10_Pin, IO11_Pin, // inputs 0-3
-    IO12_Pin, IO13_Pin, IO14_Pin, IO15_Pin // inputs 4-7
+    IO12_Pin, IO13_Pin, IO14_Pin, IO15_Pin  // inputs 4-7
     > GpioInit;
 
 // The producers need to be polled repeatedly for changes and to execute the
