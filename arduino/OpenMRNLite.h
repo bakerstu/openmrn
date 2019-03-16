@@ -40,7 +40,7 @@
 
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
-#include "freertos_drivers/arduino/WiFiDefs.hxx"
+#include "freertos_drivers/arduino/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
