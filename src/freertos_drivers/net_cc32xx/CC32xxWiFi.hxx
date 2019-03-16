@@ -325,7 +325,8 @@ public:
      */
     int wlan_rssi()
     {
-        return rssi;
+        // the RSSI value is only reliable when associatedd
+        return wlan_startup_state() == WlanState::NOT_ASSOCIATED ? 0 : rssi;
     }
 
     void set_ip_acquired_callback(std::function<void(bool)> callback)
