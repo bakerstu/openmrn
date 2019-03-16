@@ -730,9 +730,17 @@ void Esp32WiFiManager::start_uplink()
 // Converts the passed fd into a GridConnect port and adds it to the stack.
 void Esp32WiFiManager::on_uplink_created(int fd, Notifiable *on_exit)
 {
+    LOG(INFO, "[UPLINK] Connected to hub, configuring GridConnect port.");
+
     const bool use_select =
         (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
+
+    // create the GridConnect port from the provided socket fd.
     create_gc_port_for_can_hub(stack_->can_hub(), fd, on_exit, use_select);
+
+    // restart the stack to kick off alias allocation and send node init
+    // packets.
+    stack_->restart_stack();
 }
 
 } // namespace openmrn_arduino
