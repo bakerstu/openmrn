@@ -1,0 +1,66 @@
+#include "utils/async_if_test_helper.hxx"
+
+#include "openlcb/NodeBrowser.hxx"
+
+namespace openlcb
+{
+
+class NodeBrowserTest : public AsyncNodeTest
+{
+protected:
+    MOCK_METHOD1(callback, void(NodeID));
+
+    NodeBrowser browser_ {node_,
+        std::bind(&NodeBrowserTest::callback, this, std::placeholders::_1)};
+};
+
+TEST_F(NodeBrowserTest, create)
+{
+}
+
+TEST_F(NodeBrowserTest, selftest)
+{
+    EXPECT_CALL(*this, callback(TEST_NODE_ID));
+    expect_packet(":X1917022AN02010D000003;");
+    expect_packet(":X1949022AN;");
+    browser_.refresh();
+    wait();
+}
+
+TEST_F(NodeBrowserTest, newnode)
+{
+    EXPECT_CALL(*this, callback(0x050101011849));
+    send_packet(":X19100554N050101011849;");
+    wait();
+}
+
+TEST_F(NodeBrowserTest, verified)
+{
+    EXPECT_CALL(*this, callback(0x050101011829));
+    send_packet(":X19170554N050101011829;");
+    wait();
+}
+
+TEST_F(NodeBrowserTest, blackbox_newnode)
+{
+    EXPECT_CALL(*this, callback(0x050101011871));
+    inject_allocated_alias(0x821);
+    DefaultNode testnode2(ifCan_.get(), 0x050101011871);
+    wait();
+}
+
+TEST_F(NodeBrowserTest, blackbox_refresh)
+{
+    EXPECT_CALL(*this, callback(0x050101011871));
+    inject_allocated_alias(0x821);
+    DefaultNode testnode2(ifCan_.get(), 0x050101011871);
+    wait();
+
+    Mock::VerifyAndClear(this);
+    EXPECT_CALL(*this, callback(0x050101011871));
+    EXPECT_CALL(*this, callback(TEST_NODE_ID));
+    browser_.refresh();
+    wait();
+}
+
+} // namespace openlcb

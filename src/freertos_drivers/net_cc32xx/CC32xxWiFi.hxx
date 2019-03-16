@@ -143,6 +143,12 @@ public:
     {
     }
 
+    /** Startup the Wi-Fi in test mode. This mode of operation does not support
+     * connection to an AP. This mode is only for RF testing. Test mode can be
+     * exited by @ref stop().
+     */
+    void test_mode_start();
+
     /** Startup the Wi-Fi.
      * @param device role
      * @param power_policy desired power policy
@@ -216,6 +222,19 @@ public:
     /** Updates the blinker based on connection state. Noop if wlan_ready()
      * returns true.*/
     void connecting_update_blinker();
+
+    /** Get the current country code.
+     * @return current country code, CountryCode::UNKNOWN on error
+     */
+    CountryCode wlan_country_code_get();
+
+    /** Set the current country code.
+     * @param cc country code to set
+     * @param restart true to restart NWP, else false, use extreme caution when
+     *        restart = true;
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_country_code_set(CountryCode cc, bool restart = false);
 
     /** Add a saved WLAN profile.
      * @param ssid WLAN SSID of the profile to save

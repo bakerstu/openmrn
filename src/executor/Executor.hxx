@@ -153,6 +153,8 @@ public:
     /// @return the thread handle.
     os_thread_t thread_handle() { return OSThread::get_handle(); }
 
+    OSThread& thread() { return *this; }
+    
     /// Die if we are not on the current executor.
     void assert_current() { HASSERT(os_thread_self() == thread_handle()); }
     
