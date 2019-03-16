@@ -38,7 +38,8 @@
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfiguredTcpConnection.hxx"
 
-namespace openmrn_arduino {
+namespace openmrn_arduino
+{
 
 /// Names and Descriptions for all ESP32 exposed WiFi configuration options.
 class Esp32WiFiConfigurationParams
@@ -55,7 +56,7 @@ public:
         "WiFi Power Savings Mode";
 
     /// Visible description for the WiFi Power Savings mode.
-    static constexpr const char *WIFI_POWER_SAVE_DESC = 
+    static constexpr const char *WIFI_POWER_SAVE_DESC =
         "When enabled this allows the ESP32 WiFi radio to use power savings "
         "mode which puts the radio to sleep except to receive beacon updates "
         "from the connected SSID. This should generally not need to be "
@@ -65,22 +66,21 @@ public:
     static constexpr const char *HUB_NAME = "Hub Configuration";
 
     /// Visible description for the Hub Configuration group.
-    static constexpr const char *HUB_DESC = 
+    static constexpr const char *HUB_DESC =
         "Configuration settings for an OpenLCB Hub";
 
     /// Visible name for the hub enable field.
     static constexpr const char *HUB_ENABLE_NAME = "Enable Hub Mode";
 
     /// Visible description for the hub enable field.
-    static constexpr const char *HUB_ENABLE_DESC = 
+    static constexpr const char *HUB_ENABLE_DESC =
         "Defines this node as a hub which can accept connections";
 
     /// Visible name for the hub_listener_port field.
-    static constexpr const char *HUB_LISTENER_PORT_NAME =
-        "Hub Listener Port";
+    static constexpr const char *HUB_LISTENER_PORT_NAME = "Hub Listener Port";
 
     /// Visible name for the hub_listener_port field.
-    static constexpr const char *HUB_LISTENER_PORT_DESC = 
+    static constexpr const char *HUB_LISTENER_PORT_DESC =
         "Defines the TCP/IP listener port this node will use when operating "
         "as a hub. Most of the time this does not need to be changed.";
 
@@ -97,19 +97,19 @@ CDI_GROUP(HubConfiguration);
 /// Allows the node to become a Grid Connect Hub.
 CDI_GROUP_ENTRY(enable, openlcb::Uint8ConfigEntry,
     Name(Esp32WiFiConfigurationParams::HUB_ENABLE_NAME),
-    Description(Esp32WiFiConfigurationParams::HUB_ENABLE_DESC),
-    Min(0), Max(1), Default(0),
-    MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
+    Description(Esp32WiFiConfigurationParams::HUB_ENABLE_DESC), Min(0), Max(1),
+    Default(0), MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
 /// Specifies the port which should be used by the hub.
 CDI_GROUP_ENTRY(port, openlcb::Uint16ConfigEntry,
     Name(Esp32WiFiConfigurationParams::HUB_LISTENER_PORT_NAME),
-    Description(Esp32WiFiConfigurationParams::HUB_LISTENER_PORT_DESC),
-    Min(1), Max(65535),
-    Default(openlcb::TcpClientDefaultParams::DEFAULT_PORT))
+    Description(Esp32WiFiConfigurationParams::HUB_LISTENER_PORT_DESC), Min(1),
+    Max(65535), Default(openlcb::TcpClientDefaultParams::DEFAULT_PORT))
 /// Specifies the mDNS service name to advertise for the hub.
 CDI_GROUP_ENTRY(service_name, openlcb::StringConfigEntry<48>,
     Name(openlcb::TcpClientDefaultParams::SERVICE_NAME),
     Description(openlcb::TcpClientDefaultParams::SERVICE_DESCR));
+/// Reserved space for future expansion.
+CDI_GROUP_ENTRY(reserved, openlcb::BytesConfigEntry<6>, Hidden(true));
 CDI_GROUP_END();
 
 /// CDI Configuration for an @ref Esp32WiFiManager managed node.
@@ -118,9 +118,8 @@ CDI_GROUP(WiFiConfiguration);
 /// when the node is powered via battery.
 CDI_GROUP_ENTRY(sleep, openlcb::Uint8ConfigEntry,
     Name(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_NAME),
-    Description(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_DESC),
-    Min(0), Max(1), Default(0),
-    MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
+    Description(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_DESC), Min(0),
+    Max(1), Default(0), MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
 /// CDI Configuration to enable this node to be a hub.
 CDI_GROUP_ENTRY(hub, HubConfiguration,
     Name(Esp32WiFiConfigurationParams::HUB_NAME),
@@ -133,5 +132,7 @@ CDI_GROUP_ENTRY(uplink,
 CDI_GROUP_END();
 
 } // namespace openmrn_arduino
+
+using openmrn_arduino::WiFiConfiguration;
 
 #endif // _FREERTOS_DRIVERS_ESP32_ESP32WIFICONFIG_HXX_
