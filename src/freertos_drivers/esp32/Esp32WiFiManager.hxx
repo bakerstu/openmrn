@@ -42,13 +42,14 @@
 #include "openlcb/TcpDefs.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/GcTcpHub.hxx"
-#include "utils/macros.h"
 #include "utils/SocketClient.hxx"
 #include "utils/SocketClientParams.hxx"
+#include "utils/macros.h"
 
 #include <freertos/event_groups.h>
 
-namespace openmrn_arduino {
+namespace openmrn_arduino
+{
 
 /// This class provides a simple way for ESP32 nodes to manage the WiFi and
 /// mDNS systems of the ESP32, the node being a hub and connecting to an
@@ -82,6 +83,9 @@ public:
     /// @param cfg is the WiFiConfiguration instance used for this node. This
     /// will be monitored for changes and the WiFi behavior altered
     /// accordingly.
+    ///
+    /// Note: Both ssid and password must remain in memory for the duration of
+    /// node uptime.
     Esp32WiFiManager(const char *ssid, const char *password,
         openlcb::SimpleCanStack *stack, const WiFiConfiguration &cfg);
 
@@ -97,8 +101,8 @@ public:
     /// @param cfg is the WiFiConfiguration instance used for this node. This
     /// will be monitored for changes and the WiFi behavior altered
     /// accordingly.
-    Esp32WiFiManager(openlcb::SimpleCanStack *stack,
-        const WiFiConfiguration &cfg);
+    Esp32WiFiManager(
+        openlcb::SimpleCanStack *stack, const WiFiConfiguration &cfg);
 
     /// Updates the WiFiConfiguration settings used by this node.
     ///
@@ -112,13 +116,13 @@ public:
     /// @return UPDATED when the configuration has been successfully updated,
     /// or REBOOT_NEEDED if the node needs to reboot for configuration to take
     /// effect.
-    ConfigUpdateListener::UpdateAction apply_configuration(int fd,
-        bool initial_load, BarrierNotifiable *done) OVERRIDE;
-    
+    ConfigUpdateListener::UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done) override;
+
     /// Resets the WiFiConfiguration settings used by this node.
     ///
     /// @param fd is the file descriptor used for the configuration settings.
-    void factory_reset(int fd) OVERRIDE;
+    void factory_reset(int fd) override;
 
     /// Processes an Esp32 WiFi event based on the event_id raised by the
     /// ESP-IDF event loop processor. This should be used when the
@@ -128,11 +132,15 @@ public:
     ///
     /// @param event_id is the system_event_t.event_id value.
     void process_wifi_event(int event_id);
+
 private:
     /// Default constructor.
     Esp32WiFiManager();
 
     /// Starts the WiFi system and initiates the SSID connection process.
+    ///
+    /// Note: This is a blocking call and will reboot the node if the WiFi
+    /// connection is not successful after ~3min.
     void start_wifi_system();
 
     /// Starts the Esp32WiFiManager, this manages the WiFi subsystem as well as
@@ -144,16 +152,32 @@ private:
     /// @param param is a pointer to the Esp32WiFiManager instance.
     static void *wifi_manager_task(void *param);
 
+    /// Shuts down the hub listener (if running) for this node.
     void stop_hub();
+
+    /// Creates a hub listener for this node after loading configuration
+    /// details.
+    ///
+    /// Note: This method will block until the hub is active.
     void start_hub();
+
+    /// Disconnects and shuts down the uplink connector socket (if running).
     void stop_uplink();
+
+    /// Creates an uplink connector socket that will automatically add the
+    /// uplink to the node's hub.
     void start_uplink();
 
+    /// Callback for the @ref SocketClient to handle a newly connected outbound
+    /// socket connection.
+    ///
+    /// @param fd is the connected socket descriptor.
+    /// @param on_exit is the Notifiable for when this socket has closed.
     void on_uplink_created(int fd, Notifiable *on_exit);
 
     /// Handle for the wifi_manager_task that manages the WiFi stack, including
     /// periodic health checks of the connected hubs or clients.
-    TaskHandle_t wifiTaskHandle_;
+    os_thread_t wifiTaskHandle_;
 
     /// Dynamically generated hostname for this node, esp32_{node-id}.
     std::string hostname_{"esp32_"};

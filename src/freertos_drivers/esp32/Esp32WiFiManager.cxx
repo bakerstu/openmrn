@@ -38,8 +38,8 @@
 #include <esp_event_loop.h>
 #include <esp_wifi.h>
 #include <mdns.h>
-#include <tcpip_adapter.h>
 #include <rom/crc.h>
+#include <tcpip_adapter.h>
 
 using openlcb::NodeID;
 using openlcb::SimpleCanStack;
@@ -50,7 +50,6 @@ using openlcb::TcpDefs;
 using openlcb::TcpManualAddress;
 using std::string;
 using std::unique_ptr;
-
 
 // Start of global namespace block.
 
@@ -67,13 +66,14 @@ void mdns_unpublish(const char *service);
 
 // End of global namespace block.
 
-namespace openmrn_arduino {
+namespace openmrn_arduino
+{
 
-/// Priority to use for the wifi_manager_task. This is currently set to
-/// the same priority level as the arduino-esp32 loopTask. The task will
-/// be in a sleep state until woken up by Esp32WiFiManager::process_wifi_event
-/// or Esp32WiFiManager::apply_configuration.
-static constexpr UBaseType_t WIFI_TASK_PRIORITY = 1;
+/// Priority to use for the wifi_manager_task. This is currently set to one
+/// level higher than the arduino-esp32 loopTask. The task will be in a sleep
+/// state until woken up by Esp32WiFiManager::process_wifi_event or
+/// Esp32WiFiManager::apply_configuration.
+static constexpr UBaseType_t WIFI_TASK_PRIORITY = 2;
 
 /// Stack size for the wifi_manager_task.
 static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
@@ -82,7 +82,7 @@ static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
 static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
 
 /// Interval at which to check if the GcTcpHub has started or not.
-static constexpr TickType_t HUB_STARTUP_DELAY = pdMS_TO_TICKS(50);
+static constexpr TickType_t HUB_STARTUP_DELAY = MSEC_TO_USEC(50);
 
 /// Bit designator for wifi_status_event_group which indicates we are connected
 /// to the SSID.
@@ -115,9 +115,10 @@ static esp_err_t wifi_event_handler(void *context, system_event_t *event)
 class Esp32SocketParams : public DefaultSocketClientParams
 {
 public:
-    Esp32SocketParams(int fd,
-        const TcpClientConfig<TcpClientDefaultParams> &cfg) :
-            configFd_(fd), cfg_(cfg)
+    Esp32SocketParams(
+        int fd, const TcpClientConfig<TcpClientDefaultParams> &cfg)
+        : configFd_(fd)
+        , cfg_(cfg)
     {
         mdnsService_ = cfg_.auto_address().service_name().read(configFd_);
         staticHost_ = cfg_.manual_address().ip_address().read(configFd_);
@@ -125,7 +126,7 @@ public:
     }
 
     /// @return search mode for how to locate the server.
-    SearchMode search_mode() OVERRIDE
+    SearchMode search_mode() override
     {
         return (SearchMode)CDI_READ_TRIMMED(cfg_.search_mode, configFd_);
     }
@@ -133,14 +134,14 @@ public:
     /// @return null or empty string if any mdns server is okay to connect
     /// to. If nonempty, then only an mdns server will be chosen that has the
     /// specific host name.
-    string mdns_host_name() OVERRIDE
+    string mdns_host_name() override
     {
         return cfg_.auto_address().host_name().read(configFd_);
     }
 
     /// @return true if first attempt should be to connect to
     /// last_host_name:last_port.
-    bool enable_last() OVERRIDE
+    bool enable_last() override
     {
         return CDI_READ_TRIMMED(cfg_.reconnect, configFd_);
     }
@@ -148,13 +149,13 @@ public:
     /// @return the last successfully used IP address, as dotted
     /// decimal. Nullptr or empty if no successful connection has ever been
     /// made.
-    string last_host_name() OVERRIDE
+    string last_host_name() override
     {
         return cfg_.last_address().ip_address().read(configFd_);
     }
 
     /// @return the last successfully used port number.
-    int last_port() OVERRIDE
+    int last_port() override
     {
         return CDI_READ_TRIMMED(cfg_.last_address().port, configFd_);
     }
@@ -163,15 +164,15 @@ public:
     ///
     /// @param hostname is the hostname that was connected to.
     /// @param port is the port that was connected to.
-    void set_last(const char *hostname, int port) OVERRIDE
+    void set_last(const char *hostname, int port) override
     {
         cfg_.last_address().ip_address().write(configFd_, hostname);
         cfg_.last_address().port().write(configFd_, port);
     }
 
-    void log_message(LogMessage id, const string &arg) OVERRIDE
+    void log_message(LogMessage id, const string &arg) override
     {
-        switch(id)
+        switch (id)
         {
             case CONNECT_RE:
                 LOG(INFO, "[Uplink] Reconnecting to %s.", arg.c_str());
@@ -193,7 +194,8 @@ public:
                 LOG(INFO, "[Uplink] Connecting to %s.", arg.c_str());
                 break;
             case CONNECT_FAILED_SELF:
-                LOG(INFO, "[Uplink] Rejecting attempt to connect to "
+                LOG(INFO,
+                    "[Uplink] Rejecting attempt to connect to "
                     "localhost.");
                 break;
             case CONNECTION_LOST:
@@ -207,10 +209,11 @@ public:
 
     /// @return true if we should actively skip connections that happen to
     /// match our own IP address.
-    bool disallow_local() OVERRIDE
+    bool disallow_local() override
     {
         return true;
     }
+
 private:
     const int configFd_;
     const TcpClientConfig<TcpClientDefaultParams> cfg_;
@@ -219,9 +222,13 @@ private:
 // With this constructor being used the Esp32WiFiManager will manage the
 // WiFi connection, mDNS system and the hostname of the ESP32.
 Esp32WiFiManager::Esp32WiFiManager(const char *ssid, const char *password,
-    SimpleCanStack *stack, const WiFiConfiguration &cfg) :
-    DefaultConfigUpdateListener(), ssid_(ssid), password_(password),
-    cfg_(cfg), manageWiFi_(true), stack_(stack)
+    SimpleCanStack *stack, const WiFiConfiguration &cfg)
+    : DefaultConfigUpdateListener()
+    , ssid_(ssid)
+    , password_(password)
+    , cfg_(cfg)
+    , manageWiFi_(true)
+    , stack_(stack)
 {
     // Extend the capacity of the hostname to make space for the node-id and
     // underscore.
@@ -233,12 +240,9 @@ Esp32WiFiManager::Esp32WiFiManager(const char *ssid, const char *password,
     NodeID node_id = stack_->node()->node_id();
     hostname_.append(uint64_to_string_hex(node_id, 0));
 
-    // Release any extra capacity allocated for the hostname.
-    hostname_.shrink_to_fit();
-
     // The maximum length hostname for the ESP32 is 32 characters so truncate
-    // when necessary.
-    // ref https://github.com/espressif/esp-idf/blob/master/components/tcpip_adapter/include/tcpip_adapter.h#L611
+    // when necessary. Reference to length limitation:
+    // https://github.com/espressif/esp-idf/blob/master/components/tcpip_adapter/include/tcpip_adapter.h#L611
     if (hostname_.length() > TCPIP_HOSTNAME_MAX_SIZE)
     {
         LOG(WARNING, "ESP32 hostname is too long, original hostname: %s",
@@ -246,13 +250,19 @@ Esp32WiFiManager::Esp32WiFiManager(const char *ssid, const char *password,
         hostname_.resize(TCPIP_HOSTNAME_MAX_SIZE);
         LOG(WARNING, "truncated hostname: %s", hostname_.c_str());
     }
+
+    // Release any extra capacity allocated for the hostname.
+    hostname_.shrink_to_fit();
 }
 
 // With this constructor being used, it will be the responsibility of the
 // application to manage the WiFi and mDNS systems.
-Esp32WiFiManager::Esp32WiFiManager(SimpleCanStack *stack,
-    const WiFiConfiguration &cfg) : DefaultConfigUpdateListener(), cfg_(cfg),
-    manageWiFi_(false), stack_(stack)
+Esp32WiFiManager::Esp32WiFiManager(
+    SimpleCanStack *stack, const WiFiConfiguration &cfg)
+    : DefaultConfigUpdateListener()
+    , cfg_(cfg)
+    , manageWiFi_(false)
+    , stack_(stack)
 {
     // Nothing to do here.
 }
@@ -275,7 +285,7 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
 
     // If we are unable to seek to the right position in the persistent storage
     // give up and request a reboot.
-    if(lseek(fd, cfg_.offset(), SEEK_SET) != cfg_.offset())
+    if (lseek(fd, cfg_.offset(), SEEK_SET) != cfg_.offset())
     {
         LOG(WARNING, "lseek failed to reset fd offset, REBOOT_NEEDED");
         return ConfigUpdateListener::UpdateAction::REBOOT_NEEDED;
@@ -283,7 +293,7 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
 
     // If we are unable to read the full configuration from persistent storage
     // give up and request a reboot.
-    if(read(fd, crcbuf.get(), cfg_.size()) != cfg_.size())
+    if (read(fd, crcbuf.get(), cfg_.size()) != cfg_.size())
     {
         LOG(WARNING, "read failed to fully read the config, REBOOT_NEEDED");
         return ConfigUpdateListener::UpdateAction::REBOOT_NEEDED;
@@ -297,9 +307,9 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
 
     // if this is not the initial loading of the CDI entry check the CRC-32
     // value and trigger a configuration reload if necessary.
-    if(!initial_load)
+    if (!initial_load)
     {
-        if(configCrc32 != configCrc32_)
+        if (configCrc32 != configCrc32_)
         {
             configReloadRequested_ = true;
             // If a configuration change has been detected, wake up the
@@ -335,8 +345,8 @@ void Esp32WiFiManager::factory_reset(int fd)
     // Hub specific configuration settings.
     CDI_FACTORY_RESET(cfg_.hub().enable);
     CDI_FACTORY_RESET(cfg_.hub().port);
-    cfg_.hub().service_name().write(fd,
-        TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP);
+    cfg_.hub().service_name().write(
+        fd, TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP);
 
     // Node link configuration settings.
     CDI_FACTORY_RESET(cfg_.uplink().search_mode);
@@ -347,8 +357,8 @@ void Esp32WiFiManager::factory_reset(int fd)
     CDI_FACTORY_RESET(cfg_.uplink().manual_address().port);
 
     // Node link automatic configuration settings.
-    cfg_.uplink().auto_address().service_name().write(fd,
-        TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP);
+    cfg_.uplink().auto_address().service_name().write(
+        fd, TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP);
     cfg_.uplink().auto_address().host_name().write(fd, "");
 
     // Node link automatic last connected node address.
@@ -359,25 +369,25 @@ void Esp32WiFiManager::factory_reset(int fd)
     CDI_FACTORY_RESET(cfg_.uplink().reconnect);
 }
 
-// Processes a WiFi system event 
+// Processes a WiFi system event
 void Esp32WiFiManager::process_wifi_event(int event_id)
 {
     LOG(VERBOSE, "Esp32WiFiManager::process_wifi_event(%d)", event_id);
 
-    switch(event_id)
+    switch (event_id)
     {
         case SYSTEM_EVENT_STA_START:
             // We only are interested in this event if we are managing the
             // WiFi and MDNS systems
-            if(manageWiFi_)
+            if (manageWiFi_)
             {
                 // Set the generated hostname prior to connecting to the SSID
                 // so that it shows up with the generated hostname instead of
                 // the default "Espressif".
                 LOG(INFO, "[WiFi] Setting ESP32 hostname to \"%s\".",
                     hostname_.c_str());
-                ESP_ERROR_CHECK(tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA,
-                    hostname_.c_str()));
+                ESP_ERROR_CHECK(tcpip_adapter_set_hostname(
+                    TCPIP_ADAPTER_IF_STA, hostname_.c_str()));
 
                 // Start the DHCP service before connecting to it hooks into
                 // the flow early and provisions the IP automatically.
@@ -385,8 +395,10 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
                 ESP_ERROR_CHECK(
                     tcpip_adapter_dhcpc_start(TCPIP_ADAPTER_IF_STA));
 
-                LOG(INFO, "[WiFi] Station started, attempting to connect "
-                    "to SSID: %s.", ssid_);
+                LOG(INFO,
+                    "[WiFi] Station started, attempting to connect "
+                    "to SSID: %s.",
+                    ssid_);
                 // Start the SSID connection process.
                 esp_wifi_connect();
             }
@@ -400,8 +412,10 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
             // Retrieve the configured IP address from the TCP/IP stack.
             tcpip_adapter_ip_info_t ip_info;
             tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
-            LOG(INFO, "[WiFi] IP address is " IPSTR ", starting hub (if "
-                "enabled) and uplink.", IP2STR(&ip_info.ip));
+            LOG(INFO,
+                "[WiFi] IP address is " IPSTR ", starting hub (if "
+                "enabled) and uplink.",
+                IP2STR(&ip_info.ip));
 
             // Set the flag that indictes we have an IPv4 address.
             xEventGroupSetBits(wifiStatusEventGroup_, DHCP_GOTIP_BIT);
@@ -421,7 +435,7 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
             // check if we have already connected, this event can be raised
             // even before we have successfully connected during the SSID
             // connect process.
-            if(xEventGroupGetBits(wifiStatusEventGroup_) & WIFI_CONNECTED_BIT)
+            if (xEventGroupGetBits(wifiStatusEventGroup_) & WIFI_CONNECTED_BIT)
             {
                 LOG(INFO, "[WiFi] Lost connection to SSID: %s", ssid_);
                 // clear the flag that indicates we are connected to the SSID.
@@ -435,7 +449,7 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
 
                 // If we are managing the WiFi and MDNS systems we need to
                 // trigger the reconnection process at this point.
-                if(manageWiFi_)
+                if (manageWiFi_)
                 {
                     LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.",
                         ssid_);
@@ -470,7 +484,7 @@ void Esp32WiFiManager::start_wifi_system()
     wifiStatusEventGroup_ = xEventGroupCreate();
 
     // If we do not need to manage the WiFi and mDNS systems exit early.
-    if(!manageWiFi_)
+    if (!manageWiFi_)
     {
         return;
     }
@@ -500,18 +514,10 @@ void Esp32WiFiManager::start_wifi_system()
     // password provided to the Esp32WiFiManager constructor.
     wifi_config_t conf;
     memset(&conf, 0, sizeof(wifi_config_t));
-    strcpy(reinterpret_cast<char*>(conf.sta.ssid), ssid_);
-    // if we have a password check if it is a PSK or regular password
-    if(password_)
+    strcpy(reinterpret_cast<char *>(conf.sta.ssid), ssid_);
+    if (password_)
     {
-        if (strlen(password_) == 64) // it's the PSK and not a password.
-        {
-            memcpy(reinterpret_cast<char*>(conf.sta.password), password_, 64);
-        }
-        else
-        {
-            strcpy(reinterpret_cast<char*>(conf.sta.password), password_);
-        }
+        strcpy(reinterpret_cast<char *>(conf.sta.password), password_);
     }
 
     LOG(INFO, "[WiFi] Configuring WiFi stack");
@@ -527,10 +533,10 @@ void Esp32WiFiManager::start_wifi_system()
     uint8_t attempt = 0;
     EventBits_t bits;
     uint32_t bitMask = WIFI_CONNECTED_BIT;
-    while(++attempt <= MAX_CONNECTION_CHECK_ATTEMPTS)
+    while (++attempt <= MAX_CONNECTION_CHECK_ATTEMPTS)
     {
         // If we have connected to the SSID we then are waiting for DHCP.
-        if(bits & WIFI_CONNECTED_BIT)
+        if (bits & WIFI_CONNECTED_BIT)
         {
             LOG(INFO, "[DHCP] [%d/%d] Waiting for IP address assignment.",
                 attempt, MAX_CONNECTION_CHECK_ATTEMPTS);
@@ -538,36 +544,36 @@ void Esp32WiFiManager::start_wifi_system()
         else
         {
             // Waiting for SSID connection
-            LOG(INFO, "[WiFi] [%d/%d] Waiting for SSID connection.",
-                attempt, MAX_CONNECTION_CHECK_ATTEMPTS);
+            LOG(INFO, "[WiFi] [%d/%d] Waiting for SSID connection.", attempt,
+                MAX_CONNECTION_CHECK_ATTEMPTS);
         }
         bits = xEventGroupWaitBits(wifiStatusEventGroup_,
-            bitMask,        // bits we are interested in
-            pdFALSE,        // clear on exit
-            pdTRUE,         // wait for all bits
+            bitMask, // bits we are interested in
+            pdFALSE, // clear on exit
+            pdTRUE,  // wait for all bits
             WIFI_CONNECT_CHECK_INTERVAL);
         // Check if have connected to the SSID
-        if(bits & WIFI_CONNECTED_BIT)
+        if (bits & WIFI_CONNECTED_BIT)
         {
             // Since we have connected to the SSID we now need to track that we
             // get an IP via DHCP.
             bitMask |= DHCP_GOTIP_BIT;
         }
         // Check if we have received an IP via DHCP.
-        if(bits & DHCP_GOTIP_BIT)
+        if (bits & DHCP_GOTIP_BIT)
         {
             break;
         }
     }
 
     // Check if we successfully connected or not. If not, force a reboot.
-    if((bits & WIFI_CONNECTED_BIT) != WIFI_CONNECTED_BIT)
+    if ((bits & WIFI_CONNECTED_BIT) != WIFI_CONNECTED_BIT)
     {
-        LOG(FATAL, "[WiFi] Failed to connect to SSID.");
+        LOG(FATAL, "[WiFi] Failed to connect to SSID: %s.", ssid_);
     }
 
     // Check if we successfully connected or not. If not, force a reboot.
-    if((bits & DHCP_GOTIP_BIT) != DHCP_GOTIP_BIT)
+    if ((bits & DHCP_GOTIP_BIT) != DHCP_GOTIP_BIT)
     {
         LOG(FATAL, "[DHCP] Timeout waiting for an IP.");
     }
@@ -605,11 +611,11 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
     while (true)
     {
         EventBits_t bits = xEventGroupGetBits(wifi->wifiStatusEventGroup_);
-        if(bits & DHCP_GOTIP_BIT)
+        if (bits & DHCP_GOTIP_BIT)
         {
             // If we do not have not an uplink connection force a config reload
             // to start the connection process.
-            if(!wifi->uplink_)
+            if (!wifi->uplink_)
             {
                 wifi->configReloadRequested_ = true;
             }
@@ -628,14 +634,14 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
         }
 
         // Check if there are configuration changes to pick up.
-        if(wifi->configReloadRequested_)
+        if (wifi->configReloadRequested_)
         {
             // Since we are loading configuration data, shutdown the hub and
             // uplink if created previously.
             wifi->stop_hub();
             wifi->stop_uplink();
 
-            if(CDI_READ_TRIMMED(wifi->cfg_.sleep, wifi->configFd_))
+            if (CDI_READ_TRIMMED(wifi->cfg_.sleep, wifi->configFd_))
             {
                 // When sleep is enabled this will trigger the WiFi system to
                 // only wake up every DTIM period to receive beacon updates.
@@ -652,7 +658,7 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
                 ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
             }
 
-            if(CDI_READ_TRIMMED(wifi->cfg_.hub().enable, wifi->configFd_))
+            if (CDI_READ_TRIMMED(wifi->cfg_.hub().enable, wifi->configFd_))
             {
                 // Since hub mode is enabled start the HUB creation process.
                 wifi->start_hub();
@@ -673,11 +679,10 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
 // Shuts down the hub listener (if enabled and running) for this node.
 void Esp32WiFiManager::stop_hub()
 {
-    if(hub_)
+    if (hub_)
     {
         mdns_unpublish(hubServiceName_.c_str());
         LOG(INFO, "[HUB] Shutting down TCP/IP listener");
-        //hub_->shutdown();
         hub_.reset(nullptr);
     }
 }
@@ -692,9 +697,9 @@ void Esp32WiFiManager::start_hub()
     hub_.reset(new GcTcpHub(stack_->can_hub(), hub_port));
 
     // wait for the hub to complete it's startup tasks
-    while(!hub_->is_started())
+    while (!hub_->is_started())
     {
-        vTaskDelay(HUB_STARTUP_DELAY);
+        usleep(HUB_STARTUP_DELAY);
     }
     mdns_publish(NULL, hubServiceName_.c_str(), hub_port);
 }
@@ -702,7 +707,7 @@ void Esp32WiFiManager::start_hub()
 // Disconnects and shuts down the uplink connector socket if running.
 void Esp32WiFiManager::stop_uplink()
 {
-    if(uplink_)
+    if (uplink_)
     {
         LOG(INFO, "[UPLINK] Disconnecting from uplink.");
         uplink_->shutdown();
@@ -714,13 +719,12 @@ void Esp32WiFiManager::stop_uplink()
 // the node's hub.
 void Esp32WiFiManager::start_uplink()
 {
-    unique_ptr<SocketClientParams> params(new Esp32SocketParams(configFd_,
-        cfg_.uplink()));
+    unique_ptr<SocketClientParams> params(
+        new Esp32SocketParams(configFd_, cfg_.uplink()));
     uplink_.reset(new SocketClient(stack_->service(), stack_->executor(),
         stack_->executor(), std::move(params),
         std::bind(&Esp32WiFiManager::on_uplink_created, this,
-            std::placeholders::_1, std::placeholders::_2)
-    ));
+            std::placeholders::_1, std::placeholders::_2)));
 }
 
 // Converts the passed fd into a GridConnect port and adds it to the stack.
@@ -739,38 +743,46 @@ static constexpr uint32_t MDNS_QUERY_TIMEOUT = 2000;
 /// Maximum number of results to capture for mDNS query requests.
 static constexpr size_t MDNS_MAX_RESULTS = 10;
 
-// macro for splitting a service name since the ESPmDNS library requires the
-// service name and service protocol to be split.
-#define SPLIT_MDNS_SERVICE_NAME(service_name, service_protocol) \
-    if(service_name.length() && service_name.find('.', 0) != string::npos) \
-    { \
-        string::size_type split_loc = service_name.find('.', 0); \
-        service_protocol = service_name.substr(split_loc + 1); \
-        service_name.resize(split_loc); \
+/// Splits a service name since the ESP32 mDNS library requires the service
+/// name and service protocol to be passed in individually.
+void split_mdns_service_name(string *service_name, string *protocol_name)
+{
+    HASSERT(service_name != nullptr);
+    HASSERT(protocol_name != nullptr);
+
+    // if the string is not blank and contains a period split it on the period.
+    if (service_name->length() && service_name->find('.', 0) != string::npos)
+    {
+        string::size_type split_loc = service_name->find('.', 0);
+        protocol_name->assign(service_name->substr(split_loc + 1));
+        service_name->resize(split_loc);
     }
+}
 
 // Advertises an mDNS service name for this node.
 void mdns_publish(const char *name, const char *service, uint16_t port)
 {
-    string service_name = service, protocol_name;
-    SPLIT_MDNS_SERVICE_NAME(service_name, protocol_name)
+    string service_name = service;
+    string protocol_name;
+    split_mdns_service_name(&service_name, &protocol_name);
 
     LOG(INFO, "[mDNS] Advertising %s.%s:%d.", service_name.c_str(),
         protocol_name.c_str(), port);
-    esp_err_t res = mdns_service_add(NULL, service_name.c_str(),
-        protocol_name.c_str(), port, NULL, 0);
+    esp_err_t res = mdns_service_add(
+        NULL, service_name.c_str(), protocol_name.c_str(), port, NULL, 0);
     LOG(VERBOSE, "[mDNS] mdns_service_add: %s.", esp_err_to_name(res));
 }
 
 // Removes advertisement of an mDNS service name.
 void mdns_unpublish(const char *service)
 {
-    string service_name = service, protocol_name;
-    SPLIT_MDNS_SERVICE_NAME(service_name, protocol_name)
-    LOG(INFO, "[mDNS] Removing advertisement of %s.%s.",
-        service_name.c_str(), protocol_name.c_str());
-    esp_err_t res = mdns_service_remove(service_name.c_str(),
+    string service_name = service;
+    string protocol_name;
+    split_mdns_service_name(&service_name, &protocol_name);
+    LOG(INFO, "[mDNS] Removing advertisement of %s.%s.", service_name.c_str(),
         protocol_name.c_str());
+    esp_err_t res =
+        mdns_service_remove(service_name.c_str(), protocol_name.c_str());
     LOG(VERBOSE, "[mDNS] mdns_service_remove: %s.", esp_err_to_name(res));
 }
 
@@ -785,8 +797,8 @@ void mdns_unpublish(const char *service)
 
 // Looks for an mDNS service name and converts the results of the query to an
 // addrinfo struct.
-int mdns_lookup(const char *service, struct addrinfo *hints,
-                struct addrinfo **addr)
+int mdns_lookup(
+    const char *service, struct addrinfo *hints, struct addrinfo **addr)
 {
     unique_ptr<struct addrinfo> ai(new struct addrinfo);
     if (ai.get() == nullptr)
@@ -804,7 +816,7 @@ int mdns_lookup(const char *service, struct addrinfo *hints,
     }
     memset(sa.get(), 0, sizeof(struct sockaddr));
 
-    struct sockaddr_in *sa_in = (struct sockaddr_in*)sa.get();
+    struct sockaddr_in *sa_in = (struct sockaddr_in *)sa.get();
     ai->ai_flags = 0;
     ai->ai_family = hints->ai_family;
     ai->ai_socktype = hints->ai_socktype;
@@ -813,21 +825,22 @@ int mdns_lookup(const char *service, struct addrinfo *hints,
     sa_in->sin_len = sizeof(struct sockaddr_in);
     sa_in->sin_family = hints->ai_family;
 
-    string service_name = service, protocol_name;
-    SPLIT_MDNS_SERVICE_NAME(service_name, protocol_name)
+    string service_name = service;
+    string protocol_name;
+    split_mdns_service_name(&service_name, &protocol_name);
 
     mdns_result_t *results = NULL;
     esp_err_t err = mdns_query_ptr(service_name.c_str(), protocol_name.c_str(),
         MDNS_QUERY_TIMEOUT, MDNS_MAX_RESULTS, &results);
     LOG(VERBOSE, "[mDNS] mdns_query_ptr: %s.", esp_err_to_name(err));
-    if(err)
+    if (err)
     {
         // failed to find any matches
         LOG(WARNING, "[mDNS] mDNS query failed: %s.", esp_err_to_name(err));
         return EAI_FAIL;
     }
 
-    if(!results)
+    if (!results)
     {
         // failed to find any matches
         LOG(WARNING, "[mDNS] No matches found for service: %s.", service);
@@ -839,18 +852,19 @@ int mdns_lookup(const char *service, struct addrinfo *hints,
     // scan the mdns query results linked list, the first match with an IPv4
     // address will be returned.
     bool match_found = false;
-    while(res && !match_found)
+    while (res && !match_found)
     {
         mdns_ip_addr_t *ipaddr = res->addr;
-        while(ipaddr && !match_found)
+        while (ipaddr && !match_found)
         {
             // if this result has an IPv4 address process it
-            if(ipaddr->addr.type == IPADDR_TYPE_V4)
+            if (ipaddr->addr.type == IPADDR_TYPE_V4)
             {
-                LOG(INFO, "[mDNS] Found %s as providing service: %s on port %d.",
+                LOG(INFO,
+                    "[mDNS] Found %s as providing service: %s on port %d.",
                     res->hostname, service, res->port);
-                inet_addr_from_ip4addr(&sa_in->sin_addr,
-                    &ipaddr->addr.u_addr.ip4);
+                inet_addr_from_ip4addr(
+                    &sa_in->sin_addr, &ipaddr->addr.u_addr.ip4);
                 sa_in->sin_port = htons(res->port);
                 match_found = true;
             }
@@ -862,7 +876,7 @@ int mdns_lookup(const char *service, struct addrinfo *hints,
     // free up the query results linked list.
     mdns_query_results_free(results);
 
-    if(!match_found)
+    if (!match_found)
     {
         LOG(WARNING, "[mDNS] No matches found for service: %s.", service);
         return EAI_AGAIN;
@@ -891,7 +905,7 @@ int getifaddrs(struct ifaddrs **ifap)
     /* start with something "safe" in case we bail out early */
     *ifap = nullptr;
 
-    if(!tcpip_adapter_is_netif_up(TCPIP_ADAPTER_IF_STA))
+    if (!tcpip_adapter_is_netif_up(TCPIP_ADAPTER_IF_STA))
     {
         // Station TCP/IP interface is not up
         errno = ENODEV;
@@ -907,7 +921,7 @@ int getifaddrs(struct ifaddrs **ifap)
     }
     memset(ia.get(), 0, sizeof(struct ifaddrs));
     std::unique_ptr<char[]> ifa_name(new char[6]);
-    if(ifa_name.get() == nullptr)
+    if (ifa_name.get() == nullptr)
     {
         errno = ENOMEM;
         return -1;
@@ -925,7 +939,7 @@ int getifaddrs(struct ifaddrs **ifap)
     tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
 
     // copy address into ifaddrs structure
-    struct sockaddr_in *addr_in = (struct sockaddr_in*)ifa_addr.get();
+    struct sockaddr_in *addr_in = (struct sockaddr_in *)ifa_addr.get();
     addr_in->sin_family = AF_INET;
     addr_in->sin_addr.s_addr = ip_info.ip.addr;
     ia.get()->ifa_next = nullptr;
@@ -954,14 +968,8 @@ void freeifaddrs(struct ifaddrs *ifa)
         HASSERT(ifa->ifa_ifu.ifu_broadaddr == nullptr);
         HASSERT(ifa->ifa_netmask == nullptr);
 
-        if (ifa->ifa_addr)
-        {
-            delete ifa->ifa_addr;
-        }
-        if (ifa->ifa_name)
-        {
-            delete[] ifa->ifa_name;
-        }
+        delete ifa->ifa_addr;
+        delete[] ifa->ifa_name;
         delete ifa;
 
         ifa = next;
@@ -969,7 +977,7 @@ void freeifaddrs(struct ifaddrs *ifa)
 }
 
 /// @return the string equivalant of the passed error code.
-const char *gai_strerror (int __ecode)
+const char *gai_strerror(int __ecode)
 {
     switch (__ecode)
     {
