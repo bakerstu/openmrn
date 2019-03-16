@@ -40,6 +40,7 @@
 
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
+#include "freertos_drivers/arduino/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/Uninitialized.hxx"
@@ -65,19 +66,13 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
 
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
-#include "freertos_drivers/esp32/Esp32WiFiClientAdapter.hxx"
+#include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 
 // On the ESP32 we have persistent file system access so enable
 // dynamic CDI.xml generation support
 #define HAVE_FILESYSTEM
 
 #endif // ESP32
-
-extern "C"
-{
-    extern const char DEFAULT_WIFI_NAME[];
-    extern const char DEFAULT_WIFI_PASSWORD[];
-}
 
 namespace openmrn_arduino {
 

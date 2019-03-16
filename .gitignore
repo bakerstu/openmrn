@@ -78,3 +78,6 @@ openmrnpath.mk
 #Mac OS X file system artifacts
 .DS_Store
 
+# VSCode Generated artifacts
+.vscode
+*.code-workspace
