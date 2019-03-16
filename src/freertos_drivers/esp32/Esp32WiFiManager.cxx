@@ -82,7 +82,7 @@ static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
 static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
 
 /// Interval at which to check if the GcTcpHub has started or not.
-static constexpr TickType_t HUB_STARTUP_DELAY = MSEC_TO_USEC(50);
+static constexpr uint32_t HUB_STARTUP_DELAY_USEC = MSEC_TO_USEC(50);
 
 /// Bit designator for wifi_status_event_group which indicates we are connected
 /// to the SSID.
@@ -699,7 +699,7 @@ void Esp32WiFiManager::start_hub()
     // wait for the hub to complete it's startup tasks
     while (!hub_->is_started())
     {
-        usleep(HUB_STARTUP_DELAY);
+        usleep(HUB_STARTUP_DELAY_USEC);
     }
     mdns_publish(NULL, hubServiceName_.c_str(), hub_port);
 }

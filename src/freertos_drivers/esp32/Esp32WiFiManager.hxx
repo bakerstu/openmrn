@@ -77,9 +77,11 @@ public:
     /// started after the initial loading of the CDI which occurs only after
     /// the application code calls OpenMRN::begin().
     ///
-    /// @param ssid is the WiFi AP to connect to.
-    /// @param password is the password for the WiFi AP being connected to.
-    /// @param stack is the SimpleCanStack for this node.
+    /// @param ssid is the WiFi AP to connect to. Must stay alive forever.
+    /// @param password is the password for the WiFi AP being connected
+    /// to. Must stay alive forever.
+    /// @param stack is the SimpleCanStack for this node. Must stay alive
+    /// forever.
     /// @param cfg is the WiFiConfiguration instance used for this node. This
     /// will be monitored for changes and the WiFi behavior altered
     /// accordingly.

@@ -1,12 +1,12 @@
 #ifndef _ARDUINO_EXAMPLE_ESP32IOBOARD_CONFIG_H_
 #define _ARDUINO_EXAMPLE_ESP32IOBOARD_CONFIG_H_
 
-#include <openlcb/ConfiguredConsumer.hxx>
-#include <openlcb/ConfiguredProducer.hxx>
-#include <openlcb/ConfigRepresentation.hxx>
-#include <openlcb/MemoryConfig.hxx>
+#include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredProducer.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
+#include "openlcb/MemoryConfig.hxx"
 
-#include <freertos_drivers/esp32/Esp32WiFiConfiguration.hxx>
+#include "freertos_drivers/esp32/Esp32WiFiConfiguration.hxx"
 
 // catch invalid configuration at compile time
 #if !defined(USE_CAN) && !defined(USE_WIFI)
