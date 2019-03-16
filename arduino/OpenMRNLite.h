@@ -360,7 +360,7 @@ public:
 #ifdef ESP32
         // Remove IDLE0 task watchdog, because the openmrn task sometimes gets
         // scheduled on CPU0 and can use 100% cpu.
-        esp_task_wdt_delete(xTaskGetIdleTaskHandleForCPU(0));        
+        disableCore0WDT();
 #endif        
     }
 #endif

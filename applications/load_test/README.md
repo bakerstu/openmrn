@@ -112,7 +112,7 @@ under test in a repeatable and objective way. Interesting metrics:
 
 There is a shared driver for computing CPU load under FreeRTOS using a sampling
 technique. The sampler shall be a hardware timer resource that ticks
-independently of the FreeRTOS system tick, and upon each tick we sample whatthe
+independently of the FreeRTOS system tick, and upon each tick we sample what the
 CPU is doing:
 - is it in the IDLE thread?
 - is it in a specific application thread?

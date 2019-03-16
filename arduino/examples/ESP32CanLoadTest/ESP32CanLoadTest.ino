@@ -279,7 +279,8 @@ void setup()
 
     timer = timerBegin(3, 80, true); // timer_id = 3; divider=80; countUp = true;
     timerAttachInterrupt(timer, &onTimer, true); // edge = true
-    timerAlarmWrite(timer, 1000000/163, true);  //1000 ms
+    // 1MHz clock, 163 ticks per second desired.
+    timerAlarmWrite(timer, 1000000/163, true);
     timerAlarmEnable(timer);
 
     // Initialize the SPIFFS filesystem as our persistence layer
