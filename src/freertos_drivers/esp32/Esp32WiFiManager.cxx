@@ -370,6 +370,12 @@ void Esp32WiFiManager::factory_reset(int fd)
     CDI_FACTORY_RESET(cfg_.uplink().reconnect);
 }
 
+/// Converts the Esp32 disconnected event constants to a string representation.
+///
+/// @param reason is the disconnect event reason from the system_event_t
+/// structure.
+///
+/// @return displayable string for the event constant.
 static char const *get_wifi_disconnect_reason(int reason)
 {
     switch (reason)
