@@ -551,7 +551,7 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
                     ESP_ERROR_CHECK(esp_wifi_stop());
 
                     // set flag to indicate we need to reinit the stack.
-                    xEventGroupSetBit(
+                    xEventGroupSetBits(
                         wifiStatusEventGroup_, REINIT_WIFI_STACK_BIT);
 
                     // Wake up the wifi_manager_task so it can reinit the
