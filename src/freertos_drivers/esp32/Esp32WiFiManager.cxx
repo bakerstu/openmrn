@@ -82,6 +82,10 @@ static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
 /// Interval at which to check the WiFi connection status.
 static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
 
+/// Number of microseconds to delay between receiving the reinitialization
+/// request and reinitializing the stack.
+static constexpr uint32_t WIFI_REINIT_STACK_DELAY = MSEC_TO_USEC(3000);
+
 /// Interval at which to check if the GcTcpHub has started or not.
 static constexpr uint32_t HUB_STARTUP_DELAY_USEC = MSEC_TO_USEC(50);
 
@@ -92,6 +96,10 @@ static constexpr int WIFI_CONNECTED_BIT = BIT0;
 /// Bit designator for wifi_status_event_group which indicates we have an IPv4
 /// address assigned.
 static constexpr int DHCP_GOTIP_BIT = BIT1;
+
+/// Bit designator for wifi_status_event_group which indicates we need to
+/// reinitialize the WiFi stack.
+static constexpr int REINIT_WIFI_STACK_BIT = BIT2;
 
 /// Allow up to 36 checks to see if we have connected to the SSID and
 /// received an IPv4 address. This allows up to ~3 minutes for the entire
@@ -533,8 +541,29 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
                 {
                     LOG(FATAL, "[WiFi] SSID %s not found, giving up.", ssid_);
                 }
-                LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.", ssid_);
-                esp_wifi_connect();
+
+                // if the failure is AP not found, give up attempting to connect
+                // log a FATAL message and abort.
+                if (event->event_info.disconnected.reason ==
+                    WIFI_REASON_ASSOC_EXPIRE)
+                {
+                    LOG(INFO, "[WiFi] Shutting down WiFi stack...");
+                    ESP_ERROR_CHECK(esp_wifi_stop());
+
+                    // set flag to indicate we need to reinit the stack.
+                    xEventGroupSetBit(
+                        wifiStatusEventGroup_, REINIT_WIFI_STACK_BIT);
+
+                    // Wake up the wifi_manager_task so it can reinit the
+                    // stack.
+                    xTaskNotifyGive(wifiTaskHandle_);
+                }
+                else
+                {
+                    LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.",
+                        ssid_);
+                    esp_wifi_connect();
+                }
             }
             break;
     }
@@ -576,86 +605,104 @@ void Esp32WiFiManager::start_wifi_system()
     // Install event loop handler.
     ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, this));
 
-    // Start the WiFi adapter.
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    LOG(INFO, "[WiFi] Initializing WiFi stack");
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    // Set the WiFi mode to STATION.
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-
-    // This disables storage of SSID details in NVS which has been shown to be
-    // problematic at times for the ESP32, it is safer to always pass fresh
-    // config and have the ESP32 resolve the details at runtime rather than
-    // use a cached set from NVS.
-    esp_wifi_set_storage(WIFI_STORAGE_RAM);
-
-    // Configure the SSID details for the station based on the SSID and
-    // password provided to the Esp32WiFiManager constructor.
-    wifi_config_t conf;
-    memset(&conf, 0, sizeof(wifi_config_t));
-    strcpy(reinterpret_cast<char *>(conf.sta.ssid), ssid_);
-    if (password_)
+    while (true)
     {
-        strcpy(reinterpret_cast<char *>(conf.sta.password), password_);
-    }
+        // clear the flag that indicates we need to reinitialize the driver.
+        xEventGroupClearBits(wifiStatusEventGroup_, REINIT_WIFI_STACK_BIT);
 
-    LOG(INFO, "[WiFi] Configuring WiFi stack");
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &conf));
+        // Initialize the WiFi stack.
+        wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+        LOG(INFO, "[WiFi] Initializing WiFi stack");
+        ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    // Attempt to connect to the SSID, this will block until the ESP32 starts
-    // the connection process, note it may not have an IP address immediately
-    // thus the need to check the connection result a few times before giving
-    // up with a FATAL error.
-    LOG(INFO, "[WiFi] Starting WiFi stack");
-    ESP_ERROR_CHECK(esp_wifi_start());
+        // Set the WiFi mode to STATION.
+        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 
-    uint8_t attempt = 0;
-    EventBits_t bits;
-    uint32_t bitMask = WIFI_CONNECTED_BIT;
-    while (++attempt <= MAX_CONNECTION_CHECK_ATTEMPTS)
-    {
-        // If we have connected to the SSID we then are waiting for DHCP.
-        if (bits & WIFI_CONNECTED_BIT)
+        // This disables storage of SSID details in NVS which has been shown to
+        // be problematic at times for the ESP32, it is safer to always pass
+        // fresh config and have the ESP32 resolve the details at runtime rather
+        // than use a cached set from NVS.
+        esp_wifi_set_storage(WIFI_STORAGE_RAM);
+
+        // Configure the SSID details for the station based on the SSID and
+        // password provided to the Esp32WiFiManager constructor.
+        wifi_config_t conf;
+        memset(&conf, 0, sizeof(wifi_config_t));
+        strcpy(reinterpret_cast<char *>(conf.sta.ssid), ssid_);
+        if (password_)
         {
-            LOG(INFO, "[DHCP] [%d/%d] Waiting for IP address assignment.",
-                attempt, MAX_CONNECTION_CHECK_ATTEMPTS);
+            strcpy(reinterpret_cast<char *>(conf.sta.password), password_);
         }
-        else
-        {
-            // Waiting for SSID connection
-            LOG(INFO, "[WiFi] [%d/%d] Waiting for SSID connection.", attempt,
-                MAX_CONNECTION_CHECK_ATTEMPTS);
-        }
-        bits = xEventGroupWaitBits(wifiStatusEventGroup_,
-            bitMask, // bits we are interested in
-            pdFALSE, // clear on exit
-            pdTRUE,  // wait for all bits
-            WIFI_CONNECT_CHECK_INTERVAL);
-        // Check if have connected to the SSID
-        if (bits & WIFI_CONNECTED_BIT)
-        {
-            // Since we have connected to the SSID we now need to track that we
-            // get an IP via DHCP.
-            bitMask |= DHCP_GOTIP_BIT;
-        }
-        // Check if we have received an IP via DHCP.
-        if (bits & DHCP_GOTIP_BIT)
-        {
-            break;
-        }
-    }
 
-    // Check if we successfully connected or not. If not, force a reboot.
-    if ((bits & WIFI_CONNECTED_BIT) != WIFI_CONNECTED_BIT)
-    {
-        LOG(FATAL, "[WiFi] Failed to connect to SSID: %s.", ssid_);
-    }
+        LOG(INFO, "[WiFi] Configuring WiFi stack");
+        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &conf));
 
-    // Check if we successfully connected or not. If not, force a reboot.
-    if ((bits & DHCP_GOTIP_BIT) != DHCP_GOTIP_BIT)
-    {
-        LOG(FATAL, "[DHCP] Timeout waiting for an IP.");
+        // Attempt to connect to the SSID, this will block until the ESP32
+        // starts the connection process, note it may not have an IP address
+        // immediately thus the need to check the connection result a few times
+        // before giving up with a FATAL error.
+        LOG(INFO, "[WiFi] Starting WiFi stack");
+        ESP_ERROR_CHECK(esp_wifi_start());
+
+        uint8_t attempt = 0;
+        EventBits_t bits;
+        uint32_t bitMask = WIFI_CONNECTED_BIT | REINIT_WIFI_STACK_BIT;
+        while (++attempt <= MAX_CONNECTION_CHECK_ATTEMPTS)
+        {
+            // If we have connected to the SSID we then are waiting for DHCP.
+            if (bits & WIFI_CONNECTED_BIT)
+            {
+                LOG(INFO, "[DHCP] [%d/%d] Waiting for IP address assignment.",
+                    attempt, MAX_CONNECTION_CHECK_ATTEMPTS);
+            }
+            else
+            {
+                // Waiting for SSID connection
+                LOG(INFO, "[WiFi] [%d/%d] Waiting for SSID connection.",
+                    attempt, MAX_CONNECTION_CHECK_ATTEMPTS);
+            }
+            bits = xEventGroupWaitBits(wifiStatusEventGroup_,
+                bitMask, // bits we are interested in
+                pdFALSE, // clear on exit
+                pdTRUE,  // wait for all bits
+                WIFI_CONNECT_CHECK_INTERVAL);
+            // Check if have connected to the SSID
+            if (bits & WIFI_CONNECTED_BIT)
+            {
+                // Since we have connected to the SSID we now need to track that
+                // we get an IP via DHCP.
+                bitMask |= DHCP_GOTIP_BIT;
+            }
+            // Check if we have received an IP via DHCP or need to reinitialize
+            // the stack.
+            if ((bits & DHCP_GOTIP_BIT) || (bits & REINIT_WIFI_STACK_BIT))
+            {
+                break;
+            }
+        }
+
+        // Check if we need to reinitialize the stack.
+        if (bits & REINIT_WIFI_STACK_BIT)
+        {
+            usleep(WIFI_REINIT_STACK_DELAY);
+            continue;
+        }
+
+        // Check if we successfully connected or not. If not, force a reboot.
+        if ((bits & WIFI_CONNECTED_BIT) != WIFI_CONNECTED_BIT)
+        {
+            LOG(FATAL, "[WiFi] Failed to connect to SSID: %s.", ssid_);
+        }
+
+        // Check if we successfully connected or not. If not, force a reboot.
+        if ((bits & DHCP_GOTIP_BIT) != DHCP_GOTIP_BIT)
+        {
+            LOG(FATAL, "[DHCP] Timeout waiting for an IP.");
+        }
+
+        // if we reach here we have connected successfully and have an IPv4
+        // address.
+        break;
     }
 
     // Initialize the mDNS system.
