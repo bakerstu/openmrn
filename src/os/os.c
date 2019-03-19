@@ -794,6 +794,8 @@ void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 
 ssize_t os_get_free_heap()
 {
+    /** @todo (Stuart Baker) change naming to remove "cs3" convention */
+    extern char __cs3_heap_end; /* Defined by the linker */
     uint32_t fh = &__cs3_heap_end - heap_end;
     fh += (&__heap2_end - heap2_end);
     return fh;
