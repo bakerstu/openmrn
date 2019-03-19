@@ -95,6 +95,7 @@ const char *password = WIFI_PASS;
 /// unique.
 const char *hostname = "esp32mrn";
 
+OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
 OVERRIDE_CONST(gridconnect_buffer_size, 3512);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 OVERRIDE_CONST(gc_generate_newlines, CONSTANT_FALSE);
@@ -137,6 +138,7 @@ static constexpr openlcb::ConfigDef cfg(0);
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
 
+#if 0
 // Declare output pins
 // NOTE: pins 6-11 are connected to the onboard flash and can not be used for
 // any purpose and pins 34-39 are INPUT only.
@@ -193,15 +195,18 @@ openlcb::ConfiguredProducer IO14_producer(
 openlcb::ConfiguredProducer IO15_producer(
     openmrn.stack()->node(), cfg.seg().producers().entry<7>(), IO15_Pin());
 
+#endif
 
 // Create an initializer that can initialize all the GPIO pins in one shot
 typedef GpioInitializer<
-    IO0_Pin,  IO1_Pin,  IO2_Pin,  IO3_Pin,  // outputs 0-3
+/*    IO0_Pin,  IO1_Pin,  IO2_Pin,  IO3_Pin,  // outputs 0-3
     IO4_Pin,  IO5_Pin,  IO6_Pin,  IO7_Pin,  // outputs 4-7
     IO8_Pin,  IO9_Pin,  IO10_Pin, IO11_Pin, // inputs 0-3
     IO12_Pin, IO13_Pin, IO14_Pin, IO15_Pin // inputs 4-7
+*/
     > GpioInit;
 
+/*
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the
 // producers to it.
@@ -217,6 +222,7 @@ openlcb::RefreshLoop producer_refresh_loop(openmrn.stack()->node(),
         IO15_producer.polling()
     }
 );
+*/
 
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:
@@ -275,6 +281,26 @@ void IRAM_ATTR onTimer()
         cpuload_tick(pp ? pp[0] | 1 : 0);
     }
 }
+
+class TestEx : public Executable {
+public:
+    TestEx() {
+        openmrn.stack()->executor()->add(this);
+    }
+
+    void run() override {
+        Executable* e = this;
+        unsigned* pp = (unsigned*)(e);
+        LOG(INFO, "ex[-1]=%08x [0]=%08x [1]=%08x rr %08x", pp[-1], pp[0], pp[1],
+            get_return_address());
+    }
+
+private:
+    unsigned __attribute__((noinline)) get_return_address() {
+        return (unsigned) __builtin_return_address(0);
+    }
+    
+} test_ex;
 
 void setup()
 {
