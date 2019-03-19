@@ -79,7 +79,7 @@ static constexpr UBaseType_t WIFI_TASK_PRIORITY = 2;
 static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
 
 /// Interval at which to check the WiFi connection status.
-static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
+static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(3000);
 
 /// Interval at which to check if the GcTcpHub has started or not.
 static constexpr uint32_t HUB_STARTUP_DELAY_USEC = MSEC_TO_USEC(50);
@@ -91,6 +91,11 @@ static constexpr int WIFI_CONNECTED_BIT = BIT0;
 /// Bit designator for wifi_status_event_group which indicates we have an IPv4
 /// address assigned.
 static constexpr int DHCP_GOTIP_BIT = BIT1;
+
+/// Bit designator for wifi_status_event_group which indicates we need ot
+/// reinitialize the wifi system.
+static constexpr int WIFI_RESTART_BIT = BIT2;
+
 
 /// Allow up to 36 checks to see if we have connected to the SSID and
 /// received an IPv4 address. This allows up to ~3 minutes for the entire
@@ -106,6 +111,7 @@ static constexpr uint8_t MAX_CONNECTION_CHECK_ATTEMPTS = 36;
 /// when WiFi events occur.
 static esp_err_t wifi_event_handler(void *context, system_event_t *event)
 {
+    LOG(INFO, "[wifi event] %d reason %d", event->event_id, event->event_info.disconnected.reason);
     auto wifi = static_cast<Esp32WiFiManager *>(context);
     wifi->process_wifi_event(event->event_id);
     return ESP_OK;
@@ -455,6 +461,19 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
                         ssid_);
                     esp_wifi_connect();
                 }
+            } else {
+                LOG(INFO, "[WiFi] Lost connection before up");
+                if (manageWiFi_)
+                {
+                    ESP_ERROR_CHECK(esp_wifi_stop());
+                    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_NULL));
+                    xEventGroupSetBits(wifiStatusEventGroup_, WIFI_RESTART_BIT);
+                    xTaskNotifyGive(wifiTaskHandle_);
+                }
+                //   esp_wifi_connect();
+                /*ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+                ESP_ERROR_CHECK(esp_wifi_start());
+                ESP_ERROR_CHECK(esp_wifi_connect());*/
             }
             break;
     }
@@ -495,6 +514,9 @@ void Esp32WiFiManager::start_wifi_system()
 
     // Install event loop handler.
     ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, this));
+
+    while(true) {
+        xEventGroupClearBits(wifiStatusEventGroup_, WIFI_RESTART_BIT);
 
     // Start the WiFi adapter.
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -560,12 +582,16 @@ void Esp32WiFiManager::start_wifi_system()
             bitMask |= DHCP_GOTIP_BIT;
         }
         // Check if we have received an IP via DHCP.
-        if (bits & DHCP_GOTIP_BIT)
+        if ((bits & DHCP_GOTIP_BIT) || (bits & WIFI_RESTART_BIT))
         {
             break;
         }
     }
-
+    if (bits & WIFI_RESTART_BIT) {
+        usleep(MSEC_TO_USEC(3000));
+        continue;
+    }
+    
     // Check if we successfully connected or not. If not, force a reboot.
     if ((bits & WIFI_CONNECTED_BIT) != WIFI_CONNECTED_BIT)
     {
@@ -577,6 +603,11 @@ void Esp32WiFiManager::start_wifi_system()
     {
         LOG(FATAL, "[DHCP] Timeout waiting for an IP.");
     }
+
+    break;
+    
+    }
+    
 
     // Initialize the mDNS system.
     LOG(INFO, "[mDNS] Initializing mDNS system");
