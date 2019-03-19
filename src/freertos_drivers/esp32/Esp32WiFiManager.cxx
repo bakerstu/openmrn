@@ -35,6 +35,7 @@
 #include "Esp32WiFiManager.hxx"
 #include "os/MDNS.hxx"
 
+#include <esp_event_legacy.h>
 #include <esp_event_loop.h>
 #include <esp_wifi.h>
 #include <mdns.h>
@@ -107,7 +108,7 @@ static constexpr uint8_t MAX_CONNECTION_CHECK_ATTEMPTS = 36;
 static esp_err_t wifi_event_handler(void *context, system_event_t *event)
 {
     auto wifi = static_cast<Esp32WiFiManager *>(context);
-    wifi->process_wifi_event(event->event_id);
+    wifi->process_wifi_event(event);
     return ESP_OK;
 }
 
@@ -369,12 +370,76 @@ void Esp32WiFiManager::factory_reset(int fd)
     CDI_FACTORY_RESET(cfg_.uplink().reconnect);
 }
 
-// Processes a WiFi system event
-void Esp32WiFiManager::process_wifi_event(int event_id)
+static char const *get_wifi_disconnect_reason(int reason)
 {
-    LOG(VERBOSE, "Esp32WiFiManager::process_wifi_event(%d)", event_id);
+    switch (reason)
+    {
+        case WIFI_REASON_UNSPECIFIED:
+            return "UNSPECIFIED";
+        case WIFI_REASON_AUTH_EXPIRE:
+            return "AUTH_EXPIRE";
+        case WIFI_REASON_AUTH_LEAVE:
+            return "AUTH_LEAVE";
+        case WIFI_REASON_ASSOC_EXPIRE:
+            return "ASSOC_EXPIRE";
+        case WIFI_REASON_ASSOC_TOOMANY:
+            return "ASSOC_TOOMANY";
+        case WIFI_REASON_NOT_AUTHED:
+            return "NOT_AUTHED";
+        case WIFI_REASON_NOT_ASSOCED:
+            return "NOT_ASSOCED";
+        case WIFI_REASON_ASSOC_LEAVE:
+            return "ASSOC_LEAVE";
+        case WIFI_REASON_ASSOC_NOT_AUTHED:
+            return "ASSOC_NOT_AUTHED";
+        case WIFI_REASON_DISASSOC_PWRCAP_BAD:
+            return "DISASSOC_PWRCAP_BAD";
+        case WIFI_REASON_DISASSOC_SUPCHAN_BAD:
+            return "DISASSOC_SUPCHAN_BAD";
+        case WIFI_REASON_IE_INVALID:
+            return "IE_INVALID";
+        case WIFI_REASON_MIC_FAILURE:
+            return "MIC_FAILURE";
+        case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+            return "4WAY_HANDSHAKE_TIMEOUT";
+        case WIFI_REASON_GROUP_KEY_UPDATE_TIMEOUT:
+            return "GROUP_KEY_UPDATE_TIMEOUT";
+        case WIFI_REASON_IE_IN_4WAY_DIFFERS:
+            return "IE_IN_4WAY_DIFFERS";
+        case WIFI_REASON_GROUP_CIPHER_INVALID:
+            return "GROUP_CIPHER_INVALID";
+        case WIFI_REASON_PAIRWISE_CIPHER_INVALID:
+            return "PAIRWISE_CIPHER_INVALID";
+        case WIFI_REASON_AKMP_INVALID:
+            return "AKMP_INVALID";
+        case WIFI_REASON_UNSUPP_RSN_IE_VERSION:
+            return "UNSUPP_RSN_IE_VERSION";
+        case WIFI_REASON_INVALID_RSN_IE_CAP:
+            return "INVALID_RSN_IE_CAP";
+        case WIFI_REASON_802_1X_AUTH_FAILED:
+            return "802_1X_AUTH_FAILED";
+        case WIFI_REASON_CIPHER_SUITE_REJECTED:
+            return "CIPHER_SUITE_REJECTED";
+        case WIFI_REASON_BEACON_TIMEOUT:
+            return "BEACON_TIMEOUT";
+        case WIFI_REASON_NO_AP_FOUND:
+            return "NO_AP_FOUND";
+        case WIFI_REASON_AUTH_FAIL:
+            return "AUTH_FAIL";
+        case WIFI_REASON_ASSOC_FAIL:
+            return "ASSOC_FAIL";
+        case WIFI_REASON_HANDSHAKE_TIMEOUT:
+            return "HANDSHAKE_TIMEOUT";
+    }
+    return "Unkown code";
+}
 
-    switch (event_id)
+// Processes a WiFi system event
+void Esp32WiFiManager::process_wifi_event(system_event_t *event)
+{
+    LOG(VERBOSE, "Esp32WiFiManager::process_wifi_event(%d)", event->event_id);
+
+    switch (event->event_id)
     {
         case SYSTEM_EVENT_STA_START:
             // We only are interested in this event if we are managing the
@@ -432,12 +497,15 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
             xTaskNotifyGive(wifiTaskHandle_);
             break;
         case SYSTEM_EVENT_STA_DISCONNECTED:
-            // check if we have already connected, this event can be raised
-            // even before we have successfully connected during the SSID
-            // connect process.
+            LOG(INFO, "[WiFi] Lost connection to SSID: %s, reason: %d (%s)",
+                ssid_, event->event_info.disconnected.reason,
+                get_wifi_disconnect_reason(
+                    event->event_info.disconnected.reason));
+
+            // check if we have already connected, if we have we need to wake up
+            // the task so it can cleanup any active connections.
             if (xEventGroupGetBits(wifiStatusEventGroup_) & WIFI_CONNECTED_BIT)
             {
-                LOG(INFO, "[WiFi] Lost connection to SSID: %s", ssid_);
                 // clear the flag that indicates we are connected to the SSID.
                 xEventGroupClearBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
                 // clear the flag that indicates we have an IPv4 address.
@@ -446,15 +514,21 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
                 // Wake up the wifi_manager_task so it can clean up
                 // connections.
                 xTaskNotifyGive(wifiTaskHandle_);
+            }
 
-                // If we are managing the WiFi and MDNS systems we need to
-                // trigger the reconnection process at this point.
-                if (manageWiFi_)
+            // If we are managing the WiFi and MDNS systems we need to
+            // trigger the reconnection process at this point.
+            if (manageWiFi_)
+            {
+                // if the failure is AP not found, give up attempting to connect
+                // log a FATAL message and abort.
+                if (event->event_info.disconnected.reason ==
+                    WIFI_REASON_NO_AP_FOUND)
                 {
-                    LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.",
-                        ssid_);
-                    esp_wifi_connect();
+                    LOG(FATAL, "[WiFi] SSID %s not found, giving up.", ssid_);
                 }
+                LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.", ssid_);
+                esp_wifi_connect();
             }
             break;
     }
@@ -709,7 +783,7 @@ void Esp32WiFiManager::stop_uplink()
 {
     if (uplink_)
     {
-        LOG(INFO, "[UPLINK] Disconnecting from uplink.");
+        LOG(INFO, "[Uplink] Disconnecting from uplink.");
         uplink_->shutdown();
         uplink_.reset(nullptr);
     }
@@ -730,7 +804,7 @@ void Esp32WiFiManager::start_uplink()
 // Converts the passed fd into a GridConnect port and adds it to the stack.
 void Esp32WiFiManager::on_uplink_created(int fd, Notifiable *on_exit)
 {
-    LOG(INFO, "[UPLINK] Connected to hub, configuring GridConnect port.");
+    LOG(INFO, "[Uplink] Connected to hub, configuring GridConnect port.");
 
     const bool use_select =
         (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);

@@ -46,6 +46,7 @@
 #include "utils/SocketClientParams.hxx"
 #include "utils/macros.h"
 
+#include <esp_event_legacy.h>
 #include <freertos/event_groups.h>
 
 namespace openmrn_arduino
@@ -132,8 +133,9 @@ public:
     /// can react to WiFi events to cleanup or recreate the hub or uplink
     /// connections as required.
     ///
-    /// @param event_id is the system_event_t.event_id value.
-    void process_wifi_event(int event_id);
+    /// @param event is the system_event_t that was raised by the WiFi
+    /// subsystem.
+    void process_wifi_event(system_event_t *event);
 
 private:
     /// Default constructor.
