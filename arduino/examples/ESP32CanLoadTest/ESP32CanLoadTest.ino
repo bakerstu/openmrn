@@ -268,9 +268,12 @@ CpuLoadLog* cpu_log = nullptr;
 
 void IRAM_ATTR onTimer()
 {
-  if (spi_flash_cache_enabled()) {
-    cpuload_tick(0);
-  }
+    if (spi_flash_cache_enabled())
+    {
+        // Retrieves the vtable pointer from the currently running executable.
+        unsigned *pp = (unsigned *)openmrn.stack()->executor()->current();
+        cpuload_tick(pp ? pp[0] | 1 : 0);
+    }
 }
 
 void setup()
