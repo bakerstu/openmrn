@@ -247,7 +247,7 @@ private:
         return sleep_and_call(&timer_, MSEC_TO_NSEC(2000), STATE(log_and_wait));
     }
 
-    unsigned executorLastCount_{0};
+    uint32_t executorLastCount_{0};
     StateFlowTimer timer_{this};
 };
 
