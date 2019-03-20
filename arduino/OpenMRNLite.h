@@ -357,6 +357,11 @@ public:
         haveExecutorThread_ = true;
         stack_->executor()->start_thread(
             "OpenMRN", OPENMRN_TASK_PRIORITY, OPENMRN_STACK_SIZE);
+#ifdef ESP32
+        // Remove IDLE0 task watchdog, because the openmrn task sometimes gets
+        // scheduled on CPU0 and can use 100% cpu.
+        disableCore0WDT();
+#endif        
     }
 #endif
 
