@@ -520,10 +520,10 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
             // the task so it can cleanup any active connections.
             if (xEventGroupGetBits(wifiStatusEventGroup_) & WIFI_CONNECTED_BIT)
             {
-                // clear the flag that indicates we are connected to the SSID.
-                xEventGroupClearBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
-                // clear the flag that indicates we have an IPv4 address.
-                xEventGroupClearBits(wifiStatusEventGroup_, DHCP_GOTIP_BIT);
+                // clear the flags that indicates we are connected to the
+                // SSID and DHCP assignment.
+                xEventGroupClearBits(
+                    wifiStatusEventGroup_, WIFI_CONNECTED_BIT | DHCP_GOTIP_BIT);
 
                 // Wake up the wifi_manager_task so it can clean up
                 // connections.
@@ -534,22 +534,21 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
             // trigger the reconnection process at this point.
             if (manageWiFi_)
             {
-                // if the failure is AP not found, give up attempting to connect
-                // log a FATAL message and abort.
+                // if we failed to find the SSID or we failed to connect due to
+                // expired cached data, force a reinitialization of the WiFi
+                // stack.
                 if (event->event_info.disconnected.reason ==
-                    WIFI_REASON_NO_AP_FOUND)
-                {
-                    LOG(FATAL, "[WiFi] SSID %s not found, giving up.", ssid_);
-                }
-
-                // if the failure is AP not found, give up attempting to connect
-                // log a FATAL message and abort.
-                if (event->event_info.disconnected.reason ==
-                    WIFI_REASON_ASSOC_EXPIRE)
+                        WIFI_REASON_NO_AP_FOUND ||
+                    event->event_info.disconnected.reason ==
+                        WIFI_REASON_ASSOC_EXPIRE)
                 {
                     LOG(INFO, "[WiFi] Shutting down WiFi stack...");
                     ESP_ERROR_CHECK(esp_wifi_stop());
 
+                    // clear the flags that indicates we are connected to the
+                    // SSID and DHCP assignment.
+                    xEventGroupClearBits(wifiStatusEventGroup_,
+                        WIFI_CONNECTED_BIT | DHCP_GOTIP_BIT);
                     // set flag to indicate we need to reinit the stack.
                     xEventGroupSetBits(
                         wifiStatusEventGroup_, REINIT_WIFI_STACK_BIT);
@@ -684,6 +683,8 @@ void Esp32WiFiManager::start_wifi_system()
         // Check if we need to reinitialize the stack.
         if (bits & REINIT_WIFI_STACK_BIT)
         {
+            // reset our bitmask to the default.
+            bitMask = WIFI_CONNECTED_BIT | REINIT_WIFI_STACK_BIT;
             usleep(WIFI_REINIT_STACK_DELAY);
             continue;
         }
