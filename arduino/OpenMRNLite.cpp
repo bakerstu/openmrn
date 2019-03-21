@@ -34,9 +34,6 @@
 
 #include <OpenMRNLite.h>
 
-extern const char DEFAULT_WIFI_NAME[] __attribute__((weak)) = "defaultap";
-extern const char DEFAULT_WIFI_PASSWORD[] __attribute__((weak)) = "defaultpw";
-
 namespace openmrn_arduino {
 
 OpenMRN::OpenMRN(openlcb::NodeID node_id)
@@ -51,6 +48,11 @@ extern "C" {
 void reboot()
 {
     ESP.restart();
+}
+
+ssize_t os_get_free_heap()
+{
+    return ESP.getFreeHeap();
 }
 
 }

@@ -34,6 +34,13 @@ enum class WlanRole : uint8_t
     AP           /**< Wi-Fi access point mode */
 };
 
+enum class CountryCode : uint8_t
+{
+    US, ///< United States
+    EU, ///< European Union
+    JP, ///< Japan
+    UNKNOWN, ///< unknown country code
+};
 
 extern "C" {
 /// Name of wifi accesspoint to connect to.
