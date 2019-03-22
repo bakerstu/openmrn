@@ -86,6 +86,9 @@ static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
 /// request and reinitializing the stack.
 static constexpr uint32_t WIFI_REINIT_STACK_DELAY = MSEC_TO_USEC(3000);
 
+/// Number of microseconds to delay when attempting to reconnect to the SSID.
+static constexpr uint32_t WIFI_RECONNECT_DELAY = MSEC_TO_USEC(250);
+
 /// Interval at which to check if the GcTcpHub has started or not.
 static constexpr uint32_t HUB_STARTUP_DELAY_USEC = MSEC_TO_USEC(50);
 
@@ -534,16 +537,19 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
             // trigger the reconnection process at this point.
             if (manageWiFi_)
             {
-                // if we failed to find the SSID or we failed to connect due to
-                // expired cached data, force a reinitialization of the WiFi
-                // stack.
+                // if we failed to connect due to expired cached data, force a
+                // reinitialization of the WiFi stack.
                 if (event->event_info.disconnected.reason ==
-                        WIFI_REASON_NO_AP_FOUND ||
+                        WIFI_REASON_AUTH_EXPIRE ||
                     event->event_info.disconnected.reason ==
                         WIFI_REASON_ASSOC_EXPIRE)
                 {
                     LOG(INFO, "[WiFi] Shutting down WiFi stack...");
                     ESP_ERROR_CHECK(esp_wifi_stop());
+                    // deinit the WiFi stack so we get a full reinitialization
+                    // cycle, without this the stack would reuse the existing
+                    // configuration and not clear the cached SSID data.
+                    ESP_ERROR_CHECK(esp_wifi_deinit());
 
                     // clear the flags that indicates we are connected to the
                     // SSID and DHCP assignment.
@@ -559,6 +565,7 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
                 }
                 else
                 {
+                    usleep(WIFI_RECONNECT_DELAY);
                     LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.",
                         ssid_);
                     esp_wifi_connect();
@@ -683,8 +690,6 @@ void Esp32WiFiManager::start_wifi_system()
         // Check if we need to reinitialize the stack.
         if (bits & REINIT_WIFI_STACK_BIT)
         {
-            // reset our bitmask to the default.
-            bitMask = WIFI_CONNECTED_BIT | REINIT_WIFI_STACK_BIT;
             usleep(WIFI_REINIT_STACK_DELAY);
             continue;
         }
