@@ -258,7 +258,7 @@ public:
         : FdHubPortService(
               hub->service()->executor(), ::open(path, O_RDWR | O_NONBLOCK))
         , hub_(hub)
-        , readFlow_(this)
+        , readFlow_(this, hub, &writeFlow_)
         , writeFlow_(this)
     {
         HASSERT(fd_ >= 0);
