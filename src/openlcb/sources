@@ -18,6 +18,7 @@ CXXSRCS += \
            If.cxx \
            IfCan.cxx \
            IfImpl.cxx \
+           IfTcp.cxx \
            NodeBrowser.cxx \
            NodeInitializeFlow.cxx \
            NonAuthoritativeEventProducer.cxx \
