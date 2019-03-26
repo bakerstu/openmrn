@@ -288,7 +288,6 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
 
     // Cache the fd for later use by the wifi background task.
     configFd_ = fd;
-    configReloadRequested_ = initial_load;
 
     // Load the CDI entry into memory to do an CRC-32 check against our last
     // loaded configuration so we can avoid reloading configuration when there
@@ -323,7 +322,6 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
     {
         if (configCrc32 != configCrc32_)
         {
-            configReloadRequested_ = true;
             // If a configuration change has been detected, wake up the
             // wifi_manager_task so it can consume the change prior to the next
             // wake up interval.
@@ -456,122 +454,121 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
 {
     LOG(VERBOSE, "Esp32WiFiManager::process_wifi_event(%d)", event->event_id);
 
-    switch (event->event_id)
+    if (event->event_id == SYSTEM_EVENT_STA_START && manageWiFi_)
     {
-        case SYSTEM_EVENT_STA_START:
-            // We only are interested in this event if we are managing the
-            // WiFi and MDNS systems
-            if (manageWiFi_)
-            {
-                // Set the generated hostname prior to connecting to the SSID
-                // so that it shows up with the generated hostname instead of
-                // the default "Espressif".
-                LOG(INFO, "[WiFi] Setting ESP32 hostname to \"%s\".",
-                    hostname_.c_str());
-                ESP_ERROR_CHECK(tcpip_adapter_set_hostname(
-                    TCPIP_ADAPTER_IF_STA, hostname_.c_str()));
+        // Set the generated hostname prior to connecting to the SSID so that
+        // it shows up with the generated hostname instead of the default
+        // "Espressif".
+        LOG(INFO, "[WiFi] Setting ESP32 hostname to \"%s\".",
+            hostname_.c_str());
+        ESP_ERROR_CHECK(tcpip_adapter_set_hostname(
+            TCPIP_ADAPTER_IF_STA, hostname_.c_str()));
 
-                // Start the DHCP service before connecting to it hooks into
-                // the flow early and provisions the IP automatically.
-                LOG(INFO, "[WiFi] Starting DHCP services.");
-                ESP_ERROR_CHECK(
-                    tcpip_adapter_dhcpc_start(TCPIP_ADAPTER_IF_STA));
+        // Start the DHCP service before connecting to the SSID so that it will
+        // provision the IP automatically upon connection.
+        LOG(INFO, "[WiFi] Starting DHCP services.");
+        ESP_ERROR_CHECK(tcpip_adapter_dhcpc_start(TCPIP_ADAPTER_IF_STA));
 
-                LOG(INFO,
-                    "[WiFi] Station started, attempting to connect "
-                    "to SSID: %s.",
-                    ssid_);
-                // Start the SSID connection process.
-                esp_wifi_connect();
-            }
-            break;
-        case SYSTEM_EVENT_STA_CONNECTED:
-            LOG(INFO, "[WiFi] Connected to SSID: %s", ssid_);
-            // Set the flag that indictes we are connected to the SSID.
-            xEventGroupSetBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
-            break;
-        case SYSTEM_EVENT_STA_GOT_IP:
-            // Retrieve the configured IP address from the TCP/IP stack.
-            tcpip_adapter_ip_info_t ip_info;
-            tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
+        LOG(INFO,
+            "[WiFi] Station started, attempting to connect to SSID \"%s\".",
+            ssid_);
+        // Start the SSID connection process.
+        esp_wifi_connect();
+    }
+    else if (event->event_id == SYSTEM_EVENT_STA_CONNECTED)
+    {
+        LOG(INFO, "[WiFi] Connected to SSID \"%s\"", ssid_);
+        // Set the flag that indictes we are connected to the SSID.
+        xEventGroupSetBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
+    }
+    else if (event->event_id == SYSTEM_EVENT_STA_GOT_IP)
+    {
+        // Retrieve the configured IP address from the TCP/IP stack.
+        tcpip_adapter_ip_info_t ip_info;
+        tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
+        LOG(INFO,
+            "[DHCP] Received IP address " IPSTR ".", IP2STR(&ip_info.ip));
+
+        // Set the flag that indictes we have an IPv4 address.
+        xEventGroupSetBits(wifiStatusEventGroup_, DHCP_GOTIP_BIT);
+
+        // Wake up the wifi_manager_task so it can start connections
+        // creating connections, this will be a no-op for initial startup.
+        xTaskNotifyGive(wifiTaskHandle_);
+    }
+    else if (event->event_id == SYSTEM_EVENT_STA_LOST_IP)
+    {
+        LOG(INFO, "[DHCP] Lost IP address.");
+        // Clear the flag that indicates we are connected and have an
+        // IPv4 address.
+        xEventGroupClearBits(wifiStatusEventGroup_, DHCP_GOTIP_BIT);
+        // Wake up the wifi_manager_task so it can clean up connections.
+        xTaskNotifyGive(wifiTaskHandle_);
+    }
+    else if (event->event_id == SYSTEM_EVENT_STA_DISCONNECTED)
+    {
+        uint8_t disconnect_reason = event->event_info.disconnected.reason;
+        // Check if we have already connected, if we have we need to wake up
+        // the task so it can cleanup any active connections.
+        if (xEventGroupGetBits(wifiStatusEventGroup_) & WIFI_CONNECTED_BIT)
+        {
             LOG(INFO,
-                "[WiFi] IP address is " IPSTR ", starting hub (if "
-                "enabled) and uplink.",
-                IP2STR(&ip_info.ip));
+                "[WiFi] Lost connection to SSID \"%s\", reason: %d (%s)",
+                ssid_, disconnect_reason,
+                get_wifi_disconnect_reason(disconnect_reason));
+            // Clear the flags that indicates we are connected to the
+            // SSID and DHCP assignment.
+            xEventGroupClearBits(
+                wifiStatusEventGroup_, WIFI_CONNECTED_BIT | DHCP_GOTIP_BIT);
 
-            // Set the flag that indictes we have an IPv4 address.
-            xEventGroupSetBits(wifiStatusEventGroup_, DHCP_GOTIP_BIT);
-
-            // Wake up the wifi_manager_task so it can start connections
-            // creating connections, this will be a no-op for initial startup.
+            // Wake up the wifi_manager_task so it can clean up
+            // connections.
             xTaskNotifyGive(wifiTaskHandle_);
-            break;
-        case SYSTEM_EVENT_STA_LOST_IP:
-            // clear the flag that indicates we are connected and have an
-            // IPv4 address.
-            xEventGroupClearBits(wifiStatusEventGroup_, DHCP_GOTIP_BIT);
-            // Wake up the wifi_manager_task so it can clean up connections.
-            xTaskNotifyGive(wifiTaskHandle_);
-            break;
-        case SYSTEM_EVENT_STA_DISCONNECTED:
-            LOG(INFO, "[WiFi] Lost connection to SSID: %s, reason: %d (%s)",
-                ssid_, event->event_info.disconnected.reason,
-                get_wifi_disconnect_reason(
-                    event->event_info.disconnected.reason));
+        }
+        else
+        {
+            LOG(INFO,
+                "[WiFi] Connection to SSID \"%s\" failed, reason: %d (%s)",
+                ssid_, disconnect_reason,
+                get_wifi_disconnect_reason(disconnect_reason));
+        }
 
-            // check if we have already connected, if we have we need to wake up
-            // the task so it can cleanup any active connections.
-            if (xEventGroupGetBits(wifiStatusEventGroup_) & WIFI_CONNECTED_BIT)
+        // If we are managing the WiFi and MDNS systems we need to
+        // trigger the reconnection process at this point.
+        if (manageWiFi_)
+        {
+            // If we failed to connect due to expired data, force a
+            // reinitialization of the WiFi stack.
+            if (disconnect_reason == WIFI_REASON_AUTH_EXPIRE ||
+                disconnect_reason == WIFI_REASON_ASSOC_EXPIRE)
             {
-                // clear the flags that indicates we are connected to the
-                // SSID and DHCP assignment.
-                xEventGroupClearBits(
-                    wifiStatusEventGroup_, WIFI_CONNECTED_BIT | DHCP_GOTIP_BIT);
+                LOG(INFO, "[WiFi] Shutting down WiFi stack...");
+                // Stop the WiFi stack so we can fully shut it down.
+                ESP_ERROR_CHECK(esp_wifi_stop());
+                // Deinit the WiFi stack so we get a full reinitialization
+                // cycle, without this the stack would reuse the existing
+                // configuration and not clear the cached SSID data.
+                ESP_ERROR_CHECK(esp_wifi_deinit());
 
-                // Wake up the wifi_manager_task so it can clean up
-                // connections.
+                // Clear the flags that indicates we are connected to the SSID
+                // and DHCP assignment.
+                xEventGroupClearBits(wifiStatusEventGroup_,
+                                     WIFI_CONNECTED_BIT | DHCP_GOTIP_BIT);
+                // Set flag to indicate we need to reinit the stack.
+                xEventGroupSetBits(wifiStatusEventGroup_,
+                                   REINIT_WIFI_STACK_BIT);
+
+                // Wake up the wifi_manager_task so it can reinit the stack.
                 xTaskNotifyGive(wifiTaskHandle_);
             }
-
-            // If we are managing the WiFi and MDNS systems we need to
-            // trigger the reconnection process at this point.
-            if (manageWiFi_)
+            else
             {
-                // if we failed to connect due to expired cached data, force a
-                // reinitialization of the WiFi stack.
-                if (event->event_info.disconnected.reason ==
-                        WIFI_REASON_AUTH_EXPIRE ||
-                    event->event_info.disconnected.reason ==
-                        WIFI_REASON_ASSOC_EXPIRE)
-                {
-                    LOG(INFO, "[WiFi] Shutting down WiFi stack...");
-                    ESP_ERROR_CHECK(esp_wifi_stop());
-                    // deinit the WiFi stack so we get a full reinitialization
-                    // cycle, without this the stack would reuse the existing
-                    // configuration and not clear the cached SSID data.
-                    ESP_ERROR_CHECK(esp_wifi_deinit());
-
-                    // clear the flags that indicates we are connected to the
-                    // SSID and DHCP assignment.
-                    xEventGroupClearBits(wifiStatusEventGroup_,
-                        WIFI_CONNECTED_BIT | DHCP_GOTIP_BIT);
-                    // set flag to indicate we need to reinit the stack.
-                    xEventGroupSetBits(
-                        wifiStatusEventGroup_, REINIT_WIFI_STACK_BIT);
-
-                    // Wake up the wifi_manager_task so it can reinit the
-                    // stack.
-                    xTaskNotifyGive(wifiTaskHandle_);
-                }
-                else
-                {
-                    usleep(WIFI_RECONNECT_DELAY);
-                    LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.",
-                        ssid_);
-                    esp_wifi_connect();
-                }
+                usleep(WIFI_RECONNECT_DELAY);
+                LOG(INFO, "[WiFi] Attempting to reconnect to SSID \"%s\".",
+                    ssid_);
+                esp_wifi_connect();
             }
-            break;
+        }
     }
 }
 
@@ -605,7 +602,7 @@ void Esp32WiFiManager::start_wifi_system()
     }
 
     // Initialize the TCP/IP adapter stack.
-    LOG(INFO, "[WiFi] Starting TCP/IP stack");
+    LOG(INFO, "[WiFi] Starting TCP/IP adapter");
     tcpip_adapter_init();
 
     // Install event loop handler.
@@ -652,7 +649,7 @@ void Esp32WiFiManager::start_wifi_system()
 
         uint8_t attempt = 0;
         EventBits_t bits;
-        uint32_t bitMask = WIFI_CONNECTED_BIT | REINIT_WIFI_STACK_BIT;
+        uint32_t bitMask = WIFI_CONNECTED_BIT;
         while (++attempt <= MAX_CONNECTION_CHECK_ATTEMPTS)
         {
             // If we have connected to the SSID we then are waiting for DHCP.
@@ -697,7 +694,7 @@ void Esp32WiFiManager::start_wifi_system()
         // Check if we successfully connected or not. If not, force a reboot.
         if ((bits & WIFI_CONNECTED_BIT) != WIFI_CONNECTED_BIT)
         {
-            LOG(FATAL, "[WiFi] Failed to connect to SSID: %s.", ssid_);
+            LOG(FATAL, "[WiFi] Failed to connect to SSID \"%s\".", ssid_);
         }
 
         // Check if we successfully connected or not. If not, force a reboot.
@@ -743,37 +740,17 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
 
     while (true)
     {
+        // Shutdown the hub and uplink if previously created since this task
+        // will only wake up in the event of a configuration change or SSID/IP
+        // event.
+        wifi->stop_hub();
+        wifi->stop_uplink();
+
         EventBits_t bits = xEventGroupGetBits(wifi->wifiStatusEventGroup_);
-        if (bits & DHCP_GOTIP_BIT)
+        // Check if we have an IP address assigned, if so load configuration
+        // and start the hub and uplink.
+        if ((bits & DHCP_GOTIP_BIT) == DHCP_GOTIP_BIT)
         {
-            // If we do not have not an uplink connection force a config reload
-            // to start the connection process.
-            if (!wifi->uplink_)
-            {
-                wifi->configReloadRequested_ = true;
-            }
-        }
-        else
-        {
-            // Since we do not have an IP address we need to shutdown any
-            // active connections since they will be invalid until a new IP
-            // has been provisioned.
-            wifi->stop_hub();
-            wifi->stop_uplink();
-
-            // Make sure we don't try and reload configuration since we can't
-            // create outbound connections at this time.
-            wifi->configReloadRequested_ = false;
-        }
-
-        // Check if there are configuration changes to pick up.
-        if (wifi->configReloadRequested_)
-        {
-            // Since we are loading configuration data, shutdown the hub and
-            // uplink if created previously.
-            wifi->stop_hub();
-            wifi->stop_uplink();
-
             if (CDI_READ_TRIMMED(wifi->cfg_.sleep, wifi->configFd_))
             {
                 // When sleep is enabled this will trigger the WiFi system to
@@ -798,7 +775,6 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             }
             // Start the uplink connection process in the background.
             wifi->start_uplink();
-            wifi->configReloadRequested_ = false;
         }
 
         // Sleep until we are woken up again for configuration update or WiFi

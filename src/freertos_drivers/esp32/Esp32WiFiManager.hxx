@@ -211,9 +211,6 @@ private:
     /// which may require the wifi_manager_task to reload config.
     uint32_t configCrc32_{0};
 
-    /// Internal flag to request the wifi_manager_task reload configuration.
-    bool configReloadRequested_{true};
-
     /// @ref GcTcpHub for this node's hub if enabled.
     std::unique_ptr<GcTcpHub> hub_;
 
