@@ -144,7 +144,12 @@ copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
 
 rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.cxx \
-    ${TARGET_LIB_DIR}/src/openlcb/Stream.hxx
+    ${TARGET_LIB_DIR}/src/openlcb/Stream.hxx \
+    ${TARGET_LIB_DIR}/src/openlcb/IfTcp.{cxx,hxx} \
+    ${TARGET_LIB_DIR}/src/openlcb/IfTcpImpl.hxx
+
+# TODO: fix IfTcp/IfTcpImpl so they will compile on Arduino, they depend on
+# HubDeviceSelect.cxx/hxx
 
 copy_file src/freertos_drivers/arduino \
           src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
