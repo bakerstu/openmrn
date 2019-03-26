@@ -23,6 +23,7 @@ SUBDIRS = \
 	simple_client \
 	tractionproxy \
 	train \
+	tcp_blink_client \
 	usb_can \
 
 
