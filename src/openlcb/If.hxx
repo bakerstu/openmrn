@@ -344,6 +344,17 @@ public:
         return it->second;
     }
 
+    /** Looks up a node ID in the local nodes' registry. This function must be
+     * called from the interface's executor.
+     *
+     * @param handle is the NodeHandle representing a target node.
+     * @returns the node pointer or NULL if the node is not local registered.
+     */
+    virtual Node *lookup_local_node_handle(NodeHandle handle)
+    {
+        return lookup_local_node(handle.id);
+    }
+
     /**
      * @returns the first node (by nodeID order) that is registered in this
      * interface as a local node, or nullptr if this interface has no local
@@ -383,6 +394,12 @@ public:
     virtual bool matching_node(NodeHandle expected,
                                NodeHandle actual) = 0;
 
+
+    /** Canonicalizes the node handle: fills in id and/or alias from the maps
+     * the interface holds internally. Noop for TCP interface. Must be called
+     * on the interface executor. */
+    virtual void canonicalize_handle(NodeHandle *h) {}
+    
 protected:
     void remove_local_node_from_map(Node *node) {
         auto it = localNodes_.find(node->node_id());
