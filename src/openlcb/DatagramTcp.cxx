@@ -100,19 +100,6 @@ private:
         return static_cast<IfTcp *>(service());
     }
 
-    void reset_message(Buffer<GenMessage> *b, unsigned priority)
-    {
-        priority_ = priority;
-        message_ = b;
-    }
-
-    GenMessage *nmsg()
-    {
-        HASSERT(message_);
-        return message_->data();
-    }
-
-    Buffer<GenMessage> *message_ {nullptr};
 };
 
 } // namespace openlcb
