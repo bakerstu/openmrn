@@ -42,7 +42,7 @@ namespace openlcb
 
 /// Defines how long the datagram client flow should wait for the datagram
 /// ack/nack response message.
-long long DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(3);
+extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
 
 /// Datagram client implementation for CANbus-based datagram protocol.
 ///
