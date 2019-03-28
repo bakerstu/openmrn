@@ -92,7 +92,7 @@ private:
     /// @param priority executor priority.
     void reset_message(Buffer<GenMessage> *b, unsigned priority)
     {
-        priority_ = priority;
+        set_priority(priority);
         message_ = b;
     }
 
@@ -122,7 +122,7 @@ private:
                 // this will catch c == this.
                 if (!c->sendPending_) continue;
                 if (c->src_.id != src_.id) continue; 
-                if (!async_if()->matching_node(c->dst_, dst_))
+                if (!iface()->matching_node(c->dst_, dst_))
                     continue;
                 // Now: there is another datagram client sending a datagram to
                 // this destination. We need to wait for that transaction to
@@ -174,13 +174,13 @@ private:
         hasResponse_ = 0;
         isSleeping_ = 0;
         sendPending_ = 1;
-        if_can()->dispatcher()->register_handler(&listener_, MTI_1, MASK_1);
-        if_can()->dispatcher()->register_handler(&listener_, MTI_2, MASK_2);
-        if_can()->dispatcher()->register_handler(&listener_, MTI_3, MASK_3);
+        iface()->dispatcher()->register_handler(&listener_, MTI_1, MASK_1);
+        iface()->dispatcher()->register_handler(&listener_, MTI_2, MASK_2);
+        iface()->dispatcher()->register_handler(&listener_, MTI_3, MASK_3);
     }
 
     /// @todo what is the equivalent of this in the send flow architecture?
-    Action timeout_looking_for_dst() OVERRIDE
+    Action timeout_looking_for_dst()
     {
         result_ |= PERMANENT_ERROR | DST_NOT_FOUND;
         unregister_response_handler();
@@ -200,9 +200,9 @@ private:
 
     void unregister_response_handler()
     {
-        if_can()->dispatcher()->unregister_handler(&listener_, MTI_1, MASK_1);
-        if_can()->dispatcher()->unregister_handler(&listener_, MTI_2, MASK_2);
-        if_can()->dispatcher()->unregister_handler(&listener_, MTI_3, MASK_3);
+        iface()->dispatcher()->unregister_handler(&listener_, MTI_1, MASK_1);
+        iface()->dispatcher()->unregister_handler(&listener_, MTI_2, MASK_2);
+        iface()->dispatcher()->unregister_handler(&listener_, MTI_3, MASK_3);
         sendPending_ = 0;
         if (!waitingClients_.empty()) {
             DatagramClientImpl* c = static_cast<DatagramClientImpl*>(waitingClients_.pop_front());
@@ -360,7 +360,27 @@ private:
         reset_flow(STATE(datagram_finalize));
     }
 
-    /// Datagram message we are trying to send now.
+    /// Overrides the default notify implementation to make sure we obey the
+    /// priority values.
+    void notify() override
+    {
+        service()->executor()->add(this, priority_);
+    }
+
+    /// Sets the stateflow priority.
+    /// @param p the stateflow's priority on the executor.
+    void set_priority(unsigned p)
+    {
+        priority_ = std::min(MAX_PRIORITY, p);
+    }
+
+    /// @return the interface service we are running on.
+    If *iface()
+    {
+        return static_cast<If *>(service());
+    }
+
+    /// Datagram message we are trying to send now. We own it.
     Buffer<GenMessage> *message_ {nullptr};
     /// This notifiable is saved from the datagram buffer. Will be notified
     /// when the entire interaction is completed, but the buffer itself is
@@ -370,8 +390,12 @@ private:
     NodeHandle src_;
     /// Destination of the datagram we are currently sending.
     NodeHandle dst_;
+    /// Addressed datagram send flow from the interface. Externally owned.
+    MessageHandler* sendFlow_;
     /// Instance of the listener object.
     ReplyListener listener_;
+    /// Helper object for sleep.
+    StateFlowTimer timer_{this};
     /// List of other datagram clients that are trying to send to the same
     /// target node. We need to wake up one of this list when we are done
     /// sending.
@@ -383,6 +407,9 @@ private:
     /// 1 when we have the handlers registered. During this time we have
     /// exclusive lock on the specific src/dst node pair.
     unsigned sendPending_ : 1;
+    /// Priority in the executor.
+    unsigned priority_ : 24;
+    static constexpr unsigned MAX_PRIORITY = (1<<24) - 1;
 }; // class DatagramClientImpl
 
 } // namespace openlcb
