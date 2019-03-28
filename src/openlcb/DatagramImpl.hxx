@@ -371,7 +371,7 @@ private:
     /// @param p the stateflow's priority on the executor.
     void set_priority(unsigned p)
     {
-        priority_ = std::min(MAX_PRIORITY, p);
+        priority_ = std::min((unsigned)MAX_PRIORITY, p);
     }
 
     /// @return the interface service we are running on.
