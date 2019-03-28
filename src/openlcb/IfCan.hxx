@@ -115,11 +115,13 @@ public:
     /// Sets the alias allocator for this If. Takes ownership of pointer.
     void set_alias_allocator(AliasAllocator *a);
 
-    void add_owned_flow(Executable *e) OVERRIDE;
+    void add_owned_flow(Executable *e) override;
 
-    bool matching_node(NodeHandle expected, NodeHandle actual) OVERRIDE;
+    bool matching_node(NodeHandle expected, NodeHandle actual) override;
 
     void delete_local_node(Node *node) override;
+
+    Node *lookup_local_node_handle(NodeHandle handle) override;
 
 private:
     void canonicalize_handle(NodeHandle *h);
