@@ -35,6 +35,7 @@
 #include "openlcb/DatagramCan.hxx"
 
 #include "openlcb/DatagramDefs.hxx"
+#include "openlcb/DatagramImpl.hxx"
 #include "openlcb/IfCanImpl.hxx"
 
 namespace openlcb
