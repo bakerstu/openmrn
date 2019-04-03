@@ -102,4 +102,22 @@ private:
 
 };
 
+TcpDatagramService::TcpDatagramService(IfTcp *iface,
+                                       int num_registry_entries,
+                                       int num_clients)
+    : DatagramService(iface, num_registry_entries)
+{
+    auto* dg_send = if_tcp()->addressed_message_write_flow();
+    for (int i = 0; i < num_clients; ++i)
+    {
+        auto *client_flow = new DatagramClientImpl(if_tcp(), dg_send);
+        if_tcp()->add_owned_flow(client_flow);
+        client_allocator()->insert(static_cast<DatagramClient *>(client_flow));
+    }
+}
+
+TcpDatagramService::~TcpDatagramService()
+{
+}
+
 } // namespace openlcb
