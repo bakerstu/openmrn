@@ -58,7 +58,7 @@ public:
     /// @param iface is the service on which to run this flow
     /// @param send_flow can receive an (addressed) Datagram message and send
     /// it to the appropriate destination -- takes care of fragmenting etc.
-    DatagramClientImpl(If *iface, MessageHandler* send_flow)
+    DatagramClientImpl(If *iface, MessageHandler *send_flow)
         : StateFlowBase(iface)
         , sendFlow_(send_flow)
         , listener_(this)
@@ -116,9 +116,10 @@ private:
         // to the same target node.
         {
             AtomicHolder h(LinkedObject<DatagramClientImpl>::head_mu());
-            for (DatagramClientImpl* c = LinkedObject<DatagramClientImpl>::head_;
-                 c;
-                 c = c->LinkedObject<DatagramClientImpl>::link_next()) {
+            for (DatagramClientImpl *c =
+                     LinkedObject<DatagramClientImpl>::head_;
+                 c; c = c->LinkedObject<DatagramClientImpl>::link_next())
+            {
                 // this will catch c == this.
                 if (!c->sendPending_) continue;
                 if (c->src_.id != src_.id) continue; 
@@ -139,20 +140,20 @@ private:
     /// @return next state.
     Action do_send()
     {
-        auto* b = message_;
+        auto *b = message_;
         message_ = nullptr;
         // These two statements transfer the barrier's ownership from the
         // BufferBase to our pointer variable.
         done_ = b->new_child();
         b->set_done(nullptr);
-        
+
         register_handlers();
         // Transfers ownership.
         sendFlow_->send(b, priority_);
 
         isSleeping_ = 1;
         return sleep_and_call(&timer_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
-                              STATE(timeout_waiting_for_dg_response));
+            STATE(timeout_waiting_for_dg_response));
     }
 
     enum
@@ -189,8 +190,9 @@ private:
 
     Action timeout_waiting_for_dg_response()
     {
-        LOG(INFO, "CanDatagramWriteFlow: No datagram response arrived from "
-                  "destination %012" PRIx64 ".",
+        LOG(INFO,
+            "CanDatagramWriteFlow: No datagram response arrived from "
+            "destination %012" PRIx64 ".",
             dst_.id);
         isSleeping_ = 0;
         unregister_response_handler();
@@ -206,7 +208,8 @@ private:
         sendPending_ = 0;
         if (!waitingClients_.empty())
         {
-            DatagramClientImpl* c = static_cast<DatagramClientImpl*>(waitingClients_.pop_front());
+            DatagramClientImpl *c =
+                static_cast<DatagramClientImpl *>(waitingClients_.pop_front());
             // Hands off all waiting clients to c.
             HASSERT(c->waitingClients_.empty());
             std::swap(waitingClients_, c->waitingClients_);
@@ -232,7 +235,8 @@ private:
     class ReplyListener : public MessageHandler
     {
     public:
-        ReplyListener(DatagramClientImpl *parent) : parent_(parent)
+        ReplyListener(DatagramClientImpl *parent)
+            : parent_(parent)
         {
         }
 
@@ -251,12 +255,14 @@ private:
     /// buffer).
     void handle_response(GenMessage *message)
     {
-        //LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this,
+        // LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this,
         //    (int)message->mti, (int)message->src.alias);
 
         // Check for reboot (unaddressed message) first.
-        if (message->mti == Defs::MTI_INITIALIZATION_COMPLETE) {
-            if (message->payload.size() != 6) {
+        if (message->mti == Defs::MTI_INITIALIZATION_COMPLETE)
+        {
+            if (message->payload.size() != 6)
+            {
                 // Malformed message inbound.
                 return;
             }
@@ -353,7 +359,8 @@ private:
         // Avoids duplicate wakeups on the timer.
         unregister_response_handler();
         hasResponse_ = 1;
-        if (isSleeping_) {
+        if (isSleeping_)
+        {
             // Stops waiting for response and notifies the current flow.
             timer_.trigger();
             isSleeping_ = 0;
@@ -389,17 +396,17 @@ private:
     /// This notifiable is saved from the datagram buffer. Will be notified
     /// when the entire interaction is completed, but the buffer itself is
     /// transferred to the send flow.
-    BarrierNotifiable* done_{nullptr};
+    BarrierNotifiable *done_ {nullptr};
     /// Source of the datagram we are currently sending.
     NodeHandle src_;
     /// Destination of the datagram we are currently sending.
     NodeHandle dst_;
     /// Addressed datagram send flow from the interface. Externally owned.
-    MessageHandler* sendFlow_;
+    MessageHandler *sendFlow_;
     /// Instance of the listener object.
     ReplyListener listener_;
     /// Helper object for sleep.
-    StateFlowTimer timer_{this};
+    StateFlowTimer timer_ {this};
     /// List of other datagram clients that are trying to send to the same
     /// target node. We need to wake up one of this list when we are done
     /// sending.
@@ -415,7 +422,7 @@ private:
     unsigned priority_ : 24;
     /// Constant used to clamp the incoming priority value to something that
     /// first in priority_ bit field.
-    static constexpr unsigned MAX_PRIORITY = (1<<24) - 1;
+    static constexpr unsigned MAX_PRIORITY = (1 << 24) - 1;
 }; // class DatagramClientImpl
 
 } // namespace openlcb
