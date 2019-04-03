@@ -180,7 +180,10 @@ private:
         iface()->dispatcher()->register_handler(&listener_, MTI_3, MASK_3);
     }
 
-    /// @todo what is the equivalent of this in the send flow architecture?
+    /// @todo In IfCanImpl.hxx there is a timeout_looking_for_dst action. It
+    /// should trigger a 'terminate due to error' response message, and when
+    /// that arrives in the handle_response() function below, this is the code
+    /// that we need to trigger.
     Action timeout_looking_for_dst()
     {
         result_ |= PERMANENT_ERROR | DST_NOT_FOUND;
