@@ -34,73 +34,11 @@
 
 #include "openlcb/DatagramTcp.hxx"
 
+#include "openlcb/DatagramImpl.hxx"
+
 
 namespace openlcb
 {
-
-class TcpDatagramClient : public DatagramClient,
-                          public StateFlowBase,
-                          public LinkedObject<CanDatagramClient>
-{
-public:
-    TcpDatagramClient(IfTcp *iface)
-        : StateFlowBase(iface)
-    {
-    }
-
-    /** Requests cancelling the datagram send operation. Will notify the done
-     * callback when the canceling is completed. */
-    void cancel() override
-    {
-        DIE("Canceling datagram send operation is not yet implemented.");
-    }
-
-    void write_datagram(Buffer<GenMessage> *b, unsigned priority) OVERRIDE
-    {
-        if (!b->data()->mti)
-        {
-            b->data()->mti = Defs::MTI_DATAGRAM;
-        }
-        HASSERT(b->data()->mti == Defs::MTI_DATAGRAM);
-        result_ = OPERATION_PENDING;
-        reset_message(b, priority);
-        start_flow(STATE(acquire_srcdst_lock));
-    }
-
-    Action acquire_srcdst_lock()
-    {
-        // First check if there is another datagram client sending a datagram
-        // to the same target node.
-        {
-            AtomicHolder h(LinkedObject<TcpDatagramClient>::head_mu());
-            for (TcpDatagramClient* c = LinkedObject<TcpDatagramClient>::head_;
-                 c;
-                 c = c->LinkedObject<TcpDatagramClient>::link_next()) {
-                // this will catch c == this.
-                if (!c->sendPending_) continue;
-                if (c->nmsg()->src.id != nmsg()->src.id) continue; 
-                if (!async_if()->matching_node(c->nmsg()->dst, nmsg()->dst))
-                    continue;
-                // Now: there is another datagram client sending a datagram to
-                // this destination. We need to wait for that transaction to
-                // complete.
-                c->waitingClients_.push_front(this);
-                return wait();
-            }
-        }
-        register_handlers();
-        /// @TODO(balazs.racz) this will not work for loopback messages because
-        /// it calls transfer_message().
-        return call_immediately(STATE(addressed_entry));
-    }
-
-private:
-    IfTcp *async_if()
-    {
-        return static_cast<IfTcp *>(service());
-    }
-
-};
 
 TcpDatagramService::TcpDatagramService(IfTcp *iface,
                                        int num_registry_entries,

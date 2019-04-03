@@ -32,6 +32,7 @@ CXXSRCS += \
            WriteHelper.cxx \
            Datagram.cxx \
            DatagramCan.cxx \
+           DatagramTcp.cxx \
            MemoryConfig.cxx \
            SimpleNodeInfo.cxx \
            SimpleNodeInfoMockUserFile.cxx \
