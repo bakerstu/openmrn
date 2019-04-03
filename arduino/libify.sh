@@ -162,9 +162,7 @@ copy_file src/sys include/sys/tree.hxx
 
 copy_file src/utils src/utils/*.{cxx,hxx,c,h}
 
-rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
-    ${TARGET_LIB_DIR}/src/utils/HubDeviceSelect.cxx \
-    ${TARGET_LIB_DIR}/src/utils/HubDeviceSelect.hxx
+rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx
 
 if [ "x$VERBOSE" != "x" ]; then
     echo "Renaming all cxx to cpp under ${TARGET_LIB_DIR}/src"
