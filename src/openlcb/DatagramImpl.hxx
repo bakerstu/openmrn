@@ -204,7 +204,8 @@ private:
         iface()->dispatcher()->unregister_handler(&listener_, MTI_2, MASK_2);
         iface()->dispatcher()->unregister_handler(&listener_, MTI_3, MASK_3);
         sendPending_ = 0;
-        if (!waitingClients_.empty()) {
+        if (!waitingClients_.empty())
+        {
             DatagramClientImpl* c = static_cast<DatagramClientImpl*>(waitingClients_.pop_front());
             // Hands off all waiting clients to c.
             HASSERT(c->waitingClients_.empty());
@@ -218,7 +219,8 @@ private:
         HASSERT(!sendPending_);
         HASSERT(result_ & OPERATION_PENDING);
         result_ &= ~OPERATION_PENDING;
-        if (done_) {
+        if (done_)
+        {
             done_->notify();
             done_ = nullptr;
         }
@@ -270,12 +272,14 @@ private:
         }
 
         // First we check that the response is for this source node.
-        if (!iface()->matching_node(message->dst, src_)) {
+        if (!iface()->matching_node(message->dst, src_))
+        {
             LOG(VERBOSE, "wrong dst");
             return;
         }
         // We also check that the source of the response is our destination.
-        if (!iface()->matching_node(message->src, dst_)) {
+        if (!iface()->matching_node(message->src, dst_))
+        {
             LOG(VERBOSE, "wrong src");
             return;
         }
@@ -409,6 +413,8 @@ private:
     unsigned sendPending_ : 1;
     /// Priority in the executor.
     unsigned priority_ : 24;
+    /// Constant used to clamp the incoming priority value to something that
+    /// first in priority_ bit field.
     static constexpr unsigned MAX_PRIORITY = (1<<24) - 1;
 }; // class DatagramClientImpl
 
