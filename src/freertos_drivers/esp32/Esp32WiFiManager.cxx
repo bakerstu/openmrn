@@ -446,15 +446,15 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
                 // Wake up the wifi_manager_task so it can clean up
                 // connections.
                 xTaskNotifyGive(wifiTaskHandle_);
+            }
 
-                // If we are managing the WiFi and MDNS systems we need to
-                // trigger the reconnection process at this point.
-                if (manageWiFi_)
-                {
-                    LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.",
-                        ssid_);
-                    esp_wifi_connect();
-                }
+            // If we are managing the WiFi and MDNS systems we need to
+            // trigger the reconnection process at this point.
+            if (manageWiFi_)
+            {
+                LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.",
+                    ssid_);
+                esp_wifi_connect();
             }
             break;
     }
