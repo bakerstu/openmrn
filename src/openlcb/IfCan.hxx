@@ -124,7 +124,7 @@ public:
     Node *lookup_local_node_handle(NodeHandle handle) override;
 
 private:
-    void canonicalize_handle(NodeHandle *h);
+    void canonicalize_handle(NodeHandle *h) override;
 
     friend class CanFrameWriteFlow; // accesses the device and the hubport.
 
