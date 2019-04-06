@@ -135,6 +135,10 @@ public:
     /// @param event_id is the system_event_t.event_id value.
     void process_wifi_event(int event_id);
 
+    /// If called, setsthe ESP32 wifi stack to log verbose information to the
+    /// ESP32 serial port.
+    void enable_verbose_logging();
+
 private:
     /// Default constructor.
     Esp32WiFiManager();
@@ -212,6 +216,9 @@ private:
     /// Internal flag to request the wifi_manager_task reload configuration.
     bool configReloadRequested_{true};
 
+    /// if true, request esp32 wifi to do verbose logging.
+    bool esp32VerboseLogging_{false};
+    
     /// @ref GcTcpHub for this node's hub if enabled.
     std::unique_ptr<GcTcpHub> hub_;
 
