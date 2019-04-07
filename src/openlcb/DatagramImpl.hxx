@@ -32,17 +32,15 @@
  * @date 27 Jan 2013
  */
 
-#include "openlcb/DatagramCan.hxx"
-
+#include "openlcb/Datagram.hxx"
 #include "openlcb/DatagramDefs.hxx"
-#include "openlcb/IfCanImpl.hxx"
 
 namespace openlcb
 {
 
 /// Defines how long the datagram client flow should wait for the datagram
 /// ack/nack response message.
-long long DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(3);
+extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
 
 /// Datagram client implementation for CANbus-based datagram protocol.
 ///
@@ -51,24 +49,22 @@ long long DATAGRAM_RESPONSE_TIMEOUT_NSEC = SEC_TO_NSEC(3);
 ///
 /// The base class of AddressedCanMessageWriteFlow is responsible for the
 /// discovery and address resolution of the destination node.
-class CanDatagramClient : public DatagramClient,
-                          public AddressedCanMessageWriteFlow,
-                          public LinkedObject<CanDatagramClient>
+class DatagramClientImpl : public DatagramClient,
+                           public StateFlowBase,
+                           public LinkedObject<DatagramClientImpl>
 {
 public:
-    CanDatagramClient(IfCan *iface)
-        : AddressedCanMessageWriteFlow(iface)
+    /// Constructor.
+    /// @param iface is the service on which to run this flow
+    /// @param send_flow can receive an (addressed) Datagram message and send
+    /// it to the appropriate destination -- takes care of fragmenting etc.
+    DatagramClientImpl(If *iface, MessageHandler *send_flow)
+        : StateFlowBase(iface)
+        , sendFlow_(send_flow)
         , listener_(this)
         , isSleeping_(0)
         , sendPending_(0)
     {
-        /** This flow does not use the incoming queue that we inherited from
-         * AddressedCanMessageWriteFlow. We skip the wait state.
-         *
-         * @TODO(balazs.racz) consider skipping this flow into two parts: one
-         * client that waits for the responses and one flow that just renders
-         * the outgoing frames. */
-        set_terminated();
     }
 
     void write_datagram(Buffer<GenMessage> *b, unsigned priority) OVERRIDE
@@ -80,50 +76,7 @@ public:
         HASSERT(b->data()->mti == Defs::MTI_DATAGRAM);
         result_ = OPERATION_PENDING;
         reset_message(b, priority);
-        start_flow(STATE(acquire_srcdst_lock));
-    }
-
-    Action acquire_srcdst_lock()
-    {
-        // First check if there is another datagram client sending a datagram
-        // to the same target node.
-        {
-            AtomicHolder h(LinkedObject<CanDatagramClient>::head_mu());
-            for (CanDatagramClient* c = LinkedObject<CanDatagramClient>::head_;
-                 c;
-                 c = c->LinkedObject<CanDatagramClient>::link_next()) {
-                // this will catch c == this.
-                if (!c->sendPending_) continue;
-                if (c->nmsg()->src.id != nmsg()->src.id) continue; 
-                if (!async_if()->matching_node(c->nmsg()->dst, nmsg()->dst))
-                    continue;
-                // Now: there is another datagram client sending a datagram to
-                // this destination. We need to wait for that transaction to
-                // complete.
-                c->waitingClients_.push_front(this);
-                return wait();
-            }
-        }
-        register_handlers();
-        /// @TODO(balazs.racz) this will not work for loopback messages because
-        /// it calls transfer_message().
-        return call_immediately(STATE(addressed_entry));
-    }
-    
-    Action send_to_local_node() OVERRIDE
-    {
-        return allocate_and_call(async_if()->dispatcher(),
-                                 STATE(local_copy_allocated));
-    }
-
-    Action local_copy_allocated()
-    {
-        auto *b = get_allocation_result(async_if()->dispatcher());
-        b->data()->reset(nmsg()->mti, nmsg()->src.id, nmsg()->dst, Payload());
-        b->data()->payload.swap(nmsg()->payload);
-        b->data()->dstNode = nmsg()->dstNode;
-        async_if()->dispatcher()->send(b);
-        return call_immediately(STATE(send_finished));
+        start_flow(STATE(start_send));
     }
 
     /** Requests cancelling the datagram send operation. Will notify the done
@@ -134,6 +87,75 @@ public:
     }
 
 private:
+    /// Equivalent to enqueuing a new datagram to send.
+    /// @param b datagram to send.
+    /// @param priority executor priority.
+    void reset_message(Buffer<GenMessage> *b, unsigned priority)
+    {
+        set_priority(priority);
+        message_ = b;
+    }
+
+    /// Entry point to the flow processing.
+    /// @return next state
+    Action start_send()
+    {
+        iface()->canonicalize_handle(&message_->data()->src);
+        iface()->canonicalize_handle(&message_->data()->dst);
+        src_ = message_->data()->src;
+        dst_ = message_->data()->dst;
+        return acquire_srcdst_lock();
+    }
+
+    /// Ensures that there is no other datagram client with the same src:dst
+    /// pair. This is required by the standard.
+    /// @return next state
+    Action acquire_srcdst_lock()
+    {
+        // First check if there is another datagram client sending a datagram
+        // to the same target node.
+        {
+            AtomicHolder h(LinkedObject<DatagramClientImpl>::head_mu());
+            for (DatagramClientImpl *c =
+                     LinkedObject<DatagramClientImpl>::head_;
+                 c; c = c->LinkedObject<DatagramClientImpl>::link_next())
+            {
+                // this will catch c == this.
+                if (!c->sendPending_) continue;
+                if (c->src_.id != src_.id) continue; 
+                if (!iface()->matching_node(c->dst_, dst_))
+                    continue;
+                // Now: there is another datagram client sending a datagram to
+                // this destination. We need to wait for that transaction to
+                // complete.
+                c->waitingClients_.push_front(this);
+                return wait();
+            }
+        }
+
+        return do_send();
+    }
+
+    /// Hands off the datagram to the send flow.
+    /// @return next state.
+    Action do_send()
+    {
+        auto *b = message_;
+        message_ = nullptr;
+        // These two statements transfer the barrier's ownership from the
+        // BufferBase to our pointer variable.
+        done_ = b->new_child();
+        b->set_done(nullptr);
+
+        register_handlers();
+        // Transfers ownership.
+        sendFlow_->send(b, priority_);
+
+        isSleeping_ = 1;
+        return sleep_and_call(&timer_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
+            STATE(timeout_waiting_for_dg_response));
+    }
+
     enum
     {
         MTI_1a = Defs::MTI_TERMINATE_DUE_TO_ERROR,
@@ -153,94 +175,28 @@ private:
         hasResponse_ = 0;
         isSleeping_ = 0;
         sendPending_ = 1;
-        if_can()->dispatcher()->register_handler(&listener_, MTI_1, MASK_1);
-        if_can()->dispatcher()->register_handler(&listener_, MTI_2, MASK_2);
-        if_can()->dispatcher()->register_handler(&listener_, MTI_3, MASK_3);
+        iface()->dispatcher()->register_handler(&listener_, MTI_1, MASK_1);
+        iface()->dispatcher()->register_handler(&listener_, MTI_2, MASK_2);
+        iface()->dispatcher()->register_handler(&listener_, MTI_3, MASK_3);
     }
 
-    Action fill_can_frame_buffer() OVERRIDE
-    {
-        LOG(VERBOSE, "fill can frame buffer");
-        auto *b = get_allocation_result(if_can()->frame_write_flow());
-        struct can_frame *f = b->data()->mutable_frame();
-        HASSERT(nmsg()->mti == Defs::MTI_DATAGRAM);
-
-        // Sets the CAN id.
-        uint32_t can_id = 0x1A000000;
-        CanDefs::set_src(&can_id, srcAlias_);
-        LOG(VERBOSE, "dst alias %x", dstAlias_);
-        CanDefs::set_dst(&can_id, dstAlias_);
-
-        bool need_more_frames = false;
-        unsigned len = nmsg()->payload.size() - dataOffset_;
-        if (len > 8)
-        {
-            len = 8;
-            // This is not the last frame.
-            need_more_frames = true;
-            if (dataOffset_)
-            {
-                CanDefs::set_can_frame_type(&can_id,
-                                            CanDefs::DATAGRAM_MIDDLE_FRAME);
-            }
-            else
-            {
-                CanDefs::set_can_frame_type(&can_id,
-                                            CanDefs::DATAGRAM_FIRST_FRAME);
-            }
-        }
-        else
-        {
-            // No more data after this frame.
-            if (dataOffset_)
-            {
-                CanDefs::set_can_frame_type(&can_id,
-                                            CanDefs::DATAGRAM_FINAL_FRAME);
-            }
-            else
-            {
-                CanDefs::set_can_frame_type(&can_id,
-                                            CanDefs::DATAGRAM_ONE_FRAME);
-            }
-        }
-
-        memcpy(f->data, &nmsg()->payload[dataOffset_], len);
-        dataOffset_ += len;
-        f->can_dlc = len;
-
-        SET_CAN_FRAME_ID_EFF(*f, can_id);
-        if_can()->frame_write_flow()->send(b);
-
-        if (need_more_frames)
-        {
-            return call_immediately(STATE(get_can_frame_buffer));
-        }
-        else
-        {
-            return call_immediately(STATE(send_finished));
-        }
-    }
-
-    Action send_finished() OVERRIDE
-    {
-        isSleeping_ = 1;
-        return sleep_and_call(&timer_, DATAGRAM_RESPONSE_TIMEOUT_NSEC,
-                              STATE(timeout_waiting_for_dg_response));
-    }
-
-    Action timeout_looking_for_dst() OVERRIDE
+    /// @todo In IfCanImpl.hxx there is a timeout_looking_for_dst action. It
+    /// should trigger a 'terminate due to error' response message, and when
+    /// that arrives in the handle_response() function below, this is the code
+    /// that we need to trigger.
+    Action timeout_looking_for_dst()
     {
         result_ |= PERMANENT_ERROR | DST_NOT_FOUND;
         unregister_response_handler();
         return call_immediately(STATE(datagram_finalize));
     }
 
-    /// @todo( balazs.racz): why is this virtual?
-    virtual Action timeout_waiting_for_dg_response()
+    Action timeout_waiting_for_dg_response()
     {
-        LOG(INFO, "CanDatagramWriteFlow: No datagram response arrived from "
-                  "destination %012" PRIx64 ".",
-            nmsg()->dst.id);
+        LOG(INFO,
+            "CanDatagramWriteFlow: No datagram response arrived from "
+            "destination %012" PRIx64 ".",
+            dst_.id);
         isSleeping_ = 0;
         unregister_response_handler();
         result_ |= PERMANENT_ERROR | TIMEOUT;
@@ -249,12 +205,14 @@ private:
 
     void unregister_response_handler()
     {
-        if_can()->dispatcher()->unregister_handler(&listener_, MTI_1, MASK_1);
-        if_can()->dispatcher()->unregister_handler(&listener_, MTI_2, MASK_2);
-        if_can()->dispatcher()->unregister_handler(&listener_, MTI_3, MASK_3);
+        iface()->dispatcher()->unregister_handler(&listener_, MTI_1, MASK_1);
+        iface()->dispatcher()->unregister_handler(&listener_, MTI_2, MASK_2);
+        iface()->dispatcher()->unregister_handler(&listener_, MTI_3, MASK_3);
         sendPending_ = 0;
-        if (!waitingClients_.empty()) {
-            CanDatagramClient* c = static_cast<CanDatagramClient*>(waitingClients_.pop_front());
+        if (!waitingClients_.empty())
+        {
+            DatagramClientImpl *c =
+                static_cast<DatagramClientImpl *>(waitingClients_.pop_front());
             // Hands off all waiting clients to c.
             HASSERT(c->waitingClients_.empty());
             std::swap(waitingClients_, c->waitingClients_);
@@ -267,16 +225,21 @@ private:
         HASSERT(!sendPending_);
         HASSERT(result_ & OPERATION_PENDING);
         result_ &= ~OPERATION_PENDING;
-        release();
+        if (done_)
+        {
+            done_->notify();
+            done_ = nullptr;
+        }
         return set_terminated();
     }
 
     /** This object is registered to receive response messages at the interface
-     * level. Then it forwards the call to the parent CanDatagramClient. */
+     * level. Then it forwards the call to the parent DatagramClientImpl. */
     class ReplyListener : public MessageHandler
     {
     public:
-        ReplyListener(CanDatagramClient *parent) : parent_(parent)
+        ReplyListener(DatagramClientImpl *parent)
+            : parent_(parent)
         {
         }
 
@@ -287,24 +250,28 @@ private:
         }
 
     private:
-        CanDatagramClient *parent_;
+        DatagramClientImpl *parent_;
     };
 
     /// Callback when a matching response comes in on the bus.
+    /// @param message is the incoming generic message (from the response
+    /// buffer).
     void handle_response(GenMessage *message)
     {
-        //LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this,
+        // LOG(INFO, "%p: Incoming response to datagram: mti %x from %x", this,
         //    (int)message->mti, (int)message->src.alias);
 
         // Check for reboot (unaddressed message) first.
-        if (message->mti == Defs::MTI_INITIALIZATION_COMPLETE) {
-            if (message->payload.size() != 6) {
+        if (message->mti == Defs::MTI_INITIALIZATION_COMPLETE)
+        {
+            if (message->payload.size() != 6)
+            {
                 // Malformed message inbound.
                 return;
             }
             NodeHandle rebooted(message->src);
             rebooted.id = buffer_to_node_id(message->payload);
-            if (if_can()->matching_node(nmsg()->dst, rebooted))
+            if (iface()->matching_node(dst_, rebooted))
             {
                 // Destination node has rebooted. Kill datagram flow.
                 result_ |= DST_REBOOT;
@@ -314,44 +281,16 @@ private:
         }
 
         // First we check that the response is for this source node.
-        if (message->dst.id)
+        if (!iface()->matching_node(message->dst, src_))
         {
-            if (message->dst.id != nmsg()->src.id)
-            {
-                LOG(VERBOSE, "wrong dst");
-                return;
-            }
-        }
-        else if (message->dst.alias != srcAlias_)
-        {
-            LOG(VERBOSE, "wrong dst alias");
-            /* Here we hope that the source alias was not released by the time
-             * the response comes in. */
+            LOG(VERBOSE, "wrong dst");
             return;
         }
         // We also check that the source of the response is our destination.
-        if (message->src.id && nmsg()->dst.id)
+        if (!iface()->matching_node(message->src, dst_))
         {
-            if (message->src.id != nmsg()->dst.id)
-            {
-                LOG(VERBOSE, "wrong src");
-                return;
-            }
-        }
-        else if (message->src.alias)
-        {
-            // We hope the dstAlias_ has not changed yet.
-            if (message->src.alias != dstAlias_)
-            {
-                LOG(VERBOSE, "wrong src alias %x %x", (int)message->src.alias,
-                    (int)dstAlias_);
-                return;
-            }
-        }
-        else
-        {
-            /// @TODO(balazs.racz): we should initiate an alias lookup here.
-            HASSERT(0); // Don't know how to match the response source.
+            LOG(VERBOSE, "wrong src");
+            return;
         }
 
         uint16_t error_code = 0;
@@ -423,7 +362,8 @@ private:
         // Avoids duplicate wakeups on the timer.
         unregister_response_handler();
         hasResponse_ = 1;
-        if (isSleeping_) {
+        if (isSleeping_)
+        {
             // Stops waiting for response and notifies the current flow.
             timer_.trigger();
             isSleeping_ = 0;
@@ -434,7 +374,42 @@ private:
         reset_flow(STATE(datagram_finalize));
     }
 
+    /// Overrides the default notify implementation to make sure we obey the
+    /// priority values.
+    void notify() override
+    {
+        service()->executor()->add(this, priority_);
+    }
+
+    /// Sets the stateflow priority.
+    /// @param p the stateflow's priority on the executor.
+    void set_priority(unsigned p)
+    {
+        priority_ = std::min((unsigned)MAX_PRIORITY, p);
+    }
+
+    /// @return the interface service we are running on.
+    If *iface()
+    {
+        return static_cast<If *>(service());
+    }
+
+    /// Datagram message we are trying to send now. We own it.
+    Buffer<GenMessage> *message_ {nullptr};
+    /// This notifiable is saved from the datagram buffer. Will be notified
+    /// when the entire interaction is completed, but the buffer itself is
+    /// transferred to the send flow.
+    BarrierNotifiable *done_ {nullptr};
+    /// Source of the datagram we are currently sending.
+    NodeHandle src_;
+    /// Destination of the datagram we are currently sending.
+    NodeHandle dst_;
+    /// Addressed datagram send flow from the interface. Externally owned.
+    MessageHandler *sendFlow_;
+    /// Instance of the listener object.
     ReplyListener listener_;
+    /// Helper object for sleep.
+    StateFlowTimer timer_ {this};
     /// List of other datagram clients that are trying to send to the same
     /// target node. We need to wake up one of this list when we are done
     /// sending.
@@ -446,266 +421,11 @@ private:
     /// 1 when we have the handlers registered. During this time we have
     /// exclusive lock on the specific src/dst node pair.
     unsigned sendPending_ : 1;
-};
-
-/** Frame handler that assembles incoming datagram fragments into a single
- * datagram message. (That is, datagrams addressed to local nodes.) */
-class CanDatagramParser : public CanFrameStateFlow
-{
-public:
-    enum
-    {
-        CAN_FILTER = CanMessageData::CAN_EXT_FRAME_FILTER |
-            (CanDefs::NMRANET_MSG << CanDefs::FRAME_TYPE_SHIFT) |
-            (CanDefs::NORMAL_PRIORITY << CanDefs::PRIORITY_SHIFT),
-        CAN_MASK = CanMessageData::CAN_EXT_FRAME_MASK |
-            CanDefs::FRAME_TYPE_MASK | CanDefs::PRIORITY_MASK |
-            CanDefs::CAN_FRAME_TYPE_MASK,
-    };
-
-    CanDatagramParser(IfCan *iface);
-    ~CanDatagramParser();
-
-    /// Handler callback for incoming frames.
-    Action entry() override
-    {
-        errorCode_ = 0;
-        const struct can_frame *f = &message()->data()->frame();
-
-        uint32_t id = GET_CAN_FRAME_ID_EFF(*f);
-        unsigned can_frame_type = (id & CanDefs::CAN_FRAME_TYPE_MASK) >>
-                                  CanDefs::CAN_FRAME_TYPE_SHIFT;
-
-        if (can_frame_type < 2 || can_frame_type > 5)
-        {
-            // Not datagram frame.
-            return release_and_exit();
-        }
-
-        srcAlias_ = (id & CanDefs::SRC_MASK) >> CanDefs::SRC_SHIFT;
-
-        uint64_t buffer_key = id & (CanDefs::DST_MASK | CanDefs::SRC_MASK);
-
-        dst_.alias = buffer_key >> (CanDefs::DST_SHIFT);
-        dstNode_ = nullptr;
-        dst_.id = if_can()->local_aliases()->lookup(NodeAlias(dst_.alias));
-        if (dst_.id)
-        {
-            dstNode_ = if_can()->lookup_local_node(dst_.id);
-        }
-        if (!dstNode_)
-        {
-            // Destination not local node.
-            return release_and_exit();
-        }
-
-        DatagramPayload *buf = nullptr;
-        bool last_frame = true;
-
-        switch (can_frame_type)
-        {
-            case 2:
-                // Single-frame datagram. Let's allocate one small buffer for
-                // it.
-                localBuffer_.clear();
-                localBuffer_.reserve(f->can_dlc);
-                buf = &localBuffer_;
-                break;
-            case 3:
-            {
-                // Datagram first frame
-                auto it = pendingBuffers_.find(buffer_key);
-                if (it != pendingBuffers_.end())
-                {
-                    pendingBuffers_.erase(it);
-                    /** Frames came out of order or more than one datagram is
-                     * being sent to the same dst. */
-                    errorCode_ = DatagramClient::RESEND_OK |
-                                 DatagramClient::OUT_OF_ORDER;
-                    break;
-                }
-
-                buf = &pendingBuffers_[buffer_key];
-                buf->clear();
-
-                // Datagram first frame. Get a full buffer.
-                buf->reserve(72);
-                last_frame = false;
-                break;
-            }
-            case 4:
-                // Datagram middle frame
-                last_frame = false;
-            // Fall through
-            case 5:
-            {
-                // Datagram last frame
-                auto it = pendingBuffers_.find(buffer_key);
-                if (it != pendingBuffers_.end())
-                {
-                    buf = &it->second;
-                    if (last_frame)
-                    {
-                        localBuffer_.clear();
-                        // Moves ownership of the allocated data to the local
-                        // buffer.
-                        localBuffer_.swap(*buf);
-                        buf = &localBuffer_;
-                        pendingBuffers_.erase(it);
-                    }
-                }
-                break;
-            }
-            default:
-                // Not datagram frame.
-                return release_and_exit();
-        }
-
-        if (!buf)
-        {
-            errorCode_ =
-                DatagramClient::RESEND_OK | DatagramClient::OUT_OF_ORDER;
-        }
-        else if (buf->size() + f->can_dlc > DatagramDefs::MAX_SIZE)
-        {
-            // Too long datagram arrived.
-            LOG(WARNING, "AsyncDatagramCan: too long incoming datagram arrived."
-                         " Size: %d",
-                (int)(buf->size() + f->can_dlc));
-            errorCode_ = DatagramClient::PERMANENT_ERROR;
-            // Since we reject the datagram, let's not keep the buffer
-            // around. This call should not crash if the buffer was already
-            // deleted.
-            pendingBuffers_.erase(buffer_key);
-        }
-
-        if (errorCode_)
-        {
-            release();
-            // Gets the send flow to send rejection.
-            return allocate_and_call(if_can()->addressed_message_write_flow(),
-                                     STATE(send_rejection));
-        }
-
-        // Copies new data into buf.
-        buf->append(reinterpret_cast<const char *>(&f->data[0]), f->can_dlc);
-        release();
-        if (last_frame)
-        {
-            HASSERT(buf == &localBuffer_);
-            // Datagram is complete; let's send it to higher level If.
-            return allocate_and_call(if_can()->dispatcher(),
-                                     STATE(datagram_complete));
-        }
-        else
-        {
-            return exit();
-        }
-    }
-
-    /** Sends a datagram rejection. The lock_ is held and must be
-     * released. entry is an If::addressed write flow. errorCode_ != 0. */
-    Action send_rejection()
-    {
-        HASSERT(errorCode_);
-        HASSERT(dstNode_);
-        auto *f =
-            get_allocation_result(if_can()->addressed_message_write_flow());
-        f->data()->reset(Defs::MTI_DATAGRAM_REJECTED, dst_.id, {0, srcAlias_},
-                         error_to_buffer(errorCode_));
-        if_can()->addressed_message_write_flow()->send(f);
-        return exit();
-    }
-
-    /** Requests the datagram in buf_, dstNode_ etc... to be sent to the
-     * AsyncIf for processing. The lock_ is held and must be released. entry is
-     * the dispatcher. */
-    Action datagram_complete()
-    {
-        HASSERT(!errorCode_);
-        auto *f = get_allocation_result(if_can()->dispatcher());
-        GenMessage *m = f->data();
-        m->mti = Defs::MTI_DATAGRAM;
-        m->payload.swap(localBuffer_);
-        m->dst = dst_;
-        m->dstNode = dstNode_;
-        m->src.alias = srcAlias_;
-        // This will be zero if the alias is not known.
-        m->src.id =
-            m->src.alias ? if_can()->remote_aliases()->lookup(m->src.alias) : 0;
-        if (!m->src.id && m->src.alias)
-        {
-            // It's unlikely to have a datagram coming in on the interface with
-            // a local alias and still framed into CAN frames. But we still
-            // handle it.
-            m->src.id = if_can()->local_aliases()->lookup(m->src.alias);
-        }
-        if_can()->dispatcher()->send(f);
-        return exit();
-    }
-
-private:
-    /// A local buffer that owns the datagram payload bytes after we took the
-    /// entry from the pending buffers map.
-    DatagramPayload localBuffer_;
-
-    Node *dstNode_;
-    NodeHandle dst_;
-    unsigned short srcAlias_ : 12;
-    /// If non-zero, contains a Rejection error code and the datagram should not
-    /// be forwarded to the upper layer in this case.
-    uint16_t errorCode_;
-
-    /** Open datagram buffers. Keyed by (dstid | srcid), value is a datagram
-     * payload. When a payload is finished, it should be moved into the final
-     * datagram message using swap() to avoid memory copies.
-     * @TODO(balazs.racz) we need some kind of timeout-based release mechanism
-     * in here. */
-    StlMap<uint64_t, DatagramPayload> pendingBuffers_;
-};
-CanDatagramService::CanDatagramService(IfCan *iface,
-                                       int num_registry_entries,
-                                       int num_clients)
-    : DatagramService(iface, num_registry_entries)
-{
-    if_can()->add_owned_flow(new CanDatagramParser(if_can()));
-    for (int i = 0; i < num_clients; ++i)
-    {
-        auto *client_flow = new CanDatagramClient(if_can());
-        if_can()->add_owned_flow(client_flow);
-        client_allocator()->insert(static_cast<DatagramClient *>(client_flow));
-    }
-}
-
-Executable *TEST_CreateCanDatagramParser(IfCan *if_can)
-{
-    return new CanDatagramParser(if_can);
-}
-
-CanDatagramService::~CanDatagramService()
-{
-}
-
-CanDatagramParser::CanDatagramParser(IfCan *iface)
-    : CanFrameStateFlow(iface)
-{
-    if_can()->frame_dispatcher()->register_handler(this,
-        CAN_FILTER |
-            (CanDefs::DATAGRAM_ONE_FRAME << CanDefs::CAN_FRAME_TYPE_SHIFT),
-        CAN_MASK &
-            ~((CanDefs::DATAGRAM_ONE_FRAME ^ CanDefs::DATAGRAM_FIRST_FRAME)
-                << CanDefs::CAN_FRAME_TYPE_SHIFT));
-    if_can()->frame_dispatcher()->register_handler(this,
-        CAN_FILTER |
-            (CanDefs::DATAGRAM_MIDDLE_FRAME << CanDefs::CAN_FRAME_TYPE_SHIFT),
-        CAN_MASK &
-            ~((CanDefs::DATAGRAM_MIDDLE_FRAME ^ CanDefs::DATAGRAM_FINAL_FRAME)
-                << CanDefs::CAN_FRAME_TYPE_SHIFT));
-}
-
-CanDatagramParser::~CanDatagramParser()
-{
-    if_can()->frame_dispatcher()->unregister_handler_all(this);
-}
+    /// Priority in the executor.
+    unsigned priority_ : 24;
+    /// Constant used to clamp the incoming priority value to something that
+    /// first in priority_ bit field.
+    static constexpr unsigned MAX_PRIORITY = (1 << 24) - 1;
+}; // class DatagramClientImpl
 
 } // namespace openlcb

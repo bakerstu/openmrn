@@ -34,12 +34,17 @@
 #ifndef _UTILS_HUBDEVICESELECT_HXX_
 #define _UTILS_HUBDEVICESELECT_HXX_
 
+#include "openmrn_features.h"
+
+#ifndef OPENMRN_FEATURE_EXECUTOR_SELECT
+#error OS does not have implementation for Executor::select, cannot compile HubDeviceSelect.
+#endif
+
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
 
 #include "executor/StateFlow.hxx"
-#include "freertos/can_ioctl.h"
 #include "utils/Hub.hxx"
 
 /// Generic template for the buffer traits. HubDeviceSelect will not compile on
