@@ -5,25 +5,33 @@
 class LimitedPoolTest : public ::testing::Test
 {
 protected:
+    /// Helper class that represents the StateFlow trying to allocate an object
+    /// from the pool.
     class AllocCb : public Executable
     {
     public:
-        AllocCb(LimitedPoolTest* parent) : parent_(parent) {}
+        AllocCb(LimitedPoolTest *parent)
+            : parent_(parent)
+        {
+        }
         void alloc_result(QMember *item) override
         {
-            BufferBase* b = (BufferBase*) item;
+            BufferBase *b = (BufferBase *)item;
             parent_->pool.alloc_async_init(b, &parent_->buffer_);
         }
         void run() override
         {
             DIE("should not be called");
         }
+
     private:
-        LimitedPoolTest* parent_;
-    } allocCb_{this};
+        LimitedPoolTest *parent_;
+    } allocCb_ {this};
 
     friend class AllocCb;
-    
+
+    /// Allocates an object from the pool and expects the allocation to succeed.
+    /// @return the buffer allocated (with auto-delete wrapper).
     BufferPtr<int> allocate_sync()
     {
         buffer_ = nullptr;
@@ -34,6 +42,9 @@ protected:
         return r;
     }
 
+    /// Tries to allocate an object from the pool, and expects the allocation to
+    /// fail. The request will be enqueued, and at a later point the buffer will
+    /// show up in the buffer_ variable.
     void allocate_fail()
     {
         buffer_ = nullptr;
@@ -41,8 +52,12 @@ protected:
         ASSERT_FALSE(buffer_);
     }
 
+    /// Type of the buffer we are using for the test.
     typedef Buffer<int> buffer_type;
-    buffer_type* buffer_;
+    /// Temporary variable where the allocated buffers are deposited by the
+    /// AllocCb class.
+    buffer_type *buffer_;
+    /// Pool that we are testing.
     LimitedPool pool {sizeof(buffer_type), 2};
 };
 
@@ -70,7 +85,7 @@ TEST_F(LimitedPoolTest, release)
 
     b1.reset();
     EXPECT_EQ(1u, pool.free_items());
-    
+
     b2.reset();
     EXPECT_EQ(2u, pool.free_items());
 
@@ -83,7 +98,7 @@ TEST_F(LimitedPoolTest, allocate_fail)
     auto b1 = allocate_sync();
     auto b2 = allocate_sync();
     allocate_fail();
-    
+
     ASSERT_TRUE(b1.get());
     ASSERT_TRUE(b2.get());
     b1.reset(); // will cause next in line to get the buffer.

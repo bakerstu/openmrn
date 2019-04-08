@@ -39,30 +39,39 @@
 
 #include "utils/Buffer.hxx"
 
+/// Implementation of a Pool interface that takes memory from mainBufferPool but
+/// limits the number of buffers allocatable. Later async allocations will be
+/// blocked until an earlier buffer gets freed. Freed buffers go back to the
+/// main buffer pool, so no memory is captive in this object.
 class LimitedPool : public Pool, private Atomic
 {
 public:
+    /// @param entry_size is the byte size of the objects to be
+    /// allocated. Usually sizeof(Buffer<YourType>).
+    /// @param entry_count max number of buffer that can be allocated via this
+    /// pool.
     LimitedPool(unsigned entry_size, unsigned entry_count)
         : itemSize_(entry_size)
         , freeCount_(entry_count)
     {
     }
 
+    /// Number of free items in the pool.
     size_t free_items() override
     {
         return freeCount_;
     }
 
-    /** Number of free items in the pool for a given allocation size.
-     * @param size size of interest
-     * @return number of free items in the pool for a given allocation size
-     */
+    /// Number of free items in the pool for a given allocation size.
+    /// @param size size of interest
+    /// @return number of free items in the pool for a given allocation size
     size_t free_items(size_t size) override
     {
         return size == itemSize_ ? freeCount_ : 0;
     }
 
 protected:
+    /// Internal helper funciton used by the Buffer implementation.
     BufferBase *alloc_untyped(size_t size, Executable *flow) override
     {
         HASSERT(size == itemSize_);
@@ -93,6 +102,7 @@ protected:
         }
     }
 
+    /// Function called when a buffer refcount reaches zero.
     void free(BufferBase *item) override
     {
         HASSERT(item->size() == itemSize_);
