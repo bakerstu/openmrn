@@ -1,0 +1,93 @@
+#include "utils/async_if_test_helper.hxx"
+
+#include "utils/LimitedPool.hxx"
+
+class LimitedPoolTest : public ::testing::Test
+{
+protected:
+    class AllocCb : public Executable
+    {
+    public:
+        AllocCb(LimitedPoolTest* parent) : parent_(parent) {}
+        void alloc_result(QMember *item) override
+        {
+            BufferBase* b = (BufferBase*) item;
+            parent_->pool.alloc_async_init(b, &parent_->buffer_);
+        }
+        void run() override
+        {
+            DIE("should not be called");
+        }
+    private:
+        LimitedPoolTest* parent_;
+    } allocCb_{this};
+
+    friend class AllocCb;
+    
+    BufferPtr<int> allocate_sync()
+    {
+        buffer_ = nullptr;
+        pool.alloc(&buffer_, &allocCb_);
+        EXPECT_TRUE(buffer_);
+        auto r = get_buffer_deleter(buffer_);
+        buffer_ = nullptr;
+        return r;
+    }
+
+    void allocate_fail()
+    {
+        buffer_ = nullptr;
+        pool.alloc(&buffer_, &allocCb_);
+        ASSERT_FALSE(buffer_);
+    }
+
+    typedef Buffer<int> buffer_type;
+    buffer_type* buffer_;
+    LimitedPool pool {sizeof(buffer_type), 2};
+};
+
+TEST_F(LimitedPoolTest, construct)
+{
+}
+
+TEST_F(LimitedPoolTest, allocate_success)
+{
+    EXPECT_EQ(2u, pool.free_items());
+    auto b1 = allocate_sync();
+    EXPECT_EQ(1u, pool.free_items());
+    auto b2 = allocate_sync();
+    EXPECT_EQ(0u, pool.free_items());
+
+    ASSERT_TRUE(b1.get());
+    ASSERT_TRUE(b2.get());
+}
+
+TEST_F(LimitedPoolTest, release)
+{
+    auto b1 = allocate_sync();
+    auto b2 = allocate_sync();
+    EXPECT_EQ(0u, pool.free_items());
+
+    b1.reset();
+    EXPECT_EQ(1u, pool.free_items());
+    
+    b2.reset();
+    EXPECT_EQ(2u, pool.free_items());
+
+    ASSERT_FALSE(b1.get());
+    ASSERT_FALSE(b2.get());
+}
+
+TEST_F(LimitedPoolTest, allocate_fail)
+{
+    auto b1 = allocate_sync();
+    auto b2 = allocate_sync();
+    allocate_fail();
+    
+    ASSERT_TRUE(b1.get());
+    ASSERT_TRUE(b2.get());
+    b1.reset(); // will cause next in line to get the buffer.
+    ASSERT_TRUE(buffer_);
+    buffer_->unref();
+    EXPECT_EQ(1u, pool.free_items());
+}
