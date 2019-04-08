@@ -352,8 +352,9 @@ public:
     }
 
 #ifndef OPENMRN_FEATURE_SINGLE_THREADED
-    static void thread_entry(void* arg) {
-        OpenMRN* p = (OpenMRN*) arg;
+    static void thread_entry(void *arg)
+    {
+        OpenMRN *p = (OpenMRN *)arg;
         p->stack()->executor()->thread_body();
     }
 
