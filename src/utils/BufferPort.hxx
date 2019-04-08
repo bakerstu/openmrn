@@ -82,7 +82,7 @@ public:
         }
         return true;
     }
-    
+
 private:
     Action entry() override
     {
@@ -102,12 +102,6 @@ private:
             {
                 timerPending_ = 1;
                 bufferTimer_.start(delayNsec_);
-            }
-            if (!tgtBuf_) {
-                // Will ensure we keep track of the skipMember_ inside as well.
-                tgtBuf_ = transfer_message();
-                // Invokes the caller's notify in case there is one set.
-                tgtBuf_->set_done(nullptr);
             }
             return release_and_exit();
         }
@@ -129,6 +123,7 @@ private:
         }
     }
 
+    /// State when the allocation of output buffer completed.
     Action buf_alloc_done()
     {
         tgtBuf_ = get_allocation_result(downstream_);
@@ -187,6 +182,8 @@ private:
         BufferPort *parent_; ///< what to notify upon timeout.
     } bufferTimer_{this}; ///< timer instance.
 
+    /// Pool implementation that limits the number of buffers allocateable to
+    /// the configuration option.
     LimitedPool outputPool_ {sizeof(*tgtBuf_),
         (unsigned)config_gridconnect_bridge_max_outgoing_packets()};
     /// Caches one output buffer to fill in the buffer flush method.
