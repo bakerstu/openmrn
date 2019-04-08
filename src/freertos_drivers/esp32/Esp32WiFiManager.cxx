@@ -36,7 +36,9 @@
 #include "os/MDNS.hxx"
 
 #include <esp_event_loop.h>
+#include <esp_log.h>
 #include <esp_wifi.h>
+#include <esp_wifi_internal.h>
 #include <mdns.h>
 #include <rom/crc.h>
 #include <tcpip_adapter.h>
@@ -460,6 +462,15 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
     }
 }
 
+void Esp32WiFiManager::enable_verbose_logging()
+{
+    esp32VerboseLogging_ = true;
+    esp_log_level_set("wifi", ESP_LOG_VERBOSE);
+    esp_wifi_internal_set_log_level(WIFI_LOG_VERBOSE);
+    esp_wifi_internal_set_log_mod(
+        WIFI_LOG_MODULE_ALL, WIFI_LOG_SUBMODULE_ALL, true);
+}
+
 // If the Esp32WiFiManager is setup to manage the WiFi system, the following
 // steps are executed:
 // 1) Start the TCP/IP adapter.
@@ -500,6 +511,14 @@ void Esp32WiFiManager::start_wifi_system()
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     LOG(INFO, "[WiFi] Initializing WiFi stack");
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    if (esp32VerboseLogging_)
+    {
+        esp_log_level_set("wifi", ESP_LOG_VERBOSE);
+        esp_wifi_internal_set_log_level(WIFI_LOG_VERBOSE);
+        esp_wifi_internal_set_log_mod(
+            WIFI_LOG_MODULE_ALL, WIFI_LOG_SUBMODULE_ALL, true);
+    }
 
     // Set the WiFi mode to STATION.
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
