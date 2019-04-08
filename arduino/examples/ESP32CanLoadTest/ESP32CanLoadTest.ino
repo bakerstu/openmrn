@@ -96,8 +96,12 @@ const char *password = WIFI_PASS;
 const char *hostname = "esp32mrn";
 
 OVERRIDE_CONST(gridconnect_buffer_size, 3512);
+//OVERRIDE_CONST(gridconnect_buffer_delay_usec, 200000);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
-OVERRIDE_CONST(gc_generate_newlines, CONSTANT_FALSE);
+OVERRIDE_CONST(gc_generate_newlines, CONSTANT_TRUE);
+OVERRIDE_CONST(executor_select_prescaler, 60);
+OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 3);
+
 
 #endif // USE_WIFI
 
