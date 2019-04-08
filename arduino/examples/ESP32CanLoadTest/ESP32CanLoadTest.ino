@@ -278,6 +278,9 @@ void IRAM_ATTR onTimer()
 
 void setup()
 {
+#ifdef USE_WIFI
+    wifi_mgr.enable_verbose_logging();
+#endif    
     Serial.begin(115200L);
 
     timer = timerBegin(3, 80, true); // timer_id = 3; divider=80; countUp = true;
