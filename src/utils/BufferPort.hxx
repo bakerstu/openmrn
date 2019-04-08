@@ -86,7 +86,8 @@ public:
 private:
     Action entry() override
     {
-        if (!tgtBuf_) {
+        if (!tgtBuf_)
+        {
             return allocate_and_call(downstream_, STATE(buf_alloc_done),
                 config_gridconnect_bridge_max_outgoing_packets() <= 1
                     ? nullptr

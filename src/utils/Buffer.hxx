@@ -179,7 +179,7 @@ protected:
 
     /** Allow LimitedPool access to our fields */
     friend class LimitedPool;
-    
+
     DISALLOW_COPY_AND_ASSIGN(BufferBase);
 };
 

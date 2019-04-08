@@ -104,7 +104,6 @@ DECLARE_CONST(gridconnect_bridge_max_incoming_packets);
 /// output socket cannot send the data fast enough.
 DECLARE_CONST(gridconnect_bridge_max_outgoing_packets);
 
-
 /** Number of bytes of gridconnect data to buffer before sending off the
  * lowlevel system (such as TCP socket). */
 DECLARE_CONST(gridconnect_buffer_size);
