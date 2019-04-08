@@ -182,7 +182,7 @@ private:
         BufferPort *parent_; ///< what to notify upon timeout.
     } bufferTimer_{this}; ///< timer instance.
 
-    /// Pool implementation that limits the number of buffers allocateable to
+    /// Pool implementation that limits the number of buffers allocatable to
     /// the configuration option.
     LimitedPool outputPool_ {sizeof(*tgtBuf_),
         (unsigned)config_gridconnect_bridge_max_outgoing_packets()};
