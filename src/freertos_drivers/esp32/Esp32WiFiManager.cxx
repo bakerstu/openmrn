@@ -507,6 +507,11 @@ void Esp32WiFiManager::start_wifi_system()
     // Install event loop handler.
     ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, this));
 
+    // Start the WiFi adapter.
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    LOG(INFO, "[WiFi] Initializing WiFi stack");
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
     if (esp32VerboseLogging_)
     {
         esp_log_level_set("wifi", ESP_LOG_VERBOSE);
@@ -515,11 +520,6 @@ void Esp32WiFiManager::start_wifi_system()
             WIFI_LOG_MODULE_ALL, WIFI_LOG_SUBMODULE_ALL, true);
     }
 
-    // Start the WiFi adapter.
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    LOG(INFO, "[WiFi] Initializing WiFi stack");
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    
     // Set the WiFi mode to STATION.
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 
