@@ -218,7 +218,7 @@ private:
 
     /// if true, request esp32 wifi to do verbose logging.
     bool esp32VerboseLogging_{false};
-    
+
     /// @ref GcTcpHub for this node's hub if enabled.
     std::unique_ptr<GcTcpHub> hub_;
 

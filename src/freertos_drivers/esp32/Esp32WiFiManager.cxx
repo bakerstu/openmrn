@@ -467,9 +467,9 @@ void Esp32WiFiManager::enable_verbose_logging()
     esp32VerboseLogging_ = true;
     esp_log_level_set("wifi", ESP_LOG_VERBOSE);
     esp_wifi_internal_set_log_level(WIFI_LOG_VERBOSE);
-    esp_wifi_internal_set_log_mod(WIFI_LOG_MODULE_ALL, WIFI_LOG_SUBMODULE_ALL, true);
+    esp_wifi_internal_set_log_mod(
+        WIFI_LOG_MODULE_ALL, WIFI_LOG_SUBMODULE_ALL, true);
 }
-
 
 // If the Esp32WiFiManager is setup to manage the WiFi system, the following
 // steps are executed:
