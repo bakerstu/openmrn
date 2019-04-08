@@ -38,7 +38,7 @@
 
 #include "utils/LimitedPool.hxx"
 
-/// A wrapper class around a string-based Hub Port that buffersthe outgoing
+/// A wrapper class around a string-based Hub Port that buffers the outgoing
 /// bytes for a specified delay timer before sending the data off. This helps
 /// accumulate more data per TCP packet and increase transmission efficiency.
 ///
