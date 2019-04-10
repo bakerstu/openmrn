@@ -52,6 +52,26 @@ public:
   }
 };
 
+#elif defined(ESP32)
+
+#include "freertos_includes.h"
+
+class Atomic
+{
+public:
+    void lock()
+    {
+        portENTER_CRITICAL(&mux);
+    }
+    void unlock()
+    {
+        portEXIT_CRITICAL(&mux);
+    }
+
+private:
+    portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+};
+
 #else
 
 #include "os/OS.hxx"
