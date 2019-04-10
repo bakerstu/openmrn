@@ -499,6 +499,7 @@ void Esp32WiFiManager::start_wifi_system()
     // Start the WiFi adapter.
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     LOG(INFO, "[WiFi] Initializing WiFi stack");
+    cfg.nvs_enable = false;
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     // Set the WiFi mode to STATION.
