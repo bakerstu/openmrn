@@ -113,19 +113,28 @@ void cpuload_tick(unsigned irq)
 {
     if (!Singleton<CpuLoad>::exists())
         return;
+#ifdef ESP32
     if (irq != 0)
     {
         Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
         return;
     }
-#ifdef ESP32
-    auto hdl = xTaskGetCurrentTaskHandleForCPU(0);
-    bool is_idle = xTaskGetIdleTaskHandleForCPU(0) == hdl;
-    Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
-    hdl = xTaskGetCurrentTaskHandleForCPU(1);
-    is_idle = xTaskGetIdleTaskHandleForCPU(1) == hdl;
+    else
+    {
+        // assumes openmrn task is pinnedto core 0
+        auto hdl = xTaskGetCurrentTaskHandleForCPU(0);
+        bool is_idle = xTaskGetIdleTaskHandleForCPU(0) == hdl;
+        Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
+    }
+    auto hdl = xTaskGetCurrentTaskHandleForCPU(1);
+    bool is_idle = xTaskGetIdleTaskHandleForCPU(1) == hdl;
     Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
 #else    
+    if (irq != 0)
+    {
+        Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
+        return;
+    }
     auto hdl = xTaskGetCurrentTaskHandle();
     bool is_idle = xTaskGetIdleTaskHandle() == hdl;
     Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
