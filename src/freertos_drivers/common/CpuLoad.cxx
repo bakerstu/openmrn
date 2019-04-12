@@ -117,19 +117,18 @@ void cpuload_tick(unsigned irq)
     if (irq != 0)
     {
         Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
-        return;
     }
-    else
+    else // assumes openmrn task is pinned to core 0
     {
-        // assumes openmrn task is pinnedto core 0
         auto hdl = xTaskGetCurrentTaskHandleForCPU(0);
         bool is_idle = xTaskGetIdleTaskHandleForCPU(0) == hdl;
         Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
     }
+    // always records CPU 1 task.
     auto hdl = xTaskGetCurrentTaskHandleForCPU(1);
     bool is_idle = xTaskGetIdleTaskHandleForCPU(1) == hdl;
     Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
-#else    
+#else
     if (irq != 0)
     {
         Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
@@ -138,7 +137,7 @@ void cpuload_tick(unsigned irq)
     auto hdl = xTaskGetCurrentTaskHandle();
     bool is_idle = xTaskGetIdleTaskHandle() == hdl;
     Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
-#endif    
+#endif
 }
 }
 
