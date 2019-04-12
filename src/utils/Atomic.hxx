@@ -97,7 +97,7 @@ public:
     {
         portENTER_CRITICAL(&mux);
     }
-    /// Locks the specific critical section.
+    /// Unlocks the specific critical section.
     void unlock()
     {
         portEXIT_CRITICAL(&mux);
