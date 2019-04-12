@@ -181,6 +181,10 @@ private:
     /// @param on_exit is the Notifiable for when this socket has closed.
     void on_uplink_created(int fd, Notifiable *on_exit);
 
+    /// Enables the esp_wifi logging, including the esp_wifi_internal APIs when
+    /// available.
+    void enable_esp_wifi_logging();
+
     /// Handle for the wifi_manager_task that manages the WiFi stack, including
     /// periodic health checks of the connected hubs or clients.
     os_thread_t wifiTaskHandle_;
