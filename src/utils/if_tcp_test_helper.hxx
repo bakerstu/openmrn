@@ -146,6 +146,19 @@ protected:
         return p->get();
     }
 
+    BarrierNotifiable *get_notifiable()
+    {
+        bn_.reset(&n_);
+        return &bn_;
+    }
+
+    void wait_for_notification()
+    {
+        n_.wait_for_notification();
+    }
+
+    SyncNotifiable n_;
+    BarrierNotifiable bn_;
     HubFlow device_{&g_service};
     ::testing::StrictMock<MockHubPort> listenPort_;
     /// Stores the data from capture_next_packet.
