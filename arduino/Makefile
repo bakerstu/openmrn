@@ -1,6 +1,6 @@
 all:
 
-ELFFILE=$(shell ls /tmp/arduino_build_*/*elf -r | tail -n 1)
+ELFFILE=$(shell ls /tmp/arduino_build_*/*elf -tr | tail -n 1)
 ESP32BINDIR=$(wildcard $(HOME)/.arduino15/packages/esp32/tools/xtensa-esp32-elf-gcc/*/bin/)
 
 PREFIX=$(ESP32BINDIR)/xtensa-esp32-elf-

@@ -36,7 +36,9 @@
 #include "os/MDNS.hxx"
 
 #include <esp_event_loop.h>
+#include <esp_log.h>
 #include <esp_wifi.h>
+#include <esp_wifi_internal.h>
 #include <mdns.h>
 #include <rom/crc.h>
 #include <tcpip_adapter.h>
@@ -446,18 +448,24 @@ void Esp32WiFiManager::process_wifi_event(int event_id)
                 // Wake up the wifi_manager_task so it can clean up
                 // connections.
                 xTaskNotifyGive(wifiTaskHandle_);
+            }
 
-                // If we are managing the WiFi and MDNS systems we need to
-                // trigger the reconnection process at this point.
-                if (manageWiFi_)
-                {
-                    LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.",
-                        ssid_);
-                    esp_wifi_connect();
-                }
+            // If we are managing the WiFi and MDNS systems we need to
+            // trigger the reconnection process at this point.
+            if (manageWiFi_)
+            {
+                LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.",
+                    ssid_);
+                esp_wifi_connect();
             }
             break;
     }
+}
+
+void Esp32WiFiManager::enable_verbose_logging()
+{
+    esp32VerboseLogging_ = true;
+    enable_esp_wifi_logging();
 }
 
 // If the Esp32WiFiManager is setup to manage the WiFi system, the following
@@ -499,7 +507,13 @@ void Esp32WiFiManager::start_wifi_system()
     // Start the WiFi adapter.
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     LOG(INFO, "[WiFi] Initializing WiFi stack");
+    cfg.nvs_enable = false;
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    if (esp32VerboseLogging_)
+    {
+        enable_esp_wifi_logging();
+    }
 
     // Set the WiFi mode to STATION.
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -741,6 +755,19 @@ void Esp32WiFiManager::on_uplink_created(int fd, Notifiable *on_exit)
     // restart the stack to kick off alias allocation and send node init
     // packets.
     stack_->restart_stack();
+}
+
+void Esp32WiFiManager::enable_esp_wifi_logging()
+{
+    esp_log_level_set("wifi", ESP_LOG_VERBOSE);
+
+// arduino-esp32 1.0.2 uses ESP-IDF 3.2 which does not have these two methods
+// in the headers, they are only available in ESP-IDF 3.3.
+#if defined(WIFI_LOG_SUBMODULE_ALL)
+    esp_wifi_internal_set_log_level(WIFI_LOG_VERBOSE);
+    esp_wifi_internal_set_log_mod(
+        WIFI_LOG_MODULE_ALL, WIFI_LOG_SUBMODULE_ALL, true);
+#endif // WIFI_LOG_SUBMODULE_ALL
 }
 
 } // namespace openmrn_arduino
