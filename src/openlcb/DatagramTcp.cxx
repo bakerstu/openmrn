@@ -36,16 +36,14 @@
 
 #include "openlcb/DatagramImpl.hxx"
 
-
 namespace openlcb
 {
 
-TcpDatagramService::TcpDatagramService(IfTcp *iface,
-                                       int num_registry_entries,
-                                       int num_clients)
+TcpDatagramService::TcpDatagramService(
+    IfTcp *iface, int num_registry_entries, int num_clients)
     : DatagramService(iface, num_registry_entries)
 {
-    auto* dg_send = if_tcp()->addressed_message_write_flow();
+    auto *dg_send = if_tcp()->addressed_message_write_flow();
     for (int i = 0; i < num_clients; ++i)
     {
         auto *client_flow = new DatagramClientImpl(if_tcp(), dg_send);

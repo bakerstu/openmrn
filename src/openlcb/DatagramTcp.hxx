@@ -35,9 +35,8 @@
 #ifndef _OPENLCB_DATAGRAMTCP_HXX_
 #define _OPENLCB_DATAGRAMTCP_HXX_
 
-#include "openlcb/IfTcp.hxx"
 #include "openlcb/Datagram.hxx"
-
+#include "openlcb/IfTcp.hxx"
 
 namespace openlcb
 {
@@ -52,8 +51,7 @@ public:
     /// datagram handlers can be registered)
     /// @param num_clients how many datagram clients to create. These are
     /// allocated and freed on demand by flows sending datagrams.
-    TcpDatagramService(IfTcp *iface, int num_registry_entries,
-                       int num_clients);
+    TcpDatagramService(IfTcp *iface, int num_registry_entries, int num_clients);
 
     ~TcpDatagramService();
 
@@ -63,10 +61,6 @@ public:
     }
 };
 
-
-
 } // namespace openlcb
-
-
 
 #endif // _OPENLCB_DATAGRAMTCP_HXX_

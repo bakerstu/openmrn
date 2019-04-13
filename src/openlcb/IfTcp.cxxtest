@@ -827,12 +827,12 @@ TEST_F(MultiTcpIfTest, hub_routes_addressed)
         handle_message(Pointee(AllOf(Field(&GenMessage::mti,
                                          Defs::MTI_PROTOCOL_SUPPORT_INQUIRY),
                            Field(&GenMessage::payload, Eq("")),
-                           Field(&GenMessage::src,
-                               Field(&NodeHandle::id, REMOTE_NODE_ID + 2)),
-                           Field(&GenMessage::dst,
-                               Field(&NodeHandle::id, REMOTE_NODE_ID + 0)),
+                           Field(&GenMessage::src, Field(&NodeHandle::id,
+                                                       REMOTE_NODE_ID + 2)),
+                           Field(&GenMessage::dst, Field(&NodeHandle::id,
+                                                       REMOTE_NODE_ID + 0)),
                            Field(&GenMessage::dstNode, n0.get()))),
-            _));
+                    _));
 
     PIPClient pip_client(&clients_[2]->ifTcp_);
     uint64_t pip_data =

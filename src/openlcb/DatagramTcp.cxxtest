@@ -79,15 +79,14 @@ protected:
         b->data()->reset(Defs::MTI_DATAGRAM, src->node_id(),
             NodeHandle(nc2_->node_id()), "01234567");
 
-        EXPECT_CALL(h,
-            handle_datagram(
-                Pointee(AllOf(Field(&IncomingDatagram::src,
-                                  Field(&NodeHandle::id, src->node_id())),
-                    Field(&IncomingDatagram::dst, nc2_.get()),
-                    // Field(&IncomingDatagram::payload, NotNull()),
-                    Field(&IncomingDatagram::payload,
-                        IsBufferValueString("01234567")) //,
-                    ))));
+        EXPECT_CALL(h, handle_datagram(Pointee(
+                           AllOf(Field(&IncomingDatagram::src,
+                                     Field(&NodeHandle::id, src->node_id())),
+                               Field(&IncomingDatagram::dst, nc2_.get()),
+                               // Field(&IncomingDatagram::payload, NotNull()),
+                               Field(&IncomingDatagram::payload,
+                                     IsBufferValueString("01234567")) //,
+                               ))));
 
         c->write_datagram(b);
         wait_for_notification();
@@ -96,9 +95,9 @@ protected:
         src_dg->client_allocator()->typed_insert(c);
     }
 
-    TcpDatagramService dgC_ {&ifTcp_, 3, 2};
-    TcpDatagramService dg0_ {&clients_[0]->ifTcp_, 3, 2};
-    TcpDatagramService dg1_ {&clients_[0]->ifTcp_, 3, 2};
+    TcpDatagramService dgC_{&ifTcp_, 3, 2};
+    TcpDatagramService dg0_{&clients_[0]->ifTcp_, 3, 2};
+    TcpDatagramService dg1_{&clients_[0]->ifTcp_, 3, 2};
 };
 
 TEST_F(TcpDatagramTest, create)
@@ -109,15 +108,14 @@ TEST_F(TcpDatagramTest, raw_incoming)
 {
     StrictMock<MockDatagramHandler> h(&dgC_);
     dgC_.registry()->insert(nullptr, 0x30, &h);
-    EXPECT_CALL(h,
-        handle_datagram(
-            Pointee(AllOf(Field(&IncomingDatagram::src,
-                              Field(&NodeHandle::id, TEST_NODE_ID + 4)),
-                Field(&IncomingDatagram::dst, nc_.get()),
-                // Field(&IncomingDatagram::payload, NotNull()),
-                Field(&IncomingDatagram::payload,
-                    IsBufferValueString("01234567")) //,
-                ))));
+    EXPECT_CALL(h, handle_datagram(Pointee(
+                       AllOf(Field(&IncomingDatagram::src,
+                                 Field(&NodeHandle::id, TEST_NODE_ID + 4)),
+                           Field(&IncomingDatagram::dst, nc_.get()),
+                           // Field(&IncomingDatagram::payload, NotNull()),
+                           Field(&IncomingDatagram::payload,
+                                 IsBufferValueString("01234567")) //,
+                           ))));
     capture_next_packet();
     generate_input_message(Defs::MTI_DATAGRAM, TEST_NODE_ID + 4,
         NodeHandle(TEST_NODE_ID), "01234567");
@@ -133,7 +131,7 @@ TEST_F(TcpDatagramTest, raw_outgoing)
     BarrierNotifiable *bn = get_notifiable();
     b->set_done(bn);
     b->data()->reset(Defs::MTI_DATAGRAM, nc_->node_id(),
-                     NodeHandle(REMOTE_NODE_ID + 10), "01234567");
+        NodeHandle(REMOTE_NODE_ID + 10), "01234567");
 
     capture_next_packet();
     c->write_datagram(b);
