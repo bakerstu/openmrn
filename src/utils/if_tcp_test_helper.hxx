@@ -122,6 +122,30 @@ protected:
         EXPECT_EQ(expected.payload, actual.payload);                           \
     } while (0)
 
+    /// Helper function to create a new virtual node.
+    /// @param p is the pointer where the node objects' ownership will be
+    /// transferred.
+    /// @param node_id is the id of the new node.
+    /// @param iface the TCP interface to which to bind the node. nullptr = the
+    /// default interface of the test.
+    /// @return the new node pointer.
+    template <class NodeType = DefaultNode>
+    Node *create_new_node(
+        std::unique_ptr<NodeType> *p, NodeID node_id, IfTcp *iface = nullptr)
+    {
+        if (!iface)
+        {
+            iface = &ifTcp_;
+        }
+        capture_next_packet();
+        p->reset(new DefaultNode(iface, node_id));
+        wait();
+        Mock::VerifyAndClear(&listenPort_);
+        expect_packet_is(lastPacket_, Defs::MTI_INITIALIZATION_COMPLETE,
+            node_id, node_id_to_buffer(node_id));
+        return p->get();
+    }
+
     HubFlow device_{&g_service};
     ::testing::StrictMock<MockHubPort> listenPort_;
     /// Stores the data from capture_next_packet.
@@ -149,13 +173,7 @@ class TcpNodeTest : public TcpIfTest
 protected:
     TcpNodeTest()
     {
-        capture_next_packet();
-        ownedNode_.reset(new DefaultNode(&ifTcp_, TEST_NODE_ID));
-        node_ = ownedNode_.get();
-        wait();
-        Mock::VerifyAndClear(&listenPort_);
-        expect_packet_is(lastPacket_, Defs::MTI_INITIALIZATION_COMPLETE,
-            TEST_NODE_ID, node_id_to_buffer(TEST_NODE_ID));
+        node_ = create_new_node(&ownedNode_, TEST_NODE_ID);
     }
 
     std::unique_ptr<DefaultNode> ownedNode_;

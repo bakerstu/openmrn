@@ -812,22 +812,14 @@ TEST_F(MultiTcpIfTest, hub_routes_addressed)
     add_client(REMOTE_NODE_ID + 1);
     add_client(REMOTE_NODE_ID + 2);
 
-    capture_all_packets();
-    DefaultNode nc(&ifTcp_, TEST_NODE_ID);
-    DefaultNode n0(&clients_[0]->ifTcp_, REMOTE_NODE_ID + 0);
-    DefaultNode n1(&clients_[1]->ifTcp_, REMOTE_NODE_ID + 1);
-    DefaultNode n2(&clients_[2]->ifTcp_, REMOTE_NODE_ID + 2);
+    std::unique_ptr<DefaultNode> nc, n0, n1, n2;
+
+    create_new_node(&nc, TEST_NODE_ID, &ifTcp_);
+    create_new_node(&n0, REMOTE_NODE_ID + 0, &clients_[0]->ifTcp_);
+    create_new_node(&n1, REMOTE_NODE_ID + 1, &clients_[1]->ifTcp_);
+    create_new_node(&n2, REMOTE_NODE_ID + 2, &clients_[2]->ifTcp_);
     wait();
     usleep(1000);
-    expect_packet_is(allPackets_[0], Defs::MTI_INITIALIZATION_COMPLETE,
-        TEST_NODE_ID, node_id_to_buffer(TEST_NODE_ID));
-    expect_packet_is(allPackets_[1], Defs::MTI_INITIALIZATION_COMPLETE,
-        REMOTE_NODE_ID + 0, node_id_to_buffer(REMOTE_NODE_ID + 0));
-    expect_packet_is(allPackets_[2], Defs::MTI_INITIALIZATION_COMPLETE,
-        REMOTE_NODE_ID + 1, node_id_to_buffer(REMOTE_NODE_ID + 1));
-    expect_packet_is(allPackets_[3], Defs::MTI_INITIALIZATION_COMPLETE,
-        REMOTE_NODE_ID + 2, node_id_to_buffer(REMOTE_NODE_ID + 2));
-    EXPECT_EQ(4u, allPackets_.size());
 
     StrictMock<MockMessageHandler> h1;
     clients_[0]->ifTcp_.dispatcher()->register_handler(&h1, 0, 0);
@@ -835,30 +827,31 @@ TEST_F(MultiTcpIfTest, hub_routes_addressed)
         handle_message(Pointee(AllOf(Field(&GenMessage::mti,
                                          Defs::MTI_PROTOCOL_SUPPORT_INQUIRY),
                            Field(&GenMessage::payload, Eq("")),
-                           Field(&GenMessage::src, Field(&NodeHandle::id,
-                                                       REMOTE_NODE_ID + 2)),
-                           Field(&GenMessage::dst, Field(&NodeHandle::id,
-                                                       REMOTE_NODE_ID + 0)),
-                           Field(&GenMessage::dstNode, &n0))),
-                    _));
+                           Field(&GenMessage::src,
+                               Field(&NodeHandle::id, REMOTE_NODE_ID + 2)),
+                           Field(&GenMessage::dst,
+                               Field(&NodeHandle::id, REMOTE_NODE_ID + 0)),
+                           Field(&GenMessage::dstNode, n0.get()))),
+            _));
 
     PIPClient pip_client(&clients_[2]->ifTcp_);
     uint64_t pip_data =
         Defs::DATAGRAM | Defs::MEMORY_CONFIGURATION | Defs::TRACTION_FDI;
-    ProtocolIdentificationHandler pip_handler(&n0, pip_data);
+    ProtocolIdentificationHandler pip_handler(n0.get(), pip_data);
     wait();
     SyncNotifiable sync_n;
-    pip_client.request(NodeHandle(NodeID(REMOTE_NODE_ID + 0)), &n2, &sync_n);
+    capture_all_packets();
+    pip_client.request(
+        NodeHandle(NodeID(REMOTE_NODE_ID + 0)), n2.get(), &sync_n);
     usleep(1000);
     wait();
-    EXPECT_LE(5u, allPackets_.size());
-    expect_packet_is(allPackets_[4], Defs::MTI_PROTOCOL_SUPPORT_INQUIRY,
-        n2.node_id(), NodeHandle(NodeID(REMOTE_NODE_ID + 0)), EMPTY_PAYLOAD);
 
     sync_n.wait_for_notification();
+    ASSERT_EQ(2u, allPackets_.size());
+    expect_packet_is(allPackets_[0], Defs::MTI_PROTOCOL_SUPPORT_INQUIRY,
+        n2->node_id(), NodeHandle(NodeID(REMOTE_NODE_ID + 0)), EMPTY_PAYLOAD);
     EXPECT_EQ(PIPClient::OPERATION_SUCCESS, pip_client.error_code());
     EXPECT_EQ(pip_data, pip_client.response());
-    EXPECT_EQ(6u, allPackets_.size());
 }
 
 } // namespace openlcb
