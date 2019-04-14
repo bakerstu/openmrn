@@ -116,10 +116,6 @@ int appl_main(int argc, char *argv[])
         SocketClientParams::from_static(upstream_host, upstream_port),
         &connect_callback);
 
-    while (1)
-    {
-        sleep(1);
-    }
-
+    stack.loop_executor();
     return 0;
 }
