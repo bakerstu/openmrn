@@ -78,8 +78,25 @@ std::unique_ptr<SimpleStackBase::PhysicalIf> SimpleCanStackBase::create_if(
     return std::unique_ptr<PhysicalIf>(new CanPhysicalIf(node_id, service()));
 }
 
+SimpleTcpStackBase::SimpleTcpStackBase(const openlcb::NodeID node_id)
+    : SimpleStackBase(std::bind(&SimpleTcpStackBase::create_if, this, node_id))
+{
+}
+
+std::unique_ptr<SimpleStackBase::PhysicalIf> SimpleTcpStackBase::create_if(
+    const openlcb::NodeID node_id)
+{
+    return std::unique_ptr<PhysicalIf>(new TcpPhysicalIf(node_id, service()));
+}
+
 SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
     : SimpleCanStackBase(node_id)
+    , node_(iface(), node_id)
+{
+}
+
+SimpleTcpStack::SimpleTcpStack(const openlcb::NodeID node_id)
+    : SimpleTcpStackBase(node_id)
     , node_(iface(), node_id)
 {
 }
@@ -171,6 +188,10 @@ void SimpleTrainCanStack::start_node()
 void SimpleStackBase::start_after_delay()
 {
     start_iface(false);
+}
+
+void SimpleTcpStackBase::start_iface(bool restart)
+{
 }
 
 void SimpleCanStackBase::start_iface(bool restart)

@@ -43,6 +43,7 @@
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfigUpdateFlow.hxx"
 #include "openlcb/DatagramCan.hxx"
+#include "openlcb/DatagramTcp.hxx"
 #include "openlcb/DefaultNode.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/EventService.hxx"
@@ -445,13 +446,76 @@ private:
         {
             return &datagramService_;
         }
+        /// This flow is the connection between the stack and the device
+        /// drivers. It also acts as a hub to multiple different clients or CAN
+        /// ports.
         CanHubFlow canHub0_;
+        /// Implementation of OpenLCB interface.
         IfCan ifCan_;
+        /// Datagram service (and clients) matching the interface.
         CanDatagramService datagramService_;
     };
 
     /// Constructor helper function. Creates the specific objects needed for
     /// the CAN interface to function. Will be called exactly once by the
+    /// constructor of the base class.
+    std::unique_ptr<PhysicalIf> create_if(const openlcb::NodeID node_id);
+};
+
+class SimpleTcpStackBase : public SimpleStackBase
+{
+public:
+    SimpleTcpStackBase(const openlcb::NodeID node_id);
+
+    /// @return the device representing the connection to the TCP hardware
+    /// link.
+    HubFlow *tcp_hub()
+    {
+        return &static_cast<TcpPhysicalIf *>(ifaceHolder_.get())->tcpHub_;
+    }
+
+protected:
+    /// Helper function for start_stack et al.
+    void start_iface(bool restart) override;
+
+private:
+    class TcpPhysicalIf : public PhysicalIf
+    {
+    public:
+        TcpPhysicalIf(const openlcb::NodeID node_id, Service *service)
+            : tcpHub_(service)
+            , ifTcp_(node_id, &tcpHub_, config_local_nodes_count())
+            , datagramService_(&ifTcp_, config_num_datagram_registry_entries(),
+                  config_num_datagram_clients())
+        {
+        }
+
+        ~TcpPhysicalIf()
+        {
+        }
+
+        /// @return the OpenLCB interface object. Ownership is not transferred.
+        If *iface() override
+        {
+            return &ifTcp_;
+        }
+        /// @return the Datagram service bound to the interface. Ownership is
+        /// not transferred.
+        DatagramService *datagram_service() override
+        {
+            return &datagramService_;
+        }
+        /// This flow is the connection between the stack and the device
+        /// drivers.
+        HubFlow tcpHub_;
+        /// Implementation of OpenLCB interface.
+        IfTcp ifTcp_;
+        /// Datagram service (and clients) matching the interface.
+        TcpDatagramService datagramService_;
+    };
+
+    /// Constructor helper function. Creates the specific objects needed for
+    /// the TCP interface to function. Will be called exactly once by the
     /// constructor of the base class.
     std::unique_ptr<PhysicalIf> create_if(const openlcb::NodeID node_id);
 };
@@ -472,6 +536,36 @@ class SimpleCanStack : public SimpleCanStackBase
 {
 public:
     SimpleCanStack(const openlcb::NodeID node_id);
+
+    /// @returns the virtual node pointer of the main virtual node of the stack
+    /// (as defined by the NodeID argument of the constructor).
+    Node *node() override
+    {
+        return &node_;
+    }
+
+private:
+    static const auto PIP_RESPONSE = Defs::EVENT_EXCHANGE | Defs::DATAGRAM |
+        Defs::MEMORY_CONFIGURATION | Defs::ABBREVIATED_DEFAULT_CDI |
+        Defs::SIMPLE_NODE_INFORMATION | Defs::CDI;
+
+    void start_node() override
+    {
+        default_start_node();
+    }
+
+    /// The actual node.
+    DefaultNode node_;
+    /// Handles PIP requests.
+    ProtocolIdentificationHandler pipHandler_ {&node_, PIP_RESPONSE};
+    /// Handles SNIP requests.
+    SNIPHandler snipHandler_ {iface(), &node_, &infoFlow_};
+};
+
+class SimpleTcpStack : public SimpleTcpStackBase
+{
+public:
+    SimpleTcpStack(const openlcb::NodeID node_id);
 
     /// @returns the virtual node pointer of the main virtual node of the stack
     /// (as defined by the NodeID argument of the constructor).
