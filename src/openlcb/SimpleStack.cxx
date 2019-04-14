@@ -60,18 +60,31 @@
 namespace openlcb
 {
 
-SimpleCanStackBase::SimpleCanStackBase(const openlcb::NodeID node_id)
+SimpleStackBase::SimpleStackBase(
+    std::function<std::unique_ptr<SimpleStackBase::PhysicalIf>()>
+        create_if_helper)
+    : ifaceHolder_(create_if_helper())
 {
-    AddAliasAllocator(node_id, &ifCan_);
+}
+
+SimpleCanStackBase::SimpleCanStackBase(const openlcb::NodeID node_id)
+    : SimpleStackBase(std::bind(&SimpleCanStackBase::create_if, this, node_id))
+{
+}
+
+std::unique_ptr<SimpleStackBase::PhysicalIf> SimpleCanStackBase::create_if(
+    const openlcb::NodeID node_id)
+{
+    return std::make_unique<CanPhysicalIf>(node_id, service());
 }
 
 SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
     : SimpleCanStackBase(node_id)
-    , node_(&ifCan_, node_id)
+    , node_(iface(), node_id)
 {
 }
 
-void SimpleCanStackBase::start_stack(bool delay_start)
+void SimpleStackBase::start_stack(bool delay_start)
 {
 #if (!defined(ARDUINO)) || defined(ESP32)
     // Opens the eeprom file and sends configuration update commands to all
@@ -81,8 +94,7 @@ void SimpleCanStackBase::start_stack(bool delay_start)
 #endif // NOT ARDUINO, YES ESP32
 
     if (!delay_start) {
-        // Bootstraps the alias allocation process.
-        ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
+        start_iface(false);
     }
 
     // Adds memory spaces.
@@ -98,7 +110,7 @@ void SimpleCanStackBase::start_stack(bool delay_start)
     start_node();
 }
 
-void SimpleCanStackBase::default_start_node()
+void SimpleStackBase::default_start_node()
 {
     {
         auto *space = new ReadOnlyMemoryBlock(
@@ -155,38 +167,46 @@ void SimpleTrainCanStack::start_node()
         &trainNode_, MemoryConfigDefs::SPACE_FDI, &fdiBlock_);
 }
 
-void SimpleCanStackBase::start_after_delay()
+void SimpleStackBase::start_after_delay()
 {
-    // Bootstraps the alias allocation process.
-    ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
+    start_iface(false);
 }
 
-void SimpleCanStackBase::restart_stack()
+void SimpleCanStackBase::start_iface(bool restart)
 {
-    node()->clear_initialized();
-    ifCan_.alias_allocator()->reinit_seed();
-    ifCan_.local_aliases()->clear();
-    ifCan_.remote_aliases()->clear();
-    // Deletes all reserved aliases from the queue.
-    while (!ifCan_.alias_allocator()->reserved_aliases()->empty())
+    if (restart)
     {
-        Buffer<AliasInfo> *a = static_cast<Buffer<AliasInfo> *>(
-            ifCan_.alias_allocator()->reserved_aliases()->next().item);
-        if (a)
+        if_can()->alias_allocator()->reinit_seed();
+        if_can()->local_aliases()->clear();
+        if_can()->remote_aliases()->clear();
+        // Deletes all reserved aliases from the queue.
+        while (!if_can()->alias_allocator()->reserved_aliases()->empty())
         {
-            a->unref();
+            Buffer<AliasInfo> *a = static_cast<Buffer<AliasInfo> *>(
+                if_can()->alias_allocator()->reserved_aliases()->next().item);
+            if (a)
+            {
+                a->unref();
+            }
         }
     }
 
     // Bootstraps the fresh alias allocation process.
-    ifCan_.alias_allocator()->send(ifCan_.alias_allocator()->alloc());
+    if_can()->alias_allocator()->send(if_can()->alias_allocator()->alloc());
+}
+
+void SimpleStackBase::restart_stack()
+{
+    node()->clear_initialized();
+    start_iface(true);
+    
     // Causes all nodes to grab a new alias and send out node initialization
     // done messages. This object owns itself and will do `delete this;` at the
     // end of the process.
-    new ReinitAllNodes(&ifCan_);
+    new ReinitAllNodes(iface());
 }
 
-int SimpleCanStackBase::create_config_file_if_needed(
+int SimpleStackBase::create_config_file_if_needed(
     const InternalConfigData &cfg, uint16_t expected_version,
     unsigned file_size)
 {
@@ -260,7 +280,7 @@ int SimpleCanStackBase::create_config_file_if_needed(
     return fd;
 }
 
-int SimpleCanStackBase::check_version_and_factory_reset(
+int SimpleStackBase::check_version_and_factory_reset(
     const InternalConfigData &cfg, uint16_t expected_version, bool force)
 {
     HASSERT(CONFIG_FILENAME);
@@ -295,12 +315,12 @@ int SimpleCanStackBase::check_version_and_factory_reset(
 extern const uint16_t CDI_EVENT_OFFSETS[];
 const uint16_t *cdi_event_offsets_ptr = CDI_EVENT_OFFSETS;
 
-void SimpleCanStackBase::set_event_offsets(const vector<uint16_t> *offsets)
+void SimpleStackBase::set_event_offsets(const vector<uint16_t> *offsets)
 {
     cdi_event_offsets_ptr = &(*offsets)[0];
 }
 
-void SimpleCanStackBase::factory_reset_all_events(
+void SimpleStackBase::factory_reset_all_events(
     const InternalConfigData &cfg, int fd)
 {
     // First we find the event count.
@@ -328,7 +348,7 @@ void SimpleCanStackBase::add_gridconnect_port(
     int fd = ::open(path, O_RDWR);
     HASSERT(fd >= 0);
     LOG(INFO, "Adding device %s as fd %d", path, fd);
-    create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
+    create_gc_port_for_can_hub(can_hub(), fd, on_exit);
 }
 
 #if defined(__linux__) || defined(__MACH__)
@@ -338,7 +358,7 @@ void SimpleCanStackBase::add_gridconnect_tty(
     int fd = ::open(device, O_RDWR);
     HASSERT(fd >= 0);
     LOG(INFO, "Adding device %s as fd %d", device, fd);
-    create_gc_port_for_can_hub(&canHub0_, fd, on_exit);
+    create_gc_port_for_can_hub(can_hub(), fd, on_exit);
 
     HASSERT(!tcflush(fd, TCIOFLUSH));
     struct termios settings;
@@ -379,7 +399,7 @@ void SimpleCanStackBase::add_socketcan_port_select(
 
     bind(s, (struct sockaddr *)&addr, sizeof(addr));
 
-    auto *port = new HubDeviceSelect<CanHubFlow>(&canHub0_, s);
+    auto *port = new HubDeviceSelect<CanHubFlow>(can_hub(), s);
     additionalComponents_.emplace_back(port);
 }
 #endif
