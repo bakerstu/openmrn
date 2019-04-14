@@ -457,11 +457,17 @@ private:
     std::unique_ptr<PhysicalIf> create_if(const openlcb::NodeID node_id);
 };
 
-
 class SimpleTcpStackBase : public SimpleStackBase
 {
 public:
     SimpleTcpStackBase(const openlcb::NodeID node_id);
+
+    /// @return the device representing the connection to the TCP hardware
+    /// link.
+    HubFlow *tcp_hub()
+    {
+        return &static_cast<TcpPhysicalIf *>(ifaceHolder_.get())->tcpHub0_;
+    }
 
 protected:
     /// Helper function for start_stack et al.
