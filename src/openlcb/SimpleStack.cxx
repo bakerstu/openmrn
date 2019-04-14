@@ -75,7 +75,7 @@ SimpleCanStackBase::SimpleCanStackBase(const openlcb::NodeID node_id)
 std::unique_ptr<SimpleStackBase::PhysicalIf> SimpleCanStackBase::create_if(
     const openlcb::NodeID node_id)
 {
-    return std::make_unique<CanPhysicalIf>(node_id, service());
+    return std::unique_ptr<PhysicalIf>(new CanPhysicalIf(node_id, service()));
 }
 
 SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
