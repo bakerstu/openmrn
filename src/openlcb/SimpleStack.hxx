@@ -446,8 +446,13 @@ private:
         {
             return &datagramService_;
         }
+        /// This flow is the connection between the stack and the device
+        /// drivers. It also acts as a hub to multiple different clients or CAN
+        /// ports.
         CanHubFlow canHub0_;
+        /// Implementation of OpenLCB interface.
         IfCan ifCan_;
+        /// Datagram service (and clients) matching the interface.
         CanDatagramService datagramService_;
     };
 
@@ -466,7 +471,7 @@ public:
     /// link.
     HubFlow *tcp_hub()
     {
-        return &static_cast<TcpPhysicalIf *>(ifaceHolder_.get())->tcpHub0_;
+        return &static_cast<TcpPhysicalIf *>(ifaceHolder_.get())->tcpHub_;
     }
 
 protected:
@@ -478,8 +483,8 @@ private:
     {
     public:
         TcpPhysicalIf(const openlcb::NodeID node_id, Service *service)
-            : tcpHub0_(service)
-            , ifTcp_(node_id, &tcpHub0_, config_local_nodes_count())
+            : tcpHub_(service)
+            , ifTcp_(node_id, &tcpHub_, config_local_nodes_count())
             , datagramService_(&ifTcp_, config_num_datagram_registry_entries(),
                   config_num_datagram_clients())
         {
@@ -500,8 +505,12 @@ private:
         {
             return &datagramService_;
         }
-        HubFlow tcpHub0_;
+        /// This flow is the connection between the stack and the device
+        /// drivers.
+        HubFlow tcpHub_;
+        /// Implementation of OpenLCB interface.
         IfTcp ifTcp_;
+        /// Datagram service (and clients) matching the interface.
         TcpDatagramService datagramService_;
     };
 
