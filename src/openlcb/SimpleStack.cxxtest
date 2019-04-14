@@ -42,4 +42,20 @@ TEST_F(SimpleCanStackTest, create)
 {
 }
 
+class SimpleTcpStackTest : public AsyncCanTest
+{
+protected:
+    ~SimpleTcpStackTest()
+    {
+        twait();
+    }
+
+    SimpleTcpStack stack_ {TEST_NODE_ID};
+};
+
+TEST_F(SimpleTcpStackTest, create)
+{
+}
+
+
 } // namespace openlcb

@@ -547,6 +547,36 @@ private:
     SNIPHandler snipHandler_ {iface(), &node_, &infoFlow_};
 };
 
+class SimpleTcpStack : public SimpleTcpStackBase
+{
+public:
+    SimpleTcpStack(const openlcb::NodeID node_id);
+
+    /// @returns the virtual node pointer of the main virtual node of the stack
+    /// (as defined by the NodeID argument of the constructor).
+    Node *node() override
+    {
+        return &node_;
+    }
+
+private:
+    static const auto PIP_RESPONSE = Defs::EVENT_EXCHANGE | Defs::DATAGRAM |
+        Defs::MEMORY_CONFIGURATION | Defs::ABBREVIATED_DEFAULT_CDI |
+        Defs::SIMPLE_NODE_INFORMATION | Defs::CDI;
+
+    void start_node() override
+    {
+        default_start_node();
+    }
+
+    /// The actual node.
+    DefaultNode node_;
+    /// Handles PIP requests.
+    ProtocolIdentificationHandler pipHandler_ {&node_, PIP_RESPONSE};
+    /// Handles SNIP requests.
+    SNIPHandler snipHandler_ {iface(), &node_, &infoFlow_};
+};
+
 /// CAN-based stack with TrainNode.
 class SimpleTrainCanStack : public SimpleCanStackBase
 {

@@ -95,6 +95,12 @@ SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
 {
 }
 
+SimpleTcpStack::SimpleTcpStack(const openlcb::NodeID node_id)
+    : SimpleTcpStackBase(node_id)
+    , node_(iface(), node_id)
+{
+}
+
 void SimpleStackBase::start_stack(bool delay_start)
 {
 #if (!defined(ARDUINO)) || defined(ESP32)
