@@ -467,11 +467,16 @@ class SimpleTcpStackBase : public SimpleStackBase
 public:
     SimpleTcpStackBase(const openlcb::NodeID node_id);
 
-    /// @return the device representing the connection to the TCP hardware
-    /// link.
-    HubFlow *tcp_hub()
+    /// Adds a new link to the TCP interface. It is OK to add more than one
+    /// link, data between different links will be forwarded (without any
+    /// filtering).
+    /// @param fd is the file descriptor (socket) representing the link. Must
+    /// be select-capable.
+    /// @param on_error will be invoked when the link is closed due to
+    /// experiencing an error.
+    void add_tcp_port_select(int fd, Notifiable* on_error = nullptr)
     {
-        return &static_cast<TcpPhysicalIf *>(ifaceHolder_.get())->tcpHub_;
+        if_tcp()->add_network_fd(fd, on_error);
     }
 
 protected:
@@ -479,6 +484,22 @@ protected:
     void start_iface(bool restart) override;
 
 private:
+    /// This function is not safe to use. There is an expectation that only
+    /// complete OpenLCB-TCP packets are submitted to this hub. Use the
+    /// add_tcp_port_select() call instead.
+    /// @return the device representing the connection to the TCP hardware
+    /// link.
+    HubFlow *tcp_hub()
+    {
+        return &static_cast<TcpPhysicalIf *>(ifaceHolder_.get())->tcpHub_;
+    }
+
+    /// @return Interface object properly type cast.
+    IfTcp* if_tcp()
+    {
+        return &static_cast<TcpPhysicalIf *>(ifaceHolder_.get())->ifTcp_;
+    }
+
     class TcpPhysicalIf : public PhysicalIf
     {
     public:
