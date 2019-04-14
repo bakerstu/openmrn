@@ -43,6 +43,7 @@
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfigUpdateFlow.hxx"
 #include "openlcb/DatagramCan.hxx"
+#include "openlcb/DatagramTcp.hxx"
 #include "openlcb/DefaultNode.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/EventService.hxx"
@@ -452,6 +453,54 @@ private:
 
     /// Constructor helper function. Creates the specific objects needed for
     /// the CAN interface to function. Will be called exactly once by the
+    /// constructor of the base class.
+    std::unique_ptr<PhysicalIf> create_if(const openlcb::NodeID node_id);
+};
+
+
+class SimpleTcpStackBase : public SimpleStackBase
+{
+public:
+    SimpleTcpStackBase(const openlcb::NodeID node_id);
+
+protected:
+    /// Helper function for start_stack et al.
+    void start_iface(bool restart) override;
+
+private:
+    class TcpPhysicalIf : public PhysicalIf
+    {
+    public:
+        TcpPhysicalIf(const openlcb::NodeID node_id, Service *service)
+            : tcpHub0_(service)
+            , ifTcp_(node_id, &tcpHub0_, config_local_nodes_count())
+            , datagramService_(&ifTcp_, config_num_datagram_registry_entries(),
+                  config_num_datagram_clients())
+        {
+        }
+
+        ~TcpPhysicalIf()
+        {
+        }
+
+        /// @return the OpenLCB interface object. Ownership is not transferred.
+        If *iface() override
+        {
+            return &ifTcp_;
+        }
+        /// @return the Datagram service bound to the interface. Ownership is
+        /// not transferred.
+        DatagramService *datagram_service() override
+        {
+            return &datagramService_;
+        }
+        HubFlow tcpHub0_;
+        IfTcp ifTcp_;
+        TcpDatagramService datagramService_;
+    };
+
+    /// Constructor helper function. Creates the specific objects needed for
+    /// the TCP interface to function. Will be called exactly once by the
     /// constructor of the base class.
     std::unique_ptr<PhysicalIf> create_if(const openlcb::NodeID node_id);
 };
