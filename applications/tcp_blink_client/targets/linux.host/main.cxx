@@ -98,8 +98,7 @@ void parse_args(int argc, char *argv[])
 void connect_callback(int fd, Notifiable *on_error)
 {
     LOG(INFO, "Connected to hub.");
-    // we leak this.
-    new HubDeviceSelect<HubFlow>(stack.tcp_hub(), fd, on_error);
+    stack.add_tcp_port_select(fd, on_error);
     stack.restart_stack();
 }
 
