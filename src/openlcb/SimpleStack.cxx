@@ -54,8 +54,8 @@
 #include "openlcb/SimpleStack.hxx"
 
 #include "openlcb/EventHandler.hxx"
-#include "openlcb/SimpleNodeInfo.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
+#include "openlcb/SimpleNodeInfo.hxx"
 
 namespace openlcb
 {
@@ -93,7 +93,8 @@ void SimpleStackBase::start_stack(bool delay_start)
     configUpdateFlow_.init_flow();
 #endif // NOT ARDUINO, YES ESP32
 
-    if (!delay_start) {
+    if (!delay_start)
+    {
         start_iface(false);
     }
 
@@ -154,9 +155,9 @@ SimpleTrainCanStack::SimpleTrainCanStack(
     // Note: this code tries to predict what the node id of the trainNode_ will
     // be. Unfortunately due to initialization order problems we cannot query
     // it in advance.
-    : SimpleCanStackBase(node_id),
-      trainNode_(&tractionService_, train, node_id),
-      fdiBlock_(reinterpret_cast<const uint8_t *>(fdi_xml), strlen(fdi_xml))
+    : SimpleCanStackBase(node_id)
+    , trainNode_(&tractionService_, train, node_id)
+    , fdiBlock_(reinterpret_cast<const uint8_t *>(fdi_xml), strlen(fdi_xml))
 {
 }
 
@@ -199,16 +200,15 @@ void SimpleStackBase::restart_stack()
 {
     node()->clear_initialized();
     start_iface(true);
-    
+
     // Causes all nodes to grab a new alias and send out node initialization
     // done messages. This object owns itself and will do `delete this;` at the
     // end of the process.
     new ReinitAllNodes(iface());
 }
 
-int SimpleStackBase::create_config_file_if_needed(
-    const InternalConfigData &cfg, uint16_t expected_version,
-    unsigned file_size)
+int SimpleStackBase::create_config_file_if_needed(const InternalConfigData &cfg,
+    uint16_t expected_version, unsigned file_size)
 {
     HASSERT(CONFIG_FILENAME);
     struct stat statbuf;
@@ -220,11 +220,12 @@ int SimpleStackBase::create_config_file_if_needed(
         // Create file.
         LOG(INFO, "Creating config file %s", CONFIG_FILENAME);
         reset = true;
-        fd = ::open(CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR, S_IRUSR | S_IWUSR);
+        fd = ::open(
+            CONFIG_FILENAME, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         if (fd < 0)
         {
-            printf("Failed to create config file: fd %d errno %d: %s\n",
-                   fd, errno, strerror(errno));
+            printf("Failed to create config file: fd %d errno %d: %s\n", fd,
+                errno, strerror(errno));
             DIE();
         }
         reset = true;
@@ -232,25 +233,32 @@ int SimpleStackBase::create_config_file_if_needed(
     ::close(fd);
     fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
     HASSERT(fstat(fd, &statbuf) == 0);
-    if (statbuf.st_size < (ssize_t)file_size) {
+    if (statbuf.st_size < (ssize_t)file_size)
+    {
         extend = true;
     }
-    if (!reset && cfg.version().read(fd) != expected_version) {
+    if (!reset && cfg.version().read(fd) != expected_version)
+    {
         reset = true;
     }
     if (!reset && !extend)
         return fd;
 
     // Clears the file, preserving the node name and desription if any.
-    if (extend && !reset) {
+    if (extend && !reset)
+    {
         auto ret = lseek(fd, statbuf.st_size, SEEK_SET);
         HASSERT(ret == statbuf.st_size);
         file_size -= statbuf.st_size; // Clears nothing, just extends with 0xFF.
-    } else if (statbuf.st_size >= 128) {
+    }
+    else if (statbuf.st_size >= 128)
+    {
         auto ret = lseek(fd, 128, SEEK_SET);
         HASSERT(ret == 128);
         file_size -= 128; // Clears less.
-    } else {
+    }
+    else
+    {
         lseek(fd, 0, SEEK_SET);
     }
 

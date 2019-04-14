@@ -38,13 +38,14 @@
 #include <fcntl.h>
 
 #include "executor/Executor.hxx"
+#include "nmranet_config.h"
 #include "openlcb/AliasAllocator.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfigUpdateFlow.hxx"
 #include "openlcb/DatagramCan.hxx"
 #include "openlcb/DefaultNode.hxx"
-#include "openlcb/EventService.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/EventService.hxx"
 #include "openlcb/IfCan.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
@@ -52,7 +53,6 @@
 #include "openlcb/SimpleNodeInfo.hxx"
 #include "openlcb/TractionTrain.hxx"
 #include "openlcb/TrainInterface.hxx"
-#include "nmranet_config.h"
 #include "utils/GcTcpHub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
@@ -61,7 +61,8 @@
 #include "utils/HubDeviceSelect.hxx"
 #endif
 
-namespace openmrn_arduino {
+namespace openmrn_arduino
+{
 class OpenMRN;
 }
 
@@ -83,21 +84,25 @@ class SimpleStackBase
 protected:
     /// Polymorphic class that can be implemented by CAN and TCP interfaces
     /// separately for appropriate construction order.
-    class PhysicalIf {
+    class PhysicalIf
+    {
     public:
-        virtual ~PhysicalIf() {}
+        virtual ~PhysicalIf()
+        {
+        }
 
         /// @return the OpenLCB interface object. Ownership is not transferred.
-        virtual If* iface() = 0;
+        virtual If *iface() = 0;
         /// @return the Datagram service bound to the interface. Ownership is
         /// not transferred.
-        virtual DatagramService* datagram_service() = 0;
+        virtual DatagramService *datagram_service() = 0;
     };
 
 public:
     static const unsigned EXECUTOR_PRIORITIES = 5;
 
-    SimpleStackBase(std::function<std::unique_ptr<PhysicalIf>()> create_if_helper);
+    SimpleStackBase(
+        std::function<std::unique_ptr<PhysicalIf>()> create_if_helper);
 
     /// @returns the executor that's controlling the main thread of the OpenLCB
     /// stack.
@@ -142,7 +147,6 @@ public:
         return &memoryConfigHandler_;
     }
 
-
     ConfigUpdateService *config_service()
     {
         return &configUpdateFlow_;
@@ -172,8 +176,8 @@ public:
     /// @param stack_size is the executor stack in bytes (used only for
     /// freertos)
     /// @param delay_start if true, then prevents sending traffic to the bus
-    void start_executor_thread(
-        const char *name, int priority, size_t stack_size, bool delay_start = false)
+    void start_executor_thread(const char *name, int priority,
+        size_t stack_size, bool delay_start = false)
     {
         start_stack(delay_start);
         executor_.start_thread(name, priority, stack_size);
@@ -254,26 +258,26 @@ protected:
     void default_start_node();
 
     /// This executor's threads will be handled
-    Executor<EXECUTOR_PRIORITIES> executor_{NO_THREAD()};
+    Executor<EXECUTOR_PRIORITIES> executor_ {NO_THREAD()};
     /// Default service on the particular executor.
-    Service service_{&executor_};
+    Service service_ {&executor_};
     /// Pointer to the polymorphic implementation of the OpenLCB If.
     std::unique_ptr<PhysicalIf> ifaceHolder_;
     /// The OpenLCB interface object. Owned by ifaceHolder_;
-    If* iface_{ifaceHolder_->iface()};
+    If *iface_ {ifaceHolder_->iface()};
     /// The datagram service bound to the interface object. Owned by
     /// ifaceHolder_;
-    DatagramService* datagramService_{ifaceHolder_->datagram_service()};
+    DatagramService *datagramService_ {ifaceHolder_->datagram_service()};
     /// Calls the config listeners with the configuration FD.
-    ConfigUpdateFlow configUpdateFlow_{iface()};
+    ConfigUpdateFlow configUpdateFlow_ {iface()};
     /// The initialization flow takes care for node startup duties.
-    InitializeFlow initFlow_{&service_};
+    InitializeFlow initFlow_ {&service_};
     /// Dispatches event protocol requests to the event handlers.
-    EventService eventService_{iface()};
+    EventService eventService_ {iface()};
     /// General flow for simple info requests.
-    SimpleInfoFlow infoFlow_{iface()};
+    SimpleInfoFlow infoFlow_ {iface()};
 
-    MemoryConfigHandler memoryConfigHandler_{
+    MemoryConfigHandler memoryConfigHandler_ {
         datagramService_, nullptr, config_num_memory_spaces()};
 
     /// All packets are forwarded to this hub in gridconnect format, if
@@ -297,7 +301,7 @@ public:
     /// bus (which may be a device driver or a gridconnect protocol converter).
     CanHubFlow *can_hub()
     {
-        return &static_cast<CanPhysicalIf*>(ifaceHolder_.get())->canHub0_;
+        return &static_cast<CanPhysicalIf *>(ifaceHolder_.get())->canHub0_;
     }
 
     /// Adds a CAN bus port with synchronous driver API.
@@ -406,10 +410,11 @@ protected:
     /// Helper function for start_stack et al.
     void start_iface(bool restart) override;
 
-    IfCan* if_can() {
-        return &static_cast<CanPhysicalIf*>(ifaceHolder_.get())->ifCan_;
+    IfCan *if_can()
+    {
+        return &static_cast<CanPhysicalIf *>(ifaceHolder_.get())->ifCan_;
     }
-    
+
 private:
     class CanPhysicalIf : public PhysicalIf
     {
@@ -480,14 +485,17 @@ private:
         Defs::MEMORY_CONFIGURATION | Defs::ABBREVIATED_DEFAULT_CDI |
         Defs::SIMPLE_NODE_INFORMATION | Defs::CDI;
 
-    void start_node() override { default_start_node(); }
+    void start_node() override
+    {
+        default_start_node();
+    }
 
     /// The actual node.
     DefaultNode node_;
     /// Handles PIP requests.
-    ProtocolIdentificationHandler pipHandler_{&node_, PIP_RESPONSE};
+    ProtocolIdentificationHandler pipHandler_ {&node_, PIP_RESPONSE};
     /// Handles SNIP requests.
-    SNIPHandler snipHandler_{iface(), &node_, &infoFlow_};
+    SNIPHandler snipHandler_ {iface(), &node_, &infoFlow_};
 };
 
 /// CAN-based stack with TrainNode.
@@ -498,7 +506,8 @@ public:
     ///
     /// @param train the implementation of the train
     /// @param fdi_xml XML file to export as the FDI for train functions
-    SimpleTrainCanStack(openlcb::TrainImpl *train, const char *fdi_xml, NodeID node_id);
+    SimpleTrainCanStack(
+        openlcb::TrainImpl *train, const char *fdi_xml, NodeID node_id);
 
     /// @returns the virtual node pointer of the main virtual node of the stack
     /// (as defined by the NodeID argument of the constructor).
@@ -516,16 +525,16 @@ private:
 
     void start_node() override;
 
-    TrainService tractionService_{iface()};
+    TrainService tractionService_ {iface()};
     /// The actual node.
     TrainNodeWithId trainNode_;
     FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>
-        isTrainEventHandler{&trainNode_};
+        isTrainEventHandler {&trainNode_};
     ReadOnlyMemoryBlock fdiBlock_;
     /// Handles PIP requests.
-    ProtocolIdentificationHandler pipHandler_{&trainNode_, PIP_RESPONSE};
+    ProtocolIdentificationHandler pipHandler_ {&trainNode_, PIP_RESPONSE};
     /// Handles SNIP requests.
-    SNIPHandler snipHandler_{iface(), &trainNode_, &infoFlow_};
+    SNIPHandler snipHandler_ {iface(), &trainNode_, &infoFlow_};
 };
 
 } // namespace openlcb
