@@ -1,10 +1,10 @@
-/** @copyright
- * Copyright (c) 2018, Stuart W Baker
+/** \copyright
+ * Copyright (c) 2019, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
- * 
+ * modification, are permitted provided that the following conditions are met:
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,33 +24,43 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file os_private.h
- * This file is a bit of a hack and should only used under extreme caution.
- * its purpose is to allow alternate niche platform support for the OS API's
+ * \file DatagramTcp.hxx
  *
- * @author Stuart W. Baker
- * @date 29 December 2018
+ * TCP-If datagram parser and renderer flows.
+ *
+ * @author Balazs Racz
+ * @date 24 March 2019
  */
 
-#ifndef _OS_OS_PRIVATE_H_
-#define _OS_OS_PRIVATE_H_
+#ifndef _OPENLCB_DATAGRAMTCP_HXX_
+#define _OPENLCB_DATAGRAMTCP_HXX_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "openlcb/Datagram.hxx"
+#include "openlcb/IfTcp.hxx"
 
-#if defined (__FreeRTOS__)
-extern void os_thread_start(void *arg);
-#endif // __FreeRTOS__
+namespace openlcb
+{
 
-/// Locks a single global Atomic used to guard some OS structures.
-void os_atomic_lock();
-/// Unlocks a single global Atomic used to guard some OS structures.
-void os_atomic_unlock();
+/// Implementation of the DatagramService on TCP transfer. This class is also
+/// responsible for instantiating the correct DatagramClient objects.
+class TcpDatagramService : public DatagramService
+{
+public:
+    /// @param iface is the TCP interface.
+    /// @param num_registry_entries is the size of the registry map (how many
+    /// datagram handlers can be registered)
+    /// @param num_clients how many datagram clients to create. These are
+    /// allocated and freed on demand by flows sending datagrams.
+    TcpDatagramService(IfTcp *iface, int num_registry_entries, int num_clients);
 
-#ifdef __cplusplus
-} // extern "C"
-#endif
+    ~TcpDatagramService();
 
-#endif // _OS_OS_PRIVATE_H_
+    IfTcp *if_tcp()
+    {
+        return static_cast<IfTcp *>(iface());
+    }
+};
 
+} // namespace openlcb
+
+#endif // _OPENLCB_DATAGRAMTCP_HXX_

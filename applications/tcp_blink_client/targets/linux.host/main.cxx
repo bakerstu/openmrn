@@ -37,30 +37,23 @@
 #include "executor/Executor.hxx"
 #include "nmranet_config.h"
 #include "openlcb/BlinkerFlow.hxx"
-#include "openlcb/DefaultNode.hxx"
-#include "openlcb/EventService.hxx"
-#include "openlcb/IfTcp.hxx"
-#include "openlcb/NodeInitializeFlow.hxx"
-#include "openlcb/ProtocolIdentification.hxx"
+#include "openlcb/SimpleStack.hxx"
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/SocketClient.hxx"
 #include "utils/SocketClientParams.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+
+openlcb::MockSNIPUserFile snip_user_file("Default user name",
+                                         "Default user description");
+const char *const openlcb::SNIP_DYNAMIC_FILENAME = openlcb::MockSNIPUserFile::snip_user_file_path;
 
 const openlcb::NodeID NODE_ID = 0x050101011876;
 const openlcb::EventId EVENT_ID = 0x0501010118760000;
 
-Executor<5> g_executor("executor", 0, 2048);
 Executor<1> g_connect_executor("connect_executor", 0, 2048);
-Service g_service(&g_executor);
-HubFlow g_device(&g_service);
-openlcb::IfTcp g_if(NODE_ID, &g_device, config_local_nodes_count());
-openlcb::InitializeFlow g_init_flow(&g_if);
-openlcb::DefaultNode g_node(&g_if, NODE_ID);
-openlcb::EventService g_event_service(&g_if);
-constexpr uint64_t PIP_SUPPORT = openlcb::Defs::EVENT_EXCHANGE;
-openlcb::ProtocolIdentificationHandler g_pip_handler(&g_node, PIP_SUPPORT);
+openlcb::SimpleTcpStack stack(NODE_ID);
 
-BlinkerFlow blinker(&g_node, EVENT_ID);
+BlinkerFlow blinker(stack.node(), EVENT_ID);
 
 int upstream_port = 12000;
 const char *upstream_host = "localhost";
@@ -105,10 +98,8 @@ void parse_args(int argc, char *argv[])
 void connect_callback(int fd, Notifiable *on_error)
 {
     LOG(INFO, "Connected to hub.");
-    // we leak this.
-    new HubDeviceSelect<HubFlow>(&g_device, fd, on_error);
-    // will delete itself
-    new openlcb::ReinitAllNodes(&g_if);
+    stack.add_tcp_port_select(fd, on_error);
+    stack.restart_stack();
 }
 
 /** Entry point to application.
@@ -119,15 +110,11 @@ void connect_callback(int fd, Notifiable *on_error)
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    SocketClient socket_client(&g_service, &g_connect_executor,
+    SocketClient socket_client(stack.service(), &g_connect_executor,
         &g_connect_executor,
         SocketClientParams::from_static(upstream_host, upstream_port),
         &connect_callback);
 
-    while (1)
-    {
-        sleep(1);
-    }
-
+    stack.loop_executor();
     return 0;
 }

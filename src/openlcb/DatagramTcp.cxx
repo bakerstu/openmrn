@@ -1,10 +1,10 @@
-/** @copyright
- * Copyright (c) 2018, Stuart W Baker
+/** \copyright
+ * Copyright (c) 2019, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
- * 
+ * modification, are permitted provided that the following conditions are met:
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,33 +24,36 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file os_private.h
- * This file is a bit of a hack and should only used under extreme caution.
- * its purpose is to allow alternate niche platform support for the OS API's
+ * \file DatagramTcp.cxx
  *
- * @author Stuart W. Baker
- * @date 29 December 2018
+ * TCP-If datagram parser and renderer flows.
+ *
+ * @author Balazs Racz
+ * @date 24 March 2019
  */
 
-#ifndef _OS_OS_PRIVATE_H_
-#define _OS_OS_PRIVATE_H_
+#include "openlcb/DatagramTcp.hxx"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "openlcb/DatagramImpl.hxx"
 
-#if defined (__FreeRTOS__)
-extern void os_thread_start(void *arg);
-#endif // __FreeRTOS__
+namespace openlcb
+{
 
-/// Locks a single global Atomic used to guard some OS structures.
-void os_atomic_lock();
-/// Unlocks a single global Atomic used to guard some OS structures.
-void os_atomic_unlock();
+TcpDatagramService::TcpDatagramService(
+    IfTcp *iface, int num_registry_entries, int num_clients)
+    : DatagramService(iface, num_registry_entries)
+{
+    auto *dg_send = if_tcp()->addressed_message_write_flow();
+    for (int i = 0; i < num_clients; ++i)
+    {
+        auto *client_flow = new DatagramClientImpl(if_tcp(), dg_send);
+        if_tcp()->add_owned_flow(client_flow);
+        client_allocator()->insert(static_cast<DatagramClient *>(client_flow));
+    }
+}
 
-#ifdef __cplusplus
-} // extern "C"
-#endif
+TcpDatagramService::~TcpDatagramService()
+{
+}
 
-#endif // _OS_OS_PRIVATE_H_
-
+} // namespace openlcb

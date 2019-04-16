@@ -156,7 +156,7 @@ copy_file src/freertos_drivers/arduino \
 copy_file src/freertos_drivers/esp32 \
           src/freertos_drivers/esp32/*
 
-copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx src/os/{MDNS.cxx,OSSelectWakeup.cxx}
+copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx src/os/{OSImpl,MDNS,OSSelectWakeup}.cxx
 
 copy_file src/sys include/sys/tree.hxx
 
