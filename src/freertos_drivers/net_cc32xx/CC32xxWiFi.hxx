@@ -219,6 +219,18 @@ public:
         return WlanState::OK;
     }
 
+    /** Used by unit tests to simulate wifi connection states. 
+     * @param conn if true, we are associated to an AP
+     * @param has_ip if true, we have an IP address
+     * @param ssid will be returned when caller wants the AP name
+     */
+    void TEST_set_state(bool conn, bool has_ip, const string &ssid)
+    {
+        connected = conn ? 1 : 0;
+        ipAcquired = has_ip ? 1 : 0;
+        strcpy(this->ssid, ssid.c_str());
+    }
+
     /** Updates the blinker based on connection state. Noop if wlan_ready()
      * returns true.*/
     void connecting_update_blinker();
