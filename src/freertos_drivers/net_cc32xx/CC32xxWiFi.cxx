@@ -178,6 +178,8 @@ CC32xxWiFi::CC32xxWiFi()
     , connectionFailed(0)
     , ipAcquired(0)
     , ipLeased(0)
+    , smartConfigStart(0)
+    , securityFailure(0)
 {
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
@@ -997,6 +999,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
         {
             connected = 1;
             connectionFailed = 0;
+            securityFailure = 0;
 
             {
                 /* Station mode */
@@ -1023,17 +1026,17 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
 
             connected = 0;
             ipAcquired = 0;
+            connectionFailed = 1;
             ssid[0] = '\0';
+            if(SL_WLAN_DISCONNECT_SECURITY_FAILURE == disconnect->ReasonCode)
+            {
+                securityFailure = 1;
+            } else {
+                securityFailure = 0;
+            }
             if (ipAcquiredCallback_)
             {
                 ipAcquiredCallback_(false);
-            }
-
-            if(SL_WLAN_DISCONNECT_USER_INITIATED == disconnect->ReasonCode)
-            {
-            }
-            else
-            {
             }
             break;
         }

@@ -22,6 +22,7 @@ enum class WlanState : uint8_t
     CONNECT_STATIC,
     CONNECT_FAILED,
     CONNECTION_LOST,
+    WRONG_PASSWORD,
     UPDATE_DISPLAY = 20,
 };
 
