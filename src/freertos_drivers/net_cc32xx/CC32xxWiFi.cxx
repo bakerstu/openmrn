@@ -654,11 +654,6 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
                                 &sec_params, 0);
     HASSERT(result >= 0);
 
-    while (!wlan_ready())
-    {
-        connecting_update_blinker();
-        usleep(10000);
-    }
 }
 
 /*

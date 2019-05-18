@@ -80,9 +80,15 @@ void run_client(int fd)
  */
 int appl_main(int argc, char *argv[])
 {
-    CC32xxWiFi::instance()->wlan_connect(WIFI_SSID, WIFI_PASS,
+    auto* wifi = CC32xxWiFi::instance();
+    wifi->wlan_connect(WIFI_SSID, WIFI_PASS,
         strlen(WIFI_PASS) > 0 ? CC32xxWiFi::SEC_WPA2 : CC32xxWiFi::SEC_OPEN);
 
+    while (!wifi->wlan_ready())
+    {
+        wifi->connecting_update_blinker();
+        usleep(10000);
+    }
     resetblink(WIFI_BLINK_CONNECTING);
 
     long long before_connect = os_get_time_monotonic();
