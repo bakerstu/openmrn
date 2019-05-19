@@ -80,7 +80,7 @@ void run_client(int fd)
  */
 int appl_main(int argc, char *argv[])
 {
-    auto* wifi = CC32xxWiFi::instance();
+    auto *wifi = CC32xxWiFi::instance();
     wifi->wlan_connect(WIFI_SSID, WIFI_PASS,
         strlen(WIFI_PASS) > 0 ? CC32xxWiFi::SEC_WPA2 : CC32xxWiFi::SEC_OPEN);
 

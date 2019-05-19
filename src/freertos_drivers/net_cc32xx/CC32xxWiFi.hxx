@@ -223,7 +223,7 @@ public:
         return WlanState::OK;
     }
 
-    /** Used by unit tests to simulate wifi connection states. 
+    /** Used by unit tests to simulate wifi connection states.
      * @param conn if true, we are associated to an AP
      * @param has_ip if true, we have an IP address
      * @param ssid will be returned when caller wants the AP name

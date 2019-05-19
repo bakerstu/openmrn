@@ -668,7 +668,7 @@ void CC32xxWiFi::wlan_wps_pbc_initiate()
     {
         ipAcquiredCallback_(false);
     }
-    
+
     SlWlanSecParams_t sec_params;
     sec_params.Key = (signed char*)"";
     sec_params.KeyLen = 0;
@@ -1023,10 +1023,12 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
             ipAcquired = 0;
             connectionFailed = 1;
             ssid[0] = '\0';
-            if(SL_WLAN_DISCONNECT_SECURITY_FAILURE == disconnect->ReasonCode)
+            if (SL_WLAN_DISCONNECT_SECURITY_FAILURE == disconnect->ReasonCode)
             {
                 securityFailure = 1;
-            } else {
+            }
+            else
+            {
                 securityFailure = 0;
             }
             if (ipAcquiredCallback_)

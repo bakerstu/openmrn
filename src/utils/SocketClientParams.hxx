@@ -113,8 +113,11 @@ public:
     /// @return false for repeated connection attempts, true if we should stop
     /// after the first failed connection attempt. If a one-stop mode fails,
     /// the caller has to delete and re-create the socket client.
-    virtual bool one_shot() { return false; }
-    
+    virtual bool one_shot()
+    {
+        return false;
+    }
+
     /// This function is called on an unspecified thread when a connection is
     /// successfully established.
     /// @param hostname is filled with a dotted decimal representation of the

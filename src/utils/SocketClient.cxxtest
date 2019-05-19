@@ -269,7 +269,7 @@ public:
     {
         return oneShot_;
     }
-    
+
     SocketClientTest *parent_;
     int searchMode_{AUTO_MANUAL};
     bool enableLast_{true};
