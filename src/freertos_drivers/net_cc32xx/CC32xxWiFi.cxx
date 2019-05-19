@@ -178,6 +178,8 @@ CC32xxWiFi::CC32xxWiFi()
     , connectionFailed(0)
     , ipAcquired(0)
     , ipLeased(0)
+    , smartConfigStart(0)
+    , securityFailure(0)
 {
     for (int i = 0; i < SL_MAX_SOCKETS; ++i)
     {
@@ -652,11 +654,6 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
                                 &sec_params, 0);
     HASSERT(result >= 0);
 
-    while (!wlan_ready())
-    {
-        connecting_update_blinker();
-        usleep(10000);
-    }
 }
 
 /*
@@ -664,6 +661,14 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
  */
 void CC32xxWiFi::wlan_wps_pbc_initiate()
 {
+    connected = 0;
+    ipAcquired = 0;
+    ssid[0] = '\0';
+    if (ipAcquiredCallback_)
+    {
+        ipAcquiredCallback_(false);
+    }
+
     SlWlanSecParams_t sec_params;
     sec_params.Key = (signed char*)"";
     sec_params.KeyLen = 0;
@@ -989,6 +994,7 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
         {
             connected = 1;
             connectionFailed = 0;
+            securityFailure = 0;
 
             {
                 /* Station mode */
@@ -1015,17 +1021,19 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
 
             connected = 0;
             ipAcquired = 0;
+            connectionFailed = 1;
             ssid[0] = '\0';
-            if (ipAcquiredCallback_)
+            if (SL_WLAN_DISCONNECT_SECURITY_FAILURE == disconnect->ReasonCode)
             {
-                ipAcquiredCallback_(false);
-            }
-
-            if(SL_WLAN_DISCONNECT_USER_INITIATED == disconnect->ReasonCode)
-            {
+                securityFailure = 1;
             }
             else
             {
+                securityFailure = 0;
+            }
+            if (ipAcquiredCallback_)
+            {
+                ipAcquiredCallback_(false);
             }
             break;
         }
