@@ -645,6 +645,15 @@ void CC32xxWiFi::stop()
 void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
                               SecurityType security_type)
 {
+    connected = 0;
+    ipAcquired = 0;
+    securityFailure = 0;
+    ssid[0] = '\0';
+    if (ipAcquiredCallback_)
+    {
+        ipAcquiredCallback_(false);
+    }
+
     SlWlanSecParams_t sec_params;
     sec_params.Key = (_i8*)security_key;
     sec_params.KeyLen = strlen(security_key);
@@ -663,6 +672,7 @@ void CC32xxWiFi::wlan_wps_pbc_initiate()
 {
     connected = 0;
     ipAcquired = 0;
+    securityFailure = 0;
     ssid[0] = '\0';
     if (ipAcquiredCallback_)
     {
