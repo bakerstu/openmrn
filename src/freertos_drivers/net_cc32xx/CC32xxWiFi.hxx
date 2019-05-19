@@ -223,6 +223,7 @@ public:
         return WlanState::OK;
     }
 
+#ifdef GTEST
     /** Used by unit tests to simulate wifi connection states.
      * @param conn if true, we are associated to an AP
      * @param has_ip if true, we have an IP address
@@ -237,6 +238,7 @@ public:
         securityFailure = wrong_password ? 1 : 0;
         strcpy(this->ssid, ssid.c_str());
     }
+#endif
 
     /** Updates the blinker based on connection state. Noop if wlan_ready()
      * returns true.*/
