@@ -265,6 +265,11 @@ public:
         return lastPort_;
     }
 
+    bool one_shot() override
+    {
+        return oneShot_;
+    }
+    
     SocketClientTest *parent_;
     int searchMode_{AUTO_MANUAL};
     bool enableLast_{true};
@@ -273,6 +278,7 @@ public:
     string mdnsServiceName_;
     string lastHostName_;
     int lastPort_{-1};
+    bool oneShot_{false};
 
     OSMutex lock_;
 };
@@ -417,4 +423,30 @@ TEST_F(SocketClientTest, test_fourth_sequence)
         usleep(40000);
         wait();
     }
+}
+
+TEST_F(SocketClientTest, one_shot)
+{
+    ::testing::InSequence seq;
+    auto p = std::make_unique<TestSocketClientParams>(this);
+    p->lastHostName_ = "127.0.0.2";
+    p->lastPort_ = LISTEN_PORT + 1;
+    p->mdnsServiceName_ = "_nonexist823467284._tcp";
+    p->oneShot_ = true;
+    p->searchMode_ = SocketClientParams::AUTO_MANUAL;
+    EXPECT_CALL(*this,
+        status_callback(SocketClientParams::CONNECT_RE, "127.0.0.2:12248"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_SEARCH,
+                           "_nonexist823467284._tcp"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_NOT_FOUND, _));
+    EXPECT_CALL(
+        *this, status_callback(SocketClientParams::CONNECT_FAILED_ONESHOT, _))
+        .WillOnce(::testing::InvokeWithoutArgs(&n_, &SyncNotifiable::notify));
+
+    sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
+        &g_connect_executor, &g_connect_executor, std::move(p),
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
+
+    n_.wait_for_notification();
+    usleep(40000);
 }
