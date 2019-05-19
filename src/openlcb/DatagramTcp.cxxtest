@@ -1,0 +1,165 @@
+#include "openlcb/DatagramHandlerDefault.hxx"
+#include "openlcb/DatagramTcp.hxx"
+#include "utils/if_tcp_test_helper.hxx"
+
+namespace openlcb
+{
+
+extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
+    init_main_buffer_pool();
+
+class TcpDatagramTestBase : public MultiTcpIfTest
+{
+protected:
+    TcpDatagramTestBase()
+    {
+        add_client(REMOTE_NODE_ID + 0);
+        add_client(REMOTE_NODE_ID + 1);
+        create_new_node(&nc_, TEST_NODE_ID, &ifTcp_);
+        create_new_node(&nc2_, TEST_NODE_ID + 1, &ifTcp_);
+        create_new_node(&n0_, REMOTE_NODE_ID + 0, &clients_[0]->ifTcp_);
+        create_new_node(&n1_, REMOTE_NODE_ID + 1, &clients_[1]->ifTcp_);
+    }
+
+    /// Node on the central If.
+    std::unique_ptr<DefaultNode> nc_;
+    /// Second virtual node on the central If.
+    std::unique_ptr<DefaultNode> nc2_;
+
+    /// Node on the Client If 0.
+    std::unique_ptr<DefaultNode> n0_;
+    /// Node on the Client If 1.
+    std::unique_ptr<DefaultNode> n1_;
+};
+
+TEST_F(TcpDatagramTestBase, create)
+{
+}
+
+class MockDatagramHandler : public DefaultDatagramHandler
+{
+public:
+    MockDatagramHandler(DatagramService *srv)
+        : DefaultDatagramHandler(srv)
+    {
+    }
+
+    MOCK_METHOD1(handle_datagram, void(IncomingDatagram *d));
+
+    Action entry() OVERRIDE
+    {
+        handle_datagram(message()->data());
+        return respond_ok(0);
+    }
+};
+
+class TcpDatagramTest : public TcpDatagramTestBase
+{
+protected:
+    ~TcpDatagramTest()
+    {
+        wait();
+    }
+
+    /// Sends a datagram from a node to the nc2_ node and expects an OK
+    /// response.
+    /// @param src source node for datagram
+    /// @param src_dg datagram service on the interface of the node src.
+    void ping_test(Node *src, DatagramService *src_dg)
+    {
+        StrictMock<MockDatagramHandler> h(&dgC_);
+        dgC_.registry()->insert(nullptr, 0x30, &h);
+
+        DatagramClient *c = src_dg->client_allocator()->next_blocking();
+        ignore_all_packets();
+
+        auto *b = ifTcp_.dispatcher()->alloc();
+        BarrierNotifiable *bn = get_notifiable();
+        b->set_done(bn);
+        b->data()->reset(Defs::MTI_DATAGRAM, src->node_id(),
+            NodeHandle(nc2_->node_id()), "01234567");
+
+        EXPECT_CALL(h, handle_datagram(Pointee(
+                           AllOf(Field(&IncomingDatagram::src,
+                                     Field(&NodeHandle::id, src->node_id())),
+                               Field(&IncomingDatagram::dst, nc2_.get()),
+                               // Field(&IncomingDatagram::payload, NotNull()),
+                               Field(&IncomingDatagram::payload,
+                                     IsBufferValueString("01234567")) //,
+                               ))));
+
+        c->write_datagram(b);
+        wait_for_notification();
+
+        EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS, c->result());
+        src_dg->client_allocator()->typed_insert(c);
+    }
+
+    TcpDatagramService dgC_{&ifTcp_, 3, 2};
+    TcpDatagramService dg0_{&clients_[0]->ifTcp_, 3, 2};
+    TcpDatagramService dg1_{&clients_[0]->ifTcp_, 3, 2};
+};
+
+TEST_F(TcpDatagramTest, create)
+{
+}
+
+TEST_F(TcpDatagramTest, raw_incoming)
+{
+    StrictMock<MockDatagramHandler> h(&dgC_);
+    dgC_.registry()->insert(nullptr, 0x30, &h);
+    EXPECT_CALL(h, handle_datagram(Pointee(
+                       AllOf(Field(&IncomingDatagram::src,
+                                 Field(&NodeHandle::id, TEST_NODE_ID + 4)),
+                           Field(&IncomingDatagram::dst, nc_.get()),
+                           // Field(&IncomingDatagram::payload, NotNull()),
+                           Field(&IncomingDatagram::payload,
+                                 IsBufferValueString("01234567")) //,
+                           ))));
+    capture_next_packet();
+    generate_input_message(Defs::MTI_DATAGRAM, TEST_NODE_ID + 4,
+        NodeHandle(TEST_NODE_ID), "01234567");
+    wait();
+    expect_packet_is(lastPacket_, Defs::MTI_DATAGRAM_OK, TEST_NODE_ID,
+        NodeHandle(TEST_NODE_ID + 4), string(1u, 0));
+}
+
+TEST_F(TcpDatagramTest, raw_outgoing)
+{
+    DatagramClient *c = dgC_.client_allocator()->next_blocking();
+    auto *b = ifTcp_.dispatcher()->alloc();
+    BarrierNotifiable *bn = get_notifiable();
+    b->set_done(bn);
+    b->data()->reset(Defs::MTI_DATAGRAM, nc_->node_id(),
+        NodeHandle(REMOTE_NODE_ID + 10), "01234567");
+
+    capture_next_packet();
+    c->write_datagram(b);
+    wait();
+    expect_packet_is(lastPacket_, Defs::MTI_DATAGRAM, nc_->node_id(),
+        NodeHandle(REMOTE_NODE_ID + 10), "01234567");
+    EXPECT_EQ((unsigned)DatagramClient::OPERATION_PENDING, c->result());
+
+    generate_input_message(Defs::MTI_DATAGRAM_OK, REMOTE_NODE_ID + 10,
+        NodeHandle(nc_->node_id()), EMPTY_PAYLOAD);
+    wait();
+    EXPECT_EQ((unsigned)DatagramClient::OPERATION_SUCCESS, c->result());
+    dgC_.client_allocator()->typed_insert(c);
+}
+
+TEST_F(TcpDatagramTest, client)
+{
+    ping_test(n0_.get(), &dg0_);
+}
+
+TEST_F(TcpDatagramTest, loopback1)
+{
+    ping_test(nc_.get(), &dgC_);
+}
+
+TEST_F(TcpDatagramTest, loopback2)
+{
+    ping_test(nc2_.get(), &dgC_);
+}
+
+} // namespace openlcb

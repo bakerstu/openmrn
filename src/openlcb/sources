@@ -18,6 +18,7 @@ CXXSRCS += \
            If.cxx \
            IfCan.cxx \
            IfImpl.cxx \
+           IfTcp.cxx \
            NodeBrowser.cxx \
            NodeInitializeFlow.cxx \
            NonAuthoritativeEventProducer.cxx \
@@ -31,6 +32,7 @@ CXXSRCS += \
            WriteHelper.cxx \
            Datagram.cxx \
            DatagramCan.cxx \
+           DatagramTcp.cxx \
            MemoryConfig.cxx \
            SimpleNodeInfo.cxx \
            SimpleNodeInfoMockUserFile.cxx \
