@@ -452,6 +452,12 @@ private:
     {
         {
             AtomicHolder h(this);
+            if (requestShutdown_)
+            {
+                ::close(fd_);
+                fd_ = -1;
+                return exit();
+            }
             isConnected_ = true;
         }
         callback_(fd_, this);
