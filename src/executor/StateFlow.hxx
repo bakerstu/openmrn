@@ -572,6 +572,7 @@ protected:
         helper->readNonblocking_ = 0;
         helper->readWithTimeout_ = 0;
         helper->nextState_ = c;
+        helper->hasError_ = 0;
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_read));
     }
@@ -597,6 +598,7 @@ protected:
         helper->readNonblocking_ = 0;
         helper->readWithTimeout_ = 0;
         helper->nextState_ = c;
+        helper->hasError_ = 0;
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_read));
     }
@@ -619,6 +621,7 @@ protected:
         helper->readNonblocking_ = 1;
         helper->readWithTimeout_ = 0;
         helper->nextState_ = c;
+        helper->hasError_ = 0;
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_read));
     }
@@ -650,6 +653,7 @@ protected:
         helper->readWithTimeout_ = 1;
         helper->timer_.set_triggered(); // Needed for the first iteration
         helper->nextState_ = c;
+        helper->hasError_ = 0;
         allocationResult_ = static_cast<StateFlowSelectHelper *>(helper);
         return call_immediately(STATE(internal_try_read));
     }
@@ -786,6 +790,7 @@ protected:
         helper->readFully_ = 1;
         helper->readWithTimeout_ = 0;
         helper->nextState_ = c;
+        helper->hasError_ = 0;
         allocationResult_ = helper;
         return call_immediately(STATE(internal_try_write));
     }
