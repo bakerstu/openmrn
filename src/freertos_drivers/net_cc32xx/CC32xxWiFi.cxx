@@ -1053,6 +1053,14 @@ void CC32xxWiFi::wlan_event_handler(WlanEvent *event)
         case SL_WLAN_EVENT_STA_REMOVED:
             // when client disconnects from device (AP)
             break;
+        case SL_WLAN_EVENT_PROVISIONING_STATUS:
+            LOG(INFO, "provisioning status %u %u %u", event->Data.ProvisioningStatus.ProvisioningStatus, event->Data.ProvisioningStatus.Role, event->Data.ProvisioningStatus.WlanStatus);
+            // when the auto provisioning kicks in
+            break;
+        case SL_WLAN_EVENT_PROVISIONING_PROFILE_ADDED:
+            LOG(INFO, "provisioning profile added %s %s", event->Data.ProvisioningProfileAdded.Ssid, event->Data.ProvisioningProfileAdded.Reserved);
+            // when the auto provisioning created a profile
+            break;
         default:
             HASSERT(0);
             break;
