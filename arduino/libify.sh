@@ -138,7 +138,8 @@ copy_file src arduino/OpenMRNLite.{h,cpp} \
     include/freertos/{freertos_includes.h,endian.h} \
     include/freertos_select/ifaddrs.h
 
-copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/Packet.cxx
+copy_file src/dcc src/dcc/*.hxx src/dcc/*.h \
+          src/dcc/{Packet,RailCom,RailcomBroadcastDecoder,RailcomDebug}.cxx
 copy_file src/executor src/executor/*.hxx src/executor/*.cxx
 copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
 
