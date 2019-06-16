@@ -16,6 +16,7 @@ BUILDDIRS = $(SUBDIRS:%=build-%)
 CLEANDIRS = $(SUBDIRS:%=clean-%)
 VERYCLEANDIRS = $(SUBDIRS:%=veryclean-%)
 TESTDIRS = $(SUBDIRS:%=tests-%)
+ALLTESTDIRS = $(SUBDIRS:%=alltest-%)
 MKSUBDIRSDIRS = $(SUBDIRS:%=mksubdirs-%)
 
 all: $(BUILDDIRS)
