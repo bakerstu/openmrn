@@ -125,6 +125,44 @@ TEST(DccDebug, F21_28)
     EXPECT_EQ("[dcc] Short Address 3 F[21-28]=01101001", packet_to_string(pkt));
 }
 
+TEST(DccDebug, Accy)
+{
+    Packet pkt;
+    pkt.add_dcc_basic_accessory(0, false);
+    EXPECT_EQ("[dcc] Accy 0 deactivate", packet_to_string(pkt));
+    pkt.clear();
+    pkt.add_dcc_basic_accessory(1, false);
+    EXPECT_EQ("[dcc] Accy 1 deactivate", packet_to_string(pkt));
+    pkt.clear();
+    pkt.add_dcc_basic_accessory(2, false);
+    EXPECT_EQ("[dcc] Accy 2 deactivate", packet_to_string(pkt));
+    pkt.clear();
+    pkt.add_dcc_basic_accessory(3, true);
+    EXPECT_EQ("[dcc] Accy 3 activate", packet_to_string(pkt));
+    pkt.clear();
+    pkt.add_dcc_basic_accessory(33, false);
+    EXPECT_EQ("[dcc] Accy 33 deactivate", packet_to_string(pkt));
+    pkt.clear();
+    pkt.add_dcc_basic_accessory(1023, false);
+    EXPECT_EQ("[dcc] Accy 1023 deactivate", packet_to_string(pkt));
+    pkt.clear();
+    pkt.add_dcc_basic_accessory(1024, false);
+    EXPECT_EQ("[dcc] Accy 1024 deactivate", packet_to_string(pkt));
+    pkt.clear();
+    pkt.add_dcc_basic_accessory(2044, true);
+    EXPECT_EQ("[dcc] Accy 2044 activate", packet_to_string(pkt));
+    pkt.clear();
+    pkt.add_dcc_basic_accessory(2043, true);
+    EXPECT_EQ("[dcc] Accy 2043 activate", packet_to_string(pkt));
+    pkt.clear();
+    pkt.add_dcc_basic_accessory(2042, true);
+    EXPECT_EQ("[dcc] Accy 2042 activate", packet_to_string(pkt));
+    pkt.clear();
+    pkt.add_dcc_basic_accessory(4095, true);
+    EXPECT_EQ("[dcc] Accy 4095 activate", packet_to_string(pkt));
+    pkt.clear();
+}
+
 TEST(DccDebug, marklin)
 {
     Packet pkt;
