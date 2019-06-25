@@ -145,7 +145,7 @@ copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/{DccDebug,Packet}.cxx
 copy_file src/dcc src/dcc/{RailCom,RailcomBroadcastDecoder,RailcomDebug}.cxx
 
 # Command Station DCC related files
-copy_file src/dcc src/dcc/{SimpleUpdateLoop,UpdateLoop}.cxx
+copy_file src/dcc src/dcc/{Loco,SimpleUpdateLoop,UpdateLoop}.cxx
 
 # remove test framework related file
 rm -f ${TARGET_LIB_DIR}/src/dcc/dcc_test_utils.hxx
