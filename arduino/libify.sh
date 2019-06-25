@@ -138,8 +138,18 @@ copy_file src arduino/OpenMRNLite.{h,cpp} \
     include/freertos/{freertos_includes.h,endian.h} \
     include/freertos_select/ifaddrs.h
 
-copy_file src/dcc src/dcc/*.hxx src/dcc/*.h \
-          src/dcc/{Packet,RailCom,RailcomBroadcastDecoder,RailcomDebug}.cxx
+# General DCC related files (all headers and DCC packet related cxx)
+copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/{DccDebug,Packet}.cxx
+
+# RailCom related DCC files
+copy_file src/dcc src/dcc/{RailCom,RailcomBroadcastDecoder,RailcomDebug}.cxx
+
+# Command Station DCC related files
+copy_file src/dcc src/dcc/{SimpleUpdateLoop,UpdateLoop}.cxx
+
+# remove test framework related file
+rm -f ${TARGET_LIB_DIR}/src/dcc/dcc_test_utils.hxx
+
 copy_file src/executor src/executor/*.hxx src/executor/*.cxx
 copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
 
