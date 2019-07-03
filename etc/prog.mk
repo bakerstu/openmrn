@@ -45,6 +45,10 @@ LIBS = $(STARTGROUP) \
        $(LINKCORELIBS) \
        $(ENDGROUP) \
 
+
+all:
+
+
 # This ensures that link targets that depend on lib/libfoo.a will recurse into
 # the directory foo and rebuild stuff that's there. However, the dependency is
 # phrased in a way that if recursing does not change the library (when it's
