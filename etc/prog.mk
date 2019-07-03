@@ -14,6 +14,7 @@ endif
 include $(OPENMRNPATH)/etc/$(TARGET).mk
 
 include $(OPENMRNPATH)/etc/path.mk
+include $(OPENMRNPATH)/etc/make_utils.mk
 
 GITREPOS += $(OPENMRNPATH)
 
@@ -43,6 +44,12 @@ LIBS = $(STARTGROUP) \
        $(foreach lib,$(LIBDIRS),-l$(lib)) \
        $(LINKCORELIBS) \
        $(ENDGROUP) \
+
+# This ensures that link targets that depend on lib/libfoo.a will recurse into
+# the directory foo and rebuild stuff that's there. However, the dependency is
+# phrased in a way that if recursing does not change the library (when it's
+# up-to-date) then the .elf linking is not re-done.
+$(foreach lib,$(LIBDIRS),$(eval $(call DEP_helper_template,lib/lib$(lib).a,build-$(lib))))
 
 CDIEXTRA := -I.
 INCLUDES += -I.
