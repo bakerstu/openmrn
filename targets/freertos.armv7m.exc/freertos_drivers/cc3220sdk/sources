@@ -1,0 +1,52 @@
+include $(OPENMRNPATH)/etc/cc322x.mk
+DEPS += TICC3220SDKPATH
+
+VPATH := $(OPENMRNPATH)/src/freertos_drivers/ti \
+         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi \
+         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/source \
+         $(TICC3220SDKPATH)/source/ti/drivers/net/wifi/porting \
+         $(TICC3220SDKPATH)/source/ti/drivers \
+         $(TICC3220SDKPATH)/source/ti/drivers/spi \
+         $(TICC3220SDKPATH)/source/ti/drivers/dma \
+         $(TICC3220SDKPATH)/source/ti/drivers/power \
+         $(TICC3220SDKPATH)/source/ti/drivers/utils \
+         $(TICC3220SDKPATH)/source/ti/posix/freertos \
+         $(TICC3220SDKPATH)/kernel/freertos/dpl
+
+CSRCS += device.c \
+         driver.c \
+         flowcont.c \
+         fs.c \
+         netapp.c \
+         netcfg.c \
+         netutil.c \
+         sl_socket.c \
+         spawn.c \
+         wlan.c \
+         cc_pal.c \
+         eventreg.c \
+
+CSRCS += SPI.c \
+         HwiPCC32XX_freertos.c \
+         SemaphoreP_freertos.c \
+         MutexP_freertos.c \
+         ClockP_freertos.c \
+         SPICC32XXDMA.c \
+         UDMACC32XX.c \
+         PowerCC32XX.c \
+         List.c
+
+CSRCS += clock.c \
+         pthread.c \
+         pthread_mutex.c \
+         sched.c \
+         semaphore.c
+
+CXXSRCS += SimplelinkPthread.cxx
+
+CFLAGS += -Wno-strict-prototypes
+
+CXXFLAGS +=
+
+clock.o : CFLAGS += -Wno-error=implicit-function-declaration
+pthread.o : CFLAGS += -DconfigPOSIX_STACK_SIZE=512 -Wno-error=unused-variable

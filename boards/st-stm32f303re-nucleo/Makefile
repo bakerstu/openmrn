@@ -21,7 +21,9 @@ CFLAGS += -DSTM32F303xE
 CXXFLAGS += -DSTM32F303xE
 OPENOCDARGS = -f board/st_nucleo_f3.cfg
 
+ifndef TARGET
 export TARGET := freertos.armv7m
+endif
 include $(OPENMRNPATH)/etc/prog.mk
 
 ifndef DEFAULT_ADDRESS
