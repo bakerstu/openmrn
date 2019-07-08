@@ -62,7 +62,7 @@ static Stm32Can can0("/dev/can0");
 /** EEPROM emulation driver. The file size might be made bigger. */
 static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
 
-const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
+const size_t EEPROMEmulation::SECTOR_SIZE = 256*1024;
 
 extern "C" {
 
@@ -147,8 +147,8 @@ const uint8_t APBPrescTable[8] = {0, 0, 0, 0, 1, 2, 3, 4};
   *            AHB Prescaler                  = 1
   *            APB1 Prescaler                 = 4
   *            APB2 Prescaler                 = 2
-  *            HSE Frequency(Hz)              = 25000000
-  *            PLL_M                          = 25
+  *            HSE Frequency(Hz)              = 8000000
+  *            PLL_M                          = 8
   *            PLL_N                          = 432
   *            PLL_P                          = 2
   *            PLL_Q                          = 9
@@ -177,10 +177,10 @@ static void clock_setup(void)
 
     /* Enable HSE Oscillator and activate PLL with HSE as source */
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-    RCC_OscInitStruct.PLL.PLLM = 25;
+    RCC_OscInitStruct.PLL.PLLM = 8;
     RCC_OscInitStruct.PLL.PLLN = 432;
     RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
     RCC_OscInitStruct.PLL.PLLQ = 9;
@@ -281,6 +281,12 @@ void hw_preinit(void)
 void usart3_interrupt_handler(void)
 {
     Stm32Uart::interrupt_handler(2);
+}
+
+extern void RTC_Alarm_IRQHandler(void);
+
+void rtc_alarm_interrupt_handler(void) {
+    RTC_Alarm_IRQHandler();
 }
 
 }

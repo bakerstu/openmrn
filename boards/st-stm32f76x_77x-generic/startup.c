@@ -526,10 +526,16 @@ static void usage_fault_handler(void)
 void default_interrupt_handler(void) __attribute__((weak));
 void default_interrupt_handler(void)
 {
+    volatile unsigned irqno = (*((uint32_t*)0xE000ED04)) & 0xff;
+    (void) irqno;
     while (1)
         ;
     diewith(BLINK_DIE_UNEXPIRQ);
 }
+
+void debug_interrupt_handler(void)
+    __attribute__((weak, alias("default_interrupt_handler")));
+
 
 void watchdog_interrupt_handler(void)
     __attribute__((weak, alias("default_interrupt_handler")));
