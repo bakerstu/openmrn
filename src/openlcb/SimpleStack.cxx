@@ -304,7 +304,7 @@ int SimpleStackBase::create_config_file_if_needed(const InternalConfigData &cfg,
     // though.
     HASSERT(SNIP_DYNAMIC_FILENAME == CONFIG_FILENAME);
     Uint8ConfigEntry(0).write(fd, 2);
-    factory_reset_all_events(cfg, fd);
+    factory_reset_all_events(cfg, node()->node_id(), fd);
     configUpdateFlow_.factory_reset();
     return fd;
 }
@@ -329,7 +329,7 @@ int SimpleStackBase::check_version_and_factory_reset(
     }
     if (force)
     {
-        factory_reset_all_events(cfg, fd);
+        factory_reset_all_events(cfg, node()->node_id(), fd);
         configUpdateFlow_.factory_reset();
         cfg.version().write(fd, expected_version);
     }
@@ -350,7 +350,7 @@ void SimpleStackBase::set_event_offsets(const vector<uint16_t> *offsets)
 }
 
 void SimpleStackBase::factory_reset_all_events(
-    const InternalConfigData &cfg, int fd)
+    const InternalConfigData &cfg, uint64_t node_id, int fd)
 {
     // First we find the event count.
     uint16_t new_next_event = cfg.next_event().read(fd);
@@ -364,7 +364,7 @@ void SimpleStackBase::factory_reset_all_events(
     // Then we write them to eeprom.
     for (unsigned i = 0; cdi_event_offsets_ptr[i]; ++i)
     {
-        EventId id = node()->node_id();
+        EventId id = node_id;
         id <<= 16;
         id |= next_event++;
         EventConfigEntry(cdi_event_offsets_ptr[i]).write(fd, id);
