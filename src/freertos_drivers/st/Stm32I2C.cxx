@@ -35,8 +35,18 @@
 
 #include "Stm32I2C.hxx"
 
-// @todo need adjust to F0 F1 etc.
+#if defined(STM32F072xB) || defined(STM32F091xC)
+#include "stm32f0xx_ll_rcc.h"
+#elif defined(STM32F103xB)
+#include "stm32f1xx_ll_rcc.h"
+#elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_ll_rcc.h"
+#elif defined(STM32F767xx)
+#include "stm32f7xx_ll_rcc.h"
+#include "stm32f7xx_ll_i2c.h"
+#else
+#error Dont know what STM32 chip you have.
+#endif
 
 // Enables the clock and resets the I2C peripheral.
 static void i2c_reset(I2C_TypeDef *port)
