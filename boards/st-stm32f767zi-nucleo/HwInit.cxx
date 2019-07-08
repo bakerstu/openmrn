@@ -60,7 +60,7 @@ static Stm32Uart uart0("/dev/ser0", USART3, USART3_IRQn);
 static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
-static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 65520);
 
 const size_t EEPROMEmulation::SECTOR_SIZE = 256*1024;
 
@@ -287,6 +287,10 @@ extern void RTC_Alarm_IRQHandler(void);
 
 void rtc_alarm_interrupt_handler(void) {
     RTC_Alarm_IRQHandler();
+}
+
+extern int isatty(int fd) {
+  return 0;
 }
 
 }
