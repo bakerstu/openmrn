@@ -217,7 +217,10 @@ public:
         clear_cache();
     }
 
-    ~TractionThrottle() {
+    ~TractionThrottle()
+    {
+        iface()->dispatcher()->unregister_handler_all(&listenReplyHandler_);
+        iface()->dispatcher()->unregister_handler_all(&speedReplyHandler_);
     }
 
     using Command = TractionThrottleInput::Command;

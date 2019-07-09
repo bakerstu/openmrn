@@ -19,6 +19,9 @@ TESTBINS = $(TESTSRCS:.cxxtest=.test$(EXTENTION))
 TESTOUTPUTS = $(TESTSRCS:.cxxtest=.testout)
 TESTMD5 = $(TESTSRCS:.cxxtest=.testmd5)
 
+alltest-%: 
+	+$(MAKE) $(filter $(@:alltest-%=%)/%,$(TESTOUTPUTS))
+
 INCLUDES += -I$(GTESTPATH)/include -I$(GMOCKPATH)/include -I$(GMOCKPATH) \
             -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include
 

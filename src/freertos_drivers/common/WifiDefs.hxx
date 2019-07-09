@@ -1,6 +1,8 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_WIFIDEFS_HXX_
 #define _FREERTOS_DRIVERS_COMMON_WIFIDEFS_HXX_
 
+#include <stdint.h>
+
 /// Wifi not associated to access point: continuous short blinks.
 #define WIFI_BLINK_NOTASSOCIATED  0b1010
 /// Waiting for IP address: double short blink, pause, double short blink, ...
@@ -22,6 +24,7 @@ enum class WlanState : uint8_t
     CONNECT_STATIC,
     CONNECT_FAILED,
     CONNECTION_LOST,
+    WRONG_PASSWORD,
     UPDATE_DISPLAY = 20,
 };
 

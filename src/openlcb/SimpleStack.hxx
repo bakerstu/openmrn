@@ -206,7 +206,8 @@ public:
         uint16_t expected_version, bool force = false);
 
     /// Overwrites all events in the eeprom with a brand new event ID.
-    void factory_reset_all_events(const InternalConfigData &ofs, int fd);
+    static void factory_reset_all_events(
+        const InternalConfigData &ofs, uint64_t node_id, int fd);
 
     /// Call this function at the beginning of appl_main, just before {\link
     /// check_version_and_factory_reset} or {\link
@@ -214,7 +215,7 @@ public:
     /// dyamically created instead of statically linked.
     /// @param offsets is a vector with the data. The last entry must be
     /// zero. This vector must outlive the SimpleStack object.
-    void set_event_offsets(const vector<uint16_t> *offsets);
+    static void set_event_offsets(const vector<uint16_t> *offsets);
 
     /// Helper function to send an event report to the bus. Performs
     /// synchronous (dynamic) memory allocation so use it sparingly and when

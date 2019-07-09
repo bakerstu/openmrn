@@ -64,6 +64,8 @@ public:
     ConfigUpdateFlow(If *iface)
         : StateFlowBase(iface)
         , nextRefresh_(listeners_.begin())
+        , needsReboot_(0)
+        , needsReInit_(0)
         , fd_(-1)
     {
     }
@@ -79,6 +81,9 @@ public:
     void TEST_set_fd(int fd)
     {
         fd_ = fd;
+    }
+    bool TEST_is_terminated() {
+        return is_terminated();
     }
 
     void trigger_update() override

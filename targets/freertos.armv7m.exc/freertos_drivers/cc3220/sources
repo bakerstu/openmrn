@@ -1,0 +1,14 @@
+include $(OPENMRNPATH)/etc/cc322x.mk
+
+VPATH=$(OPENMRNPATH)/src/freertos_drivers/ti
+
+CXXSRCS += CC32xxUart.cxx \
+           CC32xxSPI.cxx \
+           CC32xxDeviceFile.cxx \
+           CC32xxEEPROMEmulation.cxx \
+           CC32xxHelper.cxx \
+           
+
+CFLAGS += -Wno-strict-prototypes
+
+CXXFLAGS +=

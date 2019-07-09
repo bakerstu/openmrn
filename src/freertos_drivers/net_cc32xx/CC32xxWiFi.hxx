@@ -210,6 +210,10 @@ public:
     {
         if (!connected && wlanRole != WlanRole::AP)
         {
+            if (securityFailure)
+            {
+                return WlanState::WRONG_PASSWORD;
+            }
             return WlanState::NOT_ASSOCIATED;
         }
         if (!ipAcquired)
@@ -218,6 +222,23 @@ public:
         }
         return WlanState::OK;
     }
+
+#ifdef GTEST
+    /** Used by unit tests to simulate wifi connection states.
+     * @param conn if true, we are associated to an AP
+     * @param has_ip if true, we have an IP address
+     * @param ssid will be returned when caller wants the AP name
+     * @param wrong_password if true, simulates security failure
+     */
+    void TEST_set_state(
+        bool conn, bool has_ip, bool wrong_password, const string &ssid)
+    {
+        connected = conn ? 1 : 0;
+        ipAcquired = has_ip ? 1 : 0;
+        securityFailure = wrong_password ? 1 : 0;
+        strcpy(this->ssid, ssid.c_str());
+    }
+#endif
 
     /** Updates the blinker based on connection state. Noop if wlan_ready()
      * returns true.*/
@@ -516,6 +537,7 @@ private:
     unsigned ipAcquired       : 1; /**< IP address aquired state */
     unsigned ipLeased         : 1; /**< IP address leased to a client(AP mode)*/
     unsigned smartConfigStart : 1; /**< Smart config in progress */
+    unsigned securityFailure  : 1; /**< Disconnected due to wrong password */
 
     /** allow access to private members from CC32xxSocket */
     friend class CC32xxSocket;

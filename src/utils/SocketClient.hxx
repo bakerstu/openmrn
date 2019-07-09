@@ -135,6 +135,8 @@ public:
         CONNECT_STATIC,
         /// Attempt complete. Start again.
         WAIT_RETRY,
+        /// Failed and do not start again (for one-shot mode).
+        FAILED_EXIT,
     };
 
     /// Updates the parameter structure for this socket client.
@@ -322,7 +324,14 @@ private:
                 strategyConfig_[ofs++] = Attempt::CONNECT_MDNS;
                 break;
         }
-        strategyConfig_[ofs++] = Attempt::WAIT_RETRY;
+        if (params_->one_shot())
+        {
+            strategyConfig_[ofs++] = Attempt::FAILED_EXIT;
+        }
+        else
+        {
+            strategyConfig_[ofs++] = Attempt::WAIT_RETRY;
+        }
         HASSERT(ofs <= strategyConfig_.size());
     }
 
@@ -361,6 +370,8 @@ private:
                 DIE("Unexpected action");
             case Attempt::WAIT_RETRY:
                 return wait_retry();
+            case Attempt::FAILED_EXIT:
+                return failed_oneshot();
             case Attempt::RECONNECT:
                 return try_schedule_connect(SocketClientParams::CONNECT_RE,
                     params_->last_host_name(), params_->last_port());
@@ -441,6 +452,12 @@ private:
     {
         {
             AtomicHolder h(this);
+            if (requestShutdown_)
+            {
+                ::close(fd_);
+                fd_ = -1;
+                return exit();
+            }
             isConnected_ = true;
         }
         callback_(fd_, this);
@@ -552,6 +569,13 @@ private:
             SocketClientParams::CONNECT_MDNS, std::move(host), port);
     }
 
+    /// Last state in the connection sequence, when everything failed, but the
+    /// caller wanted one shot only.
+    Action failed_oneshot()
+    {
+        params_->log_message(SocketClientParams::CONNECT_FAILED_ONESHOT);
+        return exit();
+    }
     /// Last state in the connection sequence, when everything failed: sleeps
     /// until the timeout specified in the params, then goes back to the
     /// start_connection.

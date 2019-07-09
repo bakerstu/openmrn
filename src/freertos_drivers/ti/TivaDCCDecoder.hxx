@@ -301,6 +301,8 @@ TivaDccDecoder<HW>::TivaDccDecoder(const char *name,
 {
     MAP_SysCtlPeripheralEnable(HW::TIMER_PERIPH);
     HW::NRZ_Pin::hw_init();
+    MAP_GPIOPadConfigSet(HW::NRZ_Pin::GPIO_BASE, HW::NRZ_Pin::GPIO_PIN,
+                         GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 
     disable();
 }

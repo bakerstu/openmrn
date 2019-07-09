@@ -265,6 +265,11 @@ public:
         return lastPort_;
     }
 
+    bool one_shot() override
+    {
+        return oneShot_;
+    }
+    
     SocketClientTest *parent_;
     int searchMode_{AUTO_MANUAL};
     bool enableLast_{true};
@@ -273,6 +278,7 @@ public:
     string mdnsServiceName_;
     string lastHostName_;
     int lastPort_{-1};
+    bool oneShot_{false};
 
     OSMutex lock_;
 };
@@ -418,3 +424,64 @@ TEST_F(SocketClientTest, test_fourth_sequence)
         wait();
     }
 }
+
+TEST_F(SocketClientTest, one_shot)
+{
+    ::testing::InSequence seq;
+    auto p = std::make_unique<TestSocketClientParams>(this);
+    p->lastHostName_ = "127.0.0.2";
+    p->lastPort_ = LISTEN_PORT + 1;
+    p->mdnsServiceName_ = "_nonexist823467284._tcp";
+    p->oneShot_ = true;
+    p->searchMode_ = SocketClientParams::AUTO_MANUAL;
+    EXPECT_CALL(*this,
+        status_callback(SocketClientParams::CONNECT_RE, "127.0.0.2:12248"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_SEARCH,
+                           "_nonexist823467284._tcp"));
+    EXPECT_CALL(*this, status_callback(SocketClientParams::MDNS_NOT_FOUND, _));
+    EXPECT_CALL(
+        *this, status_callback(SocketClientParams::CONNECT_FAILED_ONESHOT, _))
+        .WillOnce(::testing::InvokeWithoutArgs(&n_, &SyncNotifiable::notify));
+
+    sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
+        &g_connect_executor, &g_connect_executor, std::move(p),
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
+
+    n_.wait_for_notification();
+    usleep(40000);
+}
+
+
+TEST_F(SocketClientTest, one_shot_success)
+{
+    ::testing::InSequence seq;
+    auto p = std::make_unique<TestSocketClientParams>(this);
+    p->manualHostName_ = "127.0.0.2";
+    p->manualPort_ = LISTEN_PORT;
+    p->mdnsServiceName_ = "_nonexist823467284._tcp";
+    p->oneShot_ = true;
+    p->searchMode_ = SocketClientParams::MANUAL_ONLY;
+    EXPECT_CALL(*this,
+        status_callback(SocketClientParams::CONNECT_MANUAL, "127.0.0.2:12247"));
+    EXPECT_CALL(*this, last_callback("127.0.0.2", 12247));
+    EXPECT_CALL(
+        *this, connect_callback(_, _))
+        .WillOnce(::testing::InvokeWithoutArgs(&n_, &SyncNotifiable::notify));
+
+    sc_.reset(new SocketClient(node_->iface()->dispatcher()->service(),
+        &g_connect_executor, &g_connect_executor, std::move(p),
+        std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
+
+    n_.wait_for_notification();
+    EXPECT_TRUE(sc_->is_connected());  // successful connection
+    usleep(10000);
+
+    // Now that we have the connect callback we shutdown the socket client. The
+    // mock will verify that no other calls are happening.
+
+    sc_->shutdown();
+    EXPECT_FALSE(sc_->is_connected());
+    EXPECT_TRUE(sc_->is_shutdown());
+    usleep(10000);
+}
+
