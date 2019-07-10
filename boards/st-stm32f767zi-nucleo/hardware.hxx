@@ -7,7 +7,7 @@ GPIO_PIN(LED1_RAW, LedPin, B, 0);
 GPIO_PIN(LED2, LedPin, B, 7);
 GPIO_PIN(LED3, LedPin, B, 14);
 
-GPIO_PIN(SW_USER, GpioInputPU, C, 13);
+GPIO_PIN(SW_USER, GpioInputPD, C, 13);
 
 typedef GpioInitializer<LED1_RAW_Pin, LED2_Pin, LED3_Pin, SW_USER_Pin> GpioInit;
 
