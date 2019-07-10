@@ -88,6 +88,7 @@ protected:
 class CC32xxWiFi : public CC32xxWiFiInterface, public Singleton<CC32xxWiFi>
 {
 public:
+
     /** the value passed to wlan_profile_del() to remove all profiles */
     static constexpr int PROFILE_DELETE_ALL = 0xFF;
 
@@ -112,6 +113,16 @@ public:
 
     /** CC32xx SimpleLink forward declaration */
     struct FatalErrorEvent;
+    
+    /** The Wlan reconnect policy */
+    enum WlanConnectionPolicy {
+        WLAN_CONNECTION_NO_CHANGE,
+        /// Scan for wifi networks and connect to the nearest that is stored in
+        /// the profiles (by profile priority and security settings).
+        WLAN_CONNECTION_SCAN,
+        /// Reconnect to the last connected AP.
+        WLAN_CONNECTION_RECONNECT
+    };
     
     /** The WLAN power policy.
      */
@@ -154,7 +165,8 @@ public:
      * @param power_policy desired power policy
      */
     void start(WlanRole role = WlanRole::STA,
-               WlanPowerPolicy power_policy = WLAN_NO_CHANGE_POLICY);
+        WlanPowerPolicy power_policy = WLAN_NO_CHANGE_POLICY,
+        WlanConnectionPolicy connection_policy = WLAN_CONNECTION_NO_CHANGE);
 
     /** Stops the Wi-Fi in preparation for a reboot. TODO: does this need to be
      * called from a critical section?
@@ -308,6 +320,12 @@ public:
      */
     int wlan_power_policy_get(WlanPowerPolicy *wpp);
 
+    /** Sets connection policy to auto connect. Updates the Wifi fast-reconnect
+     * policy if desired.
+     * @param policy the desired policy
+     */
+    void wlan_connection_policy_set(WlanConnectionPolicy policy);
+    
     /** Get a list of available networks.
      * @param entries returns a list of available network entries
      * @param count size of entry list in number of elements, max 20
@@ -530,6 +548,7 @@ private:
 
     WlanRole wlanRole; /**< the Wi-Fi role we are in */
     WlanPowerPolicy wlanPowerPolicy; /**< the desired power policy */
+    WlanConnectionPolicy connectionPolicy; /**< scan or reconnect to last AP */
 
     unsigned started          : 1; /**< network processor started */
     unsigned connected        : 1; /**< AP connected state */
