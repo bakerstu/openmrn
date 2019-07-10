@@ -60,9 +60,10 @@ static Stm32Uart uart0("/dev/ser0", USART3, USART3_IRQn);
 static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
-static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 65520);
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 24000);
 
 const size_t EEPROMEmulation::SECTOR_SIZE = 256*1024;
+const bool EEPROMEmulation::SHADOW_IN_RAM = false;
 
 extern "C" {
 
@@ -74,6 +75,11 @@ void hw_set_to_safe(void)
 {
 }
 
+void reboot()
+{
+    NVIC_SystemReset();
+}
+   
 void resetblink(uint32_t pattern)
 {
     blinker_pattern = pattern;
