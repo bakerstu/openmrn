@@ -703,6 +703,14 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
 }
 
 /*
+ * CC32xxWiFi::wlan_disconnect()
+ */
+void CC32xxWiFi::wlan_disconnect()
+{
+    sl_WlanDisconnect();
+}
+
+/*
  * CC32xxWiFi::wlan_wps_pbc_initiate()
  */
 void CC32xxWiFi::wlan_wps_pbc_initiate()

@@ -189,6 +189,8 @@ public:
     void wlan_connect(const char *ssid, const char *security_key,
                       SecurityType security_type);
 
+    /** Disconnects from the current AP. */
+    void wlan_disconnect();
 
     /** Initiate a WPS Push Button Control connection.
      */
