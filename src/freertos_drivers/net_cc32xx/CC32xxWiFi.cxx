@@ -31,6 +31,8 @@
  * @date 18 March 2016
  */
 
+//#define LOGLEVEL INFO
+
 #define SUPPORT_SL_R1_API
 
 #include "CC32xxWiFi.hxx"
@@ -487,6 +489,40 @@ int CC32xxWiFi::wlan_power_policy_set(WlanPowerPolicy wpp)
     return (result != 0) ? -1 : 0;
 }
 
+void CC32xxWiFi::wlan_connection_policy_set(WlanConnectionPolicy policy) {
+    uint8_t past_policy;
+    uint8_t mask;
+    uint8_t desired_policy;
+
+    int length = sizeof(past_policy);
+    int ret;
+    ret = sl_WlanPolicyGet(
+        SL_WLAN_POLICY_CONNECTION, &past_policy, 0, (_u8 *)&length);
+    if (!ret)
+    {
+        LOG(WARNING, "Failed to get past connection policy.");
+        past_policy = 0; // This will typically result in a write.
+    }
+
+    if (policy == WLAN_CONNECTION_NO_CHANGE)
+    {
+        //  SL_WLAN_CONNECTION_POLICY(Auto,Fast,anyP2P,autoProvisioning)
+        mask = SL_WLAN_CONNECTION_POLICY(1, 0, 1, 1);
+        desired_policy = SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0);
+    }
+    else
+    {
+        mask = SL_WLAN_CONNECTION_POLICY(1, 1, 1, 1);
+        desired_policy = SL_WLAN_CONNECTION_POLICY(
+            1, policy == WLAN_CONNECTION_FAST_RECONNECT ? 1 : 0, 0, 0);
+    }
+
+    if ((past_policy & mask) != (desired_policy & mask))
+    {
+        sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, desired_policy, NULL, 0);
+    }
+}
+
 /*
  * CC32xxWiFi::wlan_rescan()
  */
@@ -611,7 +647,7 @@ void CC32xxWiFi::test_mode_start()
 /*
  * CC32xxWiFi::start()
  */
-void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy)
+void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy, WlanConnectionPolicy connection_policy)
 {
     /* We use OSThread::get_priority_max() - 1 for the thread priorities because
      * we want a to be among the highest, but want to reserve one higher
@@ -620,6 +656,7 @@ void CC32xxWiFi::start(WlanRole role, WlanPowerPolicy power_policy)
      */
     wlanRole = role;
     wlanPowerPolicy = power_policy;
+    connectionPolicy = connection_policy;
 
     os_thread_create(nullptr, "sl_Task", OSThread::get_priority_max(), 2048,
                      sl_Task, nullptr);
@@ -663,6 +700,14 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
                                 &sec_params, 0);
     HASSERT(result >= 0);
 
+}
+
+/*
+ * CC32xxWiFi::wlan_disconnect()
+ */
+void CC32xxWiFi::wlan_disconnect()
+{
+    sl_WlanDisconnect();
 }
 
 /*
@@ -765,9 +810,7 @@ void CC32xxWiFi::set_default_state()
             sl_Start(0, 0, 0);
         }
 
-        /* auto connection policy */
-        sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION,
-                         SL_WLAN_CONNECTION_POLICY(1,0,0,0), NULL, 0);
+        wlan_connection_policy_set(connectionPolicy);
 
         if (wlanPowerPolicy != WLAN_NO_CHANGE_POLICY)
         {
