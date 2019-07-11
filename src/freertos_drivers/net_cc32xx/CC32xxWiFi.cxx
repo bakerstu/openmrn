@@ -31,7 +31,7 @@
  * @date 18 March 2016
  */
 
-#define LOGLEVEL INFO
+//#define LOGLEVEL INFO
 
 #define SUPPORT_SL_R1_API
 
@@ -514,7 +514,7 @@ void CC32xxWiFi::wlan_connection_policy_set(WlanConnectionPolicy policy) {
     {
         mask = SL_WLAN_CONNECTION_POLICY(1, 1, 1, 1);
         desired_policy = SL_WLAN_CONNECTION_POLICY(
-            1, policy == WLAN_CONNECTION_RECONNECT ? 1 : 0, 0, 0);
+            1, policy == WLAN_CONNECTION_FAST_RECONNECT ? 1 : 0, 0, 0);
     }
 
     if ((past_policy & mask) != (desired_policy & mask))

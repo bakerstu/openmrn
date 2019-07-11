@@ -121,7 +121,7 @@ public:
         /// the profiles (by profile priority and security settings).
         WLAN_CONNECTION_SCAN,
         /// Reconnect to the last connected AP.
-        WLAN_CONNECTION_RECONNECT
+        WLAN_CONNECTION_FAST_RECONNECT
     };
     
     /** The WLAN power policy.
