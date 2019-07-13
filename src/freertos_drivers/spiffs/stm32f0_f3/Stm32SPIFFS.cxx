@@ -33,7 +33,7 @@
 
 #include "Stm32SPIFFS.hxx"
 
-#include "stm32f_hal_conf.h"
+#include "stm32f_hal_conf.hxx"
 
 //
 // Stm32SPIFFS::flash_read()
@@ -58,7 +58,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         uint8_t  data[8];
         uint16_t data_hword[4];
         uint32_t data_word[2];
-        uint64_t data;
+        uint64_t data_dw;
     };
 
     HASSERT(addr >= config_.phys_addr &&
@@ -73,7 +73,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         ww.data[1] = src[0];
 
         HASSERT(HAL_OK ==
-            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr - 1, ww.data));
+            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr - 1, ww.data_dw));
         addr += 1;
         size -= 1;
         src += 1;
@@ -83,7 +83,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         WriteWord ww;
         memcpy(ww.data, src, 8);
         HASSERT(HAL_OK ==
-            HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, ww.data));
+            HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, ww.data_dw));
         addr += 8;
         size -= 8;
         src += 8;
@@ -93,7 +93,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         WriteWord ww;
         memcpy(ww.data_hword, src, 2);
         HASSERT(HAL_OK ==
-            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, ww.data));
+            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, ww.data_dw));
         addr += 2;
         size -= 2;
         src += 2;
@@ -109,7 +109,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         ww.data[0] = src[0];
 
         HASSERT(HAL_OK ==
-            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, ww.data));
+            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, ww.data_dw));
         addr += 1;
         size -= 1;
         src += 1;
@@ -132,7 +132,7 @@ int32_t Stm32SPIFFS::flash_erase(uint32_t addr, uint32_t size)
 
     FLASH_EraseInitTypeDef erase_init;
     erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
-    erase_init.PageAddress = (uint32_t)address;
+    erase_init.PageAddress = (uint32_t)addr;
     erase_init.NbPages = size / FLASH_PAGE_SIZE;
     uint32_t page_error;
     
