@@ -24,29 +24,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file CC32x0SFSPIFFS.hxx
+ * @file Stm32SPIFFS.hxx
  * This file implements a SPIFFS FLASH driver specific to CC32xx.
  *
  * @author Stuart W. Baker
  * @date 1 January 2018
  */
 
-#ifndef _FREERTOS_DRIVERS_SPIFFS_CC3220SF_CC32X0SFSPIFFS_HXX_
-#define _FREERTOS_DRIVERS_SPIFFS_CC3220SF_CC32X0SFSPIFFS_HXX_
+#ifndef _FREERTOS_DRIVERS_SPIFFS_STM32F0_F3_STM32SPIFFS_HXX_
+#define _FREERTOS_DRIVERS_SPIFFS_STM32F0_F3_STM32SPIFFS_HXX_
 
 #include <cstdint>
 
 #include "SPIFFS.hxx"
 
 /// Specialization of Serial SPIFFS driver for CC32xx devices.
-class CC32x0SFSPIFFS : public SPIFFS
+class Stm32SPIFFS : public SPIFFS
 {
 public:
     /// Constructor.
-    CC32x0SFSPIFFS(size_t physical_address, size_t size_on_disk,
-                   size_t logical_block_size, size_t logical_page_size,
-                   size_t max_num_open_descriptors = 16, size_t cache_pages = 8,
-                   std::function<void()> post_format_hook = nullptr)
+    Stm32SPIFFS(size_t physical_address, size_t size_on_disk,
+                size_t logical_block_size, size_t logical_page_size,
+                size_t max_num_open_descriptors = 16, size_t cache_pages = 8,
+                std::function<void()> post_format_hook = nullptr)
         : SPIFFS(physical_address, size_on_disk, ERASE_PAGE_SIZE,
                  logical_block_size, logical_page_size,
                  max_num_open_descriptors, cache_pages, post_format_hook)
@@ -54,7 +54,7 @@ public:
     }
 
     /// Destructor.
-    ~CC32x0SFSPIFFS()
+    ~Stm32SPIFFS()
     {
     }
 
@@ -79,7 +79,7 @@ private:
     /// @param size size of erase region in bytes
     int32_t flash_erase(uint32_t addr, uint32_t size) override;
 
-    DISALLOW_COPY_AND_ASSIGN(CC32x0SFSPIFFS);
+    DISALLOW_COPY_AND_ASSIGN(Stm32SPIFFS);
 };
 
-#endif // _FREERTOS_DRIVERS_SPIFFS_CC3220SF_CC32X0SFSPIFFS_HXX_
+#endif // _FREERTOS_DRIVERS_SPIFFS_STM32F0_F3_STM32SPIFFS_HXX_

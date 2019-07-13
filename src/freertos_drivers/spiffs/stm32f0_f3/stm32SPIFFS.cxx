@@ -24,22 +24,21 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file CC32x0SFSPIFFS.cxx
+ * @file Stm32SPIFFS.cxx
  * This file implements a SPIFFS FLASH driver specific to CC32xx.
  *
  * @author Stuart W. Baker
  * @date 1 January 2018
  */
 
-#include "CC32x0SFSPIFFS.hxx"
+#include "Stm32SPIFFS.hxx"
 
-#include "inc/hw_types.h"
-#include "driverlib/flash.h"
+#include "stm32f_hal_conf.h"
 
 //
-// CC32x0SFSPIFFS::flash_read()
+// Stm32SPIFFS::flash_read()
 //
-int32_t CC32x0SFSPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
+int32_t Stm32SPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
 {
     HASSERT(addr >= config_.phys_addr &&
             (addr + size) <= (config_.phys_addr  + config_.phys_size));
@@ -50,98 +49,94 @@ int32_t CC32x0SFSPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
 }
 
 //
-// CC32x0SFSPIFFS::flash_write()
+// Stm32SPIFFS::flash_write()
 //
-int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
+int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 {
     union WriteWord
     {
-        uint8_t  data[4];
-        uint32_t data_word;
+        uint8_t  data[8];
+        uint16_t data_hword[4];
+        uint32_t data_word[2];
+        uint64_t data;
     };
 
     HASSERT(addr >= config_.phys_addr &&
             (addr + size) <= (config_.phys_addr  + config_.phys_size));
 
-    if ((addr % 4) && ((addr % 4) + size) < 4)
-    {
-        // single unaligned write in the middle of a word.
+    HAL_FLASH_Unlock();
+
+    if (addr & 1) {
+        // Unaligned write at the beginning.
         WriteWord ww;
-        ww.data_word = 0xFFFFFFFF;
+        ww.data_hword[0] = 0xffff;
+        ww.data[1] = src[0];
 
-        memcpy(ww.data + (addr % 4), src, size);
-        ww.data_word &= *((uint32_t*)(addr & (~0x3)));
-        HASSERT(FlashProgram(&ww.data_word, addr & (~0x3), 4) == 0);
-
-        return 0;
+        HASSERT(HAL_OK ==
+            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr - 1, ww.data));
+        addr += 1;
+        size -= 1;
+        src += 1;
     }
 
-    int misaligned = (addr + size) % 4;
-    if (misaligned != 0)
-    {
-        // last write unaligned data
+    while (size > 8) {
         WriteWord ww;
-        ww.data_word = 0xFFFFFFFF;
-
-        memcpy(&ww.data_word, src + size - misaligned, misaligned);
-        ww.data_word &= *((uint32_t*)((addr + size) & (~0x3)));
-        HASSERT(FlashProgram(&ww.data_word, (addr + size) & (~0x3), 4) == 0);
-
-        size -= misaligned;
+        memcpy(ww.data, src, 8);
+        HASSERT(HAL_OK ==
+            HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, ww.data));
+        addr += 8;
+        size -= 8;
+        src += 8;
     }
 
-    misaligned = addr % 4;
-    if (size && misaligned != 0)
-    {
-        // first write unaligned data
+    while (size > 2) {
         WriteWord ww;
-        ww.data_word = 0xFFFFFFFF;
-
-        memcpy(ww.data + misaligned, src, 4 - misaligned);
-        ww.data_word &= *((uint32_t*)(addr & (~0x3)));
-        HASSERT(FlashProgram(&ww.data_word, addr & (~0x3), 4) == 0);
-        addr += 4 - misaligned;
-        size -= 4 - misaligned;
-        src  += 4 - misaligned;
+        memcpy(ww.data_hword, src, 2);
+        HASSERT(HAL_OK ==
+            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, ww.data));
+        addr += 2;
+        size -= 2;
+        src += 2;
     }
 
-    HASSERT((addr % 4) == 0);
-    HASSERT((size % 4) == 0);
+    if (size) {
+        // Unaligned write at the end of the range.
+        HASSERT(size == 1);
+        HASSERT((addr & 1) == 0);
 
-    if (size)
-    {
-        // the rest of the aligned data
-        uint8_t *flash = (uint8_t*)addr;
-        for (uint32_t i = 0; i < size; i += 4)
-        {
-            src[i + 0] &= flash[i + 0];
-            src[i + 1] &= flash[i + 1];
-            src[i + 2] &= flash[i + 2];
-            src[i + 3] &= flash[i + 3];
-        }
+        WriteWord ww;
+        ww.data_hword[0] = 0xffff;
+        ww.data[0] = src[0];
 
-        HASSERT(FlashProgram((unsigned long*)src, addr, size) == 0);
+        HASSERT(HAL_OK ==
+            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, ww.data));
+        addr += 1;
+        size -= 1;
+        src += 1;
     }
 
-
+    HAL_FLASH_Lock();
+    
     return 0;
 }
 
 //
-// CC32x0SFSPIFFS::flash_erase()
+// Stm32SPIFFS::flash_erase()
 //
-int32_t CC32x0SFSPIFFS::flash_erase(uint32_t addr, uint32_t size)
+int32_t Stm32SPIFFS::flash_erase(uint32_t addr, uint32_t size)
 {
     HASSERT(addr >= config_.phys_addr &&
             (addr + size) <= (config_.phys_addr  + config_.phys_size));
     HASSERT((size % ERASE_PAGE_SIZE) == 0);
+    HASSERT((size % FLASH_PAGE_SIZE) == 0);
 
-    while (size)
-    {
-        HASSERT(FlashErase(addr) == 0);
-        addr += ERASE_PAGE_SIZE;
-        size -= ERASE_PAGE_SIZE;
-    }
+    FLASH_EraseInitTypeDef erase_init;
+    erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
+    erase_init.PageAddress = (uint32_t)address;
+    erase_init.NbPages = size / FLASH_PAGE_SIZE;
+    uint32_t page_error;
+    
+    HASSERT(HAL_OK == HAL_FLASHEx_Erase(&erase_init, &page_error));
 
     return 0;
 }
