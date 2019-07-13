@@ -707,6 +707,14 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
  */
 void CC32xxWiFi::wlan_disconnect()
 {
+    connected = 0;
+    ipAcquired = 0;
+    securityFailure = 0;
+    ssid[0] = '\0';
+    if (ipAcquiredCallback_)
+    {
+        ipAcquiredCallback_(false);
+    }
     sl_WlanDisconnect();
 }
 
