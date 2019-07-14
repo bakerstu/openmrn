@@ -33,6 +33,7 @@
 
 #include "CC32x0SFSPIFFS.hxx"
 
+#include "spiffs.h"
 #include "inc/hw_types.h"
 #include "driverlib/flash.h"
 
@@ -41,8 +42,8 @@
 //
 int32_t CC32x0SFSPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
 {
-    HASSERT(addr >= config_.phys_addr &&
-            (addr + size) <= (config_.phys_addr  + config_.phys_size));
+    HASSERT(addr >= fs_->cfg.phys_addr &&
+            (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
 
     memcpy(dst, (void*)addr, size);
 
@@ -60,8 +61,8 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         uint32_t data_word;
     };
 
-    HASSERT(addr >= config_.phys_addr &&
-            (addr + size) <= (config_.phys_addr  + config_.phys_size));
+    HASSERT(addr >= fs_->cfg.phys_addr &&
+            (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
 
     if ((addr % 4) && ((addr % 4) + size) < 4)
     {
@@ -132,8 +133,8 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 //
 int32_t CC32x0SFSPIFFS::flash_erase(uint32_t addr, uint32_t size)
 {
-    HASSERT(addr >= config_.phys_addr &&
-            (addr + size) <= (config_.phys_addr  + config_.phys_size));
+    HASSERT(addr >= fs_->cfg.phys_addr &&
+            (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
     HASSERT((size % ERASE_PAGE_SIZE) == 0);
 
     while (size)
