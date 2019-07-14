@@ -227,10 +227,18 @@ void hw_preinit(void)
     /* setup the system clock */
     clock_setup();
 
+    /* Select SysClk as source of USART3 clocks */
+    RCC_PeriphCLKInitTypeDef RCC_PeriphClkInit;
+    memset(&RCC_PeriphClkInit, 0, sizeof(RCC_PeriphClkInit));
+    RCC_PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART3;
+    RCC_PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_SYSCLK;
+    HASSERT(HAL_OK == HAL_RCCEx_PeriphCLKConfig(&RCC_PeriphClkInit));
+    
     /* enable peripheral clocks */
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
     __HAL_RCC_USART3_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
     __HAL_RCC_TIM14_CLK_ENABLE();
@@ -242,7 +250,7 @@ void hw_preinit(void)
     /* USART3 pinmux on PD8 and PD9 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
-    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     gpio_init.Alternate = GPIO_AF7_USART3;
     gpio_init.Pin = GPIO_PIN_8;
     HAL_GPIO_Init(GPIOD, &gpio_init);
