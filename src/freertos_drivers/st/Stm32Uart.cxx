@@ -75,6 +75,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     , interrupt(interrupt)
     , interrupt3_8EnableCnt(0)
 {
+    memset(&uartHandle, 0, sizeof(uartHandle));
     uartHandle.Instance = base;
     HAL_UART_DeInit(&uartHandle); 
 
@@ -168,8 +169,9 @@ void Stm32Uart::enable()
     uartHandle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
     uartHandle.Init.Mode       = UART_MODE_TX_RX;
     uartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-    
-    HAL_UART_Init(&uartHandle);
+
+    volatile auto ret = HAL_UART_Init(&uartHandle);
+    HASSERT(HAL_OK == ret);
     __HAL_UART_ENABLE_IT(&uartHandle, UART_IT_RXNE);
     __HAL_UART_ENABLE_IT(&uartHandle,  UART_IT_ERR);
 
@@ -177,6 +179,9 @@ void Stm32Uart::enable()
     {
         case USART1_IRQn:
         case USART2_IRQn:
+#ifdef USART3_IRQn
+        case USART3_IRQn:
+#endif            
             HAL_NVIC_EnableIRQ(interrupt);
             break;
         default:
@@ -196,6 +201,9 @@ void Stm32Uart::disable()
     {
         case USART1_IRQn:
         case USART2_IRQn:
+#ifdef USART3_IRQn
+        case USART3_IRQn:
+#endif            
             HAL_NVIC_DisableIRQ(interrupt);
             break;
         default:
@@ -289,7 +297,8 @@ void Stm32Uart::interrupt_handler(unsigned index)
 {
 #if !defined (STM32F030x6) && !defined (STM32F031x6) && !defined (STM32F038xx) \
  && !defined (STM32F030x8) && !defined (STM32F042x6) && !defined (STM32F048xx) \
- && !defined (STM32F051x8) && !defined (STM32F058xx) && !defined (STM32F070x6)
+ && !defined (STM32F051x8) && !defined (STM32F058xx) && !defined (STM32F070x6) \
+ && !defined (STM32F767xx)
     if (index >= 2)
     {
         for (unsigned i = 2; i < (sizeof(instances)/sizeof(Stm32Uart*)); ++i)
