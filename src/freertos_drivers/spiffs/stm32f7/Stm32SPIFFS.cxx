@@ -55,10 +55,8 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 {
     union WriteWord
     {
-        uint8_t  data[8];
-        uint16_t data_hword[4];
-        uint32_t data_word[2];
-        uint64_t data_dw;
+        uint8_t  data[4];
+        uint32_t data_word;
     };
 
     HASSERT(addr >= fs_->cfg.phys_addr &&
@@ -66,53 +64,72 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 
     HAL_FLASH_Unlock();
 
-    if (addr & 1) {
-        // Unaligned write at the beginning.
+    if ((addr % 4) && ((addr % 4) + size) < 4)
+    {
+        // single unaligned write in the middle of a word.
         WriteWord ww;
-        ww.data_hword[0] = 0xffff;
-        ww.data[1] = src[0];
+        ww.data_word = 0xFFFFFFFF;
 
+        memcpy(ww.data + (addr % 4), src, size);
+        ww.data_word &= *((uint32_t*)(addr & (~0x3)));
         HASSERT(HAL_OK ==
-            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr - 1, ww.data_dw));
-        addr += 1;
-        size -= 1;
-        src += 1;
+            HAL_FLASH_Program(
+                FLASH_TYPEPROGRAM_WORD, addr & (~0x3), ww.data_word));
+
+        HAL_FLASH_Lock();
+        return 0;
     }
 
-    while (size > 8) {
+    int misaligned = (addr + size) % 4;
+    if (misaligned != 0)
+    {
+        // last write unaligned data
         WriteWord ww;
-        memcpy(ww.data, src, 8);
+        ww.data_word = 0xFFFFFFFF;
+
+        memcpy(&ww.data_word, src + size - misaligned, misaligned);
+        ww.data_word &= *((uint32_t*)((addr + size) & (~0x3)));
         HASSERT(HAL_OK ==
-            HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, ww.data_dw));
-        addr += 8;
-        size -= 8;
-        src += 8;
+            HAL_FLASH_Program(
+                FLASH_TYPEPROGRAM_WORD, (addr + size) & (~0x3), ww.data_word));
+
+        size -= misaligned;
     }
 
-    while (size > 2) {
+    misaligned = addr % 4;
+    if (size && misaligned != 0)
+    {
+        // first write unaligned data
         WriteWord ww;
-        memcpy(ww.data_hword, src, 2);
+        ww.data_word = 0xFFFFFFFF;
+
+        memcpy(ww.data + misaligned, src, 4 - misaligned);
+        ww.data_word &= *((uint32_t*)(addr & (~0x3)));
         HASSERT(HAL_OK ==
-            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, ww.data_dw));
-        addr += 2;
-        size -= 2;
-        src += 2;
+            HAL_FLASH_Program(
+                FLASH_TYPEPROGRAM_WORD, addr & (~0x3), ww.data_word));
+        addr += 4 - misaligned;
+        size -= 4 - misaligned;
+        src  += 4 - misaligned;
     }
 
-    if (size) {
-        // Unaligned write at the end of the range.
-        HASSERT(size == 1);
-        HASSERT((addr & 1) == 0);
+    HASSERT((addr % 4) == 0);
+    HASSERT((size % 4) == 0);
 
-        WriteWord ww;
-        ww.data_hword[0] = 0xffff;
-        ww.data[0] = src[0];
-
-        HASSERT(HAL_OK ==
-            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, ww.data_dw));
-        addr += 1;
-        size -= 1;
-        src += 1;
+    if (size)
+    {
+        // the rest of the aligned data
+        uint8_t *flash = (uint8_t*)addr;
+        for (uint32_t i = 0; i < size; i += 4)
+        {
+            src[i + 0] &= flash[i + 0];
+            src[i + 1] &= flash[i + 1];
+            src[i + 2] &= flash[i + 2];
+            src[i + 3] &= flash[i + 3];
+            HASSERT(HAL_OK ==
+                HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, addr + i,
+                    *(unsigned long *)(src + i)));
+        }
     }
 
     HAL_FLASH_Lock();
@@ -125,18 +142,27 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 //
 int32_t Stm32SPIFFS::flash_erase(uint32_t addr, uint32_t size)
 {
+    extern char __flash_fs_start;
+    extern char __flash_fs_sector_start;
     HASSERT(addr >= fs_->cfg.phys_addr &&
             (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
-    HASSERT((size % ERASE_PAGE_SIZE) == 0);
-    HASSERT((size % FLASH_PAGE_SIZE) == 0);
 
     FLASH_EraseInitTypeDef erase_init;
-    erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
-    erase_init.PageAddress = (uint32_t)addr;
-    erase_init.NbPages = size / FLASH_PAGE_SIZE;
-    uint32_t page_error;
-    
-    HASSERT(HAL_OK == HAL_FLASHEx_Erase(&erase_init, &page_error));
+    memset(&erase_init, 0, sizeof(erase_init));
+
+    erase_init.TypeErase = TYPEERASE_SECTORS;
+    unsigned offset = addr - (unsigned) &__flash_fs_start;
+    HASSERT((size % ERASE_PAGE_SIZE) == 0);
+    HASSERT((offset % ERASE_PAGE_SIZE) == 0);
+    unsigned sector = offset / ERASE_PAGE_SIZE;
+    erase_init.Sector = 
+        ((unsigned)(&__flash_fs_sector_start)) + sector;
+    erase_init.NbSectors = size / ERASE_PAGE_SIZE;
+    erase_init.VoltageRange = FLASH_VOLTAGE_RANGE_3; // 3.3 to 3.6 volts powered.
+    HAL_FLASH_Unlock();
+    uint32_t sector_error;
+    HASSERT(HAL_OK == HAL_FLASHEx_Erase(&erase_init, &sector_error));
+    HAL_FLASH_Lock();
 
     return 0;
 }

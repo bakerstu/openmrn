@@ -60,7 +60,7 @@ public:
 
 private:
     /// size of an erase page in FLASH
-    static constexpr size_t ERASE_PAGE_SIZE = 2 * 1024;
+    static constexpr size_t ERASE_PAGE_SIZE = 256 * 1024;
 
     /// SPIFFS callback to read flash, in context.
     /// @param addr adddress location to read
