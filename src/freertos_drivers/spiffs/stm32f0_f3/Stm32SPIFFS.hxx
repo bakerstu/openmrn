@@ -36,7 +36,7 @@
 
 #include <cstdint>
 
-#include "SPIFFS.hxx"
+#include "freertos_drivers/spiffs/SPIFFS.hxx"
 
 /// Specialization of Serial SPIFFS driver for CC32xx devices.
 class Stm32SPIFFS : public SPIFFS
