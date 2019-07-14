@@ -41,7 +41,7 @@
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
-#include "Stm32EEPROMEmulation.hxx"
+#include "freertos_drivers/spiffs/stm32f7/Stm32SPIFFS.hxx"
 #include "hardware.hxx"
 
 /** override stdin */
@@ -59,11 +59,13 @@ static Stm32Uart uart0("/dev/ser0", USART3, USART3_IRQn);
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
 
-/** EEPROM emulation driver. The file size might be made bigger. */
-static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 24000);
-
-const size_t EEPROMEmulation::SECTOR_SIZE = 256*1024;
-const bool EEPROMEmulation::SHADOW_IN_RAM = false;
+/** File system driver. */
+extern char __flash_fs_start;
+extern char __flash_fs_end;
+static Stm32SPIFFS spiffs0((size_t)&__flash_fs_start,
+                           (&__flash_fs_end - &__flash_fs_start), 256 * 1024,
+                           256 /* logical page size */, 16 /* num open */,
+                           64 /* cache pages */);
 
 extern "C" {
 
@@ -305,6 +307,13 @@ void rtc_alarm_interrupt_handler(void) {
 
 extern int isatty(int fd) {
   return 0;
+}
+
+/** Initialize the processor hardware post platform init.
+ */
+void hw_postinit(void)
+{
+    spiffs0.mount("/ffs");
 }
 
 }
