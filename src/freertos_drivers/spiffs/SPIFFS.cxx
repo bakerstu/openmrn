@@ -145,7 +145,7 @@ SPIFFS::SPIFFS(size_t physical_address, size_t size_on_disk,
 }
 
 ///
-/// Desctructor
+/// Destructor
 ///
 SPIFFS::~SPIFFS()
 {

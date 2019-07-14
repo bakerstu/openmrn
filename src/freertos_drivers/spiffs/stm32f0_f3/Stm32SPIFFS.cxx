@@ -32,7 +32,7 @@
  */
 
 #include "Stm32SPIFFS.hxx"
-
+#include "spiffs.h"
 #include "stm32f_hal_conf.hxx"
 
 //
@@ -40,8 +40,8 @@
 //
 int32_t Stm32SPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
 {
-    HASSERT(addr >= config_.phys_addr &&
-            (addr + size) <= (config_.phys_addr  + config_.phys_size));
+    HASSERT(addr >= fs_->cfg.phys_addr &&
+            (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
 
     memcpy(dst, (void*)addr, size);
 
@@ -61,8 +61,8 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         uint64_t data_dw;
     };
 
-    HASSERT(addr >= config_.phys_addr &&
-            (addr + size) <= (config_.phys_addr  + config_.phys_size));
+    HASSERT(addr >= fs_->cfg.phys_addr &&
+            (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
 
     HAL_FLASH_Unlock();
 
@@ -125,8 +125,8 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 //
 int32_t Stm32SPIFFS::flash_erase(uint32_t addr, uint32_t size)
 {
-    HASSERT(addr >= config_.phys_addr &&
-            (addr + size) <= (config_.phys_addr  + config_.phys_size));
+    HASSERT(addr >= fs_->cfg.phys_addr &&
+            (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
     HASSERT((size % ERASE_PAGE_SIZE) == 0);
     HASSERT((size % FLASH_PAGE_SIZE) == 0);
 
