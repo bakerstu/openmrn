@@ -105,7 +105,10 @@ public:
     {
         char dirname[40];
         snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN);
-        int dfd = open(dirname,O_WRONLY);
+        int dfd = -1;
+        while ((dfd = open(dirname,O_WRONLY)) < 0) {
+            export_pin();
+        }
         write(dfd,"out\n",4);
         close(dfd);
     }
@@ -114,7 +117,10 @@ public:
     {
         char dirname[40];
         snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN);
-        int dfd = open(dirname,O_WRONLY);
+        int dfd = -1;
+        while ((dfd = open(dirname,O_WRONLY)) < 0) {
+            export_pin();
+        }
         write(dfd,"in\n",3);
         close(dfd);
     }
