@@ -57,6 +57,8 @@
 
 #define VERSION "can_eth Vrs 0.1"
 
+// Uncomment this to enable the USB port as well.
+// #define SNIFF_ON_USB
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
@@ -89,6 +91,12 @@ int appl_main(int argc, char* argv[])
 
     GcTcpHub hub(&can_hub0,listen_port);
 
+#ifdef SNIFF_ON_USB    
+    int usb_fd = ::open("/dev/serUSB0", O_RDWR);
+    HASSERT(usb_fd >= 0);
+    create_gc_port_for_can_hub(&can_hub0, usb_fd);
+#endif
+    
     int can_fd = ::open("/dev/can0", O_RDWR);
     HASSERT(can_fd >= 0);
 
