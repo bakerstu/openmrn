@@ -167,13 +167,16 @@ copy_file src/freertos_drivers/arduino \
 copy_file src/freertos_drivers/esp32 \
           src/freertos_drivers/esp32/*
 
-copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx src/os/{OSImpl,MDNS,OSSelectWakeup}.cxx
+copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx \
+          src/os/{OSImpl,MDNS,OSSelectWakeup}.cxx
 
 copy_file src/sys include/sys/tree.hxx
 
 copy_file src/utils src/utils/*.{cxx,hxx,c,h}
 
 rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
+    ${TARGET_LIB_DIR}/src/utils/async_datagram_test_helper.hxx \
+    ${TARGET_LIB_DIR}/src/utils/async_traction_test_helper.hxx \
     ${TARGET_LIB_DIR}/src/utils/if_tcp_test_helper.hxx
 
 if [ "x$VERBOSE" != "x" ]; then
