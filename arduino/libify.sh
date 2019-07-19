@@ -175,9 +175,11 @@ copy_file src/sys include/sys/tree.hxx
 copy_file src/utils src/utils/*.{cxx,hxx,c,h}
 
 rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
+    ${TARGET_LIB_DIR}/src/utils/AesCcmTestVectors.hxx \
     ${TARGET_LIB_DIR}/src/utils/async_datagram_test_helper.hxx \
     ${TARGET_LIB_DIR}/src/utils/async_if_test_helper.hxx \
     ${TARGET_LIB_DIR}/src/utils/async_traction_test_helper.hxx \
+    ${TARGET_LIB_DIR}/src/utils/EEPROMEmuTest.hxx \
     ${TARGET_LIB_DIR}/src/utils/hub_test_utils.hxx \
     ${TARGET_LIB_DIR}/src/utils/if_tcp_test_helper.hxx \
     ${TARGET_LIB_DIR}/src/utils/test_main.hxx
