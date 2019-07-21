@@ -83,7 +83,7 @@ void FreeRTOSTCP::start()
  */
 void FreeRTOSTCP::net_task()
 {
-    int sel_result, result;
+    int sel_result, result, tries;
     struct freertos_sockaddr address;
 
     socket_set = FreeRTOS_CreateSocketSet();
@@ -92,9 +92,20 @@ void FreeRTOSTCP::net_task()
     close_queue = xQueueCreate(10, sizeof(Socket_t));
     HASSERT(close_queue != 0);
 
-    wakeup = FreeRTOS_socket(
-        FREERTOS_AF_INET, FREERTOS_SOCK_DGRAM, FREERTOS_IPPROTO_UDP);
-    HASSERT(wakeup >= 0);
+    tries = 0;
+    wakeup = FREERTOS_INVALID_SOCKET;
+    while ((++tries <= 5) && (wakeup == FREERTOS_INVALID_SOCKET))
+    {
+        wakeup = FreeRTOS_socket(
+            FREERTOS_AF_INET, FREERTOS_SOCK_DGRAM, FREERTOS_IPPROTO_UDP);
+        if (wakeup == FREERTOS_INVALID_SOCKET)
+        {
+            // no memory or networking stack not fully operational
+            if (++tries < 5)
+                sleep(1);
+        }
+    }
+    HASSERT(wakeup != FREERTOS_INVALID_SOCKET);
 
     address.sin_port = FreeRTOS_htons(8000);
     address.sin_addr = FreeRTOS_htonl(0); // INADDR_ANY;

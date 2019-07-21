@@ -103,17 +103,6 @@ STM32CUBEF3PATH:=$(TRYPATH)
 endif
 endif #STM32CUBEF3PATH
 
-################ STM32Cube_F7 ##################
-ifndef STM32CUBEF7PATH
-SEARCHPATH := \
-  /opt/st/STM32Cube_FW_F7/default
-
-TRYPATH:=$(call findfirst,Drivers,$(SEARCHPATH))
-ifneq ($(TRYPATH),)
-STM32CUBEF7PATH:=$(TRYPATH)
-endif
-endif #STM32CUBEF7PATH
-
 ################ lpcopen_18xx_43xx ##################
 ifndef LPCOPENPATH_18XX_43XX
 SEARCHPATH := \
@@ -207,6 +196,7 @@ SEARCHPATH := \
   /opt/FreeRTOSPlus/TCP \
   /opt/FreeRTOSPlus/default/TCP \
   /opt/FreeRTOS/plus-tcp \
+  /opt/FreeRTOS-Plus/default/Source/FreeRTOS-Plus-TCP \
   $(HOME)/FreeRTOSPlus/Source/FreeRTOS-Plus-TCP \
   /d/FreeRTOSPlus/default/TCP \
 
