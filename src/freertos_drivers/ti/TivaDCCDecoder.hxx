@@ -325,8 +325,8 @@ template <class HW> void TivaDccDecoder<HW>::enable()
 
     MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
 
-    MAP_IntPrioritySet(HW::TIMER_INTERRUPT, 0);
-    MAP_IntPrioritySet(HW::RCOM_INTERRUPT, 0);
+    MAP_IntPrioritySet(HW::TIMER_INTERRUPT, 0x20);
+    MAP_IntPrioritySet(HW::RCOM_INTERRUPT, 0x20);
     MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
     MAP_IntEnable(HW::OS_INTERRUPT);
     MAP_IntEnable(HW::TIMER_INTERRUPT);
