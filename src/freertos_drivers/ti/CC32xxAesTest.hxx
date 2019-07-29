@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2015, Stuart Baker
+ * Copyright (c) 2019, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,52 +24,24 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file main.cxx
+ * \file CC32xxAesTest.hxx
  *
- * An application tests the Tiva/FreeRTOS implementation of the UART driver.
+ * Test runner for the CC32xx AES-CCM tests.
  *
- * @author Stuart Baker
- * @date 1 March 2015
+ * @author Balazs Racz
+ * @date 29 July 2019
  */
 
+#ifndef _FREERTOS_DRIVERS_TI_CC32XXAESTEST_HXX_
+#define _FREERTOS_DRIVERS_TI_CC32XXAESTEST_HXX_
+
 #define LOGLEVEL INFO
-
-#include <unistd.h>
-#include <fcntl.h>
-#include "stdio.h"
-#include <os/OS.hxx>
-
-#include "nmranet_config.h"
-#include "utils/logging.h"
-#include "utils/stdio_logging.h"
-
-#undef DIE
-#define DIE(msg)                                                               \
-    do                                                                         \
-    {                                                                          \
-        printf(msg "\n");                                                      \
-        resetblink(BLINK_DIE_ABORT);                                           \
-        sleep(1);                                                              \
-        abort();                                                               \
-    } while (false)
-
 
 #include "freertos_drivers/ti/CC32xxHelper.hxx"
 #include "freertos_drivers/ti/CC32xxAes.hxx"
 #include "fs.h"
 
-OVERRIDE_CONST(main_thread_stack_size, 2500);
-
-
-void CheckResult(int res, int expected = 0)
-{
-    if (res != expected)
-    {
-        printf("FAILED CHECK: expected %d actual %d\n", expected, res);
-        usleep(1000000);
-        DIE("expect");
-    }
-}
+namespace aes_test {
 
 int nibble_to_int(char n)
 {
@@ -134,7 +106,8 @@ void printcomp(const string& exp, const string& act, const char* name) {
     LOG(INFO, "Actual  =%s", str2hex(act).c_str());
 }
 
-void run_all_tests()
+/// @return true if the tests passed, false if they failed.
+bool run_all_tests()
 {
     string key;
     string nonce;
@@ -149,7 +122,7 @@ void run_all_tests()
         // Move the last part of the cipher to the tag.
         tag = cipher.substr(plain.size());
         cipher.resize(plain.size());
-        LOG(INFO, "\nExample %d keylen=%d nlen=%d alen=%d taglen=%d", i, (int)key.size(), (int)nonce.size(), (int)auth_data.size(), (int)tag.size());
+        LOG(INFO, "\nExample %d keylen=%d nlen=%d alen=%d taglen=%d datalen=%d", i, (int)key.size(), (int)nonce.size(), (int)auth_data.size(), (int)tag.size(), (int)plain.size());
         usleep(5000);
         string o_plain;
         string o_tag;
@@ -159,19 +132,19 @@ void run_all_tests()
             key, nonce, auth_data, cipher, &o_plain, &o_tag);
         printcomp(tag, o_tag, "tag");
         printcomp(plain, o_plain, "plain");
+
+        LOG(INFO, "\nEncrypting");
+
+        string o_cipher;
+        o_tag.clear();
+        CCMHelper::encrypt(
+            key, nonce, auth_data, plain, tag.size(), &o_cipher, &o_tag);
+        printcomp(tag, o_tag, "tag");
+        printcomp(cipher, o_cipher, "cipher");
     }
+    return !have_failure;
 }
 
-/** Entry point to application.
- * @param argc number of command line arguments
- * @param argv array of command line arguments
- * @return 0, should never return
- */
-int appl_main(int argc, char *argv[])
-{
-    run_all_tests();
-    LOG(WARNING, "done. %s.", have_failure ? " FAILURES" : "All good");
-    while (1)
-        ;
-    return 0;
-}
+} // namespace aes_test
+
+#endif // _FREERTOS_DRIVERS_TI_CC32XXAESTEST_HXX_
