@@ -4,6 +4,7 @@ CSRCS += errno_exit.c \
          ieeehalfprecision.c
 
 CXXSRCS += \
+	   Base64.cxx \
 	   CanIf.cxx \
 	   Crc.cxx \
 	   StringPrintf.cxx \
