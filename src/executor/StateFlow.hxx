@@ -724,7 +724,7 @@ protected:
     }
 
 
-#ifdef HAVE_BSDSOCKET
+#if OPENMRN_FEATURE_BSD_SOCKET
     /** Wait for a listen socket to become active and ready to accept an
      * incoming connection.
      * @param helper selectable helper for maintaining the select metadata
@@ -763,7 +763,7 @@ protected:
         service()->executor()->select(helper);
         return wait_and_call(c);
     }
-#endif
+#endif // OPENMRN_FEATURE_BSD_SOCKET
 
     /// Writes some data into a file descriptor, repeating the operation as
     /// necessary until all bytes are written.
