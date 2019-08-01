@@ -41,7 +41,7 @@
 #include "utils/Buffer.hxx"
 #include "utils/BufferPort.hxx"
 #include "utils/HubDevice.hxx"
-#ifdef OPENMRN_FEATURE_EXECUTOR_SELECT
+#if OPENMRN_FEATURE_EXECUTOR_SELECT
 #include "utils/HubDeviceSelect.hxx"
 #endif
 #include "utils/Hub.hxx"
