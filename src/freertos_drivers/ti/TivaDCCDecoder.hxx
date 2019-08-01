@@ -325,8 +325,8 @@ template <class HW> void TivaDccDecoder<HW>::enable()
 
     MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
 
-    MAP_IntPrioritySet(HW::TIMER_INTERRUPT, 0);
-    MAP_IntPrioritySet(HW::RCOM_INTERRUPT, 0);
+    MAP_IntPrioritySet(HW::TIMER_INTERRUPT, 0x20);
+    MAP_IntPrioritySet(HW::RCOM_INTERRUPT, 0x20);
     MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
     MAP_IntEnable(HW::OS_INTERRUPT);
     MAP_IntEnable(HW::TIMER_INTERRUPT);
@@ -407,6 +407,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         /// TODO(balazs.racz) recognize middle cutout.
         else if (decoder_.state() == dcc::DccDecoder::DCC_PACKET_FINISHED)
         {
+            Debug::DccPacketFinishedHook::set(true);
             if (inCutout_) {
                 //railcomDriver_->end_cutout();
                 inCutout_ = false;
@@ -427,6 +428,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
                 
                 MAP_IntPendSet(HW::OS_INTERRUPT);
             }
+            Debug::DccPacketFinishedHook::set(false);
         }
         lastTimerValue_ = raw_new_value;
         if (sampleActive_ && HW::NRZ_Pin::get() &&
