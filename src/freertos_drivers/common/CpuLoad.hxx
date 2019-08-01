@@ -229,11 +229,11 @@ private:
         auto k = l->new_key();
         if (k < 300)
         {
-            l->set_key_description(k, StringPrintf("irq-%u", k));
+            l->set_key_description(k, StringPrintf("irq-%u", (unsigned)k));
         }
         else if (k & 1)
         {
-            l->set_key_description(k, StringPrintf("ex 0x%x", k & ~1));
+            l->set_key_description(k, StringPrintf("ex 0x%x", (unsigned)(k & ~1)));
         }
         else
         {
