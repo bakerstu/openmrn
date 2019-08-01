@@ -4,7 +4,7 @@ include $(OPENMRNPATH)/etc/env.mk
 # Get the path to all targets
 include $(OPENMRNPATH)/etc/path.mk
 
-DEPS += FREERTOSPATH ESPTOOLPATH
+DEPS += FREERTOSPATH ESPTOOLPATH ESPNONOSSDKPATH
 TOOLPATH := $(ESPTOOLPATH)
 PREFIX = $(XTENSAGCCPATH)/bin/xtensa-lx106-elf-
 
