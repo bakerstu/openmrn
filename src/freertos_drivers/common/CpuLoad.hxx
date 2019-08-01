@@ -233,7 +233,8 @@ private:
         }
         else if (k & 1)
         {
-            l->set_key_description(k, StringPrintf("ex 0x%x", (unsigned)(k & ~1)));
+            l->set_key_description(
+                k, StringPrintf("ex 0x%x", (unsigned)(k & ~1)));
         }
         else
         {
