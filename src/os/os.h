@@ -719,7 +719,7 @@ OS_INLINE int os_sem_timedwait(os_sem_t *sem, long long timeout)
 #endif
 }
 
-#endif // #ifdef OPENMRN_FEATURE_SEM_TIMEDWAIT
+#endif // OPENMRN_FEATURE_SEM_TIMEDWAIT
 
 
 #if !defined (OPENMRN_FEATURE_MUTEX_FREERTOS)

@@ -46,7 +46,7 @@ class Notifiable : public Destructable
 public:
     /// Generic callback.
     virtual void notify() = 0;
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     virtual void notify_from_isr()
     {
         DIE("Unexpected call to notify_from_isr.");
@@ -71,7 +71,7 @@ public:
         sem_.post();
     }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     /// Implementation of notification receive from a FreeRTOS interrupt
     /// context.
     void notify_from_isr() OVERRIDE
