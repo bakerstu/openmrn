@@ -35,6 +35,8 @@
 
 #if defined(__linux__) || defined(__MACH__)
 char logbuffer[4096];
+#elif defined(ESP32)
+char logbuffer[2048];
 #else
 /// Temporary buffer to sprintf() the log lines into.
 char logbuffer[256];

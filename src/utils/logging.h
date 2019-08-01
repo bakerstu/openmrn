@@ -123,6 +123,8 @@ extern os_mutex_t g_log_mutex;
 
 #if defined(__linux__) || defined(__MACH__)
 extern char logbuffer[4096];
+#elif defined(ESP32)
+extern char logbuffer[2048];
 #else
 /// Temporary buffer to sprintf() the log lines into.
 extern char logbuffer[256];
