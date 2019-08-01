@@ -240,7 +240,7 @@ private:
             }
 
             /// ESP32 native CAN driver frame
-            can_message_t msg = {0};
+            can_message_t msg = {};
 
             msg.flags = CAN_MSG_FLAG_NONE;
             msg.identifier = can_frame->can_id;
@@ -306,7 +306,7 @@ private:
 #endif // CONFIG_TASK_WDT
 
             /// ESP32 native CAN driver frame
-            can_message_t msg = {0};
+            can_message_t msg = {};
             if (can_receive(&msg, pdMS_TO_TICKS(250)) != ESP_OK)
             {
                 // native CAN driver did not give us a frame.
