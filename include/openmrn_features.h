@@ -61,7 +61,7 @@
 #endif
 
 #if defined(OPENMRN_HAVE_SELECT) || defined(OPENMRN_HAVE_PSELECT) || defined(OPENMRN_FEATURE_DEVICE_SELECT)
-#define OPENMRN_FEATURE_EXECUTOR_SELECT
+#define OPENMRN_FEATURE_EXECUTOR_SELECT 1
 #endif
 
 #if (defined(ARDUINO) && !defined(ESP32)) || defined(ESP_NONOS) ||             \

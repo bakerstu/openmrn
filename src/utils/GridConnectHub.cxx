@@ -33,6 +33,8 @@
 
 //#define LOGLEVEL VERBOSE
 
+#include "openmrn_features.h"
+
 #include "utils/GridConnectHub.hxx"
 
 #include "executor/StateFlow.hxx"
