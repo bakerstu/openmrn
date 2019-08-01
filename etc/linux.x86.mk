@@ -27,7 +27,7 @@ HOST_TARGET := 1
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 
-ARCHOPTIMIZATION = -g -fdata-sections -ffunction-sections
+ARCHOPTIMIZATION = -g -fdata-sections -ffunction-sections -fPIC
 
 CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE
 
