@@ -199,11 +199,6 @@ extern const char* g_death_file;
 #include <esp8266-compat.h>
 #endif
 
-#if defined (__linux__) || defined (__MACH__) || defined (GCC_ARMCM3)
-#define HAVE_BSDSOCKET
-#endif
-
-
 /// Retrieve a parent pointer from a member class variable. UNSAFE.
 /// Usage:
 /// class Parent {

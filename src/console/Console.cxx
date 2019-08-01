@@ -82,7 +82,7 @@ Console::Console(ExecutorBase *executor, int fd_in, int fd_out, int port)
  */
 void Console::open_session(int fd_in, int fd_out)
 {
-#ifdef HAVE_BSDSOCKET
+#if OPENMRN_FEATURE_BSD_SOCKET
     fcntl(fd_in, F_SETFL, fcntl(fd_in, F_GETFL, 0) | O_NONBLOCK);
 #endif
     new Session(this, fd_in, fd_out);
@@ -283,7 +283,7 @@ StateFlowBase::Action Console::Session::process_read()
     {
         struct stat stat;
         fstat(fdIn, &stat);
-#ifdef HAVE_BSDSOCKET
+#if OPENMRN_FEATURE_BSD_SOCKET
         if (S_ISSOCK(stat.st_mode))
         {
             /* Socket connection closed */
@@ -439,7 +439,7 @@ bool Console::Session::callback_result_process(CommandStatus status,
         {
             struct stat stat;
             fstat(fdIn, &stat);
-#ifdef HAVE_BSDSOCKET
+#if OPENMRN_FEATURE_BSD_SOCKET
             if (S_ISSOCK(stat.st_mode))
             {
                 fprintf(fp, "shutting down session\n");
