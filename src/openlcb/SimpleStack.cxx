@@ -258,12 +258,29 @@ int SimpleStackBase::create_config_file_if_needed(const InternalConfigData &cfg,
     {
         extend = true;
     }
-    if (!reset && cfg.version().read(fd) != expected_version)
+    // Handle the case where the file exists but is too short for the verison
+    // check. This was observed on the esp32 with SD storage which does not
+    // automatically flush to disk on write.
+    if (statbuf.st_size < cfg.version().end_offset())
     {
+        LOG(VERBOSE, "%s is too short (%ld vs %d), forcing reset.",
+            CONFIG_FILENAME, statbuf.st_size, cfg.version().end_offset());
         reset = true;
     }
+    if (!reset && cfg.version().read(fd) != expected_version)
+    {
+        uint16_t current_version = cfg.version().read(fd);
+        if (current_version != expected_version)
+        {
+            LOG(VERBOSE, "config version mismatch (%d vs %d), forcing reset.",
+                current_version, expected_version);
+            reset = true;
+        }
+    }
     if (!reset && !extend)
+    {
         return fd;
+    }
 
     // Clears the file, preserving the node name and desription if any.
     if (extend && !reset)
