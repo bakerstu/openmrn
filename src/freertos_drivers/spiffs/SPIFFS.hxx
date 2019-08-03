@@ -176,7 +176,7 @@ protected:
 
     /// file system instance metadata
     spiffs* fs_;
-    
+
 private:
     /// Open directory metadata structure
     struct OpenDir;

@@ -1,5 +1,5 @@
 /** @copyright
- * Copyright (c) 2018, Stuart W Baker
+ * Copyright (c) 2019, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +25,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * @file Stm32SPIFFS.cxx
- * This file implements a SPIFFS FLASH driver specific to CC32xx.
  *
- * @author Stuart W. Baker
- * @date 1 January 2018
+ * This file implements a SPIFFS FLASH driver specific to STM32 F7 flash
+ * API.
+ *
+ * @author Balazs Racz
+ * @date 13 July 2019
  */
 
 #include "Stm32SPIFFS.hxx"

@@ -46,15 +46,11 @@
 #define O_DIRECT _FDIRECT
 #endif
 
-/// Provide mutex lock.
-/// @param fs reference to the file system instance
 void SPIFFS::extern_lock(struct spiffs_t *fs)
 {
     static_cast<SPIFFS*>(fs->user_data)->lock_.lock();
 }
 
-/// Provide mutex unlock.
-/// @param fs reference to the file system instance
 void SPIFFS::extern_unlock(struct spiffs_t *fs)
 {
     static_cast<SPIFFS*>(fs->user_data)->lock_.unlock();
@@ -80,32 +76,21 @@ void extern_spiffs_unlock(struct spiffs_t *fs)
 }
 } // extern "C"
 
-/// SPIFFS callback to read flash.
-/// @param fs reference to SPIFFS instance
-/// @param addr adddress location to read
-/// @param size size of read in bytes
-/// @param dst destination buffer for read
+// static
 int SPIFFS::flash_read(
     struct spiffs_t *fs, unsigned addr, unsigned size, uint8_t *dst)
 {
     return static_cast<SPIFFS *>(fs->user_data)->flash_read(addr, size, dst);
 }
 
-/// SPIFFS callback to write flash.
-/// @param fs reference to SPIFFS instance
-/// @param addr adddress location to write
-/// @param size size of write in bytes
-/// @param src source buffer for write
+// static
 int SPIFFS::flash_write(
     struct spiffs_t *fs, unsigned addr, unsigned size, uint8_t *src)
 {
     return static_cast<SPIFFS *>(fs->user_data)->flash_write(addr, size, src);
 }
 
-/// SPIFFS callback to erase flash.
-/// @param fs reference to SPIFFS instance
-/// @param addr adddress location to erase
-/// @param size size of erase region in bytes
+// static
 int SPIFFS::flash_erase(struct spiffs_t *fs, unsigned addr, unsigned size)
 {
     return static_cast<SPIFFS *>(fs->user_data)->flash_erase(addr, size);
@@ -133,20 +118,21 @@ SPIFFS::SPIFFS(size_t physical_address, size_t size_on_disk,
 {
     fs_ = new spiffs;
     fs_->user_data = this;
-    spiffs_config tmp{.hal_read_f       = flash_read,
-               .hal_write_f      = flash_write,
-               .hal_erase_f      = flash_erase,
-               .phys_size        = size_on_disk,
-               .phys_addr        = physical_address,
-               .phys_erase_block = erase_block_size,
-               .log_block_size   = logical_block_size,
-               .log_page_size    = logical_page_size};
+    spiffs_config tmp{  //
+        .hal_read_f       = flash_read,
+        .hal_write_f      = flash_write,
+        .hal_erase_f      = flash_erase,
+        .phys_size        = size_on_disk,
+        .phys_addr        = physical_address,
+        .phys_erase_block = erase_block_size,
+        .log_block_size   = logical_block_size,
+        .log_page_size    = logical_page_size};
     memcpy(&fs_->cfg, &tmp, sizeof(fs_->cfg));
 }
 
-///
-/// Destructor
-///
+//
+// Destructor
+//
 SPIFFS::~SPIFFS()
 {
     if (name)
@@ -167,8 +153,9 @@ struct SPIFFS::OpenDir
     struct dirent dirent_; ///< directory entry
 };
 
-/// Format the file system, all data will be lost.  The file system must
-/// not be mounted at the time of calling this.
+//
+// SPIFFS::format()
+//
 void SPIFFS::format()
 {
     HASSERT(SPIFFS_mounted(fs_) == 0);
@@ -183,8 +170,9 @@ void SPIFFS::format()
     formatted_ = true;
 }
 
-/// Helper to mount the file system.
-/// @return 0 if successful, else some error code
+//
+// SPIFFS::do_mount()
+//
 int SPIFFS::do_mount()
 {
     spiffs_config tmp;
@@ -319,7 +307,7 @@ ssize_t SPIFFS::write(File *file, const void *buf, size_t count)
     return result;
 }
 
-///
+//
 // SPIFFS::lseek()
 //
 off_t SPIFFS::lseek(File* file, off_t offset, int whence)

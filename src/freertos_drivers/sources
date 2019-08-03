@@ -52,7 +52,7 @@ endif
 ifeq ($(TARGET),freertos.armv7m.exc)
 
 SUBDIRS += stm32cubef303x_28x_58x_98x stm32cubef303xe stm32cubef767xx \
-         spiffs_stm32f303xe spiffs_stm32f767xx \
+           spiffs_stm32f303xe spiffs_stm32f767xx \
 
 
 # Avoids exception handling from operator new.
