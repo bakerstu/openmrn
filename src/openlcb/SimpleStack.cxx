@@ -258,6 +258,13 @@ int SimpleStackBase::create_config_file_if_needed(const InternalConfigData &cfg,
     {
         extend = true;
     }
+    // Handle the case where the file exists but is zero bytes. This was
+    // observed on the esp32 with SD storage which does not automatically
+    // flush to disk on write.
+    if (statbuf.st_size == 0)
+    {
+        reset = true;
+    }
     if (!reset && cfg.version().read(fd) != expected_version)
     {
         reset = true;
