@@ -261,7 +261,7 @@ int SimpleStackBase::create_config_file_if_needed(const InternalConfigData &cfg,
     // Handle the case where the file exists but is too short for the verison
     // check. This was observed on the esp32 with SD storage which does not
     // automatically flush to disk on write.
-    if (statbuf.st_size < cfg.version().end_offset())
+    if ((long)statbuf.st_size < (long)cfg.version().end_offset())
     {
         LOG(VERBOSE, "%s is too short (%ld vs %d), forcing reset.",
             CONFIG_FILENAME, statbuf.st_size, cfg.version().end_offset());
