@@ -58,7 +58,7 @@ public:
                    , name_(StringPrintf("AutoSyncFileFlow(%d)", fd_))
     {
       HASSERT(fd_ >= 0);
-      HASSERT(syncInterval_ > 0);
+      HASSERT(interval_ > 0);
       start_flow(STATE(sleep_and_call_sync));
     }
 
