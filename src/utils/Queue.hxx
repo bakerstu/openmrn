@@ -726,7 +726,7 @@ public:
         QProtected<T>::insert_locked(item);
         post_from_isr();
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /** Get an item from the front of the queue.
      * @return item retrieved from queue
@@ -834,7 +834,7 @@ public:
         QListProtected<items>::insert_locked(item, index);
         this->post_from_isr(&woken);
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /** Translate the Result type */
     typedef typename QListProtected<items>::Result Result;
