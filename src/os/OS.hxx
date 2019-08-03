@@ -262,7 +262,7 @@ public:
     }
 
 
-#if OPENMRN_FEATURE_MUTEX_FREERTOS
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Post (increment) a semaphore from ISR context.
      * @param woken is the task woken up
      */
@@ -270,7 +270,7 @@ public:
     {
         os_sem_post_from_isr(&handle, woken);
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
 
     /** Wait on (decrement) a semaphore.

@@ -717,7 +717,7 @@ public:
         post();
     }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Add an item to the back of the queue, callable from interrupt context.
      * @param item item to add to queue
      */
@@ -823,7 +823,7 @@ public:
         post();
     }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Add an item to the back of the queue.
      * @param item item to add to queue
      * @param index in the list to operate on

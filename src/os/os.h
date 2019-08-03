@@ -605,7 +605,7 @@ OS_INLINE int os_sem_post(os_sem_t *sem)
 #endif
 }
 
-#if OPENMRN_FEATURE_MUTEX_FREERTOS
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
 /** Post a semaphore from the ISR context.
  * @param sem address of semaphore to increment
  * @param woken is the task woken up
@@ -618,7 +618,7 @@ OS_INLINE int os_sem_post_from_isr(os_sem_t *sem, int *woken)
     *woken |= local_woken;
     return 0;
 }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
 /** Wait on a semaphore.
  * @param sem address of semaphore to decrement

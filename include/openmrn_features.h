@@ -73,6 +73,9 @@
 #if defined(__FreeRTOS__) || defined(ESP32)
 /// Use os_mutex_... implementation based on FreeRTOS mutex and semaphores.
 #define OPENMRN_FEATURE_MUTEX_FREERTOS 1
+
+/// Enables use of Notifiable::notify_from_isr and OSSem::post_from_isr.
+#define OPENMRN_FEATURE_RTOS_FROM_ISR 1
 #elif OPENMRN_FEATURE_SINGLE_THREADED
 /// Add a fake implementation for os_mutex_lock that crashes if there is a
 /// conflict.
