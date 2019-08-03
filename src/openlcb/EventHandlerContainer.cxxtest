@@ -76,9 +76,10 @@ protected:
         tmp_event = event;
         unsigned actual_mask =
             EventRegistry::align_mask(&tmp_event, size);
-        string dbg = StringPrintf(
-            "event 0x%llx size %u actual event 0x%llx actual mask %u", event,
-            size, tmp_event, actual_mask);
+        string dbg =
+            StringPrintf("event 0x%" PRIx64 " size %u actual event 0x%" PRIx64
+                         " actual mask %u",
+                event, size, tmp_event, actual_mask);
         EXPECT_LE(tmp_event, event) << dbg;
         if (actual_mask < 64)
         {

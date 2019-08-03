@@ -181,7 +181,7 @@ public:
             }
             return exit();
         }
-        if (message()->data()->channel == 0xfe)
+        if (message()->data()->channel >= 0xf0)
         {
             return release_and_exit();
         }

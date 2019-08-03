@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2015, Balazs Racz
+ * Copyright (c) 2019, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,28 +24,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file StringPrintf.hxx
+ * \file Base64.hxx
  *
- * Utility for creating c++ strings on demand with a printf-like structure.
+ * Helper function to perform encoding & decoding of Base64 data.
  *
  * @author Balazs Racz
- * @date 10 May 2015
+ * @date 31 July 2019
  */
 
-#ifndef _UTILS_STIRNGPRINTF_HXX_
-#define _UTILS_STIRNGPRINTF_HXX_
+#ifndef _UTILS_BASE64_HXX_
+#define _UTILS_BASE64_HXX_
 
 #include <string>
-#include <stdarg.h>
-#include <stdio.h>
 
-#include "utils/macros.h"
+/// Performs encoding of data in base64 format.
+/// @param binary data to encode
+/// @return base64 representation. The size will be (binary.size() + 2) / 3 * 4.
+std::string base64_encode(const std::string &binary);
 
-/** Conveninence utility to do a printf directly into a C++ string. 
- * @param format is a c printf format string. 
- * @param ... are additional arguments to the format string
- * @return a string with the formatted data. */
-std::string StringPrintf(const char *format, ...)
-    __attribute__((format(printf, 1, 2)));
+/// Performs decoding of data from base64 format to binary.
+/// @param base64 base64 encoded data
+/// @param data decoded data will be written here.
+/// @return true if decoding was successful. false if the encoding was
+/// erroneous, in which case the content of data is undefined.
+bool base64_decode(const std::string &base64, std::string *data);
 
-#endif // _UTILS_STIRNGPRINTF_HXX_
+#endif // _UTILS_BASE64_HXX_
