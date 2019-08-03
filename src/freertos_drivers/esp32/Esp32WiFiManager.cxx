@@ -34,6 +34,7 @@
 
 #include "Esp32WiFiManager.hxx"
 #include "os/MDNS.hxx"
+#include "utils/FdUtils.hxx"
 
 #include <esp_event_loop.h>
 #include <esp_log.h>
@@ -112,6 +113,13 @@ static constexpr int WIFI_GOTIP_BIT = BIT1;
 /// process to complete, in most cases this should be complete in under 30
 /// seconds.
 static constexpr uint8_t MAX_CONNECTION_CHECK_ATTEMPTS = 36;
+
+/// This is the number of consecutive IP addresses which will be available in
+/// the SoftAP DHCP server IP pool. These will be allocated immediately
+/// following the SoftAP IP address (default is 192.168.4.1). Default number to
+/// reserve is 48 IP addresses. Only four stations can be connected to the
+/// ESP32 SoftAP at any single time.
+static constexpr uint8_t SOFTAP_IP_RESERVATION_BLOCK_SIZE = 48;
 
 /// Event handler for the ESP32 WiFi system. This will receive events from the
 /// ESP-IDF event loop processor and pass them on to the Esp32WiFiManager for
@@ -238,12 +246,18 @@ private:
 
 // With this constructor being used the Esp32WiFiManager will manage the
 // WiFi connection, mDNS system and the hostname of the ESP32.
-Esp32WiFiManager::Esp32WiFiManager(const char *ssid, const char *password,
-    SimpleCanStack *stack, const WiFiConfiguration &cfg,
-    const char *hostname_prefix, wifi_mode_t wifi_mode,
-    tcpip_adapter_ip_info_t *station_static_ip, ip_addr_t primary_dns_server,
-    uint8_t soft_ap_channel, uint8_t soft_ap_max_stations,
-    wifi_auth_mode_t soft_ap_auth, tcpip_adapter_ip_info_t *softap_static_ip)
+Esp32WiFiManager::Esp32WiFiManager(const char *ssid
+                                 , const char *password
+                                 , SimpleCanStack *stack
+                                 , const WiFiConfiguration &cfg
+                                 , const char *hostname_prefix
+                                 , wifi_mode_t wifi_mode
+                                 , tcpip_adapter_ip_info_t *station_static_ip
+                                 , ip_addr_t primary_dns_server
+                                 , uint8_t soft_ap_channel
+                                 , wifi_auth_mode_t soft_ap_auth
+                                 , const char *soft_ap_password
+                                 , tcpip_adapter_ip_info_t *softap_static_ip)
     : DefaultConfigUpdateListener()
     , hostname_(hostname_prefix)
     , ssid_(ssid)
@@ -255,8 +269,8 @@ Esp32WiFiManager::Esp32WiFiManager(const char *ssid, const char *password,
     , stationStaticIP_(station_static_ip)
     , primaryDNSAddress_(primary_dns_server)
     , softAPChannel_(soft_ap_channel)
-    , softAPMaxStations_(soft_ap_max_stations)
     , softAPAuthMode_(soft_ap_auth)
+    , softAPPassword_(soft_ap_password ? soft_ap_password : password)
     , softAPStaticIP_(softap_static_ip)
 {
     // Extend the capacity of the hostname to make space for the node-id and
@@ -282,14 +296,6 @@ Esp32WiFiManager::Esp32WiFiManager(const char *ssid, const char *password,
 
     // Release any extra capacity allocated for the hostname.
     hostname_.shrink_to_fit();
-
-    if (softAPMaxStations_ > 4)
-    {
-        LOG(WARNING,
-            "[SoftAP] Max stations %d is too high, reducing to 4.",
-            softAPMaxStations_);
-        softAPMaxStations_ = 4;
-    }
 }
 
 // With this constructor being used, it will be the responsibility of the
@@ -328,13 +334,8 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
         return ConfigUpdateListener::UpdateAction::REBOOT_NEEDED;
     }
 
-    // If we are unable to read the full configuration from persistent storage
-    // give up and request a reboot.
-    if (read(fd, crcbuf.get(), cfg_.size()) != cfg_.size())
-    {
-        LOG_ERROR("read failed to fully read the config, REBOOT_NEEDED");
-        return ConfigUpdateListener::UpdateAction::REBOOT_NEEDED;
-    }
+    // Read the full configuration to the buffer for crc check.
+    FdUtils::repeated_read(fd, crcbuf.get(), cfg_.size());
 
     // Calculate CRC-32 from the loaded buffer.
     uint32_t configCrc32 = crc32_le(0, crcbuf.get(), cfg_.size());
@@ -442,7 +443,7 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
         {
             // Stop the DHCP service before connecting, this allows us to
             // specify a static IP address for the WiFi connection
-            LOG(INFO, "[DHCP] Stoping DHCP Client (if running).");
+            LOG(INFO, "[DHCP] Stopping DHCP Client (if running).");
             ESP_ERROR_CHECK(
                 tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_STA));
 
@@ -573,7 +574,7 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
         if (softAPStaticIP_ && wifiMode_ != WIFI_MODE_STA)
         {
             // Stop the DHCP server so we can reconfigure it.
-            LOG(INFO, "[SoftAP] Stoping DHCP Server (if running).");
+            LOG(INFO, "[SoftAP] Stopping DHCP Server (if running).");
             ESP_ERROR_CHECK(tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP));
 
             LOG(INFO,
@@ -595,7 +596,8 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
             // immediately after the static ip address of the Soft AP.
             ip4_addr_t first_ip, last_ip;
             ip4_addr_set_u32(&first_ip, htonl(apIP + 1));
-            ip4_addr_set_u32(&last_ip, htonl(apIP + softAPMaxStations_));
+            ip4_addr_set_u32(&last_ip,
+                             htonl(apIP + SOFTAP_IP_RESERVATION_BLOCK_SIZE));
 
             dhcps_lease_t dhcp_lease {
                 true,                   // enable dhcp lease functionality
@@ -723,11 +725,11 @@ void Esp32WiFiManager::start_wifi_system()
     if (wifiMode_ == WIFI_MODE_APSTA || wifiMode_ == WIFI_MODE_AP)
     {
         wifi_config_t conf;
-        memset(&conf, 0, sizeof(wifi_config_t));
+        bzero(&conf, sizeof(wifi_config_t));
         conf.ap.authmode = softAPAuthMode_;
         conf.ap.beacon_interval = 100;
         conf.ap.channel = softAPChannel_;
-        conf.ap.max_connection = softAPMaxStations_;
+        conf.ap.max_connection = 4;
         if (wifiMode_ == WIFI_MODE_AP)
         {
             // Configure the SSID for the Soft AP based on the SSID passed to
@@ -756,7 +758,7 @@ void Esp32WiFiManager::start_wifi_system()
         // Configure the SSID details for the station based on the SSID and
         // password provided to the Esp32WiFiManager constructor.
         wifi_config_t conf;
-        memset(&conf, 0, sizeof(wifi_config_t));
+        bzero(&conf, sizeof(wifi_config_t));
         strcpy(reinterpret_cast<char *>(conf.sta.ssid), ssid_);
         if (password_)
         {
@@ -780,7 +782,7 @@ void Esp32WiFiManager::start_wifi_system()
     {
         uint8_t attempt = 0;
         EventBits_t bits = 0;
-        uint32_t bitMask = WIFI_CONNECTED_BIT;
+        uint32_t bit_mask = WIFI_CONNECTED_BIT;
         while (++attempt <= MAX_CONNECTION_CHECK_ATTEMPTS)
         {
             // If we have connected to the SSID we then are waiting for IP
@@ -797,16 +799,16 @@ void Esp32WiFiManager::start_wifi_system()
                     attempt, MAX_CONNECTION_CHECK_ATTEMPTS);
             }
             bits = xEventGroupWaitBits(wifiStatusEventGroup_,
-                bitMask, // bits we are interested in
-                pdFALSE, // clear on exit
-                pdTRUE,  // wait for all bits
+                bit_mask, // bits we are interested in
+                pdFALSE,  // clear on exit
+                pdTRUE,   // wait for all bits
                 WIFI_CONNECT_CHECK_INTERVAL);
             // Check if have connected to the SSID
             if (bits & WIFI_CONNECTED_BIT)
             {
                 // Since we have connected to the SSID we now need to track
                 // that we get an IP.
-                bitMask |= WIFI_GOTIP_BIT;
+                bit_mask |= WIFI_GOTIP_BIT;
             }
             // Check if we have received an IP.
             if (bits & WIFI_GOTIP_BIT)
@@ -1065,7 +1067,7 @@ int mdns_lookup(
         LOG_ERROR("[mDNS] Allocation failed for addrinfo.");
         return EAI_MEMORY;
     }
-    memset(ai.get(), 0, sizeof(struct addrinfo));
+    bzero(ai.get(), sizeof(struct addrinfo));
 
     unique_ptr<struct sockaddr> sa(new struct sockaddr);
     if (sa.get() == nullptr)
@@ -1073,7 +1075,7 @@ int mdns_lookup(
         LOG_ERROR("[mDNS] Allocation failed for sockaddr.");
         return EAI_MEMORY;
     }
-    memset(sa.get(), 0, sizeof(struct sockaddr));
+    bzero(sa.get(), sizeof(struct sockaddr));
 
     struct sockaddr_in *sa_in = (struct sockaddr_in *)sa.get();
     ai->ai_flags = 0;
@@ -1183,7 +1185,7 @@ int getifaddrs(struct ifaddrs **ifap)
         errno = ENOMEM;
         return -1;
     }
-    memset(ia.get(), 0, sizeof(struct ifaddrs));
+    bzero(ia.get(), sizeof(struct ifaddrs));
     std::unique_ptr<char[]> ifa_name(new char[6]);
     if (ifa_name.get() == nullptr)
     {
@@ -1197,7 +1199,7 @@ int getifaddrs(struct ifaddrs **ifap)
         errno = ENOMEM;
         return -1;
     }
-    memset(ifa_addr.get(), 0, sizeof(struct sockaddr));
+    bzero(ifa_addr.get(), sizeof(struct sockaddr));
 
     // retrieve TCP/IP address from the interface
     tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);

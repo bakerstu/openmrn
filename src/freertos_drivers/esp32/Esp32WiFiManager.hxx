@@ -104,25 +104,29 @@ public:
     /// static IP address is being used. If left as the default (ip_addr_any)
     /// the Esp32WiFiManager will use 8.8.8.8 if using a static IP address.
     /// @param soft_ap_channel is the WiFi channel to use for the SoftAP.
-    /// @param soft_ap_max_clients is the maximum number of stations that can
-    /// connect to the SoftAP. This is limited to 1-4.
     /// @param soft_ap_auth is the authentication mode for the AP when
     /// wifi_mode is set to WIFI_MODE_AP or WIFI_MODE_APSTA.
+    /// @param soft_ap_password will be used as the password for the SoftAP,
+    /// if null and soft_ap_auth is not WIFI_AUTH_OPEN password will be used.
+    /// If provided, this must stay alive forever.
     /// @param softap_static_ip is the static IP configuration for the SoftAP,
     /// when not specified the SoftAP will have an IP address of 192.168.4.1.
     ///
     /// Note: Both ssid and password must remain in memory for the duration of
     /// node uptime.
-    Esp32WiFiManager(const char *ssid, const char *password,
-        openlcb::SimpleCanStack *stack, const WiFiConfiguration &cfg,
-        const char *hostname_prefix = "esp32_",
-        wifi_mode_t wifi_mode = WIFI_MODE_STA,
-        tcpip_adapter_ip_info_t *station_static_ip = nullptr,
-        ip_addr_t primary_dns_server = ip_addr_any,
-        uint8_t soft_ap_channel = 1,
-        uint8_t soft_ap_max_stations = 4,
-        wifi_auth_mode_t soft_ap_auth = WIFI_AUTH_OPEN,
-        tcpip_adapter_ip_info_t *softap_static_ip=nullptr);
+    Esp32WiFiManager(const char *ssid
+                   , const char *password
+                   , openlcb::SimpleCanStack *stack
+                   , const WiFiConfiguration &cfg
+                   , const char *hostname_prefix = "esp32_"
+                   , wifi_mode_t wifi_mode = WIFI_MODE_STA
+                   , tcpip_adapter_ip_info_t *station_static_ip = nullptr
+                   , ip_addr_t primary_dns_server = ip_addr_any
+                   , uint8_t soft_ap_channel = 1
+                   , wifi_auth_mode_t soft_ap_auth = WIFI_AUTH_OPEN
+                   , const char *soft_ap_password = nullptr
+                   , tcpip_adapter_ip_info_t *softap_static_ip = nullptr
+    );
 
     /// Constructor.
     ///
@@ -238,7 +242,7 @@ private:
 
     /// Dynamically generated hostname for this node, esp32_{node-id}. This is
     /// also used for the SoftAP SSID name (if enabled).
-    std::string hostname_{""};
+    std::string hostname_;
 
     /// User provided SSID to connect to.
     const char *ssid_;
@@ -268,13 +272,13 @@ private:
     /// Channel to use for the SoftAP interface.
     uint8_t softAPChannel_{1};
 
-    /// Maximum number of station connections to the SoftAP, supported
-    /// values: 1-4.
-    uint8_t softAPMaxStations_{4};
-
     /// Authentication mode to use for the SoftAP. If not set to WIFI_AUTH_OPEN
-    /// @ref password_ will be used.
+    /// @ref softAPPassword_ will be used.
     wifi_auth_mode_t softAPAuthMode_{WIFI_AUTH_OPEN};
+
+    /// User provided password for the SoftAP when active, defaults to
+    /// @ref password when null and softAPAuthMode_ is not WIFI_AUTH_OPEN.
+    const char *softAPPassword_;
 
     /// Static IP Address configuration for the SoftAP.
     /// Default static IP provided by ESP-IDF is 192.168.4.1.
@@ -299,7 +303,7 @@ private:
     std::unique_ptr<GcTcpHub> hub_;
 
     /// mDNS service name being advertised by the hub, if enabled.
-    std::string hubServiceName_{""};
+    std::string hubServiceName_;
 
     /// @ref SocketClient for this node's uplink.
     std::unique_ptr<SocketClient> uplink_;
