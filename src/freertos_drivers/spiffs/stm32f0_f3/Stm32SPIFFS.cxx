@@ -45,7 +45,7 @@ int32_t Stm32SPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
     HASSERT(addr >= fs_->cfg.phys_addr &&
             (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
 
-    memcpy(dst, (void*)addr, size);
+    memcpy(dst, (void *)addr, size);
 
     return 0;
 }
@@ -68,20 +68,22 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 
     HAL_FLASH_Unlock();
 
-    if (addr & 1) {
+    if (addr & 1)
+    {
         // Unaligned write at the beginning.
         WriteWord ww;
         ww.data_hword[0] = 0xffff;
         ww.data[1] = src[0];
 
-        HASSERT(HAL_OK ==
-            HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr - 1, ww.data_dw));
+        HASSERT(HAL_OK == HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,
+                              addr - 1, ww.data_dw));
         addr += 1;
         size -= 1;
         src += 1;
     }
 
-    while (size > 8) {
+    while (size > 8)
+    {
         WriteWord ww;
         memcpy(ww.data, src, 8);
         HASSERT(HAL_OK ==
@@ -91,7 +93,8 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         src += 8;
     }
 
-    while (size > 2) {
+    while (size > 2)
+    {
         WriteWord ww;
         memcpy(ww.data_hword, src, 2);
         HASSERT(HAL_OK ==
@@ -101,7 +104,8 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         src += 2;
     }
 
-    if (size) {
+    if (size)
+    {
         // Unaligned write at the end of the range.
         HASSERT(size == 1);
         HASSERT((addr & 1) == 0);
@@ -118,7 +122,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
     }
 
     HAL_FLASH_Lock();
-    
+
     return 0;
 }
 
@@ -137,7 +141,7 @@ int32_t Stm32SPIFFS::flash_erase(uint32_t addr, uint32_t size)
     erase_init.PageAddress = (uint32_t)addr;
     erase_init.NbPages = size / FLASH_PAGE_SIZE;
     uint32_t page_error;
-    
+
     HASSERT(HAL_OK == HAL_FLASHEx_Erase(&erase_init, &page_error));
 
     return 0;

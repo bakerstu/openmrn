@@ -80,7 +80,7 @@ public:
     /// Format the file system, all data will be lost.  The file system must
     /// not be mounted at the time of calling this.
     void format() override;
-    
+
     /// @return true if there was any file written on this filesystem since the
     /// last call to is_any_dirty. (Transactionality guaranteed.) The caller
     /// can create a background flush thread using this information.
@@ -175,7 +175,7 @@ protected:
     virtual int32_t flash_erase(uint32_t addr, uint32_t size) = 0;
 
     /// file system instance metadata
-    spiffs* fs_;
+    spiffs *fs_;
 
 private:
     /// Open directory metadata structure

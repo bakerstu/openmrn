@@ -235,7 +235,7 @@ void hw_preinit(void)
     RCC_PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART3;
     RCC_PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_SYSCLK;
     HASSERT(HAL_OK == HAL_RCCEx_PeriphCLKConfig(&RCC_PeriphClkInit));
-    
+
     /* enable peripheral clocks */
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -315,5 +315,4 @@ void hw_postinit(void)
 {
     spiffs0.mount("/ffs");
 }
-
 }

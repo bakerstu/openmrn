@@ -48,12 +48,12 @@
 
 void SPIFFS::extern_lock(struct spiffs_t *fs)
 {
-    static_cast<SPIFFS*>(fs->user_data)->lock_.lock();
+    static_cast<SPIFFS *>(fs->user_data)->lock_.lock();
 }
 
 void SPIFFS::extern_unlock(struct spiffs_t *fs)
 {
-    static_cast<SPIFFS*>(fs->user_data)->lock_.unlock();
+    static_cast<SPIFFS *>(fs->user_data)->lock_.unlock();
 }
 
 extern "C"
@@ -149,7 +149,7 @@ SPIFFS::~SPIFFS()
 ///
 struct SPIFFS::OpenDir
 {
-    spiffs_DIR    dir_; ///< directory object
+    spiffs_DIR dir_;       ///< directory object
     struct dirent dirent_; ///< directory entry
 };
 
@@ -291,7 +291,7 @@ ssize_t SPIFFS::write(File *file, const void *buf, size_t count)
 {
     spiffs_file fd = file->privInt;
 
-    ssize_t result = SPIFFS_write(fs_, fd, (void*)buf, count);
+    ssize_t result = SPIFFS_write(fs_, fd, (void *)buf, count);
 
     if (result < 0)
     {

@@ -181,7 +181,7 @@ void Stm32Uart::enable()
         case USART2_IRQn:
 #ifdef USART3_IRQn
         case USART3_IRQn:
-#endif            
+#endif
             HAL_NVIC_EnableIRQ(interrupt);
             break;
         default:
@@ -203,7 +203,7 @@ void Stm32Uart::disable()
         case USART2_IRQn:
 #ifdef USART3_IRQn
         case USART3_IRQn:
-#endif            
+#endif
             HAL_NVIC_DisableIRQ(interrupt);
             break;
         default:
@@ -295,10 +295,10 @@ void Stm32Uart::interrupt_handler()
 */
 void Stm32Uart::interrupt_handler(unsigned index)
 {
-#if !defined (STM32F030x6) && !defined (STM32F031x6) && !defined (STM32F038xx) \
- && !defined (STM32F030x8) && !defined (STM32F042x6) && !defined (STM32F048xx) \
- && !defined (STM32F051x8) && !defined (STM32F058xx) && !defined (STM32F070x6) \
- && !defined (STM32F767xx)
+#if !defined(STM32F030x6) && !defined(STM32F031x6) && !defined(STM32F038xx) && \
+    !defined(STM32F030x8) && !defined(STM32F042x6) && !defined(STM32F048xx) && \
+    !defined(STM32F051x8) && !defined(STM32F058xx) && !defined(STM32F070x6) && \
+    !defined(STM32F767xx)
     if (index >= 2)
     {
         for (unsigned i = 2; i < (sizeof(instances)/sizeof(Stm32Uart*)); ++i)

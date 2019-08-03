@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -45,7 +45,7 @@ int32_t Stm32SPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
     HASSERT(addr >= fs_->cfg.phys_addr &&
             (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
 
-    memcpy(dst, (void*)addr, size);
+    memcpy(dst, (void *)addr, size);
 
     return 0;
 }
@@ -121,7 +121,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
     if (size)
     {
         // the rest of the aligned data
-        uint8_t *flash = (uint8_t*)addr;
+        uint8_t *flash = (uint8_t *)addr;
         for (uint32_t i = 0; i < size; i += 4)
         {
             src[i + 0] &= flash[i + 0];
@@ -135,7 +135,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
     }
 
     HAL_FLASH_Lock();
-    
+
     return 0;
 }
 
@@ -153,12 +153,11 @@ int32_t Stm32SPIFFS::flash_erase(uint32_t addr, uint32_t size)
     memset(&erase_init, 0, sizeof(erase_init));
 
     erase_init.TypeErase = TYPEERASE_SECTORS;
-    unsigned offset = addr - (unsigned) &__flash_fs_start;
+    unsigned offset = addr - (unsigned)&__flash_fs_start;
     HASSERT((size % ERASE_PAGE_SIZE) == 0);
     HASSERT((offset % ERASE_PAGE_SIZE) == 0);
     unsigned sector = offset / ERASE_PAGE_SIZE;
-    erase_init.Sector = 
-        ((unsigned)(&__flash_fs_sector_start)) + sector;
+    erase_init.Sector = ((unsigned)(&__flash_fs_sector_start)) + sector;
     erase_init.NbSectors = size / ERASE_PAGE_SIZE;
     erase_init.VoltageRange = FLASH_VOLTAGE_RANGE_3; // 3.3 to 3.6 volts powered.
     HAL_FLASH_Unlock();

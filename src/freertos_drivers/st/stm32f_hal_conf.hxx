@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -34,12 +34,12 @@
 #ifndef _FREERTOS_DRIVERS_ST_STM32F_HAL_CONF_HXX_
 #define _FREERTOS_DRIVERS_ST_STM32F_HAL_CONF_HXX_
 
-#if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
- || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \
- || defined (STM32F048xx) || defined (STM32F051x8) || defined (STM32F058xx) \
- || defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
- || defined (STM32F072xB) || defined (STM32F078xx) \
- || defined (STM32F091xC) || defined (STM32F098xx)
+#if defined(STM32F030x6) || defined(STM32F031x6) || defined(STM32F038xx) ||    \
+    defined(STM32F030x8) || defined(STM32F030xC) || defined(STM32F042x6) ||    \
+    defined(STM32F048xx) || defined(STM32F051x8) || defined(STM32F058xx) ||    \
+    defined(STM32F070x6) || defined(STM32F070xB) || defined(STM32F071xB) ||    \
+    defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) ||    \
+    defined(STM32F098xx)
 #include "stm32f0xx_hal_conf.h"
 #elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_hal_conf.h"
