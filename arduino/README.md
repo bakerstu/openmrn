@@ -34,41 +34,27 @@ For the hardware CAN support they will require two additional GPIO pins. WiFi
 does not require any additional GPIO pins.
 
 ## ESP32 WiFi support
-The ESP32 WiFi stack has issues at times but is generally stable. If you
-observe failures in connecting to WiFi add the following compiler option
-to turn on additional diagnostic output from the
-[WiFi](https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi)
-library:
-    `-DCORE_DEBUG_LEVEL=ARDUHAL_LOG_LEVEL_DEBUG`
-This will give additional output on the Serial console which can help
-to resolve the connection issue. The following is an example of the output
-which may be observed:
-```
-    [D][WiFiGeneric.cpp:342] _eventCallback(): Event: 5 - STA_DISCONNECTED
-    [W][WiFiGeneric.cpp:357] _eventCallback(): Reason: 2 - AUTH_EXPIRE
-    [D][WiFiGeneric.cpp:342] _eventCallback(): Event: 0 - WIFI_READY
-    [D][WiFiGeneric.cpp:342] _eventCallback(): Event: 2 - STA_START
-    [D][WiFiGeneric.cpp:342] _eventCallback(): Event: 2 - STA_START
-    [D][WiFiGeneric.cpp:342] _eventCallback(): Event: 5 - STA_DISCONNECTED
-```
+The Esp32WiFiManager should be used to manage the ESP32's WiFi connection to
+the SSID, create a Soft AP (max of 4 clients connected to it) or to create both
+a Soft AP and connect to an SSID. See the ESP32IOBoard example for how to use
+the Esp32WiFiManager for how to connect to an SSID and have it automatically
+establish an uplink to a GridConnect based TCP/IP Hub. Additional configuration
+parameters can be configured via the CDI interface.
 
-If you observe this output, this generally means there was a timeout condition
-where the ESP32 did not receive a response from the access point. It generally
-means that the ESP32 is too far from the AP for the AP to hear what the ESP32
-is transmitting. Additional options to try if this does not resolve the
-connection issues:
-1. If the ESP32 board supports an external WiFi antenna use one, this will
-provide a higher signal strength which should allow a more successful
-connection.
-2. Clear the persistent WiFi connection details from NVS:
-```C
-        #include <nvs_flash.h>
-        nvs_flash_init();
-```
+## Using an SD card for configuration data
+When using an SD card for storage of the OpenMRN configuration data it is
+recommended to use an AutoSyncFileFlow to ensure the OpenMRN configuration
+data is persisted to the SD card. The default configuration of the SD virtual
+file system driver is to use a 512 byte per-file cache and only persist
+on-demand or when reading/writing outside this cached space. The
+AutoSyncFileFlow will ensure the configuration file is synchronized to the SD
+card on a regular basis. The SD VFS driver will check that the file has pending
+changes before synchronizing them to the SD card and when no changes are
+necessary no action is taken by the synchronization call.
 
-This should not be done very often (i.e. do not do it at every startup!), but
-is otherwise harmless. The same can also be achieved by using a flash erase
-tool `esptool.py erase_flash ...` and reflashing the ESP32.
+Note that the Arduino-esp32 SPIFFS library and the underlying SPIFFS VFS driver
+does use a cache but the AutoSyncFileFlow is not necessary due to the nature of
+the SPIFFS file system (monolithic blob containing all files concatenated).
 
 ## ESP32 Hardware CAN support
 The ESP32 has a built in CAN controller and needs an external CAN transceiver
