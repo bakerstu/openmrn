@@ -358,7 +358,7 @@ public:
     static void thread_entry(void *arg)
     {
         OpenMRN *p = (OpenMRN *)arg;
-        p->stack()->executor()->thread_body();
+        p->loop_executor();
     }
 
     /// Donates the calling thread to the @ref Executor.
@@ -378,7 +378,7 @@ public:
         haveExecutorThread_ = true;
 
         // donate this thread to the executor
-        stack_->loop_executor();
+        stack_->executor()->thread_body();
     }
 
     /// Starts a thread for the @ref Executor used by OpenMRN.
