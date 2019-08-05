@@ -378,7 +378,7 @@ public:
         haveExecutorThread_ = true;
 
         // donate this thread to the executor
-        stack_->executor()->thread_body();
+        stack_->loop_executor();
     }
 
     /// Starts a thread for the @ref Executor used by OpenMRN.
