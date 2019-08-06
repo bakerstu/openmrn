@@ -50,15 +50,19 @@ class TrainService;
 
 /// Linked list entry for all registered consist clients for a given train
 /// node.
-struct ConsistEntry : public QMember {
+struct ConsistEntry : public QMember
+{
     ConsistEntry(NodeID s, uint8_t flags) : payload((s << 8) | flags) {}
-    NodeID get_slave() const {
+    NodeID get_slave() const
+    {
         return payload >> 8;
     }
-    uint8_t get_flags() const {
+    uint8_t get_flags() const
+    {
         return payload & 0xff;
     }
-    void set_flags(uint8_t new_flags) {
+    void set_flags(uint8_t new_flags)
+    {
         payload ^= (payload & 0xff);
         payload |= new_flags;
     }
@@ -77,35 +81,51 @@ private:
 class TrainNode : public Node
 {
 public:
+    /// Constructor.
+    ///
+    /// @param service is the @ref TrainService to use for this TrainNode
+    /// @param train is the @ref TrainImpl for this TrainNode.
     TrainNode(TrainService *service, TrainImpl *train);
+
+    /// Destructor.
     ~TrainNode();
 
+    /// @return the @ref If for this TrainNode.
     If *iface() OVERRIDE;
+
+    /// @return true if this TrainNode has been initialized.
     bool is_initialized() OVERRIDE
     {
         return isInitialized_;
     }
+
+    /// Sets this TrainNode as initialized.
     void set_initialized() OVERRIDE
     {
         isInitialized_ = 1;
     }
 
-    // Used for restarting the stack.
+    /// Used for restarting the stack.
     void clear_initialized() OVERRIDE
     {
         isInitialized_ = 0;
     }
 
+    /// @return the @ref TrainImpl that this TrainNode represents.
     TrainImpl *train()
     {
         return train_;
     }
 
+    /// @return the @ref NodeHandle for the controller of this TrainNode.
     NodeHandle get_controller()
     {
         return controllerNodeId_;
     }
 
+    /// Sets the controller for this TrainNode.
+    ///
+    /// @param id is the @ref NodeHandle for the controller.
     void set_controller(NodeHandle id)
     {
         controllerNodeId_ = id;
@@ -124,8 +144,14 @@ public:
     // before any consist change requests would reach the front of the queue
     // for the traction flow.
 
-    /** Adds a node ID to the consist targets. @return false if the node was
-     * already in the target list, true if it was newly added. */
+    /// Adds a node ID to the consist targets. If the node already exists it
+    /// will update the target's flags and not add a duplicate.
+    ///
+    /// @param tgt is the target @ref NodeID to add to the consist.
+    /// @param flags are the flags for the consist member.
+    ///
+    /// @return false if the node was already in the target list, true if it
+    /// was newly added.
     bool add_consist(NodeID tgt, uint8_t flags)
     {
         if (!tgt)
@@ -149,8 +175,12 @@ public:
         return true;
     }
 
-    /** Removes a node ID from the consist targets. @return true if the target
-     * was removesd, false if the target was not on the list. */
+    /// Removes a node ID from the consist targets.
+    ///
+    /// @param tgt is the @ref NodeID to be removed from the consist targets.
+    ///
+    /// @return true if the target was removesd, false if the target was not on
+    /// the list.
     bool remove_consist(NodeID tgt)
     {
         for (auto it = consistSlaves_.begin(); it != consistSlaves_.end(); ++it)
@@ -166,8 +196,13 @@ public:
         return false;
     }
 
-    /** Returns the consist target with offset id, or NodeID(0) if there are
-     * fewer than id consist targets. id is zero-based. */
+    /// @return the consist target with offset id, or NodeID(0) if there are
+    /// fewer than id consist targets. id is zero-based.
+    ///
+    /// @param id is the offset in the consist list to retrive the @ref NodeID
+    /// for.
+    /// @param flags is an output parameter to hold the consist member's flags
+    /// value.
     NodeID query_consist(int id, uint8_t* flags)
     {
         int k = 0;
@@ -176,14 +211,17 @@ public:
         {
             if (k == id)
             {
-                if (flags) *flags = it->get_flags();
+                if (flags)
+                {
+                    *flags = it->get_flags();
+                }
                 return it->get_slave();
             }
         }
         return 0;
     }
 
-    /** Returns the number of slaves in this consist. */
+    /// @return the number of consist members in this consist.
     int query_consist_length()
     {
         int ret = 0;
@@ -195,37 +233,58 @@ public:
     }
 
 protected:
+    /// @ref TrainService for this TrainNode.
     TrainService *service_;
+    /// @ref TrainImpl for this TrainNode.
     TrainImpl *train_;
 
 private:
+    /// Boolean flag used for tracking if this TrainNode has been initialized.
     unsigned isInitialized_ : 1;
 
     /// Controller node that is assigned to run this train. 0 if none.
     NodeHandle controllerNodeId_;
+    /// Collection of @ref ConsistEntry objects representing the consist
+    /// members of this TrainNode.
     TypedQueue<ConsistEntry> consistSlaves_;
 };
 
 
-/// Train node class with a an OpenLCB Node ID from the DCC pool. Used for command stations.
-class TrainNodeForProxy : public TrainNode {
+/// Train node class with a an OpenLCB Node ID from the DCC pool. This is
+/// primarily intended for use by command stations.
+class TrainNodeForProxy : public TrainNode
+{
 public:
+    /// Constructor
+    ///
+    /// @param service is the @ref TrainService to use for this @ref TrainNode.
+    /// @param train is the @ref TrainImpl for this @ref TrainNode.
     TrainNodeForProxy(TrainService *service, TrainImpl *train);
 
+    /// @return the @ref NodeID for this @ref TrainNode.
     NodeID node_id() OVERRIDE;
 };
 
-/// Train node class with a fixed OpenLCB Node ID. This is useful for native
-/// train nodes that are not dynamically generated by a command station.
-class TrainNodeWithId : public TrainNode {
+/// Train node class with a fixed OpenLCB @ref NodeID. This is useful for
+/// native train nodes that are not dynamically generated by a command station.
+class TrainNodeWithId : public TrainNode
+{
 public:
+    /// Constructor
+    ///
+    /// @param service is the @ref TrainService to use for this @ref TrainNode.
+    /// @param train is the @ref TrainImpl for this @ref TrainNode.
+    /// @param node_id is the @ref NodeID for this @ref TrainNode.
     TrainNodeWithId(TrainService *service, TrainImpl *train, NodeID node_id);
 
-    NodeID node_id() OVERRIDE {
+    /// @return the @ref NodeID for this @ref TrainNode.
+    NodeID node_id() OVERRIDE
+    {
         return nodeId_;
     }
 
 private:
+    /// @ref NodeID for this @ref TrainNode.
     NodeID nodeId_;
 };
 
@@ -237,25 +296,38 @@ private:
 class TrainService : public Service, private Atomic
 {
 public:
+    /// Constructor.
+    ///
+    /// @param iface is the @ref If to use for communication with other nodes.
     TrainService(If *iface);
+
+    /// Destructor.
     ~TrainService();
 
+    /// @return the @ref If for used by this @ref TrainService.
     If *iface()
     {
         return iface_;
     }
 
-    /** Registers a new train with the train service. Will initiate a node
-        initialization flow for the train. */
+    /// Registers a new train with the train service.
+    /// This will initiate a node initialization flow for the train.
+    ///
+    /// @param node is the @ref TrainNode to register.
     void register_train(TrainNode *node);
+
+    /// Unregisters an existing train with the train service.
+    ///
+    /// @param node is the @ref TrainNode to unregister.
+    void unregister_train(TrainNode *node);
 
 private:
     struct Impl;
-    /** Implementation flows. */
+    /// Internal implementation of this Service.
     Impl *impl_;
-
+    /// Interface used for transmitting/receiving Traction data.
     If *iface_;
-    /** List of train nodes managed by this Service. */
+    /// List of train nodes managed by this Service.
     std::set<TrainNode *> nodes_;
 };
 

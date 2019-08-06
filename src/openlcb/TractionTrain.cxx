@@ -52,13 +52,15 @@ TrainNode::TrainNode(TrainService *service, TrainImpl *train)
 
 TrainNode::~TrainNode()
 {
-    while (!consistSlaves_.empty()) {
+    while (!consistSlaves_.empty())
+    {
         delete consistSlaves_.pop_front();
     }
 }
 
 TrainNodeForProxy::TrainNodeForProxy(TrainService *service, TrainImpl *train)
-    : TrainNode(service, train) {
+    : TrainNode(service, train)
+{
     service_->register_train(this);
 }
 
@@ -282,7 +284,9 @@ struct TrainService::Impl
                     p[1] = TractionDefs::CTRLRESP_ASSIGN_CONTROLLER;
                     NodeHandle supplied_controller = {0, 0};
                     if (size() < 9)
+                    {
                         return reject_permanent();
+                    }
                     supplied_controller.id = data_to_node_id(payload() + 3);
                     if (size() >= 11 && (payload()[2] & 0x01))
                     {
@@ -328,7 +332,9 @@ struct TrainService::Impl
                 {
                     NodeHandle supplied_controller = {0, 0};
                     if (size() < 9)
+                    {
                         return reject_permanent();
+                    }
                     supplied_controller.id = data_to_node_id(payload() + 3);
                     if (size() >= 11 && (payload()[2] & 0x01))
                     {
@@ -366,8 +372,10 @@ struct TrainService::Impl
                 case TractionDefs::CNSTREQ_ATTACH_NODE:
                 {
                     if (size() < 9)
+                    {
                         return reject_permanent(
                             Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+                    }
                     NodeID target = data_to_node_id(payload() + 3);
                     uint8_t flags = payload()[2];
                     if (target == train_node()->node_id())
@@ -383,8 +391,10 @@ struct TrainService::Impl
                 case TractionDefs::CNSTREQ_DETACH_NODE:
                 {
                     if (size() < 9)
+                    {
                         return reject_permanent(
                             Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+                    }
                     NodeID target = data_to_node_id(payload() + 3);
                     bool resp = train_node()->remove_consist(target);
                     return init_and_send_response(
@@ -394,10 +404,15 @@ struct TrainService::Impl
                 case TractionDefs::CNSTREQ_QUERY_NODES:
                 {
                     int sz = train_node()->query_consist_length();
-                    if (sz > 255) sz = 255;
-                    if (size() > 2) {
+                    if (sz > 255)
+                    {
+                        sz = 255;
+                    }
+                    if (size() > 2)
+                    {
                         uint8_t id = payload()[2];
-                        if (id < sz) {
+                        if (id < sz)
+                        {
                             uint8_t flags = 0;
                             NodeID rp = train_node()->query_consist(id, &flags);
                             return init_and_send_response(
@@ -419,7 +434,9 @@ struct TrainService::Impl
             auto* train_node = this->train_node();
             unsigned count = train_node->query_consist_length();
             if (count <= nextConsistIndex_)
+            {
                 return release_and_exit();
+            }
             uint8_t flags = 0;
             NodeID dst = train_node->query_consist(nextConsistIndex_, &flags);
             if (iface()->matching_node(nmsg()->src, NodeHandle(dst)))
@@ -429,24 +446,32 @@ struct TrainService::Impl
             }
             uint8_t cmd = payload()[0];
             bool flip_speed = false;
-            if (cmd == TractionDefs::REQ_SET_SPEED) {
-                if (flags & TractionDefs::CNSTFLAGS_REVERSE) {
+            if (cmd == TractionDefs::REQ_SET_SPEED)
+            {
+                if (flags & TractionDefs::CNSTFLAGS_REVERSE)
+                {
                     flip_speed = true;
                 }
-            } else if (cmd == TractionDefs::REQ_SET_FN) {
+            } else if (cmd == TractionDefs::REQ_SET_FN)
+            {
                 uint32_t address = payload()[1];
                 address <<= 8;
                 address |= payload()[2];
                 address <<= 8;
                 address |= payload()[3];
-                if (address == 0) {
-                    if ((flags & TractionDefs::CNSTFLAGS_LINKF0) == 0) {
+                if (address == 0)
+                {
+                    if ((flags & TractionDefs::CNSTFLAGS_LINKF0) == 0)
+                    {
                         // skip
                         ++nextConsistIndex_;
                         return again();
                     }
-                } else {
-                    if ((flags & TractionDefs::CNSTFLAGS_LINKFN) == 0) {
+                }
+                else
+                {
+                    if ((flags & TractionDefs::CNSTFLAGS_LINKFN) == 0)
+                    {
                         // skip
                         ++nextConsistIndex_;
                         return again();
@@ -460,7 +485,8 @@ struct TrainService::Impl
                 b->data()->src = NodeHandle(train_node->node_id());
                 b->data()->dst = NodeHandle(dst);
                 b->data()->dstNode = nullptr;
-                if (flip_speed) {
+                if (flip_speed)
+                {
                     b->data()->payload[1] ^= 0x80;
                 }
                 iface()->addressed_message_write_flow()->send(b);
@@ -490,7 +516,8 @@ struct TrainService::Impl
             b->data()->reset(message()->data()->mti, train_node()->node_id(),
                              NodeHandle(dst), message()->data()->payload);
             if ((payload()[0] == TractionDefs::REQ_SET_SPEED) &&
-                (flags & TractionDefs::CNSTFLAGS_REVERSE)) {
+                (flags & TractionDefs::CNSTFLAGS_REVERSE))
+            {
                 b->data()->payload[1] ^= 0x80;
             }
             iface()->addressed_message_write_flow()->send(b);
@@ -626,6 +653,15 @@ void TrainService::register_train(TrainNode *node)
     nodes_.insert(node);
     LOG(VERBOSE, "Registered node %p for traction.", node);
     HASSERT(nodes_.find(node) != nodes_.end());
+}
+
+void TrainService::unregister_train(TrainNode *node)
+{
+    iface_->delete_local_node(node);
+    AtomicHolder h(this);
+    nodes_.erase(node);
+    LOG(VERBOSE, "Unregistered node %p for traction.", node);
+    HASSERT(nodes_.find(node) == nodes_.end());
 }
 
 } // namespace openlcb
