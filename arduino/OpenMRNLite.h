@@ -42,9 +42,10 @@
 #include "freertos_drivers/arduino/Can.hxx"
 #include "freertos_drivers/arduino/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
-#include "utils/GridConnectHub.hxx"
-#include "utils/Uninitialized.hxx"
 #include "utils/FileUtils.hxx"
+#include "utils/GridConnectHub.hxx"
+#include "utils/logging.h"
+#include "utils/Uninitialized.hxx"
 
 #if defined(ESP32)
 
@@ -344,38 +345,68 @@ public:
         for (auto *e : loopMembers_)
         {
 #if defined(ESP32) && CONFIG_TASK_WDT
-
             // Feed the watchdog so it doesn't reset the ESP32
             esp_task_wdt_reset();
-#endif // ESP32
+#endif // ESP32 && CONFIG_TASK_WDT
             e->run();
         }
     }
 
 #ifndef OPENMRN_FEATURE_SINGLE_THREADED
+    /// Entry point for the executor thread when @ref start_executor_thread is
+    /// called with donate_current_thread set to false.
     static void thread_entry(void *arg)
     {
         OpenMRN *p = (OpenMRN *)arg;
-        p->stack()->executor()->thread_body();
+        p->loop_executor();
     }
 
+    /// Donates the calling thread to the @ref Executor.
+    ///
+    /// Note: this method will not return until the @ref Executor has shutdown.
+    void loop_executor()
+    {
+#if defined(ESP32) && CONFIG_TASK_WDT
+        uint32_t current_core = xPortGetCoreID();
+        TaskHandle_t idleTask = xTaskGetIdleTaskHandleForCPU(current_core);
+        // check if watchdog is enabled and print a warning if it is
+        if (esp_task_wdt_status(idleTask) == ESP_OK)
+        {
+            LOG(WARNING, "WDT detected as enabled on core %d!", current_core);
+        }
+#endif // ESP32 && CONFIG_TASK_WDT
+        haveExecutorThread_ = true;
+
+        // donate this thread to the executor
+        stack_->executor()->thread_body();
+    }
+
+    /// Starts a thread for the @ref Executor used by OpenMRN.
+    ///
+    /// Note: On the ESP32 the watchdog timer is disabled for the PRO_CPU prior
+    /// to starting the background task for the @ref Executor.
     void start_executor_thread()
     {
         haveExecutorThread_ = true;
 #ifdef ESP32
-        xTaskCreatePinnedToCore(&thread_entry, "OpenMRN", OPENMRN_STACK_SIZE,
-            this, OPENMRN_TASK_PRIORITY, nullptr, 0);
 #if CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
-        // Remove IDLE0 task watchdog, because the openmrn task sometimes uses
-        // 100% cpu and it is pinned to CPU 0.
+        // Remove IDLE0 task watchdog, because the openmrn task sometimes
+        // uses 100% cpu and it is pinned to CPU 0.
         disableCore0WDT();
 #endif // CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
+        xTaskCreatePinnedToCore(&thread_entry         // entry point
+                              , "OpenMRN"             // task name
+                              , OPENMRN_STACK_SIZE    // stack size
+                              , this                  // entry point arg
+                              , OPENMRN_TASK_PRIORITY // priority
+                              , nullptr               // task handle
+                              , PRO_CPU_NUM);         // cpu core
 #else
         stack_->executor()->start_thread(
             "OpenMRN", OPENMRN_TASK_PRIORITY, OPENMRN_STACK_SIZE);
-#endif
+#endif // ESP32
     }
-#endif
+#endif // OPENMRN_FEATURE_SINGLE_THREADED
 
     /// Adds a serial port to the stack speaking the gridconnect protocol, for
     /// example to do a USB connection to a computer. This is the protocol that

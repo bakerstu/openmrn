@@ -58,6 +58,7 @@ public:
     /// Destructor.
     ~Stm32SPIFFS()
     {
+        unmount();
     }
 
 private:

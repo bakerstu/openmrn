@@ -135,13 +135,25 @@ SPIFFS::SPIFFS(size_t physical_address, size_t size_on_disk,
 //
 SPIFFS::~SPIFFS()
 {
-    if (name)
-    {
-        SPIFFS_unmount(fs_);
-    }
+    // Performing unmount in the destructor of the base class is not
+    // possible, because the virtual functions for reading and writing the
+    // flash cannot be called anymore.
+    HASSERT(SPIFFS_mounted(fs_) == 0);
     delete[] fdSpace_;
     delete[] workBuffer_;
     delete fs_;
+}
+
+//
+// SPIFFS::unmount
+//
+void SPIFFS::unmount()
+{
+    if (name)
+    {
+        SPIFFS_unmount(fs_);
+        name = nullptr;
+    }
 }
 
 ///
