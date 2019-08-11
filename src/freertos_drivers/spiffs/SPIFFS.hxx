@@ -148,12 +148,23 @@ protected:
     /// Destructor.
     ~SPIFFS()
     {
+        // Performing unmount in the destructor of the base class is not
+        // possible, because the virtual functions for reading and writing the
+        // flash cannot be called anymore.
+        HASSERT(SPIFFS_mounted(&fs_) == 0);
+        delete[] fdSpace_;
+        delete[] workBuffer_;
+    }
+
+    /// FLushes caches and unmounts the filesystem. The destructor of the
+    /// derived class MUST call this function.
+    void unmount()
+    {
         if (name)
         {
             SPIFFS_unmount(&fs_);
+            name = nullptr;
         }
-        delete[] fdSpace_;
-        delete[] workBuffer_;
     }
 
     /// SPIFFS callback to read flash.
