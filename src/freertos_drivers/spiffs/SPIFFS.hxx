@@ -37,8 +37,12 @@
 #include <functional>
 
 #include "Devtab.hxx"
-#include "spiffs.h"
 #include "utils/Atomic.hxx"
+
+extern "C" {
+struct spiffs_t;
+typedef struct spiffs_t spiffs;
+};
 
 /// Generic SPIFFS base class
 class SPIFFS : public FileSystem, private Atomic
@@ -75,19 +79,7 @@ public:
 
     /// Format the file system, all data will be lost.  The file system must
     /// not be mounted at the time of calling this.
-    void format() override
-    {
-        HASSERT(SPIFFS_mounted(&fs_) == 0);
-
-        // formatting requires at least one mounting, so mount then unmount
-        if (do_mount() == 0)
-        {
-            SPIFFS_unmount(&fs_);
-        }
-
-        HASSERT(SPIFFS_format(&fs_) == 0);
-        formatted_ = true;
-    }
+    void format() override;
 
     /// @return true if there was any file written on this filesystem since the
     /// last call to is_any_dirty. (Transactionality guaranteed.) The caller
@@ -121,17 +113,11 @@ public:
 
     /// Provide mutex lock.
     /// @param fs reference to the file system instance
-    static void extern_lock(struct spiffs_t *fs)
-    {
-        static_cast<SPIFFS*>(fs->user_data)->lock_.lock();
-    }
+    inline static void extern_lock(struct spiffs_t *fs);
 
     /// Provide mutex unlock.
     /// @param fs reference to the file system instance
-    static void extern_unlock(struct spiffs_t *fs)
-    {
-        static_cast<SPIFFS*>(fs->user_data)->lock_.unlock();
-    }
+    inline static void extern_unlock(struct spiffs_t *fs);
 
 protected:
     /// Constructor.
@@ -146,57 +132,34 @@ protected:
            std::function<void()> post_format_hook = nullptr);
 
     /// Destructor.
-    ~SPIFFS()
-    {
-        // Performing unmount in the destructor of the base class is not
-        // possible, because the virtual functions for reading and writing the
-        // flash cannot be called anymore.
-        HASSERT(SPIFFS_mounted(&fs_) == 0);
-        delete[] fdSpace_;
-        delete[] workBuffer_;
-    }
+    ~SPIFFS();
 
     /// FLushes caches and unmounts the filesystem. The destructor of the
     /// derived class MUST call this function.
-    void unmount()
-    {
-        if (name)
-        {
-            SPIFFS_unmount(&fs_);
-            name = nullptr;
-        }
-    }
+    void unmount();
 
     /// SPIFFS callback to read flash.
     /// @param fs reference to SPIFFS instance
     /// @param addr adddress location to read
     /// @param size size of read in bytes
     /// @param dst destination buffer for read
-    static s32_t flash_read(struct spiffs_t *fs, u32_t addr, u32_t size,
-                            u8_t *dst)
-    {
-        return static_cast<SPIFFS*>(fs->user_data)->flash_read(addr, size, dst);
-    }
+    static int flash_read(
+        struct spiffs_t *fs, unsigned addr, unsigned size, uint8_t *dst);
 
     /// SPIFFS callback to write flash.
     /// @param fs reference to SPIFFS instance
     /// @param addr adddress location to write
     /// @param size size of write in bytes
     /// @param src source buffer for write
-    static s32_t flash_write(struct spiffs_t *fs, u32_t addr, u32_t size,
-                             u8_t *src)
-    {
-        return static_cast<SPIFFS*>(fs->user_data)->flash_write(addr, size, src);
-    }
+    static int flash_write(
+        struct spiffs_t *fs, unsigned addr, unsigned size, uint8_t *src);
 
     /// SPIFFS callback to erase flash.
     /// @param fs reference to SPIFFS instance
     /// @param addr adddress location to erase
     /// @param size size of erase region in bytes
-    static s32_t flash_erase(struct spiffs_t *fs, u32_t addr, u32_t size)
-    {
-        return static_cast<SPIFFS*>(fs->user_data)->flash_erase(addr, size);
-    }
+    static int flash_erase(
+        struct spiffs_t *fs, unsigned addr, unsigned size);
 
     /// SPIFFS callback to read flash, in context.
     /// @param addr adddress location to read
@@ -215,16 +178,12 @@ protected:
     /// @param size size of erase region in bytes
     virtual int32_t flash_erase(uint32_t addr, uint32_t size) = 0;
 
-    /// configuration parameters for SPIFFS
-    spiffs_config config_;
+    /// file system instance metadata
+    spiffs *fs_;
 
 private:
     /// Open directory metadata structure
-    struct OpenDir
-    {
-        spiffs_DIR    dir_; ///< directory object
-        struct dirent dirent_; ///< directory entry
-    };
+    struct OpenDir;
 
     /// Open a file or device.
     /// @param file file reference for this device
@@ -294,11 +253,6 @@ private:
 
     int closedir(File *file) override;
 
-    /// Common post processing for SPIFFS::stat() and SPIFFS::fstat().
-    /// @param stat structure to fill status info into
-    /// @param ff_stat SPIFFS structure to gather info from
-    void stat_post_process(struct stat *stat, spiffs_stat *ffs_stat);
-
     /// Open a directory.
     /// @param file file reference for this device
     /// @param name directory path
@@ -318,20 +272,13 @@ private:
 
     /// Helper to mount the file system.
     /// @return 0 if successful, else some error code
-    int do_mount()
-    {
-        return SPIFFS_mount(&fs_, &config_, workBuffer_, fdSpace_,
-                            fdSpaceSize_, cache_, cacheSize_, nullptr);
-    }
+    int do_mount();
 
     /// callback to be called post a formating operation
     std::function<void()> postFormatHook_;
 
     /// whole file system lock
     OSMutex lock_;
-
-    /// file system instance metadata
-    spiffs fs_;
 
     /// work buffer for the file system
     uint8_t *workBuffer_;

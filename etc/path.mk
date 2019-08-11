@@ -186,6 +186,19 @@ STM32PLIBPATH:=$(TRYPATH)
 endif
 endif #ifndef STM32PLIBPATH
 
+################### SPIFFS ####################
+ifndef SPIFFSPATH
+SEARCHPATH := \
+  /opt/spiffs \
+  /opt/spiffs/default \
+
+
+TRYPATH:=$(call findfirst,src/spiffs_nucleus.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+SPIFFSPATH:=$(TRYPATH)
+endif
+endif #SPIFFSPATH
+
 ################### FreeRTOS ####################
 ifndef FREERTOSPATH
 SEARCHPATH := \
