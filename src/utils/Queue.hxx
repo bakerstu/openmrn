@@ -717,7 +717,7 @@ public:
         post();
     }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Add an item to the back of the queue, callable from interrupt context.
      * @param item item to add to queue
      */
@@ -726,7 +726,7 @@ public:
         QProtected<T>::insert_locked(item);
         post_from_isr();
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /** Get an item from the front of the queue.
      * @return item retrieved from queue
@@ -823,7 +823,7 @@ public:
         post();
     }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Add an item to the back of the queue.
      * @param item item to add to queue
      * @param index in the list to operate on
@@ -834,7 +834,7 @@ public:
         QListProtected<items>::insert_locked(item, index);
         this->post_from_isr(&woken);
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /** Translate the Result type */
     typedef typename QListProtected<items>::Result Result;

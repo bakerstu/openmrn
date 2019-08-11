@@ -262,7 +262,7 @@ public:
     }
 
 
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Post (increment) a semaphore from ISR context.
      * @param woken is the task woken up
      */
@@ -270,7 +270,7 @@ public:
     {
         os_sem_post_from_isr(&handle, woken);
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
 
     /** Wait on (decrement) a semaphore.
@@ -280,7 +280,7 @@ public:
         os_sem_wait(&handle);
     }
 
-#if !(defined(ESP_NONOS) || defined(ARDUINO))
+#if OPENMRN_FEATURE_SEM_TIMEDWAIT
     /** Wait on (decrement) a semaphore with timeout condition.
      * @param timeout timeout in nanoseconds, else OPENMRN_OS_WAIT_FOREVER to wait forever
      * @return 0 upon success, else -1 with errno set to indicate error
