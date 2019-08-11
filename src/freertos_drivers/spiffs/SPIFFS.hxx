@@ -134,7 +134,7 @@ protected:
     /// Destructor.
     ~SPIFFS();
 
-    /// FLushes caches and unmounts the filesystem. The destructor of the
+    /// Flushes caches and unmounts the filesystem. The destructor of the
     /// derived class MUST call this function.
     void unmount();
 
