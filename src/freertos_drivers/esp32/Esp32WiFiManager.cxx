@@ -413,8 +413,9 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
     LOG(VERBOSE, "Esp32WiFiManager::process_wifi_event(%d)", event->event_id);
 
     // We only are interested in this event if we are managing the
-    // WiFi and MDNS systems
-    if (event->event_id == SYSTEM_EVENT_STA_START && manageWiFi_)
+    // WiFi and MDNS systems and our mode includes STATION.
+    if (event->event_id == SYSTEM_EVENT_STA_START && manageWiFi_ &&
+        (wifiMode_ == WIFI_MODE_APSTA || wifiMode_ == WIFI_MODE_STA))
     {
         // Set the generated hostname prior to connecting to the SSID
         // so that it shows up with the generated hostname instead of
@@ -427,17 +428,7 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
         esp_wifi_get_mac(WIFI_IF_STA, mac);
         LOG(INFO, "[WiFi] MAC Address: %s", mac_to_string(mac).c_str());
 
-        // Initialize the mDNS system.
-        LOG(INFO, "[mDNS] Initializing mDNS system");
-        ESP_ERROR_CHECK(mdns_init());
-
-        // Set the mDNS hostname based on our generated hostname so it can be found
-        // by other nodes.
-        LOG(INFO, "[mDNS] Setting mDNS hostname to \"%s\"", hostname_.c_str());
-        ESP_ERROR_CHECK(mdns_hostname_set(hostname_.c_str()));
-
-        // Set the default mDNS instance name to the generated hostname.
-        ESP_ERROR_CHECK(mdns_instance_name_set(hostname_.c_str()));
+        start_mdns_system();
 
         if (stationStaticIP_)
         {
@@ -571,6 +562,8 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
         esp_wifi_get_mac(WIFI_IF_AP, mac);
         LOG(INFO, "[SoftAP] MAC Address: %s", mac_to_string(mac).c_str());
 
+        start_mdns_system();
+
         if (softAPStaticIP_ && wifiMode_ != WIFI_MODE_STA)
         {
             // Stop the DHCP server so we can reconfigure it.
@@ -633,6 +626,27 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
             event->event_info.sta_disconnected.aid,
             mac_to_string(event->event_info.sta_connected.mac).c_str());
     }
+    else if (event->event_id == SYSTEM_EVENT_SCAN_DONE)
+    {
+        OSMutexLock l(&ssidScanResultsLock_);
+        uint16_t num_found{0};
+        esp_wifi_scan_get_ap_num(&num_found);
+        LOG(VERBOSE, "[WiFi] %d SSIDs found via scan", num_found);
+        ssidScanResults_.resize(num_found);
+        esp_wifi_scan_get_ap_records(&num_found, &ssidScanResults_[0]);
+#if LOGLEVEL >= VERBOSE
+        for (int i = 0; i < num_found; i++)
+        {
+          LOG(VERBOSE, "SSID: %s, RSSI: %d, channel: %d"
+            , ssidScanResults_[i].ssid
+            , ssidScanResults_[i].rssi, ssidScanResults_[i].primary);
+        }
+#endif
+        if (ssidCompleteNotifiable_)
+        {
+          ssidCompleteNotifiable_->notify();
+        }
+    }
 
     {
         OSMutexLock l(&eventCallbacksLock_);
@@ -648,6 +662,30 @@ void Esp32WiFiManager::enable_verbose_logging()
 {
     esp32VerboseLogging_ = true;
     enable_esp_wifi_logging();
+}
+
+void Esp32WiFiManager::start_mdns_system()
+{
+    // If we have already initialized mDNS we can exit early.
+    if (mdnsInitialized_)
+    {
+        return;
+    }
+
+    // Initialize the mDNS system.
+    LOG(INFO, "[mDNS] Initializing mDNS system");
+    ESP_ERROR_CHECK(mdns_init());
+
+    // Set the mDNS hostname based on our generated hostname so it can be found
+    // by other nodes.
+    LOG(INFO, "[mDNS] Setting mDNS hostname to \"%s\"", hostname_.c_str());
+    ESP_ERROR_CHECK(mdns_hostname_set(hostname_.c_str()));
+
+    // Set the default mDNS instance name to the generated hostname.
+    ESP_ERROR_CHECK(mdns_instance_name_set(hostname_.c_str()));
+
+    // Set flag to indicate we have initialized mDNS.
+    mdnsInitialized_ = true;
 }
 
 // If the Esp32WiFiManager is setup to manage the WiFi system, the following
@@ -712,8 +750,15 @@ void Esp32WiFiManager::start_wifi_system()
         enable_esp_wifi_logging();
     }
 
-    // Set the WiFi mode.
-    ESP_ERROR_CHECK(esp_wifi_set_mode(wifiMode_));
+    wifi_mode_t requested_wifi_mode = wifiMode_;
+    if (wifiMode_ == WIFI_MODE_AP)
+    {
+      // override the wifi mode from AP only to AP+STA so we can perform wifi
+      // scans on demand.
+      requested_wifi_mode = WIFI_MODE_APSTA;
+    }
+    // Set the requested WiFi mode.
+    ESP_ERROR_CHECK(esp_wifi_set_mode(requested_wifi_mode));
 
     // This disables storage of SSID details in NVS which has been shown to be
     // problematic at times for the ESP32, it is safer to always pass fresh
@@ -994,6 +1039,38 @@ void Esp32WiFiManager::enable_esp_wifi_logging()
     esp_wifi_internal_set_log_mod(
         WIFI_LOG_MODULE_ALL, WIFI_LOG_SUBMODULE_ALL, true);
 #endif // WIFI_LOG_SUBMODULE_ALL
+}
+
+void Esp32WiFiManager::start_ssid_scan(Notifiable *n)
+{
+    OSMutexLock l(&ssidScanResultsLock_);
+    ssidScanResults_.clear();
+    ssidCompleteNotifiable_ = n;
+    wifi_scan_config_t cfg;
+    bzero(&cfg, sizeof(wifi_scan_config_t)); // active scan all channels, 120ms per channel
+    ESP_ERROR_CHECK(esp_wifi_scan_start(&cfg, false));
+}
+
+size_t Esp32WiFiManager::get_ssid_scan_result_count()
+{
+    OSMutexLock l(&ssidScanResultsLock_);
+    return ssidScanResults_.size();
+}
+
+wifi_ap_record_t Esp32WiFiManager::get_ssid_scan_result(size_t index)
+{
+    OSMutexLock l(&ssidScanResultsLock_);
+    if (index < ssidScanResults_.size())
+    {
+      return ssidScanResults_[index];
+    }
+    return wifi_ap_record_t();
+}
+
+void Esp32WiFiManager::clear_ssid_scan_results()
+{
+    OSMutexLock l(&ssidScanResultsLock_);
+    ssidScanResults_.clear();
 }
 
 } // namespace openmrn_arduino

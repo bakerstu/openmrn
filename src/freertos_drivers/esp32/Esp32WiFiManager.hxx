@@ -190,6 +190,18 @@ public:
     /// ESP32 serial port.
     void enable_verbose_logging();
 
+    /// Starts a scan for available SSIDs.
+    void start_ssid_scan(Notifiable *n);
+
+    /// Returns the number of SSIDs that were found via the scan.
+    size_t get_ssid_scan_result_count();
+
+    /// Returns one entry from the SSID scan.
+    wifi_ap_record_t get_ssid_scan_result(size_t index);
+
+    /// Clears the SSID scan results.
+    void clear_ssid_scan_results();
+
 private:
     /// Default constructor.
     Esp32WiFiManager();
@@ -235,6 +247,9 @@ private:
     /// Enables the esp_wifi logging, including the esp_wifi_internal APIs when
     /// available.
     void enable_esp_wifi_logging();
+
+    /// Initializes the mDNS system if it hasn't already been initialized.
+    void start_mdns_system();
 
     /// Handle for the wifi_manager_task that manages the WiFi stack, including
     /// periodic health checks of the connected hubs or clients.
@@ -316,6 +331,18 @@ private:
 
     /// Internal event group used to track the IP assignment events.
     EventGroupHandle_t wifiStatusEventGroup_;
+
+    /// WiFi SSID scan results holder.
+    std::vector<wifi_ap_record_t> ssidScanResults_;
+
+    /// Protects ssidScanResults_ vector.
+    OSMutex ssidScanResultsLock_;
+
+    /// Notifiable to be called when SSID scan completes.
+    Notifiable *ssidCompleteNotifiable_{nullptr};
+
+    /// Internal flag for tracking that the mDNS system has been initialized.
+    bool mdnsInitialized_{false};
 
     DISALLOW_COPY_AND_ASSIGN(Esp32WiFiManager);
 };
