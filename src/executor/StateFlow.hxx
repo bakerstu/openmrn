@@ -179,11 +179,11 @@ public:
      * priority. */
     void notify() override;
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Wakeup call arrived. Schedules *this on the executor. Does not know the
      * priority. */
     virtual void notify_from_isr() OVERRIDE;
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /** Return a pointer to the service I am bound to.
      * @return pointer to service
@@ -965,10 +965,10 @@ public:
     /// Wakeup call arrived. Schedules *this on the executor.
     void notify() override;
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Wakeup call arrived. Schedules *this on the executor. */
     void notify_from_isr() OVERRIDE;
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /// @returns true if the flow is waiting for work.
     bool is_waiting()
