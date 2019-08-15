@@ -332,8 +332,8 @@ public:
 #else
         queue_.insert_locked(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
-        selectHelper_.wakeup_from_isr();
 #endif // ESP32
+        selectHelper_.wakeup_from_isr();
     }
 #endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
