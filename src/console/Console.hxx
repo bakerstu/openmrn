@@ -34,11 +34,12 @@
 #ifndef _CONSOLE_CONSOLE_HXX_
 #define _CONSOLE_CONSOLE_HXX_
 
+#include "openmrn_features.h"
 #include "utils/macros.h"
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
 
-#ifdef HAVE_BSDSOCKET
+#if OPENMRN_FEATURE_BSD_SOCKET
 #define CONSOLE_NETWORKING
 #endif
 

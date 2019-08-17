@@ -134,6 +134,10 @@ protected:
     /// Destructor.
     ~SPIFFS();
 
+    /// Flushes caches and unmounts the filesystem. The destructor of the
+    /// derived class MUST call this function.
+    void unmount();
+
     /// SPIFFS callback to read flash.
     /// @param fs reference to SPIFFS instance
     /// @param addr adddress location to read

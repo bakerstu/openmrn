@@ -10,7 +10,7 @@ void empty_signal_handler(int)
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "../vfs/esp_vfs.h"
+#include <esp_vfs.h>
 
 /// Protects the initialization of vfs_id.
 static pthread_once_t vfs_init_once = PTHREAD_ONCE_INIT;
