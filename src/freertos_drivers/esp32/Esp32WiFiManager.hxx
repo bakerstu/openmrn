@@ -197,7 +197,7 @@ public:
     size_t get_ssid_scan_result_count();
 
     /// Returns one entry from the SSID scan.
-    wifi_ap_record_t get_ssid_scan_result(size_t index);
+    const wifi_ap_record_t& get_ssid_scan_result(size_t index);
 
     /// Clears the SSID scan results.
     void clear_ssid_scan_results();
