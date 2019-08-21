@@ -62,6 +62,13 @@ public:
       start_flow(STATE(sleep_and_call_sync));
     }
 
+    /// Discontinues the automatic calls to fsync.
+    void shutdown()
+    {
+        timer_.cancel();
+        reset_flow(STATE(exit));
+    }
+
 private:
     const int fd_;
     const uint64_t interval_;
