@@ -191,12 +191,17 @@ public:
     void enable_verbose_logging();
 
     /// Starts a scan for available SSIDs.
+    ///
+    /// @param n is the @ref Notifiable to notify when the SSID scan completes.
     void start_ssid_scan(Notifiable *n);
 
-    /// Returns the number of SSIDs that were found via the scan.
+    /// @return the number of SSIDs that were found via the scan.
     size_t get_ssid_scan_result_count();
 
     /// Returns one entry from the SSID scan.
+    ///
+    /// @param index is the index of the SSID to retrieve. If the index is
+    /// invalid or no records exist a blank wifi_ap_record_t will be returned.
     const wifi_ap_record_t& get_ssid_scan_result(size_t index);
 
     /// Clears the SSID scan results.
@@ -334,6 +339,10 @@ private:
 
     /// WiFi SSID scan results holder.
     std::vector<wifi_ap_record_t> ssidScanResults_;
+
+    /// Default SSID record to return when there are no records or the index
+    /// provided to @ref get_ssid_scan_result is invalid.
+    const wifi_ap_record_t defaultApRecord_{};
 
     /// Protects ssidScanResults_ vector.
     OSMutex ssidScanResultsLock_;

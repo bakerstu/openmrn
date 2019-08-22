@@ -1074,7 +1074,7 @@ const wifi_ap_record_t& Esp32WiFiManager::get_ssid_scan_result(size_t index)
     {
         return ssidScanResults_[index];
     }
-    return wifi_ap_record_t();
+    return defaultApRecord_;
 }
 
 void Esp32WiFiManager::clear_ssid_scan_results()
