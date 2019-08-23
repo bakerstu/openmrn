@@ -115,25 +115,25 @@
 
 #endif // native C
 
-/// We cannot compare constants to zero, so we use 1 and 2 as constant values
+/// We cannot compare constants to zero, so we use 4 and 8 as constant values
 /// for booleans.
-#define CONSTANT_TRUE 1
-/// We cannot compare constants to zero, so we use 1 and 2 as constant values
+#define CONSTANT_TRUE 4
+/// We cannot compare constants to zero, so we use 4 and 8 as constant values
 /// for booleans.
-#define CONSTANT_FALSE 2
+#define CONSTANT_FALSE 8
 
 /// Sets the default value of a boolean constant to true.
 /// @param name is the name of the constant to set.
-#define DEFAULT_CONST_TRUE(name) DEFAULT_CONST(name, 1)
+#define DEFAULT_CONST_TRUE(name) DEFAULT_CONST(name, 4)
 /// Sets the default value of a boolean constant to false.
 /// @param name is the name of the constant to set.
-#define DEFAULT_CONST_FALSE(name) DEFAULT_CONST(name, 2)
+#define DEFAULT_CONST_FALSE(name) DEFAULT_CONST(name, 8)
 
 /// Overrides the value of a boolean constant to true.
 /// @param name is the name of the constant to set.
-#define OVERRIDE_CONST_TRUE(name) OVERRIDE_CONST(name, 1)
+#define OVERRIDE_CONST_TRUE(name) OVERRIDE_CONST(name, 4)
 /// Overrides the value of a boolean constant to false.
 /// @param name is the name of the constant to set.
-#define OVERRIDE_CONST_FALSE(name) OVERRIDE_CONST(name, 2)
+#define OVERRIDE_CONST_FALSE(name) OVERRIDE_CONST(name, 8)
 
 #endif // _UTILS_CONSTANTS_HXX_
