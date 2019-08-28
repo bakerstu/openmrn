@@ -35,6 +35,7 @@
 #ifndef _OPENLCB_MEMORYCONFIG_HXX_
 #define _OPENLCB_MEMORYCONFIG_HXX_
 
+#include "openmrn_features.h"
 #include "openlcb/DatagramDefs.hxx"
 #include "openlcb/DatagramHandlerDefault.hxx"
 #include "openlcb/MemoryConfig.hxx"
@@ -46,7 +47,7 @@ class Notifiable;
 extern "C" {
 extern void enter_bootloader();
 /** @todo need to find an alternative for reboot() for MacOS */
-#if !defined (__MACH__)
+#if OPENMRN_FEATURE_REBOOT
 extern void reboot();
 #endif
 }
