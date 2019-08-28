@@ -699,7 +699,7 @@ private:
             }
             case MemoryConfigDefs::COMMAND_RESET:
             {
-#if !defined (__MACH__)
+#if OPENMRN_FEATURE_REBOOT
                 reboot();
 #endif
                 return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
