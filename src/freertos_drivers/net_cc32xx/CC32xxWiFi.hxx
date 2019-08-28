@@ -352,8 +352,10 @@ public:
         return ipAcquired ? ipAddress : 0;
     }
 
-    /** Get the SSID of the access point we are connected to.
-     * @return SSID of the access point we are connected to
+    /** Get the SSID of the access point we are connected to. In AP mode gives
+     * the current advertised AP.
+     * @return SSID of the access point we are connected to or in AP mode the
+     * access point name of the current device.
      */
     const char *wlan_ssid()
     {
@@ -529,7 +531,7 @@ private:
     }
 
     uint32_t ipAddress; /**< assigned IP adress */
-    char ssid[33]; /**< SSID of AP we are connected to */
+    char ssid[33]; /**< SSID of AP, or AP we are connected to */
 
     /// Callback for when IP is acquired
     std::function<void(bool)> ipAcquiredCallback_;

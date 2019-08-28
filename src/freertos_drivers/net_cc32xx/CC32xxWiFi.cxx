@@ -755,7 +755,11 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
 
     sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SSID, strlen(ssid),
                (uint8_t*)ssid);
-
+    if (wlanRole == WlanRole::AP)
+    {
+        strncpy(this->ssid, ssid, sizeof(this->ssid));
+    }
+    
     sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SECURITY_TYPE, 1,
                (uint8_t*)&sec_type);
 
@@ -801,6 +805,11 @@ void CC32xxWiFi::set_default_state()
             sl_Stop(0xFF);
             sl_Start(0, 0, 0);
         }
+        // Reads AP SSID configuration from NWP.
+        uint16_t len = sizeof(ssid);
+        memset(ssid, 0, len);
+        uint16_t config_opt = SL_WLAN_AP_OPT_SSID;
+        sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (_u8 *)ssid);
     }
     else
     {
