@@ -144,6 +144,11 @@
 
 #endif
 
+#if !defined(__MACH__)
+/// Compiles support for calling reboot() in ConfigUpdateFlow.hxx and
+/// MemoryConfig.cxx.
+#define OPENMRN_FEATURE_REBOOT 1
+#endif
 
 
 #endif // _INCLUDE_OPENMRN_FEATURES_
