@@ -252,6 +252,14 @@ public:
         securityFailure = wrong_password ? 1 : 0;
         strcpy(this->ssid, ssid.c_str());
     }
+
+    /** Used by unit tests to simulate wifi state.
+     * @param ip sets the IP address given to the device by DHCP.
+     */
+    void TEST_set_ip(uint32_t ip)
+    {
+        ipAddress = ip;
+    }
 #endif
 
     /** Updates the blinker based on connection state. Noop if wlan_ready()
