@@ -47,9 +47,6 @@
 
 #include "TivaDev.hxx"
 
-/** Instance pointers help us get context from the interrupt handler(s) */
-static TivaI2C *instances[10] = {NULL};
-
 /** Constructor.
  * @param name name of this device instance in the file system
  * @param base base address of this device
@@ -65,50 +62,39 @@ TivaI2C::TivaI2C(const char *name, unsigned long base, uint32_t interrupt, bool 
     , count_(0)
     , sem()
 {
-    
     switch (base)
     {
         default:
             HASSERT(0);
         case I2C0_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
-            instances[0] = this;
             break;
         case I2C1_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C1);
-            instances[1] = this;
             break;
         case I2C2_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C2);
-            instances[2] = this;
             break;
         case I2C3_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C3);
-            instances[3] = this;
             break;
         case I2C4_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C4);
-            instances[4] = this;
             break;
         case I2C5_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C5);
-            instances[5] = this;
             break;
         case I2C6_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C6);
-            instances[6] = this;
             break;
         case I2C7_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C7);
-            instances[7] = this;
             break;
         case I2C8_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C8);
-            instances[8] = this;
             break;
         case I2C9_BASE:
             MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C9);
-            instances[9] = this;
             break;
     }
 
@@ -277,105 +263,3 @@ post:
     sem.post_from_isr(&woken);
     os_isr_exit_yield_test(woken);
 }
-
-extern "C" {
-/** I2C0 interrupt handler.
- */
-void i2c0_interrupt_handler(void)
-{
-    if (instances[0])
-    {
-        instances[0]->interrupt_handler();
-    }
-}
-
-/** I2C1 interrupt handler.
- */
-void i2c1_interrupt_handler(void)
-{
-    if (instances[1])
-    {
-        instances[1]->interrupt_handler();
-    }
-}
-
-/** I2C2 interrupt handler.
- */
-void i2c2_interrupt_handler(void)
-{
-    if (instances[2])
-    {
-        instances[2]->interrupt_handler();
-    }
-}
-
-/** I2C3 interrupt handler.
- */
-void i2c3_interrupt_handler(void)
-{
-    if (instances[3])
-    {
-        instances[3]->interrupt_handler();
-    }
-}
-/** I2C4 interrupt handler.
- */
-void i2c4_interrupt_handler(void)
-{
-    if (instances[4])
-    {
-        instances[4]->interrupt_handler();
-    }
-}
-
-/** I2C5 interrupt handler.
- */
-void i2c5_interrupt_handler(void)
-{
-    if (instances[5])
-    {
-        instances[5]->interrupt_handler();
-    }
-}
-
-/** I2C6 interrupt handler.
- */
-void i2c6_interrupt_handler(void)
-{
-    if (instances[6])
-    {
-        instances[6]->interrupt_handler();
-    }
-}
-
-/** I2C7 interrupt handler.
- */
-void i2c7_interrupt_handler(void)
-{
-    if (instances[7])
-    {
-        instances[7]->interrupt_handler();
-    }
-}
-
-/** I2C8 interrupt handler.
- */
-void i2c8_interrupt_handler(void)
-{
-    if (instances[8])
-    {
-        instances[8]->interrupt_handler();
-    }
-}
-
-/** I2C9 interrupt handler.
- */
-void i2c9_interrupt_handler(void)
-{
-    if (instances[9])
-    {
-        instances[9]->interrupt_handler();
-    }
-}
-
-} // extern C

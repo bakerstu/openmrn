@@ -88,6 +88,7 @@ protected:
 class CC32xxWiFi : public CC32xxWiFiInterface, public Singleton<CC32xxWiFi>
 {
 public:
+
     /** the value passed to wlan_profile_del() to remove all profiles */
     static constexpr int PROFILE_DELETE_ALL = 0xFF;
 
@@ -112,6 +113,16 @@ public:
 
     /** CC32xx SimpleLink forward declaration */
     struct FatalErrorEvent;
+    
+    /** The Wlan reconnect policy */
+    enum WlanConnectionPolicy {
+        WLAN_CONNECTION_NO_CHANGE,
+        /// Scan for wifi networks and connect to the nearest that is stored in
+        /// the profiles (by profile priority and security settings).
+        WLAN_CONNECTION_SCAN,
+        /// Reconnect to the last connected AP.
+        WLAN_CONNECTION_FAST_RECONNECT
+    };
     
     /** The WLAN power policy.
      */
@@ -143,12 +154,19 @@ public:
     {
     }
 
+    /** Startup the Wi-Fi in test mode. This mode of operation does not support
+     * connection to an AP. This mode is only for RF testing. Test mode can be
+     * exited by @ref stop().
+     */
+    void test_mode_start();
+
     /** Startup the Wi-Fi.
      * @param device role
      * @param power_policy desired power policy
      */
     void start(WlanRole role = WlanRole::STA,
-               WlanPowerPolicy power_policy = WLAN_NO_CHANGE_POLICY);
+        WlanPowerPolicy power_policy = WLAN_NO_CHANGE_POLICY,
+        WlanConnectionPolicy connection_policy = WLAN_CONNECTION_NO_CHANGE);
 
     /** Stops the Wi-Fi in preparation for a reboot. TODO: does this need to be
      * called from a critical section?
@@ -171,6 +189,8 @@ public:
     void wlan_connect(const char *ssid, const char *security_key,
                       SecurityType security_type);
 
+    /** Disconnects from the current AP. */
+    void wlan_disconnect();
 
     /** Initiate a WPS Push Button Control connection.
      */
@@ -204,6 +224,10 @@ public:
     {
         if (!connected && wlanRole != WlanRole::AP)
         {
+            if (securityFailure)
+            {
+                return WlanState::WRONG_PASSWORD;
+            }
             return WlanState::NOT_ASSOCIATED;
         }
         if (!ipAcquired)
@@ -213,9 +237,39 @@ public:
         return WlanState::OK;
     }
 
+#ifdef GTEST
+    /** Used by unit tests to simulate wifi connection states.
+     * @param conn if true, we are associated to an AP
+     * @param has_ip if true, we have an IP address
+     * @param ssid will be returned when caller wants the AP name
+     * @param wrong_password if true, simulates security failure
+     */
+    void TEST_set_state(
+        bool conn, bool has_ip, bool wrong_password, const string &ssid)
+    {
+        connected = conn ? 1 : 0;
+        ipAcquired = has_ip ? 1 : 0;
+        securityFailure = wrong_password ? 1 : 0;
+        strcpy(this->ssid, ssid.c_str());
+    }
+#endif
+
     /** Updates the blinker based on connection state. Noop if wlan_ready()
      * returns true.*/
     void connecting_update_blinker();
+
+    /** Get the current country code.
+     * @return current country code, CountryCode::UNKNOWN on error
+     */
+    CountryCode wlan_country_code_get();
+
+    /** Set the current country code.
+     * @param cc country code to set
+     * @param restart true to restart NWP, else false, use extreme caution when
+     *        restart = true;
+     * @return 0 upon success, else -1 on error
+     */
+    int wlan_country_code_set(CountryCode cc, bool restart = false);
 
     /** Add a saved WLAN profile.
      * @param ssid WLAN SSID of the profile to save
@@ -268,6 +322,12 @@ public:
      */
     int wlan_power_policy_get(WlanPowerPolicy *wpp);
 
+    /** Sets connection policy to auto connect. Updates the Wifi fast-reconnect
+     * policy if desired.
+     * @param policy the desired policy
+     */
+    void wlan_connection_policy_set(WlanConnectionPolicy policy);
+    
     /** Get a list of available networks.
      * @param entries returns a list of available network entries
      * @param count size of entry list in number of elements, max 20
@@ -292,8 +352,10 @@ public:
         return ipAcquired ? ipAddress : 0;
     }
 
-    /** Get the SSID of the access point we are connected to.
-     * @return SSID of the access point we are connected to
+    /** Get the SSID of the access point we are connected to. In AP mode gives
+     * the current advertised AP.
+     * @return SSID of the access point we are connected to or in AP mode the
+     * access point name of the current device.
      */
     const char *wlan_ssid()
     {
@@ -306,7 +368,8 @@ public:
      */
     int wlan_rssi()
     {
-        return rssi;
+        // the RSSI value is only reliable when associatedd
+        return wlan_startup_state() == WlanState::NOT_ASSOCIATED ? 0 : rssi;
     }
 
     void set_ip_acquired_callback(std::function<void(bool)> callback)
@@ -468,7 +531,7 @@ private:
     }
 
     uint32_t ipAddress; /**< assigned IP adress */
-    char ssid[33]; /**< SSID of AP we are connected to */
+    char ssid[33]; /**< SSID of AP, or AP we are connected to */
 
     /// Callback for when IP is acquired
     std::function<void(bool)> ipAcquiredCallback_;
@@ -489,6 +552,7 @@ private:
 
     WlanRole wlanRole; /**< the Wi-Fi role we are in */
     WlanPowerPolicy wlanPowerPolicy; /**< the desired power policy */
+    WlanConnectionPolicy connectionPolicy; /**< scan or reconnect to last AP */
 
     unsigned started          : 1; /**< network processor started */
     unsigned connected        : 1; /**< AP connected state */
@@ -496,6 +560,7 @@ private:
     unsigned ipAcquired       : 1; /**< IP address aquired state */
     unsigned ipLeased         : 1; /**< IP address leased to a client(AP mode)*/
     unsigned smartConfigStart : 1; /**< Smart config in progress */
+    unsigned securityFailure  : 1; /**< Disconnected due to wrong password */
 
     /** allow access to private members from CC32xxSocket */
     friend class CC32xxSocket;

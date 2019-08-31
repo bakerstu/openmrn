@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file OpenMRN.h
+ * \file OpenMRNLite.h
  *
  * Main include file for the OpenMRN library to be used in an Arduino
  * compilation environment.
@@ -33,21 +33,26 @@
  * @date 24 July 2018
  */
 
-#ifndef _ARDUINO_OPENMRN_H_
-#define _ARDUINO_OPENMRN_H_
+#ifndef _ARDUINO_OPENMRNLITE_H_
+#define _ARDUINO_OPENMRNLITE_H_
 
 #include <Arduino.h>
 
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
+#include "freertos_drivers/arduino/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
+#include "utils/FileUtils.hxx"
 #include "utils/GridConnectHub.hxx"
+#include "utils/logging.h"
 #include "utils/Uninitialized.hxx"
 
 #if defined(ESP32)
 
 #include <esp_task.h>
 #include <esp_task_wdt.h>
+
+namespace openmrn_arduino {
 
 /// Default stack size to use for all OpenMRN tasks on the ESP32 platform.
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
@@ -58,9 +63,11 @@ constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 /// consumption of CAN frames from the hardware driver.
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
 
+} // namespace openmrn_arduino
+
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
-#include "freertos_drivers/esp32/Esp32WiFiClientAdapter.hxx"
+#include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 
 // On the ESP32 we have persistent file system access so enable
 // dynamic CDI.xml generation support
@@ -68,16 +75,7 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
 
 #endif // ESP32
 
-#if defined(HAVE_FILESYSTEM)
-string read_file_to_string(const string &filename);
-void write_string_to_file(const string &filename, const string &data);
-#endif // HAVE_FILESYSTEM
-
-extern "C"
-{
-    extern const char DEFAULT_WIFI_NAME[];
-    extern const char DEFAULT_PASSWORD[];
-}
+namespace openmrn_arduino {
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN
 /// frames via gridconnect format) to the OpenMRN core stack. This can be
@@ -261,14 +259,13 @@ private:
     /// Handles data coming from the CAN port.
     void loop_for_read()
     {
-        if (!port_->available())
+        while (port_->available())
         {
-            return;
+            auto *b = canHub_->alloc();
+            port_->read(b->data());
+            b->data()->skipMember_ = &writePort_;
+            canHub_->send(b);
         }
-        auto *b = canHub_->alloc();
-        port_->read(b->data());
-        b->data()->skipMember_ = &writePort_;
-        canHub_->send(b);
     }
 
     friend class WritePort;
@@ -347,13 +344,69 @@ public:
     {
         for (auto *e : loopMembers_)
         {
-#if defined(ESP32)
+#if defined(ESP32) && CONFIG_TASK_WDT
             // Feed the watchdog so it doesn't reset the ESP32
             esp_task_wdt_reset();
-#endif // ESP32
+#endif // ESP32 && CONFIG_TASK_WDT
             e->run();
         }
     }
+
+#ifndef OPENMRN_FEATURE_SINGLE_THREADED
+    /// Entry point for the executor thread when @ref start_executor_thread is
+    /// called with donate_current_thread set to false.
+    static void thread_entry(void *arg)
+    {
+        OpenMRN *p = (OpenMRN *)arg;
+        p->loop_executor();
+    }
+
+    /// Donates the calling thread to the @ref Executor.
+    ///
+    /// Note: this method will not return until the @ref Executor has shutdown.
+    void loop_executor()
+    {
+#if defined(ESP32) && CONFIG_TASK_WDT
+        uint32_t current_core = xPortGetCoreID();
+        TaskHandle_t idleTask = xTaskGetIdleTaskHandleForCPU(current_core);
+        // check if watchdog is enabled and print a warning if it is
+        if (esp_task_wdt_status(idleTask) == ESP_OK)
+        {
+            LOG(WARNING, "WDT detected as enabled on core %d!", current_core);
+        }
+#endif // ESP32 && CONFIG_TASK_WDT
+        haveExecutorThread_ = true;
+
+        // donate this thread to the executor
+        stack_->executor()->thread_body();
+    }
+
+    /// Starts a thread for the @ref Executor used by OpenMRN.
+    ///
+    /// Note: On the ESP32 the watchdog timer is disabled for the PRO_CPU prior
+    /// to starting the background task for the @ref Executor.
+    void start_executor_thread()
+    {
+        haveExecutorThread_ = true;
+#ifdef ESP32
+#if CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
+        // Remove IDLE0 task watchdog, because the openmrn task sometimes
+        // uses 100% cpu and it is pinned to CPU 0.
+        disableCore0WDT();
+#endif // CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
+        xTaskCreatePinnedToCore(&thread_entry         // entry point
+                              , "OpenMRN"             // task name
+                              , OPENMRN_STACK_SIZE    // stack size
+                              , this                  // entry point arg
+                              , OPENMRN_TASK_PRIORITY // priority
+                              , nullptr               // task handle
+                              , PRO_CPU_NUM);         // cpu core
+#else
+        stack_->executor()->start_thread(
+            "OpenMRN", OPENMRN_TASK_PRIORITY, OPENMRN_STACK_SIZE);
+#endif // ESP32
+    }
+#endif // OPENMRN_FEATURE_SINGLE_THREADED
 
     /// Adds a serial port to the stack speaking the gridconnect protocol, for
     /// example to do a USB connection to a computer. This is the protocol that
@@ -449,7 +502,10 @@ private:
     /// Callback from the loop() method. Internally called.
     void run() override
     {
-        stack_->executor()->loop_some();
+        if (!haveExecutorThread_)
+        {
+            stack_->executor()->loop_some();
+        }
     }
 
     /// Storage space for the OpenLCB stack. Will be constructed in init().
@@ -457,6 +513,13 @@ private:
 
     /// List of objects we need to call in each loop iteration.
     vector<Executable *> loopMembers_{{this}};
+
+    /// True if there is a separate thread running the executor.
+    bool haveExecutorThread_{false};
 };
 
-#endif // _ARDUINO_OPENMRN_H_
+} // namespace openmrn_arduino
+
+using openmrn_arduino::OpenMRN;
+
+#endif // _ARDUINO_OPENMRNLITE_H_

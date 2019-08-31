@@ -37,17 +37,18 @@
 #ifndef _OPENLCB_CONFIGUPDATEFLOW_HXX_
 #define _OPENLCB_CONFIGUPDATEFLOW_HXX_
 
+#include "openmrn_features.h"
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
 #include "executor/StateFlow.hxx"
 
-#if !defined (__MACH__)
+#if OPENMRN_FEATURE_REBOOT
 extern "C" {
 /// Called when the node needs to be rebooted.
 extern void reboot();
 }
-#endif
+#endif // OPENMRN_FEATURE_REBOOT
 
 namespace openlcb
 {
@@ -64,6 +65,8 @@ public:
     ConfigUpdateFlow(If *iface)
         : StateFlowBase(iface)
         , nextRefresh_(listeners_.begin())
+        , needsReboot_(0)
+        , needsReInit_(0)
         , fd_(-1)
     {
     }
@@ -79,6 +82,9 @@ public:
     void TEST_set_fd(int fd)
     {
         fd_ = fd;
+    }
+    bool TEST_is_terminated() {
+        return is_terminated();
     }
 
     void trigger_update() override
@@ -163,7 +169,7 @@ private:
         /// TODO(balazs.racz) apply the changes reported.
         if (needsReboot_)
         {
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_REBOOT
             reboot();
 #endif
         }

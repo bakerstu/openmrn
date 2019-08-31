@@ -80,7 +80,8 @@ extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
     openlcb::CONFIG_FILENAME;
 
 // None of these pins exist in Linux.
-typedef DummyPinWithRead LED_RED_Pin;
+constexpr const char RED_NAME[] = "LED_RED";
+typedef LoggingPinWithRead<RED_NAME> LED_RED_Pin;
 typedef DummyPinWithRead LED_GREEN_Pin;
 typedef DummyPinWithRead LED_BLUE_Pin;
 typedef DummyPinWithRead SW1_Pin;

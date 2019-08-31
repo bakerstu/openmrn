@@ -38,6 +38,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "openmrn_features.h"
 #include "utils/logging.h"
 #ifdef __FreeRTOS__
 #include "can_ioctl.h"
@@ -52,13 +53,13 @@ void enter_bootloader()
 {
 }
 
-#if !defined (__MACH__)
+#if OPENMRN_FEATURE_REBOOT
 /// Implement this function (usually in HwInit.cxx) to reboot the MCU.
 void reboot() __attribute__ ((weak));
 void reboot()
 {
 }
-#endif
+#endif // OPENMRN_FEATURE_REBOOT
 }
 
 namespace openlcb

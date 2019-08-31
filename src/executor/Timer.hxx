@@ -273,6 +273,13 @@ public:
         isCancelled_ = 1;
     }
 
+protected:
+    /** Updates the period, to be used after the next expiration of the timer
+     * in order to restart it. */
+    void update_period(long long period)
+    {
+        period_ = period;
+    }
 
 private:
     friend class ActiveTimers;  // for scheduling an expiring timers

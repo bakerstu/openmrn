@@ -61,6 +61,16 @@
 #define CAN_SECOND_IRQN USB_LP_CAN_RX0_IRQn
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
 
+#elif defined (STM32F767xx)
+
+#include "stm32f7xx_hal_cortex.h"
+#define SPLIT_INT
+#define CAN CAN1
+#define CAN_TX_IRQN CAN1_TX_IRQn
+#define CAN_IRQN CAN_TX_IRQN
+#define CAN_SECOND_IRQN CAN1_RX0_IRQn
+#define CAN_CLOCK (cm3_cpu_clock_hz >> 2) // 54 MHz, sysclk/4
+
 #else
 #error Dont know what STM32 chip you have.
 #endif
@@ -412,6 +422,18 @@ void usb_hp_can1_tx_interrupt_handler(void)
 }
 
 void usb_lp_can1_rx0_interrupt_handler(void)
+{
+    Stm32Can::instances[0]->rx_interrupt_handler();
+}
+
+#elif defined(STM32F767xx)
+
+void can1_tx_interrupt_handler(void)
+{
+    Stm32Can::instances[0]->tx_interrupt_handler();
+}
+
+void can1_rx0_interrupt_handler(void)
 {
     Stm32Can::instances[0]->rx_interrupt_handler();
 }

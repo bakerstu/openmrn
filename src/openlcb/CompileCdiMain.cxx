@@ -6,7 +6,7 @@ using std::string;
 #include "config.hxx"
 
 #include "utils/StringPrintf.cxx"
-#include "utils/FileUtils.hxx"
+#include "utils/FileUtils.cxx"
 
 bool raw_render = false;
 

@@ -20,7 +20,8 @@ SYSLIBRARIESEXTRA += $(TICC3220SDKPATH)/source/ti/devices/cc32xx/driverlib/gcc/R
                      -lfreertos_drivers_cc3220 \
                      -lfreertos_drivers_cc3220sdk \
                      -lfreertos_drivers_net_cc3220 \
-                     -lutils
+                     -lutils \
+                     $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/cc3220sdk/SimplelinkPthread.o
 
 ifneq ($(SPIFFSPATH),)
 SYSLIBRARIESEXTRA += -lfreertos_drivers_spiffs_cc32x0sf

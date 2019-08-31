@@ -1,0 +1,10 @@
+{
+  "name": "openmrn-js-node-test",
+  "version": "0.9.1",
+  "dependencies": {
+    "websocket": "*",
+    "ecstatic": "*",
+    "serialport": "*",
+    "mdns": "*"
+  }
+}

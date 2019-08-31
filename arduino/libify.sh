@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# 
+# This script exports the OpenMRN code into an Arduino compatible library
+# format.
 #
 
 #set -x
@@ -129,12 +130,26 @@ function copy_dir() {
     popd >/dev/null
 }
 
-copy_file . arduino/library.json arduino/library.properties arduino/keywords.txt
+copy_file . arduino/{library.json,library.properties,keywords.txt,README.md,LICENSE,CONTRIBUTING.md}
 copy_dir . arduino/examples
 
-copy_file src arduino/OpenMRN.{h,cpp} include/{can_frame.h,nmranet_config.h} include/freertos/endian.h
+copy_file src arduino/OpenMRNLite.{h,cpp} \
+    include/{can_frame.h,nmranet_config.h,openmrn_features.h} \
+    include/freertos/{freertos_includes.h,endian.h} \
+    include/freertos_select/ifaddrs.h
 
-copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/Packet.cxx
+# General DCC related files (all headers and DCC packet related cxx)
+copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/{DccDebug,Packet}.cxx
+
+# RailCom related DCC files
+copy_file src/dcc src/dcc/{RailCom,RailcomBroadcastDecoder,RailcomDebug}.cxx
+
+# Command Station DCC related files
+copy_file src/dcc src/dcc/{Loco,SimpleUpdateLoop,UpdateLoop}.cxx
+
+# remove test framework related file
+rm -f ${TARGET_LIB_DIR}/src/dcc/dcc_test_utils.hxx
+
 copy_file src/executor src/executor/*.hxx src/executor/*.cxx
 copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
 
@@ -145,20 +160,30 @@ rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
 copy_file src/freertos_drivers/arduino \
           src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
           src/freertos_drivers/common/GpioWrapper.hxx \
+          src/freertos_drivers/common/CpuLoad.{hxx,cxx} \
+          src/freertos_drivers/common/WifiDefs.{hxx,cxx} \
           src/freertos_drivers/arduino/*
 
 copy_file src/freertos_drivers/esp32 \
           src/freertos_drivers/esp32/*
 
-copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx
+copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx \
+          src/os/{OSImpl,MDNS,OSSelectWakeup}.cxx
 
 copy_file src/sys include/sys/tree.hxx
 
 copy_file src/utils src/utils/*.{cxx,hxx,c,h}
 
 rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
-    ${TARGET_LIB_DIR}/src/utils/HubDeviceSelect.cxx \
-    ${TARGET_LIB_DIR}/src/utils/HubDeviceSelect.hxx
+    ${TARGET_LIB_DIR}/src/utils/AesCcmTestVectors.hxx \
+    ${TARGET_LIB_DIR}/src/utils/AesCcmTestVectorsEx.hxx \
+    ${TARGET_LIB_DIR}/src/utils/async_datagram_test_helper.hxx \
+    ${TARGET_LIB_DIR}/src/utils/async_if_test_helper.hxx \
+    ${TARGET_LIB_DIR}/src/utils/async_traction_test_helper.hxx \
+    ${TARGET_LIB_DIR}/src/utils/EEPROMEmuTest.hxx \
+    ${TARGET_LIB_DIR}/src/utils/hub_test_utils.hxx \
+    ${TARGET_LIB_DIR}/src/utils/if_tcp_test_helper.hxx \
+    ${TARGET_LIB_DIR}/src/utils/test_main.hxx
 
 if [ "x$VERBOSE" != "x" ]; then
     echo "Renaming all cxx to cpp under ${TARGET_LIB_DIR}/src"

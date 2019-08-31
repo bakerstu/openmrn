@@ -40,6 +40,7 @@
 #include "utils/SimpleQueue.hxx"
 #include "utils/Singleton.hxx"
 #include "utils/StringPrintf.hxx"
+#include "freertos_includes.h"
 
 extern "C" {
     /// Call this function repeatedly from a hardware timer to feed the CPUload
@@ -204,8 +205,13 @@ private:
     Action log_and_wait()
     {
         auto *l = CpuLoad::instance();
-        LOG(INFO, "Load: avg %3d max streak %d max of 16 %d", l->get_load(),
+        uint32_t ex_count = service()->executor()->sequence();
+        LOG(INFO,
+            "Ex %d|FreeHeap %d|Buf %d|Load: avg %3d max streak %d max of 16 %d",
+            (int)(ex_count - executorLastCount_), (int)os_get_free_heap(),
+            (int)mainBufferPool->total_size(), l->get_load(),
             l->get_max_consecutive(), l->get_peak_over_16_counts());
+        executorLastCount_ = ex_count;
         l->clear_max_consecutive();
         l->clear_peak_over_16_counts();
         vector<pair<unsigned, string *>> per_task_ticks;
@@ -221,18 +227,28 @@ private:
         }
         log_output((char *)details.data(), details.size());
         auto k = l->new_key();
-        if (k > 300)
+        if (k < 300)
         {
-            char *name = pcTaskGetName((TaskHandle_t)k);
-            l->set_key_description(k, name);
+            l->set_key_description(k, StringPrintf("irq-%u", (unsigned)k));
+        }
+        else if (k & 1)
+        {
+            l->set_key_description(
+                k, StringPrintf("ex 0x%x", (unsigned)(k & ~1)));
         }
         else
         {
-            l->set_key_description(k, StringPrintf("irq-%u", k));
+#if tskKERNEL_VERSION_MAJOR < 9
+            char *name = pcTaskGetTaskName((TaskHandle_t)k);
+#else
+            char *name = pcTaskGetName((TaskHandle_t)k);
+#endif            
+            l->set_key_description(k, name);
         }
         return sleep_and_call(&timer_, MSEC_TO_NSEC(2000), STATE(log_and_wait));
     }
 
+    uint32_t executorLastCount_{0};
     StateFlowTimer timer_{this};
 };
 

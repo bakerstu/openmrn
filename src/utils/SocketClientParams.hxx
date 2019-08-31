@@ -110,6 +110,11 @@ public:
     /// @return the last successfully used port number.
     virtual int last_port() = 0;
 
+    /// @return false for repeated connection attempts, true if we should stop
+    /// after the first failed connection attempt. If a one-stop mode fails,
+    /// the caller has to delete and re-create the socket client.
+    virtual bool one_shot() { return false; }
+    
     /// This function is called on an unspecified thread when a connection is
     /// successfully established.
     /// @param hostname is filled with a dotted decimal representation of the
@@ -137,6 +142,8 @@ public:
         CONNECT_MANUAL = 6,
         /// Connection dropped because target is localhost.
         CONNECT_FAILED_SELF = 7,
+        /// Attempt to search & connect failed, given up. No arg.
+        CONNECT_FAILED_ONESHOT = 8,
         CONNECTION_LOST
     };
 
