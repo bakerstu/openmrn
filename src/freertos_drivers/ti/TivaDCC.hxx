@@ -274,9 +274,12 @@ public:
 
     /// Turns on DCC output.
     void enable_output() {
-        if (HW::use_slow_turnon()) {
+        if (HW::use_slow_turnon())
+        {
             state_ = POWER_TURNON;
-        } else {
+        }
+        else
+        {
             state_ = POWER_IMM_TURNON;
         }
     }
@@ -457,7 +460,7 @@ private:
         POWER_TURNON_50P,
         // Turn on without going through the slow start sequence.
         POWER_IMM_TURNON,
-        
+
         // Used during periods when a short is detected on the output
         POWER_SHORT_20P,
     };
@@ -731,10 +734,11 @@ inline void TivaDCC<HW>::interrupt_handler()
         break;
     case POWER_TURNON_50P:
         current_bit = TURNON_50P;
-        if (count++ < 1000) {
+        if (count++ < 1000)
+        {
             break;
         }
-        // fall through
+    // fall through
     case POWER_IMM_TURNON:
         current_bit = DCC_ONE;
         internal_enable_output();
