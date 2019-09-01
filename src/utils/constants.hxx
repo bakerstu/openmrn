@@ -94,7 +94,7 @@
 #else  // native C
 
 #define DECLARE_CONST(name)                                                    \
-    EXTERNC extern void _sym_##name(void);                                     \
+    EXTERNC extern int _sym_##name;                                            \
     EXTERNCEND typedef unsigned char                                           \
     _do_not_add_declare_and_default_const_to_the_same_file_for_##name;         \
     static inline ptrdiff_t config_##name(void)                                \
