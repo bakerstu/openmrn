@@ -142,20 +142,29 @@ public:
         pendingWakeup_ = false;
     }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     void wakeup_from_isr()
     {
         pendingWakeup_ = true;
         if (inSelect_)
         {
+#if OPENMRN_FEATURE_DEVICE_SELECT
             HASSERT(selectInfo_.event);
             Device::SelectInfo copy(selectInfo_);
             int woken;
             Device::select_wakeup_from_isr(&copy, &woken);
             os_isr_exit_yield_test(woken);
+// TODO: confirm if pthread_kill is ISR safe
+//#elif OPENMRN_HAVE_PSELECT
+//            pthread_kill(thread_, WAKEUP_SIG);
+#elif defined(ESP32)
+            esp_wakeup_from_isr();
+#else
+            DIE("need wakeup code");
+#endif
         }
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /** Portable call to a select that can be woken up asynchronously from a
      * different thread or an ISR context.
@@ -236,6 +245,7 @@ private:
     void esp_allocate_vfs_fd();
     void esp_deallocate_vfs_fd();
     void esp_wakeup();
+    void esp_wakeup_from_isr();
 public:
     void esp_start_select(void* signal_sem);
     void esp_end_select();
