@@ -1,0 +1,34 @@
+#include "test_main.hxx"
+#include "utils/ServiceLocator.hxx"
+
+using namespace testing;
+
+class SomeService : public RegisterableService
+{
+};
+
+class ServiceLocatorTests : public Test
+{
+protected:
+    SomeService service_;
+};
+
+TEST_F(ServiceLocatorTests, no_such_service)
+{
+    SomeService *some_service =
+        ServiceLocator<SomeService>::get_service("not present");
+
+    EXPECT_EQ(nullptr, some_service);
+}
+
+TEST_F(ServiceLocatorTests, registered)
+{
+    ServiceLocator<SomeService>::add_service("test service", &service_);
+
+    SomeService *service =
+        ServiceLocator<SomeService>::get_service("test service");
+    EXPECT_EQ(&service_, service);
+
+    service = ServiceLocator<SomeService>::get_service("not present");
+    EXPECT_EQ(nullptr, service);
+}
