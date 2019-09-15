@@ -39,7 +39,7 @@
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
 
-#if OPENMRN_FEATURE_BSD_SOCKET
+#if OPENMRN_FEATURE_BSD_SOCKETS
 #define CONSOLE_NETWORKING
 #endif
 
