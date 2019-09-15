@@ -38,24 +38,48 @@
 #include <map>
 #include <string>
 
+/**
+ * Add this as a base class for any service you want to be able to register
+ */
 class RegisterableService
 {
 };
 
+/**
+ * This base class provides a relatively simple map between a name and a pointer.
+ * We need this base class because we can't have this in the template.
+ */
 class ServiceLocatorBase
 {
 protected:
     static std::map<std::string, RegisterableService *> services;
 };
 
+/**
+ * Simple serice locator based on name. Note, this is not really type safe.
+ * So if you register a pointer with a name and then retrieve it using that
+ * name, but a different type, it will almost certainly lead to a crash.
+ * @typename Reference is the type of the class you're registering
+ */
 template <typename Reference> class ServiceLocator : ServiceLocatorBase
 {
 public:
+    /**
+     * Register a pointer with a name
+     * @param name of the service that you want to register
+     * @param service is a pointer that you want to register
+     */
     static void add_service(std::string name, Reference *service)
     {
         services[name] = service;
     }
 
+    /**
+     * Retrieves a pointer to the registered service, by name.
+     * @param name of the service to retrieve
+     * @return the retrieved pointer, which is not guaranteed to be of the
+     * requested type
+     */
     static Reference *get_service(std::string name)
     {
         auto it = services.find(name);
