@@ -265,6 +265,10 @@ public:
     static unsigned align_mask(EventId *event, unsigned size);
 
     /// Adds a new event handler to the registry.
+    /// @param entry is the structure parametrizingthe registration.
+    /// @param mask is used for registering consecutive events; zero for
+    /// registering just one event; otherwise use {@ref align_mask} to compute
+    /// the base value and mask to use for registering a range of events.
     virtual void register_handler(const EventRegistryEntry &entry,
                                   unsigned mask) = 0;
     /// Removes all registered instances of a given event handler pointer.

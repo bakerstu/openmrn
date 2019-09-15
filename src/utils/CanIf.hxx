@@ -47,6 +47,7 @@ struct CanMessageData : public can_frame
     /** Constructor. Resets the inlined frame to an empty extended frame. */
     CanMessageData()
     {
+        can_id = 0;
         CLR_CAN_FRAME_ERR(*this);
         CLR_CAN_FRAME_RTR(*this);
         SET_CAN_FRAME_EFF(*this);

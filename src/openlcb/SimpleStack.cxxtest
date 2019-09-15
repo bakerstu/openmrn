@@ -1,0 +1,61 @@
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "utils/async_if_test_helper.hxx"
+
+openlcb::MockSNIPUserFile snip_user_file(
+    "Default user name", "Default user description");
+const char *const openlcb::SNIP_DYNAMIC_FILENAME =
+    openlcb::MockSNIPUserFile::snip_user_file_path;
+
+namespace openlcb
+{
+
+/// This class ensures that the g_init_flow object is not live while the tests
+/// are running. That's necessary because InitializeFlow is a singleton and the
+/// full-stack tests are creating an object of it.
+class DestructGlobalInitFlowObject
+{
+public:
+    DestructGlobalInitFlowObject()
+    {
+        g_init_flow.~InitializeFlow();
+    }
+
+    ~DestructGlobalInitFlowObject()
+    {
+        new (&g_init_flow) InitializeFlow(&g_service);
+    }
+} d;
+
+class SimpleCanStackTest : public AsyncCanTest
+{
+protected:
+    ~SimpleCanStackTest()
+    {
+        twait();
+    }
+
+    SimpleCanStack stack_ {TEST_NODE_ID};
+};
+
+TEST_F(SimpleCanStackTest, create)
+{
+}
+
+class SimpleTcpStackTest : public AsyncCanTest
+{
+protected:
+    ~SimpleTcpStackTest()
+    {
+        twait();
+    }
+
+    SimpleTcpStack stack_ {TEST_NODE_ID};
+};
+
+TEST_F(SimpleTcpStackTest, create)
+{
+}
+
+
+} // namespace openlcb

@@ -61,6 +61,16 @@
 #define CAN_SECOND_IRQN USB_LP_CAN_RX0_IRQn
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
 
+#elif defined (STM32F767xx)
+
+#include "stm32f7xx_hal_cortex.h"
+#define SPLIT_INT
+#define CAN CAN1
+#define CAN_TX_IRQN CAN1_TX_IRQn
+#define CAN_IRQN CAN_TX_IRQN
+#define CAN_SECOND_IRQN CAN1_RX0_IRQn
+#define CAN_CLOCK (cm3_cpu_clock_hz >> 2) // 54 MHz, sysclk/4
+
 #else
 #error Dont know what STM32 chip you have.
 #endif
@@ -416,8 +426,77 @@ void usb_lp_can1_rx0_interrupt_handler(void)
     Stm32Can::instances[0]->rx_interrupt_handler();
 }
 
+#elif defined(STM32F767xx)
+
+void can1_tx_interrupt_handler(void)
+{
+    Stm32Can::instances[0]->tx_interrupt_handler();
+}
+
+void can1_rx0_interrupt_handler(void)
+{
+    Stm32Can::instances[0]->rx_interrupt_handler();
+}
+
 #else
 #error Dont know what STM32 chip you have.
 #endif
 
 } // extern "C"
+
+
+#ifdef ARDUINO
+
+#include "stm32_def.h"
+#include "PinAF_STM32F1.h"
+#include <PeripheralPins.h>
+
+void arduino_can_pinmap(PinName tx_pin, PinName rx_pin) {
+    __HAL_RCC_CAN1_CLK_ENABLE();
+    void* can_tx = pinmap_peripheral(tx_pin, PinMap_CAN_TD);
+    void* can_rx = pinmap_peripheral(rx_pin, PinMap_CAN_RD);
+    void* can = pinmap_merge_peripheral(can_tx, can_rx);
+    if (can == NP) {
+        DIE("Could not find CAN peripheral");
+    }
+        
+    GPIO_InitTypeDef  GPIO_InitStruct;
+
+    GPIO_InitStruct.Pin       = STM_GPIO_PIN(tx_pin);
+    auto fn = pinmap_function(tx_pin, PinMap_CAN_TD);
+    GPIO_InitStruct.Mode      = STM_PIN_MODE(fn);
+    GPIO_InitStruct.Pull      = STM_PIN_PUPD(fn);
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
+#ifdef STM32F1xx
+    pin_SetF1AFPin(STM_PIN_AFNUM(fn));
+#else
+    GPIO_InitStruct.Alternate = STM_PIN_AFNUM(fn);
+#endif /* STM32F1xx */
+    HAL_GPIO_Init(set_GPIO_Port_Clock(STM_PORT(tx_pin)), &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin       = STM_GPIO_PIN(rx_pin);
+    fn = pinmap_function(rx_pin, PinMap_CAN_RD);
+    GPIO_InitStruct.Mode      = STM_PIN_MODE(fn);
+    GPIO_InitStruct.Pull      = STM_PIN_PUPD(fn);
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
+#ifdef STM32F1xx
+    pin_SetF1AFPin(STM_PIN_AFNUM(fn));
+#else
+    GPIO_InitStruct.Alternate = STM_PIN_AFNUM(fn);
+#endif /* STM32F1xx */
+    HAL_GPIO_Init(set_GPIO_Port_Clock(STM_PORT(rx_pin)), &GPIO_InitStruct);
+}
+
+extern "C" {
+void USB_HP_CAN_TX_IRQHandler(void)
+{
+    Stm32Can::instances[0]->tx_interrupt_handler();
+}
+
+void USB_LP_CAN_RX0_IRQHandler(void)
+{
+    Stm32Can::instances[0]->rx_interrupt_handler();
+}
+} // extern "C"
+
+#endif

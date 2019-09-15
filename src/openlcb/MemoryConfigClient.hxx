@@ -237,6 +237,13 @@ public:
         return node_;
     }
 
+    /// @return OpenLCB memory config handler (which was given in the
+    /// constructor).
+    MemoryConfigHandler *mem_cfg()
+    {
+        return memoryConfigHandler_;
+    }
+
 private:
     Action entry() override
     {

@@ -120,7 +120,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:n:a:s:f:rw")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:d:n:a:s:f:rw")) >= 0)
     {
         switch (opt)
         {

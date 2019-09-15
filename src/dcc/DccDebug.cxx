@@ -86,6 +86,8 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
     }
     unsigned ofs = 0;
     bool is_idle_packet = false;
+    bool is_basic_accy_packet = false;
+    unsigned accy_address = 0;
     if (pkt.payload[ofs] == 0xff)
     {
         options += " Idle packet";
@@ -106,9 +108,12 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
         options += StringPrintf(" Short Address %u", pkt.payload[ofs]);
         ofs++;
     }
-    else if ((pkt.payload[ofs] & 0xC0) == 0X80)
+    else if ((pkt.payload[ofs] & 0xC0) == 0x80)
     {
         // accessory decoder
+        is_basic_accy_packet = true;
+        accy_address = (pkt.payload[ofs] & 0b111111) << 3;
+        ofs++;
     }
     else if (pkt.payload[ofs] >= 192 && pkt.payload[ofs] <= 231)
     {
@@ -122,7 +127,17 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
     }
     uint8_t cmd = pkt.payload[ofs];
     ofs++;
-    if ((cmd & 0xC0) == 0x40)
+    if (is_basic_accy_packet && ((cmd & 0x80) == 0x80))
+    {
+        accy_address |= cmd & 0b111;
+        cmd >>= 3;
+        bool is_activate = cmd & 1;
+        cmd >>= 1;
+        accy_address |= ((~cmd) & 0b111) << 9;
+        options += StringPrintf(" Accy %u %s", accy_address,
+            is_activate ? "activate" : "deactivate");
+    }
+    else if ((cmd & 0xC0) == 0x40)
     {
         // Speed and direction
         bool is_forward = (cmd & 0x20) != 0;
@@ -214,6 +229,7 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
     else if (cmd == 0 && is_idle_packet)
     {
     }
+    
     // checksum of packet
     if (ofs == pkt.dlc && pkt.packet_header.skip_ec == 0)
     {

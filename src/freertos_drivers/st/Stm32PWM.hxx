@@ -49,7 +49,7 @@
 
 /// Set of 4 PWM channels that belong to a single timer resource in the STM32
 /// microcontrollers. Note that the different channels are tied to be using the
-/// same period, but the cuty cycle can be independently set.
+/// same period, but the duty cycle can be independently set.
 class Stm32PWMGroup
 {
 public:

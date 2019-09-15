@@ -26,7 +26,7 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4,               "OpenMRN", "Test IO Board - Fake (linux)",
     "linux.x86", "1.01"};
 
-#define NUM_OUTPUTS 4
+#define NUM_OUTPUTS 3
 #define NUM_INPUTS 2
 
 /// Used for detecting when the config file stems from a different config.hxx

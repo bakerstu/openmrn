@@ -46,12 +46,12 @@ class Notifiable : public Destructable
 public:
     /// Generic callback.
     virtual void notify() = 0;
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     virtual void notify_from_isr()
     {
         DIE("Unexpected call to notify_from_isr.");
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 };
 
 /// A Notifiable for synchronously waiting for a notification.
@@ -71,7 +71,7 @@ public:
         sem_.post();
     }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /// Implementation of notification receive from a FreeRTOS interrupt
     /// context.
     void notify_from_isr() OVERRIDE
@@ -79,7 +79,7 @@ public:
         int woken = 0;
         sem_.post_from_isr(&woken);
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /// Blocks the current thread until the notification is delivered.
     void wait_for_notification()

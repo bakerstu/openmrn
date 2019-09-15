@@ -49,7 +49,7 @@ struct DatagramDefs
         LOG_REPLY     = 0x02, /**< reply to a @ref LOG_REQUEST */
         CONFIGURATION = 0x20, /**< configuration message */
         REMOTE_BUTTON = 0x21, /**< remote button input */
-        DISPLAY       = 0x28, /**< place on display */
+        DISPLAY_PROTOCOL = 0x28, /**< place on display */
         TRAIN_CONTROL = 0x30, /**< operation of mobile nodes */
     };
 

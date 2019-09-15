@@ -512,6 +512,18 @@ TEST_F(ThrottleClientTest, ListenerCallback)
     wait();
     Mock::VerifyAndClear(&l);
     EXPECT_EQ(1, throttle_.get_fn(10));
+
+    // Test with emergency stop as well.
+    EXPECT_CALL(l, update(-1));
+    EXPECT_FALSE(throttle_.get_emergencystop());
+    send_packet(":X195EB330N077102;"); // E-Stop
+    wait();
+    Mock::VerifyAndClear(&l);
+    EXPECT_TRUE(throttle_.get_emergencystop());
+
+    // send another speed command to verify that E-Stop gets cleared
+    throttle_.set_speed(v);
+    EXPECT_FALSE(throttle_.get_emergencystop());
 }
 
 } // namespace openlcb

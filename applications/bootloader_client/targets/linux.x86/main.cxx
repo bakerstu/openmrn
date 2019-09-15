@@ -92,14 +92,15 @@ bool request_reboot = false;
 bool request_reboot_after = true;
 bool skip_pip = false;
 long long stream_timeout_nsec = 3000;
+uint32_t hardware_magic = 0x73a92bd1;
 
 void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-c csum_algo] [-r] [-t] [-x] [-w dg_timeout] [-W "
-        "stream_timeout] [-D dump_filename] (-n nodeid | -a alias) -f "
-        "filename\n",
+        "memory_space_id] [-c csum_algo [-m hw_magic]] [-r] [-t] [-x] "
+        "[-w dg_timeout] [-W stream_timeout] [-D dump_filename] "
+        "(-n nodeid | -a alias) -f filename\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and performs the "
                     "bootloader protocol on openlcb node with id nodeid with "
@@ -119,7 +120,7 @@ void usage(const char *e)
                     "data into. Default is '-s 0xF0'.\n");
     fprintf(stderr, "csum_algo defines the checksum algorithm to use. If "
                     "omitted, no checksumming is done before writing the "
-                    "data.\n");
+                    "data. hw_magic is an argument to the checksum.\n");
     fprintf(stderr,
         "-r request the target to enter bootloader mode before sending data\n");
     fprintf(stderr, "Unless -t is specified the target will be rebooted after "
@@ -134,7 +135,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:xw:W:D:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:m:xw:W:D:")) >= 0)
     {
         switch (opt)
         {
@@ -173,6 +174,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'c':
                 checksum_algorithm = optarg;
+                break;
+            case 'm':
+                hardware_magic = strtol(optarg, nullptr, 0);
                 break;
             case 'r':
                 request_reboot = true;
@@ -258,12 +262,12 @@ void maybe_checksum(string *firmware)
         hdr.app_size = firmware->size();
         crc3_crc16_ibm(
             firmware->data(), offset, (uint16_t *)hdr.checksum_pre);
-        hdr.checksum_pre[2] = 0x73a92bd1;
+        hdr.checksum_pre[2] = hardware_magic;
         hdr.checksum_pre[3] = 0x5a5a55aa;
         crc3_crc16_ibm(&(*firmware)[offset + sizeof(hdr)],
             (firmware->size() - offset - sizeof(hdr)) & ~3,
             (uint16_t *)hdr.checksum_post);
-        hdr.checksum_post[2] = 0x73a92bd1;
+        hdr.checksum_post[2] = hardware_magic;
         hdr.checksum_post[3] = 0x5a5a55aa;
 
         memcpy(&(*firmware)[offset], &hdr, sizeof(hdr));
@@ -279,13 +283,13 @@ void maybe_checksum(string *firmware)
         hdr.app_size = firmware->size() + 4096;
         crc3_crc16_ibm(
             nullptr, 0, (uint16_t *)hdr.checksum_pre);
-        hdr.checksum_pre[2] = 0x73a92bd1;
+        hdr.checksum_pre[2] = hardware_magic;
         hdr.checksum_pre[3] = 0x5a5a55aa;
 
         unsigned post_size = hdr.app_size - sizeof(hdr);
         crc3_crc16_ibm(
             &nfirmware[sizeof(hdr)], post_size, (uint16_t *)hdr.checksum_post);
-        hdr.checksum_post[2] = 0x73a92bd1;
+        hdr.checksum_post[2] = hardware_magic;
         hdr.checksum_post[3] = 0x5a5a55aa;
 
         memcpy(&nfirmware[0], &hdr, sizeof(hdr));
@@ -309,24 +313,27 @@ void maybe_checksum(string *firmware)
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    int conn_fd = 0;
-    if (device_path)
+    if (!dump_filename)
     {
-        conn_fd = ::open(device_path, O_RDWR);
-    }
-    else
-    {
-        conn_fd = ConnectSocket(host, port);
-    }
-    HASSERT(conn_fd >= 0);
-    create_gc_port_for_can_hub(&can_hub0, conn_fd);
+        int conn_fd = 0;
+        if (device_path)
+        {
+            conn_fd = ::open(device_path, O_RDWR);
+        }
+        else
+        {
+            conn_fd = ConnectSocket(host, port);
+        }
+        HASSERT(conn_fd >= 0);
+        create_gc_port_for_can_hub(&can_hub0, conn_fd);
 
-    g_if_can.add_addressed_message_support();
-    // Bootstraps the alias allocation process.
-    g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
+        g_if_can.add_addressed_message_support();
+        // Bootstraps the alias allocation process.
+        g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
 
-    g_executor.start_thread("g_executor", 0, 1024);
-    usleep(400000);
+        g_executor.start_thread("g_executor", 0, 1024);
+        usleep(400000);
+    }
 
     SyncNotifiable n;
     BarrierNotifiable bn(&n);
@@ -349,15 +356,16 @@ int appl_main(int argc, char *argv[])
         b->data()->data.size(), filename, memory_space_id);
     maybe_checksum(&b->data()->data);
 
-    if (dump_filename) {
+    if (dump_filename)
+    {
         write_string_to_file(dump_filename, b->data()->data);
         exit(0);
     }
-    
+
     bootloader_client.send(b);
     n.wait_for_notification();
     printf("Result: %04x  %s\n", response.error_code,
         response.error_details.c_str());
-
+    exit(0);
     return 0;
 }

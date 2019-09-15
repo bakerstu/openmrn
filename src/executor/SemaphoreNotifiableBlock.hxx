@@ -78,13 +78,13 @@ public:
         sem_.post();
     }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     void notify_from_isr() OVERRIDE
     {
         int woken = 0;
         sem_.post_from_isr(&woken);
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
 private:
     /// How many barriers did we allocate in total?

@@ -54,6 +54,7 @@
 
 class DynamicPool;
 class FixedPool;
+class LimitedPool;
 class Pool;
 template <class T> class Buffer;
 class BufferBase;
@@ -120,14 +121,6 @@ public:
         return size_;
     }
 
-    /** Expand the buffer by allocating a buffer double the size, copying the
-     * contents to the new buffer, and freeing the old buffer.  The "this"
-     * pointer
-     * of the caller will be used to free the buffer.
-     * @return newly expanded buffer
-     */
-    BufferBase *expand();
-
 protected:
     /** Get a pointer to the pool that this buffer belongs to.
      * @return pool that this buffer belongs to
@@ -183,6 +176,9 @@ protected:
 
     /** Allow FixedPool access to our constructor */
     friend class FixedPool;
+
+    /** Allow LimitedPool access to our fields */
+    friend class LimitedPool;
 
     DISALLOW_COPY_AND_ASSIGN(BufferBase);
 };
@@ -274,6 +270,12 @@ template<typename T> BufferPtr<T> get_buffer_deleter(Buffer<T>* b) {
 class Pool
 {
 public:
+    /** @return the total memory held by this pool. */
+    size_t total_size()
+    {
+        return totalSize;
+    }
+
     /** Get a free item out of the pool.
      * @param result pointer to a pointer to the result
      * @param flow if !NULL, then the alloc call is considered async and will
@@ -360,6 +362,8 @@ protected:
 private:
     /** Allow BufferBase to access this class */
     friend class BufferBase;
+    /** LimitedPool proxies to a base Pool. */
+    friend class LimitedPool;
 
     /** Allow Buffer to access this class */
     template <class T> friend class Buffer;
@@ -469,7 +473,6 @@ public:
      */
     DynamicPool(Bucket sizes[])
         : Pool()
-        , totalSize(0)
         , buckets(sizes)
     {
     }
@@ -491,16 +494,7 @@ public:
      */
     size_t free_items(size_t size) override;
 
-    /** @return the total memory held by this pool. */
-    size_t total_size()
-    {
-        return totalSize;
-    }
-
 protected:
-    /** keep track of total allocated size of memory */
-    size_t totalSize;
-
     /** Free buffer queue */
     Bucket *buckets;
 
@@ -560,7 +554,6 @@ public:
      */
     FixedPool(size_t item_size, size_t items)
         : Pool()
-        , totalSize(0)
         , mempool(new char[(item_size * items)])
         , itemSize(item_size)
         , items(items)
@@ -600,9 +593,6 @@ public:
     }
 
 protected:
-    /** keep track of total allocated size of memory */
-    size_t totalSize;
-
     /** Free buffer queue */
     Q queue;
 

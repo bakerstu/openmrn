@@ -37,26 +37,6 @@
 
 #include <string>
 
-#ifdef __EMSCRIPTEN__
-
-#include <emscripten.h>
-#include <emscripten/val.h>
-
-string read_file_to_string(const string &filename)
-{
-    using emscripten::val;
-    EM_ASM(var fs = require('fs'); Module.fs = fs;);
-    val fs = val::module_property("fs");
-    string contents = fs.call<val>("readFileSync", string(filename),
-                             string("binary")).as<string>();
-    return contents;
-}
-
-#else
-
-#include <stdio.h>
-#include <string.h>
-
 /// Opens a file, reads the entire contents, stores it in a c++ std::string and
 /// returns this string. Helper function in some client applications. Exits the
 /// current application if there is an error.
@@ -65,25 +45,7 @@ string read_file_to_string(const string &filename)
 ///
 /// @return the file contents.
 ///
-string read_file_to_string(const string &filename)
-{
-    FILE *f = fopen(filename.c_str(), "rb");
-    if (!f)
-    {
-        fprintf(stderr, "Could not open file %s: %s\n", filename.c_str(),
-            strerror(errno));
-        exit(1);
-    }
-    char buf[1024];
-    size_t nr;
-    string ret;
-    while ((nr = fread(buf, 1, sizeof(buf), f)) > 0)
-    {
-        ret.append(buf, nr);
-    }
-    fclose(f);
-    return ret;
-}
+string read_file_to_string(const string &filename);
 
 /// Opens (or creates) a file, truncates it and overwrites the contents with
 /// what is given in a string. Terminates the application if an error is
@@ -91,29 +53,6 @@ string read_file_to_string(const string &filename)
 ///
 /// @param filename name of file to open.
 /// @param data what to write into the file.
-void write_string_to_file(const string &filename, const string &data)
-{
-    FILE *f = fopen(filename.c_str(), "wb");
-    if (!f)
-    {
-        fprintf(stderr, "Could not open file %s: %s\n", filename.c_str(),
-            strerror(errno));
-        exit(1);
-    }
-    size_t nr;
-    size_t offset = 0;
-    string ret;
-    while ((nr = fwrite(data.data() + offset, 1, data.size() - offset, f)) > 0)
-    {
-        offset += nr;
-        if (offset >= data.size()) break;
-    }
-    if (nr < 0) {
-        fprintf(stderr, "error writing: %s\n", strerror(errno));
-    }
-    fclose(f);
-}
+void write_string_to_file(const string &filename, const string &data);
 
-#endif
-
-#endif //_UTILS_JSFILEUTILS_HXX_
+#endif //_UTILS_FILEUTILS_HXX_

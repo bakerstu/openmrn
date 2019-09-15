@@ -1,0 +1,30 @@
+DEPS += SPIFFSPATH
+DEPS += STM32CUBEF7PATH
+
+include $(OPENMRNPATH)/etc/stm32cubef7.mk
+
+VPATH := $(SPIFFSPATH)/src: \
+         $(OPENMRNPATH)/src/freertos_drivers/spiffs: \
+         $(OPENMRNPATH)/src/freertos_drivers/spiffs/stm32f7
+
+CSRCS += spiffs_cache.c \
+         spiffs_check.c \
+         spiffs_gc.c \
+         spiffs_hydrogen.c \
+         spiffs_nucleus.c \
+         spiffs_nucleus.c \
+
+CXXSRCS += SPIFFS.cxx \
+           Stm32SPIFFS.cxx
+            
+
+INCLUDES += -I$(SPIFFSPATH)/src \
+            -I$(OPENMRNPATH)/src/freertos_drivers/st \
+            -I$(OPENMRNPATH)/src/freertos_drivers/spiffs \
+            -I$(OPENMRNPATH)/src/freertos_drivers/spiffs/stm32f7 \
+
+
+CFLAGS += -DNO_TEST
+CFLAGS += -DSTM32F767xx
+CXXFLAGS += -DSTM32F767xx
+

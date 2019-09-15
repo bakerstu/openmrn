@@ -36,6 +36,8 @@
 #ifndef _CC32xxAESCCM_HXX_
 #define _CC32xxAESCCM_HXX_
 
+#include <stdint.h>
+
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_aes.h"
@@ -80,10 +82,46 @@ public:
         *plain += part;
     }
 
-    static void encrypt(const std::string &aes_key, const std::string &iv,
+    /// Performs authenticated encryption using CCM in one call. Use this when
+    /// all the plaintext is available and both cipher and plaintext fits into
+    /// memory.
+    ///
+    /// @param aes_key is the secret key. 16, 24 or 32 bytes long.
+    /// @param nonce is the use-once initialization. Must be 13, 11 or 7 bytes
+    /// long.
+    /// @param auth_data is cleartext data (usually packet headers) that need
+    /// to be checked for authenticity.
+    /// @param plain is the plain text data.
+    /// @param tag_len is the desired length of the authentication
+    /// tag. Recommend 16.
+    /// @param cipher will hold the encrypted data.
+    /// @param tag will hold the authentication checksum. Will be resized to
+    /// tag_len.
+    static void encrypt(const std::string &aes_key, const std::string &nonce,
         const std::string &auth_data, const std::string &plain,
-        std::string *cipher, std::string *tag)
+        unsigned tag_len, std::string *cipher, std::string *tag)
     {
+        static_encrypt_init(aes_key, nonce, auth_data, plain.size(), tag_len);
+        cipher->resize(plain.size() + 15);
+        int len = plain.size();
+        unsigned ofs = 0;
+        while (len >= 16)
+        {
+            process_block(
+                (const uint8_t *)&plain[ofs], (uint8_t *)&(*cipher)[ofs]);
+            ofs += 16;
+            len -= 16;
+        }
+        if (len > 0)
+        {
+            uint8_t buf[16];
+            memset(buf, 0, sizeof(buf));
+            memcpy(buf, &plain[ofs], len);
+            process_block(buf, (uint8_t *)&(*cipher)[ofs]);
+        }
+        cipher->resize(plain.size());
+        tag->resize(tag_len);
+        read_tag(tag);
     }
 
     /// Initializes streaming decryption. Sets up the module for decryption and
@@ -115,6 +153,41 @@ public:
         reset();
         // Sets configuration
         unsigned mode = AES_CFG_DIR_DECRYPT | AES_CFG_MODE_CCM |
+            AES_CFG_CTR_WIDTH_32 |
+            get_mode(aes_key.size(), nonce.size(), tag_len);
+        MAP_AESConfigSet(AES_BASE, mode);
+
+        // Computes the initialization vector form the nonce.
+        string real_iv;
+        real_iv.push_back(nonce_length_to_l(nonce.size()) - 1);
+        real_iv += nonce;
+        while (real_iv.size() < 16)
+        {
+            real_iv.push_back(0);
+        }
+        MAP_AESIVSet(AES_BASE, (uint8_t *)real_iv.data());
+
+        // Sets key and length variables needed before starting the decryption.
+        MAP_AESKey1Set(AES_BASE, (uint8_t *)aes_key.data(),
+            interpret_key_size(aes_key.size()));
+        MAP_AESDataLengthSet(AES_BASE, data_len);
+        MAP_AESAuthDataLengthSet(AES_BASE, auth_data.size());
+
+        // Writes the pre-authenticated data.
+        for (unsigned ofs = 0; ofs < auth_data.size(); ofs += 16)
+        {
+            MAP_AESDataWrite(AES_BASE, (uint8_t *)&auth_data[ofs],
+                std::min(16u, auth_data.size() - ofs));
+        }
+    }
+
+    static void static_encrypt_init(const std::string &aes_key,
+        const std::string &nonce, const std::string &auth_data,
+        unsigned data_len, uint8_t tag_len)
+    {
+        reset();
+        // Sets configuration
+        unsigned mode = AES_CFG_DIR_ENCRYPT | AES_CFG_MODE_CCM |
             AES_CFG_CTR_WIDTH_32 |
             get_mode(aes_key.size(), nonce.size(), tag_len);
         MAP_AESConfigSet(AES_BASE, mode);
@@ -235,18 +308,7 @@ public:
 
         int finalize(int status) override
         {
-            unsigned tag_len = tagOut_->size();
-            tagOut_->resize(16);
-            //
-            // Wait for the context data registers to be ready.
-            //
-            while ((AES_CTRL_SVCTXTRDY & (HWREG(AES_BASE + AES_O_CTRL))) == 0)
-            {
-            }
-
-            MAP_AESTagRead(AES_BASE, (uint8_t *)&(tagOut_->at(0)));
-            tagOut_->resize(tag_len);
-
+            read_tag(tagOut_);
             if (expectedTag_ && (*expectedTag_ != *tagOut_)) {
                 status = -2;
             }
@@ -368,6 +430,22 @@ private:
     {
         MAP_AESDataWrite(AES_BASE, (uint8_t *)din, 16);
         MAP_AESDataRead(AES_BASE, dout, 16);
+    }
+
+    /// Finalizes encyrption/decryption and reads out the checksum tag.
+    /// @param tag_out needs to be resized to the desired number of bytes length
+    /// before calling. It will be filled with the checksum bytes.
+    static void read_tag(std::string* tag_out) {
+        uint8_t tag[16];
+        //
+        // Wait for the context data registers to be ready.
+        //
+        while ((AES_CTRL_SVCTXTRDY & (HWREG(AES_BASE + AES_O_CTRL))) == 0)
+        {
+        }
+
+        MAP_AESTagRead(AES_BASE, tag);
+        tag_out->assign((const char*)tag, tag_out->size());
     }
 
     /// Implementation object.
