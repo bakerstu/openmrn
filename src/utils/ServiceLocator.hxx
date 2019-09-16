@@ -39,14 +39,6 @@
 #include <string>
 
 /**
- * This is implemented by the RegisterableService template below and is used by
- * the service locator to help with type safety.
- */
-class RegisterableInterface
-{
-};
-
-/**
  * Simple serice locator based on name. This is not intended to be used
  * directly as it is not type safe. Instead, use the RegisterableService
  * template class below as the base class for your services you want to
@@ -60,7 +52,7 @@ public:
      * @param name of the service that you want to register
      * @param service is a pointer that you want to register
      */
-    static void add_service(std::string name, RegisterableInterface *service)
+    static void add_service(std::string name, void *service)
     {
         services[name] = service;
     }
@@ -71,7 +63,7 @@ public:
      * @return the retrieved pointer, which is not guaranteed to be of the
      * requested type
      */
-    static RegisterableInterface *get_service(std::string name)
+    static void *get_service(std::string name)
     {
         auto it = services.find(name);
         if (it == services.end())
@@ -83,7 +75,7 @@ public:
     }
 
 protected:
-    static std::map<std::string, RegisterableInterface *> services;
+    static std::map<std::string, void *> services;
 };
 
 /**
@@ -91,7 +83,7 @@ protected:
  * the service locator.
  */
 template <typename RegisterableType>
-class RegisterableService : public RegisterableInterface
+class RegisterableService
 {
 public:
     /**
@@ -100,8 +92,7 @@ public:
      */
     static RegisterableType *get_service()
     {
-        RegisterableInterface *service =
-            ServiceLocator::get_service(get_type_name());
+        void *service = ServiceLocator::get_service(get_type_name());
         return static_cast<RegisterableType *>(service);
     }
 
