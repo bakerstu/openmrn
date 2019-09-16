@@ -44,8 +44,6 @@
  */
 class RegisterableInterface
 {
-public:
-    virtual const char *get_service_name() = 0;
 };
 
 /**
@@ -88,10 +86,18 @@ protected:
     static std::map<std::string, RegisterableInterface *> services;
 };
 
+/**
+ * Use this as a base class for services you want to be able to register with
+ * the service locator.
+ */
 template <typename RegisterableType>
 class RegisterableService : public RegisterableInterface
 {
 public:
+    /**
+     * Get the service that has been registereed for this type
+     * @return the service, or nullptr if no such service
+     */
     static RegisterableType *get_service()
     {
         RegisterableInterface *service =
@@ -99,17 +105,18 @@ public:
         return static_cast<RegisterableType *>(service);
     }
 
+    /**
+     * Register a service instance with the service locator
+     */
     static void register_service(RegisterableType *service)
     {
         ServiceLocator::add_service(get_type_name(), service);
     }
 
 private:
-    const char *get_service_name() override
-    {
-        return get_type_name();
-    }
-
+    /**
+     * Get a name that has the derived type as part of the name
+     */
     static const char *get_type_name()
     {
         return __PRETTY_FUNCTION__;
