@@ -39,29 +39,22 @@
 #include <string>
 
 /**
- * Add this as a base class for any service you want to be able to register
+ * This is implemented by the RegisterableService template below and is used by
+ * the service locator to help with type safety.
  */
-class RegisterableService
+class RegisterableInterface
 {
+public:
+    virtual const char *get_service_name() = 0;
 };
 
 /**
- * This base class provides a relatively simple map between a name and a pointer.
- * We need this base class because we can't have this in the template.
+ * Simple serice locator based on name. This is not intended to be used
+ * directly as it is not type safe. Instead, use the RegisterableService
+ * template class below as the base class for your services you want to
+ * register. Then use the static methods in that template.
  */
-class ServiceLocatorBase
-{
-protected:
-    static std::map<std::string, RegisterableService *> services;
-};
-
-/**
- * Simple serice locator based on name. Note, this is not really type safe.
- * So if you register a pointer with a name and then retrieve it using that
- * name, but a different type, it will almost certainly lead to a crash.
- * @typename Reference is the type of the class you're registering
- */
-template <typename Reference> class ServiceLocator : ServiceLocatorBase
+class ServiceLocator
 {
 public:
     /**
@@ -69,7 +62,7 @@ public:
      * @param name of the service that you want to register
      * @param service is a pointer that you want to register
      */
-    static void add_service(std::string name, Reference *service)
+    static void add_service(std::string name, RegisterableInterface *service)
     {
         services[name] = service;
     }
@@ -80,7 +73,7 @@ public:
      * @return the retrieved pointer, which is not guaranteed to be of the
      * requested type
      */
-    static Reference *get_service(std::string name)
+    static RegisterableInterface *get_service(std::string name)
     {
         auto it = services.find(name);
         if (it == services.end())
@@ -88,8 +81,38 @@ public:
             return nullptr;
         }
 
-        RegisterableService *service = it->second;
-        return static_cast<Reference *>(service);
+        return it->second;
+    }
+
+protected:
+    static std::map<std::string, RegisterableInterface *> services;
+};
+
+template <typename RegisterableType>
+class RegisterableService : public RegisterableInterface
+{
+public:
+    static RegisterableType *get_service()
+    {
+        RegisterableInterface *service =
+            ServiceLocator::get_service(get_type_name());
+        return static_cast<RegisterableType *>(service);
+    }
+
+    static void register_service(RegisterableType *service)
+    {
+        ServiceLocator::add_service(get_type_name(), service);
+    }
+
+private:
+    const char *get_service_name() override
+    {
+        return get_type_name();
+    }
+
+    static const char *get_type_name()
+    {
+        return __PRETTY_FUNCTION__;
     }
 };
 

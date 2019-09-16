@@ -3,7 +3,11 @@
 
 using namespace testing;
 
-class SomeService : public RegisterableService
+class SomeService : public RegisterableService<SomeService>
+{
+};
+
+class OtherService : public RegisterableService<OtherService>
 {
 };
 
@@ -15,20 +19,18 @@ protected:
 
 TEST_F(ServiceLocatorTests, no_such_service)
 {
-    SomeService *some_service =
-        ServiceLocator<SomeService>::get_service("not present");
+    SomeService *some_service = SomeService::get_service();
 
     EXPECT_EQ(nullptr, some_service);
 }
 
-TEST_F(ServiceLocatorTests, registered)
+TEST_F(ServiceLocatorTests, registered_simple)
 {
-    ServiceLocator<SomeService>::add_service("test service", &service_);
+    SomeService::register_service(&service_);
 
-    SomeService *service =
-        ServiceLocator<SomeService>::get_service("test service");
+    SomeService *service = SomeService::get_service();
     EXPECT_EQ(&service_, service);
 
-    service = ServiceLocator<SomeService>::get_service("not present");
-    EXPECT_EQ(nullptr, service);
+    OtherService *other = OtherService::get_service();
+    EXPECT_EQ(nullptr, other);
 }

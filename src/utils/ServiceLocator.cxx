@@ -34,4 +34,4 @@
 
 #include "utils/ServiceLocator.hxx"
 
-std::map<std::string, RegisterableService *> ServiceLocatorBase::services;
+std::map<std::string, RegisterableInterface *> ServiceLocator::services;
