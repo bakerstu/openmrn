@@ -48,7 +48,8 @@ class ServiceLocator
 {
 public:
     /**
-     * Register a pointer with a name
+     * Register a pointer with a name. The creator of the class still owns the
+     * instance.
      * @param name of the service that you want to register
      * @param service is a pointer that you want to register
      */
@@ -97,7 +98,8 @@ public:
     }
 
     /**
-     * Register a service instance with the service locator
+     * Register a service instance with the service locator. Because this is
+     * just registering the pointer, the creator still owns the lifetime.
      */
     static void register_service(RegisterableType *service)
     {
