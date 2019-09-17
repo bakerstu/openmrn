@@ -7,8 +7,24 @@ class SomeService : public RegisterableService<SomeService>
 {
 };
 
-class OtherService : public RegisterableService<OtherService>
+/**
+ * Define a virtual interface that must be implemented, but contains the methods
+ * the consumer wants to use.
+ */
+class OtherInterface : public RegisterableService<OtherInterface>
 {
+public:
+    virtual const char *get_name() = 0;
+};
+
+class OtherImplementation1 : public OtherInterface
+{
+    const char *get_name() override { return "One"; };
+};
+
+class OtherImplementation2 : public OtherInterface
+{
+    const char *get_name() override { return "Two"; };
 };
 
 class ServiceLocatorTests : public Test
@@ -31,6 +47,24 @@ TEST_F(ServiceLocatorTests, registered_simple)
     SomeService *service = SomeService::get_service();
     EXPECT_EQ(&service_, service);
 
-    OtherService *other = OtherService::get_service();
+    OtherInterface *other = OtherInterface::get_service();
     EXPECT_EQ(nullptr, other);
+}
+
+/**
+ * You can register any implementation of an interface and always retrieve the
+ * registered instance without knowing the class for the registered instance.
+ */
+TEST_F(ServiceLocatorTests, register_via_interface)
+{
+    OtherImplementation1 first;
+    OtherImplementation2 second;
+
+    OtherInterface::register_service(&first);
+    OtherInterface *service = OtherInterface::get_service();
+    EXPECT_EQ("One", service->get_name());
+
+    OtherInterface::register_service(&second);
+    service = OtherInterface::get_service();
+    EXPECT_EQ("Two", service->get_name());
 }
