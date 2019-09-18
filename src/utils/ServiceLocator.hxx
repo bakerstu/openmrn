@@ -40,48 +40,6 @@
 #include <string>
 
 /**
- * Simple serice locator based on name. This is not intended to be used
- * directly as it is not type safe. Instead, use the RegisterableService
- * template class below as the base class for your services you want to
- * register. Then use the static methods in that template.
- */
-class ServiceLocatorImpl
-{
-private:
-    /**
-     * Register a pointer with a name. The creator of the class still owns the
-     * instance.
-     * @param name of the service that you want to register
-     * @param service is a pointer that you want to register
-     */
-    static void add_service(std::string name, std::shared_ptr<void> &service)
-    {
-        services[name] = service;
-    }
-
-    /**
-     * Retrieves a pointer to the registered service, by name.
-     * @param name of the service to retrieve
-     * @return the retrieved pointer, which is not guaranteed to be of the
-     * requested type
-     */
-    static void *get_service(std::string name)
-    {
-        auto it = services.find(name);
-        if (it == services.end())
-        {
-            return nullptr;
-        }
-
-        return it->second.get();
-    }
-
-    static std::map<std::string, std::shared_ptr<void>> services;
-
-    template<typename ServiceType> friend class ServiceLocator;
-};
-
-/**
  * The sole purpose of this templated class is to provide access to a string
  * that is specific to a type. We use this as a key in the dictionary that
  * maps "type" names into pointers.
@@ -101,6 +59,27 @@ private:
     template<typename LocatorType> friend class ServiceLocator;
 };
 
+/**
+ * Provides the shared storage for registrations
+ */
+class ServiceLocatorImpl
+{
+public:
+    /**
+     * Remove all of the registerations for all types. This is mainly useful
+     * for tests.
+     */
+    static void clear()
+    {
+        ServiceLocatorImpl::services.clear();
+    }
+
+private:
+    static std::map<std::string, std::shared_ptr<void>> services;
+
+    template<typename ServiceType> friend class ServiceLocator;
+};
+
 template <typename ServiceType>
 class ServiceLocator
 {
@@ -112,7 +91,7 @@ public:
     static ServiceType *get_service()
     {
         const char *name = RegisterableService<ServiceType>::get_type_name();
-        void *service = ServiceLocatorImpl::get_service(name);
+        void *service = get_service(name);
         return static_cast<ServiceType *>(service);
     }
 
@@ -124,7 +103,36 @@ public:
     {
         const char *name = RegisterableService<ServiceType>::get_type_name();
         std::shared_ptr<void> temp(service);
-        ServiceLocatorImpl::add_service(name, temp);
+        register_service(name, temp);
+    }
+
+private:
+    /**
+     * Register a pointer with a name. The creator of the class still owns the
+     * instance.
+     * @param name of the service that you want to register
+     * @param service is a pointer that you want to register
+     */
+    static void register_service(std::string name, std::shared_ptr<void> &service)
+    {
+        ServiceLocatorImpl::services[name] = service;
+    }
+
+    /**
+     * Retrieves a pointer to the registered service, by name.
+     * @param name of the service to retrieve
+     * @return the retrieved pointer, which is not guaranteed to be of the
+     * requested type
+     */
+    static void *get_service(std::string name)
+    {
+        auto it = ServiceLocatorImpl::services.find(name);
+        if (it == ServiceLocatorImpl::services.end())
+        {
+            return nullptr;
+        }
+
+        return it->second.get();
     }
 };
 

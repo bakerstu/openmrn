@@ -61,14 +61,24 @@ TEST_F(ServiceLocatorTests, register_via_interface)
 
     ServiceLocator<OtherInterface>::register_service(first);
     OtherInterface *service = ServiceLocator<OtherInterface>::get_service();
+    ASSERT_NE(nullptr, service);
     EXPECT_EQ("One", service->get_name());
 
     ServiceLocator<OtherInterface>::register_service(second);
     service = ServiceLocator<OtherInterface>::get_service();
+    ASSERT_NE(nullptr, service);
     EXPECT_EQ("Two", service->get_name());
 
+    // Releasing the instances we allocated doesn't release the instance from
+    // the locator.
     first == nullptr;
     second == nullptr;
     service = ServiceLocator<OtherInterface>::get_service();
+    ASSERT_NE(nullptr, service);
     EXPECT_EQ("Two", service->get_name());
+
+    // Clearing the map will result in no service being returned
+    ServiceLocatorImpl::clear();
+    service = ServiceLocator<OtherInterface>::get_service();
+    EXPECT_EQ(nullptr, service);
 }
