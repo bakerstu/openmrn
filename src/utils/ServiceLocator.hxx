@@ -44,7 +44,7 @@
  * template class below as the base class for your services you want to
  * register. Then use the static methods in that template.
  */
-class ServiceLocator
+class ServiceLocatorImpl
 {
 public:
     /**
@@ -83,36 +83,42 @@ protected:
  * Use this as a base class for services you want to be able to register with
  * the service locator.
  */
-template <typename RegisterableType>
+template <typename ServiceType>
 class RegisterableService
 {
 public:
-    /**
-     * Get the service that has been registereed for this type
-     * @return the service, or nullptr if no such service
-     */
-    static RegisterableType *get_service()
-    {
-        void *service = ServiceLocator::get_service(get_type_name());
-        return static_cast<RegisterableType *>(service);
-    }
-
-    /**
-     * Register a service instance with the service locator. Because this is
-     * just registering the pointer, the creator still owns the lifetime.
-     */
-    static void register_service(RegisterableType *service)
-    {
-        ServiceLocator::add_service(get_type_name(), service);
-    }
-
-private:
     /**
      * Get a name that has the derived type as part of the name
      */
     static const char *get_type_name()
     {
         return __PRETTY_FUNCTION__;
+    }
+};
+
+template <typename ServiceType>
+class ServiceLocator
+{
+public:
+    /**
+     * Get the service that has been registereed for this type
+     * @return the service, or nullptr if no such service
+     */
+    static ServiceType *get_service()
+    {
+        const char *name = RegisterableService<ServiceType>::get_type_name();
+        void *service = ServiceLocatorImpl::get_service(name);
+        return static_cast<ServiceType *>(service);
+    }
+
+    /**
+     * Register a service instance with the service locator. Because this is
+     * just registering the pointer, the creator still owns the lifetime.
+     */
+    static void register_service(ServiceType *service)
+    {
+        const char *name = RegisterableService<ServiceType>::get_type_name();
+        ServiceLocatorImpl::add_service(name, service);
     }
 };
 

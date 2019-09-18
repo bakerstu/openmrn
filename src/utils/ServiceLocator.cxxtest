@@ -35,19 +35,20 @@ protected:
 
 TEST_F(ServiceLocatorTests, no_such_service)
 {
-    SomeService *some_service = SomeService::get_service();
+    // SomeService *some_service = SomeService::get_service();
+    SomeService *some_service = ServiceLocator<SomeService>::get_service();
 
     EXPECT_EQ(nullptr, some_service);
 }
 
 TEST_F(ServiceLocatorTests, registered_simple)
 {
-    SomeService::register_service(&service_);
+    ServiceLocator<SomeService>::register_service(&service_);
 
-    SomeService *service = SomeService::get_service();
+    SomeService *service = ServiceLocator<SomeService>::get_service();
     EXPECT_EQ(&service_, service);
 
-    OtherInterface *other = OtherInterface::get_service();
+    OtherInterface *other = ServiceLocator<OtherInterface>::get_service();
     EXPECT_EQ(nullptr, other);
 }
 
@@ -60,11 +61,11 @@ TEST_F(ServiceLocatorTests, register_via_interface)
     OtherImplementation1 first;
     OtherImplementation2 second;
 
-    OtherInterface::register_service(&first);
-    OtherInterface *service = OtherInterface::get_service();
+    ServiceLocator<OtherInterface>::register_service(&first);
+    OtherInterface *service = ServiceLocator<OtherInterface>::get_service();
     EXPECT_EQ("One", service->get_name());
 
-    OtherInterface::register_service(&second);
-    service = OtherInterface::get_service();
+    ServiceLocator<OtherInterface>::register_service(&second);
+    service = ServiceLocator<OtherInterface>::get_service();
     EXPECT_EQ("Two", service->get_name());
 }
