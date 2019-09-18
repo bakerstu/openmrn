@@ -36,6 +36,7 @@
 #define _UTILS_SERVICELOCATOR_HXX_
 
 #include <map>
+#include <memory>
 #include <string>
 
 /**
@@ -53,7 +54,7 @@ private:
      * @param name of the service that you want to register
      * @param service is a pointer that you want to register
      */
-    static void add_service(std::string name, void *service)
+    static void add_service(std::string name, std::shared_ptr<void> &service)
     {
         services[name] = service;
     }
@@ -72,10 +73,10 @@ private:
             return nullptr;
         }
 
-        return it->second;
+        return it->second.get();
     }
 
-    static std::map<std::string, void *> services;
+    static std::map<std::string, std::shared_ptr<void>> services;
 
     template<typename ServiceType> friend class ServiceLocator;
 };
@@ -119,10 +120,11 @@ public:
      * Register a service instance with the service locator. Because this is
      * just registering the pointer, the creator still owns the lifetime.
      */
-    static void register_service(ServiceType *service)
+    static void register_service(std::shared_ptr<ServiceType> &service)
     {
         const char *name = RegisterableService<ServiceType>::get_type_name();
-        ServiceLocatorImpl::add_service(name, service);
+        std::shared_ptr<void> temp(service);
+        ServiceLocatorImpl::add_service(name, temp);
     }
 };
 

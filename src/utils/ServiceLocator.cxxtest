@@ -29,8 +29,6 @@ class OtherImplementation2 : public OtherInterface
 
 class ServiceLocatorTests : public Test
 {
-protected:
-    SomeService service_;
 };
 
 TEST_F(ServiceLocatorTests, no_such_service)
@@ -42,10 +40,11 @@ TEST_F(ServiceLocatorTests, no_such_service)
 
 TEST_F(ServiceLocatorTests, registered_simple)
 {
-    ServiceLocator<SomeService>::register_service(&service_);
+    std::shared_ptr<SomeService> service(new SomeService());
+    ServiceLocator<SomeService>::register_service(service);
 
-    SomeService *service = ServiceLocator<SomeService>::get_service();
-    EXPECT_EQ(&service_, service);
+    SomeService *retrieved = ServiceLocator<SomeService>::get_service();
+    EXPECT_EQ(service.get(), retrieved);
 
     OtherInterface *other = ServiceLocator<OtherInterface>::get_service();
     EXPECT_EQ(nullptr, other);
@@ -57,14 +56,19 @@ TEST_F(ServiceLocatorTests, registered_simple)
  */
 TEST_F(ServiceLocatorTests, register_via_interface)
 {
-    OtherImplementation1 first;
-    OtherImplementation2 second;
+    std::shared_ptr<OtherInterface> first(new OtherImplementation1());
+    std::shared_ptr<OtherInterface> second(new OtherImplementation2());
 
-    ServiceLocator<OtherInterface>::register_service(&first);
+    ServiceLocator<OtherInterface>::register_service(first);
     OtherInterface *service = ServiceLocator<OtherInterface>::get_service();
     EXPECT_EQ("One", service->get_name());
 
-    ServiceLocator<OtherInterface>::register_service(&second);
+    ServiceLocator<OtherInterface>::register_service(second);
+    service = ServiceLocator<OtherInterface>::get_service();
+    EXPECT_EQ("Two", service->get_name());
+
+    first == nullptr;
+    second == nullptr;
     service = ServiceLocator<OtherInterface>::get_service();
     EXPECT_EQ("Two", service->get_name());
 }
