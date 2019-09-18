@@ -3,7 +3,7 @@
 
 using namespace testing;
 
-class SomeService : public RegisterableService<SomeService>
+class SomeService
 {
 };
 
@@ -11,7 +11,7 @@ class SomeService : public RegisterableService<SomeService>
  * Define a virtual interface that must be implemented, but contains the methods
  * the consumer wants to use.
  */
-class OtherInterface : public RegisterableService<OtherInterface>
+class OtherInterface
 {
 public:
     virtual const char *get_name() = 0;
@@ -35,7 +35,6 @@ protected:
 
 TEST_F(ServiceLocatorTests, no_such_service)
 {
-    // SomeService *some_service = SomeService::get_service();
     SomeService *some_service = ServiceLocator<SomeService>::get_service();
 
     EXPECT_EQ(nullptr, some_service);

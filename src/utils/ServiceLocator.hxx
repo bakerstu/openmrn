@@ -46,7 +46,7 @@
  */
 class ServiceLocatorImpl
 {
-public:
+private:
     /**
      * Register a pointer with a name. The creator of the class still owns the
      * instance.
@@ -75,18 +75,20 @@ public:
         return it->second;
     }
 
-protected:
     static std::map<std::string, void *> services;
+
+    template<typename ServiceType> friend class ServiceLocator;
 };
 
 /**
- * Use this as a base class for services you want to be able to register with
- * the service locator.
+ * The sole purpose of this templated class is to provide access to a string
+ * that is specific to a type. We use this as a key in the dictionary that
+ * maps "type" names into pointers.
  */
 template <typename ServiceType>
 class RegisterableService
 {
-public:
+private:
     /**
      * Get a name that has the derived type as part of the name
      */
@@ -94,6 +96,8 @@ public:
     {
         return __PRETTY_FUNCTION__;
     }
+
+    template<typename LocatorType> friend class ServiceLocator;
 };
 
 template <typename ServiceType>
