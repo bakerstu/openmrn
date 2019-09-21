@@ -38,6 +38,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include "utils/Atomic.hxx"
 
 /**
  * The sole purpose of this templated class is to provide access to a string
@@ -76,6 +77,7 @@ public:
 
 private:
     static std::map<std::string, std::shared_ptr<void>> services;
+    static Atomic lock_;
 
     template<typename ServiceType> friend class ServiceLocator;
 };
@@ -115,6 +117,7 @@ private:
      */
     static void register_service(std::string name, std::shared_ptr<void> &service)
     {
+        AtomicHolder l(&ServiceLocatorImpl::lock_);
         ServiceLocatorImpl::services[name] = service;
     }
 
@@ -126,6 +129,7 @@ private:
      */
     static void *get_service(std::string name)
     {
+        AtomicHolder l(&ServiceLocatorImpl::lock_);
         auto it = ServiceLocatorImpl::services.find(name);
         if (it == ServiceLocatorImpl::services.end())
         {

@@ -35,3 +35,4 @@
 #include "utils/ServiceLocator.hxx"
 
 std::map<std::string, std::shared_ptr<void>> ServiceLocatorImpl::services;
+Atomic ServiceLocatorImpl::lock_;
