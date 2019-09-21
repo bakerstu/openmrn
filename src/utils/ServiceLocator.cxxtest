@@ -2,6 +2,7 @@
 #include "utils/ServiceLocator.hxx"
 
 using namespace testing;
+using std::shared_ptr;
 
 class SomeService
 {
@@ -33,7 +34,7 @@ class ServiceLocatorTests : public Test
 
 TEST_F(ServiceLocatorTests, no_such_service)
 {
-    SomeService *some_service = ServiceLocator<SomeService>::get_service();
+    shared_ptr<SomeService> some_service = ServiceLocator<SomeService>::get_service();
 
     EXPECT_EQ(nullptr, some_service);
 }
@@ -43,10 +44,10 @@ TEST_F(ServiceLocatorTests, registered_simple)
     std::shared_ptr<SomeService> service(new SomeService());
     ServiceLocator<SomeService>::register_service(service);
 
-    SomeService *retrieved = ServiceLocator<SomeService>::get_service();
-    EXPECT_EQ(service.get(), retrieved);
+    shared_ptr<SomeService> retrieved = ServiceLocator<SomeService>::get_service();
+    EXPECT_EQ(service.get(), retrieved.get());
 
-    OtherInterface *other = ServiceLocator<OtherInterface>::get_service();
+    shared_ptr<OtherInterface> other = ServiceLocator<OtherInterface>::get_service();
     EXPECT_EQ(nullptr, other);
 }
 
@@ -60,7 +61,7 @@ TEST_F(ServiceLocatorTests, register_via_interface)
     std::shared_ptr<OtherInterface> second(new OtherImplementation2());
 
     ServiceLocator<OtherInterface>::register_service(first);
-    OtherInterface *service = ServiceLocator<OtherInterface>::get_service();
+    shared_ptr<OtherInterface> service = ServiceLocator<OtherInterface>::get_service();
     ASSERT_NE(nullptr, service);
     EXPECT_EQ("One", service->get_name());
 
@@ -89,7 +90,7 @@ TEST_F(ServiceLocatorTests, register_using_alias)
     std::shared_ptr<OtherInterface> second(new OtherImplementation2());
 
     ServiceLocator<OtherInterface>::register_service(first);
-    OtherInterface *service = ServiceLocator<OtherInterface>::get_service();
+    shared_ptr<OtherInterface> service = ServiceLocator<OtherInterface>::get_service();
     ASSERT_NE(nullptr, service);
     EXPECT_EQ("One", service->get_name());
 
