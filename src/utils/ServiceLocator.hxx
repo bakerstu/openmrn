@@ -52,9 +52,16 @@ private:
     /**
      * Get a name that has the derived type as part of the name
      */
-    static const char *get_type_name()
+    static std::string get_type_name(const char *alias)
     {
-        return __PRETTY_FUNCTION__;
+        std::string name(__PRETTY_FUNCTION__);
+        if (alias != nullptr)
+        {
+            name += "_";
+            name += alias;
+        }
+
+        return name;
     }
 
     template<typename LocatorType> friend class ServiceLocator;
@@ -79,36 +86,6 @@ private:
     static std::map<std::string, std::shared_ptr<void>> services;
     static Atomic lock_;
 
-    template<typename ServiceType> friend class ServiceLocator;
-};
-
-template <typename ServiceType>
-class ServiceLocator
-{
-public:
-    /**
-     * Get the service that has been registereed for this type
-     * @return the service, or nullptr if no such service
-     */
-    static ServiceType *get_service()
-    {
-        const char *name = RegisterableService<ServiceType>::get_type_name();
-        void *service = get_service(name);
-        return static_cast<ServiceType *>(service);
-    }
-
-    /**
-     * Register a service instance with the service locator. Because this is
-     * just registering the pointer, the creator still owns the lifetime.
-     */
-    static void register_service(std::shared_ptr<ServiceType> &service)
-    {
-        const char *name = RegisterableService<ServiceType>::get_type_name();
-        std::shared_ptr<void> temp(service);
-        register_service(name, temp);
-    }
-
-private:
     /**
      * Register a pointer with a name. The creator of the class still owns the
      * instance.
@@ -137,6 +114,41 @@ private:
         }
 
         return it->second.get();
+    }
+
+    template<typename ServiceType> friend class ServiceLocator;
+};
+
+template <typename ServiceType>
+class ServiceLocator
+{
+public:
+    /**
+     * Get the service that has been registereed for this type
+     * @param alias allows you to retrieve an instance with a specific name
+     * @return the service, or nullptr if no such service
+     */
+    static ServiceType *get_service(const char *alias = nullptr)
+    {
+        std::string name =
+            RegisterableService<ServiceType>::get_type_name(alias);
+        void *service = ServiceLocatorImpl::get_service(name);
+        return static_cast<ServiceType *>(service);
+    }
+
+    /**
+     * Register a service instance with the service locator. Because this is
+     * just registering the pointer, the creator still owns the lifetime.
+     * @param service instance that you want to register
+     * @param alias allows you to register a mapping with a specific name
+     */
+    static void register_service(
+        std::shared_ptr<ServiceType> &service, const char *alias = nullptr)
+    {
+        std::string name =
+            RegisterableService<ServiceType>::get_type_name(alias);
+        std::shared_ptr<void> temp(service);
+        ServiceLocatorImpl::register_service(name, temp);
     }
 };
 
