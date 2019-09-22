@@ -40,6 +40,9 @@
 #include <string>
 #include "utils/Atomic.hxx"
 
+using std::shared_ptr;
+using std::string;
+
 /**
  * The sole purpose of this templated class is to provide access to a string
  * that is specific to a type. We use this as a key in the dictionary that
@@ -52,9 +55,16 @@ private:
     /**
      * Get a name that has the derived type as part of the name
      */
-    static const char *get_type_name()
+    static string get_type_name(const char *alias)
     {
-        return __PRETTY_FUNCTION__;
+        string name(__PRETTY_FUNCTION__);
+        if (alias != nullptr)
+        {
+            name += "_";
+            name += alias;
+        }
+
+        return name;
     }
 
     template<typename LocatorType> friend class ServiceLocator;
@@ -76,46 +86,16 @@ public:
     }
 
 private:
-    static std::map<std::string, std::shared_ptr<void>> services;
+    static std::map<string, shared_ptr<void>> services;
     static Atomic lock_;
 
-    template<typename ServiceType> friend class ServiceLocator;
-};
-
-template <typename ServiceType>
-class ServiceLocator
-{
-public:
-    /**
-     * Get the service that has been registereed for this type
-     * @return the service, or nullptr if no such service
-     */
-    static ServiceType *get_service()
-    {
-        const char *name = RegisterableService<ServiceType>::get_type_name();
-        void *service = get_service(name);
-        return static_cast<ServiceType *>(service);
-    }
-
-    /**
-     * Register a service instance with the service locator. Because this is
-     * just registering the pointer, the creator still owns the lifetime.
-     */
-    static void register_service(std::shared_ptr<ServiceType> &service)
-    {
-        const char *name = RegisterableService<ServiceType>::get_type_name();
-        std::shared_ptr<void> temp(service);
-        register_service(name, temp);
-    }
-
-private:
     /**
      * Register a pointer with a name. The creator of the class still owns the
      * instance.
      * @param name of the service that you want to register
      * @param service is a pointer that you want to register
      */
-    static void register_service(std::string name, std::shared_ptr<void> &service)
+    static void register_service(string name, shared_ptr<void> &service)
     {
         AtomicHolder l(&ServiceLocatorImpl::lock_);
         ServiceLocatorImpl::services[name] = service;
@@ -127,7 +107,7 @@ private:
      * @return the retrieved pointer, which is not guaranteed to be of the
      * requested type
      */
-    static void *get_service(std::string name)
+    static shared_ptr<void> get_service(string name)
     {
         AtomicHolder l(&ServiceLocatorImpl::lock_);
         auto it = ServiceLocatorImpl::services.find(name);
@@ -136,7 +116,40 @@ private:
             return nullptr;
         }
 
-        return it->second.get();
+        return it->second;
+    }
+
+    template<typename ServiceType> friend class ServiceLocator;
+};
+
+template <typename ServiceType>
+class ServiceLocator
+{
+public:
+    /**
+     * Get the service that has been registereed for this type
+     * @param alias allows you to retrieve an instance with a specific name
+     * @return the service, or nullptr if no such service
+     */
+    static shared_ptr<ServiceType> get_service(const char *alias = nullptr)
+    {
+        string name = RegisterableService<ServiceType>::get_type_name(alias);
+        shared_ptr<void> service = ServiceLocatorImpl::get_service(name);
+        return std::static_pointer_cast<ServiceType>(service);
+    }
+
+    /**
+     * Register a service instance with the service locator. Because this is
+     * just registering the pointer, the creator still owns the lifetime.
+     * @param service instance that you want to register
+     * @param alias allows you to register a mapping with a specific name
+     */
+    static void register_service(
+        shared_ptr<ServiceType> &service, const char *alias = nullptr)
+    {
+        string name = RegisterableService<ServiceType>::get_type_name(alias);
+        shared_ptr<void> temp(service);
+        ServiceLocatorImpl::register_service(name, temp);
     }
 };
 
