@@ -679,8 +679,9 @@ void CC32xxWiFi::stop()
 /*
  * CC32xxWiFi::wlan_connect()
  */
-void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
-                              SecurityType security_type)
+WlanConnectResult CC32xxWiFi::wlan_connect(const char *ssid,
+                                           const char* security_key,
+                                           SecurityType security_type)
 {
     connected = 0;
     ipAcquired = 0;
@@ -698,8 +699,15 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
 
     int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0,
                                 &sec_params, 0);
-    HASSERT(result >= 0);
 
+    switch (result)
+    {
+        default:
+            SlCheckError(result);
+            return OK;
+        case SL_ERROR_WLAN_PASSWORD_ERROR:
+            return PASSWORD_INVALID;
+    }
 }
 
 /*
