@@ -184,10 +184,11 @@ public:
     /** Connect to access point.
      * @param ssid access point ssid
      * @param security_key access point security key
-     * @param security_type specifies security type 
+     * @param security_type specifies security type
+     * @return WlanConnectResult::OK upon success, else error on failure
      */
-    void wlan_connect(const char *ssid, const char *security_key,
-                      SecurityType security_type);
+    WlanConnectResult wlan_connect(const char *ssid, const char *security_key,
+                                   SecurityType security_type);
 
     /** Disconnects from the current AP. */
     void wlan_disconnect();
