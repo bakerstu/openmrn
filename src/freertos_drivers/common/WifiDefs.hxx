@@ -45,9 +45,9 @@ enum class CountryCode : uint8_t
     UNKNOWN, ///< unknown country code
 };
 
-enum WlanConnectResult
+enum class WlanConnectResult
 {
-    OK = 0, ///< success
+    CONNECT_OK = 0, ///< success
     PASSWORD_INVALID, /// password privided is invalid
 };
 
