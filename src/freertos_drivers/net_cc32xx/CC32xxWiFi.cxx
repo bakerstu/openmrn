@@ -704,9 +704,9 @@ WlanConnectResult CC32xxWiFi::wlan_connect(const char *ssid,
     {
         default:
             SlCheckError(result);
-            return OK;
+            return WlanConnectResult::CONNECT_OK;
         case SL_ERROR_WLAN_PASSWORD_ERROR:
-            return PASSWORD_INVALID;
+            return WlanConnectResult::PASSWORD_INVALID;
     }
 }
 
