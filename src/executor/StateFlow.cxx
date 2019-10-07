@@ -99,24 +99,24 @@ void StateFlowBase::notify()
     service()->executor()->add(this);
 }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
 void StateFlowBase::notify_from_isr()
 {
     service()->executor()->add_from_isr(this, 0);
 }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
 void StateFlowWithQueue::notify()
 {
     service()->executor()->add(this, currentPriority_);
 }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
 void StateFlowWithQueue::notify_from_isr()
 {
     service()->executor()->add_from_isr(this, currentPriority_);
 }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
 /** Terminates the current StateFlow activity.  This is a sink state, and there
  * has to be an external call to do anything useful after this state has been

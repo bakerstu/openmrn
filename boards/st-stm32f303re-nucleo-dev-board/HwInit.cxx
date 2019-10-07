@@ -120,6 +120,11 @@ void hw_set_to_safe(void)
 {
 }
 
+void reboot()
+{
+    NVIC_SystemReset();
+}
+
 void resetblink(uint32_t pattern)
 {
     blinker_pattern = pattern;

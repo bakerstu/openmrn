@@ -45,6 +45,12 @@ enum class CountryCode : uint8_t
     UNKNOWN, ///< unknown country code
 };
 
+enum class WlanConnectResult
+{
+    CONNECT_OK = 0, ///< success
+    PASSWORD_INVALID, /// password privided is invalid
+};
+
 extern "C" {
 /// Name of wifi accesspoint to connect to.
 extern char WIFI_SSID[];

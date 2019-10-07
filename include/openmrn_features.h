@@ -61,7 +61,7 @@
 #endif
 
 #if defined(OPENMRN_HAVE_SELECT) || defined(OPENMRN_HAVE_PSELECT) || defined(OPENMRN_FEATURE_DEVICE_SELECT)
-#define OPENMRN_FEATURE_EXECUTOR_SELECT
+#define OPENMRN_FEATURE_EXECUTOR_SELECT 1
 #endif
 
 #if (defined(ARDUINO) && !defined(ESP32)) || defined(ESP_NONOS) ||             \
@@ -73,6 +73,9 @@
 #if defined(__FreeRTOS__) || defined(ESP32)
 /// Use os_mutex_... implementation based on FreeRTOS mutex and semaphores.
 #define OPENMRN_FEATURE_MUTEX_FREERTOS 1
+
+/// Enables use of Notifiable::notify_from_isr and OSSem::post_from_isr.
+#define OPENMRN_FEATURE_RTOS_FROM_ISR 1
 #elif OPENMRN_FEATURE_SINGLE_THREADED
 /// Add a fake implementation for os_mutex_lock that crashes if there is a
 /// conflict.
@@ -141,6 +144,11 @@
 
 #endif
 
+#if !defined(__MACH__)
+/// Compiles support for calling reboot() in ConfigUpdateFlow.hxx and
+/// MemoryConfig.cxx.
+#define OPENMRN_FEATURE_REBOOT 1
+#endif
 
 
 #endif // _INCLUDE_OPENMRN_FEATURES_

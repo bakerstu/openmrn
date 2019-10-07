@@ -45,6 +45,7 @@
  * @param format is a c printf format string. 
  * @param ... are additional arguments to the format string
  * @return a string with the formatted data. */
-std::string StringPrintf(const char *format, ...);
+std::string StringPrintf(const char *format, ...)
+    __attribute__((format(printf, 1, 2)));
 
 #endif // _UTILS_STIRNGPRINTF_HXX_

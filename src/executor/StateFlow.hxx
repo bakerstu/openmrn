@@ -179,11 +179,11 @@ public:
      * priority. */
     void notify() override;
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Wakeup call arrived. Schedules *this on the executor. Does not know the
      * priority. */
     virtual void notify_from_isr() OVERRIDE;
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /** Return a pointer to the service I am bound to.
      * @return pointer to service
@@ -724,7 +724,7 @@ protected:
     }
 
 
-#ifdef HAVE_BSDSOCKET
+#if OPENMRN_FEATURE_BSD_SOCKETS
     /** Wait for a listen socket to become active and ready to accept an
      * incoming connection.
      * @param helper selectable helper for maintaining the select metadata
@@ -763,7 +763,7 @@ protected:
         service()->executor()->select(helper);
         return wait_and_call(c);
     }
-#endif
+#endif // OPENMRN_FEATURE_BSD_SOCKETS
 
     /// Writes some data into a file descriptor, repeating the operation as
     /// necessary until all bytes are written.
@@ -965,10 +965,10 @@ public:
     /// Wakeup call arrived. Schedules *this on the executor.
     void notify() override;
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Wakeup call arrived. Schedules *this on the executor. */
     void notify_from_isr() OVERRIDE;
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /// @returns true if the flow is waiting for work.
     bool is_waiting()
