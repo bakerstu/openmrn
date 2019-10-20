@@ -37,6 +37,17 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#if defined(__linux__) || defined(__MACH__)
+#include <net/if.h>
+#include <termios.h> /* tc* functions */
+#endif
+
+#if defined(__linux__)
+#include "utils/HubDeviceSelect.hxx"
+#include <linux/sockios.h>
+#include <sys/ioctl.h>
+#endif
+
 #include <memory>
 
 #include "os/os.h"
@@ -58,6 +69,7 @@ OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 
 int port = 12021;
 const char *device_path = nullptr;
+const char *socket_can_path = nullptr;
 int upstream_port = 12021;
 const char *upstream_host = nullptr;
 bool timestamped = false;
@@ -79,6 +91,8 @@ void usage(const char *e)
     fprintf(stderr, "\t-d device   is a path to a physical device doing "
                     "serial-CAN or USB-CAN. If specified, opens device and "
                     "adds it to the hub.\n");
+    fprintf(stderr, "\t-s socketcan device   is a path to a socketcan device. "
+                    "If specified, opens device and adds it to the hub.\n");
     fprintf(stderr, "\t-u upstream_host   is the host name for an upstream "
                     "hub. If specified, this hub will connect to an upstream "
                     "hub.\n");
@@ -100,7 +114,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:u:q:tlmn:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:d:s:u:q:tlmn:")) >= 0)
     {
         switch (opt)
         {
@@ -109,6 +123,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'd':
                 device_path = optarg;
+                break;
+            case 's':
+                socket_can_path = optarg;
                 break;
             case 'p':
                 port = atoi(optarg);
@@ -176,6 +193,40 @@ int appl_main(int argc, char *argv[])
     {
         connections.emplace_back(
             new DeviceConnectionClient("device", &can_hub0, device_path));
+    }
+
+    if (socket_can_path)
+    {
+        int s;
+        struct sockaddr_can addr;
+        struct ifreq ifr;
+        int loopback = 1;
+
+        s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+
+        // Set the blocking limit to the minimum allowed, typically 1024 in Linux
+        int sndbuf = 0;
+        setsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
+
+        // turn on/off loopback
+        setsockopt(s, SOL_CAN_RAW, CAN_RAW_LOOPBACK, &loopback, sizeof(loopback));
+
+        // setup error notifications
+        can_err_mask_t err_mask = CAN_ERR_TX_TIMEOUT | CAN_ERR_LOSTARB |
+            CAN_ERR_CRTL | CAN_ERR_PROT | CAN_ERR_TRX | CAN_ERR_ACK |
+            CAN_ERR_BUSOFF | CAN_ERR_BUSERROR | CAN_ERR_RESTARTED;
+        setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask));
+        strcpy(ifr.ifr_name, socket_can_path);
+
+        ::ioctl(s, SIOCGIFINDEX, &ifr);
+
+        addr.can_family = AF_CAN;
+        addr.can_ifindex = ifr.ifr_ifindex;
+
+        bind(s, (struct sockaddr *)&addr, sizeof(addr));
+
+        new HubDeviceSelect<CanHubFlow>(&can_hub0, s);
+//        connections.emplace_back(port);
     }
 
     while (1)

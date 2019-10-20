@@ -63,7 +63,7 @@ openlcb::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
 {
     init_snip_user_file(userFile_.fd(), user_name, user_description);
     HASSERT(userFile_.name().size() < sizeof(snip_user_file_path));
-    strncpy(snip_user_file_path, userFile_.name().c_str(),
+    memcpy(snip_user_file_path, userFile_.name().c_str(),
             sizeof(snip_user_file_path));
 }
 
