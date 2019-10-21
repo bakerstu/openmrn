@@ -45,6 +45,7 @@
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/EventService.hxx"
 #include "openlcb/IfCan.hxx"
+#include "openlcb/NodeInitializeFlow.hxx"
 #include "openlcb/ProtocolIdentification.hxx"
 #include "openlcb/SimpleNodeInfo.hxx"
 #include "openlcb/SimpleNodeInfoMockUserFile.hxx"
@@ -61,6 +62,8 @@ NO_THREAD nt;
 Executor<1> g_executor(nt);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
+//DEFINE_SINGLETON_INSTANCE(openlcb::InitializeFlow);
+openlcb::InitializeFlow initFlow(&g_service);
 
 openlcb::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
 static const openlcb::NodeID NODE_ID = 0x050101011807ULL;
