@@ -307,7 +307,8 @@ StateFlowBase::Action Console::Session::process_read()
                 {
                     case '\r':
                     case '\n':
-                    if (quote != '\0') { // dangling quote check
+                    if (quote != '\0') 
+                    { // dangling quote check
                         /* Open quotes at EOL? -- syntax error! */
                         fprintf(fp, "syntax error: unclosed %c\n",quote);
                         i = pos; // force EOL
@@ -324,21 +325,26 @@ StateFlowBase::Action Console::Session::process_read()
                         // is not implemented, although both types of
                         // quotes (double and single) are handled,
                         // allowing one to quote the other.
-                        if (quote == line[i]) {/* End of quoted */
+                        if (quote == line[i]) 
+                        {/* End of quoted */
                             line[i] = '\0'; // EOS (clobber the quote)
                             quote = '\0';   // reset flag
                             // Handling a following space.
-                            if (i+1 < pos && line[i+1] <= ' ') {
+                            if ((i + 1) < pos && line[i+1] <= ' ') 
+                            {
                                 line[++i] = '\0';
                             }
                             break;
-                        } else if (quote == '\0') { /* Start of quoted */
+                        } else if (quote == '\0') 
+                        { /* Start of quoted */
                             quote = line[i]; // Save  the quote mark
-                            if (i+1 < pos) { 
+                            if ((i + 1) < pos) 
+                            { 
                                 // skip over the quote and start an arg.
                                 args[argc] = &line[i+1];
                                 argc = (argc == MAX_ARGS) ? MAX_ARGS : argc + 1;
-                            } else {
+                            } else 
+                            {
                                 /* Loose quote mark at EOL? -- syntax error! */
                                 fprintf(fp, "syntax error: unclosed %c\n",quote);
                                 i = pos; // force EOL
