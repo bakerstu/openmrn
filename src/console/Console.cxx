@@ -330,20 +330,22 @@ StateFlowBase::Action Console::Session::process_read()
                             line[i] = '\0'; // EOS (clobber the quote)
                             quote = '\0';   // reset flag
                             // Handling a following space.
-                            if ((i + 1) < pos && line[i+1] <= ' ') 
+                            if ((i + 1) < pos && line[i + 1] <= ' ') 
                             {
                                 line[++i] = '\0';
                             }
                             break;
-                        } else if (quote == '\0') 
+                        } 
+                        else if (quote == '\0') 
                         { /* Start of quoted */
                             quote = line[i]; // Save  the quote mark
                             if ((i + 1) < pos) 
                             { 
                                 // skip over the quote and start an arg.
-                                args[argc] = &line[i+1];
+                                args[argc] = &line[i + 1];
                                 argc = (argc == MAX_ARGS) ? MAX_ARGS : argc + 1;
-                            } else 
+                            }
+                            else 
                             {
                                 /* Loose quote mark at EOL? -- syntax error! */
                                 fprintf(fp, "syntax error: unclosed %c\n",quote);
