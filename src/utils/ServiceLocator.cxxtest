@@ -1,0 +1,109 @@
+#include "test_main.hxx"
+#include "utils/ServiceLocator.hxx"
+
+using namespace testing;
+using std::shared_ptr;
+
+class SomeService
+{
+};
+
+/**
+ * Define a virtual interface that must be implemented, but contains the methods
+ * the consumer wants to use.
+ */
+class OtherInterface
+{
+public:
+    virtual const char *get_name() = 0;
+};
+
+class OtherImplementation1 : public OtherInterface
+{
+    const char *get_name() override { return "One"; };
+};
+
+class OtherImplementation2 : public OtherInterface
+{
+    const char *get_name() override { return "Two"; };
+};
+
+class ServiceLocatorTests : public Test
+{
+};
+
+TEST_F(ServiceLocatorTests, no_such_service)
+{
+    shared_ptr<SomeService> some_service = ServiceLocator<SomeService>::get_service();
+
+    EXPECT_EQ(nullptr, some_service);
+}
+
+TEST_F(ServiceLocatorTests, registered_simple)
+{
+    std::shared_ptr<SomeService> service(new SomeService());
+    ServiceLocator<SomeService>::register_service(service);
+
+    shared_ptr<SomeService> retrieved = ServiceLocator<SomeService>::get_service();
+    EXPECT_EQ(service.get(), retrieved.get());
+
+    shared_ptr<OtherInterface> other = ServiceLocator<OtherInterface>::get_service();
+    EXPECT_EQ(nullptr, other);
+}
+
+/**
+ * You can register any implementation of an interface and always retrieve the
+ * registered instance without knowing the class for the registered instance.
+ */
+TEST_F(ServiceLocatorTests, register_via_interface)
+{
+    std::shared_ptr<OtherInterface> first(new OtherImplementation1());
+    std::shared_ptr<OtherInterface> second(new OtherImplementation2());
+
+    ServiceLocator<OtherInterface>::register_service(first);
+    shared_ptr<OtherInterface> service = ServiceLocator<OtherInterface>::get_service();
+    ASSERT_NE(nullptr, service);
+    EXPECT_EQ("One", service->get_name());
+
+    ServiceLocator<OtherInterface>::register_service(second);
+    service = ServiceLocator<OtherInterface>::get_service();
+    ASSERT_NE(nullptr, service);
+    EXPECT_EQ("Two", service->get_name());
+
+    // Releasing the instances we allocated doesn't release the instance from
+    // the locator.
+    first == nullptr;
+    second == nullptr;
+    service = ServiceLocator<OtherInterface>::get_service();
+    ASSERT_NE(nullptr, service);
+    EXPECT_EQ("Two", service->get_name());
+
+    // Clearing the map will result in no service being returned
+    ServiceLocatorImpl::clear();
+    service = ServiceLocator<OtherInterface>::get_service();
+    EXPECT_EQ(nullptr, service);
+}
+
+TEST_F(ServiceLocatorTests, register_using_alias)
+{
+    std::shared_ptr<OtherInterface> first(new OtherImplementation1());
+    std::shared_ptr<OtherInterface> second(new OtherImplementation2());
+
+    ServiceLocator<OtherInterface>::register_service(first);
+    shared_ptr<OtherInterface> service = ServiceLocator<OtherInterface>::get_service();
+    ASSERT_NE(nullptr, service);
+    EXPECT_EQ("One", service->get_name());
+
+    // Register second with an alias
+    ServiceLocator<OtherInterface>::register_service(second, "other");
+
+    // Default still returns first
+    service = ServiceLocator<OtherInterface>::get_service();
+    ASSERT_NE(nullptr, service);
+    EXPECT_EQ("One", service->get_name());
+
+    // Alias returns second
+    service = ServiceLocator<OtherInterface>::get_service("other");
+    ASSERT_NE(nullptr, service);
+    EXPECT_EQ("Two", service->get_name());
+}

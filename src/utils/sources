@@ -26,6 +26,7 @@ CXXSRCS += \
            logging.cxx \
            SocketClient.cxx \
            socket_listener.cxx \
+           ServiceLocator.cxx \
 
 
 CXXTESTSRCS += BufferQueue.cxxtest \

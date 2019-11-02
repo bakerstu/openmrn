@@ -117,7 +117,7 @@ void OSSelectWakeup::esp_wakeup_from_isr()
         return;
     }
     woken_ = true;
-    BaseType_t woken = PDFALSE;
+    BaseType_t woken = pdFALSE;
 #if 0
     esp_vfs_select_triggered_isr((SemaphoreHandle_t *)espSem_, &woken);
     if (woken == pdTRUE)
