@@ -137,17 +137,38 @@ standard names - or at least those used in the unmodified vector table. */
  *************************************************************************** */
 #elif defined (GCC_ARMCM0)
 
+#define configCPU_CLOCK_HZ             ( cpu_clock_hz )
+#define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 256 )
+#define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 7000 ) )
+#define configTIMER_TASK_STACK_DEPTH   256
+
+
+#define configKERNEL_INTERRUPT_PRIORITY         255
+/* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
+See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY     0xa0 /* equivalent to 191, or priority 5. */
+
+// change #if to 1 in order to enable asserts for the kernel
+#if 1
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern int g_death_lineno;
+#ifdef __cplusplus
+}
+#endif  // cplusplus
+#define configASSERT( x ) do { if (!(x)) { g_death_lineno = __LINE__; diewith(BLINK_DIE_ASSERT); }} while(0)
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 extern const unsigned long cpu_clock_hz;
+extern void diewith(unsigned long);
+extern unsigned long blinker_pattern;
 #ifdef __cplusplus
 }
 #endif  // cplusplus
-
-#define configCPU_CLOCK_HZ             ( cpu_clock_hz )
-#define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 64 )
-#define configTIMER_TASK_STACK_DEPTH   128
 
 #define vPortSVCHandler SVC_Handler
 #define xPortPendSVHandler PendSV_Handler
