@@ -48,7 +48,7 @@ protected:
         wait_for_event_thread();
 
 
-        server_->update_subscribe(
+        server_->update_subscribe_add(
             std::bind(&BroadcastTimeServerTest::update_callback, this));
 
         clear_expect(true);

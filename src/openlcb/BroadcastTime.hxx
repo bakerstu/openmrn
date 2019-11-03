@@ -49,6 +49,8 @@ class BroadcastTime : public SimpleEventHandler
                     , protected Atomic
 {
 public:
+    typedef std::vector<std::function<void()>>::size_type UpdateSubscribeHandle;
+
     /// Set the time in seconds since the system Epoch. The new time does not
     /// become valid until the update callbacks are called.
     /// @param hour hour (0 to 23)
@@ -281,16 +283,33 @@ public:
         }
     }
 
-    /// Register a callback for when the time synchronization is updated.  The
+    /// Register a callback for when the time synchronization is updated. The
     /// context of the caller will be from a state flow on the Node Interface
     /// executor.
-    /// @param callback function callback to be called.  First parameter is the
-    ///                 current time in seconds since the Epoch.  Second
-    ///                 parameter is the clock rate.  Third parameter is the
-    ///                 running state (true == running, false == stopped)
-    void update_subscribe(std::function<void()> callback)
+    /// @param callback function callback to be called.
+    /// @return handle to entry that can be used in update_unsubscribe
+    UpdateSubscribeHandle update_subscribe_add(std::function<void()> callback)
     {
+        AtomicHolder h(this);
+        for (size_t i = 0; i < callbacks_.size(); ++i)
+        {
+            // atempt to garbage collect unused entries
+            if (callbacks_[i] == nullptr)
+            {
+                callbacks_[i] = callback;
+                return i;
+            }
+        }
         callbacks_.emplace_back(callback);
+        return callbacks_.size() - 1;
+    }
+
+    /// Unregister a callback for when the time synchronization is updated.
+    /// @param handle returned from corresponding update_subscribe
+    void update_subscribe_remove(UpdateSubscribeHandle handle)
+    {
+        AtomicHolder h(this);
+        callbacks_[handle] = nullptr;
     }
 
     /// Accessor method to get the Node reference
@@ -461,11 +480,17 @@ protected:
     {
     }
 
+    /// Service all of the attached update subscribers. These are called when
+    /// there are jumps in time or if the clock is stopped or started.
     void service_callbacks()
     {
+        AtomicHolder h(this);
         for (auto n : callbacks_)
         {
-            n();
+            if (n)
+            {
+                n();
+            }
         }
     }
 

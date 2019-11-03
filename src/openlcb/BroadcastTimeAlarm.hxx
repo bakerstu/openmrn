@@ -62,19 +62,20 @@ public:
 #if defined(GTEST)
         , shutdown_(false)
 #endif
+        , updateSubscribeHandle_(clock->update_subscribe_add(
+              std::bind(&BroadcastTimeAlarm::update_notify, this)))
     {
         // By ensuring that the alarm runs in the same thread context as the
         // clock which it uses, we can have much simpler logic for avoiding
         // race conditions in this implementation.
         HASSERT(service()->executor() == clock_->service()->executor());
-        clock_->update_subscribe(std::bind(&BroadcastTimeAlarm::update_notify,
-                                           this));
         start_flow(STATE(entry));
     }
 
     /// Destructor.
     ~BroadcastTimeAlarm()
     {
+        clock_->update_subscribe_remove(updateSubscribeHandle_);
     }
 
     /// Start the alarm to expire at the given period from now.
@@ -275,6 +276,8 @@ private:
 #if defined(GTEST)
     uint8_t shutdown_ : 1; ///< true if shutdown
 #endif
+    /// handle to the update subscrition used for unsubcribing in the destructor
+    BroadcastTime::UpdateSubscribeHandle updateSubscribeHandle_;
 
     /// make our wakeup agent a friend
     friend class BroadcastTimeAlarm::Wakeup;

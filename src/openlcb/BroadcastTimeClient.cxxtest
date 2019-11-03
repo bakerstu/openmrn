@@ -36,8 +36,8 @@ public:
         , mochStarted_(false)
     {
         snprintf(clockIDString_, 13, "%012" PRIX64, clock_id);
-        update_subscribe(std::bind(&MockBroadcastTimeClient::update_callback,
-                                   this));
+        update_subscribe_add(
+            std::bind(&MockBroadcastTimeClient::update_callback, this));
     }
 
     void settime(int rate = 0, unsigned year = 0, unsigned month = 0,
