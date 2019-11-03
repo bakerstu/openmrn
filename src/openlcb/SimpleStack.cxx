@@ -263,8 +263,8 @@ int SimpleStackBase::create_config_file_if_needed(const InternalConfigData &cfg,
     // automatically flush to disk on write.
     if ((long)statbuf.st_size < (long)cfg.version().end_offset())
     {
-        LOG(VERBOSE, "%s is too short (%ld vs %d), forcing reset.",
-            CONFIG_FILENAME, statbuf.st_size, cfg.version().end_offset());
+        LOG(VERBOSE, "%s is too short (%d vs %d), forcing reset.",
+            CONFIG_FILENAME, (int)statbuf.st_size, cfg.version().end_offset());
         reset = true;
     }
     if (!reset && cfg.version().read(fd) != expected_version)
