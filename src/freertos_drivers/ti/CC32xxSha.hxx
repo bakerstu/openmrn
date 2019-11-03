@@ -65,7 +65,8 @@ public:
         // Note: this should really be SHAMD5DataProcess, but that has an
         // assert on len%64 == 0 for no reason. The below function does the
         // same thing but without the extra assert.
-        ROM_SHAMD5DataProcess(SHAMD5_BASE, (uint8_t *)data, len, (uint8_t*)&ret[0]);
+        ROM_SHAMD5DataProcess(
+            SHAMD5_BASE, (uint8_t *)data, len, (uint8_t *)&ret[0]);
         return ret;
     }
 

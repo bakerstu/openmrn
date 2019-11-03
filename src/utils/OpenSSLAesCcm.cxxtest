@@ -29,13 +29,12 @@ void get_example(int index, string& Key, string& Nonce, string& Adata, string& P
 #include "utils/AesCcmTestVectors.hxx"
 }
 
-void get_sha_example(int index, string &Key, string &Hash,
-    string &Payload)
-{
+void get_sha_example(int index, string &Key, string &Hash, string &Payload) {
 #include "utils/ShaTestVectors.hxx"
 }
 
-TEST(OpenSSLCCMTest, EncryptionTest) {
+TEST(OpenSSLCCMTest, EncryptionTest)
+{
     string key;
     string nonce;
     string auth_data;

@@ -37,8 +37,8 @@
 
 #define LOGLEVEL INFO
 
-#include "freertos_drivers/ti/CC32xxHelper.hxx"
 #include "freertos_drivers/ti/CC32xxAes.hxx"
+#include "freertos_drivers/ti/CC32xxHelper.hxx"
 #include "freertos_drivers/ti/CC32xxSha.hxx"
 #include "fs.h"
 
@@ -94,8 +94,7 @@ void get_example(int index, string &Key, string &Nonce, string &Adata,
 #include "utils/AesCcmTestVectorsEx.hxx"
 }
 
-void get_sha_example(int index, string &Key, string &Hash,
-    string &Payload)
+void get_sha_example(int index, string &Key, string &Hash, string &Payload)
 {
 #include "utils/ShaTestVectors.hxx"
 }
@@ -150,14 +149,15 @@ bool run_all_tests()
         printcomp(cipher, o_cipher, "cipher");
     }
 
-    for (int i = 0; i <= 67; i++) {
+    for (int i = 0; i <= 67; i++)
+    {
         string digest;
         get_sha_example(i, key, digest, plain);
         LOG(INFO, "SHA256 Example %d datalen=%d", i, (int)plain.size());
         string o_digest = SHAHelper::sha256(plain.data(), plain.size());
         printcomp(digest, o_digest, "hash");
     }
-    
+
     return !have_failure;
 }
 
