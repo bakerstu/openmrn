@@ -63,7 +63,7 @@ public:
         , rolloverPendingYear_(false)
     {
         EventRegistry::instance()->register_handler(
-            EventRegistryEntry(this, clockID_), 16);
+            EventRegistryEntry(this, eventBase_), 16);
 
     }
 
@@ -127,7 +127,7 @@ public:
                                   BarrierNotifiable *done) override
     {
         AutoNotify an(done);
-        if (event->event < (clockID_ + 0x5000))
+        if (event->event < (eventBase_ + 0x5000))
         {
             event->event_write_helper<1>()->WriteAsync(
                 node_, Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN,
@@ -238,7 +238,7 @@ private:
         rolloverPendingYear_ = false;
 
         writer_.WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
-            eventid_to_buffer(clockID_ + BroadcastTimeDefs::QUERY_EVENT_SUFFIX),
+            eventid_to_buffer(eventBase_ + BroadcastTimeDefs::QUERY_EVENT_SUFFIX),
             this);
         return wait_and_call(STATE(initialize_done));
     }

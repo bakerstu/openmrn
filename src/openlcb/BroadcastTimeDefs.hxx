@@ -103,6 +103,8 @@ struct BroadcastTimeDefs
         STOP_EVENT_SUFFIX          = 0xF001, ///< stop clock event suffix value
         START_EVENT_SUFFIX         = 0xF002, ///< start clock event suffix value
         DATE_ROLLOVER_EVENT_SUFFIX = 0xF003, ///< rollover the date suffix value
+
+        EVENT_SET_SUFFIX_MASK = 0x8000, ///< suffix max for setting a property
     };
 
     enum

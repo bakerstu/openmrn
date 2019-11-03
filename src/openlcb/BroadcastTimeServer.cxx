@@ -133,7 +133,7 @@ private:
         }
 
         uint64_t event_id =
-            BroadcastTimeDefs::year_to_event(server_->clock_id(), year);
+            BroadcastTimeDefs::year_to_event(server_->event_base(), year);
 
         writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
@@ -148,7 +148,7 @@ private:
         const struct tm *tm = server_->gmtime_get();
 
         uint64_t event_id = BroadcastTimeDefs::date_to_event(
-            server_->clock_id(), tm->tm_mon + 1, tm->tm_mday);
+            server_->event_base(), tm->tm_mon + 1, tm->tm_mday);
 
         writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
@@ -221,13 +221,15 @@ private:
 
         const struct tm *tm = server_->gmtime_recalculate();
 
-        if ((server_->rate() > 0 && tm->tm_hour ==  0 && tm->tm_min ==  0) ||
-            (server_->rate() < 0 && tm->tm_hour == 23 && tm->tm_min == 59))
+        if ((server_->get_rate_quarters() > 0 && tm->tm_hour ==  0 &&
+             tm->tm_min ==  0) ||
+            (server_->get_rate_quarters() < 0 && tm->tm_hour == 23 &&
+             tm->tm_min == 59))
         {
             // date rollover
             dateRollover_ = true;
 
-            uint64_t event_id = server_->clock_id();
+            uint64_t event_id = server_->event_base();
             event_id += BroadcastTimeDefs::DATE_ROLLOVER_EVENT_SUFFIX;
 
             writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
@@ -249,7 +251,7 @@ private:
         const struct tm *tm = server_->gmtime_get();
 
         uint64_t event_id = BroadcastTimeDefs::time_to_event(
-            server_->clock_id(), tm->tm_hour, tm->tm_min);
+            server_->event_base(), tm->tm_hour, tm->tm_min);
         writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
 
@@ -347,7 +349,7 @@ private:
 #endif
         server_->gmtime_recalculate();
 
-        uint64_t event_id = server_->clock_id();
+        uint64_t event_id = server_->event_base();
         event_id += server_->is_started() ?
             BroadcastTimeDefs::START_EVENT_SUFFIX :
             BroadcastTimeDefs::STOP_EVENT_SUFFIX;
@@ -364,7 +366,7 @@ private:
     Action send_rate_report()
     {
         uint64_t event_id = BroadcastTimeDefs::rate_to_event(
-            server_->clock_id(), server_->rate());
+            server_->event_base(), server_->get_rate_quarters());
 
         writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
@@ -389,7 +391,7 @@ private:
         }
 
         uint64_t event_id =
-            BroadcastTimeDefs::year_to_event(server_->clock_id(), year);
+            BroadcastTimeDefs::year_to_event(server_->event_base(), year);
 
         writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
@@ -404,7 +406,7 @@ private:
         const struct tm *tm = server_->gmtime_get();
 
         uint64_t event_id = BroadcastTimeDefs::date_to_event(
-            server_->clock_id(), tm->tm_mon + 1, tm->tm_mday);
+            server_->event_base(), tm->tm_mon + 1, tm->tm_mday);
 
         writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
@@ -419,7 +421,7 @@ private:
         const struct tm *tm = server_->gmtime_recalculate();
 
         uint64_t event_id = BroadcastTimeDefs::time_to_event(
-            server_->clock_id(), tm->tm_hour, tm->tm_min);
+            server_->event_base(), tm->tm_hour, tm->tm_min);
         writer_.WriteAsync(server_->node(), Defs::MTI_PRODUCER_IDENTIFIED_VALID,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
 
@@ -433,28 +435,34 @@ private:
         if (server_->is_running())
         {
             const struct tm *tm = server_->gmtime_get();
+            //const struct tm *tm = server_->gmtime_recalculate();
 
             // setup to send the next time report
             time_t expires = server_->time();
-            if (server_->rate() > 0)
+            if (server_->get_rate_quarters() > 0)
             {
                 expires += 60 - tm->tm_sec;
             }
             else
             {
-                 expires -= tm->tm_sec ? tm->tm_sec : 60;
+                // Note, we are adding 2 in order to account for some jitter
+                // in the RTOS timing. The result is that the next time report
+                // event might be sent at tm_sec == 57 to 59.
+                expires -= tm->tm_sec ? (tm->tm_sec + 2) : 2;
             }
 
-            return sleep_and_call(&timer_,
-                server_->real_nsec_until_rate_time_abs(expires),
-                STATE(send_time_report_next));
+            long long real_expires;
+            bool result =
+                server_->real_nsec_until_fast_time_abs(expires, &real_expires);
+            HASSERT(result);
+            return sleep_and_call(&timer_, real_expires,
+                                  STATE(send_time_report_next));
         }
         return return_ok();
     }
 
     /// Send the Event Report message appropriate for the time event ID.
-    /// @return return_ok() if triggered early,
-    ///         else wait_and_return_ok()
+    /// @return return_ok() if triggered early, else wait_and_return_ok()
     Action send_time_report_next()
     {
         if (!timer_.is_triggered())
@@ -591,7 +599,7 @@ private:
             return call_immediately(STATE(write_done));
         }
 
-        uint64_t event_id = server_->clock_id() + suffix - 0x8000;
+        uint64_t event_id = server_->event_base() + suffix - 0x8000;
 
         writer_.WriteAsync(server_->node(), Defs::MTI_EVENT_REPORT,
             WriteHelper::global(), eventid_to_buffer(event_id), this);
@@ -709,10 +717,10 @@ private:
         int min = tm->tm_min;
 
         // we will target to produce a time event every four real minutes.
-        int rate_min_per_4_real_min = std::abs(clock_->rate());
+        int rate_min_per_4_real_min = std::abs(clock_->get_rate_quarters());
 
         // get the time_t value for the next whole minute
-        if (clock_->rate() > 0)
+        if (clock_->get_rate_quarters() > 0)
         {
             seconds += 60 - tm->tm_sec;
         }
@@ -732,7 +740,7 @@ private:
             {
                 break;
             }
-            seconds += clock_->rate() > 0 ? 60 : -60;
+            seconds += clock_->get_rate_quarters() > 0 ? 60 : -60;
         }
         while ((hour != tm->tm_hour || min != tm->tm_min) &&
                --rate_min_per_4_real_min > 0);
@@ -747,7 +755,7 @@ private:
     bool next_minute(int *hour, int *min)
     {
         bool result = false;
-        if (clock_->rate() > 0)
+        if (clock_->get_rate_quarters() > 0)
         {
             if (++(*min) == 60)
             {
@@ -759,7 +767,7 @@ private:
                 }
             }
         }
-        else if (clock_->rate() < 0)
+        else if (clock_->get_rate_quarters() < 0)
         {
             if (--(*min) < 0)
             {
@@ -798,7 +806,7 @@ BroadcastTimeServer::BroadcastTimeServer(Node *node, NodeID clock_id)
     , alarm_(new BroadcastTimeServerAlarm(this))
 {
     EventRegistry::instance()->register_handler(
-        EventRegistryEntry(this, clockID_), 16);
+        EventRegistryEntry(this, eventBase_), 16);
 }
 
 //

@@ -122,7 +122,7 @@ TEST_F(BroadcastTimeServerTest, StartSetTime)
     server_->set_time(0, 0);
     server_->set_date(1, 1);
     server_->set_year(1970);
-    server_->set_rate(2000);
+    server_->set_rate_quarters(2000);
     wait_for_event_thread();
 
     clear_expect(true);
@@ -174,7 +174,7 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForward)
     server_->set_time(23, 59);
     server_->set_date(1, 1);
     server_->set_year(1970);
-    server_->set_rate(2000);
+    server_->set_rate_quarters(2000);
     wait_for_event_thread();
 
     clear_expect(true);
@@ -235,7 +235,7 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForwardOnTopOfSync)
     server_->set_time(23, 57);
     server_->set_date(1, 1);
     server_->set_year(1970);
-    server_->set_rate(2000);
+    server_->set_rate_quarters(2000);
     wait_for_event_thread();
 
     clear_expect(true);
@@ -348,7 +348,7 @@ TEST_F(BroadcastTimeServerTest, DateRolloverBackward)
     server_->set_time(0, 0);
     server_->set_date(1, 2);
     server_->set_year(1970);
-    server_->set_rate(-2000);
+    server_->set_rate_quarters(-2000);
     wait_for_event_thread();
 
     clear_expect(true);
@@ -408,7 +408,7 @@ TEST_F(BroadcastTimeServerTest, Subscribe)
     server_->set_time(0, 0);
     server_->set_date(1, 1);
     server_->set_year(1970);
-    server_->set_rate(2000);
+    server_->set_rate_quarters(2000);
     wait_for_event_thread();
 
     clear_expect(true);

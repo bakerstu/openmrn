@@ -66,7 +66,7 @@ public:
         // By ensuring that the alarm runs in the same thread context as the
         // clock which it uses, we can have much simpler logic for avoiding
         // race conditions in this implementation.
-        HASSERT(service() == clock_->service());
+        HASSERT(service()->executor() == clock_->service()->executor());
         clock_->update_subscribe(std::bind(&BroadcastTimeAlarm::update_notify,
                                            this));
         start_flow(STATE(entry));
@@ -201,9 +201,9 @@ private:
             set_ = false;
             time_t now = clock_->time();
 
-            if ((now >= expires_ && clock_->rate() > 0) ||
-                (now <= expires_ && clock_->rate() < 0) ||
-                (now == expires_ && clock_->rate() == 0))
+            if ((now >= expires_ && clock_->get_rate_quarters() > 0) ||
+                (now <= expires_ && clock_->get_rate_quarters() < 0) ||
+                (now == expires_ && clock_->get_rate_quarters() == 0))
             {
                 // have already met the alarm conditions,
                 // typically won't get here
@@ -211,9 +211,12 @@ private:
             }
             else if (clock_->is_running())
             {
-                return sleep_and_call(&timer_,
-                    clock_->real_nsec_until_rate_time_abs(expires_),
-                    STATE(timeout));
+                long long real_expires;
+                bool result =
+                    clock_->real_nsec_until_fast_time_abs(expires_,
+                                                          &real_expires);
+                HASSERT(result);
+                return sleep_and_call(&timer_, real_expires, STATE(timeout));
             }
         }
 
@@ -315,11 +318,11 @@ private:
     /// callback for when the alarm expires
     void expired_callback()
     {
-        if (clock_->rate() > 0)
+        if (clock_->get_rate_quarters() > 0)
         {
             set(clock_->time() + (60 * 60 * 24));
         }
-        else if (clock_->rate() < 0)
+        else if (clock_->get_rate_quarters() < 0)
         {
             set(clock_->time() - (60 * 60 * 24));
         }
@@ -336,13 +339,13 @@ private:
         const struct tm *tm = clock_->gmtime_recalculate();
         time_t seconds = clock_->time();
 
-        if (clock_->rate() > 0)
+        if (clock_->get_rate_quarters() > 0)
         {
             set(seconds + (60 - tm->tm_sec) +
                           (60 * (59 - tm->tm_min)) +
                           (60 * 60 * (23 - tm->tm_hour)));
         }
-        else if (clock_->rate() < 0)
+        else if (clock_->get_rate_quarters() < 0)
         {
             set(seconds - (tm->tm_sec +
                            (60 * (tm->tm_min + 1)) +
@@ -392,11 +395,11 @@ private:
     /// callback for when the alarm expires
     void expired_callback()
     {
-        if (clock_->rate() > 0)
+        if (clock_->get_rate_quarters() > 0)
         {
             set(clock_->time() + 60);
         }
-        else if (clock_->rate() < 0)
+        else if (clock_->get_rate_quarters() < 0)
         {
             set(clock_->time() - 60);
         }
@@ -413,11 +416,11 @@ private:
         const struct tm *tm = clock_->gmtime_recalculate();
         time_t seconds = clock_->time();
 
-        if (clock_->rate() > 0)
+        if (clock_->get_rate_quarters() > 0)
         {
             set(seconds + (60 - tm->tm_sec));
         }
-        else if (clock_->rate() < 0)
+        else if (clock_->get_rate_quarters() < 0)
         {
             set(seconds - tm->tm_sec);
         }

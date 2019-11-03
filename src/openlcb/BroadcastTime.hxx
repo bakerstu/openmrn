@@ -26,7 +26,7 @@
  *
  * @file BroadcastTime.hxx
  *
- * Implementation of a Broadcast Time Protocol Interface.
+ * Implementation of Broadcast Time Protocol.
  *
  * @author Stuart W. Baker
  * @date 4 November 2018
@@ -43,42 +43,14 @@
 namespace openlcb
 {
 
-/// Implementation of a Broadcast Time Protocol Interface.
+/// Implementation of Broadcast Time Protocol.
 class BroadcastTime : public SimpleEventHandler
                     , public StateFlowBase
                     , protected Atomic
 {
 public:
-    /// Constructor.
-    /// @param node the virtual node that will be listening for events and
-    ///             responding to Identify messages.
-    /// @param clock_id 48-bit unique identifier for the clock instance
-    BroadcastTime(Node *node, NodeID clock_id)
-        : StateFlowBase(node->iface())
-        , node_(node)
-        , clockID_((uint64_t)clock_id << 16)
-        , writer_()
-        , timer_(this)
-        , callbacks_()
-        , timestamp_(OSTime::get_monotonic())
-        , seconds_(0)
-        , rate_(0)
-        , rateRequested_(0)
-        , started_(false)
-    {
-        // use a process-local timezone
-        clear_timezone();
-
-        time_t time = 0;
-        ::gmtime_r(&time, &tm_);
-        tm_.tm_isdst = 0;
-    }
-
-    virtual ~BroadcastTime()
-    {
-    }
-
-    /// Set the time in seconds since the system Epoch.
+    /// Set the time in seconds since the system Epoch. The new time does not
+    /// become valid until the update callbacks are called.
     /// @param hour hour (0 to 23)
     /// @param minutes minutes (0 to 59)
     void set_time(int hours, int minutes)
@@ -86,7 +58,8 @@ public:
         new SetFlow(this, SetFlow::Command::SET_TIME, hours, minutes);
     }
 
-    /// Set the time in seconds since the system Epoch.
+    /// Set the time in seconds since the system Epoch. The new date does not
+    /// become valid until the update callbacks are called.
     /// @param month month (1 to 12)
     /// @param day day of month (1 to 31)
     void set_date(int month, int day)
@@ -94,17 +67,19 @@ public:
         new SetFlow(this, SetFlow::Command::SET_DATE, month, day);
     }
 
-    /// Set the time in seconds since the system Epoch.
+    /// Set the time in seconds since the system Epoch. The new year does not
+    /// become valid until the update callbacks are called.
     /// @param year (0AD to 4095AD)
     void set_year(int year)
     {
         new SetFlow(this, SetFlow::Command::SET_YEAR, year);
     }
 
-    /// Set Rate.
+    /// Set Rate. The new rate does not become valid until the update callbacks
+    /// are called.
     /// @param rate clock rate ratio as 12 bit sign extended fixed point
     ///             rrrrrrrrrr.rr
-    void set_rate(int16_t rate)
+    void set_rate_quarters(int16_t rate)
     {
         new SetFlow(this, SetFlow::Command::SET_RATE, rate);
     }
@@ -124,7 +99,7 @@ public:
     /// Get the time as a value of seconds relative to the system epoch.  At the
     /// same time get an atomic matching pair of the rate
     /// @return pair<time in seconds relative to the system epoch, rate>
-    std::pair<time_t, int16_t> time_and_rate()
+    std::pair<time_t, int16_t> time_and_rate_quarters()
     {
         AtomicHolder h(this);
         return std::make_pair(time(), rate_);
@@ -137,8 +112,9 @@ public:
     time_t compare_realtime(time_t t1, time_t t2)
     {
         int rate = rate_;
-        if (!rate)
+        if (rate == 0)
         {
+            // avoid divid by zero error
             rate = 4;
         }
         return ((t1 - t2) * 4) / rate;
@@ -173,7 +149,8 @@ public:
     }
 
     /// Get the day of the week.
-    /// @returns day of the week (0 - 6) upon success, else -1 on failure
+    /// @returns day of the week (0 - 6, Sunday - Saturday) upon success,
+    ///          else -1 on failure
     int day_of_week()
     {
         struct tm tm;
@@ -199,12 +176,13 @@ public:
     /// Report the clock rate as a 12-bit fixed point number
     /// (-512.00 to 511.75).
     /// @return clock rate 
-    int16_t rate()
+    int16_t get_rate_quarters()
     {
         return rate_;
     }
 
-    /// Test of the clock is running.
+    /// Test of the clock is running. Running backwards (negative rate) also
+    /// qualifies as running.
     /// @return true if running, else false
     bool is_running()
     {
@@ -219,52 +197,88 @@ public:
         return started_;
     }
 
-    /// Convert an absolute rate time to nsec until it will occur.
-    /// @param seconds absolute seconds in rate time
-    /// @return period in nsec until it will occure
-    long long real_nsec_until_rate_time_abs(time_t seconds)
+    /// Convert fast clock period to a period in real nsec. Result will
+    /// preserve sign.
+    /// @param rate rate to use in conversion
+    /// @param fast_sec period in seconds in fast clock time
+    /// @param real_nsec period in nsec
+    /// @return true if successfull, else false if clock is not running
+    bool fast_sec_to_real_nsec_period(int16_t rate, time_t fast_sec,
+                                      long long *real_nsec)
     {
-        long long result;
+        if (rate != 0 && rate >= -2048 && rate <= 2047)
         {
-            AtomicHolder h(this);
-            result = timestamp_ +
-                     rate_sec_to_real_nsec_period(seconds - seconds_);
+            *real_nsec = ((SEC_TO_NSEC(fast_sec) * 4) + (rate / 2)) / rate;
+            return true;
         }
-        return result - OSTime::get_monotonic();
+        else
+        {
+            return false;
+        }
     }
 
-    /// Convert a period at the clock's current rate to a period in real nsec.
-    /// @param seconds period in seconds at the current clock rate
-    /// @return period in real nanoseconds
-    long long rate_sec_to_real_nsec_period(time_t seconds)
+    /// Convert period in real nsec to a fast clock period. Result will
+    /// preserve sign.
+    /// @param rate rate to use in conversion
+    /// @param real_nsec period in nsec
+    /// @param fast_sec period in seconds in fast clock time
+    /// @return true if successfull, else false if clock is not running
+    bool real_nsec_to_fast_sec_period(int16_t rate, long long real_nsec,
+                                      time_t *fast_sec)
     {
-        long long abs_seconds = std::abs(seconds);
-        int16_t abs_rate = std::abs(rate_);
-        return ((SEC_TO_NSEC(abs_seconds) * 4) + (abs_rate >> 1)) / abs_rate;
+        if (rate != 0 && rate >= -2048 && rate <= 2047)
+        {
+            *fast_sec = (NSEC_TO_SEC(real_nsec * rate) + 2) / 4;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
-    /// Convert a period in real nanoseconds to a period at the clock's
-    /// current rate in seconds.  Rounded to the nearest whole second
-    /// @param nsec period in real nanoseconds
-    /// @return period in seconds at the current clock rate
-    time_t real_nsec_to_rate_sec_period(long long nsec)
+    /// Convert a fast time to absolute nsec until it will occur.
+    ///
+    /// Caution!!! Not an atomic operation if called from a different thread or
+    /// executor than the thread or executor being used by this object.
+    ///
+    /// @param fast_sec seconds in rate time
+    /// @param real_nsec period in nsec until it will occure
+    /// @return true if successfull, else false if clock is not running
+    bool real_nsec_until_fast_time_abs(time_t fast_sec, long long *real_nsec)
     {
-        HASSERT(rate_);
-        nsec = std::abs(nsec);
-        int16_t abs_rate = std::abs(rate_);
-        return (NSEC_TO_SEC_ROUNDED(nsec * 4) + (abs_rate >> 1)) / abs_rate;
+        if (fast_sec_to_real_nsec_period_abs(fast_sec - seconds_, real_nsec))
+        {
+            *real_nsec += timestamp_;
+            *real_nsec -= OSTime::get_monotonic();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
-    /// Convert a period in real seconds to a period in the clock's
-    /// current rate in seconds.  Rounded to the nearest whole second
-    /// @param seconds period in real seconds
-    /// @return period in seconds at the current clock rate
-    time_t real_sec_to_rate_sec_period(time_t seconds)
+    /// Convert fast clock absolute (negative or positive) period to a positive
+    /// (absolute) period in real nsec.
+    ///
+    /// Caution!!! Not an atomic operation if called from a different thread or
+    /// executor than the thread or executor being used by this object.
+    ///
+    /// @param sec period in seconds in fast clock time
+    /// @param real_nsec period in nsec
+    /// @return true if successfull, else false if clock is not running
+    bool fast_sec_to_real_nsec_period_abs(time_t fast_sec, long long *real_nsec)
     {
-        HASSERT(rate_);
-        seconds = std::abs(seconds);
-        int16_t abs_rate = std::abs(rate_);
-        return ((seconds * 4) + (abs_rate >> 1)) / abs_rate;
+        if (fast_sec_to_real_nsec_period(rate_, fast_sec, real_nsec))
+        {
+            *real_nsec = std::abs(*real_nsec);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     /// Register a callback for when the time synchronization is updated.  The
@@ -286,14 +300,20 @@ public:
         return node_;
     }
 
-    /// Accessor method to get the clock ID
+    /// Accessor method to get the (48-bit) Clock ID.
     /// @return clock ID
-    uint64_t clock_id()
+    NodeID clock_id()
     {
-        return clockID_;
+        return eventBase_ >> 16;
     }
 
-    /// Recalculate the struct tm reprentation of time.
+    /// Access method to get the (64-bit) Event ID base.
+    EventId event_base()
+    {
+        return eventBase_;
+    }
+
+    /// Recalculate the struct tm representation of time.
     /// @return last calculated time in the form of a struct tm
     const struct tm *gmtime_recalculate()
     {
@@ -349,35 +369,36 @@ protected:
             switch (command_)
             {
                 case SET_TIME:
-                    event_id = 0x8000 +
-                        BroadcastTimeDefs::time_to_event(clock_->clock_id(),
+                    event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
+                        BroadcastTimeDefs::time_to_event(clock_->event_base(),
                                                          data1_, data2_);
                     break;
                 case SET_DATE:
-                    event_id = 0x8000 +
-                        BroadcastTimeDefs::date_to_event(clock_->clock_id(),
+                    event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
+                        BroadcastTimeDefs::date_to_event(clock_->event_base(),
                                                          data1_, data2_);
                     break;
                 case SET_YEAR:
-                    event_id = 0x8000 +
-                        BroadcastTimeDefs::year_to_event(clock_->clock_id(),
+                    event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
+                        BroadcastTimeDefs::year_to_event(clock_->event_base(),
                                                          data1_);
                     break;
                 case SET_RATE:
-                    event_id = 0x8000 +
-                        BroadcastTimeDefs::rate_to_event(clock_->clock_id(),
+                    event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
+                        BroadcastTimeDefs::rate_to_event(clock_->event_base(),
                                                          data1_);
                     break;
                 case START:
-                    event_id = clock_->clock_id() +
+                    event_id = clock_->event_base() |
                                BroadcastTimeDefs::START_EVENT_SUFFIX;
                     break;
                 case STOP:
-                     event_id = clock_->clock_id() +
+                    event_id = clock_->event_base() |
                                BroadcastTimeDefs::STOP_EVENT_SUFFIX;
                     break;
                 default:
                     // should never get here.
+                    LOG_ERROR("Unhanded SetFlow command");
                     return delete_this();
             }
 
@@ -404,13 +425,42 @@ protected:
         int data2_; ///< second data argument
     };
 
-    /// Try the possible set event shortcut.
+    /// Constructor.
+    /// @param node the virtual node that will be listening for events and
+    ///             responding to Identify messages.
+    /// @param clock_id 48-bit unique identifier for the clock instance
+    BroadcastTime(Node *node, NodeID clock_id)
+        : StateFlowBase(node->iface())
+        , node_(node)
+        , eventBase_((uint64_t)clock_id << 16)
+        , writer_()
+        , timer_(this)
+        , callbacks_()
+        , timestamp_(OSTime::get_monotonic())
+        , seconds_(0)
+        , rate_(0)
+        , rateRequested_(0)
+        , started_(false)
+    {
+        // use a process-local timezone
+        clear_timezone();
+
+        time_t time = 0;
+        ::gmtime_r(&time, &tm_);
+        tm_.tm_isdst = 0;
+    }
+
+    virtual ~BroadcastTime()
+    {
+    }
+
+    /// Try the possible set event shortcut. This is typically a bypass of the
+    /// OpenLCB loopback.
     /// @param event event that we would be "setting"
     virtual void set_shortcut(uint64_t event)
     {
     }
 
-    /// Service all of the attached update subscribers
     void service_callbacks()
     {
         for (auto n : callbacks_)
@@ -422,7 +472,7 @@ protected:
     struct tm tm_; ///< the time we are last set to as a struct tm
 
     Node *node_; ///< OpenLCB node to export the consumer on
-    uint64_t clockID_; ///< 48-bit unique identifier for the clock instance
+    EventId eventBase_; ///< 48-bit unique identifier for the clock instance
     WriteHelper writer_; ///< helper for sending event messages
     StateFlowTimer timer_; ///< timer helper
 

@@ -108,7 +108,7 @@ private:
     {
         AutoNotify an(done);
 
-        if (event->event >= (clockID_ + 0x8000))
+        if (event->event >= (eventBase_ + 0x8000))
         {
             // we can configure ourselves
             event->event_write_helper<1>()->WriteAsync(
