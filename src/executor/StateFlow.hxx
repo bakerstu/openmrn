@@ -549,6 +549,7 @@ protected:
         Buffer<T> *b;
         mainBufferPool->alloc(&b);
         b->data()->reset(std::forward<Args>(args)...);
+        b->data()->done.reset(EmptyNotifiable::DefaultInstance());
         target_flow->send(b);
     }
     
