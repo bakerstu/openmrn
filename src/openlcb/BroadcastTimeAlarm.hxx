@@ -53,12 +53,13 @@ public:
         std::function<void()> callback)
         : StateFlowBase(node->iface())
         , clock_(clock)
+        , wakeup_(this)
         , callback_(callback)
         , timer_(this)
         , expires_(0)
         , running_(false)
         , set_(false)
-        , waiting_(false)
+        , waiting_(true)
 #if defined(GTEST)
         , shutdown_(false)
 #endif
@@ -79,13 +80,13 @@ public:
     }
 
     /// Start the alarm to expire at the given period from now.
-    /// @time period in seconds from now to expire
+    /// @time period in fast seconds from now to expire
     void set_period(time_t period)
     {
         set(clock_->time() + period);
     }
 
-    /// Start the alarm to expire at the given time.
+    /// Start the alarm to expire at the given fast time.
     /// @time time in seconds since epoch to expire
     void set(time_t time)
     {
@@ -102,7 +103,7 @@ public:
         }
         if (need_wakeup)
         {
-            new Wakeup(this);
+            wakeup_.trigger();
         }
     }
 
@@ -120,8 +121,9 @@ public:
 #if defined(GTEST)
     void shutdown()
     {
+        AtomicHolder h(this);
         shutdown_ = true;
-        new Wakeup(this);
+        wakeup_.trigger();
     }
 
     bool is_shutdown()
@@ -138,7 +140,7 @@ protected:
         return call_immediately(STATE(setup));
     }
 
-    /// Called when the clock time has changed.
+    /// Called by the clock when time, rate, or running state has changed.
     virtual void update_notify()
     {
         bool need_wakeup = false;
@@ -152,7 +154,7 @@ protected:
         }
         if (need_wakeup)
         {
-            new Wakeup(this);
+            wakeup_.trigger();
         }
     }
 
@@ -168,15 +170,20 @@ private:
         Wakeup(BroadcastTimeAlarm *alarm)
             : alarm_(alarm)
         {
-            alarm->service()->executor()->add(this);
         }
+
+        /// Trigger the wakeup to run.
+        void trigger()
+        {
+            alarm_->service()->executor()->add(this);
+        }
+
     private:
         /// Entry point. This funciton will be called when *this gets scheduled
         /// on the CPU.
         void run() override
         {
             alarm_->wakeup();
-            delete this;
         }
 
         BroadcastTimeAlarm *alarm_; ///< our parent alarm we will wakeup
@@ -203,8 +210,7 @@ private:
             time_t now = clock_->time();
 
             if ((now >= expires_ && clock_->get_rate_quarters() > 0) ||
-                (now <= expires_ && clock_->get_rate_quarters() < 0) ||
-                (now == expires_ && clock_->get_rate_quarters() == 0))
+                (now <= expires_ && clock_->get_rate_quarters() < 0))
             {
                 // have already met the alarm conditions,
                 // typically won't get here
@@ -256,7 +262,7 @@ private:
         return wait_and_call(STATE(setup));
     }        
 
-    /// wakeup the state machine.
+    /// Wakeup the state machine. Must be called from this service's executor.
     void wakeup()
     {
         timer_.ensure_triggered();
@@ -267,14 +273,15 @@ private:
         }
     }
 
+    Wakeup wakeup_; ///< wakeup helper for scheduling alarms
     std::function<void()> callback_; ///< callback for when alarm expires
     StateFlowTimer timer_; ///< timer helper
     time_t expires_; ///< time at which the alarm expires
-    uint8_t running_  : 1; ///< true if running, else false
+    uint8_t running_  : 1; ///< true if running (alarm armed), else false
     uint8_t set_      : 1; ///< true if a start request is pending
-    uint8_t waiting_  : 1; ///< true if waiting
+    uint8_t waiting_  : 1; ///< true if waiting for stateflow to be notified
 #if defined(GTEST)
-    uint8_t shutdown_ : 1; ///< true if shutdown
+    uint8_t shutdown_ : 1; ///< true if test has requested shutdown
 #endif
     /// handle to the update subscrition used for unsubcribing in the destructor
     BroadcastTime::UpdateSubscribeHandle updateSubscribeHandle_;
@@ -318,26 +325,8 @@ private:
         return BroadcastTimeAlarm::entry();
     }
 
-    /// callback for when the alarm expires
-    void expired_callback()
-    {
-        if (clock_->get_rate_quarters() > 0)
-        {
-            set(clock_->time() + (60 * 60 * 24));
-        }
-        else if (clock_->get_rate_quarters() < 0)
-        {
-            set(clock_->time() - (60 * 60 * 24));
-        }
-
-        if (callbackUser_)
-        {
-            callbackUser_();
-        }
-    }
-
-    /// Called when the clock time has changed.
-    void update_notify() override
+    /// Reset the expired time based on what time it is now.
+    void reset_expired_time()
     {
         const struct tm *tm = clock_->gmtime_recalculate();
         time_t seconds = clock_->time();
@@ -350,10 +339,26 @@ private:
         }
         else if (clock_->get_rate_quarters() < 0)
         {
-            set(seconds - (tm->tm_sec +
+            set(seconds - ((tm->tm_sec + 1) +
                            (60 * (tm->tm_min + 1)) +
                            (60 * 60 * tm->tm_hour)));
         }
+    }
+
+    /// callback for when the alarm expires
+    void expired_callback()
+    {
+        reset_expired_time();
+        if (callbackUser_)
+        {
+            callbackUser_();
+        }
+    }
+
+    /// Called when the clock time has changed.
+    void update_notify() override
+    {
+        reset_expired_time();
         BroadcastTimeAlarm::update_notify();
     }
 
@@ -395,26 +400,8 @@ private:
         return BroadcastTimeAlarm::entry();
     }
 
-    /// callback for when the alarm expires
-    void expired_callback()
-    {
-        if (clock_->get_rate_quarters() > 0)
-        {
-            set(clock_->time() + 60);
-        }
-        else if (clock_->get_rate_quarters() < 0)
-        {
-            set(clock_->time() - 60);
-        }
-
-        if (callbackUser_)
-        {
-            callbackUser_();
-        }
-    }
-
-    /// Called when the clock time has changed.
-    void update_notify() override
+    /// Reset the expired time based on what time it is now.
+    void reset_expired_time()
     {
         const struct tm *tm = clock_->gmtime_recalculate();
         time_t seconds = clock_->time();
@@ -425,8 +412,24 @@ private:
         }
         else if (clock_->get_rate_quarters() < 0)
         {
-            set(seconds - tm->tm_sec);
+            set(seconds - (tm->tm_sec + 1));
         }
+    }
+
+    /// callback for when the alarm expires
+    void expired_callback()
+    {
+        reset_expired_time();
+        if (callbackUser_)
+        {
+            callbackUser_();
+        }
+    }
+
+    /// Called when the clock time has changed.
+    void update_notify() override
+    {
+        reset_expired_time();
         BroadcastTimeAlarm::update_notify();
     }
 

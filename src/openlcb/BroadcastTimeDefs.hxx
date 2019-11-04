@@ -72,7 +72,7 @@ struct BroadcastTimeDefs
         QUERY,           ///< query event
         STOP,            ///< stop clock event
         START,           ///< start clock event
-        DATE_ROLLOVER,  ///< date rollover event
+        DATE_ROLLOVER,   ///< date rollover event
         UNDEFINED,       ///< undefined event
     };
 
@@ -92,7 +92,7 @@ struct BroadcastTimeDefs
         EVENT_MINUTES_SHIFT = 0, ///< minutes mask
         EVENT_MONTH_SHIFT   = 8, ///< month mask
         EVENT_DAY_SHIFT     = 0, ///< day mask
-        EVENT_YEAR_SHIFT    = 0, ///< day mask
+        EVENT_YEAR_SHIFT    = 0, ///< year mask
         EVENT_RATE_SHIFT    = 0, ///< rate mask
 
         TIME_EVENT_BASE_SUFFIX     = 0x0000, ///< time event base suffix
@@ -275,7 +275,7 @@ struct BroadcastTimeDefs
         rate.rate_ = (event & EVENT_RATE_MASK) >> EVENT_RATE_SHIFT;
         if (rate.rate_ & 0x0800)
         {
-            // sign extend negitive value
+            // sign extend negative value
             rate.rate_ |= 0xF000;
         }
 

@@ -49,7 +49,8 @@ public:
     /// @param node the virtual node that will be listening for events and
     ///             responding to Identify messages.
     /// @param clock_id 48-bit unique identifier for the clock instance
-    /// @param configure_agent can configure clock servers.
+    /// @param configure_agent if true, can configure clock server, if false,
+    ///                        ignores all set_time/data/etc calls.
     BroadcastTimeClient(Node *node, NodeID clock_id,
                         bool configure_agent = false)
         : BroadcastTime(node, clock_id)
@@ -64,7 +65,6 @@ public:
     {
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, eventBase_), 16);
-
     }
 
     /// Destructor.
@@ -95,7 +95,7 @@ public:
 
         event->event_write_helper<1>()->WriteAsync(
             node_, Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
-            eventid_to_buffer(EncodeRange(entry.event, 0x1 << 16)),
+            eventid_to_buffer(EncodeRange(eventBase_, 0x1 << 16)),
             done->new_child());
         if (configureAgent_)
         {
@@ -103,7 +103,10 @@ public:
             event->event_write_helper<2>()->WriteAsync(
                 node_, Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
                 WriteHelper::global(),
-                eventid_to_buffer(EncodeRange(entry.event + 0x8000, 0x1 << 15)),
+                eventid_to_buffer(
+                    EncodeRange(entry.event |
+                                    BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK,
+                                0x1 << 15)),
                 done->new_child());
         }
         else
@@ -112,7 +115,7 @@ public:
             event->event_write_helper<2>()->WriteAsync(
                 node_, Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
                 WriteHelper::global(),
-                eventid_to_buffer(entry.event +
+                eventid_to_buffer(entry.event |
                                   BroadcastTimeDefs::QUERY_EVENT_SUFFIX),
                 done->new_child());
         }
@@ -127,7 +130,7 @@ public:
                                   BarrierNotifiable *done) override
     {
         AutoNotify an(done);
-        if (event->event < (eventBase_ + 0x5000))
+        if (event->event < (eventBase_ | 0x5000))
         {
             event->event_write_helper<1>()->WriteAsync(
                 node_, Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN,
@@ -145,15 +148,17 @@ public:
                                   BarrierNotifiable *done) override
     {
         AutoNotify an(done);
-        if (!configureAgent_ &&
-            event->event == (entry.event + BroadcastTimeDefs::QUERY_EVENT_SUFFIX))
+        if ((configureAgent_ &&
+             (entry.event & BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK)) ||
+            event->event == (entry.event |
+                             BroadcastTimeDefs::QUERY_EVENT_SUFFIX))
         {
-            // we cannot configure our complementary time server, therefore
+            // if we cannot configure our complementary time server,
             // we only produce one event.
             event->event_write_helper<1>()->WriteAsync(
                 node_, Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
                 WriteHelper::global(),
-                eventid_to_buffer(entry.event +
+                eventid_to_buffer(entry.event |
                                   BroadcastTimeDefs::QUERY_EVENT_SUFFIX),
                 done->new_child());
         }
@@ -238,7 +243,8 @@ private:
         rolloverPendingYear_ = false;
 
         writer_.WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
-            eventid_to_buffer(eventBase_ + BroadcastTimeDefs::QUERY_EVENT_SUFFIX),
+            eventid_to_buffer(eventBase_ |
+                              BroadcastTimeDefs::QUERY_EVENT_SUFFIX),
             this);
         return wait_and_call(STATE(initialize_done));
     }
@@ -251,7 +257,7 @@ private:
         return wait_and_call(STATE(client_update));
     }
 
-    /// Notification arived that we should update our state.
+    /// Notification arrived that we should update our state.
     /// @return next state client_update_commit if an update is to be made,
     ///         else next state client_update_wait if we are expecting more
     ///         incoming clock set events or producer identifieds
