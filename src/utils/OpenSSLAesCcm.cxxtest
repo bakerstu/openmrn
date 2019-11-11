@@ -29,8 +29,12 @@ void get_example(int index, string& Key, string& Nonce, string& Adata, string& P
 #include "utils/AesCcmTestVectors.hxx"
 }
 
+void get_sha_example(int index, string &Key, string &Hash, string &Payload) {
+#include "utils/ShaTestVectors.hxx"
+}
 
-TEST(OpenSSLCCMTest, EncryptionTest) {
+TEST(OpenSSLCCMTest, EncryptionTest)
+{
     string key;
     string nonce;
     string auth_data;
@@ -50,5 +54,17 @@ TEST(OpenSSLCCMTest, EncryptionTest) {
         CCMEncrypt(key, nonce, auth_data, plain, &o_cipher, &o_tag);
         EXPECT_EQ(tag, o_tag);
         EXPECT_EQ(cipher, o_cipher);
+    }
+}
+
+TEST(OpenSSLSHATest, HashTest)
+{
+    for (int i = 0; i <= 67; i++)
+    {
+        string digest, key, plain;
+        get_sha_example(i, key, digest, plain);
+        LOG(INFO, "SHA256 Example %d datalen=%d", i, (int)plain.size());
+        string o_digest = MD::SHA256(plain.data(), plain.size());
+        EXPECT_EQ(digest, o_digest);
     }
 }
