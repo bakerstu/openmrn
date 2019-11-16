@@ -31,11 +31,21 @@
  * @date 1 January 2018
  */
 
+#define LOGLEVEL INFO
+#define USE_CC3220_ROM_DRV_API
+#include "utils/logging.h"
+
 #include "CC32x0SFSPIFFS.hxx"
 
 #include "spiffs.h"
 #include "inc/hw_types.h"
 #include "driverlib/flash.h"
+#include "driverlib/rom.h"
+
+//#define DI() asm("cpsid i\n") 
+//#define EI() asm("cpsie i\n")
+#define DI()
+#define EI()
 
 //
 // CC32x0SFSPIFFS::flash_read()
@@ -55,6 +65,7 @@ int32_t CC32x0SFSPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
 //
 int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 {
+    LOG(INFO, "Write %x sz %d", (unsigned)addr, (unsigned)size);
     union WriteWord
     {
         uint8_t  data[4];
@@ -72,8 +83,10 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 
         memcpy(ww.data + (addr % 4), src, size);
         ww.data_word &= *((uint32_t*)(addr & (~0x3)));
-        HASSERT(FlashProgram(&ww.data_word, addr & (~0x3), 4) == 0);
-
+        DI();
+        HASSERT(ROM_FlashProgram(&ww.data_word, addr & (~0x3), 4) == 0);
+        EI();
+        LOG(INFO, "Write done1");
         return 0;
     }
 
@@ -86,7 +99,9 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 
         memcpy(&ww.data_word, src + size - misaligned, misaligned);
         ww.data_word &= *((uint32_t*)((addr + size) & (~0x3)));
-        HASSERT(FlashProgram(&ww.data_word, (addr + size) & (~0x3), 4) == 0);
+        DI();
+        HASSERT(ROM_FlashProgram(&ww.data_word, (addr + size) & (~0x3), 4) == 0);
+        EI();
 
         size -= misaligned;
     }
@@ -100,7 +115,9 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 
         memcpy(ww.data + misaligned, src, 4 - misaligned);
         ww.data_word &= *((uint32_t*)(addr & (~0x3)));
-        HASSERT(FlashProgram(&ww.data_word, addr & (~0x3), 4) == 0);
+        DI();
+        HASSERT(ROM_FlashProgram(&ww.data_word, addr & (~0x3), 4) == 0);
+        EI();
         addr += 4 - misaligned;
         size -= 4 - misaligned;
         src  += 4 - misaligned;
@@ -121,9 +138,12 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
             src[i + 3] &= flash[i + 3];
         }
 
-        HASSERT(FlashProgram((unsigned long*)src, addr, size) == 0);
+        DI();
+        HASSERT(ROM_FlashProgram((unsigned long*)src, addr, size) == 0);
+        EI();
     }
 
+    LOG(INFO, "Write done2");
 
     return 0;
 }
@@ -133,17 +153,21 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 //
 int32_t CC32x0SFSPIFFS::flash_erase(uint32_t addr, uint32_t size)
 {
+    LOG(INFO, "Erasing %x sz %d", (unsigned)addr, (unsigned)size);
     HASSERT(addr >= fs_->cfg.phys_addr &&
             (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
     HASSERT((size % ERASE_PAGE_SIZE) == 0);
 
     while (size)
     {
-        HASSERT(FlashErase(addr) == 0);
+        DI();
+        HASSERT(ROM_FlashErase(addr) == 0);
+        EI();
         addr += ERASE_PAGE_SIZE;
         size -= ERASE_PAGE_SIZE;
     }
 
+    LOG(INFO, "Erasing %x done", (unsigned)addr);
     return 0;
 }
 
