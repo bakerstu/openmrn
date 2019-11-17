@@ -47,6 +47,14 @@
 #define DI()
 #define EI()
 
+#if 0
+#define FPG ROM_FlashProgram
+#define FER ROM_FlashErase
+#else
+#define FPG FlashProgram
+#define FER FlashErase
+#endif
+
 //
 // CC32x0SFSPIFFS::flash_read()
 //
@@ -84,7 +92,7 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         memcpy(ww.data + (addr % 4), src, size);
         ww.data_word &= *((uint32_t*)(addr & (~0x3)));
         DI();
-        HASSERT(ROM_FlashProgram(&ww.data_word, addr & (~0x3), 4) == 0);
+        HASSERT(FPG(&ww.data_word, addr & (~0x3), 4) == 0);
         EI();
         LOG(INFO, "Write done1");
         return 0;
@@ -100,7 +108,7 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         memcpy(&ww.data_word, src + size - misaligned, misaligned);
         ww.data_word &= *((uint32_t*)((addr + size) & (~0x3)));
         DI();
-        HASSERT(ROM_FlashProgram(&ww.data_word, (addr + size) & (~0x3), 4) == 0);
+        HASSERT(FPG(&ww.data_word, (addr + size) & (~0x3), 4) == 0);
         EI();
 
         size -= misaligned;
@@ -116,7 +124,7 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         memcpy(ww.data + misaligned, src, 4 - misaligned);
         ww.data_word &= *((uint32_t*)(addr & (~0x3)));
         DI();
-        HASSERT(ROM_FlashProgram(&ww.data_word, addr & (~0x3), 4) == 0);
+        HASSERT(FPG(&ww.data_word, addr & (~0x3), 4) == 0);
         EI();
         addr += 4 - misaligned;
         size -= 4 - misaligned;
@@ -139,7 +147,7 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         }
 
         DI();
-        HASSERT(ROM_FlashProgram((unsigned long*)src, addr, size) == 0);
+        HASSERT(FPG((unsigned long*)src, addr, size) == 0);
         EI();
     }
 
@@ -161,7 +169,7 @@ int32_t CC32x0SFSPIFFS::flash_erase(uint32_t addr, uint32_t size)
     while (size)
     {
         DI();
-        HASSERT(ROM_FlashErase(addr) == 0);
+        HASSERT(FER(addr) == 0);
         EI();
         addr += ERASE_PAGE_SIZE;
         size -= ERASE_PAGE_SIZE;
