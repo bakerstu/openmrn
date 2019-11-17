@@ -119,4 +119,30 @@ void CCMEncrypt(const std::string &aes_key, const std::string &iv,
     EVP_CIPHER_CTX_free(ctx);
 }
 
+/// Helper class to do hashing algorithms via OpenSSL library.
+class MD
+{
+public:
+    /// Computes a SHA256 hash of a given data payload.
+    /// @param data pointer to the beginning of the data to be hashed.
+    /// @param len the number of bytes to be hashed
+    /// @return SHA256 hash (32 bytes long).
+    static std::string SHA256(const void *data, size_t len)
+    {
+        EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+        std::string ret(32, 0);
+        EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL);
+        EVP_DigestUpdate(mdctx, data, len);
+        unsigned int md_len;
+        EVP_DigestFinal_ex(mdctx, (uint8_t *)&ret[0], &md_len);
+        HASSERT(md_len == 32);
+        EVP_MD_CTX_free(mdctx);
+        return ret;
+    }
+
+private:
+    /// This class cannot be instantiated.
+    MD();
+};
+
 #endif // _UTILS_OPENSSLAESCCM_HXX_

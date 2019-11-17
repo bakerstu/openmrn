@@ -48,7 +48,7 @@ class TcpClientDefaultParams
 {
 public:
     /// Visible name of the search_mode field.
-    static constexpr const char *SEARCH_MODE_NAME = "Search mode";
+    static constexpr const char *SEARCH_MODE_NAME = "Search Mode";
     /// Visible description of the search_mode field.
     static constexpr const char *SEARCH_MODE_DESCR =
         "Defines the order of how to locate the server to connect to. 'auto' "
@@ -57,19 +57,19 @@ public:
     /// <map> of possible keys and descriptive values to show to the user for
     /// the search_mode field.
     static constexpr const char *SEARCH_MODE_MAP =
-        "<relation><property>0</property><value>auto, manual</value></relation>"
-        "<relation><property>1</property><value>manual, auto</value></relation>"
-        "<relation><property>2</property><value>auto only</value></relation>"
-        "<relation><property>3</property><value>manual only</value></relation>";
+        "<relation><property>0</property><value>Auto, Manual</value></relation>"
+        "<relation><property>1</property><value>Manual, Auto</value></relation>"
+        "<relation><property>2</property><value>Auto Only</value></relation>"
+        "<relation><property>3</property><value>Manual Only</value></relation>";
 
     /// Visible name of the manual address group.
-    static constexpr const char *MANUAL_ADDRESS_NAME = "Manual address";
+    static constexpr const char *MANUAL_ADDRESS_NAME = "Manual Address";
     /// Visible description of the manual address group.
     static constexpr const char *MANUAL_ADDRESS_DESCR =
         "Set IP address here if auto-detection does not work.";
 
     /// Visible name of the ip address field inside the manual address group.
-    static constexpr const char *IP_ADDRESS_NAME = "IP address";
+    static constexpr const char *IP_ADDRESS_NAME = "IP Address";
     /// Visible description of the ip address field inside the manual address
     /// group.
     static constexpr const char *IP_ADDRESS_DESCR =
@@ -79,27 +79,27 @@ public:
     /// factory reset code, not just for user documentation.
     static constexpr int DEFAULT_PORT = 12021;
     /// Visible name of the port number field.
-    static constexpr const char *PORT_NAME = "Port number";
+    static constexpr const char *PORT_NAME = "Port Number";
     /// Visible description of the port number field.
     static constexpr const char *PORT_DESCR =
         "TCP port number of the server. Most of the time this does not need to "
         "be changed.";
 
     /// Visible name of the auto address group.
-    static constexpr const char *AUTO_ADDRESS_NAME = "Auto address";
+    static constexpr const char *AUTO_ADDRESS_NAME = "Auto Address";
     /// Visible description of the auto address group.
     static constexpr const char *AUTO_ADDRESS_DESCR =
         "Advanced settings for the server IP address auto-detection (mDNS).";
 
     /// Visible name of the service name field in the auto address group.
-    static constexpr const char *SERVICE_NAME = "mDNS service";
+    static constexpr const char *SERVICE_NAME = "mDNS Service";
     /// Visible description of the service name field in the auto address
     /// group.
     static constexpr const char *SERVICE_DESCR =
         "mDNS or Bonjour service name, such as _openlcb-can._tcp";
 
     /// Visible name of the host name field in the auto address group.
-    static constexpr const char *HOST_NAME = "Only hostname";
+    static constexpr const char *HOST_NAME = "Only Hostname";
     /// Visible description of the host name field in the auto address group.
     static constexpr const char *HOST_DESCR =
         "Use when multiple servers provide the same service on the network. If "
@@ -116,8 +116,8 @@ public:
     /// <map> of possible keys and descriptive values to show to the user for
     /// the reconnect field.
     static constexpr const char *RECONNECT_MAP =
-        "<relation><property>0</property><value>disabled</value></relation>"
-        "<relation><property>1</property><value>enabled</value></relation>";
+        "<relation><property>0</property><value>Disabled</value></relation>"
+        "<relation><property>1</property><value>Enabled</value></relation>";
 };
 
 template <class LocalParams> CDI_GROUP(TcpManualAddress);
