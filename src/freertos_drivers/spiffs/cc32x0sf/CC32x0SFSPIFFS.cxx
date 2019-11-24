@@ -58,19 +58,22 @@ static const unsigned addr_mirror = (HWREG(FLASH_CONF) & FCMME) ? 0x80000 : 0;
 // Different options for what to set for flash write locking.
 
 // Global disable interrupts.
-//#define DI() asm("cpsid i\n")
-//#define EI() asm("cpsie i\n")
+//
+// #define DI() asm("cpsid i\n")
+// #define EI() asm("cpsie i\n")
 
 // Critical section (interrupts better than MIN_SYSCALL_PRIORITY are still
 // running).
-//#define DI() portENTER_CRITICAL()
-//#define EI() portEXIT_CRITICAL()
+//
+// #define DI() portENTER_CRITICAL()
+// #define EI() portEXIT_CRITICAL()
 
 // Disable interrupts with a custom priority limit (must not be zero).
-//unsigned ppri;
-//constexpr unsigned minpri = 0x40;
-//#define DI() ppri = CPUbasepriGet(); CPUbasepriSet(minpri); HWREG(FLASH_CONF) |=  0x20110000;
-//#define EI() CPUbasepriSet(ppri);
+//
+// unsigned ppri;
+// constexpr unsigned minpri = 0x40;
+// #define DI() ppri = CPUbasepriGet(); CPUbasepriSet(minpri); HWREG(FLASH_CONF) |=  0x20110000;
+// #define EI() CPUbasepriSet(ppri);
 
 // No write locking.
 #define DI()
