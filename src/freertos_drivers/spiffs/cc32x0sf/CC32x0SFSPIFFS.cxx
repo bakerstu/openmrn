@@ -31,8 +31,11 @@
  * @date 1 January 2018
  */
 
-#define LOGLEVEL INFO
+// #define LOGLEVEL INFO
+
+// This define is needed to call any ROM_xx function in the driverlib.
 #define USE_CC3220_ROM_DRV_API
+
 #include "utils/logging.h"
 
 #include "CC32x0SFSPIFFS.hxx"
@@ -43,26 +46,40 @@
 #include "driverlib/rom.h"
 #include "driverlib/cpu.h"
 
-unsigned ppri;
-constexpr unsigned minpri = 0x40;
-
-//static unsigned lock = 0;
-
+/// Flash configuration register.
 #define FLASH_CONF              0x400FDFC8
+/// This bit in the FLASH_CONF register means that the banks are reversed by
+/// their address mapping.
 #define FCMME   0x40000000
+/// This value defines up to one bit that needs to be XOR-ed to the flash
+/// address before calling the flash APIs to cover for reversed flash banks.
+static const unsigned addr_mirror = (HWREG(FLASH_CONF) & FCMME) ? 0x80000 : 0;
+
+
+// Different options for what to set for flash write locking.
+
+// Global disable interrupts.
 //#define DI() asm("cpsid i\n") 
 //#define EI() asm("cpsie i\n")
+
+// Critical section (interrupts better than MIN_SYSCALL_PRIORITY are still
+// running).
 //#define DI() portENTER_CRITICAL()
 //#define EI() portEXIT_CRITICAL()
+
+// Disable interrupts with a custom priority limit (must not be zero).
+//unsigned ppri;
+//constexpr unsigned minpri = 0x40;
 //#define DI() ppri = CPUbasepriGet(); CPUbasepriSet(minpri); HWREG(FLASH_CONF) |=  0x20110000;
 //#define EI() CPUbasepriSet(ppri);
-//#define DI() (void)ppri; (void)::lock; HASSERT(::lock == 0); ::lock = 1;
-//#define EI() ::lock = 0;
+
+// No write locking.
 #define DI() 
 #define EI() 
 
-static unsigned addr_mirror = (HWREG(FLASH_CONF) & FCMME) ? 0x80000 : 0;
-
+// This ifdef decides whether we use the ROM or the flash based implementations
+// for Flash write and erase. It also supports correcting for the reversed bank
+// addresses.
 #if 1
 #define FPG(data, addr, size) ROM_FlashProgram(data, (addr) ^ addr_mirror, size)
 #define FER(addr) ROM_FlashErase((addr) ^ addr_mirror)
