@@ -47,19 +47,18 @@
 #include "driverlib/cpu.h"
 
 /// Flash configuration register.
-#define FLASH_CONF              0x400FDFC8
+#define FLASH_CONF 0x400FDFC8
 /// This bit in the FLASH_CONF register means that the banks are reversed by
 /// their address mapping.
-#define FCMME   0x40000000
+#define FCMME 0x40000000
 /// This value defines up to one bit that needs to be XOR-ed to the flash
 /// address before calling the flash APIs to cover for reversed flash banks.
 static const unsigned addr_mirror = (HWREG(FLASH_CONF) & FCMME) ? 0x80000 : 0;
 
-
 // Different options for what to set for flash write locking.
 
 // Global disable interrupts.
-//#define DI() asm("cpsid i\n") 
+//#define DI() asm("cpsid i\n")
 //#define EI() asm("cpsie i\n")
 
 // Critical section (interrupts better than MIN_SYSCALL_PRIORITY are still
@@ -74,8 +73,8 @@ static const unsigned addr_mirror = (HWREG(FLASH_CONF) & FCMME) ? 0x80000 : 0;
 //#define EI() CPUbasepriSet(ppri);
 
 // No write locking.
-#define DI() 
-#define EI() 
+#define DI()
+#define EI()
 
 // This ifdef decides whether we use the ROM or the flash based implementations
 // for Flash write and erase. It also supports correcting for the reversed bank
@@ -180,7 +179,7 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         }
 
         DI();
-        HASSERT(FPG((unsigned long*)src, addr, size) == 0);
+        HASSERT(FPG((unsigned long *)src, addr, size) == 0);
         EI();
     }
 
