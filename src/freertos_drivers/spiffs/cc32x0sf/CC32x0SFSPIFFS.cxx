@@ -61,13 +61,14 @@ constexpr unsigned minpri = 0x40;
 #define DI() 
 #define EI() 
 
+static unsigned addr_mirror = (HWREG(FLASH_CONF) & FCMME) ? 0x80000 : 0;
 
 #if 1
-#define FPG ROM_FlashProgram
-#define FER ROM_FlashErase
+#define FPG(data, addr, size) ROM_FlashProgram(data, (addr) ^ addr_mirror, size)
+#define FER(addr) ROM_FlashErase((addr) ^ addr_mirror)
 #else
-#define FPG FlashProgram
-#define FER FlashErase
+#define FPG(data, addr, size) FlashProgram(data, (addr) ^ addr_mirror, size)
+#define FER(addr) FlashErase((addr) ^ addr_mirror)
 #endif
 
 //
