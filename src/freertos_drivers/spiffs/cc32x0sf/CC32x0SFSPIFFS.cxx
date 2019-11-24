@@ -41,13 +41,28 @@
 #include "inc/hw_types.h"
 #include "driverlib/flash.h"
 #include "driverlib/rom.h"
+#include "driverlib/cpu.h"
 
+unsigned ppri;
+constexpr unsigned minpri = 0x40;
+
+//static unsigned lock = 0;
+
+#define FLASH_CONF              0x400FDFC8
+#define FCMME   0x40000000
 //#define DI() asm("cpsid i\n") 
 //#define EI() asm("cpsie i\n")
-#define DI()
-#define EI()
+//#define DI() portENTER_CRITICAL()
+//#define EI() portEXIT_CRITICAL()
+//#define DI() ppri = CPUbasepriGet(); CPUbasepriSet(minpri); HWREG(FLASH_CONF) |=  0x20110000;
+//#define EI() CPUbasepriSet(ppri);
+//#define DI() (void)ppri; (void)::lock; HASSERT(::lock == 0); ::lock = 1;
+//#define EI() ::lock = 0;
+#define DI() 
+#define EI() 
 
-#if 0
+
+#if 1
 #define FPG ROM_FlashProgram
 #define FER ROM_FlashErase
 #else
