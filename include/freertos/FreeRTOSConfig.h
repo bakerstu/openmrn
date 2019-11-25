@@ -139,17 +139,11 @@ standard names - or at least those used in the unmodified vector table. */
 
 #define configCPU_CLOCK_HZ             ( cpu_clock_hz )
 #define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 256 )
-#define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 7000 ) )
+//#define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 7000 ) )
 #define configTIMER_TASK_STACK_DEPTH   256
 
-
-#define configKERNEL_INTERRUPT_PRIORITY         255
-/* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
-See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY     0xa0 /* equivalent to 191, or priority 5. */
-
 // change #if to 1 in order to enable asserts for the kernel
-#if 1
+#if 0
 #ifdef __cplusplus
 extern "C" {
 #endif
