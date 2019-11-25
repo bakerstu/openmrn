@@ -64,6 +64,11 @@ ifeq ($(TARGET),bare.armv7m)
 SUBDIRS += cc32xxsdk ti_grlib 
 endif
 
+ifeq ($(TARGET),bare.armv6m)
+SUBDIRS += stm32cubef091xc
+CXXSRCS += c++_operators.cxx
+endif
+
 ifeq ($(TARGET),freertos.armv4t)
 SUBDIRS += drivers_lpc2368
 endif

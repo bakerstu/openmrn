@@ -104,6 +104,11 @@
 /// Enable module
 #define HAL_WWDG_MODULE_ENABLED
 
+/* Workaround for the broken UNUSED macro */
+#include "stm32f0xx_hal_def.h"
+#undef UNUSED
+#define UNUSED(x) ((void)((uint32_t)(x)))
+
 /* ######################### Oscillator Values adaptation ################### */
 /**
   * @brief Adjust the value of External High Speed oscillator (HSE) used in your application.
