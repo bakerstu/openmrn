@@ -353,14 +353,7 @@ private:
     void expired_callback(BarrierNotifiable *done)
     {
         reset_expired_time();
-        if (callbackUser_)
-        {
-            callbackUser_(done);
-        }
-        else
-        {
-            done->notify();
-        }
+        callbackUser_ ? callbackUser_(done) : done->notify();
     }
 
     /// Called when the clock time has changed.
@@ -430,14 +423,7 @@ private:
     void expired_callback(BarrierNotifiable *done)
     {
         reset_expired_time();
-        if (callbackUser_)
-        {
-            callbackUser_(done);
-        }
-        else
-        {
-            done->notify();
-        }
+        callbackUser_ ? callbackUser_(done) : done->notify();
     }
 
     /// Called when the clock time has changed.
