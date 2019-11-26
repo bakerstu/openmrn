@@ -363,7 +363,8 @@ private:
         BroadcastTimeAlarm::update_notify();
     }
 
-    std::function<void(BarrierNotifiable *)> callbackUser_; ///< callback for when alarm expires
+    /// callback for when alarm expires
+    std::function<void(BarrierNotifiable *)> callbackUser_;
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeAlarmDate);
 };
