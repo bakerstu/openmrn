@@ -57,6 +57,7 @@ public:
         , callback_(callback)
         , timer_(this)
         , bn_()
+        , bnPtr_(nullptr)
         , expires_(0)
         , running_(false)
         , set_(false)
@@ -230,7 +231,7 @@ private:
             }
         }
 
-        bn_.reset(this);
+        bnPtr_ = bn_.reset(this);
         return wait_and_call(STATE(setup));
     }
 
@@ -255,11 +256,11 @@ private:
     /// @return setup()
     Action expired()
     {
-        auto notifiable = bn_.reset(this);
+        bnPtr_ = bn_.reset(this);
         if (running_ && clock_->is_running() && callback_)
         {
             running_ = false;
-            callback_(notifiable->new_child());
+            callback_(bnPtr_->new_child());
         }
 
         return wait_and_call(STATE(setup));
@@ -269,8 +270,9 @@ private:
     void wakeup()
     {
         timer_.ensure_triggered();
-        if (!bn_.is_done())
+        if (bnPtr_)
         {
+            bnPtr_ = nullptr;
             bn_.notify();
         }
     }
@@ -280,6 +282,7 @@ private:
     std::function<void(BarrierNotifiable *)> callback_;
     StateFlowTimer timer_; ///< timer helper
     BarrierNotifiable bn_; ///< notifiable for callback callee
+    BarrierNotifiable *bnPtr_; ///< not null we have an outstanding notification
     time_t expires_; ///< time at which the alarm expires
     uint8_t running_  : 1; ///< true if running (alarm armed), else false
     uint8_t set_      : 1; ///< true if a start request is pending
