@@ -50,16 +50,16 @@ public:
     /// @param clock clock that our alarm is based off of
     /// @param callback callback for when alarm expires
     BroadcastTimeAlarm(Node *node, BroadcastTime *clock,
-        std::function<void()> callback)
+        std::function<void(BarrierNotifiable *)> callback)
         : StateFlowBase(node->iface())
         , clock_(clock)
         , wakeup_(this)
         , callback_(callback)
         , timer_(this)
+        , bn_()
         , expires_(0)
         , running_(false)
         , set_(false)
-        , waiting_(true)
 #if defined(GTEST)
         , shutdown_(false)
 #endif
@@ -124,6 +124,10 @@ public:
         AtomicHolder h(this);
         shutdown_ = true;
         wakeup_.trigger();
+        while(!bn_.is_done())
+        {
+            bn_.notify();
+        }
     }
 
     bool is_shutdown()
@@ -195,7 +199,6 @@ private:
     ///         setup() if clock and/or alarm is not currently active
     Action setup()
     {
-        waiting_ = false;
 #if defined(GTEST)
         if (shutdown_)
         {
@@ -227,7 +230,7 @@ private:
             }
         }
 
-        waiting_ = true;
+        bn_.reset(this);
         return wait_and_call(STATE(setup));
     }
 
@@ -252,13 +255,13 @@ private:
     /// @return setup()
     Action expired()
     {
+        auto notifiable = bn_.reset(this);
         if (running_ && clock_->is_running() && callback_)
         {
             running_ = false;
-            callback_();
+            callback_(notifiable->new_child());
         }
 
-        waiting_ = true;
         return wait_and_call(STATE(setup));
     }        
 
@@ -266,20 +269,20 @@ private:
     void wakeup()
     {
         timer_.ensure_triggered();
-        if (waiting_)
+        if (!bn_.is_done())
         {
-            waiting_ = false;
-            notify();
+            bn_.notify();
         }
     }
 
     Wakeup wakeup_; ///< wakeup helper for scheduling alarms
-    std::function<void()> callback_; ///< callback for when alarm expires
+    /// callback for when alarm expires
+    std::function<void(BarrierNotifiable *)> callback_;
     StateFlowTimer timer_; ///< timer helper
+    BarrierNotifiable bn_; ///< notifiable for callback callee
     time_t expires_; ///< time at which the alarm expires
     uint8_t running_  : 1; ///< true if running (alarm armed), else false
     uint8_t set_      : 1; ///< true if a start request is pending
-    uint8_t waiting_  : 1; ///< true if waiting for stateflow to be notified
 #if defined(GTEST)
     uint8_t shutdown_ : 1; ///< true if test has requested shutdown
 #endif
@@ -302,10 +305,10 @@ public:
     /// @param clock clock that our alarm is based off of
     /// @param callback callback for when alarm expires
     BroadcastTimeAlarmDate(Node *node, BroadcastTime *clock,
-        std::function<void()> callback)
+        std::function<void(BarrierNotifiable *)> callback)
         : BroadcastTimeAlarm(
               node, clock, std::bind(&BroadcastTimeAlarmDate::expired_callback,
-                                     this))
+                                     this, std::placeholders::_1))
         , callbackUser_(callback)
     {
     }
@@ -346,12 +349,17 @@ private:
     }
 
     /// callback for when the alarm expires
-    void expired_callback()
+    /// @param done used to notify we are finished
+    void expired_callback(BarrierNotifiable *done)
     {
         reset_expired_time();
         if (callbackUser_)
         {
-            callbackUser_();
+            callbackUser_(done);
+        }
+        else
+        {
+            done->notify();
         }
     }
 
@@ -362,7 +370,7 @@ private:
         BroadcastTimeAlarm::update_notify();
     }
 
-    std::function<void()> callbackUser_; ///< callback for when alarm expires
+    std::function<void(BarrierNotifiable *)> callbackUser_; ///< callback for when alarm expires
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeAlarmDate);
 };
@@ -377,10 +385,11 @@ public:
     /// @param clock clock that our alarm is based off of
     /// @param callback callback for when alarm expires
     BroadcastTimeAlarmMinute(Node *node, BroadcastTime *clock,
-        std::function<void()> callback)
+        std::function<void(BarrierNotifiable *)> callback)
         : BroadcastTimeAlarm(
               node, clock,
-              std::bind(&BroadcastTimeAlarmMinute::expired_callback, this))
+              std::bind(&BroadcastTimeAlarmMinute::expired_callback, this,
+                        std::placeholders::_1))
         , callbackUser_(callback)
     {
     }
@@ -417,12 +426,17 @@ private:
     }
 
     /// callback for when the alarm expires
-    void expired_callback()
+    /// @param done used to notify we are finished
+    void expired_callback(BarrierNotifiable *done)
     {
         reset_expired_time();
         if (callbackUser_)
         {
-            callbackUser_();
+            callbackUser_(done);
+        }
+        else
+        {
+            done->notify();
         }
     }
 
@@ -434,7 +448,7 @@ private:
     }
 
     /// callback for when alarm expires
-    std::function<void()> callbackUser_;
+    std::function<void(BarrierNotifiable *)> callbackUser_;
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeAlarmMinute);
 };

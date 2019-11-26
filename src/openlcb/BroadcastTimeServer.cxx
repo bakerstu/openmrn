@@ -652,7 +652,8 @@ public:
     BroadcastTimeServerAlarm(BroadcastTimeServer *server)
         : BroadcastTimeAlarm(
               server->node(), server,
-              std::bind(&BroadcastTimeServerAlarm::expired_callback, this))
+              std::bind(&BroadcastTimeServerAlarm::expired_callback, this,
+                        std::placeholders::_1))
         , server_(server)
     {
         memset(activeMinutes_, 0, sizeof(activeMinutes_));
@@ -690,10 +691,12 @@ private:
     }
 
     /// callback for when the alarm expires.
-    void expired_callback()
+    /// @param done used to notify we are finished
+    void expired_callback(BarrierNotifiable *done)
     {
         server_->time_->request_time();
         update_notify();
+        done->notify();
     }
 
     /// Called when the clock time has changed.
