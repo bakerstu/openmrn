@@ -3,7 +3,7 @@
 #include "openlcb/BroadcastTimeAlarm.hxx"
 #include "openlcb/BroadcastTimeServer.hxx"
 
-#if 1
+#if 0
 #define PRINT_ALL_PACKETS() print_all_packets()
 #else
 #define PRINT_ALL_PACKETS()
@@ -19,7 +19,6 @@ public:
 
     void update_callback(BarrierNotifiable* done)
     {
-        printf("here\n");
         mock_callback();
         done->notify();
     }

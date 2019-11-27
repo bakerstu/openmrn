@@ -2,7 +2,7 @@
 
 #include "openlcb/BroadcastTimeServer.hxx"
 
-#if 1
+#if 0
 #define PRINT_ALL_PACKETS() print_all_packets()
 #else
 #define PRINT_ALL_PACKETS()
