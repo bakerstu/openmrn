@@ -81,14 +81,17 @@ public:
     }
 
     /// Start the alarm to expire at the given period from now.
-    /// @time period in fast seconds from now to expire
+    /// @param period in fast seconds from now to expire. @ref period is a
+    ///        a signed value. If the fast time rate is negative, the @ref
+    ///        period passed in should also be negative for an expiration in
+    ///        the future.
     void set_period(time_t period)
     {
         set(clock_->time() + period);
     }
 
     /// Start the alarm to expire at the given fast time.
-    /// @time time in seconds since epoch to expire
+    /// @param time in seconds since epoch to expire
     void set(time_t time)
     {
         bool need_wakeup = false;
@@ -402,11 +405,24 @@ private:
     }
 
     /// Reset the expired time based on what time it is now.
-    void reset_expired_time()
+    /// @param force_on_match true to force an expiration if on a minute
+    ///                       rollover boundary
+    void reset_expired_time(bool force_on_match = false)
     {
         const struct tm *tm = clock_->gmtime_recalculate();
         time_t seconds = clock_->time();
 
+        printf("time: %li\n", seconds);
+
+        if (force_on_match)
+        {
+            if ((clock_->get_rate_quarters() > 0 && tm->tm_sec == 0) ||
+                (clock_->get_rate_quarters() < 0 && tm->tm_sec == 59))
+            {
+                set(seconds);
+                return;
+            }
+        }
         if (clock_->get_rate_quarters() > 0)
         {
             set(seconds + (60 - tm->tm_sec));
@@ -428,7 +444,7 @@ private:
     /// Called when the clock time has changed.
     void update_notify() override
     {
-        reset_expired_time();
+        reset_expired_time(true);
         BroadcastTimeAlarm::update_notify();
     }
 

@@ -1,4 +1,367 @@
 #include "utils/async_if_test_helper.hxx"
 
 #include "openlcb/BroadcastTimeAlarm.hxx"
+#include "openlcb/BroadcastTimeServer.hxx"
 
+#if 1
+#define PRINT_ALL_PACKETS() print_all_packets()
+#else
+#define PRINT_ALL_PACKETS()
+#endif
+
+namespace openlcb
+{
+
+class BroadcastTimeAlarmTest : public AsyncNodeTest
+{
+public:
+    MOCK_METHOD0(mock_callback, void());
+
+    void update_callback(BarrierNotifiable* done)
+    {
+        printf("here\n");
+        mock_callback();
+        done->notify();
+    }
+
+protected:
+    BroadcastTimeAlarmTest()
+    {
+        PRINT_ALL_PACKETS();
+
+        ::testing::Sequence s1;
+
+        // consumer/producer identify ranges
+        expect_packet(":X1952422AN010100000100FFFF;").InSequence(s1);
+        expect_packet(":X194A422AN0101000001008000;").InSequence(s1);
+
+        // sync sequence
+        expect_packet(":X1954422AN010100000100F001;").InSequence(s1);
+        expect_packet(":X1954422AN0101000001004000;").InSequence(s1);
+        expect_packet(":X1954422AN01010000010037B2;").InSequence(s1);
+        expect_packet(":X1954422AN0101000001002101;").InSequence(s1);
+        expect_packet(":X1954422AN0101000001000000;").InSequence(s1);
+
+        server_ = new BroadcastTimeServer(
+            node_, BroadcastTimeDefs::DEFAULT_FAST_CLOCK_ID);
+
+        send_packet(":X19970001N;");
+        wait_for_event_thread();
+
+        clear_expect(true);
+
+        alarm_ = new BroadcastTimeAlarm(
+            node_, server_,
+            std::bind(&BroadcastTimeAlarmTest::update_callback, this,
+                      std::placeholders::_1));
+    }
+
+    ~BroadcastTimeAlarmTest()
+    {
+        clear_expect();
+        wait_for_event_thread();
+        alarm_->shutdown();
+        server_->shutdown();
+        wait();
+        while (!alarm_->is_shutdown())
+        {
+            usleep(10000);
+            wait();
+        }
+        while (!server_->is_shutdown())
+        {
+            usleep(10000);
+            wait();
+        }
+        twait();
+
+        delete alarm_;
+        delete server_;
+    }
+
+    BroadcastTimeServer *server_;
+    BroadcastTimeAlarm *alarm_;
+};
+
+TEST_F(BroadcastTimeAlarmTest, Create)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+};
+
+TEST_F(BroadcastTimeAlarmTest, SetPeriod)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    expect_any_packet();
+
+    server_->set_time(0, 0);
+    server_->set_date(1, 1);
+    server_->set_year(1970);
+    server_->set_rate_quarters(2000);
+    server_->start();
+
+    ::testing::Sequence s1;
+
+    EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
+    alarm_->set_period(60);
+    usleep(110000);
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // allow time to expire
+    usleep(030000);
+};
+
+TEST_F(BroadcastTimeAlarmTest, SetFutureExpires)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    expect_any_packet();
+
+    server_->set_time(0, 0);
+    server_->set_date(1, 1);
+    server_->set_year(1970);
+    server_->set_rate_quarters(2000);
+    server_->start();
+
+    ::testing::Sequence s1;
+
+    EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
+    alarm_->set(60);
+    usleep(110000);
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // allow time to expire
+    usleep(030000);
+};
+
+TEST_F(BroadcastTimeAlarmTest, SetFutureDoesNotExpire)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    expect_any_packet();
+
+    server_->set_time(0, 0);
+    server_->set_date(1, 1);
+    server_->set_year(1970);
+    server_->set_rate_quarters(2000);
+    server_->start();
+
+    ::testing::Sequence s1;
+
+    EXPECT_CALL(*this, mock_callback()).Times(0);
+    alarm_->set(60);
+    usleep(110000);
+};
+
+TEST_F(BroadcastTimeAlarmTest, SetFutureJumpOver)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    expect_any_packet();
+
+    server_->set_time(0, 0);
+    server_->set_date(1, 1);
+    server_->set_year(1970);
+    server_->set_rate_quarters(2000);
+    server_->start();
+
+    ::testing::Sequence s1;
+
+    EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
+    alarm_->set(60);
+
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // jump over
+    server_->set_time(2, 0);
+
+    EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
+    // jump back
+    server_->set_time(0, 0);    
+};
+
+TEST_F(BroadcastTimeAlarmTest, SetFutureExpiresBackward)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    expect_any_packet();
+
+    server_->set_time(0, 0);
+    server_->set_date(1, 2);
+    server_->set_year(1970);
+    server_->set_rate_quarters(-2000);
+    server_->start();
+
+    ::testing::Sequence s1;
+
+    EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
+    alarm_->set(86400 - 60);
+    usleep(110000);
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // allow time to expire
+    usleep(030000);
+};
+
+TEST_F(BroadcastTimeAlarmTest, SetFutureDoesNotExpireBackward)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    expect_any_packet();
+
+    server_->set_time(0, 0);
+    server_->set_date(1, 2);
+    server_->set_year(1970);
+    server_->set_rate_quarters(-2000);
+    server_->start();
+
+    ::testing::Sequence s1;
+
+    EXPECT_CALL(*this, mock_callback()).Times(0);
+    alarm_->set(86400 - 60);
+    usleep(110000);
+};
+
+TEST_F(BroadcastTimeAlarmTest, SetFutureJumpOverBackward)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    expect_any_packet();
+
+    server_->set_time(12, 0);
+    server_->set_date(1, 2);
+    server_->set_year(1970);
+    server_->set_rate_quarters(-2000);
+    server_->start();
+
+    ::testing::Sequence s1;
+
+    EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
+    alarm_->set(129600 - 60);
+
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // jump over
+    server_->set_time(10, 0);
+
+    EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
+    // jump back
+    server_->set_time(12, 0);    
+};
+
+TEST_F(BroadcastTimeAlarmTest, Minute)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    expect_any_packet();
+
+    server_->set_time(0, 0);
+    server_->set_date(1, 1);
+    server_->set_year(1970);
+    server_->set_rate_quarters(2000);
+    server_->start();
+
+    ::testing::Sequence s1;
+
+    BroadcastTimeAlarmMinute ma(node_, server_,
+        std::bind(&BroadcastTimeAlarmTest::update_callback, this,
+                  std::placeholders::_1));
+
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    usleep(110000);
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // allow time to expire
+    usleep(030000);
+
+    // run for five more fast minutes
+    EXPECT_CALL(*this, mock_callback()).Times(5).InSequence(s1);
+    usleep(600000);
+
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // jump forward
+    server_->set_time(0, 8);
+    usleep(030000);
+
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // jump back
+    server_->set_time(0, 6);    
+    usleep(030000);
+
+    ma.shutdown();
+    while (!ma.is_shutdown())
+    {
+        usleep(10000);
+    }
+};
+
+TEST_F(BroadcastTimeAlarmTest, MinuteBackward)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    expect_any_packet();
+
+    server_->set_rate_quarters(-2000);
+    server_->set_time(12, 0);
+    server_->set_date(1, 2);
+    server_->set_year(1970);
+    server_->start();
+
+    ::testing::Sequence s1;
+
+    BroadcastTimeAlarmMinute ma(node_, server_,
+        std::bind(&BroadcastTimeAlarmTest::update_callback, this,
+                  std::placeholders::_1));
+
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    usleep(110000);
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // allow time to expire
+    usleep(030000);
+
+    // run for five more fast minutes
+    EXPECT_CALL(*this, mock_callback()).Times(5).InSequence(s1);
+    usleep(600000);
+
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // jump forward
+    server_->set_time(11, 52);
+    usleep(030000);
+
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // jump back
+    server_->set_time(11, 54);    
+    usleep(030000);
+
+    ma.shutdown();
+    while (!ma.is_shutdown())
+    {
+        usleep(10000);
+    }
+};
+
+} // namespace openlcb
