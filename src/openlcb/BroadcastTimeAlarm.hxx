@@ -344,7 +344,7 @@ private:
         else if (clock_->get_rate_quarters() < 0)
         {
             set(seconds - ((tm->tm_sec + 1) +
-                           (60 * (tm->tm_min + 1)) +
+                           (60 * (tm->tm_min)) +
                            (60 * 60 * tm->tm_hour)));
         }
     }
@@ -411,8 +411,6 @@ private:
     {
         const struct tm *tm = clock_->gmtime_recalculate();
         time_t seconds = clock_->time();
-
-        printf("time: %li\n", seconds);
 
         if (force_on_match)
         {

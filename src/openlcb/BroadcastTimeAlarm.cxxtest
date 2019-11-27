@@ -268,6 +268,54 @@ TEST_F(BroadcastTimeAlarmTest, SetFutureJumpOverBackward)
     server_->set_time(12, 0);    
 };
 
+TEST_F(BroadcastTimeAlarmTest, Date)
+{
+    // time is not setup, clock is not running, expect 0 as default
+    EXPECT_EQ(server_->time(), 0);
+    EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
+    EXPECT_EQ(server_->day_of_year(), 0);
+
+    expect_any_packet();
+
+    server_->set_time(23, 59);
+    server_->set_date(1, 1);
+    server_->set_year(1970);
+    server_->set_rate_quarters(2000);
+    server_->start();
+
+    ::testing::Sequence s1;
+
+    BroadcastTimeAlarmDate da(node_, server_,
+        std::bind(&BroadcastTimeAlarmTest::update_callback, this,
+                  std::placeholders::_1));
+
+    EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
+    usleep(110000);
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // allow date rollover
+    usleep(030000);
+
+    // now test backwards
+    server_->stop();
+    server_->set_rate_quarters(-2000);
+    server_->set_time(0, 0);
+    server_->set_date(1, 1);
+    server_->set_year(1970);
+    server_->start();
+
+    EXPECT_CALL(*this, mock_callback()).Times(0).InSequence(s1);
+    usleep(110000);
+    EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
+    // allow date rollover
+    usleep(30000);
+
+    da.shutdown();
+    while (!da.is_shutdown())
+    {
+        usleep(10000);
+    }
+};
+
 TEST_F(BroadcastTimeAlarmTest, Minute)
 {
     // time is not setup, clock is not running, expect 0 as default
@@ -306,7 +354,7 @@ TEST_F(BroadcastTimeAlarmTest, Minute)
 
     EXPECT_CALL(*this, mock_callback()).Times(1).InSequence(s1);
     // jump back
-    server_->set_time(0, 6);    
+    server_->set_time(0, 6);
     usleep(030000);
 
     ma.shutdown();
