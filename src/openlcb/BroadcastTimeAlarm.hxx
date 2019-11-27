@@ -122,13 +122,8 @@ public:
 #if defined(GTEST)
     void shutdown()
     {
-        AtomicHolder h(this);
         shutdown_ = true;
         wakeup_.trigger();
-        while(!bn_.is_done())
-        {
-            bn_.notify();
-        }
     }
 
     bool is_shutdown()
