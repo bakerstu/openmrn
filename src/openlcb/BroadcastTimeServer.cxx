@@ -561,6 +561,7 @@ private:
             {
                 tm.tm_hour = BroadcastTimeDefs::event_to_hour(suffix);
                 tm.tm_min = BroadcastTimeDefs::event_to_min(suffix);
+                tm.tm_sec = server_->rate_ < 0 ? 59 : 0;
                 break;
             }
             case BroadcastTimeDefs::SET_DATE:
@@ -576,7 +577,7 @@ private:
             }
             case BroadcastTimeDefs::SET_RATE:
             {
-                    server_->rate_ = BroadcastTimeDefs::event_to_rate(suffix);
+                server_->rate_ = BroadcastTimeDefs::event_to_rate(suffix);
                 break;
             }
             default:
@@ -729,7 +730,7 @@ private:
         }
         else
         {
-             seconds -= tm->tm_sec ? tm->tm_sec : 60;
+             seconds -= tm->tm_sec + 1;
         }
 
         do
