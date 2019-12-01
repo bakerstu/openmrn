@@ -23,7 +23,7 @@ utils/OpenSSLAesCcm.test: SYSLIBRARIESEXTRA+=-lcrypto
 
 
 %.covdir/app.info : %.testout
-	cd $*.covdir/ ; for i in $$(find . -name \*.gcda) ; do echo i $$i base $${i%%.gcda} ;  cp --remove-destination $(realpath .)/$${i%%.gcda}.gcno $${i%%.gcda}.gcno || true ; done && lcov --directory . --capture --output-file app.info
+	cd $*.covdir/ ; for i in $$(find . -name \*.gcda) ; do echo i $$i base $${i%%.gcda} ;  cp --remove-destination $(realpath .)/$${i%%.gcda}.gcno $${i%%.gcda}.gcno ; done ; lcov -c -i -d . -o app_base.info ; lcov --directory . --capture --output-file app.info ; lcov -a app_base.info -a app.info -o app.info
 
 
 COVAGGRDIRS = $(dir $(TESTBINS))
