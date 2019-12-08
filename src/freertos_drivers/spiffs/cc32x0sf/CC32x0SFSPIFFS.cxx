@@ -55,7 +55,9 @@
 /// address before calling the flash APIs to cover for reversed flash banks.
 static const unsigned addr_mirror = (HWREG(FLASH_CONF) & FCMME) ? 0x80000 : 0;
 
-// Different options for what to set for flash write locking.
+// Different options for what to set for flash write locking. These are only
+// needed to debug when the operating system is misbehaving during flash
+// writes.
 
 // Global disable interrupts.
 //
