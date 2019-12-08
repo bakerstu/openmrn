@@ -54,7 +54,7 @@ void SlCheckError(int result)
     HASSERT(result >= 0);
 }
 
-void SlDeleteFile(const void* filename)
+int SlDeleteFile(const void* filename)
 {
     const uint8_t* name = (const uint8_t*)filename;
     int ret = sl_FsDel(name, 0);
@@ -70,4 +70,5 @@ void SlDeleteFile(const void* filename)
         ret = sl_FsDel(name, 0);
         LOG(INFO, "redelete %s: %d", name, ret);
     }
+    return ret;
 }
