@@ -57,11 +57,13 @@ namespace openmrn_arduino {
 /// Default stack size to use for all OpenMRN tasks on the ESP32 platform.
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
-/// Default thread priority for any OpenMRN owned tasks on the ESP32
-/// platform. ESP32 hardware CAN RX and TX tasks run at lower priority
-/// (-1 and -2 respectively) of this default priority to ensure timely
-/// consumption of CAN frames from the hardware driver.
-constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO;
+/// Default thread priority for any OpenMRN owned tasks on the ESP32 platform.
+/// ESP32 hardware CAN RX and TX tasks run at lower priority (-1 and -2 
+/// respectively) of this default priority to ensure timely consumption of CAN
+/// frames from the hardware driver.
+/// Note: This is set to one priority level lower than the TCP/IP task uses on
+/// the ESP32.
+constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 } // namespace openmrn_arduino
 

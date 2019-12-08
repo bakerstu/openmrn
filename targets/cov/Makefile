@@ -23,7 +23,13 @@ utils/OpenSSLAesCcm.test: SYSLIBRARIESEXTRA+=-lcrypto
 
 
 %.covdir/app.info : %.testout
-	cd $*.covdir/ ; for i in $$(find . -name \*.gcda) ; do cp --remove-destination $(realpath .$)/$${i%%.gcda}.gcno $${i%%.gcda}.gcno ; done && lcov --directory . --capture --output-file app.info
+	cd $*.covdir/ ; \
+	for i in $$(find . -name \*.gcda) ; do \
+	  echo i $$i base $${i%%.gcda} ; \
+	  ln -sf $(realpath .)/$${i%%.gcda}.gcno $${i%%.gcda}.gcno ; \
+	done ; \
+	lcov --directory . --capture --output-file app.info ; \
+	rm -f $$(find . -name \*.gcno -type l)
 
 
 COVAGGRDIRS = $(dir $(TESTBINS))
@@ -54,10 +60,14 @@ cov: lcovdir/index.html
 
 lcovdir/index.html: $(TESTOUTPUTS) $(TESTMD5) $(COVAGGRFILES)
 	mkdir lcovdir ; \
+	rm lcovdir/app_base.info; \
+	lcov -c -i -d . -o lcovdir/app_base.info; \
 	cd lcovdir ; rm app.info; \
 	lcov --output-file app.info $(foreach F,$(COVAGGRFILES), -a ../$F) ; \
 	lcov -r app.info "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app.info; \
-	genhtml -o . app.info
+	lcov -r app_base.info "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app_base.info; \
+	lcov -a app_base.info -a app.info -o app_total.info; \
+	genhtml -o . app_total.info
 
 # Helper function to create per-direcotry coverage summaries.
 #
