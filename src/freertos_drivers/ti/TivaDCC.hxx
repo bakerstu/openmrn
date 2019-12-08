@@ -274,7 +274,14 @@ public:
 
     /// Turns on DCC output.
     void enable_output() {
-        state_ = POWER_TURNON;
+        if (HW::use_slow_turnon())
+        {
+            state_ = POWER_TURNON;
+        }
+        else
+        {
+            state_ = POWER_IMM_TURNON;
+        }
     }
 
     /// Turns off DCC output.
@@ -451,6 +458,8 @@ private:
         POWER_TURNON_10P,
         // Turnon at 50% output power
         POWER_TURNON_50P,
+        // Turn on without going through the slow start sequence.
+        POWER_IMM_TURNON,
 
         // Used during periods when a short is detected on the output
         POWER_SHORT_20P,
@@ -725,11 +734,17 @@ inline void TivaDCC<HW>::interrupt_handler()
         break;
     case POWER_TURNON_50P:
         current_bit = TURNON_50P;
-        if (count++ >= 1000) {
-            packet_repeat_count = 0;
-            get_next_packet = true;
-            resync = true;
+        if (count++ < 1000)
+        {
+            break;
         }
+    // fall through
+    case POWER_IMM_TURNON:
+        current_bit = DCC_ONE;
+        internal_enable_output();
+        packet_repeat_count = 0;
+        get_next_packet = true;
+        resync = true;
         break;
     case POWER_SHORT_20P:
         current_bit = SHORT_20P;
@@ -941,7 +956,7 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver* railcom_driver)
     fill_timing_turnon(TURNON_1P, 500, 3 + (hDeadbandDelay_ + lDeadbandDelay_) / 2);
     fill_timing_turnon(TURNON_10P, 250, 13);
     fill_timing_turnon(TURNON_50P, 200, 50);
-    fill_timing_turnon(SHORT_20P, 500, 50);
+    fill_timing_turnon(SHORT_20P, 208, 26);
 
     unsigned h_deadband = 2 * (HW::H_DEADBAND_DELAY_NSEC / 1000);
     unsigned railcom_part = 0;
