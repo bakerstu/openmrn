@@ -36,6 +36,7 @@
 #include <time.h>
 
 #include "openlcb/DatagramDefs.hxx"
+#include "openlcb/FirmwareUpgradeDefs.hxx"
 #include "openlcb/StreamDefs.hxx"
 #include "openlcb/PIPClient.hxx"
 #include "openlcb/CanDefs.hxx"
@@ -731,6 +732,35 @@ private:
 
     Action finish()
     {
+        auto result = dgClient_->result();
+        result &= DatagramClient::RESPONSE_CODE_MASK;
+        if (result == DatagramClient::DST_REBOOT ||
+            result == DatagramClient::OPERATION_SUCCESS)
+        {
+            // this is fine
+            result = 0;
+        }
+        uint16_t olcb_error = result & 0xffff;
+        if (olcb_error == FirmwareUpgradeDefs::ERROR_INCOMPATIBLE_FIRMWARE)
+        {
+            return return_error(olcb_error,
+                "The firmware data is incompatible with this hardware.");
+        }
+        if (olcb_error == FirmwareUpgradeDefs::ERROR_CORRUPTED_DATA)
+        {
+            return return_error(
+                olcb_error, "The firmware data is invalid or corrupted.");
+        }
+        if (olcb_error == FirmwareUpgradeDefs::ERROR_WRITE_CHECKSUM_FAILED)
+        {
+            return return_error(olcb_error,
+                "The firmware written has failed checksum. Try again.");
+        }
+        if (olcb_error & DatagramClient::PERMANENT_ERROR)
+        {
+            return return_error(result & 0xffff, "");
+        }
+        // Not sure what this is.
         datagramService_->client_allocator()->typed_insert(dgClient_);
         return return_error(0, "");
     }

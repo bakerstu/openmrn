@@ -366,6 +366,10 @@ int appl_main(int argc, char *argv[])
     n.wait_for_notification();
     printf("Result: %04x  %s\n", response.error_code,
         response.error_details.c_str());
+    if (response.error_code != 0)
+    {
+        exit(1);
+    }
     exit(0);
     return 0;
 }
