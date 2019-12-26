@@ -62,11 +62,11 @@ public:
     ForwardAllocator();
     ~ForwardAllocator();
 
-#ifdef GTEST    
+#ifdef GTEST
     /// Usable only from unittests. Re-creates the pool to be empty.
     static void TEST_recreate_pool();
 #endif
-    
+
 private:
     /// A primitive type that has sufficient alignment to what we support.
     typedef uint64_t primitive_t;
