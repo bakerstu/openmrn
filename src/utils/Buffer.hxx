@@ -485,6 +485,21 @@ public:
     /** default destructor */
     ~DynamicPool()
     {
+#ifdef GTEST
+        for (unsigned i = 0; buckets[i].size() != 0; ++i)
+        {
+            // Frees all memory left in the bucket.
+            do
+            {
+                auto *p = static_cast<BufferBase *>(buckets[i].next().item);
+                if (!p)
+                {
+                    break;
+                }
+                ::free(p);
+            } while (true);
+        }
+#endif
         Bucket::destroy(buckets);
     }
 
