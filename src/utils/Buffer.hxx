@@ -143,7 +143,7 @@ protected:
 
     /** number of references in use */
     uint16_t count_;
-    
+
     /** Constructor.  Initializes count to 1 and done_ to NULL.
      * @param size size of buffer data
      * @param pool pool this buffer belong to
@@ -407,7 +407,7 @@ public:
 
         new (now) Bucket(s);
         now++;
-            
+
         for (int i = 1; i < count; ++i)
         {
             new (now) Bucket(va_arg(aq, int));
