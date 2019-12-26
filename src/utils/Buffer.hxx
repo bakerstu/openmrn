@@ -58,6 +58,7 @@ class LimitedPool;
 class Pool;
 template <class T> class Buffer;
 class BufferBase;
+class ForwardAllocator;
 
 namespace openlcb
 {
@@ -524,6 +525,8 @@ private:
     /** Default constructor.
      */
     DynamicPool();
+
+    friend class ForwardAllocator;
 
     DISALLOW_COPY_AND_ASSIGN(DynamicPool);
 };
