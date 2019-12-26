@@ -130,11 +130,6 @@ protected:
         return pool_;
     }
 
-    /** size of data in bytes */
-    uint16_t size_;
-
-    /** number of references in use */
-    uint16_t count_;
     /** Reference to the pool from whence this buffer came */
     Pool *pool_;
 
@@ -142,16 +137,22 @@ protected:
     /// everywhere. May be nullptr.
     BarrierNotifiable *done_;
 
+    /** size of data in bytes */
+    uint16_t size_;
+
+    /** number of references in use */
+    uint16_t count_;
+    
     /** Constructor.  Initializes count to 1 and done_ to NULL.
      * @param size size of buffer data
      * @param pool pool this buffer belong to
      */
     BufferBase(size_t size, Pool *pool)
         : QMember()
-        , size_(size)
-        , count_(1)
         , pool_(pool)
         , done_(NULL)
+        , size_(size)
+        , count_(1)
     {
     }
 
@@ -403,7 +404,10 @@ public:
         Bucket *bucket = (Bucket *)malloc(sizeof(Bucket) * count);
         Bucket *now = bucket;
 
-        for (int i = 0; i < count; ++i)
+        new (now) Bucket(s);
+        now++;
+            
+        for (int i = 1; i < count; ++i)
         {
             new (now) Bucket(va_arg(aq, int));
             now++;
