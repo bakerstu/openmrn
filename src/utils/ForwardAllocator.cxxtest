@@ -7,6 +7,12 @@
 class ForwardAllocatorTest : public ::testing::Test {
 protected:
     ForwardAllocator a_;
+
+    static void TearDownTestSuite() {
+        // This call will delete the pool, hopefully freeing all memory for the
+        // purpose of valgrind.
+        ForwardAllocator::TEST_recreate_pool();
+    }
 };
 
 TEST_F(ForwardAllocatorTest, createdestroy)
@@ -66,6 +72,18 @@ TEST_F(ForwardAllocatorTest, aligned_alloc_overflow)
     }
 }
 
+TEST_F(ForwardAllocatorTest, alloc_large)
+{
+    char* b = (char*)a_.allocate(1025, 1);
+    memset(b, 0x3a, 1025);
+    char* c = (char*)a_.allocate(1, 1);
+    char* d = (char*)a_.allocate(1, 1);
+    // These are in the same block
+    EXPECT_EQ(c+1, d);
+    // This is not the same block.
+    EXPECT_NE(b+1025, c);
+}
+
 TEST_F(ForwardAllocatorTest, free_realloc)
 {
     ForwardAllocator::TEST_recreate_pool();
@@ -78,5 +96,6 @@ TEST_F(ForwardAllocatorTest, free_realloc)
     char* c = (char*)a_.allocate(3, 1);
     EXPECT_EQ(b, c);
 }
+
 
 
