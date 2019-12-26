@@ -58,6 +58,7 @@ class LimitedPool;
 class Pool;
 template <class T> class Buffer;
 class BufferBase;
+class ForwardAllocator;
 
 namespace openlcb
 {
@@ -484,6 +485,21 @@ public:
     /** default destructor */
     ~DynamicPool()
     {
+#ifdef GTEST
+        for (unsigned i = 0; buckets[i].size() != 0; ++i)
+        {
+            // Frees all memory left in the bucket.
+            do
+            {
+                auto *p = static_cast<BufferBase *>(buckets[i].next().item);
+                if (!p)
+                {
+                    break;
+                }
+                ::free(p);
+            } while (true);
+        }
+#endif
         Bucket::destroy(buckets);
     }
 
@@ -528,6 +544,8 @@ private:
     /** Default constructor.
      */
     DynamicPool();
+
+    friend class ForwardAllocator;
 
     DISALLOW_COPY_AND_ASSIGN(DynamicPool);
 };

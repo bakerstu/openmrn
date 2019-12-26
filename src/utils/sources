@@ -11,6 +11,7 @@ CXXSRCS += \
            Buffer.cxx \
            ConfigUpdateListener.cxx \
            FileUtils.cxx \
+           ForwardAllocator.cxx \
            GcStreamParser.cxx \
            GcTcpHub.cxx \
            GridConnect.cxx \
