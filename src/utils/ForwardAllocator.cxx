@@ -42,6 +42,13 @@
 DynamicPool *ForwardAllocator::kbytePool_ =
     new DynamicPool(Bucket::init(sizeof(BufferType), 0));
 
+// static
+void ForwardAllocator::TEST_recreate_pool()
+{
+    delete kbytePool_;
+    kbytePool_ = new DynamicPool(Bucket::init(sizeof(BufferType), 0));
+}
+
 ForwardAllocator::ForwardAllocator()
 {
 }
