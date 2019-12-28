@@ -42,6 +42,8 @@
 DynamicPool *ForwardAllocator::kbytePool_ =
     new DynamicPool(Bucket::init(sizeof(BufferType), 0));
 
+static constexpr unsigned MALLOC_OVERHEAD = sizeof(void *);
+
 #ifdef GTEST
 // static
 void ForwardAllocator::TEST_recreate_pool()
@@ -78,6 +80,7 @@ void *ForwardAllocator::allocate(size_t size, size_t align)
         HASSERT(bufp);
         // Links the new buffer into the queue.
         OSMutexLock h(&lock_);
+        allocSize_ += head + MALLOC_OVERHEAD;
         if (allocatedBlocks_.empty())
         {
             allocatedBlocks_.SimpleQueue::push_front(bufp);
@@ -96,13 +99,17 @@ void *ForwardAllocator::allocate(size_t size, size_t align)
     if (pad)
     {
         pad = (align - pad);
+        allocWasted_ += pad;
     }
     offsetInLast_ += pad;
     if (offsetInLast_ + size > BLOCK_BYTE_SIZE)
     {
+        allocWasted_ += BLOCK_BYTE_SIZE;
+        allocWasted_ -= offsetInLast_;
         // Does not fit. Allocate new block.
         BufferType *new_block;
         kbytePool_->alloc(&new_block);
+        allocSize_ += sizeof(BufferType) + MALLOC_OVERHEAD;
         HASSERT(new_block);
         allocatedBlocks_.push_front(new_block);
         offsetInLast_ = 0;
