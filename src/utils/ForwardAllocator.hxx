@@ -95,6 +95,13 @@ private:
     /// Points into the last allocated block to the next emtpy space.
     size_t offsetInLast_ {BLOCK_BYTE_SIZE + 1};
 
+public:
+    /// Total number of bytes allocated.
+    size_t allocSize_ {0};
+    /// Number of bytes lost due to alignment and end-of-block chunks.
+    size_t allocWasted_ {0};
+
+private:
     /// Lock that protects the offset in last variable and the queue of blocks.
     OSMutex lock_;
     /// This buffer pool will have one bucket to allocate 1kb objects each and
