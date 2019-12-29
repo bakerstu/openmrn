@@ -120,7 +120,7 @@ private:
     /// List of timers that are scheduled.
     QMember activeTimers_;
     /// 1 if we in the executor's queue.
-    std::atomic_uint_fast8_t isPending_;
+    std::atomic_uint_least8_t isPending_;
 
     friend class TimerTest;
 

@@ -64,7 +64,7 @@ public:
     }
 
 private:
-    std::atomic_uint_fast8_t isInitialized_;
+    std::atomic_uint_least8_t isInitialized_;
     uninitialized<Atomic> atomic_;
 };
 

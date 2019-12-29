@@ -232,9 +232,9 @@ private:
 
     /** Set to 1 when the executor thread has exited and it is safe to delete
      * *this. */
-    std::atomic_uint_fast8_t done_;
+    std::atomic_uint_least8_t done_;
     /// 1 if the executor is already running
-    std::atomic_uint_fast8_t started_;
+    std::atomic_uint_least8_t started_;
     /// How many executables we schedule blindly before calling a select() in
     /// order to find more data to read/write in the FDs being waited upon.
     unsigned selectPrescaler_ : 5;

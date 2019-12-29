@@ -143,7 +143,7 @@ protected:
     uint16_t size_;
 
     /** number of references in use */
-    std::atomic_uint_fast16_t count_;
+    std::atomic_uint_least16_t count_;
 
     /** Constructor.  Initializes count to 1 and done_ to NULL.
      * @param size size of buffer data
