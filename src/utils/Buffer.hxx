@@ -38,6 +38,7 @@
 //#define DEBUG_BUFFER_MEMORY
 
 #include <memory>
+#include <atomic>
 #include <new>
 #include <cstdint>
 #include <cstdlib>
@@ -87,7 +88,7 @@ public:
     /// multiple owners.
     uint16_t references()
     {
-        return count_;
+        return count_.load();
     }
 
     /// Specifies that a given BarrierNotifiable must be called when the Buffer
@@ -142,7 +143,7 @@ protected:
     uint16_t size_;
 
     /** number of references in use */
-    uint16_t count_;
+    std::atomic_uint_fast16_t count_;
 
     /** Constructor.  Initializes count to 1 and done_ to NULL.
      * @param size size of buffer data
@@ -658,7 +659,7 @@ private:
 template <class T> void Buffer<T>::unref()
 {
     HASSERT(sizeof(Buffer<T>) <= size_);
-    if (--count_ == 0)
+    if (count_.fetch_sub(1) == 1u)
     {
         this->~Buffer();
         pool_->free(this);
