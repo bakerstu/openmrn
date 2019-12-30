@@ -38,12 +38,12 @@
 // On Cortex-M0 the only way to do atomic operation is to disable interrupts.
 
 /// Disables interrupts and saves the interrupt enable flag in a register.
-#define ACQ_LOCK()                                                      \
+#define ACQ_LOCK()                                                             \
     int _pastlock;                                                             \
     __asm volatile(" mrs %0, PRIMASK \n cpsid i\n" : "=r"(_pastlock));
 
 /// Restores the interrupte enable flag from a register.
-#define REL_LOCK() __asm volatile(" msr PRIMASK, %0\n ": : "r"(_pastlock));
+#define REL_LOCK() __asm volatile(" msr PRIMASK, %0\n " : : "r"(_pastlock));
 
 uint16_t __atomic_fetch_sub_2(uint16_t *ptr, uint16_t val, int memorder)
 {
