@@ -805,7 +805,10 @@ INPUT_ENCODING         = UTF-8
 # *.m, *.markdown, *.md, *.mm, *.dox, *.py, *.pyw, *.f90, *.f95, *.f03, *.f08,
 # *.f, *.for, *.tcl, *.vhd, *.vhdl, *.ucf and *.qsf.
 
-FILE_PATTERNS          =
+# FILE_PATTERNS temporally commented out because of a bug in DOXYGEN 1.8.16
+# preventing any files from being found.  This works in 1.8.13 and in the 
+# current unreleased version.
+# FILE_PATTERNS          =
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
 # be searched for input files as well.
