@@ -87,7 +87,7 @@ public:
      * the execution is completed. @param fn is the closure to run. */
     void sync_run(std::function<void()> fn);
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Send a message to this Executor's queue. Callable from interrupt
      * context.
      * @param action Executable instance to insert into the input queue
@@ -95,7 +95,7 @@ public:
      */
     virtual void add_from_isr(Executable *action,
                               unsigned priority = UINT_MAX) = 0;
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /** Adds a file descriptor to be watched to the select loop.
      * @param job Selectable structure that describes the descriptor to watch.
@@ -153,12 +153,18 @@ public:
     /// @return the thread handle.
     os_thread_t thread_handle() { return OSThread::get_handle(); }
 
+    OSThread& thread() { return *this; }
+    
     /// Die if we are not on the current executor.
     void assert_current() { HASSERT(os_thread_self() == thread_handle()); }
     
     /// @return a number that gets incremented by one every time an executable
     /// runs.
     virtual uint32_t sequence() = 0;
+
+    /// Helper function for debugging and tracing.
+    /// @return currently running executable or nullptr if none active.
+    Executable* volatile current() { return current_; }
     
 protected:
     /** Thread entry point.
@@ -207,7 +213,7 @@ private:
     const char *name_;
 
     /** Currently executing closure. USeful for debugging crashes. */
-    Executable* current_;
+    Executable* volatile current_;
 
     /** List of active timers. */
     ActiveTimers activeTimers_;
@@ -308,7 +314,7 @@ public:
 #endif
     }
 
-#ifdef __FreeRTOS__
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
     /** Send a message to this Executor's queue. Callable from interrupt
      * context.
      * @param msg Executable instance to insert into the input queue
@@ -316,11 +322,20 @@ public:
      */
     void add_from_isr(Executable *msg, unsigned priority = UINT_MAX) override
     {
+#ifdef ESP32
+        // On the ESP32 we need to call insert instead of insert_locked to
+        // ensure that all code paths lock the queue for consistency since
+        // this code path is not guaranteed to be protected by a critical
+        // section.
+        queue_.insert(
+            msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
+#else
         queue_.insert_locked(
             msg, priority >= NUM_PRIO ? NUM_PRIO - 1 : priority);
+#endif // ESP32
         selectHelper_.wakeup_from_isr();
     }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
     /** If the executor was created with NO_THREAD, then this function needs to
      * be called to run the executor loop. It will exit when the execut gets

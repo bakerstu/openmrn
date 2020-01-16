@@ -57,13 +57,6 @@ openlcb::TrainService traction_service(stack.iface());
 
 const char *const openlcb::SNIP_DYNAMIC_FILENAME = openlcb::MockSNIPUserFile::snip_user_file_path;
 
-using openlcb::Node;
-using openlcb::SimpleEventHandler;
-using openlcb::EventRegistry;
-using openlcb::EventReport;
-using openlcb::event_write_helper1;
-using openlcb::WriteHelper;
-
 int port = 12021;
 const char *host = "localhost";
 const char *device_path = nullptr;

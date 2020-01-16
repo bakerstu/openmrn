@@ -103,6 +103,17 @@ STM32CUBEF3PATH:=$(TRYPATH)
 endif
 endif #STM32CUBEF3PATH
 
+################ STM32Cube_F7 ##################
+ifndef STM32CUBEF7PATH
+SEARCHPATH := \
+  /opt/st/STM32Cube_FW_F7/default
+
+TRYPATH:=$(call findfirst,Drivers,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32CUBEF7PATH:=$(TRYPATH)
+endif
+endif #STM32CUBEF7PATH
+
 ################ lpcopen_18xx_43xx ##################
 ifndef LPCOPENPATH_18XX_43XX
 SEARCHPATH := \
@@ -174,6 +185,19 @@ ifneq ($(TRYPATH),)
 STM32PLIBPATH:=$(TRYPATH)
 endif
 endif #ifndef STM32PLIBPATH
+
+################### SPIFFS ####################
+ifndef SPIFFSPATH
+SEARCHPATH := \
+  /opt/spiffs \
+  /opt/spiffs/default \
+
+
+TRYPATH:=$(call findfirst,src/spiffs_nucleus.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+SPIFFSPATH:=$(TRYPATH)
+endif
+endif #SPIFFSPATH
 
 ################### FreeRTOS ####################
 ifndef FREERTOSPATH
@@ -458,6 +482,17 @@ ifneq ($(TRYPATH),)
 PIC32MXLEGACYPLIBPATH:=$(TRYPATH)
 endif
 endif #PIC32MXLEGACYPLIBPATH
+
+################### PIC32HARMONY #####################
+ifndef PIC32HARMONYPATH
+SEARCHPATH := \
+  /opt/microchip/harmony/default \
+
+TRYPATH:=$(call findfirst,framework/usb/usb_cdc.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+PIC32HARMONYPATH:=$(TRYPATH)
+endif
+endif #PIC32HARMONYPATH
 
 ##################### OPENOCD ######################
 ifndef OPENOCDPATH

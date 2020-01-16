@@ -74,15 +74,18 @@ static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1900);
  * the STM32F0 it is 2 kbytes). The file size maximum is half this value. */
 const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
 
-Stm32PWMGroup servo_timer(TIM3, (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,
-                          configCPU_CLOCK_HZ * 6 / 1000);
+Stm32PWMGroup servo_timer(TIM3,
+    /*prescaler=*/ (servoPwmCountPerMs * 6 + 65535) / 65536,
+    /*period_counts=*/ servoPwmCountPerMs * 6);
 
-extern PWM* servo_channels[];
+extern PWM* const servo_channels[];
 /// The order of these channels follows the schematic arrangement of MCU pins
 /// to logical servo ports.
-PWM *servo_channels[4] = { //
-    servo_timer.get_channel(4), servo_timer.get_channel(2),
-    servo_timer.get_channel(3), servo_timer.get_channel(1)};
+PWM * const servo_channels[4] = { //
+    Stm32PWMGroup::get_channel(&servo_timer, 4),
+    Stm32PWMGroup::get_channel(&servo_timer, 2),
+    Stm32PWMGroup::get_channel(&servo_timer, 3),
+    Stm32PWMGroup::get_channel(&servo_timer, 1)};
 
 /// Recursive mutex for SPI1 peripheral.
 OSMutex spi1_lock(true);
@@ -118,6 +121,11 @@ static uint32_t rest_pattern = 0;
 
 void hw_set_to_safe(void)
 {
+}
+
+void reboot()
+{
+    NVIC_SystemReset();
 }
 
 void resetblink(uint32_t pattern)
@@ -200,6 +208,10 @@ static void clock_setup(void)
 }
 
 /** Initialize the processor hardware.
+ *
+ *  Don't depend on runtime-initialized global variables
+ *  in this function; these will be initialized after
+ *  hw_preinit in startup.c.
  */
 void hw_preinit(void)
 {

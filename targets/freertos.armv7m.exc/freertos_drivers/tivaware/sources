@@ -1,0 +1,21 @@
+include $(OPENMRNPATH)/etc/tivaware.mk
+DEPS += TIVAWAREPATH
+VPATH=$(OPENMRNPATH)/src/freertos_drivers/ti
+
+CXXSRCS += TivaCan.cxx \
+           TivaI2C.cxx \
+           TivaUart.cxx \
+           TivaUsbCdcDevice.cxx \
+           TivaUsbKeyboardDev.cxx \
+           TivaFlash.cxx \
+           TivaEEPROMEmulation.cxx \
+
+ifeq ($FREERTOSTCPPATH,BOARD_LAUNCHPAD_EK)
+
+include $(OPENMRNPATH)/etc/freertos_tcp.mk
+
+CXXSRCS += Tiva1294Ethernet.cxx
+
+DEPS += FREERTOSTCPPATH
+
+endif

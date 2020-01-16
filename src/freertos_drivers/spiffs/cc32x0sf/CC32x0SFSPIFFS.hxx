@@ -56,6 +56,7 @@ public:
     /// Destructor.
     ~CC32x0SFSPIFFS()
     {
+        unmount();
     }
 
 private:

@@ -137,17 +137,32 @@ standard names - or at least those used in the unmodified vector table. */
  *************************************************************************** */
 #elif defined (GCC_ARMCM0)
 
+#define configCPU_CLOCK_HZ             ( cpu_clock_hz )
+#define configMINIMAL_STACK_SIZE       ( ( unsigned short ) 256 )
+//#define configTOTAL_HEAP_SIZE          ( ( size_t ) ( 7000 ) )
+#define configTIMER_TASK_STACK_DEPTH   256
+
+// change #if to 1 in order to enable asserts for the kernel
+#if 0
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern int g_death_lineno;
+#ifdef __cplusplus
+}
+#endif  // cplusplus
+#define configASSERT( x ) do { if (!(x)) { g_death_lineno = __LINE__; diewith(BLINK_DIE_ASSERT); }} while(0)
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 extern const unsigned long cpu_clock_hz;
+extern void diewith(unsigned long);
+extern unsigned long blinker_pattern;
 #ifdef __cplusplus
 }
 #endif  // cplusplus
-
-#define configCPU_CLOCK_HZ             ( cpu_clock_hz )
-#define configMINIMAL_STACK_SIZE        ( ( unsigned short ) 64 )
-#define configTIMER_TASK_STACK_DEPTH   128
 
 #define vPortSVCHandler SVC_Handler
 #define xPortPendSVHandler PendSV_Handler
@@ -251,7 +266,7 @@ standard names - or at least those used in the unmodified vector table. */
 #define configCPU_CLOCK_HZ             ( pic32_cpu_clock_hz )
 #define configPERIPHERAL_CLOCK_HZ      ( pic32_periph_clock_hz )
 #define configMINIMAL_STACK_SIZE       ( 90 )
-#define configISR_STACK_SIZE           ( 120 )
+#define configISR_STACK_SIZE           ( 512 )
 #define configTOTAL_HEAP_SIZE          ( ( size_t ) 9000 )
 #define configTIMER_TASK_STACK_DEPTH   ( 190 )
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
@@ -303,12 +318,13 @@ extern unsigned long blinker_pattern;
 #define configUSE_MUTEXES              1
 #define configUSE_RECURSIVE_MUTEXES    1
 #define configUSE_COUNTING_SEMAPHORES  1
+#define configUSE_NEWLIB_REENTRANT     1
 #define configUSE_CO_ROUTINES          0
 #ifndef configCHECK_FOR_STACK_OVERFLOW
 #define configCHECK_FOR_STACK_OVERFLOW 2
 #endif
 
-#define configMAX_PRIORITIES        ( 5 )
+#define configMAX_PRIORITIES            ( 5 )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
 
 #define configUSE_APPLICATION_TASK_TAG 1
@@ -322,6 +338,10 @@ extern unsigned long blinker_pattern;
 #define configSUPPORT_STATIC_ALLOCATION     1
 #define configSUPPORT_DYNAMIC_ALLOCATION    1
 #endif
+
+/* Enable thread local storage, only active on FreeRTOS 9.x+ */
+#define configNUM_THREAD_LOCAL_STORAGE_POINTERS 1
+#define TLS_INDEX_SELECT_EVENT_BIT 0 /* Wakeup event for platform select() */
 
 /* backwards compatibility */
 #if !defined(vPortClearInterruptMask)
@@ -345,24 +365,6 @@ to exclude the API function. */
 #define INCLUDE_xEventGroupSetBitFromISR 1
 #define INCLUDE_xTimerPendFunctionCall  1
 #ifndef __LANGUAGE_ASSEMBLY__
-
-/// Subset of the TaskPriv structure that contains the struct reent
-/// pointer. This is needed for compatibility of newlib with the task switching
-/// code of FreeRTOS.
-typedef struct task_switched_in
-{
-    struct _reent *reent; /**< newlib thread specific data (errno, etc...) */
-} TaskSwitchedIn;
-
-/* We can use this hook in order to change out the newlib struct __reent fo
- * each thread.  This is setup in os_thread_create. */
-#define traceTASK_SWITCHED_IN()                                           \
-{                                                                         \
-    TaskSwitchedIn *task_switched_in;                                      \
-    task_switched_in = (TaskSwitchedIn*)(prvGetTCBFromHandle(NULL)->pxTaskTag); \
-    if (task_switched_in) _impure_ptr = task_switched_in->reent;         \
-}
-
 #ifndef TARGET_LPC11Cxx
 /** This trace macro is called from the tick interrupt; we use it for
  * collecting CPU load information. */

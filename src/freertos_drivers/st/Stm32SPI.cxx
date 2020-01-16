@@ -41,6 +41,8 @@
 #include "stm32f1xx_ll_rcc.h"
 #elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_ll_rcc.h"
+#elif defined(STM32F767xx)
+#include "stm32f7xx_ll_rcc.h"
 #else
 #error Dont know what STM32 chip you have.
 #endif

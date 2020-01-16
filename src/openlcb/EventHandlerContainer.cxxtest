@@ -27,11 +27,11 @@ class DecodeRangeTest : public testing::Test
 protected:
     void ExpectDecode(uint64_t complex, uint64_t exp_event, uint64_t exp_mask)
     {
-        EventReport r;
-        r.event = complex;
-        DecodeRange(&r);
-        EXPECT_EQ(exp_event, r.event);
-        EXPECT_EQ(exp_mask, r.mask);
+        EventReport report(FOR_TESTING);
+        report.event = complex;
+        DecodeRange(&report);
+        EXPECT_EQ(exp_event, report.event);
+        EXPECT_EQ(exp_mask, report.mask);
     }
 
     uint64_t eventid_;
@@ -76,9 +76,10 @@ protected:
         tmp_event = event;
         unsigned actual_mask =
             EventRegistry::align_mask(&tmp_event, size);
-        string dbg = StringPrintf(
-            "event 0x%llx size %u actual event 0x%llx actual mask %u", event,
-            size, tmp_event, actual_mask);
+        string dbg =
+            StringPrintf("event 0x%" PRIx64 " size %u actual event 0x%" PRIx64
+                         " actual mask %u",
+                event, size, tmp_event, actual_mask);
         EXPECT_LE(tmp_event, event) << dbg;
         if (actual_mask < 64)
         {
@@ -337,7 +338,7 @@ public:
     }
 
 protected:
-    EventReport report_;
+    EventReport report_{FOR_TESTING};
     TreeEventHandlers handlers_;
     std::unique_ptr<EventIterator> iter_;
 };

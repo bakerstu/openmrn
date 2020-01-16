@@ -58,6 +58,13 @@ char* unsigned_integer_to_buffer(int value, char* buffer);
  */
 char* uint64_integer_to_buffer(uint64_t value, char* buffer);
 
+/** Renders an int64_t to string, left-justified.
+ * @param buffer must be an at least 22 character long array.
+ * @param value will be rendered into the buffer.
+ * @returns the pointer to the null character at the end of the rendering.
+ */
+char* int64_integer_to_buffer(int64_t value, char* buffer);
+
 /** Renders an unsigned integer to string, left-justified.
  * @param buffer must be an at least 10 character long array.
  * @param value will be rendered into the buffer.
@@ -70,7 +77,21 @@ char* unsigned_integer_to_buffer_hex(unsigned int value, char* buffer);
  * @param value will be rendered into the buffer.
  * @returns the pointer to the null character at the end of the rendering.
  */
-char* uint64_integer_to_buffer_hex(uint16_t value, char* buffer);
+char* uint64_integer_to_buffer_hex(uint64_t value, char* buffer);
+
+/** Renders an int64_t to string, left-justified.
+ * @param buffer must be an at least 18 character long array.
+ * @param value will be rendered into the buffer.
+ * @returns the pointer to the null character at the end of the rendering.
+ */
+char* int64_integer_to_buffer_hex(int64_t value, char* buffer);
+
+/** Renders an integer to std::string, left-justified.
+ * @param value will be rendered into the buffer.
+ * @param padding number of bytes that the resulting string should be.
+ * @returns the pointer to the null character at the end of the rendering.
+ */
+string integer_to_string(int value, unsigned padding = 0);
 
 /** Renders an uint64_t to std::string, left-justified.
  * @param value will be rendered into the buffer.
@@ -79,12 +100,26 @@ char* uint64_integer_to_buffer_hex(uint16_t value, char* buffer);
  */
 string uint64_to_string(uint64_t value, unsigned padding = 0);
 
+/** Renders an int64_t to std::string, left-justified.
+ * @param value will be rendered into the buffer.
+ * @param padding number of bytes that the resulting string should be.
+ * @returns the pointer to the null character at the end of the rendering.
+ */
+string int64_to_string(int64_t value, unsigned padding = 0);
+
 /** Renders an uint64_t to std::string, left-justified.
  * @param value will be rendered into the buffer.
  * @param padding number of bytes that the resulting string should be.
  * @returns the pointer to the null character at the end of the rendering.
  */
 string uint64_to_string_hex(uint64_t value, unsigned padding = 0);
+
+/** Renders an int64_t to std::string, left-justified.
+ * @param value will be rendered into the buffer.
+ * @param padding number of bytes that the resulting string should be.
+ * @returns the pointer to the null character at the end of the rendering.
+ */
+string int64_to_string_hex(int64_t value, unsigned padding = 0);
 
 /// Formats a MAC address to string. Works both for Ethernet addresses as well
 /// as for OpenLCB node IDs.

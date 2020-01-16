@@ -82,7 +82,6 @@ public:
 
 private:
     virtual Action entry() OVERRIDE;
-    Action perform_call();
     Action call_done();
 
     BarrierNotifiable n_;
@@ -138,9 +137,6 @@ protected:
 
 private:
     virtual Action dispatch_event(const EventRegistryEntry *entry);
-    /// Called when there will be no more dispatch_event calls for this
-    /// iteration.
-    virtual void no_more_matches() {};
 
 protected:
     EventService *eventService_;
@@ -189,12 +185,7 @@ public:
 
 private:
     Action dispatch_event(const EventRegistryEntry *entry) OVERRIDE;
-    void no_more_matches() OVERRIDE;
 
-    Action perform_call();
-
-    /// True if we are already holding the event handler mutex.
-    bool holdingEventMutex_{false};
     /// The handler we need to call.
     const EventRegistryEntry *currentEntry_{nullptr};
 };

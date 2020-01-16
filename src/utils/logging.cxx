@@ -35,6 +35,8 @@
 
 #if defined(__linux__) || defined(__MACH__)
 char logbuffer[4096];
+#elif defined(ESP32)
+char logbuffer[1024];
 #else
 /// Temporary buffer to sprintf() the log lines into.
 char logbuffer[256];
@@ -54,7 +56,7 @@ void log_output(char* buf, int size) {
     send_stdio_serial_message(buf);
 }
 
-#elif defined(__linux__) || defined(__MACH__) || defined(__EMSCRIPTEN__)
+#elif defined(__linux__) || defined(__MACH__) || defined(__EMSCRIPTEN__) || defined(ESP32)
 
 #include "utils/stdio_logging.h"
 

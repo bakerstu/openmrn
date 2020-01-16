@@ -314,6 +314,16 @@ void uart1_interrupt_handler(void)
   railcom_driver.os_interrupt_handler();
 }
 
+void timer1a_interrupt_handler(void)
+{
+    tivaDCC.interrupt_handler();
+}
+
+void timer0a_interrupt_handler(void)
+{
+    tivaDCC.os_interrupt_handler();
+}
+
 void diewith(uint32_t pattern)
 {
     vPortClearInterruptMask(0x20);
@@ -383,11 +393,9 @@ void hw_preinit(void)
     g_gpio_stored_bit_set = new EEPROMStoredBitSet<TivaEEPROMHwDefs<EEPROM_BIT_COUNT, EEPROM_BITS_PER_CELL>>(2, 2);
 }
 
-/** Timer interrupt for DCC packet handling.
- */
-void timer1a_interrupt_handler(void)
+void hw_postinit(void)
 {
-    tivaDCC.interrupt_handler();
+    tivaDCC.enable_output();
 }
 
 }

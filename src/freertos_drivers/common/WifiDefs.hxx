@@ -1,6 +1,8 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_WIFIDEFS_HXX_
 #define _FREERTOS_DRIVERS_COMMON_WIFIDEFS_HXX_
 
+#include <stdint.h>
+
 /// Wifi not associated to access point: continuous short blinks.
 #define WIFI_BLINK_NOTASSOCIATED  0b1010
 /// Waiting for IP address: double short blink, pause, double short blink, ...
@@ -22,6 +24,7 @@ enum class WlanState : uint8_t
     CONNECT_STATIC,
     CONNECT_FAILED,
     CONNECTION_LOST,
+    WRONG_PASSWORD,
     UPDATE_DISPLAY = 20,
 };
 
@@ -34,6 +37,19 @@ enum class WlanRole : uint8_t
     AP           /**< Wi-Fi access point mode */
 };
 
+enum class CountryCode : uint8_t
+{
+    US, ///< United States
+    EU, ///< European Union
+    JP, ///< Japan
+    UNKNOWN, ///< unknown country code
+};
+
+enum class WlanConnectResult
+{
+    CONNECT_OK = 0, ///< success
+    PASSWORD_INVALID, /// password privided is invalid
+};
 
 extern "C" {
 /// Name of wifi accesspoint to connect to.

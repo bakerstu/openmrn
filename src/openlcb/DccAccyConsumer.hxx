@@ -78,12 +78,12 @@ public:
         {
             return done->notify();
         }
-        event_write_helper1.WriteAsync(node_,
+        event->event_write_helper<1>()->WriteAsync(node_,
             Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
             eventid_to_buffer(EncodeRange(
                 TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE, 2044)),
             done->new_child());
-        event_write_helper2.WriteAsync(node_,
+        event->event_write_helper<2>()->WriteAsync(node_,
             Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
             eventid_to_buffer(EncodeRange(
                 TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE, 2044)),
@@ -150,8 +150,9 @@ public:
             s = EventState::UNKNOWN;
         }
         Defs::MTI mti = Defs::MTI_CONSUMER_IDENTIFIED_VALID + s;
-        event_write_helper1.WriteAsync(node_, mti, WriteHelper::global(),
-            eventid_to_buffer(event->event), done->new_child());
+        event->event_write_helper<1>()->WriteAsync(node_, mti,
+            WriteHelper::global(), eventid_to_buffer(event->event),
+            done->new_child());
     }
 
 private:

@@ -37,13 +37,6 @@
 namespace openlcb
 {
 
-AsyncMutex event_handler_mutex;
-WriteHelper event_write_helper1;
-WriteHelper event_write_helper2;
-WriteHelper event_write_helper3;
-WriteHelper event_write_helper4;
-BarrierNotifiable event_barrier;
-
 EventRegistry::EventRegistry()
 {
 }

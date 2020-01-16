@@ -37,7 +37,25 @@
 #define _POSIX_C_SOURCE 200112L
 #endif
 
+#if defined(__MACH__)
+#define _DARWIN_C_SOURCE // mkdtemp
+#endif
+
 #include "os/TempFile.hxx"
+
+/// @todo mingw does not seem to have an mkdtemp call.
+#if !defined(__FreeRTOS__) && !defined(__WINNT__)
+TempDir::TempDir()
+{
+#if defined(__linux__) || defined(__MACH__)
+    dirName_ = "/tmp/openmrntmpdirXXXXXX";
+#else
+    dirName_ = "./openmrntmpdirXXXXXX";
+#endif
+    dirName_.c_str();
+    HASSERT(mkdtemp(&dirName_[0]));
+}
+#endif
 
 //
 // TempFile::TempFile()

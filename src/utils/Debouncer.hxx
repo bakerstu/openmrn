@@ -79,6 +79,14 @@ public:
     {
     }
 
+    /// Re-creates the debouncer with new options.
+    /// @param opts new options.
+    void reset_options(const Options &opts)
+    {
+        waitCount_ = opts;
+        initialize(currentState_);
+    }
+
     /// Initializes the debouncer. @param state is the externally forced state.
     void initialize(bool state)
     {

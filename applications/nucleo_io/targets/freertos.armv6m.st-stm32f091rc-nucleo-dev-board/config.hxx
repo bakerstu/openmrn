@@ -5,6 +5,7 @@
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/MemoryConfig.hxx"
+#include "openlcb/ServoConsumerConfig.hxx"
 
 namespace openlcb
 {
@@ -29,6 +30,8 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
 
+#define NUM_EXTBOARDS 0
+
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
@@ -37,6 +40,7 @@ using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
 using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 using DirectConsumers = RepeatedGroup<ConsumerConfig, 8>;
+using ServoConsumers = RepeatedGroup<ServoConsumerConfig, 4>;
 using PortDEConsumers = RepeatedGroup<ConsumerConfig, 16>;
 using PortABProducers = RepeatedGroup<ProducerConfig, 16>;
 
@@ -44,7 +48,7 @@ using PulseConsumers = RepeatedGroup<PulseConsumerConfig, 12>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x1422;
+static constexpr uint16_t CANONICAL_VERSION = 0x1623;
 
 CDI_GROUP(NucleoGroup, Name("Nucleo peripherals"), Description("These are physically located on the nucleo CPU daughterboard."));
 CDI_GROUP_ENTRY(green_led, ConsumerConfig, Name("Nucleo user LED"), Description("Green led (LD2)."));
@@ -60,7 +64,8 @@ CDI_GROUP_ENTRY(internal_config, InternalConfigData);
 CDI_GROUP_ENTRY(nucleo_onboard, NucleoGroup);
 CDI_GROUP_ENTRY(snap_switches, PulseConsumers, Name("Consumers for snap switches"), Description("These are on port D"), RepName("Line"));
 CDI_GROUP_ENTRY(direct_consumers, DirectConsumers, Name("Tortoise/Hi-Power outputs"), RepName("Line"));
-CDI_GROUP_ENTRY(servo_consumers, DirectConsumers, Name("Servo Pin outputs"), Description("Temporary solution to test servo output pins."), RepName("Line"));
+CDI_GROUP_ENTRY(servo_consumers, ServoConsumers, Name("Servo PWM outputs"), Description("3-pin servo outputs."), RepName("Line"));
+CDI_GROUP_ENTRY(hidden_servo_5_8, ServoConsumers, Hidden(true));
 CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Description("Line 1-8 is port D, Line 9-16 is port E"), RepName("Line"));
 CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
 CDI_GROUP_END();

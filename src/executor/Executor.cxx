@@ -33,6 +33,8 @@
  * @date 26 October 2013
  */
 
+#define _DEFAULT_SOURCE
+
 #include "executor/Executor.hxx"
 
 #include <unistd.h>
@@ -161,6 +163,7 @@ void ExecutorBase::sync_run(std::function<void()> fn)
 
 bool ExecutorBase::loop_once()
 {
+    ScopedSetThreadHandle h(this);
     unsigned priority;
     activeTimers_.get_next_timeout();
     Executable* msg = next(&priority);
@@ -181,6 +184,7 @@ bool ExecutorBase::loop_once()
 }
 
 long long ICACHE_FLASH_ATTR  ExecutorBase::loop_some() {
+    ScopedSetThreadHandle h(this);
     for (int i = 12; i > 0; --i) {
         Executable *msg = nullptr;
         unsigned priority = UINT_MAX;
@@ -206,12 +210,12 @@ long long ICACHE_FLASH_ATTR  ExecutorBase::loop_some() {
     return 0;
 }
 
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__)
 
 void executor_loop_some(void* arg)
 {
-  ExecutorBase* b = static_cast<ExecutorBase*>(arg);
-  while (b->loop_once());
+    ExecutorBase* b = static_cast<ExecutorBase*>(arg);
+    while (b->loop_once());
 }
 
 void *ExecutorBase::entry()
@@ -220,6 +224,14 @@ void *ExecutorBase::entry()
     sequence_ = 0;
     ExecutorBase* b = this;
     emscripten_set_main_loop_arg(&executor_loop_some, b, 100, true);
+    return nullptr;
+}
+
+#elif defined(ARDUINO) && !defined(ESP32)
+
+void *ExecutorBase::entry()
+{
+    DIE("Arduino code should not start the executor.");
     return nullptr;
 }
 
@@ -407,13 +419,24 @@ void ExecutorBase::wait_with_select(long long wait_length)
 
 #endif
 
+#if defined(ARDUINO)
+// declare the function rather than include Arduino.h
+extern "C"
+{
+void delay(unsigned long);
+}
+#endif // ARDUINO
 void ExecutorBase::shutdown()
 {
     if (!started_) return;
     add(this);
     while (!done_)
     {
+#if defined(ARDUINO)
+        delay(1);
+#else
         usleep(100);
+#endif        
     }
 }
 

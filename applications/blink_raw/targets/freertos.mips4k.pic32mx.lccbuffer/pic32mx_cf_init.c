@@ -1,1 +1,0 @@
-../../../../boards/mc-pic32mx-lccbuffer/pic32mx_cfg_init.c

@@ -78,13 +78,6 @@ const char kFdiXml[] =
 openlcb::LoggingTrain trainImpl(1732);
 openlcb::SimpleTrainCanStack stack(&trainImpl, kFdiXml, NODE_ID);
 
-using openlcb::Node;
-using openlcb::SimpleEventHandler;
-using openlcb::EventRegistry;
-using openlcb::EventReport;
-using openlcb::event_write_helper1;
-using openlcb::WriteHelper;
-
 int port = 12021;
 const char *host = "localhost";
 const char *device_path = nullptr;

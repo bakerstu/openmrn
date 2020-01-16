@@ -288,6 +288,7 @@
 
 #ifdef HAL_I2C_MODULE_ENABLED
  #include "stm32f3xx_hal_i2c.h"
+ #include "stm32f3xx_ll_i2c.h"
 #endif /* HAL_I2C_MODULE_ENABLED */
 
 #ifdef HAL_I2S_MODULE_ENABLED

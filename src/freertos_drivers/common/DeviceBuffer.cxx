@@ -34,6 +34,8 @@
 
 #include "DeviceBuffer.hxx"
 
+#ifndef ARDUINO
+
 #include <sys/select.h>
 
 /** Block until the wait condition is true.  The condition is defined by
@@ -59,3 +61,4 @@ void DeviceBufferBase::block_until_condition(File *file, bool read)
     ::select(fd + 1, read ? &fds : NULL, read ? NULL : &fds, NULL, NULL);
 }
 
+#endif

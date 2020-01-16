@@ -35,6 +35,7 @@
 
 #include <fcntl.h>
 
+#include "spiffs.h"
 #include "spiffs_nucleus.h"
 
 #ifndef _FDIRECT
@@ -44,6 +45,16 @@
 #ifndef O_DIRECT
 #define O_DIRECT _FDIRECT
 #endif
+
+void SPIFFS::extern_lock(struct spiffs_t *fs)
+{
+    static_cast<SPIFFS *>(fs->user_data)->lock_.lock();
+}
+
+void SPIFFS::extern_unlock(struct spiffs_t *fs)
+{
+    static_cast<SPIFFS *>(fs->user_data)->lock_.unlock();
+}
 
 extern "C"
 {
@@ -65,6 +76,26 @@ void extern_spiffs_unlock(struct spiffs_t *fs)
 }
 } // extern "C"
 
+// static
+int SPIFFS::flash_read(
+    struct spiffs_t *fs, unsigned addr, unsigned size, uint8_t *dst)
+{
+    return static_cast<SPIFFS *>(fs->user_data)->flash_read(addr, size, dst);
+}
+
+// static
+int SPIFFS::flash_write(
+    struct spiffs_t *fs, unsigned addr, unsigned size, uint8_t *src)
+{
+    return static_cast<SPIFFS *>(fs->user_data)->flash_write(addr, size, src);
+}
+
+// static
+int SPIFFS::flash_erase(struct spiffs_t *fs, unsigned addr, unsigned size)
+{
+    return static_cast<SPIFFS *>(fs->user_data)->flash_erase(addr, size);
+}
+
 //
 // SPIFFS::SPIFFS()
 //
@@ -74,14 +105,6 @@ SPIFFS::SPIFFS(size_t physical_address, size_t size_on_disk,
                size_t cache_pages,
                std::function<void()> post_format_hook)
     : FileSystem()
-    , config_({.hal_read_f       = flash_read,
-               .hal_write_f      = flash_write,
-               .hal_erase_f      = flash_erase,
-               .phys_size        = size_on_disk,
-               .phys_addr        = physical_address,
-               .phys_erase_block = erase_block_size,
-               .log_block_size   = logical_block_size,
-               .log_page_size    = logical_page_size})
     , postFormatHook_(std::move(post_format_hook))
     , lock_()
     , workBuffer_(new uint8_t[logical_page_size * 2])
@@ -91,8 +114,83 @@ SPIFFS::SPIFFS(size_t physical_address, size_t size_on_disk,
                  cache_pages * (sizeof(spiffs_cache_page) + logical_page_size))
     , cache_(new uint8_t[cacheSize_])
     , formatted_(false)
+    , anyDirty_(false)
 {
-    fs_.user_data = this;
+    fs_ = new spiffs;
+    fs_->user_data = this;
+    spiffs_config tmp{  //
+        .hal_read_f       = flash_read,
+        .hal_write_f      = flash_write,
+        .hal_erase_f      = flash_erase,
+        .phys_size        = size_on_disk,
+        .phys_addr        = physical_address,
+        .phys_erase_block = erase_block_size,
+        .log_block_size   = logical_block_size,
+        .log_page_size    = logical_page_size};
+    memcpy(&fs_->cfg, &tmp, sizeof(fs_->cfg));
+}
+
+//
+// Destructor
+//
+SPIFFS::~SPIFFS()
+{
+    // Performing unmount in the destructor of the base class is not
+    // possible, because the virtual functions for reading and writing the
+    // flash cannot be called anymore.
+    HASSERT(SPIFFS_mounted(fs_) == 0);
+    delete[] fdSpace_;
+    delete[] workBuffer_;
+    delete fs_;
+}
+
+//
+// SPIFFS::unmount
+//
+void SPIFFS::unmount()
+{
+    if (name)
+    {
+        SPIFFS_unmount(fs_);
+        name = nullptr;
+    }
+}
+
+///
+/// Open directory metadata structure
+///
+struct SPIFFS::OpenDir
+{
+    spiffs_DIR dir_;       ///< directory object
+    struct dirent dirent_; ///< directory entry
+};
+
+//
+// SPIFFS::format()
+//
+void SPIFFS::format()
+{
+    HASSERT(SPIFFS_mounted(fs_) == 0);
+
+    // formatting requires at least one mounting, so mount then unmount
+    if (do_mount() == 0)
+    {
+        SPIFFS_unmount(fs_);
+    }
+
+    HASSERT(SPIFFS_format(fs_) == 0);
+    formatted_ = true;
+}
+
+//
+// SPIFFS::do_mount()
+//
+int SPIFFS::do_mount()
+{
+    spiffs_config tmp;
+    memcpy(&tmp, &fs_->cfg, sizeof(tmp));
+    return SPIFFS_mount(fs_, &tmp, workBuffer_, fdSpace_,
+                        fdSpaceSize_, cache_, cacheSize_, nullptr);
 }
 
 //
@@ -134,7 +232,7 @@ int SPIFFS::open(File *file, const char *path, int flags, int mode)
         ffs_flags |= SPIFFS_O_EXCL;
     }
 
-    spiffs_file fd = ::SPIFFS_open(&fs_, path, ffs_flags, 0);
+    spiffs_file fd = ::SPIFFS_open(fs_, path, ffs_flags, 0);
 
     if (fd < 0)
     {
@@ -155,13 +253,14 @@ int SPIFFS::close(File *file)
 {
     spiffs_file fd = file->privInt;
 
-    int result = SPIFFS_close(&fs_, fd);
+    file->dirty = false;
+    int result = SPIFFS_close(fs_, fd);
 
     if (result != SPIFFS_OK)
     {
         return -errno_translate(result);
     }
-
+    
     return 0;
 }
 
@@ -170,7 +269,7 @@ int SPIFFS::close(File *file)
 //
 int SPIFFS::unlink(const char *path)
 {
-    int result = SPIFFS_remove(&fs_, path);
+    int result = SPIFFS_remove(fs_, path);
 
     if (result < 0)
     {
@@ -187,7 +286,7 @@ ssize_t SPIFFS::read(File *file, void *buf, size_t count)
 {
     spiffs_file fd = file->privInt;
 
-    ssize_t result = SPIFFS_read(&fs_, fd, buf, count);
+    ssize_t result = SPIFFS_read(fs_, fd, buf, count);
 
     if (result < 0)
     {
@@ -204,17 +303,23 @@ ssize_t SPIFFS::write(File *file, const void *buf, size_t count)
 {
     spiffs_file fd = file->privInt;
 
-    ssize_t result = SPIFFS_write(&fs_, fd, (void*)buf, count);
+    ssize_t result = SPIFFS_write(fs_, fd, (void *)buf, count);
 
     if (result < 0)
     {
         return -errno_translate(result);
     }
 
+    {
+        AtomicHolder h(this);
+        file->dirty = true;
+        anyDirty_ = true;
+    }
+    
     return result;
 }
 
-///
+//
 // SPIFFS::lseek()
 //
 off_t SPIFFS::lseek(File* file, off_t offset, int whence)
@@ -237,7 +342,7 @@ off_t SPIFFS::lseek(File* file, off_t offset, int whence)
             break;
     }
 
-    off_t result = SPIFFS_lseek(&fs_, fd, offset, spiffs_whence);
+    off_t result = SPIFFS_lseek(fs_, fd, offset, spiffs_whence);
 
     if (result < 0)
     {
@@ -247,10 +352,10 @@ off_t SPIFFS::lseek(File* file, off_t offset, int whence)
     return result;
 }
 
-//
-// SPIFFS::stat_post_process()
-//
-void SPIFFS::stat_post_process(struct stat *stat, spiffs_stat *ffs_stat)
+/// Common post processing for SPIFFS::stat() and SPIFFS::fstat().
+/// @param stat structure to fill status info into
+/// @param ff_stat SPIFFS structure to gather info from
+static void stat_post_process(struct stat *stat, spiffs_stat *ffs_stat)
 {
     memset(stat, 0, sizeof(*stat));
     stat->st_ino = ffs_stat->obj_id;
@@ -286,7 +391,7 @@ int SPIFFS::fstat(File* file, struct stat *stat)
     spiffs_file fd = file->privInt;
     spiffs_stat ffs_stat;
 
-    ssize_t result = SPIFFS_fstat(&fs_, fd, &ffs_stat);
+    ssize_t result = SPIFFS_fstat(fs_, fd, &ffs_stat);
 
     if (result < 0)
     {
@@ -314,7 +419,7 @@ int SPIFFS::stat(const char *path, struct stat *stat)
     }
     else
     {
-        ssize_t result = SPIFFS_stat(&fs_, path, &ffs_stat);
+        ssize_t result = SPIFFS_stat(fs_, path, &ffs_stat);
 
         if (result < 0)
         {
@@ -333,12 +438,13 @@ int SPIFFS::stat(const char *path, struct stat *stat)
 int SPIFFS::fsync(File *file)
 {
     spiffs_file fd = file->privInt;
-    int result = SPIFFS_fflush(&fs_, fd);
+    file->dirty = false;
+    int result = SPIFFS_fflush(fs_, fd);
     if (result < 0)
     {
+        file->dirty = true;
         return -errno_translate(result);
     }
-
     return 0;
 }
 
@@ -371,12 +477,12 @@ File *SPIFFS::opendir(File *file, const char *name)
                                                 SPIFFS_OBJ_NAME_LEN +
                                                 strlen(this->name) + 1));
 
-    extern_lock(&fs_);
-    spiffs_DIR *result = SPIFFS_opendir(&fs_, name, &dir->dir_);
+    extern_lock(fs_);
+    spiffs_DIR *result = SPIFFS_opendir(fs_, name, &dir->dir_);
     if (!result)
     {
         free(dir);
-        errno = errno_translate(fs_.err_code);
+        errno = errno_translate(fs_->err_code);
     }
     else
     {
@@ -384,7 +490,7 @@ File *SPIFFS::opendir(File *file, const char *name)
         file->priv = dir;
         file->dir = true;
     }
-    extern_unlock(&fs_);
+    extern_unlock(fs_);
 
     return file;
 }

@@ -63,11 +63,12 @@ const char *upstream_host = nullptr;
 bool timestamped = false;
 bool export_mdns = false;
 const char* mdns_name = "openmrn_hub";
+bool printpackets = false;
 
 void usage(const char *e)
 {
     fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-u upstream_host] "
-                    "[-q upstream_port] [-m] [-n mdns_name] [-t]\n\n",
+                    "[-q upstream_port] [-m] [-n mdns_name] [-t] [-l]\n\n",
             e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
@@ -85,6 +86,8 @@ void usage(const char *e)
             "\t-q upstream_port   is the port number for the upstream hub.\n");
     fprintf(stderr,
             "\t-t prints timestamps for each packet.\n");
+    fprintf(stderr,
+            "\t-l print all packets.\n");
 #ifdef HAVE_AVAHI_CLIENT
     fprintf(stderr,
             "\t-m exports the current service on mDNS.\n");
@@ -97,7 +100,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:u:q:tmn:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:d:u:q:tlmn:")) >= 0)
     {
         switch (opt)
         {
@@ -126,6 +129,9 @@ void parse_args(int argc, char *argv[])
                 mdns_name = optarg;
                 export_mdns = true;
                 break;
+            case 'l':
+                printpackets = true;
+                break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
                 usage(argv[0]);
@@ -141,7 +147,12 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    GcPacketPrinter packet_printer(&can_hub0, timestamped);
+    //GcPacketPrinter packet_printer(&can_hub0, timestamped);
+    GcPacketPrinter *packet_printer = NULL;
+    if (printpackets) {
+        packet_printer = new GcPacketPrinter(&can_hub0, timestamped);
+    }
+    fprintf(stderr,"packet_printer points to %p\n",packet_printer);
     GcTcpHub hub(&can_hub0, port);
     vector<std::unique_ptr<ConnectionClient>> connections;
 

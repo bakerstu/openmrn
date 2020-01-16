@@ -19,7 +19,6 @@ namespace openlcb
 
 /*static*/
 EventService *EventService::instance = nullptr;
-static AsyncMutex event_caller_mutex;
 
 EventService::EventService(ExecutorBase *e) : Service(e)
 {
@@ -70,11 +69,6 @@ EventService::Impl::~Impl()
 
 StateFlowBase::Action EventCallerFlow::entry()
 {
-    return allocate_and_call(STATE(perform_call), &event_caller_mutex);
-}
-
-StateFlowBase::Action EventCallerFlow::perform_call()
-{
     EventHandlerCall *c = message()->data();
     if (c->epoch != EventRegistry::instance()->get_epoch())
     {
@@ -88,7 +82,6 @@ StateFlowBase::Action EventCallerFlow::perform_call()
 
 StateFlowBase::Action EventCallerFlow::call_done()
 {
-    event_caller_mutex.Unlock();
     return release_and_exit();
 }
 
@@ -256,7 +249,6 @@ StateFlowBase::Action EventIteratorFlow::iterate_next()
     EventRegistryEntry *entry = iterator_->next_entry();
     if (!entry)
     {
-        no_more_matches();
         if (incomingDone_)
         {
             incomingDone_->notify();
@@ -301,28 +293,6 @@ StateFlowBase::Action
 InlineEventIteratorFlow::dispatch_event(const EventRegistryEntry *entry)
 {
     currentEntry_ = entry;
-    if (!holdingEventMutex_)
-    {
-        holdingEventMutex_ = true; // will be true when we get called again
-        return allocate_and_call(STATE(perform_call), &event_caller_mutex);
-    }
-    else
-    {
-        return perform_call();
-    }
-}
-
-void InlineEventIteratorFlow::no_more_matches()
-{
-    if (holdingEventMutex_)
-    {
-        event_caller_mutex.Unlock();
-        holdingEventMutex_ = false;
-    }
-}
-
-StateFlowBase::Action InlineEventIteratorFlow::perform_call()
-{
     if (eventRegistryEpoch_ != eventService_->impl()->registry->get_epoch())
     {
         // Will restart iteration.

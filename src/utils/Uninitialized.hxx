@@ -93,6 +93,12 @@ public:
         tptr()->~T();
     }
 
+    /// Public API to convert the pointer in a linker-initialized way.
+    static constexpr T *cast_data(uninitialized<T> *parent)
+    {
+        return reinterpret_cast<T *>(&parent->data);
+    }
+
 private:
     typename std::aligned_storage<sizeof(T), alignof(T)>::type data;
 

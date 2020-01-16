@@ -42,13 +42,16 @@
 #include <limits.h>
 #include <stdint.h>
 
-#if defined (__FreeRTOS__)
-#include <FreeRTOS.h>
-#include <task.h>
-#include <semphr.h>
+#include "openmrn_features.h"
+
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
+#include "freertos_includes.h"
+#endif
+#if OPENMRN_FEATURE_DEVICE_SELECT
 #include <event_groups.h>
-#elif defined(ESP_NONOS)
-#else
+#endif
+
+#if OPENMRN_FEATURE_MUTEX_PTHREAD
 #include <pthread.h>
 #include <semaphore.h>
 #endif
@@ -81,6 +84,9 @@ extern "C" {
  */
 int appl_main(int argc, char *argv[]);
 
+/// @return the available heap or -1 if this operation is not supported.
+ssize_t os_get_free_heap(void);
+
 #if defined (__FreeRTOS__)
 
 extern void hw_init(void);
@@ -90,7 +96,9 @@ extern const size_t main_stack_size;
 
 /** priority of the main thread */
 extern const int main_priority;
+#endif
 
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
 typedef xTaskHandle os_thread_t; /**< thread handle */
 typedef struct
 {
@@ -103,14 +111,8 @@ typedef struct
     unsigned char state; /**< keep track if already executed */
 } os_thread_once_t; /**< one time initialization type */
 typedef xSemaphoreHandle os_sem_t; /**< semaphore handle */
-typedef struct thread_priv
-{
-    struct _reent *reent; /**< newlib thread specific data (errno, etc...) */
-    EventBits_t selectEventBit; /**< bit used for waking up from select */
-    void *(*entry)(void*); /**< thread entry point */
-    void *arg; /** argument to thread */
-} ThreadPriv; /**< thread private data */
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#endif
+#if OPENMRN_FEATURE_MUTEX_FAKE
 typedef struct {
     int locked;
     uint8_t recursive;
@@ -125,8 +127,8 @@ typedef struct {
 
 typedef unsigned os_thread_t;
 typedef void *os_mq_t; /**< message queue handle */
-
-#else
+#endif
+#if OPENMRN_FEATURE_MUTEX_PTHREAD
 typedef pthread_t os_thread_t; /**< thread handle */
 typedef pthread_mutex_t os_mutex_t; /**< mutex handle */
 typedef void *os_mq_t; /**< message queue handle */
@@ -162,7 +164,7 @@ typedef struct
  */
 extern long long os_get_time_monotonic(void);
 
-#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#ifndef OPENMRN_FEATURE_MUTEX_PTHREAD
 /** @ref os_thread_once states.
  */
 enum
@@ -178,7 +180,7 @@ enum
 #define OS_THREAD_ONCE_INIT PTHREAD_ONCE_INIT
 #endif
 
-#if defined (__FreeRTOS__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#ifndef OPENMRN_FEATURE_MUTEX_PTHREAD
 /** One time intialization routine
  * @param once one time instance
  * @param routine method to call once
@@ -290,6 +292,55 @@ OS_INLINE int os_thread_once(os_thread_once_t *once, void (*routine)(void))
  */
 #define SEC_TO_MSEC(_sec) (((long long)_sec) * 1000LL)
 
+/** Convert a nanosecond value to a microsecond value.
+ * @param _nsec nanosecond value to convert
+ * @return microsecond value
+ */
+#define NSEC_TO_USEC_ROUNDED(_nsec) \
+    ((((long long)_nsec) + 500LL) / 1000LL)
+
+/** Convert a nanosecond value to a millisecond value.
+ * @param _nsec nanosecond value to convert
+ * @return milliosecond value
+ */
+#define NSEC_TO_MSEC_ROUNDED(_nsec) \
+    ((((long long)_nsec) + 500000LL) / 1000000LL)
+
+/** Convert a nanosecond value to a second value.
+ * @param _nsec nanosecond value to convert
+ * @return second value
+ */
+#define NSEC_TO_SEC_ROUNDED(_nsec) \
+    ((((long long)_nsec) + 500000000LL) / 1000000000LL)
+
+/** Convert a nanosecond value to minutes.
+ * @param _nsec nanosecond value to convert
+ * @return minutes value
+ */
+#define NSEC_TO_MIN_ROUNDED(_nsec) \
+    ((((long long)_nsec) + 30000000000LL) / 60000000000LL)
+
+/** Convert a microsecond value to a millisecond value.
+ * @param _usec microsecond value to convert
+ * @return millisecond value
+ */
+#define USEC_TO_MSEC_ROUNDED(_usec) \
+    ((((long long)_usec) + 500LL) / 1000LL)
+
+/** Convert a microsecond value to a second value.
+ * @param _usec microsecond value to convert
+ * @return second value
+ */
+#define USEC_TO_SEC_ROUNDED(_usec) \
+    ((((long long)_usec) +500000LL) / 1000000LL)
+
+/** Convert a millisecond value to a second value.
+ * @param _msec millisecond value to convert
+ * @return second value
+ */
+#define MSEC_TO_SEC_ROUNDED(_msec) \
+    ((((long long)_msec) + 500LL) / 1000LL)
+
 /** Creates a thread.
  * @param thread handle to the created thread
  * @param name name of thread, NULL for an auto generated name
@@ -313,11 +364,11 @@ void os_thread_cancel(os_thread_t thread);
  */
 OS_INLINE os_thread_t os_thread_self(void)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     return xTaskGetCurrentTaskHandle();
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif OPENMRN_FEATURE_SINGLE_THREADED
     return 0xdeadbeef;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     return pthread_self();
 #endif
 }
@@ -328,11 +379,11 @@ OS_INLINE os_thread_t os_thread_self(void)
  */
 OS_INLINE int os_thread_get_priority(os_thread_t thread)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     return uxTaskPriorityGet(thread);
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif OPENMRN_FEATURE_SINGLE_THREADED
     return 2;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     struct sched_param params;
     int policy;
     pthread_getschedparam(thread, &policy, &params);
@@ -345,11 +396,11 @@ OS_INLINE int os_thread_get_priority(os_thread_t thread)
  */
 OS_INLINE int os_thread_get_priority_min(void)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     return 1;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
-    return 0xdeadbeef;
-#else
+#elif OPENMRN_FEATURE_SINGLE_THREADED
+    return 2;
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     return sched_get_priority_min(SCHED_FIFO);
 #endif
 }
@@ -359,26 +410,26 @@ OS_INLINE int os_thread_get_priority_min(void)
  */
 OS_INLINE int os_thread_get_priority_max(void)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     return configMAX_PRIORITIES - 1;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
-    return 0xdeadbeef;
-#else
+#elif OPENMRN_FEATURE_SINGLE_THREADED
+    return 2;
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     return sched_get_priority_max(SCHED_FIFO);
 #endif
 }
 
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER {NULL, 0}
 /** Static initializer for recursive mutexes */
 #define OS_RECURSIVE_MUTEX_INITIALIZER {NULL, 1}
-#elif defined(__EMSCRIPTEN__)
+#elif OPENMRN_FEATURE_MUTEX_FAKE
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER {0, 0}
 /** Static initializer for recursive mutexes */
 #define OS_RECURSIVE_MUTEX_INITIALIZER {0, 1}
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
 /** Static initializer for mutexes */
 #define OS_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
 
@@ -403,16 +454,16 @@ extern void os_emscripten_yield();
  */
 OS_INLINE int os_mutex_init(os_mutex_t *mutex)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     mutex->recursive = 0;
     mutex->sem = xSemaphoreCreateMutex();
 
-    return 0;    
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+    return 0;
+#elif OPENMRN_FEATURE_MUTEX_FAKE
     mutex->locked = 0;
     mutex->recursive = 0;
     return 0;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     return pthread_mutex_init(mutex, NULL);
 #endif
 }
@@ -423,16 +474,16 @@ OS_INLINE int os_mutex_init(os_mutex_t *mutex)
  */
 OS_INLINE int os_recursive_mutex_init(os_mutex_t *mutex)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     mutex->recursive = 1;
     mutex->sem = xSemaphoreCreateRecursiveMutex();
 
-    return 0;    
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+    return 0;
+#elif OPENMRN_FEATURE_MUTEX_FAKE
     mutex->locked = 0;
     mutex->recursive = 1;
     return 0;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     pthread_mutexattr_t attr;
     int result;
 
@@ -458,14 +509,14 @@ OS_INLINE int os_recursive_mutex_init(os_mutex_t *mutex)
  */
 OS_INLINE int os_mutex_destroy(os_mutex_t *mutex)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     vSemaphoreDelete(mutex->sem);
 
-    return 0;    
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+    return 0;
+#elif OPENMRN_FEATURE_MUTEX_FAKE
     mutex->locked = 0;
     return 0;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     return pthread_mutex_destroy(mutex);
 #endif
 }
@@ -476,7 +527,7 @@ OS_INLINE int os_mutex_destroy(os_mutex_t *mutex)
  */
 OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
 {
-#if (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     vTaskSuspendAll();
     if (mutex->sem == NULL)
     {
@@ -500,14 +551,14 @@ OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
         xSemaphoreTake(mutex->sem, portMAX_DELAY);
     }
     return 0;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif OPENMRN_FEATURE_MUTEX_FAKE
     if (mutex->locked && !mutex->recursive)
     {
         DIE("Mutex deadlock.");
     }
     mutex->locked++;
     return 0;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     return pthread_mutex_lock(mutex);
 #endif
 }
@@ -518,7 +569,7 @@ OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
  */
 OS_INLINE int os_mutex_unlock(os_mutex_t *mutex)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     if (mutex->recursive)
     {
         xSemaphoreGiveRecursive(mutex->sem);
@@ -528,14 +579,14 @@ OS_INLINE int os_mutex_unlock(os_mutex_t *mutex)
         xSemaphoreGive(mutex->sem);
     }
     return 0;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif OPENMRN_FEATURE_MUTEX_FAKE
     if (mutex->locked <= 0)
     {
         DIE("Unlocking a not locked mutex");
     }
     --mutex->locked;
     return 0;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     return pthread_mutex_unlock(mutex);
 #endif
 }
@@ -547,16 +598,16 @@ OS_INLINE int os_mutex_unlock(os_mutex_t *mutex)
  */
 OS_INLINE int os_sem_init(os_sem_t *sem, unsigned int value)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     *sem = xSemaphoreCreateCounting(LONG_MAX, value);
     if (!*sem) {
       abort();
     }
     return 0;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif OPENMRN_FEATURE_MUTEX_FAKE
     sem->counter = value;
     return 0;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     pthread_cond_init(&sem->cond, NULL);
     pthread_mutex_init(&sem->mutex, NULL);
     sem->counter = value;
@@ -570,12 +621,12 @@ OS_INLINE int os_sem_init(os_sem_t *sem, unsigned int value)
  */
 OS_INLINE int os_sem_destroy(os_sem_t *sem)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     vSemaphoreDelete(*sem);
     return 0;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif OPENMRN_FEATURE_MUTEX_FAKE
     return 0;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     pthread_cond_destroy(&sem->cond);
     pthread_mutex_destroy(&sem->mutex);
     return 0;
@@ -588,13 +639,13 @@ OS_INLINE int os_sem_destroy(os_sem_t *sem)
  */
 OS_INLINE int os_sem_post(os_sem_t *sem)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     xSemaphoreGive(*sem);
     return 0;
-#elif defined(__EMSCRIPTEN__) || defined(ESP_NONOS)
+#elif OPENMRN_FEATURE_MUTEX_FAKE
     sem->counter++;
     return 0;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     pthread_mutex_lock(&sem->mutex);
     sem->counter++;
     pthread_cond_signal(&sem->cond);
@@ -603,7 +654,7 @@ OS_INLINE int os_sem_post(os_sem_t *sem)
 #endif
 }
 
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_RTOS_FROM_ISR
 /** Post a semaphore from the ISR context.
  * @param sem address of semaphore to increment
  * @param woken is the task woken up
@@ -616,7 +667,7 @@ OS_INLINE int os_sem_post_from_isr(os_sem_t *sem, int *woken)
     *woken |= local_woken;
     return 0;
 }
-#endif
+#endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
 /** Wait on a semaphore.
  * @param sem address of semaphore to decrement
@@ -624,7 +675,7 @@ OS_INLINE int os_sem_post_from_isr(os_sem_t *sem, int *woken)
  */
 OS_INLINE int os_sem_wait(os_sem_t *sem)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     xSemaphoreTake(*sem, portMAX_DELAY);
     return 0;
 #elif defined(__EMSCRIPTEN__)
@@ -634,13 +685,13 @@ OS_INLINE int os_sem_wait(os_sem_t *sem)
     }
     --sem->counter;
     return 0;
-#elif defined(ESP_NONOS)
+#elif OPENMRN_FEATURE_MUTEX_FAKE
     if (!sem->counter) {
         DIE("Semaphore deadlock.");
     }
     --sem->counter;
     return 0;
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     pthread_mutex_lock(&sem->mutex);
     while (sem->counter == 0)
     {
@@ -652,7 +703,7 @@ OS_INLINE int os_sem_wait(os_sem_t *sem)
 #endif
 }
 
-#ifndef ESP_NONOS
+#if OPENMRN_FEATURE_SEM_TIMEDWAIT
 /** Wait on a semaphore with a timeout.
  * @param sem address of semaphore to decrement
  * @param timeout in nanoseconds, else OPENMRN_OS_WAIT_FOREVER to wait forever
@@ -664,8 +715,8 @@ OS_INLINE int os_sem_timedwait(os_sem_t *sem, long long timeout)
     {
         return os_sem_wait(sem);
     }
-#if defined (__FreeRTOS__)
-    if (xSemaphoreTake(*sem, timeout >> NSEC_TO_TICK_SHIFT) == pdTRUE)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
+    if (xSemaphoreTake(*sem, NSEC_TO_TICK(timeout)) == pdTRUE)
     {
         return 0;
     }
@@ -694,7 +745,7 @@ OS_INLINE int os_sem_timedwait(os_sem_t *sem, long long timeout)
             os_emscripten_yield();
         }
     } while(1);
-#else
+#elif OPENMRN_FEATURE_MUTEX_PTHREAD
     struct timeval tv;
     struct timespec ts;
     gettimeofday(&tv, NULL);
@@ -717,10 +768,10 @@ OS_INLINE int os_sem_timedwait(os_sem_t *sem, long long timeout)
 #endif
 }
 
-#endif // #ifndef ESP_NONOS
+#endif // OPENMRN_FEATURE_SEM_TIMEDWAIT
 
 
-#if !defined (__FreeRTOS__)
+#if !defined (OPENMRN_FEATURE_MUTEX_FREERTOS)
 /** Private data structure for a queue, do not use directly
  */
 typedef struct queue_priv
@@ -743,7 +794,7 @@ typedef struct queue_priv
  */
 OS_INLINE os_mq_t os_mq_create(size_t length, size_t item_size)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     return xQueueCreate(length, item_size);
 #else
     QueuePriv *q = (QueuePriv*)malloc(sizeof(QueuePriv));
@@ -771,7 +822,7 @@ OS_INLINE os_mq_t os_mq_create(size_t length, size_t item_size)
  */
 OS_INLINE void os_mq_send(os_mq_t queue, const void *data)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     xQueueSend(queue, data, portMAX_DELAY);
 #else
     QueuePriv *q = (QueuePriv*)queue;
@@ -798,8 +849,8 @@ OS_INLINE void os_mq_send(os_mq_t queue, const void *data)
  */
 OS_INLINE int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout)
 {
-#if defined (__FreeRTOS__)
-    portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
+    portTickType ticks = NSEC_TO_TICK(timeout);
     
     if (xQueueSend(queue, data, ticks) != pdTRUE)
     {
@@ -818,7 +869,7 @@ OS_INLINE int os_mq_timedsend(os_mq_t queue, const void *data, long long timeout
  */
 OS_INLINE void os_mq_receive(os_mq_t queue, void *data)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     xQueueReceive(queue, data, portMAX_DELAY);
 #else
     QueuePriv *q = (QueuePriv*)queue;
@@ -845,15 +896,15 @@ OS_INLINE void os_mq_receive(os_mq_t queue, void *data)
  */
 OS_INLINE int os_mq_timedreceive(os_mq_t queue, void *data, long long timeout)
 {
-#if defined (__FreeRTOS__)
-    portTickType ticks = (timeout >> NSEC_TO_TICK_SHIFT);
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
+    portTickType ticks = NSEC_TO_TICK(timeout);
 
     if (xQueueReceive(queue, data, ticks) != pdTRUE)
     {
         return OS_MQ_TIMEDOUT;
     }
 #else
-    HASSERT(0);    
+    DIE("unimplemented.");
 #endif
     return OS_MQ_NONE;
 }
@@ -866,7 +917,7 @@ OS_INLINE int os_mq_timedreceive(os_mq_t queue, void *data, long long timeout)
  */
 OS_INLINE int os_mq_send_from_isr(os_mq_t queue, const void *data, int *woken)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     portBASE_TYPE local_woken;
     if (xQueueSendFromISR(queue, data, &local_woken) != pdTRUE)
     {
@@ -874,7 +925,7 @@ OS_INLINE int os_mq_send_from_isr(os_mq_t queue, const void *data, int *woken)
     }
     *woken |= local_woken;
 #else
-    HASSERT(0);    
+    DIE("unimplemented.");
 #endif
     return OS_MQ_NONE;
 }
@@ -885,10 +936,10 @@ OS_INLINE int os_mq_send_from_isr(os_mq_t queue, const void *data, int *woken)
  */
 OS_INLINE int os_mq_is_full_from_isr(os_mq_t queue)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     return xQueueIsQueueFullFromISR(queue);
 #else
-    HASSERT(0);    
+    DIE("unimplemented.");
 #endif
     return 1;
 }
@@ -902,7 +953,7 @@ OS_INLINE int os_mq_is_full_from_isr(os_mq_t queue)
  */
 OS_INLINE int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     portBASE_TYPE local_woken;
     if (xQueueReceiveFromISR(queue, data, &local_woken) != pdTRUE)
     {
@@ -910,7 +961,7 @@ OS_INLINE int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
     }
     *woken |= local_woken;
 #else
-    HASSERT(0);    
+    DIE("unimplemented.");
 #endif
     return OS_MQ_NONE;
 }
@@ -921,10 +972,10 @@ OS_INLINE int os_mq_receive_from_isr(os_mq_t queue, void *data, int *woken)
  */
 OS_INLINE int os_mq_num_pending(os_mq_t queue)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     return uxQueueMessagesWaiting(queue);
 #else
-    HASSERT(0);    
+    DIE("unimplemented.");
     return 0;
 #endif
 }
@@ -935,10 +986,10 @@ OS_INLINE int os_mq_num_pending(os_mq_t queue)
  */
 OS_INLINE int os_mq_num_pending_from_isr(os_mq_t queue)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     return uxQueueMessagesWaitingFromISR(queue);
 #else
-    HASSERT(0);    
+    DIE("unimplemented.");
     return 0;
 #endif
 }
@@ -949,10 +1000,10 @@ OS_INLINE int os_mq_num_pending_from_isr(os_mq_t queue)
  */
 OS_INLINE int os_mq_num_spaces(os_mq_t queue)
 {
-#if defined (__FreeRTOS__)
+#if OPENMRN_FEATURE_MUTEX_FREERTOS
     return uxQueueSpacesAvailable(queue);
 #else
-    HASSERT(0);
+    DIE("unimplemented.");
     return 0;
 #endif
 }

@@ -52,21 +52,14 @@
 class TempDir {
 public:
 #ifndef __FreeRTOS__
-  TempDir() {
-#ifdef __linux__
-    dirName_ = "/tmp/openmrntmpdirXXXXXX";
-#else
-    dirName_ = "./openmrntmpdirXXXXXX";
-#endif
-    dirName_.c_str();
-    HASSERT(mkdtemp(&dirName_[0]));
-  }
+  TempDir();
 #endif
 
   ~TempDir() {
-    if (rmdir(dirName_.c_str()) != 0) {
-      LOG(WARNING, "Error deleting temporary directory %s: %s",
-          dirName_.c_str(), strerror(errno));
+      if (::rmdir(dirName_.c_str()) != 0)
+      {
+          LOG(WARNING, "Error deleting temporary directory %s: %s",
+              dirName_.c_str(), strerror(errno));
     }
   }
 
@@ -136,7 +129,9 @@ public:
       HASSERT(ret >= 0);
       ofs += ret;
     }
+#ifndef __WINNT__    
     fsync(fd_);
+#endif    
   }
 
 private:

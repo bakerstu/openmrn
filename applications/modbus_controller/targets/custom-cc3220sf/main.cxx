@@ -413,7 +413,7 @@ private:
         {
             return;
         }
-        openlcb::event_write_helper1.WriteAsync(node_,
+        event->event_write_helper<1>()->WriteAsync(node_,
             openlcb::Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN,
             openlcb::WriteHelper::global(),
             openlcb::eventid_to_buffer(registry_entry.event),
@@ -550,7 +550,7 @@ int appl_main(int argc, char *argv[])
 
     resetblink(WIFI_BLINK_CONNECTING);
     g_socket_client = new SocketClient(stack.service(),
-        openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN, WIFI_HUB_HOSTNAME,
+        openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP, WIFI_HUB_HOSTNAME,
         WIFI_HUB_PORT, client_connect_callback);
 
     // This command donates the main thread to the operation of the

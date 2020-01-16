@@ -1,0 +1,12 @@
+/**
+
+@page boards Board support
+
+@tableofcontents
+
+This page collects documentation specific to certain ports and board support
+files.
+
+@subpage boards_pic32 "Pic32MX board support"
+
+*/

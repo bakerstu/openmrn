@@ -49,7 +49,7 @@
 
 /// Set of 4 PWM channels that belong to a single timer resource in the STM32
 /// microcontrollers. Note that the different channels are tied to be using the
-/// same period, but the cuty cycle can be independently set.
+/// same period, but the duty cycle can be independently set.
 class Stm32PWMGroup
 {
 public:
@@ -81,6 +81,14 @@ public:
     {
         HASSERT(id > 0 && id < 5);
         return &*channels_[id - 1];
+    }
+
+    /// @return one PWM channel.
+    /// @param parent the PWMGroup object. Does not need to be initialized yet.
+    /// @param id is the channel number, 1..4
+    static constexpr PWM *get_channel(Stm32PWMGroup *parent, unsigned id)
+    {
+        return uninitialized<Channel>::cast_data(&parent->channels_[id - 1]);
     }
 
 private:

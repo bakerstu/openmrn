@@ -107,6 +107,7 @@ public:
     using Offset = GroupConfigOptions::Offset;
     using RepName = GroupConfigOptions::RepName;
     using FixedSize = GroupConfigOptions::FixedSize;
+    using Hidden = GroupConfigOptions::Hidden;
     using Manufacturer = IdentificationConfigOptions::Manufacturer;
     using Model = IdentificationConfigOptions::Model;
     using HwVersion = IdentificationConfigOptions::HwVersion;
@@ -135,9 +136,10 @@ public:
         {                                                                      \
             return openlcb::GroupBaseEntry(offset_);                           \
         }                                                                      \
-        static constexpr openlcb::GroupConfigOptions group_opts()              \
+        template <typename... Args>                                            \
+        static constexpr openlcb::GroupConfigOptions group_opts(Args... args)  \
         {                                                                      \
-            return openlcb::GroupConfigOptions(ARGS);                          \
+            return openlcb::GroupConfigOptions(args..., ##ARGS);               \
         }                                                                      \
         static constexpr unsigned size()                                       \
         {                                                                      \
@@ -189,18 +191,18 @@ public:
 #define CDI_GROUP_ENTRY_HELPER(LINE, NAME, TYPE, ...)                          \
     constexpr TYPE entry(const openlcb::EntryMarker<LINE> &) const             \
     {                                                                          \
-        static_assert(                                                         \
-            !group_opts().is_cdi() || TYPE(0).group_opts().is_segment(),       \
+        static_assert(!group_opts().is_cdi() ||                                \
+                TYPE(0).group_opts(__VA_ARGS__).is_segment(),                  \
             "May only have segments inside CDI.");                             \
         return TYPE(group_opts().is_cdi()                                      \
-                ? TYPE(0).group_opts().get_segment_offset()                    \
+                ? TYPE(0).group_opts(__VA_ARGS__).get_segment_offset()         \
                 : entry(openlcb::EntryMarker<LINE - 1>()).end_offset());       \
     }                                                                          \
     constexpr TYPE NAME() const                                                \
     {                                                                          \
         return entry(openlcb::EntryMarker<LINE>());                            \
     }                                                                          \
-    static constexpr decltype(                                                 \
+    static constexpr typename decltype(                                        \
         TYPE::config_renderer())::OptionsType NAME##_options()                 \
     {                                                                          \
         return decltype(TYPE::config_renderer())::OptionsType(__VA_ARGS__);    \
@@ -381,7 +383,8 @@ class ToplevelEntryBase : public ConfigEntryBase
 public:
     using base_type = ConfigEntryBase;
     INHERIT_CONSTEXPR_CONSTRUCTOR(ToplevelEntryBase, base_type)
-    static constexpr GroupConfigOptions group_opts()
+    template<typename... Args>
+    static constexpr GroupConfigOptions group_opts(Args... args)
     {
         return GroupConfigOptions(GroupConfigOptions::Segment(1000));
     }
@@ -429,12 +432,12 @@ CDI_GROUP(
     UserInfoSegment, Segment(MemoryConfigDefs::SPACE_ACDI_USR), Offset(1));
 /// User name entry
 CDI_GROUP_ENTRY(name, StringConfigEntry<63>, //
-    Name("User name"),                       //
+    Name("User Name"),                       //
     Description(
         "This name will appear in network browsers for the current node."));
 /// User description entry
 CDI_GROUP_ENTRY(description, StringConfigEntry<64>, //
-    Name("User description"),                       //
+    Name("User Description"),                       //
     Description("This description will appear in network browsers for the "
                 "current node."));
 /// Signals termination of the group.

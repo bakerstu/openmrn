@@ -192,11 +192,9 @@ void BitRangeNonAuthoritativeEventP::handle_identify_global(
                 range = EncodeRange(eventBaseOff_, size_);
                 break;
         }
-        event_write_helper1.WriteAsync(node_,
-                                       Defs::MTI_PRODUCER_IDENTIFIED_RANGE,
-                                       WriteHelper::global(),
-                                       eventid_to_buffer(range),
-                                       done);
+        event->event_write_helper<1>()->WriteAsync(node_,
+            Defs::MTI_PRODUCER_IDENTIFIED_RANGE, WriteHelper::global(),
+            eventid_to_buffer(range), done);
     }
 }
 
@@ -239,11 +237,9 @@ void BitRangeNonAuthoritativeEventP::handle_identify_producer(
 
     if (valid)
     {
-        event_write_helper1.WriteAsync(node_,
-                                       Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN,
-                                       WriteHelper::global(),
-                                       eventid_to_buffer(event->event),
-                                       done);
+        event->event_write_helper<1>()->WriteAsync(node_,
+            Defs::MTI_PRODUCER_IDENTIFIED_UNKNOWN, WriteHelper::global(),
+            eventid_to_buffer(event->event), done);
     }
     else
     {

@@ -24,4 +24,15 @@ $(foreach tgt,$(1),$(eval $(call REDIRECT_helper_template,$(tgt),$(2))))
 endef
 
 
+### Helper template to declare a dependency.
+### Arguments: target_file dependency_file
+### Example on how to call: Put the following on a standalone line in the Makefile
+### $(foreach lib,$(LIBDIRS),$(eval $(call DEP_helper_template,lib/lib$(lib).a,build-$(lib))))
+define DEP_helper_template
+
+$(1): $(2)
+
+endef
+
+
 endif  # MAKE_INC_MAKE_UTILS_MK

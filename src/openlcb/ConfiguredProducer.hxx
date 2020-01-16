@@ -107,7 +107,7 @@ public:
 
     template <class HW>
     ConfiguredProducer(Node *node, const ProducerConfig &cfg, const HW &,
-                       const Gpio *g = HW::instance())
+        const Gpio *g = HW::instance(), decltype(HW::instance) * = 0)
         : producer_(QuiesceDebouncer::Options(3), node, 0, 0, g)
         , cfg_(cfg)
     {

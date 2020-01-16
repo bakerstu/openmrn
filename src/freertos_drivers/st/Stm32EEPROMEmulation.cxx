@@ -44,6 +44,9 @@
 #include "stm32f0xx_hal_flash.h"
 #elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_hal_flash.h"
+#elif defined(STM32F767xx)
+#define F7_FLASH
+#include "stm32f7xx_hal_flash.h"
 #else
 #error "stm32EEPROMEmulation unsupported STM32 device"
 #endif
@@ -52,14 +55,21 @@
  || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \
  || defined (STM32F048xx) || defined (STM32F051x8) || defined (STM32F058xx)
 const size_t Stm32EEPROMEmulation::PAGE_SIZE = 0x400;
+const size_t EEPROMEmulation::BLOCK_SIZE = 4;
+const size_t EEPROMEmulation::BYTES_PER_BLOCK = 2;
 #elif defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
    || defined (STM32F072xB) || defined (STM32F078xx) \
    || defined (STM32F091xC) || defined (STM32F098xx) \
    || defined (STM32F303xC) || defined (STM32F303xE)
 const size_t Stm32EEPROMEmulation::PAGE_SIZE = 0x800;
-#endif
 const size_t EEPROMEmulation::BLOCK_SIZE = 4;
 const size_t EEPROMEmulation::BYTES_PER_BLOCK = 2;
+#elif defined(STM32F767xx)
+// Note this assumes single-bank usage
+const size_t Stm32EEPROMEmulation::PAGE_SIZE = 256*1024;
+const size_t EEPROMEmulation::BLOCK_SIZE = 8;
+const size_t EEPROMEmulation::BYTES_PER_BLOCK = 4;
+#endif
 
 /** Constructor.
  * @param name device name
@@ -88,15 +98,39 @@ const uint32_t* Stm32EEPROMEmulation::block(unsigned sector, unsigned offset) {
     return get_block(sector, offset);
 }
 
+#ifdef F7_FLASH
+extern "C" {
+extern const unsigned __stm32_eeprom_flash_sector_start;
+}
+#endif
+
 /** Simple hardware abstraction for FLASH erase API.
  * @param sector Number of sector [0.. sectorCount_ - 1] to erase
  */
 void Stm32EEPROMEmulation::flash_erase(unsigned sector)
 {
     HASSERT(sector < sectorCount_);
+    uint32_t page_error;
+
+#ifdef F7_FLASH
+    FLASH_EraseInitTypeDef erase_init;
+    memset(&erase_init, 0, sizeof(erase_init));
+
+    erase_init.TypeErase = TYPEERASE_SECTORS;
+    erase_init.Sector =
+        ((unsigned)(&__stm32_eeprom_flash_sector_start)) + sector;
+    erase_init.NbSectors = 1;
+    erase_init.VoltageRange = FLASH_VOLTAGE_RANGE_3; // 3.3 to 3.6 volts powered.
+    HASSERT(SECTOR_SIZE == PAGE_SIZE);
+    portENTER_CRITICAL();
+    HAL_FLASH_Unlock();
+    HASSERT(HAL_OK == HAL_FLASHEx_Erase(&erase_init, &page_error));
+    HAL_FLASH_Lock();
+    portEXIT_CRITICAL();
+    
+#else    
     auto* address = get_block(sector, 0);
     
-    uint32_t page_error;
     FLASH_EraseInitTypeDef erase_init;
     erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
     erase_init.PageAddress = (uint32_t)address;
@@ -117,6 +151,7 @@ void Stm32EEPROMEmulation::flash_erase(unsigned sector)
     HAL_FLASHEx_Erase(&erase_init, &page_error);
     HAL_FLASH_Lock();
     portEXIT_CRITICAL();
+#endif    
 }
 
 /** Simple hardware abstraction for FLASH program API.
@@ -148,7 +183,11 @@ void Stm32EEPROMEmulation::flash_program(
     {
         portENTER_CRITICAL();
         HAL_FLASH_Unlock();
+#ifdef F7_FLASH
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, uint_address, *data);
+#else        
         HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, uint_address, *data);
+#endif        
         HAL_FLASH_Lock();
         portEXIT_CRITICAL();
 

@@ -334,7 +334,7 @@ private:
         {
             return;
         }
-        openlcb::event_write_helper1.WriteAsync(node_,
+        event->event_write_helper<1>()->WriteAsync(node_,
             openlcb::Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN,
             openlcb::WriteHelper::global(),
             openlcb::eventid_to_buffer(registry_entry.event),

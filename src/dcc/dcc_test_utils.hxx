@@ -22,7 +22,7 @@ string PrintToString(const dcc::Packet &pkt)
     return dcc::packet_to_string(pkt);
 }
 
-std::vector<uint8_t> dcc_from(uint8_t d0, uint8_t d1, int d2 = -1, int d3 = -1)
+std::vector<uint8_t> dcc_from(uint8_t d0, uint8_t d1, int d2 = -1, int d3 = -1, int d4 = -1)
 {
     std::vector<uint8_t> ret;
     ret.push_back(d0);
@@ -42,6 +42,14 @@ std::vector<uint8_t> dcc_from(uint8_t d0, uint8_t d1, int d2 = -1, int d3 = -1)
     else if (d3 == -2)
     {
         ret.push_back(d0 ^ d1 ^ ret[2]);
+    }
+    if (d4 >= 0)
+    {
+        ret.push_back(d4);
+    }
+    else if (d4 == -2)
+    {
+        ret.push_back(d0 ^ d1 ^ ret[2] ^ ret[3]);
     }
     return ret;
 }
