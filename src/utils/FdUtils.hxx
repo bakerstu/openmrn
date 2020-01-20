@@ -35,6 +35,7 @@
 #ifndef _UTILS_FD_UTILS_HXX_
 #define _UTILS_FD_UTILS_HXX_
 
+#include "utils/logging.h"
 #include "utils/macros.h"
 
 struct FdUtils
