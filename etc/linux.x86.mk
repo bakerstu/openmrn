@@ -32,12 +32,12 @@ ARCHOPTIMIZATION = -g -fdata-sections -ffunction-sections -fPIC
 CSHAREDFLAGS = -c $(ARCHOPTIMIZATION) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE
 
 CFLAGS = $(CSHAREDFLAGS) -std=gnu99 \
-          $(CFLAGSENV) $(CFLAGSEXTRA) \
+         $(CFLAGSENV) $(CFLAGSEXTRA) \
 
 
 CXXFLAGS = $(CSHAREDFLAGS) -std=c++0x -D__STDC_FORMAT_MACROS \
            -D__STDC_LIMIT_MACROS $(CXXFLAGSENV) \
-          $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
+           $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
 
 LDFLAGS = $(ARCHOPTIMIZATION) -pg -Wl,-Map="$(@:%=%.map)" -Wl,--undefined=ignore_fn
 
