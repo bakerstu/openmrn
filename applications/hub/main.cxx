@@ -226,7 +226,6 @@ int appl_main(int argc, char *argv[])
         bind(s, (struct sockaddr *)&addr, sizeof(addr));
 
         new HubDeviceSelect<CanHubFlow>(&can_hub0, s);
-//        connections.emplace_back(port);
     }
 
     while (1)
