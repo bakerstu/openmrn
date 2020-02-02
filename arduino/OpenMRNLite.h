@@ -463,7 +463,7 @@ public:
         ConfigDef cfg(config.offset());
         cfg.config_renderer().render_cdi(&cdi_string);
         
-        cdi_string += '\n';   // Add missing but needed newline  RPH
+        cdi_string += '\0';   // Add missing but needed NUL (EOS)  RPH
 
         bool need_write = false;
         FILE *ff = fopen(filename, "rb");
