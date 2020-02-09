@@ -80,7 +80,7 @@ template<const char* message>
 bool LoggingPin<message>::lastValue_ = false;
 
 /// GPIO Pin definition structure with no actual pin behind it. All writes to
-/// this pin will be logged to stdout. Reads will always return false.
+/// this pin will be logged to stdout. Reads will return last written value.
 template<const char* message>
 struct LoggingPinWithRead : public LoggingPin<message>
 {
