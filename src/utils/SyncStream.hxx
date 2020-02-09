@@ -76,7 +76,7 @@ public:
         size_t written = 0;
         while (len > 0)
         {
-            auto ret = write(d, len);
+            volatile auto ret = write(d, len);
             if (ret < 0)
             {
                 return ret;
@@ -85,6 +85,7 @@ public:
             {
                 return written;
             }
+            HASSERT(ret <= (int)len);
             written += ret;
             d += ret;
             len -= ret;
@@ -208,11 +209,12 @@ public:
         {
             len = remaining_;
         }
-        ssize_t ret = delegate_->write(data, len);
+        volatile ssize_t ret = delegate_->write(data, len);
         if (ret <= 0)
         {
             return ret;
         }
+        HASSERT((int)ret <= (int)len);
         remaining_ -= ret;
         return ret;
     }
@@ -292,7 +294,8 @@ public:
             bufLength_ = len;
             return len;
         }
-        auto ret = delegate_->write(data, len);
+        volatile auto ret = delegate_->write(data, len);
+        HASSERT((int)ret <= (int)len);
         return ret;
     }
 
