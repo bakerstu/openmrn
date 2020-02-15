@@ -161,10 +161,16 @@ public:
 /// the etra copy unless we have some scatter-gather DMA thing). Option 1 is
 /// easier for understanding when the original source admission controller can
 /// release the token. Option 2 allows high priority packets to jump to the
-/// front of the queue just before the flush is happening.
+/// front of the queue just before the flush is happening. Option 1 takes less
+/// memory in that broadcast packets do not need to be queued at each single
+/// output port.
 ///
 /// I have no decision yet on which option to take.
-
+///
+/// QQ. How does the admission controller keep track of when the message really
+/// exited the system? We must keep it in mind that the message might have been
+/// translated to a differen physical format, and the memory for the specific
+/// byte buffer be freed.
 
 /// ===Message representation in transit===
 ///
@@ -175,7 +181,16 @@ public:
 ///
 /// Option 1) BufferBase has the ability to do refcounting and shared
 /// ownership. It is possible to have a BufferBase that has untyped payload
-/// (i.e., just bytes).
+/// (i.e., just bytes). However, the BufferBase needs to know the amount of
+/// bytes as input; we cannot trim down the actual bytes read from the
+/// BufferBase's size field, or else we lose memory because after freeing the
+/// buffer will not be returned to the right size. An alternative possibility
+/// is to have a buffer pool that generates a single size buffer so everything
+/// is returned to the same queue. Then size can be adjusted to the exact
+/// number of bytes read. This might utilize a proxy buffer pool that takes
+/// buffer of a given size from the main buffer pool and then returns them
+/// there upon freeing, resetting the size to have them land in the appropriate
+/// bucket.
 ///
 /// Option 2) shared_ptr<string> is a standard template library solution to the
 /// same problem. However, shared_ptr<string> causes two memory allocations for
@@ -190,7 +205,55 @@ public:
 /// data from the same message, even if it's more than two. This way we only
 /// need one buffer pointer. We have to assume that the respective bytes always
 /// go together.
+///
+/// Message type should then have:
+///
+/// BufferPtr<> first; // first chunk of message
+/// BufferPtr<> second; if chunks are represented then the second chunk.
+/// uint16_t ofs; // offset of bytes in the first message
+/// uint16_t size; // how many bytes starting from that offset.
+/// bool is_flush;
+/// unsigned priority; // maybe only 4 bands.
+/// HubSource* source;  // input / caller
+/// HubSource* destination; // routing hint
+/// something typing back to the original sender admission controller, for
+///     example a BarrierNotifiable?
+/// TODO
+///
+/// It might make sense to support appending another message to the end of the
+/// buffers. This be especially true if the last buffer pointer is just
+/// partially used up, and thus the bufferptr at the end of the string of
+/// buffers is the same as the incoming next buffer.
 
+
+
+/// ===Input segmentation===
+///
+/// When data arrives from the socket to be read, we will allocate a shareable
+/// buffer, then execute the asynchronous read. As the read completes, the
+/// input data will be passed on to the segmenter. The goal of the segmenter is
+/// to find the boundary of the message, for gridconnect the : ... ; delimiter,
+/// and on TCP the binary length of the message. Then the message can be passed
+/// on to routing.
+///
+/// The segmenter might comin in with one ref of a buffer, and output two
+/// independent refs of the same buffer. This happens if a single kernel read
+/// ends up with more than one message.
+///
+/// It is also possible that the segmenter will retain a ref of the last read
+/// buffer, waiting for the completion of the message that is present therein.
+///
+/// We must keep reading bytes from the hardware until the segmenter is happy
+/// to send at least one packet onwards. Only thereafter should we consult the
+/// admission controller.
+///
+/// QQ do we ask the admission controller first, before we allocate the buffer
+/// to read, or do we ask it afterwards when the message is complete?
+///
+/// We would have the ability to have select wake us up first, then allocate
+/// the buffer, then execute the read.
+
+/// ===Flushing===
 ///
 /// There should be a "flush" porperty of a message, which should cause
 /// outgoing buffers to be immediately transmitted in order to achieve lower
@@ -202,6 +265,38 @@ public:
 /// - loco function control messages
 /// - emergency stop messages
 ///
+
+/// ===Bridges===
+///
+/// In a real CAN-TCP router we will need to have three separate instances of
+/// this router type: one for TCP messages, one for CAN frames, one for
+/// GridConnect text.
+///
+/// The respective instances have to be connected by bridges. A bridge is an
+/// output port from one router and an input port to another router, allocates
+/// memory for the data type conversion, but does not perform admisson control
+/// (this is because admission control is end to end). The bridge might be a
+/// state flow, because for ->CAN messages the bridge has to perform alias
+/// lookups or allocation.
+///
+/// It is unclear whether we also need routers / bridges for internal only
+/// reference of messages (e.g. Buffer<GenMessage>). Is the
+/// AddressedMessageWriteFlow a component on the If side or is it a component
+/// that is part of the connecting bridge? It has to exist in the bridge for
+/// the purpose of routing messages between different types of Ifs.
+
+/// ===Route lookups===
+///
+/// When a message shows up in a router, we have to perform a lookup to decide
+/// where it goes. The output of this lookup is either "everywhere" (broadcast
+/// message), which means every output except the same as where it came
+/// from. The other alternative is "to a specific target" which is then one
+/// single port. That port might not be on the current router though. Thus we
+/// need a secondary routing table as well, which maps HubSources to ports or
+/// bridges in the current, type-specific router. This secondary routing table
+/// exists independently for each router; however, the primary routing table
+/// only exists once globally.
+
 
 template<class T>
 class DirectHubInterface : public HubSource {
