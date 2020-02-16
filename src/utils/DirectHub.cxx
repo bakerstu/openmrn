@@ -82,29 +82,33 @@ public:
     /// This function must be called at the end of the enqueued functions in
     /// order to properly clear the busy flag or take out the next enqueued
     /// executable.
-    void on_done() {
+    void on_done()
+    {
         // De-queues the next entry.
         Result deq;
         {
             AtomicHolder h(lock());
-            if (pendingSend_.empty()) {
+            if (pendingSend_.empty())
+            {
                 busy_ = 0;
                 return;
             }
             deq = pendingSend_.next();
         }
         // Schedules it on the executor.
-        executor()->add(static_cast<Executable*>(deq.item), deq.index);
+        executor()->add(static_cast<Executable *>(deq.item), deq.index);
     }
-    
+
     /// 1 if there is any message being processed right now.
     unsigned busy_ : 1;
     /// List of callers that are waiting for the busy_ lock.
     QueueType pendingSend_;
 };
 
-template<class T>
-class DirectHubImpl : public DirectHubInterface<T>, protected StateFlowBase, private Atomic
+template <class T>
+class DirectHubImpl : public DirectHubInterface<T>,
+                      protected StateFlowBase,
+                      private Atomic
 {
 public:
     DirectHubImpl(DirectHubService *service)
@@ -119,12 +123,13 @@ public:
     }
 
     /// Synchronously unregisters a port.
-    void unregister_port(DirectHubPort<T> *port) override {
+    void unregister_port(DirectHubPort<T> *port) override
+    {
         SyncNotifiable n;
         unregister_port(port, &n);
         n.wait_for_notification();
     }
-        
+
     /// Removes a port from this hub. This port must have been registered
     /// previously.
     /// @param port the downstream port.
@@ -133,15 +138,57 @@ public:
         // By enqueueing on the service we ensure that the state flow is not
         // processing any packets while the code below is running.
         service()->enqueue_caller(new CallbackExecutable([this, port, done]() {
-            ports_.erase(
-                std::remove(ports_.begin(), ports_.end(), port), ports_.end());
+            {
+                AtomicHolder h(this);
+                ports_.erase(std::remove(ports_.begin(), ports_.end(), port),
+                    ports_.end());
+            }
             done->notify();
             service()->on_done();
         }));
     }
 
-    void try_send(Executable *caller)
+    void enqueue_send(Executable *caller) override
     {
+        service()->enqueue_caller(caller);
+    }
+
+    MessageAccessor<T> *mutable_message() override
+    {
+        return *msg_;
+    }
+
+    void do_send() override
+    {
+        unsigned next_port = 0;
+        while (true)
+        {
+            DirectHubPort<T> *p;
+            {
+
+                AtomicHolder h(this);
+                if (next_port >= ports_.size())
+                {
+                    break;
+                }
+                p = ports_[next_port];
+                ++next_port;
+            }
+            if (should_send_to(p))
+            {
+                p->send(&msg_);
+            }
+        }
+        msg_.clear();
+        service()->on_done();
+    }
+
+    /// Filters a message going towards a specific output port.
+    /// @param p the output port
+    /// @return true if this message should be sent to that output port.
+    bool should_send_to(DirectHubPort<T> *p)
+    {
+        return static_cast<HubSource *>(p) != msg_.source_;
     }
 
 private:
@@ -153,15 +200,13 @@ private:
     /// Stores the registered output ports. Protected by Atomic *this.
     std::vector<DirectHubPort<T> *> ports_;
 
-    /// Helper variable for iteration of entries to output ports. Contains the
-    /// index into the ports_ vector which should be the next output port to
-    /// consider. Protected by Atomic *this.
-    unsigned nextPort_;
+    /// The message we are trying to send.
+    MessageAccessor<T> msg_;
 }; // class DirectHubImpl
 
-
-DirectHubInterface<uint8_t[]>* create_hub(ExecutorBase* e) {
-    auto* s = new DirectHubService(e);
-    auto* dh = new DirectHubImpl<uint8_t[]>(s);
+DirectHubInterface<uint8_t[]> *create_hub(ExecutorBase *e)
+{
+    auto *s = new DirectHubService(e);
+    auto *dh = new DirectHubImpl<uint8_t[]>(s);
     return dh;
 }

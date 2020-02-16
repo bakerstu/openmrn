@@ -44,11 +44,83 @@
 /// data came from.
 class HubSource {};
 
-class MessageAccessor {
-public:
-    virtual BufferPtr<const uint8_t[]> get_payload() = 0;
-    BarrierNotifiable* get_done();
+/// Metadata that is the same about every message.
+struct MessageMetadata {
+    void clear()
+    {
+        if (done_)
+        {
+            done_->notify();
+            done_ = nullptr;
+        }
+        source_ = dst_ = nullptr;
+        isFlush_ = false;
+    }
+
+    /// This must be notified when the processing of the message is
+    /// complete. All forks coming form the message must take children.
+    BarrierNotifiable* done_ = nullptr;
+    /// Represents the input port where the message came in.
+    HubSource* source_ = nullptr;
+    /// Represents the output port where the message will leave. nullptr means
+    /// broadcast.
+    HubSource* dst_ = nullptr;
+    /// If true, this message should flush the output buffer.
+    bool isFlush_ = false;
 };
+
+template<class T>
+struct MessageAccessor : public MessageMetadata {
+public:
+    void clear()
+    {
+        payload_.reset();
+        MessageMetadata::clear();
+    }
+
+    /// Contains a reference of the actual data.
+    BufferPtr<T> payload_;
+};
+
+template<>
+struct MessageAccessor<uint8_t[]> : public MessageMetadata {
+    void clear() {
+        // Walks the buffer links and unrefs everything we own.
+        Buffer<uint8_t[]>* curr = payload_;
+        unsigned left = skip_ + size_;
+        while (left > 0)
+        {
+            HASSERT(curr);
+            auto *next = static_cast<Buffer<uint8_t[]> *>(curr->next);
+            if (left > curr->size())
+            {
+                left -= curr->size();
+                curr->unref();
+                curr = next;
+            }
+            else
+            {
+                curr->unref();
+                break;
+            }
+        }
+        payload_ = nullptr;
+        skip_ = 0;
+        size_ = 0;
+        MessageMetadata::clear();
+    }
+    /// Pointer to the first buffer that contains this data. The first skip_
+    /// bytes have to be ignored from this buffer. If size_ is larger than the
+    /// remaining bytes, then the next pointer has to be followed to get to
+    /// additional Buffer<uint8_t[]>* objects. All of these objects have
+    /// exactly one ref owned by *this.
+    Buffer<uint8_t[]>* payload_ = nullptr;
+    /// How many bytes to skip at the beginning of the payload.
+    unsigned skip_ = 0;
+    /// How many bytes to read from the payload.
+    unsigned size_ = 0;
+};
+
 
 /// Interface for a downstream port of a hub (aka a target to send data to).
 template <class T> class DirectHubPort : public HubSource
@@ -56,9 +128,9 @@ template <class T> class DirectHubPort : public HubSource
 public:
     /// Send some data out on this port. The callee is responsible for
     /// buffering or enqueueing the data that came in this call.
-    /// @param msg represents the message that needs to be sent. THe callee
+    /// @param msg represents the message that needs to be sent. The callee
     /// must not modify the message.
-    virtual void send(MessageAccessor *msg) = 0;
+    virtual void send(MessageAccessor<T> *msg) = 0;
 };
 
 
@@ -70,17 +142,33 @@ public:
     /// messages.
     /// @param port the downstream port.
     virtual void register_port(DirectHubPort<T>* port) = 0;
-    /// Removes a port from this hub. This port must have been registered
-    /// previously.
+    /// Synchronously removes a port from this hub. This port must have been
+    /// registered previously. Must not be called on the main executor.
     /// @param port the downstream port.
     virtual void unregister_port(DirectHubPort<T>* port) = 0;
-    /// Removes a port from this hub. This port must have been registered
-    /// previously.
+    /// Asynchronously removes a port from this hub. This port must have been
+    /// registered previously.
     /// @param port the downstream port.
     /// @param done will be notified when the removal is complete.
     virtual void unregister_port(DirectHubPort<T>* port, Notifiable* done) = 0;
 
-    /// Send a piece of data to the hub.
+    /// Signals that the caller wants to send a message to the hub. When the
+    /// hub is ready for that, will execute *caller. This might happen inline
+    /// within this function call, or on a different executor.
+    /// @param caller callback that actually sends the message. It is required
+    /// to call do_send() inline.
+    virtual void enqueue_send(Executable* caller) = 0;
+
+    /// Accessor to fill in the message payload. Must be called only from
+    /// within the callback as invoked by enqueue_send.
+    /// @return mutable structure to fill in the message. This structure was
+    /// cleared by the hub before it is returned here.
+    virtual MessageAccessor<T>* mutable_message() = 0;
+
+    /// Sends a message to the hub. Before this is called, the message has to
+    /// be filled in via mutable_message().
+    virtual void do_send() = 0;
+    
     /// @param source is the sender of the message. This must be equal of a
     /// registered hub port, otherwise the message will be returned to the
     /// caller as well.
