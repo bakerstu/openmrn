@@ -231,7 +231,7 @@ public:
         static_assert((group_opts().fixed_size() == 0) ||                      \
                 (zero_offset_this()                                            \
                               .entry(openlcb::EntryMarker<LINE>())             \
-                              .end_offset() <= group_opts().fixed_size()),     \
+                 .end_offset() <= (unsigned)group_opts().fixed_size()), \
             "FixedSize group contents too large");                             \
         return (group_opts().fixed_size() == 0)                                \
             ? entry(openlcb::EntryMarker<LINE>()).end_offset()                 \
