@@ -44,6 +44,64 @@
 /// data came from.
 class HubSource {};
 
+
+using DataBuffer = Buffer<uint8_t[]>;
+
+class LinkedDataBuffer : public DataBuffer {
+public:
+    /// Acquires one reference to all blocks of this buffer.
+    /// @param total_size the number of bytes starting from the beginning of
+    /// *this.
+    LinkedDataBuffer *ref_all(unsigned total_size)
+    {
+        LinkedDataBuffer *curr = this;
+        do
+        {
+            HASSERT(curr);
+            curr->ref();
+            if (total_size > curr->size())
+            {
+                total_size -= curr->size();
+            }
+            else
+            {
+                total_size = 0;
+            }
+            curr = curr->next();
+        } while (total_size > 0);
+        return this;
+    }
+
+    /// Releases one reference to all blocks of this buffer.
+    /// @param total_size the number of bytes starting from the beginning of
+    /// *this.
+    void unref_all(unsigned total_size)
+    {
+        LinkedDataBuffer *curr = this;
+        while (true)
+        {
+            HASSERT(curr);
+            if (total_size > curr->size())
+            {
+                LinkedDataBuffer *next = curr->next();
+                total_size -= curr->size();
+                curr->unref();
+                curr = next;
+            }
+            else
+            {
+                curr->unref();
+                break;
+            }
+        }
+    }
+
+protected:
+    LinkedDataBuffer* next() {
+        return static_cast<LinkedDataBuffer *>(QMember::next);
+    }
+};
+
 /// Metadata that is the same about every message.
 struct MessageMetadata {
     void clear()
@@ -86,24 +144,7 @@ template<>
 struct MessageAccessor<uint8_t[]> : public MessageMetadata {
     void clear() {
         // Walks the buffer links and unrefs everything we own.
-        Buffer<uint8_t[]>* curr = payload_;
-        unsigned left = skip_ + size_;
-        while (left > 0)
-        {
-            HASSERT(curr);
-            auto *next = static_cast<Buffer<uint8_t[]> *>(curr->next);
-            if (left > curr->size())
-            {
-                left -= curr->size();
-                curr->unref();
-                curr = next;
-            }
-            else
-            {
-                curr->unref();
-                break;
-            }
-        }
+        payload_->unref_all(skip_ + size_);
         payload_ = nullptr;
         skip_ = 0;
         size_ = 0;
@@ -114,7 +155,7 @@ struct MessageAccessor<uint8_t[]> : public MessageMetadata {
     /// remaining bytes, then the next pointer has to be followed to get to
     /// additional Buffer<uint8_t[]>* objects. All of these objects have
     /// exactly one ref owned by *this.
-    Buffer<uint8_t[]>* payload_ = nullptr;
+    LinkedDataBuffer* payload_ = nullptr;
     /// How many bytes to skip at the beginning of the payload.
     unsigned skip_ = 0;
     /// How many bytes to read from the payload.

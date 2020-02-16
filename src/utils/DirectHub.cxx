@@ -155,7 +155,7 @@ public:
 
     MessageAccessor<T> *mutable_message() override
     {
-        return *msg_;
+        return &msg_;
     }
 
     void do_send() override
