@@ -121,6 +121,41 @@ public:
 /// and continue there or rather wakeup the flow and yield? Probably yield to
 /// prevent the caller form being held up with uninteresting packet processing.
 
+/// ===Entry API===
+///
+/// This is an integrated API that will internally consult the admission
+/// controller. There are three possible outcomes of an entry call:
+/// 1. admitted and execute inline
+/// 2. admitted but queued
+/// 3. not admitted, blocked asynchronously.
+///
+/// To support the synchronous execution and queueing at the same time, there
+/// has to be a boolean parameter that comes back to tell whether we are
+/// allowed to proceed or not.
+///
+/// When blocked, the best solution is to queue Executables (these are
+/// queueable). We can choose to schedule them onto the executor (yield) or run
+/// them inline when the admission controller says they are released.
+///
+/// It is also meaningful to say that the inline execution just means that we
+/// run() the executable instead of notify()'ing it.
+///
+/// The syntax to do this from a calling StateFlow:
+///
+/// ```
+/// Action have_message() {
+///   wait_and_call(STATE(fill_request));
+///   target->try_send(this);
+///   return wait();
+/// }
+///
+/// Action fill_request() {
+///   target->do_send(params);
+///   return something_next();
+/// }
+/// ```
+
+
 /// ===Runner flow===
 ///
 /// The hub has a current message at any point in time. This is the message
@@ -236,7 +271,7 @@ public:
 /// and on TCP the binary length of the message. Then the message can be passed
 /// on to routing.
 ///
-/// The segmenter might comin in with one ref of a buffer, and output two
+/// The segmenter might come in in with one ref of a buffer, and output two
 /// independent refs of the same buffer. This happens if a single kernel read
 /// ends up with more than one message.
 ///
@@ -296,6 +331,20 @@ public:
 /// bridges in the current, type-specific router. This secondary routing table
 /// exists independently for each router; however, the primary routing table
 /// only exists once globally.
+///
+/// In every case we will test the packet just before output against the
+/// specific HubInput that it came from in order to avoid echoing it back.  The
+/// HubInput may have to be changed between specific routers; or alternatively
+/// we could use the secondary lookup table for the current router. It is
+/// sufficient to perform that secondary lookup only once, as the current
+/// router starts to process the message, if it has been identified that it is
+/// a broadcast message. This basically means that the skipMember (source) can
+/// be a class variable inside the hub flow itself.
+///
+/// The bridge could actually also directly represent the skipMember when
+/// sending the packet to the target router. However, we want to make sure the
+/// enqueueing of the message does not cause a loss of information. We could
+/// have the enqueueing be based on an execution of a piece of code.
 
 
 template<class T>
