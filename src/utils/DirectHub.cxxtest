@@ -1,0 +1,7 @@
+#include "utils/test_main.hxx"
+#include "utils/DirectHub.hxx"
+
+
+TEST(DirectHubTest, create) {
+    create_hub(&g_executor);
+}

@@ -37,35 +37,34 @@
 #ifndef _UTILS_DIRECTHUB_HXX_
 #define _UTILS_DIRECTHUB_HXX_
 
+#include "utils/Buffer.hxx"
+#include "executor/Executor.hxx"
 
 /// Empty class that can be used as a pointer for identifying where a piece of
 /// data came from.
 class HubSource {};
 
+class MessageAccessor {
+public:
+    virtual BufferPtr<const uint8_t[]> get_payload() = 0;
+    BarrierNotifiable* get_done();
+};
+
 /// Interface for a downstream port of a hub (aka a target to send data to).
 template <class T> class DirectHubPort : public HubSource
 {
 public:
-    /// Send some data out on this port. The callee is reqponsible for
-    /// enqueueing the data that came in this call if the available buffer
-    /// space allows that.
-    /// @param data is a share of the payload. The callee must not modify this
-    /// copy.
-    /// @param done non-null. If the callee cannot accept the incoming data,
-    /// they should take a share of this barrier. The callee is then
-    /// responsible for notifying it, and then the caller will re-try the call.
-    /// @param priority hint to the callee on where to enqueue this message, if
-    /// reordering is supported.
-    virtual void send(
-        shared_ptr<const T> data, BarrierNotifiable *done, unsigned priority) = 0;
+    /// Send some data out on this port. The callee is responsible for
+    /// buffering or enqueueing the data that came in this call.
+    /// @param msg represents the message that needs to be sent. THe callee
+    /// must not modify the message.
+    virtual void send(MessageAccessor *msg) = 0;
 };
 
 
 /// Interface for a the central part of a hub.
- 
-
 template<class T>
-class DirectHubInterface : public HubSource {
+class DirectHubInterface {
 public:
     /// Adds a port to this hub. This port will be receiving all further
     /// messages.
@@ -75,6 +74,11 @@ public:
     /// previously.
     /// @param port the downstream port.
     virtual void unregister_port(DirectHubPort<T>* port) = 0;
+    /// Removes a port from this hub. This port must have been registered
+    /// previously.
+    /// @param port the downstream port.
+    /// @param done will be notified when the removal is complete.
+    virtual void unregister_port(DirectHubPort<T>* port, Notifiable* done) = 0;
 
     /// Send a piece of data to the hub.
     /// @param source is the sender of the message. This must be equal of a
@@ -82,7 +86,9 @@ public:
     /// caller as well.
     /// @param data is the payload to send.
     /// @param done non-null. If the hub cannot accept the incoming data, the hub will take a share of this barrier, and notify it 
-    virtual void send(HubSource* source, shared_ptr<const T> data, BarrierNotifiable* done, unsigned priority) = 0;
-}
+    //virtual void send(HubSource* source, shared_ptr<const T> data, BarrierNotifiable* done, unsigned priority) = 0;
+};
+
+DirectHubInterface<uint8_t[]>* create_hub(ExecutorBase* e);
 
 #endif // _UTILS_DIRECTHUB_HXX_
