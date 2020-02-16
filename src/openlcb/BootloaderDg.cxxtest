@@ -609,6 +609,7 @@ TEST_F(BootloaderTest, Unfreeze)
     expect_packet(":X19A28428N0111;");
     // Unfreeze on the proper space ID is equivalent to reboot.
     send_packet(":X1A428111N20A0EF;");
+    wait();
 }
 
 TEST_F(BootloaderTest, BadUnfreeze)
