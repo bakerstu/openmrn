@@ -116,8 +116,54 @@ inbetween.
 However, there is no admission control between different Hubs.
 
 For hubs that are 1:1 in their representation of messages, a synchronous
-execution is desirable.
+execution is desirable. This might be held up if the specific flow is busy
+though. There can be a race condition where inputs from two different but
+bidirectionally interconnected hubs are both receiving inbound packets, both
+busy, and have to queue for accessing each other -- a deadlock.
 
+Option 1) to work around this is to have 1:1 connected hubs not have
+independent free/busy states, but share that state. This way all enquueing
+happens on the entry point where separately defined flows or executors ensure
+queueing is possible.
+
+Option 2) to work around is to decouple the exit from the original flow if we
+fail to acquire the target hub; this could be implemented by creating a
+CallbackExecutable on the heap and handing out ownership of the buffer to it.
+
+The conclusion from both of these is that the exit API is synchronous. The exit
+target is responsible for any queueing that needs to happen. This is very much
+like the current FlowInterface<>.
+
+The exit API does not by definition get a ref of the payload. If they need one,
+they should take one inline. It is guaranteed that there is at least one ref
+held during the time of the call, and the caller (the hub) will release that
+ref sometime after the exit call has completed.
+
+It would be best to give an accessor to the exit call instead of giving it the
+sequence of parameters. The accessor would be the `this` pointer of the hub,
+and allows the target to inquire the necessary parameters. The accessor is
+assumed to be available only during the exit call and after the exit call has
+returned the accessor will be reused for other messages.
+
+API:
+
+```
+class Target {
+  void send(MessageAccessor* message);
+};
+
+class MessageAccessor {
+  BufferPtr<uint8_t[]> get_payload();
+  unsigned get_skip();
+  unsigned get_size();
+  unsigned get_priority();
+  bool is_flush();
+  HubSource* get_source();
+  HubSource* get_destination();
+  BarrierNotifiable* get_done();
+};
+
+```
 
 ### Runner flow
 
@@ -206,6 +252,7 @@ go together.
 
 Message type should then have:
 
+```
 BufferPtr<> first; // first chunk of message
 BufferPtr<> second; if chunks are represented then the second chunk.
 uint16_t ofs; // offset of bytes in the first message
@@ -214,9 +261,10 @@ bool is_flush;
 unsigned priority; // maybe only 4 bands.
 HubSource* source;  // input / caller
 HubSource* destination; // routing hint
-something typing back to the original sender admission controller, for
+something tieing back to the original sender admission controller, for
     example a BarrierNotifiable?
 TODO
+```
 
 It might make sense to support appending another message to the end of the
 buffers. This be especially true if the last buffer pointer is just
