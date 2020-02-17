@@ -41,7 +41,9 @@
 class DataBufferPool;
 
 /// Specialization of the Buffer class that is designed for storing untyped
-/// data arrays.
+/// data arrays. Adds the ability to treat the next pointers as links to
+/// consecutive data bytes, ref'ing and unref'ing a sequence of buffers in one
+/// go.
 class DataBuffer : public Buffer<uint8_t[]> {
 public:
     /// Overrides the size of the data buffer. The semantic meaning of the
@@ -60,30 +62,24 @@ public:
         QMember::next = n;
     }
 
+    /// @return the pointer to the next chunk of buffer.
+    DataBuffer *next()
+    {
+        return static_cast<DataBuffer *>(QMember::next);
+    }
+    
     /// @return the payload pointer, cast to a convenient type.
     uint8_t *data()
     {
         return static_cast<uint8_t *>(&data_[0]);
     }
 
-private:
-    friend class DataBufferPool;
-
-    DataBuffer(DataBufferPool *p)
-        : Buffer<uint8_t[]>((Pool*)p)
-    {
-    }
-};
-
-/// DataBuffer that allows taking and releasing references of linked items.
-class LinkedDataBuffer : public DataBuffer {
-public:
     /// Acquires one reference to all blocks of this buffer.
     /// @param total_size the number of bytes starting from the beginning of
     /// *this.
-    LinkedDataBuffer *ref_all(unsigned total_size)
+    DataBuffer *ref_all(unsigned total_size)
     {
-        LinkedDataBuffer *curr = this;
+        DataBuffer *curr = this;
         do
         {
             HASSERT(curr);
@@ -106,13 +102,13 @@ public:
     /// *this.
     void unref_all(unsigned total_size)
     {
-        LinkedDataBuffer *curr = this;
+        DataBuffer *curr = this;
         while (true)
         {
             HASSERT(curr);
             if (total_size > curr->size())
             {
-                LinkedDataBuffer *next = curr->next();
+                DataBuffer *next = curr->next();
                 total_size -= curr->size();
                 curr->unref();
                 curr = next;
@@ -133,25 +129,30 @@ public:
     /// to read from that point on.
     /// @return the data buffer where to continue reading (with skip = 0),
     /// might be nullptr.
-    LinkedDataBuffer *get_read_pointer(
+    DataBuffer *get_read_pointer(
         unsigned skip, uint8_t **ptr, unsigned *available)
     {
-        LinkedDataBuffer *curr = this;
+        DataBuffer *curr = this;
         while (curr->size() <= skip)
         {
             skip -= curr->size();
             curr = curr->next();
             HASSERT(curr);
         }
-        *ptr = ((uint8_t *)curr->data()) + skip;
+        *ptr = curr->data() + skip;
         *available = curr->size() - skip;
         return curr->next();
     }
 
-protected:
-    LinkedDataBuffer* next() {
-        return static_cast<LinkedDataBuffer *>(QMember::next);
+    
+private:
+    friend class DataBufferPool;
+
+    DataBuffer(DataBufferPool *p)
+        : Buffer<uint8_t[]>((Pool*)p)
+    {
     }
+
 };
 
 /// Proxy Pool that can allocate DataBuffer objects of a certain size. All
@@ -213,6 +214,8 @@ private:
         // Restores the correct size for assigning it to the right freelist
         // bucket.
         item->size_ = alloc_size();
+        // Clears the next pointer as we are not using these for queues.
+        item->next = nullptr;
         base_pool()->free(item);
     }
     
