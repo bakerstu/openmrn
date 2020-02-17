@@ -3,5 +3,12 @@
 
 
 TEST(DirectHubTest, create) {
-    create_hub(&g_executor);
+    int fd[2];
+    ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+    
+    auto* hub = create_hub(&g_executor);
+    create_port_for_fd(hub, fd[0]);
+
+    wait_for_main_executor();
+    LOG_ERROR("largest bucket %u", LARGEST_BUFFERPOOL_BUCKET);
 }

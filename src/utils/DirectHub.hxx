@@ -37,70 +37,15 @@
 #ifndef _UTILS_DIRECTHUB_HXX_
 #define _UTILS_DIRECTHUB_HXX_
 
-#include "utils/Buffer.hxx"
+#include "utils/DataBuffer.hxx"
 #include "executor/Executor.hxx"
+
+class Service;
 
 /// Empty class that can be used as a pointer for identifying where a piece of
 /// data came from.
 class HubSource {};
 
-
-using DataBuffer = Buffer<uint8_t[]>;
-
-class LinkedDataBuffer : public DataBuffer {
-public:
-    /// Acquires one reference to all blocks of this buffer.
-    /// @param total_size the number of bytes starting from the beginning of
-    /// *this.
-    LinkedDataBuffer *ref_all(unsigned total_size)
-    {
-        LinkedDataBuffer *curr = this;
-        do
-        {
-            HASSERT(curr);
-            curr->ref();
-            if (total_size > curr->size())
-            {
-                total_size -= curr->size();
-            }
-            else
-            {
-                total_size = 0;
-            }
-            curr = curr->next();
-        } while (total_size > 0);
-        return this;
-    }
-
-    /// Releases one reference to all blocks of this buffer.
-    /// @param total_size the number of bytes starting from the beginning of
-    /// *this.
-    void unref_all(unsigned total_size)
-    {
-        LinkedDataBuffer *curr = this;
-        while (true)
-        {
-            HASSERT(curr);
-            if (total_size > curr->size())
-            {
-                LinkedDataBuffer *next = curr->next();
-                total_size -= curr->size();
-                curr->unref();
-                curr = next;
-            }
-            else
-            {
-                curr->unref();
-                break;
-            }
-        }
-    }
-
-protected:
-    LinkedDataBuffer* next() {
-        return static_cast<LinkedDataBuffer *>(QMember::next);
-    }
-};
 
 /// Metadata that is the same about every message.
 struct MessageMetadata {
@@ -179,6 +124,9 @@ public:
 template<class T>
 class DirectHubInterface {
 public:
+    /// @return an executor service.
+    virtual Service* get_service() = 0;
+
     /// Adds a port to this hub. This port will be receiving all further
     /// messages.
     /// @param port the downstream port.
@@ -219,5 +167,8 @@ public:
 };
 
 DirectHubInterface<uint8_t[]>* create_hub(ExecutorBase* e);
+
+void create_port_for_fd(DirectHubInterface<uint8_t[]>* hub, int fd);
+
 
 #endif // _UTILS_DIRECTHUB_HXX_
