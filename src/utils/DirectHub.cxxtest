@@ -2,24 +2,59 @@
 
 #include "utils/test_main.hxx"
 
-TEST(DirectHubTest, end_to_end_data)
+class DirectHubTest : public ::testing::Test
 {
-    int fd[2];
-    ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
-    int ffd[2];
-    ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, ffd));
+protected:
+    /// Creates two hub ports via socketpair and registers them to the data
+    /// hub. Saves the other endpoints to fdOne_ and fdTwo_.
+    void create_two_ports()
+    {
+        int fd[2];
+        ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+        int ffd[2];
+        ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, ffd));
+        create_port_for_fd(hub_, fd[0]);
+        create_port_for_fd(hub_, ffd[0]);
+        fdOne_ = fd[1];
+        fdTwo_ = ffd[1];
+        wait_for_main_executor();
+    }
 
-    auto *hub = create_hub(&g_executor);
-    create_port_for_fd(hub, fd[0]);
-    create_port_for_fd(hub, ffd[0]);
+    /// Reads whatever data is available on fd (up to 1000 bytes) and returns
+    /// it as a string.
+    /// @param fd a readable file descriptor
+    /// @return data read.
+    string read_some(int fd)
+    {
+        char buf[1000];
+        int ret = ::read(fd, buf, sizeof(buf));
+        HASSERT(ret >= 0);
+        return string(buf, ret);
+    }
 
-    wait_for_main_executor();
+    DirectHubInterface<uint8_t[]> *hub_ {create_hub(&g_executor)};
 
-    ASSERT_EQ(6, ::write(fd[1], "abcdef", 6));
+    int fdOne_ = -1;
+    int fdTwo_ = -1;
+};
+
+TEST_F(DirectHubTest, end_to_end_data)
+{
+    create_two_ports();
+
+    ASSERT_EQ(6, ::write(fdOne_, "abcdef", 6));
     usleep(10000);
 
-    char buf[20];
-    ASSERT_EQ(6, ::read(ffd[1], buf, sizeof(buf)));
-    buf[7] = 0;
-    EXPECT_STREQ("abcdef", buf);
+    EXPECT_EQ("abcdef", read_some(fdTwo_));
+
+    ASSERT_EQ(1, ::write(fdOne_, "x", 1));
+    usleep(10000);
+    ASSERT_EQ(1, ::write(fdOne_, "y", 1));
+    usleep(10000);
+    ASSERT_EQ(1, ::write(fdOne_, "z", 1));
+    usleep(10000);
+    ASSERT_EQ(1, ::write(fdOne_, "w", 1));
+    usleep(10000);
+
+    EXPECT_EQ("xyzw", read_some(fdTwo_));
 }
