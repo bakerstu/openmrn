@@ -256,6 +256,7 @@ private:
                 return exit();
             }
             bytesArrived_ = bufFree_ - helper_.remaining_;
+            buf_->set_size(bufOfs_ + bytesArrived_);
             wait_and_call(STATE(send_buffer));
             parent_->hub_->enqueue_send(this);
             return wait();

@@ -1,14 +1,25 @@
-#include "utils/test_main.hxx"
 #include "utils/DirectHub.hxx"
 
+#include "utils/test_main.hxx"
 
-TEST(DirectHubTest, create) {
+TEST(DirectHubTest, end_to_end_data)
+{
     int fd[2];
     ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
-    
-    auto* hub = create_hub(&g_executor);
+    int ffd[2];
+    ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, ffd));
+
+    auto *hub = create_hub(&g_executor);
     create_port_for_fd(hub, fd[0]);
+    create_port_for_fd(hub, ffd[0]);
 
     wait_for_main_executor();
-    LOG_ERROR("largest bucket %u", LARGEST_BUFFERPOOL_BUCKET);
+
+    ASSERT_EQ(6, ::write(fd[1], "abcdef", 6));
+    usleep(10000);
+
+    char buf[20];
+    ASSERT_EQ(6, ::read(ffd[1], buf, sizeof(buf)));
+    buf[7] = 0;
+    EXPECT_STREQ("abcdef", buf);
 }
