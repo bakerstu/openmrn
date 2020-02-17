@@ -1,0 +1,57 @@
+#include "utils/DataBuffer.hxx"
+
+#include "utils/test_main.hxx"
+
+DataBufferPool g_pool(64);
+
+class DataBufferTest : public ::testing::Test
+{
+protected:
+    DataBufferTest()
+    {
+        g_pool.alloc(&b_);
+        lastFree_ = g_pool.free_items();
+    }
+
+    /// Adds an expectation that exactly count item has been freed.
+    void expect_freed(unsigned count = 1)
+    {
+        EXPECT_EQ(lastFree_ + 1, g_pool.free_items());
+    }
+
+    DataBuffer *b_;
+    unsigned lastFree_;
+};
+
+TEST_F(DataBufferTest, alloc_free)
+{
+    EXPECT_EQ(64u, b_->size());
+    b_->unref();
+    expect_freed();
+}
+
+TEST_F(DataBufferTest, alloc_resize_free)
+{
+    EXPECT_EQ(64u, b_->size());
+    b_->set_size(3);
+    b_->unref();
+    expect_freed();
+}
+
+TEST_F(DataBufferTest, BufferPtr_free)
+{
+    b_->set_size(2);
+    {
+        auto r = get_buffer_deleter(b_);
+    }
+    expect_freed();
+    DataBuffer *bb;
+    g_pool.alloc(&bb);
+    EXPECT_EQ(bb, b_);
+}
+
+TEST_F(DataBufferTest, data_content)
+{
+    memcpy(b_->data(), "abcd", 4);
+    EXPECT_EQ('b', b_->data()[1]);
+}
