@@ -98,7 +98,7 @@ struct MessageAccessor<uint8_t[]> : public MessageMetadata {
     /// Pointer to the first buffer that contains this data. The first skip_
     /// bytes have to be ignored from this buffer. If size_ is larger than the
     /// remaining bytes, then the next pointer has to be followed to get to
-    /// additional Buffer<uint8_t[]>* objects. All of these objects have
+    /// additional DataBuffer* objects. All of these objects have
     /// exactly one ref owned by *this.
     DataBuffer* payload_ = nullptr;
     /// How many bytes to skip at the beginning of the payload.

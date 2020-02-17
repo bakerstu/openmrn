@@ -74,6 +74,12 @@ public:
         return static_cast<uint8_t *>(&data_[0]);
     }
 
+    /// @return a new reference to *this.
+    DataBuffer *ref()
+    {
+        return static_cast<DataBuffer *>(Buffer<uint8_t[]>::ref());
+    }
+
     /// Acquires one reference to all blocks of this buffer.
     /// @param total_size the number of bytes starting from the beginning of
     /// *this.
@@ -152,8 +158,9 @@ private:
         : Buffer<uint8_t[]>((Pool*)p)
     {
     }
+}; // class DataBuffer
 
-};
+using DataBufferPtr = std::unique_ptr<DataBuffer, BufferDelete<uint8_t[]>>;
 
 /// Proxy Pool that can allocate DataBuffer objects of a certain size. All
 /// memory comes from the mainBufferPool.
@@ -179,11 +186,9 @@ public:
         return base_pool()->free_items(size);
     }
 
-    /** Get a free item out of the pool with an untyped data of a given payload
-     * size.
+    /** Get a free item out of the pool with untyped data of the size specified
+     * in the constructor.
      * @param result pointer to a pointer to the result
-     * @param payload_size there will be this many bytes of payload reserved
-     * for the data variable.
      */
     void alloc(DataBuffer **result)
     {
@@ -198,6 +203,17 @@ public:
             new (*result) DataBuffer(this);
             (*result)->size_ = payload_size();
         }
+    }
+
+    /** Get a free item out of the pool with untyped data of the size specified
+     * in the constructor.
+     * @param result holder pointer
+     */
+    void alloc(DataBufferPtr *result)
+    {
+        DataBuffer *b;
+        alloc(&b);
+        result->reset(b);
     }
 
 private:

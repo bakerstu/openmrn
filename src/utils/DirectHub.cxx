@@ -236,15 +236,68 @@ private:
 
     private:
         Action alloc_for_read() {
-            //Buffer<uint8_t[]> *b;
-            DataBuffer *b;
-            g_direct_hub_data_pool.alloc(&b);
-            LOG(WARNING, "buffer size %u base %u", (unsigned)b->size(),  (unsigned)sizeof(BufferBase));
-            LOG(WARNING, "ptr %p data %p", b, b->data());
-            return exit();
+            g_direct_hub_data_pool.alloc(&buf_);
+            bufOfs_ = 0;
+            bufFree_ = buf_->size();
+            buf_->set_size(0);
+            return do_some_read();
         }
 
-        BufferPtr<uint8_t[]> buf_;
+        Action do_some_read() {
+            return read_single(&helper_, parent_->fd_, buf_->data() + bufOfs_,
+                bufFree_, STATE(read_done));
+        }
+
+        Action read_done() {
+            if (helper_.hasError_) {
+                /// @todo: copy the code from the HubDeviceSelect.
+                LOG(WARNING, "Error reading from fd %d", parent_->fd_);
+                ::close(parent_->fd_);
+                return exit();
+            }
+            bytesArrived_ = bufFree_ - helper_.remaining_;
+            wait_and_call(STATE(send_buffer));
+            parent_->hub_->enqueue_send(this);
+            return wait();
+        }
+
+        Action send_buffer() {
+            auto* m = parent_->hub_->mutable_message();
+            m->source_ = parent_;
+            /// @todo switch this to ref_all when we are chaining buffers.
+            m->payload_ = buf_->ref();
+            m->skip_ = bufOfs_;
+            m->size_ = bytesArrived_;
+            parent_->hub_->do_send();
+            return yield_and_call(STATE(send_done));
+        }
+
+        Action send_done()
+        {
+            bufOfs_ += bytesArrived_;
+            bufFree_ -= bytesArrived_;
+            if (bufFree_)
+            {
+                return do_some_read();
+            }
+            else
+            {
+                buf_->unref();
+                return alloc_for_read();
+            }
+        }
+
+        /// Current buffer that we are filling.
+        DataBufferPtr buf_;
+        /// Offset of first unused byte in the current buffer.
+        uint16_t bufOfs_;
+        /// Number of bytes that can still be filled in the current buffer.
+        uint16_t bufFree_;
+        /// Number of bytes that came in during the last read.
+        uint16_t bytesArrived_;
+        /// Helper object for Select.
+        StateFlowSelectHelper helper_{this};
+        /// Pointer to the owninng port.
         DirectHubPortSelect* parent_;
     } readFlow_;
 
@@ -370,6 +423,8 @@ private:
         }
     };
 
+    friend class DirectHubReadFlow;
+    
     /// Type of buffers we are enqueuing for output.
     typedef Buffer<OutputDataEntry> BufferType;
     /// Type of the queue used to keep the output buffer queue.
