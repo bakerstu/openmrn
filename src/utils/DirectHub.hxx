@@ -100,7 +100,7 @@ struct MessageAccessor<uint8_t[]> : public MessageMetadata {
     /// remaining bytes, then the next pointer has to be followed to get to
     /// additional Buffer<uint8_t[]>* objects. All of these objects have
     /// exactly one ref owned by *this.
-    LinkedDataBuffer* payload_ = nullptr;
+    DataBuffer* payload_ = nullptr;
     /// How many bytes to skip at the beginning of the payload.
     unsigned skip_ = 0;
     /// How many bytes to read from the payload.

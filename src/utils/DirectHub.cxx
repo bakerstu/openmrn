@@ -358,7 +358,7 @@ private:
     /// single output entry.
     struct OutputDataEntry
     {
-        LinkedDataBuffer *buf = nullptr;
+        DataBuffer *buf = nullptr;
         unsigned skip_ = 0;
         unsigned size_ = 0;
         ~OutputDataEntry()
@@ -378,7 +378,7 @@ private:
     /// The buffer that is taken out of the queue while flushing.
     BufferPtr<OutputDataEntry> currentHead_;
     /// Data we are currently writing to a buffer.
-    LinkedDataBuffer *nextToWrite_;
+    DataBuffer *nextToWrite_;
     /// Skip_ parameter matching nextToWrite_;
     unsigned nextToSkip_;
     /// Size_ parameter matching nextToWrite_;
