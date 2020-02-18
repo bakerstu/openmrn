@@ -1,0 +1,104 @@
+#include "executor/AsyncNotifiableBlock.hxx"
+
+#include "utils/test_main.hxx"
+
+class AsyncNotifiableBlockTest : public ::testing::Test
+{
+protected:
+    AsyncNotifiableBlock b_ {2};
+};
+
+TEST_F(AsyncNotifiableBlockTest, create)
+{
+}
+
+TEST_F(AsyncNotifiableBlockTest, count_request_release)
+{
+    EXPECT_EQ(2u, b_.pending());
+    QMember *e = b_.next(0);
+    EXPECT_NE(nullptr, e);
+    EXPECT_EQ(1u, b_.pending());
+
+    QMember *f = b_.next(0);
+    EXPECT_NE(nullptr, f);
+    EXPECT_EQ(0u, b_.pending());
+
+    QMember *g = b_.next(0);
+    EXPECT_EQ(nullptr, g);
+    EXPECT_EQ(0u, b_.pending());
+
+    b_.initialize(e)->notify();
+    EXPECT_EQ(1u, b_.pending());
+
+    QMember *h = b_.next(0);
+    EXPECT_EQ(e, h);
+
+    EXPECT_EQ(0u, b_.pending());
+}
+
+TEST_F(AsyncNotifiableBlockTest, barrier_semantics)
+{
+    EXPECT_EQ(2u, b_.pending());
+    QMember *e = b_.next(0);
+    BarrierNotifiable* bn = b_.initialize(e);
+    EXPECT_EQ(1u, b_.pending());
+
+    bn->new_child();
+    bn->notify();
+    EXPECT_EQ(1u, b_.pending());
+    bn->notify();
+    EXPECT_EQ(2u, b_.pending());
+}
+
+class FakeExecutable : public Executable
+{
+public:
+    void run() override
+    {
+        DIE("unexpected.");
+    }
+
+    void alloc_result(QMember *m) override
+    {
+        ASSERT_TRUE(m);
+        m_ = m;
+    }
+
+    QMember *m_ {nullptr};
+};
+
+TEST_F(AsyncNotifiableBlockTest, async_allocation)
+{
+    EXPECT_EQ(2u, b_.pending());
+    QMember *e = b_.next(0);
+    EXPECT_NE(nullptr, e);
+    EXPECT_EQ(1u, b_.pending());
+
+    FakeExecutable cli1, cli2, cli3;
+    EXPECT_EQ(nullptr, cli1.m_);
+    EXPECT_EQ(nullptr, cli2.m_);
+    EXPECT_EQ(nullptr, cli3.m_);
+    
+    b_.next_async(&cli1);
+    EXPECT_EQ(0u, b_.pending());
+    EXPECT_NE(nullptr, cli1.m_);
+    EXPECT_NE(e, cli1.m_);
+
+    b_.next_async(&cli2); 
+    b_.next_async(&cli3);
+    EXPECT_EQ(nullptr, cli2.m_);
+    EXPECT_EQ(nullptr, cli3.m_);
+    EXPECT_EQ(0u, b_.pending());
+   
+    b_.initialize(e)->notify(); // will be handed out to cli2
+
+    EXPECT_EQ(0u, b_.pending());
+    EXPECT_EQ(e, cli2.m_);
+
+    b_.initialize(cli1.m_)->notify(); // will be handed out to cli3
+    EXPECT_EQ(cli1.m_, cli3.m_);
+    EXPECT_EQ(0u, b_.pending());
+
+    b_.initialize(cli3.m_)->notify(); // will be handed out to cli3
+    EXPECT_EQ(1u, b_.pending());
+}
