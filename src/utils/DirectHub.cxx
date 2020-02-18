@@ -46,7 +46,7 @@
 #include "executor/AsyncNotifiableBlock.hxx"
 #include "nmranet_config.h"
 
-static DataBufferPool g_direct_hub_data_pool(64);
+static DataBufferPool g_direct_hub_data_pool(512);
 
 /// A single service class that is shared between all interconnected DirectHub
 /// instances. It is the responsibility of this Service to perform the locking
@@ -236,6 +236,10 @@ private:
             : StateFlowBase(parent->service())
             , parent_(parent)
         {
+        }
+
+        void start()
+        {
             start_flow(STATE(alloc_for_read));
         }
 
@@ -293,7 +297,7 @@ private:
             }
             else
             {
-                buf_->unref();
+                buf_.reset();
                 return alloc_for_read();
             }
         }
@@ -329,6 +333,7 @@ public:
         wait_and_call(STATE(read_queue));
         notRunning_ = 1;
         hub_->register_port(this);
+        readFlow_.start();
     }
 
     ~DirectHubPortSelect()

@@ -83,3 +83,19 @@ TEST_F(DirectHubTest, notifies_messages_empty)
     EXPECT_TRUE(bn2.is_done());
     EXPECT_EQ(0u, buf->references());
 }
+
+
+TEST_F(DirectHubTest, large_end_to_end_data)
+{
+    create_two_ports();
+
+    char inbuf[900];
+    memset(inbuf, 0x55, sizeof(inbuf));
+    size_t bytes = 0;
+    for (int i = 0; i < 100; i++) {
+        ::write(fdOne_, inbuf, sizeof(inbuf));
+        usleep(1000);
+        bytes += read_some(fdTwo_).size();
+    }
+    LOG(INFO, "total bytes transferred: %zu", bytes);
+}
