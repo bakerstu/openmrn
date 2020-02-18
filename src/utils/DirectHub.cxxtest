@@ -2,6 +2,8 @@
 
 #include "utils/test_main.hxx"
 
+DataBufferPool pool_64(64);
+
 class DirectHubTest : public ::testing::Test
 {
 protected:
@@ -57,4 +59,27 @@ TEST_F(DirectHubTest, end_to_end_data)
     usleep(10000);
 
     EXPECT_EQ("xyzw", read_some(fdTwo_));
+}
+
+TEST_F(DirectHubTest, notifies_messages_empty)
+{
+    BarrierNotifiable bn1(EmptyNotifiable::DefaultInstance());
+    BarrierNotifiable bn2(EmptyNotifiable::DefaultInstance());
+    DataBuffer *buf;
+    pool_64.alloc(&buf);
+    EXPECT_EQ(1u, buf->references());
+    buf->set_done(&bn1);
+    bool complete = false;
+    hub_->enqueue_send(new CallbackExecutable([this, buf, &bn2, &complete]() {
+        hub_->mutable_message()->done_ = &bn2;
+        hub_->mutable_message()->payload_ = buf;
+        hub_->mutable_message()->skip_ = 0;
+        hub_->mutable_message()->size_ = 10;
+        hub_->do_send();
+        complete = true;
+    }));
+    EXPECT_TRUE(complete);
+    EXPECT_TRUE(bn1.is_done());
+    EXPECT_TRUE(bn2.is_done());
+    EXPECT_EQ(0u, buf->references());
 }

@@ -116,6 +116,11 @@ DECLARE_CONST(gridconnect_buffer_delay_usec);
  * two threads per client (multi-threaded) execution model. */
 DECLARE_CONST(gridconnect_tcp_use_select);
 
+/// Maximum number of packets to parse from a single DirectHubPort before we
+/// wait for data to drain from the system.
+DECLARE_CONST(directhub_port_max_incoming_packets);
+
+
 /** Number of entries in the remote alias cache */
 DECLARE_CONST(remote_alias_cache_size);
 

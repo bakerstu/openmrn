@@ -61,7 +61,7 @@ struct MessageMetadata {
     }
 
     /// This must be notified when the processing of the message is
-    /// complete. All forks coming form the message must take children.
+    /// complete. All forks coming from the message must take children.
     BarrierNotifiable* done_ = nullptr;
     /// Represents the input port where the message came in.
     HubSource* source_ = nullptr;

@@ -43,6 +43,8 @@
 #include "executor/StateFlow.hxx"
 #include "utils/logging.h"
 #include "utils/socket_listener.hxx"
+#include "executor/AsyncNotifiableBlock.hxx"
+#include "nmranet_config.h"
 
 static DataBufferPool g_direct_hub_data_pool(64);
 
@@ -304,6 +306,10 @@ private:
         uint16_t bufFree_;
         /// Number of bytes that came in during the last read.
         uint16_t bytesArrived_;
+        /// Pool of BarrierNotifiables that limit the amount of inflight bytes
+        /// we have.
+        AsyncNotifiableBlock pendingLimiterPool_ {(unsigned)
+            config_directhub_port_max_incoming_packets()};
         /// Helper object for Select.
         StateFlowSelectHelper helper_ {this};
         /// Pointer to the owninng port.
