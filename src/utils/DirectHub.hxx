@@ -170,5 +170,8 @@ DirectHubInterface<uint8_t[]>* create_hub(ExecutorBase* e);
 
 void create_port_for_fd(DirectHubInterface<uint8_t[]>* hub, int fd);
 
+void create_direct_gc_tcp_hub(DirectHubInterface<uint8_t[]>* hub, int port);
+
+
 
 #endif // _UTILS_DIRECTHUB_HXX_

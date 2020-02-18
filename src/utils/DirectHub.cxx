@@ -42,6 +42,7 @@
 
 #include "executor/StateFlow.hxx"
 #include "utils/logging.h"
+#include "utils/socket_listener.hxx"
 
 static DataBufferPool g_direct_hub_data_pool(64);
 
@@ -226,16 +227,19 @@ class DirectHubPortSelect : public DirectHubPort<uint8_t[]>,
                             private StateFlowBase
 {
 private:
-    class DirectHubReadFlow : public StateFlowBase {
+    class DirectHubReadFlow : public StateFlowBase
+    {
     public:
-        DirectHubReadFlow(DirectHubPortSelect* parent)
-            : StateFlowBase(parent->service()),
-              parent_(parent) {
+        DirectHubReadFlow(DirectHubPortSelect *parent)
+            : StateFlowBase(parent->service())
+            , parent_(parent)
+        {
             start_flow(STATE(alloc_for_read));
         }
 
     private:
-        Action alloc_for_read() {
+        Action alloc_for_read()
+        {
             g_direct_hub_data_pool.alloc(&buf_);
             bufOfs_ = 0;
             bufFree_ = buf_->size();
@@ -243,13 +247,16 @@ private:
             return do_some_read();
         }
 
-        Action do_some_read() {
+        Action do_some_read()
+        {
             return read_single(&helper_, parent_->fd_, buf_->data() + bufOfs_,
                 bufFree_, STATE(read_done));
         }
 
-        Action read_done() {
-            if (helper_.hasError_) {
+        Action read_done()
+        {
+            if (helper_.hasError_)
+            {
                 /// @todo: copy the code from the HubDeviceSelect.
                 LOG(WARNING, "Error reading from fd %d", parent_->fd_);
                 ::close(parent_->fd_);
@@ -262,8 +269,9 @@ private:
             return wait();
         }
 
-        Action send_buffer() {
-            auto* m = parent_->hub_->mutable_message();
+        Action send_buffer()
+        {
+            auto *m = parent_->hub_->mutable_message();
             m->source_ = parent_;
             /// @todo switch this to ref_all when we are chaining buffers.
             m->payload_ = buf_->ref();
@@ -297,13 +305,13 @@ private:
         /// Number of bytes that came in during the last read.
         uint16_t bytesArrived_;
         /// Helper object for Select.
-        StateFlowSelectHelper helper_{this};
+        StateFlowSelectHelper helper_ {this};
         /// Pointer to the owninng port.
-        DirectHubPortSelect* parent_;
+        DirectHubPortSelect *parent_;
     } readFlow_;
 
     friend class DirectHubReadFlow;
-    
+
 public:
     DirectHubPortSelect(Service *s, DirectHubInterface<uint8_t[]> *hub, int fd)
         : StateFlowBase(s)
@@ -425,7 +433,7 @@ private:
     };
 
     friend class DirectHubReadFlow;
-    
+
     /// Type of buffers we are enqueuing for output.
     typedef Buffer<OutputDataEntry> BufferType;
     /// Type of the queue used to keep the output buffer queue.
@@ -442,8 +450,8 @@ private:
     /// Helper object for performing asynchronous writes.
     StateFlowSelectHelper selectHelper_ {this};
     /// Time when the last buffer flush has happened. Not used yet.
-    //long long lastWriteTimeNsec_ = 0;
-    
+    // long long lastWriteTimeNsec_ = 0;
+
     /// Contains buffers of OutputDataEntries to write.
     QueueType pendingQueue_;
     /// Total numberof bytes in the pendingQueue.
@@ -456,8 +464,60 @@ private:
     int fd_;
 };
 
-
-void create_port_for_fd(DirectHubInterface<uint8_t[]>* hub, int fd) {
+void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd)
+{
     new DirectHubPortSelect(hub->get_service(), hub, fd);
+}
 
+class DirectGcTcpHub
+{
+public:
+    /// Constructor.
+    ///
+    /// @param can_hub Which CAN-hub should we attach the TCP gridconnect hub
+    /// onto.
+    /// @param port TCp port number to listen on.
+    DirectGcTcpHub(DirectHubInterface<uint8_t[]> *gc_hub, int port);
+    ~DirectGcTcpHub();
+
+    /// @return true of the listener is ready to accept incoming connections.
+    bool is_started()
+    {
+        return tcpListener_.is_started();
+    }
+
+private:
+    /// Callback when a new connection arrives.
+    ///
+    /// @param fd filedes of the freshly established incoming connection.
+    ///
+    void OnNewConnection(int fd);
+
+    /// Direct GridConnect hub.
+    DirectHubInterface<uint8_t[]> *gcHub_;
+    /// Helper object representing the listening on the socket.
+    SocketListener tcpListener_;
+};
+
+void DirectGcTcpHub::OnNewConnection(int fd)
+{
+    create_port_for_fd(gcHub_, fd);
+}
+
+DirectGcTcpHub::DirectGcTcpHub(DirectHubInterface<uint8_t[]> *gc_hub, int port)
+    : gcHub_(gc_hub)
+    , tcpListener_(port,
+          std::bind(
+              &DirectGcTcpHub::OnNewConnection, this, std::placeholders::_1))
+{
+}
+
+DirectGcTcpHub::~DirectGcTcpHub()
+{
+    tcpListener_.shutdown();
+}
+
+void create_direct_gc_tcp_hub(DirectHubInterface<uint8_t[]> *hub, int port)
+{
+    new DirectGcTcpHub(hub, port);
 }
