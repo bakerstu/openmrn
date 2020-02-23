@@ -224,11 +224,15 @@ DirectHubInterface<uint8_t[]> *create_hub(ExecutorBase *e)
     return dh;
 }
 
-/// Connects a (bytes typed) hub to an FD.
+/// Connects a (bytes typed) hub to an FD. This state flow is the write flow;
+/// i.e., it waits for messages coming from the hub and writes them into the fd.
+/// The object is self-owning, i.e. will delete itself when the input goes dead
+/// or when the port is shutdown (eventually).
 class DirectHubPortSelect : public DirectHubPort<uint8_t[]>,
                             private StateFlowBase
 {
 private:
+    /// State flow that reads the FD and sends the read data to the direct hub.
     class DirectHubReadFlow : public StateFlowBase
     {
     public:
@@ -244,18 +248,22 @@ private:
             start_flow(STATE(alloc_for_read));
         }
 
-        /// Unregisters the current flow from the hub. Must be called on the
-        /// main executor.
-        void shutdown()
+        /// Requests the read port to shut down. Must be called on the main
+        /// executor. Causes the flow to notify the parent via the
+        /// read_flow_exit() function then terminate, either inline or not.
+        void read_shutdown()
         {
             auto *e = this->service()->executor();
-            if (e->is_selected(&selectHelper_))
+            if (e->is_selected(&helper_))
             {
-                e->unselect(&selectHelper_);
+                // We're waiting in select on reads, we can cancel right now.
+                e->unselect(&helper_);
+                set_terminated();
+                buf_.reset();
+                parent_->read_flow_exit();
             }
-            set_terminated();
-            buf_.reset();
-            notify_barrier();
+            // Else we're waiting for the regular progress to wake up the
+            // flow. It will check fd_ < 0 to exit.
         }
 
     private:
@@ -270,6 +278,14 @@ private:
 
         Action do_some_read()
         {
+            if (parent_->fd_ < 0)
+            {
+                // Socket closed, terminate and exit.
+                set_terminated();
+                buf_.reset();
+                parent_->read_flow_exit();
+                return wait();
+            }
             return read_single(&helper_, parent_->fd_, buf_->data() + bufOfs_,
                 bufFree_, STATE(read_done));
         }
@@ -280,16 +296,16 @@ private:
             {
                 LOG(INFO, "Error reading from fd %d: (%d) %s", parent_->fd_,
                     errno, strerror(errno));
-                notify_barrier();
                 set_terminated();
                 buf_.reset();
                 parent_->report_read_error();
-                return exit();
-                //::close(parent_->fd_);
-                //  return exit();
+                return wait();
             }
             bytesArrived_ = bufFree_ - helper_.remaining_;
             buf_->set_size(bufOfs_ + bytesArrived_);
+            // We expect either an inline call to our run() method or later a
+            // callback on the executor. This sequence of calls prepares for
+            // both of those options.
             wait_and_call(STATE(send_buffer));
             parent_->hub_->enqueue_send(this);
             return wait();
@@ -322,17 +338,6 @@ private:
             }
         }
 
-        /// Calls into the parent flow's barrier notify, but makes sure to only
-        /// do this once in the lifetime of *this.
-        void notify_barrier()
-        {
-            if (barrierOwned_)
-            {
-                barrierOwned_ = false;
-                parent_->barrier_.notify();
-            }
-        }
-
         /// Current buffer that we are filling.
         DataBufferPtr buf_;
         /// Offset of first unused byte in the current buffer.
@@ -341,10 +346,9 @@ private:
         uint16_t bufFree_;
         /// Number of bytes that came in during the last read.
         uint16_t bytesArrived_;
-        /// true iff pending parent->barrier_.notify()
-        uint8_t barrierOwned_ = true;
         /// Pool of BarrierNotifiables that limit the amount of inflight bytes
         /// we have.
+        /// @TODO actually use this feature.
         AsyncNotifiableBlock pendingLimiterPool_ {(unsigned)
             config_directhub_port_max_incoming_packets()};
         /// Helper object for Select.
@@ -359,8 +363,11 @@ public:
     DirectHubPortSelect(DirectHubInterface<uint8_t[]> *hub, int fd, Notifiable *on_error = nullptr)
         : StateFlowBase(hub->get_service())
         , readFlow_(this)
+        , readFlowPending_(1)
+        , writeFlowPending_(1)
         , hub_(hub)
         , fd_(fd)
+        , onError_(on_error)
     {
 #ifdef __WINNT__
         unsigned long par = 1;
@@ -368,25 +375,27 @@ public:
 #else
         ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK);
 #endif
-        barrier_.reset(
-            on_error ? on_error : EmptyNotifiable::DefaultInstance());
-        // two children: one for write flow, one for read flow.
-        barrier_.new_child();
-        
+
+        // Sets the initial state of the write flow to the stage where we read
+        // the next entry from the queue.
         wait_and_call(STATE(read_queue));
         notRunning_ = 1;
+
         hub_->register_port(this);
         readFlow_.start();
     }
 
     ~DirectHubPortSelect()
     {
-        hub_->unregister_port(this);
     }
 
     /// Synchronous output routine called by the hub.
     void send(MessageAccessor<uint8_t[]> *msg) override
     {
+        if (fd_ < 0)
+        {
+            // Port already closed. Ignore data to send.
+        }
         /// @todo we should try to collect the bytes into a buffer first before
         /// enqueueing them.
         BufferType *b;
@@ -401,6 +410,12 @@ public:
         // Checks if we need to wake up the flow.
         {
             AtomicHolder h(pendingQueue_.lock());
+            if (fd_ < 0)
+            {
+                // Catch race condition when port is already closed.
+                b->unref();
+                return;
+            }
             pendingQueue_.insert_locked(b);
             totalPendingSize_ += msg->size_;
             if (notRunning_)
@@ -409,7 +424,7 @@ public:
             }
             else
             {
-                // flow already running.
+                // flow already running. Skip notify.
                 return;
             }
         }
@@ -417,6 +432,23 @@ public:
     }
 
 private:
+    /// Called on the main executor when a read error wants to cancel the write
+    /// flow. Before calling, fd_ must be -1.
+    void shutdown() {
+        HASSERT(fd_ < 0);
+        {
+            AtomicHolder h(pendingQueue_.lock());
+            if (notRunning_) {
+                // Queue is empty, waiting for new entries. There will be no new
+                // entries because fd_ < 0.
+                hub_->unregister_port(this, this);
+                wait_and_call(STATE(report_and_exit));
+            }
+            // Else eventually we will get to check_for_new_message() which will
+            // flush the queue, unregister the port and exit.
+        }
+    }
+
     Action read_queue()
     {
         BufferType *head = static_cast<BufferType *>(pendingQueue_.next().item);
@@ -430,6 +462,10 @@ private:
 
     Action do_write()
     {
+        if (fd_ < 0) {
+            // fd closed. Drop data to the floor.
+            return check_for_new_message();
+        }
         uint8_t *data;
         unsigned len;
         nextToWrite_ = nextToWrite_->get_read_pointer(nextToSkip_, &data, &len);
@@ -439,6 +475,7 @@ private:
         }
         nextToSkip_ = 0;
         nextToSize_ -= len;
+        totalPendingSize_ -= len;
         return write_repeated(
             &selectHelper_, fd_, data, len, STATE(write_done));
     }
@@ -447,20 +484,30 @@ private:
     {
         if (selectHelper_.hasError_)
         {
-            /// @todo: maybe we need to stop the reader thread too.
-            LOG(WARNING, "Error writing to fd %d", fd_);
-            ::close(fd_);
+            LOG(INFO, "Error writing to fd %d: (%d) %s", fd_,
+                errno, strerror(errno));
+            // will close fd and notify the reader flow to exit.
+            report_write_error();
             hub_->unregister_port(this, this);
-            return wait_and_call(STATE(exit));
+            return wait_and_call(STATE(report_and_exit));
         }
         if (nextToSize_)
         {
             return do_write();
         }
+        return check_for_new_message();
+    }
+
+    Action check_for_new_message() {
         currentHead_.reset();
         AtomicHolder h(pendingQueue_.lock());
         if (pendingQueue_.empty())
         {
+            if (fd_ < 0) {
+                // unregisters the port. All the queue has been flushed now.
+                hub_->unregister_port(this, this);
+                return wait_and_call(STATE(report_and_exit));
+            }
             notRunning_ = 1;
             return wait_and_call(STATE(read_queue));
         }
@@ -470,46 +517,109 @@ private:
         }
     }
 
-    /// Removes the current write port from the registry of the source hub.
-    void unregister_write_port()
+    /// Terminates the flow, reporting to the barrier.
+    Action report_and_exit()
     {
-        LOG(VERBOSE, "DirectHubPortSelect::unregister write port %p",
-            this);
-        hub_->unregister_port(&writeFlow_);
-        /* We put an empty message at the end of the queue. This will cause
-         * wait until all pending messages are dealt with, and then ping the
-         * barrier notifiable, commencing the shutdown. */
-        auto *b = writeFlow_.alloc();
-        b->set_done(&barrier_);
-        writeFlow_.send(b);
+        set_terminated();
+        currentHead_.reset();
+        write_flow_exit();
+        return wait();
     }
 
-    /// The assumption here is that the write flow still has entries in its
-    /// queue that need to be removed.
-    void report_write_error() override
+    /// Called by the write flow when it sees an error. Called on the main
+    /// executor. The assumption here is that the write flow still has entries
+    /// in its queue that need to be removed. Closes the socket, and notifies
+    /// the read flow to exit. Does not typically delete this, because the write
+    /// flow needs to exit separately.
+    void report_write_error()
     {
-        readFlow_.shutdown();
-        unregister_write_port();
-        if (fd_ >= 0) {
-            ::close(fd_);
-            fd_ = -1;
+        {
+            AtomicHolder h(lock());
+            if (fd_ >= 0)
+            {
+                ::close(fd_);
+                fd_ = -1;
+            }
         }
+        readFlow_.read_shutdown();
     }
 
     /// Callback from the ReadFlow when the read call has seen an error. The
-    /// read count will already have been taken out of the barrier, and the
-    /// read flow in terminated state.
-    void report_read_error() override
+    /// read flow is assumed to be exited. Takes the read entry out of the
+    /// barrier, notifies the write flow to stop and possibly deletes *this.
+    /// Called on the main executor.
+    void report_read_error()
     {
-        unregister_write_port();
-        if (fd_ >= 0) {
-            ::close(fd_);
-            fd_ = -1;
+        {
+            AtomicHolder h(lock());
+            if (fd_ >= 0)
+            {
+                ::close(fd_);
+                fd_ = -1;
+            }
+        }
+        // take read barrier
+        read_flow_exit();
+        // kill write flow
+        shutdown();
+    }
+
+    /// Callback from the read flow that it has exited. This is triggered after
+    /// the shutdown() call. May delete this.
+    void read_flow_exit()
+    {
+        LOG(INFO, "%p exit read", this);
+        flow_exit(true);
+    }
+
+    /// @TODO describe. Link in.
+    /// Marks the write flow as exited. May delete this.
+    void write_flow_exit()
+    {
+        LOG(INFO, "%p exit write", this);
+        flow_exit(false);
+    }
+
+    /// Marks a flow to be exited, and once both are exited, notifies done and
+    /// deletes this.
+    /// @param read if true, marks the read flow done, if false, marks the write
+    /// flow done.
+    void flow_exit(bool read) {
+        bool del = false;
+        {
+            AtomicHolder h(lock());
+            if (read)
+            {
+                readFlowPending_ = 0;
+            }
+            else
+            {
+                writeFlowPending_ = 0;
+            }
+            if (writeFlowPending_ == 0 && readFlowPending_ == 0)
+            {
+                del = true;
+            }
+        }
+        if (del)
+        {
+            if (onError_)
+            {
+                onError_->notify();
+            }
+            delete this;
         }
     }
-    
+
+    /// @return lock usable for the write flow and the port altogether.
+    Atomic *lock()
+    {
+        return pendingQueue_.lock();
+    }
+
     /// Holds the necessary information we need to keep in the queue about a
-    /// single output entry.
+    /// single output entry. Auytomatically unrefs the buffer whose pointer we
+    /// are holding when released.
     struct OutputDataEntry
     {
         DataBuffer *buf = nullptr;
@@ -549,16 +659,22 @@ private:
     /// Total numberof bytes in the pendingQueue.
     size_t totalPendingSize_ = 0;
     /// 1 if the state flow is paused, waiting for the notification.
-    unsigned notRunning_ : 1;
+    uint8_t notRunning_ : 1;
+    /// 1 if the read flow is still running.
+    uint8_t readFlowPending_;
+    /// 1 if the write flow is still running.
+    uint8_t writeFlowPending_;
     /// Parent hub where output data is coming from.
     DirectHubInterface<uint8_t[]> *hub_;
     /// File descriptor for input/output.
     int fd_;
+    /// This notifiable will be called before exiting.
+    Notifiable* onError_ = nullptr;
 };
 
-void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd)
+void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd, Notifiable* on_error)
 {
-    new DirectHubPortSelect(hub->get_service(), hub, fd);
+    new DirectHubPortSelect(hub, fd, on_error);
 }
 
 class DirectGcTcpHub

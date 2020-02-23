@@ -34,6 +34,12 @@ protected:
         return string(buf, ret);
     }
 
+    void write_some(int fd) {
+        char inbuf[900];
+        memset(inbuf, 0x55, sizeof(inbuf));
+        ::write(fd, inbuf, sizeof(inbuf));
+    }
+
     DirectHubInterface<uint8_t[]> *hub_ {create_hub(&g_executor)};
 
     int fdOne_ = -1;
@@ -84,18 +90,34 @@ TEST_F(DirectHubTest, notifies_messages_empty)
     EXPECT_EQ(0u, buf->references());
 }
 
-
 TEST_F(DirectHubTest, large_end_to_end_data)
 {
     create_two_ports();
 
-    char inbuf[900];
-    memset(inbuf, 0x55, sizeof(inbuf));
     size_t bytes = 0;
     for (int i = 0; i < 100; i++) {
-        ::write(fdOne_, inbuf, sizeof(inbuf));
+        write_some(fdOne_);
         usleep(1000);
         bytes += read_some(fdTwo_).size();
     }
     LOG(INFO, "total bytes transferred: %zu", bytes);
+}
+
+TEST_F(DirectHubTest, close_notify)
+{
+    int fd[2];
+    int ffd[2];
+    ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+    ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, ffd));
+    LOG(INFO, "socket %d %d", fd[0], fd[1]);
+    SyncNotifiable n;
+    create_port_for_fd(hub_, fd[0], &n);
+    create_port_for_fd(hub_, ffd[0]);
+    write_some(fd[1]);
+
+    read_some(ffd[1]);
+    ::close(fd[1]);
+    write_some(ffd[1]);
+    usleep(10000);
+    n.wait_for_notification();
 }
