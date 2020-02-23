@@ -238,9 +238,24 @@ private:
         {
         }
 
+        /// Starts the current flow.
         void start()
         {
             start_flow(STATE(alloc_for_read));
+        }
+
+        /// Unregisters the current flow from the hub. Must be called on the
+        /// main executor.
+        void shutdown()
+        {
+            auto *e = this->service()->executor();
+            if (e->is_selected(&selectHelper_))
+            {
+                e->unselect(&selectHelper_);
+            }
+            set_terminated();
+            buf_.reset();
+            notify_barrier();
         }
 
     private:
@@ -263,10 +278,15 @@ private:
         {
             if (helper_.hasError_)
             {
-                /// @todo: copy the code from the HubDeviceSelect.
-                LOG(WARNING, "Error reading from fd %d", parent_->fd_);
-                ::close(parent_->fd_);
+                LOG(INFO, "Error reading from fd %d: (%d) %s", parent_->fd_,
+                    errno, strerror(errno));
+                notify_barrier();
+                set_terminated();
+                buf_.reset();
+                parent_->report_read_error();
                 return exit();
+                //::close(parent_->fd_);
+                //  return exit();
             }
             bytesArrived_ = bufFree_ - helper_.remaining_;
             buf_->set_size(bufOfs_ + bytesArrived_);
@@ -302,6 +322,17 @@ private:
             }
         }
 
+        /// Calls into the parent flow's barrier notify, but makes sure to only
+        /// do this once in the lifetime of *this.
+        void notify_barrier()
+        {
+            if (barrierOwned_)
+            {
+                barrierOwned_ = false;
+                parent_->barrier_.notify();
+            }
+        }
+
         /// Current buffer that we are filling.
         DataBufferPtr buf_;
         /// Offset of first unused byte in the current buffer.
@@ -310,6 +341,8 @@ private:
         uint16_t bufFree_;
         /// Number of bytes that came in during the last read.
         uint16_t bytesArrived_;
+        /// true iff pending parent->barrier_.notify()
+        uint8_t barrierOwned_ = true;
         /// Pool of BarrierNotifiables that limit the amount of inflight bytes
         /// we have.
         AsyncNotifiableBlock pendingLimiterPool_ {(unsigned)
@@ -323,13 +356,23 @@ private:
     friend class DirectHubReadFlow;
 
 public:
-    DirectHubPortSelect(Service *s, DirectHubInterface<uint8_t[]> *hub, int fd)
-        : StateFlowBase(s)
+    DirectHubPortSelect(DirectHubInterface<uint8_t[]> *hub, int fd, Notifiable *on_error = nullptr)
+        : StateFlowBase(hub->get_service())
         , readFlow_(this)
         , hub_(hub)
         , fd_(fd)
     {
-        ::fcntl(fd_, F_SETFL, O_NONBLOCK);
+#ifdef __WINNT__
+        unsigned long par = 1;
+        ioctlsocket(fd_, FIONBIO, &par);
+#else
+        ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK);
+#endif
+        barrier_.reset(
+            on_error ? on_error : EmptyNotifiable::DefaultInstance());
+        // two children: one for write flow, one for read flow.
+        barrier_.new_child();
+        
         wait_and_call(STATE(read_queue));
         notRunning_ = 1;
         hub_->register_port(this);
@@ -427,6 +470,44 @@ private:
         }
     }
 
+    /// Removes the current write port from the registry of the source hub.
+    void unregister_write_port()
+    {
+        LOG(VERBOSE, "DirectHubPortSelect::unregister write port %p",
+            this);
+        hub_->unregister_port(&writeFlow_);
+        /* We put an empty message at the end of the queue. This will cause
+         * wait until all pending messages are dealt with, and then ping the
+         * barrier notifiable, commencing the shutdown. */
+        auto *b = writeFlow_.alloc();
+        b->set_done(&barrier_);
+        writeFlow_.send(b);
+    }
+
+    /// The assumption here is that the write flow still has entries in its
+    /// queue that need to be removed.
+    void report_write_error() override
+    {
+        readFlow_.shutdown();
+        unregister_write_port();
+        if (fd_ >= 0) {
+            ::close(fd_);
+            fd_ = -1;
+        }
+    }
+
+    /// Callback from the ReadFlow when the read call has seen an error. The
+    /// read count will already have been taken out of the barrier, and the
+    /// read flow in terminated state.
+    void report_read_error() override
+    {
+        unregister_write_port();
+        if (fd_ >= 0) {
+            ::close(fd_);
+            fd_ = -1;
+        }
+    }
+    
     /// Holds the necessary information we need to keep in the queue about a
     /// single output entry.
     struct OutputDataEntry
@@ -442,7 +523,7 @@ private:
             }
         }
     };
-
+    
     friend class DirectHubReadFlow;
 
     /// Type of buffers we are enqueuing for output.
