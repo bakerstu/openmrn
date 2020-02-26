@@ -36,6 +36,7 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_SN74HC595GPO_HXX_
 #define _FREERTOS_DRIVERS_COMMON_SN74HC595GPO_HXX_
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <fcntl.h>
@@ -48,14 +49,24 @@
 
 template <uint8_t N = 1> class SN74HC595GPO;
 
-/// Driver for the 74HC595 shift register.
+/// Driver for the 74HC595 shift register. Note: This driver makes use of
+/// std::atomic and requires an implementation of std::atomic on any platform
+/// that makes use of it. For example, at the time of creating this device
+/// driver, ARMv7-M (Cortex-M3/M4/M4F) does have support for std::atomic,
+/// while ARMv6-M (Cortex-M0) does not.
 /// @tparam N number of chips on the bus, starting at 1
 template <uint8_t N = 1> class SN74HC595 : public OSThread
 {
 public:
     /// Constructor.
-    SN74HC595()
-        : spiFd_(-1)
+    /// @param request_refresh_operation This is an application specific
+    ///        callback for triggering a sequence of events that will result
+    ///        in @ref refresh() being called. The exact implementation is
+    ///        application specific, and mostly is determined by whether or not
+    ///        these outputs must be toggled from an interrupt.
+    SN74HC595(void (*request_refresh_operation)(void))
+        : requestRefreshOperation_(request_refresh_operation)
+        , spiFd_(-1)
         , spi_(nullptr)
         , sem_()
         , ioPending_(false)
@@ -86,10 +97,29 @@ public:
         ::ioctl(spiFd_, SPI_IOC_WR_BITS_PER_WORD, &spi_bpw);
         ::ioctl(spiFd_, SPI_IOC_WR_MAX_SPEED_HZ, &spi_max_speed_hz);
 
-        request_gpio_operation();
+        requestRefreshOperation_();
 
         // start the thread at the highest priority in the system
         start("SN74HC595", get_priority_max(), 512);
+    }
+
+    /// Triggers the helper thread to wakeup and refresh the outputs.
+    /// @param from_isr true if called from an ISR.
+    void refresh(bool from_isr = false)
+    {
+        if (!ioPending_)
+        {
+            ioPending_ = true;
+            if (from_isr)
+            {
+                int woken;
+                sem_.post_from_isr(&woken);
+            }
+            else
+            {
+                sem_.post();
+            }
+        }
     }
 
 private:
@@ -117,21 +147,16 @@ private:
     }
 
     /// Request that the GPIO cache be refreshed.
-    void request_gpio_operation()
-    {
-        if (!ioPending_)
-        {
-            ioPending_ = true;
-            sem_.post();
-        }
-    }
+    void (*requestRefreshOperation_)(void);
 
     int spiFd_; ///< SPI bus that accesses the SN74HC595
     SPI *spi_; ///< pointer to a SPI object instance
 
     OSSem sem_; ///< semaphore for posting events
     uint8_t ioPending_ : 1; ///< true if an update is pending
-    uint8_t gpoData_[N]; ///< local copy of the expansion output data
+
+    /// local copy of the expansion output data
+    std::atomic<uint8_t> gpoData_[N];
 
     /// Allow access to SN74HC595 from SN74HC595GPO
     friend class SN74HC595GPO<N>;
@@ -179,10 +204,8 @@ public:
     {
         if (!(instance_->gpoData_[chipIndex_] & (0x1 << bit_)))
         {
-            portENTER_CRITICAL();
             instance_->gpoData_[chipIndex_] |= 0x1 << bit_;
-            portEXIT_CRITICAL();
-            instance_->request_gpio_operation();
+            instance_->requestRefreshOperation_();
         }
     }
 
@@ -191,10 +214,8 @@ public:
     {
         if ((instance_->gpoData_[chipIndex_] & (0x1 << bit_)))
         {
-            portENTER_CRITICAL();
             instance_->gpoData_[chipIndex_] &= ~(0x1 << bit_);
-            portEXIT_CRITICAL();
-            instance_->request_gpio_operation();
+            instance_->requestRefreshOperation_();
         }
     }
 
