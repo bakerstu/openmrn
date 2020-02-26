@@ -568,15 +568,14 @@ private:
     /// the shutdown() call. May delete this.
     void read_flow_exit()
     {
-        LOG(INFO, "%p exit read", this);
+        LOG(VERBOSE, "%p exit read", this);
         flow_exit(true);
     }
 
-    /// @TODO describe. Link in.
     /// Marks the write flow as exited. May delete this.
     void write_flow_exit()
     {
-        LOG(INFO, "%p exit write", this);
+        LOG(VERBOSE, "%p exit write", this);
         flow_exit(false);
     }
 

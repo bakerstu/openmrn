@@ -13,12 +13,44 @@ protected:
     {
         int fd[2];
         ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+
+        int buflen = 1700;
+        socklen_t optlen = sizeof(buflen);
+        ERRNOCHECK("setsockopt",
+            setsockopt(fd[0], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
+        ERRNOCHECK("setsockopt",
+            setsockopt(fd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
+
         int ffd[2];
         ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, ffd));
+        ERRNOCHECK("setsockopt",
+            setsockopt(ffd[0], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
+        ERRNOCHECK("setsockopt",
+            setsockopt(ffd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
         create_port_for_fd(hub_, fd[0]);
         create_port_for_fd(hub_, ffd[0]);
         fdOne_ = fd[1];
         fdTwo_ = ffd[1];
+        wait_for_main_executor();
+    }
+
+    DirectHubTest() {
+#if OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
+        // We expect write failures to occur but we want to handle them where
+        // the error occurs rather than in a SIGPIPE handler.
+        signal(SIGPIPE, SIG_IGN);
+#endif // OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
+    }
+    
+    ~DirectHubTest() {
+        if (fdOne_ >= 0) {
+            ::close(fdOne_);
+            fdOne_ = -1;
+        }
+        if (fdTwo_ >= 0) {
+            ::close(fdTwo_);
+            fdTwo_ = -1;
+        }
         wait_for_main_executor();
     }
 
@@ -34,10 +66,10 @@ protected:
         return string(buf, ret);
     }
 
-    void write_some(int fd) {
+    ssize_t write_some(int fd) {
         char inbuf[900];
         memset(inbuf, 0x55, sizeof(inbuf));
-        ::write(fd, inbuf, sizeof(inbuf));
+        return ::write(fd, inbuf, sizeof(inbuf));
     }
 
     DirectHubInterface<uint8_t[]> *hub_ {create_hub(&g_executor)};
@@ -120,4 +152,28 @@ TEST_F(DirectHubTest, close_notify)
     write_some(ffd[1]);
     usleep(10000);
     n.wait_for_notification();
+
+    ::close(ffd[1]);
+}
+
+TEST_F(DirectHubTest, socket_blocked)
+{
+    create_two_ports();
+
+    int buflen;
+    socklen_t optlen = sizeof(buflen);
+    ERRNOCHECK("getsockopt",
+        getsockopt(fdOne_, SOL_SOCKET, SO_SNDBUF, &buflen, &optlen));
+    LOG(INFO, "snd buf %d", buflen);
+
+    ERRNOCHECK("fcntl", ::fcntl(fdOne_, F_SETFL, O_RDWR | O_NONBLOCK));
+
+    int wr = write_some(fdOne_);
+    LOG(INFO, "%d", wr);
+    wr = write_some(fdOne_);
+    LOG(INFO, "%d", wr);
+    wr = write_some(fdOne_);
+    LOG(INFO, "%d", wr);
+    wr = write_some(fdOne_);
+    LOG(INFO, "%d", wr);
 }
