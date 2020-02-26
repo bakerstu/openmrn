@@ -67,7 +67,6 @@ public:
     SN74HC595(void (*request_refresh_operation)(void))
         : requestRefreshOperation_(request_refresh_operation)
         , spiFd_(-1)
-        , spi_(nullptr)
         , sem_()
         , ioPending_(false)
     {
@@ -85,9 +84,6 @@ public:
     {
         spiFd_ = ::open(spi_name, O_WRONLY);
         HASSERT(spiFd_ >= 0);
-
-        ::ioctl(spiFd_, SPI_IOC_GET_OBJECT_REFERENCE, &spi_);
-        HASSERT(spi_);
 
         // configure SPI bus settings
         uint8_t spi_mode = SPI_MODE_0;
@@ -136,12 +132,11 @@ private:
             if (ioPending_)
             {
                 ioPending_ = false;
-
-                spi_ioc_transfer xfer;
-                xfer.tx_buf = (unsigned long)gpoData_;
-                xfer.rx_buf = 0;
-                xfer.len = N;
-                spi_->transfer_with_cs_assert_polled(&xfer);
+                for (unsigned i = 0; i < N; ++i)
+                {
+                    uint8_t data = gpoData_[0];
+                    ::write(spiFd_, &data, 1);
+                }
             }
         }
     }
@@ -150,8 +145,6 @@ private:
     void (*requestRefreshOperation_)(void);
 
     int spiFd_; ///< SPI bus that accesses the SN74HC595
-    SPI *spi_; ///< pointer to a SPI object instance
-
     OSSem sem_; ///< semaphore for posting events
     uint8_t ioPending_ : 1; ///< true if an update is pending
 
