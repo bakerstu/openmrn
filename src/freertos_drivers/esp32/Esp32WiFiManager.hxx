@@ -42,6 +42,7 @@
 #include "openlcb/TcpDefs.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/GcTcpHub.hxx"
+#include "utils/Singleton.hxx"
 #include "utils/SocketClient.hxx"
 #include "utils/SocketClientParams.hxx"
 #include "utils/macros.h"
@@ -69,6 +70,7 @@ namespace openmrn_arduino
 /// OpenMRN::begin() which will trigger the loading of the node configuration
 /// which will trigger the management of the hub and uplink functionality.
 class Esp32WiFiManager : public DefaultConfigUpdateListener
+                       , public Singleton<Esp32WiFiManager>
 {
 public:
     /// Constructor.
@@ -206,6 +208,20 @@ public:
 
     /// Clears the SSID scan results.
     void clear_ssid_scan_results();
+
+    /// Advertises a service via mDNS.
+    ///
+    /// @param service is the service name to publish.
+    /// @param port is the port for the service to be published.
+    ///
+    /// Note: This will schedule a @ref CallbackExecutable on the @ref Executor
+    /// used by the @ref SimpleCanStack.
+    void mdns_publish(std::string service, uint16_t port);
+
+    /// Removes the advertisement of a service via mDNS.
+    ///
+    /// @param service is the service name to remove from advertising.
+    void mdns_unpublish(std::string service);
 
 private:
     /// Default constructor.
@@ -350,8 +366,15 @@ private:
     /// Notifiable to be called when SSID scan completes.
     Notifiable *ssidCompleteNotifiable_{nullptr};
 
+    /// Protects the mdnsInitialized_ flag and mdnsDeferredPublish_ map.
+    OSMutex mdnsInitLock_;
+
     /// Internal flag for tracking that the mDNS system has been initialized.
     bool mdnsInitialized_{false};
+
+    /// Internal holder for mDNS entries which could not be published due to
+    /// mDNS not being initialized yet.
+    std::map<std::string, uint16_t> mdnsDeferredPublish_;
 
     DISALLOW_COPY_AND_ASSIGN(Esp32WiFiManager);
 };
