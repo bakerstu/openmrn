@@ -153,11 +153,11 @@ private:
 
     /// Priority to use for the rx_task. This needs to be higher than the
     /// tx_task and lower than @ref OPENMRN_TASK_PRIORITY.
-    static constexpr UBaseType_t RX_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
+    static constexpr UBaseType_t RX_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 2;
 
     /// Priority to use for the tx_task. This should be lower than
     /// @ref RX_TASK_PRIORITY and @ref OPENMRN_TASK_PRIORITY.
-    static constexpr UBaseType_t TX_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 2;
+    static constexpr UBaseType_t TX_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 3;
 
     /// Background task that takes care of the conversion of the @ref can_frame
     /// provided by the @ref txBuf into an ESP32 can_message_t which can be

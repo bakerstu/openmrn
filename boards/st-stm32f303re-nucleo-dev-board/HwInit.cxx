@@ -33,6 +33,8 @@
  * @date April 18, 2018
  */
 
+#define _DEFAULT_SOURCE
+
 #include <new>
 #include <cstdint>
 

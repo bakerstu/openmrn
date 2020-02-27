@@ -147,6 +147,9 @@ int CC32xxSocket::socket(int domain, int type, int protocol)
         case IPPROTO_RAW:
             protocol = SL_IPPROTO_RAW;
             break;
+        case CC32xxWiFi::IPPROTO_TCP_TLS:
+            protocol = SL_SEC_SOCKET;
+            break;
         default:
             cc32xxSockets[reserved] = nullptr;
             fd_free(fd);
@@ -669,6 +672,19 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
                 }
             }
             break;
+        case CC32xxWiFi::IPPROTO_TCP_TLS:
+            switch (option_name)
+            {
+                default:
+                    errno = EINVAL;
+                    return -1;
+                case CC32xxWiFi::SO_SIMPLELINK_SD:
+                    int *opt_sd = static_cast<int *>(option_value);
+                    *opt_sd = s->sd;
+                    *option_len = sizeof(int);
+                    result = 0;
+                    break;
+            }
     }
                     
     if (result < 0)

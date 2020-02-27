@@ -96,6 +96,12 @@ public:
      * 0 to NUM_PROFILES-1.*/
     static constexpr int NUM_PROFILES = 7;
 
+    /** Pass this option as protocol to ::socket to create a secure socket. */
+    static constexpr unsigned IPPROTO_TCP_TLS = 254;
+
+    /** Retrieves the socket descriptor for setting TLS parameters. */
+    static constexpr unsigned SO_SIMPLELINK_SD = 65537;
+    
     /** CC32xx SimpleLink forward declaration */
     struct WlanEvent;
 
@@ -184,10 +190,11 @@ public:
     /** Connect to access point.
      * @param ssid access point ssid
      * @param security_key access point security key
-     * @param security_type specifies security type 
+     * @param security_type specifies security type
+     * @return WlanConnectResult::OK upon success, else error on failure
      */
-    void wlan_connect(const char *ssid, const char *security_key,
-                      SecurityType security_type);
+    WlanConnectResult wlan_connect(const char *ssid, const char *security_key,
+                                   SecurityType security_type);
 
     /** Disconnects from the current AP. */
     void wlan_disconnect();
@@ -251,6 +258,14 @@ public:
         ipAcquired = has_ip ? 1 : 0;
         securityFailure = wrong_password ? 1 : 0;
         strcpy(this->ssid, ssid.c_str());
+    }
+
+    /** Used by unit tests to simulate wifi state.
+     * @param ip sets the IP address given to the device by DHCP.
+     */
+    void TEST_set_ip(uint32_t ip)
+    {
+        ipAddress = ip;
     }
 #endif
 
@@ -352,8 +367,10 @@ public:
         return ipAcquired ? ipAddress : 0;
     }
 
-    /** Get the SSID of the access point we are connected to.
-     * @return SSID of the access point we are connected to
+    /** Get the SSID of the access point we are connected to. In AP mode gives
+     * the current advertised AP.
+     * @return SSID of the access point we are connected to or in AP mode the
+     * access point name of the current device.
      */
     const char *wlan_ssid()
     {
@@ -529,7 +546,7 @@ private:
     }
 
     uint32_t ipAddress; /**< assigned IP adress */
-    char ssid[33]; /**< SSID of AP we are connected to */
+    char ssid[33]; /**< SSID of AP, or AP we are connected to */
 
     /// Callback for when IP is acquired
     std::function<void(bool)> ipAcquiredCallback_;

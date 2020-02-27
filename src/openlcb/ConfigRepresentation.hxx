@@ -230,8 +230,8 @@ public:
     {                                                                          \
         static_assert((group_opts().fixed_size() == 0) ||                      \
                 (zero_offset_this()                                            \
-                              .entry(openlcb::EntryMarker<LINE>())             \
-                              .end_offset() <= group_opts().fixed_size()),     \
+                        .entry(openlcb::EntryMarker<LINE>())                   \
+                        .end_offset() <= (unsigned)group_opts().fixed_size()), \
             "FixedSize group contents too large");                             \
         return (group_opts().fixed_size() == 0)                                \
             ? entry(openlcb::EntryMarker<LINE>()).end_offset()                 \
@@ -432,12 +432,12 @@ CDI_GROUP(
     UserInfoSegment, Segment(MemoryConfigDefs::SPACE_ACDI_USR), Offset(1));
 /// User name entry
 CDI_GROUP_ENTRY(name, StringConfigEntry<63>, //
-    Name("User name"),                       //
+    Name("User Name"),                       //
     Description(
         "This name will appear in network browsers for the current node."));
 /// User description entry
 CDI_GROUP_ENTRY(description, StringConfigEntry<64>, //
-    Name("User description"),                       //
+    Name("User Description"),                       //
     Description("This description will appear in network browsers for the "
                 "current node."));
 /// Signals termination of the group.

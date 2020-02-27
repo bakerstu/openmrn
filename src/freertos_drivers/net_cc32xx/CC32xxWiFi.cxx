@@ -679,8 +679,9 @@ void CC32xxWiFi::stop()
 /*
  * CC32xxWiFi::wlan_connect()
  */
-void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
-                              SecurityType security_type)
+WlanConnectResult CC32xxWiFi::wlan_connect(const char *ssid,
+                                           const char* security_key,
+                                           SecurityType security_type)
 {
     connected = 0;
     ipAcquired = 0;
@@ -698,8 +699,15 @@ void CC32xxWiFi::wlan_connect(const char *ssid, const char* security_key,
 
     int result = sl_WlanConnect((signed char*)ssid, strlen(ssid), 0,
                                 &sec_params, 0);
-    HASSERT(result >= 0);
 
+    switch (result)
+    {
+        default:
+            SlCheckError(result);
+            return WlanConnectResult::CONNECT_OK;
+        case SL_ERROR_WLAN_PASSWORD_ERROR:
+            return WlanConnectResult::PASSWORD_INVALID;
+    }
 }
 
 /*
@@ -755,7 +763,11 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
 
     sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SSID, strlen(ssid),
                (uint8_t*)ssid);
-
+    if (wlanRole == WlanRole::AP)
+    {
+        strncpy(this->ssid, ssid, sizeof(this->ssid));
+    }
+    
     sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SECURITY_TYPE, 1,
                (uint8_t*)&sec_type);
 
@@ -801,6 +813,11 @@ void CC32xxWiFi::set_default_state()
             sl_Stop(0xFF);
             sl_Start(0, 0, 0);
         }
+        // Reads AP SSID configuration from NWP.
+        uint16_t len = sizeof(ssid);
+        memset(ssid, 0, len);
+        uint16_t config_opt = SL_WLAN_AP_OPT_SSID;
+        sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (_u8 *)ssid);
     }
     else
     {
@@ -1234,6 +1251,11 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
             }
             break;
         case SL_SOCKET_ASYNC_EVENT:
+            LOG(ALWAYS, "Socket async event %d, sd %u type %u val %d",
+                (int)event->SocketAsyncEvent.SockAsyncData.Type,
+                (unsigned)event->SocketAsyncEvent.SockAsyncData.Sd,
+                (unsigned)event->SocketAsyncEvent.SockAsyncData.Type,
+                (int)event->SocketAsyncEvent.SockAsyncData.Val);
             switch (event->SocketAsyncEvent.SockAsyncData.Type)
             {
                 default:
@@ -1241,6 +1263,7 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
             }
             break;
         default:
+            LOG(ALWAYS, "Socket event %d", (int)event->Event);
             break;
     }
 }

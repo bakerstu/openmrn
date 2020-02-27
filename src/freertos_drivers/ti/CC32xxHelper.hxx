@@ -54,8 +54,11 @@ void SlCheckError(int result);
 /**
  * Deletes a file from sflash. This routine works around the error
  * SL_FS_FILE_HAS_NOT_BEEN_CLOSE_CORRECTLY which prevents deleting a file.
- * @param filename serial-flash file name to delete. */
-void SlDeleteFile(const void* filename);
+ * @param filename serial-flash file name to delete.
+ * @return the result code from the last delete operation. It is OK for this to
+ * be non zero.
+ */
+int SlDeleteFile(const void* filename);
 
 
 #endif // _FREERTOS_DRIVERS_TI_CC32XXHELPER_HXX_

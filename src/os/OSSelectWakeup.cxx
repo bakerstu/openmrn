@@ -23,6 +23,7 @@ extern "C"
 {
     void *sys_thread_sem_get();
     void sys_sem_signal(void *);
+    void sys_sem_signal_isr(void *);
 }
 
 static int esp_wakeup_open(const char * path, int flags, int mode) {
@@ -100,6 +101,46 @@ void OSSelectWakeup::esp_wakeup()
         // sys_thread_sem_get() will get the semaphore that belongs to the
         // calling thread, not the target thread to wake up.
         sys_sem_signal(lwipSem_);
+    }
+#endif
+}
+
+void OSSelectWakeup::esp_wakeup_from_isr()
+{
+    if (woken_)
+    {
+        return;
+    }
+    AtomicHolder h(this);
+    if (woken_)
+    {
+        return;
+    }
+    woken_ = true;
+    BaseType_t woken = pdFALSE;
+#if 0
+    esp_vfs_select_triggered_isr((SemaphoreHandle_t *)espSem_, &woken);
+    if (woken == pdTRUE)
+    {
+        portYIELD_FROM_ISR();
+    }
+#else
+    if (espSem_)
+    {
+        esp_vfs_select_triggered_isr((SemaphoreHandle_t *)espSem_, &woken);
+        if (woken == pdTRUE)
+        {
+            portYIELD_FROM_ISR();
+        }
+    }
+    else
+    {
+        // Works around a bug in the implementation of
+        // esp_vfs_select_triggered, which internally calls
+        // sys_sem_signal(sys_thread_sem_get()); This is buggy because
+        // sys_thread_sem_get() will get the semaphore that belongs to the
+        // calling thread, not the target thread to wake up.
+        sys_sem_signal_isr(lwipSem_);
     }
 #endif
 }

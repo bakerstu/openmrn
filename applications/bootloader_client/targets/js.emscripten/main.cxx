@@ -266,7 +266,7 @@ private:
 #ifdef __EMSCRIPTEN__
         EM_ASM(process.exit());
 #endif
-        ::exit(0);
+        ::exit(response.error_code == 0 ? 0 : 1);
     }
 
     StateFlowTimer timer_{this};

@@ -62,21 +62,42 @@ public:
       start_flow(STATE(sleep_and_call_sync));
     }
 
+    /// Requests the discontinuation of automatic calls to fsync.
+    ///
+    /// @param n is the @ref Notifiable to call when this flow exits.
+    void shutdown(Notifiable *n)
+    {
+        shutdown_ = true;
+        std::swap(shutdownDone_, n);
+        if (n)
+        {
+            n->notify();
+        }
+        timer_.ensure_triggered();
+    }
+
 private:
     const int fd_;
     const uint64_t interval_;
     const std::string name_;
     StateFlowTimer timer_{this};
+    bool shutdown_{false};
+    Notifiable *shutdownDone_{nullptr};
 
     Action sleep_and_call_sync()
     {
-      return sleep_and_call(&timer_, interval_, STATE(sync));
+        return sleep_and_call(&timer_, interval_, STATE(sync));
     }
 
     Action sync()
     {
-      ERRNOCHECK(name_.c_str(), fsync(fd_));
-      return call_immediately(STATE(sleep_and_call_sync));
+        if (shutdown_)
+        {
+            AutoNotify n(shutdownDone_);
+            return exit();
+        }
+        ERRNOCHECK(name_.c_str(), fsync(fd_));
+        return call_immediately(STATE(sleep_and_call_sync));
     }
 };
 
