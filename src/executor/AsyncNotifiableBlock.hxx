@@ -67,6 +67,7 @@ private:
             AtomicHolder h(this);
             if (count_ == 1)
             {
+                LOG(INFO, "block notifiable returned");
                 auto *tgt = static_cast<AsyncNotifiableBlock *>(done_);
                 tgt->insert(this);
             }

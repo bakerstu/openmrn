@@ -46,7 +46,7 @@
 #include "executor/AsyncNotifiableBlock.hxx"
 #include "nmranet_config.h"
 
-static DataBufferPool g_direct_hub_data_pool(512);
+static DataBufferPool g_direct_hub_data_pool(64);
 
 /// A single service class that is shared between all interconnected DirectHub
 /// instances. It is the responsibility of this Service to perform the locking
@@ -267,12 +267,42 @@ private:
         }
 
     private:
+        /// Root of the read flow. Starts with getting the barrier notifiable,
+        /// either synchronously if one is available, or asynchronously.
         Action alloc_for_read()
+        {
+            QMember *bn = pendingLimiterPool_.next().item;
+            if (bn)
+            {
+                bufferNotifiable_ = pendingLimiterPool_.initialize(bn);
+                return get_read_buffer();
+            }
+            else
+            {
+                pendingLimiterPool_.next_async(this);
+                return wait_and_call(STATE(barrier_allocated));
+            }
+        }
+
+        /// Intermediate step if asynchronous allocation was necessary for the
+        /// read barrier.
+        Action barrier_allocated()
+        {
+            QMember *bn;
+            cast_allocation_result(&bn);
+            HASSERT(bn);
+            bufferNotifiable_ = pendingLimiterPool_.initialize(bn);
+            return get_read_buffer();
+        }
+
+        Action get_read_buffer()
         {
             g_direct_hub_data_pool.alloc(&buf_);
             bufOfs_ = 0;
             bufFree_ = buf_->size();
             buf_->set_size(0);
+            buf_->set_done(bufferNotifiable_);
+            bufferNotifiable_ = nullptr;
             return do_some_read();
         }
 
@@ -340,6 +370,8 @@ private:
 
         /// Current buffer that we are filling.
         DataBufferPtr buf_;
+        /// Barrier notifiable to keep track of the buffer's contents.
+        BarrierNotifiable* bufferNotifiable_;
         /// Offset of first unused byte in the current buffer.
         uint16_t bufOfs_;
         /// Number of bytes that can still be filled in the current buffer.
