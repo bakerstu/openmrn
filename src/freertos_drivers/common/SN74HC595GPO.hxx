@@ -166,7 +166,7 @@ public:
     /// @param instance parrent 74HC595 instance that "owns" the interface.
     /// @param chip_index index on the bus for the chip, starting at 0.
     /// @param bit bit index (0 through 1) of the output.
-    SN74HC595GPO(SN74HC595<N> *instance, uint8_t chip_index, uint8_t bit)
+    constexpr SN74HC595GPO(SN74HC595<N> *instance, uint8_t chip_index, uint8_t bit)
         : Gpio()
         , instance_(instance)
         , chipIndex_(chip_index)
@@ -228,13 +228,13 @@ public:
 
 private:
     /// reference to chip instance
-    SN74HC595<N> *instance_;
+    SN74HC595<N> * const instance_;
 
     /// index on the bus for the chip
-    uint8_t chipIndex_;
+    const uint8_t chipIndex_;
 
     /// bit number representative of the bit
-    uint8_t bit_;
+    const uint8_t bit_;
 
     DISALLOW_COPY_AND_ASSIGN(SN74HC595GPO);
 };
