@@ -80,6 +80,22 @@ public:
         return *tptr();
     };
 
+    /// Gets the embedded object pointer in a way that is friendly to
+    /// linker-initialization.
+    /// @return pointer to the embedded object
+    constexpr T* const get()
+    {
+        return tptr();
+    }
+
+    /// Gets the embedded object pointer in a way that is friendly to
+    /// linker-initialization.
+    /// @return pointer to the embedded object
+    constexpr const T* const get() const
+    {
+        return tptr();
+    }
+    
     /// Constructs the embedded object.
     template <class... Args> T &emplace(Args &&... args)
     {
@@ -96,21 +112,21 @@ public:
     /// Public API to convert the pointer in a linker-initialized way.
     static constexpr T *cast_data(uninitialized<T> *parent)
     {
-        return reinterpret_cast<T *>(&parent->data);
+        return static_cast<T *>((void*)&parent->data);
     }
 
 private:
     typename std::aligned_storage<sizeof(T), alignof(T)>::type data;
 
     /// @return the embedded object
-    T *tptr()
+    constexpr T *tptr()
     {
-        return reinterpret_cast<T *>(&data);
+        return static_cast<T *>((void*)&data);
     }
     /// @return the embedded object
-    const T *tptr() const
+    constexpr const T *tptr() const
     {
-        return reinterpret_cast<const T *>(&data);
+        return static_cast<const T *>((void*)&data);
     }
 };
 
