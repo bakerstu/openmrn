@@ -46,7 +46,9 @@ namespace openlcb
 class LoggingTrain : public TrainImpl
 {
 public:
-    LoggingTrain(uint32_t legacy_address);
+    LoggingTrain(uint32_t legacy_address,
+        dcc::TrainAddressType address_type =
+            dcc::TrainAddressType::DCC_LONG_ADDRESS);
     ~LoggingTrain();
     void set_speed(SpeedType speed) OVERRIDE;
     SpeedType get_speed() OVERRIDE;
@@ -59,6 +61,7 @@ public:
 
 private:
     uint32_t legacyAddress_;
+    dcc::TrainAddressType legacyAddressType_;
     SpeedType currentSpeed_;
     bool estopActive_;
     std::map<uint32_t, uint16_t> fnValues_;
