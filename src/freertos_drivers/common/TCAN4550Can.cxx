@@ -150,7 +150,7 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
             // setup RX FIFO 0
             Rxfxc rxf0c;
             rxf0c.fsa = 0x0000; // FIFO start address
-            rxf0c.fs = 32;      // FIFO size
+            rxf0c.fs = 64;      // FIFO size
             register_write(RXF0C, rxf0c.data);
         }
         {
@@ -196,16 +196,33 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
 //
 void TCAN4550Can::enable()
 {
-    /* there is a mutex lock above us, so the following sequence is atomic */
+    // there is a mutex lock above us, so the following sequence is atomic
     if (!is_created())
     {
-        /* start the thread at the highest priority in the system */
+        // start the thread at the highest priority in the system
         start(name, get_priority_max(), 2048);
     }
 
-    Cccr cccr;
-    cccr.init = 0; // normal operation mode, enables CAN bus access
-    register_write(CCCR, cccr.data);
+    {
+        // clear MCAN interrupts
+        MCANInterrupt mcan_interrupt;
+        mcan_interrupt.data = 0x3FFFFFFF;
+        register_write(IR, mcan_interrupt.data);
+    }
+    {
+        // enable MCAN interrupts
+        mcanInterruptEnable_.data = 0; // start with all interrupts disabled
+        mcanInterruptEnable_.rf0l = 1; // RX FIFO 0 message lost
+        mcanInterruptEnable_.ep = 1;   // error passive
+        mcanInterruptEnable_.bo = 1;   // bus-off status
+        register_write(IE, mcanInterruptEnable_.data);
+    }
+    {
+        // enable normal operation mode
+        Cccr cccr;
+        cccr.init = 0; // normal operation mode, enables CAN bus access
+        register_write(CCCR, cccr.data);
+    }
 
     interruptEnable_();
 }
@@ -217,15 +234,221 @@ void TCAN4550Can::disable()
 {
     interruptDisable_();
 
-    Cccr cccr;
-    cccr.init = 1; // initialization mode, disables CAN bus access
-    register_write(CCCR, cccr.data);
+    {
+        // enable initalization mode
+        Cccr cccr;
+        cccr.init = 1; // initialization mode, disables CAN bus access
+        register_write(CCCR, cccr.data);
+    }
+    {
+        // disable MCAN interrupts
+        mcanInterruptEnable_.data = 0;
+        register_write(IE, mcanInterruptEnable_.data);
+    }
 
-    portENTER_CRITICAL();
-    // flush out any transmit data in the pipleline
-    txBuf->flush();
-    //txPending_ = 0;
+    flush_buffers();
+}
+
+//
+// TCAN4550Can::flush_buffers()
+//
+void TCAN4550Can::flush_buffers()
+{
+    {
+        AtomicHolder h(this);
+        txBuf->flush();
+    }
+
+    // lock SPI bus access
+    OSMutexLock locker(&lock_);
+
+    // get the rx status (FIFO fill level)
+    Rxfxs rxf0s;
+    rxf0s.data = register_read(RXF0S);
+
+    /// @todo this could be made more efficeint, but does it matter?
+    while (rxf0s.ffl)
+    {
+        // acknowledge the next FIFO index
+        Rxfxa rxf0a;
+        rxf0a.fai = rxf0s.fgi;
+        register_write(RXF0A, rxf0a.data);
+
+        // increment index and count
+        if (++rxf0s.fgi >= RX_FIFO_SIZE)
+        {
+            rxf0s.fgi = 0;
+        }
+        --rxf0s.ffl;
+    }
+}
+
+//
+// TCAN4550Can::read()
+//
+ssize_t TCAN4550Can::read(File *file, void *buf, size_t count)
+{
+    HASSERT((count % sizeof(struct can_frame)) == 0);
+
+    struct can_frame *data = (struct can_frame*)buf;
+    ssize_t result = 0;
+
+    count /= sizeof(struct can_frame);
+
+    while (count)
+    {
+        size_t frames_read = 0;
+        MRAMRXBuffer *mram_rx_buffer = reinterpret_cast<MRAMRXBuffer*>(data);
+
+        {
+            // lock SPI bus access
+            OSMutexLock locker(&lock_);
+            Rxfxs rxf0s;
+            rxf0s.data = register_read(RXF0S);
+            if (rxf0s.ffl)
+            {
+                static_assert(sizeof(struct can_frame) == sizeof(MRAMRXBuffer));
+
+                // clip to the continous buffer memory available
+                frames_read = std::min(RX_FIFO_SIZE - rxf0s.fgi, rxf0s.ffl);
+
+                // clip to the number of asked for frames
+                frames_read = std::min(frames_read, count);
+
+                // read from MRAM
+                rxbuf_read(0x0000 + (rxf0s.fgi * sizeof(MRAMRXBuffer)),
+                           mram_rx_buffer, frames_read);
+
+                // acknowledge the last FIFO index read
+                Rxfxa rxf0a;
+                rxf0a.fai = rxf0s.fgi + (frames_read - 1);
+                register_write(RXF0A, rxf0a.data);
+            }
+        }
+        // shuffle data for structure translation
+        for (size_t i = 0; i < frames_read; ++i)
+        {
+            data[i].can_dlc = mram_rx_buffer[i].dlc;
+            data[i].can_rtr = mram_rx_buffer[i].rtr;
+            data[i].can_eff = mram_rx_buffer[i].xtd;
+            data[i].can_err = mram_rx_buffer[i].esi;
+            data[i].can_id &= 0x1FFFFFFF;
+            if (!data[i].can_eff)
+            {
+                // standard frame
+                data[i].can_id >>= 18;
+            }
+        }
+
+        if (frames_read == 0)
+        {
+            // no more data to receive/
+            if ((file->flags & O_NONBLOCK) || result > 0)
+            {
+                break;
+            }
+            else
+            {
+                {
+                    // lock SPI bus access
+                    OSMutexLock locker(&lock_);
+
+                    // enable receive interrupt
+                    mcanInterruptEnable_.rf0n = 1;
+                    register_write(IE, mcanInterruptEnable_.data);
+                }
+                // wait for data to come in
+                rxBuf->block_until_condition(file, true);
+            }
+        }
+
+        count -= frames_read;
+        result += frames_read;
+        data += frames_read;
+    }
+
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EAGAIN;
+    }
+
+    return result * sizeof(struct can_frame);
+}
+
+//
+// TCQN4550Can::select()
+//
+bool TCAN4550Can::select(File* file, int mode)
+{
+    bool retval = false;
+    switch (mode)
+    {
+        case FREAD:
+        {
+            // lock SPI bus access
+            OSMutexLock locker(&lock_);
+
+            // read RX FIFO status
+            Rxfxs rxf0s;
+            rxf0s.data = register_read(RXF0S);
+            if (rxf0s.ffl)
+            {
+                // RX FIFO has data
+                retval = true;
+            }
+            else
+            {
+                // enable receive interrupt
+                mcanInterruptEnable_.rf0n = 1;
+                register_write(IE, mcanInterruptEnable_.data);
+
+                // register for wakeup
+                AtomicHolder h(this);
+                rxBuf->select_insert();
+            }
+            break;
+        }
+        default:
+            return Can::select(file, mode);
+    }
+
+    return retval;
+}
+
+//
+// TCAN4550Can::ioctl()
+//
+int TCAN4550Can::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    if (key == SIOCGCANSTATE)
+    {
+        *((can_state_t*)data) = state_;
+        return 0;
+    }
+    return -EINVAL;
+}
+
+//
+// TCAN4550Can::tx_msg()
+//
+__attribute__((optimize("-O3")))
+void TCAN4550Can::tx_msg()
+{
+    /* The caller has us in a critical section, we need to exchange a
+     * critical section lock for a mutex lock since event handling happens
+     * in thread context and not in interrupt context like it would in a
+     * typical CAN device driver.
+     */
     portEXIT_CRITICAL();
+    lock_.lock();
+    //tx_msg_locked();
+    {
+        /// @todo throw on the floor for now so we can text only RX
+        AtomicHolder h_(this);
+        txBuf->flush();
+    }
+    lock_.unlock();
+    portENTER_CRITICAL();
 }
 
 //
@@ -234,201 +457,83 @@ void TCAN4550Can::disable()
 __attribute__((optimize("-O3")))
 void *TCAN4550Can::entry()
 {
-#if 0
     for ( ; /* forever */ ; )
     {
-#if MCP2515_DEBUG
-        int result = sem_.timedwait(SEC_TO_NSEC(1));
-
-        if (result != 0)
-        {
-            lock_.lock();
-            spi_ioc_transfer xfer[2];
-            memset(xfer, 0, sizeof(xfer));
-            uint8_t wr_data[2] = {READ, 0};
-            xfer[0].tx_buf = (unsigned long)wr_data;
-            xfer[0].len = sizeof(wr_data);
-            xfer[1].rx_buf = (unsigned long)regs_;
-            xfer[1].len = sizeof(regs_);
-            xfer[1].cs_change = 1;
-            ::ioctl(spiFd_, SPI_IOC_MESSAGE(2), xfer);
-            lock_.unlock();
-            continue;
-        }
-#else
         sem_.wait();
-#endif
-        lock_.lock();
 
-        /* read status flags */
-        uint8_t canintf = register_read(CANINTF);
+        // lock SPI bus access
+        OSMutexLock locker(&lock_);
 
-        if (UNLIKELY((canintf & ERRI)) || UNLIKELY((canintf & MERR)))
+        // read status flags
+        MCANInterrupt mcan_interrupt;
+        mcan_interrupt.data = register_read(IR);
+
+        // clear status flags
+        register_write(IR, mcan_interrupt.data);
+
+
+        // error handling
+        if (mcan_interrupt.bo || mcan_interrupt.ep || mcan_interrupt.rf0l)
         {
-            /* error handling, read error flag register */
-            uint8_t eflg = register_read(EFLG);
+            // read protocol status
+            Psr psr;
+            psr.data = register_read(PSR);
 
-            /* clear error status flag */
-            bit_modify(CANINTF, 0, ERRI | MERR);
-
-            if (eflg & (RX0OVR | RX1OVR))
+            if (mcan_interrupt.rf0l)
             {
-                /* receive overrun */
-                ++overrunCount;
-
-                /* clear error flag */
-                bit_modify(EFLG, 0, (RX0OVR | RX1OVR));
-            }
-            if (eflg & TXBO)
-            {
-                /* bus off */
-                ++busOffCount;
-                state_ = CAN_STATE_BUS_OFF;
-            }
-            if ((eflg & TXEP) || (eflg & RXEP))
-            {
-                /* error passive state */
-                ++softErrorCount;
-                state_ = CAN_STATE_BUS_PASSIVE;
-
-                /* flush out any transmit data in the pipleline */
-                register_write(TXB0CTRL, 0x00);
-                register_write(TXB1CTRL, 0x00);
-                bit_modify(CANINTE, 0, TX0I | TX1I);
-                bit_modify(CANINTF, 0, TX0I | TX1I);
-
-                portENTER_CRITICAL();
-                txBuf->flush();
-                portEXIT_CRITICAL();
-                txBuf->signal_condition();
-
-                txPending_ = 0;
-            }
-        }
-
-        if (canintf & RX0I)
-        {
-            /* receive interrupt active */
-            state_ = CAN_STATE_ACTIVE;
-            BufferRead buffer(0);
-            buffer_read(&buffer);
-            struct can_frame *can_frame;
-
-            portENTER_CRITICAL();
-            if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
-            {
-                buffer.build_struct_can_frame(can_frame);
-                rxBuf->advance(1);
-                rxBuf->signal_condition();
-                ++numReceivedPackets_;
-            }
-            else
-            {
-                /* receive overrun occured */
+                // receive overrun
                 ++overrunCount;
             }
-            portEXIT_CRITICAL();
-        }
-
-        /* RX Buf 1 can only be full if RX Buf 0 was also previously full.
-         * It is extremely unlikely that RX Buf 1 will ever be full.
-         */
-        if (UNLIKELY(canintf & RX1I))
-        {
-            /* receive interrupt active */
-            state_ = CAN_STATE_ACTIVE;
-            BufferRead buffer(1);
-            buffer_read(&buffer);
-            struct can_frame *can_frame;
-
-            portENTER_CRITICAL();
-            if (LIKELY(rxBuf->data_write_pointer(&can_frame)))
+            if (mcan_interrupt.bo)
             {
-                buffer.build_struct_can_frame(can_frame);
-                rxBuf->advance(1);
-                rxBuf->signal_condition();
-                ++numReceivedPackets_;
-            }
-            else
-            {
-                /* receive overrun occured */
-                ++overrunCount;
-            }
-            portEXIT_CRITICAL();
-        }
-
-        if (txPending_)
-        {
-            /* transmit interrupt active and transmission complete */
-            if (canintf & TX0I)
-            {
-                state_ = CAN_STATE_ACTIVE;
-                txPending_ &= ~0x1;
-                bit_modify(CANINTE, 0, TX0I);
-                bit_modify(CANINTF, 0, TX0I);
-                ++numTransmittedPackets_;
-            }
-            if (canintf & TX1I)
-            {
-                state_ = CAN_STATE_ACTIVE;
-                txPending_ &= ~0x2;
-                bit_modify(CANINTE, 0, TX1I);
-                bit_modify(CANINTF, 0, TX1I);
-                ++numTransmittedPackets_;
-            }
-
-            while (txPending_ < 3)
-            {
-                struct can_frame *can_frame;
-
-                /* find an empty buffer */
-                int index = (txPending_ & 0x1) ? 1 : 0;
-
-                portENTER_CRITICAL();
-                if (txBuf->data_read_pointer(&can_frame))
+                if (psr.bo)
                 {
-                    /* build up a transmit BufferWrite structure */
-                    BufferWrite buffer(index, can_frame);
-                    txBuf->consume(1);
+                    // bus off
+                    ++busOffCount;
+                    state_ = CAN_STATE_BUS_OFF;
+                }
+            }
+            if (mcan_interrupt.ep)
+            {
+                if (psr.ep)
+                {
+                    // error passive state
+                    ++softErrorCount;
+                    state_ = CAN_STATE_BUS_PASSIVE;
+
+                    // flush out any transmit data in the pipeline
+                    //register_write(TXB0CTRL, 0x00);
+                    //register_write(TXB1CTRL, 0x00);
+                    //bit_modify(CANINTE, 0, TX0I | TX1I);
+                    //bit_modify(CANINTF, 0, TX0I | TX1I);
+
+                    portENTER_CRITICAL();
+                    txBuf->flush();
                     portEXIT_CRITICAL();
-
-                    /* bump up priority of the other buffer so it will
-                     * transmit first if it is pending
-                     */
-                    bit_modify(index == 0 ? TXB1CTRL : TXB0CTRL, 0x01, 0x03);
-
-                    /* load the tranmit buffer */
-                    buffer_write(&buffer, can_frame);
-
-                    txPending_ |= (0x1 << index);
-
-                    /* request to send at lowest priority */
-                    bit_modify(index == 0 ? TXB0CTRL : TXB1CTRL, 0x08, 0x0B);
-                    bit_modify(CANINTE, TX0I << index, TX0I << index);
                     txBuf->signal_condition();
                 }
-                else
-                {
-                    portEXIT_CRITICAL();
-                    break;
-                }
             }
         }
 
-        if (UNLIKELY(ioPending_))
+        // transmission complete
+        if (mcan_interrupt.tc)
         {
-            ioPending_ = false;
-            /* write the latest GPO data */
-            register_write(BFPCTRL, 0x0C | (gpoData_ << 4));
-
-            /* get the latest GPI data */
-            gpiData_ = (register_read(TXRTSCTRL) >> 3) & 0x7;
         }
-        lock_.unlock();
+
+        // received new message
+        if (mcan_interrupt.rf0n)
+        {
+            // signal anyone waiting
+            rxBuf->signal_condition();
+
+            // disable receive interrupt
+            mcanInterruptEnable_.rf0n = 0;
+            register_write(IE, mcanInterruptEnable_.data);
+        }
 
         interruptEnable_();
     }
-#endif
+
     return NULL;
 }
 

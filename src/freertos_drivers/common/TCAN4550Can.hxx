@@ -38,12 +38,15 @@
 #include "SPI.hxx"
 
 #include "os/OS.hxx"
+#include "utils/Atomic.hxx"
+
+#include "can_ioctl.h"
 
 /// Specification of CAN driver for the TCAN4550.
 /// @todo The TCAN4550 uses the Bosch MCAN IP. If we end up supporting other
 ///       devices that also use this IP, then some of the generic MCAN related
 ///       content can be factored out into a common location.
-class TCAN4550Can : public Can, public OSThread
+class TCAN4550Can : public Can, public OSThread, private Atomic
 {
 public:
     /// Constructor.
@@ -52,13 +55,15 @@ public:
     /// @param interrupt_disable callback to disable the interrupt
     TCAN4550Can(const char *name,
                 void (*interrupt_enable)(), void (*interrupt_disable)())
-        : Can(name)
+        : Can(name, config_can_tx_buffer_size(), 0)
         , OSThread()
         , interruptEnable_(interrupt_enable)
         , interruptDisable_(interrupt_disable)
+        , state_(CAN_STATE_STOPPED)
         , spiFd_(-1)
         , spi_(nullptr)
         , sem_()
+        , mcanInterruptEnable_()
     {
     }
 
@@ -89,7 +94,18 @@ private:
     /// maximum SPI clock speed in Hz
     static constexpr uint32_t SPI_MAX_SPEED_HZ = 18000000;
 
+    /// size in words of the MRAM memory
     static constexpr size_t MRAM_SIZE_WORDS = (2 * 1024) / 4;
+
+    /// size in elements for the RX FIFO
+    static constexpr uint32_t RX_FIFO_SIZE = 64;
+
+    /// size in elements for the TX FIFO
+    static constexpr uint32_t TX_FIFO_SIZE = 16;
+
+    /// size in elements for the dedicated TX buffers
+    static constexpr uint32_t TX_DEDICATED_BUFFER_COUNT = 16;
+
 
     /// SPI Registers, word addressing, not byte addressing
     enum Registers : uint16_t
@@ -108,7 +124,6 @@ private:
         MCAN_INTERRUPT_STATUS,    ///< interrupt flags related to MCAN core
 
         INTERRUPT_ENABLE = 0x20C, ///< interrupt and diagnostic flags
-        MCAN_INTERRUPT_ENABLE,    ///< interrupt flags related to MCAN core
 
         CREL = 0x400, ///< core release
         ENDN,         ///< endianess
@@ -290,6 +305,35 @@ private:
                 uint32_t niso  : 1; ///< non ISO operation
 
                 uint32_t rsvd2 : 16; ///< reserved
+            };
+        };
+    };
+
+    /// Protocol status register definition
+    struct Psr
+    {
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t lec : 3; ///< last error code
+                uint32_t act : 2; ///< activity
+                uint32_t ep  : 1; ///< error passive
+                uint32_t ew  : 1; ///< warning status
+                uint32_t bo  : 1; ///< bus-off status
+
+                uint32_t dlec  : 3; ///< data phase last error code
+                uint32_t resi  : 1; ///< ESI of last received CAN FD message
+                uint32_t rbrs  : 1; ///< BRS of last received CAN FD message
+                uint32_t rfdf  : 1; ///< received a CAN FD message
+                uint32_t pxe   : 1; ///< protocol exception event
+                uint32_t rsvd1 : 1; ///< reserved
+
+                uint32_t tdcv  : 7; ///< transmitter delauy compenation value
+                uint32_t rsvd2 : 1; ///< reserved
+
+                uint32_t rsvd3 : 8; ///< reserved
             };
         };
     };
@@ -501,6 +545,104 @@ private:
         };
     };
 
+    /// TCAN4550 interrupt registers (INTERRUPT_ENABLE/STATUS)
+    struct Interrupt
+    {
+        /// Constructor. Sets the reset value.
+        Interrupt()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t vtwd      : 1; ///< global voltage, temp or wdto
+                uint32_t mcanint   : 1; ///< M_CAN global interrupt
+                uint32_t rsvd1     : 1; ///< reserved
+                uint32_t spierr    : 1; ///< SPI error
+                uint32_t rsvd2     : 1; ///< reserved
+                uint32_t canerr    : 1; ///< CAN eror
+                uint32_t wkrq      : 1; ///< wake request
+                uint32_t globalerr : 1; ///< global error (any fault)
+
+                uint32_t candom    : 1; ///< CAN stuck dominant
+                uint32_t rsvd3     : 1; ///< reserved
+                uint32_t canslnt   : 1; ///< CAN silent
+                uint32_t rsvd4     : 2; ///< reserved
+                uint32_t wkerr     : 1; ///< wake error
+                uint32_t lwu       : 1; ///< local wake up
+                uint32_t canint    : 1; ///< CAN bus wake up interrupt
+
+                uint32_t eccerr    : 1; ///< uncorrectable ECC error detected
+                uint32_t rsvd5     : 1; ///< reserved
+                uint32_t wdto      : 1; ///< watchdog timeout
+                uint32_t tsd       : 1; ///< thermal shutdown
+                uint32_t pwron     : 1; ///< power on
+                uint32_t uvio      : 1; ///< under voltage VIO
+                uint32_t uvsup     : 1; ///< under voltage VSUP and UVCCOUT
+                uint32_t sms       : 1; ///< sleep mode status
+
+                uint32_t rsvd6     : 7; ///< reserved
+                uint32_t canbusnom : 1; ///< CAN bus normal
+            };
+        };
+    };
+
+    /// MCAN interrupt registers (IR, IE, and ILS) definition
+    struct MCANInterrupt
+    {
+        /// Constructor. Sets the reset value.
+        MCANInterrupt()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t rf0n : 1; ///< RX FIFO 0 new message
+                uint32_t rf0w : 1; ///< RX FIFO 0 watermark reached
+                uint32_t rf0f : 1; ///< RX FIFO 0 full
+                uint32_t rf0l : 1; ///< RX FIFO 0 message lost
+                uint32_t rf1n : 1; ///< RX FIFO 1 new message
+                uint32_t rf1w : 1; ///< RX FIFO 1 watermark reached
+                uint32_t rf1f : 1; ///< RX FIFO 1 full
+                uint32_t rf1l : 1; ///< RX FIFO 1 message lost
+
+                uint32_t hpm  : 1; ///< high priority message
+                uint32_t tc   : 1; ///< transmission completed
+                uint32_t tcf  : 1; ///< transmission cancellation finished
+                uint32_t tfe  : 1; ///< TX FIFO empty
+                uint32_t tefn : 1; ///< TX event FIFO new entry
+                uint32_t tefw : 1; ///< TX event FIFO watermark reached
+                uint32_t teff : 1; ///< TX event FIFO full
+                uint32_t tefl : 1; ///< TX event FIFO event lost
+
+                uint32_t tsw  : 1; ///< timestamp wraparound
+                uint32_t mraf : 1; ///< message RAM access failure
+                uint32_t too  : 1; ///< timeout occurred
+                uint32_t drx  : 1; ///< message stored to dedicated RX buffer
+                uint32_t bec  : 1; ///< bit error corrected
+                uint32_t beu  : 1; ///< bit error uncorrected
+                uint32_t elo  : 1; ///< error logging overflow
+                uint32_t ep   : 1; ///< error passive
+
+                uint32_t ew   : 1; ///< warning status
+                uint32_t bo   : 1; ///< bus-off status
+                uint32_t wdi  : 1; ///< watchdog
+                uint32_t pea  : 1; ///< protocol error in arbitration phase
+                uint32_t ped  : 1; ///< protocol error in data phase
+                uint32_t ara  : 1; ///< access to reserved address
+                uint32_t rsvd : 2; ///< reserved
+            };
+        };
+    };
+
     /// Buad rate table entry
     struct TCAN4550Baud
     {
@@ -573,7 +715,13 @@ private:
         uint32_t fidx :  7; ///< filter index that message mached if ANMF = 0
         uint32_t anmf :  1; ///< accepted non-matching frame of filter element
 
-        uint32_t data[2]; ///< data payload
+        union
+        {
+            uint64_t data64; ///< data payload (64-bit)
+            uint32_t data32[2]; ///< data payload (0 - 1 word)
+            uint16_t data16[4]; ///< data payload (0 - 3 half word)
+            uint8_t  data[8]; ///< data payload (0 - 8 byte)
+        };
     };
 
     /// TX Buffer structure
@@ -611,6 +759,31 @@ private:
         uint32_t mm   :  8; ///< message marker
     };
 
+    /// Called after disable.
+    void flush_buffers() override;
+
+    /// Read from a file or device.
+    /// @param file file reference for this device
+    /// @param buf location to place read data
+    /// @param count number of bytes to read
+    /// @return number of bytes read upon success, -1 upon failure with errno
+    ///         containing the cause
+    ssize_t read(File *file, void *buf, size_t count) override;
+
+    /// Request an ioctl transaction.
+    /// @param file file reference for this device
+    /// @param key ioctl key
+    /// @param data key data
+    /// @return >= 0 upon success, -errno upon failure
+    int ioctl(File *file, unsigned long int key, unsigned long data) override;
+
+    /// Device select method. Default impementation returns true.
+    /// @param file reference to the file
+    /// @param mode FREAD for read active, FWRITE for write active, 0 for
+    ///        exceptions
+    /// @return true if active, false if inactive
+    bool select(File* file, int mode) override;
+
     /// User entry point for the created thread.
     /// @return exit status
     void *entry() override;
@@ -619,10 +792,7 @@ private:
     void disable() override; ///< function to disable device
 
     /// Function to try and transmit a message.
-    __attribute__((optimize("-O3")))
-    void tx_msg() override
-    {
-    }
+    void tx_msg() override;
 
     /// Read from a SPI register.
     /// @param address address to read from
@@ -667,7 +837,6 @@ private:
         spi_->transfer_with_cs_assert_polled(&xfer);
     }
 
-
     /// Read from a SPI register.
     /// @param offset word offset to read from
     /// @param msg message to send
@@ -678,7 +847,7 @@ private:
         uint16_t address = offset + 0x8000;
         msg->cmd = READ;
         msg->addrH = address >> 8;
-        msg->addrL = 0xFF;
+        msg->addrL = address & 0xFF;
 
         spi_ioc_transfer xfer;
         xfer.tx_buf = (unsigned long)(msg);
@@ -698,7 +867,7 @@ private:
         uint16_t address = offset + 0x8000;
         msg->cmd = WRITE;
         msg->addrH = address >> 8;
-        msg->addrL = 0xFF;
+        msg->addrL = address & 0xFF;
 
         spi_ioc_transfer xfer;
         xfer.tx_buf = (unsigned long)(msg);
@@ -708,11 +877,49 @@ private:
         spi_->transfer_with_cs_assert_polled(&xfer);
     }
 
+    /// Read one or more RX buffers.
+    /// @param offset word offset to read from
+    /// @param buf location to read into
+    /// @param count number of buffers to read
+    __attribute__((optimize("-O3")))
+    void rxbuf_read(uint16_t offset, MRAMRXBuffer *buf, size_t count)
+    {
+        uint16_t address = offset + 0x8000;
+        MRAMMessage msg;
+        msg.cmd = READ;
+        msg.addrH = address >> 8;
+        msg.addrL = address & 0xFF;
+        msg.length = count * sizeof(MRAMRXBuffer);
+
+        spi_ioc_transfer xfer[2];
+        xfer[0].tx_buf = (unsigned long)(&msg);
+        xfer[0].rx_buf = (unsigned long)(&msg);
+        xfer[0].len = sizeof(msg);
+        xfer[1].tx_buf = (unsigned long)(buf);
+        xfer[1].rx_buf = (unsigned long)(buf);
+        xfer[1].len = msg.length;
+
+        spi_->transfer_with_cs_assert_polled(xfer, 2);
+
+        static_assert(sizeof(MRAMRXBuffer) == 16);
+        do
+        {
+            uint32_t *raw = reinterpret_cast<uint32_t*>(buf);
+            be32toh(raw[0]);
+            be32toh(raw[1]);
+            be32toh(raw[2]);
+            be32toh(raw[3]);
+            ++buf;
+        } while (--count);
+    }
+
     void (*interruptEnable_)(); ///< enable interrupt callback
     void (*interruptDisable_)(); ///< disable interrupt callback
+    unsigned state_ : 4; ///< present bus state */
     int spiFd_; ///< SPI bus that accesses MCP2515
     SPI *spi_; ///< pointer to a SPI object instance
     OSSem sem_; ///< semaphore for posting events
+    MCANInterrupt mcanInterruptEnable_; ///< shaddow for the interrupt enable
 
     /// baud rate settings table
     static const TCAN4550Baud BAUD_TABLE[];

@@ -60,7 +60,23 @@ protected:
         , busOffCount(0)
         , softErrorCount(0)
     {
-    }    
+    }
+
+    /** Constructor
+     * @param name device name in file system
+     * @param tx_buffer_size transmit buffer size in can frames
+     * @param rx_buffer_size receive buffer size in can frames
+     */
+    Can(const char *name, size_t tx_buffer_size, size_t rx_buffer_size)
+        : NonBlockNode(name)
+        , txBuf(DeviceBuffer<struct can_frame>::create(tx_buffer_size,
+                                                       tx_buffer_size / 2))
+        , rxBuf(DeviceBuffer<struct can_frame>::create(rx_buffer_size))
+        , overrunCount(0)
+        , busOffCount(0)
+        , softErrorCount(0)
+    {
+    }
 
     /** Destructor.
      */
@@ -115,7 +131,6 @@ protected:
     */
     ssize_t write(File *file, const void *buf, size_t count) OVERRIDE;
 
-private:
     /** Device select method. Default impementation returns true.
      * @param file reference to the file
      * @param mode FREAD for read active, FWRITE for write active, 0 for
@@ -124,6 +139,7 @@ private:
      */
     bool select(File* file, int mode) OVERRIDE;
 
+private:
     DISALLOW_COPY_AND_ASSIGN(Can);
 };
 
