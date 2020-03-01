@@ -43,11 +43,11 @@
 class Service;
 
 /// Empty class that can be used as a pointer for identifying where a piece of
-/// data came from.
+/// data came from. Used as base class for hub ports.
 class HubSource {};
 
 
-/// Metadata that is the same about every message.
+/// Metadata that is the same about every message (independent of data type).
 struct MessageMetadata {
     void clear()
     {
@@ -72,6 +72,8 @@ struct MessageMetadata {
     bool isFlush_ = false;
 };
 
+/// Typed message class. Senders to the hub will use this interface to fill in
+/// the message details on the hub.
 template<class T>
 struct MessageAccessor : public MessageMetadata {
 public:
@@ -85,6 +87,8 @@ public:
     BufferPtr<T> payload_;
 };
 
+/// Type specializer for message interface when we are sending untyped data
+/// (i.e. byte streams).
 template<>
 struct MessageAccessor<uint8_t[]> : public MessageMetadata {
     void clear() {
@@ -107,6 +111,36 @@ struct MessageAccessor<uint8_t[]> : public MessageMetadata {
     unsigned size_ = 0;
 };
 
+/// Abstract base class for segmenting a byte stream typed input into
+/// meaningful packet sized chunks.
+///
+/// Implementations have to be stateful and are instantiated per specific input
+/// port. Implementations have to be thread-compatible.
+class MessageSegmenter : public Destructable {
+public:
+    /// Makes a segmenting decision given more input data. This function will
+    /// be called by the input routine repeatedly with the additional payload
+    /// (non-overlapping) until the function returns a non-zero response.
+    ///
+    /// That response tells how many bytes long the last packet was, which must
+    /// be <= the sum of the size arguments passed in. Thereafter the read flow
+    /// will call clear() and call segment_message() again with the remaining
+    /// partial buffer.
+    ///
+    /// @param data beginning of the buffer pointing to the next unsegmented
+    /// data array.
+    /// @param size how many bytes of data are available at this address. Must
+    /// be >0.
+    /// @return 0 if no complete packet was yet seen; positive value N if the
+    /// packet that starts in the first segment_message call is N bytes
+    /// long. Negative return are reserved (shall not be returned at this
+    /// point).
+    virtual ssize_t segment_message(const void* data, size_t size) = 0;
+
+    /// Resets internal state machine. The next call to segment_message()
+    /// assumes no previous data present.
+    virtual void clear() = 0;
+};
 
 /// Interface for a downstream port of a hub (aka a target to send data to).
 template <class T> class DirectHubPort : public HubSource
@@ -166,12 +200,27 @@ public:
     //virtual void send(HubSource* source, shared_ptr<const T> data, BarrierNotifiable* done, unsigned priority) = 0;
 };
 
+/// Creates a new byte stream typed hub.
 DirectHubInterface<uint8_t[]>* create_hub(ExecutorBase* e);
 
+/// Creates a hub port of byte stream type reading/writing a given fd. This
+/// port will be automaticelly deleted upon any error reading/writing the fd
+/// (unregistered and memory released).
+/// @param hub hub instance on which to register the new port.
+/// @param fd where to read and write data.
+/// @param on_error this will be notified if the port closes due to an error.
 void create_port_for_fd(DirectHubInterface<uint8_t[]>* hub, int fd, Notifiable* on_error = nullptr);
 
+/// Creates a new GridConnect listener on a given TCP port. The object is
+/// leaked (never destroyed).
+/// @param hub incoming and outgoing data will be multiplexed through this hub
+/// instance.
+/// @param port the TCP port to listen on.
 void create_direct_gc_tcp_hub(DirectHubInterface<uint8_t[]>* hub, int port);
 
-
+/// Creates a message segmenter for gridconnect data.
+/// @return a newly allocated message segmenter that chops gridconnect packets
+/// off of a data stream.
+MessageSegmenter* create_gc_message_segmenter();
 
 #endif // _UTILS_DIRECTHUB_HXX_

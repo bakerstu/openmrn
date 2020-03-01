@@ -1,0 +1,86 @@
+#include "utils/DirectHub.hxx"
+
+#include "utils/test_main.hxx"
+
+class GridConnectSegmenterTest : public ::testing::Test
+{
+protected:
+    ssize_t send_some_data(const string &payload)
+    {
+        return segmenter_->segment_message(payload.data(), payload.size());
+    }
+
+    void clear()
+    {
+        segmenter_->clear();
+    }
+
+    std::unique_ptr<MessageSegmenter> segmenter_ {
+        create_gc_message_segmenter()};
+};
+
+TEST_F(GridConnectSegmenterTest, create)
+{
+}
+
+TEST_F(GridConnectSegmenterTest, single_message)
+{
+    auto len = send_some_data(":X1;");
+    EXPECT_EQ(4, len);
+    clear();
+
+    // with two characters of trailing garbage
+    len = send_some_data(":X1; \n");
+    EXPECT_EQ(6, len);
+    clear();
+}
+
+TEST_F(GridConnectSegmenterTest, split_message)
+{
+    auto len = send_some_data(":X1");
+    EXPECT_EQ(0, len);
+
+    len = send_some_data("2;");
+    EXPECT_EQ(5, len);
+    clear();
+    
+    // with one character of trailing garbage
+    len = send_some_data(":X1");
+    EXPECT_EQ(0, len);
+
+    len = send_some_data("2;\n");
+    EXPECT_EQ(6, len);
+    clear();
+}
+
+TEST_F(GridConnectSegmenterTest, two_messages)
+{
+    auto len = send_some_data(":X12;:X345;");
+    EXPECT_EQ(5, len);
+    clear();
+    len = send_some_data(":X345;");
+    EXPECT_EQ(6, len);
+    clear();
+}
+
+
+TEST_F(GridConnectSegmenterTest, two_messages_with_break)
+{
+    auto len = send_some_data(":X12;\n:X35;");
+    EXPECT_EQ(6, len);
+    clear();
+    len = send_some_data(":X35;");
+    EXPECT_EQ(5, len);
+    clear();
+}
+
+TEST_F(GridConnectSegmenterTest, leading_garbage)
+{
+    auto len = send_some_data("   :X12;\n");
+    EXPECT_EQ(3, len);
+    clear();
+    len = send_some_data(":X12;\n");
+    EXPECT_EQ(6, len);
+    clear();
+}
+
