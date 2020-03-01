@@ -80,7 +80,8 @@ public:
     /// Initialize the SN74HC595 settings. Typically called in hw_postinit(),
     /// not hw_preinit() or hw_init().
     /// @param spi_name spi interface that the SN74HC595 is on
-    void init(const char *spi_name)
+    /// @param priority helper thread priority
+    void init(const char *spi_name, int priority = get_priority_max())
     {
         spiFd_ = ::open(spi_name, O_WRONLY);
         HASSERT(spiFd_ >= 0);
@@ -96,7 +97,7 @@ public:
         requestRefreshOperation_();
 
         // start the thread at the highest priority in the system
-        start("SN74HC595", get_priority_max(), 512);
+        start("SN74HC595", priority, 384 + N);
     }
 
     /// Triggers the helper thread to wakeup and refresh the outputs.
@@ -132,11 +133,12 @@ private:
             if (ioPending_)
             {
                 ioPending_ = false;
+                uint8_t data[N];
                 for (unsigned i = 0; i < N; ++i)
                 {
-                    uint8_t data = gpoData_[0];
-                    ::write(spiFd_, &data, 1);
+                    data[i] = gpoData_[i];
                 }
+                ::write(spiFd_, data, N);
             }
         }
     }
@@ -165,7 +167,7 @@ public:
     /// Constructor.
     /// @param instance parrent 74HC595 instance that "owns" the interface.
     /// @param chip_index index on the bus for the chip, starting at 0.
-    /// @param bit bit index (0 through 1) of the output.
+    /// @param bit bit index (0 through 7) of the output.
     constexpr SN74HC595GPO(SN74HC595<N> *instance, uint8_t chip_index, uint8_t bit)
         : Gpio()
         , instance_(instance)
