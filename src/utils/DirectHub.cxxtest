@@ -419,7 +419,7 @@ TEST_F(DirectHubTest, check_skip)
 }
 
 /// Tests that skipping and chaining is correctly handled.
-TEST_F(DirectHubTest, check_chain)
+TEST_F(DirectHubTest, check_size_skip_chain)
 {
     create_two_ports();
     BarrierNotifiable bn2(EmptyNotifiable::DefaultInstance());
@@ -429,6 +429,8 @@ TEST_F(DirectHubTest, check_chain)
     pool_64.alloc(&buf2);
     buf2->set_done(&bn2);
     ASSERT_EQ(64u, buf1->size());
+    buf1->set_size(13);
+    EXPECT_EQ(13u, buf1->size());
     unsigned skip = buf1->size() - 3;
     memcpy(buf1->data() + skip, "abc", 3);
     buf1->set_next(buf2);
