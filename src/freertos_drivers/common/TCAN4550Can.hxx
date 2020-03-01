@@ -80,7 +80,14 @@ public:
     void init(const char *spi_name, uint32_t freq, uint32_t baud);
 
     /// Handle an interrupt.  Called by user provided interrupt handler.
-    void interrupt_handler();
+    __attribute__((optimize("-O3")))
+    void interrupt_handler()
+    {
+        int woken = false;
+        interruptDisable_();
+        sem_.post_from_isr(&woken);
+        os_isr_exit_yield_test(woken);
+    }
 
     /// Return a mutex that can be used by another SPI driver instance sharing
     /// the same bus as its bus lock.

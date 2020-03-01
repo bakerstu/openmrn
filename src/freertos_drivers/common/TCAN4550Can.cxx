@@ -537,14 +537,3 @@ void *TCAN4550Can::entry()
     return NULL;
 }
 
-//
-// TCAN4550Can::interrupt_handler()
-//
-__attribute__((optimize("-O3")))
-void TCAN4550Can::interrupt_handler()
-{
-    int woken = false;
-    interruptDisable_();
-    sem_.post_from_isr(&woken);
-    os_isr_exit_yield_test(woken);
-}
