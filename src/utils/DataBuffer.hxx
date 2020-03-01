@@ -162,6 +162,196 @@ private:
 
 using DataBufferPtr = std::unique_ptr<DataBuffer, BufferDelete<uint8_t[]>>;
 
+/// A class that keeps ownership of a chain of linked DataBuffer references.
+class LinkedDataBufferPtr {
+public:
+    LinkedDataBufferPtr()
+    {
+    }
+
+    ~LinkedDataBufferPtr
+    {
+        reset();
+    }
+
+    /// Move constructor. Takes the ownership that o has. Leaves o as empty.
+    LinkedDataBufferPtr(LinkedDataBufferPtr &&o)
+        : head_(o.head_)
+        , tail_(o.tail_)
+        , size_(o.size_)
+        , skip_(o.skip_)
+        , free_(o.free_)
+    {
+        o.clear();
+    }
+    
+    /// Move assignment operator. Takes the ownership that o has. Leaves o as
+    /// empty.
+    void operator=(LinkedDataBufferPtr &&o)
+    {
+        head_ = o.head_;
+        tail_ = o.tail_;
+        size_ = o.size_;
+        skip_ = o.skip_;
+        free_ = o.free_;
+        o.clear();
+    }
+
+    /// We do not permit default copy operation. Use the reset() function for
+    /// that.
+    LinkedDataBufferPtr(const LinkedDataBufferPtr &) = delete;
+    void operator=(const LinkedDataBufferPtr &) = delete;
+        
+    /// Takes a reference of o, taking a prefix of len size (or all the
+    /// data). The current buffer becomes non-extensible.
+    /// @param o an owned LinkedDataBufferPtr
+    /// @param size is non-negative, this is how many bytes from the beginning
+    /// of o will be copied. If default (negative), takes all bytes that are
+    /// filled.
+    void reset(const LinkedDataBufferPtr& o, ssize_t size = -1) {
+        reset();
+        if (size < 0)
+        {
+            size = o.size_;
+        }
+        free_ = 0;
+        skip_ = o.skip_;
+        size_ = size;
+        tail_ = nullptr;
+        head_ = o.head_->ref_all(o.skip_ + size);
+    }
+    
+    /// Clears the current contents and replaces it with the empty buf.
+    /// @param buf is a new, empty DataBuffer. Ownership will be taken. The
+    /// size() value of it has to be denoting the amount of available bytes.
+    void reset(DataBuffer* buf) {
+        reset();
+        head_ = tail_ = buf;
+        skip_ = 0;
+        free_ = buf->size();
+        size_ = 0;
+        buf->set_size(0);
+    }
+
+    /// Adds an empty buffer to the end of this buffer chain.
+    /// @param buf is a new, empty DataBuffer. Ownership will be taken. The
+    /// size() value of it has to be denoting the amount of available bytes.
+    void append_empty_buffer(DataBuffer *buf)
+    {
+        HASSERT(tail_);
+        free_ = buf->size();
+        buf->set_size(0);
+        tail_->set_next(buf);
+        tail_ = buf;
+    }
+
+    /// Deallocates the current content (by releasing the references).
+    void reset()
+    {
+        if (head_)
+        {
+            head_->unref_all(size_ + skip_);
+        }
+        clear();
+    }
+
+    /// @return the pointer where data can be appended into the tail of this
+    /// buffer chain.
+    uint8_t *data_write_pointer()
+    {
+        if (!tail_)
+        {
+            return nullptr;
+        }
+        return tail_->data() + tail_->size();
+    }
+
+    /// Advances the tail pointer after a write occurred into the tail.
+    /// @param len how many bytes were written into the space pointed to by
+    /// data_write_pointer().
+    void data_write_advance(size_t len)
+    {
+        HASSERT(len < free_);
+        free_ -= len;
+        tail_->set_size(tail_->size() + len);
+        size_ += len;
+    }
+
+    /// @return buffer that is at head.
+    DataBuffer *head()
+    {
+        return head_;
+    }
+
+    /// @return how many bytes to skip from the head buffer.
+    unsigned skip()
+    {
+        return skip_;
+    }
+
+    /// @return how many bytes are filled in the current buffer.
+    unsigned size()
+    {
+        return size_;
+    }
+
+    /// @return the number of bytes that can be written into the tail of this
+    /// buffer chain.
+    size_t free()
+    {
+        return free_;
+    }
+
+    /// Transfers the ownership of the prefix of this buffer. The tail will
+    /// remain in the current buffer chain.
+    /// @param len how many bytes at the beginning (starting at skip_) to
+    /// transfer. Must reach into the tail buffer.
+    /// @return a new (moveable) LinkedDataBufferPtr that will get the
+    /// ownership of the head. It will be non-extendible.
+    LinkedDataBufferPtr transfer_head(size_t len) {
+        LinkedDataBufferPtr ret;
+        ret.head_ = head_;
+        ret.tail_ = nullptr;
+        ret.skip_ = skip_;
+        ret.free_ = 0;
+        ret.size_ = len;
+
+        HASSERT(tail_);
+        HASSERT(len <= size_);
+        HASSERT(size_ - len < tail_->size());
+
+        head_ = tail_->ref();
+        size_ -= len;
+        skip_ = tail_->size() - size_;
+        // free_ remains as is.
+        return ret;
+    }
+    
+private:
+    DISALLOW_COPY_AND_ASSIGN(LinkedDataBufferPtr);
+    
+    /// Internal helper function of constructors and reset functions. Clears
+    /// the current structure (references have to have been dealth with
+    /// before).
+    void clear()
+    {
+        head_ = tail_ = nullptr;
+        skip_ = free_ = size_ = 0;
+    }
+
+    /// First buffer in the chain. This is the root of the ownership.
+    DataBuffer* head_{nullptr};
+    /// Last buffer in the chain. This is where we can extend the owned bytes.
+    DataBuffer* tail_{nullptr};
+    /// How many bytes we have filled in (counting starts at head.data() +
+    /// skip_).
+    size_t size_{0};
+    /// How many bytes to skip in the head buffer.
+    uint16_t skip_{0};
+    /// How many free bytes are there in the tail buffer.
+    uint16_t free_{0};
+};
+
 /// Proxy Pool that can allocate DataBuffer objects of a certain size. All
 /// memory comes from the mainBufferPool.
 class DataBufferPool : public Pool {
