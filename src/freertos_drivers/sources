@@ -78,5 +78,7 @@ ifeq ($(TARGET),freertos.armv6m)
 SUBDIRS += drivers_lpc11cxx stm32cubef071xb_2xb stm32cubef091xc
 # Avoids exception handling from operator new.
 CXXSRCS += c++_operators.cxx
+# Implementations for the __atomic_* "builtins" for GCC.
+CSRCS += libatomic.c
 endif
 

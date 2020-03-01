@@ -365,7 +365,9 @@ protected:
         wait();
         if (pendingAliasAllocation_)
         {
-            ifCan_->alias_allocator()->TEST_finish_pending_allocation();
+            run_x([this]() {
+                ifCan_->alias_allocator()->TEST_finish_pending_allocation();
+            });
             wait();
         }
     }
