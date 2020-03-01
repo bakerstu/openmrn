@@ -42,6 +42,7 @@
 
 #include "executor/Notifiable.hxx"
 #include "utils/Queue.hxx"
+#include "utils/logging.h"
 
 /// A block of BarrierNotifiable objects, with an asynchronous allocation
 /// call. Caller StateFlows can block on allocating a new entry, and then get
