@@ -53,28 +53,27 @@ public:
         emscripten_run_script(script.c_str());
         EM_ASM_(
             {
-                var serial_module = require('serialport');
-                var SerialPort = serial_module.SerialPort;
+                var SerialPort = require('serialport');
                 var portdev = Module.serial_device;
                 console.log('Opening ' + portdev);
                 var openerror = function(error) {
                     console.log(
                         'Failed to open serial port ' + portdev + ': ' + error);
                     console.log('Known serial ports:');
-                    serial_module.list(function(err, ports)
-                        {
-                            ports.forEach(function(port)
-                                {
-                                    console.log('port "' + port.comName +
-                                        '" pnp id: ' + port.pnpId +
-                                        ' manufacturer: ' + port.manufacturer);
-                                });
+                    require('@serialport/bindings')
+                        .list()
+                        .then(function(ports) {
+                            ports.forEach(function(port) {
+                                console.log('port "' + port.path +
+                                    '" pnp id: ' + port.pnpId +
+                                    ' manufacturer: ' + port.manufacturer);
+                            });
                         });
                 };
                 var c;
                 try {
                     c = new SerialPort(
-                        Module.serial_device, {baudrate : 115200});
+                        Module.serial_device, {baudRate : 115200});
                 } catch(err) {
                     openerror(err);
                     return;
@@ -106,12 +105,12 @@ public:
         EM_ASM(
             {
                 console.log('Known serial ports:');
-                require('serialport').list(function(err, ports)
+                require('@serialport/bindings').list().then(function(ports)
                     {
                         ports.forEach(function(port)
                             {
-                                console.log('port "' + port.comName +
-                                    '" pnp id: ' + port.pnpId +
+                                console.log('port "' + port.path +
+                                    '" pnp id: '  + port.pnpId + 
                                     ' manufacturer: ' + port.manufacturer);
                             });
                     });

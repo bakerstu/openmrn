@@ -36,7 +36,37 @@
 #ifndef _UTILS_LINKEDOBJECT_HXX_
 #define _UTILS_LINKEDOBJECT_HXX_
 
+#include <atomic>
+
 #include "utils/Atomic.hxx"
+#include "utils/Uninitialized.hxx"
+
+/// This object encapsulates an Atomic, which never gets destroyed. It is
+/// intended to be used only as static object, because we depend on zero
+/// initialization at construction time.
+class CreateOnlyAtomic
+{
+public:
+    CreateOnlyAtomic()
+    {
+        // Ensures the object gets created at static initialization time while
+        // the program is still single threaded.
+        get();
+    }
+
+    Atomic *get()
+    {
+        if (isInitialized_.exchange(1) == 0)
+        {
+            atomic_.emplace();
+        }
+        return &atomic_.value();
+    }
+
+private:
+    std::atomic_uint_least8_t isInitialized_;
+    uninitialized<Atomic> atomic_;
+};
 
 /// This static object is factored into a separate namespace because current
 /// GDB crashes when trying to print an object with a static Atomic member
@@ -44,7 +74,7 @@
 template <class T> class LinkedObjectHeadMutex
 {
 public:
-    static Atomic headMu_;
+    static CreateOnlyAtomic headMu_;
 };
 
 /// Using this class as a base class will cause the given class to have all its
@@ -62,7 +92,7 @@ public:
 
     /// Locks the list for modification (at any entry!).
     static Atomic* head_mu() {
-        return &LinkedObjectHeadMutex<T>::headMu_;
+        return LinkedObjectHeadMutex<T>::headMu_.get();
     }
 
 protected:
@@ -107,6 +137,6 @@ protected:
 
 // static
 template <class T> T *LinkedObject<T>::head_{nullptr};
-template <class T> Atomic LinkedObjectHeadMutex<T>::headMu_;
+template <class T> CreateOnlyAtomic LinkedObjectHeadMutex<T>::headMu_;
 
 #endif // _UTILS_LINKEDOBJECT_HXX_
