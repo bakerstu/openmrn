@@ -417,3 +417,36 @@ TEST_F(DirectHubTest, check_skip)
     EXPECT_EQ("abcde", rda);
     EXPECT_EQ("abcde", rdb);
 }
+
+/// Tests that skipping and chaining is correctly handled.
+TEST_F(DirectHubTest, check_chain)
+{
+    create_two_ports();
+    BarrierNotifiable bn2(EmptyNotifiable::DefaultInstance());
+    DataBuffer *buf1;
+    DataBuffer *buf2;
+    pool_64.alloc(&buf1);
+    pool_64.alloc(&buf2);
+    buf2->set_done(&bn2);
+    ASSERT_EQ(64u, buf1->size());
+    unsigned skip = buf1->size() - 3;
+    memcpy(buf1->data() + skip, "abc", 3);
+    buf1->set_next(buf2);
+    memcpy(buf2->data(), "de", 2);
+    
+    hub_->enqueue_send(new CallbackExecutable([this, skip, buf1]() {
+        hub_->mutable_message()->payload_ = buf1;
+        hub_->mutable_message()->skip_ = skip;
+        hub_->mutable_message()->size_ = 5;
+        hub_->do_send();
+    }));
+    wait_for_main_executor();
+    EXPECT_EQ(0u, buf1->references());
+    EXPECT_EQ(0u, buf2->references());
+    EXPECT_TRUE(bn2.is_done());
+    usleep(2000);
+    string rda = read_some(fdOne_);
+    string rdb = read_some(fdTwo_);
+    EXPECT_EQ("abcde", rda);
+    EXPECT_EQ("abcde", rdb);
+}
