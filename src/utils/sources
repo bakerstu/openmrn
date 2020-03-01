@@ -10,6 +10,7 @@ CXXSRCS += \
            ConfigUpdateListener.cxx \
            Crc.cxx \
            DirectHub.cxx \
+           DirectHubGc.cxx \
            FileUtils.cxx \
            ForwardAllocator.cxx \
            GcStreamParser.cxx \

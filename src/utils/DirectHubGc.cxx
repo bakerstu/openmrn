@@ -123,3 +123,20 @@ MessageSegmenter *create_gc_message_segmenter()
 {
     return new DirectHubGcSegmenter();
 }
+
+/// Message segmenter that keeps each packet as-is.
+class DirectHubTrivialSegmenter : public MessageSegmenter
+{
+public:
+    ssize_t segment_message(const void *d, size_t size) override
+    {
+        return size;
+    }
+
+    void clear() override {}
+};
+
+MessageSegmenter *create_trivial_message_segmenter()
+{
+    return new DirectHubTrivialSegmenter();
+}

@@ -236,9 +236,11 @@ private:
     class DirectHubReadFlow : public StateFlowBase
     {
     public:
-        DirectHubReadFlow(DirectHubPortSelect *parent)
+        DirectHubReadFlow(DirectHubPortSelect *parent,
+            std::unique_ptr<MessageSegmenter> segmenter)
             : StateFlowBase(parent->service())
             , parent_(parent)
+            , segmenter_(std::move(segmenter))
         {
         }
 
@@ -299,6 +301,8 @@ private:
         {
             g_direct_hub_data_pool.alloc(&buf_);
             bufOfs_ = 0;
+            skip_ = 0;
+            segmenter_->clear();
             bufFree_ = buf_->size();
             buf_->set_size(0);
             buf_->set_done(bufferNotifiable_);
@@ -333,11 +337,20 @@ private:
             }
             bytesArrived_ = bufFree_ - helper_.remaining_;
             buf_->set_size(bufOfs_ + bytesArrived_);
+
+            ssize_t segment = segmenter_->segment_message(
+                buf_->data() + bufOfs_, bytesArrived_);
+            if (segment > 0) {
+                
+            }
             // We expect either an inline call to our run() method or later a
             // callback on the executor. This sequence of calls prepares for
             // both of those options.
             wait_and_call(STATE(send_buffer));
+            inlineCall_ = 1;
+            sendComplete_ = 0;
             parent_->hub_->enqueue_send(this);
+            inlineCall_ = 0;
             return wait();
         }
 
@@ -350,6 +363,7 @@ private:
             m->skip_ = bufOfs_;
             m->size_ = bytesArrived_;
             parent_->hub_->do_send();
+            sendComplete_ = 1;
             return yield_and_call(STATE(send_done));
         }
 
@@ -378,23 +392,34 @@ private:
         uint16_t bufFree_;
         /// Number of bytes that came in during the last read.
         uint16_t bytesArrived_;
+        /// 1 if we got the send callback inline from the read_done.
+        uint16_t inlineCall_ : 1;
+        /// 1 if the run callback actually happened inline.
+        uint16_t sendComplete_ : 1;
+        /// How many bytes to skip from the head of the buf_ link when the
+        /// message is complete.
+        uint16_t skip_;
         /// Pool of BarrierNotifiables that limit the amount of inflight bytes
         /// we have.
-        /// @TODO actually use this feature.
         AsyncNotifiableBlock pendingLimiterPool_ {(unsigned)
             config_directhub_port_max_incoming_packets()};
         /// Helper object for Select.
         StateFlowSelectHelper helper_ {this};
         /// Pointer to the owninng port.
         DirectHubPortSelect *parent_;
+        /// Implementation (and state) of the business logic that segments
+        /// incoming bytes into messages that shall be given to the hub.
+        std::unique_ptr<MessageSegmenter> segmenter_;
     } readFlow_;
 
     friend class DirectHubReadFlow;
 
 public:
-    DirectHubPortSelect(DirectHubInterface<uint8_t[]> *hub, int fd, Notifiable *on_error = nullptr)
+    DirectHubPortSelect(DirectHubInterface<uint8_t[]> *hub, int fd,
+        std::unique_ptr<MessageSegmenter> segmenter,
+        Notifiable *on_error = nullptr)
         : StateFlowBase(hub->get_service())
-        , readFlow_(this)
+        , readFlow_(this, std::move(segmenter))
         , readFlowPending_(1)
         , writeFlowPending_(1)
         , hub_(hub)
@@ -703,9 +728,9 @@ private:
     Notifiable* onError_ = nullptr;
 };
 
-void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd, Notifiable* on_error)
+void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd, std::unique_ptr<MessageSegmenter> segmenter, Notifiable* on_error)
 {
-    new DirectHubPortSelect(hub, fd, on_error);
+    new DirectHubPortSelect(hub, fd, std::move(segmenter), on_error);
 }
 
 class DirectGcTcpHub
@@ -740,7 +765,7 @@ private:
 
 void DirectGcTcpHub::OnNewConnection(int fd)
 {
-    create_port_for_fd(gcHub_, fd);
+    create_port_for_fd(gcHub_, fd, std::unique_ptr<MessageSegmenter>(create_gc_message_segmenter()));
 }
 
 DirectGcTcpHub::DirectGcTcpHub(DirectHubInterface<uint8_t[]> *gc_hub, int port)

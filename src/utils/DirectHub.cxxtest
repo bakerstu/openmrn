@@ -195,8 +195,12 @@ protected:
             setsockopt(ffd[0], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
         ERRNOCHECK("setsockopt",
             setsockopt(ffd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
-        create_port_for_fd(hub_, fd[0]);
-        create_port_for_fd(hub_, ffd[0]);
+        create_port_for_fd(hub_, fd[0],
+            std::unique_ptr<MessageSegmenter>(
+                create_trivial_message_segmenter()));
+        create_port_for_fd(hub_, ffd[0],
+            std::unique_ptr<MessageSegmenter>(
+                create_trivial_message_segmenter()));
         fdOne_ = fd[1];
         fdTwo_ = ffd[1];
         wait_for_main_executor();
@@ -303,8 +307,8 @@ TEST_F(DirectHubTest, close_notify)
     ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, ffd));
     LOG(INFO, "socket %d %d", fd[0], fd[1]);
     SyncNotifiable n;
-    create_port_for_fd(hub_, fd[0], &n);
-    create_port_for_fd(hub_, ffd[0]);
+    create_port_for_fd(hub_, fd[0], std::unique_ptr<MessageSegmenter>(create_trivial_message_segmenter()), &n);
+    create_port_for_fd(hub_, ffd[0], std::unique_ptr<MessageSegmenter>(create_trivial_message_segmenter()));
     write_some(fd[1]);
 
     read_some(ffd[1]);
