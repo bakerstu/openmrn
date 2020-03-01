@@ -85,11 +85,14 @@ private:
     SyncNotifiable exitNotify_;
 };
 
-/// Helper class to send a one-byte message to the 
-class SendSomeData : public Executable {
+/// Helper class to send a one-byte message to the
+class SendSomeData : public Executable
+{
 public:
-    SendSomeData(DirectHubInterface<uint8_t[]> *hub, const std::string& data, size_t skip = 0)
-        : hub_(hub) {
+    SendSomeData(DirectHubInterface<uint8_t[]> *hub, const std::string &data,
+        size_t skip = 0)
+        : hub_(hub)
+    {
         pool_64.alloc(&buf_);
         memcpy(buf_->data(), data.data(), data.size());
         skip_ = skip;
@@ -97,15 +100,18 @@ public:
         buf_->set_done(&bn1_);
     }
 
-    ~SendSomeData() {
+    ~SendSomeData()
+    {
         EXPECT_TRUE(is_done());
     }
-    
-    void enqueue() {
+
+    void enqueue()
+    {
         hub_->enqueue_send(this);
     }
-    
-    void run() override {
+
+    void run() override
+    {
         isRunning_.post();
         hasSeenRun_ = false;
         sem_.wait();
@@ -116,23 +122,24 @@ public:
         hub_->do_send();
     }
 
-    bool is_done() {
+    bool is_done()
+    {
         return bn1_.is_done() && bn2_.is_done() && (buf_->references() == 0);
     }
-    
+
     DirectHubInterface<uint8_t[]> *hub_;
-    BarrierNotifiable bn1_{EmptyNotifiable::DefaultInstance()};
-    BarrierNotifiable bn2_{EmptyNotifiable::DefaultInstance()};
-    DataBuffer* buf_;
+    BarrierNotifiable bn1_ {EmptyNotifiable::DefaultInstance()};
+    BarrierNotifiable bn2_ {EmptyNotifiable::DefaultInstance()};
+    DataBuffer *buf_;
     size_t len_;
     size_t skip_;
     /// We take one share of this semaphore when sending. Owners can go from
     /// blocking to nonblocking sending this way. Default is one share.
-    OSSem sem_{1};
+    OSSem sem_ {1};
 
-    bool hasSeenRun_{false};
+    bool hasSeenRun_ {false};
     /// This semaphore is notified when we are blocked.
-    OSSem isRunning_{0};
+    OSSem isRunning_ {0};
 };
 
 class DirectHubTest : public ::testing::Test
@@ -368,7 +375,7 @@ TEST_F(DirectHubTest, race_condition)
     d.sem_.wait(); // makes it blocking.
     g_read_executor.add(new CallbackExecutable([&d]() { d.enqueue(); }));
     d.isRunning_.wait(); // blocked indeed.
-    
+
     SendSomeData d2(hub_, "b");
     d2.enqueue();
     SendSomeData d3(hub_, "c");
@@ -379,10 +386,10 @@ TEST_F(DirectHubTest, race_condition)
     EXPECT_FALSE(d2.hasSeenRun_);
     EXPECT_FALSE(d2.is_done());
 
-    d.sem_.post(); // unblock
+    d.sem_.post();        // unblock
     d4.isRunning_.wait(); // should get all the way to d4.
     wait_for_main_executor();
-    
+
     EXPECT_TRUE(d.is_done());
     EXPECT_TRUE(d2.is_done());
     EXPECT_TRUE(d3.is_done());
