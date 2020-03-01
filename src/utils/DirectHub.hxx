@@ -93,22 +93,13 @@ template<>
 struct MessageAccessor<uint8_t[]> : public MessageMetadata {
     void clear() {
         // Walks the buffer links and unrefs everything we own.
-        payload_->unref_all(skip_ + size_);
-        payload_ = nullptr;
-        skip_ = 0;
-        size_ = 0;
+        buf_.reset();
         MessageMetadata::clear();
     }
-    /// Pointer to the first buffer that contains this data. The first skip_
-    /// bytes have to be ignored from this buffer. If size_ is larger than the
-    /// remaining bytes, then the next pointer has to be followed to get to
-    /// additional DataBuffer* objects. All of these objects have
-    /// exactly one ref owned by *this.
-    DataBuffer* payload_ = nullptr;
-    /// How many bytes to skip at the beginning of the payload.
-    unsigned skip_ = 0;
-    /// How many bytes to read from the payload.
-    unsigned size_ = 0;
+    /// Owns a sequence of linked DataBuffers, holds the offset where to start
+    /// reading in the first one, and how many bytes are total in scope for
+    /// this message.
+    LinkedDataBufferPtr buf_;
 };
 
 /// Abstract base class for segmenting a byte stream typed input into

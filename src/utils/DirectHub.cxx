@@ -299,13 +299,12 @@ private:
 
         Action get_read_buffer()
         {
-            g_direct_hub_data_pool.alloc(&buf_);
-            bufOfs_ = 0;
-            skip_ = 0;
+            DataBuffer* p;
+            g_direct_hub_data_pool.alloc(&p);
+            buf_.reset(p);
             segmenter_->clear();
-            bufFree_ = buf_->size();
-            buf_->set_size(0);
-            buf_->set_done(bufferNotifiable_);
+            /// @todo figure out where the notifiable really should go.
+            buf_.head()->set_done(bufferNotifiable_);
             bufferNotifiable_ = nullptr;
             return do_some_read();
         }
@@ -320,8 +319,8 @@ private:
                 parent_->read_flow_exit();
                 return wait();
             }
-            return read_single(&helper_, parent_->fd_, buf_->data() + bufOfs_,
-                bufFree_, STATE(read_done));
+            return read_single(&helper_, parent_->fd_,
+                buf_.data_write_pointer(), buf_.free(), STATE(read_done));
         }
 
         Action read_done()
@@ -335,70 +334,149 @@ private:
                 parent_->report_read_error();
                 return wait();
             }
-            bytesArrived_ = bufFree_ - helper_.remaining_;
-            buf_->set_size(bufOfs_ + bytesArrived_);
+            size_t bytes_arrived = buf_.free() - helper_.remaining_;
+            ssize_t segmentSize_ = segmenter_->segment_message(
+                buf_->data_write_pointer(), bytes_arrived);
+            buf_->data_write_advance(bytes_arrived);
+            return eval_segment();
+        }
 
-            ssize_t segment = segmenter_->segment_message(
-                buf_->data() + bufOfs_, bytesArrived_);
-            if (segment > 0) {
-                
+        Action eval_segment() {
+            if (segmentSize_ > 0) {
+                return call_immediately(STATE(send_prefix));
+            } else {
+                return incomplete_message();
             }
-            // We expect either an inline call to our run() method or later a
-            // callback on the executor. This sequence of calls prepares for
-            // both of those options.
-            wait_and_call(STATE(send_buffer));
+        }
+
+        /// Clears the segmenter and starts segmenting from the beginning of
+        /// the buf_.
+        Action call_head_segmenter() {
+            segmenter_->clear();
+            uint8_t* ptr;
+            unsigned available;
+            auto *n =
+                buf_.head()->get_read_pointer(buf_->skip(), &ptr, &available);
+            HASSERT(!n); // We must be at the tail.
+            segmentSize_ = segmenter_->segment_message(ptr, available);
+            return eval_segment();
+        }
+        
+        /// Called when the segmenter says that we need to read more bytes to
+        /// complete the current message.
+        Action incomplete_message() {
+            if (!buf_.free())
+            {
+                DataBuffer* p;
+                g_direct_hub_data_pool.alloc(&p);
+                buf_.append_empty_buffer(p);
+            }
+            return call_immediately(STATE(do_some_read));
+        }
+
+        /// Called to send a given prefix segment to the hub.
+        /// segmentSize_ is filled in before.
+        Action send_prefix()
+        {
+            // We expect either an inline call to our run() method or
+            // later a callback on the executor. This sequence of calls
+            // prepares for both of those options.
+            wait_and_call(STATE(send_callback));
             inlineCall_ = 1;
             sendComplete_ = 0;
             parent_->hub_->enqueue_send(this);
             inlineCall_ = 0;
+            if (sendComplete_)
+            {
+                return send_done();
+            }
             return wait();
         }
 
-        Action send_buffer()
+        /// This is the callback state that is invoked inline by the hub.
+        Action send_callback()
         {
             auto *m = parent_->hub_->mutable_message();
             m->source_ = parent_;
-            /// @todo switch this to ref_all when we are chaining buffers.
-            m->payload_ = buf_->ref();
-            m->skip_ = bufOfs_;
-            m->size_ = bytesArrived_;
+            // This call transfers the chained head of the current buffers,
+            // taking additional references where necessary or transferring the
+            // existing reference. It adjusts the skip_ and size_ arguments in
+            // buf_ to continue from where we left off.
+            m->buf_ = buf_->transfer_head(segmentSize_);
             parent_->hub_->do_send();
             sendComplete_ = 1;
-            return yield_and_call(STATE(send_done));
+            if (inlineCall_) {
+                // do not disturb current state.
+                return wait();
+            } else {
+                // we were called queued; go back to running the flow on the
+                // main executor.
+                return yield_and_call(STATE(send_done));
+            }
         }
 
         Action send_done()
         {
-            bufOfs_ += bytesArrived_;
-            bufFree_ -= bytesArrived_;
-            if (bufFree_)
+            if (buf_.size())
+            {
+                // we still have unused data in the current buffer.
+                return call_head_segmenter();
+            }
+            if (buf_.free())
             {
                 return do_some_read();
             }
             else
             {
+                /// @todo consider not resetting here, but allowing an empty
+                /// but linked DataBuffer* start the next chain.
                 buf_.reset();
                 return alloc_for_read();
             }
         }
 
+        Action run_segmenter() {
+            ssize_t segment = segmenter_->segment_message(
+                buf_->data() + bufOfs_, buf_->size() - bufOfs_);
+            if (segment <= 0)
+            {
+                bufOfs_ = buf_->size();
+                /// @todo finish code here
+                if (bufFree_)
+                {
+                    return do_some_read();
+                }
+                else
+                {
+                    
+                }
+            }
+            else
+            {
+                // have a packet.
+                packetStart_ += segment;
+                HASSERT(packetStart_ > 0);
+                HASSERT(packetStart_ <= buf_->size());
+                bufOfs_ = packetStart_;
+                size_ = segment;
+        }
+
+        
         /// Current buffer that we are filling.
-        DataBufferPtr buf_;
+        LinkedDataBufferPtr buf_;
         /// Barrier notifiable to keep track of the buffer's contents.
         BarrierNotifiable* bufferNotifiable_;
-        /// Offset of first unused byte in the current buffer.
-        uint16_t bufOfs_;
-        /// Number of bytes that can still be filled in the current buffer.
-        uint16_t bufFree_;
-        /// Number of bytes that came in during the last read.
-        uint16_t bytesArrived_;
         /// 1 if we got the send callback inline from the read_done.
         uint16_t inlineCall_ : 1;
         /// 1 if the run callback actually happened inline.
         uint16_t sendComplete_ : 1;
-        /// How many bytes to skip from the head of the buf_ link when the
-        /// message is complete.
-        uint16_t skip_;
+        
+        ssize_t segmentSize_;
+        /// Offset where the current packet starts compared to where the
+        /// current buffer starts. >= 0 means the current packet starts in the
+        /// current buffer; < 0 means it starts in a previous (but linked)
+        /// buffer.
+        //int32_t packetStart_;
         /// Pool of BarrierNotifiables that limit the amount of inflight bytes
         /// we have.
         AsyncNotifiableBlock pendingLimiterPool_ {(unsigned)
