@@ -223,16 +223,39 @@ private:
     };
 
     /// Data bit timing and prescaler register definition
-    struct Dbpt
+    struct Dbtp
     {
-        uint32_t dsjw      : 4; ///< data (re)synchronization jump width
-        uint32_t dtseg2    : 4; ///< data time segment before sample point
-        uint32_t dtseg1    : 5; ///< data time segment after sample point
-        uint32_t reserved1 : 3; ///< reserved
-        uint32_t dbrp      : 5; ///< data bit rate prescaler
-        uint32_t reserved2 : 2; ///< reserved
-        uint32_t tdc       : 1; ///< trasmitter delay compensation
-        uint32_t reserved3 : 8; ///< reserved
+        /// Constructor.
+        /// @param dsjw data (re)synchronization jump width
+        /// @param dtseg2 data time segment before sample point
+        /// @param dtseg1 data time segment after sample point
+        /// @param dbrp data bit rate prescaler
+        /// @param tdc trasmitter delay compensation
+        Dbtp(uint32_t dsjw, uint32_t dtseg2, uint32_t dtseg1, uint32_t dbrp,
+             uint32_t tdc)
+            : dsjw(dsjw)
+            , dtseg2(dtseg2)
+            , dtseg1(dtseg1)
+            , dbrp(dbrp)
+            , tdc(tdc)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t dsjw      : 4; ///< data (re)synchronization jump width
+                uint32_t dtseg2    : 4; ///< data time segment before sample
+                uint32_t dtseg1    : 5; ///< data time segment after sample
+                uint32_t reserved1 : 3; ///< reserved
+                uint32_t dbrp      : 5; ///< data bit rate prescaler
+                uint32_t reserved2 : 2; ///< reserved
+                uint32_t tdc       : 1; ///< trasmitter delay compensation
+                uint32_t reserved3 : 8; ///< reserved
+            };
+        };
     };
 
     /// CC control register definition
@@ -271,12 +294,219 @@ private:
         };
     };
 
+    /// RX FIFO x configuraation register definition
+    struct Rxfxc
+    {
+        /// Constructor. Sets the reset value.
+        Rxfxc()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t fsa : 16; ///< RX FIFO start address
+
+                uint32_t fs   : 7; ///< RX FIFO size
+                uint32_t rsvd : 1; ///< reserved
+
+                uint32_t fwm : 8; ///< RX FIFO high water mark
+                uint32_t fom : 1; ///< RX FIFO operation mode
+            };
+        };
+    };
+
+    /// RX FIFO x status register definition
+    struct Rxfxs
+    {
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t ffl   : 7; ///< RX FIFO fill level
+                uint32_t rsvd1 : 1; ///< reserved
+
+                uint32_t fgi   : 6; ///< RX FIFO get index
+                uint32_t rsvd2 : 2; ///< reserved
+
+                uint32_t fpi   : 6; ///< RX FIFO put index
+                uint32_t rsvd3 : 2;
+
+                uint32_t ff    : 1; ///< RX FIFO full
+                uint32_t rfl   : 1; ///< RX FIFO message lost
+                uint32_t rsvd4 : 6; ///< reserved
+            };
+        };
+    };
+
+    /// RX FIFO x acknowledge register definition
+    struct Rxfxa
+    {
+        /// Constructor. Sets the reset value.
+        Rxfxa()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t fai  :  6; ///< RX FIFO acknowledge index
+                uint32_t rsvd : 26; ///< reserved
+            };
+        };
+    };
+
+    /// TX Buffer configuraation register definition
+    struct Txbc
+    {
+        /// Constructor. Sets the reset value.
+        Txbc()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t tbsa : 16; ///< TX buffers start address
+
+                uint32_t ndtb  : 6; ///< number of dediated transmit buffers
+                uint32_t rsvd1 : 2; ///< reserved
+
+                uint32_t tfqs  : 6; ///< TX FIFO/queue size
+                uint32_t tfqm  : 1; ///< TX FIFO/queue mode
+                uint32_t rsvd2 : 1; ///< reserved
+            };
+        };
+    };
+
+    /// TX FIFO/queue status register definition
+    struct Txfqs
+    {
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t tffl  : 6; ///< TX FIFO free level
+                uint32_t rsvd1 : 2; ///< reserved
+
+                uint32_t tfgi  : 5; ///< TX FIFO/queue get index
+                uint32_t rsvd2 : 3; ///< reserved
+
+                uint32_t tfqpi : 5; ///< TX FIFO/queue put index
+                uint32_t tfqf  : 1; ///< TX FIFO/queue full
+                uint32_t rsvd3 : 2; ///< reserved
+
+                uint32_t rsvd4 : 8; ///< reserved
+            };
+        };
+    };
+
+    /// TX buffer element size configurataion register definition
+    struct Txesc
+    {
+        /// Constructor. Sets the reset value.
+        Txesc()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t tbds :  3; ///< TX buffer data field size
+                uint32_t rsvd : 29; ///< reserved
+            };
+        };
+    };
+
+    /// TX event FIFO configuration register definition
+    struct Txefc
+    {
+        /// Constructor. Sets the reset value.
+        Txefc()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t efsa : 16; ///< event FIFO start address
+
+                uint32_t efs   : 6; ///< event FIFO size
+                uint32_t rsvd1 : 2; ///< reserved
+
+                uint32_t efwm  : 6; ///< event FIFO watermark
+                uint32_t rsvd2 : 2; ///< reserved
+            };
+        };
+    };
+
+    /// TX event FIFO status register definition
+    struct Txefs
+    {
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t effl  : 6; ///< event FIFO fill level
+                uint32_t rsvd1 : 2; ///< reserved
+
+                uint32_t refgi : 5; ///< event FIFO get index
+                uint32_t rsvd2 : 3; ///< reserved
+
+                uint32_t efpi  : 5; ///< event FIFO put index
+                uint32_t rsvd3 : 3; ///< reserved
+
+                uint32_t eff   : 1; ///< event FIFO full
+                uint32_t tefl  : 1; ///< TX event FIFO element lost
+                uint32_t rsvd4 : 6; ///< reserved
+            };
+        };
+    };
+
+    /// TX event FIFO acknowledge register definition
+    struct Txefa
+    {
+        /// Constructor. Sets the reset value.
+        Txefa()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t efai :  5; ///< TX event FIFO acknowledge index
+                uint32_t rsvd : 27; ///< reserved
+            };
+        };
+    };
+
     /// Buad rate table entry
     struct TCAN4550Baud
     {
         uint32_t freq; ///< incoming frequency
         uint32_t baud; ///< target baud rate
-        Dbpt     dbpt; ///< data bit timing and prescaler
+        Dbtp     dbtp; ///< data bit timing and prescaler
     };
 
     /// SPI message for read/write commands

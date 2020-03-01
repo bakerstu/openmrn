@@ -54,11 +54,7 @@ const TCAN4550Can::TCAN4550Baud TCAN4550Can::BAUD_TABLE[] =
      *     3 / (20 * 16) = 0.938%
      *     = 0.938%
      */
-    {20000000, 125000, {.dsjw = (3 - 1),
-                        .dtseg2 = (4 - 1),
-                        .dtseg1 = (11 - 1),
-                        .dbrp = (10 - 1),
-                        .tdc = 0}},
+    {20000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (10 - 1), 0}},
     /* 20 MHz clock source
      * TQ = BRP / freq = 10 / 20 MHz = 500 nsec
      * Baud = 125 kHz
@@ -76,11 +72,7 @@ const TCAN4550Can::TCAN4550Baud TCAN4550Can::BAUD_TABLE[] =
      *     3 / (20 * 16) = 0.938%
      *     = 0.938%
      */
-    {40000000, 125000, {.dsjw = (3 - 1),
-                        .dtseg2 = (4 - 1),
-                        .dtseg1 = (11 - 1),
-                        .dbrp = (20 - 1),
-                        .tdc = 0}},
+    {40000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (20 - 1), 0}},
 };
 
 
@@ -107,16 +99,17 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     ::ioctl(spiFd_, SPI_IOC_WR_BITS_PER_WORD, &spi_bpw);
     ::ioctl(spiFd_, SPI_IOC_WR_MAX_SPEED_HZ, &spi_max_speed_hz);
 
+    // lock SPI bus access
+    OSMutexLock locker(&lock_);
+
     // transition to "Normal" mode with sleep and watchdog disabled
     {
         Mode mode;
-        mode.sweDis = 1; // disable sleep
+        mode.sweDis = 1;   // disable sleep
         mode.wdEnable = 0; // disable watchdog
-        mode.modeSel = 2; // normal mode
+        mode.modeSel = 2;  // normal mode
 
-        lock_.lock();
         register_write(MODE, mode.data);
-        lock_.unlock();
     }
     {
         Cccr cccr;
@@ -134,25 +127,68 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
         // ---- Memory layout ----
         //
         // +-----------------------+
-        // | RX FIFO 0, buf 0      | 0x000
+        // | RX FIFO 0, buf 0      | 0x0000
         // | ...                   |
-        // | RX FIFO 0, buf 31     | 0x1F0
+        // | RX FIFO 0, buf 63     | 0x03F0
         // +-----------------------+
-        // | TX Event FIFO, buf 0  | 0x200
+        // | TX Event FIFO, buf 0  | 0x0400
         // | ...                   |
-        // | TX Event FIFO, buf 31 | 0x2F8
+        // | TX Event FIFO, buf 15 | 0x05F8
         // +-----------------------+
-        // | TX Buf 0 (FIFO)       | 0x300
+        // | TX Buf 0 (FIFO)       | 0x0300
         // | ...                   |
-        // | TX Buf 31 (FIFO)      |
+        // | TX Buf 15 (FIFO)      | 0x0378
         // +-----------------------+
-        // | TX Buf 32             | 0x500
+        // | TX Buf 16             | 0x0380
         // | ...                   |
-        // | TX Buf 63             | 0x6F0
+        // | TX Buf 32             | 0x0470
         // +-----------------------+
-        // | Unused                | 0x700
+        // | Unused                | 0x0480
         // +-----------------------+
+
+        {
+            // setup RX FIFO 0
+            Rxfxc rxf0c;
+            rxf0c.fsa = 0x0000; // FIFO start address
+            rxf0c.fs = 32;      // FIFO size
+            register_write(RXF0C, rxf0c.data);
+        }
+        {
+            // setup TX configuration
+            Txbc txbc;
+            txbc.tbsa = 0x0300; // buffers start address
+            txbc.ndtb = 16;     // number of dedicated transmit buffers
+            txbc.tfqs = 16;     // FIFO/queue size
+            register_write(TXBC, txbc.data);
+
+            // setup TX buffer element size
+            Txesc txesc;
+            txesc.tbds = 0; // 8 byte data field size
+
+            // setup TX event FIFO
+            Txefc txefc;
+            txefc.efsa = 0x0400; // event FIFO start address
+            txefc.efs = 16;      // event FIFO size
+            register_write(TXEFC, txefc.data);
+        }
+
+        // Setup timing
+        for ( size_t i = 0; i < ARRAYSIZE(BAUD_TABLE); ++i)
+        {
+            if (BAUD_TABLE[i].freq == freq && BAUD_TABLE[i].baud == baud)
+            {
+                register_write(DBTP, BAUD_TABLE[i].dbtp.data);
+
+                cccr.cce = 0; // configuration change disable
+                register_write(CCCR, cccr.data);
+
+                return;
+            }
+        }
     }
+
+    // unsupported frequency
+    HASSERT(0);
 }
 
 //
@@ -167,6 +203,10 @@ void TCAN4550Can::enable()
         start(name, get_priority_max(), 2048);
     }
 
+    Cccr cccr;
+    cccr.init = 0; // normal operation mode, enables CAN bus access
+    register_write(CCCR, cccr.data);
+
     interruptEnable_();
 }
 
@@ -176,6 +216,10 @@ void TCAN4550Can::enable()
 void TCAN4550Can::disable()
 {
     interruptDisable_();
+
+    Cccr cccr;
+    cccr.init = 1; // initialization mode, disables CAN bus access
+    register_write(CCCR, cccr.data);
 
     portENTER_CRITICAL();
     // flush out any transmit data in the pipleline
