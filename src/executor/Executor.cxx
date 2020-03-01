@@ -223,6 +223,7 @@ void *ExecutorBase::entry()
     started_ = 1;
     sequence_ = 0;
     ExecutorBase* b = this;
+    unlock_from_thread();
     emscripten_set_main_loop_arg(&executor_loop_some, b, 100, true);
     return nullptr;
 }
