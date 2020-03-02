@@ -169,7 +169,7 @@ public:
     {
     }
 
-    ~LinkedDataBufferPtr
+    ~LinkedDataBufferPtr()
     {
         reset();
     }
@@ -217,6 +217,8 @@ public:
         free_ = 0;
         skip_ = o.skip_;
         size_ = size;
+        /// @todo maybe support keeping the tail pointer here to allow an
+        /// append-consolidate operation.
         tail_ = nullptr;
         head_ = o.head_->ref_all(o.skip_ + size);
     }
@@ -231,6 +233,21 @@ public:
         free_ = buf->size();
         size_ = 0;
         buf->set_size(0);
+    }
+
+    /// Set to a single data buffer.
+    /// @param buf is a filled-in data buffer. Takes ownership. Must be a
+    /// single (non-chained) buffer.
+    /// @param skip how many bytes to skip at the beginning
+    /// @param size how many bytes to take after skip bytes.
+    void reset(DataBuffer *buf, unsigned skip, unsigned size)
+    {
+        reset();
+        head_ = buf;
+        skip_ = skip;
+        size_ = size;
+        free_ = 0;
+        tail_ = nullptr;
     }
 
     /// Adds an empty buffer to the end of this buffer chain.
@@ -271,7 +288,7 @@ public:
     /// data_write_pointer().
     void data_write_advance(size_t len)
     {
-        HASSERT(len < free_);
+        HASSERT(len <= free_);
         free_ -= len;
         tail_->set_size(tail_->size() + len);
         size_ += len;
@@ -311,6 +328,7 @@ public:
     LinkedDataBufferPtr transfer_head(size_t len) {
         LinkedDataBufferPtr ret;
         ret.head_ = head_;
+        /// @todo consider what the tail should be.
         ret.tail_ = nullptr;
         ret.skip_ = skip_;
         ret.free_ = 0;
@@ -328,8 +346,6 @@ public:
     }
     
 private:
-    DISALLOW_COPY_AND_ASSIGN(LinkedDataBufferPtr);
-    
     /// Internal helper function of constructors and reset functions. Clears
     /// the current structure (references have to have been dealth with
     /// before).

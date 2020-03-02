@@ -93,11 +93,14 @@ public:
         size_t skip = 0)
         : hub_(hub)
     {
-        pool_64.alloc(&buf_);
-        memcpy(buf_->data(), data.data(), data.size());
-        skip_ = skip;
-        len_ = data.size() - skip_;
-        buf_->set_done(&bn1_);
+        pool_64.alloc(&bufHead_);
+        bufHead_->set_done(&bn1_);
+        buf_.reset(bufHead_);
+        memcpy(buf_.data_write_pointer(), data.data(), data.size());
+        buf_.data_write_advance(data.size());
+        if (skip) {
+            buf_.transfer_head(skip);
+        }
     }
 
     ~SendSomeData()
@@ -116,21 +119,20 @@ public:
         hasSeenRun_ = false;
         sem_.wait();
         hub_->mutable_message()->done_ = &bn2_;
-        hub_->mutable_message()->payload_ = buf_;
-        hub_->mutable_message()->skip_ = skip_;
-        hub_->mutable_message()->size_ = len_;
+        hub_->mutable_message()->buf_ = buf_.transfer_head(buf_.size());
         hub_->do_send();
     }
 
     bool is_done()
     {
-        return bn1_.is_done() && bn2_.is_done() && (buf_->references() == 0);
+        return bn1_.is_done() && bn2_.is_done() && (bufHead_->references() == 0);
     }
 
     DirectHubInterface<uint8_t[]> *hub_;
     BarrierNotifiable bn1_ {EmptyNotifiable::DefaultInstance()};
     BarrierNotifiable bn2_ {EmptyNotifiable::DefaultInstance()};
-    DataBuffer *buf_;
+    DataBuffer* bufHead_;
+    LinkedDataBufferPtr buf_;
     size_t len_;
     size_t skip_;
     /// We take one share of this semaphore when sending. Owners can go from
@@ -267,9 +269,7 @@ TEST_F(DirectHubTest, notifies_messages_empty)
     bool complete = false;
     hub_->enqueue_send(new CallbackExecutable([this, buf, &bn2, &complete]() {
         hub_->mutable_message()->done_ = &bn2;
-        hub_->mutable_message()->payload_ = buf;
-        hub_->mutable_message()->skip_ = 0;
-        hub_->mutable_message()->size_ = 10;
+        hub_->mutable_message()->buf_.reset(buf, 0, 10);
         hub_->do_send();
         complete = true;
     }));
@@ -439,11 +439,9 @@ TEST_F(DirectHubTest, check_size_skip_chain)
     memcpy(buf1->data() + skip, "abc", 3);
     buf1->set_next(buf2);
     memcpy(buf2->data(), "de", 2);
-    
+
     hub_->enqueue_send(new CallbackExecutable([this, skip, buf1]() {
-        hub_->mutable_message()->payload_ = buf1;
-        hub_->mutable_message()->skip_ = skip;
-        hub_->mutable_message()->size_ = 5;
+        hub_->mutable_message()->buf_.reset(buf1, skip, 5);
         hub_->do_send();
     }));
     wait_for_main_executor();

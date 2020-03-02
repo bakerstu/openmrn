@@ -335,9 +335,9 @@ private:
                 return wait();
             }
             size_t bytes_arrived = buf_.free() - helper_.remaining_;
-            ssize_t segmentSize_ = segmenter_->segment_message(
-                buf_->data_write_pointer(), bytes_arrived);
-            buf_->data_write_advance(bytes_arrived);
+            segmentSize_ = segmenter_->segment_message(
+                buf_.data_write_pointer(), bytes_arrived);
+            buf_.data_write_advance(bytes_arrived);
             return eval_segment();
         }
 
@@ -356,7 +356,7 @@ private:
             uint8_t* ptr;
             unsigned available;
             auto *n =
-                buf_.head()->get_read_pointer(buf_->skip(), &ptr, &available);
+                buf_.head()->get_read_pointer(buf_.skip(), &ptr, &available);
             HASSERT(!n); // We must be at the tail.
             segmentSize_ = segmenter_->segment_message(ptr, available);
             return eval_segment();
@@ -397,12 +397,13 @@ private:
         Action send_callback()
         {
             auto *m = parent_->hub_->mutable_message();
+            /// @todo do we need to set m->done_ notifiable?
             m->source_ = parent_;
             // This call transfers the chained head of the current buffers,
             // taking additional references where necessary or transferring the
             // existing reference. It adjusts the skip_ and size_ arguments in
             // buf_ to continue from where we left off.
-            m->buf_ = buf_->transfer_head(segmentSize_);
+            m->buf_ = buf_.transfer_head(segmentSize_);
             parent_->hub_->do_send();
             sendComplete_ = 1;
             if (inlineCall_) {
@@ -435,48 +436,16 @@ private:
             }
         }
 
-        Action run_segmenter() {
-            ssize_t segment = segmenter_->segment_message(
-                buf_->data() + bufOfs_, buf_->size() - bufOfs_);
-            if (segment <= 0)
-            {
-                bufOfs_ = buf_->size();
-                /// @todo finish code here
-                if (bufFree_)
-                {
-                    return do_some_read();
-                }
-                else
-                {
-                    
-                }
-            }
-            else
-            {
-                // have a packet.
-                packetStart_ += segment;
-                HASSERT(packetStart_ > 0);
-                HASSERT(packetStart_ <= buf_->size());
-                bufOfs_ = packetStart_;
-                size_ = segment;
-        }
-
-        
         /// Current buffer that we are filling.
         LinkedDataBufferPtr buf_;
         /// Barrier notifiable to keep track of the buffer's contents.
         BarrierNotifiable* bufferNotifiable_;
+        /// Output of the last segmenter call.
+        ssize_t segmentSize_;
         /// 1 if we got the send callback inline from the read_done.
         uint16_t inlineCall_ : 1;
         /// 1 if the run callback actually happened inline.
         uint16_t sendComplete_ : 1;
-        
-        ssize_t segmentSize_;
-        /// Offset where the current packet starts compared to where the
-        /// current buffer starts. >= 0 means the current packet starts in the
-        /// current buffer; < 0 means it starts in a previous (but linked)
-        /// buffer.
-        //int32_t packetStart_;
         /// Pool of BarrierNotifiables that limit the amount of inflight bytes
         /// we have.
         AsyncNotifiableBlock pendingLimiterPool_ {(unsigned)
@@ -535,9 +504,7 @@ public:
         /// enqueueing them.
         BufferType *b;
         mainBufferPool->alloc(&b);
-        b->data()->buf = msg->payload_->ref_all(msg->skip_ + msg->size_);
-        b->data()->skip_ = msg->skip_;
-        b->data()->size_ = msg->size_;
+        b->data()->buf_.reset(msg->buf_);
         if (msg->done_)
         {
             b->set_done(msg->done_->new_child());
@@ -552,7 +519,7 @@ public:
                 return;
             }
             pendingQueue_.insert_locked(b);
-            totalPendingSize_ += msg->size_;
+            totalPendingSize_ += msg->buf_.size();
             if (notRunning_)
             {
                 notRunning_ = 0;
@@ -589,9 +556,9 @@ private:
         BufferType *head = static_cast<BufferType *>(pendingQueue_.next().item);
         HASSERT(head);
         currentHead_.reset(head);
-        nextToWrite_ = currentHead_->data()->buf;
-        nextToSkip_ = currentHead_->data()->skip_;
-        nextToSize_ = currentHead_->data()->size_;
+        nextToWrite_ = currentHead_->data()->buf_.head();
+        nextToSkip_ = currentHead_->data()->buf_.skip();
+        nextToSize_ = currentHead_->data()->buf_.size();
         return do_write();
     }
 
@@ -756,16 +723,7 @@ private:
     /// are holding when released.
     struct OutputDataEntry
     {
-        DataBuffer *buf = nullptr;
-        unsigned skip_ = 0;
-        unsigned size_ = 0;
-        ~OutputDataEntry()
-        {
-            if (buf)
-            {
-                buf->unref_all(skip_ + size_);
-            }
-        }
+        LinkedDataBufferPtr buf_;
     };
     
     friend class DirectHubReadFlow;
