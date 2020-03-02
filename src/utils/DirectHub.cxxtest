@@ -120,6 +120,7 @@ public:
         sem_.wait();
         hub_->mutable_message()->done_ = &bn2_;
         hub_->mutable_message()->buf_ = buf_.transfer_head(buf_.size());
+        buf_.reset();
         hub_->do_send();
     }
 
