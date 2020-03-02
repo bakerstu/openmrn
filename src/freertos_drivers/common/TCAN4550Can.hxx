@@ -42,6 +42,8 @@
 
 #include "can_ioctl.h"
 
+#define TCAN4550_DEBUG 1
+
 /// Specification of CAN driver for the TCAN4550.
 /// @todo The TCAN4550 uses the Bosch MCAN IP. If we end up supporting other
 ///       devices that also use this IP, then some of the generic MCAN related
@@ -312,6 +314,37 @@ private:
                 uint32_t niso  : 1; ///< non ISO operation
 
                 uint32_t rsvd2 : 16; ///< reserved
+            };
+        };
+    };
+
+    /// Nominal bit timing & prescaler register definition
+    struct Nbtp
+    {
+        /// Constructor.
+        /// @param dsjw data (re)synchronization jump width
+        /// @param dtseg2 data time segment before sample point
+        /// @param dtseg1 data time segment after sample point
+        /// @param dbrp data bit rate prescaler
+        /// @param tdc trasmitter delay compensation
+        Nbtp(uint32_t sjw, uint32_t tseg2, uint32_t tseg1, uint32_t brp)
+            : ntseg2(tseg2)
+            , ntseg1(tseg1)
+            , nbrp(brp)
+            , nsjw(sjw)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t ntseg2    : 7; ///< time segment before sample
+                uint32_t rsvd1     : 1; ///< reserved
+                uint32_t ntseg1    : 8; ///< time segment after sample
+                uint32_t nbrp      : 9; ///< bit rate prescaler
+                uint32_t nsjw      : 7; ///< re-synchronization jump width
             };
         };
     };
@@ -650,12 +683,33 @@ private:
         };
     };
 
+    /// MCAN interrupt line enable register definition
+    struct Ile
+    {
+        /// Constructor. Sets the reset value.
+        Ile()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t eint0 :  1; ///< enable interrupt line 0
+                uint32_t eint1 :  1; ///< enable interrupt line 1
+                uint32_t rsvd  : 30; ///< reserved
+            };
+        };
+    };
+
     /// Buad rate table entry
     struct TCAN4550Baud
     {
         uint32_t freq; ///< incoming frequency
         uint32_t baud; ///< target baud rate
-        Dbtp     dbtp; ///< data bit timing and prescaler
+        Nbtp     nbtp; ///< data bit timing and prescaler
     };
 
     /// SPI message for read/write commands
@@ -851,7 +905,7 @@ private:
     __attribute__((optimize("-O3")))
     void mram_read(uint16_t offset, MRAMMessage *msg, uint32_t xfer_size)
     {
-        uint16_t address = offset + 0x8000;
+        uint16_t address = offset + 0x1000;
         msg->cmd = READ;
         msg->addrH = address >> 8;
         msg->addrL = address & 0xFF;
@@ -871,7 +925,7 @@ private:
     __attribute__((optimize("-O3")))
     void mram_write(uint16_t offset, MRAMMessage *msg, uint32_t xfer_size)
     {
-        uint16_t address = offset + 0x8000;
+        uint16_t address = offset + 0x1000;
         msg->cmd = WRITE;
         msg->addrH = address >> 8;
         msg->addrL = address & 0xFF;
@@ -891,7 +945,7 @@ private:
     __attribute__((optimize("-O3")))
     void rxbuf_read(uint16_t offset, MRAMRXBuffer *buf, size_t count)
     {
-        uint16_t address = offset + 0x8000;
+        uint16_t address = offset + 0x1000;
         MRAMMessage msg;
         msg.cmd = READ;
         msg.addrH = address >> 8;
@@ -901,7 +955,7 @@ private:
         spi_ioc_transfer xfer[2];
         xfer[0].tx_buf = (unsigned long)(&msg);
         xfer[0].rx_buf = (unsigned long)(&msg);
-        xfer[0].len = sizeof(msg);
+        xfer[0].len = sizeof(MRAMMessage);
         xfer[1].tx_buf = (unsigned long)(buf);
         xfer[1].rx_buf = (unsigned long)(buf);
         xfer[1].len = msg.length;
@@ -912,10 +966,10 @@ private:
         do
         {
             uint32_t *raw = reinterpret_cast<uint32_t*>(buf);
-            be32toh(raw[0]);
-            be32toh(raw[1]);
-            be32toh(raw[2]);
-            be32toh(raw[3]);
+            raw[0] = be32toh(raw[0]);
+            raw[1] = be32toh(raw[1]);
+            raw[2] = be32toh(raw[2]);
+            raw[3] = be32toh(raw[3]);
             ++buf;
         } while (--count);
     }
@@ -927,6 +981,9 @@ private:
     SPI *spi_; ///< pointer to a SPI object instance
     OSSem sem_; ///< semaphore for posting events
     MCANInterrupt mcanInterruptEnable_; ///< shaddow for the interrupt enable
+#if TCAN4550_DEBUG
+    volatile uint32_t regs_[64]; /**< debug copy of MCP2515 registers */
+#endif
 
     /// baud rate settings table
     static const TCAN4550Baud BAUD_TABLE[];

@@ -54,9 +54,9 @@ const TCAN4550Can::TCAN4550Baud TCAN4550Can::BAUD_TABLE[] =
      *     3 / (20 * 16) = 0.938%
      *     = 0.938%
      */
-    {20000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (10 - 1), 0}},
-    /* 20 MHz clock source
-     * TQ = BRP / freq = 10 / 20 MHz = 500 nsec
+    {20000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (10 - 1)}},
+    /* 40 MHz clock source
+     * TQ = BRP / freq = 10 / 40 MHz = 500 nsec
      * Baud = 125 kHz
      * bit time = 1 / 125 kHz = 8 usec = 16 TQ
      * SyncSeg = 1 TQ
@@ -72,7 +72,7 @@ const TCAN4550Can::TCAN4550Baud TCAN4550Can::BAUD_TABLE[] =
      *     3 / (20 * 16) = 0.938%
      *     = 0.938%
      */
-    {40000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (20 - 1), 0}},
+    {40000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (20 - 1)}},
 };
 
 
@@ -112,78 +112,95 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
         register_write(MODE, mode.data);
     }
     {
-        Cccr cccr;
+        Cccr cccr; // default is initialization mode
+        register_write(CCCR, cccr.data);
+        do
+        {
+            cccr.data = register_read(CCCR);
+        } while (cccr.init == 0);
+
         cccr.cce = 1; // configuration change enable
         register_write(CCCR, cccr.data);
-
-        // clear MRAM
-        for (unsigned offset = 0; offset < MRAM_SIZE_WORDS;
-             offset += MRAMMessageClear::DATA_SIZE)
+        do
         {
-            MRAMMessageClear msg;
-            mram_write(offset, &msg, sizeof(msg));
-        }
+            cccr.data = register_read(CCCR);
+        } while (cccr.cce == 0);
+    }
 
-        // ---- Memory layout ----
-        //
-        // +-----------------------+
-        // | RX FIFO 0, buf 0      | 0x0000
-        // | ...                   |
-        // | RX FIFO 0, buf 63     | 0x03F0
-        // +-----------------------+
-        // | TX Event FIFO, buf 0  | 0x0400
-        // | ...                   |
-        // | TX Event FIFO, buf 15 | 0x05F8
-        // +-----------------------+
-        // | TX Buf 0 (FIFO)       | 0x0300
-        // | ...                   |
-        // | TX Buf 15 (FIFO)      | 0x0378
-        // +-----------------------+
-        // | TX Buf 16             | 0x0380
-        // | ...                   |
-        // | TX Buf 32             | 0x0470
-        // +-----------------------+
-        // | Unused                | 0x0480
-        // +-----------------------+
+    // diasable all TCAN interrupts
+    register_write(INTERRUPT_ENABLE, 0);
 
+    // clear MRAM
+    for (unsigned offset = 0; offset < MRAM_SIZE_WORDS;
+         offset += MRAMMessageClear::DATA_SIZE)
+    {
+        MRAMMessageClear msg;
+        mram_write(offset, &msg, sizeof(msg));
+    }
+
+    // ---- Memory layout ----
+    //
+    // +-----------------------+
+    // | RX FIFO 0, buf 0      | 0x0000
+    // | ...                   |
+    // | RX FIFO 0, buf 63     | 0x03F0
+    // +-----------------------+
+    // | TX Event FIFO, buf 0  | 0x0400
+    // | ...                   |
+    // | TX Event FIFO, buf 15 | 0x05F8
+    // +-----------------------+
+    // | TX Buf 0 (FIFO)       | 0x0600
+    // | ...                   |
+    // | TX Buf 15 (FIFO)      | 0x0678
+    // +-----------------------+
+    // | TX Buf 16             | 0x0680
+    // | ...                   |
+    // | TX Buf 32             | 0x0770
+    // +-----------------------+
+    // | Unused                | 0x0780
+    // +-----------------------+
+
+    {
+        // setup RX FIFO 0
+        Rxfxc rxf0c;
+        rxf0c.fsa = 0x0000; // FIFO start address
+        rxf0c.fs = 64;      // FIFO size
+        register_write(RXF0C, rxf0c.data);
+    }
+    {
+        // setup TX configuration
+        Txbc txbc;
+        txbc.tbsa = 0x0600; // buffers start address
+        txbc.ndtb = 16;     // number of dedicated transmit buffers
+        txbc.tfqs = 16;     // FIFO/queue size
+        register_write(TXBC, txbc.data);
+    }
+    {
+        // setup TX buffer element size
+        Txesc txesc;
+        txesc.tbds = 0; // 8 byte data field size
+        register_write(TXESC, txesc.data);
+    }
+    {
+
+        // setup TX event FIFO
+        Txefc txefc;
+        txefc.efsa = 0x0400; // event FIFO start address
+        txefc.efs = 16;      // event FIFO size
+        register_write(TXEFC, txefc.data);
+    }
+
+    // Setup timing
+    for ( size_t i = 0; i < ARRAYSIZE(BAUD_TABLE); ++i)
+    {
+        if (BAUD_TABLE[i].freq == freq && BAUD_TABLE[i].baud == baud)
         {
-            // setup RX FIFO 0
-            Rxfxc rxf0c;
-            rxf0c.fsa = 0x0000; // FIFO start address
-            rxf0c.fs = 64;      // FIFO size
-            register_write(RXF0C, rxf0c.data);
-        }
-        {
-            // setup TX configuration
-            Txbc txbc;
-            txbc.tbsa = 0x0300; // buffers start address
-            txbc.ndtb = 16;     // number of dedicated transmit buffers
-            txbc.tfqs = 16;     // FIFO/queue size
-            register_write(TXBC, txbc.data);
+            register_write(NBTP, BAUD_TABLE[i].nbtp.data);
 
-            // setup TX buffer element size
-            Txesc txesc;
-            txesc.tbds = 0; // 8 byte data field size
+            Cccr cccr;
+            register_write(CCCR, cccr.data);
 
-            // setup TX event FIFO
-            Txefc txefc;
-            txefc.efsa = 0x0400; // event FIFO start address
-            txefc.efs = 16;      // event FIFO size
-            register_write(TXEFC, txefc.data);
-        }
-
-        // Setup timing
-        for ( size_t i = 0; i < ARRAYSIZE(BAUD_TABLE); ++i)
-        {
-            if (BAUD_TABLE[i].freq == freq && BAUD_TABLE[i].baud == baud)
-            {
-                register_write(DBTP, BAUD_TABLE[i].dbtp.data);
-
-                cccr.cce = 0; // configuration change disable
-                register_write(CCCR, cccr.data);
-
-                return;
-            }
+            return;
         }
     }
 
@@ -218,6 +235,12 @@ void TCAN4550Can::enable()
         register_write(IE, mcanInterruptEnable_.data);
     }
     {
+        // enable interrupt line 0
+        Ile ile;
+        ile.eint0 = 1;
+        register_write(ILE, ile.data);
+    }
+    {
         // enable normal operation mode
         Cccr cccr;
         cccr.init = 0; // normal operation mode, enables CAN bus access
@@ -239,6 +262,11 @@ void TCAN4550Can::disable()
         Cccr cccr;
         cccr.init = 1; // initialization mode, disables CAN bus access
         register_write(CCCR, cccr.data);
+    }
+    {
+        // disable interrupt line 0
+        Ile ile;
+        register_write(ILE, ile.data);
     }
     {
         // disable MCAN interrupts
@@ -454,12 +482,43 @@ void TCAN4550Can::tx_msg()
 //
 // entry()
 //
-__attribute__((optimize("-O3")))
+__attribute__((optimize("-O0")))
 void *TCAN4550Can::entry()
 {
     for ( ; /* forever */ ; )
     {
+#if TCAN4550_DEBUG
+        int result = sem_.timedwait(SEC_TO_NSEC(1));
+
+        {
+            OSMutexLock locker(&lock_);
+            MRAMMessage msg;
+            msg.cmd = READ;
+            msg.addrH = 0x10;
+            msg.addrL = 0x00;
+            msg.length = 64;
+
+            spi_ioc_transfer xfer[2];
+            xfer[0].tx_buf = (unsigned long)&msg;
+            xfer[0].rx_buf = 0;
+            xfer[0].len = sizeof(MRAMMessage);
+            xfer[1].tx_buf = 0;
+            xfer[1].rx_buf = (unsigned long)regs_;
+            xfer[1].len = sizeof(regs_);
+
+            spi_->transfer_with_cs_assert_polled(xfer, 2);
+            for (unsigned i = 0; i < 64; ++i)
+            {
+                regs_[i] = be32toh(regs_[i]);
+            }
+            if (result != 0)
+            {
+                continue;
+            }
+        }
+#else
         sem_.wait();
+#endif
 
         // lock SPI bus access
         OSMutexLock locker(&lock_);
