@@ -31,9 +31,14 @@
  * @date 26 February 2020
  */
 
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+
 #include "TCAN4550Can.hxx"
 
 #include <fcntl.h>
+#include <unistd.h>
 
 const TCAN4550Can::TCAN4550Baud TCAN4550Can::BAUD_TABLE[] =
 {
@@ -90,7 +95,7 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     // configure SPI bus settings
     uint8_t spi_mode = SPI_MODE_0;
     uint8_t spi_bpw = 8;
-    uint32_t spi_max_speed_hz = freq / 2;
+    uint32_t spi_max_speed_hz = freq / 4;
     if (spi_max_speed_hz > SPI_MAX_SPEED_HZ)
     {
         spi_max_speed_hz = SPI_MAX_SPEED_HZ;
@@ -132,7 +137,7 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
 
     // clear MRAM
     for (unsigned offset = 0; offset < MRAM_SIZE_WORDS;
-         offset += MRAMMessageClear::DATA_SIZE)
+         offset += (MRAMMessageClear::DATA_SIZE * 4))
     {
         MRAMMessageClear msg;
         mram_write(offset, &msg, sizeof(msg));
@@ -149,13 +154,13 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     // | ...                   |
     // | TX Event FIFO, buf 15 | 0x05F8
     // +-----------------------+
-    // | TX Buf 0 (FIFO)       | 0x0600
+    // | TX Buf 0              | 0x0600
     // | ...                   |
-    // | TX Buf 15 (FIFO)      | 0x0678
+    // | TX Buf 15             | 0x0678
     // +-----------------------+
-    // | TX Buf 16             | 0x0680
+    // | TX Buf 16 (FIFO)      | 0x0680
     // | ...                   |
-    // | TX Buf 32             | 0x0770
+    // | TX Buf 31 (FIFO)      | 0x0770
     // +-----------------------+
     // | Unused                | 0x0780
     // +-----------------------+
@@ -490,8 +495,12 @@ void *TCAN4550Can::entry()
 #if TCAN4550_DEBUG
         int result = sem_.timedwait(SEC_TO_NSEC(1));
 
+        if (result != 0)
         {
             OSMutexLock locker(&lock_);
+            status_ = register_read(INTERRUPT_STATUS);
+            enable_ = register_read(INTERRUPT_ENABLE);
+            spiStatus_ = register_read(STATUS);
             MRAMMessage msg;
             msg.cmd = READ;
             msg.addrH = 0x10;
@@ -511,10 +520,7 @@ void *TCAN4550Can::entry()
             {
                 regs_[i] = be32toh(regs_[i]);
             }
-            if (result != 0)
-            {
-                continue;
-            }
+            continue;
         }
 #else
         sem_.wait();

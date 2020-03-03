@@ -397,7 +397,7 @@ private:
                 uint32_t fs   : 7; ///< RX FIFO size
                 uint32_t rsvd : 1; ///< reserved
 
-                uint32_t fwm : 8; ///< RX FIFO high water mark
+                uint32_t fwm : 7; ///< RX FIFO high water mark
                 uint32_t fom : 1; ///< RX FIFO operation mode
             };
         };
@@ -720,7 +720,11 @@ private:
             uint8_t payload[8]; ///< raw payload
             struct
             {
-                uint8_t cmd;    ///< command
+                union
+                {
+                    uint8_t cmd;    ///< command
+                    uint8_t status; ///< bits 0..7 of INTERRUPT_STATUS
+                };
                 uint8_t addrH;  ///< register address MSB
                 uint8_t addrL;  ///< register address LSB
                 uint8_t length; ///< length in words
@@ -737,7 +741,11 @@ private:
             uint8_t payload[0]; ///< raw payload
             struct
             {
-                uint8_t cmd;    ///< command
+                union
+                {
+                    uint8_t cmd;    ///< command
+                    uint8_t status; ///< bits 0..7 of INTERRUPT_STATUS
+                };
                 uint8_t addrH;  ///< register address MSB
                 uint8_t addrL;  ///< register address LSB
                 uint8_t length; ///< length in words
@@ -905,7 +913,7 @@ private:
     __attribute__((optimize("-O3")))
     void mram_read(uint16_t offset, MRAMMessage *msg, uint32_t xfer_size)
     {
-        uint16_t address = offset + 0x1000;
+        uint16_t address = offset + 0x8000;
         msg->cmd = READ;
         msg->addrH = address >> 8;
         msg->addrL = address & 0xFF;
@@ -925,7 +933,7 @@ private:
     __attribute__((optimize("-O3")))
     void mram_write(uint16_t offset, MRAMMessage *msg, uint32_t xfer_size)
     {
-        uint16_t address = offset + 0x1000;
+        uint16_t address = offset + 0x8000;
         msg->cmd = WRITE;
         msg->addrH = address >> 8;
         msg->addrL = address & 0xFF;
@@ -976,13 +984,16 @@ private:
 
     void (*interruptEnable_)(); ///< enable interrupt callback
     void (*interruptDisable_)(); ///< disable interrupt callback
-    unsigned state_ : 4; ///< present bus state */
+    unsigned state_ : 4; ///< present bus state
     int spiFd_; ///< SPI bus that accesses MCP2515
     SPI *spi_; ///< pointer to a SPI object instance
     OSSem sem_; ///< semaphore for posting events
     MCANInterrupt mcanInterruptEnable_; ///< shaddow for the interrupt enable
 #if TCAN4550_DEBUG
-    volatile uint32_t regs_[64]; /**< debug copy of MCP2515 registers */
+    volatile uint32_t regs_[64]; ///< debug copy of MCP2515 registers
+    volatile uint32_t status_;
+    volatile uint32_t enable_;
+    volatile uint32_t spiStatus_;
 #endif
 
     /// baud rate settings table
