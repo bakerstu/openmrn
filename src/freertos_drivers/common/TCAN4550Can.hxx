@@ -956,20 +956,20 @@ private:
     __attribute__((optimize("-O3")))
     void rxbuf_read(uint16_t offset, MRAMRXBuffer *buf, size_t count)
     {
-        uint16_t address = offset + 0x1000;
+        uint16_t address = offset + 0x8000;
         MRAMMessage msg;
         msg.cmd = READ;
         msg.addrH = address >> 8;
         msg.addrL = address & 0xFF;
-        msg.length = count * sizeof(MRAMRXBuffer);
+        msg.length = count * (sizeof(MRAMRXBuffer) / 4);
 
         spi_ioc_transfer xfer[2];
         xfer[0].tx_buf = (unsigned long)(&msg);
         xfer[0].rx_buf = (unsigned long)(&msg);
         xfer[0].len = sizeof(MRAMMessage);
-        xfer[1].tx_buf = (unsigned long)(buf);
+        xfer[1].tx_buf = (unsigned long)(nullptr);
         xfer[1].rx_buf = (unsigned long)(buf);
-        xfer[1].len = msg.length;
+        xfer[1].len = count * sizeof(MRAMRXBuffer);
 
         spi_->transfer_with_cs_assert_polled(xfer, 2);
         HASSERT((msg.status & 0x8) == 0);
