@@ -301,7 +301,11 @@ private:
         {
             DataBuffer* p;
             g_direct_hub_data_pool.alloc(&p);
-            buf_.reset(p);
+            if (buf_.head()) {
+                buf_.append_empty_buffer(p);
+            } else {
+                buf_.reset(p);
+            }
             segmenter_->clear();
             /// @todo figure out where the notifiable really should go.
             buf_.head()->set_done(bufferNotifiable_);
@@ -343,6 +347,7 @@ private:
 
         Action eval_segment() {
             if (segmentSize_ > 0) {
+                segmenter_->clear();
                 return call_immediately(STATE(send_prefix));
             } else {
                 return incomplete_message();
@@ -352,7 +357,6 @@ private:
         /// Clears the segmenter and starts segmenting from the beginning of
         /// the buf_.
         Action call_head_segmenter() {
-            segmenter_->clear();
             uint8_t* ptr;
             unsigned available;
             auto *n =
@@ -367,9 +371,7 @@ private:
         Action incomplete_message() {
             if (!buf_.free())
             {
-                DataBuffer* p;
-                g_direct_hub_data_pool.alloc(&p);
-                buf_.append_empty_buffer(p);
+                return alloc_for_read();
             }
             return call_immediately(STATE(do_some_read));
         }

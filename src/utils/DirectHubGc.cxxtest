@@ -53,6 +53,19 @@ TEST_F(GridConnectSegmenterTest, split_message)
     clear();
 }
 
+TEST_F(GridConnectSegmenterTest, many_split_message)
+{
+    auto len = send_some_data(":X1");
+    EXPECT_EQ(0, len);
+
+    EXPECT_EQ(0, send_some_data("95B"));
+    EXPECT_EQ(0, send_some_data("4123N"));
+    EXPECT_EQ(0, send_some_data("01020304"));
+    EXPECT_EQ(0, send_some_data("0506"));
+    EXPECT_EQ(0, send_some_data("07"));
+    EXPECT_EQ(28, send_some_data("08;"));
+}
+
 TEST_F(GridConnectSegmenterTest, two_messages)
 {
     auto len = send_some_data(":X12;:X345;");

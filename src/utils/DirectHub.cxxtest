@@ -85,7 +85,7 @@ private:
     SyncNotifiable exitNotify_;
 };
 
-/// Helper class to send a one-byte message to the
+/// Helper class to send message to the hub directly (i.e., not via a port).
 class SendSomeData : public Executable
 {
 public:
@@ -108,11 +108,13 @@ public:
         EXPECT_TRUE(is_done());
     }
 
+    /// Triggers the send.
     void enqueue()
     {
         hub_->enqueue_send(this);
     }
 
+    /// Callback from the hub that actually does the send.
     void run() override
     {
         isRunning_.post();
@@ -139,10 +141,68 @@ public:
     /// We take one share of this semaphore when sending. Owners can go from
     /// blocking to nonblocking sending this way. Default is one share.
     OSSem sem_ {1};
-
+    /// True if the Hub has already executed the callback, which is equivalent
+    /// to the message actually having been sent to the hub.
     bool hasSeenRun_ {false};
     /// This semaphore is notified when we are blocked.
     OSSem isRunning_ {0};
+};
+
+/// Class that implements the Segmenter interface, and performs expectation on
+/// what data arrives and that the calls are made according to the API
+/// contract. Segments by | characters.
+class TestSegmenter : public MessageSegmenter {
+public:
+    /// @param expected_data is all the bytes that will be sent from the remote
+    /// endpoint.
+    TestSegmenter(std::shared_ptr<string> expected_data)
+        : data_(expected_data) {}
+
+    ssize_t segment_message(const void *data, size_t size) override
+    {
+        LOG(VERBOSE, "segment: ofs %u size %u", (unsigned) nextToReceive_, (unsigned)size);
+        if (needClear_)
+        {
+            EXPECT_TRUE(isClear_) << "Failed to call clear().";
+            needClear_ = false;
+        }
+        isClear_ = false;
+        std::string current((char*)data, size);
+        EXPECT_EQ(data_->substr(nextToReceive_, size), current)
+            << "Wrong data passed to segmenter.";
+        if (current.find('|') != string::npos) {
+            // have a segment end.
+            size_t end_ofs = data_->find('|', packetStart_);
+            HASSERT(end_ofs != string::npos);
+            ssize_t ret = end_ofs - packetStart_ + 1;
+            packetStart_ = end_ofs + 1;
+            nextToReceive_ = packetStart_;
+            needClear_ = true;
+            LOG(VERBOSE, "segment: chunk %u", (unsigned) ret);
+            return ret;
+        }
+        nextToReceive_ += size;
+        return 0;
+    }
+
+    /// Resets internal state machine. The next call to segment_message()
+    /// assumes no previous data present.
+    void clear() override
+    {
+        isClear_ = true;
+    }
+
+private:
+    /// What data is being sent.
+    std::shared_ptr<string> data_;
+    /// Offset in the data_ array for the first byte of the current packet.
+    size_t packetStart_ = 0;
+    /// Offset in the data_ array for the next byte we have not seen yet.
+    size_t nextToReceive_ = 0;
+    /// True if clear was called.
+    bool isClear_ = true;
+    /// True if clear needs to be called next.
+    bool needClear_ = false;
 };
 
 class DirectHubTest : public ::testing::Test
@@ -198,17 +258,40 @@ protected:
             setsockopt(ffd[0], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
         ERRNOCHECK("setsockopt",
             setsockopt(ffd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
-        create_port_for_fd(hub_, fd[0],
-            std::unique_ptr<MessageSegmenter>(
-                create_trivial_message_segmenter()));
-        create_port_for_fd(hub_, ffd[0],
-            std::unique_ptr<MessageSegmenter>(
-                create_trivial_message_segmenter()));
+        create_port_for_fd(hub_, fd[0], get_new_segmenter());
+        create_port_for_fd(hub_, ffd[0], get_new_segmenter());
         fdOne_ = fd[1];
         fdTwo_ = ffd[1];
         wait_for_main_executor();
     }
 
+    void create_test_segmenter_port(std::shared_ptr<string> data) {
+        int fd[2];
+        ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+
+        int buflen = 1700;
+        socklen_t optlen = sizeof(buflen);
+        ERRNOCHECK("setsockopt",
+            setsockopt(fd[0], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
+        ERRNOCHECK("setsockopt",
+            setsockopt(fd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
+
+        create_port_for_fd(hub_, fd[0],
+            std::unique_ptr<MessageSegmenter>(new TestSegmenter(data)));
+        fdOne_ = fd[1];
+        wait_for_main_executor();
+    }
+    
+    std::unique_ptr<MessageSegmenter> get_new_segmenter() {
+        if (useTrivialSegmenter_) {
+            return std::unique_ptr<MessageSegmenter>(
+                create_trivial_message_segmenter());
+        } else {
+            return std::unique_ptr<MessageSegmenter>(
+                create_gc_message_segmenter());
+        }
+    }
+    
     /// Reads whatever data is available on fd (up to 1000 bytes) and returns
     /// it as a string.
     /// @param fd a readable file descriptor
@@ -223,16 +306,57 @@ protected:
 
     ssize_t write_some(int fd)
     {
-        char inbuf[900];
-        memset(inbuf, 0x55, sizeof(inbuf));
-        return ::write(fd, inbuf, sizeof(inbuf));
+        string gc_packet(":X195B4111N0102030405060708;\n");
+        string total;
+        while (total.size() < 900) {
+            total += gc_packet;
+        }
+        return ::write(fd, total.data(), total.size());
+    }
+
+    /// Generates a large random string to send to the input.  The format of
+    /// the string is 1-2-3-4|5-6-|. Numbers are sequential, length of packets
+    /// segmented by | are random.
+    /// @param len total number of bytes to generate.
+    /// @param pmin the minimum length of a packet
+    /// @param pmax the maximum length of a packet
+    string generate_random_data(
+        size_t len, unsigned pmin = 15, unsigned pmax = 150)
+    {
+        string ret;
+        ret.reserve(len);
+        int ctr = 0;
+        while (ret.size() < len) {
+            size_t random_plen = random(pmin, pmax);
+            unsigned packetlen = std::min(len - ret.size(), random_plen);
+            string packet;
+            while (packet.size() < packetlen) {
+                packet += StringPrintf("%d-", ctr++); 
+            }
+            packet.resize(packetlen - 1);
+            packet.push_back('|');
+            ret += packet;
+        }
+        return ret;
+    }
+
+    /// @return a random integer in an interval [pmin, pmax]. Deterministic in
+    /// each test run.
+    /// @param pmin minimum of intarval
+    /// @param pmax maximum of interval
+    unsigned random(unsigned pmin, unsigned pmax)
+    {
+        return (rand_r(&randomSeed_) % (pmax - pmin + 1)) + pmin;
     }
 
     DirectHubInterface<uint8_t[]> *hub_ {create_hub(&g_executor)};
 
     int fdOne_ = -1;
     int fdTwo_ = -1;
+    bool useTrivialSegmenter_ = true;
     ReadAllFromFd fdReaderFlow_;
+    /// Deterministic random seed for repeatable tests.
+    unsigned int randomSeed_ = 994433227;
 };
 
 /// Sends some data from one remote socket through the hub to another remote
@@ -294,7 +418,7 @@ TEST_F(DirectHubTest, large_end_to_end_data)
     }
     usleep(30000);
     LOG(INFO, "total bytes transferred: %zu", bytes);
-    EXPECT_EQ(90000u, bytes);
+    EXPECT_EQ(92800u, bytes);
     fdReaderFlow_.stop();
 }
 
@@ -321,11 +445,106 @@ TEST_F(DirectHubTest, close_notify)
     ::close(ffd[1]);
 }
 
+TEST_F(DirectHubTest, random_deterministic)
+{
+    string d = generate_random_data(35, 3, 9);
+    EXPECT_EQ(35u, d.size());
+    EXPECT_EQ("0-1-2-3|4-5-6-|8-9-1|11-12|13-14-1|", d);
+}
+
+
+TEST_F(DirectHubTest, segmenter_small)
+{
+    std::shared_ptr<string> d =
+        std::make_shared<string>(generate_random_data(35, 3, 9));
+    create_test_segmenter_port(d);
+    for (size_t ofs = 0; ofs < d->size();)
+    {
+        size_t len = random(10, 80);
+        len = std::min(len, d->size() - ofs);
+        ::write(fdOne_, d->data() + ofs, len);
+        ofs += len;
+        wait_for_main_executor();
+        usleep(100);
+        wait_for_main_executor();
+    }
+}
+
+TEST_F(DirectHubTest, segmenter_long)
+{
+    std::shared_ptr<string> d =
+        std::make_shared<string>(generate_random_data(20000, 3, 9));
+    create_test_segmenter_port(d);
+    for (size_t ofs = 0; ofs < d->size();)
+    {
+        size_t len = random(10, 80);
+        len = std::min(len, d->size() - ofs);
+        ::write(fdOne_, d->data() + ofs, len);
+        ofs += len;
+        wait_for_main_executor();
+        usleep(100);
+        wait_for_main_executor();
+    }
+}
+
+TEST_F(DirectHubTest, segmenter_largepkt)
+{
+    std::shared_ptr<string> d =
+        std::make_shared<string>(generate_random_data(20000, 30, 130));
+    create_test_segmenter_port(d);
+    for (size_t ofs = 0; ofs < d->size();)
+    {
+        size_t len = random(10, 80);
+        len = std::min(len, d->size() - ofs);
+        ::write(fdOne_, d->data() + ofs, len);
+        ofs += len;
+        wait_for_main_executor();
+        usleep(100);
+        wait_for_main_executor();
+    }
+}
+
 /// In this test we try to write a lot of data into one port while not reading
 /// anything from the other. This situation should push back on the sending
 /// port after some limited amount of intermediate buffers are filled.
 TEST_F(DirectHubTest, socket_blocked)
 {
+    create_two_ports();
+
+    int buflen;
+    socklen_t optlen = sizeof(buflen);
+    ERRNOCHECK("getsockopt",
+        getsockopt(fdOne_, SOL_SOCKET, SO_SNDBUF, &buflen, &optlen));
+    LOG(INFO, "snd buf %d", buflen);
+
+    ERRNOCHECK("fcntl", ::fcntl(fdOne_, F_SETFL, O_RDWR | O_NONBLOCK));
+
+    size_t total = 0;
+    for (int i = 0; i < 200; ++i)
+    {
+        int wr = write_some(fdOne_);
+        if (wr >= 0)
+            total += wr;
+        wr = write_some(fdOne_);
+        if (wr >= 0)
+            total += wr;
+        usleep(100);
+    }
+    LOG(INFO, "total %u pool %u", (unsigned)total,
+        (unsigned)mainBufferPool->total_size());
+    // The total bytes buffered should not be very much, despite having tried
+    // to write a lot of data into the socket.
+    EXPECT_GT(5000u, total);
+    // Memory usage is also under control.
+    EXPECT_GT(5000u, mainBufferPool->total_size());
+}
+
+/// In this test we try to write a lot of data into one port while not reading
+/// anything from the other. This situation should push back on the sending
+/// port after some limited amount of intermediate buffers are filled.
+TEST_F(DirectHubTest, socket_blocked_gc)
+{
+    useTrivialSegmenter_ = false;
     create_two_ports();
 
     int buflen;
