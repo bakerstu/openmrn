@@ -498,9 +498,6 @@ void *TCAN4550Can::entry()
         if (result != 0)
         {
             OSMutexLock locker(&lock_);
-            status_ = register_read(INTERRUPT_STATUS);
-            enable_ = register_read(INTERRUPT_ENABLE);
-            spiStatus_ = register_read(STATUS);
             MRAMMessage msg;
             msg.cmd = READ;
             msg.addrH = 0x10;
@@ -528,6 +525,11 @@ void *TCAN4550Can::entry()
 
         // lock SPI bus access
         OSMutexLock locker(&lock_);
+#if TCAN4550_DEBUG
+        status_ = register_read(INTERRUPT_STATUS);
+        enable_ = register_read(INTERRUPT_ENABLE);
+        spiStatus_ = register_read(STATUS);
+#endif
 
         // read status flags
         MCANInterrupt mcan_interrupt;

@@ -882,6 +882,8 @@ private:
 
         spi_->transfer_with_cs_assert_polled(&xfer);
 
+        HASSERT((msg.status & 0x8) == 0);
+
         return be32toh(msg.data);
     }
 
@@ -904,6 +906,7 @@ private:
         xfer.len = sizeof(msg);
 
         spi_->transfer_with_cs_assert_polled(&xfer);
+        HASSERT((msg.status & 0x8) == 0);
     }
 
     /// Read from a SPI register.
@@ -969,6 +972,7 @@ private:
         xfer[1].len = msg.length;
 
         spi_->transfer_with_cs_assert_polled(xfer, 2);
+        HASSERT((msg.status & 0x8) == 0);
 
         static_assert(sizeof(MRAMRXBuffer) == 16);
         do
