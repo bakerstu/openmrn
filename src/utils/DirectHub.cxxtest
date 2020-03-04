@@ -166,6 +166,10 @@ public:
             EXPECT_TRUE(isClear_) << "Failed to call clear().";
             needClear_ = false;
         }
+        else
+        {
+            EXPECT_FALSE(isClear_) << "Unexpected call to clear().";
+        }
         isClear_ = false;
         std::string current((char*)data, size);
         EXPECT_EQ(data_->substr(nextToReceive_, size), current)
@@ -202,7 +206,54 @@ private:
     /// True if clear was called.
     bool isClear_ = true;
     /// True if clear needs to be called next.
-    bool needClear_ = false;
+    bool needClear_ = true;
+};
+
+/// Class that implements the HubPort interface (downstream), and performs
+/// expectation on what data arrives and that the calls are made according to
+/// the API contract. Segments by | characters.
+class TestReceiver : public DirectHubPort<uint8_t[]> {
+public:
+    TestReceiver(std::shared_ptr<string> expected_data)
+        : data_(expected_data) {}
+
+    void send(MessageAccessor<uint8_t[]> *msg) override {
+        ASSERT_TRUE(msg);
+
+        // Assembles the real bytes that came into a single string.
+        string recvd;
+        DataBuffer* head = msg->buf_.head();
+        unsigned skip = msg->buf_.skip();
+        size_t len = msg->buf_.size();
+        while (len > 0)
+        {
+            uint8_t *ptr;
+            unsigned available;
+            head = head->get_read_pointer(skip, &ptr, &available);
+            if (available > len)
+            {
+                available = len;
+            }
+            recvd.append((char *)ptr, available);
+            len -= available;
+            skip = 0;
+        }
+
+        // Expectations that we got exactly one segmented packet.
+        EXPECT_EQ(msg->buf_.size(), recvd.size());
+        EXPECT_EQ(data_->substr(packetStart_, msg->buf_.size()), recvd)
+            << "Wrong data arrived as part of a packet.";
+        size_t next_div = data_->find('|', packetStart_) + 1;
+        EXPECT_EQ(next_div, packetStart_ + msg->buf_.size())
+            << "Packet end unexpected.";
+        packetStart_ = next_div;
+    }
+
+private:
+    /// What data is being sent.
+    std::shared_ptr<string> data_;
+    /// Offset in the data_ array for the first byte of the next packet.
+    size_t packetStart_ = 0;
 };
 
 class DirectHubTest : public ::testing::Test
@@ -265,6 +316,9 @@ protected:
         wait_for_main_executor();
     }
 
+    /// Creates a pipe to send test-segmented (random) messages. Adds the test
+    /// segmenter to this port.
+    /// @param data the sequence of bytes that will come through this port.
     void create_test_segmenter_port(std::shared_ptr<string> data) {
         int fd[2];
         ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
@@ -281,7 +335,16 @@ protected:
         fdOne_ = fd[1];
         wait_for_main_executor();
     }
-    
+
+    /// Creates a new hub port that will make expectations according to the
+    /// test-segmented messages.
+    /// @param data the sequence of bytes that will be sent to the hub.
+    void create_test_receiver_port(std::shared_ptr<string> data)
+    {
+        receiver_.reset(new TestReceiver(data));
+        hub_->register_port(receiver_.get());
+    }
+
     std::unique_ptr<MessageSegmenter> get_new_segmenter() {
         if (useTrivialSegmenter_) {
             return std::unique_ptr<MessageSegmenter>(
@@ -349,6 +412,7 @@ protected:
         return (rand_r(&randomSeed_) % (pmax - pmin + 1)) + pmin;
     }
 
+    std::unique_ptr<TestReceiver> receiver_;
     DirectHubInterface<uint8_t[]> *hub_ {create_hub(&g_executor)};
 
     int fdOne_ = -1;
@@ -458,6 +522,7 @@ TEST_F(DirectHubTest, segmenter_small)
     std::shared_ptr<string> d =
         std::make_shared<string>(generate_random_data(35, 3, 9));
     create_test_segmenter_port(d);
+    create_test_receiver_port(d);
     for (size_t ofs = 0; ofs < d->size();)
     {
         size_t len = random(10, 80);
@@ -475,6 +540,7 @@ TEST_F(DirectHubTest, segmenter_long)
     std::shared_ptr<string> d =
         std::make_shared<string>(generate_random_data(20000, 3, 9));
     create_test_segmenter_port(d);
+    create_test_receiver_port(d);
     for (size_t ofs = 0; ofs < d->size();)
     {
         size_t len = random(10, 80);
@@ -492,9 +558,28 @@ TEST_F(DirectHubTest, segmenter_largepkt)
     std::shared_ptr<string> d =
         std::make_shared<string>(generate_random_data(20000, 30, 130));
     create_test_segmenter_port(d);
+    create_test_receiver_port(d);
     for (size_t ofs = 0; ofs < d->size();)
     {
         size_t len = random(10, 80);
+        len = std::min(len, d->size() - ofs);
+        ::write(fdOne_, d->data() + ofs, len);
+        ofs += len;
+        wait_for_main_executor();
+        usleep(100);
+        wait_for_main_executor();
+    }
+}
+
+TEST_F(DirectHubTest, segmenter_gridconnect_sized)
+{
+    std::shared_ptr<string> d =
+        std::make_shared<string>(generate_random_data(20000, 26, 30));
+    create_test_segmenter_port(d);
+    create_test_receiver_port(d);
+    for (size_t ofs = 0; ofs < d->size();)
+    {
+        size_t len = random(300, 1000);
         len = std::min(len, d->size() - ofs);
         ::write(fdOne_, d->data() + ofs, len);
         ofs += len;
