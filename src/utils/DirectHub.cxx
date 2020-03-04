@@ -242,6 +242,7 @@ private:
             , parent_(parent)
             , segmenter_(std::move(segmenter))
         {
+            segmenter_->clear();
         }
 
         /// Starts the current flow.
@@ -306,7 +307,6 @@ private:
             } else {
                 buf_.reset(p);
             }
-            segmenter_->clear();
             /// @todo figure out where the notifiable really should go.
             buf_.head()->set_done(bufferNotifiable_);
             bufferNotifiable_ = nullptr;
@@ -345,6 +345,8 @@ private:
             return eval_segment();
         }
 
+        /// Checks the segmenter output; if it indicates a complete message,
+        /// clears the segmenter and sends off the message.
         Action eval_segment() {
             if (segmentSize_ > 0) {
                 segmenter_->clear();
