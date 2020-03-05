@@ -152,17 +152,17 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     // +-----------------------+
     // | TX Event FIFO, buf 0  | 0x0400
     // | ...                   |
-    // | TX Event FIFO, buf 15 | 0x05F8
+    // | TX Event FIFO, buf 15 | 0x0478
     // +-----------------------+
-    // | TX Buf 0              | 0x0600
+    // | TX Buf 0              | 0x0480
     // | ...                   |
-    // | TX Buf 15             | 0x0678
+    // | TX Buf 15             | 0x0570
     // +-----------------------+
-    // | TX Buf 16 (FIFO)      | 0x0680
+    // | TX Buf 16 (FIFO)      | 0x0580
     // | ...                   |
-    // | TX Buf 31 (FIFO)      | 0x0770
+    // | TX Buf 31 (FIFO)      | 0x0670
     // +-----------------------+
-    // | Unused                | 0x0780
+    // | Unused                | 0x0680
     // +-----------------------+
 
     {
@@ -175,7 +175,7 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     {
         // setup TX configuration
         Txbc txbc;
-        txbc.tbsa = 0x0600; // buffers start address
+        txbc.tbsa = 0x0480; // buffers start address
         txbc.ndtb = 16;     // number of dedicated transmit buffers
         txbc.tfqs = 16;     // FIFO/queue size
         register_write(TXBC, txbc.data);
@@ -190,8 +190,9 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
 
         // setup TX event FIFO
         Txefc txefc;
-        txefc.efsa = 0x0400; // event FIFO start address
-        txefc.efs = 16;      // event FIFO size
+        txefc.efsa = 0x0400;        // event FIFO start address
+        txefc.efs = 16;             // event FIFO size
+        txefc.efwm = txefc.efs / 2; // event FIFO watermark
         register_write(TXEFC, txefc.data);
     }
 
@@ -203,7 +204,13 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
             register_write(NBTP, BAUD_TABLE[i].nbtp.data);
 
             Cccr cccr;
-            register_write(CCCR, cccr.data);
+            do
+            {
+                cccr.init = 0; // normal operation
+                cccr.cce = 0;  // configuration change disnable
+                register_write(CCCR, cccr.data);
+                cccr.data = register_read(CCCR);
+            } while (cccr.init == 1);
 
             return;
         }
@@ -409,6 +416,122 @@ ssize_t TCAN4550Can::read(File *file, void *buf, size_t count)
 }
 
 //
+// TCAN4550Can::write()
+//
+__attribute__((optimize("-O0")))
+ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
+{
+    HASSERT((count % sizeof(struct can_frame)) == 0);
+
+    const struct can_frame *data = (const struct can_frame*)buf;
+    ssize_t result = 0;
+
+    count /= sizeof(struct can_frame);
+
+    while (count)
+    {
+        size_t frames_written = 0;
+        // note: This casts away the const qualifier. The buffer must be in
+        //       mutable memory for this to work.
+        MRAMTXBuffer *mram_tx_buffer = (MRAMTXBuffer*)(data);
+
+        {
+            // lock SPI bus access
+            OSMutexLock locker(&lock_);
+#if 0
+            do
+            {
+                // Get the TX event FIFO status
+                Txefs txefs;
+                txefs.data = register_read(TXEFS);
+
+            } while (txefs.effl);
+#endif
+            // Get the TX FIFO/queu status
+            Txfqs txfqs;
+            txfqs.data = register_read(TXFQS);
+            if (txfqs.tffl)
+            {
+                static_assert(sizeof(struct can_frame) == sizeof(MRAMTXBuffer));
+
+                // clip to the continous buffer memory available
+                frames_written = std::min(
+                    TX_FIFO_SIZE - (txfqs.tfqpi - TX_DEDICATED_BUFFER_COUNT),
+                    txfqs.tffl);
+
+                // clip to the number of provided frames
+                frames_written = std::min(frames_written, count);
+
+                uint32_t txbar = 0;
+                uint32_t put_index = txfqs.tfqpi;
+
+                // shuffle data for structure translation
+                for (size_t i = 0; i < frames_written; ++i, ++put_index)
+                {
+                    if (!data[i].can_eff)
+                    {
+                        // standard frame
+                        mram_tx_buffer[i].id <<= 18;
+                        mram_tx_buffer[i].id &= 0x1FFFFFFF;
+                    }
+                    mram_tx_buffer[i].rtr = data[i].can_rtr;
+                    mram_tx_buffer[i].xtd = data[i].can_eff;
+                    mram_tx_buffer[i].esi = data[i].can_err;
+                    mram_tx_buffer[i].dlc = data[i].can_dlc;
+                    mram_tx_buffer[i].brs = 0;
+                    mram_tx_buffer[i].fdf = 0;
+                    mram_tx_buffer[i].efc = 0;
+                    mram_tx_buffer[i].mm = 0;
+                    txbar |= 0x1 << put_index;
+                }
+
+                // write to MRAM
+                txbuf_write(0x0480 + (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
+                            mram_tx_buffer, frames_written);
+
+                // add transmission requests
+                register_write(TXBAR, txbar);
+            }
+        }
+
+        if (frames_written == 0)
+        {
+            /* no more data to receive */
+            if ((file->flags & O_NONBLOCK) || result > 0)
+            {
+                break;
+            }
+            else
+            {
+                {
+                    // lock SPI bus access
+                    OSMutexLock locker(&lock_);
+
+                    // enable transmit watermark interrupt
+                    mcanInterruptEnable_.tefw = 1;
+                    register_write(IE, mcanInterruptEnable_.data);
+                }
+                // wait for space to be available
+                txBuf->block_until_condition(file, false);
+            }
+        }
+        else
+        {
+            result += frames_written;
+            count -= frames_written;
+            data += frames_written;
+        }
+    }
+
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EAGAIN;
+    }
+
+    return result * sizeof(struct can_frame);
+}
+
+//
 // TCQN4550Can::select()
 //
 bool TCAN4550Can::select(File* file, int mode)
@@ -438,6 +561,31 @@ bool TCAN4550Can::select(File* file, int mode)
                 // register for wakeup
                 AtomicHolder h(this);
                 rxBuf->select_insert();
+            }
+            break;
+        }
+        case FWRITE:
+        {
+            // lock SPI bus access
+            OSMutexLock locker(&lock_);
+
+            // read TX FIFO status
+            Txfqs txfqs;
+            txfqs.data = register_read(TXFQS);
+            if (txfqs.tffl)
+            {
+                // TX FIFO has space
+                retval = true;
+            }
+            else
+            {
+                // enable transmit watermark interrupt
+                mcanInterruptEnable_.tefw = 1;
+                register_write(IE, mcanInterruptEnable_.data);
+
+                // register for wakeup
+                AtomicHolder h(this);
+                txBuf->select_insert();
             }
             break;
         }
@@ -525,12 +673,18 @@ void *TCAN4550Can::entry()
 
         // lock SPI bus access
         OSMutexLock locker(&lock_);
+
+        // read TCAN status flags
+        uint32_t status = register_read(INTERRUPT_STATUS);
+
+        // clear TCAN status flags
+        register_write(INTERRUPT_STATUS, status);
+
 #if TCAN4550_DEBUG
-        status_ = register_read(INTERRUPT_STATUS);
+        status_ = status;
         enable_ = register_read(INTERRUPT_ENABLE);
         spiStatus_ = register_read(STATUS);
 #endif
-
         // read status flags
         MCANInterrupt mcan_interrupt;
         mcan_interrupt.data = register_read(IR);
@@ -582,13 +736,25 @@ void *TCAN4550Can::entry()
             }
         }
 
-        // transmission complete
-        if (mcan_interrupt.tc)
+        // tranmission watermark
+        if (mcan_interrupt.tefw && mcanInterruptEnable_.tefw)
         {
+            // signal anyone waiting
+            txBuf->signal_condition();
+
+            // disable transmit watermark interrupt
+            mcanInterruptEnable_.tefw = 0;
+            register_write(IE, mcanInterruptEnable_.data);
+        }
+
+        // transmission complete
+        if (mcan_interrupt.tc && mcanInterruptEnable_.tc)
+        {
+            /// @todo fill in if we support SW FIFO's
         }
 
         // received new message
-        if (mcan_interrupt.rf0n)
+        if (mcan_interrupt.rf0n && mcanInterruptEnable_.rf0n)
         {
             // signal anyone waiting
             rxBuf->signal_condition();

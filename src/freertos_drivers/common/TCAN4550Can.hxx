@@ -57,7 +57,7 @@ public:
     /// @param interrupt_disable callback to disable the interrupt
     TCAN4550Can(const char *name,
                 void (*interrupt_enable)(), void (*interrupt_disable)())
-        : Can(name, config_can_tx_buffer_size(), 0)
+        : Can(name, 0, 0)
         , OSThread()
         , interruptEnable_(interrupt_enable)
         , interruptDisable_(interrupt_disable)
@@ -801,7 +801,7 @@ private:
         uint32_t xtd :  1; ///< extended identifier
         uint32_t esi :  1; ///< error state indicator
 
-        uint32_t rsvd1 : 16; ///< receive timestamp
+        uint32_t rsvd1 : 16; ///< reserved
         uint32_t dlc   :  4; ///< data length code
         uint32_t brs   :  1; ///< bit rate switch
         uint32_t fdf   :  1; ///< FD format
@@ -820,7 +820,7 @@ private:
         uint32_t xtd :  1; ///< extended identifier
         uint32_t esi :  1; ///< error state indicator
 
-        uint32_t txts : 16; ///< transmit timestacmp
+        uint32_t txts : 16; ///< transmit timestamp
         uint32_t dlc  :  4; ///< data length code
         uint32_t brs  :  1; ///< bit rate switch
         uint32_t fdf  :  1; ///< FD format
@@ -838,6 +838,14 @@ private:
     /// @return number of bytes read upon success, -1 upon failure with errno
     ///         containing the cause
     ssize_t read(File *file, void *buf, size_t count) override;
+
+    /// Write to a file or device.
+    /// @param file file reference for this device
+    /// @param buf location to find write data
+    /// @param count number of bytes to write
+    /// @return number of bytes written upon success, -1 upon failure with errno
+    ///         containing the cause
+    ssize_t write(File *file, const void *buf, size_t count) override;
 
     /// Request an ioctl transaction.
     /// @param file file reference for this device
@@ -984,6 +992,43 @@ private:
             raw[3] = be32toh(raw[3]);
             ++buf;
         } while (--count);
+    }
+
+    /// Write one or more TX buffers.
+    /// @param offset word offset to write to
+    /// @param buf location to write from
+    /// @param count number of buffers to write
+    __attribute__((optimize("-O3")))
+    void txbuf_write(uint16_t offset, MRAMTXBuffer *buf, size_t count)
+    {
+        static_assert(sizeof(MRAMTXBuffer) == 16);
+        for (size_t i = 0; i < count; ++i)
+        {
+            uint32_t *raw = reinterpret_cast<uint32_t*>(buf + i);
+            raw[0] = htobe32(raw[0]);
+            raw[1] = htobe32(raw[1]);
+            raw[2] = htobe32(raw[2]);
+            raw[3] = htobe32(raw[3]);
+        }
+
+        uint16_t address = offset + 0x8000;
+        MRAMMessage msg;
+        msg.cmd = WRITE;
+        msg.addrH = address >> 8;
+        msg.addrL = address & 0xFF;
+        msg.length = count * (sizeof(MRAMTXBuffer) / 4);
+
+        spi_ioc_transfer xfer[2];
+        xfer[0].tx_buf = (unsigned long)(&msg);
+        xfer[0].rx_buf = (unsigned long)(&msg);
+        xfer[0].len = sizeof(MRAMMessage);
+        xfer[1].tx_buf = (unsigned long)(buf);
+        xfer[1].rx_buf = (unsigned long)(nullptr);
+        xfer[1].len = count * sizeof(MRAMTXBuffer);
+
+        spi_->transfer_with_cs_assert_polled(xfer, 2);
+        HASSERT((msg.status & 0x8) == 0);
+
     }
 
     void (*interruptEnable_)(); ///< enable interrupt callback
