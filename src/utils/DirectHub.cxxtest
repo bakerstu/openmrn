@@ -241,6 +241,18 @@ private:
     size_t packetStart_ = 0;
 };
 
+class TestLegacyCanReceiver : public CanHubPortInterface {
+public:
+    void send(Buffer<CanHubData> *buf, unsigned) override
+    {
+        lastFrame_ = *buf->data();
+        ++frameCount_;
+    }
+
+    struct can_frame lastFrame_;
+    uint32_t frameCount_{0}
+};
+
 class DirectHubTest : public ::testing::Test
 {
 protected:
@@ -406,6 +418,9 @@ protected:
     ReadAllFromFd fdReaderFlow_;
     /// Deterministic random seed for repeatable tests.
     unsigned int randomSeed_ = 994433227;
+
+    CanHub legacyHub_{&g_service};
+    TestLegacyCanReceiver legacyReceiver_;
 };
 
 /// Sends some data from one remote socket through the hub to another remote
@@ -743,4 +758,9 @@ TEST_F(DirectHubTest, check_size_skip_chain)
     string rdb = read_some(fdTwo_);
     EXPECT_EQ("abcde", rda);
     EXPECT_EQ("abcde", rdb);
+}
+
+TEST_F(DirectHubTest, can_bridge) {
+    
+    std::unique_ptr<>
 }
