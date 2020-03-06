@@ -221,4 +221,20 @@ MessageSegmenter* create_gc_message_segmenter();
 /// @return a newly allocated message segmenter.
 MessageSegmenter* create_trivial_message_segmenter();
 
+template<class T> class GenericHubFlow;
+template<class T> class HubContainer;
+struct CanFrameContainer;
+typedef HubContainer<CanFrameContainer> CanHubData;
+typedef GenericHubFlow<CanHubData> CanHubFlow;
+
+//class CanHubFlow;
+
+/// Creates a bridge between a gridconnect-based DirectHub and an old style CAN
+/// hub flow.
+/// @param gc_hub the gridconnect hub.
+/// @param can_hub the CAN hub.
+/// @return an object that can be deleted (only outside the main executor).
+Destructable *create_gc_to_legacy_can_bridge(
+    DirectHubInterface<uint8_t[]> *gc_hub, CanHubFlow *can_hub);
+
 #endif // _UTILS_DIRECTHUB_HXX_

@@ -255,6 +255,11 @@ public:
     /// size() value of it has to be denoting the amount of available bytes.
     void append_empty_buffer(DataBuffer *buf)
     {
+        if (!head_)
+        {
+            reset(buf);
+            return;
+        }
         HASSERT(tail_);
         free_ = buf->size();
         buf->set_size(0);

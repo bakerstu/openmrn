@@ -11,6 +11,7 @@ CXXSRCS += \
            Crc.cxx \
            DirectHub.cxx \
            DirectHubGc.cxx \
+           DirectHubLegacy.cxx \
            FileUtils.cxx \
            ForwardAllocator.cxx \
            GcStreamParser.cxx \

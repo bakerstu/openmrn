@@ -47,6 +47,7 @@
 #include "nmranet_config.h"
 
 static DataBufferPool g_direct_hub_data_pool(64);
+DataBufferPool g_direct_hub_kbyte_pool(1024);
 
 /// A single service class that is shared between all interconnected DirectHub
 /// instances. It is the responsibility of this Service to perform the locking
