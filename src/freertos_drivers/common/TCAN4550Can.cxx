@@ -113,6 +113,7 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
         mode.sweDis = 1;   // disable sleep
         mode.wdEnable = 0; // disable watchdog
         mode.modeSel = 2;  // normal mode
+        mode.clkRef = (freq == 40000000);
 
         register_write(MODE, mode.data);
     }
@@ -152,15 +153,15 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     // +-----------------------+
     // | TX Event FIFO, buf 0  | 0x0400
     // | ...                   |
-    // | TX Event FIFO, buf 15 | 0x0478
+    // | TX Event FIFO, buf 15 | 0x047F
     // +-----------------------+
     // | TX Buf 0              | 0x0480
     // | ...                   |
-    // | TX Buf 15             | 0x0570
+    // | TX Buf 15             | 0x057F
     // +-----------------------+
     // | TX Buf 16 (FIFO)      | 0x0580
     // | ...                   |
-    // | TX Buf 31 (FIFO)      | 0x0670
+    // | TX Buf 31 (FIFO)      | 0x067F
     // +-----------------------+
     // | Unused                | 0x0680
     // +-----------------------+
@@ -187,7 +188,6 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
         register_write(TXESC, txesc.data);
     }
     {
-
         // setup TX event FIFO
         Txefc txefc;
         txefc.efsa = 0x0400;        // event FIFO start address
@@ -206,8 +206,7 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
             Cccr cccr;
             do
             {
-                cccr.init = 0; // normal operation
-                cccr.cce = 0;  // configuration change disnable
+                cccr.data = 0;
                 register_write(CCCR, cccr.data);
                 cccr.data = register_read(CCCR);
             } while (cccr.init == 1);
@@ -242,6 +241,7 @@ void TCAN4550Can::enable()
         // enable MCAN interrupts
         mcanInterruptEnable_.data = 0; // start with all interrupts disabled
         mcanInterruptEnable_.rf0l = 1; // RX FIFO 0 message lost
+        mcanInterruptEnable_.tc = 1;   // transmission complete
         mcanInterruptEnable_.ep = 1;   // error passive
         mcanInterruptEnable_.bo = 1;   // bus-off status
         register_write(IE, mcanInterruptEnable_.data);
@@ -294,13 +294,11 @@ void TCAN4550Can::disable()
 //
 void TCAN4550Can::flush_buffers()
 {
-    {
-        AtomicHolder h(this);
-        txBuf->flush();
-    }
-
     // lock SPI bus access
     OSMutexLock locker(&lock_);
+
+    // cancel TX FIFO buffers
+    register_write(TXBCR, 0xFFFF0000);
 
     // get the rx status (FIFO fill level)
     Rxfxs rxf0s;
@@ -438,16 +436,6 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
         {
             // lock SPI bus access
             OSMutexLock locker(&lock_);
-#if 0
-            do
-            {
-                // Get the TX event FIFO status
-                Txefs txefs;
-                txefs.data = register_read(TXEFS);
-
-            } while (txefs.effl);
-#endif
-            // Get the TX FIFO/queu status
             Txfqs txfqs;
             txfqs.data = register_read(TXFQS);
             if (txfqs.tffl)
@@ -507,9 +495,8 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
                     // lock SPI bus access
                     OSMutexLock locker(&lock_);
 
-                    // enable transmit watermark interrupt
-                    mcanInterruptEnable_.tefw = 1;
-                    register_write(IE, mcanInterruptEnable_.data);
+                    // enable TX FIFO buffer interrupts
+                    register_write(TXBTIE, 0xFFFF0000);
                 }
                 // wait for space to be available
                 txBuf->block_until_condition(file, false);
@@ -579,9 +566,8 @@ bool TCAN4550Can::select(File* file, int mode)
             }
             else
             {
-                // enable transmit watermark interrupt
-                mcanInterruptEnable_.tefw = 1;
-                register_write(IE, mcanInterruptEnable_.data);
+                // enable TX FIFO buffer interrupts
+                register_write(TXBTIE, 0xFFFF0000);
 
                 // register for wakeup
                 AtomicHolder h(this);
@@ -674,17 +660,6 @@ void *TCAN4550Can::entry()
         // lock SPI bus access
         OSMutexLock locker(&lock_);
 
-        // read TCAN status flags
-        uint32_t status = register_read(INTERRUPT_STATUS);
-
-        // clear TCAN status flags
-        register_write(INTERRUPT_STATUS, status);
-
-#if TCAN4550_DEBUG
-        status_ = status;
-        enable_ = register_read(INTERRUPT_ENABLE);
-        spiStatus_ = register_read(STATUS);
-#endif
         // read status flags
         MCANInterrupt mcan_interrupt;
         mcan_interrupt.data = register_read(IR);
@@ -692,7 +667,16 @@ void *TCAN4550Can::entry()
         // clear status flags
         register_write(IR, mcan_interrupt.data);
 
+        // read TCAN status flags
+        uint32_t status = register_read(INTERRUPT_STATUS);
 
+        // clear TCAN status flags
+        register_write(INTERRUPT_STATUS, status);
+#if TCAN4550_DEBUG
+        status_ = status;
+        enable_ = register_read(INTERRUPT_ENABLE);
+        spiStatus_ = register_read(STATUS);
+#endif
         // error handling
         if (mcan_interrupt.bo || mcan_interrupt.ep || mcan_interrupt.rf0l)
         {
@@ -722,35 +706,20 @@ void *TCAN4550Can::entry()
                     ++softErrorCount;
                     state_ = CAN_STATE_BUS_PASSIVE;
 
-                    // flush out any transmit data in the pipeline
-                    //register_write(TXB0CTRL, 0x00);
-                    //register_write(TXB1CTRL, 0x00);
-                    //bit_modify(CANINTE, 0, TX0I | TX1I);
-                    //bit_modify(CANINTF, 0, TX0I | TX1I);
+                    // cancel TX FIFO buffers
+                    register_write(TXBCR, 0xFFFF0000);
 
-                    portENTER_CRITICAL();
-                    txBuf->flush();
-                    portEXIT_CRITICAL();
                     txBuf->signal_condition();
                 }
             }
         }
 
-        // tranmission watermark
-        if (mcan_interrupt.tefw && mcanInterruptEnable_.tefw)
-        {
-            // signal anyone waiting
-            txBuf->signal_condition();
-
-            // disable transmit watermark interrupt
-            mcanInterruptEnable_.tefw = 0;
-            register_write(IE, mcanInterruptEnable_.data);
-        }
-
         // transmission complete
-        if (mcan_interrupt.tc && mcanInterruptEnable_.tc)
+        if (mcan_interrupt.tc)
         {
-            /// @todo fill in if we support SW FIFO's
+            // disable TX buffer tranmission complete interrupt
+            register_write(TXBTIE, 0);
+            txBuf->signal_condition();
         }
 
         // received new message

@@ -115,6 +115,9 @@ private:
     /// size in elements for the dedicated TX buffers
     static constexpr uint32_t TX_DEDICATED_BUFFER_COUNT = 16;
 
+    /// size in elements for the TX event FIFO
+    static constexpr uint32_t TX_EVENT_FIFO_SIZE = 16;
+
 
     /// SPI Registers, word addressing, not byte addressing
     enum Registers : uint16_t
@@ -552,7 +555,7 @@ private:
                 uint32_t effl  : 6; ///< event FIFO fill level
                 uint32_t rsvd1 : 2; ///< reserved
 
-                uint32_t refgi : 5; ///< event FIFO get index
+                uint32_t efgi : 5; ///< event FIFO get index
                 uint32_t rsvd2 : 3; ///< reserved
 
                 uint32_t efpi  : 5; ///< event FIFO put index
