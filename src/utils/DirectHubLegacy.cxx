@@ -40,22 +40,22 @@ extern DataBufferPool g_direct_hub_kbyte_pool;
 
 /// Bridge component that converts the outgoing CAN packets into gridconnect
 /// format and enqueues them into the DirectHub for sending.
-class HubToGcPort : public CanHubPort
+class HubToGcPort : public CanHubPort, public DirectHubPort<uint8_t[]>
 {
 public:
-    HubToGcPort(DirectHubInterface<uint8_t[]> *gc_hub, CanHubFlow *can_hub,
-        HubSource *me)
+    HubToGcPort(DirectHubInterface<uint8_t[]> *gc_hub, CanHubFlow *can_hub)
         : CanHubPort(gc_hub->get_service())
         , targetHub_(gc_hub)
         , sourceHub_(can_hub)
-        , me_(me)
     {
         sourceHub_->register_port(this);
+        targetHub_->register_port(this);
     }
 
     ~HubToGcPort()
     {
         sourceHub_->unregister_port(this);
+        targetHub_->unregister_port(this);
     }
 
     /// Handles the next CAN packet that we need to send.
@@ -98,7 +98,7 @@ public:
     {
         auto *m = targetHub_->mutable_message();
         m->buf_ = buf_.transfer_head(packetSize_);
-        m->source_ = me_;
+        m->source_ = (DirectHubPort<uint8_t[]>*)this;
         m->done_ = pktDone_;
         targetHub_->do_send();
         if (inlineRun_)
@@ -110,6 +110,47 @@ public:
         {
             return exit();
         }
+    }
+
+    /// GC to binary path. Called by the DirectHub with a text packet or a
+    /// garbage packet.
+    void send(MessageAccessor<uint8_t[]> *msg) override
+    {
+        auto &buf = msg->buf_;
+        uint8_t *p;
+        unsigned available;
+        buf.head()->get_read_pointer(buf.skip(), &p, &available);
+        if (buf.size() == 0 || *p != ':')
+        {
+            // Not a gridconnect packet. Do not do anything.
+            return;
+        }
+        Buffer<CanHubData> *can_buf = sourceHub_->alloc();
+        if (msg->done_)
+        {
+            can_buf->set_done(msg->done_->new_child());
+        }
+        can_buf->data()->skipMember_ = (CanHubPort *)this;
+        const char *text_packet = nullptr;
+        string assembled_packet;
+        if (available == buf.size())
+        {
+            // One block of data. Convert in place.
+            text_packet = (const char *)p;
+        }
+        else
+        {
+            buf.append_to(&assembled_packet);
+            text_packet = assembled_packet.c_str();
+        }
+        if (gc_format_parse(text_packet, can_buf->data()) < 0)
+        {
+            LOG(INFO, "Failed to parse gridconnect packet.");
+            can_buf->unref();
+            return;
+        }
+        /// @todo consider if we need to set the priority here.
+        sourceHub_->send(can_buf);
     }
 
 private:
@@ -136,18 +177,9 @@ private:
     static constexpr unsigned MIN_GC_FREE = 29;
 };
 
-class DirectHubGcToLegacyCanBridge : public Destructable
-{
-public:
-    DirectHubGcToLegacyCanBridge(
-        DirectHubInterface<uint8_t[]> *gc_hub, CanHubFlow *can_hub)
-    {
-    }
-};
-
 Destructable *create_gc_to_legacy_can_bridge(
     DirectHubInterface<uint8_t[]> *gc_hub, CanHubFlow *can_hub)
 {
 
-    return new DirectHubGcToLegacyCanBridge(gc_hub, can_hub);
+    return new HubToGcPort(gc_hub, can_hub);
 }
