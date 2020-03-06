@@ -222,22 +222,7 @@ public:
 
         // Assembles the real bytes that came into a single string.
         string recvd;
-        DataBuffer* head = msg->buf_.head();
-        unsigned skip = msg->buf_.skip();
-        size_t len = msg->buf_.size();
-        while (len > 0)
-        {
-            uint8_t *ptr;
-            unsigned available;
-            head = head->get_read_pointer(skip, &ptr, &available);
-            if (available > len)
-            {
-                available = len;
-            }
-            recvd.append((char *)ptr, available);
-            len -= available;
-            skip = 0;
-        }
+        msg->buf_.append_to(&recvd);
 
         // Expectations that we got exactly one segmented packet.
         EXPECT_EQ(msg->buf_.size(), recvd.size());

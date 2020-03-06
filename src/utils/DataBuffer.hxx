@@ -150,7 +150,6 @@ public:
         return curr->next();
     }
 
-    
 private:
     friend class DataBufferPool;
 
@@ -350,6 +349,29 @@ public:
         return ret;
     }
     
+    /// Appends all content in this buffer to an std::string.
+    /// @param recvd string to append data to.
+    void append_to(std::string *recvd)
+    {
+        DataBuffer *head = head_;
+        unsigned skip = skip_;
+        size_t len = size_;
+        recvd->reserve(recvd->size() + len);
+        while (len > 0)
+        {
+            uint8_t *ptr;
+            unsigned available;
+            head = head->get_read_pointer(skip, &ptr, &available);
+            if (available > len)
+            {
+                available = len;
+            }
+            recvd->append((char *)ptr, available);
+            len -= available;
+            skip = 0;
+        }
+    }
+
 private:
     /// Internal helper function of constructors and reset functions. Clears
     /// the current structure (references have to have been dealth with
