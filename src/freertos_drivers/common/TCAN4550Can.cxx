@@ -403,7 +403,6 @@ ssize_t TCAN4550Can::read(File *file, void *buf, size_t count)
 //
 // TCAN4550Can::write()
 //
-__attribute__((optimize("-O0")))
 ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
 {
     HASSERT((count % sizeof(struct can_frame)) == 0);
@@ -629,7 +628,7 @@ void TCAN4550Can::tx_msg()
 //
 // entry()
 //
-__attribute__((optimize("-O0")))
+__attribute__((optimize("-O3")))
 void *TCAN4550Can::entry()
 {
     for ( ; /* forever */ ; )
