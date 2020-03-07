@@ -247,7 +247,8 @@ char* gc_format_generate(const struct can_frame* can_frame, char* buf, int doubl
         output(buf, nibble_to_ascii(can_frame->data[offset] & 0xf));
     }
     output(buf, ';');
-    if (config_gc_generate_newlines() == CONSTANT_TRUE) {
+    if (config_gc_generate_newlines() == CONSTANT_TRUE)
+    {
         output(buf, '\n');
     }
     return buf;

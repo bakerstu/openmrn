@@ -43,7 +43,7 @@ TEST_F(GridConnectSegmenterTest, split_message)
     len = send_some_data("2;");
     EXPECT_EQ(5, len);
     clear();
-    
+
     // with one character of trailing garbage
     len = send_some_data(":X1");
     EXPECT_EQ(0, len);
@@ -76,7 +76,6 @@ TEST_F(GridConnectSegmenterTest, two_messages)
     clear();
 }
 
-
 TEST_F(GridConnectSegmenterTest, two_messages_with_break)
 {
     auto len = send_some_data(":X12;\n:X35;");
@@ -96,4 +95,3 @@ TEST_F(GridConnectSegmenterTest, leading_garbage)
     EXPECT_EQ(6, len);
     clear();
 }
-

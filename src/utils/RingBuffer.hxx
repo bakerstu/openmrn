@@ -193,7 +193,7 @@ public:
 
         return added;
     }
-    
+
     /** Number of items in the buffer.
      * @return number of items in the buffer
      */

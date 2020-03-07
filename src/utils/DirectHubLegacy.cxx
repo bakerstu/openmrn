@@ -98,7 +98,7 @@ public:
     {
         auto *m = targetHub_->mutable_message();
         m->buf_ = buf_.transfer_head(packetSize_);
-        m->source_ = (DirectHubPort<uint8_t[]>*)this;
+        m->source_ = (DirectHubPort<uint8_t[]> *)this;
         m->done_ = pktDone_;
         targetHub_->do_send();
         if (inlineRun_)
@@ -146,7 +146,8 @@ public:
         if (gc_format_parse(text_packet, can_buf->data()) < 0)
         {
             string debug(text_packet, buf.size());
-            LOG(INFO, "Failed to parse gridconnect packet: '%s'", debug.c_str());
+            LOG(INFO, "Failed to parse gridconnect packet: '%s'",
+                debug.c_str());
             can_buf->unref();
             return;
         }

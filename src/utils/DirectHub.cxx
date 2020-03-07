@@ -126,7 +126,8 @@ public:
     {
     }
 
-    ~DirectHubImpl() {
+    ~DirectHubImpl()
+    {
         delete service();
     }
 
@@ -307,11 +308,14 @@ private:
 
         Action get_read_buffer()
         {
-            DataBuffer* p;
+            DataBuffer *p;
             g_direct_hub_data_pool.alloc(&p);
-            if (buf_.head()) {
+            if (buf_.head())
+            {
                 buf_.append_empty_buffer(p);
-            } else {
+            }
+            else
+            {
                 buf_.reset(p);
             }
             /// @todo figure out where the notifiable really should go.
@@ -354,19 +358,24 @@ private:
 
         /// Checks the segmenter output; if it indicates a complete message,
         /// clears the segmenter and sends off the message.
-        Action eval_segment() {
-            if (segmentSize_ > 0) {
+        Action eval_segment()
+        {
+            if (segmentSize_ > 0)
+            {
                 segmenter_->clear();
                 return call_immediately(STATE(send_prefix));
-            } else {
+            }
+            else
+            {
                 return incomplete_message();
             }
         }
 
         /// Clears the segmenter and starts segmenting from the beginning of
         /// the buf_.
-        Action call_head_segmenter() {
-            uint8_t* ptr;
+        Action call_head_segmenter()
+        {
+            uint8_t *ptr;
             unsigned available;
             auto *n =
                 buf_.head()->get_read_pointer(buf_.skip(), &ptr, &available);
@@ -374,10 +383,11 @@ private:
             segmentSize_ = segmenter_->segment_message(ptr, available);
             return eval_segment();
         }
-        
+
         /// Called when the segmenter says that we need to read more bytes to
         /// complete the current message.
-        Action incomplete_message() {
+        Action incomplete_message()
+        {
             if (!buf_.free())
             {
                 return alloc_for_read();
@@ -417,10 +427,13 @@ private:
             m->buf_ = buf_.transfer_head(segmentSize_);
             parent_->hub_->do_send();
             sendComplete_ = 1;
-            if (inlineCall_) {
+            if (inlineCall_)
+            {
                 // do not disturb current state.
                 return wait();
-            } else {
+            }
+            else
+            {
                 // we were called queued; go back to running the flow on the
                 // main executor.
                 return yield_and_call(STATE(send_done));
@@ -450,7 +463,7 @@ private:
         /// Current buffer that we are filling.
         LinkedDataBufferPtr buf_;
         /// Barrier notifiable to keep track of the buffer's contents.
-        BarrierNotifiable* bufferNotifiable_;
+        BarrierNotifiable *bufferNotifiable_;
         /// Output of the last segmenter call.
         ssize_t segmentSize_;
         /// 1 if we got the send callback inline from the read_done.
@@ -459,8 +472,8 @@ private:
         uint16_t sendComplete_ : 1;
         /// Pool of BarrierNotifiables that limit the amount of inflight bytes
         /// we have.
-        AsyncNotifiableBlock pendingLimiterPool_ {(unsigned)
-            config_directhub_port_max_incoming_packets()};
+        AsyncNotifiableBlock pendingLimiterPool_ {
+            (unsigned)config_directhub_port_max_incoming_packets()};
         /// Helper object for Select.
         StateFlowSelectHelper helper_ {this};
         /// Pointer to the owninng port.
@@ -548,11 +561,13 @@ public:
 private:
     /// Called on the main executor when a read error wants to cancel the write
     /// flow. Before calling, fd_ must be -1.
-    void shutdown() {
+    void shutdown()
+    {
         HASSERT(fd_ < 0);
         {
             AtomicHolder h(pendingQueue_.lock());
-            if (notRunning_) {
+            if (notRunning_)
+            {
                 // Queue is empty, waiting for new entries. There will be no new
                 // entries because fd_ < 0.
                 hub_->unregister_port(this, this);
@@ -576,7 +591,8 @@ private:
 
     Action do_write()
     {
-        if (fd_ < 0) {
+        if (fd_ < 0)
+        {
             // fd closed. Drop data to the floor.
             return check_for_new_message();
         }
@@ -598,8 +614,8 @@ private:
     {
         if (selectHelper_.hasError_)
         {
-            LOG(INFO, "Error writing to fd %d: (%d) %s", fd_,
-                errno, strerror(errno));
+            LOG(INFO, "Error writing to fd %d: (%d) %s", fd_, errno,
+                strerror(errno));
             // will close fd and notify the reader flow to exit.
             report_write_error();
             hub_->unregister_port(this, this);
@@ -612,12 +628,14 @@ private:
         return check_for_new_message();
     }
 
-    Action check_for_new_message() {
+    Action check_for_new_message()
+    {
         currentHead_.reset();
         AtomicHolder h(pendingQueue_.lock());
         if (pendingQueue_.empty())
         {
-            if (fd_ < 0) {
+            if (fd_ < 0)
+            {
                 // unregisters the port. All the queue has been flushed now.
                 hub_->unregister_port(this, this);
                 return wait_and_call(STATE(report_and_exit));
@@ -697,7 +715,8 @@ private:
     /// deletes this.
     /// @param read if true, marks the read flow done, if false, marks the write
     /// flow done.
-    void flow_exit(bool read) {
+    void flow_exit(bool read)
+    {
         bool del = false;
         {
             AtomicHolder h(lock());
@@ -737,7 +756,7 @@ private:
     {
         LinkedDataBufferPtr buf_;
     };
-    
+
     friend class DirectHubReadFlow;
 
     /// Type of buffers we are enqueuing for output.
@@ -773,10 +792,11 @@ private:
     /// File descriptor for input/output.
     int fd_;
     /// This notifiable will be called before exiting.
-    Notifiable* onError_ = nullptr;
+    Notifiable *onError_ = nullptr;
 };
 
-void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd, std::unique_ptr<MessageSegmenter> segmenter, Notifiable* on_error)
+void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd,
+    std::unique_ptr<MessageSegmenter> segmenter, Notifiable *on_error)
 {
     new DirectHubPortSelect(hub, fd, std::move(segmenter), on_error);
 }
@@ -813,7 +833,8 @@ private:
 
 void DirectGcTcpHub::OnNewConnection(int fd)
 {
-    create_port_for_fd(gcHub_, fd, std::unique_ptr<MessageSegmenter>(create_gc_message_segmenter()));
+    create_port_for_fd(gcHub_, fd,
+        std::unique_ptr<MessageSegmenter>(create_gc_message_segmenter()));
 }
 
 DirectGcTcpHub::DirectGcTcpHub(DirectHubInterface<uint8_t[]> *gc_hub, int port)

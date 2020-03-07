@@ -120,7 +120,6 @@ DECLARE_CONST(gridconnect_tcp_use_select);
 /// wait for data to drain from the system.
 DECLARE_CONST(directhub_port_max_incoming_packets);
 
-
 /** Number of entries in the remote alias cache */
 DECLARE_CONST(remote_alias_cache_size);
 

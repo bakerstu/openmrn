@@ -44,7 +44,8 @@ class DataBufferPool;
 /// data arrays. Adds the ability to treat the next pointers as links to
 /// consecutive data bytes, ref'ing and unref'ing a sequence of buffers in one
 /// go.
-class DataBuffer : public Buffer<uint8_t[]> {
+class DataBuffer : public Buffer<uint8_t[]>
+{
 public:
     /// Overrides the size of the data buffer. The semantic meaning of the
     /// size() of DataBuffer is the number of bytes that are filled in inside
@@ -67,7 +68,7 @@ public:
     {
         return static_cast<DataBuffer *>(QMember::next);
     }
-    
+
     /// @return the payload pointer, cast to a convenient type.
     uint8_t *data()
     {
@@ -154,7 +155,7 @@ private:
     friend class DataBufferPool;
 
     DataBuffer(DataBufferPool *p)
-        : Buffer<uint8_t[]>((Pool*)p)
+        : Buffer<uint8_t[]>((Pool *)p)
     {
     }
 }; // class DataBuffer
@@ -162,7 +163,8 @@ private:
 using DataBufferPtr = std::unique_ptr<DataBuffer, BufferDelete<uint8_t[]>>;
 
 /// A class that keeps ownership of a chain of linked DataBuffer references.
-class LinkedDataBufferPtr {
+class LinkedDataBufferPtr
+{
 public:
     LinkedDataBufferPtr()
     {
@@ -183,7 +185,7 @@ public:
     {
         o.clear();
     }
-    
+
     /// Move assignment operator. Takes the ownership that o has. Leaves o as
     /// empty.
     void operator=(LinkedDataBufferPtr &&o)
@@ -200,14 +202,15 @@ public:
     /// that.
     LinkedDataBufferPtr(const LinkedDataBufferPtr &) = delete;
     void operator=(const LinkedDataBufferPtr &) = delete;
-        
+
     /// Takes a reference of o, taking a prefix of len size (or all the
     /// data). The current buffer becomes non-extensible.
     /// @param o an owned LinkedDataBufferPtr
     /// @param size is non-negative, this is how many bytes from the beginning
     /// of o will be copied. If default (negative), takes all bytes that are
     /// filled.
-    void reset(const LinkedDataBufferPtr& o, ssize_t size = -1) {
+    void reset(const LinkedDataBufferPtr &o, ssize_t size = -1)
+    {
         reset();
         if (size < 0)
         {
@@ -221,11 +224,12 @@ public:
         tail_ = nullptr;
         head_ = o.head_->ref_all(o.skip_ + size);
     }
-    
+
     /// Clears the current contents and replaces it with the empty buf.
     /// @param buf is a new, empty DataBuffer. Ownership will be taken. The
     /// size() value of it has to be denoting the amount of available bytes.
-    void reset(DataBuffer* buf) {
+    void reset(DataBuffer *buf)
+    {
         reset();
         head_ = tail_ = buf;
         skip_ = 0;
@@ -329,7 +333,8 @@ public:
     /// transfer. Must reach into the tail buffer.
     /// @return a new (moveable) LinkedDataBufferPtr that will get the
     /// ownership of the head. It will be non-extendible.
-    LinkedDataBufferPtr transfer_head(size_t len) {
+    LinkedDataBufferPtr transfer_head(size_t len)
+    {
         LinkedDataBufferPtr ret;
         ret.head_ = head_;
         /// @todo consider what the tail should be.
@@ -348,7 +353,7 @@ public:
         // free_ remains as is.
         return ret;
     }
-    
+
     /// Appends all content in this buffer to an std::string.
     /// @param recvd string to append data to.
     void append_to(std::string *recvd)
@@ -383,21 +388,22 @@ private:
     }
 
     /// First buffer in the chain. This is the root of the ownership.
-    DataBuffer* head_{nullptr};
+    DataBuffer *head_ {nullptr};
     /// Last buffer in the chain. This is where we can extend the owned bytes.
-    DataBuffer* tail_{nullptr};
+    DataBuffer *tail_ {nullptr};
     /// How many bytes we have filled in (counting starts at head.data() +
     /// skip_).
-    size_t size_{0};
+    size_t size_ {0};
     /// How many bytes to skip in the head buffer.
-    uint16_t skip_{0};
+    uint16_t skip_ {0};
     /// How many free bytes are there in the tail buffer.
-    uint16_t free_{0};
+    uint16_t free_ {0};
 };
 
 /// Proxy Pool that can allocate DataBuffer objects of a certain size. All
 /// memory comes from the mainBufferPool.
-class DataBufferPool : public Pool {
+class DataBufferPool : public Pool
+{
 public:
     DataBufferPool(unsigned payload_size)
         : payloadSize_(payload_size)
@@ -427,9 +433,9 @@ public:
     {
 #ifdef DEBUG_BUFFER_MEMORY
         g_current_alloc = &&alloc;
-        alloc:
+    alloc:
 #endif
-        *result = static_cast<DataBuffer*>(
+        *result = static_cast<DataBuffer *>(
             base_pool()->alloc_untyped(alloc_size(), nullptr));
         if (*result)
         {
@@ -456,7 +462,7 @@ private:
     {
         DIE("DataBufferPool does not support this type of allocation.");
     }
-    
+
     /// Function called when a buffer refcount reaches zero.
     void free(BufferBase *item) override
     {
@@ -467,7 +473,7 @@ private:
         item->next = nullptr;
         base_pool()->free(item);
     }
-    
+
     /// @return the pool from which we should get the actual memory we have.
     Pool *base_pool()
     {
@@ -475,19 +481,20 @@ private:
     }
 
     /// @return size of the buffers to allocate.
-    uint16_t alloc_size() {
+    uint16_t alloc_size()
+    {
         return sizeof(BufferBase) + payloadSize_;
     }
 
     /// @return maximum number of bytes that can be stored inside an allocated
     /// buffer.
-    uint16_t payload_size() {
+    uint16_t payload_size()
+    {
         return payloadSize_;
     }
 
     /// Number of bytes that need to be stored in each buffer.
     uint16_t payloadSize_;
 };
-
 
 #endif // _UTILS_DATABUFFER_HXX_

@@ -185,7 +185,7 @@ protected:
 
     /** Allow DataBufferPool access to our fields */
     friend class DataBufferPool;
-    
+
     DISALLOW_COPY_AND_ASSIGN(BufferBase);
 };
 

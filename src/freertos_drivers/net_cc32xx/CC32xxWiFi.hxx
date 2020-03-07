@@ -113,7 +113,7 @@ public:
 
     /** CC32xx SimpleLink forward declaration */
     struct SockTriggerEvent;
-    
+
     /** CC32xx SimpleLink forward declaration */
     struct HttpServerEvent;
 
@@ -469,8 +469,8 @@ public:
      * callback. This means that sl_Select needs to be re-run and certian
      * sockets might need wakeup. DO NOT use directly.
      * @param event parameters from the socket. */
-    void trigger_event_handler(SockTriggerEvent* event);
-    
+    void trigger_event_handler(SockTriggerEvent *event);
+
     /** This function handles http server callback indication.  This is public
      * only so that an extern "C" method can call it.  DO NOT use directly.
      * @param event pointer to HTTP Server Event info

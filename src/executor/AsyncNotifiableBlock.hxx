@@ -68,7 +68,7 @@ private:
             AtomicHolder h(this);
             if (count_ == 1)
             {
-                //LOG(VERBOSE, "block notifiable returned");
+                // LOG(VERBOSE, "block notifiable returned");
                 auto *tgt = static_cast<AsyncNotifiableBlock *>(done_);
                 tgt->insert(this);
             }
@@ -133,7 +133,7 @@ public:
     /// done_ set up to be returned for further use.
     BarrierNotifiable *initialize(QMember *entry)
     {
-        QueuedBarrier *b = static_cast<QueuedBarrier*>(entry);
+        QueuedBarrier *b = static_cast<QueuedBarrier *>(entry);
         // We must be owning this entry.
         HASSERT(barriers_.get() <= b);
         HASSERT(b <= (barriers_.get() + count_));

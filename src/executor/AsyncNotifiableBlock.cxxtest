@@ -40,7 +40,7 @@ TEST_F(AsyncNotifiableBlockTest, barrier_semantics)
 {
     EXPECT_EQ(2u, b_.pending());
     QMember *e = b_.next(0);
-    BarrierNotifiable* bn = b_.initialize(e);
+    BarrierNotifiable *bn = b_.initialize(e);
     EXPECT_EQ(1u, b_.pending());
 
     bn->new_child();
@@ -78,18 +78,18 @@ TEST_F(AsyncNotifiableBlockTest, async_allocation)
     EXPECT_EQ(nullptr, cli1.m_);
     EXPECT_EQ(nullptr, cli2.m_);
     EXPECT_EQ(nullptr, cli3.m_);
-    
+
     b_.next_async(&cli1);
     EXPECT_EQ(0u, b_.pending());
     EXPECT_NE(nullptr, cli1.m_);
     EXPECT_NE(e, cli1.m_);
 
-    b_.next_async(&cli2); 
+    b_.next_async(&cli2);
     b_.next_async(&cli3);
     EXPECT_EQ(nullptr, cli2.m_);
     EXPECT_EQ(nullptr, cli3.m_);
     EXPECT_EQ(0u, b_.pending());
-   
+
     b_.initialize(e)->notify(); // will be handed out to cli2
 
     EXPECT_EQ(0u, b_.pending());

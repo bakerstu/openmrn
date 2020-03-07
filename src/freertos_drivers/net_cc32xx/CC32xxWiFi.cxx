@@ -1276,7 +1276,7 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
  */
 void CC32xxWiFi::trigger_event_handler(SockTriggerEvent *event)
 {
-    if(!event)
+    if (!event)
     {
         return;
     }
@@ -1332,9 +1332,6 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
             break;
     }
 }
-
-
-
 
 /*
  * CC32xxWiFi::fatal_error_callback()

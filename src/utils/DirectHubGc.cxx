@@ -133,7 +133,9 @@ public:
         return size;
     }
 
-    void clear() override {}
+    void clear() override
+    {
+    }
 };
 
 MessageSegmenter *create_trivial_message_segmenter()

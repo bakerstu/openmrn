@@ -79,7 +79,7 @@ TEST_F(DataBufferTest, ref_single)
 
 TEST_F(DataBufferTest, ref_unref_linked)
 {
-    DataBuffer* c;
+    DataBuffer *c;
     g_pool.alloc(&c);
     b_->set_next(c);
     b_->set_size(4);
@@ -93,7 +93,7 @@ TEST_F(DataBufferTest, ref_unref_linked)
     b_->ref_all(8);
     EXPECT_EQ(2u, b_->references());
     EXPECT_EQ(2u, c->references());
-    
+
     expect_freed(0);
     {
         auto r = get_buffer_deleter(b_);
@@ -112,7 +112,7 @@ TEST_F(DataBufferTest, ref_unref_linked)
 
 TEST_F(DataBufferTest, readptr_linked)
 {
-    DataBuffer* c;
+    DataBuffer *c;
     g_pool.alloc(&c);
     b_->set_next(c);
     b_->set_size(4);
