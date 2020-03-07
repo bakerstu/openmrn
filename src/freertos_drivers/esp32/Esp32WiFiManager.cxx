@@ -32,6 +32,9 @@
  * @date 4 February 2019
  */
 
+// Ensure we only compile this code for the ESP32
+#ifdef ESP32
+
 #include "Esp32WiFiManager.hxx"
 #include "os/MDNS.hxx"
 #include "utils/FdUtils.hxx"
@@ -1450,3 +1453,5 @@ const char *gai_strerror(int __ecode)
             return "memory allocation failure";
     }
 }
+
+#endif // ESP32
