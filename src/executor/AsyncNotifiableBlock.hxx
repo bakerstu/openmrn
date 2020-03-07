@@ -68,7 +68,7 @@ private:
             AtomicHolder h(this);
             if (count_ == 1)
             {
-                LOG(VERBOSE, "block notifiable returned");
+                //LOG(VERBOSE, "block notifiable returned");
                 auto *tgt = static_cast<AsyncNotifiableBlock *>(done_);
                 tgt->insert(this);
             }
@@ -101,9 +101,28 @@ public:
 
     ~AsyncNotifiableBlock()
     {
+        unsigned max = 10;
+        // Recollects all notifiable instances, including waiting a bit if
+        // there are some that have not finished yet. Limits the total amount
+        // of wait.
         for (unsigned i = 0; i < count_; ++i)
         {
-            barriers_[i].abort_if_almost_done();
+            while (true)
+            {
+                QMember *m = next().item;
+                if (!m)
+                {
+                    LOG(VERBOSE,
+                        "shutdown async notifiable block: waiting for returns");
+                    usleep(100);
+                    HASSERT(--max);
+                }
+                else
+                {
+                    HASSERT(initialize(m)->abort_if_almost_done());
+                    break;
+                }
+            }
         }
     }
 
