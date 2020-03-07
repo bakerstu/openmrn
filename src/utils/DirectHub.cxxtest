@@ -2,12 +2,15 @@
 
 #include "executor/StateFlow.hxx"
 #include "utils/test_main.hxx"
+#include "utils/Hub.hxx"
+#include "utils/gc_format.h"
+#include "utils/FdUtils.hxx"
 
 DataBufferPool pool_64(64);
 
 Executor<1> g_read_executor("read_thread", 0, 1024);
 Service g_read_service(&g_read_executor);
-
+OVERRIDE_CONST_TRUE(gc_generate_newlines);
 /// This state flow
 class ReadAllFromFd : public StateFlowBase
 {
@@ -241,16 +244,64 @@ private:
     size_t packetStart_ = 0;
 };
 
-class TestLegacyCanReceiver : public CanHubPortInterface {
+/// Hub port for a legacy CAN-bus hub that allows tests to put expectations on
+/// what is happening.
+class TestLegacyCanReceiver : public CanHubPortInterface, private Atomic {
 public:
+    TestLegacyCanReceiver(CanHubFlow *hub)
+        : hub_(hub)
+    {
+        hub_->register_port(this);
+    }
+
+    ~TestLegacyCanReceiver()
+    {
+        hub_->unregister_port(this);
+    }
+
+    /// Implements receiving data from the bus.
     void send(Buffer<CanHubData> *buf, unsigned) override
     {
+        AtomicHolder h(this);
         lastFrame_ = *buf->data();
         ++frameCount_;
     }
 
+    /// Inject a new CAN frame to the CAN-bus.
+    /// @param gc_frame gridconnect format frame.
+    void inject_frame(const string &gc_frame)
+    {
+        auto b = get_buffer_deleter(hub_->alloc());
+        ASSERT_EQ(0, gc_format_parse(gc_frame.c_str(), b->data()));
+        b->data()->skipMember_ = this;
+        hub_->send(b.release());
+    }
+
+    /// @return number of CAN frames seen.
+    uint32_t count()
+    {
+        AtomicHolder h(this);
+        return frameCount_;
+    }
+
+    /// @return last seen CAN frame
+    struct can_frame frame()
+    {
+        struct can_frame ret;
+        {
+            AtomicHolder h(this);
+            ret = lastFrame_;
+        }
+        return ret;
+    }
+
+private:
+    /// Parent hub.
+    CanHubFlow *hub_;
+    /// Stores a copy of the last frame this port has seen.
     struct can_frame lastFrame_;
-    uint32_t frameCount_{0}
+    /// Total number of frames this port has seen.
+    uint32_t frameCount_{0};
 };
 
 class DirectHubTest : public ::testing::Test
@@ -290,6 +341,15 @@ protected:
     /// hub. Saves the other endpoints to fdOne_ and fdTwo_.
     void create_two_ports()
     {
+        fdOne_ = create_port();
+        fdTwo_ = create_port();
+    }
+
+    /// Creates a hub port via socketpair and registers it to the data
+    /// hub.
+    /// @return the other endpoint fd.
+    int create_port()
+    {
         int fd[2];
         ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
 
@@ -300,17 +360,10 @@ protected:
         ERRNOCHECK("setsockopt",
             setsockopt(fd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
 
-        int ffd[2];
-        ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, ffd));
-        ERRNOCHECK("setsockopt",
-            setsockopt(ffd[0], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
-        ERRNOCHECK("setsockopt",
-            setsockopt(ffd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
         create_port_for_fd(hub_, fd[0], get_new_segmenter());
-        create_port_for_fd(hub_, ffd[0], get_new_segmenter());
-        fdOne_ = fd[1];
-        fdTwo_ = ffd[1];
+
         wait_for_main_executor();
+        return fd[1];
     }
 
     /// Creates a pipe to send test-segmented (random) messages. Adds the test
@@ -419,8 +472,8 @@ protected:
     /// Deterministic random seed for repeatable tests.
     unsigned int randomSeed_ = 994433227;
 
-    CanHub legacyHub_{&g_service};
-    TestLegacyCanReceiver legacyReceiver_;
+    CanHubFlow legacyHub_{&g_service};
+    TestLegacyCanReceiver legacyReceiver_{&legacyHub_};
 };
 
 /// Sends some data from one remote socket through the hub to another remote
@@ -760,7 +813,49 @@ TEST_F(DirectHubTest, check_size_skip_chain)
     EXPECT_EQ("abcde", rdb);
 }
 
-TEST_F(DirectHubTest, can_bridge) {
-    
-    std::unique_ptr<>
+TEST_F(DirectHubTest, can_bridge_create) {
+    std::unique_ptr<Destructable> bridge(
+        create_gc_to_legacy_can_bridge(hub_, &legacyHub_));
+}
+
+TEST_F(DirectHubTest, can_bridge_send_recv) {
+    std::unique_ptr<Destructable> bridge(
+        create_gc_to_legacy_can_bridge(hub_, &legacyHub_));
+
+    useTrivialSegmenter_ = false; // gridconnect segmenter
+    fdOne_ = create_port();
+
+    FdUtils::repeated_write(fdOne_, ":X195B4333N8877665544332211;", 29);
+    usleep(1000);
+    wait_for_main_executor();
+    EXPECT_EQ(1u, legacyReceiver_.count());
+    auto frame = legacyReceiver_.frame();
+    EXPECT_TRUE(IS_CAN_FRAME_EFF(frame));
+    EXPECT_EQ(0x195b4333u, GET_CAN_FRAME_ID_EFF(frame));
+    EXPECT_EQ(8u, frame.can_dlc);
+    EXPECT_EQ(0x66u, frame.data[2]);
+    EXPECT_EQ(0x11u, frame.data[7]);
+
+    // Send frame the other way
+    legacyReceiver_.inject_frame(":X1f555333NF1F2F3F4F5F6F7F8;");
+    wait_for_main_executor();
+    usleep(1000);
+    string d = read_some(fdOne_);
+    EXPECT_EQ(":X1F555333NF1F2F3F4F5F6F7F8;\n", d);
+
+    // Hopefully did not come back.
+    EXPECT_EQ(1u, legacyReceiver_.count());
+}
+
+TEST_F(DirectHubTest, can_bridge_send_much) {
+    std::unique_ptr<Destructable> bridge(
+        create_gc_to_legacy_can_bridge(hub_, &legacyHub_));
+
+    useTrivialSegmenter_ = false; // gridconnect segmenter
+    fdOne_ = create_port();
+
+    write_some(fdOne_);
+    usleep(1000);
+    wait_for_main_executor();
+    EXPECT_EQ(929u/29, legacyReceiver_.count());
 }

@@ -145,7 +145,8 @@ public:
         }
         if (gc_format_parse(text_packet, can_buf->data()) < 0)
         {
-            LOG(INFO, "Failed to parse gridconnect packet.");
+            string debug(text_packet, buf.size());
+            LOG(INFO, "Failed to parse gridconnect packet: '%s'", debug.c_str());
             can_buf->unref();
             return;
         }
