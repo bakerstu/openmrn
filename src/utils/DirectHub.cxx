@@ -34,6 +34,8 @@
  * @date 9 Feb 2020
  */
 
+#define LOGLEVEL VERBOSE
+
 #include "utils/DirectHub.hxx"
 
 #include <algorithm>
@@ -122,6 +124,10 @@ public:
     DirectHubImpl(DirectHubService *service)
         : StateFlowBase(service)
     {
+    }
+
+    ~DirectHubImpl() {
+        delete service();
     }
 
     Service *get_service() override
@@ -492,6 +498,7 @@ public:
 
         hub_->register_port(this);
         readFlow_.start();
+        LOG(VERBOSE, "%p create fd %d", this, fd_);
     }
 
     ~DirectHubPortSelect()

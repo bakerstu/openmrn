@@ -147,7 +147,7 @@ public:
 
 /// Interface for a the central part of a hub.
 template<class T>
-class DirectHubInterface {
+class DirectHubInterface : public Destructable {
 public:
     /// @return an executor service.
     virtual Service* get_service() = 0;
