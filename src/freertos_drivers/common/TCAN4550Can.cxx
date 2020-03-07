@@ -148,41 +148,19 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
         register_write((Registers)(MRAM + offset), 0);
     }
 
-    // ---- Memory layout ----
-    //
-    // +-----------------------+
-    // | RX FIFO 0, buf 0      | 0x0000
-    // | ...                   |
-    // | RX FIFO 0, buf 63     | 0x03F0
-    // +-----------------------+
-    // | TX Event FIFO, buf 0  | 0x0400
-    // | ...                   |
-    // | TX Event FIFO, buf 15 | 0x047F
-    // +-----------------------+
-    // | TX Buf 0              | 0x0480
-    // | ...                   |
-    // | TX Buf 15             | 0x057F
-    // +-----------------------+
-    // | TX Buf 16 (FIFO)      | 0x0580
-    // | ...                   |
-    // | TX Buf 31 (FIFO)      | 0x067F
-    // +-----------------------+
-    // | Unused                | 0x0680
-    // +-----------------------+
-
     {
         // setup RX FIFO 0
         Rxfxc rxf0c;
-        rxf0c.fsa = 0x0000; // FIFO start address
-        rxf0c.fs = 64;      // FIFO size
+        rxf0c.fsa = RX_FIFO_0_MRAM_ADDR; // FIFO start address
+        rxf0c.fs = RX_FIFO_SIZE;         // FIFO size
         register_write(RXF0C, rxf0c.data);
     }
     {
         // setup TX configuration
         Txbc txbc;
-        txbc.tbsa = 0x0480; // buffers start address
-        txbc.ndtb = 16;     // number of dedicated transmit buffers
-        txbc.tfqs = 16;     // FIFO/queue size
+        txbc.tbsa = TX_BUFFERS_MRAM_ADDR;      // buffers start address
+        txbc.ndtb = TX_DEDICATED_BUFFER_COUNT; // dedicated transmit buffers
+        txbc.tfqs = TX_FIFO_SIZE;              // FIFO/queue size
         register_write(TXBC, txbc.data);
     }
     {
@@ -194,9 +172,9 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     {
         // setup TX event FIFO
         Txefc txefc;
-        txefc.efsa = 0x0400;        // event FIFO start address
-        txefc.efs = 16;             // event FIFO size
-        txefc.efwm = txefc.efs / 2; // event FIFO watermark
+        txefc.efsa = TX_EVENT_FIFO_MRAM_ADDR; // event FIFO start address
+        txefc.efs = TX_EVENT_FIFO_SIZE;       // event FIFO size
+        txefc.efwm = TX_EVENT_FIFO_SIZE / 2;  // event FIFO watermark
         register_write(TXEFC, txefc.data);
     }
 
@@ -306,7 +284,7 @@ void TCAN4550Can::flush_buffers()
     OSMutexLock locker(&lock_);
 
     // cancel TX FIFO buffers
-    register_write(TXBCR, 0xFFFF0000);
+    register_write(TXBCR, TX_FIFO_BUFFERS_MASK);
 
     // get the rx status (FIFO fill level)
     Rxfxs rxf0s;
@@ -362,8 +340,9 @@ ssize_t TCAN4550Can::read(File *file, void *buf, size_t count)
                 frames_read = std::min(frames_read, count);
 
                 // read from MRAM
-                rxbuf_read(0x0000 + (rxf0s.fgi * sizeof(MRAMRXBuffer)),
-                           mram_rx_buffer, frames_read);
+                rxbuf_read(
+                    RX_FIFO_0_MRAM_ADDR + (rxf0s.fgi * sizeof(MRAMRXBuffer)),
+                    mram_rx_buffer, frames_read);
 
                 // acknowledge the last FIFO index read
                 Rxfxa rxf0a;
@@ -448,17 +427,18 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
             if (state_ != CAN_STATE_ACTIVE)
             {
                 // cancel pending TX FIFO buffers to make room
-                register_write(TXBCR, 0xFFFF0000);
+                register_write(TXBCR, TX_FIFO_BUFFERS_MASK);
 
                 /// @todo It is possible that the tramsmit FIFO writes which
                 ///       follow will be stuck in the FIFO until we pass
                 ///       through this code again (could be another time
                 ///       time through the loop or a future call to
-                ///       TCAN::write()). This could be a long time, resulting
-                ///       in stale data going out on the bus once the error
-                ///       state is removed. A possible future enhancement would
-                ///       be to use the MCAN timeout counter to flush the FIFO
-                ///       again when it expires (suggested 3 second timeout).
+                ///       TCAN4550Can::write()). This could be a long time,
+                ///       resulting in stale data going out on the bus once the
+                ///       error state is removed. A possible future enhancement
+                ///       would be to use the MCAN timeout counter to flush the
+                ///       FIFO again when it expires (suggested 3 second
+                ///       timeout).
             }
 
             Txfqs txfqs;
@@ -499,8 +479,9 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
                 }
 
                 // write to MRAM
-                txbuf_write(0x0480 + (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
-                            mram_tx_buffer, frames_written);
+                txbuf_write(
+                    TX_BUFFERS_MRAM_ADDR + (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
+                    mram_tx_buffer, frames_written);
 
                 // add transmission requests
                 register_write(TXBAR, txbar);
@@ -517,11 +498,13 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
             else
             {
                 {
+                    /// @todo Is this sequence redundant? Does this not happen
+                    ///       anyways inside of TCAN4550CAN::select()?
                     // lock SPI bus access
                     OSMutexLock locker(&lock_);
 
                     // enable TX FIFO buffer interrupts
-                    register_write(TXBTIE, 0xFFFF0000);
+                    register_write(TXBTIE, TX_FIFO_BUFFERS_MASK);
                 }
                 // wait for space to be available
                 txBuf->block_until_condition(file, false);
@@ -592,7 +575,7 @@ bool TCAN4550Can::select(File* file, int mode)
             else
             {
                 // enable TX FIFO buffer interrupts
-                register_write(TXBTIE, 0xFFFF0000);
+                register_write(TXBTIE, TX_FIFO_BUFFERS_MASK);
 
                 // register for wakeup
                 AtomicHolder h(this);
@@ -657,6 +640,10 @@ void *TCAN4550Can::entry()
         if (result != 0)
         {
             OSMutexLock locker(&lock_);
+            enable_ = register_read(INTERRUPT_ENABLE);
+            spiStatus_ = register_read(STATUS);
+            status_ = register_read(INTERRUPT_STATUS);
+
             MRAMMessage msg;
             msg.cmd = READ;
             msg.addrH = 0x10;
@@ -699,8 +686,6 @@ void *TCAN4550Can::entry()
         register_write(INTERRUPT_STATUS, status);
 #if TCAN4550_DEBUG
         status_ = status;
-        enable_ = register_read(INTERRUPT_ENABLE);
-        spiStatus_ = register_read(STATUS);
 #endif
         // error handling
         if (mcan_interrupt.bo || mcan_interrupt.ep || mcan_interrupt.rf0l)
@@ -732,7 +717,7 @@ void *TCAN4550Can::entry()
                     state_ = CAN_STATE_BUS_PASSIVE;
 
                     // cancel TX FIFO buffers
-                    register_write(TXBCR, 0xFFFF0000);
+                    register_write(TXBCR, TX_FIFO_BUFFERS_MASK);
 
                     txBuf->signal_condition();
                 }

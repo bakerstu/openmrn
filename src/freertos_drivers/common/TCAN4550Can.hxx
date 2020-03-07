@@ -42,7 +42,7 @@
 
 #include "can_ioctl.h"
 
-#define TCAN4550_DEBUG 1
+#define TCAN4550_DEBUG 0
 
 /// Specification of CAN driver for the TCAN4550.
 /// @todo The TCAN4550 uses the Bosch MCAN IP. If we end up supporting other
@@ -106,6 +106,28 @@ private:
     /// size in words of the MRAM memory
     static constexpr size_t MRAM_SIZE_WORDS = (2 * 1024) / 4;
 
+    // ---- Memory layout ----
+    //
+    // +-----------------------+
+    // | RX FIFO 0, buf 0      | 0x0000
+    // | ...                   |
+    // | RX FIFO 0, buf 63     | 0x03F0
+    // +-----------------------+
+    // | TX Event 0 (FIFO)     | 0x0400
+    // | ...                   |
+    // | TX Event 15 (FIFO)    | 0x047F
+    // +-----------------------+
+    // | TX Buf 0              | 0x0480
+    // | ...                   |
+    // | TX Buf 15             | 0x057F
+    // +-----------------------+
+    // | TX Buf 16 (FIFO)      | 0x0580
+    // | ...                   |
+    // | TX Buf 31 (FIFO)      | 0x067F
+    // +-----------------------+
+    // | Unused                | 0x0680
+    // +-----------------------+
+
     /// size in elements for the RX FIFO
     static constexpr uint32_t RX_FIFO_SIZE = 64;
 
@@ -118,6 +140,20 @@ private:
     /// size in elements for the TX event FIFO
     static constexpr uint32_t TX_EVENT_FIFO_SIZE = 16;
 
+    /// mask of all the TX buffers used in the TX FIFO
+    static constexpr uint32_t TX_FIFO_BUFFERS_MASK = 0xFFFF0000;
+
+    /// start address of RX FIFO 0 in MRAM
+    static constexpr uint16_t RX_FIFO_0_MRAM_ADDR = 0x0000;
+
+    /// start address of TX Event FIFO in MRAM
+    static constexpr uint16_t TX_EVENT_FIFO_MRAM_ADDR = 0x0400;
+
+    /// start address of TX BUFFERS in MRAM
+    static constexpr uint16_t TX_BUFFERS_MRAM_ADDR = 0x0480;
+
+    /// start address of TX FIFO in MRAM
+    static constexpr uint16_t TX_FIFO_BUFFERS_MRAM_ADDR = 0x0580;
 
     /// SPI Registers, word addressing, not byte addressing
     enum Registers : uint16_t
