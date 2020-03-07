@@ -65,7 +65,7 @@ typedef uint32_t can_state_t;
 /** CAN bus error warning */
 #define CAN_STATE_BUS_WARNING       1
 
-/** CAN bus error passibe */
+/** CAN bus error passive */
 #define CAN_STATE_BUS_PASSIVE       2
 
 /** CAN bus off */
