@@ -416,9 +416,6 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
     while (count)
     {
         size_t frames_written = 0;
-        // note: This casts away the const qualifier. The buffer must be in
-        //       mutable memory for this to work.
-        MRAMTXBuffer *mram_tx_buffer = (MRAMTXBuffer*)(data);
 
         {
             // lock SPI bus access
@@ -445,8 +442,6 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
             txfqs.data = register_read(TXFQS);
             if (txfqs.tffl)
             {
-                static_assert(sizeof(struct can_frame) == sizeof(MRAMTXBuffer));
-
                 // clip to the continous buffer memory available
                 frames_written = std::min(
                     TX_FIFO_SIZE - (txfqs.tfqpi - TX_DEDICATED_BUFFER_COUNT),
@@ -461,27 +456,32 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
                 // shuffle data for structure translation
                 for (size_t i = 0; i < frames_written; ++i, ++put_index)
                 {
-                    if (!data[i].can_eff)
+                    if (data[i].can_eff)
+                    {
+                        // extended frame
+                        txBuffers_[i].id = data[i].can_id;
+                    }
+                    else
                     {
                         // standard frame
-                        mram_tx_buffer[i].id <<= 18;
-                        mram_tx_buffer[i].id &= 0x1FFFFFFF;
+                        txBuffers_[i].id = data[i].can_id << 18;
                     }
-                    mram_tx_buffer[i].rtr = data[i].can_rtr;
-                    mram_tx_buffer[i].xtd = data[i].can_eff;
-                    mram_tx_buffer[i].esi = data[i].can_err;
-                    mram_tx_buffer[i].dlc = data[i].can_dlc;
-                    mram_tx_buffer[i].brs = 0;
-                    mram_tx_buffer[i].fdf = 0;
-                    mram_tx_buffer[i].efc = 0;
-                    mram_tx_buffer[i].mm = 0;
+                    txBuffers_[i].rtr = data[i].can_rtr;
+                    txBuffers_[i].xtd = data[i].can_eff;
+                    txBuffers_[i].esi = data[i].can_err;
+                    txBuffers_[i].dlc = data[i].can_dlc;
+                    txBuffers_[i].brs = 0;
+                    txBuffers_[i].fdf = 0;
+                    txBuffers_[i].efc = 0;
+                    txBuffers_[i].mm = 0;
+                    txBuffers_[i].data64 = data[i].data64;
                     txbar |= 0x1 << put_index;
                 }
 
                 // write to MRAM
                 txbuf_write(
                     TX_BUFFERS_MRAM_ADDR + (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
-                    mram_tx_buffer, frames_written);
+                    txBuffers_, frames_written);
 
                 // add transmission requests
                 register_write(TXBAR, txbar);

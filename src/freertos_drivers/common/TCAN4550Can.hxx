@@ -835,7 +835,11 @@ private:
         uint32_t efc   :  1; ///< event FIFO control
         uint32_t mm    :  8; ///< message marker
 
-        uint32_t data[2]; ///< data payload
+        union
+        {
+            uint64_t data64;  ///< data payload 64-bit
+            uint32_t data[2]; ///< data payload
+        };
     };
 
     /// TX Event FIFO Element structure
@@ -1031,6 +1035,10 @@ private:
     SPI *spi_; ///< pointer to a SPI object instance
     OSSem sem_; ///< semaphore for posting events
     MCANInterrupt mcanInterruptEnable_; ///< shaddow for the interrupt enable
+
+    /// Allocating this buffer here avoids having to put it on the
+    /// TCAN4550Can::write() caller's stack.
+    MRAMTXBuffer txBuffers_[TX_FIFO_SIZE];
 #if TCAN4550_DEBUG
     volatile uint32_t regs_[64]; ///< debug copy of MCP2515 registers
     volatile uint32_t status_;
