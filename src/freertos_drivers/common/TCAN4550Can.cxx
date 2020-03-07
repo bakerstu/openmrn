@@ -263,6 +263,8 @@ void TCAN4550Can::enable()
         register_write(CCCR, cccr.data);
     }
 
+    state_ = CAN_STATE_ACTIVE;
+
     interruptEnable_();
 }
 
@@ -272,6 +274,8 @@ void TCAN4550Can::enable()
 void TCAN4550Can::disable()
 {
     interruptDisable_();
+
+    state_ = CAN_STATE_STOPPED;
 
     {
         // enable initalization mode
@@ -440,6 +444,23 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
         {
             // lock SPI bus access
             OSMutexLock locker(&lock_);
+
+            if (state_ != CAN_STATE_ACTIVE)
+            {
+                // cancel pending TX FIFO buffers to make room
+                register_write(TXBCR, 0xFFFF0000);
+
+                /// @todo It is possible that the tramsmit FIFO writes which
+                ///       follow will be stuck in the FIFO until we pass
+                ///       through this code again (could be another time
+                ///       time through the loop or a future call to
+                ///       TCAN::write()). This could be a long time, resulting
+                ///       in stale data going out on the bus once the error
+                ///       state is removed. A possible future enhancement would
+                ///       be to use the MCAN timeout counter to flush the FIFO
+                ///       again when it expires (suggested 3 second timeout).
+            }
+
             Txfqs txfqs;
             txfqs.data = register_read(TXFQS);
             if (txfqs.tffl)
@@ -714,6 +735,10 @@ void *TCAN4550Can::entry()
                     register_write(TXBCR, 0xFFFF0000);
 
                     txBuf->signal_condition();
+                }
+                else
+                {
+                    state_ = CAN_STATE_ACTIVE;
                 }
             }
         }
