@@ -107,8 +107,13 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     // lock SPI bus access
     OSMutexLock locker(&lock_);
 
-    // transition to "Normal" mode with sleep and watchdog disabled
     {
+        // read/clear TCAN status flags
+        uint32_t status = register_read(INTERRUPT_STATUS);
+        register_write(INTERRUPT_STATUS, status);
+    }
+    {
+        // transition to "Normal" mode with sleep and watchdog disabled
         Mode mode;
         mode.sweDis = 1;   // disable sleep
         mode.wdEnable = 0; // disable watchdog
@@ -118,6 +123,7 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
         register_write(MODE, mode.data);
     }
     {
+        // enter configuration mode
         Cccr cccr; // default is initialization mode
         register_write(CCCR, cccr.data);
         do
@@ -136,12 +142,10 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
     // diasable all TCAN interrupts
     register_write(INTERRUPT_ENABLE, 0);
 
-    // clear MRAM
-    for (unsigned offset = 0; offset < MRAM_SIZE_WORDS;
-         offset += (MRAMMessageClear::DATA_SIZE * 4))
+    // clear MRAM, a bit brute force, but gets the job done
+    for (uint16_t offset = 0x0000; offset < MRAM_SIZE_WORDS; ++offset)
     {
-        MRAMMessageClear msg;
-        mram_write(offset, &msg, sizeof(msg));
+        register_write((Registers)(MRAM + offset), 0);
     }
 
     // ---- Memory layout ----

@@ -201,6 +201,8 @@ private:
         TXEFS,        ///< TX event FIFO status
         TXEFA,        ///< TX event FIFO acknowledge
         RSVD17,       ///< reserved
+
+        MRAM = 0x2000, ///< MRAM offset
     };
 
     enum Command : uint8_t
@@ -756,21 +758,6 @@ private:
         };
     };
 
-    /// Structure that helps us clear the MRAM
-    struct MRAMMessageClear : public MRAMMessage
-    {
-        static constexpr uint8_t DATA_SIZE = 32; ///< size of data in words
-
-        /// Constructor.
-        MRAMMessageClear()
-        {
-            length = DATA_SIZE;
-            memset(data, 0, sizeof(data));
-        }
-
-        uint32_t data[DATA_SIZE]; ///< data words
-    };
-
     /// RX Buffer structure
     struct MRAMRXBuffer
     {
@@ -918,46 +905,6 @@ private:
 
         spi_->transfer_with_cs_assert_polled(&xfer);
         HASSERT((msg.status & 0x8) == 0);
-    }
-
-    /// Read from a SPI register.
-    /// @param offset word offset to read from
-    /// @param msg message to send
-    /// @param xfer_size total SPI transfer size
-    __attribute__((optimize("-O3")))
-    void mram_read(uint16_t offset, MRAMMessage *msg, uint32_t xfer_size)
-    {
-        uint16_t address = offset + 0x8000;
-        msg->cmd = READ;
-        msg->addrH = address >> 8;
-        msg->addrL = address & 0xFF;
-
-        spi_ioc_transfer xfer;
-        xfer.tx_buf = (unsigned long)(msg);
-        xfer.rx_buf = (unsigned long)(msg);
-        xfer.len = sizeof(msg);
-
-        spi_->transfer_with_cs_assert_polled(&xfer);
-    }
-
-    /// Write to a SPI register.
-    /// @param offset word offset to write to
-    /// @param msg message to send
-    /// @param xfer_size total SPI transfer size
-    __attribute__((optimize("-O3")))
-    void mram_write(uint16_t offset, MRAMMessage *msg, uint32_t xfer_size)
-    {
-        uint16_t address = offset + 0x8000;
-        msg->cmd = WRITE;
-        msg->addrH = address >> 8;
-        msg->addrL = address & 0xFF;
-
-        spi_ioc_transfer xfer;
-        xfer.tx_buf = (unsigned long)(msg);
-        xfer.rx_buf = (unsigned long)(msg);
-        xfer.len = xfer_size;
-
-        spi_->transfer_with_cs_assert_polled(&xfer);
     }
 
     /// Read one or more RX buffers.
