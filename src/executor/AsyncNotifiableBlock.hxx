@@ -99,32 +99,8 @@ public:
         }
     }
 
-    ~AsyncNotifiableBlock()
-    {
-        unsigned max = 10;
-        // Recollects all notifiable instances, including waiting a bit if
-        // there are some that have not finished yet. Limits the total amount
-        // of wait.
-        for (unsigned i = 0; i < count_; ++i)
-        {
-            while (true)
-            {
-                QMember *m = next().item;
-                if (!m)
-                {
-                    LOG(VERBOSE,
-                        "shutdown async notifiable block: waiting for returns");
-                    usleep(100);
-                    HASSERT(--max);
-                }
-                else
-                {
-                    HASSERT(initialize(m)->abort_if_almost_done());
-                    break;
-                }
-            }
-        }
-    }
+    /// Destructor.
+    ~AsyncNotifiableBlock();
 
     /// Turns an allocated entry from the QAsync into a usable
     /// BarrierNotifiable.
