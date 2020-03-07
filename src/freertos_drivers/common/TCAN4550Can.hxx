@@ -899,7 +899,10 @@ private:
     void disable() override; ///< function to disable device
 
     /// Function to try and transmit a message.
-    void tx_msg() override;
+    void tx_msg() override
+    {
+        // unused in this implementation
+    }
 
     /// Read from a SPI register.
     /// @param address address to read from

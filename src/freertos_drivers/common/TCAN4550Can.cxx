@@ -603,29 +603,6 @@ int TCAN4550Can::ioctl(File *file, unsigned long int key, unsigned long data)
 }
 
 //
-// TCAN4550Can::tx_msg()
-//
-__attribute__((optimize("-O3")))
-void TCAN4550Can::tx_msg()
-{
-    /* The caller has us in a critical section, we need to exchange a
-     * critical section lock for a mutex lock since event handling happens
-     * in thread context and not in interrupt context like it would in a
-     * typical CAN device driver.
-     */
-    portEXIT_CRITICAL();
-    lock_.lock();
-    //tx_msg_locked();
-    {
-        /// @todo throw on the floor for now so we can text only RX
-        AtomicHolder h_(this);
-        txBuf->flush();
-    }
-    lock_.unlock();
-    portENTER_CRITICAL();
-}
-
-//
 // entry()
 //
 __attribute__((optimize("-O3")))
