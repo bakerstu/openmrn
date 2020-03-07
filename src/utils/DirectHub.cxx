@@ -42,11 +42,11 @@
 #include <fcntl.h>
 #include <vector>
 
+#include "executor/AsyncNotifiableBlock.hxx"
 #include "executor/StateFlow.hxx"
+#include "nmranet_config.h"
 #include "utils/logging.h"
 #include "utils/socket_listener.hxx"
-#include "executor/AsyncNotifiableBlock.hxx"
-#include "nmranet_config.h"
 
 static DataBufferPool g_direct_hub_data_pool(64);
 DataBufferPool g_direct_hub_kbyte_pool(1024);
