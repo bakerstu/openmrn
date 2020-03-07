@@ -62,6 +62,7 @@ private:
         if (doExit_)
         {
             isRunning_ = false;
+            ::close(fd_);
             exitNotify_.notify();
             return exit();
         }
@@ -262,6 +263,7 @@ public:
     /// Implements receiving data from the bus.
     void send(Buffer<CanHubData> *buf, unsigned) override
     {
+        auto rb = get_buffer_deleter(buf);
         AtomicHolder h(this);
         lastFrame_ = *buf->data();
         ++frameCount_;
@@ -326,15 +328,20 @@ protected:
     {
         if (fdOne_ >= 0)
         {
+            flush_data(fdOne_);
             ::close(fdOne_);
             fdOne_ = -1;
         }
         if (fdTwo_ >= 0)
         {
+            flush_data(fdTwo_);
             ::close(fdTwo_);
             fdTwo_ = -1;
         }
         wait_for_main_executor();
+        wait_for_main_executor();
+        bn_.notify(); // resolve current barrier.
+        exitNotify_.wait_for_notification();
     }
 
     /// Creates two hub ports via socketpair and registers them to the data
@@ -360,7 +367,7 @@ protected:
         ERRNOCHECK("setsockopt",
             setsockopt(fd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
 
-        create_port_for_fd(hub_, fd[0], get_new_segmenter());
+        create_port_for_fd(hub_.get(), fd[0], get_new_segmenter(), bn_.new_child());
 
         wait_for_main_executor();
         return fd[1];
@@ -380,7 +387,7 @@ protected:
         ERRNOCHECK("setsockopt",
             setsockopt(fd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
 
-        create_port_for_fd(hub_, fd[0],
+        create_port_for_fd(hub_.get(), fd[0],
             std::unique_ptr<MessageSegmenter>(new TestSegmenter(data)));
         fdOne_ = fd[1];
         wait_for_main_executor();
@@ -427,6 +434,25 @@ protected:
         return ::write(fd, total.data(), total.size());
     }
 
+    static unsigned flush_data(int fd)
+    {
+        ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK);
+        int ret;
+        unsigned total = 0;
+
+        do
+        {
+            usleep(100);
+            char buf[1000];
+            ret = ::read(fd, buf, sizeof(buf));
+            if (ret > 0)
+            {
+                total += ret;
+            }
+        } while (ret > 0);
+        return total;
+    }
+
     /// Generates a large random string to send to the input.  The format of
     /// the string is 1-2-3-4|5-6-|. Numbers are sequential, length of packets
     /// segmented by | are random.
@@ -463,17 +489,29 @@ protected:
     }
 
     std::unique_ptr<TestReceiver> receiver_;
-    DirectHubInterface<uint8_t[]> *hub_ {create_hub(&g_executor)};
+    std::unique_ptr<DirectHubInterface<uint8_t[]>> hub_ {
+        create_hub(&g_executor)};
 
+    /// Remote endpoint of the first port.
     int fdOne_ = -1;
+    /// Remote endpoint of the second port.
     int fdTwo_ = -1;
+    /// If true, uses a trivial segmenter for input, if false, a GcSegmenter.
     bool useTrivialSegmenter_ = true;
+    /// Helper flow to drain bytes from a port.
     ReadAllFromFd fdReaderFlow_;
     /// Deterministic random seed for repeatable tests.
     unsigned int randomSeed_ = 994433227;
 
+    /// Hub flow for legacy CAN packets (compatible with openlcb::IfCan).
     CanHubFlow legacyHub_{&g_service};
+    /// Fake entry in the legacy hub that receives and injects CAN frames.
     TestLegacyCanReceiver legacyReceiver_{&legacyHub_};
+
+    /// Exit notifiable -- when all ports are done.
+    SyncNotifiable exitNotify_;
+    /// This notify will have a child given to each port.
+    BarrierNotifiable bn_{&exitNotify_};
 };
 
 /// Sends some data from one remote socket through the hub to another remote
@@ -533,7 +571,7 @@ TEST_F(DirectHubTest, large_end_to_end_data)
     {
         write_some(fdOne_);
     }
-    usleep(30000);
+    usleep(40000);
     LOG(INFO, "total bytes transferred: %zu", bytes);
     EXPECT_EQ(92800u, bytes);
     fdReaderFlow_.stop();
@@ -549,8 +587,8 @@ TEST_F(DirectHubTest, close_notify)
     ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, ffd));
     LOG(INFO, "socket %d %d", fd[0], fd[1]);
     SyncNotifiable n;
-    create_port_for_fd(hub_, fd[0], std::unique_ptr<MessageSegmenter>(create_trivial_message_segmenter()), &n);
-    create_port_for_fd(hub_, ffd[0], std::unique_ptr<MessageSegmenter>(create_trivial_message_segmenter()));
+    create_port_for_fd(hub_.get(), fd[0], std::unique_ptr<MessageSegmenter>(create_trivial_message_segmenter()), &n);
+    create_port_for_fd(hub_.get(), ffd[0], std::unique_ptr<MessageSegmenter>(create_trivial_message_segmenter()));
     write_some(fd[1]);
 
     read_some(ffd[1]);
@@ -661,11 +699,11 @@ TEST_F(DirectHubTest, socket_blocked)
     for (int i = 0; i < 200; ++i)
     {
         int wr = write_some(fdOne_);
-        if (wr >= 0)
-            total += wr;
+        if (wr >= 0) {
+            total += wr; }
         wr = write_some(fdOne_);
-        if (wr >= 0)
-            total += wr;
+        if (wr >= 0) {
+            total += wr;}
         usleep(100);
     }
     LOG(INFO, "total %u pool %u", (unsigned)total,
@@ -675,6 +713,10 @@ TEST_F(DirectHubTest, socket_blocked)
     EXPECT_GT(5000u, total);
     // Memory usage is also under control.
     EXPECT_GT(5000u, mainBufferPool->total_size());
+    while (total > 0)
+    {
+        total -= flush_data(fdTwo_);
+    }
 }
 
 /// In this test we try to write a lot of data into one port while not reading
@@ -711,6 +753,11 @@ TEST_F(DirectHubTest, socket_blocked_gc)
     EXPECT_GT(5000u, total);
     // Memory usage is also under control.
     EXPECT_GT(5000u, mainBufferPool->total_size());
+
+    while (total > 0)
+    {
+        total -= flush_data(fdTwo_);
+    }
 }
 
 /// Proxies data to two remote sockets from a locally injected source. Checks
@@ -718,7 +765,7 @@ TEST_F(DirectHubTest, socket_blocked_gc)
 TEST_F(DirectHubTest, local_source_two_targets)
 {
     create_two_ports();
-    SendSomeData d(hub_, "abcde");
+    SendSomeData d(hub_.get(), "abcde");
     d.enqueue();
     wait_for_main_executor();
     EXPECT_TRUE(d.is_done());
@@ -733,16 +780,16 @@ TEST_F(DirectHubTest, local_source_two_targets)
 TEST_F(DirectHubTest, race_condition)
 {
     create_two_ports();
-    SendSomeData d(hub_, "a");
+    SendSomeData d(hub_.get(), "a");
     d.sem_.wait(); // makes it blocking.
     g_read_executor.add(new CallbackExecutable([&d]() { d.enqueue(); }));
     d.isRunning_.wait(); // blocked indeed.
 
-    SendSomeData d2(hub_, "b");
+    SendSomeData d2(hub_.get(), "b");
     d2.enqueue();
-    SendSomeData d3(hub_, "c");
+    SendSomeData d3(hub_.get(), "c");
     d3.enqueue();
-    SendSomeData d4(hub_, "d");
+    SendSomeData d4(hub_.get(), "d");
     d4.enqueue();
     wait_for_main_executor();
     EXPECT_FALSE(d2.hasSeenRun_);
@@ -767,9 +814,9 @@ TEST_F(DirectHubTest, race_condition)
 TEST_F(DirectHubTest, check_skip)
 {
     create_two_ports();
-    SendSomeData d(hub_, "abc");
+    SendSomeData d(hub_.get(), "abc");
     d.enqueue();
-    SendSomeData d2(hub_, "xyzde", 3);
+    SendSomeData d2(hub_.get(), "xyzde", 3);
     d2.enqueue();
     wait_for_main_executor();
     EXPECT_TRUE(d2.is_done());
@@ -815,12 +862,12 @@ TEST_F(DirectHubTest, check_size_skip_chain)
 
 TEST_F(DirectHubTest, can_bridge_create) {
     std::unique_ptr<Destructable> bridge(
-        create_gc_to_legacy_can_bridge(hub_, &legacyHub_));
+        create_gc_to_legacy_can_bridge(hub_.get(), &legacyHub_));
 }
 
 TEST_F(DirectHubTest, can_bridge_send_recv) {
     std::unique_ptr<Destructable> bridge(
-        create_gc_to_legacy_can_bridge(hub_, &legacyHub_));
+        create_gc_to_legacy_can_bridge(hub_.get(), &legacyHub_));
 
     useTrivialSegmenter_ = false; // gridconnect segmenter
     fdOne_ = create_port();
@@ -849,7 +896,7 @@ TEST_F(DirectHubTest, can_bridge_send_recv) {
 
 TEST_F(DirectHubTest, can_bridge_send_much) {
     std::unique_ptr<Destructable> bridge(
-        create_gc_to_legacy_can_bridge(hub_, &legacyHub_));
+        create_gc_to_legacy_can_bridge(hub_.get(), &legacyHub_));
 
     useTrivialSegmenter_ = false; // gridconnect segmenter
     fdOne_ = create_port();
