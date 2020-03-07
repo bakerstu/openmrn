@@ -916,7 +916,9 @@ private:
 
         spi_->transfer_with_cs_assert_polled(&xfer);
 
+#if TCAN4550_DEBUG
         HASSERT((msg.status & 0x8) == 0);
+#endif
 
         return be32toh(msg.data);
     }
@@ -940,7 +942,9 @@ private:
         xfer.len = sizeof(msg);
 
         spi_->transfer_with_cs_assert_polled(&xfer);
+#if TCAN4550_DEBUG
         HASSERT((msg.status & 0x8) == 0);
+#endif
     }
 
     /// Read one or more RX buffers.
@@ -966,7 +970,9 @@ private:
         xfer[1].len = count * sizeof(MRAMRXBuffer);
 
         spi_->transfer_with_cs_assert_polled(xfer, 2);
+#if TCAN4550_DEBUG
         HASSERT((msg.status & 0x8) == 0);
+#endif
 
         static_assert(sizeof(MRAMRXBuffer) == 16);
         do
@@ -1013,8 +1019,9 @@ private:
         xfer[1].len = count * sizeof(MRAMTXBuffer);
 
         spi_->transfer_with_cs_assert_polled(xfer, 2);
+#if TCAN4550_DEBUG
         HASSERT((msg.status & 0x8) == 0);
-
+#endif
     }
 
     void (*interruptEnable_)(); ///< enable interrupt callback
