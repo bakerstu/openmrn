@@ -342,7 +342,7 @@ private:
         {
             if (helper_.hasError_)
             {
-                LOG(INFO, "Error reading from fd %d: (%d) %s", parent_->fd_,
+                LOG(INFO, "%p: Error reading from fd %d: (%d) %s", parent_, parent_->fd_,
                     errno, strerror(errno));
                 set_terminated();
                 buf_.reset();
@@ -614,7 +614,7 @@ private:
     {
         if (selectHelper_.hasError_)
         {
-            LOG(INFO, "Error writing to fd %d: (%d) %s", fd_, errno,
+            LOG(INFO, "%p: Error writing to fd %d: (%d) %s", this, fd_, errno,
                 strerror(errno));
             // will close fd and notify the reader flow to exit.
             report_write_error();
@@ -795,10 +795,13 @@ private:
     Notifiable *onError_ = nullptr;
 };
 
+extern DirectHubPortSelect* g_last_direct_hub_port;
+DirectHubPortSelect* g_last_direct_hub_port = nullptr;
+
 void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd,
     std::unique_ptr<MessageSegmenter> segmenter, Notifiable *on_error)
 {
-    new DirectHubPortSelect(hub, fd, std::move(segmenter), on_error);
+    g_last_direct_hub_port = new DirectHubPortSelect(hub, fd, std::move(segmenter), on_error);
 }
 
 class DirectGcTcpHub
