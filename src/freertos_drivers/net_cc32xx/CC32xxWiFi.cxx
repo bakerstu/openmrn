@@ -1245,6 +1245,9 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
     switch (event->Event)
     {
         case SL_SOCKET_TX_FAILED_EVENT:
+            LOG(ALWAYS, "Socket tx fail status %d, sd %u",
+                (int)event->SocketAsyncEvent.SockTxFailData.Status,
+                (unsigned)event->SocketAsyncEvent.SockTxFailData.Sd);
             switch (event->SocketAsyncEvent.SockTxFailData.Status)
             {
                 case SL_ERROR_BSD_ECLOSE: 
