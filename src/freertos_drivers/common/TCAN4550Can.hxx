@@ -66,6 +66,8 @@ public:
         , spi_(nullptr)
         , sem_()
         , mcanInterruptEnable_()
+        , txPending_(false)
+        , rxPending_(false)
     {
     }
 
@@ -79,7 +81,9 @@ public:
     /// @param spi_name spi interface that the TCAN4550Can is on
     /// @param freq frequency in Hz that the TCAN4550 clock runs at
     /// @param baud target baud rate in Hz
-    void init(const char *spi_name, uint32_t freq, uint32_t baud);
+    /// @param rx_timeout_bits timeout in CAN bit periods for rx interrupt
+    void init(const char *spi_name, uint32_t freq, uint32_t baud,
+              uint16_t rx_timeout_bits);
 
     /// Handle an interrupt.  Called by user provided interrupt handler.
     __attribute__((optimize("-O3")))
@@ -386,6 +390,82 @@ private:
                 uint32_t ntseg1    : 8; ///< time segment after sample
                 uint32_t nbrp      : 9; ///< bit rate prescaler
                 uint32_t nsjw      : 7; ///< re-synchronization jump width
+            };
+        };
+    };
+
+    /// Timestamp counter configuration register definition
+    struct Tscc
+    {
+        /// Constructor. Sets the reset value.
+        Tscc()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t tss   :  2; ///< timestamp select
+                uint32_t rsvd1 : 14; ///< reserved
+
+                uint32_t tcp   :  4; ///< timestamp counter prescaler
+                uint32_t rsvd2 : 12; ///< reserved
+            };
+        };
+    };
+
+    /// Timestamp counter value register definition
+    struct Tscv
+    {
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t tsc  : 16; ///< timestamp counter
+                uint32_t rsvd : 16; ///< reserved
+            };
+        };
+    };
+
+    /// Timeout counter configuration register definition
+    struct Tocc
+    {
+        /// Constructor. Sets the reset value.
+        Tocc()
+            : data(0xFFFF0000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t etoc  : 1; ///< enable timeout counter
+                uint32_t tos   : 2; ///< timeout select
+                uint32_t rsvd1 : 5; ///< reserved
+
+                uint32_t rsvd2 : 8; ///< reserved
+
+                uint32_t top : 16; ///< timeout period
+            };
+        };
+    };
+
+    /// Timeout counter value register definition
+    struct Tocv
+    {
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t tsc  : 16; ///< timeout counter
+                uint32_t rsvd : 16; ///< reserved
             };
         };
     };
@@ -1038,6 +1118,8 @@ private:
     SPI *spi_; ///< pointer to a SPI object instance
     OSSem sem_; ///< semaphore for posting events
     MCANInterrupt mcanInterruptEnable_; ///< shaddow for the interrupt enable
+    uint32_t txPending_ : 1; ///< waiting on a TX active event
+    uint32_t rxPending_ : 1; ///< waiting on a RX active event
 
     /// Allocating this buffer here avoids having to put it on the
     /// TCAN4550Can::write() caller's stack.

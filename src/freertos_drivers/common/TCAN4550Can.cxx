@@ -84,7 +84,8 @@ const TCAN4550Can::TCAN4550Baud TCAN4550Can::BAUD_TABLE[] =
 //
 // init()
 //
-void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
+void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud,
+                       uint16_t rx_timeout_bits)
 {
     spiFd_ = ::open(spi_name, O_RDWR);
     HASSERT(spiFd_ >= 0);
@@ -177,6 +178,18 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud)
         txefc.efwm = TX_EVENT_FIFO_SIZE / 2;  // event FIFO watermark
         register_write(TXEFC, txefc.data);
     }
+    {
+        // setup timestamp counter
+        Tscc tscc;    // default TCP = (1 - 1) = 0
+        tscc.tss = 1; // value incremented according to TCP
+        register_write(TSCC, tscc.data);
+
+        Tocc tocc;
+        tocc.etoc = 1;                    // enable timeout counter
+        tocc.tos = 2;                     // timeout controlled by RX FIFO 0
+        tocc.top = (rx_timeout_bits - 1); // timeout counts in bit periods
+        register_write(TOCC, tocc.data);
+    }
 
     // Setup timing
     for ( size_t i = 0; i < ARRAYSIZE(BAUD_TABLE); ++i)
@@ -213,6 +226,8 @@ void TCAN4550Can::enable()
         start(name, get_priority_max(), 2048);
     }
 
+    txPending_ = false;
+    rxPending_ = true; // waiting on an RX message
     {
         // clear MCAN interrupts
         MCANInterrupt mcan_interrupt;
@@ -224,6 +239,7 @@ void TCAN4550Can::enable()
         mcanInterruptEnable_.data = 0; // start with all interrupts disabled
         mcanInterruptEnable_.rf0l = 1; // RX FIFO 0 message lost
         mcanInterruptEnable_.tc = 1;   // transmission complete
+        mcanInterruptEnable_.too = 1;  // timeout occured (RX timeout)
         mcanInterruptEnable_.ep = 1;   // error passive
         mcanInterruptEnable_.bo = 1;   // bus-off status
         register_write(IE, mcanInterruptEnable_.data);
@@ -349,6 +365,18 @@ ssize_t TCAN4550Can::read(File *file, void *buf, size_t count)
                 rxf0a.fai = rxf0s.fgi + (frames_read - 1);
                 register_write(RXF0A, rxf0a.data);
             }
+            if (frames_read == rxf0s.ffl)
+            {
+                // all of the data was pulled out, need to re-enable RX
+                // timeout interrupt
+
+                // set pending flag
+                rxPending_ = true;
+
+                // enable receive timeout interrupt
+                mcanInterruptEnable_.too = 1;
+                register_write(IE, mcanInterruptEnable_.data);
+            }
         }
         // shuffle data for structure translation
         for (size_t i = 0; i < frames_read; ++i)
@@ -374,14 +402,6 @@ ssize_t TCAN4550Can::read(File *file, void *buf, size_t count)
             }
             else
             {
-                {
-                    // lock SPI bus access
-                    OSMutexLock locker(&lock_);
-
-                    // enable receive interrupt
-                    mcanInterruptEnable_.rf0n = 1;
-                    register_write(IE, mcanInterruptEnable_.data);
-                }
                 // wait for data to come in
                 rxBuf->block_until_condition(file, true);
             }
@@ -535,26 +555,14 @@ bool TCAN4550Can::select(File* file, int mode)
     {
         case FREAD:
         {
-            // lock SPI bus access
-            OSMutexLock locker(&lock_);
-
-            // read RX FIFO status
-            Rxfxs rxf0s;
-            rxf0s.data = register_read(RXF0S);
-            if (rxf0s.ffl)
+            AtomicHolder h(this);
+            if (rxPending_)
             {
-                // RX FIFO has data
-                retval = true;
+                rxBuf->select_insert();
             }
             else
             {
-                // enable receive interrupt
-                mcanInterruptEnable_.rf0n = 1;
-                register_write(IE, mcanInterruptEnable_.data);
-
-                // register for wakeup
-                AtomicHolder h(this);
-                rxBuf->select_insert();
+                retval = true;
             }
             break;
         }
@@ -652,8 +660,8 @@ void *TCAN4550Can::entry()
         MCANInterrupt mcan_interrupt;
         mcan_interrupt.data = register_read(IR);
 
-        // clear status flags
-        register_write(IR, mcan_interrupt.data);
+        // clear status flags for enabled interrupts
+        register_write(IR, mcan_interrupt.data & mcanInterruptEnable_.data);
 
         // read TCAN status flags
         uint32_t status = register_read(INTERRUPT_STATUS);
@@ -712,14 +720,17 @@ void *TCAN4550Can::entry()
             txBuf->signal_condition();
         }
 
-        // received new message
-        if (mcan_interrupt.rf0n && mcanInterruptEnable_.rf0n)
+        // received timeout
+        if (mcan_interrupt.too && mcanInterruptEnable_.too)
         {
+            // clear pending flag
+            rxPending_ = false;
+
             // signal anyone waiting
             rxBuf->signal_condition();
 
-            // disable receive interrupt
-            mcanInterruptEnable_.rf0n = 0;
+            // disable timeout interrupt
+            mcanInterruptEnable_.too = 0;
             register_write(IE, mcanInterruptEnable_.data);
         }
 
