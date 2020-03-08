@@ -41,6 +41,8 @@
 #include <algorithm>
 #include <fcntl.h>
 #include <vector>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include "executor/AsyncNotifiableBlock.hxx"
 #include "executor/StateFlow.hxx"
@@ -594,6 +596,7 @@ private:
         if (fd_ < 0)
         {
             // fd closed. Drop data to the floor.
+            totalPendingSize_ -= nextToSize_;
             return check_for_new_message();
         }
         uint8_t *data;
@@ -618,8 +621,9 @@ private:
                 strerror(errno));
             // will close fd and notify the reader flow to exit.
             report_write_error();
-            hub_->unregister_port(this, this);
-            return wait_and_call(STATE(report_and_exit));
+            // Flushes the queue of messages. fd_ == -1 now so no write will be
+            // attempted.
+            return check_for_new_message();
         }
         if (nextToSize_)
         {
@@ -665,13 +669,17 @@ private:
     /// flow needs to exit separately.
     void report_write_error()
     {
+        int close_fd = -1;
         {
             AtomicHolder h(lock());
             if (fd_ >= 0)
             {
-                ::close(fd_);
-                fd_ = -1;
+                std::swap(fd_, close_fd);
             }
+        }
+        if (close_fd >= 0)
+        {
+            ::close(close_fd);
         }
         readFlow_.read_shutdown();
     }
@@ -682,13 +690,17 @@ private:
     /// Called on the main executor.
     void report_read_error()
     {
+        int close_fd = -1;
         {
             AtomicHolder h(lock());
             if (fd_ >= 0)
             {
-                ::close(fd_);
-                fd_ = -1;
+                std::swap(fd_, close_fd);
             }
+        }
+        if (close_fd >= 0)
+        {
+            ::close(close_fd);
         }
         // take read barrier
         read_flow_exit();
@@ -836,6 +848,13 @@ private:
 
 void DirectGcTcpHub::OnNewConnection(int fd)
 {
+    uint32_t rcvbuf;
+    socklen_t len = sizeof(rcvbuf);
+    int ret = getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, &len);
+    if (ret >= 0)
+    {
+        LOG(ALWAYS, "Socket rcvbuf %u", (unsigned)rcvbuf);
+    }
     create_port_for_fd(gcHub_, fd,
         std::unique_ptr<MessageSegmenter>(create_gc_message_segmenter()));
 }

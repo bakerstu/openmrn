@@ -740,10 +740,30 @@ TEST_F(DirectHubTest, socket_blocked)
     EXPECT_GT(5000u, total);
     // Memory usage is also under control.
     EXPECT_GT(5000u, mainBufferPool->total_size());
-    while (total > 0)
+
+    // We should survive the case when a blocked socket dies.
+    ::close(fdTwo_);
+    wait_for_main_executor();
+
+    for (int i = 0; i < 200; ++i)
     {
-        total -= flush_data(fdTwo_);
+        int wr = write_some(fdOne_);
+        if (wr >= 0)
+        {
+            total += wr;
+        }
+        wr = write_some(fdOne_);
+        if (wr >= 0)
+        {
+            total += wr;
+        }
+        usleep(100);
     }
+
+    LOG(INFO, "Total %u", (unsigned)total);
+    EXPECT_LT(50000u, total);
+    // Memory usage is also under control.
+    EXPECT_GT(5000u, mainBufferPool->total_size());    
 }
 
 /// In this test we try to write a lot of data into one port while not reading
