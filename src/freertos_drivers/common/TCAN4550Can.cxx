@@ -395,7 +395,7 @@ ssize_t TCAN4550Can::read(File *file, void *buf, size_t count)
 
         if (frames_read == 0)
         {
-            // no more data to receive/
+            // no more data to receive
             if ((file->flags & O_NONBLOCK) || result > 0)
             {
                 break;
@@ -509,7 +509,7 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
 
         if (frames_written == 0)
         {
-            /* no more data to receive */
+            // no more data to transmit
             if ((file->flags & O_NONBLOCK) || result > 0)
             {
                 break;
