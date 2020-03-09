@@ -66,6 +66,7 @@ public:
         , spi_(nullptr)
         , sem_()
         , mcanInterruptEnable_()
+        , txCompleteMask_(0)
         , txPending_(false)
         , rxPending_(false)
     {
@@ -1118,6 +1119,7 @@ private:
     SPI *spi_; ///< pointer to a SPI object instance
     OSSem sem_; ///< semaphore for posting events
     MCANInterrupt mcanInterruptEnable_; ///< shaddow for the interrupt enable
+    uint32_t txCompleteMask_; ///< shaddow for the transmit complete buffer mask
     uint32_t txPending_ : 1; ///< waiting on a TX active event
     uint32_t rxPending_ : 1; ///< waiting on a RX active event
 

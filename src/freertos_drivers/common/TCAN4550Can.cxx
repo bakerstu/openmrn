@@ -226,6 +226,7 @@ void TCAN4550Can::enable()
         start(name, get_priority_max(), 2048);
     }
 
+    txCompleteMask_ = 0;
     txPending_ = false;
     rxPending_ = true; // waiting on an RX message
     {
@@ -505,6 +506,25 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
                 // add transmission requests
                 register_write(TXBAR, txbar);
             }
+            if (frames_written == txfqs.tffl)
+            {
+                // No space left in the TX FIFO. Setup a software emulation for
+                // a transmit watermark half way through the FIFO
+
+                // set pending flag
+                txPending_ = true;
+
+                uint32_t watermark_index = txfqs.tfgi + (TX_FIFO_SIZE / 2);
+                if (watermark_index >=
+                    (TX_FIFO_SIZE + TX_DEDICATED_BUFFER_COUNT))
+                {
+                    watermark_index -= TX_FIFO_SIZE;
+                }
+                txCompleteMask_ |= 0x1 << watermark_index;
+
+                // enable TX FIFO buffer interrupt
+                register_write(TXBTIE, txCompleteMask_);
+            }
         }
 
         if (frames_written == 0)
@@ -516,15 +536,6 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
             }
             else
             {
-                {
-                    /// @todo Is this sequence redundant? Does this not happen
-                    ///       anyways inside of TCAN4550CAN::select()?
-                    // lock SPI bus access
-                    OSMutexLock locker(&lock_);
-
-                    // enable TX FIFO buffer interrupts
-                    register_write(TXBTIE, TX_FIFO_BUFFERS_MASK);
-                }
                 // wait for space to be available
                 txBuf->block_until_condition(file, false);
             }
@@ -568,25 +579,14 @@ bool TCAN4550Can::select(File* file, int mode)
         }
         case FWRITE:
         {
-            // lock SPI bus access
-            OSMutexLock locker(&lock_);
-
-            // read TX FIFO status
-            Txfqs txfqs;
-            txfqs.data = register_read(TXFQS);
-            if (txfqs.tffl)
+            AtomicHolder h (this);
+            if (txPending_)
             {
-                // TX FIFO has space
-                retval = true;
+                txBuf->select_insert();
             }
             else
             {
-                // enable TX FIFO buffer interrupts
-                register_write(TXBTIE, TX_FIFO_BUFFERS_MASK);
-
-                // register for wakeup
-                AtomicHolder h(this);
-                txBuf->select_insert();
+                retval = true;
             }
             break;
         }
@@ -713,10 +713,14 @@ void *TCAN4550Can::entry()
         }
 
         // transmission complete
-        if (mcan_interrupt.tc)
+        if (mcan_interrupt.tc && txCompleteMask_)
         {
+            // clear pending flag
+            txPending_ = false;
+
             // disable TX buffer tranmission complete interrupt
-            register_write(TXBTIE, 0);
+            txCompleteMask_ = 0;
+            register_write(TXBTIE, txCompleteMask_);
             txBuf->signal_condition();
         }
 
