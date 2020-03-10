@@ -51,6 +51,13 @@
 /** Instance pointers help us get context from the interrupt handler(s) */
 static CC32xxSPI *instances_[1] = {NULL};
 
+/** One semaphore required per instance pointer */
+OSSem sem[1];
+
+constexpr uint32_t CC32xxSPI::dmaRxConfig_[];
+constexpr uint32_t CC32xxSPI::dmaTxConfig_[];
+constexpr uint32_t CC32xxSPI::dmaNullConfig_[];
+
 /** Constructor.
  * @param name name of this device instance in the file system
  * @param base base address of this device
@@ -68,12 +75,12 @@ CC32xxSPI::CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
                      uint32_t dma_channel_index_tx,
                      uint32_t dma_channel_index_rx)
     : SPI(name, cs_assert, cs_deassert, bus_lock)
+    , dmaHandle_(nullptr)
     , base_(base)
     , interrupt_(interrupt)
     , dmaThreshold_(dma_threshold)
     , dmaChannelIndexTx_(dma_channel_index_tx)
     , dmaChannelIndexRx_(dma_channel_index_rx)
-    , sem_()
 {
     switch (base_)
     {
@@ -83,7 +90,9 @@ CC32xxSPI::CC32xxSPI(const char *name, unsigned long base, uint32_t interrupt,
             MAP_PRCMPeripheralClkEnable(PRCM_GSPI, PRCM_RUN_MODE_CLK);
             MAP_PRCMPeripheralReset(PRCM_GSPI);
             clock_ = MAP_PRCMPeripheralClockGet(PRCM_GSPI);
+            UDMACC32XX_init();
             instances_[0] = this;
+            sem_ = &sem[0];
             break;
     }
 
@@ -97,6 +106,7 @@ int CC32xxSPI::update_configuration()
 {
     unsigned long new_mode;
     unsigned long bits_per_word;
+    unsigned long fifo_level;
 
     switch (mode_)
     {
@@ -118,27 +128,37 @@ int CC32xxSPI::update_configuration()
     switch (bitsPerWord)
     {
         default:
-        case 0:
+            bitsPerWord = 8;
+            // fall through
         case 8:
             bits_per_word = SPI_WL_8;
+            fifo_level = sizeof(uint8_t);
             break;
         case 16:
             bits_per_word = SPI_WL_16;
+            fifo_level = sizeof(uint16_t);
             break;
         case 32:
             bits_per_word = SPI_WL_32;
+            fifo_level = sizeof(uint32_t);
             break;
     }
 
     MAP_SPIDisable(base_);
     MAP_SPIReset(base_);
     MAP_SPIConfigSetExpClk(base_, clock_, speedHz, SPI_MODE_MASTER, new_mode,
-                           (SPI_3PIN_MODE | SPI_TURBO_OFF | bits_per_word));
+                           (SPI_3PIN_MODE | SPI_TURBO_ON | bits_per_word));
     MAP_SPIFIFOEnable(base_, SPI_RX_FIFO | SPI_TX_FIFO);
-    MAP_SPIFIFOLevelSet(base_, 1, 1);
+    MAP_SPIFIFOLevelSet(base_, fifo_level, fifo_level);
     MAP_IntPrioritySet(interrupt_, configKERNEL_INTERRUPT_PRIORITY);
     MAP_IntEnable(interrupt_);
     MAP_SPIEnable(base_);
+
+    // these values are used to quickly program instance local configuration
+    // settings
+    spiChctrl_ = HWREG(base_ + MCSPI_O_CH0CTRL);
+    spiChconf_ = HWREG(base_ + MCSPI_O_CH0CONF);
+    spiXferlevel_ = HWREG(base_ + MCSPI_O_XFERLEVEL);
 
     return 0;
 }
@@ -154,18 +174,40 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
     /* use DMA */
     void *buf;
     uint32_t channel_control_options;
+    unsigned config_index;
+    unsigned items;
+
+    /* set instance specific configuration */
+    set_configuration();
+
+    switch (bitsPerWord)
+    {
+        default:
+        case 8:
+            config_index = 0;
+            items = msg->len / sizeof(uint8_t);
+            break;
+        case 16:
+            config_index = 1;
+            items = msg->len / sizeof(uint16_t);
+            break;
+        case 32:
+            config_index = 2;
+            items = msg->len / sizeof(uint32_t);
+            break;
+    }
 
     /** @todo support longer SPI transactions */
-    HASSERT(msg->len <= MAX_DMA_TRANSFER_AMOUNT);
+    HASSERT(items <= MAX_DMA_TRANSFER_AMOUNT);
 
     if (msg->tx_buf)
     {
-        channel_control_options = dmaTxConfig_;
+        channel_control_options = dmaTxConfig_[config_index];
         buf = (void*)msg->tx_buf;
     }
     else
     {
-        channel_control_options = dmaNullConfig_;
+        channel_control_options = dmaNullConfig_[config_index];
         buf = &scratch_buffer;
     }
 
@@ -173,23 +215,24 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
     uDMAChannelControlSet(dmaChannelIndexTx_ | UDMA_PRI_SELECT,
                           channel_control_options);
 #if 0
-    uDMAChannelAttributeDisable(dmaChannelIndexTx_,
-                                    UDMA_ATTR_ALTSELECT);
+    // This disabled section is provided as a driverlib reference to the
+    // faster enabled (#else) version inline.
+    uDMAChannelAttributeDisable(dmaChannelIndexTx_, UDMA_ATTR_ALTSELECT);
 #else
     HWREG(UDMA_BASE + UDMA_O_ALTCLR) = 1 << (dmaChannelIndexTx_ & 0x1f);
 #endif
     uDMAChannelTransferSet(dmaChannelIndexTx_ | UDMA_PRI_SELECT,
-                               UDMA_MODE_BASIC, buf,
-                               (void*)(base_ + MCSPI_O_TX0), msg->len);
+                           UDMA_MODE_BASIC, buf, (void*)(base_ + MCSPI_O_TX0),
+                           items);
 
     if (msg->rx_buf)
     {
-        channel_control_options = dmaRxConfig_;
+        channel_control_options = dmaRxConfig_[config_index];
         buf = (void*)msg->rx_buf;
     }
     else
     {
-        channel_control_options = dmaNullConfig_;
+        channel_control_options = dmaNullConfig_[config_index];
         buf = &scratch_buffer;
     }
 
@@ -197,34 +240,32 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
     uDMAChannelControlSet(dmaChannelIndexRx_ | UDMA_PRI_SELECT,
                               channel_control_options);
 #if 0
-    uDMAChannelAttributeDisable(dmaChannelIndexRx_,
-                                    UDMA_ATTR_ALTSELECT);
+    // This disabled section is provided as a driverlib reference to the
+    // faster enabled (#else) version inline.
+    uDMAChannelAttributeDisable(dmaChannelIndexRx_,  UDMA_ATTR_ALTSELECT);
 #else
     HWREG(UDMA_BASE + UDMA_O_ALTCLR) = 1 << (dmaChannelIndexRx_ & 0x1f);
 #endif
     uDMAChannelTransferSet(dmaChannelIndexRx_ | UDMA_PRI_SELECT,
-                               UDMA_MODE_BASIC,
-                               (void*)(base_ + MCSPI_O_RX0), buf, msg->len);
+                           UDMA_MODE_BASIC, (void*)(base_ + MCSPI_O_RX0), buf,
+                           items);
 
-    /* Globally disables interrupts. */
-    asm("cpsid i\n");
+    {
+        AtomicHolder h(this);
 
-    uDMAChannelAssign(dmaChannelIndexRx_);
-    uDMAChannelAssign(dmaChannelIndexTx_);
+        uDMAChannelAssign(dmaChannelIndexRx_);
+        uDMAChannelAssign(dmaChannelIndexTx_);
 
-    SPIFIFOLevelSet(base_, 1, 1);
-    SPIDmaEnable(base_, SPI_RX_DMA | SPI_TX_DMA);
-    SPIIntClear(base_, SPI_INT_DMARX);
-    SPIIntEnable(base_, SPI_INT_DMARX);
+        SPIDmaEnable(base_, SPI_RX_DMA | SPI_TX_DMA);
+        SPIIntClear(base_, SPI_INT_DMARX);
+        SPIIntEnable(base_, SPI_INT_DMARX);
 
-    /* Enable channels & start DMA transfers */
-    uDMAChannelEnable(dmaChannelIndexTx_);
-    uDMAChannelEnable(dmaChannelIndexRx_);
+        /* Enable channels & start DMA transfers */
+        uDMAChannelEnable(dmaChannelIndexTx_);
+        uDMAChannelEnable(dmaChannelIndexRx_);
+    }
 
-    /* enable interrupts */
-    asm("cpsie i\n");
-
-    sem_.wait();
+    sem_->wait();
 }
 
 /** Common interrupt handler for all SPI devices.
@@ -232,24 +273,28 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
 __attribute__((optimize("-O3")))
 void CC32xxSPI::interrupt_handler()
 {
-    if (SPIIntStatus(base_, true) & SPI_INT_RX_FULL)
-    {
-        SPIIntDisable(base_, SPI_INT_RX_FULL);
-    }
-    else
-    {
-        if (uDMAChannelIsEnabled(dmaChannelIndexRx_))
-        {
-            /* DMA has not completed if the channel is still enabled */
-            return;
-        }
+    // Note: There can be more than one CC32xxSPI instance sharing a single
+    //       bus. However, the fact that in this case the base_ address and
+    //       sem_ reference will also be shared, we can exploit the fact that
+    //       the "this" pointer may not directly correspond to the instance
+    //       that is waiting using sem_->wait().
 
-        SPIDmaDisable(base_, SPI_RX_DMA | SPI_TX_DMA);
-        SPIIntDisable(base_, SPI_INT_DMARX);
+    if (SPIIntStatus(base_, true) & SPI_INT_DMATX)
+    {
+        SPIIntDisable(base_, SPI_INT_DMATX);
+        SPIIntClear(base_, SPI_INT_DMATX);
     }
+    if (uDMAChannelIsEnabled(dmaChannelIndexRx_))
+    {
+        /* DMA has not completed if the channel is still enabled */
+        return;
+    }
+
+    SPIDmaDisable(base_, SPI_RX_DMA | SPI_TX_DMA);
+    SPIIntDisable(base_, SPI_INT_DMARX);
 
     int woken = 0;
-    sem_.post_from_isr(&woken);
+    sem_->post_from_isr(&woken);
     os_isr_exit_yield_test(woken);
 }
 
@@ -259,9 +304,6 @@ extern "C" {
 __attribute__((optimize("-O3")))
 void spi0_interrupt_handler(void)
 {
-    if (instances_[0])
-    {
-        instances_[0]->interrupt_handler();
-    }
+    instances_[0]->interrupt_handler();
 }
 } // extern C

@@ -46,9 +46,11 @@
 #include "inc/hw_types.h"
 #include "driverlib/udma.h"
 
+#include <ti/drivers/dma/UDMACC32XX.h>
+
 /** Specialization of Serial SPI driver for CC32xx devices.
  */
-class CC32xxSPI : public SPI
+class CC32xxSPI : public SPI, private Atomic
 {
 public:
     /** Constructor.
@@ -96,7 +98,7 @@ public:
     }
 
 private:
-    static constexpr size_t DEFAULT_DMA_THRESHOLD_BYTES = 32;
+    static constexpr size_t DEFAULT_DMA_THRESHOLD_BYTES = 64;
 
     /** Maximum number of bytes transferred in a single DMA transaction */
     static constexpr size_t MAX_DMA_TRANSFER_AMOUNT = 1024;
@@ -106,27 +108,50 @@ private:
      * appropriate (8bit, 16bit or 32bit) transfer sizes.
      * Table for an SPI DMA RX channel.
      */
-    static constexpr uint32_t dmaRxConfig_ =
-        UDMA_SIZE_8 | UDMA_SRC_INC_NONE | UDMA_DST_INC_8  | UDMA_ARB_1;
+    static constexpr uint32_t dmaRxConfig_[] =
+    {
+        UDMA_SIZE_8  | UDMA_SRC_INC_NONE | UDMA_DST_INC_8  | UDMA_ARB_1,
+        UDMA_SIZE_16 | UDMA_SRC_INC_NONE | UDMA_DST_INC_16 | UDMA_ARB_1,
+        UDMA_SIZE_32 | UDMA_SRC_INC_NONE | UDMA_DST_INC_32 | UDMA_ARB_1
+    };
 
     /**
      * This lookup table is used to configure the DMA channels for the
      * appropriate (8bit, 16bit or 32bit) transfer sizes.
      * Table for an SPI DMA TX channel
      */
-    static constexpr uint32_t dmaTxConfig_ =
-        UDMA_SIZE_8 | UDMA_SRC_INC_8  | UDMA_DST_INC_NONE | UDMA_ARB_1;
+    static constexpr uint32_t dmaTxConfig_[] =
+    {
+        UDMA_SIZE_8  | UDMA_SRC_INC_8  | UDMA_DST_INC_NONE | UDMA_ARB_1,
+        UDMA_SIZE_16 | UDMA_SRC_INC_16 | UDMA_DST_INC_NONE | UDMA_ARB_1,
+        UDMA_SIZE_32 | UDMA_SRC_INC_32 | UDMA_DST_INC_NONE | UDMA_ARB_1
+    };
 
     /**
      * This lookup table is used to configure the DMA channels for the
      * appropriate (8bit, 16bit or 32bit) transfer sizes when either txBuf or
      * rxBuf are NULL.
      */
-    static constexpr uint32_t dmaNullConfig_ =
-        UDMA_SIZE_8 | UDMA_SRC_INC_NONE | UDMA_DST_INC_NONE | UDMA_ARB_1;
+    static constexpr uint32_t dmaNullConfig_[] =
+    {
+        UDMA_SIZE_8  | UDMA_SRC_INC_NONE | UDMA_DST_INC_NONE | UDMA_ARB_1,
+        UDMA_SIZE_16 | UDMA_SRC_INC_NONE | UDMA_DST_INC_NONE | UDMA_ARB_1,
+        UDMA_SIZE_32 | UDMA_SRC_INC_NONE | UDMA_DST_INC_NONE | UDMA_ARB_1
+    };
 
-    void enable() override {} /**< function to enable device */
-    void disable() override {} /**< function to disable device */
+    /** Function to enable device.
+     */
+    void enable() override
+    {
+        dmaHandle_ = UDMACC32XX_open();
+    }
+
+    /** Function to disable device.
+     */
+    void disable() override
+    {
+        UDMACC32XX_close(dmaHandle_);
+    }
 
     /** Update the configuration of the bus.
      * @return >= 0 upon success, -errno upon failure
@@ -139,7 +164,6 @@ private:
     __attribute__((optimize("-O3")))
     int transfer(struct spi_ioc_transfer *msg) override
     {
-        /** @todo It is assumed that 8 bit per word is used, need to extend */
         if (LIKELY(msg->len < dmaThreshold_))
         {
             return transfer_polled(msg);
@@ -153,29 +177,31 @@ private:
         return msg->len;
     }
 
-    /** Method to transmit/receive the data.
+    /** Method to transmit/receive the data. This is a template in order to
+     * preserve execution speed on type specific pointer math.
      * @param msg message to transact.
      */
+    template<typename T>
     __attribute__((optimize("-O3")))
-    int transfer_polled(struct spi_ioc_transfer *msg) override
+    int transfer_polled(struct spi_ioc_transfer *msg)
     {
-        static uint8_t dummy = 0xFF;
+        T dummy = 0;
 
         /* we are assuming that at least one byte will be transferred, and
          * we want to start tranfering data as soon as possible
          */
-        data_put(msg->tx_buf ? *((uint8_t*)msg->tx_buf) : 0xFF);
+        data_put(msg->tx_buf ? *((T*)msg->tx_buf) : 0xFFFFFFFF);
 
-        uint8_t *tx_buf = msg->tx_buf ? (uint8_t*)msg->tx_buf + 1 : &dummy;
-        uint8_t *rx_buf = (uint8_t*)msg->rx_buf;
+        T *tx_buf = msg->tx_buf ? ((T*)msg->tx_buf) + 1 : &dummy;
+        T *rx_buf = (T*)msg->rx_buf;
         unsigned long data;
-        uint32_t tx_len = msg->len - 1;
-        uint32_t rx_len = msg->len;
+        uint32_t tx_len = (msg->len / sizeof(T)) - 1;
+        uint32_t rx_len = (msg->len / sizeof(T));
 
         do
         {
             /* fill TX FIFO but make sure we don't fill it to overflow */
-            if (tx_len && (rx_len - tx_len < 32))
+            if (tx_len && (rx_len - tx_len < 8))
             {
                 if (data_put_non_blocking(*tx_buf) != 0)
                 {
@@ -205,6 +231,27 @@ private:
         return msg->len;
     }
 
+    /** Method to transmit/receive the data.
+     * @param msg message to transact.
+     */
+    __attribute__((optimize("-O3")))
+    int transfer_polled(struct spi_ioc_transfer *msg) override
+    {
+        /* set instance specific configuration */
+        set_configuration();
+
+        switch (bitsPerWord)
+        {
+            default:
+            case 8:
+                return transfer_polled<uint8_t>(msg);
+            case 16:
+                return transfer_polled<uint16_t>(msg);
+            case 32:
+                return transfer_polled<uint32_t>(msg);
+        }
+    }
+
     /** Configure a DMA transaction.
      * @param msg message to transact.
      */
@@ -215,6 +262,7 @@ private:
      * @param data is pointer to receive data variable.
      * @return Returns the number of elements read from the receive FIFO.
      */
+    __attribute__((optimize("-O3")))
     long data_get_non_blocking(unsigned long *data)
     {
         if(HWREG(base_ + MCSPI_O_CH0STAT) & MCSPI_CH0STAT_RXS)
@@ -231,6 +279,7 @@ private:
      * @param data is data to be transmitted.
      * @return Returns the number of elements written to the transmit FIFO.
      */
+    __attribute__((optimize("-O3")))
     long data_put_non_blocking(unsigned long data)
     {
         if(HWREG(base_ + MCSPI_O_CH0STAT) & MCSPI_CH0STAT_TXS)
@@ -254,16 +303,26 @@ private:
         HWREG(base_ + MCSPI_O_TX0) = data;
     }
 
+    /** Set the instance local configuration.
+     */
+    void set_configuration()
+    {
+        HWREG(base_ + MCSPI_O_CH0CTRL) = spiChctrl_;
+        HWREG(base_ + MCSPI_O_CH0CONF) = spiChconf_;
+        HWREG(base_ + MCSPI_O_XFERLEVEL) = spiXferlevel_;
+    }
 
+    UDMACC32XX_Handle dmaHandle_; /**< handle to DMA reference */
+    OSSem *sem_; /**< reference to the semaphore belonging to this bus */
     unsigned long base_; /**< base address of this device */
     unsigned long clock_; /**< clock rate supplied to the module */
     unsigned long interrupt_; /**< interrupt of this device */
     size_t dmaThreshold_; /**< threshold in bytes to start using DMA */
     uint32_t dmaChannelIndexTx_; /**< TX DMA channel index */
     uint32_t dmaChannelIndexRx_; /**< RX DMA channel index */
-
-    /** Semaphore to wakeup task level from ISR */
-    OSSem sem_;
+    uint32_t spiChctrl_; /**< instance local copy of configuration */
+    uint32_t spiChconf_; /**< instance local copy of configuration */
+    uint32_t spiXferlevel_; /**< instance local copy of configuration */
 
     /** Default constructor.
      */
