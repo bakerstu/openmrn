@@ -249,10 +249,10 @@ private:
     };
 
     // Check alignment
-    static_assert(TXEFS * 4 == 0x10F4, "register enume misaligned");
-    static_assert(ILE * 4 == 0x105C, "register enume misaligned");
+    static_assert(TXEFS * 4 == 0x10F4, "register enum misaligned");
+    static_assert(ILE * 4 == 0x105C, "register enum misaligned");
     static_assert(MCAN_INTERRUPT_STATUS * 4 == 0x0824,
-                  "register enume misaligned");
+                  "register enum misaligned");
 
     enum Command : uint8_t
     {
