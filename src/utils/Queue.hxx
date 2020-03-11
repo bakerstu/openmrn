@@ -122,9 +122,9 @@ public:
      */
     void insert(QMember *item, unsigned index = 0)
     {
+        AtomicHolder h(this);
         HASSERT(item->next == nullptr);
         HASSERT(item != tail);
-        AtomicHolder h(this);
         if (head == NULL)
         {
             head = tail = item;
