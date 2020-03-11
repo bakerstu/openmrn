@@ -160,7 +160,9 @@ private:
     /// start address of TX FIFO in MRAM
     static constexpr uint16_t TX_FIFO_BUFFERS_MRAM_ADDR = 0x0580;
 
-    /// SPI Registers, word addressing, not byte addressing
+    /// SPI Registers, word addressing, not byte addressing.
+    /// This means that the values here need to be multiplied by 4 to get the
+    /// actual address.
     enum Registers : uint16_t
     {
         DEVICE_IDL = 0x0, ///< device ID "TCAN"
@@ -228,7 +230,7 @@ private:
         RXESC,        ///< RX buffer/FIFO element size configuration
         TXBC,         ///< TX buffer configuration
         TXFQS,        ///< TX FIFO/queue status
-        TXESC,        ///< TX buffer ellement size configuration
+        TXESC,        ///< TX buffer element size configuration
         TXBRP,        ///< TX buffer request pending
         TXBAR,        ///< TX buffer add request
         TXBCR,        ///< TX buffer cancellation request
@@ -245,6 +247,12 @@ private:
 
         MRAM = 0x2000, ///< MRAM offset
     };
+
+    // Check alignment
+    static_assert(TXEFS * 4 == 0x10F4, "register enume misaligned");
+    static_assert(ILE * 4 == 0x105C, "register enume misaligned");
+    static_assert(MCAN_INTERRUPT_STATUS * 4 == 0x0824,
+                  "register enume misaligned");
 
     enum Command : uint8_t
     {
@@ -465,7 +473,7 @@ private:
             uint32_t data; ///< raw word value
             struct
             {
-                uint32_t tsc  : 16; ///< timeout counter
+                uint32_t toc  : 16; ///< timeout counter
                 uint32_t rsvd : 16; ///< reserved
             };
         };
@@ -839,7 +847,9 @@ private:
     {
         union
         {
-            uint8_t payload[8]; ///< raw payload
+            uint64_t payload64;    ///< raw payload as 64-bit value
+            uint32_t payload32[2]; ///< raw paylaod as 32-bit array
+            uint8_t payload[8];    ///< raw payload
             struct
             {
                 union

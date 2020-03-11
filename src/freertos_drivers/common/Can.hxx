@@ -47,27 +47,15 @@ class Can : public NonBlockNode
 public:
     static unsigned numReceivedPackets_;
     static unsigned numTransmittedPackets_;
-protected:
-    /** Constructor
-     * @param name device name in file system
-     */
-    Can(const char *name)
-        : NonBlockNode(name)
-        , txBuf(DeviceBuffer<struct can_frame>::create(config_can_tx_buffer_size(), 
-                                                       config_can_tx_buffer_size()/2))
-        , rxBuf(DeviceBuffer<struct can_frame>::create(config_can_rx_buffer_size()))
-        , overrunCount(0)
-        , busOffCount(0)
-        , softErrorCount(0)
-    {
-    }
 
+protected:
     /** Constructor
      * @param name device name in file system
      * @param tx_buffer_size transmit buffer size in can frames
      * @param rx_buffer_size receive buffer size in can frames
      */
-    Can(const char *name, size_t tx_buffer_size, size_t rx_buffer_size)
+    Can(const char *name, size_t tx_buffer_size = config_can_tx_buffer_size(),
+        size_t rx_buffer_size = config_can_rx_buffer_size())
         : NonBlockNode(name)
         , txBuf(DeviceBuffer<struct can_frame>::create(tx_buffer_size,
                                                        tx_buffer_size / 2))
