@@ -136,14 +136,14 @@ private:
     /// size in elements for the RX FIFO
     static constexpr uint32_t RX_FIFO_SIZE = 64;
 
-    /// size in elements for the TX FIFO
-    static constexpr uint32_t TX_FIFO_SIZE = 16;
+    /// size in elements for the TX event FIFO
+    static constexpr uint32_t TX_EVENT_FIFO_SIZE = 16;
 
     /// size in elements for the dedicated TX buffers
     static constexpr uint32_t TX_DEDICATED_BUFFER_COUNT = 16;
 
-    /// size in elements for the TX event FIFO
-    static constexpr uint32_t TX_EVENT_FIFO_SIZE = 16;
+    /// size in elements for the TX FIFO
+    static constexpr uint32_t TX_FIFO_SIZE = 16;
 
     /// mask of all the TX buffers used in the TX FIFO
     static constexpr uint32_t TX_FIFO_BUFFERS_MASK = 0xFFFF0000;
