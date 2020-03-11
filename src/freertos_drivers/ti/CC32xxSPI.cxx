@@ -180,6 +180,11 @@ void CC32xxSPI::config_dma(struct spi_ioc_transfer *msg)
     /* set instance specific configuration */
     set_configuration();
 
+    /** @todo We could potentially perform the first daata write immediately
+     *        and only use DMA for n-1 words of TX. This would reduce the
+     *        latency of the transaction slightly.
+     */
+
     switch (bitsPerWord)
     {
         default:
