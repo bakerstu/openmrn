@@ -95,8 +95,8 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud,
 
     // configure SPI bus settings
     uint8_t spi_mode = SPI_MODE_0;
-    uint8_t spi_bpw = 8;
-    uint32_t spi_max_speed_hz = freq / 4;
+    uint8_t spi_bpw = 32;
+    uint32_t spi_max_speed_hz = freq / 2;
     if (spi_max_speed_hz > SPI_MAX_SPEED_HZ)
     {
         spi_max_speed_hz = SPI_MAX_SPEED_HZ;
