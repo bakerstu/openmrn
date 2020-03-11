@@ -852,35 +852,36 @@ private:
             uint8_t payload[8];    ///< raw payload
             struct
             {
+                uint8_t length; ///< length in words
+                uint8_t addrL;  ///< register address LSB
+                uint8_t addrH;  ///< register address MSB
                 union
                 {
                     uint8_t cmd;    ///< command
                     uint8_t status; ///< bits 0..7 of INTERRUPT_STATUS
                 };
-                uint8_t addrH;  ///< register address MSB
-                uint8_t addrL;  ///< register address LSB
-                uint8_t length; ///< length in words
                 uint32_t data;  ///< data word
             };
         };
     };
 
-    /// MRAM SPI message for read/write data
-    struct MRAMMessage
+    /// MRAM SPI message for read/write commands
+    struct MRAMSPIMessage
     {
         union
         {
-            uint8_t payload[0]; ///< raw payload
+            uint32_t payload32; ///< raw paylaod as 32-bit value
+            uint8_t payload[4]; ///< raw payload
             struct
             {
+                uint8_t length; ///< length in words
+                uint8_t addrL;  ///< register address LSB
+                uint8_t addrH;  ///< register address MSB
                 union
                 {
                     uint8_t cmd;    ///< command
                     uint8_t status; ///< bits 0..7 of INTERRUPT_STATUS
                 };
-                uint8_t addrH;  ///< register address MSB
-                uint8_t addrL;  ///< register address LSB
-                uint8_t length; ///< length in words
             };
         };
     };
@@ -929,7 +930,8 @@ private:
         union
         {
             uint64_t data64;  ///< data payload 64-bit
-            uint32_t data[2]; ///< data payload
+            uint32_t data32[2]; ///< data payload (0 - 1 word)
+            uint16_t data16[4]; ///< data payload (0 - 3 half word)
         };
     };
 
@@ -947,6 +949,16 @@ private:
         uint32_t fdf  :  1; ///< FD format
         uint32_t et   :  2; ///< event type
         uint32_t mm   :  8; ///< message marker
+    };
+
+    /// Structure for writing multiple TX buffers in one SPI transaction.
+    struct MRAMTXBufferMultiWrite
+    {
+        static_assert(sizeof(MRAMSPIMessage) == sizeof(uint32_t));
+
+        uint32_t padding; ///< padding for 8-byte alignment
+        MRAMSPIMessage header; ///< message header
+        MRAMTXBuffer txBuffers[TX_FIFO_SIZE]; ///< buffer payload
     };
 
     /// Called after disable.
@@ -1018,7 +1030,7 @@ private:
         HASSERT((msg.status & 0x8) == 0);
 #endif
 
-        return be32toh(msg.data);
+        return msg.data;
     }
 
     /// Write to a SPI register.
@@ -1032,7 +1044,7 @@ private:
         msg.addrH = address >> 6;
         msg.addrL = (address << 2) & 0xFF;
         msg.length = 1;
-        msg.data = htobe32(data);
+        msg.data = data;
 
         spi_ioc_transfer xfer;
         xfer.tx_buf = (unsigned long)(&msg);
@@ -1053,7 +1065,7 @@ private:
     void rxbuf_read(uint16_t offset, MRAMRXBuffer *buf, size_t count)
     {
         uint16_t address = offset + 0x8000;
-        MRAMMessage msg;
+        SPIMessage msg;
         msg.cmd = READ;
         msg.addrH = address >> 8;
         msg.addrL = address & 0xFF;
@@ -1062,7 +1074,7 @@ private:
         spi_ioc_transfer xfer[2];
         xfer[0].tx_buf = (unsigned long)(&msg);
         xfer[0].rx_buf = (unsigned long)(&msg);
-        xfer[0].len = sizeof(MRAMMessage);
+        xfer[0].len = 4; //sizeof(SPIMessage);
         xfer[1].tx_buf = (unsigned long)(nullptr);
         xfer[1].rx_buf = (unsigned long)(buf);
         xfer[1].len = count * sizeof(MRAMRXBuffer);
@@ -1071,17 +1083,6 @@ private:
 #if TCAN4550_DEBUG
         HASSERT((msg.status & 0x8) == 0);
 #endif
-
-        static_assert(sizeof(MRAMRXBuffer) == 16);
-        do
-        {
-            uint32_t *raw = reinterpret_cast<uint32_t*>(buf);
-            raw[0] = be32toh(raw[0]);
-            raw[1] = be32toh(raw[1]);
-            raw[2] = be32toh(raw[2]);
-            raw[3] = be32toh(raw[3]);
-            ++buf;
-        } while (--count);
     }
 
     /// Write one or more TX buffers.
@@ -1089,36 +1090,24 @@ private:
     /// @param buf location to write from
     /// @param count number of buffers to write
     __attribute__((optimize("-O3")))
-    void txbuf_write(uint16_t offset, MRAMTXBuffer *buf, size_t count)
+    void txbuf_write(uint16_t offset, MRAMTXBufferMultiWrite *buf, size_t count)
     {
         static_assert(sizeof(MRAMTXBuffer) == 16);
-        for (size_t i = 0; i < count; ++i)
-        {
-            uint32_t *raw = reinterpret_cast<uint32_t*>(buf + i);
-            raw[0] = htobe32(raw[0]);
-            raw[1] = htobe32(raw[1]);
-            raw[2] = htobe32(raw[2]);
-            raw[3] = htobe32(raw[3]);
-        }
 
         uint16_t address = offset + 0x8000;
-        MRAMMessage msg;
-        msg.cmd = WRITE;
-        msg.addrH = address >> 8;
-        msg.addrL = address & 0xFF;
-        msg.length = count * (sizeof(MRAMTXBuffer) / 4);
+        buf->header.cmd = WRITE;
+        buf->header.addrH = address >> 8;
+        buf->header.addrL = address & 0xFF;
+        buf->header.length = count * (sizeof(MRAMTXBuffer) / 4);
 
-        spi_ioc_transfer xfer[2];
-        xfer[0].tx_buf = (unsigned long)(&msg);
-        xfer[0].rx_buf = (unsigned long)(&msg);
-        xfer[0].len = sizeof(MRAMMessage);
-        xfer[1].tx_buf = (unsigned long)(buf);
-        xfer[1].rx_buf = (unsigned long)(nullptr);
-        xfer[1].len = count * sizeof(MRAMTXBuffer);
+        spi_ioc_transfer xfer;
+        xfer.tx_buf = (unsigned long)&buf->header;
+        xfer.rx_buf = (unsigned long)&buf->header;
+        xfer.len = sizeof(buf->header) + (count * sizeof(MRAMTXBuffer));
 
-        spi_->transfer_with_cs_assert_polled(xfer, 2);
+        spi_->transfer_with_cs_assert_polled(&xfer);
 #if TCAN4550_DEBUG
-        HASSERT((msg.status & 0x8) == 0);
+        HASSERT((buf->header.status & 0x8) == 0);
 #endif
     }
 
@@ -1135,7 +1124,7 @@ private:
 
     /// Allocating this buffer here avoids having to put it on the
     /// TCAN4550Can::write() caller's stack.
-    MRAMTXBuffer txBuffers_[TX_FIFO_SIZE];
+    MRAMTXBufferMultiWrite txBufferMultiWrite_ __attribute__((aligned(8)));
 #if TCAN4550_DEBUG
     volatile uint32_t regs_[64]; ///< debug copy of MCP2515 registers
     volatile uint32_t status_;

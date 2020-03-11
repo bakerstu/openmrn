@@ -472,36 +472,36 @@ ssize_t TCAN4550Can::write(File *file, const void *buf, size_t count)
 
                 uint32_t txbar = 0;
                 uint32_t put_index = txfqs.tfqpi;
-
+                MRAMTXBuffer *tx_buffers = txBufferMultiWrite_.txBuffers;
                 // shuffle data for structure translation
                 for (size_t i = 0; i < frames_written; ++i, ++put_index)
                 {
                     if (data[i].can_eff)
                     {
                         // extended frame
-                        txBuffers_[i].id = data[i].can_id;
+                        tx_buffers[i].id = data[i].can_id;
                     }
                     else
                     {
                         // standard frame
-                        txBuffers_[i].id = data[i].can_id << 18;
+                        tx_buffers[i].id = data[i].can_id << 18;
                     }
-                    txBuffers_[i].rtr = data[i].can_rtr;
-                    txBuffers_[i].xtd = data[i].can_eff;
-                    txBuffers_[i].esi = data[i].can_err;
-                    txBuffers_[i].dlc = data[i].can_dlc;
-                    txBuffers_[i].brs = 0;
-                    txBuffers_[i].fdf = 0;
-                    txBuffers_[i].efc = 0;
-                    txBuffers_[i].mm = 0;
-                    txBuffers_[i].data64 = data[i].data64;
+                    tx_buffers[i].rtr = data[i].can_rtr;
+                    tx_buffers[i].xtd = data[i].can_eff;
+                    tx_buffers[i].esi = data[i].can_err;
+                    tx_buffers[i].dlc = data[i].can_dlc;
+                    tx_buffers[i].brs = 0;
+                    tx_buffers[i].fdf = 0;
+                    tx_buffers[i].efc = 0;
+                    tx_buffers[i].mm = 0;
+                    tx_buffers[i].data64 = data[i].data64;
                     txbar |= 0x1 << put_index;
                 }
 
                 // write to MRAM
                 txbuf_write(
                     TX_BUFFERS_MRAM_ADDR + (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
-                    txBuffers_, frames_written);
+                    &txBufferMultiWrite_, frames_written);
 
                 // add transmission requests
                 register_write(TXBAR, txbar);
@@ -643,10 +643,6 @@ void *TCAN4550Can::entry()
             xfer[1].len = sizeof(regs_);
 
             spi_->transfer_with_cs_assert_polled(xfer, 2);
-            for (unsigned i = 0; i < 64; ++i)
-            {
-                regs_[i] = be32toh(regs_[i]);
-            }
             continue;
         }
 #else
