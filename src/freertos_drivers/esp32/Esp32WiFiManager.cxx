@@ -1176,24 +1176,29 @@ void Esp32WiFiManager::mdns_unpublish(string service)
 // published at this time.
 void Esp32WiFiManager::start_mdns_system()
 {
-    OSMutexLock l(&mdnsInitLock_);
-    // If we have already initialized mDNS we can exit early.
-    if (mdnsInitialized_)
     {
-        return;
+        OSMutexLock l(&mdnsInitLock_);
+        // If we have already initialized mDNS we can exit early.
+        if (mdnsInitialized_)
+        {
+            return;
+        }
+
+        // Initialize the mDNS system.
+        LOG(INFO, "[mDNS] Initializing mDNS system");
+        ESP_ERROR_CHECK(mdns_init());
+
+        // Set the mDNS hostname based on our generated hostname so it can be
+        // found by other nodes.
+        LOG(INFO, "[mDNS] Setting mDNS hostname to \"%s\"", hostname_.c_str());
+        ESP_ERROR_CHECK(mdns_hostname_set(hostname_.c_str()));
+
+        // Set the default mDNS instance name to the generated hostname.
+        ESP_ERROR_CHECK(mdns_instance_name_set(hostname_.c_str()));
+
+        // Set flag to indicate we have initialized mDNS.
+        mdnsInitialized_ = true;
     }
-
-    // Initialize the mDNS system.
-    LOG(INFO, "[mDNS] Initializing mDNS system");
-    ESP_ERROR_CHECK(mdns_init());
-
-    // Set the mDNS hostname based on our generated hostname so it can be
-    // found by other nodes.
-    LOG(INFO, "[mDNS] Setting mDNS hostname to \"%s\"", hostname_.c_str());
-    ESP_ERROR_CHECK(mdns_hostname_set(hostname_.c_str()));
-
-    // Set the default mDNS instance name to the generated hostname.
-    ESP_ERROR_CHECK(mdns_instance_name_set(hostname_.c_str()));
 
     // Publish any deferred mDNS entries
     for (auto & entry : mdnsDeferredPublish_)
@@ -1201,9 +1206,6 @@ void Esp32WiFiManager::start_mdns_system()
         mdns_publish(entry.first, entry.second);
     }
     mdnsDeferredPublish_.clear();
-
-    // Set flag to indicate we have initialized mDNS.
-    mdnsInitialized_ = true;
 }
 
 } // namespace openmrn_arduino
