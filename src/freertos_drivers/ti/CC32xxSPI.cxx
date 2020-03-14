@@ -144,6 +144,19 @@ int CC32xxSPI::update_configuration()
             break;
     }
 
+    /* The SPI peripheral only supoprts certain frequencies and driverlib does
+     * not properly round down. We can do some math to make sure that driverlib
+     * makes the correct selection.
+     */
+    if (speedHz > (clock_ / 2))
+    {
+        speedHz = clock_ / 2;
+    }
+    else if ((clock_ % speedHz) != 0)
+    {
+        speedHz = clock_ / ((clock_ / speedHz) + 1);
+    }
+
     MAP_SPIDisable(base_);
     MAP_SPIReset(base_);
     MAP_SPIConfigSetExpClk(base_, clock_, speedHz, SPI_MODE_MASTER, new_mode,
