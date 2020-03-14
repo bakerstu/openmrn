@@ -152,7 +152,7 @@ int CC32xxSPI::update_configuration()
     {
         speedHz = clock_ / 2;
     }
-    if ((clock_ % speedHz) != 0)
+    else if ((clock_ % speedHz) != 0)
     {
         speedHz = clock_ / ((clock_ / speedHz) + 1);
     }
