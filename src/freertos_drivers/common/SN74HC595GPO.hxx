@@ -121,7 +121,7 @@ public:
 
 private:
     /// maximum SPI clock speed in Hz
-    static constexpr uint32_t SPI_MAX_SPEED_HZ = 1000000;
+    static constexpr uint32_t SPI_MAX_SPEED_HZ = 4000000;
 
     /// User entry point for the created thread.
     /// @return exit status
