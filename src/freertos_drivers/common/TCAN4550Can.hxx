@@ -61,12 +61,12 @@ public:
         , OSThread()
         , interruptEnable_(interrupt_enable)
         , interruptDisable_(interrupt_disable)
-        , state_(CAN_STATE_STOPPED)
         , spiFd_(-1)
         , spi_(nullptr)
         , sem_()
         , mcanInterruptEnable_()
         , txCompleteMask_(0)
+        , state_(CAN_STATE_STOPPED)
         , txPending_(false)
         , rxPending_(false)
     {
@@ -159,6 +159,9 @@ private:
 
     /// start address of TX FIFO in MRAM
     static constexpr uint16_t TX_FIFO_BUFFERS_MRAM_ADDR = 0x0580;
+
+    /// Offset of the MRAM address over SPI
+    static constexpr uint16_t MRAM_ADDR_OFFSET = 0x8000;
 
     /// SPI Registers, word addressing, not byte addressing.
     /// This means that the values here need to be multiplied by 4 to get the
@@ -954,7 +957,8 @@ private:
     /// Structure for writing multiple TX buffers in one SPI transaction.
     struct MRAMTXBufferMultiWrite
     {
-        static_assert(sizeof(MRAMSPIMessage) == sizeof(uint32_t));
+        static_assert(sizeof(MRAMSPIMessage) == sizeof(uint32_t),
+                      "unexpected MRAMSPIMessage size");
 
         uint32_t padding; ///< padding for 8-byte alignment
         MRAMSPIMessage header; ///< message header
@@ -1058,13 +1062,13 @@ private:
     }
 
     /// Read one or more RX buffers.
-    /// @param offset word offset to read from
+    /// @param offset word offset in the MRAM to read from
     /// @param buf location to read into
     /// @param count number of buffers to read
     __attribute__((optimize("-O3")))
     void rxbuf_read(uint16_t offset, MRAMRXBuffer *buf, size_t count)
     {
-        uint16_t address = offset + 0x8000;
+        uint16_t address = offset + MRAM_ADDR_OFFSET;
         SPIMessage msg;
         msg.cmd = READ;
         msg.addrH = address >> 8;
@@ -1086,15 +1090,16 @@ private:
     }
 
     /// Write one or more TX buffers.
-    /// @param offset word offset to write to
+    /// @param offset word offset in the MRAM to write to
     /// @param buf location to write from
     /// @param count number of buffers to write
     __attribute__((optimize("-O3")))
     void txbuf_write(uint16_t offset, MRAMTXBufferMultiWrite *buf, size_t count)
     {
-        static_assert(sizeof(MRAMTXBuffer) == 16);
+        static_assert(sizeof(MRAMTXBuffer) == 16,
+                      "Unexpected MRAMTXBuffer size");
 
-        uint16_t address = offset + 0x8000;
+        uint16_t address = offset + MRAM_ADDR_OFFSET;
         buf->header.cmd = WRITE;
         buf->header.addrH = address >> 8;
         buf->header.addrL = address & 0xFF;
@@ -1113,20 +1118,20 @@ private:
 
     void (*interruptEnable_)(); ///< enable interrupt callback
     void (*interruptDisable_)(); ///< disable interrupt callback
-    unsigned state_ : 4; ///< present bus state
-    int spiFd_; ///< SPI bus that accesses MCP2515
+    int spiFd_; ///< SPI bus that accesses TCAN4550
     SPI *spi_; ///< pointer to a SPI object instance
     OSSem sem_; ///< semaphore for posting events
-    MCANInterrupt mcanInterruptEnable_; ///< shaddow for the interrupt enable
-    uint32_t txCompleteMask_; ///< shaddow for the transmit complete buffer mask
-    uint32_t txPending_ : 1; ///< waiting on a TX active event
-    uint32_t rxPending_ : 1; ///< waiting on a RX active event
+    MCANInterrupt mcanInterruptEnable_; ///< shadow for the interrupt enable
+    uint32_t txCompleteMask_; ///< shadow for the transmit complete buffer mask
+    uint8_t state_; ///< present bus state
+    uint8_t txPending_ : 1; ///< waiting on a TX active event
+    uint8_t rxPending_ : 1; ///< waiting on a RX active event
 
     /// Allocating this buffer here avoids having to put it on the
     /// TCAN4550Can::write() caller's stack.
     MRAMTXBufferMultiWrite txBufferMultiWrite_ __attribute__((aligned(8)));
 #if TCAN4550_DEBUG
-    volatile uint32_t regs_[64]; ///< debug copy of MCP2515 registers
+    volatile uint32_t regs_[64]; ///< debug copy of TCAN4550 registers
     volatile uint32_t status_;
     volatile uint32_t enable_;
     volatile uint32_t spiStatus_;

@@ -40,6 +40,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <atomic>
+
 const TCAN4550Can::TCAN4550Baud TCAN4550Can::BAUD_TABLE[] =
 {
     /* 20 MHz clock source
@@ -180,6 +182,9 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud,
     }
     {
         // setup timestamp counter
+        // make sure that the timeout is reasonable
+        HASSERT(rx_timeout_bits >= 10);
+
         Tscc tscc;    // default TCP = (1 - 1) = 0
         tscc.tss = 1; // value incremented according to TCP
         register_write(TSCC, tscc.data);
@@ -219,11 +224,19 @@ void TCAN4550Can::init(const char *spi_name, uint32_t freq, uint32_t baud,
 //
 void TCAN4550Can::enable()
 {
-    // there is a mutex lock above us, so the following sequence is atomic
+    // There is a mutex lock of lock_ above us, so the following sequence is
+    // thread safe.
     if (!is_created())
     {
         // start the thread at the highest priority in the system
-        start(name, get_priority_max(), 2048);
+        start(name, get_priority_max(), 512);
+
+        /// @todo The stack size of 512 bytes was chosen based on the debugger
+        ///       reporting a high watter mark of 232 bytes used. The test
+        ///       platform was a CC3220 with GCC compiler (ARMv7m). It is
+        ///       likely that this high water mark will vary based on CPU
+        ///       architecture, and this stack size should probably be
+        ///       paramatizable in the future.
     }
 
     txCompleteMask_ = 0;
@@ -268,6 +281,8 @@ void TCAN4550Can::enable()
 //
 void TCAN4550Can::disable()
 {
+    // There is a mutex lock of lock_ above us, so the following sequence is
+    // thread safe.
     interruptDisable_();
 
     state_ = CAN_STATE_STOPPED;
@@ -382,16 +397,23 @@ ssize_t TCAN4550Can::read(File *file, void *buf, size_t count)
         // shuffle data for structure translation
         for (size_t i = 0; i < frames_read; ++i)
         {
-            data[i].can_dlc = mram_rx_buffer[i].dlc;
-            data[i].can_rtr = mram_rx_buffer[i].rtr;
-            data[i].can_eff = mram_rx_buffer[i].xtd;
-            data[i].can_err = mram_rx_buffer[i].esi;
-            data[i].can_id &= 0x1FFFFFFF;
-            if (!data[i].can_eff)
+            struct can_frame tmp;
+
+            tmp.can_id = mram_rx_buffer[i].id;
+            if (!mram_rx_buffer[i].xtd)
             {
                 // standard frame
-                data[i].can_id >>= 18;
+                tmp.can_id >>= 18;
             }
+            tmp.can_dlc = mram_rx_buffer[i].dlc;
+            tmp.can_rtr = mram_rx_buffer[i].rtr;
+            tmp.can_eff = mram_rx_buffer[i].xtd;
+            tmp.can_err = mram_rx_buffer[i].esi;
+
+            std::atomic_thread_fence(std::memory_order_seq_cst);
+
+            data[i].raw[0] = tmp.raw[0];
+            data[i].raw[1] = tmp.raw[1];
         }
 
         if (frames_read == 0)
@@ -652,6 +674,10 @@ void *TCAN4550Can::entry()
         // lock SPI bus access
         OSMutexLock locker(&lock_);
 
+        /// @todo The following sequence could be made more efficient by
+        ///       making a single 8-byte read transfer with the shadowed
+        ///       version of the IR register.
+
         // read status flags
         MCANInterrupt mcan_interrupt;
         mcan_interrupt.data = register_read(IR);
@@ -679,15 +705,6 @@ void *TCAN4550Can::entry()
                 // receive overrun
                 ++overrunCount;
             }
-            if (mcan_interrupt.bo)
-            {
-                if (psr.bo)
-                {
-                    // bus off
-                    ++busOffCount;
-                    state_ = CAN_STATE_BUS_OFF;
-                }
-            }
             if (mcan_interrupt.ep)
             {
                 if (psr.ep)
@@ -706,28 +723,45 @@ void *TCAN4550Can::entry()
                     state_ = CAN_STATE_ACTIVE;
                 }
             }
+            if (mcan_interrupt.bo)
+            {
+                if (psr.bo)
+                {
+                    // bus off
+                    ++busOffCount;
+                    state_ = CAN_STATE_BUS_OFF;
+                }
+            }
         }
 
         // transmission complete
         if (mcan_interrupt.tc && txCompleteMask_)
         {
-            // clear pending flag
-            txPending_ = false;
+            {
+                AtomicHolder h(this);
+                // clear pending flag
+                txPending_ = false;
+
+                // signal anyone waiting
+                txBuf->signal_condition();
+            }
 
             // disable TX buffer tranmission complete interrupt
             txCompleteMask_ = 0;
             register_write(TXBTIE, txCompleteMask_);
-            txBuf->signal_condition();
         }
 
         // received timeout
         if (mcan_interrupt.too && mcanInterruptEnable_.too)
         {
-            // clear pending flag
-            rxPending_ = false;
+            {
+                AtomicHolder h(this);
+                // clear pending flag
+                rxPending_ = false;
 
-            // signal anyone waiting
-            rxBuf->signal_condition();
+                // signal anyone waiting
+                rxBuf->signal_condition();
+            }
 
             // disable timeout interrupt
             mcanInterruptEnable_.too = 0;
