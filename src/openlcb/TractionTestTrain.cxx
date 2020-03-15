@@ -39,20 +39,31 @@
 namespace openlcb
 {
 
-LoggingTrain::LoggingTrain(uint32_t legacy_address)
+LoggingTrain::LoggingTrain(
+    uint32_t legacy_address, dcc::TrainAddressType address_type)
     : legacyAddress_(legacy_address)
+    , legacyAddressType_(address_type)
 {
-    LOG(INFO, "Created train %" PRIu32 ".", legacyAddress_);
+    LOG(INFO, "Created train %s.",
+        TractionDefs::train_node_name_from_legacy(
+            legacyAddressType_, legacyAddress_)
+            .c_str());
 }
 
 LoggingTrain::~LoggingTrain()
 {
-    LOG(INFO, "Destructed train %" PRIu32 ".", legacyAddress_);
+    LOG(INFO, "Destructed train %s.",
+        TractionDefs::train_node_name_from_legacy(
+            legacyAddressType_, legacyAddress_)
+            .c_str());
 }
 
 void LoggingTrain::set_speed(SpeedType speed)
 {
-    LOG(INFO, "train %" PRIu32 " : set speed to %c %.0f mph.", legacyAddress_,
+    LOG(INFO, "train %s : set speed to %c %.0f mph.",
+        TractionDefs::train_node_name_from_legacy(
+            legacyAddressType_, legacyAddress_)
+            .c_str(),
         speed.direction() == speed.FORWARD ? 'F' : 'R', speed.mph());
     currentSpeed_ = speed;
     estopActive_ = false;
@@ -60,8 +71,10 @@ void LoggingTrain::set_speed(SpeedType speed)
 
 SpeedType LoggingTrain::get_speed()
 {
-    LOG(INFO, "train %" PRIu32 " : get speed -> returns %c %.0f mph.",
-        legacyAddress_,
+    LOG(INFO, "train %s : get speed -> returns %c %.0f mph.",
+        TractionDefs::train_node_name_from_legacy(
+            legacyAddressType_, legacyAddress_)
+            .c_str(),
         currentSpeed_.direction() == currentSpeed_.FORWARD ? 'F' : 'R',
         currentSpeed_.mph());
     return currentSpeed_;
@@ -69,19 +82,28 @@ SpeedType LoggingTrain::get_speed()
 
 void LoggingTrain::set_emergencystop()
 {
-    LOG(INFO, "train %" PRIu32 " : set emergency stop.", legacyAddress_);
+    LOG(INFO, "train %s : set emergency stop.",
+        TractionDefs::train_node_name_from_legacy(
+            legacyAddressType_, legacyAddress_)
+            .c_str());
     estopActive_ = 0;
 }
 
 bool LoggingTrain::get_emergencystop()
 {
-    LOG(INFO, "train %" PRIu32 " : get emergency stop.", legacyAddress_);
+    LOG(INFO, "train %s : get emergency stop.",
+        TractionDefs::train_node_name_from_legacy(
+            legacyAddressType_, legacyAddress_)
+            .c_str());
     return estopActive_;
 }
 
 void LoggingTrain::set_fn(uint32_t address, uint16_t value)
 {
-    LOG(INFO, "train %" PRIu32 " : set fn %" PRIu32 " to %u.", legacyAddress_,
+    LOG(INFO, "train %s : set fn %" PRIu32 " to %u.",
+        TractionDefs::train_node_name_from_legacy(
+            legacyAddressType_, legacyAddress_)
+            .c_str(),
         address, value);
     fnValues_[address] = value;
 }
@@ -89,8 +111,11 @@ void LoggingTrain::set_fn(uint32_t address, uint16_t value)
 uint16_t LoggingTrain::get_fn(uint32_t address)
 {
     uint16_t resp = fnValues_[address];
-    LOG(INFO, "train %" PRIu32 " : get fn %" PRIu32 " -> current value is %u.",
-        legacyAddress_, address, resp);
+    LOG(INFO, "train %s : get fn %" PRIu32 " -> current value is %u.",
+        TractionDefs::train_node_name_from_legacy(
+            legacyAddressType_, legacyAddress_)
+            .c_str(),
+        address, resp);
     return resp;
 }
 
@@ -101,7 +126,7 @@ uint32_t LoggingTrain::legacy_address()
 
 dcc::TrainAddressType LoggingTrain::legacy_address_type()
 {
-    return dcc::TrainAddressType::DCC_LONG_ADDRESS;
+    return legacyAddressType_;
 }
 
 } // namespace openlcb
