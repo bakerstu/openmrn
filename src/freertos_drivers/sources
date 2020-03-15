@@ -24,7 +24,8 @@ CXXSRCS += Fileio.cxx \
            MCP2515Can.cxx \
            WifiDefs.cxx \
            PCA9685PWM.cxx \
-           SN74HC595GPO.cxx
+           SN74HC595GPO.cxx \
+           TCAN4550Can.cxx
 
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
