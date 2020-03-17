@@ -152,7 +152,7 @@ public:
             return;
         }
         /// @todo consider if we need to set the priority here.
-        sourceHub_->send(can_buf);
+        sourceHub_->send(can_buf, 0);
     }
 
 private:
