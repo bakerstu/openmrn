@@ -50,7 +50,7 @@
 #include "utils/logging.h"
 #include "utils/socket_listener.hxx"
 
-static DataBufferPool g_direct_hub_data_pool(64);
+static DataBufferPool g_direct_hub_data_pool(1460);
 DataBufferPool g_direct_hub_kbyte_pool(1024);
 
 /// A single service class that is shared between all interconnected DirectHub
@@ -527,6 +527,16 @@ public:
         {
             // Port already closed. Ignore data to send.
         }
+        {
+            AtomicHolder h(lock());
+            if (pendingTail_ && pendingTail_->buf_.try_append_from(msg->buf_))
+            {
+                // Successfully enqueued the bytes into the tail of the queue.
+                // Nothing else to do here.
+                return;
+            }
+        }
+
         /// @todo we should try to collect the bytes into a buffer first before
         /// enqueueing them.
         BufferType *b;
@@ -538,7 +548,7 @@ public:
         }
         // Checks if we need to wake up the flow.
         {
-            AtomicHolder h(pendingQueue_.lock());
+            AtomicHolder h(lock());
             if (fd_ < 0)
             {
                 // Catch race condition when port is already closed.
@@ -547,6 +557,7 @@ public:
             }
             pendingQueue_.insert_locked(b);
             totalPendingSize_ += msg->buf_.size();
+            pendingTail_ = b->data();
             if (notRunning_)
             {
                 notRunning_ = 0;
@@ -567,7 +578,7 @@ private:
     {
         HASSERT(fd_ < 0);
         {
-            AtomicHolder h(pendingQueue_.lock());
+            AtomicHolder h(lock());
             if (notRunning_)
             {
                 // Queue is empty, waiting for new entries. There will be no new
@@ -582,8 +593,16 @@ private:
 
     Action read_queue()
     {
-        BufferType *head = static_cast<BufferType *>(pendingQueue_.next().item);
-        HASSERT(head);
+        BufferType *head;
+        {
+            AtomicHolder h(lock());
+            head = static_cast<BufferType *>(pendingQueue_.next_locked().item);
+            HASSERT(head);
+            if (head->data() == pendingTail_)
+            {
+                pendingTail_ = nullptr;
+            }
+        }
         currentHead_.reset(head);
         nextToWrite_ = currentHead_->data()->buf_.head();
         nextToSkip_ = currentHead_->data()->buf_.skip();
@@ -635,7 +654,7 @@ private:
     Action check_for_new_message()
     {
         currentHead_.reset();
-        AtomicHolder h(pendingQueue_.lock());
+        AtomicHolder h(lock());
         if (pendingQueue_.empty())
         {
             if (fd_ < 0)
@@ -791,6 +810,9 @@ private:
 
     /// Contains buffers of OutputDataEntries to write.
     QueueType pendingQueue_;
+    /// Last tail pointer in the pendingQueue. If queue is empty,
+    /// nullptr. Protected by pendingQueue_.lock().
+    OutputDataEntry* pendingTail_ = nullptr;
     /// Total numberof bytes in the pendingQueue.
     size_t totalPendingSize_ = 0;
     /// 1 if the state flow is paused, waiting for the notification.
