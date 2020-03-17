@@ -32,18 +32,33 @@
  * @date 4 February 2019
  */
 
+// Ensure we only compile this code for the ESP32
+#ifdef ESP32
+
 #include "Esp32WiFiManager.hxx"
 #include "os/MDNS.hxx"
 #include "utils/FdUtils.hxx"
 
 #include <esp_event_loop.h>
 #include <esp_log.h>
+#include <esp_system.h>
 #include <esp_wifi.h>
-#include <esp_wifi_internal.h>
+
 #include <lwip/dns.h>
 #include <mdns.h>
-#include <rom/crc.h>
 #include <tcpip_adapter.h>
+
+// ESP-IDF v4+ has a slightly different directory structure to previous
+// versions.
+#ifdef ESP_IDF_VERSION_MAJOR
+// ESP-IDF v4+
+#include <esp32/rom/crc.h>
+#include <esp_private/wifi.h>
+#else
+// ESP-IDF v3.x
+#include <esp_wifi_internal.h>
+#include <rom/crc.h>
+#endif // ESP_IDF_VERSION_MAJOR
 
 using openlcb::NodeID;
 using openlcb::SimpleCanStack;
@@ -79,6 +94,15 @@ void mdns_publish(const char *name, const char *service, uint16_t port);
 /// Removes advertisement of an mDNS service name. This is not currently
 /// exposed in the MDNS class but is supported on the ESP32.
 void mdns_unpublish(const char *service);
+
+/// Splits a service name since the ESP32 mDNS library requires the service
+/// name and service protocol to be passed in individually.
+///
+/// @param service_name is the service name to be split.
+/// @param protocol_name is the protocol portion of the service name.
+///
+/// Note: service_name *WILL* be modified by this call.
+void split_mdns_service_name(string *service_name, string *protocol_name);
 
 // End of global namespace block.
 
@@ -413,8 +437,9 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
     LOG(VERBOSE, "Esp32WiFiManager::process_wifi_event(%d)", event->event_id);
 
     // We only are interested in this event if we are managing the
-    // WiFi and MDNS systems
-    if (event->event_id == SYSTEM_EVENT_STA_START && manageWiFi_)
+    // WiFi and MDNS systems and our mode includes STATION.
+    if (event->event_id == SYSTEM_EVENT_STA_START && manageWiFi_ &&
+        (wifiMode_ == WIFI_MODE_APSTA || wifiMode_ == WIFI_MODE_STA))
     {
         // Set the generated hostname prior to connecting to the SSID
         // so that it shows up with the generated hostname instead of
@@ -426,18 +451,6 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
         uint8_t mac[6];
         esp_wifi_get_mac(WIFI_IF_STA, mac);
         LOG(INFO, "[WiFi] MAC Address: %s", mac_to_string(mac).c_str());
-
-        // Initialize the mDNS system.
-        LOG(INFO, "[mDNS] Initializing mDNS system");
-        ESP_ERROR_CHECK(mdns_init());
-
-        // Set the mDNS hostname based on our generated hostname so it can be found
-        // by other nodes.
-        LOG(INFO, "[mDNS] Setting mDNS hostname to \"%s\"", hostname_.c_str());
-        ESP_ERROR_CHECK(mdns_hostname_set(hostname_.c_str()));
-
-        // Set the default mDNS instance name to the generated hostname.
-        ESP_ERROR_CHECK(mdns_instance_name_set(hostname_.c_str()));
 
         if (stationStaticIP_)
         {
@@ -500,6 +513,11 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
             "uplink.",
             IP2STR(&ip_info.ip));
 
+        // Start the mDNS system since we have an IP address, the mDNS system
+        // on the ESP32 requires that the IP address be assigned otherwise it
+        // will not start the UDP listener.
+        start_mdns_system();
+
         // Set the flag that indictes we have an IPv4 address.
         xEventGroupSetBits(wifiStatusEventGroup_, WIFI_GOTIP_BIT);
 
@@ -528,7 +546,8 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
             // track that we were connected previously.
             was_previously_connected = true;
 
-            LOG(INFO, "[WiFi] Lost connection to SSID: %s", ssid_);
+            LOG(INFO, "[WiFi] Lost connection to SSID: %s (reason:%d)", ssid_
+              , event->event_info.disconnected.reason);
             // Clear the flag that indicates we are connected to the SSID.
             xEventGroupClearBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
             // Clear the flag that indicates we have an IPv4 address.
@@ -571,6 +590,8 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
         esp_wifi_get_mac(WIFI_IF_AP, mac);
         LOG(INFO, "[SoftAP] MAC Address: %s", mac_to_string(mac).c_str());
 
+        // If the SoftAP is not configured to use a static IP it will default
+        // to 192.168.4.1.
         if (softAPStaticIP_ && wifiMode_ != WIFI_MODE_STA)
         {
             // Stop the DHCP server so we can reconfigure it.
@@ -620,6 +641,14 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
             ESP_ERROR_CHECK(
                 tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP));
         }
+
+        // If we are not operating in SoftAP mode only we can start the mDNS
+        // system now, otherwise we need to defer it until the station has
+        // received it's IP address to avoid reinitializing the mDNS system.
+        if (wifiMode_ == WIFI_MODE_AP)
+        {
+            start_mdns_system();
+        }
     }
     else if (event->event_id == SYSTEM_EVENT_AP_STACONNECTED)
     {
@@ -632,6 +661,30 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
         LOG(INFO, "[SoftAP aid:%d] %s disconnected.",
             event->event_info.sta_disconnected.aid,
             mac_to_string(event->event_info.sta_connected.mac).c_str());
+    }
+    else if (event->event_id == SYSTEM_EVENT_SCAN_DONE)
+    {
+        {
+            OSMutexLock l(&ssidScanResultsLock_);
+            uint16_t num_found{0};
+            esp_wifi_scan_get_ap_num(&num_found);
+            LOG(VERBOSE, "[WiFi] %d SSIDs found via scan", num_found);
+            ssidScanResults_.resize(num_found);
+            esp_wifi_scan_get_ap_records(&num_found, ssidScanResults_.data());
+#if LOGLEVEL >= VERBOSE
+            for (int i = 0; i < num_found; i++)
+            {
+                LOG(VERBOSE, "SSID: %s, RSSI: %d, channel: %d"
+                  , ssidScanResults_[i].ssid
+                  , ssidScanResults_[i].rssi, ssidScanResults_[i].primary);
+            }
+#endif
+        }
+        if (ssidCompleteNotifiable_)
+        {
+            ssidCompleteNotifiable_->notify();
+            ssidCompleteNotifiable_ = nullptr;
+        }
     }
 
     {
@@ -712,8 +765,15 @@ void Esp32WiFiManager::start_wifi_system()
         enable_esp_wifi_logging();
     }
 
-    // Set the WiFi mode.
-    ESP_ERROR_CHECK(esp_wifi_set_mode(wifiMode_));
+    wifi_mode_t requested_wifi_mode = wifiMode_;
+    if (wifiMode_ == WIFI_MODE_AP)
+    {
+      // override the wifi mode from AP only to AP+STA so we can perform wifi
+      // scans on demand.
+      requested_wifi_mode = WIFI_MODE_APSTA;
+    }
+    // Set the requested WiFi mode.
+    ESP_ERROR_CHECK(esp_wifi_set_mode(requested_wifi_mode));
 
     // This disables storage of SSID details in NVS which has been shown to be
     // problematic at times for the ESP32, it is safer to always pass fresh
@@ -921,7 +981,7 @@ void Esp32WiFiManager::stop_hub()
 {
     if (hub_)
     {
-        mdns_unpublish(hubServiceName_.c_str());
+        mdns_unpublish(hubServiceName_);
         LOG(INFO, "[HUB] Shutting down TCP/IP listener");
         hub_.reset(nullptr);
     }
@@ -941,7 +1001,7 @@ void Esp32WiFiManager::start_hub()
     {
         usleep(HUB_STARTUP_DELAY_USEC);
     }
-    mdns_publish(NULL, hubServiceName_.c_str(), hub_port);
+    mdns_publish(hubServiceName_, hub_port);
 }
 
 // Disconnects and shuts down the uplink connector socket if running.
@@ -983,6 +1043,8 @@ void Esp32WiFiManager::on_uplink_created(int fd, Notifiable *on_exit)
     stack_->restart_stack();
 }
 
+// Enables the ESP-IDF wifi module logging at verbose level, will also set the
+// sub-modules to verbose if they are available.
 void Esp32WiFiManager::enable_esp_wifi_logging()
 {
     esp_log_level_set("wifi", ESP_LOG_VERBOSE);
@@ -996,6 +1058,156 @@ void Esp32WiFiManager::enable_esp_wifi_logging()
 #endif // WIFI_LOG_SUBMODULE_ALL
 }
 
+// Starts a background scan of SSIDs that can be seen by the ESP32.
+void Esp32WiFiManager::start_ssid_scan(Notifiable *n)
+{
+    clear_ssid_scan_results();
+    std::swap(ssidCompleteNotifiable_, n);
+    // If there was a previous notifiable notify it now, there will be no
+    // results but that should be fine since a new scan will be started.
+    if (n)
+    {
+        n->notify();
+    }
+    // Start an active scan all channels, 120ms per channel (defaults)
+    wifi_scan_config_t cfg;
+    bzero(&cfg, sizeof(wifi_scan_config_t));
+    // The boolean flag when set to false triggers an async scan.
+    ESP_ERROR_CHECK(esp_wifi_scan_start(&cfg, false));
+}
+
+// Returns the number of SSIDs found in the last scan.
+size_t Esp32WiFiManager::get_ssid_scan_result_count()
+{
+    OSMutexLock l(&ssidScanResultsLock_);
+    return ssidScanResults_.size();
+}
+
+// Returns one SSID record from the last scan.
+const wifi_ap_record_t& Esp32WiFiManager::get_ssid_scan_result(size_t index)
+{
+    OSMutexLock l(&ssidScanResultsLock_);
+    if (index < ssidScanResults_.size())
+    {
+        return ssidScanResults_[index];
+    }
+    return defaultApRecord_;
+}
+
+// Clears all cached SSID scan results.
+void Esp32WiFiManager::clear_ssid_scan_results()
+{
+    OSMutexLock l(&ssidScanResultsLock_);
+    ssidScanResults_.clear();
+}
+
+// Advertises a service via mDNS.
+//
+// If mDNS has not yet been initialized the data will be cached and replayed
+// after mDNS has been initialized.
+void Esp32WiFiManager::mdns_publish(string service, const uint16_t port)
+{
+    {
+        OSMutexLock l(&mdnsInitLock_);
+        if (!mdnsInitialized_)
+        {
+            // since mDNS has not been initialized, store this publish until
+            // it has been initialized.
+            mdnsDeferredPublish_[service] = port;
+            return;
+        }
+    }
+
+    // Schedule the publish to be done through the Executor since we may need
+    // to retry it.
+    stack_->executor()->add(new CallbackExecutable([service, port]()
+    {
+        string service_name = service;
+        string protocol_name;
+        split_mdns_service_name(&service_name, &protocol_name);
+        esp_err_t res = mdns_service_add(
+            NULL, service_name.c_str(), protocol_name.c_str(), port, NULL, 0);
+        LOG(VERBOSE, "[mDNS] mdns_service_add(%s.%s:%d): %s."
+          , service_name.c_str(), protocol_name.c_str(), port
+          , esp_err_to_name(res));
+        // ESP_FAIL will be triggered if there is a timeout during publish of
+        // the new mDNS entry. The mDNS task runs at a very low priority on the
+        // PRO_CPU which is also where the OpenMRN Executor runs from which can
+        // cause a race condition.
+        if (res == ESP_FAIL)
+        {
+            // Send it back onto the scheduler to be retried
+            Singleton<Esp32WiFiManager>::instance()->mdns_publish(service
+                                                                , port);
+        }
+        else
+        {
+            LOG(INFO, "[mDNS] Advertising %s.%s:%d.", service_name.c_str()
+              , protocol_name.c_str(), port);
+        }
+    }));
+}
+
+// Removes advertisement of a service from mDNS.
+void Esp32WiFiManager::mdns_unpublish(string service)
+{
+    {
+        OSMutexLock l(&mdnsInitLock_);
+        if (!mdnsInitialized_)
+        {
+            // Since mDNS is not in an initialized state we can discard the
+            // unpublish event.
+            return;
+        }
+    }
+    string service_name = service;
+    string protocol_name;
+    split_mdns_service_name(&service_name, &protocol_name);
+    LOG(INFO, "[mDNS] Removing advertisement of %s.%s."
+      , service_name.c_str(), protocol_name.c_str());
+    esp_err_t res =
+        mdns_service_remove(service_name.c_str(), protocol_name.c_str());
+    LOG(VERBOSE, "[mDNS] mdns_service_remove: %s.", esp_err_to_name(res));
+}
+
+// Initializes the mDNS system on the ESP32.
+//
+// After initialization, if any services are pending publish they will be
+// published at this time.
+void Esp32WiFiManager::start_mdns_system()
+{
+    {
+        OSMutexLock l(&mdnsInitLock_);
+        // If we have already initialized mDNS we can exit early.
+        if (mdnsInitialized_)
+        {
+            return;
+        }
+
+        // Initialize the mDNS system.
+        LOG(INFO, "[mDNS] Initializing mDNS system");
+        ESP_ERROR_CHECK(mdns_init());
+
+        // Set the mDNS hostname based on our generated hostname so it can be
+        // found by other nodes.
+        LOG(INFO, "[mDNS] Setting mDNS hostname to \"%s\"", hostname_.c_str());
+        ESP_ERROR_CHECK(mdns_hostname_set(hostname_.c_str()));
+
+        // Set the default mDNS instance name to the generated hostname.
+        ESP_ERROR_CHECK(mdns_instance_name_set(hostname_.c_str()));
+
+        // Set flag to indicate we have initialized mDNS.
+        mdnsInitialized_ = true;
+    }
+
+    // Publish any deferred mDNS entries
+    for (auto & entry : mdnsDeferredPublish_)
+    {
+        mdns_publish(entry.first, entry.second);
+    }
+    mdnsDeferredPublish_.clear();
+}
+
 } // namespace openmrn_arduino
 
 /// Maximum number of milliseconds to wait for mDNS query responses.
@@ -1004,8 +1216,20 @@ static constexpr uint32_t MDNS_QUERY_TIMEOUT = 2000;
 /// Maximum number of results to capture for mDNS query requests.
 static constexpr size_t MDNS_MAX_RESULTS = 10;
 
-/// Splits a service name since the ESP32 mDNS library requires the service
-/// name and service protocol to be passed in individually.
+// Advertises an mDNS service name.
+void mdns_publish(const char *name, const char *service, uint16_t port)
+{
+    // The name parameter is unused today.
+    Singleton<Esp32WiFiManager>::instance()->mdns_publish(service, port);
+}
+
+// Removes advertisement of an mDNS service name.
+void mdns_unpublish(const char *service)
+{
+    Singleton<Esp32WiFiManager>::instance()->mdns_unpublish(service);
+}
+
+// Splits an mDNS service name.
 void split_mdns_service_name(string *service_name, string *protocol_name)
 {
     HASSERT(service_name != nullptr);
@@ -1020,32 +1244,6 @@ void split_mdns_service_name(string *service_name, string *protocol_name)
     }
 }
 
-// Advertises an mDNS service name for this node.
-void mdns_publish(const char *name, const char *service, uint16_t port)
-{
-    string service_name = service;
-    string protocol_name;
-    split_mdns_service_name(&service_name, &protocol_name);
-
-    LOG(INFO, "[mDNS] Advertising %s.%s:%d.", service_name.c_str(),
-        protocol_name.c_str(), port);
-    esp_err_t res = mdns_service_add(
-        NULL, service_name.c_str(), protocol_name.c_str(), port, NULL, 0);
-    LOG(VERBOSE, "[mDNS] mdns_service_add: %s.", esp_err_to_name(res));
-}
-
-// Removes advertisement of an mDNS service name.
-void mdns_unpublish(const char *service)
-{
-    string service_name = service;
-    string protocol_name;
-    split_mdns_service_name(&service_name, &protocol_name);
-    LOG(INFO, "[mDNS] Removing advertisement of %s.%s.", service_name.c_str(),
-        protocol_name.c_str());
-    esp_err_t res =
-        mdns_service_remove(service_name.c_str(), protocol_name.c_str());
-    LOG(VERBOSE, "[mDNS] mdns_service_remove: %s.", esp_err_to_name(res));
-}
 
 // EAI_AGAIN may not be defined on the ESP32
 #ifndef EAI_AGAIN
@@ -1257,3 +1455,5 @@ const char *gai_strerror(int __ecode)
             return "memory allocation failure";
     }
 }
+
+#endif // ESP32
