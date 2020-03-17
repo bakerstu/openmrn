@@ -342,9 +342,18 @@ public:
     Result next()
     {
         AtomicHolder h(impl_.lock());
-        return waiting ? Result() : impl_.next();
+        return next_locked();
     }
 
+    /** Get an item from the front of the queue. Caller must hold lock().
+     * @return @ref Result structure with item retrieved from queue, NULL if
+     *         no item available
+     */
+    Result next_locked()
+    {
+        return waiting ? Result() : impl_.next();
+    }
+    
     /** Get the number of pending items in the queue.
      * @param index in the list to operate on
      * @return number of pending items in the queue
