@@ -220,6 +220,7 @@ SEARCHPATH := \
   /opt/FreeRTOSPlus/TCP \
   /opt/FreeRTOSPlus/default/TCP \
   /opt/FreeRTOS/plus-tcp \
+  /opt/FreeRTOS-Plus/default/Source/FreeRTOS-Plus-TCP \
   $(HOME)/FreeRTOSPlus/Source/FreeRTOS-Plus-TCP \
   /d/FreeRTOSPlus/default/TCP \
 
