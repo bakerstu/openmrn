@@ -146,7 +146,7 @@ private:
         auto *b = txtHub_.alloc();
         b->data()->skipMember_ = &writePort_;
         b->data()->resize(av);
-        port_->read(b->data()->data(), b->data()->size());
+        port_->readBytes((uint8_t*)b->data()->data(), b->data()->size());
         txtHub_.send(b);
     }
 
