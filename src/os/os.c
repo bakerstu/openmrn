@@ -918,7 +918,7 @@ int ignore_fn(void)
     return 0;
 }
 
-#if !defined(ESP32)
+#if !defined(ARDUINO)
 
 #if !defined (__MINGW32__)
 int main(int argc, char *argv[]) __attribute__ ((weak));
