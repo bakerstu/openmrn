@@ -31,6 +31,8 @@
  * @date 30 August 2015
  */
 
+#ifdef __FreeRTOS__
+
 #ifndef _OS_CPULOAD_HXX_
 #define _OS_CPULOAD_HXX_
 
@@ -253,3 +255,4 @@ private:
 };
 
 #endif // _OS_CPULOAD_HXX_
+#endif // __FreeRTOS__

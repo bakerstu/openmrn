@@ -31,6 +31,8 @@
  * @date 30 August 2015
  */
 
+#ifdef __FreeRTOS__
+
 #include "CpuLoad.hxx"
 
 #include "os/os.h"
@@ -142,3 +144,5 @@ void cpuload_tick(unsigned irq)
 }
 
 DEFINE_SINGLETON_INSTANCE(CpuLoad);
+
+#endif // __FreeRTOS__
