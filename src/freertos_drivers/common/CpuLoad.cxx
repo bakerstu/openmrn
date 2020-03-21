@@ -31,7 +31,10 @@
  * @date 30 August 2015
  */
 
+
 #include "CpuLoad.hxx"
+
+#ifdef OPENMRN_FEATURE_THREAD_FREERTOS
 
 #include "os/os.h"
 #include "freertos_includes.h"
@@ -142,3 +145,5 @@ void cpuload_tick(unsigned irq)
 }
 
 DEFINE_SINGLETON_INSTANCE(CpuLoad);
+
+#endif // OPENMRN_FEATURE_THREAD_FREERTOS
