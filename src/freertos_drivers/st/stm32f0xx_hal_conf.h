@@ -117,7 +117,6 @@
   */
 extern const uint32_t HSEValue;
 #define HSE_VALUE HSEValue
-#endif
 
 /**
   * @brief In the following line adjust the External High Speed oscillator (HSE) Startup 
