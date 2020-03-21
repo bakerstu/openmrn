@@ -124,7 +124,7 @@ private:
         size_t to_write = writeBuffer_->data()->size() - writeOfs_;
         if (len > to_write)
             len = to_write;
-        port_->write(writeBuffer_->data()->data() + writeOfs_, len);
+        port_->write((const uint8_t*)writeBuffer_->data()->data() + writeOfs_, len);
         writeOfs_ += len;
         if (writeOfs_ >= writeBuffer_->data()->size())
         {
@@ -146,7 +146,7 @@ private:
         auto *b = txtHub_.alloc();
         b->data()->skipMember_ = &writePort_;
         b->data()->resize(av);
-        port_->readBytes((uint8_t*)b->data()->data(), b->data()->size());
+        port_->readBytes((char*)b->data()->data(), b->data()->size());
         txtHub_.send(b);
     }
 
