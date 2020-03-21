@@ -62,13 +62,13 @@ CORECFLAGS = $(ARCHOPTIMIZATION) -DTARGET_LPC2368 -D__NEWLIB__ -DDEBUG \
 
 ARM_CFLAGS = $(CORECFLAGS)
 
-CFLAGS = $(CORECFLAGS) -mthumb -Wstrict-prototypes -std=gnu99 
+CFLAGS = $(CORECFLAGS) -mthumb -Wstrict-prototypes -std=c99
 
 EXCEPT_FLAG := # -fno-rtti # -fno-exceptions
 
 # -MT"$(@:%.o=%.d)"
 CXXFLAGS = $(ARCHOPTIMIZATION) $(CORECFLAGS) $(EXCEPT_FLAG) \
-            -std=gnu++0x \
+            -std=c++14 \
            -mthumb  \
             -D__STDC_FORMAT_MACROS \
            $(CXXFLAGSENV)
