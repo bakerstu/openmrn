@@ -31,7 +31,9 @@
  * @date 30 August 2015
  */
 
-#ifdef __FreeRTOS__
+#include "openmrn_features.h"
+
+#ifdef OPENMRN_FEATURE_THREAD_FREERTOS
 
 #ifndef _OS_CPULOAD_HXX_
 #define _OS_CPULOAD_HXX_
@@ -255,4 +257,4 @@ private:
 };
 
 #endif // _OS_CPULOAD_HXX_
-#endif // __FreeRTOS__
+#endif // OPENMRN_FEATURE_THREAD_FREERTOS
