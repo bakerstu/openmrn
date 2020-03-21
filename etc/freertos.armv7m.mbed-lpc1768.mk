@@ -58,10 +58,10 @@ CORECFLAGS = -c -g $(ARCHOPTIMIZATION) -Wall -Werror -Wno-unknown-pragmas \
              -DINTERRUPT_ATTRIBUTE= -D_POSIX_C_SOURCE=200112 -specs=nano.specs
 
 
-CFLAGS =  $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  $(CFLAGSENV)
+CFLAGS =  $(CORECFLAGS) -std=c99 -Wstrict-prototypes  $(CFLAGSENV)
 # On a cortex-m3 we can compile IRQ handlers as thumb too.
 ARM_CFLAGS = $(CFLAGS)
-CXXFLAGS = $(CORECFLAGS)  -std=gnu++0x  -D_ISOC99_SOURCE -fno-exceptions  \
+CXXFLAGS = $(CORECFLAGS)  -std=c++14  -D_ISOC99_SOURCE -fno-exceptions  \
            -fno-rtti -D__STDC_FORMAT_MACROS $(CXXFLAGSENV)
 
 LDFLAGS = -g -nostdlib -nostartfiles -T target.ld -march=armv7-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/thumb2 -Xlinker -Map="$(@:%.elf=%.map)" --specs=nano.specs \
