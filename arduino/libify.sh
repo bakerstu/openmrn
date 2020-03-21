@@ -156,8 +156,6 @@ copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
 rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.hxx \
-    ${TARGET_LIB_DIR}/src/openlcb/IfTcp.cxx \
-    ${TARGET_LIB_DIR}/src/utils/HubDeviceSelect.cxx \
 
 copy_file src/freertos_drivers/arduino \
           src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \

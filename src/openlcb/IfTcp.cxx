@@ -32,6 +32,12 @@
  * @date 16 Apr 2017
  */
 
+#include "openmrn_features.h"
+
+// Only compile this if we can use select based reads in the
+// executor. TcpHubDeviceSelect is an integral part of this implementation.
+#ifdef OPENMRN_FEATURE_EXECUTOR_SELECT
+
 #include "openlcb/IfTcp.hxx"
 #include "openlcb/IfImpl.hxx"
 #include "openlcb/IfTcpImpl.hxx"
@@ -205,3 +211,5 @@ IfTcp::~IfTcp()
 }
 
 } // namespace openlcb
+
+#endif // OPENMRN_FEATURE_EXECUTOR_SELECT

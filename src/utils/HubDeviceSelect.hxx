@@ -36,9 +36,9 @@
 
 #include "openmrn_features.h"
 
-#ifndef OPENMRN_FEATURE_EXECUTOR_SELECT
-#error OS does not have implementation for Executor::select, cannot compile HubDeviceSelect.
-#endif
+// Only compile HubDeviceSelect if the OS has implementation for
+// Executor::select.
+#ifdef OPENMRN_FEATURE_EXECUTOR_SELECT
 
 #include <unistd.h>
 #include <stdio.h>
@@ -457,5 +457,8 @@ protected:
     /// being writeable.
     WriteFlow writeFlow_;
 };
+
+#endif // FEATURE_EXECUTOR_SELECT
+
 
 #endif // _UTILS_HUBDEVICESELECT_HXX_
