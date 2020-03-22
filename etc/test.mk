@@ -65,7 +65,7 @@ $(TESTBINS): $(OBJS) $(TESTOBJS) $(FULLPATHLIBS) $(TESTOBJSEXTRA)
 	$(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 
 $(TESTOUTPUTS): %.testout : %.test
-	(cd lcovdir; ../$< --gtest_death_test_style=threadsafe && touch $@)
+	(cd lcovdir; ../$< $(TESTARGS) --gtest_death_test_style=threadsafe && touch $@)
 
 gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
 	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@
