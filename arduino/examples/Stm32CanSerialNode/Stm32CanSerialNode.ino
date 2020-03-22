@@ -60,6 +60,8 @@ static constexpr uint64_t NODE_ID = UINT64_C(0x050101011824);
 Stm32Can Can("/dev/can0");
 OpenMRN openmrn(NODE_ID);
 
+OVERRIDE_CONST_TRUE(gc_generate_newlines);
+
 namespace openlcb {
 /// These definitions tell how the Node will appear on the OpenLCB bus for a
 /// network browser.
