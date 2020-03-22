@@ -37,6 +37,10 @@
 #include <OpenMRNLite.h>
 
 /// Which serial port to use.
+/// =========================
+/// IMPORTANT: TO USE THIS SKETCH, YOU MUST SET Tools->USB
+/// Support TO CDC (either one).
+/// =========================
 #define SERIAL_PORT SerialUSB
 
 /// Specifies which Stm32 Pin should be used for CAN_TX signal. The default
