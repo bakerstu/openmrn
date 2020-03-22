@@ -162,6 +162,7 @@ copy_file src/freertos_drivers/arduino \
           src/freertos_drivers/common/GpioWrapper.hxx \
           src/freertos_drivers/common/CpuLoad.{hxx,cxx} \
           src/freertos_drivers/common/WifiDefs.{hxx,cxx} \
+          src/freertos_drivers/common/libatomic.c \
           src/freertos_drivers/arduino/*
 
 copy_file src/freertos_drivers/esp32 \
