@@ -741,6 +741,7 @@ extern unsigned critical_nesting;
 extern uint32_t SystemCoreClock;
 }
 #define cm3_cpu_clock_hz SystemCoreClock
+#define cpu_clock_hz SystemCoreClock
 
 #if !defined(ESP32)
 

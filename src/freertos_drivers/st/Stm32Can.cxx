@@ -500,6 +500,11 @@ void USB_LP_CAN_RX0_IRQHandler(void)
 {
     Stm32Can::instances[0]->rx_interrupt_handler();
 }
+void CEC_CAN_IRQHandler(void)
+{
+    Stm32Can::instances[0]->rx_interrupt_handler();
+    Stm32Can::instances[0]->tx_interrupt_handler();
+}
 } // extern "C"
 
 #endif
