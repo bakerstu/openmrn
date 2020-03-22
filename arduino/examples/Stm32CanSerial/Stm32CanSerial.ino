@@ -35,7 +35,6 @@
 
 #include <Arduino.h>
 #include <OpenMRNLite.h>
-#include "freertos_drivers/stm32/Stm32Can.hxx"
 
 /// Which serial port to use.
 #define SERIAL_PORT Serial
@@ -57,7 +56,7 @@ Stm32Can Can("/dev/can0");
 
 OVERRIDE_CONST_TRUE(gc_generate_newlines);
 
-/// These objects perform the crossbar siwtching of CAN frames.
+/// These objects perform the crossbar switching of CAN frames.
 Executor<1> openmrn_executor{NO_THREAD()};
 Service openmrn_service(&openmrn_executor);
 CanHubFlow openmrn_can_hub(&openmrn_service);

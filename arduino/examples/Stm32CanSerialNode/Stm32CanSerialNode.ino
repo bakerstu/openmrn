@@ -35,7 +35,6 @@
 
 #include <Arduino.h>
 #include <OpenMRNLite.h>
-#include "freertos_drivers/stm32/Stm32Can.hxx"
 
 /// Which serial port to use.
 #define SERIAL_PORT Serial

@@ -732,7 +732,7 @@ private:
     /** handle to event object */
     EventGroupHandle_t event;
 };
-#elif defined(ARDUINO)
+#elif defined(ARDUINO) && !defined(ESP32)
 
 typedef uint32_t OSEventType;
 
@@ -740,10 +740,9 @@ extern "C" {
 extern unsigned critical_nesting;
 extern uint32_t SystemCoreClock;
 }
+
 #define cm3_cpu_clock_hz SystemCoreClock
 #define cpu_clock_hz SystemCoreClock
-
-#if !defined(ESP32)
 
 #define portENTER_CRITICAL()                                                   \
     do                                                                         \
@@ -767,8 +766,6 @@ extern uint32_t SystemCoreClock;
 
 #define configKERNEL_INTERRUPT_PRIORITY (0xa0)
 
-#endif // ESP32
-
-#endif  // freertos
+#endif  // freertos or arduino/esp32
 
 #endif /* _OS_OS_HXX_ */
