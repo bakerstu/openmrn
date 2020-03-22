@@ -77,6 +77,12 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #endif // ESP32
 
+#ifdef ARDUINO_ARCH_STM32
+
+#include "freertos_drivers/stm32/Stm32Can.hxx"
+
+#endif
+
 namespace openmrn_arduino {
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN

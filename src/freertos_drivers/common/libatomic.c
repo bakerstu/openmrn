@@ -35,6 +35,7 @@
 
 #include <stdint.h>
 
+#if defined(STM32F0xx) || (!defined(ARDUINO) && !defined(ESP32))
 // On Cortex-M0 the only way to do atomic operation is to disable interrupts.
 
 /// Disables interrupts and saves the interrupt enable flag in a register.
@@ -62,3 +63,5 @@ uint8_t __atomic_exchange_1(uint8_t *ptr, uint8_t val, int memorder)
     REL_LOCK();
     return ret;
 }
+
+#endif // guard for arduino compilation
