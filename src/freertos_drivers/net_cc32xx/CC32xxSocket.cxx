@@ -44,11 +44,13 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <ifaddrs.h>
+#include <sys/socket.h>
 
 // Simplelink includes
 #include <ti/drivers/net/wifi/simplelink.h>
 
 #include "utils/format_utils.hxx"
+#include "utils/logging.h"
 
 /// @todo (Stuart Baker) since there is only a max of 16 sockets, would it be
 /// more memory efficient to just allocate all the memory statically as an
@@ -502,6 +504,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
 
     if (result < 0)
     {
+        LOG_ERROR("sl socket write return error %d", result);
         switch (result)
         {
             case SL_ERROR_BSD_SOC_ERROR:
@@ -569,6 +572,22 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
                                            sizeof(timeval));
                     break;
                 }
+                case SO_RCVBUF:
+                {
+                    SlSocklen_t sl_option_len = option_len;
+
+                    result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET, SL_SO_RCVBUF,
+                        option_value, sl_option_len);
+                    break;
+                }
+                case SO_KEEPALIVETIME:
+                {
+                    SlSocklen_t sl_option_len = option_len;
+
+                    result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
+                        SL_SO_KEEPALIVETIME, option_value, sl_option_len);
+                    break;
+                }
             }
             break;
         case IPPROTO_TCP:
@@ -578,7 +597,7 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
                     errno = EINVAL;
                     return -1;
                 case TCP_NODELAY:
-                    /* CC32xx does not care about Nagel algorithm, ignore it */
+                    /* CC32xx does not care about Nagle algorithm, ignore it */
                     result = 0;
                     break;
             }
@@ -649,6 +668,24 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
                     tm->tv_sec = timeval.tv_sec;
                     tm->tv_usec = timeval.tv_usec;
                     *option_len = sizeof(struct timeval);
+                    break;
+                }
+                case SO_RCVBUF:
+                {
+                    SlSocklen_t sl_option_len = *option_len;
+
+                    result = sl_GetSockOpt(s->sd, SL_SOL_SOCKET, SL_SO_RCVBUF,
+                        option_value, &sl_option_len);
+                    *option_len = sl_option_len;
+                    break;
+                }
+                case SO_KEEPALIVETIME:
+                {
+                    SlSocklen_t sl_option_len = *option_len;
+
+                    result = sl_GetSockOpt(s->sd, SL_SOL_SOCKET,
+                        SL_SO_KEEPALIVETIME, option_value, &sl_option_len);
+                    *option_len = sl_option_len;
                     break;
                 }
             }

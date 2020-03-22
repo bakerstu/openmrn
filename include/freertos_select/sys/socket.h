@@ -61,16 +61,22 @@ extern "C" {
 #define PF_INET6    AF_INET6
 
 /** socket option category */
-#define SOL_SOCKET (1)
+#define SOL_SOCKET   (1)
 
 /** socket option to reuse address */
 #define SO_REUSEADDR (2)
     
 /** socket option receive timout */
-#define SO_RCVTIMEO   (3)
+#define SO_RCVTIMEO  (3)
     
 /** socket option send timeout */
-#define SO_SNDTIMEO   (4)
+#define SO_SNDTIMEO  (4)
+
+/** socket option for receive buffer size */
+#define SO_RCVBUF    (8)
+
+/** socket option to set TCP keepalive timeout */
+#define SO_KEEPALIVETIME (1001)
 
 /** IPv4 socket address */
 struct sockaddr
