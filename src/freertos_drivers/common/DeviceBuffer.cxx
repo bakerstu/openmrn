@@ -34,7 +34,8 @@
 
 #include "DeviceBuffer.hxx"
 
-#ifndef ARDUINO
+#include "openmrn_features.h"
+#if OPENMRN_FEATURE_DEVTAB
 
 #include <sys/select.h>
 
@@ -61,4 +62,4 @@ void DeviceBufferBase::block_until_condition(File *file, bool read)
     ::select(fd + 1, read ? &fds : NULL, read ? NULL : &fds, NULL, NULL);
 }
 
-#endif
+#endif // OPENMRN_FEATURE_DEVTAB
