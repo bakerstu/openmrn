@@ -24,10 +24,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Stm32CanSerial.ino
+ * \file Stm32BasicNode.ino
  * 
- * Example Arduino sketch for the Stm32 showing how to make a Serial-CAN
- * adapter with an OpenLCB node.
+ * Example Arduino sketch for the Stm32 showing how to make a simple CAN-bus
+ * connected node.
  *
  * @author Balazs Racz
  * @date 22 March 2020
@@ -36,8 +36,12 @@
 #include <Arduino.h>
 #include <OpenMRNLite.h>
 
-/// Which serial port to use.
-#define SERIAL_PORT Serial
+#include "openlcb/PolledProducer.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "utils/Debouncer.hxx"
+
+#define USE_CAN_PORT
+// #define USE_SERIAL_PORT Serial
 
 /// Specify how fast the serial port should be going. In order not to lose
 /// packets on a fully loaded CAN-bus, this has to be at least 460800, but the
@@ -54,9 +58,11 @@
 
 /// This is the OpenLCB Node ID. It must be coming from the Node ID range
 /// assigned to the developer (get a range assigned to you via openlcb.org).
-static constexpr uint64_t NODE_ID = UINT64_C(0x050101011824);
+static constexpr uint64_t NODE_ID = UINT64_C(0x050101011825);
 
+#ifdef USE_CAN_PORT
 Stm32Can Can("/dev/can0");
+#endif
 OpenMRN openmrn(NODE_ID);
 
 OVERRIDE_CONST_TRUE(gc_generate_newlines);
@@ -67,21 +73,44 @@ namespace openlcb {
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4,
     "OpenMRN",
-    "CAN-Serial Arduino Stm32",
+    "BasicNode Arduino Stm32",
     BOARD_NAME,
     "1.00"
 };
 } // namespace openlcb
 
+GPIO_PIN(BUTTON, GpioInputPU, USER_BTN);
+GPIO_PIN(LED, GpioOutputSafeLow, LED_BUILTIN);
+
+static constexpr uint64_t BUTTON_EVENT_ON = (NODE_ID << 16) | 0;
+static constexpr uint64_t BUTTON_EVENT_OFF = (NODE_ID << 16) | 1;
+
+static constexpr uint64_t LED_EVENT_ON = (NODE_ID << 16) | 2;
+static constexpr uint64_t LED_EVENT_OFF = (NODE_ID << 16) | 3;
+
+openlcb::PolledProducer<QuiesceDebouncer, openlcb::GPIOBit> button_producer(3,
+    openmrn.stack()->node(), BUTTON_EVENT_ON, BUTTON_EVENT_OFF,
+    BUTTON_Pin::instance());
+
+openlcb::RefreshLoop producer_refresh_loop(openmrn.stack()->node(),
+    {
+        &button_producer,
+    });
+
 /// Arduino setup routine. Initializes the OpenLCB software and connects the
 /// CAN-bus and the serial port.
 void setup() {
-  SERIAL_PORT.begin(SERIAL_BAUD_RATE);
-  // initialize digital pin LED_BUILTIN as an output.
-  pinMode(LED_BUILTIN, OUTPUT);
-  openmrn.add_gridconnect_port(&SERIAL_PORT);
+#ifdef USE_SERIAL_PORT    
+  USE_SERIAL_PORT.begin(SERIAL_BAUD_RATE);
+  openmrn.add_gridconnect_port(&USE_SERIAL_PORT);
+#endif
+
+  BUTTON_Pin::hw_init();
+  LED_Pin::hw_init();
+#ifdef USE_CAN_PORT  
   arduino_can_pinmap(CAN_TX_PIN, CAN_RX_PIN);
   openmrn.add_can_port(&Can);
+#endif  
   openmrn.begin();
 }
 
