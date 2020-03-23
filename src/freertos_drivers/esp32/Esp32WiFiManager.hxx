@@ -204,7 +204,7 @@ public:
     ///
     /// @param index is the index of the SSID to retrieve. If the index is
     /// invalid or no records exist a blank wifi_ap_record_t will be returned.
-    const wifi_ap_record_t& get_ssid_scan_result(size_t index);
+    wifi_ap_record_t get_ssid_scan_result(size_t index);
 
     /// Clears the SSID scan results.
     void clear_ssid_scan_results();
@@ -355,10 +355,6 @@ private:
 
     /// WiFi SSID scan results holder.
     std::vector<wifi_ap_record_t> ssidScanResults_;
-
-    /// Default SSID record to return when there are no records or the index
-    /// provided to @ref get_ssid_scan_result is invalid.
-    const wifi_ap_record_t defaultApRecord_{};
 
     /// Protects ssidScanResults_ vector.
     OSMutex ssidScanResultsLock_;

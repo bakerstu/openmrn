@@ -1084,14 +1084,15 @@ size_t Esp32WiFiManager::get_ssid_scan_result_count()
 }
 
 // Returns one SSID record from the last scan.
-const wifi_ap_record_t& Esp32WiFiManager::get_ssid_scan_result(size_t index)
+wifi_ap_record_t Esp32WiFiManager::get_ssid_scan_result(size_t index)
 {
     OSMutexLock l(&ssidScanResultsLock_);
+    wifi_ap_record_t record = wifi_ap_record_t();
     if (index < ssidScanResults_.size())
     {
-        return ssidScanResults_[index];
+        record = ssidScanResults_[index];
     }
-    return defaultApRecord_;
+    return record;
 }
 
 // Clears all cached SSID scan results.
