@@ -868,7 +868,7 @@ public:
         return result;
     }
 
-#if !(defined(ESP_NONOS) || defined(ARDUINO))
+#if OPENMRN_FEATURE_SEM_TIMEDWAIT
     /** Wait for an item from the front of the queue.
      * @param timeout time to wait in nanoseconds
      * @return item retrieved from queue, else NULL with errno set:
