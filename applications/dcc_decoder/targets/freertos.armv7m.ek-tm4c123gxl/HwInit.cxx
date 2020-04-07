@@ -61,6 +61,7 @@ struct Debug
 {
     typedef DummyPin DccPacketDelay;
     typedef DummyPin DccDecodeInterrupts;
+    typedef DummyPin DccPacketFinishedHook;
     typedef DummyPin CapTimerOverflow;
 };
 
