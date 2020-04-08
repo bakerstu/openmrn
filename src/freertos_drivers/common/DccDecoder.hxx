@@ -24,34 +24,30 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TivaNRZ.hxx
+ * \file DccDecoder.hxx
  *
- * Device driver for TivaWare to decode DCC track signal.
+ * Generic device driver for decoding DCC track signal using a timer resource
+ * in capture mode.
  *
  * @author Balazs Racz
- * @date 29 Nov 2014
+ * @date 8 April 2020
  */
 
-#include "TivaDCC.hxx"  // for FixedQueue
-#include "TivaGPIO.hxx" // for pin definitions
 #include "RailcomDriver.hxx" // for debug pins
 #include "dcc/Receiver.hxx"
 
-typedef DummyPin PIN_RailcomCutout;
-
 /**
-  Device driver for decoding a DCC signal on a TI Tiva class microcontroller.
+  Device driver for decoding a DCC signal using a Timer resource.
  
-  This driver exports a filesystem device node, but that file node is not
-  usable for reading or writing anything at the moment. The only feature
-  supported by this device driver right now is that it is able to tell a
-  RailcomDriver when the railcom cutout is supposed to start, when we're in the
-  middle and when it is over. This is necessary for the correct functionality
-  of the railcom driver.
+  This driver exports a filesystem device node, which will be readable for
+  decoded DCC packets (read into struct DCCPacket). All writes fail.
 
-  @todo: implement actual packet decoding and sending back to the application
-  layer.
+  The additional feature supported by this device driver is that it is able to
+  tell a RailcomDriver when the railcom cutout is supposed to start, when we're
+  in the middle and when it is over. This is necessary for the correct
+  functionality of the railcom driver.
 
+  @todo describe usage.
   Usage: Define a structure declaring your hardware information. See below for
   what you need to define in there. Instantiate the device driver and pass the
   pointer to the railcom driver to the constructor. There is no need to touch
@@ -81,7 +77,7 @@ struct DCCDecode
 
 };
  */
-template <class HW> class TivaDccDecoder : public Node
+template <class Module> class DccDecoder : public Node
 {
 public:
     /// Constructor.
@@ -89,9 +85,9 @@ public:
     /// @param name name of device node, e.g. "/dev/dccdecode0"
     /// @param railcom_driver is the associated railcom driver, which will get
     /// the callbacks from the timing of the acquired signal.
-    TivaDccDecoder(const char *name, RailcomDriver *railcom_driver);
+    DccDecoder(const char *name, RailcomDriver *railcom_driver);
 
-    ~TivaDccDecoder()
+    ~DccDecoder()
     {
         inputData_->destroy();
     }
@@ -200,67 +196,27 @@ private:
         MAP_TimerEnable(HW::TIMER_BASE, HW::SAMPLE_TIMER);
         }*/
 
+    /// Module::set_cap_timer_delay_usec(int usec)
     /// Delays a give number of usec using the capture timer feature. Needed
     /// for the timing ofthe railcom cutout.
     /// @param usec how much to delay.
-    void set_cap_timer_delay_usec(int usec)
-    {
-        Debug::DccPacketDelay::toggle();
-        uint32_t new_match_v = usec * 80;
-        MAP_TimerMatchSet(HW::TIMER_BASE, HW::RCOM_TIMER, 0xfffe - new_match_v);
-        MAP_TimerPrescaleMatchSet(HW::TIMER_BASE, HW::RCOM_TIMER, 0);
-    }
 
+    /// Module::set_cap_timer_capture()
     /// Sets the timer to capture mode. Needed for the digitization of DCC
     /// signal bits.
-    void set_cap_timer_capture()
-    {
-        MAP_TimerDisable(HW::TIMER_BASE, HW::TIMER);
-        MAP_TimerIntDisable(
-            HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
-        MAP_TimerIntClear(
-            HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
 
-        MAP_TimerConfigure(
-            HW::TIMER_BASE, HW::CFG_TIM_CAPTURE | HW::CFG_RCOM_TIMER);
-        MAP_TimerControlEvent(
-            HW::TIMER_BASE, HW::TIMER, TIMER_EVENT_BOTH_EDGES);
-        MAP_TimerLoadSet(HW::TIMER_BASE, HW::TIMER, HW::TIMER_MAX_VALUE);
-        MAP_TimerPrescaleSet(HW::TIMER_BASE, HW::TIMER, HW::PS_MAX);
-
-        lastTimerValue_ = HW::TIMER_MAX_VALUE;
-        nextSample_ = lastTimerValue_ - HW::SAMPLE_PERIOD_CLOCKS;
-
-        MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
-        MAP_TimerEnable(HW::TIMER_BASE, HW::TIMER);
-    }
-
+    /// Module::set_cap_timer_time()
     /// Sets the timer to oneshot (timer) mode.
-    void set_cap_timer_time()
-    {
-        MAP_TimerDisable(HW::TIMER_BASE, HW::RCOM_TIMER);
-
-        MAP_TimerIntDisable(
-            HW::TIMER_BASE, HW::TIMER_RCOM_MATCH);
-        MAP_TimerIntClear(
-            HW::TIMER_BASE, HW::TIMER_RCOM_MATCH);
-        HW::clr_tim_mrsu();
-        MAP_TimerLoadSet(HW::TIMER_BASE, HW::RCOM_TIMER, 0xfffe);
-        MAP_TimerPrescaleSet(HW::TIMER_BASE, HW::RCOM_TIMER, 0);
-
-        MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_RCOM_MATCH);
-        MAP_TimerEnable(HW::TIMER_BASE, HW::RCOM_TIMER);
-    }
 
     typedef DCCPacket input_data_type;
     DeviceBuffer<DCCPacket>* inputData_{
-        DeviceBuffer<DCCPacket>::create(HW::Q_SIZE)};
+        DeviceBuffer<DCCPacket>::create(Module::Q_SIZE)};
     DCCPacket* nextPacketData_{nullptr};
     bool nextPacketFilled_{false};
-    /// Holds the value ofthe free running timer at the time we captured the
+    /// Holds the value of the free running timer at the time we captured the
     /// previous edge.
     uint32_t lastTimerValue_;
-    /// Holds the timer value when we should be taking an occupnacy sample the
+    /// Holds the timer value when we should be taking an occupancy sample the
     /// next time.
     uint32_t nextSample_;
     /// true if the next edge we shall sample.
@@ -276,6 +232,8 @@ private:
     bool prepCutout_ = false;
     /// Which window of the cutout we are in.
     uint32_t cutoutState_;
+    /// How many times did we lose a DCC packet due to no buffer available.
+    uint32_t overflowCount_{0};
 
     /// notified for cutout events.
     RailcomDriver *railcomDriver_;
@@ -290,29 +248,30 @@ private:
     /// How many usec the railcom has to the end of the window
     static const auto RAILCOM_CUTOUT_END = 470;
 
-    DISALLOW_COPY_AND_ASSIGN(TivaDccDecoder);
+    DISALLOW_COPY_AND_ASSIGN(DccDecoder);
 };
 
-template <class HW>
-TivaDccDecoder<HW>::TivaDccDecoder(const char *name,
+template <class Module>
+DccDecoder<Module>::DccDecoder(const char *name,
                                    RailcomDriver *railcom_driver)
     : Node(name)
     , railcomDriver_(railcom_driver)
 {
-    MAP_SysCtlPeripheralEnable(HW::TIMER_PERIPH);
-    HW::NRZ_Pin::hw_init();
-    MAP_GPIOPadConfigSet(HW::NRZ_Pin::GPIO_BASE, HW::NRZ_Pin::GPIO_PIN,
-                         GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-
+    Module::NRZ_Pin::hw_init();
+    Module::module_init();
     disable();
 }
 
-template <class HW> void TivaDccDecoder<HW>::enable()
+template <class Module> void DccDecoder<Module>::enable()
 {
     disable();
-    MAP_TimerClockSourceSet(HW::TIMER_BASE, TIMER_CLOCK_SYSTEM);
-    MAP_TimerControlStall(HW::TIMER_BASE, HW::TIMER, true);
 
+    Module::module_enable();
+    Module::set_cap_timer_capture();
+
+    lastTimerValue_ = Module::TIMER_MAX_VALUE;
+    nextSample_ = lastTimerValue_ - Module::SAMPLE_PERIOD_CLOCKS;
+    
     if (!nextPacketData_)
     {
         if (inputData_->space())
@@ -320,62 +279,39 @@ template <class HW> void TivaDccDecoder<HW>::enable()
             inputData_->data_write_pointer(&nextPacketData_);
         }
     }
-
-    set_cap_timer_capture();
-
-    MAP_TimerIntEnable(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
-
-    MAP_IntPrioritySet(HW::TIMER_INTERRUPT, 0x20);
-    MAP_IntPrioritySet(HW::RCOM_INTERRUPT, 0x20);
-    MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
-    MAP_IntEnable(HW::OS_INTERRUPT);
-    MAP_IntEnable(HW::TIMER_INTERRUPT);
-    MAP_IntEnable(HW::RCOM_INTERRUPT);
 }
 
-template <class HW> void TivaDccDecoder<HW>::disable()
+template <class Module> void DccDecoder<Module>::disable()
 {
-    MAP_IntDisable(HW::TIMER_INTERRUPT);
-    MAP_IntDisable(HW::RCOM_INTERRUPT);
-    MAP_IntDisable(HW::OS_INTERRUPT);
-    MAP_TimerDisable(HW::TIMER_BASE, HW::TIMER);
-    MAP_TimerDisable(HW::TIMER_BASE, HW::RCOM_TIMER);
+    Module::module_disable();
 }
 
-template <class HW>
-__attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
+template <class Module>
+__attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
 {
     Debug::DccDecodeInterrupts::set(true);
-    // get masked interrupt status
-    auto status = MAP_TimerIntStatus(HW::TIMER_BASE, true);
-    // TODO(balazs.racz): Technically it is possible that the timer reload
-    // happens between the event match and the interrupt entry. In this case we
-    // will incorrectly add a full cycle to the event length.
-    if (status & HW::TIMER_CAP_EVENT)
-    {
+    if (Module::int_get_and_clear_capture_event()) {
+        // We have a capture event at hand.
         //Debug::DccDecodeInterrupts::toggle();
-        HW::cap_event_hook();
-        MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_CAP_EVENT);
-        uint32_t raw_new_value;
-        raw_new_value = MAP_TimerValueGet(HW::TIMER_BASE, HW::TIMER);
+        uint32_t raw_new_value = Module::get_capture_counter();
         uint32_t old_value = lastTimerValue_;
         if (raw_new_value > old_value) {
             // Timer has overflowed.
             if (nextSample_ < old_value) {
-                nextSample_ += HW::TIMER_MAX_VALUE;
+                nextSample_ += Module::TIMER_MAX_VALUE;
             }
-            old_value += HW::TIMER_MAX_VALUE;
+            old_value += Module::TIMER_MAX_VALUE;
             waitSampleForOverflow_ = false;
             Debug::CapTimerOverflow::set(false);
         }
         if (raw_new_value < nextSample_ && !waitSampleForOverflow_) {
             sampleActive_ = true;
-            if (nextSample_ <= HW::SAMPLE_PERIOD_CLOCKS) {
-                nextSample_ += HW::TIMER_MAX_VALUE;
+            if (nextSample_ <= Module::SAMPLE_PERIOD_CLOCKS) {
+                nextSample_ += Module::TIMER_MAX_VALUE;
                 waitSampleForOverflow_ = true;
                 Debug::CapTimerOverflow::set(true);
             }
-            nextSample_ -= HW::SAMPLE_PERIOD_CLOCKS;
+            nextSample_ -= Module::SAMPLE_PERIOD_CLOCKS;
         }
         uint32_t new_value = old_value - raw_new_value;
         bool cutout_just_finished = false;
@@ -383,7 +319,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         if (decoder_.before_dcc_cutout())
         {
             prepCutout_ = true;
-            HW::dcc_before_cutout_hook();
+            Module::dcc_before_cutout_hook();
         }
         // If we are at the second half of the last 1 bit and the
         // value of the input pin is 1, then we cannot recognize when
@@ -391,11 +327,11 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
         // never get the DCC cutout signal. We will therefore start
         // the cutout by hand with a bit of delay.
         else if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT &&
-                 true) //HW::NRZ_Pin::get())
+                 true) //Module::NRZ_Pin::get())
         {
             //Debug::RailcomDriverCutout::set(true);
-            set_cap_timer_time();
-            set_cap_timer_delay_usec(RAILCOM_CUTOUT_PRE);
+            Module::set_cap_timer_time();
+            Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_PRE);
             inCutout_ = true;
             cutoutState_ = 0;
         }
@@ -404,7 +340,6 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
             //railcomDriver_->start_cutout();
             //inCutout_ = true;
         }
-        /// TODO(balazs.racz) recognize middle cutout.
         else if (decoder_.state() == dcc::DccDecoder::DCC_PACKET_FINISHED)
         {
             Debug::DccPacketFinishedHook::set(true);
@@ -412,7 +347,7 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
                 //railcomDriver_->end_cutout();
                 inCutout_ = false;
             }
-            HW::dcc_packet_finished_hook();
+            Module::dcc_packet_finished_hook();
             prepCutout_ = false;
             cutout_just_finished = true;
             // Record packet to send back to userspace
@@ -426,53 +361,55 @@ __attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::interrupt_handler()
                 nextPacketData_ = nullptr;
                 nextPacketFilled_ = true;
                 
-                MAP_IntPendSet(HW::OS_INTERRUPT);
+                Module::trigger_os_interrupt();
+            }
+            else
+            {
+                // Lost DCC packet.
+                overflowCount_++;
             }
             Debug::DccPacketFinishedHook::set(false);
         }
         lastTimerValue_ = raw_new_value;
-        if (sampleActive_ && HW::NRZ_Pin::get() &&
+        if (sampleActive_ && Module::NRZ_Pin::get() &&
             !prepCutout_ && !cutout_just_finished)
         {
             sampleActive_ = false;
             // The first positive edge after the sample timer expired (but
             // outside of the cutout).
             railcomDriver_->feedback_sample();
-            HW::after_feedback_hook();
+            Module::after_feedback_hook();
         }
     }
 }
 
-template <class HW>
+template <class Module>
 __attribute__((optimize("-O3"))) void
-TivaDccDecoder<HW>::rcom_interrupt_handler()
+DccDecoder<Module>::rcom_interrupt_handler()
 {
     Debug::DccDecodeInterrupts::set(true);
-    auto status = MAP_TimerIntStatus(HW::TIMER_BASE, true);
-    if (status & HW::TIMER_RCOM_MATCH)
-    {
-        MAP_TimerIntClear(HW::TIMER_BASE, HW::TIMER_RCOM_MATCH);
+    if (Module::int_get_and_clear_delay_event()) {
         // Debug::RailcomDriverCutout::set(false);
         switch (cutoutState_)
         {
             case 0:
             {
-                set_cap_timer_delay_usec(RAILCOM_CUTOUT_MID);
+                Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_MID);
                 railcomDriver_->start_cutout();
                 cutoutState_ = 1;
                 break;
             }
             case 1:
             {
-                set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
+                Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
                 railcomDriver_->middle_cutout();
                 cutoutState_ = 2;
                 break;
             }
             default:
             {
-                set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
-                MAP_TimerDisable(HW::TIMER_BASE, HW::RCOM_TIMER);
+                Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
+                Module::stop_cap_timer_time();
                 railcomDriver_->end_cutout();
                 inCutout_ = false;
                 break;
@@ -482,8 +419,8 @@ TivaDccDecoder<HW>::rcom_interrupt_handler()
     Debug::DccDecodeInterrupts::set(false);
 }
 
-template <class HW>
-__attribute__((optimize("-O3"))) void TivaDccDecoder<HW>::os_interrupt_handler()
+template <class Module>
+__attribute__((optimize("-O3"))) void DccDecoder<Module>::os_interrupt_handler()
 {
     if (nextPacketFilled_) {
         inputData_->advance(1);
