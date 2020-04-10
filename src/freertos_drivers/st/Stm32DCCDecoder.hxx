@@ -88,7 +88,10 @@ public:
     static constexpr uint32_t SAMPLE_PERIOD_CLOCKS = HW::SAMPLE_PERIOD_TICKS;
     /// Length of the device queue.
     static constexpr unsigned Q_SIZE = HW::Q_SIZE;
-    
+
+    /// We setthe timer prescaler to go at one tick per usec.
+    static constexpr uint32_t TICKS_PER_USEC = 1;
+
     /// Called once during construction time.
     static void module_init();
 
@@ -318,6 +321,8 @@ template <class HW> void Stm32DccTimerModule<HW>::module_enable()
 
 template <class HW> void Stm32DccTimerModule<HW>::module_disable()
 {
+    capture_timer_handle()->Instance = capture_timer();
+    usec_timer_handle()->Instance = usec_timer();
     NVIC_DisableIRQ(HW::CAPTURE_IRQn);
     NVIC_DisableIRQ(HW::TIMER_IRQn);
     NVIC_DisableIRQ(HW::OS_IRQn);

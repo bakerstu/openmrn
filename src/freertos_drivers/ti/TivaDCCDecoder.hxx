@@ -97,6 +97,9 @@ public:
     /// Length of the device queue.
     static constexpr unsigned Q_SIZE = HW::Q_SIZE;
 
+    /// Timer clocks per usec.
+    static constexpr uint32_t TICKS_PER_USEC = configCPU_CLOCK_HZ / 1000000;
+
     /// Called once during construction time.
     static void module_init();
 

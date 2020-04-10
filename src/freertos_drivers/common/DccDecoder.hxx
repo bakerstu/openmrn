@@ -240,7 +240,7 @@ private:
     RailcomDriver *railcomDriver_;
 
     /// DCC packet decoder state machine and internal state.
-    dcc::DccDecoder decoder_;
+    dcc::DccDecoder decoder_{Module::TICKS_PER_USEC};
 
     /// How many usec the railcom has before the cutout
     static const auto RAILCOM_CUTOUT_PRE = 26;
