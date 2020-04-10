@@ -42,12 +42,26 @@
 #include "stm32f0xx_hal_gpio_ex.h"
 #include "stm32f0xx_hal_dma.h"
 #include "stm32f0xx_hal_tim.h"
+#include "stm32f0xx_hal.h"
 
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
 #include "Stm32EEPROMEmulation.hxx"
 #include "hardware.hxx"
+#include "DummyGPIO.hxx"
+
+
+struct Debug
+{
+    typedef DummyPin DccPacketDelay;
+    typedef DummyPin DccDecodeInterrupts;
+    typedef DummyPin DccPacketFinishedHook;
+    typedef DummyPin CapTimerOverflow;
+};
+
+#include "Stm32DCCDecoder.hxx"
+
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -68,6 +82,56 @@ static Stm32Can can0("/dev/can0");
 static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
 
 const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
+
+struct DccDecoderHW
+{
+    using NRZ_Pin = ::DCC_IN_Pin;
+    /// Alternate Mode selector for the DCC_IN pin.
+    static constexpr auto CAPTURE_AF_MODE = GPIO_AF1_TIM3;
+    
+    /// We have a 16-bit timer resource that counts down.
+    static constexpr uint32_t TIMER_MAX_VALUE = 0xffff;
+
+    /// Take a feedback sample every 3 milliseconds. The clock of the timer
+    /// ticks every usec.
+    static constexpr uint32_t SAMPLE_PERIOD_TICKS = 3000;
+    
+    /// Length of the ring buffer for packets waiting for userspace to read.
+    static constexpr unsigned Q_SIZE = 6;
+
+    static const auto CAPTURE_TIMER = TIM3_BASE;
+    /// Which channel of the timer we should be capturing on.
+    static constexpr uint32_t CAPTURE_CHANNEL = TIM_CHANNEL_1;
+    /// Interrupt flag for the given capture channel.
+    static constexpr auto CAPTURE_IF = TIM_FLAG_CC1;
+    /// Digital filter to apply to the captured stream for edge detection. The
+    /// 0b1000 value needs 6 consecutive samples at f_CLK/8 to be the same
+    /// value to trigger the edge detection. This is about 1 usec at 48 MHz.
+    static constexpr unsigned CAPTURE_FILTER = 0b1000;
+    static constexpr auto CAPTURE_IRQn = TIM3_IRQn;
+
+    static void cap_event_hook() {}
+    static inline void dcc_before_cutout_hook() {}
+    static inline void dcc_packet_finished_hook() {}
+    static inline void after_feedback_hook() {}
+    
+    static const auto USEC_TIMER = TIM3_BASE;
+    static constexpr uint32_t USEC_CHANNEL = TIM_CHANNEL_2;
+    static constexpr auto USEC_IF = TIM_FLAG_CC2;
+    static_assert(TIM_FLAG_CC2 == TIM_IT_CC2,
+        "Flag and interrupt registers must be in parallel. The HAL driver is "
+        "broken.");
+    static constexpr auto TIMER_IRQn = TIM3_IRQn;
+    
+
+    static constexpr auto OS_IRQn = TSC_IRQn;
+};
+
+// Dummy implementation because we are not a railcom detector.
+NoRailcomDriver railcom_driver;
+
+Stm32DccDecoder<DccDecoderHW> dcc_decoder0(
+    "/dev/dcc_decoder0", &railcom_driver);
 
 extern "C" {
 
@@ -180,6 +244,7 @@ void hw_preinit(void)
     __HAL_RCC_USART2_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
     __HAL_RCC_TIM14_CLK_ENABLE();
+    __HAL_RCC_TIM3_CLK_ENABLE();
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
@@ -226,8 +291,21 @@ void hw_preinit(void)
         /* Starting Error */
         HASSERT(0);
     }
+    __HAL_DBGMCU_FREEZE_TIM14();
     NVIC_SetPriority(TIM14_IRQn, 0);
     NVIC_EnableIRQ(TIM14_IRQn);
+}
+
+void timer3_interrupt_handler(void) {
+    // Both the capture and the timer feature use the same timer resource, so
+    // the interrupt is shared. These function calls are a noop if the
+    // respective IF bit is not set in the interrupt status register.
+    dcc_decoder0.interrupt_handler();
+    dcc_decoder0.rcom_interrupt_handler();
+}
+
+void touch_interrupt_handler(void) {
+    dcc_decoder0.os_interrupt_handler();
 }
 
 }
