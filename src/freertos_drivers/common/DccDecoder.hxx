@@ -47,35 +47,37 @@
   in the middle and when it is over. This is necessary for the correct
   functionality of the railcom driver.
 
-  @todo describe usage.
-  Usage: Define a structure declaring your hardware information. See below for
-  what you need to define in there. Instantiate the device driver and pass the
-  pointer to the railcom driver to the constructor. There is no need to touch
-  the device from the application layer.
+  Usage:
 
-  Example hardware definitions:
+  Define a module for accessing the timer. See the following two examples:
+  {\link TivaDccTimerModule }
+  {\link Stm32DccTimerModule }.
 
-struct DCCDecode
-{
-    static const auto TIMER_BASE = WTIMER4_BASE;
-    static const auto TIMER_PERIPH = SYSCTL_PERIPH_WTIMER4;
-    static const auto TIMER_INTERRUPT = INT_WTIMER4A;
-    static const auto TIMER = TIMER_A;
-    static const auto CFG_CAP_TIME_UP =
-        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME_UP | TIMER_CFG_B_ONE_SHOT;
-    // Interrupt bits.
-    static const auto TIMER_CAP_EVENT = TIMER_CAPA_EVENT;
-    static const auto TIMER_TIM_TIMEOUT = TIMER_TIMA_TIMEOUT;
+  In the HwInit.cxx, instantiate the driver with passing the module as a
+  template argument. The above example modules themselves take a template
+  argument with static definitions.
 
-    static const auto OS_INTERRUPT = INT_WTIMER4B;
-    DECL_PIN(NRZPIN, D, 4);
-    static const auto NRZPIN_CONFIG = GPIO_PD4_WT4CCP0;
+  Module API:
+  - NRZ_Pin
+  - TIMER_MAX_VALUE
+  - SAMPLE_PERIOD_CLOCKS
+  - Q_SIZE
+  - TICKS_PER_USEC
+  - module_init()
+  - module_enable()
+  - module_disable()
+  - trigger_os_interrupt()
+  - dcc_before_cutout_hook()
+  - dcc_packet_finished_hook()
+  - after_feedback_hook()
+  - int_get_and_clear_capture_event()
+  - get_capture_counter()
+  - int_get_and_clear_delay_event()
+  - set_cap_timer_capture()
+  - set_cap_timer_time()
+  - set_cap_timer_delay_usec()
+  - stop_cap_timer_time()
 
-    static const uint32_t TIMER_MAX_VALUE = 0x8000000UL;
-
-    static const int Q_SIZE = 16;
-
-};
  */
 template <class Module> class DccDecoder : public Node
 {
@@ -183,30 +185,6 @@ private:
     {
         inputData_->flush();
     };
-
-    /*
-    void set_sample_timer_period()
-    {
-        MAP_TimerDisable(HW::TIMER_BASE, HW::SAMPLE_TIMER);
-        MAP_TimerIntDisable(HW::TIMER_BASE, HW::SAMPLE_TIMER_TIMEOUT);
-        MAP_TimerLoadSet(HW::TIMER_BASE, HW::SAMPLE_TIMER,
-            HW::SAMPLE_PERIOD_CLOCKS & 0xffffU);
-        MAP_TimerPrescaleSet(
-            HW::TIMER_BASE, HW::SAMPLE_TIMER, HW::SAMPLE_PERIOD_CLOCKS >> 16);
-        MAP_TimerEnable(HW::TIMER_BASE, HW::SAMPLE_TIMER);
-        }*/
-
-    /// Module::set_cap_timer_delay_usec(int usec)
-    /// Delays a give number of usec using the capture timer feature. Needed
-    /// for the timing ofthe railcom cutout.
-    /// @param usec how much to delay.
-
-    /// Module::set_cap_timer_capture()
-    /// Sets the timer to capture mode. Needed for the digitization of DCC
-    /// signal bits.
-
-    /// Module::set_cap_timer_time()
-    /// Sets the timer to oneshot (timer) mode.
 
     typedef DCCPacket input_data_type;
     DeviceBuffer<DCCPacket> *inputData_ {
