@@ -38,7 +38,7 @@
 
 /**
   Device driver for decoding a DCC signal using a Timer resource.
- 
+
   This driver exports a filesystem device node, which will be readable for
   decoded DCC packets (read into struct DCCPacket). All writes fail.
 
@@ -209,7 +209,7 @@ private:
     /// Sets the timer to oneshot (timer) mode.
 
     typedef DCCPacket input_data_type;
-    DeviceBuffer<DCCPacket>* inputData_{
+    DeviceBuffer<DCCPacket> *inputData_ {
         DeviceBuffer<DCCPacket>::create(Module::Q_SIZE)};
     DCCPacket* nextPacketData_{nullptr};
     bool nextPacketFilled_{false};
@@ -233,7 +233,7 @@ private:
     /// Which window of the cutout we are in.
     uint32_t cutoutState_;
     /// How many times did we lose a DCC packet due to no buffer available.
-    uint32_t overflowCount_{0};
+    uint32_t overflowCount_ {0};
 
     /// notified for cutout events.
     RailcomDriver *railcomDriver_;
@@ -252,8 +252,7 @@ private:
 };
 
 template <class Module>
-DccDecoder<Module>::DccDecoder(const char *name,
-                                   RailcomDriver *railcom_driver)
+DccDecoder<Module>::DccDecoder(const char *name, RailcomDriver *railcom_driver)
     : Node(name)
     , railcomDriver_(railcom_driver)
 {
@@ -271,7 +270,7 @@ template <class Module> void DccDecoder<Module>::enable()
 
     lastTimerValue_ = Module::TIMER_MAX_VALUE;
     nextSample_ = lastTimerValue_ - Module::SAMPLE_PERIOD_CLOCKS;
-    
+
     if (!nextPacketData_)
     {
         if (inputData_->space())
@@ -290,9 +289,10 @@ template <class Module>
 __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
 {
     Debug::DccDecodeInterrupts::set(true);
-    if (Module::int_get_and_clear_capture_event()) {
+    if (Module::int_get_and_clear_capture_event())
+    {
         // We have a capture event at hand.
-        //Debug::DccDecodeInterrupts::toggle();
+        // Debug::DccDecodeInterrupts::toggle();
         uint32_t raw_new_value = Module::get_capture_counter();
         uint32_t old_value = lastTimerValue_;
         if (raw_new_value > old_value) {
@@ -306,7 +306,8 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         }
         if (raw_new_value < nextSample_ && !waitSampleForOverflow_) {
             sampleActive_ = true;
-            if (nextSample_ <= Module::SAMPLE_PERIOD_CLOCKS) {
+            if (nextSample_ <= Module::SAMPLE_PERIOD_CLOCKS)
+            {
                 nextSample_ += Module::TIMER_MAX_VALUE;
                 waitSampleForOverflow_ = true;
                 Debug::CapTimerOverflow::set(true);
@@ -327,7 +328,7 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         // never get the DCC cutout signal. We will therefore start
         // the cutout by hand with a bit of delay.
         else if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT &&
-                 true) //Module::NRZ_Pin::get())
+            true) // Module::NRZ_Pin::get())
         {
             //Debug::RailcomDriverCutout::set(true);
             Module::set_cap_timer_time();
@@ -360,7 +361,7 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
                     decoder_.packet_length());
                 nextPacketData_ = nullptr;
                 nextPacketFilled_ = true;
-                
+
                 Module::trigger_os_interrupt();
             }
             else
@@ -371,8 +372,8 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             Debug::DccPacketFinishedHook::set(false);
         }
         lastTimerValue_ = raw_new_value;
-        if (sampleActive_ && Module::NRZ_Pin::get() &&
-            !prepCutout_ && !cutout_just_finished)
+        if (sampleActive_ && Module::NRZ_Pin::get() && !prepCutout_ &&
+            !cutout_just_finished)
         {
             sampleActive_ = false;
             // The first positive edge after the sample timer expired (but
@@ -388,7 +389,8 @@ __attribute__((optimize("-O3"))) void
 DccDecoder<Module>::rcom_interrupt_handler()
 {
     Debug::DccDecodeInterrupts::set(true);
-    if (Module::int_get_and_clear_delay_event()) {
+    if (Module::int_get_and_clear_delay_event())
+    {
         // Debug::RailcomDriverCutout::set(false);
         switch (cutoutState_)
         {
