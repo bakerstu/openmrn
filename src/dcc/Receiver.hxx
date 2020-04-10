@@ -41,6 +41,7 @@
 #include "executor/StateFlow.hxx"
 
 #include "freertos_drivers/common/SimpleLog.hxx"
+#include "freertos/can_ioctl.h"
 
 // If defined, collects samples of timing and state into a ring buffer.
 //#define DCC_DECODER_DEBUG
@@ -399,7 +400,7 @@ private:
             {
                 return call_immediately(STATE(register_and_sleep));
             }
-            MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0, 0xff);
+            //MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0, 0xff);
             debug_data(value);
             decoder_.process_data(value);
             if (decoder_.state() == DccDecoder::DCC_PACKET_FINISHED)

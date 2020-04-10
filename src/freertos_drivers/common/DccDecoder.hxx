@@ -35,6 +35,7 @@
 
 #include "RailcomDriver.hxx" // for debug pins
 #include "dcc/Receiver.hxx"
+#include "dcc/packet.h"
 
 /**
   Device driver for decoding a DCC signal using a Timer resource.
