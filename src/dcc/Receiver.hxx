@@ -40,6 +40,11 @@
 
 #include "executor/StateFlow.hxx"
 
+#include "freertos_drivers/common/SimpleLog.hxx"
+
+// If defined, collects samples of timing and state into a ring buffer.
+//#define DCC_DECODER_DEBUG
+
 namespace dcc
 {
 
@@ -86,6 +91,10 @@ public:
     /// change.
     void process_data(uint32_t value)
     {
+#ifdef DCC_DECODER_DEBUG
+        debugLog_.add(value);
+        debugLog_.add(parseState_);
+#endif        
         switch (parseState_)
         {
             case DCC_PACKET_FINISHED:
@@ -350,6 +359,9 @@ private:
     };
     /// The various timings by the standards.
     Timing timings_[MAX_TIMINGS];
+#ifdef DCC_DECODER_DEBUG
+    LogRing<uint16_t, 256> debugLog_;
+#endif    
 };
 
 /// User-space DCC decoding flow. This flow receives a sequence of numbers from
