@@ -390,9 +390,6 @@ bool Stm32DccTimerModule<HW>::int_get_and_clear_capture_event()
         //Debug::DccDecodeInterrupts::toggle();
         HW::cap_event_hook();
         __HAL_TIM_CLEAR_FLAG(capture_timer_handle(), HW::CAPTURE_IF);
-        // TODO(balazs.racz): Technically it is possible that the timer reload
-        // happens between the event match and the interrupt entry. In this
-        // case we will incorrectly add a full cycle to the event length.
         return true;
     }
     return false;
