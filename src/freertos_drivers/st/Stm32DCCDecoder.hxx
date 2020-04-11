@@ -190,7 +190,7 @@ public:
 
     
     /// Delays a give number of usec using the capture timer feature. Needed
-    /// for the timing ofthe railcom cutout.
+    /// for the timing of the railcom cutout.
     /// @param usec how much to delay.
     static void set_cap_timer_delay_usec(int usec)
     {
@@ -324,12 +324,19 @@ void Stm32DccTimerModule<HW>::module_init()
 {
     memset(&captureTimerHandle_, 0, sizeof(captureTimerHandle_));
     memset(&usecTimerHandle_, 0, sizeof(usecTimerHandle_));
+    // GPIO input.
     NRZ_Pin::hw_init();
 }
 
 template <class HW> void Stm32DccTimerModule<HW>::module_enable()
 {
     init_timer(capture_timer_handle(), capture_timer());
+    // Switches pin to GPIO input.
+    NRZ_Pin::hw_init();
+    // This must precede switching the pin to alternate mode to avoid the MCU
+    // driving the pin as an output in case the timer channel registers are
+    // uninitialized or in PWM mode.
+    set_cap_timer_capture();
     
     GPIO_InitTypeDef gpio_init;
     memset(&gpio_init, 0, sizeof(gpio_init));
@@ -339,8 +346,6 @@ template <class HW> void Stm32DccTimerModule<HW>::module_enable()
     gpio_init.Alternate = HW::CAPTURE_AF_MODE;
     gpio_init.Pin = HW::NRZ_Pin::pin();
     HAL_GPIO_Init(HW::NRZ_Pin::port(), &gpio_init);
-
-    set_cap_timer_capture();
 
     if (!shared_timers())
     {
@@ -366,6 +371,9 @@ template <class HW> void Stm32DccTimerModule<HW>::module_enable()
 
 template <class HW> void Stm32DccTimerModule<HW>::module_disable()
 {
+    // Switches pin to GPIO input.
+    NRZ_Pin::hw_init();
+    
     capture_timer_handle()->Instance = capture_timer();
     usec_timer_handle()->Instance = usec_timer();
     NVIC_DisableIRQ(HW::CAPTURE_IRQn);
