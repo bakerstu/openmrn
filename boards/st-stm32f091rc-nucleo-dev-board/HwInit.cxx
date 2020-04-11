@@ -42,6 +42,7 @@
 #include "stm32f0xx_hal_gpio_ex.h"
 #include "stm32f0xx_hal_dma.h"
 #include "stm32f0xx_hal_tim.h"
+#include "stm32f0xx_hal.h"
 
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
@@ -321,6 +322,7 @@ void hw_preinit(void)
         /* Starting Error */
         HASSERT(0);
     }
+    __HAL_DBGMCU_FREEZE_TIM14();
     NVIC_SetPriority(TIM14_IRQn, 0);
     NVIC_EnableIRQ(TIM14_IRQn);
 }
