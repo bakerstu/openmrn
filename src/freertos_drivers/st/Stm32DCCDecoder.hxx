@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2014, Balazs Racz
+ * Copyright (c) 2020, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * Device driver module for STM32 to decode a DCC track signal.
  *
  * @author Balazs Racz
- * @date 29 Nov 2014
+ * @date 9 Apr 2020
  */
 
 #include "FreeRTOSConfig.h"

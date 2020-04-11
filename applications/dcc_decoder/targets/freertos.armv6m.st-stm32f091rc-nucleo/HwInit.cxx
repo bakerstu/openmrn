@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2018, Balazs Racz
+ * Copyright (c) 2020, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,10 +26,10 @@
  *
  * \file HwInit.cxx
  * This file represents the hardware initialization for the STM32F091RC Nucelo
- * board (bare).
+ * board (bare) with a DCC decoder driver.
  *
  * @author Balazs Racz
- * @date April 18, 2018
+ * @date April 10, 2020
  */
 
 #include <new>
@@ -50,7 +50,6 @@
 #include "Stm32EEPROMEmulation.hxx"
 #include "hardware.hxx"
 #include "DummyGPIO.hxx"
-
 
 struct Debug
 {
