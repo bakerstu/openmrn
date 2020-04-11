@@ -116,12 +116,6 @@ public:
     }
 
     /// hook
-    static void before_cutout_hook()
-    {
-        HW::before_cutout_hook();
-    }
-
-    /// hook
     static void dcc_before_cutout_hook()
     {
         HW::dcc_before_cutout_hook();
@@ -157,7 +151,7 @@ public:
     static inline bool int_get_and_clear_delay_event();
 
     /// Delays a give number of usec using the capture timer feature. Needed
-    /// for the timing ofthe railcom cutout.
+    /// for the timing of the railcom cutout.
     /// @param usec how much to delay.
     static void set_cap_timer_delay_usec(int usec)
     {
