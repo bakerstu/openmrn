@@ -427,7 +427,7 @@ private:
     uint32_t lastValue_ = 0;
 
 protected:
-    DccDecoder decoder_;
+    DccDecoder decoder_{1};
 };
 
 } // namespace dcc

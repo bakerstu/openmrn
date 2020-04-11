@@ -89,8 +89,12 @@ public:
     /// Length of the device queue.
     static constexpr unsigned Q_SIZE = HW::Q_SIZE;
 
-    /// We setthe timer prescaler to go at one tick per usec.
-    static constexpr uint32_t TICKS_PER_USEC = 1;
+    /// @return Timer clocks per usec.
+    static uint32_t get_ticks_per_usec()
+    {
+        // We set the timer prescaler to go at one tick per usec.
+        return 1;
+    }
 
     /// Called once during construction time.
     static void module_init();
