@@ -397,7 +397,6 @@ private:
             {
                 return call_immediately(STATE(register_and_sleep));
             }
-            //MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0, 0xff);
             debug_data(value);
             decoder_.process_data(value);
             if (decoder_.state() == DccDecoder::DCC_PACKET_FINISHED)
@@ -427,6 +426,8 @@ private:
     uint32_t lastValue_ = 0;
 
 protected:
+    /// State machine that does the DCC decoding. We have 1 usec per tick, as
+    /// these are the numbers we receive from the driver.
     DccDecoder decoder_{1};
 };
 
