@@ -55,7 +55,7 @@ class DccDecoder
 {
 public:
     /// @param tick_per_usec specifies how many timer capture ticks happen per
-    /// usec. The default value assumesthe timer does not have a prescaler.
+    /// usec. The default value assumes the timer does not have a prescaler.
     DccDecoder(unsigned tick_per_usec)
     {
         timings_[DCC_ONE].set(tick_per_usec, 52, 64);

@@ -155,7 +155,7 @@ public:
     {
         Debug::DccPacketDelay::toggle();
         // This code handles underflow of the timer correctly. We cannot wait
-        // longer than one full cyucle though (65 msec -- typical RailCom waits
+        // longer than one full cycle though (65 msec -- typical RailCom waits
         // are 20-500 usec).
         uint32_t new_match_v = __HAL_TIM_GET_COUNTER(usec_timer_handle()) +
                                 TIMER_MAX_VALUE + 1 - usec;
