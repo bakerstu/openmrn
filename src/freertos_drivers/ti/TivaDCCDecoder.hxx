@@ -97,6 +97,12 @@ public:
     /// Length of the device queue.
     static constexpr unsigned Q_SIZE = HW::Q_SIZE;
 
+    /// @return Timer clocks per usec.
+    static uint32_t get_ticks_per_usec()
+    {
+        return configCPU_CLOCK_HZ / 1000000;
+    }
+
     /// Called once during construction time.
     static void module_init();
 
@@ -246,9 +252,6 @@ bool TivaDccTimerModule<HW>::int_get_and_clear_capture_event()
 {
     // get masked interrupt status
     auto status = MAP_TimerIntStatus(HW::TIMER_BASE, true);
-    // TODO(balazs.racz): Technically it is possible that the timer reload
-    // happens between the event match and the interrupt entry. In this case we
-    // will incorrectly add a full cycle to the event length.
     if (status & HW::TIMER_CAP_EVENT)
     {
         //Debug::DccDecodeInterrupts::toggle();

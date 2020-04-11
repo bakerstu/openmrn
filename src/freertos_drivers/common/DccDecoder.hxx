@@ -35,6 +35,7 @@
 
 #include "RailcomDriver.hxx" // for debug pins
 #include "dcc/Receiver.hxx"
+#include "dcc/packet.h"
 
 /**
   Device driver for decoding a DCC signal using a Timer resource.
@@ -217,7 +218,7 @@ private:
     RailcomDriver *railcomDriver_;
 
     /// DCC packet decoder state machine and internal state.
-    dcc::DccDecoder decoder_;
+    dcc::DccDecoder decoder_ {Module::get_ticks_per_usec()};
 
     /// How many usec the railcom has before the cutout
     static const auto RAILCOM_CUTOUT_PRE = 26;
