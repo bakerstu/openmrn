@@ -40,8 +40,8 @@
 
 #include "executor/StateFlow.hxx"
 
-#include "freertos_drivers/common/SimpleLog.hxx"
 #include "freertos/can_ioctl.h"
+#include "freertos_drivers/common/SimpleLog.hxx"
 
 // If defined, collects samples of timing and state into a ring buffer.
 //#define DCC_DECODER_DEBUG
@@ -428,7 +428,7 @@ private:
 protected:
     /// State machine that does the DCC decoding. We have 1 usec per tick, as
     /// these are the numbers we receive from the driver.
-    DccDecoder decoder_{1};
+    DccDecoder decoder_ {1};
 };
 
 } // namespace dcc

@@ -62,7 +62,6 @@ struct Debug
 
 #include "Stm32DCCDecoder.hxx"
 
-
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
 
@@ -89,12 +88,12 @@ struct DccDecoderHW
     using NRZ_Pin = ::DCC_IN_Pin;
     /// Alternate Mode selector for the DCC_IN pin to put it into timer mode.
     static constexpr auto CAPTURE_AF_MODE = GPIO_AF1_TIM3;
-    
+
     /// Takes an occupancy feedback sample every 3 milliseconds. The clock of
     /// the timer ticks every usec. This is only useful if there is a railcom
     /// driver that can also measure current used in forward mode.
     static constexpr uint32_t SAMPLE_PERIOD_TICKS = 3000;
-    
+
     /// Length of the ring buffer for packets waiting for userspace to read.
     static constexpr unsigned Q_SIZE = 6;
 
@@ -138,7 +137,7 @@ struct DccDecoderHW
         "broken.");
     /// Interrupt vector number for the usec timer resource.
     static constexpr auto TIMER_IRQn = TIM3_IRQn;
-    
+
     /// An otherwise unused interrupt vector number, which can be used as a
     /// software interrupt in a kernel-compatible way.
     static constexpr auto OS_IRQn = TSC_IRQn;
