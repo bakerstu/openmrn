@@ -85,22 +85,24 @@ const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
 
 struct DccDecoderHW
 {
+    /// The Pin (declared as GPIO input) where the DCC signal comes in.
     using NRZ_Pin = ::DCC_IN_Pin;
-    /// Alternate Mode selector for the DCC_IN pin.
+    /// Alternate Mode selector for the DCC_IN pin to put it into timer mode.
     static constexpr auto CAPTURE_AF_MODE = GPIO_AF1_TIM3;
     
-    /// We have a 16-bit timer resource that counts down.
-    static constexpr uint32_t TIMER_MAX_VALUE = 0xffff;
-
-    /// Take a feedback sample every 3 milliseconds. The clock of the timer
-    /// ticks every usec.
+    /// Takes an occupancy feedback sample every 3 milliseconds. The clock of
+    /// the timer ticks every usec. This is only useful if there is a railcom
+    /// driver that can also measure current used in forward mode.
     static constexpr uint32_t SAMPLE_PERIOD_TICKS = 3000;
     
     /// Length of the ring buffer for packets waiting for userspace to read.
     static constexpr unsigned Q_SIZE = 6;
 
+    /// Defines the timer resource matching the Capture pin. It can be either a
+    /// 16-bit or a 32-bit timer.
     static const auto CAPTURE_TIMER = TIM3_BASE;
-    /// Which channel of the timer we should be capturing on.
+    /// Which channel of the timer we should be capturing on. Defined by the
+    /// Capture pin.
     static constexpr uint32_t CAPTURE_CHANNEL = TIM_CHANNEL_1;
     /// Interrupt flag for the given capture channel.
     static constexpr auto CAPTURE_IF = TIM_FLAG_CC1;
@@ -108,22 +110,37 @@ struct DccDecoderHW
     /// 0b1000 value needs 6 consecutive samples at f_CLK/8 to be the same
     /// value to trigger the edge detection. This is about 1 usec at 48 MHz.
     static constexpr unsigned CAPTURE_FILTER = 0b1000;
+    /// Interrupt vector number for the capture timer resource.
     static constexpr auto CAPTURE_IRQn = TIM3_IRQn;
 
+    /// Hook called in a P0 interrupt context every edge.
     static void cap_event_hook() {}
+    /// Hook called in a P0 interrupt context before the DCC cutout is enabled.
     static inline void dcc_before_cutout_hook() {}
+    /// Hook called in a P0 interrupt context when a full DCC packet is
+    /// received. This is after the packet ending one bit, or after the cutout.
     static inline void dcc_packet_finished_hook() {}
+    /// Hook called in a P0 interrupt context after we instructed the railcom
+    /// driver to take a feedback sample.
     static inline void after_feedback_hook() {}
-    
+
+    /// Second timer resource that will be used to measure microseconds for the
+    /// railcom cutout. May be the same as the Capture Timer, if there are at
+    /// least two channels on that timer resource.
     static const auto USEC_TIMER = TIM3_BASE;
+    /// Channel to use for the timing purpose. This channel shall NOT be
+    /// connected to a pin.
     static constexpr uint32_t USEC_CHANNEL = TIM_CHANNEL_2;
+    /// Interrupt flag for the USEC_CHANNEL.
     static constexpr auto USEC_IF = TIM_FLAG_CC2;
     static_assert(TIM_FLAG_CC2 == TIM_IT_CC2,
         "Flag and interrupt registers must be in parallel. The HAL driver is "
         "broken.");
+    /// Interrupt vector number for the usec timer resource.
     static constexpr auto TIMER_IRQn = TIM3_IRQn;
     
-
+    /// An otherwise unused interrupt vector number, which can be used as a
+    /// software interrupt in a kernel-compatible way.
     static constexpr auto OS_IRQn = TSC_IRQn;
 };
 

@@ -48,27 +48,68 @@ typedef DummyPin PIN_RailcomCutout;
 
   Example hardware definitions:
 
-struct DCCDecode
+```
+struct DccDecoderHW
 {
-    static const auto TIMER_BASE = WTIMER4_BASE;
-    static const auto TIMER_PERIPH = SYSCTL_PERIPH_WTIMER4;
-    static const auto TIMER_INTERRUPT = INT_WTIMER4A;
-    static const auto TIMER = TIMER_A;
-    static const auto CFG_CAP_TIME_UP =
-        TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME_UP | TIMER_CFG_B_ONE_SHOT;
-    // Interrupt bits.
-    static const auto TIMER_CAP_EVENT = TIMER_CAPA_EVENT;
-    static const auto TIMER_TIM_TIMEOUT = TIMER_TIMA_TIMEOUT;
+    /// The Pin (declared as GPIO input) where the DCC signal comes in.
+    using NRZ_Pin = ::DCC_IN_Pin;
+    /// Alternate Mode selector for the DCC_IN pin to put it into timer mode.
+    static constexpr auto CAPTURE_AF_MODE = GPIO_AF1_TIM3;
+    
+    /// Takes an occupancy feedback sample every 3 milliseconds. The clock of
+    /// the timer ticks every usec. This is only useful if there is a railcom
+    /// driver that can also measure current used in forward mode.
+    static constexpr uint32_t SAMPLE_PERIOD_TICKS = 3000;
+    
+    /// Length of the ring buffer for packets waiting for userspace to read.
+    static constexpr unsigned Q_SIZE = 6;
 
-    static const auto OS_INTERRUPT = INT_WTIMER4B;
-    DECL_PIN(NRZPIN, D, 4);
-    static const auto NRZPIN_CONFIG = GPIO_PD4_WT4CCP0;
+    /// Defines the timer resource matching the Capture pin. It can be either a
+    /// 16-bit or a 32-bit timer.
+    static const auto CAPTURE_TIMER = TIM3_BASE;
+    /// Which channel of the timer we should be capturing on. Defined by the
+    /// Capture pin.
+    static constexpr uint32_t CAPTURE_CHANNEL = TIM_CHANNEL_1;
+    /// Interrupt flag for the given capture channel.
+    static constexpr auto CAPTURE_IF = TIM_FLAG_CC1;
+    /// Digital filter to apply to the captured stream for edge detection. The
+    /// 0b1000 value needs 6 consecutive samples at f_CLK/8 to be the same
+    /// value to trigger the edge detection. This is about 1 usec at 48 MHz.
+    static constexpr unsigned CAPTURE_FILTER = 0b1000;
+    /// Interrupt vector number for the capture timer resource.
+    static constexpr auto CAPTURE_IRQn = TIM3_IRQn;
 
-    static const uint32_t TIMER_MAX_VALUE = 0x8000000UL;
+    /// Hook called in a P0 interrupt context every edge.
+    static void cap_event_hook() {}
+    /// Hook called in a P0 interrupt context before the DCC cutout is enabled.
+    static inline void dcc_before_cutout_hook() {}
+    /// Hook called in a P0 interrupt context when a full DCC packet is
+    /// received. This is after the packet ending one bit, or after the cutout.
+    static inline void dcc_packet_finished_hook() {}
+    /// Hook called in a P0 interrupt context after we instructed the railcom
+    /// driver to take a feedback sample.
+    static inline void after_feedback_hook() {}
 
-    static const int Q_SIZE = 16;
-
+    /// Second timer resource that will be used to measure microseconds for the
+    /// railcom cutout. May be the same as the Capture Timer, if there are at
+    /// least two channels on that timer resource.
+    static const auto USEC_TIMER = TIM3_BASE;
+    /// Channel to use for the timing purpose. This channel shall NOT be
+    /// connected to a pin.
+    static constexpr uint32_t USEC_CHANNEL = TIM_CHANNEL_2;
+    /// Interrupt flag for the USEC_CHANNEL.
+    static constexpr auto USEC_IF = TIM_FLAG_CC2;
+    static_assert(TIM_FLAG_CC2 == TIM_IT_CC2,
+        "Flag and interrupt registers must be in parallel. The HAL driver is "
+        "broken.");
+    /// Interrupt vector number for the usec timer resource.
+    static constexpr auto TIMER_IRQn = TIM3_IRQn;
+    
+    /// An otherwise unused interrupt vector number, which can be used as a
+    /// software interrupt in a kernel-compatible way.
+    static constexpr auto OS_IRQn = TSC_IRQn;
 };
+```
  */
 
 
@@ -82,7 +123,7 @@ public:
 
     /// This is the counter from which the timer starts counting down. When the
     /// timer overflows, it starts from this value.
-    static constexpr uint32_t TIMER_MAX_VALUE = HW::TIMER_MAX_VALUE;
+    static constexpr uint32_t TIMER_MAX_VALUE = 0xffff;
     /// After how many timer counts we should take one sample for occupancy
     /// feedback.
     static constexpr uint32_t SAMPLE_PERIOD_CLOCKS = HW::SAMPLE_PERIOD_TICKS;
@@ -229,7 +270,7 @@ private:
     {
         memset(handle, 0, sizeof(*handle));
         handle->Instance = instance;
-        handle->Init.Period = 0xFFFF;
+        handle->Init.Period = TIMER_MAX_VALUE;
         // 1 usec per tick
         handle->Init.Prescaler = configCPU_CLOCK_HZ / 1000000;
         handle->Init.ClockDivision = 0;
