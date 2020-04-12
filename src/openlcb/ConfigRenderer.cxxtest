@@ -201,6 +201,35 @@ TEST(ComplexGroupRender, RenderOk)
 }
 
 
+CDI_GROUP(TestNodeConfigWithHiddenRepeatedGroup, Name("node_config"));
+CDI_GROUP_ENTRY(version, Uint8ConfigEntry, Name("Version"));
+CDI_GROUP_ENTRY(hiddengroup, TestGroup, Hidden(true));
+using TestRepeat = RepeatedGroup<TestGroup, 3>;
+CDI_GROUP_ENTRY(testgroup, TestRepeat, Hidden(true));
+CDI_GROUP_ENTRY(last, Uint8ConfigEntry);
+CDI_GROUP_END();
+
+TEST(ComplexGroupRender, HiddenRepeatedGroupRender)
+{
+    const char kExpectedTestNodeCdi[] =
+        R"(<group>
+<name>node_config</name>
+<int size='1'>
+<name>Version</name>
+</int>
+<group offset='6'/>
+<group offset='18'/>
+<int size='1'>
+</int>
+</group>
+)";
+    string s;
+    TestNodeConfigWithHiddenRepeatedGroup cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+}
+
+
 CDI_GROUP(UserIdentificationGroup);
 CDI_GROUP_ENTRY(version, Uint8ConfigEntry);
 CDI_GROUP_ENTRY(user_name, StringConfigEntry<63>);
