@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2018, Balazs Racz
+ * Copyright (c) 2020, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,17 +25,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file HwInit.cxx
- *
  * This file represents the hardware initialization for the STM32F091RC Nucelo
- * board with the DevKit IO board plugged in.
+ * board (bare) with a DCC decoder driver.
  *
  * @author Balazs Racz
- * @date April 18, 2018
+ * @date April 10, 2020
  */
 
 #include <new>
 #include <cstdint>
 
+#include "stm32f0xx_hal_conf.h"
 #include "stm32f0xx_hal_rcc.h"
 #include "stm32f0xx_hal_flash.h"
 #include "stm32f0xx_hal_gpio.h"
@@ -47,10 +47,19 @@
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
-#include "Stm32SPI.hxx"
 #include "Stm32EEPROMEmulation.hxx"
-#include "Stm32PWM.hxx"
 #include "hardware.hxx"
+#include "DummyGPIO.hxx"
+
+struct Debug
+{
+    typedef DummyPin DccPacketDelay;
+    typedef DummyPin DccDecodeInterrupts;
+    typedef DummyPin DccPacketFinishedHook;
+    typedef DummyPin CapTimerOverflow;
+};
+
+#include "Stm32DCCDecoder.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";
@@ -68,51 +77,76 @@ static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
 static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
-static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 1900);
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
 
-/** How many bytes of flash should hold the entire dataset. Must be an integer
- * multiple of the minimum erase length (which is the flash page length, for
- * the STM32F0 it is 2 kbytes). The file size maximum is half this value. */
-const size_t EEPROMEmulation::SECTOR_SIZE = 4096;
+const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
 
-Stm32PWMGroup servo_timer(TIM3,
-    /*prescaler=*/ (servoPwmCountPerMs * 6 + 65535) / 65536,
-    /*period_counts=*/ servoPwmCountPerMs * 6);
+struct DccDecoderHW
+{
+    /// The Pin (declared as GPIO input) where the DCC signal comes in.
+    using NRZ_Pin = ::DCC_IN_Pin;
+    /// Alternate Mode selector for the DCC_IN pin to put it into timer mode.
+    static constexpr auto CAPTURE_AF_MODE = GPIO_AF1_TIM3;
 
-extern PWM* const servo_channels[];
-/// The order of these channels follows the schematic arrangement of MCU pins
-/// to logical servo ports.
-PWM * const servo_channels[4] = { //
-    Stm32PWMGroup::get_channel(&servo_timer, 4),
-    Stm32PWMGroup::get_channel(&servo_timer, 2),
-    Stm32PWMGroup::get_channel(&servo_timer, 3),
-    Stm32PWMGroup::get_channel(&servo_timer, 1)};
+    /// Takes an occupancy feedback sample every 3 milliseconds. The clock of
+    /// the timer ticks every usec. This is only useful if there is a railcom
+    /// driver that can also measure current used in forward mode.
+    static constexpr uint32_t SAMPLE_PERIOD_TICKS = 3000;
 
-/// Recursive mutex for SPI1 peripheral.
-OSMutex spi1_lock(true);
+    /// Length of the ring buffer for packets waiting for userspace to read.
+    static constexpr unsigned Q_SIZE = 6;
 
-static void noop_cs() {
-}
+    /// Defines the timer resource matching the Capture pin. It can be either a
+    /// 16-bit or a 32-bit timer.
+    static const auto CAPTURE_TIMER = TIM3_BASE;
+    /// Which channel of the timer we should be capturing on. Defined by the
+    /// Capture pin.
+    static constexpr uint32_t CAPTURE_CHANNEL = TIM_CHANNEL_1;
+    /// Interrupt flag for the given capture channel.
+    static constexpr auto CAPTURE_IF = TIM_FLAG_CC1;
+    /// Digital filter to apply to the captured stream for edge detection. The
+    /// 0b1000 value needs 6 consecutive samples at f_CLK/8 to be the same
+    /// value to trigger the edge detection. This is about 1 usec at 48 MHz.
+    static constexpr unsigned CAPTURE_FILTER = 0b1000;
+    /// Interrupt vector number for the capture timer resource.
+    static constexpr auto CAPTURE_IRQn = TIM3_IRQn;
 
-/// SPI1 driver for io-board peripherals
-static Stm32SPI spi1_0(
-    "/dev/spi1.ioboard", SPI1, SPI1_IRQn, &noop_cs, &noop_cs, &spi1_lock);
+    /// Hook called in a P0 interrupt context every edge.
+    static void cap_event_hook() {}
+    /// Hook called in a P0 interrupt context before the DCC cutout is enabled.
+    static inline void dcc_before_cutout_hook() {}
+    /// Hook called in a P0 interrupt context when a full DCC packet is
+    /// received. This is after the packet ending one bit, or after the cutout.
+    static inline void dcc_packet_finished_hook() {}
+    /// Hook called in a P0 interrupt context after we instructed the railcom
+    /// driver to take a feedback sample.
+    static inline void after_feedback_hook() {}
 
+    /// Second timer resource that will be used to measure microseconds for the
+    /// railcom cutout. May be the same as the Capture Timer, if there are at
+    /// least two channels on that timer resource.
+    static const auto USEC_TIMER = TIM3_BASE;
+    /// Channel to use for the timing purpose. This channel shall NOT be
+    /// connected to a pin.
+    static constexpr uint32_t USEC_CHANNEL = TIM_CHANNEL_2;
+    /// Interrupt flag for the USEC_CHANNEL.
+    static constexpr auto USEC_IF = TIM_FLAG_CC2;
+    static_assert(TIM_FLAG_CC2 == TIM_IT_CC2,
+        "Flag and interrupt registers must be in parallel. The HAL driver is "
+        "broken.");
+    /// Interrupt vector number for the usec timer resource.
+    static constexpr auto TIMER_IRQn = TIM3_IRQn;
 
-static void spi1_ext_cs_assert() {
-    EXT_CS_Pin::set(false);
-}
+    /// An otherwise unused interrupt vector number, which can be used as a
+    /// software interrupt in a kernel-compatible way.
+    static constexpr auto OS_IRQn = TSC_IRQn;
+};
 
-static void spi1_ext_cs_deassert() {
-    EXT_CS_Pin::set(true);
-}
+// Dummy implementation because we are not a railcom detector.
+NoRailcomDriver railcom_driver;
 
-/// SPI1 driver for the expansion port.
-static Stm32SPI spi1_1("/dev/spi1.ext", SPI1, SPI1_IRQn, &spi1_ext_cs_assert,
-    &spi1_ext_cs_deassert, &spi1_lock);
-
-/// SPI2 driver for the onboard input ports.
-static Stm32SPI spi2("/dev/spi2", SPI2, SPI2_IRQn, &noop_cs, &noop_cs, nullptr);
+Stm32DccDecoder<DccDecoderHW> dcc_decoder0(
+    "/dev/dcc_decoder0", &railcom_driver);
 
 extern "C" {
 
@@ -122,11 +156,6 @@ static uint32_t rest_pattern = 0;
 
 void hw_set_to_safe(void)
 {
-}
-
-void reboot()
-{
-    NVIC_SystemReset();
 }
 
 void resetblink(uint32_t pattern)
@@ -145,6 +174,7 @@ void setblink(uint32_t pattern)
 
 const uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
 const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
+const uint32_t HSEValue = 8000000;
 
 
 void timer14_interrupt_handler(void)
@@ -209,10 +239,6 @@ static void clock_setup(void)
 }
 
 /** Initialize the processor hardware.
- *
- *  Don't depend on runtime-initialized global variables
- *  in this function; these will be initialized after
- *  hw_preinit in startup.c.
  */
 void hw_preinit(void)
 {
@@ -230,8 +256,6 @@ void hw_preinit(void)
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
-    __HAL_RCC_GPIOD_CLK_ENABLE();
-    __HAL_RCC_GPIOF_CLK_ENABLE();
     __HAL_RCC_USART2_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
     __HAL_RCC_TIM14_CLK_ENABLE();
@@ -253,8 +277,7 @@ void hw_preinit(void)
 
     /* CAN pinmux on PB8 and PB9 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
-    // Disables pull-ups because this is a 5V tolerant pin.
-    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Pull = GPIO_PULLUP;
     gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
     gpio_init.Alternate = GPIO_AF4_CAN;
     gpio_init.Pin = GPIO_PIN_8;
@@ -262,46 +285,7 @@ void hw_preinit(void)
     gpio_init.Pin = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOB, &gpio_init);
 
-    /* SPI1 pinmux on PB3, PB4, and PB5 */
-    gpio_init.Mode = GPIO_MODE_AF_PP;
-    gpio_init.Pull = GPIO_NOPULL;
-    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
-    gpio_init.Alternate = GPIO_AF0_SPI1;
-    gpio_init.Pin = GPIO_PIN_3;
-    HAL_GPIO_Init(GPIOB, &gpio_init);
-    gpio_init.Pin = GPIO_PIN_4;
-    HAL_GPIO_Init(GPIOB, &gpio_init);
-    gpio_init.Pin = GPIO_PIN_5;
-    HAL_GPIO_Init(GPIOB, &gpio_init);
-
-    /* SPI2 pinmux on PC2 (MISO2), and PB10 (SCK) */
-    gpio_init.Mode = GPIO_MODE_AF_PP;
-    gpio_init.Pull = GPIO_NOPULL;
-    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
-    gpio_init.Alternate = GPIO_AF5_SPI2;
-    gpio_init.Pin = GPIO_PIN_10;
-    HAL_GPIO_Init(GPIOB, &gpio_init);
-    gpio_init.Alternate = GPIO_AF1_SPI2;
-    gpio_init.Pin = GPIO_PIN_2;
-    HAL_GPIO_Init(GPIOC, &gpio_init);
-    
     GpioInit::hw_init();
-
-
-    // Switches over servo timer pins to timer mode.
-    // PC6-7-8-9
-    gpio_init.Mode = GPIO_MODE_AF_PP;
-    gpio_init.Pull = GPIO_NOPULL;
-    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
-    gpio_init.Alternate = GPIO_AF0_TIM3;
-    gpio_init.Pin = GPIO_PIN_6;
-    HAL_GPIO_Init(GPIOC, &gpio_init);
-    gpio_init.Pin = GPIO_PIN_7;
-    HAL_GPIO_Init(GPIOC, &gpio_init);
-    gpio_init.Pin = GPIO_PIN_8;
-    HAL_GPIO_Init(GPIOC, &gpio_init);
-    gpio_init.Pin = GPIO_PIN_9;
-    HAL_GPIO_Init(GPIOC, &gpio_init);
 
     /* Initializes the blinker timer. */
     TIM_HandleTypeDef TimHandle;
@@ -325,6 +309,18 @@ void hw_preinit(void)
     __HAL_DBGMCU_FREEZE_TIM14();
     NVIC_SetPriority(TIM14_IRQn, 0);
     NVIC_EnableIRQ(TIM14_IRQn);
+}
+
+void timer3_interrupt_handler(void) {
+    // Both the capture and the timer feature use the same timer resource, so
+    // the interrupt is shared. These function calls are a noop if the
+    // respective IF bit is not set in the interrupt status register.
+    dcc_decoder0.interrupt_handler();
+    dcc_decoder0.rcom_interrupt_handler();
+}
+
+void touch_interrupt_handler(void) {
+    dcc_decoder0.os_interrupt_handler();
 }
 
 }

@@ -40,6 +40,12 @@
 
 #include "executor/StateFlow.hxx"
 
+#include "freertos/can_ioctl.h"
+#include "freertos_drivers/common/SimpleLog.hxx"
+
+// If defined, collects samples of timing and state into a ring buffer.
+//#define DCC_DECODER_DEBUG
+
 namespace dcc
 {
 
@@ -48,13 +54,15 @@ namespace dcc
 class DccDecoder
 {
 public:
-    DccDecoder()
+    /// @param tick_per_usec specifies how many timer capture ticks happen per
+    /// usec. The default value assumes the timer does not have a prescaler.
+    DccDecoder(unsigned tick_per_usec)
     {
-        timings_[DCC_ONE].set(52, 64);
-        timings_[DCC_ZERO].set(95, 9900);
-        timings_[MM_PREAMBLE].set(1000, -1);
-        timings_[MM_SHORT].set(20, 32);
-        timings_[MM_LONG].set(200, 216);
+        timings_[DCC_ONE].set(tick_per_usec, 52, 64);
+        timings_[DCC_ZERO].set(tick_per_usec, 95, 9900);
+        timings_[MM_PREAMBLE].set(tick_per_usec, 1000, -1);
+        timings_[MM_SHORT].set(tick_per_usec, 20, 32);
+        timings_[MM_LONG].set(tick_per_usec, 200, 216);
     }
 
     /// Internal states of the decoding state machine.
@@ -86,6 +94,10 @@ public:
     /// change.
     void process_data(uint32_t value)
     {
+#ifdef DCC_DECODER_DEBUG
+        debugLog_.add(value);
+        debugLog_.add(parseState_);
+#endif
         switch (parseState_)
         {
             case DCC_PACKET_FINISHED:
@@ -304,7 +316,7 @@ private:
     /// Represents the timing of a half-wave of the digital track signal.
     struct Timing
     {
-        void set(int min_usec, int max_usec)
+        void set(uint32_t tick_per_usec, int min_usec, int max_usec)
         {
             if (min_usec < 0)
             {
@@ -312,7 +324,7 @@ private:
             }
             else
             {
-                min_value = usec_to_clock(min_usec);
+                min_value = tick_per_usec * min_usec;
             }
             if (max_usec < 0)
             {
@@ -320,18 +332,13 @@ private:
             }
             else
             {
-                max_value = usec_to_clock(max_usec);
+                max_value = tick_per_usec * max_usec;
             }
         }
 
         bool match(uint32_t value_clocks) const
         {
             return min_value <= value_clocks && value_clocks <= max_value;
-        }
-
-        static uint32_t usec_to_clock(int usec)
-        {
-            return (configCPU_CLOCK_HZ / 1000000) * usec;
         }
 
         uint32_t min_value;
@@ -350,6 +357,9 @@ private:
     };
     /// The various timings by the standards.
     Timing timings_[MAX_TIMINGS];
+#ifdef DCC_DECODER_DEBUG
+    LogRing<uint16_t, 256> debugLog_;
+#endif
 };
 
 /// User-space DCC decoding flow. This flow receives a sequence of numbers from
@@ -387,7 +397,6 @@ private:
             {
                 return call_immediately(STATE(register_and_sleep));
             }
-            MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0, 0xff);
             debug_data(value);
             decoder_.process_data(value);
             if (decoder_.state() == DccDecoder::DCC_PACKET_FINISHED)
@@ -417,7 +426,9 @@ private:
     uint32_t lastValue_ = 0;
 
 protected:
-    DccDecoder decoder_;
+    /// State machine that does the DCC decoding. We have 1 usec per tick, as
+    /// these are the numbers we receive from the driver.
+    DccDecoder decoder_ {1};
 };
 
 } // namespace dcc

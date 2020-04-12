@@ -87,6 +87,8 @@ static TivaEEPROMEmulation eeprom("/dev/eeprom", 2000);
 // Bit storing whether our dcc output is enabled or not.
 static bool g_dcc_on = false;
 
+uint32_t feedback_sample_overflow_count = 0;
+
 TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
 TivaDCC<DccHwDefs> dcc_hw("/dev/mainline", &railcom_driver);
 
