@@ -129,6 +129,10 @@ public:
     /// @return input pin level.
     static bool get()
     {
+        // If the pin is configured as an output we can not use the ESP-IDF API
+        // gpio_get_level(pin) since it will return LOW for any output pin. To
+        // work around this API limitation it is necessary to read directly
+        // from the memory mapped GPIO registers.
         if (is_output())
         {
             if (PIN_NUM < 32)
@@ -165,6 +169,11 @@ public:
     /// @return true if pin is configured as an output pin.
     static bool is_output()
     {
+        // If the pin is a valid output, check if it is configured for output.
+        // Unfortunately, ESP-IDF does not provide gpio_get_direction(pin) but
+        // does provide gpio_set_direction(pin, direction). To workaround this
+        // limitation it is necessary to read directly from the memory mapped
+        // GPIO registers.
         if (GPIO_IS_VALID_OUTPUT_GPIO(PIN_NUM))
         {
             // pins 32 and below use the first GPIO controller
