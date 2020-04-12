@@ -158,9 +158,11 @@ rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.hxx
 
 copy_file src/freertos_drivers/arduino \
-          src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
-          src/freertos_drivers/common/GpioWrapper.hxx \
           src/freertos_drivers/common/CpuLoad.{hxx,cxx} \
+          src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
+          src/freertos_drivers/common/DummyGPIO.hxx \
+          src/freertos_drivers/common/GpioWrapper.hxx \
+          src/freertos_drivers/common/RailcomDriver.hxx \
           src/freertos_drivers/common/WifiDefs.{hxx,cxx} \
           src/freertos_drivers/common/libatomic.c \
           src/freertos_drivers/arduino/*
