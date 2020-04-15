@@ -49,4 +49,6 @@ typedef LED_GREEN_RAW_Pin BLINKER_RAW_Pin;
 typedef BLINKER_Pin LED_GREEN_Pin;
 
 extern PWM* const servo_channels[];
-const uint32_t servoPwmCountPerMs = configCPU_CLOCK_HZ / 1000;
+/// @todo: rework the build so this can be moved away from here or turned into
+/// a constexpr.
+#define servoPwmCountPerMs  (configCPU_CLOCK_HZ / 1000)

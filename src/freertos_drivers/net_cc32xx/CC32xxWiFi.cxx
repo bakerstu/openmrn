@@ -1242,6 +1242,9 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
     switch (event->Event)
     {
         case SL_SOCKET_TX_FAILED_EVENT:
+            LOG(ALWAYS, "Socket tx fail status %d, sd %u",
+                (int)event->SocketAsyncEvent.SockTxFailData.Status,
+                (unsigned)event->SocketAsyncEvent.SockTxFailData.Sd);
             switch (event->SocketAsyncEvent.SockTxFailData.Status)
             {
                 case SL_ERROR_BSD_ECLOSE: 
@@ -1251,6 +1254,11 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
             }
             break;
         case SL_SOCKET_ASYNC_EVENT:
+            LOG(ALWAYS, "Socket async event %d, sd %u type %u val %d",
+                (int)event->SocketAsyncEvent.SockAsyncData.Type,
+                (unsigned)event->SocketAsyncEvent.SockAsyncData.Sd,
+                (unsigned)event->SocketAsyncEvent.SockAsyncData.Type,
+                (int)event->SocketAsyncEvent.SockAsyncData.Val);
             switch (event->SocketAsyncEvent.SockAsyncData.Type)
             {
                 default:
@@ -1258,6 +1266,7 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
             }
             break;
         default:
+            LOG(ALWAYS, "Socket event %d", (int)event->Event);
             break;
     }
 }

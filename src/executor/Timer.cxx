@@ -68,9 +68,8 @@ ActiveTimers::~ActiveTimers()
 
 void ActiveTimers::notify()
 {
-    if (!isPending_)
+    if (isPending_.exchange(1) == 0)
     {
-        isPending_ = 1;
         executor_->add(this);
     }
 }

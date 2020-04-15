@@ -45,6 +45,8 @@
 #include <inttypes.h>
 #include "os/os.h"
 
+/// Loglevel that is always printed.
+static const int ALWAYS = -1;
 /// Loglevel that kills the current process.
 static const int FATAL = 0;
 /// Loglevel that is always printed, reporting an error.

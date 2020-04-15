@@ -96,6 +96,12 @@ public:
      * 0 to NUM_PROFILES-1.*/
     static constexpr int NUM_PROFILES = 7;
 
+    /** Pass this option as protocol to ::socket to create a secure socket. */
+    static constexpr unsigned IPPROTO_TCP_TLS = 254;
+
+    /** Retrieves the socket descriptor for setting TLS parameters. */
+    static constexpr unsigned SO_SIMPLELINK_SD = 65537;
+    
     /** CC32xx SimpleLink forward declaration */
     struct WlanEvent;
 

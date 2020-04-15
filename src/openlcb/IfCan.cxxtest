@@ -145,6 +145,8 @@ TEST_F(AsyncNodeTest, NodeIdLookupLocal)
     auto b = invoke_flow(&lflow, node_, NodeHandle(0, 0x22A));
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(0x02010d000003U, b->data()->handle.id);
+
+    wait();
 }
 
 TEST_F(AsyncNodeTest, NodeIdLookupRemoteMissing)
@@ -154,6 +156,8 @@ TEST_F(AsyncNodeTest, NodeIdLookupRemoteMissing)
     auto b = invoke_flow(&lflow, node_, NodeHandle(0, 0x882));
     EXPECT_EQ(0x2030, b->data()->resultCode);
     EXPECT_EQ(0u, b->data()->handle.id);
+
+    wait();
 }
 
 TEST_F(AsyncNodeTest, NodeIdLookupRemoteFound)
@@ -164,6 +168,8 @@ TEST_F(AsyncNodeTest, NodeIdLookupRemoteFound)
     auto b = invoke_flow(&lflow, node_, NodeHandle(0, 0x882));
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(0x010203040506u, b->data()->handle.id);
+
+    wait();
 }
 
 TEST_F(AsyncNodeTest, NodeIdLookupRemoteFake)
@@ -174,6 +180,8 @@ TEST_F(AsyncNodeTest, NodeIdLookupRemoteFake)
     auto b = invoke_flow(&lflow, node_, NodeHandle(0, 0x882));
     EXPECT_EQ(0x2030, b->data()->resultCode);
     EXPECT_EQ(0u, b->data()->handle.id);
+
+    wait();
 }
 
 class AsyncMessageCanTests : public AsyncIfTest
@@ -723,6 +731,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMissTimeout)
     ifCan_->addressed_message_write_flow()->send(b);
     // Then a verify node id global.
     expect_packet(":X1949022AN050101FFFFDD;");
+    wait();
     // Then given up.
     wait_for_notification();
 }
@@ -742,6 +751,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageToNodeCacheMissAMDTimeout)
     ifCan_->addressed_message_write_flow()->send(b);
     wait();
     expect_packet(":X1949022AN050101FFFFDD;");
+    wait();
     usleep(30000);
     wait();
     send_packet_and_expect_response(

@@ -31,6 +31,8 @@
  * @date 3 May 2015
  */
 
+#if (!defined(ARDUINO)) || defined(ARDUINO_ARCH_STM32)
+
 #include "Stm32Can.hxx"
 
 #include <stdint.h>
@@ -444,8 +446,9 @@ void can1_rx0_interrupt_handler(void)
 
 } // extern "C"
 
+#endif // !ARDUINO || STM32
 
-#ifdef ARDUINO
+#if defined(ARDUINO_ARCH_STM32)
 
 #include "stm32_def.h"
 #include "PinAF_STM32F1.h"
@@ -497,6 +500,20 @@ void USB_LP_CAN_RX0_IRQHandler(void)
 {
     Stm32Can::instances[0]->rx_interrupt_handler();
 }
+void CEC_CAN_IRQHandler(void)
+{
+    Stm32Can::instances[0]->rx_interrupt_handler();
+    Stm32Can::instances[0]->tx_interrupt_handler();
+}
+void CAN1_TX_IRQHandler(void)
+{
+    Stm32Can::instances[0]->tx_interrupt_handler();
+}
+void CAN1_RX0_IRQHandler(void)
+{
+    Stm32Can::instances[0]->rx_interrupt_handler();
+}
 } // extern "C"
 
 #endif
+

@@ -58,7 +58,8 @@ int appl_main(int argc, char *argv[])
     setblink(0);
     int fd = ::open("/dev/dcc_decoder0", O_RDONLY);
     HASSERT(fd >= 0);
-    int wfd = ::open("/dev/serUSB0", O_RDWR);
+    //int wfd = ::open("/dev/serUSB0", O_RDWR);
+    int wfd = ::open("/dev/ser0", O_RDWR);
     HASSERT(wfd >= 0);
     int cnt = 0;
     while (1)
