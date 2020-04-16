@@ -337,6 +337,21 @@ constexpr const Gpio *const kPortDEGpio[] = {
 openlcb::MultiConfiguredConsumer portde_consumers(stack.node(), kPortDEGpio,
     ARRAYSIZE(kPortDEGpio), cfg.seg().portde_consumers());
 
+// Rick Lull - April 15 2020
+// Snap switches and LED lights conflict on same port. When GPIO pin has
+// snap configuration in place, LED will quickly flash on consumer event recv and
+// not stay on as desired/needed for signal driver.
+// When PORTD_SNAP is set to 1 (enabled), we will set portD to be used for snap
+// switch pulse configuration. 
+// When PORTD_SNAP is set to 0 (disabled), this sets port D to be a constant on/off
+// state as dictated by consumed events.
+//
+// Additional fixes to reference PortD pins instead of turnout driver GPIOs here. BR has no idea
+// how that got here and I certainly don't, but it is fixed anyway.
+//
+
+#if PORTD_SNAP > 0
+
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_1(
     stack.node(), cfg.seg().snap_switches().entry<0>(), (const Gpio*)&PORTD_LINE1);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_2(
@@ -346,13 +361,15 @@ openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_3(
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_4(
     stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE4);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_5(
-    stack.node(), cfg.seg().snap_switches().entry<4>(), TDRV5_Pin::instance());
+    stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE5);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_6(
-    stack.node(), cfg.seg().snap_switches().entry<5>(), TDRV6_Pin::instance());
+    stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE6);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_7(
-    stack.node(), cfg.seg().snap_switches().entry<6>(), TDRV7_Pin::instance());
+    stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE7);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_8(
-    stack.node(), cfg.seg().snap_switches().entry<7>(), TDRV8_Pin::instance());
+    stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE8);
+
+#endif // if portd_snap > 1
 
 uint32_t input_register[2] = {0};
 
@@ -482,7 +499,8 @@ openlcb::RefreshLoop loopab(stack.node(),
         producer_b3.polling(), producer_b4.polling(), //
         producer_b5.polling(), producer_b6.polling(), //
         producer_b7.polling(), producer_b8.polling(), //
-        &turnout_pulse_consumer_1,                    //
+#if PORTD_SNAP > 0
+	&turnout_pulse_consumer_1,                    //
         &turnout_pulse_consumer_2,                    //
         &turnout_pulse_consumer_3,                    //
         &turnout_pulse_consumer_4,                    //
@@ -490,6 +508,7 @@ openlcb::RefreshLoop loopab(stack.node(),
         &turnout_pulse_consumer_6,                    //
         &turnout_pulse_consumer_7,                    //
         &turnout_pulse_consumer_8                     //
+#endif
     });
 
 /** Entry point to application.
