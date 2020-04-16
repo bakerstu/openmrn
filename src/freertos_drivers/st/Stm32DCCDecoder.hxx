@@ -192,17 +192,19 @@ public:
     /// expiring event.
     static inline bool int_get_and_clear_delay_event();
 
-    /// Delays a give number of usec using the capture timer feature. Needed
-    /// for the timing of the railcom cutout.
-    /// @param usec how much to delay.
+    /// Delays a give number of usec using the usec timer feature. Needed for
+    /// the timing of the railcom cutout. An rcom_interrupt shall be raised
+    /// after this many usec.
+    /// @param usec how much to delay, with the measurement started from the
+    /// set_cap_timer_time() call (or the previous edge captured before that by
+    /// the capture timer).
     static void set_cap_timer_delay_usec(int usec)
     {
         Debug::DccPacketDelay::toggle();
         // This code handles underflow of the timer correctly. We cannot wait
         // longer than one full cycle though (65 msec -- typical RailCom waits
         // are 20-500 usec).
-        uint32_t new_match_v = __HAL_TIM_GET_COUNTER(usec_timer_handle()) +
-            TIMER_MAX_VALUE + 1 - usec;
+        uint32_t new_match_v = usecTimerStart_ + TIMER_MAX_VALUE + 1 - usec;
         new_match_v &= 0xffff;
         __HAL_TIM_SET_COMPARE(
             usec_timer_handle(), HW::USEC_CHANNEL, new_match_v);
@@ -232,6 +234,11 @@ public:
     /// each to deliver an rcom_interrupt().
     static void set_cap_timer_time()
     {
+        if (shared_timers()) {
+            usecTimerStart_ =  get_capture_counter();
+        } else {
+            usecTimerStart_ =  __HAL_TIM_GET_COUNTER(usec_timer_handle());
+        }
         TIM_OC_InitTypeDef channel_init;
         memset(&channel_init, 0, sizeof(channel_init));
         channel_init.OCMode = TIM_OCMODE_TIMING; // frozen -- no output
@@ -263,6 +270,10 @@ public:
 private:
     static TIM_HandleTypeDef captureTimerHandle_;
     static TIM_HandleTypeDef usecTimerHandle_;
+    /// Holds the base value from where the usec timer should be counting down
+    /// when the delay_usec call is invoked. This is set from the last capture
+    /// edge when the mode is switched to the usec timer.
+    static uint32_t usecTimerStart_;
 
     /// Initializes a timer resource (shared for all channels).
     /// @param handle pointer to the HAL timer handle.
@@ -325,6 +336,7 @@ private:
 template <class HW>
 TIM_HandleTypeDef Stm32DccTimerModule<HW>::captureTimerHandle_;
 template <class HW> TIM_HandleTypeDef Stm32DccTimerModule<HW>::usecTimerHandle_;
+template <class HW> uint32_t Stm32DccTimerModule<HW>::usecTimerStart_;
 
 template <class HW> void Stm32DccTimerModule<HW>::module_init()
 {
