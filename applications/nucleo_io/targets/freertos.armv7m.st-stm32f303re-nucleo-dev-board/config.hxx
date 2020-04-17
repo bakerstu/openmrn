@@ -31,7 +31,16 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
 #define NUM_EXTBOARDS 0
-#define PORTD_SNAP 0
+
+// Snap switches and LED lights conflict on same port. When GPIO pin has
+// snap configuration in place, LED will quickly flash on consumer event recv and
+// not stay on as desired/needed for signal driver.
+// When PORTD_SNAP is defined (present), we will set portD to be used for snap
+// switch pulse configuration. 
+// When PORTD_SNAP is not defined (remarked out), this sets port D to be a constant on/off
+// state as dictated by consumed events.
+
+//#define PORTD_SNAP
 
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout

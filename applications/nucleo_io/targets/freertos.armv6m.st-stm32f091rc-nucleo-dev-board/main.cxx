@@ -327,30 +327,20 @@ constexpr const MmapGpio PORTE_LINE6(output_register, 10, true);
 constexpr const MmapGpio PORTE_LINE7(output_register, 9, true);
 constexpr const MmapGpio PORTE_LINE8(output_register, 8, true);
 
+
 constexpr const Gpio *const kPortDEGpio[] = {
+#ifndef PORTD_SNAP
     &PORTD_LINE1, &PORTD_LINE2, &PORTD_LINE3, &PORTD_LINE4, //
     &PORTD_LINE5, &PORTD_LINE6, &PORTD_LINE7, &PORTD_LINE8, //
     &PORTE_LINE1, &PORTE_LINE2, &PORTE_LINE3, &PORTE_LINE4, //
+#endif
     &PORTE_LINE5, &PORTE_LINE6, &PORTE_LINE7, &PORTE_LINE8  //
 };
 
 openlcb::MultiConfiguredConsumer portde_consumers(stack.node(), kPortDEGpio,
     ARRAYSIZE(kPortDEGpio), cfg.seg().portde_consumers());
 
-// Rick Lull - April 15 2020
-// Snap switches and LED lights conflict on same port. When GPIO pin has
-// snap configuration in place, LED will quickly flash on consumer event recv and
-// not stay on as desired/needed for signal driver.
-// When PORTD_SNAP is set to 1 (enabled), we will set portD to be used for snap
-// switch pulse configuration. 
-// When PORTD_SNAP is set to 0 (disabled), this sets port D to be a constant on/off
-// state as dictated by consumed events.
-//
-// Additional fixes to reference PortD pins instead of turnout driver GPIOs here. BR has no idea
-// how that got here and I certainly don't, but it is fixed anyway.
-//
-
-#if PORTD_SNAP > 0
+#ifdef PORTD_SNAP
 
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_1(
     stack.node(), cfg.seg().snap_switches().entry<0>(), (const Gpio*)&PORTD_LINE1);
@@ -361,15 +351,15 @@ openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_3(
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_4(
     stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE4);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_5(
-    stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE5);
+    stack.node(), cfg.seg().snap_switches().entry<4>(), (const Gpio*)&PORTD_LINE5);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_6(
-    stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE6);
+    stack.node(), cfg.seg().snap_switches().entry<5>(), (const Gpio*)&PORTD_LINE6);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_7(
-    stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE7);
+    stack.node(), cfg.seg().snap_switches().entry<6>(), (const Gpio*)&PORTD_LINE7);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_8(
-    stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE8);
+    stack.node(), cfg.seg().snap_switches().entry<7>(), (const Gpio*)&PORTD_LINE8);
 
-#endif // if portd_snap > 1
+#endif
 
 uint32_t input_register[2] = {0};
 
@@ -499,7 +489,7 @@ openlcb::RefreshLoop loopab(stack.node(),
         producer_b3.polling(), producer_b4.polling(), //
         producer_b5.polling(), producer_b6.polling(), //
         producer_b7.polling(), producer_b8.polling(), //
-#if PORTD_SNAP > 0
+#ifdef PORTD_SNAP
 	&turnout_pulse_consumer_1,                    //
         &turnout_pulse_consumer_2,                    //
         &turnout_pulse_consumer_3,                    //
