@@ -270,7 +270,7 @@ template <class Module> void DccDecoder<Module>::disable()
 template <class Module>
 __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
 {
-    Debug::DccDecodeInterrupts::set(true);
+    //Debug::DccDecodeInterrupts::set(true);
     if (Module::int_get_and_clear_capture_event())
     {
         // We have a capture event at hand.
@@ -312,9 +312,11 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         else if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT &&
             true) // Module::NRZ_Pin::get())
         {
-            //Debug::RailcomDriverCutout::set(true);
+            Debug::RailcomDriverCutout::set(true);
             Module::set_cap_timer_time();
+            Debug::RailcomDriverCutout::set(false);
             Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_PRE);
+            Debug::RailcomDriverCutout::set(true);
             inCutout_ = true;
             cutoutState_ = 0;
         }
@@ -364,16 +366,17 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             Module::after_feedback_hook();
         }
     }
+    //Debug::DccDecodeInterrupts::set(false);
 }
 
 template <class Module>
 __attribute__((optimize("-O3"))) void
 DccDecoder<Module>::rcom_interrupt_handler()
 {
-    Debug::DccDecodeInterrupts::set(true);
     if (Module::int_get_and_clear_delay_event())
     {
-        // Debug::RailcomDriverCutout::set(false);
+        Debug::DccDecodeInterrupts::set(true);
+        Debug::RailcomDriverCutout::set(false);
         switch (cutoutState_)
         {
             case 0:
@@ -392,6 +395,7 @@ DccDecoder<Module>::rcom_interrupt_handler()
             }
             default:
             {
+                //Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
                 Module::stop_cap_timer_time();
                 Module::set_cap_timer_capture();
                 railcomDriver_->end_cutout();
@@ -399,8 +403,8 @@ DccDecoder<Module>::rcom_interrupt_handler()
                 break;
             }
         }
+        Debug::DccDecodeInterrupts::set(false);
     }
-    Debug::DccDecodeInterrupts::set(false);
 }
 
 template <class Module>
