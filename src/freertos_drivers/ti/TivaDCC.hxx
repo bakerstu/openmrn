@@ -69,6 +69,7 @@
 #include "dcc/RailCom.hxx"
 #include "executor/Notifiable.hxx"
 #include "RailcomDriver.hxx"
+#include "DccOutput.hxx"
 
 /// This structure is safe to use from an interrupt context and a regular
 /// context at the same time, provided that
@@ -164,7 +165,7 @@ private:
 };
 
 
-template<int N, struct HW> struct DefaultOutput : public DccOutput<N> {
+template<int N, class HW> struct DefaultOutput : public DccOutputHw<N> {
     /// Invoked at the beginning of a railcom cutout. @return the number of usec
     /// to wait before invoking phase2.
     static unsigned start_railcom_cutout_phase1(void) {
@@ -191,7 +192,9 @@ template<int N, struct HW> struct DefaultOutput : public DccOutput<N> {
     /// Called once every packet by the driver, typically before the preamble,
     /// if the output is supposed to be on.
     static void enable_output(void) {
-        output_enabled = true;
+        /// @todo make sure when we call this from the application we actually
+        /// set isOutputControlEnabled = 1.
+        // output_enabled = true;
         HW::BOOSTER_ENABLE_Pin::set(true);
         HW::PIN_H::set_hw();
         HW::PIN_L::set_hw();
@@ -200,7 +203,9 @@ template<int N, struct HW> struct DefaultOutput : public DccOutput<N> {
     /// Not called by the driver, but available to the application to power
     /// down the output stage.
     static void disable_output(void) {
-        output_enabled = false;
+        /// @todo make sure when we call this from the application we actually
+        /// set isOutputControlEnabled = 0 or isOutputShorted to 1.
+        //output_enabled = false;
         HW::BOOSTER_ENABLE_Pin::set(false);
         HW::PIN_H::set(HW::PIN_H_INVERT);
         HW::PIN_H::set_output();
@@ -295,7 +300,7 @@ public:
      * calling these functions the state of the object would be undefined /
      * uninintialized. The only safe solution is to make them static. */
     /// Initializes the DCC output hardware.
-    static void hw_init() {
+    static void hw_preinit() {
 #ifdef TIVADCC_TIVA
         MAP_SysCtlPeripheralEnable(HW::CCP_PERIPH);
         MAP_SysCtlPeripheralEnable(HW::INTERVAL_PERIPH);
@@ -309,8 +314,9 @@ public:
         MAP_PRCMPeripheralClkEnable(HW::INTERVAL_PERIPH, PRCM_RUN_MODE_CLK);
         MAP_PRCMPeripheralClkEnable(HW::RAILCOM_UART_PERIPH, PRCM_RUN_MODE_CLK);
 #endif
-        internal_enable_output();
-        disable_output();
+        HW::Output1::hw_preinit();
+        HW::Output2::hw_preinit();
+        HW::Output3::hw_preinit();
         MAP_UARTConfigSetExpClk(
             HW::RAILCOM_UART_BASE, configCPU_CLOCK_HZ, 250000,
             UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
@@ -524,7 +530,24 @@ private:
     void fill_timing_turnon(BitEnum ofs, uint32_t period_usec,
                             uint32_t fill_usec);
 
-    #ifdef TIVADCC_CC3200
+    /// Checks each output and enables those that need to be on.
+    void check_and_enable_outputs()
+    {
+        if (HW::Output1::should_be_enabled())
+        {
+            HW::Output1::enable_output();
+        }
+        if (HW::Output2::should_be_enabled())
+        {
+            HW::Output2::enable_output();
+        }
+        if (HW::Output3::should_be_enabled())
+        {
+            HW::Output3::enable_output();
+        }
+    }
+
+#ifdef TIVADCC_CC3200
     // This function is called differently in tivaware than CC3200.
     void MAP_SysCtlDelay(unsigned ticks3) {
         MAP_UtilsDelay(ticks3);
@@ -545,9 +568,6 @@ private:
     DISALLOW_COPY_AND_ASSIGN(TivaDCC);
 };
 
-
-template <class HW>
-bool TivaDCC<HW>::savedOutputEnabled_ = false;
 
 /** Handle an interrupt.
  */
@@ -657,6 +677,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             state_ = DCC_START_RAILCOM_RECEIVE;
             break;
         case DCC_START_RAILCOM_RECEIVE:
+        {
             bool rc1 = HW::Output1::need_railcom_cutout();
             bool rc2 = HW::Output2::need_railcom_cutout();
             bool rc3 = HW::Output3::need_railcom_cutout();
@@ -707,6 +728,7 @@ inline void TivaDCC<HW>::interrupt_handler()
                              timings[RAILCOM_CUTOUT_SECOND].period);
             state_ = DCC_MIDDLE_RAILCOM_CUTOUT;
             break;
+        }
         case DCC_MIDDLE_RAILCOM_CUTOUT:
             railcomDriver_->middle_cutout();
             current_bit = DCC_ONE;
@@ -715,6 +737,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             state_ =  DCC_STOP_RAILCOM_RECEIVE;
             break;
         case DCC_STOP_RAILCOM_RECEIVE:
+        {
             current_bit = DCC_ONE;
             state_ = DCC_ENABLE_AFTER_RAILCOM;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
@@ -750,17 +773,10 @@ inline void TivaDCC<HW>::interrupt_handler()
                 HW::Output3::stop_railcom_cutout_phase2();
             }
             break;
+        }
         case DCC_ENABLE_AFTER_RAILCOM:
-            if (HW::Output1::should_be_enabled()) {
-                HW::Output1::enable_output();
-            }
-            if (HW::Output2::should_be_enabled()) {
-                HW::Output2::enable_output();
-            }
-            if (HW::Output3::should_be_enabled()) {
-                HW::Output3::enable_output();
-            }
             current_bit = DCC_ONE;
+            check_and_enable_outputs();
             state_ = DCC_LEADOUT;
             ++preamble_count;
             break;
@@ -807,7 +823,7 @@ inline void TivaDCC<HW>::interrupt_handler()
                 state_ = MM_DATA_0;
             }
             break;
-
+#if 0
     case POWER_TURNON:
         resync = true;
         current_bit = TURNON_1P;
@@ -833,6 +849,13 @@ inline void TivaDCC<HW>::interrupt_handler()
             state_ = POWER_TURNON_50P;
         }
         break;
+    case POWER_SHORT_20P:
+        current_bit = SHORT_20P;
+        if (count++ >= 500) {
+            count = 0;
+            resync = true;
+        }
+        break;
     case POWER_TURNON_50P:
         current_bit = TURNON_50P;
         if (count++ < 1000)
@@ -840,19 +863,13 @@ inline void TivaDCC<HW>::interrupt_handler()
             break;
         }
     // fall through
+#endif        
     case POWER_IMM_TURNON:
         current_bit = DCC_ONE;
-        internal_enable_output();
         packet_repeat_count = 0;
         get_next_packet = true;
         resync = true;
         break;
-    case POWER_SHORT_20P:
-        current_bit = SHORT_20P;
-        if (count++ >= 500) {
-            count = 0;
-            resync = true;
-        }
     }
 
     if (resync) {
@@ -938,6 +955,7 @@ inline void TivaDCC<HW>::interrupt_handler()
 
     if (get_next_packet)
     {
+        check_and_enable_outputs();
         TDebug::NextPacket::toggle();
         if (packet_repeat_count) {
             --packet_repeat_count;
