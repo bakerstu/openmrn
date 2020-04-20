@@ -34,6 +34,99 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_DCCOUTPUT_HXX_
 #define _FREERTOS_DRIVERS_COMMON_DCCOUTPUT_HXX_
 
+#include <cstdint>
+#include <atomic>
+
+/// Virutal base class for controlling outputs. All of these functions are okay
+/// to call from interrupts (including non-kernel-compatible interrupts under
+/// FreeRTOS).
+class DccOutput {
+public:
+    /// Enumeration describing different outputs.
+    enum Type : int {
+        /// DCC output of the integrated booster.
+        TRACK = 1,
+        /// DCC output of the program track.
+        PGM = 2,
+        /// DCC output going towards the LCC cable.
+        LCC = 3,
+    };
+    
+    /// Values of a bit mask why we might want to disable a given DCC output.
+    enum class DisableReason : uint8_t {
+        /// Set as 1 during construction time, to be cleared by the application
+        /// when the initialization is complete.
+        INITIALIZATION_PENDING = 1,
+        /// User decided via a persistent configuration that this output should
+        /// not be enabled.
+        CONFIG_SETTING = 2,
+        /// A network message requested global emergency off.
+        GLOBAL_EOFF = 4,
+        /// Short detector says this output is shorted.
+        SHORTED = 8,
+        /// The system is in thermal shutdown.
+        THERMAL = 16,
+        /// This output should be off due to the conflict between program track
+        /// and normal operation mode.
+        PGM_TRACK_LOCKOUT = 32,
+    };
+
+    /// Disables the output, marking in a bitmask why.
+    virtual void disable_output_for_reason(DisableReason bit) = 0;
+    /// Removes a disable reason flag. All the flags need to be cleared in
+    /// order to enable the output.
+    virtual void clear_disable_output_for_reason(DisableReason bit) = 0;
+
+    /// @return all currently set disable reasons.
+    virtual uint8_t get_disable_output_reasons() = 0;
+    
+    enum class RailcomCutout {
+        DISABLED = 0,
+        SHORT_CUTOUT = 1,
+        LONG_CUTOUT = 2
+    };
+
+    /// Specifies whether there should be a railcom cutout on this output.
+    virtual void set_railcom_cutout_enabled(RailcomCutout cutout) = 0;
+};
+
+/// Default implementation class of the DccOutput that proxies the calls to a
+/// hardware-specific static structure.
+template<class HW> class DccOutputImpl : public DccOutput {
+public:
+    constexpr DccOutputImpl() {}
+    
+    /// Disables the output, marking in a bitmask why.
+    void disable_output_for_reason(DisableReason bit) override {
+        HW::set_disable_reason(bit);
+    }
+    /// Removes a disable reason flag. All the flags need to be cleared in
+    /// order to enable the output.
+    void clear_disable_output_for_reason(DisableReason bit) override {
+        HW::clear_disable_reason(bit);
+    }
+
+    /// Specifies whether there should be a railcom cutout on this output.
+    void set_railcom_cutout_enabled(RailcomCutout cutout) override {
+        HW::isRailcomCutoutEnabled_ = cutout;
+    }
+
+    uint8_t get_disable_output_reasons() override
+    {
+        return HW::outputDisableReasons_;
+    }
+
+    /// @return the default instance created during initialization.
+    static constexpr DccOutput* instance() {
+        return const_cast<DccOutput*>(&instance_);
+    }
+private:
+    /// Default instance to be used.
+    static const DccOutputImpl<HW> instance_;
+};
+
+/// Allocates the storage by the linker for the static default instance.
+template<class HW> const DccOutputImpl<HW> DccOutputImpl<HW>::instance_;
 
 /// This structure represents a single output channel for a DCC command
 /// station. The DCC driver uses these structures, with the business logic
@@ -41,19 +134,17 @@
 ///
 /// @param OUTPUT_NUMBER 0,1,... the number of outputs. Each output is
 /// independently controlled.
-template<int OUTPUT_NUMBER> struct DccOutput {
+template<int OUTPUT_NUMBER> struct DccOutputHw {
 public:
 
-    /// 1 if the application desires this output to be powered. Set by the
-    /// application, read by the driver.
-    static std::atomic_uint8_t isOutputControlEnabled_;
-
-    /// 1 if the short detector determined that this output is shorted and thus
-    /// should not be powered automatically. Set by the application, read by
-    /// the driver. When the application sets it, it is the job of the
-    /// application to disable the output.
-    static std::atomic_uint8_t isOutputShorted_;
-
+    /// Bitmask of why this output should be disabled. If zero, the output
+    /// should be enabled. If non-zero, the output should be disabled. A
+    /// variety of system components own one bit in this bitmask each; see {
+    /// \link DccOutput::DisableReason } These bits are all set by the
+    /// application. The DCC Driver will only read this variable, and enable
+    /// the output if all bits are zero.
+    static std::atomic_uint8_t outputDisableReasons_;
+    
     /// 0 if we should not produce a railcom cutout; 1 for short cutout; 2 for
     /// regular cutout. Set by the application and read by the DCC driver.
     static std::atomic_uint8_t isRailcomCutoutEnabled_;
@@ -65,42 +156,59 @@ public:
     /// Called by the driver to decide whether to make this channel participate
     /// in the railcom cutout.
     static bool need_railcom_cutout() {
-        return isOutputControlEnabled_ && !isOutputShorted_ &&
-            isRailcomCutoutEnabled_ != 0;
+        return (outputDisableReasons_ == 0) && (isRailcomCutoutEnabled_ != 0);
     }
 
     /// Called once after the railcom cutout is done to decide whether this
     /// output should be reenabled.
     static bool should_be_enabled() {
-        return isOutputControlEnabled_ && !isOutputShorted_;
+        return outputDisableReasons_ == 0;
+    }
+
+    /// Clears a disable reason. If all disable reasons are clear, the output
+    /// will be enabled by the DCC driver at the beginning of the next packet.
+    static void clear_disable_reason(DccOutput::DisableReason bit)
+    {
+        outputDisableReasons_ &= ~((uint8_t)bit);
+    }
+
+protected:
+    /// Set one bit in the disable reasons bit field. This is protected,
+    /// because the implementation / child class should have a composite
+    /// function that sets the bit and disables the output in one call.
+    static void set_disable_reason_impl(DccOutput::DisableReason bit)
+    {
+        outputDisableReasons_ |= (uint8_t)bit;
     }
     
 private:
     /// Private constructor. These objects cannot be initialized and must only
     /// have static members.
-    DccOutput();
+    DccOutputHw();
 };
 
-template<int N> std::atomic_uint8_t DccOutput<N>::isOutputControlEnabled_ = 0;
-template<int N> std::atomic_uint8_t DccOutput<N>::isOutputShorted_ = 0;
-template<int N> std::atomic_uint8_t DccOutput<N>::isRailcomCutoutEnabled_ = 2;
-template<int N> std::atomic_uint8_t DccOutput<N>::isRailcomCutoutActive_ = 0;
+template<int N> std::atomic_uint8_t DccOutputHw<N>::outputDisableReasons_ = DccOutput::DisableReason::INITIALIZATION_PENDING;
+template<int N> std::atomic_uint8_t DccOutputHw<N>::isRailcomCutoutEnabled_ = 2;
+template<int N> std::atomic_uint8_t DccOutputHw<N>::isRailcomCutoutActive_ = 0;
 
 /// Interface that the actual outputs have to implement in their
 /// hardware-specific classes.
-template<int N> struct DccOutputDummy : public DccOutput<N> {
+template<int N> struct DccOutputHwDummy : public DccOutputHw<N> {
 public:
+    /// Called once during hw_preinit boot state.
+    static void hw_preinit(void) {}
+    
     /// Invoked at the beginning of a railcom cutout. @return the number of usec
     /// to wait before invoking phase2.
-    static unsigned start_railcom_cutout_phase1(void) {}
+    static unsigned start_railcom_cutout_phase1(void) { return 0; }
     
     /// Invoked at the beginning of a railcom cutout after the delay. @return
     /// number of usec to delay before enabling railcom UART receive.
-    static unsigned start_railcom_cutout_phase2(void) {}
+    static unsigned start_railcom_cutout_phase2(void) { return 0; }
 
     /// Invoked at the end of a railcom cutout. @return the number of usec to
     /// wait before invoking phase2.
-    static unsigned stop_railcom_cutout_phase1(void) {}
+    static unsigned stop_railcom_cutout_phase1(void) { return 0; }
     
     /// Invoked at the end of a railcom cutout.
     static void stop_railcom_cutout_phase2(void) {}
@@ -113,6 +221,11 @@ public:
     static bool need_railcom_cutout()
     {
         return false;
+    }
+
+    static void set_disable_reason(DccOutput::DisableReason bit) {
+        DccOutputHwDummy::set_disable_reason_impl(bit);
+        // no actual output needs to be disabled.
     }
 };
 
