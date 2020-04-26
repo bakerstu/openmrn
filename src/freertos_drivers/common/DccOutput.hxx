@@ -25,7 +25,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file DccOutput.hxx
- * Common definitions (base classes) for DCC output drivers.
+ *
+ * Common definitions (base classes) for DCC output drivers. The role of the
+ * output driver is to control the output enable / disable and railcom cutout.
  *
  * @author Balazs Racz
  * @date 19 Apr 2020
