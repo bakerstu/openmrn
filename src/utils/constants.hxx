@@ -46,7 +46,7 @@
 #define EXTERNCEND
 #endif
 
-#if defined (__EMSCRIPTEN__) || defined (__MACH__) || defined(__linux__)
+#if defined (__EMSCRIPTEN__) || defined (__MACH__) || defined(__linux__) || defined(__PIC32MX__)
 #define NEED_SIMPLE_CONST
 #endif
 

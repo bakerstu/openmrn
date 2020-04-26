@@ -174,9 +174,11 @@ public:
         , chipIndex_(chip_index)
         , bit_(bit)
     {
+#ifndef __PIC32MX__
         HASSERT(bit < 8);
         HASSERT(chip_index < sizeof(instance->gpoData_));
         HASSERT(N == sizeof(instance->gpoData_));
+#endif
     }
 
     /// Writes a GPO pin (set or clear to a specific state).
