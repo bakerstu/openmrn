@@ -226,7 +226,6 @@ struct DccHwDefs {
    *  non-inverted pin will be driven low as safe setting at startup. */
   static const bool PIN_L_INVERT = false;
 
-    
   /** @returns the number of preamble bits to send exclusive of end of packet
    *  '1' bit */
   static int dcc_preamble_count() { return 16; }
@@ -250,9 +249,8 @@ struct DccHwDefs {
   using RAILCOM_TRIGGER_Pin = InvertedGpio<::RAILCOM_TRIGGER_Pin>;
   static const auto RAILCOM_TRIGGER_DELAY_USEC = 6;
 
-  using InternalBoosterOutput =
-      DccOutputHwReal<DccOutput::TRACK, DummyPin,
-                      RAILCOM_TRIGGER_Pin, 6, RAILCOM_TRIGGER_DELAY_USEC, 0>;
+  using InternalBoosterOutput = DccOutputHwReal<DccOutput::TRACK, DummyPin,
+      RAILCOM_TRIGGER_Pin, 6, RAILCOM_TRIGGER_DELAY_USEC, 0>;
   using Output1 = InternalBoosterOutput;
   using Output2 = DccOutputHwDummy<1>;
   using Output3 = DccOutputHwDummy<1>;
