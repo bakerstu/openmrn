@@ -164,68 +164,6 @@ private:
     volatile uint8_t count_;
 };
 
-template <int N, class HW> struct DefaultOutput : public DccOutputHw<N>
-{
-    /// Invoked at the beginning of a railcom cutout. @return the number of usec
-    /// to wait before invoking phase2.
-    static unsigned start_railcom_cutout_phase1(void)
-    {
-        disable_output();
-        return 1;
-    }
-
-    /// Invoked at the beginning of a railcom cutout after the delay.
-    static unsigned start_railcom_cutout_phase2(void)
-    {
-        HW::RAILCOM_TRIGGER_Pin::set(HW::RAILCOM_TRIGGER_INVERT ? false : true);
-        return HW::RAILCOM_TRIGGER_DELAY_USEC;
-    }
-
-    /// Invoked at the end of a railcom cutout. @return the number of usec to
-    /// wait before invoking phase2.
-    static unsigned stop_railcom_cutout_phase1(void)
-    {
-        return 0;
-    }
-
-    /// Invoked at the end of a railcom cutout.
-    static void stop_railcom_cutout_phase2(void)
-    {
-        HW::RAILCOM_TRIGGER_Pin::set(HW::RAILCOM_TRIGGER_INVERT ? true : false);
-    }
-
-    /// Called once every packet by the driver, typically before the preamble,
-    /// if the output is supposed to be on.
-    static void enable_output(void)
-    {
-        /// @todo make sure when we call this from the application we actually
-        /// set isOutputControlEnabled = 1.
-        // output_enabled = true;
-        HW::BOOSTER_ENABLE_Pin::set(true);
-        HW::PIN_H::set_hw();
-        HW::PIN_L::set_hw();
-    }
-
-    /// Not called by the driver, but available to the application to power
-    /// down the output stage.
-    static void disable_output(void)
-    {
-        /// @todo make sure when we call this from the application we actually
-        /// set isOutputControlEnabled = 0 or isOutputShorted to 1.
-        // output_enabled = false;
-        HW::BOOSTER_ENABLE_Pin::set(false);
-        HW::PIN_H::set(HW::PIN_H_INVERT);
-        HW::PIN_H::set_output();
-        HW::PIN_H::set(HW::PIN_H_INVERT);
-
-        HW::PIN_L::set(HW::PIN_L_INVERT);
-        HW::PIN_L::set_output();
-        HW::PIN_L::set(HW::PIN_L_INVERT);
-
-        HW::RAILCOM_TRIGGER_Pin::set(HW::RAILCOM_TRIGGER_INVERT);
-    }
-};
-
 /** A device driver for sending DCC packets.  If the packet queue is empty,
  *  then the device driver automatically sends out idle DCC packets.  The
  *  device driver uses two instances of the 16/32-bit timer pairs.  The user
