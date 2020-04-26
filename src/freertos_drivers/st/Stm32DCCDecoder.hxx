@@ -448,6 +448,7 @@ bool Stm32DccTimerModule<HW>::int_get_and_clear_delay_event()
 {
     if (__HAL_TIM_GET_FLAG(usec_timer_handle(), HW::USEC_IF))
     {
+        Debug::DccDecodeInterrupts::set(true);
         __HAL_TIM_CLEAR_IT(usec_timer_handle(), HW::USEC_IF);
         // we also disable the interrupt until it is reenabled by loading a new
         // usec delay target.
