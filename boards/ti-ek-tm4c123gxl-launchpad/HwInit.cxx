@@ -239,9 +239,6 @@ struct DccHwDefs {
    * turning on the low driver. */
   static const int L_DEADBAND_DELAY_NSEC = 250;
 
-  /** @returns true to produce the RailCom cutout, else false */
-  static bool railcom_cutout() { return false; }
-
   /** number of outgoing messages we can queue */
   static const size_t Q_SIZE = 4;
 
@@ -249,11 +246,40 @@ struct DccHwDefs {
   using RAILCOM_TRIGGER_Pin = InvertedGpio<::RAILCOM_TRIGGER_Pin>;
   static const auto RAILCOM_TRIGGER_DELAY_USEC = 6;
 
-  using InternalBoosterOutput = DccOutputHwReal<DccOutput::TRACK, DummyPin,
-      RAILCOM_TRIGGER_Pin, 6, RAILCOM_TRIGGER_DELAY_USEC, 0>;
+  struct BOOSTER_ENABLE_Pin
+  {
+      static void set(bool value)
+      {
+          if (value)
+          {
+              PIN_H::set_hw();
+              PIN_L::set_hw();
+          }
+          else
+          {
+              PIN_H::set(PIN_H_INVERT);
+              PIN_H::set_output();
+              PIN_H::set(PIN_H_INVERT);
+
+              PIN_L::set(PIN_L_INVERT);
+              PIN_L::set_output();
+              PIN_L::set(PIN_L_INVERT);
+          }
+      }
+
+      static void hw_init() {
+          PIN_H::hw_init();
+          PIN_L::hw_init();
+          set(false);
+      }
+  };
+
+  using InternalBoosterOutput =
+      DccOutputHwReal<DccOutput::TRACK, BOOSTER_ENABLE_Pin, RAILCOM_TRIGGER_Pin,
+          1, RAILCOM_TRIGGER_DELAY_USEC, 0>;
   using Output1 = InternalBoosterOutput;
-  using Output2 = DccOutputHwDummy<1>;
-  using Output3 = DccOutputHwDummy<1>;
+  using Output2 = DccOutputHwDummy<DccOutput::PGM>;
+  using Output3 = DccOutputHwDummy<DccOutput::LCC>;
 
   static const auto RAILCOM_UART_BASE = UART1_BASE;
   static const auto RAILCOM_UART_PERIPH = SYSCTL_PERIPH_UART1;
