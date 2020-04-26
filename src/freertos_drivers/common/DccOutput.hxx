@@ -106,6 +106,12 @@ public:
     virtual void set_railcom_cutout_enabled(RailcomCutout cutout) = 0;
 };
 
+/// Public API accessor for applications to get the object representing the
+/// output hardware.
+/// @param type which output reference to get.
+/// @return an object to be used by the application to control the output.
+DccOutput* get_dcc_output(DccOutput::Type type);
+
 /// Default implementation class of the DccOutput that proxies the calls to a
 /// hardware-specific static structure.
 template<class HW> class DccOutputImpl : public DccOutput {
@@ -203,12 +209,6 @@ private:
     /// have static members.
     DccOutputHw();
 };
-
-/// Public API accessor for applications to get the object representing the
-/// output hardware.
-/// @param type which output reference to get.
-/// @return an object to be used by the application to control the output.
-DccOutput* get_dcc_output(DccOutput::Type type);
 
 template<int N> std::atomic_uint8_t DccOutputHw<N>::outputDisableReasons_{(uint8_t)DccOutput::DisableReason::INITIALIZATION_PENDING};
 template<int N> std::atomic_uint8_t DccOutputHw<N>::isRailcomCutoutEnabled_{2};
