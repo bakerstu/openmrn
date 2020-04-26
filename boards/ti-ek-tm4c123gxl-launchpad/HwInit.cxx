@@ -241,6 +241,8 @@ struct DccHwDefs {
   /** @returns true to produce the RailCom cutout, else false */
   static bool railcom_cutout() { return false; }
 
+  static bool use_slow_turnon() { return false; }
+    
   /** number of outgoing messages we can queue */
   static const size_t Q_SIZE = 4;
 

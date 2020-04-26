@@ -395,7 +395,6 @@ DccDecoder<Module>::rcom_interrupt_handler()
             }
             default:
             {
-                //Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
                 Module::stop_cap_timer_time();
                 Module::set_cap_timer_capture();
                 railcomDriver_->end_cutout();

@@ -48,13 +48,15 @@
 #include "os/OS.hxx"
 #include "DummyGPIO.hxx"
 #include "CC32xxUart.hxx"
-#include "CC32xxSPI.hxx"
 #include "CC32xxWiFi.hxx"
 #include "MCP2515Can.hxx"
 #include "hardware.hxx"
 #include "bootloader_hal.h"
 
 //#define USE_MCP2515
+#if defined(USE_MCP2515)
+#include "CC32xxSPI.hxx"
+#endif
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";

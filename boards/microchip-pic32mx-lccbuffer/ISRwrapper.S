@@ -21,7 +21,7 @@
 */
 
 #include "proc/p32mx530f128h.h"
-.include "ISRwrapper.inc"
+#include "freertos_drivers/pic32mx/ISRwrapper.inc"
         
 
         RAW_ISR_wrapper _TIMER_1_VECTOR,vPortTickInterruptHandler

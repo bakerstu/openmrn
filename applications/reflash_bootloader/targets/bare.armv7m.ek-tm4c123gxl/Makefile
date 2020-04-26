@@ -28,6 +28,3 @@ payload.cxxout: bootloader_bin/bootloader.bin
 OBJS += payload.o
 
 $(EXECUTABLE)$(EXTENTION): payload.o
-
-rflash: $(EXECUTABLE).bin
-	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -t -n 0x0501010118$$(printf %02x $(ADDRESS)) -f $<

@@ -41,6 +41,8 @@
     defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) ||    \
     defined(STM32F098xx)
 #include "stm32f0xx_hal_conf.h"
+#elif defined(STM32F103xB)
+#include "stm32f1xx_hal_conf.h"
 #elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_hal_conf.h"
 #elif defined(STM32F767xx)

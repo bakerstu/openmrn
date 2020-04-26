@@ -363,7 +363,7 @@ ssize_t TCAN4550Can::read(File *file, void *buf, size_t count)
             rxf0s.data = register_read(RXF0S);
             if (rxf0s.ffl)
             {
-                static_assert(sizeof(struct can_frame) == sizeof(MRAMRXBuffer));
+                static_assert(sizeof(struct can_frame) == sizeof(MRAMRXBuffer), "RX buffer size does not match assumptions.");
 
                 // clip to the continous buffer memory available
                 frames_read = std::min(RX_FIFO_SIZE - rxf0s.fgi, rxf0s.ffl);
@@ -773,4 +773,3 @@ void *TCAN4550Can::entry()
 
     return NULL;
 }
-
