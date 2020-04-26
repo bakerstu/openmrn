@@ -327,10 +327,6 @@ private:
     int hDeadbandDelay_; /**< low->high deadband delay in clock count */
     int lDeadbandDelay_; /**< high->low deadband delay in clock count */
     int usecDelay_; /**< 1 usec of delay in clock count */
-    /// Stores the outpu_enabled variable during the railcom cutout to avoid
-    /// accidentally reenabling the output just because there was a railcom
-    /// cutout.
-    // static bool savedOutputEnabled_;
 
     /// Precalculated bit timings (translated to clock cycles).
     Timing timings[NUM_TIMINGS];
