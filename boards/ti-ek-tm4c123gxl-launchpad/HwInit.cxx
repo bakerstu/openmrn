@@ -58,7 +58,9 @@
 #include "TivaEEPROMBitSet.hxx"
 #include "TivaGPIO.hxx"
 #include "DummyGPIO.hxx"
+#include "GpioWrapper.hxx"
 #include "bootloader_hal.h"
+#include "DccOutput.hxx"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
@@ -210,7 +212,6 @@ struct DccHwDefs {
 
   using PIN_H = ::BOOSTER_H_Pin;
   using PIN_L = ::BOOSTER_L_Pin;
-  using BOOSTER_ENABLE_Pin = DummyPin;
 
   /** Defines whether the high driver pin is inverted or not. A non-inverted
    *  (value==false) pin will be driven high during the first half of the DCC
@@ -224,7 +225,8 @@ struct DccHwDefs {
    *  (minus L_DEADBAND_DELAY_NSEC), and low during the first half.  A
    *  non-inverted pin will be driven low as safe setting at startup. */
   static const bool PIN_L_INVERT = false;
-  
+
+    
   /** @returns the number of preamble bits to send exclusive of end of packet
    *  '1' bit */
   static int dcc_preamble_count() { return 16; }
@@ -241,16 +243,19 @@ struct DccHwDefs {
   /** @returns true to produce the RailCom cutout, else false */
   static bool railcom_cutout() { return false; }
 
-  static bool use_slow_turnon() { return false; }
-    
   /** number of outgoing messages we can queue */
   static const size_t Q_SIZE = 4;
 
-
   // Pins defined for railcom
-  using RAILCOM_TRIGGER_Pin = ::RAILCOM_TRIGGER_Pin;
-  static const auto RAILCOM_TRIGGER_INVERT = true;
+  using RAILCOM_TRIGGER_Pin = InvertedGpio<::RAILCOM_TRIGGER_Pin>;
   static const auto RAILCOM_TRIGGER_DELAY_USEC = 6;
+
+  using InternalBoosterOutput =
+      DccOutputHwReal<DccOutput::TRACK, DummyPin,
+                      RAILCOM_TRIGGER_Pin, 6, RAILCOM_TRIGGER_DELAY_USEC, 0>;
+  using Output1 = InternalBoosterOutput;
+  using Output2 = DccOutputHwDummy<1>;
+  using Output3 = DccOutputHwDummy<1>;
 
   static const auto RAILCOM_UART_BASE = UART1_BASE;
   static const auto RAILCOM_UART_PERIPH = SYSCTL_PERIPH_UART1;
@@ -259,6 +264,20 @@ struct DccHwDefs {
 
 
 static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline", &railcom_driver);
+
+DccOutput *get_dcc_output(DccOutput::Type type)
+{
+    switch (type)
+    {
+        case DccOutput::TRACK:
+            return DccOutputImpl<DccHwDefs::InternalBoosterOutput>::instance();
+        case DccOutput::PGM:
+            return DccOutputImpl<DccHwDefs::Output2>::instance();
+        case DccOutput::LCC:
+            return DccOutputImpl<DccHwDefs::Output3>::instance();
+    }
+    return nullptr;
+}
 
 extern "C" {
 /** Blink LED */
@@ -269,7 +288,8 @@ void dcc_generator_init(void);
 
 void hw_set_to_safe(void)
 {
-    tivaDCC.disable_output();
+    DccHwDefs::InternalBoosterOutput::set_disable_reason(
+        DccOutput::DisableReason::INITIALIZATION_PENDING);
     GpioInit::hw_set_to_safe();
 }
 
@@ -377,7 +397,7 @@ void hw_preinit(void)
     MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
 
     /* Initialize the DCC Timers and GPIO outputs */
-    tivaDCC.hw_init();
+    tivaDCC.hw_preinit();
 
     /* Checks the SW1 pin at boot time in case we want to allow for a debugger
      * to connect. */
@@ -397,7 +417,8 @@ void hw_preinit(void)
 
 void hw_postinit(void)
 {
-    tivaDCC.enable_output();
+    DccHwDefs::InternalBoosterOutput::clear_disable_reason(
+        DccOutput::DisableReason::INITIALIZATION_PENDING);
 }
 
 }
