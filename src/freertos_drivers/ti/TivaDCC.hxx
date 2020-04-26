@@ -333,42 +333,6 @@ public:
         HWREG(HW::RAILCOM_UART_BASE + UART_O_CTL) &= ~UART_CTL_RXE;
     }
 
-#if 0
-    // This code has moved into the DccOutput classes which the application is
-    // supposed to call directly, not via the driver.
-
-    /// Turns on DCC output.
-    void enable_output() {
-        if (HW::use_slow_turnon())
-        {
-            state_ = POWER_TURNON;
-        }
-        else
-        {
-            state_ = POWER_IMM_TURNON;
-        }
-    }
-
-    /// Turns off DCC output.
-    static void disable_output()
-    {
-        // This prevents a race condition with a dcc interrupt.
-        output_enabled = false;
-        savedOutputEnabled_ = false;
-        output_enabled = false;
-        savedOutputEnabled_ = false;
-        internal_disable_output();
-    }
-
-    /// Sets the output to "shorted" state, which will cause it to be pulsed at
-    /// a very low duty cycle, hoping that this is just a capacitive load.
-    void output_set_shorted() {
-        state_ = POWER_SHORT_20P;
-    }
-#endif
-
-    /// @todo: remove support for the POWER_SHORT_* and POWER_TURNON_* stages.
-
 private:
     /** Read from a file or device.
      * @param file file reference for this device
@@ -418,10 +382,6 @@ private:
         MM_PREAMBLE,
         MM_ZERO,
         MM_ONE,
-        TURNON_1P,
-        TURNON_10P,
-        TURNON_50P,
-        SHORT_20P,
 
         NUM_TIMINGS
     } BitEnum;
@@ -493,21 +453,8 @@ private:
         // potential protocol switch from the next packet loaded.
         MM_LEADOUT,
 
-        // Goes through the turnon sequence
-        POWER_TURNON,
-        // Enables the output as part of the turnon sequence
-        POWER_TURNON_ENABLE,
-        // Turnon at 1% output power
-        POWER_TURNON_1P,
-        // Turnon at 10% output power
-        POWER_TURNON_10P,
-        // Turnon at 50% output power
-        POWER_TURNON_50P,
         // Turn on without going through the slow start sequence.
         POWER_IMM_TURNON,
-
-        // Used during periods when a short is detected on the output
-        POWER_SHORT_20P,
     };
     /// Current state of internal state machine.
     State state_;
@@ -522,21 +469,6 @@ private:
      * for DC output HIGH. */
     void fill_timing(BitEnum ofs, uint32_t period_usec,
                      uint32_t transition_usec);
-
-    /** Prepares a timing entry for the turnon procedure.
-     *
-     * This means that first a short positive pulse is generated, then no
-     * power, then a short negative pulse is generated. The duty cycle of the
-     * powered / nonpowered section can be determined by the parameters, thus
-     * allowing chargin of capacitors without letting the high charge current
-     * through the FET for too long.
-     *
-     * @param ofs is the bit timing that we are defining.
-     * @param period_usec is the total length of one on-off-on cycle.
-     * @param fill_usec is the time of the positive and negative ON cycle. Must
-     * be less than half the period_usec (or else you get a square wave). */
-    void fill_timing_turnon(BitEnum ofs, uint32_t period_usec,
-                            uint32_t fill_usec);
 
     /// Checks each output and enables those that need to be on.
     void check_and_enable_outputs()
@@ -846,53 +778,12 @@ inline void TivaDCC<HW>::interrupt_handler()
                 state_ = MM_DATA_0;
             }
             break;
-#if 0
-    case POWER_TURNON:
-        resync = true;
-        current_bit = TURNON_1P;
-        count = 0;
-        state_ = POWER_TURNON_ENABLE;
-        break;
-    case POWER_TURNON_ENABLE:
-        current_bit = TURNON_1P;
-        internal_enable_output();
-        state_ = POWER_TURNON_1P;
-        break;
-    case POWER_TURNON_1P:
-        current_bit = TURNON_1P;
-        if (count++ >= 50) {
-            count = 0;
-            state_ = POWER_TURNON_10P;
-        }
-        break;
-    case POWER_TURNON_10P:
-        current_bit = TURNON_10P;
-        if (count++ >= 1000) {
-            count = 0;
-            state_ = POWER_TURNON_50P;
-        }
-        break;
-    case POWER_SHORT_20P:
-        current_bit = SHORT_20P;
-        if (count++ >= 500) {
-            count = 0;
+        case POWER_IMM_TURNON:
+            current_bit = DCC_ONE;
+            packet_repeat_count = 0;
+            get_next_packet = true;
             resync = true;
-        }
-        break;
-    case POWER_TURNON_50P:
-        current_bit = TURNON_50P;
-        if (count++ < 1000)
-        {
             break;
-        }
-    // fall through
-#endif        
-    case POWER_IMM_TURNON:
-        current_bit = DCC_ONE;
-        packet_repeat_count = 0;
-        get_next_packet = true;
-        resync = true;
-        break;
     }
 
     if (resync) {
@@ -1056,23 +947,6 @@ void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
 
 
 template<class HW>
-void TivaDCC<HW>::fill_timing_turnon(BitEnum ofs, uint32_t period_usec,
-                                     uint32_t fill_usec)
-{
-    auto* timing = &timings[ofs];
-    timing->period = usec_to_clocks(period_usec);
-    HASSERT(timing->period <= 65534);
-    if (fill_usec >= period_usec / 2) {
-        fill_usec = period_usec / 2;
-    }
-    int32_t power_clock = usec_to_clocks(fill_usec);
-    timing->transition_a =
-        timing->period - power_clock + (hDeadbandDelay_ + lDeadbandDelay_) / 2;
-    timing->transition_b =
-        power_clock - (hDeadbandDelay_ + lDeadbandDelay_) / 2;
-}
-
-template<class HW>
 dcc::Packet TivaDCC<HW>::IDLE_PKT = dcc::Packet::DCC_IDLE();
 
 template <class HW>
@@ -1092,10 +966,6 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     fill_timing(MM_ONE, 208, 182);
     // Motorola preamble is negative DC signal.
     fill_timing(MM_PREAMBLE, 208, 0);
-    fill_timing_turnon(TURNON_1P, 500, 3 + (hDeadbandDelay_ + lDeadbandDelay_) / 2);
-    fill_timing_turnon(TURNON_10P, 250, 13);
-    fill_timing_turnon(TURNON_50P, 200, 50);
-    fill_timing_turnon(SHORT_20P, 208, 26);
 
     unsigned h_deadband = 2 * (HW::H_DEADBAND_DELAY_NSEC / 1000);
     unsigned railcom_part = 0;
