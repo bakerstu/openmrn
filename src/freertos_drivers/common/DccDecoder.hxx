@@ -220,12 +220,15 @@ private:
     /// DCC packet decoder state machine and internal state.
     dcc::DccDecoder decoder_ {Module::get_ticks_per_usec()};
 
-    /// How many usec the railcom has before the cutout
+    /// How many usec the railcom has before the cutout (measured from the
+    /// packet end 1 bit complete)
     static const auto RAILCOM_CUTOUT_PRE = 26;
-    /// How many usec the railcom has to the middle of window
-    static const auto RAILCOM_CUTOUT_MID = 173;
-    /// How many usec the railcom has to the end of the window
-    static const auto RAILCOM_CUTOUT_END = 470;
+    /// How many usec the railcom has to the middle of window (measured from the
+    /// packet end 1 bit complete)
+    static const auto RAILCOM_CUTOUT_MID = 185;
+    /// How many usec the railcom has to the end of the window (measured from
+    /// the packet end 1 bit complete)
+    static const auto RAILCOM_CUTOUT_END = 471;
 
     DISALLOW_COPY_AND_ASSIGN(DccDecoder);
 };
@@ -389,8 +392,8 @@ DccDecoder<Module>::rcom_interrupt_handler()
             }
             default:
             {
-                Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
                 Module::stop_cap_timer_time();
+                Module::set_cap_timer_capture();
                 railcomDriver_->end_cutout();
                 inCutout_ = false;
                 break;
