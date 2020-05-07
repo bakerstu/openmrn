@@ -33,8 +33,8 @@
  * @date 19 Apr 2020
  */
 
-#ifndef _FREERTOS_DRIVERS_COMMON_DCCOUTPUT_HXX_
-#define _FREERTOS_DRIVERS_COMMON_DCCOUTPUT_HXX_
+#ifndef _DCC_DCCOUTPUT_HXX_
+#define _DCC_DCCOUTPUT_HXX_
 
 #include <atomic>
 #include <cstdint>
@@ -367,4 +367,4 @@ public:
     }
 };
 
-#endif // _FREERTOS_DRIVERS_COMMON_DCCOUTPUT_HXX_
+#endif // _DCC_DCCOUTPUT_HXX_

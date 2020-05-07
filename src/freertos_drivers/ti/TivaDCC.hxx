@@ -64,9 +64,9 @@
 #include "driverlib/utils.h"
 #endif
 
-#include "DccOutput.hxx"
 #include "Devtab.hxx"
 #include "RailcomDriver.hxx"
+#include "dcc/DccOutput.hxx"
 #include "dcc/Packet.hxx"
 #include "dcc/RailCom.hxx"
 #include "executor/Notifiable.hxx"
