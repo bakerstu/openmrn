@@ -39,7 +39,7 @@
 #include <atomic>
 #include <cstdint>
 
-/// Virutal base class for controlling outputs. All of these functions are okay
+/// Virtual base class for controlling outputs. All of these functions are okay
 /// to call from interrupts (including non-kernel-compatible interrupts under
 /// FreeRTOS).
 class DccOutput
@@ -78,6 +78,7 @@ public:
 
     /// Disables the output, marking in a bitmask why.
     virtual void disable_output_for_reason(DisableReason bit) = 0;
+
     /// Removes a disable reason flag. All the flags need to be cleared in
     /// order to enable the output.
     virtual void clear_disable_output_for_reason(DisableReason bit) = 0;
@@ -101,10 +102,14 @@ public:
     /// @return Bitmask of all currently set disable reasons.
     virtual uint8_t get_disable_output_reasons() = 0;
 
+    /// Defines the vlaues for the railcom cutout enabled setting.
     enum class RailcomCutout
     {
+        /// Generate no railcom cutout.
         DISABLED = 0,
+        /// Generate short cutout (ch1 only).
         SHORT_CUTOUT = 1,
+        /// Generate long cutout (standard size; ch1+ch2).
         LONG_CUTOUT = 2
     };
 
@@ -231,7 +236,8 @@ template <int N>
 std::atomic_uint8_t DccOutputHw<N>::outputDisableReasons_ {
     (uint8_t)DccOutput::DisableReason::INITIALIZATION_PENDING};
 template <int N>
-std::atomic_uint8_t DccOutputHw<N>::isRailcomCutoutEnabled_ {2};
+std::atomic_uint8_t DccOutputHw<N>::isRailcomCutoutEnabled_ {
+    (uint8_t)DccOutput::RailcomCutout::LONG_CUTOUT};
 template <int N> std::atomic_uint8_t DccOutputHw<N>::isRailcomCutoutActive_ {0};
 
 /// Interface that the actual outputs have to implement in their
