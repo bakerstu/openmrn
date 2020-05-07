@@ -102,7 +102,7 @@ public:
     /// @return Bitmask of all currently set disable reasons.
     virtual uint8_t get_disable_output_reasons() = 0;
 
-    /// Defines the vlaues for the railcom cutout enabled setting.
+    /// Defines the values for the railcom cutout enabled setting.
     enum class RailcomCutout
     {
         /// Generate no railcom cutout.
