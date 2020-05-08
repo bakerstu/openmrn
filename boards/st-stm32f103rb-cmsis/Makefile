@@ -73,9 +73,6 @@ $(EXECUTABLE)$(EXTENTION): $(OBJS)
 BOARD_USB_VENDOR_ID  := 1EAF
 BOARD_USB_PRODUCT_ID := 0003
 
-$(EXECUTABLE).bin: $(EXECUTABLE)$(EXTENTION)
-	$(OBJCOPY) -O binary $< $@
-
 flash: $(EXECUTABLE).bin all
 	echo hit the reset button && \
         sleep 2                  && \

@@ -230,14 +230,6 @@ extern unsigned long _bss;
 extern unsigned long _ebss;*/
 
 
-/** Get the system clock requency.
- * @return SystemCoreClock
- */
-uint32_t HAL_RCC_GetSysClockFreq(void)
-{
-    return cm3_cpu_clock_hz;
-}
-
 /** Stub function to make the HAL happy.  We don't need it for any of our
  * drivers.
  *

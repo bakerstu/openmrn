@@ -27,7 +27,7 @@ INCLUDES += -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx \
             -I$(TICC3200SDKPATH)/inc
 
 CXXFLAGS += -include $(OPENMRNPATH)/src/freertos_drivers/net_cc32xx/CC3200/user.h \
-            -D__USER_H__
+            -D__USER_H__ -D_DEFAULT_SOURCE
 
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
