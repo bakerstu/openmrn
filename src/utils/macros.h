@@ -198,7 +198,7 @@ extern const char* g_death_file;
 
 #if defined(ARDUINO_ARCH_ESP32)
 #include <esp8266-compat.h>
-#elif !defined(ESP_NONOS) || defined(CONFIG_IDF_TARGET)
+#elif !defined(ESP_NONOS)
 /// Declares (on the ESP8266) that the current function is not executed too
 /// often and should be placed in the SPI flash.
 #define ICACHE_FLASH_ATTR
