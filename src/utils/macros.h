@@ -89,13 +89,18 @@ extern const char* g_death_file;
 
 #define DIE(MSG) abort()
 
-#elif defined(ESP_NONOS) || defined(ARDUINO)
+#elif defined(ESP_NONOS) || defined(ARDUINO) || defined(CONFIG_IDF_TARGET_ESP32)
 
 #include <stdio.h>
 #include <assert.h>
 
+/// Checks that the value of expression x is true, else terminates the current
+/// process.
+/// @param x is the assertion expression that should evaluate to true.
 #define HASSERT(x) do { if (!(x)) { printf("Assertion failed in file " __FILE__ " line %d: assert(%s)\n", __LINE__, #x); g_death_file = __FILE__; g_death_lineno = __LINE__; assert(0); abort();} } while(0)
 
+/// Unconditionally terminates the current process with a message.
+/// @param MSG is the message to print as cause of death.
 #define DIE(MSG) do { printf("Crashed in file " __FILE__ " line %d: " MSG "\n", __LINE__); assert(0); abort(); } while(0)
 
 #else
@@ -104,6 +109,9 @@ extern const char* g_death_file;
 #include <stdio.h>
 
 #ifdef NDEBUG
+/// Checks that the value of expression x is true, else terminates the current
+/// process.
+/// @param x is the assertion expression that should evaluate to true.
 #define HASSERT(x) do { if (!(x)) { fprintf(stderr, "Assertion failed in file " __FILE__ " line %d: assert(" #x ")", __LINE__); g_death_file = __FILE__; g_death_lineno = __LINE__; abort();} } while(0)
 #else
 /// Checks that the value of expression x is true, else terminates the current
@@ -188,15 +196,15 @@ extern const char* g_death_file;
 #define C_STATIC_ASSERT(expr, name) \
     typedef unsigned char __attribute__((unused)) __static_assert_##name[expr ? 0 : -1]
 
-#if (!defined(ESP_NONOS) && !defined(ESP32)) || defined(CONFIG_IDF_TARGET_ESP32)
+#if defined(ARDUINO_ARCH_ESP32)
+#include <esp8266-compat.h>
+#elif !defined(ESP_NONOS) || defined(CONFIG_IDF_TARGET)
 /// Declares (on the ESP8266) that the current function is not executed too
 /// often and should be placed in the SPI flash.
 #define ICACHE_FLASH_ATTR
 /// Declares (on the ESP8266) that the current function is executed
 /// often and should be placed in the instruction RAM.
 #define ICACHE_RAM_ATTR
-#elif defined(ARDUINO) && defined(ESP32)
-#include <esp8266-compat.h>
 #endif
 
 /// Retrieve a parent pointer from a member class variable. UNSAFE.
