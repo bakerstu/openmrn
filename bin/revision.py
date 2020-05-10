@@ -50,7 +50,7 @@ parser.add_option("-U", "--username", dest="username", action="store_true",
 if (options.input == None) :
     parser.error('missing parameter -i')
 
-print options.input
+print(options.input)
 
 options.input = options.input.replace('  ', ' ')
 inputs = options.input.split(" ")
@@ -94,7 +94,7 @@ if options.gcc != None :
     outputhxx += '"' + gcc + '\\n"\n'
 
 for x in inputs :
-    print x
+    print(x)
     # go into the root of the repo
     os.chdir(orig_dir)
     os.chdir(x)
@@ -117,9 +117,9 @@ for x in inputs :
 
     # format the output
     outputcxx += '    "'
-    outputcxx += git_hash
+    outputcxx += str(git_hash)
     outputcxx += ':' + os.path.split(os.path.abspath(x))[1]
-    outputhxx += '"' + git_hash + ':' + os.path.split(os.path.abspath(x))[1]
+    outputhxx += '"' + str(git_hash) + ':' + os.path.split(os.path.abspath(x))[1]
 
     if dirty or untracked :
         outputcxx += ':'
