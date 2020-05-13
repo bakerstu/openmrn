@@ -228,7 +228,7 @@ public:
     enum
     {
         /// Timeout for assign controller request.
-        TIMEOUT_NSEC = SEC_TO_NSEC(1),
+        TIMEOUT_NSEC = SEC_TO_NSEC(2),
         /// Returned from get_fn() when we don't have a cahced value for a
         /// function.
         FN_NOT_KNOWN = 0xffff,
