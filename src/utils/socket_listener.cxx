@@ -53,6 +53,7 @@
 
 #include "utils/socket_listener.hxx"
 
+#include "nmranet_config.h"
 #include "utils/macros.h"
 #include "utils/logging.h"
 
@@ -63,21 +64,14 @@ static void* accept_thread_start(void* arg) {
   return NULL;
 }
 
-#ifdef ESP32
-/// Stack size to use for the accept_thread_.
-static constexpr size_t listener_stack_size = 2048;
-#else
-/// Stack size to use for the accept_thread_.
-static constexpr size_t listener_stack_size = 1000;
-#endif // ESP32
-
-SocketListener::SocketListener(int port, connection_callback_t callback)
+SocketListener::SocketListener(int port, connection_callback_t callback,
+                               const char *thread_name)
     : startupComplete_(0),
       shutdownRequested_(0),
       shutdownComplete_(0),
       port_(port),
       callback_(callback),
-      accept_thread_("accept_thread", 0, listener_stack_size,
+      accept_thread_(thread_name, 0, config_socket_listener_stack_size(),
         accept_thread_start, this)
 {
 #if OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
@@ -129,7 +123,7 @@ void SocketListener::AcceptThreadBody() {
 
   // FreeRTOS+TCP uses the parameter to listen to set the maximum number of
   // connections to the given socket, so allow some room
-  ERRNOCHECK("listen", listen(listenfd, 5));
+  ERRNOCHECK("listen", listen(listenfd, config_socket_listener_backlog()));
 
   LOG(INFO, "Listening on port %d, fd %d", ntohs(addr.sin_port), listenfd);
 

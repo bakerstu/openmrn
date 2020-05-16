@@ -68,7 +68,7 @@
     typedef unsigned char                                                      \
         _do_not_add_declare_and_default_const_to_the_same_file_for_##name;
 
-/// Defines the default value of a constant. Use this is a single .cxx file and
+/// Defines the default value of a constant. Use this in a single .cxx file and
 /// make sure NOT to include the header that has the respective DECLARE_CONST
 /// macros. Best not to incude anything at all.
 ///
@@ -81,7 +81,7 @@
     typedef signed char                                                        \
         _do_not_add_declare_and_default_const_to_the_same_file_for_##name;
 
-/// Overrides the value of a constant. Use this is a single .cxx file (usually
+/// Overrides the value of a constant. Use this in a single .cxx file (usually
 /// main.cxx).
 ///
 /// @param name name of the constant.
@@ -93,6 +93,11 @@
 
 #else  // native C
 
+/// Declares a constant value. Put this into a header and include that header
+/// to the code which has to access that constant.
+///
+/// @param name name of the constant. For a name NNN Creates a function called
+/// config_NNN() that returns the configured value.
 #define DECLARE_CONST(name)                                                    \
     EXTERNC extern char _sym_##name;                                           \
     EXTERNCEND typedef unsigned char                                           \
@@ -102,6 +107,12 @@
         return (ptrdiff_t)(&_sym_##name);                                      \
     }
 
+/// Defines the default value of a constant. Use this in a single .cxx file and
+/// make sure NOT to include the header that has the respective DECLARE_CONST
+/// macros. Best not to incude anything at all.
+///
+/// @param name name of the constant.
+/// @param value is what the default value should be.
 #define DEFAULT_CONST(name, value)                                             \
     typedef signed char                                                        \
     _do_not_add_declare_and_default_const_to_the_same_file_for_##name;         \
@@ -109,11 +120,24 @@
     asm(".weak _sym_" #name " \n");                                            \
     asm(".set _sym_" #name ", " #value " \n");
 
+/// Overrides the value of a constant. Use this in a single .cxx file (usually
+/// main.cxx).
+///
+/// @param name name of the constant.
+/// @param value is what the actual value should be.
 #define OVERRIDE_CONST(name, value)                                            \
     asm(".global _sym_" #name " \n");                                          \
     asm(".set _sym_" #name ", " #value " \n");
 
 #endif // native C
+
+/// Overrides the value of a constant using an externally defined value by
+/// using deferred expansion to work around pre-compiler limitations. Like
+/// @ref OVERRIDE_CONST use this in a single .cxx file (usually main.cxx).
+///
+/// @param name name of the constant.
+/// @param value is what the actual value should be.
+#define OVERRIDE_CONST_DEFERRED(var, value) OVERRIDE_CONST(var, value)
 
 /// We cannot compare constants to zero, so we use 1 and 2 as constant values
 /// for booleans.
