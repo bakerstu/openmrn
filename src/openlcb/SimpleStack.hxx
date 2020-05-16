@@ -411,15 +411,15 @@ public:
         return gcHub_.get();
     }
 
-protected:
-    /// Helper function for start_stack et al.
-    void start_iface(bool restart) override;
-
     IfCan *if_can()
     {
         return &static_cast<CanPhysicalIf *>(ifaceHolder_.get())->ifCan_;
     }
 
+protected:
+    /// Helper function for start_stack et al.
+    void start_iface(bool restart) override;
+    
 private:
     class CanPhysicalIf : public PhysicalIf
     {

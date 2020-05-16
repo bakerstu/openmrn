@@ -192,7 +192,7 @@ public:
     /// expiring event.
     static inline bool int_get_and_clear_delay_event();
 
-    /// Delays a give number of usec using the usec timer feature. Needed for
+    /// Delays a given number of usec using the usec timer feature. Needed for
     /// the timing of the railcom cutout. An rcom_interrupt shall be raised
     /// after this many usec.
     /// @param usec how much to delay, with the measurement started from the

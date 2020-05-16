@@ -64,4 +64,22 @@ uint8_t __atomic_exchange_1(uint8_t *ptr, uint8_t val, int memorder)
     return ret;
 }
 
+uint8_t __atomic_fetch_or_1(uint8_t *ptr, uint8_t val, int memorder)
+{
+    ACQ_LOCK();
+    uint8_t ret = *ptr;
+    *ptr = ret | val;
+    REL_LOCK();
+    return ret;
+}
+
+uint8_t __atomic_fetch_and_1(uint8_t *ptr, uint8_t val, int memorder)
+{
+    ACQ_LOCK();
+    uint8_t ret = *ptr;
+    *ptr = ret & val;
+    REL_LOCK();
+    return ret;
+}
+
 #endif // guard for arduino compilation
