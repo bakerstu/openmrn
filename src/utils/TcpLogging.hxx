@@ -67,7 +67,7 @@ public:
 
 private:
     /// Arrival of new log message. @return new state.
-    Action entry()
+    Action entry() override
     {
         if (fd_ < 0)
         {

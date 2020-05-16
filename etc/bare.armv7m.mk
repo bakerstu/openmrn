@@ -47,6 +47,7 @@ CFLAGS = -c  $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
 CXXFLAGS = -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
            -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
            -fno-exceptions -fno-rtti \
+           -Wsuggest-override -Wno-psabi \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
            -D__LINEAR_MAP__ #-D__STDC_VERSION__=199901
 

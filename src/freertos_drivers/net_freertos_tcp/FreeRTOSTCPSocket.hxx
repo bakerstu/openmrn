@@ -191,7 +191,7 @@ private:
      * @return dependent on the operation (POSIX compliant where applicable)
      *         or negative error number upon error.
      */
-    int fcntl(File *file, int cmd, unsigned long data);
+    int fcntl(File *file, int cmd, unsigned long data) override;
 
     /** Constructor
      */
