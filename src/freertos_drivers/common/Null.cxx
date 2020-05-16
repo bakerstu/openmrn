@@ -71,7 +71,7 @@ public:
      * @param stat structure to fill status info into
      * @return 0 upon successor or negative error number upon error.
      */
-    int fstat(File* file, struct stat *stat);
+    int fstat(File* file, struct stat *stat) OVERRIDE;
 
 };
 
