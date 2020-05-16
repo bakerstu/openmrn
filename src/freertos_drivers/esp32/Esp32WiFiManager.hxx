@@ -145,6 +145,9 @@ public:
     Esp32WiFiManager(
         openlcb::SimpleCanStack *stack, const WiFiConfiguration &cfg);
 
+    /// Destructor.
+    ~Esp32WiFiManager();
+
     /// Updates the WiFiConfiguration settings used by this node.
     ///
     /// @param fd is the file descriptor used for the configuration settings.
@@ -222,6 +225,18 @@ public:
     ///
     /// @param service is the service name to remove from advertising.
     void mdns_unpublish(std::string service);
+
+    /// Forces the Esp32WiFiManager to wait until SSID connection completes.
+    ///
+    /// @param enable when true will force the Esp32WiFiManager to wait for
+    /// successful SSID connection (including IP assignemnt), when false and
+    /// the Esp32WiFiManager will not check the SSID connection process.
+    ///
+    /// The default behavior is to wait for SSID connection to complete when
+    /// the WiFi mode is WIFI_MODE_STA or WIFI_MODE_APSTA. When operating in
+    /// WIFI_MODE_APSTA mode the application may opt to present a configuration
+    /// portal to allow reconfiguration of the SSID.
+    void wait_for_ssid_connect(bool enable);
 
 private:
     /// Default constructor.
@@ -332,8 +347,16 @@ private:
     /// Internal flag to request the wifi_manager_task reload configuration.
     bool configReloadRequested_{true};
 
-    /// if true, request esp32 wifi to do verbose logging.
-    bool esp32VerboseLogging_{false};
+    /// Internal flag to request the wifi_manager_task to shutdown.
+    bool shutdownRequested_{false};
+
+    /// If true, request esp32 wifi to do verbose logging.
+    bool verboseLogging_{false};
+
+    /// If true, the esp32 will block startup until the SSID connection has
+    /// successfully completed and upon failure (or timeout) the esp32 will be
+    /// restarted.
+    bool waitForStationConnect_{true};
 
     /// @ref GcTcpHub for this node's hub if enabled.
     std::unique_ptr<GcTcpHub> hub_;

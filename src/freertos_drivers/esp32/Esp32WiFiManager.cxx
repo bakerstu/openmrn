@@ -88,7 +88,7 @@ using std::unique_ptr;
 // be visible in the MDNS.cxx code.
 
 /// Advertises an mDNS service name. This is a hook point for the MDNS class
-/// and is used as part of the Esp32 WiFi HUB support.
+/// and is used as part of the Esp32 WiFi hub support.
 void mdns_publish(const char *name, const char *service, uint16_t port);
 
 /// Removes advertisement of an mDNS service name. This is not currently
@@ -111,8 +111,8 @@ namespace openmrn_arduino
 
 /// Priority to use for the wifi_manager_task. This is currently set to one
 /// level higher than the arduino-esp32 loopTask. The task will be in a sleep
-/// state until woken up by Esp32WiFiManager::process_wifi_event or
-/// Esp32WiFiManager::apply_configuration.
+/// state until woken up by Esp32WiFiManager::process_wifi_event,
+/// Esp32WiFiManager::apply_configuration or shutdown via destructor.
 static constexpr UBaseType_t WIFI_TASK_PRIORITY = 2;
 
 /// Stack size for the wifi_manager_task.
@@ -123,6 +123,9 @@ static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
 
 /// Interval at which to check if the GcTcpHub has started or not.
 static constexpr uint32_t HUB_STARTUP_DELAY_USEC = MSEC_TO_USEC(50);
+
+/// Interval at which to check if the WiFi task has shutdown or not.
+static constexpr uint32_t TASK_SHUTDOWN_DELAY_USEC = MSEC_TO_USEC(1);
 
 /// Bit designator for wifi_status_event_group which indicates we are connected
 /// to the SSID.
@@ -334,6 +337,36 @@ Esp32WiFiManager::Esp32WiFiManager(
     // Nothing to do here.
 }
 
+// destructor to ensure cleanup of owned resources
+Esp32WiFiManager::~Esp32WiFiManager()
+{
+    // if we are managing the WiFi connection we need to disconnect from the
+    // event loop to prevent a possible null deref.
+    if (manageWiFi_)
+    {
+        // disconnect from the event loop
+        esp_event_loop_set_cb(nullptr, nullptr);
+    }
+
+    // set flag to shutdown WiFi background task and wake it up
+    shutdownRequested_ = true;
+    xTaskNotifyGive(wifiTaskHandle_);
+
+    // wait for WiFi background task shutdown to complete
+    while (shutdownRequested_)
+    {
+        usleep(TASK_SHUTDOWN_DELAY_USEC);
+    }
+
+    // cleanup event group
+    vEventGroupDelete(wifiStatusEventGroup_);
+
+    // cleanup internal vectors/maps
+    ssidScanResults_.clear();
+    eventCallbacks_.clear();
+    mdnsDeferredPublish_.clear();
+}
+
 ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
     int fd, bool initial_load, BarrierNotifiable *done)
 {
@@ -506,12 +539,10 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
     else if (event->event_id == SYSTEM_EVENT_STA_GOT_IP)
     {
         // Retrieve the configured IP address from the TCP/IP stack.
-        tcpip_adapter_ip_info_t ip_info;
-        tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
         LOG(INFO,
             "[WiFi] IP address is " IPSTR ", starting hub (if enabled) and "
             "uplink.",
-            IP2STR(&ip_info.ip));
+            IP2STR(&event->event_info.got_ip.ip_info.ip));
 
         // Start the mDNS system since we have an IP address, the mDNS system
         // on the ESP32 requires that the IP address be assigned otherwise it
@@ -642,9 +673,9 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
                 tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP));
         }
 
-        // If we are not operating in SoftAP mode only we can start the mDNS
-        // system now, otherwise we need to defer it until the station has
-        // received it's IP address to avoid reinitializing the mDNS system.
+        // If we are operating in SoftAP mode only we can start the mDNS system
+        // now, otherwise we need to defer it until the station has received
+        // it's IP address to avoid reinitializing the mDNS system.
         if (wifiMode_ == WIFI_MODE_AP)
         {
             start_mdns_system();
@@ -697,10 +728,19 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
     }
 }
 
+// Set configuration flag that enables the verbose logging.
+// Note: this should be called as early as possible to ensure proper logging
+// from all esp-wifi code paths.
 void Esp32WiFiManager::enable_verbose_logging()
 {
-    esp32VerboseLogging_ = true;
+    verboseLogging_ = true;
     enable_esp_wifi_logging();
+}
+
+// Set configuration flag controlling SSID connection checking behavior.
+void Esp32WiFiManager::wait_for_ssid_connect(bool enable)
+{
+    waitForStationConnect_ = enable;
 }
 
 // If the Esp32WiFiManager is setup to manage the WiFi system, the following
@@ -760,7 +800,7 @@ void Esp32WiFiManager::start_wifi_system()
 
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    if (esp32VerboseLogging_)
+    if (verboseLogging_)
     {
         enable_esp_wifi_logging();
     }
@@ -834,11 +874,13 @@ void Esp32WiFiManager::start_wifi_system()
     LOG(INFO, "[WiFi] Starting WiFi stack");
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    // If we are using the STATION interface, this will block until the ESP32
-    // starts the connection process, note it may not have an IP address
-    // immediately thus the need to check the connection result a few times
-    // before giving up with a FATAL error.
-    if (wifiMode_ == WIFI_MODE_APSTA || wifiMode_ == WIFI_MODE_STA)
+    // If we need the STATION interface *AND* configured to wait until 
+    // successfully connected to the SSID this code block will wait for up to
+    // approximately three minutes for an IP address to be assigned. In most
+    // cases this completes in under thirty seconds. If there is a connection
+    // failure the esp32 will be restarted via a FATAL error being logged.
+    if (waitForStationConnect_ &&
+       (wifiMode_ == WIFI_MODE_APSTA || wifiMode_ == WIFI_MODE_STA))
     {
         uint8_t attempt = 0;
         EventBits_t bits = 0;
@@ -908,7 +950,7 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
     // Start the WiFi system before proceeding with remaining tasks.
     wifi->start_wifi_system();
 
-    while (true)
+    while (!wifi->shutdownRequested_)
     {
         EventBits_t bits = xEventGroupGetBits(wifi->wifiStatusEventGroup_);
         if (bits & WIFI_GOTIP_BIT)
@@ -931,6 +973,12 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             // Make sure we don't try and reload configuration since we can't
             // create outbound connections at this time.
             wifi->configReloadRequested_ = false;
+        }
+
+        if (wifi->shutdownRequested_)
+        {
+            LOG(INFO, "[WiFi] Shutdown requested, stopping background thread.");
+            break;
         }
 
         // Check if there are configuration changes to pick up.
@@ -960,7 +1008,7 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
 
             if (CDI_READ_TRIMMED(wifi->cfg_.hub().enable, wifi->configFd_))
             {
-                // Since hub mode is enabled start the HUB creation process.
+                // Since hub mode is enabled start the hub creation process.
                 wifi->start_hub();
             }
             // Start the uplink connection process in the background.
@@ -973,6 +1021,13 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     }
 
+    // Stop the hub and uplink (if they are active)
+    wifi->stop_hub();
+    wifi->stop_uplink();
+
+    // reset flag to indicate we have shutdown
+    wifi->shutdownRequested_ = false;
+
     return nullptr;
 }
 
@@ -982,7 +1037,7 @@ void Esp32WiFiManager::stop_hub()
     if (hub_)
     {
         mdns_unpublish(hubServiceName_);
-        LOG(INFO, "[HUB] Shutting down TCP/IP listener");
+        LOG(INFO, "[Hub] Shutting down TCP/IP listener");
         hub_.reset(nullptr);
     }
 }
@@ -993,7 +1048,7 @@ void Esp32WiFiManager::start_hub()
     hubServiceName_ = cfg_.hub().service_name().read(configFd_);
     uint16_t hub_port = CDI_READ_TRIMMED(cfg_.hub().port, configFd_);
 
-    LOG(INFO, "[HUB] Starting TCP/IP listener on port %d", hub_port);
+    LOG(INFO, "[Hub] Starting TCP/IP listener on port %d", hub_port);
     hub_.reset(new GcTcpHub(stack_->can_hub(), hub_port));
 
     // wait for the hub to complete it's startup tasks
@@ -1009,7 +1064,7 @@ void Esp32WiFiManager::stop_uplink()
 {
     if (uplink_)
     {
-        LOG(INFO, "[UPLINK] Disconnecting from uplink.");
+        LOG(INFO, "[Uplink] Disconnecting from uplink.");
         uplink_->shutdown();
         uplink_.reset(nullptr);
     }
@@ -1030,7 +1085,7 @@ void Esp32WiFiManager::start_uplink()
 // Converts the passed fd into a GridConnect port and adds it to the stack.
 void Esp32WiFiManager::on_uplink_created(int fd, Notifiable *on_exit)
 {
-    LOG(INFO, "[UPLINK] Connected to hub, configuring GridConnect port.");
+    LOG(INFO, "[Uplink] Connected to hub, configuring GridConnect port.");
 
     const bool use_select =
         (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
@@ -1177,6 +1232,9 @@ void Esp32WiFiManager::mdns_unpublish(string service)
 // published at this time.
 void Esp32WiFiManager::start_mdns_system()
 {
+    // if we are managing the WiFi stack start mDNS if it hasn't already been
+    // started previously.
+    if (manageWiFi_)
     {
         OSMutexLock l(&mdnsInitLock_);
         // If we have already initialized mDNS we can exit early.
@@ -1220,14 +1278,30 @@ static constexpr size_t MDNS_MAX_RESULTS = 10;
 // Advertises an mDNS service name.
 void mdns_publish(const char *name, const char *service, uint16_t port)
 {
-    // The name parameter is unused today.
-    Singleton<Esp32WiFiManager>::instance()->mdns_publish(service, port);
+    if (Singleton<Esp32WiFiManager>::exists())
+    {
+        // The name parameter is unused today.
+        Singleton<Esp32WiFiManager>::instance()->mdns_publish(service, port);
+    }
+    else
+    {
+        LOG(FATAL, "Esp32WiFiManager is null, unable to publish: %s:%d",
+            service, port);
+    }
 }
 
 // Removes advertisement of an mDNS service name.
 void mdns_unpublish(const char *service)
 {
-    Singleton<Esp32WiFiManager>::instance()->mdns_unpublish(service);
+    if (Singleton<Esp32WiFiManager>::exists())
+    {
+        Singleton<Esp32WiFiManager>::instance()->mdns_unpublish(service);
+    }
+    else
+    {
+        LOG(FATAL, "Esp32WiFiManager is null, unable to unpublish: %s",
+            service);
+    }
 }
 
 // Splits an mDNS service name.
@@ -1244,7 +1318,6 @@ void split_mdns_service_name(string *service_name, string *protocol_name)
         service_name->resize(split_loc);
     }
 }
-
 
 // EAI_AGAIN may not be defined on the ESP32
 #ifndef EAI_AGAIN
