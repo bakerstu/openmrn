@@ -227,6 +227,7 @@ void OSSelectWakeup::esp_wakeup()
     if (espSem_.sem)
     {
         esp_vfs_select_triggered(espSem_);
+        espSem_.sem = nullptr;
     }
 #else
     LOG(VERBOSE, "wakeup es %p %u lws %p", espSem_, *(unsigned*)espSem_, lwipSem_);
@@ -272,6 +273,7 @@ void OSSelectWakeup::esp_wakeup_from_isr()
     if (espSem_.sem)
     {
         esp_vfs_select_triggered_isr(espSem_, &woken);
+        espSem_.sem = nullptr;
     }
 #else
     if (espSem_)
