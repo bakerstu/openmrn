@@ -60,7 +60,7 @@
 #include "DummyGPIO.hxx"
 #include "GpioWrapper.hxx"
 #include "bootloader_hal.h"
-#include "DccOutput.hxx"
+#include "dcc/DccOutput.hxx"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
