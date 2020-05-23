@@ -424,7 +424,7 @@ private:
 #ifdef TIVADCC_CC3200
     // This function is called differently in tivaware than CC3200.
     void MAP_SysCtlDelay(unsigned ticks3) {
-        MAP_UtilsDelay(ticks3);
+        ROM_UtilsDelay(ticks3);
     }
 #endif
 
