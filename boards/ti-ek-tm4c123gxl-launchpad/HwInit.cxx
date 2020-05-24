@@ -202,6 +202,13 @@ struct DccHwDefs {
   /// interrupt number of the interval timer
   static const unsigned long INTERVAL_INTERRUPT = INT_TIMER1A;
 
+  /// Defines how much time for railcom timing compared to the standard
+  /// length this hardware needs. We have to start a bit earlier due to the
+  /// slow FET turn-ons.
+  static const int RAILCOM_CUTOUT_START_DELTA_USEC = -20;
+  static const int RAILCOM_CUTOUT_MID_DELTA_USEC = 0;
+  static const int RAILCOM_CUTOUT_END_DELTA_USEC = -10;
+
   /** These timer blocks will be synchronized once per packet, when the
    *  deadband delay is set up. */
   static const auto TIMER_SYNC = TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC;

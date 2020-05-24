@@ -424,11 +424,22 @@ private:
 #ifdef TIVADCC_CC3200
     // This function is called differently in tivaware than CC3200.
     void MAP_SysCtlDelay(unsigned ticks3) {
-        MAP_UtilsDelay(ticks3);
+        ROM_UtilsDelay(ticks3);
     }
-    #endif
+#endif
 
-
+    /// Standard timing value of when the railcom cutout should start, measured
+    /// from the transition of the end-of-packet-one-bit. Minimum 26, max 32
+    /// usec. Can be adjusted by HW.
+    static constexpr unsigned RAILCOM_CUTOUT_START_USEC = 26;
+    /// Standard timing value of the railcom cutout middle, measured from the
+    /// transition of the end-of-packet-one-bit. Minimum 177 (end of channel
+    /// one), maximum 193 (start channel 2) usec. Can be adjusted by HW.
+    static constexpr unsigned RAILCOM_CUTOUT_MID_USEC = 185;
+    /// Standard timing value of the railcom cutout end, measured from the
+    /// transition of the end-of-packet-one-bit. Minimum 454 (end of channel
+    /// one), maximum 488. Can be adjusted by HW.
+    static constexpr unsigned RAILCOM_CUTOUT_END_USEC = 486;
     
     /// Packets still waiting to be sent.
     FixedQueue<dcc::Packet, HW::Q_SIZE> packetQueue_;
@@ -526,6 +537,8 @@ inline void TivaDCC<HW>::interrupt_handler()
             {
                 //current_bit = RAILCOM_CUTOUT_PRE;
                 current_bit = DCC_ONE;
+                // It takes about 5 usec to get here from the previous
+                // transition of the output.
                 // We change the time of the next IRQ.
                 MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                                  timings[RAILCOM_CUTOUT_PRE].period);
@@ -545,6 +558,8 @@ inline void TivaDCC<HW>::interrupt_handler()
             break;
         case DCC_CUTOUT_PRE:
             current_bit = DCC_ONE;
+            // It takes about 3.6 usec to get here from the transition seen on
+            // the output.
             // We change the time of the next IRQ.
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[RAILCOM_CUTOUT_FIRST].period);
@@ -648,24 +663,24 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             if (HW::Output1::isRailcomCutoutActive_)
             {
-                HW::Output1::isRailcomCutoutActive_ = 0;
                 HW::Output1::stop_railcom_cutout_phase2();
             }
+            HW::Output1::isRailcomCutoutActive_ = 0;
             if (HW::Output2::isRailcomCutoutActive_)
             {
-                HW::Output2::isRailcomCutoutActive_ = 0;
                 HW::Output2::stop_railcom_cutout_phase2();
             }
+            HW::Output2::isRailcomCutoutActive_ = 0;
             if (HW::Output3::isRailcomCutoutActive_)
             {
-                HW::Output3::isRailcomCutoutActive_ = 0;
                 HW::Output3::stop_railcom_cutout_phase2();
             }
+            HW::Output3::isRailcomCutoutActive_ = 0;
+            check_and_enable_outputs();
             break;
         }
         case DCC_ENABLE_AFTER_RAILCOM:
             current_bit = DCC_ONE;
-            check_and_enable_outputs();
             state_ = DCC_LEADOUT;
             ++preamble_count;
             break;
@@ -903,14 +918,23 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
 
     unsigned h_deadband = 2 * (HW::H_DEADBAND_DELAY_NSEC / 1000);
     unsigned railcom_part = 0;
-    fill_timing(RAILCOM_CUTOUT_PRE, 6 - railcom_part, 0);
-    railcom_part = 6;
-    // was: 210
-    fill_timing(RAILCOM_CUTOUT_FIRST, 175 - railcom_part, 0);
-    railcom_part = 175;
-    fill_timing(RAILCOM_CUTOUT_SECOND, 471 - railcom_part, 0);
-    railcom_part = 471;
-    // remaining time
+    unsigned target =
+        RAILCOM_CUTOUT_START_USEC + HW::RAILCOM_CUTOUT_START_DELTA_USEC;
+    fill_timing(RAILCOM_CUTOUT_PRE, target - railcom_part, 0);
+    railcom_part = target;
+
+    target = RAILCOM_CUTOUT_MID_USEC + HW::RAILCOM_CUTOUT_MID_DELTA_USEC;
+    fill_timing(RAILCOM_CUTOUT_FIRST, target - railcom_part, 0);
+    railcom_part = target;
+
+    target = RAILCOM_CUTOUT_END_USEC + HW::RAILCOM_CUTOUT_END_DELTA_USEC;
+    fill_timing(RAILCOM_CUTOUT_SECOND, target - railcom_part, 0);
+    railcom_part = target;
+
+    static_assert(5 * 56 * 2 >
+            RAILCOM_CUTOUT_END_USEC + HW::RAILCOM_CUTOUT_END_DELTA_USEC,
+        "railcom cutout too long");
+    // remaining time until 5 one bits are complete.
     fill_timing(RAILCOM_CUTOUT_POST, 5*56*2 - railcom_part + h_deadband, 0);
 
     // We need to disable the timers before making changes to the config.
