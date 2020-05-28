@@ -51,6 +51,16 @@ template <uint8_t PIN_NUM>
 class Esp32Gpio
 {
 public:
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    static_assert(PIN_NUM >= 0 && PIN_NUM <= 39, "Valid pin range is 0..39.");
+    static_assert(!(PIN_NUM >= 6 && PIN_NUM <= 11)
+                , "Pin is reserved for flash usage.");
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+    static_assert(PIN_NUM >= 0 && PIN_NUM <= 46, "Valid pin range is 0..46.");
+    static_assert(!(PIN_NUM >= 26 && PIN_NUM <= 32)
+                , "Pin is reserved for flash usage.");
+#endif // CONFIG_IDF_TARGET_ESP32
+
     /// @return the pin number for this GPIO.
     static gpio_num_t pin()
     {
@@ -73,21 +83,31 @@ public:
     /// Turns on pullup.
     static void set_pullup_on()
     {
+#if defined(CONFIG_IDF_TARGET_ESP32)
         // these pins have HW PD always.
         HASSERT(PIN_NUM != 12);
         HASSERT(PIN_NUM != 4);
         HASSERT(PIN_NUM != 2);
-
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+        // these pins have HW PD always.
+        HASSERT(PIN_NUM != 45);
+        HASSERT(PIN_NUM != 46);
+#endif // CONFIG_IDF_TARGET_ESP32
         ESP_ERROR_CHECK(gpio_pullup_en(pin()));
     }
 
     /// Turns off pullup.
     static void set_pullup_off()
     {
+#if defined(CONFIG_IDF_TARGET_ESP32)
         // these pins have HW PU always.
         HASSERT(PIN_NUM != 0);
         HASSERT(PIN_NUM != 15);
         HASSERT(PIN_NUM != 5);
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+        // these pins have HW PU always.
+        HASSERT(PIN_NUM != 0);
+#endif // CONFIG_IDF_TARGET_ESP32
 
         ESP_ERROR_CHECK(gpio_pullup_dis(pin()));
     }
@@ -95,10 +115,15 @@ public:
     /// Turns on pullup.
     static void set_pulldown_on()
     {
+#if defined(CONFIG_IDF_TARGET_ESP32)
         // these pins have HW PU always.
         HASSERT(PIN_NUM != 0);
         HASSERT(PIN_NUM != 15);
         HASSERT(PIN_NUM != 5);
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+        // these pins have HW PU always.
+        HASSERT(PIN_NUM != 0);
+#endif // CONFIG_IDF_TARGET_ESP32
 
         ESP_ERROR_CHECK(gpio_pulldown_en(pin()));
     }
@@ -106,10 +131,16 @@ public:
     /// Turns off pullup.
     static void set_pulldown_off()
     {
+#if defined(CONFIG_IDF_TARGET_ESP32)
         // these pins have HW PD always.
         HASSERT(PIN_NUM != 12);
         HASSERT(PIN_NUM != 4);
         HASSERT(PIN_NUM != 2);
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+        // these pins have HW PD always.
+        HASSERT(PIN_NUM != 45);
+        HASSERT(PIN_NUM != 46);
+#endif // CONFIG_IDF_TARGET_ESP32
 
         ESP_ERROR_CHECK(gpio_pulldown_dis(pin()));
     }
@@ -137,11 +168,11 @@ public:
         {
             if (PIN_NUM < 32)
             {
-                return GPIO.out & ((uint32_t)1 << (PIN_NUM & 31));
+                return GPIO.out & BIT(PIN_NUM & 31);
             }
             else
             {
-                return GPIO.out1.data & ((uint32_t)1 << (PIN_NUM & 31));
+                return GPIO.out1.data & BIT(PIN_NUM & 31);
             }
         }
         return gpio_get_level(pin());
@@ -179,11 +210,11 @@ public:
             // pins 32 and below use the first GPIO controller
             if (PIN_NUM < 32)
             {
-                return GPIO.enable & ((uint32_t)1 << (PIN_NUM & 31));
+                return GPIO.enable & BIT(PIN_NUM & 31);
             }
             else
             {
-                return GPIO.enable1.data & ((uint32_t)1 << (PIN_NUM & 31));
+                return GPIO.enable1.data & BIT(PIN_NUM & 31);
             }
         }
         return false;
@@ -357,25 +388,48 @@ template <class Defs> struct GpioInputPUPD : public GpioInputPar<Defs, true, tru
 /// @param BaseClass is the initialization structure, such as @ref LedPin, or
 /// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
 ///
-/// @param NUM is the pin number, such as 3 (range: 0..39)
+/// @param NUM is the pin number, such as 3 (see below for usable range).
 ///
-/// Some pins are not generally usable:
-///    - 6 - 11 : connected to flash
-///    - 1, 3   : UART0, serial console
-///    - 37, 38 : not exposed on most modules
-///    - 16, 17 : not exposed on WROVER modules (used for PSRAM)
+/// There are multiple variations available for the ESP32: ESP32, WROVER,
+/// WROVER-B, PICO-D4, ESP32-Solo and ESP32-S2. Each of these have slight
+/// differences in the available pins.
 ///
-/// Some pins have built in pull-up or pull-down which can not be disabled
-/// since these are bootstrap pins and most modules have pull-up or pull-down
-/// resistors on the PCB:
-///    - 0  : pull-up
-///    - 2  : pull-down
-///    - 4  : pull-down
-///    - 5  : pull-up
-///    - 12 : pull-down
-///    - 15 : pull-up
+/// ESP32: Valid pin range is 0..39 with the following restrictions:
+///    - 0       : pull-up resistor on most modules.
+///    - 2       : pull-down resistor on most modules.
+///    - 1, 3    : UART0, serial console.
+///    - 4       : pull-down resistor on most modules.
+///    - 5       : pull-up resistor on most modules.
+///    - 6 - 11  : connected to flash.
+///    - 12      : pull-down resistor on most modules.
+///    - 15      : pull-up resistor on most modules.
+///    - 37, 38  : not exposed on most modules.
+///    - 34 - 39 : these pins are INPUT only.
+/// NOTE: ESP32 covers the ESP32-WROOM-32, DOWD, D2WD, S0WD, U4WDH and the
+/// ESP32-Solo. note that the ESP32-Solo is a single core module and is not
+/// recommended for use, additionally the ESP32-S2 is it's replacement.
 ///
-/// Note that pins 34, 35, 36, and 39 are INPUT only.
+/// ESP32-PICO-D4: Same as ESP32 but possibly one restricted pin below:
+///    - 16      : when PSRAM is included this pin may be used by flash.
+///
+/// ESP32-WROVER & WROVER-B: Same as ESP32 but with the following restrictions:
+///    - 16, 17  : typically used for PSRAM on WROVER/WROVER-B modules.
+///
+/// ESP32-S2: Valid pin range is 0..46 with the following restrictions:
+///    - 0       : pull-up resistor on most modules.
+///    - 22 - 25 : does not exist.
+///    - 26 - 32 : connected to flash (GPIO 26 is used by PSRAM on S2-WROVER).
+///    - 43, 44  : UART0, serial console.
+///    - 45      : pull-down resistor on most modules.
+///    - 46      : pull-down resistor on most modules, also INPUT only.
+///
+/// Data sheet references:
+/// ESP32: https://www.espressif.com/sites/default/files/documentation/esp32_datasheet_en.pdf
+/// ESP32-WROVER: https://www.espressif.com/sites/default/files/documentation/esp32-wrover_datasheet_en.pdf
+/// ESP32-WROVER-B: https://www.espressif.com/sites/default/files/documentation/esp32-wrover-b_datasheet_en.pdf
+/// ESP32-PICO-D4: https://www.espressif.com/sites/default/files/documentation/esp32-pico-d4_datasheet_en.pdf
+/// ESP32-S2: https://www.espressif.com/sites/default/files/documentation/esp32-s2_datasheet_en.pdf
+/// ESP32-S2-WROVER: https://www.espressif.com/sites/default/files/documentation/esp32-s2-wrover_esp32-s2-wrover-i_datasheet_en.pdf
 ///
 /// Example:
 ///  GPIO_PIN(FOO, GpioOutputSafeLow, 3);
