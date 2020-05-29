@@ -73,9 +73,9 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 // The CAN driver is disabled in ESP-IDF on the ESP32-S2 so only include the
 // adapter for the ESP32. The CAN driver will be supported in the future on
 // the ESP32-S2.
-#ifndef CONFIG_IDF_TARGET_ESP32
+#ifdef CONFIG_IDF_TARGET_ESP32
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
-#endif // !CONFIG_IDF_TARGET_ESP32
+#endif // CONFIG_IDF_TARGET_ESP32
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 
