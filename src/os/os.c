@@ -427,8 +427,6 @@ int __attribute__((weak)) os_thread_create_helper(os_thread_t *thread,
                                 priority,
                                 (StackType_t *)stack_malloc(stack_size),
                                 (StaticTask_t *) malloc(sizeof(StaticTask_t)));
-    task_new->task = *thread;
-    task_new->name = (char*)pcTaskGetTaskName(*thread);
 #elif (configSUPPORT_DYNAMIC_ALLOCATION == 1)
     xTaskCreate(os_thread_start, (const char *const)name,
                 stack_size/sizeof(portSTACK_TYPE), priv, priority, thread);
