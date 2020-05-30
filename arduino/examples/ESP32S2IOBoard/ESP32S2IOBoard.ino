@@ -202,7 +202,7 @@ typedef GpioInitializer<
     OUTPUT10_Pin, OUTPUT11_Pin, OUTPUT12_Pin, OUTPUT14_Pin, OUTPUT15_Pin,
     INPUT0_Pin,   INPUT1_Pin,   INPUT2_Pin,   INPUT3_Pin,   INPUT4_Pin,
     INPUT5_Pin,   INPUT6_Pin,   INPUT7_Pin,   INPUT8_Pin,   INPUT9_Pin,
-    INPUT10_Pin,  INPUT11_Pin,  INPUT12_Pin,  INPUT13_Pin,  INPUT14_Pin,
+    INPUT10_Pin,  INPUT11_Pin,  INPUT12_Pin,  INPUT13_Pin,  INPUT14_Pin
 #ifdef USE_GPIO_18_FOR_IO
   , INPUT15_Pin
 #endif // USE_GPIO_18_FOR_IO
