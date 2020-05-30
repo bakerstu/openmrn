@@ -74,6 +74,34 @@ typedef esp_netif_ip_info_t ESP32_ADAPTER_IP_INFO_TYPE;
 static constexpr uint8_t ESP32_MAX_HOSTNAME_LENGTH = 32;
 #endif
 
+/// Callback function definition for the network up events.
+///
+/// The first parameter is the interface that is up and read to use.
+/// The second is the IP address for the interface in network byte order.
+///
+/// NOTE: The callback will be invoked for ESP_IF_WIFI_AP (SoftAP) upon start
+/// and ESP_IF_WIFI_STA (station) only after the IP address has been received.
+/// The callback will be called multiple times if both SoftAP and Station are
+/// enabled.
+typedef std::function<void(esp_interface_t
+                         , uint32_t)> esp32_network_up_callback_t;
+
+/// Callback function definition for the network down events.
+///
+/// The first parameter is the interface that is down.
+///
+/// NOTE: The callback will be invoked for ESP_IF_WIFI_AP (SoftAP) when the
+/// interface is stopped, for ESP_IF_WIFI_STA (station) it will be called when
+/// the IP address has been lost or connection to the AP has been lost.
+typedef std::function<void(esp_interface_t)> esp32_network_down_callback_t;
+
+/// Callback function definition for the network is initializing.
+///
+/// The first parameter is the interface that is initializing.
+///
+/// NOTE: This will be called for ESP_IF_WIFI_STA only. It will be called for
+/// initial startup and reconnect events.
+typedef std::function<void(esp_interface_t)> esp32_network_init_callback_t;
 
 /// This class provides a simple way for ESP32 nodes to manage the WiFi and
 /// mDNS systems of the ESP32, the node being a hub and connecting to an
@@ -233,6 +261,29 @@ public:
     /// portal to allow reconfiguration of the SSID.
     void wait_for_ssid_connect(bool enable);
 
+    /// Registers a callback for when the WiFi connection is up.
+    ///
+    /// @param callback The callback to invoke when the WiFi connection is
+    /// up.
+    void register_network_up_callback(esp32_network_up_callback_t callback);
+
+    /// Registers a callback for when the WiFi connection is down.
+    ///
+    /// @param callback The callback to invoke when the WiFi connection is
+    /// down.
+    void register_network_down_callback(
+        esp32_network_down_callback_t callback);
+
+    /// Registers a callback for when WiFi interfaces are being initialized.
+    ///
+    /// @param callback The callback to invoke when the WiFi interface is
+    /// initializing.
+    /// 
+    /// NOTE: this will not be invoked for ESP_IF_WIFI_AP since there are no
+    /// events raised between enabling the interface and when it is ready.
+    void register_network_init_callback(
+        esp32_network_init_callback_t callback);
+
 private:
     /// Default constructor.
     Esp32WiFiManager();
@@ -310,7 +361,10 @@ private:
     ///
     /// This will handle the configuration of the SoftAP Static IP (if used).
     void on_softap_start();
-    
+
+    /// Event handler called when the ESP32 SoftAP interface has shutdown.
+    void on_softap_stop();
+
     /// Event handler called when a station connects to the ESP32 SoftAP.
     ///
     /// @param sta_info Station information (aid, mac).
@@ -424,6 +478,19 @@ private:
     /// mDNS not being initialized yet.
     std::map<std::string, uint16_t> mdnsDeferredPublish_;
 
+    /// Protects the networkUpCallbacks_, networkDownCallbacks_ and
+    /// networkInitCallbacks_ vectors.
+    OSMutex networkCallbacksLock_;
+
+    /// Holder for callbacks to invoke when the WiFi connection is up.
+    std::vector<esp32_network_up_callback_t> networkUpCallbacks_;
+
+    /// Holder for callbacks to invoke when the WiFi connection is down.
+    std::vector<esp32_network_down_callback_t> networkDownCallbacks_;
+
+    /// Holder for callbacks to invoke when the WiFi connection is down.
+    std::vector<esp32_network_init_callback_t> networkInitCallbacks_;
+
 #if defined(ESP_IDF_VERSION) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,1,0)
     /// Network interfaces that are managed by Esp32WiFiManager.
     esp_netif_t *esp_netifs[ESP_IF_MAX]{nullptr, nullptr, nullptr};
@@ -436,5 +503,8 @@ private:
 
 using openmrn_arduino::Esp32WiFiManager;
 using openmrn_arduino::ESP32_ADAPTER_IP_INFO_TYPE;
+using openmrn_arduino::esp32_network_up_callback_t;
+using openmrn_arduino::esp32_network_down_callback_t;
+using openmrn_arduino::esp32_network_init_callback_t;
 
 #endif // _FREERTOS_DRIVERS_ESP32_ESP32WIFIMGR_HXX_

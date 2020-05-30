@@ -472,6 +472,10 @@ void Esp32WiFiManager::process_idf_event(void *arg, esp_event_base_t event_base
     {
         wifi->on_softap_start();
     }
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STOP)
+    {
+        wifi->on_softap_stop();
+    }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED)
     {
         wifi->on_softap_station_connected(
@@ -534,6 +538,10 @@ esp_err_t Esp32WiFiManager::process_wifi_event(void *ctx, system_event_t *event)
     {
         wifi->on_softap_start();
     }
+    else if (event->event_id == SYSTEM_EVENT_AP_STOP)
+    {
+        wifi->on_softap_stop();
+    }
     else if (event->event_id == SYSTEM_EVENT_AP_STACONNECTED)
     {
         wifi->on_softap_station_connected(event->event_info.sta_connected);
@@ -565,6 +573,30 @@ void Esp32WiFiManager::enable_verbose_logging()
 void Esp32WiFiManager::wait_for_ssid_connect(bool enable)
 {
     waitForStationConnect_ = enable;
+}
+
+// Adds a callback which will be called when the network is up.
+void Esp32WiFiManager::register_network_up_callback(
+    esp32_network_up_callback_t callback)
+{
+    OSMutexLock l(&networkCallbacksLock_);
+    networkUpCallbacks_.push_back(callback);
+}
+
+// Adds a callback which will be called when the network is down.
+void Esp32WiFiManager::register_network_down_callback(
+    esp32_network_down_callback_t callback)
+{
+    OSMutexLock l(&networkCallbacksLock_);
+    networkDownCallbacks_.push_back(callback);
+}
+
+// Adds a callback which will be called when the network is initializing.
+void Esp32WiFiManager::register_network_init_callback(
+    esp32_network_init_callback_t callback)
+{
+    OSMutexLock l(&networkCallbacksLock_);
+    networkInitCallbacks_.push_back(callback);
 }
 
 // If the Esp32WiFiManager is setup to manage the WiFi system, the following
@@ -1215,6 +1247,18 @@ void Esp32WiFiManager::on_station_started()
         "[WiFi] Station started, attempting to connect to SSID: %s.", ssid_);
     // Start the SSID connection process.
     esp_wifi_connect();
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp32_network_init_callback_t cb : networkInitCallbacks_)
+        {
+            stack_->executor()->add(new CallbackExecutable([cb]
+            {
+                cb(ESP_IF_WIFI_STA);
+            }));
+        }
+    }
 }
 
 void Esp32WiFiManager::on_station_connected()
@@ -1261,6 +1305,18 @@ void Esp32WiFiManager::on_station_disconnected(uint8_t reason)
             "[WiFi] Connection failed, reconnecting to SSID: %s.", ssid_);
     }
     esp_wifi_connect();
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp32_network_init_callback_t cb : networkInitCallbacks_)
+        {
+            stack_->executor()->add(new CallbackExecutable([cb]
+            {
+                cb(ESP_IF_WIFI_STA);
+            }));
+        }
+    }
 }
 
 void Esp32WiFiManager::on_station_ip_assigned(uint32_t ip_address)
@@ -1279,6 +1335,18 @@ void Esp32WiFiManager::on_station_ip_assigned(uint32_t ip_address)
     // Wake up the wifi_manager_task so it can start connections
     // creating connections, this will be a no-op for initial startup.
     xTaskNotifyGive(wifiTaskHandle_);
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp32_network_up_callback_t cb : networkUpCallbacks_)
+        {
+            stack_->executor()->add(new CallbackExecutable([cb, ip_address]
+            {
+                cb(ESP_IF_WIFI_STA, ip_address);
+            }));
+        }
+    }
 }
 
 void Esp32WiFiManager::on_station_ip_lost()
@@ -1286,12 +1354,26 @@ void Esp32WiFiManager::on_station_ip_lost()
     // Clear the flag that indicates we are connected and have an
     // IPv4 address.
     xEventGroupClearBits(wifiStatusEventGroup_, WIFI_GOTIP_BIT);
+
     // Wake up the wifi_manager_task so it can clean up connections.
     xTaskNotifyGive(wifiTaskHandle_);
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp32_network_down_callback_t cb : networkDownCallbacks_)
+        {
+            stack_->executor()->add(new CallbackExecutable([cb]
+            {
+                cb(ESP_IF_WIFI_STA);
+            }));
+        }
+    }
 }
 
 void Esp32WiFiManager::on_softap_start()
 {
+    uint32_t ip_address = 0;
     uint8_t mac[6];
     esp_wifi_get_mac(WIFI_IF_AP, mac);
     LOG(INFO, "[SoftAP] MAC Address: %s", mac_to_string(mac).c_str());
@@ -1333,14 +1415,14 @@ void Esp32WiFiManager::on_softap_start()
                                 , softAPStaticIP_));
 
         // Convert the Soft AP Static IP to a uint32 for manipulation
-        uint32_t apIP = ntohl(ip4_addr_get_u32(&softAPStaticIP_->ip));
+        ip_address = ntohl(ip4_addr_get_u32(&softAPStaticIP_->ip));
 
         // Default configuration is for DHCP addresses to follow
         // immediately after the static ip address of the Soft AP.
         ip4_addr_t first_ip, last_ip;
-        ip4_addr_set_u32(&first_ip, htonl(apIP + 1));
+        ip4_addr_set_u32(&first_ip, htonl(ip_address + 1));
         ip4_addr_set_u32(&last_ip
-                       , htonl(apIP + SOFTAP_IP_RESERVATION_BLOCK_SIZE));
+                       , htonl(ip_address + SOFTAP_IP_RESERVATION_BLOCK_SIZE));
         dhcps_lease_t dhcp_lease {
             true,                   // enable dhcp lease functionality
             first_ip,               // first ip to assign
@@ -1361,6 +1443,15 @@ void Esp32WiFiManager::on_softap_start()
         // when they connect.
         LOG(INFO, "[SoftAP] Starting DHCP Server.");
         ESP_ERROR_CHECK(esp_netif_dhcps_start(esp_netifs[ESP_IF_WIFI_AP]));
+    }
+    else
+    {
+        // fetch the IP address from the adapter since it defaults to
+        // 192.168.4.1 but can be altered via sdkconfig.
+        ESP32_ADAPTER_IP_INFO_TYPE ip_info;
+        ESP_ERROR_CHECK(esp_netif_get_ip_info(esp_netifs[ESP_IF_WIFI_AP]
+                                            , &ip_info));
+        ip_address = ntohl(ip4_addr_get_u32(&ip_info.ip));
     }
 #else
     // Set the generated hostname prior to connecting to the SSID
@@ -1392,14 +1483,14 @@ void Esp32WiFiManager::on_softap_start()
                                         softAPStaticIP_));
 
         // Convert the Soft AP Static IP to a uint32 for manipulation
-        uint32_t apIP = ntohl(ip4_addr_get_u32(&softAPStaticIP_->ip));
+        ip_address = ntohl(ip4_addr_get_u32(&softAPStaticIP_->ip));
 
         // Default configuration is for DHCP addresses to follow
         // immediately after the static ip address of the Soft AP.
         ip4_addr_t first_ip, last_ip;
-        ip4_addr_set_u32(&first_ip, htonl(apIP + 1));
-        ip4_addr_set_u32(&last_ip,
-                            htonl(apIP + SOFTAP_IP_RESERVATION_BLOCK_SIZE));
+        ip4_addr_set_u32(&first_ip, htonl(ip_address + 1));
+        ip4_addr_set_u32(&last_ip
+                       , htonl(ip_address + SOFTAP_IP_RESERVATION_BLOCK_SIZE));
 
         dhcps_lease_t dhcp_lease {
             true,                   // enable dhcp lease functionality
@@ -1422,6 +1513,15 @@ void Esp32WiFiManager::on_softap_start()
         ESP_ERROR_CHECK(
             tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP));
     }
+    else
+    {
+        // fetch the IP address from the adapter since it defaults to
+        // 192.168.4.1 but can be altered via sdkconfig.
+        ESP32_ADAPTER_IP_INFO_TYPE ip_info;
+        ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP
+                                                , &ip_info));
+        ip_address = ntohl(ip4_addr_get_u32(&ip_info.ip));
+    }
 #endif // IDF v4.1+
 
     // If we are operating in SoftAP mode only we can start the mDNS system
@@ -1430,6 +1530,33 @@ void Esp32WiFiManager::on_softap_start()
     if (wifiMode_ == WIFI_MODE_AP)
     {
         start_mdns_system();
+    }
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp32_network_up_callback_t cb : networkUpCallbacks_)
+        {
+            stack_->executor()->add(new CallbackExecutable([cb, ip_address]
+            {
+                cb(ESP_IF_WIFI_AP, htonl(ip_address));
+            }));
+        }
+    }
+}
+
+void Esp32WiFiManager::on_softap_stop()
+{
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp32_network_down_callback_t cb : networkDownCallbacks_)
+        {
+            stack_->executor()->add(new CallbackExecutable([cb]
+            {
+                cb(ESP_IF_WIFI_AP);
+            }));
+        }
     }
 }
 
