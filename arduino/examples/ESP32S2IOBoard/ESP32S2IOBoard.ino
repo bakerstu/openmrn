@@ -99,113 +99,81 @@ static constexpr openlcb::ConfigDef cfg(0);
 
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 
-// Declare all OUTPUT pins to be used on the ESP32-S2.
-GPIO_PIN(OUTPUT0, GpioOutputSafeLow, 0);
-GPIO_PIN(OUTPUT1, GpioOutputSafeLow, 1);
-GPIO_PIN(OUTPUT2, GpioOutputSafeLow, 2);
-GPIO_PIN(OUTPUT3, GpioOutputSafeLow, 3);
-GPIO_PIN(OUTPUT4, GpioOutputSafeLow, 4);
-GPIO_PIN(OUTPUT5, GpioOutputSafeLow, 5);
-GPIO_PIN(OUTPUT6, GpioOutputSafeLow, 6);
-GPIO_PIN(OUTPUT7, GpioOutputSafeLow, 7);
-GPIO_PIN(OUTPUT8, GpioOutputSafeLow, 8);
-GPIO_PIN(OUTPUT9, GpioOutputSafeLow, 9);
-GPIO_PIN(OUTPUT10, GpioOutputSafeLow, 10);
-GPIO_PIN(OUTPUT11, GpioOutputSafeLow, 11);
-GPIO_PIN(OUTPUT12, GpioOutputSafeLow, 12);
-GPIO_PIN(OUTPUT13, GpioOutputSafeLow, 13);
-GPIO_PIN(OUTPUT14, GpioOutputSafeLow, 14);
-GPIO_PIN(OUTPUT15, GpioOutputSafeLow, 45);
-// NOTE: OUTPUT15 is configured to use GPIO 45 rather than GPIO 15 due to GPIO
-// 45 having a pull-down which will interfere with the GpioInputPU state used
-// for INPUTs below. It is generally not recommended to enable both a pull-up
-// and pull-down on the same pin, especially when one is done with a resistor.
-
-// Declare all INPUT pins to be used on the ESP32-S2.
-// NOTE: GPIO42 and GPIO46 are skipped to keep it free for TWAI (CAN).
-// NOTE: GPIO18 skipped due to on-board WS2812 RGB LED.
-GPIO_PIN(INPUT0, GpioInputPU, 16);
-GPIO_PIN(INPUT1, GpioInputPU, 17);
-GPIO_PIN(INPUT2, GpioInputPU, 19);
-GPIO_PIN(INPUT3, GpioInputPU, 20);
-GPIO_PIN(INPUT4, GpioInputPU, 21);
-GPIO_PIN(INPUT5, GpioInputPU, 33);
-GPIO_PIN(INPUT6, GpioInputPU, 34);
-GPIO_PIN(INPUT7, GpioInputPU, 35);
-GPIO_PIN(INPUT8, GpioInputPU, 36);
-GPIO_PIN(INPUT9, GpioInputPU, 37);
-GPIO_PIN(INPUT10, GpioInputPU, 38);
-GPIO_PIN(INPUT11, GpioInputPU, 39);
-GPIO_PIN(INPUT12, GpioInputPU, 40);
-GPIO_PIN(INPUT13, GpioInputPU, 41);
-GPIO_PIN(INPUT14, GpioInputPU, 15);
+// Declare all GPIO pins to be used on the ESP32-S2.
+GPIO_PIN(GPIO0, GpioOutputSafeLow, 0);
+GPIO_PIN(GPIO1, GpioOutputSafeLow, 1);
+GPIO_PIN(GPIO2, GpioOutputSafeLow, 2);
+GPIO_PIN(GPIO3, GpioOutputSafeLow, 3);
+GPIO_PIN(GPIO4, GpioOutputSafeLow, 4);
+GPIO_PIN(GPIO5, GpioOutputSafeLow, 5);
+GPIO_PIN(GPIO6, GpioOutputSafeLow, 6);
+GPIO_PIN(GPIO7, GpioOutputSafeLow, 7);
+GPIO_PIN(GPIO8, GpioOutputSafeLow, 8);
+GPIO_PIN(GPIO9, GpioOutputSafeLow, 9);
+GPIO_PIN(GPIO10, GpioOutputSafeLow, 10);
+GPIO_PIN(GPIO11, GpioOutputSafeLow, 11);
+GPIO_PIN(GPIO12, GpioOutputSafeLow, 12);
+GPIO_PIN(GPIO13, GpioOutputSafeLow, 13);
+GPIO_PIN(GPIO14, GpioOutputSafeLow, 14);
+GPIO_PIN(GPIO15, GpioOutputSafeLow, 15);
+GPIO_PIN(GPIO16, GpioOutputSafeLow, 16);
+GPIO_PIN(GPIO17, GpioOutputSafeLow, 17);
 #ifdef USE_GPIO_18_FOR_IO
-GPIO_PIN(INPUT15, GpioInputPU, 18);
+GPIO_PIN(GPIO18, GpioOutputSafeLow, 18);
 #endif // USE_GPIO_18_FOR_IO
+GPIO_PIN(GPIO19, GpioOutputSafeLow, 19);
+GPIO_PIN(GPIO20, GpioOutputSafeLow, 20);
+GPIO_PIN(GPIO21, GpioOutputSafeLow, 21);
+GPIO_PIN(GPIO33, GpioOutputSafeLow, 33);
+GPIO_PIN(GPIO34, GpioOutputSafeLow, 34);
+GPIO_PIN(GPIO35, GpioOutputSafeLow, 35);
+GPIO_PIN(GPIO36, GpioOutputSafeLow, 36);
+GPIO_PIN(GPIO37, GpioOutputSafeLow, 37);
+GPIO_PIN(GPIO38, GpioOutputSafeLow, 38);
+GPIO_PIN(GPIO39, GpioOutputSafeLow, 39);
+GPIO_PIN(GPIO40, GpioOutputSafeLow, 40);
+GPIO_PIN(GPIO41, GpioOutputSafeLow, 41);
+GPIO_PIN(GPIO45, GpioOutputSafeLow, 45);
 
-openlcb::ConfiguredProducer INPUT0_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<0>(), INPUT0_Pin());
-openlcb::ConfiguredProducer INPUT1_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<1>(), INPUT1_Pin());
-openlcb::ConfiguredProducer INPUT2_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<2>(), INPUT2_Pin());
-openlcb::ConfiguredProducer INPUT3_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<3>(), INPUT3_Pin());
-openlcb::ConfiguredProducer INPUT4_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<4>(), INPUT4_Pin());
-openlcb::ConfiguredProducer INPUT5_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<5>(), INPUT5_Pin());
-openlcb::ConfiguredProducer INPUT6_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<6>(), INPUT6_Pin());
-openlcb::ConfiguredProducer INPUT7_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<7>(), INPUT7_Pin());
-openlcb::ConfiguredProducer INPUT8_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<8>(), INPUT8_Pin());
-openlcb::ConfiguredProducer INPUT9_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<9>(), INPUT9_Pin());
-openlcb::ConfiguredProducer INPUT10_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<10>(), INPUT10_Pin());
-openlcb::ConfiguredProducer INPUT11_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<11>(), INPUT11_Pin());
-openlcb::ConfiguredProducer INPUT12_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<12>(), INPUT12_Pin());
-openlcb::ConfiguredProducer INPUT13_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<13>(), INPUT13_Pin());
-openlcb::ConfiguredProducer INPUT14_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<14>(), INPUT14_Pin());
-#ifdef USE_GPIO_18_FOR_IO
-openlcb::ConfiguredProducer INPUT15_producer(
-    openmrn.stack()->node(), cfg.seg().inputs().entry<15>(), INPUT15_Pin());
-#endif // USE_GPIO_18_FOR_IO
+// NOTE: GPIO42 and GPIO46 are skipped and reserved for TWAI (CAN).
 
-// List of GPIO objects that will be used for the output pins. You should keep
-// the constexpr declaration, because it will produce a compile error in case
-// the list of pointers cannot be compiled into a compiler constant and thus
-// would be placed into RAM instead of ROM.
-constexpr const Gpio *const output_gpio_set[] =
+// List of GPIO objects that will be used for the configurable IO pins. You
+// should keep the constexpr declaration, because it will produce a compile
+// error in case the list of pointers cannot be compiled into a compiler
+// constant and thus would be placed into RAM instead of ROM.
+constexpr const Gpio *const gpio_set[] =
 {
-    OUTPUT0_Pin::instance(),  OUTPUT1_Pin::instance(),  OUTPUT2_Pin::instance(),  //
-    OUTPUT3_Pin::instance(),  OUTPUT4_Pin::instance(),  OUTPUT5_Pin::instance(),  //
-    OUTPUT6_Pin::instance(),  OUTPUT7_Pin::instance(),  OUTPUT8_Pin::instance(),  //
-    OUTPUT9_Pin::instance(),  OUTPUT10_Pin::instance(), OUTPUT11_Pin::instance(), //
-    OUTPUT12_Pin::instance(), OUTPUT13_Pin::instance(), OUTPUT14_Pin::instance(), //
-    OUTPUT15_Pin::instance()
+    GPIO0_Pin::instance(),  GPIO1_Pin::instance(),  GPIO2_Pin::instance(),  //
+    GPIO3_Pin::instance(),  GPIO4_Pin::instance(),  GPIO5_Pin::instance(),  //
+    GPIO6_Pin::instance(),  GPIO7_Pin::instance(),  GPIO8_Pin::instance(),  //
+    GPIO9_Pin::instance(),  GPIO10_Pin::instance(), GPIO11_Pin::instance(), //
+    GPIO12_Pin::instance(), GPIO13_Pin::instance(), GPIO14_Pin::instance(), //
+    GPIO15_Pin::instance(), GPIO16_Pin::instance(), GPIO17_Pin::instance(), //
+#ifdef USE_GPIO_18_FOR_IO
+    GPIO18_Pin::instance(),
+#endif // USE_GPIO_18_FOR_IO
+    GPIO19_Pin::instance(), GPIO20_Pin::instance(), GPIO21_Pin::instance(), //
+    GPIO33_Pin::instance(), GPIO34_Pin::instance(), GPIO35_Pin::instance(), //
+    GPIO36_Pin::instance(), GPIO37_Pin::instance(), GPIO38_Pin::instance(), //
+    GPIO39_Pin::instance(), GPIO40_Pin::instance(), GPIO41_Pin::instance(),  //
+    GPIO45_Pin::instance()
 };
 
-openlcb::MultiConfiguredConsumer gpio_consumers(openmrn.stack()->node(),
-    output_gpio_set, ARRAYSIZE(output_gpio_set), cfg.seg().outputs());
+// Configurable IO handler.
+openlcb::MultiConfiguredPC gpio(openmrn.stack()->node(), gpio_set,
+                                ARRAYSIZE(gpio_set), cfg.seg().gpio());
 
 // Create an initializer that can initialize all the GPIO pins in one shot
 typedef GpioInitializer<
-    OUTPUT0_Pin,  OUTPUT1_Pin,  OUTPUT2_Pin,  OUTPUT3_Pin,  OUTPUT4_Pin,
-    OUTPUT5_Pin,  OUTPUT6_Pin,  OUTPUT7_Pin,  OUTPUT8_Pin,  OUTPUT9_Pin,
-    OUTPUT10_Pin, OUTPUT11_Pin, OUTPUT12_Pin, OUTPUT14_Pin, OUTPUT15_Pin,
-    INPUT0_Pin,   INPUT1_Pin,   INPUT2_Pin,   INPUT3_Pin,   INPUT4_Pin,
-    INPUT5_Pin,   INPUT6_Pin,   INPUT7_Pin,   INPUT8_Pin,   INPUT9_Pin,
-    INPUT10_Pin,  INPUT11_Pin,  INPUT12_Pin,  INPUT13_Pin,  INPUT14_Pin
+    GPIO0_Pin,  GPIO1_Pin,  GPIO2_Pin,  GPIO3_Pin,  GPIO4_Pin,  GPIO5_Pin,  //
+    GPIO6_Pin,  GPIO7_Pin,  GPIO8_Pin,  GPIO9_Pin,  GPIO10_Pin, GPIO11_Pin, //
+    GPIO12_Pin, GPIO13_Pin, GPIO14_Pin, GPIO15_Pin, GPIO16_Pin, GPIO17_Pin, //
 #ifdef USE_GPIO_18_FOR_IO
-  , INPUT15_Pin
+    GPIO18_Pin,
 #endif // USE_GPIO_18_FOR_IO
+    GPIO19_Pin, GPIO20_Pin, GPIO21_Pin, GPIO33_Pin, GPIO34_Pin, GPIO35_Pin, //
+    GPIO36_Pin, GPIO37_Pin, GPIO38_Pin, GPIO39_Pin, GPIO40_Pin, GPIO41_Pin, //
+    GPIO45_Pin
     > GpioInit;
 
 // The GPIO pins need to be polled repeatedly for changes and to execute the
@@ -213,24 +181,7 @@ typedef GpioInitializer<
 // producers to it.
 openlcb::RefreshLoop producer_refresh_loop(openmrn.stack()->node(),
     {
-        INPUT0_producer.polling(),
-        INPUT1_producer.polling(),
-        INPUT2_producer.polling(),
-        INPUT3_producer.polling(),
-        INPUT4_producer.polling(),
-        INPUT5_producer.polling(),
-        INPUT6_producer.polling(),
-        INPUT7_producer.polling(),
-        INPUT8_producer.polling(),
-        INPUT9_producer.polling(),
-        INPUT10_producer.polling(),
-        INPUT11_producer.polling(),
-        INPUT12_producer.polling(),
-        INPUT13_producer.polling(),
-        INPUT14_producer.polling()
-#ifdef USE_GPIO18_FOR_IO
-      , INPUT15_producer.polling()
-#endif // USE_GPIO18_FOR_IO
+        gpio.polling()
     }
 );
 

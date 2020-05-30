@@ -5,6 +5,7 @@
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "openlcb/MultiConfiguredConsumer.hxx"
+#include "openlcb/MultiConfiguredPC.hxx"
 
 #include "freertos_drivers/esp32/Esp32WiFiConfiguration.hxx"
 
@@ -41,8 +42,7 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA =
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
 /// from their respective hxx file.
-using AllOutputs = RepeatedGroup<ConsumerConfig, 16>;
-using AllInputs = RepeatedGroup<ProducerConfig, 16>;
+using AllGpio = RepeatedGroup<PCConfig, 32>;
 
 #else
 
@@ -50,8 +50,7 @@ using AllInputs = RepeatedGroup<ProducerConfig, 16>;
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
 /// from their respective hxx file.
-using AllOutputs = RepeatedGroup<ConsumerConfig, 16>;
-using AllInputs = RepeatedGroup<ProducerConfig, 15>;
+using AllGpio = RepeatedGroup<PCConfig, 31>;
 
 #endif // USE_GPIO_18_FOR_IO
 
@@ -65,8 +64,9 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
-CDI_GROUP_ENTRY(outputs, AllOutputs, Name("Output Pins"));
-CDI_GROUP_ENTRY(inputs, AllInputs, Name("Input Pins"));
+//CDI_GROUP_ENTRY(outputs, AllOutputs, Name("Output Pins"));
+//CDI_GROUP_ENTRY(inputs, AllInputs, Name("Input Pins"));
+CDI_GROUP_ENTRY(gpio, AllGpio, Name("IO Pins"));
 CDI_GROUP_ENTRY(wifi, WiFiConfiguration, Name("WiFi Configuration"));
 CDI_GROUP_END();
 
