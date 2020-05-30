@@ -490,7 +490,7 @@ void Esp32WiFiManager::process_idf_event(void *arg, esp_event_base_t event_base
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
         wifi->on_station_ip_assigned(
-            static_cast<esp_netif_ip_info_t *>(event_data)->ip.addr);
+            htonl(static_cast<esp_netif_ip_info_t *>(event_data)->ip.addr));
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP)
     {
@@ -523,7 +523,8 @@ esp_err_t Esp32WiFiManager::process_wifi_event(void *ctx, system_event_t *event)
     }
     else if (event->event_id == SYSTEM_EVENT_STA_GOT_IP)
     {
-        wifi->on_station_ip_assigned(event->event_info.got_ip.ip_info.ip.addr);
+        wifi->on_station_ip_assigned(
+            htonl(event->event_info.got_ip.ip_info.ip.addr));
     }
     else if (event->event_id == SYSTEM_EVENT_STA_LOST_IP)
     {
@@ -539,7 +540,8 @@ esp_err_t Esp32WiFiManager::process_wifi_event(void *ctx, system_event_t *event)
     }
     else if (event->event_id == SYSTEM_EVENT_AP_STADISCONNECTED)
     {
-        wifi->on_softap_station_disconnected(event->event_info.sta_disconnected);
+        wifi->on_softap_station_disconnected(
+            event->event_info.sta_disconnected);
     }
     else if (event->event_id == SYSTEM_EVENT_SCAN_DONE)
     {

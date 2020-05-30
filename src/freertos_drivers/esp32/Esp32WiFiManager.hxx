@@ -162,9 +162,14 @@ public:
     /// @param fd is the file descriptor used for the configuration settings.
     void factory_reset(int fd) override;
 
-// Starting with IDF v4.1 the esp_event component replaces the 
 #if defined(ESP_IDF_VERSION) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,1,0)
-    static void process_idf_event(void *arg, esp_event_base_t event_base
+    /// Processes an event coming from the ESP-IDF default event loop.
+    ///
+    /// @param ctx context parameter (unused).
+    /// @param event_base Determines the category of event being sent.
+    /// @param event_id Specific event from the event_base being sent.
+    /// @param event_data Data related to the event being sent, may be null.
+    static void process_idf_event(void *ctx, esp_event_base_t event_base
                                 , int32_t event_id, void *event_data);
 #else
     /// Processes an ESP-IDF WiFi event based on the event raised by the
@@ -176,6 +181,7 @@ public:
     /// esp_event_loop. Note that ESP-IDF only supports one callback being
     /// registered. 
     ///
+    /// @param ctx context parameter (unused).
     /// @param event is the system_event_t raised by ESP-IDF.
     static esp_err_t process_wifi_event(void *ctx, system_event_t *event);
 #endif
