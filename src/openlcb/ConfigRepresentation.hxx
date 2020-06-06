@@ -301,6 +301,17 @@ public:
     PATH().read_or_write_trimmed(                                              \
         fd, PATH##_options().minvalue(), PATH##_options().maxvalue())
 
+/// Requests a readout of a numeric variable with verifying range. If the value
+/// currently present in the config file is outside the defined
+/// minimum/maximum, then sets the value to the default value in the config
+/// file (overwriting). Returns the current value after trimming.
+///
+/// Usage:
+///   uint16_t my_value = CDI_READ_TRIM_DEFAULT(cfg.seg().foo_bar, fd);
+#define CDI_READ_TRIM_DEFAULT(PATH, fd)                                        \
+    PATH().read_or_write_default(fd, PATH##_options().minvalue(),              \
+        PATH##_options().maxvalue(), PATH##_options().defaultvalue())
+
 /// Defines a repeated group of a given type and a given number of repeats.
 ///
 /// Typical usage:
