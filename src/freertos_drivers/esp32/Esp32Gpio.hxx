@@ -55,14 +55,6 @@
 #define GET_GPIO_LEVEL(pin) ((pin < 32) ? GPIO.out & BIT(pin & 31) :           \
                                           GPIO.out1.data & BIT(pin & 31))
 
-/// Helper macro to reconfigure a GPIO pin as a specific mode.
-///
-/// Do not use this macro directly. Use @ref GPIO_PIN instead.
-#define CONFIGURE_GPIO(pin, mode)                                              \
-    gpio_pad_select_gpio(pin);                                                 \
-    ESP_ERROR_CHECK(gpio_reset_pin(pin));                                      \
-    ESP_ERROR_CHECK(gpio_set_direction(pin, mode));
-
 template <class Defs, bool SAFE_VALUE, bool INVERT> struct GpioOutputPin;
 template <class Defs, bool PUEN, bool PDEN> struct GpioInputPin;
 
@@ -185,7 +177,9 @@ public:
     /// Initializes the hardware pin.
     static void hw_init()
     {
-        CONFIGURE_GPIO(PIN_NUM, GPIO_MODE_OUTPUT)
+        gpio_pad_select_gpio(PIN_NUM);
+        ESP_ERROR_CHECK(gpio_reset_pin(PIN_NUM));
+        ESP_ERROR_CHECK(gpio_set_direction(PIN_NUM, GPIO_MODE_OUTPUT));
         ESP_ERROR_CHECK(gpio_set_level(PIN_NUM, SAFE_VALUE));
     }
 
@@ -269,28 +263,33 @@ template <class Defs, bool PUEN, bool PDEN> struct GpioInputPin : public Defs
 {
 public:
     using Defs::PIN_NUM;
-
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    // GPIO 2, 4 and 12 typically have pull-down resistors.
+    static_assert(!PUEN ||
+                  (PUEN && (PIN_NUM != 2 && PIN_NUM != 4 && PIN_NUM != 12)),
+                  "GPIO 2, 4, 12 typically have built-in pull-down resistors, "
+                  "enabling pull-up is not possible.");
+    // GPIO 0, 5 and 15 typically have pull-up resistors.
+    static_assert(!PDEN ||
+                  (PDEN && (PIN_NUM != 0 && PIN_NUM != 5 && PIN_NUM == 15)),
+                  "GPIO 0, 5, 15 typically have built-in pull-up resistors, "
+                  "enabling pull-down is not possible.");
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+    // GPIO 45 and 46 typically have pull-down resistors.
+    static_assert(!PUEN || (PUEN && (PIN_NUM != 45 && PIN_NUM != 46)),
+                  "GPIO 45 and 46 typically have built-in pull-down "
+                  "resistors, enabling pull-up is not possible.");
+    // GPIO 0 typically has a pull-up resistor
+    static_assert(!PDEN || (PDEN && PIN_NUM != 0),
+                  "GPIO 0 typically has a built-in pull-up resistors, "
+                  "enabling pull-down is not possible.");
+#endif // CONFIG_IDF_TARGET_ESP32
     /// Initializes the hardware pin.
     static void hw_init()
     {
-#if defined(CONFIG_IDF_TARGET_ESP32)
-        // GPIO 2, 4 and 12 have pull-down resistors
-        // GPIO 0, 5 and 15 have pull-up resistors
-        HASSERT(PUEN && (PIN_NUM == 2 || PIN_NUM == 4 || PIN_NUM == 12));
-        HASSERT(!PUEN && (PIN_NUM == 0 || PIN_NUM == 5 || PIN_NUM == 15));
-        HASSERT(PDEN && (PIN_NUM == 0 || PIN_NUM == 5 || PIN_NUM == 15));
-        HASSERT(!PDEN && (PIN_NUM == 2 || PIN_NUM == 4 || PIN_NUM == 12));
-#elif defined(CONFIG_IDF_TARGET_ESP32S2)
-        // GPIO 0 has a pull-up resistor
-        // GPIO 45 and 46 have pull-down resistors.
-        HASSERT(PUEN && (PIN_NUM == 45 || PIN_NUM == 46));
-        HASSERT(!PUEN && PIN_NUM == 0);
-        HASSERT(PDEN && PIN_NUM == 0);
-        HASSERT(!PDEN && (PIN_NUM == 45 || PIN_NUM == 46));
-#endif // CONFIG_IDF_TARGET_ESP32
-
-        // sanity check that the pin number is valid
-        CONFIGURE_GPIO(PIN_NUM, GPIO_MODE_INPUT)
+        gpio_pad_select_gpio(PIN_NUM);
+        ESP_ERROR_CHECK(gpio_reset_pin(PIN_NUM));
+        ESP_ERROR_CHECK(gpio_set_direction(PIN_NUM, GPIO_MODE_INPUT));
         if (PUEN)
         {
             ESP_ERROR_CHECK(gpio_pullup_en(PIN_NUM));
