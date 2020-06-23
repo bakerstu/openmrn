@@ -228,6 +228,8 @@ void setup()
     if (!SPIFFS.begin())
     {
         printf("SPIFFS failed to mount, attempting to format and remount\n");
+        // unmount the SPIFFS filesystem before attempting to mount/format.
+        SPIFFS.end();
         if (!SPIFFS.begin(true))
         {
             printf("SPIFFS mount failed even with format, giving up!\n");
