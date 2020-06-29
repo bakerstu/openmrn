@@ -126,7 +126,7 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         memory_space = space;
         dst = d;
         this->address = offset;
-        this->size = size;
+        this->size = data.size();
         payload = std::move(data);
     }
 
