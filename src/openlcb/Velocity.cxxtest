@@ -199,6 +199,37 @@ TEST(NMRAnetVelocityTest, reverse_from_reverse)
     EXPECT_TRUE(velocity->speed() == 100.5F);
 }
 
+TEST(NMRAnetVelocityTest, reverse_negative_zero)
+{
+    Velocity velocity;
+    
+    EXPECT_EQ(Velocity::FORWARD, velocity.direction());
+    EXPECT_EQ(0, velocity.mph());
+
+    velocity.reverse();
+
+    EXPECT_EQ(Velocity::REVERSE, velocity.direction());
+    EXPECT_EQ(0, velocity.mph());
+
+    velocity.reverse();
+
+    EXPECT_EQ(Velocity::REVERSE, velocity.direction());
+    EXPECT_EQ(0, velocity.mph());
+
+    velocity.forward();
+
+    EXPECT_EQ(Velocity::FORWARD, velocity.direction());
+    EXPECT_EQ(0, velocity.mph());
+
+    velocity.forward();
+
+    EXPECT_EQ(Velocity::FORWARD, velocity.direction());
+    EXPECT_EQ(0, velocity.mph());
+    
+    EXPECT_TRUE(velocity == -0.0);
+    EXPECT_TRUE(velocity == 0.0);
+}
+
 TEST(NMRAnetVelocityTest, mph_positive)
 {
     Velocity *velocity = new Velocity(100.5F);
