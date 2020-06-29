@@ -44,11 +44,20 @@
 #include "utils/Hub.hxx"
 #include "utils/JSHubPort.hxx"
 
-class JSTcpClient
+class JSTcpClient : private JSHubFeedback
 {
 public:
-    JSTcpClient(CanHubFlow *hflow, string host, int port)
+    /// Argument to the connection callback.
+    enum ConnectionFeedback {
+        CONNECTION_UP,
+        CONNECTION_DOWN,
+        CONNECTION_ERROR
+    };
+    
+    JSTcpClient(CanHubFlow *hflow, string host, int port,
+        std::function<void(ConnectionFeedback)> cb = nullptr)
         : canHub_(hflow)
+        , callback_(std::move(cb))
     {
         string script = "Module.remote_server = '" + host + "';\n";
         emscripten_run_script(script.c_str());
@@ -66,20 +75,68 @@ public:
                         $1, function(data) { c.write(data); });
                     c.on('close', function() {
                         console.log('connection lost');
+                        client_port.fb_close();
                         client_port.abandon();
                     });
-                    c.on('error', function() {
+                    c.on('error', function(err) {
                         console.log('connection error -- disconnected');
+                        client_port.fb_error(err.toString());
                         client_port.abandon();
                     });
                     c.on('data', function(data) { client_port.recv(data); });
+                }, $2);
+                c.on('error', function(err) {
+                    console.log('connection error2 -- never connected');
+                    Module.JSHubFeedback.call_on_error($2, err.toString());
                 });
             },
-            port, (unsigned long)canHub_);
+            port, (unsigned long)canHub_, (unsigned long)((JSHubFeedback*)this));
+    }
+
+    /// @return true if the connection is established.
+    bool is_connected()
+    {
+        return connected_;
     }
 
 private:
+
+    /// Callback executed when the port successfully opened.
+    void on_open() override
+    {
+        connected_ = true;
+        LOG(INFO, "connected");
+        if (callback_)
+        {
+            callback_(CONNECTION_UP);
+        }
+    }
+
+    /// Callback executed when the port is closed.
+    void on_close() override
+    {
+        connected_ = false;
+        LOG(INFO, "closed");
+        if (callback_)
+        {
+            callback_(CONNECTION_DOWN);
+        }
+    }
+
+    /// Callback executed when the port encounters an error.
+    void on_error(string error) override
+    {
+        LOG(INFO, "Connection error: %s", error.c_str());
+        connected_ = false;
+        if (callback_)
+        {
+            callback_(CONNECTION_ERROR);
+        }
+    }
+
     CanHubFlow *canHub_;
+    bool connected_ = false;
+    std::function<void(ConnectionFeedback)> callback_;    
 };
 
 #endif // __EMSCRIPTEN__
