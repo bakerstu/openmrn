@@ -58,6 +58,17 @@ const SimpleInfoDescriptor SNIPHandler::SNIP_RESPONSE[] = {
 #endif
     {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
 
+const SimpleInfoDescriptor SNIPHandler::SNIP_STATIC_RESPONSE[] = {
+    {SimpleInfoDescriptor::LITERAL_BYTE, 4, 0, nullptr},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.manufacturer_name},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.model_name},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.hardware_version},
+    {SimpleInfoDescriptor::C_STRING, 0, 0, SNIP_STATIC_DATA.software_version},
+    {SimpleInfoDescriptor::LITERAL_BYTE, 2, 0, nullptr},
+    {SimpleInfoDescriptor::LITERAL_BYTE, 0, 0, nullptr},
+    {SimpleInfoDescriptor::LITERAL_BYTE, 0, 0, nullptr},
+    {SimpleInfoDescriptor::END_OF_DATA, 0, 0, 0}};
+
 void init_snip_user_file(int fd, const char *user_name,
                          const char *user_description)
 {

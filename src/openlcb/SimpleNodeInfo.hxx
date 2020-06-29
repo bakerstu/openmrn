@@ -115,7 +115,7 @@ public:
     Action send_response_request()
     {
         auto *b = get_allocation_result(responseFlow_);
-        b->data()->reset(nmsg(), SNIP_RESPONSE, Defs::MTI_IDENT_INFO_REPLY);
+        b->data()->reset(nmsg(), SNIP_DYNAMIC_FILENAME == nullptr ? SNIP_STATIC_RESPONSE : SNIP_RESPONSE, Defs::MTI_IDENT_INFO_REPLY);
         responseFlow_->send(b);
         return release_and_exit();
     }
@@ -123,6 +123,8 @@ public:
 private:
     /** Defines the SNIP response fields. */
     static const SimpleInfoDescriptor SNIP_RESPONSE[];
+    /** Defines the SNIP response fields without dynamic file. */
+    static const SimpleInfoDescriptor SNIP_STATIC_RESPONSE[];
 
     Node* node_;
     SimpleInfoFlow *responseFlow_;

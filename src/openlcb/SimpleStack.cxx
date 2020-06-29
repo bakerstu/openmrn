@@ -139,6 +139,7 @@ void SimpleStackBase::default_start_node()
         additionalComponents_.emplace_back(space);
     }
 #if (!defined(ARDUINO)) || defined(ESP32)
+    if (SNIP_DYNAMIC_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(
             SNIP_DYNAMIC_FILENAME, sizeof(SimpleNodeDynamicValues));
