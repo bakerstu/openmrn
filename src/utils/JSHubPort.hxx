@@ -169,7 +169,8 @@ private:
 EMSCRIPTEN_BINDINGS(js_hub_module)
 {
     emscripten::class_<JSHubPort>("JSHubPort")
-        .constructor<unsigned long, emscripten::val>()
+        //  .constructor<unsigned long, emscripten::val>()
+        .constructor<unsigned long, emscripten::val, unsigned long>()
         .function("recv", &JSHubPort::recv)
         .function("pause", &JSHubPort::pause)
         .function("abandon", &JSHubPort::abandon)
