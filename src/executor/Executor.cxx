@@ -431,6 +431,10 @@ void ExecutorBase::shutdown()
 {
     if (!started_) return;
     add(this);
+#if defined(__EMSCRIPTEN__)
+    emscripten_cancel_main_loop();
+    return;
+#endif    
     while (!done_)
     {
 #if defined(ARDUINO)
