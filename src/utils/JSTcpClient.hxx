@@ -72,7 +72,7 @@ public:
                     c.setTimeout(0);
                     c.setKeepAlive(true);
                     var client_port = new Module.JSHubPort(
-                        $1, function(data) { c.write(data); });
+                        $1, function(data) { c.write(data); }, $2);
                     c.on('close', function() {
                         console.log('connection lost');
                         client_port.fb_close();
@@ -84,7 +84,7 @@ public:
                         client_port.abandon();
                     });
                     c.on('data', function(data) { client_port.recv(data); });
-                }, $2);
+                });
                 c.on('error', function(err) {
                     console.log('connection error2 -- never connected');
                     Module.JSHubFeedback.call_on_error($2, err.toString());
