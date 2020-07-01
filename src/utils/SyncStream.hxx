@@ -119,7 +119,7 @@ public:
     {
     }
 
-    virtual ssize_t write(const void *data, size_t len)
+    ssize_t write(const void *data, size_t len) override
     {
         if (remaining_ == 0)
         {
@@ -352,7 +352,7 @@ private:
 class DelegateStream : public SyncStream
 {
 public:
-    virtual ssize_t write(const void *data, size_t len)
+    ssize_t write(const void *data, size_t len) override
     {
         if (len == 0)
             return 0;

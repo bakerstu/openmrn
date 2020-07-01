@@ -192,17 +192,19 @@ public:
     /// expiring event.
     static inline bool int_get_and_clear_delay_event();
 
-    /// Delays a give number of usec using the capture timer feature. Needed
-    /// for the timing of the railcom cutout.
-    /// @param usec how much to delay.
+    /// Delays a given number of usec using the usec timer feature. Needed for
+    /// the timing of the railcom cutout. An rcom_interrupt shall be raised
+    /// after this many usec.
+    /// @param usec how much to delay, with the measurement started from the
+    /// set_cap_timer_time() call (or the previous edge captured before that by
+    /// the capture timer).
     static void set_cap_timer_delay_usec(int usec)
     {
         Debug::DccPacketDelay::toggle();
         // This code handles underflow of the timer correctly. We cannot wait
         // longer than one full cycle though (65 msec -- typical RailCom waits
         // are 20-500 usec).
-        uint32_t new_match_v = __HAL_TIM_GET_COUNTER(usec_timer_handle()) +
-            TIMER_MAX_VALUE + 1 - usec;
+        uint32_t new_match_v = usecTimerStart_ + TIMER_MAX_VALUE + 1 - usec;
         new_match_v &= 0xffff;
         __HAL_TIM_SET_COMPARE(
             usec_timer_handle(), HW::USEC_CHANNEL, new_match_v);
@@ -214,17 +216,9 @@ public:
     /// signal bits.
     static void set_cap_timer_capture()
     {
-        TIM_IC_InitTypeDef channel_init;
-        memset(&channel_init, 0, sizeof(channel_init));
-        channel_init.ICPolarity = TIM_ICPOLARITY_BOTHEDGE;
-        channel_init.ICSelection = TIM_ICSELECTION_DIRECTTI;
-        channel_init.ICPrescaler = TIM_ICPSC_DIV1;
-        channel_init.ICFilter = HW::CAPTURE_FILTER;
-        HASSERT(HAL_TIM_IC_ConfigChannel(capture_timer_handle(), &channel_init,
-                    HW::CAPTURE_CHANNEL) == HAL_OK);
-
-        HASSERT(HAL_TIM_IC_Start_IT(
-                    capture_timer_handle(), HW::CAPTURE_CHANNEL) == HAL_OK);
+        __HAL_TIM_CLEAR_IT(capture_timer_handle(), HW::CAPTURE_IF);
+        /// @todo consider clearing the overflow flag as well.
+        __HAL_TIM_ENABLE_IT(capture_timer_handle(), HW::CAPTURE_IF);
     }
 
     /// Sets the timer to oneshot (timer) mode. Called once, then
@@ -232,24 +226,13 @@ public:
     /// each to deliver an rcom_interrupt().
     static void set_cap_timer_time()
     {
-        TIM_OC_InitTypeDef channel_init;
-        memset(&channel_init, 0, sizeof(channel_init));
-        channel_init.OCMode = TIM_OCMODE_TIMING; // frozen -- no output
-        channel_init.Pulse = (__HAL_TIM_GET_COUNTER(usec_timer_handle()) + 1) &
-            0xffff; // will be reloaded in the delay_usec function.
-        // the rest are irrelevant.
-        channel_init.OCPolarity = TIM_OCPOLARITY_HIGH;
-        channel_init.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-        channel_init.OCFastMode = TIM_OCFAST_DISABLE;
-        channel_init.OCIdleState = TIM_OCIDLESTATE_RESET;
-        channel_init.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-        HASSERT(HAL_TIM_OC_ConfigChannel(usec_timer_handle(), &channel_init,
-                    HW::USEC_CHANNEL) == HAL_OK);
-
-        HASSERT(HAL_TIM_OC_Start_IT(usec_timer_handle(), HW::USEC_CHANNEL) ==
-            HAL_OK);
-        // Disable interrupt until the delay_usec() is called.
-        __HAL_TIM_DISABLE_IT(usec_timer_handle(), HW::USEC_IF);
+        if (shared_timers()) {
+            usecTimerStart_ =  get_capture_counter();
+        } else {
+            usecTimerStart_ =  __HAL_TIM_GET_COUNTER(usec_timer_handle());
+        }
+        /// @TODO __HAL_TIM_DISABLE_IT(capture_timer_handle(), HW::CAPTURE_IF);
+        // channel setup already happened in module_enable.
     }
 
     /// Called once inline in an interrupt. Signals that the delay timer is not
@@ -257,12 +240,16 @@ public:
     static void stop_cap_timer_time()
     {
         __HAL_TIM_DISABLE_IT(usec_timer_handle(), HW::USEC_IF);
-        TIM_CCxChannelCmd(usec_timer(), HW::USEC_CHANNEL, TIM_CCx_DISABLE);
+        //TIM_CCxChannelCmd(usec_timer(), HW::USEC_CHANNEL, TIM_CCx_DISABLE);
     }
 
 private:
     static TIM_HandleTypeDef captureTimerHandle_;
     static TIM_HandleTypeDef usecTimerHandle_;
+    /// Holds the base value from where the usec timer should be counting down
+    /// when the delay_usec call is invoked. This is set from the last capture
+    /// edge when the mode is switched to the usec timer.
+    static uint32_t usecTimerStart_;
 
     /// Initializes a timer resource (shared for all channels).
     /// @param handle pointer to the HAL timer handle.
@@ -325,6 +312,7 @@ private:
 template <class HW>
 TIM_HandleTypeDef Stm32DccTimerModule<HW>::captureTimerHandle_;
 template <class HW> TIM_HandleTypeDef Stm32DccTimerModule<HW>::usecTimerHandle_;
+template <class HW> uint32_t Stm32DccTimerModule<HW>::usecTimerStart_;
 
 template <class HW> void Stm32DccTimerModule<HW>::module_init()
 {
@@ -357,6 +345,45 @@ template <class HW> void Stm32DccTimerModule<HW>::module_enable()
     {
         init_timer(usec_timer_handle(), usec_timer());
     }
+
+    // Set up capture channel.
+    {
+        TIM_IC_InitTypeDef channel_init;
+        memset(&channel_init, 0, sizeof(channel_init));
+        channel_init.ICPolarity = TIM_ICPOLARITY_BOTHEDGE;
+        channel_init.ICSelection = TIM_ICSELECTION_DIRECTTI;
+        channel_init.ICPrescaler = TIM_ICPSC_DIV1;
+        channel_init.ICFilter = HW::CAPTURE_FILTER;
+        HASSERT(HAL_TIM_IC_ConfigChannel(capture_timer_handle(), &channel_init,
+                    HW::CAPTURE_CHANNEL) == HAL_OK);
+    }
+
+    HASSERT(HAL_TIM_IC_Start_IT(capture_timer_handle(), HW::CAPTURE_CHANNEL) ==
+        HAL_OK);
+    // Disable interrupt until the set_cap_timer_capture() is called.
+    __HAL_TIM_DISABLE_IT(capture_timer_handle(), HW::CAPTURE_IF);
+
+    // Set up timing channel
+    {
+        TIM_OC_InitTypeDef channel_init;
+        memset(&channel_init, 0, sizeof(channel_init));
+        channel_init.OCMode = TIM_OCMODE_TIMING; // frozen -- no output
+        channel_init.Pulse = (__HAL_TIM_GET_COUNTER(usec_timer_handle()) + 1) &
+            0xffff; // will be reloaded in the delay_usec function.
+        // the rest are irrelevant.
+        channel_init.OCPolarity = TIM_OCPOLARITY_HIGH;
+        channel_init.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+        channel_init.OCFastMode = TIM_OCFAST_DISABLE;
+        channel_init.OCIdleState = TIM_OCIDLESTATE_RESET;
+        channel_init.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+        HASSERT(HAL_TIM_OC_ConfigChannel(usec_timer_handle(), &channel_init,
+                    HW::USEC_CHANNEL) == HAL_OK);
+    }
+
+    HASSERT(
+        HAL_TIM_OC_Start_IT(usec_timer_handle(), HW::USEC_CHANNEL) == HAL_OK);
+    // Disable interrupt until the delay_usec() is called.
+    __HAL_TIM_DISABLE_IT(usec_timer_handle(), HW::USEC_IF);
 
 #if defined(GCC_ARMCM0)
     HAL_NVIC_SetPriority(HW::CAPTURE_IRQn, 0, 0);
