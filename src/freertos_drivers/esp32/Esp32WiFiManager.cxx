@@ -463,7 +463,8 @@ void Esp32WiFiManager::process_idf_event(void *arg, esp_event_base_t event_base
     {
         wifi->on_station_connected();
     }
-    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
+    else if (event_base == WIFI_EVENT &&
+             event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
         wifi->on_station_disconnected(
             static_cast<wifi_event_sta_disconnected_t *>(event_data)->reason);
@@ -476,12 +477,14 @@ void Esp32WiFiManager::process_idf_event(void *arg, esp_event_base_t event_base
     {
         wifi->on_softap_stop();
     }
-    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED)
+    else if (event_base == WIFI_EVENT &&
+             event_id == WIFI_EVENT_AP_STACONNECTED)
     {
         wifi->on_softap_station_connected(
             *(static_cast<wifi_event_ap_staconnected_t *>(event_data)));
     }
-    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STADISCONNECTED)
+    else if (event_base == WIFI_EVENT &&
+             event_id == WIFI_EVENT_AP_STADISCONNECTED)
     {
         wifi->on_softap_station_disconnected(
             *(static_cast<wifi_event_ap_stadisconnected_t *>(event_data)));
@@ -493,8 +496,8 @@ void Esp32WiFiManager::process_idf_event(void *arg, esp_event_base_t event_base
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
-        wifi->on_station_ip_assigned(
-            htonl(static_cast<esp_netif_ip_info_t *>(event_data)->ip.addr));
+        ip_event_got_ip_t *data = static_cast<ip_event_got_ip_t *>(event_data);
+        wifi->on_station_ip_assigned(htonl(data->ip_info.ip.addr));
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP)
     {
@@ -1082,6 +1085,12 @@ void Esp32WiFiManager::mdns_publish(string service, const uint16_t port)
             // Send it back onto the scheduler to be retried
             Singleton<Esp32WiFiManager>::instance()->mdns_publish(service
                                                                 , port);
+        }
+        else if (res != ESP_OK)
+        {
+            LOG_ERROR("[mDNS] Failed to advertise %s.%s:%d due to: %s (%d)"
+                    , service_name.c_str(), protocol_name.c_str(), port
+                    , esp_err_to_name(res), res);
         }
         else
         {
