@@ -80,9 +80,23 @@ const char *password = WIFI_PASS;
 /// unique.
 const char *hostname = "esp32mrn";
 
-// Uncomment this line to enable usage of ::select() within the Grid Connect
-// code.
-//OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
+// Increase the GridConnect buffer size to improve performance by bundling more
+// than one GridConnect packet into the same send() call to the socket. This
+// results in up to 720 bytes per buffer. The default value for
+// CONFIG_LWIP_TCP_MSS in arduino-esp32 and esp-idf is 1440.
+OVERRIDE_CONST_DEFERRED(gridconnect_buffer_size, (CONFIG_LWIP_TCP_MSS / 2));
+
+// Enable the usage of TCP/IP select() for the GridConnect connections. On the
+// ESP32-S2 this improves performance considerably.
+OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
+
+// Increase the time for the buffer to fill up before sending it out over the
+// connection.
+OVERRIDE_CONST(gridconnect_buffer_delay_usec, 750);
+
+// Reduce the number of outbound GridConnect packets in order to reduce the
+// memory used by the BufferPort.
+OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
