@@ -86,7 +86,7 @@ public:
                     c.on('data', function(data) { client_port.recv(data); });
                 });
                 c.on('error', function(err) {
-                    console.log('connection error2 -- never connected');
+                    console.log('Failed to connect.');
                     Module.JSHubFeedback.call_on_error($2, err.toString());
                 });
             },
@@ -126,7 +126,7 @@ private:
     /// Callback executed when the port encounters an error.
     void on_error(string error) override
     {
-        LOG(INFO, "Connection error: %s", error.c_str());
+        LOG(INFO, "%s", error.c_str());
         connected_ = false;
         if (callback_)
         {
