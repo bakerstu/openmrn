@@ -248,6 +248,18 @@ __attribute__((optimize("-O0"),unused)) void hard_fault_handler_step_2(unsigned 
     // hard_fault_handler_step_3.
 }
 
+/// This function will be called in an infinite loop from the hard fualt handler.
+///
+/// Define it in HwInit.cxx to enable blinking during hard faults. The function
+/// should check the timer interrupt flag and if set, call the timer interrupt
+/// handler inline, then return.
+void wait_with_blinker(void) __attribute__ ((weak));
+void wait_with_blinker(void)
+{
+    // noop
+}
+
+
 void hard_fault_handler_step_3(void) {
     const uint32_t C_DEBUGEN = 0x00000001;
     uint32_t debugreg = *(volatile uint32_t*)0xE000EDF0;
@@ -261,20 +273,25 @@ void hard_fault_handler_step_3(void) {
             " BKPT #1            \n"
             ::: "r0", "r1", "r2", "r3");
     }
-    __asm(
-        " mov r1, %0 \n"
-        " msr basepri, r1 \n"
-        " cpsie i\n"
-        " ldr r0, =faultInfo \n"
-        " ldr r3, [r0, 12]   \n"
-        " ldr r2, [r0, 8]    \n"
-        " ldr r1, [r0, 4]    \n"
-        " ldr r0, [r0, 0]    \n"
-        ".infloop:           \n"
-        " b.n .infloop        \n"
-        :: "i" ( 0x20 ) : "r0", "r1", "r2", "r3"
-        );
-    while (1);
+    while (1) {
+        // In gdb use `break hard_fault_debug` to get the best possible
+        // backtrace if you find a target in this infinite loop.
+        __asm volatile (
+            " cpsid i\n"
+            " ldr r0, =faultInfo \n"
+            " ldr r3, [r0, 12]   \n"
+            " ldr r2, [r0, 8]    \n"
+            " ldr r1, [r0, 4]    \n"
+            " ldr r0, [r0, 0]    \n"
+            " nop                \n"
+            " nop                \n"
+            " .global hard_fault_debug \n"
+            "hard_fault_debug:   \n"
+            " nop                \n"
+            ::: "r0", "r1", "r2", "r3"
+            );
+        wait_with_blinker();
+    }
 }
 
 static void nmi_handler(void)
@@ -313,6 +330,6 @@ void default_interrupt_handler(void) __attribute__ ((weak));
 void default_interrupt_handler(void)
 {
     _INTCTRL = NVIC_INT_CTRL_R;
-    while(1);
     diewith(BLINK_DIE_UNEXPIRQ);
+    while(1);
 }
