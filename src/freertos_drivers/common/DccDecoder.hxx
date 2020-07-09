@@ -154,7 +154,7 @@ private:
      *        exceptions
      * @return true if active, false if inactive
      */
-    bool select(File *file, int mode)
+    bool select(File *file, int mode) OVERRIDE
     {
         bool retval = false;
         portENTER_CRITICAL();
