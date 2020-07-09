@@ -273,7 +273,8 @@ void hard_fault_handler_step_3(void) {
             " BKPT #1            \n"
             ::: "r0", "r1", "r2", "r3");
     }
-    while (1) {
+    while (1)
+    {
         // In gdb use `break hard_fault_debug` to get the best possible
         // backtrace if you find a target in this infinite loop.
         __asm volatile (
