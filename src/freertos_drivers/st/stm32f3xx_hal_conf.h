@@ -371,7 +371,12 @@
 #else
   #define assert_param(expr) ((void)0)
 #endif /* USE_FULL_ASSERT */    
-    
+
+  static inline void SetInterruptPriority(uint32_t irq, uint8_t priority)
+  {
+      NVIC_SetPriority(irq, priority >> (8U - __NVIC_PRIO_BITS));
+  }
+ 
 #ifdef __cplusplus
 }
 #endif
