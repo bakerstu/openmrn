@@ -159,9 +159,9 @@ Stm32I2C::Stm32I2C(const char *name, I2C_TypeDef *port, uint32_t ev_interrupt,
     // call above.
     i2cHandle_.Init.Timing = (uint32_t) this;
 
-    NVIC_SetPriority((IRQn_Type)ev_interrupt, configKERNEL_INTERRUPT_PRIORITY);
+    SetInterruptPriority((IRQn_Type)ev_interrupt, configKERNEL_INTERRUPT_PRIORITY);
     HAL_NVIC_EnableIRQ((IRQn_Type)ev_interrupt);
-    NVIC_SetPriority((IRQn_Type)er_interrupt, configKERNEL_INTERRUPT_PRIORITY);
+    SetInterruptPriority((IRQn_Type)er_interrupt, configKERNEL_INTERRUPT_PRIORITY);
     HAL_NVIC_EnableIRQ((IRQn_Type)er_interrupt);
 }
 

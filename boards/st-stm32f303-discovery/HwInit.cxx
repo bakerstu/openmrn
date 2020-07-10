@@ -245,7 +245,7 @@ void hw_preinit(void)
         /* Starting Error */
         HASSERT(0);
     }
-    NVIC_SetPriority(TIM7_IRQn, 0);
+    SetInterruptPriority(TIM7_IRQn, 0);
     NVIC_EnableIRQ(TIM7_IRQn);
 }
 

@@ -248,7 +248,7 @@ void hw_preinit(void)
         HASSERT(0);
     }
     __HAL_DBGMCU_FREEZE_TIM17();
-    NVIC_SetPriority(TIM17_IRQn, 0);
+    SetInterruptPriority(TIM17_IRQn, 0);
     NVIC_EnableIRQ(TIM17_IRQn);
 }
 
