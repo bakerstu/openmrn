@@ -559,7 +559,10 @@ endif #EMLLVMPATH
 ##################### CLANGPPP ######################
 ifndef CLANGPPPATH
 SEARCHPATH := \
-  /usr/bin
+  /usr/bin \
+  /usr/lib/llvm-10/bin \
+  /usr/lib/llvm-9/bin \
+  /usr/lib/llvm-8/bin \
 
 
 TRYPATH:=$(call findfirst,clang++,$(SEARCHPATH))
