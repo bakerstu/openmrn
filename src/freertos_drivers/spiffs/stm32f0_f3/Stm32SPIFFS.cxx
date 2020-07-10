@@ -136,6 +136,8 @@ int32_t Stm32SPIFFS::flash_erase(uint32_t addr, uint32_t size)
     HASSERT((size % ERASE_PAGE_SIZE) == 0);
     HASSERT((size % FLASH_PAGE_SIZE) == 0);
 
+    HAL_FLASH_Unlock();
+    
     FLASH_EraseInitTypeDef erase_init;
     erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
     erase_init.PageAddress = (uint32_t)addr;
@@ -144,6 +146,8 @@ int32_t Stm32SPIFFS::flash_erase(uint32_t addr, uint32_t size)
 
     HASSERT(HAL_OK == HAL_FLASHEx_Erase(&erase_init, &page_error));
 
+    HAL_FLASH_Lock();
+    
     return 0;
 }
 
