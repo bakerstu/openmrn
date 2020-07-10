@@ -390,9 +390,9 @@ template <class HW> void Stm32DccTimerModule<HW>::module_enable()
     HAL_NVIC_SetPriority(HW::TIMER_IRQn, 0, 0);
     HAL_NVIC_SetPriority(HW::OS_IRQn, 3, 0);
 #elif defined(GCC_ARMCM3)
-    NVIC_SetPriority(HW::CAPTURE_IRQn, 0x20);
-    NVIC_SetPriority(HW::TIMER_IRQn, 0x20);
-    NVIC_SetPriority(HW::OS_IRQn, configKERNEL_INTERRUPT_PRIORITY);
+    SetInterruptPriority(HW::CAPTURE_IRQn, 0x20);
+    SetInterruptPriority(HW::TIMER_IRQn, 0x20);
+    SetInterruptPriority(HW::OS_IRQn, configKERNEL_INTERRUPT_PRIORITY);
 #else
 #error not defined how to set interrupt priority
 #endif
