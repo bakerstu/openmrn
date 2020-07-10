@@ -374,7 +374,7 @@
 
   static inline void SetInterruptPriority(uint32_t irq, uint8_t priority)
   {
-      NVIC_SetPriority(irq, priority >> (8U - __NVIC_PRIO_BITS));
+      NVIC_SetPriority((IRQn_Type)irq, priority >> (8U - __NVIC_PRIO_BITS));
   }
  
 #ifdef __cplusplus

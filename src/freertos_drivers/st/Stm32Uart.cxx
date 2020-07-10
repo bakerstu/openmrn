@@ -33,6 +33,8 @@
 
 #include "Stm32Uart.hxx"
 
+#include "stm32f_hal_conf.hxx"
+
 #if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_hal_cortex.h"
 #elif defined(STM32F103xB)
