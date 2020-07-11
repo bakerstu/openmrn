@@ -72,8 +72,9 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
     {
         // Unaligned write at the beginning.
         WriteWord ww;
-        ww.data_hword[0] = 0xffff;
+        ww.data_hword[0] = 0xFFFF;
         ww.data[1] = src[0];
+        ww.data_hword[0] &= *((uint16_t*)(addr - 1));
 
         HASSERT(HAL_OK == HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,
                               addr - 1, ww.data_dw));
@@ -86,6 +87,8 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
     {
         WriteWord ww;
         memcpy(ww.data, src, 8);
+        ww.data_word[0] &= *((uint32_t*)addr);
+        ww.data_word[1] &= *((uint32_t*)(addr + 4));
         HASSERT(HAL_OK ==
             HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, addr, ww.data_dw));
         addr += 8;
@@ -93,10 +96,11 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         src += 8;
     }
 
-    while (size > 2)
+    while (size >= 2)
     {
         WriteWord ww;
         memcpy(ww.data_hword, src, 2);
+        ww.data_hword[0] &= *((uint16_t*)(addr));
         HASSERT(HAL_OK ==
             HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, ww.data_dw));
         addr += 2;
@@ -111,8 +115,9 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         HASSERT((addr & 1) == 0);
 
         WriteWord ww;
-        ww.data_hword[0] = 0xffff;
+        ww.data_hword[0] = 0xFFFF;
         ww.data[0] = src[0];
+        ww.data_hword[0] &= *((uint16_t*)(addr));
 
         HASSERT(HAL_OK ==
             HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, addr, ww.data_dw));
