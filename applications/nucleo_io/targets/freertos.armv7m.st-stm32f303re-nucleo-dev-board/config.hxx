@@ -25,8 +25,8 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "OpenLCB DevKit + Nucleo dev board",
-    "Rev A", "1.02"};
+    4,               "OpenMRN", "OpenLCB DevKit + Nucleo",
+    "Rev A", "1.05"};
 
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
@@ -59,11 +59,16 @@ using PortABProducers = RepeatedGroup<ProducerConfig, 16>;
 using PulseConsumers = RepeatedGroup<PulseConsumerConfig, 8>;
 using ServoConsumers = RepeatedGroup<ServoConsumerConfig, 4>;
 
+#if NUM_EXTBOARDS == 1
 using Ext0PC = RepeatedGroup<PCConfig, 32>;
+#elif NUM_EXTBOARDS == 2
+using Ext0PC = RepeatedGroup<PCConfig, 64>;
+#endif
+
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x1188;
+static constexpr uint16_t CANONICAL_VERSION = 0x1193;
 
 CDI_GROUP(NucleoGroup, Name("Nucleo peripherals"), Description("These are physically located on the nucleo CPU daughterboard."));
 CDI_GROUP_ENTRY(green_led, ConsumerConfig, Name("Nucleo user LED"), Description("Green led (LD2)."));
@@ -88,10 +93,12 @@ CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Des
 //CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port E outputs"), Description("Line 1-4 is port E 5 - 8; offset due to Snap Switches"), RepName("Line"));
 //#endif
 CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
+#if NUM_EXTBOARDS > 0
 CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("Expansion board 0 lines"),
     Description("Line 1-8 is port Even/A, Line 9-16 is port Even/B, Line 17-24 "
                 "is Odd/A, Line 25-32 is Odd/B"),
     RepName("Line"));
+#endif
 CDI_GROUP_END();
 
 /// This segment is only needed temporarily until there is program code to set

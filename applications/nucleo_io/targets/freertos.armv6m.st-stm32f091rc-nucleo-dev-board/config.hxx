@@ -24,8 +24,8 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "OpenLCB Dev Board + Nucleo F091RC",
-    "Rev A", "1.01"};
+    4,               "OpenMRN", "Nucleo F091RC with SNAPs Enabled",
+    "Rev A", "1.02"};
 
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
@@ -40,7 +40,7 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 // When PORTD_SNAP is not defined (remarked out), this sets port D to be a constant on/off
 // state as dictated by consumed events.
 
-//#define PORTD_SNAP
+#define PORTD_SNAP
 
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
