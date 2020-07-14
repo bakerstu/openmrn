@@ -929,13 +929,7 @@ constexpr const Gpio *const kPortExt0[] = {
 openlcb::MultiConfiguredPC ext0_pcs(
     stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
 
-#endif // if NUM_MCPIOS = 6
-
-
-
-
-
-
+#endif // if NUM_MCPIOS = 8
 
 openlcb::RefreshLoop loopab(stack.node(),
     {
@@ -972,19 +966,41 @@ int appl_main(int argc, char *argv[])
     stack.check_version_and_factory_reset(
         cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
 
-#if NUM_EXTBOARDS == 1
+#if NUM_MCPIOS == 2
     {
         int i2cfd = ::open("/dev/i2c0", O_RDWR);
         exp0.init(i2cfd);
         exp1.init(i2cfd);
     }
-#elif NUM_EXTBOARDS == 2
+#elif NUM_MCPIOS == 4
     {
         int i2cfd = ::open("/dev/i2c0", O_RDWR);
         exp0.init(i2cfd);
         exp1.init(i2cfd);
 	exp10.init(i2cfd);
 	exp11.init(i2cfd);
+    }
+#elif NUM_MCPIOS == 6
+    {
+        int i2cfd = ::open("/dev/i2c0", O_RDWR);
+        exp0.init(i2cfd);
+        exp1.init(i2cfd);
+	exp10.init(i2cfd);
+	exp11.init(i2cfd);
+	exp20.init(i2cfd);
+	exp21.init(i2cfd);
+    }
+#elif NUM_MCPIOS == 8
+    {
+        int i2cfd = ::open("/dev/i2c0", O_RDWR);
+        exp0.init(i2cfd);
+        exp1.init(i2cfd);
+	exp10.init(i2cfd);
+	exp11.init(i2cfd);
+	exp20.init(i2cfd);
+	exp21.init(i2cfd);
+	exp31.init(i2cfd);
+	exp31.init(i2cfd);
     }
 #endif
 
