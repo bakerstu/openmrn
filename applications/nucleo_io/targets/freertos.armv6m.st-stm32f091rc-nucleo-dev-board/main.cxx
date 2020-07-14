@@ -420,7 +420,7 @@ openlcb::ConfiguredProducer producer_b7(
 openlcb::ConfiguredProducer producer_b8(
     stack.node(), cfg.seg().portab_producers().entry<15>(), (const Gpio*)&PORTB_LINE8);
 
-#if NUM_EXTBOARDS == 1
+#if NUM_MCPIOS == 2
 
 MCP23017 exp0(&io_executor, 0, 0, 0);
 MCP23017 exp1(&io_executor, 0, 0, 1);
@@ -475,9 +475,9 @@ constexpr const Gpio *const kPortExt0[] = {
 openlcb::MultiConfiguredPC ext0_pcs(
     stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
 
-#endif // if num extboards = 1
+#endif // if num mcpios = 1
 
-#if NUM_EXTBOARDS == 2
+#if NUM_MCPIOS == 4
 
 MCP23017 exp0(&io_executor, 0, 0, 0);
 MCP23017 exp1(&io_executor, 0, 0, 1);
@@ -582,11 +582,161 @@ constexpr const Gpio *const kPortExt0[] = {
 openlcb::MultiConfiguredPC ext0_pcs(
     stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
 
-#endif // if NUM_EXTBOARDS = 2
+#endif // if NUM_MCPIOS = 4
+
+#if NUM_MCPIOS == 6
+
+MCP23017 exp0(&io_executor, 0, 0, 0);
+MCP23017 exp1(&io_executor, 0, 0, 1);
+MCP23017 exp10(&io_executor, 0, 1, 0);
+MCP23017 exp11(&io_executor, 0, 1, 1);
+MCP23017 exp20(&io_executor, 1, 0, 0);
+MCP23017 exp21(&io_executor, 1, 0, 1);
+
+
+constexpr const MCP23017Gpio IOEXT0_A0(&exp0, MCP23017::PORTA, 0);
+constexpr const MCP23017Gpio IOEXT0_A1(&exp0, MCP23017::PORTA, 1);
+constexpr const MCP23017Gpio IOEXT0_A2(&exp0, MCP23017::PORTA, 2);
+constexpr const MCP23017Gpio IOEXT0_A3(&exp0, MCP23017::PORTA, 3);
+constexpr const MCP23017Gpio IOEXT0_A4(&exp0, MCP23017::PORTA, 4);
+constexpr const MCP23017Gpio IOEXT0_A5(&exp0, MCP23017::PORTA, 5);
+constexpr const MCP23017Gpio IOEXT0_A6(&exp0, MCP23017::PORTA, 6);
+constexpr const MCP23017Gpio IOEXT0_A7(&exp0, MCP23017::PORTA, 7);
+
+constexpr const MCP23017Gpio IOEXT0_B0(&exp0, MCP23017::PORTB, 0);
+constexpr const MCP23017Gpio IOEXT0_B1(&exp0, MCP23017::PORTB, 1);
+constexpr const MCP23017Gpio IOEXT0_B2(&exp0, MCP23017::PORTB, 2);
+constexpr const MCP23017Gpio IOEXT0_B3(&exp0, MCP23017::PORTB, 3);
+constexpr const MCP23017Gpio IOEXT0_B4(&exp0, MCP23017::PORTB, 4);
+constexpr const MCP23017Gpio IOEXT0_B5(&exp0, MCP23017::PORTB, 5);
+constexpr const MCP23017Gpio IOEXT0_B6(&exp0, MCP23017::PORTB, 6);
+constexpr const MCP23017Gpio IOEXT0_B7(&exp0, MCP23017::PORTB, 7);
+
+constexpr const MCP23017Gpio IOEXT1_A0(&exp1, MCP23017::PORTA, 0);
+constexpr const MCP23017Gpio IOEXT1_A1(&exp1, MCP23017::PORTA, 1);
+constexpr const MCP23017Gpio IOEXT1_A2(&exp1, MCP23017::PORTA, 2);
+constexpr const MCP23017Gpio IOEXT1_A3(&exp1, MCP23017::PORTA, 3);
+constexpr const MCP23017Gpio IOEXT1_A4(&exp1, MCP23017::PORTA, 4);
+constexpr const MCP23017Gpio IOEXT1_A5(&exp1, MCP23017::PORTA, 5);
+constexpr const MCP23017Gpio IOEXT1_A6(&exp1, MCP23017::PORTA, 6);
+constexpr const MCP23017Gpio IOEXT1_A7(&exp1, MCP23017::PORTA, 7);
+
+constexpr const MCP23017Gpio IOEXT1_B0(&exp1, MCP23017::PORTB, 0);
+constexpr const MCP23017Gpio IOEXT1_B1(&exp1, MCP23017::PORTB, 1);
+constexpr const MCP23017Gpio IOEXT1_B2(&exp1, MCP23017::PORTB, 2);
+constexpr const MCP23017Gpio IOEXT1_B3(&exp1, MCP23017::PORTB, 3);
+constexpr const MCP23017Gpio IOEXT1_B4(&exp1, MCP23017::PORTB, 4);
+constexpr const MCP23017Gpio IOEXT1_B5(&exp1, MCP23017::PORTB, 5);
+constexpr const MCP23017Gpio IOEXT1_B6(&exp1, MCP23017::PORTB, 6);
+constexpr const MCP23017Gpio IOEXT1_B7(&exp1, MCP23017::PORTB, 7);
+
+constexpr const MCP23017Gpio IOEXT10_A0(&exp10, MCP23017::PORTA, 0);
+constexpr const MCP23017Gpio IOEXT10_A1(&exp10, MCP23017::PORTA, 1);
+constexpr const MCP23017Gpio IOEXT10_A2(&exp10, MCP23017::PORTA, 2);
+constexpr const MCP23017Gpio IOEXT10_A3(&exp10, MCP23017::PORTA, 3);
+constexpr const MCP23017Gpio IOEXT10_A4(&exp10, MCP23017::PORTA, 4);
+constexpr const MCP23017Gpio IOEXT10_A5(&exp10, MCP23017::PORTA, 5);
+constexpr const MCP23017Gpio IOEXT10_A6(&exp10, MCP23017::PORTA, 6);
+constexpr const MCP23017Gpio IOEXT10_A7(&exp10, MCP23017::PORTA, 7);
+
+constexpr const MCP23017Gpio IOEXT10_B0(&exp10, MCP23017::PORTB, 0);
+constexpr const MCP23017Gpio IOEXT10_B1(&exp10, MCP23017::PORTB, 1);
+constexpr const MCP23017Gpio IOEXT10_B2(&exp10, MCP23017::PORTB, 2);
+constexpr const MCP23017Gpio IOEXT10_B3(&exp10, MCP23017::PORTB, 3);
+constexpr const MCP23017Gpio IOEXT10_B4(&exp10, MCP23017::PORTB, 4);
+constexpr const MCP23017Gpio IOEXT10_B5(&exp10, MCP23017::PORTB, 5);
+constexpr const MCP23017Gpio IOEXT10_B6(&exp10, MCP23017::PORTB, 6);
+constexpr const MCP23017Gpio IOEXT10_B7(&exp10, MCP23017::PORTB, 7);
+
+constexpr const MCP23017Gpio IOEXT11_A0(&exp11, MCP23017::PORTA, 0);
+constexpr const MCP23017Gpio IOEXT11_A1(&exp11, MCP23017::PORTA, 1);
+constexpr const MCP23017Gpio IOEXT11_A2(&exp11, MCP23017::PORTA, 2);
+constexpr const MCP23017Gpio IOEXT11_A3(&exp11, MCP23017::PORTA, 3);
+constexpr const MCP23017Gpio IOEXT11_A4(&exp11, MCP23017::PORTA, 4);
+constexpr const MCP23017Gpio IOEXT11_A5(&exp11, MCP23017::PORTA, 5);
+constexpr const MCP23017Gpio IOEXT11_A6(&exp11, MCP23017::PORTA, 6);
+constexpr const MCP23017Gpio IOEXT11_A7(&exp11, MCP23017::PORTA, 7);
+
+constexpr const MCP23017Gpio IOEXT11_B0(&exp11, MCP23017::PORTB, 0);
+constexpr const MCP23017Gpio IOEXT11_B1(&exp11, MCP23017::PORTB, 1);
+constexpr const MCP23017Gpio IOEXT11_B2(&exp11, MCP23017::PORTB, 2);
+constexpr const MCP23017Gpio IOEXT11_B3(&exp11, MCP23017::PORTB, 3);
+constexpr const MCP23017Gpio IOEXT11_B4(&exp11, MCP23017::PORTB, 4);
+constexpr const MCP23017Gpio IOEXT11_B5(&exp11, MCP23017::PORTB, 5);
+constexpr const MCP23017Gpio IOEXT11_B6(&exp11, MCP23017::PORTB, 6);
+constexpr const MCP23017Gpio IOEXT11_B7(&exp11, MCP23017::PORTB, 7);
+
+constexpr const MCP23017Gpio IOEXT20_A0(&exp10, MCP23017::PORTA, 0);
+constexpr const MCP23017Gpio IOEXT20_A1(&exp10, MCP23017::PORTA, 1);
+constexpr const MCP23017Gpio IOEXT20_A2(&exp10, MCP23017::PORTA, 2);
+constexpr const MCP23017Gpio IOEXT20_A3(&exp10, MCP23017::PORTA, 3);
+constexpr const MCP23017Gpio IOEXT20_A4(&exp10, MCP23017::PORTA, 4);
+constexpr const MCP23017Gpio IOEXT20_A5(&exp10, MCP23017::PORTA, 5);
+constexpr const MCP23017Gpio IOEXT20_A6(&exp10, MCP23017::PORTA, 6);
+constexpr const MCP23017Gpio IOEXT20_A7(&exp10, MCP23017::PORTA, 7);
+
+constexpr const MCP23017Gpio IOEXT20_B0(&exp10, MCP23017::PORTB, 0);
+constexpr const MCP23017Gpio IOEXT20_B1(&exp10, MCP23017::PORTB, 1);
+constexpr const MCP23017Gpio IOEXT20_B2(&exp10, MCP23017::PORTB, 2);
+constexpr const MCP23017Gpio IOEXT20_B3(&exp10, MCP23017::PORTB, 3);
+constexpr const MCP23017Gpio IOEXT20_B4(&exp10, MCP23017::PORTB, 4);
+constexpr const MCP23017Gpio IOEXT20_B5(&exp10, MCP23017::PORTB, 5);
+constexpr const MCP23017Gpio IOEXT20_B6(&exp10, MCP23017::PORTB, 6);
+constexpr const MCP23017Gpio IOEXT20_B7(&exp10, MCP23017::PORTB, 7);
+
+constexpr const MCP23017Gpio IOEXT21_A0(&exp11, MCP23017::PORTA, 0);
+constexpr const MCP23017Gpio IOEXT21_A1(&exp11, MCP23017::PORTA, 1);
+constexpr const MCP23017Gpio IOEXT21_A2(&exp11, MCP23017::PORTA, 2);
+constexpr const MCP23017Gpio IOEXT21_A3(&exp11, MCP23017::PORTA, 3);
+constexpr const MCP23017Gpio IOEXT21_A4(&exp11, MCP23017::PORTA, 4);
+constexpr const MCP23017Gpio IOEXT21_A5(&exp11, MCP23017::PORTA, 5);
+constexpr const MCP23017Gpio IOEXT21_A6(&exp11, MCP23017::PORTA, 6);
+constexpr const MCP23017Gpio IOEXT21_A7(&exp11, MCP23017::PORTA, 7);
+
+constexpr const MCP23017Gpio IOEXT21_B0(&exp11, MCP23017::PORTB, 0);
+constexpr const MCP23017Gpio IOEXT21_B1(&exp11, MCP23017::PORTB, 1);
+constexpr const MCP23017Gpio IOEXT21_B2(&exp11, MCP23017::PORTB, 2);
+constexpr const MCP23017Gpio IOEXT21_B3(&exp11, MCP23017::PORTB, 3);
+constexpr const MCP23017Gpio IOEXT21_B4(&exp11, MCP23017::PORTB, 4);
+constexpr const MCP23017Gpio IOEXT21_B5(&exp11, MCP23017::PORTB, 5);
+constexpr const MCP23017Gpio IOEXT21_B6(&exp11, MCP23017::PORTB, 6);
+constexpr const MCP23017Gpio IOEXT21_B7(&exp11, MCP23017::PORTB, 7);
+    
+
+constexpr const Gpio *const kPortExt0[] = {
+    &IOEXT0_A0, &IOEXT0_A1, &IOEXT0_A2, &IOEXT0_A3, //
+    &IOEXT0_A4, &IOEXT0_A5, &IOEXT0_A6, &IOEXT0_A7, //
+    &IOEXT0_B0, &IOEXT0_B1, &IOEXT0_B2, &IOEXT0_B3, //
+    &IOEXT0_B4, &IOEXT0_B5, &IOEXT0_B6, &IOEXT0_B7, //
+    &IOEXT1_A0, &IOEXT1_A1, &IOEXT1_A2, &IOEXT1_A3, //
+    &IOEXT1_A4, &IOEXT1_A5, &IOEXT1_A6, &IOEXT1_A7, //
+    &IOEXT1_B0, &IOEXT1_B1, &IOEXT1_B2, &IOEXT1_B3, //
+    &IOEXT1_B4, &IOEXT1_B5, &IOEXT1_B6, &IOEXT1_B7, //
+    &IOEXT10_A0, &IOEXT10_A1, &IOEXT10_A2, &IOEXT10_A3, //
+    &IOEXT10_A4, &IOEXT10_A5, &IOEXT10_A6, &IOEXT10_A7, //
+    &IOEXT10_B0, &IOEXT10_B1, &IOEXT10_B2, &IOEXT10_B3, //
+    &IOEXT10_B4, &IOEXT10_B5, &IOEXT10_B6, &IOEXT10_B7, //
+    &IOEXT11_A0, &IOEXT11_A1, &IOEXT11_A2, &IOEXT11_A3, //
+    &IOEXT11_A4, &IOEXT11_A5, &IOEXT11_A6, &IOEXT11_A7, //
+    &IOEXT20_A0, &IOEXT20_A1, &IOEXT20_A2, &IOEXT20_A3, //
+    &IOEXT20_A4, &IOEXT20_A5, &IOEXT20_A6, &IOEXT20_A7, //
+    &IOEXT20_B0, &IOEXT20_B1, &IOEXT20_B2, &IOEXT20_B3, //
+    &IOEXT20_B4, &IOEXT20_B5, &IOEXT20_B6, &IOEXT20_B7, //
+    &IOEXT21_A0, &IOEXT21_A1, &IOEXT21_A2, &IOEXT21_A3, //
+    &IOEXT21_A4, &IOEXT21_A5, &IOEXT21_A6, &IOEXT21_A7, //
+    &IOEXT21_B0, &IOEXT21_B1, &IOEXT21_B2, &IOEXT21_B3, //
+    &IOEXT21_B4, &IOEXT21_B5, &IOEXT21_B6, &IOEXT21_B7  //
+
+};
+
+openlcb::MultiConfiguredPC ext0_pcs(
+    stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
+
+#endif // if NUM_MCPIOS = 6
 
 openlcb::RefreshLoop loopab(stack.node(),
     {
-#if NUM_EXTBOARDS > 0
+#if NUM_MCPIOS > 0
         ext0_pcs.polling(),                           //
 #endif
         producer_a1.polling(), producer_a2.polling(), //
