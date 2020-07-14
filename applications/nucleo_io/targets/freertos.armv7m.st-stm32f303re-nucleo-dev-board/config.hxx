@@ -30,7 +30,7 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
-#define NUM_MCPIOS 4 
+#define NUM_MCPIOS 8 
 
 // Snap switches and LED lights conflict on same port. When GPIO pin has
 // snap configuration in place, LED will quickly flash on consumer event recv and
