@@ -288,19 +288,27 @@ void setup()
 #if defined(FACTORY_RESET_GPIO_PIN)
     // Check the factory reset pin which should normally read HIGH (set), if it
     // reads LOW (clr) delete the cdi.xml and openlcb_config
-    if (FACTORY_RESET_pin::instance()->is_clr())
+    if (!FACTORY_RESET_Pin::get())
     {
         printf("!!!! WARNING WARNING WARNING WARNING WARNING !!!!\n");
         printf("The factory reset GPIO pin %d has been triggered.\n",
                FACTORY_RESET_GPIO_PIN);
-        for (uint8_t sec = 10; sec > 0; sec--)
+        for (uint8_t sec = 10; sec > 0 && !FACTORY_RESET_Pin::get(); sec--)
         {
             printf("Factory reset will be initiated in %d seconds.\n", sec);
             usleep(SEC_TO_USEC(1));
         }
-        unlink(openlcb::CDI_FILENAME);
-        unlink(openlcb::CONFIG_FILENAME);
-        printf("Factory reset complete\n");
+        if (!FACTORY_RESET_Pin::get())
+        {
+            unlink(openlcb::CDI_FILENAME);
+            unlink(openlcb::CONFIG_FILENAME);
+            printf("Factory reset complete\n");
+        }
+        else
+        {
+            printf("Factory reset aborted as pin %d was not held LOW\n",
+                   FACTORY_RESET_GPIO_PIN);
+        }
     }
 #endif // FACTORY_RESET_GPIO_PIN
 
