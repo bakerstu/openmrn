@@ -30,7 +30,7 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
-#define NUM_MCPIOS 8 
+#define NUM_MCPIOS 4 
 
 // Snap switches and LED lights conflict on same port. When GPIO pin has
 // snap configuration in place, LED will quickly flash on consumer event recv and
@@ -68,15 +68,17 @@ using Ext0PC = RepeatedGroup<PCConfig, 32>;
 #elif NUM_MCPIOS == 4 
 using Ext0PC = RepeatedGroup<PCConfig, 64>;
 #elif NUM_MCPIOS == 6 
-using Ext0PC = RepeatedGroup<PCConfig, 96>;
+using Ext0PC = RepeatedGroup<PCConfig, 64>;
+using Ext1PC = RepeatedGroup<PCConfig, 32>;
 #elif NUM_MCPIOS == 8 
-using Ext0PC = RepeatedGroup<PCConfig, 128>;
+using Ext0PC = RepeatedGroup<PCConfig, 64>;
+using Ext1PC = RepeatedGroup<PCConfig, 64>;
 #endif
 
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x1193;
+static constexpr uint16_t CANONICAL_VERSION = 0x1195;
 
 CDI_GROUP(NucleoGroup, Name("Nucleo peripherals"), Description("These are physically located on the nucleo CPU daughterboard."));
 CDI_GROUP_ENTRY(green_led, ConsumerConfig, Name("Nucleo user LED"), Description("Green led (LD2)."));
@@ -107,8 +109,13 @@ CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("Expansion board 0 lines"),
                 "is Odd/A, Line 25-32 is Odd/B. Additional MCPs follow "
 		"this similar paradigm. "),
     RepName("Line"));
-#endif
+//CDI_GROUP_ENTRY(ext1_pc, Ext1PC, Name("Expansion board 1 lines"),
+//    Description("Line 1-8 is port Even/A, Line 9-16 is port Even/B, Line 17-24 "
+//                "is Odd/A, Line 25-32 is Odd/B. Additional MCPs follow "
+//		"this similar paradigm. "),
+//    RepName("Line"));
 CDI_GROUP_END();
+#endif
 
 /// This segment is only needed temporarily until there is program code to set
 /// the ACDI user data version byte.
