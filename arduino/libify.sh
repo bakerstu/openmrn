@@ -158,18 +158,19 @@ rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.hxx
 
 copy_file src/freertos_drivers/arduino \
+          src/freertos_drivers/arduino/* \
           src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
           src/freertos_drivers/common/GpioWrapper.hxx \
           src/freertos_drivers/common/CpuLoad.{hxx,cxx} \
           src/freertos_drivers/common/WifiDefs.{hxx,cxx} \
           src/freertos_drivers/common/libatomic.c \
-          src/freertos_drivers/arduino/*
 
 copy_file src/freertos_drivers/esp32 \
           src/freertos_drivers/esp32/*
 
 copy_file src/freertos_drivers/stm32 \
-          src/freertos_drivers/st/Stm32Can.*
+          src/freertos_drivers/st/Stm32Can.* \
+          arduino/stm32f_hal_conf.hxx \
 
 copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx \
           src/os/{OSImpl,MDNS,OSSelectWakeup}.cxx
