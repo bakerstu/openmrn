@@ -708,22 +708,27 @@ constexpr const Gpio *const kPortExt0[] = {
     &IOEXT0_A4, &IOEXT0_A5, &IOEXT0_A6, &IOEXT0_A7, //
     &IOEXT0_B0, &IOEXT0_B1, &IOEXT0_B2, &IOEXT0_B3, //
     &IOEXT0_B4, &IOEXT0_B5, &IOEXT0_B6, &IOEXT0_B7, //
+
     &IOEXT1_A0, &IOEXT1_A1, &IOEXT1_A2, &IOEXT1_A3, //
     &IOEXT1_A4, &IOEXT1_A5, &IOEXT1_A6, &IOEXT1_A7, //
     &IOEXT1_B0, &IOEXT1_B1, &IOEXT1_B2, &IOEXT1_B3, //
     &IOEXT1_B4, &IOEXT1_B5, &IOEXT1_B6, &IOEXT1_B7, //
+
     &IOEXT10_A0, &IOEXT10_A1, &IOEXT10_A2, &IOEXT10_A3, //
     &IOEXT10_A4, &IOEXT10_A5, &IOEXT10_A6, &IOEXT10_A7, //
     &IOEXT10_B0, &IOEXT10_B1, &IOEXT10_B2, &IOEXT10_B3, //
     &IOEXT10_B4, &IOEXT10_B5, &IOEXT10_B6, &IOEXT10_B7, //
+
     &IOEXT11_A0, &IOEXT11_A1, &IOEXT11_A2, &IOEXT11_A3, //
     &IOEXT11_A4, &IOEXT11_A5, &IOEXT11_A6, &IOEXT11_A7, //
     &IOEXT11_B0, &IOEXT11_B1, &IOEXT11_B2, &IOEXT11_B3, //
     &IOEXT11_B4, &IOEXT11_B5, &IOEXT11_B6, &IOEXT11_B7, //
+
     &IOEXT20_A0, &IOEXT20_A1, &IOEXT20_A2, &IOEXT20_A3, //
     &IOEXT20_A4, &IOEXT20_A5, &IOEXT20_A6, &IOEXT20_A7, //
     &IOEXT20_B0, &IOEXT20_B1, &IOEXT20_B2, &IOEXT20_B3, //
     &IOEXT20_B4, &IOEXT20_B5, &IOEXT20_B6, &IOEXT20_B7, //
+
     &IOEXT21_A0, &IOEXT21_A1, &IOEXT21_A2, &IOEXT21_A3, //
     &IOEXT21_A4, &IOEXT21_A5, &IOEXT21_A6, &IOEXT21_A7, //
     &IOEXT21_B0, &IOEXT21_B1, &IOEXT21_B2, &IOEXT21_B3, //
@@ -937,7 +942,7 @@ openlcb::MultiConfiguredPC ext0_pcs(
     stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
 
 openlcb::MultiConfiguredPC ext1_pcs(
-    stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
+    stack.node(), kPortExt1, ARRAYSIZE(kPortExt1), cfg.seg().ext0_pc());
 
 #endif // if NUM_MCPIOS = 8
 
@@ -946,6 +951,10 @@ openlcb::RefreshLoop loopab(stack.node(),
 #if NUM_MCPIOS > 0
         ext0_pcs.polling(),                           //
 #endif
+#if NUM_MCPIOS > 6
+	ext1_pcs.polling(),
+#endif
+
         producer_a1.polling(), producer_a2.polling(), //
         producer_a3.polling(), producer_a4.polling(), //
         producer_a5.polling(), producer_a6.polling(), //
@@ -1009,7 +1018,7 @@ int appl_main(int argc, char *argv[])
 	exp11.init(i2cfd);
 	exp20.init(i2cfd);
 	exp21.init(i2cfd);
-	exp31.init(i2cfd);
+	exp30.init(i2cfd);
 	exp31.init(i2cfd);
     }
 #endif

@@ -30,7 +30,7 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
-#define NUM_MCPIOS 4 
+#define NUM_MCPIOS 8 
 
 // Snap switches and LED lights conflict on same port. When GPIO pin has
 // snap configuration in place, LED will quickly flash on consumer event recv and
@@ -71,7 +71,7 @@ using Ext0PC = RepeatedGroup<PCConfig, 64>;
 using Ext0PC = RepeatedGroup<PCConfig, 64>;
 using Ext1PC = RepeatedGroup<PCConfig, 32>;
 #elif NUM_MCPIOS == 8 
-using Ext0PC = RepeatedGroup<PCConfig, 64>;
+using Ext0PC = RepeatedGroup<PCConfig, 128>;
 using Ext1PC = RepeatedGroup<PCConfig, 64>;
 #endif
 
@@ -99,9 +99,6 @@ CDI_GROUP_ENTRY(direct_consumers, DirectConsumers, Name("Tortoise/Hi-Power outpu
 CDI_GROUP_ENTRY(servo_consumers, ServoConsumers, Name("Servo Pin outputs"), Description("3-pin servo outputs."), RepName("Line"));
 CDI_GROUP_ENTRY(hidden_servo_5_8, ServoConsumers, Hidden(true));
 CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Description("Line 1-8 is port D, Line 9-16 is port E"), RepName("Line"));
-//#ifdef PORTD_SNAP
-//CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port E outputs"), Description("Line 1-4 is port E 5 - 8; offset due to Snap Switches"), RepName("Line"));
-//#endif
 CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
 #if NUM_MCPIOS > 0
 CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("Expansion board 0 lines"),
@@ -109,11 +106,14 @@ CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("Expansion board 0 lines"),
                 "is Odd/A, Line 25-32 is Odd/B. Additional MCPs follow "
 		"this similar paradigm. "),
     RepName("Line"));
-//CDI_GROUP_ENTRY(ext1_pc, Ext1PC, Name("Expansion board 1 lines"),
-//    Description("Line 1-8 is port Even/A, Line 9-16 is port Even/B, Line 17-24 "
-//                "is Odd/A, Line 25-32 is Odd/B. Additional MCPs follow "
-//		"this similar paradigm. "),
-//    RepName("Line"));
+CDI_GROUP_END();
+#endif
+#if NUMC_MCPIOS > 6
+CDI_GROUP_ENTRY(ext0_pc, Ext1PC, Name("Expansion board 1 lines"),
+    Description("Line 1-8 is port Even/A, Line 9-16 is port Even/B, Line 17-24 "
+                "is Odd/A, Line 25-32 is Odd/B. Additional MCPs follow "
+		"this similar paradigm. "),
+    RepName("Line"));
 CDI_GROUP_END();
 #endif
 
