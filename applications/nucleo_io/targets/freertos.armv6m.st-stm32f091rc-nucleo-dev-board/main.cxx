@@ -915,10 +915,10 @@ constexpr const Gpio *const kPortExt0[] = {
     &IOEXT11_A0, &IOEXT11_A1, &IOEXT11_A2, &IOEXT11_A3, //
     &IOEXT11_A4, &IOEXT11_A5, &IOEXT11_A6, &IOEXT11_A7, //
     &IOEXT11_B0, &IOEXT11_B1, &IOEXT11_B2, &IOEXT11_B3, //
-    &IOEXT11_B4, &IOEXT11_B5, &IOEXT11_B6, &IOEXT11_B7
-};
-
-constexpr const Gpio *const kPortExt1[] = {
+    &IOEXT11_B4, &IOEXT11_B5, &IOEXT11_B6, &IOEXT11_B7,
+//};
+//
+//constexpr const Gpio *const kPortExt1[] = {
     &IOEXT20_A0, &IOEXT20_A1, &IOEXT20_A2, &IOEXT20_A3, //
     &IOEXT20_A4, &IOEXT20_A5, &IOEXT20_A6, &IOEXT20_A7, //
     &IOEXT20_B0, &IOEXT20_B1, &IOEXT20_B2, &IOEXT20_B3, //
@@ -941,8 +941,8 @@ constexpr const Gpio *const kPortExt1[] = {
 openlcb::MultiConfiguredPC ext0_pcs(
     stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
 
-openlcb::MultiConfiguredPC ext1_pcs(
-    stack.node(), kPortExt1, ARRAYSIZE(kPortExt1), cfg.seg().ext0_pc());
+//openlcb::MultiConfiguredPC ext1_pcs(
+//    stack.node(), kPortExt1, ARRAYSIZE(kPortExt1), cfg.seg().ext0_pc());
 
 #endif // if NUM_MCPIOS = 8
 
@@ -951,9 +951,9 @@ openlcb::RefreshLoop loopab(stack.node(),
 #if NUM_MCPIOS > 0
         ext0_pcs.polling(),                           //
 #endif
-#if NUM_MCPIOS > 6
-	ext1_pcs.polling(),
-#endif
+//#if NUM_MCPIOS > 6
+//	ext1_pcs.polling(),
+//#endif
 
         producer_a1.polling(), producer_a2.polling(), //
         producer_a3.polling(), producer_a4.polling(), //
