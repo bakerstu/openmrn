@@ -30,6 +30,9 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
+// Input/Output Expansion via DevKit IO Expansion boards with MCP23017s.
+// Support from 0 to 8 MCPs (8 is full address space available for MCPs - 3 address bits available)
+// Set number from 0 to 8; even numbers only.
 #define NUM_MCPIOS 8 
 
 // Snap switches and LED lights conflict on same port. When GPIO pin has
@@ -69,10 +72,8 @@ using Ext0PC = RepeatedGroup<PCConfig, 32>;
 using Ext0PC = RepeatedGroup<PCConfig, 64>;
 #elif NUM_MCPIOS == 6 
 using Ext0PC = RepeatedGroup<PCConfig, 64>;
-//using Ext1PC = RepeatedGroup<PCConfig, 32>;
 #elif NUM_MCPIOS == 8 
 using Ext0PC = RepeatedGroup<PCConfig, 128>;
-//using Ext1PC = RepeatedGroup<PCConfig, 64>;
 #endif
 
 
@@ -101,23 +102,13 @@ CDI_GROUP_ENTRY(hidden_servo_5_8, ServoConsumers, Hidden(true));
 CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Description("Line 1-8 is port D, Line 9-16 is port E"), RepName("Line"));
 CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
 #if NUM_MCPIOS > 0
-CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("Expansion board 0 lines"),
+CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("IO Expansion Board with MCP23017 Lines"),
     Description("Line 1-8 is port Even/A, Line 9-16 is port Even/B, Line 17-24 "
                 "is Odd/A, Line 25-32 is Odd/B. Additional MCPs follow "
 		"this similar paradigm. "),
     RepName("Line"));
 CDI_GROUP_END();
 #endif
-/*
- * #if NUMC_MCPIOS > 6
-CDI_GROUP_ENTRY(ext0_pc, Ext1PC, Name("Expansion board 1 lines"),
-    Description("Line 1-8 is port Even/A, Line 9-16 is port Even/B, Line 17-24 "
-                "is Odd/A, Line 25-32 is Odd/B. Additional MCPs follow "
-		"this similar paradigm. "),
-    RepName("Line"));
-CDI_GROUP_END();
-#endif
-*/
 
 /// This segment is only needed temporarily until there is program code to set
 /// the ACDI user data version byte.
