@@ -159,9 +159,9 @@ Stm32I2C::Stm32I2C(const char *name, I2C_TypeDef *port, uint32_t ev_interrupt,
     // call above.
     i2cHandle_.Init.Timing = (uint32_t) this;
 
-    NVIC_SetPriority((IRQn_Type)ev_interrupt, configKERNEL_INTERRUPT_PRIORITY);
+    SetInterruptPriority((IRQn_Type)ev_interrupt, configKERNEL_INTERRUPT_PRIORITY);
     HAL_NVIC_EnableIRQ((IRQn_Type)ev_interrupt);
-    NVIC_SetPriority((IRQn_Type)er_interrupt, configKERNEL_INTERRUPT_PRIORITY);
+    SetInterruptPriority((IRQn_Type)er_interrupt, configKERNEL_INTERRUPT_PRIORITY);
     HAL_NVIC_EnableIRQ((IRQn_Type)er_interrupt);
 }
 
@@ -189,7 +189,7 @@ int Stm32I2C::transfer(struct i2c_msg *msg, bool stop)
             xfer_options = I2C_FIRST_FRAME;
         }
 
-        if (HAL_I2C_Master_Sequential_Receive_IT(&i2cHandle_,
+        if (HAL_I2C_Master_Seq_Receive_IT(&i2cHandle_,
                 (uint16_t)msg->addr << 1, (uint8_t *)msg->buf, bytes,
                 xfer_options) != HAL_OK)
         {
@@ -208,7 +208,7 @@ int Stm32I2C::transfer(struct i2c_msg *msg, bool stop)
         {
             xfer_options = I2C_FIRST_FRAME;
         }
-        if (HAL_I2C_Master_Sequential_Transmit_IT(&i2cHandle_,
+        if (HAL_I2C_Master_Seq_Transmit_IT(&i2cHandle_,
                 (uint16_t)msg->addr << 1, (uint8_t *)msg->buf, bytes,
                 xfer_options) != HAL_OK)
         {

@@ -231,6 +231,9 @@ public:
             ::select(nfds, readfds, writefds, exceptfds, &timeout);
 #elif !defined(OPENMRN_FEATURE_SINGLE_THREADED)
         #error no select implementation in multi threaded OS.
+#else
+        // Single threaded OS: nothing to wake up.
+        int ret = 0;
 #endif
         {
             AtomicHolder l(this);

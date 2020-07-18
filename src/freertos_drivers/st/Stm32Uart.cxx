@@ -33,6 +33,8 @@
 
 #include "Stm32Uart.hxx"
 
+#include "stm32f_hal_conf.hxx"
+
 #if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_hal_cortex.h"
 #elif defined(STM32F103xB)
@@ -151,8 +153,8 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
 #if defined(GCC_ARMCM0)    
     HAL_NVIC_SetPriority(interrupt, 3, 0);
 #elif defined(GCC_ARMCM3)    
-    // Below kernel interrupt priority.
-    NVIC_SetPriority(interrupt, configKERNEL_INTERRUPT_PRIORITY + 0x20);
+    // Below kernel-compatible interrupt priority.
+    SetInterruptPriority(interrupt, configMAX_SYSCALL_INTERRUPT_PRIORITY + 0x20);
 #else
 #error not defined how to set interrupt priority
 #endif    

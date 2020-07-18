@@ -58,7 +58,7 @@
 /// @param PIN_NUM is the number of the pin in the port. Zero-based.
 template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
 {
-    /// @return the PIO structure of the give gpio port.
+    /// @return the GPIO structure of the given gpio port.
     static GPIO_TypeDef *port()
     {
         return (GPIO_TypeDef *)GPIOx;

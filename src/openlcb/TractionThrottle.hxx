@@ -228,7 +228,7 @@ public:
     enum
     {
         /// Timeout for assign controller request.
-        TIMEOUT_NSEC = SEC_TO_NSEC(1),
+        TIMEOUT_NSEC = SEC_TO_NSEC(2),
         /// Returned from get_fn() when we don't have a cahced value for a
         /// function.
         FN_NOT_KNOWN = 0xffff,
@@ -338,6 +338,15 @@ public:
     {
         updateCallback_ = std::move(update_callback);
     }
+
+#ifdef GTEST
+    void TEST_assign_listening_node(openlcb::NodeID dst)
+    {
+        dst_ = dst;
+        set_assigned();
+        set_listening();
+    }
+#endif
 
 private:
     Action entry() override
@@ -718,6 +727,11 @@ private:
     void listen_reply(Buffer<GenMessage> *msg)
     {
         AutoReleaseBuffer<GenMessage> rb(msg);
+        if (msg->data()->dstNode != node_)
+        {
+            // For a different throttle.
+            return;
+        }
         if (!iface()->matching_node(msg->data()->src, NodeHandle(dst_)))
         {
             return;

@@ -34,6 +34,7 @@
 #include <new>
 #include <cstdint>
 
+#include "freertos_drivers/st/stm32f_hal_conf.hxx"
 #include "stm32f0xx_hal_rcc.h"
 #include "stm32f0xx_hal_flash.h"
 #include "stm32f0xx_hal_gpio.h"
@@ -217,7 +218,7 @@ void hw_preinit(void)
         /* Starting Error */
         HASSERT(0);
     }
-    NVIC_SetPriority(TIM14_IRQn, 0);
+    SetInterruptPriority(TIM14_IRQn, 0);
     NVIC_EnableIRQ(TIM14_IRQn);
 }
 

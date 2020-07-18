@@ -42,6 +42,7 @@
 #include "openlcb/TcpDefs.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/GcTcpHub.hxx"
+#include "utils/Singleton.hxx"
 #include "utils/SocketClient.hxx"
 #include "utils/SocketClientParams.hxx"
 #include "utils/macros.h"
@@ -69,6 +70,7 @@ namespace openmrn_arduino
 /// OpenMRN::begin() which will trigger the loading of the node configuration
 /// which will trigger the management of the hub and uplink functionality.
 class Esp32WiFiManager : public DefaultConfigUpdateListener
+                       , public Singleton<Esp32WiFiManager>
 {
 public:
     /// Constructor.
@@ -190,6 +192,37 @@ public:
     /// ESP32 serial port.
     void enable_verbose_logging();
 
+    /// Starts a scan for available SSIDs.
+    ///
+    /// @param n is the @ref Notifiable to notify when the SSID scan completes.
+    void start_ssid_scan(Notifiable *n);
+
+    /// @return the number of SSIDs that were found via the scan.
+    size_t get_ssid_scan_result_count();
+
+    /// Returns one entry from the SSID scan.
+    ///
+    /// @param index is the index of the SSID to retrieve. If the index is
+    /// invalid or no records exist a blank wifi_ap_record_t will be returned.
+    wifi_ap_record_t get_ssid_scan_result(size_t index);
+
+    /// Clears the SSID scan results.
+    void clear_ssid_scan_results();
+
+    /// Advertises a service via mDNS.
+    ///
+    /// @param service is the service name to publish.
+    /// @param port is the port for the service to be published.
+    ///
+    /// Note: This will schedule a @ref CallbackExecutable on the @ref Executor
+    /// used by the @ref SimpleCanStack.
+    void mdns_publish(std::string service, uint16_t port);
+
+    /// Removes the advertisement of a service via mDNS.
+    ///
+    /// @param service is the service name to remove from advertising.
+    void mdns_unpublish(std::string service);
+
 private:
     /// Default constructor.
     Esp32WiFiManager();
@@ -235,6 +268,9 @@ private:
     /// Enables the esp_wifi logging, including the esp_wifi_internal APIs when
     /// available.
     void enable_esp_wifi_logging();
+
+    /// Initializes the mDNS system if it hasn't already been initialized.
+    void start_mdns_system();
 
     /// Handle for the wifi_manager_task that manages the WiFi stack, including
     /// periodic health checks of the connected hubs or clients.
@@ -316,6 +352,25 @@ private:
 
     /// Internal event group used to track the IP assignment events.
     EventGroupHandle_t wifiStatusEventGroup_;
+
+    /// WiFi SSID scan results holder.
+    std::vector<wifi_ap_record_t> ssidScanResults_;
+
+    /// Protects ssidScanResults_ vector.
+    OSMutex ssidScanResultsLock_;
+
+    /// Notifiable to be called when SSID scan completes.
+    Notifiable *ssidCompleteNotifiable_{nullptr};
+
+    /// Protects the mdnsInitialized_ flag and mdnsDeferredPublish_ map.
+    OSMutex mdnsInitLock_;
+
+    /// Internal flag for tracking that the mDNS system has been initialized.
+    bool mdnsInitialized_{false};
+
+    /// Internal holder for mDNS entries which could not be published due to
+    /// mDNS not being initialized yet.
+    std::map<std::string, uint16_t> mdnsDeferredPublish_;
 
     DISALLOW_COPY_AND_ASSIGN(Esp32WiFiManager);
 };

@@ -68,24 +68,31 @@
 
     struct can_frame
     {
-        uint32_t can_id;      /**< 11- or 29-bit ID (3-bits unsed) */
-
-        uint8_t  can_dlc : 4; /**< 4-bit DLC */
-        uint8_t  can_rtr : 1; /**< RTR indication */
-        uint8_t  can_eff : 1; /**< Extended ID indication */
-        uint8_t  can_err : 1; /**< @todo not supported by nuttx */
-        uint8_t  can_res : 1; /**< Unused */
-
-        uint8_t  pad;  /**< padding */
-        uint8_t  res0; /**< reserved */
-        uint8_t  res1; /**< reserved */
-
         union
         {
-            /** CAN message data (64-bit) */
-            uint64_t data64 __attribute__((aligned(8)));
-            /** CAN message data (0-8 byte) */
-            uint8_t  data[8] __attribute__((aligned(8)));
+            uint32_t raw[4];
+            struct
+            {
+                uint32_t can_id;      /**< 11- or 29-bit ID (3-bits unsed) */
+
+                uint8_t  can_dlc : 4; /**< 4-bit DLC */
+                uint8_t  can_rtr : 1; /**< RTR indication */
+                uint8_t  can_eff : 1; /**< Extended ID indication */
+                uint8_t  can_err : 1; /**< @todo not supported by nuttx */
+                uint8_t  can_res : 1; /**< Unused */
+
+                uint8_t  pad;  /**< padding */
+                uint8_t  res0; /**< reserved */
+                uint8_t  res1; /**< reserved */
+
+                union
+                {
+                    /** CAN message data (64-bit) */
+                    uint64_t data64 __attribute__((aligned(8)));
+                    /** CAN message data (0-8 byte) */
+                    uint8_t  data[8] __attribute__((aligned(8)));
+                };
+            };
         };
     };
 

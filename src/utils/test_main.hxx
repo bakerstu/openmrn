@@ -255,6 +255,12 @@ public:
     {
     }
 
+    /// Restores the original value.
+    void restore()
+    {
+        holder_.reset();
+    }
+
 private:
     /// Virtual base class for the destructible holders.
     class HolderBase

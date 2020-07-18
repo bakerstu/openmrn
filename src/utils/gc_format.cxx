@@ -82,6 +82,11 @@ static int ascii_to_nibble(const char c)
 int gc_format_parse(const char* buf, struct can_frame* can_frame)
 {
     CLR_CAN_FRAME_ERR(*can_frame);
+    if (*buf == ':')
+    {
+        // skip leading :
+        ++buf;
+    }
     if (*buf == 'X')
     {
         SET_CAN_FRAME_EFF(*can_frame);
@@ -136,7 +141,7 @@ int gc_format_parse(const char* buf, struct can_frame* can_frame)
         SET_CAN_FRAME_ID(*can_frame, id);
     }
     int index = 0;
-    while (*buf)
+    while ((*buf != 0) && (*buf != ';'))
     {
         int nh = ascii_to_nibble(*buf++);
         int nl = ascii_to_nibble(*buf++);
@@ -242,7 +247,7 @@ char* gc_format_generate(const struct can_frame* can_frame, char* buf, int doubl
         output(buf, nibble_to_ascii(can_frame->data[offset] & 0xf));
     }
     output(buf, ';');
-    if (config_gc_generate_newlines()) {
+    if (config_gc_generate_newlines() == CONSTANT_TRUE) {
         output(buf, '\n');
     }
     return buf;
