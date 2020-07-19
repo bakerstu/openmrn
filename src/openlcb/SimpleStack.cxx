@@ -53,6 +53,7 @@
 
 #include "openlcb/SimpleStack.hxx"
 
+#include "openmrn_features.h"
 #include "openlcb/EventHandler.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
 #include "openlcb/SimpleNodeInfo.hxx"
@@ -103,12 +104,12 @@ SimpleTcpStack::SimpleTcpStack(const openlcb::NodeID node_id)
 
 void SimpleStackBase::start_stack(bool delay_start)
 {
-#if (!defined(ARDUINO)) || defined(ESP32)
+#if OPENMRN_HAVE_POSIX_FD
     // Opens the eeprom file and sends configuration update commands to all
     // listeners.
     configUpdateFlow_.open_file(CONFIG_FILENAME);
     configUpdateFlow_.init_flow();
-#endif // NOT ARDUINO, YES ESP32
+#endif // have posix fd
 
     if (!delay_start)
     {
@@ -138,7 +139,7 @@ void SimpleStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_ACDI_SYS, space);
         additionalComponents_.emplace_back(space);
     }
-#if (!defined(ARDUINO)) || defined(ESP32)
+#if OPENMRN_HAVE_POSIX_FD 
     {
         auto *space = new FileMemorySpace(
             SNIP_DYNAMIC_FILENAME, sizeof(SimpleNodeDynamicValues));
@@ -156,7 +157,7 @@ void SimpleStackBase::default_start_node()
             node(), MemoryConfigDefs::SPACE_CDI, space);
         additionalComponents_.emplace_back(space);
     }
-#if (!defined(ARDUINO)) || defined(ESP32)
+#if OPENMRN_HAVE_POSIX_FD
     if (CONFIG_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(CONFIG_FILENAME, CONFIG_FILE_SIZE);
