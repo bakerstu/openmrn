@@ -60,7 +60,7 @@ public:
     /// Number of possible open file desriptors.
     static constexpr unsigned MAX_FD = 8;
     /// Offset markng that a file descriptor is not in use.
-    static constexpr unsigned UNUSED_FILE = (off_t)-1;
+    static constexpr off_t UNUSED_FILE = (off_t)-1;
 
     /// We have one of these for each open file descriptor.
     struct FileInfo
