@@ -1,6 +1,6 @@
 ifndef TOOLPATH
 TOOLPATH := $(shell \
-sh -c "if [ -d /usr/include/mach ]; then echo /usr/bin; \
+sh -c "if [ -d /Applications/Xcode.app/Contents/Developer ]; then echo /usr/bin; \
       else echo; fi" \
 )
 endif
@@ -20,9 +20,9 @@ ENDGROUP :=
 
 INCLUDES += -I$(OPENMRNPATH)/include/mach
 
-CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=gnu99 -fno-stack-protector \
+CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=c99 -fno-stack-protector \
          -D_GNU_SOURCE
-CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=c++0x -fno-stack-protector \
+CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=c++14 -fno-stack-protector \
            -D_GNU_SOURCE
 
 LDFLAGS = -g
