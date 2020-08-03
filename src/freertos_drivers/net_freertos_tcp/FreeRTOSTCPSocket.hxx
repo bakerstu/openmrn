@@ -40,7 +40,8 @@
 
 class FreeRTOSTCP;
 
-typedef void *Socket_t;
+struct xSOCKET;
+typedef xSOCKET *Socket_t;
 
 static const int MAX_SOCKETS = 20;
 

@@ -41,7 +41,8 @@
 class FreeRTOSTCPSocket;
 
 /** local declaraction of Socket_t to avoid dependency on FreeRTOSTCP headers */
-typedef void *Socket_t;
+struct xSOCKET;
+typedef xSOCKET *Socket_t;
 
 /** Provides the startup and mantainance methods for configuring and using the
  * FreeRTOSTCP stack.  This is designed to be a singleton.  It should only

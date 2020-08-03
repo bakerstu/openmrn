@@ -59,6 +59,36 @@ bool network_layer_preinit(void);
 extern "C" void vApplicationIPNetworkEventHook(
     eIPCallbackEvent_t eNetworkEvent);
 
+// The following two functions are provided to support dependencies created
+// due to a partially implemented change in FREERTOS TCP
+/// Called for random number generation
+/// @param pulNumber location to store random number
+/// @returns FREERTOS return codes 
+extern "C" BaseType_t xApplicationGetRandomNumber(uint32_t* pulNumber)
+{
+    *pulNumber = rand();
+    return(pdFALSE);
+}
+
+/// Called to generate next sequene number for connection
+/// @param ulSourceAddress source IP address
+/// @param usSourcePort source port
+/// @param ulDestinationAddress destination IP address
+/// @param usDestinationPort destionation port
+/// @returns random number
+extern "C" uint32_t ulApplicationGetNextSequenceNumber(
+    uint32_t ulSourceAddress,
+    uint16_t usSourcePort,
+    uint32_t ulDestinationAddress,
+    uint16_t usDestinationPort)
+{
+    (void) ulSourceAddress;
+    (void) usSourcePort;
+    (void) ulDestinationAddress;
+    (void) usDestinationPort;
+    return rand();
+}
+
 /*
  * FreeRTOSTCP::FreeRTOSTCP()
  */
