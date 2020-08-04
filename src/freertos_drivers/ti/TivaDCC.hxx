@@ -545,7 +545,7 @@ inline void TivaDCC<HW>::interrupt_handler()
         case FRAME:
             if (++count >= packet->dlc)
             {
-                current_bit = DCC_ONE;  // end-of-packet bit
+                current_bit = DCC_RC_ONE;  // end-of-packet bit
                 state_ = DCC_MAYBE_RAILCOM;
                 preamble_count = 0;
             }
@@ -561,14 +561,7 @@ inline void TivaDCC<HW>::interrupt_handler()
                     HW::Output2::need_railcom_cutout() ||
                     HW::Output3::need_railcom_cutout()))
             {
-                //current_bit = RAILCOM_CUTOUT_PRE;
                 current_bit = DCC_RC_ONE;
-                auto* timing = &timings[current_bit];
-                MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timing->period);
-                MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timing->period);
-                MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
-                MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timing->transition_b);
-                last_bit = current_bit;
                 // It takes about 5 usec to get here from the previous
                 // transition of the output.
                 // We change the time of the next IRQ.
@@ -668,11 +661,11 @@ inline void TivaDCC<HW>::interrupt_handler()
         case DCC_STOP_RAILCOM_RECEIVE:
         {
             current_bit = DCC_RC_HALF_ZERO;
+            // This causes the timers to be reinitialized so no fractional bits
+            // are left in their counters.
             resync = true;
             get_next_packet = true;
             state_ = DCC_ENABLE_AFTER_RAILCOM;
-            //MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
-            //                 timings[DCC_RC_HALF_ZERO].period);
             railcomDriver_->end_cutout();
             unsigned delay = 0;
             if (HW::Output1::isRailcomCutoutActive_)
