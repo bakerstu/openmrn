@@ -126,7 +126,7 @@ public:
 
     /** Adds a node ID to the consist targets. @return false if the node was
      * already in the target list, true if it was newly added. */
-    bool add_consist(NodeID tgt, uint8_t flags)
+    virtual bool add_consist(NodeID tgt, uint8_t flags)
     {
         if (!tgt)
         {
@@ -150,8 +150,8 @@ public:
     }
 
     /** Removes a node ID from the consist targets. @return true if the target
-     * was removesd, false if the target was not on the list. */
-    bool remove_consist(NodeID tgt)
+     * was removed, false if the target was not on the list. */
+    virtual bool remove_consist(NodeID tgt)
     {
         for (auto it = consistSlaves_.begin(); it != consistSlaves_.end(); ++it)
         {
@@ -212,6 +212,8 @@ class TrainNodeForProxy : public TrainNode {
 public:
     TrainNodeForProxy(TrainService *service, TrainImpl *train);
 
+    ~TrainNodeForProxy();
+
     NodeID node_id() OVERRIDE;
 };
 
@@ -221,6 +223,8 @@ class TrainNodeWithId : public TrainNode {
 public:
     TrainNodeWithId(TrainService *service, TrainImpl *train, NodeID node_id);
 
+    ~TrainNodeWithId();
+    
     NodeID node_id() OVERRIDE {
         return nodeId_;
     }
@@ -249,6 +253,10 @@ public:
         initialization flow for the train. */
     void register_train(TrainNode *node);
 
+    /// Removes a train node from the local interface.
+    /// @param node train to remove from registry.
+    void unregister_train(TrainNode *node);
+    
 private:
     struct Impl;
     /** Implementation flows. */

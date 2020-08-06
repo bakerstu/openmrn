@@ -62,12 +62,24 @@ TrainNodeForProxy::TrainNodeForProxy(TrainService *service, TrainImpl *train)
     service_->register_train(this);
 }
 
+TrainNodeForProxy::~TrainNodeForProxy()
+{
+    // breaks unit tests due to bugs
+    // service_->unregister_train(this);
+}
+
 TrainNodeWithId::TrainNodeWithId(
     TrainService *service, TrainImpl *train, NodeID node_id)
     : TrainNode(service, train)
     , nodeId_(node_id)
 {
     service_->register_train(this);
+}
+
+TrainNodeWithId::~TrainNodeWithId()
+{
+    // breaks unit tests due to bugs
+    // service_->unregister_train(this);
 }
 
 NodeID TrainNodeForProxy::node_id()
@@ -626,6 +638,14 @@ void TrainService::register_train(TrainNode *node)
     nodes_.insert(node);
     LOG(VERBOSE, "Registered node %p for traction.", node);
     HASSERT(nodes_.find(node) != nodes_.end());
+}
+
+void TrainService::unregister_train(TrainNode *node)
+{
+    HASSERT(nodes_.find(node) != nodes_.end());
+    iface_->delete_local_node(node);
+    AtomicHolder h(this);
+    nodes_.erase(node);
 }
 
 } // namespace openlcb
