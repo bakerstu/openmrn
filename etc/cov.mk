@@ -18,10 +18,12 @@ HOST_TARGET := 1
 STARTGROUP := -Wl,--start-group
 ENDGROUP := -Wl,--end-group
 
+TESTOPTIMIZATION=-O0
+
 ifdef SKIP_COVERAGE
-ARCHOPTIMIZATION = -g -O0
+ARCHOPTIMIZATION = -g $(TESTOPTIMIZATION)
 else
-ARCHOPTIMIZATION = -g -O0 -fprofile-arcs -ftest-coverage
+ARCHOPTIMIZATION = -g $(TESTOPTIMIZATION) -fprofile-arcs -ftest-coverage
 endif
 
 CSHAREDFLAGS = -c -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/') $(ARCHOPTIMIZATION) $(INCLUDES) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE -DGTEST
@@ -35,6 +37,15 @@ CXXFLAGS = $(CSHAREDFLAGS) -std=c++1y -D__STDC_FORMAT_MACROS \
 LDFLAGS = $(ARCHOPTIMIZATION) -Wl,-Map="$(@:%=%.map)"
 SYSLIB_SUBDIRS +=
 SYSLIBRARIES = -lrt -lpthread -lavahi-client -lavahi-common $(SYSLIBRARIESEXTRA)
+
+ifdef RUN_GPERF
+CXXFLAGS += -DWITHGPERFTOOLS
+LDFLAGS += -DWITHGPERFTOOLS
+SYSLIBRARIES += -lprofiler
+TESTOPTIMIZATION = -O3
+SKIP_COVERAGE = 1
+endif
+
 
 ifndef SKIP_COVERAGE
 LDFLAGS += -pg

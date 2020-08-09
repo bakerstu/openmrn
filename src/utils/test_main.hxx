@@ -44,6 +44,7 @@
 #include <stdarg.h>
 #include <memory>
 #include <string>
+#include <functional>
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
@@ -53,6 +54,15 @@
 #include "os/TempFile.hxx"
 #include "os/os.h"
 #include "utils/StringPrintf.hxx"
+
+#ifdef WITHGPERFTOOLS
+#include <gperftools/profiler.h>
+
+std::function<void()> profiler_enable{&ProfilerEnable};
+std::function<void()> profiler_disable{&ProfilerDisable};
+#endif
+
+
 
 int appl_main(int argc, char *argv[])
 {
