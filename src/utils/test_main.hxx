@@ -62,8 +62,6 @@ std::function<void()> profiler_enable{&ProfilerEnable};
 std::function<void()> profiler_disable{&ProfilerDisable};
 #endif
 
-
-
 int appl_main(int argc, char *argv[])
 {
     testing::InitGoogleMock(&argc, argv);
