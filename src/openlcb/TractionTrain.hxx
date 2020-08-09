@@ -256,7 +256,16 @@ public:
     /// Removes a train node from the local interface.
     /// @param node train to remove from registry.
     void unregister_train(TrainNode *node);
-    
+
+    /// Checks if the a given node is a train node operated by this Traction
+    /// Service.
+    /// @param node a virtual node
+    /// @return true if this is a known train node.
+    bool is_known_train_node(Node *node)
+    {
+        return nodes_.find((TrainNode*)node) != nodes_.end();
+    }
+
 private:
     struct Impl;
     /** Implementation flows. */
