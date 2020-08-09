@@ -111,7 +111,7 @@ void write_string_to_file(const string &filename, const string &data)
             break;
         }
     }
-    if (offset  != data.size())
+    if (offset != data.size())
     {
         fprintf(stderr, "error writing: %s, offset: %zu, size: %zu\n",
                 strerror(errno), offset, data.size());
