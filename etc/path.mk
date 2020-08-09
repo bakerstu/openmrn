@@ -571,6 +571,18 @@ CLANGPPPATH:=$(TRYPATH)
 endif
 endif #CLANGPPPATH
 
+##################### HOSTCLANGPP ######################
+ifndef HOSTCLANGPPPATH
+SEARCHPATH := \
+  /usr/bin \
+
+
+TRYPATH:=$(call findfirst,clang++,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+HOSTCLANGPPPATH:=$(TRYPATH)
+endif
+endif #HOSTCLANGPPPATH
+
 ##################### NODEJS ######################
 ifndef NODEJSPATH
 SEARCHPATH := \

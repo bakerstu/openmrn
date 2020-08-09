@@ -1,12 +1,8 @@
-ifndef TOOLPATH
-TOOLPATH := $(shell \
-sh -c "if uname -sm | grep 'Darwin x86_64' &> /dev/null && \
-          [ -x /usr/bin/clang++ ]; then \
-           echo /usr/bin; \
-       else \
-           echo; \
-       fi" \
-)
+# Get the toolchain path
+include $(OPENMRNPATH)/etc/path.mk
+
+ifeq ($(shell uname -sm),Darwin x86_64)
+TOOLPATH := $(HOSTCLANGPPPATH)
 endif
 
 $(info mach toolpath '$(TOOLPATH)')
