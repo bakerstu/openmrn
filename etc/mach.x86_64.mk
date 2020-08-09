@@ -1,7 +1,11 @@
 ifndef TOOLPATH
 TOOLPATH := $(shell \
-sh -c "if [ -d /Applications/Xcode.app/Contents/Developer ]; then echo /usr/bin; \
-      else echo; fi" \
+sh -c "if uname -sm | grep 'Darwin x86_64' &> /dev/null && \
+          [ -x /usr/bin/clang++ ]; then \
+           echo /usr/bin; \
+       else \
+           echo; \
+       fi" \
 )
 endif
 
@@ -10,10 +14,10 @@ $(info mach toolpath '$(TOOLPATH)')
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
 
-CC = gcc
-CXX = g++
+CC = clang
+CXX = clang++
 AR = ar
-LD = g++
+LD = clang++
 
 STARTGROUP :=
 ENDGROUP :=
