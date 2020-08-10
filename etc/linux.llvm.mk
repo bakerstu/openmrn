@@ -11,10 +11,10 @@ include $(OPENMRNPATH)/etc/path.mk
 
 DEPS += CLANGPPPATH
 
-CC = clang
-CXX = clang++
-AR = llvm-ar
-LD = clang++
+CC = $(CLANGPPPATH)/clang
+CXX = $(CLANGPPPATH)/clang++
+AR = $(CLANGPPPATH)/llvm-ar
+LD = $(CLANGPPPATH)/clang++
 
 # llvm-objdump is not 100% compatible with GCC conventions.  It turns out that
 # newer versionf of llvm remove the -symbolize option causing errors.  For

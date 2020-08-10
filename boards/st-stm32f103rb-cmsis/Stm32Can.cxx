@@ -134,8 +134,8 @@ private:
     {
         init_can_filter();
         // Sets the CAN interrupt priorities to be compatible with FreeRTOS.
-        NVIC_SetPriority(USB_LP_CAN1_RX0_IRQn, configKERNEL_INTERRUPT_PRIORITY);
-        NVIC_SetPriority(USB_HP_CAN1_TX_IRQn, configKERNEL_INTERRUPT_PRIORITY);
+        SetInterruptPriority(USB_LP_CAN1_RX0_IRQn, configKERNEL_INTERRUPT_PRIORITY);
+        SetInterruptPriority(USB_HP_CAN1_TX_IRQn, configKERNEL_INTERRUPT_PRIORITY);
         CAN_ITConfig(instance_, CAN_IT_TME, DISABLE);
         NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
         NVIC_EnableIRQ(USB_HP_CAN1_TX_IRQn);
