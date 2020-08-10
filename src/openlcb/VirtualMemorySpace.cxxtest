@@ -1,0 +1,195 @@
+/** \copyright
+ * Copyright (c) 2014, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file VirtualMemorySpace.cxxtest
+ *
+ * Unit tests for the virtual memory space.
+ *
+ * @author Balazs Racz
+ * @date 10 Aug 2020
+ */
+
+#include "openlcb/VirtualMemorySpace.hxx"
+
+#include "openlcb/ConfigRepresentation.hxx"
+#include "openlcb/MemoryConfigClient.hxx"
+#include "utils/async_datagram_test_helper.hxx"
+
+namespace openlcb
+{
+
+string arg1;
+string arg2;
+
+CDI_GROUP(ExampleMemorySpace);
+CDI_GROUP_ENTRY(skipped, EmptyGroup<5>);
+CDI_GROUP_ENTRY(first, StringConfigEntry<13>);
+CDI_GROUP_ENTRY(skipped2, EmptyGroup<8>);
+CDI_GROUP_ENTRY(second, StringConfigEntry<20>);
+CDI_GROUP_END();
+
+ExampleMemorySpace cfg(44);
+
+const unsigned arg1_ofs = 44 + 5;
+const unsigned arg2_ofs = 44 + 5 + 13 + 8;
+
+class VirtualMemorySpaceTest : public AsyncDatagramTest
+{
+protected:
+    ~VirtualMemorySpaceTest()
+    {
+        wait();
+    }
+
+    MemoryConfigHandler memCfg_ {&datagram_support_, node_, 3};
+    std::unique_ptr<VirtualMemorySpace> space_;
+    MemoryConfigClient client_ {node_, &memCfg_};
+};
+
+class TestSpace : public VirtualMemorySpace
+{
+public:
+    TestSpace()
+    {
+        arg1.clear();
+        arg2.clear();
+        register_string(
+            cfg.first(), string_reader(&arg1), string_writer(&arg1));
+        register_string(
+            cfg.second(), string_reader(&arg2), string_writer(&arg2));
+    }
+
+    std::function<bool(
+        unsigned repeat, string *contents, BarrierNotifiable *done)>
+    string_reader(string *ptr)
+    {
+        return
+            [ptr](unsigned repeat, string *contents, BarrierNotifiable *done) {
+                *contents = *ptr;
+                done->notify();
+                return true;
+            };
+    }
+
+    std::function<void(
+        unsigned repeat, string contents, BarrierNotifiable *done)>
+    string_writer(string *ptr)
+    {
+        return
+            [ptr](unsigned repeat, string contents, BarrierNotifiable *done) {
+                *ptr = std::move(contents);
+                done->notify();
+            };
+    }
+};
+
+class TestSpaceTest : public VirtualMemorySpaceTest
+{
+protected:
+    TestSpaceTest()
+    {
+        space_.reset(new TestSpace);
+        memCfg_.registry()->insert(node_, SPACE, space_.get());
+    }
+
+    const uint8_t SPACE = 0x52;
+};
+
+TEST_F(TestSpaceTest, create)
+{
+}
+
+TEST_F(TestSpaceTest, read_payload)
+{
+    arg1 = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs, 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("hello", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, 20);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("", b->data()->payload.c_str());
+    EXPECT_EQ(20u, b->data()->payload.size());
+
+    // prefix read
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs, 3);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("hel", b->data()->payload);
+}
+
+TEST_F(TestSpaceTest, read_early)
+{
+    arg1 = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs - 2, 10);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp("\0\0hello\0\0\0", 10);
+    EXPECT_EQ(exp, b->data()->payload);
+    EXPECT_EQ(10u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs - 4, 3);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp2("\0\0\0", 3);
+    EXPECT_EQ(exp2, b->data()->payload);
+    EXPECT_EQ(3u, b->data()->payload.size());
+}
+
+TEST_F(TestSpaceTest, write_payload)
+{
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs, "xyzw");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("xyzw", arg1);
+    EXPECT_EQ(4u, arg1.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, "abcde");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("abcde", arg2);
+    EXPECT_EQ(5u, arg2.size());
+}
+
+TEST_F(TestSpaceTest, write_early)
+{
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs-2, "xyzw");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("zw", arg1);
+    EXPECT_EQ(2u, arg1.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs-1, "qwert");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("wert", arg2);
+    EXPECT_EQ(4u, arg2.size());
+}
+
+} // namespace openlcb
