@@ -176,6 +176,30 @@ TEST_F(TestSpaceTest, read_early)
     EXPECT_EQ(3u, b->data()->payload.size());
 }
 
+/// Test writing a variable to a offset that is not covered at all.
+TEST_F(TestSpaceTest, read_hole)
+{
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs-5, 3);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp("\0\0\0", 3);
+    EXPECT_EQ(exp, b->data()->payload);
+
+    /// @todo this return seems to be wrong, although this address is out of
+    /// the memory space limits.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs-5, 2);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string(), b->data()->payload);
+
+    /// @todo this return seems to be wrong, although this address is out of
+    /// the memory space limits.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 100, 4);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string(), b->data()->payload);
+}
+
 /// Basic tests writing variables from the exact offset but not including
 /// partial writes.
 TEST_F(TestSpaceTest, write_payload)
