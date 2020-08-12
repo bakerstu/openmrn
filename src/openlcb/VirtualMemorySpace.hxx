@@ -27,7 +27,7 @@
  * \file VirtualMemorySpace.hxx
  *
  * Implementation of a memory space where the values are not stored in a
- * contiguous storage area but are read anf written via callbacks.
+ * contiguous storage area but are read and written via callbacks.
  *
  * @author Balazs Racz
  * @date 10 Aug 2020
@@ -44,7 +44,7 @@ namespace openlcb
 {
 
 /// Implementation of a memory space where the values are not stored in a
-/// contiguous storage area but are read anf written via callbacks.
+/// contiguous storage area but are read and written via callbacks.
 class VirtualMemorySpace : public MemorySpace
 {
 public:
