@@ -209,4 +209,21 @@ TEST_F(TestSpaceTest, write_early)
     EXPECT_EQ(4u, arg2.size());
 }
 
+/// Test writing a variable to a offset that is not covered at all.
+TEST_F(TestSpaceTest, write_hole)
+{
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs-5, "xyz");
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs-5, "qw");
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs+100, "qw");
+    ASSERT_EQ(0, b->data()->resultCode);
+}
+
+
 } // namespace openlcb
