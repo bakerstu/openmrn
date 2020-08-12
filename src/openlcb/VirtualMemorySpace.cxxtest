@@ -82,6 +82,11 @@ public:
             cfg.second(), string_reader(&arg2), string_writer(&arg2));
     }
 
+    /// Creates a ReaderFunction that just returns a string from a given
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
     std::function<bool(
         unsigned repeat, string *contents, BarrierNotifiable *done)>
     string_reader(string *ptr)
@@ -94,6 +99,11 @@ public:
             };
     }
 
+    /// Creates a WriterFunction that just stores the data in a given string
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
     std::function<void(
         unsigned repeat, string contents, BarrierNotifiable *done)>
     string_writer(string *ptr)
@@ -115,6 +125,7 @@ protected:
         memCfg_.registry()->insert(node_, SPACE, space_.get());
     }
 
+    /// Memory space number where the test space is registered.
     const uint8_t SPACE = 0x52;
 };
 
@@ -122,6 +133,8 @@ TEST_F(TestSpaceTest, create)
 {
 }
 
+/// Basic tests reading variables from the exact offset including partial
+/// reads.
 TEST_F(TestSpaceTest, read_payload)
 {
     arg1 = "hello";
@@ -144,6 +157,7 @@ TEST_F(TestSpaceTest, read_payload)
     EXPECT_EQ("hel", b->data()->payload);
 }
 
+/// Test reading a variable from an imprecise offset (too early).
 TEST_F(TestSpaceTest, read_early)
 {
     arg1 = "hello";
@@ -162,6 +176,8 @@ TEST_F(TestSpaceTest, read_early)
     EXPECT_EQ(3u, b->data()->payload.size());
 }
 
+/// Basic tests writing variables from the exact offset but not including
+/// partial writes.
 TEST_F(TestSpaceTest, write_payload)
 {
     auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
@@ -177,6 +193,7 @@ TEST_F(TestSpaceTest, write_payload)
     EXPECT_EQ(5u, arg2.size());
 }
 
+/// Test writing a variable to a offset that is too early.
 TEST_F(TestSpaceTest, write_early)
 {
     auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
