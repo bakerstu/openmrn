@@ -180,7 +180,7 @@ TEST_F(TestSpaceTest, read_early)
 TEST_F(TestSpaceTest, read_hole)
 {
     auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
-        NodeHandle(node_->node_id()), SPACE, arg2_ofs-5, 3);
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs - 5, 3);
     ASSERT_EQ(0, b->data()->resultCode);
     string exp("\0\0\0", 3);
     EXPECT_EQ(exp, b->data()->payload);
@@ -188,7 +188,7 @@ TEST_F(TestSpaceTest, read_hole)
     /// @todo this return seems to be wrong, although this address is out of
     /// the memory space limits.
     b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
-        NodeHandle(node_->node_id()), SPACE, arg1_ofs-5, 2);
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs - 5, 2);
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(string(), b->data()->payload);
 
@@ -221,13 +221,13 @@ TEST_F(TestSpaceTest, write_payload)
 TEST_F(TestSpaceTest, write_early)
 {
     auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
-        NodeHandle(node_->node_id()), SPACE, arg1_ofs-2, "xyzw");
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs - 2, "xyzw");
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ("zw", arg1);
     EXPECT_EQ(2u, arg1.size());
 
     b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
-        NodeHandle(node_->node_id()), SPACE, arg2_ofs-1, "qwert");
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs - 1, "qwert");
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ("wert", arg2);
     EXPECT_EQ(4u, arg2.size());
@@ -237,17 +237,134 @@ TEST_F(TestSpaceTest, write_early)
 TEST_F(TestSpaceTest, write_hole)
 {
     auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
-        NodeHandle(node_->node_id()), SPACE, arg2_ofs-5, "xyz");
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs - 5, "xyz");
     ASSERT_EQ(0, b->data()->resultCode);
 
     b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
-        NodeHandle(node_->node_id()), SPACE, arg1_ofs-5, "qw");
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs - 5, "qw");
     ASSERT_EQ(0, b->data()->resultCode);
 
     b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
-        NodeHandle(node_->node_id()), SPACE, arg2_ofs+100, "qw");
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 100, "qw");
     ASSERT_EQ(0, b->data()->resultCode);
 }
 
+class TestSpaceAsync : public VirtualMemorySpace
+{
+public:
+    TestSpaceAsync()
+    {
+        arg1.clear();
+        arg2.clear();
+        register_string(
+            cfg.first(), string_reader(&arg1), string_writer(&arg1));
+        register_string(
+            cfg.second(), string_reader(&arg2), string_writer(&arg2));
+    }
+
+    /// Creates a ReaderFunction that just returns a string from a given
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
+    std::function<bool(
+        unsigned repeat, string *contents, BarrierNotifiable *done)>
+    string_reader(string *ptr)
+    {
+        return [this, ptr](
+                   unsigned repeat, string *contents, BarrierNotifiable *done) {
+            attempt++;
+            if ((attempt & 1) == 0)
+            {
+                *contents = *ptr;
+                done->notify();
+                return true;
+            }
+            else
+            {
+                g_executor.add(
+                    new CallbackExecutable([done]() { done->notify(); }));
+                return false;
+            }
+        };
+    }
+
+    /// Creates a WriterFunction that just stores the data in a given string
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
+    std::function<void(
+        unsigned repeat, string contents, BarrierNotifiable *done)>
+    string_writer(string *ptr)
+    {
+        return [this, ptr](
+                   unsigned repeat, string contents, BarrierNotifiable *done) {
+            attempt++;
+            if ((attempt & 1) == 0)
+            {
+                *ptr = std::move(contents);
+                done->notify();
+                return true;
+            }
+            else
+            {
+                g_executor.add(
+                    new CallbackExecutable([done]() { done->notify(); }));
+                return false;
+            }
+        };
+    }
+
+private:
+    size_t attempt = 0;
+};
+
+class TestSpaceAsyncTest : public VirtualMemorySpaceTest
+{
+protected:
+    TestSpaceAsyncTest()
+    {
+        space_.reset(new TestSpaceAsync);
+        memCfg_.registry()->insert(node_, SPACE, space_.get());
+    }
+
+    /// Memory space number where the test space is registered.
+    const uint8_t SPACE = 0x52;
+};
+
+/// Basic tests reading variables from async space.
+TEST_F(TestSpaceAsyncTest, read_payload_async)
+{
+    arg1 = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs, 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("hello", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, 20);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("", b->data()->payload.c_str());
+    EXPECT_EQ(20u, b->data()->payload.size());
+}
+
+/// Basic tests writing variables from the exact offset but not including
+/// partial writes.
+TEST_F(TestSpaceAsyncTest, write_payload_async)
+{
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs, "xyzw");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("xyzw", arg1);
+    EXPECT_EQ(4u, arg1.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, "abcde");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("abcde", arg2);
+    EXPECT_EQ(5u, arg2.size());
+}
 
 } // namespace openlcb

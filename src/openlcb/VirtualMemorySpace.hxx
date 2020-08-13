@@ -107,13 +107,17 @@ public:
         size_t written_len = payload.size();
         bn_.reset(again);
         element->writeImpl_(repeat, std::move(payload), bn_.new_child());
-        if (!bn_.abort_if_almost_done())
+        if (bn_.abort_if_almost_done())
+        {
+            return written_len;
+        }
+        else
         {
             // did not succeed synchronously.
+            bn_.notify(); // our slice
             *error = MemorySpace::ERROR_AGAIN;
             return 0;
         }
-        return written_len;
     }
 
     /** @returns the number of bytes successfully read (before hitting end of
@@ -150,6 +154,7 @@ public:
         if (!bn_.abort_if_almost_done())
         {
             // did not succeed synchronously.
+            bn_.notify(); // our slice
             *error = MemorySpace::ERROR_AGAIN;
             return 0;
         }
@@ -193,8 +198,9 @@ protected:
     /// @param group is an instance of a group, for example a segment.
     template <class G> void expand_bounds_from_group(const G &group)
     {
-        minAddress_ = std::min(minAddress_, group.offset());
-        maxAddress_ = std::max(maxAddress_, group.offset() + group.size() - 1);
+        minAddress_ = std::min(minAddress_, (address_t)group.offset());
+        maxAddress_ = std::max(
+            maxAddress_, (address_t)(group.offset() + group.size() - 1));
     }
 
     /// Register an untyped element.
