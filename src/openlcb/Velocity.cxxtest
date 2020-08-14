@@ -245,6 +245,17 @@ TEST(NMRAnetVelocityTest, mph_negative)
     EXPECT_FLOAT_EQ((100.5F / 0.44704F), velocity->mph());
 }
 
+TEST(NMRAnetVelocityTest, mph_rounding)
+{
+    Velocity v;
+    for (int i = 0; i <= 126; i++)
+    {
+        v = Velocity::from_mph(i);
+        int rounded = v.mph();
+        EXPECT_EQ(i, rounded);
+    }
+}
+
 TEST(NMRAnetVelocityTest, get_dcc_128_forward)
 {
     Velocity *velocity = new Velocity(100.5F);
