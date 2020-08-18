@@ -227,6 +227,14 @@ protected:
         register_element(entry.offset(), SIZE, read_f, write_f);
     }
 
+    /// Registers a repeated group. Calling this function means that the
+    /// virtual memory space of the group will be looped onto the first
+    /// repetition. The correct usage is to register the elements of the first
+    /// repetition, then register the repetition itself using this call. Nested
+    /// repetitions are not supported (either the outer or the inner repetition
+    /// needs to be unrolled and registered for each repeat there).
+    /// @param group is the repeated group instance. Will take the start
+    /// offset, repeat count and repeat size from it.
     template <class Group, unsigned N>
     void register_repeat(const RepeatedGroup<Group, N> &group)
     {
@@ -269,6 +277,7 @@ private:
         ReadFunction readImpl_;
     };
 
+    /// STL-compatible comparator function for sorting DataElements.
     struct DataComparator
     {
         /// Sorting operator by address.
@@ -299,7 +308,8 @@ private:
         uint32_t end_;
     };
 
-    /// Comparator operator for RepeatElements.
+    /// STL-compatible comparator function for sorting RepeatElements. Sorts
+    /// repeats by the end_ as the key.
     struct RepeatComparator
     {
         /// Sorting operator by end address.
@@ -411,6 +421,7 @@ private:
         return len;
     }
 
+    /// Container type for storing the data elements.
     typedef SortedListSet<DataElement, DataComparator> ElementsType;
     /// Stores all the registered variables.
     ElementsType elements_;
