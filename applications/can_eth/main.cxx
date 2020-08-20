@@ -55,16 +55,16 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define VERSION "can_eth Vrs 0.1"
+#define VERSION "can_eth Vrs 0.2"
 
 // Uncomment this to enable the USB port as well.
-// #define SNIFF_ON_USB
+//#define SNIFF_ON_USB
 
-Executor<1> g_executor("g_executor", 0, 1024);
+Executor<1> g_executor("g_executor", 0, 2048);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
-OVERRIDE_CONST(gc_generate_newlines, 0);
+OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(can_tx_buffer_size, 8);
 OVERRIDE_CONST(can_rx_buffer_size, 8);
 OVERRIDE_CONST(serial_tx_buffer_size, 64);
@@ -88,11 +88,13 @@ int appl_main(int argc, char* argv[])
     HASSERT(serial_fd >= 0);
     printf(VERSION);
     printf(" started, listening on port %d\n",listen_port);
+    printf("FreeRTOS " tskKERNEL_VERSION_NUMBER "\n");
 
     GcTcpHub hub(&can_hub0,listen_port);
 
 #ifdef SNIFF_ON_USB    
-    int usb_fd = ::open("/dev/serUSB0", O_RDWR);
+    //int usb_fd = ::open("/dev/serUSB0", O_RDWR);
+    int usb_fd = ::open("/dev/ser0", O_RDWR);
     HASSERT(usb_fd >= 0);
     create_gc_port_for_can_hub(&can_hub0, usb_fd);
 #endif

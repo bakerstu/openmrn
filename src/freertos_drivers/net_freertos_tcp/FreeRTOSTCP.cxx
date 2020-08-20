@@ -43,6 +43,7 @@
 // FreeRTOSTCP includes
 #include "FreeRTOS_IP.h"
 #include "FreeRTOS_Sockets.h"
+#include "FreeRTOS_DHCP.h"
 
 #include "FreeRTOSTCP.hxx"
 #include "FreeRTOSTCPSocket.hxx"
@@ -67,7 +68,7 @@ extern "C" void vApplicationIPNetworkEventHook(
 extern "C" BaseType_t xApplicationGetRandomNumber(uint32_t* pulNumber)
 {
     *pulNumber = rand();
-    return(pdFALSE);
+    return(pdTRUE);
 }
 
 /// Called to generate next sequene number for connection
@@ -88,6 +89,12 @@ extern "C" uint32_t ulApplicationGetNextSequenceNumber(
     (void) usDestinationPort;
     return rand();
 }
+
+#if (ipconfigUSE_DHCP_HOOK != 0)
+extern "C" eDHCPCallbackAnswer_t xApplicationDHCPHook(
+    eDHCPCallbackPhase_t eDHCPPhase,
+    uint32_t ulIPAddress);
+#endif
 
 /*
  * FreeRTOSTCP::FreeRTOSTCP()
@@ -287,5 +294,44 @@ void FreeRTOSTCP::fd_set_write(Socket_t socket)
 
 extern "C" void vApplicationIPNetworkEventHook(eIPCallbackEvent_t eNetworkEvent)
 {
+    uint32_t ulIPAddress, ulNetMask, ulGateway, ulDNS;
+    char cBuffer[16];
+    if (eNetworkEvent == eNetworkUp)
+    {
+        printf("Network up\n");
+        FreeRTOS_GetAddressConfiguration(&ulIPAddress, &ulNetMask, &ulGateway, &ulDNS);
+        FreeRTOS_inet_ntoa(ulIPAddress, cBuffer);
+        printf("IP Address: %s\n",cBuffer);
+        FreeRTOS_inet_ntoa(ulNetMask, cBuffer);
+        printf("NetMask: %s\n",cBuffer);
+        FreeRTOS_inet_ntoa(ulGateway, cBuffer);
+        printf("Gateway: %s\n", cBuffer);
+        FreeRTOS_inet_ntoa(ulDNS, cBuffer);
+        printf("DNS: %s\n", cBuffer);
+    } else
+    if (eNetworkEvent == eNetworkDown)
+    {
+        printf("Network down\n");
+    }
+    
     return;
 }
+
+#if (ipconfigUSE_DHCP_HOOK != 0)
+extern "C" eDHCPCallbackAnswer_t xApplicationDHCPHook(
+    eDHCPCallbackPhase_t eDHCPPhase,
+    uint32_t ulIPAddress)
+{
+    eDHCPCallbackAnswer_t xResult = eDHCPContinue;
+    switch (eDHCPPhase)
+    {
+        case eDHCPPhasePreRequest:
+            printf("DHCP PreRequest\n");
+            break;
+        case eDHCPPhasePreDiscover:
+            printf("DHCP PreDiscover\n");
+            break;
+    }
+    return xResult;
+}
+#endif

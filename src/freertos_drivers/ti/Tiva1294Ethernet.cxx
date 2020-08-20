@@ -41,6 +41,7 @@
 #include <stdint.h>
 #include <new>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -181,6 +182,11 @@ bool network_layer_preinit(void)
     uint8_t MACAddr[6];
 
     get_mac_address(MACAddr);
+
+    srand(0x1234);
+    rand();
+    rand();
+
 
     if (FreeRTOS_IPInit(IPAddr, NetMask, Gateway, DNSAddr, MACAddr) != pdPASS)
     {

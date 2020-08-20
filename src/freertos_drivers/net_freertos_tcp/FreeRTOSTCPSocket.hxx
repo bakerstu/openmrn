@@ -40,8 +40,12 @@
 
 class FreeRTOSTCP;
 
+#if ((tskKERNEL_VERSION_MAJOR > 10) || ((tskKERNEL_VERSION_MAJOR == 10) && (tskKERNEL_VERSION_MINOR >= 3)))
 struct xSOCKET;
 typedef xSOCKET *Socket_t;
+#else
+typedef void *Socket_t;
+#endif
 
 static const int MAX_SOCKETS = 20;
 

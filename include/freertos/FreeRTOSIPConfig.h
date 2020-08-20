@@ -21,7 +21,7 @@
 
 #define ipconfigNETWORK_MTU     						1526
 #define ipconfigPACKET_FILLER_SIZE						0
-#define ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS			15
+#define ipconfigNUM_NETWORK_BUFFER_DESCRIPTORS			30
 #define ipconfigUSE_LINKED_RX_MESSAGES					0
 
 // TCP specific
@@ -39,6 +39,7 @@
 
 // DHCP
 #define ipconfigUSE_DHCP								1
+#define ipconfigUSE_DHCP_HOOK                           0
 
 // Callback hooks
 #define ipconfigUSE_NETWORK_EVENT_HOOK					1
