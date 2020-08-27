@@ -49,6 +49,7 @@ CDI_GROUP_ENTRY(skipped, EmptyGroup<5>);
 CDI_GROUP_ENTRY(first, StringConfigEntry<13>);
 CDI_GROUP_ENTRY(skipped2, EmptyGroup<8>);
 CDI_GROUP_ENTRY(second, StringConfigEntry<20>);
+CDI_GROUP_ENTRY(skipped3, EmptyGroup<8>);
 CDI_GROUP_END();
 
 ExampleMemorySpace cfg(44);
@@ -365,6 +366,209 @@ TEST_F(TestSpaceAsyncTest, write_payload_async)
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ("abcde", arg2);
     EXPECT_EQ(5u, arg2.size());
+}
+
+CDI_GROUP(RepeatMemoryDef);
+CDI_GROUP_ENTRY(skipped, EmptyGroup<5>);
+CDI_GROUP_ENTRY(before, StringConfigEntry<13>);
+CDI_GROUP_ENTRY(skipped2, EmptyGroup<8>);
+using GroupRept = RepeatedGroup<ExampleMemorySpace, 3>;
+CDI_GROUP_ENTRY(grp, GroupRept);
+CDI_GROUP_ENTRY(skipped3, EmptyGroup<8>);
+CDI_GROUP_ENTRY(after, StringConfigEntry<20>);
+CDI_GROUP_END();
+
+RepeatMemoryDef spacerept(22);
+
+class SpaceWithRepeat : public VirtualMemorySpace
+{
+public:
+    SpaceWithRepeat()
+    {
+        arg1.clear();
+        arg2.clear();
+        register_string(spacerept.grp().entry<0>().first(),
+            string_reader(&arg1), string_writer(&arg1));
+        register_string(spacerept.grp().entry<0>().second(),
+            string_reader(&arg2), string_writer(&arg2));
+        register_string(spacerept.before(), string_reader(&before_),
+            string_writer(&before_));
+        register_string(
+            spacerept.after(), string_reader(&after_), string_writer(&after_));
+        register_repeat(spacerept.grp());
+    }
+
+    /// Creates a ReaderFunction that just returns a string from a given
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
+    std::function<bool(
+        unsigned repeat, string *contents, BarrierNotifiable *done)>
+    string_reader(string *ptr)
+    {
+        return [this, ptr](
+                   unsigned repeat, string *contents, BarrierNotifiable *done) {
+            lastRepeat_ = repeat;
+            *contents = *ptr;
+            done->notify();
+            return true;
+        };
+    }
+
+    /// Creates a WriterFunction that just stores the data in a given string
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
+    std::function<void(
+        unsigned repeat, string contents, BarrierNotifiable *done)>
+    string_writer(string *ptr)
+    {
+        return [this, ptr](
+                   unsigned repeat, string contents, BarrierNotifiable *done) {
+            lastRepeat_ = repeat;
+            *ptr = std::move(contents);
+            done->notify();
+        };
+    }
+
+    /// Saves the last repeat variable into this value.
+    unsigned lastRepeat_;
+    /// Storage variable for a field.
+    string before_;
+    /// Storage variable for a field.
+    string after_;
+};
+
+class ReptSpaceTest : public VirtualMemorySpaceTest
+{
+protected:
+    ReptSpaceTest()
+    {
+        memCfg_.registry()->insert(node_, SPACE, &s_);
+    }
+
+    /// Memory space number where the test space is registered.
+    const uint8_t SPACE = 0x52;
+    SpaceWithRepeat s_;
+};
+
+TEST_F(ReptSpaceTest, create)
+{
+}
+
+// Looks for a field that is before the repeated group.
+TEST_F(ReptSpaceTest, before)
+{
+    s_.before_ = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, spacerept.before().offset(), 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("hello", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+    EXPECT_EQ(0u, s_.lastRepeat_);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, spacerept.before().offset() - 2,
+        5);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0hel", 5), b->data()->payload);
+    EXPECT_EQ(0u, s_.lastRepeat_);
+}
+
+// Looks for a field in the first repetition of the group.
+TEST_F(ReptSpaceTest, first_repeat)
+{
+    arg1 = "world";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<0>().first().offset(), 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("world", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+    EXPECT_EQ(0u, s_.lastRepeat_);
+
+    // Start offset within the group.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<0>().first().offset() - 2, 5);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0wor", 5), b->data()->payload);
+    EXPECT_EQ(0u, s_.lastRepeat_);
+
+    // Start offset _before_ the group.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<0>().first().offset() - 7, 10);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0\0\0\0\0\0wor", 10), b->data()->payload);
+    EXPECT_EQ(0u, s_.lastRepeat_);
+
+    arg2 = "ahoi";
+    // Second field, exact match
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<0>().second().offset(), 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("ahoi", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+    EXPECT_EQ(0u, s_.lastRepeat_);
+
+    // Second field, before match
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<0>().second().offset() - 2, 5);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0aho", 5), b->data()->payload);
+    EXPECT_EQ(0u, s_.lastRepeat_);
+}
+
+// Looks for a field in the first repetition of the group.
+TEST_F(ReptSpaceTest, mid_repeat)
+{
+    arg1 = "world";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<2>().first().offset(), 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("world", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+    EXPECT_EQ(2u, s_.lastRepeat_);
+
+    // Start offset within the group.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<2>().first().offset() - 2, 5);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0wor", 5), b->data()->payload);
+    EXPECT_EQ(2u, s_.lastRepeat_);
+
+    // Start offset in the previous group repeat.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<2>().first().offset() - 7, 10);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0\0\0\0\0\0wor", 10), b->data()->payload);
+    EXPECT_EQ(2u, s_.lastRepeat_);
+
+    arg2 = "ahoi";
+    // Second field, exact match
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<2>().second().offset(), 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("ahoi", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+    EXPECT_EQ(2u, s_.lastRepeat_);
+
+    // Second field, before match
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<2>().second().offset() - 2, 5);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0aho", 5), b->data()->payload);
+    EXPECT_EQ(2u, s_.lastRepeat_);
 }
 
 } // namespace openlcb

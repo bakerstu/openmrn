@@ -37,6 +37,7 @@
 #define _OPENLCB_VIRTUALMEMORYSPACE_HXX
 
 #include "openlcb/ConfigEntry.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "utils/SortedListMap.hxx"
 
@@ -226,6 +227,25 @@ protected:
         register_element(entry.offset(), SIZE, read_f, write_f);
     }
 
+    /// Registers a repeated group. Calling this function means that the
+    /// virtual memory space of the group will be looped onto the first
+    /// repetition. The correct usage is to register the elements of the first
+    /// repetition, then register the repetition itself using this call. Nested
+    /// repetitions are not supported (either the outer or the inner repetition
+    /// needs to be unrolled and registered for each repeat there).
+    /// @param group is the repeated group instance. Will take the start
+    /// offset, repeat count and repeat size from it.
+    template <class Group, unsigned N>
+    void register_repeat(const RepeatedGroup<Group, N> &group)
+    {
+        RepeatElement re;
+        re.start_ = group.offset();
+        re.end_ = group.end_offset();
+        re.repeatSize_ = Group::size();
+        HASSERT(re.repeatSize_ * N == re.end_ - re.start_);
+        repeats_.insert(std::move(re));
+    }
+
     /// Bounds for valid addresses.
     address_t minAddress_ = 0xFFFFFFFFu;
     /// Bounds for valid addresses.  A read of length 1 from this address
@@ -257,7 +277,8 @@ private:
         ReadFunction readImpl_;
     };
 
-    struct Comparator
+    /// STL-compatible comparator function for sorting DataElements.
+    struct DataComparator
     {
         /// Sorting operator by address.
         bool operator()(const DataElement &a, const DataElement &b) const
@@ -268,6 +289,38 @@ private:
         bool operator()(unsigned a, const DataElement &b) const
         {
             return a < b.address_;
+        }
+        /// Sorting operator by address.
+        bool operator()(const DataElement &a, unsigned b) const
+        {
+            return a.address_ < b;
+        }
+    };
+
+    /// Represents a repeated group.
+    struct RepeatElement
+    {
+        /// Offset of the repeated group (first repeat).
+        uint32_t start_;
+        /// Address bytes per repeat.
+        uint32_t repeatSize_;
+        /// Address byte after the last repeat.
+        uint32_t end_;
+    };
+
+    /// STL-compatible comparator function for sorting RepeatElements. Sorts
+    /// repeats by the end_ as the key.
+    struct RepeatComparator
+    {
+        /// Sorting operator by end address.
+        bool operator()(const RepeatElement &a, const RepeatElement &b) const
+        {
+            return a.end_ < b.end_;
+        }
+        /// Sorting operator by end address against a lookup key.
+        bool operator()(uint32_t a, const RepeatElement &b) const
+        {
+            return a < b.end_;
         }
     };
 
@@ -291,35 +344,86 @@ private:
     {
         *repeat = 0;
         *ptr = nullptr;
-        auto it = elements_.upper_bound(address);
-        if (it != elements_.begin())
+        bool in_repeat = false;
+        address_t original_address = address;
+        ElementsType::iterator b = elements_.begin();
+        ElementsType::iterator e = elements_.end();
+        // Align in the known repetitions first.
+        auto rit = repeats_.upper_bound(address);
+        if (rit == repeats_.end())
         {
-            auto pit = it - 1;
-            // now: pit->address_ <= address
-            if (pit->address_ + pit->size_ > address)
+            // not a repeat.
+        }
+        else
+        {
+            if (rit->start_ <= address && rit->end_ > address)
             {
-                // found overlap
-                *ptr = &*pit;
-                return (ssize_t)pit->address_ -
-                    (ssize_t)address; // may be negative!
+                // we are in the repeat.
+                unsigned cnt = (address - rit->start_) / rit->repeatSize_;
+                *repeat = cnt;
+                // re-aligns address to the first repetition.
+                address -= cnt * rit->repeatSize_;
+                in_repeat = true;
+                b = elements_.lower_bound(rit->start_);
+                e = elements_.lower_bound(rit->start_ + rit->repeatSize_);
             }
-            // else: no overlap, look at the next item
         }
-        // now: it->address_ > address
-        if (address + len > it->address_)
+
+        for (int is_repeat = 0; is_repeat <= 1; ++is_repeat)
         {
-            // found overlap, but some data needs to be discarded.
-            *ptr = &*it;
-            return it->address_ - address;
+            auto it = std::upper_bound(b, e, address, DataComparator());
+            if (it != elements_.begin())
+            {
+                auto pit = it - 1;
+                // now: pit->address_ <= address
+                if (pit->address_ + pit->size_ > address)
+                {
+                    // found overlap
+                    *ptr = &*pit;
+                    return (ssize_t)pit->address_ -
+                        (ssize_t)address; // may be negative!
+                }
+                // else: no overlap, look at the next item
+            }
+            // now: it->address_ > address
+            if (address + len > it->address_)
+            {
+                // found overlap, but some data needs to be discarded.
+                *ptr = &*it;
+                return it->address_ - address;
+            }
+
+            if (in_repeat)
+            {
+                // We might be too close to the end of a repetition, we will
+                // try with the next repeat instead.
+                address -= rit->repeatSize_;
+                *repeat += 1;
+                if (original_address + rit->repeatSize_ >= rit->end_)
+                {
+                    // We ran out of repeats. Look at the range beyond the
+                    // group instead.
+                    b = elements_.lower_bound(rit->end_);
+                    e = elements_.end();
+                    *repeat = 0;
+                }
+            }
+            else
+            {
+                break;
+            }
         }
-        /// @todo try repeated fields here first.
 
         // now: no overlap either before or after.
         return len;
     }
 
+    /// Container type for storing the data elements.
+    typedef SortedListSet<DataElement, DataComparator> ElementsType;
     /// Stores all the registered variables.
-    SortedListSet<DataElement, Comparator> elements_;
+    ElementsType elements_;
+    /// Stores all the registered variables.
+    SortedListSet<RepeatElement, RepeatComparator> repeats_;
     /// Helper object in the function calls.
     BarrierNotifiable bn_;
 }; // class VirtualMemorySpace
