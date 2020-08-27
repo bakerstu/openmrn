@@ -353,14 +353,11 @@ private:
         if (rit == repeats_.end())
         {
             // not a repeat.
-            // LOG(INFO, "not a repeat");
         }
         else
         {
-            // LOG(INFO, "have rept it");
             if (rit->start_ <= address && rit->end_ > address)
             {
-                // LOG(INFO, "in rept");
                 // we are in the repeat.
                 unsigned cnt = (address - rit->start_) / rit->repeatSize_;
                 *repeat = cnt;
