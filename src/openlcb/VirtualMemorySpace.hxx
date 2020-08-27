@@ -79,7 +79,7 @@ public:
     size_t write(address_t destination, const uint8_t *data, size_t len,
         errorcode_t *error, Notifiable *again) override
     {
-        if (destination > maxAddress_ || destination + len <= minAddress_)
+        if ((destination > maxAddress_) || ((destination + len) <= minAddress_))
         {
             *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             return 0;
@@ -129,7 +129,7 @@ public:
     size_t read(address_t source, uint8_t *dst, size_t len, errorcode_t *error,
         Notifiable *again) override
     {
-        if (source > maxAddress_ || source + len <= minAddress_)
+        if ((source > maxAddress_) || ((source + len) <= minAddress_))
         {
             *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             return 0;
