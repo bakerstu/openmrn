@@ -181,11 +181,20 @@ protected:
     /// @param contents the payload to be returned from this variable shall
     /// be written here. Will be zero-padded to size_ bytes if shorter.
     /// @param done must be notified when the read values are ready. The
-    /// call will be re-tried in this case.
-    /// @return true if the read was successful, false if the read needs to be
-    /// re-tried later,
-    using ReadFunction = std::function<bool(
+    /// call will be re-tried if this does not happen inline.
+    using ReadFunction = std::function<void(
         unsigned repeat, string *contents, BarrierNotifiable *done)>;
+
+    /// Typed WriteFunction for primitive types.
+    template <typename T>
+    using TypedWriteFunction = typename std::function<void(
+        unsigned repeat, T contents, BarrierNotifiable *done)>;
+
+    /// Typed ReadFunction for primitive types. @return the read value if the
+    /// read was successful. If the read did not complete, return 0.
+    template <typename T>
+    using TypedReadFunction = typename std::function<T (
+        unsigned repeat, BarrierNotifiable *done)>;
 
     /// Setup the address bounds from a single CDI group declaration.
     /// @param group is an instance of a group, for example a segment.
@@ -225,6 +234,35 @@ protected:
     {
         expand_bounds_from_group(entry);
         register_element(entry.offset(), SIZE, read_f, write_f);
+    }
+
+    /// Registers a numeric typed element.
+    /// @param T is the type argument, e.g. uint8_t.
+    /// @param entry is the CDI ConfigRepresentation.
+    /// @param read_f will be called to read this data
+    /// @param write_f will be called to write this data
+    template <typename T>
+    void register_numeric(const NumericConfigEntry<T> &entry,
+        TypedReadFunction<T> read_f, TypedWriteFunction<T> write_f)
+    {
+        expand_bounds_from_group(entry);
+        auto trf = [read_f](unsigned repeat, string *contents,
+                       BarrierNotifiable *done) {
+            T result = read_f(repeat, done);
+            contents->clear();
+            contents->resize(sizeof(T));
+            *((T *)&((*contents)[0])) =
+                NumericConfigEntry<T>::endian_convert(result);
+        };
+        auto twf = [write_f](unsigned repeat, string contents,
+                       BarrierNotifiable *done) {
+            contents.resize(sizeof(T));
+            T result = NumericConfigEntry<T>::endian_convert(
+                *(const T *)contents.data());
+            write_f(repeat, result, done);
+        };
+        register_element(
+            entry.offset(), entry.size(), std::move(trf), std::move(twf));
     }
 
     /// Registers a repeated group. Calling this function means that the
