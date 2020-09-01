@@ -42,6 +42,8 @@
 #include "os/os.h"
 #include "utils/constants.hxx"
 #include "utils/Hub.hxx"
+#include "utils/HubDeviceSelect.hxx"
+#include "utils/SocketCan.hxx"
 #include "utils/GcTcpHub.hxx"
 #include "utils/ClientConnection.hxx"
 #include "executor/Executor.hxx"
@@ -64,6 +66,7 @@ bool timestamped = false;
 bool export_mdns = false;
 const char* mdns_name = "openmrn_hub";
 bool printpackets = false;
+const char* socketcan_port = nullptr;
 
 void usage(const char *e)
 {
@@ -100,7 +103,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:u:q:tlmn:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:d:u:q:tlmn:s:")) >= 0)
     {
         switch (opt)
         {
@@ -132,6 +135,11 @@ void parse_args(int argc, char *argv[])
             case 'l':
                 printpackets = true;
                 break;
+#if defined(__linux__)                
+            case 's':
+                socketcan_port = optarg;
+                break;
+#endif                
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
                 usage(argv[0]);
@@ -160,9 +168,25 @@ int appl_main(int argc, char *argv[])
     void mdns_client_start();
     void mdns_publish(const char *name, uint16_t port);
 
-    if (export_mdns) {
+    if (export_mdns)
+    {
         mdns_client_start();
         mdns_publish(mdns_name, port);
+    }
+#endif
+#if defined(__linux__)    
+    if (socketcan_port)
+    {
+        int s = socketcan_open(socketcan_port, 1);
+        if (s >= 0)
+        {
+            new HubDeviceSelect<CanHubFlow>(&can_hub0, s);
+            fprintf(stderr, "Opened SocketCan %s: fd %d\n", socketcan_port, s);
+        }
+        else
+        {
+            fprintf(stderr, "Failed to open SocketCan %s.\n", socketcan_port);
+        }
     }
 #endif
     

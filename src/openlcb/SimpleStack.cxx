@@ -41,11 +41,6 @@
 #include <net/if.h>
 #include <termios.h> /* tc* functions */
 #endif
-#if defined(__linux__)
-#include "utils/HubDeviceSelect.hxx"
-#include <linux/sockios.h>
-#include <sys/ioctl.h>
-#endif
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -57,6 +52,8 @@
 #include "openlcb/EventHandler.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
 #include "openlcb/SimpleNodeInfo.hxx"
+#include "utils/HubDeviceSelect.hxx"
+#include "utils/SocketCan.hxx"
 
 namespace openlcb
 {
@@ -419,35 +416,12 @@ void SimpleCanStackBase::add_gridconnect_tty(
 void SimpleCanStackBase::add_socketcan_port_select(
     const char *device, int loopback)
 {
-    int s;
-    struct sockaddr_can addr;
-    struct ifreq ifr;
-
-    s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
-
-    // Set the blocking limit to the minimum allowed, typically 1024 in Linux
-    int sndbuf = 0;
-    setsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
-
-    // turn on/off loopback
-    setsockopt(s, SOL_CAN_RAW, CAN_RAW_LOOPBACK, &loopback, sizeof(loopback));
-
-    // setup error notifications
-    can_err_mask_t err_mask = CAN_ERR_TX_TIMEOUT | CAN_ERR_LOSTARB |
-        CAN_ERR_CRTL | CAN_ERR_PROT | CAN_ERR_TRX | CAN_ERR_ACK |
-        CAN_ERR_BUSOFF | CAN_ERR_BUSERROR | CAN_ERR_RESTARTED;
-    setsockopt(s, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask));
-    strcpy(ifr.ifr_name, device);
-
-    ::ioctl(s, SIOCGIFINDEX, &ifr);
-
-    addr.can_family = AF_CAN;
-    addr.can_ifindex = ifr.ifr_ifindex;
-
-    bind(s, (struct sockaddr *)&addr, sizeof(addr));
-
-    auto *port = new HubDeviceSelect<CanHubFlow>(can_hub(), s);
-    additionalComponents_.emplace_back(port);
+    int s = socketcan_open(device, loopback);
+    if (s >= 0)
+    {
+        auto *port = new HubDeviceSelect<CanHubFlow>(can_hub(), s);
+        additionalComponents_.emplace_back(port);
+    }
 }
 #endif
 extern Pool *const __attribute__((__weak__)) g_incoming_datagram_allocator =
