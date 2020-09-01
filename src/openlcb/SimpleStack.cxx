@@ -48,10 +48,10 @@
 
 #include "openlcb/SimpleStack.hxx"
 
-#include "openmrn_features.h"
 #include "openlcb/EventHandler.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
 #include "openlcb/SimpleNodeInfo.hxx"
+#include "openmrn_features.h"
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/SocketCan.hxx"
 

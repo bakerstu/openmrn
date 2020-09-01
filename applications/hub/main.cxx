@@ -39,15 +39,15 @@
 
 #include <memory>
 
+#include "executor/Executor.hxx"
+#include "executor/Service.hxx"
 #include "os/os.h"
-#include "utils/constants.hxx"
+#include "utils/ClientConnection.hxx"
+#include "utils/GcTcpHub.hxx"
 #include "utils/Hub.hxx"
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/SocketCan.hxx"
-#include "utils/GcTcpHub.hxx"
-#include "utils/ClientConnection.hxx"
-#include "executor/Executor.hxx"
-#include "executor/Service.hxx"
+#include "utils/constants.hxx"
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
