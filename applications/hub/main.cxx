@@ -71,7 +71,11 @@ const char *socketcan_port = nullptr;
 void usage(const char *e)
 {
     fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-u upstream_host] "
-                    "[-q upstream_port] [-m] [-n mdns_name] [-t] [-l]\n\n",
+                    "[-q upstream_port] [-m] [-n mdns_name] "
+#if defined(__linux__)
+            "[-s socketcan_interface] "
+#endif            
+            "[-t] [-l]\n\n",
             e);
     fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
                     "reads CAN packets from the incoming connections using "
@@ -87,6 +91,10 @@ void usage(const char *e)
                     "hub.\n");
     fprintf(stderr,
             "\t-q upstream_port   is the port number for the upstream hub.\n");
+#if defined(__linux__)
+    fprintf(stderr,
+            "\t-s can0   adds the SocketCan interface 'can0' to the hub.\n");
+#endif    
     fprintf(stderr,
             "\t-t prints timestamps for each packet.\n");
     fprintf(stderr,
