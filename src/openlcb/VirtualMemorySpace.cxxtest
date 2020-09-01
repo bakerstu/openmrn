@@ -250,6 +250,28 @@ TEST_F(TestSpaceTest, write_hole)
     ASSERT_EQ(0, b->data()->resultCode);
 }
 
+CDI_GROUP(NumericGroup);
+CDI_GROUP_ENTRY(skipped, EmptyGroup<5>);
+CDI_GROUP_ENTRY(first, Uint32ConfigEntry);
+CDI_GROUP_ENTRY(second, Int16ConfigEntry);
+CDI_GROUP_ENTRY(third, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(skipped2, EmptyGroup<8>);
+CDI_GROUP_END();
+
+CDI_GROUP(NumericMemorySpace);
+CDI_GROUP_ENTRY(skipped, EmptyGroup<5>);
+CDI_GROUP_ENTRY(first, StringConfigEntry<13>);
+CDI_GROUP_ENTRY(skipped2, EmptyGroup<8>);
+CDI_GROUP_ENTRY(second, StringConfigEntry<20>);
+CDI_GROUP_ENTRY(skipped3, EmptyGroup<8>);
+CDI_GROUP_ENTRY(outer_before, Uint32ConfigEntry);
+using RG = RepeatedGroup<NumericGroup, 5>;
+CDI_GROUP_ENTRY(grp, RG);
+CDI_GROUP_ENTRY(outer_after, Uint32ConfigEntry);
+CDI_GROUP_END();
+
+NumericMemorySpace ncfg(44);
+
 class TestSpaceAsync : public VirtualMemorySpace
 {
 public:
@@ -258,9 +280,20 @@ public:
         arg1.clear();
         arg2.clear();
         register_string(
-            cfg.first(), string_reader(&arg1), string_writer(&arg1));
+            ncfg.first(), string_reader(&arg1), string_writer(&arg1));
         register_string(
-            cfg.second(), string_reader(&arg2), string_writer(&arg2));
+            ncfg.second(), string_reader(&arg2), string_writer(&arg2));
+        register_numeric(ncfg.outer_before(), typed_reader(&rnBefore_),
+            typed_writer(&rnBefore_));
+        register_numeric(ncfg.outer_after(), typed_reader(&rnAfter_),
+            typed_writer(&rnAfter_));
+        register_numeric(ncfg.grp().entry(0).first(), typed_reader(&rnFirst_),
+            typed_writer(&rnFirst_));
+        register_numeric(ncfg.grp().entry(0).second(), typed_reader(&rnSecond_),
+            typed_writer(&rnSecond_));
+        register_numeric(ncfg.grp().entry(0).third(), typed_reader(&rnThird_),
+            typed_writer(&rnThird_));
+        register_repeat(ncfg.grp());
     }
 
     /// Creates a ReaderFunction that just returns a string from a given
@@ -275,6 +308,7 @@ public:
         return [this, ptr](
                    unsigned repeat, string *contents, BarrierNotifiable *done) {
             attempt++;
+            lastRepeat_ = repeat;
             if ((attempt & 1) == 0)
             {
                 *contents = *ptr;
@@ -290,11 +324,37 @@ public:
         };
     }
 
+    /// Creates a TypedReaderFunction that just returns a value from a given
+    /// variable.
+    /// @param ptr the variable whose contents to return as read value. Must
+    /// stay alive as long as the function is in use.
+    /// @return the TypedReaderFunction.
+    template <typename T>
+    typename std::function<T(unsigned repeat, BarrierNotifiable *done)>
+    typed_reader(T *ptr)
+    {
+        return [this, ptr](unsigned repeat, BarrierNotifiable *done) {
+            attempt++;
+            lastRepeat_ = repeat;
+            if ((attempt & 1) == 0)
+            {
+                done->notify();
+                return *ptr;
+            }
+            else
+            {
+                g_executor.add(
+                    new CallbackExecutable([done]() { done->notify(); }));
+                return T();
+            }
+        };
+    }
+
     /// Creates a WriterFunction that just stores the data in a given string
     /// variable.
-    /// @param ptr the string whose contents to return as read value. Must stay
-    /// alive as long as the function is in use.
-    /// @return the ReaderFunction.
+    /// @param ptr the variable where to store the contents. Must stay alive as
+    /// long as the function is in use.
+    /// @return the WriterFunction.
     std::function<void(
         unsigned repeat, string contents, BarrierNotifiable *done)>
     string_writer(string *ptr)
@@ -302,6 +362,7 @@ public:
         return [this, ptr](
                    unsigned repeat, string contents, BarrierNotifiable *done) {
             attempt++;
+            lastRepeat_ = repeat;
             if ((attempt & 1) == 0)
             {
                 *ptr = std::move(contents);
@@ -317,6 +378,46 @@ public:
         };
     }
 
+    /// Creates a TypedWriterFunction that just stores the data in a given
+    /// variable.
+    /// @param ptr the variable where to store the contents. Must stay alive as
+    /// long as the function is in use.
+    /// @return the TypedWriterFunction.
+    template <typename T>
+    std::function<void(unsigned repeat, T contents, BarrierNotifiable *done)>
+    typed_writer(T *ptr)
+    {
+        return
+            [this, ptr](unsigned repeat, T contents, BarrierNotifiable *done) {
+                attempt++;
+                lastRepeat_ = repeat;
+                if ((attempt & 1) == 0)
+                {
+                    *ptr = std::move(contents);
+                    done->notify();
+                }
+                else
+                {
+                    g_executor.add(
+                        new CallbackExecutable([done]() { done->notify(); }));
+                }
+            };
+    }
+
+    /// Stores the last invoked repetition number.
+    unsigned lastRepeat_ = 0;
+    /// Shadow for NumericGroup.first.
+    uint32_t rnFirst_ = 0;
+    /// Shadow for NumericGroup.second.
+    int16_t rnSecond_ = 0;
+    /// Shadow for NumericGroup.third.
+    uint8_t rnThird_ = 0;
+
+    /// Shadow for NUmericMemorySpace.before.
+    uint32_t rnBefore_ = 0;
+    /// Shadow for NUmericMemorySpace.after.
+    uint32_t rnAfter_ = 0;
+
 private:
     size_t attempt = 0;
 };
@@ -326,10 +427,11 @@ class TestSpaceAsyncTest : public VirtualMemorySpaceTest
 protected:
     TestSpaceAsyncTest()
     {
-        space_.reset(new TestSpaceAsync);
+        space_.reset(tspace_);
         memCfg_.registry()->insert(node_, SPACE, space_.get());
     }
 
+    TestSpaceAsync *tspace_ = new TestSpaceAsync;
     /// Memory space number where the test space is registered.
     const uint8_t SPACE = 0x52;
 };
@@ -366,6 +468,93 @@ TEST_F(TestSpaceAsyncTest, write_payload_async)
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ("abcde", arg2);
     EXPECT_EQ(5u, arg2.size());
+}
+
+/// Tests reading and writing numeric variables with endianness.
+TEST_F(TestSpaceAsyncTest, rw_numeric_async)
+{
+    string u32payload;
+    u32payload.push_back(0xAA);
+    u32payload.push_back(2);
+    u32payload.push_back(3);
+    u32payload.push_back(4);
+
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, ncfg.outer_before().offset(),
+        u32payload);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0xAA020304u, tspace_->rnBefore_);
+
+    tspace_->rnBefore_ = 0xbb554433;
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, ncfg.outer_before().offset(), 4);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ((char)0xbb, b->data()->payload[0]);
+    EXPECT_EQ(0x55, b->data()->payload[1]);
+    EXPECT_EQ(0x44, b->data()->payload[2]);
+    EXPECT_EQ(0x33, b->data()->payload[3]);
+}
+
+/// Tests variable after repeted group.
+TEST_F(TestSpaceAsyncTest, rw_numeric_after_repeat)
+{
+    string u32payload;
+    u32payload.push_back(0xAA);
+    u32payload.push_back(2);
+    u32payload.push_back(3);
+    u32payload.push_back(4);
+
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, ncfg.outer_after().offset(),
+        u32payload);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0xAA020304u, tspace_->rnAfter_);
+
+    tspace_->rnAfter_ = 0xbb554433;
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, ncfg.outer_after().offset(), 4);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ((char)0xbb, b->data()->payload[0]);
+    EXPECT_EQ(0x55, b->data()->payload[1]);
+    EXPECT_EQ(0x44, b->data()->payload[2]);
+    EXPECT_EQ(0x33, b->data()->payload[3]);
+}
+
+/// Tests reading and writing numeric variables with endianness from repetitions.
+TEST_F(TestSpaceAsyncTest, rw_numeric_repeat)
+{
+    string u32payload;
+    u32payload.push_back(0xAA);
+    u32payload.push_back(2);
+    u32payload.push_back(3);
+    u32payload.push_back(4);
+
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE,
+        ncfg.grp().entry(3).first().offset(), u32payload);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(3u, tspace_->lastRepeat_);
+    EXPECT_EQ(0xAA020304u, tspace_->rnFirst_);
+
+    tspace_->rnSecond_ = -2;
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        ncfg.grp().entry(4).second().offset(), 2);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(4u, tspace_->lastRepeat_);
+    ASSERT_EQ(2u, b->data()->payload.size());
+    EXPECT_EQ((char)0xFF, b->data()->payload[0]);
+    EXPECT_EQ((char)0xFE, b->data()->payload[1]);
+
+    tspace_->rnSecond_ = 55;
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        ncfg.grp().entry(0).second().offset(), 2);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0u, tspace_->lastRepeat_);
+    ASSERT_EQ(2u, b->data()->payload.size());
+    EXPECT_EQ((char)0, b->data()->payload[0]);
+    EXPECT_EQ((char)55, b->data()->payload[1]);
 }
 
 CDI_GROUP(RepeatMemoryDef);
