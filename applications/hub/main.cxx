@@ -66,7 +66,7 @@ bool timestamped = false;
 bool export_mdns = false;
 const char* mdns_name = "openmrn_hub";
 bool printpackets = false;
-const char* socketcan_port = nullptr;
+const char *socketcan_port = nullptr;
 
 void usage(const char *e)
 {
@@ -135,11 +135,11 @@ void parse_args(int argc, char *argv[])
             case 'l':
                 printpackets = true;
                 break;
-#if defined(__linux__)                
+#if defined(__linux__)
             case 's':
                 socketcan_port = optarg;
                 break;
-#endif                
+#endif
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
                 usage(argv[0]);
@@ -174,7 +174,7 @@ int appl_main(int argc, char *argv[])
         mdns_publish(mdns_name, port);
     }
 #endif
-#if defined(__linux__)    
+#if defined(__linux__)
     if (socketcan_port)
     {
         int s = socketcan_open(socketcan_port, 1);
@@ -189,7 +189,7 @@ int appl_main(int argc, char *argv[])
         }
     }
 #endif
-    
+
     if (upstream_host)
     {
         connections.emplace_back(new UpstreamConnectionClient(

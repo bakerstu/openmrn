@@ -38,11 +38,11 @@
 
 #if defined(__linux__)
 
+#include <errno.h>
 #include <linux/sockios.h>
 #include <net/if.h>
-#include <sys/ioctl.h>
-#include <errno.h>
 #include <stdio.h>
+#include <sys/ioctl.h>
 
 /// This macro executes an OS call, and if it returns negative result, then
 /// prints the errno to stderr, and terminates the current function with -1

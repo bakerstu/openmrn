@@ -42,7 +42,7 @@
 /// @param loopback 1 to enable loopback locally to other open references,
 ///                 0 to disable loopback locally to other open references.
 /// @return an open socket file descriptor, or -1 if there was an error.
-int socketcan_open(const char* device, int loopback);
+int socketcan_open(const char *device, int loopback);
 
 #endif
 
