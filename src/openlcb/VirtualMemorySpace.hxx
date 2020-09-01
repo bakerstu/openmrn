@@ -415,6 +415,8 @@ private:
                 e = elements_.lower_bound(rit->start_ + rit->repeatSize_);
             }
         }
+        LOG(INFO, "searching for element at address %u in_repeat=%d address=%u",
+            (unsigned)original_address, in_repeat, (unsigned)address);
 
         for (int is_repeat = 0; is_repeat <= 1; ++is_repeat)
         {
@@ -462,6 +464,7 @@ private:
         }
 
         // now: no overlap either before or after.
+        LOG(INFO, "element not found for address %u", (unsigned)original_address);
         return len;
     }
 
