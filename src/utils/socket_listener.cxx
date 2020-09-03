@@ -40,6 +40,12 @@
 #define _DEFAULT_SOURCE
 #endif
 
+#include "utils/socket_listener.hxx"
+
+#include "nmranet_config.h"
+#include "utils/logging.h"
+#include "utils/macros.h"
+
 #ifndef ESP32 // these don't exist on the ESP32 with LWiP
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -50,11 +56,6 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
-
-#include "nmranet_config.h"
-#include "utils/logging.h"
-#include "utils/macros.h"
-#include "utils/socket_listener.hxx"
 
 static void* accept_thread_start(void* arg)
 {
