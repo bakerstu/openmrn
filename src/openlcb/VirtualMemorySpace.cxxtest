@@ -201,6 +201,25 @@ TEST_F(TestSpaceTest, read_hole)
     EXPECT_EQ(string(), b->data()->payload);
 }
 
+/// Test reading beyond eof.
+TEST_F(TestSpaceTest, read_eof)
+{
+    unsigned reg_last = cfg.second().offset();
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(20u, b->data()->payload.size());
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 20, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 23, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0u, b->data()->payload.size());
+}
+
 /// Basic tests writing variables from the exact offset but not including
 /// partial writes.
 TEST_F(TestSpaceTest, write_payload)
@@ -565,6 +584,7 @@ using GroupRept = RepeatedGroup<ExampleMemorySpace, 3>;
 CDI_GROUP_ENTRY(grp, GroupRept);
 CDI_GROUP_ENTRY(skipped3, EmptyGroup<8>);
 CDI_GROUP_ENTRY(after, StringConfigEntry<20>);
+CDI_GROUP_ENTRY(grp2, GroupRept);
 CDI_GROUP_END();
 
 RepeatMemoryDef spacerept(22);
@@ -585,6 +605,9 @@ public:
         register_string(
             spacerept.after(), string_reader(&after_), string_writer(&after_));
         register_repeat(spacerept.grp());
+        register_string(spacerept.grp2().entry<0>().second(),
+            string_reader(&arg2), string_writer(&arg2));
+        register_repeat(spacerept.grp2());
     }
 
     /// Creates a ReaderFunction that just returns a string from a given
@@ -759,5 +782,26 @@ TEST_F(ReptSpaceTest, mid_repeat)
     EXPECT_EQ(string("\0\0aho", 5), b->data()->payload);
     EXPECT_EQ(2u, s_.lastRepeat_);
 }
+
+/// Test reading beyond eof.
+TEST_F(ReptSpaceTest, read_eof)
+{
+    unsigned reg_last = spacerept.grp2().entry<2>().second().offset();
+    EXPECT_EQ(reg_last + 27, s_.max_address());
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(20u, b->data()->payload.size());
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 20, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 23, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0u, b->data()->payload.size());
+}
+
 
 } // namespace openlcb
