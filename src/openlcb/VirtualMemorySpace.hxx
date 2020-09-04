@@ -85,6 +85,10 @@ public:
             *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             return 0;
         }
+        if (destination + len > maxAddress_ + 1)
+        {
+            len = maxAddress_ + 1 - destination;
+        }
         *error = 0;
         unsigned repeat;
         const DataElement *element = nullptr;
@@ -134,6 +138,10 @@ public:
         {
             *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             return 0;
+        }
+        if (source + len > maxAddress_ + 1)
+        {
+            len = maxAddress_ + 1 - source;
         }
         *error = 0;
         unsigned repeat;
