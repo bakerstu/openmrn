@@ -539,6 +539,27 @@ TEST_F(TestSpaceAsyncTest, read_payload_async)
     EXPECT_EQ(20u, b->data()->payload.size());
 }
 
+/// Test reading a variable from an imprecise offset (too late -- middle of
+/// variable).
+TEST_F(TestSpaceAsyncTest, read_middle)
+{
+    arg1 = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs + 2, 10);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp("llo\0\0\0\0\0\0\0", 10);
+    EXPECT_EQ(exp, b->data()->payload);
+    EXPECT_EQ(10u, b->data()->payload.size());
+
+    arg2 = "abcdefghij";
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 2, 3);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp2("cde", 3);
+    EXPECT_EQ(exp2, b->data()->payload);
+    EXPECT_EQ(3u, b->data()->payload.size());
+}
+
 /// Basic tests writing variables from the exact offset but not including
 /// partial writes.
 TEST_F(TestSpaceAsyncTest, write_payload_async)
@@ -554,6 +575,52 @@ TEST_F(TestSpaceAsyncTest, write_payload_async)
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ("abcde", arg2);
     EXPECT_EQ(5u, arg2.size());
+}
+
+/// Test writing into to a offset that is in the middle of a variable.
+TEST_F(TestSpaceAsyncTest, write_middle)
+{
+    arg1 = "hellllo";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs + 3, "xy");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("helxylo\0\0\0\0\0\0", 13), arg1);
+
+    // Writes to middle then beyond the end of the variable.
+    string payload(19, 'a');
+    payload += "bbbbbbbbb";
+    arg2 = "0123456789i123456789";
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs + 3, payload);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("helaaaaaaaaaa", arg1);
+    EXPECT_EQ(13u, arg1.size());
+    EXPECT_EQ("abbbbbbbbb", arg2);
+    EXPECT_EQ(10u, arg2.size());
+
+    // Writes a string in multiple datagrams.
+    payload = "0123456789abcdef";
+    payload.push_back(0);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, payload.substr(0, 10));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("0123456789", arg2);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 10,
+        payload.substr(10, 3));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("0123456789abc", arg2.c_str());
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 13,
+        payload.substr(13, 2));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("0123456789abcde", arg2.c_str());
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 15, payload.substr(15));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("0123456789abcdef", arg2.c_str());
 }
 
 /// Tests reading and writing numeric variables with endianness.
