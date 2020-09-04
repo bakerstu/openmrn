@@ -765,7 +765,7 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
                (uint8_t*)ssid);
     if (wlanRole == WlanRole::AP)
     {
-        strncpy(this->ssid, ssid, sizeof(this->ssid));
+        str_populate(this->ssid, ssid);
     }
     
     sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SECURITY_TYPE, 1,

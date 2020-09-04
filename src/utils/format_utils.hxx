@@ -36,6 +36,7 @@
 #define _UTILS_FORMAT_UTILS_HXX_
 
 #include <string>
+#include <string.h>
 
 /** Renders an integer to string, left-justified. @param buffer must be an at
  * @param buffer must be an at least 10 character long array.
@@ -161,6 +162,19 @@ string ipv4_to_string(uint8_t ip[4]);
 inline string ipv4_to_string(uint32_t ip)
 {
     return ipv4_to_string((uint8_t*)&ip);
+}
+
+/// Populates a character array with a C string. Copies the C string,
+/// appropriately truncating if it is too long and filling the remaining space
+/// with zeroes. Ensures that at least one null terminator character is
+/// present.
+/// @param dst a character array of fixed length, declared as char sdata[N]
+/// @param src a C string to fill it with.
+template <unsigned int N>
+inline void str_populate(char (&dst)[N], const char *src)
+{
+    strncpy(dst, src, N - 1);
+    dst[N - 1] = 0;
 }
 
 #endif // _UTILS_FORMAT_UTILS_HXX_
