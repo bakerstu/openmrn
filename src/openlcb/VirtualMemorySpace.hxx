@@ -425,7 +425,7 @@ private:
                 // else: no overlap, look at the next item
             }
             // now: it->address_ > address
-            if (address + len > it->address_)
+            if ((it != elements_.end()) && (address + len > it->address_))
             {
                 // found overlap, but some data needs to be discarded.
                 *ptr = &*it;
