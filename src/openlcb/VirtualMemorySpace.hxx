@@ -282,6 +282,7 @@ protected:
         re.repeatSize_ = Group::size();
         HASSERT(re.repeatSize_ * N == re.end_ - re.start_);
         repeats_.insert(std::move(re));
+        expand_bounds_from_group(group);
     }
 
     /// Bounds for valid addresses.
