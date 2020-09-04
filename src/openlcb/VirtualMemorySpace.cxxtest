@@ -300,28 +300,25 @@ TEST_F(TestSpaceTest, write_middle)
     payload.push_back(0);
 
     b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
-        NodeHandle(node_->node_id()), SPACE, arg2_ofs,
-        payload.substr(0, 10));
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, payload.substr(0, 10));
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ("0123456789", arg2);
-    
+
     b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
         NodeHandle(node_->node_id()), SPACE, arg2_ofs + 10,
-                    payload.substr(10, 3));
+        payload.substr(10, 3));
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_STREQ("0123456789abc", arg2.c_str());
     b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
         NodeHandle(node_->node_id()), SPACE, arg2_ofs + 13,
-                    payload.substr(13, 2));
+        payload.substr(13, 2));
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_STREQ("0123456789abcde", arg2.c_str());
     b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
-        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 15,
-                    payload.substr(15));
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 15, payload.substr(15));
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_STREQ("0123456789abcdef", arg2.c_str());
 }
-
 
 /// Test writing a variable to a offset that is not covered at all.
 TEST_F(TestSpaceTest, write_hole)
@@ -891,6 +888,5 @@ TEST_F(ReptSpaceTest, read_eof)
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(0u, b->data()->payload.size());
 }
-
 
 } // namespace openlcb

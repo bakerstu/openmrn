@@ -99,7 +99,7 @@ public:
         const DataElement *element = nullptr;
         ssize_t skip = find_data_element(destination, len, &element, &repeat);
         string payload;
-        size_t written_len;        
+        size_t written_len;
         if (skip > 0)
         {
             // Will cause a new call be delivered with adjusted data and len.
@@ -129,7 +129,8 @@ public:
             }
             // Now: cachedData_ contains the payload in the current storage.
             payload = cachedData_;
-            written_len = std::min((size_t)len, (size_t)(element->size_ + skip));
+            written_len =
+                std::min((size_t)len, (size_t)(element->size_ + skip));
             memcpy(&payload[-skip], (const char *)data, written_len);
         }
         else // exact address write.
@@ -500,7 +501,8 @@ private:
         }
 
         // now: no overlap either before or after.
-        LOG(INFO, "element not found for address %u", (unsigned)original_address);
+        LOG(INFO, "element not found for address %u",
+            (unsigned)original_address);
         return len;
     }
 
