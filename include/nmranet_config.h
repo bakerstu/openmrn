@@ -146,5 +146,10 @@ DECLARE_CONST(enable_all_memory_space);
  * standard. */
 DECLARE_CONST(node_init_identify);
 
+/** Stack size for @ref SocketListener threads. */
+DECLARE_CONST(socket_listener_stack_size);
+
+/** Number of sockets to allow for @ref SocketListener backlog. */
+DECLARE_CONST(socket_listener_backlog);
 
 #endif /* _nmranet_config_h_ */
