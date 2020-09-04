@@ -121,6 +121,12 @@ string uint64_to_string_hex(uint64_t value, unsigned padding = 0);
  */
 string int64_to_string_hex(int64_t value, unsigned padding = 0);
 
+/// Converts a (binary) string into a sequence of hex digits.
+/// @param arg input string
+/// @return string twice the length of arg with hex digits representing the
+/// original data.
+string string_to_hex(const string& arg);
+
 /// Formats a MAC address to string. Works both for Ethernet addresses as well
 /// as for OpenLCB node IDs.
 ///
