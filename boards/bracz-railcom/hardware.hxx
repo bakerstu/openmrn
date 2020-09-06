@@ -128,6 +128,8 @@ struct Debug
     typedef DummyPin DccDecodeInterrupts;
     //typedef LED_GREEN_Pin DccDecodeInterrupts;
 
+    typedef DummyPin DccPacketFinishedHook;
+
     // Flips every timer capture interrupt from the dcc deocder flow.
     // typedef DBG_SIGNAL_Pin RailcomE0;
     //typedef LED_GREEN_Pin RailcomE0;
