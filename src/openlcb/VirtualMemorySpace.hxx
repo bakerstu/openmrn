@@ -49,6 +49,11 @@ namespace openlcb
 class VirtualMemorySpace : public MemorySpace
 {
 public:
+    VirtualMemorySpace()
+        : isReadOnly_(false)
+    {
+    }
+
     /// @returns whether the memory space does not accept writes.
     bool read_only() override
     {
@@ -85,11 +90,16 @@ public:
             *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             return 0;
         }
+        if (destination + len > maxAddress_ + 1)
+        {
+            len = maxAddress_ + 1 - destination;
+        }
         *error = 0;
         unsigned repeat;
         const DataElement *element = nullptr;
         ssize_t skip = find_data_element(destination, len, &element, &repeat);
         string payload;
+        size_t written_len;
         if (skip > 0)
         {
             // Will cause a new call be delivered with adjusted data and len.
@@ -97,19 +107,44 @@ public:
         }
         else if (skip < 0)
         {
+            HASSERT(element);
             // We have some missing bytes that we need to read out first, then
             // can perform the write.
-            DIE("unimplemented");
-            // if (!element->readImpl_(repeat, &payload,
+            address_t field_start = destination + skip;
+            if (!(cacheOffset_ == field_start &&
+                    (cachedData_.size() >= (size_t)-skip)))
+            {
+                cacheOffset_ = field_start;
+                cachedData_.clear();
+                bn_.reset(again);
+                element->readImpl_(repeat, &cachedData_, bn_.new_child());
+                if (!bn_.abort_if_almost_done())
+                {
+                    // did not succeed synchronously.
+                    bn_.notify(); // our slice
+                    *error = MemorySpace::ERROR_AGAIN;
+                    return 0;
+                }
+                cachedData_.resize(element->size_); // pads with zeroes
+            }
+            // Now: cachedData_ contains the payload in the current storage.
+            payload = cachedData_;
+            written_len =
+                std::min((size_t)len, (size_t)(element->size_ + skip));
+            memcpy(&payload[-skip], (const char *)data, written_len);
         }
-        HASSERT(element);
-        payload.assign(
-            (const char *)data, std::min((size_t)len, (size_t)element->size_));
-        size_t written_len = payload.size();
+        else // exact address write.
+        {
+            HASSERT(element);
+            payload.assign((const char *)data,
+                std::min((size_t)len, (size_t)element->size_));
+            written_len = payload.size();
+        }
         bn_.reset(again);
         element->writeImpl_(repeat, std::move(payload), bn_.new_child());
         if (bn_.abort_if_almost_done())
         {
+            cachedData_.clear();
             return written_len;
         }
         else
@@ -135,6 +170,10 @@ public:
             *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             return 0;
         }
+        if (source + len > maxAddress_ + 1)
+        {
+            len = maxAddress_ + 1 - source;
+        }
         *error = 0;
         unsigned repeat;
         const DataElement *element = nullptr;
@@ -144,10 +183,7 @@ public:
             memset(dst, 0, skip);
             return skip;
         }
-        else if (skip < 0)
-        {
-            DIE("unimplemented");
-        }
+        // Now: skip <= 0
         HASSERT(element);
         string payload;
         bn_.reset(again);
@@ -160,8 +196,8 @@ public:
             return 0;
         }
         payload.resize(element->size_); // pads with zeroes
-        size_t data_len = std::min(payload.size(), len);
-        memcpy(dst, payload.data(), data_len);
+        size_t data_len = std::min(payload.size() + skip, len);
+        memcpy(dst, payload.data() - skip, data_len);
         return data_len;
     }
 
@@ -291,7 +327,7 @@ protected:
     /// should succeed in returning the last byte.
     address_t maxAddress_ = 0;
     /// Whether the space should report as RO.
-    bool isReadOnly_ = false;
+    unsigned isReadOnly_ : 1;
 
 private:
     /// We keep one of these for each variable that was declared.
@@ -389,17 +425,23 @@ private:
         ElementsType::iterator e = elements_.end();
         // Align in the known repetitions first.
         auto rit = repeats_.upper_bound(address);
+        int max_repeat = 0;
         if (rit == repeats_.end())
         {
             // not a repeat.
         }
         else
         {
-            if (rit->start_ <= address && rit->end_ > address)
+            if (rit->start_ <= address && address < rit->end_)
             {
                 // we are in the repeat.
                 unsigned cnt = (address - rit->start_) / rit->repeatSize_;
                 *repeat = cnt;
+                if (address + rit->repeatSize_ < rit->end_)
+                {
+                    // Try one repetition later too.
+                    max_repeat = 1;
+                }
                 // re-aligns address to the first repetition.
                 address -= cnt * rit->repeatSize_;
                 in_repeat = true;
@@ -407,8 +449,13 @@ private:
                 e = elements_.lower_bound(rit->start_ + rit->repeatSize_);
             }
         }
+        LOG(VERBOSE,
+            "searching for element at address %u in_repeat=%d address=%u "
+            "len=%u",
+            (unsigned)original_address, in_repeat, (unsigned)address,
+            (unsigned)len);
 
-        for (int is_repeat = 0; is_repeat <= 1; ++is_repeat)
+        for (int is_repeat = 0; is_repeat <= max_repeat; ++is_repeat)
         {
             auto it = std::upper_bound(b, e, address, DataComparator());
             if (it != elements_.begin())
@@ -425,7 +472,7 @@ private:
                 // else: no overlap, look at the next item
             }
             // now: it->address_ > address
-            if (address + len > it->address_)
+            if ((it != elements_.end()) && (address + len > it->address_))
             {
                 // found overlap, but some data needs to be discarded.
                 *ptr = &*it;
@@ -454,9 +501,16 @@ private:
         }
 
         // now: no overlap either before or after.
+        LOG(VERBOSE, "element not found for address %u",
+            (unsigned)original_address);
         return len;
     }
 
+    static constexpr unsigned NO_CACHE = static_cast<address_t>(-1);
+    /// Offset in the memory space at which cachedData_ starts.
+    address_t cacheOffset_ = NO_CACHE;
+    /// Stored information for read-modify-write calls.
+    string cachedData_;
     /// Container type for storing the data elements.
     typedef SortedListSet<DataElement, DataComparator> ElementsType;
     /// Stores all the registered variables.
