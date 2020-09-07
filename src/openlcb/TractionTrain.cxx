@@ -62,7 +62,8 @@ TrainNode::~TrainNode()
 }
 
 TrainNodeForProxy::TrainNodeForProxy(TrainService *service, TrainImpl *train)
-    : DefaultTrainNode(service, train) {
+    : DefaultTrainNode(service, train)
+{
     service->register_train(this);
 }
 
