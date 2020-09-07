@@ -42,11 +42,15 @@
 namespace openlcb
 {
 
-TrainNode::TrainNode(TrainService *service, TrainImpl *train)
+DefaultTrainNode::DefaultTrainNode(TrainService *service, TrainImpl *train)
     : service_(service)
     , train_(train)
     , isInitialized_(0)
     , controllerNodeId_({0, 0})
+{
+}
+
+DefaultTrainNode::~DefaultTrainNode()
 {
 }
 
@@ -58,8 +62,8 @@ TrainNode::~TrainNode()
 }
 
 TrainNodeForProxy::TrainNodeForProxy(TrainService *service, TrainImpl *train)
-    : TrainNode(service, train) {
-    service_->register_train(this);
+    : DefaultTrainNode(service, train) {
+    service->register_train(this);
 }
 
 TrainNodeForProxy::~TrainNodeForProxy()
@@ -71,10 +75,10 @@ TrainNodeForProxy::~TrainNodeForProxy()
 
 TrainNodeWithId::TrainNodeWithId(
     TrainService *service, TrainImpl *train, NodeID node_id)
-    : TrainNode(service, train)
+    : DefaultTrainNode(service, train)
     , nodeId_(node_id)
 {
-    service_->register_train(this);
+    service->register_train(this);
 }
 
 TrainNodeWithId::~TrainNodeWithId()
@@ -90,7 +94,7 @@ NodeID TrainNodeForProxy::node_id()
         train_->legacy_address_type(), train_->legacy_address());
 }
 
-If *TrainNode::iface()
+If *DefaultTrainNode::iface()
 {
     return service_->iface();
 }
