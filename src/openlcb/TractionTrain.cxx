@@ -50,15 +50,20 @@ DefaultTrainNode::DefaultTrainNode(TrainService *service, TrainImpl *train)
 {
 }
 
-DefaultTrainNode::~DefaultTrainNode()
+TrainNode::~TrainNode()
 {
 }
 
-TrainNode::~TrainNode()
+TrainNodeWithConsist::~TrainNodeWithConsist()
 {
-    while (!consistSlaves_.empty()) {
+    while (!consistSlaves_.empty())
+    {
         delete consistSlaves_.pop_front();
     }
+}
+
+DefaultTrainNode::~DefaultTrainNode()
+{
 }
 
 TrainNodeForProxy::TrainNodeForProxy(TrainService *service, TrainImpl *train)

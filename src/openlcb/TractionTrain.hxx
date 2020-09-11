@@ -48,24 +48,6 @@ namespace openlcb
 
 class TrainService;
 
-/// Linked list entry for all registered consist clients for a given train
-/// node.
-struct ConsistEntry : public QMember {
-    ConsistEntry(NodeID s, uint8_t flags) : payload((s << 8) | flags) {}
-    NodeID get_slave() const {
-        return payload >> 8;
-    }
-    uint8_t get_flags() const {
-        return payload & 0xff;
-    }
-    void set_flags(uint8_t new_flags) {
-        payload ^= (payload & 0xff);
-        payload |= new_flags;
-    }
-private:
-    uint64_t payload;
-};
-
 /// Virtual node class for an OpenLCB train protocol node.
 ///
 /// Usage:
@@ -102,9 +84,71 @@ public:
     // before any consist change requests would reach the front of the queue
     // for the traction flow.
 
+    /// Adds a node ID to the consist targets. @return false if the node was
+    /// already in the target list, true if it was newly added.
+    /// @param tgt the destination of the consist link
+    /// @param flags consisting flags from the Traction protocol.
+    virtual bool add_consist(NodeID tgt, uint8_t flags) = 0;
+
+    /// Removes a node ID from the consist targets. @return true if the target
+    /// was removed, false if the target was not on the list.
+    /// @param tgt destination of consist link to remove.
+    virtual bool remove_consist(NodeID tgt) = 0;
+    
+    /// Fetch a given consist link.
+    /// @return The target of a given consist link, or NodeID(0) if there are
+    /// fewer than id consist targets.
+    /// @param id zero-based index of consist links.
+    /// @param flags retrieved consist link's flags go here.
+    virtual NodeID query_consist(int id, uint8_t* flags) = 0;
+
+    /// @return the number of slaves in this consist.
+    virtual int query_consist_length() = 0;
+};
+
+/// Linked list entry for all registered consist clients for a given train
+/// node.
+struct ConsistEntry : public QMember
+{
+    /// Creates a new consist entry storage.
+    /// @param s the stored node ID
+    /// @param flags the stored flag byte
+    ConsistEntry(NodeID s, uint8_t flags)
+        : payload((s << 8) | flags)
+    {
+    }
+    /// @return the stored Node ID.
+    NodeID get_slave() const
+    {
+        return payload >> 8;
+    }
+    /// @return the stored flags byte.
+    uint8_t get_flags() const
+    {
+        return payload & 0xff;
+    }
+    /// Overrides the stored flags.
+    /// @param new_flags the new value of the flags byte.
+    void set_flags(uint8_t new_flags)
+    {
+        payload ^= (payload & 0xff);
+        payload |= new_flags;
+    }
+
+private:
+    /// Data contents.
+    uint64_t payload;
+};
+
+/// Intermediate class which is still abstract, but adds implementation for the
+/// consist management functions.
+class TrainNodeWithConsist : public TrainNode {
+public:
+    ~TrainNodeWithConsist();
+    
     /** Adds a node ID to the consist targets. @return false if the node was
      * already in the target list, true if it was newly added. */
-    virtual bool add_consist(NodeID tgt, uint8_t flags)
+    bool add_consist(NodeID tgt, uint8_t flags) override
     {
         if (!tgt)
         {
@@ -129,7 +173,7 @@ public:
 
     /** Removes a node ID from the consist targets. @return true if the target
      * was removed, false if the target was not on the list. */
-    virtual bool remove_consist(NodeID tgt)
+    bool remove_consist(NodeID tgt) override
     {
         for (auto it = consistSlaves_.begin(); it != consistSlaves_.end(); ++it)
         {
@@ -146,7 +190,7 @@ public:
 
     /** Returns the consist target with offset id, or NodeID(0) if there are
      * fewer than id consist targets. id is zero-based. */
-    NodeID query_consist(int id, uint8_t* flags)
+    NodeID query_consist(int id, uint8_t* flags) override
     {
         int k = 0;
         for (auto it = consistSlaves_.begin();
@@ -162,7 +206,7 @@ public:
     }
 
     /** Returns the number of slaves in this consist. */
-    int query_consist_length()
+    int query_consist_length() override
     {
         int ret = 0;
         for (auto it = consistSlaves_.begin(); it != consistSlaves_.end();
@@ -176,7 +220,7 @@ public:
 };
 
 /// Default implementation of a train node.
-class DefaultTrainNode : public TrainNode
+class DefaultTrainNode : public TrainNodeWithConsist
 {
 public:
     DefaultTrainNode(TrainService *service, TrainImpl *impl);
