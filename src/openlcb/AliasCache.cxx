@@ -75,7 +75,7 @@ void AliasCache::add(NodeID id, NodeAlias alias)
         /* we already have a mapping for this alias, so lets remove it */
         insert = it->deref(this);
         remove(insert->alias_);
-        
+
         if (removeCallback)
         {
             /* tell the interface layer that we removed this mapping */
@@ -115,7 +115,7 @@ void AliasCache::add(NodeID id, NodeAlias alias)
             (*removeCallback)(insert->get_node_id(), insert->alias_, context);
         }
     }
-        
+
     insert->set_node_id(id);
     insert->alias_ = alias;
 
@@ -157,7 +157,7 @@ void AliasCache::remove(NodeAlias alias)
         Metadata *metadata = it->deref(this);
         aliasMap.erase(it);
         idMap.erase(idMap.find(metadata->get_node_id()));
-        
+
         if (!metadata->newer_.empty())
         {
             metadata->newer_.deref(this)->older_ = metadata->older_;
@@ -174,7 +174,7 @@ void AliasCache::remove(NodeAlias alias)
         {
             oldest = metadata->newer_;
         }
-    
+
         metadata->older_ = freeList;
         freeList.idx_ = metadata - pool;
     }
@@ -204,7 +204,7 @@ NodeAlias AliasCache::lookup(NodeID id)
     if (it != idMap.end())
     {
         Metadata *metadata = it->deref(this);
-        
+
         /* update timestamp */
         touch(metadata);
         return metadata->alias_;
@@ -227,7 +227,7 @@ NodeID AliasCache::lookup(NodeAlias alias)
     if (it != aliasMap.end())
     {
         Metadata *metadata = it->deref(this);
-        
+
         /* update timestamp */
         touch(metadata);
         return metadata->get_node_id();

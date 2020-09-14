@@ -35,9 +35,9 @@
 #define _OPENLCB_ALIASCACHE_HXX_
 
 #include "openlcb/Defs.hxx"
-#include "utils/macros.h"
 #include "utils/Map.hxx"
 #include "utils/SortedListMap.hxx"
+#include "utils/macros.h"
 
 namespace openlcb
 {
@@ -62,15 +62,15 @@ public:
      * @param context context pointer to pass to remove_callback
      */
     AliasCache(NodeID seed, size_t _entries,
-               void (*remove_callback)(NodeID id, NodeAlias alias, void *) = NULL,
-               void *context = NULL)
-        : pool(new Metadata[_entries]),
-          aliasMap(this),
-          idMap(this),
-          seed(seed),
-          entries(_entries),
-          removeCallback(remove_callback),
-          context(context)
+        void (*remove_callback)(NodeID id, NodeAlias alias, void *) = NULL,
+        void *context = NULL)
+        : pool(new Metadata[_entries])
+        , aliasMap(this)
+        , idMap(this)
+        , seed(seed)
+        , entries(_entries)
+        , removeCallback(remove_callback)
+        , context(context)
     {
         aliasMap.reserve(_entries);
         idMap.reserve(_entries);
@@ -81,7 +81,7 @@ public:
     static const NodeID RESERVED_ALIAS_NODE_ID;
     /// Sentinel entry for empty lists.
     static constexpr uint16_t NONE_ENTRY = 0xFFFFu;
-    
+
     /** Reinitializes the entire map. */
     void clear();
 
@@ -156,7 +156,7 @@ private:
     struct Metadata;
     class PoolIdx;
     friend class PoolIdx;
-    
+
     /// Encapsulation of a pointer into the pool array.
     class PoolIdx
     {
@@ -223,13 +223,14 @@ private:
             Metadata *_next; /**< pointer to next freeList entry */
             Metadata *_older; /**< pointer to the next oldest entry */
         };
-#endif        
+#endif
     };
 
     /** pointer to allocated Metadata pool */
     Metadata *pool;
 
-    class ComparatorBase {
+    class ComparatorBase
+    {
     public:
         virtual bool operator()(uint16_t a, uint16_t b) const = 0;
     };
@@ -260,7 +261,7 @@ private:
         {
             return alias < e.deref(parent_)->alias_;
         }
-        
+
         /// Less-than action.
         /// @param a left hand side
         /// @param b right hand side
@@ -268,7 +269,7 @@ private:
         {
             return a.deref(parent_)->alias_ < b.deref(parent_)->alias_;
         }
-        
+
     private:
         AliasCache *parent_;
     };
@@ -312,27 +313,27 @@ private:
     private:
         AliasCache *parent_;
     };
-    
+
     /** Short hand for the alias Map type */
     typedef SortedListSet<PoolIdx, AliasComparator> AliasMap;
-    //typedef Map <NodeAlias, Metadata*> AliasMap;
-    
+    // typedef Map <NodeAlias, Metadata*> AliasMap;
+
     /** Short hand for the ID Map type */
     typedef SortedListSet<PoolIdx, IdComparator> IdMap;
-    //typedef Map <NodeID, Metadata*> IdMap;
+    // typedef Map <NodeID, Metadata*> IdMap;
 
     /** Map of alias to corresponding Metadata */
     AliasMap aliasMap;
     
     /** Map of Node ID to corresponding Metadata */
     IdMap idMap;
-    
+
     /** list of unused mapping entries (index into pool_) */
     PoolIdx freeList;
-    
+
     /** oldest untouched entry (index into pool_) */
     PoolIdx oldest;
-    
+
     /** newest, most recently touched entry (index into pool) */
     PoolIdx newest;
 

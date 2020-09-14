@@ -95,8 +95,8 @@ public:
     iterator lower_bound(key_type key)
     {
         lazy_init();
-        return std::lower_bound(container_.begin(), container_.end(), key,
-                                cmp_);
+        return std::lower_bound(
+            container_.begin(), container_.end(), key, cmp_);
     }
 
     /// @param key what to search for @return iterator, see std::upper_bound.
@@ -104,8 +104,8 @@ public:
     iterator upper_bound(key_type key)
     {
         lazy_init();
-        return std::upper_bound(container_.begin(), container_.end(), key,
-                                cmp_);
+        return std::upper_bound(
+            container_.begin(), container_.end(), key, cmp_);
     }
     
     /// Searches for a single entry. @param key is what to search for. @return
@@ -125,8 +125,8 @@ public:
     std::pair<iterator, iterator> equal_range(key_type key)
     {
         lazy_init();
-        return std::equal_range(container_.begin(), container_.end(), key,
-                                cmp_);
+        return std::equal_range(
+            container_.begin(), container_.end(), key, cmp_);
     }
 
     /// Adds new entry to the vector.
@@ -173,7 +173,7 @@ private:
 
     /// Comparator instance.
     CMP cmp_;
-    
+
     /// The first this many elements in the container are already sorted.
     size_t sortedCount_{0};
 };
