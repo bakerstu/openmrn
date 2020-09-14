@@ -46,15 +46,15 @@ void AliasCache::clear()
 {
     idMap.clear();
     aliasMap.clear();
-    oldest = nullptr;
-    newest = nullptr;
-    freeList = nullptr;
+    oldest.idx_ = NONE_ENTRY;
+    newest.idx_ = NONE_ENTRY;
+    freeList.idx_ = NONE_ENTRY;
     /* initialize the freeList */
     for (size_t i = 0; i < entries; ++i)
     {
-        pool[i].prev = NULL;
-        pool[i].next = freeList;
-        freeList = pool + i;
+        pool[i].newer_.idx_ = NONE_ENTRY;
+        pool[i].older_ = freeList;
+        freeList.idx_ = i;
     }
 }
 
@@ -69,78 +69,78 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     
     Metadata *insert;
 
-    AliasMap::Iterator it = aliasMap.find(alias);
+    auto it = aliasMap.find(alias);
     if (it != aliasMap.end())
     {
         /* we already have a mapping for this alias, so lets remove it */
-        insert = (*it).second;
-        remove(alias);
+        insert = it->deref(this);
+        remove(insert->alias_);
         
         if (removeCallback)
         {
             /* tell the interface layer that we removed this mapping */
-            (*removeCallback)(insert->id, insert->alias, context);
+            (*removeCallback)(insert->get_node_id(), insert->alias_, context);
         }
     }
 
-    if (freeList)
+    if (!freeList.empty())
     {
         /* found an empty slot */
-        insert = freeList;
-        freeList = insert->next;        
+        insert = freeList.deref(this);
+        freeList = insert->older_;
     }
     else
     {
-        HASSERT(oldest != NULL && newest != NULL);
+        HASSERT(!oldest.empty() && !newest.empty());
 
         /* kick out the oldest mapping and re-link the oldest endpoint */
-        insert = oldest;
-        if (oldest->newer)
+        insert = oldest.deref(this);
+        auto second = insert->newer_;
+        if (!second.empty())
         {
-            oldest->newer->older = NULL;
+            second.deref(this)->older_.idx_ = NONE_ENTRY;
         }
-        if (insert == newest)
+        if (insert == newest.deref(this))
         {
-            newest = NULL;
+            newest.idx_ = NONE_ENTRY;
         }
-        oldest = oldest->newer;
+        oldest = second;
 
-        aliasMap.erase(insert->alias);
-        idMap.erase(insert->id);
+        aliasMap.erase(aliasMap.find(insert->alias_));
+        idMap.erase(idMap.find(insert->get_node_id()));
 
         if (removeCallback)
         {
             /* tell the interface layer that we removed this mapping */
-            (*removeCallback)(insert->id, insert->alias, context);
+            (*removeCallback)(insert->get_node_id(), insert->alias_, context);
         }
     }
         
-    insert->timestamp = OSTime::get_monotonic();
-    insert->id = id;
-    insert->alias = alias;
+    insert->set_node_id(id);
+    insert->alias_ = alias;
 
-    aliasMap[alias] = insert;
-    idMap[id] = insert;
+    PoolIdx n;
+    n.idx_ = insert - pool;
+    aliasMap.insert(PoolIdx(n));
+    idMap.insert(PoolIdx(n));
 
     /* update the time based list */
-    insert->newer = NULL;
-    if (newest == NULL)
+    insert->newer_.idx_ = NONE_ENTRY;
+    if (newest.empty())
     {
         /* if newest == NULL, then oldest must also be NULL */
-        HASSERT(oldest == NULL);
+        HASSERT(oldest.empty());
 
-        insert->older = NULL;
-        oldest = insert;
+        insert->older_.idx_ = NONE_ENTRY;
+        oldest = n;
     }
     else
     {
-        insert->older = newest;
-        newest->newer = insert;
+        insert->older_ = newest;
+        newest.deref(this)->newer_ = n;
     }
 
-    newest = insert;
-    
-    return;
+    newest = n;
 }
 
 /** Remove an alias from an alias cache.  This method does not call the
@@ -150,33 +150,33 @@ void AliasCache::add(NodeID id, NodeAlias alias)
  */
 void AliasCache::remove(NodeAlias alias)
 {
-    AliasMap::Iterator it = aliasMap.find(alias);
+    auto it = aliasMap.find(alias);
 
     if (it != aliasMap.end())
     {
-        Metadata *metadata = (*it).second;
+        Metadata *metadata = it->deref(this);
         aliasMap.erase(it);
-        idMap.erase(metadata->id);
+        idMap.erase(idMap.find(metadata->get_node_id()));
         
-        if (metadata->newer)
+        if (!metadata->newer_.empty())
         {
-            metadata->newer->older = metadata->older;
+            metadata->newer_.deref(this)->older_ = metadata->older_;
         }
-        if (metadata->older)
+        if (!metadata->older_.empty())
         {
-            metadata->older->newer = metadata->newer;
+            metadata->older_.deref(this)->newer_ = metadata->newer_;
         }
-        if (metadata == newest)
+        if (metadata == newest.deref(this))
         {
-            newest = metadata->older;
+            newest = metadata->older_;
         }
-        if (metadata == oldest)
+        if (metadata == oldest.deref(this))
         {
-            oldest = metadata->newer;
+            oldest = metadata->newer_;
         }
     
-        metadata->next = freeList;
-        freeList = metadata;
+        metadata->older_ = freeList;
+        freeList.idx_ = metadata - pool;
     }
     
 }
@@ -185,9 +185,9 @@ bool AliasCache::retrieve(unsigned entry, NodeID* node, NodeAlias* alias)
 {
     HASSERT(entry < size());
     Metadata* md = pool + entry;
-    if (!md->alias) return false;
-    if (node) *node = md->id;
-    if (alias) *alias = md->alias;
+    if (!md->alias_) return false;
+    if (node) *node = md->get_node_id();
+    if (alias) *alias = md->alias_;
     return true;
 }
 
@@ -199,15 +199,15 @@ NodeAlias AliasCache::lookup(NodeID id)
 {
     HASSERT(id != 0);
 
-    IdMap::Iterator it = idMap.find(id);
+    auto it = idMap.find(id);
 
     if (it != idMap.end())
     {
-        Metadata *metadata = (*it).second;
+        Metadata *metadata = it->deref(this);
         
         /* update timestamp */
         touch(metadata);
-        return metadata->alias;
+        return metadata->alias_;
     }
 
     /* no match found */
@@ -222,15 +222,15 @@ NodeID AliasCache::lookup(NodeAlias alias)
 {
     HASSERT(alias != 0);
 
-    AliasMap::Iterator it = aliasMap.find(alias);
+    auto it = aliasMap.find(alias);
 
     if (it != aliasMap.end())
     {
-        Metadata *metadata = (*it).second;
+        Metadata *metadata = it->deref(this);
         
         /* update timestamp */
         touch(metadata);
-        return metadata->id;
+        return metadata->get_node_id();
     }
     
     /* no match found */
@@ -246,9 +246,10 @@ void AliasCache::for_each(void (*callback)(void*, NodeID, NodeAlias), void *cont
 {
     HASSERT(callback != NULL);
 
-    for (Metadata *metadata = newest; metadata != NULL; metadata = metadata->older)
+    for (PoolIdx idx = newest; !idx.empty(); idx = idx.deref(this)->older_)
     {
-        (*callback)(context, metadata->id, metadata->alias);
+        Metadata *metadata = idx.deref(this);
+        (*callback)(context, metadata->get_node_id(), metadata->alias_);
     }
 }
 
@@ -277,25 +278,23 @@ NodeAlias AliasCache::generate()
  */
 void AliasCache::touch(Metadata* metadata)
 {
-    metadata->timestamp = OSTime::get_monotonic();
-
-    if (metadata != newest)
+    if (metadata != newest.deref(this))
     {
-        if (metadata == oldest)
+        if (metadata == oldest.deref(this))
         {
-            oldest = metadata->newer;
-            oldest->older = NULL;
+            oldest = metadata->newer_;
+            oldest.deref(this)->older_.idx_ = NONE_ENTRY;
         }
         else
         {
             /* we have someone older */
-            metadata->older->newer = metadata->newer;
+            metadata->older_.deref(this)->newer_ = metadata->newer_;
         }
-        metadata->newer->older = metadata->older;
-        metadata->newer = NULL;
-        metadata->older = newest;
-        newest->newer = metadata;
-        newest = metadata;
+        metadata->newer_.deref(this)->older_ = metadata->older_;
+        metadata->newer_.idx_ = NONE_ENTRY;
+        metadata->older_ = newest;
+        newest.deref(this)->newer_.idx_ = metadata - pool;
+        newest.idx_ = metadata - pool;
     }
 }
 

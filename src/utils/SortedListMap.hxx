@@ -59,8 +59,17 @@ public:
     /// Const Iterator type.
     typedef typename container_type::const_iterator const_iterator;
 
-    SortedListSet()
+    template <typename... Args>
+    SortedListSet(Args &&...args)
+        : cmp_(std::forward<Args>(args)...)
     {
+    }
+
+    /// Ensures that a given size can be reached without memory allocation.
+    /// @param sz the number of entries to prepare for.
+    void reserve(size_t sz)
+    {
+        container_.reserve(sz);
     }
 
     /// @return first iterator.
@@ -87,7 +96,7 @@ public:
     {
         lazy_init();
         return std::lower_bound(container_.begin(), container_.end(), key,
-                                CMP());
+                                cmp_);
     }
 
     /// @param key what to search for @return iterator, see std::upper_bound.
@@ -96,7 +105,7 @@ public:
     {
         lazy_init();
         return std::upper_bound(container_.begin(), container_.end(), key,
-                                CMP());
+                                cmp_);
     }
     
     /// Searches for a single entry. @param key is what to search for. @return
@@ -117,7 +126,7 @@ public:
     {
         lazy_init();
         return std::equal_range(container_.begin(), container_.end(), key,
-                                CMP());
+                                cmp_);
     }
 
     /// Adds new entry to the vector.
@@ -154,7 +163,7 @@ private:
     {
         if (sortedCount_ != container_.size())
         {
-            sort(container_.begin(), container_.end(), CMP());
+            sort(container_.begin(), container_.end(), cmp_);
             sortedCount_ = container_.size();
         }
     }
@@ -162,6 +171,9 @@ private:
     /// Holds the actual data elements.
     container_type container_;
 
+    /// Comparator instance.
+    CMP cmp_;
+    
     /// The first this many elements in the container are already sorted.
     size_t sortedCount_{0};
 };
