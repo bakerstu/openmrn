@@ -32,6 +32,9 @@
  * @date 12 Sep 2020
  */
 
+#ifndef _OPENLCB_NODEREGISTRY_HXX_
+#define _OPENLCB_NODEREGISTRY_HXX_
+
 #include "utils/Destructable.hxx"
 
 namespace openlcb
@@ -57,3 +60,5 @@ public:
 };
 
 } // namespace openlcb
+
+#endif // _OPENLCB_NODEREGISTRY_HXX_

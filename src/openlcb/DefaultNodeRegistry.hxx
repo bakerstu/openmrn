@@ -32,6 +32,9 @@
  * @date 12 Sep 2020
  */
 
+#ifndef _OPENLCB_DEFAULTNODEREGISTRY_HXX_
+#define _OPENLCB_DEFAULTNODEREGISTRY_HXX_
+
 #include <set>
 
 #include "openlcb/NodeRegistry.hxx"
@@ -71,3 +74,5 @@ private:
 };
 
 } // namespace openlcb
+
+#endif // _OPENLCB_DEFAULTNODEREGISTRY_HXX_
