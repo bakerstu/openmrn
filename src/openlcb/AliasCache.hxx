@@ -48,8 +48,40 @@ namespace openlcb
  * is no mutual exclusion locking mechanism built into this class.  Mutual
  * exclusion must be handled by the user as needed.
  *
- * @todo the class uses RBTree, consider a version that is a linear search for
- * a small number of entries.
+ * This data structure is sometimes used with very large entry count
+ * (hundreds), therefore we must be careful about memory efficiency!
+ *
+ * Theory of operation:
+ *
+ * The data structure has three access patterns:
+ *   - lookup of alias -> ID
+ *   - lookup of ID -> alias
+ *   - eviction of oldest entry from the cache
+ *
+ * We have three data structures to match these use-cases:
+ *
+ * The struct Metadata stores the actual NodeID and NodeAlias values. This is
+ * laid out in the pre-allocated C array `pool`. A freeList shows where unused
+ * entries are.
+ *
+ * To support the eviction of oldest entry, an LRU doubly-linked list is
+ * created in these Metadata entries. The links are represented by indexes into
+ * the `pool` array.
+ *
+ * Indexes into the `pool` are encapsulated into the PoolIdx struct to make
+ * them a unique C++ type. This is needed for template disambiguation. We also
+ * have a dereference function on PoolIdx that turns it into a Metadata
+ * pointer.
+ *
+ * To support lookup by alias, we have a SortedListSet which contains all used
+ * indexes as PoolIdx, sorted by the alias property in the respective entry in
+ * `pool`. This is achieved by a custom comparator that dereferences the
+ * PoolIdx object and fetches the alias from the Metadata struct. The sorted
+ * vector is maintained using the SortedListSet<> template, and takes a total
+ * of only 2 bytes per entry.
+ *
+ * A similar sorted vector is kept sorted by the NodeID values. This also takes
+ * only 2 bytes per entry.
  */
 class AliasCache
 {
@@ -127,12 +159,12 @@ public:
      * changes.
      * @param entry is between 0 and size() - 1.
      * @param node will be filled with the node ID. May be null.
-     * @param aliad will be filles with the alias. May be null.
+     * @param alias will be filles with the alias. May be null.
      * @return true if the entry is valid, and node and alias were filled, otherwise false if the entry is not allocated.
      */
     bool retrieve(unsigned entry, NodeID* node, NodeAlias* alias);
 
-    /** Generate a 12-bit pseudo-random alias for a givin alias cache.
+    /** Generate a 12-bit pseudo-random alias for a given alias cache.
      * @return pseudo-random 12-bit alias, an alias of zero is invalid
      */
     NodeAlias generate();
@@ -174,6 +206,8 @@ private:
         /// Indexes the pool of the AliasCache.
         uint16_t idx_;
         /// Dereferences a pool index as if it was a pointer.
+        /// @param parent the AliasCache whose pool to index.
+        /// @return referenced Metadata pointer.
         Metadata *deref(AliasCache *parent)
         {
             DASSERT(idx_ != NONE_ENTRY);
@@ -211,36 +245,17 @@ private:
         PoolIdx newer_;
         /// Index of (next oldest) entry in the linked list.
         PoolIdx older_;
-
-#if 0        
-        union
-        {
-            Metadata *_prev; /**< unused */
-            Metadata *_newer; /**< pointer to the next newest entry */
-        };
-        union
-        {
-            Metadata *_next; /**< pointer to next freeList entry */
-            Metadata *_older; /**< pointer to the next oldest entry */
-        };
-#endif
     };
 
     /** pointer to allocated Metadata pool */
     Metadata *pool;
-
-    class ComparatorBase
-    {
-    public:
-        virtual bool operator()(uint16_t a, uint16_t b) const = 0;
-    };
 
     /// Comparator object comparing the aliases stored in the pool.
     class AliasComparator
     {
     public:
         /// Constructor
-        /// @param parewnt owning AliasCache.
+        /// @param parent owning AliasCache.
         AliasComparator(AliasCache *parent)
             : parent_(parent)
         {
@@ -271,6 +286,7 @@ private:
         }
 
     private:
+        /// AliasCache whose pool we are indexing into.
         AliasCache *parent_;
     };
 
@@ -279,7 +295,7 @@ private:
     {
     public:
         /// Constructor
-        /// @param parewnt owning AliasCache.
+        /// @param parent owning AliasCache.
         IdComparator(AliasCache *parent)
             : parent_(parent)
         {
@@ -311,16 +327,15 @@ private:
         }
 
     private:
+        /// AliasCache whose pool we are indexing into.
         AliasCache *parent_;
     };
 
     /** Short hand for the alias Map type */
     typedef SortedListSet<PoolIdx, AliasComparator> AliasMap;
-    // typedef Map <NodeAlias, Metadata*> AliasMap;
 
     /** Short hand for the ID Map type */
     typedef SortedListSet<PoolIdx, IdComparator> IdMap;
-    // typedef Map <NodeID, Metadata*> IdMap;
 
     /** Map of alias to corresponding Metadata */
     AliasMap aliasMap;
@@ -328,10 +343,10 @@ private:
     /** Map of Node ID to corresponding Metadata */
     IdMap idMap;
 
-    /** list of unused mapping entries (index into pool_) */
+    /** list of unused mapping entries (index into pool) */
     PoolIdx freeList;
 
-    /** oldest untouched entry (index into pool_) */
+    /** oldest untouched entry (index into pool) */
     PoolIdx oldest;
 
     /** newest, most recently touched entry (index into pool) */
@@ -357,6 +372,6 @@ private:
     DISALLOW_COPY_AND_ASSIGN(AliasCache);
 };
 
-} /* namepace NMRAnet */
+} /* namespace openlcb */
 
-#endif /* _NMRAnetAliasCache_hxx */
+#endif  // _OPENLCB_ALIASCACHE_HXX_
