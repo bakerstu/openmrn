@@ -159,7 +159,7 @@ public:
      * changes.
      * @param entry is between 0 and size() - 1.
      * @param node will be filled with the node ID. May be null.
-     * @param alias will be filles with the alias. May be null.
+     * @param alias will be filled with the alias. May be null.
      * @return true if the entry is valid, and node and alias were filled, otherwise false if the entry is not allocated.
      */
     bool retrieve(unsigned entry, NodeID* node, NodeAlias* alias);
@@ -241,9 +241,9 @@ private:
         uint16_t nodeIdHigh_ = 0;
         /// OpenLCB-CAN alias
         NodeAlias alias_ = 0;
-        /// Index of next-newest entry according to the linked list.
+        /// Index of next-newer entry according to the LRU linked list.
         PoolIdx newer_;
-        /// Index of (next oldest) entry in the linked list.
+        /// Index of next-older entry according to the LRU linked list.
         PoolIdx older_;
     };
 
