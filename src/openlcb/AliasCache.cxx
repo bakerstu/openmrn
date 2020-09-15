@@ -33,14 +33,120 @@
 
 #include "openlcb/AliasCache.hxx"
 
+#include <set>
+
 #include "os/OS.hxx"
+
+#ifdef GTEST
+#define TEST_CONSISTENCY
+#endif
 
 namespace openlcb
 {
 
 #define CONSTANT 0x1B0CA37ABA9 /**< constant for random number generation */
 
-const NodeID AliasCache::RESERVED_ALIAS_NODE_ID = 1;
+#if defined(TEST_CONSISTENCY)
+extern volatile int consistency_result;
+volatile int consistency_result = 0;
+
+int AliasCache::check_consistency() {
+    if (idMap.size() != aliasMap.size()) return 1;
+    if (aliasMap.size() == entries) {
+        if (!freeList.empty()) return 2;
+    } else {
+        if (freeList.empty()) return 3;
+    }
+    if (aliasMap.size() == 0 && (!oldest.empty() || !newest.empty()))
+    {
+        return 4;
+    }
+    std::set<void*> free_entries;
+    for (PoolIdx p = freeList; !p.empty(); p = p.deref(this)->older_)
+    {
+        Metadata *m = p.deref(this);
+        if (free_entries.count(m)) {
+            return 5; // duplicate entry on freelist
+        }
+        free_entries.insert(m);
+    }
+    if (free_entries.size() + aliasMap.size() != entries) {
+        return 6; // lost some metadata entries
+    }
+    for (auto kv : aliasMap) {
+        if (free_entries.count(kv.deref(this)))
+        {
+            return 19;
+        }
+    }
+    for (auto kv : idMap) {
+        if (free_entries.count(kv.deref(this)))
+        {
+            return 20;
+        }
+    }
+    if (aliasMap.size() == 0) {
+        if (!oldest.empty()) return 7;
+        if (!newest.empty()) return 8;
+    } else {
+        if (oldest.empty()) return 9;
+        if (newest.empty()) return 10;
+        if (free_entries.count(oldest.deref(this)))
+        {
+            return 11; // oldest is free
+        }
+        if (free_entries.count(newest.deref(this)))
+        {
+            return 12; // newest is free
+        }
+    }
+    if (aliasMap.size() == 0) return 0;
+    // Check linking.
+    {
+        PoolIdx prev = oldest;
+        unsigned count = 1;
+        if (!prev.deref(this)->older_.empty()) return 13;
+        while (!prev.deref(this)->newer_.empty())
+        {
+            auto next = prev.deref(this)->newer_;
+            ++count;
+            if (free_entries.count(next.deref(this)))
+            {
+                return 21;
+            }
+            if (next.deref(this)->older_.idx_ != prev.idx_) return 14;
+            prev = next;
+        }
+        if (prev.idx_ != newest.idx_) return 18;
+        if (count != aliasMap.size()) return 27;
+    }
+    {
+        PoolIdx next = newest;
+        if (!next.deref(this)->newer_.empty()) return 15;
+        while (!next.deref(this)->older_.empty())
+        {
+            auto prev = next.deref(this)->older_;
+            if (free_entries.count(prev.deref(this)))
+            {
+                return 22;
+            }
+            if (prev.deref(this)->newer_.idx_ != next.idx_) return 16;
+            next = prev;
+        }
+        if (next.idx_ != oldest.idx_) return 17;
+    }
+    for (unsigned i = 0; i < entries; ++i) {
+        if (free_entries.count(pool+i)) continue;
+        auto* e = pool+i;
+        if (idMap.find(e->get_node_id()) == idMap.end()) return 23;
+        if (idMap.find(e->get_node_id())->idx_ != i) return 24;
+        if (aliasMap.find(e->alias_) == aliasMap.end()) return 25;
+        if (aliasMap.find(e->alias_)->idx_ != i) return 26;
+    }
+    return 0;
+}
+
+#endif
 
 void AliasCache::clear()
 {
@@ -74,6 +180,19 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     {
         /* we already have a mapping for this alias, so lets remove it */
         insert = it->deref(this);
+        remove(insert->alias_);
+
+        if (removeCallback)
+        {
+            /* tell the interface layer that we removed this mapping */
+            (*removeCallback)(insert->get_node_id(), insert->alias_, context);
+        }
+    }
+    auto nit = idMap.find(id);
+    if (nit != idMap.end())
+    {
+        /* we already have a mapping for this id, so lets remove it */
+        insert = nit->deref(this);
         remove(insert->alias_);
 
         if (removeCallback)
@@ -141,6 +260,11 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     }
 
     newest = n;
+
+#if defined(TEST_CONSISTENCY)
+    consistency_result = check_consistency();
+    HASSERT(0 == consistency_result);
+#endif    
 }
 
 /** Remove an alias from an alias cache.  This method does not call the
@@ -179,6 +303,10 @@ void AliasCache::remove(NodeAlias alias)
         freeList.idx_ = metadata - pool;
     }
     
+#if defined(TEST_CONSISTENCY)
+    consistency_result = check_consistency();
+    HASSERT(0 == consistency_result);
+#endif    
 }
 
 bool AliasCache::retrieve(unsigned entry, NodeID* node, NodeAlias* alias)
@@ -296,6 +424,11 @@ void AliasCache::touch(Metadata* metadata)
         newest.deref(this)->newer_.idx_ = metadata - pool;
         newest.idx_ = metadata - pool;
     }
+#if defined(TEST_CONSISTENCY)
+    consistency_result = check_consistency();
+    HASSERT(0 == consistency_result);
+#endif    
+    
 }
 
 }

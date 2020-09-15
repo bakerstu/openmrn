@@ -109,8 +109,6 @@ public:
         clear();
     }
 
-    /** This NodeID will be used for reserved but unused local aliases. */
-    static const NodeID RESERVED_ALIAS_NODE_ID;
     /// Sentinel entry for empty lists.
     static constexpr uint16_t NONE_ENTRY = 0xFFFFu;
 
