@@ -1,7 +1,7 @@
 #include "utils/async_if_test_helper.hxx"
 
-#include "openlcb/WriteHelper.hxx"
 #include "openlcb/CanDefs.hxx"
+#include "openlcb/WriteHelper.hxx"
 
 namespace openlcb
 {
