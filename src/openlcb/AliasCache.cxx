@@ -53,16 +53,22 @@ volatile int consistency_result = 0;
 int AliasCache::check_consistency()
 {
     if (idMap.size() != aliasMap.size())
+    {
         return 1;
+    }
     if (aliasMap.size() == entries)
     {
         if (!freeList.empty())
+        {
             return 2;
+        }
     }
     else
     {
         if (freeList.empty())
+        {
             return 3;
+        }
     }
     if (aliasMap.size() == 0 && (!oldest.empty() || !newest.empty()))
     {
@@ -99,16 +105,24 @@ int AliasCache::check_consistency()
     if (aliasMap.size() == 0)
     {
         if (!oldest.empty())
+        {
             return 7;
+        }
         if (!newest.empty())
+        {
             return 8;
+        }
     }
     else
     {
         if (oldest.empty())
+        {
             return 9;
+        }
         if (newest.empty())
+        {
             return 10;
+        }
         if (free_entries.count(oldest.deref(this)))
         {
             return 11; // oldest is free
@@ -119,13 +133,17 @@ int AliasCache::check_consistency()
         }
     }
     if (aliasMap.size() == 0)
+    {
         return 0;
+    }
     // Check linking.
     {
         PoolIdx prev = oldest;
         unsigned count = 1;
         if (!prev.deref(this)->older_.empty())
+        {
             return 13;
+        }
         while (!prev.deref(this)->newer_.empty())
         {
             auto next = prev.deref(this)->newer_;
@@ -135,18 +153,26 @@ int AliasCache::check_consistency()
                 return 21;
             }
             if (next.deref(this)->older_.idx_ != prev.idx_)
+            {
                 return 14;
+            }
             prev = next;
         }
         if (prev.idx_ != newest.idx_)
+        {
             return 18;
+        }
         if (count != aliasMap.size())
+        {
             return 27;
+        }
     }
     {
         PoolIdx next = newest;
         if (!next.deref(this)->newer_.empty())
+        {
             return 15;
+        }
         while (!next.deref(this)->older_.empty())
         {
             auto prev = next.deref(this)->older_;
@@ -155,25 +181,39 @@ int AliasCache::check_consistency()
                 return 22;
             }
             if (prev.deref(this)->newer_.idx_ != next.idx_)
+            {
                 return 16;
+            }
             next = prev;
         }
         if (next.idx_ != oldest.idx_)
+        {
             return 17;
+        }
     }
     for (unsigned i = 0; i < entries; ++i)
     {
         if (free_entries.count(pool + i))
+        {
             continue;
+        }
         auto *e = pool + i;
         if (idMap.find(e->get_node_id()) == idMap.end())
+        {
             return 23;
+        }
         if (idMap.find(e->get_node_id())->idx_ != i)
+        {
             return 24;
+        }
         if (aliasMap.find(e->alias_) == aliasMap.end())
+        {
             return 25;
+        }
         if (aliasMap.find(e->alias_)->idx_ != i)
+        {
             return 26;
+        }
     }
     return 0;
 }
