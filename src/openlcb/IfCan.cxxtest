@@ -1,5 +1,6 @@
 #include "utils/async_if_test_helper.hxx"
 
+#include "openlcb/CanDefs.hxx"
 #include "openlcb/WriteHelper.hxx"
 
 namespace openlcb
@@ -417,13 +418,13 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     usleep(250000);
     wait();
     // Here we have the next reserved alias.
-    RX(EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+    RX(EXPECT_EQ(CanDefs::get_reserved_alias_node_id(0x44C),
         ifCan_->local_aliases()->lookup(NodeAlias(0x44C))));
     // A CID packet gets replied to.
     send_packet_and_expect_response(":X1478944CN;", ":X1070044CN;");
 
     // We still have it in the cache.
-    RX(EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+    RX(EXPECT_EQ(CanDefs::get_reserved_alias_node_id(0x44C),
         ifCan_->local_aliases()->lookup(NodeAlias(0x44C))));
     // We kick it out with a regular frame.
     send_packet(":X1800044CN;");
@@ -449,7 +450,7 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
     RX(EXPECT_EQ(
         TEST_NODE_ID + 1, ifCan_->local_aliases()->lookup(NodeAlias(0x44D))));
     usleep(250000);
-    RX(EXPECT_EQ(AliasCache::RESERVED_ALIAS_NODE_ID,
+    RX(EXPECT_EQ(CanDefs::get_reserved_alias_node_id(0x6AA),
         ifCan_->local_aliases()->lookup(NodeAlias(0x6AA))));
 }
 
