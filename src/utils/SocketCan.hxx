@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2015, Balazs Racz
+ * Copyright (c) 2020, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,54 +24,26 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file SimpleNodeInfoMockUserFile.hxx
+ * \file SocketCan.hxx
  *
- * Mock file implementation for the SNIP user-modifiable data. Use this in
- * tests and when there is no storage available.
+ * Helper functions to connect to CAN devices via SocketCan.
  *
  * @author Balazs Racz
- * @date 22 Mar 2015
+ * @date 1 Sep 2020
  */
 
-#ifndef  _POSIX_C_SOURCE
-#define  _POSIX_C_SOURCE  200112L
-#endif
+#ifndef _UTILS_SOCKETCAN_HXX_
+#define _UTILS_SOCKETCAN_HXX_
 
-#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#if defined(__linux__)
 
-#include "utils/format_utils.hxx"
-
-#ifdef __FreeRTOS__
-openlcb::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
-                                            const char *user_description)
-    : snipData_{2}
-    , userFile_(MockSNIPUserFile::snip_user_file_path, &snipData_, false)
-{
-    str_populate(snipData_.user_name, user_name);
-    str_populate(snipData_.user_description, user_description);
-}
-
-openlcb::MockSNIPUserFile::~MockSNIPUserFile()
-{
-}
-
-#elif !defined(__WINNT__)
-#include "os/TempFile.hxx"
-
-openlcb::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
-                                            const char *user_description)
-  : userFile_(*TempDir::instance(), "snip_user_file")
-{
-    init_snip_user_file(userFile_.fd(), user_name, user_description);
-    HASSERT(userFile_.name().size() < sizeof(snip_user_file_path));
-    str_populate(snip_user_file_path, userFile_.name().c_str());
-}
-
-char openlcb::MockSNIPUserFile::snip_user_file_path[128] = "/dev/zero";
-
-openlcb::MockSNIPUserFile::~MockSNIPUserFile()
-{
-}
+/// Opens a SocketCan socket.
+/// @param device the name of the CAN device, e.g. can0
+/// @param loopback 1 to enable loopback locally to other open references,
+///                 0 to disable loopback locally to other open references.
+/// @return an open socket file descriptor, or -1 if there was an error.
+int socketcan_open(const char *device, int loopback);
 
 #endif
 
+#endif // _UTILS_SOCKETCAN_HXX_

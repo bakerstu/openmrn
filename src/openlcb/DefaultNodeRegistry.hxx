@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2015, Balazs Racz
+ * Copyright (c) 2020, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,54 +24,55 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file SimpleNodeInfoMockUserFile.hxx
+ * \file DefaultNodeRegistry.hxx
  *
- * Mock file implementation for the SNIP user-modifiable data. Use this in
- * tests and when there is no storage available.
+ * Default implementations for data structures keyed by virtual nodes.
  *
  * @author Balazs Racz
- * @date 22 Mar 2015
+ * @date 12 Sep 2020
  */
 
-#ifndef  _POSIX_C_SOURCE
-#define  _POSIX_C_SOURCE  200112L
-#endif
+#ifndef _OPENLCB_DEFAULTNODEREGISTRY_HXX_
+#define _OPENLCB_DEFAULTNODEREGISTRY_HXX_
 
-#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include <set>
 
-#include "utils/format_utils.hxx"
+#include "openlcb/NodeRegistry.hxx"
 
-#ifdef __FreeRTOS__
-openlcb::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
-                                            const char *user_description)
-    : snipData_{2}
-    , userFile_(MockSNIPUserFile::snip_user_file_path, &snipData_, false)
+namespace openlcb
 {
-    str_populate(snipData_.user_name, user_name);
-    str_populate(snipData_.user_description, user_description);
-}
 
-openlcb::MockSNIPUserFile::~MockSNIPUserFile()
+class Node;
+
+class DefaultNodeRegistry : public NodeRegistry
 {
-}
+public:
+    /// Adds a node to the list of registered nodes.
+    /// @param node a virtual node.
+    void register_node(openlcb::Node *node) override
+    {
+        nodes_.insert(node);
+    }
 
-#elif !defined(__WINNT__)
-#include "os/TempFile.hxx"
+    /// Removes a node from the list of registered nodes.
+    /// @param node a virtual node.
+    void unregister_node(openlcb::Node *node) override
+    {
+        nodes_.erase(node);
+    }
 
-openlcb::MockSNIPUserFile::MockSNIPUserFile(const char *user_name,
-                                            const char *user_description)
-  : userFile_(*TempDir::instance(), "snip_user_file")
-{
-    init_snip_user_file(userFile_.fd(), user_name, user_description);
-    HASSERT(userFile_.name().size() < sizeof(snip_user_file_path));
-    str_populate(snip_user_file_path, userFile_.name().c_str());
-}
+    /// Checks if a node is registered.
+    /// @param node a virtual node.
+    /// @return true if this node has been registered.
+    bool is_node_registered(openlcb::Node *node) override
+    {
+        return nodes_.find(node) != nodes_.end();
+    }
 
-char openlcb::MockSNIPUserFile::snip_user_file_path[128] = "/dev/zero";
+private:
+    std::set<Node *> nodes_;
+};
 
-openlcb::MockSNIPUserFile::~MockSNIPUserFile()
-{
-}
+} // namespace openlcb
 
-#endif
-
+#endif // _OPENLCB_DEFAULTNODEREGISTRY_HXX_
