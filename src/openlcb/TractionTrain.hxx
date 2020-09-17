@@ -38,6 +38,7 @@
 #include <set>
 
 #include "executor/Service.hxx"
+#include "openlcb/DefaultNodeRegistry.hxx"
 #include "openlcb/Node.hxx"
 #include "openlcb/TractionDefs.hxx"
 #include "openlcb/TrainInterface.hxx"
@@ -322,7 +323,12 @@ private:
 class TrainService : public Service, private Atomic
 {
 public:
-    TrainService(If *iface);
+    /// Constructor.
+    /// @param iface the OpenLCB interface to which the train nodes are bound.
+    /// @param train_node_registry implementation of the
+    /// NodeRegistry. Ownership is transferred.
+    TrainService(
+        If *iface, NodeRegistry *train_node_registry = new DefaultNodeRegistry);
     ~TrainService();
 
     If *iface()
@@ -344,17 +350,17 @@ public:
     /// @return true if this is a known train node.
     bool is_known_train_node(Node *node)
     {
-        return nodes_.find((TrainNode*)node) != nodes_.end();
+        return nodes_->is_node_registered(node);
     }
 
 private:
     struct Impl;
     /** Implementation flows. */
     Impl *impl_;
-
+    /** OpenLCB interface */
     If *iface_;
     /** List of train nodes managed by this Service. */
-    std::set<TrainNode *> nodes_;
+    std::unique_ptr<NodeRegistry> nodes_;
 };
 
 } // namespace openlcb

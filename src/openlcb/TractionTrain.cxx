@@ -174,8 +174,7 @@ struct TrainService::Impl
                 return release_and_exit();
             }
             // Checks if destination is a local traction-enabled node.
-            if (trainService_->nodes_.find(train_node()) ==
-                trainService_->nodes_.end())
+            if (!trainService_->nodes_->is_node_registered(train_node()))
             {
                 LOG(VERBOSE, "Traction message for node %p that is not "
                              "traction enabled.",
@@ -629,9 +628,10 @@ struct TrainService::Impl
     TractionRequestFlow traction_;
 };
 
-TrainService::TrainService(If *iface)
+TrainService::TrainService(If *iface, NodeRegistry *train_node_registry)
     : Service(iface->executor())
     , iface_(iface)
+    , nodes_(train_node_registry)
 {
     impl_ = new Impl(this);
 }
@@ -647,17 +647,16 @@ void TrainService::register_train(TrainNode *node)
     extern void StartInitializationFlow(Node * node);
     StartInitializationFlow(node);
     AtomicHolder h(this);
-    nodes_.insert(node);
+    nodes_->register_node(node);
     LOG(VERBOSE, "Registered node %p for traction.", node);
-    HASSERT(nodes_.find(node) != nodes_.end());
 }
 
 void TrainService::unregister_train(TrainNode *node)
 {
-    HASSERT(nodes_.find(node) != nodes_.end());
+    HASSERT(nodes_->is_node_registered(node));
     iface_->delete_local_node(node);
     AtomicHolder h(this);
-    nodes_.erase(node);
+    nodes_->unregister_node(node);
 }
 
 } // namespace openlcb
