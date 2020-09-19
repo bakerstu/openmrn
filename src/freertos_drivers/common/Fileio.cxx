@@ -39,16 +39,14 @@
 #include <unistd.h>
 #include <sys/select.h>
 
-
 OSMutex FileIO::mutex;
-File FileIO::files[NUM_OPEN_FILES];
 
 /** Allocate a free file descriptor.
  * @return file number on success, else -1 on failure
  */
 int FileIO::fd_alloc(void)
 {
-    for (unsigned int i = 0; i < NUM_OPEN_FILES; i++)
+    for (unsigned int i = 0; i < numOpenFiles; i++)
     {
         if (files[i].inuse == false)
         {
@@ -82,7 +80,7 @@ void FileIO::fd_free(int fd)
  */
 File* FileIO::file_lookup(int fd)
 {
-    if (fd < 0 || fd >= NUM_OPEN_FILES)
+    if (fd < 0 || fd >= (int)numOpenFiles)
     {
         errno = EBADF;
         return nullptr;
@@ -101,7 +99,7 @@ File* FileIO::file_lookup(int fd)
  */
 int FileIO::fd_lookup(File *file)
 {
-    HASSERT(file >= files && file <= (files + NUM_OPEN_FILES) && file->inuse);
+    HASSERT(file >= files && file <= (files + numOpenFiles) && file->inuse);
 
     return (file - files);
 }
