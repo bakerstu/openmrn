@@ -35,6 +35,8 @@
 #ifndef _UTILS_LRUCOUNTER_HXX_
 #define _UTILS_LRUCOUNTER_HXX_
 
+#include <limits>
+
 template <class T> class LruCounter;
 
 /// The GlobalLruCounter and a set of LruCounter<> objects cooperate in order
@@ -117,6 +119,10 @@ private:
     unsigned tick_ {0};
 };
 
+/// Create an instance of this type for each object whose age needs to be
+/// measured with the GlobalLruCounter. For further details, see
+/// { \link GlobalLruCounter }.
+/// @param T is the storage type, typically uint8_t or uint16_t.
 template <class T> class LruCounter
 {
 public:
@@ -134,6 +140,10 @@ public:
         if (!counter_)
         {
             ++counter_;
+            return;
+        }
+        if (counter_ == std::numeric_limits<T>::max()) {
+            // Counter is saturated.
             return;
         }
         int nlz = __builtin_clz((unsigned)counter_);

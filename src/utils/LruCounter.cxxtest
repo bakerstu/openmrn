@@ -189,6 +189,31 @@ TEST_F(LruCounterTest, simple_increment_short_2bit)
     next_increment(&cs1, 256); // old value = 8, next tick = 512
 }
 
+/// Saturates a byte sized counter and expects that no overflow has happened.
+TEST_F(LruCounterTest, no_overflow)
+{
+    set_bits_per_bit(1);
+    EXPECT_EQ(0u, cb1.value());
+    tick_n(100000);
+    EXPECT_EQ(255u, cb1.value());
+    tick_n(1);
+    EXPECT_EQ(255u, cb1.value());
+    tick_n(100000);
+    EXPECT_EQ(255u, cb1.value());
+}
+
+/// Checks that a 2 bit/bit exponent bytes sized counter can count more than a
+/// few 100k ticks.
+TEST_F(LruCounterTest, byte_range)
+{
+    set_bits_per_bit(2);
+    EXPECT_EQ(0u, cb1.value());
+    tick_n(100000);
+    EXPECT_EQ(52u, cb1.value());
+    tick_n(100000);
+    EXPECT_EQ(67u, cb1.value());
+}
+
 /// Tests resetting the counter, then incrementing.
 TEST_F(LruCounterTest, reset)
 {
