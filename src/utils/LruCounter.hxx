@@ -142,7 +142,8 @@ public:
             ++counter_;
             return;
         }
-        if (counter_ == std::numeric_limits<T>::max()) {
+        if (counter_ == std::numeric_limits<T>::max())
+        {
             // Counter is saturated.
             return;
         }
@@ -162,7 +163,7 @@ public:
 
 private:
     /// Internal counter.
-    T counter_{0};
+    T counter_ {0};
 };
 
 #endif // _UTILS_LRUCOUNTER_HXX_
