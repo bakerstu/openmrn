@@ -805,8 +805,10 @@ void CC32xxWiFi::set_default_state()
     }
 
     SlCheckError(result);
-    if (wlanRole == WlanRole::AP)
+    if (wlanRole == WlanRole::AP ||
+        (wlanRole == WlanRole::UNKNOWN && result == ROLE_AP))
     {
+        wlanRole = WlanRole::AP;
         if (result != ROLE_AP)
         {
             sl_WlanSetMode(ROLE_AP);
@@ -821,6 +823,7 @@ void CC32xxWiFi::set_default_state()
     }
     else
     {
+        wlanRole = WlanRole::STA;
         if (wlan_profile_test_none())
         {
             /* no profiles saved, add the default profile */
@@ -843,6 +846,24 @@ void CC32xxWiFi::set_default_state()
         }
     }
     started = true;
+}
+
+/*
+ * CC32xxWiFi::wlan_set_role()
+ */
+void CC32xxWiFi::wlan_set_role(WlanRole new_role)
+{
+    switch (new_role)
+    {
+        case WlanRole::STA:
+            sl_WlanSetMode(ROLE_STA);
+            break;
+        case WlanRole::AP:
+            sl_WlanSetMode(ROLE_AP);
+            break;
+        default:
+            DIE("Unsupported wlan role");
+    }
 }
 
 /*
@@ -1192,8 +1213,6 @@ void CC32xxWiFi::net_app_event_handler(NetAppEvent *event)
             // event_data = &event->EventData.ipLeased;
             //
 
-            SlIpLeasedAsync_t *ip_leased = &event->Data.IpLeased;
-            ipAddress = ip_leased->IpAddress;
             break;
         }
         case SL_NETAPP_EVENT_IP_COLLISION:
