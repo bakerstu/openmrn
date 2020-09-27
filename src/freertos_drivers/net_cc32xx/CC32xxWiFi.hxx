@@ -233,6 +233,13 @@ public:
         return wlanRole;
     }
 
+    /** Change the default Wlan Role. This will be used in the next start(...)
+     * if the UNKNOWN role is specified. The new setting takes effect when the
+     * device is restarted (either via reboot or stop + start).
+     * @param role new role. Must not be UNKNOWN
+     */
+    void wlan_set_role(WlanRole new_role);
+
     /** @return 0 if !wlan_ready, else a debugging status code. */
     WlanState wlan_startup_state()
     {
