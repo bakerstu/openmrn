@@ -38,14 +38,24 @@
 #include "executor/StateFlow.hxx"
 #include "os/Gpio.hxx"
 
+/// Operates an LED to visually display some activity. When the activity()
+/// function is called at least once within a period, we turn the LED on for
+/// the next period, if no call was made, the LED turns off for the next
+/// period.
 class ActivityLed : private ::Timer
 {
 public:
-    ActivityLed(Service *service, const Gpio *pin)
+    /// Constructor.
+    /// @param service defines which executor this timer should be running on.
+    /// @param pin the LED of the output. Will be high for activity, low for
+    /// inactivity. Use InvertedGPIO if needed.
+    /// @param period defines in nanosecond the time to spend between updates.
+    ActivityLed(
+        Service *service, const Gpio *pin, long long period = MSEC_TO_NSEC(33))
         : ::Timer(service->executor()->active_timers())
         , gpio_(pin)
     {
-        start(MSEC_TO_NSEC(33));
+        start(period);
     }
 
     /// Call this function when activity happens.
