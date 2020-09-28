@@ -771,7 +771,8 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
     sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SECURITY_TYPE, 1,
                (uint8_t*)&sec_type);
 
-    if (sec_type == SL_WLAN_SEC_TYPE_OPEN)
+    if (sec_type == SL_WLAN_SEC_TYPE_OPEN ||
+        security_key == nullptr)
     {
         return;
     }
@@ -779,6 +780,30 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
     sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_PASSWORD,
                strlen(security_key), (uint8_t*)security_key);
 }
+
+/*
+ * CC32xxWiFi::wlan_get_ap_config()
+ */
+void CC32xxWiFi::wlan_get_ap_config(string *ssid, SecurityType *security_type)
+{
+    if (ssid)
+    {
+        // Reads AP SSID configuration from NWP.
+        ssid->clear();
+        ssid->resize(33);
+        uint16_t len = ssid->size();
+        uint16_t config_opt = SL_WLAN_AP_OPT_SSID;
+        sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (_u8*) &(*ssid)[0]);
+        ssid->resize(len);
+    }
+    if (security_type)
+    {
+        uint16_t len = sizeof(*security_type);
+        uint16_t config_opt = SL_WLAN_AP_OPT_SECURITY_TYPE;
+        sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (_u8*) security_type);
+    }
+}
+
 
 void CC32xxWiFi::connecting_update_blinker()
 {
