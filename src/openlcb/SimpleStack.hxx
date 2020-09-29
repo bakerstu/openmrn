@@ -54,6 +54,7 @@
 #include "openlcb/SimpleNodeInfo.hxx"
 #include "openlcb/TractionTrain.hxx"
 #include "openlcb/TrainInterface.hxx"
+#include "utils/ActivityLed.hxx"
 #include "utils/GcTcpHub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
@@ -151,6 +152,17 @@ public:
     ConfigUpdateService *config_service()
     {
         return &configUpdateFlow_;
+    }
+
+    /// Adds an activiy LED which will be flashed every time a message is sent
+    /// from this node to the network.
+    /// @param gpio LED that will be flashed on for each packet.
+    /// @param period defines in nanosecond the time to spend between updates.
+    void set_tx_activity_led(
+        const Gpio *led, long long period = MSEC_TO_NSEC(33))
+    {
+        auto *al = new ActivityLed(iface(), led, period);
+        iface()->set_tx_hook(std::bind(&ActivityLed::activity, al));
     }
 
     /// Reinitializes the node. Useful to call after the connection has flapped
