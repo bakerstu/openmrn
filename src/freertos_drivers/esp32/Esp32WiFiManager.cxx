@@ -48,7 +48,7 @@
 
 // ESP-IDF v4+ has a slightly different directory structure to previous
 // versions.
-#ifdef ESP_IDF_VERSION
+#if defined(ESP_IDF_VERSION) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
 // ESP-IDF v4+
 #include <esp32/rom/crc.h>
 #include <esp_private/wifi.h>

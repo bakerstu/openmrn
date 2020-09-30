@@ -87,8 +87,8 @@ int OSSelectWakeup::select(int nfds, fd_set *readfds,
     }
 #endif //ESP32
     struct timeval timeout;
-    timeout.tv_sec = NSEC_TO_SEC(deadline_nsec);
-    timeout.tv_usec = NSEC_TO_USEC(deadline_nsec) % SEC_TO_USEC(1);
+    timeout.tv_sec = deadline_nsec / 1000000000LL;
+    timeout.tv_usec = deadline_nsec % 1000000000LL;
     int ret =
         ::select(nfds, readfds, writefds, exceptfds, &timeout);
 #elif !defined(OPENMRN_FEATURE_SINGLE_THREADED)
@@ -126,7 +126,7 @@ static int wakeup_fd;
 // functions. For previous versions of ESP-IDF it is necessary to use these
 // functions to allow waking up the ESP32 from a select() call due to bugs in
 // the VFS layer.
-#ifndef ESP_IDF_VERSION_MAJOR
+#if !defined(ESP_IDF_VERSION) || ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
 extern "C"
 {
     void *sys_thread_sem_get();
@@ -147,7 +147,7 @@ static int esp_wakeup_open(const char * path, int flags, int mode)
     return 0;
 }
 
-#if defined(ESP_IDF_VERSION_MAJOR)
+#if defined(ESP_IDF_VERSION) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
 /// This function is called by the ESP32's select implementation has been
 /// interupted or is ready to wake up.
 /// @param args is the argument passed into the VFS layer when select() was
@@ -172,7 +172,7 @@ static void esp_end_select()
 }
 #endif // IDF v4+
 
-#if defined(ESP_IDF_VERSION_MAJOR)
+#if defined(ESP_IDF_VERSION) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
 /// This function is called by the ESP32's select implementation. It is passed
 /// in as a function pointer to the VFS API.
 /// @param nfds see standard select API
@@ -218,7 +218,7 @@ static esp_err_t esp_start_select(int nfds, fd_set *readfds, fd_set *writefds,
 }
 #endif // IDF v4+
 
-#if defined(ESP_IDF_VERSION_MAJOR)
+#if defined(ESP_IDF_VERSION) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
 /// This function is called by the ESP32's select implementation.
 /// @param signal_sem is the semaphore container provided by the VFS layer that
 /// can be used to wake up the select() call early.
@@ -246,7 +246,7 @@ void OSSelectWakeup::esp_start_select(void *signal_sem)
 }
 #endif // IDF v4+
 
-#if defined(ESP_IDF_VERSION_MAJOR)
+#if defined(ESP_IDF_VERSION_MAJOR) && >= ESP_IDF_VERSION_VAL(4,0,0)
 /// This function is called by the ESP32's select implementation has been
 /// interupted or is ready to wake up.
 /// @param args is the argument passed into the VFS layer when select() was
@@ -289,7 +289,7 @@ void OSSelectWakeup::esp_wakeup()
         return;
     }
     woken_ = true;
-#if defined(ESP_IDF_VERSION_MAJOR)
+#if defined(ESP_IDF_VERSION_MAJOR) && >= ESP_IDF_VERSION_VAL(4,0,0)
     LOG(VERBOSE, "wakeup es %p %u", espSem_.sem, *(unsigned*)espSem_.sem);
     if (espSem_.sem)
     {
@@ -336,7 +336,7 @@ void OSSelectWakeup::esp_wakeup_from_isr()
     }
     woken_ = true;
     BaseType_t woken = pdFALSE;
-#if defined(ESP_IDF_VERSION_MAJOR)
+#if defined(ESP_IDF_VERSION_MAJOR) && >= ESP_IDF_VERSION_VAL(4,0,0)
     if (espSem_.sem)
     {
         esp_vfs_select_triggered_isr(espSem_, &woken);
@@ -357,10 +357,14 @@ void OSSelectWakeup::esp_wakeup_from_isr()
         sys_sem_signal_isr(lwipSem_);
     }
 #endif // IDF v4+
+#if defined(ESP_IDF_VERSION) && ESP_IDF_VERSION > ESP_IDF_VERSION_VAL(4,2,0)
+    portYIELD_FROM_ISR(woken);
+#else
     if (woken == pdTRUE)
     {
         portYIELD_FROM_ISR();
     }
+#endif // IDF v4.3+
 }
 
 /// Registers the VFS driver that is used for waking up the ESP32 from a call
@@ -390,7 +394,7 @@ static void esp_vfs_init()
 /// layer via esp_start_select.
 void OSSelectWakeup::esp_allocate_vfs_fd()
 {
-#if !defined(ESP_IDF_VERSION_MAJOR)
+#if !defined(ESP_IDF_VERSION_MAJOR) || < ESP_IDF_VERSION_VAL(4,0,0)
     lwipSem_ = sys_thread_sem_get();
 #endif // not IDF v4+
     pthread_once(&vfs_init_once, &esp_vfs_init);
