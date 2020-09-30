@@ -83,10 +83,6 @@ const char *ssid = WIFI_SSID;
 /// Password of the wifi network.
 const char *password = WIFI_PASS;
 
-/// This is the hostname which the ESP32 will advertise via mDNS, it should be
-/// unique.
-const char *hostname = "esp32mrn";
-
 // Uncomment this line to enable usage of ::select() within the Grid Connect
 // code.
 //OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
@@ -103,6 +99,9 @@ string dummystring("abcdef");
 // used to generate the cdi.xml file. Here we instantiate the configuration
 // layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
+
+/// This is the ESP32 TWAI hardware driver.
+Esp32Twai twai("/dev/twai", CAN_TX_PIN, CAN_RX_PIN);
 
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 
@@ -145,6 +144,9 @@ void setup()
 {
     Serial.begin(SERIAL_BAUD);
 
+    // Initialize the TWAI driver
+    twai.hw_init();
+
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
     {
@@ -181,8 +183,7 @@ void setup()
 #endif // PRINT_PACKETS
 
     // Add the hardware CAN device as a bridge
-    openmrn.add_can_port(
-        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
+    openmrn.add_can_port_select("/dev/twai/twai0");
 }
 
 void loop()

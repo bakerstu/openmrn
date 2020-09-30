@@ -91,17 +91,12 @@ const char *ssid = WIFI_SSID;
 /// Password of the wifi network.
 const char *password = WIFI_PASS;
 
-/// This is the hostname which the ESP32 will advertise via mDNS, it should be
-/// unique.
-const char *hostname = "esp32mrn";
-
 OVERRIDE_CONST(gridconnect_buffer_size, 3512);
 //OVERRIDE_CONST(gridconnect_buffer_delay_usec, 200000);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 OVERRIDE_CONST(gc_generate_newlines, CONSTANT_TRUE);
 OVERRIDE_CONST(executor_select_prescaler, 60);
 OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
-
 
 #endif // USE_WIFI
 
@@ -122,6 +117,8 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
 
+/// This is the ESP32 TWAI hardware driver.
+Esp32Twai twai("/dev/twai", CAN_TX_PIN, CAN_RX_PIN);
 #endif // USE_CAN
 
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
@@ -284,8 +281,13 @@ void setup()
 {
 #ifdef USE_WIFI
     //wifi_mgr.enable_verbose_logging();
-#endif    
+#endif
     Serial.begin(115200L);
+
+#ifdef USE_CAN
+    // Initialize the TWAI driver
+    twai.hw_init();
+#endif
 
     timer = timerBegin(3, 80, true); // timer_id = 3; divider=80; countUp = true;
     timerAttachInterrupt(timer, &onTimer, true); // edge = true
@@ -325,7 +327,6 @@ void setup()
     openmrn.start_executor_thread();
     cpu_log = new CpuLoadLog(openmrn.stack()->service());
 
-
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
     // Note: This should not be enabled in deployed nodes as it will
@@ -335,8 +336,7 @@ void setup()
 
 #if defined(USE_CAN)
     // Add the hardware CAN device as a bridge
-    openmrn.add_can_port(
-        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
+    openmrn.add_can_port_select("/dev/twai/twai0");
 #endif // USE_CAN
 }
 

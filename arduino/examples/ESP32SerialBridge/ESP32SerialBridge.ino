@@ -87,6 +87,9 @@ string dummystring("abcdef");
 // layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
+/// This is the ESP32 TWAI hardware driver.
+Esp32Twai twai("/dev/twai", CAN_TX_PIN, CAN_RX_PIN);
+
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:
     UpdateAction apply_configuration(int fd, bool initial_load,
@@ -124,6 +127,9 @@ namespace openlcb {
 void setup() {
     Serial.begin(SERIAL_BAUD);
     Serial1.begin(SERIAL_BAUD, SERIAL_8N1, SERIAL_RX_PIN, SERIAL_TX_PIN);
+
+    // Initialize the TWAI driver
+    twai.hw_init();
 
     // Initialize the SPIFFS filesystem as our persistence layer
     if(!SPIFFS.begin())
