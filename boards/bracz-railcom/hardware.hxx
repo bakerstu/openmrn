@@ -15,6 +15,7 @@
 #include "BlinkerGPIO.hxx"
 #include "utils/Debouncer.hxx"
 
+#define HARDWARE_REVA
 
 GPIO_PIN(SW1, GpioInputPU, F, 4);
 GPIO_PIN(SW2, GpioInputPU, F, 0);
