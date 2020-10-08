@@ -51,6 +51,7 @@ int FileIO::fd_alloc(void)
         if (files[i].inuse == false)
         {
             files[i].inuse = true;
+            files[i].inshdn = false;
             files[i].device = true;
             files[i].dir = false;
             files[i].dirty = false;
@@ -85,7 +86,7 @@ File* FileIO::file_lookup(int fd)
         errno = EBADF;
         return nullptr;
     }
-    if (files[fd].inuse == 0)
+    if (files[fd].inuse == 0 || files[fd].inshdn == 1)
     {
         errno = EBADF;
         return nullptr;

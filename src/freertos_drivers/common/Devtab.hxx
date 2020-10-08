@@ -62,6 +62,7 @@ struct File
     off_t offset; /**< current offset within file */
     int flags;    /**< open flags */
     uint8_t inuse  : 1; /**< true if this is an open fd. */
+    uint8_t inshdn : 1; /**< true if this fd is in shutdown. */
     uint8_t device : 1; /**< true if this is a device, false if file system */
     uint8_t dir    : 1; /**< true if this is a directory, else false */
     uint8_t dirty  : 1; /**< true if this file is dirty and needs flush */
