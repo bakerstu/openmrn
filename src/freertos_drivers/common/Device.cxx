@@ -148,6 +148,7 @@ int Device::close(struct _reent *reent, int fd)
     int result = f->dev->close(f);
     if (result < 0)
     {
+        files[fd].inshdn = false;
         errno = -result;
         return -1;
     }
