@@ -394,6 +394,7 @@ private:
             }
             HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
         }
+        HW::middle_cutout_hook();
         Debug::RailcomDriverCutout::set(true);
     }
 

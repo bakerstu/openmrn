@@ -179,6 +179,7 @@ struct RailcomDefs
     static bool need_ch1_cutout() {
         return true;
     }
+    static void middle_cutout_hook() {}
 
     static void enable_measurement(bool);
     static void disable_measurement();
