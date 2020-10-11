@@ -32,8 +32,8 @@
  * @date 10 Oct 2020
  */
 
-#ifndef _TRAINS_BANDWIDTHMERGER_HXX_
-#define _TRAINS_BANDWIDTHMERGER_HXX_
+#ifndef _UTILS_BANDWIDTHMERGER_HXX_
+#define _UTILS_BANDWIDTHMERGER_HXX_
 
 #include <inttypes.h>
 
@@ -86,4 +86,4 @@ struct BandwidthMerger
     uint8_t percentFirst_;
 };
 
-#endif // _TRAINS_BANDWIDTHMERGER_HXX_
+#endif // _UTILS_BANDWIDTHMERGER_HXX_
