@@ -76,12 +76,12 @@ private:
     /// Error callback from the gridconnect socket. This is invoked when a
     /// client disconnects.
     void notify() override;
-    
+
     /// @param can_hub Which CAN-hub should we attach the TCP gridconnect hub
     /// onto.
     CanHubFlow *canHub_;
     /// How many clients are connected right now.
-    unsigned numClients_{0};
+    unsigned numClients_ {0};
     /// Helper object representing the listening on the socket.
     SocketListener tcpListener_;
 };

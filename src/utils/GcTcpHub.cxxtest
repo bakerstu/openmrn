@@ -169,7 +169,7 @@ TEST_F(GcTcpHubTest, TwoClientsPingPong)
     EXPECT_EQ(3U, can_hub0.size());
 
     EXPECT_EQ(2u, tcpHub_.get_num_clients());
-    
+
     // Test writing outwards.
     send_packet(":S002N0102;");
     EXPECT_EQ(":S002N0102;", readline(a.fd_, ';'));
