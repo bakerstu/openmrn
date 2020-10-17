@@ -223,7 +223,7 @@ public:
      * returns 0.
      */
     int wlan_get_ap_station_count();
-    
+
     /** @return true if the wlan interface is ready to establish outgoing
      * connections. */
     bool wlan_ready()
