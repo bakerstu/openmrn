@@ -218,6 +218,12 @@ public:
      */
     void wlan_get_ap_config(string *ssid, SecurityType *security_type);
 
+    /** Retrieves how many stations are connected to the wifi in AP mode.
+     * @return number of connected stations (0 to 4). If not in AP mode,
+     * returns 0.
+     */
+    int wlan_get_ap_station_count();
+
     /** @return true if the wlan interface is ready to establish outgoing
      * connections. */
     bool wlan_ready()
