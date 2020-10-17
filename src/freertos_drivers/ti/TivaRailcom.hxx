@@ -440,6 +440,24 @@ private:
         Debug::RailcomCh2Data::set(false);
         Debug::RailcomDriverCutout::set(false);
     }
+
+    void no_cutout() OVERRIDE
+    {
+        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
+        {
+            if (!returnedPackets_[i])
+            {
+                returnedPackets_[i] = this->alloc_new_packet(i);
+            }
+            if (returnedPackets_[i])
+            {
+                this->feedbackQueue_.commit_back();
+                Debug::RailcomPackets::toggle();
+                returnedPackets_[i] = nullptr;
+                MAP_IntPendSet(HW::OS_INTERRUPT);
+            }
+        }
+    }
 };
 
 #endif // _FREERTOS_DRIVERS_TI_TIVARAILCOM_HXX_
