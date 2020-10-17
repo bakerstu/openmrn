@@ -804,6 +804,22 @@ void CC32xxWiFi::wlan_get_ap_config(string *ssid, SecurityType *security_type)
     }
 }
 
+int CC32xxWiFi::wlan_get_ap_station_count()
+{
+    if (wlanRole != WlanRole::AP)
+    {
+        return 0;
+    }
+    uint8_t num_connected = 0;
+    uint16_t len = sizeof(num_connected);
+    auto status = sl_NetCfgGet(
+        SL_NETCFG_AP_STATIONS_NUM_CONNECTED, NULL, &len, &num_connected);
+    if (status)
+    {
+        return -1;
+    }
+    return num_connected;
+}
 
 void CC32xxWiFi::connecting_update_blinker()
 {
