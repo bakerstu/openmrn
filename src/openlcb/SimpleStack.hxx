@@ -386,7 +386,7 @@ public:
         gcHubServer_.reset(new GcTcpHub(can_hub(), port));
     }
 
-    /// Retrieve the instance of the GridConnect Hub server, hwich was started
+    /// Retrieve the instance of the GridConnect Hub server, which was started
     /// with start_tcp_hub_server().
     /// @return the TCP hub server, or nullptr if no server was ever started.
     GcTcpHub *get_tcp_hub_server()
