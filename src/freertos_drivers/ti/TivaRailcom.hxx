@@ -401,6 +401,7 @@ private:
     void end_cutout() OVERRIDE
     {
         HW::disable_measurement();
+        bool have_packets = false;
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
             while (MAP_UARTCharsAvail(HW::UART_BASE[i]))
@@ -431,9 +432,22 @@ private:
             Debug::RailcomRxActivate::set(false);
             //HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) = 0;
             if (returnedPackets_[i]) {
+                have_packets = true;
                 this->feedbackQueue_.commit_back();
                 Debug::RailcomPackets::toggle();
                 returnedPackets_[i] = nullptr;
+                MAP_IntPendSet(HW::OS_INTERRUPT);
+            }
+        }
+        if (!have_packets)
+        {
+            // Ensures that at least one feedback packet is sent back even when
+            // it is with no railcom payload.
+            auto *p = this->alloc_new_packet(0);
+            if (p)
+            {
+                this->feedbackQueue_.commit_back();
+                Debug::RailcomPackets::toggle();
                 MAP_IntPendSet(HW::OS_INTERRUPT);
             }
         }
