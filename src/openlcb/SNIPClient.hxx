@@ -161,7 +161,7 @@ private:
         else
         {
             // Dunno what this MTI is. Ignore.
-            LOG(INFO, "Unexpected MTI for PIP response handler: %04x",
+            LOG(INFO, "Unexpected MTI for SNIP response handler: %04x",
                 message->data()->mti);
             return;
         }
