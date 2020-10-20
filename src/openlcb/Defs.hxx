@@ -247,13 +247,13 @@ struct Defs
     static constexpr uint64_t CLEAR_EMERGENCY_STOP_EVENT = 0x010000000000FFFCULL;
 
     /// "Power supply brownout detected below minimum required by standard"
-    /// This event can be generated when a node detects that it has
-    /// insufficient power for normal operations.
+    /// This event can be generated when a node detects that the CAN bus power
+    /// has dropped below the minimum declared in the standard.
     static constexpr uint64_t POWER_STANDARD_BROWNOUT_EVENT = 0x010000000000FFF0ULL;
 
     /// "Power supply brownout detected below minimum required by node"
-    /// This event can be generated when a node detects that the CAN bus power
-    /// has dropped below the minimum declared in the standard.
+    /// This event can be generated when a node detects that it has
+    /// insufficient power for normal operations.
     static constexpr uint64_t NODE_POWER_BROWNOUT_EVENT = 0x010000000000FFF1ULL;
 
     /// "Ident button combination pressed"
