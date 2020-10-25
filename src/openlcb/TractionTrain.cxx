@@ -219,6 +219,7 @@ struct TrainService::Impl
                             address, value, bn_.new_child());
                     if (!bn_.abort_if_almost_done()) {
                         // Not notified inline.
+                        bn_.notify(); // consumes our share
                         return wait();
                     }
                     if (should_apply)

@@ -14,6 +14,16 @@ static constexpr NodeID nodeIdC3 = 0x060100000000 | 1373;
 static constexpr NodeID nodeIdC4 = 0x060100000000 | 1374;
 static constexpr NodeID nodeIdC5 = 0x060100000000 | 1375;
 
+class TrainNodeWithMockPolicy : public TrainNodeForProxy
+{
+public:
+    INHERIT_CONSTRUCTOR(TrainNodeWithMockPolicy, TrainNodeForProxy);
+
+    MOCK_METHOD5(function_policy,
+        bool(NodeHandle src, uint8_t command_byte, uint32_t fnum,
+            uint16_t value, Notifiable *done));
+};
+
 class ConsistTest : public TractionTest
 {
 protected:
@@ -28,10 +38,14 @@ protected:
             otherIf_.remote_aliases()->add(nodeIdC4, 0x774);
             otherIf_.remote_aliases()->add(nodeIdC5, 0x775);
         });
-        nodeLead_.reset(new TrainNodeForProxy(&trainService_, &trainLead_));
-        nodeC1_.reset(new TrainNodeForProxy(&trainService_, &trainC1_));
-        nodeC2_.reset(new TrainNodeForProxy(&trainService_, &trainC2_));
-        nodeC3_.reset(new TrainNodeForProxy(&trainService_, &trainC3_));
+        nodeLead_.reset(new StrictMock<TrainNodeWithMockPolicy>(
+            &trainService_, &trainLead_));
+        nodeC1_.reset(
+            new StrictMock<TrainNodeWithMockPolicy>(&trainService_, &trainC1_));
+        nodeC2_.reset(
+            new StrictMock<TrainNodeWithMockPolicy>(&trainService_, &trainC2_));
+        nodeC3_.reset(
+            new StrictMock<TrainNodeWithMockPolicy>(&trainService_, &trainC3_));
         wait();
         auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
             nodeIdLead, false);
@@ -39,6 +53,7 @@ protected:
         wait();
     }
 
+    /// Sets up a star shaped consist.
     void create_consist()
     {
         auto b = invoke_flow(
@@ -53,7 +68,26 @@ protected:
             TractionDefs::CNSTFLAGS_REVERSE | TractionDefs::CNSTFLAGS_LINKF0 |
                 TractionDefs::CNSTFLAGS_LINKFN);
         ASSERT_EQ(0, b->data()->resultCode);
+        // reverse link
+        nodeC3_->add_consist(nodeIdLead,
+            TractionDefs::CNSTFLAGS_REVERSE | TractionDefs::CNSTFLAGS_LINKF0 |
+                TractionDefs::CNSTFLAGS_LINKFN);
         wait();
+    }
+
+    void inject_default_true_policy(TrainNodeWithMockPolicy* tn) {
+        EXPECT_CALL(*tn, function_policy(_, _, _, _, _))
+            .WillRepeatedly(
+                DoAll(WithArg<4>(Invoke(&InvokeNotification)), Return(true)));
+    }
+    
+    /// Sets up a default "true" function policy for all train nodes.
+    void inject_default_policy()
+    {
+        inject_default_true_policy(nodeLead_.get());
+        inject_default_true_policy(nodeC1_.get());
+        inject_default_true_policy(nodeC2_.get());
+        inject_default_true_policy(nodeC3_.get());
     }
 
     TractionThrottle throttle_ {node_};
@@ -65,10 +99,10 @@ protected:
     LoggingTrain trainC1_ {1371};
     LoggingTrain trainC2_ {1372};
     LoggingTrain trainC3_ {1373};
-    std::unique_ptr<TrainNode> nodeLead_;
-    std::unique_ptr<TrainNode> nodeC1_;
-    std::unique_ptr<TrainNode> nodeC2_;
-    std::unique_ptr<TrainNode> nodeC3_;
+    std::unique_ptr<TrainNodeWithMockPolicy> nodeLead_;
+    std::unique_ptr<TrainNodeWithMockPolicy> nodeC1_;
+    std::unique_ptr<TrainNodeWithMockPolicy> nodeC2_;
+    std::unique_ptr<TrainNodeWithMockPolicy> nodeC3_;
 };
 
 TEST_F(ConsistTest, CreateDestroy)
@@ -78,6 +112,7 @@ TEST_F(ConsistTest, CreateDestroy)
 TEST_F(ConsistTest, CreateAndRunConsist)
 {
     create_consist();
+    inject_default_policy();
     Velocity v;
     v.set_mph(37.5);
     throttle_.set_speed(v);
@@ -123,15 +158,16 @@ TEST_F(ConsistTest, CreateAndRunConsist)
     throttle_.set_fn(2, 1);
     wait();
 
-    // F2 forwarded to C2 and C3, not to C0.
-    EXPECT_TRUE(trainLead_.get_fn(0));
-    EXPECT_FALSE(trainC1_.get_fn(0));
-    EXPECT_TRUE(trainC2_.get_fn(0));
-    EXPECT_TRUE(trainC3_.get_fn(0));
+    // F2 forwarded to C3, not to C1 and C2.
+    EXPECT_TRUE(trainLead_.get_fn(2));
+    EXPECT_FALSE(trainC1_.get_fn(2));
+    EXPECT_FALSE(trainC2_.get_fn(2));
+    EXPECT_TRUE(trainC3_.get_fn(2));
 }
 
 TEST_F(ConsistTest, ListenerExpectations)
 {
+    inject_default_policy();
     auto b =
         invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC4,
             TractionDefs::CNSTFLAGS_REVERSE | TractionDefs::CNSTFLAGS_LINKF0 |
@@ -162,6 +198,76 @@ TEST_F(ConsistTest, ListenerExpectations)
     expect_packet(":X195EB770N0775810000020001;");
     throttle_.set_fn(2, 1);
     wait();
+}
+
+TEST_F(ConsistTest, FunctionPolicy)
+{
+    create_consist();
+    inject_default_true_policy(nodeLead_.get());
+    inject_default_true_policy(nodeC1_.get());
+    inject_default_true_policy(nodeC2_.get());
+
+    Notifiable* done = nullptr;
+    EXPECT_CALL(*nodeC3_,
+        function_policy(Field(&NodeHandle::id, nodeIdLead), 0x81, 3, 1, _))
+        .WillOnce(DoAll(SaveArg<4>(&done), Return(true)));
+
+    throttle_.set_fn(3, 1);
+    wait();
+    EXPECT_TRUE(trainLead_.get_fn(3));
+    EXPECT_FALSE(trainC1_.get_fn(3));
+    EXPECT_FALSE(trainC2_.get_fn(3));
+    EXPECT_FALSE(trainC3_.get_fn(3));
+    ASSERT_TRUE(done);
+
+    EXPECT_CALL(*nodeC3_,
+        function_policy(Field(&NodeHandle::id, nodeIdLead), 0x81, 3, 1, _))
+        .WillOnce(DoAll(WithArg<4>(Invoke(&InvokeNotification)), Return(true)));
+
+    done->notify();
+    wait();
+    EXPECT_TRUE(trainC3_.get_fn(3));
+
+    // rejected by policy
+    EXPECT_CALL(*nodeC3_,
+        function_policy(Field(&NodeHandle::id, nodeIdLead), 0x81, 4, 1, _))
+        .WillOnce(DoAll(WithArg<4>(Invoke(&InvokeNotification)), Return(false)));
+
+    throttle_.set_fn(4, 1);
+    wait();
+    EXPECT_TRUE(trainLead_.get_fn(4));
+    EXPECT_FALSE(trainC1_.get_fn(4));
+    EXPECT_FALSE(trainC2_.get_fn(4));
+    EXPECT_FALSE(trainC3_.get_fn(4));
+
+    // Switch cab to C3.
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+                         nodeIdC3, false);
+    EXPECT_EQ(0, b->data()->resultCode);
+
+    // Different policy now
+    EXPECT_CALL(*nodeC3_,
+        function_policy(Field(&NodeHandle::alias, 0x22A), 0x01, 5, 1, _))
+        .WillOnce(DoAll(WithArg<4>(Invoke(&InvokeNotification)), Return(true)));
+
+    throttle_.set_fn(5, 1);
+    wait();
+    EXPECT_TRUE(trainLead_.get_fn(5));
+    EXPECT_FALSE(trainC1_.get_fn(5));
+    EXPECT_FALSE(trainC2_.get_fn(5));
+    EXPECT_TRUE(trainC3_.get_fn(5));
+
+    // Local policy false should not prevent remote propagation.
+    EXPECT_CALL(*nodeC3_,
+        function_policy(Field(&NodeHandle::alias, 0x22A), 0x01, 0, 1, _))
+        .WillOnce(DoAll(WithArg<4>(Invoke(&InvokeNotification)), Return(false)));
+
+    throttle_.set_fn(0, 1);
+    wait();
+    EXPECT_TRUE(trainLead_.get_fn(0));
+    EXPECT_FALSE(trainC1_.get_fn(0)); // no link F0
+    EXPECT_TRUE(trainC2_.get_fn(0));
+    EXPECT_FALSE(trainC3_.get_fn(0)); // no policy
 }
 
 } // namespace openlcb
