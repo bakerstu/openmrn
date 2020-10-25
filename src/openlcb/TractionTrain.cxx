@@ -217,7 +217,8 @@ struct TrainService::Impl
                     bool should_apply =
                         train_node()->function_policy(nmsg()->src, payload()[0],
                             address, value, bn_.new_child());
-                    if (!bn_.abort_if_almost_done()) {
+                    if (!bn_.abort_if_almost_done())
+                    {
                         // Not notified inline.
                         bn_.notify(); // consumes our share
                         return wait();

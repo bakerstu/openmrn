@@ -75,12 +75,13 @@ protected:
         wait();
     }
 
-    void inject_default_true_policy(TrainNodeWithMockPolicy* tn) {
+    void inject_default_true_policy(TrainNodeWithMockPolicy *tn)
+    {
         EXPECT_CALL(*tn, function_policy(_, _, _, _, _))
             .WillRepeatedly(
                 DoAll(WithArg<4>(Invoke(&InvokeNotification)), Return(true)));
     }
-    
+
     /// Sets up a default "true" function policy for all train nodes.
     void inject_default_policy()
     {
@@ -207,7 +208,7 @@ TEST_F(ConsistTest, FunctionPolicy)
     inject_default_true_policy(nodeC1_.get());
     inject_default_true_policy(nodeC2_.get());
 
-    Notifiable* done = nullptr;
+    Notifiable *done = nullptr;
     EXPECT_CALL(*nodeC3_,
         function_policy(Field(&NodeHandle::id, nodeIdLead), 0x81, 3, 1, _))
         .WillOnce(DoAll(SaveArg<4>(&done), Return(true)));
@@ -231,7 +232,8 @@ TEST_F(ConsistTest, FunctionPolicy)
     // rejected by policy
     EXPECT_CALL(*nodeC3_,
         function_policy(Field(&NodeHandle::id, nodeIdLead), 0x81, 4, 1, _))
-        .WillOnce(DoAll(WithArg<4>(Invoke(&InvokeNotification)), Return(false)));
+        .WillOnce(
+            DoAll(WithArg<4>(Invoke(&InvokeNotification)), Return(false)));
 
     throttle_.set_fn(4, 1);
     wait();
@@ -241,8 +243,8 @@ TEST_F(ConsistTest, FunctionPolicy)
     EXPECT_FALSE(trainC3_.get_fn(4));
 
     // Switch cab to C3.
-    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
-                         nodeIdC3, false);
+    auto b = invoke_flow(
+        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, nodeIdC3, false);
     EXPECT_EQ(0, b->data()->resultCode);
 
     // Different policy now
@@ -260,7 +262,8 @@ TEST_F(ConsistTest, FunctionPolicy)
     // Local policy false should not prevent remote propagation.
     EXPECT_CALL(*nodeC3_,
         function_policy(Field(&NodeHandle::alias, 0x22A), 0x01, 0, 1, _))
-        .WillOnce(DoAll(WithArg<4>(Invoke(&InvokeNotification)), Return(false)));
+        .WillOnce(
+            DoAll(WithArg<4>(Invoke(&InvokeNotification)), Return(false)));
 
     throttle_.set_fn(0, 1);
     wait();
