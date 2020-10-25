@@ -175,7 +175,7 @@ TEST_F(ConsistTest, ListenerExpectations)
     ASSERT_EQ(0, b->data()->resultCode);
     b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC5,
         TractionDefs::CNSTFLAGS_LINKF0 | TractionDefs::CNSTFLAGS_LINKFN);
-    ASSERT_EQ(0, b->data()->resultCode);    
+    ASSERT_EQ(0, b->data()->resultCode);
 
     clear_expect(true);
     Velocity v;

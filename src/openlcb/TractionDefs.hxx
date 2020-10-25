@@ -112,7 +112,7 @@ struct TractionDefs {
         /// Flag bit in the command byte set when a listener command is
         /// forwarded.
         REQ_LISTENER = 0x80,
-        
+
         // Byte 1 of REQ_CONTROLLER_CONFIG command
         CTRLREQ_ASSIGN_CONTROLLER = 0x01,
         CTRLREQ_RELEASE_CONTROLLER = 0x02,
