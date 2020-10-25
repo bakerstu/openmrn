@@ -739,7 +739,7 @@ private:
         const Payload &p = msg->data()->payload;
         if (p.size() < 1)
             return;
-        switch (p[0])
+        switch (p[0] & TractionDefs::REQ_MASK)
         {
             case TractionDefs::REQ_SET_SPEED:
             {

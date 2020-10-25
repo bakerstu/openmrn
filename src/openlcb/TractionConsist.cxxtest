@@ -1,60 +1,83 @@
 #include "utils/async_traction_test_helper.hxx"
 
-#include "openlcb/TractionTrain.hxx"
 #include "openlcb/TractionTestTrain.hxx"
 #include "openlcb/TractionThrottle.hxx"
+#include "openlcb/TractionTrain.hxx"
 
 namespace openlcb
 {
 
-static constexpr NodeID nodeIdLead = 0x060100000000 | 1371;
-static constexpr NodeID nodeIdC1 = 0x060100000000 | 1372;
-static constexpr NodeID nodeIdC2 = 0x060100000000 | 1373;
+static constexpr NodeID nodeIdLead = 0x060100000000 | 1370;
+static constexpr NodeID nodeIdC1 = 0x060100000000 | 1371;
+static constexpr NodeID nodeIdC2 = 0x060100000000 | 1372;
+static constexpr NodeID nodeIdC3 = 0x060100000000 | 1373;
+static constexpr NodeID nodeIdC4 = 0x060100000000 | 1374;
+static constexpr NodeID nodeIdC5 = 0x060100000000 | 1375;
 
-class ConsistTest : public TractionTest {
+class ConsistTest : public TractionTest
+{
 protected:
-    ConsistTest() {
+    ConsistTest()
+    {
         create_allocated_alias();
         run_x([this]() {
-            otherIf_.local_aliases()->add(nodeIdLead, 0x771);
-            otherIf_.local_aliases()->add(nodeIdC1, 0x772);
-            otherIf_.local_aliases()->add(nodeIdC2, 0x773);
+            otherIf_.local_aliases()->add(nodeIdLead, 0x770);
+            otherIf_.local_aliases()->add(nodeIdC1, 0x771);
+            otherIf_.local_aliases()->add(nodeIdC2, 0x772);
+            otherIf_.local_aliases()->add(nodeIdC3, 0x773);
+            otherIf_.remote_aliases()->add(nodeIdC4, 0x774);
+            otherIf_.remote_aliases()->add(nodeIdC5, 0x775);
         });
         nodeLead_.reset(new TrainNodeForProxy(&trainService_, &trainLead_));
         nodeC1_.reset(new TrainNodeForProxy(&trainService_, &trainC1_));
         nodeC2_.reset(new TrainNodeForProxy(&trainService_, &trainC2_));
+        nodeC3_.reset(new TrainNodeForProxy(&trainService_, &trainC3_));
+        wait();
+        auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+            nodeIdLead, false);
+        EXPECT_EQ(0, b->data()->resultCode);
         wait();
     }
 
-    TractionThrottle throttle_{node_};
+    void create_consist()
+    {
+        auto b = invoke_flow(
+            &throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC1, 0);
+        ASSERT_EQ(0, b->data()->resultCode);
+        b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD,
+            nodeIdC2,
+            TractionDefs::CNSTFLAGS_REVERSE | TractionDefs::CNSTFLAGS_LINKF0);
+        ASSERT_EQ(0, b->data()->resultCode);
+        b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD,
+            nodeIdC3,
+            TractionDefs::CNSTFLAGS_REVERSE | TractionDefs::CNSTFLAGS_LINKF0 |
+                TractionDefs::CNSTFLAGS_LINKFN);
+        ASSERT_EQ(0, b->data()->resultCode);
+        wait();
+    }
 
-    IfCan otherIf_{&g_executor, &can_hub0, 5, 5, 5};
-    TrainService trainService_{&otherIf_};
+    TractionThrottle throttle_ {node_};
 
-    LoggingTrain trainLead_{1371};
-    LoggingTrain trainC1_{1372};
-    LoggingTrain trainC2_{1373};
+    IfCan otherIf_ {&g_executor, &can_hub0, 5, 5, 5};
+    TrainService trainService_ {&otherIf_};
+
+    LoggingTrain trainLead_ {1370};
+    LoggingTrain trainC1_ {1371};
+    LoggingTrain trainC2_ {1372};
+    LoggingTrain trainC3_ {1373};
     std::unique_ptr<TrainNode> nodeLead_;
     std::unique_ptr<TrainNode> nodeC1_;
     std::unique_ptr<TrainNode> nodeC2_;
+    std::unique_ptr<TrainNode> nodeC3_;
 };
 
-TEST_F(ConsistTest, CreateDestroy) {
+TEST_F(ConsistTest, CreateDestroy)
+{
 }
 
-TEST_F(ConsistTest, CreateAndRunConsist) {
-    auto b = invoke_flow(
-        &throttle_, TractionThrottleCommands::ASSIGN_TRAIN, nodeIdLead, false);
-    ASSERT_EQ(0, b->data()->resultCode);
-    wait();
-
-    b = invoke_flow(
-        &throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC1, 0);
-    ASSERT_EQ(0, b->data()->resultCode);
-    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC2,
-        TractionDefs::CNSTFLAGS_REVERSE | TractionDefs::CNSTFLAGS_LINKF0);
-    ASSERT_EQ(0, b->data()->resultCode);
-
+TEST_F(ConsistTest, CreateAndRunConsist)
+{
+    create_consist();
     Velocity v;
     v.set_mph(37.5);
     throttle_.set_speed(v);
@@ -78,9 +101,67 @@ TEST_F(ConsistTest, CreateAndRunConsist) {
     EXPECT_EQ(Velocity::REVERSE, trainLead_.get_speed().direction());
     EXPECT_EQ(Velocity::REVERSE, trainC1_.get_speed().direction());
     EXPECT_EQ(Velocity::FORWARD, trainC2_.get_speed().direction());
+
+    EXPECT_FALSE(trainLead_.get_fn(0));
+    EXPECT_FALSE(trainLead_.get_fn(2));
+    EXPECT_FALSE(trainC1_.get_fn(0));
+    EXPECT_FALSE(trainC1_.get_fn(2));
+    EXPECT_FALSE(trainC2_.get_fn(0));
+    EXPECT_FALSE(trainC2_.get_fn(2));
+    EXPECT_FALSE(trainC3_.get_fn(0));
+    EXPECT_FALSE(trainC3_.get_fn(2));
+
+    throttle_.set_fn(0, 1);
+    wait();
+
+    // F0 forwarded to C2 and C3, not to C1.
+    EXPECT_TRUE(trainLead_.get_fn(0));
+    EXPECT_FALSE(trainC1_.get_fn(0));
+    EXPECT_TRUE(trainC2_.get_fn(0));
+    EXPECT_TRUE(trainC3_.get_fn(0));
+
+    throttle_.set_fn(2, 1);
+    wait();
+
+    // F2 forwarded to C2 and C3, not to C0.
+    EXPECT_TRUE(trainLead_.get_fn(0));
+    EXPECT_FALSE(trainC1_.get_fn(0));
+    EXPECT_TRUE(trainC2_.get_fn(0));
+    EXPECT_TRUE(trainC3_.get_fn(0));
 }
 
+TEST_F(ConsistTest, ListenerExpectations)
+{
+    auto b =
+        invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC4,
+            TractionDefs::CNSTFLAGS_REVERSE | TractionDefs::CNSTFLAGS_LINKF0 |
+                TractionDefs::CNSTFLAGS_LINKFN);
+    ASSERT_EQ(0, b->data()->resultCode);
+    b = invoke_flow(&throttle_, TractionThrottleCommands::CONSIST_ADD, nodeIdC5,
+        TractionDefs::CNSTFLAGS_LINKF0 | TractionDefs::CNSTFLAGS_LINKFN);
+    ASSERT_EQ(0, b->data()->resultCode);    
 
+    clear_expect(true);
+    Velocity v;
+    v.set_mph(37.5);
 
+    // Throttle to lead
+    expect_packet(":X195EB22AN0770004C31;");
+    // Lead to follower with listening flag and reversed value
+    expect_packet(":X195EB770N077480CC31;");
+    // Lead to follower with listening flag and regular value
+    expect_packet(":X195EB770N0775804C31;");
+    throttle_.set_speed(v);
+    wait();
+
+    // Throttle to lead
+    expect_packet(":X195EB22AN0770010000020001;");
+    // Lead to follower with listening flag
+    expect_packet(":X195EB770N0774810000020001;");
+    // Lead to follower with listening flag
+    expect_packet(":X195EB770N0775810000020001;");
+    throttle_.set_fn(2, 1);
+    wait();
+}
 
 } // namespace openlcb
