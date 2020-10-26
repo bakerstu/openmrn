@@ -149,6 +149,7 @@ __attribute__((__naked__)) static void hard_fault_handler(void)
         " mrsne r0, psp\n"
         " mov   sp, r0 \n"
         " bkpt  #1     \n"
+        " bx    lr     \n"
     );
 #endif
 #if 0
