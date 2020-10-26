@@ -217,6 +217,10 @@ struct TrainService::Impl
                     bool should_apply =
                         train_node()->function_policy(nmsg()->src, payload()[0],
                             address, value, bn_.new_child());
+                    // The function_policy call may have completed inline. We
+                    // can inquire from the barrier. If it was not completed
+                    // inline, we have to wait for the notification and re-try
+                    // the call.
                     if (!bn_.abort_if_almost_done())
                     {
                         // Not notified inline.

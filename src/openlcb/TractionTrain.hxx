@@ -163,11 +163,12 @@ class TrainNodeWithConsist : public TrainNode {
 public:
     ~TrainNodeWithConsist();
 
+    /// @copydoc TrainNode::function_policy()
+    /// The default function policy applies everything.
     bool function_policy(NodeHandle src, uint8_t command_byte, uint32_t fnum,
         uint16_t value, Notifiable *done) override
     {
         AutoNotify an(done);
-        // The default function policy applies everything.
         return true;
     }
 
