@@ -244,7 +244,7 @@ cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
 .SUFFIXES:
 .SUFFIXES: .o .c .cxx .cpp .S .xml .cout .cxxout
 
-.xml.o: $(OPENMRNPATH)/bin/build_cdi.py
+%.xml: %.o $(OPENMRNPATH)/bin/build_cdi.py
 	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o $*.cxxout
 	$(CXX) $(CXXFLAGS) -x c++ $*.cxxout -o $@
 	$(CXX) -MM $(CXXFLAGS) -x c++ $*.cxxout > $*.d
