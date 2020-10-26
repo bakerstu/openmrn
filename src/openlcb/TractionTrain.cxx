@@ -213,7 +213,24 @@ struct TrainService::Impl
                     uint16_t value = payload()[4];
                     value <<= 8;
                     value |= payload()[5];
-                    train_node()->train()->set_fn(address, value);
+                    bn_.reset(this);
+                    bool should_apply =
+                        train_node()->function_policy(nmsg()->src, payload()[0],
+                            address, value, bn_.new_child());
+                    // The function_policy call may have completed inline. We
+                    // can inquire from the barrier. If it was not completed
+                    // inline, we have to wait for the notification and re-try
+                    // the call.
+                    if (!bn_.abort_if_almost_done())
+                    {
+                        // Not notified inline.
+                        bn_.notify(); // consumes our share
+                        return wait();
+                    }
+                    if (should_apply)
+                    {
+                        train_node()->train()->set_fn(address, value);
+                    }
                     nextConsistIndex_ = 0;
                     return call_immediately(STATE(maybe_forward_consist));
                 }
@@ -627,6 +644,7 @@ struct TrainService::Impl
         unsigned reserved_ : 1;
         TrainService *trainService_;
         Buffer<GenMessage> *response_;
+        BarrierNotifiable bn_;
     };
 
     TractionRequestFlow traction_;
