@@ -42,7 +42,7 @@
 #include "utils/constants.hxx"
 #include "utils/logging.h"
 
-/// At tihs function number there will be five virtual functions available on
+/// At this function number there will be three virtual functions available on
 /// the OpenLCB TrainImpl, controlling advanced functions related to the light
 /// (f0) function of trains.
 DECLARE_CONST(dcc_virtual_f0_offset);
