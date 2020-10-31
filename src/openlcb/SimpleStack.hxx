@@ -397,6 +397,12 @@ public:
         return gcHubServer_.get();
     }
 
+    /// Shuts down the GridConnect Hub server, if previously started.
+    void shutdown_tcp_hub_server()
+    {
+        gcHubServer_.reset(nullptr);
+    }
+
     /// Connects to a CAN hub using TCP with the gridconnect protocol.
     void connect_tcp_gridconnect_hub(const char *host, int port)
     {
