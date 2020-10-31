@@ -218,6 +218,22 @@ public:
     /// ESP32 serial port.
     void enable_verbose_logging();
 
+    /// In some cases it may be desireable to disable the uplink connection
+    /// entirely.
+    ///
+    /// NOTE: Calling this method will prevent a new uplink connection from
+    /// being created. The node will effectively become an island unless it is
+    /// is also using the CAN network.
+    void disable_uplink();
+
+    /// If the uplink has been disabled previously via @ref disable_uplink this
+    /// method will re-enable it and initiate an uplink connection attempt.
+    void enable_uplink();
+
+    /// @return true if the uplink connection has been disabled, false
+    /// otherwise.
+    bool is_uplink_disabled();
+
     /// Starts a scan for available SSIDs.
     ///
     /// @param n is the @ref Notifiable to notify when the SSID scan completes.
@@ -333,6 +349,9 @@ private:
     /// Initializes the mDNS system if it hasn't already been initialized.
     void start_mdns_system();
 
+    /// Configures the WiFi maximum TX power.
+    void configure_wifi_max_tx_power();
+
     /// Event handler called when the ESP32 Station interface has started.
     ///
     /// This will handle configuration of any static IP address, hostname, DNS
@@ -424,17 +443,15 @@ private:
     /// Default static IP provided by ESP-IDF is 192.168.4.1.
     ESP32_ADAPTER_IP_INFO_TYPE *softAPStaticIP_{nullptr};
 
-    /// Cached copy of the file descriptor passed into apply_configuration.
-    /// This is internally used by the wifi_manager_task to processed deferred
-    /// configuration load.
-    int configFd_{-1};
-
     /// Calculated CRC-32 of cfg_ data. Used to detect changes in configuration
     /// which may require the wifi_manager_task to reload config.
     uint32_t configCrc32_{0};
 
     /// Internal flag to request the wifi_manager_task reload configuration.
     bool configReloadRequested_{true};
+
+    /// Internal flag used to indicate this is the first time startup.
+    bool initialConfigLoad_{true};
 
     /// Internal flag to request the wifi_manager_task to shutdown.
     bool shutdownRequested_{false};
@@ -447,11 +464,17 @@ private:
     /// restarted.
     bool waitForStationConnect_{true};
 
-    /// @ref GcTcpHub for this node's hub if enabled.
-    std::unique_ptr<GcTcpHub> hub_;
+    /// If true the esp32 will not attempt to create an uplink connection.
+    bool uplinkDisabled_{false};
 
     /// mDNS service name being advertised by the hub, if enabled.
     std::string hubServiceName_;
+
+    /// If true the esp32 will create and advertise itself as a hub.
+    bool enableHub_{false};
+
+    /// Port to use for the hub.
+    uint16_t hubPort_;
 
     /// @ref SocketClient for this node's uplink.
     std::unique_ptr<SocketClient> uplink_;
@@ -488,13 +511,30 @@ private:
     /// Holder for callbacks to invoke when the WiFi connection is down.
     std::vector<esp32_network_down_callback_t> networkDownCallbacks_;
 
-    /// Holder for callbacks to invoke when the WiFi connection is down.
+    /// Holder for callbacks to invoke when the WiFi subsystem has started.
     std::vector<esp32_network_init_callback_t> networkInitCallbacks_;
 
 #if defined(ESP_IDF_VERSION) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,1,0)
     /// Network interfaces that are managed by Esp32WiFiManager.
     esp_netif_t *esp_netifs[ESP_IF_MAX]{nullptr, nullptr, nullptr};
 #endif // IDF v4.1+
+
+    /// Cached copy of the manual uplink hostname.
+    std::string uplinkManualHost_;
+
+    /// Cached copy of the manual uplink port.
+    uint16_t uplinkManualPort_;
+
+    /// Cached copy of the uplink mDNS search value.
+    std::string uplinkAutoService_{
+        openlcb::TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP};
+
+    /// Cached copy of the radio sleep parameter, if true the WiFi radio will
+    /// use low power mode.
+    bool enableRadioSleep_{false};
+
+    /// Cached copy of the WiFi TX power limit.
+    int8_t wifiTXPower_{78};
 
     DISALLOW_COPY_AND_ASSIGN(Esp32WiFiManager);
 };

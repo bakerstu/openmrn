@@ -62,6 +62,32 @@ public:
         "from the connected SSID. This should generally not need to be "
         "enabled unless you are powering the ESP32 from a battery.";
 
+    /// Visible name for the WiFi TX Power.
+    static constexpr const char *WIFI_TX_POWER_NAME =
+        "WiFi Transmit Power";
+
+    /// Visible description for the WiFi TX Power.
+    static constexpr const char *WIFI_TX_POWER_DESC =
+        "WiFi Radio transmit power in dBm. This can be used to limit the WiFi "
+        "range. This option generally does not need to be changed.\n"
+        "NOTE: Setting this option to a very low value can cause communication "
+        "failures.";
+
+    /// <map> of possible key and descriptive values to show to the user for
+    /// the power field.
+    static constexpr const char *WIFI_TX_POWER_MAP =
+        "<relation><property>8</property><value>2 dBm</value></relation>"
+        "<relation><property>20</property><value>5 dBm</value></relation>"
+        "<relation><property>28</property><value>7 dBm</value></relation>"
+        "<relation><property>34</property><value>8 dBm</value></relation>"
+        "<relation><property>44</property><value>11 dBm</value></relation>"
+        "<relation><property>52</property><value>13 dBm</value></relation>"
+        "<relation><property>56</property><value>14 dBm</value></relation>"
+        "<relation><property>60</property><value>15 dBm</value></relation>"
+        "<relation><property>66</property><value>16 dBm</value></relation>"
+        "<relation><property>72</property><value>18 dBm</value></relation>"
+        "<relation><property>78</property><value>20 dBm</value></relation>";
+
     /// Visible name for the Hub Configuration group.
     static constexpr const char *HUB_NAME = "Hub Configuration";
 
@@ -120,15 +146,26 @@ CDI_GROUP_ENTRY(sleep, openlcb::Uint8ConfigEntry,
     Name(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_NAME),
     Description(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_DESC), Min(0),
     Max(1), Default(0), MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
+/// Allows adjustment of the WiFi TX power. This can be beneficial for reducing
+/// the available range of the SoftAP. However, it can cause communication
+/// failures when connecting nodes via TCP/IP.
+CDI_GROUP_ENTRY(tx_power, openlcb::Int8ConfigEntry,
+    Name(Esp32WiFiConfigurationParams::WIFI_TX_POWER_NAME),
+    Description(Esp32WiFiConfigurationParams::WIFI_TX_POWER_DESC), Min(8),
+    Max(79), Default(78),
+    MapValues(Esp32WiFiConfigurationParams::WIFI_TX_POWER_MAP));
+#if defined(CONFIG_IDF_TARGET_ESP32)
 /// CDI Configuration to enable this node to be a hub.
 CDI_GROUP_ENTRY(hub, HubConfiguration,
     Name(Esp32WiFiConfigurationParams::HUB_NAME),
     Description(Esp32WiFiConfigurationParams::HUB_DESC));
+#endif
 /// CDI Configuration for this node's connection to an uplink hub.
 CDI_GROUP_ENTRY(uplink,
     openlcb::TcpClientConfig<openlcb::TcpClientDefaultParams>,
     Name(Esp32WiFiConfigurationParams::UPLINK_NAME),
     Description(Esp32WiFiConfigurationParams::UPLINK_DESC));
+// TODO: update uplink to only expose auto (mDNS only) and manual host/port.
 CDI_GROUP_END();
 
 } // namespace openmrn_arduino
