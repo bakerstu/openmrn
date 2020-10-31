@@ -107,7 +107,7 @@ const uint32_t RailcomDefs::UART_PERIPH[] = RAILCOM_PERIPH;
 TivaDAC<DACDefs> dac;
 TivaGNDControl gnd_control;
 TivaBypassControl bypass_control;
-
+unsigned DCCDecode::sampleCount_ = 0;
 uint8_t RailcomDefs::feedbackChannel_ = 0xff;
 uint8_t dac_next_packet_mode = 0;
 
