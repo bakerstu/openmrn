@@ -55,6 +55,7 @@
 #include "openlcb/TractionTrain.hxx"
 #include "openlcb/TrainInterface.hxx"
 #include "openmrn_features.h"
+#include "utils/ActivityLed.hxx"
 #include "utils/GcTcpHub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
@@ -152,6 +153,17 @@ public:
     ConfigUpdateService *config_service()
     {
         return &configUpdateFlow_;
+    }
+
+    /// Adds an activiy LED which will be flashed every time a message is sent
+    /// from this node to the network.
+    /// @param gpio LED that will be flashed on for each packet.
+    /// @param period defines in nanosecond the time to spend between updates.
+    void set_tx_activity_led(
+        const Gpio *led, long long period = MSEC_TO_NSEC(33))
+    {
+        auto *al = new ActivityLed(iface(), led, period);
+        iface()->set_tx_hook(std::bind(&ActivityLed::activity, al));
     }
 
     /// Reinitializes the node. Useful to call after the connection has flapped
@@ -374,8 +386,15 @@ public:
     {
         /// @TODO (balazs.racz) make this more efficient by rendering to string
         /// only once for all connections.
-        /// @TODO (balazs.racz) do not leak this.
-        new GcTcpHub(can_hub(), port);
+        gcHubServer_.reset(new GcTcpHub(can_hub(), port));
+    }
+
+    /// Retrieve the instance of the GridConnect Hub server, which was started
+    /// with start_tcp_hub_server().
+    /// @return the TCP hub server, or nullptr if no server was ever started.
+    GcTcpHub *get_tcp_hub_server()
+    {
+        return gcHubServer_.get();
     }
 
     /// Connects to a CAN hub using TCP with the gridconnect protocol.
@@ -464,6 +483,9 @@ private:
     /// the CAN interface to function. Will be called exactly once by the
     /// constructor of the base class.
     std::unique_ptr<PhysicalIf> create_if(const openlcb::NodeID node_id);
+
+    /// Holds the ownership of the TCP hub server (if one was created).
+    std::unique_ptr<GcTcpHub> gcHubServer_;
 };
 
 class SimpleTcpStackBase : public SimpleStackBase

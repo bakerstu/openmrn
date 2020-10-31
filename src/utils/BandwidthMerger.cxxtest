@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2014, Balazs Racz
+ * Copyright (c) 2020, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,48 +24,69 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file GcTcpHub.cxx
- * A component that starts a gridconnect-protocol HUB listening on a TCP port.
+ * \file BandwidthMerger.cxxtest
+ *
+ * Unit tests for the stride scheduler.
  *
  * @author Balazs Racz
- * @date 26 Apr 2014
+ * @date 10 Oct 2020
  */
 
-#include <memory>
+#include "utils/BandwidthMerger.hxx"
 
-#include "utils/GcTcpHub.hxx"
+#include "utils/test_main.hxx"
 
-#include "nmranet_config.h"
-#include "utils/GridConnectHub.hxx"
-
-void GcTcpHub::on_new_connection(int fd)
+class BandwidthMergerTest : public ::testing::Test
 {
-    const bool use_select =
-        (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
+protected:
+    /// Runs a simulation with a certain number of steps with a bandwidth
+    /// merger.
+    void collect_stats(uint8_t percent, unsigned num_steps)
     {
-        AtomicHolder h(this);
-        numClients_++;
+        BandwidthMerger m {percent};
+        results_[0] = results_[1] = 0;
+        for (unsigned i = 0; i < num_steps; ++i)
+        {
+            if (m.step())
+            {
+                ++results_[1];
+            }
+            else
+            {
+                ++results_[0];
+            }
+        }
     }
-    create_gc_port_for_can_hub(canHub_, fd, this, use_select);
+
+    /// Results of the simulation. [0] is the number of steps with false
+    /// output, [1] is the number of steps with true output.
+    unsigned results_[2];
+};
+
+TEST_F(BandwidthMergerTest, fifty)
+{
+    collect_stats(50, 34);
+    EXPECT_EQ(17u, results_[0]);
+    EXPECT_EQ(17u, results_[1]);
 }
 
-void GcTcpHub::notify()
+TEST_F(BandwidthMergerTest, hundred)
 {
-    AtomicHolder h(this);
-    if (numClients_)
-    {
-        numClients_--;
-    }
+    collect_stats(100, 34);
+    EXPECT_EQ(0u, results_[0]);
+    EXPECT_EQ(34u, results_[1]);
 }
 
-GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port)
-    : canHub_(can_hub)
-    , tcpListener_(port,
-          std::bind(&GcTcpHub::on_new_connection, this, std::placeholders::_1))
+TEST_F(BandwidthMergerTest, zero)
 {
+    collect_stats(0, 34);
+    EXPECT_EQ(34u, results_[0]);
+    EXPECT_EQ(0u, results_[1]);
 }
 
-GcTcpHub::~GcTcpHub()
+TEST_F(BandwidthMergerTest, ten)
 {
-    tcpListener_.shutdown();
+    collect_stats(10, 34);
+    EXPECT_EQ(31u, results_[0]);
+    EXPECT_EQ(3u, results_[1]);
 }

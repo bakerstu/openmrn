@@ -1,10 +1,10 @@
 /** \copyright
- * Copyright (c) 2014, Balazs Racz
+ * Copyright (c) 2020, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- *
+ * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,48 +24,18 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file GcTcpHub.cxx
- * A component that starts a gridconnect-protocol HUB listening on a TCP port.
+ * \file FileioWeak.cxx
+ *
+ * Weak definitions for FileIO. These can be overridden by client applications.
  *
  * @author Balazs Racz
- * @date 26 Apr 2014
+ * @date 18 September 2020
  */
 
-#include <memory>
+#include "Devtab.hxx"
 
-#include "utils/GcTcpHub.hxx"
+// Override both of these symbols in a .cxx file in your application (without
+// the weak attribute) if you want to change the nuber of open files.
 
-#include "nmranet_config.h"
-#include "utils/GridConnectHub.hxx"
-
-void GcTcpHub::on_new_connection(int fd)
-{
-    const bool use_select =
-        (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
-    {
-        AtomicHolder h(this);
-        numClients_++;
-    }
-    create_gc_port_for_can_hub(canHub_, fd, this, use_select);
-}
-
-void GcTcpHub::notify()
-{
-    AtomicHolder h(this);
-    if (numClients_)
-    {
-        numClients_--;
-    }
-}
-
-GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port)
-    : canHub_(can_hub)
-    , tcpListener_(port,
-          std::bind(&GcTcpHub::on_new_connection, this, std::placeholders::_1))
-{
-}
-
-GcTcpHub::~GcTcpHub()
-{
-    tcpListener_.shutdown();
-}
+const unsigned int __attribute__((weak)) FileIO::numOpenFiles = 20;
+File __attribute__((weak)) FileIO::files[FileIO::numOpenFiles];

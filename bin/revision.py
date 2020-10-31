@@ -93,6 +93,8 @@ if options.gcc != None :
     outputcxx += '    "' + gcc + '",\n'
     outputhxx += '"' + gcc + '\\n"\n'
 
+main_git_hash = None
+    
 for x in inputs :
     print(x)
     # go into the root of the repo
@@ -121,17 +123,19 @@ for x in inputs :
     outputcxx += ':' + os.path.split(os.path.abspath(x))[1]
     outputhxx += '"' + str(git_hash) + ':' + os.path.split(os.path.abspath(x))[1]
 
+    hashopts = ""
+    
     if dirty or untracked :
-        outputcxx += ':'
-        outputhxx += ':'
+        hashopts += ':'
     if dirty :
-        outputcxx += '-d'
-        outputhxx += '-d'
+        hashopts += '-d'
     if untracked :
-        outputcxx += '-u'
-        outputhxx += '-u'
-    outputcxx += '",\n'
-    outputhxx += '\\n"\n'
+        hashopts += '-u'
+    outputcxx += hashopts + '",\n'
+    outputhxx += hashopts + '\\n"\n'
+
+    if main_git_hash is None:
+        main_git_hash = git_hash + hashopts
 
 outputcxx += '    nullptr\n'
 outputcxx += '};\n'
@@ -141,6 +145,9 @@ outputhxx =  'CDI_GROUP(BuildRevisions, Name("Build Revisions"),\n' + \
              '          Description(' + outputhxx
 outputhxx += '));\n'
 outputhxx += 'CDI_GROUP_END();\n'
+
+if main_git_hash is not None:
+    outputhxx += '\n#define REVISION_GIT_HASH "' + main_git_hash + '"\n'
 
 os.chdir(orig_dir)
 
@@ -165,14 +172,18 @@ diffhxx = subprocess.call(["diff",
                            "-I", """Thu, """, "-I", """Fri, """,
                            "-I", """Sat, """,
                            options.output + 'Try.hxxout',
-                           options.output + '.hxxout'], stdout=f_null)
+                           options.output + '.hxxout'],
+                          stdout=f_null, stderr=f_null)
 diffcxx = subprocess.call(['diff',
                            "-I", """Sun, """, "-I", """Mon, """,
                            "-I", """Tue, """, "-I", """Wed, """,
                            "-I", """Thu, """, "-I", """Fri, """,
                            "-I", """Sat, """,
                            options.output + 'Try.cxxout',
-                           options.output + '.cxxout'], stdout=f_null)
+                           options.output + '.cxxout'],
+                          stdout=f_null, stderr=f_null)
+# disable this because we are not actually writing a cxx file above.
+diffcxx = 0
 
 if diffhxx != 0 :
     os.system('rm -f ' + options.output + '.hxxout')

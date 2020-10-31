@@ -174,9 +174,7 @@ private:
 /// Synchronously runs a function in the main executor.
 void run_x(std::function<void()> fn)
 {
-    FnExecutable e(std::move(fn));
-    g_executor.add(&e);
-    e.n.wait_for_notification();
+    g_executor.sync_run(std::move(fn));
 }
 
 /** Utility class to block an executor for a while.

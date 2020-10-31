@@ -44,6 +44,7 @@
 #include "freertos_drivers/common/WifiDefs.hxx"
 
 class CC32xxSocket;
+class NetworkSpace;
 
 /** Interface that aids in unit testing.
  */
@@ -211,6 +212,18 @@ public:
     void wlan_setup_ap(const char *ssid, const char *security_key,
                        SecurityType security_type) override;
 
+    /** Retrieve current AP config.
+     * @param ssid will be filled with the SSID of the AP
+     * @param security_type will be filled with the security type
+     */
+    void wlan_get_ap_config(string *ssid, SecurityType *security_type);
+
+    /** Retrieves how many stations are connected to the wifi in AP mode.
+     * @return number of connected stations (0 to 4). If not in AP mode,
+     * returns 0.
+     */
+    int wlan_get_ap_station_count();
+
     /** @return true if the wlan interface is ready to establish outgoing
      * connections. */
     bool wlan_ready()
@@ -225,6 +238,13 @@ public:
     {
         return wlanRole;
     }
+
+    /** Change the default Wlan Role. This will be used in the next start(...)
+     * if the UNKNOWN role is specified. The new setting takes effect when the
+     * device is restarted (either via reboot or stop + start).
+     * @param role new role. Must not be UNKNOWN
+     */
+    void wlan_set_role(WlanRole new_role);
 
     /** @return 0 if !wlan_ready, else a debugging status code. */
     WlanState wlan_startup_state()
@@ -481,24 +501,26 @@ public:
     static std::string get_version();
 
 private:
+    friend class ::NetworkSpace;
+
     /** Translates the SecurityType enum to the internal SimpleLink code.
      * @param sec_type security type
      * @return simplelink security type
      */
-    uint8_t security_type_to_simplelink(SecurityType sec_type);
+    static uint8_t security_type_to_simplelink(SecurityType sec_type);
 
     /** Translates the SimpleLink code to SecurityType enum.
      * @param sec_type simplelink security type
      * @return security type
      */
-    SecurityType security_type_from_simplelink(uint8_t sec_type);
+    static SecurityType security_type_from_simplelink(uint8_t sec_type);
 
     /** Translates the SimpleLink code from the network scan to SecurityType
      * enum.
      * @param sec_type simplelink network scan security result
      * @return security type
      */
-    SecurityType security_type_from_scan(unsigned sec_type);
+    static SecurityType security_type_from_scan(unsigned sec_type);
     
     /** Set the CC32xx to its default state, including station mode.
      */
