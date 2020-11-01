@@ -261,6 +261,19 @@ public:
     /// not known. @param address is the function address.
     uint16_t get_fn(uint32_t address) OVERRIDE
     {
+        const uint32_t virtf0 = config_dcc_virtual_f0_offset();
+        if (address == virtf0 + VIRTF0_DIRECTIONAL_ENABLE)
+        {
+            return p.f0SetDirectional_;
+        }
+        else if (address == virtf0 + VIRTF0_BLANK_FWD)
+        {
+            return p.f0BlankForward_;
+        }
+        else if (address == virtf0 + VIRTF0_BLANK_REV)
+        {
+            return p.f0BlankReverse_;
+        }
         if (address > p.get_max_fn())
         {
             // Unknown.
