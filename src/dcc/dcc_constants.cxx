@@ -24,38 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file dcc/Defs.hxx
+ * \file dcc_constants.cxx
  *
- * Definitions for DCC concepts.
+ * Default values of constants from the dcc package.
  *
  * @author Balazs Racz
- * @date 27 Feb 2016
+ * @date 10 May 2014
  */
 
-#ifndef _DCC_DEFS_HXX_
-#define _DCC_DEFS_HXX_
+#include "utils/constants.hxx"
 
-#include <stdint.h>
-
-namespace dcc {
-
-/// Which address type this legacy train node uses. These address types
-/// translate to mutually independent packets on the track.
-enum class TrainAddressType : uint8_t
-{
-    /// DCC packets with short address (1..127)
-    DCC_SHORT_ADDRESS = 1,
-    /// DCC packets with long address (128..~10000)
-    DCC_LONG_ADDRESS,
-    /// Marklin-motorola packets. Addresses 1..80 are supported.
-    MM,
-    /// Unsupported address type (e.g. a protocol we don't have an
-    /// implementation for).
-    UNSUPPORTED = 255,
-    /// Unspecified address type (default / match any).
-    UNSPECIFIED = 254,
-};
-
-}  // namespace dcc
-
-#endif
+DEFAULT_CONST(dcc_virtual_f0_offset, 100);
