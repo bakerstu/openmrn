@@ -601,6 +601,11 @@ private:
     void speed_reply(Buffer<GenMessage> *msg)
     {
         AutoReleaseBuffer<GenMessage> rb(msg);
+        if (msg->data()->dstNode != node_)
+        {
+            // For a different throttle.
+            return;
+        }
         if (!iface()->matching_node(msg->data()->src, NodeHandle(dst_)))
         {
             return;
