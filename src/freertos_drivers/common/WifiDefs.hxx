@@ -28,6 +28,14 @@ enum class WlanState : uint8_t
     UPDATE_DISPLAY = 20,
 };
 
+// This is needed when this file is included into a ESP32 OpenMRNLite 
+// application.  The esp32 Arduino.h file defines DEFAULT as a macro
+// constant and that breaks the compilation of of the WlanRole enum
+// class below.  RPH November 2020
+#ifdef DEFAULT
+#undef DEFAULT
+#endif
+
 /** Operating Role.
  */
 enum class WlanRole : uint8_t
