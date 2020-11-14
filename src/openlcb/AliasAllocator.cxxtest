@@ -243,6 +243,7 @@ TEST_F(AsyncAliasAllocatorTest, BulkFew)
     }
     LOG(INFO, "invoke");
     set_seed(0x555, ifCan_->alias_allocator());
+    auto start_time = os_get_time_monotonic();
     auto invocation = invoke_flow_nowait(bulkAllocator_.get(), 5);
     wait();
     LOG(INFO, "expect RIDs");
@@ -254,6 +255,8 @@ TEST_F(AsyncAliasAllocatorTest, BulkFew)
     LOG(INFO, "wait for complete");
     invocation->wait();
     clear_expect(true);
+    auto end_time = os_get_time_monotonic();
+    EXPECT_LT(MSEC_TO_NSEC(200), end_time - start_time);
 }
 
 } // namespace openlcb
