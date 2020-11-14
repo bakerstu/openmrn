@@ -8,6 +8,7 @@ CXXSRCS += \
            BroadcastTime.cxx \
            BroadcastTimeClient.cxx \
            BroadcastTimeServer.cxx \
+           BulkAliasAllocator.cxx \
            CanDefs.cxx \
            ConfigEntry.cxx \
            ConfigUpdateFlow.cxx \
