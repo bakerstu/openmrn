@@ -79,7 +79,7 @@ public:
             pendingAliasesByKey_.insert({next_alias});
         }
         bn_.notify();
-        return call_immediately(STATE(wait_for_results));
+        return wait_and_call(STATE(stamp_time));
     }
 
     /// Adds the timestamps when the CID requests were sent out.
@@ -95,6 +95,8 @@ public:
         return call_immediately(STATE(send_cid_frames));
     }
 
+    /// Sends out the RID frames for any alias that the 200 msec has already
+    /// elapsed, then waits a bit and tries again.
     Action wait_for_results()
     {
         if (nextToClaim_ == pendingAliasesByTime_.size())
@@ -106,7 +108,7 @@ public:
         bn_.reset(this);
         while ((nextToClaim_ < pendingAliasesByTime_.size()) &&
             (num_sent < (unsigned)(config_bulk_alias_num_can_frames())) &&
-            (pendingAliasesByTime_[nextToClaim_].cidTime_ + ALLOCATE_DELAY >
+            (pendingAliasesByTime_[nextToClaim_].cidTime_ + ALLOCATE_DELAY <
                 ctime))
         {
             NodeAlias a =
@@ -130,6 +132,7 @@ public:
         }
         else
         {
+            bn_.notify();
             // Wait for outgoing frames to be gone and call this again.
             return wait();
         }
@@ -231,5 +234,11 @@ private:
     /// the reserve frame.
     uint16_t nextToClaim_;
 };
+
+std::unique_ptr<BulkAliasAllocatorInterface> create_bulk_alias_allocator(
+    IfCan *can_if) {
+    return std::make_unique<BulkAliasAllocator>(can_if);
+}
+
 
 } // namespace openlcb
