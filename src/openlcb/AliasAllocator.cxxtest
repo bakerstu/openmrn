@@ -4,6 +4,7 @@
 #include "openlcb/AliasAllocator.hxx"
 #include "openlcb/AliasCache.hxx"
 #include "openlcb/CanDefs.hxx"
+#include "openlcb/BulkAliasAllocator.hxx"
 
 namespace openlcb
 {
@@ -13,6 +14,7 @@ protected:
     AsyncAliasAllocatorTest()
         : b_(nullptr)
         , alias_allocator_(TEST_NODE_ID, ifCan_.get())
+        , bulkAllocator_(create_bulk_alias_allocator(ifCan_.get()))
     {
     }
 
@@ -50,6 +52,7 @@ protected:
 
     Buffer<AliasInfo> *b_;
     AliasAllocator alias_allocator_;
+    std::unique_ptr<BulkAliasAllocatorInterface> bulkAllocator_;
 };
 
 TEST_F(AsyncAliasAllocatorTest, SetupTeardown)
