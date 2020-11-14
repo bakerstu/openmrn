@@ -111,9 +111,7 @@ StateFlowBase::Action AliasAllocator::entry()
     HASSERT(pending_alias()->state == AliasInfo::STATE_EMPTY);
     while (!pending_alias()->alias)
     {
-        pending_alias()->alias = seed_;
-        next_seed();
-        // TODO(balazs.racz): check if the alias is already known about.
+        pending_alias()->alias = get_new_seed();
     }
     // Registers ourselves as a handler for incoming CAN frames to detect
     // conflicts.
@@ -122,6 +120,24 @@ StateFlowBase::Action AliasAllocator::entry()
 
     // Grabs an outgoing frame buffer.
     return call_immediately(STATE(handle_allocate_for_cid_frame));
+}
+
+NodeAlias AliasAllocator::get_new_seed()
+{
+    while (true)
+    {
+        NodeAlias ret = seed_;
+        next_seed();
+        if (if_can()->local_aliases()->lookup(ret))
+        {
+            continue;
+        }
+        if (if_can()->remote_aliases()->lookup(ret))
+        {
+            continue;
+        }
+        return ret;
+    }
 }
 
 void AliasAllocator::next_seed()

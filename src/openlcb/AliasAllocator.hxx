@@ -108,13 +108,24 @@ public:
      */
     AliasAllocator(NodeID if_id, IfCan *if_can);
 
+    /** Destructor */
     virtual ~AliasAllocator();
+
+    /** @return the Node ID for the interface. */
+    NodeID if_id()
+    {
+        return if_id_;
+    }
 
     /** Resets the alias allocator to the state it was at construction. useful
      * after connection restart in order to ensure it will try to allocate the
      * same alias. */
     void reinit_seed();
 
+    /** Returns a new alias to check from the random sequence. Checks that it
+     * is not in the alias cache yet.*/
+    NodeAlias get_new_seed();
+    
     /** "Allocate" a buffer from this pool (but without initialization) in
      * order to get a reserved alias. */
     QAsync *reserved_aliases()
