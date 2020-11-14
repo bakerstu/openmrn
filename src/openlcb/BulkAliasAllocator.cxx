@@ -53,6 +53,7 @@ public:
         pendingAliasesByKey_.clear();
         nextToStampTime_ = 0;
         nextToClaim_ = 0;
+        if_can()->frame_dispatcher()->register_handler(&conflictHandler_, 0, 0);
         return call_immediately(STATE(send_cid_frames));
     }
 
@@ -103,6 +104,11 @@ public:
         {
             return complete();
         }
+        if (request()->numAliases_)
+        {
+            // Some conflicts were identified, go and allocate more.
+            return call_immediately(STATE(send_cid_frames));
+        }
         auto ctime = relative_time();
         unsigned num_sent = 0;
         bn_.reset(this);
@@ -140,12 +146,27 @@ public:
 
     Action complete()
     {
+        if_can()->frame_dispatcher()->unregister_handler_all(&conflictHandler_);
         pendingAliasesByTime_.clear();
         pendingAliasesByKey_.clear();
         return return_ok();
     }
 
 private:
+    void handle_conflict(Buffer<CanMessageData> *message)
+    {
+        auto rb = get_buffer_deleter(message);
+        auto alias = CanDefs::get_src(GET_CAN_FRAME_ID_EFF(*message->data()));
+        auto it = pendingAliasesByKey_.find(alias);
+        if (it != pendingAliasesByKey_.end() && !it->hasConflict_) {
+            it->hasConflict_ = 1;
+            ++request()->numAliases_;
+        }
+    }
+
+    /// Listens to incoming CAN frames and handles alias conflicts.
+    IncomingFrameHandler::GenericHandler conflictHandler_{this, &BulkAliasAllocator::handle_conflict};
+    
     /// How many count to wait before sending out the RID frames. One count is
     /// 10 msec (see { \link relative_time } ).
     static constexpr unsigned ALLOCATE_DELAY = 20;
