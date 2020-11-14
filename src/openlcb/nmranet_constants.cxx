@@ -63,3 +63,7 @@ DEFAULT_CONST_FALSE(enable_all_memory_space);
  * identified messages at boot time. This is required by the OpenLCB
  * standard. */
 DEFAULT_CONST_TRUE(node_init_identify);
+
+/** How many CAN frames should the bulk alias allocator be sending at the same
+ * time. */
+DEFAULT_CONST(bulk_alias_num_can_frames, 20);
