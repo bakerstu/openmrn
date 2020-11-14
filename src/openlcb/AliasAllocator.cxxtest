@@ -221,4 +221,39 @@ TEST_F(AsyncAliasAllocatorTest, DifferentGenerated)
     // Makes sure 'other' disappears from the executor before destructing it.
     wait();
 }
+
+TEST_F(AsyncAliasAllocatorTest, BulkFew)
+{
+    set_seed(0x555, ifCan_->alias_allocator());
+    std::vector<NodeAlias> aliases;
+    run_x([this, &aliases]() {
+        for (unsigned i = 0; i < 5; i++)
+        {
+            auto a = ifCan_->alias_allocator()->get_new_seed();
+            aliases.push_back(a);
+        }
+    });
+    for (unsigned i = 0; i < 5; i++) {
+        auto a = aliases[i];
+        LOG(INFO, "alias %03X", a);
+        expect_packet(StringPrintf(":X17020%03XN;", a));
+        expect_packet(StringPrintf(":X1610D%03XN;", a));
+        expect_packet(StringPrintf(":X15000%03XN;", a));
+        expect_packet(StringPrintf(":X14003%03XN;", a));
+    }
+    LOG(INFO, "invoke");
+    set_seed(0x555, ifCan_->alias_allocator());
+    auto invocation = invoke_flow_nowait(bulkAllocator_.get(), 5);
+    wait();
+    LOG(INFO, "expect RIDs");
+    clear_expect(true);
+    for (unsigned i = 0; i < 5; i++) {
+        auto a = aliases[i];
+        expect_packet(StringPrintf(":X10700%03XN;", a));
+    }    
+    LOG(INFO, "wait for complete");
+    invocation->wait();
+    clear_expect(true);
+}
+
 } // namespace openlcb
