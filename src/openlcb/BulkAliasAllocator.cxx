@@ -38,9 +38,13 @@
 namespace openlcb
 {
 
+/// Implementation of the BulkAliasAllocatorInterface to allocate many aliases
+/// at the same time.
 class BulkAliasAllocator : public CallableFlow<BulkAliasRequest>
 {
 public:
+    /// Constructor
+    /// @param iface the openlcb CAN interface
     BulkAliasAllocator(IfCan *iface)
         : CallableFlow<BulkAliasRequest>(iface)
     {
@@ -144,6 +148,7 @@ public:
         }
     }
 
+    /// Called when all RID frames are sent out.
     Action complete()
     {
         if_can()->frame_dispatcher()->unregister_handler_all(&conflictHandler_);
@@ -153,6 +158,10 @@ public:
     }
 
 private:
+    /// Callback from the stack for all incoming frames while we are
+    /// operating. We sniff the alias uot of it and record any conflicts we
+    /// see.
+    /// @param message an incoming CAN frame.
     void handle_conflict(Buffer<CanMessageData> *message)
     {
         auto rb = get_buffer_deleter(message);
@@ -187,6 +196,7 @@ private:
         if_can()->frame_write_flow()->send(b, 0);
     }
 
+    /// @return the openlcb CAN interface
     IfCan *if_can()
     {
         return static_cast<IfCan *>(service());
@@ -198,6 +208,7 @@ private:
         return (os_get_time_monotonic() - startTime_) / MSEC_TO_NSEC(10);
     }
 
+    /// We store this type in the time-ordered aliases structure.
     struct PendingAliasInfo
     {
         PendingAliasInfo(NodeAlias alias)
@@ -208,7 +219,7 @@ private:
 
         /// The value of the alias
         unsigned alias_ : 12;
-        /// The time when the CID requests were sent. Counterd in
+        /// The time when the CID requests were sent. Counter in
         /// relative_time(), i.e. 10 msec per increment.
         unsigned cidTime_ : 8;
     };
