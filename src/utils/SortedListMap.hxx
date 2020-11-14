@@ -152,7 +152,8 @@ public:
     }
 
     /// Removes all entries.
-    void clear() {
+    void clear()
+    {
         container_.clear();
         sortedCount_ = 0;
     }
