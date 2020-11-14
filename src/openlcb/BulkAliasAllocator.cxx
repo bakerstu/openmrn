@@ -96,7 +96,7 @@ public:
             pendingAliasesByTime_[i].cidTime_ = relative_time();
         }
         nextToStampTime_ = pendingAliasesByTime_.size();
-        /// @todo this is wrong.
+        // Go back to sending more CID frames as needed.
         return call_immediately(STATE(send_cid_frames));
     }
 
@@ -211,6 +211,8 @@ private:
     /// We store this type in the time-ordered aliases structure.
     struct PendingAliasInfo
     {
+        /// Constructor
+        /// @param alias the openlcb alias that is being represented here.
         PendingAliasInfo(NodeAlias alias)
             : alias_(alias)
             , cidTime_(0)
@@ -228,6 +230,8 @@ private:
     /// We store this type in the sorted map lookup structure.
     struct AliasLookupInfo
     {
+        /// Constructor
+        /// @param alias the openlcb alias that is being represented here.
         AliasLookupInfo(NodeAlias alias)
             : alias_(alias)
             , hasConflict_(0)
