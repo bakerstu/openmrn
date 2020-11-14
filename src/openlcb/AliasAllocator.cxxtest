@@ -1,10 +1,10 @@
 #include <map>
 
-#include "utils/async_if_test_helper.hxx"
 #include "openlcb/AliasAllocator.hxx"
 #include "openlcb/AliasCache.hxx"
-#include "openlcb/CanDefs.hxx"
 #include "openlcb/BulkAliasAllocator.hxx"
+#include "openlcb/CanDefs.hxx"
+#include "utils/async_if_test_helper.hxx"
 
 namespace openlcb
 {
@@ -94,7 +94,7 @@ protected:
             expect_packet(StringPrintf(":X10700%03XN;", a));
         }
     }
-    
+
     Buffer<AliasInfo> *b_;
     AliasAllocator alias_allocator_;
     std::unique_ptr<BulkAliasAllocatorInterface> bulkAllocator_;
@@ -296,7 +296,7 @@ TEST_F(AsyncAliasAllocatorTest, BulkConflict)
     wait();
     LOG(INFO, "send conflicts");
     clear_expect(true);
-    expect_cid(aliases_.begin()+5, aliases_.end());
+    expect_cid(aliases_.begin() + 5, aliases_.end());
     send_packet(StringPrintf(":X10700%03XN;", aliases_[0]));
     send_packet(StringPrintf(":X10700%03XN;", aliases_[1]));
     wait();

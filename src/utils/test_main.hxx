@@ -49,12 +49,12 @@
 #include "gmock/gmock.h"
 
 #include "can_frame.h"
+#include "executor/CallableFlow.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 #include "os/TempFile.hxx"
 #include "os/os.h"
 #include "utils/StringPrintf.hxx"
-#include "executor/CallableFlow.hxx"
 
 #ifdef WITHGPERFTOOLS
 #include <gperftools/profiler.h>

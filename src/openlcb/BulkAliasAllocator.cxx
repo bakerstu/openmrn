@@ -158,15 +158,17 @@ private:
         auto rb = get_buffer_deleter(message);
         auto alias = CanDefs::get_src(GET_CAN_FRAME_ID_EFF(*message->data()));
         auto it = pendingAliasesByKey_.find(alias);
-        if (it != pendingAliasesByKey_.end() && !it->hasConflict_) {
+        if (it != pendingAliasesByKey_.end() && !it->hasConflict_)
+        {
             it->hasConflict_ = 1;
             ++request()->numAliases_;
         }
     }
 
     /// Listens to incoming CAN frames and handles alias conflicts.
-    IncomingFrameHandler::GenericHandler conflictHandler_{this, &BulkAliasAllocator::handle_conflict};
-    
+    IncomingFrameHandler::GenericHandler conflictHandler_ {
+        this, &BulkAliasAllocator::handle_conflict};
+
     /// How many count to wait before sending out the RID frames. One count is
     /// 10 msec (see { \link relative_time } ).
     static constexpr unsigned ALLOCATE_DELAY = 20;
@@ -257,9 +259,9 @@ private:
 };
 
 std::unique_ptr<BulkAliasAllocatorInterface> create_bulk_alias_allocator(
-    IfCan *can_if) {
+    IfCan *can_if)
+{
     return std::make_unique<BulkAliasAllocator>(can_if);
 }
-
 
 } // namespace openlcb

@@ -125,7 +125,7 @@ public:
     /** Returns a new alias to check from the random sequence. Checks that it
      * is not in the alias cache yet.*/
     NodeAlias get_new_seed();
-    
+
     /** "Allocate" a buffer from this pool (but without initialization) in
      * order to get a reserved alias. */
     QAsync *reserved_aliases()
