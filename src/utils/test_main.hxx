@@ -49,6 +49,7 @@
 #include "gmock/gmock.h"
 
 #include "can_frame.h"
+#include "executor/CallableFlow.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 #include "os/TempFile.hxx"
@@ -175,6 +176,49 @@ private:
 void run_x(std::function<void()> fn)
 {
     g_executor.sync_run(std::move(fn));
+}
+
+/// Structure holding returned objects for an invoke_flow_nowait command.
+template <class T> struct PendingInvocation
+{
+    /// Buffer sent to the flow.
+    BufferPtr<T> b;
+    /// Notifiable to wait for.
+    SyncNotifiable notifiable;
+    /// Barrier notifiable given to the buffer.
+    BarrierNotifiable barrier {&notifiable};
+    /// True if wait has been invoked.
+    bool isWaited {false};
+
+    ~PendingInvocation()
+    {
+        wait();
+    }
+
+    void wait()
+    {
+        if (isWaited)
+        {
+            return;
+        }
+        notifiable.wait_for_notification();
+        isWaited = true;
+    }
+};
+
+/// Executes a callable flow similar to invoke_flow(...) but does not wait for
+/// the result to come back. Instead, returns a PendingInvocation object, where
+/// there is a wait() method to be called.
+template <class T, typename... Args>
+std::unique_ptr<PendingInvocation<T>> invoke_flow_nowait(
+    FlowInterface<Buffer<T>> *flow, Args &&...args)
+{
+    auto ret = std::make_unique<PendingInvocation<T>>();
+    ret->b.reset(flow->alloc());
+    ret->b->data()->reset(std::forward<Args>(args)...);
+    ret->b->data()->done.reset(&ret->barrier);
+    flow->send(ret->b->ref());
+    return ret;
 }
 
 /** Utility class to block an executor for a while.

@@ -1,9 +1,10 @@
 #include <map>
 
-#include "utils/async_if_test_helper.hxx"
 #include "openlcb/AliasAllocator.hxx"
 #include "openlcb/AliasCache.hxx"
+#include "openlcb/BulkAliasAllocator.hxx"
 #include "openlcb/CanDefs.hxx"
+#include "utils/async_if_test_helper.hxx"
 
 namespace openlcb
 {
@@ -13,6 +14,7 @@ protected:
     AsyncAliasAllocatorTest()
         : b_(nullptr)
         , alias_allocator_(TEST_NODE_ID, ifCan_.get())
+        , bulkAllocator_(create_bulk_alias_allocator(ifCan_.get()))
     {
     }
 
@@ -48,8 +50,55 @@ protected:
         }
     }
 
+    /// Pre-generates some aliases into a vector.
+    void generate_aliases(AliasAllocator *alloc, unsigned count)
+    {
+        set_seed(0x555, alloc);
+        run_x([this, count, alloc]() {
+            for (unsigned i = 0; i < count; i++)
+            {
+                auto a = alloc->get_new_seed();
+                LOG(INFO, "alias %03X", a);
+                aliases_.push_back(a);
+            }
+        });
+        set_seed(0x555, alloc);
+    }
+
+    /// Expects that CID frames are sent to the bus.
+    /// @param begin iterator into alias array
+    /// @param end iterator (end) into alias array
+    template <typename It> void expect_cid(It begin, It end)
+    {
+        for (auto it = begin; it != end; ++it)
+        {
+            NodeAlias a = *it;
+            string msg = StringPrintf("cid %03X", a);
+            LOG(INFO, "cid %03X", a);
+            expect_packet(StringPrintf(":X17020%03XN;", a));
+            expect_packet(StringPrintf(":X1610D%03XN;", a));
+            expect_packet(StringPrintf(":X15000%03XN;", a));
+            expect_packet(StringPrintf(":X14003%03XN;", a));
+        }
+    }
+
+    /// Expects that RID frames are sent to the bus.
+    /// @param begin iterator into alias array
+    /// @param end iterator (end) into alias array
+    template <typename It> void expect_rid(It begin, It end)
+    {
+        for (auto it = begin; it != end; ++it)
+        {
+            NodeAlias a = *it;
+            LOG(INFO, "rid %03X", a);
+            expect_packet(StringPrintf(":X10700%03XN;", a));
+        }
+    }
+
     Buffer<AliasInfo> *b_;
     AliasAllocator alias_allocator_;
+    std::unique_ptr<BulkAliasAllocatorInterface> bulkAllocator_;
+    std::vector<NodeAlias> aliases_;
 };
 
 TEST_F(AsyncAliasAllocatorTest, SetupTeardown)
@@ -218,4 +267,62 @@ TEST_F(AsyncAliasAllocatorTest, DifferentGenerated)
     // Makes sure 'other' disappears from the executor before destructing it.
     wait();
 }
+
+TEST_F(AsyncAliasAllocatorTest, BulkFew)
+{
+    generate_aliases(ifCan_->alias_allocator(), 5);
+    expect_cid(aliases_.begin(), aliases_.end());
+    LOG(INFO, "invoke");
+    auto start_time = os_get_time_monotonic();
+    auto invocation = invoke_flow_nowait(bulkAllocator_.get(), 5);
+    wait();
+    LOG(INFO, "expect RIDs");
+    clear_expect(true);
+    expect_rid(aliases_.begin(), aliases_.end());
+    LOG(INFO, "wait for complete");
+    invocation->wait();
+    clear_expect(true);
+    auto end_time = os_get_time_monotonic();
+    EXPECT_LT(MSEC_TO_NSEC(200), end_time - start_time);
+}
+
+TEST_F(AsyncAliasAllocatorTest, BulkConflict)
+{
+    generate_aliases(ifCan_->alias_allocator(), 7);
+    clear_expect(true);
+    expect_cid(aliases_.begin(), aliases_.begin() + 5);
+    LOG(INFO, "invoke");
+    auto invocation = invoke_flow_nowait(bulkAllocator_.get(), 5);
+    wait();
+    LOG(INFO, "send conflicts");
+    clear_expect(true);
+    expect_cid(aliases_.begin() + 5, aliases_.end());
+    send_packet(StringPrintf(":X10700%03XN;", aliases_[0]));
+    send_packet(StringPrintf(":X10700%03XN;", aliases_[1]));
+    wait();
+    usleep(10000);
+    wait();
+    LOG(INFO, "expect RIDs");
+    clear_expect(true);
+    expect_rid(aliases_.begin() + 2, aliases_.end());
+    LOG(INFO, "wait for complete");
+    invocation->wait();
+    clear_expect(true);
+}
+
+TEST_F(AsyncAliasAllocatorTest, BulkMany)
+{
+    generate_aliases(ifCan_->alias_allocator(), 150);
+    expect_cid(aliases_.begin(), aliases_.end());
+    LOG(INFO, "invoke");
+    auto invocation = invoke_flow_nowait(bulkAllocator_.get(), 150);
+    wait();
+    LOG(INFO, "expect RIDs");
+    clear_expect(true);
+    expect_rid(aliases_.begin(), aliases_.end());
+    LOG(INFO, "wait for complete");
+    invocation->wait();
+    clear_expect(true);
+}
+
 } // namespace openlcb
