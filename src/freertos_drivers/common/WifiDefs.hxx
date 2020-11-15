@@ -33,7 +33,7 @@ enum class WlanState : uint8_t
 enum class WlanRole : uint8_t
 {
     UNKNOWN = 0,       /**< Default mode (from stored configuration) */
-    DEFAULT = UNKNOWN, /**< Default mode (from stored configuration) */
+    DEFAULT_ROLE = UNKNOWN, /**< Default mode (from stored configuration) */
     STA,               /**< Wi-Fi station mode */
     AP                 /**< Wi-Fi access point mode */
 };
