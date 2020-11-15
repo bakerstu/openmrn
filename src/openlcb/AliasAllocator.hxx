@@ -126,13 +126,20 @@ public:
      * is not in the alias cache yet.*/
     NodeAlias get_new_seed();
 
-    /** "Allocate" a buffer from this pool (but without initialization) in
-     * order to get a reserved alias. */
-    QAsync *reserved_aliases()
-    {
-        return &reserved_alias_pool_;
-    }
-
+    /** Allocates an alias from the reserved but unused aliases list. If there
+     * is a free alias there, that alias will be reassigned to destination_id
+     * in the local alias cache, and done will never be notified. If there is
+     * no free alias, then a new alias will be allocated, and done will be
+     * notified when the allocation is complete. Then the call has to be
+     * re-tried by the destination flow.
+     * @param destination_id if there is a free alias right now, it will be
+     * assigned to this Node ID in the local alias cache.
+     * @param done if an async allocation is necessary, this will be notified
+     * after a new alias has been received.
+     * @return the alias if the it was allocated inline, or 0 if there will be
+     * an asynchronous notification coming later. */
+    NodeAlias get_allocated_alias(NodeID destination_id, Executable* done);
+    
     /** Releases a given alias. Sends out an AMR frame and puts the alias into
      * the reserved aliases queue. */
     void return_alias(NodeID id, NodeAlias alias);
@@ -151,7 +158,7 @@ public:
     /** Adds an allocated aliad to the reserved aliases queue.
         @param alias the next allocated alias to add.
     */
-    void TEST_add_allocated_alias(NodeAlias alias, bool repeat=false);
+    void TEST_add_allocated_alias(NodeAlias alias);
     
 private:
     /** Listens to incoming CAN frames and handles alias conflicts. */
@@ -193,7 +200,9 @@ private:
     /** Freelist of reserved aliases that can be used by virtual nodes. The
         AliasAllocatorFlow will post successfully reserved aliases to this
         allocator. */
-    QAsync reserved_alias_pool_;
+    //QAsync reserved_alias_pool_;
+    /// Set of client flows that are waiting for allocating an alias.
+    Q waitingClients_;
 
     /// 48-bit nodeID that we will use for alias reservations.
     NodeID if_id_;
