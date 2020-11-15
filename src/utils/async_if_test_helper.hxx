@@ -376,21 +376,21 @@ protected:
 
     /** Creates an alias allocator flow, and injects an already allocated
      *  alias. */
-    void create_allocated_alias()
+    void create_allocated_aliass()
     {
-        inject_allocated_alias(0x33A, true);
+        inject_allocated_alias(0x33A);
         aliasSeed_ = 0x44C;
         pendingAliasAllocation_ = false;
     }
 
-    void inject_allocated_alias(NodeAlias alias, bool repeat = false)
+    void inject_allocated_alias(NodeAlias alias)
     {
         if (!ifCan_->alias_allocator()) {
             ifCan_->set_alias_allocator(
                 new AliasAllocator(TEST_NODE_ID, ifCan_.get()));
         }
-        run_x([this, alias, repeat]() {
-            ifCan_->alias_allocator()->TEST_add_allocated_alias(alias, repeat);
+        run_x([this, alias]() {
+            ifCan_->alias_allocator()->TEST_add_allocated_alias(alias);
         });
     }
 

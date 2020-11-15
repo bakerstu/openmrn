@@ -43,8 +43,7 @@ class LoggingTrainTest : public TractionTest
 protected:
     LoggingTrainTest() : trainImpl_(1732)
     {
-        create_allocated_alias();
-        expect_next_alias_allocation();
+        create_allocated_aliass();
         // alias reservation
         expect_packet(":X1070133AN0601000006C4;");
         // initialized
