@@ -391,6 +391,25 @@ bool AliasCache::retrieve(unsigned entry, NodeID* node, NodeAlias* alias)
     return true;
 }
 
+bool AliasCache::next_entry(NodeID bound, NodeID *node, NodeAlias *alias)
+{
+    auto it = idMap.upper_bound(bound);
+    if (it == idMap.end())
+    {
+        return false;
+    }
+    Metadata *metadata = it->deref(this);
+    if (alias)
+    {
+        *alias = metadata->alias_;
+    }
+    if (node)
+    {
+        *node = metadata->get_node_id();
+    }
+    return true;
+}
+
 /** Lookup a node's alias based on its Node ID.
  * @param id Node ID to look for
  * @return alias that matches the Node ID, else 0 if not found
