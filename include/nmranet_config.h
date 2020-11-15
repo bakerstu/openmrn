@@ -146,6 +146,10 @@ DECLARE_CONST(enable_all_memory_space);
  * standard. */
 DECLARE_CONST(node_init_identify);
 
+/** How many CAN frames should the bulk alias allocator be sending at the same
+ * time. */
+DECLARE_CONST(bulk_alias_num_can_frames);
+
 /** Stack size for @ref SocketListener threads. */
 DECLARE_CONST(socket_listener_stack_size);
 
