@@ -69,9 +69,9 @@ struct AliasInfo
     }
 
     /** The current alias. This is 0 if the alias needs to be generated. */
-    unsigned alias : 12;
-    unsigned state : 3;
-    unsigned return_to_reallocation : 1;
+    uint16_t alias : 12;
+    uint16_t state : 3;
+    uint16_t return_to_reallocation : 1;
 
     enum State
     {
@@ -137,6 +137,13 @@ public:
      * the reserved aliases queue. */
     void return_alias(NodeID id, NodeAlias alias);
 
+    /** Call from an alternate alias allocator. Marks that alias is reserved
+     * for the local interface (RID frame is just sent out). Adds the alias to
+     * the local alias cache and wakes up a flow that might be waiting for an
+     * alias.
+     * @param alias a reserved node alias. */
+    void add_allocated_alias(NodeAlias alias);
+    
     /** If there is a pending alias allocation waiting for the timer to expire,
      * finishes it immediately. Needed in test destructors. */
     void TEST_finish_pending_allocation();
