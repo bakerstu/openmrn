@@ -112,7 +112,7 @@ public:
     virtual ~AliasAllocator();
 
     /** @return the Node ID for the interface. */
-    NodeID if_id()
+    NodeID if_node_id()
     {
         return if_id_;
     }

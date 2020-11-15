@@ -50,6 +50,8 @@ public:
     {
     }
 
+    /// Start of flow when a request arrives to allocate many aliases. Resets
+    /// the internal state and goes on to start the allocation process.
     Action entry() override
     {
         startTime_ = os_get_time_monotonic();
@@ -74,7 +76,7 @@ public:
         for (unsigned i = 0; i < needed; ++i)
         {
             NodeAlias next_alias = if_can()->alias_allocator()->get_new_seed();
-            auto if_id = if_can()->alias_allocator()->if_id();
+            auto if_id = if_can()->alias_allocator()->if_node_id();
             send_can_frame(next_alias, (if_id >> 36) & 0xfff, 7);
             send_can_frame(next_alias, (if_id >> 24) & 0xfff, 6);
             send_can_frame(next_alias, (if_id >> 12) & 0xfff, 5);
@@ -90,10 +92,11 @@ public:
     /// Adds the timestamps when the CID requests were sent out.
     Action stamp_time()
     {
+        auto ctime = relative_time();
         for (unsigned i = nextToStampTime_; i < pendingAliasesByTime_.size();
              ++i)
         {
-            pendingAliasesByTime_[i].cidTime_ = relative_time();
+            pendingAliasesByTime_[i].cidTime_ = ctime;
         }
         nextToStampTime_ = pendingAliasesByTime_.size();
         // Go back to sending more CID frames as needed.
