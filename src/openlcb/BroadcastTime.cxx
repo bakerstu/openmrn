@@ -46,8 +46,10 @@ namespace openlcb
 //
 void BroadcastTime::clear_timezone()
 {
+#ifndef ARDUINO
         setenv("TZ", "GMT0", 1);
         tzset();
+#endif
 }
 
 } // namespace openlcb
