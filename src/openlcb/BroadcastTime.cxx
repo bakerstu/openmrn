@@ -46,7 +46,7 @@ namespace openlcb
 //
 void BroadcastTime::clear_timezone()
 {
-#ifndef ARDUINO
+#ifndef ESP32
         setenv("TZ", "GMT0", 1);
         tzset();
 #endif
