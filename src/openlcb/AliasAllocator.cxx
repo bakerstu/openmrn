@@ -97,8 +97,7 @@ void AliasAllocator::add_allocated_alias(NodeAlias alias)
     /** @TODO(balazs.racz): We leak aliases here in case of eviction by the
      * AliasCache object. */
     if_can()->local_aliases()->add(
-        CanDefs::get_reserved_alias_node_id(pending_alias()->alias),
-        pending_alias()->alias);
+        CanDefs::get_reserved_alias_node_id(alias), alias);
     if (!waitingClients_.empty())
     {
         // Wakes up exactly one executable that is waiting for an alias.
@@ -121,7 +120,6 @@ NodeAlias AliasAllocator::get_allocated_alias(
     if (found)
     {
         if_can()->local_aliases()->add(destination_id, found_alias);
-        done->notify();
         return found_alias;
     }
     waitingClients_.insert(done);
