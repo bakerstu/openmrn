@@ -405,15 +405,21 @@ TEST_F(AsyncMessageCanTests, ReservedAliasReclaimed)
      * detected at the time the next outgoing virtual node tries to allocate
      * that alias, and we'll test that it actually generates a new one
      * instead. */
-    RX(ifCan_->local_aliases()->remove(NodeAlias(0x22A))); // resets the cache.
+    LOG(INFO, "1");
+    RX(ifCan_->local_aliases()->clear()); // resets the cache.
+    RX(ifCan_->alias_allocator()->add_allocated_alias(0x33A));
     auto* b = ifCan_->global_message_write_flow()->alloc();
-    create_allocated_aliass();
     expect_packet(":X1070133AN02010D000003;");
     expect_packet(":X195B433AN0102030405060708;");
+    expect_next_alias_allocation();
     b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID,
                      eventid_to_buffer(UINT64_C(0x0102030405060708)));
+    LOG(INFO, "2");
     ifCan_->global_message_write_flow()->send(b);
+    wait();
+    LOG(INFO, "3");
     usleep(250000);
+    LOG(INFO, "4");
     wait();
     // Here we have the next reserved alias.
     RX(EXPECT_EQ(CanDefs::get_reserved_alias_node_id(0x44C),
