@@ -158,6 +158,7 @@ NodeAlias AliasAllocator::get_new_seed()
     {
         NodeAlias ret = seed_;
         next_seed();
+        LOG(INFO, "%p: alias test seed is %03X (next %03X)", this, ret, seed_);
         if (if_can()->local_aliases()->lookup(ret))
         {
             continue;
@@ -166,6 +167,7 @@ NodeAlias AliasAllocator::get_new_seed()
         {
             continue;
         }
+        LOG(INFO, "alias get seed is %03X (next %03X)", ret, seed_);
         return ret;
     }
 }
