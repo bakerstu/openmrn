@@ -159,7 +159,13 @@ public:
         @param alias the next allocated alias to add.
     */
     void TEST_add_allocated_alias(NodeAlias alias);
-    
+
+    /** Overrides the configured value for reserve_unused_alias_count. */
+    void TEST_set_reserve_unused_alias_count(unsigned count)
+    {
+        reserveUnusedAliases_ = count;
+    }
+
 private:
     /** Listens to incoming CAN frames and handles alias conflicts. */
     class ConflictHandler : public IncomingFrameHandler
@@ -222,6 +228,10 @@ private:
     /// Seed for generating random-looking alias numbers.
     unsigned seed_ : 12;
 
+    /// How many unused aliases we should reserve. Currently we only support 0
+    /// or 1 as value.
+    unsigned reserveUnusedAliases_ : 8;
+    
     /// Notifiable used for tracking outgoing frames.
     BarrierNotifiable n_;
 

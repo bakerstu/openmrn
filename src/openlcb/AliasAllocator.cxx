@@ -34,6 +34,7 @@
 
 #include "openlcb/AliasAllocator.hxx"
 #include "openlcb/CanDefs.hxx"
+#include "nmranet_config.h"
 
 namespace openlcb
 {
@@ -47,6 +48,7 @@ AliasAllocator::AliasAllocator(NodeID if_id, IfCan *if_can)
     , if_id_(if_id)
     , cid_frame_sequence_(0)
     , conflict_detected_(0)
+    , reserveUnusedAliases_(config_reserve_unused_alias_count())
 {
     reinit_seed();
     // Moves all the allocated alias buffers over to the input queue for
@@ -110,7 +112,8 @@ NodeAlias AliasAllocator::get_allocated_alias(
     NodeID destination_id, Executable *done)
 {
     NodeID found_id;
-    NodeAlias found_alias;
+    NodeAlias found_alias = 0;
+    bool allocate_new = false;
     bool found = if_can()->local_aliases()->next_entry(
         CanDefs::get_reserved_alias_node_id(0), &found_id, &found_alias);
     if (found)
@@ -120,14 +123,32 @@ NodeAlias AliasAllocator::get_allocated_alias(
     if (found)
     {
         if_can()->local_aliases()->add(destination_id, found_alias);
-        return found_alias;
+        if (reserveUnusedAliases_)
+        {
+            NodeID next_id;
+            NodeAlias next_alias = 0;
+            if (!if_can()->local_aliases()->next_entry(
+                    CanDefs::get_reserved_alias_node_id(0), &next_id,
+                    &next_alias) ||
+                !CanDefs::is_reserved_alias_node_id(next_id))
+            {
+                allocate_new = true;
+            }
+        }
     }
-    waitingClients_.insert(done);
-    // This will cause a new alias to be allocated.
-    Buffer<AliasInfo> *b = alloc();
-    b->data()->do_not_reallocate();
-    this->send(b);
-    return 0;
+    else
+    {
+        found_alias = 0;
+        allocate_new = true;
+        waitingClients_.insert(done);
+    }
+    if (allocate_new)
+    {
+        Buffer<AliasInfo> *b = alloc();
+        b->data()->do_not_reallocate();
+        this->send(b);
+    }
+    return found_alias;
 }
 
 AliasAllocator::~AliasAllocator()
