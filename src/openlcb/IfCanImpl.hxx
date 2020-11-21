@@ -104,8 +104,10 @@ private:
          * @TODO(balazs.racz): implement proper local alias reclaim/reuse
          * mechanism. */
         HASSERT(if_can()->alias_allocator());
-        NodeAlias alias = if_can()->alias_allocator()->get_allocated_alias(nmsg()->src.id, this);
-        if (!alias) {
+        NodeAlias alias = if_can()->alias_allocator()->get_allocated_alias(
+            nmsg()->src.id, this);
+        if (!alias)
+        {
             // wait for notification and re-try this step.
             return wait();
         }

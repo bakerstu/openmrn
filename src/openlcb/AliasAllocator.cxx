@@ -33,8 +33,8 @@
  */
 
 #include "openlcb/AliasAllocator.hxx"
-#include "openlcb/CanDefs.hxx"
 #include "nmranet_config.h"
+#include "openlcb/CanDefs.hxx"
 
 namespace openlcb
 {
@@ -314,8 +314,6 @@ void AliasAllocator::TEST_finish_pending_allocation() {
         timer_.trigger();
     }
 }
-
-
 
 void AliasAllocator::TEST_add_allocated_alias(NodeAlias alias)
 {

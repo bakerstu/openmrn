@@ -46,7 +46,8 @@ protected:
     {
         NodeAlias a;
         nextAliasNodeId_++;
-        do {
+        do
+        {
             run_x([this, &a]() {
                 a = alias_allocator_.get_allocated_alias(
                     nextAliasNodeId_, &ex_);
@@ -116,7 +117,7 @@ protected:
     class AllocExecutable : public Executable
     {
     public:
-        AllocExecutable(AsyncAliasAllocatorTest* parent)
+        AllocExecutable(AsyncAliasAllocatorTest *parent)
             : parent_(parent)
         {
         }
@@ -127,7 +128,7 @@ protected:
         {
             parent_->n_.notify();
         }
-        AsyncAliasAllocatorTest* parent_;
+        AsyncAliasAllocatorTest *parent_;
     } ex_ {this};
     friend class AllocExecutable;
 
@@ -217,7 +218,7 @@ TEST_F(AsyncAliasAllocatorTest, ReserveUnused)
         // This one should be marked as reserved.
         EXPECT_EQ(CanDefs::get_reserved_alias_node_id(0xAAA),
             ifCan_->local_aliases()->lookup(NodeAlias(0xAAA)));
-    });    
+    });
 }
 
 #if 0
@@ -296,7 +297,7 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
         // This one should be unknown.
         EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x555)));
     });
-    
+
     get_next_alias();
     EXPECT_EQ(0xAA5U, b_->data()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, b_->data()->state);

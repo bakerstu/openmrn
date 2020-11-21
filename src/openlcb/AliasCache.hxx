@@ -170,8 +170,8 @@ public:
      * @return true if a larger element is found and node and alias were
      * filled, otherwise false if bound is >= the largest node ID in the cache.
      */
-    bool next_entry(NodeID bound, NodeID* node, NodeAlias* alias);
-    
+    bool next_entry(NodeID bound, NodeID *node, NodeAlias *alias);
+
     /** Generate a 12-bit pseudo-random alias for a given alias cache.
      * @return pseudo-random 12-bit alias, an alias of zero is invalid
      */

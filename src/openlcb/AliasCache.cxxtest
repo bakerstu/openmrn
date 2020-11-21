@@ -144,10 +144,10 @@ TEST(AliasCacheTest, reordering)
     EXPECT_TRUE(aliasCache->lookup((NodeAlias)84) == 104);
     EXPECT_TRUE(aliasCache->lookup((NodeAlias)6)  == 103);
     EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
-    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);
 
     test_alias_next(aliasCache, 6);
-    
+
     aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
     
     EXPECT_EQ(count, 6);

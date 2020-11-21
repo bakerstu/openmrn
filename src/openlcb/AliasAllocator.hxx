@@ -138,8 +138,8 @@ public:
      * after a new alias has been received.
      * @return the alias if the it was allocated inline, or 0 if there will be
      * an asynchronous notification coming later. */
-    NodeAlias get_allocated_alias(NodeID destination_id, Executable* done);
-    
+    NodeAlias get_allocated_alias(NodeID destination_id, Executable *done);
+
     /** Releases a given alias. Sends out an AMR frame and puts the alias into
      * the reserved aliases queue. */
     void return_alias(NodeID id, NodeAlias alias);
@@ -150,7 +150,7 @@ public:
      * alias.
      * @param alias a reserved node alias. */
     void add_allocated_alias(NodeAlias alias);
-    
+
     /** If there is a pending alias allocation waiting for the timer to expire,
      * finishes it immediately. Needed in test destructors. */
     void TEST_finish_pending_allocation();
@@ -203,10 +203,6 @@ private:
 
     StateFlowTimer timer_;
 
-    /** Freelist of reserved aliases that can be used by virtual nodes. The
-        AliasAllocatorFlow will post successfully reserved aliases to this
-        allocator. */
-    //QAsync reserved_alias_pool_;
     /// Set of client flows that are waiting for allocating an alias.
     Q waitingClients_;
 
@@ -231,7 +227,7 @@ private:
     /// How many unused aliases we should reserve. Currently we only support 0
     /// or 1 as value.
     unsigned reserveUnusedAliases_ : 8;
-    
+
     /// Notifiable used for tracking outgoing frames.
     BarrierNotifiable n_;
 
