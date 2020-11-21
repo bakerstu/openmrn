@@ -369,7 +369,6 @@ private:
              */
             HASSERT(fdIn == fdOut);
             fclose(fp);
-            close(fdIn);
             free(line);
         }
 
