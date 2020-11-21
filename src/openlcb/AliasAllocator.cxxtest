@@ -33,7 +33,9 @@ protected:
     unsigned next_seed(AliasAllocator *alloc = nullptr)
     {
         if (!alloc)
+        {
             alloc = &alias_allocator_;
+        }
         alloc->next_seed();
         return alloc->seed_;
     }
@@ -42,12 +44,21 @@ protected:
      * until one is available. The alias will be saved into the buffer b_. */
     void get_next_alias()
     {
-        while (b_ = static_cast<Buffer<AliasInfo> *>(
-                   alias_allocator_.reserved_aliases()->next().item),
-               !b_)
-        {
-            usleep(10);
-        }
+        NodeAlias a;
+        nextAliasNodeId_++;
+        do {
+            run_x([this, &a]() {
+                a = alias_allocator_.get_allocated_alias(
+                    nextAliasNodeId_, &ex_);
+            });
+            if (!a)
+            {
+                n_.wait_for_notification();
+            }
+        } while (a == 0);
+        b_ = alias_allocator_.alloc();
+        b_->data()->alias = a;
+        b_->data()->state = AliasInfo::STATE_RESERVED;
     }
 
     /// Pre-generates some aliases into a vector.
@@ -75,10 +86,14 @@ protected:
             NodeAlias a = *it;
             string msg = StringPrintf("cid %03X", a);
             LOG(INFO, "cid %03X", a);
-            expect_packet(StringPrintf(":X17020%03XN;", a));
-            expect_packet(StringPrintf(":X1610D%03XN;", a));
-            expect_packet(StringPrintf(":X15000%03XN;", a));
-            expect_packet(StringPrintf(":X14003%03XN;", a));
+            expect_packet(StringPrintf(":X17020%03XN;", a))
+                .RetiresOnSaturation();
+            expect_packet(StringPrintf(":X1610D%03XN;", a))
+                .RetiresOnSaturation();
+            expect_packet(StringPrintf(":X15000%03XN;", a))
+                .RetiresOnSaturation();
+            expect_packet(StringPrintf(":X14003%03XN;", a))
+                .RetiresOnSaturation();
         }
     }
 
@@ -91,14 +106,37 @@ protected:
         {
             NodeAlias a = *it;
             LOG(INFO, "rid %03X", a);
-            expect_packet(StringPrintf(":X10700%03XN;", a));
+            expect_packet(StringPrintf(":X10700%03XN;", a))
+                .RetiresOnSaturation();
         }
     }
+
+    /// Helper class to pass into the asynchronous alias allocation wait. Will
+    /// notify n_ when the alias is ready to be taken.
+    class AllocExecutable : public Executable
+    {
+    public:
+        AllocExecutable(AsyncAliasAllocatorTest* parent)
+            : parent_(parent)
+        {
+        }
+        void run() override
+        {
+        }
+        void alloc_result(QMember *item) override
+        {
+            parent_->n_.notify();
+        }
+        AsyncAliasAllocatorTest* parent_;
+    } ex_ {this};
+    friend class AllocExecutable;
 
     Buffer<AliasInfo> *b_;
     AliasAllocator alias_allocator_;
     std::unique_ptr<BulkAliasAllocatorInterface> bulkAllocator_;
     std::vector<NodeAlias> aliases_;
+    /// Will use this node ID to mark the next alias gotten.
+    openlcb::NodeID nextAliasNodeId_ = TEST_NODE_ID + 1;
 };
 
 TEST_F(AsyncAliasAllocatorTest, SetupTeardown)
@@ -113,21 +151,75 @@ TEST_F(AsyncAliasAllocatorTest, AllocateOne)
     expect_packet(":X1610D555N;");
     expect_packet(":X15000555N;");
     expect_packet(":X14003555N;");
-
-    mainBufferPool->alloc(&b_);
-    alias_allocator_.send(b_);
-    b_ = nullptr;
-
-    /** @todo(balazs.racz) this should be after the wait because there should be
-     * a delay before sending it. */
     expect_packet(":X10700555N;");
-    wait();
 
     get_next_alias();
     ASSERT_TRUE(b_);
     EXPECT_EQ(0x555U, b_->data()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, b_->data()->state);
 }
+
+TEST_F(AsyncAliasAllocatorTest, ReserveThenAllocate)
+{
+    set_seed(0x555);
+    clear_expect(true);
+    mainBufferPool->alloc(&b_);
+    expect_packet(":X17020555N;");
+    expect_packet(":X1610D555N;");
+    expect_packet(":X15000555N;");
+    expect_packet(":X14003555N;");
+    alias_allocator_.send(b_);
+    wait();
+    expect_packet(":X10700555N;");
+    usleep(250000);
+    wait();
+    clear_expect(true);
+    run_x([this]() {
+        EXPECT_EQ(0x555,
+            alias_allocator_.get_allocated_alias(nextAliasNodeId_, nullptr));
+        EXPECT_EQ(nextAliasNodeId_,
+            ifCan_->local_aliases()->lookup(NodeAlias(0x555)));
+    });
+}
+
+TEST_F(AsyncAliasAllocatorTest, ReserveUnused)
+{
+    alias_allocator_.TEST_set_reserve_unused_alias_count(1);
+    set_seed(0x555);
+    clear_expect(true);
+    expect_packet(":X17020555N;");
+    expect_packet(":X1610D555N;");
+    expect_packet(":X15000555N;");
+    expect_packet(":X14003555N;");
+    run_x([this]() {
+        EXPECT_EQ(
+            0, alias_allocator_.get_allocated_alias(nextAliasNodeId_, &ex_));
+    });
+    wait();
+    clear_expect(true);
+    expect_packet(":X10700555N;");
+    usleep(250000);
+    clear_expect(true);
+    expect_packet(":X17020AAAN;");
+    expect_packet(":X1610DAAAN;");
+    expect_packet(":X15000AAAN;");
+    expect_packet(":X14003AAAN;");
+    set_seed(0xAAA);
+    run_x([this]() {
+        EXPECT_EQ(0x555,
+            alias_allocator_.get_allocated_alias(nextAliasNodeId_, &ex_));
+    });
+    wait();
+    clear_expect(true);
+    expect_packet(":X10700AAAN;");
+    usleep(250000);
+    run_x([this]() {
+        // This one should be marked as reserved.
+        EXPECT_EQ(CanDefs::get_reserved_alias_node_id(0xAAA),
+            ifCan_->local_aliases()->lookup(NodeAlias(0xAAA)));
+    });    
+}
+
 #if 0
 TEST_F(AsyncAliasAllocatorTest, TestDelay)
 {
@@ -148,13 +240,11 @@ TEST_F(AsyncAliasAllocatorTest, TestDelay)
 TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
 {
     set_seed(0x555);
-    mainBufferPool->alloc(&b_);
     expect_packet(":X17020555N;");
     expect_packet(":X1610D555N;");
     expect_packet(":X15000555N;");
     expect_packet(":X14003555N;");
     expect_packet(":X10700555N;");
-    alias_allocator_.send(b_);
     b_ = nullptr;
     get_next_alias();
     EXPECT_EQ(0x555U, b_->data()->alias);
@@ -167,15 +257,10 @@ TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
     expect_packet(":X14003AAAN;");
     expect_packet(":X10700AAAN;");
 
-    mainBufferPool->alloc(&b_);
-    alias_allocator_.send(b_);
-    b_ = nullptr;
-
     /* Conflicts with the previous alias to be tested. That's not a problem at
      * this point however, because that alias has already left the
      * allocator. */
-    send_packet(
-        ":X10700555N;");
+    send_packet(":X10700555N;");
 
     get_next_alias();
     EXPECT_EQ(0xAAAU, b_->data()->alias);
@@ -184,6 +269,7 @@ TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
 
 TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
 {
+    clear_expect(true);
     set_seed(0x555);
     mainBufferPool->alloc(&b_);
     expect_packet(":X17020555N;");
@@ -193,6 +279,7 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
     alias_allocator_.send(b_);
     b_ = nullptr;
     wait();
+    clear_expect(true);
     set_seed(0xAA5);
     expect_packet(":X17020AA5N;");
     expect_packet(":X1610DAA5N;");
@@ -200,10 +287,8 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
     expect_packet(":X14003AA5N;");
     expect_packet(":X10700AA5N;");
     send_packet(":X10700555N;");
-
-    get_next_alias();
-    EXPECT_EQ(0xAA5U, b_->data()->alias);
-    EXPECT_EQ(AliasInfo::STATE_RESERVED, b_->data()->state);
+    twait();
+    clear_expect(true);
     run_x([this]() {
         // This one should be marked as reserved.
         EXPECT_EQ(CanDefs::get_reserved_alias_node_id(0xAA5),
@@ -211,10 +296,20 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
         // This one should be unknown.
         EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x555)));
     });
+    
+    get_next_alias();
+    EXPECT_EQ(0xAA5U, b_->data()->alias);
+    EXPECT_EQ(AliasInfo::STATE_RESERVED, b_->data()->state);
+    run_x([this]() {
+        // This one should be marked for the new node ID.
+        EXPECT_EQ(nextAliasNodeId_,
+            ifCan_->local_aliases()->lookup(NodeAlias(0xAA5)));
+    });
 }
 
 TEST_F(AsyncAliasAllocatorTest, LateAllocationConflict)
 {
+    clear_expect(true);
     set_seed(0x555);
     mainBufferPool->alloc(&b_);
     expect_packet(":X17020555N;");
@@ -224,6 +319,7 @@ TEST_F(AsyncAliasAllocatorTest, LateAllocationConflict)
     alias_allocator_.send(b_);
     b_ = nullptr;
     wait();
+    clear_expect(true);
     set_seed(0xAA5);
     usleep(100000);
     expect_packet(":X17020AA5N;");
@@ -232,9 +328,11 @@ TEST_F(AsyncAliasAllocatorTest, LateAllocationConflict)
     expect_packet(":X14003AA5N;");
     send_packet(":X10700555N;");
     wait();
+    clear_expect(true);
     usleep(100000);
     expect_packet(":X10700AA5N;");
     send_packet(":X10700555N;");
+    twait();
     get_next_alias();
     EXPECT_EQ(0xAA5U, b_->data()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, b_->data()->state);
@@ -281,6 +379,7 @@ TEST_F(AsyncAliasAllocatorTest, BulkFew)
     expect_rid(aliases_.begin(), aliases_.end());
     LOG(INFO, "wait for complete");
     invocation->wait();
+    wait();
     clear_expect(true);
     auto end_time = os_get_time_monotonic();
     EXPECT_LT(MSEC_TO_NSEC(200), end_time - start_time);
@@ -312,14 +411,13 @@ TEST_F(AsyncAliasAllocatorTest, BulkConflict)
 
 TEST_F(AsyncAliasAllocatorTest, BulkMany)
 {
+    clear_expect(true);
     generate_aliases(ifCan_->alias_allocator(), 150);
     expect_cid(aliases_.begin(), aliases_.end());
+    expect_rid(aliases_.begin(), aliases_.end());
     LOG(INFO, "invoke");
     auto invocation = invoke_flow_nowait(bulkAllocator_.get(), 150);
     wait();
-    LOG(INFO, "expect RIDs");
-    clear_expect(true);
-    expect_rid(aliases_.begin(), aliases_.end());
     LOG(INFO, "wait for complete");
     invocation->wait();
     clear_expect(true);
