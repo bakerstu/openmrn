@@ -369,6 +369,9 @@ private:
              */
             HASSERT(fdIn == fdOut);
             fclose(fp);
+            /* There is no need for a "close(fdIn)" because the "fclose(fp)"
+             * will already have completed that operation.
+             */
             free(line);
         }
 
