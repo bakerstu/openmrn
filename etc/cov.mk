@@ -30,7 +30,7 @@ CSHAREDFLAGS = -c -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(
 
 CFLAGS = $(CSHAREDFLAGS) -std=gnu99 $(CFLAGSEXTRA)
 
-CXXFLAGS = $(CSHAREDFLAGS) -std=c++1y -D__STDC_FORMAT_MACROS \
+CXXFLAGS = $(CSHAREDFLAGS) -std=c++14 -D__STDC_FORMAT_MACROS \
            -D__STDC_LIMIT_MACROS $(CXXFLAGSEXTRA) #-D__LINEAR_MAP__
 
 
