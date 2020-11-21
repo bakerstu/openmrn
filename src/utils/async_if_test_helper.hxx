@@ -376,7 +376,7 @@ protected:
 
     /** Creates an alias allocator flow, and injects an already allocated
      *  alias. */
-    void create_allocated_aliass()
+    void create_allocated_alias()
     {
         inject_allocated_alias(0x33A);
         aliasSeed_ = 0x44C;

@@ -29,7 +29,7 @@ TEST_F(AsyncIfTest, TwoNodesInitialize)
 {
     ifCan_->add_addressed_message_support();
     expect_packet(":X1910022AN02010d000003;"); // initialization complete
-    create_allocated_aliass();
+    create_allocated_alias();
     LOG(INFO, "before");
     DefaultNode node(ifCan_.get(), TEST_NODE_ID);
     LOG(INFO, "after");
@@ -39,10 +39,6 @@ TEST_F(AsyncIfTest, TwoNodesInitialize)
     DefaultNode node2(ifCan_.get(), TEST_NODE_ID + 1);
     wait();
 }
-
-/// @todo: add test for a (currently broken) feature that keeps one alias
-/// always free, meaning that it will allocate a new alias immediately when a
-/// new node uses up the last currently reserved alias.
 
 TEST_F(AsyncIfTest, WriteHelperByMTI)
 {

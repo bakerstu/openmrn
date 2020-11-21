@@ -348,7 +348,7 @@ TEST_F(AsyncMessageCanTests, WriteByMTIAllocatesLocalAlias)
 {
     auto *b = ifCan_->global_message_write_flow()->alloc();
 
-    create_allocated_aliass();
+    create_allocated_alias();
     expect_packet(":X1070133AN02010D000004;");
     expect_packet(":X195B433AN0102030405060708;");
     b->data()->reset(Defs::MTI_EVENT_REPORT, TEST_NODE_ID + 1,
@@ -775,7 +775,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCachedAlias)
     RX(ifCan_->remote_aliases()->add(id, alias));
     // Simulate cache miss on local alias cache.
     RX(ifCan_->local_aliases()->remove(0x22A));
-    create_allocated_aliass();
+    create_allocated_alias();
     expect_packet(":X1070133AN02010D000003;"); // AMD for our new alias.
     // And the frame goes out.
     expect_packet(":X1948833AN0210050101FFFFDD;");
@@ -794,7 +794,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMiss)
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
     // Simulate cache miss on local alias cache.
     RX(ifCan_->local_aliases()->remove(0x22A));
-    create_allocated_aliass();
+    create_allocated_alias();
     expect_packet(":X1070133AN02010D000003;"); // AMD for our new alias.
     // And the new alias will do the lookup. Not with an AME frame but straight
     // to the verify node id.
@@ -820,7 +820,7 @@ TEST_F(AsyncNodeTest, SendAddressedMessageFromNewNodeWithCacheMissTimeout)
     auto* b = ifCan_->addressed_message_write_flow()->alloc();
     // Simulate cache miss on local alias cache.
     RX(ifCan_->local_aliases()->remove(0x22A));
-    create_allocated_aliass();
+    create_allocated_alias();
     expect_packet(":X1070133AN02010D000003;"); // AMD for our new alias.
     // And the new alias will do the lookup. Not with an AME frame but straight
     // to the verify node id.
