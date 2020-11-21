@@ -42,7 +42,7 @@
 class PCA9685PWMBit;
 
 /// Agragate of 16 PWM channels for a PCA9685PWM
-class PCA9685PWM : public I2C, public OSThread
+class PCA9685PWM : public OSThread
 {
 public:
     /// maximum number of PWM channels supported by the PCA9685
@@ -53,8 +53,7 @@ public:
 
     /// Constructor.
     PCA9685PWM()
-        : I2C(name)
-        , sem_(0)
+        : sem_(0)
         , i2c_(-1)
         , dirty_(0)
         , i2cAddress_(0)
@@ -290,6 +289,8 @@ private:
             // all 16 channels when the duty cycle is low
             ctl.on.counts = (channel * 256);
             ctl.off.counts = (counts + (channel * 256)) % 0x1000;
+            ctl.on.fullOn = 0;
+            ctl.off.fullOff = 0;
         }
 
         htole16(ctl.on.word);
