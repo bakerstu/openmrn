@@ -47,6 +47,7 @@ void StartInitializationFlow(Node *node)
     auto *b = g_initialize_flow->alloc();
     b->data()->node = node;
     g_initialize_flow->send(b);
+    LOG(INFO, "Node init called for node id %012" PRIx64, node->node_id());
 }
 
 } // namespace openlcb

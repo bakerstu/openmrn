@@ -98,11 +98,13 @@ private:
         b->set_done(&done_);
         node()->iface()->global_message_write_flow()->send(
             b, b->data()->priority());
+        LOG(INFO, "Node init send out for node id %012" PRIx64, id);
         return wait_and_call(STATE(initialization_complete));
     }
 
     Action initialization_complete()
     {
+        LOG(INFO, "Node initialized for node id %012" PRIx64, node()->node_id());
         node()->set_initialized();
         return call_immediately(STATE(identify_events));
     }
