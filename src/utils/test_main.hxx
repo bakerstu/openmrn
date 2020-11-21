@@ -178,6 +178,27 @@ void run_x(std::function<void()> fn)
     g_executor.sync_run(std::move(fn));
 }
 
+/// Runs some code in the constructor. Useful if custom code needs to be
+/// injected into the constructor initialization order.
+class RunInConstruct
+{
+public:
+    RunInConstruct(std::function<void()> f)
+    {
+        f();
+    }
+};
+
+/// Runs some code in the constructor on the main executor.
+class RunInConstructOnMain
+{
+public:
+    RunInConstructOnMain(std::function<void()> f)
+    {
+        run_x(f);
+    }
+};
+
 /// Structure holding returned objects for an invoke_flow_nowait command.
 template <class T> struct PendingInvocation
 {
