@@ -104,7 +104,8 @@ void AliasAllocator::add_allocated_alias(NodeAlias alias)
     {
         // Wakes up exactly one executable that is waiting for an alias.
         Executable *w = static_cast<Executable *>(waitingClients_.next().item);
-        w->notify();
+        // This schedules a state flow onto its executor.
+        w->alloc_result(nullptr);
     }
 }
 
