@@ -36,8 +36,6 @@ TEST_F(AsyncIfTest, InjectFrame)
     wait();
 }
 
-#define RX(args) run_x([this]() { args; })
-
 TEST_F(AsyncIfTest, InjectFrameAndExpectHandler)
 {
     StrictMock<MockCanFrameHandler> h;
