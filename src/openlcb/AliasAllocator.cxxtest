@@ -334,7 +334,9 @@ TEST_F(AsyncAliasAllocatorTest, LateAllocationConflict)
     expect_packet(":X10700AA5N;");
     send_packet(":X10700555N;");
     twait();
+    RX(EXPECT_EQ(1u, ifCan_->alias_allocator()->num_reserved_aliases()));
     get_next_alias();
+    RX(EXPECT_EQ(0u, ifCan_->alias_allocator()->num_reserved_aliases()));
     EXPECT_EQ(0xAA5U, b_->data()->alias);
     EXPECT_EQ(AliasInfo::STATE_RESERVED, b_->data()->state);
 }
@@ -369,6 +371,7 @@ TEST_F(AsyncAliasAllocatorTest, DifferentGenerated)
 
 TEST_F(AsyncAliasAllocatorTest, BulkFew)
 {
+    RX(EXPECT_EQ(0u, ifCan_->alias_allocator()->num_reserved_aliases()));
     generate_aliases(ifCan_->alias_allocator(), 5);
     expect_cid(aliases_.begin(), aliases_.end());
     LOG(INFO, "invoke");
@@ -384,6 +387,11 @@ TEST_F(AsyncAliasAllocatorTest, BulkFew)
     clear_expect(true);
     auto end_time = os_get_time_monotonic();
     EXPECT_LT(MSEC_TO_NSEC(200), end_time - start_time);
+    RX({
+        EXPECT_EQ(5u, ifCan_->alias_allocator()->num_reserved_aliases());
+        ifCan_->alias_allocator()->clear_reserved_aliases();
+        EXPECT_EQ(0u, ifCan_->alias_allocator()->num_reserved_aliases());
+    });
 }
 
 TEST_F(AsyncAliasAllocatorTest, BulkConflict)

@@ -134,7 +134,7 @@ public:
                 // we skip this alias because there was a conflict.
                 continue;
             }
-            /// @todo add alias to the cache as reserved alias.
+            if_can()->alias_allocator()->add_allocated_alias(a);
             ++num_sent;
             send_can_frame(a, CanDefs::RID_FRAME, 0);
         }

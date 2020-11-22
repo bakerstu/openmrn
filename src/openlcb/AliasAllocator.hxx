@@ -140,6 +140,13 @@ public:
      * an asynchronous notification coming later. */
     NodeAlias get_allocated_alias(NodeID destination_id, Executable *done);
 
+    /** @return the number of aliases that are reserved and available for new
+     * virtual nodes to use. */
+    unsigned num_reserved_aliases();
+
+    /** Removes all aliases that are reserved but not yet used. */
+    void clear_reserved_aliases();
+
     /** Releases a given alias. Sends out an AMR frame and puts the alias into
      * the reserved aliases queue. */
     void return_alias(NodeID id, NodeAlias alias);
