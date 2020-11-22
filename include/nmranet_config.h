@@ -122,6 +122,10 @@ DECLARE_CONST(remote_alias_cache_size);
 /** Number of entries in the local alias cache */
 DECLARE_CONST(local_alias_cache_size);
 
+/** Keep this many allocated but unused aliases around. (Currently supported
+ * values are 0 or 1.) */
+DECLARE_CONST(reserve_unused_alias_count);
+
 /** Maximum number of local nodes */
 DECLARE_CONST(local_nodes_count);
 

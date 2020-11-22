@@ -39,6 +39,9 @@ DEFAULT_CONST(remote_alias_cache_size, 10);
 /** Number of entries in the local alias cache */
 DEFAULT_CONST(local_alias_cache_size, 3);
 
+/** Keep this many allocated but unused aliases around. */
+DEFAULT_CONST(reserve_unused_alias_count, 0);
+
 /** Maximum number of local nodes */
 DEFAULT_CONST(local_nodes_count, 2);
 
