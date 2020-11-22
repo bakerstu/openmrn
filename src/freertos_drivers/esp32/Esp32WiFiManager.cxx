@@ -50,7 +50,8 @@
 
 // ESP-IDF v4+ has a slightly different directory structure to previous
 // versions.
-#ifdef ESP_IDF_VERSION_MAJOR
+#if defined(ESP_IDF_VERSION_MAJOR) && \
+    ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
 // ESP-IDF v4+
 #include <esp32/rom/crc.h>
 #include <esp_private/wifi.h>
@@ -58,7 +59,7 @@
 // ESP-IDF v3.x
 #include <esp_wifi_internal.h>
 #include <rom/crc.h>
-#endif // ESP_IDF_VERSION_MAJOR
+#endif // ESP_IDF_VERSION_MAJOR && IDF v4.0.0+
 
 using openlcb::NodeID;
 using openlcb::SimpleCanStack;
