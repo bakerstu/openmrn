@@ -29,7 +29,6 @@ class ConsistTest : public TractionTest
 protected:
     ConsistTest()
     {
-        create_allocated_alias();
         run_x([this]() {
             otherIf_.local_aliases()->add(nodeIdLead, 0x770);
             otherIf_.local_aliases()->add(nodeIdC1, 0x771);

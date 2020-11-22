@@ -52,6 +52,22 @@ static void alias_callback(void *context, NodeID node_id, NodeAlias alias)
     count++;
 }
 
+/// Verifies that calling the next method gives back the correct next node ID.
+void test_alias_next(AliasCache *cache, int count)
+{
+    NodeID last = 0;
+    NodeID next = 0;
+    NodeAlias next_alias;
+    for (int i = 0; i < count; i++)
+    {
+        ASSERT_TRUE(cache->next_entry(last, &next, &next_alias));
+        EXPECT_EQ(node_ids[i], next);
+        EXPECT_EQ(aliases[i], next_alias);
+        last = next;
+    }
+    EXPECT_FALSE(cache->next_entry(last, &next, &next_alias));
+}
+
 TEST(AliasCacheTest, constructor)
 {
     /* construct an object, map in a node, and run the for_each */
@@ -103,6 +119,8 @@ TEST(AliasCacheTest, ordering)
     EXPECT_TRUE(aliasCache->lookup((NodeID)103) == 6);
     EXPECT_TRUE(aliasCache->lookup((NodeID)102) == 11);
     EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 10);
+
+    test_alias_next(aliasCache, 6);
 }
 
 TEST(AliasCacheTest, reordering)
@@ -126,8 +144,10 @@ TEST(AliasCacheTest, reordering)
     EXPECT_TRUE(aliasCache->lookup((NodeAlias)84) == 104);
     EXPECT_TRUE(aliasCache->lookup((NodeAlias)6)  == 103);
     EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
-    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
-    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);
+
+    test_alias_next(aliasCache, 6);
+
     aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
     
     EXPECT_EQ(count, 6);
@@ -152,7 +172,9 @@ TEST(AliasCacheTest, reordering)
     EXPECT_TRUE(aliasCache->lookup((NodeID)104) == 84);
     EXPECT_TRUE(aliasCache->lookup((NodeID)103) == 6);
     EXPECT_TRUE(aliasCache->lookup((NodeID)102) == 11);
-    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 10);    
+    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 10);
+
+    test_alias_next(aliasCache, 6);
 }
 
 TEST(AliasCacheTest, generate)
