@@ -199,6 +199,10 @@ public:
     }
 };
 
+/// Helper macro to make running certain test commands run on the main executor
+/// simpler.
+#define RX(statement) run_x([&](){ statement; })
+
 /// Structure holding returned objects for an invoke_flow_nowait command.
 template <class T> struct PendingInvocation
 {
