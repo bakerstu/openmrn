@@ -36,7 +36,6 @@
 #include <set>
 
 #include "os/OS.hxx"
-#include "utils/logging.h"
 
 #ifdef GTEST
 #define TEST_CONSISTENCY
@@ -223,7 +222,6 @@ int AliasCache::check_consistency()
 
 void AliasCache::clear()
 {
-    LOG(INFO, "cache clear");
     idMap.clear();
     aliasMap.clear();
     oldest.idx_ = NONE_ENTRY;
@@ -258,9 +256,7 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     HASSERT(alias != 0);
     
     Metadata *insert;
-    LOG(INFO, "Before add [%012" PRIx64 "]: %03X", id, alias);
-    debug_print_cache(this);
-    
+
     auto it = aliasMap.find(alias);
     if (it != aliasMap.end())
     {
@@ -347,9 +343,6 @@ void AliasCache::add(NodeID id, NodeAlias alias)
 
     newest = n;
 
-    LOG(INFO, "After add [%012" PRIx64 "]: %03X", id, alias);
-    debug_print_cache(this);
-    
 #if defined(TEST_CONSISTENCY)
     consistency_result = check_consistency();
     HASSERT(0 == consistency_result);

@@ -113,8 +113,6 @@ private:
         }
         LOG(INFO, "Allocating new alias %03X for node %012" PRIx64, alias,
             nmsg()->src.id);
-        LOG(INFO, "node %012" PRIx64 " alias %03X", nmsg()->src.id,
-            if_can()->local_aliases()->lookup(nmsg()->src.id));
 
         srcAlias_ = alias;
         // Take a CAN frame to send off the AMD frame.
