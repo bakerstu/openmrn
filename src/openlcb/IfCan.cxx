@@ -714,7 +714,9 @@ void IfCan::add_addressed_message_support()
 
 void IfCan::delete_local_node(Node *node) {
     remove_local_node_from_map(node);
-    auto alias = localAliases_.lookup(node->node_id());
+    NodeAlias alias = localAliases_.lookup(NodeID(node->node_id()));
+    LOG(INFO, "remove local node %012" PRIx64 " alias %03X", node->node_id(),
+        alias);
     if (alias) {
         // The node had a local alias.
         localAliases_.remove(alias);
