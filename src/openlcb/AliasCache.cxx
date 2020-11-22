@@ -236,6 +236,16 @@ void AliasCache::clear()
     }
 }
 
+void debug_print_entry(void*, NodeID id, NodeAlias alias) {
+    LOG(INFO, "[%012" PRIx64 "]: %03X", id, alias);
+}
+
+void debug_print_cache(AliasCache *c)
+{
+    LOG(INFO, "Alias cache:");
+    c->for_each(&debug_print_entry, nullptr);
+}
+
 /** Add an alias to an alias cache.
  * @param id 48-bit NMRAnet Node ID to associate alias with
  * @param alias 12-bit alias associated with Node ID
