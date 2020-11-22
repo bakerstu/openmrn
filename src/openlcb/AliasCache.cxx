@@ -237,7 +237,8 @@ void AliasCache::clear()
     }
 }
 
-void debug_print_entry(void*, NodeID id, NodeAlias alias) {
+void debug_print_entry(void *, NodeID id, NodeAlias alias)
+{
     LOG(INFO, "[%012" PRIx64 "]: %03X", id, alias);
 }
 
