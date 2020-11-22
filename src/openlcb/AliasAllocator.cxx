@@ -96,8 +96,11 @@ void AliasAllocator::return_alias(NodeID id, NodeAlias alias)
 
 void AliasAllocator::add_allocated_alias(NodeAlias alias)
 {
-    /** @TODO(balazs.racz): We leak aliases here in case of eviction by the
-     * AliasCache object. */
+    // Note: We leak aliases here in case of eviction by the AliasCache
+    // object. This is okay for two reasons: 1) Generally the local alias cache
+    // size should be about equal to the local nodes count. 2) OpenLCB alias
+    // allocation algorithm is able to reuse aliases that were allocated by
+    // nodes that are not on the network anymore.
     if_can()->local_aliases()->add(
         CanDefs::get_reserved_alias_node_id(alias), alias);
     if (!waitingClients_.empty())
