@@ -34,6 +34,7 @@
 
 #include "openlcb/BulkAliasAllocator.hxx"
 #include "openlcb/CanDefs.hxx"
+#include "utils/MakeUnique.hxx"
 
 namespace openlcb
 {
