@@ -54,5 +54,5 @@ endif
 
 export DEFAULT_ADDRESS:=0x04
 
-rflash: $(EXECUTABLE).bin
+rflash: $(EXECUTABLE).bin $(EXECUTABLE).lst
 	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -n 0x0501010118$$(printf %02x $(ADDRESS)) -f $<

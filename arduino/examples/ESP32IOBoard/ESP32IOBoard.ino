@@ -54,6 +54,12 @@
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
 
+// uncomment the line below to specify a GPIO pin that should be used to force
+// a factory reset when the node starts and the GPIO pin reads LOW. An external
+// weak pull-up resistor to 3v3 would be recommended to prevent unintended
+// factory resets.
+//#define FACTORY_RESET_GPIO_PIN 22
+
 #include "config.h"
 
 /// This is the node id to assign to this device, this must be unique
@@ -165,6 +171,10 @@ GPIO_PIN(IO13, GpioInputPU, 39);
 GPIO_PIN(IO14, GpioInputPU, 25);
 GPIO_PIN(IO15, GpioInputPU, 26);
 
+#if defined(FACTORY_RESET_GPIO_PIN)
+GPIO_PIN(FACTORY_RESET, GpioInputPU, FACTORY_RESET_GPIO_PIN);
+#endif // FACTORY_RESET_GPIO_PIN
+
 openlcb::ConfiguredProducer IO8_producer(
     openmrn.stack()->node(), cfg.seg().producers().entry<0>(), IO8_Pin());
 openlcb::ConfiguredProducer IO9_producer(
@@ -184,6 +194,9 @@ openlcb::ConfiguredProducer IO15_producer(
 
 // Create an initializer that can initialize all the GPIO pins in one shot
 typedef GpioInitializer<
+#if defined(FACTORY_RESET_GPIO_PIN)
+    FACTORY_RESET_Pin,                      // factory reset
+#endif // FACTORY_RESET_GPIO_PIN
     IO0_Pin,  IO1_Pin,  IO2_Pin,  IO3_Pin,  // outputs 0-3
     IO4_Pin,  IO5_Pin,  IO6_Pin,  IO7_Pin,  // outputs 4-7
     IO8_Pin,  IO9_Pin,  IO10_Pin, IO11_Pin, // inputs 0-3
@@ -269,15 +282,42 @@ void setup()
         }
     }
 
+    // initialize all declared GPIO pins
+    GpioInit::hw_init();
+
+#if defined(FACTORY_RESET_GPIO_PIN)
+    // Check the factory reset pin which should normally read HIGH (set), if it
+    // reads LOW (clr) delete the cdi.xml and openlcb_config
+    if (!FACTORY_RESET_Pin::get())
+    {
+        printf("!!!! WARNING WARNING WARNING WARNING WARNING !!!!\n");
+        printf("The factory reset GPIO pin %d has been triggered.\n",
+               FACTORY_RESET_GPIO_PIN);
+        for (uint8_t sec = 10; sec > 0 && !FACTORY_RESET_Pin::get(); sec--)
+        {
+            printf("Factory reset will be initiated in %d seconds.\n", sec);
+            usleep(SEC_TO_USEC(1));
+        }
+        if (!FACTORY_RESET_Pin::get())
+        {
+            unlink(openlcb::CDI_FILENAME);
+            unlink(openlcb::CONFIG_FILENAME);
+            printf("Factory reset complete\n");
+        }
+        else
+        {
+            printf("Factory reset aborted as pin %d was not held LOW\n",
+                   FACTORY_RESET_GPIO_PIN);
+        }
+    }
+#endif // FACTORY_RESET_GPIO_PIN
+
     // Create the CDI.xml dynamically
     openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
 
     // Create the default internal configuration file
     openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
         openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
-
-    // initialize all declared GPIO pins
-    GpioInit::hw_init();
 
     // Start the OpenMRN stack
     openmrn.begin();

@@ -38,6 +38,7 @@
 //#define DEBUG_BUFFER_MEMORY
 
 #include <memory>
+#include <atomic>
 #include <new>
 #include <cstdint>
 #include <cstdlib>
@@ -58,6 +59,7 @@ class LimitedPool;
 class Pool;
 template <class T> class Buffer;
 class BufferBase;
+class ForwardAllocator;
 
 namespace openlcb
 {
@@ -86,7 +88,7 @@ public:
     /// multiple owners.
     uint16_t references()
     {
-        return count_;
+        return count_.load();
     }
 
     /// Specifies that a given BarrierNotifiable must be called when the Buffer
@@ -130,11 +132,6 @@ protected:
         return pool_;
     }
 
-    /** size of data in bytes */
-    uint16_t size_;
-
-    /** number of references in use */
-    uint16_t count_;
     /** Reference to the pool from whence this buffer came */
     Pool *pool_;
 
@@ -142,16 +139,22 @@ protected:
     /// everywhere. May be nullptr.
     BarrierNotifiable *done_;
 
+    /** size of data in bytes */
+    uint16_t size_;
+
+    /** number of references in use */
+    std::atomic_uint_least16_t count_;
+
     /** Constructor.  Initializes count to 1 and done_ to NULL.
      * @param size size of buffer data
      * @param pool pool this buffer belong to
      */
     BufferBase(size_t size, Pool *pool)
         : QMember()
-        , size_(size)
-        , count_(1)
         , pool_(pool)
         , done_(NULL)
+        , size_(size)
+        , count_(1)
     {
     }
 
@@ -403,7 +406,10 @@ public:
         Bucket *bucket = (Bucket *)malloc(sizeof(Bucket) * count);
         Bucket *now = bucket;
 
-        for (int i = 0; i < count; ++i)
+        new (now) Bucket(s);
+        now++;
+
+        for (int i = 1; i < count; ++i)
         {
             new (now) Bucket(va_arg(aq, int));
             now++;
@@ -480,6 +486,21 @@ public:
     /** default destructor */
     ~DynamicPool()
     {
+#ifdef GTEST
+        for (unsigned i = 0; buckets[i].size() != 0; ++i)
+        {
+            // Frees all memory left in the bucket.
+            do
+            {
+                auto *p = static_cast<BufferBase *>(buckets[i].next().item);
+                if (!p)
+                {
+                    break;
+                }
+                ::free(p);
+            } while (true);
+        }
+#endif
         Bucket::destroy(buckets);
     }
 
@@ -524,6 +545,8 @@ private:
     /** Default constructor.
      */
     DynamicPool();
+
+    friend class ForwardAllocator;
 
     DISALLOW_COPY_AND_ASSIGN(DynamicPool);
 };
@@ -636,7 +659,7 @@ private:
 template <class T> void Buffer<T>::unref()
 {
     HASSERT(sizeof(Buffer<T>) <= size_);
-    if (--count_ == 0)
+    if (count_.fetch_sub(1) == 1u)
     {
         this->~Buffer();
         pool_->free(this);

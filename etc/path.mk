@@ -220,6 +220,7 @@ SEARCHPATH := \
   /opt/FreeRTOSPlus/TCP \
   /opt/FreeRTOSPlus/default/TCP \
   /opt/FreeRTOS/plus-tcp \
+  /opt/FreeRTOS-Plus/default/Source/FreeRTOS-Plus-TCP \
   $(HOME)/FreeRTOSPlus/Source/FreeRTOS-Plus-TCP \
   /d/FreeRTOSPlus/default/TCP \
 
@@ -299,6 +300,17 @@ ifneq ($(TRYPATH),)
 ARMLINUXGCCPATH:=$(TRYPATH)
 endif
 endif #ARMLINUXGCCPATH
+
+################### AARCH64-LINUX GCC PATH #####################
+ifndef AARCH64LINUXGCCPATH
+SEARCHPATH := \
+    /usr/bin \
+
+TRYPATH:=$(call findfirst,aarch64-linux-gnu-gcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+AARCH64LINUXGCCPATH:=$(TRYPATH)
+endif
+endif #AARCH64LINUXGCCPATH
 
 ################### TI-CC3200-SDK #####################
 ifndef TICC3200SDKPATH
@@ -558,7 +570,10 @@ endif #EMLLVMPATH
 ##################### CLANGPPP ######################
 ifndef CLANGPPPATH
 SEARCHPATH := \
-  /usr/bin
+  /usr/bin \
+  /usr/lib/llvm-10/bin \
+  /usr/lib/llvm-9/bin \
+  /usr/lib/llvm-8/bin \
 
 
 TRYPATH:=$(call findfirst,clang++,$(SEARCHPATH))
@@ -566,6 +581,18 @@ ifneq ($(TRYPATH),)
 CLANGPPPATH:=$(TRYPATH)
 endif
 endif #CLANGPPPATH
+
+##################### HOSTCLANGPP ######################
+ifndef HOSTCLANGPPPATH
+SEARCHPATH := \
+  /usr/bin \
+
+
+TRYPATH:=$(call findfirst,clang++,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+HOSTCLANGPPPATH:=$(TRYPATH)
+endif
+endif #HOSTCLANGPPPATH
 
 ##################### NODEJS ######################
 ifndef NODEJSPATH

@@ -380,7 +380,7 @@ public:
         GroupConfigOptions opts(args..., Body::group_opts());
         if (opts.hidden())
         {
-            EmptyGroupConfigRenderer(Body::size()).render_cdi(s);
+            EmptyGroupConfigRenderer(Body::size() * replication_).render_cdi(s);
             return;
         }
         const char *tag = nullptr;

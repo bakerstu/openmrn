@@ -49,20 +49,20 @@ template <class T>
 class uninitialized
 {
 public:
-    /// @return the embedded object
+    /// @return pointer to the embedded object
     const T *operator->() const
     {
         return tptr();
     }
-    /// @return the embedded object
+    /// @return pointer to the embedded object.
     T *operator->()
     {
-        return tptr();
+        return tptrm();
     }
     /// @return the embedded object
     T &operator*()
     {
-        return *tptr();
+        return *tptrm();
     }
     /// @return the embedded object
     const T &operator*() const
@@ -72,7 +72,7 @@ public:
     /// @return the embedded object
     T &value()
     {
-        return *tptr();
+        return *tptrm();
     }
     /// @return the embedded object
     const T &value() const
@@ -80,11 +80,31 @@ public:
         return *tptr();
     };
 
+    /// Gets the embedded object pointer in a way that is friendly to
+    /// linker-initialization.
+    /// NOTE: when switching to std::optional<>, calls to this function need to
+    /// be replaced with calls to .operator->().
+    /// @return mutable pointer to the embedded object
+    constexpr T* get_mutable() const
+    {
+        return tptrm();
+    }
+
+    /// Gets the embedded object pointer in a way that is friendly to
+    /// linker-initialization.
+    /// NOTE: when switching to std::optional<>, calls to this function need to
+    /// be replaced with calls to .operator->().
+    /// @return const pointer to the embedded object
+    constexpr const T* get() const
+    {
+        return tptr();
+    }
+    
     /// Constructs the embedded object.
     template <class... Args> T &emplace(Args &&... args)
     {
         new (this) T(std::forward<Args>(args)...);
-        return *tptr();
+        return *tptrm();
     }
 
     /// Destructs the embedded object.
@@ -96,21 +116,21 @@ public:
     /// Public API to convert the pointer in a linker-initialized way.
     static constexpr T *cast_data(uninitialized<T> *parent)
     {
-        return reinterpret_cast<T *>(&parent->data);
+        return static_cast<T *>((void*)&parent->data);
     }
 
 private:
     typename std::aligned_storage<sizeof(T), alignof(T)>::type data;
 
-    /// @return the embedded object
-    T *tptr()
+    /// @return the embedded object (mutable pointer)
+    constexpr T *tptrm() const
     {
-        return reinterpret_cast<T *>(&data);
+        return static_cast<T *>((void*)&data);
     }
     /// @return the embedded object
-    const T *tptr() const
+    constexpr const T *tptr() const
     {
-        return reinterpret_cast<const T *>(&data);
+        return static_cast<const T *>((void*)&data);
     }
 };
 

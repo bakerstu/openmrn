@@ -36,7 +36,12 @@
 
 #include <cstdint>
 
+#ifdef ARDUINO
+#include <Arduino.h>
+#include "freertos_drivers/arduino/Can.hxx"
+#else
 #include "freertos_drivers/common/Can.hxx"
+#endif
 
 #if defined(STM32F072xB) || defined(STM32F091xC) 
 #include "stm32f0xx_hal_can.h"

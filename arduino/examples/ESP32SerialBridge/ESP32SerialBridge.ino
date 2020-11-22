@@ -161,7 +161,7 @@ void setup() {
 #endif // PRINT_PACKETS
 
     // Add Serial1 as a bridge
-    openmrn.add_gridconnect_port(new Esp32HardwareSerialAdapter(Serial1));
+    openmrn.add_gridconnect_port(&Serial1);
 
     // Add the hardware CAN device as a bridge
     openmrn.add_can_port(

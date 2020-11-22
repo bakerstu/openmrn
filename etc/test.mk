@@ -45,11 +45,13 @@ LIBS = $(STARTGROUP) \
        $(ENDGROUP) \
        $(LINKCORELIBS)
 
+TESTOPTIMIZATION=-O0
+
 INCLUDES     += -I$(GTESTPATH)/include -I$(GMOCKPATH)/include -I$(GMOCKPATH) \
                 -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include
-CFLAGS       += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
-CXXFLAGS     += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
-SYSLIBRARIES += -lgcov -fprofile-arcs -ftest-coverage -O0
+CFLAGS       += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage $(TESTOPTIMIZATION)
+CXXFLAGS     += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage $(TESTOPTIMIZATION)
+SYSLIBRARIES += -lgcov -fprofile-arcs -ftest-coverage $(TESTOPTIMIZATION)
 LDFLAGS      += -L$(LIBDIR)
 
 .SUFFIXES:
@@ -65,7 +67,7 @@ $(TESTBINS): $(OBJS) $(TESTOBJS) $(FULLPATHLIBS) $(TESTOBJSEXTRA)
 	$(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
 
 $(TESTOUTPUTS): %.testout : %.test
-	(cd lcovdir; ../$< --gtest_death_test_style=threadsafe && touch $@)
+	(cd lcovdir; ../$< $(TESTARGS) --gtest_death_test_style=threadsafe && touch $@)
 
 gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
 	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@

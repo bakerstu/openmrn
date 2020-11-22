@@ -327,15 +327,20 @@ constexpr const MmapGpio PORTE_LINE6(output_register, 10, true);
 constexpr const MmapGpio PORTE_LINE7(output_register, 9, true);
 constexpr const MmapGpio PORTE_LINE8(output_register, 8, true);
 
+
 constexpr const Gpio *const kPortDEGpio[] = {
+#ifndef PORTD_SNAP
     &PORTD_LINE1, &PORTD_LINE2, &PORTD_LINE3, &PORTD_LINE4, //
     &PORTD_LINE5, &PORTD_LINE6, &PORTD_LINE7, &PORTD_LINE8, //
+#endif
     &PORTE_LINE1, &PORTE_LINE2, &PORTE_LINE3, &PORTE_LINE4, //
     &PORTE_LINE5, &PORTE_LINE6, &PORTE_LINE7, &PORTE_LINE8  //
 };
 
 openlcb::MultiConfiguredConsumer portde_consumers(stack.node(), kPortDEGpio,
     ARRAYSIZE(kPortDEGpio), cfg.seg().portde_consumers());
+
+#ifdef PORTD_SNAP
 
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_1(
     stack.node(), cfg.seg().snap_switches().entry<0>(), (const Gpio*)&PORTD_LINE1);
@@ -346,13 +351,15 @@ openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_3(
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_4(
     stack.node(), cfg.seg().snap_switches().entry<3>(), (const Gpio*)&PORTD_LINE4);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_5(
-    stack.node(), cfg.seg().snap_switches().entry<4>(), TDRV5_Pin::instance());
+    stack.node(), cfg.seg().snap_switches().entry<4>(), (const Gpio*)&PORTD_LINE5);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_6(
-    stack.node(), cfg.seg().snap_switches().entry<5>(), TDRV6_Pin::instance());
+    stack.node(), cfg.seg().snap_switches().entry<5>(), (const Gpio*)&PORTD_LINE6);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_7(
-    stack.node(), cfg.seg().snap_switches().entry<6>(), TDRV7_Pin::instance());
+    stack.node(), cfg.seg().snap_switches().entry<6>(), (const Gpio*)&PORTD_LINE7);
 openlcb::ConfiguredPulseConsumer turnout_pulse_consumer_8(
-    stack.node(), cfg.seg().snap_switches().entry<7>(), TDRV8_Pin::instance());
+    stack.node(), cfg.seg().snap_switches().entry<7>(), (const Gpio*)&PORTD_LINE8);
+
+#endif
 
 uint32_t input_register[2] = {0};
 
@@ -482,7 +489,8 @@ openlcb::RefreshLoop loopab(stack.node(),
         producer_b3.polling(), producer_b4.polling(), //
         producer_b5.polling(), producer_b6.polling(), //
         producer_b7.polling(), producer_b8.polling(), //
-        &turnout_pulse_consumer_1,                    //
+#ifdef PORTD_SNAP
+	&turnout_pulse_consumer_1,                    //
         &turnout_pulse_consumer_2,                    //
         &turnout_pulse_consumer_3,                    //
         &turnout_pulse_consumer_4,                    //
@@ -490,6 +498,7 @@ openlcb::RefreshLoop loopab(stack.node(),
         &turnout_pulse_consumer_6,                    //
         &turnout_pulse_consumer_7,                    //
         &turnout_pulse_consumer_8                     //
+#endif
     });
 
 /** Entry point to application.

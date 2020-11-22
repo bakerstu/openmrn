@@ -101,7 +101,7 @@ public:
     void flush_cache()
     {
         mutex.lock();
-        for (unsigned int i = 0; i < NUM_OPEN_FILES; i++)
+        for (unsigned int i = 0; i < numOpenFiles; i++)
         {
             if (files[i].inuse && files[i].dev == this && files[i].dirty)
             {

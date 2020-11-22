@@ -39,8 +39,8 @@ Pool* init_main_buffer_pool()
 {
     if (!mainBufferPool)
     {
-        mainBufferPool = new DynamicPool(
-            Bucket::init(16, 32, 48, LARGEST_BUFFERPOOL_BUCKET, 0));
+        mainBufferPool =
+            new DynamicPool(Bucket::init(32, 48, LARGEST_BUFFERPOOL_BUCKET, 0));
     }
     return mainBufferPool;
 }

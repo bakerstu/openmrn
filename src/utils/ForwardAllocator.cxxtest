@@ -1,0 +1,99 @@
+#define LOGLEVEL INFO
+#include "test_main.hxx"
+
+#include "utils/ForwardAllocator.hxx"
+
+class ForwardAllocatorTest : public ::testing::Test
+{
+protected:
+    ForwardAllocator a_;
+
+    static void TearDownTestSuite()
+    {
+        // This call will delete the pool, hopefully freeing all memory for the
+        // purpose of valgrind.
+        ForwardAllocator::TEST_recreate_pool();
+    }
+};
+
+TEST_F(ForwardAllocatorTest, createdestroy)
+{
+}
+
+TEST_F(ForwardAllocatorTest, alloc_consecutive)
+{
+    char *b = (char *)a_.allocate(3, 1);
+    char *c = (char *)a_.allocate(3, 1);
+    // Consecutive pointers spaced exactly size apart.
+    EXPECT_EQ(b + 3, c);
+}
+
+TEST_F(ForwardAllocatorTest, alloc_overflow)
+{
+    char *b = (char *)a_.allocate(1020, 1);
+    char *c = (char *)a_.allocate(5, 1);
+    // Does not fit into the same block -> new block with new pointer.
+    EXPECT_NE(b + 1020, c);
+}
+
+TEST_F(ForwardAllocatorTest, aligned_alloc)
+{
+    char *b = (char *)a_.allocate(3, 1);
+    char *c = (char *)a_.allocate(3, 2);
+    // Alignment will round up the difference with padding.
+    EXPECT_EQ(b + 4, c);
+    EXPECT_EQ(0u, ((uintptr_t)c) & 1);
+}
+
+TEST_F(ForwardAllocatorTest, aligned_alloc_2)
+{
+    char *b = (char *)a_.allocate(3, 1);
+    char *c = (char *)a_.allocate(3, 8);
+    // Alignment will round up the difference with padding.
+    EXPECT_EQ(b + 8, c);
+    EXPECT_EQ(0u, ((uintptr_t)c) & 7);
+}
+
+TEST_F(ForwardAllocatorTest, aligned_alloc_overflow)
+{
+    {
+        ForwardAllocator a;
+        char *b = (char *)a.allocate(1020, 1);
+        // This still fits in the same block.
+        char *c = (char *)a.allocate(1, 1);
+        EXPECT_EQ(b + 1020, c);
+    }
+    {
+        ForwardAllocator a;
+        char *b = (char *)a.allocate(1020, 1);
+        // Due to the padding of alignment, this will not be in the same block
+        // anymore.
+        char *c = (char *)a.allocate(1, 8);
+        EXPECT_NE(b + 1020, c);
+    }
+}
+
+TEST_F(ForwardAllocatorTest, alloc_large)
+{
+    char *b = (char *)a_.allocate(1025, 1);
+    memset(b, 0x3a, 1025);
+    char *c = (char *)a_.allocate(1, 1);
+    char *d = (char *)a_.allocate(1, 1);
+    // These are in the same block
+    EXPECT_EQ(c + 1, d);
+    // This is not the same block.
+    EXPECT_NE(b + 1025, c);
+}
+
+TEST_F(ForwardAllocatorTest, free_realloc)
+{
+    ForwardAllocator::TEST_recreate_pool();
+    char *b = nullptr;
+    {
+        ForwardAllocator other;
+        b = (char *)other.allocate(15, 1);
+    } // The destructor frees all blocks,
+    // which will then be reused by this allocator.
+    char *c = (char *)a_.allocate(3, 1);
+    EXPECT_EQ(b, c);
+}

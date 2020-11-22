@@ -37,6 +37,7 @@
 
 #include "executor/Executor.hxx"
 
+#include "openmrn_features.h"
 #include <unistd.h>
 
 #ifdef __WINNT__
@@ -223,15 +224,8 @@ void *ExecutorBase::entry()
     started_ = 1;
     sequence_ = 0;
     ExecutorBase* b = this;
+    unlock_from_thread();
     emscripten_set_main_loop_arg(&executor_loop_some, b, 100, true);
-    return nullptr;
-}
-
-#elif defined(ARDUINO) && !defined(ESP32)
-
-void *ExecutorBase::entry()
-{
-    DIE("Arduino code should not start the executor.");
     return nullptr;
 }
 
@@ -281,6 +275,14 @@ void ICACHE_FLASH_ATTR *ExecutorBase::entry()
     os_timer_setfn(&appl_task_timer, &timer_fun, this);
     system_os_task(appl_task, EXECUTOR_TASK_PRIO, appl_task_queue, 1);
     system_os_post(EXECUTOR_TASK_PRIO, 0, (uint32_t)this);
+    return nullptr;
+}
+
+#elif OPENMRN_FEATURE_SINGLE_THREADED
+
+void *ExecutorBase::entry()
+{
+    DIE("Arduino code should not start the executor.");
     return nullptr;
 }
 
