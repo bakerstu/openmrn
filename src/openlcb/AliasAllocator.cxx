@@ -81,7 +81,6 @@ void seed_alias_allocator(AliasAllocator* aliases, Pool* pool, int n) {
 
 void AliasAllocator::return_alias(NodeID id, NodeAlias alias)
 {
-    LOG(INFO, "return alias id %012" PRIx64 ", alias %03X", id, alias);
     // This is synchronous allocation, which is not nice.
     {
         auto *b = if_can()->frame_write_flow()->alloc();
@@ -146,13 +145,9 @@ NodeAlias AliasAllocator::get_allocated_alias(
     }
     if (allocate_new)
     {
-        LOG(INFO, "Allocate new alias for node id %012" PRIx64, destination_id);
         Buffer<AliasInfo> *b = alloc();
         b->data()->do_not_reallocate();
         this->send(b);
-    } else {
-        LOG(INFO, "Get new alias for node id %012" PRIx64 " -> %03X", destination_id,
-            found_alias);
     }
     return found_alias;
 }
@@ -185,7 +180,7 @@ NodeAlias AliasAllocator::get_new_seed()
     {
         NodeAlias ret = seed_;
         next_seed();
-        LOG(INFO, "(%p) alias test seed is %03X (next %03X)", this, ret,
+        LOG(VERBOSE, "(%p) alias test seed is %03X (next %03X)", this, ret,
             seed_);
         if (if_can()->local_aliases()->lookup(ret))
         {
@@ -195,7 +190,7 @@ NodeAlias AliasAllocator::get_new_seed()
         {
             continue;
         }
-        LOG(INFO, "alias get seed is %03X (next %03X)", ret, seed_);
+        LOG(VERBOSE, "alias get seed is %03X (next %03X)", ret, seed_);
         return ret;
     }
 }
@@ -234,7 +229,7 @@ StateFlowBase::Action AliasAllocator::handle_allocate_for_cid_frame()
 
 StateFlowBase::Action AliasAllocator::send_cid_frame()
 {
-    LOG(INFO, "Sending CID frame %d for alias %03x", cid_frame_sequence_,
+    LOG(VERBOSE, "Sending CID frame %d for alias %03x", cid_frame_sequence_,
         pending_alias()->alias);
     auto *b = get_allocation_result(if_can()->frame_write_flow());
     struct can_frame *f = b->data()->mutable_frame();
