@@ -74,6 +74,8 @@ constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
 /// on the CAN bus.
 static constexpr uint64_t NODE_ID = UINT64_C(0x050101011822);
 
+Esp32Twai twai("/dev/twai", CAN_RX_PIN, CAN_TX_PIN);
+
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
 
@@ -140,6 +142,8 @@ void setup() {
         }
     }
 
+    twai.hw_init();
+
     printf("\nSerial(rx:%d, tx:%d, speed:%d) is ready to exchange grid connect packets.\n",
         SERIAL_TX_PIN, SERIAL_TX_PIN, SERIAL_BAUD);
 
@@ -164,8 +168,7 @@ void setup() {
     openmrn.add_gridconnect_port(&Serial1);
 
     // Add the hardware CAN device as a bridge
-    openmrn.add_can_port(
-        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
+    openmrn.add_can_port_select("/dev/twai/twai0");
 }
 
 void loop() {

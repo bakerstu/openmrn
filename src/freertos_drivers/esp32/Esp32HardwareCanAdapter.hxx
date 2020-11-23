@@ -107,6 +107,8 @@ public:
     /// Enables the ESP32 CAN driver
     virtual void enable()
     {
+        LOG(WARNING,
+            "Esp32HardwareCan has been deprecated, please use Esp32Twai.");
         ESP_ERROR_CHECK(can_start());
         LOG(VERBOSE, "ESP32-CAN driver enabled");
     }

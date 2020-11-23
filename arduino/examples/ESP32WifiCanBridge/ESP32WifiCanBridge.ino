@@ -104,6 +104,8 @@ string dummystring("abcdef");
 // layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
+Esp32Twai twai("/dev/twai", CAN_RX_PIN, CAN_TX_PIN);
+
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 
 class FactoryResetHelper : public DefaultConfigUpdateListener {
@@ -160,6 +162,8 @@ void setup()
         }
     }
 
+    twai.hw_init();
+
     // Create the CDI.xml dynamically
     openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
 
@@ -179,8 +183,7 @@ void setup()
 #endif // PRINT_PACKETS
 
     // Add the hardware CAN device as a bridge
-    openmrn.add_can_port(
-        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
+    openmrn.add_can_port_select("/dev/twai/twai0");
 }
 
 void loop()

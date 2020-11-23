@@ -135,7 +135,7 @@ copy_dir . arduino/examples
 
 copy_file src arduino/OpenMRNLite.{h,cpp} \
     include/{can_frame.h,nmranet_config.h,openmrn_features.h} \
-    include/freertos/{freertos_includes.h,endian.h} \
+    include/freertos/{freertos_includes.h,endian.h,can_ioctl.h,stropts.h} \
     include/freertos_select/ifaddrs.h
 
 # General DCC related files (all headers and DCC packet related cxx)
@@ -159,11 +159,13 @@ rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
 
 copy_file src/freertos_drivers/arduino \
           src/freertos_drivers/arduino/* \
-          src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
-          src/freertos_drivers/common/GpioWrapper.hxx \
           src/freertos_drivers/common/CpuLoad.{hxx,cxx} \
+          src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
+          src/freertos_drivers/common/DummyGPIO.hxx \
+          src/freertos_drivers/common/GpioWrapper.hxx \
+          src/freertos_drivers/common/RailcomDriver.hxx \
           src/freertos_drivers/common/WifiDefs.{hxx,cxx} \
-          src/freertos_drivers/common/libatomic.c \
+          src/freertos_drivers/common/libatomic.c
 
 copy_file src/freertos_drivers/esp32 \
           src/freertos_drivers/esp32/*

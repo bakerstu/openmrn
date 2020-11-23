@@ -54,12 +54,13 @@
 #include "openlcb/SimpleNodeInfo.hxx"
 #include "openlcb/TractionTrain.hxx"
 #include "openlcb/TrainInterface.hxx"
+#include "openmrn_features.h"
 #include "utils/ActivityLed.hxx"
 #include "utils/GcTcpHub.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/HubDeviceNonBlock.hxx"
-#ifdef __FreeRTOS__
+#ifdef OPENMRN_FEATURE_EXECUTOR_SELECT
 #include "utils/HubDeviceSelect.hxx"
 #endif
 
@@ -338,7 +339,9 @@ public:
         auto *port = new HubDeviceNonBlock<CanHubFlow>(can_hub(), device);
         additionalComponents_.emplace_back(port);
     }
+#endif // __FreeRTOS__
 
+#ifdef OPENMRN_FEATURE_EXECUTOR_SELECT
     /// Adds a CAN bus port with select-based asynchronous driver API.
     void add_can_port_select(const char *device)
     {
@@ -354,7 +357,7 @@ public:
         auto *port = new HubDeviceSelect<CanHubFlow>(can_hub(), fd, on_error);
         additionalComponents_.emplace_back(port);
     }
-#endif
+#endif // OPENMRN_FEATURE_EXECUTOR_SELECT
 
     /// Adds a gridconnect port to the CAN bus.
     void add_gridconnect_port(const char *path, Notifiable *on_exit = nullptr);

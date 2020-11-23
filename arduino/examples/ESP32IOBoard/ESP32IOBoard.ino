@@ -113,6 +113,7 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
 
+Esp32Twai twai("/dev/twai", CAN_RX_PIN, CAN_TX_PIN);
 #endif // USE_CAN
 
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
@@ -285,6 +286,10 @@ void setup()
     // initialize all declared GPIO pins
     GpioInit::hw_init();
 
+#if defined(USE_CAN)
+    twai.hw_init();
+#endif // USE_CAN
+
 #if defined(FACTORY_RESET_GPIO_PIN)
     // Check the factory reset pin which should normally read HIGH (set), if it
     // reads LOW (clr) delete the cdi.xml and openlcb_config
@@ -331,9 +336,7 @@ void setup()
 #endif // PRINT_PACKETS
 
 #if defined(USE_CAN)
-    // Add the hardware CAN device as a bridge
-    openmrn.add_can_port(
-        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
+    openmrn.add_can_port_select("/dev/twai/twai0");
 #endif // USE_CAN
 
 }

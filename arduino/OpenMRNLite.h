@@ -69,6 +69,7 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
+#include "freertos_drivers/esp32/Esp32Twai.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 
 // On the ESP32 we have persistent file system access so enable
@@ -443,6 +444,25 @@ public:
     {
         loopMembers_.push_back(new CanBridge(port, stack()->can_hub()));
     }
+
+#ifdef OPENMRN_FEATURE_EXECUTOR_SELECT
+    /// Adds a hardware CAN port to the stack with select-based asynchronous
+    /// driver API.
+    ///
+    /// Example (ESP32):
+    /// Esp32Twai twai("/dev/twai", GPIO_NUM_4, GPIO_NUM_5);
+    /// void setup() {
+    ///   ...
+    ///   twai.hw_init();
+    ///   openmrn.begin();
+    ///   openmrn.add_can_port_select("/dev/twai/twai0");
+    /// }
+    /// @param device path to open for the CAN device.
+    void add_can_port_select(const char *device)
+    {
+        stack()->add_can_port_select(device);
+    }
+#endif // OPENMRN_FEATURE_EXECUTOR_SELECT
 
 #if defined(HAVE_FILESYSTEM)
     /// Creates the XML representation of the configuration structure and saves
