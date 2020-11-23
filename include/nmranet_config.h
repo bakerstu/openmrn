@@ -160,4 +160,11 @@ DECLARE_CONST(socket_listener_stack_size);
 /** Number of sockets to allow for @ref SocketListener backlog. */
 DECLARE_CONST(socket_listener_backlog);
 
+/** Default stack size to use for all OpenMRN tasks on the Arduino platform. */
+DECLARE_CONST(arduino_openmrn_stack_size);
+
+/** Default thread priority for any OpenMRN owned tasks on the Arduino
+ * platform. */
+DECLARE_CONST(arduino_openmrn_task_priority);
+
 #endif /* _nmranet_config_h_ */

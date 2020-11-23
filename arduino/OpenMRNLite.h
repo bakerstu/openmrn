@@ -38,10 +38,12 @@
 
 #include <Arduino.h>
 
-#include "freertos_drivers/arduino/ArduinoGpio.hxx"
+#include "openmrn_features.h"
+
 #include "freertos_drivers/arduino/Can.hxx"
 #include "freertos_drivers/arduino/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
+#include "utils/constants.hxx"
 #include "utils/FileUtils.hxx"
 #include "utils/GridConnectHub.hxx"
 #include "utils/logging.h"
@@ -52,28 +54,19 @@
 #include <esp_task.h>
 #include <esp_task_wdt.h>
 
-namespace openmrn_arduino {
-
-/// Default stack size to use for all OpenMRN tasks on the ESP32 platform.
-constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
-
-/// Default thread priority for any OpenMRN owned tasks on the ESP32 platform.
-/// ESP32 hardware CAN RX and TX tasks run at lower priority (-1 and -2 
-/// respectively) of this default priority to ensure timely consumption of CAN
-/// frames from the hardware driver.
-/// Note: This is set to one priority level lower than the TCP/IP task uses on
-/// the ESP32.
-constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
-
-} // namespace openmrn_arduino
-
+#include "freertos_drivers/esp32/Esp32Gpio.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 
 // On the ESP32 we have persistent file system access so enable
 // dynamic CDI.xml generation support
-#define HAVE_FILESYSTEM
+#define HAVE_FILESYSTEM 1
+
+#else
+
+// Include generic Arduino API compatible GPIO pin support.
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 
 #endif // ESP32
 
@@ -83,7 +76,8 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #endif
 
-namespace openmrn_arduino {
+namespace openmrn_arduino
+{
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN
 /// frames via gridconnect format) to the OpenMRN core stack. This can be
@@ -360,7 +354,11 @@ public:
         }
     }
 
-#ifndef OPENMRN_FEATURE_SINGLE_THREADED
+// For single threaded platforms (including ESP32-S2) do not expose the support
+// for spawning a seperate thread for the OpenMRN executor.
+#if !defined(OPENMRN_FEATURE_SINGLE_THREADED) && \
+    !defined(CONFIG_IDF_TARGET_ESP32S2)
+
     /// Entry point for the executor thread when @ref start_executor_thread is
     /// called with donate_current_thread set to false.
     static void thread_entry(void *arg)
@@ -396,25 +394,30 @@ public:
     void start_executor_thread()
     {
         haveExecutorThread_ = true;
+// On the ESP32 create a task on the PRO_CPU (core 0) which is typically not in
+// active use by the arduino-esp32 stack. The arduino-esp32 "app_main" starts
+// executing on the PRO_CPU but creates a "loopTask" which runs from the
+// APP_CPU (core 1), this loopTask is responsible for executing setup() and
+// loop() from the user code.
+//
+// For the non-ESP32 platforms this will invoke the Executor::start_thread()
+// method.
 #ifdef ESP32
 #if CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
         // Remove IDLE0 task watchdog, because the openmrn task sometimes
         // uses 100% cpu and it is pinned to CPU 0.
         disableCore0WDT();
 #endif // CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
-        xTaskCreatePinnedToCore(&thread_entry         // entry point
-                              , "OpenMRN"             // task name
-                              , OPENMRN_STACK_SIZE    // stack size
-                              , this                  // entry point arg
-                              , OPENMRN_TASK_PRIORITY // priority
-                              , nullptr               // task handle
-                              , PRO_CPU_NUM);         // cpu core
+        xTaskCreatePinnedToCore(
+            thread_entry, "OpenMRN", config_arduino_openmrn_stack_size(), this,
+            config_arduino_openmrn_task_priority(), nullptr, PRO_CPU_NUM);
 #else
         stack_->executor()->start_thread(
-            "OpenMRN", OPENMRN_TASK_PRIORITY, OPENMRN_STACK_SIZE);
+            "OpenMRN", config_arduino_openmrn_task_priority(),
+            config_arduino_openmrn_stack_size());
 #endif // ESP32
     }
-#endif // OPENMRN_FEATURE_SINGLE_THREADED
+#endif // !OPENMRN_FEATURE_SINGLE_THREADED && !CONFIG_IDF_TARGET_ESP32S2
 
     /// Adds a serial port to the stack speaking the gridconnect protocol, for
     /// example to do a USB connection to a computer. This is the protocol that
@@ -512,10 +515,16 @@ private:
     /// Callback from the loop() method. Internally called.
     void run() override
     {
-        if (!haveExecutorThread_)
+// If we are running on a platform where we can have a dedicated executor
+// thread, check if it has been created and exit early if it has.
+#if !defined(OPENMRN_FEATURE_SINGLE_THREADED) && \
+    !defined(CONFIG_IDF_TARGET_ESP32S2)
+        if (haveExecutorThread_)
         {
-            stack_->executor()->loop_some();
+            return;
         }
+#endif // !OPENMRN_FEATURE_SINGLE_THREADED && !CONFIG_IDF_TARGET_ESP32S2
+        stack_->executor()->loop_some();
     }
 
     /// Storage space for the OpenLCB stack. Will be constructed in init().
@@ -524,8 +533,11 @@ private:
     /// List of objects we need to call in each loop iteration.
     vector<Executable *> loopMembers_{{this}};
 
+#if !defined(OPENMRN_FEATURE_SINGLE_THREADED) && \
+    !defined(CONFIG_IDF_TARGET_ESP32S2)
     /// True if there is a separate thread running the executor.
     bool haveExecutorThread_{false};
+#endif // !OPENMRN_FEATURE_SINGLE_THREADED && !CONFIG_IDF_TARGET_ESP32S2
 };
 
 } // namespace openmrn_arduino
