@@ -55,13 +55,17 @@
 #endif
 
 #ifdef ESP32
+#include <esp_vfs.h>
+
 #ifndef ESP_IDF_VERSION
 #define ESP_IDF_VERSION 0
 #endif
+
 #ifndef ESP_IDF_VERSION_VAL
 #define ESP_IDF_VERSION_VAL(a,b,c) 1
 #endif
-#endif
+
+#endif // ESP32
 
 /// Signal handler that does nothing. @param sig ignored.
 void empty_signal_handler(int sig);
