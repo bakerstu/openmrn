@@ -122,6 +122,11 @@ static pthread_once_t vfs_init_once = PTHREAD_ONCE_INIT;
 static pthread_key_t select_wakeup_key;
 static int wakeup_fd;
 
+// ESP-IDF v4+ made breaking changes to the VFS layer and in doing so it is not
+// required (or advised) to interact with the LwIP stack via the below
+// functions. For previous versions of ESP-IDF it is necessary to use these
+// functions to allow waking up the ESP32 from a select() call due to bugs in
+// the VFS layer.
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
 extern "C"
 {
