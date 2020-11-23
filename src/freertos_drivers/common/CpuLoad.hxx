@@ -46,7 +46,8 @@
 #include "utils/StringPrintf.hxx"
 #include "freertos_includes.h"
 
-extern "C" {
+extern "C"
+{
     /// Call this function repeatedly from a hardware timer to feed the CPUload
     /// class.
     /// @param irq should be zero if parent is the main context, otherwise the
@@ -65,7 +66,8 @@ extern "C" {
 ///
 /// . retrieve CPU load when desired from the object of this class or via
 ///   Singleton<CpuLoad>::instance().
-class CpuLoad : public Singleton<CpuLoad> {
+class CpuLoad : public Singleton<CpuLoad>
+{
 public:
     CpuLoad() {}
 
@@ -83,22 +85,26 @@ public:
 
     /// Return the maximum consecutive count that busy was measured, clipped to
     /// 255.
-    uint8_t get_max_consecutive() {
+    uint8_t get_max_consecutive()
+    {
         return maxConsecutive_;
     }
 
     /// Reset the maximum consecutive busy count.
-    void clear_max_consecutive() {
+    void clear_max_consecutive()
+    {
         maxConsecutive_ = 0;
     }
 
     /// Returns the peak count over 16 ticks.
-    uint8_t get_peak_over_16_counts() {
+    uint8_t get_peak_over_16_counts()
+    {
         return peakOver16Counts_;
     }
 
     /// Reset the peak count over 16 ticks.
-    void clear_peak_over_16_counts() {
+    void clear_peak_over_16_counts()
+    {
         peakOver16Counts_ = 0;
     }
 

@@ -32,7 +32,9 @@
  */
 #include <stdlib.h>
 
-#if defined(__FreeRTOS__)
+#include "openmrn_features.h"
+
+#if OPENMRN_FEATURE_THREAD_FREERTOS
 const void *__attribute__((weak)) stack_malloc(unsigned long length);
 
 const void *stack_malloc(unsigned long length)
@@ -44,7 +46,7 @@ const void *stack_malloc(unsigned long length)
     void *volatile v = malloc(length);
     return v;
 }
-#endif
+#endif // OPENMRN_FEATURE_THREAD_FREERTOS
 
 void *buffer_malloc(size_t length) __attribute__((weak));
 
