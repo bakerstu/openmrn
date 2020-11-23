@@ -54,6 +54,15 @@
 #include <sys/select.h>
 #endif
 
+#ifdef ESP32
+#ifndef ESP_IDF_VERSION
+#define ESP_IDF_VERSION 0
+#endif
+#ifndef ESP_IDF_VERSION_VAL
+#define ESP_IDF_VERSION_VAL(a,b,c) 1
+#endif
+#endif
+
 /// Signal handler that does nothing. @param sig ignored.
 void empty_signal_handler(int sig);
 
@@ -190,16 +199,30 @@ private:
     void esp_wakeup();
     void esp_wakeup_from_isr();
 public:
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
     void esp_start_select(void* signal_sem);
     void esp_end_select();
+#else
+    void esp_start_select(esp_vfs_select_sem_t signal_sem, void **args);
+    esp_err_t esp_end_select(void *args);
+#endif // IDF v4+
 
 private:
     /// FD for waking up select in ESP32 VFS implementation.
     int vfsFd_{-1};
+
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
     /// Semaphore for waking up LWIP select.
     void* lwipSem_{nullptr};
+
     /// Semaphore for waking up ESP32 select.
     void* espSem_{nullptr};
+#else
+    /// Semaphore provided by the ESP32 VFS layer to use for waking up the
+    /// ESP32 early from the select() call.
+    esp_vfs_select_sem_t espSem_{false, nullptr};
+#endif // IDF v4+
+
     /// true if we have already woken up select. protected by Atomic *this.
     bool woken_{true};
 #endif
