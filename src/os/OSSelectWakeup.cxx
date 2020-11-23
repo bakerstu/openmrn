@@ -247,12 +247,27 @@ esp_err_t OSSelectWakeup::esp_end_select(void *args)
 
 #endif // NOT IDF v4+
 
+/// This function is called by the ESP32 VFS layer when a file is opened under
+/// the registered VFS root.
+/// @param path see standard open API.
+/// @param flags see standard open API.
+/// @param mode see standard open API.
+/// @return the FD for the opened file.
 static int esp_wakeup_open(const char * path, int flags, int mode)
 {
     // This virtual FS has only one fd, 0.
     return 0;
 }
 
+/// This function will trigger the ESP32 to wake up from any pending select()
+/// call.
+///
+/// Note: If it has already been marked to wake up this function is effectively
+/// a no-op. When it has not been woken up previously it will call back into
+/// the VFS layer to trigger the wakeup remotely. For ESP-IDF v3.x there is a
+/// bug in the VFS layer that sends a null value for the semaphore and in this
+/// case this code will attempt to directly wake up the LwIP stack via an
+/// an alternative LwIP semaphore.
 void OSSelectWakeup::esp_wakeup()
 {
     if (woken_)
@@ -286,6 +301,15 @@ void OSSelectWakeup::esp_wakeup()
 #endif // IDF v4+
 }
 
+/// This function will trigger the ESP32 to wake up from any pending select()
+/// call from within an ISR context.
+///
+/// Note: If it has already been marked to wake up this function is effectively
+/// a no-op. When it has not been woken up previously it will call back into
+/// the VFS layer to trigger the wakeup remotely. For ESP-IDF v3.x there is a
+/// bug in the VFS layer that sends a null value for the semaphore and in this
+/// case this code will attempt to directly wake up the LwIP stack via an
+/// an alternative LwIP semaphore.
 void OSSelectWakeup::esp_wakeup_from_isr()
 {
     if (woken_)
@@ -322,6 +346,8 @@ void OSSelectWakeup::esp_wakeup_from_isr()
     }
 }
 
+/// Registers the VFS driver that is used for waking up the ESP32 from a call
+/// to select() within the Executor.
 static void esp_vfs_init()
 {
     esp_vfs_t vfs;
@@ -337,6 +363,14 @@ static void esp_vfs_init()
     LOG(VERBOSE, "VFSINIT wakeup fd %d", wakeup_fd);
 }
 
+/// Allocates an FD from the VFS layer to this thread for waking it up from
+/// select().
+///
+/// Note: this will register the VFS driver if this is the first time this
+/// function has been called.
+/// For ESP-IDF v3.x this function will also obtain the LwIP semaphore which
+/// will be used later to wake up if there is no semaphore provided by the VFS
+/// layer via esp_start_select.
 void OSSelectWakeup::esp_allocate_vfs_fd()
 {
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
@@ -349,6 +383,9 @@ void OSSelectWakeup::esp_allocate_vfs_fd()
         os_thread_self(), pthread_getspecific(select_wakeup_key));
 }
 
+/// Releases an FD previously allocated by esp_allocate_vfs_fd.
+/// Note: this is currently no-op since there is only one FD allocated for all
+/// instances of OSSelectWakeup.
 void OSSelectWakeup::esp_deallocate_vfs_fd()
 {
 }
