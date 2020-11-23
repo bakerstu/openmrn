@@ -48,17 +48,42 @@
 #include <mdns.h>
 #include <tcpip_adapter.h>
 
-// ESP-IDF v4+ has a slightly different directory structure to previous
-// versions.
-#ifdef ESP_IDF_VERSION_MAJOR
-// ESP-IDF v4+
+// Starting in ESP-IDF v4.0 a few header files have been relocated so we need
+// to adjust the include paths accordingly. If the __has_include preprocessor
+// directive is defined we can use it to find the appropriate header files.
+// If it is not usable then we will default the older header filenames.
+#if defined __has_include
+
+// rom/crc.h was relocated to esp32/rom/crc.h in ESP-IDF v4.0
+// TODO: This will need to be platform specific in IDF v4.1 since this is
+// exposed in unique header paths for each supported platform. Detecting the
+// operating platform (ESP32, ESP32-S2, ESP32-S3, etc) can be done by checking
+// for the presence of one of the following defines:
+// CONFIG_IDF_TARGET_ESP32      -- ESP32
+// CONFIG_IDF_TARGET_ESP32S2    -- ESP32-S2
+// CONFIG_IDF_TARGET_ESP32S3    -- ESP32-S3
+// If none of these are defined it means the ESP-IDF version is v4.0 or
+// earlier.
+#if __has_include("esp32/rom/crc.h")
 #include <esp32/rom/crc.h>
+#else
+#include <rom/crc.h>
+#endif
+
+// esp_wifi_internal.h was relocated to esp_private/wifi.h in ESP-IDF v4.0
+#if __has_include("esp_private/wifi.h")
 #include <esp_private/wifi.h>
 #else
-// ESP-IDF v3.x
+#include <esp_wifi_internal.h>
+#endif
+
+#else
+
+// We are unable to use __has_include, default to the old include paths.
 #include <esp_wifi_internal.h>
 #include <rom/crc.h>
-#endif // ESP_IDF_VERSION_MAJOR
+
+#endif // defined __has_include
 
 using openlcb::NodeID;
 using openlcb::SimpleCanStack;
