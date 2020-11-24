@@ -52,7 +52,7 @@
 // to adjust the include paths accordingly. If the __has_include preprocessor
 // directive is defined we can use it to find the appropriate header files.
 // If it is not usable then we will default the older header filenames.
-#if defined __has_include
+#if defined(__has_include)
 
 // rom/crc.h was relocated to esp32/rom/crc.h in ESP-IDF v4.0
 // TODO: This will need to be platform specific in IDF v4.1 since this is
