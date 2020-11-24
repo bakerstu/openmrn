@@ -356,6 +356,10 @@ public:
 
 // For single threaded platforms (including ESP32-S2) do not expose the support
 // for spawning a seperate thread for the OpenMRN executor.
+// NOTE: The ESP32 is included here since it is only a single core platform and
+// starting an executor thread will likely prevent the "main" task from
+// executing, additionally there is very low free heap when PSRAM is not
+// available as part of the heap (only WROVER modules typically have PSRAM).
 #if !defined(OPENMRN_FEATURE_SINGLE_THREADED) && \
     !defined(CONFIG_IDF_TARGET_ESP32S2)
 
