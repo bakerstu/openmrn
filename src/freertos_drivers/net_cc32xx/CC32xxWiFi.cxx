@@ -566,6 +566,16 @@ void CC32xxWiFi::wlan_mac(uint8_t mac[6])
 }
 
 /*
+ * CC32xxWiFi::wlan_set_mac()
+ */
+void CC32xxWiFi::wlan_set_mac(uint8_t mac[6])
+{
+    uint16_t len = 6;
+
+    sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET, 1, 6, mac);
+}
+
+/*
  * CC32xxWiFi::test_mode_start()
  */
 void CC32xxWiFi::test_mode_start()
