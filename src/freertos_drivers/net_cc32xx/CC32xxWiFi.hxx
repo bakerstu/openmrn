@@ -386,7 +386,7 @@ public:
      * many times in the lifetime of the product, as flash wear is a concern.
      * @param mac 6 byte array which holds the desired MAC address.
      */
-    void wlan_set_mac(uint8_t mac[6])
+    void wlan_set_mac(uint8_t mac[6]);
     
     /** Get the assigned IP address.
      * @return assigned IP address, else 0 if not assigned
