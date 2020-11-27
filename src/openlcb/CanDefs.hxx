@@ -121,12 +121,12 @@ struct CanDefs {
         HIGH_PRIORITY   = 0, /**< high priority CAN message */
         NORMAL_PRIORITY = 1  /**< normal priority CAN message */
     };
-    
+
     enum ControlField
     {
         RID_FRAME = 0x0700, /**< Reserve ID Frame */
         AMD_FRAME = 0x0701, /**< Alias Map Definition frame */
-        AME_FRAME = 0x0702, /**< Alias Mapping Inquery */
+        AME_FRAME = 0x0702, /**< Alias Mapping Enquiry */
         AMR_FRAME = 0x0703  /**< Alias Map Reset */
     };
 
