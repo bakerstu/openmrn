@@ -29,7 +29,7 @@
  * Helper declarations for using GPIO pins via the ESP-IDF APIs.
  *
  * @author Mike Dunston
- * @date 27 March 2020
+ * @date 23 November 2020
  */
 
 #ifndef _DRIVERS_ESP32GPIO_HXX_
@@ -64,30 +64,39 @@ class Esp32Gpio : public Gpio
 {
 public:
 #if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
+    // ESP32-S2 and ESP32-S3
     static_assert(PIN_NUM >= 0 && PIN_NUM <= 46, "Valid pin range is 0..46.");
     static_assert(!(PIN_NUM >= 22 && PIN_NUM <= 24)
                 , "Pin does not exist");
     static_assert(!(PIN_NUM >= 26 && PIN_NUM <= 32)
                 , "Pin is reserved for flash usage.");
 #else
+    // ESP32 (all variants)
     static_assert(PIN_NUM >= 0 && PIN_NUM <= 39, "Valid pin range is 0..39.");
     static_assert(PIN_NUM != 24, "Pin does not exist");
     static_assert(!(PIN_NUM >= 28 && PIN_NUM <= 31), "Pin does not exist");
     static_assert(PIN_NUM != 37, "Pin is connected to GPIO 36 via capacitor.");
     static_assert(PIN_NUM != 38, "Pin is connected to GPIO 39 via capacitor.");
+
 #if defined(ESP32_PICO)
+    // ESP32-PICO-D4 has flash connected to pins 6,7,8 and 11. Pins 9 and 10
+    // are free to use and need to be excluded from the checks below.
     static_assert(!(PIN_NUM >= 6 && PIN_NUM <= 8)
                 , "Pin is reserved for flash usage.");
-    static_assert(PIN_NUM != 11 && PIN_NUM != 16 && PIN_NUM != 17
+    static_assert(PIN_NUM != 11
                 , "Pin is reserved for flash usage.");
 #else
+    // ESP32 (all other variants) have flash connected to pins 6-11.
     static_assert(!(PIN_NUM >= 6 && PIN_NUM <= 11)
                 , "Pin is reserved for flash usage.");
+#endif // ESP32_PICO
+
 #if defined(BOARD_HAS_PSRAM)
+    // If the board has PSRAM it is normally connected on pins 16 and 17.
     static_assert(PIN_NUM != 16 && PIN_NUM != 17
                 , "Pin is reserved for PSRAM usage.");
 #endif // BOARD_HAS_PSRAM
-#endif // ESP32_PICO
+
 #endif // CONFIG_IDF_TARGET_ESP32S2 / CONFIG_IDF_TARGET_ESP32S3
 
     /// Sets the output state of the connected GPIO pin.
@@ -99,7 +108,7 @@ public:
         {
             LOG(VERBOSE, "Esp32Gpio(%d) write %s", PIN_NUM,
                 new_state == Value::SET ? "CLR" : "SET");
-            ESP_ERROR_CHECK(gpio_set_level(PIN_NUM, new_state == Value::CLR));
+            ESP_ERROR_CHECK(gpio_set_level(PIN_NUM, !new_state));
         }
         else
         {
