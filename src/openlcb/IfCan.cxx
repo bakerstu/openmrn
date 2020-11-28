@@ -382,8 +382,9 @@ private:
     {
         while (nextIndex_ < if_can()->local_aliases()->size())
         {
-            if (if_can()->local_aliases()->retrieve(
-                    nextIndex_, nullptr, nullptr))
+            NodeID n;
+            if (if_can()->local_aliases()->retrieve(nextIndex_, &n, nullptr) &&
+                ((n >> (5 * 8)) != 0))
             {
                 return allocate_and_call(
                     if_can()->frame_write_flow(), STATE(fill_response));
