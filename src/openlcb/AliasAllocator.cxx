@@ -79,6 +79,50 @@ void seed_alias_allocator(AliasAllocator* aliases, Pool* pool, int n) {
     }
 }
 
+/** @return the number of aliases that are reserved and available for new
+ * virtual nodes to use. */
+unsigned AliasAllocator::num_reserved_aliases()
+{
+    unsigned cnt = 0;
+    NodeID found_id = CanDefs::get_reserved_alias_node_id(0);
+    NodeAlias found_alias = 0;
+    do
+    {
+        if (if_can()->local_aliases()->next_entry(
+                found_id, &found_id, &found_alias) &&
+            CanDefs::is_reserved_alias_node_id(found_id))
+        {
+            ++cnt;
+        }
+        else
+        {
+            break;
+        }
+    } while (true);
+    return cnt;
+}
+
+/** Removes all aliases that are reserved but not yet used. */
+void AliasAllocator::clear_reserved_aliases()
+{
+    do
+    {
+        NodeID found_id = CanDefs::get_reserved_alias_node_id(0);
+        NodeAlias found_alias = 0;
+        if (if_can()->local_aliases()->next_entry(
+                CanDefs::get_reserved_alias_node_id(0), &found_id,
+                &found_alias) &&
+            CanDefs::is_reserved_alias_node_id(found_id))
+        {
+            if_can()->local_aliases()->remove(found_alias);
+        }
+        else
+        {
+            break;
+        }
+    } while (true);
+}
+
 void AliasAllocator::return_alias(NodeID id, NodeAlias alias)
 {
     // This is synchronous allocation, which is not nice.
