@@ -137,6 +137,30 @@ TEST_F(AsyncIfTest, AMESupport)
     wait();
 }
 
+TEST_F(AsyncNodeTest, GlobalAMESupport)
+{
+    EXPECT_TRUE(node_->is_initialized());
+    RX({
+        ifCan_->local_aliases()->add(UINT64_C(0x050101011877), 0x729U);
+        ifCan_->remote_aliases()->add(UINT64_C(0x050101011811), 0x111U);
+        EXPECT_EQ(
+            0x111u, ifCan_->remote_aliases()->lookup(UINT64_C(0x050101011811)));
+    });
+    // The enquiry is sent out...
+    expect_packet(":X1070222AN;");
+    // ...along with all local aliases...
+    expect_packet(":X1070122AN02010D000003;");
+    expect_packet(":X10701729N050101011877;");
+    RX(ifCan_->send_global_alias_enquiry(node_));
+    wait();
+    // and the remote cache was cleared.
+    RX(EXPECT_EQ(
+        0u, ifCan_->remote_aliases()->lookup(UINT64_C(0x050101011811))));
+    // Checks regression: we did not lose the local node alias.
+    RX(EXPECT_EQ(
+           0x22Au, ifCan_->local_aliases()->lookup(node_->node_id())));
+}
+
 TEST_F(AsyncNodeTest, NodeIdLookupLocal)
 {
     NodeIdLookupFlow lflow(ifCan_.get());
