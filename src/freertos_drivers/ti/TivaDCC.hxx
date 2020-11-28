@@ -661,7 +661,14 @@ inline void TivaDCC<HW>::interrupt_handler()
             break;
         case DCC_STOP_RAILCOM_RECEIVE:
         {
-            current_bit = DCC_RC_HALF_ZERO;
+            if (HW::generate_railcom_halfzero())
+            {
+                current_bit = DCC_RC_HALF_ZERO;
+            }
+            else
+            {
+                current_bit = DCC_RC_ONE;
+            }
             // This causes the timers to be reinitialized so no fractional bits
             // are left in their counters.
             resync = true;
