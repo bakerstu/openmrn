@@ -95,7 +95,7 @@ public:
     {
         return static_cast<T *>(head_);
     }
-    
+
     /// Locks the list for modification (at any entry!).
     static Atomic* head_mu() {
         return LinkedObjectHeadMutex<T>::headMu_.get();

@@ -36,9 +36,9 @@
 #ifndef _OS_FAKECLOCK_HXX_
 #define _OS_FAKECLOCK_HXX_
 
+#include "executor/Executor.hxx"
 #include "os/os.h"
 #include "utils/Singleton.hxx"
-#include "executor/Executor.hxx"
 
 /// Stores the private variables of a fake clock.
 struct FakeClockContent
