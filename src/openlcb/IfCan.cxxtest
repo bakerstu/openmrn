@@ -156,6 +156,9 @@ TEST_F(AsyncNodeTest, GlobalAMESupport)
     // and the remote cache was cleared.
     RX(EXPECT_EQ(
         0u, ifCan_->remote_aliases()->lookup(UINT64_C(0x050101011811))));
+    // Checks regression: we did not lose the local node alias.
+    RX(EXPECT_EQ(
+           0x22Au, ifCan_->local_aliases()->lookup(node_->node_id())));
 }
 
 TEST_F(AsyncNodeTest, NodeIdLookupLocal)

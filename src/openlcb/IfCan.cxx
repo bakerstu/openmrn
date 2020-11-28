@@ -718,13 +718,18 @@ void IfCan::send_global_alias_enquiry(Node *source)
         LOG_ERROR("Tried to send global AME witout a local alias.");
         return;
     }
-    auto *b = frame_write_flow()->alloc();
-    CanDefs::control_init(*b->data(), send_alias, CanDefs::AME_FRAME, 0);
-    // Sends it out
-    frame_write_flow()->send(b->ref());
-    // Sends a local loopback of it so that we also respond with all the
-    // definitions.
-    frame_dispatcher()->send((Buffer<CanMessageData> *)b);
+    {
+        auto *b = frame_write_flow()->alloc();
+        CanDefs::control_init(*b->data(), send_alias, CanDefs::AME_FRAME, 0);
+        // Sends it out
+        frame_write_flow()->send(b);
+    }
+    {
+        // Sends another to the local node, but not using the local alias.
+        auto *b = frame_dispatcher()->alloc();
+        CanDefs::control_init(*b->data(), 0, CanDefs::AME_FRAME, 0);
+        frame_dispatcher()->send(b);
+    }
 }
 
 void IfCan::add_addressed_message_support()
