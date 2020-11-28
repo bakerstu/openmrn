@@ -1,0 +1,959 @@
+/** \copyright
+ * Copyright (c) 2020, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file VirtualMemorySpace.cxxtest
+ *
+ * Unit tests for the virtual memory space.
+ *
+ * @author Balazs Racz
+ * @date 10 Aug 2020
+ */
+
+#include "openlcb/VirtualMemorySpace.hxx"
+
+#include "openlcb/ConfigRepresentation.hxx"
+#include "openlcb/MemoryConfigClient.hxx"
+#include "utils/async_datagram_test_helper.hxx"
+
+namespace openlcb
+{
+
+string arg1;
+string arg2;
+
+CDI_GROUP(ExampleMemorySpace);
+CDI_GROUP_ENTRY(skipped, EmptyGroup<5>);
+CDI_GROUP_ENTRY(first, StringConfigEntry<13>);
+CDI_GROUP_ENTRY(skipped2, EmptyGroup<8>);
+CDI_GROUP_ENTRY(second, StringConfigEntry<20>);
+CDI_GROUP_ENTRY(skipped3, EmptyGroup<8>);
+CDI_GROUP_END();
+
+ExampleMemorySpace cfg(44);
+
+const unsigned arg1_ofs = 44 + 5;
+const unsigned arg2_ofs = 44 + 5 + 13 + 8;
+
+class VirtualMemorySpaceTest : public AsyncDatagramTest
+{
+protected:
+    ~VirtualMemorySpaceTest()
+    {
+        wait();
+    }
+
+    MemoryConfigHandler memCfg_ {&datagram_support_, node_, 3};
+    std::unique_ptr<VirtualMemorySpace> space_;
+    MemoryConfigClient client_ {node_, &memCfg_};
+};
+
+class TestSpace : public VirtualMemorySpace
+{
+public:
+    TestSpace()
+    {
+        arg1.clear();
+        arg2.clear();
+        register_string(
+            cfg.first(), string_reader(&arg1), string_writer(&arg1));
+        register_string(
+            cfg.second(), string_reader(&arg2), string_writer(&arg2));
+    }
+
+    /// Creates a ReaderFunction that just returns a string from a given
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
+    std::function<bool(
+        unsigned repeat, string *contents, BarrierNotifiable *done)>
+    string_reader(string *ptr)
+    {
+        return
+            [ptr](unsigned repeat, string *contents, BarrierNotifiable *done) {
+                *contents = *ptr;
+                done->notify();
+                return true;
+            };
+    }
+
+    /// Creates a WriterFunction that just stores the data in a given string
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
+    std::function<void(
+        unsigned repeat, string contents, BarrierNotifiable *done)>
+    string_writer(string *ptr)
+    {
+        return
+            [ptr](unsigned repeat, string contents, BarrierNotifiable *done) {
+                *ptr = std::move(contents);
+                done->notify();
+            };
+    }
+};
+
+class TestSpaceTest : public VirtualMemorySpaceTest
+{
+protected:
+    TestSpaceTest()
+    {
+        space_.reset(new TestSpace);
+        memCfg_.registry()->insert(node_, SPACE, space_.get());
+    }
+
+    /// Memory space number where the test space is registered.
+    const uint8_t SPACE = 0x52;
+};
+
+TEST_F(TestSpaceTest, create)
+{
+}
+
+/// Basic tests reading variables from the exact offset including partial
+/// reads.
+TEST_F(TestSpaceTest, read_payload)
+{
+    arg1 = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs, 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("hello", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, 20);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("", b->data()->payload.c_str());
+    EXPECT_EQ(20u, b->data()->payload.size());
+
+    // prefix read
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs, 3);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("hel", b->data()->payload);
+}
+
+/// Test reading a variable from an imprecise offset (too early).
+TEST_F(TestSpaceTest, read_early)
+{
+    arg1 = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs - 2, 10);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp("\0\0hello\0\0\0", 10);
+    EXPECT_EQ(exp, b->data()->payload);
+    EXPECT_EQ(10u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs - 4, 3);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp2("\0\0\0", 3);
+    EXPECT_EQ(exp2, b->data()->payload);
+    EXPECT_EQ(3u, b->data()->payload.size());
+}
+
+/// Test reading a variable from an imprecise offset (too late -- middle of
+/// variable).
+TEST_F(TestSpaceTest, read_middle)
+{
+    arg1 = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs + 2, 10);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp("llo\0\0\0\0\0\0\0", 10);
+    EXPECT_EQ(exp, b->data()->payload);
+    EXPECT_EQ(10u, b->data()->payload.size());
+
+    arg2 = "abcdefghij";
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 2, 3);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp2("cde", 3);
+    EXPECT_EQ(exp2, b->data()->payload);
+    EXPECT_EQ(3u, b->data()->payload.size());
+}
+
+/// Test writing a variable to a offset that is not covered at all.
+TEST_F(TestSpaceTest, read_hole)
+{
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs - 5, 3);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp("\0\0\0", 3);
+    EXPECT_EQ(exp, b->data()->payload);
+
+    /// @todo this return seems to be wrong, although this address is out of
+    /// the memory space limits.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs - 5, 2);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string(), b->data()->payload);
+
+    /// @todo this return seems to be wrong, although this address is out of
+    /// the memory space limits.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 100, 4);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string(), b->data()->payload);
+}
+
+/// Test reading beyond eof.
+TEST_F(TestSpaceTest, read_eof)
+{
+    unsigned reg_last = cfg.second().offset();
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(20u, b->data()->payload.size());
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 20, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 23, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0u, b->data()->payload.size());
+}
+
+/// Basic tests writing variables from the exact offset but not including
+/// partial writes.
+TEST_F(TestSpaceTest, write_payload)
+{
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs, "xyzw");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("xyzw", arg1);
+    EXPECT_EQ(4u, arg1.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, "abcde");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("abcde", arg2);
+    EXPECT_EQ(5u, arg2.size());
+}
+
+/// Test writing a variable to a offset that is too early.
+TEST_F(TestSpaceTest, write_early)
+{
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs - 2, "xyzw");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("zw", arg1);
+    EXPECT_EQ(2u, arg1.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs - 1, "qwert");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("wert", arg2);
+    EXPECT_EQ(4u, arg2.size());
+}
+
+/// Test writing into to a offset that is in the middle of a variable.
+TEST_F(TestSpaceTest, write_middle)
+{
+    arg1 = "hellllo";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs + 3, "xy");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("helxylo\0\0\0\0\0\0", 13), arg1);
+
+    // Writes to middle then beyond the end of the variable.
+    string payload(19, 'a');
+    payload += "bbbbbbbbb";
+    arg2 = "0123456789i123456789";
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs + 3, payload);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("helaaaaaaaaaa", arg1);
+    EXPECT_EQ(13u, arg1.size());
+    EXPECT_EQ("abbbbbbbbb", arg2);
+    EXPECT_EQ(10u, arg2.size());
+
+    // Writes a string in multiple datagrams.
+    payload = "0123456789abcdef";
+    payload.push_back(0);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, payload.substr(0, 10));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("0123456789", arg2);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 10,
+        payload.substr(10, 3));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("0123456789abc", arg2.c_str());
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 13,
+        payload.substr(13, 2));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("0123456789abcde", arg2.c_str());
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 15, payload.substr(15));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("0123456789abcdef", arg2.c_str());
+}
+
+/// Test writing a variable to a offset that is not covered at all.
+TEST_F(TestSpaceTest, write_hole)
+{
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs - 5, "xyz");
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs - 5, "qw");
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 100, "qw");
+    ASSERT_EQ(0, b->data()->resultCode);
+}
+
+CDI_GROUP(NumericGroup);
+CDI_GROUP_ENTRY(skipped, EmptyGroup<5>);
+CDI_GROUP_ENTRY(first, Uint32ConfigEntry);
+CDI_GROUP_ENTRY(second, Int16ConfigEntry);
+CDI_GROUP_ENTRY(third, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(skipped2, EmptyGroup<8>);
+CDI_GROUP_END();
+
+CDI_GROUP(NumericMemorySpace);
+CDI_GROUP_ENTRY(skipped, EmptyGroup<5>);
+CDI_GROUP_ENTRY(first, StringConfigEntry<13>);
+CDI_GROUP_ENTRY(skipped2, EmptyGroup<8>);
+CDI_GROUP_ENTRY(second, StringConfigEntry<20>);
+CDI_GROUP_ENTRY(skipped3, EmptyGroup<8>);
+CDI_GROUP_ENTRY(outer_before, Uint32ConfigEntry);
+using RG = RepeatedGroup<NumericGroup, 5>;
+CDI_GROUP_ENTRY(grp, RG);
+CDI_GROUP_ENTRY(outer_after, Uint32ConfigEntry);
+CDI_GROUP_END();
+
+NumericMemorySpace ncfg(44);
+
+class TestSpaceAsync : public VirtualMemorySpace
+{
+public:
+    TestSpaceAsync()
+    {
+        arg1.clear();
+        arg2.clear();
+        register_string(
+            ncfg.first(), string_reader(&arg1), string_writer(&arg1));
+        register_string(
+            ncfg.second(), string_reader(&arg2), string_writer(&arg2));
+        register_numeric(ncfg.outer_before(), typed_reader(&rnBefore_),
+            typed_writer(&rnBefore_));
+        register_numeric(ncfg.outer_after(), typed_reader(&rnAfter_),
+            typed_writer(&rnAfter_));
+        register_numeric(ncfg.grp().entry(0).first(), typed_reader(&rnFirst_),
+            typed_writer(&rnFirst_));
+        register_numeric(ncfg.grp().entry(0).second(), typed_reader(&rnSecond_),
+            typed_writer(&rnSecond_));
+        register_numeric(ncfg.grp().entry(0).third(), typed_reader(&rnThird_),
+            typed_writer(&rnThird_));
+        register_repeat(ncfg.grp());
+    }
+
+    /// Creates a ReaderFunction that just returns a string from a given
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
+    std::function<bool(
+        unsigned repeat, string *contents, BarrierNotifiable *done)>
+    string_reader(string *ptr)
+    {
+        return [this, ptr](
+                   unsigned repeat, string *contents, BarrierNotifiable *done) {
+            attempt++;
+            lastRepeat_ = repeat;
+            if ((attempt & 1) == 0)
+            {
+                *contents = *ptr;
+                done->notify();
+                return true;
+            }
+            else
+            {
+                g_executor.add(
+                    new CallbackExecutable([done]() { done->notify(); }));
+                return false;
+            }
+        };
+    }
+
+    /// Creates a TypedReaderFunction that just returns a value from a given
+    /// variable.
+    /// @param ptr the variable whose contents to return as read value. Must
+    /// stay alive as long as the function is in use.
+    /// @return the TypedReaderFunction.
+    template <typename T>
+    typename std::function<T(unsigned repeat, BarrierNotifiable *done)>
+    typed_reader(T *ptr)
+    {
+        return [this, ptr](unsigned repeat, BarrierNotifiable *done) {
+            attempt++;
+            lastRepeat_ = repeat;
+            if ((attempt & 1) == 0)
+            {
+                done->notify();
+                return *ptr;
+            }
+            else
+            {
+                g_executor.add(
+                    new CallbackExecutable([done]() { done->notify(); }));
+                return T();
+            }
+        };
+    }
+
+    /// Creates a WriterFunction that just stores the data in a given string
+    /// variable.
+    /// @param ptr the variable where to store the contents. Must stay alive as
+    /// long as the function is in use.
+    /// @return the WriterFunction.
+    std::function<void(
+        unsigned repeat, string contents, BarrierNotifiable *done)>
+    string_writer(string *ptr)
+    {
+        return [this, ptr](
+                   unsigned repeat, string contents, BarrierNotifiable *done) {
+            attempt++;
+            lastRepeat_ = repeat;
+            if ((attempt & 1) == 0)
+            {
+                *ptr = std::move(contents);
+                done->notify();
+                return true;
+            }
+            else
+            {
+                g_executor.add(
+                    new CallbackExecutable([done]() { done->notify(); }));
+                return false;
+            }
+        };
+    }
+
+    /// Creates a TypedWriterFunction that just stores the data in a given
+    /// variable.
+    /// @param ptr the variable where to store the contents. Must stay alive as
+    /// long as the function is in use.
+    /// @return the TypedWriterFunction.
+    template <typename T>
+    std::function<void(unsigned repeat, T contents, BarrierNotifiable *done)>
+    typed_writer(T *ptr)
+    {
+        return
+            [this, ptr](unsigned repeat, T contents, BarrierNotifiable *done) {
+                attempt++;
+                lastRepeat_ = repeat;
+                if ((attempt & 1) == 0)
+                {
+                    *ptr = std::move(contents);
+                    done->notify();
+                }
+                else
+                {
+                    g_executor.add(
+                        new CallbackExecutable([done]() { done->notify(); }));
+                }
+            };
+    }
+
+    /// Stores the last invoked repetition number.
+    unsigned lastRepeat_ = 0;
+    /// Shadow for NumericGroup.first.
+    uint32_t rnFirst_ = 0;
+    /// Shadow for NumericGroup.second.
+    int16_t rnSecond_ = 0;
+    /// Shadow for NumericGroup.third.
+    uint8_t rnThird_ = 0;
+
+    /// Shadow for NUmericMemorySpace.before.
+    uint32_t rnBefore_ = 0;
+    /// Shadow for NUmericMemorySpace.after.
+    uint32_t rnAfter_ = 0;
+
+private:
+    size_t attempt = 0;
+};
+
+class TestSpaceAsyncTest : public VirtualMemorySpaceTest
+{
+protected:
+    TestSpaceAsyncTest()
+    {
+        space_.reset(tspace_);
+        memCfg_.registry()->insert(node_, SPACE, space_.get());
+    }
+
+    TestSpaceAsync *tspace_ = new TestSpaceAsync;
+    /// Memory space number where the test space is registered.
+    const uint8_t SPACE = 0x52;
+};
+
+/// Basic tests reading variables from async space.
+TEST_F(TestSpaceAsyncTest, read_payload_async)
+{
+    arg1 = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs, 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("hello", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, 20);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("", b->data()->payload.c_str());
+    EXPECT_EQ(20u, b->data()->payload.size());
+}
+
+/// Test reading a variable from an imprecise offset (too late -- middle of
+/// variable).
+TEST_F(TestSpaceAsyncTest, read_middle)
+{
+    arg1 = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs + 2, 10);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp("llo\0\0\0\0\0\0\0", 10);
+    EXPECT_EQ(exp, b->data()->payload);
+    EXPECT_EQ(10u, b->data()->payload.size());
+
+    arg2 = "abcdefghij";
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 2, 3);
+    ASSERT_EQ(0, b->data()->resultCode);
+    string exp2("cde", 3);
+    EXPECT_EQ(exp2, b->data()->payload);
+    EXPECT_EQ(3u, b->data()->payload.size());
+}
+
+/// Basic tests writing variables from the exact offset but not including
+/// partial writes.
+TEST_F(TestSpaceAsyncTest, write_payload_async)
+{
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs, "xyzw");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("xyzw", arg1);
+    EXPECT_EQ(4u, arg1.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, "abcde");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("abcde", arg2);
+    EXPECT_EQ(5u, arg2.size());
+}
+
+/// Test writing into to a offset that is in the middle of a variable.
+TEST_F(TestSpaceAsyncTest, write_middle)
+{
+    arg1 = "hellllo";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs + 3, "xy");
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("helxylo\0\0\0\0\0\0", 13), arg1);
+
+    // Writes to middle then beyond the end of the variable.
+    string payload(19, 'a');
+    payload += "bbbbbbbbb";
+    arg2 = "0123456789i123456789";
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg1_ofs + 3, payload);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("helaaaaaaaaaa", arg1);
+    EXPECT_EQ(13u, arg1.size());
+    EXPECT_EQ("abbbbbbbbb", arg2);
+    EXPECT_EQ(10u, arg2.size());
+
+    // Writes a string in multiple datagrams.
+    payload = "0123456789abcdef";
+    payload.push_back(0);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs, payload.substr(0, 10));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ("0123456789", arg2);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 10,
+        payload.substr(10, 3));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("0123456789abc", arg2.c_str());
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 13,
+        payload.substr(13, 2));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("0123456789abcde", arg2.c_str());
+    b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, arg2_ofs + 15, payload.substr(15));
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("0123456789abcdef", arg2.c_str());
+}
+
+/// Tests reading and writing numeric variables with endianness.
+TEST_F(TestSpaceAsyncTest, rw_numeric_async)
+{
+    string u32payload;
+    u32payload.push_back(0xAA);
+    u32payload.push_back(2);
+    u32payload.push_back(3);
+    u32payload.push_back(4);
+
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, ncfg.outer_before().offset(),
+        u32payload);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0xAA020304u, tspace_->rnBefore_);
+
+    tspace_->rnBefore_ = 0xbb554433;
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, ncfg.outer_before().offset(), 4);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ((char)0xbb, b->data()->payload[0]);
+    EXPECT_EQ(0x55, b->data()->payload[1]);
+    EXPECT_EQ(0x44, b->data()->payload[2]);
+    EXPECT_EQ(0x33, b->data()->payload[3]);
+}
+
+/// Tests variable after repeted group.
+TEST_F(TestSpaceAsyncTest, rw_numeric_after_repeat)
+{
+    string u32payload;
+    u32payload.push_back(0xAA);
+    u32payload.push_back(2);
+    u32payload.push_back(3);
+    u32payload.push_back(4);
+
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE, ncfg.outer_after().offset(),
+        u32payload);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0xAA020304u, tspace_->rnAfter_);
+
+    tspace_->rnAfter_ = 0xbb554433;
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, ncfg.outer_after().offset(), 4);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ((char)0xbb, b->data()->payload[0]);
+    EXPECT_EQ(0x55, b->data()->payload[1]);
+    EXPECT_EQ(0x44, b->data()->payload[2]);
+    EXPECT_EQ(0x33, b->data()->payload[3]);
+}
+
+/// Tests reading and writing numeric variables with endianness from repetitions.
+TEST_F(TestSpaceAsyncTest, rw_numeric_repeat)
+{
+    string u32payload;
+    u32payload.push_back(0xAA);
+    u32payload.push_back(2);
+    u32payload.push_back(3);
+    u32payload.push_back(4);
+
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::WRITE,
+        NodeHandle(node_->node_id()), SPACE,
+        ncfg.grp().entry(3).first().offset(), u32payload);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(3u, tspace_->lastRepeat_);
+    EXPECT_EQ(0xAA020304u, tspace_->rnFirst_);
+
+    tspace_->rnSecond_ = -2;
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        ncfg.grp().entry(4).second().offset(), 2);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(4u, tspace_->lastRepeat_);
+    ASSERT_EQ(2u, b->data()->payload.size());
+    EXPECT_EQ((char)0xFF, b->data()->payload[0]);
+    EXPECT_EQ((char)0xFE, b->data()->payload[1]);
+
+    tspace_->rnSecond_ = 55;
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        ncfg.grp().entry(0).second().offset(), 2);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0u, tspace_->lastRepeat_);
+    ASSERT_EQ(2u, b->data()->payload.size());
+    EXPECT_EQ((char)0, b->data()->payload[0]);
+    EXPECT_EQ((char)55, b->data()->payload[1]);
+}
+
+CDI_GROUP(RepeatMemoryDef);
+CDI_GROUP_ENTRY(skipped, EmptyGroup<5>);
+CDI_GROUP_ENTRY(before, StringConfigEntry<13>);
+CDI_GROUP_ENTRY(skipped2, EmptyGroup<8>);
+using GroupRept = RepeatedGroup<ExampleMemorySpace, 3>;
+CDI_GROUP_ENTRY(grp, GroupRept);
+CDI_GROUP_ENTRY(skipped3, EmptyGroup<8>);
+CDI_GROUP_ENTRY(after, StringConfigEntry<20>);
+CDI_GROUP_ENTRY(grp2, GroupRept);
+CDI_GROUP_END();
+
+RepeatMemoryDef spacerept(22);
+
+class SpaceWithRepeat : public VirtualMemorySpace
+{
+public:
+    SpaceWithRepeat()
+    {
+        arg1.clear();
+        arg2.clear();
+        register_string(spacerept.grp().entry<0>().first(),
+            string_reader(&arg1), string_writer(&arg1));
+        register_string(spacerept.grp().entry<0>().second(),
+            string_reader(&arg2), string_writer(&arg2));
+        register_string(spacerept.before(), string_reader(&before_),
+            string_writer(&before_));
+        register_string(
+            spacerept.after(), string_reader(&after_), string_writer(&after_));
+        register_repeat(spacerept.grp());
+        register_string(spacerept.grp2().entry<0>().second(),
+            string_reader(&arg2), string_writer(&arg2));
+        register_repeat(spacerept.grp2());
+    }
+
+    /// Creates a ReaderFunction that just returns a string from a given
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
+    std::function<bool(
+        unsigned repeat, string *contents, BarrierNotifiable *done)>
+    string_reader(string *ptr)
+    {
+        return [this, ptr](
+                   unsigned repeat, string *contents, BarrierNotifiable *done) {
+            lastRepeat_ = repeat;
+            *contents = *ptr;
+            done->notify();
+            return true;
+        };
+    }
+
+    /// Creates a WriterFunction that just stores the data in a given string
+    /// variable.
+    /// @param ptr the string whose contents to return as read value. Must stay
+    /// alive as long as the function is in use.
+    /// @return the ReaderFunction.
+    std::function<void(
+        unsigned repeat, string contents, BarrierNotifiable *done)>
+    string_writer(string *ptr)
+    {
+        return [this, ptr](
+                   unsigned repeat, string contents, BarrierNotifiable *done) {
+            lastRepeat_ = repeat;
+            *ptr = std::move(contents);
+            done->notify();
+        };
+    }
+
+    /// Saves the last repeat variable into this value.
+    unsigned lastRepeat_;
+    /// Storage variable for a field.
+    string before_;
+    /// Storage variable for a field.
+    string after_;
+};
+
+class ReptSpaceTest : public VirtualMemorySpaceTest
+{
+protected:
+    ReptSpaceTest()
+    {
+        memCfg_.registry()->insert(node_, SPACE, &s_);
+    }
+
+    /// Memory space number where the test space is registered.
+    const uint8_t SPACE = 0x52;
+    SpaceWithRepeat s_;
+};
+
+TEST_F(ReptSpaceTest, create)
+{
+}
+
+// Looks for a field that is before the repeated group.
+TEST_F(ReptSpaceTest, before)
+{
+    s_.before_ = "hello";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, spacerept.before().offset(), 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("hello", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+    EXPECT_EQ(0u, s_.lastRepeat_);
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, spacerept.before().offset() - 2,
+        5);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0hel", 5), b->data()->payload);
+    EXPECT_EQ(0u, s_.lastRepeat_);
+}
+
+// Looks for a field in the first repetition of the group.
+TEST_F(ReptSpaceTest, first_repeat)
+{
+    arg1 = "world";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<0>().first().offset(), 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("world", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+    EXPECT_EQ(0u, s_.lastRepeat_);
+
+    // Start offset within the group.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<0>().first().offset() - 2, 5);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0wor", 5), b->data()->payload);
+    EXPECT_EQ(0u, s_.lastRepeat_);
+
+    // Start offset _before_ the group.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<0>().first().offset() - 7, 10);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0\0\0\0\0\0wor", 10), b->data()->payload);
+    EXPECT_EQ(0u, s_.lastRepeat_);
+
+    arg2 = "ahoi";
+    // Second field, exact match
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<0>().second().offset(), 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("ahoi", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+    EXPECT_EQ(0u, s_.lastRepeat_);
+
+    // Second field, before match
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<0>().second().offset() - 2, 5);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0aho", 5), b->data()->payload);
+    EXPECT_EQ(0u, s_.lastRepeat_);
+}
+
+// Looks for a field in the first repetition of the group.
+TEST_F(ReptSpaceTest, mid_repeat)
+{
+    arg1 = "world";
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<2>().first().offset(), 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("world", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+    EXPECT_EQ(2u, s_.lastRepeat_);
+
+    // Start offset within the group.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<2>().first().offset() - 2, 5);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0wor", 5), b->data()->payload);
+    EXPECT_EQ(2u, s_.lastRepeat_);
+
+    // Start offset in the previous group repeat.
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<2>().first().offset() - 7, 10);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0\0\0\0\0\0wor", 10), b->data()->payload);
+    EXPECT_EQ(2u, s_.lastRepeat_);
+
+    arg2 = "ahoi";
+    // Second field, exact match
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<2>().second().offset(), 13);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_STREQ("ahoi", b->data()->payload.c_str());
+    EXPECT_EQ(13u, b->data()->payload.size());
+    EXPECT_EQ(2u, s_.lastRepeat_);
+
+    // Second field, before match
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE,
+        spacerept.grp().entry<2>().second().offset() - 2, 5);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(string("\0\0aho", 5), b->data()->payload);
+    EXPECT_EQ(2u, s_.lastRepeat_);
+}
+
+/// Test reading beyond eof.  The end of the space there is a repeated group
+/// where the registry entries do not cover all bytes. This is a difficult
+/// cornercase and we test that all bytes until the end of the repetition can
+/// be read but not beyond.
+TEST_F(ReptSpaceTest, read_eof)
+{
+    unsigned reg_last = spacerept.grp2().entry<2>().second().offset();
+    // EOF is 28 bytes away from here.
+    EXPECT_EQ(reg_last + 27, s_.max_address());
+    auto b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(28u, b->data()->payload.size());
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 20, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(8u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 23, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(5u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 27, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(1u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 28, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0u, b->data()->payload.size());
+
+    b = invoke_flow(&client_, MemoryConfigClientRequest::READ_PART,
+        NodeHandle(node_->node_id()), SPACE, reg_last + 29, 50);
+    ASSERT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(0u, b->data()->payload.size());
+}
+
+} // namespace openlcb

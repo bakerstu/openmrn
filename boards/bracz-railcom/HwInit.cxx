@@ -99,7 +99,7 @@ static TivaCan can0("/dev/can0", CAN0_BASE, INT_RESOLVE(INT_CAN0_, 0));
 
 const unsigned TivaEEPROMEmulation::FAMILY = TM4C123;
 const size_t EEPROMEmulation::SECTOR_SIZE = 4 * 1024;
-static TivaEEPROMEmulation eeprom("/dev/eeprom", 1024);
+static TivaEEPROMEmulation eeprom("/dev/eeprom", 1524);
 
 const uint32_t RailcomDefs::UART_BASE[] = RAILCOM_BASE;
 const uint32_t RailcomDefs::UART_PERIPH[] = RAILCOM_PERIPH;
@@ -107,7 +107,7 @@ const uint32_t RailcomDefs::UART_PERIPH[] = RAILCOM_PERIPH;
 TivaDAC<DACDefs> dac;
 TivaGNDControl gnd_control;
 TivaBypassControl bypass_control;
-
+unsigned DCCDecode::sampleCount_ = 0;
 uint8_t RailcomDefs::feedbackChannel_ = 0xff;
 uint8_t dac_next_packet_mode = 0;
 

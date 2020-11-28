@@ -1,7 +1,6 @@
 SUBDIRS = linux.x86 \
         linux.armv7a \
         linux.llvm \
-        mach.x86 \
         mach.x86_64 \
         freertos.armv7m.ek-lm4f120xl \
         freertos.armv7m.ek-tm4c123gxl \

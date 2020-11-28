@@ -301,6 +301,17 @@ ARMLINUXGCCPATH:=$(TRYPATH)
 endif
 endif #ARMLINUXGCCPATH
 
+################### AARCH64-LINUX GCC PATH #####################
+ifndef AARCH64LINUXGCCPATH
+SEARCHPATH := \
+    /usr/bin \
+
+TRYPATH:=$(call findfirst,aarch64-linux-gnu-gcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+AARCH64LINUXGCCPATH:=$(TRYPATH)
+endif
+endif #AARCH64LINUXGCCPATH
+
 ################### TI-CC3200-SDK #####################
 ifndef TICC3200SDKPATH
 SEARCHPATH := \
@@ -570,6 +581,18 @@ ifneq ($(TRYPATH),)
 CLANGPPPATH:=$(TRYPATH)
 endif
 endif #CLANGPPPATH
+
+##################### HOSTCLANGPP ######################
+ifndef HOSTCLANGPPPATH
+SEARCHPATH := \
+  /usr/bin \
+
+
+TRYPATH:=$(call findfirst,clang++,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+HOSTCLANGPPPATH:=$(TRYPATH)
+endif
+endif #HOSTCLANGPPPATH
 
 ##################### NODEJS ######################
 ifndef NODEJSPATH

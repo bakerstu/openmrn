@@ -15,6 +15,7 @@
 #include "BlinkerGPIO.hxx"
 #include "utils/Debouncer.hxx"
 
+#define HARDWARE_REVA
 
 GPIO_PIN(SW1, GpioInputPU, F, 4);
 GPIO_PIN(SW2, GpioInputPU, F, 0);
@@ -128,6 +129,8 @@ struct Debug
     typedef DummyPin DccDecodeInterrupts;
     //typedef LED_GREEN_Pin DccDecodeInterrupts;
 
+    typedef DummyPin DccPacketFinishedHook;
+
     // Flips every timer capture interrupt from the dcc deocder flow.
     // typedef DBG_SIGNAL_Pin RailcomE0;
     //typedef LED_GREEN_Pin RailcomE0;
@@ -176,6 +179,7 @@ struct RailcomDefs
     static bool need_ch1_cutout() {
         return true;
     }
+    static void middle_cutout_hook() {}
 
     static void enable_measurement(bool);
     static void disable_measurement();
@@ -444,8 +448,6 @@ struct DCCDecode
       HWREG(TIMER_BASE + TIMER_O_TAMR) |= (TIMER_TAMR_TAMIE);
     }
 
-    static void cap_event_hook() {}
-
     static const auto RCOM_TIMER = TIMER_A;
     static const auto SAMPLE_PERIOD_CLOCKS = 60000;
     //static const auto SAMPLE_TIMER_TIMEOUT = TIMER_TIMA_TIMEOUT;
@@ -466,6 +468,10 @@ struct DCCDecode
     static inline void dcc_before_cutout_hook();
     static inline void dcc_packet_finished_hook();
     static inline void after_feedback_hook();
+
+    /// counts how many edges / transitions we had on the DCC signal.
+    static unsigned sampleCount_;
+    static inline void cap_event_hook() { ++sampleCount_; }
 };
 
 #endif // ! pindefs_only

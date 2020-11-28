@@ -44,15 +44,24 @@
 #include <stdarg.h>
 #include <memory>
 #include <string>
+#include <functional>
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
 #include "can_frame.h"
+#include "executor/CallableFlow.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 #include "os/TempFile.hxx"
 #include "os/os.h"
 #include "utils/StringPrintf.hxx"
+
+#ifdef WITHGPERFTOOLS
+#include <gperftools/profiler.h>
+
+std::function<void()> profiler_enable{&ProfilerEnable};
+std::function<void()> profiler_disable{&ProfilerDisable};
+#endif
 
 int appl_main(int argc, char *argv[])
 {
@@ -166,9 +175,75 @@ private:
 /// Synchronously runs a function in the main executor.
 void run_x(std::function<void()> fn)
 {
-    FnExecutable e(std::move(fn));
-    g_executor.add(&e);
-    e.n.wait_for_notification();
+    g_executor.sync_run(std::move(fn));
+}
+
+/// Runs some code in the constructor. Useful if custom code needs to be
+/// injected into the constructor initialization order.
+class RunInConstruct
+{
+public:
+    RunInConstruct(std::function<void()> f)
+    {
+        f();
+    }
+};
+
+/// Runs some code in the constructor on the main executor.
+class RunInConstructOnMain
+{
+public:
+    RunInConstructOnMain(std::function<void()> f)
+    {
+        run_x(f);
+    }
+};
+
+/// Helper macro to make running certain test commands run on the main executor
+/// simpler.
+#define RX(statement) run_x([&](){ statement; })
+
+/// Structure holding returned objects for an invoke_flow_nowait command.
+template <class T> struct PendingInvocation
+{
+    /// Buffer sent to the flow.
+    BufferPtr<T> b;
+    /// Notifiable to wait for.
+    SyncNotifiable notifiable;
+    /// Barrier notifiable given to the buffer.
+    BarrierNotifiable barrier {&notifiable};
+    /// True if wait has been invoked.
+    bool isWaited {false};
+
+    ~PendingInvocation()
+    {
+        wait();
+    }
+
+    void wait()
+    {
+        if (isWaited)
+        {
+            return;
+        }
+        notifiable.wait_for_notification();
+        isWaited = true;
+    }
+};
+
+/// Executes a callable flow similar to invoke_flow(...) but does not wait for
+/// the result to come back. Instead, returns a PendingInvocation object, where
+/// there is a wait() method to be called.
+template <class T, typename... Args>
+std::unique_ptr<PendingInvocation<T>> invoke_flow_nowait(
+    FlowInterface<Buffer<T>> *flow, Args &&...args)
+{
+    auto ret = std::make_unique<PendingInvocation<T>>();
+    ret->b.reset(flow->alloc());
+    ret->b->data()->reset(std::forward<Args>(args)...);
+    ret->b->data()->done.reset(&ret->barrier);
+    flow->send(ret->b->ref());
+    return ret;
 }
 
 /** Utility class to block an executor for a while.

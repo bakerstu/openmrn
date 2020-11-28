@@ -151,9 +151,9 @@ TEST_F(SocketClientTest, connect_mdns)
         std::bind(&SocketClientTest::connect_callback, this, _1, _2)));
     EXPECT_CALL(*this, connect_callback(_, sc_.get())).Times(1);
 
-    usleep(10000);
+    usleep(20000);
     wait();
-    usleep(10000);
+    usleep(20000);
     wait();
 }
 

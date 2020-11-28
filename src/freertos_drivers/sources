@@ -4,6 +4,7 @@ VPATH := $(SRCDIR): \
 CSRCS +=
 
 CXXSRCS += Fileio.cxx \
+           FileioWeak.cxx \
            Device.cxx \
            FileSystem.cxx \
            DeviceBuffer.cxx \

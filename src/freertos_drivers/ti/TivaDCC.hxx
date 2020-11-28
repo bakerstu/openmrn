@@ -571,6 +571,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             else
             {
+                railcomDriver_->no_cutout();
                 current_bit = DCC_ONE;
                 state_ = DCC_LEADOUT;
             }
@@ -724,6 +725,8 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             break;
         case MM_LEADOUT:
+            // MM packets never have a cutout.
+            railcomDriver_->no_cutout();
             current_bit = MM_PREAMBLE;
             if (++preamble_count >= 2) {
                 get_next_packet = true;
