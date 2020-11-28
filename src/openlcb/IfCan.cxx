@@ -709,13 +709,13 @@ void IfCan::send_global_alias_enquiry(Node *source)
 {
     if (!source->is_initialized())
     {
-        LOG_ERROR("Tried to send global AME from not initialzied node.");
+        LOG_ERROR("Tried to send global AME from not initialized node.");
         return;
     }
     NodeAlias send_alias = local_aliases()->lookup(source->node_id());
     if (!send_alias)
     {
-        LOG_ERROR("Tried to send global AME witout a local alias.");
+        LOG_ERROR("Tried to send global AME without a local alias.");
         return;
     }
     {
