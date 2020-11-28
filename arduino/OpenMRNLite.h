@@ -49,7 +49,7 @@
 #include "utils/logging.h"
 #include "utils/Uninitialized.hxx"
 
-#if defined(ESP32)
+#ifdef ESP32
 
 #include <esp_task.h>
 #include <esp_task_wdt.h>
@@ -63,18 +63,18 @@
 // dynamic CDI.xml generation support
 #define HAVE_FILESYSTEM 1
 
-#else
+#else // not ESP32
 
 // Include generic Arduino API compatible GPIO pin support.
 #include "freertos_drivers/arduino/ArduinoGpio.hxx"
 
-#endif // ESP32
+#endif // not ESP32
 
 #ifdef ARDUINO_ARCH_STM32
 
 #include "freertos_drivers/stm32/Stm32Can.hxx"
 
-#endif
+#endif // ARDUINO_ARCH_STM32
 
 namespace openmrn_arduino
 {
@@ -354,14 +354,9 @@ public:
         }
     }
 
-// For single threaded platforms (including ESP32-S2) do not expose the support
-// for spawning a seperate thread for the OpenMRN executor.
-// NOTE: The ESP32 is included here since it is only a single core platform and
-// starting an executor thread will likely prevent the "main" task from
-// executing, additionally there is very low free heap when PSRAM is not
-// available as part of the heap (only WROVER modules typically have PSRAM).
-#if !defined(OPENMRN_FEATURE_SINGLE_THREADED) && \
-    !defined(CONFIG_IDF_TARGET_ESP32S2)
+// For single threaded platforms do not expose the support for creating a
+// seperate thread for the OpenMRN executor.
+#ifndef OPENMRN_FEATURE_SINGLE_THREADED
 
     /// Entry point for the executor thread when @ref start_executor_thread is
     /// called with donate_current_thread set to false.
@@ -395,6 +390,8 @@ public:
     ///
     /// Note: On the ESP32 the watchdog timer is disabled for the PRO_CPU prior
     /// to starting the background task for the @ref Executor.
+    /// Note: For single-core ESP32 modules (ie: ESP32-S2) it may not be
+    /// advantageous to have a dedicated task for the OpenMRN Executor.
     void start_executor_thread()
     {
         haveExecutorThread_ = true;
@@ -421,7 +418,7 @@ public:
             config_arduino_openmrn_stack_size());
 #endif // ESP32
     }
-#endif // !OPENMRN_FEATURE_SINGLE_THREADED && !CONFIG_IDF_TARGET_ESP32S2
+#endif // !OPENMRN_FEATURE_SINGLE_THREADED
 
     /// Adds a serial port to the stack speaking the gridconnect protocol, for
     /// example to do a USB connection to a computer. This is the protocol that
@@ -519,16 +516,10 @@ private:
     /// Callback from the loop() method. Internally called.
     void run() override
     {
-// If we are running on a platform where we can have a dedicated executor
-// thread, check if it has been created and exit early if it has.
-#if !defined(OPENMRN_FEATURE_SINGLE_THREADED) && \
-    !defined(CONFIG_IDF_TARGET_ESP32S2)
-        if (haveExecutorThread_)
+        if (!haveExecutorThread_)
         {
-            return;
+            stack_->executor()->loop_some();
         }
-#endif // !OPENMRN_FEATURE_SINGLE_THREADED && !CONFIG_IDF_TARGET_ESP32S2
-        stack_->executor()->loop_some();
     }
 
     /// Storage space for the OpenLCB stack. Will be constructed in init().
@@ -537,11 +528,8 @@ private:
     /// List of objects we need to call in each loop iteration.
     vector<Executable *> loopMembers_{{this}};
 
-#if !defined(OPENMRN_FEATURE_SINGLE_THREADED) && \
-    !defined(CONFIG_IDF_TARGET_ESP32S2)
     /// True if there is a separate thread running the executor.
     bool haveExecutorThread_{false};
-#endif // !OPENMRN_FEATURE_SINGLE_THREADED && !CONFIG_IDF_TARGET_ESP32S2
 };
 
 } // namespace openmrn_arduino
