@@ -362,6 +362,9 @@ private:
             return;
         }
         needRerun_ = true;
+        // Drops all remote aliases from the cache to re-populate this cache
+        // from the network responses.
+        if_can()->remote_aliases()->clear();
         if (is_terminated())
         {
             start_flow(STATE(rerun));
@@ -379,8 +382,9 @@ private:
     {
         while (nextIndex_ < if_can()->local_aliases()->size())
         {
-            if (if_can()->local_aliases()->retrieve(
-                    nextIndex_, nullptr, nullptr))
+            NodeID n;
+            if (if_can()->local_aliases()->retrieve(nextIndex_, &n, nullptr) &&
+                ((n >> (5 * 8)) != 0))
             {
                 return allocate_and_call(
                     if_can()->frame_write_flow(), STATE(fill_response));
@@ -700,6 +704,33 @@ void IfCan::add_owned_flow(Executable *e)
 void IfCan::set_alias_allocator(AliasAllocator *a)
 {
     aliasAllocator_.reset(a);
+}
+
+void IfCan::send_global_alias_enquiry(Node *source)
+{
+    if (!source->is_initialized())
+    {
+        LOG_ERROR("Tried to send global AME from not initialized node.");
+        return;
+    }
+    NodeAlias send_alias = local_aliases()->lookup(source->node_id());
+    if (!send_alias)
+    {
+        LOG_ERROR("Tried to send global AME without a local alias.");
+        return;
+    }
+    {
+        auto *b = frame_write_flow()->alloc();
+        CanDefs::control_init(*b->data(), send_alias, CanDefs::AME_FRAME, 0);
+        // Sends it out
+        frame_write_flow()->send(b);
+    }
+    {
+        // Sends another to the local node, but not using the local alias.
+        auto *b = frame_dispatcher()->alloc();
+        CanDefs::control_init(*b->data(), 0, CanDefs::AME_FRAME, 0);
+        frame_dispatcher()->send(b);
+    }
 }
 
 void IfCan::add_addressed_message_support()

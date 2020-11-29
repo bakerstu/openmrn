@@ -311,14 +311,40 @@ private:
 
     /// Bit timings that we store and precalculate.
     typedef enum {
+        /// Zero bit for DCC (this is the longer)
         DCC_ZERO,
+        /// One bit for DCC (this is the shorter)
         DCC_ONE,
+        /// One bit for DCC that we generate during the railcom cutout. Can be
+        /// used to play with alignment of edges coming out of the railcom
+        /// cutout.
+        DCC_RC_ONE,
+        /// Half zero bit which is sent directly after the railcom cutout is
+        /// over. Needed to reset certain old decoders packet
+        /// recognizer. Recommended by
+        /// https://nmra.org/sites/default/files/standards/sandrp/pdf/tn-2-05draft2005-02-25_for_rp-9.2.3.pdf
+        DCC_RC_HALF_ZERO,
+        /// This is not a bit, but specifies when to wake up during the railcom
+        /// cutout. The time is T_CS, usually 26 usec.
         RAILCOM_CUTOUT_PRE,
+        /// This is not a bit, but specifies when to wake up during the railcom
+        /// cutout. The time is the time elapsed between T_CS and the middle of
+        /// the two windows.
         RAILCOM_CUTOUT_FIRST,
+        /// This is not a bit, but specifies when to wake up during the railcom
+        /// cutout. The time is the time elapsed between the end of the cutout
+        /// and the the middle of the two windows.
         RAILCOM_CUTOUT_SECOND,
+        /// This is not a bit, but specifies when to wake up during the railcom
+        /// cutout. This is used for re-synchronizing the 
         RAILCOM_CUTOUT_POST,
+        /// Long negative DC pulse to act as a preamble for a Marklin packet.
         MM_PREAMBLE,
+        /// Zero bit for MM packet, which is a short pulse in one direction,
+        /// then a long pulse in the other.
         MM_ZERO,
+        /// One bit for MM packet, which is a long pulse in one direction, then
+        /// a short pulse in the other.
         MM_ONE,
 
         NUM_TIMINGS
@@ -519,7 +545,7 @@ inline void TivaDCC<HW>::interrupt_handler()
         case FRAME:
             if (++count >= packet->dlc)
             {
-                current_bit = DCC_ONE;  // end-of-packet bit
+                current_bit = DCC_RC_ONE;  // end-of-packet bit
                 state_ = DCC_MAYBE_RAILCOM;
                 preamble_count = 0;
             }
@@ -535,8 +561,7 @@ inline void TivaDCC<HW>::interrupt_handler()
                     HW::Output2::need_railcom_cutout() ||
                     HW::Output3::need_railcom_cutout()))
             {
-                //current_bit = RAILCOM_CUTOUT_PRE;
-                current_bit = DCC_ONE;
+                current_bit = DCC_RC_ONE;
                 // It takes about 5 usec to get here from the previous
                 // transition of the output.
                 // We change the time of the next IRQ.
@@ -558,7 +583,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             }
             break;
         case DCC_CUTOUT_PRE:
-            current_bit = DCC_ONE;
+            current_bit = DCC_RC_ONE;
             // It takes about 3.6 usec to get here from the transition seen on
             // the output.
             // We change the time of the next IRQ.
@@ -621,7 +646,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             // Enables UART RX.
             railcomDriver_->start_cutout();
             // Set up for next wakeup.
-            current_bit = DCC_ONE;
+            current_bit = DCC_RC_ONE;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[RAILCOM_CUTOUT_SECOND].period);
             state_ = DCC_MIDDLE_RAILCOM_CUTOUT;
@@ -629,17 +654,26 @@ inline void TivaDCC<HW>::interrupt_handler()
         }
         case DCC_MIDDLE_RAILCOM_CUTOUT:
             railcomDriver_->middle_cutout();
-            current_bit = DCC_ONE;
+            current_bit = DCC_RC_ONE;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[RAILCOM_CUTOUT_POST].period);
             state_ =  DCC_STOP_RAILCOM_RECEIVE;
             break;
         case DCC_STOP_RAILCOM_RECEIVE:
         {
-            current_bit = DCC_ONE;
+            if (HW::generate_railcom_halfzero())
+            {
+                current_bit = DCC_RC_HALF_ZERO;
+            }
+            else
+            {
+                current_bit = DCC_RC_ONE;
+            }
+            // This causes the timers to be reinitialized so no fractional bits
+            // are left in their counters.
+            resync = true;
+            get_next_packet = true;
             state_ = DCC_ENABLE_AFTER_RAILCOM;
-            MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
-                             timings[DCC_ONE].period);
             railcomDriver_->end_cutout();
             unsigned delay = 0;
             if (HW::Output1::isRailcomCutoutActive_)
@@ -914,6 +948,12 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
 
     fill_timing(DCC_ZERO, 105<<1, 105);
     fill_timing(DCC_ONE, 56<<1, 56);
+    /// @todo tune this bit to line up with the bit stream starting after the
+    /// railcom cutout.
+    fill_timing(DCC_RC_ONE, 56<<1, 56);
+    // A small pulse in one direction then a half zero bit in the other
+    // direction.
+    fill_timing(DCC_RC_HALF_ZERO, 100 + 15, 15);
     fill_timing(MM_ZERO, 208, 26);
     fill_timing(MM_ONE, 208, 182);
     // Motorola preamble is negative DC signal.
