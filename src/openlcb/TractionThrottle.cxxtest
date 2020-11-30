@@ -492,6 +492,57 @@ TEST_F(ThrottleClientTest, HeartbeatWithListener)
     clear_expect(true);
 }
 
+TEST_F(ThrottleClientTest, HeartbeatNoListener)
+{
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, false);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    // Primes the caches.
+    openlcb::send_message(trainNode_.get(), Defs::MTI_TRACTION_CONTROL_COMMAND,
+        NodeHandle(node_->node_id()), TractionDefs::fn_set_payload(13, 1));
+    wait();
+
+    clear_expect(true);  // checks packets from now on
+    // heartbeat request is sent from train to throttle
+    expect_packet(":X191E9771N022A400303;");
+    // throttle responds with NOOP.
+    expect_packet(":X195EB22AN07714003;");
+    openlcb::send_message(trainNode_.get(), Defs::MTI_TRACTION_CONTROL_REPLY,
+        NodeHandle(node_->node_id()),
+        TractionDefs::heartbeat_request_payload());
+    wait();
+    clear_expect(true);
+}
+
+TEST_F(ThrottleClientTest, HeartbeatWrongTrain)
+{
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, false);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    static auto TRAIN_NODE_ID2 = TRAIN_NODE_ID + 1;
+    run_x([this]() { otherIf_.local_aliases()->add(TRAIN_NODE_ID2, 0x772); });
+    LoggingTrain train_impl2{1373};
+    TrainNodeForProxy node2(&trainService_, &train_impl2);
+    wait();
+
+    // Primes the caches.
+    openlcb::send_message(trainNode_.get(), Defs::MTI_TRACTION_CONTROL_COMMAND,
+        NodeHandle(node_->node_id()), TractionDefs::fn_set_payload(13, 1));
+    wait();
+
+    clear_expect(true);  // checks packets from now on
+    // heartbeat request is sent from wrong train to throttle
+    expect_packet(":X191E9772N022A400303;");
+    // no response from the throttle.
+    openlcb::send_message(&node2, Defs::MTI_TRACTION_CONTROL_REPLY,
+        NodeHandle(node_->node_id()),
+        TractionDefs::heartbeat_request_payload());
+    wait();
+    clear_expect(true);
+}
+
 class ListenerInterface
 {
 public:
