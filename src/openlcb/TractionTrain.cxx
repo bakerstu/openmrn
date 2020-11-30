@@ -280,7 +280,12 @@ struct TrainService::Impl
                     uint8_t *d = reinterpret_cast<uint8_t *>(&(*p)[0]);
                     d[0] = TractionDefs::RESP_QUERY_SPEED;
                     speed_to_fp16(train_node()->train()->get_speed(), d + 1);
-                    d[3] = 0; // status byte: reserved.
+                    uint8_t status = 0;
+                    if (train_node()->train()->get_emergencystop())
+                    {
+                        status |= TractionDefs::SPEEDRESP_STATUS_IS_ESTOP;
+                    }
+                    d[3] = status;
                     speed_to_fp16(train_node()->train()->get_commanded_speed(),
                                   d + 4);
                     speed_to_fp16(train_node()->train()->get_actual_speed(),

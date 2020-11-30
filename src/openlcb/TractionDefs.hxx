@@ -134,6 +134,9 @@ struct TractionDefs {
         RESP_CONSIST_CONFIG = REQ_CONSIST_CONFIG,
         RESP_TRACTION_MGMT = REQ_TRACTION_MGMT,
 
+        // Status byte of the Speed Query response
+        SPEEDRESP_STATUS_IS_ESTOP = 1,
+
         // Byte 1 of Controller Configuration response
         CTRLRESP_ASSIGN_CONTROLLER = CTRLREQ_ASSIGN_CONTROLLER,
         CTRLRESP_QUERY_CONTROLLER = CTRLREQ_QUERY_CONTROLLER,
@@ -356,8 +359,12 @@ struct TractionDefs {
     /** Parses the response payload of a GET_SPEED packet.
      * @returns true if the last_set_speed value was present and non-NaN.
      * @param p is the response payload.
-     * @param v is the velocity that will be set to the speed value. */
-    static bool speed_get_parse_last(const Payload &p, Velocity *v)
+     * @param v is the velocity that will be set to the speed value.
+     * @param is_estop if non-null, will be set to true if the train was last
+     * set to estop instead of a speed.
+     */
+    static bool speed_get_parse_last(
+        const Payload &p, Velocity *v, bool *is_estop = nullptr)
     {
         if (p.size() < 3)
         {
@@ -367,6 +374,14 @@ struct TractionDefs {
         if (std::isnan(v->speed()))
         {
             return false;
+        }
+        if (is_estop)
+        {
+            if (p.size() < 4)
+            {
+                return false;
+            }
+            *is_estop = (p[3] & SPEEDRESP_STATUS_IS_ESTOP) != 0;
         }
         return true;
     }
