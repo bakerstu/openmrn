@@ -20,6 +20,12 @@ TEST(FakeClockTest, advance)
         EXPECT_GT(tfreeze + 500, os_get_time_monotonic());
     }
 
+    // Advance should be accurate.
+    long long t3 = os_get_time_monotonic();
+    clk.advance(MSEC_TO_NSEC(3540));
+    long long t4 = os_get_time_monotonic();
+    EXPECT_NEAR(t4, t3 + MSEC_TO_NSEC(3540), 10);
+
     // But still be monotonic.
     t1 = os_get_time_monotonic();
     t2 = os_get_time_monotonic();
