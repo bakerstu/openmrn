@@ -225,6 +225,7 @@ TEST_F(ThrottleTest, SendQuery)
     EXPECT_EQ(0, flow.response()->resultCode);
 
     EXPECT_NEAR(13.2, flow.throttle_.get_speed().mph(), 0.1);
+    EXPECT_FALSE(flow.throttle_.get_emergencystop());
     EXPECT_EQ(0, flow.throttle_.get_fn(0));
     EXPECT_EQ(1, flow.throttle_.get_fn(1));
     EXPECT_EQ(0, flow.throttle_.get_fn(2));
@@ -233,6 +234,15 @@ TEST_F(ThrottleTest, SendQuery)
     EXPECT_EQ(0, flow.throttle_.get_fn(5));
     EXPECT_EQ(0, flow.throttle_.get_fn(6));
     EXPECT_EQ(1, flow.throttle_.get_fn(7));
+
+    // Checks emergency stop load.
+    trainImpl_.set_emergencystop();
+    flow.load();
+    n_.wait_for_notification();
+    wait();
+    EXPECT_EQ(0, flow.response()->resultCode);
+    EXPECT_NEAR(0, flow.throttle_.get_speed().mph(), 0.1);
+    EXPECT_TRUE(flow.throttle_.get_emergencystop());
 }
 
 class ThrottleClientTest : public ThrottleTest {
