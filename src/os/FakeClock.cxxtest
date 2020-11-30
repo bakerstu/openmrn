@@ -35,6 +35,27 @@ TEST(FakeClockTest, independent_test)
     EXPECT_LT(t1 + MSEC_TO_NSEC(20), t2);
 }
 
+TEST(FakeClockTest, time_jumps_backwards)
+{
+    // This test verifies that when a fake clock is deleted, time will jump
+    // backwards. This is desirable, because the fake clock might have its time
+    // far in the future and we cannot affort to halt the monotonic clock until
+    // the real time catches up with the fake time.
+    long long t1 = os_get_time_monotonic();
+    long long t2, t3, t4;
+    {
+        FakeClock clk;
+        t2 = os_get_time_monotonic();
+        clk.advance(SEC_TO_NSEC(15));
+        t3 = os_get_time_monotonic();
+    }
+    t4 = os_get_time_monotonic();
+    EXPECT_LT(t1, t2);
+    EXPECT_LT(t2, t3 - SEC_TO_NSEC(15));
+    EXPECT_LT(t1, t4);
+    EXPECT_GT(t3, t4);
+}
+
 class CountingTimer : public Timer
 {
 public:
