@@ -113,6 +113,15 @@ TEST_F(BroadcastTimeServerTest, Create)
     EXPECT_EQ(server_->day_of_year(), 0);
 };
 
+TEST_F(BroadcastTimeServerTest, SleepTest)
+{
+    FakeClock clk;
+    long long t1 = os_get_time_monotonic();
+    sync_sleep(&clk);
+    long long t2 = os_get_time_monotonic();
+    EXPECT_NEAR(t2-t1, MSEC_TO_NSEC(3200), USEC_TO_NSEC(1));
+};
+
 TEST_F(BroadcastTimeServerTest, Query)
 {
     FakeClock clk;
