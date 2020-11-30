@@ -1,6 +1,7 @@
 #include "utils/async_if_test_helper.hxx"
 
 #include "openlcb/BroadcastTimeServer.hxx"
+#include "os/FakeClock.hxx"
 
 #if 1
 #define PRINT_ALL_PACKETS() print_all_packets()
@@ -68,6 +69,37 @@ protected:
         delete server_;
     }
 
+    /// Helper function for sleeping.
+    /// @param clk fake clock or nullptr if no fake clock exists
+    /// @param len_msec how long to sleep
+    /// @param step_msec what granularity to use for sleeping wiht fake clock.
+    void sleep_helper(FakeClock *clk, unsigned len_msec,
+        unsigned step_msec = 50)
+    {
+        if (clk)
+        {
+            for (unsigned i = 0; i < len_msec; i += step_msec)
+            {
+                clk->advance(MSEC_TO_NSEC(step_msec));
+                wait();
+            }
+        }
+        else
+        {
+            usleep(MSEC_TO_USEC(len_msec));
+        }
+    }
+
+    /// Performs the sleep sequence needed for the server to output the sync
+    /// events.
+    /// @param clk if not null, uses fake clock to advance.
+    /// @param step_msec how big steps should we advance the fake clock.
+    void sync_sleep(FakeClock *clk = nullptr, unsigned step_msec = 50)
+    {
+        // Sleep 3.2 seconds.
+        sleep_helper(clk, 3200, step_msec);
+    }
+
     MOCK_METHOD0(update_callback, void());
 
     BroadcastTimeServer *server_;
@@ -83,8 +115,15 @@ TEST_F(BroadcastTimeServerTest, Create)
 
 TEST_F(BroadcastTimeServerTest, Query)
 {
+    FakeClock clk;
     ::testing::Sequence s1;
 
+    send_packet(":X195B4001N010100000100F000;"); // query
+    wait();
+
+    clear_expect(true);
+    // The server only responds a bit later in case multiple queries arrive.
+    
     // sync response
     expect_packet(":X1954422AN010100000100F001;").InSequence(s1);
     expect_packet(":X1954422AN0101000001004000;").InSequence(s1);
@@ -92,9 +131,8 @@ TEST_F(BroadcastTimeServerTest, Query)
     expect_packet(":X1954422AN0101000001002101;").InSequence(s1);
     expect_packet(":X1954422AN0101000001000000;").InSequence(s1);
 
-    send_packet(":X195B4001N010100000100F000;"); // query
-    usleep(400000); // wait for response agrigation
-    wait_for_event_thread();
+    clk.advance(MSEC_TO_NSEC(400));
+    wait();
 
     // time is not setup, clock is not running, expect 0 as default
     EXPECT_EQ(server_->time(), 0);
@@ -104,6 +142,7 @@ TEST_F(BroadcastTimeServerTest, Query)
 
 TEST_F(BroadcastTimeServerTest, StartSetTime)
 {
+    FakeClock clk;
     ::testing::Sequence s1, s2;
 
     // set events
@@ -130,7 +169,7 @@ TEST_F(BroadcastTimeServerTest, StartSetTime)
     // start
     expect_packet(":X195B422AN010100000100F002;").InSequence(s2);
 
-    // sync seqeunce
+    // sync sequence
     expect_packet(":X1954422AN010100000100F002;").InSequence(s2);
     expect_packet(":X1954422AN01010000010047D0;").InSequence(s2);
     expect_packet(":X1954422AN01010000010037B2;").InSequence(s2);
@@ -141,12 +180,18 @@ TEST_F(BroadcastTimeServerTest, StartSetTime)
     // callbacks on clock update
     EXPECT_CALL(*this, update_callback()).Times(1);
 
+    LOG(INFO, "start server");
     server_->start();
-
-    // allow time for the sync timeout
-    usleep(3200000);
-    wait_for_event_thread();
-
+    wait();
+    LOG(INFO, "exec wait done");
+    
+    // Time for the sync timeout. There are two sleeps there in order to send
+    // out two minute events, so we need to sleep twice too.
+    clk.advance(MSEC_TO_NSEC(3000));
+    wait();
+    clk.advance(MSEC_TO_NSEC(200));
+    wait();
+    
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(server_->time(), 1599, 1602));
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
@@ -155,6 +200,7 @@ TEST_F(BroadcastTimeServerTest, StartSetTime)
 
 TEST_F(BroadcastTimeServerTest, DateRolloverForward)
 {
+    FakeClock clk;
     ::testing::Sequence s1, s2;
 
     // set events
@@ -179,6 +225,8 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForward)
 
     clear_expect(true);
 
+    EXPECT_TRUE(IsBetweenInclusive(server_->time(), 86340, 86340));
+    
     // start
     expect_packet(":X195B422AN010100000100F002;").InSequence(s2);
 
@@ -186,7 +234,7 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForward)
     expect_packet(":X195B422AN010100000100F003;").InSequence(s2);
     expect_packet(":X195B422AN0101000001000000;").InSequence(s2);
 
-    // sync seqeunce
+    // sync sequence
     expect_packet(":X1954422AN010100000100F002;").InSequence(s2);
     expect_packet(":X1954422AN01010000010047D0;").InSequence(s2);
     expect_packet(":X1954422AN01010000010037B2;").InSequence(s2);
@@ -205,8 +253,12 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForward)
     server_->start();
 
     // allow time for the sync timeout
-    usleep(3200000);
-    wait_for_event_thread();
+    
+    /// @todo this does not pass when using more than one msec of granularity
+    /// for the fake clock advances. That suggests there is an off by one bug
+    /// somewhere. The reported time is one tick lower than how much the
+    /// faketime advanced.
+    sync_sleep(&clk, 1);
 
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(server_->time(), 87940, 87941));
@@ -216,6 +268,7 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForward)
 
 TEST_F(BroadcastTimeServerTest, DateRolloverForwardOnTopOfSync)
 {
+    FakeClock clk;
     ::testing::Sequence s1, s2, s3;
 
     // set events
@@ -265,17 +318,22 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForwardOnTopOfSync)
     server_->start();
 
     // allow time for the sync timeout
-    usleep(3200000);
+    sync_sleep(&clk, 1);
     wait_for_event_thread();
 
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(server_->time(), 87820, 87821));
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::FRIDAY);
     EXPECT_EQ(server_->day_of_year(), 1);
+
+    // Clears out timer from queue.
+    clk.advance(MSEC_TO_NSEC(200));
+    wait();
 };
 #if 1
 TEST_F(BroadcastTimeServerTest, DateRolloverForwardAllEventBasedSetup)
 {
+    FakeClock clk;
     ::testing::Sequence s1, s2;
 
     // report events
@@ -319,7 +377,8 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForwardAllEventBasedSetup)
     send_packet(":X195B4001N010100000100F002;"); // start
 
     // allow time for the sync timeout
-    usleep(3200000);
+    sync_sleep(&clk, 1);
+    //usleep(3200000);
     wait_for_event_thread();
 
     // check the time, we give it a finite range just in case of some OS jitter
@@ -330,6 +389,7 @@ TEST_F(BroadcastTimeServerTest, DateRolloverForwardAllEventBasedSetup)
 #endif
 TEST_F(BroadcastTimeServerTest, DateRolloverBackward)
 {
+    FakeClock clk;
     ::testing::Sequence s1, s2;
 
     // set events
@@ -379,7 +439,7 @@ TEST_F(BroadcastTimeServerTest, DateRolloverBackward)
     server_->start();
 
     // allow time for the sync timeout
-    usleep(3200000);
+    sync_sleep(&clk, 1);
     wait_for_event_thread();
 
     // check the time, we give it a finite range just in case of some OS jitter
@@ -390,6 +450,7 @@ TEST_F(BroadcastTimeServerTest, DateRolloverBackward)
 
 TEST_F(BroadcastTimeServerTest, Subscribe)
 {
+    FakeClock clk;
     ::testing::Sequence s1, s2;
 
     // set events
@@ -412,6 +473,7 @@ TEST_F(BroadcastTimeServerTest, Subscribe)
     wait_for_event_thread();
 
     clear_expect(true);
+    clear_expect(true);
 
     // start
     expect_packet(":X195B422AN010100000100F002;").InSequence(s2);
@@ -430,8 +492,7 @@ TEST_F(BroadcastTimeServerTest, Subscribe)
     server_->start();
 
     // allow time for the sync timeout
-    usleep(3200000);
-    wait_for_event_thread();
+    sync_sleep(&clk, 1);
 
     // subscribe to some times
     clear_expect(true);
@@ -444,7 +505,7 @@ TEST_F(BroadcastTimeServerTest, Subscribe)
     send_packet(":X194C7001N010100000100003A;"); // subscribe to 00:58
     send_packet(":X194C7001N010100000100003B;"); // subscribe to 00:59
     send_packet(":X194C7001N0101000001000100;"); // subscribe to 01:00
-    usleep(4100000);
+    sleep_helper(&clk, 4100, 1);
 
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(server_->time(), 3650, 3651));
