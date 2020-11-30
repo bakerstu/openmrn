@@ -468,6 +468,30 @@ TEST_F(ThrottleClientTest, ReassignWithoutListener)
     wait();
 }
 
+TEST_F(ThrottleClientTest, HeartbeatWithListener)
+{
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, true);
+    ASSERT_EQ(0, b->data()->resultCode);
+
+    // Primes the caches.
+    openlcb::send_message(trainNode_.get(), Defs::MTI_TRACTION_CONTROL_COMMAND,
+        NodeHandle(node_->node_id()), TractionDefs::fn_set_payload(13, 1));
+    wait();
+    EXPECT_EQ(1u, throttle_.get_fn(13));
+
+    clear_expect(true);  // checks packets from now on
+    // heartbeat request is sent from train to throttle
+    expect_packet(":X191E9771N022A400303;");
+    // throttle responds with NOOP.
+    expect_packet(":X195EB22AN07714003;");
+    openlcb::send_message(trainNode_.get(), Defs::MTI_TRACTION_CONTROL_REPLY,
+        NodeHandle(node_->node_id()),
+        TractionDefs::heartbeat_request_payload());
+    wait();
+    clear_expect(true);
+}
+
 class ListenerInterface
 {
 public:
