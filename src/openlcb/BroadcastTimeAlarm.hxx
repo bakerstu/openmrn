@@ -262,7 +262,7 @@ private:
         }
 
         return wait_and_call(STATE(setup));
-    }        
+    }
 
     /// Wakeup the state machine. Must be called from this service's executor.
     void wakeup()
