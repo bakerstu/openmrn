@@ -355,12 +355,15 @@ protected:
         EXPECT_CALL(loop_, unregister_source(&train_));
     }
 
+    /// Requests a refresh packet from the train.
     void do_refresh()
     {
         new (&pkt_) Packet();
         train_.get_next_packet(0, &pkt_);
     }
 
+    /// Requests the packet from the train that the last code was generated
+    /// for.
     void do_callback()
     {
         Mock::VerifyAndClear(&loop_);
@@ -453,6 +456,45 @@ TEST_F(Train28Test, ZeroSpeed)
     train_.set_speed(s);
     do_callback();
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100000, _));
+}
+
+/// Verifies that the train correctly remembers that it was commanded to estop.
+TEST_F(Train28Test, EstopSaved)
+{
+    SpeedType s;
+    s.set_mph(128);
+    code_ = 0;
+    EXPECT_CALL(loop_, send_update(&train_, _))
+        .WillRepeatedly(SaveArg<1>(&code_));
+
+    // First make the train move.
+    train_.set_speed(s);
+    EXPECT_EQ(DccTrainUpdateCode::SPEED, code_);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01111111, _));
+    EXPECT_FALSE(train_.get_emergencystop());
+    EXPECT_NEAR(128, train_.get_speed().mph(), 0.1);
+
+    // Then estop the train.
+    EXPECT_FALSE(train_.get_emergencystop());
+    train_.set_emergencystop();
+    EXPECT_EQ(DccTrainUpdateCode::ESTOP, code_);
+    EXPECT_TRUE(train_.get_emergencystop());
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100001, _));
+    // Checks that the train knows it's estopped and the speed is reported as
+    // zero.
+    EXPECT_TRUE(train_.get_emergencystop());
+    EXPECT_NEAR(0, train_.get_speed().mph(), 0.1);
+
+    // Move the train again.
+    s = 37.5;
+    train_.set_speed(s);
+    EXPECT_EQ(DccTrainUpdateCode::SPEED, code_);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b01101011, _));
+    EXPECT_FALSE(train_.get_emergencystop());
+    EXPECT_NEAR(37.5, train_.get_speed().speed(), 0.1);
 }
 
 TEST_F(Train28Test, RefreshLoop)
