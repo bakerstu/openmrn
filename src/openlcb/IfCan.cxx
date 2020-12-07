@@ -758,7 +758,7 @@ void IfCan::delete_local_node(Node *node) {
 
 void IfCan::canonicalize_handle(NodeHandle *h)
 {
-    if (!h->id & !h->alias)
+    if (!h->id && !h->alias)
         return;
     if (!h->id)
     {

@@ -638,7 +638,7 @@ long long os_get_time_monotonic(void)
     long long fake_time = os_get_fake_time();
     if (fake_time >= 0)
     {
-        time = fake_time;
+        return fake_time;
     }
 #endif // not GTEST
 
