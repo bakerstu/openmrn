@@ -645,6 +645,14 @@ private:
                     }
                 }
             }
+            case TractionDefs::RESP_TRACTION_MGMT:
+            {
+                if (p.size() >= 2 && p[1] == TractionDefs::MGMTRESP_HEARTBEAT)
+                {
+                    // Automatically responds to heartbeat requests.
+                    send_traction_message(TractionDefs::noop_payload());
+                }
+            }
         }
     }
 

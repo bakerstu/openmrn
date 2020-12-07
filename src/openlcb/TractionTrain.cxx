@@ -184,6 +184,7 @@ struct TrainService::Impl
                  * send a reject response. */
                 return release_and_exit();
             }
+            train_node()->command_hook(nmsg()->src, nmsg()->payload);
             // No command byte?
             if (size() < 1)
             {
@@ -575,8 +576,13 @@ struct TrainService::Impl
                     reserved_ = 0;
                     return release_and_exit();
                 }
+                case TractionDefs::MGMTREQ_NOOP:
+                {
+                    // Nothing to do.
+                    return release_and_exit();
+                }
                 default:
-                    LOG(VERBOSE, "Unknown Traction proxy manage subcommand %x",
+                    LOG(VERBOSE, "Unknown Traction management subcommand %x",
                         cmd);
                     return reject_permanent();
             }
