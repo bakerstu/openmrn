@@ -36,8 +36,8 @@
 #include <new>
 #include <cstdint>
 
-#include "stm32f3xx_hal_conf.h"
-#include "stm32f3xx_hal.h"
+#include "stm32f_hal_conf.hxx"
+#include "stm32l4xx_hal.h"
 
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
@@ -222,7 +222,7 @@ void hw_preinit(void)
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
     gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
-    gpio_init.Alternate = GPIO_AF9_CAN;
+    gpio_init.Alternate = GPIO_AF9_CAN1;
     gpio_init.Pin = GPIO_PIN_11;
     HAL_GPIO_Init(GPIOA, &gpio_init);
     gpio_init.Pin = GPIO_PIN_12;
