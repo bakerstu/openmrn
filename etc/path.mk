@@ -114,6 +114,17 @@ STM32CUBEF4PATH:=$(TRYPATH)
 endif
 endif #STM32CUBEF4PATH
 
+################ STM32Cube_L4 ##################
+ifndef STM32CUBEL4PATH
+SEARCHPATH := \
+  /opt/st/STM32Cube_FW_L4/default
+
+TRYPATH:=$(call findfirst,Drivers,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32CUBEL4PATH:=$(TRYPATH)
+endif
+endif #STM32CUBEL4PATH
+
 ################ STM32Cube_F7 ##################
 ifndef STM32CUBEF7PATH
 SEARCHPATH := \
