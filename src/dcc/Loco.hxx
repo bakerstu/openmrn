@@ -117,6 +117,7 @@ public:
             return;
         }
         p.lastSetSpeed_ = new_speed;
+        p.isEstop_ = false;
         unsigned previous_light = get_effective_f0();
         if (speed.direction() != p.direction_)
         {
@@ -170,6 +171,7 @@ public:
     void set_emergencystop() OVERRIDE
     {
         p.speed_ = 0;
+        p.isEstop_ = true;
         SpeedType dir0;
         dir0.set_direction(p.direction_);
         p.lastSetSpeed_ = dir0.get_wire();
@@ -182,7 +184,7 @@ public:
     /// Gets the train's ESTOP state.
     bool get_emergencystop() OVERRIDE
     {
-        return false;
+        return p.isEstop_;
     }
     /// Sets a function to a given value. @param address is the function number
     /// (0..28), @param value is 0 for funciton OFF, 1 for function ON.
@@ -368,6 +370,8 @@ struct Dcc28Payload
     unsigned nextRefresh_ : 3;
     /// Speed step we last set.
     unsigned speed_ : 5;
+    /// 1 if the last speed set was estop.
+    unsigned isEstop_ : 1;
     /// Whether the direction change packet still needs to go out.
     unsigned directionChanged_ : 1;
     /// 1 if the F0 function should be set/get in a directional way.
@@ -473,6 +477,8 @@ struct Dcc128Payload
     /// Whether the direction change packet still needs to go out.
     unsigned directionChanged_ : 1;
 
+    /// 1 if the last speed set was estop.
+    unsigned isEstop_ : 1;
     /// 1 if the F0 function should be set/get in a directional way.
     unsigned f0SetDirectional_ : 1;
     /// 1 if directional f0 is used and f0 is on for F.
@@ -548,6 +554,8 @@ struct MMOldPayload
     unsigned directionChanged_ : 1;
     /// Speed step we last set.
     unsigned speed_ : 4;
+    /// 1 if the last speed set was estop.
+    unsigned isEstop_ : 1;
 
     /// 1 if the F0 function should be set/get in a directional way.
     unsigned f0SetDirectional_ : 1;
@@ -625,6 +633,8 @@ struct MMNewPayload
     unsigned speed_ : 4;
     /// internal refresh cycle state machine
     unsigned nextRefresh_ : 3;
+    /// 1 if the last speed set was estop.
+    unsigned isEstop_ : 1;
 
     /// 1 if the F0 function should be set/get in a directional way.
     unsigned f0SetDirectional_ : 1;

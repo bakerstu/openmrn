@@ -33,6 +33,10 @@ ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-p
 
 ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
 
+ifdef DETERMINISTIC_COMPILATION
+ARCHFLAGS += -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/')
+endif
+
 ASFLAGS = -c $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
