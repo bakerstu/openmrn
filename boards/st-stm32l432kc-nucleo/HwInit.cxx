@@ -61,7 +61,7 @@ static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
 static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
-static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
+//static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
 
 const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
 
@@ -94,13 +94,12 @@ void setblink(uint32_t pattern)
 }
 
 
-/// TIM17 shares this interrupt with certain features of timer1
-void tim1_trg_com_interrupt_handler(void)
+void tim7_interrupt_handler(void)
 {
     //
     // Clear the timer interrupt.
     //
-    TIM17->SR = ~TIM_IT_UPDATE;
+    TIM7->SR = ~TIM_IT_UPDATE;
 
     // Set output LED.
     BLINKER_RAW_Pin::set(rest_pattern & 1);
@@ -124,7 +123,7 @@ void diewith(uint32_t pattern)
 }
 
 /** CPU clock speed. */
-const unsigned long cm3_cpu_clock_hz = 72000000;
+const unsigned long cm3_cpu_clock_hz = 80000000;
 uint32_t SystemCoreClock;
 const uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
 const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
@@ -132,49 +131,52 @@ const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow : 
-  *            System Clock source            = PLL (HSE)
-  *            SYSCLK(Hz)                     = 72000000
-  *            HCLK(Hz)                       = 72000000
+  *            System Clock source            = PLL (MSI)
+  *            SYSCLK(Hz)                     = 80000000
+  *            HCLK(Hz)                       = 80000000
   *            AHB Prescaler                  = 1
-  *            APB1 Prescaler                 = 2
+  *            APB1 Prescaler                 = 1
   *            APB2 Prescaler                 = 1
-  *            HSE Frequency(Hz)              = 8000000
-  *            HSE PREDIV                     = 1
-  *            PLLMUL                         = 9
-  *            Flash Latency(WS)              = 2
+  *            MSI Frequency(Hz)              = 4000000
+  *            PLL_M                          = 1
+  *            PLL_N                          = 40
+  *            PLL_R                          = 2
+  *            PLL_P                          = 7
+  *            PLL_Q                          = 4
+  *            Flash Latency(WS)              = 4
   * @param  None
   * @retval None
   */
 static void clock_setup(void)
 {
     HAL_RCC_DeInit();
-    
+
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
     RCC_OscInitTypeDef RCC_OscInitStruct;
 
-    /* Enable HSE Oscillator and activate PLL with HSE as source on bypass
-     * mode. This allows using the MCO clock output from the ST_Link part of
-     * the nucleo board and freeing up the other clock pin for GPIO. */
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-    RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+    /* MSI is enabled after System reset, activate PLL with MSI as source */
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
+    RCC_OscInitStruct.MSIState = RCC_MSI_ON;
+    RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
+    RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-    RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
-    RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
+    RCC_OscInitStruct.PLL.PLLM = 1;
+    RCC_OscInitStruct.PLL.PLLN = 40;
+    RCC_OscInitStruct.PLL.PLLR = 2;
+    RCC_OscInitStruct.PLL.PLLP = 7;
+    RCC_OscInitStruct.PLL.PLLQ = 4;
+    HASSERT(HAL_RCC_OscConfig(&RCC_OscInitStruct) == HAL_OK);
 
-    HAL_RCC_OscConfig(&RCC_OscInitStruct); 
-    	
-    /* Select PLL as system clock source and configure the HCLK, PCLK1 and
-     * PCLK2 clocks dividers
-     */
+    /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2
+       clocks dividers */
     RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK |
-                                   RCC_CLOCKTYPE_PCLK1  | RCC_CLOCKTYPE_PCLK2);
+        RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;  
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-
-    HASSERT(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) == HAL_OK);
+    HASSERT(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) == HAL_OK);
 
     // This will fail if the clocks are somehow misconfigured.
     HASSERT(SystemCoreClock == cm3_cpu_clock_hz);
@@ -187,9 +189,9 @@ void hw_preinit(void)
     /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
 
-    /* these FLASH settings enable opertion at 72 MHz */
+    /* these FLASH settings enable opertion at 80 MHz */
     __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
-    __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_2);
+    __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_4);
 
     /* setup the system clock */
     clock_setup();
@@ -197,41 +199,41 @@ void hw_preinit(void)
     /* enable peripheral clocks */
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_USART2_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
-    __HAL_RCC_TIM17_CLK_ENABLE();
+    __HAL_RCC_TIM7_CLK_ENABLE();
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
     memset(&gpio_init, 0, sizeof(gpio_init));
 
-    /* USART2 pinmux on PA2 and PA3 */
+    /* USART2 pinmux on PA2 and PA15 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
     gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
     gpio_init.Alternate = GPIO_AF7_USART2;
     gpio_init.Pin = GPIO_PIN_2;
     HAL_GPIO_Init(GPIOA, &gpio_init);
-    gpio_init.Pin = GPIO_PIN_3;
+    gpio_init.Pin = GPIO_PIN_15;
+    gpio_init.Alternate = GPIO_AF3_USART2;
     HAL_GPIO_Init(GPIOA, &gpio_init);
 
-    /* CAN pinmux on PB8 and PB9 */
+    /* CAN pinmux on PA11 and PA12 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
     gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
     gpio_init.Alternate = GPIO_AF9_CAN;
-    gpio_init.Pin = GPIO_PIN_8;
-    HAL_GPIO_Init(GPIOB, &gpio_init);
-    gpio_init.Pin = GPIO_PIN_9;
-    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_11;
+    HAL_GPIO_Init(GPIOA, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_12;
+    HAL_GPIO_Init(GPIOA, &gpio_init);
 
     GpioInit::hw_init();
 
     /* Initializes the blinker timer. */
     TIM_HandleTypeDef TimHandle;
     memset(&TimHandle, 0, sizeof(TimHandle));
-    TimHandle.Instance = TIM17;
+    TimHandle.Instance = TIM7;
     TimHandle.Init.Period = configCPU_CLOCK_HZ / 10000 / 8;
     TimHandle.Init.Prescaler = 10000;
     TimHandle.Init.ClockDivision = 0;
@@ -247,9 +249,9 @@ void hw_preinit(void)
         /* Starting Error */
         HASSERT(0);
     }
-    __HAL_DBGMCU_FREEZE_TIM17();
-    SetInterruptPriority(TIM17_IRQn, 0);
-    NVIC_EnableIRQ(TIM17_IRQn);
+    __HAL_DBGMCU_FREEZE_TIM7();
+    SetInterruptPriority(TIM7_IRQn, 0);
+    NVIC_EnableIRQ(TIM7_IRQn);
 }
 
 void usart2_interrupt_handler(void)
