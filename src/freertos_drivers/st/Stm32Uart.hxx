@@ -37,23 +37,6 @@
 #include <cstdint>
 
 #include "stm32f_hal_conf.hxx"
-#if 0
-#if defined(STM32F072xB) || defined(STM32F091xC)
-#include "stm32f0xx_hal_dma.h"
-#include "stm32f0xx_hal_uart.h"
-#elif defined(STM32F103xB)
-#include "stm32f1xx_hal_dma.h"
-#include "stm32f1xx_hal_uart.h"
-#elif defined(STM32F303xC) || defined(STM32F303xE)
-#include "stm32f3xx_hal_dma.h"
-#include "stm32f3xx_hal_uart.h"
-#elif defined(STM32F767xx)
-#include "stm32f7xx_hal_dma.h"
-#include "stm32f7xx_hal_uart.h"
-#else
-#error Dont know what STM32 chip you have.
-#endif
-#endif
 
 #include "Serial.hxx"
 
