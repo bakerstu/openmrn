@@ -19,7 +19,7 @@ OBJEXTRA +=
 
 CFLAGS += -DSTM32L432xx
 CXXFLAGS += -DSTM32L432xx
-OPENOCDARGS = -f board/st_nucleo_l4.cfg
+OPENOCDARGS = -f board/st_nucleo_l476rg.cfg
 
 ifndef TARGET
 export TARGET := freertos.armv7m
