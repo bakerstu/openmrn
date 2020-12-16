@@ -198,50 +198,50 @@ __attribute__((
     rtc_alarm_interrupt_handler,       /**< 41 RTC Alarm (A and B) through EXTI Line
                                          Interrupt */
     0,                                 /**< 42 */
-    0,                           /**< 43 */
-    0,                           /**< 44 */
-    0,                           /**< 45 */
-    0,                           /**< 46 */
-    0,                           /**< 47 */
-    0,                           /**< 48 */
-    sdmmc1_interrupt_handler,    /**< 49 SDMMC1 global Interrupt */
-    0,                           /**< 50 */
-    spi3_interrupt_handler,      /**< 51 SPI3 global Interrupt */
-    uart4_interrupt_handler,     /**< 52 UART4 global Interrupt */
-    0,                           /**< 53 */
-    tim6_dac_interrupt_handler,  /**< 54 TIM6 global and DAC1&2 underrun error
-                                    interrupts */
-    tim7_interrupt_handler,      /**< 55 TIM7 global interrupt */
-    dma2_channel1_interrupt_handler, /**< 56 DMA2 Channel 1 global Interrupt */
-    dma2_channel2_interrupt_handler, /**< 57 DMA2 Channel 2 global Interrupt */
-    dma2_channel3_interrupt_handler, /**< 58 DMA2 Channel 3 global Interrupt */
-    dma2_channel4_interrupt_handler, /**< 59 DMA2 Channel 4 global Interrupt */
-    dma2_channel5_interrupt_handler, /**< 60 DMA2 Channel 5 global Interrupt */
-    dfsdm1_flt0_interrupt_handler,   /**< 61 DFSDM1 Filter 0 global Interrupt */
-    dfsdm1_flt1_interrupt_handler,   /**< 62 DFSDM1 Filter 1 global Interrupt */
-    0,                               /**< 63 */
-    comp_interrupt_handler,          /**< 64 COMP1 and COMP2 Interrupts */
-    lptim1_interrupt_handler,        /**< 65 LP TIM1 interrupt */
-    lptim2_interrupt_handler,        /**< 66 LP TIM2 interrupt */
-    usb_interrupt_handler,           /**< 67 USB event Interrupt */
-    dma2_channel6_interrupt_handler, /**< 68 DMA2 Channel 6 global interrupt */
-    dma2_channel7_interrupt_handler, /**< 69 DMA2 Channel 7 global interrupt */
-    lpuart1_interrupt_handler,       /**< 70 LP UART1 interrupt */
-    quadspi_interrupt_handler,       /**< 71 Quad SPI global interrupt */
-    i2c3_ev_interrupt_handler,       /**< 72 I2C3 event interrupt */
-    i2c3_er_interrupt_handler,       /**< 73 I2C3 error interrupt */
-    sai1_interrupt_handler, /**< 74 Serial Audio Interface 1 global interrupt */
-    0,                      /**< 75 */
-    swpmi1_interrupt_handler, /**< 76 SWPMI1 global interrupt */
-    tsc_interrupt_handler,    /**< 77 Touch Sense Controller global interrupt */
-    0,                        /**< 78 */
-    aes_interrupt_handler,    /**< 79 AES global interrupt */
-    rng_interrupt_handler,    /**< 80 RNG global interrupt */
-    fpu_interrupt_handler,    /**< 81 FPU global interrupt */
-    crs_interrupt_handler,    /**< 82 CRS global interrupt */
-    i2c4_ev_interrupt_handler, /**< 83 I2C4 Event interrupt */
-    i2c4_er_interrupt_handler, /**< 84 I2C4 Error interrupt */
-    ignore_fn                  /**< forces the linker to add this fn */
+    0,                                 /**< 43 */
+    0,                                 /**< 44 */
+    0,                                 /**< 45 */
+    0,                                 /**< 46 */
+    0,                                 /**< 47 */
+    0,                                 /**< 48 */
+    sdmmc1_interrupt_handler,          /**< 49 SDMMC1 global Interrupt */
+    0,                                 /**< 50 */
+    spi3_interrupt_handler,            /**< 51 SPI3 global Interrupt */
+    uart4_interrupt_handler,           /**< 52 UART4 global Interrupt */
+    0,                                 /**< 53 */
+    tim6_dac_interrupt_handler,        /**< 54 TIM6 global and DAC1&2 underrun error
+                                          interrupts */
+    tim7_interrupt_handler,            /**< 55 TIM7 global interrupt */
+    dma2_channel1_interrupt_handler,   /**< 56 DMA2 Channel 1 global Interrupt */
+    dma2_channel2_interrupt_handler,   /**< 57 DMA2 Channel 2 global Interrupt */
+    dma2_channel3_interrupt_handler,   /**< 58 DMA2 Channel 3 global Interrupt */
+    dma2_channel4_interrupt_handler,   /**< 59 DMA2 Channel 4 global Interrupt */
+    dma2_channel5_interrupt_handler,   /**< 60 DMA2 Channel 5 global Interrupt */
+    dfsdm1_flt0_interrupt_handler,     /**< 61 DFSDM1 Filter 0 global Interrupt */
+    dfsdm1_flt1_interrupt_handler,     /**< 62 DFSDM1 Filter 1 global Interrupt */
+    0,                                 /**< 63 */
+    comp_interrupt_handler,            /**< 64 COMP1 and COMP2 Interrupts */
+    lptim1_interrupt_handler,          /**< 65 LP TIM1 interrupt */
+    lptim2_interrupt_handler,          /**< 66 LP TIM2 interrupt */
+    usb_interrupt_handler,             /**< 67 USB event Interrupt */
+    dma2_channel6_interrupt_handler,   /**< 68 DMA2 Channel 6 global interrupt */
+    dma2_channel7_interrupt_handler,   /**< 69 DMA2 Channel 7 global interrupt */
+    lpuart1_interrupt_handler,         /**< 70 LP UART1 interrupt */
+    quadspi_interrupt_handler,         /**< 71 Quad SPI global interrupt */
+    i2c3_ev_interrupt_handler,         /**< 72 I2C3 event interrupt */
+    i2c3_er_interrupt_handler,         /**< 73 I2C3 error interrupt */
+    sai1_interrupt_handler,            /**< 74 Serial Audio Interface 1 global interrupt */
+    0,                                 /**< 75 */
+    swpmi1_interrupt_handler,          /**< 76 SWPMI1 global interrupt */
+    tsc_interrupt_handler,             /**< 77 Touch Sense Controller global interrupt */
+    0,                                 /**< 78 */
+    aes_interrupt_handler,             /**< 79 AES global interrupt */
+    rng_interrupt_handler,             /**< 80 RNG global interrupt */
+    fpu_interrupt_handler,             /**< 81 FPU global interrupt */
+    crs_interrupt_handler,             /**< 82 CRS global interrupt */
+    i2c4_ev_interrupt_handler,         /**< 83 I2C4 Event interrupt */
+    i2c4_er_interrupt_handler,         /**< 84 I2C4 Error interrupt */
+    ignore_fn                          /**< forces the linker to add this fn */
 };
 
 /** Get the system clock requency.
