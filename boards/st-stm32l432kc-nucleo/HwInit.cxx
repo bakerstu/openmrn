@@ -188,7 +188,8 @@ static void clock_setup(void)
 
 /// We don't need the HAL tick configuration code to run. FreeRTOS will take
 /// care of that.
-HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority) {
+HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
+{
     return HAL_OK;
 }
 
