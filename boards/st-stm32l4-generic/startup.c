@@ -133,71 +133,71 @@ extern const unsigned long cm3_cpu_clock_hz;
 __attribute__((
     section(".interrupt_vector"))) void (*const __interrupt_vector[])(void) = {
     (void (*)(void))(&__stack),   /**<  0 initial stack pointer */
-    reset_handler,                /**<  1 reset vector */
-    nmi_handler,                  /**<  2 non-maskable interrupt */
-    hard_fault_handler,           /**<  3 hard fault */
-    mpu_fault_handler,            /**<  4 reserved */
-    bus_fault_handler,            /**<  5 reserved */
-    usage_fault_handler,          /**<  6 reserved */
-    0,                            /**<  7 reserved */
-    0,                            /**<  8 reserved */
-    0,                            /**<  9 reserved */
-    0,                            /**< 10 reserved */
-    SVC_Handler,                  /**< 11 SV call */
-    debug_interrupt_handler,      /**< 12 reserved */
-    0,                            /**< 13 reserved -- bootloader appentry */
-    PendSV_Handler,               /**< 14 pend SV */
-    SysTick_Handler,              /**< 15 system tick */
-    wwdg_interrupt_handler,       /**< 0 Window WatchDog Interrupt */
-    pvd_pvm_interrupt_handler,    /**< 1 PVD/PVM1/PVM3/PVM4 through EXTI Line
-                                     detection Interrupts */
-    tamp_stamp_interrupt_handler, /**< 2 Tamper and TimeStamp interrupts through
-                                     the EXTI line */
-    rtc_wkup_interrupt_handler,   /**< 3 RTC Wakeup interrupt through the EXTI
-                                     line */
-    flash_interrupt_handler,      /**< 4 FLASH global Interrupt */
-    rcc_interrupt_handler,        /**< 5 RCC global Interrupt */
-    exti0_interrupt_handler,      /**< 6 EXTI Line0 Interrupt */
-    exti1_interrupt_handler,      /**< 7 EXTI Line1 Interrupt */
-    exti2_interrupt_handler,      /**< 8 EXTI Line2 Interrupt */
-    exti3_interrupt_handler,      /**< 9 EXTI Line3 Interrupt */
-    exti4_interrupt_handler,      /**< 10 EXTI Line4 Interrupt */
-    dma1_channel1_interrupt_handler,  /**< 11 DMA1 Channel 1 global Interrupt */
-    dma1_channel2_interrupt_handler,  /**< 12 DMA1 Channel 2 global Interrupt */
-    dma1_channel3_interrupt_handler,  /**< 13 DMA1 Channel 3 global Interrupt */
-    dma1_channel4_interrupt_handler,  /**< 14 DMA1 Channel 4 global Interrupt */
-    dma1_channel5_interrupt_handler,  /**< 15 DMA1 Channel 5 global Interrupt */
-    dma1_channel6_interrupt_handler,  /**< 16 DMA1 Channel 6 global Interrupt */
-    dma1_channel7_interrupt_handler,  /**< 17 DMA1 Channel 7 global Interrupt */
-    adc1_interrupt_handler,           /**< 18 ADC1 global Interrupt */
-    can1_tx_interrupt_handler,        /**< 19 CAN1 TX Interrupt */
-    can1_rx0_interrupt_handler,       /**< 20 CAN1 RX0 Interrupt */
-    can1_rx1_interrupt_handler,       /**< 21 CAN1 RX1 Interrupt */
-    can1_sce_interrupt_handler,       /**< 22 CAN1 SCE Interrupt */
-    exti9_5_interrupt_handler,        /**< 23 External Line[9:5] Interrupts */
-    tim1_brk_tim15_interrupt_handler, /**< 24 TIM1 Break interrupt and TIM15
-                                         global interrupt */
-    tim1_up_tim16_interrupt_handler,  /**< 25 TIM1 Update Interrupt and TIM16
-                                         global interrupt */
-    tim1_trg_com_interrupt_handler,   /**< 26 TIM1 Trigger and Commutation
+    reset_handler,                     /**<  1 reset vector */
+    nmi_handler,                       /**<  2 non-maskable interrupt */
+    hard_fault_handler,                /**<  3 hard fault */
+    mpu_fault_handler,                 /**<  4 reserved */
+    bus_fault_handler,                 /**<  5 reserved */
+    usage_fault_handler,               /**<  6 reserved */
+    0,                                 /**<  7 reserved */
+    0,                                 /**<  8 reserved */
+    0,                                 /**<  9 reserved */
+    0,                                 /**< 10 reserved */
+    SVC_Handler,                       /**< 11 SV call */
+    debug_interrupt_handler,           /**< 12 reserved */
+    0,                                 /**< 13 reserved -- bootloader appentry */
+    PendSV_Handler,                    /**< 14 pend SV */
+    SysTick_Handler,                   /**< 15 system tick */
+    wwdg_interrupt_handler,            /**< 0 Window WatchDog Interrupt */
+    pvd_pvm_interrupt_handler,         /**< 1 PVD/PVM1/PVM3/PVM4 through EXTI Line
+                                          detection Interrupts */
+    tamp_stamp_interrupt_handler,      /**< 2 Tamper and TimeStamp interrupts through
+                                          the EXTI line */
+    rtc_wkup_interrupt_handler,        /**< 3 RTC Wakeup interrupt through the EXTI
+                                          line */
+    flash_interrupt_handler,           /**< 4 FLASH global Interrupt */
+    rcc_interrupt_handler,             /**< 5 RCC global Interrupt */
+    exti0_interrupt_handler,           /**< 6 EXTI Line0 Interrupt */
+    exti1_interrupt_handler,           /**< 7 EXTI Line1 Interrupt */
+    exti2_interrupt_handler,           /**< 8 EXTI Line2 Interrupt */
+    exti3_interrupt_handler,           /**< 9 EXTI Line3 Interrupt */
+    exti4_interrupt_handler,           /**< 10 EXTI Line4 Interrupt */
+    dma1_channel1_interrupt_handler,   /**< 11 DMA1 Channel 1 global Interrupt */
+    dma1_channel2_interrupt_handler,   /**< 12 DMA1 Channel 2 global Interrupt */
+    dma1_channel3_interrupt_handler,   /**< 13 DMA1 Channel 3 global Interrupt */
+    dma1_channel4_interrupt_handler,   /**< 14 DMA1 Channel 4 global Interrupt */
+    dma1_channel5_interrupt_handler,   /**< 15 DMA1 Channel 5 global Interrupt */
+    dma1_channel6_interrupt_handler,   /**< 16 DMA1 Channel 6 global Interrupt */
+    dma1_channel7_interrupt_handler,   /**< 17 DMA1 Channel 7 global Interrupt */
+    adc1_interrupt_handler,            /**< 18 ADC1 global Interrupt */
+    can1_tx_interrupt_handler,         /**< 19 CAN1 TX Interrupt */
+    can1_rx0_interrupt_handler,        /**< 20 CAN1 RX0 Interrupt */
+    can1_rx1_interrupt_handler,        /**< 21 CAN1 RX1 Interrupt */
+    can1_sce_interrupt_handler,        /**< 22 CAN1 SCE Interrupt */
+    exti9_5_interrupt_handler,         /**< 23 External Line[9:5] Interrupts */
+    tim1_brk_tim15_interrupt_handler,  /**< 24 TIM1 Break interrupt and TIM15
+                                          global interrupt */
+    tim1_up_tim16_interrupt_handler,   /**< 25 TIM1 Update Interrupt and TIM16
+                                          global interrupt */
+    tim1_trg_com_interrupt_handler,    /**< 26 TIM1 Trigger and Commutation
+                                          Interrupt */
+    tim1_cc_interrupt_handler,         /**< 27 TIM1 Capture Compare Interrupt */
+    tim2_interrupt_handler,            /**< 28 TIM2 global Interrupt */
+    tim3_interrupt_handler,            /**< 29 TIM3 global Interrupt */
+    0,                                 /**< 30 */
+    i2c1_ev_interrupt_handler,         /**< 31 I2C1 Event Interrupt */
+    i2c1_er_interrupt_handler,         /**< 32 I2C1 Error Interrupt */
+    i2c2_ev_interrupt_handler,         /**< 33 I2C2 Event Interrupt */
+    i2c2_er_interrupt_handler,         /**< 34 I2C2 Error Interrupt */
+    spi1_interrupt_handler,            /**< 35 SPI1 global Interrupt */
+    spi2_interrupt_handler,            /**< 36 SPI2 global Interrupt */
+    usart1_interrupt_handler,          /**< 37 USART1 global Interrupt */
+    usart2_interrupt_handler,          /**< 38 USART2 global Interrupt */
+    usart3_interrupt_handler,          /**< 39 USART3 global Interrupt */
+    exti15_10_interrupt_handler,       /**< 40 External Line[15:10] Interrupts */
+    rtc_alarm_interrupt_handler,       /**< 41 RTC Alarm (A and B) through EXTI Line
                                          Interrupt */
-    tim1_cc_interrupt_handler,        /**< 27 TIM1 Capture Compare Interrupt */
-    tim2_interrupt_handler,           /**< 28 TIM2 global Interrupt */
-    tim3_interrupt_handler,           /**< 29 TIM3 global Interrupt */
-    0,                                /**< 30 */
-    i2c1_ev_interrupt_handler,        /**< 31 I2C1 Event Interrupt */
-    i2c1_er_interrupt_handler,        /**< 32 I2C1 Error Interrupt */
-    i2c2_ev_interrupt_handler,        /**< 33 I2C2 Event Interrupt */
-    i2c2_er_interrupt_handler,        /**< 34 I2C2 Error Interrupt */
-    spi1_interrupt_handler,           /**< 35 SPI1 global Interrupt */
-    spi2_interrupt_handler,           /**< 36 SPI2 global Interrupt */
-    usart1_interrupt_handler,         /**< 37 USART1 global Interrupt */
-    usart2_interrupt_handler,         /**< 38 USART2 global Interrupt */
-    usart3_interrupt_handler,         /**< 39 USART3 global Interrupt */
-    exti15_10_interrupt_handler,      /**< 40 External Line[15:10] Interrupts */
-    rtc_alarm_interrupt_handler, /**< 41 RTC Alarm (A and B) through EXTI Line
-                                    Interrupt */
-    0,                           /**< 42 */
+    0,                                 /**< 42 */
     0,                           /**< 43 */
     0,                           /**< 44 */
     0,                           /**< 45 */
