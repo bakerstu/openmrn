@@ -127,6 +127,10 @@ const unsigned long cm3_cpu_clock_hz = 80000000;
 uint32_t SystemCoreClock;
 const uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
 const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
+const uint32_t MSIRangeTable[12] = {100000U, 200000U, 400000U, 800000U,
+    1000000U, 2000000U, 4000000U, 8000000U, 16000000U, 24000000U, 32000000U,
+    48000000U};
+const uint32_t HSEValue = 8000000;
 
 /**
   * @brief  System Clock Configuration
@@ -180,6 +184,12 @@ static void clock_setup(void)
 
     // This will fail if the clocks are somehow misconfigured.
     HASSERT(SystemCoreClock == cm3_cpu_clock_hz);
+}
+
+/// We don't need the HAL tick configuration code to run. FreeRTOS will take
+/// care of that.
+HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority) {
+    return HAL_OK;
 }
 
 /** Initialize the processor hardware.
