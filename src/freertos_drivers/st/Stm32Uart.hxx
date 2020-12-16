@@ -36,6 +36,8 @@
 
 #include <cstdint>
 
+#include "stm32f_hal_conf.hxx"
+#if 0
 #if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_hal_dma.h"
 #include "stm32f0xx_hal_uart.h"
@@ -50,6 +52,7 @@
 #include "stm32f7xx_hal_uart.h"
 #else
 #error Dont know what STM32 chip you have.
+#endif
 #endif
 
 #include "Serial.hxx"
@@ -105,6 +108,12 @@ private:
    || defined (STM32F051x8) || defined (STM32F058xx) || defined (STM32F070x6)
     /** Instance pointers help us get context from the interrupt handler(s) */
     static Stm32Uart *instances[2];
+#elif defined (STM32L432xx)
+    /** Instance pointers help us get context from the interrupt handler(s) */
+    static Stm32Uart *instances[3];
+#elif defined (STM32L431xx)
+    /** Instance pointers help us get context from the interrupt handler(s) */
+    static Stm32Uart *instances[4];
 #elif defined (STM32F070xB) || defined (STM32F071xB) || defined (STM32F072xB) \
    || defined (STM32F078xx)
     /** Instance pointers help us get context from the interrupt handler(s) */
