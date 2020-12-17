@@ -47,9 +47,9 @@
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
-#define SNIFF_ON_SERIAL
+//#define SNIFF_ON_SERIAL
 //#define SNIFF_ON_USB
-//#define HAVE_PHYSICAL_CAN_PORT
+#define HAVE_PHYSICAL_CAN_PORT
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
@@ -81,7 +81,7 @@ extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 300, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 512, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
@@ -102,13 +102,40 @@ openlcb::ConfiguredConsumer consumer_green(
 
 // Similar syntax for the producers.
 openlcb::ConfiguredProducer producer_sw1(
-    stack.node(), cfg.seg().producers().entry<0>(), SW_USER_Pin());
+    stack.node(), cfg.seg().producers().entry<0>(), IN_A0_Pin());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
 openlcb::RefreshLoop loop(
     stack.node(), {producer_sw1.polling()});
+
+// Object that handles factory reset for our config setup.
+class CustomFactoryReset : public DefaultConfigUpdateListener {
+public:
+    void factory_reset(int fd) override
+    {
+        // Resets user names.
+        cfg.userinfo().name().write(fd, "Default user name");
+        cfg.userinfo().description().write(fd, "Default user description");
+        // Makes the IO pin descriptions empty.
+        for (unsigned i = 0; i < cfg.seg().consumers().num_repeats(); ++i) {
+            cfg.seg().consumers().entry(i).description().write(fd, "");
+        }
+        for (unsigned i = 0; i < cfg.seg().producers().num_repeats(); ++i) {
+            cfg.seg().producers().entry(i).description().write(fd, "");
+            cfg.seg().producers().entry(i).debounce().write(fd, 3);
+        }
+    }
+
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done) override {
+        done->notify();
+        // Nothing to do; we don't read the configuration.
+        return UPDATED;
+    }
+} g_custom_factory_reset;
+
 
 /** Entry point to application.
  * @param argc number of command line arguments
