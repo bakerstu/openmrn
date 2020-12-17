@@ -36,14 +36,12 @@
 
 #include "EEPROM.hxx"
 
-#ifndef FLASH_SIZE
 /// Linker-defined symbol where in the memory space (flash) the eeprom
 /// emulation data starts.
 extern const char __eeprom_start;
 /// Linker-defined symbol where in the memory space (flash) the eeprom
 /// emulation data ends.
 extern const char __eeprom_end;
-#endif
 
 /** Emulates EEPROM in FLASH for the Tiva, LPC17xx and LPC40xx
  * platforms. Applicable in general to any microcontroller with self-writeable
@@ -86,8 +84,8 @@ extern const char __eeprom_end;
  * Parameters:
  *  @param SECTOR_SIZE: size of independently erased flash areas. Usually in
  *  the range of kilobytes; for example somewhere between 1-16 kbytes.
- *  @param FLASH_SIZE: Automatically detected from the linker symbols. An
- *  integer (at least 2) multiple of SECTOR_SIZE. Sectors within the
+ *  @param EEPROMEMU_FLASH_SIZE: Automatically detected from the linker symbols.
+ *  An integer (at least 2) multiple of SECTOR_SIZE. Sectors within the
  *  designatedflash are will be used in a round-robin manner to maximize flash
  *  endurance.
  *  @param BLOCK_SIZE: Defines how many bytes shall be flashed in one
@@ -172,16 +170,12 @@ private:
      */
     void read(unsigned int offset, void *buf, size_t len) OVERRIDE;
 
-#ifndef FLASH_SIZE
     /** Total FLASH memory size to use for EEPROM Emulation.  Must be at least
      * 2 sectors large and at least 4x the total amount of EEPROM address space
      * that will be emulated.  Larger sizes will result in greater endurance.
      * must be a macro in order to calculate from link time constants.
      */
-    #define FLASH_SIZE ((uintptr_t)(&__eeprom_end - &__eeprom_start))
-#else
-    static const size_t FLASH_SIZE;
-#endif
+    #define EEPROMEMU_FLASH_SIZE ((uintptr_t)(&__eeprom_end - &__eeprom_start))
     
     /** useful data bytes size in bytes 
      *  @todo maybe this should be a macro of BLOCK_SIZE / 2
@@ -307,7 +301,7 @@ private:
 
 protected:
     /** Total number of sectors available. */
-    const uint8_t sectorCount_{(uint8_t)(FLASH_SIZE / SECTOR_SIZE)};
+    const uint8_t sectorCount_{(uint8_t)(EEPROMEMU_FLASH_SIZE / SECTOR_SIZE)};
 
     /** Index of the active sector. */
     uint8_t activeSector_{0};

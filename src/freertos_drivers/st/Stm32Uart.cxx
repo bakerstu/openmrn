@@ -41,6 +41,8 @@
 #include "stm32f1xx_hal_cortex.h"
 #elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_hal_cortex.h"
+#elif defined(STM32L431xx) || defined(STM32L432xx)
+#include "stm32l4xx_hal_cortex.h"
 #elif defined(STM32F767xx)
 #include "stm32f7xx_hal_cortex.h"
 #else
@@ -54,9 +56,15 @@ Stm32Uart *Stm32Uart::instances[1] = {NULL};
 #elif defined (STM32F030x8) || defined (STM32F042x6) || defined (STM32F048xx) \
    || defined (STM32F051x8) || defined (STM32F058xx) || defined (STM32F070x6)
 Stm32Uart *Stm32Uart::instances[2] = {NULL};
+#elif defined (STM32L432xx)
+Stm32Uart *Stm32Uart::instances[3] = {NULL};
+#define USART3 LPUART1
 #elif defined (STM32F070xB) || defined (STM32F071xB) || defined (STM32F072xB) \
    || defined (STM32F078xx)
 Stm32Uart *Stm32Uart::instances[4] = {NULL};
+#elif defined (STM32L431xx)
+Stm32Uart *Stm32Uart::instances[4] = {NULL};
+#define USART4 LPUART1
 #elif defined (STM32F303xC) || defined (STM32F303xE)
 Stm32Uart *Stm32Uart::instances[5] = {NULL};
 #define USART4 UART4
@@ -96,6 +104,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     {
         instances[2] = this;
     }
+#if !defined(STM32L432xx)    
 #ifdef USART4    
     else if (base == USART4)
 #elif defined(UART4)
@@ -105,7 +114,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
         instances[3] = this;
     }
 #if !defined (STM32F070xB) && !defined (STM32F071xB) && !defined (STM32F072xB) \
- && !defined (STM32F078xx)
+    && !defined (STM32F078xx) && !defined(STM32L431xx)
 #ifdef USART5
     else if (base == USART5)
 #elif defined(UART5)
@@ -138,6 +147,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     }
 #if !defined (STM32F091xC) && !defined (STM32F098xx)
 	/* room for future devices with more UARTs */
+#endif
 #endif
 #endif
 #endif

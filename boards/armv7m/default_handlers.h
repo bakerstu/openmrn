@@ -59,6 +59,8 @@ extern unsigned long __data_section_table_end;
 extern unsigned long __bss_section_table;
 extern unsigned long __bss_section_table_end;
 
+#define NVIC_INT_CTRL_R (*((volatile uint32_t *)0xE000ED04))
+
 /** This hardware initialization code will be called before C++ global objects
  * are initialized. */
 extern void hw_preinit(void);

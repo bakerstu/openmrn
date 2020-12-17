@@ -238,6 +238,8 @@ struct DccHwDefs {
    *  '1' bit */
   static int dcc_preamble_count() { return 16; }
 
+  static bool generate_railcom_halfzero() { return false; }
+
   static void flip_led() {}
 
   /** the time (in nanoseconds) to wait between turning off the low driver and
