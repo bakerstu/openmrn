@@ -37,23 +37,6 @@
 
 #include "stm32f_hal_conf.hxx"
 
-#if 0
-#if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
- || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \
- || defined (STM32F048xx) || defined (STM32F051x8) || defined (STM32F058xx) \
- || defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
- || defined (STM32F072xB) || defined (STM32F078xx) \
- || defined (STM32F091xC) || defined (STM32F098xx)
-#include "stm32f0xx_hal_flash.h"
-#elif defined(STM32F303xC) || defined(STM32F303xE)
-#include "stm32f3xx_hal_flash.h"
-#elif defined(STM32F767xx)
-#include "stm32f7xx_hal_flash.h"
-#else
-#error "stm32EEPROMEmulation unsupported STM32 device"
-#endif
-#endif
-
 #if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
  || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \
  || defined (STM32F048xx) || defined (STM32F051x8) || defined (STM32F058xx)
