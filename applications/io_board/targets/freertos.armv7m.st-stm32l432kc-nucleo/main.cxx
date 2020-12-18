@@ -99,16 +99,35 @@ extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
 // own GPIO pin.
 openlcb::ConfiguredConsumer consumer_green(
     stack.node(), cfg.seg().consumers().entry<0>(), LED_GREEN_Pin());
+openlcb::ConfiguredConsumer consumer_d3(
+    stack.node(), cfg.seg().consumers().entry<1>(), OUT_D3_Pin());
+openlcb::ConfiguredConsumer consumer_d4(
+    stack.node(), cfg.seg().consumers().entry<2>(), OUT_D4_Pin());
+openlcb::ConfiguredConsumer consumer_d5(
+    stack.node(), cfg.seg().consumers().entry<3>(), OUT_D5_Pin());
+openlcb::ConfiguredConsumer consumer_d6(
+    stack.node(), cfg.seg().consumers().entry<4>(), OUT_D6_Pin());
 
 // Similar syntax for the producers.
-openlcb::ConfiguredProducer producer_sw1(
+openlcb::ConfiguredProducer producer_a0(
     stack.node(), cfg.seg().producers().entry<0>(), IN_A0_Pin());
+openlcb::ConfiguredProducer producer_a1(
+    stack.node(), cfg.seg().producers().entry<1>(), IN_A1_Pin());
+openlcb::ConfiguredProducer producer_a2(
+    stack.node(), cfg.seg().producers().entry<2>(), IN_A2_Pin());
+openlcb::ConfiguredProducer producer_a3(
+    stack.node(), cfg.seg().producers().entry<3>(), IN_A3_Pin());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
-openlcb::RefreshLoop loop(
-    stack.node(), {producer_sw1.polling()});
+openlcb::RefreshLoop loop(stack.node(),
+    {
+        producer_a0.polling(), //
+        producer_a1.polling(), //
+        producer_a2.polling(), //
+        producer_a3.polling()  //
+    });
 
 // Object that handles factory reset for our config setup.
 class CustomFactoryReset : public DefaultConfigUpdateListener {
