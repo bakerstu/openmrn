@@ -88,6 +88,38 @@ static_assert(openlcb::CONFIG_FILE_SIZE <= 512, "Need to adjust eeprom size");
 extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
     openlcb::CONFIG_FILENAME;
 
+// Object that handles factory reset for our config setup.
+class CustomFactoryReset : public DefaultConfigUpdateListener {
+public:
+    void factory_reset(int fd) override
+    {
+        // Resets user names.
+        cfg.userinfo().name().write(fd, "Default user name");
+        cfg.userinfo().description().write(fd, "Default user description");
+        // Makes the IO pin descriptions with default value.
+        cfg.seg().consumers().entry<0>().description().write(fd, "LD3");
+        cfg.seg().consumers().entry<1>().description().write(fd, "D3");
+        cfg.seg().consumers().entry<2>().description().write(fd, "D4");
+        cfg.seg().consumers().entry<3>().description().write(fd, "D5");
+        cfg.seg().consumers().entry<4>().description().write(fd, "D6");
+        
+        cfg.seg().producers().entry<0>().description().write(fd, "A0");
+        cfg.seg().producers().entry<1>().description().write(fd, "A1");
+        cfg.seg().producers().entry<2>().description().write(fd, "A2");
+        cfg.seg().producers().entry<3>().description().write(fd, "A3");
+        for (unsigned i = 0; i < cfg.seg().producers().num_repeats(); ++i) {
+            cfg.seg().producers().entry(i).debounce().write(fd, 3);
+        }
+    }
+
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done) override {
+        done->notify();
+        // Nothing to do; we don't read the configuration.
+        return UPDATED;
+    }
+} g_custom_factory_reset;
+
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The ConfiguredConsumer class takes care of most of the
 // complicated setup and operation requirements. We need to give it the virtual
@@ -128,33 +160,6 @@ openlcb::RefreshLoop loop(stack.node(),
         producer_a2.polling(), //
         producer_a3.polling()  //
     });
-
-// Object that handles factory reset for our config setup.
-class CustomFactoryReset : public DefaultConfigUpdateListener {
-public:
-    void factory_reset(int fd) override
-    {
-        // Resets user names.
-        cfg.userinfo().name().write(fd, "Default user name");
-        cfg.userinfo().description().write(fd, "Default user description");
-        // Makes the IO pin descriptions empty.
-        for (unsigned i = 0; i < cfg.seg().consumers().num_repeats(); ++i) {
-            cfg.seg().consumers().entry(i).description().write(fd, "");
-        }
-        for (unsigned i = 0; i < cfg.seg().producers().num_repeats(); ++i) {
-            cfg.seg().producers().entry(i).description().write(fd, "");
-            cfg.seg().producers().entry(i).debounce().write(fd, 3);
-        }
-    }
-
-    UpdateAction apply_configuration(
-        int fd, bool initial_load, BarrierNotifiable *done) override {
-        done->notify();
-        // Nothing to do; we don't read the configuration.
-        return UPDATED;
-    }
-} g_custom_factory_reset;
-
 
 /** Entry point to application.
  * @param argc number of command line arguments
