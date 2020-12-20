@@ -64,7 +64,7 @@ CXXSRCS += c++_operators.cxx
 endif
 
 ifeq ($(TARGET),bare.armv7m)
-SUBDIRS += cc32xxsdk ti_grlib 
+SUBDIRS += cc32xxsdk ti_grlib stm32cubel431xx stm32cubel432xx 
 endif
 
 ifeq ($(TARGET),bare.armv6m)
