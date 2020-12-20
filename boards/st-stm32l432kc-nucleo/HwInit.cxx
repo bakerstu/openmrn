@@ -61,9 +61,10 @@ static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
 static Stm32Can can0("/dev/can0");
 
 /** EEPROM emulation driver. The file size might be made bigger. */
-//static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
 
 const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
+const bool EEPROMEmulation::SHADOW_IN_RAM = true;
 
 extern "C" {
 

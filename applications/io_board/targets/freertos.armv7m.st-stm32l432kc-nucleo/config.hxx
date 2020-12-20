@@ -22,12 +22,13 @@ namespace openlcb
 /// - the generated cdi.xml will include this data
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
-extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "Test IO Board - STM32F303RE Nucleo",
-    "STM32F091RC-Nucleo", "1.01"};
+extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {4, "OpenMRN", //
+    "Test IO Board - STM32L432KC Nucleo",                             //
+    "STM32L432KC-Nucleo",                                             //
+    "1.01"};
 
-#define NUM_OUTPUTS 1
-#define NUM_INPUTS 1
+#define NUM_OUTPUTS 5
+#define NUM_INPUTS 4
 
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
@@ -38,7 +39,7 @@ using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x184a;
+static constexpr uint16_t CANONICAL_VERSION = 0x1844;
 
 /// Defines the main segment in the configuration CDI. This is laid out at
 /// origin 128 to give space for the ACDI user data at the beginning.

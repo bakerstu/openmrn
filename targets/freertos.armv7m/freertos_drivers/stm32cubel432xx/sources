@@ -89,8 +89,5 @@ CXXSRCS += Stm32Can.cxx \
            Stm32Uart.cxx \
            Stm32SPI.cxx \
            Stm32I2C.cxx \
-
-
-# does not work yet
-# Stm32EEPROMEmulation.cxx
+           Stm32EEPROMEmulation.cxx \
 

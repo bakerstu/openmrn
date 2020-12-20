@@ -47,9 +47,9 @@
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
-#define SNIFF_ON_SERIAL
+//#define SNIFF_ON_SERIAL
 //#define SNIFF_ON_USB
-//#define HAVE_PHYSICAL_CAN_PORT
+#define HAVE_PHYSICAL_CAN_PORT
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
@@ -81,12 +81,44 @@ extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
 // The size of the memory space to export over the above device.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 300, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 512, "Need to adjust eeprom size");
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
 // simpler to keep them together.
 extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
     openlcb::CONFIG_FILENAME;
+
+// Object that handles factory reset for our config setup.
+class CustomFactoryReset : public DefaultConfigUpdateListener {
+public:
+    void factory_reset(int fd) override
+    {
+        // Resets user names.
+        cfg.userinfo().name().write(fd, "Default user name");
+        cfg.userinfo().description().write(fd, "Default user description");
+        // Makes the IO pin descriptions with default value.
+        cfg.seg().consumers().entry<0>().description().write(fd, "LD3");
+        cfg.seg().consumers().entry<1>().description().write(fd, "D3");
+        cfg.seg().consumers().entry<2>().description().write(fd, "D4");
+        cfg.seg().consumers().entry<3>().description().write(fd, "D5");
+        cfg.seg().consumers().entry<4>().description().write(fd, "D6");
+        
+        cfg.seg().producers().entry<0>().description().write(fd, "A0");
+        cfg.seg().producers().entry<1>().description().write(fd, "A1");
+        cfg.seg().producers().entry<2>().description().write(fd, "A2");
+        cfg.seg().producers().entry<3>().description().write(fd, "A3");
+        for (unsigned i = 0; i < cfg.seg().producers().num_repeats(); ++i) {
+            cfg.seg().producers().entry(i).debounce().write(fd, 3);
+        }
+    }
+
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done) override {
+        done->notify();
+        // Nothing to do; we don't read the configuration.
+        return UPDATED;
+    }
+} g_custom_factory_reset;
 
 // Instantiates the actual producer and consumer objects for the given GPIO
 // pins from above. The ConfiguredConsumer class takes care of most of the
@@ -99,16 +131,35 @@ extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
 // own GPIO pin.
 openlcb::ConfiguredConsumer consumer_green(
     stack.node(), cfg.seg().consumers().entry<0>(), LED_GREEN_Pin());
+openlcb::ConfiguredConsumer consumer_d3(
+    stack.node(), cfg.seg().consumers().entry<1>(), OUT_D3_Pin());
+openlcb::ConfiguredConsumer consumer_d4(
+    stack.node(), cfg.seg().consumers().entry<2>(), OUT_D4_Pin());
+openlcb::ConfiguredConsumer consumer_d5(
+    stack.node(), cfg.seg().consumers().entry<3>(), OUT_D5_Pin());
+openlcb::ConfiguredConsumer consumer_d6(
+    stack.node(), cfg.seg().consumers().entry<4>(), OUT_D6_Pin());
 
 // Similar syntax for the producers.
-openlcb::ConfiguredProducer producer_sw1(
-    stack.node(), cfg.seg().producers().entry<0>(), SW_USER_Pin());
+openlcb::ConfiguredProducer producer_a0(
+    stack.node(), cfg.seg().producers().entry<0>(), IN_A0_Pin());
+openlcb::ConfiguredProducer producer_a1(
+    stack.node(), cfg.seg().producers().entry<1>(), IN_A1_Pin());
+openlcb::ConfiguredProducer producer_a2(
+    stack.node(), cfg.seg().producers().entry<2>(), IN_A2_Pin());
+openlcb::ConfiguredProducer producer_a3(
+    stack.node(), cfg.seg().producers().entry<3>(), IN_A3_Pin());
 
 // The producers need to be polled repeatedly for changes and to execute the
 // debouncing algorithm. This class instantiates a refreshloop and adds the two
 // producers to it.
-openlcb::RefreshLoop loop(
-    stack.node(), {producer_sw1.polling()});
+openlcb::RefreshLoop loop(stack.node(),
+    {
+        producer_a0.polling(), //
+        producer_a1.polling(), //
+        producer_a2.polling(), //
+        producer_a3.polling()  //
+    });
 
 /** Entry point to application.
  * @param argc number of command line arguments
