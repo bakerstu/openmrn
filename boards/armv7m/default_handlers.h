@@ -90,7 +90,7 @@ void reset_handler(void)
         unsigned long *dst = (unsigned long *)*section_table_addr++;
         unsigned long len = (unsigned long)*section_table_addr++;
 
-        for (; len; len -= 4)
+        for (; len > 0; len -= 4)
         {
             *dst++ = *src++;
         }
@@ -102,7 +102,7 @@ void reset_handler(void)
         unsigned long *zero = (unsigned long *)*section_table_addr++;
         unsigned long len = (unsigned long)*section_table_addr++;
 
-        for (; len; len -= 4)
+        for (; len > 0; len -= 4)
         {
             *zero++ = 0;
         }
