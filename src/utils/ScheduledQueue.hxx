@@ -36,6 +36,7 @@
 #ifndef _UTILS_SCHEDULEDQUEUE_HXX_
 #define _UTILS_SCHEDULEDQUEUE_HXX_
 
+#include "os/OS.hxx"
 #include "utils/Fixed16.hxx"
 #include "utils/Queue.hxx"
 #include "utils/logging.h"
@@ -43,7 +44,7 @@
 /// ScheduledQueue is a queue with multiple priorities, where each priority is
 /// a FIFO list. The different priorities are polled according to a weighted
 /// stride scheduler instead of in strict numerical priority order.
-class ScheduledQueue : private Atomic
+class ScheduledQueue
 {
 public:
     /// Constructor.
@@ -76,7 +77,7 @@ public:
     /// @return the member and the priority from which it came.
     Result next()
     {
-        AtomicHolder h(lock());
+        OSMutexLock h(lock());
         return next_locked();
     }
 
@@ -131,9 +132,9 @@ public:
     }
 
     /// @return the lock to use for the _locked() functions.
-    Atomic *lock()
+    OSMutex *lock()
     {
-        return this;
+        return &lock_;
     }
 
     /// Adds an entry to the queue. It will be added to the end of the given
@@ -143,7 +144,7 @@ public:
     /// be within 0 and numBands_ - 1.
     void insert(QMember *item, unsigned prio)
     {
-        AtomicHolder h(lock());
+        OSMutexLock h(lock());
         return insert_locked(item, prio);
     }
 
@@ -170,19 +171,19 @@ public:
 
     /// Get the number of pending items in the queue (all bands total)
     /// @return number of pending items
-    size_t pending() const 
+    size_t pending() const
     {
         return numPending_;
     }
 
     /// @return true if the queue is empty (on all priority bands).
-    bool empty() const 
+    bool empty() const
     {
         return numPending_ == 0;
     }
 
     /// @return the number of available priority bands.
-    unsigned num_prio() const 
+    unsigned num_prio() const
     {
         return numBands_;
     }
@@ -200,6 +201,9 @@ private:
         /// priority item.
         Fixed16 currentToken_ {1, 0};
     };
+
+    /// Protects insert and next operations.
+    OSMutex lock_;
 
     /// How many priority bands we have.
     unsigned numBands_;
