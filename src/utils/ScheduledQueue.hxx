@@ -82,7 +82,7 @@ public:
     }
 
     /// Get an item from the queue. The returned item will be according to the
-    /// priority scheduler. The caller must acquire the lock first.
+    /// priority scheduler. The caller must acquire the lock() first.
     /// @return the member and the priority from which it came.
     Result next_locked()
     {
@@ -131,6 +131,11 @@ public:
         return Result(0, 0);
     }
 
+    /// The caller must acquire this lock before using any of the _locked()
+    /// functions. If the caller needs to do many operations in quick
+    /// succession, it might be faster to do them under a single lock,
+    /// i.e. acquire lock() first, then call xxx_locked() repeatedly, then
+    /// unlock.
     /// @return the lock to use for the _locked() functions.
     OSMutex *lock()
     {
