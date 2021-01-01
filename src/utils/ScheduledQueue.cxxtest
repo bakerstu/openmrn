@@ -40,7 +40,7 @@ protected:
     };
 
     /// Adds a new entry to the queue.
-    /// @param prio which priority band ot add to
+    /// @param prio which priority band to add to
     /// @return the index of the new member.
     unsigned add_empty(unsigned prio)
     {
