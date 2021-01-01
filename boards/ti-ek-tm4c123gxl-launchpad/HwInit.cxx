@@ -110,6 +110,15 @@ StoredBitSet* g_gpio_stored_bit_set = nullptr;
 constexpr unsigned EEPROM_BIT_COUNT = 84;
 constexpr unsigned EEPROM_BITS_PER_CELL = 28;
 
+/// This variable will be set to 1 when a write arrives to the eeprom.
+uint8_t eeprom_updated = 0;
+
+// Overridesthe default behavior to keep track of eeprom writes.
+void EEPROMEmulation::updated_notification()
+{
+    eeprom_updated = 1;
+}
+
 extern "C" {
 void hw_set_to_safe(void);
 

@@ -194,6 +194,8 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
     {
         memcpy(shadow_ + shadow_index, shadow_data, shadow_len);
     }
+
+    updated_notification();
 }
 
 /** Write to the EEPROM on a native block boundary.

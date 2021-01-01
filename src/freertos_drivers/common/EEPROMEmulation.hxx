@@ -154,6 +154,12 @@ protected:
     static const size_t BLOCK_SIZE;
 
 private:
+    /** This function will be called after every write. The default
+     * implementation is a weak symbol with an empty function. It is intended
+     * to be overridden in the application to get callbacks for eeprom writes
+     * that can trigger a reload. */
+    void updated_notification();
+
     /** Write to the EEPROM.  NOTE!!! This is not necessarily atomic across
      * byte boundaries in the case of power loss.  The user should take this
      * into account as it relates to data integrity of a whole block.
