@@ -82,6 +82,9 @@ enum
     DCC_SVC_BITVAL_VERIFY = 0b11100000,
     DCC_SVC_BITVAL_VALUE = 0b00001000,
 
+    DCC_SVC_PAGED_WRITE = 0b01111000,
+    DCC_SVC_PAGED_VERIFY = 0b01110000,
+
     DCC_BASIC_ACCESSORY_B1 = 0b10000000,
     DCC_BASIC_ACCESSORY_B2 = 0b10000000,
 
@@ -291,6 +294,24 @@ void Packet::set_dcc_svc_write_bit(
     uint8_t vvv =
         DCC_SVC_BITVAL_WRITE | (desired ? DCC_SVC_BITVAL_VALUE : 0) | (bit & 7);
     add_dcc_prog_command(DCC_SVC_BIT_MANIPULATE, cv_number, vvv);
+}
+
+void Packet::set_dcc_svc_paged_write_reg(uint8_t reg, uint8_t value)
+{
+    HASSERT(reg < 8);
+    start_dcc_svc_packet();
+    payload[dlc++] = DCC_SVC_PAGED_WRITE | reg;
+    payload[dlc++] = value;
+    add_dcc_checksum();
+}
+
+void Packet::set_dcc_svc_paged_verify_reg(uint8_t reg, uint8_t value)
+{
+    HASSERT(reg < 8);
+    start_dcc_svc_packet();
+    payload[dlc++] = DCC_SVC_PAGED_VERIFY | reg;
+    payload[dlc++] = value;
+    add_dcc_checksum();
 }
 
 void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate) {

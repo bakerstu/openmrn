@@ -22,6 +22,17 @@ protected:
         return vector<uint8_t>(pkt_.payload + 0, pkt_.payload + pkt_.dlc);
     }
 
+    /// @return true if pkt_ has correct checksum.
+    bool check_checksum()
+    {
+        uint8_t p = 0;
+        for (unsigned i = 0; i < pkt_.dlc; i++)
+        {
+            p ^= pkt_.payload[i];
+        }
+        return p == 0;
+    }
+
     vector<uint8_t> packet(const std::initializer_list<int> &data)
     {
         vector<uint8_t> v;
@@ -203,6 +214,31 @@ TEST_F(PacketTest, SvcProgDirectBit)
     pkt_.set_dcc_svc_write_bit(651, 5, false);
     b3 = 0b11110101;
     EXPECT_THAT(get_packet(), ElementsAre(b1, b2, b3, b1 ^ b2 ^ b3));
+}
+
+TEST_F(PacketTest, SvcProgPagedWrite)
+{
+    pkt_.set_dcc_svc_paged_set_page();
+    EXPECT_THAT(get_packet(), ElementsAre(0b01111101, 0b00000001, 0b01111100));
+    EXPECT_TRUE(pkt_.packet_header.send_long_preamble);
+    EXPECT_TRUE(check_checksum());
+
+    pkt_.set_dcc_svc_paged_write_reg(3, 0xaa);
+    EXPECT_THAT(get_packet(), ElementsAre(0b01111011, 0xaa, _));
+    EXPECT_TRUE(check_checksum());
+}
+
+TEST_F(PacketTest, SvcProgPagedVerify)
+{
+    pkt_.set_dcc_svc_paged_set_page(55);
+    EXPECT_THAT(get_packet(), ElementsAre(0b01111101, 55, _));
+    EXPECT_TRUE(pkt_.packet_header.send_long_preamble);
+    EXPECT_TRUE(check_checksum());
+
+    pkt_.set_dcc_svc_paged_verify_reg(0, 0x34);
+    EXPECT_THAT(get_packet(), ElementsAre(0b01110000, 0x34, _));
+    EXPECT_TRUE(pkt_.packet_header.send_long_preamble);
+    EXPECT_TRUE(check_checksum());
 }
 
 TEST_F(PacketTest, MMOld)
