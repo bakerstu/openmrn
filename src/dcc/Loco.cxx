@@ -55,7 +55,7 @@ template <> DccTrain<Dcc128Payload>::~DccTrain()
     packet_processor_remove_refresh_source(this);
 }
 
-unsigned Dcc28Payload::get_fn_update_code(unsigned address)
+unsigned DccPayloadBase::get_fn_update_code(unsigned address)
 {
     if (address < 5)
     {
