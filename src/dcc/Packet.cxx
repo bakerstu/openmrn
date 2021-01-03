@@ -69,6 +69,10 @@ enum
     DCC_FUNCTION2_F9 = 0b10100000,
     DCC_FEATURE_EXP_F13 = 0b11011110,
     DCC_FEATURE_EXP_F21 = 0b11011111,
+    DCC_FEATURE_EXP_FNHI = 0b11011000,
+    DCC_BINARY_SHORT = 0b11011101,
+    DCC_BINARY_LONG = 0b11000000,
+    DCC_ANALOG_FN = 0b00111101,
 
     DCC_PROG_READ1 = 0b11100100,
     DCC_PROG_WRITE1 = 0b11101100,
@@ -234,17 +238,39 @@ void Packet::add_dcc_function9_12(unsigned values)
     add_dcc_checksum();
 }
 
-void Packet::add_dcc_function13_20(unsigned values)
+void Packet::add_dcc_function_hi(uint8_t base, uint8_t values)
 {
-    payload[dlc++] = DCC_FEATURE_EXP_F13;
-    payload[dlc++] = values & 0xff;
+    base -= 13;
+    HASSERT((base & 0b111) == 0);
+    HASSERT(base <= (61 - 13));
+    base >>= 3;
+    base -= 2;
+    payload[dlc++] = DCC_FEATURE_EXP_FNHI | (base & 0b111);
+    payload[dlc++] = values;
     add_dcc_checksum();
 }
 
-void Packet::add_dcc_function21_28(unsigned values)
+void Packet::add_dcc_binary_state(uint16_t fn, bool value)
 {
-    payload[dlc++] = DCC_FEATURE_EXP_F21;
-    payload[dlc++] = values & 0xff;
+    if (fn <= 127)
+    {
+        payload[dlc++] = DCC_BINARY_SHORT;
+        payload[dlc++] = fn | (value ? 0x80 : 0);
+    }
+    else
+    {
+        payload[dlc++] = DCC_BINARY_LONG;
+        payload[dlc++] = (fn & 0x7F) | (value ? 0x80 : 0);
+        payload[dlc++] = (fn >> 8) & 0xFF;
+    }
+    add_dcc_checksum();
+}
+
+void Packet::add_dcc_analog_function(uint8_t fn, uint8_t value)
+{
+    payload[dlc++] = DCC_ANALOG_FN;
+    payload[dlc++] = fn;
+    payload[dlc++] = value;
     add_dcc_checksum();
 }
 
