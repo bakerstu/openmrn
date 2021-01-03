@@ -70,6 +70,11 @@ enum DccTrainUpdateCode
     FUNCTION9 = 4,
     FUNCTION13 = 5,
     FUNCTION21 = 6,
+    FUNCTION29 = 7,
+    FUNCTION37 = 8,
+    FUNCTION45 = 9,
+    FUNCTION53 = 10,
+    FUNCTION61 = 11,
     MM_F1 = 2,
     MM_F2,
     MM_F3,
@@ -379,11 +384,14 @@ struct DccPayloadBase
     /// Speed step we last set.
     uint8_t speed_ : 7;
 
+    /// f29-f68 state.
+    uint8_t fhi_[5];
+
     /// @return the largest function number supported by this train
     /// (inclusive).
     static unsigned get_max_fn()
     {
-        return 28;
+        return 68;
     }
 
     /// Set a given function bit in storage.
@@ -391,13 +399,28 @@ struct DccPayloadBase
     /// @param value function state
     void set_fn_store(unsigned idx, bool value)
     {
-        if (value)
+        if (idx < 29)
         {
-            fn_ |= (1u << idx);
+            if (value)
+            {
+                fn_ |= (1u << idx);
+            }
+            else
+            {
+                fn_ &= ~(1u << idx);
+            }
         }
         else
         {
-            fn_ &= ~(1u << idx);
+            idx -= 29;
+            if (value)
+            {
+                fhi_[idx / 8] |= (1u << (idx & 7));
+            }
+            else
+            {
+                fhi_[idx / 8] &= ~(1u << (idx & 7));
+            }
         }
     }
 
@@ -406,7 +429,15 @@ struct DccPayloadBase
     /// @return function state
     bool get_fn_store(unsigned idx)
     {
-        return (fn_ & (1u << idx)) != 0;
+        if (idx < 29)
+        {
+            return (fn_ & (1u << idx)) != 0;
+        }
+        else
+        {
+            idx -= 29;
+            return (fhi_[idx / 8] & (1u << (idx & 7))) != 0;
+        }
     }
 
     /** @return the update code to send ot the packet handler for a given
@@ -450,7 +481,7 @@ struct Dcc28Payload : public DccPayloadBase
     }
 };
 
-static_assert(sizeof(Dcc28Payload) == 12, "size of dcc payload is wrong");
+static_assert(sizeof(Dcc28Payload) == 16, "size of dcc payload is wrong");
 
 /// TrainImpl class for a DCC locomotive.
 template <class Payload> class DccTrain : public AbstractTrain<Payload>

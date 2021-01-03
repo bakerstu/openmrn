@@ -669,9 +669,25 @@ TEST_F(Train28Test, Function28)
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011111, 0x80, _));
 }
 
+TEST_F(Train28Test, Function47)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    train_.set_fn(47, 1);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011010, 0b100, _));
+}
+
+TEST_F(Train28Test, Function68)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    train_.set_fn(68, 1);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011100, 0x80, _));
+}
+
 TEST_F(Train28Test, AllFunctions)
 {
-    for (int a = 0; a <= 28; ++a)
+    for (int a = 0; a <= 68; ++a)
     {
         EXPECT_CALL(loop_, send_update(&train_, _))
             .WillOnce(SaveArg<1>(&code_));
