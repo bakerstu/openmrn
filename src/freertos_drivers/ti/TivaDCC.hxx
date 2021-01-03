@@ -392,6 +392,9 @@ private:
         // State at the end of packet where we make a decision whether to go
         // into a railcom cutout or not.
         DCC_MAYBE_RAILCOM,
+        // If we did not generate a cutout, we generate 5 empty one bits here
+        // in case a booster wants to insert a cutout.
+        DCC_NO_CUTOUT,
         // Counts 26 usec into the appropriate preamble bit after which to turn
         // off output power.
         DCC_CUTOUT_PRE,
@@ -573,12 +576,19 @@ inline void TivaDCC<HW>::interrupt_handler()
             {
                 railcomDriver_->no_cutout();
                 current_bit = DCC_ONE;
+                state_ = DCC_NO_CUTOUT;
+            }
+            break;
+        case DCC_NO_CUTOUT:
+            current_bit = DCC_ONE;
+            if (++preamble_count >= 4) {
                 state_ = DCC_LEADOUT;
+                preamble_count = 0;
             }
             break;
         case DCC_LEADOUT:
             current_bit = DCC_ONE;
-            if (++preamble_count >= 2) {
+            if (++preamble_count >= 1) {
                 get_next_packet = true;
             }
             break;
