@@ -581,16 +581,18 @@ inline void TivaDCC<HW>::interrupt_handler()
             break;
         case DCC_NO_CUTOUT:
             current_bit = DCC_ONE;
-            if (++preamble_count >= 4) {
+            if (++preamble_count >= 5) {
+                if (HW::generate_railcom_halfzero())
+                {
+                    current_bit = DCC_RC_HALF_ZERO;
+                }
                 state_ = DCC_LEADOUT;
                 preamble_count = 0;
             }
             break;
         case DCC_LEADOUT:
             current_bit = DCC_ONE;
-            if (++preamble_count >= 1) {
-                get_next_packet = true;
-            }
+            get_next_packet = true;
             break;
         case DCC_CUTOUT_PRE:
             current_bit = DCC_RC_ONE;
