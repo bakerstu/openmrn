@@ -291,7 +291,6 @@ tests:
 	@echo "***Not building tests at target $(TARGET), because missing: $(TEST_MISSING_DEPS) ***"
 
 else
-ifeq (1,1)
 
 SRCDIR=$(abspath ../../)
 #old code from prog.mk
@@ -303,55 +302,6 @@ SYSLIBRARIES += $(LIBS)
 TESTEXTRADEPS += lib/timestamp
 include $(OPENMRNPATH)/etc/core_test.mk
 
-else
-FULLPATHTESTSRCS ?= $(wildcard $(VPATH)/tests/*_test.cc)
-TESTSRCS = $(notdir $(FULLPATHTESTSRCS)) $(wildcard *_test.cc)
-TESTOBJS := $(TESTSRCS:.cc=.o)
-
-VPATH:=$(VPATH):$(GTESTPATH)/src:$(GTESTSRCPATH):$(GMOCKPATH)/src:$(GMOCKSRCPATH):$(abspath ../../tests)
-INCLUDES += -I$(GTESTPATH)/include -I$(GTESTPATH) -I$(GMOCKPATH)/include -I$(GMOCKPATH)
-
-TEST_OUTPUTS=$(TESTOBJS:.o=.output)
-
-TEST_EXTRA_OBJS += gtest-all.o gmock-all.o
-
-.cc.o:
-	$(CXX) $(CXXFLAGS) $< -o $@
-	$(CXX) -MM $(CXXFLAGS) $< > $*.d
-
-gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@
-	$(CXX) -MM $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH) $< > $*.d
-
-gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH)  $< -o $@
-	$(CXX) -MM $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) $< > $*.d
-
-#.PHONY: $(TEST_OUTPUTS)
-
-$(TEST_OUTPUTS) : %_test.output : %_test
-	./$*_test --gtest_death_test_style=threadsafe
-	touch $@
-
-$(TESTOBJS:.o=) : %_test : %_test.o $(TEST_EXTRA_OBJS) $(FULLPATHLIBS) $(LIBDIR)/timestamp lib/timestamp
-	$(LD) -o $*_test$(EXTENTION) $*_test.o $(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES) -lstdc++
-
-%_test.o : %_test.cc
-	$(CXX) $(CXXFLAGS:-Werror=) -DTESTING -fpermissive  $< -o $*_test.o
-	$(CXX) -MM $(CXXFLAGS) $< > $*_test.d
-
-#$(TEST_OUTPUTS) : %_test.output : %_test.cc gtest-all.o gtest_main.o
-#	$(CXX) $(CXXFLAGS) $< -o $*_test.o
-#	$(CXX) -MM $(CXXFLAGS) $< > $*_test.d
-#	$(LD) -o $*_test$(EXTENTION) $+ $(OBJEXTRA) $(LDFLAGS) $(LIBS) $(SYSLIBRARIES) -lstdc++
-#	./$*_test
-
-tests : all $(TEST_OUTPUTS)
-
-mksubdirs:
-	[ -d lib ] || mkdir lib
-endif # old testrunner code
-
 endif  # if we are able to run tests
 
-endif
+endif  # if we can build anything -- MISSING_DEPS is empty
