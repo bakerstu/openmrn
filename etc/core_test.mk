@@ -30,13 +30,20 @@ CXXFLAGS += $(INCLUDES)
 
 .SUFFIXES: .o .otest .c .cxx .cxxtest .test .testmd5 .testout
 
-LIBDIR ?= lib
+ifdef LIBDIR
+# we are under prog.mk
+TESTLIBDEPS += $(foreach lib,$(SUBDIRS),lib/lib$(lib).a)
+else
+LIBDIR = lib
+endif
+TESTLIBDEPS += $(foreach lib,$(CORELIBS),$(LIBDIR)/lib$(lib).a)
+
 LDFLAGS      += -L$(LIBDIR)
 
 $(LIBDIR)/timestamp: $(BUILDDIRS)
 
 $(info test deps $(TESTOBJSEXTRA) $(LIBDIR)/timestamp )
-$(TESTBINS): %.test$(EXTENTION) : %.test.o $(TESTOBJSEXTRA) $(LIBDIR)/timestamp $(TESTEXTRADEPS) | $(BUILDDIRS)
+$(TESTBINS): %.test$(EXTENTION) : %.test.o $(TESTOBJSEXTRA) $(LIBDIR)/timestamp lib/timestamp $(TESTLIBDEPS) $(TESTEXTRADEPS) | $(BUILDDIRS)
 	$(LD) -o $@ $(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(STARTGROUP) $(LINKCORELIBS) $(ENDGROUP) $(SYSLIBRARIES) 
 
 -include $(TESTOBJS:.test.o=.dtest)
