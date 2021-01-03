@@ -38,8 +38,8 @@ OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o) \
        $(XMLSRCS:.xml=.o)
 
 LIBDIR = $(OPENMRNPATH)/targets/$(TARGET)/lib
-FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a) $(wildcard lib/*.a)
 LIBDIRS := $(SUBDIRS)
+FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a) $(wildcard lib/*.a) $(foreach lib,$(LIBDIRS),lib/lib$(lib).a) 
 LIBS = $(STARTGROUP) \
        $(foreach lib,$(LIBDIRS),-l$(lib)) \
        $(LINKCORELIBS) \
@@ -53,7 +53,7 @@ all:
 # the directory foo and rebuild stuff that's there. However, the dependency is
 # phrased in a way that if recursing does not change the library (when it's
 # up-to-date) then the .elf linking is not re-done.
-$(foreach lib,$(LIBDIRS),$(eval $(call DEP_helper_template,lib/lib$(lib).a,build-$(lib))))
+$(foreach lib,$(LIBDIRS),$(eval $(call SUBDIR_helper_template,$(lib))))
 
 CDIEXTRA := -I.
 INCLUDES += -I.
@@ -151,7 +151,7 @@ clean: clean_cdi
 .PHONY: clean_cdi
 clean_cdi:
 	rm -f cdi.xmlout cdi.nxml cdi.cxxout compile_cdi
-endif
+endif  # have_config_cdi
 
 # Makes sure the subdirectory builds are done before linking the binary.
 # The targets and variable BUILDDIRS are defined in recurse.mk.
@@ -159,7 +159,7 @@ endif
 
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the application libraries.
-lib/timestamp : FORCE $(BUILDDIRS)
+lib/timestamp : FORCE
 #	 creates the lib directory
 	@[ -d lib ] || mkdir lib
 # in case there are not applibs.
