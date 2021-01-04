@@ -71,6 +71,10 @@
 #include "dcc/RailCom.hxx"
 #include "executor/Notifiable.hxx"
 
+/// If non-zero, enables the jitter feature to spread the EMC spectrum of DCC
+/// signal
+extern "C" uint8_t spreadSpectrum;
+
 /// This structure is safe to use from an interrupt context and a regular
 /// context at the same time, provided that
 ///
@@ -239,6 +243,12 @@ public:
         uint32_t transition_a;
         /// When to transition output B; must be within the period
         uint32_t transition_b;
+        /// How many ticks (minimum) we can add to the period and transition for
+        /// spectrum spreading.
+        uint16_t spread_min = 0;
+        /// How many ticks (maximum) we can add to the period and transition for
+        /// spectrum spreading.
+        uint16_t spread_max = 0;
     };
 
     /* WARNING: these functions (hw_init, enable_output, disable_output) MUST
@@ -435,9 +445,13 @@ private:
      * for DC output HIGH.
      * @param interval_period_usec tells when the interval timer should expire
      * (next interrupt). Most of the time this should be the same as
-     * period_usec.*/
+     * period_usec.
+     * @param timing_spread_usec if non-zero, allows the high and low of the
+     * timing to be stretched by at most this many usec.
+     */
     void fill_timing(BitEnum ofs, uint32_t period_usec,
-        uint32_t transition_usec, uint32_t interval_period_usec);
+        uint32_t transition_usec, uint32_t interval_period_usec,
+        uint32_t timing_spread_usec = 0);
 
     /// Checks each output and enables those that need to be on.
     void check_and_enable_outputs()
@@ -480,7 +494,14 @@ private:
     FixedQueue<dcc::Packet, HW::Q_SIZE> packetQueue_;
     Notifiable* writableNotifiable_; /**< Notify this when we have free buffers. */
     RailcomDriver* railcomDriver_; /**< Will be notified for railcom cutout events. */
-
+    /// Seed for a pseudorandom sequence.
+    unsigned seed_ = 0xb7a11bae;
+    /// Parameters for a linear RNG: modulus
+    static constexpr unsigned PMOD = 65213;
+    /// Parameters for a linear RNG: multiplier
+    static constexpr unsigned PMUL = 52253;
+    /// Parameters for a linear RNG: additive
+    static constexpr unsigned PADD = 42767;
     /** Default constructor.
      */
     TivaDCC();
@@ -499,6 +520,7 @@ inline void TivaDCC<HW>::interrupt_handler()
     static BitEnum last_bit = DCC_ONE;
     static int count = 0;
     static int packet_repeat_count = 0;
+    static int bit_repeat_count = 0;
     static const dcc::Packet *packet = &IDLE_PKT;
     static bool resync = true;
     BitEnum current_bit;
@@ -877,15 +899,36 @@ inline void TivaDCC<HW>::interrupt_handler()
             current_bit = DCC_ONE;
         }
     }
+    if (bit_repeat_count >= 4)
+    {
+        // Forces reinstalling the timing.
+        last_bit = NUM_TIMINGS;
+    }
     if (last_bit != current_bit)
     {
         auto* timing = &timings[current_bit];
-        MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->interval_period);
-        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timing->period);
-        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timing->period);
-        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
-        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timing->transition_b);
+        // The delta in ticks we add to each side of the signal.
+        uint32_t spread = 0;
+        if (spreadSpectrum)
+        {
+            spread = timing->spread_max - timing->spread_min;
+            seed_ *= PMUL;
+            seed_ += PADD;
+            seed_ %= PMOD;
+            spread = (seed_ % spread) + timing->spread_min;
+        }
+        MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
+            timing->interval_period + (spread << 1));
+        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timing->period + (spread << 1));
+        MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timing->period + (spread << 1));
+        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a + spread);
+        MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timing->transition_b + spread);
         last_bit = current_bit;
+        bit_repeat_count = 0;
+    }
+    else
+    {
+        bit_repeat_count++;
     }
 
     if (get_next_packet)
@@ -945,7 +988,7 @@ static uint32_t nsec_to_clocks(uint32_t nsec) {
 
 template <class HW>
 void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
-    uint32_t transition_usec, uint32_t interval_usec)
+    uint32_t transition_usec, uint32_t interval_usec, uint32_t spread_max)
 {
     auto* timing = &timings[ofs];
     timing->period = usec_to_clocks(period_usec);
@@ -965,8 +1008,12 @@ void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
         timing->transition_b =
             nominal_transition - (hDeadbandDelay_ + lDeadbandDelay_) / 2;
     }
+    if (spread_max > 0)
+    {
+        timing->spread_min = usec_to_clocks(1) / 2;
+        timing->spread_max = usec_to_clocks(spread_max);
+    }
 }
-
 
 template<class HW>
 dcc::Packet TivaDCC<HW>::IDLE_PKT = dcc::Packet::DCC_IDLE();
@@ -982,20 +1029,20 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
 {
     state_ = PREAMBLE;
 
-    fill_timing(DCC_ZERO, 105 << 1, 105, 105 << 1);
-    fill_timing(DCC_ONE, 56 << 1, 56, 56 << 1);
+    fill_timing(DCC_ZERO, 100 << 1, 100, 100 << 1, 5);
+    fill_timing(DCC_ONE, 56 << 1, 56, 56 << 1, 4);
     /// @todo tune this bit to line up with the bit stream starting after the
     /// railcom cutout.
     fill_timing(DCC_RC_ONE, 57 << 1, 57, 57 << 1);
     // A small pulse in one direction then a half zero bit in the other
     // direction.
-    fill_timing(DCC_RC_HALF_ZERO, 100 + 56, 56, 100 + 56);
+    fill_timing(DCC_RC_HALF_ZERO, 100 + 56, 56, 100 + 56, 5);
     // At the end of the packet we stretch the negative side but let the
     // interval timer kick in on time. The next bit will resync, and this
     // avoids a glitch output to the track when a marklin preamble is coming.
     fill_timing(DCC_EOP_ONE, (56 << 1) + 20, 58, 56 << 1);
-    fill_timing(MM_ZERO, 208, 26, 208);
-    fill_timing(MM_ONE, 208, 182, 208);
+    fill_timing(MM_ZERO, 208, 26, 208, 2);
+    fill_timing(MM_ONE, 208, 182, 208, 2);
     // Motorola preamble is negative DC signal.
     fill_timing(MM_PREAMBLE, 208, 0, 208);
 
