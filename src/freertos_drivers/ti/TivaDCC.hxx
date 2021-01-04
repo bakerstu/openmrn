@@ -312,7 +312,8 @@ private:
     static dcc::Packet IDLE_PKT;
 
     /// Bit timings that we store and precalculate.
-    typedef enum {
+    typedef enum
+    {
         /// Zero bit for DCC (this is the longer)
         DCC_ZERO,
         /// One bit for DCC (this is the shorter)
@@ -342,7 +343,7 @@ private:
         /// and the the middle of the two windows.
         RAILCOM_CUTOUT_SECOND,
         /// This is not a bit, but specifies when to wake up during the railcom
-        /// cutout. This is used for re-synchronizing the 
+        /// cutout. This is used for re-synchronizing the
         RAILCOM_CUTOUT_POST,
         /// Long negative DC pulse to act as a preamble for a Marklin packet.
         MM_PREAMBLE,
@@ -431,12 +432,12 @@ private:
      * @param transition_usec is the time of the transition inside the bit,
      * counted from the beginning of the bit (i.e. the length of the HIGH part
      * of the period). Can be zero for DC output LOW or can be == period_usec
-     * for DC output HIGH. 
+     * for DC output HIGH.
      * @param interval_period_usec tells when the interval timer should expire
      * (next interrupt). Most of the time this should be the same as
      * period_usec.*/
     void fill_timing(BitEnum ofs, uint32_t period_usec,
-                     uint32_t transition_usec, uint32_t interval_period_usec);
+        uint32_t transition_usec, uint32_t interval_period_usec);
 
     /// Checks each output and enables those that need to be on.
     void check_and_enable_outputs()
@@ -589,7 +590,7 @@ inline void TivaDCC<HW>::interrupt_handler()
                 // transition of the output.
                 // We change the time of the next IRQ.
                 MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
-                                 timings[RAILCOM_CUTOUT_PRE].interval_period);
+                    timings[RAILCOM_CUTOUT_PRE].interval_period);
                 state_ = DCC_CUTOUT_PRE;
             }
             else
@@ -621,7 +622,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             // the output.
             // We change the time of the next IRQ.
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
-                             timings[RAILCOM_CUTOUT_FIRST].interval_period);
+                timings[RAILCOM_CUTOUT_FIRST].interval_period);
             state_ = DCC_START_RAILCOM_RECEIVE;
             break;
         case DCC_START_RAILCOM_RECEIVE:
@@ -681,7 +682,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             // Set up for next wakeup.
             current_bit = DCC_RC_ONE;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
-                             timings[RAILCOM_CUTOUT_SECOND].interval_period);
+                timings[RAILCOM_CUTOUT_SECOND].interval_period);
             state_ = DCC_MIDDLE_RAILCOM_CUTOUT;
             break;
         }
@@ -689,7 +690,7 @@ inline void TivaDCC<HW>::interrupt_handler()
             railcomDriver_->middle_cutout();
             current_bit = DCC_RC_ONE;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
-                             timings[RAILCOM_CUTOUT_POST].interval_period);
+                timings[RAILCOM_CUTOUT_POST].interval_period);
             state_ = DCC_STOP_RAILCOM_RECEIVE;
             break;
         case DCC_STOP_RAILCOM_RECEIVE:
@@ -825,7 +826,8 @@ inline void TivaDCC<HW>::interrupt_handler()
             MAP_TimerEnable(HW::CCP_BASE, TIMER_A|TIMER_B);
 
             MAP_TimerDisable(HW::INTERVAL_BASE, TIMER_A);
-            MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->interval_period);
+            MAP_TimerLoadSet(
+                HW::INTERVAL_BASE, TIMER_A, timing->interval_period);
             MAP_TimerEnable(HW::INTERVAL_BASE, TIMER_A);
 
             // Switches back to asynch timer update.
@@ -863,7 +865,8 @@ inline void TivaDCC<HW>::interrupt_handler()
             // Sets final values for the cycle.
             MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A, timing->period);
             MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
-            MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->interval_period);
+            MAP_TimerLoadSet(
+                HW::INTERVAL_BASE, TIMER_A, timing->interval_period);
         }
         
         last_bit = current_bit;
@@ -940,9 +943,9 @@ static uint32_t nsec_to_clocks(uint32_t nsec) {
     return ((configCPU_CLOCK_HZ / 1000000) * nsec) / 1000;
 }
 
-template<class HW>
+template <class HW>
 void TivaDCC<HW>::fill_timing(BitEnum ofs, uint32_t period_usec,
-                              uint32_t transition_usec, uint32_t interval_usec)
+    uint32_t transition_usec, uint32_t interval_usec)
 {
     auto* timing = &timings[ofs];
     timing->period = usec_to_clocks(period_usec);
@@ -979,18 +982,18 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
 {
     state_ = PREAMBLE;
 
-    fill_timing(DCC_ZERO, 105<<1, 105, 105<<1);
-    fill_timing(DCC_ONE, 56<<1, 56, 56<<1);
+    fill_timing(DCC_ZERO, 105 << 1, 105, 105 << 1);
+    fill_timing(DCC_ONE, 56 << 1, 56, 56 << 1);
     /// @todo tune this bit to line up with the bit stream starting after the
     /// railcom cutout.
-    fill_timing(DCC_RC_ONE, 57<<1, 57, 57<<1);
+    fill_timing(DCC_RC_ONE, 57 << 1, 57, 57 << 1);
     // A small pulse in one direction then a half zero bit in the other
     // direction.
-    fill_timing(DCC_RC_HALF_ZERO, 100 + 56, 56, 100+56);
+    fill_timing(DCC_RC_HALF_ZERO, 100 + 56, 56, 100 + 56);
     // At the end of the packet we stretch the negative side but let the
     // interval timer kick in on time. The next bit will resync, and this
     // avoids a glitch output to the track when a marklin preamble is coming.
-    fill_timing(DCC_EOP_ONE, (56<<1) + 20, 58, 56<<1);
+    fill_timing(DCC_EOP_ONE, (56 << 1) + 20, 58, 56 << 1);
     fill_timing(MM_ZERO, 208, 26, 208);
     fill_timing(MM_ONE, 208, 182, 208);
     // Motorola preamble is negative DC signal.
@@ -1000,15 +1003,15 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     unsigned railcom_part = 0;
     unsigned target =
         RAILCOM_CUTOUT_START_USEC + HW::RAILCOM_CUTOUT_START_DELTA_USEC;
-    fill_timing(RAILCOM_CUTOUT_PRE, 56<<1, 56, target - railcom_part);
+    fill_timing(RAILCOM_CUTOUT_PRE, 56 << 1, 56, target - railcom_part);
     railcom_part = target;
 
     target = RAILCOM_CUTOUT_MID_USEC + HW::RAILCOM_CUTOUT_MID_DELTA_USEC;
-    fill_timing(RAILCOM_CUTOUT_FIRST, 56<<1, 56, target - railcom_part);
+    fill_timing(RAILCOM_CUTOUT_FIRST, 56 << 1, 56, target - railcom_part);
     railcom_part = target;
 
     target = RAILCOM_CUTOUT_END_USEC + HW::RAILCOM_CUTOUT_END_DELTA_USEC;
-    fill_timing(RAILCOM_CUTOUT_SECOND, 56<<1, 56, target - railcom_part);
+    fill_timing(RAILCOM_CUTOUT_SECOND, 56 << 1, 56, target - railcom_part);
     railcom_part = target;
 
     static_assert((5 * 56 * 2 - 56 + HW::RAILCOM_CUTOUT_POST_DELTA_USEC) >
@@ -1019,8 +1022,8 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     // remaining time until 5 one bits are complete. For the PWM timer we have
     // some fraction of the high part, then a full low side, then we stretch
     // the low side to avoid the packet transition glitch.
-    fill_timing(RAILCOM_CUTOUT_POST, remaining_high + 56 + 20,
-        remaining_high, remaining_high + 56 + h_deadband);
+    fill_timing(RAILCOM_CUTOUT_POST, remaining_high + 56 + 20, remaining_high,
+        remaining_high + 56 + h_deadband);
 
     // We need to disable the timers before making changes to the config.
     MAP_TimerDisable(HW::CCP_BASE, TIMER_A);
@@ -1115,11 +1118,11 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
     // TODO(balazs.racz) this interrupt disable is not actually needed. Writing
     // to the back of the queue should be okay while the interrupt reads from
     // the front of it.
-    //MAP_TimerIntDisable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
+    // MAP_TimerIntDisable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
 
     if (packetQueue_.full())
     {
-        //MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
+        // MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
         return -ENOSPC;
     }
 
@@ -1146,7 +1149,7 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
         HW::flip_led();
     }
 
-    //MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
+    // MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
     return count;
 }
 
