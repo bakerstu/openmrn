@@ -1115,14 +1115,9 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
     }
 
     OSMutexLock l(&lock_);
-    // TODO(balazs.racz) this interrupt disable is not actually needed. Writing
-    // to the back of the queue should be okay while the interrupt reads from
-    // the front of it.
-    // MAP_TimerIntDisable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
 
     if (packetQueue_.full())
     {
-        // MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
         return -ENOSPC;
     }
 
@@ -1149,7 +1144,6 @@ ssize_t TivaDCC<HW>::write(File *file, const void *buf, size_t count)
         HW::flip_led();
     }
 
-    // MAP_TimerIntEnable(HW::INTERVAL_BASE, TIMER_TIMA_TIMEOUT);
     return count;
 }
 
