@@ -403,13 +403,9 @@ private:
         // Point between railcom window 1 and railcom window 2 where we have to
         // read whatever arrived for channel1.
         DCC_MIDDLE_RAILCOM_CUTOUT,
-        // Railcom end-of-channel2 window. Reads out the UART values.
+        // Railcom end-of-channel2 window. Reads out the UART values, and
+        // enables output power.
         DCC_STOP_RAILCOM_RECEIVE,
-        // End of railcom cutout. Reenables output power.
-        DCC_ENABLE_AFTER_RAILCOM,
-        // A few one bits after the DCC packet is over in case we didn't go
-        // into railcom cutout. Form here we go into getting the next packet.
-        DCC_LEADOUT,
         // Same for marklin. A bit of negative voltage after the packet is over
         // but before loading the next packet. This ensures that old marklin
         // decoders confirm receiving the packet correctly before we go into a
@@ -504,20 +500,27 @@ inline void TivaDCC<HW>::interrupt_handler()
     {
         default:
         case RESYNC:
-            current_bit = DCC_ONE;
             if (packet->packet_header.is_marklin)
             {
+                current_bit = MM_PREAMBLE;
                 state_ = ST_MM_PREAMBLE;
+                break;
             }
             else
             {
                 state_ = PREAMBLE;
             }
-            break;
+            // fall through
         case PREAMBLE:
         {
             current_bit = DCC_ONE;
             int preamble_needed = HW::dcc_preamble_count();
+            if (HW::generate_railcom_halfzero() && preamble_count == 0 &&
+                !packet->packet_header.send_long_preamble)
+            {
+                current_bit = DCC_RC_HALF_ZERO;
+                ++preamble_needed;
+            }
             if (packet->packet_header.send_long_preamble)
             {
                 preamble_needed = 21;
@@ -581,18 +584,12 @@ inline void TivaDCC<HW>::interrupt_handler()
             break;
         case DCC_NO_CUTOUT:
             current_bit = DCC_ONE;
-            if (++preamble_count >= 5) {
-                if (HW::generate_railcom_halfzero())
-                {
-                    current_bit = DCC_RC_HALF_ZERO;
-                }
-                state_ = DCC_LEADOUT;
+            // maybe railcom already sent one extra ONE bit after the
+            // end-of-packet one bit. We need four more.
+            if (++preamble_count >= 4) {
+                get_next_packet = true;
                 preamble_count = 0;
             }
-            break;
-        case DCC_LEADOUT:
-            current_bit = DCC_ONE;
-            get_next_packet = true;
             break;
         case DCC_CUTOUT_PRE:
             current_bit = DCC_RC_ONE;
@@ -669,23 +666,15 @@ inline void TivaDCC<HW>::interrupt_handler()
             current_bit = DCC_RC_ONE;
             MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A,
                              timings[RAILCOM_CUTOUT_POST].period);
-            state_ =  DCC_STOP_RAILCOM_RECEIVE;
+            state_ = DCC_STOP_RAILCOM_RECEIVE;
             break;
         case DCC_STOP_RAILCOM_RECEIVE:
         {
-            if (HW::generate_railcom_halfzero())
-            {
-                current_bit = DCC_RC_HALF_ZERO;
-            }
-            else
-            {
-                current_bit = DCC_RC_ONE;
-            }
+            current_bit = DCC_RC_ONE;
             // This causes the timers to be reinitialized so no fractional bits
             // are left in their counters.
             resync = true;
             get_next_packet = true;
-            state_ = DCC_ENABLE_AFTER_RAILCOM;
             railcomDriver_->end_cutout();
             unsigned delay = 0;
             if (HW::Output1::isRailcomCutoutActive_)
@@ -726,11 +715,6 @@ inline void TivaDCC<HW>::interrupt_handler()
             check_and_enable_outputs();
             break;
         }
-        case DCC_ENABLE_AFTER_RAILCOM:
-            current_bit = DCC_ONE;
-            state_ = DCC_LEADOUT;
-            ++preamble_count;
-            break;
         case ST_MM_PREAMBLE:
             current_bit = MM_PREAMBLE;
             ++preamble_count;
@@ -854,7 +838,14 @@ inline void TivaDCC<HW>::interrupt_handler()
         }
         
         last_bit = current_bit;
-    } else if (last_bit != current_bit)
+        if (current_bit == DCC_RC_HALF_ZERO)
+        {
+            // After resync the same bit is output twice. We don't want that
+            // with the half-zero, so we preload the DCC preamble bit.
+            current_bit = DCC_ONE;
+        }
+    }
+    if (last_bit != current_bit)
     {
         auto* timing = &timings[current_bit];
         MAP_TimerLoadSet(HW::INTERVAL_BASE, TIMER_A, timing->period);
@@ -965,7 +956,7 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     fill_timing(DCC_RC_ONE, 56<<1, 56);
     // A small pulse in one direction then a half zero bit in the other
     // direction.
-    fill_timing(DCC_RC_HALF_ZERO, 100 + 15, 15);
+    fill_timing(DCC_RC_HALF_ZERO, 100 + 56, 56);
     fill_timing(MM_ZERO, 208, 26);
     fill_timing(MM_ONE, 208, 182);
     // Motorola preamble is negative DC signal.
