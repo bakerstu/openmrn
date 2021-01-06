@@ -172,6 +172,75 @@ TEST_F(PacketTest, Fn20)
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011111, 0xAA, _));
 }
 
+TEST_F(PacketTest, Fn29)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function_hi(29, 0x5A);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011000, 0x5A, _));
+}
+
+TEST_F(PacketTest, Fn37)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function_hi(37, 0x11);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011001, 0x11, _));
+}
+
+TEST_F(PacketTest, Fn45)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function_hi(45, 0x11);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011010, 0x11, _));
+}
+
+TEST_F(PacketTest, Fn53)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function_hi(53, 0x11);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011011, 0x11, _));
+}
+
+TEST_F(PacketTest, Fn61)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_function_hi(61, 0x11);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011100, 0x11, _));
+}
+
+TEST_F(PacketTest, BinaryStateShort)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_binary_state(61, true);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011101, 61 | 0x80, _));
+}
+
+TEST_F(PacketTest, BinaryStateShortOff)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_binary_state(127, false);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011101, 127, _));
+}
+
+TEST_F(PacketTest, BinaryStateLongOn)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_binary_state(16 * 256 + 61, true);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11000000, 61 + 0x80, 16, _));
+}
+
+TEST_F(PacketTest, BinaryStateLongOff)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_binary_state(16 * 256 + 61, false);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11000000, 61, 16, _));
+}
+
+TEST_F(PacketTest, AnalogFunction)
+{
+    pkt_.add_dcc_address(DccShortAddress(55));
+    pkt_.add_dcc_analog_function(17, 99);
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b00111101, 17, 99, _));
+}
 
 TEST_F(PacketTest, DccBasicAccyOn)
 {
@@ -600,9 +669,25 @@ TEST_F(Train28Test, Function28)
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011111, 0x80, _));
 }
 
+TEST_F(Train28Test, Function47)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    train_.set_fn(47, 1);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011010, 0b100, _));
+}
+
+TEST_F(Train28Test, Function68)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    train_.set_fn(68, 1);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b11011100, 0x80, _));
+}
+
 TEST_F(Train28Test, AllFunctions)
 {
-    for (int a = 0; a <= 28; ++a)
+    for (int a = 0; a <= 68; ++a)
     {
         EXPECT_CALL(loop_, send_update(&train_, _))
             .WillOnce(SaveArg<1>(&code_));

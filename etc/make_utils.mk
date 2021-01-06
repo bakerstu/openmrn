@@ -27,10 +27,14 @@ endef
 ### Helper template to declare a dependency.
 ### Arguments: target_file dependency_file
 ### Example on how to call: Put the following on a standalone line in the Makefile
-### $(foreach lib,$(LIBDIRS),$(eval $(call DEP_helper_template,lib/lib$(lib).a,build-$(lib))))
-define DEP_helper_template
+### $(foreach lib,$(LIBDIRS),$(eval $(call SUBDIR_helper_template,lib/lib$(lib).a,build-$(lib))))
+define SUBDIR_helper_template
 
-$(1): $(2)
+$(1)/lib$(1).a: | build-$(1)
+
+lib/lib$(1).a: $(1)/lib$(1).a
+
+lib/timestamp: lib/lib$(1).a
 
 endef
 
