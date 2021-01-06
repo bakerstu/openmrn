@@ -182,11 +182,34 @@ struct Packet : public DCCPacket
     /** Adds a DCC function group command to the packet. The lowest numbered
      * function is always at bit zero. @param values are bitmask of functions
      * to send to the loco. */
-    void add_dcc_function13_20(unsigned values);
+    void add_dcc_function13_20(unsigned values)
+    {
+        add_dcc_function_hi(13, values);
+    }
     /** Adds a DCC function group command to the packet. The lowest numbered
      * function is always at bit zero. @param values are bitmask of functions
      * to send to the loco. */
-    void add_dcc_function21_28(unsigned values);
+    void add_dcc_function21_28(unsigned values)
+    {
+        add_dcc_function_hi(21, values);
+    }
+    /** Adds a DCC function group command to the packet. The lowest numbered
+     * function is always at bit zero.
+     * @param base is a valid function number base, 13, 21, 29, 37, 45, 53
+     * or 61.
+     * @param values are bitmask of functions to send to the loco. */
+    void add_dcc_function_hi(uint8_t base, uint8_t values);
+
+    /** Adds a DCC binary state control command to the packet. Automatically
+     * picks the short or long form, depending on the range of the argument.
+     * @param fn is a binary function variable, 0 to 32767.
+     * @param value true/false, what to set to. */
+    void add_dcc_binary_state(uint16_t fn, bool value);
+
+    /** Adds a DCC analog function control command to the packet.
+     * @param fn is an analog function variable, 0 to 255.
+     * @param value to set it to, 0 to 255. */
+    void add_dcc_analog_function(uint8_t fn, uint8_t value);
 
     /** Helper function for adding programming mode packets. */
     void add_dcc_prog_command(
