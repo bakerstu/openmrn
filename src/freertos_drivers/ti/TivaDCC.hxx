@@ -206,6 +206,30 @@ private:
  *
  *  The application can request notification of readable and writable status
  *  using the regular IOCTL method.
+ *
+ *
+ *  EMC spectrum spreading
+ *
+ *  There is an optional feature that helps with passing EMC certification for
+ *  systems that are built on this driver. The observation is that if the
+ *  output signal has may repeats of a certain period, then in the measured
+ *  spectrum there will be a big spike in energy that might exceed the
+ *  thresholds for compliance. However, by slightly varying the timing of the
+ *  output signal, the energy will be spread across a wider spectrum, thus the
+ *  peak of emission will be smaller.
+ *
+ *  This feature is enabled by `extern uint8_t spreadSpectrum;`. This can come
+ *  from a constant or configuration dependent variable. If enabled, then the
+ *  timing of DCC zero bits are stretched to be a random value between 100.5
+ *  and 105 usec each half; the timing of DCC one bits will be stretched from
+ *  56.5 to 60 usec per half. The symmetry within each bit is still perfectly
+ *  matched. Marklin-Motorola packets get up to 2 usec of stretching on each
+ *  phase.
+ *
+ *  The actual stretching is generated using a uniform random number generator
+ *  within said limits to ensure we spread uniformly across the available
+ *  timings. Up to four bits are output with the same timing, then a new random
+ *  timing is generated.
  */
 template<class HW>
 class TivaDCC : public Node
