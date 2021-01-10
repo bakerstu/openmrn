@@ -53,6 +53,8 @@ public:
         , bucketMax_(max_tokens)
         , callback_(callback)
     {
+        HASSERT(callback);
+    }
     }
 
     /// Attempts to take a token out of the bucket.
