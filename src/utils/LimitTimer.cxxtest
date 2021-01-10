@@ -1,0 +1,104 @@
+/** \copyright
+ * Copyright (c) 2021, Stuart Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * @file LimitTimer.cxxtest
+ *
+ * Unit tests for LimitTimer.
+ *
+ * @author Stuart Baker
+ * @date 10 January 2021
+ */
+
+#include "utils/test_main.hxx"
+
+#include "utils/LimitTimer.hxx"
+#include "os/FakeClock.hxx"
+
+class MockCallback
+{
+public:
+    MOCK_METHOD0(callback, void());
+};
+
+class MyLimitTimer
+{
+public:
+    /// Constructor.
+    /// @param update_delay_msec cooldown time delay in milliseconds
+    /// @param max_tokens number of available tokens
+    MyLimitTimer(uint16_t update_delay_msec,
+                 uint8_t max_tokens)
+        : mockCallback_()
+        , limitTimer_(&g_executor, update_delay_msec, max_tokens,
+                      std::bind(&MockCallback::callback, &mockCallback_))
+    {
+    }
+
+    /// Destructor.
+    ~MyLimitTimer()
+    {
+        wait_for_main_executor();
+        while (!g_executor.active_timers()->empty())
+        {
+            sleep_helper(20);
+        }
+    }
+
+    /// Helper function for sleeping.
+    /// @param clk fake clock or nullptr if no fake clock exists
+    /// @param len_msec how long to sleep
+    /// @param step_msec what granularity to use for sleeping wiht fake clock.
+    void sleep_helper(unsigned len_msec, unsigned step_msec = 50)
+    {
+        for (unsigned i = 0; i < len_msec; i += step_msec)
+        {
+            clk_.advance(MSEC_TO_NSEC(step_msec));
+            wait_for_main_executor();
+        }
+    }
+
+    FakeClock clk_;
+
+    testing::StrictMock<MockCallback> mockCallback_;
+    LimitTimer limitTimer_;
+};
+
+TEST(LimitTimerTest, Create)
+{
+    MyLimitTimer(200, 3);
+}
+
+TEST(LimitTimerTest, TryTake)
+{
+    MyLimitTimer lt(300, 3);
+    EXPECT_CALL(lt.mockCallback_, callback()).Times(0);
+    EXPECT_TRUE(lt.limitTimer_.try_take());
+    EXPECT_TRUE(lt.limitTimer_.try_take());
+    EXPECT_TRUE(lt.limitTimer_.try_take());
+
+    EXPECT_CALL(lt.mockCallback_, callback()).Times(1);
+    EXPECT_FALSE(lt.limitTimer_.try_take());
+}
