@@ -26,7 +26,8 @@
  *
  * @file LimitTimer.hxx
  *
- * Limits the number of updates per unit time.
+ * Limits the number of updates per unit time. Initial version written by
+ * Balazs Racz, modified for generalization by Stuart Baker
  *
  * @author Balazs Racz, Stuart Baker
  * @date 9 January 2021
