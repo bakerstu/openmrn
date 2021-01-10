@@ -82,7 +82,7 @@ public:
 
     FakeClock clk_;
 
-    testing::StrictMock<MockCallback> mockCallback_;
+    ::testing::StrictMock<MockCallback> mockCallback_;
     LimitTimer limitTimer_;
 };
 
@@ -93,12 +93,44 @@ TEST(LimitTimerTest, Create)
 
 TEST(LimitTimerTest, TryTake)
 {
-    MyLimitTimer lt(300, 3);
+    MyLimitTimer lt(200, 3);
+
+    ::testing::MockFunction<void(string check_point_name)> check;
+
+    ::testing::InSequence s;
+
+    // flush out the tokens
     EXPECT_CALL(lt.mockCallback_, callback()).Times(0);
     EXPECT_TRUE(lt.limitTimer_.try_take());
     EXPECT_TRUE(lt.limitTimer_.try_take());
     EXPECT_TRUE(lt.limitTimer_.try_take());
+    EXPECT_CALL(check, Call("1"));
+    check.Call("1");
 
-    EXPECT_CALL(lt.mockCallback_, callback()).Times(1);
+    // try to pull one more token out (that is not available)
+    EXPECT_CALL(lt.mockCallback_, callback()).Times(0);
     EXPECT_FALSE(lt.limitTimer_.try_take());
+    EXPECT_CALL(check, Call("2"));
+    check.Call("2");
+
+    // verify the callback after timeout
+    EXPECT_CALL(lt.mockCallback_, callback()).Times(1);
+    EXPECT_CALL(check, Call("3"));
+    lt.sleep_helper(200);
+    check.Call("3");
+
+    // timer should still be running as bucket gets refilled
+    lt.sleep_helper(200);
+    EXPECT_FALSE(g_executor.active_timers()->empty());
+
+    // pull a token from the bucket
+    lt.limitTimer_.take_no_callback();
+
+    // timer should still be running as bucket gets refilled
+    lt.sleep_helper(200);
+    EXPECT_FALSE(g_executor.active_timers()->empty());
+
+    // timer should stop running once bucket gets refilled
+    lt.sleep_helper(200);
+    EXPECT_TRUE(g_executor.active_timers()->empty());
 }
