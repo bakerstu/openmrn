@@ -55,6 +55,11 @@ public:
     {
         HASSERT(callback);
     }
+
+    /// Destructor.
+    ~LimitTimer()
+    {
+        cancel();
     }
 
     /// Attempts to take a token out of the bucket.
