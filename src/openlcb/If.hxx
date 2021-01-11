@@ -282,12 +282,20 @@ public:
     MessageHandler *global_message_write_flow()
     {
         HASSERT(globalWriteFlow_);
+        if (txHook_)
+        {
+            txHook_();
+        }
         return globalWriteFlow_;
     }
     /** @return Flow to send addressed messages to the NMRAnet bus. */
     MessageHandler *addressed_message_write_flow()
     {
         HASSERT(addressedWriteFlow_);
+        if (txHook_)
+        {
+            txHook_();
+        }
         return addressedWriteFlow_;
     }
 
@@ -399,7 +407,15 @@ public:
      * the interface holds internally. Noop for TCP interface. Must be called
      * on the interface executor. */
     virtual void canonicalize_handle(NodeHandle *h) {}
-    
+
+    /// Sets a transmit hook. This function will be called once for every
+    /// OpenLCB message transmitted. Used for implementing activity LEDs.
+    /// @param hook function to call for each transmit message.
+    void set_tx_hook(std::function<void()> hook)
+    {
+        txHook_ = std::move(hook);
+    }
+
 protected:
     void remove_local_node_from_map(Node *node) {
         auto it = localNodes_.find(node->node_id());
@@ -415,6 +431,9 @@ protected:
 private:
     /// Flow responsible for routing incoming messages to handlers.
     MessageDispatchFlow dispatcher_;
+
+    /// This function is pinged every time a message is transmitted.
+    std::function<void()> txHook_;
 
     typedef Map<NodeID, Node *> VNodeMap;
 
@@ -451,6 +470,28 @@ public:
         return message()->data();
     }
 };
+
+/// Sends an OpenLCB message to the bus.  Performs synchronous (dynamic) memory
+/// allocation so use it sparingly and when there is sufficient amount of RAM
+/// available.
+/// @param src_node A local virtual node from which to send the message.
+/// @param mti message type indicator
+/// @param args either a Payload to send a global message, or a NodeHandle dst
+/// and a Payload to send an addressed message.
+template <typename... Args> void send_message(Node *src_node, Defs::MTI mti, Args &&...args)
+{
+    Buffer<GenMessage> *msg;
+    mainBufferPool->alloc(&msg);
+    msg->data()->reset(mti, src_node->node_id(), std::forward<Args>(args)...);
+    if (msg->data()->dst == NodeHandle())
+    {
+        src_node->iface()->global_message_write_flow()->send(msg);
+    }
+    else
+    {
+        src_node->iface()->addressed_message_write_flow()->send(msg);
+    }
+}
 
 } // namespace openlcb
 

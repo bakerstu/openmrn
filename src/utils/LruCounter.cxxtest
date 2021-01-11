@@ -1,0 +1,293 @@
+/** \copyright
+ * Copyright (c) 2020, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file LruCounter.cxxtest
+ *
+ * Unit tests for LruCounter.
+ *
+ * @author Balazs Racz
+ * @date 18 Sep 2020
+ */
+
+#include "utils/LruCounter.hxx"
+
+#include "utils/test_main.hxx"
+
+class LruCounterTest : public ::testing::Test
+{
+protected:
+    GlobalLruCounter global_;
+
+    void tick_n(unsigned n)
+    {
+        for (unsigned i = 0; i < n; ++i)
+        {
+            global_.tick();
+            cb1.tick(global_);
+            cb2.tick(global_);
+            cb3.tick(global_);
+            cb4.tick(global_);
+            cs1.tick(global_);
+            cs2.tick(global_);
+            cs3.tick(global_);
+            cs4.tick(global_);
+        }
+    }
+
+    void set_bits_per_bit(unsigned bpb)
+    {
+        new (&global_) GlobalLruCounter(bpb);
+    }
+
+    /// Runs the sequence test on a given set of counters.
+    /// @param entries the counters
+    /// @param num_tick how much to wait between resetting each counter.
+    template <class T>
+    void sequence_test(std::initializer_list<T *> entries, unsigned num_tick)
+    {
+        for (T *e : entries)
+        {
+            EXPECT_EQ(0u, e->value());
+        }
+        for (unsigned i = 1; i < entries.size(); i++)
+        {
+            tick_n(num_tick);
+            entries.begin()[i]->touch();
+        }
+        tick_n(num_tick);
+
+        for (unsigned i = 1; i < entries.size(); i++)
+        {
+            EXPECT_GT(
+                entries.begin()[i - 1]->value(), entries.begin()[i]->value());
+        }
+    }
+
+    /// Expects that an entry is going to flip forward to the next value in
+    /// num_tick counts.
+    template <class T> void next_increment(T *entry, unsigned num_tick)
+    {
+        LOG(INFO, "Next increment from %u", entry->value());
+        unsigned current = entry->value();
+        tick_n(num_tick - 1);
+        EXPECT_EQ(current, entry->value());
+        tick_n(1);
+        EXPECT_EQ(current + 1, entry->value());
+    }
+
+    /// Byte sized LRU counters for testing.
+    LruCounter<uint8_t> cb1, cb2, cb3, cb4;
+    /// Short sized LRU counters for testing.
+    LruCounter<uint16_t> cs1, cs2, cs3, cs4;
+};
+
+TEST_F(LruCounterTest, create)
+{
+}
+
+/// Tests that the initial value is zero and the reset value is zero.
+TEST_F(LruCounterTest, initial)
+{
+    EXPECT_EQ(0u, cb1.value());
+    EXPECT_EQ(0u, cs1.value());
+
+    cb1.touch();
+    cs1.touch();
+
+    EXPECT_EQ(0u, cb1.value());
+    EXPECT_EQ(0u, cs1.value());
+}
+
+/// Increments a counter through the first few values, which take exponentially
+/// increasing tick count.
+TEST_F(LruCounterTest, simple_increment)
+{
+    set_bits_per_bit(1);
+    EXPECT_EQ(0u, cb1.value());
+    tick_n(1); // 1
+    EXPECT_EQ(1u, cb1.value());
+    tick_n(1); // 2
+    EXPECT_EQ(2u, cb1.value());
+    tick_n(2); // 4
+    EXPECT_EQ(3u, cb1.value());
+    tick_n(4); // 8
+    EXPECT_EQ(4u, cb1.value());
+    tick_n(8); // 16
+    EXPECT_EQ(5u, cb1.value());
+}
+
+/// Increments a 16-bit counter through the first few values, which take
+/// exponentially increasing tick count.
+TEST_F(LruCounterTest, simple_increment_short)
+{
+    set_bits_per_bit(1);
+    EXPECT_EQ(0u, cs1.value());
+    tick_n(1); // 1
+    EXPECT_EQ(1u, cs1.value());
+    tick_n(1); // 2
+    EXPECT_EQ(2u, cs1.value());
+    tick_n(2); // 4
+    EXPECT_EQ(3u, cs1.value());
+    tick_n(4); // 8
+    EXPECT_EQ(4u, cs1.value());
+    tick_n(8); // 16
+    EXPECT_EQ(5u, cs1.value());
+}
+
+/// Increments a 2 bit/bit counter through the first few values, which take
+/// exponentially increasing tick count.
+TEST_F(LruCounterTest, simple_increment_2bit)
+{
+    EXPECT_EQ(0u, cb1.value());
+    next_increment(&cb1, 1);   // old value = 0, next tick = 1
+    next_increment(&cb1, 3);   // old value = 1, next tick = 4
+    next_increment(&cb1, 12);  // old value = 2, next tick = 16
+    next_increment(&cb1, 16);  // old value = 3, next tick = 32
+    next_increment(&cb1, 32);  // old value = 4, next tick = 64
+    next_increment(&cb1, 64);  // old value = 5, next tick = 128
+    next_increment(&cb1, 64);  // old value = 6, next tick = 192
+    next_increment(&cb1, 64);  // old value = 7, next tick = 256
+    next_increment(&cb1, 256); // old value = 8, next tick = 512
+}
+
+/// Increments a 16-bit 2 bit/bit counter through the first few values, which
+/// take exponentially increasing tick count.
+TEST_F(LruCounterTest, simple_increment_short_2bit)
+{
+    EXPECT_EQ(0u, cs1.value());
+    next_increment(&cs1, 1);   // old value = 0, next tick = 1
+    next_increment(&cs1, 3);   // old value = 1, next tick = 4
+    next_increment(&cs1, 12);  // old value = 2, next tick = 16
+    next_increment(&cs1, 16);  // old value = 3, next tick = 32
+    next_increment(&cs1, 32);  // old value = 4, next tick = 64
+    next_increment(&cs1, 64);  // old value = 5, next tick = 128
+    next_increment(&cs1, 64);  // old value = 6, next tick = 192
+    next_increment(&cs1, 64);  // old value = 7, next tick = 256
+    next_increment(&cs1, 256); // old value = 8, next tick = 512
+}
+
+/// Saturates a byte sized counter and expects that no overflow has happened.
+TEST_F(LruCounterTest, no_overflow)
+{
+    set_bits_per_bit(1);
+    EXPECT_EQ(0u, cb1.value());
+    tick_n(100000);
+    EXPECT_EQ(255u, cb1.value());
+    tick_n(1);
+    EXPECT_EQ(255u, cb1.value());
+    tick_n(100000);
+    EXPECT_EQ(255u, cb1.value());
+}
+
+/// Checks that a 2 bit/bit exponent bytes sized counter can count more than a
+/// few 100k ticks.
+TEST_F(LruCounterTest, byte_range)
+{
+    set_bits_per_bit(2);
+    EXPECT_EQ(0u, cb1.value());
+    tick_n(100000);
+    EXPECT_EQ(52u, cb1.value());
+    tick_n(100000);
+    EXPECT_EQ(67u, cb1.value());
+}
+
+/// Tests resetting the counter, then incrementing.
+TEST_F(LruCounterTest, reset)
+{
+    set_bits_per_bit(1);
+    EXPECT_EQ(0u, cb1.value());
+    tick_n(16);
+    EXPECT_EQ(5u, cb1.value());
+
+    cb1.touch();
+    EXPECT_EQ(0u, cb1.value());
+    tick_n(1); // 1
+    EXPECT_EQ(1u, cb1.value());
+    tick_n(1); // 2
+    EXPECT_EQ(2u, cb1.value());
+    tick_n(2); // 4
+    EXPECT_EQ(3u, cb1.value());
+    tick_n(4); // 8
+    EXPECT_EQ(4u, cb1.value());
+    tick_n(8); // 16
+    EXPECT_EQ(5u, cb1.value());
+}
+
+/// Tests several counters that were reset at different times. Their values
+/// should be monotonic from their reset time.
+TEST_F(LruCounterTest, sequence)
+{
+    set_bits_per_bit(1);
+    EXPECT_EQ(0u, cb1.value());
+    EXPECT_EQ(0u, cb2.value());
+    EXPECT_EQ(0u, cb3.value());
+    EXPECT_EQ(0u, cb4.value());
+
+    cb1.touch();
+    tick_n(50);
+    cb2.touch();
+    tick_n(50);
+    cb3.touch();
+    tick_n(50);
+    cb4.touch();
+    tick_n(50);
+
+    EXPECT_GT(cb1.value(), cb2.value());
+    EXPECT_GT(cb2.value(), cb3.value());
+    EXPECT_GT(cb3.value(), cb4.value());
+}
+
+/// Tests several counters that were reset at different times. Their values
+/// should be monotonic from their reset time. 1-byte, 1-bit-per-bit exponent
+TEST_F(LruCounterTest, sequence_byte_1)
+{
+    set_bits_per_bit(1);
+    sequence_test({&cb1, &cb2, &cb3, &cb4}, 50);
+}
+
+/// Tests several counters that were reset at different times. Their values
+/// should be monotonic from their reset time. 2-byte, 1-bit-per-bit exponent
+TEST_F(LruCounterTest, sequence_short_1)
+{
+    set_bits_per_bit(1);
+    sequence_test({&cs1, &cs2, &cs3, &cs4}, 50);
+}
+
+/// Tests several counters that were reset at different times. Their values
+/// should be monotonic from their reset time. 1-byte 2-bit-per-bit exponent
+TEST_F(LruCounterTest, sequence_byte_2)
+{
+    set_bits_per_bit(2);
+    sequence_test({&cb1, &cb2, &cb3, &cb4}, 400);
+}
+
+/// Tests several counters that were reset at different times. Their values
+/// should be monotonic from their reset time. 2-byte 2-bit-per-bit exponent
+TEST_F(LruCounterTest, sequence_short_2)
+{
+    set_bits_per_bit(2);
+    sequence_test({&cs1, &cs2, &cs3, &cs4}, 400);
+}

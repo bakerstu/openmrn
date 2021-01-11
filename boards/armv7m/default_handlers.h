@@ -59,6 +59,8 @@ extern unsigned long __data_section_table_end;
 extern unsigned long __bss_section_table;
 extern unsigned long __bss_section_table_end;
 
+#define NVIC_INT_CTRL_R (*((volatile uint32_t *)0xE000ED04))
+
 /** This hardware initialization code will be called before C++ global objects
  * are initialized. */
 extern void hw_preinit(void);
@@ -88,7 +90,7 @@ void reset_handler(void)
         unsigned long *dst = (unsigned long *)*section_table_addr++;
         unsigned long len = (unsigned long)*section_table_addr++;
 
-        for (; len; len -= 4)
+        for (; len > 0; len -= 4)
         {
             *dst++ = *src++;
         }
@@ -100,7 +102,7 @@ void reset_handler(void)
         unsigned long *zero = (unsigned long *)*section_table_addr++;
         unsigned long len = (unsigned long)*section_table_addr++;
 
-        for (; len; len -= 4)
+        for (; len > 0; len -= 4)
         {
             *zero++ = 0;
         }
@@ -149,6 +151,7 @@ __attribute__((__naked__)) static void hard_fault_handler(void)
         " mrsne r0, psp\n"
         " mov   sp, r0 \n"
         " bkpt  #1     \n"
+        " bx    lr     \n"
     );
 #endif
 #if 0

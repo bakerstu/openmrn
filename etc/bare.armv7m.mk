@@ -28,10 +28,14 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
 #ARCHOPTIMIZATION = -D__NEWLIB__
-ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
-#ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
+#ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
+ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
 
 ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
+
+ifdef DETERMINISTIC_COMPILATION
+ARCHFLAGS += -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/')
+endif
 
 ASFLAGS = -c $(ARCHFLAGS)
 

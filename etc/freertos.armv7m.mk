@@ -39,6 +39,10 @@ ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-p
 
 ARCHFLAGS = -g -MD -MP -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
 
+ifdef DETERMINISTIC_COMPILATION
+ARCHFLAGS += -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/')
+endif
+
 ifdef DEBUG_MEMORY_USE
 #warning: -funwind-tables adds 10k code size. Needed for malloc debugging.
 ARCHFLAGS += -funwind-tables
