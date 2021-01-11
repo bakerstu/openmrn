@@ -43,14 +43,15 @@ public:
     /// Constructor.
     /// @param ex executor to run on
     /// @param update_delay_msec cooldown time delay in milliseconds
-    /// @param max_tokens number of available tokens
+    /// @param max_tokens number of available tokens, <= 127 max
     /// @param callback callback called once after cooldown time delay
     LimitTimer(ExecutorBase *ex, uint16_t update_delay_msec, uint8_t max_tokens,
                std::function<void()> callback)
         : Timer(ex->active_timers())
         , updateDelayMsec_(update_delay_msec)
-        , bucket_(max_tokens)
+        , bucket_(max_tokens > 127 ? 127 : max_tokens)
         , bucketMax_(max_tokens)
+        , needUpdate_(false)
         , callback_(callback)
     {
         HASSERT(callback);
@@ -62,10 +63,11 @@ public:
         cancel();
     }
 
-    /// Attempts to take a token out of the bucket.
+    /// Attempts to take a token out of the bucket. Must be called from the
+    /// same executor that was passed in the object construction.
     /// @return true if the take is successful, false if there are no available
-    ///         tokens, in which case there will be an internal key event
-    ///         generated when tokens become available.
+    ///         tokens, in which case there will be a callback generated when
+    ///         tokens become available.
     bool try_take()
     {
         if (bucket_ == bucketMax_)
@@ -79,13 +81,14 @@ public:
         }
         else
         {
-            needUpdate_ = 1;
+            needUpdate_ = true;
             return false;
         }
     }
 
     /// Takes one entry from the bucket, and does not give a callback if
-    /// there is no entry left.
+    /// there is no entry left.  Must be called from the
+    /// same executor that was passed in the object construction.
     void take_no_callback()
     {
         if (bucket_ > 0)
@@ -102,7 +105,7 @@ private:
         if (needUpdate_)
         {
             callback_();
-            needUpdate_ = 0;
+            needUpdate_ = false;
         }
         if (bucket_ >= bucketMax_)
         {
@@ -121,10 +124,10 @@ private:
     uint8_t bucket_ ;
 
     /// maximum number of tokens in the bucket
-    uint8_t bucketMax_;
+    uint8_t bucketMax_ : 7;
 
     /// if non-zero, wake up parent when token is available.
-    uint8_t needUpdate_ {0};
+    uint8_t needUpdate_ : 1;
 
     /// callback after cooldown period.
     std::function<void()> callback_;
