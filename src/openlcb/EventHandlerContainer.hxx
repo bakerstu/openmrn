@@ -109,8 +109,9 @@ private:
 
 /// EventRegistry implementation that keeps all event handlers in a vector and
 /// forwards every single call to each event handler.
-class VectorEventHandlers : public EventRegistry, private Atomic {
- public:
+class VectorEventHandlers : public EventRegistry, private Atomic
+{
+public:
     VectorEventHandlers() {}
 
     // Creates a new event iterator. Caller takes ownership of object.
@@ -155,7 +156,7 @@ public:
     void unregister_handler(EventHandler *handler, uint32_t user_arg,
         uint32_t user_arg_mask) OVERRIDE;
     void reserve(size_t count) OVERRIDE;
-    
+
 private:
     class Iterator;
     friend class Iterator;
