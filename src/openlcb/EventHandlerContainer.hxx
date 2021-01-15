@@ -153,8 +153,8 @@ public:
     EventIterator* create_iterator() OVERRIDE;
     void register_handler(const EventRegistryEntry &entry,
                           unsigned mask) OVERRIDE;
-    void unregister_handler(EventHandler *handler, uint32_t user_arg,
-        uint32_t user_arg_mask) OVERRIDE;
+    void unregister_handler(EventHandler *handler, uint32_t user_arg = 0,
+        uint32_t user_arg_mask = 0) OVERRIDE;
     void reserve(size_t count) OVERRIDE;
 
 private:
