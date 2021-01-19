@@ -132,6 +132,103 @@ public:
         return round();
     }
 
+    /// Multiplies *this with pow(2, o). This is effectively a generalized
+    /// shift operation that works on fractional numbers too. The precision is
+    /// limited.
+    ///
+    /// Modifies *this.
+    /// @param o number of "bits" to shift with. May be positive or negative.
+    /// @return *this = *this * pow(2, o);
+    Fixed16 &mulpow2(Fixed16 o)
+    {
+        if (o.is_positive())
+        {
+            // multiplying
+            value_ <<= o.trunc();
+            uint16_t f = o.frac();
+            static constexpr Fixed16 pown1(
+                FROM_DOUBLE, 1.4142135623730951); // 2^(1/2)
+            static constexpr Fixed16 pown2(
+                FROM_DOUBLE, 1.1892071150027210); // 2^(1/4)
+            static constexpr Fixed16 pown3(
+                FROM_DOUBLE, 1.0905077326652577); // 2^(1/8)
+            static constexpr Fixed16 pown4(
+                FROM_DOUBLE, 1.0442737824274138); // 2^(1/16)
+            static constexpr Fixed16 pown5(
+                FROM_DOUBLE, 1.0218971486541166); // 2^(1/32)
+            static constexpr Fixed16 pown6(
+                FROM_DOUBLE, 1.0108892860517005); // 2^(1/64)
+            if (f & 0x8000)
+            {
+                *this *= pown1;
+            }
+            if (f & 0x4000)
+            {
+                *this *= pown2;
+            }
+            if (f & 0x2000)
+            {
+                *this *= pown3;
+            }
+            if (f & 0x1000)
+            {
+                *this *= pown4;
+            }
+            if (f & 0x0800)
+            {
+                *this *= pown5;
+            }
+            if (f & 0x0400)
+            {
+                *this *= pown6;
+            }
+        }
+        else
+        {
+            // dividing
+            o.negate();
+            value_ >>= o.trunc();
+            uint16_t f = o.frac();
+            static constexpr Fixed16 powm1(
+                FROM_DOUBLE, 0.7071067811865476); // 2^(-1/2)
+            static constexpr Fixed16 powm2(
+                FROM_DOUBLE, 0.8408964152537145); // 2^(-1/4)
+            static constexpr Fixed16 powm3(
+                FROM_DOUBLE, 0.9170040432046712); // 2^(-1/8)
+            static constexpr Fixed16 powm4(
+                FROM_DOUBLE, 0.9576032806985737); // 2^(-1/16)
+            static constexpr Fixed16 powm5(
+                FROM_DOUBLE, 0.9785720620877001); // 2^(-1/32)
+            static constexpr Fixed16 powm6(
+                FROM_DOUBLE, 0.9892280131939755); // 2^(-1/64)
+            if (f & 0x8000)
+            {
+                *this *= powm1;
+            }
+            if (f & 0x4000)
+            {
+                *this *= powm2;
+            }
+            if (f & 0x2000)
+            {
+                *this *= powm3;
+            }
+            if (f & 0x1000)
+            {
+                *this *= powm4;
+            }
+            if (f & 0x0800)
+            {
+                *this *= powm5;
+            }
+            if (f & 0x0400)
+            {
+                *this *= powm6;
+            }
+        }
+        return *this;
+    }
+
     /// @return the value rounded to nearest integer.
     int16_t round() const {
         int16_t b = (value_ + 0x8000) >> 16;
