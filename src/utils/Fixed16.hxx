@@ -141,89 +141,42 @@ public:
     /// @return *this = *this * pow(2, o);
     Fixed16 &mulpow2(Fixed16 o)
     {
+        const Fixed16* coeffs;
+        uint16_t f;
         if (o.is_positive())
         {
             // multiplying
             value_ <<= o.trunc();
-            uint16_t f = o.frac();
-            static constexpr Fixed16 pown1(
-                FROM_DOUBLE, 1.4142135623730951); // 2^(1/2)
-            static constexpr Fixed16 pown2(
-                FROM_DOUBLE, 1.1892071150027210); // 2^(1/4)
-            static constexpr Fixed16 pown3(
-                FROM_DOUBLE, 1.0905077326652577); // 2^(1/8)
-            static constexpr Fixed16 pown4(
-                FROM_DOUBLE, 1.0442737824274138); // 2^(1/16)
-            static constexpr Fixed16 pown5(
-                FROM_DOUBLE, 1.0218971486541166); // 2^(1/32)
-            static constexpr Fixed16 pown6(
-                FROM_DOUBLE, 1.0108892860517005); // 2^(1/64)
-            if (f & 0x8000)
-            {
-                *this *= pown1;
-            }
-            if (f & 0x4000)
-            {
-                *this *= pown2;
-            }
-            if (f & 0x2000)
-            {
-                *this *= pown3;
-            }
-            if (f & 0x1000)
-            {
-                *this *= pown4;
-            }
-            if (f & 0x0800)
-            {
-                *this *= pown5;
-            }
-            if (f & 0x0400)
-            {
-                *this *= pown6;
-            }
+            f = o.frac();
+            static constexpr const Fixed16 pown[6] = {
+                {FROM_DOUBLE, 1.4142135623730951},  // 2^(1/2)
+                {FROM_DOUBLE, 1.1892071150027210},  // 2^(1/4)
+                {FROM_DOUBLE, 1.0905077326652577},  // 2^(1/8)
+                {FROM_DOUBLE, 1.0442737824274138},  // 2^(1/16)
+                {FROM_DOUBLE, 1.0218971486541166},  // 2^(1/32)
+                {FROM_DOUBLE, 1.0108892860517005}}; // 2^(1/64)
+            coeffs = pown;
         }
         else
         {
             // dividing
             o.negate();
             value_ >>= o.trunc();
-            uint16_t f = o.frac();
-            static constexpr Fixed16 powm1(
-                FROM_DOUBLE, 0.7071067811865476); // 2^(-1/2)
-            static constexpr Fixed16 powm2(
-                FROM_DOUBLE, 0.8408964152537145); // 2^(-1/4)
-            static constexpr Fixed16 powm3(
-                FROM_DOUBLE, 0.9170040432046712); // 2^(-1/8)
-            static constexpr Fixed16 powm4(
-                FROM_DOUBLE, 0.9576032806985737); // 2^(-1/16)
-            static constexpr Fixed16 powm5(
-                FROM_DOUBLE, 0.9785720620877001); // 2^(-1/32)
-            static constexpr Fixed16 powm6(
-                FROM_DOUBLE, 0.9892280131939755); // 2^(-1/64)
-            if (f & 0x8000)
+            f = o.frac();
+            static constexpr const Fixed16 pown[6] = {
+                {FROM_DOUBLE, 0.7071067811865476},  // 2^(-1/2)
+                {FROM_DOUBLE, 0.8408964152537145},  // 2^(-1/4)
+                {FROM_DOUBLE, 0.9170040432046712},  // 2^(-1/8)
+                {FROM_DOUBLE, 0.9576032806985737},  // 2^(-1/16)
+                {FROM_DOUBLE, 0.9785720620877001},  // 2^(-1/32)
+                {FROM_DOUBLE, 0.9892280131939755}}; // 2^(-1/64)
+            coeffs = pown;
+        }
+        for (unsigned idx = 0, bit = 0x8000; idx < 6; ++idx, bit >>= 1)
+        {
+            if (f & bit)
             {
-                *this *= powm1;
-            }
-            if (f & 0x4000)
-            {
-                *this *= powm2;
-            }
-            if (f & 0x2000)
-            {
-                *this *= powm3;
-            }
-            if (f & 0x1000)
-            {
-                *this *= powm4;
-            }
-            if (f & 0x0800)
-            {
-                *this *= powm5;
-            }
-            if (f & 0x0400)
-            {
-                *this *= powm6;
+                *this *= coeffs[idx];
             }
         }
         return *this;
