@@ -36,6 +36,8 @@
 #ifndef _UTILS_LIMITTIMER_HXX_
 #define _UTILS_LIMITTIMER_HXX_
 
+#include <algorithm>
+
 #include "executor/Timer.hxx"
  
 /// This timer takes care of limiting the number of speed updates we send
@@ -52,7 +54,7 @@ public:
                std::function<void()> callback)
         : Timer(ex->active_timers())
         , updateDelayMsec_(update_delay_msec)
-        , bucket_(max_tokens > 127 ? 127 : max_tokens)
+        , bucket_(std::min(static_cast<uint8_t>(127), max_tokens))
         , bucketMax_(max_tokens)
         , needUpdate_(false)
         , callback_(callback)
