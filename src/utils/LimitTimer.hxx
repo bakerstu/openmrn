@@ -33,6 +33,9 @@
  * @date 9 January 2021
  */
 
+#ifndef _UTILS_LIMITTIMER_HXX_
+#define _UTILS_LIMITTIMER_HXX_
+
 #include "executor/Timer.hxx"
  
 /// This timer takes care of limiting the number of speed updates we send
@@ -133,3 +136,4 @@ private:
     std::function<void()> callback_;
 };
 
+#endif // _UTILS_LIMITTIMER_HXX_
