@@ -109,8 +109,8 @@ private:
         ++bucket_;
         if (needUpdate_)
         {
-            callback_();
             needUpdate_ = false;
+            callback_();
         }
         if (bucket_ >= bucketMax_)
         {
