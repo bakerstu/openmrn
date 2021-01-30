@@ -313,7 +313,7 @@ public:
     }
 
     vector<EventHandler *> get_all_matching(uint64_t event,
-                                            uint64_t mask = 1)
+                                            uint64_t mask = 0)
     {
         report_.event = event;
         report_.mask = mask;
@@ -332,9 +332,9 @@ public:
         return reinterpret_cast<EventHandler *>(0x100 + n);
     }
 
-    void add_handler(int n, uint64_t eventid, unsigned mask)
+    void add_handler(int n, uint64_t eventid, unsigned mask, uint32_t arg = 0)
     {
-        handlers_.register_handler(EventRegistryEntry(h(n), eventid), mask);
+        handlers_.register_handler(EventRegistryEntry(h(n), eventid, arg), mask);
     }
 
 protected:
@@ -367,6 +367,26 @@ TEST_F(TreeEventHandlerTest, SingleLookup)
     EXPECT_THAT(get_all_matching(0x3FE, 0), ElementsAre());
 
     EXPECT_THAT(get_all_matching(0x103FF, 0), ElementsAre());
+}
+
+TEST_F(TreeEventHandlerTest, RemoveByMask)
+{
+    handlers_.reserve(3);
+    
+    add_handler(1, 0x3FF, 0, 0xB);
+    add_handler(1, 0x3FE, 0, 7);
+    add_handler(1, 0x3FD, 0, 0xFB);
+    EXPECT_THAT(get_all_matching(0x3F0, 0xF), ElementsAre(h(1),h(1),h(1)));
+    EXPECT_THAT(get_all_matching(0x3FF), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(0x3FE), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(0x3FD), ElementsAre(h(1)));
+
+    handlers_.unregister_handler(h(1), 0xB, 0xF);
+
+    EXPECT_THAT(get_all_matching(0x3F0, 0xF), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(0x3FF), ElementsAre());
+    EXPECT_THAT(get_all_matching(0x3FE), ElementsAre(h(1)));
+    EXPECT_THAT(get_all_matching(0x3FD), ElementsAre());
 }
 
 TEST_F(TreeEventHandlerTest, MultiLookup)
