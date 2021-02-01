@@ -64,6 +64,7 @@ protected:
             fprintf(stderr, "waiting for exiting.\r");
             usleep(100000);
         }
+        EXPECT_EQ(0U, tcpHub_.get_num_clients());
     }
 
     struct Client
@@ -154,6 +155,7 @@ protected:
 
 TEST_F(GcTcpHubTest, CreateDestroy)
 {
+    EXPECT_EQ(0u, tcpHub_.get_num_clients());
 }
 
 TEST_F(GcTcpHubTest, TwoClientsPingPong)
@@ -165,6 +167,9 @@ TEST_F(GcTcpHubTest, TwoClientsPingPong)
     writeline(b.fd_, ":S001N01;");
     EXPECT_EQ(":S001N01;", readline(a.fd_, ';'));
     EXPECT_EQ(3U, can_hub0.size());
+
+    EXPECT_EQ(2u, tcpHub_.get_num_clients());
+
     // Test writing outwards.
     send_packet(":S002N0102;");
     EXPECT_EQ(":S002N0102;", readline(a.fd_, ';'));
@@ -177,6 +182,7 @@ TEST_F(GcTcpHubTest, ClientCloseExpect)
     unsigned can_hub_size = can_hub0.size();
     LOG(INFO, "can hub: %p ", &can_hub0);
     EXPECT_EQ(1U, can_hub_size);
+    EXPECT_EQ(0U, tcpHub_.get_num_clients());
     {
         Client a;
         Client b;
@@ -184,6 +190,7 @@ TEST_F(GcTcpHubTest, ClientCloseExpect)
         writeline(b.fd_, ":S001N01;");
         EXPECT_EQ(":S001N01;", readline(a.fd_, ';'));
         EXPECT_EQ(can_hub_size + 2, can_hub0.size());
+        EXPECT_EQ(2U, tcpHub_.get_num_clients());
         wait();
     }
     // Test writing outwards.

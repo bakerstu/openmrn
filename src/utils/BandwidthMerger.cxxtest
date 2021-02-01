@@ -1,0 +1,92 @@
+/** \copyright
+ * Copyright (c) 2020, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file BandwidthMerger.cxxtest
+ *
+ * Unit tests for the stride scheduler.
+ *
+ * @author Balazs Racz
+ * @date 10 Oct 2020
+ */
+
+#include "utils/BandwidthMerger.hxx"
+
+#include "utils/test_main.hxx"
+
+class BandwidthMergerTest : public ::testing::Test
+{
+protected:
+    /// Runs a simulation with a certain number of steps with a bandwidth
+    /// merger.
+    void collect_stats(uint8_t percent, unsigned num_steps)
+    {
+        BandwidthMerger m {percent};
+        results_[0] = results_[1] = 0;
+        for (unsigned i = 0; i < num_steps; ++i)
+        {
+            if (m.step())
+            {
+                ++results_[1];
+            }
+            else
+            {
+                ++results_[0];
+            }
+        }
+    }
+
+    /// Results of the simulation. [0] is the number of steps with false
+    /// output, [1] is the number of steps with true output.
+    unsigned results_[2];
+};
+
+TEST_F(BandwidthMergerTest, fifty)
+{
+    collect_stats(50, 34);
+    EXPECT_EQ(17u, results_[0]);
+    EXPECT_EQ(17u, results_[1]);
+}
+
+TEST_F(BandwidthMergerTest, hundred)
+{
+    collect_stats(100, 34);
+    EXPECT_EQ(0u, results_[0]);
+    EXPECT_EQ(34u, results_[1]);
+}
+
+TEST_F(BandwidthMergerTest, zero)
+{
+    collect_stats(0, 34);
+    EXPECT_EQ(34u, results_[0]);
+    EXPECT_EQ(0u, results_[1]);
+}
+
+TEST_F(BandwidthMergerTest, ten)
+{
+    collect_stats(10, 34);
+    EXPECT_EQ(31u, results_[0]);
+    EXPECT_EQ(3u, results_[1]);
+}

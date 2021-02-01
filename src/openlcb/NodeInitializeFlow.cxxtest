@@ -36,7 +36,6 @@ TEST_F(AsyncIfTest, TwoNodesInitialize)
     wait();
     expect_packet(":X1070133AN02010d000004;"); // AMD frame
     expect_packet(":X1910033AN02010d000004;"); // initialization complete
-    expect_next_alias_allocation();
     DefaultNode node2(ifCan_.get(), TEST_NODE_ID + 1);
     wait();
 }

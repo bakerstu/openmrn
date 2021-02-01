@@ -45,11 +45,13 @@ LIBS = $(STARTGROUP) \
        $(ENDGROUP) \
        $(LINKCORELIBS)
 
+TESTOPTIMIZATION=-O0
+
 INCLUDES     += -I$(GTESTPATH)/include -I$(GMOCKPATH)/include -I$(GMOCKPATH) \
                 -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include
-CFLAGS       += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
-CXXFLAGS     += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage -O0
-SYSLIBRARIES += -lgcov -fprofile-arcs -ftest-coverage -O0
+CFLAGS       += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage $(TESTOPTIMIZATION)
+CXXFLAGS     += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage $(TESTOPTIMIZATION)
+SYSLIBRARIES += -lgcov -fprofile-arcs -ftest-coverage $(TESTOPTIMIZATION)
 LDFLAGS      += -L$(LIBDIR)
 
 .SUFFIXES:

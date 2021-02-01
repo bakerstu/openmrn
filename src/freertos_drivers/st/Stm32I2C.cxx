@@ -41,6 +41,9 @@
 #include "stm32f1xx_ll_rcc.h"
 #elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_ll_rcc.h"
+#elif defined(STM32L431xx) || defined(STM32L432xx)
+#include "stm32l4xx_ll_rcc.h"
+#include "stm32l4xx_ll_i2c.h"
 #elif defined(STM32F767xx)
 #include "stm32f7xx_ll_rcc.h"
 #include "stm32f7xx_ll_i2c.h"

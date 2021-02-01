@@ -35,6 +35,7 @@
 #include "openlcb/SimpleNodeInfo.hxx"
 
 #include "openmrn_features.h"
+#include "utils/format_utils.hxx"
 
 namespace openlcb
 {
@@ -67,9 +68,8 @@ void init_snip_user_file(int fd, const char *user_name,
     SimpleNodeDynamicValues data;
     memset(&data, 0, sizeof(data));
     data.version = 2;
-    strncpy(data.user_name, user_name, sizeof(data.user_name));
-    strncpy(data.user_description, user_description,
-            sizeof(data.user_description));
+    str_populate(data.user_name, user_name);
+    str_populate(data.user_description, user_description);
     int ofs = 0;
     auto *p = (const uint8_t *)&data;
     const int len = sizeof(data);

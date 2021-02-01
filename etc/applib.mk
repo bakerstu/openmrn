@@ -20,9 +20,11 @@ exist := $(wildcard sources)
 ifneq ($(strip $(exist)),)
 include sources
 else
+FULLPATHASMSRCS := $(wildcard $(VPATH)/*.S)
 FULLPATHCSRCS = $(wildcard $(VPATH)/*.c)
 FULLPATHCXXSRCS = $(wildcard $(VPATH)/*.cxx)
 FULLPATHCPPSRCS = $(wildcard $(VPATH)/*.cpp)
+ASMSRCS = $(notdir $(FULLPATHASMSRCS)) $(wildcard *.S)
 CSRCS = $(notdir $(FULLPATHCSRCS))
 CXXSRCS = $(notdir $(FULLPATHCXXSRCS))
 CPPSRCS = $(notdir $(FULLPATHCPPSRCS))
@@ -33,7 +35,7 @@ ifdef APP_PATH
 INCLUDES += -I$(APP_PATH)
 endif
 
-OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o)
+OBJS = $(CXXSRCS:.cxx=.o) $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o) $(ASMSRCS:.S=.o)
 LIBNAME = lib$(BASENAME).a
 
 ifdef BOARD
@@ -56,7 +58,7 @@ all: $(LIBNAME)
 -include $(OBJS:.o=.d)
 
 .SUFFIXES:
-.SUFFIXES: .o .c .cxx .cpp
+.SUFFIXES: .o .c .cxx .cpp .S
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) $< -o $@
@@ -69,6 +71,9 @@ all: $(LIBNAME)
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@
 	$(CC) -MM $(CFLAGS) $< > $*.d
+
+.S.o:
+	$(AS) $(ASFLAGS) -MD -MF $*.d $(abspath $<) -o $@
 
 $(LIBNAME): $(OBJS)
 	$(AR) cr $(LIBNAME) $(OBJS)

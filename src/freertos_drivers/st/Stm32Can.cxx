@@ -65,6 +65,15 @@
 #define CAN_SECOND_IRQN USB_LP_CAN_RX0_IRQn
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
 
+#elif defined (STM32L431xx) || defined (STM32L432xx)
+
+#include "stm32l4xx_hal_cortex.h"
+#define SPLIT_INT
+#define CAN_TX_IRQN CAN1_TX_IRQn
+#define CAN_IRQN CAN_TX_IRQN
+#define CAN_SECOND_IRQN CAN1_RX0_IRQn
+#define CAN_CLOCK (cm3_cpu_clock_hz)
+
 #elif defined (STM32F767xx)
 
 #include "stm32f7xx_hal_cortex.h"
@@ -430,7 +439,7 @@ void usb_lp_can1_rx0_interrupt_handler(void)
     Stm32Can::instances[0]->rx_interrupt_handler();
 }
 
-#elif defined(STM32F767xx)
+#elif defined(STM32F767xx) || defined(STM32L431xx) || defined(STM32L432xx)
 
 void can1_tx_interrupt_handler(void)
 {
