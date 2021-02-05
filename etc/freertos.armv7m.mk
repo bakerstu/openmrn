@@ -53,6 +53,9 @@ ASFLAGS = -c $(ARCHFLAGS)
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -fdata-sections -ffunction-sections \
              -fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
+	     -Wno-error=vla-larger-than= \
+             -Wno-error=address-of-packed-member \
+             -Wno-error=format= \
              -D__FreeRTOS__ -DGCC_ARMCM3 -specs=nano.specs
 
 CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
