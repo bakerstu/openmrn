@@ -816,13 +816,22 @@ ssize_t os_get_free_heap()
 }
 
 xTaskHandle volatile overflowed_task = 0;
+
+#if tskKERNEL_VERSION_MAJOR > 10 || (tskKERNEL_VERSION_MAJOR == 10 && tskKERNEL_VERSION_MINOR > 3)
+char * volatile overflowed_task_name = 0;
+#else
 signed portCHAR * volatile overflowed_task_name = 0;
+#endif
 
 /** This method is called if a stack overflows its boundries.
  * @param task task handle for violating task
  * @param name name of violating task
  */
+#if tskKERNEL_VERSION_MAJOR > 10 || (tskKERNEL_VERSION_MAJOR == 10 && tskKERNEL_VERSION_MINOR > 3)
+void vApplicationStackOverflowHook(xTaskHandle task, char *name)
+#else
 void vApplicationStackOverflowHook(xTaskHandle task, signed portCHAR *name)
+#endif
 {
     overflowed_task = task;
     overflowed_task_name = name;
