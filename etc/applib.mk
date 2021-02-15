@@ -3,7 +3,7 @@ ifeq ($(TARGET),)
 TARGET := $(notdir $(realpath $(CURDIR)/..))
 endif
 BASENAME := $(notdir $(CURDIR))
-SRCDIR = $(abspath ../../../$(BASENAME))
+SRCDIR ?= $(abspath ../../../$(BASENAME))
 VPATH = $(SRCDIR)
 
 INCLUDES += -I./ -I../ -I../include 
