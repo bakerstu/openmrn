@@ -49,6 +49,12 @@
 extern "C" {
 void USB_HP_CAN1_TX_IRQHandler(void);
 void USB_LP_CAN1_RX0_IRQHandler(void);
+
+static inline void SetInterruptPriority(uint32_t irq, uint8_t priority)
+{
+    NVIC_SetPriority((IRQn_Type)irq, priority >> (8U - __NVIC_PRIO_BITS));
+}
+
 }
 
 class Stm32CanDriver : public Can
