@@ -448,12 +448,12 @@ CDI_GROUP(
 CDI_GROUP_ENTRY(name, StringConfigEntry<63>, //
     Name("User Name"),                       //
     Description(
-        "This name will appear in network browsers for the current node."));
+        "This name will appear in network browsers for this device."));
 /// User description entry
 CDI_GROUP_ENTRY(description, StringConfigEntry<64>, //
     Name("User Description"),                       //
-    Description("This description will appear in network browsers for the "
-                "current node."));
+    Description("This description will appear in network browsers for "
+                "this device."));
 /// Signals termination of the group.
 CDI_GROUP_END();
 
