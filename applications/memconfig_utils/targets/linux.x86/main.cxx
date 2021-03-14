@@ -200,22 +200,30 @@ int appl_main(int argc, char *argv[])
     openlcb::NodeHandle dst;
     dst.alias = destination_alias;
     dst.id = destination_nodeid;
-    HASSERT(do_read);
-    auto b = invoke_flow(&g_memcfg_cli, openlcb::MemoryConfigClientRequest::READ, dst, memory_space_id);
-
-    if (0 && do_write)
+    HASSERT((!!do_read) + (!!do_write)  == 1);
+    if (do_write)
     {
-        b->data()->payload = read_file_to_string(filename);
-        //b->data()->cmd = openlcb::MemoryConfigClientRequest::WRITE;
+        auto payload = read_file_to_string(filename);
         printf("Read %" PRIdPTR
                " bytes from file %s. Writing to memory space 0x%02x\n",
-            b->data()->payload.size(), filename, memory_space_id);
+               payload.size(), filename, memory_space_id);
+        auto b = invoke_flow(&g_memcfg_cli,
+            openlcb::MemoryConfigClientRequest::WRITE, dst, memory_space_id, 0,
+            std::move(payload));
+        printf("Result: %04x\n", b->data()->resultCode);
     }
-
-    printf("Result: %04x\n", b->data()->resultCode);
 
     if (do_read)
     {
+        auto cb = [](openlcb::MemoryConfigClientRequest *rq) {
+            static size_t last_len = rq->payload.size();
+            if ((last_len & ~1023) != (rq->payload.size() & ~1023)) {
+                printf("Loaded %d bytes\n", (int)rq->payload.size());
+                last_len = rq->payload.size();
+            }
+        };
+        auto b = invoke_flow(&g_memcfg_cli, openlcb::MemoryConfigClientRequest::READ, dst, memory_space_id, std::move(cb));
+        printf("Result: %04x\n", b->data()->resultCode);
         write_string_to_file(filename, b->data()->payload);
         fprintf(stderr, "Written %" PRIdPTR " bytes to file %s.\n",
             b->data()->payload.size(), filename);

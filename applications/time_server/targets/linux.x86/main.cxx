@@ -92,7 +92,7 @@ int appl_main(int argc, char *argv[])
     timeServer.set_time(0, 0);
     timeServer.set_date(1, 1);
     timeServer.set_year(1970);
-    timeServer.set_rate(4);
+    timeServer.set_rate_quarters(4);
     timeServer.start();
 
     // This command donates the main thread to the operation of the

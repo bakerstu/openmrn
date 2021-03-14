@@ -39,17 +39,7 @@
 #include "os/Gpio.hxx"
 #include "GpioWrapper.hxx"
 
-#if defined(STM32F072xB) || defined(STM32F091xC)
-#include "stm32f0xx_hal_gpio.h"
-#elif defined(STM32F103xB)
-#include "stm32f1xx_hal_gpio.h"
-#elif defined(STM32F303xC) || defined(STM32F303xE)
-#include "stm32f3xx_hal_gpio.h"
-#elif defined(STM32F767xx)
-#include "stm32f7xx_hal_gpio.h"
-#else
-#error Dont know what STM32 chip you have.
-#endif
+#include "stm32f_hal_conf.hxx"
 
 /// Static GPIO implementation for the STM32 microcontrollers. Do not use
 /// directly: use @ref GPIO_PIN macro.

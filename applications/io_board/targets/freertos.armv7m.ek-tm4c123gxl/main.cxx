@@ -127,6 +127,40 @@ openlcb::ConfiguredProducer producer_sw2(
 openlcb::RefreshLoop loop(
     stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 
+/// This timer checks the eeprom once a second and if the user has written
+/// something, executes a reload of the configuration via the OpenLCB config
+/// service.
+class AutoUpdateTimer : public ::Timer
+{
+public:
+    AutoUpdateTimer()
+        : ::Timer(stack.executor()->active_timers())
+    {
+        start(SEC_TO_NSEC(1));
+    }
+
+    long long timeout() override
+    {
+        extern uint8_t eeprom_updated;
+        if (eeprom_updated)
+        {
+            needUpdate_ = true;
+            eeprom_updated = 0;
+        }
+        else
+        {
+            if (needUpdate_)
+            {
+                stack.config_service()->trigger_update();
+                needUpdate_ = false;
+            }
+        }
+        return RESTART;
+    }
+
+    bool needUpdate_ {false};
+} update_timer;
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments

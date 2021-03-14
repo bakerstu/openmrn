@@ -110,6 +110,15 @@ StoredBitSet* g_gpio_stored_bit_set = nullptr;
 constexpr unsigned EEPROM_BIT_COUNT = 84;
 constexpr unsigned EEPROM_BITS_PER_CELL = 28;
 
+/// This variable will be set to 1 when a write arrives to the eeprom.
+uint8_t eeprom_updated = 0;
+
+// Overridesthe default behavior to keep track of eeprom writes.
+void EEPROMEmulation::updated_notification()
+{
+    eeprom_updated = 1;
+}
+
 extern "C" {
 void hw_set_to_safe(void);
 
@@ -193,6 +202,9 @@ const uint32_t RailcomDefs::UART_PERIPH[] = {SYSCTL_PERIPH_UART1};
 
 static TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
 
+// If 1, enabled spread spectrum randomization of the DCC timings.
+uint8_t spreadSpectrum = 0;
+
 struct DccHwDefs {
   /// base address of a capture compare pwm timer pair
   static const unsigned long CCP_BASE = TIMER0_BASE;
@@ -209,6 +221,7 @@ struct DccHwDefs {
   static const int RAILCOM_CUTOUT_START_DELTA_USEC = -20;
   static const int RAILCOM_CUTOUT_MID_DELTA_USEC = 0;
   static const int RAILCOM_CUTOUT_END_DELTA_USEC = -10;
+  static const int RAILCOM_CUTOUT_POST_DELTA_USEC = -10;
 
   /** These timer blocks will be synchronized once per packet, when the
    *  deadband delay is set up. */
@@ -237,6 +250,8 @@ struct DccHwDefs {
   /** @returns the number of preamble bits to send exclusive of end of packet
    *  '1' bit */
   static int dcc_preamble_count() { return 16; }
+
+  static bool generate_railcom_halfzero() { return false; }
 
   static void flip_led() {}
 

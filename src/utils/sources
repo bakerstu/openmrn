@@ -5,6 +5,7 @@ CSRCS += errno_exit.c \
 
 CXXSRCS += \
 	   Base64.cxx \
+	   Blinker.cxx \
 	   CanIf.cxx \
 	   Crc.cxx \
 	   StringPrintf.cxx \

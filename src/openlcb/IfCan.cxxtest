@@ -123,9 +123,13 @@ TEST_F(AsyncIfTest, RemoteAliasLearned)
     });
 }
 
-TEST_F(AsyncIfTest, AMESupport)
+TEST_F(AsyncIfTest, AMEReceiveSupport)
 {
+    // Example virtual node.
     RX(ifCan_->local_aliases()->add(UINT64_C(0x050101011877), 0x729U));
+    // This is a reserved but unused alias which should not get AMD frames as
+    // replies for AME.
+    RX(ifCan_->alias_allocator()->add_allocated_alias(0x567u));
     send_packet_and_expect_response(":X10702643N050101011877;",
                                     ":X10701729N050101011877;");
     wait();
@@ -135,6 +139,31 @@ TEST_F(AsyncIfTest, AMESupport)
     expect_packet(":X10701729N050101011877;");
     send_packet(":X10702643N;");
     wait();
+}
+
+TEST_F(AsyncNodeTest, GlobalAMESendSupport)
+{
+    EXPECT_TRUE(node_->is_initialized());
+    RX({
+        ifCan_->local_aliases()->add(UINT64_C(0x050101011877), 0x729U);
+        ifCan_->remote_aliases()->add(UINT64_C(0x050101011811), 0x111U);
+        ifCan_->alias_allocator()->add_allocated_alias(0x567u);
+        EXPECT_EQ(
+            0x111u, ifCan_->remote_aliases()->lookup(UINT64_C(0x050101011811)));
+    });
+    // The enquiry is sent out...
+    expect_packet(":X1070222AN;");
+    // ...along with all local aliases...
+    expect_packet(":X1070122AN02010D000003;");
+    expect_packet(":X10701729N050101011877;");
+    RX(ifCan_->send_global_alias_enquiry(node_));
+    wait();
+    // and the remote cache was cleared.
+    RX(EXPECT_EQ(
+        0u, ifCan_->remote_aliases()->lookup(UINT64_C(0x050101011811))));
+    // Checks regression: we did not lose the local node alias.
+    RX(EXPECT_EQ(
+           0x22Au, ifCan_->local_aliases()->lookup(node_->node_id())));
 }
 
 TEST_F(AsyncNodeTest, NodeIdLookupLocal)
