@@ -74,6 +74,13 @@ public:
         EventRegistry::instance()->unregister_handler(this);
     }
 
+    /// Has a time server been detected?
+    /// @return true if a time server has been detected, else false
+    bool is_server_detected() override
+    {
+        return serverDetected_;
+    }
+
     /// Handle requested identification message.
     /// @param entry registry entry for the event range
     /// @param event information about the incoming message
@@ -203,13 +210,6 @@ public:
     }
 
 private:
-    /// Has a time server been detected?
-    /// @return true if a time server has been detected, else false
-    bool is_server_detected() override
-    {
-        return serverDetected_;
-    }
-
     /// Handle an incoming time update.
     /// @param entry registry entry for the event range
     /// @report true of this an event report, false if a Producer Identified
