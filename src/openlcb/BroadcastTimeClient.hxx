@@ -62,6 +62,7 @@ public:
         , rolloverPending_(false)
         , rolloverPendingDate_(false)
         , rolloverPendingYear_(false)
+        , serverDetected_(false)
     {
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, eventBase_), 16);
@@ -176,6 +177,9 @@ public:
 
         if (event->state == EventState::VALID)
         {
+            // We can only get here if there is a time server detected
+            serverDetected_ = true;
+
             // We only care about valid event state.
             // Producer identified only happens when a clock synchronization
             // is taking place.  This voids previous date rollover events.
@@ -199,6 +203,13 @@ public:
     }
 
 private:
+    /// Has a time server been detected?
+    /// @return true if a time server has been detected, else false
+    bool is_server_detected() override
+    {
+        return serverDetected_;
+    }
+
     /// Handle an incoming time update.
     /// @param entry registry entry for the event range
     /// @report true of this an event report, false if a Producer Identified
@@ -422,6 +433,7 @@ private:
     uint16_t rolloverPending_  : 1; ///< a day rollover is about to occur
     uint16_t rolloverPendingDate_ : 1; ///< a day rollover is about to occur
     uint16_t rolloverPendingYear_ : 1; ///< a day rollover is about to occur
+    uint16_t serverDetected_      : 1; ///< has a time server been detected
 
 
     DISALLOW_COPY_AND_ASSIGN(BroadcastTimeClient);

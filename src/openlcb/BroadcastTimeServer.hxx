@@ -66,6 +66,13 @@ public:
 #endif
 
 private:
+    /// Has a time server been detected?
+    /// @return true if a time server has been detected, else false
+    bool is_server_detected() override
+    {
+        return true;
+    }
+
     /// Handle requested identification message.
     /// @param entry registry entry for the event range
     /// @param event information about the incoming message
