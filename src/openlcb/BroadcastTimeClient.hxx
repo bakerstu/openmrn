@@ -184,8 +184,12 @@ public:
 
         if (event->state == EventState::VALID)
         {
-            // We can only get here if there is a time server detected
-            serverDetected_ = true;
+            // Look for a Report Date Event ID.
+            if ((event->event & 0x000000000000F000ULL) == 0x2000ULL)
+            {
+                // We can only get here if there is a time server detected.
+                serverDetected_ = true;
+            }
 
             // We only care about valid event state.
             // Producer identified only happens when a clock synchronization
