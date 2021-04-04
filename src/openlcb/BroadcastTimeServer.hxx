@@ -59,6 +59,13 @@ public:
     /// Destructor.
     ~BroadcastTimeServer();
 
+    /// Has a time server been detected?
+    /// @return true if a time server has been detected, else false
+    bool is_server_detected() override
+    {
+        return true;
+    }
+
 #if defined(GTEST)
     void shutdown();
 
