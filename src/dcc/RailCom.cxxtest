@@ -124,4 +124,15 @@ TEST_F(RailcomDecodeTest, FalseChannelBoundaryProblem) {
     EXPECT_THAT(output_, ElementsAre(RailcomPacket(3, 1, RailcomPacket::GARBAGE, 0), RailcomPacket(3, 2, RailcomPacket::MOB_EXT, 128)));
 }
 
+TEST_F(RailcomDecodeTest, POMFeedbackTest) {
+    fb_.add_ch2_data(0xAA);
+    fb_.add_ch2_data(0x3C);
+    decode();
+    EXPECT_THAT(output_, ElementsAre(RailcomPacket(3, 2, RailcomPacket::MOB_POM, 113)));
+    uint8_t h = dcc::railcom_decode[0xAA];
+    uint8_t l = dcc::railcom_decode[0x3C];
+    LOG(INFO, "data %02x %02x, id %d, arg %d", h, l, h>>2, ((h&3)<<6) | l); 
+}
+
+
 }  // namespace dcc
