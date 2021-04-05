@@ -56,13 +56,13 @@ public:
 private:
     Action take_stamp()
     {
-        lastTimeMsec_ = os_get_time_monotonic() / 1000000;
+        lastTimeMsec_ = NSEC_TO_MSEC(os_get_time_monotonic());
         return sleep_and_call(&timer_, MSEC_TO_NSEC(50), STATE(woken));
     }
 
     Action woken()
     {
-        uint32_t new_time_msec = os_get_time_monotonic() / 1000000;
+        uint32_t new_time_msec = NSEC_TO_MSEC(os_get_time_monotonic());
         auto diff = new_time_msec - lastTimeMsec_;
         if (diff > 100)
         {
