@@ -49,16 +49,23 @@ public:
     /// @param node Node ID associated with this object
     EventIdentifyGlobal(Node *node)
         : StateFlowBase(node->iface())
+        , eventIdentifyGlobalHandler_(
+              this, &EventIdentifyGlobal::event_identify_global)
         , node_(node)
-        , incomingMessage_(this)
         , timer_(this)
         , aborted_(false)
     {
+        node_->iface()->dispatcher()->register_handler(
+            &eventIdentifyGlobalHandler_, Defs::MTI_EVENTS_IDENTIFY_GLOBAL,
+            Defs::MTI_EXACT);
     }
 
     /// Destructor.
     ~EventIdentifyGlobal()
     {
+        node_->iface()->dispatcher()->unregister_handler(
+            &eventIdentifyGlobalHandler_, Defs::MTI_EVENTS_IDENTIFY_GLOBAL,
+            Defs::MTI_EXACT);
     }
 
     /// Arm the EventIdentifyGlobal request
@@ -73,42 +80,11 @@ public:
     }
 
 private:
-    /// Helper flow for handling the incoming event Identify Global Message.
-    class IncomingMessage : public IncomingMessageStateFlow
+    void event_identify_global(Buffer<GenMessage> *msg)
     {
-    public:
-        /// Constructor.
-        /// @param parent_
-        IncomingMessage(EventIdentifyGlobal *parent)
-            : IncomingMessageStateFlow(parent_->node_->iface())
-        {
-            parent_->node_->iface()->dispatcher()->register_handler(
-                this, Defs::MTI_EVENTS_IDENTIFY_GLOBAL, Defs::MTI_EXACT);
-        }
-
-        /// Destructor.
-        ~IncomingMessage()
-        {
-            parent_->node_->iface()->dispatcher()->unregister_handler(
-                this, Defs::MTI_EVENTS_IDENTIFY_GLOBAL, Defs::MTI_EXACT);
-        }
-
-    private:
-        /// Entry point to state machine for receiving an Event Identify Global
-        /// message.
-        /// @return release_and_exit()
-        Action entry() override
-        {
-            {
-                AtomicHolder h(parent_);
-                parent_->aborted_ = true;
-            }
-            return release_and_exit();
-        }
-
-        /// reference to the parent object
-        EventIdentifyGlobal *parent_;
-    };
+        AtomicHolder h(this);
+        aborted_ = true;
+    }
 
     /// Entry/reset point into state machine.
     Action entry()
@@ -123,7 +99,6 @@ private:
     /// Will be called on the executor of the timer.
     Action timeout()
     {
-        AtomicHolder h(this);
         if (aborted_)
         {
             // no need to send Event Identify Global, already detected one
@@ -146,18 +121,25 @@ private:
     {
         auto *b = get_allocation_result(
             node_->iface()->addressed_message_write_flow());
-        b->data()->reset(
-            Defs::MTI_EVENTS_IDENTIFY_GLOBAL, node_->node_id(), EMPTY_PAYLOAD);
-        node_->iface()->addressed_message_write_flow()->send(b);
+        if (aborted_)
+        {
+            // no need to send Event Identify Global, already detected one
+            b->unref();
+        }
+        else
+        {
+            b->data()->reset(
+                Defs::MTI_EVENTS_IDENTIFY_GLOBAL, node_->node_id(),
+                EMPTY_PAYLOAD);
+            node_->iface()->addressed_message_write_flow()->send(b);
+        }
 
         return exit();
     }
 
-    /// alow access to IncomingMessage helper
-    friend class IncomingMessage;
-
+    /// handler for incoming messages
+    MessageHandler::GenericHandler eventIdentifyGlobalHandler_;
     Node *node_; ///< node to send message from
-    IncomingMessage incomingMessage_; ///< handler for incoming messages
     StateFlowTimer timer_; ///< timer object for handling the timeout
     uint8_t aborted_ : 1; ///< true if message received, abort need to send
 };
