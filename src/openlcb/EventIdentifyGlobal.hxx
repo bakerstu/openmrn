@@ -41,7 +41,12 @@
 namespace openlcb
 {
 
-/// Helper object for producing an Event Identify Global message.
+/// Helper object for producing an Event Identify Global message. Once armed,
+/// will produce an Event Identify Global message on the node's interface
+/// at a pseudo random time between 1.500 and 2.011 seconds in the future. The
+/// randomness comes from the 9 least significant bits of the Node ID and aids
+/// in reducing the likeliness of multiple nodes of the same design producing
+/// the same Event Identify Global message unnecessarily.
 class EventIdentifyGlobal : public StateFlowBase, private Atomic
 {
 public:
@@ -68,7 +73,7 @@ public:
             Defs::MTI_EXACT);
     }
 
-    /// Arm the EventIdentifyGlobal request
+    /// Arm the EventIdentifyGlobal request. Multi-thread safe.
     void arm()
     {
         AtomicHolder h(this);
@@ -80,6 +85,8 @@ public:
     }
 
 private:
+    /// Callback upon receiving a Defs::MTI_EVENTS_IDENTIFY_GLOBAL message.
+    /// @param msg unused
     void event_identify_global(Buffer<GenMessage> *msg)
     {
         AtomicHolder h(this);
