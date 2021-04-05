@@ -125,7 +125,7 @@ private:
     Action activate_timer()
     {
         // get a pseudo random number between 1.500 and 2.011 seconds
-        long long timeout_msec = node_->node_id() & 0x1FF;
+        long long timeout_msec = 1500 + node_->node_id() & 0x1FF;
 
         return sleep_and_call(
             &timer_, MSEC_TO_NSEC(timeout_msec), STATE(timeout));
