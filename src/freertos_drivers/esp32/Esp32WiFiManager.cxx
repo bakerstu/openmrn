@@ -140,8 +140,15 @@ namespace openmrn_arduino
 /// Esp32WiFiManager::apply_configuration.
 static constexpr UBaseType_t WIFI_TASK_PRIORITY = 2;
 
+/// Priority for the task performing the mdns lookups and connections for the
+/// wifi uplink.
+static constexpr UBaseType_t CONNECT_TASK_PRIORITY = 3;
+
 /// Stack size for the wifi_manager_task.
 static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
+
+/// Stack size for the connect_executor.
+static constexpr uint32_t CONNECT_TASK_STACK_SIZE = 2560L;
 
 /// Interval at which to check the WiFi connection status.
 static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
@@ -1058,10 +1065,15 @@ void Esp32WiFiManager::start_uplink()
 {
     unique_ptr<SocketClientParams> params(
         new Esp32SocketParams(configFd_, cfg_.uplink()));
-    uplink_.reset(new SocketClient(stack_->service(), stack_->executor(),
-        stack_->executor(), std::move(params),
+    uplink_.reset(new SocketClient(stack_->service(), &connectExecutor_,
+        &connectExecutor_, std::move(params),
         std::bind(&Esp32WiFiManager::on_uplink_created, this,
             std::placeholders::_1, std::placeholders::_2)));
+    if (!connectExecutorStarted_) {
+        connectExecutorStarted_ = true;
+        connectExecutor_.start_thread(
+            "Esp32WiFiConn", CONNECT_TASK_PRIORITY, CONNECT_TASK_STACK_SIZE);
+    }
 }
 
 // Converts the passed fd into a GridConnect port and adds it to the stack.

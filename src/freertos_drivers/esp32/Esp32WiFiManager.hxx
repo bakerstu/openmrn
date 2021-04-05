@@ -368,6 +368,12 @@ private:
     /// Internal flag for tracking that the mDNS system has been initialized.
     bool mdnsInitialized_{false};
 
+    /// True if we have started the connect executor thread.
+    bool connectExecutorStarted_{false};
+
+    /// Executor to use for the uplink connections.
+    Executor<1> connectExecutor_{NO_THREAD()};
+
     /// Internal holder for mDNS entries which could not be published due to
     /// mDNS not being initialized yet.
     std::map<std::string, uint16_t> mdnsDeferredPublish_;
