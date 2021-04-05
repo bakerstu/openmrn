@@ -51,8 +51,8 @@ public:
         : StateFlowBase(node->iface())
         , eventIdentifyGlobalHandler_(
               this, &EventIdentifyGlobal::event_identify_global)
-        , node_(node)
         , timer_(this)
+        , node_(node)
         , aborted_(false)
     {
         node_->iface()->dispatcher()->register_handler(
@@ -139,8 +139,8 @@ private:
 
     /// handler for incoming messages
     MessageHandler::GenericHandler eventIdentifyGlobalHandler_;
-    Node *node_; ///< node to send message from
     StateFlowTimer timer_; ///< timer object for handling the timeout
+    Node *node_; ///< node to send message from
     uint8_t aborted_ : 1; ///< true if message received, abort need to send
 };
 
