@@ -39,13 +39,15 @@
 
 #include <memory>
 
-#include "os/os.h"
-#include "utils/constants.hxx"
-#include "utils/Hub.hxx"
-#include "utils/GcTcpHub.hxx"
-#include "utils/ClientConnection.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
+#include "os/os.h"
+#include "utils/ClientConnection.hxx"
+#include "utils/GcTcpHub.hxx"
+#include "utils/Hub.hxx"
+#include "utils/HubDeviceSelect.hxx"
+#include "utils/SocketCan.hxx"
+#include "utils/constants.hxx"
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
@@ -58,6 +60,7 @@ OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 
 int port = 12021;
 const char *device_path = nullptr;
+const char *socket_can_path = nullptr;
 int upstream_port = 12021;
 const char *upstream_host = nullptr;
 bool timestamped = false;
@@ -67,18 +70,28 @@ bool printpackets = false;
 
 void usage(const char *e)
 {
-    fprintf(stderr, "Usage: %s [-p port] [-d device_path] [-u upstream_host] "
-                    "[-q upstream_port] [-m] [-n mdns_name] [-t] [-l]\n\n",
-            e);
-    fprintf(stderr, "GridConnect CAN HUB.\nListens to a specific TCP port, "
-                    "reads CAN packets from the incoming connections using "
-                    "the GridConnect protocol, and forwards all incoming "
-                    "packets to all other participants.\n\nArguments:\n");
+    fprintf(stderr,
+        "Usage: %s [-p port] [-d device_path] [-u upstream_host] "
+        "[-q upstream_port] [-m] [-n mdns_name] "
+#if defined(__linux__)
+        "[-s socketcan_interface] "
+#endif
+        "[-t] [-l]\n\n",
+        e);
+    fprintf(stderr,
+        "GridConnect CAN HUB.\nListens to a specific TCP port, "
+        "reads CAN packets from the incoming connections using "
+        "the GridConnect protocol, and forwards all incoming "
+        "packets to all other participants.\n\nArguments:\n");
     fprintf(stderr, "\t-p port     specifies the port number to listen on, "
                     "default is 12021.\n");
     fprintf(stderr, "\t-d device   is a path to a physical device doing "
                     "serial-CAN or USB-CAN. If specified, opens device and "
                     "adds it to the hub.\n");
+#if defined(__linux__)
+    fprintf(stderr, "\t-s socketcan_interface   is a socketcan device (e.g. 'can0'). "
+                    "If specified, opens device and adds it to the hub.\n");
+#endif
     fprintf(stderr, "\t-u upstream_host   is the host name for an upstream "
                     "hub. If specified, this hub will connect to an upstream "
                     "hub.\n");
@@ -100,7 +113,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:u:q:tlmn:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:d:s:u:q:tlmn:")) >= 0)
     {
         switch (opt)
         {
@@ -110,6 +123,11 @@ void parse_args(int argc, char *argv[])
             case 'd':
                 device_path = optarg;
                 break;
+#if defined(__linux__)
+            case 's':
+                socket_can_path = optarg;
+                break;
+#endif
             case 'p':
                 port = atoi(optarg);
                 break;
@@ -160,12 +178,28 @@ int appl_main(int argc, char *argv[])
     void mdns_client_start();
     void mdns_publish(const char *name, uint16_t port);
 
-    if (export_mdns) {
+    if (export_mdns)
+    {
         mdns_client_start();
         mdns_publish(mdns_name, port);
     }
 #endif
-    
+#if defined(__linux__)
+    if (socket_can_path)
+    {
+        int s = socketcan_open(socket_can_path, 1);
+        if (s >= 0)
+        {
+            new HubDeviceSelect<CanHubFlow>(&can_hub0, s);
+            fprintf(stderr, "Opened SocketCan %s: fd %d\n", socket_can_path, s);
+        }
+        else
+        {
+            fprintf(stderr, "Failed to open SocketCan %s.\n", socket_can_path);
+        }
+    }
+#endif
+
     if (upstream_host)
     {
         connections.emplace_back(new UpstreamConnectionClient(

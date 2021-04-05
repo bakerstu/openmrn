@@ -5,6 +5,7 @@ CSRCS += errno_exit.c \
 
 CXXSRCS += \
 	   Base64.cxx \
+	   Blinker.cxx \
 	   CanIf.cxx \
 	   Crc.cxx \
 	   StringPrintf.cxx \
@@ -22,6 +23,7 @@ CXXSRCS += \
            Queue.cxx \
            JSHubPort.cxx \
            ReflashBootloader.cxx \
+           SocketCan.cxx \
            constants.cxx \
            gc_format.cxx \
            logging.cxx \

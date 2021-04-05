@@ -1,0 +1,14 @@
+#include "utils/blinker.h"
+
+#include "utils/test_main.hxx"
+
+TEST(BlinkerTest, parse_test)
+{
+    EXPECT_EQ(0u, parseblink(0));
+    EXPECT_EQ(0x33u, parseblink(BLINK_DIE_ABORT));
+    EXPECT_EQ(0x213u, parseblink(BLINK_DIE_HARDFAULT));
+    EXPECT_EQ(0x123u, parseblink(BLINK_DIE_OUTOFMEM));
+    EXPECT_EQ(0x313u, parseblink(BLINK_DIE_NMI));
+    EXPECT_EQ(0x223u, parseblink(BLINK_DIE_ASSERT));
+    EXPECT_EQ(0x133u, parseblink(BLINK_DIE_WATCHDOG));
+};

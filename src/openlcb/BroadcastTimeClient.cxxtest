@@ -4,7 +4,7 @@
 
 #include <inttypes.h>
 
-#if 1
+#if 0
 #define PRINT_ALL_PACKETS() print_all_packets()
 #else
 #define PRINT_ALL_PACKETS()
@@ -250,6 +250,8 @@ TEST_F(BroadcastTimeClientTest, Create)
     EXPECT_EQ(client2_->time(), 0);
     EXPECT_EQ(client2_->day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(client2_->day_of_year(), 0);
+    EXPECT_FALSE(client1_->is_server_detected());
+    EXPECT_FALSE(client2_->is_server_detected());
 };
 
 TEST_F(BroadcastTimeClientTest, Start)
@@ -265,6 +267,7 @@ TEST_F(BroadcastTimeClientTest, Start)
     sync(client1_, 500);
     wait();
     
+    EXPECT_TRUE(client1_->is_server_detected());
     
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 60, 62));

@@ -1,8 +1,8 @@
-ifndef TOOLPATH
-TOOLPATH := $(shell \
-sh -c "if [ -d /usr/include/mach ]; then echo /usr/bin; \
-      else echo; fi" \
-)
+# Get the toolchain path
+include $(OPENMRNPATH)/etc/path.mk
+
+ifeq ($(shell uname -sm),Darwin x86_64)
+TOOLPATH := $(HOSTCLANGPPPATH)
 endif
 
 $(info mach toolpath '$(TOOLPATH)')
@@ -10,19 +10,19 @@ $(info mach toolpath '$(TOOLPATH)')
 # Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
 include $(OPENMRNPATH)/etc/env.mk
 
-CC = gcc
-CXX = g++
+CC = clang
+CXX = clang++
 AR = ar
-LD = g++
+LD = clang++
 
 STARTGROUP :=
 ENDGROUP :=
 
 INCLUDES += -I$(OPENMRNPATH)/include/mach
 
-CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=gnu99 -fno-stack-protector \
+CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=c99 -fno-stack-protector \
          -D_GNU_SOURCE
-CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=c++0x -fno-stack-protector \
+CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=c++14 -fno-stack-protector \
            -D_GNU_SOURCE
 
 LDFLAGS = -g

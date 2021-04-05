@@ -73,7 +73,7 @@ extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
     openlcb::CONFIG_FILENAME;
 
 void time_update_callback();
-void minute_update_callback();
+void minute_update_callback(BarrierNotifiable *done);
 
 // Main time protocol client.
 openlcb::BroadcastTimeClient
@@ -88,13 +88,15 @@ void print_time(const char* prefix) {
         tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,           //
         tm->tm_hour, tm->tm_min,                                   //
         timeClient.is_running() ? "running" : "stopped",          //
-        timeClient.rate() * 1.0f / 4);
+        timeClient.get_rate_quarters() * 1.0f / 4);
 }
 
 /// Callback from the alarm that we will make called on every minute change.
-void minute_update_callback()
+/// @param done used to notify we are finished
+void minute_update_callback(BarrierNotifiable *done)
 {
     print_time("");
+    done->notify();
 }
 
 /// Callback from the time client when the time jumps or is reset for any other
@@ -115,7 +117,7 @@ int appl_main(int argc, char *argv[])
     // Connects to a TCP hub on the internet.
     stack.connect_tcp_gridconnect_hub("localhost", 12021);
 
-    timeClient.update_subscribe(&time_update_callback);
+    timeClient.update_subscribe_add(&time_update_callback);
     
     // This command donates the main thread to the operation of the
     // stack. Alternatively the stack could be started in a separate stack and

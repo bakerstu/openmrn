@@ -1,0 +1,160 @@
+/** \copyright
+ * Copyright (c) 2020, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file SNIPClient.cxxtest
+ *
+ * Unit test for SNIP client library.
+ *
+ * @author Balazs Racz
+ * @date 18 Oct 2020
+ */
+
+static long long snipTimeout = 50 * 1000000;
+#define SNIP_CLIENT_TIMEOUT_NSEC snipTimeout
+
+#include "openlcb/SNIPClient.hxx"
+
+#include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfoMockUserFile.hxx"
+#include "utils/async_if_test_helper.hxx"
+
+namespace openlcb
+{
+
+const char *const SNIP_DYNAMIC_FILENAME = MockSNIPUserFile::snip_user_file_path;
+
+const SimpleNodeStaticValues SNIP_STATIC_DATA = {
+    4, "TestingTesting", "Undefined model", "Undefined HW version", "0.9"};
+
+class SNIPClientTest : public AsyncNodeTest
+{
+protected:
+    SNIPClientTest()
+    {
+        eb_.release_block();
+        run_x([this]() {
+            ifTwo_.alias_allocator()->TEST_add_allocated_alias(0xFF2);
+        });
+        wait();
+    }
+
+    ~SNIPClientTest()
+    {
+        wait();
+    }
+
+    MockSNIPUserFile userFile_ {"Undefined node name", "Undefined node descr"};
+
+    /// General flow for simple info requests.
+    SimpleInfoFlow infoFlow_ {ifCan_.get()};
+    /// Handles SNIP requests.
+    SNIPHandler snipHandler_ {ifCan_.get(), node_, &infoFlow_};
+    /// The actual client to test.
+    SNIPClient client_ {ifCan_.get()};
+
+    // These objects create a second node on the CAN bus (with its own
+    // interface).
+    BlockExecutor eb_ {&g_executor};
+    static constexpr NodeID TWO_NODE_ID = 0x02010d0000ddULL;
+
+    IfCan ifTwo_ {&g_executor, &can_hub0, local_alias_cache_size,
+        remote_alias_cache_size, local_node_count};
+    AddAliasAllocator alloc_ {TWO_NODE_ID, &ifTwo_};
+    DefaultNode nodeTwo_ {&ifTwo_, TWO_NODE_ID};
+};
+
+TEST_F(SNIPClientTest, create)
+{
+}
+
+static const char kExpectedData[] =
+    "\x04TestingTesting\0Undefined model\0Undefined HW version\0"
+    "0.9\0"
+    "\x02Undefined node name\0Undefined node descr"; // C adds another \0.
+
+TEST_F(SNIPClientTest, localhost)
+{
+    auto b = invoke_flow(&client_, node_, NodeHandle(node_->node_id()));
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(
+        string(kExpectedData, sizeof(kExpectedData)), b->data()->response);
+
+    // do another request.
+    auto bb = invoke_flow(&client_, node_, NodeHandle(node_->node_id()));
+    EXPECT_EQ(0, bb->data()->resultCode);
+    EXPECT_EQ(
+        string(kExpectedData, sizeof(kExpectedData)), bb->data()->response);
+}
+
+TEST_F(SNIPClientTest, remote)
+{
+    auto b = invoke_flow(&client_, &nodeTwo_, NodeHandle(node_->node_id()));
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(
+        string(kExpectedData, sizeof(kExpectedData)), b->data()->response);
+
+    // do another request.
+    auto bb = invoke_flow(&client_, &nodeTwo_, NodeHandle(node_->node_id()));
+    EXPECT_EQ(0, bb->data()->resultCode);
+    EXPECT_EQ(
+        string(kExpectedData, sizeof(kExpectedData)), bb->data()->response);
+}
+
+TEST_F(SNIPClientTest, timeout)
+{
+    long long start = os_get_time_monotonic();
+    auto b = invoke_flow(&client_, &nodeTwo_, NodeHandle(nodeTwo_.node_id()));
+    EXPECT_EQ(SNIPClientRequest::OPENMRN_TIMEOUT, b->data()->resultCode);
+    EXPECT_EQ(0u, b->data()->response.size());
+    long long time = os_get_time_monotonic() - start;
+    EXPECT_LT(MSEC_TO_NSEC(49), time);
+}
+
+TEST_F(SNIPClientTest, reject)
+{
+    SyncNotifiable n;
+    auto b = get_buffer_deleter(client_.alloc());
+    b->data()->reset(node_, NodeHandle(NodeAlias(0x555)));
+    b->data()->done.reset(&n);
+
+    expect_packet(":X19DE822AN0555;");
+    client_.send(b.get());
+    wait();
+    clear_expect(true);
+    EXPECT_EQ(SNIPClientRequest::OPERATION_PENDING, b->data()->resultCode);
+    
+    send_packet(":X19068555N022A209905EB;");
+    wait();
+    EXPECT_EQ(SNIPClientRequest::OPERATION_PENDING, b->data()->resultCode);
+
+    send_packet(":X19068555N022A20990DE8;");
+    wait();
+    EXPECT_EQ(SNIPClientRequest::ERROR_REJECTED | 0x2099, b->data()->resultCode);
+    n.wait_for_notification();
+    
+}
+
+} // namespace openlcb

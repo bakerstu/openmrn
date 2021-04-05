@@ -213,3 +213,39 @@ TEST(Fixed16Test, SignedZero)
     // Adding and subtracting does not preserve the sign.
     EXPECT_TRUE(v1.is_positive());
 }
+
+/// Helper function to test mulpow2 operation. Computes base mulpow2 shift with
+/// fixed16 and with double, and verifies that the results is within the given
+/// relative precision form each other.
+/// @param base left operand of mulpow2
+/// @param shift right operand of mulpow2
+/// @param precision relative precisoin of how close the FIxed16 computation
+/// should be to the real result. Example 0.01 for 1% precision.
+void mulpow2_test(double base, double shift, double precision)
+{
+    double result = base * pow(2.0, shift);
+    string expl = StringPrintf("while computing %lg mulpow2 %lg", base, shift);
+    SCOPED_TRACE(expl);
+    Fixed16 fbase {Fixed16::FROM_DOUBLE, base};
+    Fixed16 fshift {Fixed16::FROM_DOUBLE, shift};
+    fbase.mulpow2(fshift);
+    EXPECT_NEAR(result, fbase.to_float(), result * precision);
+}
+
+TEST(Fixed16Test, MulPow2)
+{
+    // General case is within 1% precision.
+    mulpow2_test(13, 1.385, 0.01);
+    mulpow2_test(13, -2.442, 0.01);
+
+    // Integer shifts should work very well.
+    mulpow2_test(1, 4, 0.00001);
+    mulpow2_test(1.77429, 4, 0.00001);
+    mulpow2_test(1, -4, 0.00001);
+    mulpow2_test(1.77429, -4, 0.0001);
+
+    // When the fractional part does not have a lot of binary digits, the
+    // result should be pretty good too.
+    mulpow2_test(30481, -12.5, 0.00001);
+    mulpow2_test(4377, 2.375, 0.0001);
+}

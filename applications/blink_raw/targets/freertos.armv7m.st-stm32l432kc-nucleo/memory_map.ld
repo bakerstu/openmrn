@@ -1,0 +1,1 @@
+../../../../boards/st-stm32l432kc-nucleo/memory_map.ld

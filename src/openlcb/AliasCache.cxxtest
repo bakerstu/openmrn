@@ -52,6 +52,22 @@ static void alias_callback(void *context, NodeID node_id, NodeAlias alias)
     count++;
 }
 
+/// Verifies that calling the next method gives back the correct next node ID.
+void test_alias_next(AliasCache *cache, int count)
+{
+    NodeID last = 0;
+    NodeID next = 0;
+    NodeAlias next_alias;
+    for (int i = 0; i < count; i++)
+    {
+        ASSERT_TRUE(cache->next_entry(last, &next, &next_alias));
+        EXPECT_EQ(node_ids[i], next);
+        EXPECT_EQ(aliases[i], next_alias);
+        last = next;
+    }
+    EXPECT_FALSE(cache->next_entry(last, &next, &next_alias));
+}
+
 TEST(AliasCacheTest, constructor)
 {
     /* construct an object, map in a node, and run the for_each */
@@ -103,6 +119,8 @@ TEST(AliasCacheTest, ordering)
     EXPECT_TRUE(aliasCache->lookup((NodeID)103) == 6);
     EXPECT_TRUE(aliasCache->lookup((NodeID)102) == 11);
     EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 10);
+
+    test_alias_next(aliasCache, 6);
 }
 
 TEST(AliasCacheTest, reordering)
@@ -126,8 +144,10 @@ TEST(AliasCacheTest, reordering)
     EXPECT_TRUE(aliasCache->lookup((NodeAlias)84) == 104);
     EXPECT_TRUE(aliasCache->lookup((NodeAlias)6)  == 103);
     EXPECT_TRUE(aliasCache->lookup((NodeAlias)11) == 102);
-    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);    
-    
+    EXPECT_TRUE(aliasCache->lookup((NodeAlias)10) == 101);
+
+    test_alias_next(aliasCache, 6);
+
     aliasCache->for_each(alias_callback, (void*)0xDEADBEEF);
     
     EXPECT_EQ(count, 6);
@@ -152,7 +172,9 @@ TEST(AliasCacheTest, reordering)
     EXPECT_TRUE(aliasCache->lookup((NodeID)104) == 84);
     EXPECT_TRUE(aliasCache->lookup((NodeID)103) == 6);
     EXPECT_TRUE(aliasCache->lookup((NodeID)102) == 11);
-    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 10);    
+    EXPECT_TRUE(aliasCache->lookup((NodeID)101) == 10);
+
+    test_alias_next(aliasCache, 6);
 }
 
 TEST(AliasCacheTest, generate)
@@ -463,94 +485,6 @@ protected:
     AliasCache c_{get_id(0x33), 10};
 };
 
-namespace openlcb {
-int AliasCache::check_consistency() {
-    if (idMap.size() != aliasMap.size()) return 1;
-    if (aliasMap.size() == entries) {
-        if (freeList != nullptr) return 2;
-    } else {
-        if (freeList == nullptr) return 3;
-    }
-    if (aliasMap.size() == 0 &&
-        (oldest != nullptr || newest != nullptr)) {
-        return 4;
-    }
-    std::set<void*> free_entries;
-    for (Metadata* m = freeList; m; m=m->next) {
-        if (free_entries.count(m)) {
-            return 5; // duplicate entry on freelist
-        }
-        free_entries.insert(m);
-    }
-    if (free_entries.size() + aliasMap.size() != entries) {
-        return 6; // lost some metadata entries
-    }
-    for (auto kv : aliasMap) {
-        if (free_entries.count(kv.second)) {
-            return 19;
-        }
-    }
-    for (auto kv : idMap) {
-        if (free_entries.count(kv.second)) {
-            return 20;
-        }
-    }
-    if (aliasMap.size() == 0) {
-        if (oldest != nullptr) return 7;
-        if (newest != nullptr) return 8;
-    } else {
-        if (oldest == nullptr) return 9;
-        if (newest == nullptr) return 10;
-    }
-    if (free_entries.count(oldest)) {
-        return 11; // oldest is free
-    }
-    if (free_entries.count(newest)) {
-        return 12; // newest is free
-    }
-    if (aliasMap.size() == 0) return 0;
-    // Check linking.
-    {
-        Metadata* prev = oldest;
-        unsigned count = 1;
-        if (prev->older) return 13;
-        while (prev->newer) {
-            auto* next = prev->newer;
-            ++count;
-            if (free_entries.count(next)) {
-                return 21;
-            }
-            if (next->older != prev) return 14;
-            prev = next;
-        }
-        if (prev != newest) return 18;
-        if (count != aliasMap.size()) return 27;
-    }
-    {
-        Metadata* next = newest;
-        if (next->newer) return 15;
-        while (next->older) {
-            auto* prev = next->older;
-            if (free_entries.count(prev)) {
-                return 22;
-            }
-            if (prev->newer != next) return 16;
-            next = prev;
-        }
-        if (next != oldest) return 17;
-    }
-    for (unsigned i = 0; i < entries; ++i) {
-        if (free_entries.count(pool+i)) continue;
-        auto* e = pool+i;
-        if (idMap.find(e->id) == idMap.end()) return 23;
-        if (idMap[e->id] != e) return 24;
-        if (aliasMap.find(e->alias) == aliasMap.end()) return 25;
-        if (aliasMap[e->alias] != e) return 26;
-    }
-    return 0;
-}
-
-}
 
 TEST_F(AliasStressTest, stress_test)
 {
