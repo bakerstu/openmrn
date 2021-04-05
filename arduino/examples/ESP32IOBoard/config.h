@@ -56,7 +56,7 @@ using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x1000;
+static constexpr uint16_t CANONICAL_VERSION = 0x1002;
 
 /// Defines the main segment in the configuration CDI. This is laid out at
 /// origin 128 to give space for the ACDI user data at the beginning.
