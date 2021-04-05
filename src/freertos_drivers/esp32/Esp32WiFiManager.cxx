@@ -403,9 +403,9 @@ void Esp32WiFiManager::factory_reset(int fd)
 
     // General WiFi configuration settings.
     CDI_FACTORY_RESET(cfg_.sleep);
+    CDI_FACTORY_RESET(cfg_.connection_mode);
 
     // Hub specific configuration settings.
-    CDI_FACTORY_RESET(cfg_.hub().enable);
     CDI_FACTORY_RESET(cfg_.hub().port);
     cfg_.hub().service_name().write(
         fd, TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP);
@@ -508,10 +508,7 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
         // Retrieve the configured IP address from the TCP/IP stack.
         tcpip_adapter_ip_info_t ip_info;
         tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
-        LOG(INFO,
-            "[WiFi] IP address is " IPSTR ", starting hub (if enabled) and "
-            "uplink.",
-            IP2STR(&ip_info.ip));
+        LOG(INFO, "[WiFi] IP address is " IPSTR ".", IP2STR(&ip_info.ip));
 
         // Start the mDNS system since we have an IP address, the mDNS system
         // on the ESP32 requires that the IP address be assigned otherwise it
@@ -958,13 +955,28 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
                 ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
             }
 
-            if (CDI_READ_TRIMMED(wifi->cfg_.hub().enable, wifi->configFd_))
+            bool have_hub = false;
+            uint8_t conn_cfg = CDI_READ_TRIMMED(wifi->cfg_.connection_mode,
+                                                wifi->configFd_);
+            if (conn_cfg & 2)
             {
+              LOG(INFO, "[WiFi] Starting hub.");
                 // Since hub mode is enabled start the HUB creation process.
                 wifi->start_hub();
+                have_hub = true;
+            } else {
+              LOG(INFO, "[WiFi] Hub disabled by configuration.");
             }
-            // Start the uplink connection process in the background.
-            wifi->start_uplink();
+            if (conn_cfg & 1) {
+              LOG(INFO, "[WiFi] Starting uplink.");
+              wifi->start_uplink();
+            } else if (!have_hub) {
+              LOG(INFO, "[WiFi] Starting uplink, because hub is disabled.");
+              wifi->start_uplink();
+            } else {
+              LOG(INFO, "[WiFi] Uplink disabled by configuration.");
+            }
+            
             wifi->configReloadRequested_ = false;
         }
 
@@ -1128,7 +1140,7 @@ void Esp32WiFiManager::mdns_publish(string service, const uint16_t port)
         split_mdns_service_name(&service_name, &protocol_name);
         esp_err_t res = mdns_service_add(
             NULL, service_name.c_str(), protocol_name.c_str(), port, NULL, 0);
-        LOG(VERBOSE, "[mDNS] mdns_service_add(%s.%s:%d): %s."
+        LOG(INFO, "[mDNS] mdns_service_add(%s.%s:%d): %s."
           , service_name.c_str(), protocol_name.c_str(), port
           , esp_err_to_name(res));
         // ESP_FAIL will be triggered if there is a timeout during publish of
