@@ -52,10 +52,8 @@ public:
         , node_(node)
         , incomingMessage_(this)
         , timer_(this)
-        , armed_(false)
         , aborted_(false)
     {
-        start_flow(STATE(entry));
     }
 
     /// Destructor.
@@ -67,11 +65,10 @@ public:
     void arm()
     {
         AtomicHolder h(this);
-        if (!armed_)
+        if (is_terminated())
         {
-            armed_ = true;
             aborted_ = false;
-            notify();
+            start_flow(STATE(entry));
         }
     }
 
@@ -116,36 +113,27 @@ private:
     /// Entry/reset point into state machine.
     Action entry()
     {
-        AtomicHolder h(this);
-        armed_ = false;
-        return wait_and_call(STATE(activate_timer));
-    }
-
-    /// We have been armed, start the timer.
-    Action activate_timer()
-    {
         // get a pseudo random number between 1.500 and 2.011 seconds
-        long long timeout_msec = 1500 + node_->node_id() & 0x1FF;
+        long long timeout_msec = 1500 + (node_->node_id() & 0x1FF);
 
         return sleep_and_call(
             &timer_, MSEC_TO_NSEC(timeout_msec), STATE(timeout));
     }
 
     /// Will be called on the executor of the timer.
-    /// @returns the new timer period, or one of the above special values.
     Action timeout()
     {
         AtomicHolder h(this);
         if (aborted_)
         {
             // no need to send Event Identify Global, already detected one
-            return call_immediately(STATE(entry));
+            return exit();
         }
 
         if (!node_->is_initialized())
         {
             // node not initialized yet, try again later
-            return call_immediately(STATE(activate_timer));
+            return call_immediately(STATE(entry));
         }
 
         // allocate a buffer for the Event Identify Global message
@@ -162,7 +150,7 @@ private:
             Defs::MTI_EVENTS_IDENTIFY_GLOBAL, node_->node_id(), EMPTY_PAYLOAD);
         node_->iface()->addressed_message_write_flow()->send(b);
 
-        return call_immediately(STATE(entry));
+        return exit();
     }
 
     /// alow access to IncomingMessage helper
@@ -171,7 +159,6 @@ private:
     Node *node_; ///< node to send message from
     IncomingMessage incomingMessage_; ///< handler for incoming messages
     StateFlowTimer timer_; ///< timer object for handling the timeout
-    uint8_t armed_ : 1; ///< true if armed to send a message
     uint8_t aborted_ : 1; ///< true if message received, abort need to send
 };
 
