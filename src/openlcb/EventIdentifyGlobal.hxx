@@ -133,10 +133,10 @@ private:
     Action fill_buffer()
     {
         auto *b = get_allocation_result(
-            node_->iface()->addressed_message_write_flow());
+            node_->iface()->global_message_write_flow());
         b->data()->reset(
             Defs::MTI_EVENTS_IDENTIFY_GLOBAL, node_->node_id(), EMPTY_PAYLOAD);
-        node_->iface()->addressed_message_write_flow()->send(b);
+        node_->iface()->global_message_write_flow()->send(b);
 
         return exit();
     }
