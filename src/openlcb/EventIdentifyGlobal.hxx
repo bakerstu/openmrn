@@ -106,10 +106,16 @@ private:
     /// Will be called on the executor of the timer.
     Action timeout()
     {
-        if (aborted_)
         {
-            // no need to send Event Identify Global, already detected one
-            return exit();
+            // Making the state flow termination atomic cleans up a potential
+            // race condition with an arm() call coming in after the if
+            // statement but before the StateFlowBase::exit() call.
+            AtomicHolder h(this);
+            if (aborted_)
+            {
+                // no need to send Event Identify Global, already detected one
+                return exit();
+            }
         }
 
         if (!node_->is_initialized())
@@ -128,18 +134,9 @@ private:
     {
         auto *b = get_allocation_result(
             node_->iface()->addressed_message_write_flow());
-        if (aborted_)
-        {
-            // no need to send Event Identify Global, already detected one
-            b->unref();
-        }
-        else
-        {
-            b->data()->reset(
-                Defs::MTI_EVENTS_IDENTIFY_GLOBAL, node_->node_id(),
-                EMPTY_PAYLOAD);
-            node_->iface()->addressed_message_write_flow()->send(b);
-        }
+        b->data()->reset(
+            Defs::MTI_EVENTS_IDENTIFY_GLOBAL, node_->node_id(), EMPTY_PAYLOAD);
+        node_->iface()->addressed_message_write_flow()->send(b);
 
         return exit();
     }
