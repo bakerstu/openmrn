@@ -1,4 +1,4 @@
-/** \copyright
+/** @copyright
  * Copyright (c) 2014, Stuart Baker
  * All rights reserved.
  *
@@ -24,9 +24,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file SimpleInfoProtocol.cxxtest
+ * @file EventIdentifyGlobal.cxxtest
  *
- * Unit tests for simple info protocol handler.
+ * Unit tests for Event Identify Global messages.
  *
  * @author Stuart Baker
  * @date 5 April 2021
