@@ -26,7 +26,7 @@
  *
  * @file EventIdentifyGlobal.hxx
  *
- * A complete OpenLCB stack for use in straightforward OpenLCB nodes.
+ * Implements the necessary logic to produce EventIdentifyGlobal messages.
  *
  * @author Stuart Baker
  * @date 4 April 2021
