@@ -1,5 +1,5 @@
 /** @copyright
- * Copyright (c) 2021, Balazs Racz
+ * Copyright (c) 2021, Stuart Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
