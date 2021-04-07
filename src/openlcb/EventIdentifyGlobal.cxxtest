@@ -1,5 +1,5 @@
 /** @copyright
- * Copyright (c) 2014, Stuart Baker
+ * Copyright (c) 2021, Stuart Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,15 @@ protected:
         }
     }
 
+    /// Generate the random "hash" from the test Node ID.
+    long long generate_random()
+    {
+        uint64_t h = TEST_NODE_ID * 0x1c19a66d;
+        uint32_t hh = h ^ (h >> 32);
+        return (hh ^ (hh >> 12) ^ (hh >> 24)) & 0x1FF;
+
+    }
+
     FakeClock clk_;
     std::unique_ptr<EventIdentifyGlobal> flow_;
 };
@@ -81,7 +90,7 @@ TEST_F(EventIdentifyGlobalTest, Arm)
     flow_->arm();
 
     expect_packet(":X1997022AN;").Times(0).InSequence(s1);
-    sleep_helper(1500 + (TEST_NODE_ID & 0x1FF) - 50);
+    sleep_helper(1500 + generate_random() - 50);
 
     expect_packet(":X1997022AN;").Times(1).InSequence(s1);
     sleep_helper(100);
@@ -95,7 +104,7 @@ TEST_F(EventIdentifyGlobalTest, ArmMultipleTimes)
     flow_->arm();
 
     expect_packet(":X1997022AN;").Times(0).InSequence(s1);
-    sleep_helper(1500 + (TEST_NODE_ID & 0x1FF) - 50);
+    sleep_helper(1500 + generate_random() - 50);
 
     flow_->arm();
 
@@ -114,7 +123,7 @@ TEST_F(EventIdentifyGlobalTest, ArmWithAbort)
     send_packet(":X19970123N;");
 
     expect_packet(":X1997022AN;").Times(0).InSequence(s1);
-    sleep_helper(100 + (TEST_NODE_ID & 0x1FF) - 50);
+    sleep_helper(100 + generate_random() - 50);
 
     expect_packet(":X1997022AN;").Times(0).InSequence(s1);
     sleep_helper(100);
@@ -128,7 +137,7 @@ TEST_F(EventIdentifyGlobalTest, ArmWithLateInitialize)
     flow_->arm();
 
     expect_packet(":X1997022AN;").Times(0).InSequence(s1);
-    sleep_helper(1500 + (TEST_NODE_ID & 0x1FF), 20);
+    sleep_helper(1500 + generate_random(), 20);
 
     EXPECT_CALL(canBus_,
                 mwrite(":X1910022AN02010D000003;")).Times(1).InSequence(s1);
@@ -138,7 +147,7 @@ TEST_F(EventIdentifyGlobalTest, ArmWithLateInitialize)
     new ReinitAllNodes(node_->iface());
 
     expect_packet(":X1997022AN;").Times(0).InSequence(s1);
-    sleep_helper(1500 + (TEST_NODE_ID & 0x1FF) - 100);
+    sleep_helper(1500 + generate_random() - 100);
 
     expect_packet(":X1997022AN;").Times(1).InSequence(s1);
     sleep_helper(150);

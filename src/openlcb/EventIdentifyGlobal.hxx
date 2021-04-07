@@ -55,7 +55,7 @@ public:
     EventIdentifyGlobal(Node *node)
         : StateFlowBase(node->iface())
         , eventIdentifyGlobalHandler_(
-              this, &EventIdentifyGlobal::event_identify_global)
+              this, &EventIdentifyGlobal::handle_incoming_event_identify_global)
         , timer_(this)
         , node_(node)
         , aborted_(false)
@@ -86,9 +86,10 @@ public:
 
 private:
     /// Callback upon receiving a Defs::MTI_EVENTS_IDENTIFY_GLOBAL message.
-    /// @param msg unused
-    void event_identify_global(Buffer<GenMessage> *msg)
+    /// @param msg unused, need to unref to prevent memory leak
+    void handle_incoming_event_identify_global(Buffer<GenMessage> *msg)
     {
+        msg->unref();
         AtomicHolder h(this);
         aborted_ = true;
     }
@@ -96,8 +97,11 @@ private:
     /// Entry/reset point into state machine.
     Action entry()
     {
+        uint64_t h = node_->node_id() * 0x1c19a66d;
+        uint32_t hh = h ^ (h >> 32);
+        hh = hh ^ (hh >> 12) ^ (hh >> 24);
         // get a pseudo random number between 1.500 and 2.011 seconds
-        long long timeout_msec = 1500 + (node_->node_id() & 0x1FF);
+        long long timeout_msec = 1500 + (hh & 0x1FF);
 
         return sleep_and_call(
             &timer_, MSEC_TO_NSEC(timeout_msec), STATE(timeout));
