@@ -62,7 +62,7 @@ constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
 
 /// This is the node id to assign to this device, this must be unique
 /// on the CAN bus.
-static constexpr uint64_t NODE_ID = UINT64_C(0x050101011821);
+static constexpr uint64_t NODE_ID = UINT64_C(0x050101011828);
 
 // Configuring WiFi accesspoint name and password
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

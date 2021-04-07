@@ -69,7 +69,7 @@
 
 /// This is the node id to assign to this device, this must be unique
 /// on the CAN bus.
-static constexpr uint64_t NODE_ID = UINT64_C(0x050101011823);
+static constexpr uint64_t NODE_ID = UINT64_C(0x05010101182b);
 
 #if defined(USE_WIFI)
 // Configuring WiFi accesspoint name and password
