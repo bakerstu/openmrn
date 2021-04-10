@@ -26,8 +26,8 @@ jobs:
       uses: ArminJo/arduino-test-compile@v3.0.0
       with:
         platform-url: https://raw.githubusercontent.com/stm32duino/BoardManagerFiles/master/STM32/package_stm_index.json
-        arduino-board-fqbn: STM32:stm32:Nucleo_144:pnum=NUCLEO_F767ZI,xserial=generic,usb=CDCgen,xusb=FS,opt=osstd,rtlib=nano
-        sketch-names: Stm32*.ino
+        arduino-board-fqbn: STM32:stm32:Nucleo_144:pnum=NUCLEO_F767ZI,upload_method=MassStorage,xserial=generic,usb=CDCgen,xusb=FS,opt=osstd,rtlib=nano
+        sketch-names: Stm32CanSerial.ino
         debug-compile: true
         debug-install: true
         
