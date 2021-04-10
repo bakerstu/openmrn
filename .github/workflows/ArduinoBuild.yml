@@ -7,8 +7,14 @@
 #
 
 # Name of workflow
-name: LibraryBuild
-on: push
+name: ArduinoBuild
+on:
+  push:
+    paths:
+      - '**.ino'
+      - '**rduino**'
+      - '**ArduinoBuild.yml'
+  pull_request:
 jobs:
   build:
     name: Build ESP32 examples
@@ -31,7 +37,6 @@ jobs:
         sketch-names: Stm32*.ino
         build-properties: '{ "All": "-DHAL_CAN_MODULE_ENABLED" }'
         debug-compile: true
-        debug-install: true
         
     - name: Compile all ESP32 examples
       uses: ArminJo/arduino-test-compile@v3.0.0
@@ -40,6 +45,5 @@ jobs:
         arduino-board-fqbn: esp32:esp32:node32s
         sketch-names: ESP*.ino
         debug-compile: true
-        debug-install: true
 
         
