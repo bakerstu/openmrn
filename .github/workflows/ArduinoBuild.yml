@@ -16,9 +16,9 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@master
-      
+
     - name: Compile all examples
-        uses: ArminJo/arduino-test-compile@v3.0.0
+      uses: ArminJo/arduino-test-compile@v3.0.0
       with:
         platform-url: https://dl.espressif.com/dl/package_esp32_index.json
         arduino-board-fqbn: esp32:esp32:node32s
