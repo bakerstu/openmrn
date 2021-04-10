@@ -17,6 +17,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@master
 
+    - name: Generate OpenMRNLite library
+      run: |
+        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
+        $GITHUB_WORKSPACE/openmrn/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE/openmrn -f -l
+
     - name: Compile all examples
       uses: ArminJo/arduino-test-compile@v3.0.0
       with:
