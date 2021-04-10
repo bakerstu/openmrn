@@ -1,0 +1,28 @@
+# ArduinoBuild.yml
+#
+# Github workflow script that compiles all examples from the OpenMRNLite
+# Arduino library.
+#
+# Copyright (C) 2021  Balazs Racz
+#
+
+# Name of workflow
+name: LibraryBuild
+on: push
+jobs:
+  build:
+    name: Build ESP32 examples
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+      
+    - name: Compile all examples
+        uses: ArminJo/arduino-test-compile@v1.0.0
+      with:
+        platform-url: https://dl.espressif.com/dl/package_esp32_index.json
+        arduino-board-fqbn: esp32:esp32:node32s
+        sketch-names: ESP*.ino
+        debug-compile: true
+        debug-install: true
+        
