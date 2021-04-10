@@ -20,7 +20,7 @@ jobs:
     - name: Generate OpenMRNLite library
       run: |
         mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
-        $GITHUB_WORKSPACE/openmrn/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE/openmrn -f -l
+        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
 
     - name: Compile all examples
       uses: ArminJo/arduino-test-compile@v3.0.0
