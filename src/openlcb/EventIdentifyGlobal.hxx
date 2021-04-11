@@ -44,9 +44,11 @@ namespace openlcb
 /// Helper object for producing an Event Identify Global message. Once armed,
 /// will produce an Event Identify Global message on the node's interface
 /// at a pseudo random time between 1.500 and 2.011 seconds in the future. The
-/// randomness comes from the 9 least significant bits of the Node ID and aids
-/// in reducing the likeliness of multiple nodes of the same design producing
-/// the same Event Identify Global message unnecessarily.
+/// randomness comes a hash of the Node ID and aids in reducing the likeliness
+/// of multiple nodes of the same design producing the same Event Identify
+/// Global message unnecessarily. If another node produces the Event Identify
+/// Global first (after arm but before timeout), then we abort the state
+/// machine early.
 class EventIdentifyGlobal : public StateFlowBase, private Atomic
 {
 public:
@@ -59,6 +61,7 @@ public:
         , timer_(this)
         , node_(node)
         , aborted_(false)
+        , deleteSelf_(false)
     {
         node_->iface()->dispatcher()->register_handler(
             &eventIdentifyGlobalHandler_, Defs::MTI_EVENTS_IDENTIFY_GLOBAL,
@@ -74,12 +77,15 @@ public:
     }
 
     /// Arm the EventIdentifyGlobal request. Multi-thread safe.
-    void arm()
+    /// @param delete_self true if the object should delete itself on next
+    ///        state flow completion (one-shot).
+    void arm(bool delete_self = false)
     {
         AtomicHolder h(this);
         if (is_terminated())
         {
             aborted_ = false;
+            deleteSelf_ = delete_self;
             start_flow(STATE(entry));
         }
     }
@@ -97,10 +103,10 @@ private:
     /// Entry/reset point into state machine.
     Action entry()
     {
+        // get a pseudo random number between 1.500 and 2.011 seconds
         uint64_t h = node_->node_id() * 0x1c19a66d;
         uint32_t hh = h ^ (h >> 32);
         hh = hh ^ (hh >> 12) ^ (hh >> 24);
-        // get a pseudo random number between 1.500 and 2.011 seconds
         long long timeout_msec = 1500 + (hh & 0x1FF);
 
         return sleep_and_call(
@@ -118,7 +124,7 @@ private:
             if (aborted_)
             {
                 // no need to send Event Identify Global, already detected one
-                return exit();
+                return deleteSelf_ ? delete_this() : exit();
             }
         }
 
@@ -142,7 +148,7 @@ private:
             Defs::MTI_EVENTS_IDENTIFY_GLOBAL, node_->node_id(), EMPTY_PAYLOAD);
         node_->iface()->global_message_write_flow()->send(b);
 
-        return exit();
+        return deleteSelf_ ? delete_this() : exit();
     }
 
     /// handler for incoming messages
@@ -150,6 +156,7 @@ private:
     StateFlowTimer timer_; ///< timer object for handling the timeout
     Node *node_; ///< node to send message from
     uint8_t aborted_ : 1; ///< true if message received, abort need to send
+    uint8_t deleteSelf_ : 1; ///< delete object upon state flow exit (one-shot)
 };
 
 } // namespace openlcb
