@@ -96,6 +96,24 @@ TEST_F(EventIdentifyGlobalTest, Arm)
     sleep_helper(100);
 }
 
+TEST_F(EventIdentifyGlobalTest, ArmDeleteSelf)
+{
+    ::testing::Sequence s1;
+
+    // test coverage for this is limited because we loose track of the
+    // pointer for "self" for the object.
+    flow_->arm(true);
+
+    expect_packet(":X1997022AN;").Times(0).InSequence(s1);
+    sleep_helper(1500 + generate_random() - 50);
+
+    expect_packet(":X1997022AN;").Times(1).InSequence(s1);
+    sleep_helper(100);
+
+    // prevent crash of test since pointer is no longer valid.
+    flow_.release();
+}
+
 TEST_F(EventIdentifyGlobalTest, ArmMultipleTimes)
 {
     ::testing::Sequence s1;

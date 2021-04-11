@@ -61,6 +61,7 @@ public:
         , timer_(this)
         , node_(node)
         , aborted_(false)
+        , deleteSelf_(false)
     {
         node_->iface()->dispatcher()->register_handler(
             &eventIdentifyGlobalHandler_, Defs::MTI_EVENTS_IDENTIFY_GLOBAL,
@@ -76,12 +77,15 @@ public:
     }
 
     /// Arm the EventIdentifyGlobal request. Multi-thread safe.
-    void arm()
+    /// @param delete_self true if the object should delete itself on next
+    ///        state flow completion (one-shot).
+    void arm(bool delete_self = false)
     {
         AtomicHolder h(this);
         if (is_terminated())
         {
             aborted_ = false;
+            deleteSelf_ = delete_self;
             start_flow(STATE(entry));
         }
     }
@@ -120,7 +124,7 @@ private:
             if (aborted_)
             {
                 // no need to send Event Identify Global, already detected one
-                return exit();
+                return deleteSelf_ ? delete_this() : exit();
             }
         }
 
@@ -144,7 +148,7 @@ private:
             Defs::MTI_EVENTS_IDENTIFY_GLOBAL, node_->node_id(), EMPTY_PAYLOAD);
         node_->iface()->global_message_write_flow()->send(b);
 
-        return exit();
+        return deleteSelf_ ? delete_this() : exit();
     }
 
     /// handler for incoming messages
@@ -152,6 +156,7 @@ private:
     StateFlowTimer timer_; ///< timer object for handling the timeout
     Node *node_; ///< node to send message from
     uint8_t aborted_ : 1; ///< true if message received, abort need to send
+    uint8_t deleteSelf_ : 1; ///< delete object upon state flow exit (one-shot)
 };
 
 } // namespace openlcb
