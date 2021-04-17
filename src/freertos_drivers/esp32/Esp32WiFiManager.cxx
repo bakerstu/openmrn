@@ -331,7 +331,7 @@ Esp32WiFiManager::Esp32WiFiManager(const char *ssid
 {
     // Extend the capacity of the hostname to make space for the node-id and
     // underscore.
-    hostname_.reserve(TCPIP_HOSTNAME_MAX_SIZE);
+    hostname_.reserve(MAX_HOSTNAME_LENGTH);
 
     // Generate the hostname for the ESP32 based on the provided node id.
     // node_id : 0x050101011425
@@ -342,11 +342,11 @@ Esp32WiFiManager::Esp32WiFiManager(const char *ssid
     // The maximum length hostname for the ESP32 is 32 characters so truncate
     // when necessary. Reference to length limitation:
     // https://github.com/espressif/esp-idf/blob/master/components/tcpip_adapter/include/tcpip_adapter.h#L611
-    if (hostname_.length() > TCPIP_HOSTNAME_MAX_SIZE)
+    if (hostname_.length() > MAX_HOSTNAME_LENGTH)
     {
         LOG(WARNING, "ESP32 hostname is too long, original hostname: %s",
             hostname_.c_str());
-        hostname_.resize(TCPIP_HOSTNAME_MAX_SIZE);
+        hostname_.resize(MAX_HOSTNAME_LENGTH);
         LOG(WARNING, "truncated hostname: %s", hostname_.c_str());
     }
 
@@ -732,6 +732,16 @@ void Esp32WiFiManager::enable_verbose_logging()
     enable_esp_wifi_logging();
 }
 
+// In ESP-IDF v4.1 the WiFi API changed and the old interface names are no
+// longer compatible for calling esp_wifi_set_config.
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,1,0)
+#define ESP32_WIFI_STA_IFACE_NAME WIFI_IF_STA
+#define ESP32_WIFI_AP_IFACE_NAME WIFI_IF_AP
+#else // NOT IDF v4.1+
+#define ESP32_WIFI_STA_IFACE_NAME ESP_IF_WIFI_STA
+#define ESP32_WIFI_AP_IFACE_NAME ESP_IF_WIFI_AP
+#endif // IDF v4.1+
+
 // If the Esp32WiFiManager is setup to manage the WiFi system, the following
 // steps are executed:
 // 1) Start the TCP/IP adapter.
@@ -838,7 +848,7 @@ void Esp32WiFiManager::start_wifi_system()
         }
 
         LOG(INFO, "[WiFi] Configuring SoftAP (SSID: %s)", conf.ap.ssid);
-        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &conf));
+        ESP_ERROR_CHECK(esp_wifi_set_config(ESP32_WIFI_AP_IFACE_NAME, &conf));
     }
 
     // If we need to connect to an SSID, configure it now.
@@ -855,7 +865,7 @@ void Esp32WiFiManager::start_wifi_system()
         }
 
         LOG(INFO, "[WiFi] Configuring Station (SSID: %s)", conf.sta.ssid);
-        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &conf));
+        ESP_ERROR_CHECK(esp_wifi_set_config(ESP32_WIFI_STA_IFACE_NAME, &conf));
     }
 
     // Start the WiFi stack. This will start the SoftAP and/or connect to the

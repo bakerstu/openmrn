@@ -378,6 +378,9 @@ private:
     /// mDNS not being initialized yet.
     std::map<std::string, uint16_t> mdnsDeferredPublish_;
 
+    /// Maximum length of the hostname for the ESP32.
+    static constexpr uint8_t MAX_HOSTNAME_LENGTH = 32;
+
     DISALLOW_COPY_AND_ASSIGN(Esp32WiFiManager);
 };
 
