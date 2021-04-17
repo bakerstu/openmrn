@@ -154,6 +154,7 @@ copy_file src/executor src/executor/*.hxx src/executor/*.cxx
 copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
 
 rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
+    ${TARGET_LIB_DIR}/src/openlcb/EventHandlerMock.hxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.hxx
 
