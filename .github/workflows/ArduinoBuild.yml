@@ -17,7 +17,7 @@ on:
   pull_request:
 jobs:
   build:
-    name: Build ESP32 examples
+    name: Build Arduino examples
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -42,6 +42,14 @@ jobs:
       uses: ArminJo/arduino-test-compile@v3.0.0
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+        arduino-board-fqbn: esp32:esp32:node32s
+        sketch-names: ESP*.ino
+        debug-compile: true
+
+    - name: Compile all ESP32 2.0.0 examples
+      uses: ArminJo/arduino-test-compile@v3.0.0
+      with:
+        platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
         arduino-board-fqbn: esp32:esp32:node32s
         sketch-names: ESP*.ino
         debug-compile: true
