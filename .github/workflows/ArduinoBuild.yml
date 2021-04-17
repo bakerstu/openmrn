@@ -16,8 +16,8 @@ on:
       - '**ArduinoBuild.yml'
   pull_request:
 jobs:
-  build:
-    name: Build Arduino examples
+  build-stm32:
+    name: Build Arduino STM32 examples
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -37,7 +37,20 @@ jobs:
         sketch-names: Stm32*.ino
         build-properties: '{ "All": "-DHAL_CAN_MODULE_ENABLED" }'
         debug-compile: true
-        
+
+  build-esp32:
+    name: Build Arduino ESP32 examples using arduino-esp32 RELEASE
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Generate OpenMRNLite library
+      run: |
+        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
+        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
+
     - name: Compile all ESP32 examples
       uses: ArminJo/arduino-test-compile@v3.0.0
       with:
@@ -46,12 +59,23 @@ jobs:
         sketch-names: ESP*.ino
         debug-compile: true
 
-    - name: Compile all ESP32 2.0.0 examples
+  build-esp32-dev:
+    name: Build Arduino ESP32 examples using arduino-esp32 DEV
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Generate OpenMRNLite library
+      run: |
+        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
+        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
+
+    - name: Compile all ESP32 examples
       uses: ArminJo/arduino-test-compile@v3.0.0
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
         arduino-board-fqbn: esp32:esp32:node32s
         sketch-names: ESP*.ino
         debug-compile: true
-
-        
