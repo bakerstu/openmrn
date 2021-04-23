@@ -194,11 +194,11 @@ private:
     void esp_wakeup();
     void esp_wakeup_from_isr();
 public:
+    void esp_start_select(fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
-    void esp_start_select(esp_vfs_select_sem_t signal_sem, fd_set *readfds,
-        fd_set *writefds, fd_set *exceptfds);
-#else
-    void esp_start_select(void* signal_sem);
+                          esp_vfs_select_sem_t signal_sem);
+#else // NOT IDF v4.0+
+                          void *signal_sem);
 #endif // IDF v4.0+
     void esp_end_select();
 
@@ -210,6 +210,12 @@ private:
     /// Semaphore provided by the ESP32 VFS layer to use for waking up the
     /// ESP32 early from the select() call.
     esp_vfs_select_sem_t espSem_;
+#else // NOT IDF v4.0+
+    /// Semaphore for waking up LWIP select.
+    void* lwipSem_{nullptr};
+    /// Semaphore for waking up ESP32 select.
+    void* espSem_{nullptr};
+#endif // IDF v4.0+
 
     /// Flag to indicate that @ref espSem_ is valid or not.
     /// Protected by Atomic *this.
@@ -241,16 +247,8 @@ private:
     /// layer. This is used for checking if we need to set the bit for the FD
     /// when waking up early from select().
     fd_set origExceptFds_;
-#else
-    /// Semaphore for waking up LWIP select.
-    void* lwipSem_{nullptr};
-    /// Semaphore for waking up ESP32 select.
-    void* espSem_{nullptr};
-    /// true if we have already woken up select. protected by Atomic *this.
-    bool woken_{true};
-#endif
+#endif // ESP32
 
-#endif
 #if OPENMRN_HAVE_PSELECT
     /** This signal is used for the wakeup kill in a pthreads OS. */
     static const int WAKEUP_SIG = SIGUSR1;
