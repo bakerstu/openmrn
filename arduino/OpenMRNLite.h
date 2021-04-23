@@ -67,7 +67,11 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 } // namespace openmrn_arduino
 
+#if !defined(CONFIG_IDF_TARGET_ESP32S2) && \
+    !defined(CONFIG_IDF_TARGET_ESP32S3) && \
+    !defined(CONFIG_IDF_TARGET_ESP32C3)
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
+#endif // NOT ESP32-S2,ESP32-S3,ESP32-C3.
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 
