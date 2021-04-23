@@ -53,7 +53,7 @@ static const char *ESP32_CAN_STATUS_STRINGS[] = {
     "RECOVERY UNDERWAY"      // CAN_STATE_RECOVERING
 };
 
-class Esp32HardwareCan : public Can
+class Esp32HardwareCanDeprecated : public Can
 {
 public:
     /// Constructor.
@@ -63,8 +63,8 @@ public:
     /// transceiver RX.
     /// @param txPin is the ESP32 pin that is connected to the external
     /// transceiver TX.
-    Esp32HardwareCan(const char *name, gpio_num_t rxPin, gpio_num_t txPin,
-        bool reportStats = true)
+    Esp32HardwareCanDeprecated(const char *name, gpio_num_t rxPin,
+        gpio_num_t txPin, bool reportStats = true)
         : Can(name)
         , reportStats_(reportStats)
         , overrunWarningPrinted_(false)
@@ -100,7 +100,7 @@ public:
             this, TX_TASK_PRIORITY, &txTaskHandle_, tskNO_AFFINITY);
     }
 
-    ~Esp32HardwareCan()
+    ~Esp32HardwareCanDeprecated()
     {
     }
 
@@ -128,7 +128,7 @@ protected:
 
 private:
     /// Default constructor.
-    Esp32HardwareCan();
+    Esp32HardwareCanDeprecated();
 
     /// Enables/Disables the periodic reporting of CAN bus statistics to the
     /// default serial stream.
@@ -165,9 +165,10 @@ private:
     /// status reporting and BUS recovery when necessary.
     static void tx_task(void *can)
     {
-        /// Get handle to our parent Esp32HardwareCan object to access the
-        /// txBuf.
-        Esp32HardwareCan *parent = reinterpret_cast<Esp32HardwareCan *>(can);
+        /// Get handle to our parent Esp32HardwareCanDeprecated object to
+        /// access the txBuf.
+        Esp32HardwareCanDeprecated *parent =
+            reinterpret_cast<Esp32HardwareCanDeprecated *>(can);
 
 #if CONFIG_TASK_WDT
         // Add this task to the WDT
@@ -291,8 +292,10 @@ private:
     /// a @ref can_frame and pushing them to the @ref rxBuf.
     static void rx_task(void *can)
     {
-        /// Get handle to our parent Esp32HardwareCan object to access the rxBuf
-        Esp32HardwareCan *parent = reinterpret_cast<Esp32HardwareCan *>(can);
+        /// Get handle to our parent Esp32HardwareCanDeprecated object to access
+        /// the rxBuf.
+        Esp32HardwareCanDeprecated *parent =
+            reinterpret_cast<Esp32HardwareCanDeprecated *>(can);
 
 #if CONFIG_TASK_WDT
         // Add this task to the WDT
@@ -366,8 +369,13 @@ private:
             parent->rxBuf->signal_condition();
         }
     }
-    DISALLOW_COPY_AND_ASSIGN(Esp32HardwareCan);
+    DISALLOW_COPY_AND_ASSIGN(Esp32HardwareCanDeprecated);
 };
+
+/// Esp32HardwareCan has been deprecated due to lack of portability beyond the
+/// ESP32.
+/// @deprecated Use @ref Esp32Twai instead.
+typedef Esp32HardwareCanDeprecated Esp32HardwareCan __attribute__ ((deprecated("Esp32HardwareCan has been replaced with Esp32Twai")));
 
 } // namespace openmrn_arduino
 
