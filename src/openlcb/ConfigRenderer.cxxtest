@@ -328,11 +328,11 @@ TEST(CdiRender, RenderIdent)
 <segment space='251' origin='1'>
 <string size='63'>
 <name>User Name</name>
-<description>This name will appear in network browsers for the current node.</description>
+<description>This name will appear in network browsers for this device.</description>
 </string>
 <string size='64'>
 <name>User Description</name>
-<description>This description will appear in network browsers for the current node.</description>
+<description>This description will appear in network browsers for this device.</description>
 </string>
 </segment>
 <segment space='12' origin='33'>

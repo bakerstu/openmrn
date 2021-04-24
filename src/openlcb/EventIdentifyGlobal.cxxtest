@@ -1,0 +1,175 @@
+/** @copyright
+ * Copyright (c) 2021, Stuart Baker
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * @file EventIdentifyGlobal.cxxtest
+ *
+ * Unit tests for Event Identify Global messages.
+ *
+ * @author Stuart Baker
+ * @date 5 April 2021
+ */
+
+#include "utils/async_if_test_helper.hxx"
+
+#include "openlcb/EventIdentifyGlobal.hxx"
+#include "os/FakeClock.hxx"
+
+namespace openlcb
+{
+
+class EventIdentifyGlobalTest : public AsyncNodeTest
+{
+protected:
+    EventIdentifyGlobalTest()
+    {
+        flow_.reset(new EventIdentifyGlobal(node_));
+    }
+
+    ~EventIdentifyGlobalTest()
+    {
+        wait();
+    }
+
+    /// Helper function for sleeping.
+    /// @param clk fake clock or nullptr if no fake clock exists
+    /// @param len_msec how long to sleep
+    /// @param step_msec what granularity to use for sleeping wiht fake clock.
+    void sleep_helper(unsigned len_msec, unsigned step_msec = 50)
+    {
+        for (unsigned i = 0; i < len_msec; i += step_msec)
+        {
+            clk_.advance(MSEC_TO_NSEC(step_msec));
+            wait();
+        }
+    }
+
+    /// Generate the random "hash" from the test Node ID.
+    long long generate_random()
+    {
+        uint64_t h = TEST_NODE_ID * 0x1c19a66d;
+        uint32_t hh = h ^ (h >> 32);
+        return (hh ^ (hh >> 12) ^ (hh >> 24)) & 0x1FF;
+
+    }
+
+    FakeClock clk_;
+    std::unique_ptr<EventIdentifyGlobal> flow_;
+};
+
+TEST_F(EventIdentifyGlobalTest, Create)
+{
+}
+
+TEST_F(EventIdentifyGlobalTest, Arm)
+{
+    ::testing::Sequence s1;
+
+    flow_->arm();
+
+    expect_packet(":X1997022AN;").Times(0).InSequence(s1);
+    sleep_helper(1500 + generate_random() - 50);
+
+    expect_packet(":X1997022AN;").Times(1).InSequence(s1);
+    sleep_helper(100);
+}
+
+TEST_F(EventIdentifyGlobalTest, ArmDeleteSelf)
+{
+    ::testing::Sequence s1;
+
+    // test coverage for this is limited because we loose track of the
+    // pointer for "self" for the object.
+    flow_->arm(true);
+
+    expect_packet(":X1997022AN;").Times(0).InSequence(s1);
+    sleep_helper(1500 + generate_random() - 50);
+
+    expect_packet(":X1997022AN;").Times(1).InSequence(s1);
+    sleep_helper(100);
+
+    // prevent crash of test since pointer is no longer valid.
+    flow_.release();
+}
+
+TEST_F(EventIdentifyGlobalTest, ArmMultipleTimes)
+{
+    ::testing::Sequence s1;
+
+    flow_->arm();
+    flow_->arm();
+
+    expect_packet(":X1997022AN;").Times(0).InSequence(s1);
+    sleep_helper(1500 + generate_random() - 50);
+
+    flow_->arm();
+
+    expect_packet(":X1997022AN;").Times(1).InSequence(s1);
+    sleep_helper(100);
+}
+
+TEST_F(EventIdentifyGlobalTest, ArmWithAbort)
+{
+    ::testing::Sequence s1;
+
+    flow_->arm();
+
+    expect_packet(":X1997022AN;").Times(0).InSequence(s1);
+    sleep_helper(1400);
+    send_packet(":X19970123N;");
+
+    expect_packet(":X1997022AN;").Times(0).InSequence(s1);
+    sleep_helper(100 + generate_random() - 50);
+
+    expect_packet(":X1997022AN;").Times(0).InSequence(s1);
+    sleep_helper(100);
+}
+
+TEST_F(EventIdentifyGlobalTest, ArmWithLateInitialize)
+{
+    ::testing::Sequence s1;
+
+    node_->clear_initialized();
+    flow_->arm();
+
+    expect_packet(":X1997022AN;").Times(0).InSequence(s1);
+    sleep_helper(1500 + generate_random(), 20);
+
+    EXPECT_CALL(canBus_,
+                mwrite(":X1910022AN02010D000003;")).Times(1).InSequence(s1);
+    // Causes all nodes to grab a new alias and send out node initialization
+    // done messages. This object owns itself and will do `delete this;` at the
+    // end of the process.
+    new ReinitAllNodes(node_->iface());
+
+    expect_packet(":X1997022AN;").Times(0).InSequence(s1);
+    sleep_helper(1500 + generate_random() - 100);
+
+    expect_packet(":X1997022AN;").Times(1).InSequence(s1);
+    sleep_helper(150);
+
+}
+
+} // namespace openlcb

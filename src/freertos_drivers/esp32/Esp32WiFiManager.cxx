@@ -140,8 +140,15 @@ namespace openmrn_arduino
 /// Esp32WiFiManager::apply_configuration.
 static constexpr UBaseType_t WIFI_TASK_PRIORITY = 2;
 
+/// Priority for the task performing the mdns lookups and connections for the
+/// wifi uplink.
+static constexpr UBaseType_t CONNECT_TASK_PRIORITY = 3;
+
 /// Stack size for the wifi_manager_task.
 static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
+
+/// Stack size for the connect_executor.
+static constexpr uint32_t CONNECT_TASK_STACK_SIZE = 2560L;
 
 /// Interval at which to check the WiFi connection status.
 static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
@@ -428,9 +435,9 @@ void Esp32WiFiManager::factory_reset(int fd)
 
     // General WiFi configuration settings.
     CDI_FACTORY_RESET(cfg_.sleep);
+    CDI_FACTORY_RESET(cfg_.connection_mode);
 
     // Hub specific configuration settings.
-    CDI_FACTORY_RESET(cfg_.hub().enable);
     CDI_FACTORY_RESET(cfg_.hub().port);
     cfg_.hub().service_name().write(
         fd, TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP);
@@ -533,10 +540,7 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
         // Retrieve the configured IP address from the TCP/IP stack.
         tcpip_adapter_ip_info_t ip_info;
         tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
-        LOG(INFO,
-            "[WiFi] IP address is " IPSTR ", starting hub (if enabled) and "
-            "uplink.",
-            IP2STR(&ip_info.ip));
+        LOG(INFO, "[WiFi] IP address is " IPSTR ".", IP2STR(&ip_info.ip));
 
         // Start the mDNS system since we have an IP address, the mDNS system
         // on the ESP32 requires that the IP address be assigned otherwise it
@@ -983,13 +987,28 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
                 ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
             }
 
-            if (CDI_READ_TRIMMED(wifi->cfg_.hub().enable, wifi->configFd_))
+            bool have_hub = false;
+            uint8_t conn_cfg = CDI_READ_TRIMMED(wifi->cfg_.connection_mode,
+                                                wifi->configFd_);
+            if (conn_cfg & 2)
             {
+              LOG(INFO, "[WiFi] Starting hub.");
                 // Since hub mode is enabled start the HUB creation process.
                 wifi->start_hub();
+                have_hub = true;
+            } else {
+              LOG(INFO, "[WiFi] Hub disabled by configuration.");
             }
-            // Start the uplink connection process in the background.
-            wifi->start_uplink();
+            if (conn_cfg & 1) {
+              LOG(INFO, "[WiFi] Starting uplink.");
+              wifi->start_uplink();
+            } else if (!have_hub) {
+              LOG(INFO, "[WiFi] Starting uplink, because hub is disabled.");
+              wifi->start_uplink();
+            } else {
+              LOG(INFO, "[WiFi] Uplink disabled by configuration.");
+            }
+            
             wifi->configReloadRequested_ = false;
         }
 
@@ -1046,10 +1065,15 @@ void Esp32WiFiManager::start_uplink()
 {
     unique_ptr<SocketClientParams> params(
         new Esp32SocketParams(configFd_, cfg_.uplink()));
-    uplink_.reset(new SocketClient(stack_->service(), stack_->executor(),
-        stack_->executor(), std::move(params),
+    uplink_.reset(new SocketClient(stack_->service(), &connectExecutor_,
+        &connectExecutor_, std::move(params),
         std::bind(&Esp32WiFiManager::on_uplink_created, this,
             std::placeholders::_1, std::placeholders::_2)));
+    if (!connectExecutorStarted_) {
+        connectExecutorStarted_ = true;
+        connectExecutor_.start_thread(
+            "Esp32WiFiConn", CONNECT_TASK_PRIORITY, CONNECT_TASK_STACK_SIZE);
+    }
 }
 
 // Converts the passed fd into a GridConnect port and adds it to the stack.
@@ -1153,7 +1177,7 @@ void Esp32WiFiManager::mdns_publish(string service, const uint16_t port)
         split_mdns_service_name(&service_name, &protocol_name);
         esp_err_t res = mdns_service_add(
             NULL, service_name.c_str(), protocol_name.c_str(), port, NULL, 0);
-        LOG(VERBOSE, "[mDNS] mdns_service_add(%s.%s:%d): %s."
+        LOG(INFO, "[mDNS] mdns_service_add(%s.%s:%d): %s."
           , service_name.c_str(), protocol_name.c_str(), port
           , esp_err_to_name(res));
         // ESP_FAIL will be triggered if there is a timeout during publish of

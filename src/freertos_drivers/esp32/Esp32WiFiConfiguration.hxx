@@ -69,13 +69,20 @@ public:
     static constexpr const char *HUB_DESC =
         "Configuration settings for an OpenLCB Hub";
 
-    /// Visible name for the hub enable field.
-    static constexpr const char *HUB_ENABLE_NAME = "Enable Hub Mode";
+    /// Visible name for the hub/uplink enable field.
+    static constexpr const char *CONN_MODE_NAME = "Connection Mode";
 
-    /// Visible description for the hub enable field.
-    static constexpr const char *HUB_ENABLE_DESC =
-        "Defines this node as a hub which can accept connections";
+    /// Visible description for the hub/uplink enable field.
+    static constexpr const char *CONN_MODE_DESC =
+        "Defines whether to allow accepting connections (according to the Hub configuration), making a connection (according to the Uplink configuration), or both.";
 
+    /// <map> of possible keys and descriptive values to show to the user for
+    /// the connection_mode fields.
+    static constexpr const char *CONN_MODE_MAP =
+        "<relation><property>1</property><value>Uplink Only</value></relation>"
+        "<relation><property>2</property><value>Hub Only</value></relation>"
+        "<relation><property>3</property><value>Hub+Uplink</value></relation>";
+  
     /// Visible name for the hub_listener_port field.
     static constexpr const char *HUB_LISTENER_PORT_NAME = "Hub Listener Port";
 
@@ -94,11 +101,6 @@ public:
 
 /// CDI Configuration for an @ref Esp32WiFiManager managed hub.
 CDI_GROUP(HubConfiguration);
-/// Allows the node to become a Grid Connect Hub.
-CDI_GROUP_ENTRY(enable, openlcb::Uint8ConfigEntry,
-    Name(Esp32WiFiConfigurationParams::HUB_ENABLE_NAME),
-    Description(Esp32WiFiConfigurationParams::HUB_ENABLE_DESC), Min(0), Max(1),
-    Default(0), MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
 /// Specifies the port which should be used by the hub.
 CDI_GROUP_ENTRY(port, openlcb::Uint16ConfigEntry,
     Name(Esp32WiFiConfigurationParams::HUB_LISTENER_PORT_NAME),
@@ -120,6 +122,11 @@ CDI_GROUP_ENTRY(sleep, openlcb::Uint8ConfigEntry,
     Name(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_NAME),
     Description(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_DESC), Min(0),
     Max(1), Default(0), MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
+/// Defines configuration of hub or uplink
+CDI_GROUP_ENTRY(connection_mode, openlcb::Uint8ConfigEntry,
+    Name(Esp32WiFiConfigurationParams::CONN_MODE_NAME),
+    Description(Esp32WiFiConfigurationParams::CONN_MODE_DESC), Min(1), Max(3),
+    Default(1), MapValues(Esp32WiFiConfigurationParams::CONN_MODE_MAP));
 /// CDI Configuration to enable this node to be a hub.
 CDI_GROUP_ENTRY(hub, HubConfiguration,
     Name(Esp32WiFiConfigurationParams::HUB_NAME),

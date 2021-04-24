@@ -111,6 +111,7 @@ TEST_F(BroadcastTimeServerTest, Create)
     EXPECT_EQ(server_->time(), 0);
     EXPECT_EQ(server_->day_of_week(), BroadcastTimeDefs::THURSDAY);
     EXPECT_EQ(server_->day_of_year(), 0);
+    EXPECT_TRUE(server_->is_server_detected());
 };
 
 TEST_F(BroadcastTimeServerTest, Time)

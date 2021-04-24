@@ -21,7 +21,7 @@
       "type": "git",
       "url": "https://github.com/openmrn/OpenMRNLite"
     },
-    "version": "1.0.2",
+    "version": "1.0.3",
     "license": "BSD-2-Clause",
     "frameworks": "arduino",
     "platforms": "espressif32",
