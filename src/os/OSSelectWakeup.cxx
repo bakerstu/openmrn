@@ -319,12 +319,12 @@ void OSSelectWakeup::esp_wakeup_from_isr()
 // the wakeup flag and if true will yield as expected otherwise it is mostly a
 // no-op.
 #if ESP_IDF_VERSION <= ESP_IDF_VERSION_VAL(4,2,0)
-        if (wakeup == pdTRUE)
+        if (woken == pdTRUE)
         {
             portYIELD_FROM_ISR();
         }
 #else
-        portYIELD_FROM_ISR(wakeup);
+        portYIELD_FROM_ISR(woken);
 #endif // ESP_IDF_VERSION > 4.2.0
     }
 }
