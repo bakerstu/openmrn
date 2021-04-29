@@ -56,7 +56,14 @@
 
 #ifdef ESP32
 #include <esp_vfs.h>
-#endif
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
+// SemaphoreHandle_t is defined by inclusion of esp_vfs.h so no additional
+// includes are necessary.
+/// Alias for the internal data type used by ESP-IDF select() calls.
+typedef SemaphoreHandle_t * esp_vfs_select_sem_t;
+#endif // IDF v3.x
+#endif // ESP32
 
 /// Signal handler that does nothing. @param sig ignored.
 void empty_signal_handler(int sig);
@@ -195,27 +202,21 @@ private:
     void esp_wakeup_from_isr();
 public:
     void esp_start_select(fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
                           esp_vfs_select_sem_t signal_sem);
-#else // NOT IDF v4.0+
-                          void *signal_sem);
-#endif // IDF v4.0+
     void esp_end_select();
 
 private:
     /// FD for waking up select in ESP32 VFS implementation.
     int vfsFd_{-1};
 
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
     /// Semaphore provided by the ESP32 VFS layer to use for waking up the
     /// ESP32 early from the select() call.
     esp_vfs_select_sem_t espSem_;
-#else // NOT IDF v4.0+
-    /// Semaphore for waking up LWIP select.
+
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
+    /// Semaphore for waking up LwIP select.
     void* lwipSem_{nullptr};
-    /// Semaphore for waking up ESP32 select.
-    void* espSem_{nullptr};
-#endif // IDF v4.0+
+#endif // IDF < v4.0
 
     /// Flag to indicate that @ref espSem_ is valid or not.
     /// Protected by Atomic *this.

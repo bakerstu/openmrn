@@ -160,7 +160,7 @@ static esp_err_t esp_start_select(int nfds, fd_set *readfds, fd_set *writefds,
 /// semaphore. By the API contract this pointer needs to be passed into
 /// esp_vfs_select_triggered.
 static esp_err_t esp_start_select(int nfds, fd_set *readfds, fd_set *writefds,
-    fd_set *exceptfds, SemaphoreHandle_t *signal_sem)
+    fd_set *exceptfds, esp_vfs_select_sem_t signal_sem)
 #endif // IDF v4.0+
 {
     OSSelectWakeup *parent =
@@ -210,19 +210,11 @@ static void esp_end_select()
 #endif // IDF v4.0+
 }
 
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
 /// This function is called by the ESP32's select implementation.
 /// @param signal_sem is the semaphore container provided by the VFS layer that
 /// can be used to wake up the select() call early.
 void OSSelectWakeup::esp_start_select(fd_set *readfds, fd_set *writefds,
     fd_set *exceptfds, esp_vfs_select_sem_t signal_sem)
-#else // NOT IDF v4.0+
-/// This function is called by the ESP32's select implementation.
-/// @param signal_sem is the semaphore container provided by the VFS layer that
-/// can be used to wake up the select() call early.
-void OSSelectWakeup::esp_start_select(fd_set *readfds, fd_set *writefds,
-    fd_set *exceptfds, void *signal_sem)
-#endif
 {
     AtomicHolder h(this);
     espSem_ = signal_sem;
@@ -264,12 +256,13 @@ void OSSelectWakeup::esp_wakeup()
         }
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
         LOG(VERBOSE, "wakeup es %p %u", espSem_.sem, *(unsigned*)espSem_.sem);
-        esp_vfs_select_triggered(espSem_);
-#else // NOT IDF v4.0+
+#else
         LOG(VERBOSE, "wakeup es %p %u", espSem_, *(unsigned*)espSem_);
         if (espSem_)
         {
-            esp_vfs_select_triggered((SemaphoreHandle_t *)espSem_);
+#endif // IDF v4+
+        esp_vfs_select_triggered(espSem_);
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
         }
         else
         {
@@ -280,7 +273,7 @@ void OSSelectWakeup::esp_wakeup()
             // calling thread, not the target thread to wake up.
             sys_sem_signal(lwipSem_);
         }
-#endif // IDF v4.0+
+#endif // IDF < v4.0
     }
 }
 
@@ -304,12 +297,12 @@ void OSSelectWakeup::esp_wakeup_from_isr()
         {
             FD_SET(vfsFd_, exceptFds_);
         }
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
-        esp_vfs_select_triggered_isr(espSem_, &woken);
-#else // NOT IDF v4.0+
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
         if (espSem_)
         {
-            esp_vfs_select_triggered_isr((SemaphoreHandle_t *)espSem_, &woken);
+#endif // IDF < v4.0
+        esp_vfs_select_triggered_isr(espSem_, &woken);
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
         }
         else
         {
@@ -320,11 +313,19 @@ void OSSelectWakeup::esp_wakeup_from_isr()
             // calling thread, not the target thread to wake up.
             sys_sem_signal_isr(lwipSem_);
         }
-#endif // IDF v4.0+
-        if (woken == pdTRUE)
+#endif // IDF < v4.0
+
+// In IDF v4.3 the portYIELD_FROM_ISR macro was extended to take the value of
+// the wakeup flag and if true will yield as expected otherwise it is mostly a
+// no-op.
+#if ESP_IDF_VERSION <= ESP_IDF_VERSION_VAL(4,2,0)
+        if (wakeup == pdTRUE)
         {
             portYIELD_FROM_ISR();
         }
+#else
+        portYIELD_FROM_ISR(wakeup);
+#endif // ESP_IDF_VERSION > 4.2.0
     }
 }
 
@@ -349,7 +350,7 @@ void OSSelectWakeup::esp_allocate_vfs_fd()
 {
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
     lwipSem_ = sys_thread_sem_get();
-#endif // IDF v3.x
+#endif // IDF < v4.0
 
     HASSERT(0 == pthread_once(&vfs_init_once, &esp_vfs_init));
     vfsFd_ = ::open("/dev/wakeup/0", 0, 0);
