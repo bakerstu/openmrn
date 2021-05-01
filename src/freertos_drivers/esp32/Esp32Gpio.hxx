@@ -42,12 +42,20 @@
 
 #include <driver/gpio.h>
 
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+/// Helper macro to test if a pin has been configured for output.
+///
+/// This is necessary since ESP-IDF does not expose gpio_get_direction(pin).
+#define IS_GPIO_OUTPUT(pin) (GPIO_IS_VALID_OUTPUT_GPIO(pin) &&                 \
+                             GPIO.enable.data & BIT(pin & 25))
+#else // NOT ESP32-C3
 /// Helper macro to test if a pin has been configured for output.
 ///
 /// This is necessary since ESP-IDF does not expose gpio_get_direction(pin).
 #define IS_GPIO_OUTPUT(pin) (GPIO_IS_VALID_OUTPUT_GPIO(pin) &&                 \
                              (pin < 32) ? GPIO.enable & BIT(pin & 31) :        \
                                           GPIO.enable1.data & BIT(pin & 31))
+#endif // CONFIG_IDF_TARGET_ESP32C3
 
 template <class Defs, bool SAFE_VALUE, bool INVERT> struct GpioOutputPin;
 template <class Defs, bool PUEN, bool PDEN> struct GpioInputPin;
