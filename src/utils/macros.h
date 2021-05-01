@@ -89,7 +89,7 @@ extern const char* g_death_file;
 
 #define DIE(MSG) abort()
 
-#elif defined(ESP_NONOS) || defined(ARDUINO)
+#elif defined(ESP_NONOS) || defined(ARDUINO) || defined(ESP32)
 
 #include <stdio.h>
 #include <assert.h>
