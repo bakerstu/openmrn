@@ -39,6 +39,7 @@
 
 #include "executor/Executor.hxx"
 #include "nmranet_config.h"
+#include "openmrn_features.h"
 #include "openlcb/AliasAllocator.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfigUpdateFlow.hxx"
@@ -59,7 +60,7 @@
 #include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/HubDeviceNonBlock.hxx"
-#ifdef __FreeRTOS__
+#ifdef OPENMRN_FEATURE_FD_CAN_DEVICE
 #include "utils/HubDeviceSelect.hxx"
 #endif
 
@@ -328,7 +329,7 @@ public:
         additionalComponents_.emplace_back(port);
     }
 
-#ifdef __FreeRTOS__
+#ifdef OPENMRN_FEATURE_FD_CAN_DEVICE
     /// Adds a CAN bus port with asynchronous driver API.
     ///
     /// @deprecated: most current FreeRTOS drivers use the the select-based
@@ -354,7 +355,7 @@ public:
         auto *port = new HubDeviceSelect<CanHubFlow>(can_hub(), fd, on_error);
         additionalComponents_.emplace_back(port);
     }
-#endif
+#endif // OPENMRN_FEATURE_FD_CAN_DEVICE
 
     /// Adds a gridconnect port to the CAN bus.
     void add_gridconnect_port(const char *path, Notifiable *on_exit = nullptr);
