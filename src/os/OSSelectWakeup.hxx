@@ -55,6 +55,15 @@
 #endif
 
 #ifdef ESP32
+#include "sdkconfig.h"
+
+#ifdef CONFIG_VFS_SUPPORT_TERMIOS
+// remove defines added by arduino-esp32 core/esp32/binary.h which are
+// duplicated in sys/termios.h which may be included by esp_vfs.h
+#undef B110
+#undef B1000000
+#endif // CONFIG_VFS_SUPPORT_TERMIOS
+
 #include <esp_vfs.h>
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)

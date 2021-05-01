@@ -315,17 +315,10 @@ void OSSelectWakeup::esp_wakeup_from_isr()
         }
 #endif // IDF < v4.0
 
-// In IDF v4.3 the portYIELD_FROM_ISR macro was extended to take the value of
-// the wakeup flag and if true will yield as expected otherwise it is mostly a
-// no-op.
-#if ESP_IDF_VERSION <= ESP_IDF_VERSION_VAL(4,2,0)
         if (woken == pdTRUE)
         {
             portYIELD_FROM_ISR();
         }
-#else
-        portYIELD_FROM_ISR(woken);
-#endif // ESP_IDF_VERSION > 4.2.0
     }
 }
 
