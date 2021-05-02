@@ -425,6 +425,7 @@ template <class Defs> struct GpioInputPUPD : public GpioInputPin<Defs, true, tru
 ///    - 8       : Most modules have an RGB LED on this pin.
 ///    - 9       : Connected to built-in pull-up resistor, may also have an
 ///                external pull-up resistor.
+///    - 11 - 17 : Used for flash and/or PSRAM.
 ///
 /// Pins marked as having a pull-up or pull-down resistor are typically 10kOhm.
 ///
