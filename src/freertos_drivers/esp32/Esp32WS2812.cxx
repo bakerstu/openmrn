@@ -38,6 +38,9 @@
 
 #include "freertos_drivers/esp32/Esp32WS2812.hxx"
 #include "utils/logging.h"
+#include <esp_idf_version.h>
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 
 namespace openmrn_arduino
 {
@@ -301,5 +304,7 @@ void *Esp32WS2812::entry()
 }
 
 } // namespace openmrn_arduino
+
+#endif // IDF v4.3+
 
 #endif // ESP32

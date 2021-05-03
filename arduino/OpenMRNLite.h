@@ -70,7 +70,14 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 // which allows usage of the filesystem based CAN interface methods.
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 #include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"
+#include "freertos_drivers/esp32/Esp32WS2812.hxx"
 #define HAVE_CAN_FS_DEVICE
+#endif
+
+// If we are using ESP-IDF v4.3 (or later) enable the usage of the Esp32WS2812
+// RMT API.
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
+#include "freertos_drivers/esp32/Esp32WS2812.hxx"
 #endif
 
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && \
@@ -84,7 +91,6 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
-#include "freertos_drivers/esp32/Esp32WS2812.hxx"
 
 // On the ESP32 we have persistent file system access so enable
 // dynamic CDI.xml generation support
