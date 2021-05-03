@@ -40,6 +40,9 @@
 #if defined(ESP32)
 
 #include "sdkconfig.h"
+#include <esp_idf_version.h>
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 
 #ifdef CONFIG_VFS_SUPPORT_TERMIOS
 // remove defines added by arduino-esp32 core/esp32/binary.h which are
@@ -776,5 +779,7 @@ void Esp32HardwareTwai::hw_init()
 }
 
 } // namespace openmrn_arduino
+
+#endif // IDF v4.3+
 
 #endif // ESP32
