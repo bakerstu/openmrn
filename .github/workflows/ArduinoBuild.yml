@@ -56,7 +56,7 @@ jobs:
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
         arduino-board-fqbn: esp32:esp32:node32s
-        sketch-names: ESP32CanLoadTest.ino ESP32IOBoard.ino ESP32SerialBridge.ino ESP32WifiCanBridge.ino
+        sketch-names: "ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino"
         debug-compile: true
 
   build-esp32-dev-esp32:
@@ -77,7 +77,7 @@ jobs:
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
         arduino-board-fqbn: esp32:esp32:node32s
-        sketch-names: ESP32CanLoadTest.ino ESP32IOBoard.ino ESP32SerialBridge.ino ESP32WifiCanBridge.ino
+        sketch-names: "ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino"
         debug-compile: true
 
   build-esp32-dev-c3:
@@ -98,7 +98,7 @@ jobs:
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
         arduino-board-fqbn: esp32:esp32:esp32c3
-        sketch-names: ESP32C3CanLoadTest.ino ESP32C3IOBoard.ino
+        sketch-names: "ESP32C3CanLoadTest.ino,ESP32C3IOBoard.ino"
         debug-compile: true
 
 #  build-esp32-dev-s2:
@@ -119,5 +119,5 @@ jobs:
 #      with:
 #        platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 #        arduino-board-fqbn: esp32:esp32:esp32s2
-#        sketch-names: ESP32S2CanLoadTest.ino ESP32S2IOBoard.ino
+#        sketch-names: "ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino"
 #        debug-compile: true
