@@ -29,8 +29,8 @@ jobs:
         $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
         rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
 
-    - name: Compile all STM32 examples
-      uses: ArminJo/arduino-test-compile@v3.0.0
+    - name: Compile STM32 examples
+      uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/stm32duino/BoardManagerFiles/master/STM32/package_stm_index.json
         arduino-board-fqbn: STM32:stm32:Nucleo_144:pnum=NUCLEO_F767ZI,upload_method=MassStorage,xserial=generic,usb=CDCgen,xusb=FS,opt=osstd,rtlib=nano
@@ -51,15 +51,15 @@ jobs:
         $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
         rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
 
-    - name: Compile all ESP32 examples
-      uses: ArminJo/arduino-test-compile@v3.0.0
+    - name: Compile ESP32 examples
+      uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
         arduino-board-fqbn: esp32:esp32:node32s
-        sketch-names: ESP*.ino
+        sketch-names: ESP32CanLoadTest.ino ESP32IOBoard.ino ESP32SerialBridge.ino ESP32WifiCanBridge.ino
         debug-compile: true
 
-  build-esp32-dev:
+  build-esp32-dev-esp32:
     name: Build Arduino ESP32 examples using arduino-esp32 DEV
     runs-on: ubuntu-latest
     steps:
@@ -72,10 +72,52 @@ jobs:
         $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
         rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
 
-    - name: Compile all ESP32 examples
-      uses: ArminJo/arduino-test-compile@v3.0.0
+    - name: Compile ESP32 examples
+      uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
         arduino-board-fqbn: esp32:esp32:node32s
-        sketch-names: ESP*.ino
+        sketch-names: ESP32CanLoadTest.ino ESP32IOBoard.ino ESP32SerialBridge.ino ESP32WifiCanBridge.ino
         debug-compile: true
+
+  build-esp32-dev-c3:
+    name: Build Arduino ESP32-C3 examples using arduino-esp32 DEV
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Generate OpenMRNLite library
+      run: |
+        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
+        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
+
+    - name: Compile ESP32-C3 examples
+      uses: ArminJo/arduino-test-compile@v3
+      with:
+        platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+        arduino-board-fqbn: esp32:esp32:esp32c3
+        sketch-names: ESP32C3CanLoadTest.ino ESP32C3IOBoard.ino
+        debug-compile: true
+
+#  build-esp32-dev-s2:
+#    name: Build Arduino ESP32-S2 examples using arduino-esp32 DEV
+#    runs-on: ubuntu-latest
+#    steps:
+#    - name: Checkout
+#      uses: actions/checkout@master
+#
+#    - name: Generate OpenMRNLite library
+#      run: |
+#        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
+#        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
+#        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
+#
+#    - name: Compile ESP32-C3 examples
+#      uses: ArminJo/arduino-test-compile@v3
+#      with:
+#        platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+#        arduino-board-fqbn: esp32:esp32:esp32s2
+#        sketch-names: ESP32S2CanLoadTest.ino ESP32S2IOBoard.ino
+#        debug-compile: true

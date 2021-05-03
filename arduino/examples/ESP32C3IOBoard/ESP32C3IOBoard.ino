@@ -33,55 +33,52 @@
  */
 
 #include <Arduino.h>
-#include <ESPmDNS.h>
 #include <SPIFFS.h>
-#include <WiFi.h>
-#include <vector>
-#include <esp_spi_flash.h>
 
 #include <OpenMRNLite.h>
-#include <openlcb/TcpDefs.hxx>
-
-#include <openlcb/MultiConfiguredConsumer.hxx>
-#include <utils/GpioInitializer.hxx>
-#include <freertos_drivers/arduino/CpuLoad.hxx>
+#include "openlcb/ConfiguredConsumer.hxx"
+#include "openlcb/ConfiguredProducer.hxx"
+#include "openlcb/MultiConfiguredConsumer.hxx"
+#include "utils/GpioInitializer.hxx"
 
 // Pick an operating mode below, if you select USE_WIFI it will expose
 // this node on WIFI if you select USE_CAN, this node will be available
-// on CAN, if you select USE_TWAI this node will be available on CAN.
+// on CAN.
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
-// Note: USE_CAN and USE_TWAI can not be used concurrently.
 
 #define USE_WIFI
-//#define USE_CAN
-#define USE_TWAI
-
-// Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
-// interface.
-//#define USE_TWAI_SELECT
+//#define USE_TWAI
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
 
-// Configuration option validation
+// Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
+// interface.
+//#define USE_TWAI_SELECT
 
-// If USE_TWAI_SELECT is enabled but USE_TWAI is not, enable USE_TWAI.
-#if defined(USE_TWAI_SELECT) && !defined(USE_TWAI)
-#define USE_TWAI
-#endif // USE_TWAI_SELECT && !USE_TWAI
+// Uncomment USE_TWAI_ASYNC to enable the usage of the non-blocking API for
+// the TWAI interface.
+//#define USE_TWAI_ASYNC
 
-// Verify that both CAN and TWAI are not enabled.
-#if defined(USE_CAN) && defined(USE_TWAI)
-#error "Enabling both USE_CAN and USE_TWAI is not supported."
-#endif // USE_CAN && USE_TWAI
+// Uncomment USE_STATUS_LED to enable the WS2812 LED on GPIO8 to be used as an
+// activity LED for this node. Note that the LED will blink a purple color when
+// this node has activity. The color can be changed in the status_led
+// declaration.
+//#define USE_STATUS_LED
+
+// uncomment the line below to specify a GPIO pin that should be used to force
+// a factory reset when the node starts and the GPIO pin reads LOW.
+// Note: GPIO 10 is also used for IO9, care must be taken to ensure that this
+// GPIO pin is not used both for FACTORY_RESET and an OUTPUT pin.
+//#define FACTORY_RESET_GPIO_PIN 10
 
 #include "config.h"
 
 /// This is the node id to assign to this device, this must be unique
 /// on the CAN bus.
-static constexpr uint64_t NODE_ID = UINT64_C(0x05010101182b);
+static constexpr uint64_t NODE_ID = UINT64_C(0x05010101182d);
 
 #if defined(USE_WIFI)
 // Configuring WiFi accesspoint name and password
@@ -107,33 +104,32 @@ const char *password = WIFI_PASS;
 /// unique.
 const char *hostname = "esp32mrn";
 
-OVERRIDE_CONST(gridconnect_buffer_size, 3512);
-//OVERRIDE_CONST(gridconnect_buffer_delay_usec, 200000);
-OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
-OVERRIDE_CONST(gc_generate_newlines, CONSTANT_TRUE);
-OVERRIDE_CONST(executor_select_prescaler, 60);
-OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
+// Uncomment this line to enable usage of ::select() within the Grid Connect
+// code.
+//OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
 
 #endif // USE_WIFI
 
-#if defined(USE_CAN) || defined(USE_TWAI)
-/// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
-/// Recommended pins: 4, 16, 21.
-/// Note: Any pin can be used for this other than 6-11 which are connected to
+#if defined(USE_TWAI)
+/// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
+/// Note: Any pin can be used for this other than 11-17 which are connected to
 /// the onboard flash.
-/// Note: If you are using a pin other than 4 you will likely need to adjust
-/// the GPIO pin definitions for the outputs.
-constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
+/// Note: Adjusting this pin assignment will require updating the GPIO_PIN
+/// declarations below for input/outputs.
+constexpr gpio_num_t TWAI_RX_PIN = GPIO_NUM_18;
 
-/// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
-/// Recommended pins: 5, 17, 22.
-/// Note: Any pin can be used for this other than 6-11 which are connected to
-/// the onboard flash and 34-39 which are input only.
-/// Note: If you are using a pin other than 5 you will likely need to adjust
-/// the GPIO pin definitions for the outputs.
-constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
+/// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
+/// Note: Any pin can be used for this other than 11-17 which are connected to
+/// the onboard flash.
+/// Note: Adjusting this pin assignment will require updating the GPIO_PIN
+/// declarations below for input/outputs.
+constexpr gpio_num_t TWAI_TX_PIN = GPIO_NUM_19;
 
-#endif // USE_CAN or USE_TWAI
+#endif // USE_TWAI
+
+#if defined(FACTORY_RESET_GPIO_PIN)
+static constexpr uint8_t FACTORY_RESET_COUNTDOWN_SECS = 10;
+#endif // FACTORY_RESET_GPIO_PIN
 
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
@@ -153,20 +149,35 @@ Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
 
 #if defined(USE_TWAI)
-Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
+Esp32HardwareTwai twai(TWAI_RX_PIN, TWAI_TX_PIN);
 #endif // USE_TWAI
 
-// Declare output pins
-// NOTE: pins 6-11 are connected to the onboard flash and can not be used for
-// any purpose and pins 34-39 are INPUT only.
-GPIO_PIN(IO0, GpioOutputSafeLow, 15);
-GPIO_PIN(IO1, GpioOutputSafeLow, 2);
-GPIO_PIN(IO2, GpioOutputSafeLow, 16);
-GPIO_PIN(IO3, GpioOutputSafeLow, 17);
-GPIO_PIN(IO4, GpioOutputSafeLow, 13);
-GPIO_PIN(IO5, GpioOutputSafeLow, 12);
-GPIO_PIN(IO6, GpioOutputSafeLow, 14);
-GPIO_PIN(IO7, GpioOutputSafeLow, 27);
+// Declare output pins.
+GPIO_PIN(IO0, GpioOutputSafeLow, 0);
+GPIO_PIN(IO1, GpioOutputSafeLow, 1);
+GPIO_PIN(IO2, GpioOutputSafeLow, 2);
+GPIO_PIN(IO3, GpioOutputSafeLow, 3);
+GPIO_PIN(IO4, GpioOutputSafeLow, 4);
+
+// Declare input pins.
+GPIO_PIN(IO5, GpioInputPU, 5);
+GPIO_PIN(IO6, GpioInputPU, 6);
+GPIO_PIN(IO7, GpioInputPU, 7);
+GPIO_PIN(IO8, GpioInputPU, 9);
+GPIO_PIN(IO9, GpioInputPU, 10);
+
+#if defined(USE_STATUS_LED)
+Esp32WS2812 leds(GPIO_NUM_8, RMT_CHANNEL_0, 1);
+Esp32WS2812Gpio status_led(&leds,
+                           0  /* index    */,
+                           64 /* red on   */, 0  /* red off   */,
+                           0  /* green on */, 0  /* green off */,
+                           64 /* blue on  */, 0  /* blue off  */);
+#endif // USE_STATUS_LED
+
+#if defined(FACTORY_RESET_GPIO_PIN)
+GPIO_PIN(FACTORY_RESET, GpioInputPU, FACTORY_RESET_GPIO_PIN);
+#endif // FACTORY_RESET_GPIO_PIN
 
 // List of GPIO objects that will be used for the output pins. You should keep
 // the constexpr declaration, because it will produce a compile error in case
@@ -175,50 +186,30 @@ GPIO_PIN(IO7, GpioOutputSafeLow, 27);
 constexpr const Gpio *const outputGpioSet[] = {
     IO0_Pin::instance(), IO1_Pin::instance(), //
     IO2_Pin::instance(), IO3_Pin::instance(), //
-    IO4_Pin::instance(), IO5_Pin::instance(), //
-    IO6_Pin::instance(), IO7_Pin::instance()  //
+    IO4_Pin::instance()
 };
 
 openlcb::MultiConfiguredConsumer gpio_consumers(openmrn.stack()->node(), outputGpioSet,
     ARRAYSIZE(outputGpioSet), cfg.seg().consumers());
 
-// Declare input pins, these are using analog pins as digital inputs
-// NOTE: pins 25 and 26 can not safely be used as analog pins while
-// WiFi is active. All analog pins can safely be used for digital
-// inputs regardless of WiFi being active or not.
-GPIO_PIN(IO8, GpioInputPU, 32);
-GPIO_PIN(IO9, GpioInputPU, 33);
-GPIO_PIN(IO10, GpioInputPU, 34);
-GPIO_PIN(IO11, GpioInputPU, 35);
-GPIO_PIN(IO12, GpioInputPU, 36);
-GPIO_PIN(IO13, GpioInputPU, 39);
-GPIO_PIN(IO14, GpioInputPU, 25);
-GPIO_PIN(IO15, GpioInputPU, 26);
-
+openlcb::ConfiguredProducer IO5_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<0>(), IO5_Pin());
+openlcb::ConfiguredProducer IO6_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<1>(), IO6_Pin());
+openlcb::ConfiguredProducer IO7_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<2>(), IO7_Pin());
 openlcb::ConfiguredProducer IO8_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<0>(), IO8_Pin());
+    openmrn.stack()->node(), cfg.seg().producers().entry<3>(), IO8_Pin());
 openlcb::ConfiguredProducer IO9_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<1>(), IO9_Pin());
-openlcb::ConfiguredProducer IO10_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<2>(), IO10_Pin());
-openlcb::ConfiguredProducer IO11_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<3>(), IO11_Pin());
-openlcb::ConfiguredProducer IO12_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<4>(), IO12_Pin());
-openlcb::ConfiguredProducer IO13_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<5>(), IO13_Pin());
-openlcb::ConfiguredProducer IO14_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<6>(), IO14_Pin());
-openlcb::ConfiguredProducer IO15_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<7>(), IO15_Pin());
-
+    openmrn.stack()->node(), cfg.seg().producers().entry<4>(), IO9_Pin());
 
 // Create an initializer that can initialize all the GPIO pins in one shot
 typedef GpioInitializer<
-    IO0_Pin,  IO1_Pin,  IO2_Pin,  IO3_Pin,  // outputs 0-3
-    IO4_Pin,  IO5_Pin,  IO6_Pin,  IO7_Pin,  // outputs 4-7
-    IO8_Pin,  IO9_Pin,  IO10_Pin, IO11_Pin, // inputs 0-3
-    IO12_Pin, IO13_Pin, IO14_Pin, IO15_Pin // inputs 4-7
+#if defined(FACTORY_RESET_GPIO_PIN)
+    FACTORY_RESET_Pin,                           // factory reset
+#endif // FACTORY_RESET_GPIO_PIN
+    IO0_Pin, IO1_Pin, IO2_Pin, IO3_Pin, IO4_Pin, // output pins
+    IO5_Pin, IO6_Pin, IO7_Pin, IO8_Pin, IO9_Pin  // input pins
     > GpioInit;
 
 // The producers need to be polled repeatedly for changes and to execute the
@@ -226,14 +217,11 @@ typedef GpioInitializer<
 // producers to it.
 openlcb::RefreshLoop producer_refresh_loop(openmrn.stack()->node(),
     {
+        IO5_producer.polling(),
+        IO6_producer.polling(),
+        IO7_producer.polling(),
         IO8_producer.polling(),
-        IO9_producer.polling(),
-        IO10_producer.polling(),
-        IO11_producer.polling(),
-        IO12_producer.polling(),
-        IO13_producer.polling(),
-        IO14_producer.polling(),
-        IO15_producer.polling()
+        IO9_producer.polling()
     }
 );
 
@@ -249,7 +237,7 @@ public:
     {
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
-            fd, "OpenLCB + Arduino-ESP32 on an ESP32.");
+            fd, "OpenLCB + Arduino-ESP32 on an ESP32-C3.");
         for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
         {
             cfg.seg().consumers().entry(i).description().write(fd, "");
@@ -281,32 +269,9 @@ namespace openlcb
     extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }
 
-CpuLoad cpu_load;
-hw_timer_t * timer = nullptr;
-CpuLoadLog* cpu_log = nullptr;
-
-void IRAM_ATTR onTimer()
-{
-    if (spi_flash_cache_enabled())
-    {
-        // Retrieves the vtable pointer from the currently running executable.
-        unsigned *pp = (unsigned *)openmrn.stack()->executor()->current();
-        cpuload_tick(pp ? pp[0] | 1 : 0);
-    }
-}
-
 void setup()
 {
-#ifdef USE_WIFI
-    //wifi_mgr.enable_verbose_logging();
-#endif    
     Serial.begin(115200L);
-
-    timer = timerBegin(3, 80, true); // timer_id = 3; divider=80; countUp = true;
-    timerAttachInterrupt(timer, &onTimer, true); // edge = true
-    // 1MHz clock, 163 ticks per second desired.
-    timerAlarmWrite(timer, 1000000/163, true);
-    timerAlarmEnable(timer);
 
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
@@ -323,6 +288,48 @@ void setup()
         }
     }
 
+    // initialize all declared GPIO pins
+    GpioInit::hw_init();
+
+#if defined(USE_STATUS_LED)
+    // initialize the WS2812 LED(s).
+    leds.hw_init();
+#endif // USE_STATUS_LED
+
+#if defined(FACTORY_RESET_GPIO_PIN)
+    // Check the factory reset pin which should normally read HIGH (set), if it
+    // reads LOW (clr) delete the cdi.xml and openlcb_config
+    if (!FACTORY_RESET_Pin::instance()->read())
+    {
+        printf("!!!! WARNING WARNING WARNING WARNING WARNING !!!!\n");
+        printf("The factory reset GPIO pin %d has been triggered.\n",
+               FACTORY_RESET_GPIO_PIN);
+        for (uint8_t sec = FACTORY_RESET_COUNTDOWN_SECS;
+             sec > 0 && !FACTORY_RESET_Pin::instance()->read(); sec--)
+        {
+#if defined(USE_STATUS_LED)
+            status_led.toggle();
+#endif
+            printf("Factory reset will be initiated in %d seconds.\n", sec);
+            usleep(SEC_TO_USEC(1));
+        }
+        if (!FACTORY_RESET_Pin::instance()->read())
+        {
+            unlink(openlcb::CDI_FILENAME);
+            unlink(openlcb::CONFIG_FILENAME);
+            printf("Factory reset complete\n");
+        }
+        else
+        {
+            printf("Factory reset aborted as pin %d was not held LOW\n",
+                   FACTORY_RESET_GPIO_PIN);
+        }
+#if defined(USE_STATUS_LED)
+        status_led.clr();
+#endif
+    }
+#endif // FACTORY_RESET_GPIO_PIN
+
     // Create the CDI.xml dynamically
     openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
 
@@ -330,17 +337,17 @@ void setup()
     openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
         openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
 
-    // initialize all declared GPIO pins
-    GpioInit::hw_init();
-
 #if defined(USE_TWAI)
     twai.hw_init();
 #endif // USE_TWAI
 
+#if defined(USE_STATUS_LED)
+    openmrn.stack()->set_tx_activity_led(&status_led);
+#endif // USE_STATUS_LED
+
     // Start the OpenMRN stack
     openmrn.begin();
     openmrn.start_executor_thread();
-    cpu_log = new CpuLoadLog(openmrn.stack()->service());
 
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
@@ -349,17 +356,16 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_CAN)
-    // Add the hardware CAN device as a bridge
-    openmrn.add_can_port(
-        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
-#elif defined(USE_TWAI_SELECT)
+#if defined(USE_TWAI_SELECT)
     // add TWAI driver with select() usage
     openmrn.add_can_port_select("/dev/twai/twai0");
-#elif defined(USE_TWAI)
+#elif defined(USE_TWAI_ASYNC)
     // add TWAI driver with non-blocking usage
     openmrn.add_can_port_async("/dev/twai/twai0");
-#endif // USE_CAN
+#elif defined(USE_TWAI)
+    // add TWAI driver with blocking usage
+    openmrn.add_can_port_blocking("/dev/twai/twai0");
+#endif // USE_TWAI_SELECT
 }
 
 void loop()
