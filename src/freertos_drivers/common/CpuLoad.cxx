@@ -116,20 +116,28 @@ void cpuload_tick(unsigned irq)
 {
     if (!Singleton<CpuLoad>::exists())
         return;
-#ifdef ESP32
+// On the ESP32 it is necessary to use a slightly different approach for
+// recording CPU usage metrics since there may be additional CPU cores.
+// NOTE: The ESP32-S2 and ESP32-C3 are single-core SoC and defines the
+// FREERTOS_UNICORE flag which we can use here to switch to the standard
+// algorithm.
+#if defined(CONFIG_IDF_TARGET) && !defined(CONFIG_FREERTOS_UNICORE)
     if (irq != 0)
     {
         Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
     }
-    else // assumes openmrn task is pinned to core 0
+    else
     {
-        auto hdl = xTaskGetCurrentTaskHandleForCPU(0);
-        bool is_idle = xTaskGetIdleTaskHandleForCPU(0) == hdl;
+        // Record the first CPU core (PRO_CPU). NOTE: This assumes that OpenMRN
+        // is running on this core.
+        auto hdl = xTaskGetCurrentTaskHandleForCPU(PRO_CPU_NUM);
+        bool is_idle = xTaskGetIdleTaskHandleForCPU(PRO_CPU_NUM) == hdl;
         Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
     }
-    // always records CPU 1 task.
-    auto hdl = xTaskGetCurrentTaskHandleForCPU(1);
-    bool is_idle = xTaskGetIdleTaskHandleForCPU(1) == hdl;
+    // Record the second CPU core (APP_CPU). NOTE: this is where application
+    // code typically runs.
+    auto hdl = xTaskGetCurrentTaskHandleForCPU(APP_CPU_NUM);
+    bool is_idle = xTaskGetIdleTaskHandleForCPU(APP_CPU_NUM) == hdl;
     Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
 #else
     if (irq != 0)
