@@ -55,7 +55,7 @@
 
 #define USE_WIFI
 //#define USE_CAN
-#define USE_TWAI
+//#define USE_TWAI
 
 // Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
 // interface.
@@ -74,8 +74,12 @@
 
 // Verify that both CAN and TWAI are not enabled.
 #if defined(USE_CAN) && defined(USE_TWAI)
-#error "Enabling both USE_CAN and USE_TWAI is not supported."
+#error Enabling both USE_CAN and USE_TWAI is not supported.
 #endif // USE_CAN && USE_TWAI
+
+#if defined(USE_TWAI) && ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
+#error Esp32HardwareTwai is not supported on this version of arduino-esp32.
+#endif // USE_TWAI && IDF < v4.3
 
 #include "config.h"
 
