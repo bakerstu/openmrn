@@ -38,7 +38,6 @@
 
 #include <Arduino.h>
 
-#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
 #include "freertos_drivers/arduino/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
@@ -49,6 +48,7 @@
 
 #if defined(ESP32)
 
+#include <esp_idf_version.h>
 #include <esp_task.h>
 #include <esp_task_wdt.h>
 
@@ -58,22 +58,33 @@ namespace openmrn_arduino {
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
 /// Default thread priority for any OpenMRN owned tasks on the ESP32 platform.
-/// ESP32 hardware CAN RX and TX tasks run at lower priority (-1 and -2 
-/// respectively) of this default priority to ensure timely consumption of CAN
-/// frames from the hardware driver.
 /// Note: This is set to one priority level lower than the TCP/IP task uses on
 /// the ESP32.
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 } // namespace openmrn_arduino
 
+#include "freertos_drivers/esp32/Esp32Gpio.hxx"
+
+// If we are using ESP-IDF v4.3 (or later) enable the usage of the TWAI device
+// which allows usage of the filesystem based CAN interface methods.
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
+#include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"
+#define HAVE_CAN_FS_DEVICE
+#endif
+
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && \
     !defined(CONFIG_IDF_TARGET_ESP32S3) && \
     !defined(CONFIG_IDF_TARGET_ESP32C3)
+// Note: This code is considered deprecated in favor of the TWAI interface
+// which exposes a select() and fnctl() interface.
+// Support for this will be removed in the future.
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
-#endif // NOT ESP32-S2,ESP32-S3,ESP32-C3.
+#endif // NOT ESP32-S2,ESP32-S3,ESP32-C3
+
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
+#include "freertos_drivers/esp32/Esp32WS2812.hxx"
 
 // On the ESP32 we have persistent file system access so enable
 // dynamic CDI.xml generation support
@@ -83,6 +94,7 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #ifdef ARDUINO_ARCH_STM32
 
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/stm32/Stm32Can.hxx"
 
 #endif
@@ -447,6 +459,34 @@ public:
     {
         loopMembers_.push_back(new CanBridge(port, stack()->can_hub()));
     }
+
+#if defined(HAVE_CAN_FS_DEVICE)
+    /// Adds a CAN bus port with synchronous driver API.
+    void add_can_port_blocking(const char *device)
+    {
+        stack_->add_can_port_blocking(device);
+    }
+
+    /// Adds a CAN bus port with asynchronous driver API.
+    void add_can_port_async(const char *device)
+    {
+        stack_->add_can_port_async(device);
+    }
+
+    /// Adds a CAN bus port with select-based asynchronous driver API.
+    void add_can_port_select(const char *device)
+    {
+        stack_->add_can_port_select(device);
+    }
+
+    /// Adds a CAN bus port with select-based asynchronous driver API.
+    /// @param fd file descriptor to add to can hub
+    /// @param on_error Notifiable to wakeup on error
+    void add_can_port_select(int fd, Notifiable *on_error = nullptr)
+    {
+        stack_->add_can_port_select(fd, on_error);
+    }
+#endif // HAVE_CAN_FS_DEVICE
 
 #if defined(HAVE_FILESYSTEM)
     /// Creates the XML representation of the configuration structure and saves
