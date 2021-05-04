@@ -135,7 +135,7 @@ copy_dir . arduino/examples
 
 copy_file src arduino/OpenMRNLite.{h,cpp} \
     include/{can_frame.h,nmranet_config.h,openmrn_features.h} \
-    include/freertos/{can_ioctl.h,endian.h,freertos_includes.h,stropts.h} \
+    include/freertos/{bootloader_hal.h,can_ioctl.h,endian.h,freertos_includes.h,stropts.h} \
     include/freertos_select/ifaddrs.h
 
 # General DCC related files (all headers and DCC packet related cxx)
