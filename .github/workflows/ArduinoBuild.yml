@@ -66,12 +66,9 @@ jobs:
       max-parallel: 2
       matrix:
         target: [esp32, esp32c3, esp32s2]
-        esp32:
-          sketch-names: ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino
-        esp32c3:
-          sketch-names: ESP32C3CanLoadTest.ino,ESP32C3IOBoard.ino
-        esp32s2:
-          sketch-names: ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino
+        esp32: "ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino"
+        esp32c3: "ESP32C3CanLoadTest.ino,ESP32C3IOBoard.ino"
+        esp32s2: "ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino"
     steps:
     - name: Checkout
       uses: actions/checkout@master
