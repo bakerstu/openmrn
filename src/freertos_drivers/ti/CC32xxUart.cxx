@@ -140,6 +140,21 @@ int CC32xxUart::ioctl(File *file, unsigned long int key, unsigned long data)
             MAP_UARTBreakCtl(base, false);
             MAP_UtilsDelay(12 * 26);
             break;
+        case TCPARNONE:
+            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_NONE);
+            break;
+        case TCPARODD:
+            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_ODD);
+            break;
+        case TCPAREVEN:
+            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_EVEN);
+            break;
+        case TCPARONE:
+            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_ONE);
+            break;
+        case TCPARZERO:
+            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_ZERO);
+            break;
     }
 
     return 0;
