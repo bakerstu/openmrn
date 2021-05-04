@@ -39,6 +39,7 @@
 
 #include "sdkconfig.h"
 
+#include <esp_idf_version.h>
 #include <esp_ota_ops.h>
 #if defined(CONFIG_IDF_TARGET_ESP32S2)
 #include <esp32s2/rom/rtc.h>
@@ -47,7 +48,11 @@
 #elif defined(CONFIG_IDF_TARGET_ESP32C3)
 #include <esp32c3/rom/rtc.h>
 #else
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
 #include <esp32/rom/rtc.h>
+#else
+#include <rom/rtc.h>
+#endif
 #endif
 
 #include "utils/logging.h"
