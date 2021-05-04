@@ -51,9 +51,12 @@
 #undef B1000000
 #endif // CONFIG_VFS_SUPPORT_TERMIOS
 
+//#define LOG_LOCAL_LEVEL ESP_LOG_ERROR
+
 #include <assert.h>
 #include <driver/gpio.h>
 #include <driver/periph_ctrl.h>
+#include <esp_log.h>
 #include <esp_rom_gpio.h>
 #include <esp_intr_alloc.h>
 #include <esp_vfs.h>
@@ -83,6 +86,10 @@ static constexpr TickType_t STATUS_PRINT_INTERVAL = pdMS_TO_TICKS(10000);
 /// TWAI default interrupt enable mask, excludes data overrun (bit[3]) and
 /// brp_div (bit[4]) since these are not supported on all models.
 static constexpr uint32_t TWAI_DEFAULT_INTERRUPTS = 0xE7;
+
+/// TWAI Driver ISR flags.
+/// Defaults to level 1-3 (C/C++ compatible) and suspend when accessing flash.
+static constexpr uint32_t TWAI_INTERRUPT_FLAGS = ESP_INTR_FLAG_LOWMED;
 
 /// TWAI Driver statistics.
 typedef struct
@@ -465,10 +472,11 @@ static esp_err_t twai_vfs_end_select(void *end_select_args)
 static inline uint32_t twai_rx_frames()
 {
     AtomicHolder h(&twai.buf_lock);
-    uint32_t frames_ready = twai_hal_get_rx_msg_count(&twai.hal_context);
+    uint32_t rx_ready_count = twai_hal_get_rx_msg_count(&twai.hal_context);
     struct can_frame *can_frame = nullptr;
     uint32_t rx_count = 0;
-    for (uint32_t idx = 0; idx < frames_ready; idx++)
+    ESP_EARLY_LOGV("TWAI", "rx-ready-count: %d", rx_ready_count);
+    for (uint32_t idx = 0; idx < rx_ready_count; idx++)
     {
         twai_hal_frame_t frame;
         if (twai_hal_read_rx_buffer_and_clear(&twai.hal_context, &frame))
@@ -477,6 +485,7 @@ static inline uint32_t twai_rx_frames()
             {
                 // DLC is longer than supported, discard the frame.
                 twai.rx_discard++;
+                ESP_EARLY_LOGE("TWAI", "rx-discard:%d", twai.rx_discard);
             }
             else
             {
@@ -490,21 +499,25 @@ static inline uint32_t twai_rx_frames()
                     can_frame->can_eff = rx_frame.extd;
                     can_frame->can_rtr = rx_frame.rtr;
                     rx_count += twai.rx_buf->advance(1);
+                    ESP_EARLY_LOGV("TWAI", "rx-OK");
                 }
                 else
                 {
                     twai.rx_missed++;
+                    ESP_EARLY_LOGE("TWAI", "rx-missed:%d", twai.rx_missed);
                 }
             }
         }
         else
         {
-            twai.rx_overrun++;
+            ESP_EARLY_LOGE("TWAI", "rx-overrun");
 // If the SOC does not support automatic clearing of the RX FIFO we need to
 // handle it here and break out of the loop.
 #ifndef SOC_TWAI_SUPPORTS_RX_STATUS
-            twai_hal_clear_rx_fifo_overrun(&twai.hal_context);
+            twai.rx_overrun += twai_hal_clear_rx_fifo_overrun(&twai.hal_context);
             break;
+#else
+            twai.rx_overrun++;
 #endif // SOC_TWAI_SUPPORTS_RX_STATUS
         }
     }
@@ -518,10 +531,12 @@ static inline uint32_t twai_tx_frame()
     AtomicHolder h(&twai.buf_lock);
     if (twai_hal_check_last_tx_successful(&twai.hal_context))
     {
+        ESP_EARLY_LOGV("TWAI", "TX-OK");
         twai.tx_success++;
     }
     else
     {
+        ESP_EARLY_LOGV("TWAI", "TX-FAIL");
         twai.tx_failed++;
     }
 
@@ -551,11 +566,13 @@ static void twai_isr(void *arg)
 {
     bool wakeup_select = false;
     uint32_t events = twai_hal_get_events(&twai.hal_context);
-    
+    ESP_EARLY_LOGV("TWAI", "events: %04x", events);
+
 #if defined(CONFIG_TWAI_ERRATA_FIX_RX_FRAME_INVALID) || \
     defined(CONFIG_TWAI_ERRATA_FIX_RX_FIFO_CORRUPT)
     if (events & TWAI_HAL_EVENT_NEED_PERIPH_RESET)
     {
+        ESP_EARLY_LOGV("TWAI", "periph-reset");
         twai_hal_prepare_for_reset(&twai.hal_context);
         periph_module_reset(PERIPH_TWAI_MODULE);
         twai_hal_recover_from_reset(&twai.hal_context);
@@ -594,6 +611,7 @@ static void twai_isr(void *arg)
     // Bus recovery complete, trigger a restart
     if (events & TWAI_HAL_EVENT_BUS_RECOV_CPLT)
     {
+        ESP_EARLY_LOGV("TWAI", "bus recovery complete");
         // start the driver automatically
         twai_hal_start(&twai.hal_context, TWAI_MODE_NORMAL);
     }
@@ -601,11 +619,13 @@ static void twai_isr(void *arg)
     if (events & TWAI_HAL_EVENT_BUS_ERR)
     {
         twai.bus_error++;
+        ESP_EARLY_LOGV("TWAI", "bus-error:%d", twai.bus_error);
     }
     // Arbitration error detected
     if (events & TWAI_HAL_EVENT_ARB_LOST)
     {
         twai.arb_error++;
+        ESP_EARLY_LOGV("TWAI", "arb-lost:%d", twai.arb_error);
     }
 
     // If we need to wake up select() do so now.
@@ -712,15 +732,14 @@ void Esp32HardwareTwai::hw_init()
 {
     LOG(VERBOSE, "[TWAI] Configuring TX pin: %d", txPin_);
     gpio_set_pull_mode((gpio_num_t)txPin_, GPIO_FLOATING);
-    esp_rom_gpio_connect_out_signal((gpio_num_t)txPin_, TWAI_TX_IDX, false,
-        false);
-    esp_rom_gpio_pad_select_gpio((gpio_num_t)txPin_);
+    gpio_matrix_out((gpio_num_t)txPin_, TWAI_TX_IDX, false, false);
+    gpio_pad_select_gpio((gpio_num_t)txPin_);
 
     LOG(VERBOSE, "[TWAI] Configuring RX pin: %d", rxPin_);
     gpio_set_pull_mode((gpio_num_t)rxPin_, GPIO_FLOATING);
-    esp_rom_gpio_connect_in_signal((gpio_num_t)rxPin_, TWAI_RX_IDX, false);
-    esp_rom_gpio_pad_select_gpio((gpio_num_t)rxPin_);
     gpio_set_direction((gpio_num_t)rxPin_, GPIO_MODE_INPUT);
+    gpio_matrix_in((gpio_num_t)rxPin_, TWAI_RX_IDX, false);
+    gpio_pad_select_gpio((gpio_num_t)rxPin_);
 
     if (extClockPin_ != GPIO_NUM_NC)
     {
@@ -728,8 +747,8 @@ void Esp32HardwareTwai::hw_init()
             extClockPin_);
         ESP_ERROR_CHECK(
             gpio_set_pull_mode((gpio_num_t)extClockPin_, GPIO_FLOATING));
-        esp_rom_gpio_connect_out_signal((gpio_num_t)extClockPin_,
-            TWAI_CLKOUT_IDX, false, false);
+        gpio_matrix_out((gpio_num_t)extClockPin_, TWAI_CLKOUT_IDX, false,
+            false);
         esp_rom_gpio_pad_select_gpio((gpio_num_t)extClockPin_);
     }
 
@@ -739,8 +758,8 @@ void Esp32HardwareTwai::hw_init()
             busStatusPin_);
         ESP_ERROR_CHECK(
             gpio_set_pull_mode((gpio_num_t)busStatusPin_, GPIO_FLOATING));
-        esp_rom_gpio_connect_out_signal((gpio_num_t)busStatusPin_,
-            TWAI_BUS_OFF_ON_IDX, false, false);
+        gpio_matrix_out((gpio_num_t)extClockPin_, TWAI_BUS_OFF_ON_IDX, false,
+            false);
         esp_rom_gpio_pad_select_gpio((gpio_num_t)busStatusPin_);
     }
 
@@ -768,7 +787,7 @@ void Esp32HardwareTwai::hw_init()
         TWAI_DEFAULT_INTERRUPTS, 0);
     LOG(VERBOSE, "[TWAI] Allocating ISR");
     ESP_ERROR_CHECK(
-        esp_intr_alloc(ETS_TWAI_INTR_SOURCE, ESP_INTR_FLAG_LOWMED, twai_isr,
+        esp_intr_alloc(ETS_TWAI_INTR_SOURCE, TWAI_INTERRUPT_FLAGS, twai_isr,
             this, &twai.isr_handle));
     twai.configured = true;
 
