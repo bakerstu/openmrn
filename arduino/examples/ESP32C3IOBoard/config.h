@@ -33,7 +33,7 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA =
 {
     4,
     "OpenMRN",
-#if defined(USE_WIFI) && !defined(USE_CAN)
+#if defined(USE_WIFI) && !defined(USE_TWAI)
     "Arduino IO Board (WiFi)",
 #elif defined(USE_TWAI) && !defined(USE_WIFI)
     "Arduino IO Board (CAN)",
@@ -66,8 +66,8 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
-CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Outputs"));
-CDI_GROUP_ENTRY(producers, AllProducers, Name("Inputs"));
+CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Outputs"), RepName("Output"));
+CDI_GROUP_ENTRY(producers, AllProducers, Name("Inputs"), RepName("Input"));
 #if defined(USE_WIFI)
 CDI_GROUP_ENTRY(wifi, WiFiConfiguration, Name("WiFi Configuration"));
 #endif

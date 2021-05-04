@@ -54,14 +54,6 @@
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
 
-// Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
-// interface.
-//#define USE_TWAI_SELECT
-
-// Uncomment USE_TWAI_ASYNC to enable the usage of the non-blocking API for
-// the TWAI interface.
-//#define USE_TWAI_ASYNC
-
 // Uncomment USE_STATUS_LED to enable the WS2812 LED on GPIO8 to be used as an
 // activity LED for this node. Note that the LED will blink a purple color when
 // this node has activity. The color can be changed in the status_led
@@ -73,6 +65,21 @@
 // Note: GPIO 10 is also used for IO9, care must be taken to ensure that this
 // GPIO pin is not used both for FACTORY_RESET and an OUTPUT pin.
 //#define FACTORY_RESET_GPIO_PIN 10
+
+// Uncomment FIRMWARE_UPDATE_BOOTLOADER to enable the bootloader feature when
+// using the TWAI device. When this is active and USE_STATUS_LED is active the
+// on-board LED will use the following color scheme:
+// LED_REQUEST: YELLOW
+// LED_WRITE  : PURPLE
+// LED_ACTIVE : GREEN
+// All others will be ignored.
+//#define FIRMWARE_UPDATE_BOOTLOADER
+
+// Configuration option validation
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_TWAI)
+#error TWAI is required for firmware update via bootloader
+#endif
 
 #include "config.h"
 
@@ -143,6 +150,17 @@ string dummystring("abcdef");
 /// used to generate the cdi.xml file. Here we instantiate the configuration
 /// layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+/// Flag used to indicate that we have been requested to enter the bootloader
+/// instead of normal node operations. Note that this value will not be
+/// initialized by the system and a check for power on reset will need to be
+/// made to initialize it on first boot.
+static uint32_t RTC_NOINIT_ATTR bootloader_request;
+
+// Include the Bootloader HAL implementation for the ESP32. This is not 
+#include "freertos_drivers/esp32/Esp32BootloaderHal.hxx"
+#endif // FIRMWARE_UPDATE_BOOTLOADER
 
 #if defined(USE_WIFI)
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
@@ -274,6 +292,8 @@ void setup()
 {
     Serial.begin(115200L);
 
+    uint8_t reset_reason = Esp32SocInfo::print_soc_info();
+
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
     {
@@ -296,6 +316,24 @@ void setup()
     // initialize the WS2812 LED(s).
     leds.hw_init();
 #endif // USE_STATUS_LED
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+    // If this is the first power up of the node we need to reset the flag
+    // since it will not be initialized automatically.
+    if (reset_reason == POWERON_RESET)
+    {
+        bootloader_request = 0;
+    }
+    // if we have a request to enter the bootloader we need to process it
+    // before we startup the OpenMRN stack.
+    if (bootloader_request)
+    {
+        bootloader_request = 0;
+        esp32_bootloader_run(NODE_ID, TWAI_RX_PIN, TWAI_TX_PIN, true);
+    }
+    else
+    {
+#endif // FIRMWARE_UPDATE_BOOTLOADER
 
 #if defined(FACTORY_RESET_GPIO_PIN)
     // Check the factory reset pin which should normally read HIGH (set), if it
@@ -348,7 +386,14 @@ void setup()
 
     // Start the OpenMRN stack
     openmrn.begin();
-    openmrn.start_executor_thread();
+
+    if (reset_reason == RTCWDT_BROWN_OUT_RESET)
+    {
+        openmrn.stack()->executor()->add(new CallbackExecutable([]()
+        {
+            openmrn.stack()->send_event(openlcb::Defs::NODE_POWER_BROWNOUT_EVENT);
+        }));
+    }
 
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
@@ -357,16 +402,14 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_TWAI_SELECT)
-    // add TWAI driver with select() usage
-    openmrn.add_can_port_select("/dev/twai/twai0");
-#elif defined(USE_TWAI_ASYNC)
+#if defined(USE_TWAI)
     // add TWAI driver with non-blocking usage
     openmrn.add_can_port_async("/dev/twai/twai0");
-#elif defined(USE_TWAI)
-    // add TWAI driver with blocking usage
-    openmrn.add_can_port_blocking("/dev/twai/twai0");
-#endif // USE_TWAI_SELECT
+#endif // USE_TWAI
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+    }
+#endif // FIRMWARE_UPDATE_BOOTLOADER
 }
 
 void loop()
@@ -375,3 +418,95 @@ void loop()
     // as possible from the loop() method.
     openmrn.loop();
 }
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+
+extern "C"
+{
+
+void enter_bootloader()
+{
+    // set global flag that we need to enter the bootloader
+    bootloader_request = 1;
+    LOG(INFO, "[Bootloader] Rebooting into bootloader");
+    // reboot the esp32 so we can enter the bootloader
+    esp_restart();
+}
+
+/// Initializes the node specific bootloader hardware (LEDs)
+void bootloader_hw_set_to_safe(void)
+{
+  LOG(VERBOSE, "[Bootloader] bootloader_hw_set_to_safe");
+}
+
+/// Verifies that the bootloader has been requested.
+///
+/// @return true if bootloader_request is set to one, otherwise false.
+bool request_bootloader(void)
+{
+  LOG(VERBOSE, "[Bootloader] request_bootloader");
+  return bootloader_request == 1;
+}
+
+/// Updates the state of a status LED.
+///
+/// @param led is the LED to update.
+/// @param value is the new state of the LED.
+///
+/// NOTE: Currently the following mapping is used for the on-board led:
+/// LED_ACTIVE  -> sets the status led to green
+/// LED_WRITING -> sets the status led to purple
+/// LED_REQUEST -> sets the status led to yellow
+void bootloader_led(enum BootloaderLed led, bool value)
+{
+    LOG(VERBOSE, "[Bootloader] bootloader_led(%d, %d)", led, value);
+    if (led == LED_REQUEST)
+    {
+        LOG(INFO, "[Bootloader] Preparing to receive firmware");
+        LOG(INFO, "[Bootloader] Current partition: %s", current->label);
+        LOG(INFO, "[Bootloader] Target partition: %s", target->label);
+#if defined(USE_STATUS_LED)
+        if (value)
+        {
+            leds.set_led_color(0, 32, 32, 0);
+        }
+        else
+        {
+            // clear the LED
+            leds.set_led_color(0, 0, 0, 0);
+        }
+#endif // USE_STATUS_LED
+    }
+#if defined(USE_STATUS_LED)
+    else if (led == LED_ACTIVE)
+    {
+        if (value)
+        {
+            // set the LED green for active
+            leds.set_led_color(0, 0, 32, 0);
+        }
+        else
+        {
+            // clear the LED
+            leds.set_led_color(0, 0, 0, 0);
+        }
+    }
+    else if (led == LED_WRITING)
+    {
+        if (value)
+        {
+            // set the LED purple for writes
+            leds.set_led_color(0, 32, 0, 32);
+        }
+        else
+        {
+            // clear the LED
+            leds.set_led_color(0, 0, 0, 0);
+        }
+    }
+#endif // USE_STATUS_LED
+}
+
+} // extern "C"
+
+#endif // FIRMWARE_UPDATE_BOOTLOADER

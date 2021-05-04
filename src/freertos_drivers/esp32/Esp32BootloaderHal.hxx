@@ -329,7 +329,7 @@ uint64_t nmranet_nodeid(void)
 
 } // extern "C"
 
-void esp32_bootloader_run(uint64_t id, gpio_num_t tx, gpio_num_t rx,
+void esp32_bootloader_run(uint64_t id, gpio_num_t rx, gpio_num_t tx,
                           bool reboot_on_exit)
 {
     ESP_BOOTLOADER_NODE_ID = id;

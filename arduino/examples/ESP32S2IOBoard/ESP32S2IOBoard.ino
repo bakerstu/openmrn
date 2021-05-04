@@ -24,18 +24,16 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ESP32IOBoard.ino
+ * \file ESP32S2IOBoard.ino
  *
  * Main file for the io board application on an ESP32.
  *
  * @author Mike Dunston
- * @date 13 January 2019
+ * @date 2 May 2021
  */
 
 #include <Arduino.h>
 #include <SPIFFS.h>
-#include <WiFi.h>
-#include <vector>
 
 #include <OpenMRNLite.h>
 #include <openlcb/TcpDefs.hxx>
@@ -52,7 +50,7 @@
 // Note: USE_CAN and USE_TWAI can not be used concurrently.
 
 #define USE_WIFI
-#define USE_TWAI
+//#define USE_TWAI
 
 // Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
 // interface.
@@ -85,7 +83,7 @@
 // LED_WRITE  : PURPLE
 // LED_ACTIVE : GREEN
 // All others will be ignored.
-#define FIRMWARE_UPDATE_BOOTLOADER
+//#define FIRMWARE_UPDATE_BOOTLOADER
 
 // Configuration option validation
 
@@ -138,19 +136,15 @@ OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 
 #endif // USE_WIFI
 
-#if defined(USE_CAN) || defined(USE_TWAI)
+#if defined(USE_TWAI)
 /// This is the ESP32-S2 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
-/// Recommended pins: 40.
-/// Note: Any pin can be used for this other than 26-32 which are connected to
-/// the onboard flash.
-/// Note: If you are using a pin other than 45 you will likely need to adjust
+/// Recommended pins: 40, 41, 42.
+/// Note: If you are using a pin other than 40 you will likely need to adjust
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_40;
 
 /// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
-/// Recommended pins: 41.
-/// Note: Any pin can be used for this other than 26-32 which are connected to
-/// the onboard flash.
+/// Recommended pins: 40, 41, 42.
 /// Note: If you are using a pin other than 41 you will likely need to adjust
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_41;
@@ -210,10 +204,11 @@ GPIO_PIN(IO12, GpioOutputSafeLow, 12);
 GPIO_PIN(IO13, GpioOutputSafeLow, 45);
 
 // Declare input pins
-// NOTE: GPIO 19 and 20 are intentionally skipped as they are reserved for
-// native USB. GPIO 43 and 44 are skipped as they are connected to UART0.
+// Notes:
 // GPIO 18 is reserved for the status LED.
-// GPIO 40 and 41 are intentionally skipped as they are used for TWAI.
+// GPIO 19 and 20 are intentionally skipped as they are reserved for native USB.
+// GPIO 43 and 44 are skipped as they are connected to UART0.
+// GPIO 40 and 41 are intentionally skipped as they are reserved for TWAI.
 GPIO_PIN(IO14, GpioInputPU, 13);
 GPIO_PIN(IO15, GpioInputPU, 14);
 GPIO_PIN(IO16, GpioInputPU, 15);
@@ -368,10 +363,8 @@ namespace openlcb
 
 void setup()
 {
-#ifdef USE_WIFI
-    //wifi_mgr.enable_verbose_logging();
-#endif    
     Serial.begin(115200L);
+    uint8_t reset_reason = Esp32SocInfo::print_soc_info();
 
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
@@ -396,7 +389,7 @@ void setup()
 #if defined(FIRMWARE_UPDATE_BOOTLOADER)
     // If this is the first power up of the node we need to reset the flag
     // since it will not be initialized automatically.
-    if (rtc_get_reset_reason(PRO_CPU_NUM) == POWERON_RESET)
+    if (reset_reason == POWERON_RESET)
     {
         bootloader_request = 0;
     }
@@ -465,7 +458,14 @@ void setup()
 
     // Start the OpenMRN stack
     openmrn.begin();
-    openmrn.start_executor_thread();
+
+    if (reset_reason == RTCWDT_BROWN_OUT_RESET)
+    {
+        openmrn.stack()->executor()->add(new CallbackExecutable([]()
+        {
+            openmrn.stack()->send_event(openlcb::Defs::NODE_POWER_BROWNOUT_EVENT);
+        }));
+    }
 
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
@@ -536,10 +536,10 @@ bool request_bootloader(void)
 /// @param led is the LED to update.
 /// @param value is the new state of the LED.
 ///
-/// NOTE: Currently the following mapping is being used for the LEDs:
-/// LED_ACTIVE -> Activity LED
-/// LED_WRITING -> WiFi LED
-/// LED_REQUEST -> Used only as a hook for printing bootloader startup.
+/// NOTE: Currently the following mapping is used for the on-board led:
+/// LED_ACTIVE  -> sets the status led to green
+/// LED_WRITING -> sets the status led to purple
+/// LED_REQUEST -> sets the status led to yellow
 void bootloader_led(enum BootloaderLed led, bool value)
 {
     LOG(VERBOSE, "[Bootloader] bootloader_led(%d, %d)", led, value);
@@ -549,7 +549,15 @@ void bootloader_led(enum BootloaderLed led, bool value)
         LOG(INFO, "[Bootloader] Current partition: %s", current->label);
         LOG(INFO, "[Bootloader] Target partition: %s", target->label);
 #if defined(USE_STATUS_LED)
-        leds.set_led_color(0, 64, 64, 0);
+        if (value)
+        {
+            leds.set_led_color(0, 32, 32, 0);
+        }
+        else
+        {
+            // clear the LED
+            leds.set_led_color(0, 0, 0, 0);
+        }
 #endif // USE_STATUS_LED
     }
 #if defined(USE_STATUS_LED)
@@ -557,8 +565,8 @@ void bootloader_led(enum BootloaderLed led, bool value)
     {
         if (value)
         {
-            // set the LED purple for writes
-            leds.set_led_color(0, 0, 64, 0);
+            // set the LED green for active
+            leds.set_led_color(0, 0, 32, 0);
         }
         else
         {
@@ -571,7 +579,7 @@ void bootloader_led(enum BootloaderLed led, bool value)
         if (value)
         {
             // set the LED purple for writes
-            leds.set_led_color(0, 64, 0, 64);
+            leds.set_led_color(0, 32, 0, 32);
         }
         else
         {
