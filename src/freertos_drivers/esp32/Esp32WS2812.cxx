@@ -54,13 +54,13 @@ static uint32_t timeOneLowTicks = 0;
 static constexpr uint16_t TIME_ZERO_HIGH_NSEC = 350;
 
 /// Number of microseconds to transmit a LOW signal for a ZERO bit.
-static constexpr uint16_t TIME_ZERO_LOW_NSEC = 1000;
+static constexpr uint16_t TIME_ZERO_LOW_NSEC = 850;
 
 /// Number of microseconds to transmit a HIGH signal for a ONE bit.
-static constexpr uint16_t TIME_ONE_HIGH_NSEC = 1000;
+static constexpr uint16_t TIME_ONE_HIGH_NSEC = 800;
 
 /// Number of microseconds to transmit a LOW signal for a ONE bit.
-static constexpr uint16_t TIME_ONE_LOW_NSEC = 350;
+static constexpr uint16_t TIME_ONE_LOW_NSEC = 450;
 
 /// WS2812 to RMT data translation adapter for the ESP32 RMT peripheral.
 ///

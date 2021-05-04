@@ -45,6 +45,49 @@
 namespace openmrn_arduino
 {
 
+/// WS2812 driver via the ESP32 RMT peripheral.
+///
+/// Provides the ability to control multiple addressable WS2812/SK68XX LEDs via
+/// a single GPIO pin. Depending on which ESP32 module is in use the number of
+/// parallel WS2812 output channels will vary.
+///
+/// The output data for the WS2812 is based on a series of 24 pulses matching
+/// either of the two waves below:
+///
+/// WS2812 ZERO:
+///    ----------
+///    |  350   |
+/// ---|  nsec  |     850     ---
+///             |     nsec    |
+///             ---------------
+/// WS2812 ONE:
+///    ---------------
+///    |     800     |
+/// ---|     nsec    |  450   ---
+///                  |  nsec  |
+///                  ----------
+///
+/// A third wave may be observed in the datastream of around 280 nanoseconds as
+/// a LOW signal. This is a reset pulse and will reset the LEDs for new color
+/// data. However, this pulse is not currently being generated and LEDs are
+/// correctly displaying the expected colors.
+///
+/// LED Color data is transmitted in MSB format as: Green, Red, Blue.
+///
+/// The WS2812 LEDs use three primary colors, each with 256 levels of
+/// brightness, allowing around 16M colors. In most cases values 64 and below
+/// will yield the best color renditions.
+///
+/// For 1024 LEDs the total transmission time is around 30 milliseconds which is
+/// around 30 updates to all LEDs per second.
+///
+/// When only one LED is connected (as seen on the ESP32-S2 or ESP32-C3 modules)
+/// LED updates will be processed inline with the call to set_led_color or
+/// clear. When more than one LED is connected a background thread will be used
+/// to update the LED colors.
+///
+/// This class will allocate 3 bytes per LED as a transmit buffer, it is not
+/// double buffered at this time.
 class Esp32WS2812 : private OSThread
 {
 public:
@@ -141,7 +184,8 @@ private:
     void *entry() override;
 };
 
-///
+/// Implementation of @ref Gpio which routes the on/off calls to a single
+/// WS2812/SK68xx LED.
 class Esp32WS2812Gpio : public Gpio
 {
 public:
