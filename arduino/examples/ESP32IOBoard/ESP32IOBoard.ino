@@ -267,6 +267,8 @@ void setup()
 {
     Serial.begin(115200L);
 
+    uint8_t reset_reason = Esp32SocInfo::print_soc_info();
+
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
     {
@@ -322,7 +324,13 @@ void setup()
     // Start the OpenMRN stack
     openmrn.begin();
     openmrn.start_executor_thread();
-
+    if (reset_reason == RTCWDT_BROWN_OUT_RESET)
+    {
+        openmrn.stack()->executor()->add(new CallbackExecutable([]()
+        {
+            openmrn.stack()->send_event(openlcb::Defs::NODE_POWER_BROWNOUT_EVENT);
+        }));
+    }
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
     // Note: This should not be enabled in deployed nodes as it will
