@@ -117,7 +117,7 @@ private:
     
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
-    volatile bool txPending; /**< transmission currently pending */
+    bool txPending; /**< transmission currently pending */
     bool hwFIFO; /**< true if hardware fifo is to be enabled, else false */
 
     /** Default constructor.
