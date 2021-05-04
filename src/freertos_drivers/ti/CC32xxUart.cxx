@@ -49,7 +49,7 @@
 
 /** Instance pointers help us get context from the interrupt handler(s) */
 static CC32xxUart *instances[2] = {NULL};
-
+/** Critical section lock between ISR and ioctl */
 static Atomic isr_lock;
 
 /** Constructor.
