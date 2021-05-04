@@ -33,7 +33,6 @@
  */
 
 #include <Arduino.h>
-#include <ESPmDNS.h>
 #include <SPIFFS.h>
 #include <WiFi.h>
 #include <vector>

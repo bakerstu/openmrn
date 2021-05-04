@@ -33,9 +33,7 @@
  */
 
 #include <Arduino.h>
-#include <ESPmDNS.h>
 #include <SPIFFS.h>
-#include <WiFi.h>
 #include <vector>
 #include <esp_spi_flash.h>
 
@@ -225,7 +223,7 @@ public:
     {
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
-            fd, "OpenLCB + Arduino-ESP32 on an ESP32.");
+            fd, "OpenLCB + Arduino-ESP32 on an " ARDUINO_VARIANT);
         for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
         {
             cfg.seg().consumers().entry(i).description().write(fd, "");

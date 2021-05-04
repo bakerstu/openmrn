@@ -101,23 +101,23 @@ jobs:
         sketch-names: "ESP32C3CanLoadTest.ino,ESP32C3IOBoard.ino"
         debug-compile: true
 
-#  build-esp32-dev-s2:
-#    name: Build Arduino ESP32-S2 examples using arduino-esp32 DEV
-#    runs-on: ubuntu-latest
-#    steps:
-#    - name: Checkout
-#      uses: actions/checkout@master
-#
-#    - name: Generate OpenMRNLite library
-#      run: |
-#        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
-#        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
-#        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
-#
-#    - name: Compile ESP32-C3 examples
-#      uses: ArminJo/arduino-test-compile@v3
-#      with:
-#        platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-#        arduino-board-fqbn: esp32:esp32:esp32s2
-#        sketch-names: "ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino"
-#        debug-compile: true
+  build-esp32-dev-s2:
+    name: Build Arduino ESP32-S2 examples using arduino-esp32 DEV
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Generate OpenMRNLite library
+      run: |
+        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
+        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
+
+    - name: Compile ESP32-C3 examples
+      uses: ArminJo/arduino-test-compile@v3
+      with:
+        platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+        arduino-board-fqbn: esp32:esp32:esp32s2
+        sketch-names: "ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino"
+        debug-compile: true

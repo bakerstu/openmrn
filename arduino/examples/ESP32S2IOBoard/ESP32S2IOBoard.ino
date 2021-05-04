@@ -34,25 +34,25 @@
 
 #include <Arduino.h>
 #include <SPIFFS.h>
+#include <WiFi.h>
+#include <vector>
 
 #include <OpenMRNLite.h>
-#include "openlcb/ConfiguredConsumer.hxx"
-#include "openlcb/ConfiguredProducer.hxx"
-#include "openlcb/MultiConfiguredConsumer.hxx"
-#include "utils/GpioInitializer.hxx"
+#include <openlcb/TcpDefs.hxx>
+
+#include <openlcb/MultiConfiguredConsumer.hxx>
+#include <utils/GpioInitializer.hxx>
+#include <freertos_drivers/arduino/CpuLoad.hxx>
 
 // Pick an operating mode below, if you select USE_WIFI it will expose
 // this node on WIFI if you select USE_CAN, this node will be available
-// on CAN.
+// on CAN, if you select USE_TWAI this node will be available on CAN.
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
+// Note: USE_CAN and USE_TWAI can not be used concurrently.
 
 #define USE_WIFI
-//#define USE_TWAI
-
-// uncomment the line below to have all packets printed to the Serial
-// output. This is not recommended for production deployment.
-//#define PRINT_PACKETS
+#define USE_TWAI
 
 // Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
 // interface.
@@ -62,6 +62,10 @@
 // the TWAI interface.
 //#define USE_TWAI_ASYNC
 
+// Uncomment the line below to have all packets printed to the Serial
+// output. This is not recommended for production deployment.
+//#define PRINT_PACKETS
+
 // Uncomment USE_STATUS_LED to enable the WS2812 LED on GPIO8 to be used as an
 // activity LED for this node. Note that the LED will blink a purple color when
 // this node has activity. The color can be changed in the status_led
@@ -70,15 +74,36 @@
 
 // uncomment the line below to specify a GPIO pin that should be used to force
 // a factory reset when the node starts and the GPIO pin reads LOW.
-// Note: GPIO 10 is also used for IO9, care must be taken to ensure that this
+// Note: GPIO 15 is also used for IO16, care must be taken to ensure that this
 // GPIO pin is not used both for FACTORY_RESET and an OUTPUT pin.
-//#define FACTORY_RESET_GPIO_PIN 10
+//#define FACTORY_RESET_GPIO_PIN 15
+
+// Uncomment FIRMWARE_UPDATE_BOOTLOADER to enable the bootloader feature when
+// using the TWAI device. When this is active and USE_STATUS_LED is active the
+// on-board LED will use the following color scheme:
+// LED_REQUEST: YELLOW
+// LED_WRITE  : PURPLE
+// LED_ACTIVE : GREEN
+// All others will be ignored.
+#define FIRMWARE_UPDATE_BOOTLOADER
+
+// Configuration option validation
+
+// If USE_TWAI_SELECT or USE_TWAI_ASYNC is enabled but USE_TWAI is not, enable
+// USE_TWAI.
+#if (defined(USE_TWAI_SELECT) || defined(USE_TWAI_ASYNC)) && !defined(USE_TWAI)
+#define USE_TWAI
+#endif // (USE_TWAI_SELECT || USE_TWAI_ASYNC) && !USE_TWAI
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_TWAI)
+#error TWAI is required for firmware update via bootloader
+#endif
 
 #include "config.h"
 
 /// This is the node id to assign to this device, this must be unique
 /// on the CAN bus.
-static constexpr uint64_t NODE_ID = UINT64_C(0x05010101182d);
+static constexpr uint64_t NODE_ID = UINT64_C(0x05010101182f);
 
 #if defined(USE_WIFI)
 // Configuring WiFi accesspoint name and password
@@ -104,28 +129,33 @@ const char *password = WIFI_PASS;
 /// unique.
 const char *hostname = "esp32mrn";
 
-// Uncomment this line to enable usage of ::select() within the Grid Connect
-// code.
-//OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
+OVERRIDE_CONST(gridconnect_buffer_size, 3512);
+//OVERRIDE_CONST(gridconnect_buffer_delay_usec, 200000);
+OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
+OVERRIDE_CONST(gc_generate_newlines, CONSTANT_TRUE);
+OVERRIDE_CONST(executor_select_prescaler, 60);
+OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
-/// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
-/// Note: Any pin can be used for this other than 11-17 which are connected to
+#if defined(USE_CAN) || defined(USE_TWAI)
+/// This is the ESP32-S2 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
+/// Recommended pins: 40.
+/// Note: Any pin can be used for this other than 26-32 which are connected to
 /// the onboard flash.
-/// Note: Adjusting this pin assignment will require updating the GPIO_PIN
-/// declarations below for input/outputs.
-constexpr gpio_num_t TWAI_RX_PIN = GPIO_NUM_18;
+/// Note: If you are using a pin other than 45 you will likely need to adjust
+/// the GPIO pin definitions for the outputs.
+constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_40;
 
-/// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
-/// Note: Any pin can be used for this other than 11-17 which are connected to
+/// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
+/// Recommended pins: 41.
+/// Note: Any pin can be used for this other than 26-32 which are connected to
 /// the onboard flash.
-/// Note: Adjusting this pin assignment will require updating the GPIO_PIN
-/// declarations below for input/outputs.
-constexpr gpio_num_t TWAI_TX_PIN = GPIO_NUM_19;
+/// Note: If you are using a pin other than 41 you will likely need to adjust
+/// the GPIO pin definitions for the outputs.
+constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_41;
 
-#endif // USE_TWAI
+#endif // USE_CAN or USE_TWAI
 
 #if defined(FACTORY_RESET_GPIO_PIN)
 static constexpr uint8_t FACTORY_RESET_COUNTDOWN_SECS = 10;
@@ -144,12 +174,23 @@ string dummystring("abcdef");
 /// layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+/// Flag used to indicate that we have been requested to enter the bootloader
+/// instead of normal node operations. Note that this value will not be
+/// initialized by the system and a check for power on reset will need to be
+/// made to initialize it on first boot.
+static uint32_t RTC_NOINIT_ATTR bootloader_request;
+
+// Include the Bootloader HAL implementation for the ESP32. This is not 
+#include "freertos_drivers/esp32/Esp32BootloaderHal.hxx"
+#endif // FIRMWARE_UPDATE_BOOTLOADER
+
 #if defined(USE_WIFI)
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
 
 #if defined(USE_TWAI)
-Esp32HardwareTwai twai(TWAI_RX_PIN, TWAI_TX_PIN);
+Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
 #endif // USE_TWAI
 
 // Declare output pins.
@@ -158,17 +199,39 @@ GPIO_PIN(IO1, GpioOutputSafeLow, 1);
 GPIO_PIN(IO2, GpioOutputSafeLow, 2);
 GPIO_PIN(IO3, GpioOutputSafeLow, 3);
 GPIO_PIN(IO4, GpioOutputSafeLow, 4);
+GPIO_PIN(IO5, GpioOutputSafeLow, 5);
+GPIO_PIN(IO6, GpioOutputSafeLow, 6);
+GPIO_PIN(IO7, GpioOutputSafeLow, 7);
+GPIO_PIN(IO8, GpioOutputSafeLow, 8);
+GPIO_PIN(IO9, GpioOutputSafeLow, 9);
+GPIO_PIN(IO10, GpioOutputSafeLow, 10);
+GPIO_PIN(IO11, GpioOutputSafeLow, 11);
+GPIO_PIN(IO12, GpioOutputSafeLow, 12);
+GPIO_PIN(IO13, GpioOutputSafeLow, 45);
 
-// Declare input pins.
-GPIO_PIN(IO5, GpioInputPU, 5);
-GPIO_PIN(IO6, GpioInputPU, 6);
-GPIO_PIN(IO7, GpioInputPU, 7);
-GPIO_PIN(IO8, GpioInputPU, 9);
-GPIO_PIN(IO9, GpioInputPU, 10);
+// Declare input pins
+// NOTE: GPIO 19 and 20 are intentionally skipped as they are reserved for
+// native USB. GPIO 43 and 44 are skipped as they are connected to UART0.
+// GPIO 18 is reserved for the status LED.
+// GPIO 40 and 41 are intentionally skipped as they are used for TWAI.
+GPIO_PIN(IO14, GpioInputPU, 13);
+GPIO_PIN(IO15, GpioInputPU, 14);
+GPIO_PIN(IO16, GpioInputPU, 15);
+GPIO_PIN(IO17, GpioInputPU, 16);
+GPIO_PIN(IO18, GpioInputPU, 17);
+GPIO_PIN(IO19, GpioInputPU, 21);
+GPIO_PIN(IO20, GpioInputPU, 33);
+GPIO_PIN(IO21, GpioInputPU, 34);
+GPIO_PIN(IO22, GpioInputPU, 35);
+GPIO_PIN(IO23, GpioInputPU, 36);
+GPIO_PIN(IO24, GpioInputPU, 37);
+GPIO_PIN(IO25, GpioInputPU, 38);
+GPIO_PIN(IO26, GpioInputPU, 39);
+GPIO_PIN(IO27, GpioInputPU, 42);
 
 #if defined(USE_STATUS_LED)
-// The ESP32-C3 has an on-board WS2812 LED on GPIO 8.
-Esp32WS2812 leds(GPIO_NUM_8, RMT_CHANNEL_0, 1);
+// The ESP32-S2 has an on-board WS2812 LED on GPIO 18.
+Esp32WS2812 leds(GPIO_NUM_18, RMT_CHANNEL_0, 1);
 Esp32WS2812Gpio status_led(&leds,
                            0  /* index    */,
                            64 /* red on   */, 0  /* red off   */,
@@ -176,41 +239,65 @@ Esp32WS2812Gpio status_led(&leds,
                            64 /* blue on  */, 0  /* blue off  */);
 #endif // USE_STATUS_LED
 
-#if defined(FACTORY_RESET_GPIO_PIN)
-GPIO_PIN(FACTORY_RESET, GpioInputPU, FACTORY_RESET_GPIO_PIN);
-#endif // FACTORY_RESET_GPIO_PIN
-
 // List of GPIO objects that will be used for the output pins. You should keep
 // the constexpr declaration, because it will produce a compile error in case
 // the list of pointers cannot be compiled into a compiler constant and thus
 // would be placed into RAM instead of ROM.
 constexpr const Gpio *const outputGpioSet[] = {
-    IO0_Pin::instance(), IO1_Pin::instance(), //
-    IO2_Pin::instance(), IO3_Pin::instance(), //
-    IO4_Pin::instance()
+    IO0_Pin::instance(),  IO1_Pin::instance(),  //
+    IO2_Pin::instance(),  IO3_Pin::instance(),  //
+    IO4_Pin::instance(),  IO5_Pin::instance(),  //
+    IO6_Pin::instance(),  IO7_Pin::instance(),  //
+    IO8_Pin::instance(),  IO9_Pin::instance(),  //
+    IO10_Pin::instance(), IO11_Pin::instance(), //
+    IO12_Pin::instance(), IO13_Pin::instance(), //
 };
 
 openlcb::MultiConfiguredConsumer gpio_consumers(openmrn.stack()->node(), outputGpioSet,
     ARRAYSIZE(outputGpioSet), cfg.seg().consumers());
 
-openlcb::ConfiguredProducer IO5_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<0>(), IO5_Pin());
-openlcb::ConfiguredProducer IO6_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<1>(), IO6_Pin());
-openlcb::ConfiguredProducer IO7_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<2>(), IO7_Pin());
-openlcb::ConfiguredProducer IO8_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<3>(), IO8_Pin());
-openlcb::ConfiguredProducer IO9_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<4>(), IO9_Pin());
+openlcb::ConfiguredProducer IO14_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<0>(), IO14_Pin());
+openlcb::ConfiguredProducer IO15_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<1>(), IO15_Pin());
+openlcb::ConfiguredProducer IO16_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<2>(), IO16_Pin());
+openlcb::ConfiguredProducer IO17_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<3>(), IO17_Pin());
+openlcb::ConfiguredProducer IO18_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<4>(), IO18_Pin());
+openlcb::ConfiguredProducer IO19_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<5>(), IO19_Pin());
+openlcb::ConfiguredProducer IO20_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<6>(), IO20_Pin());
+openlcb::ConfiguredProducer IO21_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<7>(), IO21_Pin());
+openlcb::ConfiguredProducer IO22_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<8>(), IO22_Pin());
+openlcb::ConfiguredProducer IO23_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<9>(), IO23_Pin());
+openlcb::ConfiguredProducer IO24_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<10>(), IO24_Pin());
+openlcb::ConfiguredProducer IO25_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<11>(), IO25_Pin());
+openlcb::ConfiguredProducer IO26_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<12>(), IO26_Pin());
+openlcb::ConfiguredProducer IO27_producer(
+    openmrn.stack()->node(), cfg.seg().producers().entry<13>(), IO27_Pin());
 
 // Create an initializer that can initialize all the GPIO pins in one shot
 typedef GpioInitializer<
 #if defined(FACTORY_RESET_GPIO_PIN)
     FACTORY_RESET_Pin,                           // factory reset
 #endif // FACTORY_RESET_GPIO_PIN
-    IO0_Pin, IO1_Pin, IO2_Pin, IO3_Pin, IO4_Pin, // output pins
-    IO5_Pin, IO6_Pin, IO7_Pin, IO8_Pin, IO9_Pin  // input pins
+    IO0_Pin,  IO1_Pin,  IO2_Pin,  IO3_Pin,  // outputs 0-3
+    IO4_Pin,  IO5_Pin,  IO6_Pin,  IO7_Pin,  // outputs 4-7
+    IO8_Pin,  IO9_Pin,  IO10_Pin, IO11_Pin, // outputs 8-11
+    IO12_Pin, IO13_Pin,                     // outputs 12-13
+    IO14_Pin, IO15_Pin, IO16_Pin, IO17_Pin, // inputs 0-3
+    IO18_Pin, IO19_Pin, IO20_Pin, IO21_Pin, // inputs 4-7
+    IO22_Pin, IO23_Pin, IO24_Pin, IO25_Pin, // inputs 8-11
+    IO26_Pin, IO27_Pin                      // inputs 12-13
     > GpioInit;
 
 // The producers need to be polled repeatedly for changes and to execute the
@@ -218,11 +305,20 @@ typedef GpioInitializer<
 // producers to it.
 openlcb::RefreshLoop producer_refresh_loop(openmrn.stack()->node(),
     {
-        IO5_producer.polling(),
-        IO6_producer.polling(),
-        IO7_producer.polling(),
-        IO8_producer.polling(),
-        IO9_producer.polling()
+        IO14_producer.polling(),
+        IO15_producer.polling(),
+        IO16_producer.polling(),
+        IO17_producer.polling(),
+        IO18_producer.polling(),
+        IO19_producer.polling(),
+        IO20_producer.polling(),
+        IO21_producer.polling(),
+        IO22_producer.polling(),
+        IO23_producer.polling(),
+        IO24_producer.polling(),
+        IO25_producer.polling(),
+        IO26_producer.polling(),
+        IO27_producer.polling()
     }
 );
 
@@ -272,6 +368,9 @@ namespace openlcb
 
 void setup()
 {
+#ifdef USE_WIFI
+    //wifi_mgr.enable_verbose_logging();
+#endif    
     Serial.begin(115200L);
 
     // Initialize the SPIFFS filesystem as our persistence layer
@@ -289,13 +388,28 @@ void setup()
         }
     }
 
-    // initialize all declared GPIO pins
-    GpioInit::hw_init();
-
 #if defined(USE_STATUS_LED)
     // initialize the WS2812 LED(s).
     leds.hw_init();
 #endif // USE_STATUS_LED
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+    // If this is the first power up of the node we need to reset the flag
+    // since it will not be initialized automatically.
+    if (rtc_get_reset_reason(PRO_CPU_NUM) == POWERON_RESET)
+    {
+        bootloader_request = 0;
+    }
+    // if we have a request to enter the bootloader we need to process it
+    // before we startup the OpenMRN stack.
+    if (bootloader_request)
+    {
+        bootloader_request = 0;
+        esp32_bootloader_run(NODE_ID, CAN_RX_PIN, CAN_TX_PIN, true);
+    }
+    else
+    {
+#endif // FIRMWARE_UPDATE_BOOTLOADER
 
 #if defined(FACTORY_RESET_GPIO_PIN)
     // Check the factory reset pin which should normally read HIGH (set), if it
@@ -338,6 +452,9 @@ void setup()
     openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
         openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
 
+    // initialize all declared GPIO pins
+    GpioInit::hw_init();
+
 #if defined(USE_TWAI)
     twai.hw_init();
 #endif // USE_TWAI
@@ -367,6 +484,10 @@ void setup()
     // add TWAI driver with blocking usage
     openmrn.add_can_port_blocking("/dev/twai/twai0");
 #endif // USE_TWAI_SELECT
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+    }
+#endif // FIRMWARE_UPDATE_BOOTLOADER
 }
 
 void loop()
@@ -375,3 +496,92 @@ void loop()
     // as possible from the loop() method.
     openmrn.loop();
 }
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+
+extern "C"
+{
+
+void enter_bootloader()
+{
+    // set global flag that we need to enter the bootloader
+    bootloader_request = 1;
+    LOG(INFO, "[Bootloader] Rebooting into bootloader");
+    // reboot the esp32 so we can enter the bootloader
+    esp_restart();
+}
+
+/// Initializes the node specific bootloader hardware (LEDs)
+void bootloader_hw_set_to_safe(void)
+{
+  LOG(VERBOSE, "[Bootloader] bootloader_hw_set_to_safe");
+}
+
+/// Verifies that the bootloader has been requested.
+///
+/// @return true (always).
+///
+/// NOTE: On the ESP32 this defaults to always return true since this code will
+/// not be invoked through normal node startup.
+bool request_bootloader(void)
+{
+  LOG(VERBOSE, "[Bootloader] request_bootloader");
+  // Default to allow bootloader to run since we are not entering the
+  // bootloader loop unless requested by app_main.
+  return true;
+}
+
+/// Updates the state of a status LED.
+///
+/// @param led is the LED to update.
+/// @param value is the new state of the LED.
+///
+/// NOTE: Currently the following mapping is being used for the LEDs:
+/// LED_ACTIVE -> Activity LED
+/// LED_WRITING -> WiFi LED
+/// LED_REQUEST -> Used only as a hook for printing bootloader startup.
+void bootloader_led(enum BootloaderLed led, bool value)
+{
+    LOG(VERBOSE, "[Bootloader] bootloader_led(%d, %d)", led, value);
+    if (led == LED_REQUEST)
+    {
+        LOG(INFO, "[Bootloader] Preparing to receive firmware");
+        LOG(INFO, "[Bootloader] Current partition: %s", current->label);
+        LOG(INFO, "[Bootloader] Target partition: %s", target->label);
+#if defined(USE_STATUS_LED)
+        leds.set_led_color(0, 64, 64, 0);
+#endif // USE_STATUS_LED
+    }
+#if defined(USE_STATUS_LED)
+    else if (led == LED_ACTIVE)
+    {
+        if (value)
+        {
+            // set the LED purple for writes
+            leds.set_led_color(0, 0, 64, 0);
+        }
+        else
+        {
+            // clear the LED
+            leds.set_led_color(0, 0, 0, 0);
+        }
+    }
+    else if (led == LED_WRITING)
+    {
+        if (value)
+        {
+            // set the LED purple for writes
+            leds.set_led_color(0, 64, 0, 64);
+        }
+        else
+        {
+            // clear the LED
+            leds.set_led_color(0, 0, 0, 0);
+        }
+    }
+#endif // USE_STATUS_LED
+}
+
+} // extern "C"
+
+#endif // FIRMWARE_UPDATE_BOOTLOADER
