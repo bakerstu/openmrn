@@ -44,6 +44,8 @@
 
 #include "driverlib/uart.h"
 
+class Notifiable;
+
 /** Specialization of Serial driver for CC32xx UART.
  */
 class CC32xxUart : public Serial
@@ -110,9 +112,12 @@ private:
     /** function pointer to a method that deasserts the transmit enable. */
     TxEnableMethod txEnableDeassert;
 
+    /** Notifiable to invoke when the transmit engine has finished operation. */
+    Notifiable* txComplete{nullptr};
+    
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
-    bool txPending; /**< transmission currently pending */
+    volatile bool txPending; /**< transmission currently pending */
     bool hwFIFO; /**< true if hardware fifo is to be enabled, else false */
 
     /** Default constructor.

@@ -47,5 +47,10 @@
 #define TCPARONE    IO(TERMIOS_IOC_MAGIC, 0xF3)
 #define TCPARZERO   IO(TERMIOS_IOC_MAGIC, 0xF4)
 
+/// Argument is a Notifiable* pointer. This notifiable will be invoked when all
+/// bytes have completed transferring and the transmit engine is idle.
+#define TCDRAINNOTIFY   IOW(TERMIOS_IOC_MAGIC, 0xE0, 4)
+
+
 #endif // _FREERTOS_TC_IOCTL_H_
 
