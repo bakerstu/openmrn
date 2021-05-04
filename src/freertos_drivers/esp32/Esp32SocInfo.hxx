@@ -158,14 +158,19 @@ public:
             ESP32_SOC_RESET_REASONS[reset_reason]);
         LOG(INFO,
             "[SoC] model:%s,rev:%d,cores:%d,flash:%s,WiFi:%s,BLE:%s,BT:%s",
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
             chip_info.model == CHIP_ESP32 ? "ESP32" :
             chip_info.model == CHIP_ESP32S2 ? "ESP32-S2" :
             chip_info.model == CHIP_ESP32C3 ? "ESP32-C3" : "unknown",
+#else
+            "ESP32",
+#endif // IDF v4.3+
             chip_info.revision, chip_info.cores,
             chip_info.features & CHIP_FEATURE_EMB_FLASH ? "Yes" : "No",
             chip_info.features & CHIP_FEATURE_WIFI_BGN ? "Yes" : "No",
             chip_info.features & CHIP_FEATURE_BLE ? "Yes" : "No",
             chip_info.features & CHIP_FEATURE_BT ? "Yes" : "No");
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
         LOG(INFO, "[SoC] Heap: %.2fkB / %.2fKb",
             heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024.0f,
             heap_caps_get_total_size(MALLOC_CAP_INTERNAL) / 1024.0f);
@@ -174,6 +179,15 @@ public:
             heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024.0f,
             heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1024.0f);
 #endif // CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM
+#else // NOT IDF v4.3+
+        LOG(INFO, "[SoC] Free Heap: %.2fkB",
+            heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024.0f);
+#if CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM
+        LOG(INFO, "[SoC] Free PSRAM: %.2fkB",
+            heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024.0f);
+#endif // CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM
+
+#endif // IDF v4.3+
         LOG(INFO, "[SoC] App running from: %s",
             esp_ota_get_running_partition()->label);
         if (reset_reason != orig_reset_reason)
