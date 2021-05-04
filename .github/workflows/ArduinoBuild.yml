@@ -60,6 +60,7 @@ jobs:
         debug-compile: true
 
   build-esp32-dev-esp32:
+    concurrency: ci-${{ github.ref }}
     name: Build Arduino ESP32 examples using arduino-esp32 DEV
     runs-on: ubuntu-latest
     steps:
@@ -81,6 +82,7 @@ jobs:
         debug-compile: true
 
   build-esp32-dev-c3:
+    concurrency: ci-${{ github.ref }}
     name: Build Arduino ESP32-C3 examples using arduino-esp32 DEV
     runs-on: ubuntu-latest
     steps:
@@ -102,6 +104,7 @@ jobs:
         debug-compile: true
 
   build-esp32-dev-s2:
+    concurrency: ci-${{ github.ref }}
     name: Build Arduino ESP32-S2 examples using arduino-esp32 DEV
     runs-on: ubuntu-latest
     steps:
