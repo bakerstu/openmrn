@@ -51,27 +51,11 @@
 // both WiFi and CAN interfaces.
 
 #define USE_WIFI
-#define USE_TWAI
-
-// Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
-// interface.
-//#define USE_TWAI_SELECT
-
-// Uncomment USE_TWAI_ASYNC to enable the usage of the non-blocking API for
-// the TWAI interface.
-//#define USE_TWAI_ASYNC
+//#define USE_TWAI
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
-
-// Configuration option validation
-
-// If USE_TWAI_SELECT or USE_TWAI_ASYNC is enabled but USE_TWAI is not, enable
-// USE_TWAI.
-#if (defined(USE_TWAI_SELECT) || defined(USE_TWAI_ASYNC)) && !defined(USE_TWAI)
-#define USE_TWAI
-#endif // (USE_TWAI_SELECT || USE_TWAI_ASYNC) && !USE_TWAI
 
 #include "config.h"
 
@@ -271,10 +255,9 @@ void IRAM_ATTR onTimer()
 
 void setup()
 {
-#ifdef USE_WIFI
-    //wifi_mgr.enable_verbose_logging();
-#endif    
     Serial.begin(115200L);
+
+    uint8_t reset_reason = Esp32SocInfo::print_soc_info();
 
     timer = timerBegin(3, 80, true); // timer_id = 3; divider=80; countUp = true;
     timerAttachInterrupt(timer, &onTimer, true); // edge = true
@@ -313,8 +296,15 @@ void setup()
 
     // Start the OpenMRN stack
     openmrn.begin();
-    openmrn.start_executor_thread();
     cpu_log = new CpuLoadLog(openmrn.stack()->service());
+
+    if (reset_reason == RTCWDT_BROWN_OUT_RESET)
+    {
+        openmrn.stack()->executor()->add(new CallbackExecutable([]()
+        {
+            openmrn.stack()->send_event(openlcb::Defs::NODE_POWER_BROWNOUT_EVENT);
+        }));
+    }
 
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
@@ -323,16 +313,10 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_TWAI_SELECT)
-    // add TWAI driver with select() usage
-    openmrn.add_can_port_select("/dev/twai/twai0");
-#elif defined(USE_TWAI_ASYNC)
+#if defined(USE_TWAI)
     // add TWAI driver with non-blocking usage
     openmrn.add_can_port_async("/dev/twai/twai0");
-#elif defined(USE_TWAI)
-    // add TWAI driver with blocking usage
-    openmrn.add_can_port_blocking("/dev/twai/twai0");
-#endif // USE_TWAI_SELECT
+#endif // USE_TWAI
 }
 
 void loop()

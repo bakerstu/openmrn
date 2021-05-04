@@ -24,12 +24,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ESP32IOBoard.ino
+ * \file ESP32S2CanLoadTest.ino
  *
  * Main file for the io board application on an ESP32.
  *
  * @author Mike Dunston
- * @date 13 January 2019
+ * @date 2 May 2021
  */
 
 #include <Arduino.h>
@@ -120,7 +120,7 @@ OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 /// the onboard flash.
 /// Note: If you are using a pin other than 45 you will likely need to adjust
 /// the GPIO pin definitions for the outputs.
-constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_45;
+constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_40;
 
 /// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
 /// Recommended pins: 5, 17, 22.
@@ -128,7 +128,7 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_45;
 /// the onboard flash.
 /// Note: If you are using a pin other than 5 you will likely need to adjust
 /// the GPIO pin definitions for the outputs.
-constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
+constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_41;
 
 #endif // USE_CAN or USE_TWAI
 
@@ -154,39 +154,40 @@ Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
 #endif // USE_TWAI
 
 // Declare output pins.
-// Note: GPIO 5 is intentionally skipped as they are reserved for TWAI.
 GPIO_PIN(IO0, GpioOutputSafeLow, 0);
 GPIO_PIN(IO1, GpioOutputSafeLow, 1);
 GPIO_PIN(IO2, GpioOutputSafeLow, 2);
 GPIO_PIN(IO3, GpioOutputSafeLow, 3);
 GPIO_PIN(IO4, GpioOutputSafeLow, 4);
-GPIO_PIN(IO5, GpioOutputSafeLow, 6);
-GPIO_PIN(IO6, GpioOutputSafeLow, 7);
-GPIO_PIN(IO7, GpioOutputSafeLow, 8);
-GPIO_PIN(IO8, GpioOutputSafeLow, 9);
-GPIO_PIN(IO9, GpioOutputSafeLow, 10);
-GPIO_PIN(IO10, GpioOutputSafeLow, 11);
-GPIO_PIN(IO11, GpioOutputSafeLow, 12);
-GPIO_PIN(IO12, GpioOutputSafeLow, 13);
-GPIO_PIN(IO13, GpioOutputSafeLow, 14);
+GPIO_PIN(IO5, GpioOutputSafeLow, 5);
+GPIO_PIN(IO6, GpioOutputSafeLow, 6);
+GPIO_PIN(IO7, GpioOutputSafeLow, 7);
+GPIO_PIN(IO8, GpioOutputSafeLow, 8);
+GPIO_PIN(IO9, GpioOutputSafeLow, 9);
+GPIO_PIN(IO10, GpioOutputSafeLow, 10);
+GPIO_PIN(IO11, GpioOutputSafeLow, 11);
+GPIO_PIN(IO12, GpioOutputSafeLow, 12);
+GPIO_PIN(IO13, GpioOutputSafeLow, 45);
 
 // Declare input pins
-// NOTE: GPIO 19 and 20 are intentionally skipped as they are reserved for
-// native USB. GPIO 43 and 44 are skipped as they are connected to UART0.
+// Notes:
 // GPIO 18 is reserved for the status LED.
-GPIO_PIN(IO14, GpioInputPU, 15);
-GPIO_PIN(IO15, GpioInputPU, 16);
-GPIO_PIN(IO16, GpioInputPU, 17);
-GPIO_PIN(IO17, GpioInputPU, 21);
-GPIO_PIN(IO18, GpioInputPU, 33);
-GPIO_PIN(IO19, GpioInputPU, 34);
-GPIO_PIN(IO20, GpioInputPU, 35);
-GPIO_PIN(IO21, GpioInputPU, 36);
-GPIO_PIN(IO22, GpioInputPU, 37);
-GPIO_PIN(IO23, GpioInputPU, 38);
-GPIO_PIN(IO24, GpioInputPU, 39);
-GPIO_PIN(IO25, GpioInputPU, 40);
-GPIO_PIN(IO26, GpioInputPU, 41);
+// GPIO 19 and 20 are intentionally skipped as they are reserved for native USB.
+// GPIO 43 and 44 are skipped as they are connected to UART0.
+// GPIO 40 and 41 are intentionally skipped as they are reserved for TWAI.
+GPIO_PIN(IO14, GpioInputPU, 13);
+GPIO_PIN(IO15, GpioInputPU, 14);
+GPIO_PIN(IO16, GpioInputPU, 15);
+GPIO_PIN(IO17, GpioInputPU, 16);
+GPIO_PIN(IO18, GpioInputPU, 17);
+GPIO_PIN(IO19, GpioInputPU, 21);
+GPIO_PIN(IO20, GpioInputPU, 33);
+GPIO_PIN(IO21, GpioInputPU, 34);
+GPIO_PIN(IO22, GpioInputPU, 35);
+GPIO_PIN(IO23, GpioInputPU, 36);
+GPIO_PIN(IO24, GpioInputPU, 37);
+GPIO_PIN(IO25, GpioInputPU, 38);
+GPIO_PIN(IO26, GpioInputPU, 39);
 GPIO_PIN(IO27, GpioInputPU, 42);
 
 // List of GPIO objects that will be used for the output pins. You should keep
@@ -371,7 +372,6 @@ void setup()
 
     // Start the OpenMRN stack
     openmrn.begin();
-    openmrn.start_executor_thread();
     cpu_log = new CpuLoadLog(openmrn.stack()->service());
 
 #if defined(PRINT_PACKETS)
