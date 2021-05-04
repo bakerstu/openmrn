@@ -67,14 +67,11 @@ jobs:
       matrix:
         target: [esp32, esp32c3, esp32s2]
         esp32:
-          fqbn: esp32:esp32:node32s
-          sketch-names: "ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino"
+          sketch-names: ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino
         esp32c3:
-          fqbn: esp32:esp32:esp32c3
-          sketch-names: "ESP32C3CanLoadTest.ino,ESP32C3IOBoard.ino"
+          sketch-names: ESP32C3CanLoadTest.ino,ESP32C3IOBoard.ino
         esp32s2:
-          fqbn: esp32:esp32:esp32s2
-          sketch-names: "ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino"
+          sketch-names: ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino
     steps:
     - name: Checkout
       uses: actions/checkout@master
@@ -89,6 +86,6 @@ jobs:
       uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-        arduino-board-fqbn: ${{ format('matrix.{0}.fqbn', matrix.target) }}
+        arduino-board-fqbn: esp32:esp32:${{ matrix.target }}
         sketch-names: ${{ format('matrix.{0}', matrix.target) }}
         debug-compile: true
