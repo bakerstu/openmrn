@@ -48,7 +48,7 @@
 #elif defined(CONFIG_IDF_TARGET_ESP32C3)
 #include <esp32c3/rom/rtc.h>
 #else
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 #include <esp32/rom/rtc.h>
 #else
 #include <rom/rtc.h>
