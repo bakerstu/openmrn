@@ -96,6 +96,13 @@ public:
         {
         }
 
+#ifdef GTEST        
+        /// Used in unittests to cleanly shutdown the bus master.
+        void request_shutdown()
+        {
+            needShutdown_ = true;
+        }
+
         /// Used in unittests to cleanly shutdown the bus master.
         void shutdown()
         {
@@ -105,7 +112,8 @@ public:
                 usleep(200);
             }
         }
-
+#endif
+        
         /// Sets the scheduling policy. This must be called exactly once after
         /// construction before scheduling any bus activity.
         void set_policy(unsigned num_prio, const Fixed16 *strides)

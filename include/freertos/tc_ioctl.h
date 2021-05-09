@@ -39,7 +39,18 @@
 /** Magic number for this driver's ioctl calls */
 #define TERMIOS_IOC_MAGIC ('T')
 
-#define TCSBRK		IO(TERMIOS_IOC_MAGIC, 9)
+#define TCSBRK      IO(TERMIOS_IOC_MAGIC, 9)
+
+#define TCPARNONE   IO(TERMIOS_IOC_MAGIC, 0xF0)
+#define TCPARODD    IO(TERMIOS_IOC_MAGIC, 0xF1)
+#define TCPAREVEN   IO(TERMIOS_IOC_MAGIC, 0xF2)
+#define TCPARONE    IO(TERMIOS_IOC_MAGIC, 0xF3)
+#define TCPARZERO   IO(TERMIOS_IOC_MAGIC, 0xF4)
+
+/// Argument is a Notifiable* pointer. This notifiable will be invoked when all
+/// bytes have completed transferring and the transmit engine is idle.
+#define TCDRAINNOTIFY   IOW(TERMIOS_IOC_MAGIC, 0xE0, 4)
+
 
 #endif // _FREERTOS_TC_IOCTL_H_
 

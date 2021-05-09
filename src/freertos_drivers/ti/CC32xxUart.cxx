@@ -43,11 +43,14 @@
 #include "driverlib/prcm.h"
 #include "driverlib/utils.h"
 #include "freertos/tc_ioctl.h"
+#include "executor/Notifiable.hxx"
 
 #include "CC32xxUart.hxx"
 
 /** Instance pointers help us get context from the interrupt handler(s) */
 static CC32xxUart *instances[2] = {NULL};
+/** Critical section lock between ISR and ioctl */
+static Atomic isr_lock;
 
 /** Constructor.
  * @param name name of this device instance in the file system
@@ -140,6 +143,42 @@ int CC32xxUart::ioctl(File *file, unsigned long int key, unsigned long data)
             MAP_UARTBreakCtl(base, false);
             MAP_UtilsDelay(12 * 26);
             break;
+        case TCPARNONE:
+            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_NONE);
+            break;
+        case TCPARODD:
+            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_ODD);
+            break;
+        case TCPAREVEN:
+            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_EVEN);
+            break;
+        case TCPARONE:
+            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_ONE);
+            break;
+        case TCPARZERO:
+            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_ZERO);
+            break;
+        case TCDRAINNOTIFY:
+        {
+            Notifiable* arg = (Notifiable*)data;
+            {
+                AtomicHolder h(&isr_lock);
+                if (txComplete != nullptr)
+                {
+                    return -EBUSY;
+                }
+                if (txPending)
+                {
+                    txComplete = arg;
+                    arg = nullptr;
+                }
+            }
+            if (arg)
+            {
+                arg->notify();
+            }
+            break;
+        }
     }
 
     return 0;
@@ -239,6 +278,12 @@ void CC32xxUart::interrupt_handler()
                 txEnableDeassert();
             }
             txPending = false;
+            if (txComplete)
+            {
+                Notifiable *t = txComplete;
+                txComplete = nullptr;
+                t->notify_from_isr();
+            }
             MAP_UARTIntDisable(base, UART_INT_TX);
         }
     }
