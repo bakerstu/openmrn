@@ -46,11 +46,17 @@
 #define TCPAREVEN   IO(TERMIOS_IOC_MAGIC, 0xF2)
 #define TCPARONE    IO(TERMIOS_IOC_MAGIC, 0xF3)
 #define TCPARZERO   IO(TERMIOS_IOC_MAGIC, 0xF4)
+/// One stop bit
+#define TCSTOPONE   IO(TERMIOS_IOC_MAGIC, 0xF8) 
+/// Two stop bits
+#define TCSTOPTWO   IO(TERMIOS_IOC_MAGIC, 0xF9)
 
 /// Argument is a Notifiable* pointer. This notifiable will be invoked when all
 /// bytes have completed transferring and the transmit engine is idle.
 #define TCDRAINNOTIFY   IOW(TERMIOS_IOC_MAGIC, 0xE0, 4)
 
+/// Argument is the desired baud rate for the port.
+#define TCBAUDRATE   IOW(TERMIOS_IOC_MAGIC, 0xE1, 4)
 
 #endif // _FREERTOS_TC_IOCTL_H_
 
