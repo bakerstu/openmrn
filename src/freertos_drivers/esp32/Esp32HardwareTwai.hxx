@@ -148,9 +148,6 @@ private:
     /// GPIO pin connected to an external bus status indicator.
     const int busStatusPin_;
 
-    /// Flag to indicate that TWAI statistics should be periodically reported.
-    const bool reportStats_;
-
     /// VFS Mount point.
     const char *vfsPath_;
 
