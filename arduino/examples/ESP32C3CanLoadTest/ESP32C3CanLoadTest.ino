@@ -97,33 +97,37 @@ OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 #endif // USE_WIFI
 
 #if defined(USE_TWAI)
-/// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
-/// Note: Any pin can be used for this other than 11-17 which are connected to
-/// the onboard flash.
-/// Note: Adjusting this pin assignment will require updating the GPIO_PIN
-/// declarations below for input/outputs.
+// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
+// Note: Any pin can be used for this other than 11-17 which are connected to
+// the onboard flash.
+// Note: Adjusting this pin assignment will require updating the GPIO_PIN
+// declarations below for input/outputs.
 constexpr gpio_num_t TWAI_RX_PIN = GPIO_NUM_18;
 
-/// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
-/// Note: Any pin can be used for this other than 11-17 which are connected to
-/// the onboard flash.
-/// Note: Adjusting this pin assignment will require updating the GPIO_PIN
-/// declarations below for input/outputs.
+// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
+// Note: Any pin can be used for this other than 11-17 which are connected to
+// the onboard flash.
+// Note: Adjusting this pin assignment will require updating the GPIO_PIN
+// declarations below for input/outputs.
 constexpr gpio_num_t TWAI_TX_PIN = GPIO_NUM_19;
 
 #endif // USE_TWAI
 
-/// This is the primary entrypoint for the OpenMRN/LCC stack.
+// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
 
-// note the dummy string below is required due to a bug in the GCC compiler
-// for the ESP32
-string dummystring("abcdef");
+// This tracks the CPU usage of the ESP32-C3 through the usage of a hardware
+// timer that records what the CPU is currently executing roughly 163 times per
+// second.
+CpuLoad cpu_load;
 
-/// ConfigDef comes from config.h and is specific to this particular device and
-/// target. It defines the layout of the configuration memory space and is also
-/// used to generate the cdi.xml file. Here we instantiate the configuration
-/// layout. The argument of offset zero is ignored and will be removed later.
+// This will report the usage to the console output.
+CpuLoadLog cpu_log(openmrn.stack()->service());
+
+// ConfigDef comes from config.h and is specific to this particular device and
+// target. It defines the layout of the configuration memory space and is also
+// used to generate the cdi.xml file. Here we instantiate the configuration
+// layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
 #if defined(USE_WIFI)
@@ -195,6 +199,13 @@ openlcb::RefreshLoop producer_refresh_loop(openmrn.stack()->node(),
     }
 );
 
+// This will perform the factory reset procedure for this node's configuration
+// items.
+//
+// The node name and description will be set to the SNIP model name field
+// value.
+// Descriptions for intputs and outputs will be set to a blank string, input
+// debounce parameters will be set to default values.
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:
     UpdateAction apply_configuration(int fd, bool initial_load,
@@ -207,7 +218,7 @@ public:
     {
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
-            fd, "OpenLCB + Arduino-ESP32 on an " ARDUINO_VARIANT);
+            fd, openlcb::SNIP_STATIC_DATA.model_name);
         for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
         {
             cfg.seg().consumers().entry(i).description().write(fd, "");
@@ -239,30 +250,39 @@ namespace openlcb
     extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }
 
-CpuLoad cpu_load;
-hw_timer_t * timer = nullptr;
-CpuLoadLog* cpu_log = nullptr;
-
-void IRAM_ATTR onTimer()
+// Callback function for the hardware timer configured to fire roughly 163
+// times per second.
+void ARDUINO_ISR_ATTR record_cpu_usage()
 {
-    if (spi_flash_cache_enabled())
+#if CONFIG_ARDUINO_ISR_IRAM
+    // if the ISR is called with flash disabled we can not safely recored the
+    // cpu usage.
+    if (!spi_flash_cache_enabled())
     {
-        // Retrieves the vtable pointer from the currently running executable.
-        unsigned *pp = (unsigned *)openmrn.stack()->executor()->current();
-        cpuload_tick(pp ? pp[0] | 1 : 0);
+        return;
     }
+#endif
+    // Retrieves the vtable pointer from the currently running executable.
+    unsigned *pp = (unsigned *)openmrn.stack()->executor()->current();
+    cpuload_tick(pp ? pp[0] | 1 : 0);
 }
 
 void setup()
 {
     Serial.begin(115200L);
 
-    uint8_t reset_reason = Esp32SocInfo::print_soc_info();
+    Esp32SocInfo::print_soc_info();
 
-    timer = timerBegin(3, 80, true); // timer_id = 3; divider=80; countUp = true;
-    timerAttachInterrupt(timer, &onTimer, true); // edge = true
-    // 1MHz clock, 163 ticks per second desired.
+    // Register hardware timer zero to use a 1Mhz resolution and to count up
+    // from zero when the timer triggers.
+    auto timer = timerBegin(0, 80, true);
+    // Attach our callback function to be called when the timer is ready to
+    // fire. Note that the edge parameter is not used/supported on the
+    // ESP32-C3.
+    timerAttachInterrupt(timer, record_cpu_usage, true);
+    // Configure the trigger point to be roughly 163 times per second.
     timerAlarmWrite(timer, 1000000/163, true);
+    // Enable the timer.
     timerAlarmEnable(timer);
 
     // Initialize the SPIFFS filesystem as our persistence layer
@@ -296,15 +316,6 @@ void setup()
 
     // Start the OpenMRN stack
     openmrn.begin();
-    cpu_log = new CpuLoadLog(openmrn.stack()->service());
-
-    if (reset_reason == RTCWDT_BROWN_OUT_RESET)
-    {
-        openmrn.stack()->executor()->add(new CallbackExecutable([]()
-        {
-            openmrn.stack()->send_event(openlcb::Defs::NODE_POWER_BROWNOUT_EVENT);
-        }));
-    }
 
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
@@ -314,7 +325,6 @@ void setup()
 #endif // PRINT_PACKETS
 
 #if defined(USE_TWAI)
-    // add TWAI driver with non-blocking usage
     openmrn.add_can_port_async("/dev/twai/twai0");
 #endif // USE_TWAI
 }

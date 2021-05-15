@@ -118,18 +118,18 @@ const char *hostname = "esp32mrn";
 #endif // USE_WIFI
 
 #if defined(USE_TWAI)
-/// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
-/// Note: Any pin can be used for this other than 11-17 which are connected to
-/// the onboard flash.
-/// Note: Adjusting this pin assignment will require updating the GPIO_PIN
-/// declarations below for input/outputs.
+// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
+// Note: Any pin can be used for this other than 11-17 which are connected to
+// the onboard flash.
+// Note: Adjusting this pin assignment will require updating the GPIO_PIN
+// declarations below for input/outputs.
 constexpr gpio_num_t TWAI_RX_PIN = GPIO_NUM_18;
 
-/// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
-/// Note: Any pin can be used for this other than 11-17 which are connected to
-/// the onboard flash.
-/// Note: Adjusting this pin assignment will require updating the GPIO_PIN
-/// declarations below for input/outputs.
+// This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
+// Note: Any pin can be used for this other than 11-17 which are connected to
+// the onboard flash.
+// Note: Adjusting this pin assignment will require updating the GPIO_PIN
+// declarations below for input/outputs.
 constexpr gpio_num_t TWAI_TX_PIN = GPIO_NUM_19;
 
 #endif // USE_TWAI
@@ -141,21 +141,17 @@ static constexpr uint8_t FACTORY_RESET_COUNTDOWN_SECS = 10;
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
 
-// note the dummy string below is required due to a bug in the GCC compiler
-// for the ESP32
-string dummystring("abcdef");
-
-/// ConfigDef comes from config.h and is specific to this particular device and
-/// target. It defines the layout of the configuration memory space and is also
-/// used to generate the cdi.xml file. Here we instantiate the configuration
-/// layout. The argument of offset zero is ignored and will be removed later.
+// ConfigDef comes from config.h and is specific to this particular device and
+// target. It defines the layout of the configuration memory space and is also
+// used to generate the cdi.xml file. Here we instantiate the configuration
+// layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
 #if defined(FIRMWARE_UPDATE_BOOTLOADER)
-/// Flag used to indicate that we have been requested to enter the bootloader
-/// instead of normal node operations. Note that this value will not be
-/// initialized by the system and a check for power on reset will need to be
-/// made to initialize it on first boot.
+// Flag used to indicate that we have been requested to enter the bootloader
+// instead of normal node operations. Note that this value will not be
+// initialized by the system and a check for power on reset will need to be
+// made to initialize it on first boot.
 static uint32_t RTC_NOINIT_ATTR bootloader_request;
 
 // Include the Bootloader HAL implementation for the ESP32. This is not 
@@ -244,6 +240,13 @@ openlcb::RefreshLoop producer_refresh_loop(openmrn.stack()->node(),
     }
 );
 
+// This will perform the factory reset procedure for this node's configuration
+// items.
+//
+// The node name and description will be set to the SNIP model name field
+// value.
+// Descriptions for intputs and outputs will be set to a blank string, input
+// debounce parameters will be set to default values.
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:
     UpdateAction apply_configuration(int fd, bool initial_load,
@@ -256,7 +259,7 @@ public:
     {
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
-            fd, "OpenLCB + Arduino-ESP32 on an " ARDUINO_VARIANT);
+            fd, openlcb::SNIP_STATIC_DATA.model_name);
         for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
         {
             cfg.seg().consumers().entry(i).description().write(fd, "");

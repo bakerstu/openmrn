@@ -32,12 +32,16 @@ namespace openlcb
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4,
     "OpenMRN",
-#if defined(USE_WIFI) && !defined(USE_CAN)
+#if defined(USE_WIFI) && !defined(USE_CAN) && !defined(USE_TWAI)
     "Arduino IO Board (WiFi)",
 #elif defined(USE_CAN) && !defined(USE_WIFI)
     "Arduino IO Board (CAN)",
+#elif defined(USE_TWAI) && !defined(USE_WIFI)
+    "Arduino IO Board (TWAI)",
 #elif defined(USE_CAN) && defined(USE_WIFI)
     "Arduino IO Board (WiFi/CAN)",
+#elif defined(USE_TWAI) && defined(USE_WIFI)
+    "Arduino IO Board (WiFi/TWAI)",
 #else
     "Arduino IO Board",
 #endif

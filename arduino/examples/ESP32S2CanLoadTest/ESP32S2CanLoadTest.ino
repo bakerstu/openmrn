@@ -34,8 +34,6 @@
 
 #include <Arduino.h>
 #include <SPIFFS.h>
-#include <WiFi.h>
-#include <vector>
 
 #include <OpenMRNLite.h>
 #include <openlcb/TcpDefs.hxx>
@@ -58,10 +56,6 @@
 // interface.
 //#define USE_TWAI_SELECT
 
-// Uncomment USE_TWAI_ASYNC to enable the usage of the non-blocking API for
-// the TWAI interface.
-//#define USE_TWAI_ASYNC
-
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
@@ -70,9 +64,9 @@
 
 // If USE_TWAI_SELECT or USE_TWAI_ASYNC is enabled but USE_TWAI is not, enable
 // USE_TWAI.
-#if (defined(USE_TWAI_SELECT) || defined(USE_TWAI_ASYNC)) && !defined(USE_TWAI)
+#if defined(USE_TWAI_SELECT) && !defined(USE_TWAI)
 #define USE_TWAI
-#endif // (USE_TWAI_SELECT || USE_TWAI_ASYNC) && !USE_TWAI
+#endif // USE_TWAI_SELECT && !USE_TWAI
 
 #include "config.h"
 
@@ -94,18 +88,17 @@ static constexpr uint64_t NODE_ID = UINT64_C(0x05010101182e);
 //     char WIFI_SSID[] = "linksys";
 //     char WIFI_PASS[] = "theTRUEsupers3cr3t";
 
-/// This is the name of the WiFi network (access point) to connect to.
+// This is the name of the WiFi network (access point) to connect to.
 const char *ssid = WIFI_SSID;
 
-/// Password of the wifi network.
+// Password of the wifi network.
 const char *password = WIFI_PASS;
 
-/// This is the hostname which the ESP32 will advertise via mDNS, it should be
-/// unique.
+// This is the hostname which the ESP32 will advertise via mDNS, it should be
+// unique.
 const char *hostname = "esp32mrn";
 
 OVERRIDE_CONST(gridconnect_buffer_size, 3512);
-//OVERRIDE_CONST(gridconnect_buffer_delay_usec, 200000);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 OVERRIDE_CONST(gc_generate_newlines, CONSTANT_TRUE);
 OVERRIDE_CONST(executor_select_prescaler, 60);
@@ -113,36 +106,44 @@ OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 
 #endif // USE_WIFI
 
-#if defined(USE_CAN) || defined(USE_TWAI)
-/// This is the ESP32-S2 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
-/// Recommended pins: 45.
-/// Note: Any pin can be used for this other than 26-32 which are connected to
-/// the onboard flash.
-/// Note: If you are using a pin other than 45 you will likely need to adjust
-/// the GPIO pin definitions for the outputs.
+#if defined(USE_TWAI)
+// This is the ESP32-S2 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
+// Recommended pins: 40, 41.
+// Note: Any pin can be used for this other than 26-32 which are connected to
+// the onboard flash.
+// Note: If you are using a pin other than 40 you will likely need to adjust
+// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_40;
 
-/// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
-/// Recommended pins: 5, 17, 22.
-/// Note: Any pin can be used for this other than 26-32 which are connected to
-/// the onboard flash.
-/// Note: If you are using a pin other than 5 you will likely need to adjust
-/// the GPIO pin definitions for the outputs.
+// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
+// Recommended pins: 40, 41.
+// Note: Any pin can be used for this other than 26-32 which are connected to
+// the onboard flash.
+// Note: If you are using a pin other than 41 you will likely need to adjust
+// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_41;
 
-#endif // USE_CAN or USE_TWAI
+#endif // USE_TWAI
 
-/// This is the primary entrypoint for the OpenMRN/LCC stack.
+// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
 
 // note the dummy string below is required due to a bug in the GCC compiler
 // for the ESP32
 string dummystring("abcdef");
 
-/// ConfigDef comes from config.h and is specific to this particular device and
-/// target. It defines the layout of the configuration memory space and is also
-/// used to generate the cdi.xml file. Here we instantiate the configuration
-/// layout. The argument of offset zero is ignored and will be removed later.
+// This tracks the CPU usage of the ESP32-S2 through the usage of a hardware
+// timer that records what the CPU is currently executing roughly 163 times per
+// second.
+CpuLoad cpu_load;
+
+// This reports the usage to the console output.
+CpuLoadLog cpu_log(openmrn.stack()->service());
+
+// ConfigDef comes from config.h and is specific to this particular device and
+// target. It defines the layout of the configuration memory space and is also
+// used to generate the cdi.xml file. Here we instantiate the configuration
+// layout. The argument of offset zero is ignored and will be removed later.
 static constexpr openlcb::ConfigDef cfg(0);
 
 #if defined(USE_WIFI)
@@ -270,6 +271,13 @@ openlcb::RefreshLoop producer_refresh_loop(openmrn.stack()->node(),
     }
 );
 
+// This will perform the factory reset procedure for this node's configuration
+// items.
+//
+// The node name and description will be set to the SNIP model name field
+// value.
+// Descriptions for intputs and outputs will be set to a blank string, input
+// debounce parameters will be set to default values.
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:
     UpdateAction apply_configuration(int fd, bool initial_load,
@@ -282,7 +290,7 @@ public:
     {
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
-            fd, "OpenLCB + Arduino-ESP32 on an " ARDUINO_VARIANT);
+            fd, openlcb::SNIP_STATIC_DATA.model_name);
         for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
         {
             cfg.seg().consumers().entry(i).description().write(fd, "");
@@ -314,31 +322,35 @@ namespace openlcb
     extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }
 
-CpuLoad cpu_load;
-hw_timer_t * timer = nullptr;
-CpuLoadLog* cpu_log = nullptr;
-
-void IRAM_ATTR onTimer()
+// Callback function for the hardware timer configured to fire roughly 163
+// times per second.
+void ARDUINO_ISR_ATTR record_cpu_usage()
 {
-    if (spi_flash_cache_enabled())
+#if CONFIG_ARDUINO_ISR_IRAM
+    // if the ISR is called with flash disabled we can not safely recored the
+    // cpu usage.
+    if (!spi_flash_cache_enabled())
     {
-        // Retrieves the vtable pointer from the currently running executable.
-        unsigned *pp = (unsigned *)openmrn.stack()->executor()->current();
-        cpuload_tick(pp ? pp[0] | 1 : 0);
+        return;
     }
+#endif
+    // Retrieves the vtable pointer from the currently running executable.
+    unsigned *pp = (unsigned *)openmrn.stack()->executor()->current();
+    cpuload_tick(pp ? pp[0] | 1 : 0);
 }
 
 void setup()
 {
-#ifdef USE_WIFI
-    //wifi_mgr.enable_verbose_logging();
-#endif    
     Serial.begin(115200L);
 
-    timer = timerBegin(3, 80, true); // timer_id = 3; divider=80; countUp = true;
-    timerAttachInterrupt(timer, &onTimer, true); // edge = true
-    // 1MHz clock, 163 ticks per second desired.
+    // Register hardware timer zero to use a 1Mhz resolution and to count up
+    // from zero when the timer triggers.
+    auto timer = timerBegin(0, 80, true);
+    // Attach our callback function to be called on the timer edge signal.
+    timerAttachInterrupt(timer, &onTimer, true);
+    // Configure the trigger point to be roughly 163 times per second.
     timerAlarmWrite(timer, 1000000/163, true);
+    // Enable the timer.
     timerAlarmEnable(timer);
 
     // Initialize the SPIFFS filesystem as our persistence layer
@@ -372,7 +384,6 @@ void setup()
 
     // Start the OpenMRN stack
     openmrn.begin();
-    cpu_log = new CpuLoadLog(openmrn.stack()->service());
 
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
@@ -384,12 +395,9 @@ void setup()
 #if defined(USE_TWAI_SELECT)
     // add TWAI driver with select() usage
     openmrn.add_can_port_select("/dev/twai/twai0");
-#elif defined(USE_TWAI_ASYNC)
+#else
     // add TWAI driver with non-blocking usage
     openmrn.add_can_port_async("/dev/twai/twai0");
-#elif defined(USE_TWAI)
-    // add TWAI driver with blocking usage
-    openmrn.add_can_port_blocking("/dev/twai/twai0");
 #endif // USE_TWAI_SELECT
 }
 

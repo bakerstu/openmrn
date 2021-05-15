@@ -41,14 +41,20 @@
 #include "openlcb/MultiConfiguredConsumer.hxx"
 #include "utils/GpioInitializer.hxx"
 
-// Pick an operating mode below, if you select USE_WIFI it will expose
-// this node on WIFI if you select USE_CAN, this node will be available
-// on CAN.
+// Pick an operating mode below, if you select USE_WIFI it will expose this
+// node on WIFI if you select USE_CAN, this node will be available on CAN.
+//
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
+//
+// NOTE: USE_TWAI and USE_TWAI_SELECT are similar to USE_CAN but utilize the
+// new TWAI driver or TWAI select() based driver. Enabling USE_TWAI_SELECT
+// will enable USE_TWAI as well.
 
 #define USE_WIFI
 //#define USE_CAN
+//#define USE_TWAI
+//#define USE_TWAI_SELECT
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
@@ -59,6 +65,14 @@
 // weak pull-up resistor to 3v3 would be recommended to prevent unintended
 // factory resets.
 //#define FACTORY_RESET_GPIO_PIN 22
+
+#if defined(USE_TWAI_SELECT) && !defined(USE_TWAI)
+#define USE_TWAI
+#endif // USE_TWAI_SELECT && !USE_TWAI
+
+#if defined(USE_CAN) && defined(USE_TWAI)
+#error USE_CAN and USE_TWAI are mutually exclusive!
+#endif
 
 #include "config.h"
 
@@ -96,7 +110,7 @@ const char *hostname = "esp32mrn";
 
 #endif // USE_WIFI
 
-#if defined(USE_CAN)
+#if defined(USE_CAN) || defined(USE_TWAI)
 /// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 /// Recommended pins: 4, 16, 21.
 /// Note: Any pin can be used for this other than 6-11 which are connected to
@@ -113,7 +127,7 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
 
-#endif // USE_CAN
+#endif // USE_CAN || USE_TWAI
 
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
@@ -131,6 +145,10 @@ static constexpr openlcb::ConfigDef cfg(0);
 #if defined(USE_WIFI)
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
+
+#if defined(USE_TWAI) && !defined(USE_CAN)
+Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
+#endif // USE_TWAI && !USE_CAN
 
 // Declare output pins
 // NOTE: pins 6-11 are connected to the onboard flash and can not be used for
@@ -231,7 +249,7 @@ public:
     {
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
-            fd, "OpenLCB + Arduino-ESP32 on an ESP32.");
+            fd, openlcb::SNIP_STATIC_DATA.model_name);
         for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
         {
             cfg.seg().consumers().entry(i).description().write(fd, "");
@@ -286,6 +304,10 @@ void setup()
 
     // initialize all declared GPIO pins
     GpioInit::hw_init();
+
+#if defined(USE_TWAI) && !defined(USE_CAN)
+    twai.hw_init();
+#endif // USE_TWAI && !USE_CAN
 
 #if defined(FACTORY_RESET_GPIO_PIN)
     // Check the factory reset pin which should normally read HIGH (set), if it
@@ -342,6 +364,10 @@ void setup()
     // Add the hardware CAN device as a bridge
     openmrn.add_can_port(
         new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
+#elif defined(USE_TWAI_SELECT)
+    openmrn.add_can_port_select("/dev/twai/twai0");
+#elif defined(USE_TWAI)
+    openmrn.add_can_port_async("/dev/twai/twai0");
 #endif // USE_CAN
 
 }
