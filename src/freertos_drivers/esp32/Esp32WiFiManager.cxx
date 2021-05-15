@@ -923,7 +923,7 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             wifi->reconfigure_wifi_radio_sleep();
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3)
             bool have_hub = false;
-            if (hubEnabled_)
+            if (wifi->hubEnabled_)
             {
                 wifi->start_hub();
                 have_hub = true;
@@ -933,12 +933,12 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
                 LOG(INFO, "[WiFi] Hub disabled by configuration.");
             }
 
-            if (uplinkEnabled_)
+            if (wifi->uplinkEnabled_)
             {
                 LOG(INFO, "[WiFi] Starting uplink.");
                 wifi->start_uplink();
             }
-            else if (!hubEnabled_)
+            else if (!wifi->hubEnabled_)
             {
                 LOG(INFO, "[WiFi] Starting uplink, because hub is disabled.");
                 wifi->start_uplink();
