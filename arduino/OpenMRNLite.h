@@ -52,7 +52,8 @@
 #include <esp_task.h>
 #include <esp_task_wdt.h>
 
-namespace openmrn_arduino {
+namespace openmrn_arduino
+{
 
 /// Default stack size to use for all OpenMRN tasks on the ESP32 platform.
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
@@ -71,8 +72,14 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 // which allows usage of the filesystem based CAN interface methods.
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 #include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"
-#include "freertos_drivers/esp32/Esp32WS2812.hxx"
 #define HAVE_CAN_FS_DEVICE
+
+// The ESP-IDF VFS layer has an optional wrapper around the select() interface
+// when disabled we can not use select() for the CAN/TWAI driver. Normally this
+// is enabled for arduino-esp32.
+#if CONFIG_VFS_SUPPORT_SELECT
+#define HAVE_CAN_FS_SELECT
+#endif
 #endif
 
 // If we are using ESP-IDF v4.3 (or later) enable the usage of the Esp32WS2812
@@ -480,6 +487,7 @@ public:
         stack_->add_can_port_async(device);
     }
 
+#if defined(HAVE_CAN_FS_SELECT)
     /// Adds a CAN bus port with select-based asynchronous driver API.
     void add_can_port_select(const char *device)
     {
@@ -493,6 +501,7 @@ public:
     {
         stack_->add_can_port_select(fd, on_error);
     }
+#endif // HAVE_CAN_FS_SELECT
 #endif // HAVE_CAN_FS_DEVICE
 
 #if defined(HAVE_FILESYSTEM)
