@@ -347,7 +347,7 @@ void setup()
     // from zero when the timer triggers.
     auto timer = timerBegin(0, 80, true);
     // Attach our callback function to be called on the timer edge signal.
-    timerAttachInterrupt(timer, &onTimer, true);
+    timerAttachInterrupt(timer, record_cpu_usage, true);
     // Configure the trigger point to be roughly 163 times per second.
     timerAlarmWrite(timer, 1000000/163, true);
     // Enable the timer.
