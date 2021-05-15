@@ -34,8 +34,6 @@
 
 #include <Arduino.h>
 #include <SPIFFS.h>
-#include <WiFi.h>
-#include <vector>
 #include <esp_spi_flash.h>
 
 #include <OpenMRNLite.h>

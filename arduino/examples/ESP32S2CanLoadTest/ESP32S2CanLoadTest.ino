@@ -34,6 +34,7 @@
 
 #include <Arduino.h>
 #include <SPIFFS.h>
+#include <esp_spi_flash.h>
 
 #include <OpenMRNLite.h>
 #include <openlcb/TcpDefs.hxx>
