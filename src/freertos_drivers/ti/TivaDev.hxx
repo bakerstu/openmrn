@@ -44,6 +44,7 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/timer.h"
+#include "driverlib/uart.h"
 #include "usblib/usblib.h"
 #include "usblib/usbcdc.h"
 #include "usblib/usb-ids.h"
@@ -154,12 +155,27 @@ private:
 class TivaUart : public Serial
 {
 public:
+    /** These mode bits need to be OR-ed together for the mode argument and
+     * ioctl. */
+    enum Mode
+    {
+        CS5 = UART_CONFIG_WLEN_5, /**< 5-bits word length */
+        CS6 = UART_CONFIG_WLEN_6, /**< 6-bits word length */
+        CS7 = UART_CONFIG_WLEN_7, /**< 7-bits word length */
+        CS8 = UART_CONFIG_WLEN_8, /**< 8-bits word length */
+        CSTOPB = UART_CONFIG_STOP_TWO, /**< send two stop bits instead of 1 */
+    };
+
     /** Constructor.
      * @param name name of this device instance in the file system
      * @param base base address of this device
      * @param interrupt interrupt number of this device
+     * @param baud desired baud rate
+     * @param mode to configure the UART for
+     * @param hw_fifo true if hardware fifo is to be enabled, else false.
      */
-    TivaUart(const char *name, unsigned long base, uint32_t interrupt);
+    TivaUart(const char *name, unsigned long base, uint32_t interrupt,
+        uint32_t baud = 115200, uint32_t mode = CS8, bool hw_fifo = true);
 
     /** Destructor.
      */
@@ -172,6 +188,10 @@ public:
      */
     void interrupt_handler();
 
+    /** Request an ioctl transaction. Supported ioctl is TCSBRK, TCDRAINNOTIFY,
+     * TCSTOP*, TCBAUDRATE and TCPAR* from include/freertos/tc_ioctl.h */
+    int ioctl(File *file, unsigned long int key, unsigned long data) override;
+    
 private:
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
@@ -180,9 +200,18 @@ private:
      */
     void tx_char() override;
 
-    unsigned long base; /**< base address of this device */
-    unsigned long interrupt; /**< interrupt of this device */
-    bool txPending; /**< transmission currently pending */
+    /** Sets the port baud rate and mode from the class variables. */
+    void set_mode();
+    
+    /** Notifiable to invoke when the transmit engine has finished operation. */
+    Notifiable* txComplete_{nullptr};
+    
+    uint32_t base_; /**< base address of this device */
+    uint32_t interrupt_ : 8; /**< interrupt of this device */
+    uint32_t baud_ : 24; /**< desired baud rate */
+    uint8_t hwFIFO_; /**< enable HW FIFO */
+    uint8_t mode_; /**< uart config (mode) flags */
+    uint8_t txPending_; /**< transmission currently pending */
 
     /** Default constructor.
      */

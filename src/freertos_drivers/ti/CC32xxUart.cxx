@@ -67,13 +67,19 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
                        TxEnableMethod tx_enable_assert,
                        TxEnableMethod tx_enable_deassert)
     : Serial(name)
-    , txEnableAssert(tx_enable_assert)
-    , txEnableDeassert(tx_enable_deassert)
-    , base(base)
-    , interrupt(interrupt)
-    , txPending(false)
-    , hwFIFO(hw_fifo)
+    , txEnableAssert_(tx_enable_assert)
+    , txEnableDeassert_(tx_enable_deassert)
+    , base_(base)
+    , interrupt_(interrupt)
+    , baud_(baud)
+    , txPending_(false)
+    , hwFIFO_(hw_fifo)
 {
+    static_assert(
+        UART_CONFIG_PAR_NONE == 0, "driverlib changed against our assumptions");
+    static_assert(
+        UART_CONFIG_STOP_ONE == 0, "driverlib changed against our assumptions");
+    HASSERT(mode <= 0xFFu);
     
     switch (base)
     {
@@ -89,30 +95,30 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
             break;
     }
     
-    MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, baud,
+    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud,
                             mode | UART_CONFIG_PAR_NONE);
-    MAP_IntDisable(interrupt);
+    MAP_IntDisable(interrupt_);
     /* We set the priority so that it is slightly lower than the highest needed
      * for FreeRTOS compatibility. This will ensure that CAN interrupts take
      * precedence over UART. */
-    MAP_IntPrioritySet(interrupt,
+    MAP_IntPrioritySet(interrupt_,
                        std::min(0xff, configKERNEL_INTERRUPT_PRIORITY + 0x20));
-    MAP_UARTIntEnable(base, UART_INT_RX | UART_INT_RT);
+    MAP_UARTIntEnable(base_, UART_INT_RX | UART_INT_RT);
 }
 
 /** Enable use of the device.
  */
 void CC32xxUart::enable()
 {
-    MAP_IntEnable(interrupt);
-    MAP_UARTEnable(base);
-    if (hwFIFO)
+    MAP_IntEnable(interrupt_);
+    MAP_UARTEnable(base_);
+    if (hwFIFO_)
     {
-        MAP_UARTFIFOEnable(base);
+        MAP_UARTFIFOEnable(base_);
     }
     else
     {
-        MAP_UARTFIFODisable(base);
+        MAP_UARTFIFODisable(base_);
     }
 }
 
@@ -120,8 +126,8 @@ void CC32xxUart::enable()
  */
 void CC32xxUart::disable()
 {
-    MAP_IntDisable(interrupt);
-    MAP_UARTDisable(base);
+    MAP_IntDisable(interrupt_);
+    MAP_UARTDisable(base_);
 }
 
 /** Request an ioctl transaction
@@ -137,39 +143,63 @@ int CC32xxUart::ioctl(File *file, unsigned long int key, unsigned long data)
         default:
             return -EINVAL;
         case TCSBRK:
-            MAP_UARTBreakCtl(base, true);
+            MAP_UARTBreakCtl(base_, true);
             // need to wait at least two frames here
             MAP_UtilsDelay(100 * 26);
-            MAP_UARTBreakCtl(base, false);
+            MAP_UARTBreakCtl(base_, false);
             MAP_UtilsDelay(12 * 26);
             break;
         case TCPARNONE:
-            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_NONE);
+            mode_ &= ~UART_CONFIG_PAR_MASK;
+            mode_ |= UART_CONFIG_PAR_NONE;
+            MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_NONE);
             break;
         case TCPARODD:
-            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_ODD);
+            mode_ &= ~UART_CONFIG_PAR_MASK;
+            mode_ |= UART_CONFIG_PAR_ODD;
+            MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ODD);
             break;
         case TCPAREVEN:
-            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_EVEN);
+            mode_ &= ~UART_CONFIG_PAR_MASK;
+            mode_ |= UART_CONFIG_PAR_EVEN;
+            MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_EVEN);
             break;
         case TCPARONE:
-            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_ONE);
+            mode_ &= ~UART_CONFIG_PAR_MASK;
+            mode_ |= UART_CONFIG_PAR_ONE;
+            MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ONE);
             break;
         case TCPARZERO:
-            MAP_UARTParityModeSet(base, UART_CONFIG_PAR_ZERO);
+            mode_ &= ~UART_CONFIG_PAR_MASK;
+            mode_ |= UART_CONFIG_PAR_ZERO;
+            MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ZERO);
+            break;
+        case TCSTOPONE:
+            mode_ &= ~UART_CONFIG_STOP_MASK;
+            mode_ |= UART_CONFIG_STOP_ONE;
+            set_mode();
+            break;
+        case TCSTOPTWO:
+            mode_ &= ~UART_CONFIG_STOP_MASK;
+            mode_ |= UART_CONFIG_STOP_TWO;
+            set_mode();
+            break;
+        case TCBAUDRATE:
+            baud_ = data;
+            set_mode();
             break;
         case TCDRAINNOTIFY:
         {
             Notifiable* arg = (Notifiable*)data;
             {
                 AtomicHolder h(&isr_lock);
-                if (txComplete != nullptr)
+                if (txComplete_ != nullptr)
                 {
                     return -EBUSY;
                 }
-                if (txPending)
+                if (txPending_)
                 {
-                    txComplete = arg;
+                    txComplete_ = arg;
                     arg = nullptr;
                 }
             }
@@ -184,6 +214,12 @@ int CC32xxUart::ioctl(File *file, unsigned long int key, unsigned long data)
     return 0;
 }
 
+/** Sets the port baud rate and mode from the class variables. */
+void CC32xxUart::set_mode()
+{
+    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud_, mode_);
+}
+
 /** Send data until there is no more space left.
  */
 void CC32xxUart::send()
@@ -193,7 +229,7 @@ void CC32xxUart::send()
         uint8_t data = 0;
         if (txBuf->get(&data, 1))
         {
-            MAP_UARTCharPutNonBlocking(base, data);
+            MAP_UARTCharPutNonBlocking(base_, data);
 
         }
         else
@@ -201,18 +237,18 @@ void CC32xxUart::send()
             break;
         }
     }
-    while (MAP_UARTSpaceAvail(base));
+    while (MAP_UARTSpaceAvail(base_));
 
     if (txBuf->pending())
     {
         /* more data to send later */
-        MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_FIFO);
+        MAP_UARTTxIntModeSet(base_, UART_TXINT_MODE_FIFO);
     }
     else
     {
         /* no more data left to send */
-        MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
-        MAP_UARTIntClear(base, UART_INT_TX);
+        MAP_UARTTxIntModeSet(base_, UART_TXINT_MODE_EOT);
+        MAP_UARTIntClear(base_, UART_INT_TX);
     }
 }
 
@@ -220,17 +256,17 @@ void CC32xxUart::send()
  */
 void CC32xxUart::tx_char()
 {
-    if (txPending == false)
+    if (txPending_ == false)
     {
-        if (txEnableAssert)
+        if (txEnableAssert_)
         {
-            txEnableAssert();
+            txEnableAssert_();
         }
 
         send();
-        txPending = true;
+        txPending_ = true;
 
-        MAP_UARTIntEnable(base, UART_INT_TX);
+        MAP_UARTIntEnable(base_, UART_INT_TX);
         txBuf->signal_condition();
     }
 }
@@ -241,16 +277,16 @@ void CC32xxUart::interrupt_handler()
 {
     int woken = false;
     /* get and clear the interrupt status */
-    unsigned long status = MAP_UARTIntStatus(base, true);    
-    MAP_UARTIntClear(base, status);
+    unsigned long status = MAP_UARTIntStatus(base_, true);    
+    MAP_UARTIntClear(base_, status);
 
     /** @todo (Stuart Baker) optimization opportunity by getting a write
      * pointer to fill the fifo and then advance the buffer when finished
      */
     /* receive charaters as long as we can */
-    while (MAP_UARTCharsAvail(base))
+    while (MAP_UARTCharsAvail(base_))
     {
-        long data = MAP_UARTCharGetNonBlocking(base);
+        long data = MAP_UARTCharGetNonBlocking(base_);
         if (data >= 0 && data <= 0xff)
         {
             unsigned char c = data;
@@ -262,7 +298,7 @@ void CC32xxUart::interrupt_handler()
         }
     }
     /* transmit a character if we have pending tx data */
-    if (txPending && (status & UART_INT_TX))
+    if (txPending_ && (status & UART_INT_TX))
     {
         if (txBuf->pending())
         {
@@ -272,19 +308,19 @@ void CC32xxUart::interrupt_handler()
         else
         {
             /* no more data left to send */
-            HASSERT(MAP_UARTTxIntModeGet(base) == UART_TXINT_MODE_EOT);
-            if (txEnableDeassert)
+            HASSERT(MAP_UARTTxIntModeGet(base_) == UART_TXINT_MODE_EOT);
+            if (txEnableDeassert_)
             {
-                txEnableDeassert();
+                txEnableDeassert_();
             }
-            txPending = false;
-            if (txComplete)
+            txPending_ = false;
+            if (txComplete_)
             {
-                Notifiable *t = txComplete;
-                txComplete = nullptr;
+                Notifiable *t = txComplete_;
+                txComplete_ = nullptr;
                 t->notify_from_isr();
             }
-            MAP_UARTIntDisable(base, UART_INT_TX);
+            MAP_UARTIntDisable(base_, UART_INT_TX);
         }
     }
     os_isr_exit_yield_test(woken);
