@@ -90,7 +90,7 @@ public:
     void interrupt_handler();
 
     /** Request an ioctl transaction. Supported ioctl is TCSBRK, TCDRAINNOTIFY,
-     * and TCPAR* from include/freertos/tc_ioctl.h */
+     * TCSTOP*, TCBAUDRATE and TCPAR* from include/freertos/tc_ioctl.h */
     int ioctl(File *file, unsigned long int key, unsigned long data) override;
 
 private:
