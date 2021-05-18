@@ -66,12 +66,14 @@
 
 #include <esp_vfs.h>
 #include <esp_idf_version.h>
+
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
 // SemaphoreHandle_t is defined by inclusion of esp_vfs.h so no additional
 // includes are necessary.
 /// Alias for the internal data type used by ESP-IDF select() calls.
 typedef SemaphoreHandle_t * esp_vfs_select_sem_t;
 #endif // IDF v3.x
+
 #endif // ESP32
 
 /// Signal handler that does nothing. @param sig ignored.
@@ -222,33 +224,6 @@ private:
     /// ESP32 early from the select() call.
     esp_vfs_select_sem_t espSem_;
 
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
-    /// Semaphore for waking up LwIP select.
-    void* lwipSem_{nullptr};
-#endif // IDF < v4.0
-
-    /// Flag to indicate that @ref espSem_ is valid or not.
-    /// Protected by Atomic *this.
-    bool semValid_{false};
-
-    /// FD set provided by the ESP32 VFS layer to use when waking up early from
-    /// select, this tracks which FDs are ready for read().
-    fd_set *readFds_;
-
-    /// Copy of the initial state of the read FD set provided by the ESP32 VFS
-    /// layer. This is used for checking if we need to set the bit for the FD
-    /// when waking up early from select().
-    fd_set origReadFds_;
-
-    /// FD set provided by the ESP32 VFS layer to use when waking up early from
-    /// select, this tracks which FDs are ready for write().
-    fd_set *writeFds_;
-
-    /// Copy of the initial state of the write FD set provided by the ESP32 VFS
-    /// layer. This is used for checking if we need to set the bit for the FD
-    /// when waking up early from select().
-    fd_set origWriteFds_;
-
     /// FD set provided by the ESP32 VFS layer to use when waking up early from
     /// select, this tracks which FDs have an error (or exception).
     fd_set *exceptFds_;
@@ -256,7 +231,13 @@ private:
     /// Copy of the initial state of the except FD set provided by the ESP32 VFS
     /// layer. This is used for checking if we need to set the bit for the FD
     /// when waking up early from select().
-    fd_set origExceptFds_;
+    fd_set exceptFdsOrig_;
+
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
+    /// Semaphore for waking up LwIP select.
+    void* lwipSem_{nullptr};
+#endif // IDF < v4.0
+
 #endif // ESP32
 
 #if OPENMRN_HAVE_PSELECT
