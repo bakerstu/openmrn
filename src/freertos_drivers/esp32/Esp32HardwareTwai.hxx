@@ -60,7 +60,7 @@ namespace openmrn_arduino
 /// transceivers are not supported by this interface.
 ///
 /// Example of usage (blocking API):
-///
+///```
 /// Esp32HardwareTwai twai;
 /// void setup() {
 ///   ...
@@ -69,9 +69,12 @@ namespace openmrn_arduino
 ///   openmrn.add_can_port_blocking("/dev/twai/twai0");
 ///   ...
 /// }
+///```
+/// NOTE: For single core ESP32 devices (ESP32-SOLO, ESP32-S2, ESP32-C3)
+/// using the blocking API is not recommended.
 ///
 /// Example of usage (async API):
-///
+///```
 /// Esp32HardwareTwai twai;
 /// void setup() {
 ///   ...
@@ -80,20 +83,26 @@ namespace openmrn_arduino
 ///   openmrn.add_can_port_async("/dev/twai/twai0");
 ///   ...
 /// }
+///```
 ///
 /// Example of usage (select API):
-///
+///```
 /// Esp32HardwareTwai twai;
 /// void setup() {
 ///   ...
 ///   twai.hw_init();
 ///   openmrn.begin();
 ///   openmrn.add_can_port_select("/dev/twai/twai0");
+///   openmrn.start_executor_thread();
 ///   ...
 /// }
+///```
+/// NOTE: For the select API it is necessary to start the executor thread in
+/// the setup() method.
 ///
-/// Note: The select based API is preferred over the async API but both are
-/// available for use depending on the node configuration or usage.
+/// NOTE: The select API will not be usable without CONFIG_VFS_SUPPORT_SELECT
+/// being enabled in sdkconfig. This is enabled by default in arduino-esp32 and
+/// ESP-IDF. It will be disabled when CONFIG_LWIP_USE_ONLY_LWIP_SELECT is used.
 class Esp32HardwareTwai : public Singleton<Esp32HardwareTwai>
 {
 public:
