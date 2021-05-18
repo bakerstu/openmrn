@@ -26,7 +26,7 @@
  *
  * \file ESP32S2CanLoadTest.ino
  *
- * Main file for the io board application on an ESP32.
+  * Main file for the ESP32-S2 CAN Load Test application.
  *
  * @author Mike Dunston
  * @date 2 May 2021
@@ -35,6 +35,7 @@
 #include <Arduino.h>
 #include <SPIFFS.h>
 #include <esp_spi_flash.h>
+#include <USB.h>
 
 #include <OpenMRNLite.h>
 #include <openlcb/TcpDefs.hxx>
@@ -44,11 +45,9 @@
 #include <freertos_drivers/arduino/CpuLoad.hxx>
 
 // Pick an operating mode below, if you select USE_WIFI it will expose
-// this node on WIFI if you select USE_CAN, this node will be available
-// on CAN, if you select USE_TWAI this node will be available on CAN.
+// this node on WIFI if you select USE_TWAI this node will be available on CAN.
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
-// Note: USE_CAN and USE_TWAI can not be used concurrently.
 
 #define USE_WIFI
 //#define USE_TWAI
@@ -60,6 +59,10 @@
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
+
+// Uncomment the line below to configure the native USB CDC for all output from
+// OpenMRNLite. When not defined the default UART0 will be used instead.
+//#define USE_USB_CDC_OUTPUT
 
 // Configuration option validation
 
@@ -340,9 +343,45 @@ void ARDUINO_ISR_ATTR record_cpu_usage()
     cpuload_tick(pp ? pp[0] | 1 : 0);
 }
 
+#if defined(USE_USB_CDC_OUTPUT)
+// USB CDC wrapper that uses TinyUSB internally to route data to/from the USB
+// CDC device driver.
+USBCDC USBSerial;
+
+// Override the log_output method from OpenMRNLite to redirect all log output
+// via USB CDC.
+void log_output(char* buf, int size)
+{
+    if (size <= 0) return;
+    buf[size] = '\0';
+    USBSerial.println(buf);
+}
+#endif // USE_USB_CDC_OUTPUT
+
 void setup()
 {
+#if !defined(USE_USB_CDC_OUTPUT)
     Serial.begin(115200L);
+#else
+    USB.productName(openlcb::SNIP_STATIC_DATA.model_name);
+    USB.manufacturerName(openlcb::SNIP_STATIC_DATA.manufacturer_name);
+    USB.firmwareVersion(openlcb::CANONICAL_VERSION);
+    USB.serialNumber(uint64_to_string_hex(NODE_ID).c_str());
+    USB.begin();
+    USBSerial.begin();
+    USBSerial.setDebugOutput(true);
+    // Give time for the USB peripheral to startup and be ready to use.
+    delay(5000);
+#endif // USE_USB_CDC_OUTPUT
+
+    Esp32SocInfo::print_soc_info();
+    LOG(INFO, "[Node] ID: %s", uint64_to_string_hex(NODE_ID).c_str());
+    LOG(INFO, "[SNIP] version:%d, manufacturer:%s, model:%s, hw-v:%s, sw-v:%s"
+      , openlcb::SNIP_STATIC_DATA.version
+      , openlcb::SNIP_STATIC_DATA.manufacturer_name
+      , openlcb::SNIP_STATIC_DATA.model_name
+      , openlcb::SNIP_STATIC_DATA.hardware_version
+      , openlcb::SNIP_STATIC_DATA.software_version);
 
     // Register hardware timer zero to use a 1Mhz resolution and to count up
     // from zero when the timer triggers.
@@ -357,10 +396,11 @@ void setup()
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
     {
-        printf("SPIFFS failed to mount, attempting to format and remount\n");
+        LOG(WARNING,
+            "SPIFFS failed to mount, attempting to format and remount");
         if (!SPIFFS.begin(true))
         {
-            printf("SPIFFS mount failed even with format, giving up!\n");
+            LOG_ERROR("SPIFFS mount failed even with format, giving up!");
             while (1)
             {
                 // Unable to start SPIFFS successfully, give up and wait
@@ -396,6 +436,10 @@ void setup()
 #if defined(USE_TWAI_SELECT)
     // add TWAI driver with select() usage
     openmrn.add_can_port_select("/dev/twai/twai0");
+
+    // start executor thread since this is required for select() to work in the
+    // OpenMRN executor.
+    openmrn.start_executor_thread();
 #else
     // add TWAI driver with non-blocking usage
     openmrn.add_can_port_async("/dev/twai/twai0");

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2019, Mike Dunston
+ * Copyright (c) 2021, Mike Dunston
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,12 +24,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ESP32IOBoard.ino
+ * \file ESP32C3CanLoadTest.ino
  *
- * Main file for the io board application on an ESP32.
+ * Main file for the ESP32-C3 CAN Load Test application.
  *
  * @author Mike Dunston
- * @date 13 January 2019
+ * @date 2 May 2021
  */
 
 #include <Arduino.h>
@@ -52,9 +52,19 @@
 #define USE_WIFI
 //#define USE_TWAI
 
+// Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
+// interface.
+//#define USE_TWAI_SELECT
+
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
+
+// If USE_TWAI_SELECT or USE_TWAI_ASYNC is enabled but USE_TWAI is not, enable
+// USE_TWAI.
+#if defined(USE_TWAI_SELECT) && !defined(USE_TWAI)
+#define USE_TWAI
+#endif // USE_TWAI_SELECT && !USE_TWAI
 
 #include "config.h"
 
@@ -269,8 +279,13 @@ void ARDUINO_ISR_ATTR record_cpu_usage()
 void setup()
 {
     Serial.begin(115200L);
-
-    Esp32SocInfo::print_soc_info();
+    LOG(INFO, "[Node] ID: %s", uint64_to_string_hex(NODE_ID).c_str());
+    LOG(INFO, "[SNIP] version:%d, manufacturer:%s, model:%s, hw-v:%s, sw-v:%s"
+      , openlcb::SNIP_STATIC_DATA.version
+      , openlcb::SNIP_STATIC_DATA.manufacturer_name
+      , openlcb::SNIP_STATIC_DATA.model_name
+      , openlcb::SNIP_STATIC_DATA.hardware_version
+      , openlcb::SNIP_STATIC_DATA.software_version);
 
     // Register hardware timer zero to use a 1Mhz resolution and to count up
     // from zero when the timer triggers.
@@ -287,10 +302,10 @@ void setup()
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
     {
-        printf("SPIFFS failed to mount, attempting to format and remount\n");
+        LOG(WARNING, "SPIFFS failed to mount, attempting to format and remount");
         if (!SPIFFS.begin(true))
         {
-            printf("SPIFFS mount failed even with format, giving up!\n");
+            LOG_ERROR("SPIFFS mount failed even with format, giving up!");
             while (1)
             {
                 // Unable to start SPIFFS successfully, give up and wait
@@ -323,9 +338,17 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_TWAI)
+#if defined(USE_TWAI_SELECT)
+    // add TWAI driver with select() usage
+    openmrn.add_can_port_select("/dev/twai/twai0");
+
+    // start executor thread since this is required for select() to work in the
+    // OpenMRN executor.
+    openmrn.start_executor_thread();
+#else
+    // add TWAI driver with non-blocking usage
     openmrn.add_can_port_async("/dev/twai/twai0");
-#endif // USE_TWAI
+#endif // USE_TWAI_SELECT
 }
 
 void loop()

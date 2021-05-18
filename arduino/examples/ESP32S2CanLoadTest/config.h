@@ -33,13 +33,11 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4,
     "OpenMRN",
 #if defined(USE_WIFI) && !defined(USE_TWAI)
-    "Arduino IO Board (WiFi)",
+    "Arduino Load Test (WiFi)",
 #elif defined(USE_TWAI) && !defined(USE_WIFI)
-    "Arduino IO Board (CAN)",
-#elif defined(USE_TWAI) && defined(USE_WIFI)
-    "Arduino IO Board (WiFi/CAN)",
+    "Arduino Load Test (TWAI)",
 #else
-    "Arduino IO Board",
+    "Arduino Load Test (WiFi/TWAI)",
 #endif
     ARDUINO_VARIANT,
     "1.00"};

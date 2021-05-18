@@ -68,9 +68,10 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 #include "freertos_drivers/esp32/Esp32Gpio.hxx"
 #include "freertos_drivers/esp32/Esp32SocInfo.hxx"
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
+
 // If we are using ESP-IDF v4.3 (or later) enable the usage of the TWAI device
 // which allows usage of the filesystem based CAN interface methods.
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 #include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"
 #define HAVE_CAN_FS_DEVICE
 
@@ -80,13 +81,12 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 #if CONFIG_VFS_SUPPORT_SELECT
 #define HAVE_CAN_FS_SELECT
 #endif
-#endif
 
 // If we are using ESP-IDF v4.3 (or later) enable the usage of the Esp32WS2812
 // RMT API.
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 #include "freertos_drivers/esp32/Esp32WS2812.hxx"
-#endif
+
+#endif // IDF v4.3+
 
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && \
     !defined(CONFIG_IDF_TARGET_ESP32S3) && \
@@ -439,9 +439,9 @@ public:
                               , OPENMRN_TASK_PRIORITY // priority
                               , nullptr               // task handle
                               , PRO_CPU_NUM);         // cpu core
-#else
+#else // NOT ESP32
         stack_->executor()->start_thread(
-            "OpenMRN", OPENMRN_TASK_PRIORITY, OPENMRN_STACK_SIZE);
+            "OpenMRN", 0 /* default priority*/, 0 /* default stack size */);
 #endif // ESP32
     }
 #endif // OPENMRN_FEATURE_SINGLE_THREADED
@@ -489,6 +489,8 @@ public:
 
 #if defined(HAVE_CAN_FS_SELECT)
     /// Adds a CAN bus port with select-based asynchronous driver API.
+    ///
+    /// NOTE: Be sure to call @ref start_executor_thread in the setup() method.
     void add_can_port_select(const char *device)
     {
         stack_->add_can_port_select(device);
@@ -497,6 +499,8 @@ public:
     /// Adds a CAN bus port with select-based asynchronous driver API.
     /// @param fd file descriptor to add to can hub
     /// @param on_error Notifiable to wakeup on error
+    ///
+    /// NOTE: Be sure to call @ref start_executor_thread in the setup() method.
     void add_can_port_select(int fd, Notifiable *on_error = nullptr)
     {
         stack_->add_can_port_select(fd, on_error);

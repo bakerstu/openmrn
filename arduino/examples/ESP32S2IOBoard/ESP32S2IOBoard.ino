@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2019, Mike Dunston
+ * Copyright (c) 2021, Mike Dunston
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  *
  * \file ESP32S2IOBoard.ino
  *
- * Main file for the io board application on an ESP32.
+ * Main file for the io board application on an ESP32-S2.
  *
  * @author Mike Dunston
  * @date 2 May 2021
@@ -43,11 +43,9 @@
 #include <freertos_drivers/arduino/CpuLoad.hxx>
 
 // Pick an operating mode below, if you select USE_WIFI it will expose
-// this node on WIFI if you select USE_CAN, this node will be available
-// on CAN, if you select USE_TWAI this node will be available on CAN.
+// this node on WIFI if you select USE_TWAI this node will be available on CAN.
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
-// Note: USE_CAN and USE_TWAI can not be used concurrently.
 
 #define USE_WIFI
 //#define USE_TWAI
@@ -55,10 +53,6 @@
 // Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
 // interface.
 //#define USE_TWAI_SELECT
-
-// Uncomment USE_TWAI_ASYNC to enable the usage of the non-blocking API for
-// the TWAI interface.
-//#define USE_TWAI_ASYNC
 
 // Uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
@@ -85,13 +79,20 @@
 // All others will be ignored.
 //#define FIRMWARE_UPDATE_BOOTLOADER
 
+// Uncomment the line below to configure the native USB CDC for all output from
+// OpenMRNLite. When not defined the default UART0 will be used instead.
+//
+// NOTE: USB CDC is connected to GPIO 19 (D-) and 20 (D+) and can not be
+// changed to any other pins.
+//#define USE_USB_CDC_OUTPUT
+
 // Configuration option validation
 
 // If USE_TWAI_SELECT or USE_TWAI_ASYNC is enabled but USE_TWAI is not, enable
 // USE_TWAI.
-#if (defined(USE_TWAI_SELECT) || defined(USE_TWAI_ASYNC)) && !defined(USE_TWAI)
+#if defined(USE_TWAI_SELECT) && !defined(USE_TWAI)
 #define USE_TWAI
-#endif // (USE_TWAI_SELECT || USE_TWAI_ASYNC) && !USE_TWAI
+#endif // USE_TWAI_SELECT && !USE_TWAI
 
 #if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_TWAI)
 #error TWAI is required for firmware update via bootloader
@@ -361,18 +362,54 @@ namespace openlcb
     extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }
 
+#if defined(USE_USB_CDC_OUTPUT)
+// USB CDC wrapper that uses TinyUSB internally to route data to/from the USB
+// CDC device driver.
+USBCDC USBSerial;
+
+// Override the log_output method from OpenMRNLite to redirect all log output
+// via USB CDC.
+void log_output(char* buf, int size)
+{
+    if (size <= 0) return;
+    buf[size] = '\0';
+    USBSerial.println(buf);
+}
+#endif // USE_USB_CDC_OUTPUT
+
 void setup()
 {
+#if !defined(USE_USB_CDC_OUTPUT)
     Serial.begin(115200L);
+#else
+    USB.productName(openlcb::SNIP_STATIC_DATA.model_name);
+    USB.manufacturerName(openlcb::SNIP_STATIC_DATA.manufacturer_name);
+    USB.firmwareVersion(openlcb::CANONICAL_VERSION);
+    USB.serialNumber(uint64_to_string_hex(NODE_ID).c_str());
+    USB.begin();
+    USBSerial.begin();
+    USBSerial.setDebugOutput(true);
+    // Give time for the USB peripheral to startup and be ready to use.
+    delay(5000);
+#endif // USE_USB_CDC_OUTPUT
+
     uint8_t reset_reason = Esp32SocInfo::print_soc_info();
+    LOG(INFO, "[Node] ID: %s", uint64_to_string_hex(NODE_ID).c_str());
+    LOG(INFO, "[SNIP] version:%d, manufacturer:%s, model:%s, hw-v:%s, sw-v:%s"
+      , openlcb::SNIP_STATIC_DATA.version
+      , openlcb::SNIP_STATIC_DATA.manufacturer_name
+      , openlcb::SNIP_STATIC_DATA.model_name
+      , openlcb::SNIP_STATIC_DATA.hardware_version
+      , openlcb::SNIP_STATIC_DATA.software_version);
 
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
     {
-        printf("SPIFFS failed to mount, attempting to format and remount\n");
+        LOG(WARNING,
+            "SPIFFS failed to mount, attempting to format and remount");
         if (!SPIFFS.begin(true))
         {
-            printf("SPIFFS mount failed even with format, giving up!\n");
+            LOG_ERROR("SPIFFS mount failed even with format, giving up!");
             while (1)
             {
                 // Unable to start SPIFFS successfully, give up and wait
@@ -409,28 +446,28 @@ void setup()
     // reads LOW (clr) delete the cdi.xml and openlcb_config
     if (!FACTORY_RESET_Pin::instance()->read())
     {
-        printf("!!!! WARNING WARNING WARNING WARNING WARNING !!!!\n");
-        printf("The factory reset GPIO pin %d has been triggered.\n",
-               FACTORY_RESET_GPIO_PIN);
+        LOG(WARNING, "!!!! WARNING WARNING WARNING WARNING WARNING !!!!");
+        LOG(WARNING, "The factory reset GPIO pin %d has been triggered.",
+            FACTORY_RESET_GPIO_PIN);
         for (uint8_t sec = FACTORY_RESET_COUNTDOWN_SECS;
              sec > 0 && !FACTORY_RESET_Pin::instance()->read(); sec--)
         {
 #if defined(USE_STATUS_LED)
             status_led.toggle();
 #endif
-            printf("Factory reset will be initiated in %d seconds.\n", sec);
+            LOG(WARNING,"Factory reset will be initiated in %d seconds.", sec);
             usleep(SEC_TO_USEC(1));
         }
         if (!FACTORY_RESET_Pin::instance()->read())
         {
             unlink(openlcb::CDI_FILENAME);
             unlink(openlcb::CONFIG_FILENAME);
-            printf("Factory reset complete\n");
+            LOG(INFO, "Factory reset complete");
         }
         else
         {
-            printf("Factory reset aborted as pin %d was not held LOW\n",
-                   FACTORY_RESET_GPIO_PIN);
+            LOG(WARNING, "Factory reset aborted as pin %d was not held LOW",
+                FACTORY_RESET_GPIO_PIN);
         }
 #if defined(USE_STATUS_LED)
         status_led.clr();
@@ -477,12 +514,13 @@ void setup()
 #if defined(USE_TWAI_SELECT)
     // add TWAI driver with select() usage
     openmrn.add_can_port_select("/dev/twai/twai0");
-#elif defined(USE_TWAI_ASYNC)
+
+    // start executor thread since this is required for select() to work in the
+    // OpenMRN executor.
+    openmrn.start_executor_thread();
+#else
     // add TWAI driver with non-blocking usage
     openmrn.add_can_port_async("/dev/twai/twai0");
-#elif defined(USE_TWAI)
-    // add TWAI driver with blocking usage
-    openmrn.add_can_port_blocking("/dev/twai/twai0");
 #endif // USE_TWAI_SELECT
 
 #if defined(FIRMWARE_UPDATE_BOOTLOADER)
