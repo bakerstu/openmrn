@@ -59,9 +59,9 @@
 #else
 #error Unknown ESP32 variant.
 #endif
-#include <openlcb/Bootloader.hxx>
-#include <utils/Hub.hxx>
-#include <utils/constants.hxx>
+#include "openlcb/Bootloader.hxx"
+#include "utils/constants.hxx"
+#include "utils/Hub.hxx"
 
 /// Mapping of known ESP32 chip id values.
 static constexpr const char * ESP_CHIP_ID_NAMES[] =
@@ -71,8 +71,8 @@ static constexpr const char * ESP_CHIP_ID_NAMES[] =
     "ESP32-S2"          // 2 ESP_CHIP_ID_ESP32S2
     "INVALID",          // 3 invalid (placeholder)
     "INVALID",          // 4 invalid (placeholder)
-    "ESP32-S3",         // 5 ESP_CHIP_ID_ESP32S3
-    "ESP32-C3"          // 6 ESP_CHIP_ID_ESP32C3
+    "ESP32-C3",         // 5 ESP_CHIP_ID_ESP32C3
+    "ESP32-S3"          // 6 ESP_CHIP_ID_ESP32S3
 };
 
 /// Chip identifier for the currently running firmware.
