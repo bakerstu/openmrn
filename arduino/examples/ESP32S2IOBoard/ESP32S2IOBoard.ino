@@ -58,7 +58,7 @@
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
 
-// Uncomment USE_STATUS_LED to enable the WS2812 LED on GPIO8 to be used as an
+// Uncomment USE_STATUS_LED to enable the WS2812 LED on GPIO18 to be used as an
 // activity LED for this node. Note that the LED will blink a purple color when
 // this node has activity. The color can be changed in the status_led
 // declaration.
