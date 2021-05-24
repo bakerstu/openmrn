@@ -404,6 +404,16 @@ template <class Defs> struct GpioInputPUPD : public GpioInputPin<Defs, true, tru
 ///                flash.
 ///    - 16, 17  : Used for flash and/or PSRAM.
 ///
+/// ESP32-PICO-V3: Nearly the same as ESP32-PICO-D4 with the following
+/// differences:
+///    - 7, 8       : Available for use, however validation checks will prevent
+///                   usage due to no compile time constant available to
+///                   uniquely identify this variant.
+///    - 20         : Available for use.
+///    - 16 - 18, 23: Not available, however validations checks will not
+///                   prevent usage of GPIO 18 or 23 due to no compile time
+///                   constant available to uniquely identify this variant.
+///
 /// ESP32-WROVER and WROVER-B: Nearly the same as ESP32 but with the following
 /// differences:
 ///    - 16, 17  : Reserved for PSRAM on WROVER/WROVER-B modules.
@@ -437,9 +447,15 @@ template <class Defs> struct GpioInputPUPD : public GpioInputPin<Defs, true, tru
 /// ESP32-WROVER: https://www.espressif.com/sites/default/files/documentation/esp32-wrover_datasheet_en.pdf
 /// ESP32-WROVER-B: https://www.espressif.com/sites/default/files/documentation/esp32-wrover-b_datasheet_en.pdf
 /// ESP32-PICO-D4: https://www.espressif.com/sites/default/files/documentation/esp32-pico-d4_datasheet_en.pdf
+/// ESP32-PICO-V3: https://www.espressif.com/sites/default/files/documentation/esp32-pico-v3_datasheet_en.pdf
 /// ESP32-S2: https://www.espressif.com/sites/default/files/documentation/esp32-s2_datasheet_en.pdf
 /// ESP32-S2-WROVER: https://www.espressif.com/sites/default/files/documentation/esp32-s2-wrover_esp32-s2-wrover-i_datasheet_en.pdf
 /// ESP32-C3: https://www.espressif.com/sites/default/files/documentation/esp32-c3_datasheet_en.pdf
+///
+/// SoC technical references:
+/// ESP32: https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf
+/// ESP32-S2: https://www.espressif.com/sites/default/files/documentation/esp32-s2_technical_reference_manual_en.pdf
+/// ESP32-C3: https://www.espressif.com/sites/default/files/documentation/esp32-c3_technical_reference_manual_en.pdf
 ///
 /// Module schematic references:
 /// DevKitC v4: https://dl.espressif.com/dl/schematics/esp32_devkitc_v4-sch-20180607a.pdf
