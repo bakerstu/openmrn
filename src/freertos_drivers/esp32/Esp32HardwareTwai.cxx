@@ -44,7 +44,7 @@
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 
-#ifdef CONFIG_VFS_SUPPORT_TERMIOS
+#if CONFIG_VFS_SUPPORT_TERMIOS
 // remove defines added by arduino-esp32 core/esp32/binary.h which are
 // duplicated in sys/termios.h which may be included by esp_vfs.h
 #undef B110
@@ -889,8 +889,8 @@ void* twai_watchdog(void* param)
     return NULL;
 }
 
-Esp32HardwareTwai::Esp32HardwareTwai(int rx, int tx, size_t rx_size,
-                                     size_t tx_size, bool report,
+Esp32HardwareTwai::Esp32HardwareTwai(int rx, int tx, bool report,
+                                     size_t rx_size, size_t tx_size,
                                      const char *path, int clock_out,
                                      int bus_status) :
                                      rxPin_(rx),

@@ -59,20 +59,6 @@ namespace openmrn_arduino
 /// transceiver connected via two GPIO pins (RX and TX). SPI connected CAN
 /// transceivers are not supported by this interface.
 ///
-/// Example of usage (blocking API):
-///```
-/// Esp32HardwareTwai twai;
-/// void setup() {
-///   ...
-///   twai.hw_init();
-///   openmrn.begin();
-///   openmrn.add_can_port_blocking("/dev/twai/twai0");
-///   ...
-/// }
-///```
-/// NOTE: For single core ESP32 devices (ESP32-SOLO, ESP32-S2, ESP32-C3)
-/// using the blocking API is not recommended.
-///
 /// Example of usage (async API):
 ///```
 /// Esp32HardwareTwai twai;
@@ -100,9 +86,10 @@ namespace openmrn_arduino
 /// NOTE: For the select API it is necessary to start the executor thread in
 /// the setup() method.
 ///
-/// NOTE: The select API will not be usable without CONFIG_VFS_SUPPORT_SELECT
-/// being enabled in sdkconfig. This is enabled by default in arduino-esp32 and
-/// ESP-IDF. It will be disabled when CONFIG_LWIP_USE_ONLY_LWIP_SELECT is used.
+/// NOTE: The select API is not be usable without CONFIG_VFS_SUPPORT_SELECT
+/// being enabled in sdkconfig, this option is disabled automatically when
+/// CONFIG_LWIP_USE_ONLY_LWIP_SELECT is enabled. CONFIG_VFS_SUPPORT_SELECT is
+/// enabled by default in arduino-esp32.
 class Esp32HardwareTwai : public Singleton<Esp32HardwareTwai>
 {
 public:
@@ -110,24 +97,30 @@ public:
     ///
     /// @param rx is the GPIO pin connected to the CAN transceiver RX pin.
     /// @param tx is the GPIO pin connected to the CAN transceiver TX pin.
+    /// @param report controls the periodic reporting of the TWAI driver
+    /// statistics, default is enabled.
     /// @param rx_buffer_size is the number of @ref can_frame to queue before
     /// frames will be dropped/lost, default is defined in
     /// @var _sym_can_rx_buffer_size.
     /// @param tx_buffer_size is the number of @ref can_frame to queue before
     /// blocking will occur when transmitting, default is defined in
     /// @var _sym_can_tx_buffer_size.
-    /// @param report controls the periodic reporting of the TWAI driver
-    /// statistics, default is enabled.
     /// @param path is the VFS mount point for the TWAI driver, default is
     /// "/dev/twai".
     /// @param clock_out is the GPIO pin that can be used for an external clock
-    /// pin, default is disabled (-1).
+    /// pin, default is disabled (-1). When enabled this will have a pre-scaled
+    /// clock signal.
     /// @param bus_status is the GPIO pin that can be used for a bus status
-    /// indicator, default is disabled (-1).
+    /// indicator, default is disabled (-1). When enabled this pin will be set
+    /// LOW (0v) when the TWAI driver is in a "Bus Off" state and will be set
+    /// HIGH (3.3v) otherwise.
+    ///
+    /// NOTE: The CAN transceiver must internally loopback TX to RX, failure to
+    /// do so will be interpreted as an arbitration loss or bit error.
     Esp32HardwareTwai(int rx, int tx
+                    , bool report = true
                     , size_t rx_buffer_size = config_can_rx_buffer_size()
                     , size_t tx_buffer_size = config_can_tx_buffer_size()
-                    , bool report = true
                     , const char *path = "/dev/twai"
                     , int clock_out = GPIO_NUM_NC
                     , int bus_status = GPIO_NUM_NC);
