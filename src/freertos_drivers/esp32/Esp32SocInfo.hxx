@@ -151,7 +151,6 @@ public:
         {
             reset_reason = 0;
         }
-        const esp_app_desc_t *app_data = esp_ota_get_app_description();
         esp_chip_info_t chip_info;
         esp_chip_info(&chip_info);
         LOG(INFO, "[SoC] reset reason:%d - %s", reset_reason,
