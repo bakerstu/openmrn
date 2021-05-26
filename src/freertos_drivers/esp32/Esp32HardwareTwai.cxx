@@ -946,36 +946,34 @@ Esp32HardwareTwai::~Esp32HardwareTwai()
 
 void Esp32HardwareTwai::hw_init()
 {
-    LOG(VERBOSE, "ESP-TWAI: Configuring TX pin: %d", txPin_);
+    LOG(INFO,
+        "ESP-TWAI: Configuring TWAI (TX:%d, RX:%d, EXT-CLK:%d, BUS-CTRL:%d)",
+        txPin_, rxPin_, extClockPin_, busStatusPin_);
     gpio_set_pull_mode((gpio_num_t)txPin_, GPIO_FLOATING);
-    esp_rom_gpio_connect_out_signal((gpio_num_t)txPin_, TWAI_TX_IDX, false,
-        false);
-    gpio_pad_select_gpio((gpio_num_t)txPin_);
+    gpio_pad_select_gpio(txPin_);
+    esp_rom_gpio_connect_out_signal(txPin_, TWAI_TX_IDX, false, false);
 
-    LOG(VERBOSE, "ESP-TWAI: Configuring RX pin: %d", rxPin_);
     gpio_set_pull_mode((gpio_num_t)rxPin_, GPIO_FLOATING);
-    esp_rom_gpio_connect_in_signal((gpio_num_t)rxPin_, TWAI_RX_IDX, false);
-    gpio_pad_select_gpio((gpio_num_t)rxPin_);
     gpio_set_direction((gpio_num_t)rxPin_, GPIO_MODE_INPUT);
+    gpio_pad_select_gpio(rxPin_);
+    esp_rom_gpio_connect_in_signal(rxPin_, TWAI_RX_IDX, false);
 
     if (extClockPin_ != GPIO_NUM_NC)
     {
-        LOG(VERBOSE, "ESP-TWAI:Configuring external clock pin: %d",
-            extClockPin_);
         gpio_set_pull_mode((gpio_num_t)extClockPin_, GPIO_FLOATING);
-        esp_rom_gpio_connect_out_signal((gpio_num_t)extClockPin_,
-            TWAI_CLKOUT_IDX, false, false);
-        esp_rom_gpio_pad_select_gpio((gpio_num_t)extClockPin_);
+        gpio_set_direction((gpio_num_t)extClockPin_, GPIO_MODE_OUTPUT);
+        esp_rom_gpio_connect_out_signal(extClockPin_, TWAI_CLKOUT_IDX, false,
+            false);
+        gpio_pad_select_gpio((gpio_num_t)extClockPin_);
     }
 
     if (busStatusPin_ != GPIO_NUM_NC)
     {
-        LOG(VERBOSE, "ESP-TWAI: Configuring external bus status pin: %d",
-            busStatusPin_);
         gpio_set_pull_mode((gpio_num_t)busStatusPin_, GPIO_FLOATING);
-        esp_rom_gpio_connect_out_signal((gpio_num_t)extClockPin_,
-            TWAI_BUS_OFF_ON_IDX, false, false);
-        esp_rom_gpio_pad_select_gpio((gpio_num_t)busStatusPin_);
+        gpio_set_direction((gpio_num_t)busStatusPin_, GPIO_MODE_OUTPUT);
+        esp_rom_gpio_connect_out_signal(extClockPin_, TWAI_BUS_OFF_ON_IDX,
+            false, false);
+        gpio_pad_select_gpio((gpio_num_t)busStatusPin_);
     }
 
     esp_vfs_t vfs;
@@ -1004,7 +1002,7 @@ void Esp32HardwareTwai::hw_init()
     LOG(VERBOSE, "ESP-TWAI: Allocating ISR");
     ESP_ERROR_CHECK(
         esp_intr_alloc(ETS_TWAI_INTR_SOURCE, TWAI_INTERRUPT_FLAGS, twai_isr,
-            this, &twai.isr_handle));
+            nullptr, &twai.isr_handle));
     twai.active = true;
 
     os_thread_create(&twai.wd_thread, "TWAI-WD", WATCHDOG_TASK_PRIORITY,
