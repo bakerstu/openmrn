@@ -38,6 +38,7 @@
 
 #include <Arduino.h>
 
+#include "CDIXMLGenerator.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
 #include "freertos_drivers/arduino/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
@@ -525,50 +526,13 @@ public:
     /// @param cfg is the global configuration instance (usually called cfg).
     /// @param filename is where the xml file can be stored on the
     /// filesystem. For example "/spiffs/cdi.xml".
+    /// @returns true if the cdi.xml was updated, false otherwise.
     template <class ConfigDef>
-    void create_config_descriptor_xml(
+    bool create_config_descriptor_xml(
         const ConfigDef &config, const char *filename)
     {
-        string cdi_string;
-        ConfigDef cfg(config.offset());
-        cfg.config_renderer().render_cdi(&cdi_string);
-        
-        cdi_string += '\0';
-
-        bool need_write = false;
-        FILE *ff = fopen(filename, "rb");
-        if (!ff)
-        {
-            need_write = true;
-        }
-        else
-        {
-            fclose(ff);
-            string current_str = read_file_to_string(filename);
-            if (current_str != cdi_string)
-            {
-                need_write = true;
-            }
-        }
-        if (need_write)
-        {
-            LOG(INFO, "Updating CDI file %s (len %u)", filename,
-                cdi_string.size());
-            write_string_to_file(filename, cdi_string);
-        }
-
-        // Creates list of event IDs for factory reset.
-        auto *v = new vector<uint16_t>();
-        cfg.handle_events([v](unsigned o) { v->push_back(o); });
-        v->push_back(0);
-        stack()->set_event_offsets(v);
-        // We leak v because it has to stay alive for the entire lifetime of
-        // the stack.
-
-        // Exports the file memory space.
-        openlcb::MemorySpace *space = new openlcb::ROFileMemorySpace(filename);
-        stack()->memory_config_handler()->registry()->insert(
-            stack()->node(), openlcb::MemoryConfigDefs::SPACE_CDI, space);
+        return CDIXMLGenerator::create_config_descriptor_xml(
+            config, filename, stack());
     }
 #endif // HAVE_FILESYSTEM
 
