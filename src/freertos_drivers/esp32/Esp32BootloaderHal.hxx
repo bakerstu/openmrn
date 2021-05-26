@@ -68,7 +68,7 @@ static constexpr const char * ESP_CHIP_ID_NAMES[] =
 {
     "ESP32",            // 0 ESP_CHIP_ID_ESP32
     "INVALID",          // 1 invalid (placeholder)
-    "ESP32-S2"          // 2 ESP_CHIP_ID_ESP32S2
+    "ESP32-S2",         // 2 ESP_CHIP_ID_ESP32S2
     "INVALID",          // 3 invalid (placeholder)
     "INVALID",          // 4 invalid (placeholder)
     "ESP32-C3",         // 5 ESP_CHIP_ID_ESP32C3
@@ -240,10 +240,11 @@ R"!^!([Bootloader] Firmware details:
 Name: %s (%s)
 ESP-IDF version: %s
 Compile timestamp: %s %s
-Target chip-id: %s)!^!"
+Target chip-id: %s (%x) )!^!"
                   , app_desc.project_name, app_desc.version
                   , app_desc.idf_ver, app_desc.date, app_desc.time
-                  , ESP_CHIP_ID_NAMES[image_header.chip_id]);
+                  , ESP_CHIP_ID_NAMES[image_header.chip_id]
+                  , image_header.chip_id);
 
                 // start the OTA process at this point, if we have had a
                 // previous failure this will reset the OTA process so we can
@@ -255,9 +256,11 @@ Target chip-id: %s)!^!"
             else
             {
                 LOG_ERROR("[Bootloader] Firmware does not appear to be valid "
-                          "or is for a different chip (%s vs %s)."
+                          "or is for a different chip (%s - %x vs %s - %x)."
                         , ESP_CHIP_ID_NAMES[image_header.chip_id]
-                        , ESP_CHIP_ID_NAMES[esp_detected_chip_id]);
+                        , image_header.chip_id
+                        , ESP_CHIP_ID_NAMES[esp_detected_chip_id]
+                        , esp_detected_chip_id);
                 should_abort = true;
             }
         }
