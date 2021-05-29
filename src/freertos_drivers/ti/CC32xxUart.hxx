@@ -89,8 +89,8 @@ public:
      */
     void interrupt_handler();
 
-    /** Request an ioctl transaction. Currently the only supported ioctl is
-     * TCSBRK. */
+    /** Request an ioctl transaction. Supported ioctl is TCSBRK, TCDRAINNOTIFY,
+     * TCSTOP*, TCBAUDRATE and TCPAR* from include/freertos/tc_ioctl.h */
     int ioctl(File *file, unsigned long int key, unsigned long data) override;
 
 private:
@@ -106,19 +106,23 @@ private:
      */
     void send();
 
+    /** Sets the port baud rate and mode from the class variables. */
+    void set_mode();
+    
     /** function pointer to a method that asserts the transmit enable. */
-    TxEnableMethod txEnableAssert;
+    TxEnableMethod txEnableAssert_;
 
     /** function pointer to a method that deasserts the transmit enable. */
-    TxEnableMethod txEnableDeassert;
+    TxEnableMethod txEnableDeassert_;
 
     /** Notifiable to invoke when the transmit engine has finished operation. */
-    Notifiable* txComplete{nullptr};
+    Notifiable* txComplete_{nullptr};
     
-    unsigned long base; /**< base address of this device */
-    unsigned long interrupt; /**< interrupt of this device */
-    bool txPending; /**< transmission currently pending */
-    bool hwFIFO; /**< true if hardware fifo is to be enabled, else false */
+    unsigned long base_; /**< base address of this device */
+    uint32_t interrupt_ : 8; /**< interrupt of this device */
+    uint32_t baud_ : 24; /**< desired baud rate */
+    uint8_t txPending_; /**< transmission currently pending */
+    uint8_t hwFIFO_; /**< true if hardware fifo is to be enabled, else false */
 
     /** Default constructor.
      */
