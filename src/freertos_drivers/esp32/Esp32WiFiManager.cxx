@@ -968,12 +968,8 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
 // Shuts down the hub listener (if enabled and running) for this node.
 void Esp32WiFiManager::stop_hub()
 {
-    if (hub_)
-    {
-        mdns_unpublish(hubServiceName_);
-        LOG(INFO, "[HUB] Shutting down TCP/IP listener");
-        hub_.reset(nullptr);
-    }
+    auto stack = static_cast<openlcb::SimpleCanStackBase *>(stack_);
+    stack->shutdown_tcp_hub_server();
 }
 
 // Creates a hub listener for this node after loading configuration details.
@@ -983,13 +979,12 @@ void Esp32WiFiManager::start_hub()
     uint16_t hub_port = CDI_READ_TRIMMED(cfg_.hub().port, configFd_);
 
     LOG(INFO, "[HUB] Starting TCP/IP listener on port %d", hub_port);
-    hub_.reset(
-        new GcTcpHub(
-            static_cast<openlcb::SimpleCanStack *>(stack_)->can_hub(),
-            hub_port));
+    auto stack = static_cast<openlcb::SimpleCanStackBase *>(stack_);
+    stack->start_tcp_hub_server(hub_port);
+    auto hub = stack->get_tcp_hub_server();
 
     // wait for the hub to complete it's startup tasks
-    while (!hub_->is_started())
+    while (!hub->is_started())
     {
         usleep(HUB_STARTUP_DELAY_USEC);
     }
@@ -1029,8 +1024,8 @@ void Esp32WiFiManager::on_uplink_created(int fd, Notifiable *on_exit)
 
     // create the GridConnect port from the provided socket fd.
     create_gc_port_for_can_hub(
-        static_cast<openlcb::SimpleCanStack *>(stack_)->can_hub(), fd, on_exit,
-        use_select);
+        static_cast<openlcb::SimpleCanStackBase *>(stack_)->can_hub(), fd,
+        on_exit, use_select);
 
     // restart the stack to kick off alias allocation and send node init
     // packets.

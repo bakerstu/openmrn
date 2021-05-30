@@ -532,9 +532,6 @@ private:
     /// Maximum WiFi transmit power setting.
     uint8_t wifiTXPower_{84};
 
-    /// @ref GcTcpHub for this node's hub if enabled.
-    std::unique_ptr<GcTcpHub> hub_;
-
     /// mDNS service name being advertised by the hub, if enabled.
     std::string hubServiceName_;
 
