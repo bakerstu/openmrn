@@ -88,7 +88,8 @@ int OSSelectWakeup::select(int nfds, fd_set *readfds,
     }
 #endif //ESP32
     struct timeval timeout;
-    timeout.tv_sec = deadline_nsec / 1000000000LL;
+    // divide in two steps to avoid overflow on ESP32
+    timeout.tv_sec = (deadline_nsec / 1000) / 1000000LL;
     timeout.tv_usec = (deadline_nsec / 1000) % 1000000LL;
     int ret =
         ::select(nfds, readfds, writefds, exceptfds, &timeout);
