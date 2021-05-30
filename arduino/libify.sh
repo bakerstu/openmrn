@@ -166,6 +166,7 @@ copy_file src/freertos_drivers/arduino \
           src/freertos_drivers/common/CpuLoad.{hxx,cxx} \
           src/freertos_drivers/common/WifiDefs.{hxx,cxx} \
           src/freertos_drivers/common/libatomic.c \
+          src/freertos_drivers/common/PWM.hxx
 
 copy_file src/freertos_drivers/esp32 \
           src/freertos_drivers/esp32/*
@@ -190,7 +191,8 @@ rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
     ${TARGET_LIB_DIR}/src/utils/EEPROMEmuTest.hxx \
     ${TARGET_LIB_DIR}/src/utils/hub_test_utils.hxx \
     ${TARGET_LIB_DIR}/src/utils/if_tcp_test_helper.hxx \
-    ${TARGET_LIB_DIR}/src/utils/test_main.hxx
+    ${TARGET_LIB_DIR}/src/utils/test_main.hxx \
+    ${TARGET_LIB_DIR}/src/utils/ShaTestVectors.hxx
 
 if [ "x$VERBOSE" != "x" ]; then
     echo "Renaming all cxx to cpp under ${TARGET_LIB_DIR}/src"
