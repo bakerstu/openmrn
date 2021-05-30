@@ -39,7 +39,12 @@
 #include "os/os.h"
 #include "freertos_includes.h"
 
-extern "C" {
+#ifdef ESP32
+#include "sdkconfig.h"
+#endif // ESP32
+
+extern "C"
+{
 
 /// The bits to shift to get multiples of 1.0
 static constexpr uint32_t SHIFT_ONE = 24;
@@ -118,10 +123,7 @@ void cpuload_tick(unsigned irq)
         return;
 // On the ESP32 it is necessary to use a slightly different approach for
 // recording CPU usage metrics since there may be additional CPU cores.
-// NOTE: The ESP32-S2 and ESP32-C3 are single-core SoC and defines the
-// FREERTOS_UNICORE flag which we can use here to switch to the standard
-// algorithm.
-#if defined(CONFIG_IDF_TARGET) && !defined(CONFIG_FREERTOS_UNICORE)
+#ifdef ESP32
     if (irq != 0)
     {
         Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
@@ -134,12 +136,17 @@ void cpuload_tick(unsigned irq)
         bool is_idle = xTaskGetIdleTaskHandleForCPU(PRO_CPU_NUM) == hdl;
         Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
     }
+// NOTE: The ESP32-S2 and ESP32-C3 are single-core SoC and defines the
+// FREERTOS_UNICORE flag which we can use here to disable recording of the
+// APP_CPU.
+#ifndef CONFIG_FREERTOS_UNICORE
     // Record the second CPU core (APP_CPU). NOTE: this is where application
     // code typically runs.
     auto hdl = xTaskGetCurrentTaskHandleForCPU(APP_CPU_NUM);
     bool is_idle = xTaskGetIdleTaskHandleForCPU(APP_CPU_NUM) == hdl;
     Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
-#else
+#endif // CONFIG_FREERTOS_UNICORE
+#else // NOT ESP32
     if (irq != 0)
     {
         Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
@@ -148,9 +155,9 @@ void cpuload_tick(unsigned irq)
     auto hdl = xTaskGetCurrentTaskHandle();
     bool is_idle = xTaskGetIdleTaskHandle() == hdl;
     Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
-#endif
+#endif // ESP32
 }
-}
+} // extern "C"
 
 DEFINE_SINGLETON_INSTANCE(CpuLoad);
 
