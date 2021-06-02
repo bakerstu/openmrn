@@ -68,9 +68,11 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #include "freertos_drivers/esp32/Esp32Gpio.hxx"
 #include "freertos_drivers/esp32/Esp32SocInfo.hxx"
-#include "freertos_drivers/esp32/Esp32Ledc.hxx"
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
+
+// If we are using ESP-IDF v4.3 (or later) enable the Esp32Ledc API.
+#include "freertos_drivers/esp32/Esp32Ledc.hxx"
 
 // If we are using ESP-IDF v4.3 (or later) enable the usage of the TWAI device
 // which allows usage of the filesystem based CAN interface methods.
