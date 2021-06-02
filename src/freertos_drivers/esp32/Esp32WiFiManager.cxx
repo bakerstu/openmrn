@@ -75,7 +75,7 @@
 #endif // ESP_IDF_VERSION
 
 using openlcb::NodeID;
-using openlcb::SimpleCanStack;
+using openlcb::SimpleCanStackBase;
 using openlcb::TcpAutoAddress;
 using openlcb::TcpClientConfig;
 using openlcb::TcpClientDefaultParams;

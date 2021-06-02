@@ -267,7 +267,7 @@ public:
     /// @param port is the port for the service to be published.
     ///
     /// Note: This will schedule a @ref CallbackExecutable on the @ref Executor
-    /// used by the @ref SimpleCanStack.
+    /// used by the @ref SimpleCanStackBase.
     void mdns_publish(std::string service, uint16_t port);
 
     /// Removes the advertisement of a service via mDNS.
