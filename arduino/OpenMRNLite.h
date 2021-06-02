@@ -68,6 +68,7 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #include "freertos_drivers/esp32/Esp32Gpio.hxx"
 #include "freertos_drivers/esp32/Esp32SocInfo.hxx"
+#include "freertos_drivers/esp32/Esp32Ledc.hxx"
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 
