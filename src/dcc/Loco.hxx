@@ -134,10 +134,15 @@ public:
         if (f_speed > 0)
         {
             f_speed *= ((p.get_speed_steps() * 1.0) / 126);
-            unsigned sp = f_speed;
-            sp++; // makes sure it is at least speed step 1.
+            unsigned sp = f_speed + 0.5; // round
+            if (sp == 0) // ceiling between speed step 0 and 1
+            {
+                sp = 1;
+            }
             if (sp > p.get_speed_steps())
+            {
                 sp = p.get_speed_steps();
+            }
             LOG(VERBOSE, "set speed to step %u", sp);
             p.speed_ = sp;
         }
