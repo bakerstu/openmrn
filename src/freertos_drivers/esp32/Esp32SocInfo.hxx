@@ -139,12 +139,11 @@ class Esp32SocInfo
 public:
     static uint8_t print_soc_info()
     {
-        // capture the reason for the CPU reset
-#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32C3)
+        // capture the reason for the PRO_CPU reset. For dual core SoCs this
+        // only checks the PRO_CPU and not the APP CPU since it will have the
+        // restart reason as RTC_SW_CPU_RESET as it is suspended and restarted
+        // as part of the PRO_CPU startup process.
         uint8_t reset_reason = rtc_get_reset_reason(PRO_CPU_NUM);
-#else
-        uint8_t reset_reason = rtc_get_reset_reason(APP_CPU_NUM);
-#endif // ESP32-S2 or ESP32-C3
         uint8_t orig_reset_reason = reset_reason;
         // Ensure the reset reason it within bounds.
         if (reset_reason > ARRAYSIZE(ESP32_SOC_RESET_REASONS))
