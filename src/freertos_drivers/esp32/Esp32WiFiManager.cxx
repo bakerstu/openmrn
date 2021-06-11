@@ -613,6 +613,14 @@ void Esp32WiFiManager::register_network_init_callback(
     networkInitCallbacks_.push_back(callback);
 }
 
+// Adds a callback which will be called when SNTP packets are processed.
+void Esp32WiFiManager::register_network_time_callback(
+    esp_network_time_callback_t callback)
+{
+    OSMutexLock l(&networkCallbacksLock_);
+    networkTimeCallbacks_.push_back(callback);
+}
+
 // If the Esp32WiFiManager is setup to manage the WiFi system, the following
 // steps are executed:
 // 1) Start the TCP/IP adapter.

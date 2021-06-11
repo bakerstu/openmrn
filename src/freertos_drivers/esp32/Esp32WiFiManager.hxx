@@ -324,6 +324,11 @@ public:
     /// events raised between enabling the interface and when it is ready.
     void register_network_init_callback(esp_network_init_callback_t callback);
 
+    /// Registers a callback for when SNTP updates are received.
+    ///
+    /// @param callback The callback to invoke when SNTP updates are received.
+    void register_network_time_callback(esp_network_time_callback_t callback);
+
     /// Time synchronization callback for SNTP.
     ///
     /// @param now is the current time.
