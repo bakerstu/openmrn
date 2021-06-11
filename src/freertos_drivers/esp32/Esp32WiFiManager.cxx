@@ -921,12 +921,9 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             wifi->stop_hub();
             wifi->stop_uplink();
             wifi->reconfigure_wifi_radio_sleep();
-#if !defined(CONFIG_IDF_TARGET_ESP32S2) && !defined(CONFIG_IDF_TARGET_ESP32C3)
-            bool have_hub = false;
             if (wifi->hubEnabled_)
             {
                 wifi->start_hub();
-                have_hub = true;
             }
             else
             {
@@ -947,13 +944,6 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             {
                 LOG(INFO, "[WiFi] Uplink disabled by configuration.");
             }
-#else // ESP32-S2 or ESP32-C3
-            // Hub mode is not available for the ESP32-S2 or ESP32-C3 and is
-            // hidden via CDI, so always start the uplink process.
-            LOG(INFO, "[WiFi] Starting uplink.");
-            wifi->start_uplink();
-#endif // NOT ESP32-S2 or ESP32-C3
-            
             wifi->configReloadRequested_ = false;
         }
 

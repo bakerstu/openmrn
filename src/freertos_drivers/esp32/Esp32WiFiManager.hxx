@@ -133,7 +133,7 @@ public:
     /// @param station_ssid is the WiFi AP to connect to.
     /// @param station_password is the password for the WiFi AP being connected
     /// to.
-    /// @param stack is the SimpleCanStack for this node. Must stay alive
+    /// @param stack is the SimpleCanStackBase for this node. Must stay alive
     /// forever.
     /// @param cfg is the WiFiConfiguration instance used for this node. This
     /// will be monitored for changes and the WiFi behavior altered
