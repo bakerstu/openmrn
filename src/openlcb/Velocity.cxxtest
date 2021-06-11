@@ -38,6 +38,7 @@
 #include "gtest/gtest.h"
 #include "openlcb/Velocity.hxx"
 #include "openlcb/TractionDefs.hxx"
+#include "utils/StringPrintf.hxx"
 
 using namespace openlcb;
 
@@ -247,18 +248,46 @@ TEST(NMRAnetVelocityTest, mph_negative)
 
 TEST(NMRAnetVelocityTest, get_dcc_128_forward)
 {
-    Velocity *velocity = new Velocity(100.5F);
+    Velocity *velocity = new Velocity(20.1168); // 45 mph
     
     EXPECT_EQ(velocity->direction(), Velocity::FORWARD);    
-    EXPECT_TRUE(velocity->get_dcc_128() == (46 | 0x80));
+    EXPECT_EQ((46 | 0x80), velocity->get_dcc_128());
 }
 
 TEST(NMRAnetVelocityTest, get_dcc_128_reverse)
 {
-    Velocity *velocity = new Velocity(-100.5F);
+    Velocity *velocity = new Velocity(-20.1168); // -45 mph
     
     EXPECT_EQ(velocity->direction(), Velocity::REVERSE);    
-    EXPECT_TRUE(velocity->get_dcc_128() == 46);
+    EXPECT_EQ(46, velocity->get_dcc_128());
+}
+
+/// Tests all 126 speed steps in DCC.
+TEST(NMRAnetVelocityTest, dcc_128_round)
+{
+    Velocity v;
+    for (int mph = 1; mph <= 126; mph++)
+    {
+        string ss = StringPrintf("mph=%d", mph);
+        SCOPED_TRACE(ss);
+        v.set_mph(mph);
+        auto wire = v.get_wire();
+        Velocity vv;
+        vv.set_wire(wire);
+        EXPECT_EQ(0x80 | (mph + 1), vv.get_dcc_128());
+    }
+    
+    for (int mph = 1; mph <= 126; mph++)
+    {
+        string ss = StringPrintf("mph=-%d", mph);
+        SCOPED_TRACE(ss);
+        v.set_mph(mph);
+        v.reverse();
+        auto wire = v.get_wire();
+        Velocity vv;
+        vv.set_wire(wire);
+        EXPECT_EQ((mph + 1), vv.get_dcc_128());
+    }
 }
 
 TEST(NMRAnetVelocityTest, get_dcc_128_zero)

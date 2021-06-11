@@ -725,4 +725,102 @@ TEST_F(Train28Test, isSmall)
     // bits would fit into the cracks.
 }
 
+class Train128Test : public PacketTest
+{
+protected:
+    Train128Test()
+        : code_(0)
+        , regExpect_(&loop_, &train_)
+        , train_(DccShortAddress(55))
+    {
+    }
+
+    ~Train128Test()
+    {
+        EXPECT_CALL(loop_, unregister_source(&train_));
+    }
+
+    /// Requests a refresh packet from the train.
+    void do_refresh()
+    {
+        new (&pkt_) Packet();
+        train_.get_next_packet(0, &pkt_);
+    }
+
+    /// Requests the packet from the train that the last code was generated
+    /// for.
+    void do_callback()
+    {
+        Mock::VerifyAndClear(&loop_);
+        new (&pkt_) Packet();
+        train_.get_next_packet(code_, &pkt_);
+        code_ = 0;
+    }
+
+    unsigned code_;
+    StrictMock<MockUpdateLoop> loop_;
+    // We use a constructor trick here to expect the registration expectation
+    // at the right time.
+    struct AddRegisterExpect
+    {
+        AddRegisterExpect(StrictMock<MockUpdateLoop> *l, Dcc128Train *t)
+        {
+            EXPECT_CALL(*l, register_source(t));
+        }
+    } regExpect_;
+    Dcc128Train train_;
+};
+
+/// Tests that all reverse speed steps are correctly generated to the track.
+TEST_F(Train128Test, SetSpeedReverse)
+{
+    for (int mph = 1; mph <= 126; mph++)
+    {
+        string ss = StringPrintf("mph=%d", mph);
+        SCOPED_TRACE(ss);
+        EXPECT_CALL(loop_, send_update(&train_, _))
+            .WillOnce(SaveArg<1>(&code_));
+        SpeedType s;
+        s.set_mph(mph);
+        s.reverse();
+        auto w = s.get_wire();
+        s.set_wire(w);
+        train_.set_speed(s);
+        do_callback();
+        EXPECT_THAT(get_packet(), ElementsAre(55, 0b00111111, mph + 1, _));
+    }
+}
+
+/// Tests that all forward speed steps are correctly generated to the track.
+TEST_F(Train128Test, SetSpeedForward)
+{
+    for (int mph = 1; mph <= 126; mph++)
+    {
+        string ss = StringPrintf("mph=%d", mph);
+        SCOPED_TRACE(ss);
+        EXPECT_CALL(loop_, send_update(&train_, _))
+            .WillOnce(SaveArg<1>(&code_));
+        SpeedType s;
+        s.set_mph(mph);
+        auto w = s.get_wire();
+        s.set_wire(w);
+        train_.set_speed(s);
+        do_callback();
+        EXPECT_THAT(
+            get_packet(), ElementsAre(55, 0b00111111, 0x80 | (mph + 1), _));
+    }
+}
+
+TEST_F(Train128Test, MaxSpeed)
+{
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(SaveArg<1>(&code_));
+    SpeedType s;
+    s.set_mph(128);
+    s.reverse();
+    train_.set_speed(s);
+    do_callback();
+    EXPECT_THAT(get_packet(), ElementsAre(55, 0b00111111, 0x7F, _));
+}
+
+
 } // namespace dcc
