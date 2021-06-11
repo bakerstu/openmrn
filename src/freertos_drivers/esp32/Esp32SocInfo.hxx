@@ -139,10 +139,9 @@ class Esp32SocInfo
 public:
     static uint8_t print_soc_info()
     {
-        // capture the reason for the PRO_CPU reset. For dual core SoCs this
-        // only checks the PRO_CPU and not the APP CPU since it will have the
-        // restart reason as RTC_SW_CPU_RESET as it is suspended and restarted
-        // as part of the PRO_CPU startup process.
+        // capture the reason for the CPU reset. For dual core SoCs this will
+        // only check the PRO CPU and not the APP CPU since they will usually
+        // restart one after the other.
         uint8_t reset_reason = rtc_get_reset_reason(PRO_CPU_NUM);
         uint8_t orig_reset_reason = reset_reason;
         // Ensure the reset reason it within bounds.
