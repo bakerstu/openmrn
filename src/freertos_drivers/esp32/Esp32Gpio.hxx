@@ -206,6 +206,9 @@ public:
     /// Initializes the hardware pin.
     static void hw_init()
     {
+        LOG(VERBOSE,
+            "[Esp32Gpio] Configuring output pin %d, initial state: %d",
+            PIN_NUM, SAFE_VALUE);
         gpio_pad_select_gpio(PIN_NUM);
         gpio_config_t cfg;
         memset(&cfg, 0, sizeof(gpio_config_t));
@@ -308,6 +311,8 @@ public:
     /// Initializes the hardware pin.
     static void hw_init()
     {
+        LOG(VERBOSE, "[Esp32Gpio] Configuring output pin %d, P/U: %d, P/D: %d",
+            PIN_NUM, PUEN, PDEN);
         gpio_pad_select_gpio(PIN_NUM);
         gpio_config_t cfg;
         memset(&cfg, 0, sizeof(gpio_config_t));
