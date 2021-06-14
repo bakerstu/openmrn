@@ -377,12 +377,7 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
     configReloadRequested_ = initial_load;
 
     // always load the connection mode.
-    uint8_t conn_mode = CDI_READ_TRIMMED(cfg_.connection_mode, fd);
-
-    // If the first bit is set in the connection mode the uplink is enabled.
-    uplinkEnabled_ = conn_mode & 1;
-    // If the second bit is set in the connection mode the hub is enabled.
-    hubEnabled_ = conn_mode & 2;
+    connectionMode_ = CDI_READ_TRIMMED(cfg_.connection_mode, fd);
 
     // Load the CDI entry into memory to do an CRC32 check against our last
     // loaded configuration so we can avoid reloading configuration when there
@@ -764,7 +759,7 @@ void Esp32WiFiManager::start_wifi_system()
             }
             if (softAPAuthMode_ != WIFI_AUTH_OPEN)
             {
-                if (softAPPassword_.empty())
+                if (!softAPPassword_.empty())
                 {
                     strcpy(reinterpret_cast<char *>(conf.ap.password),
                        softAPPassword_.c_str());
@@ -929,7 +924,7 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
             wifi->stop_hub();
             wifi->stop_uplink();
             wifi->reconfigure_wifi_radio_sleep();
-            if (wifi->hubEnabled_)
+            if (wifi->connectionMode_ & CONN_MODE_HUB_BIT)
             {
                 wifi->start_hub();
             }
@@ -938,14 +933,9 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
                 LOG(INFO, "[WiFi] Hub disabled by configuration.");
             }
 
-            if (wifi->uplinkEnabled_)
+            if (wifi->connectionMode_ & CONN_MODE_UPLINK_BIT)
             {
                 LOG(INFO, "[WiFi] Starting uplink.");
-                wifi->start_uplink();
-            }
-            else if (!wifi->hubEnabled_)
-            {
-                LOG(INFO, "[WiFi] Starting uplink, because hub is disabled.");
                 wifi->start_uplink();
             }
             else
@@ -1127,10 +1117,25 @@ void Esp32WiFiManager::mdns_publish(string service, const uint16_t port)
             // Send it back onto the scheduler to be retried
             wifi_mgr->mdns_publish(service, port);
         }
+        else if (res == ESP_ERR_INVALID_ARG)
+        {
+            // ESP_ERR_INVALID_ARG can be returned if the mDNS server is not UP
+            // yet or if the service name has already been published. If we see
+            // this error code returned we should try unpublish and publish
+            // again.
+            wifi_mgr->mdns_unpublish(service);
+            wifi_mgr->mdns_publish(service, port);
+        }
+        else if (res == ESP_OK)
+        {
+            LOG(INFO, "[mDNS] Advertising %s.%s:%d.", service_name.c_str(),
+                protocol_name.c_str(), port);
+        }
         else
         {
-            LOG(INFO, "[mDNS] Advertising %s.%s:%d.", service_name.c_str()
-              , protocol_name.c_str(), port);
+            LOG_ERROR("[mDNS] Failed to publish: %s.%s:%d",
+                      service_name.c_str(), protocol_name.c_str(), port);
+            wifi_mgr->mdns_publish(service, port);
         }
     }));
 }
@@ -1154,7 +1159,8 @@ void Esp32WiFiManager::mdns_unpublish(string service)
       , service_name.c_str(), protocol_name.c_str());
     esp_err_t res =
         mdns_service_remove(service_name.c_str(), protocol_name.c_str());
-    LOG(VERBOSE, "[mDNS] mdns_service_remove: %s.", esp_err_to_name(res));
+    LOG(INFO, "[mDNS] mdns_service_remove: %s.", esp_err_to_name(res));
+    // TODO: should we queue up unpublish requests for future retries?
 }
 
 // Initializes the mDNS system on the ESP32.
@@ -1404,7 +1410,7 @@ void Esp32WiFiManager::on_softap_start()
     {
         start_mdns_system();
         reconfigure_wifi_tx_power();
-        if (hubEnabled_)
+        if (connectionMode_ & CONN_MODE_HUB_BIT)
         {
             start_hub();
         }

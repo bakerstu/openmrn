@@ -528,11 +528,8 @@ private:
     /// If true, request esp32 wifi to do verbose logging.
     bool verboseLogging_{false};
 
-    /// If true, the managed uplink will be started and stopped when necessary.
-    bool uplinkEnabled_{false};
-
-    /// If true, the managed hub will be started and stopped when necessary.
-    bool hubEnabled_{false};
+    /// Defines the WiFi connection mode to operate in.
+    uint8_t connectionMode_{CONN_MODE_UPLINK_BIT};
 
     /// Maximum WiFi transmit power setting.
     uint8_t wifiTXPower_{84};
@@ -586,6 +583,12 @@ private:
 
     /// Maximum length of the hostname for the ESP32.
     static constexpr uint8_t MAX_HOSTNAME_LENGTH = 32;
+
+    /// Constant used to determine if the Uplink mode should be enabled.
+    static constexpr uint8_t CONN_MODE_UPLINK_BIT = BIT(0);
+
+    /// Constant used to determine if the Hub mode should be enabled.
+    static constexpr uint8_t CONN_MODE_HUB_BIT = BIT(1);
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,1,0)
     /// Network interfaces that are managed by Esp32WiFiManager.

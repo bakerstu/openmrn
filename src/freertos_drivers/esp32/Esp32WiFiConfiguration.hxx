@@ -76,12 +76,15 @@ public:
     static constexpr const char *CONN_MODE_DESC =
         "Defines whether to allow accepting connections (according to the Hub "
         "configuration), making a connection (according to the Uplink "
-        "configuration), or both.\nNote: it is not recommended to enable "
-        "the Hub functionality on single-core ESP32 models.";
+        "configuration), or both.\nThis setting can be set to Disabled if the "
+        "ESP32 will be using the TWAI (CAN) driver instead for the connection "
+        "to other nodes.\nNote: it is not recommended to enable the Hub "
+        "functionality on single-core ESP32 models.";
 
     /// <map> of possible keys and descriptive values to show to the user for
     /// the connection_mode fields.
     static constexpr const char *CONN_MODE_MAP =
+        "<relation><property>0</property><value>Disabled</value></relation>"
         "<relation><property>1</property><value>Uplink Only</value></relation>"
         "<relation><property>2</property><value>Hub Only</value></relation>"
         "<relation><property>3</property><value>Hub+Uplink</value></relation>";
@@ -130,7 +133,7 @@ CDI_GROUP_ENTRY(sleep, openlcb::Uint8ConfigEntry,
 CDI_GROUP_ENTRY(connection_mode, openlcb::Uint8ConfigEntry,
     Name(Esp32WiFiConfigurationParams::CONN_MODE_NAME),
     Description(Esp32WiFiConfigurationParams::CONN_MODE_DESC),
-    Min(1), Max(3), Default(1), /* Uplink only */
+    Min(0), Max(3), Default(1), /* Uplink only */
     MapValues(Esp32WiFiConfigurationParams::CONN_MODE_MAP));
 /// Configuration for the @ref Esp32WiFiManager managed hub.
 CDI_GROUP_ENTRY(hub, HubConfiguration,
