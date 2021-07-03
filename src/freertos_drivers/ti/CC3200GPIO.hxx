@@ -171,7 +171,7 @@ public:
         volatile uint8_t *ptr = reinterpret_cast<uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
-        __asm__ volatile("\t nop\n");
+        __asm__ volatile("dsb" : : : "memory");
     }
     /// @return current value of the input pin: if true HIGH.
     static bool __attribute__((always_inline)) get()
