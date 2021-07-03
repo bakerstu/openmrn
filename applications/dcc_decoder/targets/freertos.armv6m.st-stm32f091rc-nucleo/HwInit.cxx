@@ -73,6 +73,9 @@ const char *STDERR_DEVICE = "/dev/ser0";
 /** UART 0 serial driver instance */
 static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
 
+/** RailCom sender UART */
+static Stm32Uart uart1("/dev/ser1", USART1, USART1_IRQn);
+
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
 
@@ -275,6 +278,14 @@ void hw_preinit(void)
     gpio_init.Pin = GPIO_PIN_3;
     HAL_GPIO_Init(GPIOA, &gpio_init);
 
+    /* USART1 pinmux on railCom TX pin PB6 */
+    gpio_init.Mode = GPIO_MODE_AF_PP;
+    gpio_init.Pull = GPIO_PULLUP;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Alternate = GPIO_AF0_USART1;
+    gpio_init.Pin = GPIO_PIN_6;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    
     /* CAN pinmux on PB8 and PB9 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
@@ -321,6 +332,7 @@ void timer3_interrupt_handler(void) {
 
 void touch_interrupt_handler(void) {
     dcc_decoder0.os_interrupt_handler();
+    portYIELD_FROM_ISR(true);
 }
 
 }
