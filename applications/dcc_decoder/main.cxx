@@ -41,12 +41,16 @@
 #include "dcc/DccDebug.hxx"
 #include "utils/constants.hxx"
 #include "utils/StringPrintf.hxx"
+#include "freertos/tc_ioctl.h"
+
+#include "hardware.hxx"
 
 Executor<1> executor("executor", 0, 2048);
 
 // We reserve a lot of buffer for transmit to cover for small hiccups in the
 // host reading data.
 OVERRIDE_CONST(serial_tx_buffer_size, 2048);
+OVERRIDE_CONST(main_thread_priority, 3);
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -61,12 +65,17 @@ int appl_main(int argc, char *argv[])
     //int wfd = ::open("/dev/serUSB0", O_RDWR);
     int wfd = ::open("/dev/ser0", O_RDWR);
     HASSERT(wfd >= 0);
+    int rcfd = ::open("/dev/ser1", O_WRONLY);
+    HASSERT(rcfd >= 0);
+    auto ret = ::ioctl(rcfd, TCBAUDRATE, 250000);
+    HASSERT(ret == 0);
     int cnt = 0;
     while (1)
     {
         DCCPacket packet_data;
         int sret = ::read(fd, &packet_data, sizeof(packet_data));
         HASSERT(sret == sizeof(packet_data));
+        DEBUG1_Pin::set(true);
         long long t = os_get_time_monotonic();
         string txt = StringPrintf("\n%02d.%06d %04d ",
             (unsigned)((t / 1000000000) % 100),
@@ -79,6 +88,7 @@ int appl_main(int argc, char *argv[])
         // data.
         ++cnt;
         resetblink((cnt >> 3) & 1);
+        DEBUG1_Pin::set(false);
     }
     return 0;
 }
