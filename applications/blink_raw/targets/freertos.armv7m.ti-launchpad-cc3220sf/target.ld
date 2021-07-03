@@ -1,1 +1,1 @@
-../../../../boards/ti-cc3220sf-launchpad/target.ld
+target.flash.ld

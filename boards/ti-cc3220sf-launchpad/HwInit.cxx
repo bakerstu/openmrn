@@ -204,8 +204,38 @@ void hw_preinit(void)
     MAP_TimerIntEnable(TIMERA2_BASE, TIMER_TIMA_TIMEOUT);
     MAP_TimerEnable(TIMERA2_BASE, TIMER_A);
 
+    MAP_PinConfigSet(PIN_64, PIN_STRENGTH_2MA | PIN_STRENGTH_4MA | PIN_STRENGTH_6MA, PIN_TYPE_STD);
+    MAP_PinConfigSet(PIN_01, PIN_STRENGTH_2MA | PIN_STRENGTH_4MA | PIN_STRENGTH_6MA, PIN_TYPE_STD);
+    MAP_PinConfigSet(PIN_02, PIN_STRENGTH_2MA | PIN_STRENGTH_4MA | PIN_STRENGTH_6MA, PIN_TYPE_STD);
+
+    while(true) {
+        LED_RED_RAW_Pin::toggle();
+        asm volatile("nop");
+        LED_GREEN_Pin::set(true);
+        LED_GREEN_Pin::set(false);
+        LED_YELLOW_Pin::set(true);
+        LED_YELLOW_Pin::set(false);
+        LED_GREEN_Pin::set(true);
+        LED_GREEN_Pin::set(false);
+        LED_YELLOW_Pin::set(true);
+        LED_YELLOW_Pin::set(false);
+        LED_GREEN_Pin::set(true);
+        LED_GREEN_Pin::set(false);
+        LED_YELLOW_Pin::set(true);
+        LED_YELLOW_Pin::set(false);
+        LED_GREEN_Pin::set(true);
+        LED_GREEN_Pin::set(false);
+        LED_YELLOW_Pin::set(true);
+        LED_YELLOW_Pin::set(false);
+        LED_GREEN_Pin::set(true);
+        LED_GREEN_Pin::set(false);
+        LED_YELLOW_Pin::set(true);
+        LED_YELLOW_Pin::set(false);
+    }
+
     /* Checks the SW2 pin at boot time in case we want to allow for a debugger
-     * to connect.
+     * to connect. */
+#if 1
     asm volatile ("cpsie i\n");
     do {
       if (SW2_Pin::get()) {
@@ -214,7 +244,8 @@ void hw_preinit(void)
         blinker_pattern = 0;
       }
     } while (blinker_pattern || rest_pattern);
-    asm volatile ("cpsid i\n"); */
+    asm volatile ("cpsid i\n");
+#endif
 }
 
 /** Initialize the processor hardware post C runtime init.

@@ -1,0 +1,1 @@
+../ti-cc3200-generic/target.ld
