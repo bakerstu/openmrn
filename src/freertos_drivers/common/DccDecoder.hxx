@@ -395,11 +395,12 @@ DccDecoder<Module>::rcom_interrupt_handler()
 template <class Module>
 __attribute__((optimize("-O3"))) void DccDecoder<Module>::os_interrupt_handler()
 {
+    unsigned woken = 0;
     if (nextPacketFilled_) {
         inputData_->advance(1);
         nextPacketFilled_ = false;
         inputData_->signal_condition_from_isr();
-
+        woken = 1;
         if (inputData_->space())
         {
             DCCPacket *next;
@@ -417,4 +418,5 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::os_interrupt_handler()
         inputData_->data_write_pointer(&next);
         decoder_.set_packet(next);
     }
+    portYIELD_FROM_ISR(woken);
 }
