@@ -119,9 +119,11 @@ private:
         {
             portENTER_CRITICAL();
             unsigned copied = inputData_->get((input_data_type *)buf, max);
-            if (!nextPacketData_ && inputData_->space())
+            if (!decoder_.pkt() && inputData_->space())
             {
-                inputData_->data_write_pointer(&nextPacketData_);
+                DCCPacket* next;
+                inputData_->data_write_pointer(&next);
+                decoder_.set_packet(next);
             }
             portEXIT_CRITICAL();
             if (copied > 0)
@@ -190,7 +192,6 @@ private:
     typedef DCCPacket input_data_type;
     DeviceBuffer<DCCPacket> *inputData_ {
         DeviceBuffer<DCCPacket>::create(Module::Q_SIZE)};
-    DCCPacket* nextPacketData_{nullptr};
     bool nextPacketFilled_{false};
     /// Holds the value of the free running timer at the time we captured the
     /// previous edge.
@@ -212,7 +213,7 @@ private:
     /// Which window of the cutout we are in.
     uint32_t cutoutState_;
     /// How many times did we lose a DCC packet due to no buffer available.
-    uint32_t overflowCount_ {0};
+    //uint32_t overflowCount_ {0};
 
     /// notified for cutout events.
     RailcomDriver *railcomDriver_;
@@ -253,12 +254,11 @@ template <class Module> void DccDecoder<Module>::enable()
     lastTimerValue_ = Module::TIMER_MAX_VALUE;
     nextSample_ = lastTimerValue_ - Module::SAMPLE_PERIOD_CLOCKS;
 
-    if (!nextPacketData_)
+    if (!decoder_.pkt() && inputData_->space())
     {
-        if (inputData_->space())
-        {
-            inputData_->data_write_pointer(&nextPacketData_);
-        }
+        DCCPacket *next;
+        inputData_->data_write_pointer(&next);
+        decoder_.set_packet(next);
     }
 }
 
@@ -303,6 +303,13 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         {
             prepCutout_ = true;
             Module::dcc_before_cutout_hook();
+            if (decoder_.pkt())
+            {
+                decoder_.pkt()->header_raw_data = 0;
+                decoder_.pkt()->packet_header.skip_ec = 1;
+                nextPacketFilled_ = true;
+            }
+            Module::trigger_os_interrupt();
         }
         // If we are at the second half of the last 1 bit and the
         // value of the input pin is 1, then we cannot recognize when
@@ -333,24 +340,6 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             Module::dcc_packet_finished_hook();
             prepCutout_ = false;
             cutout_just_finished = true;
-            // Record packet to send back to userspace
-            if (nextPacketData_)
-            {
-                nextPacketData_->header_raw_data = 0;
-                nextPacketData_->packet_header.skip_ec = 1;
-                nextPacketData_->dlc = decoder_.packet_length();
-                memcpy(nextPacketData_->payload, decoder_.packet_data(),
-                    decoder_.packet_length());
-                nextPacketData_ = nullptr;
-                nextPacketFilled_ = true;
-
-                Module::trigger_os_interrupt();
-            }
-            else
-            {
-                // Lost DCC packet.
-                overflowCount_++;
-            }
             Debug::DccPacketFinishedHook::set(false);
         }
         lastTimerValue_ = raw_new_value;
@@ -410,11 +399,22 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::os_interrupt_handler()
         inputData_->advance(1);
         nextPacketFilled_ = false;
         inputData_->signal_condition_from_isr();
-    }
-    if (!nextPacketData_) {
+
         if (inputData_->space())
         {
-            inputData_->data_write_pointer(&nextPacketData_);
+            DCCPacket *next;
+            inputData_->data_write_pointer(&next);
+            decoder_.set_packet(next);
         }
+        else
+        {
+            decoder_.set_packet(nullptr);
+        }
+    }
+    if (!decoder_.pkt() && inputData_->space())
+    {
+        DCCPacket *next;
+        inputData_->data_write_pointer(&next);
+        decoder_.set_packet(next);
     }
 }
