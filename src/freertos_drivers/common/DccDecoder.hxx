@@ -396,21 +396,13 @@ template <class Module>
 __attribute__((optimize("-O3"))) void DccDecoder<Module>::os_interrupt_handler()
 {
     unsigned woken = 0;
-    if (nextPacketFilled_) {
+    if (nextPacketFilled_)
+    {
         inputData_->advance(1);
         nextPacketFilled_ = false;
         inputData_->signal_condition_from_isr();
         woken = 1;
-        if (inputData_->space())
-        {
-            DCCPacket *next;
-            inputData_->data_write_pointer(&next);
-            decoder_.set_packet(next);
-        }
-        else
-        {
-            decoder_.set_packet(nullptr);
-        }
+        decoder_.set_packet(nullptr);
     }
     if (!decoder_.pkt() && inputData_->space())
     {

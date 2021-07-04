@@ -169,7 +169,9 @@ public:
                         clear_packet();
                         pkt_->dlc = 0;
                         pkt_->payload[0] = 0;
-                    } else {
+                    }
+                    else
+                    {
                         havePacket_ = false;
                     }
                     return;
