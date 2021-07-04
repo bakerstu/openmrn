@@ -314,7 +314,8 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         {
             //Debug::RailcomDriverCutout::set(true);
             Module::set_cap_timer_time();
-            Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_PRE);
+            Module::set_cap_timer_delay_usec(
+                RAILCOM_CUTOUT_PRE + Module::time_delta_railcom_pre_usec());
             inCutout_ = true;
             cutoutState_ = 0;
             if (decoder_.pkt())
@@ -365,14 +366,16 @@ DccDecoder<Module>::rcom_interrupt_handler()
         {
             case 0:
             {
-                Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_MID);
+                Module::set_cap_timer_delay_usec(
+                    RAILCOM_CUTOUT_MID + Module::time_delta_railcom_mid_usec());
                 railcomDriver_->start_cutout();
                 cutoutState_ = 1;
                 break;
             }
             case 1:
             {
-                Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
+                Module::set_cap_timer_delay_usec(
+                    RAILCOM_CUTOUT_END + Module::time_delta_railcom_end_usec());
                 railcomDriver_->middle_cutout();
                 cutoutState_ = 2;
                 break;

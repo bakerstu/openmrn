@@ -122,6 +122,24 @@ struct DccDecoderHW
     /// driver to take a feedback sample.
     static inline void after_feedback_hook() {}
 
+    /// How many usec later/earlier should the railcom cutout start happen.
+    static int time_delta_railcom_pre_usec()
+    {
+        return 0;
+    }
+
+    /// How many usec later/earlier should the railcom cutout middle happen.
+    static int time_delta_railcom_mid_usec()
+    {
+        return 0;
+    }
+
+    /// How many usec later/earlier should the railcom cutout end happen.
+    static int time_delta_railcom_end_usec()
+    {
+        return 0;
+    }
+    
     /// Second timer resource that will be used to measure microseconds for the
     /// railcom cutout. May be the same as the Capture Timer, if there are at
     /// least two channels on that timer resource.
