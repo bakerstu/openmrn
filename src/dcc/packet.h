@@ -72,8 +72,8 @@ typedef struct dcc_packet
         /// The packet will be sent 1 + rept_count times to the wire. default:
         /// 0.
         uint8_t rept_count : 2;
-        /// reserved for future use.
-        uint8_t reserved : 1;
+        /// 1 if there was a checksum error in this packet.
+        uint8_t csum_error : 1;
     };
 
     /// Specifies the meaning of the command byte for meta-commands to send.

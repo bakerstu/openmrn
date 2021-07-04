@@ -43,6 +43,7 @@
 #include "freertos/can_ioctl.h"
 #include "freertos_drivers/common/SimpleLog.hxx"
 #include "dcc/packet.h"
+#include "utils/Crc.hxx"
 
 // If defined, collects samples of timing and state into a ring buffer.
 //#define DCC_DECODER_DEBUG
@@ -67,7 +68,7 @@ public:
     }
 
     /// Internal states of the decoding state machine.
-    enum State
+    enum State : uint8_t
     {
         UNKNOWN,             // 0
         DCC_PREAMBLE,        // 1
@@ -134,10 +135,9 @@ public:
                 }
                 if (timings_[MM_PREAMBLE].match(value) && pkt_)
                 {
-                    parseCount_ = 1 << 2;
-                    pkt_->dlc = 0;
-                    pkt_->payload[0] = 0;
+                    clear_packet();
                     pkt_->packet_header.is_marklin = 1;
+                    parseCount_ = 1 << 2;
                     parseState_ = MM_DATA;
                     havePacket_ = true;
                 }
@@ -163,12 +163,12 @@ public:
                 {
                     parseState_ = DCC_DATA;
                     parseCount_ = 1 << 7;
+                    xorState_ = 0;
+                    crcState_.init();
                     if (pkt_)
                     {
-                        havePacket_ = true;
                         clear_packet();
-                        pkt_->dlc = 0;
-                        pkt_->payload[0] = 0;
+                        havePacket_ = true;
                         pkt_->packet_header.skip_ec = 1;
                     }
                     else
@@ -212,6 +212,15 @@ public:
                         // end of packet 1 bit.
                         if (havePacket_)
                         {
+                            if (checkCRC_ && !crcState_.check_ok())
+                            {
+                                pkt_->packet_header.csum_error = 1;
+                            }
+                            xorState_ ^= pkt_->payload[pkt_->dlc];
+                            if (xorState_)
+                            {
+                                pkt_->packet_header.csum_error = 1;
+                            }
                             pkt_->dlc++;
                         }
                         parseState_ = DCC_MAYBE_CUTOUT;
@@ -235,6 +244,17 @@ public:
                         // end of byte zero bit. Packet is not finished yet.
                         if (havePacket_)
                         {
+                            xorState_ ^= pkt_->payload[pkt_->dlc];
+                            if ((pkt_->dlc == 0) &&
+                                (pkt_->payload[0] == 254 ||
+                                    pkt_->payload[0] == 253))
+                            {
+                                checkCRC_ = true;
+                            }
+                            if (checkCRC_)
+                            {
+                                crcState_.update16(pkt_->payload[pkt_->dlc]);
+                            }
                             pkt_->dlc++;
                             if (pkt_->dlc >= DCC_PACKET_MAX_PAYLOAD)
                             {
@@ -345,11 +365,17 @@ public:
 
 private:
     /// Counter that works through bit patterns.
-    uint32_t parseCount_ = 0;
+    uint8_t parseCount_ = 0;
+    /// True if we have storage in the right time for the current packet.
+    uint8_t havePacket_ : 1;
+    /// True if we need to check CRC
+    uint8_t checkCRC_ : 1;
+    /// Checksum state for XOR checksum.
+    uint8_t xorState_;
+    /// Checksum state for CRC8 checksum.
+    Crc8DallasMaxim crcState_;
     /// State machine for parsing.
     State parseState_ = UNKNOWN;
-    /// True if we have storage in the right time for the current packet.
-    bool havePacket_;
     /// Storage for the current packet.
     DCCPacket* pkt_ = nullptr;
 
@@ -359,6 +385,10 @@ private:
         pkt_->header_raw_data = 0;
         pkt_->dlc = 0;
         pkt_->feedback_key = 0;
+        pkt_->payload[0] = 0;
+        checkCRC_ = 0;
+        xorState_ = 0;
+        crcState_.init();
     }
 
     /// Represents the timing of a half-wave of the digital track signal.
