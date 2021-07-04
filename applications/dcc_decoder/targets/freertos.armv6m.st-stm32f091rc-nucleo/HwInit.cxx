@@ -117,7 +117,11 @@ struct DccDecoderHW
     /// Hook called in a P0 interrupt context every edge.
     static void cap_event_hook() {}
     /// Hook called in a P0 interrupt context before the DCC cutout is enabled.
-    static inline void dcc_before_cutout_hook() {}
+    static inline void dcc_before_cutout_hook()
+    {
+        DEBUG1_Pin::set(true);
+        DEBUG2_Pin::set(true);
+    }
     /// Hook called in a P0 interrupt context when a full DCC packet is
     /// received. This is after the packet ending one bit, or after the cutout.
     static inline void dcc_packet_finished_hook() {}

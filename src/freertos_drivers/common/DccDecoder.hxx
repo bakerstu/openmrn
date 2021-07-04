@@ -135,6 +135,8 @@ private:
                 return -EAGAIN;
             }
             inputData_->block_until_condition(file, true);
+            DEBUG1_Pin::set(false);
+            DEBUG2_Pin::set(false);
         }
     }
 
