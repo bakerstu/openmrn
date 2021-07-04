@@ -42,7 +42,7 @@ extern "C" {
 #endif
 
 /** Maximum number of payload bytes. */
-#define DCC_PACKET_MAX_PAYLOAD (6)
+#define DCC_PACKET_MAX_PAYLOAD (32)
 /** Send this speed step to emergency-stop the locomotive. */
 #define DCC_PACKET_EMERGENCY_STOP (0xFFFF)
 /** Send this speed step to switch direction of the locomotive. Only used

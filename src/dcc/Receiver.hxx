@@ -212,7 +212,8 @@ public:
                         // end of packet 1 bit.
                         if (havePacket_)
                         {
-                            if (checkCRC_ && !crcState_.check_ok())
+                            if (checkCRC_ && (pkt_->dlc > 6) &&
+                                !crcState_.check_ok())
                             {
                                 pkt_->packet_header.csum_error = 1;
                             }
