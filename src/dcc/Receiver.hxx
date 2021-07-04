@@ -169,6 +169,7 @@ public:
                         clear_packet();
                         pkt_->dlc = 0;
                         pkt_->payload[0] = 0;
+                        pkt_->packet_header.skip_ec = 1;
                     }
                     else
                     {
@@ -209,6 +210,10 @@ public:
                     else
                     {
                         // end of packet 1 bit.
+                        if (havePacket_)
+                        {
+                            pkt_->dlc++;
+                        }
                         parseState_ = DCC_MAYBE_CUTOUT;
                         return;
                     }
@@ -233,7 +238,7 @@ public:
                             pkt_->dlc++;
                             if (pkt_->dlc >= DCC_PACKET_MAX_PAYLOAD)
                             {
-                                pkt_ = nullptr;
+                                havePacket_ = false;
                             }
                             else
                             {

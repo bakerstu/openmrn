@@ -303,13 +303,6 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         {
             prepCutout_ = true;
             Module::dcc_before_cutout_hook();
-            if (decoder_.pkt())
-            {
-                decoder_.pkt()->header_raw_data = 0;
-                decoder_.pkt()->packet_header.skip_ec = 1;
-                nextPacketFilled_ = true;
-            }
-            Module::trigger_os_interrupt();
         }
         // If we are at the second half of the last 1 bit and the
         // value of the input pin is 1, then we cannot recognize when
@@ -324,6 +317,11 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_PRE);
             inCutout_ = true;
             cutoutState_ = 0;
+            if (decoder_.pkt())
+            {
+                nextPacketFilled_ = true;
+            }
+            Module::trigger_os_interrupt();
         }
         else if (decoder_.state() == dcc::DccDecoder::DCC_CUTOUT)
         {
