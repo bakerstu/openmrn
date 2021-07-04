@@ -256,6 +256,10 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
             options += StringPrintf(" 0x%02x", pkt.payload[ofs++]);
         }
     }
+    if (pkt.packet_header.csum_error)
+    {
+        options += " [csum err]";
+    }
     return options;
 }
 
