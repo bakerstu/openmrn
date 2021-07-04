@@ -119,9 +119,11 @@ private:
         {
             portENTER_CRITICAL();
             unsigned copied = inputData_->get((input_data_type *)buf, max);
-            if (!nextPacketData_ && inputData_->space())
+            if (!decoder_.pkt() && inputData_->space())
             {
-                inputData_->data_write_pointer(&nextPacketData_);
+                DCCPacket* next;
+                inputData_->data_write_pointer(&next);
+                decoder_.set_packet(next);
             }
             portEXIT_CRITICAL();
             if (copied > 0)
@@ -190,7 +192,6 @@ private:
     typedef DCCPacket input_data_type;
     DeviceBuffer<DCCPacket> *inputData_ {
         DeviceBuffer<DCCPacket>::create(Module::Q_SIZE)};
-    DCCPacket* nextPacketData_{nullptr};
     bool nextPacketFilled_{false};
     /// Holds the value of the free running timer at the time we captured the
     /// previous edge.
@@ -212,7 +213,7 @@ private:
     /// Which window of the cutout we are in.
     uint32_t cutoutState_;
     /// How many times did we lose a DCC packet due to no buffer available.
-    uint32_t overflowCount_ {0};
+    //uint32_t overflowCount_ {0};
 
     /// notified for cutout events.
     RailcomDriver *railcomDriver_;
@@ -253,12 +254,11 @@ template <class Module> void DccDecoder<Module>::enable()
     lastTimerValue_ = Module::TIMER_MAX_VALUE;
     nextSample_ = lastTimerValue_ - Module::SAMPLE_PERIOD_CLOCKS;
 
-    if (!nextPacketData_)
+    if (!decoder_.pkt() && inputData_->space())
     {
-        if (inputData_->space())
-        {
-            inputData_->data_write_pointer(&nextPacketData_);
-        }
+        DCCPacket *next;
+        inputData_->data_write_pointer(&next);
+        decoder_.set_packet(next);
     }
 }
 
@@ -314,9 +314,15 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         {
             //Debug::RailcomDriverCutout::set(true);
             Module::set_cap_timer_time();
-            Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_PRE);
+            Module::set_cap_timer_delay_usec(
+                RAILCOM_CUTOUT_PRE + Module::time_delta_railcom_pre_usec());
             inCutout_ = true;
             cutoutState_ = 0;
+            if (decoder_.pkt())
+            {
+                nextPacketFilled_ = true;
+            }
+            Module::trigger_os_interrupt();
         }
         else if (decoder_.state() == dcc::DccDecoder::DCC_CUTOUT)
         {
@@ -333,24 +339,6 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             Module::dcc_packet_finished_hook();
             prepCutout_ = false;
             cutout_just_finished = true;
-            // Record packet to send back to userspace
-            if (nextPacketData_)
-            {
-                nextPacketData_->header_raw_data = 0;
-                nextPacketData_->packet_header.skip_ec = 1;
-                nextPacketData_->dlc = decoder_.packet_length();
-                memcpy(nextPacketData_->payload, decoder_.packet_data(),
-                    decoder_.packet_length());
-                nextPacketData_ = nullptr;
-                nextPacketFilled_ = true;
-
-                Module::trigger_os_interrupt();
-            }
-            else
-            {
-                // Lost DCC packet.
-                overflowCount_++;
-            }
             Debug::DccPacketFinishedHook::set(false);
         }
         lastTimerValue_ = raw_new_value;
@@ -378,14 +366,16 @@ DccDecoder<Module>::rcom_interrupt_handler()
         {
             case 0:
             {
-                Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_MID);
+                Module::set_cap_timer_delay_usec(
+                    RAILCOM_CUTOUT_MID + Module::time_delta_railcom_mid_usec());
                 railcomDriver_->start_cutout();
                 cutoutState_ = 1;
                 break;
             }
             case 1:
             {
-                Module::set_cap_timer_delay_usec(RAILCOM_CUTOUT_END);
+                Module::set_cap_timer_delay_usec(
+                    RAILCOM_CUTOUT_END + Module::time_delta_railcom_end_usec());
                 railcomDriver_->middle_cutout();
                 cutoutState_ = 2;
                 break;
@@ -406,15 +396,20 @@ DccDecoder<Module>::rcom_interrupt_handler()
 template <class Module>
 __attribute__((optimize("-O3"))) void DccDecoder<Module>::os_interrupt_handler()
 {
-    if (nextPacketFilled_) {
+    unsigned woken = 0;
+    if (nextPacketFilled_)
+    {
         inputData_->advance(1);
         nextPacketFilled_ = false;
         inputData_->signal_condition_from_isr();
+        woken = 1;
+        decoder_.set_packet(nullptr);
     }
-    if (!nextPacketData_) {
-        if (inputData_->space())
-        {
-            inputData_->data_write_pointer(&nextPacketData_);
-        }
+    if (!decoder_.pkt() && inputData_->space())
+    {
+        DCCPacket *next;
+        inputData_->data_write_pointer(&next);
+        decoder_.set_packet(next);
     }
+    portYIELD_FROM_ISR(woken);
 }
