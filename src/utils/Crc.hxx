@@ -81,10 +81,11 @@ public:
     }
 
     /// @return the checksum of the currently consumed message.
-    uint8_t get() {
+    uint8_t get()
+    {
         return state_;
     }
-    
+
     /// Checks that the message has a correct CRC. This function assumes that
     /// the CRC byte has already been consumed.
     /// @return true if the message checksum is correct.
