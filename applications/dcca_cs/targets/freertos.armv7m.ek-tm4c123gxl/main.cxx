@@ -36,9 +36,12 @@
 #include "nmranet_config.h"
 
 #include "openlcb/SimpleStack.hxx"
-#include "openlcb/ConfiguredConsumer.hxx"
-#include "openlcb/MultiConfiguredConsumer.hxx"
-#include "openlcb/ConfiguredProducer.hxx"
+#include "openlcb/TractionTrain.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "dcc/Loco.hxx"
+#include "dcc/SimpleUpdateLoop.hxx"
+#include "dcc/LocalTrackIf.hxx"
+#include "executor/PoolToQueueFlow.hxx"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
@@ -48,9 +51,9 @@
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
-//#define SNIFF_ON_SERIAL
+#define SNIFF_ON_SERIAL
 //#define SNIFF_ON_USB
-#define HAVE_PHYSICAL_CAN_PORT
+//#define HAVE_PHYSICAL_CAN_PORT
 
 // Changes the default behavior by adding a newline after each gridconnect
 // packet. Makes it easier for debugging the raw device.
@@ -62,7 +65,7 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 // Specifies the 48-bit OpenLCB node identifier. This must be unique for every
 // hardware manufactured, so in production this should be replaced by some
 // easily incrementable method.
-extern const openlcb::NodeID NODE_ID = 0x050101011804ULL;
+extern const openlcb::NodeID NODE_ID = 0x0501010118DAULL;
 
 // Sets up a comprehensive OpenLCB stack for a single virtual node. This stack
 // contains everything needed for a usual peripheral node -- all
@@ -88,44 +91,6 @@ static_assert(openlcb::CONFIG_FILE_SIZE <= 300, "Need to adjust eeprom size");
 // simpler to keep them together.
 extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
     openlcb::CONFIG_FILENAME;
-
-// Defines the GPIO ports used for the producers and the consumers.
-
-// These wrappers will save the output pin state to EEPROM.
-constexpr PersistentGpio PinRed(LED_RED_Pin::instance(), 0);
-constexpr PersistentGpio PinGreen(LED_GREEN_Pin::instance(), 1);
-constexpr PersistentGpio PinBlue(LED_BLUE_Pin::instance(), 2);
-
-// List of GPIO objects that will be used for the output pins. You should keep
-// the constexpr declaration, because it will produce a compile error in case
-// the list of pointers cannot be compiled into a compiler constant and thus
-// would be placed into RAM instead of ROM.
-constexpr const Gpio *const kOutputGpio[] = {&PinRed,
-                                             &PinGreen,
-                                             &PinBlue};
-
-// Instantiates the actual producer and consumer objects for the given GPIO
-// pins from above. The MultiConfiguredConsumer class takes care of most of the
-// complicated setup and operation requirements. We need to give it the virtual
-// node pointer, the hardware pin definition and the configuration from the CDI
-// definition. The virtual node pointer comes from the stack object. The
-// configuration structure comes from the CDI definition object, segment 'seg',
-// in which there is a repeated group 'consumers'. The GPIO pins get assigned
-// to the repetitions in the group in order.
-openlcb::MultiConfiguredConsumer consumers(
-    stack.node(), kOutputGpio, ARRAYSIZE(kOutputGpio), cfg.seg().consumers());
-
-// Similar syntax for the producers.
-openlcb::ConfiguredProducer producer_sw1(
-    stack.node(), cfg.seg().producers().entry<0>(), SW1_Pin());
-openlcb::ConfiguredProducer producer_sw2(
-    stack.node(), cfg.seg().producers().entry<1>(), SW2_Pin());
-
-// The producers need to be polled repeatedly for changes and to execute the
-// debouncing algorithm. This class instantiates a refreshloop and adds the two
-// producers to it.
-openlcb::RefreshLoop loop(
-    stack.node(), {producer_sw1.polling(), producer_sw2.polling()});
 
 /// This timer checks the eeprom once a second and if the user has written
 /// something, executes a reload of the configuration via the OpenLCB config
@@ -161,6 +126,20 @@ public:
     bool needUpdate_ {false};
 } update_timer;
 
+// ====== Command Station components =======
+
+dcc::LocalTrackIf track(stack.service(), 2);
+dcc::SimpleUpdateLoop updateLoop(stack.service(), &track);
+PoolToQueueFlow<Buffer<dcc::Packet>> pool_translator(
+    stack.service(), track.pool(), &updateLoop);
+
+openlcb::TrainService trainService(stack.iface());
+
+dcc::Dcc28Train train3Impl(dcc::DccShortAddress(3));
+openlcb::TrainNodeForProxy train3Node(&trainService, &train3Impl);
+openlcb::FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>
+    trainEventProducer(&train3Node);
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -171,10 +150,9 @@ int appl_main(int argc, char *argv[])
     stack.check_version_and_factory_reset(
         cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
 
-    // Restores pin states from EEPROM.
-    PinRed.restore();
-    PinGreen.restore();
-    PinBlue.restore();
+    int fd = ::open("/dev/mainline", O_WRONLY);
+    HASSERT(fd >= 0);
+    track.set_fd(fd);
     
     // The necessary physical ports must be added to the stack.
     //
