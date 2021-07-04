@@ -52,6 +52,38 @@ Executor<1> executor("executor", 0, 2048);
 OVERRIDE_CONST(serial_tx_buffer_size, 2048);
 OVERRIDE_CONST(main_thread_priority, 3);
 
+// The DCC address to listen at. This is in wire format. The first address byte
+// is the high byte.
+static const uint16_t dcc_address_wire = 3 << 8;
+
+uint8_t f0 = 0;
+
+void process_packet(DCCPacket p) {
+    if (p.packet_header.csum_error) {
+        return;
+    }
+    if (p.dlc < 3) {
+        return;
+    }
+    if (p.payload[0] != (dcc_address_wire >> 8)) {
+        return;
+    }
+    unsigned ofs = 1;
+    if ((dcc_address_wire >> 8) > 127) {
+        // Two byte address.
+        ofs++;
+        if (p.payload[1] != (dcc_address_wire & 0xff)) {
+            return;
+        }
+    }
+    if ((p.payload[ofs] & 0b11100000) == 0b1000000)
+    {
+        // F0-F4 packet
+        ofs++;
+        f0 = p.payload[ofs] & 0b00010000 ? 1 : 0;
+    }
+}
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -76,6 +108,7 @@ int appl_main(int argc, char *argv[])
         int sret = ::read(fd, &packet_data, sizeof(packet_data));
         HASSERT(sret == sizeof(packet_data));
         DEBUG1_Pin::set(true);
+        process_packet(packet_data);
         long long t = os_get_time_monotonic();
         string txt = StringPrintf("\n%02d.%06d %04d ",
             (unsigned)((t / 1000000000) % 100),
@@ -87,7 +120,8 @@ int appl_main(int argc, char *argv[])
         // not enough space in the serial write buffer, we need to throw away
         // data.
         ++cnt;
-        resetblink((cnt >> 3) & 1);
+        uint8_t blink = ((cnt >> 3) & 15) == 1u ? 1 : 0;
+        resetblink(f0 ^ blink);
         DEBUG1_Pin::set(false);
     }
     return 0;
