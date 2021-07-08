@@ -277,6 +277,9 @@ Console::Session::Session(Service *service, int fd_in, int fd_out)
  */
 StateFlowBase::Action Console::Session::process_read()
 {
+    // Capture the current line start 
+    // When things get 'busy' pos might be > 0.
+    size_t start = pos;
     size_t count = (line_size - pos) - selectHelper.remaining_;
 
     if (count == 0)
@@ -299,8 +302,8 @@ StateFlowBase::Action Console::Session::process_read()
             /* parse the line input into individual arguments */
             unsigned argc = 0;
             char last = '\0';
-
-            for (size_t i = 0; i < pos; ++i)
+            
+            for (size_t i = start; i < pos; ++i)
             {
                 switch (line[i])
                 {
