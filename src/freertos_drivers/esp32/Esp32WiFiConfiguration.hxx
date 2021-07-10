@@ -74,11 +74,17 @@ public:
 
     /// Visible description for the hub/uplink enable field.
     static constexpr const char *CONN_MODE_DESC =
-        "Defines whether to allow accepting connections (according to the Hub configuration), making a connection (according to the Uplink configuration), or both.";
+        "Defines whether to allow accepting connections (according to the Hub "
+        "configuration), making a connection (according to the Uplink "
+        "configuration), or both.\nThis setting can be set to Disabled if the "
+        "ESP32 will be using the TWAI (CAN) driver instead for the connection "
+        "to other nodes.\nNote: it is not recommended to enable the Hub "
+        "functionality on single-core ESP32 models.";
 
     /// <map> of possible keys and descriptive values to show to the user for
     /// the connection_mode fields.
     static constexpr const char *CONN_MODE_MAP =
+        "<relation><property>0</property><value>Disabled</value></relation>"
         "<relation><property>1</property><value>Uplink Only</value></relation>"
         "<relation><property>2</property><value>Hub Only</value></relation>"
         "<relation><property>3</property><value>Hub+Uplink</value></relation>";
@@ -117,25 +123,28 @@ CDI_GROUP_END();
 /// CDI Configuration for an @ref Esp32WiFiManager managed node.
 CDI_GROUP(WiFiConfiguration);
 /// Allows the WiFi system to use power-saving techniques to conserve power
-/// when the node is powered via battery.
+/// when the node is powered via battery, this often can be left disabled.
 CDI_GROUP_ENTRY(sleep, openlcb::Uint8ConfigEntry,
     Name(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_NAME),
-    Description(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_DESC), Min(0),
-    Max(1), Default(0), MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
-/// Defines configuration of hub or uplink
+    Description(Esp32WiFiConfigurationParams::WIFI_POWER_SAVE_DESC),
+    Min(0), Max(1), Default(0), /* Off */
+    MapValues(Esp32WiFiConfigurationParams::BOOLEAN_MAP));
+/// Configures the connection mode as uplink, hub or both.
 CDI_GROUP_ENTRY(connection_mode, openlcb::Uint8ConfigEntry,
     Name(Esp32WiFiConfigurationParams::CONN_MODE_NAME),
-    Description(Esp32WiFiConfigurationParams::CONN_MODE_DESC), Min(1), Max(3),
-    Default(1), MapValues(Esp32WiFiConfigurationParams::CONN_MODE_MAP));
-/// CDI Configuration to enable this node to be a hub.
+    Description(Esp32WiFiConfigurationParams::CONN_MODE_DESC),
+    Min(0), Max(3), Default(1), /* Uplink only */
+    MapValues(Esp32WiFiConfigurationParams::CONN_MODE_MAP));
+/// Configuration for the @ref Esp32WiFiManager managed hub.
 CDI_GROUP_ENTRY(hub, HubConfiguration,
     Name(Esp32WiFiConfigurationParams::HUB_NAME),
     Description(Esp32WiFiConfigurationParams::HUB_DESC));
-/// CDI Configuration for this node's connection to an uplink hub.
+/// Configuration for this node's uplink connection.
 CDI_GROUP_ENTRY(uplink,
     openlcb::TcpClientConfig<openlcb::TcpClientDefaultParams>,
     Name(Esp32WiFiConfigurationParams::UPLINK_NAME),
     Description(Esp32WiFiConfigurationParams::UPLINK_DESC));
+CDI_GROUP_ENTRY(reserved, openlcb::BytesConfigEntry<6>, Hidden(true));
 CDI_GROUP_END();
 
 } // namespace openmrn_arduino

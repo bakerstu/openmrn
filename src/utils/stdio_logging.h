@@ -6,7 +6,8 @@
 extern "C" {
 #endif
 
-#if defined(__linux__) || defined(__MACH__) || defined(__EMSCRIPTEN__)
+#if defined(__linux__) || defined(__MACH__) || defined(__EMSCRIPTEN__) || \
+    defined(ESP32)
 #define LOGWEAK __attribute__((weak))
 #else
 #define LOGWEAK

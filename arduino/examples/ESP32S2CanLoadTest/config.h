@@ -9,7 +9,7 @@
 #include "freertos_drivers/esp32/Esp32WiFiConfiguration.hxx"
 
 // catch invalid configuration at compile time
-#if !defined(USE_CAN) && !defined(USE_WIFI)
+#if !defined(USE_TWAI) && !defined(USE_WIFI)
 #error "Invalid configuration detected, USE_CAN or USE_WIFI must be defined."
 #endif
 
@@ -32,20 +32,18 @@ namespace openlcb
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4,
     "OpenMRN",
-#if defined(USE_WIFI) && !defined(USE_CAN)
-    "Arduino IO Board (WiFi)",
-#elif defined(USE_CAN) && !defined(USE_WIFI)
-    "Arduino IO Board (CAN)",
-#elif defined(USE_CAN) && defined(USE_WIFI)
-    "Arduino IO Board (WiFi/CAN)",
+#if defined(USE_WIFI) && !defined(USE_TWAI)
+    "Arduino Load Test (WiFi)",
+#elif defined(USE_TWAI) && !defined(USE_WIFI)
+    "Arduino Load Test (TWAI)",
 #else
-    "Arduino IO Board",
+    "Arduino Load Test (WiFi/TWAI)",
 #endif
     ARDUINO_VARIANT,
     "1.00"};
 
-constexpr uint8_t NUM_OUTPUTS = 8;
-constexpr uint8_t NUM_INPUTS = 8;
+constexpr uint8_t NUM_OUTPUTS = 14;
+constexpr uint8_t NUM_INPUTS = 14;
 
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout

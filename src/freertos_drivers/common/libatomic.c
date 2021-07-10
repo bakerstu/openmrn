@@ -81,5 +81,4 @@ uint8_t __atomic_fetch_and_1(uint8_t *ptr, uint8_t val, int memorder)
     REL_LOCK();
     return ret;
 }
-
 #endif // guard for arduino compilation

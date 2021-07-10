@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2014, Balazs Racz
+ * Copyright (c) 2021, Mike Dunston
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,38 +24,30 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file os/stack_malloc.c
- * This file provides a link time way to allocate RAM bubers.
+ * \file Esp32Ledc.cxx
  *
- * @author Balazs Racz
- * @date 24 June 2014
+ * ESP-IDF LEDC adapter that exposes a PWM interface.
+ *
+ * @author Mike Dunston
+ * @date 1 June 2021
  */
-#include <stdlib.h>
 
-#include "openmrn_features.h"
+// Ensure we only compile this code for the ESP32 family of MCUs.
+#if defined(ESP32)
 
-#if OPENMRN_FEATURE_THREAD_FREERTOS
-const void *__attribute__((weak)) stack_malloc(unsigned long length);
+#include <esp_idf_version.h>
 
-const void *stack_malloc(unsigned long length)
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
+
+#include "Esp32Ledc.hxx"
+
+namespace openmrn_arduino
 {
-    /* We do a trick here to ensure that the compiler will output a stack frame
-     * for this function. We want to avoid tail-chain optimization in this
-     * function or else it disappears from the stack traces done for memory
-     * tracing. */
-    void *volatile v = malloc(length);
-    return v;
-}
-#endif
 
-void *buffer_malloc(size_t length) __attribute__((weak));
+pthread_once_t Esp32Ledc::ledcFadeOnce_ = PTHREAD_ONCE_INIT;
 
-void *buffer_malloc(size_t length)
-{
-    /* We do a trick here to ensure that the compiler will output a stack frame
-     * for this function. We want to avoid tail-chain optimization in this
-     * function or else it disappears from the stack traces done for memory
-     * tracing. */
-    void *volatile v = malloc(length);
-    return v;
-}
+} // namespace openmrn_arduino
+
+#endif // IDF v4.3+
+
+#endif // ESP32

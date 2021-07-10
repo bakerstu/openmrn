@@ -37,6 +37,7 @@
 
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
+#include "utils/StringPrintf.hxx"
 
 /// Simple state flow to configure automatic calls to fsync on a single file
 /// handle at regular intervals.

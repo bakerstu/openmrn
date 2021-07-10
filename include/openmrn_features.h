@@ -37,6 +37,12 @@
 #ifndef _INCLUDE_OPENMRN_FEATURES_
 #define _INCLUDE_OPENMRN_FEATURES_
 
+#ifdef ESP32
+#include <esp_idf_version.h>
+#else
+#define ESP_IDF_VERSION 0
+#define ESP_IDF_VERSION_VAL(a,b,c) 1
+#endif // ESP32
 
 #ifdef __FreeRTOS__
 /// Compiles the FreeRTOS event group based ::select() implementation.
@@ -46,6 +52,13 @@
 /// Adds struct reent pointer to the FreeRTOS Task Priv structure and swaps it
 /// in when the tasks are swapped in.
 #define OPENMRN_FEATURE_REENT 1
+#endif
+
+#if defined(__FreeRTOS__) || ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
+// Note: this is not using OPENMRN_FEATURE_DEVICE_SELECT due to other usages
+// of that macro which may conflict with the ESP32 version of this feature.
+/// Adds support for FD based CAN interfaces.
+#define OPENMRN_FEATURE_FD_CAN_DEVICE 1
 #endif
 
 #if defined(__linux__) || defined(__MACH__) || defined(__WINNT__) || defined(ESP32) || defined(OPENMRN_FEATURE_DEVTAB)

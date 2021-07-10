@@ -63,7 +63,9 @@
         (_frame).can_id += ((_value) & CAN_SFF_MASK);   \
     }
 
-#elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || defined (__WIN32__) || defined(__EMSCRIPTEN__) || defined(ESP_NONOS) || defined(ARDUINO)
+#elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || \
+      defined (__WIN32__) || defined (__EMSCRIPTEN__) || defined (ESP_NONOS) || \
+      defined (ARDUINO) || defined (ESP32)
     #include <stdint.h>
 
     struct can_frame

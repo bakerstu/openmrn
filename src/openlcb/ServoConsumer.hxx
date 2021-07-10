@@ -1,8 +1,13 @@
 #ifndef _OPENLCB_SERVOCONSUMER_HXX_
 #define _OPENLCB_SERVOCONSUMER_HXX_
 
+#if defined(ARDUINO) || defined(ESP32)
+#include "freertos_drivers/arduino/DummyGPIO.hxx"
+#include "freertos_drivers/arduino/PWM.hxx"
+#else
 #include "freertos_drivers/common/DummyGPIO.hxx"
 #include "freertos_drivers/common/PWM.hxx"
+#endif
 #include "openlcb/ServoConsumerConfig.hxx"
 #include "os/MmapGpio.hxx"
 #include <memory>
