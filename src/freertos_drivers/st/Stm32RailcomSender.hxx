@@ -36,24 +36,47 @@
 
 #include "freertos_drivers/common/RailcomDriver.hxx"
 #include "dcc/railcom.h"
+#include "freertos_drivers/st/Stm32Uart.hxx"
 
-class Stm32RailcomSender : public RailcomDriver
+class Stm32RailcomSender : public RailcomDriver, protected Stm32Uart
 {
 public:
-    /// Specifies what packet should be sent for the channel1 cutout.
+    Stm32RailcomSender(
+        const char *name, USART_TypeDef *base, IRQn_Type interrupt)
+        : Stm32Uart(name, base, interrupt)
+    {
+    }
+
+public:
+    /// Specifies what packet should be sent for the channel1 cutout. It is
+    /// okay to specify the same packet pointer for ch1 and ch2 cutout.
     /// @param ch1_pkt the RailCom packet. Only the ch1 data will be read from
     /// this packet. This pointer must stay alive until the next DCC packet
     /// comes. The FeedbackKey in this packet must be correct for the current
     /// DCC packet or else the data will not be sent.
-    void send_ch1(const DccFeedback *ch1_pkt);
+    void send_ch1(const DCCFeedback *ch1_pkt);
 
-    /// Specifies what packet should be sent for the channel2 cutout.
+    /// Specifies what packet should be sent for the channel2 cutout. It is
+    /// okay to specify the same packet pointer for ch1 and ch2 cutout.
     /// @param ch2_pkt the RailCom packet. Only the ch2 data will be read from
     /// this packet. This pointer must stay alive until the next DCC packet
     /// comes. The FeedbackKey in this packet must be correct for the current
     /// DCC packet or else the data will not be sent.
-    void send_ch2(const DccFeedback *ch2_pkt);
+    void send_ch2(const DCCFeedback *ch2_pkt);
 
+    ssize_t write(File *file, const void *buf, size_t count) override
+    {
+        // We do not support writing through the regular posix API.
+        return -EIO;
+    }
+
+    ssize_t read(File *file, void *buf, size_t count) override
+    {
+        // We do not support reading through the regular posix API.
+        return -EIO;
+    }
+
+private:
     // ======= DCC driver API ========
     /// No implementation needed.
     void feedback_sample() override
@@ -64,7 +87,11 @@ public:
     /// Called at the beginning of the middle window.
     void middle_cutout() override;
     /// Called after the cutout is over.
-    void end_cutout() override;
+    void end_cutout() override {
+        // We throw away the packets that we got given.
+        ch1Pkt_ = nullptr;
+        ch2Pkt_ = nullptr;
+    }
     /// Called instead of start/mid/end-cutout at the end of the current packet
     /// if there was no cutout requested.
     void no_cutout() override
@@ -75,7 +102,7 @@ public:
     }
     /// Feedback key is set by the DCC decoder driver. The feedback packet must
     /// carry the same feedback key or else it will not be transmitted.
-    void set_feedback_key(uintptr_t key) override
+    void set_feedback_key(uint32_t key) override
     {
         expectedFeedbackKey_ = key;
     }
@@ -87,7 +114,7 @@ private:
     uintptr_t expectedFeedbackKey_ = 0;
 
     /// The packet to send in channel 1. Externally owned.
-    const DccFeedback *ch1Pkt_ = nullptr;
+    const DCCFeedback *ch1Pkt_ = nullptr;
     /// The packet to send in channel 2. Externally owned.
-    const DccFeedback *ch2Pkt_ = nullptr;
+    const DCCFeedback *ch2Pkt_ = nullptr;
 };

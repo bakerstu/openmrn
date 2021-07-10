@@ -34,6 +34,55 @@
  * @date July 10, 2021
  */
 
-#include "freertos_drivers/common/RailcomDriver.hxx"
+#include "freertos_drivers/st/Stm32RailcomSender.hxx"
 
+#include "stm32f_hal_conf.hxx"
 
+/// Called at the beginning of the first window.
+void Stm32RailcomSender::start_cutout()
+{
+    const auto* pkt = ch1Pkt_;
+    if (!pkt || pkt->feedbackKey != expectedFeedbackKey_)
+    {
+        // Nothing to send or came too late and should not be sent.
+        return;
+    }
+    if (!__HAL_UART_GET_IT(&uartHandle, UART_IT_TXE)) {
+        // Transmission is not complete yet. That's weird.
+        return;
+    }
+    if (pkt->ch1Size == 0) {
+        // Nothing to send.
+        return;
+    }
+    uartHandle.Instance->TDR = pkt->ch1Data[0];
+    if (pkt->ch1Size > 1)
+    {
+        txBuf->put(pkt->ch1Data + 1, 1);
+        __HAL_UART_ENABLE_IT(&uartHandle, UART_IT_TXE);
+    }
+}
+
+void Stm32RailcomSender::middle_cutout()
+{
+    const auto* pkt = ch2Pkt_;
+    if (!pkt || pkt->feedbackKey != expectedFeedbackKey_)
+    {
+        // Nothing to send or came too late and should not be sent.
+        return;
+    }
+    if (__HAL_UART_GET_IT(&uartHandle, UART_IT_TXE)) {
+        // Transmission is not complete yet. That's weird.
+        return;
+    }
+    if (pkt->ch2Size == 0) {
+        // Nothing to send.
+        return;
+    }
+    uartHandle.Instance->TDR = pkt->ch2Data[0];
+    if (pkt->ch2Size > 1)
+    {
+        txBuf->put(pkt->ch2Data + 1, pkt->ch2Size - 1);
+        __HAL_UART_ENABLE_IT(&uartHandle, UART_IT_TXE);
+    }
+}
