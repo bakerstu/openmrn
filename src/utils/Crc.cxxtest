@@ -1,5 +1,7 @@
-#include "utils/test_main.hxx"
 #include "utils/Crc.hxx"
+
+#include <stdlib.h>
+#include "utils/test_main.hxx"
 
 extern uint8_t reverse(uint8_t data);
 
@@ -30,11 +32,76 @@ TEST(CrcIbmTest, Example3) {
     EXPECT_EQ("0459", actual);
 }
 
+TEST(Crc3Test, Example)
+{
+    uint16_t data[3];
+    crc3_crc16_ibm("12345678", 8, data);
+    EXPECT_EQ(0x3c9d, data[0]);
+    EXPECT_EQ(0x75a8, data[1]);
+    EXPECT_EQ(0x0459, data[2]);
+}
 
-TEST(Crc3Test, Example) {
-  uint16_t data[3];
-  crc3_crc16_ibm("12345678", 8, data);
-  EXPECT_EQ(0x3c9d, data[0]);
-  EXPECT_EQ(0x75a8, data[1]);
-  EXPECT_EQ(0x0459, data[2]);
+TEST(Crc8Test, Example)
+{
+    // This test vector comes from the RCN-218 document by RailCommunity. It is
+    // the same as an example message from the BiDiB examples page:
+    // http://www.bidib.org/support/example1_e.html
+    static const uint8_t sample_message[] = {
+        0x0B, 0x0A, 0x00, 0x00, 0x8E, 0x40, 0x00, 0x0D, 0x67, 0x00, 0x01, 0x00};
+
+    Crc8DallasMaxim c0;
+    Crc8DallasMaxim c16;
+    Crc8DallasMaxim c256;
+
+    for (unsigned i = 0; i < ARRAYSIZE(sample_message); i++) {
+        c0.update0(sample_message[i]);
+        c16.update16(sample_message[i]);
+        c256.update256(sample_message[i]);
+
+        EXPECT_EQ(c0.get(), c16.get());
+        EXPECT_EQ(c0.get(), c256.get());
+    }
+    EXPECT_EQ(0x4Cu, c0.get());
+
+    EXPECT_TRUE(c0.check_ok(0x4C));
+    EXPECT_TRUE(c16.check_ok(0x4C));
+    EXPECT_TRUE(c256.check_ok(0x4C));
+
+    // Consumes the CRC byte
+    c0.update0(0x4C);
+    c16.update16(0x4C);
+    c256.update256(0x4C);
+    // The message should check to zero now.
+    EXPECT_TRUE(c0.check_ok());
+    EXPECT_TRUE(c16.check_ok());
+    EXPECT_TRUE(c256.check_ok());
+}
+
+TEST(Crc8Test, Fuzz)
+{
+    // In the fuzz test we test the three different implementations of CRC8
+    // against each other on random data.
+    unsigned int seed = 42;
+
+    Crc8DallasMaxim c0;
+    Crc8DallasMaxim c16;
+    Crc8DallasMaxim c256;
+
+    for (unsigned i = 0; i < 100000; i++)
+    {
+        int r1 = rand_r(&seed);
+        if (r1 % 100 == 0)
+        {
+            c0.init();
+            c16.init();
+            c256.init();
+        }
+        uint8_t m = rand_r(&seed) & 0xFF;
+        c0.update0(m);
+        c16.update16(m);
+        c256.update256(m);
+
+        EXPECT_EQ(c0.get(), c16.get());
+        EXPECT_EQ(c0.get(), c256.get());
+    }
 }
