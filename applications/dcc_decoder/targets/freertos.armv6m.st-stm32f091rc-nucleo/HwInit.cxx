@@ -129,13 +129,13 @@ struct DccDecoderHW
     /// How many usec later/earlier should the railcom cutout start happen.
     static int time_delta_railcom_pre_usec()
     {
-        return 0;
+        return 80 - 26;
     }
 
     /// How many usec later/earlier should the railcom cutout middle happen.
     static int time_delta_railcom_mid_usec()
     {
-        return 0;
+        return 193 - 185;
     }
 
     /// How many usec later/earlier should the railcom cutout end happen.
@@ -168,6 +168,11 @@ Stm32DccDecoder<DccDecoderHW> dcc_decoder0(
     "/dev/dcc_decoder0", &railcomUart);
 
 extern "C" {
+
+void set_dcc_interrupt_processor(dcc::PacketProcessor *p)
+{
+    dcc_decoder0.set_packet_processor(p);
+}
 
 /** Blink LED */
 uint32_t blinker_pattern = 0;
@@ -275,6 +280,7 @@ void hw_preinit(void)
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_USART1_CLK_ENABLE();
     __HAL_RCC_USART2_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
     __HAL_RCC_TIM14_CLK_ENABLE();

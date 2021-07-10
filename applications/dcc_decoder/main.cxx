@@ -41,6 +41,9 @@
 #include "dcc/DccDebug.hxx"
 #include "utils/constants.hxx"
 #include "utils/StringPrintf.hxx"
+#include "dcc/PacketProcessor.hxx"
+#include "dcc/RailCom.hxx"
+#include "freertos_drivers/common/RailcomDriver.hxx"
 #include "freertos/tc_ioctl.h"
 
 #include "hardware.hxx"
@@ -84,6 +87,42 @@ void process_packet(const DCCPacket& p) {
     }
 }
 
+class IrqProcessor : public dcc::PacketProcessor {
+public:
+    IrqProcessor() {
+        ch1_.reset(0);
+        ch1_.add_ch1_data(0xac);
+        ch1_.add_ch1_data(0x9e);
+
+        ch2_.reset(0);
+        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
+        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
+        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
+        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
+        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
+        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
+    }
+    
+    void packet_arrived(
+        const DCCPacket *pkt, RailcomDriver *railcom) override {
+        if (pkt->packet_header.csum_error) {
+            return;
+        }
+        ch1_.feedbackKey = pkt->feedback_key;
+        ch2_.feedbackKey = pkt->feedback_key;
+        railcom->send_ch1(&ch1_);
+        railcom->send_ch2(&ch2_);
+    }
+
+private:
+    dcc::Feedback ch1_;
+    dcc::Feedback ch2_;
+} irqProc;
+
+extern "C" {
+void set_dcc_interrupt_processor(dcc::PacketProcessor *p);
+}
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -101,6 +140,9 @@ int appl_main(int argc, char *argv[])
     HASSERT(rcfd >= 0);
     auto ret = ::ioctl(rcfd, TCBAUDRATE, 250000);
     HASSERT(ret == 0);
+
+    set_dcc_interrupt_processor(&irqProc);
+    
     int cnt = 0;
     while (1)
     {
