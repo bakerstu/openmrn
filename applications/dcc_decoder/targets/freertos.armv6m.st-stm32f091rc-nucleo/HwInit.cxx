@@ -48,6 +48,7 @@
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
 #include "Stm32EEPROMEmulation.hxx"
+#include "Stm32RailcomSender.hxx"
 #include "hardware.hxx"
 #include "DummyGPIO.hxx"
 
@@ -74,7 +75,7 @@ const char *STDERR_DEVICE = "/dev/ser0";
 static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
 
 /** RailCom sender UART */
-static Stm32Uart uart1("/dev/ser1", USART1, USART1_IRQn);
+static Stm32RailcomSender railcomUart("/dev/ser1", USART1, USART1_IRQn);
 
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
@@ -163,11 +164,8 @@ struct DccDecoderHW
     static constexpr auto OS_IRQn = TSC_IRQn;
 };
 
-// Dummy implementation because we are not a railcom detector.
-NoRailcomDriver railcom_driver;
-
 Stm32DccDecoder<DccDecoderHW> dcc_decoder0(
-    "/dev/dcc_decoder0", &railcom_driver);
+    "/dev/dcc_decoder0", &railcomUart);
 
 extern "C" {
 
