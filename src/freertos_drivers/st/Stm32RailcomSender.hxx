@@ -54,7 +54,10 @@ public:
     /// this packet. This pointer must stay alive until the next DCC packet
     /// comes. The FeedbackKey in this packet must be correct for the current
     /// DCC packet or else the data will not be sent.
-    void send_ch1(const DCCFeedback *ch1_pkt);
+    void send_ch1(const DCCFeedback *ch1_pkt) override
+    {
+        ch1Pkt_ = ch1_pkt;
+    }
 
     /// Specifies what packet should be sent for the channel2 cutout. It is
     /// okay to specify the same packet pointer for ch1 and ch2 cutout.
@@ -62,7 +65,10 @@ public:
     /// this packet. This pointer must stay alive until the next DCC packet
     /// comes. The FeedbackKey in this packet must be correct for the current
     /// DCC packet or else the data will not be sent.
-    void send_ch2(const DCCFeedback *ch2_pkt);
+    void send_ch2(const DCCFeedback *ch2_pkt) override
+    {
+        ch2Pkt_ = ch2_pkt;
+    }
 
     ssize_t write(File *file, const void *buf, size_t count) override
     {

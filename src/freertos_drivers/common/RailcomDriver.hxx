@@ -39,6 +39,7 @@
 #include <inttypes.h>
 
 #include "utils/macros.h"
+#include "dcc/railcom.h"
 
 /// Abstract base class for railcom drivers. This interface is used to
 /// communicate when the railcom cutout happens. The railcom cutout is produced
@@ -71,6 +72,26 @@ public:
    *  shall be called before start_cutout. The feedback key set here is used
    *  until this method is called again. @param key is the new feedback key. */
   virtual void set_feedback_key(uint32_t key) = 0;
+
+  /** Specifies what packet should be sent for the channel1 cutout. It is
+   * okay to specify the same packet pointer for ch1 and ch2 cutout.
+   * @param ch1_pkt the RailCom packet. Only the ch1 data will be read from
+   * this packet. This pointer must stay alive until the next DCC packet
+   * comes. The FeedbackKey in this packet must be correct for the current
+   * DCC packet or else the data will not be sent. */
+  virtual void send_ch1(const DCCFeedback *ch1_pkt)
+  {
+  }
+
+  /** Specifies what packet should be sent for the channel2 cutout. It is
+   * okay to specify the same packet pointer for ch1 and ch2 cutout.
+   * @param ch2_pkt the RailCom packet. Only the ch2 data will be read from
+   * this packet. This pointer must stay alive until the next DCC packet
+   * comes. The FeedbackKey in this packet must be correct for the current
+   * DCC packet or else the data will not be sent. */
+  virtual void send_ch2(const DCCFeedback *ch2_pkt)
+  {
+  }
 };
 
 
