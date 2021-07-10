@@ -58,7 +58,7 @@ static const uint16_t dcc_address_wire = 3 << 8;
 
 uint8_t f0 = 0;
 
-void process_packet(DCCPacket p) {
+void process_packet(const DCCPacket& p) {
     if (p.packet_header.csum_error) {
         return;
     }
@@ -76,7 +76,7 @@ void process_packet(DCCPacket p) {
             return;
         }
     }
-    if ((p.payload[ofs] & 0b11100000) == 0b1000000)
+    if ((p.payload[ofs] >> 5) == 0b100)
     {
         // F0-F4 packet
         ofs++;
