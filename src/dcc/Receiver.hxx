@@ -42,6 +42,7 @@
 
 #include "freertos/can_ioctl.h"
 #include "freertos_drivers/common/SimpleLog.hxx"
+#include "dcc/packet.h"
 
 // If defined, collects samples of timing and state into a ring buffer.
 //#define DCC_DECODER_DEBUG
@@ -89,6 +90,27 @@ public:
         return parseState_;
     }
 
+    /// Sets where to write the decoded DCC data to. If this function is not
+    /// called before a packet preamble starts, the packet will be discarded.
+    /// @param pkt where to store the incoming payload bytes. This packet will
+    /// be reset to an empty packet.
+    void set_packet(DCCPacket *pkt)
+    {
+        pkt_ = pkt;
+        if (pkt_)
+        {
+            clear_packet();
+        }
+    }
+
+    /// Retrieves the last applied DCC packet pointer.
+    /// @return DCC packet, or nullptr if there was no DCC packet pointer
+    /// assigned yet.
+    DCCPacket *pkt()
+    {
+        return pkt_;
+    };
+
     /// Call this function for each time the polarity of the signal changes.
     /// @param value is the number of clock cycles since the last polarity
     /// change.
@@ -110,12 +132,14 @@ public:
                     parseState_ = DCC_PREAMBLE;
                     return;
                 }
-                if (timings_[MM_PREAMBLE].match(value))
+                if (timings_[MM_PREAMBLE].match(value) && pkt_)
                 {
                     parseCount_ = 1 << 2;
-                    ofs_ = 0;
-                    data_[ofs_] = 0;
+                    pkt_->dlc = 0;
+                    pkt_->payload[0] = 0;
+                    pkt_->packet_header.is_marklin = 1;
                     parseState_ = MM_DATA;
+                    havePacket_ = true;
                 }
                 break;
             }
@@ -139,8 +163,18 @@ public:
                 {
                     parseState_ = DCC_DATA;
                     parseCount_ = 1 << 7;
-                    ofs_ = 0;
-                    data_[ofs_] = 0;
+                    if (pkt_)
+                    {
+                        havePacket_ = true;
+                        clear_packet();
+                        pkt_->dlc = 0;
+                        pkt_->payload[0] = 0;
+                        pkt_->packet_header.skip_ec = 1;
+                    }
+                    else
+                    {
+                        havePacket_ = false;
+                    }
                     return;
                 }
                 break;
@@ -165,7 +199,10 @@ public:
                 {
                     if (parseCount_)
                     {
-                        data_[ofs_] |= parseCount_;
+                        if (havePacket_)
+                        {
+                            pkt_->payload[pkt_->dlc] |= parseCount_;
+                        }
                         parseCount_ >>= 1;
                         parseState_ = DCC_DATA;
                         return;
@@ -173,6 +210,10 @@ public:
                     else
                     {
                         // end of packet 1 bit.
+                        if (havePacket_)
+                        {
+                            pkt_->dlc++;
+                        }
                         parseState_ = DCC_MAYBE_CUTOUT;
                         return;
                     }
@@ -192,9 +233,18 @@ public:
                     else
                     {
                         // end of byte zero bit. Packet is not finished yet.
-                        ofs_++;
-                        HASSERT(ofs_ < sizeof(data_));
-                        data_[ofs_] = 0;
+                        if (havePacket_)
+                        {
+                            pkt_->dlc++;
+                            if (pkt_->dlc >= DCC_PACKET_MAX_PAYLOAD)
+                            {
+                                havePacket_ = false;
+                            }
+                            else
+                            {
+                                pkt_->payload[pkt_->dlc] = 0;
+                            }
+                        }
                         parseCount_ = 1 << 7;
                     }
                     parseState_ = DCC_DATA;
@@ -239,16 +289,16 @@ public:
                     parseCount_ >>= 1;
                     if (!parseCount_)
                     {
-                        if (ofs_ == 2)
+                        if (pkt_->dlc == 2)
                         {
                             parseState_ = MM_PACKET_FINISHED;
                             return;
                         }
                         else
                         {
-                            ofs_++;
+                            pkt_->dlc++;
                             parseCount_ = 1 << 7;
-                            data_[ofs_] = 0;
+                            pkt_->payload[pkt_->dlc] = 0;
                         }
                     }
                     parseState_ = MM_DATA;
@@ -260,20 +310,20 @@ public:
             {
                 if (timings_[MM_LONG].match(value))
                 {
-                    data_[ofs_] |= parseCount_;
+                    pkt_->payload[pkt_->dlc] |= parseCount_;
                     parseCount_ >>= 1;
                     if (!parseCount_)
                     {
-                        if (ofs_ == 2)
+                        if (pkt_->dlc == 2)
                         {
                             parseState_ = MM_PACKET_FINISHED;
                             return;
                         }
                         else
                         {
-                            ofs_++;
+                            pkt_->dlc++;
                             parseCount_ = 1 << 7;
-                            data_[ofs_] = 0;
+                            pkt_->payload[pkt_->dlc] = 0;
                         }
                     }
                     parseState_ = MM_DATA;
@@ -293,25 +343,23 @@ public:
             (parseState_ == DCC_DATA_ONE); // one bit comes
     }
 
-    /// Returns the number of payload bytes in the current packet.
-    uint8_t packet_length()
-    {
-        return ofs_ + 1;
-    }
-
-    /// Returns the current packet payload buffer. The buffer gets invalidated
-    /// at the next call to process_data.
-    const uint8_t *packet_data()
-    {
-        return data_;
-    }
-
 private:
+    /// Counter that works through bit patterns.
     uint32_t parseCount_ = 0;
+    /// State machine for parsing.
     State parseState_ = UNKNOWN;
-    // Payload of current packet.
-    uint8_t data_[6];
-    uint8_t ofs_; // offset inside data_;
+    /// True if we have storage in the right time for the current packet.
+    bool havePacket_;
+    /// Storage for the current packet.
+    DCCPacket* pkt_ = nullptr;
+
+    /// Sets the input DCC packet to empty.
+    void clear_packet()
+    {
+        pkt_->header_raw_data = 0;
+        pkt_->dlc = 0;
+        pkt_->feedback_key = 0;
+    }
 
     /// Represents the timing of a half-wave of the digital track signal.
     struct Timing
@@ -377,6 +425,7 @@ public:
         : StateFlowBase(s)
     {
         fd_ = ::open(dev, O_RDONLY | O_NONBLOCK);
+        decoder_.set_packet(&pkt_);
         start_flow(STATE(register_and_sleep));
     }
 
@@ -401,13 +450,11 @@ private:
             decoder_.process_data(value);
             if (decoder_.state() == DccDecoder::DCC_PACKET_FINISHED)
             {
-                dcc_packet_finished(
-                    decoder_.packet_data(), decoder_.packet_length());
+                dcc_packet_finished(pkt_.payload, pkt_.dlc);
             }
             else if (decoder_.state() == DccDecoder::MM_PACKET_FINISHED)
             {
-                mm_packet_finished(
-                    decoder_.packet_data(), decoder_.packet_length());
+                mm_packet_finished(pkt_.payload, pkt_.dlc);
             }
 
             static uint8_t x = 0;
@@ -426,6 +473,8 @@ private:
     uint32_t lastValue_ = 0;
 
 protected:
+    /// Packet buffer.
+    DCCPacket pkt_;
     /// State machine that does the DCC decoding. We have 1 usec per tick, as
     /// these are the numbers we receive from the driver.
     DccDecoder decoder_ {1};
