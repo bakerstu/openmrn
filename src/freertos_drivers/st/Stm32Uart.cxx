@@ -33,6 +33,7 @@
 
 #include "Stm32Uart.hxx"
 
+#include "freertos/tc_ioctl.h"
 #include "stm32f_hal_conf.hxx"
 
 #if defined(STM32F072xB) || defined(STM32F091xC)
@@ -230,6 +231,21 @@ void Stm32Uart::disable()
     __HAL_UART_DISABLE_IT(&uartHandle, UART_IT_ERR);
     __HAL_UART_DISABLE_IT(&uartHandle, UART_IT_RXNE);
     HAL_UART_DeInit(&uartHandle); 
+}
+
+int Stm32Uart::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    switch (key)
+    {
+        default:
+            return -EINVAL;
+        case TCBAUDRATE:
+            uartHandle.Init.BaudRate = data;
+            volatile auto ret = HAL_UART_Init(&uartHandle);
+            HASSERT(HAL_OK == ret);
+            break;
+    }
+    return 0;
 }
 
 /** Try and transmit a message.
