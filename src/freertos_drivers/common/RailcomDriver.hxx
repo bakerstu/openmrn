@@ -36,6 +36,10 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_
 #define _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_
 
+#include <inttypes.h>
+
+#include "utils/macros.h"
+
 /// Abstract base class for railcom drivers. This interface is used to
 /// communicate when the railcom cutout happens. The railcom cutout is produced
 /// or detected in the DCC generator or DCC parser driver, but the railcom
