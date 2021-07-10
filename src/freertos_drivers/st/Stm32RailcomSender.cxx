@@ -71,7 +71,7 @@ void Stm32RailcomSender::middle_cutout()
         // Nothing to send or came too late and should not be sent.
         return;
     }
-    if (__HAL_UART_GET_IT(&uartHandle, UART_IT_TXE)) {
+    if (!__HAL_UART_GET_IT(&uartHandle, UART_IT_TXE)) {
         // Transmission is not complete yet. That's weird.
         return;
     }

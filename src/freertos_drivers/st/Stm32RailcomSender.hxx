@@ -95,16 +95,16 @@ private:
     /// Called after the cutout is over.
     void end_cutout() override {
         // We throw away the packets that we got given.
-        ch1Pkt_ = nullptr;
-        ch2Pkt_ = nullptr;
+        //ch1Pkt_ = nullptr;
+        //ch2Pkt_ = nullptr;
     }
     /// Called instead of start/mid/end-cutout at the end of the current packet
     /// if there was no cutout requested.
     void no_cutout() override
     {
         // We throw away the packets that we got given.
-        ch1Pkt_ = nullptr;
-        ch2Pkt_ = nullptr;
+        //ch1Pkt_ = nullptr;
+        //ch2Pkt_ = nullptr;
     }
     /// Feedback key is set by the DCC decoder driver. The feedback packet must
     /// carry the same feedback key or else it will not be transmitted.
