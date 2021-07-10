@@ -233,8 +233,8 @@ void Stm32Uart::disable()
     HAL_UART_DeInit(&uartHandle); 
 }
 
-int Stm32Uart::ioctl(
-    File *file, unsigned long int key, unsigned long data) {
+int Stm32Uart::ioctl(File *file, unsigned long int key, unsigned long data)
+{
     switch (key)
     {
         default:
