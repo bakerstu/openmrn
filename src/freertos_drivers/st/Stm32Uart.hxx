@@ -66,11 +66,11 @@ public:
     /** Request an ioctl transaction. Supported ioctl is TCBAUDRATE from
      * include/freertos/tc_ioctl.h */
     int ioctl(File *file, unsigned long int key, unsigned long data) override;
-    
+
 private:
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
-    
+
     /** @todo (Stuart Baker) this should be made private */
     /** handle an interrupt.
      */
