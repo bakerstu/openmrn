@@ -61,6 +61,37 @@ uint16_t dcc_address_wire = 3 << 8;
 
 uint8_t f0 = 0;
 
+/// Stores a programming packet which is conditional on a repetition.
+DCCPacket progStored;
+/// Feedback for the stored programming packet.
+dcc::Feedback fbStored;
+
+// File descriptor for the eeprom storage.
+int eefd;
+
+/// Constants used for DCC packet decoding.
+enum PacketCode {
+    /// Which bits in the command are coding the CV number high bits.
+    DCC_PROG_CVMASK = 3,
+    /// POM read 1 byte command
+    DCC_PROG_READ1 = 0b11100100,
+    /// POM write 1 byte command
+    DCC_PROG_WRITE1 = 0b11101100,
+};
+
+/// Reads CVs. Should only be called from the main thread.
+void read_cvs(uint32_t ofs, unsigned len, uint8_t *dst)
+{
+    for (unsigned i = 0; i < len; i++)
+    {
+        dst[i] = 42;
+    }
+}
+
+void write_cv(uint32_t ofs, uint8_t value) {
+    
+}
+
 /// Checks if a packet is addressed to our current DCC address.
 /// @param payload the DCC packet payload
 /// @return true if addressed to us.
@@ -69,6 +100,21 @@ bool match_dcc_address(const uint8_t *payload)
     return ((payload[0] == (dcc_address_wire >> 8)) &&
         ((dcc_address_wire < (128 << 8)) ||
             (payload[1] == (dcc_address_wire & 0xff))));
+}
+
+/// @return true if the two DCC packets are the same on the wire.
+bool packet_match(const DCCPacket &a, const DCCPacket &b)
+{
+    if (a.dlc != b.dlc)
+    {
+        return false;
+    }
+    for (unsigned i = 0; i < a.dlc; i++)
+    {
+        if (a.payload[i] != b.payload[i])
+            return false;
+    }
+    return true;
 }
 
 class IrqProcessor : public dcc::PacketProcessor
@@ -82,6 +128,9 @@ public:
     void init()
     {
         update_address();
+        // Programming response packet
+        ((dcc::Packet*)&progStored)->clear();
+        // 6-byte Ack packet
         ack_.reset(0);
         for (unsigned i = 0; i < 6; i++)
         {
@@ -145,8 +194,21 @@ public:
         if (match_dcc_address(pkt->payload))
         {
             // Addressed packet to our DCC address.
-            ack_.feedbackKey = pkt->feedback_key;
-            railcom->send_ch2(&ack_);
+
+            // Check for a known POM packet.
+            if (packet_match(*pkt, progStored) &&
+                (fbStored.feedbackKey == progStored.feedback_key))
+            {
+                prog_ = fbStored;
+                prog_.feedbackKey = pkt->feedback_key;
+                railcom->send_ch2(&prog_);
+            }
+            else
+            {
+                // No specific reply prepared -- send just some acks.
+                ack_.feedbackKey = pkt->feedback_key;
+                railcom->send_ch2(&ack_);
+            }
         }
         DEBUG1_Pin::set(false);
     }
@@ -157,6 +219,9 @@ private:
     /// RailCom packet to send for address low in the broadcast channel.
     dcc::Feedback bcastLow_;
 
+    /// Copy of the stored programming feedback.
+    dcc::Feedback prog_;
+    
     /// RailCom packet with all ACKs in channel2.
     dcc::Feedback ack_;
 
@@ -176,10 +241,6 @@ void process_packet(const DCCPacket &p)
     {
         return;
     }
-    if (p.payload[0] != (dcc_address_wire >> 8))
-    {
-        return;
-    }
     unsigned ofs = 1;
     if (match_dcc_address(p.payload))
     {
@@ -193,6 +254,21 @@ void process_packet(const DCCPacket &p)
             // F0-F4 packet
             ofs++;
             f0 = p.payload[ofs] & 0b00010000 ? 1 : 0;
+        } else if ((p.payload[ofs] & ~DCC_PROG_CVMASK) == DCC_PROG_READ1) {
+            if (packet_match(p, progStored))
+            {
+                // We already processed this packet, nothing to do.
+                return;
+            }
+            fbStored.reset(0);
+            progStored = p;
+            uint32_t cv = ((p.payload[ofs] & DCC_PROG_CVMASK) << 8) |
+                (p.payload[ofs + 1]);
+            uint8_t value;
+            read_cvs(cv, 1, &value);
+            dcc::RailcomDefs::append12(dcc::RMOB_POM, value, fbStored.ch2Data);
+            fbStored.ch2Size = 2;
+            fbStored.feedbackKey = progStored.feedback_key;
         }
     }
 }
@@ -219,6 +295,8 @@ int appl_main(int argc, char *argv[])
     HASSERT(rcfd >= 0);
     auto ret = ::ioctl(rcfd, TCBAUDRATE, 250000);
     HASSERT(ret == 0);
+    eefd = ::open("/dev/eeprom", O_RDWR);
+    HASSERT(eefd >= 0);
 
     irqProc.init();
     set_dcc_interrupt_processor(&irqProc);
