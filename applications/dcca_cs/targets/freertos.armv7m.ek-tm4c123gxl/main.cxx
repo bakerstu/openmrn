@@ -44,6 +44,7 @@
 #include "dcc/RailcomHub.hxx"
 #include "dcc/RailcomPortDebug.hxx"
 #include "executor/PoolToQueueFlow.hxx"
+#include "openlcb/TractionCvSpace.hxx"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
 #include "freertos_drivers/common/BlinkerGPIO.hxx"
@@ -129,6 +130,7 @@ public:
 } update_timer;
 
 // ====== Command Station components =======
+OVERRIDE_CONST(num_memory_spaces, 10);
 
 dcc::LocalTrackIf track(stack.service(), 2);
 dcc::SimpleUpdateLoop updateLoop(stack.service(), &track);
@@ -145,8 +147,10 @@ openlcb::FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>
 // ===== RailCom components ======
 dcc::RailcomHubFlow railcom_hub(stack.service());
 openlcb::RailcomToOpenLCBDebugProxy gRailcomProxy(
-    &railcom_hub, stack.node(), nullptr);
+    &railcom_hub, stack.node(), nullptr, false, false);
 
+openlcb::TractionCvSpace traction_cv(stack.memory_config_handler(), &track,
+    &railcom_hub, openlcb::MemoryConfigDefs::SPACE_DCC_CV);
 
 /** Entry point to application.
  * @param argc number of command line arguments
