@@ -96,6 +96,11 @@ public:
     void init()
     {
         update_address();
+        ack_.reset(0);
+        for (unsigned i = 0; i < 6; i++)
+        {
+            ack_.add_ch2_data(dcc::RailcomDefs::CODE_ACK);
+        }
     }
 
     /// Updates the broadcast datagrams based on the active DCC address.
@@ -135,7 +140,16 @@ public:
             }
             bcastAtHi_ ^= 1;
         }
-        //railcom->send_ch2(&ch2_);
+        // Checks for regular addressing.
+        if ((adrhi == (dcc_address_wire >> 8)) && 
+            ((adrhi < 128) ||
+             (pkt->payload[1] == (dcc_address_wire & 0xff))))
+        {
+            // Addressed packet to our DCC address.
+            ack_.feedbackKey = pkt->feedback_key;
+            railcom->send_ch2(&ack_);
+        }
+
         DEBUG1_Pin::set(false);
     }
 
@@ -144,6 +158,10 @@ private:
     dcc::Feedback bcastHigh_;
     /// RailCom packet to send for address low in the broadcast channel.
     dcc::Feedback bcastLow_;
+
+    /// RailCom packet with all ACKs in channel2.
+    dcc::Feedback ack_;
+    
     /// 1 if the next broadcast packet should be adrhi, 0 if adrlo.
     uint8_t bcastAtHi_ : 1;
 } irqProc;
