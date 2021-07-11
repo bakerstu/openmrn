@@ -167,6 +167,23 @@ struct DCCDecode
     static inline void dcc_before_cutout_hook() {}
     static inline void dcc_packet_finished_hook() {}
     static inline void after_feedback_hook() {}
+    /// How many usec later/earlier should the railcom cutout start happen.
+    static int time_delta_railcom_pre_usec()
+    {
+        return 0;
+    }
+
+    /// How many usec later/earlier should the railcom cutout middle happen.
+    static int time_delta_railcom_mid_usec()
+    {
+        return 0;
+    }
+
+    /// How many usec later/earlier should the railcom cutout end happen.
+    static int time_delta_railcom_end_usec()
+    {
+        return 0;
+    }
 };
 
 // Dummy implementation because we are not a railcom detector.
