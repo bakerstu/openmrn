@@ -103,10 +103,10 @@ public:
     {
         bcastHigh_.reset(0);
         bcastLow_.reset(0);
-        if (dcc_address_wire < 128) {
+        if (dcc_address_wire < (128<<8)) {
             dcc::RailcomDefs::append12(dcc::RMOB_ADRHIGH, 0, bcastHigh_.ch1Data);
             dcc::RailcomDefs::append12(
-                dcc::RMOB_ADRLOW, dcc_address_wire, bcastLow_.ch1Data);
+                dcc::RMOB_ADRLOW, dcc_address_wire >> 8, bcastLow_.ch1Data);
         } else {
             uint8_t ah = 0x80 | ((dcc_address_wire >> 8) & 0x3F);
             uint8_t al = dcc_address_wire & 0xFF;

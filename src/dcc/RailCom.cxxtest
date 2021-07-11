@@ -126,10 +126,10 @@ TEST_F(RailcomDecodeTest, Ch2ExtAndFeedback) {
 }
 
 TEST_F(RailcomDecodeTest, Ch1Bcast) {
+    fb_.add_ch1_data(0xA3);
+    fb_.add_ch1_data(0xAC);
     fb_.add_ch2_data(0x99);
-    fb_.add_ch2_data(0xac);
-    fb_.add_ch1_data(0x9C);
-    fb_.add_ch1_data(0xA5);
+    fb_.add_ch2_data(0xa5);
     decode();
     EXPECT_THAT(
         output_, ElementsAre(RailcomPacket(3, 1, RailcomPacket::MOB_ADRHIGH, 0),
