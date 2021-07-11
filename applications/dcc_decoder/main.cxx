@@ -61,6 +61,16 @@ uint16_t dcc_address_wire = 3 << 8;
 
 uint8_t f0 = 0;
 
+/// Checks if a packet is addressed to our current DCC address.
+/// @param payload the DCC packet payload
+/// @return true if addressed to us.
+bool match_dcc_address(const uint8_t* payload)
+{
+    return ((payload[0] == (dcc_address_wire >> 8)) &&
+        ((dcc_address_wire < (128 << 8)) ||
+            (payload[1] == (dcc_address_wire & 0xff))));
+}
+
 void process_packet(const DCCPacket& p) {
     if (p.packet_header.csum_error) {
         return;
@@ -72,18 +82,17 @@ void process_packet(const DCCPacket& p) {
         return;
     }
     unsigned ofs = 1;
-    if ((dcc_address_wire >> 8) > 127) {
-        // Two byte address.
-        ofs++;
-        if (p.payload[1] != (dcc_address_wire & 0xff)) {
-            return;
+    if (match_dcc_address(p.payload)) {
+        if (dcc_address_wire >= (128 << 8)) {
+            // Two byte address.
+            ofs++;
         }
-    }
-    if ((p.payload[ofs] >> 5) == 0b100)
-    {
-        // F0-F4 packet
-        ofs++;
-        f0 = p.payload[ofs] & 0b00010000 ? 1 : 0;
+        if ((p.payload[ofs] >> 5) == 0b100)
+        {
+            // F0-F4 packet
+            ofs++;
+            f0 = p.payload[ofs] & 0b00010000 ? 1 : 0;
+        }
     }
 }
 
@@ -122,6 +131,8 @@ public:
         bcastLow_.ch1Size = 2;
     }
 
+    /// Called from the interrupt routine to process a packet and generate the
+    /// railcom response.
     void packet_arrived(
         const DCCPacket *pkt, RailcomDriver *railcom) override {
         DEBUG1_Pin::set(true);
@@ -141,15 +152,12 @@ public:
             bcastAtHi_ ^= 1;
         }
         // Checks for regular addressing.
-        if ((adrhi == (dcc_address_wire >> 8)) && 
-            ((adrhi < 128) ||
-             (pkt->payload[1] == (dcc_address_wire & 0xff))))
+        if (match_dcc_address(pkt->payload))
         {
             // Addressed packet to our DCC address.
             ack_.feedbackKey = pkt->feedback_key;
             railcom->send_ch2(&ack_);
         }
-
         DEBUG1_Pin::set(false);
     }
 
