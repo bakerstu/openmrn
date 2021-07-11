@@ -90,21 +90,35 @@ void process_packet(const DCCPacket& p) {
 class IrqProcessor : public dcc::PacketProcessor {
 public:
     IrqProcessor() {
+    }
+
+    /// Called in the main to prepare the railcom feedback packets.
+    void init()
+    {
         ch1_.reset(0);
-        ch1_.add_ch1_data(0xac);
-        ch1_.add_ch1_data(0x9e);
+        ch1_.add_ch1_data(0x00);
+        ch1_.add_ch1_data(0x00);
 
         ch2_.reset(0);
+        ch2_.add_ch2_data(0);
+        ch2_.add_ch2_data(0);
+        ch2_.add_ch2_data(0);
+        ch2_.add_ch2_data(0);
+        ch2_.add_ch2_data(0);
+        ch2_.add_ch2_data(0);
+#if 0
         ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
         ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
         ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
         ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
         ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
         ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
+#endif
     }
-    
+
     void packet_arrived(
         const DCCPacket *pkt, RailcomDriver *railcom) override {
+        DEBUG1_Pin::set(true);
         if (pkt->packet_header.csum_error) {
             return;
         }
@@ -112,6 +126,7 @@ public:
         ch2_.feedbackKey = pkt->feedback_key;
         railcom->send_ch1(&ch1_);
         railcom->send_ch2(&ch2_);
+        DEBUG1_Pin::set(false);
     }
 
 private:
@@ -141,6 +156,7 @@ int appl_main(int argc, char *argv[])
     auto ret = ::ioctl(rcfd, TCBAUDRATE, 250000);
     HASSERT(ret == 0);
 
+    irqProc.init();
     set_dcc_interrupt_processor(&irqProc);
     
     int cnt = 0;
