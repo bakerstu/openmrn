@@ -38,8 +38,6 @@
 #include "dcc/PacketProcessor.hxx"
 #include "dcc/packet.h"
 
-class PacketProcessor;
-
 /**
   Device driver for decoding a DCC signal using a Timer resource.
 
