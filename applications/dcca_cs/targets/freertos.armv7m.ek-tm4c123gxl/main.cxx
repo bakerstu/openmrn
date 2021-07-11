@@ -41,6 +41,8 @@
 #include "dcc/Loco.hxx"
 #include "dcc/SimpleUpdateLoop.hxx"
 #include "dcc/LocalTrackIf.hxx"
+#include "dcc/RailcomHub.hxx"
+#include "dcc/RailcomPortDebug.hxx"
 #include "executor/PoolToQueueFlow.hxx"
 
 #include "freertos_drivers/ti/TivaGPIO.hxx"
@@ -140,6 +142,12 @@ openlcb::TrainNodeForProxy train3Node(&trainService, &train3Impl);
 openlcb::FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>
     trainEventProducer(&train3Node);
 
+// ===== RailCom components ======
+dcc::RailcomHubFlow railcom_hub(stack.service());
+openlcb::RailcomToOpenLCBDebugProxy gRailcomProxy(
+    &railcom_hub, stack.node(), nullptr);
+
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -173,6 +181,9 @@ int appl_main(int argc, char *argv[])
     stack.add_gridconnect_port("/dev/ser0");
 #endif
 
+    HubDeviceNonBlock<dcc::RailcomHubFlow> railcom_port(&railcom_hub,
+                                                        "/dev/railcom");
+    
     // This command donates the main thread to the operation of the
     // stack. Alternatively the stack could be started in a separate stack and
     // then application-specific business logic could be executed ion a busy
