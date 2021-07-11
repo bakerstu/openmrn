@@ -57,7 +57,7 @@ OVERRIDE_CONST(main_thread_priority, 3);
 
 // The DCC address to listen at. This is in wire format. The first address byte
 // is the high byte.
-static const uint16_t dcc_address_wire = 3 << 8;
+uint16_t dcc_address_wire = 3 << 8;
 
 uint8_t f0 = 0;
 
@@ -95,25 +95,26 @@ public:
     /// Called in the main to prepare the railcom feedback packets.
     void init()
     {
-        ch1_.reset(0);
-        ch1_.add_ch1_data(0x00);
-        ch1_.add_ch1_data(0x00);
+        update_address();
+    }
 
-        ch2_.reset(0);
-        ch2_.add_ch2_data(0);
-        ch2_.add_ch2_data(0);
-        ch2_.add_ch2_data(0);
-        ch2_.add_ch2_data(0);
-        ch2_.add_ch2_data(0);
-        ch2_.add_ch2_data(0);
-#if 0
-        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
-        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
-        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
-        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
-        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
-        ch2_.add_ch2_data(dcc::RailcomDefs::ACK);
-#endif
+    /// Updates the broadcast datagrams based on the active DCC address.
+    void update_address()
+    {
+        bcastHigh_.reset(0);
+        bcastLow_.reset(0);
+        if (dcc_address_wire < 128) {
+            dcc::RailcomDefs::append12(dcc::RMOB_ADRHIGH, 0, bcastHigh_.ch1Data);
+            dcc::RailcomDefs::append12(
+                dcc::RMOB_ADRLOW, dcc_address_wire, bcastLow_.ch1Data);
+        } else {
+            uint8_t ah = 0x80 | ((dcc_address_wire >> 8) & 0x3F);
+            uint8_t al = dcc_address_wire & 0xFF;
+            dcc::RailcomDefs::append12(dcc::RMOB_ADRHIGH, ah, bcastHigh_.ch1Data);
+            dcc::RailcomDefs::append12(dcc::RMOB_ADRLOW, al, bcastLow_.ch1Data);
+        }
+        bcastHigh_.ch1Size = 2;
+        bcastLow_.ch1Size = 2;
     }
 
     void packet_arrived(
@@ -122,16 +123,29 @@ public:
         if (pkt->packet_header.csum_error) {
             return;
         }
-        ch1_.feedbackKey = pkt->feedback_key;
-        ch2_.feedbackKey = pkt->feedback_key;
-        railcom->send_ch1(&ch1_);
-        railcom->send_ch2(&ch2_);
+        uint8_t adrhi = pkt->payload[0];
+        if (adrhi && (adrhi < 232) && ((adrhi & 0xC0) != 0x80)) {
+            // Mobile decoder addressed. Send back address.
+            if (bcastAtHi_) {
+                bcastHigh_.feedbackKey = pkt->feedback_key;
+                railcom->send_ch1(&bcastHigh_);
+            } else {
+                bcastLow_.feedbackKey = pkt->feedback_key;
+                railcom->send_ch1(&bcastLow_);
+            }
+            bcastAtHi_ ^= 1;
+        }
+        //railcom->send_ch2(&ch2_);
         DEBUG1_Pin::set(false);
     }
 
 private:
-    dcc::Feedback ch1_;
-    dcc::Feedback ch2_;
+    /// RailCom packet to send for address high in the broadcast channel.
+    dcc::Feedback bcastHigh_;
+    /// RailCom packet to send for address low in the broadcast channel.
+    dcc::Feedback bcastLow_;
+    /// 1 if the next broadcast packet should be adrhi, 0 if adrlo.
+    uint8_t bcastAtHi_ : 1;
 } irqProc;
 
 extern "C" {
