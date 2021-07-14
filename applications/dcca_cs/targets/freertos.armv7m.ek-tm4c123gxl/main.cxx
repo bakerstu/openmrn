@@ -147,7 +147,7 @@ openlcb::FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>
 // ===== RailCom components ======
 dcc::RailcomHubFlow railcom_hub(stack.service());
 openlcb::RailcomToOpenLCBDebugProxy gRailcomProxy(
-    &railcom_hub, stack.node(), nullptr, false, false);
+    &railcom_hub, stack.node(), nullptr, false, true);
 
 openlcb::TractionCvSpace traction_cv(stack.memory_config_handler(), &track,
     &railcom_hub, openlcb::MemoryConfigDefs::SPACE_DCC_CV);
