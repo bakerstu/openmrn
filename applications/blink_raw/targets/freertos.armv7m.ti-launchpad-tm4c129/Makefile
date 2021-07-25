@@ -42,7 +42,7 @@ ifeq ($(call find_missing_deps,OPENOCDSCRIPTSPATH OPENOCDPATH),)
 flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).lst
 	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
 	cp $< last-flashed-$<
-	$(GDB) $< -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex "monitor reset halt" -ex "load" -ex "monitor reset init" -ex "monitor reset run"  -ex "detach" -ex "quit"
+	$(GDB) $< -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex "monitor reset init" -ex "monitor reset run" -ex "load" -ex "monitor reset init" -ex "monitor reset run"  -ex "detach" -ex "quit"
 
 gdb:
 	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
