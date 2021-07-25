@@ -34,8 +34,12 @@ export BOARD
 
 OPENOCDARGS = -f board/ek-tm4c1294xl.cfg
 
+# this works for XDS110 with SWD (2 wire)
 #OPENOCDARGS = -c 'set TRANSPORT swd' -f interface/xds110.cfg -c 'transport select swd' -c 'set WORKAREASIZE 0x8000' -c 'set CHIPNAME tm4c1294ncpdt' -f target/stellaris.cfg
 
+#OPENOCDARGS = -f interface/xds110.cfg -c 'set WORKAREASIZE 0x8000' -c 'set CHIPNAME tm4c1294ncpdt' -f target/stellaris.cfg
+
+# this works for XDS110 with JTAG (4 wire)
 #OPENOCDARGS = -f interface/xds110.cfg  -c 'transport select jtag' -c 'set WORKAREASIZE 0x8000' -c 'set CHIPNAME tm4c1294ncpdt' -f target/stellaris.cfg
 
 include $(OPENMRNPATH)/etc/prog.mk
