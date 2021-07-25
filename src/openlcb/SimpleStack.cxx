@@ -103,8 +103,13 @@ void SimpleStackBase::start_stack(bool delay_start)
 {
 #if OPENMRN_HAVE_POSIX_FD
     // Opens the eeprom file and sends configuration update commands to all
-    // listeners.
-    configUpdateFlow_.open_file(CONFIG_FILENAME);
+    // listeners. We must only call ConfigUpdateFlow::open_file() once and it
+    // may have been done by an earlier call to create_config_file_if_needed()
+    // or check_version_and_factory_reset().
+    if (configUpdateFlow_.get_fd() < 0)
+    {
+        configUpdateFlow_.open_file(CONFIG_FILENAME);
+    }
     configUpdateFlow_.init_flow();
 #endif // have posix fd
 
@@ -139,12 +144,12 @@ void SimpleStackBase::default_start_node()
 #if OPENMRN_HAVE_POSIX_FD 
     {
         auto *space = new FileMemorySpace(
-            SNIP_DYNAMIC_FILENAME, sizeof(SimpleNodeDynamicValues));
+            configUpdateFlow_.get_fd(), sizeof(SimpleNodeDynamicValues));
         memoryConfigHandler_.registry()->insert(
             node(), MemoryConfigDefs::SPACE_ACDI_USR, space);
         additionalComponents_.emplace_back(space);
     }
-#endif // NOT ARDUINO, YES ESP32
+#endif // OPENMRN_HAVE_POSIX_FD
     size_t cdi_size = strlen(CDI_DATA);
     if (cdi_size > 0)
     {
@@ -157,12 +162,13 @@ void SimpleStackBase::default_start_node()
 #if OPENMRN_HAVE_POSIX_FD
     if (CONFIG_FILENAME != nullptr)
     {
-        auto *space = new FileMemorySpace(CONFIG_FILENAME, CONFIG_FILE_SIZE);
+        auto *space =
+            new FileMemorySpace(configUpdateFlow_.get_fd(), CONFIG_FILE_SIZE);
         memory_config_handler()->registry()->insert(
             node(), openlcb::MemoryConfigDefs::SPACE_CONFIG, space);
         additionalComponents_.emplace_back(space);
     }
-#endif // NOT ARDUINO, YES ESP32
+#endif // OPENMRN_HAVE_POSIX_FD
 }
 
 SimpleTrainCanStack::SimpleTrainCanStack(
@@ -220,6 +226,7 @@ int SimpleStackBase::create_config_file_if_needed(const InternalConfigData &cfg,
     uint16_t expected_version, unsigned file_size)
 {
     HASSERT(CONFIG_FILENAME);
+    HASSERT(configUpdateFlow_.get_fd() < 0);
     struct stat statbuf;
     bool reset = false;
     bool extend = false;
@@ -318,7 +325,12 @@ int SimpleStackBase::check_version_and_factory_reset(
     const InternalConfigData &cfg, uint16_t expected_version, bool force)
 {
     HASSERT(CONFIG_FILENAME);
-    int fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
+    int fd = configUpdateFlow_.get_fd();
+    if (fd < 0)
+    {
+        fd = configUpdateFlow_.open_file(CONFIG_FILENAME);
+    }
+
     if (cfg.version().read(fd) != expected_version)
     {
         /// @todo (balazs.racz): We need to clear the eeprom. Best would be if
