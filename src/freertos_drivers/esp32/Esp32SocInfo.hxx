@@ -168,11 +168,11 @@ public:
             chip_info.features & CHIP_FEATURE_BLE ? "Yes" : "No",
             chip_info.features & CHIP_FEATURE_BT ? "Yes" : "No");
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
-        LOG(INFO, "[SoC] Heap: %.2fkB / %.2fKb",
+        LOG(INFO, "[SoC] Heap: %.2fkB / %.2fkB",
             heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024.0f,
             heap_caps_get_total_size(MALLOC_CAP_INTERNAL) / 1024.0f);
 #if CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM
-        LOG(INFO, "[SoC] PSRAM: %.2fkB / %.2fKb",
+        LOG(INFO, "[SoC] PSRAM: %.2fkB / %.2fkB",
             heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024.0f,
             heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1024.0f);
 #endif // CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM
