@@ -32,9 +32,11 @@ BOARD := BOARD_LAUNCHPAD_EK
 endif
 export BOARD
 
-#OPENOCDARGS = -f board/ek-tm4c1294xl.cfg
+OPENOCDARGS = -f board/ek-tm4c1294xl.cfg
 
-OPENOCDARGS = -c 'set TRANSPORT swd' -f interface/xds110.cfg -c 'transport select swd' -c 'set WORKAREASIZE 0x8000' -c 'set CHIPNAME tm4c1294ncpdt' -f target/stellaris.cfg
+#OPENOCDARGS = -c 'set TRANSPORT swd' -f interface/xds110.cfg -c 'transport select swd' -c 'set WORKAREASIZE 0x8000' -c 'set CHIPNAME tm4c1294ncpdt' -f target/stellaris.cfg
+
+#OPENOCDARGS = -f interface/xds110.cfg  -c 'transport select jtag' -c 'set WORKAREASIZE 0x8000' -c 'set CHIPNAME tm4c1294ncpdt' -f target/stellaris.cfg
 
 include $(OPENMRNPATH)/etc/prog.mk
 
