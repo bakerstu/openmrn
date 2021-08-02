@@ -37,22 +37,21 @@
 #include "dcc/RailCom.hxx"
 
 namespace dcc {
-using RailcomDefs::INV;
-using RailcomDefs::ACK;
-using RailcomDefs::NACK;
-using RailcomDefs::BUSY;
-using RailcomDefs::RESVD1;
-using RailcomDefs::RESVD2;
-using RailcomDefs::RESVD3;
+static constexpr uint8_t INV = RailcomDefs::INV;
+static constexpr uint8_t ACK = RailcomDefs::ACK;
+static constexpr uint8_t NACK = RailcomDefs::NACK;
+static constexpr uint8_t BUSY = RailcomDefs::BUSY;
+static constexpr uint8_t RESVD1 = RailcomDefs::RESVD1;
+static constexpr uint8_t RESVD2 = RailcomDefs::RESVD2;
 const uint8_t railcom_decode[256] =
 {      INV,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
-       INV,    INV,    INV,    INV,    INV,    INV,    INV,   NACK,
+       INV,    INV,    INV,    INV,    INV,    INV,    INV,    ACK,
        INV,    INV,    INV,    INV,    INV,    INV,    INV,   0x33,
        INV,    INV,    INV,   0x34,    INV,   0x35,   0x36,    INV,
        INV,    INV,    INV,    INV,    INV,    INV,    INV,   0x3A,
        INV,    INV,    INV,   0x3B,    INV,   0x3C,   0x37,    INV,
        INV,    INV,    INV,   0x3F,    INV,   0x3D,   0x38,    INV,
-       INV,   0x3E,   0x39,    INV, RESVD3,    INV,    INV,    INV,
+       INV,   0x3E,   0x39,    INV,   NACK,    INV,    INV,    INV,
        INV,    INV,    INV,    INV,    INV,    INV,    INV,   0x24,
        INV,    INV,    INV,   0x23,    INV,   0x22,   0x21,    INV,
        INV,    INV,    INV,   0x1F,    INV,   0x1E,   0x20,    INV,
@@ -77,6 +76,73 @@ const uint8_t railcom_decode[256] =
       0x26,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
        ACK,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
        INV,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
+};
+
+const uint8_t railcom_encode[64] = {
+    0b10101100,
+    0b10101010,
+    0b10101001,
+    0b10100101,
+    0b10100011,
+    0b10100110,
+    0b10011100,
+    0b10011010,
+    0b10011001,
+    0b10010101,
+    0b10010011,
+    0b10010110,
+    0b10001110,
+    0b10001101,
+    0b10001011,
+    0b10110001,
+    0b10110010,
+    0b10110100,
+    0b10111000,
+    0b01110100,
+    0b01110010,
+    0b01101100,
+    0b01101010,
+    0b01101001,
+    0b01100101,
+    0b01100011,
+    0b01100110,
+    0b01011100,
+    0b01011010,
+    0b01011001,
+    0b01010101,
+    0b01010011,
+    0b01010110,
+    0b01001110,
+    0b01001101,
+    0b01001011,
+    0b01000111,
+    0b01110001,
+    0b11101000,
+    0b11100100,
+    0b11100010,
+    0b11010001,
+    0b11001001,
+    0b11000101,
+    0b11011000,
+    0b11010100,
+    0b11010010,
+    0b11001010,
+    0b11000110,
+    0b11001100,
+    0b01111000,
+    0b00010111,
+    0b00011011,
+    0b00011101,
+    0b00011110,
+    0b00101110,
+    0b00110110,
+    0b00111010,
+    0b00100111,
+    0b00101011,
+    0b00101101,
+    0b00110101,
+    0b00111001,
+    0b00110011,
 };
 
 /// Helper function to parse a part of a railcom packet.
@@ -158,6 +224,13 @@ void parse_internal(uint8_t fb_channel, uint8_t railcom_channel,
                 {
                     len = 2;
                 }
+                break;
+            case RMOB_XPOM0:
+            case RMOB_XPOM1:
+            case RMOB_XPOM2:
+            case RMOB_XPOM3:
+                type = RailcomPacket::MOB_XPOM0 + (packet_id - RMOB_XPOM0);
+                len = 6;
                 break;
             case RMOB_DYN:
                 type = RailcomPacket::MOB_DYN;
