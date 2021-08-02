@@ -553,7 +553,7 @@ SEARCHPATH := \
   /usr/share/openocd/scripts \
 
 
-TRYPATH:=$(call findfirst,target/stellaris_icdi.cfg,$(SEARCHPATH))
+TRYPATH:=$(call findfirst,target/stm32f0x.cfg,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 OPENOCDSCRIPTSPATH:=$(TRYPATH)
 endif
