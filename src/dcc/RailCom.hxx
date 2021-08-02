@@ -87,7 +87,7 @@ extern const uint8_t railcom_decode[256];
 /// Table for 6-to-8 encoding of railcom data. The table can be indexed by a
 /// 6-bit value that is the semantic content of a railcom byte, and returns the
 /// matching 8-bit value to put out on the UART. This table only contains the
-/// standard codes, for the special codes like ACK use RailcomDefs above.
+/// standard codes, for the special codes like ACK use RailcomDefs::ACK.
 extern const uint8_t railcom_encode[64];
 
 /// Special constant values returned by the @ref railcom_decode[] array.
