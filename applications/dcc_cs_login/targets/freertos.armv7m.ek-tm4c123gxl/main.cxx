@@ -26,10 +26,10 @@
  *
  * \file main.cxx
  *
- * Main file for the io board application on the Tiva Launchpad board.
+ * Main file for the DCC CS with Logon application on the Tiva Launchpad board.
  *
  * @author Balazs Racz
- * @date 5 Jun 2015
+ * @date 11 Aug 2021
  */
 
 #include "os/os.h"

@@ -1,5 +1,5 @@
-#ifndef _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
-#define _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
+#ifndef _APPLICATIONS_DCC_CS_LOGIN_TARGET_CONFIG_HXX_
+#define _APPLICATIONS_DCC_CS_LOGIN_TARGET_CONFIG_HXX_
 
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
@@ -23,7 +23,7 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "Test IO Board - Tiva Launchpad 123",
+    4,               "OpenMRN", "DCC CS with Logon - Tiva Launchpad 123",
     "ek-tm4c123gxl", "1.01"};
 
 #define NUM_OUTPUTS 3
@@ -38,7 +38,7 @@ using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x184f;
+static constexpr uint16_t CANONICAL_VERSION = 0x1111;
 
 
 /// Defines the main segment in the configuration CDI. This is laid out at
@@ -47,8 +47,6 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
-CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Output LEDs"));
-CDI_GROUP_ENTRY(producers, AllProducers, Name("Input buttons"));
 CDI_GROUP_END();
 
 /// The main structure of the CDI. ConfigDef is the symbol we use in main.cxx
@@ -67,4 +65,4 @@ CDI_GROUP_END();
 
 } // namespace openlcb
 
-#endif // _APPLICATIONS_IO_BOARD_TARGET_CONFIG_HXX_
+#endif // _APPLICATIONS_DCC_CS_LOGIN_TARGET_CONFIG_HXX_
