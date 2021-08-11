@@ -33,19 +33,27 @@ GPIO_HWPIN(BOOSTER_L, GpioHwPin, B, 7, T0CCP1, Timer);
 
 GPIO_PIN(RAILCOM_TRIGGER, GpioOutputSafeHigh, D, 6);
 
+GPIO_PIN(DEBUG1, GpioOutputSafeLow, B, 2);
+GPIO_PIN(DEBUG2, GpioOutputSafeLow, E, 0);
+GPIO_PIN(DEBUG3, GpioOutputSafeLow, C, 4);
+GPIO_HWPIN(DCC_INTERVAL, GpioHwPin, F, 2, T1CCP0, Timer);
+
 GPIO_HWPIN(RAILCOM_CH1, GpioHwPin, B, 0, U1RX, UART);
 
 typedef GpioInitializer<                          //
+    DEBUG1_Pin, DEBUG2_Pin, DCC_INTERVAL_Pin,     //
+    DEBUG3_Pin,                                   //
     SW1_Pin, SW2_Pin,                             //
     LED_RED_Pin, LED_GREEN_Pin, LED_BLUE_RAW_Pin, //
     USB1_Pin, USB2_Pin,                           //
     UART0RX_Pin, UART0TX_Pin,                     //
     BOOSTER_H_Pin, BOOSTER_L_Pin,                 //
     RAILCOM_TRIGGER_Pin, RAILCOM_CH1_Pin,         //
-    CAN0RX_Pin, CAN0TX_Pin> GpioInit;
+    CAN0RX_Pin, CAN0TX_Pin>
+    GpioInit;
 
 namespace TDebug {
-using Resync = DummyPin;
+using Resync = DEBUG3_Pin;
 using NextPacket = DummyPin;
 };
 

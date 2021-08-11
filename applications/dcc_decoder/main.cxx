@@ -55,6 +55,11 @@ Executor<1> executor("executor", 0, 2048);
 OVERRIDE_CONST(serial_tx_buffer_size, 2048);
 OVERRIDE_CONST(main_thread_priority, 3);
 
+/// Set to true to respond with ch1 broadcast for the dcc address.
+static constexpr bool ENABLE_CH1_BROADCAST = false;
+/// Set to true to respond to all addressed packets with a railcom ACK.
+static constexpr bool ENABLE_CH2_ACK = false;
+
 // The DCC address to listen at. This is in wire format. The first address byte
 // is the high byte.
 uint16_t dcc_address_wire = 3 << 8;
@@ -175,7 +180,8 @@ public:
             return;
         }
         uint8_t adrhi = pkt->payload[0];
-        if (adrhi && (adrhi < 232) && ((adrhi & 0xC0) != 0x80))
+        if (adrhi && (adrhi < 232) && ((adrhi & 0xC0) != 0x80) &&
+            ENABLE_CH1_BROADCAST)
         {
             // Mobile decoder addressed. Send back address.
             if (bcastAtHi_)
@@ -203,7 +209,7 @@ public:
                 prog_.feedbackKey = pkt->feedback_key;
                 railcom->send_ch2(&prog_);
             }
-            else
+            else if (ENABLE_CH2_ACK)
             {
                 // No specific reply prepared -- send just some acks.
                 ack_.feedbackKey = pkt->feedback_key;

@@ -17,6 +17,7 @@ ifndef BOARD
 export BOARD := BOARD_LAUNCHPAD_EK
 endif
 
+#OPENOCDARGS = -f board/ti_ek-tm4c123gxl.cfg
 OPENOCDARGS = -f board/ek-lm4f120xl.cfg
 
 OBJEXTRA = $(OPENMRNPATH)/targets/freertos.armv7m/freertos_drivers/tivaware/TivaCan.o \
