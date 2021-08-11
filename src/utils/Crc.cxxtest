@@ -1,7 +1,8 @@
 #include "utils/Crc.hxx"
 
-#include <stdlib.h>
+#include "utils/format_utils.hxx"
 #include "utils/test_main.hxx"
+#include <stdlib.h>
 
 extern uint8_t reverse(uint8_t data);
 
@@ -104,4 +105,73 @@ TEST(Crc8Test, Fuzz)
         EXPECT_EQ(c0.get(), c16.get());
         EXPECT_EQ(c0.get(), c256.get());
     }
+}
+
+string get_sample(unsigned suffix)
+{
+    const uint8_t prefixbytes[] = {0, 0x99, 0x11, 0x22, 0x33};
+    string s((const char *)prefixbytes, 5);
+    s.push_back(suffix & 0xff);
+    s[4] ^= (suffix >> 8);
+    return s;
+}
+
+// Shows the collision behavior of CRC8.
+TEST(Crc8Test, Collision)
+{
+    std::map<uint8_t, unsigned> rev_lookup;
+    unsigned c1, c2;
+    for (unsigned i = 0; i < 2 * 256; i++)
+    {
+        string s = get_sample(i);
+        Crc8DallasMaxim m;
+        for (unsigned j = 0; j < 6; j++)
+        {
+            m.update256(s[j]);
+        }
+        uint8_t crc = m.get();
+        if (rev_lookup.find(crc) != rev_lookup.end())
+        {
+            c1 = i;
+            c2 = rev_lookup[crc];
+            LOG(INFO, "collision: %d %d on %02x", c1, c2, crc);
+            break;
+        }
+        rev_lookup[crc] = i;
+    }
+    string s1 = get_sample(c1), s2 = get_sample(c2);
+    Crc8DallasMaxim m1, m2;
+    for (unsigned i = 0; i < 6; i++)
+    {
+        m1.update256(s1[i]);
+        m2.update256(s2[i]);
+    }
+    LOG(INFO, "1 %02x %02x %d", m1.get(), m2.get(), s1 == s2);
+    for (unsigned i = 0; i < 6; i++)
+    {
+        m1.update256(s1[i]);
+        m2.update256(s2[i]);
+    }
+    LOG(INFO, "2 %02x %02x", m1.get(), m2.get());
+    for (unsigned i = 0; i < 6; i++)
+    {
+        m1.update256(s1[i]);
+        m2.update256(s2[i]);
+    }
+    LOG(INFO, "3 %02x %02x", m1.get(), m2.get());
+    for (unsigned cc = 0; cc < 256; cc++)
+    {
+        m1.init();
+        m1.update256(cc);
+        m2.init();
+        m2.update256(cc);
+        for (unsigned i = 0; i < 6; i++)
+        {
+            m1.update256(s1[i]);
+            m2.update256(s2[i]);
+        }
+        LOG(VERBOSE, "start %02x one %02x two %02x", cc, m1.get(), m2.get());
+    }
+    LOG(INFO, "s1=%s s2=%s", string_to_hex(s1).c_str(),
+        string_to_hex(s2).c_str());
 }
