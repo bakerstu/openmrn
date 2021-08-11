@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2021, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,38 +24,31 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file main.cxx
+ * \file PacketProcessor.hxx
  *
- * An application that blinks an LED.
+ * Interface used for processing DCC packets to generate the feedback data.
  *
  * @author Balazs Racz
- * @date 3 Aug 2013
+ * @date 10 July 2021
  */
 
-#ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE // for usleep
-#endif
+#include "dcc/packet.h"
 
-#include <stdio.h>
-#include <unistd.h>
+class RailcomDriver;
 
-#include "os/os.h"
-#include "utils/blinker.h"
-
-/** Entry point to application.
- * @param argc number of command line arguments
- * @param argv array of command line arguments
- * @return 0, should never return
- */
-int appl_main(int argc, char *argv[])
+namespace dcc
 {
-    setblink(0);
-    while (1)
-    {
-        resetblink(1);
-        usleep(500000);
-        resetblink(0);
-        usleep(500000);
-    }
-    return 0;
-}
+
+/// Abstract class that is used as a plugin in the DCC decoder. The application
+/// logic can implement this class and it will be called from the
+/// interrupt. This is necessary to correctly generate the RailCom feedback to
+/// be sent back.
+class PacketProcessor
+{
+public:
+    /// Called in an OS interrupt with the arrived packet.
+    virtual void packet_arrived(
+        const DCCPacket *pkt, RailcomDriver *railcom) = 0;
+};
+
+} // namespace dcc

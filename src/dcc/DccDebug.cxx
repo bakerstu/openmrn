@@ -250,11 +250,15 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
     }
     else
     {
-        options += StringPrintf(" [bad dlc, exp %u, actual %u]", ofs, pkt.dlc);
+        options += StringPrintf(" [bad dlc, exp %u, actual %u]", ofs+1, pkt.dlc);
         while (ofs < pkt.dlc)
         {
             options += StringPrintf(" 0x%02x", pkt.payload[ofs++]);
         }
+    }
+    if (pkt.packet_header.csum_error)
+    {
+        options += " [csum err]";
     }
     return options;
 }

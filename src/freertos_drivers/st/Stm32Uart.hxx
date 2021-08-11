@@ -63,7 +63,11 @@ public:
      */
     static void interrupt_handler(unsigned index);
 
-private:
+    /** Request an ioctl transaction. Supported ioctl is TCBAUDRATE from
+     * include/freertos/tc_ioctl.h */
+    int ioctl(File *file, unsigned long int key, unsigned long data) override;
+
+protected:
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
 
@@ -111,6 +115,7 @@ private:
     static Stm32Uart *instances[8];
 #endif
 
+private:
     /** Default constructor.
      */
     Stm32Uart();
