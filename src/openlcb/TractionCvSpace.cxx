@@ -290,8 +290,10 @@ StateFlowBase::Action TractionCvSpace::fill_read1_packet()
     }
     b->data()->add_dcc_pom_read1(cvNumber_);
     b->data()->feedback_key = reinterpret_cast<uintptr_t>(this);
-    railcomHub_->register_port(this);
+    // We proactively repeat read packets twice.
+    b->data()->packet_header.rept_count = 1;
     errorCode_ = ERROR_PENDING;
+    railcomHub_->register_port(this);
     track_->send(b);
     return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(read_returned));
 }
@@ -399,8 +401,8 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
     // packets by the standard. We make 4 back to back packets and that
     // fulfills the requirement.
     b->data()->packet_header.rept_count = 3;
-    railcomHub_->register_port(this);
     errorCode_ = ERROR_PENDING;
+    railcomHub_->register_port(this);
     track_->send(b);
     return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(write_returned));
 }
@@ -483,12 +485,15 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
             break;
         case dcc::RailcomPacket::ACK:
             if (new_status == ERROR_PENDING) {
-                new_status = ERROR_OK;
+                // Ack should not change the state machine of CV reads or
+                // writes. Both of those need to return explicitly with a
+                // MOB_POM.
             }
             break;
         case dcc::RailcomPacket::GARBAGE:
             if (new_status == ERROR_PENDING) {
-                new_status = ERROR_GARBAGE;
+                // If we got garbage, we stay in pending state which will
+                // re-send the command again.
             }
             break;
         case dcc::RailcomPacket::MOB_POM:
@@ -496,11 +501,13 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
             new_status = ERROR_OK;
             break;
         default:
-            if (new_status == ERROR_PENDING) {
-                new_status = ERROR_UNKNOWN_RESPONSE;
-            }
             break;
         }
+    }
+    if (new_status == ERROR_PENDING)
+    {
+        // Do not record status if it is still pending.
+        return;
     }
     return record_railcom_status(new_status);
 }
