@@ -1,0 +1,117 @@
+#include "dcc/LogonFeedback.hxx"
+
+#include "utils/test_main.hxx"
+
+namespace dcc
+{
+
+class ParseFeedbackTest : public ::testing::Test
+{
+protected:
+    void create_valid_code()
+    {
+        RailcomDefs::append12(15, 0x44, fb_.ch1Data);
+        fb_.ch1Size = 2;
+
+        RailcomDefs::append36(0xa, 0x11223344, fb_.ch2Data);
+        fb_.ch2Size = 6;
+    }
+
+    dcc::Feedback fb_;
+};
+
+TEST_F(ParseFeedbackTest, valid_code)
+{
+    create_valid_code();
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(0u, d >> LogonFeedbackParser::ERROR_SHIFT);
+    EXPECT_EQ(8u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    EXPECT_EQ(
+        0xf44a11223344u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, conflict_code)
+{
+    create_valid_code();
+    fb_.ch1Data[1] |= 0xFF;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_GARBAGE |
+              LogonFeedbackParser::ERROR_OUT_OF_ORDER,
+               d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(7u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    // Some bits are blanked out.
+    EXPECT_EQ(
+        0xf40a11223344u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, short_code)
+{
+    create_valid_code();
+    fb_.ch2Size = 4;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_MISSING_DATA,
+               d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(6u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    // Some bits are blanked out.
+    EXPECT_EQ(
+        0xf44a11223000u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, short_code_ack)
+{
+    create_valid_code();
+    RailcomDefs::append36(0xa, 0x11220000, fb_.ch2Data);
+    fb_.ch2Data[5] = RailcomDefs::CODE_ACK;
+    fb_.ch2Data[4] = RailcomDefs::CODE_ACK2;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_ACK,
+               d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(6u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    // Some bits are blanked out.
+    EXPECT_EQ(
+        0xf44a11220000u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, out_of_order_ack)
+{
+    create_valid_code();
+    fb_.ch1Data[1] = RailcomDefs::CODE_ACK;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_ACK |
+            LogonFeedbackParser::ERROR_OUT_OF_ORDER,
+        d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(7u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    // Some bits are blanked out.
+    EXPECT_EQ(
+        0xf40a11223344u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, one_ack)
+{
+    fb_.ch1Data[0] = RailcomDefs::CODE_ACK;
+    fb_.ch1Size = 1;
+    fb_.ch2Size = 0;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_ACK |
+            LogonFeedbackParser::ERROR_MISSING_DATA,
+        d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(0u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    EXPECT_EQ(
+        0u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, unknown)
+{
+    create_valid_code();
+    fb_.ch1Data[1] = RailcomDefs::CODE_BUSY;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_UNKNOWN |
+            LogonFeedbackParser::ERROR_OUT_OF_ORDER,
+        d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(7u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    // Some bits are blanked out.
+    EXPECT_EQ(
+        0xf40a11223344u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+} // namespace dcc
