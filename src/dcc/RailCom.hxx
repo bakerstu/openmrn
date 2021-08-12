@@ -181,6 +181,8 @@ enum RailcomMobilePacketId
     RMOB_XPOM2 = 10,
     RMOB_XPOM3 = 11,
     RMOB_SUBID = 12,
+    RMOB_LOGON_ASSIGN_FEEDBACK = 13,
+    RMOB_LOGON_ENABLE_FEEDBACK = 15,
 };
 
 /// Represents a single Railcom datagram. There can be multiple railcom

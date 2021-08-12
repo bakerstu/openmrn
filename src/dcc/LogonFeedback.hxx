@@ -35,6 +35,7 @@
 #define _DCC_LOGONFEEDBACK_HXX_
 
 #include "dcc/RailcomHub.hxx"
+#include "utils/Crc.hxx"
 
 namespace dcc
 {
@@ -65,6 +66,30 @@ public:
     /// @param feedback_key from the railcom packet.
     /// @return the packet classification wrt the logon feature.
     virtual PacketType classify_packet(uintptr_t feedback_key) = 0;
+
+    /// Handles a Select ShortInfo feedback message.
+    /// @param feedback_key refers to the packet it came from.
+    /// @param error true if there was a transmission error or the data came in
+    /// incorrect format.
+    /// @param data 48 bits of payload.
+    virtual void process_select_shortinfo(
+        uintptr_t feedback_key, bool error, uint64_t data) = 0;
+
+    /// Handles a Logon Assign feedback message.
+    /// @param feedback_key refers to the packet it came from.
+    /// @param error true if there was a transmission error or the data came in
+    /// incorrect format.
+    /// @param data 48 bits of payload.
+    virtual void process_logon_assign(
+        uintptr_t feedback_key, bool error, uint64_t data) = 0;
+
+    /// Handles a Decoder ID feedback message.
+    /// @param feedback_key refers to the packet it came from.
+    /// @param error true if there was a transmission error or the data came in
+    /// incorrect format.
+    /// @param data 48 bits of payload. The low 44 bits of this is a decoder ID.
+    virtual void process_decoder_id(
+        uintptr_t feedback_key, bool error, uint64_t data) = 0;
 };
 
 /// Parser for RailCom feedback that recognizes logon messages.
@@ -97,17 +122,28 @@ public:
             return;
         }
         uint64_t data = parse_code(b->data());
-        (void) data;
+        bool any_error = data & ERROR_MASK;
+        auto key = b->data()->feedbackKey;
         switch (type)
         {
             case PacketType::SELECT_SHORTINFO:
-                parse_select_shortinfo(b->data());
-                break;
-            case PacketType::LOGON_ENABLE:
-                parse_logon_enable(b->data());
+                any_error |= has_crc_error(data);
+                any_error |= (((data >> 47) & 1) != 1);
+                cb_->process_select_shortinfo(
+                    key, any_error, data & PAYLOAD_MASK);
                 break;
             case PacketType::LOGON_ASSIGN:
-                parse_logon_assign(b->data());
+                any_error |= has_crc_error(data);
+                any_error |=
+                    (((data >> 44) & 0xf) != RMOB_LOGON_ASSIGN_FEEDBACK);
+                cb_->process_logon_assign(
+                    key, any_error, data & PAYLOAD_MASK);
+                break;
+            case PacketType::LOGON_ENABLE:
+                any_error |=
+                    (((data >> 44) & 0xf) != RMOB_LOGON_ENABLE_FEEDBACK);
+                cb_->process_decoder_id(
+                    key, any_error, data & PAYLOAD_MASK);
                 break;
             case PacketType::GET_DATA_START:
             case PacketType::GET_DATA_CONT:
@@ -134,7 +170,7 @@ private:
         LENGTH_MASK = 0xffULL << LENGTH_SHIFT,
         /// Mask where the decoded payload is.
         PAYLOAD_MASK = LENGTH_OFFSET - 1,
-        
+
         /// Not enough bytes in the feedback response.
         ERROR_MISSING_DATA = 1ULL << ERROR_SHIFT,
         /// Found an ACK byte.
@@ -213,19 +249,20 @@ private:
         return data;
     }
 
+    /// Checks the CRC8 on a 6-byte payload in this feedback.
+    /// @param data the feedback bytes (right aligned, first is MSB).
+    /// @return true if there is a CRC error
+    static bool has_crc_error(uint64_t data)
+    {
+        Crc8DallasMaxim m;
+        for (int i = 48 - 8; i >= 0; i -= 8)
+        {
+            m.update16((data >> i) & 0xff);
+        }
+        return !m.check_ok();
+    }
+
 private:
-    void parse_select_shortinfo(const Feedback *fb)
-    {
-    }
-
-    void parse_logon_enable(const Feedback *fb)
-    {
-    }
-
-    void parse_logon_assign(const Feedback *fb)
-    {
-    }
-
     /// Callbacks object.
     LogonFeedbackCallbacks *cb_;
     /// The railcom hub we are registered to.
