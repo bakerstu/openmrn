@@ -175,3 +175,14 @@ TEST(Crc8Test, Collision)
     LOG(INFO, "s1=%s s2=%s", string_to_hex(s1).c_str(),
         string_to_hex(s2).c_str());
 }
+
+TEST(Crc8Test, LogonExample)
+{
+    Crc8DallasMaxim m;
+    m.update256(0x93);
+    m.update256(0x82);
+    m.update256(0x55);
+    m.update256(0xa7);
+    m.update256(0x03);
+    LOG(INFO, "example: 0x%02x", m.get());
+}

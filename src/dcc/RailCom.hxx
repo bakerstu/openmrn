@@ -163,9 +163,18 @@ struct RailcomDefs
     }
 
     /// Creates a Logon Enable feedback with the decoder unique ID.
-    /// @param decoder_id the 44-it decoder ID (justified to MSb).
+    /// @param decoder_id the 44-bit decoder ID (justified to MSb).
     /// @param fb the feedback packet to generate.
     static void add_did_feedback(uint64_t decoder_id, Feedback *fb);
+
+    /// Creates a ShortInfo feedback.
+    /// @param requested_address 14-bit encoding of the requested address.
+    /// @param max_fn maximum supported function (0-255)
+    /// @param psupp protocol support flags (capabilities[0])
+    /// @param ssupp space support flags (capabilities[1])
+    /// @param fb the feedback packet to generate.
+    static void add_shortinfo_feedback(uint16_t requested_address,
+        uint8_t max_fn, uint8_t psupp, uint8_t ssupp, Feedback *fb);
 
 private:
     /// This struct cannot be instantiated.
