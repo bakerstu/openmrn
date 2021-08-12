@@ -332,4 +332,29 @@ void RailcomDefs::add_shortinfo_feedback(uint16_t requested_address,
     append36(requested_address & 0xf, lp, fb->ch2Data);
 }
 
+// static
+void RailcomDefs::add_assign_feedback(uint8_t changeflags, uint16_t changecount,
+    uint8_t supp2, uint8_t supp3, Feedback *fb)
+{
+    changecount &= 0xFFF;
+    fb->ch1Size = 2;
+    fb->ch2Size = 6;
+
+    Crc8DallasMaxim m;
+    uint8_t h = (RMOB_LOGON_ASSIGN_FEEDBACK << 4) | (changeflags >> 4);
+    m.update16(h);
+    h = ((changeflags & 0xf) << 4) | (changecount >> 8);
+    m.update16(h);
+    append12(RMOB_LOGON_ASSIGN_FEEDBACK, changeflags, fb->ch1Data);
+
+    h = changecount & 0xff;
+    m.update16(h);
+    m.update16(supp2);
+    m.update16(supp3);
+
+    uint32_t lp =
+        ((changecount & 0xff) << 24) | (supp2 << 16) | (supp3 << 8) | m.get();
+    append36(changecount >> 8, lp, fb->ch2Data);
+}
+
 }  // namespace dcc

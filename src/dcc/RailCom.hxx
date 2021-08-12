@@ -176,6 +176,15 @@ struct RailcomDefs
     static void add_shortinfo_feedback(uint16_t requested_address,
         uint8_t max_fn, uint8_t psupp, uint8_t ssupp, Feedback *fb);
 
+    /// Creates a Logon Assign feedback.
+    /// @param changeflags 8 bits of change flags
+    /// @param changecount 12 bits of changecount
+    /// @param supp2 protocol support flags (capabilities[2])
+    /// @param supp3 protocol support flags (capabilities[3])
+    /// @param fb the feedback packet to generate.
+    static void add_assign_feedback(uint8_t changeflags,
+        uint16_t changecount, uint8_t supp2, uint8_t supp3, Feedback *fb);
+    
 private:
     /// This struct cannot be instantiated.
     RailcomDefs();
