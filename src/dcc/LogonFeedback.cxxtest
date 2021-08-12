@@ -2,12 +2,28 @@
 
 #include "utils/test_main.hxx"
 
+using ::testing::Return;
+
 namespace dcc
 {
+
+class MockFeedbackCallbacks : public LogonFeedbackCallbacks {
+public:
+    MOCK_METHOD1(classify_packet, LogonFeedbackCallbacks::PacketType(uintptr_t));
+    MOCK_METHOD3(process_select_shortinfo,
+        void(uintptr_t feedback_key, bool error, uint64_t data));
+
+    MOCK_METHOD3(process_logon_assign,
+        void(uintptr_t feedback_key, bool error, uint64_t data));
+
+    MOCK_METHOD3(process_decoder_id,
+        void(uintptr_t feedback_key, bool error, uint64_t data));
+};
 
 class ParseFeedbackTest : public ::testing::Test
 {
 protected:
+    /// Creates a valid 8-byte railcom feedback in fb_.
     void create_valid_code()
     {
         RailcomDefs::append12(15, 0x44, fb_.ch1Data);
@@ -17,7 +33,19 @@ protected:
         fb_.ch2Size = 6;
     }
 
+    /// Sends the current value in fb_ to the railcom hub.
+    void send()
+    {
+        auto *b = hub_.alloc();
+        b->data()->value() = fb_;
+        hub_.send(b);
+        wait_for_main_executor();
+    }
+
+    ::testing::StrictMock<MockFeedbackCallbacks> cb_;
     dcc::Feedback fb_;
+    RailcomHubFlow hub_{&g_service};
+    LogonFeedbackParser parser_{&cb_, &hub_};
 };
 
 TEST_F(ParseFeedbackTest, valid_code)
@@ -113,5 +141,20 @@ TEST_F(ParseFeedbackTest, unknown)
     EXPECT_EQ(
         0xf40a11223344u, (d & LogonFeedbackParser::PAYLOAD_MASK));
 }
+
+TEST_F(ParseFeedbackTest, decoder_id_reply)
+{
+    constexpr uint64_t decoder_id = 0x79944332211ull;
+    constexpr uintptr_t key = 0x5a5a5a5a;
+    RailcomDefs::add_did_feedback(decoder_id, &fb_);
+    fb_.feedbackKey = key;
+    ::testing::InSequence sq;
+    EXPECT_CALL(cb_, classify_packet(key))
+        .WillOnce(Return(LogonFeedbackCallbacks::LOGON_ENABLE));
+    EXPECT_CALL(
+        cb_, process_decoder_id(key, false, decoder_id | (15ull << 44)));
+    send();
+}
+
 
 } // namespace dcc

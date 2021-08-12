@@ -161,7 +161,12 @@ struct RailcomDefs
         *dst++ = railcom_encode[(data >> 6) & 0x3F]; 
         *dst++ = railcom_encode[data & 0x3F]; 
     }
-    
+
+    /// Creates a Logon Enable feedback with the decoder unique ID.
+    /// @param decoder_id the 44-it decoder ID (justified to MSb).
+    /// @param fb the feedback packet to generate.
+    static void add_did_feedback(uint64_t decoder_id, Feedback *fb);
+
 private:
     /// This struct cannot be instantiated.
     RailcomDefs();

@@ -300,4 +300,14 @@ void parse_railcom_data(
     }
 }
 
+// static
+void RailcomDefs::add_did_feedback(uint64_t decoder_id, Feedback *fb)
+{
+    fb->ch1Size = 2;
+    fb->ch2Size = 6;
+    append12(
+        RMOB_LOGON_ENABLE_FEEDBACK, (decoder_id >> 36) & 0xff, fb->ch1Data);
+    append36((decoder_id >> 32) & 0xf, (decoder_id & 0xffffffffu), fb->ch2Data);
+}
+
 }  // namespace dcc
