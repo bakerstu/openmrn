@@ -266,5 +266,4 @@ TEST_F(RailcomDecodeTest, AssignFeedback)
     EXPECT_EQ(d[1], fb_.ch2Data[5]);
 }
 
-
 }  // namespace dcc

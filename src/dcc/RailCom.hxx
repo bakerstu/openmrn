@@ -182,9 +182,9 @@ struct RailcomDefs
     /// @param supp2 protocol support flags (capabilities[2])
     /// @param supp3 protocol support flags (capabilities[3])
     /// @param fb the feedback packet to generate.
-    static void add_assign_feedback(uint8_t changeflags,
-        uint16_t changecount, uint8_t supp2, uint8_t supp3, Feedback *fb);
-    
+    static void add_assign_feedback(uint8_t changeflags, uint16_t changecount,
+        uint8_t supp2, uint8_t supp3, Feedback *fb);
+
 private:
     /// This struct cannot be instantiated.
     RailcomDefs();

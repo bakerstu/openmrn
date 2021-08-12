@@ -51,7 +51,9 @@ class LogonHandlerModule
 
 /// Handles the automatic logon flow for DCC decoders.
 template <class Module>
-class LogonHandler : public NonTrainPacketSource, public StateFlowBase, public RailcomHubPortInterface
+class LogonHandler : public NonTrainPacketSource,
+                     public StateFlowBase,
+                     public RailcomHubPortInterface
 {
 public:
     /// Constructor
@@ -59,7 +61,7 @@ public:
     /// @param service points to the executor to use.
     /// @param track pointer to the track interface to send DCC packets to.
     /// @param rcom_hub will register to this railcom hub to get feedback.
-    LogonHandler(Service *service, TrackIf *track, RailcomHubFlow* rcom_hub)
+    LogonHandler(Service *service, TrackIf *track, RailcomHubFlow *rcom_hub)
         : StateFlowBase(service)
         , trackIf_(track)
     {
@@ -70,12 +72,12 @@ public:
     {
         start_flow(STATE(startup_logon));
     }
+
 private:
-    Action startup_logon() {
-        
+    Action startup_logon()
+    {
     }
 
-    
     /// If we need to send packets to the track, we can do it here directly.
     TrackIf *trackIf_;
 }; // LogonHandler

@@ -136,14 +136,12 @@ public:
                 any_error |= has_crc_error(data);
                 any_error |=
                     (((data >> 44) & 0xf) != RMOB_LOGON_ASSIGN_FEEDBACK);
-                cb_->process_logon_assign(
-                    key, any_error, data & PAYLOAD_MASK);
+                cb_->process_logon_assign(key, any_error, data & PAYLOAD_MASK);
                 break;
             case PacketType::LOGON_ENABLE:
                 any_error |=
                     (((data >> 44) & 0xf) != RMOB_LOGON_ENABLE_FEEDBACK);
-                cb_->process_decoder_id(
-                    key, any_error, data & PAYLOAD_MASK);
+                cb_->process_decoder_id(key, any_error, data & PAYLOAD_MASK);
                 break;
             case PacketType::GET_DATA_START:
             case PacketType::GET_DATA_CONT:

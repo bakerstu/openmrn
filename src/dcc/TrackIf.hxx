@@ -37,7 +37,8 @@
 #include "dcc/Packet.hxx"
 #include "executor/StateFlow.hxx"
 
-namespace dcc {
+namespace dcc
+{
 
 using TrackIf = FlowInterface<Buffer<dcc::Packet>>;
 
