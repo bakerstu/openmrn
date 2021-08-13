@@ -1,0 +1,19 @@
+#include "dcc/Logon.hxx"
+
+#include "utils/async_traction_test_helper.hxx"
+
+namespace dcc
+{
+
+class LogonTest : public openlcb::TractionTest
+{
+protected:
+
+    LogonHandler<LogonHandlerModule> logonHandler_{&g_service, nullptr, nullptr};
+};
+
+TEST_F(LogonTest, create)
+{
+}
+
+} // namespace dcc
