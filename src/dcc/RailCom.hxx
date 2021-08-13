@@ -161,7 +161,30 @@ struct RailcomDefs
         *dst++ = railcom_encode[(data >> 6) & 0x3F]; 
         *dst++ = railcom_encode[data & 0x3F]; 
     }
-    
+
+    /// Creates a Logon Enable feedback with the decoder unique ID.
+    /// @param decoder_id the 44-bit decoder ID (justified to MSb).
+    /// @param fb the feedback packet to generate.
+    static void add_did_feedback(uint64_t decoder_id, Feedback *fb);
+
+    /// Creates a ShortInfo feedback.
+    /// @param requested_address 14-bit encoding of the requested address.
+    /// @param max_fn maximum supported function (0-255)
+    /// @param psupp protocol support flags (capabilities[0])
+    /// @param ssupp space support flags (capabilities[1])
+    /// @param fb the feedback packet to generate.
+    static void add_shortinfo_feedback(uint16_t requested_address,
+        uint8_t max_fn, uint8_t psupp, uint8_t ssupp, Feedback *fb);
+
+    /// Creates a Logon Assign feedback.
+    /// @param changeflags 8 bits of change flags
+    /// @param changecount 12 bits of changecount
+    /// @param supp2 protocol support flags (capabilities[2])
+    /// @param supp3 protocol support flags (capabilities[3])
+    /// @param fb the feedback packet to generate.
+    static void add_assign_feedback(uint8_t changeflags, uint16_t changecount,
+        uint8_t supp2, uint8_t supp3, Feedback *fb);
+
 private:
     /// This struct cannot be instantiated.
     RailcomDefs();
@@ -181,6 +204,8 @@ enum RailcomMobilePacketId
     RMOB_XPOM2 = 10,
     RMOB_XPOM3 = 11,
     RMOB_SUBID = 12,
+    RMOB_LOGON_ASSIGN_FEEDBACK = 13,
+    RMOB_LOGON_ENABLE_FEEDBACK = 15,
 };
 
 /// Represents a single Railcom datagram. There can be multiple railcom

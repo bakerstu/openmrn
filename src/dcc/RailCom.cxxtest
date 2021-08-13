@@ -193,4 +193,77 @@ TEST_F(RailcomDecodeTest, Append36) {
         ElementsAre(RailcomPacket(3, 2, RailcomPacket::MOB_XPOM2, 0xfedc5432u)));
 }
 
+TEST_F(RailcomDecodeTest, DecoderId)
+{
+    uint64_t decoder_id = 0x19911223344ull;
+    RailcomDefs::add_did_feedback(decoder_id, &fb_);
+
+    EXPECT_EQ(2u, fb_.ch1Size);
+    EXPECT_EQ(6u, fb_.ch2Size);
+    uint8_t d[2];
+    RailcomDefs::append12(0xf, 0x19, d);
+    EXPECT_EQ(d[0], fb_.ch1Data[0]);
+    EXPECT_EQ(d[1], fb_.ch1Data[1]);
+
+    RailcomDefs::append12(0x9, 0x11, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[0]);
+    EXPECT_EQ(d[1], fb_.ch2Data[1]);
+
+    RailcomDefs::append12(0x2, 0x23, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[2]);
+    EXPECT_EQ(d[1], fb_.ch2Data[3]);
+
+    RailcomDefs::append12(0x3, 0x44, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[4]);
+    EXPECT_EQ(d[1], fb_.ch2Data[5]);
+}
+
+TEST_F(RailcomDecodeTest, ShortInfo)
+{
+    RailcomDefs::add_shortinfo_feedback(0x1382, 0x55, 0xa7, 0x03, &fb_);
+    EXPECT_EQ(2u, fb_.ch1Size);
+    EXPECT_EQ(6u, fb_.ch2Size);
+    uint8_t d[2];
+    RailcomDefs::append12(0x8 | 0x1, 0x38, d);
+    EXPECT_EQ(d[0], fb_.ch1Data[0]);
+    EXPECT_EQ(d[1], fb_.ch1Data[1]);
+
+    RailcomDefs::append12(0x2, 0x55, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[0]);
+    EXPECT_EQ(d[1], fb_.ch2Data[1]);
+
+    RailcomDefs::append12(0xa, 0x70, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[2]);
+    EXPECT_EQ(d[1], fb_.ch2Data[3]);
+
+    // The CRC of this example is 0x0b.
+    RailcomDefs::append12(0x3, 0x0b, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[4]);
+    EXPECT_EQ(d[1], fb_.ch2Data[5]);
+}
+
+TEST_F(RailcomDecodeTest, AssignFeedback)
+{
+    RailcomDefs::add_assign_feedback(0x5a, 0x327, 0x18, 0x22, &fb_);
+    EXPECT_EQ(2u, fb_.ch1Size);
+    EXPECT_EQ(6u, fb_.ch2Size);
+    uint8_t d[2];
+    RailcomDefs::append12(13, 0x5a, d);
+    EXPECT_EQ(d[0], fb_.ch1Data[0]);
+    EXPECT_EQ(d[1], fb_.ch1Data[1]);
+
+    RailcomDefs::append12(0x3, 0x27, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[0]);
+    EXPECT_EQ(d[1], fb_.ch2Data[1]);
+
+    RailcomDefs::append12(0x1, 0x82, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[2]);
+    EXPECT_EQ(d[1], fb_.ch2Data[3]);
+
+    // The CRC of this example is 0x46.
+    RailcomDefs::append12(0x2, 0x46, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[4]);
+    EXPECT_EQ(d[1], fb_.ch2Data[5]);
+}
+
 }  // namespace dcc

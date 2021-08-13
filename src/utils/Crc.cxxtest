@@ -175,3 +175,28 @@ TEST(Crc8Test, Collision)
     LOG(INFO, "s1=%s s2=%s", string_to_hex(s1).c_str(),
         string_to_hex(s2).c_str());
 }
+
+// These examples contain specific messages from other unittests and print
+// their CRC. This pattern can be used for developing other tests. There are no
+// expectations in these tests.
+TEST(Crc8Test, LogonExample)
+{
+    Crc8DallasMaxim m;
+    m.update256(0x93);
+    m.update256(0x82);
+    m.update256(0x55);
+    m.update256(0xa7);
+    m.update256(0x03);
+    LOG(INFO, "example: 0x%02x", m.get());
+}
+
+TEST(Crc8Test, LogonExample2)
+{
+    Crc8DallasMaxim m;
+    m.update256(0xD5);
+    m.update256(0xA3);
+    m.update256(0x27);
+    m.update256(0x18);
+    m.update256(0x22);
+    LOG(INFO, "example: 0x%02x", m.get());
+}

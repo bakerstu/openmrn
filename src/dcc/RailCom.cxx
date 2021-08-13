@@ -35,6 +35,7 @@
 #include <string.h>
 
 #include "dcc/RailCom.hxx"
+#include "utils/Crc.hxx"
 
 namespace dcc {
 static constexpr uint8_t INV = RailcomDefs::INV;
@@ -298,6 +299,62 @@ void parse_railcom_data(
         }
         parse_internal(fb.channel, ch1 ? 1 : 2, ptr, size, output);
     }
+}
+
+// static
+void RailcomDefs::add_did_feedback(uint64_t decoder_id, Feedback *fb)
+{
+    fb->ch1Size = 2;
+    fb->ch2Size = 6;
+    append12(
+        RMOB_LOGON_ENABLE_FEEDBACK, (decoder_id >> 36) & 0xff, fb->ch1Data);
+    append36((decoder_id >> 32) & 0xf, (decoder_id & 0xffffffffu), fb->ch2Data);
+}
+
+// static
+void RailcomDefs::add_shortinfo_feedback(uint16_t requested_address,
+    uint8_t max_fn, uint8_t psupp, uint8_t ssupp, Feedback *fb)
+{
+    Crc8DallasMaxim m;
+    requested_address &= 0x3FFF;
+    requested_address |= 0x8000;
+    m.update16(requested_address >> 8);
+    m.update16(requested_address & 0xff);
+    m.update16(max_fn);
+    m.update16(psupp);
+    m.update16(ssupp);
+    fb->ch1Size = 2;
+    fb->ch2Size = 6;
+    append12(
+        requested_address >> 12, (requested_address >> 4) & 0xff, fb->ch1Data);
+    uint32_t lp = (uint32_t(max_fn) << 24) | (uint32_t(psupp) << 16) |
+        (uint32_t(ssupp) << 8) | m.get();
+    append36(requested_address & 0xf, lp, fb->ch2Data);
+}
+
+// static
+void RailcomDefs::add_assign_feedback(uint8_t changeflags, uint16_t changecount,
+    uint8_t supp2, uint8_t supp3, Feedback *fb)
+{
+    changecount &= 0xFFF;
+    fb->ch1Size = 2;
+    fb->ch2Size = 6;
+
+    Crc8DallasMaxim m;
+    uint8_t h = (RMOB_LOGON_ASSIGN_FEEDBACK << 4) | (changeflags >> 4);
+    m.update16(h);
+    h = ((changeflags & 0xf) << 4) | (changecount >> 8);
+    m.update16(h);
+    append12(RMOB_LOGON_ASSIGN_FEEDBACK, changeflags, fb->ch1Data);
+
+    h = changecount & 0xff;
+    m.update16(h);
+    m.update16(supp2);
+    m.update16(supp3);
+
+    uint32_t lp =
+        ((changecount & 0xff) << 24) | (supp2 << 16) | (supp3 << 8) | m.get();
+    append36(changecount >> 8, lp, fb->ch2Data);
 }
 
 }  // namespace dcc
