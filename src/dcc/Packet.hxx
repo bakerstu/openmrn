@@ -39,6 +39,7 @@
 #include <string.h>
 
 #include "dcc/Address.hxx"
+#include "dcc/Defs.hxx"
 #include "dcc/packet.h"
 
 namespace dcc
@@ -296,7 +297,14 @@ struct Packet : public DCCPacket
      * closed or thrown.
      */
     void add_dcc_basic_accessory(unsigned address, bool is_activate);
-    
+
+    /// Sets the packet to a logon enable packet.
+    /// @param param defines which decoders should be requested to logon.
+    /// @param cid the command station unique ID hashed.
+    /// @param session_id is the session id of the current power cycle.
+    void set_logon_enable(
+        Defs::LogonEnableParam param, uint16_t cid, uint8_t session_id);
+
     /** Appends one byte to the packet payload that represents the XOR checksum
      * for DCC. */
     void add_dcc_checksum();

@@ -37,6 +37,7 @@
 #include "dcc/Packet.hxx"
 
 #include "dcc/Defs.hxx"
+#include "utils/Crc.hxx"
 #include "utils/logging.h"
 #include "utils/macros.h"
 
@@ -55,6 +56,19 @@ void Packet::add_dcc_checksum()
     HASSERT(dlc < MAX_PAYLOAD);
     // Protects against double call of add checksum.
     HASSERT(!packet_header.skip_ec);
+
+    // Performs CRC computation if needed.
+    if ((payload[0] == ADDRESS_LOGON || payload[0] == ADDRESS_EXT) &&
+        (dlc >= 6))
+    {
+        Crc8DallasMaxim m;
+        for (int i = 0; i < dlc; ++i)
+        {
+            m.update16(payload[i]);
+        }
+        payload[dlc++] = m.get();
+    }
+
     uint8_t cs = 0;
     for (int i = 0; i < dlc; ++i)
     {

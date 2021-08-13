@@ -197,3 +197,27 @@ TEST(Crc8Test, LogonExample2)
     m.update256(0x22);
     LOG(INFO, "example: 0x%02x", m.get());
 }
+
+TEST(Crc8Test, LogonExample3)
+{
+    Crc8DallasMaxim m;
+    m.update256(253);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    LOG(INFO, "example: 0x%02x", m.get());
+}
+
+TEST(Crc8Test, LogonExample4)
+{
+    Crc8DallasMaxim m;
+    m.update256(254);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    LOG(INFO, "example: 0x%02x", m.get());
+}

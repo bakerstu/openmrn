@@ -76,6 +76,71 @@ TEST_F(PacketTest, ChecksumFF)
     EXPECT_EQ(0xFF, pkt_.payload[3]);
 }
 
+TEST_F(PacketTest, ChecksumLogon)
+{
+    pkt_.clear();
+    pkt_.payload[pkt_.dlc++] = 254;
+    pkt_.payload[pkt_.dlc++] = 0x01;
+    pkt_.add_dcc_checksum();
+    EXPECT_EQ(3, pkt_.dlc);
+    EXPECT_EQ(255, pkt_.payload[2]);
+
+    pkt_.clear();
+    pkt_.payload[pkt_.dlc++] = 253;
+    pkt_.payload[pkt_.dlc++] = 0x00;
+    pkt_.add_dcc_checksum();
+    EXPECT_EQ(3, pkt_.dlc);
+    EXPECT_EQ(253, pkt_.payload[2]);
+
+    pkt_.clear();
+    pkt_.payload[pkt_.dlc++] = 253;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.add_dcc_checksum();
+    EXPECT_EQ(6, pkt_.dlc);
+    EXPECT_EQ(253, pkt_.payload[5]);
+
+    pkt_.clear();
+    pkt_.payload[pkt_.dlc++] = 254;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.add_dcc_checksum();
+    EXPECT_EQ(6, pkt_.dlc);
+    EXPECT_EQ(254, pkt_.payload[5]);
+}
+
+TEST_F(PacketTest, CrcLogon)
+{
+    pkt_.clear();
+    pkt_.payload[pkt_.dlc++] = 253;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.add_dcc_checksum();
+    EXPECT_EQ(8, pkt_.dlc);
+    EXPECT_EQ(0x40, pkt_.payload[6]);
+    EXPECT_EQ(253 ^ 0xaa ^ 0x40, pkt_.payload[7]);
+
+    pkt_.clear();
+    pkt_.payload[pkt_.dlc++] = 254;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.payload[pkt_.dlc++] = 0xaa;
+    pkt_.add_dcc_checksum();
+    EXPECT_EQ(8, pkt_.dlc);
+    EXPECT_EQ(0x19, pkt_.payload[6]);
+    EXPECT_EQ(254 ^ 0xaa ^ 0x19, pkt_.payload[7]);
+}
+
+
 TEST_F(PacketTest, DccSpeed28)
 {
     pkt_.set_dcc_speed28(DccShortAddress(55), true, 6);
