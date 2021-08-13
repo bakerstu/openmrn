@@ -320,6 +320,18 @@ void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate) {
     add_dcc_checksum();
 }
 
+void Packet::set_dcc_logon_enable(
+    Defs::LogonEnableParam param, uint16_t cid, uint8_t session_id)
+{
+    start_dcc_packet();
+    payload[dlc++] = ADDRESS_LOGON;
+    payload[dlc++] = DCC_LOGON_ENABLE | ((uint8_t)param & 0x3);
+    payload[dlc++] = cid >> 8;
+    payload[dlc++] = cid & 0xff;
+    payload[dlc++] = session_id;
+    add_dcc_checksum();
+}
+
 void Packet::start_mm_packet()
 {
     dlc = 3;

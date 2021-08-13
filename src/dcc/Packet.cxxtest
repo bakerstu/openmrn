@@ -375,6 +375,13 @@ TEST_F(PacketTest, SvcProgPagedVerify)
     EXPECT_TRUE(check_checksum());
 }
 
+TEST_F(PacketTest, LogonEnable)
+{
+    pkt_.set_dcc_logon_enable(Defs::LogonEnableParam::LOCO, 0x55aa, 0x31);
+    EXPECT_THAT(get_packet(), ElementsAre(254, 0b11111101, 0x55, 0xaa, 0x31, _));
+    EXPECT_TRUE(check_checksum());
+}
+
 TEST_F(PacketTest, MMOld)
 {
     pkt_.start_mm_packet();

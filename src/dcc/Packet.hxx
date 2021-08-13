@@ -302,7 +302,7 @@ struct Packet : public DCCPacket
     /// @param param defines which decoders should be requested to logon.
     /// @param cid the command station unique ID hashed.
     /// @param session_id is the session id of the current power cycle.
-    void set_logon_enable(
+    void set_dcc_logon_enable(
         Defs::LogonEnableParam param, uint16_t cid, uint8_t session_id);
 
     /** Appends one byte to the packet payload that represents the XOR checksum
