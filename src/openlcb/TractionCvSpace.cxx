@@ -52,7 +52,7 @@ namespace openlcb
 {
 
 TractionCvSpace::TractionCvSpace(MemoryConfigHandler *parent,
-                                 dcc::PacketFlowInterface *track,
+                                 dcc::TrackIf *track,
                                  dcc::RailcomHubFlow *railcom_hub,
                                  uint8_t space_id)
     : StateFlowBase(parent->service())

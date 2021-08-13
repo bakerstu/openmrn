@@ -38,7 +38,7 @@
 
 #include "openlcb/MemoryConfig.hxx"
 #include "executor/StateFlow.hxx"
-#include "dcc/PacketFlowInterface.hxx"
+#include "dcc/TrackIf.hxx"
 #include "dcc/RailCom.hxx"
 #include "dcc/RailcomHub.hxx"
 
@@ -69,7 +69,7 @@ class TractionCvSpace : private MemorySpace,
 {
 public:
     TractionCvSpace(MemoryConfigHandler *parent,
-                    dcc::PacketFlowInterface *track,
+                    dcc::TrackIf *track,
                     dcc::RailcomHubFlow *railcom_hub, uint8_t space_id);
 
     ~TractionCvSpace();
@@ -117,7 +117,7 @@ private:
     void record_railcom_status(unsigned code);
 
     MemoryConfigHandler *parent_;
-    dcc::PacketFlowInterface *track_;
+    dcc::TrackIf *track_;
     dcc::RailcomHubFlow *railcomHub_;
     uint16_t dccAddress_;
     uint16_t cvNumber_;

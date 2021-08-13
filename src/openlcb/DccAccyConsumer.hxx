@@ -38,7 +38,7 @@
 
 #include "openlcb/TractionDefs.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
-#include "dcc/PacketFlowInterface.hxx"
+#include "dcc/TrackIf.hxx"
 
 namespace openlcb
 {
@@ -51,7 +51,7 @@ public:
     /// responding to Identify messages.
     /// @param track is the interface through which we will be writing DCC
     /// accessory packets.
-    DccAccyConsumer(Node *node, dcc::PacketFlowInterface* track)
+    DccAccyConsumer(Node *node, dcc::TrackIf* track)
         : node_(node), track_(track)
     {
         EventRegistry::instance()->register_handler(
@@ -110,7 +110,7 @@ public:
             lastSetState_[eventOfs_] &= ~m;
         }
 
-        dcc::PacketFlowInterface::message_type *pkt;
+        dcc::TrackIf::message_type *pkt;
         mainBufferPool->alloc(&pkt);
         pkt->data()->add_dcc_basic_accessory(dccAddress_, onOff_);
         pkt->data()->packet_header.rept_count = 3;
@@ -216,7 +216,7 @@ private:
     /// OpenLCB node to export the consumer on.
     Node *node_;
     /// Track to send DCC packets to.
-    dcc::PacketFlowInterface* track_;
+    dcc::TrackIf* track_;
 };
 
 } // namespace openlcb

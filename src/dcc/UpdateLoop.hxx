@@ -36,7 +36,7 @@
 #define _DCC_UPDATELOOP_HXX_
 
 #include "utils/Singleton.hxx"
-#include "dcc/PacketFlowInterface.hxx"
+#include "dcc/TrackIf.hxx"
 
 namespace dcc
 {
