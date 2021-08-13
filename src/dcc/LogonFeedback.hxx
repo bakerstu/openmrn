@@ -147,6 +147,7 @@ public:
             case PacketType::GET_DATA_CONT:
             case PacketType::MISC_254:
             case PacketType::UNKNOWN:
+            default:
                 break;
         }
     }
@@ -215,7 +216,12 @@ private:
 
     /// Parses a concatenated ch1+ch2 response into a single uint64_t. It
     /// contains error flags in the MSB, the number of valid 6-bit codepoints
-    /// in the second MSB , and 6 bytes data in the LSB, entered MSB-first.
+    /// in the second MSB , and 6 bytes data in the LSB, entered with the first
+    /// wire byte in the third MSB and last wire byte in the LSB.
+    ///
+    /// Any input byte that was missing or contained any other codepoint than a
+    /// valid 6-bit data codepoint (including garbage or ACK) is translated
+    /// into zero bits in the parse result.
     /// @param fb feedback to parse
     /// @return parse result.
     static uint64_t parse_code(const Feedback *fb)

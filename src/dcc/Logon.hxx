@@ -37,6 +37,7 @@
 #include "dcc/PacketSource.hxx"
 #include "dcc/TrackIf.hxx"
 #include "dcc/UpdateLoop.hxx"
+#include "dcc/LogonFeedback.hxx"
 #include "executor/StateFlow.hxx"
 
 namespace dcc
