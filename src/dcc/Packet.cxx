@@ -36,6 +36,7 @@
 
 #include "dcc/Packet.hxx"
 
+#include "dcc/Defs.hxx"
 #include "utils/logging.h"
 #include "utils/macros.h"
 
@@ -43,59 +44,11 @@
 namespace dcc
 {
 
+// Imports the bit declarations from the enums in Defs. This import may only be
+// performed in a .cxx file.
+using namespace Defs;
+
 static_assert(sizeof(Packet) == sizeof(DCCPacket), "DCCPacket size missmatch");
-
-enum
-{
-    MARKLIN_DEFAULT_CMD = 0b00100110,
-    // Direction change bits for marklin-old format.
-    MARKLIN_CHANGE_DIR_B2 = 0b11000000,
-
-    DCC_DEFAULT_CMD = 0,
-    DCC_LONG_PREAMBLE_CMD = 0b00001100,
-    DCC_SERVICE_MODE_5X_WITH_ACK_CMD = 0b00111000,
-    // standard dcc packet with 5x repeat.
-    DCC_SERVICE_MODE_5X_CMD = 0b00101000,
-    DCC_SERVICE_MODE_1X_CMD = 0b00001000,
-    DCC_LONG_ADDRESS_FIRST = 0b11000000,
-
-    // Baseline packet: speed and direction.
-    DCC_BASELINE_SPEED = 0b01000000,
-    DCC_BASELINE_SPEED_FORWARD = 0b00100000,
-    DCC_BASELINE_SPEED_LIGHT = 0b00010000,
-    DCC_FUNCTION1 = 0b10000000,
-    DCC_FUNCTION1_F0 = 0b00010000,
-    DCC_FUNCTION2_F5 = 0b10110000,
-    DCC_FUNCTION2_F9 = 0b10100000,
-    DCC_FEATURE_EXP_F13 = 0b11011110,
-    DCC_FEATURE_EXP_F21 = 0b11011111,
-    DCC_FEATURE_EXP_FNHI = 0b11011000,
-    DCC_BINARY_SHORT = 0b11011101,
-    DCC_BINARY_LONG = 0b11000000,
-    DCC_ANALOG_FN = 0b00111101,
-
-    DCC_PROG_READ1 = 0b11100100,
-    DCC_PROG_WRITE1 = 0b11101100,
-    DCC_PROG_READ4 = 0b11100000,
-
-    DCC_SVC_BIT_MANIPULATE = 0b01111000,
-    DCC_SVC_WRITE = 0b01111100,
-    DCC_SVC_VERIFY = 0b01110100,
-
-    DCC_SVC_BITVAL_WRITE = 0b11110000,
-    DCC_SVC_BITVAL_VERIFY = 0b11100000,
-    DCC_SVC_BITVAL_VALUE = 0b00001000,
-
-    DCC_SVC_PAGED_WRITE = 0b01111000,
-    DCC_SVC_PAGED_VERIFY = 0b01110000,
-
-    DCC_BASIC_ACCESSORY_B1 = 0b10000000,
-    DCC_BASIC_ACCESSORY_B2 = 0b10000000,
-
-    // Extended packet: 128-step speed.
-    DCC_EXT_SPEED = 0b00111111,
-    DCC_EXT_SPEED_FORWARD = 0x80,
-};
 
 void Packet::add_dcc_checksum()
 {
