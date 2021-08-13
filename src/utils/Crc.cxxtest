@@ -176,6 +176,9 @@ TEST(Crc8Test, Collision)
         string_to_hex(s2).c_str());
 }
 
+// These examples contain specific messages from other unittests and print
+// their CRC. This pattern can be used for developing other tests. There are no
+// expectations in these tests.
 TEST(Crc8Test, LogonExample)
 {
     Crc8DallasMaxim m;
