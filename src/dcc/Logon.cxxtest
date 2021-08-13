@@ -8,8 +8,15 @@ namespace dcc
 class LogonTest : public openlcb::TractionTest
 {
 protected:
+    ~LogonTest()
+    {
+        wait();
+    }
 
-    LogonHandler<LogonHandlerModule> logonHandler_{&g_service, nullptr, nullptr};
+    RailcomHubFlow railcomHub_ {&g_service};
+    StrictMock<MockTrackIf> track_;
+    LogonHandler<LogonHandlerModule> logonHandler_ {
+        &g_service, &track_, &railcomHub_};
 };
 
 TEST_F(LogonTest, create)
