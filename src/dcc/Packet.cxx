@@ -332,6 +332,37 @@ void Packet::set_dcc_logon_enable(
     add_dcc_checksum();
 }
 
+void Packet::set_dcc_select_shortinfo(uint64_t decoder_id)
+{
+    start_dcc_packet();
+    payload[dlc++] = ADDRESS_LOGON;
+    
+    payload[dlc++] = DCC_SELECT | ((decoder_id >> 40) & 0xf);
+    payload[dlc++] = (decoder_id >> 32) & 0xff;
+    payload[dlc++] = (decoder_id >> 24) & 0xff;
+    payload[dlc++] = (decoder_id >> 16) & 0xff;
+    payload[dlc++] = (decoder_id >> 8) & 0xff;
+    payload[dlc++] = (decoder_id) & 0xff;
+    payload[dlc++] = CMD_READ_SHORT_INFO;
+    add_dcc_checksum();
+}
+
+void Packet::set_dcc_logon_assign(uint64_t decoder_id, uint16_t address)
+{
+    start_dcc_packet();
+    payload[dlc++] = ADDRESS_LOGON;
+    
+    payload[dlc++] = DCC_LOGON_ASSIGN | ((decoder_id >> 40) & 0xf);
+    payload[dlc++] = (decoder_id >> 32) & 0xff;
+    payload[dlc++] = (decoder_id >> 24) & 0xff;
+    payload[dlc++] = (decoder_id >> 16) & 0xff;
+    payload[dlc++] = (decoder_id >> 8) & 0xff;
+    payload[dlc++] = (decoder_id) & 0xff;
+    payload[dlc++] = ((address >> 8) & 0xff) ^ 0b11000000;
+    payload[dlc++] = (address) & 0xff;
+    add_dcc_checksum();
+}
+
 void Packet::start_mm_packet()
 {
     dlc = 3;
