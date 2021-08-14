@@ -60,21 +60,34 @@ public:
     /// it.
     /// @param loco_id a valid locomotive ID.
     /// @return the flag byte for this loco.
-    uint8_t& loco_flags(unsigned loco_id);
+    uint8_t &loco_flags(unsigned loco_id);
 
     /// Retrieves the decoder unique ID.
     /// @param loco_id the dense locomotive identifier.
     /// @return the decoder unique ID (44 bit, LSb-aligned).
     uint64_t loco_did(unsigned loco_id);
-    
+
     /// Creates a new locomotive by decoder ID, or looks up an existing
     /// locomotive by decoder ID.
     /// @param decoder_id 44-bit decoder ID (aligned to LSb).
     /// @return locomotive ID for this cell.
     unsigned create_or_lookup_loco(uint64_t decoder_id);
-    
+
+    /// Runs the locomotive address policy. After the address policy is run,
+    /// the loco should have the ability to answer the assigned_address
+    /// question.
+    /// @param loco_id which locomotive this is
+    /// @param desired_address the S-9.2.1.1 encoded desired address for this
+    /// decoder.
+    void run_address_policy(unsigned loco_id, uint16_t desired_address);
+
+    /// @param loco_id
+    /// @return the address to be assigned to this locomotive. 14-bit.
+    uint16_t assigned_address(unsigned loco_id);
+
     /// Flags for the logon handler module.
-    enum Flags {
+    enum Flags
+    {
         /// This decoder needs a get shortinfo command.
         FLAG_NEEDS_GET_SHORTINFO = 0x01,
         /// We sent a get shortinfo command.
@@ -85,6 +98,8 @@ public:
         /// We sent an assign command
         FLAG_PENDING_ASSIGN = 0x08,
 
+        /// 1 if we completed the address assignment.
+        FLAG_COMPLETE = 0x10,
         /// 1 if we ended up in an error state for this loco.
         FLAG_ERROR_STATE = 0x20,
         /// 1 if we have asked for a re-try.
@@ -150,6 +165,10 @@ public:
         {
             return SELECT_SHORTINFO;
         }
+        else if (is_logon_assign_key(feedback_key))
+        {
+            return LOGON_ASSIGN;
+        }
         return UNKNOWN;
     }
 
@@ -163,17 +182,19 @@ public:
     {
         if (!is_select_shortinfo_key(feedback_key))
         {
-            LOG(WARNING, "Unexpected select shortinfo key: %08x", (unsigned)feedback_key);
+            LOG(WARNING, "Unexpected select shortinfo key: %08x",
+                (unsigned)feedback_key);
             return;
         }
         unsigned loco_id = feedback_key & LOCO_ID_MASK;
-        if (!module_->is_valid_loco_id(loco_id)) {
+        if (!module_->is_valid_loco_id(loco_id))
+        {
             LOG(WARNING,
                 "Unexpected select shortinfo key: %08x - invalid loco id",
                 (unsigned)feedback_key);
             return;
         }
-        uint8_t& flags = module_->loco_flags(loco_id);
+        uint8_t &flags = module_->loco_flags(loco_id);
         flags &= ~LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO;
         if (error)
         {
@@ -191,12 +212,14 @@ public:
                 return;
             }
         }
-        if (flags & (LogonHandlerModule::FLAG_NEEDS_ASSIGN |
-                     LogonHandlerModule::FLAG_PENDING_ASSIGN))
+        if (flags &
+            (LogonHandlerModule::FLAG_NEEDS_ASSIGN |
+                LogonHandlerModule::FLAG_PENDING_ASSIGN))
         {
             // Got multiple returns.
             return;
         }
+        module_->run_address_policy(loco_id, (data >> 32) & 0x3FFF);
         flags |= LogonHandlerModule::FLAG_NEEDS_ASSIGN;
         logonSelect_.wakeup();
     }
@@ -209,6 +232,46 @@ public:
     void process_logon_assign(
         uintptr_t feedback_key, bool error, uint64_t data) override
     {
+        if (!is_logon_assign_key(feedback_key))
+        {
+            LOG(WARNING, "Unexpected logon assign key: %08x",
+                (unsigned)feedback_key);
+            return;
+        }
+        unsigned loco_id = feedback_key & LOCO_ID_MASK;
+        if (!module_->is_valid_loco_id(loco_id))
+        {
+            LOG(WARNING,
+                "Unexpected logon assign key: %08x - invalid loco id",
+                (unsigned)feedback_key);
+            return;
+        }
+        uint8_t &flags = module_->loco_flags(loco_id);
+        flags &= ~LogonHandlerModule::FLAG_PENDING_ASSIGN;
+        if (flags & LogonHandlerModule::FLAG_COMPLETE) {
+            // duplicate responses.
+            return;
+        }
+        if (error)
+        {
+            if (flags & LogonHandlerModule::FLAG_PENDING_RETRY)
+            {
+                flags &= ~LogonHandlerModule::FLAG_PENDING_RETRY;
+                flags |= LogonHandlerModule::FLAG_ERROR_STATE;
+                return;
+            }
+            else
+            {
+                flags |= LogonHandlerModule::FLAG_NEEDS_ASSIGN |
+                    LogonHandlerModule::FLAG_PENDING_RETRY;
+                logonSelect_.wakeup();
+                return;
+            }
+        }
+        flags |= LogonHandlerModule::FLAG_COMPLETE;
+        flags &= ~LogonHandlerModule::FLAG_PENDING_TICK;
+        LOG(INFO, "Assign completed for loco %d address %d",
+            loco_id, module_->assigned_address(loco_id));
     }
 
     /// Handles a Decoder ID feedback message.
@@ -348,8 +411,7 @@ private:
 
     /// Flow that sends out addressed packets that are part of the logon
     /// sequences.
-    class LogonSelect : public StateFlowBase
-                      , public ::Timer
+    class LogonSelect : public StateFlowBase, public ::Timer
     {
     public:
         LogonSelect(LogonHandler *parent)
@@ -377,8 +439,9 @@ private:
             for (unsigned id = 0; id < m()->num_locos() && id < MAX_LOCO_ID;
                  ++id)
             {
-                uint8_t& fl = m()->loco_flags(cycleNextId_);
-                if (fl & LogonHandlerModule::FLAG_PENDING_TICK) {
+                uint8_t &fl = m()->loco_flags(cycleNextId_);
+                if (fl & LogonHandlerModule::FLAG_PENDING_TICK)
+                {
                     fl &= ~LogonHandlerModule::FLAG_PENDING_TICK;
                 }
                 else if (fl & LogonHandlerModule::FLAG_PENDING_RETRY)
@@ -451,11 +514,13 @@ private:
                  ++cycleNextId_)
             {
                 uint8_t fl = m()->loco_flags(cycleNextId_);
-                if (fl & LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO) {
+                if (fl & LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO)
+                {
                     return allocate_and_call(
                         parent_->trackIf_, STATE(send_get_shortinfo));
                 }
-                if (fl & LogonHandlerModule::FLAG_NEEDS_ASSIGN) {
+                if (fl & LogonHandlerModule::FLAG_NEEDS_ASSIGN)
+                {
                     return allocate_and_call(
                         parent_->trackIf_, STATE(send_assign));
                 }
@@ -472,15 +537,16 @@ private:
 
         /// Called with a buffer allocated. Sends a get shortinfo command to
         /// the current decoder.
-        Action send_get_shortinfo() {
+        Action send_get_shortinfo()
+        {
             auto *b = get_allocation_result(parent_->trackIf_);
             uint64_t did = m()->loco_did(cycleNextId_);
             b->data()->set_dcc_select_shortinfo(did);
             b->data()->feedback_key =
-                SELECT_SHORTINFO_KEY | (cycleNextId_ & 0xfff);
-            b->set_done(bn_.reset((StateFlowBase*)this));
+                SELECT_SHORTINFO_KEY | (cycleNextId_ & LOCO_ID_MASK);
+            b->set_done(bn_.reset((StateFlowBase *)this));
             track()->send(b);
-            uint8_t& fl = m()->loco_flags(cycleNextId_);
+            uint8_t &fl = m()->loco_flags(cycleNextId_);
             fl &= ~LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO;
             fl |= LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO |
                 LogonHandlerModule::FLAG_PENDING_TICK;
@@ -489,17 +555,19 @@ private:
 
         /// Called with a buffer allocated. Sends an assign command to
         /// the current decoder.
-        Action send_assign() {
+        Action send_assign()
+        {
             auto *b = get_allocation_result(parent_->trackIf_);
             uint64_t did = m()->loco_did(cycleNextId_);
-            b->data()->set_dcc_select_shortinfo(did);
+            b->data()->set_dcc_logon_assign(
+                did, m()->assigned_address(cycleNextId_));
             b->data()->feedback_key =
-                SELECT_SHORTINFO_KEY | (cycleNextId_ & 0xfff);
-            b->set_done(bn_.reset((StateFlowBase*)this));
+                LOGON_ASSIGN_KEY | (cycleNextId_ & LOCO_ID_MASK);
+            b->set_done(bn_.reset((StateFlowBase *)this));
             track()->send(b);
-            uint8_t& fl = m()->loco_flags(cycleNextId_);
-            fl &= ~LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO;
-            fl |= LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO |
+            uint8_t &fl = m()->loco_flags(cycleNextId_);
+            fl &= ~LogonHandlerModule::FLAG_NEEDS_ASSIGN;
+            fl |= LogonHandlerModule::FLAG_PENDING_ASSIGN |
                 LogonHandlerModule::FLAG_PENDING_TICK;
             return wait_and_call(STATE(search));
         }
@@ -540,6 +608,18 @@ private:
         return ((feedback_key & ~LOCO_ID_MASK) == SELECT_SHORTINFO_KEY);
     }
 
+    /// We send this as feedback key for logon assign packets.
+    static constexpr uintptr_t LOGON_ASSIGN_KEY =
+        uint32_t((Defs::ADDRESS_LOGON << 24) | (Defs::DCC_LOGON_ASSIGN << 16));
+
+    /// Checks if a feedback key is for logon assign.
+    /// @param feedback_key the key
+    /// @return true if this is for a logon assign
+    static constexpr bool is_logon_assign_key(uintptr_t feedback_key)
+    {
+        return ((feedback_key & ~LOCO_ID_MASK) == LOGON_ASSIGN_KEY);
+    }
+
     /// How often to send logon enable packets.
     static constexpr unsigned LOGON_PERIOD_MSEC = 295;
 
@@ -549,8 +629,8 @@ private:
     static constexpr uintptr_t LOCO_ID_MASK = MAX_LOCO_ID;
 
     /// Mask selecting bits that belong to the decoder ID.
-    static constexpr uint64_t DECODER_ID_MASK = (1ull<<44) - 1;
-    
+    static constexpr uint64_t DECODER_ID_MASK = (1ull << 44) - 1;
+
     /// If we need to send packets to the track, we can do it here directly.
     TrackIf *trackIf_;
 

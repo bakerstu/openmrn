@@ -38,6 +38,7 @@
 #include <vector>
 
 #include "dcc/Logon.hxx"
+#include "dcc/Defs.hxx"
 
 namespace dcc
 {
@@ -51,6 +52,11 @@ public:
     {
         /// State machine flags about this loco.
         uint8_t flags_ {0};
+
+        /// The assigned DCC address. The encoding is in the S-9.2.1.1 format.
+        /// The default value is an invalid address causing an error on the
+        /// locomotive.
+        uint16_t assignedAddress_{Defs::ADR_INVALID};
 
         /// 44-bit decoder unique ID.
         uint64_t decoderId_;
@@ -112,6 +118,29 @@ public:
         }
     }
 
+    /// Runs the locomotive address policy. After the address policy is run,
+    /// the loco should have the ability to answer the assigned_address
+    /// question.
+    /// @param loco_id which locomotive this is
+    /// @param desired_address the S-9.2.1.1 encoded desired address for this
+    /// decoder.
+    void run_address_policy(unsigned loco_id, uint16_t desired_address)
+    {
+        /// @todo support accessory decoders.
+        // We ignore the desired address and start assigning addresses from
+        // 10000 and up.
+        locos_[loco_id].assignedAddress_ = nextAddress_++;
+    }
+
+    /// @param loco_id
+    /// @return the address to be assigned to this locomotive. 14-bit.
+    uint16_t assigned_address(unsigned loco_id)
+    {
+        return locos_[loco_id].assignedAddress_;
+    }
+
+    uint16_t nextAddress_{(Defs::ADR_MOBILE_LONG << 8) + 10000};
+    
 }; // class DefaultLogonModule
 
 } // namespace dcc

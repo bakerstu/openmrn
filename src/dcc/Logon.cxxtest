@@ -101,5 +101,62 @@ TEST_F(LogonTest, select_shortinfo)
     wait();
 }
 
+TEST_F(LogonTest, full_assign_sequence)
+{
+    FakeClock clk;
+    EXPECT_CALL(
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull))
+        .Times(AtLeast(1));
+    logonHandler_.startup_logon(0x2211, 0x5a);
+    wait();
+
+    uint64_t decoder_id = 0x39944332211ull;
+    auto *b = railcomHub_.alloc();
+    RailcomDefs::add_did_feedback(decoder_id, b->data());
+    b->data()->feedbackKey = 0xFEFC0000ull;
+
+    const uintptr_t SELECT_FB_KEY = 0xFEDFF000ull;
+    EXPECT_CALL(track_,
+        packet(ElementsAre(254, 0xD3, 0x99, 0x44, 0x33, 0x22, 0x11, 0xFF, _),
+            SELECT_FB_KEY));
+
+    railcomHub_.send(b);
+    wait();
+    EXPECT_TRUE(
+        module_.loco_flags(0) & LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO);
+
+    // Select / shortinfo feedback.
+    b = railcomHub_.alloc();
+    RailcomDefs::add_shortinfo_feedback(
+        (Defs::ADR_MOBILE_SHORT << 8) | 3, 17, 0, 0, b->data());
+    b->data()->feedbackKey = SELECT_FB_KEY;
+
+    const uintptr_t ASSIGN_FB_KEY = 0xFEE00000ull;
+    
+    // Assign packet
+    EXPECT_CALL(track_,
+        packet(ElementsAre(254, 0xE3, 0x99, 0x44, 0x33, 0x22, 0x11,
+                   0xC0 | (10000 >> 8), 10000 & 0xFF, _),
+            ASSIGN_FB_KEY));
+
+    railcomHub_.send(b);
+    wait();
+
+    EXPECT_TRUE(
+        module_.loco_flags(0) & LogonHandlerModule::FLAG_PENDING_ASSIGN);
+
+    // Assign feedback.
+    b = railcomHub_.alloc();
+    RailcomDefs::add_assign_feedback(
+        0xff, 0xfff, 0, 0, b->data());
+    b->data()->feedbackKey = ASSIGN_FB_KEY;
+
+    railcomHub_.send(b);
+    wait();
+
+    uint8_t& flags = module_.loco_flags(0);
+    EXPECT_EQ(LogonHandlerModule::FLAG_COMPLETE, flags);
+}
+
 
 } // namespace dcc
