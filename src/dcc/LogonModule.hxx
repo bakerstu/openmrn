@@ -127,8 +127,9 @@ public:
     void run_address_policy(unsigned loco_id, uint16_t desired_address)
     {
         /// @todo support accessory decoders.
-        // We ignore the desired address and start assigning addresses from
-        // 10000 and up.
+
+        // Note: we ignore the desired address and start assigning addresses
+        // from 10000 and up.
         locos_[loco_id].assignedAddress_ = nextAddress_++;
     }
 
