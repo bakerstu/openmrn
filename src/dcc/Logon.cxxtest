@@ -1,6 +1,9 @@
 #include "dcc/Logon.hxx"
 
 #include "utils/async_traction_test_helper.hxx"
+#include "os/FakeClock.hxx"
+
+using ::testing::ElementsAre;
 
 namespace dcc
 {
@@ -10,7 +13,8 @@ class LogonTest : public openlcb::TractionTest
 protected:
     ~LogonTest()
     {
-        wait();
+        logonHandler_.shutdown();
+        twait();
     }
 
     RailcomHubFlow railcomHub_ {&g_service};
@@ -21,6 +25,30 @@ protected:
 
 TEST_F(LogonTest, create)
 {
+}
+
+TEST_F(LogonTest, logon_per_300msec)
+{
+    FakeClock clk;
+    EXPECT_CALL(
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull));
+    logonHandler_.startup_logon(0x2211, 0x5a);
+    wait();
+    Mock::VerifyAndClear(&track_);
+    clk.advance(MSEC_TO_NSEC(20));
+    wait();
+
+    clk.advance(MSEC_TO_NSEC(250));
+
+    EXPECT_CALL(
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull));
+    clk.advance(MSEC_TO_NSEC(50));
+    wait();
+
+    EXPECT_CALL(
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull));
+    clk.advance(MSEC_TO_NSEC(300));
+    wait();
 }
 
 } // namespace dcc

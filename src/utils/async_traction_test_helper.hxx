@@ -40,6 +40,7 @@ public:
         payload.assign(
             b->data()->payload, b->data()->payload + b->data()->dlc - 1);
         this->packet(payload, b->data()->feedback_key);
+        b->unref();
     }
 };
 

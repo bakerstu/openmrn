@@ -52,7 +52,7 @@ class LogonHandlerModule
 
 /// Handles the automatic logon flow for DCC decoders.
 template <class Module>
-class LogonHandler : public StateFlowBase
+class LogonHandler : public StateFlowBase, private LogonFeedbackCallbacks
 {
 public:
     /// Constructor
@@ -63,8 +63,10 @@ public:
     LogonHandler(Service *service, TrackIf *track, RailcomHubFlow *rcom_hub)
         : StateFlowBase(service)
         , trackIf_(track)
+        , fbParser_(this, rcom_hub)
         , hasLogonEnableConflict_(0)
         , hasLogonEnableFeedback_(0)
+        , needShutdown_(0)
     {
     }
 
@@ -74,6 +76,63 @@ public:
         cid_ = cid;
         sessionId_ = session_id;
         start_flow(STATE(allocate_logon_now));
+    }
+
+#ifdef GTEST
+    void shutdown()
+    {
+        needShutdown_ = 1;
+        timer_.ensure_triggered();
+    }
+#endif
+
+    // Callbacks from LogonFeedback
+
+    /// Determines based on feedback key what the given DCC packet was.
+    /// @param feedback_key from the railcom packet.
+    /// @return the packet classification wrt the logon feature.
+    PacketType classify_packet(uintptr_t feedback_key) override
+    {
+        if (feedback_key == LOGON_ENABLE_KEY)
+        {
+            return LOGON_ENABLE;
+        }
+        return UNKNOWN;
+    }
+
+    /// Handles a Select ShortInfo feedback message.
+    /// @param feedback_key refers to the packet it came from.
+    /// @param error true if there was a transmission error or the data came in
+    /// incorrect format.
+    /// @param data 48 bits of payload.
+    void process_select_shortinfo(
+        uintptr_t feedback_key, bool error, uint64_t data) override
+    {
+    }
+
+    /// Handles a Logon Assign feedback message.
+    /// @param feedback_key refers to the packet it came from.
+    /// @param error true if there was a transmission error or the data came in
+    /// incorrect format.
+    /// @param data 48 bits of payload.
+    void process_logon_assign(
+        uintptr_t feedback_key, bool error, uint64_t data) override
+    {
+    }
+
+    /// Handles a Decoder ID feedback message.
+    /// @param feedback_key refers to the packet it came from.
+    /// @param error true if there was a transmission error or the data came in
+    /// incorrect format.
+    /// @param data 48 bits of payload. The low 44 bits of this is a decoder ID.
+    void process_decoder_id(uintptr_t feedback_key, bool error, uint64_t data)
+    {
+        hasLogonEnableFeedback_ = 1;
+        if (error)
+        {
+            hasLogonEnableConflict_ = 1;
+        }
+        /// @TODO: store decoder ID and trigger a select on it.
     }
 
 private:
@@ -96,6 +155,10 @@ private:
     /// starts a sleep.
     Action start_logon_wait()
     {
+        if (needShutdown_)
+        {
+            return exit();
+        }
         auto next_time = lastLogonTime_ + MSEC_TO_NSEC(LOGON_PERIOD_MSEC);
         timer_.start_absolute(next_time);
         return wait_and_call(STATE(evaluate_logon));
@@ -104,6 +167,10 @@ private:
     /// Called when the logon timer expires or is cancelled due to feedback.
     Action evaluate_logon()
     {
+        if (needShutdown_)
+        {
+            return exit();
+        }
         if (timer_.is_triggered())
         {
             // found something via logon
@@ -137,12 +204,16 @@ private:
         return wait_and_call(STATE(many_logon_wait));
     }
 
+    /// Called after the many logon packets' buffer is freed.
     Action many_logon_wait()
     {
-        if (countLogonToSend_ >= 4) {
+        if (countLogonToSend_ >= 4)
+        {
             countLogonToSend_ -= 4;
             return call_immediately(STATE(allocate_logon_many));
-        } else {
+        }
+        else
+        {
             countLogonToSend_ = 0;
             /// @TODO we should really evaluate whether we've seen conflicts
             /// coming back.
@@ -162,18 +233,18 @@ private:
         b->data()->set_dcc_logon_enable(param, cid_, sessionId_);
         b->data()->feedback_key = LOGON_ENABLE_KEY;
         b->data()->packet_header.rept_count = 3; // 4 repeats.
-        b->set_done(this);
+        b->set_done(bn_.reset(this));
 
         hasLogonEnableFeedback_ = 0;
         hasLogonEnableConflict_ = 0;
         lastLogonTime_ = os_get_time_monotonic();
-        
+
         trackIf_->send(b);
     }
 
     /// We send this as feedback key for logon enable packets.
     static constexpr uintptr_t LOGON_ENABLE_KEY =
-        (Defs::ADDRESS_LOGON << 24) | (Defs::DCC_LOGON_ENABLE << 16);
+        uint32_t((Defs::ADDRESS_LOGON << 24) | (Defs::DCC_LOGON_ENABLE << 16));
 
     /// How often to send logon enable packets.
     static constexpr unsigned LOGON_PERIOD_MSEC = 295;
@@ -184,9 +255,14 @@ private:
     /// Helper object for timing.
     StateFlowTimer timer_ {this};
 
-    /// Timestamp of the last logon packet we sent out.
-    long long lastLogonTime_{0};
+    /// Helper object for parsing railcom feedback from the railcom hub.
+    LogonFeedbackParser fbParser_;
+
+    BarrierNotifiable bn_;
     
+    /// Timestamp of the last logon packet we sent out.
+    long long lastLogonTime_ {0};
+
     /// Command station unique ID.
     uint16_t cid_;
     /// Session ID of the current session.
@@ -197,10 +273,12 @@ private:
     uint8_t hasLogonEnableConflict_ : 1;
     /// 1 if we got any feedback packet from logon enable.
     uint8_t hasLogonEnableFeedback_ : 1;
+    /// Signals that we need to shut down the flow.
+    uint8_t needShutdown_ : 1;
 
     /// Tracks how many logons to send out.
-    uint8_t countLogonToSend_{0};
-    
+    uint8_t countLogonToSend_ {0};
+
     /// Identifier of the storage that provides the next locomotive to look at.
     uint16_t cycleNextId_;
 
