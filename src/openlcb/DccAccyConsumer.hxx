@@ -36,9 +36,9 @@
 #ifndef _OPENLCB_DCCACCYCONSUMER_HXX_
 #define _OPENLCB_DCCACCYCONSUMER_HXX_
 
-#include "openlcb/TractionDefs.hxx"
-#include "openlcb/EventHandlerTemplates.hxx"
 #include "dcc/TrackIf.hxx"
+#include "openlcb/EventHandlerTemplates.hxx"
+#include "openlcb/TractionDefs.hxx"
 
 namespace openlcb
 {
@@ -51,8 +51,9 @@ public:
     /// responding to Identify messages.
     /// @param track is the interface through which we will be writing DCC
     /// accessory packets.
-    DccAccyConsumer(Node *node, dcc::TrackIf* track)
-        : node_(node), track_(track)
+    DccAccyConsumer(Node *node, dcc::TrackIf *track)
+        : node_(node)
+        , track_(track)
     {
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(
@@ -216,7 +217,7 @@ private:
     /// OpenLCB node to export the consumer on.
     Node *node_;
     /// Track to send DCC packets to.
-    dcc::TrackIf* track_;
+    dcc::TrackIf *track_;
 };
 
 } // namespace openlcb

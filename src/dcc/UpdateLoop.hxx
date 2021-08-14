@@ -35,8 +35,8 @@
 #ifndef _DCC_UPDATELOOP_HXX_
 #define _DCC_UPDATELOOP_HXX_
 
-#include "utils/Singleton.hxx"
 #include "dcc/TrackIf.hxx"
+#include "utils/Singleton.hxx"
 
 namespace dcc
 {

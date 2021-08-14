@@ -1,8 +1,8 @@
 #include "dcc/Logon.hxx"
 
-#include "utils/async_traction_test_helper.hxx"
-#include "os/FakeClock.hxx"
 #include "dcc/LogonModule.hxx"
+#include "os/FakeClock.hxx"
+#include "utils/async_traction_test_helper.hxx"
 
 using ::testing::ElementsAre;
 
@@ -33,10 +33,6 @@ void compile_test()
     LogonHandler<LogonHandlerModule> *f = nullptr;
     f->~LogonHandler();
 }
-
-// Tests that the default handler moudle compiles.
-//auto fn = std::bind(,
-//     &LogonHandler<LogonHandlerModule>::~LogonHandler);
 
 TEST_F(LogonTest, create)
 {
@@ -132,7 +128,7 @@ TEST_F(LogonTest, full_assign_sequence)
     b->data()->feedbackKey = SELECT_FB_KEY;
 
     const uintptr_t ASSIGN_FB_KEY = 0xFEE00000ull;
-    
+
     // Assign packet
     EXPECT_CALL(track_,
         packet(ElementsAre(254, 0xE3, 0x99, 0x44, 0x33, 0x22, 0x11,
@@ -147,16 +143,14 @@ TEST_F(LogonTest, full_assign_sequence)
 
     // Assign feedback.
     b = railcomHub_.alloc();
-    RailcomDefs::add_assign_feedback(
-        0xff, 0xfff, 0, 0, b->data());
+    RailcomDefs::add_assign_feedback(0xff, 0xfff, 0, 0, b->data());
     b->data()->feedbackKey = ASSIGN_FB_KEY;
 
     railcomHub_.send(b);
     wait();
 
-    uint8_t& flags = module_.loco_flags(0);
+    uint8_t &flags = module_.loco_flags(0);
     EXPECT_EQ(LogonHandlerModule::FLAG_COMPLETE, flags);
 }
-
 
 } // namespace dcc

@@ -37,8 +37,8 @@
 #include <map>
 #include <vector>
 
-#include "dcc/Logon.hxx"
 #include "dcc/Defs.hxx"
+#include "dcc/Logon.hxx"
 
 namespace dcc
 {
@@ -56,7 +56,7 @@ public:
         /// The assigned DCC address. The encoding is in the S-9.2.1.1 format.
         /// The default value is an invalid address causing an error on the
         /// locomotive.
-        uint16_t assignedAddress_{Defs::ADR_INVALID};
+        uint16_t assignedAddress_ {Defs::ADR_INVALID};
 
         /// 44-bit decoder unique ID.
         uint64_t decoderId_;
@@ -139,8 +139,8 @@ public:
         return locos_[loco_id].assignedAddress_;
     }
 
-    uint16_t nextAddress_{(Defs::ADR_MOBILE_LONG << 8) + 10000};
-    
+    uint16_t nextAddress_ {(Defs::ADR_MOBILE_LONG << 8) + 10000};
+
 }; // class DefaultLogonModule
 
 } // namespace dcc

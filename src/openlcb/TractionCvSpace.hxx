@@ -36,11 +36,11 @@
 #ifndef _OPENLCB_TRACTIONCVSPACE_HXX_
 #define _OPENLCB_TRACTIONCVSPACE_HXX_
 
-#include "openlcb/MemoryConfig.hxx"
-#include "executor/StateFlow.hxx"
-#include "dcc/TrackIf.hxx"
 #include "dcc/RailCom.hxx"
 #include "dcc/RailcomHub.hxx"
+#include "dcc/TrackIf.hxx"
+#include "executor/StateFlow.hxx"
+#include "openlcb/MemoryConfig.hxx"
 
 namespace openlcb
 {
@@ -68,9 +68,8 @@ class TractionCvSpace : private MemorySpace,
                         public StateFlowBase
 {
 public:
-    TractionCvSpace(MemoryConfigHandler *parent,
-                    dcc::TrackIf *track,
-                    dcc::RailcomHubFlow *railcom_hub, uint8_t space_id);
+    TractionCvSpace(MemoryConfigHandler *parent, dcc::TrackIf *track,
+        dcc::RailcomHubFlow *railcom_hub, uint8_t space_id);
 
     ~TractionCvSpace();
 

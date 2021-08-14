@@ -32,9 +32,9 @@
  * @date 4 Feb 2017
  */
 
+#include "dcc/TrackIf.hxx"
 #include "openlcb/DccAccyConsumer.hxx"
 #include "utils/async_traction_test_helper.hxx"
-#include "dcc/TrackIf.hxx"
 
 namespace openlcb
 {

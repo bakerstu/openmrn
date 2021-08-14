@@ -241,14 +241,14 @@ public:
         unsigned loco_id = feedback_key & LOCO_ID_MASK;
         if (!module_->is_valid_loco_id(loco_id))
         {
-            LOG(WARNING,
-                "Unexpected logon assign key: %08x - invalid loco id",
+            LOG(WARNING, "Unexpected logon assign key: %08x - invalid loco id",
                 (unsigned)feedback_key);
             return;
         }
         uint8_t &flags = module_->loco_flags(loco_id);
         flags &= ~LogonHandlerModule::FLAG_PENDING_ASSIGN;
-        if (flags & LogonHandlerModule::FLAG_COMPLETE) {
+        if (flags & LogonHandlerModule::FLAG_COMPLETE)
+        {
             // duplicate responses.
             return;
         }
@@ -270,8 +270,8 @@ public:
         }
         flags |= LogonHandlerModule::FLAG_COMPLETE;
         flags &= ~LogonHandlerModule::FLAG_PENDING_TICK;
-        LOG(INFO, "Assign completed for loco %d address %d",
-            loco_id, module_->assigned_address(loco_id));
+        LOG(INFO, "Assign completed for loco %d address %d", loco_id,
+            module_->assigned_address(loco_id));
     }
 
     /// Handles a Decoder ID feedback message.
