@@ -44,11 +44,12 @@ namespace dcc
 {
 
 /// Default implementation of the storage and policy module for trains.
-class DefaultLogonModule : public LogonHandlerModule
+template<class Base>
+class ParameterizedLogonModule : public LogonHandlerModule
 {
 public:
     /// We store this structure about each locomotive.
-    struct LocoInfo
+    struct LocoInfo : public Base::Storage
     {
         /// State machine flags about this loco.
         uint8_t flags_ {0};
@@ -140,9 +141,23 @@ public:
         return locos_[loco_id].assignedAddress_;
     }
 
+    /// Invoked when the address assignment completes for a decoder.
+    /// @param loco_id which decoder.
+    void assign_complete(unsigned loco_id)
+    {
+        loco_flags(loco_id) |= LogonHandlerModule::FLAG_COMPLETE;
+    }
+
     uint16_t nextAddress_ {(Defs::ADR_MOBILE_LONG << 8) + 10000};
 
-}; // class DefaultLogonModule
+}; // class ParameterizedLogonModule
+
+class DefaultBase {
+public:
+    struct Storage {};
+};
+
+using DefaultLogonModule = ParameterizedLogonModule<DefaultBase>;
 
 } // namespace dcc
 

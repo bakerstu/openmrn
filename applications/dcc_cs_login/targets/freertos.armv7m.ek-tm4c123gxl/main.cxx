@@ -39,6 +39,7 @@
 #include "openlcb/TractionTrain.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "dcc/Loco.hxx"
+#include "dcc/Logon.hxx"
 #include "dcc/SimpleUpdateLoop.hxx"
 #include "dcc/LocalTrackIf.hxx"
 #include "dcc/RailcomHub.hxx"
@@ -51,6 +52,7 @@
 #include "freertos_drivers/common/PersistentGPIO.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
+#include "TrainStorage.hxx"
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
@@ -151,6 +153,11 @@ openlcb::RailcomToOpenLCBDebugProxy gRailcomProxy(
 
 openlcb::TractionCvSpace traction_cv(stack.memory_config_handler(), &track,
     &railcom_hub, openlcb::MemoryConfigDefs::SPACE_DCC_CV);
+
+// ===== Logon components =====
+TrainLogonModule module{&trainService};
+dcc::LogonHandler<TrainLogonModule> logonHandler{
+        &trainService, &track, &railcom_hub, &module};
 
 /** Entry point to application.
  * @param argc number of command line arguments

@@ -137,6 +137,10 @@ enum
 
     // Address partitions as defined by S-9.2.1.1. These are 6-bit values for
     // the first byte of the reported and assigned address.
+
+    /// Mask for the address partition bits.
+    ADR_MASK = 0b111111,
+    
     /// 7-bit mobile decoders
     ADR_MOBILE_SHORT = 0b111000,
     /// Mask for 7-bit mobile decoders

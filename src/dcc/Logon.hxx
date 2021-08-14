@@ -85,6 +85,10 @@ public:
     /// @return the address to be assigned to this locomotive. 14-bit.
     uint16_t assigned_address(unsigned loco_id);
 
+    /// Invoked when the address assignment completes for a decoder.
+    /// @param loco_id which decoder.
+    void assign_complete(unsigned loco_id);
+    
     /// Flags for the logon handler module.
     enum Flags
     {
@@ -268,7 +272,7 @@ public:
                 return;
             }
         }
-        flags |= LogonHandlerModule::FLAG_COMPLETE;
+        module_->assign_complete(loco_id);
         flags &= ~LogonHandlerModule::FLAG_PENDING_TICK;
         LOG(INFO, "Assign completed for loco %d address %d", loco_id,
             module_->assigned_address(loco_id));
@@ -279,7 +283,8 @@ public:
     /// @param error true if there was a transmission error or the data came in
     /// incorrect format.
     /// @param data 48 bits of payload. The low 44 bits of this is a decoder ID.
-    void process_decoder_id(uintptr_t feedback_key, bool error, uint64_t data)
+    void process_decoder_id(
+        uintptr_t feedback_key, bool error, uint64_t data) override
     {
         hasLogonEnableFeedback_ = 1;
         timer_.ensure_triggered();
