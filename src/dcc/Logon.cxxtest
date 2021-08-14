@@ -66,4 +66,27 @@ TEST_F(LogonTest, logon_per_300msec)
     wait();
 }
 
+TEST_F(LogonTest, select_shortinfo)
+{
+    FakeClock clk;
+    EXPECT_CALL(
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull));
+    logonHandler_.startup_logon(0x2211, 0x5a);
+    wait();
+    Mock::VerifyAndClear(&track_);
+
+    uint64_t decoder_id = 0x39944332211ull;
+    auto *b = railcomHub_.alloc();
+    RailcomDefs::add_did_feedback(decoder_id, b->data());
+    b->data()->feedbackKey = 0xFEFC0000ull;
+
+    EXPECT_CALL(track_,
+        packet(ElementsAre(254, 0xD3, 0x99, 0x44, 0x33, 0x22, 0x11, 0xFF, _),
+            0xFEDFF000ull));
+
+    railcomHub_.send(b);
+    wait();
+}
+
+
 } // namespace dcc

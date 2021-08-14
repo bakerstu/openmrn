@@ -66,6 +66,13 @@ public:
         return locos_.size();
     }
 
+    /// @param loco_id a locomotive identifier
+    /// @return true if this is valid and belongs to a loco we know about.
+    bool is_valid_loco_id(unsigned loco_id)
+    {
+        return loco_id < num_locos();
+    }
+
     /// Finds the storage cell for a locomotive and returns the flag byte for
     /// it.
     /// @param loco_id a valid locomotive ID.
@@ -97,6 +104,7 @@ public:
             locos_.emplace_back();
             locos_[lid].decoderId_ = decoder_id;
             ids_[decoder_id] = lid;
+            return lid;
         }
         else
         {

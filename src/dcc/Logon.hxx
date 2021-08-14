@@ -52,6 +52,10 @@ public:
     /// 0..num_locos() - 1.
     unsigned num_locos();
 
+    /// @param loco_id a locomotive identifier
+    /// @return true if this is valid and belongs to a loco we know about.
+    bool is_valid_loco_id(unsigned loco_id);
+
     /// Finds the storage cell for a locomotive and returns the flag byte for
     /// it.
     /// @param loco_id a valid locomotive ID.
@@ -81,6 +85,10 @@ public:
         /// We sent an assign command
         FLAG_PENDING_ASSIGN = 0x08,
 
+        /// 1 if we ended up in an error state for this loco.
+        FLAG_ERROR_STATE = 0x20,
+        /// 1 if we have asked for a re-try.
+        FLAG_PENDING_RETRY = 0x40,
         /// This decoder needs a get shortinfo command.
         FLAG_PENDING_TICK = 0x80,
     };
@@ -133,6 +141,7 @@ public:
     /// @return the packet classification wrt the logon feature.
     PacketType classify_packet(uintptr_t feedback_key) override
     {
+        LOG(INFO, "classify %x", (unsigned)feedback_key);
         if (feedback_key == LOGON_ENABLE_KEY)
         {
             return LOGON_ENABLE;
@@ -148,6 +157,44 @@ public:
     void process_select_shortinfo(
         uintptr_t feedback_key, bool error, uint64_t data) override
     {
+        if (!is_select_shortinfo_key(feedback_key))
+        {
+            LOG(WARNING, "Unexpected select shortinfo key: %08x", (unsigned)feedback_key);
+            return;
+        }
+        unsigned loco_id = feedback_key & LOCO_ID_MASK;
+        if (!module_->is_valid_loco_id(loco_id)) {
+            LOG(WARNING,
+                "Unexpected select shortinfo key: %08x - invalid loco id",
+                (unsigned)feedback_key);
+            return;
+        }
+        uint8_t& flags = module_->loco_flags(loco_id);
+        flags &= ~LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO;
+        if (error)
+        {
+            if (flags & LogonHandlerModule::FLAG_PENDING_RETRY)
+            {
+                flags &= ~LogonHandlerModule::FLAG_PENDING_RETRY;
+                flags |= LogonHandlerModule::FLAG_ERROR_STATE;
+                return;
+            }
+            else
+            {
+                flags |= LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO |
+                    LogonHandlerModule::FLAG_PENDING_RETRY;
+                logonSelect_.wakeup();
+                return;
+            }
+        }
+        if (flags & (LogonHandlerModule::FLAG_NEEDS_ASSIGN |
+                     LogonHandlerModule::FLAG_PENDING_ASSIGN))
+        {
+            // Got multiple returns.
+            return;
+        }
+        flags |= LogonHandlerModule::FLAG_NEEDS_ASSIGN;
+        logonSelect_.wakeup();
     }
 
     /// Handles a Logon Assign feedback message.
@@ -168,11 +215,21 @@ public:
     void process_decoder_id(uintptr_t feedback_key, bool error, uint64_t data)
     {
         hasLogonEnableFeedback_ = 1;
+        timer_.ensure_triggered();
         if (error)
         {
             hasLogonEnableConflict_ = 1;
+            return;
         }
-        /// @TODO: store decoder ID and trigger a select on it.
+        uint64_t did = data & DECODER_ID_MASK;
+        auto lid = module_->create_or_lookup_loco(did);
+        if (!module_->is_valid_loco_id(lid))
+        {
+            return;
+        }
+        auto &flags = module_->loco_flags(lid);
+        flags |= LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO;
+        logonSelect_.wakeup();
     }
 
 private:
@@ -440,18 +497,38 @@ private:
     static constexpr uintptr_t LOGON_ENABLE_KEY =
         uint32_t((Defs::ADDRESS_LOGON << 24) | (Defs::DCC_LOGON_ENABLE << 16));
 
+    /// Checks if a feedback key is for logon enable.
+    /// @param feedback_key the key
+    /// @return true if this is for a logon enable
+    static constexpr bool is_logon_enable_key(uintptr_t feedback_key)
+    {
+        return feedback_key == LOGON_ENABLE_KEY;
+    }
+
     /// We send this as feedback key for select/get short info packets.
     static constexpr uintptr_t SELECT_SHORTINFO_KEY =
         uint32_t((Defs::ADDRESS_LOGON << 24) | (Defs::DCC_SELECT << 16) |
             (Defs::CMD_READ_SHORT_INFO << 12));
+
+    /// Checks if a feedback key is for select shortinfo.
+    /// @param feedback_key the key
+    /// @return true if this is for a select short info
+    static constexpr bool is_select_shortinfo_key(uintptr_t feedback_key)
+    {
+        return ((feedback_key & ~LOCO_ID_MASK) == SELECT_SHORTINFO_KEY);
+    }
 
     /// How often to send logon enable packets.
     static constexpr unsigned LOGON_PERIOD_MSEC = 295;
 
     /// Maximum allowed locomotive ID.
     static constexpr unsigned MAX_LOCO_ID = 0xfff;
-        
-        
+    /// Mask selecting bits that belong to the locomotive ID.
+    static constexpr uintptr_t LOCO_ID_MASK = MAX_LOCO_ID;
+
+    /// Mask selecting bits that belong to the decoder ID.
+    static constexpr uint64_t DECODER_ID_MASK = (1ull<<44) - 1;
+    
     /// If we need to send packets to the track, we can do it here directly.
     TrackIf *trackIf_;
 
