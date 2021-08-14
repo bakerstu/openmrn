@@ -25,6 +25,19 @@ protected:
         &g_service, &track_, &railcomHub_, &module_};
 };
 
+// This function is never called, and thus is optimized away at linker
+// stage. However, it ensures that the logon handler can be compiled with the
+// interface as the module parameter.
+void compile_test()
+{
+    LogonHandler<LogonHandlerModule> *f = nullptr;
+    f->~LogonHandler();
+}
+
+// Tests that the default handler moudle compiles.
+//auto fn = std::bind(,
+//     &LogonHandler<LogonHandlerModule>::~LogonHandler);
+
 TEST_F(LogonTest, create)
 {
 }
