@@ -47,7 +47,43 @@ namespace dcc
 /// Handler.
 class LogonHandlerModule
 {
+public:
+    /// @return the number of locomotives known. The locomotive IDs are
+    /// 0..num_locos() - 1.
+    unsigned num_locos();
 
+    /// Finds the storage cell for a locomotive and returns the flag byte for
+    /// it.
+    /// @param loco_id a valid locomotive ID.
+    /// @return the flag byte for this loco.
+    uint8_t& loco_flags(unsigned loco_id);
+
+    /// Retrieves the decoder unique ID.
+    /// @param loco_id the dense locomotive identifier.
+    /// @return the decoder unique ID (44 bit, LSb-aligned).
+    uint64_t loco_did(unsigned loco_id);
+    
+    /// Creates a new locomotive by decoder ID, or looks up an existing
+    /// locomotive by decoder ID.
+    /// @param decoder_id 44-bit decoder ID (aligned to LSb).
+    /// @return locomotive ID for this cell.
+    unsigned create_or_lookup_loco(uint64_t decoder_id);
+    
+    /// Flags for the logon handler module.
+    enum Flags {
+        /// This decoder needs a get shortinfo command.
+        FLAG_NEEDS_GET_SHORTINFO = 0x01,
+        /// We sent a get shortinfo command.
+        FLAG_PENDING_GET_SHORTINFO = 0x02,
+
+        /// This decoder needs an assign command.
+        FLAG_NEEDS_ASSIGN = 0x04,
+        /// We sent an assign command
+        FLAG_PENDING_ASSIGN = 0x08,
+
+        /// This decoder needs a get shortinfo command.
+        FLAG_PENDING_TICK = 0x80,
+    };
 }; // LogonHandlerModule
 
 /// Handles the automatic logon flow for DCC decoders.
@@ -60,9 +96,12 @@ public:
     /// @param service points to the executor to use.
     /// @param track pointer to the track interface to send DCC packets to.
     /// @param rcom_hub will register to this railcom hub to get feedback.
-    LogonHandler(Service *service, TrackIf *track, RailcomHubFlow *rcom_hub)
+    /// @param m the module for the storage and CS interface
+    LogonHandler(
+        Service *service, TrackIf *track, RailcomHubFlow *rcom_hub, Module *m)
         : StateFlowBase(service)
         , trackIf_(track)
+        , module_(m)
         , fbParser_(this, rcom_hub)
         , hasLogonEnableConflict_(0)
         , hasLogonEnableFeedback_(0)
@@ -83,6 +122,7 @@ public:
     {
         needShutdown_ = 1;
         timer_.ensure_triggered();
+        logonSelect_.ensure_triggered();
     }
 #endif
 
@@ -242,15 +282,181 @@ private:
         trackIf_->send(b);
     }
 
+    class LogonSelect;
+    friend class LogonSelect;
+
+    /// Flow that sends out addressed packets that are part of the logon
+    /// sequences.
+    class LogonSelect : public StateFlowBase
+                      , public ::Timer
+    {
+    public:
+        LogonSelect(LogonHandler *parent)
+            : StateFlowBase(parent->service())
+            , ::Timer(parent->service()->executor()->active_timers())
+            , parent_(parent)
+        {
+            start(MSEC_TO_NSEC(50));
+        }
+
+        /// Notifies the flow that there is work to do.
+        void wakeup()
+        {
+            if (is_terminated())
+            {
+                cycleNextId_ = 0;
+                start_flow(STATE(search));
+            }
+        }
+
+        /// Called by a timer every 50 msec.
+        void tick()
+        {
+            bool need_wakeup = false;
+            for (unsigned id = 0; id < m()->num_locos() && id < MAX_LOCO_ID;
+                 ++id)
+            {
+                uint8_t& fl = m()->loco_flags(cycleNextId_);
+                if (fl & LogonHandlerModule::FLAG_PENDING_TICK) {
+                    fl &= ~LogonHandlerModule::FLAG_PENDING_TICK;
+                } else if (fl & LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO) {
+                    fl &= ~LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO;
+                    fl |= LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO;
+                    need_wakeup = true;
+                } else if (fl & LogonHandlerModule::FLAG_PENDING_ASSIGN) {
+                    fl &= ~LogonHandlerModule::FLAG_PENDING_ASSIGN;
+                    fl |= LogonHandlerModule::FLAG_NEEDS_ASSIGN;
+                    need_wakeup = true;
+                }
+            }
+            if (need_wakeup)
+            {
+                wakeup();
+            }
+        }
+
+    private:
+        /// Timer callback.
+        long long timeout() override
+        {
+            if (parent_->needShutdown_)
+            {
+                return 0;
+            }
+            tick();
+            return RESTART;
+        }
+
+        /// @return the pointer to the storage module.
+        Module *m()
+        {
+            return parent_->module_;
+        }
+
+        /// @return the pointer to the track interface.
+        TrackIf *track()
+        {
+            return parent_->trackIf_;
+        }
+
+        /// Entry to the flow. Looks through the states to see what we needs to
+        /// be done.
+        Action search()
+        {
+            if (parent_->needShutdown_)
+            {
+                return exit();
+            }
+            bool mid_cycle = (cycleNextId_ != 0);
+            for (;
+                 cycleNextId_ < m()->num_locos() && cycleNextId_ <= MAX_LOCO_ID;
+                 ++cycleNextId_)
+            {
+                uint8_t fl = m()->loco_flags(cycleNextId_);
+                if (fl & LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO) {
+                    return allocate_and_call(
+                        parent_->trackIf_, STATE(send_get_shortinfo));
+                }
+                if (fl & LogonHandlerModule::FLAG_NEEDS_ASSIGN) {
+                    return allocate_and_call(
+                        parent_->trackIf_, STATE(send_assign));
+                }
+            }
+            cycleNextId_ = 0;
+            // Check if we need to run the search for the first half of the
+            // loco space too.
+            if (mid_cycle)
+            {
+                return again();
+            }
+            return exit();
+        }
+
+        /// Called with a buffer allocated. Sends a get shortinfo command to
+        /// the current decoder.
+        Action send_get_shortinfo() {
+            auto *b = get_allocation_result(parent_->trackIf_);
+            uint64_t did = m()->loco_did(cycleNextId_);
+            b->data()->set_dcc_select_shortinfo(did);
+            b->data()->feedback_key =
+                SELECT_SHORTINFO_KEY | (cycleNextId_ & 0xfff);
+            b->set_done(bn_.reset((StateFlowBase*)this));
+            track()->send(b);
+            uint8_t& fl = m()->loco_flags(cycleNextId_);
+            fl &= ~LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO;
+            fl |= LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO;
+            return wait_and_call(STATE(search));
+        }
+
+        /// Called with a buffer allocated. Sends an assign command to
+        /// the current decoder.
+        Action send_assign() {
+            auto *b = get_allocation_result(parent_->trackIf_);
+            uint64_t did = m()->loco_did(cycleNextId_);
+            b->data()->set_dcc_select_shortinfo(did);
+            b->data()->feedback_key =
+                SELECT_SHORTINFO_KEY | (cycleNextId_ & 0xfff);
+            b->set_done(bn_.reset((StateFlowBase*)this));
+            track()->send(b);
+            uint8_t& fl = m()->loco_flags(cycleNextId_);
+            fl &= ~LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO;
+            fl |= LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO |
+                LogonHandlerModule::FLAG_PENDING_TICK;
+            return wait_and_call(STATE(search));
+        }
+
+        /// Owning logon handler.
+        LogonHandler *parent_;
+
+        /// Identifier of the storage that provides the next locomotive to look
+        /// at.
+        unsigned cycleNextId_;
+
+        /// Helper for self notification.
+        BarrierNotifiable bn_;
+    } logonSelect_ {this};
+
     /// We send this as feedback key for logon enable packets.
     static constexpr uintptr_t LOGON_ENABLE_KEY =
         uint32_t((Defs::ADDRESS_LOGON << 24) | (Defs::DCC_LOGON_ENABLE << 16));
 
+    /// We send this as feedback key for select/get short info packets.
+    static constexpr uintptr_t SELECT_SHORTINFO_KEY =
+        uint32_t((Defs::ADDRESS_LOGON << 24) | (Defs::DCC_SELECT << 16) |
+            (Defs::CMD_READ_SHORT_INFO << 12));
+
     /// How often to send logon enable packets.
     static constexpr unsigned LOGON_PERIOD_MSEC = 295;
 
+    /// Maximum allowed locomotive ID.
+    static constexpr unsigned MAX_LOCO_ID = 0xfff;
+        
+        
     /// If we need to send packets to the track, we can do it here directly.
     TrackIf *trackIf_;
+
+    /// Storage module.
+    Module *module_;
 
     /// Helper object for timing.
     StateFlowTimer timer_ {this};
@@ -259,7 +465,7 @@ private:
     LogonFeedbackParser fbParser_;
 
     BarrierNotifiable bn_;
-    
+
     /// Timestamp of the last logon packet we sent out.
     long long lastLogonTime_ {0};
 
@@ -278,9 +484,6 @@ private:
 
     /// Tracks how many logons to send out.
     uint8_t countLogonToSend_ {0};
-
-    /// Identifier of the storage that provides the next locomotive to look at.
-    uint16_t cycleNextId_;
 
 }; // LogonHandler
 

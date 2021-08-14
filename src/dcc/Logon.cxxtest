@@ -2,6 +2,7 @@
 
 #include "utils/async_traction_test_helper.hxx"
 #include "os/FakeClock.hxx"
+#include "dcc/LogonModule.hxx"
 
 using ::testing::ElementsAre;
 
@@ -17,10 +18,11 @@ protected:
         twait();
     }
 
+    DefaultLogonModule module_;
     RailcomHubFlow railcomHub_ {&g_service};
     StrictMock<MockTrackIf> track_;
-    LogonHandler<LogonHandlerModule> logonHandler_ {
-        &g_service, &track_, &railcomHub_};
+    LogonHandler<DefaultLogonModule> logonHandler_ {
+        &g_service, &track_, &railcomHub_, &module_};
 };
 
 TEST_F(LogonTest, create)
