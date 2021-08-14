@@ -70,10 +70,10 @@ TEST_F(LogonTest, select_shortinfo)
 {
     FakeClock clk;
     EXPECT_CALL(
-        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull));
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull))
+        .Times(AtLeast(1));
     logonHandler_.startup_logon(0x2211, 0x5a);
     wait();
-    Mock::VerifyAndClear(&track_);
 
     uint64_t decoder_id = 0x39944332211ull;
     auto *b = railcomHub_.alloc();
@@ -85,6 +85,19 @@ TEST_F(LogonTest, select_shortinfo)
             0xFEDFF000ull));
 
     railcomHub_.send(b);
+    wait();
+
+    clk.advance(MSEC_TO_NSEC(99));
+
+    // If there is no feedback for a while, the packet will get repeated.
+    EXPECT_CALL(track_,
+        packet(ElementsAre(254, 0xD3, 0x99, 0x44, 0x33, 0x22, 0x11, 0xFF, _),
+            0xFEDFF000ull));
+    clk.advance(MSEC_TO_NSEC(10));
+    wait();
+
+    // After one re-try no more packets are generated for this locomotive.
+    clk.advance(MSEC_TO_NSEC(500));
     wait();
 }
 

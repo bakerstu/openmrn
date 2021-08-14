@@ -142,9 +142,13 @@ public:
     PacketType classify_packet(uintptr_t feedback_key) override
     {
         LOG(INFO, "classify %x", (unsigned)feedback_key);
-        if (feedback_key == LOGON_ENABLE_KEY)
+        if (is_logon_enable_key(feedback_key))
         {
             return LOGON_ENABLE;
+        }
+        else if (is_select_shortinfo_key(feedback_key))
+        {
+            return SELECT_SHORTINFO;
         }
         return UNKNOWN;
     }
@@ -376,13 +380,30 @@ private:
                 uint8_t& fl = m()->loco_flags(cycleNextId_);
                 if (fl & LogonHandlerModule::FLAG_PENDING_TICK) {
                     fl &= ~LogonHandlerModule::FLAG_PENDING_TICK;
-                } else if (fl & LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO) {
+                }
+                else if (fl & LogonHandlerModule::FLAG_PENDING_RETRY)
+                {
+                    fl &= ~LogonHandlerModule::FLAG_PENDING_RETRY;
+                    fl |= LogonHandlerModule::FLAG_ERROR_STATE;
+                }
+                else if (fl & LogonHandlerModule::FLAG_ERROR_STATE)
+                {
+                    /// @todo locomotives that are in error state should be
+                    // re-tried every now and then. We would probably need an
+                    // extra counter for this though somewhere.
+                }
+                else if (fl & LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO)
+                {
                     fl &= ~LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO;
-                    fl |= LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO;
+                    fl |= LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO |
+                        LogonHandlerModule::FLAG_PENDING_RETRY;
                     need_wakeup = true;
-                } else if (fl & LogonHandlerModule::FLAG_PENDING_ASSIGN) {
+                }
+                else if (fl & LogonHandlerModule::FLAG_PENDING_ASSIGN)
+                {
                     fl &= ~LogonHandlerModule::FLAG_PENDING_ASSIGN;
-                    fl |= LogonHandlerModule::FLAG_NEEDS_ASSIGN;
+                    fl |= LogonHandlerModule::FLAG_NEEDS_ASSIGN |
+                        LogonHandlerModule::FLAG_PENDING_RETRY;
                     need_wakeup = true;
                 }
             }
@@ -461,7 +482,8 @@ private:
             track()->send(b);
             uint8_t& fl = m()->loco_flags(cycleNextId_);
             fl &= ~LogonHandlerModule::FLAG_NEEDS_GET_SHORTINFO;
-            fl |= LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO;
+            fl |= LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO |
+                LogonHandlerModule::FLAG_PENDING_TICK;
             return wait_and_call(STATE(search));
         }
 
