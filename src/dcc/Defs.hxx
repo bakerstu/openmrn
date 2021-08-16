@@ -134,6 +134,31 @@ enum
     CMD_READ_BLOCK = 0b11111110,
     CMD_READ_BACKGROUND = 0b11111101,
     CMD_WRITE_BLOCK = 0b11111100,
+
+    // Address partitions as defined by S-9.2.1.1. These are 6-bit values for
+    // the first byte of the reported and assigned address.
+    /// 7-bit mobile decoders
+    ADR_MOBILE_SHORT = 0b00111000,
+    /// Mask for 7-bit mobile decoders
+    ADR_MOBILE_SHORT_MASK = 0xFF,
+    /// 14-bit mobile decoders
+    ADR_MOBILE_LONG = 0,
+    /// Maximum value of the first byte for a 14-bit mobile decoder.
+    MAX_MOBILE_LONG = 0b00100111,
+    /// 11-bit extended accessory decoder
+    ADR_ACC_EXT = 0b00101000,
+    /// Mask for 11-bit extended accessory decoder
+    MASK_ACC_EXT = 0b00111000,
+    /// 9-bit basic accessory decoder
+    ADR_ACC_BASIC = 0b00110000,
+    /// Mask for 9-bit basic accessory decoder
+    MASK_ACC_BASIC = 0b00111000,
+
+    /// This value, when given to a decoder, represents an invalid
+    /// (unassignable) address. This is a 2-byte value that can go to the wire
+    /// -- above we only have the constants for address partitions, which is
+    /// the first byte.
+    ADR_INVALID = (ADR_MOBILE_SHORT << 8),
 };
 
 /// Parameters for the Logon Enable command.

@@ -1,10 +1,11 @@
-#include "utils/async_traction_test_helper.hxx"
-#include "openlcb/TractionTestTrain.hxx"
 #include "openlcb/TractionCvSpace.hxx"
-#include "openlcb/MemoryConfig.hxx"
-#include "openlcb/DatagramCan.hxx"
-#include "dcc/PacketFlowInterface.hxx"
+
 #include "dcc/RailcomHub.hxx"
+#include "dcc/TrackIf.hxx"
+#include "openlcb/DatagramCan.hxx"
+#include "openlcb/MemoryConfig.hxx"
+#include "openlcb/TractionTestTrain.hxx"
+#include "utils/async_traction_test_helper.hxx"
 
 using ::testing::ElementsAre;
 
@@ -12,20 +13,6 @@ namespace openlcb
 {
 
 extern Pool *const g_incoming_datagram_allocator = mainBufferPool;
-
-class MockTrackIf : public dcc::PacketFlowInterface
-{
-public:
-    MOCK_METHOD2(packet,
-                 void(const vector<uint8_t> &payload, uintptr_t feedback_key));
-    void send(Buffer<dcc::Packet> *b, unsigned prio) OVERRIDE
-    {
-        vector<uint8_t> payload;
-        payload.assign(b->data()->payload,
-                       b->data()->payload + b->data()->dlc - 1);
-        this->packet(payload, b->data()->feedback_key);
-    }
-};
 
 class TractionCvTestBase : public TractionTest
 {
@@ -83,7 +70,7 @@ protected:
     CanDatagramService datagram_support_{ifCan_.get(), 10, 2};
     MemoryConfigHandler memory_config_handler_{&datagram_support_, nullptr, 3};
     dcc::RailcomHubFlow railcom_hub_{&g_service};
-    StrictMock<MockTrackIf> track_if_;
+    StrictMock<dcc::MockTrackIf> track_if_;
     TractionCvSpace cv_space_{&memory_config_handler_, &track_if_,
                               &railcom_hub_,           0xEF};
 };
