@@ -71,6 +71,9 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 // thread. Useful tuning parameter in case the application runs out of memory.
 OVERRIDE_CONST(main_thread_stack_size, 2500);
 
+OVERRIDE_CONST(local_nodes_count, 30);
+OVERRIDE_CONST(local_alias_cache_size, 32);
+
 // Specifies the 48-bit OpenLCB node identifier. This must be unique for every
 // hardware manufactured, so in production this should be replaced by some
 // easily incrementable method.
