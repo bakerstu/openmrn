@@ -286,8 +286,14 @@ public:
     void process_decoder_id(
         uintptr_t feedback_key, bool error, uint64_t data) override
     {
-        hasLogonEnableFeedback_ = 1;
         timer_.ensure_triggered();
+        if (data)
+        {
+            hasLogonEnableFeedback_ = 1;
+        } else {
+            // No railcom feedback returned.
+            return;
+        }
         if (error)
         {
             hasLogonEnableConflict_ = 1;
@@ -401,7 +407,7 @@ private:
         auto *b = get_allocation_result(trackIf_);
         b->data()->set_dcc_logon_enable(param, cid_, sessionId_);
         b->data()->feedback_key = LOGON_ENABLE_KEY;
-        b->data()->packet_header.rept_count = 3; // 4 repeats.
+        b->data()->packet_header.rept_count = rept;
         b->set_done(bn_.reset(this));
 
         hasLogonEnableFeedback_ = 0;
