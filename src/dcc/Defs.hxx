@@ -120,15 +120,25 @@ enum
     // Logon commands
     /// Logon enable in the 254 address partition
     DCC_LOGON_ENABLE = 0b11111100,
+    DCC_LOGON_ENABLE_MASK = 0b11111100,
     /// Select command in the 254 address partition
     DCC_SELECT = 0b11010000,
+    DCC_SELECT_MASK = 0b11110000,
     /// Get Data Start command in the 254 address partition
     DCC_GET_DATA_START = 0,
     /// Get Data Continue command in the 254 address partition
     DCC_GET_DATA_CONT = 1,
     /// Logon Assign command the 254 address partition
     DCC_LOGON_ASSIGN = 0b11100000,
+    DCC_LOGON_ASSIGN_MASK = 0b11110000,
 
+    /// Minimum value of second byte for DID assigned packets.
+    DCC_DID_MIN = DCC_SELECT,
+    /// Maximum value of second byte for DID assigned packets.
+    DCC_DID_MAX = DCC_LOGON_ASSIGN + 0xF,
+    /// Mask used for the DCC_DID packets primary command byte.
+    DCC_DID_MASK = 0xF0,
+    
     // Commands in 254 Select and 253 addressed.
     CMD_READ_SHORT_INFO = 0b11111111,
     CMD_READ_BLOCK = 0b11111110,
