@@ -38,7 +38,7 @@
 #include <climits>
 #include <string>
 
-#include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfoDefs.hxx"
 #include "utils/OptionalArgs.hxx"
 #include "utils/StringPrintf.hxx"
 
