@@ -108,7 +108,9 @@ public:
         FLAG_ERROR_STATE = 0x20,
         /// 1 if we have asked for a re-try.
         FLAG_PENDING_RETRY = 0x40,
-        /// This decoder needs a get shortinfo command.
+        /// This is a 1-bit pre-scaler on a shared 50 msec timer that controls
+        /// the delay of re-tries. This makes a retry happen in 50 to 100 msec
+        /// time from the original failed attempt.
         FLAG_PENDING_TICK = 0x80,
     };
 }; // LogonHandlerModule
@@ -322,11 +324,13 @@ public:
     }
 
 private:
+    /// Allocates a buffer and sends a Logon Enable(now) packet.
     Action allocate_logon_now()
     {
         return allocate_and_call(trackIf_, STATE(send_logon_now));
     }
 
+    /// Sends a Logon Enable(now) packet.
     Action send_logon_now()
     {
         logon_send_helper(Defs::LogonEnableParam::NOW, 0);
