@@ -71,17 +71,21 @@ public:
         uint8_t part = (t.assignedAddress_ >> 8) & dcc::Defs::ADR_MASK;
         
         if (part == dcc::Defs::ADR_MOBILE_SHORT) {
+            LOG(INFO, "started a short address decoder");
             t.impl_.reset(new dcc::Dcc28Train(
                 dcc::DccShortAddress(t.assignedAddress_ & 0x7f)));
         }
         else if (part >= dcc::Defs::ADR_MOBILE_LONG &&
             part <= dcc::Defs::MAX_MOBILE_LONG)
         {
+            LOG(INFO, "started a long address decoder");
             t.impl_.reset(new dcc::Dcc28Train(dcc::DccLongAddress(
                 t.assignedAddress_ - (dcc::Defs::ADR_MOBILE_LONG << 8))));
         } else {
             // Not a mobile decoder. We don't have an implementation for those
             // yet.
+            LOG(INFO, "started a non-mobile decoder %04x %x",
+                t.assignedAddress_, part);
             return;
         }
         t.node_.reset(new openlcb::TrainNodeForProxy(
