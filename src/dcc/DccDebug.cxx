@@ -87,6 +87,7 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
     unsigned ofs = 0;
     bool is_idle_packet = false;
     bool is_basic_accy_packet = false;
+    bool is_unknown_packet = false;
     unsigned accy_address = 0;
     if (pkt.payload[ofs] == 0xff)
     {
@@ -124,9 +125,26 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
         addr |= pkt.payload[ofs];
         ofs++;
         options += StringPrintf(" Long Address %u", addr);
+    } else if (pkt.payload[ofs] == 254) {
+        options += " Logon packet";
+        is_unknown_packet = true;
+        while (ofs < pkt.dlc)
+        {
+            options += StringPrintf(" 0x%02x", pkt.payload[ofs++]);
+        }
+    } else if (pkt.payload[ofs] == 253) {
+        options += " Advanced extended packet";
+        is_unknown_packet = true;
+        while (ofs < pkt.dlc)
+        {
+            options += StringPrintf(" 0x%02x", pkt.payload[ofs++]);
+        }
     }
     uint8_t cmd = pkt.payload[ofs];
-    ofs++;
+    if (!is_unknown_packet)
+    {
+        ofs++;
+    }
     if (is_basic_accy_packet && ((cmd & 0x80) == 0x80))
     {
         accy_address |= cmd & 0b111;
@@ -136,6 +154,9 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
         accy_address |= ((~cmd) & 0b111) << 9;
         options += StringPrintf(" Accy %u %s", accy_address,
             is_activate ? "activate" : "deactivate");
+    }
+    else if (is_unknown_packet)
+    {
     }
     else if ((cmd & 0xC0) == 0x40)
     {
@@ -231,7 +252,7 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
     }
     
     // checksum of packet
-    if (ofs == pkt.dlc && pkt.packet_header.skip_ec == 0)
+    if (ofs == pkt.dlc && (pkt.packet_header.skip_ec == 0 || is_unknown_packet))
     {
         // EC skipped.
     }
