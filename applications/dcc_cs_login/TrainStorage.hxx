@@ -35,20 +35,21 @@
 #ifndef _APPLICATION_CS_LOGON_TRAINSTORAGE_HXX_
 #define _APPLICATION_CS_LOGON_TRAINSTORAGE_HXX_
 
+
 #include "dcc/Defs.hxx"
 #include "dcc/Loco.hxx"
 #include "dcc/LogonModule.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/TractionTrain.hxx"
-#include "utils/Uninitialized.hxx"
+#include "utils/macros.h"
 
 class ModuleBase {
 public:
     struct Storage
     {
-        uninitialized<dcc::Dcc28Train> impl_;
-        uninitialized<openlcb::TrainNodeForProxy> node_;
-        uninitialized<
+        std::unique_ptr<dcc::Dcc28Train> impl_;
+        std::unique_ptr<openlcb::TrainNodeForProxy> node_;
+        std::unique_ptr<
             openlcb::FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>>
             eventProducer_;
     };
@@ -70,20 +71,23 @@ public:
         uint8_t part = (t.assignedAddress_ >> 8) & dcc::Defs::ADR_MASK;
         
         if (part == dcc::Defs::ADR_MOBILE_SHORT) {
-            t.impl_.emplace(dcc::DccShortAddress(t.assignedAddress_ & 0x7f));
+            t.impl_.reset(new dcc::Dcc28Train(
+                dcc::DccShortAddress(t.assignedAddress_ & 0x7f)));
         }
         else if (part >= dcc::Defs::ADR_MOBILE_LONG &&
             part <= dcc::Defs::MAX_MOBILE_LONG)
         {
-            t.impl_.emplace(dcc::DccLongAddress(
-                t.assignedAddress_ - (dcc::Defs::ADR_MOBILE_LONG << 8)));
+            t.impl_.reset(new dcc::Dcc28Train(dcc::DccLongAddress(
+                t.assignedAddress_ - (dcc::Defs::ADR_MOBILE_LONG << 8))));
         } else {
             // Not a mobile decoder. We don't have an implementation for those
             // yet.
             return;
         }
-        t.node_.emplace(trainService_, t.impl_.get_mutable());
-        t.eventProducer_.emplace(t.node_.get_mutable());
+        t.node_.reset(new openlcb::TrainNodeForProxy(
+            trainService_, t.impl_.get()));
+        t.eventProducer_.reset(new openlcb::FixedEventProducer<
+            openlcb::TractionDefs::IS_TRAIN_EVENT>(t.node_.get()));
     }
     
 private:
