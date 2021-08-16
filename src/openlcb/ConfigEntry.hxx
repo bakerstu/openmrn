@@ -38,6 +38,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <endian.h>
+#include <string.h>
 
 #include <functional>
 
