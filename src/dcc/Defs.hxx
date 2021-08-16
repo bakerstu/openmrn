@@ -158,7 +158,7 @@ enum
     /// 14-bit mobile decoders
     ADR_MOBILE_LONG = 0,
     /// Maximum value of the first byte for a 14-bit mobile decoder.
-    MAX_MOBILE_LONG = 0b10111,
+    MAX_MOBILE_LONG = 0b100111,
     /// 11-bit extended accessory decoder
     ADR_ACC_EXT = 0b101000,
     /// Mask for 11-bit extended accessory decoder
