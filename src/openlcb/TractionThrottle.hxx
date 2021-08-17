@@ -48,14 +48,13 @@ namespace openlcb
  *
  */
 class TractionThrottle
-    : public CallableFlow<TractionThrottleInput>,
-      public TractionThrottleInterface
+    : public TractionThrottleBase
 {
 public:
     /// @param node is the openlcb node from which this throttle will be
     /// sending its messages.
     TractionThrottle(Node *node)
-        : CallableFlow<TractionThrottleInput>(node->iface())
+        : TractionThrottleBase(node->iface())
         , node_(node)
     {
         clear_cache();
@@ -73,9 +72,6 @@ public:
     {
         /// Timeout for assign controller request.
         TIMEOUT_NSEC = SEC_TO_NSEC(2),
-        /// Returned from get_fn() when we don't have a cahced value for a
-        /// function.
-        FN_NOT_KNOWN = 0xffff,
         /// Upon a load state request, how far do we go into the function list?
         MAX_FN_QUERY = 28,
         ERROR_UNASSIGNED = 0x4000000,
