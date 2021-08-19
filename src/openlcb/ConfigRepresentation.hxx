@@ -36,7 +36,7 @@
 #define _OPENLCB_CONFIGREPRESENTATION_HXX_
 
 #include "openlcb/ConfigEntry.hxx"
-#include "openlcb/MemoryConfig.hxx"
+#include "openlcb/MemoryConfigDefs.hxx"
 
 namespace openlcb
 {
