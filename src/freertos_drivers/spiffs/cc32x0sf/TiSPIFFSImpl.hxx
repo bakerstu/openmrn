@@ -33,18 +33,13 @@
 
 // #define LOGLEVEL INFO
 
-// This define is needed to call any ROM_xx function in the driverlib.
-#define USE_CC3220_ROM_DRV_API
-
 #include "utils/logging.h"
 
-#include "CC32x0SFSPIFFS.hxx"
+#include "TiSPIFFS.hxx"
 
 #include "spiffs.h"
-#include "inc/hw_types.h"
-#include "driverlib/flash.h"
-#include "driverlib/rom.h"
-#include "driverlib/cpu.h"
+
+#ifdef TI_DUAL_BANK_FLASH
 
 /// Flash configuration register.
 #define FLASH_CONF 0x400FDFC8
@@ -54,6 +49,12 @@
 /// This value defines up to one bit that needs to be XOR-ed to the flash
 /// address before calling the flash APIs to cover for reversed flash banks.
 static const unsigned addr_mirror = (HWREG(FLASH_CONF) & FCMME) ? 0x80000 : 0;
+
+#else
+
+static constexpr unsigned addr_mirror = 0;
+
+#endif // Dual bank flash
 
 // Different options for what to set for flash write locking. These are only
 // needed to debug when the operating system is misbehaving during flash
@@ -93,9 +94,10 @@ static const unsigned addr_mirror = (HWREG(FLASH_CONF) & FCMME) ? 0x80000 : 0;
 #endif
 
 //
-// CC32x0SFSPIFFS::flash_read()
+// TiSPIFFS::flash_read()
 //
-int32_t CC32x0SFSPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
+template<unsigned ERASE_PAGE_SIZE>
+int32_t TiSPIFFS<ERASE_PAGE_SIZE>::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
 {
     HASSERT(addr >= fs_->cfg.phys_addr &&
             (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
@@ -106,9 +108,10 @@ int32_t CC32x0SFSPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
 }
 
 //
-// CC32x0SFSPIFFS::flash_write()
+// TiSPIFFS::flash_write()
 //
-int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
+template<unsigned ERASE_PAGE_SIZE>
+int32_t TiSPIFFS<ERASE_PAGE_SIZE>::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 {
     LOG(INFO, "Write %x sz %d", (unsigned)addr, (unsigned)size);
     union WriteWord
@@ -194,9 +197,10 @@ int32_t CC32x0SFSPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
 }
 
 //
-// CC32x0SFSPIFFS::flash_erase()
+// TiSPIFFS::flash_erase()
 //
-int32_t CC32x0SFSPIFFS::flash_erase(uint32_t addr, uint32_t size)
+template<unsigned ERASE_PAGE_SIZE>
+int32_t TiSPIFFS<ERASE_PAGE_SIZE>::flash_erase(uint32_t addr, uint32_t size)
 {
     LOG(INFO, "Erasing %x sz %d", (unsigned)addr, (unsigned)size);
     HASSERT(addr >= fs_->cfg.phys_addr &&

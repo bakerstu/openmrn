@@ -24,29 +24,31 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file CC32x0SFSPIFFS.hxx
- * This file implements a SPIFFS FLASH driver specific to CC32xx.
+ * @file TiSPIFFS.hxx
+ * This file implements a SPIFFS FLASH driver using the TI driverlib abstraction.
  *
  * @author Stuart W. Baker
  * @date 1 January 2018
  */
 
-#ifndef _FREERTOS_DRIVERS_SPIFFS_CC3220SF_CC32X0SFSPIFFS_HXX_
-#define _FREERTOS_DRIVERS_SPIFFS_CC3220SF_CC32X0SFSPIFFS_HXX_
+#ifndef _FREERTOS_DRIVERS_SPIFFS_CC3220SF_TISPIFFS_HXX_
+#define _FREERTOS_DRIVERS_SPIFFS_CC3220SF_TISPIFFS_HXX_
 
 #include <cstdint>
 
-#include "SPIFFS.hxx"
+#include "freertos_drivers/spiffs/SPIFFS.hxx"
 
-/// Specialization of Serial SPIFFS driver for CC32xx devices.
-class CC32x0SFSPIFFS : public SPIFFS
+/// Specialization of Serial SPIFFS driver for TI driverlib devices.
+/// @param ERASE_PAGE_SIZE size of an erase page in FLASH
+template<unsigned ERASE_PAGE_SIZE>
+class TiSPIFFS : public SPIFFS
 {
 public:
     /// Constructor.
-    CC32x0SFSPIFFS(size_t physical_address, size_t size_on_disk,
-                   size_t logical_block_size, size_t logical_page_size,
-                   size_t max_num_open_descriptors = 16, size_t cache_pages = 8,
-                   std::function<void()> post_format_hook = nullptr)
+    TiSPIFFS(size_t physical_address, size_t size_on_disk,
+             size_t logical_block_size, size_t logical_page_size,
+             size_t max_num_open_descriptors = 16, size_t cache_pages = 8,
+             std::function<void()> post_format_hook = nullptr)
         : SPIFFS(physical_address, size_on_disk, ERASE_PAGE_SIZE,
                  logical_block_size, logical_page_size,
                  max_num_open_descriptors, cache_pages, post_format_hook)
@@ -54,15 +56,12 @@ public:
     }
 
     /// Destructor.
-    ~CC32x0SFSPIFFS()
+    ~TiSPIFFS()
     {
         unmount();
     }
 
 private:
-    /// size of an erase page in FLASH
-    static constexpr size_t ERASE_PAGE_SIZE = 2 * 1024;
-
     /// SPIFFS callback to read flash, in context.
     /// @param addr adddress location to read
     /// @param size size of read in bytes
@@ -80,7 +79,7 @@ private:
     /// @param size size of erase region in bytes
     int32_t flash_erase(uint32_t addr, uint32_t size) override;
 
-    DISALLOW_COPY_AND_ASSIGN(CC32x0SFSPIFFS);
+    DISALLOW_COPY_AND_ASSIGN(TiSPIFFS);
 };
 
-#endif // _FREERTOS_DRIVERS_SPIFFS_CC3220SF_CC32X0SFSPIFFS_HXX_
+#endif // _FREERTOS_DRIVERS_SPIFFS_CC3220SF_TISPIFFS_HXX_
