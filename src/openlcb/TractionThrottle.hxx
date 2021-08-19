@@ -35,11 +35,11 @@
 #ifndef _OPENLCB_TRACTIONTHROTTLE_HXX_
 #define _OPENLCB_TRACTIONTHROTTLE_HXX_
 
+#include "executor/CallableFlow.hxx"
 #include "openlcb/TractionClient.hxx"
 #include "openlcb/TractionDefs.hxx"
 #include "openlcb/TractionThrottleInterface.hxx"
 #include "openlcb/TrainInterface.hxx"
-#include "executor/CallableFlow.hxx"
 
 namespace openlcb
 {
@@ -47,8 +47,7 @@ namespace openlcb
 /** Interface for a single throttle for running a train node.
  *
  */
-class TractionThrottle
-    : public TractionThrottleBase
+class TractionThrottle : public TractionThrottleBase
 {
 public:
     /// @param node is the openlcb node from which this throttle will be

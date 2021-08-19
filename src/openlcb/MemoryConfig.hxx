@@ -35,12 +35,12 @@
 #ifndef _OPENLCB_MEMORYCONFIG_HXX_
 #define _OPENLCB_MEMORYCONFIG_HXX_
 
-#include "openmrn_features.h"
 #include "openlcb/DatagramDefs.hxx"
 #include "openlcb/DatagramHandlerDefault.hxx"
 #include "openlcb/MemoryConfigDefs.hxx"
-#include "utils/Destructable.hxx"
+#include "openmrn_features.h"
 #include "utils/ConfigUpdateService.hxx"
+#include "utils/Destructable.hxx"
 
 class Notifiable;
 

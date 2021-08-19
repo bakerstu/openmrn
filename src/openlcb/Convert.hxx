@@ -35,12 +35,13 @@
 #ifndef _OPENLCB_CONVERT_HXX_
 #define _OPENLCB_CONVERT_HXX_
 
-#include <string.h>
 #include <endian.h>
+#include <string.h>
 
 #include "openlcb/Defs.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
 /** Convenience function to render a 48-bit NMRAnet node ID into a new buffer.
  *
@@ -56,7 +57,7 @@ extern string node_id_to_buffer(NodeID id);
  * @param data is the memory space to write the rendered ID into. There must be
  * at least 6 bytes available at this address.
  */
-extern void node_id_to_data(NodeID id, void* data);
+extern void node_id_to_data(NodeID id, void *data);
 
 /** Converts a 6-byte-long buffer to a node ID.
  *
@@ -64,20 +65,21 @@ extern void node_id_to_data(NodeID id, void* data);
  * big-endian node id.
  * @returns the node id (in host endian).
  */
-extern NodeID buffer_to_node_id(const string& buf);
+extern NodeID buffer_to_node_id(const string &buf);
 /** Converts 6 bytes of big-endian data to a node ID.
  *
  * @param d is a pointer to at least 6 valid bytes.
  * @returns the node ID represented by the first 6 bytes of d.
  */
-extern NodeID data_to_node_id(const void* d);
+extern NodeID data_to_node_id(const void *d);
 
 /** Converts an Event ID to a Payload suitable to be sent as an event report. */
 extern Payload eventid_to_buffer(uint64_t eventid);
 
 /** Takes 8 bytes (big-endian) from *data, and returns the event id they
  * represent. */
-inline uint64_t data_to_eventid(const void* data) {
+inline uint64_t data_to_eventid(const void *data)
+{
     uint64_t ret = 0;
     memcpy(&ret, data, 8);
     return be64toh(ret);
@@ -92,13 +94,13 @@ extern string error_to_buffer(uint16_t error_code, uint16_t mti);
 extern string error_to_buffer(uint16_t error_code);
 
 /** Writes an error code into a payload object at a given pointer. */
-extern void error_to_data(uint16_t error_code, void* data);
+extern void error_to_data(uint16_t error_code, void *data);
 
 /** Parses an error code from a payload object at a given pointer. */
 extern uint16_t data_to_error(const void *data);
 
 /** Appends an error to the end of an existing buffer. */
-extern void append_error_to_buffer(uint16_t error_code, Payload* p);
+extern void append_error_to_buffer(uint16_t error_code, Payload *p);
 
 /** Parses the payload of an Optional Interaction Rejected or Terminate Due To
  * Error message.
@@ -109,20 +111,23 @@ extern void append_error_to_buffer(uint16_t error_code, Payload* p);
  * @param error_message will hold all remaining bytes that came with the error
  * message.
  */
-extern void buffer_to_error(const Payload& payload, uint16_t* error_code, uint16_t* mti, string* error_message);
+extern void buffer_to_error(const Payload &payload, uint16_t *error_code,
+    uint16_t *mti, string *error_message);
 
 /** A global class / variable for empty or not-yet-initialized payloads. */
 extern string EMPTY_PAYLOAD;
 
 /// @return the high 4 bytes of a node ID. @param id is the node ID.
-inline unsigned node_high(NodeID id) {
+inline unsigned node_high(NodeID id)
+{
     return id >> 32;
 }
 /// @return the low 4 bytes of a node ID. @param id is the node ID.
-inline unsigned node_low(NodeID id) {
+inline unsigned node_low(NodeID id)
+{
     return id & 0xffffffffU;
 }
 
-}  // namespace openlcb
+} // namespace openlcb
 
-#endif 
+#endif

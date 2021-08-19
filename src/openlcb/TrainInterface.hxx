@@ -35,8 +35,8 @@
 #ifndef _OPENLCB_TRAININTERFACE_HXX_
 #define _OPENLCB_TRAININTERFACE_HXX_
 
-#include "openlcb/Velocity.hxx"
 #include "dcc/Defs.hxx"
+#include "openlcb/Velocity.hxx"
 
 namespace openlcb {
 

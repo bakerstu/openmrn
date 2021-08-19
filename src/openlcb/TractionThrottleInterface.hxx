@@ -35,11 +35,12 @@
 #ifndef _OPENLCB_TRACTIONTHROTTLEINTERFACE_HXX_
 #define _OPENLCB_TRACTIONTHROTTLEINTERFACE_HXX_
 
-#include "openlcb/Defs.hxx"
 #include "executor/CallableFlow.hxx"
+#include "openlcb/Defs.hxx"
 #include "openlcb/TrainInterface.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
 class Node;
 struct TractionThrottleInput;
@@ -126,7 +127,8 @@ struct TractionThrottleInput : public CallableFlowRequestBase
         cmd = CMD_LOAD_STATE;
     }
 
-    void reset(const TractionThrottleCommands::ConsistAdd &, NodeID slave, uint8_t flags)
+    void reset(const TractionThrottleCommands::ConsistAdd &, NodeID slave,
+        uint8_t flags)
     {
         cmd = CMD_CONSIST_ADD;
         dst = slave;
@@ -169,8 +171,7 @@ struct TractionThrottleInput : public CallableFlowRequestBase
     uint8_t consistIndex;
 };
 
-class TractionThrottleInterface
-    : public openlcb::TrainImpl
+class TractionThrottleInterface : public openlcb::TrainImpl
 {
 public:
     /// Flips a function on<>off.
@@ -189,7 +190,7 @@ public:
 
     /// @return the controlling node (virtual node of the throttle, i.e., us.)
     /// @todo this function should not be here
-    virtual openlcb::Node* throttle_node() = 0;
+    virtual openlcb::Node *throttle_node() = 0;
 
     /// Sets up a callback for listening for remote throttle updates. When a
     /// different throttle modifies the train node's state, and the
@@ -200,7 +201,8 @@ public:
     /// @param update_callback will be executed when a different throttle
     /// changes the train state. fn is the function number changed, or -1 for
     /// speed update.
-    virtual void set_throttle_listener(std::function<void(int fn)> update_callback) = 0;
+    virtual void set_throttle_listener(
+        std::function<void(int fn)> update_callback) = 0;
 
     /// @return the controlled node (the train node) ID.
     /// @todo this function should not be here
@@ -224,7 +226,6 @@ public:
     };
 };
 
-}  // namespace openlcb
-
+} // namespace openlcb
 
 #endif // _OPENLCB_TRACTIONTHROTTLEINTERFACE_HXX_

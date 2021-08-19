@@ -487,7 +487,8 @@ private:
 };
 
 /** @returns NAN as speed. */
-inline Velocity nan_to_speed() {
+inline Velocity nan_to_speed()
+{
     Velocity s;
     s.set_wire(0xFFFFU);
     return s;

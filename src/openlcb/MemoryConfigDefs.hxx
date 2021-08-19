@@ -35,17 +35,19 @@
 #ifndef _OPENLCB_MEMORYCONFIGDEFS_HXX_
 #define _OPENLCB_MEMORYCONFIGDEFS_HXX_
 
-#include "utils/macros.h"
-#include "openlcb/Defs.hxx"
 #include "openlcb/DatagramDefs.hxx"
+#include "openlcb/Defs.hxx"
+#include "utils/macros.h"
 
-namespace openlcb {
+namespace openlcb
+{
 
 /// Static constants and helper functions related to the Memory Configuration
 /// Protocol.
-struct MemoryConfigDefs {
+struct MemoryConfigDefs
+{
     using DatagramPayload = string;
-    
+
     /** Possible Commands for a configuration datagram.
      */
     enum commands
@@ -146,7 +148,8 @@ struct MemoryConfigDefs {
 
     static constexpr unsigned MAX_DATAGRAM_RW_BYTES = 64;
 
-    static bool is_special_space(uint8_t space) {
+    static bool is_special_space(uint8_t space)
+    {
         return space > SPACE_SPECIAL;
     }
 
@@ -161,9 +164,12 @@ struct MemoryConfigDefs {
         p.push_back(0xff & (offset >> 16));
         p.push_back(0xff & (offset >> 8));
         p.push_back(0xff & (offset));
-        if (is_special_space(space)) {
+        if (is_special_space(space))
+        {
             p[1] |= space & ~SPACE_SPECIAL;
-        } else {
+        }
+        else
+        {
             p.push_back(space);
         }
         p += data;
@@ -181,9 +187,12 @@ struct MemoryConfigDefs {
         p.push_back(0xff & (offset >> 16));
         p.push_back(0xff & (offset >> 8));
         p.push_back(0xff & (offset));
-        if (is_special_space(space)) {
+        if (is_special_space(space))
+        {
             p[1] |= space & ~SPACE_SPECIAL;
-        } else {
+        }
+        else
+        {
             p.push_back(space);
         }
         p.push_back(length);
@@ -265,8 +274,6 @@ private:
     MemoryConfigDefs();
 };
 
-}  // namespace openlcb
-
-
+} // namespace openlcb
 
 #endif // _OPENLCB_MEMORYCONFIGDEFS_HXX_
