@@ -1,9 +1,9 @@
 /** \copyright
- * Copyright (c) 2015, Balazs Racz
+ * Copyright (c) 2021, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are  permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,26 +24,31 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file PacketFlowInterface.hxx
+ * \file PacketProcessor.hxx
  *
- * Shared declarations for sending DCC packets.
+ * Interface used for processing DCC packets to generate the feedback data.
  *
  * @author Balazs Racz
- * @date 16 May 2015
+ * @date 10 July 2021
  */
 
-#ifndef _DCC_PACKETFLOWINTERFACE_HXX_
-#define _DCC_PACKETFLOWINTERFACE_HXX_
+#include "dcc/packet.h"
 
-#include "executor/StateFlow.hxx"
-#include "dcc/Packet.hxx"
+class RailcomDriver;
 
-namespace dcc {
+namespace dcc
+{
 
-/// Interface for flows and ports receiving a sequence of DCC (track) packets.
-typedef FlowInterface<Buffer<dcc::Packet>> PacketFlowInterface;
+/// Abstract class that is used as a plugin in the DCC decoder. The application
+/// logic can implement this class and it will be called from the
+/// interrupt. This is necessary to correctly generate the RailCom feedback to
+/// be sent back.
+class PacketProcessor
+{
+public:
+    /// Called in an OS interrupt with the arrived packet.
+    virtual void packet_arrived(
+        const DCCPacket *pkt, RailcomDriver *railcom) = 0;
+};
 
-}  // namespace dcc
-
-
-#endif
+} // namespace dcc

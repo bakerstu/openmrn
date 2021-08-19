@@ -221,7 +221,10 @@ struct DccHwDefs {
   static const int RAILCOM_CUTOUT_START_DELTA_USEC = -20;
   static const int RAILCOM_CUTOUT_MID_DELTA_USEC = 0;
   static const int RAILCOM_CUTOUT_END_DELTA_USEC = -10;
-  static const int RAILCOM_CUTOUT_POST_DELTA_USEC = -10;
+  static const int RAILCOM_CUTOUT_POST_DELTA_USEC = -16;
+  /// Adds this to the negative half after the railcom cutout is done.
+  static const int RAILCOM_CUTOUT_POST_NEGATIVE_DELTA_USEC = -4;
+    
 
   /** These timer blocks will be synchronized once per packet, when the
    *  deadband delay is set up. */
@@ -251,16 +254,16 @@ struct DccHwDefs {
    *  '1' bit */
   static int dcc_preamble_count() { return 16; }
 
-  static bool generate_railcom_halfzero() { return false; }
+  static bool generate_railcom_halfzero() { return true; }
 
   static void flip_led() {}
 
   /** the time (in nanoseconds) to wait between turning off the low driver and
    * turning on the high driver. */
-  static const int H_DEADBAND_DELAY_NSEC = 250;
+  static const int H_DEADBAND_DELAY_NSEC = 0;
   /** the time (in nanoseconds) to wait between turning off the high driver and
    * turning on the low driver. */
-  static const int L_DEADBAND_DELAY_NSEC = 250;
+  static const int L_DEADBAND_DELAY_NSEC = 0;
 
   /** number of outgoing messages we can queue */
   static const size_t Q_SIZE = 4;

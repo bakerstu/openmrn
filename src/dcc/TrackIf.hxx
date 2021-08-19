@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2021, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,38 +24,24 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file main.cxx
- *
- * An application that blinks an LED.
+ * \file TrackIf.hxx
+ * Helper definitions for classes using track interface directly.
  *
  * @author Balazs Racz
- * @date 3 Aug 2013
+ * @date 12 Aug 2021
  */
 
-#ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE // for usleep
-#endif
+#ifndef _DCC_TRACKIF_HXX_
+#define _DCC_TRACKIF_HXX_
 
-#include <stdio.h>
-#include <unistd.h>
+#include "dcc/Packet.hxx"
+#include "executor/StateFlow.hxx"
 
-#include "os/os.h"
-#include "utils/blinker.h"
-
-/** Entry point to application.
- * @param argc number of command line arguments
- * @param argv array of command line arguments
- * @return 0, should never return
- */
-int appl_main(int argc, char *argv[])
+namespace dcc
 {
-    setblink(0);
-    while (1)
-    {
-        resetblink(1);
-        usleep(500000);
-        resetblink(0);
-        usleep(500000);
-    }
-    return 0;
-}
+
+using TrackIf = FlowInterface<Buffer<dcc::Packet>>;
+
+} // namespace dcc
+
+#endif // _DCC_TRACKIF_HXX_

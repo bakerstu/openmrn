@@ -63,7 +63,8 @@
 #include "utils/ESPWifiClient.hxx"
 #endif
 
-#if defined (BOARD_LAUNCHPAD_EK) || defined (__linux__)
+#if (defined (TARGET_IS_CC3200) || defined (__linux__) || defined(PART_TM4C1294NCPDT)) && (!defined(NO_CONSOLE))
+#define HAVE_CONSOLE
 #include "console/Console.hxx"
 #endif
 
@@ -206,9 +207,7 @@ openlcb::BitEventConsumer consumer(&logger);
  */
 int appl_main(int argc, char* argv[])
 {
-#if defined (BOARD_LAUNCHPAD_EK)
-    //new Console(stack.executor(), Console::FD_STDIN, Console::FD_STDOUT);
-#elif defined (__linux__)
+#ifdef HAVE_CONSOLE
     new Console(stack.executor(), Console::FD_STDIN, Console::FD_STDOUT, 2121);
 #endif
 
