@@ -38,15 +38,15 @@
 /// @todo(balazs.racz) remove this dep
 #include <string>
 
-#include "openlcb/Node.hxx"
-#include "openlcb/Defs.hxx"
-#include "openlcb/Convert.hxx"
 #include "executor/Dispatcher.hxx"
-#include "executor/Service.hxx"
 #include "executor/Executor.hxx"
+#include "executor/Service.hxx"
+#include "openlcb/Convert.hxx"
+#include "openlcb/Defs.hxx"
+#include "openlcb/Node.hxx"
 #include "utils/Buffer.hxx"
-#include "utils/Queue.hxx"
 #include "utils/Map.hxx"
+#include "utils/Queue.hxx"
 
 namespace openlcb
 {

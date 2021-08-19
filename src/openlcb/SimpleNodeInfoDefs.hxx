@@ -37,7 +37,8 @@
 
 #include <inttypes.h>
 
-namespace openlcb {
+namespace openlcb
+{
 
 /// Structure representing the layout of the memory space for Simple Node
 /// Identification manufacturer-specified data.
@@ -60,10 +61,10 @@ struct SimpleNodeDynamicValues
 };
 
 static_assert(sizeof(struct SimpleNodeDynamicValues) == 128,
-              "SNIP dynamic file is not of the right size in your compiler");
+    "SNIP dynamic file is not of the right size in your compiler");
 
 static_assert(sizeof(struct SimpleNodeStaticValues) == 125,
-              "SNIP static file is not of the right size in your compiler");
+    "SNIP static file is not of the right size in your compiler");
 
 /** This static data will be exported as the first block of SNIP. The version
  *  field must contain "4". */
@@ -72,7 +73,6 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA;
  *  long, and include the version number of "2" at the beginning. */
 extern const char *const SNIP_DYNAMIC_FILENAME;
 
-
-}  // namespace openlcb
+} // namespace openlcb
 
 #endif // _OPENLCB_SIMPLENODEINFODEFS_HXX_

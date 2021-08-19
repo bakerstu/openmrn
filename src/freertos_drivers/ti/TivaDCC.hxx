@@ -520,6 +520,7 @@ private:
     RailcomDriver* railcomDriver_; /**< Will be notified for railcom cutout events. */
     /// Seed for a pseudorandom sequence.
     unsigned seed_ = 0xb7a11bae;
+
     /// Parameters for a linear RNG: modulus
     static constexpr unsigned PMOD = 65213;
     /// Parameters for a linear RNG: multiplier
@@ -864,17 +865,19 @@ inline void TivaDCC<HW>::interrupt_handler()
 
         if (!HW::H_DEADBAND_DELAY_NSEC)
         {
+            TDebug::Resync::toggle();
             MAP_TimerDisable(HW::CCP_BASE, TIMER_A|TIMER_B);
             // Sets final values for the cycle.
             MAP_TimerLoadSet(HW::CCP_BASE, TIMER_A|TIMER_B, timing->period);
             MAP_TimerMatchSet(HW::CCP_BASE, TIMER_A, timing->transition_a);
             MAP_TimerMatchSet(HW::CCP_BASE, TIMER_B, timing->transition_b);
-            MAP_TimerEnable(HW::CCP_BASE, TIMER_A|TIMER_B);
+            MAP_TimerEnable(HW::CCP_BASE, TIMER_A | TIMER_B);
 
             MAP_TimerDisable(HW::INTERVAL_BASE, TIMER_A);
             MAP_TimerLoadSet(
                 HW::INTERVAL_BASE, TIMER_A, timing->interval_period);
             MAP_TimerEnable(HW::INTERVAL_BASE, TIMER_A);
+            TDebug::Resync::toggle();
 
             // Switches back to asynch timer update.
             HWREG(HW::CCP_BASE + TIMER_O_TAMR) |=
@@ -916,7 +919,15 @@ inline void TivaDCC<HW>::interrupt_handler()
         }
         
         last_bit = current_bit;
-        if (current_bit == DCC_RC_HALF_ZERO)
+        bit_repeat_count = 0;
+        if (current_bit == RAILCOM_CUTOUT_POST)
+        {
+            // RAILCOM_CUTOUT_POST purposefully misaligns the two timers. We
+            // need to resync when the next interval timer ticks to get them
+            // back.
+            resync = true;
+        }
+        else if (current_bit == DCC_RC_HALF_ZERO)
         {
             // After resync the same bit is output twice. We don't want that
             // with the half-zero, so we preload the DCC preamble bit.
@@ -998,7 +1009,7 @@ inline void TivaDCC<HW>::interrupt_handler()
 /// Converts a time length given in microseconds to the number of clock cycles.
 /// @param usec is time given in microseconds.
 /// @return time given in clock cycles.
-static uint32_t usec_to_clocks(uint32_t usec) {
+static const uint32_t usec_to_clocks(uint32_t usec) {
     return (configCPU_CLOCK_HZ / 1000000) * usec;
 }
 
@@ -1094,7 +1105,8 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     // some fraction of the high part, then a full low side, then we stretch
     // the low side to avoid the packet transition glitch.
     fill_timing(RAILCOM_CUTOUT_POST, remaining_high + 56 + 20, remaining_high,
-        remaining_high + 56 + h_deadband);
+        remaining_high + 56 + h_deadband +
+            HW::RAILCOM_CUTOUT_POST_NEGATIVE_DELTA_USEC);
 
     // We need to disable the timers before making changes to the config.
     MAP_TimerDisable(HW::CCP_BASE, TIMER_A);

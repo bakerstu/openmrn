@@ -211,11 +211,14 @@ class RailcomToOpenLCBDebugProxy : public dcc::RailcomHubPort
 {
 public:
     RailcomToOpenLCBDebugProxy(dcc::RailcomHubFlow *parent, Node *node,
-        dcc::RailcomHubPort *occupancy_port)
+        dcc::RailcomHubPort *occupancy_port, bool ch1_enabled = true,
+        bool ack_enabled = true)
         : dcc::RailcomHubPort(parent->service())
         , parent_(parent)
         , node_(node)
         , occupancyPort_(occupancy_port)
+        , ch1Enabled_(ch1_enabled)
+        , ackEnabled_(ack_enabled)
     {
         parent_->register_port(this);
     }
@@ -251,7 +254,7 @@ public:
         {
             return release_and_exit();
         }
-        if (message()->data()->ch1Size)
+        if (message()->data()->ch1Size && ch1Enabled_)
         {
             return allocate_and_call(
                 node_->iface()->global_message_write_flow(),
@@ -281,7 +284,10 @@ public:
 
     Action maybe_send_ch2()
     {
-        if (message()->data()->ch2Size)
+        if (message()->data()->ch2Size &&
+            (ackEnabled_ ||
+                dcc::railcom_decode[message()->data()->ch2Data[0]] !=
+                    dcc::RailcomDefs::ACK))
         {
             return allocate_and_call(
                 node_->iface()->global_message_write_flow(),
@@ -312,6 +318,10 @@ public:
     dcc::RailcomHubFlow *parent_{nullptr};
     Node *node_;
     dcc::RailcomHubPort *occupancyPort_;
+    /// True if we should transmit channel1 data.
+    uint8_t ch1Enabled_ : 1;
+    /// True if we should transmit data that starts with an ACK.
+    uint8_t ackEnabled_ : 1;
 };
 
 } // namespace openlcb

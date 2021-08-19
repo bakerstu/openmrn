@@ -35,10 +35,11 @@
 #ifndef _OPENLCB_TRAININTERFACE_HXX_
 #define _OPENLCB_TRAININTERFACE_HXX_
 
-#include "openlcb/Velocity.hxx"
 #include "dcc/Defs.hxx"
+#include "openlcb/Velocity.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
 /// Represents an OpenLCB speed value with accessors to convert to and from
 /// various formats.

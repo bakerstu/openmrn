@@ -1,0 +1,220 @@
+#include "dcc/LogonFeedback.hxx"
+
+#include "utils/test_main.hxx"
+
+using ::testing::Return;
+
+namespace dcc
+{
+
+class MockFeedbackCallbacks : public LogonFeedbackCallbacks
+{
+public:
+    MOCK_METHOD1(
+        classify_packet, LogonFeedbackCallbacks::PacketType(uintptr_t));
+    MOCK_METHOD3(process_select_shortinfo,
+        void(uintptr_t feedback_key, bool error, uint64_t data));
+
+    MOCK_METHOD3(process_logon_assign,
+        void(uintptr_t feedback_key, bool error, uint64_t data));
+
+    MOCK_METHOD3(process_decoder_id,
+        void(uintptr_t feedback_key, bool error, uint64_t data));
+};
+
+class ParseFeedbackTest : public ::testing::Test
+{
+protected:
+    /// Creates a valid 8-byte railcom feedback in fb_.
+    void create_valid_code()
+    {
+        RailcomDefs::append12(15, 0x44, fb_.ch1Data);
+        fb_.ch1Size = 2;
+
+        RailcomDefs::append36(0xa, 0x11223344, fb_.ch2Data);
+        fb_.ch2Size = 6;
+    }
+
+    /// Sends the current value in fb_ to the railcom hub.
+    void send()
+    {
+        auto *b = hub_.alloc();
+        b->data()->value() = fb_;
+        hub_.send(b);
+        wait_for_main_executor();
+    }
+
+    ::testing::StrictMock<MockFeedbackCallbacks> cb_;
+    dcc::Feedback fb_;
+    RailcomHubFlow hub_ {&g_service};
+    LogonFeedbackParser parser_ {&cb_, &hub_};
+};
+
+TEST_F(ParseFeedbackTest, valid_code)
+{
+    create_valid_code();
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(0u, d >> LogonFeedbackParser::ERROR_SHIFT);
+    EXPECT_EQ(8u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    EXPECT_EQ(0xf44a11223344u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, conflict_code)
+{
+    create_valid_code();
+    fb_.ch1Data[1] |= 0xFF;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_GARBAGE |
+            LogonFeedbackParser::ERROR_OUT_OF_ORDER,
+        d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(7u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    // Some bits are blanked out.
+    EXPECT_EQ(0xf40a11223344u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, short_code)
+{
+    create_valid_code();
+    fb_.ch2Size = 4;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_MISSING_DATA,
+        d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(6u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    // Some bits are blanked out.
+    EXPECT_EQ(0xf44a11223000u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, short_code_ack)
+{
+    create_valid_code();
+    RailcomDefs::append36(0xa, 0x11220000, fb_.ch2Data);
+    fb_.ch2Data[5] = RailcomDefs::CODE_ACK;
+    fb_.ch2Data[4] = RailcomDefs::CODE_ACK2;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(
+        LogonFeedbackParser::ERROR_ACK, d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(6u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    // Some bits are blanked out.
+    EXPECT_EQ(0xf44a11220000u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, out_of_order_ack)
+{
+    create_valid_code();
+    fb_.ch1Data[1] = RailcomDefs::CODE_ACK;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_ACK |
+            LogonFeedbackParser::ERROR_OUT_OF_ORDER,
+        d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(7u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    // Some bits are blanked out.
+    EXPECT_EQ(0xf40a11223344u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, one_ack)
+{
+    fb_.ch1Data[0] = RailcomDefs::CODE_ACK;
+    fb_.ch1Size = 1;
+    fb_.ch2Size = 0;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_ACK |
+            LogonFeedbackParser::ERROR_MISSING_DATA,
+        d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(0u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    EXPECT_EQ(0u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, unknown)
+{
+    create_valid_code();
+    fb_.ch1Data[1] = RailcomDefs::CODE_BUSY;
+    uint64_t d = LogonFeedbackParser::parse_code(&fb_);
+    EXPECT_EQ(LogonFeedbackParser::ERROR_UNKNOWN |
+            LogonFeedbackParser::ERROR_OUT_OF_ORDER,
+        d & LogonFeedbackParser::ERROR_MASK);
+    EXPECT_EQ(7u, ((d >> LogonFeedbackParser::LENGTH_SHIFT) & 0xff));
+    // Some bits are blanked out.
+    EXPECT_EQ(0xf40a11223344u, (d & LogonFeedbackParser::PAYLOAD_MASK));
+}
+
+TEST_F(ParseFeedbackTest, decoder_id_reply)
+{
+    constexpr uint64_t decoder_id = 0x79944332211ull;
+    constexpr uintptr_t key = 0x5a5a5a5a;
+    RailcomDefs::add_did_feedback(decoder_id, &fb_);
+    fb_.feedbackKey = key;
+    ::testing::InSequence sq;
+    EXPECT_CALL(cb_, classify_packet(key))
+        .WillOnce(Return(LogonFeedbackCallbacks::LOGON_ENABLE));
+    EXPECT_CALL(
+        cb_, process_decoder_id(key, false, decoder_id | (15ull << 44)));
+    send();
+}
+
+TEST_F(ParseFeedbackTest, short_info_reply)
+{
+    constexpr uintptr_t key = 0x5a5a5a5a;
+    RailcomDefs::add_shortinfo_feedback(0x1382, 0x55, 0xa7, 0x03, &fb_);
+    fb_.feedbackKey = key;
+    ::testing::InSequence sq;
+    EXPECT_CALL(cb_, classify_packet(key))
+        .WillOnce(Return(LogonFeedbackCallbacks::SELECT_SHORTINFO));
+    EXPECT_CALL(cb_, process_select_shortinfo(key, false, 0x938255a7030bull));
+    send();
+}
+
+TEST_F(ParseFeedbackTest, short_info_crc_error)
+{
+    constexpr uintptr_t key = 0x5a5a5a5a;
+    RailcomDefs::add_shortinfo_feedback(0x1382, 0x55, 0xa7, 0x03, &fb_);
+    fb_.feedbackKey = key;
+    fb_.ch2Data[5] = railcom_encode[0x3f];
+    ::testing::InSequence sq;
+    EXPECT_CALL(cb_, classify_packet(key))
+        .WillOnce(Return(LogonFeedbackCallbacks::SELECT_SHORTINFO));
+    // Reports error
+    EXPECT_CALL(cb_, process_select_shortinfo(key, true, 0x938255a7033full));
+    send();
+}
+
+TEST_F(ParseFeedbackTest, short_info_garbage)
+{
+    constexpr uintptr_t key = 0x5a5a5a5a;
+    RailcomDefs::add_shortinfo_feedback(0x1382, 0x55, 0xa7, 0x03, &fb_);
+    fb_.feedbackKey = key;
+    fb_.ch2Data[5] = 0xF3; // invalid 4/8 code
+    ::testing::InSequence sq;
+    EXPECT_CALL(cb_, classify_packet(key))
+        .WillOnce(Return(LogonFeedbackCallbacks::SELECT_SHORTINFO));
+    // Reports error
+    EXPECT_CALL(cb_, process_select_shortinfo(key, true, 0x938255a70300ull));
+    send();
+}
+
+TEST_F(ParseFeedbackTest, assign_response)
+{
+    constexpr uintptr_t key = 0x5a5a5a5a;
+    RailcomDefs::add_assign_feedback(0x5a, 0x327, 0x18, 0x22, &fb_);
+    fb_.feedbackKey = key;
+    ::testing::InSequence sq;
+    EXPECT_CALL(cb_, classify_packet(key))
+        .WillOnce(Return(LogonFeedbackCallbacks::LOGON_ASSIGN));
+    EXPECT_CALL(cb_, process_logon_assign(key, false, 0xd5a327182246ull));
+    send();
+}
+
+TEST_F(ParseFeedbackTest, assign_response_crc_error)
+{
+    constexpr uintptr_t key = 0x5a5a5a5a;
+    RailcomDefs::add_assign_feedback(0x5a, 0x327, 0x18, 0x22, &fb_);
+    fb_.feedbackKey = key;
+    fb_.ch2Data[5] = railcom_encode[0x3f];
+    ::testing::InSequence sq;
+    EXPECT_CALL(cb_, classify_packet(key))
+        .WillOnce(Return(LogonFeedbackCallbacks::LOGON_ASSIGN));
+    // Reports error
+    EXPECT_CALL(cb_, process_logon_assign(key, true, 0xd5a32718227full));
+    send();
+}
+
+} // namespace dcc

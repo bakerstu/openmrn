@@ -62,7 +62,7 @@ class SimpleUpdateLoop : public StateFlow<Buffer<dcc::Packet>, QList<1>>,
                          private UpdateLoopBase
 {
 public:
-    SimpleUpdateLoop(Service *service, PacketFlowInterface *track_send);
+    SimpleUpdateLoop(Service *service, TrackIf *track_send);
     ~SimpleUpdateLoop();
 
     /** Adds a new refresh source to the background refresh packets. */
@@ -94,7 +94,7 @@ public:
 
 private:
     // Place where we forward the packets filled in.
-    PacketFlowInterface *trackSend_;
+    TrackIf *trackSend_;
 
     // Packet sources to ask about refreshing data periodically.
     vector<dcc::PacketSource *> refreshSources_;
