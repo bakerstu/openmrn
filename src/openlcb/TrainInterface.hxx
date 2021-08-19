@@ -38,7 +38,8 @@
 #include "dcc/Defs.hxx"
 #include "openlcb/Velocity.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
 /// Represents an OpenLCB speed value with accessors to convert to and from
 /// various formats.
