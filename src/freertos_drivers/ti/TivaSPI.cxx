@@ -82,6 +82,18 @@ TivaSPI::TivaSPI(const char *name, unsigned long base, uint32_t interrupt,
     update_configuration();
 }
 
+TivaSPI::~TivaSPI()
+{
+}
+
+void TivaSPI::enable()
+{
+}
+
+void TivaSPI::disable()
+{
+}
+
 /** Update the configuration of the bus.
  * @return >= 0 upon success, -errno upon failure
  */
@@ -108,21 +120,22 @@ int TivaSPI::update_configuration()
 
     HASSERT(bitsPerWord <= 16);
 
+    uint32_t clock = cm3_cpu_clock_hz;
     /* The SPI peripheral only supoprts certain frequencies and driverlib does
      * not properly round down. We can do some math to make sure that driverlib
      * makes the correct selection.
      */
-    if (speedHz > (clock_ / 2))
+    if (speedHz > (clock / 2))
     {
-        speedHz = clock_ / 2;
+        speedHz = clock / 2;
     }
-    else if ((clock_ % speedHz) != 0)
+    else if ((clock % speedHz) != 0)
     {
-        speedHz = clock_ / ((clock_ / speedHz) + 1);
+        speedHz = clock / ((clock / speedHz) + 1);
     }
 
     MAP_SSIDisable(base_);
-    MAP_SSIConfigSetExpClk(base_, clock_, new_mode, SSI_MODE_MASTER,
+    MAP_SSIConfigSetExpClk(base_, clock, new_mode, SSI_MODE_MASTER,
                            speedHz, bitsPerWord);
     MAP_IntPrioritySet(interrupt_, configKERNEL_INTERRUPT_PRIORITY);
     MAP_IntEnable(interrupt_);
@@ -131,7 +144,7 @@ int TivaSPI::update_configuration()
     // these values are used to quickly program instance local configuration
     // settings
     spiCr0_ = HWREG(base_ + SSI_O_CR0);
-    spiCr1_ = HWREG(base_ + SSI_O_CR0);
+    spiCr1_ = HWREG(base_ + SSI_O_CR1);
     spiPrescaler_ = HWREG(base_ + SSI_O_CPSR);
 
     return 0;

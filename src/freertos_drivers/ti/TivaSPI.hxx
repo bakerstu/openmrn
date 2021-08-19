@@ -137,6 +137,29 @@ private:
      */
     int update_configuration() override;
 
+    /** Method to transmit/receive the data.
+     * @param msg message to transact.
+     */
+    __attribute__((optimize("-O3")))
+    int transfer(struct spi_ioc_transfer *msg) override
+    {
+        return transfer_polled(msg);
+#if 0
+        /// @todo support DMA
+        if (LIKELY(msg->len < dmaThreshold_))
+        {
+            return transfer_polled(msg);
+        }
+        else
+        {
+            /* use DMA */
+            config_dma(msg);
+        }
+
+        return msg->len;
+#endif        
+    }
+    
     /** Method to transmit/receive the data. This is a template in order to
      * preserve execution speed on type specific pointer math.
      * @param msg message to transact.
@@ -281,7 +304,6 @@ private:
 
     OSSem *sem_; /**< reference to the semaphore belonging to this bus */
     unsigned long base_; /**< base address of this device */
-    unsigned long clock_; /**< clock rate supplied to the module */
     unsigned long interrupt_; /**< interrupt of this device */
     size_t dmaThreshold_; /**< threshold in bytes to start using DMA */
     uint32_t dmaChannelIndexTx_; /**< TX DMA channel index */
