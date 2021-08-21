@@ -249,3 +249,14 @@ TEST(Fixed16Test, MulPow2)
     mulpow2_test(30481, -12.5, 0.00001);
     mulpow2_test(4377, 2.375, 0.0001);
 }
+
+TEST(Fixed16Test, IntegerDivision)
+{
+    Fixed16 ohmsMin{505};
+    Fixed16 ohmsMax{9495};
+    Fixed16 ohmsMid{ohmsMin + ((ohmsMax - ohmsMin) / 2)};
+    Fixed16 stepSizeLow{(ohmsMid - ohmsMin) / 127};
+    Fixed16 stepSizeHigh{(ohmsMax - ohmsMid) / 127};
+
+    EXPECT_NEAR(35.39, stepSizeLow.to_float(), 0.01);
+}
