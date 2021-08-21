@@ -40,19 +40,18 @@ using ::testing::FloatNear;
 TEST(Fixed16Test, CreateRound)
 {
     Fixed16 v1(13);
-    EXPECT_EQ(13, (uint16_t)v1);
+    EXPECT_EQ(13, v1.round());
     v1 = Fixed16(13, 0x7fff);
-    EXPECT_EQ(13, (uint16_t)v1);
+    EXPECT_EQ(13, v1.round());
 
     v1 = Fixed16(13, 0x8000);
-    EXPECT_EQ(14, (uint16_t)v1);
-    EXPECT_EQ(14, (int)v1);
+    EXPECT_EQ(14, v1.round());
 
     v1 = Fixed16(13, 0xff00);
-    EXPECT_EQ(14, (uint16_t)v1);
+    EXPECT_EQ(14, v1.round());
 
     v1 = Fixed16(13, 0xffff);
-    EXPECT_EQ(14, (uint16_t)v1);
+    EXPECT_EQ(14, v1.round());
 }
 
 TEST(Fixed16Test, ToFloat)
@@ -124,20 +123,20 @@ TEST(Fixed16Test, Constexpr)
 TEST(Fixed16Test, Arithmetics)
 {
     Fixed16 v1(13);
-    EXPECT_EQ(13, (uint16_t)v1);
+    EXPECT_EQ(13, v1.round());
 
     v1 += 4;
-    EXPECT_EQ(17, (uint16_t)v1);
+    EXPECT_EQ(17, v1.round());
 
     v1 -= 2;
-    EXPECT_EQ(15, (uint16_t)v1);
+    EXPECT_EQ(15, v1.round());
 
     v1 += Fixed16(0, 0x8000);
-    EXPECT_EQ(16, (uint16_t)v1);
+    EXPECT_EQ(16, v1.round());
     EXPECT_EQ(15, v1.trunc());
 
     v1 *= 2;
-    EXPECT_EQ(31, (uint16_t)v1);
+    EXPECT_EQ(31, v1.round());
     EXPECT_EQ(31, v1.trunc());
     EXPECT_EQ(0, v1.frac());
 
@@ -149,12 +148,50 @@ TEST(Fixed16Test, Arithmetics)
     Fixed16 v2 = 1;
     v2 /= 2;
     v1 += v2;
-    EXPECT_EQ(16, (uint16_t)v1);
+    EXPECT_EQ(16, v1.round());
     EXPECT_THAT(v1.to_float(), FloatNear(16.0, 1e-5));
 
     v1 += Fixed16(1) / 2;
     EXPECT_EQ(16, v1.trunc());
     EXPECT_THAT(v1.to_float(), FloatNear(16.5, 1e-5));
+}
+
+TEST(Fixed16Test, ArithmeticsNegative)
+{
+    Fixed16 v1(13);
+    v1 += -2;
+    EXPECT_EQ(11, v1.round());
+
+    v1 = -15;
+
+    v1 += -2;
+    EXPECT_EQ(-17, v1.round());
+
+    v1 -= -2;
+    EXPECT_EQ(-15, v1.round());
+
+    v1 += 2;
+    EXPECT_EQ(-13, v1.round());
+
+    v1 *= 2;
+    EXPECT_EQ(-26, v1.round());
+}
+
+TEST(Fixed16Test, TruncNegative)
+{
+    Fixed16 v1(Fixed16::FROM_DOUBLE, -7.5);
+    EXPECT_EQ(-7, v1.trunc());
+    EXPECT_EQ(0x8000, v1.frac());
+
+    // Note that the exact half is rounded away from zero.
+    EXPECT_EQ(-8, v1.round());
+
+    v1 = {Fixed16::FROM_DOUBLE, 7.5};
+    EXPECT_EQ(7, v1.trunc());
+    EXPECT_EQ(0x8000, v1.frac());
+
+    // Note that the exact half is rounded away from zero.
+    EXPECT_EQ(8, v1.round());
 }
 
 TEST(Fixed16Test, Division)
@@ -212,6 +249,64 @@ TEST(Fixed16Test, SignedZero)
     v1 += 1;
     // Adding and subtracting does not preserve the sign.
     EXPECT_TRUE(v1.is_positive());
+}
+
+TEST(Fixed16Test, Compare)
+{
+    // This array is sorted.
+    Fixed16 arr[] = {
+        {-32767, 0xffff},
+        {-32767, 0x8000},
+        {-32767, 1},
+        {-32767, 0},
+        {-32766, 0xffff},
+        {-32766, 0x8000},
+        {-32766, 1},
+        {-32766, 0},
+        {-1, 0xffff},
+        {-1, 0x8000},
+        {-1, 1},
+        {-1, 0},
+        {0, 0},
+        {0, 1},
+        {0, 0x8000},
+        {0, 0xffff},
+        {1, 0},
+        {1, 1},
+        {1, 0x8000},
+        {1, 0xffff},
+        {32767, 0},
+        {32767, 1},
+        {32767, 0x8000},
+        {32767, 0xffff}
+    }; 
+
+    for (unsigned i = 0; i < ARRAYSIZE(arr); i++) {
+        for (unsigned j = 0; j < i; j++) {
+            string s = StringPrintf("i [%d] %d:%d k=%08x j [%d] %d:%d k=%08x",
+                i, arr[i].trunc(), arr[i].frac(), arr[i].to_key(), j,
+                arr[j].trunc(), arr[j].frac(), arr[j].to_key());
+            SCOPED_TRACE(s);
+            EXPECT_TRUE(arr[j] < arr[i]);
+            EXPECT_TRUE(arr[j] <= arr[i]);
+            EXPECT_FALSE(arr[j] > arr[i]);
+            EXPECT_FALSE(arr[j] >= arr[i]);
+            EXPECT_FALSE(arr[i] < arr[j]);
+            EXPECT_FALSE(arr[i] <= arr[j]);
+            EXPECT_TRUE(arr[i] > arr[j]);
+            EXPECT_TRUE(arr[i] >= arr[j]);
+
+            EXPECT_TRUE(arr[i] != arr[j]);
+            EXPECT_FALSE(arr[i] == arr[j]);
+        }
+        EXPECT_FALSE(arr[i] < arr[i]);
+        EXPECT_FALSE(arr[i] > arr[i]);
+        EXPECT_TRUE(arr[i] <= arr[i]);
+        EXPECT_TRUE(arr[i] >= arr[i]);
+
+        EXPECT_TRUE(arr[i] == arr[i]);
+        EXPECT_FALSE(arr[i] != arr[i]);
+    }
 }
 
 /// Helper function to test mulpow2 operation. Computes base mulpow2 shift with
