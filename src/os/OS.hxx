@@ -35,6 +35,10 @@
 #ifndef _OS_OS_HXX_
 #define _OS_OS_HXX_
 
+// stdint.h must be included prior to endian.h due to:
+// https://github.com/espressif/esp-idf/issues/7498
+#include <stdint.h>
+
 #include <endian.h>
 
 #include "utils/macros.h"
