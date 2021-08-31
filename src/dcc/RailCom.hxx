@@ -79,33 +79,117 @@ struct Feedback : public DCCFeedback
 /// Formats a dcc::Feedback message into a debug string.
 std::string railcom_debug(const Feedback& fb);
 
-/// Special constant values returned by the @ref railcom_decode[] array.
-namespace RailcomDefs
-{
-    /// invalid value (not conforming to the 4bit weighting requirement)
-    static const uint8_t INV = 0xff;
-    /// Railcom ACK; the decoder received the message ok. NOTE: some early
-    /// software versions may have ACK and NACK exchanged.
-    static const uint8_t ACK = 0xfe;
-    /// The decoder rejected the packet.
-    static const uint8_t NACK = 0xfd;
-    /// The decoder is busy; send the packet again. This is typically returned
-    /// when a POM CV write is still pending; the caller must re-try sending the
-    /// packet later.
-    static const uint8_t BUSY = 0xfc;
-    /// Reserved for future expansion.
-    static const uint8_t RESVD1 = 0xfb;
-    /// Reserved for future expansion.
-    static const uint8_t RESVD2 = 0xfa;
-    /// Reserved for future expansion.
-    static const uint8_t RESVD3 = 0xf8;
-}
-
 /** Table for 8-to-6 decoding of railcom data. This table can be indexed by the
  * 8-bit value read from the railcom channel, and the return value will be
  * either a 6-bit number, or one of the constants in @ref RailcomDefs. If the
  * value is invalid, the INV constant is returned. */
 extern const uint8_t railcom_decode[256];
+/// Table for 6-to-8 encoding of railcom data. The table can be indexed by a
+/// 6-bit value that is the semantic content of a railcom byte, and returns the
+/// matching 8-bit value to put out on the UART. This table only contains the
+/// standard codes, for the special codes like ACK use RailcomDefs::ACK.
+extern const uint8_t railcom_encode[64];
+
+/// Special constant values returned by the @ref railcom_decode[] array.
+struct RailcomDefs
+{
+    // These values appear in the railcom_decode table to mean special symbols.
+    enum
+    {
+        /// invalid value (not conforming to the 4bit weighting requirement)
+        INV = 0xff,
+        /// Railcom ACK; the decoder received the message ok. NOTE: There are
+        /// two codepoints that map to this.
+        ACK = 0xfe,
+        /// The decoder rejected the packet.
+        NACK = 0xfd,
+        /// The decoder is busy; send the packet again. This is typically
+        /// returned when a POM CV write is still pending; the caller must
+        /// re-try sending the packet later.
+        BUSY = 0xfc,
+
+        /// Reserved for future expansion.
+        RESVD1 = 0xfb,
+        /// Reserved for future expansion.
+        RESVD2 = 0xfa,
+    };
+
+    // These values need to be sent on the UART
+    enum
+    {
+        /// Code point for ACK  (according to RCN-217)
+        CODE_ACK = 0xf0,
+        /// Another accepted code point for ACK (according to RCN-217)
+        CODE_ACK2 = 0x0f,
+        /// Code point for NACK  (according to RCN-217)
+        CODE_NACK = 0x3c,
+        /// Code point for BUSY  (according to NMRA S-9.3.2)
+        CODE_BUSY = 0xE1,
+    };
+
+    /// Encodes 12 bits of useful payload into 16 bits of UART data to transmit.
+    /// @param nibble top 4 bits of the payload to send
+    /// @param data bottom 8 bits of payload to send.
+    /// @return the uart bytes, first byte in the high 8 bits, second byte in
+    /// the low 8 bits.
+    static uint16_t encode12(uint8_t nibble, uint8_t data)
+    {
+        return (railcom_encode[((nibble << 2) | (data >> 6)) & 0x3F] << 8) |
+            railcom_encode[data & 0x3f];
+    }
+
+    /// Encodes 12 bits of useful payload into 16 bits of UART data to transmit.
+    /// @param nibble top 4 bits of the payload to send
+    /// @param data bottom 8 bits of payload to send.
+    /// @param dst this is where the payload will be stored.
+    static void append12(uint8_t nibble, uint8_t data, uint8_t* dst)
+    {
+        *dst++ = railcom_encode[((nibble << 2) | (data >> 6)) & 0x3F]; 
+        *dst++ = railcom_encode[data & 0x3f]; 
+    }
+
+    /// Encodes a 36-bit railcom datagram into UART bytes.
+    /// @param nibble the railcom ID (top 4 bits)
+    /// @param data the 32 bit payload. Will be transmitted MSbyte-first.
+    /// @param dst this is where the payload will be stored.
+    static void append36(uint8_t nibble, uint32_t data, uint8_t* dst)
+    {
+        *dst++ = railcom_encode[((nibble << 2) | (data >> 30)) & 0x3F]; 
+        *dst++ = railcom_encode[(data >> 24) & 0x3F]; 
+        *dst++ = railcom_encode[(data >> 18) & 0x3F]; 
+        *dst++ = railcom_encode[(data >> 12) & 0x3F]; 
+        *dst++ = railcom_encode[(data >> 6) & 0x3F]; 
+        *dst++ = railcom_encode[data & 0x3F]; 
+    }
+
+    /// Creates a Logon Enable feedback with the decoder unique ID.
+    /// @param decoder_id the 44-bit decoder ID (justified to MSb).
+    /// @param fb the feedback packet to generate.
+    static void add_did_feedback(uint64_t decoder_id, Feedback *fb);
+
+    /// Creates a ShortInfo feedback.
+    /// @param requested_address 14-bit encoding of the requested address.
+    /// @param max_fn maximum supported function (0-255)
+    /// @param psupp protocol support flags (capabilities[0])
+    /// @param ssupp space support flags (capabilities[1])
+    /// @param fb the feedback packet to generate.
+    static void add_shortinfo_feedback(uint16_t requested_address,
+        uint8_t max_fn, uint8_t psupp, uint8_t ssupp, Feedback *fb);
+
+    /// Creates a Logon Assign feedback.
+    /// @param changeflags 8 bits of change flags
+    /// @param changecount 12 bits of changecount
+    /// @param supp2 protocol support flags (capabilities[2])
+    /// @param supp3 protocol support flags (capabilities[3])
+    /// @param fb the feedback packet to generate.
+    static void add_assign_feedback(uint8_t changeflags, uint16_t changecount,
+        uint8_t supp2, uint8_t supp3, Feedback *fb);
+
+private:
+    /// This struct cannot be instantiated.
+    RailcomDefs();
+};
+
 
 /// Packet identifiers from Mobile Decoders.
 enum RailcomMobilePacketId
@@ -115,7 +199,13 @@ enum RailcomMobilePacketId
     RMOB_ADRLOW = 2,
     RMOB_EXT = 3,
     RMOB_DYN = 7,
+    RMOB_XPOM0 = 8,
+    RMOB_XPOM1 = 9,
+    RMOB_XPOM2 = 10,
+    RMOB_XPOM3 = 11,
     RMOB_SUBID = 12,
+    RMOB_LOGON_ASSIGN_FEEDBACK = 13,
+    RMOB_LOGON_ENABLE_FEEDBACK = 15,
 };
 
 /// Represents a single Railcom datagram. There can be multiple railcom
@@ -134,6 +224,10 @@ struct RailcomPacket
         MOB_ADRLOW,
         MOB_EXT,
         MOB_DYN,
+        MOB_XPOM0,
+        MOB_XPOM1,
+        MOB_XPOM2,
+        MOB_XPOM3,
         MOB_SUBID
     };
     /// which detector supplied this data

@@ -63,13 +63,6 @@ SpeedType fp16_to_speed(const void *fp16);
  * to.*/
 void speed_to_fp16(SpeedType speed, void *fp16);
 
-/** @returns NAN as speed. */
-inline SpeedType nan_to_speed() {
-    SpeedType s;
-    s.set_wire(0xFFFFU);
-    return s;
-}
-
 /// Static constants and helper functions for the Traciton protocol family.
 struct TractionDefs {
     /// This event should be produced by train nodes.

@@ -32,6 +32,9 @@
  * @date 16 Dec 2014
  */
 
+#ifndef _UTILS_CRC_HXX_
+#define _UTILS_CRC_HXX_
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -186,3 +189,5 @@ private:
     /// Current value of the state register for the CRC computation.
     uint8_t state_;
 };
+
+#endif // _UTILS_CRC_HXX_

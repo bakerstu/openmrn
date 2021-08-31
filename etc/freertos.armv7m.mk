@@ -48,19 +48,21 @@ ifdef DEBUG_MEMORY_USE
 ARCHFLAGS += -funwind-tables
 endif
 
-ASFLAGS = -c $(ARCHFLAGS)
+COMPILEOPT = -c
+
+ASFLAGS = $(COMPILEOPT) $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -fdata-sections -ffunction-sections \
              -fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
              -D__FreeRTOS__ -DGCC_ARMCM3 -specs=nano.specs
 
-CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
+CFLAGS += $(COMPILEOPT) $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
           -Wstrict-prototypes -D_REENT_SMALL \
           $(CFLAGSENV) $(CFLAGSEXTRA) \
 
 
-CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
+CXXFLAGS += $(COMPILEOPT) $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
             -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
             -fno-exceptions -fno-rtti \
             -Wsuggest-override -Wno-psabi \

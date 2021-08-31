@@ -40,8 +40,7 @@
 namespace dcc
 {
 
-SimpleUpdateLoop::SimpleUpdateLoop(Service *service,
-                                   PacketFlowInterface *track_send)
+SimpleUpdateLoop::SimpleUpdateLoop(Service *service, TrackIf *track_send)
     : StateFlow(service)
     , trackSend_(track_send)
     , nextRefreshIndex_(0)
