@@ -1,5 +1,5 @@
 /** @copyright
- * Copyright (c) 2018, Stuart W Baker
+ * Copyright (c) 2021, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,15 +24,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file CC32x0SFSPIFFS.cxx
- * This file implements a SPIFFS FLASH driver specific to CC32xx.
+ * @file TM4C129xSPIFFS.cxx
+ * This file implements a SPIFFS FLASH driver specific to TI TM4C129x.
  *
- * @author Stuart W. Baker
- * @date 1 January 2018
+ * @author Balazs Racz
+ * @date 19 Aug 2021
  */
 
 // This define is needed to call any ROM_xx function in the driverlib.
-#define USE_CC3220_ROM_DRV_API
+#define TARGET_IS_TM4C129_RA1
 
 #define TI_DUAL_BANK_FLASH
 
@@ -40,11 +40,12 @@
 #include "inc/hw_types.h"
 #include "driverlib/flash.h"
 #include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
 #include "driverlib/cpu.h"
 
-#include "CC32x0SFSPIFFS.hxx"
+#include "TM4C129xSPIFFS.hxx"
 #include "../cc32x0sf/TiSPIFFSImpl.hxx"
 
 /// Explicit instantion of the template so that the functions get compiled and
 /// into this .o file and the linker would find them.
-template class TiSPIFFS<CC32xxSF_ERASE_PAGE_SIZE>;
+template class TiSPIFFS<TM4C129x_ERASE_PAGE_SIZE>;

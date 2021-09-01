@@ -1,5 +1,5 @@
 /** @copyright
- * Copyright (c) 2018, Stuart W Baker
+ * Copyright (c) 2021, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,27 +24,20 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file CC32x0SFSPIFFS.cxx
- * This file implements a SPIFFS FLASH driver specific to CC32xx.
+ * @file TM4C129xSPIFFS.hxx
+ * This file implements a SPIFFS FLASH driver specific to TI TM4C129x.
  *
- * @author Stuart W. Baker
- * @date 1 January 2018
+ * @author Balazs Racz
+ * @date 19 August 2021
  */
 
-// This define is needed to call any ROM_xx function in the driverlib.
-#define USE_CC3220_ROM_DRV_API
+#ifndef _FREERTOS_DRIVERS_SPIFFS_TM4C129_TM4C129xSPIFFS_HXX_
+#define _FREERTOS_DRIVERS_SPIFFS_TM4C129_TM4C129xSPIFFS_HXX_
 
-#define TI_DUAL_BANK_FLASH
+#include "../cc32x0sf/TiSPIFFS.hxx"
 
-#include "spiffs.h"
-#include "inc/hw_types.h"
-#include "driverlib/flash.h"
-#include "driverlib/rom.h"
-#include "driverlib/cpu.h"
+static constexpr unsigned TM4C129x_ERASE_PAGE_SIZE = 16 * 1024;
 
-#include "CC32x0SFSPIFFS.hxx"
-#include "../cc32x0sf/TiSPIFFSImpl.hxx"
+using TM4C129xSPIFFS = TiSPIFFS<TM4C129x_ERASE_PAGE_SIZE>;
 
-/// Explicit instantion of the template so that the functions get compiled and
-/// into this .o file and the linker would find them.
-template class TiSPIFFS<CC32xxSF_ERASE_PAGE_SIZE>;
+#endif // _FREERTOS_DRIVERS_SPIFFS_TM4C129_TM4C129xSPIFFS_HXX_
