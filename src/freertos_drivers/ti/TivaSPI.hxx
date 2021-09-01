@@ -236,7 +236,7 @@ private:
             case 16:
                 return transfer_polled<uint16_t>(msg);
             case 32:
-                return transfer_polled<uint32_t>(msg);
+                DIE("32-bit transers are not supported on this MCU.");
         }
     }
 
