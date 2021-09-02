@@ -74,6 +74,9 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 // If we are using ESP-IDF v4.3 (or later) enable the Esp32Ledc API.
 #include "freertos_drivers/esp32/Esp32Ledc.hxx"
 
+// ESP32-H2 does not have a built-in TWAI controller.
+#if !defined(CONFIG_IDF_TARGET_ESP32H2)
+
 // If we are using ESP-IDF v4.3 (or later) enable the usage of the TWAI device
 // which allows usage of the filesystem based CAN interface methods.
 #include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"
@@ -86,6 +89,8 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 #define HAVE_CAN_FS_SELECT
 #endif
 
+#endif // NOT ESP32-H2
+
 // If we are using ESP-IDF v4.3 (or later) enable the usage of the Esp32WS2812
 // RMT API.
 #include "freertos_drivers/esp32/Esp32WS2812.hxx"
@@ -94,12 +99,13 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #if !defined(CONFIG_IDF_TARGET_ESP32S2) && \
     !defined(CONFIG_IDF_TARGET_ESP32S3) && \
-    !defined(CONFIG_IDF_TARGET_ESP32C3)
-// Note: This code is considered deprecated in favor of the TWAI interface
-// which exposes a select() and fnctl() interface.
-// Support for this will be removed in the future.
+    !defined(CONFIG_IDF_TARGET_ESP32C3) && \
+    !defined(CONFIG_IDF_TARGET_ESP32H2)
+// Note: This code is deprecated in favor of the TWAI interface which exposes
+// both select() and fnctl() interfaces. Support for this may be removed in the
+// future.
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
-#endif // NOT ESP32-S2,ESP32-S3,ESP32-C3
+#endif // ESP32 only
 
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
@@ -117,7 +123,8 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #endif
 
-namespace openmrn_arduino {
+namespace openmrn_arduino
+{
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN
 /// frames via gridconnect format) to the OpenMRN core stack. This can be
@@ -445,7 +452,7 @@ public:
                               , PRO_CPU_NUM);         // cpu core
 #else // NOT ESP32
         stack_->executor()->start_thread(
-            "OpenMRN", 0 /* default priority*/, 0 /* default stack size */);
+            "OpenMRN", 0 /* default priority */, 0 /* default stack size */);
 #endif // ESP32
     }
 #endif // OPENMRN_FEATURE_SINGLE_THREADED
