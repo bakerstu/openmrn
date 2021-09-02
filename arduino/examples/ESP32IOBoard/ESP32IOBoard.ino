@@ -42,19 +42,20 @@
 #include "utils/GpioInitializer.hxx"
 
 // Pick an operating mode below, if you select USE_WIFI it will expose this
-// node on WIFI if you select USE_CAN, this node will be available on CAN.
+// node on WIFI. If USE_CAN / USE_TWAI / USE_TWAI_ASYNC are enabled the node
+// will be available on CAN.
 //
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
 //
-// NOTE: USE_TWAI and USE_TWAI_SELECT are similar to USE_CAN but utilize the
-// new TWAI driver or TWAI select() based driver. Enabling USE_TWAI_SELECT
-// will enable USE_TWAI as well.
+// NOTE: USE_TWAI and USE_TWAI_ASYNC are similar to USE_CAN but utilize the
+// new TWAI driver which offers both select() (default) or fnctl() (async)
+// access.
 
 #define USE_WIFI
 //#define USE_CAN
 //#define USE_TWAI
-//#define USE_TWAI_SELECT
+//#define USE_TWAI_ASYNC
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
@@ -66,12 +67,20 @@
 // factory resets.
 //#define FACTORY_RESET_GPIO_PIN 22
 
-#if defined(USE_TWAI_SELECT) && !defined(USE_TWAI)
+// Uncomment FIRMWARE_UPDATE_BOOTLOADER to enable the bootloader feature when
+// using the TWAI device.
+//#define FIRMWARE_UPDATE_BOOTLOADER
+
+#if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
 #define USE_TWAI
-#endif // USE_TWAI_SELECT && !USE_TWAI
+#endif // USE_TWAI_ASYNC && !USE_TWAI
 
 #if defined(USE_CAN) && defined(USE_TWAI)
 #error USE_CAN and USE_TWAI are mutually exclusive!
+#endif
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_TWAI)
+#error FIRMWARE_UPDATE_BOOTLOADER requires USE_TWAI or USE_TWAI_SELECT.
 #endif
 
 #include "config.h"
@@ -128,6 +137,12 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
 
 #endif // USE_CAN || USE_TWAI
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+// Include the Bootloader HAL implementation for the ESP32. This should only
+// be included in one ino/cpp file.
+#include "freertos_drivers/esp32/Esp32BootloaderHal.hxx"
+#endif // FIRMWARE_UPDATE_BOOTLOADER
 
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
@@ -281,34 +296,8 @@ namespace openlcb
     extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }
 
-void setup()
+void check_for_factory_reset()
 {
-    Serial.begin(115200L);
-
-    uint8_t reset_reason = Esp32SocInfo::print_soc_info();
-
-    // Initialize the SPIFFS filesystem as our persistence layer
-    if (!SPIFFS.begin())
-    {
-        printf("SPIFFS failed to mount, attempting to format and remount\n");
-        if (!SPIFFS.begin(true))
-        {
-            printf("SPIFFS mount failed even with format, giving up!\n");
-            while (1)
-            {
-                // Unable to start SPIFFS successfully, give up and wait
-                // for WDT to kick in
-            }
-        }
-    }
-
-    // initialize all declared GPIO pins
-    GpioInit::hw_init();
-
-#if defined(USE_TWAI) && !defined(USE_CAN)
-    twai.hw_init();
-#endif // USE_TWAI && !USE_CAN
-
 #if defined(FACTORY_RESET_GPIO_PIN)
     // Check the factory reset pin which should normally read HIGH (set), if it
     // reads LOW (clr) delete the cdi.xml and openlcb_config
@@ -335,6 +324,57 @@ void setup()
         }
     }
 #endif // FACTORY_RESET_GPIO_PIN
+}
+
+void setup()
+{
+    Serial.begin(115200L);
+    uint8_t reset_reason = Esp32SocInfo::print_soc_info();
+    LOG(INFO, "[Node] ID: %s", uint64_to_string_hex(NODE_ID).c_str());
+    LOG(INFO, "[SNIP] version:%d, manufacturer:%s, model:%s, hw-v:%s, sw-v:%s",
+        openlcb::SNIP_STATIC_DATA.version,
+        openlcb::SNIP_STATIC_DATA.manufacturer_name,
+        openlcb::SNIP_STATIC_DATA.model_name,
+        openlcb::SNIP_STATIC_DATA.hardware_version,
+        openlcb::SNIP_STATIC_DATA.software_version);
+
+    // Initialize the SPIFFS filesystem as our persistence layer
+    if (!SPIFFS.begin())
+    {
+        printf("SPIFFS failed to mount, attempting to format and remount\n");
+        if (!SPIFFS.begin(true))
+        {
+            printf("SPIFFS mount failed even with format, giving up!\n");
+            while (1)
+            {
+                // Unable to start SPIFFS successfully, give up and wait
+                // for WDT to kick in
+            }
+        }
+    }
+
+    // initialize all declared GPIO pins
+    GpioInit::hw_init();
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+    // initialize the bootloader.
+    esp32_bootloader_init(reset_reason);
+
+    // if we have a request to enter the bootloader we need to process it
+    // before we startup the OpenMRN stack.
+    if (request_bootloader())
+    {
+        esp32_bootloader_run(NODE_ID, TWAI_RX_PIN, TWAI_TX_PIN);
+    }
+    else
+    {
+#endif // FIRMWARE_UPDATE_BOOTLOADER
+
+#if defined(USE_TWAI) && !defined(USE_CAN)
+    twai.hw_init();
+#endif // USE_TWAI && !USE_CAN
+
+    check_for_factory_reset();
 
     // Create the CDI.xml dynamically
     openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
@@ -345,7 +385,6 @@ void setup()
 
     // Start the OpenMRN stack
     openmrn.begin();
-    openmrn.start_executor_thread();
     if (reset_reason == RTCWDT_BROWN_OUT_RESET)
     {
         openmrn.stack()->executor()->add(new CallbackExecutable([]()
@@ -364,12 +403,17 @@ void setup()
     // Add the hardware CAN device as a bridge
     openmrn.add_can_port(
         new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
-#elif defined(USE_TWAI_SELECT)
-    openmrn.add_can_port_select("/dev/twai/twai0");
-#elif defined(USE_TWAI)
+#elif defined(USE_TWAI_ASYNC)
     openmrn.add_can_port_async("/dev/twai/twai0");
+#elif defined(USE_TWAI)
+    openmrn.add_can_port_select("/dev/twai/twai0");
 #endif // USE_CAN
 
+    openmrn.start_executor_thread();
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+    }
+#endif // FIRMWARE_UPDATE_BOOTLOADER
 }
 
 void loop()
@@ -378,3 +422,21 @@ void loop()
     // as possible from the loop() method.
     openmrn.loop();
 }
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+
+extern "C"
+{
+
+/// Updates the state of a status LED.
+///
+/// @param led is the LED to update.
+/// @param value is the new state of the LED.
+void bootloader_led(enum BootloaderLed led, bool value)
+{
+    LOG(VERBOSE, "[Bootloader] bootloader_led(%d, %d)", led, value);
+}
+
+} // extern "C"
+
+#endif // FIRMWARE_UPDATE_BOOTLOADER

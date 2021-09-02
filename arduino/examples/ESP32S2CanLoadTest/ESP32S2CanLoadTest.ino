@@ -45,16 +45,17 @@
 #include <freertos_drivers/arduino/CpuLoad.hxx>
 
 // Pick an operating mode below, if you select USE_WIFI it will expose
-// this node on WIFI if you select USE_TWAI this node will be available on CAN.
+// this node on WIFI if you select USE_TWAI this node will be available on
+// TWAI (CAN).
 // Enabling both options will allow the ESP32 to be accessible from
-// both WiFi and CAN interfaces.
+// both WiFi and TWAI (CAN) interfaces.
 
 #define USE_WIFI
 //#define USE_TWAI
 
-// Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
+// Uncomment USE_TWAI_ASYNC to enable the usage of fnctl() for the TWAI
 // interface.
-//#define USE_TWAI_SELECT
+//#define USE_TWAI_ASYNC
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
@@ -66,11 +67,18 @@
 
 // Configuration option validation
 
-// If USE_TWAI_SELECT or USE_TWAI_ASYNC is enabled but USE_TWAI is not, enable
-// USE_TWAI.
-#if defined(USE_TWAI_SELECT) && !defined(USE_TWAI)
+// If USE_TWAI_ASYNC is enabled but USE_TWAI is not, enable USE_TWAI.
+#if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
 #define USE_TWAI
-#endif // USE_TWAI_SELECT && !USE_TWAI
+#endif // USE_TWAI_ASYNC && !USE_TWAI
+
+#if ARDUINO_USB_CDC_ON_BOOT && defined(USE_USB_CDC_OUTPUT)
+// When ARDUINO_USB_CDC_ON_BOOT = 1 "Serial" will map to USB-CDC automatically
+// and will be enabled on startup. We do not need to wrap or otherwise treat it
+// any differently.
+#undef USE_USB_CDC_OUTPUT
+#warning Disabling USE_USB_CDC_OUTPUT since USB-CDC is enabled in Arduino IDE
+#endif
 
 #include "config.h"
 
@@ -433,16 +441,16 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_TWAI_SELECT)
+#if defined(USE_TWAI_ASYNC)
+    // add TWAI driver with non-blocking usage
+    openmrn.add_can_port_async("/dev/twai/twai0");
+#elif defined(USE_TWAI)
     // add TWAI driver with select() usage
     openmrn.add_can_port_select("/dev/twai/twai0");
 
     // start executor thread since this is required for select() to work in the
     // OpenMRN executor.
     openmrn.start_executor_thread();
-#else
-    // add TWAI driver with non-blocking usage
-    openmrn.add_can_port_async("/dev/twai/twai0");
 #endif // USE_TWAI_SELECT
 }
 

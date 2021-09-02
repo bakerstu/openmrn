@@ -34,6 +34,8 @@
 
 #include <Arduino.h>
 #include <SPIFFS.h>
+#include <USB.h>
+#include <USBCDC.h>
 
 #include <OpenMRNLite.h>
 #include <openlcb/TcpDefs.hxx>
@@ -42,17 +44,20 @@
 #include <utils/GpioInitializer.hxx>
 #include <freertos_drivers/arduino/CpuLoad.hxx>
 
-// Pick an operating mode below, if you select USE_WIFI it will expose
-// this node on WIFI if you select USE_TWAI this node will be available on CAN.
+// Pick an operating mode below, if you select USE_WIFI it will expose this
+// node on WIFI. If USE_CAN / USE_TWAI / USE_TWAI_ASYNC are enabled the node
+// will be available on CAN.
+//
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
+//
+// NOTE: USE_TWAI and USE_TWAI_ASYNC are similar to USE_CAN but utilize the
+// new TWAI driver which offers both select() (default) or fnctl() (async)
+// access.
 
 #define USE_WIFI
 //#define USE_TWAI
-
-// Uncomment USE_TWAI_SELECT to enable the usage of select() for the TWAI
-// interface.
-//#define USE_TWAI_SELECT
+//#define USE_TWAI_ASYNC
 
 // Uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
@@ -66,18 +71,9 @@
 
 // uncomment the line below to specify a GPIO pin that should be used to force
 // a factory reset when the node starts and the GPIO pin reads LOW.
-// Note: GPIO 15 is also used for IO16, care must be taken to ensure that this
+// NOTE: GPIO 15 is also used for IO16, care must be taken to ensure that this
 // GPIO pin is not used both for FACTORY_RESET and an OUTPUT pin.
 //#define FACTORY_RESET_GPIO_PIN 15
-
-// Uncomment FIRMWARE_UPDATE_BOOTLOADER to enable the bootloader feature when
-// using the TWAI device. When this is active and USE_STATUS_LED is active the
-// on-board LED will use the following color scheme:
-// LED_REQUEST: YELLOW
-// LED_WRITE  : PURPLE
-// LED_ACTIVE : GREEN
-// All others will be ignored.
-//#define FIRMWARE_UPDATE_BOOTLOADER
 
 // Uncomment the line below to configure the native USB CDC for all output from
 // OpenMRNLite. When not defined the default UART0 will be used instead.
@@ -86,16 +82,35 @@
 // changed to any other pins.
 //#define USE_USB_CDC_OUTPUT
 
+// Uncomment FIRMWARE_UPDATE_BOOTLOADER to enable the bootloader feature when
+// using the TWAI device. When this is enabled and USE_STATUS_LED is enabled
+// the on-board LED will use the following color scheme:
+// LED_REQUEST: YELLOW
+// LED_WRITE  : PURPLE
+// LED_ACTIVE : GREEN
+// All others will be ignored.
+//#define FIRMWARE_UPDATE_BOOTLOADER
+
 // Configuration option validation
 
-// If USE_TWAI_SELECT or USE_TWAI_ASYNC is enabled but USE_TWAI is not, enable
-// USE_TWAI.
-#if defined(USE_TWAI_SELECT) && !defined(USE_TWAI)
+#if defined(USE_TWAI_ASYNC) && defined(USE_TWAI)
+#error USE_TWAI_ASYNC and USE_TWAI are mutually exclusive!
+#endif
+
+#if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
 #define USE_TWAI
-#endif // USE_TWAI_SELECT && !USE_TWAI
+#endif // USE_TWAI_ASYNC && !USE_TWAI
 
 #if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_TWAI)
-#error TWAI is required for firmware update via bootloader
+#error Firmware update is only supported via TWAI, enable USE_TWAI to use this.
+#endif
+
+#if ARDUINO_USB_CDC_ON_BOOT && defined(USE_USB_CDC_OUTPUT)
+// When ARDUINO_USB_CDC_ON_BOOT = 1 "Serial" will map to USB-CDC automatically
+// and will be enabled on startup. We do not need to wrap or otherwise treat it
+// any differently.
+#undef USE_USB_CDC_OUTPUT
+#warning Disabling USE_USB_CDC_OUTPUT since USB-CDC is enabled in Arduino IDE
 #endif
 
 #include "config.h"
@@ -140,13 +155,13 @@ OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 #if defined(USE_TWAI)
 /// This is the ESP32-S2 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 /// Recommended pins: 40, 41, 42.
-/// Note: If you are using a pin other than 40 you will likely need to adjust
+/// NOTE: If you are using a pin other than 40 you will likely need to adjust
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_40;
 
 /// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
 /// Recommended pins: 40, 41, 42.
-/// Note: If you are using a pin other than 41 you will likely need to adjust
+/// NOTE: If you are using a pin other than 41 you will likely need to adjust
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_41;
 
@@ -159,10 +174,6 @@ static constexpr uint8_t FACTORY_RESET_COUNTDOWN_SECS = 10;
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
 
-// note the dummy string below is required due to a bug in the GCC compiler
-// for the ESP32
-string dummystring("abcdef");
-
 /// ConfigDef comes from config.h and is specific to this particular device and
 /// target. It defines the layout of the configuration memory space and is also
 /// used to generate the cdi.xml file. Here we instantiate the configuration
@@ -170,13 +181,8 @@ string dummystring("abcdef");
 static constexpr openlcb::ConfigDef cfg(0);
 
 #if defined(FIRMWARE_UPDATE_BOOTLOADER)
-/// Flag used to indicate that we have been requested to enter the bootloader
-/// instead of normal node operations. Note that this value will not be
-/// initialized by the system and a check for power on reset will need to be
-/// made to initialize it on first boot.
-static uint32_t RTC_NOINIT_ATTR bootloader_request;
-
-// Include the Bootloader HAL implementation for the ESP32. This is not 
+// Include the Bootloader HAL implementation for the ESP32. This should only
+// be included in one ino/cpp file.
 #include "freertos_drivers/esp32/Esp32BootloaderHal.hxx"
 #endif // FIRMWARE_UPDATE_BOOTLOADER
 
@@ -230,9 +236,30 @@ GPIO_PIN(IO27, GpioInputPU, 42);
 Esp32WS2812 leds(GPIO_NUM_18, RMT_CHANNEL_0, 1);
 Esp32WS2812Gpio status_led(&leds,
                            0  /* index    */,
-                           64 /* red on   */, 0  /* red off   */,
+                           32 /* red on   */, 0  /* red off   */,
                            0  /* green on */, 0  /* green off */,
-                           64 /* blue on  */, 0  /* blue off  */);
+                           32 /* blue on  */, 0  /* blue off  */);
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+// Define an LED for the bootloader request, this will be an approximation of
+// yellow (red and green both on).
+Esp32WS2812Gpio bootloader_request_led(&leds,
+                           0  /* index    */,
+                           32 /* red on   */, 0  /* red off   */,
+                           32 /* green on */, 0  /* green off */,
+                           0  /* blue on  */, 0  /* blue off  */);
+// Define an LED for the bootloader active. This will be pure green when ON.
+Esp32WS2812Gpio bootloader_active_led(&leds,
+                           0  /* index    */,
+                           0  /* red on   */, 0  /* red off   */,
+                           32 /* green on */, 0  /* green off */,
+                           0  /* blue on  */, 0  /* blue off  */);
+// Define an LED for the bootloader write. This will be purple when ON.
+Esp32WS2812Gpio bootloader_write_led(&leds,
+                           0  /* index    */,
+                           32 /* red on   */, 0  /* red off   */,
+                           0  /* green on */, 0  /* green off */,
+                           32  /* blue on  */, 0  /* blue off  */);
+#endif // FIRMWARE_UPDATE_BOOTLOADER
 #endif // USE_STATUS_LED
 
 // List of GPIO objects that will be used for the output pins. You should keep
@@ -377,6 +404,44 @@ void log_output(char* buf, int size)
 }
 #endif // USE_USB_CDC_OUTPUT
 
+void check_for_factory_reset()
+{
+#if defined(FACTORY_RESET_GPIO_PIN)
+    // Check the factory reset pin which should normally read HIGH (set), if it
+    // reads LOW (clr) delete the cdi.xml and openlcb_config
+    if (!FACTORY_RESET_Pin::instance()->read())
+    {
+        LOG(WARNING, "!!!! WARNING WARNING WARNING WARNING WARNING !!!!");
+        LOG(WARNING, "The factory reset GPIO pin %d has been triggered.",
+            FACTORY_RESET_GPIO_PIN);
+        for (uint8_t sec = FACTORY_RESET_COUNTDOWN_SECS;
+             sec > 0 && !FACTORY_RESET_Pin::instance()->read(); sec--)
+        {
+#if defined(USE_STATUS_LED)
+            status_led.toggle();
+#endif
+            LOG(WARNING, "Factory reset will be initiated in %d seconds.",
+                sec);
+            usleep(SEC_TO_USEC(1));
+        }
+        if (!FACTORY_RESET_Pin::instance()->read())
+        {
+            unlink(openlcb::CDI_FILENAME);
+            unlink(openlcb::CONFIG_FILENAME);
+            LOG(WARNING, "Factory reset complete");
+        }
+        else
+        {
+            LOG(WARNING, "Factory reset aborted as pin %d was not held LOW",
+                FACTORY_RESET_GPIO_PIN);
+        }
+#if defined(USE_STATUS_LED)
+        status_led.clr();
+#endif
+    }
+#endif // FACTORY_RESET_GPIO_PIN
+}
+
 void setup()
 {
 #if !defined(USE_USB_CDC_OUTPUT)
@@ -395,12 +460,12 @@ void setup()
 
     uint8_t reset_reason = Esp32SocInfo::print_soc_info();
     LOG(INFO, "[Node] ID: %s", uint64_to_string_hex(NODE_ID).c_str());
-    LOG(INFO, "[SNIP] version:%d, manufacturer:%s, model:%s, hw-v:%s, sw-v:%s"
-      , openlcb::SNIP_STATIC_DATA.version
-      , openlcb::SNIP_STATIC_DATA.manufacturer_name
-      , openlcb::SNIP_STATIC_DATA.model_name
-      , openlcb::SNIP_STATIC_DATA.hardware_version
-      , openlcb::SNIP_STATIC_DATA.software_version);
+    LOG(INFO, "[SNIP] version:%d, manufacturer:%s, model:%s, hw-v:%s, sw-v:%s",
+        openlcb::SNIP_STATIC_DATA.version,
+        openlcb::SNIP_STATIC_DATA.manufacturer_name,
+        openlcb::SNIP_STATIC_DATA.model_name,
+        openlcb::SNIP_STATIC_DATA.hardware_version,
+        openlcb::SNIP_STATIC_DATA.software_version);
 
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
@@ -424,56 +489,19 @@ void setup()
 #endif // USE_STATUS_LED
 
 #if defined(FIRMWARE_UPDATE_BOOTLOADER)
-    // If this is the first power up of the node we need to reset the flag
-    // since it will not be initialized automatically.
-    if (reset_reason == POWERON_RESET)
-    {
-        bootloader_request = 0;
-    }
+    // initialize the bootloader.
+    esp32_bootloader_init(reset_reason);
+
     // if we have a request to enter the bootloader we need to process it
     // before we startup the OpenMRN stack.
-    if (bootloader_request)
+    if (request_bootloader())
     {
-        bootloader_request = 0;
         esp32_bootloader_run(NODE_ID, CAN_RX_PIN, CAN_TX_PIN, true);
     }
     else
     {
 #endif // FIRMWARE_UPDATE_BOOTLOADER
-
-#if defined(FACTORY_RESET_GPIO_PIN)
-    // Check the factory reset pin which should normally read HIGH (set), if it
-    // reads LOW (clr) delete the cdi.xml and openlcb_config
-    if (!FACTORY_RESET_Pin::instance()->read())
-    {
-        LOG(WARNING, "!!!! WARNING WARNING WARNING WARNING WARNING !!!!");
-        LOG(WARNING, "The factory reset GPIO pin %d has been triggered.",
-            FACTORY_RESET_GPIO_PIN);
-        for (uint8_t sec = FACTORY_RESET_COUNTDOWN_SECS;
-             sec > 0 && !FACTORY_RESET_Pin::instance()->read(); sec--)
-        {
-#if defined(USE_STATUS_LED)
-            status_led.toggle();
-#endif
-            LOG(WARNING,"Factory reset will be initiated in %d seconds.", sec);
-            usleep(SEC_TO_USEC(1));
-        }
-        if (!FACTORY_RESET_Pin::instance()->read())
-        {
-            unlink(openlcb::CDI_FILENAME);
-            unlink(openlcb::CONFIG_FILENAME);
-            LOG(INFO, "Factory reset complete");
-        }
-        else
-        {
-            LOG(WARNING, "Factory reset aborted as pin %d was not held LOW",
-                FACTORY_RESET_GPIO_PIN);
-        }
-#if defined(USE_STATUS_LED)
-        status_led.clr();
-#endif
-    }
-#endif // FACTORY_RESET_GPIO_PIN
+    check_for_factory_reset();
 
     // Create the CDI.xml dynamically
     openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
@@ -506,22 +534,20 @@ void setup()
 
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
-    // Note: This should not be enabled in deployed nodes as it will
-    // have performance impact.
+    // Note: This should not be enabled in deployed nodes as it will have
+    // performance impact.
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_TWAI_SELECT)
-    // add TWAI driver with select() usage
+#if defined(USE_TWAI_ASYNC)
+    openmrn.add_can_port_async("/dev/twai/twai0");
+#elif defined(USE_TWAI)
     openmrn.add_can_port_select("/dev/twai/twai0");
 
     // start executor thread since this is required for select() to work in the
     // OpenMRN executor.
     openmrn.start_executor_thread();
-#else
-    // add TWAI driver with non-blocking usage
-    openmrn.add_can_port_async("/dev/twai/twai0");
-#endif // USE_TWAI_SELECT
+#endif // USE_TWAI_ASYNC
 
 #if defined(FIRMWARE_UPDATE_BOOTLOADER)
     }
@@ -540,90 +566,25 @@ void loop()
 extern "C"
 {
 
-void enter_bootloader()
-{
-    // set global flag that we need to enter the bootloader
-    bootloader_request = 1;
-    LOG(INFO, "[Bootloader] Rebooting into bootloader");
-    // reboot the esp32 so we can enter the bootloader
-    esp_restart();
-}
-
-/// Initializes the node specific bootloader hardware (LEDs)
-void bootloader_hw_set_to_safe(void)
-{
-  LOG(VERBOSE, "[Bootloader] bootloader_hw_set_to_safe");
-}
-
-/// Verifies that the bootloader has been requested.
-///
-/// @return true (always).
-///
-/// NOTE: On the ESP32 this defaults to always return true since this code will
-/// not be invoked through normal node startup.
-bool request_bootloader(void)
-{
-  LOG(VERBOSE, "[Bootloader] request_bootloader");
-  // Default to allow bootloader to run since we are not entering the
-  // bootloader loop unless requested by app_main.
-  return true;
-}
-
 /// Updates the state of a status LED.
 ///
 /// @param led is the LED to update.
 /// @param value is the new state of the LED.
-///
-/// NOTE: Currently the following mapping is used for the on-board led:
-/// LED_ACTIVE  -> sets the status led to green
-/// LED_WRITING -> sets the status led to purple
-/// LED_REQUEST -> sets the status led to yellow
 void bootloader_led(enum BootloaderLed led, bool value)
 {
     LOG(VERBOSE, "[Bootloader] bootloader_led(%d, %d)", led, value);
+#if defined(USE_STATUS_LED)
     if (led == LED_REQUEST)
     {
-        LOG(INFO, "[Bootloader] Preparing to receive firmware");
-        LOG(INFO, "[Bootloader] Current partition: %s", current->label);
-        LOG(INFO, "[Bootloader] Target partition: %s", target->label);
-#if defined(USE_STATUS_LED)
-        if (value)
-        {
-            leds.set_led_color(0, 32, 32, 0);
-        }
-        else
-        {
-            // clear the LED
-            leds.set_led_color(0, 0, 0, 0);
-        }
-#endif // USE_STATUS_LED
+        bootloader_request_led.write((Gpio::Value)value);
     }
-#if defined(USE_STATUS_LED)
     else if (led == LED_ACTIVE)
     {
-        if (value)
-        {
-            // set the LED green for active
-            leds.set_led_color(0, 0, 32, 0);
-        }
-        else
-        {
-            // clear the LED
-            leds.set_led_color(0, 0, 0, 0);
-        }
+        bootloader_active_led.write((Gpio::Value)value);
     }
     else if (led == LED_WRITING)
     {
-        if (value)
-        {
-            // set the LED purple for writes
-            leds.set_led_color(0, 32, 0, 32);
-        }
-        else
-        {
-            // clear the LED
-            leds.set_led_color(0, 0, 0, 0);
-        }
+        bootloader_write_led.write((Gpio::Value)value);
     }
 #endif // USE_STATUS_LED
 }

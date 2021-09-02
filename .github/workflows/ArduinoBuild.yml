@@ -55,7 +55,7 @@ jobs:
         $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
         rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
 
-    - name: Compile ${{ matrix.target }} examples
+    - name: Compile ESP32 examples
       uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
@@ -64,16 +64,7 @@ jobs:
         debug-compile: true
       if: ${{ matrix.target == 'esp32' }}
 
-#    - name: Compile ${{ matrix.target }} examples using DEV release
-#      uses: ArminJo/arduino-test-compile@v3
-#      with:
-#        platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-#        arduino-board-fqbn: esp32:esp32:node32s
-#        sketch-names: ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino
-#        debug-compile: true
-#      if: ${{ matrix.target == 'esp32-dev' }}
-
-    - name: Compile ${{ matrix.target }} examples
+    - name: Compile ESP32-C3 examples
       uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
@@ -82,7 +73,7 @@ jobs:
         debug-compile: true
       if: ${{ matrix.target == 'esp32c3' }}
     
-    - name: Compile ${{ matrix.target }} examples
+    - name: Compile ESP32-S2 examples
       uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
