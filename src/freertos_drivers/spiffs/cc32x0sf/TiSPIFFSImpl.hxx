@@ -72,15 +72,28 @@ static constexpr unsigned addr_mirror = 0;
 // #define EI() portEXIT_CRITICAL()
 
 // Disable interrupts with a custom priority limit (must not be zero).
-//
-// unsigned ppri;
-// constexpr unsigned minpri = 0x40;
-// #define DI() ppri = CPUbasepriGet(); CPUbasepriSet(minpri); HWREG(FLASH_CONF) |=  0x20110000;
-// #define EI() CPUbasepriSet(ppri);
+unsigned ppri;
+constexpr unsigned minpri = 0xE0;
+#define DI() do { unsigned r; __asm volatile ( " mrs %0, basepri\n mov %1, %2\n msr basepri, %1\n" : "=r"(ppri), "=r"(r) : "i"(minpri) : "memory" ); } while(0)
+#define EI() __asm volatile ( " msr basepri, %0\n" : : "r"(ppri) : "memory" )
+
+// Disable the systick timer to prevent preemptive multi-tasking from changing
+// to a different task.
+// static constexpr unsigned SYSTICKCFG = 0xE000E010;
+// #define DI() HWREG(SYSTICKCFG) &= ~2;
+// #define EI() HWREG(SYSTICKCFG) |= 2;
+
+// Disable freertos scheduler
+// #define DI() vTaskSuspendAll()
+// #define EI() xTaskResumeAll()
 
 // No write locking.
-#define DI()
-#define EI()
+//#define DI()
+//#define EI()
+
+//unsigned pend = 0;
+//#define DI() HASSERT(pend==0); pend=1;
+//#define EI() pend=0;
 
 // This ifdef decides whether we use the ROM or the flash based implementations
 // for Flash write and erase. It also supports correcting for the reversed bank
