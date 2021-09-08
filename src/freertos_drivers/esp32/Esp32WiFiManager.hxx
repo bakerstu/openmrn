@@ -177,8 +177,8 @@ public:
                    , bool sntp_enabled = false
                    , uint8_t softap_channel = 1
                    , wifi_auth_mode_t softap_auth_mode = WIFI_AUTH_OPEN
-                   , const char *softap_ssid = nullptr
-                   , const char *softap_password = nullptr
+                   , const char *softap_ssid = ""
+                   , const char *softap_password = ""
     );
 
     /// Destructor.

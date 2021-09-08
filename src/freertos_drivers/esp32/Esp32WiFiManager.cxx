@@ -129,9 +129,19 @@ static Esp32WiFiManager *wifi_mgr = nullptr;
 
 namespace openmrn_arduino
 {
+
+// When running on a unicore (ESP32-S2 or ESP32-C3) use a lower priority so the
+// task will run in co-op mode with loop. When running on a multi-core SoC we
+// can use a higher priority for the background task.
+#if CONFIG_FREERTOS_UNICORE
+/// Priority for the task performing the mdns lookups, connections for the
+/// wifi uplink and any other background tasks needed by the wifi manager.
+static constexpr UBaseType_t EXECUTOR_TASK_PRIORITY = 1;
+#else // multi-core
 /// Priority for the task performing the mdns lookups, connections for the
 /// wifi uplink and any other background tasks needed by the wifi manager.
 static constexpr UBaseType_t EXECUTOR_TASK_PRIORITY = 3;
+#endif // CONFIG_FREERTOS_UNICORE
 
 /// Stack size for the background task executor.
 static constexpr uint32_t EXECUTOR_TASK_STACK_SIZE = 5120L;
