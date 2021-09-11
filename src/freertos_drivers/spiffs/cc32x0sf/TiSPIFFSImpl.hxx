@@ -60,40 +60,73 @@ static constexpr unsigned addr_mirror = 0;
 // needed to debug when the operating system is misbehaving during flash
 // writes.
 
+#if defined(TISPIFFS_LOCK_ALL_INTERRUPTS)
+
 // Global disable interrupts.
-//
-// #define DI() asm("cpsid i\n")
-// #define EI() asm("cpsie i\n")
+
+#define DI() asm("cpsid i\n")
+#define EI() asm("cpsie i\n")
+
+#elif defined(TISPIFFS_LOCK_CRITICAL)
 
 // Critical section (interrupts better than MIN_SYSCALL_PRIORITY are still
 // running).
-//
-// #define DI() portENTER_CRITICAL()
-// #define EI() portEXIT_CRITICAL()
 
-// Disable interrupts with a custom priority limit (must not be zero).
+#define DI() portENTER_CRITICAL()
+#define EI() portEXIT_CRITICAL()
+
+#elif defined(TISPIFFS_LOCK_BASEPRI_FF)
+
+// Disable interrupts with a priority limit of 0xFF (these are the lowest
+// priority interrupts, including the FreeRTOS kernel task switch interrupt).
 unsigned ppri;
-constexpr unsigned minpri = 0xE0;
-#define DI() do { unsigned r; __asm volatile ( " mrs %0, basepri\n mov %1, %2\n msr basepri, %1\n" : "=r"(ppri), "=r"(r) : "i"(minpri) : "memory" ); } while(0)
-#define EI() __asm volatile ( " msr basepri, %0\n" : : "r"(ppri) : "memory" )
+constexpr unsigned minpri = 0xFF;
+#define DI()                                                                   \
+    do                                                                         \
+    {                                                                          \
+        unsigned r;                                                            \
+        __asm volatile(" mrs %0, basepri\n mov %1, %2\n msr basepri, %1\n"     \
+                       : "=r"(ppri), "=r"(r)                                   \
+                       : "i"(minpri)                                           \
+                       : "memory");                                            \
+    } while (0)
+#define EI() __asm volatile(" msr basepri, %0\n" : : "r"(ppri) : "memory")
+
+#elif defined(TISPIFFS_LOCK_NOTICK)
 
 // Disable the systick timer to prevent preemptive multi-tasking from changing
 // to a different task.
-// static constexpr unsigned SYSTICKCFG = 0xE000E010;
-// #define DI() HWREG(SYSTICKCFG) &= ~2;
-// #define EI() HWREG(SYSTICKCFG) |= 2;
+
+static constexpr unsigned SYSTICKCFG = 0xE000E010;
+#define DI() HWREG(SYSTICKCFG) &= ~2;
+#define EI() HWREG(SYSTICKCFG) |= 2;
+
+#elif defined(TISPIFFS_LOCK_SCHEDULER_SUSPEND)
 
 // Disable freertos scheduler
-// #define DI() vTaskSuspendAll()
-// #define EI() xTaskResumeAll()
+
+#define DI() vTaskSuspendAll()
+#define EI() xTaskResumeAll()
+
+#elif defined(TISPIFFS_LOCK_NONE)
 
 // No write locking.
-//#define DI()
-//#define EI()
 
-//unsigned pend = 0;
-//#define DI() HASSERT(pend==0); pend=1;
-//#define EI() pend=0;
+#define DI()
+#define EI()
+
+#elif defined(TISPIFFS_LOCK_CRASH)
+
+// Crashes if two different executions of this locking mechanism are
+// concurrent.
+
+unsigned pend = 0;
+#define DI() HASSERT(pend==0); pend=1;
+#define EI() pend=0;
+
+#else
+#error Must specify what kind of locking to use for TISPIFFS.
+#endif
 
 // This ifdef decides whether we use the ROM or the flash based implementations
 // for Flash write and erase. It also supports correcting for the reversed bank
