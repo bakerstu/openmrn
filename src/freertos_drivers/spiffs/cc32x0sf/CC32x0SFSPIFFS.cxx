@@ -35,6 +35,7 @@
 #define USE_CC3220_ROM_DRV_API
 
 #define TI_DUAL_BANK_FLASH
+#define TISPIFFS_LOCK_NONE
 
 #include "spiffs.h"
 #include "inc/hw_types.h"
