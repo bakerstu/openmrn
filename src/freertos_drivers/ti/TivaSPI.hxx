@@ -189,7 +189,7 @@ private:
         do
         {
             /* fill TX FIFO but make sure we don't fill it to overflow */
-            if (tx_len && ((rx_len - tx_len) < (32 / sizeof(T))))
+            if (tx_len && ((rx_len - tx_len) < 8))
             {
                 if (data_put_non_blocking(*tx_buf) != 0)
                 {
