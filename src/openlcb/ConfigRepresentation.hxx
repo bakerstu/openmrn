@@ -368,12 +368,12 @@ public:
 /// Defines an empty group with no members, but blocking a certain amount of
 /// space in the rendered configuration.
 ///
-template <unsigned N> class EmptyGroup : public ConfigEntryBase
+template <int N> class EmptyGroup : public ConfigEntryBase
 {
 public:
     using base_type = ConfigEntryBase;
     INHERIT_CONSTEXPR_CONSTRUCTOR(EmptyGroup, base_type)
-    static constexpr unsigned size()
+    static constexpr int size()
     {
         return N;
     }
