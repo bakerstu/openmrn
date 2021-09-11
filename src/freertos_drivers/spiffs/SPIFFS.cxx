@@ -117,6 +117,7 @@ SPIFFS::SPIFFS(size_t physical_address, size_t size_on_disk,
     , anyDirty_(false)
 {
     fs_ = new spiffs;
+    memset(fs_, 0, sizeof(spiffs));
     fs_->user_data = this;
     spiffs_config tmp{  //
         .hal_read_f       = flash_read,
