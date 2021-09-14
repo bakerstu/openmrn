@@ -211,13 +211,25 @@ public:
         init(digits_, base_, value);
     }
 
-    /** Get the entry as an unsigned integer value.
+    /** Get the entry as an unsigned integer value. Note, that '0' is returned
+     * both when the actual value is '0' and when the entry is "empty". If the
+     * caller needs to distinguish between these two states, check for
+     * "parsed(true).empty()".
      * @param start_index starting index in string to start conversion
+     * @param force_clamp Normally, clamping doesn't occur if the entry is
+     *                    "empty". However, if force is set to true, we will
+     *                    clamp anyways. This may be valuable when wanting an
+     *                    "empty" entry to return a valid value and '0' is out
+     *                    of bounds.
      * @return value representation of the string
      */
-    T get_value(unsigned start_index = 0)
+    T get_value(unsigned start_index = 0, bool force_clamp = false)
     {
         HASSERT(start_index < digits_);
+        if (force_clamp)
+        {
+            clamp(true);
+        }
         if (std::is_signed<T>::value)
         {
             return strtoll(data_ + start_index, NULL, base_);
