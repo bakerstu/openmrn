@@ -54,7 +54,7 @@ public:
      * @param clamp_callback callback method to clamp min/max
      */
     EntryModel(bool transform = false,
-               std::function<void()> clamp_callback = nullptr)
+               std::function<void(bool)> clamp_callback = nullptr)
         : clampCallback_(clamp_callback)
         , digits_(0)
         , index_(0)
@@ -307,16 +307,18 @@ public:
     }
 
     /// Clamp the value at the min or max.
-    void clamp()
+    /// @param force Normally, clamping doesn't occur if the entry is "empty".
+    ///              However, if force is set to true, we will clamp anyways.
+    void clamp(bool force = false)
     {
         if (clampCallback_)
         {
-            clampCallback_();
+            clampCallback_(force);
         }
     }
 
 private:
-    std::function<void()> clampCallback_; /**< callback to clamp value */
+    std::function<void(bool)> clampCallback_; /**< callback to clamp value */
     unsigned digits_     : 5; /**< number of significant digits */
     unsigned index_      : 5; /**< present write index */
     unsigned hasInitial_ : 1; /**< has an initial value */
@@ -341,7 +343,7 @@ public:
      */
     EntryModelBounded(bool transform = false)
         : EntryModel<T, N>(transform,
-                           std::bind(&EntryModelBounded::clamp, this))
+              std::bind(&EntryModelBounded::clamp, this, std::placeholders::_1))
     {
     }
 
@@ -405,10 +407,11 @@ public:
 
 private:
     /// Clamp the value at the min or max.
-    void clamp()
+    /// @param force Normally, clamping doesn't occur if the entry is "empty".
+    ///              However, if force is set to true, we will clamp anyways.
+    void clamp(bool force = false)
     {
-        if (EntryModel<T, N>::cursor_index() != 0 &&
-            !EntryModel<T, N>::has_initial())
+        if (force || !EntryModel<T, N>::parsed(true).empty())
         {
             volatile T value = EntryModel<T, N>::get_value();
             if (value < min_)
