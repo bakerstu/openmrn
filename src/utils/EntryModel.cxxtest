@@ -1,0 +1,90 @@
+#include "utils/test_main.hxx"
+#include "utils/EntryModel.hxx"
+
+TEST(EntryModelTest, Create)
+{
+    EntryModel<int64_t, 11> em;
+
+    EXPECT_EQ(0U, em.digits());
+    EXPECT_EQ(0U, em.cursor_index());
+    EXPECT_FALSE(em.has_initial());
+    EXPECT_EQ("", em.parsed(true));
+}
+
+TEST(EntryModelTestBoundedTest, Create)
+{
+    EntryModelBounded<int64_t, 11> em;
+
+    EXPECT_EQ(0U, em.digits());
+    EXPECT_EQ(0U, em.cursor_index());
+    EXPECT_FALSE(em.has_initial());
+    EXPECT_EQ("", em.parsed(true));
+}
+
+TEST(EntryModelTestBoundedTest, InitValue)
+{
+    EntryModelBounded<int64_t, 11> em;
+
+    em.init(2, 10, 24, 1, 28, 0);
+
+    EXPECT_EQ(2U, em.digits());
+    EXPECT_EQ(0U, em.cursor_index());
+    EXPECT_TRUE(em.has_initial());
+    EXPECT_TRUE(em.cursor_visible());
+    EXPECT_EQ("24", em.parsed());
+
+    em.putc_inc('2');
+    EXPECT_EQ(2U, em.digits());
+    EXPECT_EQ(1U, em.cursor_index());
+    EXPECT_FALSE(em.has_initial());
+    EXPECT_TRUE(em.cursor_visible());
+    EXPECT_EQ("2", em.parsed());
+
+    em.putc_inc('2');
+    EXPECT_EQ(2U, em.digits());
+    EXPECT_EQ(2U, em.cursor_index());
+    EXPECT_FALSE(em.has_initial());
+    EXPECT_FALSE(em.cursor_visible());
+    EXPECT_EQ("22", em.parsed());
+
+    em.putc_inc('2');
+    EXPECT_EQ(2U, em.digits());
+    EXPECT_EQ(0U, em.cursor_index());
+    EXPECT_FALSE(em.has_initial());
+    EXPECT_TRUE(em.cursor_visible());
+    EXPECT_EQ("", em.parsed());
+}
+
+TEST(EntryModelTestBoundedTest, InitValueMoreThanMaxDigits)
+{
+    EntryModelBounded<int64_t, 11> em;
+
+    em.init(2, 10, 240, 1, 28, 0);
+
+    EXPECT_EQ(2U, em.digits());
+    EXPECT_EQ(0U, em.cursor_index());
+    EXPECT_TRUE(em.has_initial());
+    EXPECT_TRUE(em.cursor_visible());
+    EXPECT_EQ("240", em.parsed());
+
+    em.putc_inc('2');
+    EXPECT_EQ(2U, em.digits());
+    EXPECT_EQ(1U, em.cursor_index());
+    EXPECT_FALSE(em.has_initial());
+    EXPECT_TRUE(em.cursor_visible());
+    EXPECT_EQ("2", em.parsed());
+
+    em.putc_inc('2');
+    EXPECT_EQ(2U, em.digits());
+    EXPECT_EQ(2U, em.cursor_index());
+    EXPECT_FALSE(em.has_initial());
+    EXPECT_FALSE(em.cursor_visible());
+    EXPECT_EQ("22", em.parsed());
+
+    em.putc_inc('2');
+    EXPECT_EQ(2U, em.digits());
+    EXPECT_EQ(0U, em.cursor_index());
+    EXPECT_FALSE(em.has_initial());
+    EXPECT_TRUE(em.cursor_visible());
+    EXPECT_EQ("", em.parsed());
+}
