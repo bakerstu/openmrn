@@ -407,14 +407,18 @@ private:
     /// Clamp the value at the min or max.
     void clamp()
     {
-        volatile T value = EntryModel<T, N>::get_value();
-        if (value < min_)
+        if (EntryModel<T, N>::cursor_index() != 0 &&
+            !EntryModel<T, N>::has_initial())
         {
-            EntryModel<T, N>::set_value(min_);
-        }
-        else if (value > max_)
-        {
-            EntryModel<T, N>::set_value(max_);
+            volatile T value = EntryModel<T, N>::get_value();
+            if (value < min_)
+            {
+                EntryModel<T, N>::set_value(min_);
+            }
+            else if (value > max_)
+            {
+                EntryModel<T, N>::set_value(max_);
+            }
         }
     }
 
