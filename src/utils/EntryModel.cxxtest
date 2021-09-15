@@ -8,24 +8,54 @@ TEST(EntryModelTest, Create)
     EXPECT_EQ(0U, em.digits());
     EXPECT_EQ(0U, em.cursor_index());
     EXPECT_FALSE(em.has_initial());
-    EXPECT_EQ("", em.parsed(true));
+    EXPECT_TRUE(em.parsed(true).empty());
 }
 
-TEST(EntryModelTestBoundedTest, Create)
+TEST(EntryModelBoundedTest, Create)
 {
     EntryModelBounded<int64_t, 11> em;
 
     EXPECT_EQ(0U, em.digits());
     EXPECT_EQ(0U, em.cursor_index());
     EXPECT_FALSE(em.has_initial());
-    EXPECT_EQ("", em.parsed(true));
+    EXPECT_TRUE(em.parsed(true).empty());
 }
 
-TEST(EntryModelTestBoundedTest, InitValue)
+TEST(EntryModelTest, InitEmpty)
 {
-    EntryModelBounded<int64_t, 11> em;
+    EntryModel<int64_t, 11> em;
 
-    em.init(2, 10, 24, 1, 28, 0);
+    // base 10
+    em.init(2, 10);
+
+    EXPECT_EQ(2U, em.digits());
+    EXPECT_EQ(0U, em.cursor_index());
+    EXPECT_FALSE(em.has_initial());
+    EXPECT_TRUE(em.parsed(true).empty());
+    em.putc_inc('2');
+    em.putc_inc('2');
+    EXPECT_EQ(22, em.get_value());
+    EXPECT_EQ("22", string(em.c_str()));
+
+    // base 16
+    em.init(2, 16);
+
+    EXPECT_EQ(2U, em.digits());
+    EXPECT_EQ(0U, em.cursor_index());
+    EXPECT_FALSE(em.has_initial());
+    EXPECT_TRUE(em.parsed(true).empty());
+    em.putc_inc('2');
+    em.putc_inc('2');
+    EXPECT_EQ(0x22, em.get_value());
+    EXPECT_EQ("22", string(em.c_str()));
+}
+
+TEST(EntryModelBoundedTest, InitValue)
+{
+    EntryModelBounded<uint64_t, 11> em;
+    EntryModelBounded<int64_t, 11> emn;
+
+    em.init(2, 10, 24, 1, 28, 1);
 
     EXPECT_EQ(2U, em.digits());
     EXPECT_EQ(0U, em.cursor_index());
@@ -52,14 +82,43 @@ TEST(EntryModelTestBoundedTest, InitValue)
     EXPECT_EQ(0U, em.cursor_index());
     EXPECT_FALSE(em.has_initial());
     EXPECT_TRUE(em.cursor_visible());
-    EXPECT_EQ("", em.parsed());
+    EXPECT_TRUE(em.parsed().empty());
+
+    emn.init(2, 10, 24, -1, 28, 1);
+
+    EXPECT_EQ(2U, emn.digits());
+    EXPECT_EQ(0U, emn.cursor_index());
+    EXPECT_TRUE(emn.has_initial());
+    EXPECT_TRUE(emn.cursor_visible());
+    EXPECT_EQ("24", emn.parsed());
+
+    emn.putc_inc('2');
+    EXPECT_EQ(2U, emn.digits());
+    EXPECT_EQ(1U, emn.cursor_index());
+    EXPECT_FALSE(emn.has_initial());
+    EXPECT_TRUE(emn.cursor_visible());
+    EXPECT_EQ("2", emn.parsed());
+
+    emn.putc_inc('2');
+    EXPECT_EQ(2U, emn.digits());
+    EXPECT_EQ(2U, emn.cursor_index());
+    EXPECT_FALSE(emn.has_initial());
+    EXPECT_FALSE(emn.cursor_visible());
+    EXPECT_EQ("22", emn.parsed());
+
+    emn.putc_inc('2');
+    EXPECT_EQ(2U, emn.digits());
+    EXPECT_EQ(0U, emn.cursor_index());
+    EXPECT_FALSE(emn.has_initial());
+    EXPECT_TRUE(emn.cursor_visible());
+    EXPECT_TRUE(emn.parsed().empty());
 }
 
-TEST(EntryModelTestBoundedTest, InitValueMoreThanMaxDigits)
+TEST(EntryModelBoundedTest, InitValueMoreThanMaxDigits)
 {
     EntryModelBounded<int64_t, 11> em;
 
-    em.init(2, 10, 240, 1, 28, 0);
+    em.init(2, 10, 240, 1, 28, 1);
 
     EXPECT_EQ(2U, em.digits());
     EXPECT_EQ(0U, em.cursor_index());
@@ -86,5 +145,237 @@ TEST(EntryModelTestBoundedTest, InitValueMoreThanMaxDigits)
     EXPECT_EQ(0U, em.cursor_index());
     EXPECT_FALSE(em.has_initial());
     EXPECT_TRUE(em.cursor_visible());
-    EXPECT_EQ("", em.parsed());
+    EXPECT_TRUE(em.parsed().empty());
+}
+
+TEST(EntryModelBoundedTest, InitValueBase16)
+{
+    EntryModelBounded<uint64_t, 16> em;
+    EntryModelBounded<int64_t, 16> emn;
+
+    em.init(16, 16, 0, 0, UINT64_MAX, 0);
+    em.putc_inc('0');
+    em.putc_inc('1');
+    em.putc_inc('2');
+    em.putc_inc('3');
+    em.putc_inc('4');
+    em.putc_inc('5');
+    em.putc_inc('6');
+    em.putc_inc('7');
+    em.putc_inc('8');
+    em.putc_inc('9');
+    em.putc_inc('a');
+    em.putc_inc('b');
+    em.putc_inc('c');
+    em.putc_inc('d');
+    em.putc_inc('e');
+    em.putc_inc('f');
+    EXPECT_EQ("0123456789abcdef", em.parsed());
+    EXPECT_EQ(0x0123456789ABCDEFU, em.get_value());
+
+    emn.init(16, 16, 0, INT64_MIN, INT64_MAX, 0);
+    emn.putc_inc('1');
+    emn.putc_inc('2');
+    emn.putc_inc('3');
+    emn.putc_inc('4');
+    emn.putc_inc('5');
+    emn.putc_inc('6');
+    emn.putc_inc('7');
+    emn.putc_inc('8');
+    emn.putc_inc('9');
+    emn.putc_inc('a');
+    emn.putc_inc('b');
+    emn.putc_inc('c');
+    emn.putc_inc('d');
+    emn.putc_inc('e');
+    emn.putc_inc('f');
+    emn.change_sign();
+    EXPECT_EQ("-123456789abcdef", emn.parsed());
+    EXPECT_EQ(-0x0123456789ABCDEF, emn.get_value());
+}
+
+TEST(EntryModelBoundedTest, InitValueBase16Transform)
+{
+    EntryModelBounded<uint64_t, 16> em(true);
+
+    em.init(16, 16, 0, 0, UINT64_MAX, 0);
+    em.putc_inc('0');
+    em.putc_inc('1');
+    em.putc_inc('2');
+    em.putc_inc('3');
+    em.putc_inc('4');
+    em.putc_inc('5');
+    em.putc_inc('6');
+    em.putc_inc('7');
+    em.putc_inc('8');
+    em.putc_inc('9');
+    em.putc_inc('a');
+    em.putc_inc('b');
+    em.putc_inc('c');
+    em.putc_inc('d');
+    em.putc_inc('e');
+    em.putc_inc('f');
+    EXPECT_EQ("0123456789ABCDEF", em.parsed());
+    EXPECT_EQ(0x0123456789ABCDEFU, em.get_value());
+}
+
+TEST(EntryModelTest, ClearAndBackspace)
+{
+    EntryModel<int32_t, 11> em(true);
+
+    // plenty of room
+    em.init(11, 10);
+    em.clear("12345");
+    EXPECT_EQ(12345, em.get_value());
+    em.clear("-12345");
+    EXPECT_EQ(-12345, em.get_value());
+    em.clear();
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_TRUE(em.parsed().empty());
+
+    // try to copy more than space allows
+    em.init(2, 10);
+    em.clear("12345");
+    EXPECT_EQ(12, em.get_value());
+    em.clear("-12345");
+    EXPECT_EQ(-1, em.get_value());
+    em.clear();
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_TRUE(em.parsed().empty());
+
+    // backspace
+    em.init(11, 10);
+    em.clear("12345");
+    em.backspace();
+    EXPECT_EQ(1234, em.get_value());
+    em.backspace();
+    em.backspace();
+    em.backspace();
+    em.backspace();
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_TRUE(em.parsed().empty());
+    em.backspace();
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_TRUE(em.parsed().empty());
+}
+
+TEST(EntryModelBoundedTest, ClearAndBackspace)
+{
+    EntryModelBounded<int32_t, 11> em(true);
+
+    em.init(4, 10, 0, -10, 255, 0);
+    em.clear("12345");
+    EXPECT_EQ(255, em.get_value());
+    em.clear("-12345");
+    EXPECT_EQ(-10, em.get_value());
+    em.clear();
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_TRUE(em.parsed(true).empty());
+    EXPECT_EQ(0, em.get_value(0, true));
+    EXPECT_EQ("0", em.parsed(true));
+
+    // backspace
+    em.init(4, 10, 0, -10, 255, 0);
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_EQ("0", em.parsed(true));
+    em.backspace();
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_TRUE(em.parsed(true).empty());
+    em.clear("123");
+    em.backspace();
+    EXPECT_EQ(12, em.get_value());
+    em.backspace();
+    em.backspace();
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_TRUE(em.parsed().empty());
+    em.backspace();
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_TRUE(em.parsed().empty());
+}
+
+TEST(EntryModelBoundedTest, IncDec)
+{
+    EntryModelBounded<int32_t, 11> em(true);
+
+    em.init(4, 10, 0, -10, 255, 0);
+
+    // increment from negative to positive
+    em.set_value(-1);
+    EXPECT_EQ(-1, em.get_value());
+    EXPECT_EQ("-1", em.parsed(true));
+    ++em;
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_EQ("0", em.parsed(true));
+    ++em;
+    EXPECT_EQ(1, em.get_value());
+    EXPECT_EQ("1", em.parsed(true));
+
+    // decrementt from positive to negative
+    --em;
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_EQ("0", em.parsed(true));
+    --em;
+    EXPECT_EQ(-1, em.get_value());
+    EXPECT_EQ("-1", em.parsed(true));
+
+    // saturate at min
+    em.set_value(-9);
+    EXPECT_EQ(-9, em.get_value());
+    EXPECT_EQ("-9", em.parsed(true));
+    --em;
+    EXPECT_EQ(-10, em.get_value());
+    EXPECT_EQ("-10", em.parsed(true));
+    --em;
+    EXPECT_EQ(-10, em.get_value());
+    EXPECT_EQ("-10", em.parsed(true));
+
+    // saturate at max
+    em.set_value(254);
+    EXPECT_EQ(254, em.get_value());
+    EXPECT_EQ("254", em.parsed(true));
+    ++em;
+    EXPECT_EQ(255, em.get_value());
+    EXPECT_EQ("255", em.parsed(true));
+    ++em;
+    EXPECT_EQ(255, em.get_value());
+    EXPECT_EQ("255", em.parsed(true));
+}
+
+TEST(EntryModelTest, ChangeSign)
+{
+    EntryModel<int64_t, 11> em;
+
+    // hasInitial == true
+    em.init(2, 10, 2);
+    EXPECT_EQ(2, em.get_value());
+    EXPECT_EQ("2", em.parsed(true));
+    em.change_sign();
+    EXPECT_EQ(-2, em.get_value());
+    EXPECT_EQ("-2", em.parsed(true));
+    em.change_sign();
+    EXPECT_EQ(2, em.get_value());
+    EXPECT_EQ("2", em.parsed(true));
+
+    // change from initial value
+    em.putc_inc('3');
+    EXPECT_EQ(3, em.get_value());
+    EXPECT_EQ("3", em.parsed(true));
+    em.change_sign();
+    EXPECT_EQ(-3, em.get_value());
+    EXPECT_EQ("-3", em.parsed(true));
+    em.change_sign();
+    EXPECT_EQ(3, em.get_value());
+    EXPECT_EQ("3", em.parsed(true));
+}
+
+TEST(EntryModelTest, CopyToBuffer)
+{
+    EntryModel<int64_t, 11> em;
+    char buf[] = "abcdef";
+
+    em.init(2, 10, 2);
+    EXPECT_EQ(2, em.get_value());
+    EXPECT_EQ(" 2", em.parsed());
+    em.copy_to_buffer(buf, 2, 2);
+    EXPECT_EQ("ab 2ef", string(buf));
 }
