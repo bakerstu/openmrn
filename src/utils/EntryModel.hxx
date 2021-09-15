@@ -74,8 +74,9 @@ public:
     {
         HASSERT(digits <= N);
         digits_ = digits;
+        set_base(base);
         clear();
-        hasInitial_ = true;
+        hasInitial_ = false;
     }
 
     /** Initialize with a value.
@@ -87,6 +88,7 @@ public:
     {
         HASSERT(digits <= N);
         digits_ = digits;
+        set_base(base);
         clear();
 
         string str;
@@ -115,7 +117,7 @@ public:
                 }
                 if (transform_)
                 {
-                    /* equires all characters in upper case */
+                    /* requires all characters in upper case */
                     transform(str.begin(), str.end(), str.begin(), toupper);
                 }
                 break;
@@ -132,10 +134,11 @@ public:
         memset(data_, ' ', digits_);
         if (data)
         {
-            memcpy(data_, data, strlen(data));
+            strncpy(data_, data, digits_);
         }
         data_[digits_] = '\0';
         index_ = 0;
+        clamp();
     }
 
     /** Get the current index.
@@ -187,7 +190,7 @@ public:
     {
         if (index_ == 0)
         {
-            index_ = parsed().size();
+            index_ = hasInitial_ ? digits_ : parsed().size();
         }
         data_[--index_] = ' ';
         hasInitial_ = false;
@@ -259,13 +262,22 @@ public:
         result.reserve(N);
         if (strip_leading)
         {
-            while (*parse == '0' || *parse == ' ')
+            while (*parse == ' ')
+            {
+                ++parse;
+            }
+            // leave the last '0' if the string "value" is zero
+            while (*parse == '0' && *(parse + 1) != '\0')
             {
                 ++parse;
             }
         }
-        while (*parse != ' ' && *parse != '\0')
+        while (*parse != '\0')
         {
+            if (!hasInitial_ && *parse == ' ')
+            {
+                break;
+            }
             result.push_back(*parse++);
         }
         return result;
@@ -294,7 +306,7 @@ public:
         else if (data_[0] == '-')
         {
             memmove(data_, data_ + 1, digits_ - 1);
-            data_[digits_] = ' ';
+            data_[digits_ - 1] = ' ';
         }
         else
         {
@@ -369,6 +381,7 @@ public:
      */
     void init(unsigned digits, int base, T value, T min, T max, T default_val)
     {
+        HASSERT(default_val >= min && default_val <= max);
         min_ = min;
         max_ = max;
         default_ = default_val;
@@ -428,11 +441,15 @@ private:
             volatile T value = EntryModel<T, N>::get_value();
             if (value < min_)
             {
-                EntryModel<T, N>::set_value(min_);
+                set_min();
             }
             else if (value > max_)
             {
-                EntryModel<T, N>::set_value(max_);
+                set_max();
+            }
+            else if (EntryModel<T, N>::parsed(true).empty())
+            {
+                set_default();
             }
         }
     }
