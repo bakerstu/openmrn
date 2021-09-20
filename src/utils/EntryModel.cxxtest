@@ -170,3 +170,167 @@ TEST(EntryModelTest, InitValuePopBack)
     EXPECT_EQ("    ", uem.get_string(true));
 }
 
+TEST(EntryModelTest, PushBackAndAppend)
+{
+    EntryModel<int64_t> em;
+    EntryModel<uint64_t> uem;
+
+    //
+    // signed base 10
+    //
+    em.init(4, 10, 0);
+    em.push_back_char('1');
+    EXPECT_EQ("1", em.get_string());
+    EXPECT_EQ("   1", em.get_string(true));
+    EXPECT_EQ(1, em.get_value());
+
+    em.change_sign();
+    EXPECT_EQ("-1", em.get_string());
+    EXPECT_EQ("  -1", em.get_string(true));
+    EXPECT_EQ(-1, em.get_value());
+
+    em.push_back_char('2');
+    EXPECT_EQ("-12", em.get_string());
+    EXPECT_EQ(" -12", em.get_string(true));
+    EXPECT_EQ(-12, em.get_value());
+
+    em.push_back_char('3');
+    EXPECT_EQ("-123", em.get_string());
+    EXPECT_EQ("-123", em.get_string(true));
+    EXPECT_EQ(-123, em.get_value());
+
+    em.push_back_char('4');
+    EXPECT_EQ("", em.get_string());
+    EXPECT_EQ("    ", em.get_string(true));
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_TRUE(em.empty());
+
+    em.push_back_char('5');
+    EXPECT_EQ("5", em.get_string());
+    EXPECT_EQ("   5", em.get_string(true));
+    EXPECT_EQ(5, em.get_value());
+
+    //
+    // unsigned base 10
+    //
+    uem.init(4, 10, 0);
+    uem.push_back_char('1');
+    EXPECT_EQ("1", uem.get_string());
+    EXPECT_EQ("   1", uem.get_string(true));
+    EXPECT_EQ(1U, uem.get_value());
+
+    uem.push_back_char('2');
+    EXPECT_EQ("12", uem.get_string());
+    EXPECT_EQ("  12", uem.get_string(true));
+    EXPECT_EQ(12U, uem.get_value());
+
+    uem.push_back_char('3');
+    EXPECT_EQ("123", uem.get_string());
+    EXPECT_EQ(" 123", uem.get_string(true));
+    EXPECT_EQ(123U, uem.get_value());
+
+    uem.push_back_char('4');
+    EXPECT_EQ("1234", uem.get_string());
+    EXPECT_EQ("1234", uem.get_string(true));
+    EXPECT_EQ(1234U, uem.get_value());
+
+    uem.push_back_char('5');
+    EXPECT_EQ("", uem.get_string());
+    EXPECT_EQ("    ", uem.get_string(true));
+    EXPECT_EQ(0U, uem.get_value());
+    EXPECT_TRUE(uem.empty());
+
+    uem.push_back_char('6');
+    EXPECT_EQ("6", uem.get_string());
+    EXPECT_EQ("   6", uem.get_string(true));
+    EXPECT_EQ(6U, uem.get_value());
+
+    //
+    // signed base 16
+    //
+    em.init(4, 16, 0);
+    em.push_back_char('1');
+    EXPECT_EQ("1", em.get_string());
+    EXPECT_EQ("   1", em.get_string(true));
+    EXPECT_EQ(0x1, em.get_value());
+
+    em.change_sign();
+    EXPECT_EQ("-1", em.get_string());
+    EXPECT_EQ("  -1", em.get_string(true));
+    EXPECT_EQ(-0x1, em.get_value());
+
+    em.push_back_char('A');
+    EXPECT_EQ("-1a", em.get_string());
+    EXPECT_EQ(" -1a", em.get_string(true));
+    EXPECT_EQ(-0x1a, em.get_value());
+
+    em.change_sign();
+    EXPECT_EQ("1a", em.get_string());
+    EXPECT_EQ("  1a", em.get_string(true));
+    EXPECT_EQ(0x1a, em.get_value());
+
+    em.push_back_char('3');
+    EXPECT_EQ("1a3", em.get_string());
+    EXPECT_EQ(" 1a3", em.get_string(true));
+    EXPECT_EQ(0x1a3, em.get_value());
+
+    em.push_back_char('b');
+    EXPECT_EQ("1a3b", em.get_string());
+    EXPECT_EQ("1a3b", em.get_string(true));
+    EXPECT_EQ(0x1a3b, em.get_value());
+
+    em.push_back_char('5');
+    EXPECT_EQ("", em.get_string());
+    EXPECT_EQ("    ", em.get_string(true));
+    EXPECT_EQ(0x0, em.get_value());
+    EXPECT_TRUE(em.empty());
+
+    em.push_back_char('6');
+    EXPECT_EQ("6", em.get_string());
+    EXPECT_EQ("   6", em.get_string(true));
+    EXPECT_EQ(0x6, em.get_value());
+
+    //
+    // unsigned base 16
+    //
+    uem.init(4, 16, 0);
+    uem.push_back_char('1');
+    EXPECT_EQ("1", uem.get_string());
+    EXPECT_EQ("   1", uem.get_string(true));
+    EXPECT_EQ(0x1U, uem.get_value());
+
+    uem.push_back_char('A');
+    EXPECT_EQ("1a", uem.get_string());
+    EXPECT_EQ("  1a", uem.get_string(true));
+    EXPECT_EQ(0x1aU, uem.get_value());
+
+    uem.push_back_char('3');
+    EXPECT_EQ("1a3", uem.get_string());
+    EXPECT_EQ(" 1a3", uem.get_string(true));
+    EXPECT_EQ(0x1a3U, uem.get_value());
+
+    uem.push_back_char('b');
+    EXPECT_EQ("1a3b", uem.get_string());
+    EXPECT_EQ("1a3b", uem.get_string(true));
+    EXPECT_EQ(0x1a3bU, uem.get_value());
+
+    uem.push_back_char('5');
+    EXPECT_EQ("", uem.get_string());
+    EXPECT_EQ("    ", uem.get_string(true));
+    EXPECT_EQ(0x0U, uem.get_value());
+    EXPECT_TRUE(uem.empty());
+
+    uem.push_back_char('6');
+    EXPECT_EQ("6", uem.get_string());
+    EXPECT_EQ("   6", uem.get_string(true));
+    EXPECT_EQ(0x6U, uem.get_value());
+
+    //
+    // append unsigned base 10
+    //
+    uem.init(4, 10, 0);
+    uem.append_char('1').append(2).append_char('3');
+    EXPECT_EQ("123", uem.get_string());
+    EXPECT_EQ(" 123", uem.get_string(true));
+    EXPECT_EQ(123U, uem.get_value());
+}
