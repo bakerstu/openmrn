@@ -1,0 +1,172 @@
+#include "utils/test_main.hxx"
+#include "utils/EntryModel.hxx"
+
+TEST(EntryModelTest, Create)
+{
+    EntryModel<int64_t> em;
+
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_EQ("", em.get_string());
+    EXPECT_EQ(0U, em.size());
+    EXPECT_FALSE(em.is_at_initial_value());
+    EXPECT_TRUE(em.empty());
+}
+
+TEST(EntryModelTest, InitEmpty)
+{
+    EntryModel<int64_t> em;
+    EntryModel<uint64_t> uem;
+
+    // signed
+    em.init(4, 10);
+
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_EQ("", em.get_string());
+    EXPECT_EQ(0U, em.size());
+    EXPECT_FALSE(em.is_at_initial_value());
+    EXPECT_TRUE(em.empty());
+
+    // unsigned
+    em.init(4, 10);
+
+    EXPECT_EQ(0U, em.get_value());
+    EXPECT_EQ("", em.get_string());
+    EXPECT_EQ(0U, em.size());
+    EXPECT_FALSE(em.is_at_initial_value());
+    EXPECT_TRUE(em.empty());
+}
+
+TEST(EntryModelTest, InitValue)
+{
+    EntryModel<int64_t> em;
+    EntryModel<uint64_t> uem;
+
+    // signed
+    // non-zero positive init
+    em.init(4, 10, 24);
+
+    EXPECT_EQ(24, em.get_value());
+    EXPECT_EQ("24", em.get_string());
+    EXPECT_EQ("  24", em.get_string(true));
+    EXPECT_EQ(0U, em.size());
+    EXPECT_TRUE(em.is_at_initial_value());
+    EXPECT_FALSE(em.empty());
+
+    // non-zero negagive init
+    em.init(4, 10, -24);
+
+    EXPECT_EQ(-24, em.get_value());
+    EXPECT_EQ("-24", em.get_string());
+    EXPECT_EQ(" -24", em.get_string(true));
+    EXPECT_EQ(0U, em.size());
+    EXPECT_TRUE(em.is_at_initial_value());
+    EXPECT_FALSE(em.empty());
+
+    // zero init
+    em.init(4, 10, 0);
+
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_EQ("0", em.get_string());
+    EXPECT_EQ("   0", em.get_string(true));
+    EXPECT_EQ(0U, em.size());
+    EXPECT_TRUE(em.is_at_initial_value());
+    EXPECT_FALSE(em.empty());
+
+    // unsigned
+    // non-zero positive init
+    uem.init(4, 10, 24);
+
+    EXPECT_EQ(24U, uem.get_value());
+    EXPECT_EQ("24", uem.get_string());
+    EXPECT_EQ("  24", uem.get_string(true));
+    EXPECT_EQ(0U, uem.size());
+    EXPECT_TRUE(uem.is_at_initial_value());
+    EXPECT_FALSE(uem.empty());
+
+    // zero init
+    uem.init(4, 10, 0);
+
+    EXPECT_EQ(0U, uem.get_value());
+    EXPECT_EQ("0", uem.get_string());
+    EXPECT_EQ("   0", uem.get_string(true));
+    EXPECT_EQ(0U, uem.size());
+    EXPECT_TRUE(uem.is_at_initial_value());
+    EXPECT_FALSE(uem.empty());
+}
+
+TEST(EntryModelTest, InitValueClear)
+{
+    EntryModel<int64_t> em;
+    EntryModel<uint64_t> uem;
+
+    em.init(4, 10, -24);
+    em.clear();
+
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_EQ("", em.get_string());
+    EXPECT_EQ(0U, em.size());
+    EXPECT_FALSE(em.is_at_initial_value());
+    EXPECT_TRUE(em.empty());
+
+    uem.init(4, 10, 24);
+    uem.clear();
+
+    EXPECT_EQ(0U, uem.get_value());
+    EXPECT_EQ("", uem.get_string());
+    EXPECT_EQ(0U, uem.size());
+    EXPECT_FALSE(uem.is_at_initial_value());
+    EXPECT_TRUE(uem.empty());
+}
+
+TEST(EntryModelTest, InitValuePopBack)
+{
+    EntryModel<int64_t> em;
+    EntryModel<uint64_t> uem;
+
+    // signed
+    em.init(4, 10, -24);
+    em.pop_back();
+
+    EXPECT_EQ(-2, em.get_value());
+    EXPECT_EQ("-2", em.get_string());
+    EXPECT_EQ("  -2", em.get_string(true));
+    EXPECT_EQ(2U, em.size());
+    EXPECT_FALSE(em.is_at_initial_value());
+    EXPECT_FALSE(em.empty());
+
+    // unsigned
+    uem.init(4, 10, 24);
+    uem.pop_back();
+
+    EXPECT_EQ(2U, uem.get_value());
+    EXPECT_EQ("2", uem.get_string());
+    EXPECT_EQ("   2", uem.get_string(true));
+    EXPECT_EQ(1U, uem.size());
+    EXPECT_FALSE(uem.is_at_initial_value());
+    EXPECT_FALSE(uem.empty());
+
+    // satureate the pop_back operations
+    uem.pop_back();
+    EXPECT_EQ("", uem.get_string());
+    EXPECT_EQ("    ", uem.get_string(true));
+    uem.pop_back();
+    EXPECT_EQ("", uem.get_string());
+    EXPECT_EQ("    ", uem.get_string(true));
+
+    // unsigned 0 value with leading zeros
+    uem.init(4, 10, 0);
+
+    uem.push_back_char('0');
+    EXPECT_EQ("0", uem.get_string());
+    EXPECT_EQ("   0", uem.get_string(true));
+    uem.push_back(0);
+    EXPECT_EQ("00", uem.get_string());
+    EXPECT_EQ("  00", uem.get_string(true));
+    uem.pop_back();
+    EXPECT_EQ("0", uem.get_string());
+    EXPECT_EQ("   0", uem.get_string(true));
+    uem.pop_back();
+    EXPECT_EQ("", uem.get_string());
+    EXPECT_EQ("    ", uem.get_string(true));
+}
+
