@@ -52,10 +52,8 @@ public:
      * @param upper force characters to be upper case
      * @param clamp_callback callback method to clamp min/max
      */
-    EntryModel(bool upper = false,
-               std::function<void(bool)> clamp_callback = nullptr)
-        : clampCallback_(clamp_callback)
-        , value_(0)
+    EntryModel(bool upper = false)
+        : value_(0)
         , numLeadingZeros_(0)
         , maxSize_(0)
         , size_(0)
@@ -439,7 +437,6 @@ private:
         valueMin_ = std::is_signed<T>::value ? valueMax_ / -base_ : 0;
     }
 
-    std::function<void(bool)> clampCallback_; /**< callback to clamp value */
     T value_; /**< present value held */
     T valueMin_; /**< minimum value representable by maxSize_ */
     T valueMax_; /**< maximum value representable by maxSize_ */
