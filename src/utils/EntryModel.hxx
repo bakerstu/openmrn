@@ -266,6 +266,14 @@ public:
         return isAtInitialValue_;
     }
 
+    /// It is not always possible with get_string() to return the leading
+    /// zeros. Furthermore, get_value() does not tell the caller if there are
+    /// leading zeros. Therefore, this API provides a definitive answer.
+    bool has_leading_zeros()
+    {
+        return numLeadingZeros_ > 0;
+    }
+
     /** Get the entry as an unsigned integer value. Note, that '0' is returned
      * both when the actual value is '0' and when the entry is "empty". If the
      * caller needs to distinguish between these two states, check for
