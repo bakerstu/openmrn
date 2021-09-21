@@ -42,7 +42,7 @@
 #include "utils/format_utils.hxx"
 
 /** Implementation of a text entry menu.
- * @tparam T the data type up to 64-bits in size
+ * @tparam T the data type up to 64-bits in size, signed or unsigned
  */
 template <class T>
 class EntryModel
@@ -54,6 +54,8 @@ public:
      */
     EntryModel(bool upper = false)
         : value_(0)
+        , valueMin_(std::numeric_limits<T>::lowest())
+        , valueMax_(std::numeric_limits<T>::max())
         , numLeadingZeros_(0)
         , maxSize_(0)
         , size_(0)
@@ -424,7 +426,7 @@ public:
         return value_;
     }
 
-private:
+protected:
     /// Set the min and max boundaries supported by the EntryModel parameters.
     virtual void set_boundaries()
     {
@@ -453,69 +455,44 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(EntryModel);
 };
-#if 0
+
 /** Specialization of EntryModel with upper and lower bounds
  * @tparam T the data type up to 64-bits in size
  * @tparam N the size of the entry in max number of visible digits.
  */
-template <class T, size_t N> class EntryModelBounded : public EntryModel<T, N>
+template <class T> class EntryModelBounded : public EntryModel<T>
 {
 public:
     /** Constructor.
-     * @param transform force characters to be upper case
+     * @param upper force characters to be upper case
      */
-    EntryModelBounded(bool transform = false)
-        : EntryModel<T, N>(transform,
-              std::bind(&EntryModelBounded::clamp, this, std::placeholders::_1))
+    EntryModelBounded(bool upper = false)
+        : EntryModel<T>(upper)
     {
     }
 
     /** Initialize with a value.
-     * @param digits max number of significant digits in the base type
+     * @param max_size max number of digits in the base type
      * @param base base type, 10 or 16
      * @param value unsigned value to initialize with
      * @param min minumum value
      * @param max maximum value
      * @param default_val default value
      */
-    void init(unsigned digits, int base, T value, T min, T max, T default_val)
+    void init(unsigned max_size, int base, T value, T min, T max, T default_val)
     {
-        HASSERT(default_val >= min && default_val <= max);
-        min_ = min;
-        max_ = max;
-        default_ = default_val;
-        EntryModel<T, N>::init(digits, base, value);
+        // purposely do not boundary check the min, max, and default values
+        EntryModel<T>::init(max_size, base, value);
+        // override type min/max values
+        EntryModel<T>::valueMin_ = min;
+        EntryModel<T>::valueMax_ = max;
+        valueDefault_ = default_val;
     }
-
 
     /// Set the value to the default.
     void set_default()
     {
-        EntryModel<T, N>::set_value(default_);
-    }
-
-    /// Pre-increment value.
-    T operator ++()
-    {
-        T value = EntryModel<T, N>::get_value();
-        if (value < max_)
-        {
-            ++value;
-            EntryModel<T, N>::set_value(value);
-        }
-        return value;
-    }
-
-    /// Pre-decrement value.
-    T operator --()
-    {
-        T value = EntryModel<T, N>::get_value();
-        if (value > min_)
-        {
-            --value;
-            EntryModel<T, N>::set_value(value);
-        }
-        return value;
+        EntryModel<T>::set_value(valueDefault_);
     }
 
 private:
@@ -524,30 +501,26 @@ private:
     ///              However, if force is set to true, we will clamp anyways.
     void clamp(bool force = false)
     {
-        if (force || !EntryModel<T, N>::parsed(true).empty())
+        if (force && EntryModel<T>::empty_)
         {
-            volatile T value = EntryModel<T, N>::get_value();
-            if (value < min_)
-            {
-                set_min();
-            }
-            else if (value > max_)
-            {
-                set_max();
-            }
-            else if (EntryModel<T, N>::parsed(true).empty())
-            {
-                set_default();
-            }
+            set_default();
+        }
+        else
+        {
+            EntryModel<T>::clamp(force);
         }
     }
 
-    T min_; ///< minimum value
-    T max_; ///< maximum value
-    T default_; ///< default value
+    /// Override base class to do nothing. The boundaries come from
+    /// EntryModelBounded::init().
+    void set_boundaries()
+    {
+    }
+
+    T valueDefault_; ///< default value
 
     DISALLOW_COPY_AND_ASSIGN(EntryModelBounded);
 };
-#endif
+
 #endif /* _UTILS_ENTRYMODEL_HXX_ */
 
