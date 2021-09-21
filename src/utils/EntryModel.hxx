@@ -86,6 +86,7 @@ public:
         maxSize_ = max_size;
         clear();
         set_base(base);
+        set_boundaries();
     }
 
     /** Initialize with a value.
@@ -214,6 +215,7 @@ public:
             // no more characters left, so the entry is "empty"
             empty_ = true;
         }
+        clamp();
     }
 
     /** Set the radix base.
@@ -351,6 +353,18 @@ public:
         return str;
     }
     
+    /// Set the value to the minimum.
+    void set_min()
+    {
+        set_value(valueMin_);
+    }
+
+    /// Set the value to the maximum.
+    void set_max()
+    {
+        set_value(valueMax_);
+    }
+
     /** Change the sign of the data.
      */
     void change_sign()
@@ -369,17 +383,66 @@ public:
     /// Clamp the value at the min or max.
     /// @param force Normally, clamping doesn't occur if the entry is "empty".
     ///              However, if force is set to true, we will clamp anyways.
-    void clamp(bool force = false)
+    virtual void clamp(bool force = false)
     {
-        if (clampCallback_)
+        if (force || !empty_)
         {
-            clampCallback_(force);
+            // puposely do not reset the numLeadingZeros_
+            empty_ = false;
+            if (value_ < valueMin_)
+            {
+                value_ = valueMin_;
+            }
+            else if (value_ > valueMax_)
+            {
+                value_ = valueMax_;
+            }
         }
     }
 
+    /// Pre-increment value. While this method does prevent wrap around of
+    /// the native type limits, it is incumbent on the caller to limit the
+    /// resulting number of digits.
+    T operator ++()
+    {
+        if (value_ < std::numeric_limits<T>::max())
+        {
+            ++value_;
+        }
+        clamp();
+        return value_;
+    }
+
+    /// Pre-decrement value. While this method does prevent wrap around of
+    /// the native type limits, it is incumbent on the caller to limit the
+    /// resulting number of digits.
+    T operator --()
+    {
+        if (value_ > std::numeric_limits<T>::lowest())
+        {
+            --value_;
+        }
+        clamp();
+        return value_;
+    }
+
 private:
+    /// Set the min and max boundaries supported by the EntryModel parameters.
+    virtual void set_boundaries()
+    {
+        valueMax_ = 0;
+        for (unsigned i = 0; i < maxSize_; ++i)
+        {
+            valueMax_ *= base_;
+            valueMax_ += base_ - 1;
+        }
+        valueMin_ = std::is_signed<T>::value ? valueMax_ / -base_ : 0;
+    }
+
     std::function<void(bool)> clampCallback_; /**< callback to clamp value */
     T value_; /**< present value held */
+    T valueMin_; /**< minimum value representable by maxSize_ */
+    T valueMax_; /**< maximum value representable by maxSize_ */
 
     unsigned numLeadingZeros_  : 5; /**< number of leading zeros */
     unsigned maxSize_          : 5; /**< maximum number of digits */
@@ -427,17 +490,6 @@ public:
         EntryModel<T, N>::init(digits, base, value);
     }
 
-    /// Set the value to the minimum.
-    void set_min()
-    {
-        EntryModel<T, N>::set_value(min_);
-    }
-
-    /// Set the value to the maximum.
-    void set_max()
-    {
-        EntryModel<T, N>::set_value(max_);
-    }
 
     /// Set the value to the default.
     void set_default()
