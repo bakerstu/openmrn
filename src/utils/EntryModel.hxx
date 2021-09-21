@@ -324,9 +324,11 @@ public:
                     break;
             }
         }
-        if (numLeadingZeros_)
+        size_t zeros = std::min(static_cast<size_t>(numLeadingZeros_),
+                                maxSize_ - str.size());
+        if (zeros)
         {
-            str.insert(0, numLeadingZeros_, '0');
+            str.insert(0, zeros, '0');
         }
         if (right_justify)
         {
