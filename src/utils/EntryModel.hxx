@@ -41,17 +41,16 @@
 
 #include "utils/format_utils.hxx"
 
-/** Implementation of a text entry menu.
- * @tparam T the data type up to 64-bits in size, signed or unsigned
- */
+/// Implementation of a text entry menu.
+/// @tparam T the data type up to 64-bits in size, signed or unsigned
+///
 template <class T>
 class EntryModel
 {
 public:
-    /** Constructor.
-     * @param upper force characters to be upper case
-     * @param clamp_callback callback method to clamp min/max
-     */
+    /// Constructor.
+    /// @param upper force characters to be upper case
+    /// @param clamp_callback callback method to clamp min/max
     EntryModel(bool upper = false)
         : value_(0)
         , valueMin_(std::numeric_limits<T>::lowest())
@@ -66,8 +65,7 @@ public:
     {
     }
 
-    /** Clear the entry string.
-     */
+    ///Clear the entry string.
     void clear()
     {
         value_ = 0;
@@ -77,10 +75,9 @@ public:
         isAtInitialValue_ = false;
     }
 
-    /** Initialize empty.
-     * @param max_size max number of digits in the base type
-     * @param base base type, 10 or 16
-     */
+    /// Initialize empty.
+    /// @param max_size max number of digits in the base type
+    /// @param base base type, 10 or 16
     void init(unsigned max_size, int base)
     {
         maxSize_ = max_size;
@@ -89,11 +86,10 @@ public:
         set_boundaries();
     }
 
-    /** Initialize with a value.
-     * @param max_size max number of digits in the base type
-     * @param base base type, 10 or 16
-     * @param value value to initialize with
-     */
+    /// Initialize with a value.
+    /// @param max_size max number of digits in the base type
+    /// @param base base type, 10 or 16
+    /// @param value value to initialize with
     void init(unsigned max_size, int base, T value)
     {
         init(max_size, base);
@@ -102,9 +98,8 @@ public:
         empty_ = false;
     }
 
-    /** Append a value to the "back".
-     * @param val value to append, base 10: 0 - 9, base 16: 0x0 - 0xF
-     */
+    /// Append a value to the "back".
+    /// @param val value to append, base 10: 0 - 9, base 16: 0x0 - 0xF
     void push_back(uint8_t val)
     {
         HASSERT(val < base_);
@@ -140,9 +135,8 @@ public:
         clamp();
     }
 
-    /** Append a character to the "back".
-     * @param c character to append, base 10: 0 - 9, base 16: 0 - F
-     */
+    /// Append a character to the "back".
+    /// @param c character to append, base 10: 0 - 9, base 16: 0 - F
     void push_back_char(char c)
     {
         switch (base_)
@@ -160,28 +154,25 @@ public:
         }
     }
 
-    /** Append a value to the "back".
-     * @param val value to append, base 10: 0 - 9, base 16: 0x0 - 0xF
-     * @return *this
-     */
+    /// Append a value to the "back".
+    /// @param val value to append, base 10: 0 - 9, base 16: 0x0 - 0xF
+    /// @return *this
     EntryModel &append(uint8_t val)
     {
         push_back(val);
         return *this;
     }
 
-    /** Append a character to the "back".
-     * @param c character to append, base 10: 0 - 9, base 16: 0 - F
-     * @return *this
-     */
+    /// Append a character to the "back".
+    /// @param c character to append, base 10: 0 - 9, base 16: 0 - F
+    /// @return *this
     EntryModel &append_char(char c)
     {
         push_back_char(c);
         return *this;
     }
 
-    /** Removes (deletes) a character off the end.
-     */
+    /// Removes (deletes) a character off the end.
     void pop_back()
     {
         if (value_ == 0 && numLeadingZeros_)
@@ -218,51 +209,45 @@ public:
         clamp();
     }
 
-    /** Set the radix base.
-     * @param base new radix base to set.
-     */
+    /// Set the radix base.
+    /// @param base new radix base to set.
     void set_base(int base)
     {
         HASSERT(base == 10 || base == 16);
         base_ = base;
     }
 
-    /** Set the value, keep the max number of digits and base the same.
-     * @param value value to initialize with
-     */
+    /// Set the value, keep the max number of digits and base the same.
+    /// @param value value to initialize with
     void set_value(T value)
     {
         init(maxSize_, base_, value);
     }
 
-    /** Get the size (actual number of digits). Note, if the entry is still
-     * at its initial value, the result will be 0.
-     * @return size actual size in number of digits
-     */
+    /// Get the size (actual number of digits). Note, if the entry is still
+    /// at its initial value, the result will be 0.
+    /// @return size actual size in number of digits
     size_t size()
     {
         return size_;
     }
 
-    /** Test if the entry is "empty". Having an initial value is not empty.
-     * @return true if empty, else false
-     */
+    /// Test if the entry is "empty". Having an initial value is not empty.
+    /// @return true if empty, else false
     bool empty()
     {
         return (!isAtInitialValue_ && empty_);
     }
 
-    /** Test if cursor is visible.
-     * @return true if cursor is visiable, else false
-     */
+    /// Test if cursor is visible.
+    /// @return true if cursor is visiable, else false
     bool cursor_visible()
     {
         return size_ < maxSize_;
     }
 
-    /** Determine if this object is holding an initial or modified value.
-     * @return true if if holding an initial value, else false if modified
-     */
+    /// Determine if this object is holding an initial or modified value.
+    /// @return true if if holding an initial value, else false if modified
     bool is_at_initial_value()
     {
         return isAtInitialValue_;
@@ -276,17 +261,16 @@ public:
         return numLeadingZeros_ > 0;
     }
 
-    /** Get the entry as an unsigned integer value. Note, that '0' is returned
-     * both when the actual value is '0' and when the entry is "empty". If the
-     * caller needs to distinguish between these two states, check for
-     * "empty()".
-     * @param force_clamp Normally, clamping doesn't occur if the entry is
-     *                    "empty". However, if force is set to true, we will
-     *                    clamp anyways. This may be valuable when wanting an
-     *                    "empty" entry to return a valid value and '0' is out
-     *                    of bounds.
-     * @return value representation of the entry
-     */
+    /// Get the entry as an unsigned integer value. Note, that '0' is returned
+    /// both when the actual value is '0' and when the entry is "empty". If the
+    /// caller needs to distinguish between these two states, check for
+    /// "empty()".
+    /// @param force_clamp Normally, clamping doesn't occur if the entry is
+    ///                    "empty". However, if force is set to true, we will
+    ///                    clamp anyways. This may be valuable when wanting an
+    ///                    "empty" entry to return a valid value and '0' is out
+    ///                    of bounds.
+    /// @return value representation of the entry
     T get_value(bool force_clamp = false)
     {
         if (force_clamp)
@@ -296,10 +280,9 @@ public:
         return value_;
     }
 
-    /** Get the value as a string. The number of characters will not be trimmed
-     * to maxSize_. If trimming is required, it must be done by the caller.
-     * @param right_justify true to right justify.
-     */
+    /// Get the value as a string. The number of characters will not be trimmed
+    /// to maxSize_. If trimming is required, it must be done by the caller.
+    /// @param right_justify true to right justify.
     string get_string(bool right_justify = false)
     {
         string str;
@@ -331,7 +314,7 @@ public:
                     }
                     if (upper_)
                     {
-                        /* requires all characters in upper case */
+                        // requires all characters in upper case
                         transform(str.begin(), str.end(), str.begin(), toupper);
                     }
                     break;
@@ -365,8 +348,7 @@ public:
         set_value(valueMax_);
     }
 
-    /** Change the sign of the data.
-     */
+    /// Change the sign of the data.
     void change_sign()
     {
         if (value_ < 0)
@@ -439,46 +421,43 @@ protected:
         valueMin_ = std::is_signed<T>::value ? valueMax_ / -base_ : 0;
     }
 
-    T value_; /**< present value held */
-    T valueMin_; /**< minimum value representable by maxSize_ */
-    T valueMax_; /**< maximum value representable by maxSize_ */
+    T value_; ///< present value held
+    T valueMin_; ///< minimum value representable by maxSize_
+    T valueMax_; ///< maximum value representable by maxSize_ 
 
-    unsigned numLeadingZeros_  : 5; /**< number of leading zeros */
-    unsigned maxSize_          : 5; /**< maximum number of digits */
-    unsigned size_             : 5; /**< actual number of digits */
-    unsigned isAtInitialValue_ : 1; /**< true if still has the initial value */
-    unsigned empty_            : 1; /**< true if the value_ is "empty" */
-    unsigned upper_            : 1; /**< force characters to be upper case */
-    unsigned reserved_         : 15; /**< reserved bit space */
+    unsigned numLeadingZeros_  : 5; ///< number of leading zeros
+    unsigned maxSize_          : 5; ///< maximum number of digits
+    unsigned size_             : 5; ///< actual number of digits
+    unsigned isAtInitialValue_ : 1; ///< true if still has the initial value
+    unsigned empty_            : 1; ///< true if the value_ is "empty"
+    unsigned upper_            : 1; ///< force characters to be upper case
+    unsigned reserved_         : 15; ///< reserved bit space
 
-    int base_; /**< radix base */
+    int base_; ///< radix base
 
     DISALLOW_COPY_AND_ASSIGN(EntryModel);
 };
 
-/** Specialization of EntryModel with upper and lower bounds
- * @tparam T the data type up to 64-bits in size
- * @tparam N the size of the entry in max number of visible digits.
- */
+/// Specialization of EntryModel with upper and lower bounds
+/// @tparam T the data type up to 64-bits in size
+/// @tparam N the size of the entry in max number of visible digits.
 template <class T> class EntryModelBounded : public EntryModel<T>
 {
 public:
-    /** Constructor.
-     * @param upper force characters to be upper case
-     */
+    /// Constructor.
+    /// @param upper force characters to be upper case
     EntryModelBounded(bool upper = false)
         : EntryModel<T>(upper)
     {
     }
 
-    /** Initialize with a value.
-     * @param max_size max number of digits in the base type
-     * @param base base type, 10 or 16
-     * @param value unsigned value to initialize with
-     * @param min minumum value
-     * @param max maximum value
-     * @param default_val default value
-     */
+    /// Initialize with a value.
+    /// @param max_size max number of digits in the base type
+    /// @param base base type, 10 or 16
+    /// @param value unsigned value to initialize with
+    /// @param min minumum value
+    /// @param max maximum value
+    /// @param default_val default value
     void init(unsigned max_size, int base, T value, T min, T max, T default_val)
     {
         // purposely do not boundary check the min, max, and default values
@@ -522,5 +501,5 @@ private:
     DISALLOW_COPY_AND_ASSIGN(EntryModelBounded);
 };
 
-#endif /* _UTILS_ENTRYMODEL_HXX_ */
+#endif // _UTILS_ENTRYMODEL_HXX_
 
