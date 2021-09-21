@@ -159,15 +159,19 @@ TEST(EntryModelTest, InitValuePopBack)
     uem.push_back_char('0');
     EXPECT_EQ("0", uem.get_string());
     EXPECT_EQ("   0", uem.get_string(true));
+    EXPECT_FALSE(uem.has_leading_zeros());
     uem.push_back(0);
     EXPECT_EQ("00", uem.get_string());
     EXPECT_EQ("  00", uem.get_string(true));
+    EXPECT_TRUE(uem.has_leading_zeros());
     uem.pop_back();
     EXPECT_EQ("0", uem.get_string());
     EXPECT_EQ("   0", uem.get_string(true));
+    EXPECT_FALSE(uem.has_leading_zeros());
     uem.pop_back();
     EXPECT_EQ("", uem.get_string());
     EXPECT_EQ("    ", uem.get_string(true));
+    EXPECT_FALSE(uem.has_leading_zeros());
 }
 
 TEST(EntryModelTest, PushBackAndAppend)
@@ -333,4 +337,99 @@ TEST(EntryModelTest, PushBackAndAppend)
     EXPECT_EQ("123", uem.get_string());
     EXPECT_EQ(" 123", uem.get_string(true));
     EXPECT_EQ(123U, uem.get_value());
+}
+
+TEST(EntryModelTest, IncrementDecrementClamp)
+{
+    EntryModel<int16_t> em;
+
+    //
+    // signed base 10, decrement
+    //
+    em.init(4, 10, 0);
+    --em;
+    --em;
+    EXPECT_EQ("-2", em.get_string());
+    EXPECT_EQ("  -2", em.get_string(true));
+    EXPECT_EQ(-2, em.get_value());
+    for (unsigned i = 0; i < 997; ++i)
+    {
+        --em;
+    }
+    EXPECT_EQ("-999", em.get_string());
+    EXPECT_EQ("-999", em.get_string(true));
+    EXPECT_EQ(-999, em.get_value());
+    --em;
+    EXPECT_EQ("-999", em.get_string());
+    EXPECT_EQ("-999", em.get_string(true));
+    EXPECT_EQ(-999, em.get_value());
+
+    // increment
+    em.set_value(0);
+    ++em;
+    ++em;
+    EXPECT_EQ("2", em.get_string());
+    EXPECT_EQ("   2", em.get_string(true));
+    EXPECT_EQ(2, em.get_value());
+    for (unsigned i = 0; i < 9997; ++i)
+    {
+        ++em;
+    }
+    EXPECT_EQ("9999", em.get_string());
+    EXPECT_EQ("9999", em.get_string(true));
+    EXPECT_EQ(9999, em.get_value());
+    ++em;
+    EXPECT_EQ("9999", em.get_string());
+    EXPECT_EQ("9999", em.get_string(true));
+    EXPECT_EQ(9999, em.get_value());
+
+    // minimum initial value, then modify/clamp
+    em.set_value(INT16_MIN);
+    EXPECT_EQ("-32768", em.get_string());
+    EXPECT_EQ("-32768", em.get_string(true));
+    EXPECT_EQ(-32768, em.get_value());
+    --em;
+    EXPECT_EQ("-999", em.get_string());
+    EXPECT_EQ("-999", em.get_string(true));
+    EXPECT_EQ(-999, em.get_value());
+    em.set_value(INT16_MIN);
+    ++em;
+    EXPECT_EQ("-999", em.get_string());
+    EXPECT_EQ("-999", em.get_string(true));
+    EXPECT_EQ(-999, em.get_value());
+
+    // maximum initial value, then modify/clamp
+    em.set_value(INT16_MAX);
+    EXPECT_EQ("32767", em.get_string());
+    EXPECT_EQ("32767", em.get_string(true));
+    EXPECT_EQ(32767, em.get_value());
+    ++em;
+    EXPECT_EQ("9999", em.get_string());
+    EXPECT_EQ("9999", em.get_string(true));
+    EXPECT_EQ(9999, em.get_value());
+    em.set_value(INT16_MAX);
+    --em;
+    EXPECT_EQ("9999", em.get_string());
+    EXPECT_EQ("9999", em.get_string(true));
+    EXPECT_EQ(9999, em.get_value());
+}
+
+TEST(EntryModelTest, SetMinMax)
+{
+    EntryModel<int16_t> em;
+
+    //
+    // signed base 10, set_min()
+    //
+    em.init(4, 10, 0);
+    em.set_min();
+    EXPECT_EQ("-999", em.get_string());
+    EXPECT_EQ("-999", em.get_string(true));
+    EXPECT_EQ(-999, em.get_value());
+
+    // set_max()
+    em.set_max();
+    EXPECT_EQ("9999", em.get_string());
+    EXPECT_EQ("9999", em.get_string(true));
+    EXPECT_EQ(9999, em.get_value());
 }
