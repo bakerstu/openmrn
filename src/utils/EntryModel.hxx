@@ -129,7 +129,10 @@ public:
         }
         if (value_ == 0 && !empty_)
         {
-            ++numLeadingZeros_;
+            if (numLeadingZeros_ < 31)
+            {
+                ++numLeadingZeros_;
+            }
         }
         empty_ = false;
         ++size_;
