@@ -189,14 +189,7 @@ public:
             isAtInitialValue_ = false;
             clamp();
             // need to compute the size now that the initial value is false
-            if (value_ <= 0)
-            {
-                size_ = 1;
-            }
-            for (T tmp = value_; tmp != 0; tmp /= base_)
-            {
-                ++size_;
-            }
+            calculate_size();
         }
         if (size_ == 0)
         {
@@ -354,6 +347,7 @@ public:
         {
             ++size_;
         }
+        clamp();
     }
 
     /// Clamp the value at the min or max.
@@ -368,10 +362,12 @@ public:
             if (value_ < valueMin_)
             {
                 value_ = valueMin_;
+                calculate_size();
             }
             else if (value_ > valueMax_)
             {
                 value_ = valueMax_;
+                calculate_size();
             }
         }
     }
@@ -381,6 +377,7 @@ public:
     /// resulting number of digits.
     T operator ++()
     {
+        isAtInitialValue_ = false;
         if (value_ < std::numeric_limits<T>::max())
         {
             ++value_;
@@ -394,6 +391,7 @@ public:
     /// resulting number of digits.
     T operator --()
     {
+        isAtInitialValue_ = false;
         if (value_ > std::numeric_limits<T>::lowest())
         {
             --value_;
@@ -413,6 +411,17 @@ protected:
             valueMax_ += base_ - 1;
         }
         valueMin_ = std::is_signed<T>::value ? valueMax_ / -base_ : 0;
+    }
+
+    /// Calculate the size in digits
+    void calculate_size()
+    {
+        // calculate new size_
+        size_ = value_ < 0 ? numLeadingZeros_ + 1 : numLeadingZeros_;
+        for (T tmp = value_ < 0 ? -value_ : value_; tmp != 0; tmp /= base_)
+        {
+            ++size_;
+        }
     }
 
     T value_; ///< present value held
