@@ -49,9 +49,7 @@ class EntryModel
 {
 public:
     /// Constructor.
-    /// @param upper force characters to be upper case
-    /// @param clamp_callback callback method to clamp min/max
-    EntryModel(bool upper = false)
+    EntryModel()
         : value_(0)
         , valueMin_(std::numeric_limits<T>::lowest())
         , valueMax_(std::numeric_limits<T>::max())
@@ -60,7 +58,6 @@ public:
         , size_(0)
         , isAtInitialValue_(false)
         , empty_(true)
-        , upper_(upper)
         , base_(10)
     {
     }
@@ -312,11 +309,8 @@ public:
                     {
                         str = uint64_to_string_hex(value_);
                     }
-                    if (upper_)
-                    {
-                        // requires all characters in upper case
-                        transform(str.begin(), str.end(), str.begin(), toupper);
-                    }
+                    // requires all characters in upper case
+                    transform(str.begin(), str.end(), str.begin(), toupper);
                     break;
             }
         }
@@ -430,7 +424,6 @@ protected:
     unsigned size_             : 5; ///< actual number of digits
     unsigned isAtInitialValue_ : 1; ///< true if still has the initial value
     unsigned empty_            : 1; ///< true if the value_ is "empty"
-    unsigned upper_            : 1; ///< force characters to be upper case
     unsigned reserved_         : 15; ///< reserved bit space
 
     int base_; ///< radix base
