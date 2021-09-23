@@ -456,13 +456,14 @@ public:
 /// @param NUM is the pin number, such as 3 (see below for usable range).
 ///
 /// There are multiple variations available for the ESP32: ESP32, WROVER,
-/// WROVER-B, PICO-D4, ESP32-Solo and ESP32-S2. Each of these have slight
+/// WROVER-B, PICO, ESP32-Solo, ESP32-S2, ESP32-C3. Each of these have slight
 /// differences in the available pins.
 ///
 /// ESP32: Valid pin range is 0..39 with the following restrictions:
 ///    - 0       : Pull-up resistor on most modules.
+///    - 1       : UART0 TX, serial console.
 ///    - 2       : Pull-down resistor on most modules.
-///    - 1, 3    : UART0, serial console.
+///    - 3       : UART0 RX, serial console.
 ///    - 4       : Pull-down resistor on most modules.
 ///    - 5       : Pull-up resistor on most modules.
 ///    - 6 - 11  : Used for on-board flash. If you have the PICO-D4 see the
@@ -496,14 +497,17 @@ public:
 /// differences:
 ///    - 16, 17  : Reserved for PSRAM on WROVER/WROVER-B modules.
 ///
-/// ESP32-S2 and ESP32-S3: Valid pin range is 0..46 with the following notes:
+/// ESP32-S2: Valid pin range is 0..46 with the following notes:
 ///    - 0       : Pull-up resistor on most modules.
-///    - 18      : ESP32-S2-Saola-1 modules have an RGB LED on this pin.
-///    - 19      : USB OTG D- 
-///    - 20      : USB OTG D+
-///    - 22 - 25 : Does not exist.
-///    - 26 - 32 : Used for on-board flash and/or PSRAM (WROVER only).
-///    - 43, 44  : UART0, serial console.
+///    - 18      : Most modules have an RGB LED on this pin.
+///    - 19      : USB OTG D-, available to use if not using this
+///                functionality.
+///    - 20      : USB OTG D+, available to use if not using this
+///                functionality.
+///    - 22 - 25 : Do not exist.
+///    - 26 - 32 : Used for on-board flash and/or PSRAM.
+///    - 43      : UART0 TX, serial console.
+///    - 44      : UART0 RX, serial console.
 ///    - 45      : Pull-down resistor on most modules. Note: ESP32-S2-Kaluga-1
 ///                modules have an RGB LED on this pin that can be enabled via
 ///                a jumper.
@@ -514,6 +518,12 @@ public:
 ///    - 9       : Connected to built-in pull-up resistor, may also have an
 ///                external pull-up resistor.
 ///    - 11 - 17 : Used for flash and/or PSRAM.
+///    - 18      : USB CDC-ACM D- / JTAG, available to use if not using this
+///                functionality.
+///    - 19      : USB CDC ACM D+ / JTAG, available to use if not using this
+///                functionality.
+///    - 20      : UART0 RX, serial console.
+///    - 21      : UART0 TX, serial console.
 ///
 /// Pins marked as having a pull-up or pull-down resistor are typically 10kOhm.
 ///
