@@ -316,12 +316,9 @@ public:
         {
             str.insert(0, numLeadingZeros_, '0');
         }
-        if (right_justify)
+        if (right_justify && str.size() < maxSize_)
         {
-            if (str.size() < maxSize_)
-            {
-                str.insert(0, maxSize_ - str.size(), ' ');
-            }
+            str.insert(0, maxSize_ - str.size(), ' ');
         }
         return str;
     }
