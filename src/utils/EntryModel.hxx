@@ -230,7 +230,7 @@ public:
     }
 
     /// Test if cursor is visible.
-    /// @return true if cursor is visiable, else false
+    /// @return true if cursor is visible, else false
     bool cursor_visible()
     {
         return size_ < maxSize_;
@@ -357,7 +357,7 @@ public:
     {
         if (force || !empty_)
         {
-            // puposely do not reset the numLeadingZeros_
+            // purposely do not reset the numLeadingZeros_
             empty_ = false;
             if (value_ < valueMin_)
             {
@@ -401,7 +401,7 @@ public:
     }
 
 protected:
-    /// Set the min and max boundaries supported by the EntryModel parameters.
+    /// Set min and max boundaries supported based on maxSize_ (digit count).
     virtual void set_boundaries()
     {
         valueMax_ = 0;
@@ -433,9 +433,7 @@ protected:
     unsigned size_             : 5; ///< actual number of digits
     unsigned isAtInitialValue_ : 1; ///< true if still has the initial value
     unsigned empty_            : 1; ///< true if the value_ is "empty"
-    unsigned reserved_         : 15; ///< reserved bit space
-
-    int base_; ///< radix base
+    unsigned base_             : 6; ///< radix base
 
     DISALLOW_COPY_AND_ASSIGN(EntryModel);
 };
@@ -447,16 +445,15 @@ template <class T> class EntryModelBounded : public EntryModel<T>
 {
 public:
     /// Constructor.
-    /// @param upper force characters to be upper case
-    EntryModelBounded(bool upper = false)
-        : EntryModel<T>(upper)
+    EntryModelBounded()
+        : EntryModel<T>()
     {
     }
 
     /// Initialize with a value.
     /// @param max_size max number of digits in the base type
     /// @param base base type, 10 or 16
-    /// @param value unsigned value to initialize with
+    /// @param value value to initialize with
     /// @param min minumum value
     /// @param max maximum value
     /// @param default_val default value
@@ -480,7 +477,7 @@ private:
     /// Clamp the value at the min or max.
     /// @param force Normally, clamping doesn't occur if the entry is "empty".
     ///              However, if force is set to true, we will clamp anyways.
-    void clamp(bool force = false)
+    void clamp(bool force = false) override
     {
         if (force && EntryModel<T>::empty_)
         {
@@ -494,7 +491,7 @@ private:
 
     /// Override base class to do nothing. The boundaries come from
     /// EntryModelBounded::init().
-    void set_boundaries()
+    void set_boundaries() override
     {
     }
 
