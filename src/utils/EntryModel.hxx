@@ -307,11 +307,14 @@ public:
                     break;
             }
         }
-        size_t zeros = std::min(static_cast<size_t>(numLeadingZeros_),
-                                maxSize_ - str.size());
-        if (zeros)
+        // Assert that we do not have more leading zeros than space allows.
+        // The logic of push_back should never allow it.
+        HASSERT(numLeadingZeros_ == 0 ||
+                (str.size() + numLeadingZeros_) <= maxSize_);
+
+        if (numLeadingZeros_)
         {
-            str.insert(0, zeros, '0');
+            str.insert(0, numLeadingZeros_, '0');
         }
         if (right_justify)
         {
