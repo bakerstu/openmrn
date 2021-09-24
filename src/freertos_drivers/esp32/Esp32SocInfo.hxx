@@ -97,7 +97,7 @@ static const char * const ESP32_SOC_RESET_REASONS[] =
     "software reset",           // SW_RESET                 3
     "unknown",                  // no key                   4
     "deep sleep reset",         // DEEPSLEEP_RESET          5
-    "reset (SLC)",              // SDIO_RESET               6
+    "unknown",                  // no key                   6
     "watchdog reset (group0)",  // TG0WDT_SYS_RESET         7
     "watchdog reset (group1)",  // TG1WDT_SYS_RESET         8
     "RTC system reset",         // RTCWDT_SYS_RESET         9
@@ -110,6 +110,11 @@ static const char * const ESP32_SOC_RESET_REASONS[] =
     "RTC Reset (Normal)",       // RTCWDT_RTC_RESET         16
     "WDT Timer group1 reset",   // TG1WDT_CPU_RESET         17
     "WDT Reset",                // SUPER_WDT_RESET          18
+    "RTC Reset (Glitch)",       // GLITCH_RTC_RESET         19
+    "eFuse Reset",              // EFUSE_RESET              20
+    "USB UART Reset",           // USB_UART_CHIP_RESET      21
+    "USB JTAG Reset",           // USB_JTAG_CHIP_RESET      22
+    "Power Glitch Reset",       // POWER_GLITCH_RESET       23
 };
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
 /// ESP32-S3 SoC reset reasons.
@@ -134,8 +139,11 @@ static const char * const ESP32_SOC_RESET_REASONS[] =
     "RTC Reset (Normal)",       // RTCWDT_RTC_RESET         16
     "WDT Timer group1 reset",   // TG1WDT_CPU_RESET         17
     "WDT Reset",                // SUPER_WDT_RESET          18
-    "Glitch Reset",             // GLITCH_RTC_RESET         19
+    "RTC Reset (Glitch)",       // GLITCH_RTC_RESET         19
     "eFuse Reset",              // EFUSE_RESET              20
+    "USB UART Reset",           // USB_UART_CHIP_RESET      21
+    "USB JTAG Reset",           // USB_JTAG_CHIP_RESET      22
+    "Power Glitch Reset",       // POWER_GLITCH_RESET       23
 };
 #elif defined(CONFIG_IDF_TARGET_ESP32H2)
 /// ESP32-H2 SoC reset reasons.
@@ -160,6 +168,12 @@ static const char * const ESP32_SOC_RESET_REASONS[] =
     "RTC Reset (Normal)",       // RTCWDT_RTC_RESET         16
     "WDT Timer group1 reset",   // TG1WDT_CPU_RESET         17
     "WDT Reset",                // SUPER_WDT_RESET          18
+    "RTC Reset (Glitch)",       // GLITCH_RTC_RESET         19
+    "eFuse Reset",              // EFUSE_RESET              20
+    "USB UART Reset",           // USB_UART_CHIP_RESET      21
+    "USB JTAG Reset",           // USB_JTAG_CHIP_RESET      22
+    "Power Glitch Reset",       // POWER_GLITCH_RESET       23
+    "JTAG Reset",               // JTAG_RESET               24
 };
 #else
 /// ESP32 SoC reset reasons.
