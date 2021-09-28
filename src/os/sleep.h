@@ -44,7 +44,7 @@
 static void microsleep(uint32_t microseconds) __attribute__((weakref("usleep")));
 
 
-/// Executes a busy loop for a given amount of time. It is recommended ot use
+/// Executes a busy loop for a given amount of time. It is recommended to use
 /// this only for small number of microseconds (e.g. <100 usec).
 /// @param microseconds how long to delay.
 extern void microdelay(uint32_t microseconds);
