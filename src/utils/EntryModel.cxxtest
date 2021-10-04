@@ -20,6 +20,7 @@ TEST(EntryModelTest, InitEmpty)
     // signed
     em.init(4, 10);
 
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(0, em.get_value());
     EXPECT_EQ("", em.get_string());
     EXPECT_EQ(0U, em.size());
@@ -29,6 +30,7 @@ TEST(EntryModelTest, InitEmpty)
     // unsigned
     em.init(4, 10);
 
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(0U, em.get_value());
     EXPECT_EQ("", em.get_string());
     EXPECT_EQ(0U, em.size());
@@ -45,6 +47,7 @@ TEST(EntryModelTest, InitValue)
     // non-zero positive init
     em.init(4, 10, 24);
 
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(24, em.get_value());
     EXPECT_EQ("24", em.get_string());
     EXPECT_EQ("  24", em.get_string(true));
@@ -55,6 +58,7 @@ TEST(EntryModelTest, InitValue)
     // non-zero negagive init
     em.init(4, 10, -24);
 
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(-24, em.get_value());
     EXPECT_EQ("-24", em.get_string());
     EXPECT_EQ(" -24", em.get_string(true));
@@ -76,6 +80,7 @@ TEST(EntryModelTest, InitValue)
     // non-zero positive init
     uem.init(4, 10, 24);
 
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(24U, uem.get_value());
     EXPECT_EQ("24", uem.get_string());
     EXPECT_EQ("  24", uem.get_string(true));
@@ -86,6 +91,7 @@ TEST(EntryModelTest, InitValue)
     // zero init
     uem.init(4, 10, 0);
 
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(0U, uem.get_value());
     EXPECT_EQ("0", uem.get_string());
     EXPECT_EQ("   0", uem.get_string(true));
@@ -102,6 +108,7 @@ TEST(EntryModelTest, InitValueClear)
     em.init(4, 10, -24);
     em.clear();
 
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(0, em.get_value());
     EXPECT_EQ("", em.get_string());
     EXPECT_EQ(0U, em.size());
@@ -111,6 +118,7 @@ TEST(EntryModelTest, InitValueClear)
     uem.init(4, 10, 24);
     uem.clear();
 
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(0U, uem.get_value());
     EXPECT_EQ("", uem.get_string());
     EXPECT_EQ(0U, uem.size());
@@ -127,6 +135,7 @@ TEST(EntryModelTest, InitValuePopBack)
     em.init(4, 10, -24);
     em.pop_back();
 
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(-2, em.get_value());
     EXPECT_EQ("-2", em.get_string());
     EXPECT_EQ("  -2", em.get_string(true));
@@ -138,6 +147,7 @@ TEST(EntryModelTest, InitValuePopBack)
     uem.init(4, 10, 24);
     uem.pop_back();
 
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(2U, uem.get_value());
     EXPECT_EQ("2", uem.get_string());
     EXPECT_EQ("   2", uem.get_string(true));
@@ -156,6 +166,7 @@ TEST(EntryModelTest, InitValuePopBack)
     // unsigned 0 value with leading zeros
     uem.init(4, 10, 0);
 
+    EXPECT_EQ(4U, em.max_size());
     uem.push_back_char('0');
     EXPECT_EQ("0", uem.get_string());
     EXPECT_EQ("   0", uem.get_string(true));
@@ -183,6 +194,7 @@ TEST(EntryModelTest, PushBackAndAppend)
     // signed base 10
     //
     em.init(4, 10, 0);
+    EXPECT_EQ(4U, em.max_size());
     em.push_back_char('1');
     EXPECT_EQ("1", em.get_string());
     EXPECT_EQ("   1", em.get_string(true));
@@ -218,6 +230,7 @@ TEST(EntryModelTest, PushBackAndAppend)
     // unsigned base 10
     //
     uem.init(4, 10, 0);
+    EXPECT_EQ(4U, em.max_size());
     uem.push_back_char('1');
     EXPECT_EQ("1", uem.get_string());
     EXPECT_EQ("   1", uem.get_string(true));
@@ -253,6 +266,7 @@ TEST(EntryModelTest, PushBackAndAppend)
     // signed base 16
     //
     em.init(4, 16, 0);
+    EXPECT_EQ(4U, em.max_size());
     em.push_back_char('1');
     EXPECT_EQ("1", em.get_string());
     EXPECT_EQ("   1", em.get_string(true));
@@ -298,6 +312,7 @@ TEST(EntryModelTest, PushBackAndAppend)
     // unsigned base 16
     //
     uem.init(4, 16, 0);
+    EXPECT_EQ(4U, em.max_size());
     uem.push_back_char('1');
     EXPECT_EQ("1", uem.get_string());
     EXPECT_EQ("   1", uem.get_string(true));
@@ -333,6 +348,7 @@ TEST(EntryModelTest, PushBackAndAppend)
     // append unsigned base 10
     //
     uem.init(4, 10, 0);
+    EXPECT_EQ(4U, em.max_size());
     uem.append_char('1').append(2).append_char('3');
     EXPECT_EQ("123", uem.get_string());
     EXPECT_EQ(" 123", uem.get_string(true));
@@ -347,6 +363,7 @@ TEST(EntryModelTest, IncrementDecrementClamp)
     // signed base 10, decrement
     //
     em.init(4, 10, 0);
+    EXPECT_EQ(4U, em.max_size());
     --em;
     --em;
     EXPECT_EQ("-2", em.get_string());
@@ -422,6 +439,7 @@ TEST(EntryModelTest, SetMinMax)
     // signed base 10, set_min()
     //
     em.init(4, 10, 0);
+    EXPECT_EQ(4U, em.max_size());
     em.set_min();
     EXPECT_EQ("-999", em.get_string());
     EXPECT_EQ("-999", em.get_string(true));
@@ -440,6 +458,8 @@ TEST(EntryModelBoundedTest, SetMinMax)
 
     // intial value
     em.init(4, 10, 9, -100, 100, 11);
+    EXPECT_EQ(4U, em.max_size());
+    EXPECT_EQ(4U, em.max_size());
     EXPECT_EQ(9, em.get_value());
     EXPECT_EQ("9", em.get_string());
     EXPECT_EQ("   9", em.get_string(true));
@@ -469,6 +489,7 @@ TEST(EntryModelBoundedTest, SetMinMax)
     EXPECT_FALSE(em.empty());
 
     em.init(4, 10, 9, -100, 1003, 11);
+    EXPECT_EQ(4U, em.max_size());
     em.push_back(1);
     em.push_back(2);
     em.push_back(3);

@@ -222,6 +222,13 @@ public:
         return size_;
     }
 
+    /// Get the max size (in digits).
+    /// @return max size in number of digits
+    size_t max_size()
+    {
+        return maxSize_;
+    }
+
     /// Test if the entry is "empty". Having an initial value is not empty.
     /// @return true if empty, else false
     bool empty()
