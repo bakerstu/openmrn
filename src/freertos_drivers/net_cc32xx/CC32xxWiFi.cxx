@@ -65,6 +65,12 @@ struct CC32xxWiFi::HttpServerEvent : public ::SlNetAppHttpServerEvent_t {};
 struct CC32xxWiFi::HttpServerResponse : public ::SlNetAppHttpServerResponse_t {};
 
 /** CC32xx forward declaration Helper */
+struct CC32xxWiFi::NetAppRequest : public ::SlNetAppRequest_t {};
+
+/** CC32xx forward declaration Helper */
+struct CC32xxWiFi::NetAppResponse : public ::SlNetAppResponse_t {};
+
+/** CC32xx forward declaration Helper */
 struct CC32xxWiFi::FatalErrorEvent : public ::SlDeviceFatal_t {};
 
 /** This is not a class members so that including CC32xxWiFi.hxx does not
@@ -192,8 +198,8 @@ CC32xxWiFi::CC32xxWiFi()
     SL_SOCKET_FD_ZERO(&efds);
     ssid[0] = '\0';
 
-    add_http_get_callback(make_pair(bind(&CC32xxWiFi::http_get_ip_address,
-                                         this), "__SL_G_UNA"));
+    add_http_get_token_callback(
+        "__SL_G_UNA", bind(&CC32xxWiFi::http_get_ip_address, this));
 }
 
 uint8_t CC32xxWiFi::security_type_to_simplelink(SecurityType sec_type)
@@ -1355,31 +1361,41 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
         case SL_NETAPP_EVENT_HTTP_TOKEN_GET:
         {
             unsigned char *ptr;
-
             ptr = response->ResponseData.TokenValue.pData;
             response->ResponseData.TokenValue.Len = 0;
-
-            for (unsigned i = 0; i < httpGetCallbacks_.size(); ++i)
+            string token((const char *)event->EventData.HttpTokenName.pData,
+                event->EventData.HttpTokenName.Len);
+            LOG(VERBOSE, "token get %s", token.c_str());
             {
-                if (strcmp((const char *)event->EventData.HttpTokenName.pData,
-                           httpGetCallbacks_[i].second) == 0)
+                OSMutexLock l(&lock_);
+                for (unsigned i = 0; i < httpGetTokenCallbacks_.size(); ++i)
                 {
-                    string result = httpGetCallbacks_[i].first();
-                    // clip string if required
-                    if (result.size() >= SL_NETAPP_MAX_TOKEN_VALUE_LEN)
+                    if (token == httpGetTokenCallbacks_[i].first)
                     {
-                        result.erase(SL_NETAPP_MAX_TOKEN_VALUE_LEN);
+                        string result = httpGetTokenCallbacks_[i].second();
+                        // clip string if required
+                        if (result.size() >= SL_NETAPP_MAX_TOKEN_VALUE_LEN)
+                        {
+                            result.resize(SL_NETAPP_MAX_TOKEN_VALUE_LEN);
+                        }
+                        memcpy(ptr, result.data(), result.size());
+                        ptr += result.size();
+                        response->ResponseData.TokenValue.Len += result.size();
+                        break;
                     }
-                    memcpy(ptr, result.c_str(), result.size());
-                    ptr += result.size();
-                    response->ResponseData.TokenValue.Len += result.size();
-                    break;
                 }
             }
             break;
         }
         case SL_NETAPP_EVENT_HTTP_TOKEN_POST:
         {
+            string token(
+                (const char *)event->EventData.HttpPostData.TokenName.pData,
+                event->EventData.HttpPostData.TokenName.Len);
+            string val(
+                (const char *)event->EventData.HttpPostData.TokenValue.pData,
+                event->EventData.HttpPostData.TokenValue.Len);
+            LOG(VERBOSE, "token post %s=%s", token.c_str(), val.c_str());
             break;
         }
         default:
@@ -1387,6 +1403,127 @@ void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
     }
 }
 
+/*
+ * CC32xxWiFi::netapp_request_callback()
+ */
+void CC32xxWiFi::netapp_request_callback(
+    NetAppRequest *request, NetAppResponse *response)
+{
+    if (!request || !response || request->AppId != SL_NETAPP_HTTP_SERVER_ID)
+    {
+        return;
+    }
+
+    string uri;
+    uint32_t content_length = 0xFFFFFFFFu;
+
+    uint8_t *meta_curr = request->requestData.pMetadata;
+    uint8_t *meta_end = meta_curr + request->requestData.MetadataLen;
+    while (meta_curr < meta_end)
+    {
+        uint8_t meta_type = *meta_curr; /* meta_type is one byte */
+        meta_curr++;
+        uint16_t meta_len = *(_u16 *)meta_curr; /* Length is two bytes */
+        meta_curr += 2;
+        switch (meta_type)
+        {
+            case SL_NETAPP_REQUEST_METADATA_TYPE_HTTP_CONTENT_LEN:
+                memcpy(&content_length, meta_curr, meta_len);
+                break;
+            case SL_NETAPP_REQUEST_METADATA_TYPE_HTTP_REQUEST_URI:
+                uri.assign((const char *)meta_curr, meta_len);
+                break;
+        }
+        meta_curr += meta_len;
+    }
+    // Do we have more data to come?
+    bool has_more = request->requestData.Flags &
+        SL_NETAPP_REQUEST_RESPONSE_FLAGS_CONTINUATION;
+    bool found = false;
+    switch (request->Type)
+    {
+        case SL_NETAPP_REQUEST_HTTP_POST:
+        {
+            OSMutexLock l(&lock_);
+            for (unsigned i = 0; i < httpPostCallbacks_.size(); ++i)
+            {
+                if (uri == httpPostCallbacks_[i].first)
+                {
+                    found = true;
+                    httpPostCallbacks_[i].second(request->Handle,
+                        content_length, request->requestData.pMetadata,
+                        request->requestData.MetadataLen,
+                        request->requestData.pPayload,
+                        request->requestData.PayloadLen, has_more);
+                    break;
+                }
+            }
+            if (found)
+            {
+                break;
+            }
+        }
+            // Fall through to 404.
+        default:
+            response->Status = SL_NETAPP_HTTP_RESPONSE_404_NOT_FOUND;
+            response->ResponseData.pMetadata = NULL;
+            response->ResponseData.MetadataLen = 0;
+            response->ResponseData.pPayload = NULL;
+            response->ResponseData.PayloadLen = 0;
+            response->ResponseData.Flags = 0;
+            return;
+    }
+}
+
+/*
+ * CC32xxWiFi::get_post_data()
+ */
+bool CC32xxWiFi::get_post_data(uint16_t handle, void *buf, size_t *len)
+{
+    uint16_t ulen = *len;
+    uint32_t flags;
+    int ret = sl_NetAppRecv(handle, &ulen, (uint8_t *)buf, &flags);
+    if (ret < 0 || (flags & SL_NETAPP_REQUEST_RESPONSE_FLAGS_ERROR))
+    {
+        *len = 0;
+        return false;
+    }
+    *len = ulen;
+    return (flags & SL_NETAPP_REQUEST_RESPONSE_FLAGS_CONTINUATION) != 0;
+}
+
+/*
+ * CC32xxWiFi::send_post_response()
+ */
+void CC32xxWiFi::send_post_respose(
+    uint16_t handle, uint16_t http_status, const string &redirect)
+{
+    // Pieces together a valid metadata structure for SimpleLink.
+    string md;
+    uint16_t len;
+    if (!redirect.empty())
+    {
+        http_status = SL_NETAPP_HTTP_RESPONSE_302_MOVED_TEMPORARILY;
+    }
+    md.push_back(SL_NETAPP_REQUEST_METADATA_TYPE_STATUS);
+    len = 2;
+    md.append((const char *)&len, 2);
+    md.append((const char *)&http_status, 2);
+    if (!redirect.empty())
+    {
+        md.push_back(SL_NETAPP_REQUEST_METADATA_TYPE_HTTP_LOCATION);
+        len = redirect.size();
+        md.append((const char *)&len, 2);
+        md += redirect;
+    }
+    // Now we need to move the metadata content to a buffer that is
+    // malloc'ed. This buffer will be freed asynchronously through a callback.
+    void *buf = malloc(md.size());
+    memcpy(buf, md.data(), md.size());
+
+    uint32_t flags = SL_NETAPP_REQUEST_RESPONSE_FLAGS_METADATA;
+    sl_NetAppSend(handle, md.size(), (uint8_t *)buf, flags);
+}
 
 /*
  * CC32xxWiFi::fatal_error_callback()
@@ -1521,7 +1658,15 @@ void SimpleLinkHttpServerEventHandler(
 void SimpleLinkNetAppRequestEventHandler(SlNetAppRequest_t  *pNetAppRequest,
                                          SlNetAppResponse_t *pNetAppResponse)
 {
-    /* Unused in this application */
+    LOG(VERBOSE,
+        "netapprq app %d type %d hdl %d mdlen %u payloadlen %u flags %u",
+        pNetAppRequest->AppId, pNetAppRequest->Type, pNetAppRequest->Handle,
+        pNetAppRequest->requestData.MetadataLen,
+        pNetAppRequest->requestData.PayloadLen,
+        (unsigned)pNetAppRequest->requestData.Flags);
+    CC32xxWiFi::instance()->netapp_request_callback(
+        static_cast<CC32xxWiFi::NetAppRequest *>(pNetAppRequest),
+        static_cast<CC32xxWiFi::NetAppResponse *>(pNetAppResponse));
 }
 
 /**
