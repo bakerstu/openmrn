@@ -79,8 +79,7 @@ public:
     {
         maxSize_ = max_size;
         clear();
-        set_base(base);
-        set_boundaries();
+        set_base(base); // this will call set_boundaries()
     }
 
     /// Initialize with a value.
@@ -205,6 +204,8 @@ public:
     {
         HASSERT(base == 10 || base == 16);
         base_ = base;
+        set_boundaries();
+    }
     }
 
     /// Set the value, keep the max number of digits and base the same.
