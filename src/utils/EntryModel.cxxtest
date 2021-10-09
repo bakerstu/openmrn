@@ -168,14 +168,17 @@ TEST(EntryModelTest, InitValuePopBack)
 
     EXPECT_EQ(4U, uem.max_size());
     uem.push_back_char('0');
+    EXPECT_EQ(0U, uem.get_value());
     EXPECT_EQ("0", uem.get_string());
     EXPECT_EQ("   0", uem.get_string(true));
     EXPECT_FALSE(uem.has_leading_zeros());
     uem.push_back(0);
+    EXPECT_EQ(0U, uem.get_value());
     EXPECT_EQ("00", uem.get_string());
     EXPECT_EQ("  00", uem.get_string(true));
     EXPECT_TRUE(uem.has_leading_zeros());
     uem.pop_back();
+    EXPECT_EQ(0U, uem.get_value());
     EXPECT_EQ("0", uem.get_string());
     EXPECT_EQ("   0", uem.get_string(true));
     EXPECT_FALSE(uem.has_leading_zeros());
@@ -190,22 +193,27 @@ TEST(EntryModelTest, InitValuePopBack)
 
     EXPECT_EQ(4U, uem.max_size());
     uem.push_back_char('0');
+    EXPECT_EQ(0U, uem.get_value());
     EXPECT_EQ("0", uem.get_string());
     EXPECT_EQ("   0", uem.get_string(true));
     EXPECT_FALSE(uem.has_leading_zeros());
     uem.push_back(0);
+    EXPECT_EQ(0U, uem.get_value());
     EXPECT_EQ("00", uem.get_string());
     EXPECT_EQ("  00", uem.get_string(true));
     EXPECT_TRUE(uem.has_leading_zeros());
     uem.push_back(5);
+    EXPECT_EQ(5U, uem.get_value());
     EXPECT_EQ("005", uem.get_string());
     EXPECT_EQ(" 005", uem.get_string(true));
     EXPECT_TRUE(uem.has_leading_zeros());
     uem.pop_back();
+    EXPECT_EQ(0U, uem.get_value());
     EXPECT_EQ("00", uem.get_string());
     EXPECT_EQ("  00", uem.get_string(true));
     EXPECT_TRUE(uem.has_leading_zeros());
     uem.pop_back();
+    EXPECT_EQ(0U, uem.get_value());
     EXPECT_EQ("0", uem.get_string());
     EXPECT_EQ("   0", uem.get_string(true));
     EXPECT_FALSE(uem.has_leading_zeros());

@@ -213,41 +213,22 @@ public:
     /// @param convert convert the current value, as a string, to the new base.
     void set_base(int base, bool convert)
     {
-        if (base != base_ && convert)
+        if (base != base_)
         {
-            string str;
-            switch (base_)
+            if (convert)
             {
-                default:
-                    // should never get here.
-                    break;
-                case 10:
-                    if (std::is_signed<T>::value)
-                    {
-                        str = int64_to_string(value_);
-                        value_ = strtoll(str.c_str(), nullptr, 16);
-                    }
-                    else
-                    {
-                        str = uint64_to_string(value_);
-                        value_ = strtoull(str.c_str(), nullptr, 16);
-                    }
-                    break;
-                case 16:
-                    if (std::is_signed<T>::value)
-                    {
-                        str = int64_to_string_hex(value_);
-                        value_ = strtoll(str.c_str(), nullptr, 10);
-                    }
-                    else
-                    {
-                        str = uint64_to_string_hex(value_);
-                        value_ = strtoull(str.c_str(), nullptr, 10);
-                    }
-                    break;
+                string str = get_string();
+                if (std::is_signed<T>::value)
+                {
+                    value_ = strtoll(str.c_str(), nullptr, base);
+                }
+                else
+                {
+                    value_ = strtoull(str.c_str(), nullptr, base);
+                }
             }
+            set_base(base);
         }
-        set_base(base);
     }
 
     /// Set the value, keep the max number of digits and base the same.
@@ -400,9 +381,11 @@ public:
     /// is zero and there is space for more leading zeros.
     /// @param force Normally, clamping doesn't occur if the entry is "empty".
     ///              However, if force is set to true, we will clamp anyways.
+    ///              force also applies if the value is zero yet there is space
+    ///              for more leading zeros.
     virtual void clamp(bool force = false)
     {
-        if (value_ == 0 && size_ < maxSize_)
+        if (value_ == 0 && size_ < maxSize_ && !force)
         {
             // skip clamping if we have space for more leading zeros
             return;
