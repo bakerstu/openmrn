@@ -307,9 +307,8 @@ SRCDIR=$(abspath ../../)
 #old code from prog.mk
 #$(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES)
 #new code in core_test.mk
-#$(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LINKCORELIBS) $(SYSLIBRARIES) 
+#$(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LIBS) $(LINKCORELIBS) $(SYSLIBRARIES) 
 #TESTOBJSEXTRA += $(TEST_EXTRA_OBJS)
-SYSLIBRARIES += $(LIBS)
 TESTEXTRADEPS += lib/timestamp
 include $(OPENMRNPATH)/etc/core_test.mk
 
