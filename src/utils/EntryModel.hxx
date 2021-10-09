@@ -364,7 +364,7 @@ public:
 
         if (numLeadingZeros_)
         {
-            str.insert(0, numLeadingZeros_, '0');
+            str.insert(value_ < 0 ? 1 : 0, numLeadingZeros_, '0');
         }
         if (right_justify && str.size() < maxSize_)
         {
