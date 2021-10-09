@@ -413,7 +413,6 @@ public:
         }
         if (force || !empty_)
         {
-            // purposely do not reset the numLeadingZeros_
             empty_ = false;
             if (value_ < valueMin_)
             {
@@ -473,11 +472,14 @@ protected:
     void calculate_size()
     {
         // calculate new size_
-        size_ = value_ < 0 ? numLeadingZeros_ + 1 : numLeadingZeros_;
+        size_ = value_ < 0 ? 1 : 0;
         for (T tmp = value_ < 0 ? -value_ : value_; tmp != 0; tmp /= base_)
         {
             ++size_;
         }
+        numLeadingZeros_ = std::min(static_cast<unsigned>(numLeadingZeros_),
+                                    static_cast<unsigned>(maxSize_ - size_));
+        size_ += numLeadingZeros_;
     }
 
     T value_; ///< present value held
