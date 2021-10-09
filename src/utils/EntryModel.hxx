@@ -79,8 +79,7 @@ public:
     {
         maxSize_ = max_size;
         clear();
-        set_base(base);
-        set_boundaries();
+        set_base(base); // this will call set_boundaries()
     }
 
     /// Initialize with a value.
@@ -111,6 +110,13 @@ public:
             // clear entry before inserting character
             clear();
         }
+        if (value_ == 0 && val != 0 && size_)
+        {
+            // This is a special case where we transition from a user having
+            // entered all 0 (as a first digits) and then enters a non-zero
+            // (as a next digit).
+            ++numLeadingZeros_;
+        }
         value_ *= base_;
         if (value_ < 0)
         {
@@ -139,13 +145,10 @@ public:
         switch (base_)
         {
             case 10:
-                HASSERT(c >= '0' && c <= '9');
                 push_back(c - '0');
                 break;
             case 16:
                 c = toupper(c);
-                HASSERT((c >= '0' && c <= '9') ||
-                        (c >= 'A' && c <= 'F'));
                 push_back(c <= '9' ?  c - '0' : c - 'A' + 10);
                 break;
         }
@@ -172,13 +175,10 @@ public:
     /// Removes (deletes) a character off the end.
     void pop_back()
     {
+        value_ /= base_;
         if (value_ == 0 && numLeadingZeros_)
         {
             --numLeadingZeros_;
-        }
-        else
-        {
-            value_ /= base_;
         }
         if (size_)
         {
@@ -205,6 +205,30 @@ public:
     {
         HASSERT(base == 10 || base == 16);
         base_ = base;
+        set_boundaries();
+    }
+
+    /// Set the radix base.
+    /// @param base new radix base to set.
+    /// @param convert convert the current value, as a string, to the new base.
+    void set_base(int base, bool convert)
+    {
+        if (base != base_)
+        {
+            if (convert)
+            {
+                string str = get_string();
+                if (std::is_signed<T>::value)
+                {
+                    value_ = strtoll(str.c_str(), nullptr, base);
+                }
+                else
+                {
+                    value_ = strtoull(str.c_str(), nullptr, base);
+                }
+            }
+            set_base(base);
+        }
     }
 
     /// Set the value, keep the max number of digits and base the same.
@@ -314,14 +338,10 @@ public:
                     break;
             }
         }
-        // Assert that we do not have more leading zeros than space allows.
-        // The logic of push_back should never allow it.
-        HASSERT(numLeadingZeros_ == 0 ||
-                (str.size() + numLeadingZeros_) <= maxSize_);
 
         if (numLeadingZeros_)
         {
-            str.insert(0, numLeadingZeros_, '0');
+            str.insert(value_ < 0 ? 1 : 0, numLeadingZeros_, '0');
         }
         if (right_justify && str.size() < maxSize_)
         {
@@ -357,14 +377,21 @@ public:
         clamp();
     }
 
-    /// Clamp the value at the min or max.
+    /// Clamp the value at the min or max. Clamping will not occur if the value
+    /// is zero and there is space for more leading zeros.
     /// @param force Normally, clamping doesn't occur if the entry is "empty".
     ///              However, if force is set to true, we will clamp anyways.
+    ///              force also applies if the value is zero yet there is space
+    ///              for more leading zeros.
     virtual void clamp(bool force = false)
     {
+        if (value_ == 0 && size_ < maxSize_ && !force)
+        {
+            // skip clamping if we have space for more leading zeros
+            return;
+        }
         if (force || !empty_)
         {
-            // purposely do not reset the numLeadingZeros_
             empty_ = false;
             if (value_ < valueMin_)
             {
@@ -424,11 +451,14 @@ protected:
     void calculate_size()
     {
         // calculate new size_
-        size_ = value_ < 0 ? numLeadingZeros_ + 1 : numLeadingZeros_;
+        size_ = value_ < 0 ? 1 : 0;
         for (T tmp = value_ < 0 ? -value_ : value_; tmp != 0; tmp /= base_)
         {
             ++size_;
         }
+        numLeadingZeros_ = std::min(static_cast<unsigned>(numLeadingZeros_),
+                                    static_cast<unsigned>(maxSize_ - size_));
+        size_ += numLeadingZeros_;
     }
 
     T value_; ///< present value held
@@ -481,7 +511,8 @@ public:
     }
 
 private:
-    /// Clamp the value at the min or max.
+    /// Clamp the value at the min or max. Clamping will not occur if the value
+    /// is zero and there is space for more leading zeros.
     /// @param force Normally, clamping doesn't occur if the entry is "empty".
     ///              However, if force is set to true, we will clamp anyways.
     void clamp(bool force = false) override
