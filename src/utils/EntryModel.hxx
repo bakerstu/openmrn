@@ -357,10 +357,6 @@ public:
                     break;
             }
         }
-        // Assert that we do not have more leading zeros than space allows.
-        // The logic of push_back should never allow it.
-        HASSERT(numLeadingZeros_ == 0 ||
-                (str.size() + numLeadingZeros_) <= maxSize_);
 
         if (numLeadingZeros_)
         {
