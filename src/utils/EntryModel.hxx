@@ -399,11 +399,17 @@ public:
         clamp();
     }
 
-    /// Clamp the value at the min or max.
+    /// Clamp the value at the min or max. Clamping will not occur if the value
+    /// is zero and there is space for more leading zeros.
     /// @param force Normally, clamping doesn't occur if the entry is "empty".
     ///              However, if force is set to true, we will clamp anyways.
     virtual void clamp(bool force = false)
     {
+        if (value_ == 0 && size_ < maxSize_)
+        {
+            // skip clamping if we have space for more leading zeros
+            return;
+        }
         if (force || !empty_)
         {
             // purposely do not reset the numLeadingZeros_
@@ -523,7 +529,8 @@ public:
     }
 
 private:
-    /// Clamp the value at the min or max.
+    /// Clamp the value at the min or max. Clamping will not occur if the value
+    /// is zero and there is space for more leading zeros.
     /// @param force Normally, clamping doesn't occur if the entry is "empty".
     ///              However, if force is set to true, we will clamp anyways.
     void clamp(bool force = false) override
