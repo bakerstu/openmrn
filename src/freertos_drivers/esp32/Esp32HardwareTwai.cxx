@@ -99,49 +99,11 @@ static constexpr uint32_t TWAI_INTERRUPT_FLAGS = ESP_INTR_FLAG_LOWMED;
 /// ESP-IDF LOG tag used for all TWAI driver log statements.
 static constexpr const char *TWAI_LOG_TAG = "ESP-TWAI";
 
-/// TWAI Driver statistics.
-typedef struct
-{
-    /// Number of frames have been removed from @ref rx_buf and sent to the
-    /// OpenMRN stack.
-    uint32_t rx_processed;
-
-    /// Number of frames frames that could not be sent to @ref rx_buf.
-    uint32_t rx_missed;
-
-    /// Number of frames that were discarded that had too large of a DLC count.
-    uint32_t rx_discard;
-
-    /// Number of frames that were lost due to driver reset.
-    uint32_t rx_lost;
-
-    /// Number of frames that were lost due to RX FIFO overrun.
-    uint32_t rx_overrun;
-
-    /// Number of frames that have been sent to the @ref twai_tx_queue by the
-    /// OpenMRN stack successfully.
-    uint32_t tx_processed;
-
-    /// Number of frames that have been transmitted successfully by the
-    /// low-level TWAI driver.
-    uint32_t tx_success;
-
-    /// Number of frames that have been could not be transmitted successfully
-    /// by the low-level TWAI driver.
-    uint32_t tx_failed;
-
-    /// Number of arbitration errors that have been observed on the TWAI bus.
-    uint32_t arb_error;
-
-    /// Number of general bus errors that have been observed on the TWAI bus.
-    uint32_t bus_error;
-} twai_stats_t;
-
 /// TWAI Driver State
 typedef struct
 {
     /// TWAI Driver statistics.
-    twai_stats_t stats;
+    esp32_twai_stats_t stats;
 
     /// TWAI HAL context object.
     twai_hal_context_t context;
@@ -937,7 +899,7 @@ Esp32HardwareTwai::Esp32HardwareTwai(int rx, int tx, bool report,
         HASSERT(GPIO_IS_VALID_OUTPUT_GPIO(busStatusPin_));
     }
 
-    memset(&twai.stats, 0, sizeof(twai_stats_t));
+    memset(&twai.stats, 0, sizeof(esp32_twai_stats_t));
 
     twai.rx_buf = DeviceBuffer<struct can_frame>::create(rx_size);
     HASSERT(twai.rx_buf != nullptr);
@@ -1032,6 +994,12 @@ void Esp32HardwareTwai::hw_init()
 
     os_thread_create(&twai.wd_thread, "TWAI-WD", WATCHDOG_TASK_PRIORITY,
         WATCHDOG_TASK_STACK, twai_watchdog, this);
+}
+
+void Esp32HardwareTwai::get_driver_stats(esp32_twai_stats_t *stats)
+{
+    HASSERT(stats != nullptr);
+    memcpy(stats, &twai.stats, sizeof(esp32_twai_stats_t));
 }
 
 } // namespace openmrn_arduino

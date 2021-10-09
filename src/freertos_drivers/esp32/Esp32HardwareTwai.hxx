@@ -53,6 +53,44 @@ namespace openmrn_arduino
 #error Esp32HardwareTwai is only supported on ESP-IDF v4.3 and above.
 #endif // IDF v4.3+
 
+/// TWAI Driver statistics.
+typedef struct
+{
+    /// Number of frames have been removed from @ref rx_buf and sent to the
+    /// OpenMRN stack.
+    uint32_t rx_processed;
+
+    /// Number of frames frames that could not be sent to @ref rx_buf.
+    uint32_t rx_missed;
+
+    /// Number of frames that were discarded that had too large of a DLC count.
+    uint32_t rx_discard;
+
+    /// Number of frames that were lost due to driver reset.
+    uint32_t rx_lost;
+
+    /// Number of frames that were lost due to RX FIFO overrun.
+    uint32_t rx_overrun;
+
+    /// Number of frames that have been sent to the @ref twai_tx_queue by the
+    /// OpenMRN stack successfully.
+    uint32_t tx_processed;
+
+    /// Number of frames that have been transmitted successfully by the
+    /// low-level TWAI driver.
+    uint32_t tx_success;
+
+    /// Number of frames that have been could not be transmitted successfully
+    /// by the low-level TWAI driver.
+    uint32_t tx_failed;
+
+    /// Number of arbitration errors that have been observed on the TWAI bus.
+    uint32_t arb_error;
+
+    /// Number of general bus errors that have been observed on the TWAI bus.
+    uint32_t bus_error;
+} esp32_twai_stats_t;
+
 /// ESP32 Hardware TWAI (CAN) driver interface.
 ///
 /// The ESP32 has a hardware TWAI controller that requires an external CAN
@@ -133,6 +171,12 @@ public:
     /// NOTE: This must be called prior to adding the TWAI driver to the
     /// @ref SimpleCanStack.
     void hw_init();
+    
+    /// Retrieves the current driver statistics.
+    ///
+    /// @param stats @ref esp32_twai_stats_t buffer to be filled with the
+    /// current statistics.
+    void get_driver_stats(esp32_twai_stats_t *stats);
 
 private:
     /// Default constructor.
@@ -158,6 +202,7 @@ private:
 
 } // namespace openmrn_arduino
 
+using openmrn_arduino::esp32_twai_stats_t;
 using openmrn_arduino::Esp32HardwareTwai;
 
 #endif // _FREERTOS_DRIVERS_ESP32_ESP32HARDWARETWAI_HXX_
