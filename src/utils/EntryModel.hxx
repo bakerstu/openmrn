@@ -110,6 +110,13 @@ public:
             // clear entry before inserting character
             clear();
         }
+        if (value_ == 0 && val != 0 && size_)
+        {
+            // This is a special case where we transition from a user having
+            // entered all 0 (as a first digits) and then enters a non-zero
+            // (as a next digit).
+            ++numLeadingZeros_;
+        }
         value_ *= base_;
         if (value_ < 0)
         {
