@@ -138,13 +138,10 @@ public:
         switch (base_)
         {
             case 10:
-                HASSERT(c >= '0' && c <= '9');
                 push_back(c - '0');
                 break;
             case 16:
                 c = toupper(c);
-                HASSERT((c >= '0' && c <= '9') ||
-                        (c >= 'A' && c <= 'F'));
                 push_back(c <= '9' ?  c - '0' : c - 'A' + 10);
                 break;
         }
