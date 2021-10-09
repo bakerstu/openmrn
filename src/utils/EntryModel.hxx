@@ -206,6 +206,47 @@ public:
         base_ = base;
         set_boundaries();
     }
+
+    /// Set the radix base.
+    /// @param base new radix base to set.
+    /// @param convert convert the current value, as a string, to the new base.
+    void set_base(int base, bool convert)
+    {
+        if (base != base_ && convert)
+        {
+            string str;
+            switch (base_)
+            {
+                default:
+                    // should never get here.
+                    break;
+                case 10:
+                    if (std::is_signed<T>::value)
+                    {
+                        str = int64_to_string(value_);
+                        value_ = strtoll(str.c_str(), nullptr, 16);
+                    }
+                    else
+                    {
+                        str = uint64_to_string(value_);
+                        value_ = strtoull(str.c_str(), nullptr, 16);
+                    }
+                    break;
+                case 16:
+                    if (std::is_signed<T>::value)
+                    {
+                        str = int64_to_string_hex(value_);
+                        value_ = strtoll(str.c_str(), nullptr, 10);
+                    }
+                    else
+                    {
+                        str = uint64_to_string_hex(value_);
+                        value_ = strtoull(str.c_str(), nullptr, 10);
+                    }
+                    break;
+            }
+        }
+        set_base(base);
     }
 
     /// Set the value, keep the max number of digits and base the same.
