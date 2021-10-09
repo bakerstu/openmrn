@@ -129,7 +129,6 @@ static Esp32WiFiManager *wifi_mgr = nullptr;
 
 namespace openmrn_arduino
 {
-
 // When running on a unicore (ESP32-S2 or ESP32-C3) use a lower priority so the
 // task will run in co-op mode with loop. When running on a multi-core SoC we
 // can use a higher priority for the background task.
@@ -350,6 +349,19 @@ Esp32WiFiManager::~Esp32WiFiManager()
     mdnsDeferredPublish_.clear();
 }
 
+#ifndef CONFIG_FREERTOS_UNICORE
+/// Entrypoint for Esp32WiFiManager Executor thread when running on an ESP32
+/// with more than one core.
+///
+/// @param param @ref Executor to be started.
+static void thread_entry(void *param)
+{
+    // donate our task to the executor.
+    static_cast<Executor<1> *>(param)->thread_body();
+    vTaskDelete(nullptr);
+}
+#endif // !CONFIG_FREERTOS_UNICORE
+
 ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
     int fd, bool initial_load, BarrierNotifiable *done)
 {
@@ -386,10 +398,22 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
 
     if (initial_load)
     {
+        // If we have more than one core start the Executor on the APP CPU (1)
+        // since the main OpenMRN Executor normally will run on the PRO CPU (0)
+#ifndef CONFIG_FREERTOS_UNICORE
+        xTaskCreatePinnedToCore(&thread_entry,              // entry point
+                                "Esp32WiFiConn",            // task name
+                                EXECUTOR_TASK_STACK_SIZE,   // stack size
+                                &executor_,                 // entry point arg
+                                EXECUTOR_TASK_PRIORITY,     // priority
+                                nullptr,                    // task handle
+                                APP_CPU_NUM);               // cpu core
+#else
         // start the background task executor since it will be used for any
         // callback notifications that arise from starting the network stack.
         executor_.start_thread(
             "Esp32WiFiConn", EXECUTOR_TASK_PRIORITY, EXECUTOR_TASK_STACK_SIZE);
+#endif // !CONFIG_FREERTOS_UNICORE
     }
     else if (configCrc32 != configCrc32_)
     {
