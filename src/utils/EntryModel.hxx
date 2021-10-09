@@ -175,13 +175,10 @@ public:
     /// Removes (deletes) a character off the end.
     void pop_back()
     {
+        value_ /= base_;
         if (value_ == 0 && numLeadingZeros_)
         {
             --numLeadingZeros_;
-        }
-        else
-        {
-            value_ /= base_;
         }
         if (size_)
         {
