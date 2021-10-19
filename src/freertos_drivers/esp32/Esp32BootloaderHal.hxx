@@ -485,7 +485,7 @@ void esp32_bootloader_run(uint64_t id, gpio_num_t rx, gpio_num_t tx,
     // restart.
     bootloader_request = RTC_BOOL_FALSE;
 
-    memset(&esp_bootloader_state, 0, sizeof(Esp32BootloaderVars));
+    memset(&esp_bootloader_state, 0, sizeof(Esp32BootloaderState));
 
     esp_bootloader_state.node_id = id;
     esp_bootloader_state.tx_pin = tx;

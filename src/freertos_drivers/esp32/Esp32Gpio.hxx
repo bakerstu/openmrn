@@ -73,19 +73,29 @@ template <gpio_num_t PIN_NUM, bool INVERTED = false>
 class Esp32Gpio : public Gpio
 {
 public:
-#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
+#if CONFIG_IDF_TARGET_ESP32S3
+    static_assert(PIN_NUM >= 0 && PIN_NUM <= 48, "Valid pin range is 0..48.");
+    static_assert(!(PIN_NUM >= 22 && PIN_NUM <= 25)
+                , "Pin does not exist");
+    static_assert(!(PIN_NUM >= 26 && PIN_NUM <= 32)
+                , "Pin is reserved for flash usage.");
+#if defined(CONFIG_SPIRAM_MODE_OCT) || defined(CONFIG_ESPTOOLPY_OCT_FLASH)
+    static_assert(!(PIN_NUM >= 33 && PIN_NUM <= 37)),
+                  "Pin is not available when Octal SPI mode is enabled.");
+#endif // ESP32S3 with Octal SPI
+#elif CONFIG_IDF_TARGET_ESP32S2
     static_assert(PIN_NUM >= 0 && PIN_NUM <= 46, "Valid pin range is 0..46.");
     static_assert(!(PIN_NUM >= 22 && PIN_NUM <= 25)
                 , "Pin does not exist");
     static_assert(!(PIN_NUM >= 26 && PIN_NUM <= 32)
                 , "Pin is reserved for flash usage.");
-#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+#elif CONFIG_IDF_TARGET_ESP32C3
     static_assert(PIN_NUM >= 0 && PIN_NUM <= 21, "Valid pin range is 0..21.");
     // these pins are connected to the embedded flash and are not exposed on
     // the DevKitM-1 board.
     static_assert(!(PIN_NUM >= 11 && PIN_NUM <= 17)
                 , "Pin is reserved for flash usage.");
-#else
+#else // ESP32
     static_assert(PIN_NUM >= 0 && PIN_NUM <= 39, "Valid pin range is 0..39.");
     static_assert(PIN_NUM != 24, "Pin does not exist");
     static_assert(!(PIN_NUM >= 28 && PIN_NUM <= 31), "Pin does not exist");
@@ -199,9 +209,9 @@ struct GpioOutputPin : public Defs
 public:
     using Defs::PIN_NUM;
 // compile time sanity check that the selected pin is valid for output.
-#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
+#if CONFIG_IDF_TARGET_ESP32S2
     static_assert(PIN_NUM != 46, "Pin 46 can not be used for output.");
-#elif defined(CONFIG_IDF_TARGET_ESP32)
+#elif CONFIG_IDF_TARGET_ESP32
     static_assert(PIN_NUM < 34, "Pins 34 and above can not be used as output.");
 #endif // CONFIG_IDF_TARGET_ESP32S2 / CONFIG_IDF_TARGET_ESP32S3
 
@@ -291,7 +301,7 @@ template <class Defs, bool PUEN, bool PDEN> struct GpioInputPin : public Defs
 {
 public:
     using Defs::PIN_NUM;
-#if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
+#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
     // GPIO 45 and 46 typically have pull-down resistors.
     static_assert(!PUEN || (PUEN && (PIN_NUM != 45 && PIN_NUM != 46)),
                   "GPIO 45 and 46 typically have built-in pull-down "
@@ -300,12 +310,12 @@ public:
     static_assert(!PDEN || (PDEN && PIN_NUM != 0),
                   "GPIO 0 typically has a built-in pull-up resistors, "
                   "enabling pull-down is not possible.");
-#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+#elif CONFIG_IDF_TARGET_ESP32C3
     // GPIO 9 typically has a pull-up resistor
     static_assert(!PDEN || (PDEN && PIN_NUM != 9),
                   "GPIO 9 typically has a built-in pull-up resistors, "
                   "enabling pull-down is not possible.");
-#else
+#else // ESP32
     // GPIO 2, 4 and 12 typically have pull-down resistors.
     static_assert(!PUEN ||
                   (PUEN && (PIN_NUM != 2 && PIN_NUM != 4 && PIN_NUM != 12)),
@@ -392,7 +402,7 @@ public:
     using Defs::BITS;
 #if CONFIG_IDF_TARGET_ESP32
     static const adc_unit_t UNIT = PIN >= 30 ? ADC_UNIT_1 : ADC_UNIT_2;
-#elif CONFIG_IDF_TARGET_ESP32S2
+#elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
     static const adc_unit_t UNIT = PIN <= 10 ? ADC_UNIT_1 : ADC_UNIT_2;
 #elif CONFIG_IDF_TARGET_ESP32C3
     static const adc_unit_t UNIT = PIN <= 4 ? ADC_UNIT_1 : ADC_UNIT_2;
@@ -460,16 +470,16 @@ public:
 /// differences in the available pins.
 ///
 /// ESP32: Valid pin range is 0..39 with the following restrictions:
-///    - 0       : Pull-up resistor on most modules.
+///    - 0       : Bootstrap pin, pull-up resistor on most modules.
 ///    - 1       : UART0 TX, serial console.
-///    - 2       : Pull-down resistor on most modules.
+///    - 2       : Bootstrap pin, pull-down resistor on most modules.
 ///    - 3       : UART0 RX, serial console.
 ///    - 4       : Pull-down resistor on most modules.
-///    - 5       : Pull-up resistor on most modules.
+///    - 5       : Bootstrap pin, pull-up resistor on most modules.
 ///    - 6 - 11  : Used for on-board flash. If you have the PICO-D4 see the
 ///                section below.
-///    - 12      : Pull-down resistor on most modules.
-///    - 15      : Pull-up resistor on most modules.
+///    - 12      : Bootstrap pin, pull-down resistor on most modules.
+///    - 15      : Bootstrap pin, pull-up resistor on most modules.
 ///    - 24      : Does not exist.
 ///    - 37, 38  : Not exposed on most modules and will have a capacitor
 ///                connected to 36 and 39 under the metal shielding of the
@@ -498,7 +508,7 @@ public:
 ///    - 16, 17  : Reserved for PSRAM on WROVER/WROVER-B modules.
 ///
 /// ESP32-S2: Valid pin range is 0..46 with the following notes:
-///    - 0       : Pull-up resistor on most modules.
+///    - 0       : Bootstrap pin, pull-up resistor on most modules.
 ///    - 18      : Most modules have an RGB LED on this pin.
 ///    - 19      : USB OTG D-, available to use if not using this
 ///                functionality.
@@ -508,15 +518,15 @@ public:
 ///    - 26 - 32 : Used for on-board flash and/or PSRAM.
 ///    - 43      : UART0 TX, serial console.
 ///    - 44      : UART0 RX, serial console.
-///    - 45      : Pull-down resistor on most modules. Note: ESP32-S2-Kaluga-1
-///                modules have an RGB LED on this pin that can be enabled via
-///                a jumper.
-///    - 46      : Pull-down resistor on most modules, also INPUT only.
+///    - 45      : Bootstrap pin, pull-down resistor on most modules. Note:
+///                ESP32-S2-Kaluga-1 modules have an RGB LED on this pin that
+///                can be enabled via a jumper.
+///    - 46      : Bootstrap pin, pull-down resistor on most modules, INPUT only.
 ///
 /// ESP32-C3: Valid pin range is 0..21 with the following notes:
-///    - 8       : Most modules have an RGB LED on this pin.
-///    - 9       : Connected to built-in pull-up resistor, may also have an
-///                external pull-up resistor.
+///    - 8       : Bootstrap pin, most modules have an RGB LED on this pin.
+///    - 9       : Bootstrap pin, connected to built-in pull-up resistor, may
+///                also have an external pull-up resistor.
 ///    - 11 - 17 : Used for flash and/or PSRAM.
 ///    - 18      : USB CDC-ACM D- / JTAG, available to use if not using this
 ///                functionality.
@@ -525,7 +535,29 @@ public:
 ///    - 20      : UART0 RX, serial console.
 ///    - 21      : UART0 TX, serial console.
 ///
+/// ESP32-S3: Valid pin range is 0..48 with the following notes:
+///    - 0       : Bootstrap pin, pull-up resistor on most modules.
+///    - 18      : Most modules have an RGB LED on this pin.
+///    - 19      : USB OTG D-, available to use if not using this
+///                functionality.
+///    - 20      : USB OTG D+, available to use if not using this
+///                functionality.
+///    - 22 - 25 : Do not exist.
+///    - 26 - 32 : Used for on-board flash and/or PSRAM.
+///    - 33 - 37 : Used for on-board flash and/or PSRAM if Octal SPI mode is
+///                enabled.
+///    - 39 - 42 : JTAG interface (pins in order: MTCK, MTDO, MTDI, MTMS)
+///    - 43      : UART0 TX, serial console.
+///    - 44      : UART0 RX, serial console.
+///    - 45      : Bootstrap pin, pull-down resistor on most modules.
+///    - 46      : Bootstrap pin, pull-down resistor on most modules.
+///    - 48      : Most modules have an RGB LED on this pin.
+///
 /// Pins marked as having a pull-up or pull-down resistor are typically 10kOhm.
+///
+/// Any pins marked as a bootstrap pin can alter the behavior of the ESP32 if
+/// they are not in the default/expected state on startup. Consult the
+/// schematic and/or datasheet for more details.
 ///
 /// The built in pull-up/pull-down resistor for all ESP32 variants are
 /// typically 45kOhm.
@@ -539,11 +571,13 @@ public:
 /// ESP32-S2: https://www.espressif.com/sites/default/files/documentation/esp32-s2_datasheet_en.pdf
 /// ESP32-S2-WROVER: https://www.espressif.com/sites/default/files/documentation/esp32-s2-wrover_esp32-s2-wrover-i_datasheet_en.pdf
 /// ESP32-C3: https://www.espressif.com/sites/default/files/documentation/esp32-c3_datasheet_en.pdf
+/// ESP32-S3: https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf
 ///
 /// SoC technical references:
 /// ESP32: https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf
 /// ESP32-S2: https://www.espressif.com/sites/default/files/documentation/esp32-s2_technical_reference_manual_en.pdf
 /// ESP32-C3: https://www.espressif.com/sites/default/files/documentation/esp32-c3_technical_reference_manual_en.pdf
+/// ESP32-S3: https://www.espressif.com/sites/default/files/documentation/esp32-s3_technical_reference_manual_en.pdf
 ///
 /// Module schematic references:
 /// DevKitC v4: https://dl.espressif.com/dl/schematics/esp32_devkitc_v4-sch-20180607a.pdf

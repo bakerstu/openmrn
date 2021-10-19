@@ -225,6 +225,7 @@ public:
             chip_info.model == CHIP_ESP32S2 ? "ESP32-S2" :
             chip_info.model == CHIP_ESP32C3 ? "ESP32-C3" :
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,4,0)
+            chip_info.model == CHIP_ESP32S3 ? "ESP32-S3" :
             chip_info.model == CHIP_ESP32H2 ? "ESP32-H2" : "unknown",
 #else // IDF v4.3 (or earlier)
             "unknown",
