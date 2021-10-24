@@ -47,6 +47,9 @@ typedef uint64_t NodeID;
 /** Alias to a 48-bit NMRAnet Node ID type */
 typedef uint16_t NodeAlias;
 
+/// Container that carries the data bytes in an NMRAnet message.
+typedef string Payload;
+
 /// Guard value put into the the internal node alias maps when a node ID could
 /// not be translated to a valid alias.
 static const NodeAlias NOT_RESPONDING = 0xF000;

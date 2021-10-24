@@ -32,16 +32,16 @@
  * @date 4 Feb 2017
  */
 
+#include "dcc/TrackIf.hxx"
 #include "openlcb/DccAccyConsumer.hxx"
 #include "utils/async_traction_test_helper.hxx"
-#include "dcc/PacketFlowInterface.hxx"
 
 namespace openlcb
 {
 
 using ::testing::ElementsAre;
 
-class MockPacketQueue : public dcc::PacketFlowInterface
+class MockPacketQueue : public dcc::TrackIf
 {
 public:
     MOCK_METHOD2(arrived, void(uint8_t, vector<uint8_t>));

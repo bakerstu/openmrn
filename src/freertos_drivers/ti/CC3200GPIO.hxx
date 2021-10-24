@@ -28,6 +28,19 @@
  *
  * Helper declarations for using GPIO pins on CC3200 MCUs.
  *
+ * Note about barriers:
+ *
+ * GCC is extremely efficient at optimizing the memory access instructions that
+ * we use for writing to GPIO output pins. In many cases writing to multiple
+ * GPIO pins turns into back-to-back Thumb instructions, and the hardware
+ * peripheral seems to be unable to process bus transactions this fast. We
+ * therefore add a barrier after each GPIO write. The barrier ensures that the
+ * execution continues after the GPIO write only once the transaction is
+ * successfully completed by the bus. We tested that back to back GPIO writes
+ * are operational. The barrier also ensures correct sequencing against other
+ * effects of the running program. One GPIO write is about 50 nsec (4 clock
+ * cycles), the shortest pulse we can generate is 100 nsec.
+ *
  * @author Balazs Racz
  * @date 2 Dec 2014
  */
@@ -70,16 +83,22 @@ public:
     void write(Value new_state) const OVERRIDE
     {
         *pin_address() = (new_state ? 0xff : 0);
+        /// See note at the top of the file about barriers.
+        __asm__ volatile("dsb" : : : "memory");
     }
 
     void set() const OVERRIDE
     {
         *pin_address() = 0xff;
+        /// See note at the top of the file about barriers.
+        __asm__ volatile("dsb" : : : "memory");
     }
 
     void clr() const OVERRIDE
     {
         *pin_address() = 0;
+        /// See note at the top of the file about barriers.
+        __asm__ volatile("dsb" : : : "memory");
     }
 
     Value read() const OVERRIDE
@@ -171,6 +190,8 @@ public:
         volatile uint8_t *ptr = reinterpret_cast<uint8_t *>(
             GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
         *ptr = value ? 0xff : 0;
+        /// See note at the top of the file about barriers.
+        __asm__ volatile("dsb" : : : "memory");
     }
     /// @return current value of the input pin: if true HIGH.
     static bool __attribute__((always_inline)) get()

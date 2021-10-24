@@ -1,0 +1,1 @@
+../cc32x0sf/spiffs_config.h

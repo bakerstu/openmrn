@@ -35,9 +35,10 @@
 #ifndef _OPENLCB_CONFIGENTRY_HXX_
 #define _OPENLCB_CONFIGENTRY_HXX_
 
-#include <sys/types.h>
-#include <stdint.h>
 #include <endian.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/types.h>
 
 #include <functional>
 

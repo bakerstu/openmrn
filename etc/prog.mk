@@ -238,6 +238,17 @@ endif
 cg.svg: $(EXECUTABLE).ndlst $(OPENMRNPATH)/bin/callgraph.py
 	$(OPENMRNPATH)/bin/callgraph.py --max_indep 6 --min_size $(CGMINSIZE) $(CGARGS) --map $(EXECUTABLE).map < $(EXECUTABLE).ndlst 2> cg.debug.txt | tee cg.dot | dot -Tsvg > cg.svg
 
+incstatsprep:
+	make -j3 clean
+	$(MAKE) -j9 -k COMPILEOPT=-E || true
+
+incstats: incstatsprep
+	$(MAKE) cincstats
+
+cincstats:
+	@find . -name "*.o" | xargs cat | wc -l
+	@find . -name "*.o" | xargs -L 1 parse-gcc-e.awk | sort -k 2 | group.awk | sort -n > /tmp/stats.txt
+
 -include $(OBJS:.o=.d)
 -include $(TESTOBJS:.o=.d)
 
@@ -296,9 +307,8 @@ SRCDIR=$(abspath ../../)
 #old code from prog.mk
 #$(TEST_EXTRA_OBJS) $(OBJEXTRA) $(LDFLAGS)  $(LIBS) $(SYSLIBRARIES)
 #new code in core_test.mk
-#$(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LINKCORELIBS) $(SYSLIBRARIES) 
+#$(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LIBS) $(LINKCORELIBS) $(SYSLIBRARIES) 
 #TESTOBJSEXTRA += $(TEST_EXTRA_OBJS)
-SYSLIBRARIES += $(LIBS)
 TESTEXTRADEPS += lib/timestamp
 include $(OPENMRNPATH)/etc/core_test.mk
 

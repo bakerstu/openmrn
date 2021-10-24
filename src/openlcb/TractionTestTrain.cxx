@@ -34,6 +34,7 @@
 
 #include "openlcb/TractionTestTrain.hxx"
 
+#include "openlcb/TractionDefs.hxx"
 #include "utils/logging.h"
 
 namespace openlcb

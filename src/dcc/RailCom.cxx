@@ -35,48 +35,116 @@
 #include <string.h>
 
 #include "dcc/RailCom.hxx"
+#include "utils/Crc.hxx"
 
 namespace dcc {
-using RailcomDefs::INV;
-using RailcomDefs::ACK;
-using RailcomDefs::NACK;
-using RailcomDefs::BUSY;
-using RailcomDefs::RESVD1;
-using RailcomDefs::RESVD2;
-using RailcomDefs::RESVD3;
+static constexpr uint8_t INV = RailcomDefs::INV;
+static constexpr uint8_t ACK = RailcomDefs::ACK;
+static constexpr uint8_t NACK = RailcomDefs::NACK;
+static constexpr uint8_t BUSY = RailcomDefs::BUSY;
+static constexpr uint8_t RESVD1 = RailcomDefs::RESVD1;
+static constexpr uint8_t RESVD2 = RailcomDefs::RESVD2;
 const uint8_t railcom_decode[256] =
-{      INV,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
-       INV,    INV,    INV,    INV,    INV,    INV,    INV,   NACK,
-       INV,    INV,    INV,    INV,    INV,    INV,    INV,   0x33,
-       INV,    INV,    INV,   0x34,    INV,   0x35,   0x36,    INV,
-       INV,    INV,    INV,    INV,    INV,    INV,    INV,   0x3A,
-       INV,    INV,    INV,   0x3B,    INV,   0x3C,   0x37,    INV,
-       INV,    INV,    INV,   0x3F,    INV,   0x3D,   0x38,    INV,
-       INV,   0x3E,   0x39,    INV, RESVD3,    INV,    INV,    INV,
-       INV,    INV,    INV,    INV,    INV,    INV,    INV,   0x24,
-       INV,    INV,    INV,   0x23,    INV,   0x22,   0x21,    INV,
-       INV,    INV,    INV,   0x1F,    INV,   0x1E,   0x20,    INV,
-       INV,   0x1D,   0x1C,    INV,   0x1B,    INV,    INV,    INV,
-       INV,    INV,    INV,   0x19,    INV,   0x18,   0x1A,    INV,
-       INV,   0x17,   0x16,    INV,   0x15,    INV,    INV,    INV,
-       INV,   0x25,   0x14,    INV,   0x13,    INV,    INV,    INV,
-      0x32,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
-       INV,    INV,    INV,    INV,    INV,    INV,    INV, RESVD2,
-       INV,    INV,    INV,   0x0E,    INV,   0x0D,   0x0C,    INV,
-       INV,    INV,    INV,   0x0A,    INV,   0x09,   0x0B,    INV,
-       INV,   0x08,   0x07,    INV,   0x06,    INV,    INV,    INV,
-       INV,    INV,    INV,   0x04,    INV,   0x03,   0x05,    INV,
-       INV,   0x02,   0x01,    INV,   0x00,    INV,    INV,    INV,
-       INV,   0x0F,   0x10,    INV,   0x11,    INV,    INV,    INV,
-      0x12,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
-       INV,    INV,    INV, RESVD1,    INV,   0x2B,   0x30,    INV,
-       INV,   0x2A,   0x2F,    INV,   0x31,    INV,    INV,    INV,
-       INV,   0x29,   0x2E,    INV,   0x2D,    INV,    INV,    INV,
-      0x2C,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
-       INV,   BUSY,   0x28,    INV,   0x27,    INV,    INV,    INV,
-      0x26,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
-       ACK,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
-       INV,    INV,    INV,    INV,    INV,    INV,    INV,    INV,
+    // 0|8     1|9     2|a     3|b     4|c     5|d     6|e     7|f  
+{      INV,    INV,    INV,    INV,    INV,    INV,    INV,    INV, // 0
+       INV,    INV,    INV,    INV,    INV,    INV,    INV,    ACK, // 0
+       INV,    INV,    INV,    INV,    INV,    INV,    INV,   0x33, // 1
+       INV,    INV,    INV,   0x34,    INV,   0x35,   0x36,    INV, // 1
+       INV,    INV,    INV,    INV,    INV,    INV,    INV,   0x3A, // 2
+       INV,    INV,    INV,   0x3B,    INV,   0x3C,   0x37,    INV, // 2
+       INV,    INV,    INV,   0x3F,    INV,   0x3D,   0x38,    INV, // 3
+       INV,   0x3E,   0x39,    INV,   NACK,    INV,    INV,    INV, // 3
+       INV,    INV,    INV,    INV,    INV,    INV,    INV,   0x24, // 4
+       INV,    INV,    INV,   0x23,    INV,   0x22,   0x21,    INV, // 4
+       INV,    INV,    INV,   0x1F,    INV,   0x1E,   0x20,    INV, // 5
+       INV,   0x1D,   0x1C,    INV,   0x1B,    INV,    INV,    INV, // 5
+       INV,    INV,    INV,   0x19,    INV,   0x18,   0x1A,    INV, // 6
+       INV,   0x17,   0x16,    INV,   0x15,    INV,    INV,    INV, // 6
+       INV,   0x25,   0x14,    INV,   0x13,    INV,    INV,    INV, // 7
+      0x32,    INV,    INV,    INV,    INV,    INV,    INV,    INV, // 7
+       INV,    INV,    INV,    INV,    INV,    INV,    INV, RESVD2, // 8
+       INV,    INV,    INV,   0x0E,    INV,   0x0D,   0x0C,    INV, // 8
+       INV,    INV,    INV,   0x0A,    INV,   0x09,   0x0B,    INV, // 9
+       INV,   0x08,   0x07,    INV,   0x06,    INV,    INV,    INV, // 9
+       INV,    INV,    INV,   0x04,    INV,   0x03,   0x05,    INV, // a
+       INV,   0x02,   0x01,    INV,   0x00,    INV,    INV,    INV, // a
+       INV,   0x0F,   0x10,    INV,   0x11,    INV,    INV,    INV, // b
+      0x12,    INV,    INV,    INV,    INV,    INV,    INV,    INV, // b
+       INV,    INV,    INV, RESVD1,    INV,   0x2B,   0x30,    INV, // c
+       INV,   0x2A,   0x2F,    INV,   0x31,    INV,    INV,    INV, // c
+       INV,   0x29,   0x2E,    INV,   0x2D,    INV,    INV,    INV, // d
+      0x2C,    INV,    INV,    INV,    INV,    INV,    INV,    INV, // d
+       INV,   BUSY,   0x28,    INV,   0x27,    INV,    INV,    INV, // e
+      0x26,    INV,    INV,    INV,    INV,    INV,    INV,    INV, // e
+       ACK,    INV,    INV,    INV,    INV,    INV,    INV,    INV, // f
+       INV,    INV,    INV,    INV,    INV,    INV,    INV,    INV, // f       
+};
+
+const uint8_t railcom_encode[64] = {
+    0b10101100,
+    0b10101010,
+    0b10101001,
+    0b10100101,
+    0b10100011,
+    0b10100110,
+    0b10011100,
+    0b10011010,
+    0b10011001,
+    0b10010101,
+    0b10010011,
+    0b10010110,
+    0b10001110,
+    0b10001101,
+    0b10001011,
+    0b10110001,
+    0b10110010,
+    0b10110100,
+    0b10111000,
+    0b01110100,
+    0b01110010,
+    0b01101100,
+    0b01101010,
+    0b01101001,
+    0b01100101,
+    0b01100011,
+    0b01100110,
+    0b01011100,
+    0b01011010,
+    0b01011001,
+    0b01010101,
+    0b01010011,
+    0b01010110,
+    0b01001110,
+    0b01001101,
+    0b01001011,
+    0b01000111,
+    0b01110001,
+    0b11101000,
+    0b11100100,
+    0b11100010,
+    0b11010001,
+    0b11001001,
+    0b11000101,
+    0b11011000,
+    0b11010100,
+    0b11010010,
+    0b11001010,
+    0b11000110,
+    0b11001100,
+    0b01111000,
+    0b00010111,
+    0b00011011,
+    0b00011101,
+    0b00011110,
+    0b00101110,
+    0b00110110,
+    0b00111010,
+    0b00100111,
+    0b00101011,
+    0b00101101,
+    0b00110101,
+    0b00111001,
+    0b00110011,
 };
 
 /// Helper function to parse a part of a railcom packet.
@@ -159,6 +227,13 @@ void parse_internal(uint8_t fb_channel, uint8_t railcom_channel,
                     len = 2;
                 }
                 break;
+            case RMOB_XPOM0:
+            case RMOB_XPOM1:
+            case RMOB_XPOM2:
+            case RMOB_XPOM3:
+                type = RailcomPacket::MOB_XPOM0 + (packet_id - RMOB_XPOM0);
+                len = 6;
+                break;
             case RMOB_DYN:
                 type = RailcomPacket::MOB_DYN;
                 len = 3;
@@ -224,6 +299,62 @@ void parse_railcom_data(
         }
         parse_internal(fb.channel, ch1 ? 1 : 2, ptr, size, output);
     }
+}
+
+// static
+void RailcomDefs::add_did_feedback(uint64_t decoder_id, Feedback *fb)
+{
+    fb->ch1Size = 2;
+    fb->ch2Size = 6;
+    append12(
+        RMOB_LOGON_ENABLE_FEEDBACK, (decoder_id >> 36) & 0xff, fb->ch1Data);
+    append36((decoder_id >> 32) & 0xf, (decoder_id & 0xffffffffu), fb->ch2Data);
+}
+
+// static
+void RailcomDefs::add_shortinfo_feedback(uint16_t requested_address,
+    uint8_t max_fn, uint8_t psupp, uint8_t ssupp, Feedback *fb)
+{
+    Crc8DallasMaxim m;
+    requested_address &= 0x3FFF;
+    requested_address |= 0x8000;
+    m.update16(requested_address >> 8);
+    m.update16(requested_address & 0xff);
+    m.update16(max_fn);
+    m.update16(psupp);
+    m.update16(ssupp);
+    fb->ch1Size = 2;
+    fb->ch2Size = 6;
+    append12(
+        requested_address >> 12, (requested_address >> 4) & 0xff, fb->ch1Data);
+    uint32_t lp = (uint32_t(max_fn) << 24) | (uint32_t(psupp) << 16) |
+        (uint32_t(ssupp) << 8) | m.get();
+    append36(requested_address & 0xf, lp, fb->ch2Data);
+}
+
+// static
+void RailcomDefs::add_assign_feedback(uint8_t changeflags, uint16_t changecount,
+    uint8_t supp2, uint8_t supp3, Feedback *fb)
+{
+    changecount &= 0xFFF;
+    fb->ch1Size = 2;
+    fb->ch2Size = 6;
+
+    Crc8DallasMaxim m;
+    uint8_t h = (RMOB_LOGON_ASSIGN_FEEDBACK << 4) | (changeflags >> 4);
+    m.update16(h);
+    h = ((changeflags & 0xf) << 4) | (changecount >> 8);
+    m.update16(h);
+    append12(RMOB_LOGON_ASSIGN_FEEDBACK, changeflags, fb->ch1Data);
+
+    h = changecount & 0xff;
+    m.update16(h);
+    m.update16(supp2);
+    m.update16(supp3);
+
+    uint32_t lp =
+        ((changecount & 0xff) << 24) | (supp2 << 16) | (supp3 << 8) | m.get();
+    append36(changecount >> 8, lp, fb->ch2Data);
 }
 
 }  // namespace dcc

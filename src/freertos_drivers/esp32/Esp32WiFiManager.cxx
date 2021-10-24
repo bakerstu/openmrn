@@ -86,7 +86,7 @@
 #endif // defined __has_include
 
 using openlcb::NodeID;
-using openlcb::SimpleCanStack;
+using openlcb::SimpleCanStackBase;
 using openlcb::TcpAutoAddress;
 using openlcb::TcpClientConfig;
 using openlcb::TcpClientDefaultParams;
@@ -304,7 +304,7 @@ private:
 // WiFi connection, mDNS system and the hostname of the ESP32.
 Esp32WiFiManager::Esp32WiFiManager(const char *ssid
                                  , const char *password
-                                 , SimpleCanStack *stack
+                                 , SimpleCanStackBase *stack
                                  , const WiFiConfiguration &cfg
                                  , const char *hostname_prefix
                                  , wifi_mode_t wifi_mode
@@ -357,7 +357,7 @@ Esp32WiFiManager::Esp32WiFiManager(const char *ssid
 // With this constructor being used, it will be the responsibility of the
 // application to manage the WiFi and mDNS systems.
 Esp32WiFiManager::Esp32WiFiManager(
-    SimpleCanStack *stack, const WiFiConfiguration &cfg)
+    SimpleCanStackBase *stack, const WiFiConfiguration &cfg)
     : DefaultConfigUpdateListener()
     , cfg_(cfg)
     , manageWiFi_(false)

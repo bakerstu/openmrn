@@ -1,10 +1,10 @@
-/** \copyright
- * Copyright (c) 2015, Balazs Racz
+/** @copyright
+ * Copyright (c) 2021, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
+ * modification, are  permitted provided that the following conditions are met:
+ * 
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,26 +24,29 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file PacketFlowInterface.hxx
- *
- * Shared declarations for sending DCC packets.
+ * @file TM4C129xSPIFFS.cxx
+ * This file implements a SPIFFS FLASH driver specific to TI TM4C129x.
  *
  * @author Balazs Racz
- * @date 16 May 2015
+ * @date 19 Aug 2021
  */
 
-#ifndef _DCC_PACKETFLOWINTERFACE_HXX_
-#define _DCC_PACKETFLOWINTERFACE_HXX_
+// This define is needed to call any ROM_xx function in the driverlib.
+#define TARGET_IS_TM4C129_RA1
 
-#include "executor/StateFlow.hxx"
-#include "dcc/Packet.hxx"
+#define TI_DUAL_BANK_FLASH
+#define TISPIFFS_LOCK_BASEPRI_FF
 
-namespace dcc {
+#include "spiffs.h"
+#include "inc/hw_types.h"
+#include "driverlib/flash.h"
+#include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
+#include "driverlib/cpu.h"
 
-/// Interface for flows and ports receiving a sequence of DCC (track) packets.
-typedef FlowInterface<Buffer<dcc::Packet>> PacketFlowInterface;
+#include "TM4C129xSPIFFS.hxx"
+#include "../cc32x0sf/TiSPIFFSImpl.hxx"
 
-}  // namespace dcc
-
-
-#endif
+/// Explicit instantion of the template so that the functions get compiled and
+/// into this .o file and the linker would find them.
+template class TiSPIFFS<TM4C129x_ERASE_PAGE_SIZE>;

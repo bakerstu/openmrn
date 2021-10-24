@@ -38,6 +38,8 @@
 #include <string>
 #include <string.h>
 
+using std::string;
+
 /** Renders an integer to string, left-justified. @param buffer must be an at
  * @param buffer must be an at least 10 character long array.
  * @param value will be rendered into the buffer.
