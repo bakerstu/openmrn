@@ -96,8 +96,17 @@ public:
         FILE *fp = fopen("/sys/class/gpio/export","w");
         fprintf(fp,"%d\n",PIN);
         fclose(fp);
-        // 50ms delay IS needed while kernel changes ownership of created GPIO directory
-        usleep(50000); 
+        char dirname[40];
+        snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN);
+        int dfd = -1;
+        while ((dfd = open(dirname,O_WRONLY)) < 0) {
+            // 50ms delay IS needed while kernel (udev) changes 
+            // ownership of created GPIO directory
+            // Note: when there are LOTS of GPIO lines exported, the
+            // uDev ownership update might take awile -- keep sleeping
+            usleep(50000); 
+        }
+        close(dfd);
     }
     
     /// Sets pin to output.
@@ -106,8 +115,9 @@ public:
         char dirname[40];
         snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN);
         int dfd = -1;
-        while ((dfd = open(dirname,O_WRONLY)) < 0) {
-            export_pin();
+        if ((dfd = open(dirname,O_WRONLY)) < 0) {
+            LOG(FATAL, "LinuxGpio: pin (%d) not exported!",PIN);
+            abort();
         }
         write(dfd,"out\n",4);
         close(dfd);
