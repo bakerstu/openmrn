@@ -548,9 +548,8 @@ static esp_err_t twai_vfs_start_select(int nfds, fd_set *readfds,
 
     // If the TWAI FD is present in any of the FD sets we should process the
     // select call.
-    if (nfds >= 1 &&
-        (FD_ISSET(TWAI_VFS_FD, readfds) || FD_ISSET(TWAI_VFS_FD, writefds) ||
-        FD_ISSET(TWAI_VFS_FD, exceptfds)))
+    if (FD_ISSET(TWAI_VFS_FD, readfds) || FD_ISSET(TWAI_VFS_FD, writefds) ||
+        FD_ISSET(TWAI_VFS_FD, exceptfds))
     {
         twai.select_sem = sem;
         twai.readfds = readfds;
@@ -568,11 +567,12 @@ static esp_err_t twai_vfs_start_select(int nfds, fd_set *readfds,
 
         // Check if we have pending frames to RX, if so trigger an early exit
         // from select()
+        if (FD_ISSET(TWAI_VFS_FD, &twai.readfds_orig))
         {
             AtomicHolder h(&twai.buf_lock);
             if (twai.rx_buf->pending())
             {
-                FD_SET(TWAI_VFS_FD, twai.readfds);
+                FD_SET(TWAI_VFS_FD, readfds);
                 esp_vfs_select_triggered(sem);
             }
         }

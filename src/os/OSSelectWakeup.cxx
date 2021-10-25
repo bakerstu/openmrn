@@ -169,19 +169,16 @@ static esp_err_t esp_start_select(int nfds, fd_set *readfds, fd_set *writefds,
         (OSSelectWakeup *)pthread_getspecific(select_wakeup_key);
     HASSERT(parent);
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
-    LOG(VERBOSE, "esp start select %p (thr %p parent %p)", signal_sem.sem
-      , os_thread_self(), parent);
+    LOG(VERBOSE, "esp start select %p (thr %p parent %p)", signal_sem.sem,
+        os_thread_self(), parent);
 #else // NOT IDF v4.0+
-    LOG(VERBOSE, "esp start select %p  (thr %p parent %p)", signal_sem
-      , os_thread_self(), parent);
+    LOG(VERBOSE, "esp start select %p  (thr %p parent %p)", signal_sem,
+        os_thread_self(), parent);
 #endif // IDF v4.0+
 
-    // Check if there is at least one FD and our VFS FD is included in one of
-    // the sets before calling esp_start_select.
-    if (nfds >= 1 &&
-        (FD_ISSET(WAKEUP_VFS_FD, readfds) ||
-         FD_ISSET(WAKEUP_VFS_FD, writefds) ||
-         FD_ISSET(WAKEUP_VFS_FD, exceptfds)))
+    // Check if our VFS FD is included in exceptfds before tracking that we
+    // should possibly wake up early.
+    if (FD_ISSET(WAKEUP_VFS_FD, exceptfds))
     {
         parent->esp_start_select(readfds, writefds, exceptfds, signal_sem);
     }
@@ -205,8 +202,8 @@ static void esp_end_select()
     OSSelectWakeup *parent =
         (OSSelectWakeup *)pthread_getspecific(select_wakeup_key);
     HASSERT(parent);
-    LOG(VERBOSE, "esp end select (thr %p parent %p)", os_thread_self()
-      , parent);
+    LOG(VERBOSE, "esp end select (thr %p parent %p)", os_thread_self(),
+        parent);
     parent->esp_end_select();
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,0,0)
     return ESP_OK;

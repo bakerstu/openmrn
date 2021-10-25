@@ -659,7 +659,7 @@ public:
 /// this is for some ESP32-PICO-D4/ESP32-PICO-V3 based boards, confirm on the
 /// board schematic before using these pins.
 ///
-/// Supported ADC_CHANNEL values and pin assignments for the ESP32-S2:
+/// Supported ADC_CHANNEL values and pin assignments for the ESP32-S2/ESP32-S3:
 /// ADC1_CHANNEL_0 : 1
 /// ADC1_CHANNEL_1 : 2
 /// ADC1_CHANNEL_2 : 3
