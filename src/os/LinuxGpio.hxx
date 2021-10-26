@@ -76,8 +76,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define gpio_num_t unsigned int
-
 template <class Defs, bool SAFE_VALUE, bool INVERT> 
          struct GpioOutputPin;
 template <class Defs, bool ACTIVE_HIGH> struct GpioInputPin;
@@ -145,7 +143,7 @@ public:
             LOG(FATAL, "LinuxGpio: pin (%d) not exported!",PIN);
             abort();
         }
-        char *dirmessage = dir == Gpio::Direction::DOUTPUT? "out\n" : "in\n";
+        const char *dirmessage = dir == Gpio::Direction::DOUTPUT? "out\n" : "in\n";
         ::write(dfd, dirmessage, strlen(dirmessage));
         close(dfd);
     }
@@ -167,12 +165,13 @@ public:
     }
 private:
     template <class Defs, bool SAFE_VALUE, bool INVERT> 
-          struct GpioOutputPin;
-    template <class Defs, bool ACTIVE_HIGH> struct GpioInputPin;
+          friend struct GpioOutputPin;
+    template <class Defs, bool ACTIVE_HIGH> \
+          friend struct GpioInputPin;
     static const LinuxGpio instance_;
 };
 
-template <gpio_num_t PIN_NUM>
+template <int PIN_NUM>
 const LinuxGpio<PIN_NUM> LinuxGpio<PIN_NUM>::instance_;
 
 /// Parametric GPIO output class.
@@ -340,9 +339,9 @@ template <class Defs> struct GpioInputActiveLow : public GpioInputPin<Defs, fals
 #define GPIO_PIN(NAME, BaseClass, NUM)                \
 struct NAME##Defs                                     \
 {                                                     \
-    static const gpio_num_t PIN_NUM = (gpio_num_t)NUM;\
+    static const int PIN_NUM = (int)NUM;\
 public:                                               \
-    static const gpio_num_t pin()                     \
+    static const int pin()                     \
     {                                                 \
         return PIN_NUM;                               \
     }                                                 \
