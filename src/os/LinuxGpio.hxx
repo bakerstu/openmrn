@@ -103,7 +103,10 @@ public:
             LOG(FATAL, "LinuxGpio: pin (%d) not exported!",PIN);
             abort();
         }
-        ::write(vfd, new_state == Value::SET ? "1\n" : "0\n", 2);
+        if (::write(vfd, new_state == Value::SET ? "1\n" : "0\n", 2) < 2) {
+            LOG(FATAL, "LinuxGpio: cannot set value of pin (%d)!",PIN);
+            abort();
+        }
         close(vfd);
     }
     /// Reads the current state of the connected GPIO pin.
@@ -117,7 +120,10 @@ public:
             LOG(FATAL, "LinuxGpio: pin (%d) not exported!",PIN);
             abort();
         }
-        ::read(vfd,&c,1);
+        if (::read(vfd,&c,1) < 1) {
+            LOG(FATAL, "LinuxGpio: cannot get value of pin (%d)!",PIN);
+            abort();
+        }
         close(vfd);
         return c == '1'? Value::SET : Value::CLR;
     }
@@ -144,8 +150,15 @@ public:
             abort();
         }
         const char *dirmessage = dir == Gpio::Direction::DOUTPUT? "out\n" : "in\n";
-        ::write(dfd, dirmessage, strlen(dirmessage));
+        if (::write(dfd, dirmessage, strlen(dirmessage)) < (ssize_t)strlen(dirmessage)) {
+            LOG(FATAL, "LinuxGpio: cannot set direction of pin (%d)!",PIN);
+            abort();
+        }
         close(dfd);
+        if (dir != direction()) {
+            LOG(FATAL, "LinuxGpio: failed to set direction of pin (%d)!",PIN);
+            abort();
+        }
     }
 
     /// Gets the GPIO direction.
@@ -159,7 +172,10 @@ public:
             LOG(FATAL, "LinuxGpio: pin (%d) not exported!",PIN);
             abort();
         }
-        ::read(dfd,&c,1);
+        if (::read(dfd,&c,1) < 1) {
+            LOG(FATAL, "LinuxGpio: cannot get direction of pin (%d)!",PIN);
+            abort();
+        }
         close(dfd);
         return (c == 'o')? Gpio::Direction::DOUTPUT: Gpio::Direction::DINPUT;
     }
