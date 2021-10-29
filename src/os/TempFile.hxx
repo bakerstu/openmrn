@@ -117,6 +117,7 @@ public:
   /// the data to write.
   void rewrite(const string& s) {
       ::lseek(fd_, 0, SEEK_SET);
+      ::ftruncate(fd_, 0);
       write(s);
   }
     
