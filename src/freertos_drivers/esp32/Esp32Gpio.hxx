@@ -301,11 +301,16 @@ template <class Defs, bool PUEN, bool PDEN> struct GpioInputPin : public Defs
 {
 public:
     using Defs::PIN_NUM;
-#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S2
     // GPIO 45 and 46 typically have pull-down resistors.
     static_assert(!PUEN || (PUEN && (PIN_NUM != 45 && PIN_NUM != 46)),
                   "GPIO 45 and 46 typically have built-in pull-down "
                   "resistors, enabling pull-up is not possible.");
+    // GPIO 0 typically has a pull-up resistor
+    static_assert(!PDEN || (PDEN && PIN_NUM != 0),
+                  "GPIO 0 typically has a built-in pull-up resistors, "
+                  "enabling pull-down is not possible.");
+#elif CONFIG_IDF_TARGET_ESP32S3
     // GPIO 0 typically has a pull-up resistor
     static_assert(!PDEN || (PDEN && PIN_NUM != 0),
                   "GPIO 0 typically has a built-in pull-up resistors, "
@@ -326,7 +331,7 @@ public:
                   (PDEN && (PIN_NUM != 0 && PIN_NUM != 5 && PIN_NUM == 15)),
                   "GPIO 0, 5, 15 typically have built-in pull-up resistors, "
                   "enabling pull-down is not possible.");
-#endif // CONFIG_IDF_TARGET_ESP32S2 / CONFIG_IDF_TARGET_ESP32S3
+#endif // CONFIG_IDF_TARGET_ESP32S2
     /// Initializes the hardware pin.
     static void hw_init()
     {
