@@ -330,6 +330,13 @@ public:
      */
     int wlan_country_code_set(CountryCode cc, bool restart = false);
 
+    /** Sets the scan parameters.
+     * @param mask the channel mask (bit 0 = channel1, bit1=channel2). If -1
+     * then the channel mask is not changed.
+     * @param min_rssi the minimal RSSI to return a wifi in the scan. If >= 0
+     * then the min_rssi is not changed. (Default min_rssi is -95.) */
+    void wlan_set_scan_params(int mask, int min_rssi);
+    
     /** Add a saved WLAN profile.
      * @param ssid WLAN SSID of the profile to save
      * @param sec_type @ref SecurityType of the profile to be saved

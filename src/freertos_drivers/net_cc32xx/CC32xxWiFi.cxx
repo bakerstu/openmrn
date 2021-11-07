@@ -324,6 +324,38 @@ int CC32xxWiFi::wlan_country_code_set(CountryCode cc, bool restart)
 }
 
 /*
+ * CC32xxWiFi::wlan_set_scan_params()
+ */
+void CC32xxWiFi::wlan_set_scan_params(int mask, int min_rssi)
+{
+    SlWlanScanParamCommand_t param_config = {0};
+    uint16_t option = SL_WLAN_GENERAL_PARAM_OPT_SCAN_PARAMS;
+    uint16_t param_len = sizeof(param_config);
+    int ret = sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &option, &param_len,
+        (_u8 *)&param_config);
+    SlCheckResult(ret);
+    bool apply = false;
+    if (mask >= 0 && param_config.ChannelsMask != (uint32_t)mask)
+    {
+        param_config.ChannelsMask = mask;
+        apply = true;
+    }
+    if (min_rssi < 0 && param_config.RssiThreshold != min_rssi)
+    {
+        param_config.RssiThreshold = min_rssi;
+        apply = true;
+    }
+    if (!apply)
+    {
+        return;
+    }
+    ret = sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+        SL_WLAN_GENERAL_PARAM_OPT_SCAN_PARAMS, sizeof(param_config),
+        (_u8 *)&param_config);
+    SlCheckResult(ret);
+}
+
+/*
  * CC32xxWiFi::wlan_profile_add()
  */
 int CC32xxWiFi::wlan_profile_add(const char *ssid, SecurityType sec_type,
