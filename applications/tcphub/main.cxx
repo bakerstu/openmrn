@@ -44,14 +44,14 @@
 #include "executor/Service.hxx"
 #include "os/os.h"
 #include "utils/ClientConnection.hxx"
-#include "utils/TcpHub.hxx"
+#include "openlcb/TcpHub.hxx"
 #include "utils/Hub.hxx"
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/constants.hxx"
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
-TcpHubFlow tcp_hub0(&g_service);
+openlcb::TcpHubFlow tcp_hub0(&g_service);
 
 int port = 12000;
 int upstream_port = 12000;
@@ -134,7 +134,7 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    TcpHub hub(&tcp_hub0, port);
+    openlcb::TcpHub hub(&tcp_hub0, port);
     vector<std::unique_ptr<ConnectionClient>> connections;
 
 #ifdef HAVE_AVAHI_CLIENT

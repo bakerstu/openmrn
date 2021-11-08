@@ -31,16 +31,19 @@
  * @date 8 Nov 2021
  */
 
-#ifndef _UTILS_TCPHUB_HXX
-#define _UTILS_TCPHUB_HXX
+#ifndef _OPENLCB_TCPHUB_HXX
+#define _OPENLCB_TCPHUB_HXX
 
 #include "utils/socket_listener.hxx"
 #include "utils/Hub.hxx"
 #include "openlcb/If.hxx"
 
+namespace openlcb
+{
+
 class ExecutorBase;
 /// Container for (binary) GenMessage messages going through Hubs.
-struct GenMessageContainer : public StructContainer<openlcb::GenMessage>
+struct GenMessageContainer : public StructContainer<GenMessage>
 {
     
     /* Constructor. Sets up (outgoing) frames to be empty extended frames by
@@ -51,12 +54,12 @@ struct GenMessageContainer : public StructContainer<openlcb::GenMessage>
 
 #if 0
     /** @returns a mutable pointer to the embedded GenMessage. */
-    struct openlcb::GenMessage *mutable_frame()
+    struct GenMessage *mutable_frame()
     {
         return this;
     }
     /** @returns the embedded GenMessage. */
-    const struct openlcb::GenMessage &frame() const
+    const struct GenMessage &frame() const
     {
         return *this;
     }
@@ -134,7 +137,7 @@ private:
     SocketListener tcpListener_;
 };
 
-                        
+}                        
 
-#endif // _UTILS_TCPHUB_HXX
+#endif // _OPENLCB_TCPHUB_HXX
 
