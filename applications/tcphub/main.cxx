@@ -56,7 +56,7 @@ TcpHubFlow tcp_hub0(&g_service);
 int port = 12000;
 int upstream_port = 12000;
 const char *upstream_host = nullptr;
-
+bool timestamped = false;
 bool export_mdns = false; 
 const char* mdns_name = "openmrn_tcphub";
 
@@ -81,8 +81,6 @@ void usage(const char *e)
             "\t-q upstream_port   is the port number for the upstream hub.\n");
     fprintf(stderr,
             "\t-t prints timestamps for each packet.\n");
-    fprintf(stderr,
-            "\t-l print all packets.\n");
 #ifdef HAVE_AVAHI_CLIENT
     fprintf(stderr,
             "\t-m exports the current service on mDNS.\n");
@@ -95,7 +93,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:d:s:u:q:tlmn:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:u:q:tmn:")) >= 0)
     {
         switch (opt)
         {
