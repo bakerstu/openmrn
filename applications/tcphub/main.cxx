@@ -147,12 +147,14 @@ int appl_main(int argc, char *argv[])
         mdns_publish(mdns_name, port);
     }
 #endif
-
+    
+#if 0
     if (upstream_host)
     {
         connections.emplace_back(new UpstreamConnectionClient(
                                      "upstream", &tcp_hub0, upstream_host, upstream_port));
     }
+#endif
 
     while (1)
     {

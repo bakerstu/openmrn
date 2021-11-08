@@ -36,8 +36,54 @@
 
 #include "utils/socket_listener.hxx"
 #include "utils/Hub.hxx"
+#include "openlcb/If.hxx"
 
 class ExecutorBase;
+/// Container for (binary) GenMessage messages going through Hubs.
+struct GenMessageContainer : public StructContainer<openlcb::GenMessage>
+{
+    
+    /* Constructor. Sets up (outgoing) frames to be empty extended frames by
+     * default. */
+    GenMessageContainer()
+    {
+    }
+
+#if 0
+    /** @returns a mutable pointer to the embedded GenMessage. */
+    struct openlcb::GenMessage *mutable_frame()
+    {
+        return this;
+    }
+    /** @returns the embedded GenMessage. */
+    const struct openlcb::GenMessage &frame() const
+    {
+        return *this;
+    }
+#endif
+};
+
+
+
+/** This class can be sent via a Buffer to a CAN hub.
+ *
+ * Access the data content via members \ref GenMessageContainer::mutable_frame
+ * and \ref GenMessageContainer::frame.
+ *
+ * Set skipMember_ to non-NULL to skip a particular entry flow of the output.
+ */
+typedef HubContainer<GenMessageContainer> TcpHubData;
+
+/// Interface class for a port to an OpenLCB hub.
+typedef FlowInterface<Buffer<TcpHubData>> TcpHubPortInterface;
+/// Base class for a port to an OpenLCB hub that is implemented as a 
+/// stateflow.
+typedef StateFlow<Buffer<TcpHubData>, QList<1>> TcpHubPort;
+
+
+/** A hub that proxies packets of GenMessage messages. */
+typedef GenericHubFlow<TcpHubData> TcpHubFlow;
+
 
 /** This class runs a OpenLCB HUB listening on a TCP socket using the
  * OpenLCB binary Tcp format.  Any new incoming connections wil be
