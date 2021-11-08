@@ -100,12 +100,11 @@ public:
         snprintf(valname,sizeof(valname),"/sys/class/gpio/gpio%d/value",PIN);
         int vfd = open(valname,O_WRONLY);
         if (vfd <  0) {
-            LOG(FATAL, "LinuxGpio: pin (%d) not exported!",PIN);
-            abort();
+            LOG(WARNING, "LinuxGpio::write(): pin (%d) not exported!",PIN);
+            return;
         }
         if (::write(vfd, new_state == Value::SET ? "1\n" : "0\n", 2) < 2) {
-            LOG(FATAL, "LinuxGpio: cannot set value of pin (%d)!",PIN);
-            abort();
+            LOG(WARNING, "LinuxGpio::write(): cannot set value of pin (%d)!",PIN);
         }
         close(vfd);
     }
@@ -113,16 +112,15 @@ public:
     /// @return @ref SET if currently high, @ref CLR if currently low.
     Value read() const override
     {
-        char valname[40], c;
+        char valname[40], c = '0';
         snprintf(valname,sizeof(valname),"/sys/class/gpio/gpio%d/value",PIN);
         int vfd = open(valname,O_RDONLY);
         if (vfd <  0) {
-            LOG(FATAL, "LinuxGpio: pin (%d) not exported!",PIN);
-            abort();
+            LOG(WARNING, "LinuxGpio::read(): pin (%d) not exported!",PIN);
+            return Value::CLR;
         }
         if (::read(vfd,&c,1) < 1) {
-            LOG(FATAL, "LinuxGpio: cannot get value of pin (%d)!",PIN);
-            abort();
+            LOG(WARNING, "LinuxGpio::read(): cannot get value of pin (%d)!",PIN);
         }
         close(vfd);
         return c == '1'? Value::SET : Value::CLR;
@@ -146,18 +144,16 @@ public:
         snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN);
         int dfd = -1;
         if ((dfd = open(dirname,O_WRONLY)) < 0) {
-            LOG(FATAL, "LinuxGpio: pin (%d) not exported!",PIN);
-            abort();
+            LOG(WARNING, "LinuxGpio::set_direction(): pin (%d) not exported!",PIN);
+            return;
         }
         const char *dirmessage = dir == Gpio::Direction::DOUTPUT? "out\n" : "in\n";
         if (::write(dfd, dirmessage, strlen(dirmessage)) < (ssize_t)strlen(dirmessage)) {
-            LOG(FATAL, "LinuxGpio: cannot set direction of pin (%d)!",PIN);
-            abort();
+            LOG(WARNING, "LinuxGpio::set_direction(): cannot set direction of pin (%d)!",PIN);
         }
         close(dfd);
         if (dir != direction()) {
-            LOG(FATAL, "LinuxGpio: failed to set direction of pin (%d)!",PIN);
-            abort();
+            LOG(WARNING, "LinuxGpio::set_direction(): failed to set direction of pin (%d)!",PIN);
         }
     }
 
@@ -165,16 +161,15 @@ public:
     /// @return @ref DINPUT or @ref DOUTPUT
     Gpio::Direction direction() const override
     {
-        char dirname[40], c;
+        char dirname[40], c = 'o';
         snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN);
         int dfd = -1;
         if ((dfd = open(dirname,O_RDONLY)) < 0) {
-            LOG(FATAL, "LinuxGpio: pin (%d) not exported!",PIN);
-            abort();
+            LOG(WARNING, "LinuxGpio::direction(): pin (%d) not exported!",PIN);
+            return Gpio::Direction::DOUTPUT;
         }
         if (::read(dfd,&c,1) < 1) {
-            LOG(FATAL, "LinuxGpio: cannot get direction of pin (%d)!",PIN);
-            abort();
+            LOG(WARNING, "LinuxGpio::direction(): cannot get direction of pin (%d)!",PIN);
         }
         close(dfd);
         return (c == 'o')? Gpio::Direction::DOUTPUT: Gpio::Direction::DINPUT;
