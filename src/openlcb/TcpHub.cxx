@@ -131,7 +131,7 @@ static void create_tcp_port_for_tcp_hub(TcpHubFlow *tcphub,
                                         int fd,Notifiable *on_exit = nullptr, 
                                         bool use_select = false)
 {
-    // new TcpHubPort(tcphub,fd,on_exit,use_select);
+    new TcpHubPort(tcphub,fd,on_exit,use_select);
 }
 
 void TcpHub::on_new_connection(int fd)
