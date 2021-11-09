@@ -52,23 +52,12 @@ struct TcpHubPort : public Executable
     /// experiences an error (typically upon device closed or connection lost).
     /// @param use_select true if fd can be used with select, false if threads
     /// are needed.
-    TcpHubPort(TcpHubFlow *tcp_hub, int fd, Notifiable *on_exit, bool use_select)
+    TcpHubPort(TcpHubFlow *tcp_hub, int fd, Notifiable *on_exit)
           : tcpHub_(tcp_hub->service())
-          //, bridge_()
           , onExit_(on_exit)
     {
         LOG(VERBOSE, "tcphub port %p", (Executable *)this);
-        if (use_select) {
-#ifndef OPENMRN_FEATURE_EXECUTOR_SELECT
-            DIE("select is not supported");
-#else
-            tcpWrite_.reset(new HubDeviceSelect<HubFlow>(&tcpHub_, fd, this));
-#endif
-        }
-        else
-        {
-            tcpWrite_.reset(new FdHubPort<HubFlow>(&tcpHub_, fd, this));
-        }
+        tcpWrite_.reset(new TcpHubDeviceSelect(&tcpHub_, fd, this));
     }
     virtual ~TcpHubPort()
     {
@@ -80,12 +69,6 @@ struct TcpHubPort : public Executable
      * disconnection of the bridge (write side) and the FdHubport (read side)
      * we need to wait for the executor until this flow drains. */
     HubFlow tcpHub_;
-    /** Translates packets between the can-hub of the device and the char-hub
-     * of this port.
-     *
-     * Destruction requirement: Call shutdown() on the can-side executor (and
-     * yield) until it returns true. */
-    //std::unique_ptr<TCPAdapterBase> bridge_;
     /** Reads the characters from the char-hub and sends them to the
      * fd. Similarly, listens to the fd and sends the read charcters to the
      * char-hub. */
@@ -105,16 +88,14 @@ struct TcpHubPort : public Executable
 
     void run() OVERRIDE
     {
-#if 0
-        if (!bridge_->shutdown() || !tcpHub_.is_waiting())
+        if (!tcpHub_.is_waiting())
         {
             // Yield.
             tcpHub_.service()->executor()->add(this);
             return;
         }
-        LOG(INFO, "TcpHubPort: Shutting down port %d. (%p)",
-            tcpWrite_->fd(), bridge_.get());
-#endif
+        LOG(INFO, "TcpHubPort: Shutting down port %d.",
+            tcpWrite_->fd());
         if (onExit_) {
             onExit_->notify();
             onExit_ = nullptr;
@@ -127,24 +108,13 @@ struct TcpHubPort : public Executable
     }
 };
 
-static void create_tcp_port_for_tcp_hub(TcpHubFlow *tcphub,
-                                        int fd,Notifiable *on_exit = nullptr, 
-                                        bool use_select = false)
-{
-    new TcpHubPort(tcphub,fd,on_exit,use_select);
-}
-
 void TcpHub::on_new_connection(int fd)
 {
-    const bool use_select = true;
-    //const bool use_select = 
-    //      (config_gridconnect_tcp_use_select() == CONSTANT_TRUE)
     {
         AtomicHolder h(this);
         numClients_++;
     }
-    //create_gc_port_for_can_hub(canHub_, fd, this, use_select); 
-    create_tcp_port_for_tcp_hub(tcpHub_, fd, this, use_select);
+    new TcpHubPort(tcpHub_, fd, this);
 }
 
 void TcpHub::notify()

@@ -54,7 +54,6 @@ struct GenMessageContainer : public StructContainer<GenMessage>
     {
     }
 
-#if 0
     /** @returns a mutable pointer to the embedded GenMessage. */
     struct GenMessage *mutable_frame()
     {
@@ -65,12 +64,11 @@ struct GenMessageContainer : public StructContainer<GenMessage>
     {
         return *this;
     }
-#endif
 };
 
 
 
-/** This class can be sent via a Buffer to a CAN hub.
+/** This class can be sent via a Buffer to a Tcp hub.
  *
  * Access the data content via members \ref GenMessageContainer::mutable_frame
  * and \ref GenMessageContainer::frame.
