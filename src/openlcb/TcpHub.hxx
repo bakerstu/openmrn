@@ -37,6 +37,8 @@
 #include "utils/socket_listener.hxx"
 #include "utils/Hub.hxx"
 #include "openlcb/If.hxx"
+#include "openlcb/IfTcp.hxx"
+#include "openlcb/IfTcpImpl.hxx"
 
 namespace openlcb
 {
@@ -79,10 +81,6 @@ typedef HubContainer<GenMessageContainer> TcpHubData;
 
 /// Interface class for a port to an OpenLCB hub.
 typedef FlowInterface<Buffer<TcpHubData>> TcpHubPortInterface;
-/// Base class for a port to an OpenLCB hub that is implemented as a 
-/// stateflow.
-typedef StateFlow<Buffer<TcpHubData>, QList<1>> TcpHubPort;
-
 
 /** A hub that proxies packets of GenMessage messages. */
 typedef GenericHubFlow<TcpHubData> TcpHubFlow;

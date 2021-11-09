@@ -28,6 +28,7 @@ CXXSRCS += \
            NonAuthoritativeEventProducer.cxx \
            PIPClient.cxx \
            RoutingLogic.cxx \
+           TcpHub.cxx \
            TractionDefs.cxx \
            TractionCvSpace.cxx \
            TractionThrottle.cxx \
