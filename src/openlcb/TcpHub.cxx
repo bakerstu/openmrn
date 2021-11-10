@@ -42,82 +42,78 @@
 namespace openlcb {
 
 
-struct TcpHubPort : public Executable
-{
-    /// Constructor.
-    ///
-    /// @param tcp_hub Parent (binary) hub flow.
-    /// @param fd device descriptor of open channel (socket)
-    /// @param on_exit Notifiable that will be called when the descriptor
-    /// experiences an error (typically upon device closed or connection lost).
-    /// @param use_select true if fd can be used with select, false if threads
-    /// are needed.
-    TcpHubPort(TcpHubFlow *tcp_hub, int fd, Notifiable *on_exit)
-          : tcpHub_(tcp_hub->service())
-          , onExit_(on_exit)
-    {
-        LOG(VERBOSE, "tcphub port %p", (Executable *)this);
-        //tcpWrite_.reset(new TcpHubDeviceSelect(new TcpRecvFlow(&tcpHub_), fd, this));
-        // TcpRecvFlow: parse_tcp_message
-        // TcpSendFlow: render_tcp_message
-    }
-    virtual ~TcpHubPort()
-    {
-    }
-    /** This hub sees the character-based representation of the packets. The
-     * members of it are: the bridge and the physical device (fd).
-     *
-     * Destruction requirement: HubFlow should be empty. This means after the
-     * disconnection of the bridge (write side) and the FdHubport (read side)
-     * we need to wait for the executor until this flow drains. */
-    HubFlow tcpHub_;
-    /** Reads the characters from the char-hub and sends them to the
-     * fd. Similarly, listens to the fd and sends the read charcters to the
-     * char-hub. */
-    std::unique_ptr<FdHubPortInterface> tcpWrite_;
-    /** Writes */
-    /** If not null, this notifiable will be called when the device is
-     * closed. */
-    Notifiable* onExit_;
-        /** Callback in case the connection is closed due to error. */
-    void notify() OVERRIDE
-    {
-        /* We would like to delete *this but we cannot do that in this
-         * callback, because we don't know what executor we are running
-         * on. Deleting on the write executor would cause a deadlock for
-         * example. */
-        tcpHub_.service()->executor()->add(this);
-    }
-
-    void run() OVERRIDE
-    {
-        if (!tcpHub_.is_waiting())
-        {
-            // Yield.
-            tcpHub_.service()->executor()->add(this);
-            return;
-        }
-        LOG(INFO, "TcpHubPort: Shutting down port %d.",
-            tcpWrite_->fd());
-        if (onExit_) {
-            onExit_->notify();
-            onExit_ = nullptr;
-        }
-        /* We get this call when something is wrong with the FDs and we need to
-         * close the connection. It is guaranteed that by the time we got this
-         * call the device is unregistered from the char bridge, and the
-         * service thread is ready to be stopped. */
-        delete this;
-    }
-};
-
 void TcpHub::on_new_connection(int fd)
 {
     {
         AtomicHolder h(this);
         numClients_++;
     }
-    new TcpHubPort(tcpHub_, fd, this);
+    // What are the cases we need to support:
+    //
+    // - the remote server closing the socket. on_error shall be called and the
+    //   port destructed.
+    //
+    // - the IfTcp being destructed (presumably not on the main executor). We
+    //   need to unregister the port, shutdown the socket, flush the data, then
+    //   delete this. The destructor of HubDeviceSelect triggers the barrier
+    //   callback inline.
+    //
+    // The contract with HubDeviceSelect is that by the time the on_error
+    // notifiable is called, the HubDeviceSelect has been unregistered,
+    // flushed, and can be deleted, even if we are on the main executor.
+    //
+    struct RemotePort : public Executable
+    {
+        RemotePort(TcpHub *parent, Notifiable *on_error)
+            : parent_(parent)
+            , onError_(on_error)
+        {
+        }
+        ~RemotePort()
+        {
+            // auto* p = port_->write_port();
+            // LOG_ERROR("remoteport::delete %p %p", p, this);
+            deleting_ = true;
+            port_.reset();
+            // LOG_ERROR("remoteport::delete done %p", p);
+        }
+        TcpHub *parent_;
+        std::unique_ptr<TcpHubDeviceSelect> port_;
+        Notifiable *onError_;
+        bool deleting_{false};
+        void notify() override
+        {
+            // auto* p = port_->write_port();
+            // LOG(VERBOSE, "remoteport::notify %d %p %p", deleting_, p, this);
+            if (onError_)
+            {
+                onError_->notify();
+                onError_ = nullptr;
+            }
+            if (!deleting_) // avoids duplicate destruction.
+            {
+                //parent_->executor()->add(this);
+            }
+        }
+
+        void run() override
+        {
+            if (deleting_ || !port_)
+            {
+                return;
+            }
+            if (!port_->write_done())
+            {
+                // yield
+                //parent_->executor()->add(this);
+                return;
+            }
+            //parent_->delete_owned_flow(this);
+        }
+    };
+    RemotePort *p = new RemotePort(this, on_error);
+    p->port_.reset(new TcpHubDeviceSelect(tcpHub_, fd, p));
+    //add_owned_flow(p);
 }
 
 void TcpHub::notify()
