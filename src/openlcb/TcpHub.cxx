@@ -57,7 +57,9 @@ struct TcpHubPort : public Executable
           , onExit_(on_exit)
     {
         LOG(VERBOSE, "tcphub port %p", (Executable *)this);
-        tcpWrite_.reset(new TcpHubDeviceSelect(&tcpHub_, fd, this));
+        //tcpWrite_.reset(new TcpHubDeviceSelect(new TcpRecvFlow(&tcpHub_), fd, this));
+        // TcpRecvFlow: parse_tcp_message
+        // TcpSendFlow: render_tcp_message
     }
     virtual ~TcpHubPort()
     {
@@ -73,6 +75,7 @@ struct TcpHubPort : public Executable
      * fd. Similarly, listens to the fd and sends the read charcters to the
      * char-hub. */
     std::unique_ptr<FdHubPortInterface> tcpWrite_;
+    /** Writes */
     /** If not null, this notifiable will be called when the device is
      * closed. */
     Notifiable* onExit_;
