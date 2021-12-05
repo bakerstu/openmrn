@@ -26,7 +26,9 @@ CXXSRCS += Fileio.cxx \
            WifiDefs.cxx \
            PCA9685PWM.cxx \
            SN74HC595GPO.cxx \
-           TCAN4550Can.cxx
+           TCAN4550Can.cxx \
+           SPIFlash.cxx \
+           
 
 
 ifeq ($(TARGET),freertos.mips4k.pic32mx)
@@ -43,6 +45,7 @@ SUBDIRS += mbed_lpc1768 drivers_lpc1768 tivaware lpc_chip_175x_6x \
            net_freertos_tcp freertos_tcp ti_grlib \
            spiffs_cc32x0sf spiffs_tm4c129 \
            spiffs_stm32f303xe spiffs_stm32f767xx \
+           spiffs_spi \
 
 #spiffs_tm4c123 \
 

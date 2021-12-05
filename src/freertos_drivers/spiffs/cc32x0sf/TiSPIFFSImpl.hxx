@@ -248,7 +248,7 @@ int32_t TiSPIFFS<ERASE_PAGE_SIZE>::flash_write(uint32_t addr, uint32_t size, uin
 template<unsigned ERASE_PAGE_SIZE>
 int32_t TiSPIFFS<ERASE_PAGE_SIZE>::flash_erase(uint32_t addr, uint32_t size)
 {
-    LOG(INFO, "Erasing %x sz %d", (unsigned)addr, (unsigned)size);
+    LOG(ALWAYS, "Erasing %x sz %d", (unsigned)addr, (unsigned)size);
     HASSERT(addr >= fs_->cfg.phys_addr &&
             (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
     HASSERT((size % ERASE_PAGE_SIZE) == 0);
