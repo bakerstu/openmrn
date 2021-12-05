@@ -1,1 +1,1 @@
-../cc32x0sf/spiffs_config.h
+../spiffs_config.h
