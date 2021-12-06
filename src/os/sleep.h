@@ -37,12 +37,13 @@
 
 #include <inttypes.h>
 
+#ifndef EMSCRIPTEN
 /// Sleep a given number of microseconds. The granularity of sleep depends on
 /// the operating system, for FreeRTOS sleeping less than 1 msec is not
 /// possible with this function.
 /// @param microseconds how long to sleep.
 static void microsleep(uint32_t microseconds) __attribute__((weakref("usleep")));
-
+#endif
 
 /// Executes a busy loop for a given amount of time. It is recommended to use
 /// this only for small number of microseconds (e.g. <100 usec).
