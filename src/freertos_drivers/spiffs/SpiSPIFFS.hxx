@@ -1,5 +1,5 @@
-/** @copyright
- * Copyright (c) 2019, Balazs Racz
+/** \copyright
+ * Copyright (c) 2021, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,47 +24,50 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file Stm32SPIFFS.hxx
+ * \file SpiSPIFFS.hxx
  *
- * This file implements a SPIFFS FLASH driver specific to STM32 F0..F3 flash
- * API.
+ * Hardware-independent SPIFFS implementation that uses a SPI connected flash
+ * chip.
  *
  * @author Balazs Racz
- * @date 13 July 2019
+ * @date 5 Dec 2021
  */
 
-#ifndef _FREERTOS_DRIVERS_SPIFFS_STM32F0_F3_STM32SPIFFS_HXX_
-#define _FREERTOS_DRIVERS_SPIFFS_STM32F0_F3_STM32SPIFFS_HXX_
-
-#include <cstdint>
+#ifndef _FREERTOS_DRIVERS_SPIFFS_SPISPIFFS_HXX_
+#define _FREERTOS_DRIVERS_SPIFFS_SPISPIFFS_HXX_
 
 #include "freertos_drivers/spiffs/SPIFFS.hxx"
 
-/// Specialization of Serial SPIFFS driver for Stm32 F0-F3 devices.
-class Stm32SPIFFS : public SPIFFS
+class SPIFlash;
+
+class SpiSPIFFS : public SPIFFS
 {
 public:
     /// Constructor.
-    Stm32SPIFFS(size_t physical_address, size_t size_on_disk,
-                size_t logical_block_size, size_t logical_page_size,
-                size_t max_num_open_descriptors = 16, size_t cache_pages = 8,
-                std::function<void()> post_format_hook = nullptr)
-        : SPIFFS(physical_address, size_on_disk, ERASE_PAGE_SIZE,
-                 logical_block_size, logical_page_size,
-                 max_num_open_descriptors, cache_pages, post_format_hook)
-    {
-    }
+    /// @param flash is the spi flash driver. This must be initialized before
+    /// calling any operation (such as mount) on this file system. This object
+    /// must stay alive as long as the filesystem is in use (ownership is not
+    /// transferred).
+    /// @param physical_address address relative to the beginning of the flash
+    /// device.
+    /// @param size_on_disk how long the filesystem is
+    /// @param logical_block_size see SPIFFS documentation
+    /// @param logical_page_size see SPIFFS documentation
+    /// @param max_num_open_descriptors how many fds should we allocate memory
+    /// for
+    /// @param cache_pages how many pages SPIFFS should store in RAM
+    /// @param post_format_hook method to be called after a clean format of the
+    /// file system. This allows the user to prime a clean or factory reset
+    /// file system with an initial set files.
+    SpiSPIFFS(SPIFlash *flash, size_t physical_address, size_t size_on_disk,
+        size_t logical_block_size, size_t logical_page_size,
+        size_t max_num_open_descriptors = 16, size_t cache_pages = 8,
+        std::function<void()> post_format_hook = nullptr);
 
     /// Destructor.
-    ~Stm32SPIFFS()
-    {
-        unmount();
-    }
+    ~SpiSPIFFS();
 
 private:
-    /// size of an erase page in FLASH
-    static constexpr size_t ERASE_PAGE_SIZE = 2 * 1024;
-
     /// SPIFFS callback to read flash, in context.
     /// @param addr adddress location to read
     /// @param size size of read in bytes
@@ -82,7 +85,10 @@ private:
     /// @param size size of erase region in bytes
     int32_t flash_erase(uint32_t addr, uint32_t size) override;
 
-    DISALLOW_COPY_AND_ASSIGN(Stm32SPIFFS);
+    /// Flash access helper.
+    SPIFlash *flash_;
+
+    DISALLOW_COPY_AND_ASSIGN(SpiSPIFFS);
 };
 
-#endif // _FREERTOS_DRIVERS_SPIFFS_STM32F0_F3_STM32SPIFFS_HXX_
+#endif // _FREERTOS_DRIVERS_SPIFFS_SPISPIFFS_HXX_
