@@ -29,6 +29,7 @@ CXXSRCS += \
            PIPClient.cxx \
            RoutingLogic.cxx \
            TcpHub.cxx \
+           TcpHubPort.cxx \
            TractionDefs.cxx \
            TractionCvSpace.cxx \
            TractionThrottle.cxx \
