@@ -37,6 +37,7 @@
 #include "openlcb/IfTcp.hxx"
 #include "openlcb/IfTcpImpl.hxx"
 #include "openlcb/TcpHub.hxx"
+#include "openlcb/TcpHubPort.hxx"
 #include <memory>
 
 namespace openlcb {
@@ -62,6 +63,8 @@ void TcpHub::on_new_connection(int fd)
     // notifiable is called, the HubDeviceSelect has been unregistered,
     // flushed, and can be deleted, even if we are on the main executor.
     //
+    new TcpHubPort(tcpHub_, 0, nullptr, fd, this);
+#if 0    
     struct RemotePort : public Executable
     {
         RemotePort(TcpHub *parent, Notifiable *on_error)
@@ -114,6 +117,7 @@ void TcpHub::on_new_connection(int fd)
     RemotePort *p = new RemotePort(this, on_error);
     p->port_.reset(new TcpHubDeviceSelect(tcpHub_, fd, p));
     //add_owned_flow(p);
+#endif    
 }
 
 void TcpHub::notify()

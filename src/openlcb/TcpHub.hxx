@@ -31,8 +31,8 @@
  * @date 8 Nov 2021
  */
 
-#ifndef _OPENLCB_TCPHUB_HXX
-#define _OPENLCB_TCPHUB_HXX
+#ifndef _OPENLCB_TCPHUB_HXX_
+#define _OPENLCB_TCPHUB_HXX_
 
 #include "utils/socket_listener.hxx"
 #include "utils/Hub.hxx"
