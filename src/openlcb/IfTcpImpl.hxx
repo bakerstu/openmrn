@@ -277,7 +277,80 @@ private:
 
 /// This flow renders outgoing OpenLCB messages to their TCP stream
 /// representation.
-class TcpSendFlow : public MessageStateFlowBase
+class TcpRenderFlow : public MessageStateFlowBase
+{
+public:
+    /// Constructor.
+    ///
+    /// @param service used for the executor
+    /// @param gateway_node_id our own node ID that will be put into the gateway
+    /// node ID field of outgoing TCP messages.
+    /// @param send_target where to send rendered TCP messages (this is usually
+    /// either the device FD flow or a hub with the binary rendered packets).
+    /// @param skip_member outgoing packets will get their skipMember_ set to
+    /// this value. Usually the matching read flow of the interface to avoid
+    /// undesired echo.
+    /// @param sequence how to generate sequence numbers for the outgoing
+    /// packets.
+    TcpRenderFlow(Service *service, NodeID gateway_node_id,
+        HubPortInterface *send_target, HubPortInterface *skip_member,
+        SequenceNumberGenerator *sequence)
+        : MessageStateFlowBase(service)
+        , sendTarget_(send_target)
+        , skipMember_(skip_member)
+        , gatewayId_(gateway_node_id)
+        , sequenceNumberGenerator_(sequence)
+    {
+    }
+
+protected:
+    /// Handler where dequeueing of messages to be sent starts.
+    /// @return next state
+    Action entry() override
+    {
+        return allocate_and_call(sendTarget_, STATE(render_src_message));
+    }
+
+    /// Callback state after allocation succeeded. Renders the message to binary
+    /// payload into the allocated buffer, send the message and exits the
+    /// processing.
+    /// @return back to the base state.
+    Action render_src_message()
+    {
+        auto b = get_buffer_deleter(get_allocation_result(sendTarget_));
+        TcpDefs::render_tcp_message(*nmsg(), gatewayId_,
+            sequenceNumberGenerator_->get_sequence_number(), b->data());
+        b->data()->skipMember_ = skipMember_;
+        sendTarget_->send(b.release(), nmsg()->priority());
+        return call_immediately(STATE(message_done));
+    }
+
+    /// Called after the conversion of the message is completed.
+    virtual Action message_done()
+    {
+        return release_and_exit();
+    }
+    
+    /// @return the abstract message we are trying to send.
+    GenMessage *nmsg()
+    {
+        return message()->data();
+    }
+
+    /// Where to send the rendered messages to.
+    HubPortInterface *sendTarget_;
+    /// This value will be populated to the skipMember_ field.
+    HubPortInterface *skipMember_;
+    /// Populated into the source gateway field of the outgoing messages.
+    NodeID gatewayId_;
+    /// Responsible for generating the sequence numbers of the outgoing
+    /// messages.
+    SequenceNumberGenerator *sequenceNumberGenerator_;
+};
+
+/// This flow renders outgoing OpenLCB messages to their TCP stream
+/// representation.
+class TcpSendFlow : public TcpRenderFlow
 {
 public:
     /// Constructor.
@@ -295,15 +368,11 @@ public:
     TcpSendFlow(If *service, NodeID gateway_node_id,
         HubPortInterface *send_target, HubPortInterface *skip_member,
         SequenceNumberGenerator *sequence)
-        : MessageStateFlowBase(service)
-        , sendTarget_(send_target)
-        , skipMember_(skip_member)
-        , gatewayId_(gateway_node_id)
-        , sequenceNumberGenerator_(sequence)
+        : TcpRenderFlow(
+              service, gateway_node_id, send_target, skip_member, sequence)
     {
     }
 
-private:
     /// Handler where dequeueing of messages to be sent starts.
     /// @return next state
     Action entry() override
@@ -324,18 +393,8 @@ private:
         return allocate_and_call(sendTarget_, STATE(render_src_message));
     }
 
-    /// Callback state after allocation succeeded. Renders the message to binary
-    /// payload into the allocated buffer, send the message and exits the
-    /// processing.
-    /// @return back to the base state.
-    Action render_src_message()
+    Action message_done() override
     {
-        auto b = get_buffer_deleter(get_allocation_result(sendTarget_));
-        TcpDefs::render_tcp_message(*nmsg(), gatewayId_,
-            sequenceNumberGenerator_->get_sequence_number(), b->data());
-        b->data()->skipMember_ = skipMember_;
-        sendTarget_->send(b.release(), nmsg()->priority());
-
         // Checks and performs global loopback.
         if (!nmsg()->dst.id)
         {
@@ -344,27 +403,11 @@ private:
         return release_and_exit();
     }
 
-    /// @return the abstract message we are trying to send.
-    GenMessage *nmsg()
-    {
-        return message()->data();
-    }
-
     /// @return owning interface object.
     If *iface()
     {
         return static_cast<If *>(service());
     }
-
-    /// Where to send the rendered messages to.
-    HubPortInterface *sendTarget_;
-    /// This value will be populated to the skipMember_ field.
-    HubPortInterface *skipMember_;
-    /// Populated into the source gateway field of the outgoing messages.
-    NodeID gatewayId_;
-    /// Responsible for generating the sequence numbers of the outgoing
-    /// messages.
-    SequenceNumberGenerator *sequenceNumberGenerator_;
 };
 
 /// This flow is listening to data from a TCP connection, segments the incoming
