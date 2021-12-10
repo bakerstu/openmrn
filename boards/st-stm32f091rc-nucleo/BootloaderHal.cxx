@@ -21,16 +21,15 @@ int g_death_lineno = 0;
 
 extern "C" {
 
-GPIO_PIN(LED_BLUE, LedPin, B, 14);
-GPIO_PIN(LED_ORANGE, LedPin, B, 15);
-GPIO_PIN(SW1, GpioInputPU, B, 8);
+GPIO_PIN(LED_GREEN, LedPin, A, 5);
+GPIO_PIN(SW1, GpioInputPU, C, 13);
+
 static constexpr unsigned clock_hz = 48000000;
 
 void bootloader_hw_set_to_safe(void)
 {
     SW1_Pin::hw_set_to_safe();
-    LED_BLUE_Pin::hw_set_to_safe();
-    LED_ORANGE_Pin::hw_set_to_safe();
+    LED_GREEN_Pin::hw_set_to_safe();
 }
 
 extern void bootloader_reset_segments(void);
@@ -96,18 +95,18 @@ void bootloader_hw_init()
     GPIO_InitTypeDef gpio_init;
     memset(&gpio_init, 0, sizeof(gpio_init));
 
-    /* CAN pinmux on PA11 and PA12 */
+    /* CAN pinmux on PB8 and PB9 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
-    gpio_init.Pull = GPIO_PULLUP;
+    // Disables pull-ups because this is a 5V tolerant pin.
+    gpio_init.Pull = GPIO_NOPULL;
     gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
     gpio_init.Alternate = GPIO_AF4_CAN;
-    gpio_init.Pin = GPIO_PIN_11;
-    HAL_GPIO_Init(GPIOA, &gpio_init);
-    gpio_init.Pin = GPIO_PIN_12;
-    HAL_GPIO_Init(GPIOA, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_8;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_9;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
 
-    LED_BLUE_Pin::hw_init();
-    LED_ORANGE_Pin::hw_init();
+    LED_GREEN_Pin::hw_init();
     SW1_Pin::hw_init();
 
     /* disable sleep, enter init mode */
@@ -151,21 +150,16 @@ void bootloader_led(enum BootloaderLed id, bool value)
     switch(id)
     {
         case LED_ACTIVE:
-            LED_ORANGE_Pin::set(value);
+            LED_GREEN_Pin::set(value);
             return;
         case LED_WRITING:
-            LED_BLUE_Pin::set(value);
+            LED_GREEN_Pin::set(value);
             return;
         case LED_CSUM_ERROR:
-            LED_ORANGE_Pin::set(value);
             return;
         case LED_REQUEST:
-            LED_ORANGE_Pin::set(value);
-            LED_BLUE_Pin::set(value);
             return;
         case LED_FRAME_LOST:
-            LED_BLUE_Pin::set(0);
-            LED_ORANGE_Pin::set(1);
             return;
         default:
             /* ignore */
@@ -178,10 +172,10 @@ bool request_bootloader()
     extern uint32_t __bootloader_magic_ptr;
     if (__bootloader_magic_ptr == REQUEST_BOOTLOADER) {
         __bootloader_magic_ptr = 0;
-        LED_BLUE_Pin::set(true);
+        LED_GREEN_Pin::set(true);
         return true;
     }
-    LED_BLUE_Pin::set(SW1_Pin::get());
+    LED_GREEN_Pin::set(SW1_Pin::get());
     return !SW1_Pin::get();
 }
 

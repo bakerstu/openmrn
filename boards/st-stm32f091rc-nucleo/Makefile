@@ -52,3 +52,9 @@ flash gdb:
 	echo OPENOCD not found ; exit 1
 
 endif
+
+BLOAD_HOST ?= localhost
+
+rflash: $(EXECUTABLE).bin
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -w 100 -W 100 -c tiva123 -i $(BLOAD_HOST) -r -n 0x0501010118$$(printf %02x $(ADDRESS)) -f $(EXECUTABLE).bin
+	cp -f $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE)-$$(printf %02x $(ADDRESS))$(EXTENTION)	
