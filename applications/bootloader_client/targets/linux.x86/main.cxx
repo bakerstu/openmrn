@@ -41,7 +41,6 @@
 
 #include "main.hxx"
 
-
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments

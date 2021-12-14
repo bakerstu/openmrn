@@ -38,8 +38,8 @@
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
-#include "utils/JSTcpClient.hxx"
 #include "utils/JSSerialPort.hxx"
+#include "utils/JSTcpClient.hxx"
 
 class BootloaderClientStateFlow : public StateFlowBase
 {
