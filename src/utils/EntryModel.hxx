@@ -38,6 +38,7 @@
 #include <cstring>
 #include <functional>
 #include <type_traits>
+#include <limits>
 
 #include "utils/format_utils.hxx"
 
