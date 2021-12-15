@@ -86,12 +86,13 @@ bool request_reboot_after = true;
 bool skip_pip = false;
 long long stream_timeout_nsec = 3000;
 uint32_t hardware_magic = 0x73a92bd1;
+uint32_t hardware_magic2 = 0x5a5a55aa;
 
 void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-c csum_algo [-m hw_magic]] [-r] [-t] [-x] "
+        "memory_space_id] [-c csum_algo [-m hw_magic] [-M hw_magic2]] [-r] [-t] [-x] "
         "[-w dg_timeout] [-W stream_timeout] [-D dump_filename] "
         "(-n nodeid | -a alias) -f filename\n",
         e);
@@ -117,7 +118,7 @@ void usage(const char *e)
     fprintf(stderr,
         "\n\tcsum_algo defines the checksum algorithm to use. If "
         "omitted, no checksumming is done before writing the "
-        "data. hw_magic is an argument to the checksum.\n");
+        "data. hw_magic and hw_magic2 are arguments to the checksum.\n");
     fprintf(stderr,
         "\n\t-r request the target to enter bootloader mode before sending "
         "data\n");
@@ -136,7 +137,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:m:xw:W:D:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:m:M:xw:W:D:")) >= 0)
     {
         switch (opt)
         {
@@ -178,6 +179,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'm':
                 hardware_magic = strtol(optarg, nullptr, 0);
+                break;
+            case 'M':
+                hardware_magic2 = strtol(optarg, nullptr, 0);
                 break;
             case 'r':
                 request_reboot = true;
@@ -264,15 +268,16 @@ void maybe_checksum(string *firmware)
         crc3_crc16_ibm(
             firmware->data(), offset, (uint16_t *)hdr.checksum_pre);
         hdr.checksum_pre[2] = hardware_magic;
-        hdr.checksum_pre[3] = 0x5a5a55aa;
+        hdr.checksum_pre[3] = hardware_magic2;
         crc3_crc16_ibm(&(*firmware)[offset + sizeof(hdr)],
             (firmware->size() - offset - sizeof(hdr)) & ~3,
             (uint16_t *)hdr.checksum_post);
         hdr.checksum_post[2] = hardware_magic;
-        hdr.checksum_post[3] = 0x5a5a55aa;
+        hdr.checksum_post[3] = hardware_magic2;
 
         memcpy(&(*firmware)[offset], &hdr, sizeof(hdr));
-        printf("Checksummed firmware with algorithm cc3200\n");
+        printf("Checksummed firmware with algorithm cc3200 (0x%08x 0x%08x)\n",
+            (unsigned)hardware_magic, (unsigned)hardware_magic2);
     }
     else if (algo == "esp8266")
     {
