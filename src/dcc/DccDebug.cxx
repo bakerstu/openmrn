@@ -244,7 +244,7 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
         {
             case 0b00:
             {
-                options += " resvd %d";
+                options += StringPrintf(" resvd %02x", d);
                 break;
             }
             case 0b01:
