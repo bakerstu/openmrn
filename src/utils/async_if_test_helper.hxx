@@ -158,6 +158,26 @@ protected:
 #define expect_packet(gc_packet)                                               \
     EXPECT_CALL(canBus_, mwrite(StrCaseEq(gc_packet)))
 
+/** Adds an expectation that the code will send a packet to the CANbus. Upon
+ * receiving that packet, sends a packet to CAN-bus. This is helpful when the
+ * test script is simulating a node connected to the CAN-bus and that remote
+ * node has to respond with an ack to the packet emitted by the code under
+ * test.
+
+    Example:
+    expect_packet_and_send_response(":X1A555444N0102030405060708;",
+    ":X19A28555N044400;");
+
+    @param gc_packet the packet that the code under test should emit, in
+    GridConnect format, including the leading : and trailing ;
+    @param resp_packet the packet that will be sent to the code under test
+    after seeing the emitted packet.
+*/
+#define expect_packet_and_send_response(gc_packet, resp_packet)                \
+    EXPECT_CALL(canBus_, mwrite(StrCaseEq(gc_packet)))                         \
+        .WillOnce(::testing::InvokeWithoutArgs(                                \
+            [this]() { send_packet(resp_packet); }))
+
     /** Ignores all produced packets.
      *
      *  Tihs can be used in tests where the expectations are tested in a higher
