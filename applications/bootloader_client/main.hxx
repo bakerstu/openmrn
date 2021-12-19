@@ -24,20 +24,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file main.cxx
+ * \file main.hxx
  *
  * An application for updating the firmware of a remote node on the bus.
  *
  * @author Balazs Racz
  * @date 3 Aug 2013
  */
-
-#include <fcntl.h>
-#include <getopt.h>
-#include <stdio.h>
-#include <unistd.h>
-
-#include <memory>
 
 #include "os/os.h"
 #include "utils/constants.hxx"
@@ -93,12 +86,13 @@ bool request_reboot_after = true;
 bool skip_pip = false;
 long long stream_timeout_nsec = 3000;
 uint32_t hardware_magic = 0x73a92bd1;
+uint32_t hardware_magic2 = 0x5a5a55aa;
 
 void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-c csum_algo [-m hw_magic]] [-r] [-t] [-x] "
+        "memory_space_id] [-c csum_algo [-m hw_magic] [-M hw_magic2]] [-r] [-t] [-x] "
         "[-w dg_timeout] [-W stream_timeout] [-D dump_filename] "
         "(-n nodeid | -a alias) -f filename\n",
         e);
@@ -112,30 +106,38 @@ void usage(const char *e)
         "(also in GridConnect protocol) found at device_path. Device takes "
         "precedence over TCP host:port specification.");
     fprintf(stderr, "The default target is localhost:12021.\n");
-    fprintf(stderr, "nodeid should be a 12-char hex string with 0x prefix and "
-                    "no separators, like '-b 0x05010101141F'\n");
-    fprintf(stderr, "alias should be a 3-char hex string with 0x prefix and no "
-                    "separators, like '-a 0x3F9'\n");
-    fprintf(stderr, "memory_space_id defines which memory space to write the "
-                    "data into. Default is '-s 0xF0'.\n");
-    fprintf(stderr, "csum_algo defines the checksum algorithm to use. If "
-                    "omitted, no checksumming is done before writing the "
-                    "data. hw_magic is an argument to the checksum.\n");
     fprintf(stderr,
-        "-r request the target to enter bootloader mode before sending data\n");
-    fprintf(stderr, "Unless -t is specified the target will be rebooted after "
-                    "flashing complete.\n");
-    fprintf(stderr, "-x skips the PIP request and uses streams.\n");
+        "\n\tnodeid should be a 12-char hex string with 0x prefix and "
+        "no separators, like '-b 0x05010101141F'\n");
     fprintf(stderr,
-        "-w dg_timeout sets how many seconds to wait for a datagram reply.\n");
-    fprintf(stderr, "-D filename  writes the checksummed payload to the given file.\n");
+        "\n\talias should be a 3-char hex string with 0x prefix and no "
+        "separators, like '-a 0x3F9'\n");
+    fprintf(stderr,
+        "\n\tmemory_space_id defines which memory space to write the "
+        "data into. Default is '-s 0xEF'.\n");
+    fprintf(stderr,
+        "\n\tcsum_algo defines the checksum algorithm to use. If "
+        "omitted, no checksumming is done before writing the "
+        "data. hw_magic and hw_magic2 are arguments to the checksum.\n");
+    fprintf(stderr,
+        "\n\t-r request the target to enter bootloader mode before sending "
+        "data\n");
+    fprintf(stderr,
+        "\n\tUnless -t is specified the target will be rebooted after "
+        "flashing complete.\n");
+    fprintf(stderr, "\n\t-x skips the PIP request and uses streams.\n");
+    fprintf(stderr,
+        "\n\t-w dg_timeout sets how many seconds to wait for a datagram "
+        "reply.\n");
+    fprintf(stderr,
+        "\n\t-D filename  writes the checksummed payload to the given file.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:m:xw:W:D:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:m:M:xw:W:D:")) >= 0)
     {
         switch (opt)
         {
@@ -177,6 +179,9 @@ void parse_args(int argc, char *argv[])
                 break;
             case 'm':
                 hardware_magic = strtol(optarg, nullptr, 0);
+                break;
+            case 'M':
+                hardware_magic2 = strtol(optarg, nullptr, 0);
                 break;
             case 'r':
                 request_reboot = true;
@@ -263,15 +268,16 @@ void maybe_checksum(string *firmware)
         crc3_crc16_ibm(
             firmware->data(), offset, (uint16_t *)hdr.checksum_pre);
         hdr.checksum_pre[2] = hardware_magic;
-        hdr.checksum_pre[3] = 0x5a5a55aa;
+        hdr.checksum_pre[3] = hardware_magic2;
         crc3_crc16_ibm(&(*firmware)[offset + sizeof(hdr)],
             (firmware->size() - offset - sizeof(hdr)) & ~3,
             (uint16_t *)hdr.checksum_post);
         hdr.checksum_post[2] = hardware_magic;
-        hdr.checksum_post[3] = 0x5a5a55aa;
+        hdr.checksum_post[3] = hardware_magic2;
 
         memcpy(&(*firmware)[offset], &hdr, sizeof(hdr));
-        printf("Checksummed firmware with algorithm cc3200\n");
+        printf("Checksummed firmware with algorithm cc3200 (0x%08x 0x%08x)\n",
+            (unsigned)hardware_magic, (unsigned)hardware_magic2);
     }
     else if (algo == "esp8266")
     {
@@ -305,42 +311,11 @@ void maybe_checksum(string *firmware)
     }
 }
 
-/** Entry point to application.
- * @param argc number of command line arguments
- * @param argv array of command line arguments
- * @return 0, should never return
- */
-int appl_main(int argc, char *argv[])
+Buffer<openlcb::BootloaderRequest> *fill_request()
 {
-    parse_args(argc, argv);
-    if (!dump_filename)
-    {
-        int conn_fd = 0;
-        if (device_path)
-        {
-            conn_fd = ::open(device_path, O_RDWR);
-        }
-        else
-        {
-            conn_fd = ConnectSocket(host, port);
-        }
-        HASSERT(conn_fd >= 0);
-        create_gc_port_for_can_hub(&can_hub0, conn_fd);
-
-        g_if_can.add_addressed_message_support();
-        // Bootstraps the alias allocation process.
-        g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
-
-        g_executor.start_thread("g_executor", 0, 1024);
-        usleep(400000);
-    }
-
-    SyncNotifiable n;
-    BarrierNotifiable bn(&n);
     Buffer<openlcb::BootloaderRequest> *b;
     mainBufferPool->alloc(&b);
 
-    b->set_done(&bn);
     b->data()->dst.alias = destination_alias;
     b->data()->dst.id = destination_nodeid;
     b->data()->memory_space = memory_space_id;
@@ -350,26 +325,24 @@ int appl_main(int argc, char *argv[])
     b->data()->request_reboot_after = request_reboot_after ? 1 : 0;
     b->data()->skip_pip = skip_pip ? 1 : 0;
     b->data()->data = read_file_to_string(filename);
-
-    printf("Read %" PRIdPTR
-           " bytes from file %s. Writing to memory space 0x%02x\n",
-        b->data()->data.size(), filename, memory_space_id);
+    printf("Read %" PRIdPTR " bytes from file %s.\n", b->data()->data.size(),
+        filename);
     maybe_checksum(&b->data()->data);
 
-    if (dump_filename)
-    {
-        write_string_to_file(dump_filename, b->data()->data);
-        exit(0);
-    }
+    return b;
+}
 
-    bootloader_client.send(b);
-    n.wait_for_notification();
-    printf("Result: %04x  %s\n", response.error_code,
-        response.error_details.c_str());
-    if (response.error_code != 0)
+bool process_dump()
+{
+    if (!dump_filename)
     {
-        exit(1);
+        return false;
     }
-    exit(0);
-    return 0;
+    string d = read_file_to_string(filename);
+    printf("Read %" PRIdPTR " bytes from file %s.\n", d.size(), filename);
+    maybe_checksum(&d);
+    write_string_to_file(dump_filename, d);
+    printf("Written data to %s.\n", dump_filename);
+
+    return true;
 }

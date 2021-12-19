@@ -51,6 +51,16 @@ string read_file_to_string(const string &filename)
     return contents;
 }
 
+void write_string_to_file(const string &filename, const string &data)
+{
+    using emscripten::val;
+    EM_ASM(var fs = require('fs'); Module.fs = fs;);
+    val fs = val::module_property("fs");
+    fs.call<val>("writeFileSync", string(filename),
+        emscripten::typed_memory_view(data.size(), (uint8_t *)data.data()),
+        string("binary"));
+}
+
 #else
 
 #include <stdio.h>
