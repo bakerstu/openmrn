@@ -229,7 +229,56 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
     else if (cmd == 0 && is_idle_packet)
     {
     }
-    
+    else if ((cmd >> 4) == 0b1110)
+    {
+        // POM command
+        options += " POM CV";
+        unsigned kk = (cmd >> 2) & 3;
+        unsigned cv = (cmd & 3) << 8;
+        cv |= pkt.payload[ofs];
+        ofs++;
+        options += StringPrintf("%d", cv + 1);
+        uint8_t d = pkt.payload[ofs++];
+
+        switch (kk)
+        {
+            case 0b00:
+            {
+                options += StringPrintf(" resvd %02x", d);
+                break;
+            }
+            case 0b01:
+            {
+                options += StringPrintf(" read/verify %d", d);
+                break;
+            }
+            case 0b11:
+            {
+                options += StringPrintf(" write = %d", d);
+                break;
+            }
+            case 0b10:
+            {
+                unsigned bit = d & 7;
+                unsigned value = (d >> 3) & 1;
+                if ((d & 0xE0) != 0xE0)
+                {
+                    options += StringPrintf(" bit manipulate unknown (%02x)", d);
+                    break;
+                }
+                if ((d & 0x10) == 0x10)
+                {
+                    options += StringPrintf(" bit %d write = %d", bit, value);
+                }
+                else
+                {
+                    options += StringPrintf(" bit %d verify ?= %d", bit, value);
+                }
+                break;
+            }
+        }
+    }
+
     // checksum of packet
     if (ofs == pkt.dlc && pkt.packet_header.skip_ec == 0)
     {
