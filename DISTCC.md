@@ -18,7 +18,7 @@ offload most of the compilation steps.
 
 ### How does it work?
 
-We use the opensource distcc package (git@github.com:distcc/distcc.git). We
+We use the opensource distcc package (`git@github.com:distcc/distcc.git`). We
 create an SSH link to the remote machine, and start the distcc daemon. We wrap
 the local compilation command in distcc. Distcc will preprocess the source file
 locally, then transmit the preprocessed source to the remote machine over the
@@ -42,7 +42,7 @@ link. The linking steps then happen locally.
 #### Installing distcc
 
 1. `sudo apt-get install distcc` on both the local and remote machine.
-2. Clone the distcc sources from git@github.com:distcc/distcc.git. Check the
+2. Clone the distcc sources from `git@github.com:distcc/distcc.git`. Check the
    INSTALL file for an apt-get commandline near the very top for compile-time
    dependencies to be installed.
 3. edit src/arg.c. Find the place where it checks for "-specs="
@@ -97,7 +97,7 @@ store a few parameters in files under `~/.distcc`.
 ```bash
 mkdir -p ~/.distcc
 echo 3434 > ~/.distcc/port
-echo my-fast-remote-machine.myplace.com > ~/.distcc/ssh_hosts
+echo my-fast-remote-machine.myplace.com > ~/.distcc/ssh_host
 echo '127.0.0.1:3434/20,lzo' > ~/.distcc/hosts
 ```
 
