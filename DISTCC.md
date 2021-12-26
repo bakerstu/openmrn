@@ -108,6 +108,11 @@ The "/20" part of the hosts line is the capacity of the remote machine. This
 one says it's good for 20 parallel jobs, which I picked for a 6-core (12
 hyperthread) machine with lots of RAM.
 
+You can configure a lot of other things in the hosts file. `man distcc` for the
+full documentation. It is also possible to configure the local CPU to run some
+number of jobs while the remote CPU runs other builds. It is possible to use
+multiple remote machines as well.
+
 ## Using
 
 After every restart of your machine you need to start the ssh tunnel:
@@ -146,7 +151,8 @@ compiler directly:
 
 ### How much does it help?
 
-With distcc:
+With distcc (parallelism of 21, all remotely; this is on a W-2135 Xeon CPU @
+3.70GHz):
 
 ```bash
    text	   data	    bss	    dec	    hex	filename
@@ -158,7 +164,8 @@ user    2m41.551s
 sys     0m29.235s
 ```
 
-Without distcc:
+Without distcc (parallelism of 9, all locally; this is on an intel i7-8665U CPU
+@ 1.90GHz -- this is a 15W TDP mobile CPU with 4 cores, 8 hyperthreads):
 
 ```bash
    text	   data	    bss	    dec	    hex	filename
