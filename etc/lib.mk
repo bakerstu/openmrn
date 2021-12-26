@@ -79,19 +79,19 @@ endif
 .SUFFIXES: .o .c .cxx .cpp .S
 
 .cpp.o:
-	$(CXX) $(CXXFLAGS) -MD -MF $*.d $< -o $@
+	$(CXX) $(CXXFLAGS) -MMD -MF $*.d $< -o $@
 
 .cxx.o:
-	$(CXX) $(CXXFLAGS) -MD -MF $*.d $< -o $@
+	$(CXX) $(CXXFLAGS) -MMD -MF $*.d $< -o $@
 
 .S.o:
-	$(AS) $(ASFLAGS) -MD -MF $*.d $< -o $@
+	$(AS) $(ASFLAGS) -MMD -MF $*.d $< -o $@
 
 .c.o:
-	$(CC) $(CFLAGS) -MD -MF $*.d $< -o $@
+	$(CC) $(CFLAGS) -MMD -MF $*.d $< -o $@
 
 $(ARM_OBJS): %.o : %.c
-	$(CC) $(ARM_CFLAGS) -MD -MF $*.d $< -o $@
+	$(CC) $(ARM_CFLAGS) -MMD -MF $*.d $< -o $@
 
 
 $(LIBNAME): $(OBJS)
