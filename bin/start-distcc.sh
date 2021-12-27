@@ -21,4 +21,4 @@ DISTCC_SSHARGS=$(< ~/.distcc/ssh_args)
 
 set -x
 
-ssh ${DISTCC_SSHARGS} -L localhost:${DISTCC_PORT}:localhost:${DISTCC_PORT} ${DISTCC_RHOST} \~/bin/distccd --no-detach --listen 127.0.0.1 --jobs 20 -p ${DISTCC_PORT} --allow 127.0.0.1/24 --verbose --daemon --log-stderr
+ssh ${DISTCC_SSHARGS} -L localhost:${DISTCC_PORT}:localhost:${DISTCC_PORT} ${DISTCC_RHOST} "killall distccd; ~/bin/distccd --no-detach --listen 127.0.0.1 --jobs 20 -p ${DISTCC_PORT} --allow 127.0.0.1/24 --verbose --daemon --log-stderr"
