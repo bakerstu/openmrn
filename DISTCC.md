@@ -45,10 +45,10 @@ link. The linking steps then happen locally.
 2. Clone the distcc sources from `git@github.com:distcc/distcc.git`. Check the
    INSTALL file for an apt-get commandline near the very top for compile-time
    dependencies to be installed.
-3. edit src/arg.c. Find the place where it checks for "-specs="
+3. edit `src/arg.c`. Find the place where it checks for `"-specs="`
    argument. Comment out the early return. (Not doing anything in that if is
    what you want.)
-4. edit src/serve.c. Find where it checks for "-specs=", and disable that
+4. edit `src/serve.c`. Find where it checks for `"-specs="`, and disable that
    check.
 5. run through the compile steps of distcc, see the INSTALL file. These are
    normally:
