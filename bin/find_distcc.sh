@@ -26,6 +26,12 @@ if ! netstat --tcp -l -n | grep -q ":${DISTCC_PORT} " ; then
     exit
 fi
 
+# Always enable remoting g++ and gcc
+if [ "$1" == "gcc" -o "$1" == "g++" ]; then
+    echo distcc "$1"
+    exit
+fi
+
 #Find masquerading compiler name
 #echo find ~/bin -type l -lname "$1" -print 
 CNAME=$(find ~/bin -type l -lname "$1" -print)
