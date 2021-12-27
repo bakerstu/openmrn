@@ -13,10 +13,11 @@
 #
 # See DISTCC.md for additional information.
 
-DISTCC_PORT=$(< ~/.distcc/port)
+DISTCC_PORT=$(cat ~/.distcc/port 2>/dev/null)
 if [ -z "${DISTCC_PORT}" ] ; then
-    echo missing ~/.distcc/port. See DISTCC.md. >&2
-    echo no-distcc-port-file-found
+    # .distcc/port file is not set up. This means the user does not want to use
+    # distcc.
+    echo "$1"
     exit
 fi
 
