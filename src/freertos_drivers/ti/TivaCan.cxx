@@ -33,15 +33,16 @@
 
 #include <stdint.h>
 
-#include "inc/hw_types.h"
-#include "inc/hw_memmap.h"
-#include "inc/hw_ints.h"
-#include "inc/hw_can.h"
-#include "driverlib/rom.h"
-#include "driverlib/rom_map.h"
+#include "can_ioctl.h"
 #include "driverlib/can.h"
 #include "driverlib/interrupt.h"
+#include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
+#include "inc/hw_can.h"
+#include "inc/hw_ints.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_types.h"
 #include "nmranet_config.h"
 
 #include "TivaDev.hxx"
@@ -55,10 +56,11 @@ static TivaCan *instances[2] = {NULL};
  * @param interrupt interrupt number of this device
  */
 TivaCan::TivaCan(const char *name, unsigned long base, uint32_t interrupt)
-    : Can(name),
-      base(base),
-      interrupt(interrupt),
-      txPending(false)
+    : Can(name)
+    , base(base)
+    , interrupt(interrupt)
+    , txPending(false)
+    , canState(CAN_STATE_STOPPED)
 {
     switch (base)
     {
@@ -86,6 +88,19 @@ TivaCan::TivaCan(const char *name, unsigned long base, uint32_t interrupt)
     MAP_CANMessageSet(base, 1, &can_message, MSG_OBJ_TYPE_RX);
 }
 
+//
+// TCAN4550Can::ioctl()
+//
+int TivaCan::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    if (key == SIOCGCANSTATE)
+    {
+        *((can_state_t *)data) = canState;
+        return 0;
+    }
+    return -EINVAL;
+}
+
 /** Enable use of the device.
  */
 void TivaCan::enable()
@@ -96,12 +111,14 @@ void TivaCan::enable()
     // FreeRTOS compatibility.
     MAP_IntPrioritySet(interrupt, configKERNEL_INTERRUPT_PRIORITY);
     MAP_CANEnable(base);
+    canState = CAN_STATE_ACTIVE;
 }
 
 /** Disable use of the device.
  */
 void TivaCan::disable()
 {
+    canState = CAN_STATE_STOPPED;
     MAP_IntDisable(interrupt);
     MAP_CANDisable(base);
 }
@@ -110,7 +127,7 @@ void TivaCan::disable()
  */
 void TivaCan::tx_msg()
 {
-    if (txPending == false)
+    if (txPending == false || canState != CAN_STATE_ACTIVE)
     {
         struct can_frame *can_frame;
 
@@ -137,6 +154,11 @@ void TivaCan::tx_msg()
             txPending = true;
         }
     }
+    if (canState != CAN_STATE_ACTIVE)
+    {
+        txBuf->flush();
+        txBuf->signal_condition();
+    }
 }
 
 /** Common interrupt handler for all CAN devices.
@@ -155,13 +177,20 @@ void TivaCan::interrupt_handler()
         {
             /* bus off error condition */
             ++busOffCount;
+            canState = CAN_STATE_BUS_OFF;
+
+            /* flush data in the tx pipeline */
+            txBuf->flush();
+            txPending = false;
+            txBuf->signal_condition_from_isr();
         }
         if (status & CAN_STATUS_EWARN)
         {
             /* One of the error counters has exceded a value of 96 */
             ++softErrorCount;
-            /* flush and data in the tx pipeline */
-            MAP_CANMessageClear(base, 2);
+            canState = CAN_STATE_BUS_PASSIVE;
+
+            /* flush data in the tx pipeline */
             txBuf->flush();
             txPending = false;
             txBuf->signal_condition_from_isr();
@@ -190,6 +219,8 @@ void TivaCan::interrupt_handler()
     else if (status == 1)
     {
         /* rx data received */
+        canState = CAN_STATE_ACTIVE;
+
         struct can_frame *can_frame;
         if (rxBuf->data_write_pointer(&can_frame))
         {
@@ -231,6 +262,8 @@ void TivaCan::interrupt_handler()
     {
         /* tx complete */
         MAP_CANIntClear(base, 2);
+        canState = CAN_STATE_ACTIVE;
+
         /* previous (zero copy) message from buffer no longer needed */
         txBuf->consume(1);
         ++numTransmittedPackets_;
