@@ -243,6 +243,13 @@ public:
      */
     void interrupt_handler();
 
+    /// Request an ioctl transaction.
+    /// @param file file reference for this device
+    /// @param key ioctl key
+    /// @param data key data
+    /// @return >= 0 upon success, -errno upon failure
+    int ioctl(File *file, unsigned long int key, unsigned long data) override;
+
 private:
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
@@ -251,7 +258,7 @@ private:
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
     bool txPending; /**< transmission currently pending */
-
+    uint8_t canState; /**< current state of the CAN-bus. */
     /** Default constructor.
      */
     TivaCan();
