@@ -57,4 +57,4 @@ release-bin:
 	rm -rf $(RELDIR)/*
 	mkdir -p $(RELDIR)
 	+$(MAKE) -C . release-bin-all
-	cd $(RELDIR); zip -9r ../release-$(RELNAME).zip .
+	cd $(RELDIR); zip -9r ../applications.$(RELNAME).zip .
