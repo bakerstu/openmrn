@@ -40,6 +40,8 @@
 #include <spi/spidev.h>
 #include <sys/types.h>
 
+#include "utils/logging.h"
+
 class OSMutex;
 class SPI;
 
@@ -109,6 +111,8 @@ public:
         : cfg_(cfg)
         , lock_(lock)
     {
+        /// This ensures that the sector size is a power of two.
+        HASSERT((cfg->sectorSize_ & (cfg->sectorSize_ - 1)) == 0);
     }
 
     /// @return the configuration.
@@ -133,6 +137,16 @@ public:
     /// @param buf points to where to put the data read
     /// @param len how many bytes to read
     void read(uint32_t addr, void *buf, size_t len);
+
+    /// Aligns an address to the next possible sector start (i.e., rounds up to
+    /// sector boundary).
+    /// @param addr an address in the flash address space.
+    /// @return If addr is the first byte of a sector, then returns addr
+    /// unmodified. Otherwise returns the starting address of the next sector.
+    uint32_t next_sector_address(uint32_t addr)
+    {
+        return (addr + cfg_->sectorSize_ - 1) & ~(cfg_->sectorSize_ - 1);
+    }
 
     /// Erases sector(s) of the device.
     /// @param addr beginning of the sector to erase. Must be sector aligned.
