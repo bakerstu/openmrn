@@ -15,12 +15,12 @@ $(RELDIR)/$(1): $(2)/$(1)
 	strip -o $$@ $$<
 
 $(2)/$(1):
-	$(MAKE) -C $(2)
+	+$(MAKE) -C $(2)
 
 release-clean: release-clean-$(1)
 
 release-clean-$(1):
-	$(MAKE) -C $(2) clean rclean
+	+$(MAKE) -C $(2) clean rclean
 
 endef
 
@@ -51,7 +51,7 @@ $(2)/$(1)-win.exe:
 release-clean: release-clean-$(1)
 
 release-clean-$(1):
-	$(MAKE) -C $(2) clean rclean
+	+$(MAKE) -C $(2) clean rclean
 	rm -rf $(2)/$(1)-win.exe $(2)/$(1)-macos $(2)/$(1)-linux
 
 endef
