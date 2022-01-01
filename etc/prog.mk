@@ -179,7 +179,7 @@ endif
 # in the core target libraries.
 $(LIBDIR)/timestamp: $(LIBBUILDDEP) $(BUILDDIRS)
 ifdef FLOCKPATH
-	@$(FLOCKPATH)/flock $(OPENMRNPATH)/targets/$(TARGET) -c "if [ $< -ot $(LIBBUILDDEP) -o ! -f $(LIBBUILDDEP) ] ; then $(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all ; else echo short-circuiting core target build ; fi"
+	@$(FLOCKPATH)/flock $(OPENMRNPATH)/targets/$(TARGET) -c "if [ $@ -ot $(LIBBUILDDEP) -o ! -f $(LIBBUILDDEP) ] ; then $(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all ; else echo short-circuiting core target build, because $@ is older than $(LIBBUILDDEP) ; fi"
 else
 	@echo warning: no flock support. If you use make -jN then you can run into occasional compilation errors when multiple makes are progressing in the same directory. Usually re-running make solved them.
 	$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all
