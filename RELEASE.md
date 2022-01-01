@@ -34,6 +34,20 @@ The following is out of scope of this documentation:
   
   `sudo npm install -g pkg`
   
+## Release numbering
+
+Release numbers are marked as major.minor.patch, such as `v2.10.1`.
+
+- Major release numbers are incremented once per year (2020 is 0, 2021 is 1,
+  2022 is 2, ...).
+
+- Minor release numbers are 10, 20, 30, 40 for given quarters, then incremented
+  by one if there are multiple releases built within a quarter.
+
+- Patch release numbers start at 1, and are only incremented if the same
+  release needs to be re-built with a patch.
+
+  
 ## How to build
 
 All of the make commands here need to be run in the openmrn directory
