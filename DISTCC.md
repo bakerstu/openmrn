@@ -50,6 +50,8 @@ link. The linking steps then happen locally.
    what you want.)
 4. edit `src/serve.c`. Find where it checks for `"-specs="`, and disable that
    check.
+4. edit `src/filename.c`. Find where it checks for `"cxx"`, and add another
+   line so that it supports `"cxxtest"` as well.
 5. run through the compile steps of distcc, see the INSTALL file. These are
    normally:
    ```
