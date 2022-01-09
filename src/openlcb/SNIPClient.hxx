@@ -39,6 +39,7 @@
 #include "executor/CallableFlow.hxx"
 #include "openlcb/Defs.hxx"
 #include "openlcb/If.hxx"
+#include "os/sleep.h"
 
 namespace openlcb
 {
@@ -86,6 +87,17 @@ public:
     SNIPClient(Service *s)
         : CallableFlow<SNIPClientRequest>(s)
     {
+    }
+
+    /// Flushes the pending timed operations.
+    void shutdown()
+    {
+        while (!is_waiting())
+        {
+            service()->executor()->sync_run(
+                [this]() { timer_.ensure_triggered(); });
+            microsleep(500);
+        }
     }
 
     Action entry() override
