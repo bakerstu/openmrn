@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 )");
     }
 
-    render_all_cdi<10>();
+    render_all_cdi<20>();
     /*    render_all_cdi<9>();
         render_all_cdi<8>();
         render_all_cdi<7>();
