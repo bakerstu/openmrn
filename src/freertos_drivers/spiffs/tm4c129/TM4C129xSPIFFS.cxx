@@ -35,7 +35,8 @@
 #define TARGET_IS_TM4C129_RA1
 
 #define TI_DUAL_BANK_FLASH
-#define TISPIFFS_LOCK_BASEPRI_FF
+//#define TISPIFFS_LOCK_BASEPRI_FF  // no crash
+#define TISPIFFS_LOCK_NONE
 
 #include "spiffs.h"
 #include "inc/hw_types.h"
