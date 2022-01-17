@@ -38,6 +38,8 @@
 
 #if defined(ESP32)
 
+#include "sdkconfig.h"
+
 #include <esp_idf_version.h>
 #if defined(CONFIG_IDF_TARGET_ESP32)
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
