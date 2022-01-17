@@ -40,25 +40,7 @@
 #include "freertos_drivers/esp32/Esp32SocInfo.hxx"
 #include "utils/logging.h"
 
-#include <esp_idf_version.h>
 #include <esp_ota_ops.h>
-#if defined(CONFIG_IDF_TARGET_ESP32)
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
-#include <esp32/rom/rtc.h>
-#else
-#include <rom/rtc.h>
-#endif // IDF v4.3+
-#elif defined(CONFIG_IDF_TARGET_ESP32S2)
-#include <esp32s2/rom/rtc.h>
-#elif defined(CONFIG_IDF_TARGET_ESP32S3)
-#include <esp32s3/rom/rtc.h>
-#elif defined(CONFIG_IDF_TARGET_ESP32C3)
-#include <esp32c3/rom/rtc.h>
-#elif defined(CONFIG_IDF_TARGET_ESP32H2)
-#include <esp32h2/rom/rtc.h>
-#elif defined(CONFIG_IDF_TARGET_ESP8684)
-#include <esp8684/rom/rtc.h>
-#endif
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,4,0)
 #include <esp_chip_info.h>
