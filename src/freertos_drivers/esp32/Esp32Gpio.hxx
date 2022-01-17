@@ -42,7 +42,19 @@
 
 #include <driver/adc.h>
 #include <driver/gpio.h>
+#include <esp_idf_version.h>
 #include <soc/adc_channel.h>
+
+// esp_rom_gpio.h is a target agnostic replacement for esp32/rom/gpio.h
+#if __has_include(<esp_rom_gpio.h>)
+#include <esp_rom_gpio.h>
+#else
+#include <esp32/rom/gpio.h>
+#endif
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5,0,0)
+#include <soc/gpio_struct.h>
+#endif
 
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
 /// Helper macro to test if a pin has been configured for output.
@@ -221,7 +233,11 @@ public:
         LOG(VERBOSE,
             "[Esp32Gpio] Configuring output pin %d, default value: %d",
             PIN_NUM, SAFE_VALUE);
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
         gpio_pad_select_gpio(PIN_NUM);
+#else // IDF v4.4 (or later)
+        esp_rom_gpio_pad_select_gpio(PIN_NUM);
+#endif // IDF v4.3 (or earlier)
         gpio_config_t cfg;
         memset(&cfg, 0, sizeof(gpio_config_t));
         cfg.pin_bit_mask = BIT64(PIN_NUM);
@@ -337,7 +353,11 @@ public:
     {
         LOG(VERBOSE, "[Esp32Gpio] Configuring input pin %d, PUEN: %d, PDEN: %d",
             PIN_NUM, PUEN, PDEN);
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
         gpio_pad_select_gpio(PIN_NUM);
+#else // IDF v4.4 (or later)
+        esp_rom_gpio_pad_select_gpio(PIN_NUM);
+#endif // IDF v4.3 (or earlier)
         gpio_config_t cfg;
         memset(&cfg, 0, sizeof(gpio_config_t));
         cfg.pin_bit_mask = BIT64(PIN_NUM);
@@ -540,6 +560,8 @@ public:
 ///    - 20      : UART0 RX, serial console.
 ///    - 21      : UART0 TX, serial console.
 ///
+/// ESP8685: This is an ESP32-C3 in a smaller package without SPI pins exposed.
+///
 /// ESP32-S3: Valid pin range is 0..48 with the following notes:
 ///    - 0       : Bootstrap pin, pull-up resistor on most modules.
 ///    - 18      : Most modules have an RGB LED on this pin.
@@ -577,6 +599,7 @@ public:
 /// ESP32-S2-WROVER: https://www.espressif.com/sites/default/files/documentation/esp32-s2-wrover_esp32-s2-wrover-i_datasheet_en.pdf
 /// ESP32-C3: https://www.espressif.com/sites/default/files/documentation/esp32-c3_datasheet_en.pdf
 /// ESP32-S3: https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf
+/// ESP8685: https://www.espressif.com/sites/default/files/documentation/esp8685_datasheet_en.pdf
 ///
 /// SoC technical references:
 /// ESP32: https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf

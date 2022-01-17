@@ -53,7 +53,12 @@
 
 #include <assert.h>
 #include <driver/gpio.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5,0,0)
+#include <esp_private/periph_ctrl.h>
+#else // IDF v4.x (or earlier)
 #include <driver/periph_ctrl.h>
+#endif // IDF v5+
+#include <esp_ipc.h>
 #include <esp_log.h>
 #include <esp_rom_gpio.h>
 #include <esp_intr_alloc.h>
@@ -62,6 +67,7 @@
 #include <fcntl.h>
 #include <hal/twai_types.h>
 #include <hal/twai_hal.h>
+#include <soc/gpio_sig_map.h>
 
 #include "can_frame.h"
 #include "can_ioctl.h"
@@ -333,8 +339,8 @@ static ssize_t twai_vfs_write(int fd, const void *buf, size_t size)
             {
                 memset(&tx_frame, 0, sizeof(twai_message_t));
                 tx_frame.identifier = frame->can_id;
-                tx_frame.extd = frame->can_eff;
-                tx_frame.rtr = frame->can_rtr;
+                tx_frame.extd = IS_CAN_FRAME_EFF(*frame);
+                tx_frame.rtr = IS_CAN_FRAME_RTR(*frame);
                 tx_frame.data_length_code = frame->can_dlc;
                 memcpy(tx_frame.data, frame->data, frame->can_dlc);
                 twai_hal_format_frame(&tx_frame, &hal_frame);
@@ -623,8 +629,22 @@ static inline uint32_t twai_rx_frames()
                 memcpy(can_frame->data, rx_frame.data, TWAI_FRAME_MAX_DLC);
                 can_frame->can_dlc = rx_frame.data_length_code;
                 can_frame->can_id = rx_frame.identifier;
-                can_frame->can_eff = rx_frame.extd;
-                can_frame->can_rtr = rx_frame.rtr;
+                if (rx_frame.extd)
+                {
+                    SET_CAN_FRAME_EFF(*can_frame);
+                }
+                else
+                {
+                    CLR_CAN_FRAME_EFF(*can_frame);
+                }
+                if (rx_frame.rtr)
+                {
+                    SET_CAN_FRAME_RTR(*can_frame);
+                }
+                else
+                {
+                    CLR_CAN_FRAME_RTR(*can_frame);
+                }
                 rx_count += twai.rx_buf->advance(1);
                 ESP_EARLY_LOGV(TWAI_LOG_TAG, "rx-OK");
             }
@@ -677,8 +697,8 @@ static inline uint32_t twai_tx_frame()
         twai_hal_frame_t hal_frame;
         memset(&tx_frame, 0, sizeof(twai_message_t));
         tx_frame.identifier = can_frame->can_id;
-        tx_frame.extd = can_frame->can_eff;
-        tx_frame.rtr = can_frame->can_rtr;
+        tx_frame.extd = IS_CAN_FRAME_EFF(*can_frame);
+        tx_frame.rtr =  IS_CAN_FRAME_RTR(*can_frame);
         tx_frame.data_length_code = can_frame->can_dlc;
         memcpy(tx_frame.data, can_frame->data, can_frame->can_dlc);
         twai_hal_format_frame(&tx_frame, &hal_frame);
@@ -876,15 +896,11 @@ void* twai_watchdog(void* param)
     return NULL;
 }
 
-Esp32HardwareTwai::Esp32HardwareTwai(int rx, int tx, bool report,
-                                     size_t rx_size, size_t tx_size,
-                                     const char *path, int clock_out,
-                                     int bus_status) :
-                                     rxPin_(rx),
-                                     txPin_(tx),
-                                     extClockPin_(clock_out),
-                                     busStatusPin_(bus_status),
-                                     vfsPath_(path)
+Esp32HardwareTwai::Esp32HardwareTwai(
+    int rx, int tx, bool report, size_t rx_size, size_t tx_size,
+    const char *path, int clock_out, int bus_status, uint32_t isr_core)
+    : rxPin_(rx), txPin_(tx), extClockPin_(clock_out),
+    busStatusPin_(bus_status), preferredIsrCore_(isr_core), vfsPath_(path)
 {
     HASSERT(GPIO_IS_VALID_GPIO(rxPin_));
     HASSERT(GPIO_IS_VALID_OUTPUT_GPIO(txPin_));
@@ -931,40 +947,48 @@ Esp32HardwareTwai::~Esp32HardwareTwai()
     }
 }
 
+/// Internal function which is used to allocate the TWAI ISR on a specific
+/// core. This will be either directly called (for single core SoCs) in
+/// Esp32HardwareTwai::hw_init() or via esp_ipc.
+static void esp32_twai_isr_init(void *param)
+{
+    LOG(VERBOSE, "ESP-TWAI: Allocating ISR");
+    ESP_ERROR_CHECK(
+        esp_intr_alloc(ETS_TWAI_INTR_SOURCE, TWAI_INTERRUPT_FLAGS, twai_isr,
+            nullptr, &twai.isr_handle));
+}
+
 void Esp32HardwareTwai::hw_init()
 {
     LOG(INFO,
         "ESP-TWAI: Configuring TWAI (TX:%d, RX:%d, EXT-CLK:%d, BUS-CTRL:%d)",
         txPin_, rxPin_, extClockPin_, busStatusPin_);
     gpio_set_pull_mode((gpio_num_t)txPin_, GPIO_FLOATING);
-    gpio_pad_select_gpio(txPin_);
     esp_rom_gpio_connect_out_signal(txPin_, TWAI_TX_IDX, false, false);
+    esp_rom_gpio_pad_select_gpio(txPin_);
 
     gpio_set_pull_mode((gpio_num_t)rxPin_, GPIO_FLOATING);
-    gpio_set_direction((gpio_num_t)rxPin_, GPIO_MODE_INPUT);
-    gpio_pad_select_gpio(rxPin_);
     esp_rom_gpio_connect_in_signal(rxPin_, TWAI_RX_IDX, false);
+    esp_rom_gpio_pad_select_gpio(rxPin_);
+    gpio_set_direction((gpio_num_t)rxPin_, GPIO_MODE_INPUT);
 
     if (extClockPin_ != GPIO_NUM_NC)
     {
         gpio_set_pull_mode((gpio_num_t)extClockPin_, GPIO_FLOATING);
-        gpio_set_direction((gpio_num_t)extClockPin_, GPIO_MODE_OUTPUT);
         esp_rom_gpio_connect_out_signal(extClockPin_, TWAI_CLKOUT_IDX, false,
             false);
-        gpio_pad_select_gpio((gpio_num_t)extClockPin_);
+        esp_rom_gpio_pad_select_gpio((gpio_num_t)extClockPin_);
     }
 
     if (busStatusPin_ != GPIO_NUM_NC)
     {
         gpio_set_pull_mode((gpio_num_t)busStatusPin_, GPIO_FLOATING);
-        gpio_set_direction((gpio_num_t)busStatusPin_, GPIO_MODE_OUTPUT);
         esp_rom_gpio_connect_out_signal(extClockPin_, TWAI_BUS_OFF_ON_IDX,
             false, false);
-        gpio_pad_select_gpio((gpio_num_t)busStatusPin_);
+        esp_rom_gpio_pad_select_gpio((gpio_num_t)busStatusPin_);
     }
 
-    esp_vfs_t vfs;
-    memset(&vfs, 0, sizeof(esp_vfs_t));
+    esp_vfs_t vfs = {};
     vfs.write = twai_vfs_write;
     vfs.read = twai_vfs_read;
     vfs.open = twai_vfs_open;
@@ -986,10 +1010,12 @@ void Esp32HardwareTwai::hw_init()
     LOG(VERBOSE, "ESP-TWAI: Initiailizing peripheral");
     twai_hal_configure(&twai.context, &timingCfg, &filterCfg,
         TWAI_DEFAULT_INTERRUPTS, 0);
-    LOG(VERBOSE, "ESP-TWAI: Allocating ISR");
+#if SOC_CPU_CORES_NUM > 1
     ESP_ERROR_CHECK(
-        esp_intr_alloc(ETS_TWAI_INTR_SOURCE, TWAI_INTERRUPT_FLAGS, twai_isr,
-            nullptr, &twai.isr_handle));
+        esp_ipc_call_blocking(preferredIsrCore_, esp32_twai_isr_init, nullptr));
+#else
+    esp32_twai_isr_init(nullptr);
+#endif // SOC_CPU_CORES_NUM > 1
     twai.active = true;
 
     os_thread_create(&twai.wd_thread, "TWAI-WD", WATCHDOG_TASK_PRIORITY,

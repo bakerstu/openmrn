@@ -51,39 +51,26 @@
 #define WRITE_BUFFER_SIZE (CONFIG_WL_SECTOR_SIZE / 2)
 
 #include <driver/twai.h>
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,4,0)
+#include <esp_chip_info.h>
+#endif // IDF v4.4+
+
 #include <esp_ota_ops.h>
-#if defined(CONFIG_IDF_TARGET_ESP32S2)
+#if defined(CONFIG_IDF_TARGET_ESP32)
+#include <esp32/rom/rtc.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
 #include <esp32s2/rom/rtc.h>
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
 #include <esp32s3/rom/rtc.h>
 #elif defined(CONFIG_IDF_TARGET_ESP32C3)
 #include <esp32c3/rom/rtc.h>
-#elif defined(CONFIG_IDF_TARGET_ESP32)
-#include <esp32/rom/rtc.h>
-#elif defined(CONFIG_IDF_TARGET_ESP32H2)
-#error ESP32-H2 does not support TWAI.
 #else
-#error Unknown ESP32 variant.
+#error Unknown/Unsupported ESP32 variant.
 #endif
 #include "openlcb/Bootloader.hxx"
 #include "utils/constants.hxx"
 #include "utils/Hub.hxx"
-
-/// Mapping of known ESP32 chip id values.
-static constexpr const char * ESP_CHIP_ID_NAMES[] =
-{
-    "ESP32",            // 0x00 ESP_CHIP_ID_ESP32
-    "INVALID",          // 0x01 invalid (placeholder)
-    "ESP32-S2",         // 0x02 ESP_CHIP_ID_ESP32S2
-    "INVALID",          // 0x03 invalid (placeholder)
-    "INVALID",          // 0x04 invalid (placeholder)
-    "ESP32-C3",         // 0x05 ESP_CHIP_ID_ESP32C3
-    "INVALID",          // 0x06 invalid (placeholder)
-    "INVALID",          // 0x07 invalid (placeholder)
-    "INVALID",          // 0x08 invalid (placeholder)
-    "ESP32-S3",         // 0x09 ESP_CHIP_ID_ESP32S3
-    "ESP32-H2"          // 0x0A ESP_CHIP_ID_ESP32H2
-};
 
 /// ESP32 Bootloader internal data.
 struct Esp32BootloaderState
@@ -121,7 +108,7 @@ struct Esp32BootloaderState
 };
 
 /// Bootloader configuration data.
-static Esp32BootloaderState esp_bootloader_state;
+static Esp32BootloaderState esp_bl_state;
 
 /// Maximum time to wait for a TWAI frame to be received or transmitted before
 /// giving up.
@@ -155,8 +142,7 @@ void bootloader_hw_init(void)
 
     // TWAI driver general configuration.
     twai_general_config_t g_config =
-        TWAI_GENERAL_CONFIG_DEFAULT(esp_bootloader_state.tx_pin,
-                                    esp_bootloader_state.rx_pin,
+        TWAI_GENERAL_CONFIG_DEFAULT(esp_bl_state.tx_pin, esp_bl_state.rx_pin,
                                     TWAI_MODE_NORMAL);
     g_config.tx_queue_len = config_can_tx_buffer_size();
     g_config.rx_queue_len = config_can_rx_buffer_size();
@@ -165,7 +151,7 @@ void bootloader_hw_init(void)
     ESP_ERROR_CHECK(twai_driver_install(&g_config, &t_config, &f_config));
     LOG(VERBOSE, "[Bootloader] Starting TWAI driver");
     ESP_ERROR_CHECK(twai_start());
-    esp_bootloader_state.twai_initialized = true;
+    esp_bl_state.twai_initialized = true;
 }
 
 /// Callback from the bootloader for entering the application.
@@ -244,10 +230,10 @@ void get_flash_boundaries(const void **flash_min, const void **flash_max,
     const struct app_header **app_header)
 {
     LOG(VERBOSE, "[Bootloader] get_flash_boundaries(%d,%d)", 0,
-        esp_bootloader_state.app_header.app_size);
+        esp_bl_state.app_header.app_size);
     *((uint32_t *)flash_min) = 0;
-    *((uint32_t *)flash_max) = esp_bootloader_state.app_header.app_size;
-    *app_header = &esp_bootloader_state.app_header;
+    *((uint32_t *)flash_max) = esp_bl_state.app_header.app_size;
+    *app_header = &esp_bl_state.app_header;
 }
 
 /// Callback from the bootloader to retrieve flash page information.
@@ -300,6 +286,25 @@ void write_flash(const void *address, const void *data, uint32_t size_bytes)
     // validation of the received data to ensure it is a valid firmware.
     if (addr == 0)
     {
+        // Mapping of known ESP32 chip id values.
+        const char * const CHIP_ID_NAMES[] =
+        {
+            // Note: this must be kept in sync with esp_chip_id_t.
+            "ESP32",            // 0x00 ESP_CHIP_ID_ESP32
+            "INVALID",          // 0x01 invalid (placeholder)
+            "ESP32-S2",         // 0x02 ESP_CHIP_ID_ESP32S2
+            "INVALID",          // 0x03 invalid (placeholder)
+            "INVALID",          // 0x04 invalid (placeholder)
+            "ESP32-C3",         // 0x05 ESP_CHIP_ID_ESP32C3
+            "INVALID",          // 0x06 invalid (placeholder)
+            "INVALID",          // 0x07 invalid (placeholder)
+            "INVALID",          // 0x08 invalid (placeholder)
+            "ESP32-S3",         // 0x09 ESP_CHIP_ID_ESP32S3
+            "ESP32-H2",         // 0x0A ESP_CHIP_ID_ESP32H2
+            "INVALID",          // 0x0B invalid (placeholder)
+            "ESP8684",          // 0x0C ESP_CHIP_ID_ESP8684
+        };
+
         bool should_abort = false;
         esp_image_header_t *image_header = (esp_image_header_t *)data;
         // If the image magic is correct we can proceed with validating the
@@ -317,7 +322,7 @@ void write_flash(const void *address, const void *data, uint32_t size_bytes)
             // validate the image magic byte and chip type to
             // ensure it matches the currently running chip.
             if (image_header->chip_id != ESP_CHIP_ID_INVALID &&
-                image_header->chip_id == esp_bootloader_state.chip_id &&
+                image_header->chip_id == esp_bl_state.chip_id &&
                 app_desc->magic_word == ESP_APP_DESC_MAGIC_WORD)
             {
                 LOG(INFO,
@@ -328,26 +333,25 @@ Compile timestamp: %s %s
 Target chip-id: %s (%x) )!^!",
                     app_desc->project_name, app_desc->version,
                     app_desc->idf_ver, app_desc->date, app_desc->time,
-                    ESP_CHIP_ID_NAMES[image_header->chip_id],
+                    CHIP_ID_NAMES[image_header->chip_id],
                     image_header->chip_id);
 
                 // start the OTA process at this point, if we have had a
                 // previous failure this will reset the OTA process so we can
                 // start fresh.
                 esp_err_t err = ESP_ERROR_CHECK_WITHOUT_ABORT(
-                    esp_ota_begin(esp_bootloader_state.target,
-                                  OTA_SIZE_UNKNOWN,
-                                  &esp_bootloader_state.ota_handle));
+                    esp_ota_begin(esp_bl_state.target, OTA_SIZE_UNKNOWN,
+                                  &esp_bl_state.ota_handle));
                 should_abort = (err != ESP_OK);
             }
             else
             {
                 LOG_ERROR("[Bootloader] Firmware does not appear to be valid "
                           "or is for a different chip (%s - %x vs %s - %x).",
-                          ESP_CHIP_ID_NAMES[image_header->chip_id],
+                          CHIP_ID_NAMES[image_header->chip_id],
                           image_header->chip_id,
-                          ESP_CHIP_ID_NAMES[esp_bootloader_state.chip_id],
-                          esp_bootloader_state.chip_id);
+                          CHIP_ID_NAMES[esp_bl_state.chip_id],
+                          esp_bl_state.chip_id);
                 should_abort = true;
             }
         }
@@ -361,7 +365,7 @@ Target chip-id: %s (%x) )!^!",
         // It would be ideal to abort the firmware upload at this point but the
         // bootloader HAL does not offer a way to abort the transfer so instead
         // reboot the node.
-        if (should_abort || esp_bootloader_state.ota_handle == 0)
+        if (should_abort || esp_bl_state.ota_handle == 0)
         {
             esp_restart();
         }
@@ -369,7 +373,7 @@ Target chip-id: %s (%x) )!^!",
     bootloader_led(LED_WRITING, true);
     bootloader_led(LED_ACTIVE, false);
     ESP_ERROR_CHECK(
-        esp_ota_write(esp_bootloader_state.ota_handle, data, size_bytes));
+        esp_ota_write(esp_bl_state.ota_handle, data, size_bytes));
     bootloader_led(LED_WRITING, false);
     bootloader_led(LED_ACTIVE, true);
 }
@@ -384,16 +388,15 @@ uint16_t flash_complete(void)
 {
     LOG(INFO, "[Bootloader] Finalizing firmware update");
     esp_err_t res =
-        ESP_ERROR_CHECK_WITHOUT_ABORT(
-            esp_ota_end(esp_bootloader_state.ota_handle));
+        ESP_ERROR_CHECK_WITHOUT_ABORT(esp_ota_end(esp_bl_state.ota_handle));
     if (res == ESP_OK)
     {
         LOG(INFO,
             "[Bootloader] Firmware appears valid, updating the next boot "
-            "partition to %s.", esp_bootloader_state.target->label);
+            "partition to %s.", esp_bl_state.target->label);
         res =
             ESP_ERROR_CHECK_WITHOUT_ABORT(
-                esp_ota_set_boot_partition(esp_bootloader_state.target));
+                esp_ota_set_boot_partition(esp_bl_state.target));
         if (res != ESP_OK)
         {
             LOG_ERROR("[Bootloader] Failed to update the boot partition!");
@@ -439,7 +442,7 @@ uint16_t nmranet_alias(void)
 uint64_t nmranet_nodeid(void)
 {
     LOG(VERBOSE, "[Bootloader] nmranet_nodeid");
-    return esp_bootloader_state.node_id;
+    return esp_bl_state.node_id;
 }
 
 } // extern "C"
@@ -485,11 +488,12 @@ void esp32_bootloader_run(uint64_t id, gpio_num_t rx, gpio_num_t tx,
     // restart.
     bootloader_request = RTC_BOOL_FALSE;
 
-    memset(&esp_bootloader_state, 0, sizeof(Esp32BootloaderState));
+    memset(&esp_bl_state, 0, sizeof(Esp32BootloaderState));
 
-    esp_bootloader_state.node_id = id;
-    esp_bootloader_state.tx_pin = tx;
-    esp_bootloader_state.rx_pin = rx;
+    esp_bl_state.node_id = id;
+    esp_bl_state.tx_pin = tx;
+    esp_bl_state.rx_pin = rx;
+    esp_bl_state.chip_id = ESP_CHIP_ID_INVALID;
 
     // Extract the currently running chip details so we can use it to confirm
     // the received firmware is for this chip.
@@ -498,46 +502,38 @@ void esp32_bootloader_run(uint64_t id, gpio_num_t rx, gpio_num_t tx,
     switch (chip_info.model)
     {
         case CHIP_ESP32:
-            esp_bootloader_state.chip_id = ESP_CHIP_ID_ESP32;
+            esp_bl_state.chip_id = ESP_CHIP_ID_ESP32;
             break;
         case CHIP_ESP32S2:
-            esp_bootloader_state.chip_id = ESP_CHIP_ID_ESP32S2;
+            esp_bl_state.chip_id = ESP_CHIP_ID_ESP32S2;
             break;
         case CHIP_ESP32S3:
-            esp_bootloader_state.chip_id = ESP_CHIP_ID_ESP32S3;
+            esp_bl_state.chip_id = ESP_CHIP_ID_ESP32S3;
             break;
         case CHIP_ESP32C3:
-            esp_bootloader_state.chip_id = ESP_CHIP_ID_ESP32C3;
+            esp_bl_state.chip_id = ESP_CHIP_ID_ESP32C3;
             break;
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,4,0)
-        case CHIP_ESP32H2:
-            esp_bootloader_state.chip_id = ESP_CHIP_ID_ESP32H2;
-            break;
-#endif // IDF v4.4+
         default:
-            LOG(FATAL, "[Bootloader] Unknown Chip ID: %x", chip_info.model);
-            esp_bootloader_state.chip_id = ESP_CHIP_ID_INVALID;
+            LOG(FATAL, "[Bootloader] Unknown/Unsupported Chip ID: %x", chip_info.model);
     }
 
     // Initialize the app header details based on the currently running
     // partition.
-    esp_bootloader_state.current =
-        (esp_partition_t *)esp_ota_get_running_partition();
-    esp_bootloader_state.app_header.app_size =
-        esp_bootloader_state.current->size;
+    esp_bl_state.current = (esp_partition_t *)esp_ota_get_running_partition();
+    esp_bl_state.app_header.app_size = esp_bl_state.current->size;
 
     // Find the next OTA partition and confirm it is not the currently running
     // partition.
-    esp_bootloader_state.target =
+    esp_bl_state.target =
         (esp_partition_t *)esp_ota_get_next_update_partition(NULL);
-    if (esp_bootloader_state.target != nullptr &&
-        esp_bootloader_state.target != esp_bootloader_state.current)
+    if (esp_bl_state.target != nullptr &&
+        esp_bl_state.target != esp_bl_state.current)
     {
         LOG(INFO, "[Bootloader] Preparing to receive firmware");
         LOG(INFO, "[Bootloader] Current partition: %s",
-            esp_bootloader_state.current->label);
+            esp_bl_state.current->label);
         LOG(INFO, "[Bootloader] Target partition: %s",
-            esp_bootloader_state.target->label);
+            esp_bl_state.target->label);
 
         // since we have the target partition identified, start the bootloader.
         LOG(VERBOSE, "[Bootloader] calling bootloader_entry");
@@ -548,7 +544,7 @@ void esp32_bootloader_run(uint64_t id, gpio_num_t rx, gpio_num_t tx,
         LOG_ERROR("[Bootloader] Unable to locate next OTA partition!");
     }
 
-    if (esp_bootloader_state.twai_initialized)
+    if (esp_bl_state.twai_initialized)
     {
         LOG(VERBOSE, "[Bootloader] Stopping TWAI driver");
         ESP_ERROR_CHECK(twai_stop());

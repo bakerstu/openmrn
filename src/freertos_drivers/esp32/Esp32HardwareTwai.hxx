@@ -42,16 +42,18 @@ namespace openmrn_arduino
 
 #include <esp_idf_version.h>
 
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
+#error Esp32HardwareTwai is only supported on ESP-IDF v4.3 and above.
+#endif // IDF v4.3+
+
+#include <soc/soc.h>
+#include <soc/soc_caps.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 
 #include "nmranet_config.h"
 #include "utils/Singleton.hxx"
-
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
-#error Esp32HardwareTwai is only supported on ESP-IDF v4.3 and above.
-#endif // IDF v4.3+
 
 /// TWAI Driver statistics.
 typedef struct
@@ -152,6 +154,8 @@ public:
     /// indicator, default is disabled (-1). When enabled this pin will be set
     /// LOW (0v) when the TWAI driver is in a "Bus Off" state and will be set
     /// HIGH (3.3v) otherwise.
+    /// @param isr_preferred_core is the preferred core to run the TWAI ISR on,
+    /// for single core SoCs this will have no effect.
     ///
     /// NOTE: The CAN transceiver must internally loopback TX to RX, failure to
     /// do so will be interpreted as an arbitration loss or bit error.
@@ -161,7 +165,8 @@ public:
                     , size_t tx_buffer_size = config_can_tx_buffer_size()
                     , const char *path = "/dev/twai"
                     , int clock_out = GPIO_NUM_NC
-                    , int bus_status = GPIO_NUM_NC);
+                    , int bus_status = GPIO_NUM_NC
+                    , uint32_t isr_preferred_core = DEFAULT_ISR_CORE);
 
     /// Destructor.
     ~Esp32HardwareTwai();
@@ -193,6 +198,17 @@ private:
 
     /// GPIO pin connected to an external bus status indicator.
     const int busStatusPin_;
+
+    /// Core which the TWAI ISR should be bound to.
+    const uint32_t preferredIsrCore_;
+
+#if SOC_CPU_CORES_NUM > 1
+    /// Default core for running the TWAI ISR.
+    static constexpr uint32_t DEFAULT_ISR_CORE = APP_CPU_NUM;
+#else
+    /// Default core for running the TWAI ISR.
+    static constexpr uint32_t DEFAULT_ISR_CORE = PRO_CPU_NUM;
+#endif  // SOC_CPU_CORES_NUM > 1
 
     /// VFS Mount point.
     const char *vfsPath_;
