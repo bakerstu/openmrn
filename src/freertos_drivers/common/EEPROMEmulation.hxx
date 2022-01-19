@@ -153,6 +153,9 @@ protected:
     /** block size in bytes */
     static const size_t BLOCK_SIZE;
 
+    /** Maximum byte size of a single block. */
+    static constexpr unsigned MAX_BLOCK_SIZE = 16;
+
 private:
     /** This function will be called after every write. The default
      * implementation is a weak symbol with an empty function. It is intended

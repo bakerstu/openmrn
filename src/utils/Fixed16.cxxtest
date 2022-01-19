@@ -207,6 +207,46 @@ TEST(Fixed16Test, Division)
     EXPECT_EQ(0, multiplier.trunc());
 }
 
+TEST(Fixed16Test, ShiftByDivision)
+{
+    Fixed16 v1(1);
+    v1 /= 4;
+    EXPECT_EQ(0, v1.trunc());
+    EXPECT_EQ(0x4000, v1.frac());
+
+    v1 = 0x5650;
+    v1 /= 16;
+    EXPECT_EQ(0x565, v1.trunc());
+    EXPECT_EQ(0, v1.frac());
+
+    v1 = 0x569F;
+    v1 /= 256;
+    EXPECT_EQ(0x56, v1.trunc());
+    EXPECT_EQ(0x9F00, v1.frac());
+
+    // Negative bit is also correctly handled.
+    v1 = 0x569F;
+    v1 /= -256;
+    EXPECT_EQ(-0x56, v1.trunc());
+    EXPECT_EQ(0x9F00, v1.frac());
+}
+
+TEST(Fixed16Test, DivisionPrecision)
+{
+    Fixed16 v1(31000); // close to largest representable integer
+    Fixed16 v2(Fixed16::FROM_DOUBLE, 1.01754);
+    EXPECT_EQ(1150, v2.frac());
+    v1 /= v2;
+    // - True result is 30465.6328
+    // - Due to rounding while assigning v2, we are actually dividing
+    // by 1.0175476
+    // - Precise division result is then 30465.40503
+    EXPECT_EQ(30465, v1.trunc());
+    EXPECT_EQ((unsigned)(0.40503 * 65536), v1.frac());
+    EXPECT_THAT(v1.to_float(), FloatNear(30465.40503, 1e-4));
+    EXPECT_THAT(v1.to_float(), FloatNear(31000.0 / 1.0175476, 1e-4));
+}
+
 TEST(Fixed16Test, Sign)
 {
     Fixed16 v1(13);

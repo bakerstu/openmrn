@@ -101,6 +101,42 @@ TEST_F(TractionCvTest, SingleCvRead)
     wait();
 }
 
+TEST_F(TractionCvTest, SingleCvReadWithStuffing)
+{
+    print_all_packets();
+    expect_packet(":X19A28272N088380;");
+    EXPECT_CALL(track_if_, packet(ElementsAre(0xC0, 0xAF, 0b11100100, 0x37, 0),
+                                  expected_feedback_key())).Times(1);
+    send_packet(":X1A272883N204000000037EF01;");
+    wait();
+    Mock::VerifyAndClear(&track_if_);
+    expect_packet(":X1A883272N205000000037EFC5;");
+    // payload stuffed with 0x0f / ACK2 bytes
+    send_railcom_response(expected_feedback_key(),
+        {0b10100101, 0b10100110, 0x0F, 0x0F, 0x0F, 0x0F});
+    wait();
+    send_packet(":X19A28883N027200;");
+    wait();
+}
+
+TEST_F(TractionCvTest, SingleCvReadWithOtherStuffing)
+{
+    print_all_packets();
+    expect_packet(":X19A28272N088380;");
+    EXPECT_CALL(track_if_, packet(ElementsAre(0xC0, 0xAF, 0b11100100, 0x37, 0),
+                                  expected_feedback_key())).Times(1);
+    send_packet(":X1A272883N204000000037EF01;");
+    wait();
+    Mock::VerifyAndClear(&track_if_);
+    expect_packet(":X1A883272N205000000037EFC5;");
+    // payload stuffed with 0xF0 / ACK bytes
+    send_railcom_response(expected_feedback_key(),
+        {0b10100101, 0b10100110, 0xF0, 0xF0, 0xF0, 0xF0});
+    wait();
+    send_packet(":X19A28883N027200;");
+    wait();
+}
+
 TEST_F(TractionCvTest, SingleCvBusyRetry)
 {
     print_all_packets();
@@ -135,6 +171,9 @@ TEST_F(TractionCvTest, SingleCvWrite)
     wait();
 }
 
+// Tests the human-operable part of the CV space. This has individual variable
+// for different parameters, and it is expected that JMRI will be used to
+// individually set these.
 TEST_F(TractionCvTest, IndirectWrite)
 {
     print_all_packets();

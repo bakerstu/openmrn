@@ -7,3 +7,4 @@ CFLAGS += -Dcodered
 
 include $(OPENMRNPATH)/etc/lib.mk
 
+emac.o : CFLAGS += -Wno-address-of-packed-member

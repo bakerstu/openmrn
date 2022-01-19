@@ -55,6 +55,7 @@ EEPROMEmulation::EEPROMEmulation(const char *name, size_t file_size)
     HASSERT(file_size <= (SECTOR_SIZE >> 1));  // single block fit all the data
     HASSERT(file_size <= (1024 * 64 - 2));  // uint16 indexes, 0xffff reserved
     HASSERT(BLOCK_SIZE >= 4); // we don't support block sizes less than 4 bytes
+    HASSERT(BLOCK_SIZE <= MAX_BLOCK_SIZE); // this is how big our buffers are.
     HASSERT((BLOCK_SIZE % 4) == 0); // block size must be on 4 byte boundary
 }
 
@@ -140,7 +141,7 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
         if (lsa)
         {
             /* head, (unaligned) address */
-            uint8_t data[BYTES_PER_BLOCK];
+            uint8_t data[MAX_BLOCK_SIZE];
             size_t write_size = len < (BYTES_PER_BLOCK - lsa) ?
                                 len : (BYTES_PER_BLOCK - lsa);
             read_fblock(index / BYTES_PER_BLOCK, data);
@@ -159,7 +160,7 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
         else if (len < BYTES_PER_BLOCK)
         {
             /* tail, (unaligned) address */
-            uint8_t data[BYTES_PER_BLOCK];
+            uint8_t data[MAX_BLOCK_SIZE];
             read_fblock(index / BYTES_PER_BLOCK, data);
 
             if (memcmp(data, byte_data, len) != 0)
@@ -174,7 +175,7 @@ void EEPROMEmulation::write(unsigned int index, const void *buf, size_t len)
         else
         {
             /* aligned data */
-            uint8_t data[BYTES_PER_BLOCK];
+            uint8_t data[MAX_BLOCK_SIZE];
             read_fblock(index / BYTES_PER_BLOCK, data);
 
             if (memcmp(data, byte_data, BYTES_PER_BLOCK) != 0)
@@ -207,7 +208,7 @@ void EEPROMEmulation::write_fblock(unsigned int index, const uint8_t data[])
     if (availableSlots_)
     {
         /* still have room in this sector for at least one more write */
-        uint32_t slot_data[BLOCK_SIZE / sizeof(uint32_t)];
+        uint32_t slot_data[MAX_BLOCK_SIZE / sizeof(uint32_t)];
         for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
         {
             slot_data[i] = (index << 16) |
@@ -233,7 +234,7 @@ void EEPROMEmulation::write_fblock(unsigned int index, const uint8_t data[])
         /* move any existing data over */
         for (unsigned int fblock = 0; fblock < (file_size() / BYTES_PER_BLOCK); ++fblock)
         {
-            uint32_t slot_data[BLOCK_SIZE / sizeof(uint32_t)];
+            uint32_t slot_data[MAX_BLOCK_SIZE / sizeof(uint32_t)];
             if (fblock == index) // the new data to be written
             {
                 for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
@@ -246,7 +247,7 @@ void EEPROMEmulation::write_fblock(unsigned int index, const uint8_t data[])
             else
             {
                 /* this is old data we need to move over */
-                uint8_t read_data[BYTES_PER_BLOCK];
+                uint8_t read_data[MAX_BLOCK_SIZE];
                 if (!read_fblock(fblock, read_data))
                 {
                     /* nothing to write, this is the default "erased" value */
@@ -307,7 +308,7 @@ void EEPROMEmulation::read(unsigned int offset, void *buf, size_t len)
             continue;
         }
         // Reads the block
-        uint8_t data[BYTES_PER_BLOCK];
+        uint8_t data[MAX_BLOCK_SIZE];
         for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(uint32_t); ++i)
         {
             data[(i * 2) + 0] = (address[i] >> 0) & 0xFF;

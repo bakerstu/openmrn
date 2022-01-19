@@ -126,9 +126,24 @@ private:
 /// Usage: Declare Atomic as a private base class, add a class member
 /// variable or a global variable of type Atomic. Then use AtomicHolder to
 /// protect the critical sections.
-class Atomic : public OSMutex {
+class Atomic
+{
 public:
-  Atomic() : OSMutex(true) {}
+    void lock()
+    {
+        os_mutex_lock(&mu_);
+    }
+    void unlock()
+    {
+        os_mutex_unlock(&mu_);
+    }
+private:
+    /// Mutex that protects.
+    ///
+    /// NOTE: it is important that this be trivially initialized and the Atomic
+    /// class have no (nontrivial) constructor. This is the only way to avoid
+    /// race conditions and initialization order problems during startup.
+    os_mutex_t mu_ = OS_RECURSIVE_MUTEX_INITIALIZER;
 };
 
 #endif

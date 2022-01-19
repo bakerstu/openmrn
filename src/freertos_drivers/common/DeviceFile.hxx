@@ -25,7 +25,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file DeviceFile.hxx
- * This implements a common device file abstraction.
+ *
+ * Base class for implementing block devices and other file drivers which can
+ * be seeked and addressed by absolute byte offsets.
  *
  * @author Stuart W. Baker
  * @date 16 July 2016
@@ -38,7 +40,9 @@
 
 #include "Devtab.hxx"
 
-/** Common base class for all DeviceFile access.
+/**
+ * Base class for implementing block devices and other file drivers which can
+ * be seeked and addressed by absolute byte offsets.
  */
 class DeviceFile : public Node
 {

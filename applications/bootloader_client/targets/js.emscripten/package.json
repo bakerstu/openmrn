@@ -1,0 +1,13 @@
+{
+  "name": "openmrn-bootloader-client",
+  "version": "1.0.0",
+  "dependencies": {
+    "serialport": "^9.2.7"
+  },
+  "bin": "bootloader_client.js",
+  "pkg": {
+      "assets": [
+          "./node_modules/@serialport/bindings/build/Release/bindings.node"
+      ]
+  }
+}

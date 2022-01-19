@@ -63,16 +63,8 @@ int main(int argc, char *argv[])
 )");
     }
 
-    render_all_cdi<10>();
-    /*    render_all_cdi<9>();
-        render_all_cdi<8>();
-        render_all_cdi<7>();
-        render_all_cdi<6>();
-        render_all_cdi<5>();
-        render_all_cdi<4>();
-        render_all_cdi<3>();
-        render_all_cdi<2>();
-        render_all_cdi<1>();*/
+    // Internally calls all smaller numbered instances all the way down to 1.
+    render_all_cdi<20>();
 
     std::vector<unsigned> event_offsets;
     openlcb::ConfigDef def(0);

@@ -8,8 +8,8 @@ include $(OPENMRNPATH)/etc/env.mk
 # instead of the system default.
 # GCCVERSION=-8
 
-CC = gcc$(GCCVERSION)
-CXX = g++$(GCCVERSION)
+CC = $(shell $(OPENMRNPATH)/bin/find_distcc.sh gcc$(GCCVERSION))
+CXX = $(shell $(OPENMRNPATH)/bin/find_distcc.sh g++$(GCCVERSION))
 AR = ar
 LD = g++$(GCCVERSION)
 
