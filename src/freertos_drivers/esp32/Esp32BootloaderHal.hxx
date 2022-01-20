@@ -302,7 +302,7 @@ void write_flash(const void *address, const void *data, uint32_t size_bytes)
             "ESP32-S3",         // 0x09 ESP_CHIP_ID_ESP32S3
             "ESP32-H2",         // 0x0A ESP_CHIP_ID_ESP32H2
             "INVALID",          // 0x0B invalid (placeholder)
-            "ESP8684",          // 0x0C ESP_CHIP_ID_ESP8684
+            "ESP32-C2",         // 0x0C ESP_CHIP_ID_ESP32C2
         };
 
         bool should_abort = false;

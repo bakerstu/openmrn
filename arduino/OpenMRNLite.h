@@ -74,8 +74,8 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 // If we are using ESP-IDF v4.3 (or later) enable the Esp32Ledc API.
 #include "freertos_drivers/esp32/Esp32Ledc.hxx"
 
-// ESP32-H2 and ESP8684 do not have a built-in TWAI controller.
-#if !defined(CONFIG_IDF_TARGET_ESP32H2) && !defined(CONFIG_IDF_TARGET_ESP8684)
+// ESP32-H2 and ESP32-C2 do not have a built-in TWAI controller.
+#if !defined(CONFIG_IDF_TARGET_ESP32H2) && !defined(CONFIG_IDF_TARGET_ESP32C2)
 
 // If we are using ESP-IDF v4.3 (or later) enable the usage of the TWAI device
 // which allows usage of the filesystem based CAN interface methods.
@@ -89,7 +89,7 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 #define HAVE_CAN_FS_SELECT
 #endif
 
-#endif // NOT ESP32-H2 and NOT ESP8684
+#endif // NOT ESP32-H2 and NOT ESP32-C2
 
 // If we are using ESP-IDF v4.3 (or later) enable the usage of the Esp32WS2812
 // RMT API.

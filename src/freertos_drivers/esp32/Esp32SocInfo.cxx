@@ -184,8 +184,8 @@ static constexpr const char * const RESET_REASONS[] =
     "Power Glitch Reset",       // POWER_GLITCH_RESET       23
     "JTAG Reset",               // JTAG_RESET               24
 };
-#elif defined(CONFIG_IDF_TARGET_ESP8684)
-/// ESP8684 SoC reset reasons.
+#elif defined(CONFIG_IDF_TARGET_ESP32C2)
+/// ESP32-C2 SoC reset reasons.
 static constexpr const char * const RESET_REASONS[] =
 {
     "unknown",                  // NO_MEAN                  0x00
@@ -232,7 +232,7 @@ static constexpr const char * const CHIP_NAMES[] =
     "ESP32-S3",         // 9 CHIP_ESP32S3
     "Unknown",          // 10 Unknown (placeholder)
     "Unknown",          // 11 Unknown (placeholder)
-    "ESP8684",          // 12 CHIP_ESP8684
+    "ESP32-C2",         // 12 CHIP_ESP32C2
 };
 
 uint8_t Esp32SocInfo::print_soc_info()
