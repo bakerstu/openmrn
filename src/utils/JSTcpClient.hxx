@@ -47,11 +47,20 @@
 class JSTcpClient
 {
 public:
-    JSTcpClient(CanHubFlow *hflow, string host, int port)
+    /// Constructor
+    /// @param hflow the CAN hub object in the local binary to add this port to.
+    /// @param host the IP address or name of the remote host
+    /// @param port the TCP port number to connect to
+    /// @param cb will be invoked when the connection succeeds
+    JSTcpClient(
+        CanHubFlow *hflow, string host, int port,
+        std::function<void()> cb = []() {})
         : canHub_(hflow)
+        , connectCallback_(std::move(cb))
     {
         string script = "Module.remote_server = '" + host + "';\n";
         emscripten_run_script(script.c_str());
+        
         EM_ASM_(
             {
                 var net = require('net');
@@ -73,13 +82,16 @@ public:
                         client_port.abandon();
                     });
                     c.on('data', function(data) { client_port.recv(data); });
+                    _invoke_fnp($2);
                 });
             },
-            port, (unsigned long)canHub_);
+            port, (unsigned long)canHub_, (unsigned long)&connectCallback_);
     }
 
 private:
     CanHubFlow *canHub_;
+    /// This function will be invoked when the connection succeeds.
+    std::function<void()> connectCallback_;
 };
 
 #endif // __EMSCRIPTEN__
