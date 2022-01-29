@@ -77,7 +77,34 @@ TivaCan::TivaCan(const char *name, unsigned long base, uint32_t interrupt)
     }
 
     MAP_CANInit(base);
-    MAP_CANBitRateSet(base, cm3_cpu_clock_hz, config_nmranet_can_bitrate());
+
+    uint32_t ftq = config_nmranet_can_bitrate() * 16;
+    // If this fails, the CAN bit timings do not support this CPU clock. The
+    // CPU clock has to be an even number of MHz.
+    HASSERT(cm3_cpu_clock_hz % ftq == 0);
+    
+    /* Nominal 2 MHz quantum clock
+     * SyncSeg = 1 TQ
+     * PropSeg = 7 TQ
+     * PS1 = 4 TQ
+     * PS2 = 4 TQ
+     * Bit total = 16 TQ
+     * Baud = 125 kHz
+     * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
+     * SJW = 4 TQ
+     *
+     * Oscillator Tolerance:
+     *     4 / (2 * ((13 * 16) - 4)) = 0.980%
+     *     4 / (20 * 16) = 1.250%
+     *     = 0.980%
+     */
+    tCANBitClkParms clk_params = {
+        .ui32SyncPropPhase1Seg = 11, // Sum of PropSeg and PS1 in #TQ
+        .ui32Phase2Seg = 4, // PS2 in #TQ
+        .ui32SJW = 4,
+        .ui32QuantumPrescaler = cm3_cpu_clock_hz / ftq
+    };
+    MAP_CANBitTimingSet(CAN0_BASE, &clk_params);
     MAP_CANIntEnable(base, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
 
     tCANMsgObject can_message;
