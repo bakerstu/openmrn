@@ -104,7 +104,7 @@ TivaCan::TivaCan(const char *name, unsigned long base, uint32_t interrupt)
         .ui32SJW = 4,
         .ui32QuantumPrescaler = cm3_cpu_clock_hz / ftq
     };
-    MAP_CANBitTimingSet(CAN0_BASE, &clk_params);
+    MAP_CANBitTimingSet(base, &clk_params);
     MAP_CANIntEnable(base, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
 
     tCANMsgObject can_message;
