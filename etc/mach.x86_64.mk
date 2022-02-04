@@ -20,9 +20,9 @@ ENDGROUP :=
 
 INCLUDES += -I$(OPENMRNPATH)/include/mach
 
-CFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=c99 -fno-stack-protector \
+CFLAGS = -c -g -O0 -Wall -Werror -MP -std=c99 -fno-stack-protector \
          -D_GNU_SOURCE
-CXXFLAGS = -c -g -O0 -Wall -Werror -MD -MP -std=c++14 -fno-stack-protector \
+CXXFLAGS = -c -g -O0 -Wall -Werror -MP -std=c++14 -fno-stack-protector \
            -D_GNU_SOURCE
 
 LDFLAGS = -g
