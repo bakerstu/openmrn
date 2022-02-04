@@ -298,6 +298,9 @@ int appl_main(int argc, char *argv[])
     eefd = ::open("/dev/eeprom", O_RDWR);
     HASSERT(eefd >= 0);
 
+    static const char HELLO[] = "DCC Decoder program.\n";
+    ::write(wfd, HELLO, sizeof(HELLO));
+    
     irqProc.init();
     set_dcc_interrupt_processor(&irqProc);
 
