@@ -50,7 +50,7 @@ parser.add_option("-U", "--username", dest="username", action="store_true",
 if (options.input == None) :
     parser.error('missing parameter -i')
 
-print options.input
+print(options.input)
 
 options.input = options.input.replace('  ', ' ')
 inputs = options.input.split(" ")
@@ -96,14 +96,14 @@ if options.gcc != None :
 main_git_hash = None
     
 for x in inputs :
-    print x
+    print(x)
     # go into the root of the repo
     os.chdir(orig_dir)
     os.chdir(x)
 
     # get the short hash
     git_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'])
-    git_hash = git_hash[:7]
+    git_hash = str(git_hash[:7])
 
     # get the dirty flag
     dirty = os.system('git diff --quiet')
