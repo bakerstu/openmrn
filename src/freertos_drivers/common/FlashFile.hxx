@@ -82,7 +82,7 @@ public:
     /// Overrides behavior of open for O_TRUNC.
     int open(File *file, const char *path, int flags, int mode) override
     {
-        if ((mode & O_WRONLY) && (flags & O_TRUNC))
+        if ((flags & O_TRUNC) && ((flags & O_ACCMODE) != O_RDONLY))
         {
             // erase entire file.
             flash_->erase(flashStart_, size_);
