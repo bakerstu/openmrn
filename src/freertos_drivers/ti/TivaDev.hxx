@@ -166,6 +166,9 @@ public:
         CSTOPB = UART_CONFIG_STOP_TWO, /**< send two stop bits instead of 1 */
     };
 
+    /** Function point for the tx enable assert and deassert methods */
+    typedef void (*TxEnableMethod)();
+    
     /** Constructor.
      * @param name name of this device instance in the file system
      * @param base base address of this device
@@ -173,9 +176,13 @@ public:
      * @param baud desired baud rate
      * @param mode to configure the UART for
      * @param hw_fifo true if hardware fifo is to be enabled, else false.
+     * @param tx_enable_assert callback to assert the transmit enable
+     * @param tx_enable_deassert callback to deassert the transmit enable
      */
     TivaUart(const char *name, unsigned long base, uint32_t interrupt,
-        uint32_t baud = 115200, uint32_t mode = CS8, bool hw_fifo = true);
+        uint32_t baud = 115200, uint32_t mode = CS8, bool hw_fifo = true,
+        TxEnableMethod tx_enable_assert = nullptr,
+        TxEnableMethod tx_enable_deassert = nullptr);
 
     /** Destructor.
      */
@@ -202,6 +209,12 @@ private:
 
     /** Sets the port baud rate and mode from the class variables. */
     void set_mode();
+
+    /** function pointer to a method that asserts the transmit enable. */
+    TxEnableMethod txEnableAssert_;
+
+    /** function pointer to a method that deasserts the transmit enable. */
+    TxEnableMethod txEnableDeassert_;
     
     /** Notifiable to invoke when the transmit engine has finished operation. */
     Notifiable* txComplete_{nullptr};

@@ -60,8 +60,11 @@ static Atomic isr_lock;
  * @param interrupt interrupt number of this device
  */
 TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt,
-    uint32_t baud, uint32_t mode, bool hw_fifo)
+    uint32_t baud, uint32_t mode, bool hw_fifo, TxEnableMethod tx_enable_assert,
+    TxEnableMethod tx_enable_deassert)
     : Serial(name)
+    , txEnableAssert_(tx_enable_assert)
+    , txEnableDeassert_(tx_enable_deassert)
     , base_(base)
     , interrupt_(interrupt)
     , baud_(baud)
@@ -158,6 +161,11 @@ void TivaUart::tx_char()
 
         if (txBuf->get(&data, 1))
         {
+            if (txEnableAssert_)
+            {
+                txEnableAssert_();
+            }
+            
             MAP_UARTCharPutNonBlocking(base_, data);
 
             MAP_IntDisable(interrupt_);
@@ -212,6 +220,10 @@ void TivaUart::interrupt_handler()
             else
             {
                 /* no more data pending */
+                if (txEnableDeassert_)
+                {
+                    txEnableDeassert_();
+                }
                 txPending_ = false;
                 if (txComplete_)
                 {
