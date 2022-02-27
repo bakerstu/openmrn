@@ -207,6 +207,10 @@ private:
      */
     void tx_char() override;
 
+    /** Send data until there is no more space left.
+     */
+    void send();
+
     /** Sets the port baud rate and mode from the class variables. */
     void set_mode();
 
