@@ -189,23 +189,16 @@ void TivaUart::tx_char()
 {
     if (txPending_ == false)
     {
-        uint8_t data = 0;
-
-        if (txBuf->get(&data, 1))
+        if (txEnableAssert_)
         {
-            if (txEnableAssert_)
-            {
-                txEnableAssert_();
-            }
-            
-            MAP_UARTCharPutNonBlocking(base_, data);
-
-            MAP_IntDisable(interrupt_);
-            txPending_ = true;
-            MAP_UARTIntEnable(base_, UART_INT_TX);
-            MAP_IntEnable(interrupt_);
-            txBuf->signal_condition();
+            txEnableAssert_();
         }
+
+        send();
+        txPending_ = true;
+
+        MAP_UARTIntEnable(base_, UART_INT_TX);
+        txBuf->signal_condition();
     }
 }
 
