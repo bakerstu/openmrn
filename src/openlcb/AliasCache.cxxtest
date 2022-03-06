@@ -448,6 +448,31 @@ TEST(AliasCacheTest, reinsert_flush)
     aliasCache->add((NodeID)108, (NodeAlias)99);
 }
 
+TEST(AliasCacheTest, notresponding)
+{
+    AliasCache *aliasCache = new AliasCache(0, 10);
+
+    EXPECT_EQ(0, aliasCache->lookup((NodeID)101));
+    aliasCache->add((NodeID)101, NOT_RESPONDING);
+    EXPECT_EQ(NOT_RESPONDING, aliasCache->lookup((NodeID)101));
+    aliasCache->add((NodeID)101, 0x123);
+    EXPECT_EQ(0x123u, aliasCache->lookup((NodeID)101));
+
+    aliasCache->add((NodeID)102, NOT_RESPONDING);
+    EXPECT_EQ(NOT_RESPONDING, aliasCache->lookup((NodeID)102));
+    aliasCache->add((NodeID)103, NOT_RESPONDING);
+    EXPECT_EQ(NOT_RESPONDING, aliasCache->lookup((NodeID)103));
+    EXPECT_EQ(NOT_RESPONDING, aliasCache->lookup((NodeID)102));
+    EXPECT_EQ(NOT_RESPONDING, aliasCache->lookup((NodeID)103));
+
+    aliasCache->add((NodeID)104, NOT_RESPONDING);
+    EXPECT_EQ(NOT_RESPONDING, aliasCache->lookup((NodeID)104));
+    aliasCache->add((NodeID)103, 0x567);
+
+    EXPECT_EQ(NOT_RESPONDING, aliasCache->lookup((NodeID)102));
+    EXPECT_EQ(NOT_RESPONDING, aliasCache->lookup((NodeID)104));
+    EXPECT_EQ(0x567, aliasCache->lookup((NodeID)103));
+}
 
 class AliasStressTest : public ::testing::Test {
 protected:
