@@ -452,10 +452,18 @@ bool AliasCache::retrieve(unsigned entry, NodeID* node, NodeAlias* alias)
 {
     HASSERT(entry < size());
     Metadata* md = pool + entry;
-    if (!md->alias_) return false;
-    if (node) *node = md->get_node_id();
+    if (!md->alias_)
+    {
+        return false;
+    }
+    if (node)
+    {
+        *node = md->get_node_id();
+    }
     if (alias)
+    {
         *alias = resolve_notresponding(md->alias_);
+    }
     return true;
 }
 
