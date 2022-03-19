@@ -216,14 +216,7 @@ struct TractionDefs {
             case dcc::TrainAddressType::DCC_SHORT_ADDRESS:
                 return NODE_ID_DCC | addr;
             case dcc::TrainAddressType::DCC_LONG_ADDRESS:
-                if (addr < 128)
-                {
-                    return NODE_ID_DCC | 0xC000 | addr;
-                }
-                else
-                {
-                    return NODE_ID_DCC | addr;
-                }
+                return NODE_ID_DCC | 0xC000 | addr;
             case dcc::TrainAddressType::MM:
                 return NODE_ID_MARKLIN_MOTOROLA | addr;
             default:
