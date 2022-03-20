@@ -282,7 +282,7 @@ StateFlowBase::Action TractionCvSpace::fill_read1_packet()
      * between long and short addresses */
     if (dccAddress_ >= 0x80)
     {
-        b->data()->add_dcc_address(dcc::DccLongAddress(dccAddress_));
+        b->data()->add_dcc_address(dcc::DccLongAddress(dccAddress_ & 0x3FFF));
     }
     else
     {
@@ -389,7 +389,7 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
      * between long and short addresses */
     if (dccAddress_ >= 0x80)
     {
-        b->data()->add_dcc_address(dcc::DccLongAddress(dccAddress_));
+        b->data()->add_dcc_address(dcc::DccLongAddress(dccAddress_ & 0x3FFF));
     }
     else
     {
