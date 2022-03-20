@@ -36,7 +36,7 @@
 #define _OPENLCB_CONFIGREPRESENTATION_HXX_
 
 #include "openlcb/ConfigEntry.hxx"
-#include "openlcb/MemoryConfig.hxx"
+#include "openlcb/MemoryConfigDefs.hxx"
 
 namespace openlcb
 {
@@ -368,12 +368,12 @@ public:
 /// Defines an empty group with no members, but blocking a certain amount of
 /// space in the rendered configuration.
 ///
-template <unsigned N> class EmptyGroup : public ConfigEntryBase
+template <int N> class EmptyGroup : public ConfigEntryBase
 {
 public:
     using base_type = ConfigEntryBase;
     INHERIT_CONSTEXPR_CONSTRUCTOR(EmptyGroup, base_type)
-    static constexpr unsigned size()
+    static constexpr int size()
     {
         return N;
     }
@@ -502,11 +502,11 @@ template <> inline void render_all_cdi<0>()
  * @param N is a unique integer between 2 and 10 for the invocation.
  */
 #define RENDER_CDI(NS, TYPE, NAME, N)                                          \
-    template <> inline void render_all_cdi<N>()                                \
+    template <> inline void render_all_cdi<2 * N>()                            \
     {                                                                          \
         NS::TYPE def(0);                                                       \
         render_cdi_helper(def, #NS, NAME);                                     \
-        render_all_cdi<N - 1>();                                               \
+        render_all_cdi<2 * N - 1>();                                           \
     }
 
 #endif // _OPENLCB_CONFIGREPRESENTATION_HXX_

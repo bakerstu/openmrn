@@ -37,11 +37,13 @@ static Atomic osGlobalAtomic;
 
 extern "C" {
 
-void os_atomic_lock() {
+void os_atomic_lock()
+{
     osGlobalAtomic.lock();
 }
 
-void os_atomic_unlock() {
+void os_atomic_unlock()
+{
     osGlobalAtomic.unlock();
 }
 

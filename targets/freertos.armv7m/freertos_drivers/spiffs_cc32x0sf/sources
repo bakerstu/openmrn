@@ -10,7 +10,6 @@ CSRCS += spiffs_cache.c \
          spiffs_gc.c \
          spiffs_hydrogen.c \
          spiffs_nucleus.c \
-         spiffs_nucleus.c \
 
 CXXSRCS += SPIFFS.cxx \
            CC32x0SFSPIFFS.cxx

@@ -42,6 +42,12 @@
 class Fixed16
 {
 public:
+    /// Constructs a Fixed16.
+    /// @param integer is the integer part and the sign. Valid values are from
+    /// -32767 to 32767.
+    /// @param frac is the fractional part. All uint16 values are valid. For
+    /// positive integer the fractional part goes above the int value, for
+    /// negative integers the fractional part goes below the int value.
     constexpr Fixed16(int16_t integer, uint16_t frac = 0)
         : value_(((integer < 0 ? -integer : integer) << 16) | frac)
         , sign_(integer < 0 ? 1 : 0)
@@ -53,6 +59,9 @@ public:
         FROM_DOUBLE
     };
 
+    /// Constructs a Fixed16.
+    /// @param value is the value to store. Valid values are -32767.99999 to
+    /// 32767.99999.
     constexpr Fixed16(FromDouble, double value)
         : value_(value < 0 ? -value * 65536 + 0.5 : value * 65536 + 0.5)
         , sign_(value < 0 ? 1 : 0)
@@ -126,12 +135,42 @@ public:
         return ret;
     }
 
-    /// @return the rounded value to the nearest integer
-    operator uint16_t() const
+    /// Comparison operator.
+    bool operator<(Fixed16 o)
     {
-        return round();
+        return to_key() < o.to_key();
     }
 
+    /// Comparison operator.
+    bool operator<=(Fixed16 o)
+    {
+        return to_key() <= o.to_key();
+    }
+
+    /// Comparison operator.
+    bool operator>(Fixed16 o)
+    {
+        return to_key() > o.to_key();
+    }
+ 
+    /// Comparison operator.
+    bool operator>=(Fixed16 o)
+    {
+        return to_key() >= o.to_key();
+    }
+
+    /// Comparison operator.
+    bool operator==(Fixed16 o)
+    {
+        return to_key() == o.to_key();
+    }
+
+    /// Comparison operator.
+    bool operator!=(Fixed16 o)
+    {
+        return to_key() != o.to_key();
+    }
+    
     /// Multiplies *this with pow(2, o). This is effectively a generalized
     /// shift operation that works on fractional numbers too. The precision is
     /// limited.
@@ -189,7 +228,7 @@ public:
         return b;
     }
     
-    /// @return the integer part, rounded down
+    /// @return the integer part, rounded towards zero.
     int16_t trunc() const
     {
         int16_t b = value_ >> 16;
@@ -198,6 +237,8 @@ public:
     }
 
     /// @return the fractional part, as an uint16 value between 0 and 0xffff
+    /// Note: the fractional part inherits the sign of the integer part,
+    /// similarly to the decimal notation.
     uint16_t frac() const
     {
         return value_ & 0xffff;
@@ -245,6 +286,12 @@ public:
     void negate() {
         sign_ ^= 1;
     }
+
+    /// Turns the value into a comparison key.
+    int32_t to_key()
+    {
+        return to_int();
+    }
     
 private:
     /// Translates the current value to a signed fixed-point 32-bit integer.
@@ -271,7 +318,7 @@ private:
         }
         value_ = v & 0x7fffffffu;
     }
-    
+
     uint32_t value_ : 31;
     uint32_t sign_ : 1;
 };

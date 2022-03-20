@@ -304,5 +304,32 @@ TEST(Test2GroupTest, Offsets) {
 
 } // namespace test2
 
+namespace test3 {
+
+CDI_GROUP(TestGroup);
+CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(back, EmptyGroup<-1>);
+CDI_GROUP_ENTRY(second, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(third, Uint16ConfigEntry);
+CDI_GROUP_ENTRY(back2, EmptyGroup<-2>);
+// some comment in here
+CDI_GROUP_ENTRY(fourth, Uint16ConfigEntry);
+CDI_GROUP_ENTRY(back3, EmptyGroup<-2>);
+CDI_GROUP_END();
+
+TEST(Test3GroupTest, NegativeOffsets)
+{
+    TestGroup grp(11);
+    EXPECT_EQ(1u, TestGroup::size());
+    EXPECT_EQ(11u, grp.first().offset());
+    EXPECT_EQ(11u, grp.second().offset());
+    EXPECT_EQ(12u, grp.third().offset());
+    EXPECT_EQ(12u, grp.fourth().offset());
+    EXPECT_EQ(12u, grp.end_offset());
+}
+
+} // namespace test2
+
+
 } // namespace
 } // namespace openlcb

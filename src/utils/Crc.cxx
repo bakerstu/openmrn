@@ -85,17 +85,41 @@ inline uint16_t crc_16_ibm_finish(uint16_t state) {
     //return state;
     }*/
 
+/// Translation table for crc16-ibm, high nibble.
+static const uint16_t CRC16_IBM_HI[16] =
+{
+    0x0000, 0xcc01, 0xd801, 0x1400, 0xf001, 0x3c00, 0x2800, 0xe401, 0xa001, 0x6c00, 0x7800, 0xb401, 0x5000, 0x9c01, 0x8801, 0x4400, 
+};
+/// Translation table for crc16-ibm, low nibble.
+static const uint16_t CRC16_IBM_LO[16] =
+{
+    0x0000, 0xc0c1, 0xc181, 0x0140, 0xc301, 0x03c0, 0x0280, 0xc241, 0xc601, 0x06c0, 0x0780, 0xc741, 0x0500, 0xc5c1, 0xc481, 0x0440, 
+};
+
 /// Appends a byte to a CRC16 state machine.
 ///
 /// @param state the state machine of the CRC computer.
 /// @param data next byte to add.
 ///
-inline void crc_16_ibm_add(uint16_t& state, uint8_t data) {
+inline void __attribute__((always_inline)) crc_16_ibm_add(uint16_t &state, uint8_t data)
+{
     state ^= data;
-    for (int i = 0; i < 8; i++) {
-        if (state & 1) {
+    state = (state >> 8) ^ CRC16_IBM_LO[state & 0xf] ^
+        CRC16_IBM_HI[(state >> 4) & 0xf];
+}
+
+/// Bitwise implementation of the crc16 ibm add.
+void crc_16_ibm_add_basic(uint16_t &state, uint8_t data)
+{
+    state ^= data;
+    for (int i = 0; i < 8; i++)
+    {
+        if (state & 1)
+        {
             state = (state >> 1) ^ crc_16_ibm_poly;
-        } else {
+        }
+        else
+        {
             state = (state >> 1);
         }
     }

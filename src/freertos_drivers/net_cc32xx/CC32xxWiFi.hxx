@@ -119,6 +119,12 @@ public:
     struct HttpServerResponse;
 
     /** CC32xx SimpleLink forward declaration */
+    struct NetAppRequest;
+
+    /** CC32xx SimpleLink forward declaration */
+    struct NetAppResponse;
+
+    /** CC32xx SimpleLink forward declaration */
     struct FatalErrorEvent;
     
     /** The Wlan reconnect policy */
@@ -150,6 +156,24 @@ public:
         SecurityType sec_type; /**< security type of the AP */
         int rssi; /**< receive signal strength indicator of the AP */
     };
+
+    /** This function type is used for POST callback operations to the
+     * application.
+     * @param handle the operation handle, needs to be provided to the future
+     * operations to fetch followup data and send response.
+     * @param content_length value of the Content-Length header, or -1 if such
+     * a header is not found.
+     * @param md encoded metadata. See the CC32xx documentation on how metadata
+     * is encoded. The lifetime is restricted to this call inline.
+     * @param md_len number of bytes in the metadata array
+     * @param payload the content (or beginning of the content). The lifetime is
+     * restricted to this call inline.
+     * @param payload_len how many bytes are in this chunk of the content
+     * @param has_more true if there is a continuation of the payload, which
+     * needs to be fetched with get_post_data. */
+    using PostFunction = std::function<void(uint16_t handle,
+        uint32_t content_length, const uint8_t *md, size_t md_len,
+        const uint8_t *payload, size_t payload_len, bool has_more)>;
 
     /** Constructor.
      */
@@ -306,6 +330,13 @@ public:
      */
     int wlan_country_code_set(CountryCode cc, bool restart = false);
 
+    /** Sets the scan parameters.
+     * @param mask the channel mask (bit 0 = channel1, bit1=channel2). If -1
+     * then the channel mask is not changed.
+     * @param min_rssi the minimal RSSI to return a wifi in the scan. If >= 0
+     * then the min_rssi is not changed. (Default min_rssi is -95.) */
+    void wlan_set_scan_params(int mask, int min_rssi);
+    
     /** Add a saved WLAN profile.
      * @param ssid WLAN SSID of the profile to save
      * @param sec_type @ref SecurityType of the profile to be saved
@@ -425,12 +456,14 @@ public:
      * isthe function to execute.*/
     void run_on_network_thread(std::function<void()> callback);
 
-    /** Add an HTTP get token callback.  A get token is a string that takes the
-     * form "__SL_G_*".  The form "__SL_G_U*" is the form that is reserved for
-     * user defined tokens.  The * can be any two characters that uniquely
-     * identify the token.  When the token is found in an HTML file, the
-     * network processor will call the supplied callback in order for the user
-     * to return the resulting string.  The result returned will be clipped at
+    /** Add an HTTP get token callback.  A get token is a simple macro
+     * substitution that is applied to all files (e.g. HTML, JS) served by the
+     * builtin webserver of the CC32xx. The token has a fixed form "__SL_G_*".
+     * The form "__SL_G_U*" is the form that is reserved for user defined
+     * tokens.  The * can be any two characters that uniquely identify the
+     * token.  When the token is found in an HTML file, the network processor
+     * will call the supplied callback in order for the user to return the
+     * substitution string.  The result returned will be clipped at
      * (MAX_TOKEN_VALUE_LEN - 1), which is (64 - 1) bytes.  All tokens must be
      * an exact match.
      *
@@ -441,7 +474,7 @@ public:
      * public:
      *     SomeClass()
      *     {
-     *         add_http_get_callback(std::make_pair(std::bind(&SomeClass::http_get, this), "__SL_G_U.A");
+     *         add_http_get_token_callback("__SL_G_U.A", std::bind(&SomeClass::http_get, this));
      *     }
      *
      * private:
@@ -460,17 +493,47 @@ public:
      * <a href="http://www.ti.com/lit/ug/swru368a/swru368a.pdf">
      * CC3100/CC3200 SimpleLink Wi-Fi Internet-on-a-Chip User's Guide</a>
      *
-     * @param callback the std::pair<> of the function to execute and the
-     *        matching token to execute the callback on.  The second (const
-     *        char *) argument of the std::pair must live for as long as the
-     *        callback is valid.
+     * @param token_name The token name to match. Must live for the entire
+     * lifetime of the binary. Must be of the form __SL_G_U??
+     * @param callback the function to execute to give the replacement.
      */
-    void add_http_get_callback(std::pair<std::function<std::string()>,
-                                         const char *> callback)
+    void add_http_get_token_callback(
+        const char *token_name, std::function<std::string()> callback)
     {
         OSMutexLock l(&lock_);
-        httpGetCallbacks_.emplace_back(std::move(callback));
+        httpGetTokenCallbacks_.emplace_back(token_name, std::move(callback));
     }
+
+    /** Registers a handler for an HTTP POST operation.
+     * @param uri the target of the form submit, of the format "/foo/bar"
+     * @param callback this function will be called from the network processor
+     * context when a POST happens to the given URI.
+     */
+    void add_http_post_callback(const char *uri, PostFunction callback)
+    {
+        OSMutexLock l(&lock_);
+        httpPostCallbacks_.emplace_back(uri, std::move(callback));
+    }
+
+    /** Retrieves additional payload for http POST operations. This function
+     * blocks the calling thread. After the lat chunk is retrieved, the caller
+     * must invoke the post response function.
+     * @param handle the POST operation handle, given by the POST callback.
+     * @param buf where to deposit additional data.
+     * @param len at input, set to the max number of bytes to store. Will be
+     * overwritten by the number of actual bytes that arrived.
+     * @return true if there is additional data that needs to be fetched, false
+     * if this was the last chunk. */
+    bool get_post_data(uint16_t handle, void *buf, size_t *len);
+
+    /** Sends a POST response.
+     * @param handle the POST operation handle, given by the POST callback.
+     * @param code HTTP error code (e.g. 204 for success).
+     * @param redirect optional, if present, will send back a 302 redirect
+     * status with this URL (http_status will be ignored).
+     */
+    void send_post_respose(uint16_t handle, uint16_t http_status = 204,
+        const string &redirect = "");
 
     /** This function handles WLAN events.  This is public only so that an
      * extern "C" method can call it.  DO NOT use directly.
@@ -498,6 +561,14 @@ public:
      */
     void http_server_callback(HttpServerEvent *event,
                               HttpServerResponse *response);
+
+    /** This function handles netapp request callbacks.  This is public
+     * only so that an extern "C" method can call it.  DO NOT use directly.
+     * @param request pointer to NetApp Request info
+     * @param response pointer to NetApp Response info
+     */
+    void netapp_request_callback(
+        NetAppRequest *request, NetAppResponse *response);
 
     /** This Function Handles the Fatal errors
      *  @param  event - Contains the fatal error data
@@ -586,8 +657,11 @@ private:
     std::vector<std::function<void()> > callbacks_;
 
     /// List of callbacks for http get tokens
-    std::vector<std::pair<std::function<std::string()>, const char *>>
-        httpGetCallbacks_;
+    std::vector<std::pair<const char *, std::function<std::string()>>>
+        httpGetTokenCallbacks_;
+
+    /// List of callbacks for http post handlers
+    std::vector<std::pair<const char *, PostFunction>> httpPostCallbacks_;
 
     /// Protects callbacks_ vector.
     OSMutex lock_;

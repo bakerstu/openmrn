@@ -7,7 +7,7 @@
 namespace openlcb
 {
 
-static constexpr NodeID TRAIN_NODE_ID = 0x060100000000 | 1372;
+static constexpr NodeID TRAIN_NODE_ID = 0x06010000C000 | 1372;
 
 class ThrottleTest : public AsyncNodeTest
 {

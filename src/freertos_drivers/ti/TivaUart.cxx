@@ -60,8 +60,11 @@ static Atomic isr_lock;
  * @param interrupt interrupt number of this device
  */
 TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt,
-    uint32_t baud, uint32_t mode, bool hw_fifo)
+    uint32_t baud, uint32_t mode, bool hw_fifo, TxEnableMethod tx_enable_assert,
+    TxEnableMethod tx_enable_deassert)
     : Serial(name)
+    , txEnableAssert_(tx_enable_assert)
+    , txEnableDeassert_(tx_enable_deassert)
     , base_(base)
     , interrupt_(interrupt)
     , baud_(baud)
@@ -148,24 +151,54 @@ void TivaUart::disable()
     MAP_UARTDisable(base_);
 }
 
+/** Send data until there is no more space left.
+ */
+void TivaUart::send()
+{
+    do
+    {
+        uint8_t data = 0;
+        if (txBuf->get(&data, 1))
+        {
+            MAP_UARTCharPutNonBlocking(base_, data);
+
+        }
+        else
+        {
+            break;
+        }
+    }
+    while (MAP_UARTSpaceAvail(base_));
+
+    if (txBuf->pending())
+    {
+        /* more data to send later */
+        MAP_UARTTxIntModeSet(base_, UART_TXINT_MODE_FIFO);
+    }
+    else
+    {
+        /* no more data left to send */
+        MAP_UARTTxIntModeSet(base_, UART_TXINT_MODE_EOT);
+        MAP_UARTIntClear(base_, UART_INT_TX);
+    }
+}
+
 /** Try and transmit a message.
  */
 void TivaUart::tx_char()
 {
     if (txPending_ == false)
     {
-        uint8_t data = 0;
-
-        if (txBuf->get(&data, 1))
+        if (txEnableAssert_)
         {
-            MAP_UARTCharPutNonBlocking(base_, data);
-
-            MAP_IntDisable(interrupt_);
-            txPending_ = true;
-            MAP_UARTIntEnable(base_, UART_INT_TX);
-            MAP_IntEnable(interrupt_);
-            txBuf->signal_condition();
+            txEnableAssert_();
         }
+
+        send();
+        txPending_ = true;
+
+        MAP_UARTIntEnable(base_, UART_INT_TX);
+        txBuf->signal_condition();
     }
 }
 
@@ -196,32 +229,29 @@ void TivaUart::interrupt_handler()
         }
     }
     /* transmit a character if we have pending tx data */
-    if (txPending_)
+    if (txPending_ && (status & UART_INT_TX))
     {
-        /** @todo (Stuart Baker) optimization opportunity by getting a read
-         * pointer to fill the fifo and then consume the buffer when finished.
-         */
-        while (MAP_UARTSpaceAvail(base_))
+        if (txBuf->pending())
         {
-            unsigned char data;
-            if (txBuf->get(&data, 1) != 0)
+            send();
+            txBuf->signal_condition_from_isr();
+        }
+        else
+        {
+            /* no more data left to send */
+            HASSERT(MAP_UARTTxIntModeGet(base_) == UART_TXINT_MODE_EOT);
+            if (txEnableDeassert_)
             {
-                MAP_UARTCharPutNonBlocking(base_, data);
-                txBuf->signal_condition_from_isr();
+                txEnableDeassert_();
             }
-            else
+            txPending_ = false;
+            if (txComplete_)
             {
-                /* no more data pending */
-                txPending_ = false;
-                if (txComplete_)
-                {
-                    Notifiable *t = txComplete_;
-                    txComplete_ = nullptr;
-                    t->notify_from_isr();
-                }
-                MAP_UARTIntDisable(base_, UART_INT_TX);
-                break;
+                Notifiable *t = txComplete_;
+                txComplete_ = nullptr;
+                t->notify_from_isr();
             }
+            MAP_UARTIntDisable(base_, UART_INT_TX);
         }
     }
     os_isr_exit_yield_test(woken);

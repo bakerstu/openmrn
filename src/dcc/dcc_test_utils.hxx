@@ -63,10 +63,42 @@ dcc::Packet packet_from(uint8_t hdr, std::vector<uint8_t> payload)
     return pkt;
 }
 
-MATCHER_P2(PacketIs, hdr, payload,
-    std::string(" is a packet of ") + PrintToString(packet_from(hdr, payload)))
+MATCHER_P2(PacketIs, hdr, payload, PrintToString(packet_from(hdr, payload)))
 {
     dcc::Packet pkt = packet_from(hdr, payload);
+    dcc::Packet argc = arg;
+    vector<uint8_t> exp_bytes(pkt.payload, pkt.payload + pkt.dlc);
+    vector<uint8_t> act_bytes(arg.payload, arg.payload + arg.dlc);
+    if (pkt.packet_header.is_pkt == 0 && pkt.packet_header.is_marklin == 0 &&
+        arg.packet_header.is_pkt == 0 && arg.packet_header.is_marklin == 0 &&
+        pkt.packet_header.skip_ec != arg.packet_header.skip_ec)
+    {
+        // Mismatch in whether the EC byte is there. We fix this by adding the
+        // EC byte to the place where it is missing. This avoids test failures
+        // where the packets really are equivalent.
+        if (pkt.packet_header.skip_ec == 0)
+        {
+            uint8_t ec = 0;
+            for (uint8_t b : exp_bytes)
+            {
+                ec ^= b;
+            }
+            exp_bytes.push_back(ec);
+            pkt.packet_header.skip_ec = 1;
+        }
+        if (arg.packet_header.skip_ec == 0)
+        {
+            uint8_t ec = 0;
+            for (uint8_t b : act_bytes)
+            {
+                ec ^= b;
+            }
+            act_bytes.push_back(ec);
+            argc.packet_header.skip_ec = 1;
+        }
+        return (pkt.header_raw_data == argc.header_raw_data &&
+            exp_bytes == act_bytes);
+    }
     return (pkt.header_raw_data == arg.header_raw_data && pkt.dlc == arg.dlc &&
         memcmp(pkt.payload, arg.payload, pkt.dlc) == 0);
 }

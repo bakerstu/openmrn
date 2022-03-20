@@ -40,7 +40,7 @@
 
 #include "freertos_drivers/spiffs/SPIFFS.hxx"
 
-/// Specialization of Serial SPIFFS driver for CC32xx devices.
+/// Specialization of Serial SPIFFS driver for Stm32 F0-F3 devices.
 class Stm32SPIFFS : public SPIFFS
 {
 public:

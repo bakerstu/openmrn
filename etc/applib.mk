@@ -61,19 +61,16 @@ all: $(LIBNAME)
 .SUFFIXES: .o .c .cxx .cpp .S
 
 .cpp.o:
-	$(CXX) $(CXXFLAGS) $< -o $@
-	$(CXX) -MM $(CXXFLAGS) $< > $*.d
+	$(CXX) -MMD -MF $*.d $(CXXFLAGS) $< -o $@
 
 .cxx.o:
-	$(CXX) $(CXXFLAGS) $< -o $@
-	$(CXX) -MM $(CXXFLAGS) $< > $*.d
+	$(CXX) -MMD -MF $*.d $(CXXFLAGS) $< -o $@
 
 .c.o:
-	$(CC) $(CFLAGS) $< -o $@
-	$(CC) -MM $(CFLAGS) $< > $*.d
+	$(CC) -MMD -MF $*.d $(CFLAGS) $< -o $@
 
 .S.o:
-	$(AS) $(ASFLAGS) -MD -MF $*.d $(abspath $<) -o $@
+	$(AS) $(ASFLAGS) -MMD -MF $*.d $(abspath $<) -o $@
 
 $(LIBNAME): $(OBJS)
 	$(AR) cr $(LIBNAME) $(OBJS)
