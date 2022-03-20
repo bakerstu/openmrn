@@ -300,8 +300,8 @@ void hw_preinit(void)
     gpio_init.Pin = GPIO_PIN_3;
     HAL_GPIO_Init(GPIOA, &gpio_init);
 
-    /* USART1 pinmux on railCom TX pin PB6 */
-    gpio_init.Mode = GPIO_MODE_AF_PP;
+    /* USART1 pinmux on railCom TX pin PB6 with open drain and pullup */
+    gpio_init.Mode = GPIO_MODE_AF_OD;
     gpio_init.Pull = GPIO_PULLUP;
     gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
     gpio_init.Alternate = GPIO_AF0_USART1;
