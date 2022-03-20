@@ -77,6 +77,8 @@ struct TractionDefs {
     static const uint64_t NODE_ID_DC_BLOCK = 0x060000000000ULL;
     /// Node ID space allocated for DCC locomotives.
     static const uint64_t NODE_ID_DCC = 0x060100000000ULL;
+    /// Long addresses should OR this selector to {\link NODE_ID_DCC }.
+    static const uint16_t DCC_LONG_SELECTOR = 0xC000;
     /// Node ID space allocated for TMCC protocol.
     static const uint64_t NODE_ID_TMCC = 0x060200000000ULL;
     /// Node ID space allocated for the Marklin-Motorola protocol.
@@ -216,7 +218,7 @@ struct TractionDefs {
             case dcc::TrainAddressType::DCC_SHORT_ADDRESS:
                 return NODE_ID_DCC | addr;
             case dcc::TrainAddressType::DCC_LONG_ADDRESS:
-                return NODE_ID_DCC | 0xC000 | addr;
+                return NODE_ID_DCC | DCC_LONG_SELECTOR | addr;
             case dcc::TrainAddressType::MM:
                 return NODE_ID_MARKLIN_MOTOROLA | addr;
             default:
@@ -242,7 +244,8 @@ struct TractionDefs {
         if ((id & NODE_ID_MASK) == NODE_ID_DCC)
         {
             *addr = (id & 0x3FFF);
-            if (((id & 0xC000) == 0xC000) || (*addr >= 128u))
+            if (((id & DCC_LONG_SELECTOR) == DCC_LONG_SELECTOR) ||
+                (*addr >= 128u))
             {
                 // overlapping long address
                 *type = dcc::TrainAddressType::DCC_LONG_ADDRESS;
