@@ -84,17 +84,33 @@ const size_t EEPROMEmulation::SECTOR_SIZE = (4*1024);
 
 static TivaEEPROMEmulation eeprom("/dev/eeprom", 2000);
 
-// Bit storing whether our dcc output is enabled or not.
-static bool g_dcc_on = false;
+uint32_t feedback_sample_overflow_count = 0;
+// If 1, enabled spread spectrum randomization of the DCC timings.
+uint8_t spreadSpectrum = 0;
 
 TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
 TivaDCC<DccHwDefs> dcc_hw("/dev/mainline", &railcom_driver);
+
+
+DccOutput* get_dcc_output(DccOutput::Type type) {
+    switch (type)
+    {
+    case DccOutput::TRACK:
+            return DccOutputImpl<DccHwDefs::Output>::instance();
+    case DccOutput::PGM:
+        return DccOutputImpl<DccHwDefs::Output2>::instance();
+    case DccOutput::LCC:
+        return DccOutputImpl<DccHwDefs::Output3>::instance();
+    }
+    return nullptr;
+}
 
 extern "C" {
 
 void hw_set_to_safe(void)
 {
-    dcc_hw.disable_output();
+    DccHwDefs::Output::set_disable_reason(
+        DccOutput::DisableReason::INITIALIZATION_PENDING);
 }
 
 void timer1a_interrupt_handler(void)
@@ -191,6 +207,7 @@ void set_gpio_puinput(uint32_t port, uint32_t pin) {
     MAP_GPIOPadConfigSet(port, pin, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 }
 
+/*
 void enable_dcc() {
     g_dcc_on = true;
     MAP_GPIOPinWrite(LED_BLUE, 0xff);
@@ -212,6 +229,7 @@ void setshorted_dcc() {
 bool query_dcc() {
   return g_dcc_on;
 }
+*/
 
 /** Initialize the processor hardware.
  */
@@ -230,8 +248,9 @@ void hw_preinit(void)
     // These pins are parallel-connected to the outputs.
     set_gpio_extinput(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1);
     /* Initialize the DCC Timers and GPIO outputs */
-    dcc_hw.hw_init();
-    disable_dcc();
+    dcc_hw.hw_preinit();
+    DccHwDefs::Output::set_disable_reason(
+        DccOutput::DisableReason::INITIALIZATION_PENDING);
 
     /* Setup the system clock. */
     MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |

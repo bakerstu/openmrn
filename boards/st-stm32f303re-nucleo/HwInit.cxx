@@ -37,6 +37,7 @@
 #include <cstdint>
 
 #include "stm32f3xx_hal_conf.h"
+#include "stm32f3xx_hal.h"
 
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
@@ -246,7 +247,8 @@ void hw_preinit(void)
         /* Starting Error */
         HASSERT(0);
     }
-    NVIC_SetPriority(TIM17_IRQn, 0);
+    __HAL_DBGMCU_FREEZE_TIM17();
+    SetInterruptPriority(TIM17_IRQn, 0);
     NVIC_EnableIRQ(TIM17_IRQn);
 }
 

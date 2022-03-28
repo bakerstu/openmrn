@@ -41,6 +41,9 @@
 #include "stm32f1xx_ll_rcc.h"
 #elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_ll_rcc.h"
+#elif defined(STM32L431xx) || defined(STM32L432xx)
+#include "stm32l4xx_ll_rcc.h"
+#include "stm32l4xx_ll_i2c.h"
 #elif defined(STM32F767xx)
 #include "stm32f7xx_ll_rcc.h"
 #include "stm32f7xx_ll_i2c.h"
@@ -159,9 +162,9 @@ Stm32I2C::Stm32I2C(const char *name, I2C_TypeDef *port, uint32_t ev_interrupt,
     // call above.
     i2cHandle_.Init.Timing = (uint32_t) this;
 
-    NVIC_SetPriority((IRQn_Type)ev_interrupt, configKERNEL_INTERRUPT_PRIORITY);
+    SetInterruptPriority((IRQn_Type)ev_interrupt, configKERNEL_INTERRUPT_PRIORITY);
     HAL_NVIC_EnableIRQ((IRQn_Type)ev_interrupt);
-    NVIC_SetPriority((IRQn_Type)er_interrupt, configKERNEL_INTERRUPT_PRIORITY);
+    SetInterruptPriority((IRQn_Type)er_interrupt, configKERNEL_INTERRUPT_PRIORITY);
     HAL_NVIC_EnableIRQ((IRQn_Type)er_interrupt);
 }
 

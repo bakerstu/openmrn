@@ -115,9 +115,8 @@
   *        This value is used by the RCC HAL module to compute the system frequency
   *        (when HSE is used as system clock source, directly or through the PLL).  
   */
-#if !defined  (HSE_VALUE) 
-  #define HSE_VALUE    ((uint32_t)8000000) /*!< Value of the External oscillator in Hz */
-#endif /* HSE_VALUE */
+extern const uint32_t HSEValue;
+#define HSE_VALUE HSEValue
 
 /**
   * @brief In the following line adjust the External High Speed oscillator (HSE) Startup 
@@ -337,7 +336,12 @@
 #else
   #define assert_param(expr) ((void)0)
 #endif /* USE_FULL_ASSERT */    
-    
+
+  static inline void SetInterruptPriority(uint32_t irq, uint8_t priority)
+  {
+      NVIC_SetPriority((IRQn_Type)irq, priority >> (8U - __NVIC_PRIO_BITS));
+  }
+ 
 #ifdef __cplusplus
 }
 #endif

@@ -85,7 +85,7 @@ public:
     /// NOTE: when switching to std::optional<>, calls to this function need to
     /// be replaced with calls to .operator->().
     /// @return mutable pointer to the embedded object
-    constexpr T* get_mutable()
+    constexpr T* get_mutable() const
     {
         return tptrm();
     }
@@ -123,7 +123,7 @@ private:
     typename std::aligned_storage<sizeof(T), alignof(T)>::type data;
 
     /// @return the embedded object (mutable pointer)
-    constexpr T *tptrm()
+    constexpr T *tptrm() const
     {
         return static_cast<T *>((void*)&data);
     }

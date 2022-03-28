@@ -32,22 +32,15 @@
  * @date 3 Aug 2013
  */
 
-#define _DEFAULT_SOURCE
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE // for usleep
+#endif
 
 #include <stdio.h>
 #include <unistd.h>
 
 #include "os/os.h"
 #include "utils/blinker.h"
-#include "console/Console.hxx"
-
-#if (defined (TARGET_IS_CC3200) || defined (__linux__) || defined(PART_TM4C1294NCPDT)) && (!defined(NO_CONSOLE))
-#define HAVE_CONSOLE
-#endif
-
-#ifdef HAVE_CONSOLE
-Executor<1> executor("executor", 0, 2048);
-#endif
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -57,9 +50,6 @@ Executor<1> executor("executor", 0, 2048);
 int appl_main(int argc, char *argv[])
 {
     setblink(0);
-#ifdef HAVE_CONSOLE
-    new Console(&executor, Console::FD_STDIN, Console::FD_STDOUT, 2121);
-#endif
     while (1)
     {
         resetblink(1);

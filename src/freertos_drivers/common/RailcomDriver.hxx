@@ -36,6 +36,11 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_
 #define _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_
 
+#include <inttypes.h>
+
+#include "utils/macros.h"
+#include "dcc/railcom.h"
+
 /// Abstract base class for railcom drivers. This interface is used to
 /// communicate when the railcom cutout happens. The railcom cutout is produced
 /// or detected in the DCC generator or DCC parser driver, but the railcom
@@ -58,12 +63,35 @@ public:
   /** Instructs the driver that the railcom cutout is over now. The driver
    *  will use this information to disable the UART receiver. */
   virtual void end_cutout() = 0;
+  /** Called instead of start/mid/end-cutout at the end of the current packet
+   * if there was no cutout requested. */
+  virtual void no_cutout() = 0;
   /** Specifies the feedback key to write into the received railcom data
    *  packets. This feedback key is used by the application layer to correlate
    *  the stream of DCC packets to the stream of Railcom packets. This method
    *  shall be called before start_cutout. The feedback key set here is used
    *  until this method is called again. @param key is the new feedback key. */
   virtual void set_feedback_key(uint32_t key) = 0;
+
+  /** Specifies what packet should be sent for the channel1 cutout. It is
+   * okay to specify the same packet pointer for ch1 and ch2 cutout.
+   * @param ch1_pkt the RailCom packet. Only the ch1 data will be read from
+   * this packet. This pointer must stay alive until the next DCC packet
+   * comes. The FeedbackKey in this packet must be correct for the current
+   * DCC packet or else the data will not be sent. */
+  virtual void send_ch1(const DCCFeedback *ch1_pkt)
+  {
+  }
+
+  /** Specifies what packet should be sent for the channel2 cutout. It is
+   * okay to specify the same packet pointer for ch1 and ch2 cutout.
+   * @param ch2_pkt the RailCom packet. Only the ch2 data will be read from
+   * this packet. This pointer must stay alive until the next DCC packet
+   * comes. The FeedbackKey in this packet must be correct for the current
+   * DCC packet or else the data will not be sent. */
+  virtual void send_ch2(const DCCFeedback *ch2_pkt)
+  {
+  }
 };
 
 
@@ -74,6 +102,7 @@ class NoRailcomDriver : public RailcomDriver {
   void start_cutout() OVERRIDE {}
   void middle_cutout() OVERRIDE {}
   void end_cutout() OVERRIDE {}
+  void no_cutout() OVERRIDE {}
   void set_feedback_key(uint32_t key) OVERRIDE {}
 };
 

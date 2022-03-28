@@ -34,6 +34,7 @@
 #include <new>
 #include <cstdint>
 
+#include "freertos_drivers/st/stm32f_hal_conf.hxx"
 #include "stm32f1xx.h"
 
 #include "stm32f1xx_hal_rcc.h"
@@ -214,10 +215,10 @@ void hw_preinit(void)
     __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
 
     /* enable peripheral clocks */
-    __GPIOA_CLK_ENABLE();
-    __GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
     //__USART1_CLK_ENABLE();
-    __CAN1_CLK_ENABLE();
+    __HAL_RCC_CAN1_CLK_ENABLE();
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init = {0};
 
@@ -225,13 +226,13 @@ void hw_preinit(void)
     gpio_init.Pin = GPIO_PIN_1 | GPIO_PIN_5;
     gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
     gpio_init.Pull = GPIO_NOPULL;
-    gpio_init.Speed = GPIO_SPEED_LOW;
+    gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOA, &gpio_init);
 
     /* USART1 pinmux on PA9 and PA10 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
-    gpio_init.Speed = GPIO_SPEED_HIGH;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
     // gpio_init.Alternate = GPIO_AF1_USART1;
     gpio_init.Pin = GPIO_PIN_9;
     // HAL_GPIO_Init(GPIOA, &gpio_init);
@@ -241,7 +242,7 @@ void hw_preinit(void)
     /* CAN pinmux on PB8 and PB9 */
     __HAL_AFIO_REMAP_CAN1_2();
     gpio_init.Pull = GPIO_PULLUP;
-    gpio_init.Speed = GPIO_SPEED_HIGH;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
     // gpio_init.Alternate = GPIO_AF4_CAN;
     gpio_init.Mode = GPIO_MODE_AF_INPUT;
     gpio_init.Pin = GPIO_PIN_8;

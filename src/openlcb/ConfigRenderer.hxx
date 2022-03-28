@@ -38,7 +38,7 @@
 #include <climits>
 #include <string>
 
-#include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfoDefs.hxx"
 #include "utils/OptionalArgs.hxx"
 #include "utils/StringPrintf.hxx"
 
@@ -346,19 +346,19 @@ public:
 
     typedef GroupConfigOptions OptionsType;
 
-    constexpr EmptyGroupConfigRenderer(unsigned size)
+    constexpr EmptyGroupConfigRenderer(int size)
         : size_(size)
     {
     }
 
     template <typename... Args> void render_cdi(string *s, Args... args) const
     {
-        *s += StringPrintf("<group offset='%u'/>\n", size_);
+        *s += StringPrintf("<group offset='%d'/>\n", size_);
     }
 
 private:
     /// The number of bytes this group has to skip.
-    unsigned size_;
+    int size_;
 };
 
 /// Helper class for rendering the cdi.xml of groups, segments and the toplevel
@@ -380,7 +380,7 @@ public:
         GroupConfigOptions opts(args..., Body::group_opts());
         if (opts.hidden())
         {
-            EmptyGroupConfigRenderer(Body::size()).render_cdi(s);
+            EmptyGroupConfigRenderer(Body::size() * replication_).render_cdi(s);
             return;
         }
         const char *tag = nullptr;

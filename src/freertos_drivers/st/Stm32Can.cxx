@@ -31,9 +31,13 @@
  * @date 3 May 2015
  */
 
+#if (!defined(ARDUINO)) || defined(ARDUINO_ARCH_STM32)
+
 #include "Stm32Can.hxx"
 
 #include <stdint.h>
+
+#include "stm32f_hal_conf.hxx"
 
 #if defined (STM32F072xB) || defined (STM32F091xC)
 
@@ -60,6 +64,15 @@
 #define CAN_IRQN CAN_TX_IRQN
 #define CAN_SECOND_IRQN USB_LP_CAN_RX0_IRQn
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
+
+#elif defined (STM32L431xx) || defined (STM32L432xx)
+
+#include "stm32l4xx_hal_cortex.h"
+#define SPLIT_INT
+#define CAN_TX_IRQN CAN1_TX_IRQn
+#define CAN_IRQN CAN_TX_IRQN
+#define CAN_SECOND_IRQN CAN1_RX0_IRQn
+#define CAN_CLOCK (cm3_cpu_clock_hz)
 
 #elif defined (STM32F767xx)
 
@@ -101,11 +114,11 @@ Stm32Can::Stm32Can(const char *name)
     /* The priority of CAN interrupt is as high as possible while maintaining
      * FreeRTOS compatibility.
      */
-    NVIC_SetPriority(CAN_IRQN, configKERNEL_INTERRUPT_PRIORITY);
+    SetInterruptPriority(CAN_IRQN, configKERNEL_INTERRUPT_PRIORITY);
 
 #ifdef SPLIT_INT
     HAL_NVIC_DisableIRQ(CAN_SECOND_IRQN);
-    NVIC_SetPriority(CAN_SECOND_IRQN, configKERNEL_INTERRUPT_PRIORITY);
+    SetInterruptPriority(CAN_SECOND_IRQN, configKERNEL_INTERRUPT_PRIORITY);
 #endif
 #endif
 }
@@ -426,7 +439,7 @@ void usb_lp_can1_rx0_interrupt_handler(void)
     Stm32Can::instances[0]->rx_interrupt_handler();
 }
 
-#elif defined(STM32F767xx)
+#elif defined(STM32F767xx) || defined(STM32L431xx) || defined(STM32L432xx)
 
 void can1_tx_interrupt_handler(void)
 {
@@ -444,8 +457,9 @@ void can1_rx0_interrupt_handler(void)
 
 } // extern "C"
 
+#endif // !ARDUINO || STM32
 
-#ifdef ARDUINO
+#if defined(ARDUINO_ARCH_STM32)
 
 #include "stm32_def.h"
 #include "PinAF_STM32F1.h"
@@ -497,6 +511,20 @@ void USB_LP_CAN_RX0_IRQHandler(void)
 {
     Stm32Can::instances[0]->rx_interrupt_handler();
 }
+void CEC_CAN_IRQHandler(void)
+{
+    Stm32Can::instances[0]->rx_interrupt_handler();
+    Stm32Can::instances[0]->tx_interrupt_handler();
+}
+void CAN1_TX_IRQHandler(void)
+{
+    Stm32Can::instances[0]->tx_interrupt_handler();
+}
+void CAN1_RX0_IRQHandler(void)
+{
+    Stm32Can::instances[0]->rx_interrupt_handler();
+}
 } // extern "C"
 
 #endif
+

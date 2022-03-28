@@ -121,7 +121,7 @@ public:
 
 private:
     /// maximum SPI clock speed in Hz
-    static constexpr uint32_t SPI_MAX_SPEED_HZ = 1000000;
+    static constexpr uint32_t SPI_MAX_SPEED_HZ = 4000000;
 
     /// User entry point for the created thread.
     /// @return exit status
@@ -174,9 +174,11 @@ public:
         , chipIndex_(chip_index)
         , bit_(bit)
     {
+#ifndef __PIC32MX__
         HASSERT(bit < 8);
         HASSERT(chip_index < sizeof(instance->gpoData_));
         HASSERT(N == sizeof(instance->gpoData_));
+#endif
     }
 
     /// Writes a GPO pin (set or clear to a specific state).

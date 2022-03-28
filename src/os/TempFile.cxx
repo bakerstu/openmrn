@@ -66,3 +66,14 @@ TempFile::TempFile(const TempDir& dir, const string& basename)
     fileName_.c_str();
     fd_ = mkstemp((char*)fileName_.c_str());
 }
+
+//
+// TempFile::rewrite()
+//
+void TempFile::rewrite(const string& s)
+{
+    ::lseek(fd_, 0, SEEK_SET);
+    ::ftruncate(fd_, 0);
+    write(s);
+}
+

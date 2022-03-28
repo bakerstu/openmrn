@@ -9,8 +9,8 @@ endif
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 
 AS = $(PREFIX)gcc
-CC = $(PREFIX)gcc
-CXX = $(PREFIX)g++
+CC = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)gcc))
+CXX = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)g++))
 AR = $(PREFIX)ar
 LD = $(PREFIX)g++
 SIZE = $(PREFIX)size
@@ -49,6 +49,7 @@ CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 -Wstrict-prototypes \
 CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
             -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
             -fno-exceptions -fno-rtti \
+            -Wsuggest-override -Wno-psabi \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
             -D__LINEAR_MAP__ #-D__STDC_VERSION__=199901
 

@@ -82,13 +82,29 @@ TEST_F(RailcomDecodeTest, SimpleAck) {
 }
 
 TEST_F(RailcomDecodeTest, MultipleAckNackBusy) {
-    fb_.add_ch1_data(0xF0);
-    fb_.add_ch1_data(0xE1);
-    fb_.add_ch2_data(0x0F);
+    fb_.add_ch1_data(0xF0); // one type of ack
+    fb_.add_ch1_data(0xE1); // NMRA busy
+    fb_.add_ch2_data(0x3C); // RCN nack
+    fb_.add_ch2_data(0x0F); // other ack
     decode();
-    EXPECT_THAT(output_, ElementsAre(RailcomPacket(3, 1, RailcomPacket::ACK, 0),
-                             RailcomPacket(3, 1, RailcomPacket::BUSY, 0),
-                             RailcomPacket(3, 2, RailcomPacket::NACK, 0)));
+    EXPECT_THAT(output_,
+        ElementsAre(RailcomPacket(3, 1, RailcomPacket::ACK, 0),
+            RailcomPacket(3, 1, RailcomPacket::BUSY, 0),
+            RailcomPacket(3, 2, RailcomPacket::NACK, 0),
+            RailcomPacket(3, 2, RailcomPacket::ACK, 0)));
+}
+
+TEST_F(RailcomDecodeTest, MultipleAckNackBusyCode) {
+    fb_.add_ch1_data(RailcomDefs::CODE_ACK); // one type of ack
+    fb_.add_ch1_data(RailcomDefs::CODE_BUSY); // NMRA busy
+    fb_.add_ch2_data(RailcomDefs::CODE_NACK); // RCN nack
+    fb_.add_ch2_data(RailcomDefs::CODE_ACK2); // other ack
+    decode();
+    EXPECT_THAT(output_,
+        ElementsAre(RailcomPacket(3, 1, RailcomPacket::ACK, 0),
+            RailcomPacket(3, 1, RailcomPacket::BUSY, 0),
+            RailcomPacket(3, 2, RailcomPacket::NACK, 0),
+            RailcomPacket(3, 2, RailcomPacket::ACK, 0)));
 }
 
 TEST_F(RailcomDecodeTest, Ch2Ext) {
@@ -109,6 +125,17 @@ TEST_F(RailcomDecodeTest, Ch2ExtAndFeedback) {
                      RailcomPacket(3, 2, RailcomPacket::MOB_POM, 0xA5)));
 }
 
+TEST_F(RailcomDecodeTest, Ch1Bcast) {
+    fb_.add_ch1_data(0xA3);
+    fb_.add_ch1_data(0xAC);
+    fb_.add_ch2_data(0x99);
+    fb_.add_ch2_data(0xa5);
+    decode();
+    EXPECT_THAT(
+        output_, ElementsAre(RailcomPacket(3, 1, RailcomPacket::MOB_ADRHIGH, 0),
+                     RailcomPacket(3, 2, RailcomPacket::MOB_ADRLOW, 3)));
+}
+
 TEST_F(RailcomDecodeTest, ChannelBoundaryProblem) {
     fb_.add_ch1_data(0x8b); // note wrong channel assignment
     fb_.add_ch2_data(0xac);
@@ -122,6 +149,121 @@ TEST_F(RailcomDecodeTest, FalseChannelBoundaryProblem) {
     fb_.add_ch2_data(0xac);
     decode();
     EXPECT_THAT(output_, ElementsAre(RailcomPacket(3, 1, RailcomPacket::GARBAGE, 0), RailcomPacket(3, 2, RailcomPacket::MOB_EXT, 128)));
+}
+
+// Verifies that the railcom encode and railcom decode table are inverse of
+// each other.
+TEST(RailcomEncodeTest, BitsMatch) {
+    for (unsigned i = 0; i < 63; i++)
+    {
+        uint8_t encoded = railcom_encode[i];
+        uint8_t decoded = railcom_decode[encoded];
+        EXPECT_EQ(i, decoded);
+    }
+    EXPECT_EQ(RailcomDefs::ACK, railcom_decode[RailcomDefs::CODE_ACK]);
+    EXPECT_EQ(RailcomDefs::ACK, railcom_decode[RailcomDefs::CODE_ACK2]);
+    EXPECT_EQ(RailcomDefs::NACK, railcom_decode[RailcomDefs::CODE_NACK]);
+}
+
+// Verifies that the railcom encode 12 command works correctly.
+TEST_F(RailcomDecodeTest, Encode12) {
+    uint16_t d = RailcomDefs::encode12(RMOB_ADRHIGH, 42);
+    fb_.add_ch1_data(d>>8);
+    fb_.add_ch1_data(d & 0xff);
+    decode();
+    EXPECT_THAT(output_,
+        ElementsAre(RailcomPacket(3, 1, RailcomPacket::MOB_ADRHIGH, 42)));
+}
+
+// Verifies that the railcom encode 12 command works correctly.
+TEST_F(RailcomDecodeTest, Append12) {
+    RailcomDefs::append12(RMOB_ADRHIGH, 42, fb_.ch1Data);
+    fb_.ch1Size = 2;
+    decode();
+    EXPECT_THAT(output_,
+        ElementsAre(RailcomPacket(3, 1, RailcomPacket::MOB_ADRHIGH, 42)));
+}
+
+// Verifies that the railcom encode 36 command works correctly.
+TEST_F(RailcomDecodeTest, Append36) {
+    RailcomDefs::append36(RMOB_XPOM2, 0xfedc5432, fb_.ch2Data);
+    fb_.ch2Size = 6;
+    decode();
+    EXPECT_THAT(output_,
+        ElementsAre(RailcomPacket(3, 2, RailcomPacket::MOB_XPOM2, 0xfedc5432u)));
+}
+
+TEST_F(RailcomDecodeTest, DecoderId)
+{
+    uint64_t decoder_id = 0x19911223344ull;
+    RailcomDefs::add_did_feedback(decoder_id, &fb_);
+
+    EXPECT_EQ(2u, fb_.ch1Size);
+    EXPECT_EQ(6u, fb_.ch2Size);
+    uint8_t d[2];
+    RailcomDefs::append12(0xf, 0x19, d);
+    EXPECT_EQ(d[0], fb_.ch1Data[0]);
+    EXPECT_EQ(d[1], fb_.ch1Data[1]);
+
+    RailcomDefs::append12(0x9, 0x11, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[0]);
+    EXPECT_EQ(d[1], fb_.ch2Data[1]);
+
+    RailcomDefs::append12(0x2, 0x23, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[2]);
+    EXPECT_EQ(d[1], fb_.ch2Data[3]);
+
+    RailcomDefs::append12(0x3, 0x44, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[4]);
+    EXPECT_EQ(d[1], fb_.ch2Data[5]);
+}
+
+TEST_F(RailcomDecodeTest, ShortInfo)
+{
+    RailcomDefs::add_shortinfo_feedback(0x1382, 0x55, 0xa7, 0x03, &fb_);
+    EXPECT_EQ(2u, fb_.ch1Size);
+    EXPECT_EQ(6u, fb_.ch2Size);
+    uint8_t d[2];
+    RailcomDefs::append12(0x8 | 0x1, 0x38, d);
+    EXPECT_EQ(d[0], fb_.ch1Data[0]);
+    EXPECT_EQ(d[1], fb_.ch1Data[1]);
+
+    RailcomDefs::append12(0x2, 0x55, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[0]);
+    EXPECT_EQ(d[1], fb_.ch2Data[1]);
+
+    RailcomDefs::append12(0xa, 0x70, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[2]);
+    EXPECT_EQ(d[1], fb_.ch2Data[3]);
+
+    // The CRC of this example is 0x0b.
+    RailcomDefs::append12(0x3, 0x0b, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[4]);
+    EXPECT_EQ(d[1], fb_.ch2Data[5]);
+}
+
+TEST_F(RailcomDecodeTest, AssignFeedback)
+{
+    RailcomDefs::add_assign_feedback(0x5a, 0x327, 0x18, 0x22, &fb_);
+    EXPECT_EQ(2u, fb_.ch1Size);
+    EXPECT_EQ(6u, fb_.ch2Size);
+    uint8_t d[2];
+    RailcomDefs::append12(13, 0x5a, d);
+    EXPECT_EQ(d[0], fb_.ch1Data[0]);
+    EXPECT_EQ(d[1], fb_.ch1Data[1]);
+
+    RailcomDefs::append12(0x3, 0x27, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[0]);
+    EXPECT_EQ(d[1], fb_.ch2Data[1]);
+
+    RailcomDefs::append12(0x1, 0x82, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[2]);
+    EXPECT_EQ(d[1], fb_.ch2Data[3]);
+
+    // The CRC of this example is 0x46.
+    RailcomDefs::append12(0x2, 0x46, d);
+    EXPECT_EQ(d[0], fb_.ch2Data[4]);
+    EXPECT_EQ(d[1], fb_.ch2Data[5]);
 }
 
 }  // namespace dcc

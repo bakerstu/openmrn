@@ -72,7 +72,7 @@ constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
 
 /// This is the node id to assign to this device, this must be unique
 /// on the CAN bus.
-static constexpr uint64_t NODE_ID = UINT64_C(0x050101011822);
+static constexpr uint64_t NODE_ID = UINT64_C(0x050101011829);
 
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
@@ -161,7 +161,7 @@ void setup() {
 #endif // PRINT_PACKETS
 
     // Add Serial1 as a bridge
-    openmrn.add_gridconnect_port(new Esp32HardwareSerialAdapter(Serial1));
+    openmrn.add_gridconnect_port(&Serial1);
 
     // Add the hardware CAN device as a bridge
     openmrn.add_can_port(

@@ -36,19 +36,14 @@
 
 #include <cstdint>
 
-#include "freertos_drivers/common/Can.hxx"
-
-#if defined(STM32F072xB) || defined(STM32F091xC) 
-#include "stm32f0xx_hal_can.h"
-#elif defined(STM32F103xB)
-#include "stm32f1xx_hal_can.h"
-#elif defined(STM32F303xC) || defined(STM32F303xE)
-#include "stm32f3xx_hal_can.h"
-#elif defined(STM32F767xx)
-#include "stm32f7xx_hal_can.h"
+#ifdef ARDUINO
+#include <Arduino.h>
+#include "freertos_drivers/arduino/Can.hxx"
 #else
-#error Dont know what STM32 chip you have.
+#include "freertos_drivers/common/Can.hxx"
 #endif
+
+#include "stm32f_hal_conf.hxx"
 
 /** Specialization of CAN driver for LPC17xx and LPC40xx CAN.
  */

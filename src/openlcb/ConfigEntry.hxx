@@ -35,9 +35,10 @@
 #ifndef _OPENLCB_CONFIGENTRY_HXX_
 #define _OPENLCB_CONFIGENTRY_HXX_
 
-#include <sys/types.h>
-#include <stdint.h>
 #include <endian.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/types.h>
 
 #include <functional>
 
@@ -284,7 +285,27 @@ public:
         }
         return value;
     }
-    
+
+    /// Reads data from configuration file if the value is valid. If the
+    /// value violates the trimming constraints, the configuration file will be
+    /// overwritten with the default value.
+    ///
+    /// @param fd the descriptor of the config file.
+    /// @param min_value minimum acceptable value
+    /// @param max_value maximum acceptable value
+    /// @param def_value default value to write when out of range
+    /// @return current value after trimming.
+    TR read_or_write_default(int fd, TR min_value, TR max_value, TR def_value)
+    {
+        TR value = read(fd);
+        if (value < min_value || value > max_value)
+        {
+            value = def_value;
+            write(fd, value);
+        }
+        return value;
+    }
+
     /// Writes the data to the configuration file.
     ///
     /// @param fd file descriptor of the config file.

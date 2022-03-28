@@ -466,7 +466,7 @@ private:
     size_t fileSize_;
     /// The actual bootloader client.
     openlcb::BootloaderClient client_ {
-        stack.node(), stack.dg_service(), stack.iface()};
+        stack.node(), stack.dg_service(), stack.if_can()};
 };
 
 void start_stack()

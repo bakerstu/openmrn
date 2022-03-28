@@ -83,9 +83,7 @@ ssize_t Can::read(File *file, void *buf, size_t count)
             }
             else
             {
-                /* wait for data to come in, this call will release the
-                 * critical section lock.
-                 */
+                /* wait for data to come in */
                 rxBuf->block_until_condition(file, true);
             }
         }

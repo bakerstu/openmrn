@@ -30,26 +30,33 @@ CXXFLAGS += $(INCLUDES)
 
 .SUFFIXES: .o .otest .c .cxx .cxxtest .test .testmd5 .testout
 
-LIBDIR ?= lib
+ifdef LIBDIR
+# we are under prog.mk
+TESTLIBDEPS += $(foreach lib,$(SUBDIRS),lib/lib$(lib).a)
+else
+LIBDIR = lib
+endif
+TESTLIBDEPS += $(foreach lib,$(CORELIBS),$(LIBDIR)/lib$(lib).a)
+
 LDFLAGS      += -L$(LIBDIR)
 
 $(LIBDIR)/timestamp: $(BUILDDIRS)
 
 $(info test deps $(TESTOBJSEXTRA) $(LIBDIR)/timestamp )
-$(TESTBINS): %.test$(EXTENTION) : %.test.o $(TESTOBJSEXTRA) $(LIBDIR)/timestamp $(TESTEXTRADEPS) | $(BUILDDIRS)
-	$(LD) -o $@ $(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(STARTGROUP) $(LINKCORELIBS) $(ENDGROUP) $(SYSLIBRARIES) 
+$(TESTBINS): %.test$(EXTENTION) : %.test.o $(TESTOBJSEXTRA) $(LIBDIR)/timestamp lib/timestamp $(TESTLIBDEPS) $(TESTEXTRADEPS) | $(BUILDDIRS)
+	$(LD) -o $@ $(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LIBS) $(STARTGROUP) $(LINKCORELIBS) $(ENDGROUP) $(SYSLIBRARIES) 
 
 -include $(TESTOBJS:.test.o=.dtest)
 -include $(TESTOBJSEXTRA:.o=.d)
 
 $(TESTOBJS): %.test.o : $(SRCDIR)/%.cxxtest
-	$(CXX) $(CXXFLAGS) -MD -MF $*.dtest -x c++ $< -o $@
+	$(CXX) $(CXXFLAGS) -MMD -MF $*.dtest -MT $@ -x c++ $< -o $@
 
 gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH) -MD -MF $*.d   $< -o $@
+	$(CXX) $(CXXFLAGS) -Wno-uninitialized -I$(GTESTPATH) -I$(GTESTSRCPATH) -MMD -MF $*.d   $< -o $@
 
 gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) -MD -MF $*.d  $< -o $@
+	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) -MMD -MF $*.d  $< -o $@
 
 # This target takes the test binary output and compares the md5sum against the
 # md5sum of the previous run. If the md5sum of the test binary didn't change,

@@ -46,13 +46,6 @@ class FileSystem;
 class Notifiable;
 class DeviceBufferBase;
 
-#ifdef TARGET_LPC11Cxx
-#define NUM_OPEN_FILES     4
-#else
-/// How many concurrently open fd we support.
-#define NUM_OPEN_FILES     20 //12
-#endif
-
 /** File information.
  */
 struct File
@@ -69,6 +62,7 @@ struct File
     off_t offset; /**< current offset within file */
     int flags;    /**< open flags */
     uint8_t inuse  : 1; /**< true if this is an open fd. */
+    uint8_t inshdn : 1; /**< true if this fd is in shutdown. */
     uint8_t device : 1; /**< true if this is a device, false if file system */
     uint8_t dir    : 1; /**< true if this is a directory, else false */
     uint8_t dirty  : 1; /**< true if this file is dirty and needs flush */
@@ -259,6 +253,10 @@ protected:
      */
     static int fd_lookup(File *file);
 
+    /** @return the maximum number of open file descriptors possible (the size
+     * of the files[] array. */
+    static const unsigned int numOpenFiles;
+    
     /** File descriptor pool */
     static File files[];
 

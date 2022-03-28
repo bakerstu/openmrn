@@ -38,103 +38,20 @@
 /// @todo(balazs.racz) remove this dep
 #include <string>
 
-#include "openlcb/Node.hxx"
-#include "openlcb/Defs.hxx"
 #include "executor/Dispatcher.hxx"
-#include "executor/Service.hxx"
 #include "executor/Executor.hxx"
+#include "executor/Service.hxx"
+#include "openlcb/Convert.hxx"
+#include "openlcb/Defs.hxx"
+#include "openlcb/Node.hxx"
 #include "utils/Buffer.hxx"
-#include "utils/Queue.hxx"
 #include "utils/Map.hxx"
+#include "utils/Queue.hxx"
 
 namespace openlcb
 {
 
 class Node;
-
-/// Container that carries the data bytes in an NMRAnet message.
-typedef string Payload;
-
-/** Convenience function to render a 48-bit NMRAnet node ID into a new buffer.
- *
- * @param id is the 48-bit ID to render.
- * @returns a new buffer (from the main pool) with 6 bytes of used space, a
- * big-endian representation of the node ID.
- */
-extern string node_id_to_buffer(NodeID id);
-/** Convenience function to render a 48-bit NMRAnet node ID into an existing
- * buffer.
- *
- * @param id is the 48-bit ID to render.
- * @param data is the memory space to write the rendered ID into. There must be
- * at least 6 bytes available at this address.
- */
-extern void node_id_to_data(NodeID id, void* data);
-
-/** Converts a 6-byte-long buffer to a node ID.
- *
- * @param buf is a buffer that has to have exactly 6 bytes used, filled with a
- * big-endian node id.
- * @returns the node id (in host endian).
- */
-extern NodeID buffer_to_node_id(const string& buf);
-/** Converts 6 bytes of big-endian data to a node ID.
- *
- * @param d is a pointer to at least 6 valid bytes.
- * @returns the node ID represented by the first 6 bytes of d.
- */
-extern NodeID data_to_node_id(const void* d);
-
-/** Converts an Event ID to a Payload suitable to be sent as an event report. */
-extern Payload eventid_to_buffer(uint64_t eventid);
-
-/** Takes 8 bytes (big-endian) from *data, and returns the event id they
- * represent. */
-inline uint64_t data_to_eventid(const void* data) {
-    uint64_t ret = 0;
-    memcpy(&ret, data, 8);
-    return be64toh(ret);
-}
-
-/** Formats a payload for response of error response messages such as OPtioanl
- * Interaction Rejected or Terminate Due To Error. */
-extern string error_to_buffer(uint16_t error_code, uint16_t mti);
-
-/** Formats a payload for response of error response messages such as Datagram
- * Rejected. */
-extern string error_to_buffer(uint16_t error_code);
-
-/** Writes an error code into a payload object at a given pointer. */
-extern void error_to_data(uint16_t error_code, void* data);
-
-/** Parses an error code from a payload object at a given pointer. */
-extern uint16_t data_to_error(const void *data);
-
-/** Appends an error to the end of an existing buffer. */
-extern void append_error_to_buffer(uint16_t error_code, Payload* p);
-
-/** Parses the payload of an Optional Interaction Rejected or Terminate Due To
- * Error message.
- * @param payload is the contents of the incoming addressed message.
- * @param error_code will hold the 2-byte error code, or ERROR_PERMANENT if not
- * specified
- * @param mti will hold the MTI value, or 0 if not specified
- * @param error_message will hold all remaining bytes that came with the error
- * message.
- */
-extern void buffer_to_error(const Payload& payload, uint16_t* error_code, uint16_t* mti, string* error_message);
-
-/** A global class / variable for empty or not-yet-initialized payloads. */
-extern string EMPTY_PAYLOAD;
-
-/// @return the high 4 bytes of a node ID. @param id is the node ID.
-inline unsigned node_high(NodeID id) {
-    return id >> 32;
-}
-/// @return the low 4 bytes of a node ID. @param id is the node ID.
-inline unsigned node_low(NodeID id) {
-    return id & 0xffffffffU;
-}
 
 /// Helper function to send an event report to the bus. Performs
 /// synchronous (dynamic) memory allocation so use it sparingly and when
@@ -282,12 +199,20 @@ public:
     MessageHandler *global_message_write_flow()
     {
         HASSERT(globalWriteFlow_);
+        if (txHook_)
+        {
+            txHook_();
+        }
         return globalWriteFlow_;
     }
     /** @return Flow to send addressed messages to the NMRAnet bus. */
     MessageHandler *addressed_message_write_flow()
     {
         HASSERT(addressedWriteFlow_);
+        if (txHook_)
+        {
+            txHook_();
+        }
         return addressedWriteFlow_;
     }
 
@@ -399,7 +324,15 @@ public:
      * the interface holds internally. Noop for TCP interface. Must be called
      * on the interface executor. */
     virtual void canonicalize_handle(NodeHandle *h) {}
-    
+
+    /// Sets a transmit hook. This function will be called once for every
+    /// OpenLCB message transmitted. Used for implementing activity LEDs.
+    /// @param hook function to call for each transmit message.
+    void set_tx_hook(std::function<void()> hook)
+    {
+        txHook_ = std::move(hook);
+    }
+
 protected:
     void remove_local_node_from_map(Node *node) {
         auto it = localNodes_.find(node->node_id());
@@ -415,6 +348,9 @@ protected:
 private:
     /// Flow responsible for routing incoming messages to handlers.
     MessageDispatchFlow dispatcher_;
+
+    /// This function is pinged every time a message is transmitted.
+    std::function<void()> txHook_;
 
     typedef Map<NodeID, Node *> VNodeMap;
 
@@ -451,6 +387,28 @@ public:
         return message()->data();
     }
 };
+
+/// Sends an OpenLCB message to the bus.  Performs synchronous (dynamic) memory
+/// allocation so use it sparingly and when there is sufficient amount of RAM
+/// available.
+/// @param src_node A local virtual node from which to send the message.
+/// @param mti message type indicator
+/// @param args either a Payload to send a global message, or a NodeHandle dst
+/// and a Payload to send an addressed message.
+template <typename... Args> void send_message(Node *src_node, Defs::MTI mti, Args &&...args)
+{
+    Buffer<GenMessage> *msg;
+    mainBufferPool->alloc(&msg);
+    msg->data()->reset(mti, src_node->node_id(), std::forward<Args>(args)...);
+    if (msg->data()->dst == NodeHandle())
+    {
+        src_node->iface()->global_message_write_flow()->send(msg);
+    }
+    else
+    {
+        src_node->iface()->addressed_message_write_flow()->send(msg);
+    }
+}
 
 } // namespace openlcb
 

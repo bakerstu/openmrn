@@ -34,7 +34,18 @@
 
 #ifdef __EMSCRIPTEN__
 
+#include <functional>
+
 extern int JSHubPort_debug_port_num;
 int JSHubPort_debug_port_num = 0;
+
+/// Invokes a function pointer.
+extern "C" void __attribute__((used)) invoke_fnp(std::function<void()> *fp)
+{
+    if (fp && *fp)
+    {
+        (*fp)();
+    }
+}
 
 #endif // __EMSCRIPTEN__

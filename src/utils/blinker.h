@@ -90,6 +90,14 @@ extern uint32_t blinker_pattern;
 /** Sets a blinking pattern and never returns. */
 extern void diewith(uint32_t);
 
+/** Turns a blinker pattern into an error code in BCD.
+ * @param pattern a blinker pattern from the above examples.
+ * @return a nonnegative integer with each 4-bit nibble representing the number
+ * of repeats in the block of blinks, in LSB-first order. So a blink 3-1-2 will
+ * be represented as 0x213.
+ */
+extern unsigned parseblink(uint32_t pattern);
+
 #ifdef __cplusplus
 }
 #endif  // cplusplus

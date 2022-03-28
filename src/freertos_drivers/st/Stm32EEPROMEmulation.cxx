@@ -35,21 +35,7 @@
 
 #include <cstring>
 
-#if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
- || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \
- || defined (STM32F048xx) || defined (STM32F051x8) || defined (STM32F058xx) \
- || defined (STM32F070x6) || defined (STM32F070xB) || defined (STM32F071xB) \
- || defined (STM32F072xB) || defined (STM32F078xx) \
- || defined (STM32F091xC) || defined (STM32F098xx)
-#include "stm32f0xx_hal_flash.h"
-#elif defined(STM32F303xC) || defined(STM32F303xE)
-#include "stm32f3xx_hal_flash.h"
-#elif defined(STM32F767xx)
-#define F7_FLASH
-#include "stm32f7xx_hal_flash.h"
-#else
-#error "stm32EEPROMEmulation unsupported STM32 device"
-#endif
+#include "stm32f_hal_conf.hxx"
 
 #if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
  || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \
@@ -64,11 +50,19 @@ const size_t EEPROMEmulation::BYTES_PER_BLOCK = 2;
 const size_t Stm32EEPROMEmulation::PAGE_SIZE = 0x800;
 const size_t EEPROMEmulation::BLOCK_SIZE = 4;
 const size_t EEPROMEmulation::BYTES_PER_BLOCK = 2;
+#elif defined(STM32L432xx) || defined(STM32L431xx)
+const size_t Stm32EEPROMEmulation::PAGE_SIZE = 0x800;
+const size_t EEPROMEmulation::BLOCK_SIZE = 8;
+const size_t EEPROMEmulation::BYTES_PER_BLOCK = 4;
+#define L4_FLASH
 #elif defined(STM32F767xx)
 // Note this assumes single-bank usage
 const size_t Stm32EEPROMEmulation::PAGE_SIZE = 256*1024;
 const size_t EEPROMEmulation::BLOCK_SIZE = 8;
 const size_t EEPROMEmulation::BYTES_PER_BLOCK = 4;
+#define F7_FLASH
+#else
+#error "stm32EEPROMEmulation unsupported STM32 device"
 #endif
 
 /** Constructor.
@@ -133,7 +127,13 @@ void Stm32EEPROMEmulation::flash_erase(unsigned sector)
     
     FLASH_EraseInitTypeDef erase_init;
     erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
+#ifdef L4_FLASH
+    erase_init.Banks = FLASH_BANK_1;
+    uint32_t start_page = erase_init.Page =
+        (((uint32_t)address) - FLASH_BASE) / PAGE_SIZE;
+#else    
     erase_init.PageAddress = (uint32_t)address;
+#endif    
     erase_init.NbPages = SECTOR_SIZE / PAGE_SIZE;
 
     portENTER_CRITICAL();
@@ -142,11 +142,19 @@ void Stm32EEPROMEmulation::flash_erase(unsigned sector)
     // there. This is to make corruption less likely in case of a power
     // interruption happens.
     if (SECTOR_SIZE > PAGE_SIZE) {
+#ifdef L4_FLASH
+        erase_init.Page += 1;
+#else        
         erase_init.PageAddress += PAGE_SIZE;
+#endif        
         erase_init.NbPages--;
         HAL_FLASHEx_Erase(&erase_init, &page_error);
         erase_init.NbPages = 1;
+#ifdef L4_FLASH
+        erase_init.Page = start_page;
+#else
         erase_init.PageAddress = (uint32_t)address;
+#endif        
     }
     HAL_FLASHEx_Erase(&erase_init, &page_error);
     HAL_FLASH_Lock();
@@ -183,8 +191,8 @@ void Stm32EEPROMEmulation::flash_program(
     {
         portENTER_CRITICAL();
         HAL_FLASH_Unlock();
-#ifdef F7_FLASH
-        HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, uint_address, *data);
+#if defined(F7_FLASH)|| defined(L4_FLASH)
+        HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, uint_address, *(uint64_t*)data);
 #else        
         HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, uint_address, *data);
 #endif        
@@ -192,7 +200,7 @@ void Stm32EEPROMEmulation::flash_program(
         portEXIT_CRITICAL();
 
         count -= BLOCK_SIZE;
-        uint_address += sizeof(uint32_t);
-        ++data;
+        uint_address += BLOCK_SIZE;
+        data += (BLOCK_SIZE / sizeof(uint32_t));
     }
 }

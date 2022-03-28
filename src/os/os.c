@@ -421,17 +421,15 @@ int __attribute__((weak)) os_thread_create_helper(os_thread_t *thread,
                                                   void *priv)
 {
     HASSERT(thread);
-#if (configSUPPORT_STATIC_ALLOCATION == 1)
+#if (configSUPPORT_DYNAMIC_ALLOCATION == 1)
+    xTaskCreate(os_thread_start, (const char *const)name,
+                stack_size/sizeof(portSTACK_TYPE), priv, priority, thread);
+#elif (configSUPPORT_STATIC_ALLOCATION == 1)
     *thread = xTaskCreateStatic(os_thread_start, (const char *const)name,
                                 stack_size/sizeof(portSTACK_TYPE), priv,
                                 priority,
                                 (StackType_t *)stack_malloc(stack_size),
                                 (StaticTask_t *) malloc(sizeof(StaticTask_t)));
-    task_new->task = *thread;
-    task_new->name = (char*)pcTaskGetTaskName(*thread);
-#elif (configSUPPORT_DYNAMIC_ALLOCATION == 1)
-    xTaskCreate(os_thread_start, (const char *const)name,
-                stack_size/sizeof(portSTACK_TYPE), priv, priority, thread);
 #else
 #error FREERTOS version v9.0.0 or later required
 #endif
@@ -625,6 +623,7 @@ long long os_get_time_monotonic(void)
     time *= clockmul;
     time >>= 2;
 #else
+
     struct timespec ts;
 #if defined (__nuttx__)
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -632,7 +631,15 @@ long long os_get_time_monotonic(void)
     clock_gettime(CLOCK_MONOTONIC, &ts);
 #endif
     time = ((long long)ts.tv_sec * 1000000000LL) + ts.tv_nsec;
-    
+
+#ifdef GTEST
+    long long fake_time = os_get_fake_time();
+    if (fake_time >= 0)
+    {
+        return fake_time;
+    }
+#endif // not GTEST
+
 #endif
     /* This logic ensures that every successive call is one value larger
      * than the last.  Each call returns a unique value.
@@ -918,7 +925,7 @@ int ignore_fn(void)
     return 0;
 }
 
-#if !defined(ESP32)
+#if !defined(ARDUINO) && !defined(ESP32)
 
 #if !defined (__MINGW32__)
 int main(int argc, char *argv[]) __attribute__ ((weak));

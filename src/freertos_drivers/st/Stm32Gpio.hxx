@@ -39,17 +39,7 @@
 #include "os/Gpio.hxx"
 #include "GpioWrapper.hxx"
 
-#if defined(STM32F072xB) || defined(STM32F091xC)
-#include "stm32f0xx_hal_gpio.h"
-#elif defined(STM32F103xB)
-#include "stm32f1xx_hal_gpio.h"
-#elif defined(STM32F303xC) || defined(STM32F303xE)
-#include "stm32f3xx_hal_gpio.h"
-#elif defined(STM32F767xx)
-#include "stm32f7xx_hal_gpio.h"
-#else
-#error Dont know what STM32 chip you have.
-#endif
+#include "stm32f_hal_conf.hxx"
 
 /// Static GPIO implementation for the STM32 microcontrollers. Do not use
 /// directly: use @ref GPIO_PIN macro.
@@ -58,7 +48,7 @@
 /// @param PIN_NUM is the number of the pin in the port. Zero-based.
 template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
 {
-    /// @return the PIO structure of the give gpio port.
+    /// @return the GPIO structure of the given gpio port.
     static GPIO_TypeDef *port()
     {
         return (GPIO_TypeDef *)GPIOx;

@@ -4,7 +4,11 @@ CSRCS += errno_exit.c \
          ieeehalfprecision.c
 
 CXXSRCS += \
-           Base64.cxx \
+	   Base64.cxx \
+	   Blinker.cxx \
+	   CanIf.cxx \
+	   Crc.cxx \
+	   StringPrintf.cxx \
            Buffer.cxx \
            CanIf.cxx \
            ConfigUpdateListener.cxx \
@@ -26,6 +30,7 @@ CXXSRCS += \
            ServiceLocator.cxx \
            SocketClient.cxx \
            StringPrintf.cxx \
+           SocketCan.cxx \
            constants.cxx \
            format_utils.cxx \
            gc_format.cxx \

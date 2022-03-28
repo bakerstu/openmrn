@@ -42,6 +42,7 @@
 #include "stm32f0xx_hal_gpio_ex.h"
 #include "stm32f0xx_hal_dma.h"
 #include "stm32f0xx_hal_tim.h"
+#include "stm32f0xx_hal.h"
 
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
@@ -144,7 +145,7 @@ void setblink(uint32_t pattern)
 
 const uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
 const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
-
+const uint32_t HSEValue = 8000000;
 
 void timer14_interrupt_handler(void)
 {
@@ -321,7 +322,8 @@ void hw_preinit(void)
         /* Starting Error */
         HASSERT(0);
     }
-    NVIC_SetPriority(TIM14_IRQn, 0);
+    __HAL_DBGMCU_FREEZE_TIM14();
+    SetInterruptPriority(TIM14_IRQn, 0);
     NVIC_EnableIRQ(TIM14_IRQn);
 }
 

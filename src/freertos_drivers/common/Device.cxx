@@ -144,9 +144,11 @@ int Device::close(struct _reent *reent, int fd)
         // stdin, stdout, and stderr never get closed
         return 0;
     }
+    files[fd].inshdn = true;
     int result = f->dev->close(f);
     if (result < 0)
     {
+        files[fd].inshdn = false;
         errno = -result;
         return -1;
     }

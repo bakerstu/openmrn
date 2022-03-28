@@ -504,7 +504,7 @@ ssize_t CC32xxSocket::send(int socket, const void *buffer, size_t length, int fl
 
     if (result < 0)
     {
-        LOG_ERROR( "sl socket write return error %d", result);
+        LOG_ERROR("sl socket write return error %d", result);
         switch (result)
         {
             case SL_ERROR_BSD_SOC_ERROR:
@@ -576,9 +576,8 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
                 {
                     SlSocklen_t sl_option_len = option_len;
 
-                    result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
-                                           SL_SO_RCVBUF, option_value,
-                                           sl_option_len);
+                    result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET, SL_SO_RCVBUF,
+                        option_value, sl_option_len);
                     break;
                 }
                 case SO_KEEPALIVETIME:
@@ -586,8 +585,7 @@ int CC32xxSocket::setsockopt(int socket, int level, int option_name,
                     SlSocklen_t sl_option_len = option_len;
 
                     result = sl_SetSockOpt(s->sd, SL_SOL_SOCKET,
-                                           SL_SO_KEEPALIVETIME, option_value,
-                                           sl_option_len);
+                        SL_SO_KEEPALIVETIME, option_value, sl_option_len);
                     break;
                 }
             }
@@ -676,9 +674,8 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
                 {
                     SlSocklen_t sl_option_len = *option_len;
 
-                    result = sl_GetSockOpt(s->sd, SL_SOL_SOCKET,
-                                           SL_SO_RCVBUF, option_value,
-                                           &sl_option_len);
+                    result = sl_GetSockOpt(s->sd, SL_SOL_SOCKET, SL_SO_RCVBUF,
+                        option_value, &sl_option_len);
                     *option_len = sl_option_len;
                     break;
                 }
@@ -687,12 +684,10 @@ int CC32xxSocket::getsockopt(int socket, int level, int option_name,
                     SlSocklen_t sl_option_len = *option_len;
 
                     result = sl_GetSockOpt(s->sd, SL_SOL_SOCKET,
-                                           SL_SO_KEEPALIVETIME, option_value,
-                                           &sl_option_len);
+                        SL_SO_KEEPALIVETIME, option_value, &sl_option_len);
                     *option_len = sl_option_len;
                     break;
                 }
-                
             }
             break;
         case IPPROTO_TCP:
@@ -760,8 +755,8 @@ int CC32xxSocket::close(File *file)
         portENTER_CRITICAL();
         remove_instance_from_sd(sd);
         portEXIT_CRITICAL();
-        delete this;
         sl_Close(sd);
+        delete this;
     }
     else
     {

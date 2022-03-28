@@ -52,7 +52,7 @@ namespace openlcb
 {
 
 TractionCvSpace::TractionCvSpace(MemoryConfigHandler *parent,
-                                 dcc::PacketFlowInterface *track,
+                                 dcc::TrackIf *track,
                                  dcc::RailcomHubFlow *railcom_hub,
                                  uint8_t space_id)
     : StateFlowBase(parent->service())
@@ -83,23 +83,37 @@ bool TractionCvSpace::set_node(Node *node)
         return false;
     }
     NodeID id = node->node_id();
-    /* NOTE(balazs.racz): It is difficult to figure out the DCC address given
-     * an abstract NMRAnet node. Here we hardcode the reserved DCC node ID
-     * space, which is not a great solution. */
-    if ((id & 0xFFFF00000000ULL) == TractionDefs::NODE_ID_DCC)
+    if ((id & 0xFFFF00000000ULL) != TractionDefs::NODE_ID_DCC)
     {
-        uint16_t new_address = id & 0xFFFFU;
-        if (dccAddress_ != new_address)
-        {
-            dccAddress_ = new_address;
-            errorCode_ = ERROR_NOOP;
-        }
-        return true;
-    }
-    else
-    {
+        currId_ = 0;
         return false;
     }
+    if ((id & 0xFFFF) == currId_)
+    {
+        return true;
+    }
+    currId_ = (id & 0xFFFF);
+    dcc::TrainAddressType type;
+    uint32_t addr;
+    if (!TractionDefs::legacy_address_from_train_node_id(id, &type, &addr)) {
+        currId_ = 0;
+        return false;
+    }
+    switch(type) {
+    case dcc::TrainAddressType::DCC_LONG_ADDRESS:
+        dccAddressNum_ = addr;
+        dccIsLong_ = true;
+        break;
+    case dcc::TrainAddressType::DCC_SHORT_ADDRESS:
+        dccAddressNum_ = addr;
+        dccIsLong_ = false;
+        break;
+    default:
+        currId_ = 0;
+        return false;
+    }
+    errorCode_ = ERROR_NOOP;
+    return true;
 }
 
 const unsigned TractionCvSpace::MAX_CV;
@@ -108,7 +122,7 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
     errorcode_t *error, Notifiable *again)
 {
     if (source == OFFSET_CV_INDEX) {
-        lastIndexedNode_ = dccAddress_;
+        lastIndexedNode_ = currId_;
         uint8_t* lastcv = (uint8_t*)&lastIndexedCv_;
         if (len > 0) dst[0] = lastcv[3];
         if (len > 1) dst[1] = lastcv[2];
@@ -119,7 +133,7 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
     uint32_t cv = -1;
     if (source == OFFSET_CV_VALUE || source == OFFSET_CV_VERIFY_RESULT)
     {
-        if (dccAddress_ != lastIndexedNode_)
+        if (currId_ != lastIndexedNode_)
         {
             *error = Defs::ERROR_PERMANENT;
             return 0;
@@ -278,20 +292,20 @@ StateFlowBase::Action TractionCvSpace::fill_read1_packet()
 {
     auto *b = get_allocation_result(track_);
     b->data()->start_dcc_packet();
-    /** @TODO(balazs.racz) here we make bad assumptions about how to decide
-     * between long and short addresses */
-    if (dccAddress_ >= 0x80)
+    if (dccIsLong_)
     {
-        b->data()->add_dcc_address(dcc::DccLongAddress(dccAddress_));
+        b->data()->add_dcc_address(dcc::DccLongAddress(dccAddressNum_));
     }
     else
     {
-        b->data()->add_dcc_address(dcc::DccShortAddress(dccAddress_));
+        b->data()->add_dcc_address(dcc::DccShortAddress(dccAddressNum_));
     }
     b->data()->add_dcc_pom_read1(cvNumber_);
     b->data()->feedback_key = reinterpret_cast<uintptr_t>(this);
-    railcomHub_->register_port(this);
+    // We proactively repeat read packets twice.
+    b->data()->packet_header.rept_count = 1;
     errorCode_ = ERROR_PENDING;
+    railcomHub_->register_port(this);
     track_->send(b);
     return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(read_returned));
 }
@@ -328,7 +342,7 @@ size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
                               size_t len, errorcode_t *error, Notifiable *again)
 {
     if (destination == OFFSET_CV_INDEX) {
-        lastIndexedNode_ = dccAddress_;
+        lastIndexedNode_ = currId_;
         uint8_t* lastcv = (uint8_t*)&lastIndexedCv_;
         if (len > 0) lastcv[3] = src[0];
         if (len > 1) lastcv[2] = src[1];
@@ -342,7 +356,7 @@ size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
         return 1;
     }
     if (destination == OFFSET_CV_VALUE) {
-        if (dccAddress_ != lastIndexedNode_) {
+        if (currId_ != lastIndexedNode_) {
             *error = Defs::ERROR_TEMPORARY;
             return 0;
         }
@@ -383,15 +397,13 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
 {
     auto *b = get_allocation_result(track_);
     b->data()->start_dcc_packet();
-    /** @todo(balazs.racz) here we make bad assumptions about how to decide
-     * between long and short addresses */
-    if (dccAddress_ >= 0x80)
+    if (dccIsLong_)
     {
-        b->data()->add_dcc_address(dcc::DccLongAddress(dccAddress_));
+        b->data()->add_dcc_address(dcc::DccLongAddress(dccAddressNum_));
     }
     else
     {
-        b->data()->add_dcc_address(dcc::DccShortAddress(dccAddress_));
+        b->data()->add_dcc_address(dcc::DccShortAddress(dccAddressNum_));
     }
     b->data()->add_dcc_pom_write1(cvNumber_, cvData_);
     b->data()->feedback_key = reinterpret_cast<uintptr_t>(this);
@@ -399,8 +411,8 @@ StateFlowBase::Action TractionCvSpace::fill_write1_packet()
     // packets by the standard. We make 4 back to back packets and that
     // fulfills the requirement.
     b->data()->packet_header.rept_count = 3;
-    railcomHub_->register_port(this);
     errorCode_ = ERROR_PENDING;
+    railcomHub_->register_port(this);
     track_->send(b);
     return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(write_returned));
 }
@@ -483,12 +495,15 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
             break;
         case dcc::RailcomPacket::ACK:
             if (new_status == ERROR_PENDING) {
-                new_status = ERROR_OK;
+                // Ack should not change the state machine of CV reads or
+                // writes. Both of those need to return explicitly with a
+                // MOB_POM.
             }
             break;
         case dcc::RailcomPacket::GARBAGE:
             if (new_status == ERROR_PENDING) {
-                new_status = ERROR_GARBAGE;
+                // If we got garbage, we stay in pending state which will
+                // re-send the command again.
             }
             break;
         case dcc::RailcomPacket::MOB_POM:
@@ -496,11 +511,13 @@ void TractionCvSpace::send(Buffer<dcc::RailcomHubData> *b, unsigned priority)
             new_status = ERROR_OK;
             break;
         default:
-            if (new_status == ERROR_PENDING) {
-                new_status = ERROR_UNKNOWN_RESPONSE;
-            }
             break;
         }
+    }
+    if (new_status == ERROR_PENDING)
+    {
+        // Do not record status if it is still pending.
+        return;
     }
     return record_railcom_status(new_status);
 }

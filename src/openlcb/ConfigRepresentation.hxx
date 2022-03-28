@@ -36,7 +36,7 @@
 #define _OPENLCB_CONFIGREPRESENTATION_HXX_
 
 #include "openlcb/ConfigEntry.hxx"
-#include "openlcb/MemoryConfig.hxx"
+#include "openlcb/MemoryConfigDefs.hxx"
 
 namespace openlcb
 {
@@ -205,7 +205,10 @@ public:
     static constexpr typename decltype(                                        \
         TYPE::config_renderer())::OptionsType NAME##_options()                 \
     {                                                                          \
-        return decltype(TYPE::config_renderer())::OptionsType(__VA_ARGS__);    \
+        using SelfType = TYPE;                                                 \
+        using OptionsType =                                                    \
+            typename decltype(SelfType::config_renderer())::OptionsType;       \
+        return OptionsType(__VA_ARGS__);                                       \
     }                                                                          \
     static void render_content_cdi(                                            \
         const openlcb::EntryMarker<LINE> &, std::string *s)                    \
@@ -298,6 +301,17 @@ public:
     PATH().read_or_write_trimmed(                                              \
         fd, PATH##_options().minvalue(), PATH##_options().maxvalue())
 
+/// Requests a readout of a numeric variable with verifying range. If the value
+/// currently present in the config file is outside the defined
+/// minimum/maximum, then sets the value to the default value in the config
+/// file (overwriting). Returns the current value after trimming.
+///
+/// Usage:
+///   uint16_t my_value = CDI_READ_TRIM_DEFAULT(cfg.seg().foo_bar, fd);
+#define CDI_READ_TRIM_DEFAULT(PATH, fd)                                        \
+    PATH().read_or_write_default(fd, PATH##_options().minvalue(),              \
+        PATH##_options().maxvalue(), PATH##_options().defaultvalue())
+
 /// Defines a repeated group of a given type and a given number of repeats.
 ///
 /// Typical usage:
@@ -354,12 +368,12 @@ public:
 /// Defines an empty group with no members, but blocking a certain amount of
 /// space in the rendered configuration.
 ///
-template <unsigned N> class EmptyGroup : public ConfigEntryBase
+template <int N> class EmptyGroup : public ConfigEntryBase
 {
 public:
     using base_type = ConfigEntryBase;
     INHERIT_CONSTEXPR_CONSTRUCTOR(EmptyGroup, base_type)
-    static constexpr unsigned size()
+    static constexpr int size()
     {
         return N;
     }
@@ -434,12 +448,12 @@ CDI_GROUP(
 CDI_GROUP_ENTRY(name, StringConfigEntry<63>, //
     Name("User Name"),                       //
     Description(
-        "This name will appear in network browsers for the current node."));
+        "This name will appear in network browsers for this device."));
 /// User description entry
 CDI_GROUP_ENTRY(description, StringConfigEntry<64>, //
     Name("User Description"),                       //
-    Description("This description will appear in network browsers for the "
-                "current node."));
+    Description("This description will appear in network browsers for "
+                "this device."));
 /// Signals termination of the group.
 CDI_GROUP_END();
 
@@ -488,11 +502,11 @@ template <> inline void render_all_cdi<0>()
  * @param N is a unique integer between 2 and 10 for the invocation.
  */
 #define RENDER_CDI(NS, TYPE, NAME, N)                                          \
-    template <> inline void render_all_cdi<N>()                                \
+    template <> inline void render_all_cdi<2 * N>()                            \
     {                                                                          \
         NS::TYPE def(0);                                                       \
         render_cdi_helper(def, #NS, NAME);                                     \
-        render_all_cdi<N - 1>();                                               \
+        render_all_cdi<2 * N - 1>();                                           \
     }
 
 #endif // _OPENLCB_CONFIGREPRESENTATION_HXX_

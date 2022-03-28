@@ -42,16 +42,10 @@ namespace openlcb
 
 int ConfigUpdateFlow::open_file(const char *path)
 {
-    if (fd_ >= 0) return fd_;
-    if (!path)
-    {
-        fd_ = -1;
-    }
-    else
-    {
-        fd_ = ::open(path, O_RDWR);
-        HASSERT(fd_ >= 0);
-    }
+    HASSERT(fd_ < 0);
+    HASSERT(path);
+    fd_ = ::open(path, O_RDWR);
+    HASSERT(fd_ >= 0);
     return fd_;
 }
 

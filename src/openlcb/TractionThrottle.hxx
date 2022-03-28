@@ -35,183 +35,25 @@
 #ifndef _OPENLCB_TRACTIONTHROTTLE_HXX_
 #define _OPENLCB_TRACTIONTHROTTLE_HXX_
 
+#include "executor/CallableFlow.hxx"
 #include "openlcb/TractionClient.hxx"
 #include "openlcb/TractionDefs.hxx"
+#include "openlcb/TractionThrottleInterface.hxx"
 #include "openlcb/TrainInterface.hxx"
-#include "executor/CallableFlow.hxx"
 
 namespace openlcb
 {
 
-struct TractionThrottleInput;
-
-/// C++ Namespace for collecting all commands that can be sent to the
-/// TractionThrottle flow.
-struct TractionThrottleCommands
-{
-    enum SetDst
-    {
-        SET_DST,
-    };
-
-    enum AssignTrain
-    {
-        ASSIGN_TRAIN,
-    };
-
-    enum ReleaseTrain
-    {
-        RELEASE_TRAIN,
-    };
-
-    enum LoadState
-    {
-        LOAD_STATE,
-    };
-
-    enum ConsistAdd
-    {
-        CONSIST_ADD,
-    };
-
-    enum ConsistDel
-    {
-        CONSIST_DEL,
-    };
-
-    enum ConsistQry
-    {
-        CONSIST_QRY,
-    };
-};
-
-/// Request structure used to send requests to the TractionThrottle
-/// class. Contains parametrized reset calls for properly supporting
-/// @ref StateFlowBase::invoke_subflow_and_wait() syntax.
-struct TractionThrottleInput : public CallableFlowRequestBase
-{
-    enum Command
-    {
-        CMD_SET_DST,
-        CMD_ASSIGN_TRAIN,
-        CMD_RELEASE_TRAIN,
-        CMD_LOAD_STATE,
-        CMD_CONSIST_ADD,
-        CMD_CONSIST_DEL,
-        CMD_CONSIST_QRY,
-    };
-
-    /// Sets the destination node to send messages to without sending assign
-    /// commands to that train node.
-    void reset(const TractionThrottleCommands::SetDst &, const NodeID &dst)
-    {
-        cmd = CMD_SET_DST;
-        this->dst = dst;
-    }
-
-    void reset(const TractionThrottleCommands::AssignTrain &, const NodeID &dst,
-        bool listen)
-    {
-        cmd = CMD_ASSIGN_TRAIN;
-        this->dst = dst;
-        this->flags = listen ? 1 : 0;
-    }
-
-    void reset(const TractionThrottleCommands::ReleaseTrain &)
-    {
-        cmd = CMD_RELEASE_TRAIN;
-    }
-
-    void reset(const TractionThrottleCommands::LoadState &)
-    {
-        cmd = CMD_LOAD_STATE;
-    }
-
-    void reset(const TractionThrottleCommands::ConsistAdd &, NodeID slave, uint8_t flags)
-    {
-        cmd = CMD_CONSIST_ADD;
-        dst = slave;
-        this->flags = flags;
-    }
-
-    void reset(const TractionThrottleCommands::ConsistDel &, NodeID slave)
-    {
-        cmd = CMD_CONSIST_DEL;
-        dst = slave;
-    }
-
-    void reset(const TractionThrottleCommands::ConsistQry &)
-    {
-        cmd = CMD_CONSIST_QRY;
-        replyCause = 0xff;
-    }
-
-    void reset(const TractionThrottleCommands::ConsistQry &, uint8_t ofs)
-    {
-        cmd = CMD_CONSIST_QRY;
-        consistIndex = ofs;
-        replyCause = 0;
-    }
-
-    Command cmd;
-    /// For assign, this carries the destination node ID. For consisting
-    /// requests, this is an in-out argument.
-    NodeID dst;
-    /// Contains the flags for the consist listener. Specified for Attach
-    /// requests, and filled for Query responses.
-    uint8_t flags;
-
-    /// For assign controller reply REJECTED, this is 1 for controller refused
-    /// connection, 2 fortrain refused connection.
-    uint8_t replyCause;
-    /// Total number of entries in the consisting list.
-    uint8_t consistCount;
-    /// Index of the entry in the consisting list that needs to be returned.
-    uint8_t consistIndex;
-};
-
-class TractionThrottleInterface
-    : public openlcb::TrainImpl
-{
-public:
-    virtual void toggle_fn(uint32_t fn) = 0;
-
-    /// Determine if a train is currently assigned to this trottle.
-    /// @return true if a train is assigned, else false
-    virtual bool is_train_assigned() = 0;
-
-    /// @return the controlling node (virtual node of the throttle, i.e., us.)
-    /// @todo this function should not be here
-    virtual openlcb::Node* throttle_node() = 0;
-
-    /// Sets up a callback for listening for remote throttle updates. When a
-    /// different throttle modifies the train node's state, and the
-    /// ASSIGN_TRAIN command was executed with "listen==true" parameter, we
-    /// will get notifications about those remote changes. The notifications
-    /// update the cached state in TractionThrottle, and call this update
-    /// callback. Repeat with nullptr if the callbacks are not desired anymore.
-    /// @param update_callback will be executed when a different throttle
-    /// changes the train state. fn is the function number changed, or -1 for
-    /// speed update.
-    virtual void set_throttle_listener(std::function<void(int fn)> update_callback) = 0;
-
-    /// @return the controlled node (the train node) ID.
-    /// @todo this function should not be here
-    virtual openlcb::NodeID target_node() = 0;
-};
-
 /** Interface for a single throttle for running a train node.
  *
  */
-class TractionThrottle
-    : public CallableFlow<TractionThrottleInput>,
-      public TractionThrottleInterface
+class TractionThrottle : public TractionThrottleBase
 {
 public:
     /// @param node is the openlcb node from which this throttle will be
     /// sending its messages.
     TractionThrottle(Node *node)
-        : CallableFlow<TractionThrottleInput>(node->iface())
+        : TractionThrottleBase(node->iface())
         , node_(node)
     {
         clear_cache();
@@ -228,10 +70,7 @@ public:
     enum
     {
         /// Timeout for assign controller request.
-        TIMEOUT_NSEC = SEC_TO_NSEC(1),
-        /// Returned from get_fn() when we don't have a cahced value for a
-        /// function.
-        FN_NOT_KNOWN = 0xffff,
+        TIMEOUT_NSEC = SEC_TO_NSEC(2),
         /// Upon a load state request, how far do we go into the function list?
         MAX_FN_QUERY = 28,
         ERROR_UNASSIGNED = 0x4000000,
@@ -295,7 +134,15 @@ public:
         }
         set_fn(fn, fnstate);        
     }
-    
+
+    /// Sends out a function query command. The throttle listener will be
+    /// called when the response is available.
+    /// @param address function to query.
+    void query_fn(uint32_t address) override
+    {
+        send_traction_message(TractionDefs::fn_get_payload(address));
+    }
+
     uint32_t legacy_address() override
     {
         return 0;
@@ -338,6 +185,15 @@ public:
     {
         updateCallback_ = std::move(update_callback);
     }
+
+#ifdef GTEST
+    void TEST_assign_listening_node(openlcb::NodeID dst)
+    {
+        dst_ = dst;
+        set_assigned();
+        set_listening();
+    }
+#endif
 
 private:
     Action entry() override
@@ -558,7 +414,9 @@ private:
         }
     }
 
-    void pending_reply_arrived()
+    /// Notifies that a pending query during load has gotten a reply.
+    /// @return true if we were in the load state.
+    bool pending_reply_arrived()
     {
         if (pendingQueries_ > 0)
         {
@@ -566,12 +424,19 @@ private:
             {
                 timer_.trigger();
             }
+            return true;
         }
+        return false;
     }
 
     void speed_reply(Buffer<GenMessage> *msg)
     {
         AutoReleaseBuffer<GenMessage> rb(msg);
+        if (msg->data()->dstNode != node_)
+        {
+            // For a different throttle.
+            return;
+        }
         if (!iface()->matching_node(msg->data()->src, NodeHandle(dst_)))
         {
             return;
@@ -583,26 +448,40 @@ private:
         {
             case TractionDefs::RESP_QUERY_SPEED:
             {
-                pending_reply_arrived();
+                bool expected = pending_reply_arrived();
                 Velocity v;
-                if (TractionDefs::speed_get_parse_last(p, &v))
+                bool is_estop;
+                if (TractionDefs::speed_get_parse_last(p, &v, &is_estop))
                 {
                     lastSetSpeed_ = v;
-                    /// @todo (balazs.racz): call a callback for the client.
-
-                    /// @todo (Stuart.Baker): Do we need to do anything with
-                    /// estopActive_?
+                    estopActive_ = is_estop;
+                    if (updateCallback_ && !expected)
+                    {
+                        updateCallback_(-1);
+                    }
                 }
                 return;
             }
             case TractionDefs::RESP_QUERY_FN:
             {
-                pending_reply_arrived();
+                bool expected = pending_reply_arrived();
                 uint16_t v;
                 unsigned num;
                 if (TractionDefs::fn_get_parse(p, &v, &num))
                 {
                     lastKnownFn_[num] = v;
+                    if (updateCallback_ && !expected)
+                    {
+                        updateCallback_(num);
+                    }
+                }
+            }
+            case TractionDefs::RESP_TRACTION_MGMT:
+            {
+                if (p.size() >= 2 && p[1] == TractionDefs::MGMTRESP_HEARTBEAT)
+                {
+                    // Automatically responds to heartbeat requests.
+                    send_traction_message(TractionDefs::noop_payload());
                 }
             }
         }
@@ -718,6 +597,11 @@ private:
     void listen_reply(Buffer<GenMessage> *msg)
     {
         AutoReleaseBuffer<GenMessage> rb(msg);
+        if (msg->data()->dstNode != node_)
+        {
+            // For a different throttle.
+            return;
+        }
         if (!iface()->matching_node(msg->data()->src, NodeHandle(dst_)))
         {
             return;
@@ -725,7 +609,7 @@ private:
         const Payload &p = msg->data()->payload;
         if (p.size() < 1)
             return;
-        switch (p[0])
+        switch (p[0] & TractionDefs::REQ_MASK)
         {
             case TractionDefs::REQ_SET_SPEED:
             {

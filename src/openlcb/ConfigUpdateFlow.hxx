@@ -71,14 +71,22 @@ public:
     {
     }
 
-    /// Must be called once before calling anything else. Returns the file
-    /// descriptor.
+    /// Must be called once (only) before calling anything else. Returns the
+    /// file descriptor.
     int open_file(const char *path);
     /// Asynchronously invokes all update listeners with the config FD.
     void init_flow();
     /// Synchronously invokes all update listeners to factory reset.
     void factory_reset();
 
+    /// @return the file descriptor of the configuration file, or -1 if the
+    /// configuration file has not yet been opened.
+    int get_fd()
+    {
+        return fd_;
+    }
+
+#ifdef GTEST
     void TEST_set_fd(int fd)
     {
         fd_ = fd;
@@ -86,6 +94,7 @@ public:
     bool TEST_is_terminated() {
         return is_terminated();
     }
+#endif // GTEST
 
     void trigger_update() override
     {
@@ -112,8 +121,8 @@ private:
                 return call_immediately(STATE(do_initial_load));
             }
             l = nextRefresh_.operator->();
+            ++nextRefresh_;
         }
-        ++nextRefresh_;
         return call_listener(l, false);
     }
 

@@ -9,8 +9,8 @@ endif
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 
 AS = $(PREFIX)gcc
-CC = $(PREFIX)gcc
-CXX = $(PREFIX)g++
+CC = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)gcc))
+CXX = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)g++))
 AR = $(PREFIX)ar
 LD = $(PREFIX)g++
 SIZE = $(PREFIX)size
@@ -28,10 +28,14 @@ INCLUDES += -I$(FREERTOSPATH)/Source/include \
             -I$(OPENMRNPATH)/src/freertos_drivers/common
 
 #ARCHOPTIMIZATION = -D__NEWLIB__
-ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
-#ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
+#ARCHOPTIMIZATION += -O3 -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
+ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer -fdata-sections -ffunction-sections
 
 ARCHFLAGS = -g -MD -MP -march=armv7-m -mthumb -mfloat-abi=soft
+
+ifdef DETERMINISTIC_COMPILATION
+ARCHFLAGS += -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/')
+endif
 
 ASFLAGS = -c $(ARCHFLAGS)
 
@@ -47,6 +51,7 @@ CFLAGS = -c  $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
 CXXFLAGS = -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
            -D_ISOC99_SOURCE -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS \
            -fno-exceptions -fno-rtti \
+           -Wsuggest-override -Wno-psabi \
             $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
            -D__LINEAR_MAP__ #-D__STDC_VERSION__=199901
 

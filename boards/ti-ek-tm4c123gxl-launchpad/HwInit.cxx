@@ -58,7 +58,9 @@
 #include "TivaEEPROMBitSet.hxx"
 #include "TivaGPIO.hxx"
 #include "DummyGPIO.hxx"
+#include "GpioWrapper.hxx"
 #include "bootloader_hal.h"
+#include "dcc/DccOutput.hxx"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
@@ -107,6 +109,15 @@ extern StoredBitSet* g_gpio_stored_bit_set;
 StoredBitSet* g_gpio_stored_bit_set = nullptr;
 constexpr unsigned EEPROM_BIT_COUNT = 84;
 constexpr unsigned EEPROM_BITS_PER_CELL = 28;
+
+/// This variable will be set to 1 when a write arrives to the eeprom.
+uint8_t eeprom_updated = 0;
+
+// Overridesthe default behavior to keep track of eeprom writes.
+void EEPROMEmulation::updated_notification()
+{
+    eeprom_updated = 1;
+}
 
 extern "C" {
 void hw_set_to_safe(void);
@@ -170,6 +181,7 @@ struct RailcomDefs
     static void disable_measurement() {}
     static bool need_ch1_cutout() { return true; }
     static uint8_t get_feedback_channel() { return 0xff; }
+    static void middle_cutout_hook() {}
 
     /** @returns a bitmask telling which pins are active. Bit 0 will be set if
      * channel 0 is active (drawing current).*/
@@ -190,6 +202,9 @@ const uint32_t RailcomDefs::UART_PERIPH[] = {SYSCTL_PERIPH_UART1};
 
 static TivaRailcomDriver<RailcomDefs> railcom_driver("/dev/railcom");
 
+// If 1, enabled spread spectrum randomization of the DCC timings.
+uint8_t spreadSpectrum = 0;
+
 struct DccHwDefs {
   /// base address of a capture compare pwm timer pair
   static const unsigned long CCP_BASE = TIMER0_BASE;
@@ -199,6 +214,17 @@ struct DccHwDefs {
   static const unsigned long INTERVAL_BASE = TIMER1_BASE;
   /// interrupt number of the interval timer
   static const unsigned long INTERVAL_INTERRUPT = INT_TIMER1A;
+
+  /// Defines how much time for railcom timing compared to the standard
+  /// length this hardware needs. We have to start a bit earlier due to the
+  /// slow FET turn-ons.
+  static const int RAILCOM_CUTOUT_START_DELTA_USEC = -20;
+  static const int RAILCOM_CUTOUT_MID_DELTA_USEC = 0;
+  static const int RAILCOM_CUTOUT_END_DELTA_USEC = -10;
+  static const int RAILCOM_CUTOUT_POST_DELTA_USEC = -16;
+  /// Adds this to the negative half after the railcom cutout is done.
+  static const int RAILCOM_CUTOUT_POST_NEGATIVE_DELTA_USEC = -4;
+    
 
   /** These timer blocks will be synchronized once per packet, when the
    *  deadband delay is set up. */
@@ -210,7 +236,6 @@ struct DccHwDefs {
 
   using PIN_H = ::BOOSTER_H_Pin;
   using PIN_L = ::BOOSTER_L_Pin;
-  using BOOSTER_ENABLE_Pin = DummyPin;
 
   /** Defines whether the high driver pin is inverted or not. A non-inverted
    *  (value==false) pin will be driven high during the first half of the DCC
@@ -224,31 +249,63 @@ struct DccHwDefs {
    *  (minus L_DEADBAND_DELAY_NSEC), and low during the first half.  A
    *  non-inverted pin will be driven low as safe setting at startup. */
   static const bool PIN_L_INVERT = false;
-  
+
   /** @returns the number of preamble bits to send exclusive of end of packet
    *  '1' bit */
   static int dcc_preamble_count() { return 16; }
+
+  static bool generate_railcom_halfzero() { return true; }
 
   static void flip_led() {}
 
   /** the time (in nanoseconds) to wait between turning off the low driver and
    * turning on the high driver. */
-  static const int H_DEADBAND_DELAY_NSEC = 250;
+  static const int H_DEADBAND_DELAY_NSEC = 0;
   /** the time (in nanoseconds) to wait between turning off the high driver and
    * turning on the low driver. */
-  static const int L_DEADBAND_DELAY_NSEC = 250;
-
-  /** @returns true to produce the RailCom cutout, else false */
-  static bool railcom_cutout() { return false; }
+  static const int L_DEADBAND_DELAY_NSEC = 0;
 
   /** number of outgoing messages we can queue */
   static const size_t Q_SIZE = 4;
 
-
   // Pins defined for railcom
-  using RAILCOM_TRIGGER_Pin = ::RAILCOM_TRIGGER_Pin;
-  static const auto RAILCOM_TRIGGER_INVERT = true;
+  using RAILCOM_TRIGGER_Pin = InvertedGpio<::RAILCOM_TRIGGER_Pin>;
   static const auto RAILCOM_TRIGGER_DELAY_USEC = 6;
+
+  struct BOOSTER_ENABLE_Pin
+  {
+      static void set(bool value)
+      {
+          if (value)
+          {
+              PIN_H::set_hw();
+              PIN_L::set_hw();
+          }
+          else
+          {
+              PIN_H::set(PIN_H_INVERT);
+              PIN_H::set_output();
+              PIN_H::set(PIN_H_INVERT);
+
+              PIN_L::set(PIN_L_INVERT);
+              PIN_L::set_output();
+              PIN_L::set(PIN_L_INVERT);
+          }
+      }
+
+      static void hw_init() {
+          PIN_H::hw_init();
+          PIN_L::hw_init();
+          set(false);
+      }
+  };
+
+  using InternalBoosterOutput =
+      DccOutputHwReal<DccOutput::TRACK, BOOSTER_ENABLE_Pin, RAILCOM_TRIGGER_Pin,
+          1, RAILCOM_TRIGGER_DELAY_USEC, 0>;
+  using Output1 = InternalBoosterOutput;
+  using Output2 = DccOutputHwDummy<DccOutput::PGM>;
+  using Output3 = DccOutputHwDummy<DccOutput::LCC>;
 
   static const auto RAILCOM_UART_BASE = UART1_BASE;
   static const auto RAILCOM_UART_PERIPH = SYSCTL_PERIPH_UART1;
@@ -257,6 +314,20 @@ struct DccHwDefs {
 
 
 static TivaDCC<DccHwDefs> tivaDCC("/dev/mainline", &railcom_driver);
+
+DccOutput *get_dcc_output(DccOutput::Type type)
+{
+    switch (type)
+    {
+        case DccOutput::TRACK:
+            return DccOutputImpl<DccHwDefs::InternalBoosterOutput>::instance();
+        case DccOutput::PGM:
+            return DccOutputImpl<DccHwDefs::Output2>::instance();
+        case DccOutput::LCC:
+            return DccOutputImpl<DccHwDefs::Output3>::instance();
+    }
+    return nullptr;
+}
 
 extern "C" {
 /** Blink LED */
@@ -267,7 +338,8 @@ void dcc_generator_init(void);
 
 void hw_set_to_safe(void)
 {
-    tivaDCC.disable_output();
+    DccHwDefs::InternalBoosterOutput::set_disable_reason(
+        DccOutput::DisableReason::INITIALIZATION_PENDING);
     GpioInit::hw_set_to_safe();
 }
 
@@ -375,7 +447,7 @@ void hw_preinit(void)
     MAP_IntPrioritySet(INT_USB0, 0xff); // USB interrupt low priority
 
     /* Initialize the DCC Timers and GPIO outputs */
-    tivaDCC.hw_init();
+    tivaDCC.hw_preinit();
 
     /* Checks the SW1 pin at boot time in case we want to allow for a debugger
      * to connect. */
@@ -395,7 +467,8 @@ void hw_preinit(void)
 
 void hw_postinit(void)
 {
-    tivaDCC.enable_output();
+    DccHwDefs::InternalBoosterOutput::clear_disable_reason(
+        DccOutput::DisableReason::INITIALIZATION_PENDING);
 }
 
 }

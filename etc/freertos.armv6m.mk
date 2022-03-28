@@ -16,8 +16,8 @@ include $(OPENMRNPATH)/etc/mbed.mk
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 
 AS = $(PREFIX)gcc
-CC = $(PREFIX)gcc
-CXX = $(PREFIX)g++
+CC = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)gcc))
+CXX = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)g++))
 AR = $(PREFIX)ar
 LD = $(PREFIX)g++
 SIZE = $(PREFIX)size
@@ -51,12 +51,14 @@ CORECFLAGS = $(ARCHOPTIMIZATION) $(ARCHFLAGS) -Wall -Werror \
              -fno-builtin -fno-stack-protector -D__FreeRTOS__ -DGCC_ARMCM0 \
              -specs=nano.specs
 
-CFLAGS += -c $(CORECFLAGS) -std=gnu99 -Wstrict-prototypes  \
+CFLAGS += -c $(CORECFLAGS) -std=c99 -Wstrict-prototypes  \
           $(CFLAGSENV) $(CFLAGSEXTRA)
 
-CXXFLAGS += -c $(CORECFLAGS) -std=gnu++0x -D_ISOC99_SOURCE \
+CXXFLAGS += -c $(CORECFLAGS) -std=c++14 -D_ISOC99_SOURCE \
             -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS -D__LINEAR_MAP__ \
-            -fno-exceptions -fno-rtti $(CXXFLAGSENV) $(CXXFLAGSEXTRA)
+            -fno-exceptions -fno-rtti \
+            -Wsuggest-override -Wno-psabi \
+            $(CXXFLAGSENV) $(CXXFLAGSEXTRA)
 
 LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            -march=armv6-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv6-m \

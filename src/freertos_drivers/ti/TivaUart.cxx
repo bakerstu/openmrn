@@ -34,6 +34,7 @@
 #include <algorithm>
 
 #include <stdint.h>
+#include <tc_ioctl.h>
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -50,19 +51,34 @@
 /** Instance pointers help us get context from the interrupt handler(s) */
 static TivaUart *instances[8] = {NULL};
 
+/** Critical section lock between ISR and ioctl */
+static Atomic isr_lock;
+
 /** Constructor.
  * @param name name of this device instance in the file system
  * @param base base address of this device
  * @param interrupt interrupt number of this device
  */
-TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt)
-    : Serial(name),
-      base(base),
-      interrupt(interrupt),
-      txPending(false)
+TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt,
+    uint32_t baud, uint32_t mode, bool hw_fifo, TxEnableMethod tx_enable_assert,
+    TxEnableMethod tx_enable_deassert)
+    : Serial(name)
+    , txEnableAssert_(tx_enable_assert)
+    , txEnableDeassert_(tx_enable_deassert)
+    , base_(base)
+    , interrupt_(interrupt)
+    , baud_(baud)
+    , hwFIFO_(hw_fifo)
+    , mode_(mode)
+    , txPending_(false)
 {
+    static_assert(
+        UART_CONFIG_PAR_NONE == 0, "driverlib changed against our assumptions");
+    static_assert(
+        UART_CONFIG_STOP_ONE == 0, "driverlib changed against our assumptions");
+    HASSERT(mode <= 0xFFu);
     
-    switch (base)
+    switch (base_)
     {
         default:
             HASSERT(0);
@@ -99,60 +115,90 @@ TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt)
             instances[7] = this;
             break;
     }
-    
-    /* We set the preliminary clock here, but it will be re-set when the device
-     * gets enabled. The reason for re-setting is that the system clock is
-     * switched in HwInit but that has not run yet at this point. */
-    MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, 115200,
-                            UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
-    MAP_UARTFIFOEnable(base);
-    MAP_UARTTxIntModeSet(base, UART_TXINT_MODE_EOT);
-    MAP_IntDisable(interrupt);
+
+    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud_, mode_);
+    MAP_UARTTxIntModeSet(base_, UART_TXINT_MODE_EOT);
+    MAP_IntDisable(interrupt_);
     /* We set the priority so that it is slightly lower than the highest needed
      * for FreeRTOS compatibility. This will ensure that CAN interrupts take
      * precedence over UART. */
-    MAP_IntPrioritySet(interrupt,
+    MAP_IntPrioritySet(interrupt_,
                        std::min(0xff, configKERNEL_INTERRUPT_PRIORITY + 0x20));
-    MAP_UARTIntEnable(base, UART_INT_RX | UART_INT_RT);
+    MAP_UARTIntEnable(base_, UART_INT_RX | UART_INT_RT);
 }
 
 /** Enable use of the device.
  */
 void TivaUart::enable()
 {
-    MAP_UARTConfigSetExpClk(base, cm3_cpu_clock_hz, 115200,
-                            UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE);
-    MAP_IntEnable(interrupt);
-    MAP_UARTEnable(base);
-    MAP_UARTFIFOEnable(base);
+    MAP_IntEnable(interrupt_);
+    MAP_UARTEnable(base_);
+    if (hwFIFO_)
+    {
+        MAP_UARTFIFOEnable(base_);
+    }
+    else
+    {
+        MAP_UARTFIFODisable(base_);
+    }
 }
 
 /** Disable use of the device.
  */
 void TivaUart::disable()
 {
-    MAP_IntDisable(interrupt);
-    MAP_UARTDisable(base);
+    MAP_IntDisable(interrupt_);
+    MAP_UARTDisable(base_);
+}
+
+/** Send data until there is no more space left.
+ */
+void TivaUart::send()
+{
+    do
+    {
+        uint8_t data = 0;
+        if (txBuf->get(&data, 1))
+        {
+            MAP_UARTCharPutNonBlocking(base_, data);
+
+        }
+        else
+        {
+            break;
+        }
+    }
+    while (MAP_UARTSpaceAvail(base_));
+
+    if (txBuf->pending())
+    {
+        /* more data to send later */
+        MAP_UARTTxIntModeSet(base_, UART_TXINT_MODE_FIFO);
+    }
+    else
+    {
+        /* no more data left to send */
+        MAP_UARTTxIntModeSet(base_, UART_TXINT_MODE_EOT);
+        MAP_UARTIntClear(base_, UART_INT_TX);
+    }
 }
 
 /** Try and transmit a message.
  */
 void TivaUart::tx_char()
 {
-    if (txPending == false)
+    if (txPending_ == false)
     {
-        uint8_t data = 0;
-
-        if (txBuf->get(&data, 1))
+        if (txEnableAssert_)
         {
-            MAP_UARTCharPutNonBlocking(base, data);
-
-            MAP_IntDisable(interrupt);
-            txPending = true;
-            MAP_UARTIntEnable(base, UART_INT_TX);
-            MAP_IntEnable(interrupt);
-            txBuf->signal_condition();
+            txEnableAssert_();
         }
+
+        send();
+        txPending_ = true;
+
+        MAP_UARTIntEnable(base_, UART_INT_TX);
+        txBuf->signal_condition();
     }
 }
 
@@ -162,16 +208,16 @@ void TivaUart::interrupt_handler()
 {
     int woken = false;
     /* get and clear the interrupt status */
-    unsigned long status = MAP_UARTIntStatus(base, true);    
-    MAP_UARTIntClear(base, status);
+    unsigned long status = MAP_UARTIntStatus(base_, true);    
+    MAP_UARTIntClear(base_, status);
 
     /** @todo (Stuart Baker) optimization opportunity by getting a write
      * pointer to fill the fifo and then advance the buffer when finished
      */
     /* receive charaters as long as we can */
-    while (MAP_UARTCharsAvail(base))
+    while (MAP_UARTCharsAvail(base_))
     {
-        long data = MAP_UARTCharGetNonBlocking(base);
+        long data = MAP_UARTCharGetNonBlocking(base_);
         if (data >= 0 && data <= 0xff)
         {
             unsigned char c = data;
@@ -183,29 +229,122 @@ void TivaUart::interrupt_handler()
         }
     }
     /* transmit a character if we have pending tx data */
-    if (txPending)
+    if (txPending_ && (status & UART_INT_TX))
     {
-        /** @todo (Stuart Baker) optimization opportunity by getting a read
-         * pointer to fill the fifo and then consume the buffer when finished.
-         */
-        while (MAP_UARTSpaceAvail(base))
+        if (txBuf->pending())
         {
-            unsigned char data;
-            if (txBuf->get(&data, 1) != 0)
+            send();
+            txBuf->signal_condition_from_isr();
+        }
+        else
+        {
+            /* no more data left to send */
+            HASSERT(MAP_UARTTxIntModeGet(base_) == UART_TXINT_MODE_EOT);
+            if (txEnableDeassert_)
             {
-                MAP_UARTCharPutNonBlocking(base, data);
-                txBuf->signal_condition_from_isr();
+                txEnableDeassert_();
             }
-            else
+            txPending_ = false;
+            if (txComplete_)
             {
-                /* no more data pending */
-                txPending = false;
-                MAP_UARTIntDisable(base, UART_INT_TX);
-                break;
+                Notifiable *t = txComplete_;
+                txComplete_ = nullptr;
+                t->notify_from_isr();
             }
+            MAP_UARTIntDisable(base_, UART_INT_TX);
         }
     }
     os_isr_exit_yield_test(woken);
+}
+
+/** Sets the port baud rate and mode from the class variables. */
+void TivaUart::set_mode()
+{
+    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud_, mode_);
+}
+
+/** Request an ioctl transaction
+ * @param file file reference for this device
+ * @param key ioctl key
+ * @param data key data
+ * @return 0 upon success, -errno upon failure
+ */
+int TivaUart::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    switch (key)
+    {
+        default:
+            return -EINVAL;
+        case TCSBRK:
+            MAP_UARTBreakCtl(base_, true);
+            // need to wait at least two frames here
+            MAP_SysCtlDelay(100 * 26);
+            MAP_UARTBreakCtl(base_, false);
+            MAP_SysCtlDelay(12 * 26);
+            break;
+        case TCPARNONE:
+            mode_ &= ~UART_CONFIG_PAR_MASK;
+            mode_ |= UART_CONFIG_PAR_NONE;
+            MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_NONE);
+            break;
+        case TCPARODD:
+            mode_ &= ~UART_CONFIG_PAR_MASK;
+            mode_ |= UART_CONFIG_PAR_ODD;
+            MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ODD);
+            break;
+        case TCPAREVEN:
+            mode_ &= ~UART_CONFIG_PAR_MASK;
+            mode_ |= UART_CONFIG_PAR_EVEN;
+            MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_EVEN);
+            break;
+        case TCPARONE:
+            mode_ &= ~UART_CONFIG_PAR_MASK;
+            mode_ |= UART_CONFIG_PAR_ONE;
+            MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ONE);
+            break;
+        case TCPARZERO:
+            mode_ &= ~UART_CONFIG_PAR_MASK;
+            mode_ |= UART_CONFIG_PAR_ZERO;
+            MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ZERO);
+            break;
+        case TCSTOPONE:
+            mode_ &= ~UART_CONFIG_STOP_MASK;
+            mode_ |= UART_CONFIG_STOP_ONE;
+            set_mode();
+            break;
+        case TCSTOPTWO:
+            mode_ &= ~UART_CONFIG_STOP_MASK;
+            mode_ |= UART_CONFIG_STOP_TWO;
+            set_mode();
+            break;
+        case TCBAUDRATE:
+            baud_ = data;
+            set_mode();
+            break;
+        case TCDRAINNOTIFY:
+        {
+            Notifiable* arg = (Notifiable*)data;
+            {
+                AtomicHolder h(&isr_lock);
+                if (txComplete_ != nullptr)
+                {
+                    return -EBUSY;
+                }
+                if (txPending_)
+                {
+                    txComplete_ = arg;
+                    arg = nullptr;
+                }
+            }
+            if (arg)
+            {
+                arg->notify();
+            }
+            break;
+        }
+    }
+
+    return 0;
 }
 
 extern "C" {

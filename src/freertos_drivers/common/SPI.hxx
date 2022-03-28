@@ -73,15 +73,30 @@ public:
      * start of the transfer and deasserted at the end of the transfer.  This
      * will always be a polled transaction no matter what.
      * @param msg message(s) to transact.
+     * @param num number of messages to transfer
      * @return bytes transfered upon success, -errno upon failure
      */
     __attribute__((optimize("-O3")))
-    int transfer_with_cs_assert_polled(struct spi_ioc_transfer *msg)
+    int transfer_with_cs_assert_polled(struct spi_ioc_transfer *msgs,
+                                       int num = 1)
     {
+        int count = 0;
+        int result;
+
         csAssert();
-        int result = transfer_polled(msg);
+        for (int i = 0; i < num; ++i, ++msgs)
+        {
+            result = transfer_polled(msgs);
+            if (UNLIKELY(result < 0))
+            {
+                // something bad happened, reset the bus and bail
+                csDeassert();
+                return result;
+            }
+            count += msgs->len;
+        }
         csDeassert();
-        return result;
+        return count;
     }
 
     /** Conduct multiple message transfers with one stop at the end.
