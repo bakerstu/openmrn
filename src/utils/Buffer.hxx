@@ -223,7 +223,6 @@ private:
      */
     Buffer(Pool *pool)
         : BufferBase(sizeof(Buffer<T>), pool)
-        , data_()
     {
     }
 
