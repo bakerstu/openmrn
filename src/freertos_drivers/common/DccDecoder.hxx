@@ -198,6 +198,10 @@ private:
         inputData_->flush();
     };
 
+#ifdef DCC_DECODER_DEBUG
+    LogRing<uint16_t, 256> debugLog_;
+#endif
+    
     typedef DCCPacket input_data_type;
     DeviceBuffer<DCCPacket> *inputData_ {
         DeviceBuffer<DCCPacket>::create(Module::Q_SIZE)};
@@ -291,6 +295,11 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         // Debug::DccDecodeInterrupts::toggle();
         uint32_t raw_new_value = Module::get_capture_counter();
         uint32_t old_value = lastTimerValue_;
+#ifdef DCC_DECODER_DEBUG
+        debugLog_.add(0);
+        debugLog_.add(old_value);
+        debugLog_.add(raw_new_value);
+#endif
         if (raw_new_value > old_value) {
             // Timer has overflowed.
             if (nextSample_ < old_value) {
@@ -311,6 +320,9 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             nextSample_ -= Module::SAMPLE_PERIOD_CLOCKS;
         }
         uint32_t new_value = old_value - raw_new_value;
+#ifdef DCC_DECODER_DEBUG
+        debugLog_.add(new_value);
+#endif        
         bool cutout_just_finished = false;
         decoder_.process_data(new_value);
         if (decoder_.before_dcc_cutout())
