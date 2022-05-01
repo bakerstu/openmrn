@@ -47,13 +47,38 @@
 namespace openlcb
 {
 
+class StreamSender : public StateFlow<ByteBuffer, QList<1>> {
+public:
+    StreamSender(Service* s) :  StateFlow<ByteBuffer, QList<1>>(s) {}
+    
+    /// Describes the different states in the stream sender.
+    enum StreamSenderState : uint8_t
+    {
+        /// This stream sender is not in use now
+        IDLE,
+        /// The local client has started using the stream sender (via API).
+        STARTED,
+        /// The stream initiate message was sent.
+        INITIATING,
+        /// Stream is open and data can be transferred.
+        RUNNING,
+        /// Stream buffer is full, waiting for proceed message.
+        FULL,
+        /// Stream close message was sent.
+        CLOSING,
+        /// An error occurred.
+        STATE_ERROR
+    };
+
+};
+
 /// Helper class for sending stream data to a CAN interface.
 /// @todo add progress report API.
-class StreamSenderCan : public StateFlow<ByteBuffer, QList<1>>
+class StreamSenderCan : public StreamSender
 {
 public:
     StreamSenderCan(Service *service, IfCan *iface, Node *node)
-        : StateFlow<ByteBuffer, QList<1>>(service)
+        : StreamSender(service)
         , ifCan_(iface)
         , node_(node)
     { }
@@ -96,7 +121,7 @@ public:
     StreamSenderCan &set_proposed_window_size(uint16_t window_size)
     {
         HASSERT(state_ == STARTED);
-        streamWindowRemaining_ = window_size;
+        streamWindowSize_ = window_size;
         return *this;
     }
 
@@ -123,6 +148,33 @@ public:
         }
     }
 
+#ifdef GTEST
+    /// Requests to exit any timed operation.
+    /// @return true if a timer was woken up.
+    bool shutdown()
+    {
+        if (sleeping_)
+        {
+            timer_.trigger();
+            sleeping_ = false;
+            return true;
+        }
+        return false;
+    }
+#endif
+
+    /// @return the state of this stream sender.
+    StreamSenderState get_state()
+    {
+        return state_;
+    }
+
+    /// @return the error code if we got a rejection from the remote node.
+    uint16_t get_error()
+    {
+        return errorCode_;
+    }
+    
     /// Start of state machine, called when a buffer of data to send arrives
     /// from the application layer.
     Action entry()
@@ -136,7 +188,7 @@ public:
         if (!streamWindowRemaining_)
         {
             // We ran out of the current stream window size.
-            return wait_and_call(STATE(wait_for_stream_proceed));
+            return call_immediately(STATE(wait_for_stream_proceed));
         }
         if (!remaining())
         {
@@ -173,7 +225,7 @@ private:
         b->data()->reset(Defs::MTI_STREAM_INITIATE_REQUEST, node_->node_id(),
             dst_,
             StreamDefs::create_initiate_request(
-                StreamDefs::MAX_PAYLOAD, false, localStreamId_));
+                streamWindowSize_, false, localStreamId_));
 
         node_->iface()->dispatcher()->register_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
@@ -194,12 +246,14 @@ private:
         if (message->data()->dstNode != node_ ||
             !node_->iface()->matching_node(dst_, message->data()->src))
         {
+            LOG(INFO, "stream reply not for me");
             // Not for me.
             return;
         }
         const auto &payload = message->data()->payload;
-        if (payload.size() < 6 || payload[4] != localStreamId_)
+        if (payload.size() < 6 || (uint8_t)payload[4] != localStreamId_)
         {
+            LOG(INFO, "wrong stream ID %x %x", payload[4], localStreamId_);
             // Talking about another stream or incorrect data.
             return;
         }
@@ -311,7 +365,7 @@ private:
         }
 
         const auto &payload = message->data()->payload;
-        if (payload.size() < 2 || payload[0] != localStreamId_)
+        if (payload.size() < 2 || (uint8_t)payload[0] != localStreamId_)
         {
             // Talking about another stream or incorrect data.
             return;
@@ -404,25 +458,6 @@ private:
     /// How many bytes the allocation of a single CAN frame should be.
     static constexpr size_t CAN_FRAME_ALLOC_SIZE =
         sizeof(CanFrameWriteFlow::message_type);
-
-    /// Describes the different states in the stream sender.
-    enum StreamSenderState : uint8_t
-    {
-        /// This stream sender is not in use now
-        IDLE,
-        /// The local client has started using the stream sender (via API).
-        STARTED,
-        /// The stream initiate message was sent.
-        INITIATING,
-        /// Stream is open and data can be transferred.
-        RUNNING,
-        /// Stream buffer is full, waiting for proceed message.
-        FULL,
-        /// Stream close message was sent.
-        CLOSING,
-        /// An error occurred.
-        STATE_ERROR
-    };
 
     /// Handles incoming stream proceed messages.
     MessageHandler::GenericHandler streamProceedHandler_ {

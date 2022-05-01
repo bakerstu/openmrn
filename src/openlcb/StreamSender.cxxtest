@@ -34,17 +34,159 @@
 
 #include "openlcb/StreamSender.hxx"
 
-#include "utils/async_if_test_helper.hxx"
+#include "utils/async_datagram_test_helper.hxx"
 
 namespace openlcb
 {
 
-class StreamSenderTest : public AsyncNodeTest
+class StreamSenderTest : public TwoNodeDatagramTest
 {
 protected:
+    ~StreamSenderTest()
+    {
+        shutdown();
+    }
+
+    void shutdown()
+    {
+        do
+        {
+            wait();
+        } while (sender_.shutdown());
+    }
+
+    /// Starts a stream, sets expectations and acceptsthe stream on the
+    /// destination side. At the end, sets strict expectations for the rest of
+    /// the test.
+    /// @param max_buffer the number of bytes to accept as window size.
+    void setup_helper(uint16_t max_buffer)
+    {
+        clear_expect(true);
+        expect_packet(":X19CC822AN0225FFFF0000AA;");
+        sender_.start_stream(other_handle(), 0xaa);
+        wait();
+        EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
+        // Accepts with buffer size of 8 bytes.
+        send_packet(StringPrintf(":X19868225N022A%04x8000AA55;", max_buffer));
+        wait();
+        EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+        // No error.
+        EXPECT_EQ(0, sender_.get_error());
+        clear_expect(true);
+    }
+
+    /// Sends a single buffer of data to the stream sender.
+    ///
+    /// @param data bytes payload to send.
+    /// @param use_buf if true, we allocate a 1k buffer, if false, we use
+    /// externally owned bytes by a string.
+    ///
+    void send_bytes(string data, bool use_buf = false)
+    {
+        auto *chunk = sender_.alloc();
+        if (use_buf)
+        {
+            RawBuffer *buf;
+            rawBufferPool->alloc(&buf);
+            HASSERT(buf);
+            HASSERT(data.size() <= buf->data()->MAX_SIZE);
+            memcpy(buf->data()->payload, data.data(), data.size());
+            chunk->data()->set_from(get_buffer_deleter(buf), data.size());
+        }
+        else
+        {
+            ownedPayload_.emplace_back(new string(data));
+            chunk->data()->set_from(ownedPayload_.back().get());
+        }
+
+        sender_.send(chunk);
+    }
+
+    StreamSenderCan sender_ {&g_service, ifCan_.get(), node_};
+    /// Temporary storage of externally owned payload.
+    vector<std::unique_ptr<string>> ownedPayload_;
 };
 
 TEST_F(StreamSenderTest, create)
-{ }
+{
+    EXPECT_EQ(StreamSender::IDLE, sender_.get_state());
+}
+
+TEST_F(StreamSenderTest, initiate)
+{
+    clear_expect(true);
+    EXPECT_EQ(StreamSender::IDLE, sender_.get_state());
+    expect_packet(":X19CC822AN0225FFFF0000AA;");
+    sender_.start_stream(other_handle(), 0xaa);
+    wait();
+    EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
+}
+
+TEST_F(StreamSenderTest, initiate_with_bufsize)
+{
+    clear_expect(true);
+    EXPECT_EQ(StreamSender::IDLE, sender_.get_state());
+    expect_packet(":X19CC822AN0225EF320000AA;");
+    sender_.start_stream(other_handle(), 0xaa).set_proposed_window_size(0xef32);
+    wait();
+    EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
+}
+
+TEST_F(StreamSenderTest, initiate_rejected)
+{
+    clear_expect(true);
+    expect_packet(":X19CC822AN0225FFFF0000AA;");
+    sender_.start_stream(other_handle(), 0xaa);
+    wait();
+    EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
+    // Rejects with a weird error code.
+    send_packet(":X19868225N022A00004220AA55;");
+    wait();
+    EXPECT_EQ(StreamSender::STATE_ERROR, sender_.get_state());
+    // Translated into a permanent error.
+    EXPECT_EQ(0x1020, sender_.get_error());
+}
+
+TEST_F(StreamSenderTest, initiate_accepted)
+{
+    setup_helper(8);
+}
+
+TEST_F(StreamSenderTest, initiate_accepted_send_data)
+{
+    setup_helper(8);
+
+    expect_packet(":X1F22522AN55414243;");
+    send_bytes("ABC");
+    wait();
+    clear_expect(true);
+}
+
+TEST_F(StreamSenderTest, buffer_full)
+{
+    setup_helper(12);
+    
+    EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+
+    expect_packet(":X1F22522AN55414243;");
+    send_bytes("ABC");
+    wait();
+    clear_expect(true);
+
+    EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+    
+    expect_packet(":X1F22522AN554445464748494A;");
+    expect_packet(":X1F22522AN554B4C;");
+    send_bytes("DEFGHIJKL" "MNOPQ");
+    wait();
+    clear_expect(true);
+
+    EXPECT_EQ(StreamSender::FULL, sender_.get_state());
+
+    expect_packet(":X1F22522AN554D4E4F5051;");
+    send_packet(":X19888225N022AAA55;");
+    wait();
+    clear_expect(true);
+}
 
 } // namespace openlcb
