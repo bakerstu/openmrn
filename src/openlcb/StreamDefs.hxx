@@ -39,7 +39,10 @@ namespace openlcb
 /// Static constants and helper functions for the OpenLCB streaming protocol.
 struct StreamDefs
 {
-    static const uint16_t MAX_PAYLOAD = 0xffff;
+    /// Maximum window size for stream send.
+    static constexpr uint16_t MAX_PAYLOAD = 0xffff;
+    /// This value is invalid as a source or destination stream ID.
+    static constexpr uint8_t INVALID_STREAM_ID = 0xff;
 
     enum Flags
     {
@@ -59,9 +62,17 @@ struct StreamDefs
         REJECT_TEMPORARY_OUT_OF_ORDER = 0x40,
     };
 
-    static Payload create_initiate_request(uint16_t max_buffer_size,
-                                           bool has_ident,
-                                           uint8_t src_stream_id)
+    /// Creates a Stream Initiate Request message payload.
+    ///
+    /// @param max_buffer_size value to propose as stream window size.
+    /// @param has_ident if true, sets the flag for carrying a source stream
+    /// ID.
+    /// @param src_stream_id source stream ID value.
+    ///
+    /// @return a Payload object for a GenMessage.
+    ///
+    static Payload create_initiate_request(
+        uint16_t max_buffer_size, bool has_ident, uint8_t src_stream_id)
     {
         Payload p(5, 0);
         p[0] = max_buffer_size >> 8;
