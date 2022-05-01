@@ -37,10 +37,10 @@
 #define _OPENLCB_STREAMSENDER_HXX_
 
 #include "executor/StateFlow.hxx"
-#include "openlcb/IfCan.hxx"
 #include "openlcb/CanDefs.hxx"
-#include "openlcb/StreamDefs.hxx"
 #include "openlcb/DatagramDefs.hxx"
+#include "openlcb/IfCan.hxx"
+#include "openlcb/StreamDefs.hxx"
 #include "utils/ByteBuffer.hxx"
 #include "utils/LimitedPool.hxx"
 
@@ -49,12 +49,86 @@ namespace openlcb
 
 /// Helper class for sending stream data to a CAN interface.
 /// @todo add progress report API.
-class StreamSenderCan : public StateFlow<ByteBuffer, QList<1> >
+class StreamSenderCan : public StateFlow<ByteBuffer, QList<1>>
 {
 public:
+    StreamSenderCan(Service *service, IfCan *iface, Node *node)
+        : StateFlow<ByteBuffer, QList<1>>(service)
+        , ifCan_(iface)
+        , node_(node)
+    { }
+
+    /// Initiates using the stream sender. May be called only on idle stream
+    /// senders.
+    ///
+    /// @param dst Destination node ID to send the stream to.
+    /// @param source_stream_id 8-bit stream ID to use on the this (the source)
+    /// side.
+    ///
+    /// @return *this for calling optional settings API commands.
+    ///
+    StreamSenderCan &start_stream(NodeHandle dst, uint8_t source_stream_id)
+    {
+        DASSERT(state_ == IDLE);
+        state_ = STARTED;
+        dst_ = dst;
+        totalByteCount_ = 0;
+        localStreamId_ = source_stream_id;
+        dstStreamId_ = 0xFF;
+        HASSERT(sleeping_ == false);
+        HASSERT(requestClose_ == 0);
+        requestInit_ = true;
+        trigger();
+        streamFlags_ = 0;
+        streamAdditionalFlags_ = 0;
+        streamWindowSize_ = StreamDefs::MAX_PAYLOAD;
+        streamWindowRemaining_ = 0;
+        errorCode_ = 0;
+        return *this;
+    }
+
+    /// Specifies what the source should propose as window size to the
+    /// destination. May be called only after start_stream.
+    ///
+    /// @param window_size in bytes, what should we propose in the stream
+    /// initiate call
+    ///
+    StreamSenderCan &set_proposed_window_size(uint16_t window_size)
+    {
+        HASSERT(state_ == STARTED);
+        streamWindowRemaining_ = window_size;
+        return *this;
+    }
+
+    /// Specifies the Stream UID to send in the stream initiate request. May be
+    /// called only after start_stream. This function must be used if opening
+    /// an unannounced stream to a destination.
+    ///
+    /// @param stream_uid a valid 6-byte stream identifier.
+    ///
+    StreamSenderCan &set_stream_uid(NodeID stream_uid)
+    {
+        HASSERT(state_ == STARTED);
+        /// @todo implement opening unannounced streams.
+        return *this;
+    }
+
+    /// Sets the stream sender to be available for reuse after a stream has
+    /// been closed or reached error.
+    void clear()
+    {
+        if (state_ == STATE_ERROR || state_ == CLOSING)
+        {
+            state_ = IDLE;
+        }
+    }
+
+    /// Start of state machine, called when a buffer of data to send arrives
+    /// from the application layer.
     Action entry()
     {
-        if (requestInit_) {
+        if (requestInit_)
+        {
             /// @todo get the destination address somehow.
             requestInit_ = 0;
             return call_immediately(STATE(initiate_stream));
@@ -74,13 +148,24 @@ public:
     }
 
 private:
+    /// Sends an empty message to *this, thereby waking up the state machine.
+    void trigger()
+    {
+        auto *b = alloc();
+        this->send(b);
+    }
+
+    /// Allocates a GenMessage buffer and sends out the stream initiate message
+    /// to the destination.
     Action initiate_stream()
     {
-        return allocate_and_call(
-            node_->iface()->addressed_message_write_flow(),
+        // Grabs alias / node ID from the cache.
+        node_->iface()->canonicalize_handle(&dst_);
+        return allocate_and_call(node_->iface()->addressed_message_write_flow(),
             STATE(send_init_stream));
     }
 
+    /// Sends the stream initiate message.
     Action send_init_stream()
     {
         auto *b = get_allocation_result(
@@ -93,13 +178,16 @@ private:
         node_->iface()->dispatcher()->register_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
             Defs::MTI_EXACT);
-        
+
         node_->iface()->addressed_message_write_flow()->send(b);
         sleeping_ = true;
+        state_ = INITIATING;
         return sleep_and_call(&timer_, SEC_TO_NSEC(STREAM_INIT_TIMEOUT_SEC),
             STATE(received_init_stream));
     }
 
+    /// Callback from GenHandler when a stream initiate reply message arrives
+    /// at the local interface.
     void stream_initiate_replied(Buffer<GenMessage> *message)
     {
         auto rb = get_buffer_deleter(message);
@@ -125,12 +213,14 @@ private:
         {
             dst_.alias = message->data()->src.alias;
         }
+        sleeping_ = false;
         timer_.trigger();
     }
 
+    /// State executed after wakeup from the stream initiate reply received
+    /// handler.
     Action received_init_stream()
     {
-        sleeping_ = false;
         node_->iface()->dispatcher()->unregister_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
             Defs::MTI_EXACT);
@@ -158,17 +248,18 @@ private:
         streamWindowRemaining_ = streamWindowSize_;
         node_->iface()->dispatcher()->register_handler(
             &streamProceedHandler_, Defs::MTI_STREAM_PROCEED, Defs::MTI_EXACT);
+        state_ = RUNNING;
         return entry();
     }
-    
-    /// Allocates a buffer for a CAN frame.
+
+    /// Allocates a buffer for a CAN frame (for payload send).
     Action allocate_can_buffer()
     {
         return allocate_and_call(
             ifCan_->frame_write_flow(), STATE(got_frame), &canFramePool_);
     }
 
-    /// Got a buffer for an output frame.
+    /// Got a buffer for an output frame (payload send).
     Action got_frame()
     {
         auto *b = get_allocation_result(ifCan_->frame_write_flow());
@@ -193,6 +284,8 @@ private:
         return entry();
     }
 
+    /// Starts sleeping until a proceed message arrives. Run this state when
+    /// streamWindowRemaining_ == 0.
     Action wait_for_stream_proceed()
     {
         if (streamWindowRemaining_)
@@ -201,6 +294,7 @@ private:
             return call_immediately(STATE(stream_proceed_timeout));
         }
         sleeping_ = true;
+        state_ = FULL;
         return sleep_and_call(&timer_, SEC_TO_NSEC(STREAM_PROCEED_TIMEOUT_SEC),
             STATE(stream_proceed_timeout));
     }
@@ -228,21 +322,22 @@ private:
         streamWindowRemaining_ += streamWindowSize_;
         if (sleeping_)
         {
+            sleeping_ = false;
             timer_.trigger();
         }
     }
 
     Action stream_proceed_timeout()
     {
-        sleeping_ = false;
         if (!streamWindowRemaining_) // no proceed arrived
         {
             /// @todo (balazs.racz) somehow merge these two actions: remember
             /// that we timed out and close the stream.
             return return_error(Defs::ERROR_TEMPORARY,
-                "Times out waiting for stream proceed message.");
-            //return call_immediately(STATE(close_stream));
+                "Timed out waiting for stream proceed message.");
+            // return call_immediately(STATE(close_stream));
         }
+        state_ = RUNNING;
         return entry();
     }
 
@@ -285,12 +380,13 @@ private:
         streamWindowRemaining_ -= num_bytes;
     }
 
-    Action return_error(uint32_t code, string message) {
+    Action return_error(uint32_t code, string message)
+    {
         errorCode_ = code;
-        /// @todo mark that we are in an error state.
+        state_ = STATE_ERROR;
         return release_and_exit();
     }
-    
+
     /// How many seconds for waiting for a stream proceed before we give up
     /// with a timeout.
     static constexpr size_t STREAM_PROCEED_TIMEOUT_SEC = 20;
@@ -298,7 +394,7 @@ private:
     /// How many seconds for waiting for a stream init before we give up
     /// with a timeout.
     static constexpr size_t STREAM_INIT_TIMEOUT_SEC = 20;
-    
+
     /// How many bytes payload we can copy into a single CAN frame.
     static constexpr size_t MAX_BYTES_PAYLOAD_PER_CAN_FRAME = 7;
 
@@ -308,6 +404,25 @@ private:
     /// How many bytes the allocation of a single CAN frame should be.
     static constexpr size_t CAN_FRAME_ALLOC_SIZE =
         sizeof(CanFrameWriteFlow::message_type);
+
+    /// Describes the different states in the stream sender.
+    enum StreamSenderState : uint8_t
+    {
+        /// This stream sender is not in use now
+        IDLE,
+        /// The local client has started using the stream sender (via API).
+        STARTED,
+        /// The stream initiate message was sent.
+        INITIATING,
+        /// Stream is open and data can be transferred.
+        RUNNING,
+        /// Stream buffer is full, waiting for proceed message.
+        FULL,
+        /// Stream close message was sent.
+        CLOSING,
+        /// An error occurred.
+        STATE_ERROR
+    };
 
     /// Handles incoming stream proceed messages.
     MessageHandler::GenericHandler streamProceedHandler_ {
@@ -326,6 +441,8 @@ private:
     NodeHandle dst_;
     /// How many bytes we have transmitted in this stream so far.
     size_t totalByteCount_;
+    /// What state the current class is in.
+    StreamSenderState state_ {IDLE};
     /// Stream ID at the source node. @todo fill in
     uint8_t localStreamId_;
     /// Stream ID at the destination node. @todo fill in
