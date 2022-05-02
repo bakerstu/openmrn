@@ -112,6 +112,13 @@ public:
         return *this;
     }
 
+    /// Closes the stream when all the bytes are transferred.
+    void close_stream()
+    {
+        requestClose_ = true;
+        trigger();
+    }
+
     /// Specifies what the source should propose as window size to the
     /// destination. May be called only after start_stream.
     ///
@@ -185,9 +192,8 @@ public:
             requestInit_ = 0;
             return call_immediately(STATE(initiate_stream));
         }
-        if (state_ == STATE_ERROR)
+        if (state_ == STATE_ERROR || state_ == CLOSING)
         {
-            LOG(INFO, "dropping data due to error.");
             return release_and_exit();
         }
         DASSERT(state_ == RUNNING);
@@ -200,6 +206,11 @@ public:
         {
             // We ran out of the current chunk of stream payload from the
             // source.
+            if (requestClose_ && queue_empty())
+            {
+                requestClose_ = false;
+                return call_immediately(STATE(do_close_stream));
+            }
             return release_and_exit();
         }
         return call_immediately(STATE(allocate_can_buffer));
@@ -243,7 +254,7 @@ private:
         return sleep_and_call(&timer_, SEC_TO_NSEC(STREAM_INIT_TIMEOUT_SEC),
             STATE(received_init_stream));
     }
-
+   
     /// Callback from GenHandler when a stream initiate reply message arrives
     /// at the local interface.
     void stream_initiate_replied(Buffer<GenMessage> *message)
@@ -312,6 +323,28 @@ private:
         return entry();
     }
 
+    /// Allocates a GenMessage buffer and sends out the stream close message
+    /// to the destination.
+    Action do_close_stream()
+    {
+        return allocate_and_call(node_->iface()->addressed_message_write_flow(),
+            STATE(send_close_stream));
+    }
+
+    /// Sends the stream close message.
+    Action send_close_stream()
+    {
+        auto *b = get_allocation_result(
+            node_->iface()->addressed_message_write_flow());
+        b->data()->reset(Defs::MTI_STREAM_COMPLETE, node_->node_id(), dst_,
+            StreamDefs::create_close_request(
+                localStreamId_, dstStreamId_, totalByteCount_));
+
+        node_->iface()->addressed_message_write_flow()->send(b);
+        state_ = CLOSING;
+        return entry();
+    }
+    
     /// Allocates a buffer for a CAN frame (for payload send).
     Action allocate_can_buffer()
     {

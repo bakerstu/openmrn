@@ -190,8 +190,8 @@ TEST_F(StreamSenderTest, buffer_full)
     clear_expect(true);
 }
 
-/// This test sends multiple chunks ahead of time to the queue, then simulates
-/// the remote end to trickle out the data.
+// This test sends multiple chunks ahead of time to the queue, then simulates
+// the remote end to trickle out the data.
 TEST_F(StreamSenderTest, queueing)
 {
     setup_helper(8);
@@ -256,6 +256,93 @@ TEST_F(StreamSenderTest, queueing)
 
     clear_expect(true);
     EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+}
+
+// Empty stream.
+TEST_F(StreamSenderTest, close_empty)
+{
+    setup_helper(8);
+    EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+
+    expect_packet(":X198A822AN0225AA5500000000;");
+    sender_.close_stream();
+    wait();
+    clear_expect(true);
+
+    EXPECT_EQ(StreamSender::CLOSING, sender_.get_state());
+}
+
+// Sends some data then closes the stream.
+TEST_F(StreamSenderTest, send_close)
+{
+    setup_helper(8);
+    EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+
+    expect_packet(":X1F22522AN5530313233;");
+    send_bytes("0123");
+    wait();
+    clear_expect(true);
+    EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+
+    expect_packet(":X198A822AN0225AA5500000004;");
+    sender_.close_stream();
+    wait();
+    clear_expect(true);
+
+    EXPECT_EQ(StreamSender::CLOSING, sender_.get_state());
+}
+
+// We have bytes in the queue that need to be sent off before the close
+// message, but exactly filling one buffer. So the repsonse to a stream proceed
+// will be complete.
+TEST_F(StreamSenderTest, full_close)
+{
+    setup_helper(2); // very short window
+    EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+
+    expect_packet(":X1F22522AN553031;");
+    send_bytes("0123");
+    sender_.close_stream();
+    
+    wait();
+    clear_expect(true);
+    EXPECT_EQ(StreamSender::FULL, sender_.get_state());
+
+    expect_packet(":X1F22522AN553233;");
+    send_packet(":X19888225N022AAA55;");
+    wait();
+    EXPECT_EQ(StreamSender::FULL, sender_.get_state());
+
+    expect_packet(":X198A822AN0225AA5500000004;");
+    send_packet(":X19888225N022AAA55;");
+    wait();
+    clear_expect(true);
+
+    EXPECT_EQ(StreamSender::CLOSING, sender_.get_state());
+}
+
+// We have bytes in the queue that need to be sent off before the close message.
+TEST_F(StreamSenderTest, queued_close)
+{
+    ::testing::InSequence seq;
+    setup_helper(2); // very short window
+    EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+
+    expect_packet(":X1F22522AN553031;");
+    send_bytes("012");
+    sender_.close_stream();
+    
+    wait();
+    clear_expect(true);
+    EXPECT_EQ(StreamSender::FULL, sender_.get_state());
+
+    expect_packet(":X1F22522AN5532;");
+    expect_packet(":X198A822AN0225AA5500000003;");
+    send_packet(":X19888225N022AAA55;");
+    wait();
+    clear_expect(true);
+
+    EXPECT_EQ(StreamSender::CLOSING, sender_.get_state());
 }
 
 
