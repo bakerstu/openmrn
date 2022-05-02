@@ -49,6 +49,7 @@ protected:
 
     void shutdown()
     {
+        LOG(INFO, "shutdown.");
         do
         {
             wait();
@@ -188,5 +189,74 @@ TEST_F(StreamSenderTest, buffer_full)
     wait();
     clear_expect(true);
 }
+
+/// This test sends multiple chunks ahead of time to the queue, then simulates
+/// the remote end to trickle out the data.
+TEST_F(StreamSenderTest, queueing)
+{
+    setup_helper(8);
+    
+    expect_packet(":X1F22522AN5530313233343536;");
+    expect_packet(":X1F22522AN5537;");
+    send_bytes("012345678");
+    wait();
+    clear_expect(true);
+
+    string p;
+    for (unsigned i = 0; i < 40; i++)
+    {
+        p.push_back(i);
+    }
+
+    send_bytes(p.substr(0, 10));
+    send_bytes(p.substr(10, 10));
+    send_bytes(p.substr(20, 5));
+
+    EXPECT_EQ(StreamSender::FULL, sender_.get_state());
+
+    // The sender never puts data into a single CAN frame from multiple inbound
+    // messages. Thus we have a partial frame first here.
+    expect_packet(":X1F22522AN5538;");
+    expect_packet(":X1F22522AN5500010203040506;");
+
+    send_packet(":X19888225N022AAA55;");
+    wait();
+
+    clear_expect(true);
+    EXPECT_EQ(StreamSender::FULL, sender_.get_state());
+
+    expect_packet(":X1F22522AN55070809;");
+    expect_packet(":X1F22522AN550a0b0c0d0e;");
+
+    send_packet(":X19888225N022AAA55;");
+    wait();
+
+    clear_expect(true);
+    EXPECT_EQ(StreamSender::FULL, sender_.get_state());
+
+    expect_packet(":X1F22522AN550f10111213;");
+    expect_packet(":X1F22522AN55141516;");
+
+    send_packet(":X19888225N022AAA55;");
+    wait();
+
+    clear_expect(true);
+    EXPECT_EQ(StreamSender::FULL, sender_.get_state());
+
+    expect_packet(":X1F22522AN551718;");
+
+    send_packet(":X19888225N022AAA55;");
+    wait();
+    EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+
+    // If we send a chunk now, it will be output immediately.
+    expect_packet(":X1F22522AN55191a;");
+    send_bytes(p.substr(25, 2));
+    wait();
+
+    clear_expect(true);
+    EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+}
+
 
 } // namespace openlcb

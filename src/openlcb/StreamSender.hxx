@@ -185,6 +185,12 @@ public:
             requestInit_ = 0;
             return call_immediately(STATE(initiate_stream));
         }
+        if (state_ == STATE_ERROR)
+        {
+            LOG(INFO, "dropping data due to error.");
+            return release_and_exit();
+        }
+        DASSERT(state_ == RUNNING);
         if (!streamWindowRemaining_)
         {
             // We ran out of the current stream window size.
@@ -396,6 +402,7 @@ private:
     }
 
 private:
+    /// @return how many bytes of data we can put into the next CAN frame.
     size_t compute_next_can_length()
     {
         size_t ret = remaining();
@@ -436,6 +443,7 @@ private:
 
     Action return_error(uint32_t code, string message)
     {
+        LOG(INFO, "error %x: %s", code, message.c_str());
         errorCode_ = code;
         state_ = STATE_ERROR;
         return release_and_exit();
