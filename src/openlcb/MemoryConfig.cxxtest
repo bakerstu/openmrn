@@ -419,8 +419,6 @@ TEST_F(MemoryConfigTest, FactoryReset)
     update_flow.TEST_set_fd(23);
     
     FactoryResetListener l;
-    // Normally, a reboot function never returns. We can't do that under linux
-    // though, so the stack will generate an error datagram reply.
     expect_packet(":X19A2822AN077C00;"); // received OK, no response
 
     EXPECT_CALL(mock, factory_reset());
