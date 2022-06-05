@@ -518,6 +518,22 @@ private:
         }
     }
 
+    /// Used internally by the factory_reset implementation to reboot the
+    /// binary asynchronously.
+    class RebootTimer : public ::Timer
+    {
+    public:
+        RebootTimer(Service *s)
+            : ::Timer(s->executor()->active_timers())
+        { }
+
+        long long timeout() override
+        {
+            reboot();
+            return DELETE;
+        }
+    };
+
     /// Invokes the openlcb config handler to do a factory reset. Starts a
     /// timer to reboot the device after a little time.
     void handle_factory_reset();

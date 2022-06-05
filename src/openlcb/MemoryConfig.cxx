@@ -67,11 +67,19 @@ void reboot()
 namespace openlcb
 {
 
+#ifdef GTEST
+static constexpr unsigned FACTORY_RESET_REBOOT_DELAY_MSEC = 50;
+#else
+static constexpr unsigned FACTORY_RESET_REBOOT_DELAY_MSEC = 500;
+#endif
 
-void __attribute__ ((weak)) MemoryConfigHandler::handle_factory_reset()
+
+void __attribute__((weak)) MemoryConfigHandler::handle_factory_reset()
 {
     static_cast<ConfigUpdateFlow *>(ConfigUpdateFlow::instance())
         ->factory_reset();
+    (new RebootTimer(service()))
+        ->start(MSEC_TO_NSEC(FACTORY_RESET_REBOOT_DELAY_MSEC));
 }
 
 FileMemorySpace::FileMemorySpace(int fd, address_t len)

@@ -426,6 +426,9 @@ TEST_F(MemoryConfigTest, FactoryReset)
     EXPECT_CALL(mock, factory_reset());
     send_packet(":X1A22A77CN20AA;");
     wait();
+
+    EXPECT_CALL(mock, reboot());
+    twait();
 }
 
 static const char MEMORY_BLOCK_DATA[] = "abrakadabra12345678xxxxyyyyzzzzwww.";
