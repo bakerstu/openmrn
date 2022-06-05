@@ -482,6 +482,11 @@ private:
 #endif
                 return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
             }
+            case MemoryConfigDefs::COMMAND_FACTORY_RESET:
+            {
+                handle_factory_reset();
+                return respond_ok(0);
+            }
             case MemoryConfigDefs::COMMAND_OPTIONS:
             {
                 return call_immediately(STATE(handle_options));
@@ -513,6 +518,10 @@ private:
         }
     }
 
+    /// Invokes the openlcb config handler to do a factory reset. Starts a
+    /// timer to reboot the device after a little time.
+    void handle_factory_reset();
+    
     Action ok_response_sent() OVERRIDE
     {
         if (!response_.empty())

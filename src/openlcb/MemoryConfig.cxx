@@ -44,6 +44,8 @@
 #include "can_ioctl.h"
 #endif
 
+#include "openlcb/ConfigUpdateFlow.hxx"
+
 extern "C" {
 /// Implement this function (usually in HwInit.cxx) to enter the
 /// bootloader. Usual implementations write some magic value to RAM and the
@@ -64,6 +66,13 @@ void reboot()
 
 namespace openlcb
 {
+
+
+void __attribute__ ((weak)) MemoryConfigHandler::handle_factory_reset()
+{
+    static_cast<ConfigUpdateFlow *>(ConfigUpdateFlow::instance())
+        ->factory_reset();
+}
 
 FileMemorySpace::FileMemorySpace(int fd, address_t len)
     : fileSize_(len)

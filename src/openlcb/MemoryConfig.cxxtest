@@ -32,8 +32,11 @@
  * @date 23 Feb 2014
  */
 
-#include "utils/async_datagram_test_helper.hxx"
 #include "openlcb/MemoryConfig.hxx"
+
+#include "utils/async_datagram_test_helper.hxx"
+#include "utils/ConfigUpdateListener.hxx"
+#include "openlcb/ConfigUpdateFlow.hxx"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -369,6 +372,59 @@ TEST_F(MemoryConfigTest, GetSpaceInfoRO_NZLA)
         .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
 
     send_packet(":X1A22A77CN208421;");
+    wait();
+}
+
+struct GlobalMock : public Singleton<GlobalMock> {
+    MOCK_METHOD0(reboot, void());
+    MOCK_METHOD0(factory_reset, void());
+};
+
+extern "C" void reboot()
+{
+    GlobalMock::instance()->reboot();
+}
+
+struct FactoryResetListener : public DefaultConfigUpdateListener
+{
+    void factory_reset(int fd) override
+    {
+        GlobalMock::instance()->factory_reset();
+    }
+
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done)
+    {
+        done->notify();
+        return UPDATED;
+    }
+};
+
+TEST_F(MemoryConfigTest, Reboot)
+{
+    StrictMock<GlobalMock> mock;
+    // Normally, a reboot function never returns. We can't do that under linux
+    // though, so the stack will generate an error datagram reply.
+    expect_packet(":X19A4822AN077C1041;"); // unsupported command
+
+    EXPECT_CALL(mock, reboot());
+    send_packet(":X1A22A77CN20A9;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, FactoryReset)
+{
+    StrictMock<GlobalMock> mock;
+    ConfigUpdateFlow update_flow{ifCan_.get()};
+    update_flow.TEST_set_fd(23);
+    
+    FactoryResetListener l;
+    // Normally, a reboot function never returns. We can't do that under linux
+    // though, so the stack will generate an error datagram reply.
+    expect_packet(":X19A2822AN077C00;"); // received OK, no response
+
+    EXPECT_CALL(mock, factory_reset());
+    send_packet(":X1A22A77CN20AA;");
     wait();
 }
 
