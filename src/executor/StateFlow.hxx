@@ -529,6 +529,7 @@ protected:
         return wait_and_call(c);
     }
 
+public:
     /** Calls a helper flow to perform some actions. Performs inline
      * synchronous allocation form the main buffer pool. Ignores the target
      * flow's buffer pool settings, because that makes it impossible to
@@ -543,7 +544,7 @@ protected:
      * buffer type.
      */
     template <class T, typename... Args>
-    void invoke_subflow_and_ignore_result(
+    static void invoke_subflow_and_ignore_result(
         FlowInterface<Buffer<T>> *target_flow, Args &&... args)
     {
         Buffer<T> *b;
@@ -552,7 +553,8 @@ protected:
         b->data()->done.reset(EmptyNotifiable::DefaultInstance());
         target_flow->send(b);
     }
-    
+
+protected:
     struct StateFlowSelectHelper;
     struct StateFlowTimedSelectHelper;
 
