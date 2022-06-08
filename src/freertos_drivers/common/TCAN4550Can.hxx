@@ -1124,6 +1124,10 @@ private:
     MCANInterrupt mcanInterruptEnable_; ///< shadow for the interrupt enable
     uint32_t txCompleteMask_; ///< shadow for the transmit complete buffer mask
     uint8_t state_; ///< present bus state
+
+    // These bitmasks are protected from a read-modify-write race condition
+    // because they are only set from a thread context that holds the SPI bus
+    // mutex.
     uint8_t txPending_ : 1; ///< waiting on a TX active event
     uint8_t rxPending_ : 1; ///< waiting on a RX active event
 
