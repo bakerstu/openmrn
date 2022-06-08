@@ -712,11 +712,6 @@ void *TCAN4550Can::entry()
                     // error passive state
                     ++softErrorCount;
                     state_ = CAN_STATE_BUS_PASSIVE;
-
-                    // cancel TX FIFO buffers
-                    register_write(TXBCR, TX_FIFO_BUFFERS_MASK);
-
-                    txBuf->signal_condition();
                 }
                 else
                 {
@@ -730,6 +725,12 @@ void *TCAN4550Can::entry()
                     // bus off
                     ++busOffCount;
                     state_ = CAN_STATE_BUS_OFF;
+
+                    // cancel TX FIFO buffers
+                    register_write(TXBCR, TX_FIFO_BUFFERS_MASK);
+
+                    txBuf->signal_condition();
+                }
                 }
             }
         }
