@@ -725,12 +725,23 @@ void *TCAN4550Can::entry()
                     // bus off
                     ++busOffCount;
                     state_ = CAN_STATE_BUS_OFF;
+                    // attempt recovery
+                    Cccr cccr;
+                    do
+                    {
+                        cccr.data = 0;
+                        register_write(CCCR, cccr.data);
+                        cccr.data = register_read(CCCR);
+                    } while (cccr.init == 1);
 
                     // cancel TX FIFO buffers
                     register_write(TXBCR, TX_FIFO_BUFFERS_MASK);
 
                     txBuf->signal_condition();
                 }
+                else
+                {
+                    state_ = CAN_STATE_ACTIVE;
                 }
             }
         }
