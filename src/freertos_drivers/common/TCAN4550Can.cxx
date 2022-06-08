@@ -650,7 +650,7 @@ void *TCAN4550Can::entry()
             spiStatus_ = register_read(STATUS);
             status_ = register_read(INTERRUPT_STATUS);
 
-            MRAMMessage msg;
+            MRAMSPIMessage msg;
             msg.cmd = READ;
             msg.addrH = 0x10;
             msg.addrL = 0x00;
@@ -659,7 +659,7 @@ void *TCAN4550Can::entry()
             spi_ioc_transfer xfer[2];
             xfer[0].tx_buf = (unsigned long)&msg;
             xfer[0].rx_buf = 0;
-            xfer[0].len = sizeof(MRAMMessage);
+            xfer[0].len = sizeof(MRAMSPIMessage);
             xfer[1].tx_buf = 0;
             xfer[1].rx_buf = (unsigned long)regs_;
             xfer[1].len = sizeof(regs_);
