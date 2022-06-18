@@ -35,14 +35,16 @@
 #define _FREERTOS_DRIVERS_COMMON_TCAN4550CAN_HXX_
 
 #include "Can.hxx"
+#include "DummyGPIO.hxx"
 #include "SPI.hxx"
 
+#include "os/Gpio.hxx"
 #include "os/OS.hxx"
 #include "utils/Atomic.hxx"
 
 #include "can_ioctl.h"
 
-#define TCAN4550_DEBUG 0
+#define TCAN4550_DEBUG 1
 
 /// Specification of CAN driver for the TCAN4550.
 /// @todo The TCAN4550 uses the Bosch MCAN IP. If we end up supporting other
@@ -55,8 +57,10 @@ public:
     /// @param name name of this device instance in the file system
     /// @param interrupt_enable callback to enable the interrupt
     /// @param interrupt_disable callback to disable the interrupt
+    /// @param test_pin test GPIO pin for instrumenting the code
     TCAN4550Can(const char *name,
-                void (*interrupt_enable)(), void (*interrupt_disable)())
+                void (*interrupt_enable)(), void (*interrupt_disable)(),
+                const Gpio *test_pin = DummyPinWithRead::instance())
         : Can(name, 0, 0)
         , OSThread()
         , interruptEnable_(interrupt_enable)
@@ -69,7 +73,13 @@ public:
         , state_(CAN_STATE_STOPPED)
         , txPending_(false)
         , rxPending_(false)
+#if TCAN4550_DEBUG
+        , testPin_(test_pin)
+#endif
     {
+#if TCAN4550_DEBUG
+        testPin_->set();
+#endif
     }
 
     /// Destructor.
@@ -1139,6 +1149,7 @@ private:
     volatile uint32_t status_;
     volatile uint32_t enable_;
     volatile uint32_t spiStatus_;
+    const Gpio *testPin_; ///< test GPIO pin for instrumenting the code
 #endif
 
     /// baud rate settings table
