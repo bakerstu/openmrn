@@ -44,7 +44,7 @@
 
 #include "can_ioctl.h"
 
-#define TCAN4550_DEBUG 1
+#define TCAN4550_DEBUG 0
 
 /// Specification of CAN driver for the TCAN4550.
 /// @todo The TCAN4550 uses the Bosch MCAN IP. If we end up supporting other
