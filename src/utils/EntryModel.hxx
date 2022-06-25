@@ -283,6 +283,12 @@ public:
         return numLeadingZeros_ > 0;
     }
 
+    /// Sets the number of leading zeros without changing the value.
+    void set_leading_zeros(unsigned num)
+    {
+        numLeadingZeros_ = num;
+    }
+
     /// Get the entry as an unsigned integer value. Note, that '0' is returned
     /// both when the actual value is '0' and when the entry is "empty". If the
     /// caller needs to distinguish between these two states, check for
