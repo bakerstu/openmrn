@@ -56,6 +56,7 @@ openlcb::SimpleCanStack stack(NODE_ID);
 openlcb::TrainService traction_service(stack.iface());
 
 const char *const openlcb::SNIP_DYNAMIC_FILENAME = openlcb::MockSNIPUserFile::snip_user_file_path;
+const char *const openlcb::CONFIG_FILENAME = openlcb::SNIP_DYNAMIC_FILENAME;
 
 int port = 12021;
 const char *host = "localhost";
@@ -137,9 +138,9 @@ int appl_main(int argc, char *argv[])
     }
 
     openlcb::LoggingTrain train_impl(address);
-    openlcb::TrainNodeForProxy train_node(&traction_service, &train_impl);
+    openlcb::TrainNodeWithId train_node(&traction_service, &train_impl, openlcb::TractionDefs::NODE_ID_DCC | 0xFF000000u | address);
     openlcb::FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>
-    is_train_event_handler(&train_node);
+        is_train_event_handler(&train_node);
     openlcb::ProtocolIdentificationHandler pip(
         &train_node,
         openlcb::Defs::EVENT_EXCHANGE | openlcb::Defs::SIMPLE_NODE_INFORMATION |
