@@ -710,11 +710,17 @@ void *TCAN4550Can::entry()
                 if (psr.ep)
                 {
                     // error passive state
+#if TCAN4550_DEBUG
+                    testPin_->clr();
+#endif
                     ++softErrorCount;
                     state_ = CAN_STATE_BUS_PASSIVE;
                 }
                 else
                 {
+#if TCAN4550_DEBUG
+                    testPin_->set();
+#endif
                     state_ = CAN_STATE_ACTIVE;
                 }
             }
@@ -723,6 +729,9 @@ void *TCAN4550Can::entry()
                 if (psr.bo)
                 {
                     // bus off
+#if TCAN4550_DEBUG
+                    testPin_->write(!testPin_->read());
+#endif
                     ++busOffCount;
                     state_ = CAN_STATE_BUS_OFF;
                     // attempt recovery
@@ -738,9 +747,15 @@ void *TCAN4550Can::entry()
                     register_write(TXBCR, TX_FIFO_BUFFERS_MASK);
 
                     txBuf->signal_condition();
+#if TCAN4550_DEBUG
+                    testPin_->write(!testPin_->read());
+#endif
                 }
                 else
                 {
+#if TCAN4550_DEBUG
+                    testPin_->set();
+#endif
                     state_ = CAN_STATE_ACTIVE;
                 }
             }
