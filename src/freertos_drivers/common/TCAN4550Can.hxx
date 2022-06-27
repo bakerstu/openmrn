@@ -60,7 +60,12 @@ public:
     /// @param test_pin test GPIO pin for instrumenting the code
     TCAN4550Can(const char *name,
                 void (*interrupt_enable)(), void (*interrupt_disable)(),
-                const Gpio *test_pin = DummyPinWithRead::instance())
+#if TCAN4550_DEBUG
+                const Gpio *test_pin = DummyPinWithRead::instance()
+#else
+                const Gpio *test_pin = nullptr
+#endif
+               )
         : Can(name, 0, 0)
         , OSThread()
         , interruptEnable_(interrupt_enable)
