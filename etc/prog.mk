@@ -140,7 +140,7 @@ cdi.o : compile_cdi
 	rm -f cdi.d
 
 compile_cdi: config.hxx $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
-	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
+	g++ -o $@ -I. -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include $(CDIEXTRA)  --std=c++11 -MMD -MF $@.d $(CXXFLAGSEXTRA) $(OPENMRNPATH)/src/openlcb/CompileCdiMain.cxx
 
 config.hxx: Revision.hxxout
 
@@ -179,7 +179,7 @@ endif
 # in the core target libraries.
 $(LIBDIR)/timestamp: $(LIBBUILDDEP) $(BUILDDIRS)
 ifdef FLOCKPATH
-	@$(FLOCKPATH)/flock $(OPENMRNPATH)/targets/$(TARGET) -c "if [ $< -ot $(LIBBUILDDEP) -o ! -f $(LIBBUILDDEP) ] ; then $(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all ; else echo short-circuiting core target build ; fi"
+	@$(FLOCKPATH)/flock $(OPENMRNPATH)/targets/$(TARGET) -c "if [ $@ -ot $(LIBBUILDDEP) -o ! -f $(LIBBUILDDEP) ] ; then $(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all ; else echo short-circuiting core target build, because $@ is older than $(LIBBUILDDEP) ; fi"
 else
 	@echo warning: no flock support. If you use make -jN then you can run into occasional compilation errors when multiple makes are progressing in the same directory. Usually re-running make solved them.
 	$(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all
@@ -257,8 +257,7 @@ cincstats:
 
 %.xml: %.o $(OPENMRNPATH)/bin/build_cdi.py
 	$(OPENMRNPATH)/bin/build_cdi.py -i $< -o $*.cxxout
-	$(CXX) $(CXXFLAGS) -x c++ $*.cxxout -o $@
-	$(CXX) -MM $(CXXFLAGS) -x c++ $*.cxxout > $*.d
+	$(CXX) -MMD -MF $*.d $(CXXFLAGS) -x c++ $*.cxxout -o $@
 
 ifeq ($(TARGET),bare.pruv3)
 .cpp.o:
@@ -275,16 +274,16 @@ ifeq ($(TARGET),bare.pruv3)
 
 else
 .cpp.o:
-	$(CXX) $(CXXFLAGS) -MD -MF $*.d $(abspath $<) -o $@
+	$(CXX) $(CXXFLAGS) -MMD -MF $*.d $(abspath $<) -o $@
 
 .cxx.o:
-	$(CXX) $(CXXFLAGS) -MD -MF $*.d $(abspath $<) -o $@
+	$(CXX) $(CXXFLAGS) -MMD -MF $*.d $(abspath $<) -o $@
 
 .S.o:
-	$(AS) $(ASFLAGS) -MD -MF $*.d $(abspath $<) -o $@
+	$(AS) $(ASFLAGS) -MMD -MF $*.d $(abspath $<) -o $@
 
 .c.o:
-	$(CC) $(CFLAGS) -MD -MF $*.d $(abspath $<) -o $@
+	$(CC) $(CFLAGS) -MMD -MF $*.d $(abspath $<) -o $@
 endif
 
 clean: clean-local

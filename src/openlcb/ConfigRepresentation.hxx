@@ -502,11 +502,11 @@ template <> inline void render_all_cdi<0>()
  * @param N is a unique integer between 2 and 10 for the invocation.
  */
 #define RENDER_CDI(NS, TYPE, NAME, N)                                          \
-    template <> inline void render_all_cdi<N>()                                \
+    template <> inline void render_all_cdi<2 * N>()                            \
     {                                                                          \
         NS::TYPE def(0);                                                       \
         render_cdi_helper(def, #NS, NAME);                                     \
-        render_all_cdi<N - 1>();                                               \
+        render_all_cdi<2 * N - 1>();                                           \
     }
 
 #endif // _OPENLCB_CONFIGREPRESENTATION_HXX_

@@ -107,7 +107,7 @@ void (* const __interrupt_vector[])(void) =
     0,                               /**<  10 reserved */
     SVC_Handler,                     /**<  11 SV call */
     0,                               /**<  12 reserved */
-    0,                               /**<  13 reserved -- bootloader appentry */
+    reset_handler,                   /**<  13 reserved -- bootloader appentry */
     PendSV_Handler,                  /**<  14 pend SV */
     SysTick_Handler,                 /**<  15 system tick */
     watchdog_interrupt_handler,      /**<  16 watchdog timer */

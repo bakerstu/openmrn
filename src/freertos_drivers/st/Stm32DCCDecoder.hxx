@@ -222,7 +222,7 @@ public:
         // This code handles underflow of the timer correctly. We cannot wait
         // longer than one full cycle though (65 msec -- typical RailCom waits
         // are 20-500 usec).
-        uint32_t new_match_v = usecTimerStart_ + TIMER_MAX_VALUE + 1 - usec;
+        uint32_t new_match_v = usecTimerStart_ + usec;
         new_match_v &= 0xffff;
         __HAL_TIM_SET_COMPARE(
             usec_timer_handle(), HW::USEC_CHANNEL, new_match_v);
@@ -245,7 +245,7 @@ public:
     static void set_cap_timer_time()
     {
         if (shared_timers()) {
-            usecTimerStart_ =  get_capture_counter();
+            usecTimerStart_ =  get_raw_capture_counter();
         } else {
             usecTimerStart_ =  __HAL_TIM_GET_COUNTER(usec_timer_handle());
         }
@@ -280,13 +280,18 @@ private:
         // 1 usec per tick
         handle->Init.Prescaler = configCPU_CLOCK_HZ / 1000000;
         handle->Init.ClockDivision = 0;
-        handle->Init.CounterMode = TIM_COUNTERMODE_DOWN;
+        handle->Init.CounterMode = TIM_COUNTERMODE_UP;
         handle->Init.RepetitionCounter = 0;
         handle->Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 
+        HASSERT(HAL_TIM_IC_DeInit(handle) == HAL_OK);
         HASSERT(HAL_TIM_IC_Init(handle) == HAL_OK);
     }
 
+    /// Helper function to read the raw capture register value.
+    /// @return the value of the CCx register matching the capture channel.
+    static inline uint32_t get_raw_capture_counter();
+    
     /// @return the hardware pointer to the capture timer.
     static TIM_TypeDef *capture_timer()
     {
@@ -457,8 +462,34 @@ bool Stm32DccTimerModule<HW>::int_get_and_clear_capture_event()
 
 template <class HW> uint32_t Stm32DccTimerModule<HW>::get_capture_counter()
 {
-    return HAL_TIM_ReadCapturedValue(
-        capture_timer_handle(), HW::CAPTURE_CHANNEL);
+    // Simulates down-counting.
+    return TIMER_MAX_VALUE - get_raw_capture_counter();
+}
+
+template <class HW> uint32_t Stm32DccTimerModule<HW>::get_raw_capture_counter()
+{
+    // This if structure will be optimized away.
+    if (HW::CAPTURE_CHANNEL == TIM_CHANNEL_1)
+    {
+        return capture_timer()->CCR1;
+    }
+    else if (HW::CAPTURE_CHANNEL == TIM_CHANNEL_2)
+    {
+        return capture_timer()->CCR2;
+    }
+    else if (HW::CAPTURE_CHANNEL == TIM_CHANNEL_3)
+    {
+        return capture_timer()->CCR3;
+    }
+    else if (HW::CAPTURE_CHANNEL == TIM_CHANNEL_4)
+    {
+        return capture_timer()->CCR4;
+    }
+    else
+    {
+        DIE("Unknown capture channel");
+        return 0;
+    }
 }
 
 template <class HW>

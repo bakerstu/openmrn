@@ -101,9 +101,9 @@ protected:
             .Times(AtLeast(0))
             .WillRepeatedly(Return(dcc::TrainAddressType::DCC_LONG_ADDRESS));
         // alias reservation
-        expect_packet(":X1070133AN060100003456;");
+        expect_packet(":X1070133AN06010000F456;");
         // initialized
-        expect_packet(":X1910033AN060100003456;");
+        expect_packet(":X1910033AN06010000F456;");
         trainNode_.reset(new TrainNodeForProxy(&trainService_, &m1_));
         wait();
     }
@@ -112,7 +112,7 @@ protected:
         wait();
     }
 
-    static const NodeID kTrainNodeID = 0x060100003456U;
+    static const NodeID kTrainNodeID = 0x06010000F456U;
     std::unique_ptr<TrainNode> trainNode_;
 };
 

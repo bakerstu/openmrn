@@ -47,6 +47,19 @@ namespace openlcb
 
 #define CONSTANT 0x1B0CA37ABA9 /**< constant for random number generation */
 
+/// This code removes the unique bits in the stored node alias in case this is
+/// a NOT_RESPONDING entry.
+/// @param stored alias in the metadata storage
+/// @return the alias if it's valid or NOT_RESPONDING ifthis is a sentinel
+static NodeAlias resolve_notresponding(NodeAlias stored)
+{
+    if ((stored & NOT_RESPONDING) == NOT_RESPONDING)
+    {
+        return NOT_RESPONDING;
+    }
+    return stored;
+}
+
 #if defined(TEST_CONSISTENCY)
 extern volatile int consistency_result;
 volatile int consistency_result = 0;
@@ -55,12 +68,14 @@ int AliasCache::check_consistency()
 {
     if (idMap.size() != aliasMap.size())
     {
+        LOG(INFO, "idmap size != aliasmap size.");
         return 1;
     }
     if (aliasMap.size() == entries)
     {
         if (!freeList.empty())
         {
+            LOG(INFO, "Found freelist entry when map is full.");
             return 2;
         }
     }
@@ -68,11 +83,13 @@ int AliasCache::check_consistency()
     {
         if (freeList.empty())
         {
+            LOG(INFO, "No freelist entry although map is not full.");
             return 3;
         }
     }
     if (aliasMap.size() == 0 && (!oldest.empty() || !newest.empty()))
     {
+        LOG(INFO, "LRU head/tail elements should be null when map is empty.");
         return 4;
     }
     std::set<void *> free_entries;
@@ -81,18 +98,21 @@ int AliasCache::check_consistency()
         Metadata *m = p.deref(this);
         if (free_entries.count(m))
         {
-            return 5; // duplicate entry on freelist
+            LOG(INFO, "Duplicate entry on freelist.");
+            return 5;
         }
         free_entries.insert(m);
     }
     if (free_entries.size() + aliasMap.size() != entries)
     {
-        return 6; // lost some metadata entries
+        LOG(INFO, "Lost some metadata entries.");
+        return 6;
     }
     for (auto kv : aliasMap)
     {
         if (free_entries.count(kv.deref(this)))
         {
+            LOG(INFO, "Found an aliasmap entry in the freelist.");
             return 19;
         }
     }
@@ -100,6 +120,7 @@ int AliasCache::check_consistency()
     {
         if (free_entries.count(kv.deref(this)))
         {
+            LOG(INFO, "Found an id entry in the freelist.");
             return 20;
         }
     }
@@ -107,10 +128,12 @@ int AliasCache::check_consistency()
     {
         if (!oldest.empty())
         {
+            LOG(INFO, "Oldest should be empty when map is empty.");
             return 7;
         }
         if (!newest.empty())
         {
+            LOG(INFO, "Newest should be empty when map is empty.");
             return 8;
         }
     }
@@ -118,18 +141,22 @@ int AliasCache::check_consistency()
     {
         if (oldest.empty())
         {
+            LOG(INFO, "Oldest should be nonempty when map is nonempty.");
             return 9;
         }
         if (newest.empty())
         {
+            LOG(INFO, "Newest should be nonempty when map is nonempty.");
             return 10;
         }
         if (free_entries.count(oldest.deref(this)))
         {
+            LOG(INFO, "Oldest is on the freelist.");
             return 11; // oldest is free
         }
         if (free_entries.count(newest.deref(this)))
         {
+            LOG(INFO, "Newest is on the freelist.");
             return 12; // newest is free
         }
     }
@@ -143,6 +170,7 @@ int AliasCache::check_consistency()
         unsigned count = 1;
         if (!prev.deref(this)->older_.empty())
         {
+            LOG(INFO, "Prev link points to empty.");
             return 13;
         }
         while (!prev.deref(this)->newer_.empty())
@@ -151,20 +179,24 @@ int AliasCache::check_consistency()
             ++count;
             if (free_entries.count(next.deref(this)))
             {
+                LOG(INFO, "Next link points to the freelist.");
                 return 21;
             }
             if (next.deref(this)->older_.idx_ != prev.idx_)
             {
+                LOG(INFO, "Next link broken.");
                 return 14;
             }
             prev = next;
         }
         if (prev.idx_ != newest.idx_)
         {
+            LOG(INFO, "Prev link points to newest.");
             return 18;
         }
         if (count != aliasMap.size())
         {
+            LOG(INFO, "LRU link list length is incorrect.");
             return 27;
         }
     }
@@ -172,6 +204,7 @@ int AliasCache::check_consistency()
         PoolIdx next = newest;
         if (!next.deref(this)->newer_.empty())
         {
+            LOG(INFO, "Newest has a newer link.");
             return 15;
         }
         while (!next.deref(this)->older_.empty())
@@ -179,16 +212,19 @@ int AliasCache::check_consistency()
             auto prev = next.deref(this)->older_;
             if (free_entries.count(prev.deref(this)))
             {
+                LOG(INFO, "Prev link points to the freelist.");
                 return 22;
             }
             if (prev.deref(this)->newer_.idx_ != next.idx_)
             {
+                LOG(INFO, "Prev link broken.");
                 return 16;
             }
             next = prev;
         }
         if (next.idx_ != oldest.idx_)
         {
+            LOG(INFO, "Next link points to oldest.");
             return 17;
         }
     }
@@ -201,18 +237,24 @@ int AliasCache::check_consistency()
         auto *e = pool + i;
         if (idMap.find(e->get_node_id()) == idMap.end())
         {
+            LOG(INFO, "Metadata ID is not in the id map.");
             return 23;
         }
         if (idMap.find(e->get_node_id())->idx_ != i)
         {
+            LOG(INFO,
+                "Id map entry does not point back to the expected index.");
             return 24;
         }
         if (aliasMap.find(e->alias_) == aliasMap.end())
         {
+            LOG(INFO, "Metadata alias is not in the alias map.");
             return 25;
         }
         if (aliasMap.find(e->alias_)->idx_ != i)
         {
+            LOG(INFO,
+                "Alis map entry does not point back to the expected index.");
             return 26;
         }
     }
@@ -260,6 +302,11 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     Metadata *insert;
 
     auto it = aliasMap.find(alias);
+    if (alias == NOT_RESPONDING)
+    {
+        // We can have more than one NOT_RESPONDING entry.
+        it = aliasMap.end();
+    }
     if (it != aliasMap.end())
     {
         /* we already have a mapping for this alias, so lets remove it */
@@ -319,6 +366,14 @@ void AliasCache::add(NodeID id, NodeAlias alias)
         }
     }
 
+    if (alias == NOT_RESPONDING)
+    {
+        // This code will make all NOT_RESPONDING aliases unique in our map.
+        unsigned ofs = insert - pool;
+        alias = NOT_RESPONDING | ofs;
+        auto it = aliasMap.find(alias);
+        HASSERT(it == aliasMap.end());
+    }
     insert->set_node_id(id);
     insert->alias_ = alias;
 
@@ -397,9 +452,18 @@ bool AliasCache::retrieve(unsigned entry, NodeID* node, NodeAlias* alias)
 {
     HASSERT(entry < size());
     Metadata* md = pool + entry;
-    if (!md->alias_) return false;
-    if (node) *node = md->get_node_id();
-    if (alias) *alias = md->alias_;
+    if (!md->alias_)
+    {
+        return false;
+    }
+    if (node)
+    {
+        *node = md->get_node_id();
+    }
+    if (alias)
+    {
+        *alias = resolve_notresponding(md->alias_);
+    }
     return true;
 }
 
@@ -413,7 +477,7 @@ bool AliasCache::next_entry(NodeID bound, NodeID *node, NodeAlias *alias)
     Metadata *metadata = it->deref(this);
     if (alias)
     {
-        *alias = metadata->alias_;
+        *alias = resolve_notresponding(metadata->alias_);
     }
     if (node)
     {
@@ -438,7 +502,7 @@ NodeAlias AliasCache::lookup(NodeID id)
 
         /* update timestamp */
         touch(metadata);
-        return metadata->alias_;
+        return resolve_notresponding(metadata->alias_);
     }
 
     /* no match found */
@@ -480,7 +544,8 @@ void AliasCache::for_each(void (*callback)(void*, NodeID, NodeAlias), void *cont
     for (PoolIdx idx = newest; !idx.empty(); idx = idx.deref(this)->older_)
     {
         Metadata *metadata = idx.deref(this);
-        (*callback)(context, metadata->get_node_id(), metadata->alias_);
+        (*callback)(context, metadata->get_node_id(),
+            resolve_notresponding(metadata->alias_));
     }
 }
 

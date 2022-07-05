@@ -274,7 +274,7 @@ TEST(CdiRender, Render)
     string s;
     TestCdi1 cfg(0);
     cfg.config_renderer().render_cdi(&s);
-    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\"?>" R"data(
+    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" R"data(
 <cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
 <segment space='17'>
 <name>testseg</name>
@@ -316,7 +316,7 @@ TEST(CdiRender, RenderIdent)
     string s;
     TestCdi2 cfg(0);
     cfg.config_renderer().render_cdi(&s);
-    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\"?>" R"data(
+    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" R"data(
 <cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
 <identification>
 <manufacturer>Manuf</manufacturer>

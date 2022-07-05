@@ -387,7 +387,7 @@ public:
         *s += "<";
         if (opts.is_cdi())
         {
-            *s += "?xml version=\"1.0\"?>\n<";
+            *s += "?xml version=\"1.0\" encoding=\"utf-8\"?>\n<";
             tag = "cdi";
             *s += tag;
             *s += " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "

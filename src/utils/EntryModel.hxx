@@ -38,6 +38,7 @@
 #include <cstring>
 #include <functional>
 #include <type_traits>
+#include <limits>
 
 #include "utils/format_utils.hxx"
 
@@ -280,6 +281,12 @@ public:
     bool has_leading_zeros()
     {
         return numLeadingZeros_ > 0;
+    }
+
+    /// Sets the number of leading zeros without changing the value.
+    void set_leading_zeros(unsigned num)
+    {
+        numLeadingZeros_ = num;
     }
 
     /// Get the entry as an unsigned integer value. Note, that '0' is returned

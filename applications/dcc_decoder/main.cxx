@@ -45,10 +45,17 @@
 #include "os/os.h"
 #include "utils/StringPrintf.hxx"
 #include "utils/constants.hxx"
+#include "utils/Crc.hxx"
 
 #include "hardware.hxx"
 
 Executor<1> executor("executor", 0, 2048);
+
+
+/// If true, sends channel1 broadcast on mobile decoder addresses.
+static const bool SEND_CH1_BROADCAST = false;
+/// If true, sends ack to all correctly received regular addressed packet.
+static const bool SEND_CH2_ACK = false;
 
 // We reserve a lot of buffer for transmit to cover for small hiccups in the
 // host reading data.
@@ -60,6 +67,18 @@ OVERRIDE_CONST(main_thread_priority, 3);
 uint16_t dcc_address_wire = 3 << 8;
 
 uint8_t f0 = 0;
+
+/// DIY / public domain decoder.
+const uint16_t manufacturer_id = 0x0D;
+uint64_t decoder_id = 0;
+
+/// Last known command station ID.
+uint16_t cid;
+/// Last known session ID.
+uint8_t session_id;
+/// 1 if we have been selected in this session.
+uint8_t is_selected = 0;
+
 
 /// Stores a programming packet which is conditional on a repetition.
 DCCPacket progStored;
@@ -127,6 +146,35 @@ public:
     /// Called in the main to prepare the railcom feedback packets.
     void init()
     {
+        // Figures out the decoder ID.
+        Crc8DallasMaxim m;
+        uint8_t *p = (uint8_t*)0x1FFFF7AC;
+        uint32_t d = 0;
+
+        // Computes the decoder ID using a hash of the chip serial number.
+        m.update16(*p++);
+        m.update16(*p++);
+        d |= m.get();
+        d <<= 8;
+        m.update16(*p++);
+        m.update16(*p++);
+        d |= m.get();
+        d <<= 8;
+        m.update16(*p++);
+        m.update16(*p++);
+        m.update16(*p++);
+        m.update16(*p++);
+        d |= m.get();
+        d <<= 8;
+        m.update16(*p++);
+        m.update16(*p++);
+        m.update16(*p++);
+        m.update16(*p++);
+        d |= m.get();
+        decoder_id = manufacturer_id;
+        decoder_id <<= 32;
+        decoder_id |= d;
+        
         update_address();
         // Programming response packet
         ((dcc::Packet*)&progStored)->clear();
@@ -136,6 +184,31 @@ public:
         {
             ack_.add_ch2_data(dcc::RailcomDefs::CODE_ACK);
         }
+        // Also usable for 8-byte ack packet
+        ack_.add_ch1_data(dcc::RailcomDefs::CODE_ACK);
+        ack_.add_ch1_data(dcc::RailcomDefs::CODE_ACK);
+        // Decoder ID feedback packet.
+        dcc::RailcomDefs::add_did_feedback(decoder_id, &did_);
+
+        // ShortInfo feedback packet
+        uint16_t addr;
+        if (dcc_address_wire & 0x8000) {
+            // 14 bit address
+            addr = dcc_address_wire - 0xC000 + (dcc::Defs::ADR_MOBILE_LONG << 8);
+        } else {
+            addr = (dcc::Defs::ADR_MOBILE_SHORT << 8) |
+                ((dcc_address_wire >> 8) & 0x7f);
+        }
+        dcc::RailcomDefs::add_shortinfo_feedback(addr, 0 /*max fn*/,
+            0 /* capabilities */, 0 /*spaces*/, &shortInfo_);
+        is_selected = 0;
+        cid = 0xFFFF;
+        session_id = 0xFF;
+        
+        // Logon assign feedback
+        dcc::RailcomDefs::add_assign_feedback(0xff /* changeflags */,
+            0xfff /*changecount*/, 0 /* capabilities 2 */, 0 /*capabilties 3*/,
+            &assignInfo_);
     }
 
     /// Updates the broadcast datagrams based on the active DCC address.
@@ -169,13 +242,15 @@ public:
     /// needs to be sent.
     void packet_arrived(const DCCPacket *pkt, RailcomDriver *railcom) override
     {
+        using namespace dcc::Defs;
         DEBUG1_Pin::set(true);
         if (pkt->packet_header.csum_error)
         {
             return;
         }
         uint8_t adrhi = pkt->payload[0];
-        if (adrhi && (adrhi < 232) && ((adrhi & 0xC0) != 0x80))
+        if (adrhi && (adrhi < 232) && ((adrhi & 0xC0) != 0x80) &&
+            SEND_CH1_BROADCAST)
         {
             // Mobile decoder addressed. Send back address.
             if (bcastAtHi_)
@@ -203,11 +278,61 @@ public:
                 prog_.feedbackKey = pkt->feedback_key;
                 railcom->send_ch2(&prog_);
             }
-            else
+            else if (SEND_CH2_ACK)
             {
                 // No specific reply prepared -- send just some acks.
                 ack_.feedbackKey = pkt->feedback_key;
                 railcom->send_ch2(&ack_);
+            }
+        }
+        if (adrhi == dcc::Defs::ADDRESS_LOGON)
+        {
+            if (pkt->dlc == 6 &&
+                ((pkt->payload[1] & DCC_LOGON_ENABLE_MASK) ==
+                    dcc::Defs::DCC_LOGON_ENABLE) &&
+                !is_selected &&
+                ((pkt->payload[1] & ~DCC_LOGON_ENABLE_MASK) !=
+                    (uint8_t)LogonEnableParam::ACC))
+            {
+                /// @todo add code for backoff algorithm.
+
+                /// @todo recognize whether we are talking to the same command
+                /// station.
+
+                did_.feedbackKey = pkt->feedback_key;
+                railcom->send_ch1(&did_);
+                railcom->send_ch2(&did_);
+            }
+            if (pkt->payload[1] >= DCC_DID_MIN &&
+                pkt->payload[1] <= DCC_DID_MAX && pkt->dlc >= 7 &&
+                ((pkt->payload[1] & 0x0F) == ((decoder_id >> 40) & 0x0f)) &&
+                (pkt->payload[2] == ((decoder_id >> 32) & 0xff)) &&
+                (pkt->payload[3] == ((decoder_id >> 24) & 0xff)) &&
+                (pkt->payload[4] == ((decoder_id >> 16) & 0xff)) &&
+                (pkt->payload[5] == ((decoder_id >> 8) & 0xff)) &&
+                (pkt->payload[6] == ((decoder_id)&0xff)))
+            {
+                // Correctly addressed UID packet.
+                if ((pkt->payload[1] & DCC_DID_MASK) == DCC_SELECT &&
+                    pkt->dlc > 7 && pkt->payload[7] == CMD_READ_SHORT_INFO)
+                {
+                    shortInfo_.feedbackKey = pkt->feedback_key;
+                    railcom->send_ch1(&shortInfo_);
+                    railcom->send_ch2(&shortInfo_);
+                    is_selected = 1;
+                }
+                else if ((pkt->payload[1] & DCC_DID_MASK) == DCC_LOGON_ASSIGN)
+                {
+                    assignInfo_.feedbackKey = pkt->feedback_key;
+                    railcom->send_ch1(&assignInfo_);
+                    railcom->send_ch2(&assignInfo_);
+                }
+                else
+                {
+                    ack_.feedbackKey = pkt->feedback_key;
+                    railcom->send_ch1(&ack_);
+                    railcom->send_ch2(&ack_);
+                }
             }
         }
         DEBUG1_Pin::set(false);
@@ -225,6 +350,15 @@ private:
     /// RailCom packet with all ACKs in channel2.
     dcc::Feedback ack_;
 
+    /// Railcom packet with decoder ID for logon.
+    dcc::Feedback did_;
+
+    /// Railcom packet with ShortInfo for select.
+    dcc::Feedback shortInfo_;
+
+    /// Railcom packet with decoder state for Logon Assign.
+    dcc::Feedback assignInfo_;
+    
     /// 1 if the next broadcast packet should be adrhi, 0 if adrlo.
     uint8_t bcastAtHi_ : 1;
 } irqProc;
@@ -298,6 +432,9 @@ int appl_main(int argc, char *argv[])
     eefd = ::open("/dev/eeprom", O_RDWR);
     HASSERT(eefd >= 0);
 
+    static const char HELLO[] = "DCC Decoder program.\n";
+    ::write(wfd, HELLO, sizeof(HELLO));
+    
     irqProc.init();
     set_dcc_interrupt_processor(&irqProc);
 
