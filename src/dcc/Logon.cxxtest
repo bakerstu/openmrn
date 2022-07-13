@@ -1,0 +1,156 @@
+#include "dcc/Logon.hxx"
+
+#include "dcc/LogonModule.hxx"
+#include "os/FakeClock.hxx"
+#include "utils/async_traction_test_helper.hxx"
+
+using ::testing::ElementsAre;
+
+namespace dcc
+{
+
+class LogonTest : public openlcb::TractionTest
+{
+protected:
+    ~LogonTest()
+    {
+        logonHandler_.shutdown();
+        twait();
+    }
+
+    DefaultLogonModule module_;
+    RailcomHubFlow railcomHub_ {&g_service};
+    StrictMock<MockTrackIf> track_;
+    LogonHandler<DefaultLogonModule> logonHandler_ {
+        &g_service, &track_, &railcomHub_, &module_};
+};
+
+// This function is never called, and thus is optimized away at linker
+// stage. However, it ensures that the logon handler can be compiled with the
+// interface as the module parameter.
+void compile_test()
+{
+    LogonHandler<LogonHandlerModule> *f = nullptr;
+    f->~LogonHandler();
+}
+
+TEST_F(LogonTest, create)
+{
+}
+
+TEST_F(LogonTest, logon_per_300msec)
+{
+    FakeClock clk;
+    EXPECT_CALL(
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull));
+    logonHandler_.startup_logon(0x2211, 0x5a);
+    wait();
+    Mock::VerifyAndClear(&track_);
+    clk.advance(MSEC_TO_NSEC(20));
+    wait();
+
+    clk.advance(MSEC_TO_NSEC(250));
+
+    EXPECT_CALL(
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull));
+    clk.advance(MSEC_TO_NSEC(50));
+    wait();
+
+    EXPECT_CALL(
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull));
+    clk.advance(MSEC_TO_NSEC(300));
+    wait();
+}
+
+TEST_F(LogonTest, select_shortinfo)
+{
+    FakeClock clk;
+    EXPECT_CALL(
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull))
+        .Times(AtLeast(1));
+    logonHandler_.startup_logon(0x2211, 0x5a);
+    wait();
+
+    uint64_t decoder_id = 0x39944332211ull;
+    auto *b = railcomHub_.alloc();
+    RailcomDefs::add_did_feedback(decoder_id, b->data());
+    b->data()->feedbackKey = 0xFEFC0000ull;
+
+    EXPECT_CALL(track_,
+        packet(ElementsAre(254, 0xD3, 0x99, 0x44, 0x33, 0x22, 0x11, 0xFF, _),
+            0xFEDFF000ull));
+
+    railcomHub_.send(b);
+    wait();
+
+    clk.advance(MSEC_TO_NSEC(99));
+
+    // If there is no feedback for a while, the packet will get repeated.
+    EXPECT_CALL(track_,
+        packet(ElementsAre(254, 0xD3, 0x99, 0x44, 0x33, 0x22, 0x11, 0xFF, _),
+            0xFEDFF000ull));
+    clk.advance(MSEC_TO_NSEC(10));
+    wait();
+
+    // After one re-try no more packets are generated for this locomotive.
+    clk.advance(MSEC_TO_NSEC(500));
+    wait();
+}
+
+TEST_F(LogonTest, full_assign_sequence)
+{
+    FakeClock clk;
+    EXPECT_CALL(
+        track_, packet(ElementsAre(254, 255, 0x22, 0x11, 0x5a), 0xFEFC0000ull))
+        .Times(AtLeast(1));
+    logonHandler_.startup_logon(0x2211, 0x5a);
+    wait();
+
+    uint64_t decoder_id = 0x39944332211ull;
+    auto *b = railcomHub_.alloc();
+    RailcomDefs::add_did_feedback(decoder_id, b->data());
+    b->data()->feedbackKey = 0xFEFC0000ull;
+
+    const uintptr_t SELECT_FB_KEY = 0xFEDFF000ull;
+    EXPECT_CALL(track_,
+        packet(ElementsAre(254, 0xD3, 0x99, 0x44, 0x33, 0x22, 0x11, 0xFF, _),
+            SELECT_FB_KEY));
+
+    railcomHub_.send(b);
+    wait();
+    EXPECT_TRUE(
+        module_.loco_flags(0) & LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO);
+
+    // Select / shortinfo feedback.
+    b = railcomHub_.alloc();
+    RailcomDefs::add_shortinfo_feedback(
+        (Defs::ADR_MOBILE_SHORT << 8) | 3, 17, 0, 0, b->data());
+    b->data()->feedbackKey = SELECT_FB_KEY;
+
+    const uintptr_t ASSIGN_FB_KEY = 0xFEE00000ull;
+
+    // Assign packet
+    EXPECT_CALL(track_,
+        packet(ElementsAre(254, 0xE3, 0x99, 0x44, 0x33, 0x22, 0x11,
+                   0xC0 | (10000 >> 8), 10000 & 0xFF, _),
+            ASSIGN_FB_KEY));
+
+    railcomHub_.send(b);
+    wait();
+
+    EXPECT_TRUE(
+        module_.loco_flags(0) & LogonHandlerModule::FLAG_PENDING_ASSIGN);
+
+    // Assign feedback.
+    b = railcomHub_.alloc();
+    RailcomDefs::add_assign_feedback(0xff, 0xfff, 0, 0, b->data());
+    b->data()->feedbackKey = ASSIGN_FB_KEY;
+
+    railcomHub_.send(b);
+    wait();
+
+    uint8_t &flags = module_.loco_flags(0);
+    EXPECT_EQ(LogonHandlerModule::FLAG_COMPLETE, flags);
+}
+
+} // namespace dcc

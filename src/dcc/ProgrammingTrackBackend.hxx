@@ -50,6 +50,9 @@ extern "C" {
 void enable_dcc();
 }
 
+// If defined, adds instrumentation calls to a logging function.
+// #define DEBUG_PROGRAMTRACK_BACKEND
+
 struct ProgrammingTrackRequest : public CallableFlowRequestBase
 {
     enum EnterServiceMode
@@ -160,6 +163,9 @@ private:
         repeatCount_ = 0;
     }
 };
+
+extern void progdebug_log_packet(dcc::Packet *pkt);
+extern void progdebug_log_string(const char *s);
 
 class ProgrammingTrackBackend : public CallableFlow<ProgrammingTrackRequest>,
                                 private dcc::NonTrainPacketSource,
@@ -346,10 +352,16 @@ private:
         if (request() == nullptr)
         {
             packet->set_dcc_reset_all_decoders();
+#ifdef DEBUG_PROGRAMTRACK_BACKEND
+            progdebug_log_packet(packet);
+#endif
             return;
         }
 
         *packet = request()->packetToSend_;
+#ifdef DEBUG_PROGRAMTRACK_BACKEND
+        progdebug_log_packet(packet);
+#endif
         if (request()->repeatCount_ > 0)
         {
             --request()->repeatCount_;
@@ -358,6 +370,9 @@ private:
         {
             if (isWaitingForPackets_)
             {
+#ifdef DEBUG_PROGRAMTRACK_BACKEND
+                progdebug_log_string("done flush");
+#endif
                 isWaitingForPackets_ = 0;
                 /// @todo: wait for flushing the packets to the track.
                 // resume flow

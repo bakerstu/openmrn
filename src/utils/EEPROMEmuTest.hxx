@@ -59,6 +59,10 @@ static const char FILENAME[] = "/tmp/eeprom";
 
 #define EELEN 32768
 
+void EEPROMEmulation::updated_notification()
+{
+}
+
 // We need to jump through some hoops to define a linker symbol
 // "__eeprom_start" in a place that is not actually constant.
 namespace foo {

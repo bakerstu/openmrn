@@ -46,8 +46,14 @@
 class JSSerialPort
 {
 public:
-    JSSerialPort(CanHubFlow *hflow, string device)
+    /// Constructor
+    /// @param hflow the CAN hub object in the local binary to add this port to.
+    /// @param device the serial device name (see list_ports output)
+    /// @param cb will be invoked when the connection succeeds
+    JSSerialPort(CanHubFlow *hflow, string device,
+        std::function<void()> cb = []() {})
         : canHub_(hflow)
+        , connectCallback_(std::move(cb))
     {
         string script = "Module.serial_device = '" + device + "';\n";
         emscripten_run_script(script.c_str());
@@ -96,9 +102,10 @@ public:
                         client_port.abandon();
                     });
                     c.on('data', function(data) { client_port.recv(data.toString()); });
+                    _invoke_fnp($1);
                 });
             },
-            (unsigned long)canHub_);
+            (unsigned long)canHub_, (unsigned long)&connectCallback_);
     }
 
     static void list_ports() {
@@ -119,6 +126,8 @@ public:
 
 private:
     CanHubFlow *canHub_;
+    /// This function will be invoked when the connection succeeds.
+    std::function<void()> connectCallback_;
 };
 
 #endif // __EMSCRIPTEN__

@@ -12,8 +12,8 @@ endif
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 
 AS = $(PREFIX)gcc
-CC = $(PREFIX)gcc
-CXX = $(PREFIX)g++
+CC = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)gcc))
+CXX = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)g++))
 AR = $(PREFIX)ar
 LD = $(PREFIX)g++
 SIZE = $(PREFIX)size
@@ -39,24 +39,30 @@ ARCHOPTIMIZATION += -Os -fno-strict-aliasing -fno-strength-reduce -fomit-frame-p
 
 ARCHFLAGS = -g -MD -MP -mcpu=cortex-m3 -mthumb -mfloat-abi=soft
 
+ifdef DETERMINISTIC_COMPILATION
+ARCHFLAGS += -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/')
+endif
+
 ifdef DEBUG_MEMORY_USE
 #warning: -funwind-tables adds 10k code size. Needed for malloc debugging.
 ARCHFLAGS += -funwind-tables
 endif
 
-ASFLAGS = -c $(ARCHFLAGS)
+COMPILEOPT = -c
+
+ASFLAGS = $(COMPILEOPT) $(ARCHFLAGS)
 
 CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -fdata-sections -ffunction-sections \
              -fno-builtin -fno-stack-protector -mfix-cortex-m3-ldrd \
              -D__FreeRTOS__ -DGCC_ARMCM3 -specs=nano.specs
 
-CFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
+CFLAGS += $(COMPILEOPT) $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
           -Wstrict-prototypes -D_REENT_SMALL \
           $(CFLAGSENV) $(CFLAGSEXTRA) \
 
 
-CXXFLAGS += -c $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
+CXXFLAGS += $(COMPILEOPT) $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c++14  \
             -D_ISOC99_SOURCE -D__STDC_FORMAT_MACROS \
             -fno-exceptions -fno-rtti \
             -Wsuggest-override -Wno-psabi \

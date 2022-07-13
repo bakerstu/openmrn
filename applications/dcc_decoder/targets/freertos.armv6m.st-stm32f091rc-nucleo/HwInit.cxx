@@ -48,6 +48,7 @@
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
 #include "Stm32EEPROMEmulation.hxx"
+#include "Stm32RailcomSender.hxx"
 #include "hardware.hxx"
 #include "DummyGPIO.hxx"
 
@@ -72,6 +73,9 @@ const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
 static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
+
+/** RailCom sender UART */
+static Stm32RailcomSender railcomUart("/dev/ser1", USART1, USART1_IRQn);
 
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
@@ -122,6 +126,24 @@ struct DccDecoderHW
     /// driver to take a feedback sample.
     static inline void after_feedback_hook() {}
 
+    /// How many usec later/earlier should the railcom cutout start happen.
+    static int time_delta_railcom_pre_usec()
+    {
+        return 80 - 26;
+    }
+
+    /// How many usec later/earlier should the railcom cutout middle happen.
+    static int time_delta_railcom_mid_usec()
+    {
+        return 193 - 185;
+    }
+
+    /// How many usec later/earlier should the railcom cutout end happen.
+    static int time_delta_railcom_end_usec()
+    {
+        return 0;
+    }
+    
     /// Second timer resource that will be used to measure microseconds for the
     /// railcom cutout. May be the same as the Capture Timer, if there are at
     /// least two channels on that timer resource.
@@ -142,13 +164,15 @@ struct DccDecoderHW
     static constexpr auto OS_IRQn = TSC_IRQn;
 };
 
-// Dummy implementation because we are not a railcom detector.
-NoRailcomDriver railcom_driver;
-
 Stm32DccDecoder<DccDecoderHW> dcc_decoder0(
-    "/dev/dcc_decoder0", &railcom_driver);
+    "/dev/dcc_decoder0", &railcomUart);
 
 extern "C" {
+
+void set_dcc_interrupt_processor(dcc::PacketProcessor *p)
+{
+    dcc_decoder0.set_packet_processor(p);
+}
 
 /** Blink LED */
 uint32_t blinker_pattern = 0;
@@ -256,6 +280,7 @@ void hw_preinit(void)
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_USART1_CLK_ENABLE();
     __HAL_RCC_USART2_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
     __HAL_RCC_TIM14_CLK_ENABLE();
@@ -275,6 +300,14 @@ void hw_preinit(void)
     gpio_init.Pin = GPIO_PIN_3;
     HAL_GPIO_Init(GPIOA, &gpio_init);
 
+    /* USART1 pinmux on railCom TX pin PB6 with open drain and pullup */
+    gpio_init.Mode = GPIO_MODE_AF_OD;
+    gpio_init.Pull = GPIO_PULLUP;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Alternate = GPIO_AF0_USART1;
+    gpio_init.Pin = GPIO_PIN_6;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    
     /* CAN pinmux on PB8 and PB9 */
     gpio_init.Mode = GPIO_MODE_AF_PP;
     gpio_init.Pull = GPIO_PULLUP;
@@ -307,7 +340,7 @@ void hw_preinit(void)
         HASSERT(0);
     }
     __HAL_DBGMCU_FREEZE_TIM14();
-    NVIC_SetPriority(TIM14_IRQn, 0);
+    SetInterruptPriority(TIM14_IRQn, 0);
     NVIC_EnableIRQ(TIM14_IRQn);
 }
 
@@ -321,6 +354,7 @@ void timer3_interrupt_handler(void) {
 
 void touch_interrupt_handler(void) {
     dcc_decoder0.os_interrupt_handler();
+    portYIELD_FROM_ISR(true);
 }
 
 }

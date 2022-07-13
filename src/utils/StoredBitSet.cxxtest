@@ -54,7 +54,7 @@ TEST(ShadowedBitSetSingleTest, size)
 }
 
 class BitSetMultiTest
-    : public ::testing::TestWithParam<std::tr1::tuple<unsigned, int>>
+    : public ::testing::TestWithParam<std::tuple<unsigned, int>>
 {
 protected:
     BitSetMultiTest()
@@ -63,11 +63,11 @@ protected:
 
     unsigned get_size()
     {
-        return std::tr1::get<0>(GetParam());
+        return std::get<0>(GetParam());
     }
     uint8_t get_granularity()
     {
-        return std::tr1::get<1>(GetParam());
+        return std::get<1>(GetParam());
     }
 
 #define expect_all_zero(x...)                                                  \

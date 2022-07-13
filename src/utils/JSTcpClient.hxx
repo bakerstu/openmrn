@@ -54,6 +54,11 @@ public:
         CONNECTION_ERROR
     };
     
+    /// Constructor
+    /// @param hflow the CAN hub object in the local binary to add this port to.
+    /// @param host the IP address or name of the remote host
+    /// @param port the TCP port number to connect to
+    /// @param cb will be invoked on connection events (up/down/error)
     JSTcpClient(CanHubFlow *hflow, string host, int port,
         std::function<void(ConnectionFeedback)> cb = nullptr)
         : canHub_(hflow)
@@ -61,6 +66,7 @@ public:
     {
         string script = "Module.remote_server = '" + host + "';\n";
         emscripten_run_script(script.c_str());
+        
         EM_ASM_(
             {
                 var net = require('net');

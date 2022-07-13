@@ -22,7 +22,7 @@ TEST(ConsoleTest, testHelp)
                               "             has an effect on socket based logins sessions\n"
                               "> ", 154));
 
-    EXPECT_EQ(::write(s, "?\n", 5), 5);
+    EXPECT_EQ(::write(s, "?\n", 3), 3);
     usleep(1000);
     EXPECT_EQ(::read(s, buf, 1024), 154);
     EXPECT_TRUE(!strncmp(buf, "  help | ? : print out this help menu\n"

@@ -39,32 +39,34 @@
 #include <cstdint>
 #include <unistd.h>
 #include <stdlib.h>
+
+#include "openmrn_features.h"
 #include "utils/macros.h"
 
-#ifndef ARDUINO
+#ifdef OPENMRN_FEATURE_DEVTAB
 #include "Devtab.hxx"
-#endif
+#endif // OPENMRN_FEATURE_DEVTAB
 
 /** Helper for DeviceBuffer which allows for methods to not be inlined.
  */
 class DeviceBufferBase
 {
 public:
-#ifndef ARDUINO
+#ifdef OPENMRN_FEATURE_DEVTAB
     /** Wait for blocking condition to become true.
      * @param file file to wait on
      * @param read true if this is a read operation, false for write operation
      */
     static void block_until_condition(File *file, bool read);
-#endif
+#endif // OPENMRN_FEATURE_DEVTAB
 
     /** Signal the wakeup condition.  This will also wakeup select.
      */
     void signal_condition()
     {
-#ifndef ARDUINO
+#ifdef OPENMRN_FEATURE_DEVTAB
         Device::select_wakeup(&selectInfo);
-#endif        
+#endif // OPENMRN_FEATURE_DEVTAB
     }
 
     /** Signal the wakeup condition from an ISR context.  This will also
@@ -72,10 +74,10 @@ public:
      */
     void signal_condition_from_isr()
     {
-#ifndef ARDUINO
+#ifdef OPENMRN_FEATURE_DEVTAB
         int woken = 0;
         Device::select_wakeup_from_isr(&selectInfo, &woken);
-#endif
+#endif // OPENMRN_FEATURE_DEVTAB
     }
 
     /** flush all the data out of the buffer and reset the buffer.  It is
@@ -110,9 +112,9 @@ public:
      */
     void select_insert()
     {
-#ifndef ARDUINO
+#ifdef OPENMRN_FEATURE_DEVTAB
         return Device::select_insert(&selectInfo);
-#endif        
+#endif // OPENMRN_FEATURE_DEVTAB
     }
 
     /** Remove a number of items from the buffer by advancing the readIndex.
@@ -180,10 +182,10 @@ protected:
     {
     }
 
-#ifndef ARDUINO
+#ifdef OPENMRN_FEATURE_DEVTAB
     /** Metadata for select() logic */
     Device::SelectInfo selectInfo;
-#endif
+#endif // OPENMRN_FEATURE_DEVTAB
     
     /** level of space required in buffer in order to wakeup, 0 if unused */
     uint16_t level;

@@ -92,13 +92,16 @@ int CC32xxDeviceFile::open(File* file, const char *path, int flags, int mode)
     else
     {
         /* file not open yet, open and intialize metadata */
-        int32_t result;
+        int32_t result = 0;
         if (flags & O_CREAT)
         {
             result = sl_FsOpen((const unsigned char *)path,
                                SL_FS_CREATE |
                                SL_FS_CREATE_MAX_SIZE(maxSizeOnCreate),
                                nullptr);
+        }
+        if (result > 0)
+        {
             writeEnable = true;
         }
         else if (flags & O_WRONLY)
@@ -163,6 +166,7 @@ void CC32xxDeviceFile::disable()
     {
         sl_FsClose(handle, nullptr, nullptr, 0);
         handle = -1;
+        writeEnable = false;
     }
 }
 

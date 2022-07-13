@@ -755,8 +755,8 @@ int CC32xxSocket::close(File *file)
         portENTER_CRITICAL();
         remove_instance_from_sd(sd);
         portEXIT_CRITICAL();
-        delete this;
         sl_Close(sd);
+        delete this;
     }
     else
     {

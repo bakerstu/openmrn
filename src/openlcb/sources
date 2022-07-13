@@ -8,6 +8,7 @@ CXXSRCS += \
            BroadcastTime.cxx \
            BroadcastTimeClient.cxx \
            BroadcastTimeServer.cxx \
+           BulkAliasAllocator.cxx \
            CanDefs.cxx \
            ConfigEntry.cxx \
            ConfigUpdateFlow.cxx \
@@ -38,6 +39,7 @@ CXXSRCS += \
            DatagramTcp.cxx \
            MemoryConfig.cxx \
            SimpleNodeInfo.cxx \
+           SimpleNodeInfoResponse.cxx \
            SimpleNodeInfoMockUserFile.cxx \
            SimpleStack.cxx \
            TractionTestTrain.cxx \

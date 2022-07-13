@@ -36,6 +36,8 @@
 
 #include "dcc/Packet.hxx"
 
+#include "dcc/Defs.hxx"
+#include "utils/Crc.hxx"
 #include "utils/logging.h"
 #include "utils/macros.h"
 
@@ -43,58 +45,30 @@
 namespace dcc
 {
 
+// Imports the bit declarations from the enums in Defs. This import may only be
+// performed in a .cxx file.
+using namespace Defs;
+
 static_assert(sizeof(Packet) == sizeof(DCCPacket), "DCCPacket size missmatch");
-
-enum
-{
-    MARKLIN_DEFAULT_CMD = 0b00100110,
-    // Direction change bits for marklin-old format.
-    MARKLIN_CHANGE_DIR_B2 = 0b11000000,
-
-    DCC_DEFAULT_CMD = 0,
-    DCC_LONG_PREAMBLE_CMD = 0b00001100,
-    DCC_SERVICE_MODE_5X_WITH_ACK_CMD = 0b00111000,
-    // standard dcc packet with 5x repeat.
-    DCC_SERVICE_MODE_5X_CMD = 0b00101000,
-    DCC_SERVICE_MODE_1X_CMD = 0b00001000,
-    DCC_LONG_ADDRESS_FIRST = 0b11000000,
-
-    // Baseline packet: speed and direction.
-    DCC_BASELINE_SPEED = 0b01000000,
-    DCC_BASELINE_SPEED_FORWARD = 0b00100000,
-    DCC_BASELINE_SPEED_LIGHT = 0b00010000,
-    DCC_FUNCTION1 = 0b10000000,
-    DCC_FUNCTION1_F0 = 0b00010000,
-    DCC_FUNCTION2_F5 = 0b10110000,
-    DCC_FUNCTION2_F9 = 0b10100000,
-    DCC_FEATURE_EXP_F13 = 0b11011110,
-    DCC_FEATURE_EXP_F21 = 0b11011111,
-
-    DCC_PROG_READ1 = 0b11100100,
-    DCC_PROG_WRITE1 = 0b11101100,
-    DCC_PROG_READ4 = 0b11100000,
-
-    DCC_SVC_BIT_MANIPULATE = 0b01111000,
-    DCC_SVC_WRITE = 0b01111100,
-    DCC_SVC_VERIFY = 0b01110100,
-
-    DCC_SVC_BITVAL_WRITE = 0b11110000,
-    DCC_SVC_BITVAL_VERIFY = 0b11100000,
-    DCC_SVC_BITVAL_VALUE = 0b00001000,
-
-    DCC_BASIC_ACCESSORY_B1 = 0b10000000,
-    DCC_BASIC_ACCESSORY_B2 = 0b10000000,
-
-    // Extended packet: 128-step speed.
-    DCC_EXT_SPEED = 0b00111111,
-    DCC_EXT_SPEED_FORWARD = 0x80,
-};
 
 void Packet::add_dcc_checksum()
 {
     HASSERT(dlc < MAX_PAYLOAD);
     // Protects against double call of add checksum.
     HASSERT(!packet_header.skip_ec);
+
+    // Performs CRC computation if needed.
+    if ((payload[0] == ADDRESS_LOGON || payload[0] == ADDRESS_EXT) &&
+        (dlc >= 6))
+    {
+        Crc8DallasMaxim m;
+        for (int i = 0; i < dlc; ++i)
+        {
+            m.update16(payload[i]);
+        }
+        payload[dlc++] = m.get();
+    }
+
     uint8_t cs = 0;
     for (int i = 0; i < dlc; ++i)
     {
@@ -231,17 +205,39 @@ void Packet::add_dcc_function9_12(unsigned values)
     add_dcc_checksum();
 }
 
-void Packet::add_dcc_function13_20(unsigned values)
+void Packet::add_dcc_function_hi(uint8_t base, uint8_t values)
 {
-    payload[dlc++] = DCC_FEATURE_EXP_F13;
-    payload[dlc++] = values & 0xff;
+    base -= 13;
+    HASSERT((base & 0b111) == 0);
+    HASSERT(base <= (61 - 13));
+    base >>= 3;
+    base -= 2;
+    payload[dlc++] = DCC_FEATURE_EXP_FNHI | (base & 0b111);
+    payload[dlc++] = values;
     add_dcc_checksum();
 }
 
-void Packet::add_dcc_function21_28(unsigned values)
+void Packet::add_dcc_binary_state(uint16_t fn, bool value)
 {
-    payload[dlc++] = DCC_FEATURE_EXP_F21;
-    payload[dlc++] = values & 0xff;
+    if (fn <= 127)
+    {
+        payload[dlc++] = DCC_BINARY_SHORT;
+        payload[dlc++] = fn | (value ? 0x80 : 0);
+    }
+    else
+    {
+        payload[dlc++] = DCC_BINARY_LONG;
+        payload[dlc++] = (fn & 0x7F) | (value ? 0x80 : 0);
+        payload[dlc++] = (fn >> 8) & 0xFF;
+    }
+    add_dcc_checksum();
+}
+
+void Packet::add_dcc_analog_function(uint8_t fn, uint8_t value)
+{
+    payload[dlc++] = DCC_ANALOG_FN;
+    payload[dlc++] = fn;
+    payload[dlc++] = value;
     add_dcc_checksum();
 }
 
@@ -293,6 +289,24 @@ void Packet::set_dcc_svc_write_bit(
     add_dcc_prog_command(DCC_SVC_BIT_MANIPULATE, cv_number, vvv);
 }
 
+void Packet::set_dcc_svc_paged_write_reg(uint8_t reg, uint8_t value)
+{
+    HASSERT(reg < 8);
+    start_dcc_svc_packet();
+    payload[dlc++] = DCC_SVC_PAGED_WRITE | reg;
+    payload[dlc++] = value;
+    add_dcc_checksum();
+}
+
+void Packet::set_dcc_svc_paged_verify_reg(uint8_t reg, uint8_t value)
+{
+    HASSERT(reg < 8);
+    start_dcc_svc_packet();
+    payload[dlc++] = DCC_SVC_PAGED_VERIFY | reg;
+    payload[dlc++] = value;
+    add_dcc_checksum();
+}
+
 void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate) {
     payload[dlc++] = DCC_BASIC_ACCESSORY_B1 | ((address >> 3) & 0b111111);
     uint8_t b2 = 1;
@@ -303,6 +317,49 @@ void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate) {
     b2 <<= 3;
     b2 |= address & 0b111;
     payload[dlc++] = b2;
+    add_dcc_checksum();
+}
+
+void Packet::set_dcc_logon_enable(
+    Defs::LogonEnableParam param, uint16_t cid, uint8_t session_id)
+{
+    start_dcc_packet();
+    payload[dlc++] = ADDRESS_LOGON;
+    payload[dlc++] = DCC_LOGON_ENABLE | ((uint8_t)param & 0x3);
+    payload[dlc++] = cid >> 8;
+    payload[dlc++] = cid & 0xff;
+    payload[dlc++] = session_id;
+    add_dcc_checksum();
+}
+
+void Packet::set_dcc_select_shortinfo(uint64_t decoder_id)
+{
+    start_dcc_packet();
+    payload[dlc++] = ADDRESS_LOGON;
+    
+    payload[dlc++] = DCC_SELECT | ((decoder_id >> 40) & 0xf);
+    payload[dlc++] = (decoder_id >> 32) & 0xff;
+    payload[dlc++] = (decoder_id >> 24) & 0xff;
+    payload[dlc++] = (decoder_id >> 16) & 0xff;
+    payload[dlc++] = (decoder_id >> 8) & 0xff;
+    payload[dlc++] = (decoder_id) & 0xff;
+    payload[dlc++] = CMD_READ_SHORT_INFO;
+    add_dcc_checksum();
+}
+
+void Packet::set_dcc_logon_assign(uint64_t decoder_id, uint16_t address)
+{
+    start_dcc_packet();
+    payload[dlc++] = ADDRESS_LOGON;
+    
+    payload[dlc++] = DCC_LOGON_ASSIGN | ((decoder_id >> 40) & 0xf);
+    payload[dlc++] = (decoder_id >> 32) & 0xff;
+    payload[dlc++] = (decoder_id >> 24) & 0xff;
+    payload[dlc++] = (decoder_id >> 16) & 0xff;
+    payload[dlc++] = (decoder_id >> 8) & 0xff;
+    payload[dlc++] = (decoder_id) & 0xff;
+    payload[dlc++] = ((address >> 8) & 0xff) ^ 0b11000000;
+    payload[dlc++] = (address) & 0xff;
     add_dcc_checksum();
 }
 

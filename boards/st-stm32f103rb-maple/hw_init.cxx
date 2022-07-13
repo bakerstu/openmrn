@@ -92,7 +92,7 @@ void setblink(uint32_t pattern)
     LPC_TIM1->MR0 = 125;
     LPC_TIM1->MCR = 3; // reset and interrupt on match 0
 
-    NVIC_SetPriority(TIMER1_IRQn, 0);
+    SetInterruptPriority(TIMER1_IRQn, 0);
     NVIC_EnableIRQ(TIMER1_IRQn);
 
     LPC_TIM1->TCR = 1; // Timer go.*/

@@ -95,16 +95,15 @@ protected:
     TractionSingleMockTest()
     {
         create_allocated_alias();
-        expect_next_alias_allocation();
         EXPECT_CALL(m1_, legacy_address()).Times(AtLeast(0)).WillRepeatedly(
             Return(0x00003456U));
         EXPECT_CALL(m1_, legacy_address_type())
             .Times(AtLeast(0))
             .WillRepeatedly(Return(dcc::TrainAddressType::DCC_LONG_ADDRESS));
         // alias reservation
-        expect_packet(":X1070133AN060100003456;");
+        expect_packet(":X1070133AN06010000F456;");
         // initialized
-        expect_packet(":X1910033AN060100003456;");
+        expect_packet(":X1910033AN06010000F456;");
         trainNode_.reset(new TrainNodeForProxy(&trainService_, &m1_));
         wait();
     }
@@ -113,7 +112,7 @@ protected:
         wait();
     }
 
-    static const NodeID kTrainNodeID = 0x060100003456U;
+    static const NodeID kTrainNodeID = 0x06010000F456U;
     std::unique_ptr<TrainNode> trainNode_;
 };
 
@@ -129,6 +128,7 @@ TEST_F(TractionSingleMockTest, SetSpeed)
 TEST_F(TractionSingleMockTest, GetSpeed)
 {
     EXPECT_CALL(m1_, get_speed()).WillOnce(Return(37.5));
+    EXPECT_CALL(m1_, get_emergencystop()).WillOnce(Return(false));
     EXPECT_CALL(m1_, get_commanded_speed()).WillOnce(Return(nan_to_speed()));
     EXPECT_CALL(m1_, get_actual_speed()).WillOnce(Return(nan_to_speed()));
     expect_packet(":X191E933AN15511050B000FFFF;");
@@ -139,6 +139,7 @@ TEST_F(TractionSingleMockTest, GetSpeed)
 TEST_F(TractionSingleMockTest, GetSpeedTestWithCommandedSpeed)
 {
     EXPECT_CALL(m1_, get_speed()).WillOnce(Return(37.5));
+    EXPECT_CALL(m1_, get_emergencystop()).WillOnce(Return(false));
     EXPECT_CALL(m1_, get_commanded_speed()).WillOnce(Return(37.0));
     EXPECT_CALL(m1_, get_actual_speed()).WillOnce(Return(nan_to_speed()));
     expect_packet(":X191E933AN15511050B00050A0;");
@@ -149,10 +150,22 @@ TEST_F(TractionSingleMockTest, GetSpeedTestWithCommandedSpeed)
 TEST_F(TractionSingleMockTest, GetSpeedTestWithActualSpeed)
 {
     EXPECT_CALL(m1_, get_speed()).WillOnce(Return(37.5));
+    EXPECT_CALL(m1_, get_emergencystop()).WillOnce(Return(false));
     EXPECT_CALL(m1_, get_commanded_speed()).WillOnce(Return(37.0));
     EXPECT_CALL(m1_, get_actual_speed()).WillOnce(Return(38.0));
     expect_packet(":X191E933AN15511050B00050A0;");
     expect_packet(":X191E933AN255150C0;");
+    send_packet(":X195EB551N033A10;");
+}
+
+TEST_F(TractionSingleMockTest, GetSpeedTestWithEstop)
+{
+    EXPECT_CALL(m1_, get_speed()).WillOnce(Return(-0.0));
+    EXPECT_CALL(m1_, get_emergencystop()).WillOnce(Return(true));
+    EXPECT_CALL(m1_, get_commanded_speed()).WillOnce(Return(-0.0));
+    EXPECT_CALL(m1_, get_actual_speed()).WillOnce(Return(-0.0));
+    expect_packet(":X191E933AN1551108000018000;");
+    expect_packet(":X191E933AN25518000;");
     send_packet(":X195EB551N033A10;");
 }
 

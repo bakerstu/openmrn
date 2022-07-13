@@ -32,6 +32,16 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 
 #define NUM_EXTBOARDS 0
 
+// Snap switches and LED lights conflict on same port. When GPIO pin has
+// snap configuration in place, LED will quickly flash on consumer event recv and
+// not stay on as desired/needed for signal driver.
+// When PORTD_SNAP is defined (present), we will set portD to be used for snap
+// switch pulse configuration. 
+// When PORTD_SNAP is not defined (remarked out), this sets port D to be a constant on/off
+// state as dictated by consumed events.
+
+//#define PORTD_SNAP
+
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
 /// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
@@ -40,11 +50,14 @@ using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
 using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 using DirectConsumers = RepeatedGroup<ConsumerConfig, 8>;
-using ServoConsumers = RepeatedGroup<ServoConsumerConfig, 4>;
+#ifdef PORTD_SNAP
+using PortDEConsumers = RepeatedGroup<ConsumerConfig, 8>;
+#else
 using PortDEConsumers = RepeatedGroup<ConsumerConfig, 16>;
+#endif
 using PortABProducers = RepeatedGroup<ProducerConfig, 16>;
-
-using PulseConsumers = RepeatedGroup<PulseConsumerConfig, 12>;
+using ServoConsumers = RepeatedGroup<ServoConsumerConfig, 4>;
+using PulseConsumers = RepeatedGroup<PulseConsumerConfig, 8>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.

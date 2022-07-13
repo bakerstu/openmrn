@@ -49,6 +49,12 @@
 extern "C" {
 void USB_HP_CAN1_TX_IRQHandler(void);
 void USB_LP_CAN1_RX0_IRQHandler(void);
+
+static inline void SetInterruptPriority(uint32_t irq, uint8_t priority)
+{
+    NVIC_SetPriority((IRQn_Type)irq, priority >> (8U - __NVIC_PRIO_BITS));
+}
+
 }
 
 class Stm32CanDriver : public Can
@@ -134,8 +140,8 @@ private:
     {
         init_can_filter();
         // Sets the CAN interrupt priorities to be compatible with FreeRTOS.
-        NVIC_SetPriority(USB_LP_CAN1_RX0_IRQn, configKERNEL_INTERRUPT_PRIORITY);
-        NVIC_SetPriority(USB_HP_CAN1_TX_IRQn, configKERNEL_INTERRUPT_PRIORITY);
+        SetInterruptPriority(USB_LP_CAN1_RX0_IRQn, configKERNEL_INTERRUPT_PRIORITY);
+        SetInterruptPriority(USB_HP_CAN1_TX_IRQn, configKERNEL_INTERRUPT_PRIORITY);
         CAN_ITConfig(instance_, CAN_IT_TME, DISABLE);
         NVIC_EnableIRQ(USB_LP_CAN1_RX0_IRQn);
         NVIC_EnableIRQ(USB_HP_CAN1_TX_IRQn);

@@ -83,7 +83,10 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
     /// @param ReadCmd polymorphic matching arg; always set to READ.
     /// @param d is the destination node to query
     /// @param space is the memory space to read out
-    void reset(ReadCmd, NodeHandle d, uint8_t space)
+    /// @param cb if specified, will be called inline multiple times during the
+    /// processing as more data arrives.
+    void reset(ReadCmd, NodeHandle d, uint8_t space,
+        std::function<void(MemoryConfigClientRequest *)> cb = nullptr)
     {
         reset_base();
         cmd = CMD_READ;
@@ -92,6 +95,7 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         address = 0;
         size = 0xffffffffu;
         payload.clear();
+        progressCb = std::move(cb);
     }
 
     /// Sets up a command to read a part of a memory space.
@@ -112,11 +116,11 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         payload.clear();
     }
 
-    /// Sets up a command to read a part of a memory space.
+    /// Sets up a command to write a part of a memory space.
     /// @param WriteCmd polymorphic matching arg; always set to WRITE.
-    /// @param d is the destination node to query
+    /// @param d is the destination node to write to
     /// @param space is the memory space to write to
-    /// @param offset if the address of the first byte to read
+    /// @param offset if the address of the first byte to write
     /// @param data is the data to write
     void reset(
         WriteCmd, NodeHandle d, uint8_t space, unsigned offset, string data)
@@ -201,6 +205,17 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         CMD_WRITE,
         CMD_META_REQUEST
     };
+
+    /// Helper function invoked at every other reset call.
+    void reset_base()
+    {
+        CallableFlowRequestBase::reset_base();
+        progressCb = nullptr;
+        payload.clear();
+        size = 0;
+        address = 0;
+    }
+
     Command cmd;
     uint8_t memory_space;
     unsigned address;
@@ -208,6 +223,8 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
     /// Node to send the request to.
     NodeHandle dst;
     string payload;
+    /// Callback to execute as progress is being made.
+    std::function<void(MemoryConfigClientRequest *)> progressCb;
 };
 
 class MemoryConfigClient : public CallableFlow<MemoryConfigClientRequest>
@@ -364,6 +381,10 @@ private:
         unsigned dlen = len - ofs;
         request()->payload.append((char *)(bytes + ofs), dlen);
         offset_ += dlen;
+        if (request()->progressCb)
+        {
+            request()->progressCb(request());
+        }
         if ((dlen < 64) || (request()->size == 0))
         {
             return call_immediately(STATE(finish_read));

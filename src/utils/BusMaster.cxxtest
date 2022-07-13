@@ -1,0 +1,160 @@
+/** \copyright
+ * Copyright (c) 2020, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file BusMaster.cxxtest
+ *
+ * Unit tests for the bus master pattern.
+ *
+ * @author Balazs Racz
+ * @date 31 Dec 2020
+ */
+
+#include "utils/BusMaster.hxx"
+
+#include "utils/test_main.hxx"
+#include <deque>
+
+/// Our imaginary bus will send these as packets.
+struct PacketPayload
+{
+    /// Identifies the bus activity that generated this packet.
+    unsigned source;
+};
+
+/// Declares the bus type.
+using FakeBus = Bus<PacketPayload>;
+
+/// Collects the outgoing packets into a vector.
+class FakeSink : public FakeBus::PacketSink
+{
+public:
+    void send(FakeBus::Packet *pkt, unsigned prio) override
+    {
+        packets_.emplace_back(pkt);
+        if (shutdown_)
+        {
+            packets_.clear();
+        }
+    }
+
+    /// Call this for test shutdown.
+    void shutdown()
+    {
+        shutdown_ = true;
+        packets_.clear();
+    }
+
+    /// If true, all packets will be immediately returned.
+    bool shutdown_ {false};
+    /// Packets that arrived. Front is the oldest packet, back is the newest.
+    std::deque<FakeBus::PacketPtr> packets_;
+};
+
+class FakeActivity : public FakeBus::Activity
+{
+public:
+    FakeActivity(unsigned num)
+        : num_(num)
+    {
+    }
+
+    void fill_packet(Packet *packet) override
+    {
+        packet->data()->source = num_;
+    }
+
+private:
+    /// Identifies this activity. Will be stored in the packets.
+    unsigned num_;
+};
+
+class BusMasterTest : public ::testing::Test
+{
+protected:
+    ~BusMasterTest()
+    {
+        sink_.shutdown();
+        master_.shutdown();
+        wait_for_main_executor();
+    }
+
+    /// Simulates completing a packet in the sink. Expects another packet to
+    /// arrive and returns the source ID for the newly arrived packet.
+    /// @return pkt->source for the newly arrived packet.
+    unsigned get_next_packet()
+    {
+        EXPECT_EQ(3u, sink_.packets_.size());
+        // Simulate sink completing a packet.
+        sink_.packets_.pop_front();
+        wait_for_main_executor();
+
+        EXPECT_EQ(3u, sink_.packets_.size());
+        return sink_.packets_.back()->data()->source;
+    }
+
+    static constexpr unsigned IDLE = 0xFFFu;
+    FakeSink sink_;
+    FakeActivity idleActivity_ {IDLE};
+    FakeBus::Master master_ {&g_service, &sink_, &idleActivity_, 3};
+};
+
+const unsigned BusMasterTest::IDLE;
+
+TEST_F(BusMasterTest, create)
+{
+}
+
+TEST_F(BusMasterTest, roundrobin)
+{
+    FakeActivity a1 {1};
+    FakeActivity a2 {2};
+    FakeActivity a3 {3};
+    constexpr Fixed16 policy[] = {{1}};
+    master_.set_policy(1, policy);
+    wait_for_main_executor();
+    // There should be three idles now in the queue.
+    ASSERT_EQ(3u, sink_.packets_.size());
+    EXPECT_EQ(IDLE, sink_.packets_[0]->data()->source);
+    EXPECT_EQ(IDLE, sink_.packets_[1]->data()->source);
+    EXPECT_EQ(IDLE, sink_.packets_[2]->data()->source);
+
+    master_.schedule_activity(&a1, 0);
+    master_.schedule_activity(&a2, 0);
+
+    // Simulate sink completing a packet: arrival is from activity 1.
+    EXPECT_EQ(1u, get_next_packet());
+    // next from 2
+    EXPECT_EQ(2u, get_next_packet());
+    // then idle.
+    EXPECT_EQ(IDLE, get_next_packet());
+
+    master_.schedule_activity(&a1, 0);
+    master_.schedule_activity(&a2, 0);
+    master_.schedule_activity(&a3, 0);
+    EXPECT_EQ(1u, get_next_packet());
+    EXPECT_EQ(2u, get_next_packet());
+    EXPECT_EQ(3u, get_next_packet());
+}

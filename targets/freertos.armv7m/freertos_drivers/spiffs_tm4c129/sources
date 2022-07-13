@@ -1,0 +1,27 @@
+DEPS += SPIFFSPATH
+
+include $(OPENMRNPATH)/etc/tivaware.mk
+
+VPATH := $(SPIFFSPATH)/src: \
+         $(OPENMRNPATH)/src/freertos_drivers/spiffs: \
+         $(OPENMRNPATH)/src/freertos_drivers/spiffs/tm4c129
+
+CSRCS += spiffs_cache.c \
+         spiffs_check.c \
+         spiffs_gc.c \
+         spiffs_hydrogen.c \
+         spiffs_nucleus.c \
+         spiffs_nucleus.c \
+
+CXXSRCS += SPIFFS.cxx \
+           TM4C129xSPIFFS.cxx
+            
+
+INCLUDES += -I$(SPIFFSPATH)/src \
+            -I$(OPENMRNPATH)/src/freertos_drivers/spiffs \
+            -I$(OPENMRNPATH)/src/freertos_drivers/spiffs/tm4c129 \
+
+CFLAGS += -DNO_TEST
+
+CXXFLAGS +=
+
