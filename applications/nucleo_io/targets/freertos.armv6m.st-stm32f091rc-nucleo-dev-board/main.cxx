@@ -475,7 +475,7 @@ constexpr const Gpio *const kPortExt0[] = {
 openlcb::MultiConfiguredPC ext0_pcs(
     stack.node(), kPortExt0, ARRAYSIZE(kPortExt0), cfg.seg().ext0_pc());
 
-#endif // if num mcpios = 1
+#endif // if num mcpios = 2
 
 #if NUM_MCPIOS == 4
 
