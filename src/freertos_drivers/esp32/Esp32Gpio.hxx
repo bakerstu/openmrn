@@ -48,6 +48,8 @@
 // esp_rom_gpio.h is a target agnostic replacement for esp32/rom/gpio.h
 #if __has_include(<esp_rom_gpio.h>)
 #include <esp_rom_gpio.h>
+#elif ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
+#include <rom/gpio.h>
 #else
 #include <esp32/rom/gpio.h>
 #endif
