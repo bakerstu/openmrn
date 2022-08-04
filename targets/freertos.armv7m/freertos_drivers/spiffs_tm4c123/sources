@@ -1,0 +1,28 @@
+DEPS += SPIFFSPATH
+DEPS += TICC3220SDKPATH
+
+VPATH := $(SPIFFSPATH)/src: \
+         $(OPENMRNPATH)/src/freertos_drivers/spiffs: \
+         $(OPENMRNPATH)/src/freertos_drivers/spiffs/cc32x0sf
+
+CSRCS += spiffs_cache.c \
+         spiffs_check.c \
+         spiffs_gc.c \
+         spiffs_hydrogen.c \
+         spiffs_nucleus.c \
+         spiffs_nucleus.c \
+
+CXXSRCS += SPIFFS.cxx \
+           CC32x0SFSPIFFS.cxx
+            
+
+INCLUDES += -I$(SPIFFSPATH)/src \
+            -I$(OPENMRNPATH)/src/freertos_drivers/spiffs \
+            -I$(OPENMRNPATH)/src/freertos_drivers/spiffs/cc32x0sf \
+            -I$(TICC3220SDKPATH)/source/ti/devices/cc32xx \
+            -I$(TICC3220SDKPATH)/source/ti/devices/cc32xx/driverlib \
+
+CFLAGS += -DNO_TEST
+
+CXXFLAGS +=
+

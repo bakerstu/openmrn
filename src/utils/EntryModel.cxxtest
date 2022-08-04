@@ -219,6 +219,62 @@ TEST(EntryModelTest, InitValuePopBack)
     EXPECT_FALSE(uem.has_leading_zeros());
 }
 
+TEST(EntryModelTest, SetLeadingZero)
+{
+    EntryModel<int64_t> em;
+
+    // signed
+    // non-zero positive init
+    em.init(4, 10, 24);
+
+    EXPECT_EQ(4U, em.max_size());
+    EXPECT_EQ(24, em.get_value());
+    EXPECT_EQ("24", em.get_string());
+    EXPECT_EQ("  24", em.get_string(true));
+    EXPECT_EQ(0U, em.size());
+    EXPECT_TRUE(em.is_at_initial_value());
+    EXPECT_FALSE(em.empty());
+    EXPECT_FALSE(em.has_leading_zeros());
+
+    em.set_leading_zeros(1);
+    EXPECT_EQ(24, em.get_value());
+    EXPECT_EQ("024", em.get_string());
+    EXPECT_EQ(" 024", em.get_string(true));
+    EXPECT_TRUE(em.has_leading_zeros());
+    
+    em.set_leading_zeros(2);
+    EXPECT_EQ(24, em.get_value());
+    EXPECT_EQ("0024", em.get_string());
+    EXPECT_EQ("0024", em.get_string(true));
+    EXPECT_TRUE(em.has_leading_zeros());
+
+    em.set_leading_zeros(0);
+    EXPECT_EQ("24", em.get_string());
+    EXPECT_EQ("  24", em.get_string(true));
+    EXPECT_FALSE(em.has_leading_zeros());
+
+    // signed
+    // zero init
+    em.init(4, 10, 0);
+    EXPECT_EQ(4U, em.max_size());
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_EQ("0", em.get_string());
+    EXPECT_EQ("   0", em.get_string(true));
+    EXPECT_FALSE(em.has_leading_zeros());
+
+    em.set_leading_zeros(1);
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_EQ("00", em.get_string());
+    EXPECT_EQ("  00", em.get_string(true));
+    EXPECT_TRUE(em.has_leading_zeros());
+    
+    em.set_leading_zeros(0);
+    EXPECT_EQ(0, em.get_value());
+    EXPECT_EQ("0", em.get_string());
+    EXPECT_EQ("   0", em.get_string(true));
+    EXPECT_FALSE(em.has_leading_zeros());
+}
+
 TEST(EntryModelTest, SetBaseConvert)
 {
     EntryModel<int64_t> em;

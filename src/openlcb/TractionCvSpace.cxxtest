@@ -20,9 +20,9 @@ protected:
     TractionCvTestBase()
     {
         run_x([this]() {
-            ifCan_->local_aliases()->add(0x0601000000AFULL, 0x272U);
+            ifCan_->local_aliases()->add(0x06010000C0AFULL, 0x272U);
         });
-        expect_packet(":X19100272N0601000000AF;");
+        expect_packet(":X19100272N06010000C0AF;");
     }
 
     ~TractionCvTestBase()
@@ -37,7 +37,7 @@ protected:
     enum
     {
         TRAIN_NODE_ALIAS = 0x272,
-        TRAIN_NODE_ID = 0x0601000000AF
+        TRAIN_NODE_ID = 0x06010000C0AF
     };
 
     TractionCvTest()

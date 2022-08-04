@@ -32,6 +32,8 @@
  * @date 11 Aug 2021
  */
 
+#define LOGLEVEL INFO
+
 #include "os/os.h"
 #include "nmranet_config.h"
 
@@ -39,6 +41,7 @@
 #include "openlcb/TractionTrain.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "dcc/Loco.hxx"
+#include "dcc/Logon.hxx"
 #include "dcc/SimpleUpdateLoop.hxx"
 #include "dcc/LocalTrackIf.hxx"
 #include "dcc/RailcomHub.hxx"
@@ -51,11 +54,14 @@
 #include "freertos_drivers/common/PersistentGPIO.hxx"
 #include "config.hxx"
 #include "hardware.hxx"
+#include "TrainStorage.hxx"
+
+#include "utils/stdio_logging.h"
 
 // These preprocessor symbols are used to select which physical connections
 // will be enabled in the main(). See @ref appl_main below.
-#define SNIFF_ON_SERIAL
-//#define SNIFF_ON_USB
+//#define SNIFF_ON_SERIAL
+#define SNIFF_ON_USB
 //#define HAVE_PHYSICAL_CAN_PORT
 
 // Changes the default behavior by adding a newline after each gridconnect
@@ -64,6 +70,9 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 // Specifies how much RAM (in bytes) we allocate to the stack of the main
 // thread. Useful tuning parameter in case the application runs out of memory.
 OVERRIDE_CONST(main_thread_stack_size, 2500);
+
+OVERRIDE_CONST(local_nodes_count, 30);
+OVERRIDE_CONST(local_alias_cache_size, 32);
 
 // Specifies the 48-bit OpenLCB node identifier. This must be unique for every
 // hardware manufactured, so in production this should be replaced by some
@@ -146,11 +155,16 @@ openlcb::FixedEventProducer<openlcb::TractionDefs::IS_TRAIN_EVENT>
 
 // ===== RailCom components ======
 dcc::RailcomHubFlow railcom_hub(stack.service());
-openlcb::RailcomToOpenLCBDebugProxy gRailcomProxy(
-    &railcom_hub, stack.node(), nullptr, false, true);
+openlcb::RailcomToOpenLCBDebugProxy gRailcomProxy(&railcom_hub, stack.node(),
+    nullptr, true /*broadcast enabled*/, false /* ack enabled */);
 
 openlcb::TractionCvSpace traction_cv(stack.memory_config_handler(), &track,
     &railcom_hub, openlcb::MemoryConfigDefs::SPACE_DCC_CV);
+
+// ===== Logon components =====
+TrainLogonModule module{&trainService};
+dcc::LogonHandler<TrainLogonModule> logonHandler{
+        &trainService, &track, &railcom_hub, &module};
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -187,7 +201,16 @@ int appl_main(int argc, char *argv[])
 
     HubDeviceNonBlock<dcc::RailcomHubFlow> railcom_port(&railcom_hub,
                                                         "/dev/railcom");
-    
+
+    // Enables weak pull-up on the UART input pin.
+    MAP_GPIOPadConfigSet(RAILCOM_CH1_Pin::GPIO_BASE, RAILCOM_CH1_Pin::GPIO_PIN,
+        GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+
+    /// @todo store the session ID and generate a new one every startup.
+    logonHandler.startup_logon(0x3344, 25);
+
+    LOG(ALWAYS, "hello world");
+
     // This command donates the main thread to the operation of the
     // stack. Alternatively the stack could be started in a separate stack and
     // then application-specific business logic could be executed ion a busy

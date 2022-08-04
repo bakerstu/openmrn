@@ -650,7 +650,7 @@ void *TCAN4550Can::entry()
             spiStatus_ = register_read(STATUS);
             status_ = register_read(INTERRUPT_STATUS);
 
-            MRAMMessage msg;
+            MRAMSPIMessage msg;
             msg.cmd = READ;
             msg.addrH = 0x10;
             msg.addrL = 0x00;
@@ -659,7 +659,7 @@ void *TCAN4550Can::entry()
             spi_ioc_transfer xfer[2];
             xfer[0].tx_buf = (unsigned long)&msg;
             xfer[0].rx_buf = 0;
-            xfer[0].len = sizeof(MRAMMessage);
+            xfer[0].len = sizeof(MRAMSPIMessage);
             xfer[1].tx_buf = 0;
             xfer[1].rx_buf = (unsigned long)regs_;
             xfer[1].len = sizeof(regs_);
@@ -710,16 +710,17 @@ void *TCAN4550Can::entry()
                 if (psr.ep)
                 {
                     // error passive state
+#if TCAN4550_DEBUG
+                    testPin_->clr();
+#endif
                     ++softErrorCount;
                     state_ = CAN_STATE_BUS_PASSIVE;
-
-                    // cancel TX FIFO buffers
-                    register_write(TXBCR, TX_FIFO_BUFFERS_MASK);
-
-                    txBuf->signal_condition();
                 }
                 else
                 {
+#if TCAN4550_DEBUG
+                    testPin_->set();
+#endif
                     state_ = CAN_STATE_ACTIVE;
                 }
             }
@@ -728,8 +729,34 @@ void *TCAN4550Can::entry()
                 if (psr.bo)
                 {
                     // bus off
+#if TCAN4550_DEBUG
+                    testPin_->write(!testPin_->read());
+#endif
                     ++busOffCount;
                     state_ = CAN_STATE_BUS_OFF;
+                    // attempt recovery
+                    Cccr cccr;
+                    do
+                    {
+                        cccr.data = 0;
+                        register_write(CCCR, cccr.data);
+                        cccr.data = register_read(CCCR);
+                    } while (cccr.init == 1);
+
+                    // cancel TX FIFO buffers
+                    register_write(TXBCR, TX_FIFO_BUFFERS_MASK);
+
+                    txBuf->signal_condition();
+#if TCAN4550_DEBUG
+                    testPin_->write(!testPin_->read());
+#endif
+                }
+                else
+                {
+#if TCAN4550_DEBUG
+                    testPin_->set();
+#endif
+                    state_ = CAN_STATE_ACTIVE;
                 }
             }
         }

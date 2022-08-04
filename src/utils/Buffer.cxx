@@ -32,11 +32,17 @@
  */
 
 #include "utils/Buffer.hxx"
+#include "utils/ByteBuffer.hxx"
 
 DynamicPool *mainBufferPool = nullptr;
+Pool *rawBufferPool = nullptr;
 
 Pool* init_main_buffer_pool()
 {
+    if (!rawBufferPool)
+    {
+        rawBufferPool = new DynamicPool(Bucket::init(sizeof(RawBuffer), 0));
+    }
     if (!mainBufferPool)
     {
         mainBufferPool =

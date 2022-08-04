@@ -85,6 +85,10 @@ public:
     /// @return the address to be assigned to this locomotive. 14-bit.
     uint16_t assigned_address(unsigned loco_id);
 
+    /// Invoked when the address assignment completes for a decoder.
+    /// @param loco_id which decoder.
+    void assign_complete(unsigned loco_id);
+    
     /// Flags for the logon handler module.
     enum Flags
     {
@@ -158,7 +162,10 @@ public:
     /// @return the packet classification wrt the logon feature.
     PacketType classify_packet(uintptr_t feedback_key) override
     {
-        LOG(INFO, "classify %x", (unsigned)feedback_key);
+        if (feedback_key >= 1 << 14)
+        {
+            LOG(INFO, "classify %x", (unsigned)feedback_key);
+        }
         if (is_logon_enable_key(feedback_key))
         {
             return LOGON_ENABLE;
@@ -197,6 +204,8 @@ public:
             return;
         }
         uint8_t &flags = module_->loco_flags(loco_id);
+        LOG(INFO, "Select shortinfo for loco ID %d, flags %02x error %d",
+            loco_id, flags, error);
         flags &= ~LogonHandlerModule::FLAG_PENDING_GET_SHORTINFO;
         if (error)
         {
@@ -270,7 +279,7 @@ public:
                 return;
             }
         }
-        flags |= LogonHandlerModule::FLAG_COMPLETE;
+        module_->assign_complete(loco_id);
         flags &= ~LogonHandlerModule::FLAG_PENDING_TICK;
         LOG(INFO, "Assign completed for loco %d address %d", loco_id,
             module_->assigned_address(loco_id));
@@ -281,7 +290,8 @@ public:
     /// @param error true if there was a transmission error or the data came in
     /// incorrect format.
     /// @param data 48 bits of payload. The low 44 bits of this is a decoder ID.
-    void process_decoder_id(uintptr_t feedback_key, bool error, uint64_t data)
+    void process_decoder_id(
+        uintptr_t feedback_key, bool error, uint64_t data) override
     {
         timer_.ensure_triggered();
         if (data)
@@ -290,6 +300,12 @@ public:
         } else {
             // No railcom feedback returned.
             return;
+        }
+        if (LOGLEVEL >= INFO)
+        {
+            unsigned didh = (data >> 32) & 0xfff;
+            unsigned didl = data & 0xffffffffu;
+            LOG(INFO, "Decoder id %03x%08x error %d", didh, didl, error);
         }
         if (error)
         {

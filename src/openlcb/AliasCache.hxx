@@ -187,12 +187,6 @@ public:
     int check_consistency();
 
 private:
-    enum
-    {
-        /** marks an unused mapping */
-        UNUSED_MASK = 0x10000000
-    };
-
     struct Metadata;
     class PoolIdx;
     friend class PoolIdx;

@@ -118,9 +118,16 @@ private:
     MemoryConfigHandler *parent_;
     dcc::TrackIf *track_;
     dcc::RailcomHubFlow *railcomHub_;
-    uint16_t dccAddress_;
+    /// Last accepted DCC locomotive node ID (bottom 16 bits).
+    uint16_t currId_;
+    /// Numberic value of last used DCC address.
+    uint16_t dccAddressNum_ : 14;
+    /// 1 for long address, 0 for short address.
+    uint16_t dccIsLong_ : 1;
+    /// CV to read (0 to 1023).
     uint16_t cvNumber_;
-    uint8_t cvData_; //< data to read or write.
+    /// data read or data to write
+    uint8_t cvData_;
     uint8_t errorCode_ : 4;
     uint8_t numTry_ : 4;
     enum

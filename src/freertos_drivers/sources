@@ -69,7 +69,12 @@ CXXSRCS += c++_operators.cxx
 endif
 
 ifeq ($(TARGET),bare.armv7m)
-SUBDIRS += cc32xxsdk ti_grlib stm32cubel431xx stm32cubel432xx 
+SUBDIRS += cc32xxsdk ti_grlib stm32cubel431xx stm32cubel432xx
+
+ifdef BUILDTIVAWARE
+SUBDIRS += tivadriverlib tivausblib
+endif
+
 endif
 
 ifeq ($(TARGET),bare.armv6m)

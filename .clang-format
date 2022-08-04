@@ -43,5 +43,25 @@ SpacesInCStyleCastParentheses: false
 SpaceAfterControlStatementKeyword: true
 SpaceBeforeAssignmentOperators: true
 ContinuationIndentWidth: 4
+
+# This big block of settings works around indentation after an extern "C"
+BraceWrapping: {
+  AfterClass:      true,
+  AfterControlStatement: true,
+  AfterEnum:       true,
+  AfterFunction:   true,
+  AfterNamespace:  true,
+  AfterObjCDeclaration: true,
+  AfterStruct:     true,
+  AfterUnion:      true,
+  AfterExternBlock: false,
+  BeforeCatch:     true,
+  BeforeElse:      true,
+  IndentBraces:    false,
+  SplitEmptyFunction: false,
+  SplitEmptyRecord: false,
+  SplitEmptyNamespace: false }
+BreakBeforeBraces: Custom
+IndentExternBlock: false
 ...
 

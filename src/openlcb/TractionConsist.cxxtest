@@ -7,12 +7,12 @@
 namespace openlcb
 {
 
-static constexpr NodeID nodeIdLead = 0x060100000000 | 1370;
-static constexpr NodeID nodeIdC1 = 0x060100000000 | 1371;
-static constexpr NodeID nodeIdC2 = 0x060100000000 | 1372;
-static constexpr NodeID nodeIdC3 = 0x060100000000 | 1373;
-static constexpr NodeID nodeIdC4 = 0x060100000000 | 1374;
-static constexpr NodeID nodeIdC5 = 0x060100000000 | 1375;
+static constexpr NodeID nodeIdLead = 0x06010000C000 | 1370;
+static constexpr NodeID nodeIdC1 = 0x06010000C000 | 1371;
+static constexpr NodeID nodeIdC2 = 0x06010000C000 | 1372;
+static constexpr NodeID nodeIdC3 = 0x06010000C000 | 1373;
+static constexpr NodeID nodeIdC4 = 0x06010000C000 | 1374;
+static constexpr NodeID nodeIdC5 = 0x06010000C000 | 1375;
 
 class TrainNodeWithMockPolicy : public TrainNodeForProxy
 {

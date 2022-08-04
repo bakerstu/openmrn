@@ -157,6 +157,46 @@ TEST(DccDebug, POMRead)
         "[dcc] Short Address 3 POM CV14 read/verify 0", packet_to_string(pkt));
 }
 
+TEST(DccDebug, BroadcastReset)
+{
+    Packet pkt;
+    pkt.set_dcc_reset_all_decoders();
+    EXPECT_EQ("[dcc] Broadcast reset", packet_to_string(pkt));
+}
+
+TEST(DccDebug, SvcMode)
+{
+    Packet pkt;
+    pkt.set_dcc_svc_verify_byte(567, 133);
+    EXPECT_EQ("[dcc][long_preamble][svc] Direct Verify Byte CV 568 =?= 133",
+        packet_to_string(pkt));
+    pkt.set_dcc_svc_write_byte(567, 133);
+    EXPECT_EQ("[dcc][long_preamble][svc] Direct Write Byte CV 568 = 133",
+        packet_to_string(pkt));
+    pkt.set_dcc_svc_verify_bit(567, 3, true);
+    EXPECT_EQ("[dcc][long_preamble][svc] Direct Verify Bit CV 568 bit 3 =?= 1",
+        packet_to_string(pkt));
+    pkt.set_dcc_svc_verify_bit(567, 7, false);
+    EXPECT_EQ("[dcc][long_preamble][svc] Direct Verify Bit CV 568 bit 7 =?= 0",
+        packet_to_string(pkt));
+    pkt.set_dcc_svc_write_bit(567, 3, true);
+    EXPECT_EQ("[dcc][long_preamble][svc] Direct Write Bit CV 568 bit 3 = 1",
+        packet_to_string(pkt));
+    pkt.set_dcc_svc_write_bit(567, 7, false);
+    EXPECT_EQ("[dcc][long_preamble][svc] Direct Write Bit CV 568 bit 7 = 0",
+        packet_to_string(pkt));
+
+    pkt.set_dcc_svc_paged_write_reg(3, 133);
+    EXPECT_EQ("[dcc][long_preamble][svc] Paged Write Byte Reg 4 = 133",
+        packet_to_string(pkt));
+    pkt.set_dcc_svc_paged_verify_reg(4, 133);
+    EXPECT_EQ("[dcc][long_preamble][svc] Paged Verify Byte Reg 5 =?= 133",
+        packet_to_string(pkt));
+    pkt.set_dcc_svc_paged_set_page(27);
+    EXPECT_EQ("[dcc][long_preamble][svc] Paged Write Byte Reg 6 = 27",
+        packet_to_string(pkt));
+}
+
 TEST(DccDebug, Accy)
 {
     Packet pkt;
