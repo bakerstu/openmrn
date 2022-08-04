@@ -35,8 +35,8 @@
 #ifndef _CDIXMLGENERATOR_HXX_
 #define _CDIXMLGENERATOR_HXX_
 
-#include <openlcb/SimpleStack.hxx>
-#include <utils/FileUtils.hxx>
+#include "openlcb/SimpleStack.hxx"
+#include "utils/FileUtils.hxx"
 
 /// Standalone utility class for generating the XML representation of the node
 /// configuration structure. This is primarily used in Arduino environments.
