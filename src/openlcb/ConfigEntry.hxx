@@ -35,11 +35,8 @@
 #ifndef _OPENLCB_CONFIGENTRY_HXX_
 #define _OPENLCB_CONFIGENTRY_HXX_
 
-// stdint.h must be included prior to endian.h due to:
-// https://github.com/espressif/esp-idf/issues/7498
-#include <stdint.h>
-
 #include <endian.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
 

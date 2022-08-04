@@ -35,10 +35,6 @@
 #ifndef _OPENLCB_CONVERT_HXX_
 #define _OPENLCB_CONVERT_HXX_
 
-// stdint.h must be included prior to endian.h due to:
-// https://github.com/espressif/esp-idf/issues/7498
-#include <stdint.h>
-
 #include <endian.h>
 #include <string.h>
 
