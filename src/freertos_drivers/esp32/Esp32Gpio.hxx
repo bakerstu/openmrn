@@ -111,8 +111,11 @@ public:
     static_assert(PIN_NUM >= 0 && PIN_NUM <= 39, "Valid pin range is 0..39.");
     static_assert(PIN_NUM != 24, "Pin does not exist");
     static_assert(!(PIN_NUM >= 28 && PIN_NUM <= 31), "Pin does not exist");
-    static_assert(PIN_NUM != 37, "Pin is connected to GPIO 36 via capacitor.");
-    static_assert(PIN_NUM != 38, "Pin is connected to GPIO 39 via capacitor.");
+    // Most commercially available boards include a capacitor on these two
+    // pins, however, there is no available define that can be used to allow
+    // usage of these when building for a custom PCB using the bare QFN chip.
+    // static_assert(PIN_NUM != 37, "Pin is connected to GPIO 36 via capacitor.");
+    // static_assert(PIN_NUM != 38, "Pin is connected to GPIO 39 via capacitor.");
 #if defined(ESP32_PICO)
     static_assert(!(PIN_NUM >= 6 && PIN_NUM <= 8)
                 , "Pin is reserved for flash usage.");
@@ -732,6 +735,10 @@ public:
         static const gpio_num_t pin()                                          \
         {                                                                      \
             return PIN;                                                        \
+        }                                                                      \
+        static const adc_channel_t channel()                                   \
+        {                                                                      \
+            return CHANNEL;                                                    \
         }                                                                      \
     };                                                                         \
     typedef Esp32ADCInput<NAME##Defs> NAME##_Pin

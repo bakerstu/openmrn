@@ -185,7 +185,7 @@ static constexpr const char * const RESET_REASONS[] =
     "JTAG Reset",               // JTAG_RESET               24
 };
 #elif defined(CONFIG_IDF_TARGET_ESP32C2)
-/// ESP32-C2 SoC reset reasons.
+/// ESP32C2 SoC reset reasons.
 static constexpr const char * const RESET_REASONS[] =
 {
     "unknown",                  // NO_MEAN                  0x00

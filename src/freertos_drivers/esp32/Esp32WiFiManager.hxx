@@ -44,6 +44,7 @@
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/GcTcpHub.hxx"
 #include "utils/macros.h"
+#include "utils/Singleton.hxx"
 
 #include <freertos/event_groups.h>
 #include <esp_idf_version.h>
@@ -121,7 +122,10 @@ typedef std::function<void(time_t)> esp_network_time_callback_t;
 /// This class provides a simple way for ESP32 nodes to manage the WiFi and
 /// mDNS systems of the ESP32, the node being a hub and connecting to an
 /// uplink node to participate in the CAN bus.
-class Esp32WiFiManager : public DefaultConfigUpdateListener, public Service
+class Esp32WiFiManager
+    : public DefaultConfigUpdateListener
+    , public Service
+    , public Singleton<Esp32WiFiManager>
 {
 public:
     /// Constructor.
@@ -183,6 +187,9 @@ public:
 
     /// Destructor.
     ~Esp32WiFiManager();
+
+    /// Display the configuration settings in use.
+    void display_configuration();
 
     /// Configures a @ref Gpio to be used as a visual indication of the current
     /// WiFi status.
