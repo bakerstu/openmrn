@@ -142,6 +142,7 @@ void SimpleStackBase::default_start_node()
         additionalComponents_.emplace_back(space);
     }
 #if OPENMRN_HAVE_POSIX_FD 
+    if (SNIP_DYNAMIC_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(
             configUpdateFlow_.get_fd(), sizeof(SimpleNodeDynamicValues));

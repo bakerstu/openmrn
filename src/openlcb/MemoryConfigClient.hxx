@@ -116,11 +116,11 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         payload.clear();
     }
 
-    /// Sets up a command to read a part of a memory space.
+    /// Sets up a command to write a part of a memory space.
     /// @param WriteCmd polymorphic matching arg; always set to WRITE.
-    /// @param d is the destination node to query
+    /// @param d is the destination node to write to
     /// @param space is the memory space to write to
-    /// @param offset if the address of the first byte to read
+    /// @param offset if the address of the first byte to write
     /// @param data is the data to write
     void reset(
         WriteCmd, NodeHandle d, uint8_t space, unsigned offset, string data)
@@ -130,7 +130,7 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         memory_space = space;
         dst = d;
         this->address = offset;
-        this->size = size;
+        this->size = data.size();
         payload = std::move(data);
     }
 
