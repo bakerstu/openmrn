@@ -77,6 +77,10 @@ public:
         new SetFlow(this, SetFlow::Command::SET_YEAR, year);
     }
 
+    /// Set the date and year from a C string.
+    /// @param data_year date and year format in "Mmm dd, yyyy" format
+    void set_date_year_str(const char *date_year);
+
     /// Set Rate. The new rate does not become valid until the update callbacks
     /// are called.
     /// @param rate clock rate ratio as 12 bit sign extended fixed point
