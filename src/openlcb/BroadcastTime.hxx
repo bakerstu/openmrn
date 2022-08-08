@@ -155,6 +155,22 @@ public:
         return ::gmtime_r(&now, result);
     }
 
+    /// Get the date (month/day).
+    /// @param month month (1 to 12)
+    /// @param day day of month (1 to 31)
+    /// @return 0 upon success, else -1 on failure
+    int date(int *month, int *day)
+    {
+        struct tm tm;
+        if (gmtime_r(&tm) == nullptr)
+        {
+            return -1;
+        }
+        *month = tm.tm_mon + 1;
+        *day = tm.tm_mday;
+        return 0;
+    }
+
     /// Get the day of the week.
     /// @returns day of the week (0 - 6, Sunday - Saturday) upon success,
     ///          else -1 on failure
@@ -178,6 +194,18 @@ public:
             return -1;
         }
         return tm.tm_yday;
+    }
+
+    /// Get the year.
+    /// @returns year (0 - 4095) upon success, else -1 on failure
+    int year()
+    {
+        struct tm tm;
+        if (gmtime_r(&tm) == nullptr)
+        {
+            return -1;
+        }
+        return tm.tm_year + 1900;
     }
 
     /// Report the clock rate as a 12-bit fixed point number
