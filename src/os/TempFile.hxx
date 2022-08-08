@@ -115,10 +115,7 @@ public:
 
   /// writes the given data to the temporary file from offset 0. @param s is
   /// the data to write.
-  void rewrite(const string& s) {
-      ::lseek(fd_, 0, SEEK_SET);
-      write(s);
-  }
+  void rewrite(const string& s);
     
   /// writes the given data to the temporary file. @param s is the data to
   /// write.

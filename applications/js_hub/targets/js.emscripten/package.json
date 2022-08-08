@@ -1,9 +1,15 @@
 {
-  "name": "openmrn-js-hub",
+  "name": "openmrn-hub",
   "version": "0.9.1",
   "dependencies": {
     "websocket": "*",
     "ecstatic": "*",
     "serialport": "*"
+  },
+  "bin": "js_hub.js",
+  "pkg": {
+      "assets": [
+          "./node_modules/@serialport/bindings/build/Release/bindings.node"
+      ]
   }
 }

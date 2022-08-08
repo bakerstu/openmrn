@@ -274,7 +274,7 @@ TEST(CdiRender, Render)
     string s;
     TestCdi1 cfg(0);
     cfg.config_renderer().render_cdi(&s);
-    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\"?>" R"data(
+    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" R"data(
 <cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
 <segment space='17'>
 <name>testseg</name>
@@ -316,7 +316,7 @@ TEST(CdiRender, RenderIdent)
     string s;
     TestCdi2 cfg(0);
     cfg.config_renderer().render_cdi(&s);
-    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\"?>" R"data(
+    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" R"data(
 <cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
 <identification>
 <manufacturer>Manuf</manufacturer>
@@ -328,11 +328,11 @@ TEST(CdiRender, RenderIdent)
 <segment space='251' origin='1'>
 <string size='63'>
 <name>User Name</name>
-<description>This name will appear in network browsers for the current node.</description>
+<description>This name will appear in network browsers for this device.</description>
 </string>
 <string size='64'>
 <name>User Description</name>
-<description>This description will appear in network browsers for the current node.</description>
+<description>This description will appear in network browsers for this device.</description>
 </string>
 </segment>
 <segment space='12' origin='33'>

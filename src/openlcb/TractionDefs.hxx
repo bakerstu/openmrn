@@ -63,13 +63,6 @@ SpeedType fp16_to_speed(const void *fp16);
  * to.*/
 void speed_to_fp16(SpeedType speed, void *fp16);
 
-/** @returns NAN as speed. */
-inline SpeedType nan_to_speed() {
-    SpeedType s;
-    s.set_wire(0xFFFFU);
-    return s;
-}
-
 /// Static constants and helper functions for the Traciton protocol family.
 struct TractionDefs {
     /// This event should be produced by train nodes.
@@ -84,6 +77,8 @@ struct TractionDefs {
     static const uint64_t NODE_ID_DC_BLOCK = 0x060000000000ULL;
     /// Node ID space allocated for DCC locomotives.
     static const uint64_t NODE_ID_DCC = 0x060100000000ULL;
+    /// Long addresses should OR this selector to {\link NODE_ID_DCC }.
+    static const uint16_t DCC_LONG_SELECTOR = 0xC000;
     /// Node ID space allocated for TMCC protocol.
     static const uint64_t NODE_ID_TMCC = 0x060200000000ULL;
     /// Node ID space allocated for the Marklin-Motorola protocol.
@@ -107,6 +102,12 @@ struct TractionDefs {
         REQ_CONSIST_CONFIG = 0x30,
         REQ_TRACTION_MGMT = 0x40,
 
+        /// Mask to apply to the command byte of the requests.
+        REQ_MASK = 0x7F,
+        /// Flag bit in the command byte set when a listener command is
+        /// forwarded.
+        REQ_LISTENER = 0x80,
+
         // Byte 1 of REQ_CONTROLLER_CONFIG command
         CTRLREQ_ASSIGN_CONTROLLER = 0x01,
         CTRLREQ_RELEASE_CONTROLLER = 0x02,
@@ -121,12 +122,16 @@ struct TractionDefs {
         // Byte 1 of REQ_TRACTION_MGMT command
         MGMTREQ_RESERVE = 0x01,
         MGMTREQ_RELEASE = 0x02,
+        MGMTREQ_NOOP = 0x03,
         // Byte 0 of response commands
         RESP_QUERY_SPEED = REQ_QUERY_SPEED,
         RESP_QUERY_FN = REQ_QUERY_FN,
         RESP_CONTROLLER_CONFIG = REQ_CONTROLLER_CONFIG,
         RESP_CONSIST_CONFIG = REQ_CONSIST_CONFIG,
         RESP_TRACTION_MGMT = REQ_TRACTION_MGMT,
+
+        // Status byte of the Speed Query response
+        SPEEDRESP_STATUS_IS_ESTOP = 1,
 
         // Byte 1 of Controller Configuration response
         CTRLRESP_ASSIGN_CONTROLLER = CTRLREQ_ASSIGN_CONTROLLER,
@@ -150,6 +155,7 @@ struct TractionDefs {
 
         // Byte 1 of Traction Management replies
         MGMTRESP_RESERVE = MGMTREQ_RESERVE,
+        MGMTRESP_HEARTBEAT = 0x03,
 
         PROXYREQ_ALLOCATE = 0x01,
         PROXYREQ_ATTACH = 0x02,
@@ -212,14 +218,7 @@ struct TractionDefs {
             case dcc::TrainAddressType::DCC_SHORT_ADDRESS:
                 return NODE_ID_DCC | addr;
             case dcc::TrainAddressType::DCC_LONG_ADDRESS:
-                if (addr < 128)
-                {
-                    return NODE_ID_DCC | 0xC000 | addr;
-                }
-                else
-                {
-                    return NODE_ID_DCC | addr;
-                }
+                return NODE_ID_DCC | DCC_LONG_SELECTOR | addr;
             case dcc::TrainAddressType::MM:
                 return NODE_ID_MARKLIN_MOTOROLA | addr;
             default:
@@ -245,7 +244,8 @@ struct TractionDefs {
         if ((id & NODE_ID_MASK) == NODE_ID_DCC)
         {
             *addr = (id & 0x3FFF);
-            if (((id & 0xC000) == 0xC000) || (*addr >= 128u))
+            if (((id & DCC_LONG_SELECTOR) == DCC_LONG_SELECTOR) ||
+                (*addr >= 128u))
             {
                 // overlapping long address
                 *type = dcc::TrainAddressType::DCC_LONG_ADDRESS;
@@ -350,8 +350,12 @@ struct TractionDefs {
     /** Parses the response payload of a GET_SPEED packet.
      * @returns true if the last_set_speed value was present and non-NaN.
      * @param p is the response payload.
-     * @param v is the velocity that will be set to the speed value. */
-    static bool speed_get_parse_last(const Payload &p, Velocity *v)
+     * @param v is the velocity that will be set to the speed value.
+     * @param is_estop if non-null, will be set to true if the train was last
+     * set to estop instead of a speed.
+     */
+    static bool speed_get_parse_last(
+        const Payload &p, Velocity *v, bool *is_estop = nullptr)
     {
         if (p.size() < 3)
         {
@@ -361,6 +365,14 @@ struct TractionDefs {
         if (std::isnan(v->speed()))
         {
             return false;
+        }
+        if (is_estop)
+        {
+            if (p.size() < 4)
+            {
+                return false;
+            }
+            *is_estop = (p[3] & SPEEDRESP_STATUS_IS_ESTOP) != 0;
         }
         return true;
     }
@@ -499,6 +511,26 @@ struct TractionDefs {
         p[3] = index;
         p[4] = flags;
         node_id_to_data(slave, &p[5]);
+        return p;
+    }
+
+    /// Generates a Heartbeat Request, to be sent from the train node to the
+    /// controller.
+    static Payload heartbeat_request_payload(uint8_t deadline_sec = 3)
+    {
+        Payload p(3, 0);
+        p[0] = RESP_TRACTION_MGMT;
+        p[1] = MGMTRESP_HEARTBEAT;
+        p[2] = deadline_sec;
+        return p;
+    }
+
+    /// Generates a Noop message, to be sent from the throttle to the train node.
+    static Payload noop_payload()
+    {
+        Payload p(2, 0);
+        p[0] = REQ_TRACTION_MGMT;
+        p[1] = MGMTREQ_NOOP;
         return p;
     }
 };

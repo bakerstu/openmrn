@@ -40,6 +40,12 @@
 #define _DEFAULT_SOURCE
 #endif
 
+#include "utils/socket_listener.hxx"
+
+#include "nmranet_config.h"
+#include "utils/logging.h"
+#include "utils/macros.h"
+
 #ifndef ESP32 // these don't exist on the ESP32 with LWiP
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -51,34 +57,22 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "utils/socket_listener.hxx"
-
-#include "utils/macros.h"
-#include "utils/logging.h"
-
-
-static void* accept_thread_start(void* arg) {
+static void* accept_thread_start(void* arg)
+{
   SocketListener* l = static_cast<SocketListener*>(arg);
   l->AcceptThreadBody();
   return NULL;
 }
 
-#ifdef ESP32
-/// Stack size to use for the accept_thread_.
-static constexpr size_t listener_stack_size = 2048;
-#else
-/// Stack size to use for the accept_thread_.
-static constexpr size_t listener_stack_size = 1000;
-#endif // ESP32
-
-SocketListener::SocketListener(int port, connection_callback_t callback)
+SocketListener::SocketListener(int port, connection_callback_t callback,
+                               const char *thread_name)
     : startupComplete_(0),
       shutdownRequested_(0),
       shutdownComplete_(0),
       port_(port),
       callback_(callback),
-      accept_thread_("accept_thread", 0, listener_stack_size,
-        accept_thread_start, this)
+      accept_thread_(thread_name, 0, config_socket_listener_stack_size(),
+                     accept_thread_start, this)
 {
 #if OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
     // We expect write failures to occur but we want to handle them where the
@@ -87,8 +81,10 @@ SocketListener::SocketListener(int port, connection_callback_t callback)
 #endif // OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
 }
 
-SocketListener::~SocketListener() {
-    if (!shutdownComplete_) {
+SocketListener::~SocketListener()
+{
+    if (!shutdownComplete_)
+    {
         shutdown();
     }
 }
@@ -96,12 +92,14 @@ SocketListener::~SocketListener() {
 void SocketListener::shutdown()
 {
     shutdownRequested_ = 1;
-    while (!shutdownComplete_) {
+    while (!shutdownComplete_)
+    {
         usleep(1000);
     }
 }
 
-void SocketListener::AcceptThreadBody() {
+void SocketListener::AcceptThreadBody()
+{
   socklen_t namelen;
   struct sockaddr_in addr;
   int listenfd;
@@ -129,7 +127,7 @@ void SocketListener::AcceptThreadBody() {
 
   // FreeRTOS+TCP uses the parameter to listen to set the maximum number of
   // connections to the given socket, so allow some room
-  ERRNOCHECK("listen", listen(listenfd, 5));
+  ERRNOCHECK("listen", listen(listenfd, config_socket_listener_backlog()));
 
   LOG(INFO, "Listening on port %d, fd %d", ntohs(addr.sin_port), listenfd);
 
@@ -147,16 +145,20 @@ void SocketListener::AcceptThreadBody() {
 
   startupComplete_ = 1;
 
-  while (!shutdownRequested_) {
+  while (!shutdownRequested_)
+  {
     namelen = sizeof(addr);
     connfd = accept(listenfd,
                     (struct sockaddr *)&addr,
                     &namelen);
-    if (connfd < 0) {
-      if (errno == EINTR || errno == EAGAIN || errno == EMFILE) {
+    if (connfd < 0)
+    {
+      if (errno == EINTR || errno == EAGAIN || errno == EMFILE)
+      {
         continue;
       }
-      else if (errno == ECONNABORTED) {
+      else if (errno == ECONNABORTED)
+      {
         break;
       }
       print_errno_and_exit("accept");

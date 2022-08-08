@@ -46,7 +46,15 @@ class BroadcastTimeServerSync;
 class BroadcastTimeServerSet;
 class BroadcastTimeServerAlarm;
 
-/// Implementation of a Broadcast Time Protocol client.
+/// Implementation of a Broadcast Time Protocol server. Note: A Broadcast Time
+/// server must produce all the individual time events for which there is an
+/// identified consumer. In order to guarantee that the server can identify all
+/// of the consumers, it is important to have an Event Identify Global message
+/// sent after the creation of the server object. In order to prevent
+/// unnecessary duplication of Event Identify Global messages, it is left to
+/// the application to send the Event Identify Global message. An application
+/// can use the @ref openlcb::EventIdentifyGlobal object for production of an
+/// Event Identify Global message.
 class BroadcastTimeServer : public BroadcastTime
 {
 public:
@@ -58,6 +66,13 @@ public:
 
     /// Destructor.
     ~BroadcastTimeServer();
+
+    /// Has a time server been detected?
+    /// @return true if a time server has been detected, else false
+    bool is_server_detected() override
+    {
+        return true;
+    }
 
 #if defined(GTEST)
     void shutdown();

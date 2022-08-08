@@ -44,11 +44,10 @@ protected:
     LoggingTrainTest() : trainImpl_(1732)
     {
         create_allocated_alias();
-        expect_next_alias_allocation();
         // alias reservation
-        expect_packet(":X1070133AN0601000006C4;");
+        expect_packet(":X1070133AN06010000C6C4;");
         // initialized
-        expect_packet(":X1910033AN0601000006C4;");
+        expect_packet(":X1910033AN06010000C6C4;");
         trainNode_.reset(new TrainNodeForProxy(&trainService_, &trainImpl_));
         wait();
     }

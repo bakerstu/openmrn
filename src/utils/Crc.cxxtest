@@ -1,5 +1,8 @@
-#include "utils/test_main.hxx"
 #include "utils/Crc.hxx"
+
+#include "utils/format_utils.hxx"
+#include "utils/test_main.hxx"
+#include <stdlib.h>
 
 extern uint8_t reverse(uint8_t data);
 
@@ -30,11 +33,218 @@ TEST(CrcIbmTest, Example3) {
     EXPECT_EQ("0459", actual);
 }
 
+TEST(Crc3Test, Example)
+{
+    uint16_t data[3];
+    crc3_crc16_ibm("12345678", 8, data);
+    EXPECT_EQ(0x3c9d, data[0]);
+    EXPECT_EQ(0x75a8, data[1]);
+    EXPECT_EQ(0x0459, data[2]);
+}
 
-TEST(Crc3Test, Example) {
-  uint16_t data[3];
-  crc3_crc16_ibm("12345678", 8, data);
-  EXPECT_EQ(0x3c9d, data[0]);
-  EXPECT_EQ(0x75a8, data[1]);
-  EXPECT_EQ(0x0459, data[2]);
+
+extern void crc_16_ibm_add_basic(uint16_t& state, uint8_t data);
+
+// This is not a test. It generates the translation table for the CRC16-IBM.
+TEST(Crc3Generate, generate16)
+{
+    printf("static const uint16_t CRC16_IBM_HI[16] =\n{\n    ");
+    for (unsigned nib = 0; nib < 16; nib++)
+    {
+        uint16_t state = 0;
+        crc_16_ibm_add_basic(state, nib << 4);
+        printf("0x%04x, ", state);
+    }
+    printf("\n};\n");
+    printf("static const uint16_t CRC16_IBM_LO[16] =\n{\n    ");
+    for (unsigned nib = 0; nib < 16; nib++)
+    {
+        uint16_t state = 0;
+        crc_16_ibm_add_basic(state, nib);
+        printf("0x%04x, ", state);
+    }
+    printf("\n};\n");
+}
+
+TEST(Crc8Test, Example)
+{
+    // This test vector comes from the RCN-218 document by RailCommunity. It is
+    // the same as an example message from the BiDiB examples page:
+    // http://www.bidib.org/support/example1_e.html
+    static const uint8_t sample_message[] = {
+        0x0B, 0x0A, 0x00, 0x00, 0x8E, 0x40, 0x00, 0x0D, 0x67, 0x00, 0x01, 0x00};
+
+    Crc8DallasMaxim c0;
+    Crc8DallasMaxim c16;
+    Crc8DallasMaxim c256;
+
+    for (unsigned i = 0; i < ARRAYSIZE(sample_message); i++) {
+        c0.update0(sample_message[i]);
+        c16.update16(sample_message[i]);
+        c256.update256(sample_message[i]);
+
+        EXPECT_EQ(c0.get(), c16.get());
+        EXPECT_EQ(c0.get(), c256.get());
+    }
+    EXPECT_EQ(0x4Cu, c0.get());
+
+    EXPECT_TRUE(c0.check_ok(0x4C));
+    EXPECT_TRUE(c16.check_ok(0x4C));
+    EXPECT_TRUE(c256.check_ok(0x4C));
+
+    // Consumes the CRC byte
+    c0.update0(0x4C);
+    c16.update16(0x4C);
+    c256.update256(0x4C);
+    // The message should check to zero now.
+    EXPECT_TRUE(c0.check_ok());
+    EXPECT_TRUE(c16.check_ok());
+    EXPECT_TRUE(c256.check_ok());
+}
+
+TEST(Crc8Test, Fuzz)
+{
+    // In the fuzz test we test the three different implementations of CRC8
+    // against each other on random data.
+    unsigned int seed = 42;
+
+    Crc8DallasMaxim c0;
+    Crc8DallasMaxim c16;
+    Crc8DallasMaxim c256;
+
+    for (unsigned i = 0; i < 100000; i++)
+    {
+        int r1 = rand_r(&seed);
+        if (r1 % 100 == 0)
+        {
+            c0.init();
+            c16.init();
+            c256.init();
+        }
+        uint8_t m = rand_r(&seed) & 0xFF;
+        c0.update0(m);
+        c16.update16(m);
+        c256.update256(m);
+
+        EXPECT_EQ(c0.get(), c16.get());
+        EXPECT_EQ(c0.get(), c256.get());
+    }
+}
+
+string get_sample(unsigned suffix)
+{
+    const uint8_t prefixbytes[] = {0, 0x99, 0x11, 0x22, 0x33};
+    string s((const char *)prefixbytes, 5);
+    s.push_back(suffix & 0xff);
+    s[4] ^= (suffix >> 8);
+    return s;
+}
+
+// Shows the collision behavior of CRC8.
+TEST(Crc8Test, Collision)
+{
+    std::map<uint8_t, unsigned> rev_lookup;
+    unsigned c1, c2;
+    for (unsigned i = 0; i < 2 * 256; i++)
+    {
+        string s = get_sample(i);
+        Crc8DallasMaxim m;
+        for (unsigned j = 0; j < 6; j++)
+        {
+            m.update256(s[j]);
+        }
+        uint8_t crc = m.get();
+        if (rev_lookup.find(crc) != rev_lookup.end())
+        {
+            c1 = i;
+            c2 = rev_lookup[crc];
+            LOG(INFO, "collision: %d %d on %02x", c1, c2, crc);
+            break;
+        }
+        rev_lookup[crc] = i;
+    }
+    string s1 = get_sample(c1), s2 = get_sample(c2);
+    Crc8DallasMaxim m1, m2;
+    for (unsigned i = 0; i < 6; i++)
+    {
+        m1.update256(s1[i]);
+        m2.update256(s2[i]);
+    }
+    LOG(INFO, "1 %02x %02x %d", m1.get(), m2.get(), s1 == s2);
+    for (unsigned i = 0; i < 6; i++)
+    {
+        m1.update256(s1[i]);
+        m2.update256(s2[i]);
+    }
+    LOG(INFO, "2 %02x %02x", m1.get(), m2.get());
+    for (unsigned i = 0; i < 6; i++)
+    {
+        m1.update256(s1[i]);
+        m2.update256(s2[i]);
+    }
+    LOG(INFO, "3 %02x %02x", m1.get(), m2.get());
+    for (unsigned cc = 0; cc < 256; cc++)
+    {
+        m1.init();
+        m1.update256(cc);
+        m2.init();
+        m2.update256(cc);
+        for (unsigned i = 0; i < 6; i++)
+        {
+            m1.update256(s1[i]);
+            m2.update256(s2[i]);
+        }
+        LOG(VERBOSE, "start %02x one %02x two %02x", cc, m1.get(), m2.get());
+    }
+    LOG(INFO, "s1=%s s2=%s", string_to_hex(s1).c_str(),
+        string_to_hex(s2).c_str());
+}
+
+// These examples contain specific messages from other unittests and print
+// their CRC. This pattern can be used for developing other tests. There are no
+// expectations in these tests.
+TEST(Crc8Test, LogonExample)
+{
+    Crc8DallasMaxim m;
+    m.update256(0x93);
+    m.update256(0x82);
+    m.update256(0x55);
+    m.update256(0xa7);
+    m.update256(0x03);
+    LOG(INFO, "example: 0x%02x", m.get());
+}
+
+TEST(Crc8Test, LogonExample2)
+{
+    Crc8DallasMaxim m;
+    m.update256(0xD5);
+    m.update256(0xA3);
+    m.update256(0x27);
+    m.update256(0x18);
+    m.update256(0x22);
+    LOG(INFO, "example: 0x%02x", m.get());
+}
+
+TEST(Crc8Test, LogonExample3)
+{
+    Crc8DallasMaxim m;
+    m.update256(253);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    LOG(INFO, "example: 0x%02x", m.get());
+}
+
+TEST(Crc8Test, LogonExample4)
+{
+    Crc8DallasMaxim m;
+    m.update256(254);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    m.update256(0xaa);
+    LOG(INFO, "example: 0x%02x", m.get());
 }

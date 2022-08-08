@@ -33,12 +33,17 @@
 
 #include "Stm32Uart.hxx"
 
+#include "freertos/tc_ioctl.h"
+#include "stm32f_hal_conf.hxx"
+
 #if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_hal_cortex.h"
 #elif defined(STM32F103xB)
 #include "stm32f1xx_hal_cortex.h"
 #elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_hal_cortex.h"
+#elif defined(STM32L431xx) || defined(STM32L432xx)
+#include "stm32l4xx_hal_cortex.h"
 #elif defined(STM32F767xx)
 #include "stm32f7xx_hal_cortex.h"
 #else
@@ -52,9 +57,15 @@ Stm32Uart *Stm32Uart::instances[1] = {NULL};
 #elif defined (STM32F030x8) || defined (STM32F042x6) || defined (STM32F048xx) \
    || defined (STM32F051x8) || defined (STM32F058xx) || defined (STM32F070x6)
 Stm32Uart *Stm32Uart::instances[2] = {NULL};
+#elif defined (STM32L432xx)
+Stm32Uart *Stm32Uart::instances[3] = {NULL};
+#define USART3 LPUART1
 #elif defined (STM32F070xB) || defined (STM32F071xB) || defined (STM32F072xB) \
    || defined (STM32F078xx)
 Stm32Uart *Stm32Uart::instances[4] = {NULL};
+#elif defined (STM32L431xx)
+Stm32Uart *Stm32Uart::instances[4] = {NULL};
+#define USART4 LPUART1
 #elif defined (STM32F303xC) || defined (STM32F303xE)
 Stm32Uart *Stm32Uart::instances[5] = {NULL};
 #define USART4 UART4
@@ -94,6 +105,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     {
         instances[2] = this;
     }
+#if !defined(STM32L432xx)    
 #ifdef USART4    
     else if (base == USART4)
 #elif defined(UART4)
@@ -103,7 +115,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
         instances[3] = this;
     }
 #if !defined (STM32F070xB) && !defined (STM32F071xB) && !defined (STM32F072xB) \
- && !defined (STM32F078xx)
+    && !defined (STM32F078xx) && !defined(STM32L431xx)
 #ifdef USART5
     else if (base == USART5)
 #elif defined(UART5)
@@ -142,6 +154,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
 #endif
 #endif
 #endif
+#endif
     else
     {
         HASSERT(0);
@@ -152,7 +165,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     HAL_NVIC_SetPriority(interrupt, 3, 0);
 #elif defined(GCC_ARMCM3)    
     // Below kernel-compatible interrupt priority.
-    NVIC_SetPriority(interrupt, configMAX_SYSCALL_INTERRUPT_PRIORITY + 0x20);
+    SetInterruptPriority(interrupt, configMAX_SYSCALL_INTERRUPT_PRIORITY + 0x20);
 #else
 #error not defined how to set interrupt priority
 #endif    
@@ -218,6 +231,21 @@ void Stm32Uart::disable()
     __HAL_UART_DISABLE_IT(&uartHandle, UART_IT_ERR);
     __HAL_UART_DISABLE_IT(&uartHandle, UART_IT_RXNE);
     HAL_UART_DeInit(&uartHandle); 
+}
+
+int Stm32Uart::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    switch (key)
+    {
+        default:
+            return -EINVAL;
+        case TCBAUDRATE:
+            uartHandle.Init.BaudRate = data;
+            volatile auto ret = HAL_UART_Init(&uartHandle);
+            HASSERT(HAL_OK == ret);
+            break;
+    }
+    return 0;
 }
 
 /** Try and transmit a message.

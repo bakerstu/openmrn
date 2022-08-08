@@ -1,0 +1,113 @@
+#include "os/FakeClock.hxx"
+
+#include "utils/test_main.hxx"
+
+TEST(FakeClockTest, advance)
+{
+    long long t1 = os_get_time_monotonic();
+    usleep(20000);
+    long long t2 = os_get_time_monotonic();
+    EXPECT_LT(t1 + MSEC_TO_NSEC(20), t2);
+
+    FakeClock clk;
+    long long tfreeze = os_get_time_monotonic();
+    // Upon startup the time should be pretty close.
+    EXPECT_GT(t2 + MSEC_TO_NSEC(1), tfreeze);
+
+    // Time will not advance too much when frozen.
+    for (unsigned i = 0; i < 100; ++i)
+    {
+        EXPECT_GT(tfreeze + 500, os_get_time_monotonic());
+    }
+
+    // Advance should be accurate.
+    long long t3 = os_get_time_monotonic();
+    clk.advance(MSEC_TO_NSEC(3540));
+    long long t4 = os_get_time_monotonic();
+    EXPECT_NEAR(t4, t3 + MSEC_TO_NSEC(3540), 10);
+
+    // But still be monotonic.
+    t1 = os_get_time_monotonic();
+    t2 = os_get_time_monotonic();
+    EXPECT_EQ(1, t2 - t1);
+}
+
+TEST(FakeClockTest, independent_test)
+{
+    // There should be no freezing left over for the next test.
+    long long t1 = os_get_time_monotonic();
+    usleep(20000);
+    long long t2 = os_get_time_monotonic();
+    EXPECT_LT(t1 + MSEC_TO_NSEC(20), t2);
+}
+
+TEST(FakeClockTest, time_jumps_backwards)
+{
+    // This test verifies that when a fake clock is deleted, time will jump
+    // backwards. This is desirable, because the fake clock might have its time
+    // far in the future and we cannot affort to halt the monotonic clock until
+    // the real time catches up with the fake time.
+    long long t1 = os_get_time_monotonic();
+    long long t2, t3, t4;
+    {
+        FakeClock clk;
+        t2 = os_get_time_monotonic();
+        clk.advance(SEC_TO_NSEC(15));
+        t3 = os_get_time_monotonic();
+    }
+    t4 = os_get_time_monotonic();
+    EXPECT_LT(t1, t2);
+    EXPECT_LT(t2, t3 - SEC_TO_NSEC(15));
+    EXPECT_LT(t1, t4);
+    EXPECT_GT(t3, t4);
+}
+
+class CountingTimer : public Timer
+{
+public:
+    CountingTimer()
+        : Timer(g_executor.active_timers())
+    {
+        start(MSEC_TO_NSEC(20));
+    }
+
+    long long timeout() override
+    {
+        ++count_;
+        if (needStop_)
+        {
+            return DELETE;
+        }
+        return RESTART;
+    }
+
+    bool needStop_ = false;
+    int count_ = 0;
+};
+
+TEST(FakeClockTest, executor_timer)
+{
+    FakeClock clk;
+    CountingTimer *tim = new CountingTimer;
+
+    EXPECT_EQ(0, tim->count_);
+    usleep(50000);
+    wait_for_main_executor();
+    EXPECT_EQ(0, tim->count_);
+    clk.advance(MSEC_TO_NSEC(20) - 100);
+    wait_for_main_executor();
+    EXPECT_EQ(0, tim->count_);
+    clk.advance(100);
+    wait_for_main_executor();
+    EXPECT_EQ(1, tim->count_);
+
+    clk.advance(MSEC_TO_NSEC(200));
+    wait_for_main_executor();
+    EXPECT_EQ(11, tim->count_);
+    clk.advance(MSEC_TO_NSEC(20));
+    wait_for_main_executor();
+    EXPECT_EQ(12, tim->count_);
+    tim->needStop_ = true;
+    clk.advance(MSEC_TO_NSEC(20));
+    wait_for_main_executor();
+}

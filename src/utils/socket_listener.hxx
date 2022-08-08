@@ -60,7 +60,9 @@ public:
     ///
     /// @param port which TCP port number to listen upon.
     /// @param callback will be called on each incoming connection.
-    SocketListener(int port, connection_callback_t callback);
+    /// @param thread_name name to assign to the OSThread.
+    SocketListener(int port, connection_callback_t callback,
+                   const char *thread_name = "accept_thread");
     ~SocketListener();
 
     /// Implementation of the accept thread.

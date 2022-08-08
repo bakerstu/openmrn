@@ -25,8 +25,8 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "OpenLCB DevKit + Nucleo",
-    "Rev A", "1.06"};
+    4,               "OpenMRN", "OpenLCB DevKit + Nucleo F303 dev board",
+    "Rev A", "1.02"};
 
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
@@ -66,14 +66,17 @@ using ServoConsumers = RepeatedGroup<ServoConsumerConfig, 4>;
 // we are updating this define to track number of MCPs instead of
 // expansion boards. 
 // The maximum number of MCPs is 8 (3 address bits available).
-#if NUM_MCPIOS == 2
+#if NUM_MCPIOS == 0
+#elif NUM_MCPIOS == 2
 using Ext0PC = RepeatedGroup<PCConfig, 32>;
 #elif NUM_MCPIOS == 4 
 using Ext0PC = RepeatedGroup<PCConfig, 64>;
 #elif NUM_MCPIOS == 6 
-using Ext0PC = RepeatedGroup<PCConfig, 64>;
+using Ext0PC = RepeatedGroup<PCConfig, 96>;
 #elif NUM_MCPIOS == 8 
 using Ext0PC = RepeatedGroup<PCConfig, 128>;
+#else
+#error invalid value for NUM_MCPIOS. Should be 0 2 4 6 or 8.
 #endif
 
 
@@ -100,6 +103,9 @@ CDI_GROUP_ENTRY(direct_consumers, DirectConsumers, Name("Tortoise/Hi-Power outpu
 CDI_GROUP_ENTRY(servo_consumers, ServoConsumers, Name("Servo Pin outputs"), Description("3-pin servo outputs."), RepName("Line"));
 CDI_GROUP_ENTRY(hidden_servo_5_8, ServoConsumers, Hidden(true));
 CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port D/E outputs"), Description("Line 1-8 is port D, Line 9-16 is port E"), RepName("Line"));
+//#ifdef PORTD_SNAP
+//CDI_GROUP_ENTRY(portde_consumers, PortDEConsumers, Name("Port E outputs"), Description("Line 1-4 is port E 5 - 8; offset due to Snap Switches"), RepName("Line"));
+//#endif
 CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Description("Line 1-8 is port A, Line 9-16 is port B"), RepName("Line"));
 #if NUM_MCPIOS > 0
 CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("IO Expansion Board with MCP23017 Lines"),

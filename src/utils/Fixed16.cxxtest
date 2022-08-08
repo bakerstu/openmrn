@@ -40,19 +40,18 @@ using ::testing::FloatNear;
 TEST(Fixed16Test, CreateRound)
 {
     Fixed16 v1(13);
-    EXPECT_EQ(13, (uint16_t)v1);
+    EXPECT_EQ(13, v1.round());
     v1 = Fixed16(13, 0x7fff);
-    EXPECT_EQ(13, (uint16_t)v1);
+    EXPECT_EQ(13, v1.round());
 
     v1 = Fixed16(13, 0x8000);
-    EXPECT_EQ(14, (uint16_t)v1);
-    EXPECT_EQ(14, (int)v1);
+    EXPECT_EQ(14, v1.round());
 
     v1 = Fixed16(13, 0xff00);
-    EXPECT_EQ(14, (uint16_t)v1);
+    EXPECT_EQ(14, v1.round());
 
     v1 = Fixed16(13, 0xffff);
-    EXPECT_EQ(14, (uint16_t)v1);
+    EXPECT_EQ(14, v1.round());
 }
 
 TEST(Fixed16Test, ToFloat)
@@ -124,20 +123,20 @@ TEST(Fixed16Test, Constexpr)
 TEST(Fixed16Test, Arithmetics)
 {
     Fixed16 v1(13);
-    EXPECT_EQ(13, (uint16_t)v1);
+    EXPECT_EQ(13, v1.round());
 
     v1 += 4;
-    EXPECT_EQ(17, (uint16_t)v1);
+    EXPECT_EQ(17, v1.round());
 
     v1 -= 2;
-    EXPECT_EQ(15, (uint16_t)v1);
+    EXPECT_EQ(15, v1.round());
 
     v1 += Fixed16(0, 0x8000);
-    EXPECT_EQ(16, (uint16_t)v1);
+    EXPECT_EQ(16, v1.round());
     EXPECT_EQ(15, v1.trunc());
 
     v1 *= 2;
-    EXPECT_EQ(31, (uint16_t)v1);
+    EXPECT_EQ(31, v1.round());
     EXPECT_EQ(31, v1.trunc());
     EXPECT_EQ(0, v1.frac());
 
@@ -149,12 +148,50 @@ TEST(Fixed16Test, Arithmetics)
     Fixed16 v2 = 1;
     v2 /= 2;
     v1 += v2;
-    EXPECT_EQ(16, (uint16_t)v1);
+    EXPECT_EQ(16, v1.round());
     EXPECT_THAT(v1.to_float(), FloatNear(16.0, 1e-5));
 
     v1 += Fixed16(1) / 2;
     EXPECT_EQ(16, v1.trunc());
     EXPECT_THAT(v1.to_float(), FloatNear(16.5, 1e-5));
+}
+
+TEST(Fixed16Test, ArithmeticsNegative)
+{
+    Fixed16 v1(13);
+    v1 += -2;
+    EXPECT_EQ(11, v1.round());
+
+    v1 = -15;
+
+    v1 += -2;
+    EXPECT_EQ(-17, v1.round());
+
+    v1 -= -2;
+    EXPECT_EQ(-15, v1.round());
+
+    v1 += 2;
+    EXPECT_EQ(-13, v1.round());
+
+    v1 *= 2;
+    EXPECT_EQ(-26, v1.round());
+}
+
+TEST(Fixed16Test, TruncNegative)
+{
+    Fixed16 v1(Fixed16::FROM_DOUBLE, -7.5);
+    EXPECT_EQ(-7, v1.trunc());
+    EXPECT_EQ(0x8000, v1.frac());
+
+    // Note that the exact half is rounded away from zero.
+    EXPECT_EQ(-8, v1.round());
+
+    v1 = {Fixed16::FROM_DOUBLE, 7.5};
+    EXPECT_EQ(7, v1.trunc());
+    EXPECT_EQ(0x8000, v1.frac());
+
+    // Note that the exact half is rounded away from zero.
+    EXPECT_EQ(8, v1.round());
 }
 
 TEST(Fixed16Test, Division)
@@ -168,6 +205,46 @@ TEST(Fixed16Test, Division)
     multiplier /= diff;
     EXPECT_EQ(4539, multiplier.frac());
     EXPECT_EQ(0, multiplier.trunc());
+}
+
+TEST(Fixed16Test, ShiftByDivision)
+{
+    Fixed16 v1(1);
+    v1 /= 4;
+    EXPECT_EQ(0, v1.trunc());
+    EXPECT_EQ(0x4000, v1.frac());
+
+    v1 = 0x5650;
+    v1 /= 16;
+    EXPECT_EQ(0x565, v1.trunc());
+    EXPECT_EQ(0, v1.frac());
+
+    v1 = 0x569F;
+    v1 /= 256;
+    EXPECT_EQ(0x56, v1.trunc());
+    EXPECT_EQ(0x9F00, v1.frac());
+
+    // Negative bit is also correctly handled.
+    v1 = 0x569F;
+    v1 /= -256;
+    EXPECT_EQ(-0x56, v1.trunc());
+    EXPECT_EQ(0x9F00, v1.frac());
+}
+
+TEST(Fixed16Test, DivisionPrecision)
+{
+    Fixed16 v1(31000); // close to largest representable integer
+    Fixed16 v2(Fixed16::FROM_DOUBLE, 1.01754);
+    EXPECT_EQ(1150, v2.frac());
+    v1 /= v2;
+    // - True result is 30465.6328
+    // - Due to rounding while assigning v2, we are actually dividing
+    // by 1.0175476
+    // - Precise division result is then 30465.40503
+    EXPECT_EQ(30465, v1.trunc());
+    EXPECT_EQ((unsigned)(0.40503 * 65536), v1.frac());
+    EXPECT_THAT(v1.to_float(), FloatNear(30465.40503, 1e-4));
+    EXPECT_THAT(v1.to_float(), FloatNear(31000.0 / 1.0175476, 1e-4));
 }
 
 TEST(Fixed16Test, Sign)
@@ -212,4 +289,109 @@ TEST(Fixed16Test, SignedZero)
     v1 += 1;
     // Adding and subtracting does not preserve the sign.
     EXPECT_TRUE(v1.is_positive());
+}
+
+TEST(Fixed16Test, Compare)
+{
+    // This array is sorted.
+    Fixed16 arr[] = {
+        {-32767, 0xffff},
+        {-32767, 0x8000},
+        {-32767, 1},
+        {-32767, 0},
+        {-32766, 0xffff},
+        {-32766, 0x8000},
+        {-32766, 1},
+        {-32766, 0},
+        {-1, 0xffff},
+        {-1, 0x8000},
+        {-1, 1},
+        {-1, 0},
+        {0, 0},
+        {0, 1},
+        {0, 0x8000},
+        {0, 0xffff},
+        {1, 0},
+        {1, 1},
+        {1, 0x8000},
+        {1, 0xffff},
+        {32767, 0},
+        {32767, 1},
+        {32767, 0x8000},
+        {32767, 0xffff}
+    }; 
+
+    for (unsigned i = 0; i < ARRAYSIZE(arr); i++) {
+        for (unsigned j = 0; j < i; j++) {
+            string s = StringPrintf("i [%d] %d:%d k=%08x j [%d] %d:%d k=%08x",
+                i, arr[i].trunc(), arr[i].frac(), arr[i].to_key(), j,
+                arr[j].trunc(), arr[j].frac(), arr[j].to_key());
+            SCOPED_TRACE(s);
+            EXPECT_TRUE(arr[j] < arr[i]);
+            EXPECT_TRUE(arr[j] <= arr[i]);
+            EXPECT_FALSE(arr[j] > arr[i]);
+            EXPECT_FALSE(arr[j] >= arr[i]);
+            EXPECT_FALSE(arr[i] < arr[j]);
+            EXPECT_FALSE(arr[i] <= arr[j]);
+            EXPECT_TRUE(arr[i] > arr[j]);
+            EXPECT_TRUE(arr[i] >= arr[j]);
+
+            EXPECT_TRUE(arr[i] != arr[j]);
+            EXPECT_FALSE(arr[i] == arr[j]);
+        }
+        EXPECT_FALSE(arr[i] < arr[i]);
+        EXPECT_FALSE(arr[i] > arr[i]);
+        EXPECT_TRUE(arr[i] <= arr[i]);
+        EXPECT_TRUE(arr[i] >= arr[i]);
+
+        EXPECT_TRUE(arr[i] == arr[i]);
+        EXPECT_FALSE(arr[i] != arr[i]);
+    }
+}
+
+/// Helper function to test mulpow2 operation. Computes base mulpow2 shift with
+/// fixed16 and with double, and verifies that the results is within the given
+/// relative precision form each other.
+/// @param base left operand of mulpow2
+/// @param shift right operand of mulpow2
+/// @param precision relative precisoin of how close the FIxed16 computation
+/// should be to the real result. Example 0.01 for 1% precision.
+void mulpow2_test(double base, double shift, double precision)
+{
+    double result = base * pow(2.0, shift);
+    string expl = StringPrintf("while computing %lg mulpow2 %lg", base, shift);
+    SCOPED_TRACE(expl);
+    Fixed16 fbase {Fixed16::FROM_DOUBLE, base};
+    Fixed16 fshift {Fixed16::FROM_DOUBLE, shift};
+    fbase.mulpow2(fshift);
+    EXPECT_NEAR(result, fbase.to_float(), result * precision);
+}
+
+TEST(Fixed16Test, MulPow2)
+{
+    // General case is within 1% precision.
+    mulpow2_test(13, 1.385, 0.01);
+    mulpow2_test(13, -2.442, 0.01);
+
+    // Integer shifts should work very well.
+    mulpow2_test(1, 4, 0.00001);
+    mulpow2_test(1.77429, 4, 0.00001);
+    mulpow2_test(1, -4, 0.00001);
+    mulpow2_test(1.77429, -4, 0.0001);
+
+    // When the fractional part does not have a lot of binary digits, the
+    // result should be pretty good too.
+    mulpow2_test(30481, -12.5, 0.00001);
+    mulpow2_test(4377, 2.375, 0.0001);
+}
+
+TEST(Fixed16Test, IntegerDivision)
+{
+    Fixed16 ohmsMin{505};
+    Fixed16 ohmsMax{9495};
+    Fixed16 ohmsMid{ohmsMin + ((ohmsMax - ohmsMin) / 2)};
+    Fixed16 stepSizeLow{(ohmsMid - ohmsMin) / 127};
+    Fixed16 stepSizeHigh{(ohmsMax - ohmsMid) / 127};
+
+    EXPECT_NEAR(35.39, stepSizeLow.to_float(), 0.01);
 }

@@ -103,6 +103,28 @@ STM32CUBEF3PATH:=$(TRYPATH)
 endif
 endif #STM32CUBEF3PATH
 
+################ STM32Cube_F4 ##################
+ifndef STM32CUBEF4PATH
+SEARCHPATH := \
+  /opt/st/STM32Cube_FW_F4/default
+
+TRYPATH:=$(call findfirst,Drivers,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32CUBEF4PATH:=$(TRYPATH)
+endif
+endif #STM32CUBEF4PATH
+
+################ STM32Cube_L4 ##################
+ifndef STM32CUBEL4PATH
+SEARCHPATH := \
+  /opt/st/STM32Cube_FW_L4/default
+
+TRYPATH:=$(call findfirst,Drivers,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32CUBEL4PATH:=$(TRYPATH)
+endif
+endif #STM32CUBEL4PATH
+
 ################ STM32Cube_F7 ##################
 ifndef STM32CUBEF7PATH
 SEARCHPATH := \
@@ -300,6 +322,17 @@ ifneq ($(TRYPATH),)
 ARMLINUXGCCPATH:=$(TRYPATH)
 endif
 endif #ARMLINUXGCCPATH
+
+################### AARCH64-LINUX GCC PATH #####################
+ifndef AARCH64LINUXGCCPATH
+SEARCHPATH := \
+    /usr/bin \
+
+TRYPATH:=$(call findfirst,aarch64-linux-gnu-gcc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+AARCH64LINUXGCCPATH:=$(TRYPATH)
+endif
+endif #AARCH64LINUXGCCPATH
 
 ################### TI-CC3200-SDK #####################
 ifndef TICC3200SDKPATH
@@ -520,7 +553,7 @@ SEARCHPATH := \
   /usr/share/openocd/scripts \
 
 
-TRYPATH:=$(call findfirst,target/stellaris_icdi.cfg,$(SEARCHPATH))
+TRYPATH:=$(call findfirst,target/stm32f0x.cfg,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
 OPENOCDSCRIPTSPATH:=$(TRYPATH)
 endif
@@ -559,7 +592,10 @@ endif #EMLLVMPATH
 ##################### CLANGPPP ######################
 ifndef CLANGPPPATH
 SEARCHPATH := \
-  /usr/bin
+  /usr/bin \
+  /usr/lib/llvm-10/bin \
+  /usr/lib/llvm-9/bin \
+  /usr/lib/llvm-8/bin \
 
 
 TRYPATH:=$(call findfirst,clang++,$(SEARCHPATH))
@@ -567,6 +603,18 @@ ifneq ($(TRYPATH),)
 CLANGPPPATH:=$(TRYPATH)
 endif
 endif #CLANGPPPATH
+
+##################### HOSTCLANGPP ######################
+ifndef HOSTCLANGPPPATH
+SEARCHPATH := \
+  /usr/bin \
+
+
+TRYPATH:=$(call findfirst,clang++,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+HOSTCLANGPPPATH:=$(TRYPATH)
+endif
+endif #HOSTCLANGPPPATH
 
 ##################### NODEJS ######################
 ifndef NODEJSPATH

@@ -16,8 +16,8 @@ include $(OPENMRNPATH)/etc/mbed.mk
 PREFIX = $(TOOLPATH)/bin/arm-none-eabi-
 
 AS = $(PREFIX)gcc
-CC = $(PREFIX)gcc
-CXX = $(PREFIX)g++
+CC = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)gcc))
+CXX = $(shell $(OPENMRNPATH)/bin/find_distcc.sh $(realpath $(PREFIX)g++))
 AR = $(PREFIX)ar
 LD = $(PREFIX)g++
 SIZE = $(PREFIX)size

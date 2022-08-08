@@ -38,7 +38,7 @@
 #include <climits>
 #include <string>
 
-#include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/SimpleNodeInfoDefs.hxx"
 #include "utils/OptionalArgs.hxx"
 #include "utils/StringPrintf.hxx"
 
@@ -346,19 +346,19 @@ public:
 
     typedef GroupConfigOptions OptionsType;
 
-    constexpr EmptyGroupConfigRenderer(unsigned size)
+    constexpr EmptyGroupConfigRenderer(int size)
         : size_(size)
     {
     }
 
     template <typename... Args> void render_cdi(string *s, Args... args) const
     {
-        *s += StringPrintf("<group offset='%u'/>\n", size_);
+        *s += StringPrintf("<group offset='%d'/>\n", size_);
     }
 
 private:
     /// The number of bytes this group has to skip.
-    unsigned size_;
+    int size_;
 };
 
 /// Helper class for rendering the cdi.xml of groups, segments and the toplevel
@@ -387,7 +387,7 @@ public:
         *s += "<";
         if (opts.is_cdi())
         {
-            *s += "?xml version=\"1.0\"?>\n<";
+            *s += "?xml version=\"1.0\" encoding=\"utf-8\"?>\n<";
             tag = "cdi";
             *s += tag;
             *s += " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "

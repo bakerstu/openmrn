@@ -37,3 +37,11 @@
 // emulation implementation to prevent GCC from mistakenly optimizing away the
 // constant into a linker reference.
 const bool __attribute__((weak)) EEPROMEmulation::SHADOW_IN_RAM = false;
+
+/// This function will be called after every write. The default
+/// implementation is a weak symbol with an empty function. It is intended
+/// to be overridden in the application to get callbacks for eeprom writes
+/// that can trigger a reload.
+void __attribute__((weak)) EEPROMEmulation::updated_notification()
+{
+}

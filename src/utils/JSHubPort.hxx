@@ -44,11 +44,29 @@
 #include "utils/Hub.hxx"
 #include "utils/GridConnectHub.hxx"
 
+class JSHubFeedback {
+public:
+    /// Callback executed when the port successfully opened.
+    virtual void on_open() {}
+
+    /// Callback executed when the port is closed.
+    virtual void on_close() {}
+
+    /// Callback executed when the port encounters an error.
+    virtual void on_error(string error) {}
+
+    static void call_on_error(unsigned long p, string error)
+    {
+        ((JSHubFeedback *)p)->on_error(error);
+    }
+};
+
 class JSHubPort : public HubPortInterface
 {
 public:
-    JSHubPort(unsigned long parent, emscripten::val send_fn)
+    JSHubPort(unsigned long parent, emscripten::val send_fn, unsigned long feedback = 0)
         : parent_(reinterpret_cast<CanHubFlow *>(parent))
+        , feedback_(reinterpret_cast<JSHubFeedback *>(feedback))
         , sendFn_(send_fn)
         , gcHub_(parent_->service())
         , gcAdapter_(
@@ -59,11 +77,31 @@ public:
         HASSERT(sendFn_.typeof().as<std::string>() == "function");
         gcHub_.register_port(this);
         active_ = true;
+        if (feedback_)
+        {
+            feedback_->on_open();
+        }
     }
 
     ~JSHubPort()
     {
         pause();
+    }
+
+    void fb_close()
+    {
+        if (feedback_)
+        {
+            feedback_->on_close();
+        }
+    }
+
+    void fb_error(string e)
+    {
+        if (feedback_)
+        {
+            feedback_->on_error(e);
+        }
     }
 
     void abandon()
@@ -120,6 +158,7 @@ public:
 
 private:
     CanHubFlow *parent_;
+    JSHubFeedback* feedback_;
     emscripten::val sendFn_;
     HubFlow gcHub_;
     std::unique_ptr<GCAdapterBase> gcAdapter_;
@@ -130,12 +169,16 @@ private:
 EMSCRIPTEN_BINDINGS(js_hub_module)
 {
     emscripten::class_<JSHubPort>("JSHubPort")
-        .constructor<unsigned long, emscripten::val>()
+        //  .constructor<unsigned long, emscripten::val>()
+        .constructor<unsigned long, emscripten::val, unsigned long>()
         .function("recv", &JSHubPort::recv)
         .function("pause", &JSHubPort::pause)
         .function("abandon", &JSHubPort::abandon)
         .function("get_port_num", &JSHubPort::get_port_num)
         .function("resume", &JSHubPort::resume);
+
+    emscripten::class_<JSHubFeedback>("JSHubFeedback")
+        .class_function("call_on_error", &JSHubFeedback::call_on_error);
 }
 
 #endif // __EMSCRIPTEN__

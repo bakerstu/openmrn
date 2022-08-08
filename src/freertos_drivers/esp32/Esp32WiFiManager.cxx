@@ -48,20 +48,45 @@
 #include <mdns.h>
 #include <tcpip_adapter.h>
 
-// ESP-IDF v4+ has a slightly different directory structure to previous
-// versions.
-#ifdef ESP_IDF_VERSION_MAJOR
-// ESP-IDF v4+
+// Starting in ESP-IDF v4.0 a few header files have been relocated so we need
+// to adjust the include paths accordingly. If the __has_include preprocessor
+// directive is defined we can use it to find the appropriate header files.
+// If it is not usable then we will default the older header filenames.
+#if defined(__has_include)
+
+// rom/crc.h was relocated to esp32/rom/crc.h in ESP-IDF v4.0
+// TODO: This will need to be platform specific in IDF v4.1 since this is
+// exposed in unique header paths for each supported platform. Detecting the
+// operating platform (ESP32, ESP32-S2, ESP32-S3, etc) can be done by checking
+// for the presence of one of the following defines:
+// CONFIG_IDF_TARGET_ESP32      -- ESP32
+// CONFIG_IDF_TARGET_ESP32S2    -- ESP32-S2
+// CONFIG_IDF_TARGET_ESP32S3    -- ESP32-S3
+// If none of these are defined it means the ESP-IDF version is v4.0 or
+// earlier.
+#if __has_include("esp32/rom/crc.h")
 #include <esp32/rom/crc.h>
+#else
+#include <rom/crc.h>
+#endif
+
+// esp_wifi_internal.h was relocated to esp_private/wifi.h in ESP-IDF v4.0
+#if __has_include("esp_private/wifi.h")
 #include <esp_private/wifi.h>
 #else
-// ESP-IDF v3.x
+#include <esp_wifi_internal.h>
+#endif
+
+#else
+
+// We are unable to use __has_include, default to the old include paths.
 #include <esp_wifi_internal.h>
 #include <rom/crc.h>
-#endif // ESP_IDF_VERSION_MAJOR
+
+#endif // defined __has_include
 
 using openlcb::NodeID;
-using openlcb::SimpleCanStack;
+using openlcb::SimpleCanStackBase;
 using openlcb::TcpAutoAddress;
 using openlcb::TcpClientConfig;
 using openlcb::TcpClientDefaultParams;
@@ -115,8 +140,15 @@ namespace openmrn_arduino
 /// Esp32WiFiManager::apply_configuration.
 static constexpr UBaseType_t WIFI_TASK_PRIORITY = 2;
 
+/// Priority for the task performing the mdns lookups and connections for the
+/// wifi uplink.
+static constexpr UBaseType_t CONNECT_TASK_PRIORITY = 3;
+
 /// Stack size for the wifi_manager_task.
 static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
+
+/// Stack size for the connect_executor.
+static constexpr uint32_t CONNECT_TASK_STACK_SIZE = 2560L;
 
 /// Interval at which to check the WiFi connection status.
 static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
@@ -272,7 +304,7 @@ private:
 // WiFi connection, mDNS system and the hostname of the ESP32.
 Esp32WiFiManager::Esp32WiFiManager(const char *ssid
                                  , const char *password
-                                 , SimpleCanStack *stack
+                                 , SimpleCanStackBase *stack
                                  , const WiFiConfiguration &cfg
                                  , const char *hostname_prefix
                                  , wifi_mode_t wifi_mode
@@ -325,7 +357,7 @@ Esp32WiFiManager::Esp32WiFiManager(const char *ssid
 // With this constructor being used, it will be the responsibility of the
 // application to manage the WiFi and mDNS systems.
 Esp32WiFiManager::Esp32WiFiManager(
-    SimpleCanStack *stack, const WiFiConfiguration &cfg)
+    SimpleCanStackBase *stack, const WiFiConfiguration &cfg)
     : DefaultConfigUpdateListener()
     , cfg_(cfg)
     , manageWiFi_(false)
@@ -403,9 +435,9 @@ void Esp32WiFiManager::factory_reset(int fd)
 
     // General WiFi configuration settings.
     CDI_FACTORY_RESET(cfg_.sleep);
+    CDI_FACTORY_RESET(cfg_.connection_mode);
 
     // Hub specific configuration settings.
-    CDI_FACTORY_RESET(cfg_.hub().enable);
     CDI_FACTORY_RESET(cfg_.hub().port);
     cfg_.hub().service_name().write(
         fd, TcpDefs::MDNS_SERVICE_NAME_GRIDCONNECT_CAN_TCP);
@@ -508,10 +540,7 @@ void Esp32WiFiManager::process_wifi_event(system_event_t *event)
         // Retrieve the configured IP address from the TCP/IP stack.
         tcpip_adapter_ip_info_t ip_info;
         tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
-        LOG(INFO,
-            "[WiFi] IP address is " IPSTR ", starting hub (if enabled) and "
-            "uplink.",
-            IP2STR(&ip_info.ip));
+        LOG(INFO, "[WiFi] IP address is " IPSTR ".", IP2STR(&ip_info.ip));
 
         // Start the mDNS system since we have an IP address, the mDNS system
         // on the ESP32 requires that the IP address be assigned otherwise it
@@ -958,13 +987,28 @@ void *Esp32WiFiManager::wifi_manager_task(void *param)
                 ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
             }
 
-            if (CDI_READ_TRIMMED(wifi->cfg_.hub().enable, wifi->configFd_))
+            bool have_hub = false;
+            uint8_t conn_cfg = CDI_READ_TRIMMED(wifi->cfg_.connection_mode,
+                                                wifi->configFd_);
+            if (conn_cfg & 2)
             {
+              LOG(INFO, "[WiFi] Starting hub.");
                 // Since hub mode is enabled start the HUB creation process.
                 wifi->start_hub();
+                have_hub = true;
+            } else {
+              LOG(INFO, "[WiFi] Hub disabled by configuration.");
             }
-            // Start the uplink connection process in the background.
-            wifi->start_uplink();
+            if (conn_cfg & 1) {
+              LOG(INFO, "[WiFi] Starting uplink.");
+              wifi->start_uplink();
+            } else if (!have_hub) {
+              LOG(INFO, "[WiFi] Starting uplink, because hub is disabled.");
+              wifi->start_uplink();
+            } else {
+              LOG(INFO, "[WiFi] Uplink disabled by configuration.");
+            }
+            
             wifi->configReloadRequested_ = false;
         }
 
@@ -1021,10 +1065,15 @@ void Esp32WiFiManager::start_uplink()
 {
     unique_ptr<SocketClientParams> params(
         new Esp32SocketParams(configFd_, cfg_.uplink()));
-    uplink_.reset(new SocketClient(stack_->service(), stack_->executor(),
-        stack_->executor(), std::move(params),
+    uplink_.reset(new SocketClient(stack_->service(), &connectExecutor_,
+        &connectExecutor_, std::move(params),
         std::bind(&Esp32WiFiManager::on_uplink_created, this,
             std::placeholders::_1, std::placeholders::_2)));
+    if (!connectExecutorStarted_) {
+        connectExecutorStarted_ = true;
+        connectExecutor_.start_thread(
+            "Esp32WiFiConn", CONNECT_TASK_PRIORITY, CONNECT_TASK_STACK_SIZE);
+    }
 }
 
 // Converts the passed fd into a GridConnect port and adds it to the stack.
@@ -1128,7 +1177,7 @@ void Esp32WiFiManager::mdns_publish(string service, const uint16_t port)
         split_mdns_service_name(&service_name, &protocol_name);
         esp_err_t res = mdns_service_add(
             NULL, service_name.c_str(), protocol_name.c_str(), port, NULL, 0);
-        LOG(VERBOSE, "[mDNS] mdns_service_add(%s.%s:%d): %s."
+        LOG(INFO, "[mDNS] mdns_service_add(%s.%s:%d): %s."
           , service_name.c_str(), protocol_name.c_str(), port
           , esp_err_to_name(res));
         // ESP_FAIL will be triggered if there is a timeout during publish of

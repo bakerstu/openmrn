@@ -44,14 +44,29 @@
 #include "utils/Hub.hxx"
 #include "utils/JSHubPort.hxx"
 
-class JSTcpClient
+class JSTcpClient : private JSHubFeedback
 {
 public:
-    JSTcpClient(CanHubFlow *hflow, string host, int port)
+    /// Argument to the connection callback.
+    enum ConnectionFeedback {
+        CONNECTION_UP,
+        CONNECTION_DOWN,
+        CONNECTION_ERROR
+    };
+    
+    /// Constructor
+    /// @param hflow the CAN hub object in the local binary to add this port to.
+    /// @param host the IP address or name of the remote host
+    /// @param port the TCP port number to connect to
+    /// @param cb will be invoked on connection events (up/down/error)
+    JSTcpClient(CanHubFlow *hflow, string host, int port,
+        std::function<void(ConnectionFeedback)> cb = nullptr)
         : canHub_(hflow)
+        , callback_(std::move(cb))
     {
         string script = "Module.remote_server = '" + host + "';\n";
         emscripten_run_script(script.c_str());
+        
         EM_ASM_(
             {
                 var net = require('net');
@@ -63,23 +78,71 @@ public:
                     c.setTimeout(0);
                     c.setKeepAlive(true);
                     var client_port = new Module.JSHubPort(
-                        $1, function(data) { c.write(data); });
+                        $1, function(data) { c.write(data); }, $2);
                     c.on('close', function() {
                         console.log('connection lost');
+                        client_port.fb_close();
                         client_port.abandon();
                     });
-                    c.on('error', function() {
+                    c.on('error', function(err) {
                         console.log('connection error -- disconnected');
+                        client_port.fb_error(err.toString());
                         client_port.abandon();
                     });
                     c.on('data', function(data) { client_port.recv(data); });
                 });
+                c.on('error', function(err) {
+                    console.log('Failed to connect.');
+                    Module.JSHubFeedback.call_on_error($2, err.toString());
+                });
             },
-            port, (unsigned long)canHub_);
+            port, (unsigned long)canHub_, (unsigned long)((JSHubFeedback*)this));
+    }
+
+    /// @return true if the connection is established.
+    bool is_connected()
+    {
+        return connected_;
     }
 
 private:
+
+    /// Callback executed when the port successfully opened.
+    void on_open() override
+    {
+        connected_ = true;
+        LOG(INFO, "connected");
+        if (callback_)
+        {
+            callback_(CONNECTION_UP);
+        }
+    }
+
+    /// Callback executed when the port is closed.
+    void on_close() override
+    {
+        connected_ = false;
+        LOG(INFO, "closed");
+        if (callback_)
+        {
+            callback_(CONNECTION_DOWN);
+        }
+    }
+
+    /// Callback executed when the port encounters an error.
+    void on_error(string error) override
+    {
+        LOG(INFO, "%s", error.c_str());
+        connected_ = false;
+        if (callback_)
+        {
+            callback_(CONNECTION_ERROR);
+        }
+    }
+
     CanHubFlow *canHub_;
+    bool connected_ = false;
+    std::function<void(ConnectionFeedback)> callback_;    
 };
 
 #endif // __EMSCRIPTEN__

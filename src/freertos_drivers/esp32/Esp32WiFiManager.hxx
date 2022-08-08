@@ -84,7 +84,7 @@ public:
     /// @param ssid is the WiFi AP to connect to. Must stay alive forever.
     /// @param password is the password for the WiFi AP being connected
     /// to. Must stay alive forever.
-    /// @param stack is the SimpleCanStack for this node. Must stay alive
+    /// @param stack is the SimpleCanStackBase for this node. Must stay alive
     /// forever.
     /// @param cfg is the WiFiConfiguration instance used for this node. This
     /// will be monitored for changes and the WiFi behavior altered
@@ -118,7 +118,7 @@ public:
     /// node uptime.
     Esp32WiFiManager(const char *ssid
                    , const char *password
-                   , openlcb::SimpleCanStack *stack
+                   , openlcb::SimpleCanStackBase *stack
                    , const WiFiConfiguration &cfg
                    , const char *hostname_prefix = "esp32_"
                    , wifi_mode_t wifi_mode = WIFI_MODE_STA
@@ -138,12 +138,12 @@ public:
     /// the application code starts the the WiFi and MDNS systems before
     /// calling OpenMRN::begin().
     ///
-    /// @param stack is the SimpleCanStack for this node.
+    /// @param stack is the SimpleCanStackBase for this node.
     /// @param cfg is the WiFiConfiguration instance used for this node. This
     /// will be monitored for changes and the WiFi behavior altered
     /// accordingly.
     Esp32WiFiManager(
-        openlcb::SimpleCanStack *stack, const WiFiConfiguration &cfg);
+        openlcb::SimpleCanStackBase *stack, const WiFiConfiguration &cfg);
 
     /// Updates the WiFiConfiguration settings used by this node.
     ///
@@ -215,7 +215,7 @@ public:
     /// @param port is the port for the service to be published.
     ///
     /// Note: This will schedule a @ref CallbackExecutable on the @ref Executor
-    /// used by the @ref SimpleCanStack.
+    /// used by the @ref SimpleCanStackBase.
     void mdns_publish(std::string service, uint16_t port);
 
     /// Removes the advertisement of a service via mDNS.
@@ -294,7 +294,7 @@ private:
     const bool manageWiFi_;
 
     /// OpenMRN stack for the Arduino system.
-    openlcb::SimpleCanStack *stack_;
+    openlcb::SimpleCanStackBase *stack_;
 
     /// WiFi operating mode.
     wifi_mode_t wifiMode_{WIFI_MODE_STA};
@@ -367,6 +367,12 @@ private:
 
     /// Internal flag for tracking that the mDNS system has been initialized.
     bool mdnsInitialized_{false};
+
+    /// True if we have started the connect executor thread.
+    bool connectExecutorStarted_{false};
+
+    /// Executor to use for the uplink connections.
+    Executor<1> connectExecutor_{NO_THREAD()};
 
     /// Internal holder for mDNS entries which could not be published due to
     /// mDNS not being initialized yet.

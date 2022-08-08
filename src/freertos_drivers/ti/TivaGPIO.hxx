@@ -125,8 +125,7 @@ public:
     }
 
 private:
-    template <class Defs, bool SAFE_VALUE> friend struct GpioOutputPin;
-    template <class Defs, uint32_t GPIO_PULL> friend struct GpioInputPin;
+    template <class Defs> friend struct GpioShared;
     /// Static instance variable that can be used for libraries expectiong a
     /// generic Gpio pointer. This instance variable will be initialized by the
     /// linker and (assuming the application developer initialized the hardware
@@ -151,31 +150,14 @@ private:
 template <unsigned GPIO_BASE, unsigned GPIO_PIN>
 const TivaGpio<GPIO_BASE, GPIO_PIN> TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
 
-/// Defines a GPIO output pin. Writes to this structure will change the output
-/// level of the pin. Reads will return the pin's current level.
-///
-/// The pin is set to output at initialization time, with the level defined by
-/// `SAFE_VALUE'.
-///
-/// Do not use this class directly. Use @ref GPIO_PIN instead.
-template <class Defs, bool SAFE_VALUE> struct GpioOutputPin : public Defs
-{
+/// Shared class that defines static functions used by both GpioInputPin,
+/// GpioOutputPin and GpioHwPin.
+template<class Defs> struct GpioShared : public Defs {
 public:
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
     using Defs::GPIO_PIN;
-    /// Initializes the hardware pin.
-    static void hw_init()
-    {
-        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
-        MAP_GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
-        set(SAFE_VALUE);
-    }
-    /// Sets the hardware pin to a safe value.
-    static void hw_set_to_safe()
-    {
-        hw_init();
-    }
+
     /// Used to unlock special consideration pins such as JTAG or NMI pins.
     static void unlock()
     {
@@ -193,20 +175,17 @@ public:
         HWREG(GPIO_BASE + GPIO_O_CR) &= ~GPIO_PIN;
         HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
     }  
+
     /// Sets the output pin to a specified value; @param value if true, output
     /// is set to HIGH otherwise LOW.
     static void set(bool value)
     {
-        uint8_t *ptr = reinterpret_cast<uint8_t *>(
-            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
-        *ptr = value ? 0xff : 0;
+        HWREGB(ptr_address()) = value ? 0xff : 0;
     }
     /// @return current value of an input pin, if true HIGH, of false LOW.
     static bool get()
     {
-        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
-            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
-        return *ptr;
+        return HWREGB(ptr_address()) != 0;
     }
     /// Changes the value of an output pin.
     static void toggle()
@@ -214,10 +193,45 @@ public:
         set(!get());
     }
 
+    /// @return the IO address of the port that controls the specific pin.
+    static constexpr uint32_t ptr_address()
+    {
+        return GPIO_BASE + (((unsigned)GPIO_PIN) << 2);
+    }
+
     /// @return static Gpio ovject instance that controls this output pin.
     static constexpr const Gpio *instance()
     {
         return &TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
+    }
+};
+
+/// Defines a GPIO output pin. Writes to this structure will change the output
+/// level of the pin. Reads will return the pin's current level.
+///
+/// The pin is set to output at initialization time, with the level defined by
+/// `SAFE_VALUE'.
+///
+/// Do not use this class directly. Use @ref GPIO_PIN instead.
+template <class Defs, bool SAFE_VALUE>
+struct GpioOutputPin : public GpioShared<Defs>
+{
+public:
+    using Defs::GPIO_PERIPH;
+    using Defs::GPIO_BASE;
+    using Defs::GPIO_PIN;
+    using GpioShared<Defs>::set;
+    /// Initializes the hardware pin.
+    static void hw_init()
+    {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
+        set(SAFE_VALUE);
+    }
+    /// Sets the hardware pin to a safe value.
+    static void hw_set_to_safe()
+    {
+        hw_init();
     }
 
     /// @return true if this pin is an output pin.
@@ -320,7 +334,8 @@ public:
     typedef BaseClass<NAME##Defs> NAME##_Pin
 
 /// Common class for GPIO input pins.
-template <class Defs, uint32_t GPIO_PULL> struct GpioInputPin : public Defs
+template <class Defs, uint32_t GPIO_PULL>
+struct GpioInputPin : public GpioShared<Defs>
 {
 public:
     using Defs::GPIO_PERIPH;
@@ -338,39 +353,10 @@ public:
     {
         hw_init();
     }
-    /// Used to unlock special consideration pins such as JTAG or NMI pins.
-    static void unlock()
-    {
-        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
-        MAP_SysCtlDelay(26);
-        HWREG(GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-        HWREG(GPIO_BASE + GPIO_O_CR) |= GPIO_PIN;
-        HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
-    }
-    /// Used to lock special consideration pins such as JTAG or NMI pins.
-    static void lock()
-    {
-        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
-        HWREG(GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-        HWREG(GPIO_BASE + GPIO_O_CR) &= ~GPIO_PIN;
-        HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
-    }
-    /// @return true if the pin is currently seeing a high value on the input..
-    static bool get()
-    {
-        const uint8_t *ptr = reinterpret_cast<const uint8_t *>(
-            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
-        return *ptr;
-    }
     /// @return true if the pin is set to an output.
     static bool is_output()
     {
         return false;
-    }
-    /// @return the static Gpio instance controlling this pin.
-    static constexpr const Gpio *instance()
-    {
-        return &TivaGpio<GPIO_BASE, GPIO_PIN>::instance_;
     }
 };
 
@@ -455,7 +441,7 @@ template <class Defs> struct GpioUSBAPin : public Defs
 /// functions.
 ///
 /// Do not use this class directly. Use @ref GPIO_HWPIN instead.
-template <class Defs> struct GpioHwPin : public Defs
+template <class Defs> struct GpioHwPin : public GpioShared<Defs>
 {
     using Defs::GPIO_PERIPH;
     using Defs::GPIO_BASE;
@@ -478,25 +464,6 @@ template <class Defs> struct GpioHwPin : public Defs
         /// safe.  Options are drive low, drive high, input std, input wpu,
         /// input wpd.
         hw_init();
-    }
-
-    /// Used to unlock special consideration pins such as JTAG or NMI pins.
-    static void unlock()
-    {
-        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
-        MAP_SysCtlDelay(26);
-        HWREG(GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-        HWREG(GPIO_BASE + GPIO_O_CR) |= GPIO_PIN;
-        HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
-    }
-
-    /// Used to lock special consideration pins such as JTAG or NMI pins.
-    static void lock()
-    {
-        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
-        HWREG(GPIO_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-        HWREG(GPIO_BASE + GPIO_O_CR) &= ~GPIO_PIN;
-        HWREG(GPIO_BASE + GPIO_O_LOCK) = 0;
     }
 
     /** Switches the GPIO pin to the hardware peripheral. */
@@ -525,27 +492,6 @@ template <class Defs> struct GpioHwPin : public Defs
         MAP_GPIOPinTypeGPIOInput(GPIO_BASE, GPIO_PIN);
         MAP_GPIOPadConfigSet(
             GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA, drive_type);
-    }
-
-    /// Change the output state to a specified value.
-    /// @param value if true, output will be set to HIGH, else LOW.
-    static void set(bool value)
-    {
-        volatile uint8_t *ptr = reinterpret_cast<volatile uint8_t *>(
-            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
-        *ptr = value ? 0xff : 0;
-    }
-    /// @return vurrent value of the pin, true for HIGH and false for LOW.
-    static bool get()
-    {
-        const volatile uint8_t *ptr = reinterpret_cast<const volatile uint8_t *>(
-            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
-        return *ptr;
-    }
-    /// Change the current value of the output pin.
-    static void toggle()
-    {
-        set(!get());
     }
 };
 

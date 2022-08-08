@@ -65,7 +65,7 @@ protected:
     
     /// @return the current request we are working on.
     RequestType* request() {
-        return this->message()->data();
+        return this->message() ? this->message()->data() : nullptr;
     }
 
     /// Terminates the flow and returns the request buffer to the caller with

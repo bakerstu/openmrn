@@ -44,6 +44,7 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/timer.h"
+#include "driverlib/uart.h"
 #include "usblib/usblib.h"
 #include "usblib/usbcdc.h"
 #include "usblib/usb-ids.h"
@@ -154,12 +155,34 @@ private:
 class TivaUart : public Serial
 {
 public:
+    /** These mode bits need to be OR-ed together for the mode argument and
+     * ioctl. */
+    enum Mode
+    {
+        CS5 = UART_CONFIG_WLEN_5, /**< 5-bits word length */
+        CS6 = UART_CONFIG_WLEN_6, /**< 6-bits word length */
+        CS7 = UART_CONFIG_WLEN_7, /**< 7-bits word length */
+        CS8 = UART_CONFIG_WLEN_8, /**< 8-bits word length */
+        CSTOPB = UART_CONFIG_STOP_TWO, /**< send two stop bits instead of 1 */
+    };
+
+    /** Function point for the tx enable assert and deassert methods */
+    typedef void (*TxEnableMethod)();
+    
     /** Constructor.
      * @param name name of this device instance in the file system
      * @param base base address of this device
      * @param interrupt interrupt number of this device
+     * @param baud desired baud rate
+     * @param mode to configure the UART for
+     * @param hw_fifo true if hardware fifo is to be enabled, else false.
+     * @param tx_enable_assert callback to assert the transmit enable
+     * @param tx_enable_deassert callback to deassert the transmit enable
      */
-    TivaUart(const char *name, unsigned long base, uint32_t interrupt);
+    TivaUart(const char *name, unsigned long base, uint32_t interrupt,
+        uint32_t baud = 115200, uint32_t mode = CS8, bool hw_fifo = true,
+        TxEnableMethod tx_enable_assert = nullptr,
+        TxEnableMethod tx_enable_deassert = nullptr);
 
     /** Destructor.
      */
@@ -172,6 +195,10 @@ public:
      */
     void interrupt_handler();
 
+    /** Request an ioctl transaction. Supported ioctl is TCSBRK, TCDRAINNOTIFY,
+     * TCSTOP*, TCBAUDRATE and TCPAR* from include/freertos/tc_ioctl.h */
+    int ioctl(File *file, unsigned long int key, unsigned long data) override;
+    
 private:
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
@@ -180,9 +207,28 @@ private:
      */
     void tx_char() override;
 
-    unsigned long base; /**< base address of this device */
-    unsigned long interrupt; /**< interrupt of this device */
-    bool txPending; /**< transmission currently pending */
+    /** Send data until there is no more space left.
+     */
+    void send();
+
+    /** Sets the port baud rate and mode from the class variables. */
+    void set_mode();
+
+    /** function pointer to a method that asserts the transmit enable. */
+    TxEnableMethod txEnableAssert_;
+
+    /** function pointer to a method that deasserts the transmit enable. */
+    TxEnableMethod txEnableDeassert_;
+    
+    /** Notifiable to invoke when the transmit engine has finished operation. */
+    Notifiable* txComplete_{nullptr};
+    
+    uint32_t base_; /**< base address of this device */
+    uint32_t interrupt_ : 8; /**< interrupt of this device */
+    uint32_t baud_ : 24; /**< desired baud rate */
+    uint8_t hwFIFO_; /**< enable HW FIFO */
+    uint8_t mode_; /**< uart config (mode) flags */
+    uint8_t txPending_; /**< transmission currently pending */
 
     /** Default constructor.
      */
@@ -214,6 +260,13 @@ public:
      */
     void interrupt_handler();
 
+    /// Request an ioctl transaction.
+    /// @param file file reference for this device
+    /// @param key ioctl key
+    /// @param data key data
+    /// @return >= 0 upon success, -errno upon failure
+    int ioctl(File *file, unsigned long int key, unsigned long data) override;
+
 private:
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
@@ -222,7 +275,7 @@ private:
     unsigned long base; /**< base address of this device */
     unsigned long interrupt; /**< interrupt of this device */
     bool txPending; /**< transmission currently pending */
-
+    uint8_t canState; /**< current state of the CAN-bus. */
     /** Default constructor.
      */
     TivaCan();

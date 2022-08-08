@@ -25,6 +25,8 @@ SUBDIRS = \
 	train \
 	tcp_blink_client \
 	usb_can \
+    time_client \
+    time_server
 
 
 include $(OPENMRNPATH)/etc/recurse.mk
