@@ -54,7 +54,7 @@ void BroadcastTime::clear_timezone()
 
 extern "C"
 {
-// normally required _GNU_SOURCE
+// normally requires _GNU_SOURCE
 char *strptime(const char *__restrict, const char *__restrict,
                struct tm *__restrict);
 }

@@ -37,6 +37,16 @@
 
 #include <string>
 
+namespace openlcb
+{
+
+extern "C"
+{
+// normally requires _GNU_SOURCE
+char *strptime(const char *__restrict, const char *__restrict,
+               struct tm *__restrict);
+}
+
 //
 // BroadcastTimeDefs::time_to_string()
 //
@@ -148,3 +158,4 @@ int16_t BroadcastTimeDefs::string_to_rate_quarters(std::string srate)
     return rate;
 }
 
+} // namespace openlcb

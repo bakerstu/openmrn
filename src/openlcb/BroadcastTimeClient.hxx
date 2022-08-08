@@ -81,6 +81,13 @@ public:
         return serverDetected_;
     }
 
+    /// Test if this is a server.
+    /// @return true if a BroadcastTimeServer, else false
+    bool is_server_self() override
+    {
+        return false;
+    }
+
     /// Handle requested identification message.
     /// @param entry registry entry for the event range
     /// @param event information about the incoming message

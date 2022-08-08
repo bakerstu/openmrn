@@ -366,6 +366,10 @@ public:
     /// @return true if a time server has been detected, else false
     virtual bool is_server_detected() = 0;
 
+    /// Test if this is a server.
+    /// @return true if a BroadcastTimeServer, else false
+    virtual bool is_server_self() = 0;
+
 protected:
     class SetFlow : public StateFlowBase
     {
