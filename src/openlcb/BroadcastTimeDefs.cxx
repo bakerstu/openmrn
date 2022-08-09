@@ -37,6 +37,8 @@
 
 #include <string>
 
+#include "utils/format_utils.hxx"
+
 namespace openlcb
 {
 
@@ -87,15 +89,9 @@ std::string BroadcastTimeDefs::rate_quarters_to_string(int16_t rate)
     }
     uint16_t whole = rate >> 2;
     uint16_t frac = rate & 0x3;
-    if (whole >= 100)
-    {
-        result.push_back('0' + (whole / 100));
-    }
-    if (whole >= 10)
-    {
-        result.push_back('0' + ((whole % 100) / 10));
-    }
-    result.push_back('0' + (whole % 10));
+
+    result += integer_to_string(whole);
+
     switch (frac)
     {
         default:
