@@ -6,4 +6,4 @@
 #endif
 
 extern const openlcb::NodeID NODE_ID;
-const openlcb::NodeID NODE_ID = 0x030014325700ULL | NODEID_LOW_BITS;
+const openlcb::NodeID NODE_ID = 0x050101010000ULL | (NODEID_HIGH_BITS << 8) | NODEID_LOW_BITS;
