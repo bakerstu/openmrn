@@ -165,7 +165,7 @@ protected:
 
 private:
     // Wakeup helper
-    class Wakeup : public Executable
+    class Wakeup : public Executable, protected Atomic
     {
     public:
         /// Constructor.
@@ -179,9 +179,17 @@ private:
         /// Trigger the wakeup to run.
         void trigger()
         {
-            if (!armed)
+            bool add = false;
             {
-                armed = true;
+                AtomicHolder h(this);
+                if (!armed)
+                {
+                    armed = true;
+                    add = true;
+                }
+            }
+            if (add)
+            {
                 alarm_->service()->executor()->add(this);
             }
         }
