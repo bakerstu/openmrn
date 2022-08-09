@@ -51,6 +51,11 @@ class BroadcastTime : public SimpleEventHandler
 public:
     typedef std::vector<std::function<void()>>::size_type UpdateSubscribeHandle;
 
+    /// Destructor.
+    virtual ~BroadcastTime()
+    {
+    }
+
     /// Set the time in seconds since the system Epoch. The new time does not
     /// become valid until the update callbacks are called.
     /// @param hour hour (0 to 23)
@@ -518,10 +523,6 @@ protected:
         time_t time = 0;
         ::gmtime_r(&time, &tm_);
         tm_.tm_isdst = 0;
-    }
-
-    virtual ~BroadcastTime()
-    {
     }
 
     /// Try the possible set event shortcut. This is typically a bypass of the
