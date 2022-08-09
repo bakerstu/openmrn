@@ -358,12 +358,12 @@ struct BroadcastTimeDefs
     /// @param hour resulting hour integer (0 to 23)
     /// @param min resulting minute integer (0 to 59)
     /// @return true on success, else false on fault
-    static bool string_to_time(std::string stime, int *hour, int *min);
+    static bool string_to_time(const std::string &stime, int *hour, int *min);
     
     /// Convert a string (float) to rate quarters.
     /// @param srate rate in the form of a string float
     /// @return rate in the form of an int16_t in rate quarters
-    static int16_t string_to_rate_quarters(std::string srate);
+    static int16_t string_to_rate_quarters(const std::string &srate);
 };
 
 }  // namespace openlcb

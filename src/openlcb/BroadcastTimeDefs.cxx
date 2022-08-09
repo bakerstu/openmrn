@@ -43,8 +43,7 @@ namespace openlcb
 extern "C"
 {
 // normally requires _GNU_SOURCE
-char *strptime(const char *__restrict, const char *__restrict,
-               struct tm *__restrict);
+char *strptime(const char *, const char *, struct tm *);
 }
 
 //
@@ -119,28 +118,30 @@ std::string BroadcastTimeDefs::rate_quarters_to_string(int16_t rate)
 //
 // BroadcastTimeDefs::string_to_time()
 //
-bool BroadcastTimeDefs::string_to_time(std::string stime, int *hour, int *min)
+bool BroadcastTimeDefs::string_to_time(
+    const std::string &stime, int *hour, int *min)
 {
     struct tm tm;
-    if (strptime(stime.c_str(), "%R", &tm) != nullptr)
+    if (strptime(stime.c_str(), "%R", &tm) == nullptr)
     {
-        if (hour)
-        {
-            *hour = tm.tm_hour;
-        }
-        if (min)
-        {
-            *min = tm.tm_min;
-        }
-        return true;
+        return false;
     }
-    return false;
+
+    if (hour)
+    {
+        *hour = tm.tm_hour;
+    }
+    if (min)
+    {
+        *min = tm.tm_min;
+    }
+    return true;
 }
 
 //
 // BroadcastTimeDefs::string_to_rate_quaraters()
 //
-int16_t BroadcastTimeDefs::string_to_rate_quarters(std::string srate)
+int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
 {
     float rate = std::stof(srate);
     if (rate < -512)
