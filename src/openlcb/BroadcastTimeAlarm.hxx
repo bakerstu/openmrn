@@ -172,13 +172,18 @@ private:
         /// @param alarm our parent alarm that we will awaken
         Wakeup(BroadcastTimeAlarm *alarm)
             : alarm_(alarm)
+            , armed(false)
         {
         }
 
         /// Trigger the wakeup to run.
         void trigger()
         {
-            alarm_->service()->executor()->add(this);
+            if (!armed)
+            {
+                armed = true;
+                alarm_->service()->executor()->add(this);
+            }
         }
 
     private:
@@ -186,10 +191,12 @@ private:
         /// on the CPU.
         void run() override
         {
+            armed = false;
             alarm_->wakeup();
         }
 
         BroadcastTimeAlarm *alarm_; ///< our parent alarm we will wakeup
+        bool armed;
     };
 
     /// Setup, or wait to setup alarm.
