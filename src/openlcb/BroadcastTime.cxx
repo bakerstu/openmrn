@@ -52,4 +52,27 @@ void BroadcastTime::clear_timezone()
 #endif
 }
 
+extern "C"
+{
+// normally requires _GNU_SOURCE
+char *strptime(const char *, const char *, struct tm *);
+}
+
+//
+// BroadcastTimeClient::set_data_year_str
+//
+void BroadcastTime::set_date_year_str(const char *date_year)
+{
+    struct tm tm;
+    if (strptime(date_year, "%b %e, %Y", &tm) != nullptr)
+    {
+        if (tm.tm_year >= (0 - 1900) && tm.tm_year <= (4095 - 1900))
+        {
+            // date valid
+            set_date(tm.tm_mon + 1, tm.tm_mday);
+            set_year(tm.tm_year + 1900);
+        }
+    }
+}
+
 } // namespace openlcb
