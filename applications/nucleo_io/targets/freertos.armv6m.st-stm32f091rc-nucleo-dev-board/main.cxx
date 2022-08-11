@@ -89,10 +89,12 @@ openlcb::ConfigDef cfg(0);
 // the volatile configuration information. This device name appears in
 // HwInit.cxx that creates the device drivers.
 extern const char *const openlcb::CONFIG_FILENAME = "/dev/eeprom";
-// The size of the memory space to export over the above device.
+// The size of the memory space to export over the above device. We verify that
+// the available eeprom is not too full (8192 max) to avoid quick wear-out
+// of the flash. Recommended to have at least 10% spare.
 extern const size_t openlcb::CONFIG_FILE_SIZE =
     cfg.seg().size() + cfg.seg().offset();
-static_assert(openlcb::CONFIG_FILE_SIZE <= 8192, "Need to adjust eeprom size");
+static_assert(openlcb::CONFIG_FILE_SIZE <= 7000, "Need to adjust eeprom size");
 
 // The SNIP user-changeable information in also stored in the above eeprom
 // device. In general this could come from different eeprom segments, but it is
