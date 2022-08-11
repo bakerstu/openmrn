@@ -113,8 +113,8 @@ CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("IO Expansion Board with MCP23017 Lines"),
                 "is Odd/A, Line 25-32 is Odd/B. Additional MCPs follow "
 		"this similar paradigm. "),
     RepName("Line"));
-CDI_GROUP_END();
 #endif
+CDI_GROUP_END();
 
 /// This segment is only needed temporarily until there is program code to set
 /// the ACDI user data version byte.
