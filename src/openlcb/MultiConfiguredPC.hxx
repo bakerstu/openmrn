@@ -69,7 +69,7 @@ CDI_GROUP_END();
 
 /// CDI Configuration for a @ref ConfiguredConsumer.
 CDI_GROUP(PCConfig);
-enum class ActionConfig : uint16_t
+enum class ActionConfig : uint8_t
 {
     OUTPUT = 0,
     INPUT = 1
