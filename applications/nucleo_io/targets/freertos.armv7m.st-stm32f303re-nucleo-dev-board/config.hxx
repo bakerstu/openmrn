@@ -33,14 +33,14 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
 // Input/Output Expansion via DevKit IO Expansion boards with MCP23017s.
 // Support from 0 to 8 MCPs (8 is full address space available for MCPs - 3 address bits available)
 // Set number from 0 to 8; even numbers only.
-#define NUM_MCPIOS 8 
+#define NUM_MCPIOS 8
 
 // Snap switches and LED lights conflict on same port. When GPIO pin has
 // snap configuration in place, LED will quickly flash on consumer event recv and
 // not stay on as desired/needed for signal driver.
 // When PORTD_SNAP is defined (present), we will set portD to be used for snap
 // switch pulse configuration. 
-// When PORTD_SNAP is not defined (remarked out), this sets port D to be a constant on/off
+// When PORTD_SNAP is not defined (commented out), this sets port D to be a constant on/off
 // state as dictated by consumed events.
 
 //#define PORTD_SNAP
@@ -66,17 +66,10 @@ using ServoConsumers = RepeatedGroup<ServoConsumerConfig, 4>;
 // we are updating this define to track number of MCPs instead of
 // expansion boards. 
 // The maximum number of MCPs is 8 (3 address bits available).
-#if NUM_MCPIOS == 0
-#elif NUM_MCPIOS == 2
-using Ext0PC = RepeatedGroup<PCConfig, 32>;
-#elif NUM_MCPIOS == 4 
-using Ext0PC = RepeatedGroup<PCConfig, 64>;
-#elif NUM_MCPIOS == 6 
-using Ext0PC = RepeatedGroup<PCConfig, 96>;
-#elif NUM_MCPIOS == 8 
-using Ext0PC = RepeatedGroup<PCConfig, 128>;
-#else
-#error invalid value for NUM_MCPIOS. Should be 0 2 4 6 or 8.
+static_assert(NUM_MCPIOS == 0 || NUM_MCPIOS == 2 || NUM_MCPIOS == 4 || NUM_MCPIOS == 6 || NUM_MCPIOS == 8, "NUM_MCPIOS must be 0 2 4 6 or 8");
+
+#if NUM_MCPIOS > 0
+using Ext0PC = RepeatedGroup<PCConfig, 16 * NUM_MCPIOS>;
 #endif
 
 
