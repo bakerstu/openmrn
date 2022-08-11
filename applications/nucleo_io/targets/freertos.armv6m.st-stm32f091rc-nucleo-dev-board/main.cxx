@@ -673,43 +673,25 @@ int appl_main(int argc, char *argv[])
     stack.check_version_and_factory_reset(
         cfg.seg().internal_config(), openlcb::CANONICAL_VERSION, false);
 
-#if NUM_MCPIOS == 2
+#if NUM_MCPIOS > 0
     {
         int i2cfd = ::open("/dev/i2c0", O_RDWR);
         exp0.init(i2cfd);
         exp1.init(i2cfd);
-    }
-#elif NUM_MCPIOS == 4
-    {
-        int i2cfd = ::open("/dev/i2c0", O_RDWR);
-        exp0.init(i2cfd);
-        exp1.init(i2cfd);
+#if NUM_MCPIOS > 2
 	exp10.init(i2cfd);
 	exp11.init(i2cfd);
-    }
-#elif NUM_MCPIOS == 6
-    {
-        int i2cfd = ::open("/dev/i2c0", O_RDWR);
-        exp0.init(i2cfd);
-        exp1.init(i2cfd);
-	exp10.init(i2cfd);
-	exp11.init(i2cfd);
+#endif        
+#if NUM_MCPIOS > 4
 	exp20.init(i2cfd);
 	exp21.init(i2cfd);
-    }
-#elif NUM_MCPIOS == 8
-    {
-        int i2cfd = ::open("/dev/i2c0", O_RDWR);
-        exp0.init(i2cfd);
-        exp1.init(i2cfd);
-	exp10.init(i2cfd);
-	exp11.init(i2cfd);
-	exp20.init(i2cfd);
-	exp21.init(i2cfd);
+#endif        
+#if NUM_MCPIOS > 6
 	exp30.init(i2cfd);
 	exp31.init(i2cfd);
+#endif        
     }
-#endif
+#endif // NUM_MCPIOS > 0    
 
     internal_outputs.init("/dev/spi1.ioboard");
     internal_inputs.init("/dev/spi2");
