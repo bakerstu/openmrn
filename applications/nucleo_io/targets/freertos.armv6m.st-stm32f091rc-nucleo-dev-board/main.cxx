@@ -585,7 +585,6 @@ constexpr const MCP23017Gpio IOEXT31_B6(&exp31, MCP23017::PORTB, 6);
 constexpr const MCP23017Gpio IOEXT31_B7(&exp31, MCP23017::PORTB, 7);
 #endif
 
-
 constexpr const Gpio *const kPortExt0[] = {
     &IOEXT0_A0, &IOEXT0_A1, &IOEXT0_A2, &IOEXT0_A3, //
     &IOEXT0_A4, &IOEXT0_A5, &IOEXT0_A6, &IOEXT0_A7, //
@@ -607,7 +606,7 @@ constexpr const Gpio *const kPortExt0[] = {
     &IOEXT11_B0, &IOEXT11_B1, &IOEXT11_B2, &IOEXT11_B3, //
     &IOEXT11_B4, &IOEXT11_B5, &IOEXT11_B6, &IOEXT11_B7
 #endif
-    
+
 #if NUM_MCPIOS > 4
     ,
     &IOEXT20_A0, &IOEXT20_A1, &IOEXT20_A2, &IOEXT20_A3, //
@@ -619,7 +618,7 @@ constexpr const Gpio *const kPortExt0[] = {
     &IOEXT21_B0, &IOEXT21_B1, &IOEXT21_B2, &IOEXT21_B3, //
     &IOEXT21_B4, &IOEXT21_B5, &IOEXT21_B6, &IOEXT21_B7
 #endif
-    
+
 #if NUM_MCPIOS > 6
     ,
     &IOEXT30_A0, &IOEXT30_A1, &IOEXT30_A2, &IOEXT30_A3, //
@@ -679,19 +678,19 @@ int appl_main(int argc, char *argv[])
         exp0.init(i2cfd);
         exp1.init(i2cfd);
 #if NUM_MCPIOS > 2
-	exp10.init(i2cfd);
-	exp11.init(i2cfd);
-#endif        
+        exp10.init(i2cfd);
+        exp11.init(i2cfd);
+#endif
 #if NUM_MCPIOS > 4
-	exp20.init(i2cfd);
-	exp21.init(i2cfd);
-#endif        
+        exp20.init(i2cfd);
+        exp21.init(i2cfd);
+#endif
 #if NUM_MCPIOS > 6
-	exp30.init(i2cfd);
-	exp31.init(i2cfd);
-#endif        
+        exp30.init(i2cfd);
+        exp31.init(i2cfd);
+#endif
     }
-#endif // NUM_MCPIOS > 0    
+#endif // NUM_MCPIOS > 0
 
     internal_outputs.init("/dev/spi1.ioboard");
     internal_inputs.init("/dev/spi2");

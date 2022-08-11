@@ -74,7 +74,8 @@ static Stm32I2C i2c1("/dev/i2c0", I2C1, I2C1_EV_IRQn, I2C1_ER_IRQn);
 
 /** How many bytes of flash should hold the entire dataset. Must be an integer
  * multiple of the minimum erase length (which is the flash page length, for
- * the STM32F0 | STM32F3 it is 2 kbytes). The file size maximum is half this value. */
+ * the STM32F0 | STM32F3 it is 2 kbytes). The file size maximum is half this
+ * value. */
 const size_t EEPROMEmulation::SECTOR_SIZE = 16384;
 
 Stm32PWMGroup servo_timer(TIM3, (configCPU_CLOCK_HZ * 6 / 1000 + 65535) / 65536,

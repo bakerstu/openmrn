@@ -25,23 +25,21 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "OpenLCB DevKit + Nucleo F303 dev board",
-    "Rev A", "1.02"};
+    4, "OpenMRN", "OpenLCB DevKit + Nucleo F303 dev board", "Rev A", "1.02"};
 
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
 // Input/Output Expansion via DevKit IO Expansion boards with MCP23017s.
-// Support from 0 to 8 MCPs (8 is full address space available for MCPs - 3 address bits available)
-// Set number from 0 to 8; even numbers only.
+// Support from 0 to 8 MCPs (8 is full address space available for MCPs - 3
+// address bits available) Set number from 0 to 8; even numbers only.
 #define NUM_MCPIOS 8
 
 // Snap switches and LED lights conflict on same port. When GPIO pin has
-// snap configuration in place, LED will quickly flash on consumer event recv and
-// not stay on as desired/needed for signal driver.
-// When PORTD_SNAP is defined (present), we will set portD to be used for snap
-// switch pulse configuration. 
-// When PORTD_SNAP is not defined (commented out), this sets port D to be a constant on/off
-// state as dictated by consumed events.
+// snap configuration in place, LED will quickly flash on consumer event recv
+// and not stay on as desired/needed for signal driver. When PORTD_SNAP is
+// defined (present), we will set portD to be used for snap switch pulse
+// configuration. When PORTD_SNAP is not defined (commented out), this sets port
+// D to be a constant on/off state as dictated by consumed events.
 
 //#define PORTD_SNAP
 
@@ -64,14 +62,15 @@ using ServoConsumers = RepeatedGroup<ServoConsumerConfig, 4>;
 
 // As the IO expansion boards have different available capacities
 // we are updating this define to track number of MCPs instead of
-// expansion boards. 
+// expansion boards.
 // The maximum number of MCPs is 8 (3 address bits available).
-static_assert(NUM_MCPIOS == 0 || NUM_MCPIOS == 2 || NUM_MCPIOS == 4 || NUM_MCPIOS == 6 || NUM_MCPIOS == 8, "NUM_MCPIOS must be 0 2 4 6 or 8");
+static_assert(NUM_MCPIOS == 0 || NUM_MCPIOS == 2 || NUM_MCPIOS == 4 ||
+        NUM_MCPIOS == 6 || NUM_MCPIOS == 8,
+    "NUM_MCPIOS must be 0 2 4 6 or 8");
 
 #if NUM_MCPIOS > 0
 using Ext0PC = RepeatedGroup<PCConfig, 16 * NUM_MCPIOS>;
 #endif
-
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
@@ -104,7 +103,7 @@ CDI_GROUP_ENTRY(portab_producers, PortABProducers, Name("Port A/B inputs"), Desc
 CDI_GROUP_ENTRY(ext0_pc, Ext0PC, Name("IO Expansion Board with MCP23017 Lines"),
     Description("Line 1-8 is port Even/A, Line 9-16 is port Even/B, Line 17-24 "
                 "is Odd/A, Line 25-32 is Odd/B. Additional MCPs follow "
-		"this similar paradigm. "),
+                "this similar paradigm. "),
     RepName("Line"));
 #endif
 CDI_GROUP_END();

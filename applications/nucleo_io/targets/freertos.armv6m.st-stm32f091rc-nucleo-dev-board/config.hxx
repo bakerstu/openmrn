@@ -24,8 +24,7 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4,               "OpenMRN", "OpenLCB Dev Board + Nucleo F091RC",
-    "Rev A", "1.02"};
+    4, "OpenMRN", "OpenLCB Dev Board + Nucleo F091RC", "Rev A", "1.02"};
 
 #define NUM_OUTPUTS 16
 #define NUM_INPUTS 1
