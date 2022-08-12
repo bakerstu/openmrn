@@ -131,9 +131,10 @@ Esp32WS2812::Esp32WS2812(const gpio_num_t output_pin,
     // ESP32-C3 has four RMT channels with the first two allocated for TX and
     // second two for RX.
     HASSERT(channel >= RMT_CHANNEL_0 && channel <= RMT_CHANNEL_1);
-#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+#elif defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
     // ESP32-S2 has four RMT channels.
-    HASSERT(channel >= RMT_CHANNEL_0 && channel <= RMT_CHANNEL_3);
+    // ESP32-S3 has eight RMT channels with the first four allocated for TX and
+    // remaining for RX.
 #elif defined(CONFIG_IDF_TARGET_ESP32)
     // ESP32 has eight RMT channels.
     HASSERT(channel >= RMT_CHANNEL_0 && channel <= RMT_CHANNEL_7);
