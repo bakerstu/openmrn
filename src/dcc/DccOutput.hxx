@@ -63,8 +63,11 @@ public:
         /// when the initialization is complete.
         INITIALIZATION_PENDING = 1,
         /// User decided via a persistent configuration that this output should
-        /// not be enabled.
+        /// not be enabled. Mutually exclusive with LOCAL_DISABLE.
         CONFIG_SETTING = 2,
+        /// A local request for disabling the output. Mutually exclusive with
+        /// CONFIG_SETTING.
+        LOCAL_DISABLE = CONFIG_SETTING,
         /// A network message requested global emergency off.
         GLOBAL_EOFF = 4,
         /// Short detector says this output is shorted.
@@ -74,10 +77,10 @@ public:
         /// This output should be off due to the conflict between program track
         /// and normal operation mode.
         PGM_TRACK_LOCKOUT = 32,
-        /// A local request for disabling the output
-        LOCAL_DISABLE = 64,
         /// invalid incoming DCC signal
-        INVALID_SIGNAL_INPUT = 128,
+        INVALID_SIGNAL_INPUT = 64,
+        /// Reserved for application specific use cases
+        USR1,
     };
 
     /// Disables the output, marking in a bitmask why.
