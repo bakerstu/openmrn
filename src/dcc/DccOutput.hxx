@@ -80,7 +80,7 @@ public:
         /// invalid incoming DCC signal
         INVALID_SIGNAL_INPUT = 64,
         /// Reserved for application specific use cases
-        USR1,
+        USR1 = 128,
     };
 
     /// Disables the output, marking in a bitmask why.
