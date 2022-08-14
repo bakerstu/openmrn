@@ -74,6 +74,10 @@ public:
         /// This output should be off due to the conflict between program track
         /// and normal operation mode.
         PGM_TRACK_LOCKOUT = 32,
+        /// A local request for disabling the output
+        LOCAL_DISABLE = 64,
+        /// invalid incoming DCC signal
+        INVALID_SIGNAL_INPUT = 128,
     };
 
     /// Disables the output, marking in a bitmask why.
