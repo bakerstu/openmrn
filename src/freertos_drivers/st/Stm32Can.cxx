@@ -37,6 +37,8 @@
 
 #include <stdint.h>
 
+#include "can_ioctl.h"
+
 #include "stm32f_hal_conf.hxx"
 
 #if defined (STM32F072xB) || defined (STM32F091xC)
@@ -95,6 +97,7 @@ Stm32Can *Stm32Can::instances[1] = {NULL};
  */
 Stm32Can::Stm32Can(const char *name)
     : Can(name)
+    , state_(CAN_STATE_STOPPED)
 {
     /* only one instance allowed */
     HASSERT(instances[0] == NULL);
@@ -121,6 +124,19 @@ Stm32Can::Stm32Can(const char *name)
     SetInterruptPriority(CAN_SECOND_IRQN, configKERNEL_INTERRUPT_PRIORITY);
 #endif
 #endif
+}
+
+//
+// Stm32Can::ioctl()
+//
+int Stm32Can::ioctl(File *file, unsigned long int key, unsigned long data)
+{
+    if (key == SIOCGCANSTATE)
+    {
+        *((can_state_t*)data) = state_;
+        return 0;
+    }
+    return -EINVAL;
 }
 
 /** Enable use of the device.

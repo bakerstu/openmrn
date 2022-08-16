@@ -70,6 +70,13 @@ public:
     static Stm32Can *instances[1];
 
 private:
+    /// Request an ioctl transaction.
+    /// @param file file reference for this device
+    /// @param key ioctl key
+    /// @param data key data
+    /// @return >= 0 upon success, -errno upon failure
+    int ioctl(File *file, unsigned long int key, unsigned long data) override;
+
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
     void tx_msg() override; /**< function to try and transmit a message */
