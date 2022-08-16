@@ -569,6 +569,7 @@ void CEC_CAN_IRQHandler(void)
 {
     Stm32Can::instances[0]->rx_interrupt_handler();
     Stm32Can::instances[0]->tx_interrupt_handler();
+    Stm32Can::instances[0]->sce_interrupt_handler();
 }
 void CAN1_TX_IRQHandler(void)
 {
