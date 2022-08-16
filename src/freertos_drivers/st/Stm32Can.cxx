@@ -467,9 +467,9 @@ extern "C" {
 #if defined (STM32F072xB) || defined (STM32F091xC)
 void cec_can_interrupt_handler(void)
 {
-    Stm32Can::instances[0]->sce_interrupt_handler();
     Stm32Can::instances[0]->rx_interrupt_handler();
     Stm32Can::instances[0]->tx_interrupt_handler();
+    Stm32Can::instances[0]->sce_interrupt_handler();
 }
 #elif defined (STM32F103xB) || defined (STM32F303xC) || defined (STM32F303xE)
 
