@@ -431,6 +431,19 @@ void Stm32Can::sce_interrupt_handler()
         /* error interrupt has occured */
         CAN->MSR |= CAN_MSR_ERRI; // clear flag
 
+        if (CAN->ESR & CAN_ESR_EWGF)
+        {
+            /* error warning condition */
+            state_ = CAN_STATE_BUS_WARNING;
+            CAN->ESR &= ~CAN_ESR_EWGF;
+        }
+        if (CAN->ESR & CAN_ESR_EPVF)
+        {
+            /* error passive condition */
+            ++softErrorCount;
+            state_ = CAN_STATE_BUS_PASSIVE;
+            CAN->ESR &= ~CAN_ESR_EPVF;
+        }
         if (CAN->ESR & CAN_ESR_BOFF)
         {
             /* bus off error condition */
@@ -443,19 +456,6 @@ void Stm32Can::sce_interrupt_handler()
             ++busOffCount;
             state_ = CAN_STATE_BUS_OFF;
             CAN->ESR &= ~CAN_ESR_BOFF;
-        }
-        else if (CAN->ESR & CAN_ESR_EPVF)
-        {
-            /* error passive condition */
-            ++softErrorCount;
-            state_ = CAN_STATE_BUS_PASSIVE;
-            CAN->ESR &= ~CAN_ESR_EPVF;
-        }
-        else if (CAN->ESR & CAN_ESR_EWGF)
-        {
-            /* error warning condition */
-            state_ = CAN_STATE_BUS_WARNING;
-            CAN->ESR &= ~CAN_ESR_EWGF;
         }
     }
 }
