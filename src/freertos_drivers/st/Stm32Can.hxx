@@ -65,6 +65,8 @@ public:
     void rx_interrupt_handler();
     /** Handle an interrupt. */
     void tx_interrupt_handler();
+    /** Handle an interrupt. */
+    void sce_interrupt_handler();
 
     /** Instance pointers help us get context from the interrupt handler(s) */
     static Stm32Can *instances[1];

@@ -55,6 +55,7 @@
 #define CAN_TX_IRQN USB_HP_CAN1_TX_IRQn
 #define CAN_IRQN CAN_TX_IRQN
 #define CAN_SECOND_IRQN USB_LP_CAN1_RX0_IRQn
+#define CAN_THIRD_IRQN CAN1_SCE_IRQn
 #define CAN CAN1
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
 
@@ -65,6 +66,7 @@
 #define CAN_TX_IRQN USB_HP_CAN_TX_IRQn
 #define CAN_IRQN CAN_TX_IRQN
 #define CAN_SECOND_IRQN USB_LP_CAN_RX0_IRQn
+#define CAN_THIRD_IRQN CAN1_SCE_IRQn
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
 
 #elif defined (STM32L431xx) || defined (STM32L432xx)
@@ -74,6 +76,7 @@
 #define CAN_TX_IRQN CAN1_TX_IRQn
 #define CAN_IRQN CAN_TX_IRQN
 #define CAN_SECOND_IRQN CAN1_RX0_IRQn
+#define CAN_THIRD_IRQN CAN1_SCE_IRQn
 #define CAN_CLOCK (cm3_cpu_clock_hz)
 
 #elif defined (STM32F767xx)
@@ -84,6 +87,7 @@
 #define CAN_TX_IRQN CAN1_TX_IRQn
 #define CAN_IRQN CAN_TX_IRQN
 #define CAN_SECOND_IRQN CAN1_RX0_IRQn
+#define CAN_THIRD_IRQN CAN1_SCE_IRQn
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 2) // 54 MHz, sysclk/4
 
 #else
@@ -178,11 +182,15 @@ void Stm32Can::enable()
     CAN->FA1R = 0x000000001;
     CAN->FMR &= ~CAN_FMR_FINIT;
 
+    state_ = CAN_STATE_ACTIVE;
+
     /* enable interrupts */
-    CAN->IER = (/*CAN_IER_ERRIE |*/ CAN_IER_BOFIE | CAN_IER_FMPIE0);
+    CAN->IER = (CAN_IER_BOFIE | CAN_IER_EPVIE | CAN_IER_EWGIE); // errors
+    CAN->IER |= (CAN_IER_ERRIE | CAN_IER_FMPIE0); // error + receive
     HAL_NVIC_EnableIRQ(CAN_IRQN);
 #ifdef SPLIT_INT
     HAL_NVIC_EnableIRQ(CAN_SECOND_IRQN);
+    HAL_NVIC_EnableIRQ(CAN_THIRD_IRQN);
 #endif
 }
 
@@ -193,8 +201,11 @@ void Stm32Can::disable()
     HAL_NVIC_DisableIRQ(CAN_IRQN);
 #ifdef SPLIT_INT
     HAL_NVIC_DisableIRQ(CAN_SECOND_IRQN);
+    HAL_NVIC_DisableIRQ(CAN_THIRD_IRQN);
 #endif
     CAN->IER = 0;
+
+    state_ = CAN_STATE_STOPPED;
 
     /* disable sleep, enter init mode */
     CAN->MCR = CAN_MCR_INRQ;
@@ -277,30 +288,6 @@ void Stm32Can::rx_interrupt_handler()
 {
     unsigned msg_receive_count = 0;
 
-    if (CAN->ESR & CAN_ESR_BOFF)
-    {
-        /* bus off error condition */
-        CAN->TSR |= CAN_TSR_ABRQ2;
-        CAN->TSR |= CAN_TSR_ABRQ1;
-        CAN->TSR |= CAN_TSR_ABRQ0;
-        CAN->IER &= ~CAN_IER_TMEIE;
-        txBuf->flush();
-        txBuf->signal_condition_from_isr();
-    }
-#if 0
-    if (CAN->MSR & CAN_MSR_ERRI)
-    {
-        /* error condition */
-        CAN->TSR |= CAN_TSR_ABRQ2;
-        CAN->TSR |= CAN_TSR_ABRQ1;
-        CAN->TSR |= CAN_TSR_ABRQ0;
-        CAN->IER &= ~CAN_IER_TMEIE;
-        CAN->MSR &= ~CAN_MSR_ERRI;
-        txBuf->flush();
-        txBuf->signal_condition_from_isr();
-        ++softErrorCount;
-    }
-#endif
     while (CAN->RF0R & CAN_RF0R_FMP0)
     {
         /* rx data received */
@@ -355,6 +342,7 @@ void Stm32Can::rx_interrupt_handler()
         /* advance the "zero copy" buffer by the number of messages received */
         rxBuf->advance(msg_receive_count);
         rxBuf->signal_condition_from_isr();
+        state_ = CAN_STATE_ACTIVE;
     }
 }
 
@@ -429,9 +417,48 @@ void Stm32Can::tx_interrupt_handler()
             CAN->IER &= ~CAN_IER_TMEIE;
         }
         txBuf->signal_condition_from_isr();
+        state_ = CAN_STATE_ACTIVE;
     }
 }
 
+/*
+ * Stm32Can::sce_interrupt_handler()
+ */
+void Stm32Can::sce_interrupt_handler()
+{
+    if (CAN->MSR & CAN_MSR_ERRI)
+    {
+        /* error interrupt has occured */
+        CAN->MSR |= CAN_MSR_ERRI; // clear flag
+
+        if (CAN->ESR & CAN_ESR_BOFF)
+        {
+            /* bus off error condition */
+            CAN->TSR |= CAN_TSR_ABRQ2;
+            CAN->TSR |= CAN_TSR_ABRQ1;
+            CAN->TSR |= CAN_TSR_ABRQ0;
+            CAN->IER &= ~CAN_IER_TMEIE;
+            txBuf->flush();
+            txBuf->signal_condition_from_isr();
+            ++busOffCount;
+            state_ = CAN_STATE_BUS_OFF;
+            CAN->ESR &= ~CAN_ESR_BOFF;
+        }
+        else if (CAN->ESR & CAN_ESR_EPVF)
+        {
+            /* error passive condition */
+            ++softErrorCount;
+            state_ = CAN_STATE_BUS_PASSIVE;
+            CAN->ESR &= ~CAN_ESR_EPVF;
+        }
+        else if (CAN->ESR & CAN_ESR_EWGF)
+        {
+            /* error warning condition */
+            state_ = CAN_STATE_BUS_WARNING;
+            CAN->ESR &= ~CAN_ESR_EWGF;
+        }
+    }
+}
 
 extern "C" {
 /** This is the interrupt handler for the can device.
@@ -440,6 +467,7 @@ extern "C" {
 #if defined (STM32F072xB) || defined (STM32F091xC)
 void cec_can_interrupt_handler(void)
 {
+    Stm32Can::instances[0]->sce_interrupt_handler();
     Stm32Can::instances[0]->rx_interrupt_handler();
     Stm32Can::instances[0]->tx_interrupt_handler();
 }
@@ -455,6 +483,11 @@ void usb_lp_can1_rx0_interrupt_handler(void)
     Stm32Can::instances[0]->rx_interrupt_handler();
 }
 
+void can1_sce_interrupt_handler(void)
+{
+    Stm32Can::instances[0]->sce_interrupt_handler();
+}
+
 #elif defined(STM32F767xx) || defined(STM32L431xx) || defined(STM32L432xx)
 
 void can1_tx_interrupt_handler(void)
@@ -465,6 +498,11 @@ void can1_tx_interrupt_handler(void)
 void can1_rx0_interrupt_handler(void)
 {
     Stm32Can::instances[0]->rx_interrupt_handler();
+}
+
+void can1_sce_interrupt_handler(void)
+{
+    Stm32Can::instances[0]->sce_interrupt_handler();
 }
 
 #else
