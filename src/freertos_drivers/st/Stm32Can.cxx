@@ -578,6 +578,10 @@ void CAN1_RX0_IRQHandler(void)
 {
     Stm32Can::instances[0]->rx_interrupt_handler();
 }
+void CAN1_SCE_IRQHandler(void)
+{
+    Stm32Can::instances[0]->sce_interrupt_handler();
+}
 } // extern "C"
 
 #endif
