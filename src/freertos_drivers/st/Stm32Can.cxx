@@ -126,6 +126,8 @@ Stm32Can::Stm32Can(const char *name)
 #ifdef SPLIT_INT
     HAL_NVIC_DisableIRQ(CAN_SECOND_IRQN);
     SetInterruptPriority(CAN_SECOND_IRQN, configKERNEL_INTERRUPT_PRIORITY);
+    HAL_NVIC_DisableIRQ(CAN_THIRD_IRQN);
+    SetInterruptPriority(CAN_THIRD_IRQN, configKERNEL_INTERRUPT_PRIORITY);
 #endif
 #endif
 }

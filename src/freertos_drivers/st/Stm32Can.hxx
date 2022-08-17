@@ -88,6 +88,8 @@ private:
      */
     static unsigned int intCount;
 
+    uint8_t state_; ///< present bus state
+
     /** Default constructor.
      */
     Stm32Can();
