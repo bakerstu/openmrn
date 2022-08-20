@@ -136,7 +136,11 @@ void MDNS::publish(const char *name, const char *service, uint16_t port)
  */
 void MDNS::unpublish(const char *name, const char *service)
 {
+#if defined(__linux__)
+    DIE("unimplemented");
+#else
     mdns_unpublish(name, service);
+#endif
 }
 
 /*
