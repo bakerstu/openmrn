@@ -106,6 +106,12 @@ public:
      */
     void publish(const char *name, const char *service, uint16_t port);
 
+    /** Unpublish an mDNS name.
+     * @param name local "username" or "nodename" of the service
+     * @param service service name, example: "_openlcb._tcp"
+     */
+    void unpublish(const char *name, const char *service);
+    
     /** Commit the mDNS publisher.
      */
     void commit()

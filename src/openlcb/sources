@@ -6,6 +6,7 @@ CXXSRCS += \
            AliasAllocator.cxx \
            AliasCache.cxx \
            BroadcastTime.cxx \
+           BroadcastTimeDefs.cxx \
            BroadcastTimeClient.cxx \
            BroadcastTimeServer.cxx \
            BulkAliasAllocator.cxx \

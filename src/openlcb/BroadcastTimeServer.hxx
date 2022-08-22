@@ -74,6 +74,13 @@ public:
         return true;
     }
 
+    /// Test if this is a server.
+    /// @return true if a BroadcastTimeServer, else false
+    bool is_server_self() override
+    {
+        return true;
+    }
+
 #if defined(GTEST)
     void shutdown();
 

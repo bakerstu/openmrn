@@ -46,6 +46,7 @@ ContinuationIndentWidth: 4
 
 # This big block of settings works around indentation after an extern "C"
 BraceWrapping: {
+  AfterCaseLabel:  true,
   AfterClass:      true,
   AfterControlStatement: true,
   AfterEnum:       true,
@@ -58,7 +59,7 @@ BraceWrapping: {
   BeforeCatch:     true,
   BeforeElse:      true,
   IndentBraces:    false,
-  SplitEmptyFunction: false,
+  SplitEmptyFunction: true,
   SplitEmptyRecord: false,
   SplitEmptyNamespace: false }
 BreakBeforeBraces: Custom
