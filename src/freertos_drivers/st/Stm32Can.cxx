@@ -66,7 +66,7 @@
 #define CAN_TX_IRQN USB_HP_CAN_TX_IRQn
 #define CAN_IRQN CAN_TX_IRQN
 #define CAN_SECOND_IRQN USB_LP_CAN_RX0_IRQn
-#define CAN_THIRD_IRQN CAN1_SCE_IRQn
+#define CAN_THIRD_IRQN CAN_SCE_IRQn
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 1)
 
 #elif defined (STM32L431xx) || defined (STM32L432xx)
