@@ -5,6 +5,7 @@
 #include "openlcb/BulkAliasAllocator.hxx"
 #include "openlcb/CanDefs.hxx"
 #include "utils/async_if_test_helper.hxx"
+#include "os/FakeClock.hxx"
 
 namespace openlcb
 {
@@ -368,6 +369,50 @@ TEST_F(AsyncAliasAllocatorTest, DifferentGenerated)
     // Makes sure 'other' disappears from the executor before destructing it.
     wait();
 }
+
+TEST_F(AsyncAliasAllocatorTest, SequenceCrash)
+{
+    FakeClock clk;
+    alias_allocator_.~AliasAllocator();
+    NodeID id = 0x050101011415;
+    new (&alias_allocator_) AliasAllocator(id, ifCan_.get());
+    clear_expect(false); // any packet is okay.
+    for (int i = 0; i < 25; i++)
+    {
+        fprintf(stderr, ".");
+        mainBufferPool->alloc(&b_);
+        alias_allocator_.send(b_);
+        wait();
+        clk.advance(MSEC_TO_NSEC(250));
+        wait();
+    }
+    twait();
+}
+
+TEST_F(AsyncAliasAllocatorTest, SequenceCrashLong)
+{
+    FakeClock clk;
+    alias_allocator_.~AliasAllocator();
+    NodeID id = 0x090099DD0002;
+    new (&alias_allocator_) AliasAllocator(id, ifCan_.get());
+    clear_expect(false); // any packet is okay.
+    // This wraps around more than once the entire sequence
+    for (int i = 0; i < 6000; i++)
+    {
+        if (i % 50 == 0)
+        {
+            LOG(INFO, " %d", i);
+        }
+        fprintf(stderr, ".");
+        mainBufferPool->alloc(&b_);
+        alias_allocator_.send(b_);
+        wait();
+        clk.advance(MSEC_TO_NSEC(250));
+        wait();
+    }
+    twait();
+}
+
 
 TEST_F(AsyncAliasAllocatorTest, BulkFew)
 {
