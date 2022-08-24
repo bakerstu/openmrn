@@ -227,6 +227,10 @@ NodeAlias AliasAllocator::get_new_seed()
     {
         NodeAlias ret = seed_;
         next_seed();
+        if (!ret)
+        {
+            continue;
+        }
         LOG(VERBOSE, "(%p) alias test seed is %03X (next %03X)", this, ret,
             seed_);
         if (if_can()->local_aliases()->lookup(ret))
