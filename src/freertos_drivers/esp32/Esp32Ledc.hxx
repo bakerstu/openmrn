@@ -47,29 +47,35 @@ namespace openmrn_arduino
 
 /// ESP32 LEDC provider for PWM like output on GPIO pins.
 ///
-/// This class allows up to six or eight PWM outputs to be generated using one
-/// of the four LEDC hardware timer instances. The ESP32-C3 has six LEDC
-/// outputs and other ESP32 variants have eight.
+/// This class allows creation of up to eight PWM outputs using a single PWM
+/// frequency. All outputs in a single @ref Esp32Ledc instance will share the
+/// same PWM frequency and will be assigned a channel sequentially.
 ///
-/// When using more than one instance of this class each instance must have a
-/// unique channel offset and timer. The channel offset is used as the first
-/// PWM output for the LEDC controller.
+/// When the more than one PWM frequency is needed for outputs it is required
+/// to create multiple @ref Esp32Ledc instances, each with a unique LEDC timer
+/// (LEDC_TIMER_0 through LEDC_TIMER_3) and a unique first channel
+/// (LED_CHANNEL_0 through LED_CHANNEL_5 or LED_CHANNEL_7 depending on ESP32
+/// variant).
+///
+/// The ESP32-C3 only supports six channels, whereas other variants support
+/// eight. Creating more than one @ref Esp32Ledc instance will not increase the
+/// number of outputs.
 ///
 /// Example of usage:
 ///```
 /// OpenMRN openmrn(NODE_ID);
-/// Esp32Ledc ledc({16,    // Channel 1
-///                 17,    // Channel 2
-///                 18});  // Channel 3
+/// Esp32Ledc ledc({16,    // Channel 0
+///                 17,    // Channel 1
+///                 18});  // Channel 2
 /// ServoConsumer servo_0(openmrn.stack()->node(), cfg.seg().servo(), 1000,
 ///                       ledc.get_channel(1));
-/// PWMGPO led_0(ledc.get_channel(2), 2500, 0);
+/// PWMGPO led_0(ledc.get_channel(0), 2500, 0);
 /// void setup() {
 ///   ...
 ///   ledc.hw_init();
 ///   openmrn.begin();
 ///   openmrn.stack()->set_tx_activity_led(&led_0);
-///   ledc.fade_channel_over_time(3, 2500, SEC_TO_MSEC(5));
+///   ledc.fade_channel_over_time(2, 2500, SEC_TO_MSEC(5));
 ///   ...
 /// }
 ///```
@@ -78,27 +84,37 @@ class Esp32Ledc
 public:
     /// Constructor.
     ///
+    /// @param pins is the collection of output pins to use for this instance.
+    /// @param first_channel is the first LEDC channel to use for this
+    /// Esp32Ledc instance, default is LEDC_CHANNEL_0.
     /// @param timer_resolution is the resolution of the LEDC timer, default is
     /// 12bit.
     /// @param timer_hz is the LEDC timer tick frequency, default is 5kHz.
     /// @param timer_num is the LEDC timer to use, default is LEDC_TIMER_0.
+    /// @param timer_mode is the LED timer mode to use, default is
+    /// LEDC_LOW_SPEED_MODE.
     /// @param timer_clock is the LEDC timer clock source, default is
     /// LEDC_AUTO_CLK.
-    /// @param channel_offset is the first LEDC channel to use for this
-    /// Esp32Ledc instance, default is LEDC_CHANNEL_0.
+    ///
+    /// Note: For @param timer_mode an additional value of LEDC_HIGH_SPEED_MODE
+    /// is supported *ONLY* on the base ESP32 variant. Other variants of the
+    /// ESP32 only support LEDC_LOW_SPEED_MODE.
     Esp32Ledc(const std::initializer_list<uint8_t> &pins,
+              const ledc_channel_t first_channel = LEDC_CHANNEL_0,
               const ledc_timer_bit_t timer_resolution = LEDC_TIMER_12_BIT,
               const uint32_t timer_hz = 5000,
               const ledc_timer_t timer_num = LEDC_TIMER_0,
-              const ledc_channel_t channel_offset = LEDC_CHANNEL_0,
               const ledc_mode_t timer_mode = LEDC_LOW_SPEED_MODE,
               const ledc_clk_cfg_t timer_clock = LEDC_AUTO_CLK)
-        : channelOffset_(channel_offset)
+        : firstChannel_(first_channel)
         , pins_(pins)
     {
+        // Ensure the pin count is valid and within range of usable channels.
         HASSERT(pins_.size() > 0 &&
-                pins_.size() < (LEDC_CHANNEL_MAX - channelOffset_));
+                pins_.size() < (LEDC_CHANNEL_MAX - first_channel));
         memset(&timerConfig_, 0, sizeof(ledc_timer_config_t));
+        // timerConfig_.speed_mode will be assigned the SOC default mode, which
+        // is either HIGH speed or LOW speed depending on the hardware support.
         timerConfig_.duty_resolution = timer_resolution;
         timerConfig_.freq_hz = timer_hz;
         timerConfig_.speed_mode = timer_mode;
@@ -124,8 +140,10 @@ public:
         size_t count = 0;
         for (uint8_t pin : pins_)
         {
+            HASSERT(GPIO_IS_VALID_OUTPUT_GPIO(pin));
+
             ledc_channel_t led_channel =
-                static_cast<ledc_channel_t>(channelOffset_ + count);
+                static_cast<ledc_channel_t>(firstChannel_ + count);
             LOG(INFO, "[Esp32Ledc:%d] Configuring LEDC channel %d on GPIO %d",
                 timerConfig_.timer_num, led_channel, pin);
             ledc_channel_config_t config;
@@ -133,7 +151,6 @@ public:
             config.gpio_num = pin;
             config.speed_mode = timerConfig_.speed_mode;
             config.channel = led_channel;
-            config.intr_type = LEDC_INTR_DISABLE;
             config.timer_sel = timerConfig_.timer_num;
             ESP_ERROR_CHECK(ledc_channel_config(&config));
             channels_[count].emplace(this, led_channel, pin);
@@ -141,18 +158,20 @@ public:
         }
     }
 
-    /// @return one PWM channel.
-    /// @param id is the channel number.
+    /// @return one PWM output.
+    /// @param id is the output number, zero based for this @ref Esp32Ledc
+    /// instance.
     PWM *get_channel(unsigned id)
     {
-        HASSERT(id > 0 && id <= (LEDC_CHANNEL_MAX - channelOffset_));
-        return &*channels_[id - 1 - channelOffset_];
+        HASSERT(id >= 0 && id < channels_.size());
+        return &*channels_[id];
     }
 
     /// Transitions a PWM output from the current duty to the target duty over
     /// the provided time period.
     ///
-    /// @param id target PWM channel.
+    /// @param id is the output number, zero based for this @ref Esp32Ledc
+    /// instance.
     /// @param target_duty target duty value, default is zero.
     /// @param fade_period number of milliseconds to use for the
     /// transition, default is 1000 milliseconds.
@@ -168,7 +187,7 @@ public:
     {
         HASSERT(id > 0 && id <= (LEDC_CHANNEL_MAX - channelOffset_));
         ledc_channel_t channel =
-            static_cast<ledc_channel_t>(channelOffset_ + id - 1);
+            static_cast<ledc_channel_t>(firstChannel_ + id);
         HASSERT(0 == pthread_once(&ledcFadeOnce_, &Esp32Ledc::ledc_fade_setup));
         ESP_ERROR_CHECK(
             ledc_set_fade_time_and_start(timerConfig_.speed_mode, channel,
@@ -182,8 +201,12 @@ public:
     /// called on any instance of @ref Esp32Ledc.
     static void ledc_fade_setup()
     {
+        // allocate the interrupt as low/medium priority (C code supported) and
+        // the interrupt can be shared with other usages (if necessary).
+        const int INTR_MODE_FLAGS =
+            ESP_INTR_FLAG_LOWMED | ESP_INTR_FLAG_SHARED;
         LOG(VERBOSE, "[Esp32Ledc] Initializing LED Fade ISR");
-        ESP_ERROR_CHECK(ledc_fade_func_install(ESP_INTR_FLAG_LOWMED));
+        ESP_ERROR_CHECK(ledc_fade_func_install(INTR_MODE_FLAGS));
     }
 private:
     class Channel : public PWM
@@ -231,6 +254,8 @@ private:
 
     /// Set PWM period.
     /// @param counts PWM timer frequency in Hz.
+    ///
+    /// NOTE: This will apply to *ALL* PWM outputs that use the same timer.
     void set_period(uint32_t counts)
     {
         ESP_ERROR_CHECK(
@@ -276,8 +301,8 @@ private:
         return 0;
     }
 
-    /// First LEDC PWM Channel for this @ref Esp32Ledc.
-    const ledc_channel_t channelOffset_;
+    /// First LEDC Channel for this @ref Esp32Ledc.
+    const ledc_channel_t firstChannel_;
 
     /// LEDC Timer configuration settings.
     ledc_timer_config_t timerConfig_;
