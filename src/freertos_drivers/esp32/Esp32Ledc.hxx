@@ -163,7 +163,7 @@ public:
     /// instance.
     PWM *get_channel(unsigned id)
     {
-        HASSERT(id >= 0 && id < channels_.size());
+        HASSERT(id >= 0 && id <= (LEDC_CHANNEL_MAX - firstChannel_));
         return &*channels_[id];
     }
 
@@ -185,7 +185,7 @@ public:
                                 uint32_t fade_period = 1000,
                                 ledc_fade_mode_t fade_mode = LEDC_FADE_NO_WAIT)
     {
-        HASSERT(id > 0 && id <= (LEDC_CHANNEL_MAX - channelOffset_));
+        HASSERT(id >= 0 && id <= (LEDC_CHANNEL_MAX - firstChannel_));
         ledc_channel_t channel =
             static_cast<ledc_channel_t>(firstChannel_ + id);
         HASSERT(0 == pthread_once(&ledcFadeOnce_, &Esp32Ledc::ledc_fade_setup));
