@@ -76,6 +76,10 @@
 // LED_WRITE  : PURPLE
 // LED_ACTIVE : GREEN
 // All others will be ignored.
+//
+// NOTE: in order for this to work you *MUST* use a partition schema that has
+// two app partitions, typically labeled with "OTA" in the partition name in
+// the Arduino IDE.
 //#define FIRMWARE_UPDATE_BOOTLOADER
 
 // Configuration option validation

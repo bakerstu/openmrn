@@ -71,6 +71,14 @@
 
 // Uncomment FIRMWARE_UPDATE_BOOTLOADER to enable the bootloader feature when
 // using the TWAI device.
+//
+// Since many ESP32 DevKit boards do not have an on-board LED, there are no
+// LED indicators enabled by default. If indicator LEDs are desired they can be
+// added to the bootloader_led function at the end of this file.
+//
+// NOTE: in order for this to work you *MUST* use a partition schema that has
+// two app partitions, typically labeled with "OTA" in the partition name in
+// the Arduino IDE.
 //#define FIRMWARE_UPDATE_BOOTLOADER
 
 #if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
