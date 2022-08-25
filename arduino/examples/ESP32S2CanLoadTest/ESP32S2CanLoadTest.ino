@@ -186,15 +186,6 @@ public:
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
             fd, openlcb::SNIP_STATIC_DATA.model_name);
-        for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
-        {
-            cfg.seg().consumers().entry(i).description().write(fd, "");
-        }
-        for(int i = 0; i < openlcb::NUM_INPUTS; i++)
-        {
-            cfg.seg().producers().entry(i).description().write(fd, "");
-            CDI_FACTORY_RESET(cfg.seg().producers().entry(i).debounce);
-        }
     }
 } factory_reset_helper;
 
