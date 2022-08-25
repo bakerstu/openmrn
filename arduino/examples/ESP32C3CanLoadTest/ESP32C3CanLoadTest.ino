@@ -147,67 +147,6 @@ Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 Esp32HardwareTwai twai(TWAI_RX_PIN, TWAI_TX_PIN);
 #endif // USE_TWAI
 
-// Declare output pins
-// NOTE: pins 11-17 are connected to the onboard flash and can not be used for
-// any purpose.
-GPIO_PIN(IO0, GpioOutputSafeLow, 0);
-GPIO_PIN(IO1, GpioOutputSafeLow, 1);
-GPIO_PIN(IO2, GpioOutputSafeLow, 2);
-GPIO_PIN(IO3, GpioOutputSafeLow, 3);
-GPIO_PIN(IO4, GpioOutputSafeLow, 4);
-
-// Declare input pins.
-// GPIO 8 intentionally skipped due to WS2812 LED on this pin on the
-// ESP32-DevKitM-1 board.
-GPIO_PIN(IO5, GpioInputPU, 5);
-GPIO_PIN(IO6, GpioInputPU, 6);
-GPIO_PIN(IO7, GpioInputPU, 7);
-GPIO_PIN(IO8, GpioInputPU, 9);
-GPIO_PIN(IO9, GpioInputPU, 10);
-
-// List of GPIO objects that will be used for the output pins. You should keep
-// the constexpr declaration, because it will produce a compile error in case
-// the list of pointers cannot be compiled into a compiler constant and thus
-// would be placed into RAM instead of ROM.
-constexpr const Gpio *const outputGpioSet[] = {
-    IO0_Pin::instance(), IO1_Pin::instance(), //
-    IO2_Pin::instance(), IO3_Pin::instance(), //
-    IO4_Pin::instance()
-};
-
-openlcb::MultiConfiguredConsumer gpio_consumers(openmrn.stack()->node(), outputGpioSet,
-    ARRAYSIZE(outputGpioSet), cfg.seg().consumers());
-
-openlcb::ConfiguredProducer IO5_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<0>(), IO5_Pin());
-openlcb::ConfiguredProducer IO6_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<1>(), IO6_Pin());
-openlcb::ConfiguredProducer IO7_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<2>(), IO7_Pin());
-openlcb::ConfiguredProducer IO8_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<3>(), IO8_Pin());
-openlcb::ConfiguredProducer IO9_producer(
-    openmrn.stack()->node(), cfg.seg().producers().entry<4>(), IO9_Pin());
-
-// Create an initializer that can initialize all the GPIO pins in one shot
-typedef GpioInitializer<
-    IO0_Pin, IO1_Pin, IO2_Pin, IO3_Pin, IO4_Pin, // output pins
-    IO5_Pin, IO6_Pin, IO7_Pin, IO8_Pin, IO9_Pin  // input pins
-    > GpioInit;
-
-// The producers need to be polled repeatedly for changes and to execute the
-// debouncing algorithm. This class instantiates a refreshloop and adds the
-// producers to it.
-openlcb::RefreshLoop producer_refresh_loop(openmrn.stack()->node(),
-    {
-        IO5_producer.polling(),
-        IO6_producer.polling(),
-        IO7_producer.polling(),
-        IO8_producer.polling(),
-        IO9_producer.polling()
-    }
-);
-
 // This will perform the factory reset procedure for this node's configuration
 // items.
 //
@@ -228,15 +167,6 @@ public:
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
             fd, openlcb::SNIP_STATIC_DATA.model_name);
-        for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
-        {
-            cfg.seg().consumers().entry(i).description().write(fd, "");
-        }
-        for(int i = 0; i < openlcb::NUM_INPUTS; i++)
-        {
-            cfg.seg().producers().entry(i).description().write(fd, "");
-            CDI_FACTORY_RESET(cfg.seg().producers().entry(i).debounce);
-        }
     }
 } factory_reset_helper;
 
@@ -320,9 +250,6 @@ void setup()
     // Create the default internal configuration file
     openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
         openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
-
-    // initialize all declared GPIO pins
-    GpioInit::hw_init();
 
 #if defined(USE_TWAI)
     twai.hw_init();

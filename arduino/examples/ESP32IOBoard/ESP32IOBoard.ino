@@ -51,9 +51,11 @@
 // NOTE: USE_TWAI and USE_TWAI_ASYNC are similar to USE_CAN but utilize the
 // new TWAI driver which offers both select() (default) or fnctl() (async)
 // access.
+// NOTE: USE_CAN is deprecated and no longer supported upstream by ESP-IDF as
+// of v4.2 or arduino-esp32 as of v2.0.0.
 
 #define USE_WIFI
-//#define USE_CAN
+#define USE_CAN
 //#define USE_TWAI
 //#define USE_TWAI_ASYNC
 
@@ -365,9 +367,10 @@ void setup()
     if (request_bootloader())
     {
         esp32_bootloader_run(NODE_ID, TWAI_RX_PIN, TWAI_TX_PIN);
+        // This line should not be reached as the esp32_bootloader_run method
+        // will not return by default.
+        HASSERT(false);
     }
-    else
-    {
 #endif // FIRMWARE_UPDATE_BOOTLOADER
 
 #if defined(USE_TWAI) && !defined(USE_CAN)
@@ -410,10 +413,6 @@ void setup()
 #endif // USE_CAN
 
     openmrn.start_executor_thread();
-
-#if defined(FIRMWARE_UPDATE_BOOTLOADER)
-    }
-#endif // FIRMWARE_UPDATE_BOOTLOADER
 }
 
 void loop()

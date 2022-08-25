@@ -45,34 +45,59 @@
 namespace openmrn_arduino
 {
 
-static uint32_t timeZeroHighTicks = 0;
-static uint32_t timeZeroLowTicks = 0;
-static uint32_t timeOneHighTicks = 0;
-static uint32_t timeOneLowTicks = 0;
-
-/// Number of microseconds to transmit a HIGH signal for a ZERO bit.
+/// Number of nanoseconds to transmit a HIGH signal for a ZERO bit.
 static constexpr uint16_t TIME_ZERO_HIGH_NSEC = 350;
 
-/// Number of microseconds to transmit a LOW signal for a ZERO bit.
+/// Number of nanoseconds to transmit a LOW signal for a ZERO bit.
 static constexpr uint16_t TIME_ZERO_LOW_NSEC = 850;
 
-/// Number of microseconds to transmit a HIGH signal for a ONE bit.
+/// Number of nanoseconds to transmit a HIGH signal for a ONE bit.
 static constexpr uint16_t TIME_ONE_HIGH_NSEC = 800;
 
-/// Number of microseconds to transmit a LOW signal for a ONE bit.
+/// Number of nanoseconds to transmit a LOW signal for a ONE bit.
 static constexpr uint16_t TIME_ONE_LOW_NSEC = 450;
+
+/// Number of RMT ticks for the high portion of the output signal representing
+/// a zero. This value will be calcuated during configuration of the first
+/// instance of the Esp32WS2812 class.
+static uint32_t timeZeroHighTicks = 0;
+
+/// Number of RMT ticks for the low portion of the output signal representing
+/// a zero. This value will be calcuated during configuration of the first
+/// instance of the Esp32WS2812 class.
+static uint32_t timeZeroLowTicks = 0;
+
+/// Number of RMT ticks for the high portion of the output signal representing
+/// a one. This value will be calcuated during configuration of the first
+/// instance of the Esp32WS2812 class.
+static uint32_t timeOneHighTicks = 0;
+
+/// Number of RMT ticks for the low portion of the output signal representing
+/// a one. This value will be calcuated during configuration of the first
+/// instance of the Esp32WS2812 class.
+static uint32_t timeOneLowTicks = 0;
 
 /// WS2812 to RMT data translation adapter for the ESP32 RMT peripheral.
 ///
 /// @param src is the source data to be translated.
-/// @param dest is the RMT data buffer to translate into.
-/// @param src_size is the number of bytes in the source buffer.
-/// @param wanted_num is the number of bits to translate.
-/// @param translated_size is the number of bytes translated by this method.
-/// @param item_num is the number of RMT items translated by this method.
+/// @param dest is the RMT data buffer to translate into, one element per bit,
+/// the size is controlled by the RMT hardware memory buffer count and the size
+/// of that buffer.
+/// @param src_size is the number of bytes in the source buffer, it is expected
+/// that all items can be translated into @param dest.
+/// @param wanted_num is the number of bits to translate, must be multiple of 8.
+/// @param translated_size (output) the number of translated bytes by this
+/// method.
+/// @param item_num (output) the number of elements updated in @param dest by
+/// this method.
 ///
-/// Note: this method is called from an ISR context and all data access must be
-/// from DRAM, be a constant and be 32 bit aligned.
+/// Note: this method is called from an ISR execution context and all data
+/// access must be from DRAM, be a constant and be 32 bit aligned. The
+/// ESP-IDF RMT driver that invokes this method will ensure all parameter data
+/// resides in a supported memory space.
+/// 
+/// Note: Logging within this method must use the esp_log_early method or use
+/// ets_printf method due to ISR execution context.
 static void IRAM_ATTR ws2812_rmt_adapter(const void *src, rmt_item32_t *dest,
     size_t src_size, size_t wanted_num, size_t *translated_size,
     size_t *item_num)
@@ -91,18 +116,15 @@ static void IRAM_ATTR ws2812_rmt_adapter(const void *src, rmt_item32_t *dest,
     const rmt_item32_t bit1 = {{{ timeOneHighTicks, 1, timeOneLowTicks, 0 }}};
     while (size < src_size && num < wanted_num)
     {
-        LOG(VERBOSE, "ESP-WS2812: %zu:%02x", size, *psrc);
         for (int i = 7; i >= 0; i--)
         {
             // bytes are sent in MSB order
             if (*psrc & (1 << i))
             {
-                LOG(VERBOSE, "ESP-WS2812: %zu:%d 1", size, i);
                 pdest->val =  bit1.val;
             }
             else
             {
-                LOG(VERBOSE, "ESP-WS2812: %zu:%d 0", size, i);
                 pdest->val =  bit0.val;
             }
             num++;
@@ -130,13 +152,14 @@ Esp32WS2812::Esp32WS2812(const gpio_num_t output_pin,
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
     // ESP32-C3 has four RMT channels with the first two allocated for TX and
     // second two for RX.
-    HASSERT(channel >= RMT_CHANNEL_0 && channel <= RMT_CHANNEL_1);
+    HASSERT(channel == RMT_CHANNEL_0 || channel == RMT_CHANNEL_1);
 #elif defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32S3)
-    // ESP32-S2 has four RMT channels.
+    // ESP32-S2 has four RMT channels that can be used for RX or TX.
     // ESP32-S3 has eight RMT channels with the first four allocated for TX and
     // remaining for RX.
+    HASSERT(channel >= RMT_CHANNEL_0 && channel <= RMT_CHANNEL_3);
 #elif defined(CONFIG_IDF_TARGET_ESP32)
-    // ESP32 has eight RMT channels.
+    // ESP32 has eight RMT channels that can be used for RX or TX.
     HASSERT(channel >= RMT_CHANNEL_0 && channel <= RMT_CHANNEL_7);
 #endif
     HASSERT(GPIO_IS_VALID_OUTPUT_GPIO(output_pin));
@@ -154,11 +177,14 @@ void Esp32WS2812::hw_init()
     LOG(VERBOSE, "ESP-WS2812(%d): Allocating %u bytes for %zu LEDs", channel_,
         ledBufferSize_, ledCount_);
     // Allocate the LED color data buffer
-    ledDataBuffer_ = (uint8_t *)calloc(1, ledBufferSize_);
+    ledDataBuffer_ = (uint8_t *)malloc(ledBufferSize_);
     HASSERT(ledDataBuffer_ != NULL);
+    // Initialize all LEDs as OFF.
+    memset(ledDataBuffer_, 0, ledBufferSize_);
 
     rmt_config_t config = RMT_DEFAULT_CONFIG_TX(pin_, channel_);
-    // reconfigure the clock to 40Mhz
+    // Reconfigure the clock divider to provide a 40Mhz clock rate, this allows
+    // reasonably accurate timing of the pulses.
     config.clk_div = 2;
 
     LOG(VERBOSE, "ESP-WS2812(%d): Configuring RMT using GPIO %d", channel_,
@@ -174,17 +200,19 @@ void Esp32WS2812::hw_init()
     if (timeZeroHighTicks == 0 || timeZeroLowTicks == 0 ||
         timeOneHighTicks == 0 || timeOneLowTicks == 0)
     {
-        // convert the number of microseconds for high/low signals to the
+        // Convert the number of nanoseconds for high/low signals to the
         // number of RMT ticks required.
+        // It is expected that the number of RMT ticks per nanosecond is
+        // around 25, any fractional ticks will be discarded.
         uint32_t counter_clk_hz = 0;
         ESP_ERROR_CHECK(rmt_get_counter_clock(channel_, &counter_clk_hz));
-        float ratio = (float)counter_clk_hz / 1e9;
-        timeZeroHighTicks = (uint32_t)(ratio * TIME_ZERO_HIGH_NSEC);
-        timeZeroLowTicks = (uint32_t)(ratio * TIME_ZERO_LOW_NSEC);
-        timeOneHighTicks = (uint32_t)(ratio * TIME_ONE_HIGH_NSEC);
-        timeOneLowTicks = (uint32_t)(ratio * TIME_ONE_LOW_NSEC);
+        uint32_t rmt_ticks_per_ns = counter_clk_hz / 1000000000L;
+        timeZeroHighTicks = rmt_ticks_per_ns * TIME_ZERO_HIGH_NSEC;
+        timeZeroLowTicks = rmt_ticks_per_ns * TIME_ZERO_LOW_NSEC;
+        timeOneHighTicks = rmt_ticks_per_ns * TIME_ONE_HIGH_NSEC;
+        timeOneLowTicks = rmt_ticks_per_ns * TIME_ONE_LOW_NSEC;
         LOG(VERBOSE,
-            "ESP-WS2812: ratio: %6.4f, T0H:%d, T0L:%d, T1H:%d, T1L:%d",
+            "ESP-WS2812: ratio: %d, T0H:%d, T0L:%d, T1H:%d, T1L:%d",
             ratio, timeZeroHighTicks, timeZeroLowTicks, timeOneHighTicks,
             timeOneLowTicks);
     }
@@ -205,7 +233,7 @@ void Esp32WS2812::hw_init()
 
 void Esp32WS2812::set_led_color(const size_t index, const uint8_t red,
                                 const uint8_t green, const uint8_t blue,
-                                bool update, const uint32_t timeout_ms)
+                                const uint32_t update_timeout_ms)
 {
     HASSERT(index < ledCount_);
 
@@ -226,14 +254,14 @@ void Esp32WS2812::set_led_color(const size_t index, const uint8_t red,
         {
             sem_.post();
         }
-        else if (update)
+        else
         {
             LOG(VERBOSE, "ESP-WS2812(%d): Updating LEDs", channel_);
             ESP_ERROR_CHECK(
                 rmt_write_sample(
                     channel_, ledDataBuffer_, ledBufferSize_, true));
             ESP_ERROR_CHECK(
-                rmt_wait_tx_done(channel_, pdMS_TO_TICKS(timeout_ms)));
+                rmt_wait_tx_done(channel_, pdMS_TO_TICKS(update_timeout_ms)));
             LOG(VERBOSE, "ESP-WS2812(%d): LEDs updated", channel_);
         }
     }
@@ -251,7 +279,7 @@ void Esp32WS2812::get_led_color(const size_t index, uint8_t *red,
 }
 
 void Esp32WS2812::clear(const uint8_t red, const uint8_t green,
-                        const uint8_t blue, const uint32_t timeout_ms)
+                        const uint8_t blue, const uint32_t update_timeout_ms)
 {
     // if the color values are all zero we can set the buffer data directly.
     if (red == 0 && green == 0 && blue == 0)
@@ -283,7 +311,7 @@ void Esp32WS2812::clear(const uint8_t red, const uint8_t green,
         LOG(VERBOSE, "ESP-WS2812(%d): Updating LEDs", channel_);
         ESP_ERROR_CHECK(
             rmt_write_sample(channel_, ledDataBuffer_, ledBufferSize_, true));
-        ESP_ERROR_CHECK(rmt_wait_tx_done(channel_, pdMS_TO_TICKS(timeout_ms)));
+        ESP_ERROR_CHECK(rmt_wait_tx_done(channel_, pdMS_TO_TICKS(update_timeout_ms)));
         LOG(VERBOSE, "ESP-WS2812(%d): LEDs updated", channel_);
     }
 }

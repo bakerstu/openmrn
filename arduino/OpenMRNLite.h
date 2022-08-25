@@ -91,10 +91,6 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #endif // NOT ESP32-H2 and NOT ESP32-C2
 
-// If we are using ESP-IDF v4.3 (or later) enable the usage of the Esp32WS2812
-// RMT API.
-#include "freertos_drivers/esp32/Esp32WS2812.hxx"
-
 #endif // IDF v4.3+
 
 #if defined(CONFIG_IDF_TARGET_ESP32)

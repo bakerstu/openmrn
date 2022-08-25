@@ -24,11 +24,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file CDIXMLGenerator.h
+ * \file CDIXMLGenerator.hxx
  *
  * Standalone CDI XML generation class.
  *
- * @author Balazs Racz
+ * @author Balazs Racz, Mike Dunston
  * @date 24 July 2018
  */
 
@@ -63,8 +63,8 @@ public:
     /// false if the file was already up-to-date.
     template <class ConfigDef>
     static bool create_config_descriptor_xml(
-        const ConfigDef &config, const char *filename
-      , openlcb::SimpleStackBase *stack = nullptr)
+        const ConfigDef &config, const char *filename,
+        openlcb::SimpleStackBase *stack = nullptr)
     {
         string cdi_string;
         ConfigDef cfg(config.offset());

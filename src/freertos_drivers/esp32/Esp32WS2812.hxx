@@ -47,9 +47,19 @@ namespace openmrn_arduino
 
 /// WS2812 driver via the ESP32 RMT peripheral.
 ///
-/// Provides the ability to control multiple addressable WS2812/SK68XX LEDs via
-/// a single GPIO pin. Depending on which ESP32 module is in use the number of
-/// parallel WS2812 output channels will vary.
+/// Provides the ability to control one (or more) addressable WS2812/SK68XX
+/// LEDs via a single GPIO pin. The number of output channels varies based on
+/// the ESP32 variant in use.
+///
+/// Usable RMT channels for ESP32 variants:
+/// ESP32 : RMT_CHANNEL_0 through RMT_CHANNEL_7.
+/// ESP32-S2 : RMT_CHANNEL_0 through RMT_CHANNEL_3.
+/// ESP32-S3 : RMT_CHANNEL_0 through RMT_CHANNEL_3.
+/// ESP32-C3 : RMT_CHANNEL_0 and RMT_CHANNEL_1.
+///
+/// Additional RMT channels exist on ESP32-S3 and ESP32-C3 but they are
+/// restricted to RX only. ESP32 and ESP32-S2 do not have restrictions on the
+/// RMT channel usage.
 ///
 /// The output data for the WS2812 is based on a series of 24 pulses matching
 /// either of the two waves below:
@@ -70,7 +80,8 @@ namespace openmrn_arduino
 /// A third wave may be observed in the datastream of around 280 nanoseconds as
 /// a LOW signal. This is a reset pulse and will reset the LEDs for new color
 /// data. However, this pulse is not currently being generated and LEDs are
-/// correctly displaying the expected colors.
+/// correctly displaying the expected colors. The reset pulse may be added in
+/// the future.
 ///
 /// LED Color data is transmitted in MSB format as: Green, Red, Blue.
 ///
@@ -81,10 +92,10 @@ namespace openmrn_arduino
 /// For 1024 LEDs the total transmission time is around 30 milliseconds which is
 /// around 30 updates to all LEDs per second.
 ///
-/// When only one LED is connected (as seen on the ESP32-S2 or ESP32-C3 modules)
-/// LED updates will be processed inline with the call to set_led_color or
-/// clear. When more than one LED is connected a background thread will be used
-/// to update the LED colors.
+/// When only one LED is connected (as seen on some DevKit-C boards) LED color
+/// data will be transmitted inline with the call to set_led_color or clear.
+/// When more than one LED is connected a background thread will be used to
+/// transmit the updated LED color data.
 ///
 /// This class will allocate 3 bytes per LED as a transmit buffer, it is not
 /// double buffered at this time.
@@ -98,10 +109,10 @@ public:
     /// @param channel is the RMT channel to use for transmitting LED data.
     /// @param led_count is the number of LEDs in the strip.
     ///
-    /// Note: when the number of LEDs is more than one a background thread
+    /// Note: when the number of LEDs is greater than one a background thread
     /// will be started as part of @ref hw_init. When only one LED is defined
-    /// the @ref set_led_color and @ref clear methods will block until the LEDs
-    /// have updated.
+    /// the @ref set_led_color and @ref clear methods will block until the LED
+    /// data has been transfered to the RMT peripheral.
     Esp32WS2812(const gpio_num_t output_pin, const rmt_channel_t channel,
                 const size_t led_count);
 
@@ -120,15 +131,12 @@ public:
     /// @param red is the red portion of the color to set the LED to.
     /// @param green is the green portion of the color to set the LED to.
     /// @param blue is the blue portion of the color to set the LED to.
-    /// @param update controls if the LEDs will be updated as part of calling
-    /// this method, this is only applicable for single LED output
-    /// configurations.
-    /// @param timeout_ms is how many milliseconds to wait for LED updates to
-    /// complete before giving up, this is only applicable for single LED
-    /// output configurations.
+    /// @param update_timeout_ms is how many milliseconds to wait for LED
+    /// data transmit to complete before giving up, this is only applicable
+    /// for single LED output configurations.
     void set_led_color(const size_t index, const uint8_t red,
                        const uint8_t green, const uint8_t blue,
-                       bool update = true, const uint32_t timeout_ms = 100);
+                       const uint32_t update_timeout_ms = 100);
 
     /// Sets an individual LED to the specified color.
     ///
@@ -144,20 +152,25 @@ public:
     /// @param red is the red portion of the color to set all LEDs to.
     /// @param green is the green portion of the color to set all LEDs to.
     /// @param blue is the blue portion of the color to set all LEDs to.
-    /// @param timeout_ms is how many milliseconds to wait for LED updates to
-    /// complete before giving up, this is only applicable for single LED
-    /// output configurations.
+    /// @param update_timeout_ms is how many milliseconds to wait for LED
+    /// data transmit to complete before giving up, this is only applicable
+    /// for single LED output configurations.
     ///
     /// Note: the default clear to color is OFF.
     void clear(const uint8_t red = 0, const uint8_t green = 0,
-               const uint8_t blue = 0, const uint32_t timeout_ms = 50);
+               const uint8_t blue = 0, const uint32_t update_timeout_ms = 50);
 
+    /// @return The maximum number of configured LEDs.
     size_t get_max_leds()
     {
         return ledCount_;
     }
 
 private:
+    /// Priority for the task performing the LED data transmission.
+    /// Note: this will only be used when the number of LEDs is greater than 1.
+    static constexpr UBaseType_t TASK_PRIORITY = 3;
+
     /// GPIO pin that is connected to the first LED in the strip.
     const gpio_num_t pin_;
 
@@ -173,10 +186,9 @@ private:
     /// Raw LED data stored in green, red, blue order.
     uint8_t *ledDataBuffer_;
 
-    /// Priority for the task performing the LED data transmission.
-    static constexpr UBaseType_t TASK_PRIORITY = 3;
-
-    /// Wakeup for the thread processing
+    /// This is used to wakeup the background thread to start transmission of
+    /// LED data.
+    /// Note: this will only be used when the number of LEDs is greater than 1.
     OSSem sem_;
 
     /// User entry point for the created thread.

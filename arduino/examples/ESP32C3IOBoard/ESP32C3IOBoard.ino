@@ -36,6 +36,7 @@
 #include <SPIFFS.h>
 
 #include <OpenMRNLite.h>
+#include "freertos_drivers/esp32/Esp32WS2812.hxx"
 #include "openlcb/ConfiguredConsumer.hxx"
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/MultiConfiguredConsumer.hxx"
@@ -410,9 +411,10 @@ void setup()
     if (request_bootloader())
     {
         esp32_bootloader_run(NODE_ID, TWAI_RX_PIN, TWAI_TX_PIN);
+        // This line should not be reached as the esp32_bootloader_run method
+        // will not return by default.
+        HASSERT(false);
     }
-    else
-    {
 #endif // FIRMWARE_UPDATE_BOOTLOADER
 
     check_for_factory_reset();
@@ -459,10 +461,6 @@ void setup()
     // OpenMRN executor.
     openmrn.start_executor_thread();
 #endif // USE_TWAI_ASYNC
-
-#if defined(FIRMWARE_UPDATE_BOOTLOADER)
-    }
-#endif // FIRMWARE_UPDATE_BOOTLOADER
 }
 
 void loop()

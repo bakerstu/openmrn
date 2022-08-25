@@ -38,11 +38,11 @@
 #include <USBCDC.h>
 
 #include <OpenMRNLite.h>
-#include <openlcb/TcpDefs.hxx>
-
-#include <openlcb/MultiConfiguredConsumer.hxx>
-#include <utils/GpioInitializer.hxx>
-#include <freertos_drivers/arduino/CpuLoad.hxx>
+#include "freertos_drivers/arduino/CpuLoad.hxx"
+#include "freertos_drivers/esp32/Esp32WS2812.hxx"
+#include "openlcb/MultiConfiguredConsumer.hxx"
+#include "openlcb/TcpDefs.hxx"
+#include "utils/GpioInitializer.hxx"
 
 // Pick an operating mode below, if you select USE_WIFI it will expose this
 // node on WIFI. If USE_CAN / USE_TWAI / USE_TWAI_ASYNC are enabled the node
@@ -496,10 +496,11 @@ void setup()
     // before we startup the OpenMRN stack.
     if (request_bootloader())
     {
-        esp32_bootloader_run(NODE_ID, CAN_RX_PIN, CAN_TX_PIN, true);
+        esp32_bootloader_run(NODE_ID, CAN_RX_PIN, CAN_TX_PIN);
+        // This line should not be reached as the esp32_bootloader_run method
+        // will not return by default.
+        HASSERT(false);
     }
-    else
-    {
 #endif // FIRMWARE_UPDATE_BOOTLOADER
     check_for_factory_reset();
 
@@ -548,10 +549,6 @@ void setup()
     // OpenMRN executor.
     openmrn.start_executor_thread();
 #endif // USE_TWAI_ASYNC
-
-#if defined(FIRMWARE_UPDATE_BOOTLOADER)
-    }
-#endif // FIRMWARE_UPDATE_BOOTLOADER
 }
 
 void loop()

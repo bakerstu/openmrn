@@ -26,10 +26,8 @@
  *
  * \file Esp32SocInfo.cxx
  *
- * TWAI driver implementation for OpenMRN. This leverages the ESP-IDF TWAI HAL
- * API rather than the TWAI driver to allow for a more integrated solution than
- * the TWAI driver which requires polling for RX. This implementation supports
- * both ::select and the non-blocking ::ioctl/::fnctl approach.
+ * Utility class for printing information about the ESP32 device currently in
+ * use.
  *
  * @author Mike Dunston
  * @date 4 May 2021
@@ -242,8 +240,8 @@ uint8_t Esp32SocInfo::print_soc_info()
     // restart one after the other.
     uint8_t reset_reason = rtc_get_reset_reason(PRO_CPU_NUM);
     uint8_t orig_reset_reason = reset_reason;
-    // Ensure the reset reason it within bounds.
-    if (reset_reason > ARRAYSIZE(RESET_REASONS))
+    // Ensure the reset reason is within bounds.
+    if (reset_reason >= ARRAYSIZE(RESET_REASONS))
     {
         reset_reason = 0;
     }
@@ -251,7 +249,7 @@ uint8_t Esp32SocInfo::print_soc_info()
     esp_chip_info(&chip_info);
     size_t chip_model = chip_info.model;
     // Ensure chip model is within bounds.
-    if (chip_model > ARRAYSIZE(CHIP_NAMES))
+    if (chip_model >= ARRAYSIZE(CHIP_NAMES))
     {
         chip_model = 0;
     }
@@ -287,7 +285,7 @@ uint8_t Esp32SocInfo::print_soc_info()
 
 #endif // IDF v4.3+
 
-    LOG(INFO, "[SoC] App running from: %s",
+    LOG(INFO, "[SoC] App running from partition: %s",
         esp_ota_get_running_partition()->label);
     if (reset_reason != orig_reset_reason)
     {
