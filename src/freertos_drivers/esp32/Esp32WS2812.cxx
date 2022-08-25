@@ -212,9 +212,9 @@ void Esp32WS2812::hw_init()
         timeOneHighTicks = rmt_ticks_per_ns * TIME_ONE_HIGH_NSEC;
         timeOneLowTicks = rmt_ticks_per_ns * TIME_ONE_LOW_NSEC;
         LOG(VERBOSE,
-            "ESP-WS2812: ratio: %d, T0H:%d, T0L:%d, T1H:%d, T1L:%d",
-            ratio, timeZeroHighTicks, timeZeroLowTicks, timeOneHighTicks,
-            timeOneLowTicks);
+            "ESP-WS2812: RMT ticks per ns: %d, T0H:%d, T0L:%d, T1H:%d, T1L:%d",
+            rmt_ticks_per_ns, timeZeroHighTicks, timeZeroLowTicks,
+            timeOneHighTicks, timeOneLowTicks);
     }
 
     if (ledCount_ > 1)
