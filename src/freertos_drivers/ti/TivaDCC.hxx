@@ -1163,7 +1163,7 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     MAP_TimerEnable(HW::INTERVAL_BASE, TIMER_A);
 
 #ifdef TIVADCC_TIVA
-    MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
+    MAP_TimerSynchronize(TIMER0_BASE, HW::TIMER_SYNC);
 #endif
     
     MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timings[DCC_ONE].period);
