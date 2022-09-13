@@ -285,8 +285,9 @@ void BitRangeEventPC::SendIdentified(WriteHelper *writer,
                        WriteHelper::global(), eventid_to_buffer(range), done);
 }
 
-void BitRangeEventP::handle_identify_global(const EventRegistryEntry& entry, EventReport *event,
-                                           BarrierNotifiable *done)
+void BitRangeEventP::handle_identify_global(const EventRegistryEntry& entry,
+                                            EventReport *event,
+                                            BarrierNotifiable *done)
 {
     if (event->dst_node && event->dst_node != node_)
     {
