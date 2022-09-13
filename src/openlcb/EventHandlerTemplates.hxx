@@ -794,47 +794,6 @@ private:
     unsigned size_; //< number of bits stored.
 };
 
-/// Producer event handler for a sequence of bits represented by a
-/// dense block of consecutive event IDs.
-class BitRangeEventP : public BitRangeEventPC
-{
-public:
-    /// Creates a new bit range producer. Backing store points to memory of at
-    /// least size bits (round up to multiple of 32). This class will advertise
-    /// producing size * 2 events contiguous from event_base. event_base will
-    /// turn bit 0 on, event_base + 1 will turn bit 0 off, event_base + 2 will
-    /// turn bit 1 on, event_base + 3 will turn bit 1 off, etc.
-    BitRangeEventP(Node *node, uint64_t event_base, uint32_t *backing_store,
-                   unsigned size)
-        : BitRangeEventPC(node, event_base, backing_store, size)
-    {
-    }
-
-    /// Destructor.
-    virtual ~BitRangeEventP()
-    {
-    }
-
-    void handle_event_report(const EventRegistryEntry &entry, EventReport *event,
-                             BarrierNotifiable *done) override
-    {
-        // Nothing to do for producers.
-        done->notify();
-    }
-
-    void handle_identify_consumer(const EventRegistryEntry &entry,
-                                  EventReport *event,
-                                  BarrierNotifiable *done) override
-    {
-        // Nothing to do for producers.
-        done->notify();
-    }
-
-    void handle_identify_global(const EventRegistryEntry &entry,
-                              EventReport *event,
-                              BarrierNotifiable *done) override;
-};
-
 /// Consumer event handler for a sequence of bytes represented by a dense block
 /// of consecutive event IDs. Each byte has a consecutive block of 256 events.
 class ByteRangeEventC : public SimpleEventHandler
