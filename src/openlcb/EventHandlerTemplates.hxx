@@ -829,6 +829,10 @@ public:
         // Nothing to do for producers.
         done->notify();
     }
+
+    void handle_identify_global(const EventRegistryEntry &entry,
+                              EventReport *event,
+                              BarrierNotifiable *done) override;
 };
 
 /// Consumer event handler for a sequence of bytes represented by a dense block
