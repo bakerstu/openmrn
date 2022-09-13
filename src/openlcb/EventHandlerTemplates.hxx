@@ -783,7 +783,7 @@ public:
     /// @returns the number of bits maintained.
     unsigned size() { return size_; }
 
-private:
+protected:
     void HandleIdentifyBase(Defs::MTI mti_valid, EventReport *event,
                             BarrierNotifiable *done);
     void GetBitAndMask(unsigned bit, uint32_t **data, uint32_t *mask) const;
