@@ -191,6 +191,10 @@ public:
     Action entry() override
     {
         request()->resultCode = OPERATION_PENDING;
+        auto* pgm = get_dcc_output(DccOutput::PGM);
+        const bool has_short = pgm->get_disable_output_reasons() &
+            (uint8_t)DccOutput::DisableReason::SHORTED;
+
         switch (request()->cmd_)
         {
             case ProgrammingTrackRequest::Type::ENTER_SERVICE_MODE:
@@ -200,9 +204,11 @@ public:
                 return call_immediately(STATE(exit_service_mode));
 
             case ProgrammingTrackRequest::Type::SEND_RESET:
+                if (has_short) request()->hasShortCircuit_ = 1;
                 return call_immediately(STATE(send_reset));
 
             case ProgrammingTrackRequest::Type::SEND_SERVICE_PACKET:
+                if (has_short) request()->hasShortCircuit_ = 1;
                 return call_immediately(STATE(send_service_packet));
         }
         DIE("Unknown programming track request command");
