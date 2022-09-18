@@ -1069,9 +1069,27 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     /// @todo tune this bit to line up with the bit stream starting after the
     /// railcom cutout.
     fill_timing(DCC_RC_ONE, 57 << 1, 57, 57 << 1);
+
+    // The following #if switch controls whether or not the
+    // "generate_railcom_halfzero()" will actually generate a half zero bit
+    // or if it will in actuality generate a full zero bit. It was determined
+    // the the half zero workaround does not work with some older decoders,
+    // but the full zero workaround does. It also works with older decoders
+    // that needed the half zero, so it seems to be a true super-set workaround.
+    //
+    // There is an issue filed to reevaluate this after more field data is
+    // collected. The idea was to make the most minimal change necessary for
+    // until more data can be collected.
+    // https://github.com/bakerstu/openmrn/issues/652
+#if 0
     // A small pulse in one direction then a half zero bit in the other
     // direction.
     fill_timing(DCC_RC_HALF_ZERO, 100 + 56, 56, 100 + 56, 5);
+#else
+    // A full zero bit inserted following the RailCom cutout.
+    fill_timing(DCC_RC_HALF_ZERO, 100 << 1, 100, 100 << 1, 5);
+#endif
+
     // At the end of the packet the resync process will happen, which means that
     // we modify the timer registers in synchronous mode instead of double
     // buffering to remove any drift that may have happened during the packet.
