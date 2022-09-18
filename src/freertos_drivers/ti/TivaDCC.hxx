@@ -1073,7 +1073,7 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     // The following #if switch controls whether or not the
     // "generate_railcom_halfzero()" will actually generate a half zero bit
     // or if it will in actuality generate a full zero bit. It was determined
-    // the the half zero workaround does not work with some older decoders,
+    // that the half zero workaround does not work with some older decoders,
     // but the full zero workaround does. It also works with older decoders
     // that needed the half zero, so it seems to be a true super-set workaround.
     //
