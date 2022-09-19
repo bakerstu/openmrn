@@ -204,11 +204,17 @@ public:
                 return call_immediately(STATE(exit_service_mode));
 
             case ProgrammingTrackRequest::Type::SEND_RESET:
-                if (has_short) request()->hasShortCircuit_ = 1;
+                if (has_short)
+                {
+                    request()->hasShortCircuit_ = 1;
+                }
                 return call_immediately(STATE(send_reset));
 
             case ProgrammingTrackRequest::Type::SEND_SERVICE_PACKET:
-                if (has_short) request()->hasShortCircuit_ = 1;
+                if (has_short)
+                {
+                    request()->hasShortCircuit_ = 1;
+                }
                 return call_immediately(STATE(send_service_packet));
         }
         DIE("Unknown programming track request command");
@@ -327,6 +333,7 @@ private:
 
     Action send_reset()
     {
+        
         // record that we want to send reset packets.
         request()->packetToSend_.set_dcc_reset_all_decoders();
         request()->packetToSend_.packet_header.send_long_preamble = 1;
