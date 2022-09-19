@@ -1078,7 +1078,7 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     // that needed the half zero, so it seems to be a true super-set workaround.
     //
     // There is an issue filed to reevaluate this after more field data is
-    // collected. The idea was to make the most minimal change necessary for
+    // collected. The idea was to make the most minimal change necessary
     // until more data can be collected.
     // https://github.com/bakerstu/openmrn/issues/652
 #if 0
