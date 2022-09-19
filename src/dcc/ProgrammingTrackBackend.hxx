@@ -191,6 +191,10 @@ public:
     Action entry() override
     {
         request()->resultCode = OPERATION_PENDING;
+        auto* pgm = get_dcc_output(DccOutput::PGM);
+        const bool has_short = pgm->get_disable_output_reasons() &
+            (uint8_t)DccOutput::DisableReason::SHORTED;
+
         switch (request()->cmd_)
         {
             case ProgrammingTrackRequest::Type::ENTER_SERVICE_MODE:
@@ -200,9 +204,17 @@ public:
                 return call_immediately(STATE(exit_service_mode));
 
             case ProgrammingTrackRequest::Type::SEND_RESET:
+                if (has_short)
+                {
+                    request()->hasShortCircuit_ = 1;
+                }
                 return call_immediately(STATE(send_reset));
 
             case ProgrammingTrackRequest::Type::SEND_SERVICE_PACKET:
+                if (has_short)
+                {
+                    request()->hasShortCircuit_ = 1;
+                }
                 return call_immediately(STATE(send_service_packet));
         }
         DIE("Unknown programming track request command");
@@ -321,6 +333,7 @@ private:
 
     Action send_reset()
     {
+        
         // record that we want to send reset packets.
         request()->packetToSend_.set_dcc_reset_all_decoders();
         request()->packetToSend_.packet_header.send_long_preamble = 1;
