@@ -107,6 +107,12 @@ public:
         new SetFlow(this, SetFlow::Command::STOP);
     }
 
+    /// Query the current time.
+    void query()
+    {
+        new SetFlow(this, SetFlow::Command::QUERY);
+    }
+
     /// Get the time as a value of seconds relative to the system epoch.  At the
     /// same time get an atomic matching pair of the rate
     /// @return pair<time in seconds relative to the system epoch, rate>
@@ -416,6 +422,7 @@ protected:
             SET_RATE, ///< set rate request
             START, ///< stop request
             STOP, ///< start request
+            QUERY, ///< issue a query
         };
 
         /// Constructor.
@@ -470,6 +477,10 @@ protected:
                 case STOP:
                     event_id = clock_->event_base() |
                                BroadcastTimeDefs::STOP_EVENT_SUFFIX;
+                    break;
+                case QUERY:
+                    event_id = clock_->event_base() |
+                               BroadcastTimeDefs::QUERY_EVENT_SUFFIX;
                     break;
                 default:
                     // should never get here.
