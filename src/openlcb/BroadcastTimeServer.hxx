@@ -164,6 +164,16 @@ private:
                                     EventReport *event,
                                     BarrierNotifiable *done) override;
 
+
+    /// Called on another node sending ConsumerRangeIdentified. @param event
+    /// stores information about the incoming message. Filled: event id, mask
+    /// (!= 1), src_node. Not filled: state.  @param registry_entry gives the
+    /// registry entry for which the current handler is being called. @param
+    /// done must be notified when the processing is done.
+    void handle_consumer_range_identified(
+        const EventRegistryEntry &registry_entry, EventReport *event,
+        BarrierNotifiable *done) override;
+
     /// Handle an incoming event report.
     /// @param entry registry entry for the event range
     /// @param event information about the incoming message
