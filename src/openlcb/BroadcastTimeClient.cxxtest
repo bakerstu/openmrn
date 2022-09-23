@@ -106,7 +106,7 @@ protected:
         expect_packet(":X195B422AN010100000100F000;");
         expect_packet(":X195B422AN010100000101F000;");
 
-        // expect consumer identify range and producder idenfied query (unknown)
+        // expect consumer identify range and producer identified query (unknown)
         expect_packet(":X194A422AN010100000100FFFF;");
         expect_packet(":X1954722AN010100000100F000;");
 
@@ -120,7 +120,8 @@ protected:
         client2_ = new MockBroadcastTimeClient(
             node_, BroadcastTimeDefs::DEFAULT_REALTIME_CLOCK_ID, true);
 
-        send_packet(":X19970001N;");
+        // identify events addressed
+        send_packet(":X19968001N022A;");
         wait_for_event_thread();
 
         clear_expect(true);
