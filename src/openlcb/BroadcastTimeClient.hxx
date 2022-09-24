@@ -103,6 +103,13 @@ public:
             return;
         }
 
+        if (event->dst_node == node_)
+        {
+            // This is directed at us. We were likely re-initialized, so we
+            // need to query for a new clock server and possibly sync.
+            query();
+        }
+
         if (is_terminated())
         {
             start_flow(STATE(initialize));
@@ -257,24 +264,13 @@ private:
     }
 
     /// Initialize client by sending a time query.
-    /// @return next state is initialize_done
+    /// @return next state is client_update
     Action initialize()
     {
         rolloverPending_ = false;
         rolloverPendingDate_ = false;
         rolloverPendingYear_ = false;
 
-        writer_.WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
-            eventid_to_buffer(eventBase_ |
-                              BroadcastTimeDefs::QUERY_EVENT_SUFFIX),
-            this);
-        return wait_and_call(STATE(initialize_done));
-    }
-
-    /// Initialize finished
-    /// @return next state client_update.
-    Action initialize_done()
-    {
         waiting();
         return wait_and_call(STATE(client_update));
     }
@@ -282,7 +278,7 @@ private:
     /// Notification arrived that we should update our state.
     /// @return next state client_update_commit if an update is to be made,
     ///         else next state client_update_wait if we are expecting more
-    ///         incoming clock set events or producer identifieds
+    ///         incoming clock set events or producer identified
     Action client_update()
     {
         if (immediateUpdate_ || rolloverPending_)
