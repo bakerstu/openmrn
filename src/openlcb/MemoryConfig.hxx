@@ -484,8 +484,16 @@ private:
             }
             case MemoryConfigDefs::COMMAND_FACTORY_RESET:
             {
-                handle_factory_reset();
-                return respond_ok(0);
+                NodeID id = message()->data()->dst->node_id();
+                uint16_t ret = handle_factory_reset(id);
+                if (!ret)
+                {
+                    return respond_ok(0);
+                }
+                else
+                {
+                    return respond_reject(ret);
+                }
             }
             case MemoryConfigDefs::COMMAND_OPTIONS:
             {
