@@ -378,6 +378,33 @@ TEST_F(FactoryResetTest, send_alias_lookup)
     EXPECT_CALL(mock_, reboot()).Times(0);
 }
 
+// Sends a factory reset command to a remote node by alias, when there is
+// already a cache entry for that remote alias.
+TEST_F(FactoryResetTest, cached_alias)
+{
+    print_all_packets();
+    ::testing::InSequence seq;
+    // AMD frame to prefill cache.
+    send_packet(":X10701499N010203040506;");
+    wait();
+    // Datagram sent straight away
+    expect_packet(":X1A499FF2N20AA010203040506;");
+    auto b = invoke_client_no_block(
+        MemoryConfigClientRequest::FACTORY_RESET, dstThree_);
+    wait();
+    clear_expect(true);
+    EXPECT_EQ(MemoryConfigClient::OPERATION_PENDING, b->data()->resultCode);
+
+    // Accept with no response pending
+    send_packet(":X19A28499N0FF200;");
+    twait();
+
+    EXPECT_EQ(0, b->data()->resultCode);
+
+    EXPECT_CALL(mock_, factory_reset()).Times(0);
+    EXPECT_CALL(mock_, reboot()).Times(0);
+}
+
 
 TEST_F(MemoryConfigClientTest, factory_reset)
 {
