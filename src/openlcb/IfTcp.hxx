@@ -115,7 +115,7 @@ public:
 
     /// @return the gateway node ID.
     NodeID get_default_node_id() override;
-    
+
 private:
     /// Where to send traffic to.
     HubFlow *device_;

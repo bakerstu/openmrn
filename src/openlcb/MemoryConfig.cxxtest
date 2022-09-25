@@ -64,7 +64,8 @@ public:
 class MemoryConfigTest : public TwoNodeDatagramTest
 {
 protected:
-    MemoryConfigTest() : memoryOne_(&datagram_support_, nullptr, 10)
+    MemoryConfigTest()
+        : memoryOne_(&datagram_support_, nullptr, 10)
     {
         ON_CALL(space, write(_, _, _, _, _))
             .WillByDefault(DoAll(SetArgPointee<3>(0x2F00), Return(0)));
@@ -423,9 +424,9 @@ TEST_F(MemoryConfigTest, Reboot)
 TEST_F(MemoryConfigTest, FactoryResetWrongNodeId)
 {
     StrictMock<GlobalMock> mock;
-    ConfigUpdateFlow update_flow{ifCan_.get()};
+    ConfigUpdateFlow update_flow {ifCan_.get()};
     update_flow.TEST_set_fd(23);
-    
+
     FactoryResetListener l;
     // rejected with error "invalid arguments"
     expect_packet(":X19A4822AN077C1080;");
@@ -441,9 +442,9 @@ TEST_F(MemoryConfigTest, FactoryResetWrongNodeId)
 TEST_F(MemoryConfigTest, FactoryResetNoNodeId)
 {
     StrictMock<GlobalMock> mock;
-    ConfigUpdateFlow update_flow{ifCan_.get()};
+    ConfigUpdateFlow update_flow {ifCan_.get()};
     update_flow.TEST_set_fd(23);
-    
+
     FactoryResetListener l;
     // rejected with error "invalid arguments"
     expect_packet(":X19A4822AN077C1080;");
@@ -479,9 +480,9 @@ TEST_F(MemoryConfigTest, FactoryResetVNode)
 {
     setup_other_node(false);
     StrictMock<GlobalMock> mock;
-    ConfigUpdateFlow update_flow{ifCan_.get()};
+    ConfigUpdateFlow update_flow {ifCan_.get()};
     update_flow.TEST_set_fd(23);
-    
+
     FactoryResetListener l;
 
     expect_packet(":X19A48225N077C1234;"); // Rejected with error 0x1234

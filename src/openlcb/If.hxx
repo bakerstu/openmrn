@@ -329,7 +329,7 @@ public:
     /// interfaces this is the gateway node ID, for CAN interfaces this is the
     /// node ID used for alias allocation on the CAN-bus.
     virtual NodeID get_default_node_id() = 0;
-    
+
     /// Sets a transmit hook. This function will be called once for every
     /// OpenLCB message transmitted. Used for implementing activity LEDs.
     /// @param hook function to call for each transmit message.

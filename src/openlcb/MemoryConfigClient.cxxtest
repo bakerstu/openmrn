@@ -101,7 +101,8 @@ public:
     SyncNotifiable n_;
 };
 
-struct GlobalMock : public Singleton<GlobalMock> {
+struct GlobalMock : public Singleton<GlobalMock>
+{
     MOCK_METHOD0(reboot, void());
     MOCK_METHOD0(factory_reset, void());
 };
@@ -288,7 +289,8 @@ TEST_F(MemoryConfigClientTest, unfreeze)
     ASSERT_TRUE(b->data()->done.is_done());
 }
 
-class FactoryResetTest : public MemoryConfigClientTest {
+class FactoryResetTest : public MemoryConfigClientTest
+{
 protected:
     FactoryResetTest()
     {
@@ -297,17 +299,20 @@ protected:
         twait();
     }
 
-    ~FactoryResetTest() {
+    ~FactoryResetTest()
+    {
         twait();
     }
-    
+
     StrictMock<GlobalMock> mock_;
-    BlockExecutor eb_{ifCan_->executor()};
-    ConfigUpdateFlow updateFlow_{ifCan_.get()};
+    BlockExecutor eb_ {ifCan_->executor()};
+    ConfigUpdateFlow updateFlow_ {ifCan_.get()};
     FactoryResetListener l_;
 }; // FactoryResetTest
 
-TEST_F(FactoryResetTest, create) {}
+TEST_F(FactoryResetTest, create)
+{
+}
 
 // Sends a factory reset command to a target represented with a node ID.
 TEST_F(FactoryResetTest, send_with_id)
@@ -332,7 +337,7 @@ TEST_F(FactoryResetTest, send_with_alias)
     EXPECT_CALL(mock_, factory_reset());
     EXPECT_CALL(mock_, reboot());
     auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::FACTORY_RESET,
-                         NodeHandle(NodeAlias(0x22A)));
+        NodeHandle(NodeAlias(0x22A)));
     EXPECT_EQ(0, b->data()->resultCode);
 }
 
@@ -404,7 +409,6 @@ TEST_F(FactoryResetTest, cached_alias)
     EXPECT_CALL(mock_, factory_reset()).Times(0);
     EXPECT_CALL(mock_, reboot()).Times(0);
 }
-
 
 TEST_F(MemoryConfigClientTest, factory_reset)
 {

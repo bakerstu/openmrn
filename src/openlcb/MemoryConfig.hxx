@@ -560,7 +560,6 @@ private:
     /// @return openlcb error code, 0 on success
     uint16_t __attribute__((noinline)) app_handle_factory_reset(NodeID target);
 
-    
     Action ok_response_sent() OVERRIDE
     {
         if (!response_.empty())

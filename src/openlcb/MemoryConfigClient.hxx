@@ -74,7 +74,7 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
     {
         FACTORY_RESET
     };
-    
+
     enum FreezeCmd
     {
         FREEZE
@@ -184,7 +184,7 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         payload.push_back(DatagramDefs::CONFIGURATION);
         payload.push_back(MemoryConfigDefs::COMMAND_FACTORY_RESET);
     }
-    
+
     /// Sets up a command to send a Freeze request to a remote node.
     /// @param FreezeCmd polymorphic matching arg; always set to
     /// FREEZE.
