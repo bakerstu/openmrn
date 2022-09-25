@@ -210,6 +210,11 @@ IfTcp::~IfTcp()
     }
 }
 
+NodeID IfTcp::get_default_node_id()
+{
+    return sendFlow_->get_gateway_node_id();
+}
+
 } // namespace openlcb
 
 #endif // OPENMRN_FEATURE_EXECUTOR_SELECT
