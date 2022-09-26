@@ -341,6 +341,29 @@ struct BroadcastTimeDefs
         return event_base + RATE_EVENT_BASE_SUFFIX +
                ((r.rate_ & EVENT_RATE_MASK) << EVENT_RATE_SHIFT);
     }
+
+    /// Convert time in integer hours/minutes to a string ("hh:mm").
+    /// @param hour hours in integer form (0 to 23)
+    /// @param min minutes in integer form (0 to 59)
+    /// @return time represented in the form of a string ("hh:mm")
+    static std::string time_to_string(int hour, int min);
+
+    /// Convert rate in integer rate quarters to a string (float).
+    /// @param rate rate in the form of rate quarters
+    /// @return rate represented in the form of a string (float)
+    static std::string rate_quarters_to_string(int16_t rate);
+
+    /// Convert a string (hh:mm) to hour and minute component integers.
+    /// @param stime time in the form of a string
+    /// @param hour resulting hour integer (0 to 23)
+    /// @param min resulting minute integer (0 to 59)
+    /// @return true on success, else false on fault
+    static bool string_to_time(const std::string &stime, int *hour, int *min);
+    
+    /// Convert a string (float) to rate quarters.
+    /// @param srate rate in the form of a string float
+    /// @return rate in the form of an int16_t in rate quarters
+    static int16_t string_to_rate_quarters(const std::string &srate);
 };
 
 }  // namespace openlcb

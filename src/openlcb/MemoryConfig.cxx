@@ -75,13 +75,26 @@ static constexpr unsigned FACTORY_RESET_REBOOT_DELAY_MSEC = 50;
 static constexpr unsigned FACTORY_RESET_REBOOT_DELAY_MSEC = 500;
 #endif
 
-
-void __attribute__((weak)) MemoryConfigHandler::handle_factory_reset()
+uint16_t __attribute__((weak, noinline))
+MemoryConfigHandler::app_handle_factory_reset(NodeID target)
 {
-    static_cast<ConfigUpdateFlow *>(ConfigUpdateFlow::instance())
-        ->factory_reset();
-    (new RebootTimer(service()))
-        ->start(MSEC_TO_NSEC(FACTORY_RESET_REBOOT_DELAY_MSEC));
+    return Defs::ERROR_UNIMPLEMENTED;
+}
+
+uint16_t MemoryConfigHandler::handle_factory_reset(NodeID target)
+{
+    if (target == dg_service()->iface()->get_default_node_id())
+    {
+        static_cast<ConfigUpdateFlow *>(ConfigUpdateFlow::instance())
+            ->factory_reset();
+        (new RebootTimer(service()))
+            ->start(MSEC_TO_NSEC(FACTORY_RESET_REBOOT_DELAY_MSEC));
+        return 0;
+    }
+    else
+    {
+        return app_handle_factory_reset(target);
+    }
 }
 
 FileMemorySpace::FileMemorySpace(int fd, address_t len)

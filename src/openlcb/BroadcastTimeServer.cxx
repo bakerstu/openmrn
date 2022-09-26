@@ -860,6 +860,23 @@ void BroadcastTimeServer::handle_consumer_identified(
     }
 }
 
+/// Called on another node sending ConsumerRangeIdentified. @param event
+/// stores information about the incoming message. Filled: event id, mask
+/// (!= 1), src_node. Not filled: state.  @param registry_entry gives the
+/// registry entry for which the current handler is being called. @param
+/// done must be notified when the processing is done.
+void BroadcastTimeServer::handle_consumer_range_identified(
+    const EventRegistryEntry &registry_entry, EventReport *event,
+    BarrierNotifiable *done)
+{
+    done->notify();
+    if (event->event == eventBase_ && event->mask == 0xFFFF)
+    {
+        // A new time client was identified, send a time sync.
+        sync_->request_sync();
+    }
+}
+
 //
 // BroadcastTimeServer::handle_event_report()
 //

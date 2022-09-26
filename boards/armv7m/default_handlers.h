@@ -200,40 +200,53 @@ typedef struct fault_information
 
 /** Global instance so that it can be added to the watch expressions */
 volatile FaultInformation faultInfo;
+static uint8_t seenFault = 0;
 
 __attribute__((optimize("-O0"),unused)) void hard_fault_handler_step_2(unsigned long *hardfault_args)
 {
     /* force a reference in the local variables for debug */
     volatile FaultInformation *fault_info = &faultInfo;
+    if (!seenFault)
+    {
+        seenFault = 1;
+        fault_info->stacked_r0 = ((unsigned long)hardfault_args[0]);
+        fault_info->stacked_r1 = ((unsigned long)hardfault_args[1]);
+        fault_info->stacked_r2 = ((unsigned long)hardfault_args[2]);
+        fault_info->stacked_r3 = ((unsigned long)hardfault_args[3]);
+        fault_info->stacked_r12 = ((unsigned long)hardfault_args[4]);
+        fault_info->stacked_lr = ((unsigned long)hardfault_args[5]);
+        fault_info->stacked_pc = ((unsigned long)hardfault_args[6]);
+        fault_info->stacked_psr = ((unsigned long)hardfault_args[7]);
 
-    fault_info->stacked_r0 = ((unsigned long)hardfault_args[0]) ;
-    fault_info->stacked_r1 = ((unsigned long)hardfault_args[1]) ;
-    fault_info->stacked_r2 = ((unsigned long)hardfault_args[2]) ;
-    fault_info->stacked_r3 = ((unsigned long)hardfault_args[3]) ;
-    fault_info->stacked_r12 = ((unsigned long)hardfault_args[4]) ;
-    fault_info->stacked_lr = ((unsigned long)hardfault_args[5]) ;
-    fault_info->stacked_pc = ((unsigned long)hardfault_args[6]) ;
-    fault_info->stacked_psr = ((unsigned long)hardfault_args[7]) ;
+        // Configurable Fault Status Register
+        // Consists of MMSR, BFSR and UFSR
+        fault_info->_CFSR = (*((volatile unsigned long *)(0xE000ED28)));
 
-    // Configurable Fault Status Register
-    // Consists of MMSR, BFSR and UFSR
-    fault_info->_CFSR = (*((volatile unsigned long *)(0xE000ED28))) ;
+        // Hard Fault Status Register
+        fault_info->_HFSR = (*((volatile unsigned long *)(0xE000ED2C)));
 
-    // Hard Fault Status Register
-    fault_info->_HFSR = (*((volatile unsigned long *)(0xE000ED2C))) ;
+        // Debug Fault Status Register
+        fault_info->_DFSR = (*((volatile unsigned long *)(0xE000ED30)));
 
-    // Debug Fault Status Register
-    fault_info->_DFSR = (*((volatile unsigned long *)(0xE000ED30))) ;
+        // Auxiliary Fault Status Register
+        fault_info->_AFSR = (*((volatile unsigned long *)(0xE000ED3C)));
 
-    // Auxiliary Fault Status Register
-    fault_info->_AFSR = (*((volatile unsigned long *)(0xE000ED3C))) ;
-
-    // Read the Fault Address Registers. These may not contain valid values.
-    // Check BFARVALID/MMARVALID to see if they are valid values
-    // MemManage Fault Address Register
-    fault_info->_MMAR = (*((volatile unsigned long *)(0xE000ED34))) ;
-    // Bus Fault Address Register
-    fault_info->_BFAR = (*((volatile unsigned long *)(0xE000ED38))) ;
+        // Read the Fault Address Registers. These may not contain valid values.
+        // Check BFARVALID/MMARVALID to see if they are valid values
+        // MemManage Fault Address Register
+        fault_info->_MMAR = (*((volatile unsigned long *)(0xE000ED34)));
+        // Bus Fault Address Register
+        fault_info->_BFAR = (*((volatile unsigned long *)(0xE000ED38)));
+    }
+    else
+    {
+        // Double fault. Let's not try doing anything smart anymore, just halt.
+        while (1)
+        {
+            extern void wait_with_blinker(void);
+            wait_with_blinker();
+        }
+    }
 
     hw_set_to_safe();
     __asm volatile ("cpsid i\n");
@@ -261,7 +274,6 @@ void wait_with_blinker(void)
 {
     // noop
 }
-
 
 void hard_fault_handler_step_3(void) {
     const uint32_t C_DEBUGEN = 0x00000001;

@@ -61,19 +61,26 @@ public:
     {
         /// Set as 1 during construction time, to be cleared by the application
         /// when the initialization is complete.
-        INITIALIZATION_PENDING = 1,
+        INITIALIZATION_PENDING = 0x01,
         /// User decided via a persistent configuration that this output should
-        /// not be enabled.
-        CONFIG_SETTING = 2,
+        /// not be enabled. Mutually exclusive with LOCAL_DISABLE.
+        CONFIG_SETTING         = 0x02,
+        /// A local request for disabling the output. Mutually exclusive with
+        /// CONFIG_SETTING.
+        LOCAL_DISABLE          = CONFIG_SETTING,
         /// A network message requested global emergency off.
-        GLOBAL_EOFF = 4,
+        GLOBAL_EOFF            = 0x04,
         /// Short detector says this output is shorted.
-        SHORTED = 8,
+        SHORTED                = 0x08,
         /// The system is in thermal shutdown.
-        THERMAL = 16,
+        THERMAL                = 0x10,
         /// This output should be off due to the conflict between program track
         /// and normal operation mode.
-        PGM_TRACK_LOCKOUT = 32,
+        PGM_TRACK_LOCKOUT      = 0x20,
+        /// invalid incoming DCC signal
+        INVALID_SIGNAL_INPUT   = 0x40,
+        /// Reserved for application specific use cases
+        USR1                   = 0x80,
     };
 
     /// Disables the output, marking in a bitmask why.

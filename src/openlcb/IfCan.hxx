@@ -132,6 +132,8 @@ public:
 
     Node *lookup_local_node_handle(NodeHandle handle) override;
 
+    NodeID get_default_node_id() override;
+
 private:
     void canonicalize_handle(NodeHandle *h) override;
 

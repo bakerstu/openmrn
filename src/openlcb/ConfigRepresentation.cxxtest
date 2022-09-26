@@ -38,6 +38,8 @@
 #include "os/TempFile.hxx"
 #include "openlcb/EventHandler.hxx"
 
+using ::testing::ElementsAre;
+
 namespace openlcb
 {
 namespace
@@ -105,19 +107,25 @@ TEST(GroupConfig, WithHoles)
     EXPECT_EQ(31u, cfg.last().offset());
 }
 
+using RepHoleTest = RepeatedGroup<HoleTestGroup, 3>;
+
 CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG),
           Offset(128));
 CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(ev, EventConfigEntry);
+CDI_GROUP_ENTRY(rgrp, RepHoleTest);
 CDI_GROUP_END();
 
 CDI_GROUP(SecondSegment, Segment(MemoryConfigDefs::SPACE_CONFIG));
 CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(ev, EventConfigEntry);
+CDI_GROUP_ENTRY(evtwo, EventConfigEntry, SkipInit(true));
 CDI_GROUP_END();
 
 CDI_GROUP(ThirdSegment);
 CDI_GROUP_ENTRY(first, Uint8ConfigEntry);
+CDI_GROUP_ENTRY(ev, EventConfigEntry);
 CDI_GROUP_END();
-
 
 CDI_GROUP(ConfigDef, MainCdi());
 CDI_GROUP_ENTRY(ident, Identification);
@@ -152,6 +160,17 @@ TEST(FullCdi, SegmentOffset)
 
     EXPECT_EQ(142u, def.seg3().first().offset());
     EXPECT_EQ(13, def.seg3_options().segment());
+}
+
+TEST(FullCdi, EventsList)
+{
+    ConfigDef def(0);
+    std::vector<unsigned> event_offsets;
+    def.handle_events([&event_offsets](unsigned o)
+        {
+            event_offsets.push_back(o);
+        });
+    EXPECT_THAT(event_offsets, ElementsAre(129, 143, 161, 179, 1));
 }
 
 TempDir dir;

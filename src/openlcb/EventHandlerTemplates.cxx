@@ -285,6 +285,21 @@ void BitRangeEventPC::SendIdentified(WriteHelper *writer,
                        WriteHelper::global(), eventid_to_buffer(range), done);
 }
 
+void BitRangeEventP::handle_identify_global(const EventRegistryEntry& entry,
+                                            EventReport *event,
+                                            BarrierNotifiable *done)
+{
+    if (event->dst_node && event->dst_node != node_)
+    {
+        return done->notify();
+    }
+    uint64_t range = EncodeRange(event_base_, size_ * 2);
+    event->event_write_helper<1>()->WriteAsync(node_,
+        Defs::MTI_PRODUCER_IDENTIFIED_RANGE, WriteHelper::global(),
+        eventid_to_buffer(range), done->new_child());
+    done->maybe_done();
+}
+
 ByteRangeEventC::ByteRangeEventC(Node *node, uint64_t event_base,
                                  uint8_t *backing_store, unsigned size)
     : event_base_(event_base)
