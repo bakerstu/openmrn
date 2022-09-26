@@ -113,6 +113,9 @@ public:
     /// @param on_error will be invoked when a socket error is encountered.
     void add_network_fd(int fd, Notifiable *on_error = nullptr);
 
+    /// @return the gateway node ID.
+    NodeID get_default_node_id() override;
+
 private:
     /// Where to send traffic to.
     HubFlow *device_;

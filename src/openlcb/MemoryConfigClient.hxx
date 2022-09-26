@@ -36,8 +36,9 @@
 #define _OPENLCB_MEMORYCONFIGCLIENT_HXX_
 
 #include "executor/CallableFlow.hxx"
-#include "openlcb/MemoryConfig.hxx"
 #include "openlcb/DatagramHandlerDefault.hxx"
+#include "openlcb/IfCan.hxx"
+#include "openlcb/MemoryConfig.hxx"
 
 namespace openlcb
 {
@@ -67,6 +68,11 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
     enum RebootCmd
     {
         REBOOT
+    };
+
+    enum FactoryResetCmd
+    {
+        FACTORY_RESET
     };
 
     enum FreezeCmd
@@ -164,6 +170,21 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         payload.push_back(MemoryConfigDefs::COMMAND_RESET);
     }
 
+    /// Sets up a command to send a Factory Reset request to a remote node.
+    /// @param FactoryResetCmd polymorphic matching arg; always set to
+    /// FACTORY_RESET.
+    /// @param d is the destination node
+    void reset(FactoryResetCmd, NodeHandle d)
+    {
+        reset_base();
+        cmd = CMD_FACTORY_RESET;
+        dst = d;
+        payload.clear();
+        payload.reserve(8);
+        payload.push_back(DatagramDefs::CONFIGURATION);
+        payload.push_back(MemoryConfigDefs::COMMAND_FACTORY_RESET);
+    }
+
     /// Sets up a command to send a Freeze request to a remote node.
     /// @param FreezeCmd polymorphic matching arg; always set to
     /// FREEZE.
@@ -203,7 +224,8 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         CMD_READ,
         CMD_READ_PART,
         CMD_WRITE,
-        CMD_META_REQUEST
+        CMD_META_REQUEST,
+        CMD_FACTORY_RESET
     };
 
     /// Helper function invoked at every other reset call.
@@ -277,6 +299,8 @@ private:
             case MemoryConfigClientRequest::CMD_META_REQUEST:
                 return allocate_and_call(
                     STATE(do_meta_request), dg_service()->client_allocator());
+            case MemoryConfigClientRequest::CMD_FACTORY_RESET:
+                return call_immediately(STATE(prepare_factory_reset));
             default:
                 break;
         }
@@ -580,6 +604,51 @@ private:
         }
     }
 
+    /// Before we send out a factory reset command, we have to ensure that we
+    /// know the target node's node ID, not just the alias.
+    Action prepare_factory_reset()
+    {
+        node()->iface()->canonicalize_handle(&request()->dst);
+        if (request()->dst.id)
+        {
+            return call_immediately(STATE(factory_reset_have_id));
+        }
+        // Now: we have a dst with alias only, so we must be running on CAN-bus.
+        IfCan *iface = (IfCan *)node()->iface();
+        if (!nodeIdlookupFlow_)
+        {
+            // This is so rarely used that we rather allocate it dynamically.
+            nodeIdlookupFlow_.reset(new NodeIdLookupFlow(iface));
+        }
+        return invoke_subflow_and_wait(nodeIdlookupFlow_.get(),
+            STATE(dst_id_complete), node(), request()->dst);
+    }
+
+    /// Completed the ID lookup flow.
+    Action dst_id_complete()
+    {
+        auto rb =
+            get_buffer_deleter(full_allocation_result(nodeIdlookupFlow_.get()));
+        request()->dst = rb->data()->handle;
+        // Object not needed anymore.
+        nodeIdlookupFlow_.reset();
+        if (request()->dst.id)
+        {
+            return call_immediately(STATE(factory_reset_have_id));
+        }
+        return return_with_error(Defs::ERROR_OPENMRN_NOT_FOUND);
+    }
+
+    /// Called from different places to do the factory reset request once we
+    /// have the node ID filled in the dst handle.
+    Action factory_reset_have_id()
+    {
+        request()->payload.resize(8);
+        node_id_to_data(request()->dst.id, &request()->payload[2]);
+        return allocate_and_call(
+            STATE(do_meta_request), dg_service()->client_allocator());
+    }
+
     class ResponseFlow : public DefaultDatagramHandler
     {
     public:
@@ -661,6 +730,8 @@ private:
     ResponseFlow responseFlow_{this};
     /// Notify helper.
     BarrierNotifiable bn_;
+    /// Rarely used helper flow to look up full node IDs from aliases.
+    std::unique_ptr<openlcb::NodeIdLookupFlow> nodeIdlookupFlow_;
     /// Next byte to read from the memory space.
     uint32_t offset_;
     /// Next byte in the payload to write.

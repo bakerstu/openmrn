@@ -484,8 +484,20 @@ private:
             }
             case MemoryConfigDefs::COMMAND_FACTORY_RESET:
             {
-                handle_factory_reset();
-                return respond_ok(0);
+                NodeID id = message()->data()->dst->node_id();
+                if (len < 8 || (data_to_node_id(&bytes[2]) != id))
+                {
+                    return respond_reject(Defs::ERROR_INVALID_ARGS);
+                }
+                uint16_t ret = handle_factory_reset(id);
+                if (!ret)
+                {
+                    return respond_ok(0);
+                }
+                else
+                {
+                    return respond_reject(ret);
+                }
             }
             case MemoryConfigDefs::COMMAND_OPTIONS:
             {
@@ -536,8 +548,18 @@ private:
 
     /// Invokes the openlcb config handler to do a factory reset. Starts a
     /// timer to reboot the device after a little time.
-    void handle_factory_reset();
-    
+    /// @param target the node ID for which factory reset was invoked.
+    /// @return openlcb error code, 0 on success
+    uint16_t handle_factory_reset(NodeID target);
+
+    /// Weak definition for invoking a factory reset on virtual nodes. The
+    /// default implementation does nothing and return an unimplemented
+    /// error. Applications that use virtual nodes and need to support factory
+    /// reset should reimplement this function.
+    /// @param target the node ID for which factory reset was invoked.
+    /// @return openlcb error code, 0 on success
+    uint16_t __attribute__((noinline)) app_handle_factory_reset(NodeID target);
+
     Action ok_response_sent() OVERRIDE
     {
         if (!response_.empty())
