@@ -62,7 +62,9 @@ public:
     /// @param minutes minutes (0 to 59)
     void set_time(int hours, int minutes)
     {
-        new SetFlow(this, SetFlow::Command::SET_TIME, hours, minutes);
+        EventId event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
+            BroadcastTimeDefs::time_to_event(eventBase_, hours, minutes);
+        send_event(node_, event_id);
     }
 
     /// Set the time in seconds since the system Epoch. The new date does not
@@ -71,7 +73,9 @@ public:
     /// @param day day of month (1 to 31)
     void set_date(int month, int day)
     {
-        new SetFlow(this, SetFlow::Command::SET_DATE, month, day);
+        EventId event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
+            BroadcastTimeDefs::date_to_event(eventBase_, month, day);
+        send_event(node_, event_id);
     }
 
     /// Set the time in seconds since the system Epoch. The new year does not
@@ -79,7 +83,9 @@ public:
     /// @param year (0AD to 4095AD)
     void set_year(int year)
     {
-        new SetFlow(this, SetFlow::Command::SET_YEAR, year);
+        EventId event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
+            BroadcastTimeDefs::year_to_event(eventBase_, year);
+        send_event(node_, event_id);
     }
 
     /// Set the date and year from a C string.
@@ -92,19 +98,27 @@ public:
     ///             rrrrrrrrrr.rr
     void set_rate_quarters(int16_t rate)
     {
-        new SetFlow(this, SetFlow::Command::SET_RATE, rate);
+        EventId event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
+            BroadcastTimeDefs::rate_to_event(eventBase_, rate);
+        send_event(node_, event_id);
     }
 
     /// Start clock
     void start()
     {
-        new SetFlow(this, SetFlow::Command::START);
+        send_event(node_, eventBase_ | BroadcastTimeDefs::START_EVENT_SUFFIX);
     }
 
     /// Stop clock
     void stop()
     {
-        new SetFlow(this, SetFlow::Command::STOP);
+        send_event(node_, eventBase_ | BroadcastTimeDefs::STOP_EVENT_SUFFIX);
+    }
+
+    /// Query the current time.
+    void query()
+    {
+        send_event(node_, eventBase_ | BroadcastTimeDefs::QUERY_EVENT_SUFFIX);
     }
 
     /// Get the time as a value of seconds relative to the system epoch.  At the
@@ -404,102 +418,6 @@ public:
     virtual bool is_server_self() = 0;
 
 protected:
-    class SetFlow : public StateFlowBase
-    {
-    public:
-        /// Supported operations.
-        enum Command
-        {
-            SET_TIME, ///< set time request
-            SET_DATE, ///< set date request
-            SET_YEAR, ///< set year reauest
-            SET_RATE, ///< set rate request
-            START, ///< stop request
-            STOP, ///< start request
-        };
-
-        /// Constructor.
-        /// @param clock the parent clock instance
-        /// @param command operation to perform
-        /// @param data1 first data argument
-        /// @param data2 second data argument
-        SetFlow(BroadcastTime *clock, Command command,
-               int data1 = 0, int data2 = 0)
-            : StateFlowBase(clock->node()->iface())
-            , clock_(clock)
-            , command_(command)
-            , data1_(data1)
-            , data2_(data2)
-        {
-            start_flow(STATE(send_event));
-        }
-
-    private:
-
-        /// Send the necessary event.
-        /// @return delete_this()
-        Action send_event()
-        {
-            uint64_t event_id;
-            switch (command_)
-            {
-                case SET_TIME:
-                    event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
-                        BroadcastTimeDefs::time_to_event(clock_->event_base(),
-                                                         data1_, data2_);
-                    break;
-                case SET_DATE:
-                    event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
-                        BroadcastTimeDefs::date_to_event(clock_->event_base(),
-                                                         data1_, data2_);
-                    break;
-                case SET_YEAR:
-                    event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
-                        BroadcastTimeDefs::year_to_event(clock_->event_base(),
-                                                         data1_);
-                    break;
-                case SET_RATE:
-                    event_id = BroadcastTimeDefs::EVENT_SET_SUFFIX_MASK |
-                        BroadcastTimeDefs::rate_to_event(clock_->event_base(),
-                                                         data1_);
-                    break;
-                case START:
-                    event_id = clock_->event_base() |
-                               BroadcastTimeDefs::START_EVENT_SUFFIX;
-                    break;
-                case STOP:
-                    event_id = clock_->event_base() |
-                               BroadcastTimeDefs::STOP_EVENT_SUFFIX;
-                    break;
-                default:
-                    // should never get here.
-                    LOG_ERROR("Unhanded SetFlow command");
-                    return delete_this();
-            }
-
-            if (!clock_->node()->is_initialized())
-            {
-                // since the node is not yet initialized, events get thrown on
-                // the floor, we will try a shortcut instead
-                clock_->set_shortcut(event_id);
-                return delete_this();
-            }
-            else
-            {
-                writer_.WriteAsync(clock_->node(), Defs::MTI_EVENT_REPORT,
-                    WriteHelper::global(), eventid_to_buffer(event_id), this);
-
-                return wait_and_call(STATE(delete_this));
-            }
-        }
-
-        WriteHelper writer_; ///< helper for sending event messages
-        BroadcastTime *clock_; ///< the parent clock instance
-        Command command_; ///< operation to perform;
-        int data1_; ///< first data argument
-        int data2_; ///< second data argument
-    };
-
     /// Constructor.
     /// @param node the virtual node that will be listening for events and
     ///             responding to Identify messages.

@@ -118,6 +118,8 @@ public:
     static constexpr const char *RECONNECT_MAP =
         "<relation><property>0</property><value>Disabled</value></relation>"
         "<relation><property>1</property><value>Enabled</value></relation>";
+    /// Default value for the Reconnect parameter.
+    static constexpr int RECONNECT_DEFAULT = 1;
 };
 
 template <class LocalParams> CDI_GROUP(TcpManualAddress);
@@ -149,7 +151,8 @@ CDI_GROUP_ENTRY(auto_address, TcpAutoAddress<LocalParams>,
     Name(LocalParams::AUTO_ADDRESS_NAME),
     Description(LocalParams::AUTO_ADDRESS_DESCR));
 CDI_GROUP_ENTRY(reconnect, Uint8ConfigEntry, Name(LocalParams::RECONNECT_NAME),
-    Description(LocalParams::RECONNECT_DESCR), Min(0), Max(1), Default(1),
+    Description(LocalParams::RECONNECT_DESCR), Min(0), Max(1),
+    Default(LocalParams::RECONNECT_DEFAULT),
     MapValues(LocalParams::RECONNECT_MAP));
 /// Internal storage for the last working address. If the IP address field is
 /// clear, there is no last known good address.
