@@ -443,9 +443,10 @@ public:
             "[Esp32ADCInput] Configuring ADC%d:%d input pin %d, "
             "attenuation %d, bits %d",
             UNIT + 1, CHANNEL, PIN, ATTEN, BITS);
-        ESP_ERROR_CHECK(adc_set_data_width(UNIT, BITS));
+
         if (UNIT == ADC_UNIT_1)
         {
+            ESP_ERROR_CHECK(adc1_config_width(BITS));
             ESP_ERROR_CHECK(
                 adc1_config_channel_atten((adc1_channel_t)CHANNEL, ATTEN));
         }
