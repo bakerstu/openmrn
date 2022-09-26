@@ -105,9 +105,8 @@ using std::unique_ptr;
 /// and is used as part of the Esp32 WiFi HUB support.
 void mdns_publish(const char *name, const char *service, uint16_t port);
 
-/// Removes advertisement of an mDNS service name. This is not currently
-/// exposed in the MDNS class but is supported on the ESP32.
-void mdns_unpublish(const char *service);
+/// Removes advertisement of an mDNS service name.
+void mdns_unpublish(const char *name, const char *service);
 
 /// Splits a service name since the ESP32 mDNS library requires the service
 /// name and service protocol to be passed in individually.
@@ -1604,7 +1603,7 @@ void mdns_publish(const char *name, const char *service, uint16_t port)
 }
 
 // Removes advertisement of an mDNS service name.
-void mdns_unpublish(const char *service)
+void mdns_unpublish(const char *name, const char *service)
 {
     Singleton<Esp32WiFiManager>::instance()->mdns_unpublish(service);
 }
