@@ -124,7 +124,7 @@ void LpcEEPROMEmulation::flash_program(
 {
     HASSERT(relative_sector < sectorCount_);
     HASSERT((byte_count % BLOCK_SIZE) == 0);
-    HASSERT(start_block + (byte_count / BLOCK_SIZE) < rawBlockCount_);
+    HASSERT(start_block + (byte_count / BLOCK_SIZE) <= rawBlockCount_);
     auto* address = get_block(relative_sector, start_block);
 
     /* make sure we have the correct frequency */
