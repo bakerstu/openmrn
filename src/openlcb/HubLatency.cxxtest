@@ -214,10 +214,11 @@ protected:
     static void SetUpTestCase()
     {
         LOG(INFO, "set up test case");
-        ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd_));
-        create_gc_port_for_can_hub(stack1_.can_hub(), fd_[0]);
-        create_gc_port_for_can_hub(&canHub2_, fd_[1]);
         stack1_.start_executor_thread("stack1", 0, 0);
+        stack1_.start_tcp_hub_server(50989);
+        int fd = ConnectSocket("localhost", 50989);
+        HASSERT(fd >= 0);
+        create_gc_port_for_can_hub(&canHub2_, fd);
         microsleep(500000);
     }
 
@@ -249,11 +250,9 @@ protected:
     BarrierNotifiable bn_;
 
     SyncNotifiable sn2_;
-    static int fd_[2];
 };
 
-int DelayTest::fd_[];
-
+// This override is in hub's main.cxx.
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 
 TEST_F(DelayTest, pingone)
@@ -264,7 +263,7 @@ TEST_F(DelayTest, pingone)
     ping1_.set_done(cb);
     ping2_.set_done(cb);
     auto ts1 = os_get_time_monotonic();
-    send_ping(100);
+    send_ping(101);
     auto ts2 = os_get_time_monotonic();
     sn2_.wait_for_notification();
     auto ts3 = os_get_time_monotonic();
