@@ -93,12 +93,33 @@ private:
                     ? nullptr
                     : &outputPool_);
         }
+        bool opt_flush = false;
+        if (msg().data()[0] == ':' && msg().data()[1] == 'X') {
+            if (msg().data()[3] == 'A' || msg().data()[3] == 'D')
+            {
+                opt_flush = true;
+            }
+            else if (strncmp(msg().data() + 3, "9A28", 4) == 0)
+            {
+                opt_flush = true;
+            }
+        }
+        if (opt_flush && !bufEnd_)
+        {
+            // nothing accumulated, send off directly.
+            downstream_->send(transfer_message(), priority());
+            return exit();
+        }
         if (msg().size() < (bufSize_ - bufEnd_))
         {
             // Fits into the buffer.
             memcpy(sendBuf_ + bufEnd_, msg().data(), msg().size());
             bufEnd_ += msg().size();
-            if (!timerPending_)
+            if (opt_flush)
+            {
+                flush_buffer();
+            }
+            else if (!timerPending_)
             {
                 timerPending_ = 1;
                 bufferTimer_.start(delayNsec_);
