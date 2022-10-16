@@ -61,7 +61,7 @@ protected:
         return hwState_;
     }
 
-    bool hwState_{false};
+    bool hwState_;
     PolledProducer<QuiesceDebouncer, FakeBit> p_;
     RefreshLoop l_;
 };
