@@ -93,12 +93,41 @@ private:
                     ? nullptr
                     : &outputPool_);
         }
+        // Defines whether we should optimize the traffic and flush right now.
+        bool opt_flush = false;
+        // This code is OpenLCB-specific. It looks for a certain pattern in the
+        // output data stream, and if that pattern is found, inserts an extra
+        // flush right now, instead of waiting for the timeout to pass. The
+        // data sent on is never modified, so this is purely a performance
+        // optimization for OpenLCB.
+        if (msg().data()[0] == ':' && msg().data()[1] == 'X') {
+            if (msg().data()[3] == 'A' || msg().data()[3] == 'D')
+            {
+                // Found datagram "only" or "end" packet.
+                opt_flush = true;
+            }
+            else if (strncmp(msg().data() + 3, "9A28", 4) == 0)
+            {
+                // Found datagram acknowledge packet.
+                opt_flush = true;
+            }
+        }
+        if (opt_flush && !bufEnd_)
+        {
+            // nothing accumulated, send off directly.
+            downstream_->send(transfer_message(), priority());
+            return exit();
+        }
         if (msg().size() < (bufSize_ - bufEnd_))
         {
             // Fits into the buffer.
             memcpy(sendBuf_ + bufEnd_, msg().data(), msg().size());
             bufEnd_ += msg().size();
-            if (!timerPending_)
+            if (opt_flush)
+            {
+                flush_buffer();
+            }
+            else if (!timerPending_)
             {
                 timerPending_ = 1;
                 bufferTimer_.start(delayNsec_);

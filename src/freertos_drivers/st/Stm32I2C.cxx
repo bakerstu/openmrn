@@ -37,16 +37,37 @@
 
 #if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_ll_rcc.h"
+#include "stm32f0xx_ll_i2c.h"
+
+// This timing is assuming 48 MHz main clock, the I2C module being clocked from
+// the main clock, and gives 400 kHz clock (fast mode).
+#define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(5, 0x3, 0x3, 0x3, 0x9))
+
 #elif defined(STM32F103xB)
 #include "stm32f1xx_ll_rcc.h"
 #elif defined(STM32F303xC) || defined(STM32F303xE)
 #include "stm32f3xx_ll_rcc.h"
+
+// This timing is assuming 72 MHz main clock, the I2C module being clocked from
+// the main clock, and gives 400 kHz clock (fast mode).
+#define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(8, 0x3, 0x3, 0x3, 0x9))
+
 #elif defined(STM32L431xx) || defined(STM32L432xx)
 #include "stm32l4xx_ll_rcc.h"
 #include "stm32l4xx_ll_i2c.h"
+
+// This timing is assuming 80 MHz main clock, the I2C module being clocked from
+// the main clock, and gives 400 kHz clock (fast mode).
+#define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(9, 0x3, 0x3, 0x3, 0x9))
+
 #elif defined(STM32F767xx)
 #include "stm32f7xx_ll_rcc.h"
 #include "stm32f7xx_ll_i2c.h"
+
+// This timing is assuming 216 MHz main clock, the I2C module being clocked
+// from the main clock, and gives 400 kHz clock (fast mode).
+#define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(8, 9, 9, 9, 27))
+
 #else
 #error Dont know what STM32 chip you have.
 #endif
@@ -68,7 +89,9 @@ static void i2c_reset(I2C_TypeDef *port)
 #endif
 #ifdef I2C2
         case I2C2_BASE:
+            #ifdef LL_RCC_I2C2_CLKSOURCE_SYSCLK
             LL_RCC_SetI2CClockSource(LL_RCC_I2C2_CLKSOURCE_SYSCLK);
+            #endif
             __HAL_RCC_I2C2_CLK_ENABLE();
             __HAL_RCC_I2C2_FORCE_RESET();
             __HAL_RCC_I2C2_RELEASE_RESET();
@@ -125,10 +148,6 @@ static void i2c_reset(I2C_TypeDef *port)
     }
 }
 
-// This timing is assuming 72 MHz main clock, the I2C module being clocked from
-// the main clock, and gives 400 kHz clock (fast mode).
-#define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(8, 0x3, 0x3, 0x3, 0x9))
-
 /** Constructor.
  * @param name name of this device instance in the file system
  * @param port hardware instance of this device, e.g. I2C1
@@ -162,9 +181,11 @@ Stm32I2C::Stm32I2C(const char *name, I2C_TypeDef *port, uint32_t ev_interrupt,
     // call above.
     i2cHandle_.Init.Timing = (uint32_t) this;
 
+#ifdef configKERNEL_INTERRUPT_PRIORITY  // cortex-m3 or more
     SetInterruptPriority((IRQn_Type)ev_interrupt, configKERNEL_INTERRUPT_PRIORITY);
-    HAL_NVIC_EnableIRQ((IRQn_Type)ev_interrupt);
     SetInterruptPriority((IRQn_Type)er_interrupt, configKERNEL_INTERRUPT_PRIORITY);
+#endif    
+    HAL_NVIC_EnableIRQ((IRQn_Type)ev_interrupt);
     HAL_NVIC_EnableIRQ((IRQn_Type)er_interrupt);
 }
 
