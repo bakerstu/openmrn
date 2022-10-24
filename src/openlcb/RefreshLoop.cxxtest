@@ -1,5 +1,7 @@
-#include "utils/async_if_test_helper.hxx"
 #include "openlcb/RefreshLoop.hxx"
+
+#include "utils/async_if_test_helper.hxx"
+#include "os/FakeClock.hxx"
 
 namespace openlcb
 {
@@ -29,6 +31,7 @@ protected:
     MockPolling mp1_;
     MockPolling mp2_;
     std::unique_ptr<RefreshLoop> loop_;
+    FakeClock clk_;
 };
 
 TEST_F(RefreshLoopTest, Calls)
@@ -36,7 +39,8 @@ TEST_F(RefreshLoopTest, Calls)
     EXPECT_CALL(mp1_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
         WithArg<1>(Invoke(&InvokeNotification)));
     loop_.reset(new RefreshLoop(node_, {&mp1_}));
-    usleep(150000);
+    clk_.advance(USEC_TO_NSEC(150000));
+    wait();
 }
 
 TEST_F(RefreshLoopTest, CallsBoth)
@@ -46,7 +50,29 @@ TEST_F(RefreshLoopTest, CallsBoth)
     EXPECT_CALL(mp2_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
         WithArg<1>(Invoke(&InvokeNotification)));
     loop_.reset(new RefreshLoop(node_, {&mp1_, &mp2_}));
-    usleep(120000);
+    clk_.advance(USEC_TO_NSEC(120000));
+    wait();
+}
+
+TEST_F(RefreshLoopTest, VectorConsturct)
+{
+    EXPECT_CALL(mp1_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
+        WithArg<1>(Invoke(&InvokeNotification)));
+    std::vector<Polling*> v;
+    v.push_back(&mp1_);
+    loop_.reset(new RefreshLoop(node_, v));
+    clk_.advance(USEC_TO_NSEC(150000));
+    wait();
+}
+
+TEST_F(RefreshLoopTest, Add)
+{
+    EXPECT_CALL(mp1_, poll_33hz(_, _)).Times(AtLeast(3)).WillRepeatedly(
+        WithArg<1>(Invoke(&InvokeNotification)));
+    loop_.reset(new RefreshLoop(node_, {}));
+    loop_->add_member(&mp1_);
+    clk_.advance(USEC_TO_NSEC(150000));
+    wait();
 }
 
 } // namespace
