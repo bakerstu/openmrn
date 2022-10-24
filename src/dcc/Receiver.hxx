@@ -154,7 +154,7 @@ public:
                     parseCount_++;
                     return;
                 }
-                if (timings_[DCC_ZERO].match(value) && (parseCount_ >= 16))
+                if (timings_[DCC_ZERO].match(value) && (parseCount_ >= 20))
                 {
                     parseState_ = DCC_END_OF_PREAMBLE;
                     return;

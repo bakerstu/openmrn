@@ -77,6 +77,18 @@ TEST_F(PolledProducerTest, NoFlip)
     usleep(5 * POLL_USEC);
 }
 
+TEST_F(PolledProducerTest, Identify)
+{
+    wait();
+    // producer identified invalid
+    expect_packet(":X1954522AN0501010114FE0000;");
+    // producer identified valid
+    expect_packet(":X1954422AN0501010114FE0001;");
+    // identify events global
+    send_packet(":X19970001N;");
+    wait_for_event_thread();
+}
+
 TEST_F(PolledProducerTest, FlipOnce)
 {
     wait();

@@ -294,7 +294,7 @@ public:
         }
         };*/
 
-    constexpr int skip_init()
+    constexpr int skip_init() const
     {
         return 0;
     }
@@ -472,7 +472,7 @@ public:
     DEFINE_OPTIONALARG(HwVersion, hardware_version, const char *);
     DEFINE_OPTIONALARG(SwVersion, software_version, const char *);
 
-    constexpr int skip_init()
+    constexpr int skip_init() const
     {
         return 0;
     }
