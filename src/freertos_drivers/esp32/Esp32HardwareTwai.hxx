@@ -37,9 +37,6 @@
 #ifndef _FREERTOS_DRIVERS_ESP32_ESP32HARDWARETWAI_HXX_
 #define _FREERTOS_DRIVERS_ESP32_ESP32HARDWARETWAI_HXX_
 
-namespace openmrn_arduino
-{
-
 #include <esp_idf_version.h>
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
@@ -54,6 +51,9 @@ namespace openmrn_arduino
 
 #include "nmranet_config.h"
 #include "utils/Singleton.hxx"
+
+namespace openmrn_arduino
+{
 
 /// TWAI Driver statistics.
 typedef struct
