@@ -74,6 +74,10 @@ void ignore_function()
 {
 }
 
+namespace openlcb {
+extern int g_bootloader_timeout_sec;
+}
+
 class QueryFlow : public StateFlowBase
 {
 public:
@@ -419,6 +423,8 @@ public:
         std::string source_file_name, bool reboot_first,
         emscripten::val progress_cb, emscripten::val done_cb)
     {
+        openlcb::g_bootloader_timeout_sec = 30;
+
         HASSERT(bn_.is_done());
         response_.error_code = 0;
         response_.error_details.clear();
