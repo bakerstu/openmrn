@@ -224,7 +224,7 @@ public:
     /// the short detector.
     void notify_service_mode_ack()
     {
-        if (!request())
+        if (!has_request())
         {
             return;
         }
@@ -242,7 +242,7 @@ public:
     /// Call this function when the service mode current limit is exceeded.
     void notify_service_mode_short()
     {
-        if (!request())
+        if (!has_request())
         {
             return;
         }
@@ -362,7 +362,7 @@ private:
     /// @param packet buffer to fill in with next packet to send.
     void get_next_packet(unsigned code, dcc::Packet *packet) override
     {
-        if (request() == nullptr)
+        if (!has_request())
         {
             packet->set_dcc_reset_all_decoders();
 #ifdef DEBUG_PROGRAMTRACK_BACKEND
