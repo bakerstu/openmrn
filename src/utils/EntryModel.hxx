@@ -77,14 +77,10 @@ public:
     /// Initialize empty.
     /// @param max_size max number of digits in the base type
     /// @param base base type, 10 or 16
-    /// @param automatic_clamp Unless otherwise specified by the API, enables
-    ///                        automatic clamping of the value each time it is
-    ///                        modified when true, else automatic clamping is
-    ///                        not applied.
-    void init(unsigned max_size, int base, bool automatic_clamp = true)
+    void init(unsigned max_size, int base)
     {
         maxSize_ = max_size;
-        autoClamp_ = automatic_clamp;
+        autoClamp_ = true;
         clear();
         set_base(base); // this will call set_boundaries()
     }
@@ -99,7 +95,8 @@ public:
     ///                        not applied.
     void init(unsigned max_size, int base, T value, bool automatic_clamp = true)
     {
-        init(max_size, base, automatic_clamp);
+        init(max_size, base);
+        autoClamp_ = automatic_clamp;
         value_ = value;
         isAtInitialValue_ = true;
         empty_ = false;
