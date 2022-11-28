@@ -89,13 +89,13 @@ std::unique_ptr<SimpleStackBase::PhysicalIf> SimpleTcpStackBase::create_if(
 
 SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
     : SimpleCanStackBase(node_id)
-    , node_(iface(), node_id)
+    , node_(iface(), node_id, false)
 {
 }
 
 SimpleTcpStack::SimpleTcpStack(const openlcb::NodeID node_id)
     : SimpleTcpStackBase(node_id)
-    , node_(iface(), node_id)
+    , node_(iface(), node_id, false)
 {
 }
 
@@ -116,6 +116,7 @@ void SimpleStackBase::start_stack(bool delay_start)
     if (!delay_start)
     {
         start_iface(false);
+        node()->initialize();
     }
 
     // Adds memory spaces.
@@ -193,6 +194,7 @@ void SimpleTrainCanStack::start_node()
 void SimpleStackBase::start_after_delay()
 {
     start_iface(false);
+    node()->initialize();
 }
 
 void SimpleTcpStackBase::start_iface(bool restart)

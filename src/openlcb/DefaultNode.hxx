@@ -45,7 +45,13 @@ namespace openlcb
 class DefaultNode: public Node
 {
 public:
-    DefaultNode(If* iface, NodeID node_id);
+    /// Constructor.
+    /// @param iface network interface to be bound to
+    /// @param node_id 48-bit OpenLCB ID of the node
+    /// @param init true to start the initialization flow upon construction
+    DefaultNode(If* iface, NodeID node_id, bool init = true);
+
+    /// Destructor.
     virtual ~DefaultNode();
 
     NodeID node_id() OVERRIDE
@@ -73,6 +79,9 @@ public:
         isInitialized_ = 0;
     }
 
+    /// Initialize the node.
+    void initialize() override;
+    
 private:
     /** 48-bit node identifier of this node. */
     NodeID nodeId_ : 48;
