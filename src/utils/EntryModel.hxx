@@ -463,7 +463,7 @@ protected:
     {
         if (autoClamp_)
         {
-            clamp();
+            clamp(force);
         }
     }
 
