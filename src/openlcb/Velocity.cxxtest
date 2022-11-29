@@ -89,6 +89,16 @@ TEST(NMRAnetVelocityTest, constructor_float16)
     EXPECT_EQ(velocity->direction(), Velocity::FORWARD);
 }
 
+TEST(NMRAnetVelocityTest, constructor_float16_example)
+{
+    // Example from the Traction Protocol TN.
+    Velocity *velocity = new Velocity((float16_t)0x5640);
+
+    EXPECT_FALSE(*velocity == 0.0f);
+    EXPECT_NEAR(velocity->mph(), 223, 1);
+    EXPECT_EQ(velocity->direction(), Velocity::FORWARD);
+}
+
 TEST(NMRAnetVelocityTest, constructor_copy)
 {
     Velocity *velocity = new Velocity(1.7F);
