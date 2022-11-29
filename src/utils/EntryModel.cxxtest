@@ -630,6 +630,81 @@ TEST(EntryModelBoundedTest, SetMinMax)
     EXPECT_FALSE(em.empty());
 }
 
+TEST(EntryModelBoundedTest, SetMinMaxUnclamped)
+{
+    EntryModelBounded<int16_t> em;
+
+    // intial value
+    em.init(4, 10, 9, -100, 100, 11, false);
+    EXPECT_EQ(4U, em.max_size());
+    EXPECT_EQ(4U, em.max_size());
+    EXPECT_EQ(9, em.get_value());
+    EXPECT_EQ("9", em.get_string());
+    EXPECT_EQ("   9", em.get_string(true));
+    EXPECT_EQ(0U, em.size());
+    EXPECT_TRUE(em.is_at_initial_value());
+    EXPECT_FALSE(em.empty());
+
+    // set default
+    em.set_default();
+    EXPECT_EQ(11, em.get_value());
+    EXPECT_EQ("11", em.get_string());
+    EXPECT_EQ("  11", em.get_string(true));
+    EXPECT_EQ(0U, em.size());
+    EXPECT_TRUE(em.is_at_initial_value());
+    EXPECT_FALSE(em.empty());
+
+    // boundary checks, automatic clamping disabled
+    em.push_back(1);
+    em.push_back(2);
+    em.push_back(3);
+    em.push_back(4);
+    EXPECT_EQ(1234, em.get_value());
+    EXPECT_EQ("1234", em.get_string());
+    EXPECT_EQ("1234", em.get_string(true));
+    EXPECT_EQ(4U, em.size());
+    EXPECT_EQ(100, em.get_value(true)); // now clamp
+    EXPECT_EQ("100", em.get_string());
+    EXPECT_EQ(" 100", em.get_string(true));
+    EXPECT_EQ(3U, em.size());
+    EXPECT_FALSE(em.is_at_initial_value());
+    EXPECT_FALSE(em.empty());
+
+    em.init(4, 10, 9, -100, 1003, 11, false);
+    EXPECT_EQ(4U, em.max_size());
+    em.push_back(1);
+    em.push_back(2);
+    em.push_back(3);
+    em.push_back(4);
+    EXPECT_EQ(1234, em.get_value());
+    EXPECT_EQ("1234", em.get_string());
+    EXPECT_EQ("1234", em.get_string(true));
+    EXPECT_EQ(4U, em.size());
+    EXPECT_EQ(1003, em.get_value(true)); // now clamp
+    EXPECT_EQ("1003", em.get_string());
+    EXPECT_EQ("1003", em.get_string(true));
+    EXPECT_EQ(4U, em.size());
+    EXPECT_FALSE(em.is_at_initial_value());
+    EXPECT_FALSE(em.empty());
+
+    em.init(4, 10, 2800, 1500, 2800, 11, false);
+    EXPECT_EQ(4U, em.max_size());
+    em.push_back(1);
+    em.push_back(2);
+    em.push_back(3);
+    em.push_back(4);
+    EXPECT_EQ(1234, em.get_value());
+    EXPECT_EQ("1234", em.get_string());
+    EXPECT_EQ("1234", em.get_string(true));
+    EXPECT_EQ(4U, em.size());
+    EXPECT_EQ(1500, em.get_value(true)); // now clamp
+    EXPECT_EQ("1500", em.get_string());
+    EXPECT_EQ("1500", em.get_string(true));
+    EXPECT_EQ(4U, em.size());
+    EXPECT_FALSE(em.is_at_initial_value());
+    EXPECT_FALSE(em.empty());
+}
+
 TEST(EntryModelBoundedTest, LeadingZerosNonZeroMin)
 {
     EntryModelBounded<uint16_t> uem;
