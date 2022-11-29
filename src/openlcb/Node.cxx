@@ -26,7 +26,7 @@
  *
  * @file Node.cxx
  *
- * Node definition for asynchronous NMRAnet nodes.
+ * Node definition for asynchronous OpenLCB nodes.
  *
  * @author Stuart Baker
  * @date 28 November 2022
