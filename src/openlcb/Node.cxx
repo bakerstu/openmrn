@@ -1,5 +1,5 @@
-/** \copyright
- * Copyright (c) 2013, Balazs Racz
+/** @copyright
+ * Copyright (c) 2022, Stuart Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,56 +24,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Node.hxx
+ * @file Node.cxx
  *
  * Node definition for asynchronous NMRAnet nodes.
  *
- * @author Balazs Racz
- * @date 7 December 2013
+ * @author Stuart Baker
+ * @date 28 November 2022
  */
 
-#ifndef _OPENLCB_NODE_HXX_
-#define _OPENLCB_NODE_HXX_
-
-#include "openlcb/Defs.hxx"  // for NodeID
+#include "openlcb/Node.hxx"
 
 namespace openlcb
 {
 
-class If;
+extern void StartInitializationFlow(Node* node);
 
-/** Base class for NMRAnet nodes conforming to the asynchronous interface.
- *
- * It is important for this interface to contain no data members, since certain
- * implementations might need to be very lightweight (e.g. a command station
- * might have hundreds of train nodes.)
- */
-class Node
+void Node::initialize()
 {
-public:
-    virtual ~Node() {}
-    // @returns the 48-bit NMRAnet node id for this node.
-    virtual NodeID node_id() = 0;
-    // @returns the interface this virtual node is bound to.
-    virtual If* iface() = 0;
-    /** @returns true if the node is in the initialized state.
-     *
-     * Nodes not in initialized state may not send traffic to the bus. */
-    virtual bool is_initialized() = 0;
+    // Ensures the caller's logic is statefully correct.
+    HASSERT(!is_initialized());
 
-    /** Callback from the node initialization flow when the node finished
-     * initialization. Nodes are not required to implement if they are not
-     * using NodeInitializationFlow. */
-    virtual void set_initialized() {}
-
-    /** Callback from the simple stack when the node has to return to
-     * uninitialized state. */
-    virtual void clear_initialized() = 0;
-
-    /** Callback from the simple stack to start the initialization process. */
-    void initialize();
-};
+    StartInitializationFlow(this);
+}
 
 } // namespace openlcb
-
-#endif // _OPENLCB_NODE_HXX_

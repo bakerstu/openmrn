@@ -115,8 +115,7 @@ void SimpleStackBase::start_stack(bool delay_start)
 
     if (!delay_start)
     {
-        start_iface(false);
-        node()->initialize();
+        start_after_delay();
     }
 
     // Adds memory spaces.
@@ -194,7 +193,12 @@ void SimpleTrainCanStack::start_node()
 void SimpleStackBase::start_after_delay()
 {
     start_iface(false);
-    node()->initialize();
+    for (Node *node = iface()->first_local_node();
+         node != nullptr;
+         node = iface()->next_local_node(node->node_id()))
+    {
+        node->initialize();
+    }
 }
 
 void SimpleTcpStackBase::start_iface(bool restart)

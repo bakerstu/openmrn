@@ -79,9 +79,6 @@ public:
         isInitialized_ = 0;
     }
 
-    /// Initialize the node.
-    void initialize() override;
-    
 private:
     /** 48-bit node identifier of this node. */
     NodeID nodeId_ : 48;
