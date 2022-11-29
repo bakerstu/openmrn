@@ -1,5 +1,5 @@
-/** \copyright
- * Copyright (c) 2013, Balazs Racz
+/** @copyright
+ * Copyright (c) 2022, Stuart Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,33 +24,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file DefaultNode.cxx
+ * @file Node.cxx
  *
- * Default AsyncNode implementation for a fat virtual node.
+ * Node definition for asynchronous OpenLCB nodes.
  *
- * @author Balazs Racz
- * @date 7 December 2013
+ * @author Stuart Baker
+ * @date 28 November 2022
  */
 
-#include "utils/logging.h"
-#include "openlcb/DefaultNode.hxx"
-#include "openlcb/If.hxx"
+#include "openlcb/Node.hxx"
 
 namespace openlcb
 {
 
-DefaultNode::DefaultNode(If* iface, NodeID node_id, bool init)
-    : nodeId_(node_id), isInitialized_(0), iface_(iface)
-{
-    iface_->add_local_node(this);
-    if (init)
-    {
-        initialize();
-    }
-}
+extern void StartInitializationFlow(Node* node);
 
-DefaultNode::~DefaultNode()
+void Node::initialize()
 {
+    // Ensures the caller's logic is statefully correct.
+    HASSERT(!is_initialized());
+
+    StartInitializationFlow(this);
 }
 
 } // namespace openlcb
