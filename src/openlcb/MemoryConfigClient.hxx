@@ -661,6 +661,10 @@ private:
     private:
         Action entry() override
         {
+            if (!parent_->has_request())
+            {
+                return respond_reject(Defs::ERROR_OUT_OF_ORDER);
+            }
             if (!parent_->node_->iface()->matching_node(
                     parent_->request()->dst, message()->data()->src))
             {
