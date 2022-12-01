@@ -210,17 +210,15 @@ void TivaCan::interrupt_handler()
             txBuf->flush();
             txPending = false;
             txBuf->signal_condition_from_isr();
+
+            /* attempt recovery */
+            MAP_CANEnable(base);
         }
         if (status & CAN_STATUS_EWARN)
         {
             /* One of the error counters has exceded a value of 96 */
             ++softErrorCount;
             canState = CAN_STATE_BUS_PASSIVE;
-
-            /* flush data in the tx pipeline */
-            txBuf->flush();
-            txPending = false;
-            txBuf->signal_condition_from_isr();
         }
         if (status & CAN_STATUS_EPASS)
         {
