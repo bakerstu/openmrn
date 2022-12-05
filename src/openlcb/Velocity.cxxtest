@@ -362,7 +362,9 @@ TEST(NMRAnetVelocityTest, set_get_dcc_128_equivalent)
     for (unsigned v = 0; v < 255; v++)
     {
         if (v == 1 || v == 0x81)
+        {
             continue;
+        }
         velocity->set_dcc_128(v);
         unsigned w = velocity->get_dcc_128();
         EXPECT_EQ(v, w);
