@@ -52,7 +52,8 @@ public:
         , byteSize_(byte_size)
     {
         MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
-        MAP_EEPROMInit();
+        // Due to Erratum MEM#11 we must never use ROM_EEPROMInit.
+        EEPROMInit();
         // This is for Tiva 129. For 123 it would be okay to have 2*64.
         HASSERT(byte_offset % (8 * 64) == 0);
         HASSERT(byte_size % (8 * 64) == 0);
