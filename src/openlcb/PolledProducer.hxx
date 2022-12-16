@@ -82,7 +82,7 @@ public:
 
 private:
     Debouncer debouncer_;
-    BitEventPC producer_;
+    BitEventProducer producer_;
 };
 
 } // namespace openlcb

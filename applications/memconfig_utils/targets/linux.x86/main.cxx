@@ -46,6 +46,7 @@
 #include "utils/GcTcpHub.hxx"
 #include "utils/Crc.hxx"
 #include "utils/FileUtils.hxx"
+#include "utils/format_utils.hxx"
 #include "executor/Executor.hxx"
 #include "executor/Service.hxx"
 
@@ -87,6 +88,10 @@ static const char *filename = nullptr;
 static uint64_t destination_nodeid = 0;
 static uint64_t destination_alias = 0;
 static int memory_space_id = openlcb::MemoryConfigDefs::SPACE_CONFIG;
+static uint32_t offset = 0;
+static constexpr uint32_t NLEN = (uint32_t)-1;
+static uint32_t len = NLEN;
+static bool partial_read = false;
 static bool do_read = false;
 static bool do_write = false;
 
@@ -94,8 +99,8 @@ void usage(const char *e)
 {
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-c csum_algo] (-r|-w)  (-n nodeid | -a "
-        "alias) -f filename\n",
+        "memory_space_id] [-o offset] [-l len] [-c csum_algo] (-r|-w)  "
+        "(-n nodeid | -a alias) -f filename\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and performs the "
                     "bootloader protocol on openlcb node with id nodeid with "
@@ -120,7 +125,7 @@ void usage(const char *e)
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:i:d:n:a:s:f:rw")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:d:n:a:s:f:rwo:l:")) >= 0)
     {
         switch (opt)
         {
@@ -148,6 +153,12 @@ void parse_args(int argc, char *argv[])
             case 's':
                 memory_space_id = strtol(optarg, nullptr, 16);
                 break;
+            case 'o':
+                offset = strtol(optarg, nullptr, 10);
+                break;
+            case 'l':
+                len = strtol(optarg, nullptr, 10);
+                break;
             case 'r':
                 do_read = true;
                 break;
@@ -159,7 +170,9 @@ void parse_args(int argc, char *argv[])
                 usage(argv[0]);
         }
     }
-    if (!filename || (!destination_nodeid && !destination_alias))
+    partial_read = do_read && ((offset != 0) || (len != NLEN));
+    if ((!filename && !partial_read) ||
+        (!destination_nodeid && !destination_alias))
     {
         usage(argv[0]);
     }
@@ -213,7 +226,13 @@ int appl_main(int argc, char *argv[])
         printf("Result: %04x\n", b->data()->resultCode);
     }
 
-    if (do_read)
+    if (do_read && partial_read)
+    {
+        auto b = invoke_flow(&g_memcfg_cli, openlcb::MemoryConfigClientRequest::READ_PART, dst, memory_space_id, offset, len);
+        printf("Result: %04x\n", b->data()->resultCode);
+        printf("Data: %s\n", string_to_hex(b->data()->payload).c_str());
+    }
+    else if (do_read)
     {
         auto cb = [](openlcb::MemoryConfigClientRequest *rq) {
             static size_t last_len = rq->payload.size();

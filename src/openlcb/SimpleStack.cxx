@@ -89,13 +89,13 @@ std::unique_ptr<SimpleStackBase::PhysicalIf> SimpleTcpStackBase::create_if(
 
 SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
     : SimpleCanStackBase(node_id)
-    , node_(iface(), node_id)
+    , node_(iface(), node_id, false)
 {
 }
 
 SimpleTcpStack::SimpleTcpStack(const openlcb::NodeID node_id)
     : SimpleTcpStackBase(node_id)
-    , node_(iface(), node_id)
+    , node_(iface(), node_id, false)
 {
 }
 
@@ -115,7 +115,7 @@ void SimpleStackBase::start_stack(bool delay_start)
 
     if (!delay_start)
     {
-        start_iface(false);
+        start_after_delay();
     }
 
     // Adds memory spaces.
@@ -142,6 +142,7 @@ void SimpleStackBase::default_start_node()
         additionalComponents_.emplace_back(space);
     }
 #if OPENMRN_HAVE_POSIX_FD 
+    if (SNIP_DYNAMIC_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(
             configUpdateFlow_.get_fd(), sizeof(SimpleNodeDynamicValues));
@@ -192,6 +193,12 @@ void SimpleTrainCanStack::start_node()
 void SimpleStackBase::start_after_delay()
 {
     start_iface(false);
+    for (Node *node = iface()->first_local_node();
+         node != nullptr;
+         node = iface()->next_local_node(node->node_id()))
+    {
+        node->initialize();
+    }
 }
 
 void SimpleTcpStackBase::start_iface(bool restart)

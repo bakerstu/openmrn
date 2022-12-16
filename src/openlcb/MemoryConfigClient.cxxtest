@@ -33,9 +33,14 @@
  */
 
 #include "openlcb/MemoryConfigClient.hxx"
+
+#include "openlcb/ConfigUpdateFlow.hxx"
 #include "openlcb/DatagramCan.hxx"
+#include "utils/ConfigUpdateListener.hxx"
 
 #include "utils/async_datagram_test_helper.hxx"
+
+#include <array>
 
 namespace openlcb
 {
@@ -94,6 +99,32 @@ public:
 
     NodeHandle dstThree_{NodeAlias(0x499)};
     SyncNotifiable n_;
+};
+
+struct GlobalMock : public Singleton<GlobalMock>
+{
+    MOCK_METHOD0(reboot, void());
+    MOCK_METHOD0(factory_reset, void());
+};
+
+extern "C" void reboot()
+{
+    GlobalMock::instance()->reboot();
+}
+
+struct FactoryResetListener : public DefaultConfigUpdateListener
+{
+    void factory_reset(int fd) override
+    {
+        GlobalMock::instance()->factory_reset();
+    }
+
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done)
+    {
+        done->notify();
+        return UPDATED;
+    }
 };
 
 TEST_F(MemoryConfigClientTest, create)
@@ -214,7 +245,7 @@ TEST_F(MemoryConfigClientTest, reboot_reboot)
     EXPECT_EQ(MemoryConfigClient::OPERATION_PENDING, b->data()->resultCode);
     send_packet(":X19100499N050101011400;");
     wait(); // we purposefully do not do timed wait here; the init complete
-            // message sould terminate the timeout timer.
+            // message should terminate the timeout timer.
     EXPECT_EQ(0, b->data()->resultCode);
     ASSERT_TRUE(b->data()->done.is_done());
 }
@@ -256,6 +287,131 @@ TEST_F(MemoryConfigClientTest, unfreeze)
     wait();
     EXPECT_EQ(0, b->data()->resultCode);
     ASSERT_TRUE(b->data()->done.is_done());
+}
+
+class FactoryResetTest : public MemoryConfigClientTest
+{
+protected:
+    FactoryResetTest()
+    {
+        updateFlow_.TEST_set_fd(23);
+        eb_.release_block();
+        twait();
+    }
+
+    ~FactoryResetTest()
+    {
+        twait();
+    }
+
+    StrictMock<GlobalMock> mock_;
+    BlockExecutor eb_ {ifCan_->executor()};
+    ConfigUpdateFlow updateFlow_ {ifCan_.get()};
+    FactoryResetListener l_;
+}; // FactoryResetTest
+
+TEST_F(FactoryResetTest, create)
+{
+}
+
+// Sends a factory reset command to a target represented with a node ID.
+TEST_F(FactoryResetTest, send_with_id)
+{
+    print_all_packets();
+    expect_any_packet();
+    ::testing::InSequence seq;
+    EXPECT_CALL(mock_, factory_reset());
+    EXPECT_CALL(mock_, reboot());
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::FACTORY_RESET,
+        NodeHandle(TEST_NODE_ID));
+    EXPECT_EQ(0, b->data()->resultCode);
+}
+
+// Sends a factory reset command to a target represented with a node alias
+// only, no ID.
+TEST_F(FactoryResetTest, send_with_alias)
+{
+    print_all_packets();
+    expect_any_packet();
+    ::testing::InSequence seq;
+    EXPECT_CALL(mock_, factory_reset());
+    EXPECT_CALL(mock_, reboot());
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::FACTORY_RESET,
+        NodeHandle(NodeAlias(0x22A)));
+    EXPECT_EQ(0, b->data()->resultCode);
+}
+
+// Sends a factory reset command to a the local node.
+TEST_F(FactoryResetTest, do_local)
+{
+    print_all_packets();
+    expect_any_packet();
+    ::testing::InSequence seq;
+    EXPECT_CALL(mock_, factory_reset());
+    EXPECT_CALL(mock_, reboot());
+    auto b = invoke_flow(&clientTwo_, MemoryConfigClientRequest::FACTORY_RESET,
+        NodeHandle(TWO_NODE_ID));
+    EXPECT_EQ(0, b->data()->resultCode);
+}
+
+// Sends a factory reset command to a remote node by alias, with expectations
+// on each packet.
+TEST_F(FactoryResetTest, send_alias_lookup)
+{
+    print_all_packets();
+    ::testing::InSequence seq;
+    expect_packet(":X19488FF2N0499;"); // looking for dstThree_ node
+    auto b = invoke_client_no_block(
+        MemoryConfigClientRequest::FACTORY_RESET, dstThree_);
+    wait();
+    clear_expect(true);
+    EXPECT_EQ(MemoryConfigClient::OPERATION_PENDING, b->data()->resultCode);
+
+    send_packet_and_expect_response( //
+        ":X19170499N010203040506;",  //
+        ":X1A499FF2N20AA010203040506;");
+    clear_expect(true);
+    EXPECT_EQ(MemoryConfigClient::OPERATION_PENDING, b->data()->resultCode);
+
+    // Reject with an error.
+    send_packet(":X19A48499N0FF21234;");
+    twait();
+
+    EXPECT_EQ(0x1234, b->data()->resultCode);
+
+    EXPECT_CALL(mock_, factory_reset()).Times(0);
+    EXPECT_CALL(mock_, reboot()).Times(0);
+}
+
+// Sends a factory reset command to a remote node by alias, when there is
+// already a cache entry for that remote alias.
+TEST_F(FactoryResetTest, cached_alias)
+{
+    print_all_packets();
+    ::testing::InSequence seq;
+    // AMD frame to prefill cache.
+    send_packet(":X10701499N010203040506;");
+    wait();
+    // Datagram sent straight away
+    expect_packet(":X1A499FF2N20AA010203040506;");
+    auto b = invoke_client_no_block(
+        MemoryConfigClientRequest::FACTORY_RESET, dstThree_);
+    wait();
+    clear_expect(true);
+    EXPECT_EQ(MemoryConfigClient::OPERATION_PENDING, b->data()->resultCode);
+
+    // Accept with no response pending
+    send_packet(":X19A28499N0FF200;");
+    twait();
+
+    EXPECT_EQ(0, b->data()->resultCode);
+
+    EXPECT_CALL(mock_, factory_reset()).Times(0);
+    EXPECT_CALL(mock_, reboot()).Times(0);
+}
+
+TEST_F(MemoryConfigClientTest, factory_reset)
+{
 }
 
 class MemoryConfigLocalClientTest : public AsyncDatagramTest {

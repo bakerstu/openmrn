@@ -141,6 +141,11 @@ TEST_F(AsyncIfTest, AMEReceiveSupport)
     wait();
 }
 
+TEST_F(AsyncIfTest, GetDefaultNodeId)
+{
+    EXPECT_EQ(TEST_NODE_ID, ifCan_->get_default_node_id());
+}
+
 TEST_F(AsyncNodeTest, GlobalAMESendSupport)
 {
     EXPECT_TRUE(node_->is_initialized());

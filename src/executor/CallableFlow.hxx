@@ -63,9 +63,27 @@ public:
 protected:
     using Action = StateFlowBase::Action;
     
-    /// @return the current request we are working on.
-    RequestType* request() {
+    /// @return the current request we are working on. This function may be
+    /// called only if there is an active request. If unsure, use
+    /// {\link has_request() } to verify it first.
+    RequestType *request()
+    {
+        if (!this->message())
+        {
+            // This is not an assert macro, because this function gets inlined
+            // into a lot of places, and we want the shortest possible code
+            // size. However, letting this pass into a hard fault due to the
+            // nullptr dereference is extremely hard to debug.
+            abort();
+        }
         return this->message()->data();
+    }
+
+    /// @return true if there is an active request, i.e., when request() is
+    /// allowed to be called.
+    bool has_request()
+    {
+        return this->message() != nullptr;
     }
 
     /// Terminates the flow and returns the request buffer to the caller with

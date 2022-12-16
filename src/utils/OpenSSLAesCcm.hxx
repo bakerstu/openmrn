@@ -89,7 +89,8 @@ void CCMEncrypt(const std::string &aes_key, const std::string &iv,
     EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, ivlen, NULL);
     EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_L, Lvalue, NULL);
     // ASSERT_EQ(ivlen, EVP_CIPHER_CTX_iv_length(ctx));
-    ASSERT_EQ(32, EVP_CIPHER_CTX_key_length(ctx));
+    int key_length = EVP_CIPHER_CTX_key_length(ctx);
+    ASSERT_EQ(32, key_length);
     ASSERT_EQ(
         1, EVP_EncryptInit_ex(ctx, nullptr, nullptr,
                (const uint8_t *)aes_key.data(), (const uint8_t *)iv.data()));

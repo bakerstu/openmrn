@@ -32,8 +32,11 @@
  * @date 23 Feb 2014
  */
 
-#include "utils/async_datagram_test_helper.hxx"
 #include "openlcb/MemoryConfig.hxx"
+
+#include "utils/async_datagram_test_helper.hxx"
+#include "utils/ConfigUpdateListener.hxx"
+#include "openlcb/ConfigUpdateFlow.hxx"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -61,7 +64,8 @@ public:
 class MemoryConfigTest : public TwoNodeDatagramTest
 {
 protected:
-    MemoryConfigTest() : memoryOne_(&datagram_support_, node_, 10)
+    MemoryConfigTest()
+        : memoryOne_(&datagram_support_, nullptr, 10)
     {
         ON_CALL(space, write(_, _, _, _, _))
             .WillByDefault(DoAll(SetArgPointee<3>(0x2F00), Return(0)));
@@ -370,6 +374,129 @@ TEST_F(MemoryConfigTest, GetSpaceInfoRO_NZLA)
 
     send_packet(":X1A22A77CN208421;");
     wait();
+}
+
+struct GlobalMock : public Singleton<GlobalMock> {
+    MOCK_METHOD0(reboot, void());
+    MOCK_METHOD0(factory_reset, void());
+    MOCK_METHOD1(custom_factory_reset, void(NodeID));
+};
+
+extern "C" void reboot()
+{
+    GlobalMock::instance()->reboot();
+}
+
+// Overrides the weak implementation in the stack.
+uint16_t MemoryConfigHandler::app_handle_factory_reset(NodeID id)
+{
+    GlobalMock::instance()->custom_factory_reset(id);
+    return 0x1234;
+}
+
+struct FactoryResetListener : public DefaultConfigUpdateListener
+{
+    void factory_reset(int fd) override
+    {
+        GlobalMock::instance()->factory_reset();
+    }
+
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done)
+    {
+        done->notify();
+        return UPDATED;
+    }
+};
+
+TEST_F(MemoryConfigTest, Reboot)
+{
+    StrictMock<GlobalMock> mock;
+    // Normally, a reboot function never returns. We can't do that under linux
+    // though, so the stack will generate an error datagram reply.
+    expect_packet(":X19A4822AN077C1041;"); // unsupported command
+
+    EXPECT_CALL(mock, reboot());
+    send_packet(":X1A22A77CN20A9;");
+    wait();
+}
+
+TEST_F(MemoryConfigTest, FactoryResetWrongNodeId)
+{
+    StrictMock<GlobalMock> mock;
+    ConfigUpdateFlow update_flow {ifCan_.get()};
+    update_flow.TEST_set_fd(23);
+
+    FactoryResetListener l;
+    // rejected with error "invalid arguments"
+    expect_packet(":X19A4822AN077C1080;");
+
+    EXPECT_CALL(mock, factory_reset()).Times(0);
+    send_packet(":X1A22A77CN20AA010101010101;");
+    wait();
+
+    EXPECT_CALL(mock, reboot()).Times(0);
+    twait();
+}
+
+TEST_F(MemoryConfigTest, FactoryResetNoNodeId)
+{
+    StrictMock<GlobalMock> mock;
+    ConfigUpdateFlow update_flow {ifCan_.get()};
+    update_flow.TEST_set_fd(23);
+
+    FactoryResetListener l;
+    // rejected with error "invalid arguments"
+    expect_packet(":X19A4822AN077C1080;");
+
+    EXPECT_CALL(mock, factory_reset()).Times(0);
+    send_packet(":X1A22A77CN20AA;");
+    wait();
+
+    EXPECT_CALL(mock, reboot()).Times(0);
+    twait();
+}
+
+TEST_F(MemoryConfigTest, FactoryReset)
+{
+    StrictMock<GlobalMock> mock;
+    ConfigUpdateFlow update_flow{ifCan_.get()};
+    update_flow.TEST_set_fd(23);
+    
+    FactoryResetListener l;
+    expect_packet(":X19A2822AN077C00;"); // received OK, no response
+
+    EXPECT_CALL(mock, factory_reset());
+    send_packet(":X1A22A77CN20AA02010d000003;");
+    wait();
+
+    EXPECT_CALL(mock, reboot());
+    twait();
+}
+
+// Tests addressing a factory reset command to a virtual node (non-default
+// node).
+TEST_F(MemoryConfigTest, FactoryResetVNode)
+{
+    setup_other_node(false);
+    StrictMock<GlobalMock> mock;
+    ConfigUpdateFlow update_flow {ifCan_.get()};
+    update_flow.TEST_set_fd(23);
+
+    FactoryResetListener l;
+
+    expect_packet(":X19A48225N077C1234;"); // Rejected with error 0x1234
+
+    // Default reset won't be invoked.
+    EXPECT_CALL(mock, factory_reset()).Times(0);
+    // Custom reset will.
+    EXPECT_CALL(mock, custom_factory_reset(OTHER_NODE_ID));
+    send_packet(":X1A22577CN20AA02010d000103;");
+    wait();
+
+    // No reboot.
+    EXPECT_CALL(mock, reboot()).Times(0);
+    twait();
 }
 
 static const char MEMORY_BLOCK_DATA[] = "abrakadabra12345678xxxxyyyyzzzzwww.";

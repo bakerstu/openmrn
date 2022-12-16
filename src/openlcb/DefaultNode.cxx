@@ -39,13 +39,14 @@
 namespace openlcb
 {
 
-extern void StartInitializationFlow(Node* node);
-
-DefaultNode::DefaultNode(If* iface, NodeID node_id)
+DefaultNode::DefaultNode(If* iface, NodeID node_id, bool init)
     : nodeId_(node_id), isInitialized_(0), iface_(iface)
 {
     iface_->add_local_node(this);
-    StartInitializationFlow(this);
+    if (init)
+    {
+        initialize();
+    }
 }
 
 DefaultNode::~DefaultNode()

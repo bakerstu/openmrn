@@ -95,8 +95,10 @@ void os_emscripten_yield() {
 Executor<1> g_executor("ex_thread", 0, 1024);
 #endif
 
+#ifndef NO_GC_OPTIMIZE
 /// Do not buffer gridconnect bytes when we are running in a test.
 OVERRIDE_CONST(gridconnect_buffer_size, 1);
+#endif
 
 Service g_service(&g_executor);
 

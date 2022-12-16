@@ -1,5 +1,5 @@
 /** @copyright
- * Copyright (c) 2018, Stuart W. Baker
+ * Copyright (c) 2022, Stuart Baker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,55 +24,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file BroadcastTime.cxx
+ * @file Node.cxx
  *
- * Implementation of a Broadcast Time Protocol Interface.
+ * Node definition for asynchronous OpenLCB nodes.
  *
- * @author Stuart W. Baker
- * @date 4 November 2018
+ * @author Stuart Baker
+ * @date 28 November 2022
  */
 
-#ifndef _POSIX_C_SOURCE
-#define _POSIX_C_SOURCE 200112L
-#endif
-
-#include "openlcb/BroadcastTime.hxx"
+#include "openlcb/Node.hxx"
 
 namespace openlcb
 {
 
-//
-// BroadcastTimeClient::clear_timezone
-//
-void BroadcastTime::clear_timezone()
-{
-#ifndef ESP32
-        setenv("TZ", "GMT0", 1);
-        tzset();
-#endif
-}
+extern void StartInitializationFlow(Node* node);
 
-extern "C"
+void Node::initialize()
 {
-// normally requires _GNU_SOURCE
-char *strptime(const char *, const char *, struct tm *);
-}
+    // Ensures the caller's logic is statefully correct.
+    HASSERT(!is_initialized());
 
-//
-// BroadcastTimeClient::set_data_year_str
-//
-void BroadcastTime::set_date_year_str(const char *date_year)
-{
-    struct tm tm;
-    if (strptime(date_year, "%b %e, %Y", &tm) != nullptr)
-    {
-        if (tm.tm_year >= (0 - 1900) && tm.tm_year <= (4095 - 1900))
-        {
-            // date valid
-            set_date(tm.tm_mon + 1, tm.tm_mday);
-            set_year(tm.tm_year + 1900);
-        }
-    }
+    StartInitializationFlow(this);
 }
 
 } // namespace openlcb
