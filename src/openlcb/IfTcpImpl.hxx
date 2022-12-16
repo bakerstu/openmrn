@@ -303,6 +303,12 @@ public:
     {
     }
 
+    /// @return the node ID the gateway uses to set on outgoing messages.
+    NodeID get_gateway_node_id()
+    {
+        return gatewayId_;
+    }
+
 private:
     /// Handler where dequeueing of messages to be sent starts.
     /// @return next state

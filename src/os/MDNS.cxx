@@ -39,6 +39,7 @@
 
 #if !defined (__linux__)
 void mdns_publish(const char *name, const char *service, uint16_t port) __attribute__ ((weak));
+void mdns_unpublish(const char *name, const char *service) __attribute__ ((weak));
 int mdns_lookup(const char *service, struct addrinfo *hints,
                 struct addrinfo **addr) __attribute__ ((weak));
 void mdns_scan(const char *service) __attribute__ ((weak));
@@ -49,6 +50,15 @@ void mdns_scan(const char *service) __attribute__ ((weak));
  * @param port port number
  */
 void mdns_publish(const char *name, const char *service, uint16_t port)
+{
+    HASSERT(0);
+}
+
+/** Unpublish an mDNS name.
+ * @param name local "username" or "nodename" of the service
+ * @param service service name, example: "_openlcb._tcp"
+ */
+void mdns_unpublish(const char *name, const char *service)
 {
     HASSERT(0);
 }
@@ -118,6 +128,18 @@ void MDNS::publish(const char *name, const char *service, uint16_t port)
     HASSERT(result == 0);
 #else
     mdns_publish(name, service, port);
+#endif
+}
+
+/*
+ * MDNS::unpublish()
+ */
+void MDNS::unpublish(const char *name, const char *service)
+{
+#if defined(__linux__)
+    DIE("unimplemented");
+#else
+    mdns_unpublish(name, service);
 #endif
 }
 

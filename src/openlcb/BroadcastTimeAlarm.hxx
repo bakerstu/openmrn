@@ -165,20 +165,33 @@ protected:
 
 private:
     // Wakeup helper
-    class Wakeup : public Executable
+    class Wakeup : public Executable, protected Atomic
     {
     public:
         /// Constructor.
         /// @param alarm our parent alarm that we will awaken
         Wakeup(BroadcastTimeAlarm *alarm)
             : alarm_(alarm)
+            , armed(false)
         {
         }
 
         /// Trigger the wakeup to run.
         void trigger()
         {
-            alarm_->service()->executor()->add(this);
+            bool add = false;
+            {
+                AtomicHolder h(this);
+                if (!armed)
+                {
+                    armed = true;
+                    add = true;
+                }
+            }
+            if (add)
+            {
+                alarm_->service()->executor()->add(this);
+            }
         }
 
     private:
@@ -186,10 +199,12 @@ private:
         /// on the CPU.
         void run() override
         {
+            armed = false;
             alarm_->wakeup();
         }
 
         BroadcastTimeAlarm *alarm_; ///< our parent alarm we will wakeup
+        bool armed;
     };
 
     /// Setup, or wait to setup alarm.

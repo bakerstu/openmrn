@@ -39,46 +39,59 @@
 
 #include "utils/macros.h"
 
-namespace dcc {
+namespace dcc
+{
 
 /// Strongly typed wrapper representing a short DCC address. This allows C++
 /// type inference to decide whether a particular value is a long or short
 /// address.
-struct DccShortAddress {
+struct DccShortAddress
+{
+    /// Largest valid address.
+    static constexpr unsigned ADDRESS_MAX = 127;
     /// Address value.
     uint8_t value;
     /// Constructor. @param v is the address value (0<=v<128);
-    explicit DccShortAddress(uint8_t v)
-        : value(v) {
-        HASSERT(value < 128);
+    explicit DccShortAddress(unsigned v)
+        : value(v)
+    {
+        HASSERT(value <= ADDRESS_MAX);
     }
 };
 
 /// Strongly typed wrapper representing a long DCC address. This allows C++
 /// type inference to decide whether a particular value is a long or short
 /// address.
-struct DccLongAddress {
+struct DccLongAddress
+{
+    /// Largest valid address.
+    static constexpr unsigned ADDRESS_MAX = 10239;
     /// Address value.
     uint16_t value;
     /// Constructor. @param v is the address value (0<=v<10239);
-    explicit DccLongAddress(uint16_t v)
-        : value(v) {
-        HASSERT(value <= 10239);
+    explicit DccLongAddress(unsigned v)
+        : value(v)
+    {
+        HASSERT(value <= ADDRESS_MAX);
     }
 };
 
 /// Strongly typed wrapper representing a marklin-motorola protocol
 /// address. This address is between 0 and 80.
-struct MMAddress {
+struct MMAddress
+{
+    /// Largest valid address.
+    static constexpr unsigned ADDRESS_MAX = 80;
     /// Address value.
     uint8_t value;
     /// Constructor. @param v is the address value (0<=v<81);
-    explicit MMAddress(uint8_t v)
-        : value(v) {
-        HASSERT(v <= 80);
+    explicit MMAddress(unsigned v)
+        : value(v)
+    {
+        HASSERT(v <= ADDRESS_MAX);
     }
 };
 
-}  // namespace dcc
+} // namespace dcc
 
 #endif // _DCC_ADDRESS_HXX_

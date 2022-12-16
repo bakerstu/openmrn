@@ -97,13 +97,16 @@ enum
     DCC_SVC_BIT_MANIPULATE = 0b01111000,
     DCC_SVC_WRITE = 0b01111100,
     DCC_SVC_VERIFY = 0b01110100,
+    DCC_SVC_MASK = 0b11111100,
 
     DCC_SVC_BITVAL_WRITE = 0b11110000,
     DCC_SVC_BITVAL_VERIFY = 0b11100000,
     DCC_SVC_BITVAL_VALUE = 0b00001000,
+    DCC_SVC_BITVAL_MASK = 0b11110000,
 
     DCC_SVC_PAGED_WRITE = 0b01111000,
     DCC_SVC_PAGED_VERIFY = 0b01110000,
+    DCC_SVC_PAGED_MASK = 0b11111000,
 
     DCC_BASIC_ACCESSORY_B1 = 0b10000000,
     DCC_BASIC_ACCESSORY_B2 = 0b10000000,
@@ -138,7 +141,7 @@ enum
     DCC_DID_MAX = DCC_LOGON_ASSIGN + 0xF,
     /// Mask used for the DCC_DID packets primary command byte.
     DCC_DID_MASK = 0xF0,
-    
+
     // Commands in 254 Select and 253 addressed.
     CMD_READ_SHORT_INFO = 0b11111111,
     CMD_READ_BLOCK = 0b11111110,
@@ -150,7 +153,7 @@ enum
 
     /// Mask for the address partition bits.
     ADR_MASK = 0b111111,
-    
+
     /// 7-bit mobile decoders
     ADR_MOBILE_SHORT = 0b00111000,
     /// Mask for 7-bit mobile decoders

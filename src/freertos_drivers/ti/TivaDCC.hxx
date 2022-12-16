@@ -1069,13 +1069,39 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     /// @todo tune this bit to line up with the bit stream starting after the
     /// railcom cutout.
     fill_timing(DCC_RC_ONE, 57 << 1, 57, 57 << 1);
+
+    // The following #if switch controls whether or not the
+    // "generate_railcom_halfzero()" will actually generate a half zero bit
+    // or if it will in actuality generate a full zero bit. It was determined
+    // that the half zero workaround does not work with some older decoders,
+    // but the full zero workaround does. It also works with older decoders
+    // that needed the half zero, so it seems to be a true super-set workaround.
+    //
+    // There is an issue filed to reevaluate this after more field data is
+    // collected. The idea was to make the most minimal change necessary
+    // until more data can be collected.
+    // https://github.com/bakerstu/openmrn/issues/652
+#if 0
     // A small pulse in one direction then a half zero bit in the other
     // direction.
     fill_timing(DCC_RC_HALF_ZERO, 100 + 56, 56, 100 + 56, 5);
-    // At the end of the packet we stretch the negative side but let the
-    // interval timer kick in on time. The next bit will resync, and this
-    // avoids a glitch output to the track when a marklin preamble is coming.
-    fill_timing(DCC_EOP_ONE, (56 << 1) + 20, 58, 56 << 1);
+#else
+    // A full zero bit inserted following the RailCom cutout.
+    fill_timing(DCC_RC_HALF_ZERO, 100 << 1, 100, 100 << 1, 5);
+#endif
+
+    // At the end of the packet the resync process will happen, which means that
+    // we modify the timer registers in synchronous mode instead of double
+    // buffering to remove any drift that may have happened during the packet.
+    // This means that we need to kick off the interval timer a bit earlier than
+    // nominal to compensate for the CPU execution time. At the same time we
+    // stretch the negative side of the output waveform, because the next packet
+    // might be marklin. Stretching avoids outputting a short positive glitch
+    // between the negative half of the last dcc bit and the fully negative
+    // marklin preamble.
+    fill_timing(
+        DCC_EOP_ONE, (56 << 1) + 20, 56, (56 << 1) - HW::RESYNC_DELAY_USEC);
+
     fill_timing(MM_ZERO, 208, 26, 208, 2);
     fill_timing(MM_ONE, 208, 182, 208, 2);
     // Motorola preamble is negative DC signal.
@@ -1155,7 +1181,7 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     MAP_TimerEnable(HW::INTERVAL_BASE, TIMER_A);
 
 #ifdef TIVADCC_TIVA
-    MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
+    MAP_TimerSynchronize(TIMER0_BASE, HW::TIMER_SYNC);
 #endif
     
     MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timings[DCC_ONE].period);

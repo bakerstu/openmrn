@@ -89,6 +89,16 @@ TEST(NMRAnetVelocityTest, constructor_float16)
     EXPECT_EQ(velocity->direction(), Velocity::FORWARD);
 }
 
+TEST(NMRAnetVelocityTest, constructor_float16_example)
+{
+    // Example from the Traction Protocol TN.
+    Velocity *velocity = new Velocity((float16_t)0x5640);
+
+    EXPECT_FALSE(*velocity == 0.0f);
+    EXPECT_NEAR(velocity->mph(), 223, 1);
+    EXPECT_EQ(velocity->direction(), Velocity::FORWARD);
+}
+
 TEST(NMRAnetVelocityTest, constructor_copy)
 {
     Velocity *velocity = new Velocity(1.7F);
@@ -313,7 +323,7 @@ TEST(NMRAnetVelocityTest, set_dcc_128_forward)
     velocity->set_dcc_128(46 | 0x80);
     
     EXPECT_EQ(velocity->direction(), Velocity::FORWARD);    
-    EXPECT_TRUE(*velocity == (45 / 0.44704F));
+    EXPECT_TRUE(*velocity == (45 * 0.44704F));
 }
 
 TEST(NMRAnetVelocityTest, set_dcc_128_reverse)
@@ -323,7 +333,7 @@ TEST(NMRAnetVelocityTest, set_dcc_128_reverse)
     velocity->set_dcc_128(46);
     
     EXPECT_EQ(velocity->direction(), Velocity::REVERSE);    
-    EXPECT_TRUE(*velocity == (-45 / 0.44704F));
+    EXPECT_TRUE(*velocity == (-45 * 0.44704F));
 }
 
 TEST(NMRAnetVelocityTest, set_dcc_128_zero)
@@ -344,6 +354,21 @@ TEST(NMRAnetVelocityTest, set_dcc_128_estop)
     
     EXPECT_EQ(velocity->direction(), Velocity::REVERSE);    
     EXPECT_TRUE(*velocity == 0.0);
+}
+
+TEST(NMRAnetVelocityTest, set_get_dcc_128_equivalent)
+{
+    Velocity *velocity = new Velocity();
+    for (unsigned v = 0; v < 255; v++)
+    {
+        if (v == 1 || v == 0x81)
+        {
+            continue;
+        }
+        velocity->set_dcc_128(v);
+        unsigned w = velocity->get_dcc_128();
+        EXPECT_EQ(v, w);
+    }
 }
 
 TEST(NMRAnetVelocityTest, get_dcc_28_forward)

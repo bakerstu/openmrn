@@ -65,11 +65,20 @@ public:
     void rx_interrupt_handler();
     /** Handle an interrupt. */
     void tx_interrupt_handler();
+    /** Handle an interrupt. */
+    void sce_interrupt_handler();
 
     /** Instance pointers help us get context from the interrupt handler(s) */
     static Stm32Can *instances[1];
 
 private:
+    /// Request an ioctl transaction.
+    /// @param file file reference for this device
+    /// @param key ioctl key
+    /// @param data key data
+    /// @return >= 0 upon success, -errno upon failure
+    int ioctl(File *file, unsigned long int key, unsigned long data) override;
+
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
     void tx_msg() override; /**< function to try and transmit a message */
@@ -78,6 +87,8 @@ private:
      *  to keep track of the number of controllers in use.
      */
     static unsigned int intCount;
+
+    uint8_t state_; ///< present bus state
 
     /** Default constructor.
      */

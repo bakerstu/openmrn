@@ -242,7 +242,7 @@ string string_to_hex(const string &arg)
     return ret;
 }
 
-string mac_to_string(uint8_t mac[6], bool colon)
+string mac_to_string(uint8_t mac[6], char colon)
 {
     string ret;
     ret.reserve(12+6);
@@ -257,7 +257,7 @@ string mac_to_string(uint8_t mac[6], bool colon)
         ret += tmp;
         if (colon)
         {
-            ret.push_back(':');
+            ret.push_back(colon);
         }
     }
     if (colon)
