@@ -36,8 +36,9 @@
 #ifndef _OPENLCB_STREAMRECEIVER_HXX_
 #define _OPENLCB_STREAMRECEIVER_HXX_
 
-#include "openlcb/StreamDefs.hxx"
 #include "openlcb/IfCan.hxx"
+#include "openlcb/StreamDefs.hxx"
+#include "utils/ByteBuffer.hxx"
 
 namespace openlcb
 {
@@ -72,6 +73,17 @@ public:
     void announced_stream(NodeHandle src, uint8_t src_stream_id,
         uint8_t dst_stream_id, uint16_t max_window = 0);
 
+    /// Defines where to send the received stream data.
+    ///
+    /// @param target the business logic that will consume the data that arrived
+    /// in the stream.
+    /// @return the current object.
+    StreamReceiverCan &set_sink(ByteSink *target)
+    {
+        target_ = target;
+        return *this;
+    }
+
 private:
     /// Invoked by the GenericHandler when a stream initiate message arrives.
     ///
@@ -85,15 +97,18 @@ private:
 
     class StreamDataHandler;
     friend class StreamDataHandler;
-    
+
     /// CAN-bus interface.
     IfCan *ifCan_;
     /// Which node are we sending the outgoing data from. This is a local
     /// virtual node.
     Node *node_;
 
-    /// Object that receives the actual stream messages.
+    /// Helper object that receives the actual stream CAN frames.
     std::unique_ptr<StreamDataHandler> dataHandler_;
+
+    /// Where to send the actually received data.
+    ByteSink *target_{nullptr};
 
     /// Source node that the data is coming from.
     NodeHandle src_;
