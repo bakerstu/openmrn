@@ -35,10 +35,14 @@
 
 #include "openlcb/StreamReceiver.hxx"
 
+#include "openlcb/Defs.hxx"
+#include "openlcb/CanDefs.hxx"
+#include "nmranet_config.h"
+
 namespace openlcb
 {
 
-void StreamReceiver::announced_stream(NodeHandle src, uint8_t src_stream_id,
+void StreamReceiverCan::announced_stream(NodeHandle src, uint8_t src_stream_id,
     uint8_t dst_stream_id, uint16_t max_window)
 {
     src_ = src;
@@ -55,10 +59,10 @@ void StreamReceiver::announced_stream(NodeHandle src, uint8_t src_stream_id,
     }
     streamWindowRemaining_ = 0;
     node_->iface()->dispatcher()->register_handler(
-        &streamInitiateHandler_, Defs::MTI_STREAM_INITIATE, Defs::MTI_EXACT);
+        &streamInitiateHandler_, Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
 }
 
-void StreamReceiver::handle_stream_initiate(Buffer<GenMessage> *message)
+void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
 {
     auto rb = get_buffer_deleter(message);
 
@@ -95,7 +99,7 @@ void StreamReceiver::handle_stream_initiate(Buffer<GenMessage> *message)
             StreamDefs::create_initiate_response(0, incoming_src_id,
                 localStreamId_, StreamDefs::STREAM_ERROR_INVALID_ARGS));
         node_->iface()->dispatcher()->unregister_handler(
-            &streamInitiateHandler_, Defs::MTI_STREAM_INITIATE,
+            &streamInitiateHandler_, Defs::MTI_STREAM_INITIATE_REQUEST,
             Defs::MTI_EXACT);
         return;
     }
@@ -110,7 +114,43 @@ void StreamReceiver::handle_stream_initiate(Buffer<GenMessage> *message)
             streamWindowSize_, srcStreamId_, localStreamId_));
 
     node_->iface()->dispatcher()->unregister_handler(
-        &streamInitiateHandler_, Defs::MTI_STREAM_INITIATE, Defs::MTI_EXACT);
+        &streamInitiateHandler_, Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
 }
+
+class StreamReceiverCan::StreamDataHandler : public IncomingFrameHandler
+{
+public:
+    StreamDataHandler(StreamReceiverCan *parent)
+        : parent_(parent)
+    { }
+
+    /// Starts registration for receiving stream data with the given aliases.
+    void start(NodeAlias remote_alias, NodeAlias local_alias)
+    {
+        uint32_t frame_id = 0;
+        CanDefs::set_datagram_fields(
+            &frame_id, remote_alias, local_alias, CanDefs::STREAM_DATA);
+        parent_->ifCan_->frame_dispatcher()->register_handler(
+            this, frame_id, CanDefs::STREAM_DG_RECV_MASK);
+    }
+
+    /// Stops receiving stream data.
+    void stop()
+    {
+        parent_->ifCan_->frame_dispatcher()->unregister_handler_all(this);
+    }
+
+    /// Handler callback for incoming messages.
+    void send(Buffer<CanMessageData> *message, unsigned priority) override
+    {
+        auto rb = get_buffer_deleter(message);
+
+        
+    }
+
+private:
+    /// Owning stream receiver object.
+    StreamReceiverCan *parent_;
+};
 
 } // namespace openlcb

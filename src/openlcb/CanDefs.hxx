@@ -66,6 +66,7 @@ struct CanDefs {
         FRAME_TYPE_MASK     = 0x08000000, /**< mask for frame type field of CAN ID */
         PRIORITY_MASK       = 0x10000000, /**< mask for priority field of CAN ID */
         PADDING_MASK        = 0xe0000000, /**< mask for padding field of CAN ID */
+        STREAM_DG_RECV_MASK = 0x0fffffff, /**< mask for receiving datagram and stream frames. */
 
         SRC_SHIFT            =  0, /**< shift for source field of CAN ID */
         MTI_SHIFT            = 12, /**< shift for MTI field of CAN ID */

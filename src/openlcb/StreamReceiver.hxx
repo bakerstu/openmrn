@@ -37,6 +37,7 @@
 #define _OPENLCB_STREAMRECEIVER_HXX_
 
 #include "openlcb/StreamDefs.hxx"
+#include "openlcb/IfCan.hxx"
 
 namespace openlcb
 {
@@ -82,11 +83,17 @@ private:
     MessageHandler::GenericHandler streamInitiateHandler_ {
         this, &StreamReceiverCan::handle_stream_initiate};
 
+    class StreamDataHandler;
+    friend class StreamDataHandler;
+    
     /// CAN-bus interface.
     IfCan *ifCan_;
     /// Which node are we sending the outgoing data from. This is a local
     /// virtual node.
     Node *node_;
+
+    /// Object that receives the actual stream messages.
+    std::unique_ptr<StreamDataHandler> dataHandler_;
 
     /// Source node that the data is coming from.
     NodeHandle src_;
