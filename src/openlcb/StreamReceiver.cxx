@@ -145,6 +145,12 @@ public:
     {
         auto rb = get_buffer_deleter(message);
 
+        if (message->data()->dlc <= 0) {
+            return; // no payload
+        }
+        if (message->data()->data[0] != parent_->localStreamId_) {
+            return; // different stream
+        }
         
     }
 

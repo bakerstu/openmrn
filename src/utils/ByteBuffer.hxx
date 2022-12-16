@@ -109,7 +109,26 @@ struct ByteChunk
         size_ = data->size();
         data_ = (uint8_t*)data->data();
     }
-    
+
+    /// Adds more data to the end of the buffer. Requirement: this chunk must
+    /// be a data source, and there has to be an ownedData_ set.
+    /// @param data payload to copy
+    /// @param len how many bytes to add
+    /// @return number of bytes added; this is typically less than len when the
+    /// RawData buffer gets full. Can be zero.
+    size_t append(const void* data, size_t len)
+    {
+        HASSERT(ownedData_.get());
+        uint8_t* end = data_ + size_;
+        uint8_t *max_end = ownedData_->data()->payload + RawData::MAX_SIZE;
+        size_t max_len = max_end - end;
+        if (max_len < len)
+        {
+            len = max_len;
+        }
+        memcpy(end, data, len);
+        return len;
+    }
 };
 
 /// Buffer type of references. These are enqueued for byte sinks.
