@@ -1,0 +1,68 @@
+#include "utils/ByteBuffer.hxx"
+
+#include "utils/test_main.hxx"
+
+/// Allocates a new 1-kbyte sized raw buffer.
+BufferPtr<RawData> alloc_raw()
+{
+    Buffer<RawData> *b;
+    rawBufferPool->alloc(&b);
+    return get_buffer_deleter(b);
+}
+
+TEST(ByteChunkTest, create)
+{
+    ByteChunk ch;
+}
+
+TEST(ByteChunkTest, assign_advance)
+{
+    ByteChunk ch;
+    ch.set_from(alloc_raw(), 0);
+    EXPECT_EQ(6u, ch.append("abcdef", 6));
+    EXPECT_EQ(6u, ch.size());
+    EXPECT_EQ((uint8_t)'a', ch.data_[0]);
+    EXPECT_EQ((uint8_t)'b', ch.data_[1]);
+    EXPECT_EQ((uint8_t)'f', ch.data_[5]);
+
+    ch.advance(1);
+
+    EXPECT_EQ(5u, ch.size());
+    EXPECT_EQ((uint8_t)'b', ch.data_[0]);
+    EXPECT_EQ((uint8_t)'f', ch.data_[4]);
+}
+
+
+TEST(ByteChunkTest, assign_external)
+{
+    ByteChunk ch;
+    static const char TEST_DATA[] = "abcdef";
+    ch.set_from(TEST_DATA, 6);
+    EXPECT_EQ(6u, ch.size());
+    EXPECT_EQ((uint8_t)'a', ch.data_[0]);
+    EXPECT_EQ((uint8_t)'b', ch.data_[1]);
+    EXPECT_EQ((uint8_t)'f', ch.data_[5]);
+
+    ch.advance(1);
+
+    EXPECT_EQ(5u, ch.size());
+    EXPECT_EQ((uint8_t)'b', ch.data_[0]);
+    EXPECT_EQ((uint8_t)'f', ch.data_[4]);
+}
+
+TEST(ByteChunkTest, assign_string)
+{
+    ByteChunk ch;
+    string testdata = "abcdef";
+    ch.set_from(&testdata);
+    EXPECT_EQ(6u, ch.size());
+    EXPECT_EQ((uint8_t)'a', ch.data_[0]);
+    EXPECT_EQ((uint8_t)'b', ch.data_[1]);
+    EXPECT_EQ((uint8_t)'f', ch.data_[5]);
+
+    ch.advance(1);
+
+    EXPECT_EQ(5u, ch.size());
+    EXPECT_EQ((uint8_t)'b', ch.data_[0]);
+    EXPECT_EQ((uint8_t)'f', ch.data_[4]);
+}

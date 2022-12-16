@@ -110,6 +110,18 @@ struct ByteChunk
         data_ = (uint8_t*)data->data();
     }
 
+    /// Overwrites this chunk from an externally owned memory area. The caller
+    /// must make sure the memory area remains alive as long as this Chunk is
+    /// ever in use (including all copies).
+    /// @param data payload to set into this buffer. Must stay alive.
+    /// @param len number of bytes to use from that source.
+    void set_from(const void* data, size_t len)
+    {
+        ownedData_.reset(); // no need for this anymore
+        data_ = (uint8_t*)data;
+        size_ = len;
+    }
+    
     /// Adds more data to the end of the buffer. Requirement: this chunk must
     /// be a data source, and there has to be an ownedData_ set.
     /// @param data payload to copy
@@ -127,6 +139,7 @@ struct ByteChunk
             len = max_len;
         }
         memcpy(end, data, len);
+        size_ += len;
         return len;
     }
 };
