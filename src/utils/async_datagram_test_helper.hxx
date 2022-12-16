@@ -82,6 +82,15 @@ protected:
         OTHER_NODE_ALIAS = 0x225,
     };
 
+    /// @return NodeHandle for the other node.
+    NodeHandle other_handle()
+    {
+        NodeHandle ret;
+        ret.id = OTHER_NODE_ID;
+        ret.alias = OTHER_NODE_ALIAS;
+        return ret;
+    }
+
     /// @param separate_if defines which mode the test base should operate
     /// in. false = mode 1 (one interface, two virtual nodes); true = mode 2
     /// (two interfaces).

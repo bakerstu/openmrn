@@ -42,12 +42,14 @@
 static constexpr unsigned RAWBUFFER_SIZE = 1024;
 
 /// Use this BufferPool to allocate raw buffers.
-extern Pool* rawBufferPool;
+extern Pool *rawBufferPool;
 
 /// Container for holding an arbitrary untyped data stream.
 struct RawData
 {
     uint8_t payload[RAWBUFFER_SIZE];
+    /// Maximum length that can be stored in a single RawBuffer.
+    static constexpr size_t MAX_SIZE = RAWBUFFER_SIZE;
 };
 
 /// Buffers of this type will be allocated from the rawBufferPool to hold the
@@ -61,9 +63,9 @@ struct ByteChunk
     /// Owns a ref for a RawData buffer. If this is nullptr, then the data
     /// references by this chunk is externally owned.
     BufferPtr<RawData> ownedData_;
-    
+
     /// Points to the first byte of the useful data.
-    uint8_t* data_ {nullptr};
+    uint8_t *data_ {nullptr};
 
     /// How many bytes from data_ does this chunk represent.
     size_t size_ {0};
@@ -83,12 +85,37 @@ struct ByteChunk
         data_ += num_bytes;
         size_ -= num_bytes;
     }
+
+    /// Overwrites this chunk from a raw buffer.
+    ///
+    /// @param buf An owned share of a RawBuffer.
+    /// @param len How many bytes to take from this buffer.
+    /// @param ofs From which offset we should take these bytes (default 0, may
+    /// be omitted).
+    ///
+    void set_from(BufferPtr<RawData> buf, size_t len, size_t ofs = 0)
+    {
+        ownedData_ = std::move(buf);
+        size_ = len;
+        data_ = ownedData_->data()->payload + ofs;
+    }
+
+    /// Overwrites this chunk from a string. WARNING: the ownership of the
+    /// string is not transferred; the caller must make sure the string remains
+    /// alive as long as this Chunk is ever in use (including all copies).
+    void set_from(const string* data)
+    {
+        ownedData_.reset(); // no need for this anymore
+        size_ = data->size();
+        data_ = (uint8_t*)data->data();
+    }
+    
 };
 
 /// Buffer type of references. These are enqueued for byte sinks.
 using ByteBuffer = Buffer<ByteChunk>;
 
-template<class T> class FlowInterface;
+template <class T> class FlowInterface;
 
 /// Interface for sending a stream of data from a source to a sink.
 using ByteSink = FlowInterface<ByteBuffer>;

@@ -39,7 +39,13 @@ namespace openlcb
 /// Static constants and helper functions for the OpenLCB streaming protocol.
 struct StreamDefs
 {
-    static const uint16_t MAX_PAYLOAD = 0xffff;
+    /// Maximum window size for stream send.
+    static constexpr uint16_t MAX_PAYLOAD = 0xffff;
+    /// This value is invalid as a source or destination stream ID.
+    static constexpr uint8_t INVALID_STREAM_ID = 0xff;
+    /// Supply this value to the total byte count in stream close to mark it as
+    /// invalid.
+    static constexpr uint32_t INVALID_TOTAL_BYTE_COUNT = 0xffffffff;
 
     enum Flags
     {
@@ -59,9 +65,17 @@ struct StreamDefs
         REJECT_TEMPORARY_OUT_OF_ORDER = 0x40,
     };
 
-    static Payload create_initiate_request(uint16_t max_buffer_size,
-                                           bool has_ident,
-                                           uint8_t src_stream_id)
+    /// Creates a Stream Initiate Request message payload.
+    ///
+    /// @param max_buffer_size value to propose as stream window size.
+    /// @param has_ident if true, sets the flag for carrying a source stream
+    /// ID.
+    /// @param src_stream_id source stream ID value.
+    ///
+    /// @return a Payload object for a GenMessage.
+    ///
+    static Payload create_initiate_request(
+        uint16_t max_buffer_size, bool has_ident, uint8_t src_stream_id)
     {
         Payload p(5, 0);
         p[0] = max_buffer_size >> 8;
@@ -72,11 +86,28 @@ struct StreamDefs
         return p;
     }
 
-    static Payload create_close_request(uint8_t src_stream_id, uint8_t dst_stream_id)
+    /// Creates the payload for a stream close message.
+    ///
+    /// @param src_stream_id 1-byte SID stream identifier at the source side
+    /// @param dst_stream_id 1-byte SID stream identifier at the dst side
+    /// @param total_bytes if nonzero, specifies how many bytes were
+    /// transferred in the stream in total.
+    ///
+    /// @return a Payload object for GenMessage.
+    ///
+    static Payload create_close_request(uint8_t src_stream_id,
+        uint8_t dst_stream_id, uint32_t total_bytes = INVALID_TOTAL_BYTE_COUNT)
     {
-        Payload p(2, 0);
+        Payload p(total_bytes != INVALID_TOTAL_BYTE_COUNT ? 6 : 2, 0);
         p[0] = src_stream_id;
         p[1] = dst_stream_id;
+        if (total_bytes != INVALID_TOTAL_BYTE_COUNT)
+        {
+            p[2] = (total_bytes >> 24) & 0xff;
+            p[3] = (total_bytes >> 16) & 0xff;
+            p[4] = (total_bytes >> 8) & 0xff;
+            p[5] = (total_bytes >> 0) & 0xff;
+        }
         return p;
     }
 };
