@@ -188,7 +188,6 @@ public:
     {
         if (requestInit_)
         {
-            /// @todo get the destination address somehow.
             requestInit_ = 0;
             return call_immediately(STATE(initiate_stream));
         }
