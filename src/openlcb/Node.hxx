@@ -69,6 +69,9 @@ public:
     /** Callback from the simple stack when the node has to return to
      * uninitialized state. */
     virtual void clear_initialized() = 0;
+
+    /** Callback from the simple stack to start the initialization process. */
+    void initialize();
 };
 
 } // namespace openlcb

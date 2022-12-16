@@ -202,3 +202,19 @@ void SPIFlash::erase(uint32_t addr, size_t len)
         addr += cfg_->sectorSize_;
     }
 }
+
+void SPIFlash::chip_erase()
+{
+    struct spi_ioc_transfer xfer[2] = {0, 0};
+    xfer[0].tx_buf = (uintptr_t)&cfg_->writeEnableCommand_;
+    xfer[0].len = 1;
+    xfer[0].cs_change = true;
+    xfer[1].tx_buf = (uintptr_t)&cfg_->chipEraseCommand_;
+    xfer[1].len = 1;
+    xfer[1].cs_change = true;
+
+    ::ioctl(spiFd_, SPI_IOC_MESSAGE(2), &xfer);
+
+    unsigned waitcount = wait_for_write();
+    LOG(INFO, "chip-erase, success after %u iter", waitcount);
+}

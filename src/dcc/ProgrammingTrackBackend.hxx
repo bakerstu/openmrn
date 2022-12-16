@@ -50,6 +50,9 @@ extern "C" {
 void enable_dcc();
 }
 
+// If defined, adds instrumentation calls to a logging function.
+// #define DEBUG_PROGRAMTRACK_BACKEND
+
 struct ProgrammingTrackRequest : public CallableFlowRequestBase
 {
     enum EnterServiceMode
@@ -161,6 +164,9 @@ private:
     }
 };
 
+extern void progdebug_log_packet(dcc::Packet *pkt);
+extern void progdebug_log_string(const char *s);
+
 class ProgrammingTrackBackend : public CallableFlow<ProgrammingTrackRequest>,
                                 private dcc::NonTrainPacketSource,
                                 public Singleton<ProgrammingTrackBackend>
@@ -185,6 +191,10 @@ public:
     Action entry() override
     {
         request()->resultCode = OPERATION_PENDING;
+        auto* pgm = get_dcc_output(DccOutput::PGM);
+        const bool has_short = pgm->get_disable_output_reasons() &
+            (uint8_t)DccOutput::DisableReason::SHORTED;
+
         switch (request()->cmd_)
         {
             case ProgrammingTrackRequest::Type::ENTER_SERVICE_MODE:
@@ -194,9 +204,17 @@ public:
                 return call_immediately(STATE(exit_service_mode));
 
             case ProgrammingTrackRequest::Type::SEND_RESET:
+                if (has_short)
+                {
+                    request()->hasShortCircuit_ = 1;
+                }
                 return call_immediately(STATE(send_reset));
 
             case ProgrammingTrackRequest::Type::SEND_SERVICE_PACKET:
+                if (has_short)
+                {
+                    request()->hasShortCircuit_ = 1;
+                }
                 return call_immediately(STATE(send_service_packet));
         }
         DIE("Unknown programming track request command");
@@ -206,7 +224,7 @@ public:
     /// the short detector.
     void notify_service_mode_ack()
     {
-        if (!request())
+        if (!has_request())
         {
             return;
         }
@@ -224,7 +242,7 @@ public:
     /// Call this function when the service mode current limit is exceeded.
     void notify_service_mode_short()
     {
-        if (!request())
+        if (!has_request())
         {
             return;
         }
@@ -315,6 +333,7 @@ private:
 
     Action send_reset()
     {
+        
         // record that we want to send reset packets.
         request()->packetToSend_.set_dcc_reset_all_decoders();
         request()->packetToSend_.packet_header.send_long_preamble = 1;
@@ -343,13 +362,19 @@ private:
     /// @param packet buffer to fill in with next packet to send.
     void get_next_packet(unsigned code, dcc::Packet *packet) override
     {
-        if (request() == nullptr)
+        if (!has_request())
         {
             packet->set_dcc_reset_all_decoders();
+#ifdef DEBUG_PROGRAMTRACK_BACKEND
+            progdebug_log_packet(packet);
+#endif
             return;
         }
 
         *packet = request()->packetToSend_;
+#ifdef DEBUG_PROGRAMTRACK_BACKEND
+        progdebug_log_packet(packet);
+#endif
         if (request()->repeatCount_ > 0)
         {
             --request()->repeatCount_;
@@ -358,6 +383,9 @@ private:
         {
             if (isWaitingForPackets_)
             {
+#ifdef DEBUG_PROGRAMTRACK_BACKEND
+                progdebug_log_string("done flush");
+#endif
                 isWaitingForPackets_ = 0;
                 /// @todo: wait for flushing the packets to the track.
                 // resume flow

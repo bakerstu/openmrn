@@ -805,4 +805,13 @@ Node *IfCan::lookup_local_node_handle(NodeHandle h)
     return lookup_local_node(h.id);
 }
 
+NodeID IfCan::get_default_node_id()
+{
+    if (!aliasAllocator_)
+    {
+        return 0;
+    }
+    return aliasAllocator_->if_node_id();
+}
+
 } // namespace openlcb

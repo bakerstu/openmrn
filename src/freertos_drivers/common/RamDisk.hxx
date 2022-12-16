@@ -34,6 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_RAMDISK_HXX_
 #define _FREERTOS_DRIVERS_COMMON_RAMDISK_HXX_
 
+#include <fcntl.h>
 #include "Devtab.hxx"
 
 /// A simple device driver that reads/write data from a block of memory in RAM.
@@ -70,13 +71,24 @@ private:
     void disable() OVERRIDE {}
     void flush_buffers() OVERRIDE {}
 
+    /** Open method */
+    int open(File *file, const char * name, int flags, int mode) OVERRIDE
+    {
+        Node::open(file, name, flags, mode);
+        if ((flags & O_TRUNC) && !readOnly_)
+        {
+            actualSize_ = 0;
+        }
+        return 0;
+    }
+
     ssize_t read(File *file, void *buf, size_t count) OVERRIDE
     {
-        if (file->offset >= size_)
+        if (file->offset >= file_size())
         {
             return 0;
         }
-        size_t left = size_ - file->offset;
+        size_t left = file_size() - file->offset;
         count = std::min(count, left);
         memcpy(buf, data_ + file->offset, count);
         file->offset += count;
@@ -97,12 +109,33 @@ private:
         count = std::min(count, left);
         memcpy(data_ + file->offset, buf, count);
         file->offset += count;
+        if (file->offset > (off_t)actualSize_)
+        {
+            actualSize_ = file->offset;
+        }
         return count;
     }
 
 protected:
+    /// @return the file end offset. This is either the size presented at the
+    /// constructor for read-only files (that are filled with data when this
+    /// device gets instantiated), or the actual bytes written.
+    off_t file_size()
+    {
+        if (readOnly_)
+        {
+            return size_;
+        }
+        else
+        {
+            return actualSize_;
+        }
+    }
+
     /// Pointer to data content.
     uint8_t *data_;
+    /// What's the larget file offset that we received an actual write for.
+    unsigned actualSize_ = 0;
     /// How many bytes we are exporting.
     unsigned size_ : 30;
     /// 1 ifreadonly file.
