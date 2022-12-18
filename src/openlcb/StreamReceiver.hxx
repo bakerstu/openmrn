@@ -150,7 +150,7 @@ private:
     /// How many bytes we have transmitted in this stream so far.
     size_t totalByteCount_;
 
-    /// Remaining stream window size. @todo fill in
+    /// Remaining stream window size.
     uint16_t streamWindowRemaining_;
 
     /// Unique stream ID at the destination (local) node, assigned at
