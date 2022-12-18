@@ -31,7 +31,10 @@
  * @date 14 December 2014
  */
 
-#include "openlcb/If.hxx"
+#ifndef _OPENLCB_STREAMDEFS_HXX_
+#define _OPENLCB_STREAMDEFS_HXX_
+
+#include "openlcb/Defs.hxx"
 
 namespace openlcb
 {
@@ -163,3 +166,5 @@ struct StreamDefs
 };
 
 } // namespace openlcb
+
+#endif // _OPENLCB_STREAMDEFS_HXX_
