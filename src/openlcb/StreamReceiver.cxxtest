@@ -26,7 +26,7 @@ struct CollectData : public ByteSink
     /// Holds buffers.
     Q q;
     /// if true, the buffers are added to the queue instead of unref'ed.
-    bool keepBuffers_{false};
+    bool keepBuffers_ {false};
 
     void send(ByteBuffer *msg, unsigned prio) override
     {
@@ -57,9 +57,7 @@ protected:
         setup_other_node(true);
         wait();
         clear_expect(false);
-        run_x([this](){
-            ifCan_->send_global_alias_enquiry(node_);
-        });
+        run_x([this]() { ifCan_->send_global_alias_enquiry(node_); });
         wait();
     }
 };
@@ -81,14 +79,12 @@ protected:
         wait();
     }
 
-    void invoke_receiver()
+    void invoke_receiver(uint8_t src_stream_id = StreamDefs::INVALID_STREAM_ID)
     {
         recvRequest_->data()->reset(
-            &sink_, node_, NodeHandle(otherNode_->node_id()));
+            &sink_, node_, NodeHandle(otherNode_->node_id()), src_stream_id);
         recvRequest_->data()->done.reset(&sn_);
-        run_x([this](){
-            receiver_.send(recvRequest_->ref());
-        });
+        run_x([this]() { receiver_.send(recvRequest_->ref()); });
     }
 
     void invoke_sender()
@@ -171,12 +167,12 @@ TEST_F(StreamReceiverTest, test_e2e_onewindow_plus_small)
 
 TEST_F(StreamReceiverTest, test_e2e_multiwindow)
 {
-    e2e_test(3*2048);
+    e2e_test(3 * 2048);
 }
 
 TEST_F(StreamReceiverTest, test_e2e_multiwindow_frac)
 {
-    e2e_test(3*2048 + 577);
+    e2e_test(3 * 2048 + 577);
 }
 
 /// Tests when the stream receiver data sink is not consuming the data fast
@@ -241,7 +237,7 @@ TEST_F(StreamReceiverTest, blocked_sink)
     EXPECT_EQ("abcdefghij", sink_.data);
     // The last buffer is not handed over to the queue yet.
     EXPECT_EQ(1u, sink_.q.pending());
-    
+
     EXPECT_TRUE(bn.is_done());
     EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
 
@@ -249,7 +245,7 @@ TEST_F(StreamReceiverTest, blocked_sink)
     sender_.close_stream();
     wait();
     EXPECT_EQ(StreamSender::CLOSING, sender_.get_state());
-    
+
     EXPECT_EQ(2u, sink_.q.pending());
     EXPECT_EQ("abcdefghijk", sink_.data);
 
@@ -258,5 +254,59 @@ TEST_F(StreamReceiverTest, blocked_sink)
     EXPECT_EQ(0u, sink_.q.pending());
 }
 
+/// Runs two streams at the same time.
+TEST_F(StreamReceiverTest, two_streams)
+{
+    StreamSenderCan sender2 {&g_service, otherIfCan_.get(), otherNode_.get()};
+    StreamReceiverCan receiver2 {ifCan_.get(), LOCAL_STREAM_ID + 1};
+    CollectData sink2;
+    sink2.keepBuffers_ = true;
+    wait();
+
+    // Starts receiver 2.
+    auto rreq = invoke_flow_nowait(&receiver2, &sink2, node_,
+        NodeHandle(otherNode_->node_id()), SRC_STREAM_ID + 1);
+
+    // Starts receiver 1.
+    invoke_receiver(SRC_STREAM_ID);
+
+    wait();
+
+    // Starts sender 2.
+    sender2.start_stream(NodeHandle(node_->node_id()), SRC_STREAM_ID + 1)
+        .set_proposed_window_size(2);
+
+    wait();
+
+    // Starts sender 1.
+    invoke_sender();
+
+    // Pumps data through sender 2.
+    string p = "abcdefghijk";
+    auto *b = sender_.alloc();
+    b->data()->set_from(&p);
+    sender2.send(b);
+    wait();
+
+    // Sender 2 is blocked.
+    EXPECT_EQ(2u, sink2.q.pending());
+
+    // Runs the entire sender 1.
+    send_data(3576);
+    sender_.close_stream();
+    wait();
+
+    // Finishes sender 2.
+    sender2.close_stream();
+    while (sink2.q.pending())
+    {
+        sink2.qtake();
+        wait();
+    }
+
+    // Verifies that the right data arrived.
+    EXPECT_EQ(dataSent_, sink_.data);
+    EXPECT_EQ(p, sink2.data);
+}
 
 } // namespace openlcb
