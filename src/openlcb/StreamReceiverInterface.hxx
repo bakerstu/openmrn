@@ -58,6 +58,7 @@ struct StreamReceiveRequest : public CallableFlowRequestBase
     {
         reset_base();
         target_ = nullptr;
+        localStreamId_ = StreamDefs::INVALID_STREAM_ID;
     }
 
     /// Starts the stream receiver and prepares for an announced stream. This

@@ -54,17 +54,21 @@ public:
     /// @param interface the CAN interface that owns this stream receiver.
     /// @param local_stream_id what should be the local stream ID for the
     /// streams used for this receiver.
-    StreamReceiverCan(IfCan *interface, uint8_t local_stream_id)
-        : CallableFlow<StreamReceiveRequest>(interface)
-        , assignedStreamId_(local_stream_id)
-        , streamClosed_(0)
-    { }
+    StreamReceiverCan(IfCan *interface, uint8_t local_stream_id);
 
-    void send(Buffer<StreamReceiveRequest>* msg, unsigned prio) override;
+    ~StreamReceiverCan();
+    
+    void send(Buffer<StreamReceiveRequest>* msg, unsigned prio = 0) override;
     
 private:
     /// Helper function for send() when a stream has to start synchronously.
     void announced_stream();
+
+    /// This state is not used, but it's virtual abstract.
+    Action entry() override
+    {
+        return return_ok();
+    }
 
     Action wait_for_wakeup()
     {
@@ -72,6 +76,11 @@ private:
     }
 
     Action wakeup();
+
+    /// Invoked when we get the stream initiate request. Initializes receive
+    /// buffers and sends stream init response.
+    Action init_reply();
+    Action init_buffer_ready();
 
     /// Invoked when the stream window runs out. Maybe waits for the data to be
     /// consumed below the low-watermark.
@@ -146,6 +155,8 @@ private:
 
     /// 1 if we received the stream complete message.
     uint8_t streamClosed_ : 1;
+    /// 1 if we received the stream init request message.
+    uint8_t pendingInit_ : 1;
 
 }; // class StreamReceiver
 

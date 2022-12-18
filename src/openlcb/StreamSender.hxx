@@ -43,6 +43,7 @@
 #include "openlcb/StreamDefs.hxx"
 #include "utils/ByteBuffer.hxx"
 #include "utils/LimitedPool.hxx"
+#include "utils/format_utils.hxx"
 
 namespace openlcb
 {
@@ -250,6 +251,7 @@ private:
         node_->iface()->addressed_message_write_flow()->send(b);
         sleeping_ = true;
         state_ = INITIATING;
+        LOG(ALWAYS, "wait for stream init reply");
         return sleep_and_call(&timer_, SEC_TO_NSEC(STREAM_INIT_TIMEOUT_SEC),
             STATE(received_init_stream));
     }
@@ -258,6 +260,7 @@ private:
     /// at the local interface.
     void stream_initiate_replied(Buffer<GenMessage> *message)
     {
+        LOG(ALWAYS, "stream init reply: %s", string_to_hex(message->data()->payload).c_str());
         auto rb = get_buffer_deleter(message);
         if (message->data()->dstNode != node_ ||
             !node_->iface()->matching_node(dst_, message->data()->src))
@@ -291,6 +294,7 @@ private:
     /// handler.
     Action received_init_stream()
     {
+        LOG(ALWAYS, "stream init reply wait done");
         node_->iface()->dispatcher()->unregister_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
             Defs::MTI_EXACT);
