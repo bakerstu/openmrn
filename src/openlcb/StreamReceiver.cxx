@@ -128,6 +128,7 @@ void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
     }
 
     streamWindowRemaining_ = request()->streamWindowSize_;
+    totalByteCount_ = 0;
 
     node()->iface()->dispatcher()->register_handler(
         &streamCompleteHandler_, Defs::MTI_STREAM_COMPLETE, Defs::MTI_EXACT);
@@ -141,7 +142,6 @@ void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
 
 void StreamReceiverCan::handle_bytes_received(const uint8_t *data, size_t len)
 {
-    LOG(INFO, "got %u bytes", (unsigned)len);
     while (len > 0)
     {
         if (!currentBuffer_)
@@ -235,6 +235,8 @@ void StreamReceiverCan::handle_stream_complete(Buffer<GenMessage> *message)
         streamWindowRemaining_ = 0;
     }
 
+    LOG(INFO, "close request: sz %u count %u rem %u", (unsigned)total_size, (unsigned)totalByteCount_, (unsigned)streamWindowRemaining_);
+    
     if (!streamWindowRemaining_)
     {
         // wake up the flow.
@@ -361,10 +363,11 @@ StateFlowBase::Action StreamReceiverCan::window_reached()
 StateFlowBase::Action StreamReceiverCan::have_raw_buffer()
 {
     lastBuffer_.reset(get_allocation_result<RawData>(nullptr));
+    streamWindowRemaining_ = request()->streamWindowSize_;
     send_message(node(), Defs::MTI_STREAM_PROCEED, request()->src_,
         StreamDefs::create_data_proceed(
             request()->srcStreamId_, request()->localStreamId_));
-    return call_immediately(STATE(wait_for_wakeup));
+    return wait_for_wakeup();
 }
 
 } // namespace openlcb

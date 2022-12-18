@@ -58,6 +58,9 @@ public:
 
     ~StreamReceiverCan();
     
+    /// Implements the flow interface for the request API. This is not based on
+    /// entry() because the registration has to be synchrnous with the calling
+    /// of send().
     void send(Buffer<StreamReceiveRequest>* msg, unsigned prio = 0) override;
     
 private:
@@ -75,6 +78,7 @@ private:
         return wait_and_call(STATE(wakeup));
     }
 
+    /// Root of the flow when something happens in the handlers.
     Action wakeup();
 
     /// Invoked when we get the stream initiate request. Initializes receive
@@ -116,14 +120,14 @@ private:
         return request()->dst_;
     }
 
-    /// helper class for incoming message for stream initiate.
+    /// Helper class for incoming message for stream initiate.
     MessageHandler::GenericHandler streamInitiateHandler_ {
         this, &StreamReceiverCan::handle_stream_initiate};
 
     class StreamDataHandler;
     friend class StreamDataHandler;
 
-    /// helper class for incoming message for stream initiate.
+    /// Helper class for incoming message for stream complete.
     MessageHandler::GenericHandler streamCompleteHandler_ {
         this, &StreamReceiverCan::handle_stream_complete};
 
