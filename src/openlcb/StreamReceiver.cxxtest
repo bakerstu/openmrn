@@ -1,0 +1,262 @@
+#include "openlcb/StreamReceiver.hxx"
+
+#include "openlcb/StreamSender.hxx"
+#include "utils/async_datagram_test_helper.hxx"
+
+namespace openlcb
+{
+
+static constexpr uint8_t LOCAL_STREAM_ID = 0x3a;
+static constexpr uint8_t SRC_STREAM_ID = 0xa7;
+
+string get_payload_data(size_t length)
+{
+    string r(length, 0);
+    for (size_t i = 0; i < length; ++i)
+    {
+        r[i] = i & 0xff;
+    }
+    return r;
+}
+
+struct CollectData : public ByteSink
+{
+    /// Bytes that arrived so far.
+    string data;
+    /// Holds buffers.
+    Q q;
+    /// if true, the buffers are added to the queue instead of unref'ed.
+    bool keepBuffers_{false};
+
+    void send(ByteBuffer *msg, unsigned prio) override
+    {
+        auto rb = get_buffer_deleter(msg);
+        data.append((char *)msg->data()->data_, msg->data()->size());
+        if (keepBuffers_)
+        {
+            q.insert(msg->ref());
+        }
+    }
+
+    /// Takes a single element from the queue, and releases it.
+    string qtake()
+    {
+        ByteBuffer *b = (ByteBuffer *)q.next(0);
+        HASSERT(b != nullptr);
+        string ret((char *)b->data()->data_, b->data()->size());
+        b->unref();
+        return ret;
+    }
+};
+
+class StreamReceiverTestBase : public TwoNodeDatagramTest
+{
+protected:
+    StreamReceiverTestBase()
+    {
+        setup_other_node(true);
+        wait();
+        clear_expect(false);
+        run_x([this](){
+            ifCan_->send_global_alias_enquiry(node_);
+        });
+        wait();
+    }
+};
+
+class StreamReceiverTest : public StreamReceiverTestBase
+{
+protected:
+    StreamReceiverTest()
+    {
+        mainBufferPool->alloc(&recvRequest_);
+    }
+
+    ~StreamReceiverTest()
+    {
+        do
+        {
+            wait();
+        } while (sender_.shutdown());
+        wait();
+    }
+
+    void invoke_receiver()
+    {
+        recvRequest_->data()->reset(
+            &sink_, node_, NodeHandle(otherNode_->node_id()));
+        recvRequest_->data()->done.reset(&sn_);
+        run_x([this](){
+            receiver_.send(recvRequest_->ref());
+        });
+    }
+
+    void invoke_sender()
+    {
+        sender_.start_stream(NodeHandle(node_->node_id()), SRC_STREAM_ID);
+    }
+
+    void send_data(size_t bytes)
+    {
+        dataSent_ = get_payload_data(bytes);
+        auto *b = sender_.alloc();
+        b->data()->set_from(&dataSent_);
+        SyncNotifiable sn;
+        BarrierNotifiable bn(&sn);
+        b->set_done(&bn);
+        sender_.send(b);
+        sn.wait_for_notification();
+    }
+
+    void e2e_test(size_t bytes, int window_size = -1)
+    {
+        invoke_receiver();
+        invoke_sender();
+        if (window_size > 0)
+        {
+            sender_.set_proposed_window_size(window_size);
+        }
+        send_data(bytes);
+        sender_.close_stream();
+        wait();
+        EXPECT_EQ(dataSent_, sink_.data);
+    }
+
+    StreamReceiverCan receiver_ {ifCan_.get(), LOCAL_STREAM_ID};
+    SyncNotifiable sn_;
+    CollectData sink_;
+    BufferPtr<StreamReceiveRequest> recvRequest_;
+
+    StreamSenderCan sender_ {&g_service, otherIfCan_.get(), otherNode_.get()};
+    string dataSent_;
+};
+
+TEST_F(StreamReceiverTest, create)
+{ }
+
+TEST_F(StreamReceiverTest, get_id)
+{
+    auto rb = invoke_flow(&receiver_);
+    EXPECT_TRUE(rb->data()->done.is_done());
+    EXPECT_EQ(LOCAL_STREAM_ID, rb->data()->localStreamId_);
+}
+
+TEST_F(StreamReceiverTest, test_e2e_small)
+{
+    print_all_packets();
+    clear_expect(false);
+    e2e_test(100);
+}
+
+TEST_F(StreamReceiverTest, test_e2e_onewindow)
+{
+    e2e_test(2048);
+}
+
+TEST_F(StreamReceiverTest, test_e2e_smallwindow)
+{
+    e2e_test(35, 35);
+}
+
+TEST_F(StreamReceiverTest, test_e2e_smallwindow_frac)
+{
+    print_all_packets();
+    e2e_test(45, 35);
+}
+
+TEST_F(StreamReceiverTest, test_e2e_onewindow_plus_small)
+{
+    e2e_test(2048 + 5);
+}
+
+TEST_F(StreamReceiverTest, test_e2e_multiwindow)
+{
+    e2e_test(3*2048);
+}
+
+TEST_F(StreamReceiverTest, test_e2e_multiwindow_frac)
+{
+    e2e_test(3*2048 + 577);
+}
+
+/// Tests when the stream receiver data sink is not consuming the data fast
+/// enough.
+TEST_F(StreamReceiverTest, blocked_sink)
+{
+    sink_.keepBuffers_ = true;
+    invoke_receiver();
+    invoke_sender();
+    sender_.set_proposed_window_size(2); // very short window
+
+    dataSent_ = "abcdefghijk";
+    auto *b = sender_.alloc();
+    b->data()->set_from(&dataSent_);
+    BarrierNotifiable bn(EmptyNotifiable::DefaultInstance());
+    b->set_done(&bn);
+    sender_.send(b);
+
+    wait();
+
+    // First stop: after two window lengths.
+    EXPECT_EQ("abcd", sink_.data);
+    EXPECT_FALSE(bn.is_done());
+    EXPECT_EQ(2u, sink_.q.pending());
+
+    // Takes one buffer entry.
+    string r = sink_.qtake();
+    EXPECT_EQ("ab", r);
+    EXPECT_EQ(1u, sink_.q.pending());
+
+    wait(); // stream will backfill the buffer.
+    EXPECT_EQ("abcdef", sink_.data); // 6 total bytes now
+    EXPECT_FALSE(bn.is_done());
+    EXPECT_EQ(2u, sink_.q.pending());
+
+    r = sink_.qtake();
+    EXPECT_EQ("cd", r);
+    EXPECT_EQ(1u, sink_.q.pending());
+
+    wait(); // stream will backfill the buffer.
+    EXPECT_EQ("abcdefgh", sink_.data); // 8 total bytes now
+    EXPECT_FALSE(bn.is_done());
+    EXPECT_EQ(2u, sink_.q.pending());
+    EXPECT_EQ(StreamSender::FULL, sender_.get_state());
+
+    r = sink_.qtake();
+    EXPECT_EQ("ef", r);
+    EXPECT_EQ(1u, sink_.q.pending());
+    
+
+    wait(); // stream will backfill the buffer.
+    EXPECT_EQ("abcdefghij", sink_.data); // 8 total bytes now
+    EXPECT_FALSE(bn.is_done());
+    EXPECT_EQ(2u, sink_.q.pending());
+    EXPECT_EQ(StreamSender::FULL, sender_.get_state());
+
+    r = sink_.qtake();
+    EXPECT_EQ("gh", r);
+    EXPECT_EQ(1u, sink_.q.pending());
+
+    wait(); // Now the last byte was transmitted but close was not.
+    EXPECT_EQ("abcdefghij", sink_.data);
+    // The last buffer is not handed over to the queue yet.
+    EXPECT_EQ(1u, sink_.q.pending());
+    
+    EXPECT_TRUE(bn.is_done());
+    EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
+
+    // Flushes the data in the buffer.
+    sender_.close_stream();
+    wait();
+    EXPECT_EQ(StreamSender::CLOSING, sender_.get_state());
+    
+    EXPECT_EQ(2u, sink_.q.pending());
+    EXPECT_EQ("abcdefghijk", sink_.data);
+
+    EXPECT_EQ("ij", sink_.qtake());
+    EXPECT_EQ("k", sink_.qtake());
+    EXPECT_EQ(0u, sink_.q.pending());
+}
+
+
+} // namespace openlcb
