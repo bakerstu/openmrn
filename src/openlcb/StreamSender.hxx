@@ -82,6 +82,9 @@ public:
         : StreamSender(service)
         , ifCan_(iface)
         , node_(node)
+        , sleeping_(false)
+        , requestClose_(false)
+        , requestInit_(false)
     { }
 
     /// Initiates using the stream sender. May be called only on idle stream
