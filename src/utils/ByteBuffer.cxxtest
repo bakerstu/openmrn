@@ -19,8 +19,10 @@ TEST(ByteChunkTest, assign_advance)
 {
     ByteChunk ch;
     ch.set_from(alloc_raw(), 0);
+    EXPECT_EQ(1024u, ch.free_space());
     EXPECT_EQ(6u, ch.append("abcdef", 6));
     EXPECT_EQ(6u, ch.size());
+    EXPECT_EQ(1018u, ch.free_space());
     EXPECT_EQ((uint8_t)'a', ch.data_[0]);
     EXPECT_EQ((uint8_t)'b', ch.data_[1]);
     EXPECT_EQ((uint8_t)'f', ch.data_[5]);
