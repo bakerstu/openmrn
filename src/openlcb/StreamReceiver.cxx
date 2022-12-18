@@ -81,8 +81,6 @@ void StreamReceiverCan::send(Buffer<StreamReceiveRequest> *msg, unsigned prio)
 void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
 {
     auto rb = get_buffer_deleter(message);
-    LOG(INFO, "%p: stream init %s", this,
-        string_to_hex(message->data()->payload).c_str());
 
     if (message->data()->dstNode != node() ||
         !node()->iface()->matching_node(request()->src_, message->data()->src))
@@ -135,8 +133,6 @@ void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
 
     node()->iface()->dispatcher()->register_handler(
         &streamCompleteHandler_, Defs::MTI_STREAM_COMPLETE, Defs::MTI_EXACT);
-
-    LOG(INFO, "%p: stop listen for init", this);
 
     node()->iface()->dispatcher()->unregister_handler(&streamInitiateHandler_,
         Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
@@ -216,9 +212,6 @@ void StreamReceiverCan::handle_stream_complete(Buffer<GenMessage> *message)
     {
         // Different stream.
         LOG(INFO, "stream complete different stream");
-        LOG(INFO, "stream complete different stream %02x %02x %02x %02x",
-            message->data()->payload[0], message->data()->payload[1],
-            request()->srcStreamId_, request()->localStreamId_);
         return;
     }
 
@@ -241,9 +234,6 @@ void StreamReceiverCan::handle_stream_complete(Buffer<GenMessage> *message)
     {
         streamWindowRemaining_ = 0;
     }
-
-    LOG(INFO, "close request: sz %u count %u rem %u", (unsigned)total_size,
-        (unsigned)totalByteCount_, (unsigned)streamWindowRemaining_);
 
     if (!streamWindowRemaining_)
     {
