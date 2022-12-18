@@ -36,19 +36,23 @@
 #ifndef _OPENLCB_STREAMRECEIVER_HXX_
 #define _OPENLCB_STREAMRECEIVER_HXX_
 
+#include "openlcb/StreamReceiverInterface.hxx"
+
 #include "openlcb/IfCan.hxx"
 #include "openlcb/StreamDefs.hxx"
 #include "utils/ByteBuffer.hxx"
+#include "utils/LimitedPool.hxx"
 
 namespace openlcb
 {
 
-class StreamReceiverCan
+class StreamReceiverCan : public CallableFlow<StreamReceiveRequest>
 {
 public:
-    StreamReceiverCan(Service *service, IfCan *interface, Node *node)
-        : ifCan_(interface)
-        , node_(node)
+    StreamReceiverCan(IfCan *interface)
+        : CallableFlow<StreamReceiveRequest>(interface)
+        , ifCan_(interface)
+        , streamClosed_(0)
     { }
 
     /// Initializes the stream receiver and prepares for an announced
@@ -85,11 +89,56 @@ public:
     }
 
 private:
+    Action start_stream() {
+        return wait_for_wakeup();
+    }
+
+    Action wait_for_wakeup() {
+        return wait_and_call(STATE(wait_for_wakeup));
+    }
+    
+    Action wakeup() {
+        // Check reason for wakeup.
+        if (!streamWindowRemaining_) {
+            // Need to send an ack.
+            return call_immediately(STATE(window_reached));
+        }
+        return call_immediately(STATE(wait_for_wakeup));
+    }
+
+    /// Invoked when the stream window runs out. Maybe waits for the data to be
+    /// consumed below the low-watermark.
+    Action window_reached();
+    /// Called when the allocation of the raw buffer is successful. Sends off
+    /// the stream proceed message.
+    Action have_raw_buffer();
+    
     /// Invoked by the GenericHandler when a stream initiate message arrives.
     ///
     /// @param message buffer with stream initiate message.
     ///
     void handle_stream_initiate(Buffer<GenMessage> *message);
+
+    /// Handles data arriving from the network.
+    inline void handle_bytes_received(const uint8_t *data, size_t len);
+
+    /// Invoked by the GenericHandler when a stream complete message arrives.
+    ///
+    /// @param message buffer with stream complete message.
+    ///
+    void handle_stream_complete(Buffer<GenMessage> *message);
+
+    /// @return the local CAN interface.
+    IfCan *if_can()
+    {
+        return ifCan_;
+    }
+
+    /// @return the local node pointer.
+    Node *node()
+    {
+        return request()->dst_;
+    }
 
     /// helper class for incoming message for stream initiate.
     MessageHandler::GenericHandler streamInitiateHandler_ {
@@ -98,17 +147,31 @@ private:
     class StreamDataHandler;
     friend class StreamDataHandler;
 
+    /// helper class for incoming message for stream initiate.
+    MessageHandler::GenericHandler streamCompleteHandler_ {
+        this, &StreamReceiverCan::handle_stream_complete};
+    
     /// CAN-bus interface.
     IfCan *ifCan_;
-    /// Which node are we sending the outgoing data from. This is a local
-    /// virtual node.
-    Node *node_;
+
+    /// This pool is used to allocate one raw buffer per stream window
+    /// size. This pool therefore functions as a throttling for the data
+    /// producer. We have a fixed size of 2, meaning that we are allowing
+    /// ourselves to load 2x the stream window size into our RAM.
+    LimitedPool lastBufferPool_ {sizeof(RawBuffer), 2, rawBufferPool};
+
+    /// The buffer that we are currently filling with incoming data.
+    ByteBufferPtr currentBuffer_;
+
+    /// The buffer that will be the last one in this stream window. This buffer
+    /// comes from the lastBufferPool_ to function as throttling signal.
+    RawBufferPtr lastBuffer_;
 
     /// Helper object that receives the actual stream CAN frames.
     std::unique_ptr<StreamDataHandler> dataHandler_;
 
     /// Where to send the actually received data.
-    ByteSink *target_{nullptr};
+    ByteSink *target_ {nullptr};
 
     /// Source node that the data is coming from.
     NodeHandle src_;
@@ -124,6 +187,9 @@ private:
     uint8_t srcStreamId_;
     /// Stream ID at the destination (local) node. @todo fill in
     uint8_t localStreamId_;
+
+    /// 1 if we received the stream complete message.
+    uint8_t streamClosed_ : 1;
 
 }; // class StreamReceiver
 

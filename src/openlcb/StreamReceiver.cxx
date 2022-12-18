@@ -35,9 +35,11 @@
 
 #include "openlcb/StreamReceiver.hxx"
 
-#include "openlcb/Defs.hxx"
-#include "openlcb/CanDefs.hxx"
+#include <endian.h>
+
 #include "nmranet_config.h"
+#include "openlcb/CanDefs.hxx"
+#include "openlcb/Defs.hxx"
 
 namespace openlcb
 {
@@ -58,8 +60,8 @@ void StreamReceiverCan::announced_stream(NodeHandle src, uint8_t src_stream_id,
         streamWindowSize_ = max_window;
     }
     streamWindowRemaining_ = 0;
-    node_->iface()->dispatcher()->register_handler(
-        &streamInitiateHandler_, Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
+    node_->iface()->dispatcher()->register_handler(&streamInitiateHandler_,
+        Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
 }
 
 void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
@@ -109,12 +111,132 @@ void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
     }
 
     streamWindowRemaining_ = streamWindowSize_;
+    // Initialize the last buffer for the first window.
+    lastBufferPool_.alloc(&lastBuffer_);
+
+    node_->iface()->dispatcher()->register_handler(
+        &streamCompleteHandler_, Defs::MTI_STREAM_COMPLETE, Defs::MTI_EXACT);
+
     send_message(node_, Defs::MTI_STREAM_INITIATE_REPLY, message->data()->src,
         StreamDefs::create_initiate_response(
             streamWindowSize_, srcStreamId_, localStreamId_));
 
+    node_->iface()->dispatcher()->unregister_handler(&streamInitiateHandler_,
+        Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
+}
+
+void StreamReceiverCan::handle_bytes_received(const uint8_t *data, size_t len)
+{
+    while (len > 0)
+    {
+        if (!currentBuffer_)
+        {
+            // Need to allocate a new chunk first.
+            mainBufferPool->alloc(&currentBuffer_);
+            // Add an empty raw buffer to it.
+            RawBufferPtr rb;
+            if (streamWindowRemaining_ <= RawData::MAX_SIZE)
+            {
+                // We need to use the last raw buffer.
+                rb = std::move(lastBuffer_);
+            }
+            else
+            {
+                // We need a new (middle) raw buffer.
+                rawBufferPool->alloc(&rb);
+            }
+            currentBuffer_->data()->set_from(std::move(rb), 0);
+        }
+        size_t copied = currentBuffer_->data()->append(data, len);
+        data += copied;
+        len -= copied;
+        totalByteCount_ += copied;
+        if (copied <= streamWindowRemaining_)
+        {
+            streamWindowRemaining_ -= copied;
+        }
+        else
+        {
+            LOG(WARNING, "Unexpected stream bytes, window is negative.");
+            streamWindowRemaining_ = 0;
+        }
+        if (!currentBuffer_->data()->free_space() || !streamWindowRemaining_)
+        {
+            // Sends off the buffer and clears currentBuffer_.
+            target_->send(currentBuffer_.release());
+        }
+    } // while len > 0
+    if (!streamWindowRemaining_)
+    {
+        // wake up state flow to send ack to the stream
+        notify();
+    }
+}
+
+StateFlowBase::Action StreamReceiverCan::window_reached()
+{
+    return allocate_and_call<RawData>(
+        nullptr, STATE(have_raw_buffer), &lastBufferPool_);
+}
+
+StateFlowBase::Action StreamReceiverCan::have_raw_buffer()
+{
+    lastBuffer_.reset(get_allocation_result<RawData>(nullptr));
+    send_message(node_, Defs::MTI_STREAM_PROCEED, src_,
+        StreamDefs::create_data_proceed(srcStreamId_, localStreamId_));
+    return call_immediately(STATE(wait_for_wakeup));
+}
+
+void StreamReceiverCan::handle_stream_complete(Buffer<GenMessage> *message)
+{
+    auto rb = get_buffer_deleter(message);
+
+    if (message->data()->dstNode != node_ ||
+        !node_->iface()->matching_node(src_, message->data()->src))
+    {
+        LOG(INFO, "stream complete not for me");
+        // Not for me.
+        return;
+    }
+
+    if (message->data()->payload.size() < 2)
+    {
+        // Invalid arguments. Ignore.
+        return;
+    }
+
+    if (message->data()->payload[0] != srcStreamId_ ||
+        message->data()->payload[1] != localStreamId_)
+    {
+        // Different stream.
+        LOG(INFO, "stream complete different stream");
+        return;
+    }
+
+    uint32_t total_size = StreamDefs::INVALID_TOTAL_BYTE_COUNT;
+
+    if (message->data()->payload.size() >= 5)
+    {
+        memcpy(&total_size, message->data()->payload.data() + 2, 4);
+        total_size = be32toh(total_size);
+    }
+
+    streamClosed_ = true;
+
+    if (total_size != StreamDefs::INVALID_TOTAL_BYTE_COUNT)
+    {
+        // We have to wait for the remaining bytes to show up.
+        streamWindowRemaining_ = total_size - totalByteCount_;
+    }
+    else
+    {
+        streamWindowRemaining_ = 0;
+        // wake up the flow.
+        notify();
+    }
+
     node_->iface()->dispatcher()->unregister_handler(
-        &streamInitiateHandler_, Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
+        &streamCompleteHandler_, Defs::MTI_STREAM_COMPLETE, Defs::MTI_EXACT);
 }
 
 class StreamReceiverCan::StreamDataHandler : public IncomingFrameHandler
@@ -145,13 +267,16 @@ public:
     {
         auto rb = get_buffer_deleter(message);
 
-        if (message->data()->can_dlc <= 0) {
+        if (message->data()->can_dlc <= 0)
+        {
             return; // no payload
         }
-        if (message->data()->data[0] != parent_->localStreamId_) {
+        if (message->data()->data[0] != parent_->localStreamId_)
+        {
             return; // different stream
         }
-        
+        parent_->handle_bytes_received(
+            message->data()->data + 1, message->data()->can_dlc - 1);
     }
 
 private:

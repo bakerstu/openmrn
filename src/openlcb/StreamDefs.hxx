@@ -120,6 +120,22 @@ struct StreamDefs
         return p;
     }
 
+    /// Creates a Stream Data Proceed message payload.
+    ///
+    /// @param src_stream_id stream ID on the source side
+    /// @param dst_stream_id stream ID on the destination side
+    ///
+    /// @return Payload object for GenMessage
+    ///
+    static Payload create_data_proceed(
+        uint8_t src_stream_id, uint8_t dst_stream_id)
+    {
+        Payload p(2, 0);
+        p[0] = src_stream_id;
+        p[1] = dst_stream_id;
+        return p;
+    }
+
     /// Creates the payload for a stream close message.
     ///
     /// @param src_stream_id 1-byte SID stream identifier at the source side
