@@ -57,12 +57,12 @@ public:
     StreamReceiverCan(IfCan *interface, uint8_t local_stream_id);
 
     ~StreamReceiverCan();
-    
+
     /// Implements the flow interface for the request API. This is not based on
     /// entry() because the registration has to be synchrnous with the calling
     /// of send().
-    void send(Buffer<StreamReceiveRequest>* msg, unsigned prio = 0) override;
-    
+    void send(Buffer<StreamReceiveRequest> *msg, unsigned prio = 0) override;
+
 private:
     /// Helper function for send() when a stream has to start synchronously.
     void announced_stream();

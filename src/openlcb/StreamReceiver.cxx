@@ -137,7 +137,7 @@ void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
         &streamCompleteHandler_, Defs::MTI_STREAM_COMPLETE, Defs::MTI_EXACT);
 
     LOG(INFO, "%p: stop listen for init", this);
-    
+
     node()->iface()->dispatcher()->unregister_handler(&streamInitiateHandler_,
         Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
 
@@ -216,7 +216,9 @@ void StreamReceiverCan::handle_stream_complete(Buffer<GenMessage> *message)
     {
         // Different stream.
         LOG(INFO, "stream complete different stream");
-        LOG(INFO, "stream complete different stream %02x %02x %02x %02x", message->data()->payload[0], message->data()->payload[1], request()->srcStreamId_, request()->localStreamId_);
+        LOG(INFO, "stream complete different stream %02x %02x %02x %02x",
+            message->data()->payload[0], message->data()->payload[1],
+            request()->srcStreamId_, request()->localStreamId_);
         return;
     }
 
@@ -240,8 +242,9 @@ void StreamReceiverCan::handle_stream_complete(Buffer<GenMessage> *message)
         streamWindowRemaining_ = 0;
     }
 
-    LOG(INFO, "close request: sz %u count %u rem %u", (unsigned)total_size, (unsigned)totalByteCount_, (unsigned)streamWindowRemaining_);
-    
+    LOG(INFO, "close request: sz %u count %u rem %u", (unsigned)total_size,
+        (unsigned)totalByteCount_, (unsigned)streamWindowRemaining_);
+
     if (!streamWindowRemaining_)
     {
         // wake up the flow.
@@ -257,7 +260,8 @@ class StreamReceiverCan::StreamDataHandler : public IncomingFrameHandler
 public:
     StreamDataHandler(StreamReceiverCan *parent)
         : parent_(parent)
-    { }
+    {
+    }
 
     /// Starts registration for receiving stream data with the given aliases.
     void start(NodeAlias remote_alias, NodeAlias local_alias)
@@ -305,15 +309,18 @@ StreamReceiverCan::StreamReceiverCan(IfCan *interface, uint8_t local_stream_id)
     , assignedStreamId_(local_stream_id)
     , streamClosed_(0)
     , pendingInit_(0)
-{ }
+{
+}
 
 StreamReceiverCan::~StreamReceiverCan()
-{ }
+{
+}
 
 StateFlowBase::Action StreamReceiverCan::wakeup()
 {
     // Check reason for wakeup.
-    if (pendingInit_) {
+    if (pendingInit_)
+    {
         pendingInit_ = 0;
         return call_immediately(STATE(init_reply));
     }
@@ -351,7 +358,7 @@ StateFlowBase::Action StreamReceiverCan::init_buffer_ready()
     NodeHandle local(node()->node_id());
     node()->iface()->canonicalize_handle(&local);
     dataHandler_->start(request()->src_.alias, local.alias);
-    
+
     send_message(node(), Defs::MTI_STREAM_INITIATE_REPLY, request()->src_,
         StreamDefs::create_initiate_response(request()->streamWindowSize_,
             request()->srcStreamId_, request()->localStreamId_));

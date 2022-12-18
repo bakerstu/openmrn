@@ -302,14 +302,13 @@ public:
     /** Get a free item out of the pool. This is a synchronous call.
      * @param result Buffer pointer that will hold the result
      */
-    template <class BufferType>
-    void alloc(BufferPtr<BufferType> *result)
+    template <class BufferType> void alloc(BufferPtr<BufferType> *result)
     {
-        Buffer<BufferType>* p;
+        Buffer<BufferType> *p;
         alloc(&p);
         result->reset(p);
     }
-    
+
     /** Get a free item out of the pool.
      * @param flow Executable to notify upon allocation
      */

@@ -164,7 +164,4 @@ DECLARE_CONST(socket_listener_stack_size);
 /** Number of sockets to allow for @ref SocketListener backlog. */
 DECLARE_CONST(socket_listener_backlog);
 
-
-
-
 #endif /* _nmranet_config_h_ */

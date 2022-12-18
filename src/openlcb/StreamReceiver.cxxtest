@@ -128,7 +128,8 @@ protected:
 };
 
 TEST_F(StreamReceiverTest, create)
-{ }
+{
+}
 
 TEST_F(StreamReceiverTest, get_id)
 {
@@ -221,7 +222,6 @@ TEST_F(StreamReceiverTest, blocked_sink)
     r = sink_.qtake();
     EXPECT_EQ("ef", r);
     EXPECT_EQ(1u, sink_.q.pending());
-    
 
     wait(); // stream will backfill the buffer.
     EXPECT_EQ("abcdefghij", sink_.data); // 8 total bytes now

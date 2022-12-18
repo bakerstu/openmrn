@@ -87,8 +87,9 @@ struct StreamDefs
     ///
     /// @return a Payload object for a GenMessage.
     ///
-    static Payload create_initiate_request(
-        uint16_t max_buffer_size, bool has_ident, uint8_t src_stream_id, uint8_t dst_stream_id = INVALID_STREAM_ID)
+    static Payload create_initiate_request(uint16_t max_buffer_size,
+        bool has_ident, uint8_t src_stream_id,
+        uint8_t dst_stream_id = INVALID_STREAM_ID)
     {
         Payload p(6, 0);
         p[0] = max_buffer_size >> 8;

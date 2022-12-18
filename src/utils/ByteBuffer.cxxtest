@@ -34,7 +34,6 @@ TEST(ByteChunkTest, assign_advance)
     EXPECT_EQ((uint8_t)'f', ch.data_[4]);
 }
 
-
 TEST(ByteChunkTest, assign_external)
 {
     ByteChunk ch;

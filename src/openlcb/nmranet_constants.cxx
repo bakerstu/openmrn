@@ -73,4 +73,4 @@ DEFAULT_CONST(bulk_alias_num_can_frames, 20);
 
 /** Default number of bytes in maximum stream window size for { @ref
  * StreamReceiver }. */
-DEFAULT_CONST(stream_receiver_default_window_size, 2*1024);
+DEFAULT_CONST(stream_receiver_default_window_size, 2 * 1024);

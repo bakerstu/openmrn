@@ -91,8 +91,6 @@ struct CanDefs {
         CONTROL_PADDING_SHIFT  = 29  /**< pad out to a full 32-bit word */
     };
 
-
-
     // @TODO(balazs.racz) do we need this?
     typedef uint16_t CanMTI;
 

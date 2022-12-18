@@ -48,10 +48,14 @@
 namespace openlcb
 {
 
-class StreamSender : public StateFlow<ByteBuffer, QList<1>> {
+class StreamSender : public StateFlow<ByteBuffer, QList<1>>
+{
 public:
-    StreamSender(Service* s) :  StateFlow<ByteBuffer, QList<1>>(s) {}
-    
+    StreamSender(Service *s)
+        : StateFlow<ByteBuffer, QList<1>>(s)
+    {
+    }
+
     /// Describes the different states in the stream sender.
     enum StreamSenderState : uint8_t
     {
@@ -70,7 +74,6 @@ public:
         /// An error occurred.
         STATE_ERROR
     };
-
 };
 
 /// Helper class for sending stream data to a CAN interface.
@@ -85,7 +88,8 @@ public:
         , sleeping_(false)
         , requestClose_(false)
         , requestInit_(false)
-    { }
+    {
+    }
 
     /// Initiates using the stream sender. May be called only on idle stream
     /// senders.
@@ -185,7 +189,7 @@ public:
     {
         return errorCode_;
     }
-    
+
     /// Start of state machine, called when a buffer of data to send arrives
     /// from the application layer.
     Action entry()
@@ -258,12 +262,13 @@ private:
         return sleep_and_call(&timer_, SEC_TO_NSEC(STREAM_INIT_TIMEOUT_SEC),
             STATE(received_init_stream));
     }
-   
+
     /// Callback from GenHandler when a stream initiate reply message arrives
     /// at the local interface.
     void stream_initiate_replied(Buffer<GenMessage> *message)
     {
-        LOG(ALWAYS, "stream init reply: %s", string_to_hex(message->data()->payload).c_str());
+        LOG(ALWAYS, "stream init reply: %s",
+            string_to_hex(message->data()->payload).c_str());
         auto rb = get_buffer_deleter(message);
         if (message->data()->dstNode != node_ ||
             !node_->iface()->matching_node(dst_, message->data()->src))
@@ -350,7 +355,7 @@ private:
         state_ = CLOSING;
         return entry();
     }
-    
+
     /// Allocates a buffer for a CAN frame (for payload send).
     Action allocate_can_buffer()
     {

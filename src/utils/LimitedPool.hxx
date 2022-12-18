@@ -146,7 +146,7 @@ private:
     /// How many entries can still be allocated.
     uint16_t freeCount_;
     /// Where to allocate memory from.
-    Pool* basePool_;
+    Pool *basePool_;
     /// Async allocators waiting for free buffers.
     Q waitingQueue_;
 };
