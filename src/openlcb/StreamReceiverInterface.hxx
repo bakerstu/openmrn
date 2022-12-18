@@ -36,42 +36,77 @@
 #define _OPENLCB_STREAMRECEIVERINTERFACE_HXX_
 
 #include "executor/CallableFlow.hxx"
+#include "openlcb/Defs.hxx"
+#include "openlcb/StreamDefs.hxx"
+
+template <class T> class FlowInterface;
+template <class T> class Buffer;
+class ByteChunk;
+using ByteBuffer = Buffer<ByteChunk>;
+using ByteSink = FlowInterface<ByteBuffer>;
 
 namespace openlcb
 {
 
+class Node;
+
 struct StreamReceiveRequest : public CallableFlowRequestBase
 {
-    /// Gets a free local stream ID.
-    void reset();
-
-    /// Initiates a stream receive operation.
-    void reset(ByteSink *target, Node* dst, NodeHandle src, uint8_t src_stream_id,
-        uint8_t dst_stream_id, uint16_t max_window = 0)
+    /// Gets a local stream ID. This will be returning the assigned local
+    /// stream ID from the stream receiver object.
+    void reset()
     {
         reset_base();
+        target_ = nullptr;
+    }
+
+    /// Starts the stream receiver and prepares for an announced stream. This
+    /// is generally invoked by a handler of a higher level protocol where the
+    /// stream connection is arranged, such as the Memory Config Protocol.
+    ///
+    /// This call is processed synchronously. It is expected that shortly after
+    /// this call a stream init message will arrive to the local interface,
+    /// originating from the stream source node.
+    ///
+    /// @param src node handle of the source node that announced the stream.
+    /// @param src_stream_id stream ID on the source node side. It is possible
+    /// that this is not yet known at the time of this call, in which case
+    /// INVALID_STREAM_ID may be passed in.
+    /// @param dst_stream_id allocated stream ID at the local node. If it is
+    /// INVALID_STREAM_ID, then the assigned local ID is used by the stream
+    /// receiver.
+    /// @param max_window if non-zero, limits the maximum window size by the
+    /// local side. If zero, the default max window size will be taken from a
+    /// linker-time constant.
+    void reset(ByteSink *target, Node *dst, NodeHandle src,
+        uint8_t src_stream_id = StreamDefs::INVALID_STREAM_ID,
+        uint8_t dst_stream_id = StreamDefs::INVALID_STREAM_ID,
+        uint16_t max_window = 0)
+    {
+        reset_base();
+        HASSERT(target);
         target_ = target;
         src_ = src;
         dst_ = dst;
         srcStreamId_ = src_stream_id;
         localStreamId_ = dst_stream_id;
-        maxWindowSize_ = max_window;
+        streamWindowSize_ = max_window;
     }
 
     /// Where to send the incoming stream data.
-    ByteSink *target_;
+    ByteSink *target_ {nullptr};
     /// Remote node that will send us the stream.
-    NodeHandle src_;
+    NodeHandle src_ {0, 0};
     /// Local node for receiving the stream.
-    Node* dst_;
+    Node *dst_ {nullptr};
     /// Source (remote) stream ID. May be INVALID_STREAM_ID.
-    uint8_t srcStreamId_;
+    uint8_t srcStreamId_ {StreamDefs::INVALID_STREAM_ID};
     /// Local (target) stream ID. Must be valid.
-    uint8_t localStreamId_;
+    uint8_t localStreamId_ {StreamDefs::INVALID_STREAM_ID};
     /// if non-zero, limits the maximum window size by the
     /// local side. If zero, the default max window size will be taken from a
     /// linker-time constant.
-    uint16_t maxWindowSize_;
+    uint16_t streamWindowSize_ {0};
 };
 
 using StreamReceiverInterface = FlowInterface<Buffer<StreamReceiveRequest>>;

@@ -49,62 +49,29 @@ namespace openlcb
 class StreamReceiverCan : public CallableFlow<StreamReceiveRequest>
 {
 public:
-    StreamReceiverCan(IfCan *interface)
+    /// Constructor.
+    ///
+    /// @param interface the CAN interface that owns this stream receiver.
+    /// @param local_stream_id what should be the local stream ID for the
+    /// streams used for this receiver.
+    StreamReceiverCan(IfCan *interface, uint8_t local_stream_id)
         : CallableFlow<StreamReceiveRequest>(interface)
-        , ifCan_(interface)
+        , assignedStreamId_(local_stream_id)
         , streamClosed_(0)
     { }
 
-    /// Initializes the stream receiver and prepares for an announced
-    /// stream. This is generally invoked by a handler of a higher level
-    /// protocol where the stream connection is arranged, such as the Memory
-    /// Config Protocol.
-    ///
-    /// This is a synchronous call. It is expected that shortly after this call
-    /// a stream init message will arrive to the local interface, originating
-    /// from the stream source node.
-    ///
-    /// @param src node handle of the source node that announced the stream.
-    /// @param src_stream_id stream ID on the source node side. It is possible
-    /// that this is not yet known at the time of this call, in which case
-    /// INVALID_STREAM_ID may be passed in.
-    /// @param dst_stream_id allocated stream ID at the local node. Must be a
-    /// valid stream ID.
-    /// @param max_window if non-zero, limits the maximum window size by the
-    /// local side. If zero, the default max window size will be taken from a
-    /// linker-time constant.
-    ///
-    void announced_stream(NodeHandle src, uint8_t src_stream_id,
-        uint8_t dst_stream_id, uint16_t max_window = 0);
-
-    /// Defines where to send the received stream data.
-    ///
-    /// @param target the business logic that will consume the data that arrived
-    /// in the stream.
-    /// @return the current object.
-    StreamReceiverCan &set_sink(ByteSink *target)
-    {
-        target_ = target;
-        return *this;
-    }
-
-private:
-    Action start_stream() {
-        return wait_for_wakeup();
-    }
-
-    Action wait_for_wakeup() {
-        return wait_and_call(STATE(wait_for_wakeup));
-    }
+    void send(Buffer<StreamReceiveRequest>* msg, unsigned prio) override;
     
-    Action wakeup() {
-        // Check reason for wakeup.
-        if (!streamWindowRemaining_) {
-            // Need to send an ack.
-            return call_immediately(STATE(window_reached));
-        }
-        return call_immediately(STATE(wait_for_wakeup));
+private:
+    /// Helper function for send() when a stream has to start synchronously.
+    void announced_stream();
+
+    Action wait_for_wakeup()
+    {
+        return wait_and_call(STATE(wakeup));
     }
+
+    Action wakeup();
 
     /// Invoked when the stream window runs out. Maybe waits for the data to be
     /// consumed below the low-watermark.
@@ -112,7 +79,7 @@ private:
     /// Called when the allocation of the raw buffer is successful. Sends off
     /// the stream proceed message.
     Action have_raw_buffer();
-    
+
     /// Invoked by the GenericHandler when a stream initiate message arrives.
     ///
     /// @param message buffer with stream initiate message.
@@ -131,7 +98,7 @@ private:
     /// @return the local CAN interface.
     IfCan *if_can()
     {
-        return ifCan_;
+        return static_cast<IfCan *>(service());
     }
 
     /// @return the local node pointer.
@@ -150,9 +117,6 @@ private:
     /// helper class for incoming message for stream initiate.
     MessageHandler::GenericHandler streamCompleteHandler_ {
         this, &StreamReceiverCan::handle_stream_complete};
-    
-    /// CAN-bus interface.
-    IfCan *ifCan_;
 
     /// This pool is used to allocate one raw buffer per stream window
     /// size. This pool therefore functions as a throttling for the data
@@ -170,23 +134,15 @@ private:
     /// Helper object that receives the actual stream CAN frames.
     std::unique_ptr<StreamDataHandler> dataHandler_;
 
-    /// Where to send the actually received data.
-    ByteSink *target_ {nullptr};
-
-    /// Source node that the data is coming from.
-    NodeHandle src_;
     /// How many bytes we have transmitted in this stream so far.
     size_t totalByteCount_;
 
-    /// Total stream window size. @todo fill in
-    uint16_t streamWindowSize_;
     /// Remaining stream window size. @todo fill in
     uint16_t streamWindowRemaining_;
 
-    /// Stream ID at the source node. @todo fill in
-    uint8_t srcStreamId_;
-    /// Stream ID at the destination (local) node. @todo fill in
-    uint8_t localStreamId_;
+    /// Unique stream ID at the destination (local) node, assigned at
+    /// construction time.
+    const uint8_t assignedStreamId_;
 
     /// 1 if we received the stream complete message.
     uint8_t streamClosed_ : 1;

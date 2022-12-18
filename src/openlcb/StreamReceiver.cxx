@@ -44,32 +44,41 @@
 namespace openlcb
 {
 
-void StreamReceiverCan::announced_stream(NodeHandle src, uint8_t src_stream_id,
-    uint8_t dst_stream_id, uint16_t max_window)
+void StreamReceiverCan::announced_stream()
 {
-    src_ = src;
-    node_->iface()->canonicalize_handle(&src_);
-    srcStreamId_ = src_stream_id;
-    localStreamId_ = dst_stream_id;
-    if (!max_window)
+    node()->iface()->canonicalize_handle(&request()->src_);
+    if (!request()->streamWindowSize_)
     {
-        streamWindowSize_ = config_stream_receiver_default_window_size();
-    }
-    else
-    {
-        streamWindowSize_ = max_window;
+        request()->streamWindowSize_ =
+            config_stream_receiver_default_window_size();
     }
     streamWindowRemaining_ = 0;
-    node_->iface()->dispatcher()->register_handler(&streamInitiateHandler_,
+    node()->iface()->dispatcher()->register_handler(&streamInitiateHandler_,
         Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
+}
+
+void StreamReceiverCan::send(Buffer<StreamReceiveRequest> *msg, unsigned prio)
+{
+    reset_message(msg, prio);
+
+    if (!request()->target_)
+    {
+        // asking for stream ID.
+        request()->localStreamId_ = assignedStreamId_;
+        return_buffer();
+        return;
+    }
+
+    announced_stream();
+    wait_for_wakeup();
 }
 
 void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
 {
     auto rb = get_buffer_deleter(message);
 
-    if (message->data()->dstNode != node_ ||
-        !node_->iface()->matching_node(src_, message->data()->src))
+    if (message->data()->dstNode != node() ||
+        !node()->iface()->matching_node(request()->src_, message->data()->src))
     {
         LOG(INFO, "stream init not for me");
         // Not for me.
@@ -81,14 +90,14 @@ void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
     if (payload.size() >= 5)
     {
         incoming_src_id = payload[4];
-        if (srcStreamId_ != StreamDefs::INVALID_STREAM_ID &&
-            srcStreamId_ != incoming_src_id)
+        if (request()->srcStreamId_ != StreamDefs::INVALID_STREAM_ID &&
+            request()->srcStreamId_ != incoming_src_id)
         {
             LOG(INFO, "stream init ID not for me");
             // Not for me.
             return;
         }
-        srcStreamId_ = incoming_src_id;
+        request()->srcStreamId_ = incoming_src_id;
     }
     if (payload.size() < 5 ||
         incoming_src_id == StreamDefs::INVALID_STREAM_ID ||
@@ -96,32 +105,33 @@ void StreamReceiverCan::handle_stream_initiate(Buffer<GenMessage> *message)
     {
         // Invalid arguments. This will synchronously allocate a buffer and
         // send the message to the interface.
-        send_message(node_, Defs::MTI_STREAM_INITIATE_REPLY,
+        send_message(node(), Defs::MTI_STREAM_INITIATE_REPLY,
             message->data()->src,
             StreamDefs::create_initiate_response(0, incoming_src_id,
-                localStreamId_, StreamDefs::STREAM_ERROR_INVALID_ARGS));
-        node_->iface()->dispatcher()->unregister_handler(
+                request()->localStreamId_,
+                StreamDefs::STREAM_ERROR_INVALID_ARGS));
+        node()->iface()->dispatcher()->unregister_handler(
             &streamInitiateHandler_, Defs::MTI_STREAM_INITIATE_REQUEST,
             Defs::MTI_EXACT);
         return;
     }
-    if (proposed_window < streamWindowSize_)
+    if (proposed_window < request()->streamWindowSize_)
     {
-        streamWindowSize_ = proposed_window;
+        request()->streamWindowSize_ = proposed_window;
     }
 
-    streamWindowRemaining_ = streamWindowSize_;
+    streamWindowRemaining_ = request()->streamWindowSize_;
     // Initialize the last buffer for the first window.
     lastBufferPool_.alloc(&lastBuffer_);
 
-    node_->iface()->dispatcher()->register_handler(
+    node()->iface()->dispatcher()->register_handler(
         &streamCompleteHandler_, Defs::MTI_STREAM_COMPLETE, Defs::MTI_EXACT);
 
-    send_message(node_, Defs::MTI_STREAM_INITIATE_REPLY, message->data()->src,
-        StreamDefs::create_initiate_response(
-            streamWindowSize_, srcStreamId_, localStreamId_));
+    send_message(node(), Defs::MTI_STREAM_INITIATE_REPLY, message->data()->src,
+        StreamDefs::create_initiate_response(request()->streamWindowSize_,
+            request()->srcStreamId_, request()->localStreamId_));
 
-    node_->iface()->dispatcher()->unregister_handler(&streamInitiateHandler_,
+    node()->iface()->dispatcher()->unregister_handler(&streamInitiateHandler_,
         Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
 }
 
@@ -163,7 +173,7 @@ void StreamReceiverCan::handle_bytes_received(const uint8_t *data, size_t len)
         if (!currentBuffer_->data()->free_space() || !streamWindowRemaining_)
         {
             // Sends off the buffer and clears currentBuffer_.
-            target_->send(currentBuffer_.release());
+            request()->target_->send(currentBuffer_.release());
         }
     } // while len > 0
     if (!streamWindowRemaining_)
@@ -171,6 +181,21 @@ void StreamReceiverCan::handle_bytes_received(const uint8_t *data, size_t len)
         // wake up state flow to send ack to the stream
         notify();
     }
+}
+
+StateFlowBase::Action StreamReceiverCan::wakeup()
+{
+    // Check reason for wakeup.
+    if (!streamWindowRemaining_)
+    {
+        if (streamClosed_)
+        {
+            return return_ok();
+        }
+        // Need to send an ack.
+        return call_immediately(STATE(window_reached));
+    }
+    return wait();
 }
 
 StateFlowBase::Action StreamReceiverCan::window_reached()
@@ -182,8 +207,9 @@ StateFlowBase::Action StreamReceiverCan::window_reached()
 StateFlowBase::Action StreamReceiverCan::have_raw_buffer()
 {
     lastBuffer_.reset(get_allocation_result<RawData>(nullptr));
-    send_message(node_, Defs::MTI_STREAM_PROCEED, src_,
-        StreamDefs::create_data_proceed(srcStreamId_, localStreamId_));
+    send_message(node(), Defs::MTI_STREAM_PROCEED, request()->src_,
+        StreamDefs::create_data_proceed(
+            request()->srcStreamId_, request()->localStreamId_));
     return call_immediately(STATE(wait_for_wakeup));
 }
 
@@ -191,8 +217,8 @@ void StreamReceiverCan::handle_stream_complete(Buffer<GenMessage> *message)
 {
     auto rb = get_buffer_deleter(message);
 
-    if (message->data()->dstNode != node_ ||
-        !node_->iface()->matching_node(src_, message->data()->src))
+    if (message->data()->dstNode != node() ||
+        !node()->iface()->matching_node(request()->src_, message->data()->src))
     {
         LOG(INFO, "stream complete not for me");
         // Not for me.
@@ -205,8 +231,8 @@ void StreamReceiverCan::handle_stream_complete(Buffer<GenMessage> *message)
         return;
     }
 
-    if (message->data()->payload[0] != srcStreamId_ ||
-        message->data()->payload[1] != localStreamId_)
+    if (message->data()->payload[0] != request()->srcStreamId_ ||
+        message->data()->payload[1] != request()->localStreamId_)
     {
         // Different stream.
         LOG(INFO, "stream complete different stream");
@@ -231,11 +257,15 @@ void StreamReceiverCan::handle_stream_complete(Buffer<GenMessage> *message)
     else
     {
         streamWindowRemaining_ = 0;
+    }
+
+    if (!streamWindowRemaining_)
+    {
         // wake up the flow.
         notify();
     }
 
-    node_->iface()->dispatcher()->unregister_handler(
+    node()->iface()->dispatcher()->unregister_handler(
         &streamCompleteHandler_, Defs::MTI_STREAM_COMPLETE, Defs::MTI_EXACT);
 }
 
@@ -252,14 +282,14 @@ public:
         uint32_t frame_id = 0;
         CanDefs::set_datagram_fields(
             &frame_id, remote_alias, local_alias, CanDefs::STREAM_DATA);
-        parent_->ifCan_->frame_dispatcher()->register_handler(
+        parent_->if_can()->frame_dispatcher()->register_handler(
             this, frame_id, CanDefs::STREAM_DG_RECV_MASK);
     }
 
     /// Stops receiving stream data.
     void stop()
     {
-        parent_->ifCan_->frame_dispatcher()->unregister_handler_all(this);
+        parent_->if_can()->frame_dispatcher()->unregister_handler_all(this);
     }
 
     /// Handler callback for incoming messages.
@@ -271,7 +301,7 @@ public:
         {
             return; // no payload
         }
-        if (message->data()->data[0] != parent_->localStreamId_)
+        if (message->data()->data[0] != parent_->request()->localStreamId_)
         {
             return; // different stream
         }
