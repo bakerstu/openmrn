@@ -63,7 +63,7 @@ protected:
     void setup_helper(uint16_t max_buffer)
     {
         clear_expect(true);
-        expect_packet(":X19CC822AN0225FFFF0000AA;");
+        expect_packet(":X19CC822AN0225FFFF0000AAFF;");
         sender_.start_stream(other_handle(), 0xaa);
         wait();
         EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
@@ -117,7 +117,7 @@ TEST_F(StreamSenderTest, initiate)
 {
     clear_expect(true);
     EXPECT_EQ(StreamSender::IDLE, sender_.get_state());
-    expect_packet(":X19CC822AN0225FFFF0000AA;");
+    expect_packet(":X19CC822AN0225FFFF0000AAFF;");
     sender_.start_stream(other_handle(), 0xaa);
     wait();
     EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
@@ -127,7 +127,7 @@ TEST_F(StreamSenderTest, initiate_with_bufsize)
 {
     clear_expect(true);
     EXPECT_EQ(StreamSender::IDLE, sender_.get_state());
-    expect_packet(":X19CC822AN0225EF320000AA;");
+    expect_packet(":X19CC822AN0225EF320000AAFF;");
     sender_.start_stream(other_handle(), 0xaa).set_proposed_window_size(0xef32);
     wait();
     EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
@@ -136,7 +136,7 @@ TEST_F(StreamSenderTest, initiate_with_bufsize)
 TEST_F(StreamSenderTest, initiate_rejected)
 {
     clear_expect(true);
-    expect_packet(":X19CC822AN0225FFFF0000AA;");
+    expect_packet(":X19CC822AN0225FFFF0000AAFF;");
     sender_.start_stream(other_handle(), 0xaa);
     wait();
     EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
