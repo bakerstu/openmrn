@@ -166,7 +166,7 @@ TEST_F(StreamSenderTest, initiate_accepted_send_data)
 TEST_F(StreamSenderTest, buffer_full)
 {
     setup_helper(12);
-    
+
     EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
 
     expect_packet(":X1F22522AN55414243;");
@@ -175,10 +175,11 @@ TEST_F(StreamSenderTest, buffer_full)
     clear_expect(true);
 
     EXPECT_EQ(StreamSender::RUNNING, sender_.get_state());
-    
+
     expect_packet(":X1F22522AN554445464748494A;");
     expect_packet(":X1F22522AN554B4C;");
-    send_bytes("DEFGHIJKL" "MNOPQ");
+    send_bytes("DEFGHIJKL"
+               "MNOPQ");
     wait();
     clear_expect(true);
 
@@ -195,7 +196,7 @@ TEST_F(StreamSenderTest, buffer_full)
 TEST_F(StreamSenderTest, queueing)
 {
     setup_helper(8);
-    
+
     expect_packet(":X1F22522AN5530313233343536;");
     expect_packet(":X1F22522AN5537;");
     send_bytes("012345678");
@@ -303,7 +304,7 @@ TEST_F(StreamSenderTest, full_close)
     expect_packet(":X1F22522AN553031;");
     send_bytes("0123");
     sender_.close_stream();
-    
+
     wait();
     clear_expect(true);
     EXPECT_EQ(StreamSender::FULL, sender_.get_state());
@@ -331,7 +332,7 @@ TEST_F(StreamSenderTest, queued_close)
     expect_packet(":X1F22522AN553031;");
     send_bytes("012");
     sender_.close_stream();
-    
+
     wait();
     clear_expect(true);
     EXPECT_EQ(StreamSender::FULL, sender_.get_state());
@@ -344,6 +345,5 @@ TEST_F(StreamSenderTest, queued_close)
 
     EXPECT_EQ(StreamSender::CLOSING, sender_.get_state());
 }
-
 
 } // namespace openlcb

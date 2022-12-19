@@ -43,14 +43,19 @@
 #include "openlcb/StreamDefs.hxx"
 #include "utils/ByteBuffer.hxx"
 #include "utils/LimitedPool.hxx"
+#include "utils/format_utils.hxx"
 
 namespace openlcb
 {
 
-class StreamSender : public StateFlow<ByteBuffer, QList<1>> {
+class StreamSender : public StateFlow<ByteBuffer, QList<1>>
+{
 public:
-    StreamSender(Service* s) :  StateFlow<ByteBuffer, QList<1>>(s) {}
-    
+    StreamSender(Service *s)
+        : StateFlow<ByteBuffer, QList<1>>(s)
+    {
+    }
+
     /// Describes the different states in the stream sender.
     enum StreamSenderState : uint8_t
     {
@@ -69,7 +74,6 @@ public:
         /// An error occurred.
         STATE_ERROR
     };
-
 };
 
 /// Helper class for sending stream data to a CAN interface.
@@ -81,7 +85,11 @@ public:
         : StreamSender(service)
         , ifCan_(iface)
         , node_(node)
-    { }
+        , sleeping_(false)
+        , requestClose_(false)
+        , requestInit_(false)
+    {
+    }
 
     /// Initiates using the stream sender. May be called only on idle stream
     /// senders.
@@ -181,7 +189,7 @@ public:
     {
         return errorCode_;
     }
-    
+
     /// Start of state machine, called when a buffer of data to send arrives
     /// from the application layer.
     Action entry()
@@ -250,14 +258,17 @@ private:
         node_->iface()->addressed_message_write_flow()->send(b);
         sleeping_ = true;
         state_ = INITIATING;
+        LOG(VERBOSE, "wait for stream init reply");
         return sleep_and_call(&timer_, SEC_TO_NSEC(STREAM_INIT_TIMEOUT_SEC),
             STATE(received_init_stream));
     }
-   
+
     /// Callback from GenHandler when a stream initiate reply message arrives
     /// at the local interface.
     void stream_initiate_replied(Buffer<GenMessage> *message)
     {
+        LOG(VERBOSE, "stream init reply: %s",
+            string_to_hex(message->data()->payload).c_str());
         auto rb = get_buffer_deleter(message);
         if (message->data()->dstNode != node_ ||
             !node_->iface()->matching_node(dst_, message->data()->src))
@@ -291,6 +302,7 @@ private:
     /// handler.
     Action received_init_stream()
     {
+        LOG(VERBOSE, "stream init reply wait done");
         node_->iface()->dispatcher()->unregister_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
             Defs::MTI_EXACT);
@@ -343,7 +355,7 @@ private:
         state_ = CLOSING;
         return entry();
     }
-    
+
     /// Allocates a buffer for a CAN frame (for payload send).
     Action allocate_can_buffer()
     {

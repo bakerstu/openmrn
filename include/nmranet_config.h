@@ -154,6 +154,10 @@ DECLARE_CONST(node_init_identify);
  * time. */
 DECLARE_CONST(bulk_alias_num_can_frames);
 
+/** Default number of bytes in maximum stream window size for { @ref
+ * StreamReceiver }. */
+DECLARE_CONST(stream_receiver_default_window_size);
+
 /** Stack size for @ref SocketListener threads. */
 DECLARE_CONST(socket_listener_stack_size);
 

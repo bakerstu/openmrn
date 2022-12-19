@@ -57,12 +57,15 @@ struct RawData
 /// or QList objects.
 using RawBuffer = Buffer<RawData>;
 
+/// Holds a raw buffer.
+using RawBufferPtr = BufferPtr<RawData>;
+
 /// Holds a reference to a raw buffer, with the start and size information.
 struct ByteChunk
 {
     /// Owns a ref for a RawData buffer. If this is nullptr, then the data
     /// references by this chunk is externally owned.
-    BufferPtr<RawData> ownedData_;
+    RawBufferPtr ownedData_;
 
     /// Points to the first byte of the useful data.
     uint8_t *data_ {nullptr};
@@ -93,7 +96,7 @@ struct ByteChunk
     /// @param ofs From which offset we should take these bytes (default 0, may
     /// be omitted).
     ///
-    void set_from(BufferPtr<RawData> buf, size_t len, size_t ofs = 0)
+    void set_from(RawBufferPtr buf, size_t len, size_t ofs = 0)
     {
         ownedData_ = std::move(buf);
         size_ = len;
@@ -103,17 +106,67 @@ struct ByteChunk
     /// Overwrites this chunk from a string. WARNING: the ownership of the
     /// string is not transferred; the caller must make sure the string remains
     /// alive as long as this Chunk is ever in use (including all copies).
-    void set_from(const string* data)
+    void set_from(const string *data)
     {
         ownedData_.reset(); // no need for this anymore
         size_ = data->size();
-        data_ = (uint8_t*)data->data();
+        data_ = (uint8_t *)data->data();
     }
-    
+
+    /// Overwrites this chunk from an externally owned memory area. The caller
+    /// must make sure the memory area remains alive as long as this Chunk is
+    /// ever in use (including all copies).
+    /// @param data payload to set into this buffer. Must stay alive.
+    /// @param len number of bytes to use from that source.
+    void set_from(const void *data, size_t len)
+    {
+        ownedData_.reset(); // no need for this anymore
+        data_ = (uint8_t *)data;
+        size_ = len;
+    }
+
+    /// Adds more data to the end of the buffer. Requirement: this chunk must
+    /// be a data source, and there has to be an ownedData_ set.
+    /// @param data payload to copy
+    /// @param len how many bytes to add
+    /// @return number of bytes added; this is typically less than len when the
+    /// RawData buffer gets full. Can be zero.
+    size_t append(const void *data, size_t len)
+    {
+        HASSERT(ownedData_.get());
+        uint8_t *end = data_ + size_;
+        uint8_t *max_end = ownedData_->data()->payload + RawData::MAX_SIZE;
+        size_t max_len = max_end - end;
+        if (max_len < len)
+        {
+            len = max_len;
+        }
+        memcpy(end, data, len);
+        size_ += len;
+        return len;
+    }
+
+    /// @return how many free bytes are there in the underlying raw
+    /// buffer. This shall only be used by the source (who set ownedData_ to a
+    /// real raw buffer), and assumes that all bytes beyond the end are
+    /// free. Always zero if data is owned externally.
+    size_t free_space()
+    {
+        if (!ownedData_)
+        {
+            return 0;
+        }
+        uint8_t *end = data_ + size_;
+        uint8_t *max_end = ownedData_->data()->payload + RawData::MAX_SIZE;
+        size_t max_len = max_end - end;
+        return max_len;
+    }
 };
 
 /// Buffer type of references. These are enqueued for byte sinks.
 using ByteBuffer = Buffer<ByteChunk>;
+/// Buffer pointer type for references.
+using ByteBufferPtr = BufferPtr<ByteChunk>;
 
 template <class T> class FlowInterface;
 

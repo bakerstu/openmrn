@@ -39,10 +39,11 @@
 
 #include "utils/Buffer.hxx"
 
-/// Implementation of a Pool interface that takes memory from mainBufferPool but
-/// limits the number of buffers allocatable. Later async allocations will be
-/// blocked until an earlier buffer gets freed. Freed buffers go back to the
-/// main buffer pool, so no memory is captive in this object.
+/// Implementation of a Pool interface that takes memory from mainBufferPool
+/// (configurable) but limits the number of buffers allocatable. Later async
+/// allocations will be blocked until an earlier buffer gets freed. Freed
+/// buffers go back to the underlying pool, so no memory is captive in this
+/// object.
 class LimitedPool : public Pool, private Atomic
 {
 public:
@@ -50,9 +51,13 @@ public:
     /// allocated. Usually sizeof(Buffer<YourType>).
     /// @param entry_count max number of buffer that can be allocated via this
     /// pool.
-    LimitedPool(unsigned entry_size, unsigned entry_count)
+    /// @param base_pool where to allocate the memory for our objects. If
+    /// nullptr, uses the mainBufferPool.
+    LimitedPool(
+        unsigned entry_size, unsigned entry_count, Pool *base_pool = nullptr)
         : itemSize_(entry_size)
         , freeCount_(entry_count)
+        , basePool_(base_pool)
     {
     }
 
@@ -129,6 +134,10 @@ private:
     /// @return the pool from which we should get the actual memory we have.
     Pool *base_pool()
     {
+        if (basePool_)
+        {
+            return basePool_;
+        }
         return mainBufferPool;
     }
 
@@ -136,6 +145,8 @@ private:
     uint16_t itemSize_;
     /// How many entries can still be allocated.
     uint16_t freeCount_;
+    /// Where to allocate memory from.
+    Pool *basePool_;
     /// Async allocators waiting for free buffers.
     Q waitingQueue_;
 };
