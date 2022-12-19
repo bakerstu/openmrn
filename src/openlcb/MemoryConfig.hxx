@@ -325,6 +325,207 @@ public:
     }
 };
 
+class MemoryConfigHandlerBase : public DefaultDatagramHandler
+{
+protected:
+    enum
+    {
+        DATAGRAM_ID = DatagramDefs::CONFIGURATION,
+    };
+
+    MemoryConfigHandlerBase(DatagramService *if_dg)
+        : DefaultDatagramHandler(if_dg)
+        , responseFlow_(nullptr)
+    { }
+
+    typedef MemorySpace::address_t address_t;
+    typedef MemorySpace::errorcode_t errorcode_t;
+    
+    Action ok_response_sent() OVERRIDE
+    {
+        if (!response_.empty())
+        {
+            return allocate_and_call(STATE(client_allocated),
+                                     dg_service()->client_allocator());
+        }
+        else
+        {
+            release();
+            return call_immediately(STATE(cleanup));
+        }
+    }
+
+    Action cleanup()
+    {
+        HASSERT(!message());
+        return exit();
+    }
+
+    Action client_allocated()
+    {
+        responseFlow_ =
+            full_allocation_result(dg_service()->client_allocator());
+        return allocate_and_call(dg_service()->iface()->dispatcher(),
+                                 STATE(send_response_datagram));
+    }
+
+    Action send_response_datagram()
+    {
+        auto *b =
+            get_allocation_result(dg_service()->iface()->dispatcher());
+        b->set_done(b_.reset(this));
+        b->data()->reset(Defs::MTI_DATAGRAM, message()->data()->dst->node_id(),
+                         message()->data()->src, EMPTY_PAYLOAD);
+        b->data()->payload.swap(response_);
+        release(); /// @TODO(balazs.racz) Should this be here or elsewhere?
+        responseFlow_->write_datagram(b);
+        return wait_and_call(STATE(response_flow_complete));
+    }
+
+    Action response_flow_complete()
+    {
+        if (!(responseFlow_->result() & DatagramClient::OPERATION_SUCCESS))
+        {
+            LOG(WARNING,
+                "MemoryConfig: Failed to send response datagram. error code %x",
+                (unsigned)responseFlow_->result());
+        }
+        dg_service()->client_allocator()->typed_insert(responseFlow_);
+        return call_immediately(STATE(cleanup));
+    }
+
+
+    /// @return true iff we have a custom space
+    bool has_custom_space()
+    {
+        return !(in_bytes()[1] & ~MemoryConfigDefs::COMMAND_MASK);
+    }
+
+    /** Returns the memory space number, or -1 if the incoming datagram is of
+     * incorrect format. Assumes that the incoming datagram length is at least
+     * 2 (i.e., there is a command byte).*/
+    int get_space_number()
+    {
+        const uint8_t *bytes = in_bytes();
+        int len = message()->data()->payload.size();
+        uint8_t cmd = bytes[1];
+        // Handles special memory spaces FD, FE, FF.
+        if (!has_custom_space())
+        {
+            return MemoryConfigDefs::COMMAND_MASK +
+                   (cmd & ~MemoryConfigDefs::COMMAND_MASK);
+        }
+        if (len <= 6)
+        {
+            LOG(WARNING, "MemoryConfig: Incoming datagram asked for custom "
+                         "space but datagram not long enough. command=0x%02x, "
+                         "length=%d. Source {0x%012" PRIx64 ", %03x}",
+                cmd, len, message()->data()->src.id,
+                message()->data()->src.alias);
+            return -1;
+        }
+        return bytes[6];
+    }
+
+    /** Returns the read/write length from byte 6 or 7 of the incoming
+     * datagram, or -1 if the incoming datagram is of incorrect format. */
+    int get_read_length()
+    {
+        const uint8_t *bytes = in_bytes();
+        int len = message()->data()->payload.size();
+        int ofs;
+        uint8_t cmd = bytes[1];
+        // Handles special memory spaces FD, FE, FF.
+        if (!has_custom_space())
+        {
+            ofs = 6;
+        }
+        else
+        {
+            ofs = 7;
+        }
+        if (len <= ofs)
+        {
+            LOG(WARNING, "MemoryConfig::read_len: Incoming datagram not long "
+                         "enough. command=0x%02x, length=%d. Source "
+                         "{0x%012" PRIx64 ", %03x}",
+                cmd, len, message()->data()->src.id,
+                message()->data()->src.alias);
+            return -1;
+        }
+        return bytes[ofs] & 0x7F; // highest bit is reserved.
+    }
+
+    int get_write_length()
+    {
+        int len = message()->data()->payload.size();
+        return len - (has_custom_space() ? 7 : 6);
+    }
+
+    /** Returns the address from the incoming datagram. Assumes that length >=
+     * 6*/
+    address_t get_address()
+    {
+        const uint8_t *bytes = in_bytes();
+        address_t a = bytes[2];
+        a <<= 8;
+        a |= bytes[3];
+        a <<= 8;
+        a |= bytes[4];
+        a <<= 8;
+        a |= bytes[5];
+        return a;
+    }
+
+    /** Copies the address and memory space information from the incoming
+     * datagram to the outgoing datagram payload. Modifies the low bits of the
+     * response command byte, if needed. Callers are advised to set the base
+     * command value before calling this function. */
+    void set_address_and_space()
+    {
+        uint8_t *resp_bytes = out_bytes();
+        const uint8_t *bytes = in_bytes();
+        memcpy(resp_bytes + 2, bytes + 2, 4);
+        if (has_custom_space())
+        {
+            resp_bytes[6] = bytes[6];
+        }
+        else
+        {
+            resp_bytes[1] |= (bytes[1] & ~MemoryConfigDefs::COMMAND_MASK);
+        }
+    }
+
+    /// Sets the address in the response payload buffer.
+    void set_address(address_t address)
+    {
+        uint8_t *bytes = out_bytes();
+        bytes[5] = address & 0xff;
+        address >>= 8;
+        bytes[4] = address & 0xff;
+        address >>= 8;
+        bytes[3] = address & 0xff;
+        address >>= 8;
+        bytes[2] = address & 0xff;
+    }
+
+    /// @returns the response datagram payload buffer.
+    uint8_t *out_bytes()
+    {
+        return reinterpret_cast<uint8_t *>(&response_[0]);
+    }
+
+    /// @returns the request datagram payload buffer.
+    const uint8_t *in_bytes()
+    {
+        return reinterpret_cast<const uint8_t *>(
+            message()->data()->payload.data());
+    }
+
+    DatagramPayload response_; //< reply payload to send back.
+    DatagramClient *responseFlow_;
+    BarrierNotifiable b_;
+}; // class MemoryConfigHandlerBase
 
 /// Implementation of the Memory Access Configuration Protocol for OpenLCB.
 ///
@@ -332,18 +533,12 @@ public:
 /// node, or for an entire interface. Create your memory spaces using various
 /// children of the class @ref MemorySpace. Register the memory spaces using
 /// @ref registry().
-class MemoryConfigHandler : public DefaultDatagramHandler
+class MemoryConfigHandler : public MemoryConfigHandlerBase
 {
 public:
-    enum
-    {
-        DATAGRAM_ID = DatagramDefs::CONFIGURATION,
-    };
-
     /// node can be nullptr, and then the handler will be registered globally.
     MemoryConfigHandler(DatagramService *if_dg, Node *node, int registry_size)
-        : DefaultDatagramHandler(if_dg)
-        , responseFlow_(nullptr)
+        : MemoryConfigHandlerBase(if_dg)
         , registry_(registry_size)
     {
         dg_service()->registry()->insert(node, DATAGRAM_ID, this);
@@ -413,9 +608,6 @@ public:
     }
     
 private:
-    typedef MemorySpace::address_t address_t;
-    typedef MemorySpace::errorcode_t errorcode_t;
-
     Action entry() OVERRIDE
     {
         response_.clear();
@@ -560,58 +752,6 @@ private:
     /// @return openlcb error code, 0 on success
     uint16_t __attribute__((noinline)) app_handle_factory_reset(NodeID target);
 
-    Action ok_response_sent() OVERRIDE
-    {
-        if (!response_.empty())
-        {
-            return allocate_and_call(STATE(client_allocated),
-                                     dg_service()->client_allocator());
-        }
-        else
-        {
-            release();
-            return call_immediately(STATE(cleanup));
-        }
-    }
-
-    Action cleanup()
-    {
-        HASSERT(!message());
-        return exit();
-    }
-
-    Action client_allocated()
-    {
-        responseFlow_ =
-            full_allocation_result(dg_service()->client_allocator());
-        return allocate_and_call(dg_service()->iface()->dispatcher(),
-                                 STATE(send_response_datagram));
-    }
-
-    Action send_response_datagram()
-    {
-        auto *b =
-            get_allocation_result(dg_service()->iface()->dispatcher());
-        b->set_done(b_.reset(this));
-        b->data()->reset(Defs::MTI_DATAGRAM, message()->data()->dst->node_id(),
-                         message()->data()->src, EMPTY_PAYLOAD);
-        b->data()->payload.swap(response_);
-        release(); /// @TODO(balazs.racz) Should this be here or elsewhere?
-        responseFlow_->write_datagram(b);
-        return wait_and_call(STATE(response_flow_complete));
-    }
-
-    Action response_flow_complete()
-    {
-        if (!(responseFlow_->result() & DatagramClient::OPERATION_SUCCESS))
-        {
-            LOG(WARNING,
-                "MemoryConfig: Failed to send response datagram. error code %x",
-                (unsigned)responseFlow_->result());
-        }
-        dg_service()->client_allocator()->typed_insert(responseFlow_);
-        return call_immediately(STATE(cleanup));
-    }
 
     Action handle_options()
     {
@@ -867,37 +1007,6 @@ private:
         return respond_ok(DatagramClient::REPLY_PENDING);
     }
 
-    /// @return true iff we have a custom space
-    bool has_custom_space()
-    {
-        return !(in_bytes()[1] & ~MemoryConfigDefs::COMMAND_MASK);
-    }
-
-    /** Returns the memory space number, or -1 if the incoming datagram is of
-     * incorrect format. Assumes that the incoming datagram length is at least
-     * 2 (i.e., there is a command byte).*/
-    int get_space_number()
-    {
-        const uint8_t *bytes = in_bytes();
-        int len = message()->data()->payload.size();
-        uint8_t cmd = bytes[1];
-        // Handles special memory spaces FD, FE, FF.
-        if (!has_custom_space())
-        {
-            return MemoryConfigDefs::COMMAND_MASK +
-                   (cmd & ~MemoryConfigDefs::COMMAND_MASK);
-        }
-        if (len <= 6)
-        {
-            LOG(WARNING, "MemoryConfig: Incoming datagram asked for custom "
-                         "space but datagram not long enough. command=0x%02x, "
-                         "length=%d. Source {0x%012" PRIx64 ", %03x}",
-                cmd, len, message()->data()->src.id,
-                message()->data()->src.alias);
-            return -1;
-        }
-        return bytes[6];
-    }
 
     /** Looks up the memory space for the current datagram. Returns NULL if no
      * space was registered (for neither the current node, nor global). */
@@ -924,105 +1033,6 @@ private:
         }
         return space;
     }
-
-    /** Returns the read/write length from byte 6 or 7 of the incoming
-     * datagram, or -1 if the incoming datagram is of incorrect format. */
-    int get_read_length()
-    {
-        const uint8_t *bytes = in_bytes();
-        int len = message()->data()->payload.size();
-        int ofs;
-        uint8_t cmd = bytes[1];
-        // Handles special memory spaces FD, FE, FF.
-        if (!has_custom_space())
-        {
-            ofs = 6;
-        }
-        else
-        {
-            ofs = 7;
-        }
-        if (len <= ofs)
-        {
-            LOG(WARNING, "MemoryConfig::read_len: Incoming datagram not long "
-                         "enough. command=0x%02x, length=%d. Source "
-                         "{0x%012" PRIx64 ", %03x}",
-                cmd, len, message()->data()->src.id,
-                message()->data()->src.alias);
-            return -1;
-        }
-        return bytes[ofs] & 0x7F; // highest bit is reserved.
-    }
-
-    int get_write_length()
-    {
-        int len = message()->data()->payload.size();
-        return len - (has_custom_space() ? 7 : 6);
-    }
-
-    /** Returns the address from the incoming datagram. Assumes that length >=
-     * 6*/
-    address_t get_address()
-    {
-        const uint8_t *bytes = in_bytes();
-        address_t a = bytes[2];
-        a <<= 8;
-        a |= bytes[3];
-        a <<= 8;
-        a |= bytes[4];
-        a <<= 8;
-        a |= bytes[5];
-        return a;
-    }
-
-    /** Copies the address and memory space information from the incoming
-     * datagram to the outgoing datagram payload. Modifies the low bits of the
-     * response command byte, if needed. Callers are advised to set the base
-     * command value before calling this function. */
-    void set_address_and_space()
-    {
-        uint8_t *resp_bytes = out_bytes();
-        const uint8_t *bytes = in_bytes();
-        memcpy(resp_bytes + 2, bytes + 2, 4);
-        if (has_custom_space())
-        {
-            resp_bytes[6] = bytes[6];
-        }
-        else
-        {
-            resp_bytes[1] |= (bytes[1] & ~MemoryConfigDefs::COMMAND_MASK);
-        }
-    }
-
-    /// Sets the address in the response payload buffer.
-    void set_address(address_t address)
-    {
-        uint8_t *bytes = out_bytes();
-        bytes[5] = address & 0xff;
-        address >>= 8;
-        bytes[4] = address & 0xff;
-        address >>= 8;
-        bytes[3] = address & 0xff;
-        address >>= 8;
-        bytes[2] = address & 0xff;
-    }
-
-    /// @returns the response datagram payload buffer.
-    uint8_t *out_bytes()
-    {
-        return reinterpret_cast<uint8_t *>(&response_[0]);
-    }
-
-    /// @returns the request datagram payload buffer.
-    const uint8_t *in_bytes()
-    {
-        return reinterpret_cast<const uint8_t *>(
-            message()->data()->payload.data());
-    }
-
-    DatagramPayload response_; //< reply payload to send back.
-    DatagramClient *responseFlow_;
-    BarrierNotifiable b_;
 
     ///@todo (balazs.racz) implement lock/unlock.
     //NodeID lockNode_; //< Holds the node ID that locked us.
