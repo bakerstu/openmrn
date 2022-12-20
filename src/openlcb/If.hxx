@@ -52,6 +52,7 @@ namespace openlcb
 {
 
 class Node;
+class StreamTransport;
 
 /// Helper function to send an event report to the bus. Performs
 /// synchronous (dynamic) memory allocation so use it sparingly and when
@@ -338,8 +339,27 @@ public:
         txHook_ = std::move(hook);
     }
 
+    /// @return the object supporting stream transport in OpenLCB. May be null
+    /// if stream transport was not initialized for this interface. This is
+    /// typical when a small node is low on flash space for code.
+    StreamTransport *stream_transport()
+    {
+        return streamTransport_;
+    }
+
+    /// Adds the necessary object for this interface to support stream
+    /// transport. May be called only once per interface.
+    /// @param s the stream transport object. Ownership is not transferred. (If
+    /// needed, see add_owned_flow.)
+    void set_stream_transport(StreamTransport *s)
+    {
+        HASSERT(streamTransport_ == nullptr);
+        streamTransport_ = s;
+    }
+
 protected:
-    void remove_local_node_from_map(Node *node) {
+    void remove_local_node_from_map(Node *node)
+    {
         auto it = localNodes_.find(node->node_id());
         HASSERT(it != localNodes_.end());
         localNodes_.erase(it);
@@ -361,6 +381,9 @@ private:
 
     /// Local virtual nodes registered on this interface.
     VNodeMap localNodes_;
+
+    /// Accessor for the objects and variables for supporting stream transport.
+    StreamTransport* streamTransport_{nullptr};
 
     friend class VerifyNodeIdHandler;
 
