@@ -1,0 +1,5 @@
+
+#include "openlcb/MemoryConfigStream.hxx"
+
+#include "utils/test_main.hxx"
+
