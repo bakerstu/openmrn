@@ -36,20 +36,28 @@
 #define _OPENLCB_STREAMTRANSPORT_HXX_
 
 #include "utils/Destructable.hxx"
+#include "utils/Queue.hxx"
 
 #include <inttypes.h>
 
 namespace openlcb
 {
 
+class StreamSender;
+class IfCan;
+class If;
+
 /// Collects the objects needed to support streams on an OpenLCB interface.
 class StreamTransport : public Destructable
 {
 public:
-    StreamTransport()
-        : inUseSendStreamIds_(0)
-        , nextSendStreamId_(0)
-    { }
+    /// Constructor.
+    ///
+    /// @param if OpenLCB interface object.
+    StreamTransport(If *iface);
+
+    /// Destructor.
+    ~StreamTransport();
 
     /// @return an unused transmit stream source ID. If all transmit stream
     /// source IDs are in use, then returns 0xFF (which is an invalid stream
@@ -79,6 +87,20 @@ public:
         inUseSendStreamIds_ &= ~(1u << stream_id);
     }
 
+    /// Stream sender flows.
+    ///
+    /// These flows implement transmitting streams to a rmeote destination
+    /// node. When the flow is complete, the caller must return it to this
+    /// allocator.
+    TypedQAsync<StreamSender> *sender_allocator()
+    {
+        return &senders_;
+    }
+
+protected:
+    /// Stream Sender objects.
+    TypedQAsync<StreamSender> senders_;
+
 private:
     /// Largest stream ID we will be using for transmit stream's local IDs.
     static constexpr uint8_t MAX_SEND_STREAM_ID = 26;
@@ -87,6 +109,20 @@ private:
     unsigned inUseSendStreamIds_ : 27;
     /// Index of the next bit to check in the inUseSendStreamIds_.
     unsigned nextSendStreamId_ : 5;
+};
+
+/// CAN-specific implementation of the stream transport interface.
+class StreamTransportCan : public StreamTransport
+{
+public:
+    /// Constructor
+    ///
+    /// @param iface OPenLCB-CAN interface object pointer.
+    /// @param num_senders How many stream senders to instantiate.
+    StreamTransportCan(IfCan *iface, unsigned num_senders);
+
+    /// Destructor.
+    ~StreamTransportCan();
 };
 
 } // namespace openlcb
