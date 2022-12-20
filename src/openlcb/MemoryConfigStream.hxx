@@ -35,21 +35,35 @@
 #ifndef _OPENLCB_MEMORYCONFIGSTREAM_HXX_
 #define _OPENLCB_MEMORYCONFIGSTREAM_HXX_
 
-#include "openlcb/MemoryConfig.hxx"
 #include "openlcb/If.hxx"
-#include "openlcb/StreamTransport.hxx"
+#include "openlcb/MemoryConfig.hxx"
 #include "openlcb/StreamSender.hxx"
+#include "openlcb/StreamTransport.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
 /// This is a self-owned flow which reads an memory space into a stream.
 class MemorySpaceStreamReadFlow : public StateFlowBase
 {
 public:
+    /// Constructor. Does NOT transfer ownership; this class will delete
+    /// itself.
+    ///
+    /// @param node virtual nde where to send the stream from.
+    /// @param space memory space pointer
+    /// @param dst target node to send data to
+    /// @param dst_stream_id sream ID on the target node
+    /// @param ofs where to start reading from in the memory space
+    /// @param len how many bytes to send (0xFFFFFFFF to send until EOF)
+    /// @param started_cb will be invoked when the stream initiate reply
+    /// arrives and data can be sent to the stream.
     MemorySpaceStreamReadFlow(Node *node, MemorySpace *space, NodeHandle dst,
-        uint8_t dst_stream_id, uint32_t ofs, uint32_t len)
+        uint8_t dst_stream_id, uint32_t ofs, uint32_t len,
+        CallbackFn started_cb)
         : StateFlowBase(node->iface())
         , dst_(dst)
+        , startedCb_(std::move(started_cb))
         , space_(space)
         , dstStreamId_(dst_stream_id)
         , node_(node)
@@ -59,35 +73,144 @@ public:
         start_flow(STATE(initiate_stream));
     }
 
+    /// This callback function will be called with an error code, or 0 on
+    /// success.
+    using CallbackFn = std::function<void(uint16_t)>;
 
 private:
-    Action alloc_stream() {
-        return exit();
+    Action alloc_stream()
+    {
+        return allocate_and_call(
+            STATE(got_sender), stream_transport()->sender_allocator());
     }
 
-    Action initiate_stream() {
-        return exit();
-
+    Action got_sender()
+    {
+        sender_ =
+            full_allocation_result(stream_transport()->sender_allocator());
+        /// @todo the APIs are not on the right object in StreamSender, so we
+        /// have to do this down cast.
+        senderCan_ = dynamic_cast<StreamSenderCan *>(sender_);
+        HASSERT(senderCan_);
+        return call_immediately(STATE(initiate_stream));
     }
 
-    
+    Action initiate_stream()
+    {
+        srcStreamId_ = stream_transport()->get_send_stream_id();
+        senderCan_->start_stream(node_, dst_, srcStreamId_, dstStreamId_);
+        return call_immediately(STATE(wait_for_init_done));
+    }
+
+    Action wait_for_started()
+    {
+        auto state = senderCan_->get_state();
+        if (state == StreamSender::RUNNING)
+        {
+            startedCb_(0);
+            return call_immediately(STATE(alloc_buffer));
+        }
+        if (state == StreamSender::STATE_ERROR)
+        {
+            auto err = senderCan_->get_error();
+            LOG(INFO, "failed to start stream: 0x%04x", err);
+            startedCb_(err);
+            return call_immediately(STATE(done_stream));
+        }
+        return sleep_and_call(
+            &timer_, MSEC_TO_NSEC(3), STATE(wait_for_started));
+    }
+
+    Action alloc_buffer()
+    {
+        return allocate_and_call<RawData>(
+            nullptr, STATE(have_raw_buffer), &sendBufferPool_);
+    }
+
+    Action have_raw_buffer()
+    {
+        RawBufferPtr raw_buffer(get_allocation_result<RawData>(nullptr));
+        sendBuffer_ = get_buffer_deleter(sender_.alloc());
+        sendBuffer_.set_from(std::move(raw_buffer), 0);
+        return call_immediately(STATE(try_read));
+    }
+
+    Action try_read()
+    {
+        if (!len) {
+            sender_->send(sendBuffer_.release());
+            senderCan_->close_stream();
+            return call_immediately(STATE(wait_for_close));
+        }
+        size_t free = sendBuffer_.free_space();
+        if (!free) {
+            sender_->send(sendBuffer_.release());
+            return call_immediately(STATE(alloc_buffer));
+        }
+        size_t cnt = len_;
+        if (free < cnt) {
+            cnt = free;
+        }
+        uint8_t* ptr = sendBuffer_->data()->append_ptr();
+        MemorySpace::errorcode_t err;
+        size_t copied = space_->read(ofs, ptr, cnt, &err, this);
+        sendBuffer_->data()->append_complete(copied);
+        ofs_ += copied;
+        len_ -= copied;
+        if (err == MemorySpace::ERROR_AGAIN)
+        {
+            return wait();
+        }
+        if (err == MemoryConfigDefs::ERROR_OUT_OF_BOUNDS) {
+            sender_->send(sendBuffer_.release());
+            senderCan_->close_stream();
+            return call_immediately(STATE(wait_for_close));
+        }
+    }
+
+    Action done_stream()
+    {
+        senderCan_->clear();
+        stream_transport()->sender_allocator()->typed_insert(sender_);
+        sender_ = nullptr;
+        return delete_this();
+    }
+
+    StreamTransport *stream_transport()
+    {
+        return node_->iface()->stream_transport();
+    }
+
+    /// This pool is used to allocate raw buffers to read data into from the
+    /// memory space. By keeping the count limited we can ensure that we only
+    /// carry 2 kbytes of data in RAM before it gets dumped into the CAN-bus
+    /// packets.
+    LimitedPool sendBufferPool_ {sizeof(RawBuffer), 2, rawBufferPool};
+    /// We keep reading into this buffer from the memory space.
+    ByteBufferPtr sendBuffer_;
+    /// Helper object for waiting.
+    StateFlowTimer timer_ {this};
     /// Address to which we are sending the stream.
     NodeHandle dst_;
+    /// callback to invoke after start is successful.
+    CallbackFn startedCb_;
     /// Memory space we are reading.
-    MemorySpace* space_;
+    MemorySpace *space_;
+    /// Destination stream ID on the target node.
+    uint8_t srcStreamId_ {StreamDefs::INVALID_STREAM_ID};
     /// Destination stream ID on the target node.
     uint8_t dstStreamId_;
     /// Node from which we are sending the stream.
-    Node* node_;
+    Node *node_;
     /// Next byte to read.
     uint32_t ofs_;
     /// How many bytes are left to read. 0xFFFFFFFF if all bytes until EOF need
     /// to be read.
     uint32_t len_;
-    /// 
-    /// 
-    StreamSenderCan* senderCan_;
-    StreamSender* sender_;
+    ///
+    ///
+    StreamSenderCan *senderCan_;
+    StreamSender *sender_;
 };
 
 /// Handler for the stream read/write commands in the memory config protocol
@@ -116,7 +239,7 @@ public:
             {
                 return call_immediately(STATE(handle_read_stream));
             }
-            /// @todo handle write stream
+                /// @todo handle write stream
         }
         return exit();
     }
@@ -162,8 +285,9 @@ private:
             registry()->lookup(message()->data()->dst, space_number);
         if (!space)
         {
-            LOG(WARNING, "MemoryConfig: asked node 0x%012" PRIx64 " for unknown space "
-                         "%d. Source {0x%012" PRIx64 ", %03x}",
+            LOG(WARNING,
+                "MemoryConfig: asked node 0x%012" PRIx64 " for unknown space "
+                "%d. Source {0x%012" PRIx64 ", %03x}",
                 message()->data()->dst->node_id(), space_number,
                 message()->data()->src.id, message()->data()->src.alias);
             return nullptr;
@@ -176,7 +300,7 @@ private:
         }
         return space;
     }
-    
+
     Registry *registry()
     {
         return parent_->registry();
