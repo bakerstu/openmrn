@@ -97,11 +97,14 @@ public:
     /// @param dst Destination node ID to send the stream to.
     /// @param source_stream_id 8-bit stream ID to use on the this (the source)
     /// side.
+    /// @param dst_stream_id 8-bit stream ID to use on the this (the source)
+    /// side.
     ///
     /// @return *this for calling optional settings API commands.
     ///
-    StreamSenderCan &start_stream(
-        Node *src, NodeHandle dst, uint8_t source_stream_id)
+    StreamSenderCan &start_stream(Node *src, NodeHandle dst,
+        uint8_t source_stream_id,
+        uint8_t dst_stream_id = StreamDefs::INVALID_STREAM_ID)
     {
         DASSERT(state_ == IDLE);
         state_ = STARTED;
@@ -109,7 +112,7 @@ public:
         dst_ = dst;
         totalByteCount_ = 0;
         localStreamId_ = source_stream_id;
-        dstStreamId_ = 0xFF;
+        dstStreamId_ = dst_stream_id;
         HASSERT(sleeping_ == false);
         HASSERT(requestClose_ == 0);
         requestInit_ = true;
