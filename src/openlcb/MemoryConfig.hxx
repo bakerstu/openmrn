@@ -340,6 +340,8 @@ protected:
 
     typedef MemorySpace::address_t address_t;
     typedef MemorySpace::errorcode_t errorcode_t;
+    typedef TypedNodeHandlerMap<Node, MemorySpace> Registry;
+
     
     Action ok_response_sent() OVERRIDE
     {
@@ -549,8 +551,6 @@ public:
         /// @TODO(balazs.racz): unregister *this!
     }
 
-    typedef TypedNodeHandlerMap<Node, MemorySpace> Registry;
-
     Registry *registry()
     {
         return &registry_;
@@ -606,7 +606,13 @@ public:
         HASSERT(client_ == client);
         client_ = nullptr;
     }
-    
+
+    /// This will be called by the constructor of the stream handler plugin.
+    void set_stream_handler(DatagramHandlerFlow *stream_handler)
+    {
+        streamHandler_ = stream_handler;
+    }
+
 private:
     Action entry() OVERRIDE
     {
@@ -631,6 +637,15 @@ private:
                  MemoryConfigDefs::COMMAND_WRITE)
         {
             return call_immediately(STATE(handle_write));
+        }
+        else if ((((cmd & MemoryConfigDefs::COMMAND_MASK) ==
+                      MemoryConfigDefs::COMMAND_READ_STREAM) ||
+                     ((cmd & MemoryConfigDefs::COMMAND_MASK) ==
+                         MemoryConfigDefs::COMMAND_WRITE_STREAM)) &&
+            streamHandler_)
+        {
+            streamHandler_->send(transfer_message());
+            return exit();
         }
         switch (cmd)
         {
@@ -1041,11 +1056,15 @@ private:
     /// If there is a memory config client, we will forward response traffic to
     /// it.
     DatagramHandlerFlow* client_{nullptr};
+    /// If there is a handler for stream requests, we will forward the
+    /// respective traffic to it.
+    DatagramHandlerFlow* streamHandler_{nullptr};
 
     /** Offset withing the current write/read datagram. This does not include
      * the offset from the incoming datagram. */
     uint8_t currentOffset_;
 };
+
 
 } // namespace openlcb
 
