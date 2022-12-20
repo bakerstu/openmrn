@@ -81,10 +81,9 @@ public:
 class StreamSenderCan : public StreamSender
 {
 public:
-    StreamSenderCan(Service *service, IfCan *iface, Node *node)
+    StreamSenderCan(Service *service, IfCan *iface)
         : StreamSender(service)
         , ifCan_(iface)
-        , node_(node)
         , sleeping_(false)
         , requestClose_(false)
         , requestInit_(false)
@@ -94,16 +93,19 @@ public:
     /// Initiates using the stream sender. May be called only on idle stream
     /// senders.
     ///
+    /// @param src Source virtual node on the local interface.
     /// @param dst Destination node ID to send the stream to.
     /// @param source_stream_id 8-bit stream ID to use on the this (the source)
     /// side.
     ///
     /// @return *this for calling optional settings API commands.
     ///
-    StreamSenderCan &start_stream(NodeHandle dst, uint8_t source_stream_id)
+    StreamSenderCan &start_stream(
+        Node *src, NodeHandle dst, uint8_t source_stream_id)
     {
         DASSERT(state_ == IDLE);
         state_ = STARTED;
+        node_ = src;
         dst_ = dst;
         totalByteCount_ = 0;
         localStreamId_ = source_stream_id;
@@ -522,18 +524,18 @@ private:
     IfCan *ifCan_;
     /// Which node are we sending the outgoing data from. This is a local
     /// virtual node.
-    Node *node_;
+    Node *node_{nullptr};
     /// Destination node that we are sending to. It is important that the alias
     /// is filled in here.
     NodeHandle dst_;
     /// How many bytes we have transmitted in this stream so far.
-    size_t totalByteCount_;
+    size_t totalByteCount_{0};
     /// What state the current class is in.
     StreamSenderState state_ {IDLE};
     /// Stream ID at the source node. @todo fill in
-    uint8_t localStreamId_;
+    uint8_t localStreamId_{StreamDefs::INVALID_STREAM_ID};
     /// Stream ID at the destination node. @todo fill in
-    uint8_t dstStreamId_;
+    uint8_t dstStreamId_{StreamDefs::INVALID_STREAM_ID};
     /// True if we are waiting for the timer.
     uint8_t sleeping_ : 1;
     /// 1 if there is a pending close request.
@@ -541,15 +543,15 @@ private:
     /// 1 if there is a pending initialize request.
     uint8_t requestInit_ : 1;
     /// Flags from the remote node that we got in stream initiate reply
-    uint8_t streamFlags_;
+    uint8_t streamFlags_{0};
     /// More flags from the remote node that we got in stream initiate reply
-    uint8_t streamAdditionalFlags_;
+    uint8_t streamAdditionalFlags_{0};
     /// Total stream window size. @todo fill in
-    uint16_t streamWindowSize_;
+    uint16_t streamWindowSize_{StreamDefs::MAX_PAYLOAD};
     /// Remaining stream window size. @todo fill in
-    uint16_t streamWindowRemaining_;
+    uint16_t streamWindowRemaining_{0};
     /// When the stream process fails, this variable contains an error code.
-    uint32_t errorCode_;
+    uint32_t errorCode_{0};
     /// Source of buffers for outgoing CAN frames. Limtedpool is allocating and
     /// releasing to the mainBufferPool, but blocks when we exceed a certain
     /// number of allocations until some buffers get freed.

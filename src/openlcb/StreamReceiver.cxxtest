@@ -89,7 +89,8 @@ protected:
 
     void invoke_sender()
     {
-        sender_.start_stream(NodeHandle(node_->node_id()), SRC_STREAM_ID);
+        sender_.start_stream(
+            otherNode_.get(), NodeHandle(node_->node_id()), SRC_STREAM_ID);
     }
 
     void send_data(size_t bytes)
@@ -123,7 +124,7 @@ protected:
     CollectData sink_;
     BufferPtr<StreamReceiveRequest> recvRequest_;
 
-    StreamSenderCan sender_ {&g_service, otherIfCan_.get(), otherNode_.get()};
+    StreamSenderCan sender_ {&g_service, otherIfCan_.get()};
     string dataSent_;
 };
 
@@ -257,7 +258,7 @@ TEST_F(StreamReceiverTest, blocked_sink)
 /// Runs two streams at the same time.
 TEST_F(StreamReceiverTest, two_streams)
 {
-    StreamSenderCan sender2 {&g_service, otherIfCan_.get(), otherNode_.get()};
+    StreamSenderCan sender2 {&g_service, otherIfCan_.get()};
     StreamReceiverCan receiver2 {ifCan_.get(), LOCAL_STREAM_ID + 1};
     CollectData sink2;
     sink2.keepBuffers_ = true;
@@ -273,7 +274,9 @@ TEST_F(StreamReceiverTest, two_streams)
     wait();
 
     // Starts sender 2.
-    sender2.start_stream(NodeHandle(node_->node_id()), SRC_STREAM_ID + 1)
+    sender2
+        .start_stream(
+            otherNode_.get(), NodeHandle(node_->node_id()), SRC_STREAM_ID + 1)
         .set_proposed_window_size(2);
 
     wait();
