@@ -1,0 +1,38 @@
+#include "openlcb/StreamTransport.hxx"
+
+#include "utils/async_datagram_test_helper.hxx"
+
+namespace openlcb
+{
+
+class StreamTransportTest : public ::testing::Test
+{
+protected:
+    StreamTransport t_;
+
+    std::vector<uint8_t> get_stream_ids(unsigned count)
+    {
+        std::vector<uint8_t> ret;
+        for (unsigned i = 0; i < count; ++i)
+        {
+            ret.push_back(t_.get_send_stream_id());
+        }
+        return ret;
+    }
+};
+
+TEST_F(StreamTransportTest, send_id)
+{
+    EXPECT_THAT(get_stream_ids(10),
+        ::testing::ElementsAre(0, 1, 2, 3, 4, 5, 6, 7, 8, 9));
+    EXPECT_THAT(get_stream_ids(10),
+        ::testing::ElementsAre(10, 11, 12, 13, 14, 15, 16, 17, 18, 19));
+    t_.release_send_stream_id(10);
+    t_.release_send_stream_id(12);
+    t_.release_send_stream_id(14);
+    EXPECT_THAT(get_stream_ids(10),
+        ::testing::ElementsAre(20, 21, 22, 23, 24, 25, 26, 10, 12, 14));
+    EXPECT_THAT(get_stream_ids(3), ::testing::ElementsAre(255, 255, 255));
+}
+
+} // namespace openlcb
