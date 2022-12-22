@@ -8,7 +8,7 @@ namespace openlcb
 class StreamTransportTest : public AsyncNodeTest
 {
 protected:
-    StreamTransportCan t_{ifCan_.get(), 1};
+    StreamTransportCan t_{ifCan_.get(), 2};
 
     std::vector<uint8_t> get_stream_ids(unsigned count)
     {
@@ -34,5 +34,16 @@ TEST_F(StreamTransportTest, send_id)
         ::testing::ElementsAre(20, 21, 22, 23, 24, 25, 26, 10, 12, 14));
     EXPECT_THAT(get_stream_ids(3), ::testing::ElementsAre(255, 255, 255));
 }
+
+TEST_F(StreamTransportTest, allocate_sender)
+{
+    EXPECT_EQ(2u, t_.sender_allocator()->pending());
+}
+
+TEST_F(StreamTransportTest, registered)
+{
+    EXPECT_EQ(&t_, ifCan_->stream_transport());
+}
+
 
 } // namespace openlcb
