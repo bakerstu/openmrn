@@ -284,6 +284,16 @@ private:
         size_t len = message()->data()->payload.size();
         const uint8_t *bytes = in_bytes();
 
+        if (len < 8)
+        {
+            return respond_reject(Defs::ERROR_INVALID_ARGS);
+        }
+        MemorySpace *space = get_space();
+        if (!space)
+        {
+            return respond_reject(MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN);
+        }
+
         size_t stream_data_offset = 6;
         if (has_custom_space())
         {
