@@ -5,10 +5,10 @@
 namespace openlcb
 {
 
-class StreamTransportTest : public ::testing::Test
+class StreamTransportTest : public AsyncNodeTest
 {
 protected:
-    StreamTransport t_;
+    StreamTransportCan t_{ifCan_.get(), 1};
 
     std::vector<uint8_t> get_stream_ids(unsigned count)
     {

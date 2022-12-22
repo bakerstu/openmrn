@@ -68,6 +68,8 @@ struct MemoryConfigDefs
         COMMAND_READ_REPLY        = 0x50, /**< reply to read data from address space */
         COMMAND_READ_FAILED       = 0x58, /**< failed to read data from address space */
         COMMAND_READ_STREAM       = 0x60, /**< command to read data using a stream */
+        COMMAND_READ_STREAM_REPLY = 0x70, /**< reply to read data using a stream */
+        COMMAND_READ_STREAM_FAILED= 0x78, /**< failed to read data using a stream */
         COMMAND_MAX_FOR_RW        = 0x80, /**< command <= this value have fixed bit arrangement. */
         COMMAND_OPTIONS           = 0x80,
         COMMAND_OPTIONS_REPLY     = 0x82,

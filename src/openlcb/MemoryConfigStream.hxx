@@ -47,6 +47,10 @@ namespace openlcb
 class MemorySpaceStreamReadFlow : public StateFlowBase
 {
 public:
+    /// This callback function will be called with an error code, or 0 on
+    /// success.
+    using CallbackFn = std::function<void(uint16_t)>;
+
     /// Constructor. Does NOT transfer ownership; this class will delete
     /// itself.
     ///
@@ -73,9 +77,17 @@ public:
         start_flow(STATE(initiate_stream));
     }
 
-    /// This callback function will be called with an error code, or 0 on
-    /// success.
-    using CallbackFn = std::function<void(uint16_t)>;
+    /// @return the currently running flow's source stream ID.
+    uint8_t get_src_stream_id()
+    {
+        return srcStreamId_;
+    }
+
+    /// @return the currently running flow's destination stream ID.
+    uint8_t get_dst_stream_id()
+    {
+        return dstStreamId_;
+    }
 
 private:
     Action alloc_stream()
@@ -99,7 +111,7 @@ private:
     {
         srcStreamId_ = stream_transport()->get_send_stream_id();
         senderCan_->start_stream(node_, dst_, srcStreamId_, dstStreamId_);
-        return call_immediately(STATE(wait_for_init_done));
+        return call_immediately(STATE(wait_for_started));
     }
 
     Action wait_for_started()
@@ -130,30 +142,33 @@ private:
     Action have_raw_buffer()
     {
         RawBufferPtr raw_buffer(get_allocation_result<RawData>(nullptr));
-        sendBuffer_ = get_buffer_deleter(sender_.alloc());
-        sendBuffer_.set_from(std::move(raw_buffer), 0);
+        sendBuffer_ = get_buffer_deleter(sender_->alloc());
+        sendBuffer_->data()->set_from(std::move(raw_buffer), 0);
         return call_immediately(STATE(try_read));
     }
 
     Action try_read()
     {
-        if (!len) {
+        if (!len_)
+        {
             sender_->send(sendBuffer_.release());
             senderCan_->close_stream();
             return call_immediately(STATE(wait_for_close));
         }
-        size_t free = sendBuffer_.free_space();
-        if (!free) {
+        size_t free = sendBuffer_->data()->free_space();
+        if (!free)
+        {
             sender_->send(sendBuffer_.release());
             return call_immediately(STATE(alloc_buffer));
         }
         size_t cnt = len_;
-        if (free < cnt) {
+        if (free < cnt)
+        {
             cnt = free;
         }
-        uint8_t* ptr = sendBuffer_->data()->append_ptr();
+        uint8_t *ptr = sendBuffer_->data()->append_ptr();
         MemorySpace::errorcode_t err;
-        size_t copied = space_->read(ofs, ptr, cnt, &err, this);
+        size_t copied = space_->read(ofs_, ptr, cnt, &err, this);
         sendBuffer_->data()->append_complete(copied);
         ofs_ += copied;
         len_ -= copied;
@@ -161,11 +176,30 @@ private:
         {
             return wait();
         }
-        if (err == MemoryConfigDefs::ERROR_OUT_OF_BOUNDS) {
+        if (err == MemoryConfigDefs::ERROR_OUT_OF_BOUNDS)
+        {
             sender_->send(sendBuffer_.release());
             senderCan_->close_stream();
             return call_immediately(STATE(wait_for_close));
         }
+    }
+
+    Action wait_for_close()
+    {
+        auto state = senderCan_->get_state();
+        if (state == StreamSender::CLOSING && senderCan_->is_waiting())
+        {
+            // Sender is done and empty.
+            return call_immediately(STATE(done_stream));
+        }
+        if (state == StreamSender::STATE_ERROR && senderCan_->is_waiting())
+        {
+            // Sender has errored and consumed / thrown away all data.
+            // There is no place really to show the error.
+            LOG(INFO, "Stream sender error: 0x%04x", senderCan_->get_error());
+            return call_immediately(STATE(done_stream));
+        }
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(3), STATE(wait_for_close));
     }
 
     Action done_stream()
@@ -267,11 +301,59 @@ private:
             memcpy(&num_bytes_to_read, bytes + stream_data_offset + 2, 4);
             num_bytes_to_read = be32toh(num_bytes_to_read);
         }
+        streamErrorCode_ = Defs::ERROR_TEMPORARY;
+        // This object is self-owned, so it will run `delete this`.
         new MemorySpaceStreamReadFlow(message()->data()->dst, get_space(),
             message()->data()->src, dst_stream_id, get_address(),
-            num_bytes_to_read);
-        /// @todo
-        return exit();
+            num_bytes_to_read,
+            std::bind(&MemoryConfigStreamHandler::stream_start_cb, this,
+                std::placeholders::_1));
+        return wait_and_call(STATE(read_started));
+    }
+
+    /// Callback from the stream flow that tells us whether the stream was
+    /// successfully started (or not).
+    void stream_start_cb(uint16_t error)
+    {
+        streamErrorCode_ = error;
+        notify();
+    }
+
+    Action read_started()
+    {
+        uint16_t error = streamErrorCode_;
+        size_t response_data_offset = 6;
+        if (has_custom_space())
+        {
+            ++response_data_offset;
+        }
+        response_.reserve(response_data_offset + 6);
+        uint8_t *response_bytes = out_bytes();
+        response_bytes[0] = DATAGRAM_ID;
+        response_bytes[1] = error ? MemoryConfigDefs::COMMAND_READ_STREAM_FAILED
+                                  : MemoryConfigDefs::COMMAND_READ_STREAM_REPLY;
+        set_address_and_space();
+        if (error)
+        {
+            response_.resize(response_data_offset + 2);
+            response_bytes[response_data_offset] = error >> 8;
+            response_bytes[response_data_offset + 1] = error & 0xff;
+        }
+        else
+        {
+            response_.resize(response_data_offset + 2);
+            response_bytes[response_data_offset] =
+                readFlow_->get_src_stream_id();
+            response_bytes[response_data_offset + 1] =
+                readFlow_->get_dst_stream_id();
+            if (message()->data()->payload.size() >= response_data_offset + 6)
+            {
+                response_.resize(response_data_offset + 6);
+                memcpy(response_bytes + response_data_offset + 2,
+                    in_bytes() + response_data_offset + 2, 4);
+            }
+        }
+        return respond_ok(DatagramClient::REPLY_PENDING);
     }
 
     /** Looks up the memory space for the current datagram. Returns NULL if no
@@ -309,7 +391,17 @@ private:
 
     /// Parent object from which we are getting commands forwarded.
     MemoryConfigHandler *parent_;
-};
+
+    /// OpenLCB error code from the stream start.
+    uint16_t streamErrorCode_;
+
+    union
+    {
+        /// The flow that we created for reading the memory space into the
+        /// stream.
+        MemorySpaceStreamReadFlow *readFlow_;
+    };
+}; // class MemoryConfigStreamHandler
 
 } // namespace openlcb
 
