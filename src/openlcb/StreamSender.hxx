@@ -126,7 +126,11 @@ public:
     }
 
     /// Closes the stream when all the bytes are transferred.
-    void close_stream()
+    /// @param error_code 0 upon success. This code is intended to be
+    /// transferred in the stream close message, but that is not yet
+    /// implemented, because the draft protocol does not have provisions for
+    /// an error code at close.
+    void close_stream(uint16_t error_code = 0)
     {
         requestClose_ = true;
         trigger();
@@ -254,7 +258,7 @@ private:
         b->data()->reset(Defs::MTI_STREAM_INITIATE_REQUEST, node_->node_id(),
             dst_,
             StreamDefs::create_initiate_request(
-                streamWindowSize_, false, localStreamId_));
+                streamWindowSize_, false, localStreamId_, dstStreamId_));
 
         node_->iface()->dispatcher()->register_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,

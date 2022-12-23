@@ -74,7 +74,8 @@ public:
         , ofs_(ofs)
         , len_(len)
     {
-        start_flow(STATE(initiate_stream));
+        LOG(INFO, "starting streamed read, dst %02x", dstStreamId_);
+        start_flow(STATE(alloc_stream));
     }
 
     /// @return the currently running flow's source stream ID.
@@ -98,6 +99,7 @@ private:
 
     Action got_sender()
     {
+        LOG(INFO, "got sender");
         sender_ =
             full_allocation_result(stream_transport()->sender_allocator());
         /// @todo the APIs are not on the right object in StreamSender, so we
@@ -109,6 +111,7 @@ private:
 
     Action initiate_stream()
     {
+        LOG(INFO, "initiate");
         srcStreamId_ = stream_transport()->get_send_stream_id();
         senderCan_->start_stream(node_, dst_, srcStreamId_, dstStreamId_);
         return call_immediately(STATE(wait_for_started));
@@ -141,6 +144,8 @@ private:
 
     Action have_raw_buffer()
     {
+        LOG(INFO, "have raw buf len %u", (unsigned) len_);
+
         RawBufferPtr raw_buffer(get_allocation_result<RawData>(nullptr));
         sendBuffer_ = get_buffer_deleter(sender_->alloc());
         sendBuffer_->data()->set_from(std::move(raw_buffer), 0);
@@ -180,6 +185,17 @@ private:
         {
             sender_->send(sendBuffer_.release());
             senderCan_->close_stream();
+            return call_immediately(STATE(wait_for_close));
+        }
+        if (!err)
+        {
+            return again();
+        }
+        else
+        {
+            LOG(INFO, "error reading input stream: %04x", err);
+            sender_->send(sendBuffer_.release());
+            senderCan_->close_stream(err);
             return call_immediately(STATE(wait_for_close));
         }
     }
@@ -261,7 +277,8 @@ public:
 
     Action entry() override
     {
-        // The virification of the incoming data is already done by the calling
+        LOG(INFO, "stream req");
+        // The verification of the incoming data is already done by the calling
         // MemoryConfigHandler.
         response_.clear();
         const uint8_t *bytes = in_bytes();
@@ -275,7 +292,7 @@ public:
             }
                 /// @todo handle write stream
         }
-        return exit();
+        return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
     }
 
 private:
@@ -306,6 +323,7 @@ private:
 
         uint8_t dst_stream_id = bytes[stream_data_offset + 1];
         uint32_t num_bytes_to_read = 0xFFFFFFFFu;
+        LOG(INFO, "dst stream id %02x", dst_stream_id);
         if (len >= stream_data_offset + 6)
         {
             memcpy(&num_bytes_to_read, bytes + stream_data_offset + 2, 4);
@@ -313,8 +331,8 @@ private:
         }
         streamErrorCode_ = Defs::ERROR_TEMPORARY;
         // This object is self-owned, so it will run `delete this`.
-        new MemorySpaceStreamReadFlow(message()->data()->dst, get_space(),
-            message()->data()->src, dst_stream_id, get_address(),
+        readFlow_ = new MemorySpaceStreamReadFlow(message()->data()->dst,
+            get_space(), message()->data()->src, dst_stream_id, get_address(),
             num_bytes_to_read,
             std::bind(&MemoryConfigStreamHandler::stream_start_cb, this,
                 std::placeholders::_1));
@@ -338,6 +356,7 @@ private:
             ++response_data_offset;
         }
         response_.reserve(response_data_offset + 6);
+        response_.resize(response_data_offset + 2);
         uint8_t *response_bytes = out_bytes();
         response_bytes[0] = DATAGRAM_ID;
         response_bytes[1] = error ? MemoryConfigDefs::COMMAND_READ_STREAM_FAILED

@@ -1,5 +1,101 @@
 
 #include "openlcb/MemoryConfigStream.hxx"
 
-#include "utils/test_main.hxx"
+#include "utils/async_datagram_test_helper.hxx"
 
+namespace openlcb
+{
+
+string get_payload_data(size_t length)
+{
+    string r(length, 0);
+    for (size_t i = 0; i < length; ++i)
+    {
+        r[i] = i & 0xff;
+    }
+    return r;
+}
+
+string largePayload {get_payload_data(15000)};
+string smallPayload {get_payload_data(15)};
+ReadOnlyMemoryBlock largeBlock {largePayload.data(), (unsigned)largePayload.size()};
+ReadOnlyMemoryBlock smallBlock {smallPayload.data(), (unsigned)smallPayload.size()};
+
+class MemoryConfigTest : public TwoNodeDatagramTest
+{
+protected:
+    MemoryConfigTest()
+        : memoryOne_(&datagram_support_, nullptr, 10)
+    {
+        memoryOne_.registry()->insert(node_, 0x27, &largeBlock);
+        memoryOne_.registry()->insert(node_, 0x28, &smallBlock);
+        wait();
+        // Throw away the first two stream IDs.
+        t_.get_send_stream_id();
+        t_.get_send_stream_id();
+    }
+
+    ~MemoryConfigTest()
+    {
+        wait();
+    }
+
+    StreamTransportCan t_ {ifCan_.get(), 2};
+    MemoryConfigHandler memoryOne_ {&datagram_support_, nullptr, 10};
+    MemoryConfigStreamHandler memoryStream_ {&memoryOne_};
+};
+
+TEST_F(MemoryConfigTest, create)
+{ }
+
+TEST_F(MemoryConfigTest, manual)
+{
+    print_all_packets();
+    clear_expect(true);
+
+    //expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+#if 0    
+    // stream initiate request, SID 0x02 DID 0x37 buffer infinite
+    expect_packet(":X19CC822AN077CFFFF00000237;").WillOnce(::testing::InvokeWithoutArgs([this]() {
+        // stream initiate reply, accept, window 240, SID 0x02 DID 0x37
+        send_packet(":X1986877CN022A00F080000237;");
+    }));
+#endif
+    expect_packet(":X19CC822AN077CFFFF00000237;");
+    
+    // Read stream request, space 0x28, offset 2, length infinite, dst stream
+    // iD 0x37.
+    send_packet(":X1B22A77CN20600000000228FF;");
+    send_packet(":X1D22A77CN37FFFFFFFF;");
+
+    wait();
+    clear_expect(true);
+
+    // stream initiate reply, accept, window 240, SID 0x02 DID 0x37
+    send_packet(":X1986877CN022A00F080000237;");
+
+    //::testing::InSequence seq;
+    
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+    // datagram memory config read stream reply success, offset 2, len inf,
+    // space 0x28, SID 02 DID 37.
+    expect_packet(":X1B77C22AN2070000000022802;");
+    expect_packet(":X1D77C22AN37FFFFFFFF;").WillOnce(::testing::InvokeWithoutArgs([this]() {
+        // Datagram accept
+        send_packet(":X19A2877CN022A00;");
+    }));
+
+    // stream payloads
+    expect_packet(":X1F77C22AN3702030405060708;");
+    expect_packet(":X1F77C22AN37090A0B0C0D0E;");
+
+    // stream complete, SID 02 DID 37 sent bytes 13
+    expect_packet(":X198A822AN077C02370000000D;");
+    
+    twait();
+    
+    clear_expect(true);
+}
+
+} // namespace openlcb
