@@ -53,7 +53,7 @@ class StreamTransport : public Destructable
 public:
     /// Constructor.
     ///
-    /// @param if OpenLCB interface object.
+    /// @param iface OpenLCB interface object.
     StreamTransport(If *iface);
 
     /// Destructor.

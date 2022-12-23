@@ -207,9 +207,17 @@ struct CanDefs {
      */
     static bool is_cid_frame(uint32_t can_id)
     {
-        return ((can_id >> CAN_FRAME_TYPE_SHIFT) & 0x14) == 0x14;
+        return ((can_id >> CAN_FRAME_TYPE_SHIFT) & 0x1C) == 0x14;
     }
 
+    /** Tests if the incoming frame is a stream data send frame.
+     * @param can_id identifier to act upon
+     * @return true for Stream Data frame, false for any other frame.
+     */
+    static bool is_stream_frame(uint32_t can_id)
+    {
+        return ((can_id >> CAN_FRAME_TYPE_SHIFT) & 0xF) == 0xF;
+    }
 
     /** Set the MTI field value of the CAN ID.
      * @param can_id identifier to act upon, passed by reference

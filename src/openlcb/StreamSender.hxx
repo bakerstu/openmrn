@@ -293,12 +293,18 @@ private:
         streamFlags_ = payload[2];
         streamAdditionalFlags_ = payload[3];
         streamWindowSize_ = (payload[0] << 8) | payload[1];
+        // Grabs alias / node ID from the cache.
+        node_->iface()->canonicalize_handle(&dst_);
 
         // We save the remote alias here if we haven't got any yet.
         if (message->data()->src.alias)
         {
             dst_.alias = message->data()->src.alias;
         }
+
+        isLoopbackStream_ =
+            (node_->iface()->lookup_local_node_handle(dst_) != nullptr);
+
         sleeping_ = false;
         timer_.trigger();
     }
@@ -389,7 +395,14 @@ private:
         memcpy(&frame->data[1], payload(), len);
         advance(len);
 
-        ifCan_->frame_write_flow()->send(b);
+        if (!isLoopbackStream_)
+        {
+            ifCan_->frame_write_flow()->send(b);
+        }
+        else
+        {
+            ifCan_->loopback_frame_write_flow()->send(b);
+        }
         return entry();
     }
 
@@ -539,6 +552,9 @@ private:
     uint8_t localStreamId_{StreamDefs::INVALID_STREAM_ID};
     /// Stream ID at the destination node. @todo fill in
     uint8_t dstStreamId_{StreamDefs::INVALID_STREAM_ID};
+    /// Determines whether the stream transmission is happening to
+    /// localhost. Almost never true.
+    uint8_t isLoopbackStream_ : 1;
     /// True if we are waiting for the timer.
     uint8_t sleeping_ : 1;
     /// 1 if there is a pending close request.

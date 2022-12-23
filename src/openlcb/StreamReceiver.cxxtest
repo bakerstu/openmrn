@@ -312,4 +312,25 @@ TEST_F(StreamReceiverTest, two_streams)
     EXPECT_EQ(p, sink2.data);
 }
 
+/// Runs a localhost stream.
+TEST_F(StreamReceiverTest, localhost)
+{
+    print_all_packets();
+    // Reallocates the stream sender to the same interface.
+    sender_.~StreamSenderCan();
+    new (&sender_) StreamSenderCan(&g_service, ifCan_.get());
+    
+    recvRequest_->data()->reset(&sink_, node_, NodeHandle(node_->node_id()),
+        StreamDefs::INVALID_STREAM_ID);
+    recvRequest_->data()->done.reset(&sn_);
+    run_x([this]() { receiver_.send(recvRequest_->ref()); });
+
+    sender_.start_stream(node_, NodeHandle(node_->node_id()), SRC_STREAM_ID);
+
+    send_data(35);
+    sender_.close_stream();
+    wait();
+    EXPECT_EQ(dataSent_, sink_.data);
+}
+
 } // namespace openlcb
