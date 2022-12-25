@@ -199,6 +199,18 @@ public:
         return errorCode_;
     }
 
+    /// @return the stream SID (identifier on this node).
+    uint8_t get_src_stream_id()
+    {
+        return localStreamId_;
+    }
+
+    /// @return the stream DID (identifier on the receiving node).
+    uint8_t get_dst_stream_id()
+    {
+        return dstStreamId_;
+    }
+
     /// Start of state machine, called when a buffer of data to send arrives
     /// from the application layer.
     Action entry()
@@ -325,14 +337,14 @@ private:
         {
             if (streamFlags_ & StreamDefs::FLAG_PERMANENT_ERROR)
             {
-                return return_error(
-                    DatagramDefs::PERMANENT_ERROR | streamAdditionalFlags_,
+                return return_error(DatagramDefs::PERMANENT_ERROR |
+                        (streamFlags_ << 8) | streamAdditionalFlags_,
                     "Stream initiate request was denied (permanent error).");
             }
             else
             {
-                return return_error(
-                    Defs::ERROR_TEMPORARY | streamAdditionalFlags_,
+                return return_error(Defs::ERROR_TEMPORARY |
+                        (streamFlags_ << 8) | streamAdditionalFlags_,
                     "Stream initiate request was denied (temporary error).");
             }
         }
