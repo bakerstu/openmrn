@@ -140,12 +140,12 @@ TEST_F(StreamSenderTest, initiate_rejected)
     sender_.start_stream(node_, other_handle(), 0xaa);
     wait();
     EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
-    // Rejects with a weird error code.
-    send_packet(":X19868225N022A00004220AA55;");
+    // Rejects with a standard error code.
+    send_packet(":X19868225N022A00001234AA55;");
     wait();
     EXPECT_EQ(StreamSender::STATE_ERROR, sender_.get_state());
     // Translated into a permanent error.
-    EXPECT_EQ(0x1020, sender_.get_error());
+    EXPECT_EQ(0x1234, sender_.get_error());
 }
 
 TEST_F(StreamSenderTest, initiate_accepted)

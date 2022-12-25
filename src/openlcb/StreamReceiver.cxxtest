@@ -1,55 +1,11 @@
 #include "openlcb/StreamReceiver.hxx"
 
 #include "openlcb/StreamSender.hxx"
-#include "utils/async_datagram_test_helper.hxx"
+#include "utils/async_stream_test_helper.hxx"
 
-namespace openlcb
-{
+namespace openlcb {
 
-static constexpr uint8_t LOCAL_STREAM_ID = 0x3a;
-static constexpr uint8_t SRC_STREAM_ID = 0xa7;
-
-string get_payload_data(size_t length)
-{
-    string r(length, 0);
-    for (size_t i = 0; i < length; ++i)
-    {
-        r[i] = i & 0xff;
-    }
-    return r;
-}
-
-struct CollectData : public ByteSink
-{
-    /// Bytes that arrived so far.
-    string data;
-    /// Holds buffers.
-    Q q;
-    /// if true, the buffers are added to the queue instead of unref'ed.
-    bool keepBuffers_ {false};
-
-    void send(ByteBuffer *msg, unsigned prio) override
-    {
-        auto rb = get_buffer_deleter(msg);
-        data.append((char *)msg->data()->data_, msg->data()->size());
-        if (keepBuffers_)
-        {
-            q.insert(msg->ref());
-        }
-    }
-
-    /// Takes a single element from the queue, and releases it.
-    string qtake()
-    {
-        ByteBuffer *b = (ByteBuffer *)q.next(0);
-        HASSERT(b != nullptr);
-        string ret((char *)b->data()->data_, b->data()->size());
-        b->unref();
-        return ret;
-    }
-};
-
-class StreamReceiverTestBase : public TwoNodeDatagramTest
+class StreamReceiverTestBase : public StreamTestBase
 {
 protected:
     StreamReceiverTestBase()
@@ -67,7 +23,6 @@ class StreamReceiverTest : public StreamReceiverTestBase
 protected:
     StreamReceiverTest()
     {
-        mainBufferPool->alloc(&recvRequest_);
     }
 
     ~StreamReceiverTest()
@@ -121,8 +76,6 @@ protected:
 
     StreamReceiverCan receiver_ {ifCan_.get(), LOCAL_STREAM_ID};
     SyncNotifiable sn_;
-    CollectData sink_;
-    BufferPtr<StreamReceiveRequest> recvRequest_;
 
     StreamSenderCan sender_ {&g_service, otherIfCan_.get()};
     string dataSent_;
