@@ -97,6 +97,14 @@ public:
         return &senders_;
     }
 
+    /// @return the next (unused) stream receive ID (i.e., stream DID for
+    /// streams that are targeting this node/interface). This should only be
+    /// used for constructors, one time per lifetime of an application.
+    uint8_t get_next_stream_receive_id()
+    {
+        return nextReceiveStreamId_++;
+    }
+
 protected:
     /// Stream Sender objects.
     TypedQAsync<StreamSender> senders_;
@@ -109,6 +117,10 @@ private:
     unsigned inUseSendStreamIds_ : 27;
     /// Index of the next bit to check in the inUseSendStreamIds_.
     unsigned nextSendStreamId_ : 5;
+
+protected:    
+    /// Stream ID to be given out to the next stream receiver that we create.
+    uint8_t nextReceiveStreamId_{0x50};
 };
 
 /// CAN-specific implementation of the stream transport interface.
