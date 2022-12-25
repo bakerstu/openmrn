@@ -50,9 +50,19 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         READ
     };
 
+    enum ReadStreamCmd
+    {
+        READ_STREAM
+    };
+
     enum ReadPartCmd
     {
         READ_PART
+    };
+
+    enum ReadPartStreamCmd
+    {
+        READ_PART_STREAM
     };
 
     enum WriteCmd
@@ -104,6 +114,19 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         progressCb = std::move(cb);
     }
 
+    /// Sets up a command to read an entire memory space using stream transport.
+    /// @param ReadStreamCmd polymorphic matching arg; always set to READ.
+    /// @param d is the destination node to query
+    /// @param space is the memory space to read out
+    /// @param cb if specified, will be called inline multiple times during the
+    /// processing as more data arrives.
+    void reset(ReadStreamCmd, NodeHandle d, uint8_t space,
+        std::function<void(MemoryConfigClientRequest *)> cb = nullptr)
+    {
+        reset(READ, d, space, std::move(cb));
+        use_stream = true;
+    }
+
     /// Sets up a command to read a part of a memory space.
     /// @param ReadPartCmd polymorphic matching arg; always set to READ_PART.
     /// @param d is the destination node to query
@@ -120,6 +143,21 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         this->address = offset;
         this->size = size;
         payload.clear();
+    }
+
+    /// Sets up a command to read a part of a memory space using stream
+    /// transport.
+    /// @param ReadPartStreamCmd polymorphic matching arg; always set to
+    /// READ_PART.
+    /// @param d is the destination node to query
+    /// @param space is the memory space to read out
+    /// @param offset if the address of the first byte to read
+    /// @param size is the number of bytes to read
+    void reset(ReadPartStreamCmd, NodeHandle d, uint8_t space, unsigned offset,
+        unsigned size)
+    {
+        reset(READ_PART, d, space, offset, size);
+        use_stream = true;
     }
 
     /// Sets up a command to write a part of a memory space.
@@ -236,10 +274,12 @@ struct MemoryConfigClientRequest : public CallableFlowRequestBase
         payload.clear();
         size = 0;
         address = 0;
+        use_stream = false;
     }
 
     Command cmd;
     uint8_t memory_space;
+    bool use_stream;
     unsigned address;
     unsigned size;
     /// Node to send the request to.
@@ -256,8 +296,7 @@ public:
         : CallableFlow<MemoryConfigClientRequest>(memcfg->dg_service())
         , node_(node)
         , memoryConfigHandler_(memcfg)
-    {
-    }
+    { }
 
     /// These result codes are written into request()->resultCode during and as
     /// a return from the flow.
@@ -283,7 +322,7 @@ public:
         return memoryConfigHandler_;
     }
 
-private:
+protected:
     Action entry() override
     {
         request()->resultCode = OPERATION_PENDING;
@@ -307,6 +346,7 @@ private:
         return return_with_error(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
     }
 
+private:
     Action do_read()
     {
         dgClient_ = full_allocation_result(dg_service()->client_allocator());
@@ -328,7 +368,7 @@ private:
         unsigned sz = request()->size > 64 ? 64 : request()->size;
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), request()->dst,
             MemoryConfigDefs::read_datagram(
-                             request()->memory_space, offset_, sz));
+                request()->memory_space, offset_, sz));
         if (request()->size < 0xffffffffu)
         {
             request()->size -= sz;
@@ -369,8 +409,9 @@ private:
             MemoryConfigDefs::payload_bytes(responsePayload_);
         if (!MemoryConfigDefs::payload_min_length_check(responsePayload_, 0))
         {
-            LOG(INFO, "Memory Config client: response datagram payload not "
-                      "long enough");
+            LOG(INFO,
+                "Memory Config client: response datagram payload not "
+                "long enough");
             return handle_read_error(
                 Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
         }
@@ -416,22 +457,26 @@ private:
         return call_immediately(STATE(send_next_read));
     }
 
-    Action handle_read_error(int error) {
-        if (error == MemoryConfigDefs::ERROR_OUT_OF_BOUNDS) {
+    Action handle_read_error(int error)
+    {
+        if (error == MemoryConfigDefs::ERROR_OUT_OF_BOUNDS)
+        {
             return finish_read();
         }
         cleanup_read();
         return return_with_error(error);
     }
 
-    void cleanup_read() {
+    void cleanup_read()
+    {
         responsePayload_.clear();
         dg_service()->client_allocator()->typed_insert(dgClient_);
         memoryConfigHandler_->clear_client(&responseFlow_);
         dgClient_ = nullptr;
     }
 
-    Action finish_read() {
+    Action finish_read()
+    {
         cleanup_read();
         return return_ok();
     }
@@ -463,7 +508,7 @@ private:
         writeLength_ = sz;
         b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), request()->dst,
             MemoryConfigDefs::write_datagram(request()->memory_space, offset_,
-                             request()->payload.substr(payloadOffset_, sz)));
+                request()->payload.substr(payloadOffset_, sz)));
         isWaitingForTimer_ = 0;
         responseCode_ = DatagramClient::OPERATION_PENDING;
         dgClient_->write_datagram(b);
@@ -500,8 +545,9 @@ private:
             MemoryConfigDefs::payload_bytes(responsePayload_);
         if (!MemoryConfigDefs::payload_min_length_check(responsePayload_, 0))
         {
-            LOG(INFO, "Memory Config client: response datagram payload not "
-                      "long enough");
+            LOG(INFO,
+                "Memory Config client: response datagram payload not "
+                "long enough");
             return handle_write_error(
                 Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
         }
@@ -655,8 +701,7 @@ private:
         ResponseFlow(MemoryConfigClient *parent)
             : DefaultDatagramHandler(parent->memoryConfigHandler_->dg_service())
             , parent_(parent)
-        {
-        }
+        { }
 
     private:
         Action entry() override
@@ -675,7 +720,7 @@ private:
                 return respond_reject(
                     Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
             }
-            auto* bytes = payload();
+            auto *bytes = payload();
             uint8_t cmd = bytes[1] & ~3;
             switch (cmd)
             {
@@ -714,10 +759,12 @@ private:
             }
             return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
         }
+
     private:
-        MemoryConfigClient *parent_;        
+        MemoryConfigClient *parent_;
     };
 
+protected:
     DatagramService *dg_service()
     {
         return static_cast<DatagramService *>(service());
@@ -729,9 +776,9 @@ private:
     MemoryConfigHandler *memoryConfigHandler_;
     /// The allocated datagram client which we hold on for the time that we are
     /// querying.
-    DatagramClient *dgClient_{nullptr};
+    DatagramClient *dgClient_ {nullptr};
     /// Handler for the incoming reply datagrams.
-    ResponseFlow responseFlow_{this};
+    ResponseFlow responseFlow_ {this};
     /// Notify helper.
     BarrierNotifiable bn_;
     /// Rarely used helper flow to look up full node IDs from aliases.
@@ -743,14 +790,49 @@ private:
     /// How many bytes we wrote in this datagram.
     uint16_t writeLength_;
     /// timing helper
-    StateFlowTimer timer_{this};
+    StateFlowTimer timer_ {this};
     /// The data that came back from reading.
     string responsePayload_;
     /// error code that came with the response. 0 for success.
     int responseCode_;
     /// 1 if we are pending on the timer.
     uint8_t isWaitingForTimer_ : 1;
-};
+};  // class MemoryConfigClient
+
+class MemoryConfigClientWithStream : public MemoryConfigClient
+{
+public:
+    MemoryConfigClientWithStream(
+        Node *node, MemoryConfigHandler *memcfg, uint8_t local_stream_id)
+        : MemoryConfigClient(node, memcfg)
+    { }
+
+protected:
+    Action entry() override
+    {
+        if (!request()->use_stream)
+        {
+            return MemoryConfigClient::entry();
+        }
+        request()->resultCode = OPERATION_PENDING;
+        case MemoryConfigClientRequest::CMD_READ:
+        case MemoryConfigClientRequest::CMD_READ_PART:
+            return allocate_and_call(
+                STATE(do_stream_read), dg_service()->client_allocator());
+    }
+
+    Action do_stream_read()
+    {
+        dgClient_ = full_allocation_result(dg_service()->client_allocator());
+        offset_ = request()->address;
+        memoryConfigHandler_->set_client(&responseFlow_);
+        /// @todo
+        return exit();
+    }
+    
+}; // class MemoryConfigClientWithStream
+
+
 
 } // namespace openlcb
 
