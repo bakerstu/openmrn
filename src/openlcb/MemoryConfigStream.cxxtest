@@ -1,20 +1,9 @@
-
 #include "openlcb/MemoryConfigStream.hxx"
 
-#include "utils/async_datagram_test_helper.hxx"
+#include "utils/async_stream_test_helper.hxx"
 
 namespace openlcb
 {
-
-string get_payload_data(size_t length)
-{
-    string r(length, 0);
-    for (size_t i = 0; i < length; ++i)
-    {
-        r[i] = i & 0xff;
-    }
-    return r;
-}
 
 string largePayload {get_payload_data(15000)};
 string smallPayload {get_payload_data(15)};
@@ -40,6 +29,11 @@ protected:
     ~MemoryConfigTest()
     {
         wait();
+    }
+
+    void setup_two_nodes()
+    {
+        
     }
 
     StreamTransportCan t_ {ifCan_.get(), 2};
