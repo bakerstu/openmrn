@@ -39,6 +39,8 @@
 #include "openlcb/DatagramHandlerDefault.hxx"
 #include "openlcb/IfCan.hxx"
 #include "openlcb/MemoryConfig.hxx"
+#include "openlcb/StreamReceiver.hxx"
+#include "openlcb/StreamTransport.hxx"
 
 namespace openlcb
 {
@@ -457,6 +459,7 @@ private:
         return call_immediately(STATE(send_next_read));
     }
 
+protected:
     Action handle_read_error(int error)
     {
         if (error == MemoryConfigDefs::ERROR_OUT_OF_BOUNDS)
@@ -481,6 +484,7 @@ private:
         return return_ok();
     }
 
+private:    
     Action do_write()
     {
         dgClient_ = full_allocation_result(dg_service()->client_allocator());
@@ -797,7 +801,7 @@ protected:
     int responseCode_;
     /// 1 if we are pending on the timer.
     uint8_t isWaitingForTimer_ : 1;
-};  // class MemoryConfigClient
+}; // class MemoryConfigClient
 
 class MemoryConfigClientWithStream : public MemoryConfigClient
 {
@@ -805,7 +809,15 @@ public:
     MemoryConfigClientWithStream(
         Node *node, MemoryConfigHandler *memcfg, uint8_t local_stream_id)
         : MemoryConfigClient(node, memcfg)
-    { }
+    {
+        /// @todo make this not specific to the CAN-buf interface but somehow
+        /// portable.
+        IfCan *iface = dynamic_cast<IfCan *>(node_->iface());
+        HASSERT(iface);
+        HASSERT(iface->stream_transport());
+        dstStreamId_ = iface->stream_transport()->get_next_stream_receive_id();
+        receiver_.reset(new StreamReceiverCan(iface, dstStreamId_));
+    }
 
 protected:
     Action entry() override
@@ -815,24 +827,153 @@ protected:
             return MemoryConfigClient::entry();
         }
         request()->resultCode = OPERATION_PENDING;
-        case MemoryConfigClientRequest::CMD_READ:
-        case MemoryConfigClientRequest::CMD_READ_PART:
-            return allocate_and_call(
-                STATE(do_stream_read), dg_service()->client_allocator());
+        switch (request()->cmd)
+        {
+            case MemoryConfigClientRequest::CMD_READ:
+            case MemoryConfigClientRequest::CMD_READ_PART:
+                return allocate_and_call(
+                    STATE(do_stream_read), dg_service()->client_allocator());
+            default:
+                return return_with_error(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
+        }
     }
 
     Action do_stream_read()
     {
         dgClient_ = full_allocation_result(dg_service()->client_allocator());
-        offset_ = request()->address;
         memoryConfigHandler_->set_client(&responseFlow_);
-        /// @todo
-        return exit();
+        {
+            // Opens the stream receiver.
+            receiver_->pool()->alloc(&streamRecvRequest_);
+            /// @todo add option to specify byte sink directly.
+            streamRecvRequest_->data()->reset(&defaultSink_, node_,
+                request()->dst, StreamDefs::INVALID_STREAM_ID, dstStreamId_);
+            streamRecvRequest_->data()->done.reset(this);
+            // We keep an extra reference.
+            streamRecvRequest_->data()->done.new_child();
+            receiver_->send(streamRecvRequest_->ref());
+        }
+        return allocate_and_call(dg_service()->iface()->dispatcher(),
+            STATE(send_stream_read_datagram));
     }
-    
+
+    Action send_stream_read_datagram()
+    {
+        auto *b = get_allocation_result(dg_service()->iface()->dispatcher());
+        b->set_done(bn_.reset(this));
+        b->data()->reset(Defs::MTI_DATAGRAM, node_->node_id(), request()->dst,
+            MemoryConfigDefs::read_stream_datagram(request()->memory_space,
+                request()->address, dstStreamId_, request()->size));
+
+        isWaitingForTimer_ = 0;
+        responseCode_ = DatagramClient::OPERATION_PENDING;
+        dgClient_->write_datagram(b);
+        return wait_and_call(STATE(stream_read_dg_complete));
+    }
+
+    Action stream_read_dg_complete()
+    {
+        if (!(dgClient_->result() & DatagramClient::OPERATION_SUCCESS))
+        {
+            // some error occurred.
+            return handle_read_error(dgClient_->result());
+        }
+        if (responseCode_ & DatagramClient::OPERATION_PENDING)
+        {
+            isWaitingForTimer_ = 1;
+            return sleep_and_call(
+                &timer_, SEC_TO_NSEC(3), STATE(stream_read_response_timeout));
+        }
+        else
+        {
+            return call_immediately(STATE(stream_read_response_timeout));
+        }
+    }
+
+    Action stream_read_response_timeout()
+    {
+        if (responseCode_ & DatagramClient::OPERATION_PENDING)
+        {
+            return handle_read_error(Defs::OPENMRN_TIMEOUT);
+        }
+        const uint8_t *bytes =
+            MemoryConfigDefs::payload_bytes(responsePayload_);
+        if (!MemoryConfigDefs::payload_min_length_check(responsePayload_, 2))
+        {
+            LOG(INFO,
+                "Memory Config client: response datagram payload not "
+                "long enough");
+            return handle_read_error(
+                Defs::ERROR_INVALID_ARGS_MESSAGE_TOO_SHORT);
+        }
+        unsigned ofs = MemoryConfigDefs::get_payload_offset(responsePayload_);
+        unsigned address = MemoryConfigDefs::get_address(responsePayload_);
+        uint8_t space = MemoryConfigDefs::get_space(responsePayload_);
+        uint8_t cmd = bytes[1] & MemoryConfigDefs::COMMAND_MASK;
+        if (address != offset_)
+        {
+            return handle_read_error(Defs::ERROR_OUT_OF_ORDER);
+        }
+        if (space != request()->memory_space)
+        {
+            return handle_read_error(Defs::ERROR_OUT_OF_ORDER);
+        }
+        if (cmd == MemoryConfigDefs::COMMAND_READ_STREAM_FAILED)
+        {
+            uint16_t error = bytes[ofs++];
+            error <<= 8;
+            error |= bytes[ofs];
+            return handle_read_error(error);
+        }
+        if (cmd != MemoryConfigDefs::COMMAND_READ_STREAM_REPLY)
+        {
+            return handle_read_error(Defs::ERROR_UNIMPLEMENTED);
+        }
+        // Now: we have a read success, and the stream is probably happening.
+        return call_immediately(STATE(wait_for_stream_complete));
+    }
+
+    Action wait_for_stream_complete()
+    {
+        if (streamRecvRequest_->data()->done.abort_if_almost_done()) {
+            // There was already a close request.
+            return call_immediately(STATE(recv_stream_closed));
+        } else {
+            // We don't need to hold on to our extra ref anymore.
+            streamRecvRequest_->data()->done.notify();
+            return wait_and_call(STATE(recv_stream_closed));
+        }
+    }
+
+    Action recv_stream_closed()
+    {
+        return finish_read();
+    }
+
+    /// Stores incoming stream data into the request()->payload object
+    /// (which is a string).
+    struct DefaultSink : public ByteSink
+    {
+        DefaultSink(MemoryConfigClientWithStream *parent)
+            : parent_(parent)
+        { }
+
+        void send(ByteBuffer *msg, unsigned prio) override
+        {
+            auto rb = get_buffer_deleter(msg);
+            parent_->request()->payload.append(
+                (char *)msg->data()->data_, msg->data()->size());
+        }
+
+        MemoryConfigClientWithStream *parent_;
+    } defaultSink_{this};
+
+    std::unique_ptr<StreamReceiverInterface> receiver_;
+    /// stream ID on the local device.
+    uint8_t dstStreamId_;
+    /// Holds a ref to the stream receiver request.
+    BufferPtr<StreamReceiveRequest> streamRecvRequest_;
 }; // class MemoryConfigClientWithStream
-
-
 
 } // namespace openlcb
 

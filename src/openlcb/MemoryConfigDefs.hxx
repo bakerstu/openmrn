@@ -201,6 +201,34 @@ struct MemoryConfigDefs
         return p;
     }
 
+    static DatagramPayload read_stream_datagram(uint8_t space, uint32_t offset,
+        uint8_t dst_stream_id, uint32_t length = 0xFFFFFFFF)
+    {
+        DatagramPayload p;
+        p.reserve(13);
+        p.push_back(DatagramDefs::CONFIGURATION);
+        p.push_back(COMMAND_READ_STREAM);
+        p.push_back(0xff & (offset >> 24));
+        p.push_back(0xff & (offset >> 16));
+        p.push_back(0xff & (offset >> 8));
+        p.push_back(0xff & (offset));
+        if (is_special_space(space))
+        {
+            p[1] |= space & ~SPACE_SPECIAL;
+        }
+        else
+        {
+            p.push_back(space);
+        }
+        p.push_back(0xff); // src ID
+        p.push_back(dst_stream_id); // dst ID
+        p.push_back(0xff & (length >> 24));
+        p.push_back(0xff & (length >> 16));
+        p.push_back(0xff & (length >> 8));
+        p.push_back(0xff & (length));
+        return p;
+    }
+    
     /// @return true if the payload has minimum number of bytes you need in a
     /// read or write datagram message to cover for the necessary fields
     /// (command, offset, space).
