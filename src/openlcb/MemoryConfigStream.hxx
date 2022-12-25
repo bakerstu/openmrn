@@ -122,6 +122,7 @@ private:
         auto state = senderCan_->get_state();
         if (state == StreamSender::RUNNING)
         {
+            dstStreamId_ = senderCan_->get_dst_stream_id();
             startedCb_(0);
             return call_immediately(STATE(alloc_buffer));
         }
