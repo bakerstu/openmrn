@@ -145,7 +145,7 @@ private:
 
     Action have_raw_buffer()
     {
-        LOG(INFO, "have raw buf len %u", (unsigned) len_);
+        LOG(INFO, "have raw buf len %u", (unsigned)len_);
 
         RawBufferPtr raw_buffer(get_allocation_result<RawData>(nullptr));
         sendBuffer_ = get_buffer_deleter(sender_->alloc());

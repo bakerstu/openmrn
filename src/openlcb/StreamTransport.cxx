@@ -47,7 +47,8 @@ StreamTransport::StreamTransport(If *iface)
 }
 
 StreamTransport::~StreamTransport()
-{ }
+{
+}
 
 StreamTransportCan::StreamTransportCan(IfCan *iface, unsigned num_senders)
     : StreamTransport(iface)
@@ -59,6 +60,7 @@ StreamTransportCan::StreamTransportCan(IfCan *iface, unsigned num_senders)
 }
 
 StreamTransportCan::~StreamTransportCan()
-{ }
+{
+}
 
 } // namespace openlcb

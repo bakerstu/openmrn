@@ -67,12 +67,12 @@ protected:
 
     void invoke_receiver(uint8_t src_stream_id = StreamDefs::INVALID_STREAM_ID)
     {
-        recvRequest_->data()->reset(&sink_, otherNode_.get(),
-                                    first_node(), src_stream_id);
+        recvRequest_->data()->reset(
+            &sink_, otherNode_.get(), first_node(), src_stream_id);
         recvRequest_->data()->done.reset(&sn_);
         run_x([this]() { receiver_->send(recvRequest_->ref()); });
     }
-    
+
     StreamTransportCan t_ {ifCan_.get(), 2};
     MemoryConfigHandler memoryOne_ {&datagram_support_, nullptr, 10};
     MemoryConfigStreamHandler memoryStream_ {&memoryOne_};
@@ -87,7 +87,8 @@ protected:
 };
 
 TEST_F(MemoryConfigTest, create)
-{ }
+{
+}
 
 TEST_F(MemoryConfigTest, manual)
 {
@@ -254,7 +255,7 @@ TEST_F(MemoryConfigTest, two_node)
     // response datagram is rejected because noone is listening on the second
     // node.
     expect_packet(":X19A48225N022A1000;");
-    
+
     // Reply accept, buffer length 240, src ID 02 dst id 43.
     send_message(otherNode_.get(), Defs::MTI_STREAM_INITIATE_REPLY,
         first_node(), hex2str("00F080000243"));
@@ -266,7 +267,7 @@ TEST_F(MemoryConfigTest, two_node)
 
     // stream complete, SID 02 DID 43 sent bytes 13
     expect_packet(":X198A822AN022502430000000D;");
-    
+
     twait();
     clear_expect(true);
     EXPECT_TRUE(datagramDoneBn_.is_done());
@@ -305,7 +306,7 @@ TEST_F(MemoryConfigTest, length_limit)
     // response datagram is rejected because noone is listening on the second
     // node.
     expect_packet(":X19A48225N022A1000;");
-    
+
     // Reply accept, buffer length 240, src ID 02 dst id 43.
     send_message(otherNode_.get(), Defs::MTI_STREAM_INITIATE_REPLY,
         first_node(), hex2str("00F080000243"));
@@ -317,12 +318,11 @@ TEST_F(MemoryConfigTest, length_limit)
 
     // stream complete, SID 02 DID 43 sent bytes 13
     expect_packet(":X198A822AN0225024300000009;");
-    
+
     twait();
     clear_expect(true);
     EXPECT_TRUE(datagramDoneBn_.is_done());
 }
-
 
 // End to end test case with stream receiver.
 TEST_F(MemoryConfigTest, end_to_end)

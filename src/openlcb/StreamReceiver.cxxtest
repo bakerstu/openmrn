@@ -3,7 +3,8 @@
 #include "openlcb/StreamSender.hxx"
 #include "utils/async_stream_test_helper.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
 class StreamReceiverTestBase : public StreamTestBase
 {
@@ -272,7 +273,7 @@ TEST_F(StreamReceiverTest, localhost)
     // Reallocates the stream sender to the same interface.
     sender_.~StreamSenderCan();
     new (&sender_) StreamSenderCan(&g_service, ifCan_.get());
-    
+
     recvRequest_->data()->reset(&sink_, node_, NodeHandle(node_->node_id()),
         StreamDefs::INVALID_STREAM_ID);
     recvRequest_->data()->done.reset(&sn_);

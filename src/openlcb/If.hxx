@@ -383,7 +383,7 @@ private:
     VNodeMap localNodes_;
 
     /// Accessor for the objects and variables for supporting stream transport.
-    StreamTransport* streamTransport_{nullptr};
+    StreamTransport *streamTransport_ {nullptr};
 
     friend class VerifyNodeIdHandler;
 

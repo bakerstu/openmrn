@@ -412,7 +412,8 @@ std::string hex2str(const char *hex)
     std::string ret;
     while (*hex && *(hex + 1))
     {
-        if (*hex == ' ') {
+        if (*hex == ' ')
+        {
             ++hex;
             continue;
         }
@@ -429,10 +430,12 @@ const char HEXCHR[17] = "0123456789abcdef";
 /// @param s Arbitrary byte payload.
 /// @return string containing two hex digits per incoming byte, with the
 /// respective value..
-std::string str2hex(const string& s) {
+std::string str2hex(const string &s)
+{
     std::string ret;
-    for (char c : s) {
-        ret.push_back(HEXCHR[c>>4]);
+    for (char c : s)
+    {
+        ret.push_back(HEXCHR[c >> 4]);
         ret.push_back(HEXCHR[c & 0xf]);
     }
     return ret;

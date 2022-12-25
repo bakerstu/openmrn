@@ -336,19 +336,19 @@ protected:
     MemoryConfigHandlerBase(DatagramService *if_dg)
         : DefaultDatagramHandler(if_dg)
         , responseFlow_(nullptr)
-    { }
+    {
+    }
 
     typedef MemorySpace::address_t address_t;
     typedef MemorySpace::errorcode_t errorcode_t;
     typedef TypedNodeHandlerMap<Node, MemorySpace> Registry;
 
-    
     Action ok_response_sent() OVERRIDE
     {
         if (!response_.empty())
         {
-            return allocate_and_call(STATE(client_allocated),
-                                     dg_service()->client_allocator());
+            return allocate_and_call(
+                STATE(client_allocated), dg_service()->client_allocator());
         }
         else
         {
@@ -367,17 +367,16 @@ protected:
     {
         responseFlow_ =
             full_allocation_result(dg_service()->client_allocator());
-        return allocate_and_call(dg_service()->iface()->dispatcher(),
-                                 STATE(send_response_datagram));
+        return allocate_and_call(
+            dg_service()->iface()->dispatcher(), STATE(send_response_datagram));
     }
 
     Action send_response_datagram()
     {
-        auto *b =
-            get_allocation_result(dg_service()->iface()->dispatcher());
+        auto *b = get_allocation_result(dg_service()->iface()->dispatcher());
         b->set_done(b_.reset(this));
         b->data()->reset(Defs::MTI_DATAGRAM, message()->data()->dst->node_id(),
-                         message()->data()->src, EMPTY_PAYLOAD);
+            message()->data()->src, EMPTY_PAYLOAD);
         b->data()->payload.swap(response_);
         release(); /// @TODO(balazs.racz) Should this be here or elsewhere?
         responseFlow_->write_datagram(b);
@@ -395,7 +394,6 @@ protected:
         dg_service()->client_allocator()->typed_insert(responseFlow_);
         return call_immediately(STATE(cleanup));
     }
-
 
     /// @return true iff we have a custom space
     bool has_custom_space()
@@ -415,13 +413,14 @@ protected:
         if (!has_custom_space())
         {
             return MemoryConfigDefs::COMMAND_MASK +
-                   (cmd & ~MemoryConfigDefs::COMMAND_MASK);
+                (cmd & ~MemoryConfigDefs::COMMAND_MASK);
         }
         if (len <= 6)
         {
-            LOG(WARNING, "MemoryConfig: Incoming datagram asked for custom "
-                         "space but datagram not long enough. command=0x%02x, "
-                         "length=%d. Source {0x%012" PRIx64 ", %03x}",
+            LOG(WARNING,
+                "MemoryConfig: Incoming datagram asked for custom "
+                "space but datagram not long enough. command=0x%02x, "
+                "length=%d. Source {0x%012" PRIx64 ", %03x}",
                 cmd, len, message()->data()->src.id,
                 message()->data()->src.alias);
             return -1;
@@ -448,9 +447,10 @@ protected:
         }
         if (len <= ofs)
         {
-            LOG(WARNING, "MemoryConfig::read_len: Incoming datagram not long "
-                         "enough. command=0x%02x, length=%d. Source "
-                         "{0x%012" PRIx64 ", %03x}",
+            LOG(WARNING,
+                "MemoryConfig::read_len: Incoming datagram not long "
+                "enough. command=0x%02x, length=%d. Source "
+                "{0x%012" PRIx64 ", %03x}",
                 cmd, len, message()->data()->src.id,
                 message()->data()->src.alias);
             return -1;
@@ -1058,13 +1058,12 @@ private:
     DatagramHandlerFlow* client_{nullptr};
     /// If there is a handler for stream requests, we will forward the
     /// respective traffic to it.
-    DatagramHandlerFlow* streamHandler_{nullptr};
+    DatagramHandlerFlow *streamHandler_ {nullptr};
 
     /** Offset withing the current write/read datagram. This does not include
      * the offset from the incoming datagram. */
     uint8_t currentOffset_;
 };
-
 
 } // namespace openlcb
 

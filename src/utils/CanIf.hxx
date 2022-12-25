@@ -222,7 +222,7 @@ public:
     {
         return &frameReadFlow_;
     }
-    
+
 private:
     friend class CanFrameWriteFlow;
     // friend class CanFrameReadFlow;

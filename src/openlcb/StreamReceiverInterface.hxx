@@ -54,7 +54,7 @@ struct StreamReceiveRequest : public CallableFlowRequestBase
 {
     enum
     {
-        OPERATION_PENDING =  0x20000, //< cleared when done is called.
+        OPERATION_PENDING = 0x20000, //< cleared when done is called.
     };
 
     /// Gets a local stream ID. This will be returning the assigned local
