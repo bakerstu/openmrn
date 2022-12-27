@@ -32,7 +32,7 @@ protected:
 
     ~MemoryConfigTest()
     {
-        wait();
+        twait();
     }
 
     void setup_two_nodes()
@@ -77,8 +77,8 @@ protected:
     /// Sets up the memory config client on the second node/interface.
     void start_client()
     {
-        otherHandler_.reset(new MemoryConfigHandler(
-            otherNodeDatagram_, otherNode_.get(), 5));
+        otherHandler_.reset(
+            new MemoryConfigHandler(otherNodeDatagram_, otherNode_.get(), 5));
         client_.reset(new MemoryConfigClientWithStream(otherNode_.get(),
             otherHandler_.get(), otherT_->get_next_stream_receive_id()));
     }
@@ -454,9 +454,10 @@ TEST_F(MemoryConfigTest, client_e2e)
     setup_two_nodes();
     start_client();
     twait();
-    //clear_expect(true);
+    // clear_expect(true);
 
-    auto b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM, first_node(), 0x28);
+    auto b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM,
+        first_node(), 0x28);
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(smallPayload, b->data()->payload);
 }
@@ -468,9 +469,10 @@ TEST_F(MemoryConfigTest, client_e2e_error)
     setup_two_nodes();
     start_client();
     twait();
-    //clear_expect(true);
+    // clear_expect(true);
 
-    auto b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM, first_node(), 0x18);
+    auto b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM,
+        first_node(), 0x18);
     // No such space ID
     EXPECT_EQ(0x1081, b->data()->resultCode);
     EXPECT_EQ("", b->data()->payload);
