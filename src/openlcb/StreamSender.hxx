@@ -97,8 +97,8 @@ public:
     /// @param dst Destination node ID to send the stream to.
     /// @param source_stream_id 8-bit stream ID to use on the this (the source)
     /// side.
-    /// @param dst_stream_id 8-bit stream ID to use on the this (the source)
-    /// side.
+    /// @param dst_stream_id 8-bit stream ID to use on the remote side (the
+    /// destination).
     ///
     /// @return *this for calling optional settings API commands.
     ///
