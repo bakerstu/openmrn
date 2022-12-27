@@ -461,4 +461,19 @@ TEST_F(MemoryConfigTest, client_e2e)
     EXPECT_EQ(smallPayload, b->data()->payload);
 }
 
+// End to end test case with memory config client
+TEST_F(MemoryConfigTest, client_e2e_error)
+{
+    print_all_packets();
+    setup_two_nodes();
+    start_client();
+    twait();
+    //clear_expect(true);
+
+    auto b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM, first_node(), 0x18);
+    // No such space ID
+    EXPECT_EQ(0x1081, b->data()->resultCode);
+    EXPECT_EQ("", b->data()->payload);
+}
+
 } // namespace openlcb
