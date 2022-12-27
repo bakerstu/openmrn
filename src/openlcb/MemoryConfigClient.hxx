@@ -963,6 +963,10 @@ protected:
             auto rb = get_buffer_deleter(msg);
             parent_->request()->payload.append(
                 (char *)msg->data()->data_, msg->data()->size());
+            if (parent_->request()->progressCb)
+            {
+                parent_->request()->progressCb(parent_->request());
+            }
         }
 
         MemoryConfigClientWithStream *parent_;
