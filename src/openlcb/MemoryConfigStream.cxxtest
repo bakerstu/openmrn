@@ -1,12 +1,13 @@
 #include "openlcb/MemoryConfigStream.hxx"
 
+#include "openlcb/MemoryConfigClient.hxx"
 #include "utils/async_stream_test_helper.hxx"
 
 namespace openlcb
 {
 
-string largePayload {get_payload_data(15000)};
-string smallPayload {get_payload_data(15)};
+const string largePayload {get_payload_data(15000)};
+const string smallPayload {get_payload_data(15)};
 ReadOnlyMemoryBlock largeBlock {
     largePayload.data(), (unsigned)largePayload.size()};
 ReadOnlyMemoryBlock smallBlock {
@@ -73,6 +74,15 @@ protected:
         run_x([this]() { receiver_->send(recvRequest_->ref()); });
     }
 
+    /// Sets up the memory config client on the second node/interface.
+    void start_client()
+    {
+        otherHandler_.reset(new MemoryConfigHandler(
+            otherNodeDatagram_, otherNode_.get(), 5));
+        client_.reset(new MemoryConfigClientWithStream(otherNode_.get(),
+            otherHandler_.get(), otherT_->get_next_stream_receive_id()));
+    }
+
     StreamTransportCan t_ {ifCan_.get(), 2};
     MemoryConfigHandler memoryOne_ {&datagram_support_, nullptr, 10};
     MemoryConfigStreamHandler memoryStream_ {&memoryOne_};
@@ -84,11 +94,14 @@ protected:
     /// Stream receiver bound to the second interface.
     std::unique_ptr<StreamReceiverCan> receiver_;
     SyncNotifiable sn_;
+    /// MemCfg handler on second interface
+    std::unique_ptr<MemoryConfigHandler> otherHandler_;
+    /// MemCfg Client on the second interface
+    std::unique_ptr<MemoryConfigClientWithStream> client_;
 };
 
 TEST_F(MemoryConfigTest, create)
-{
-}
+{ }
 
 TEST_F(MemoryConfigTest, manual)
 {
@@ -432,6 +445,20 @@ TEST_F(MemoryConfigTest, end_to_end_length_limit)
     EXPECT_EQ(smallPayload.substr(2, 9), sink_.data);
     sn_.wait_for_notification();
     EXPECT_EQ(0x0000, recvRequest_->data()->resultCode);
+}
+
+// End to end test case with memory config client
+TEST_F(MemoryConfigTest, client_e2e)
+{
+    print_all_packets();
+    setup_two_nodes();
+    start_client();
+    twait();
+    //clear_expect(true);
+
+    auto b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM, first_node(), 0x28);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(smallPayload, b->data()->payload);
 }
 
 } // namespace openlcb

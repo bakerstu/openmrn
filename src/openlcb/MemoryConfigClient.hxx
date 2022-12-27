@@ -746,6 +746,28 @@ private:
                     }
                     return respond_ok(0);
                 }
+                case MemoryConfigDefs::COMMAND_READ_STREAM_REPLY:
+                case MemoryConfigDefs::COMMAND_READ_STREAM_FAILED:
+                {
+                    if (parent_->request()->cmd !=
+                            MemoryConfigClientRequest::CMD_READ &&
+                        parent_->request()->cmd !=
+                            MemoryConfigClientRequest::CMD_READ_PART)
+                    {
+                        break;
+                    }
+                    if (!parent_->request()->use_stream)
+                    {
+                        break;
+                    }
+                    parent_->responseCode_ = 0;
+                    message()->data()->payload.swap(parent_->responsePayload_);
+                    if (parent_->isWaitingForTimer_)
+                    {
+                        parent_->timer_.trigger();
+                    }
+                    return respond_ok(0);
+                }
                 case MemoryConfigDefs::COMMAND_WRITE_REPLY:
                 case MemoryConfigDefs::COMMAND_WRITE_FAILED:
                     if (parent_->request()->cmd !=
@@ -910,12 +932,15 @@ protected:
         unsigned address = MemoryConfigDefs::get_address(responsePayload_);
         uint8_t space = MemoryConfigDefs::get_space(responsePayload_);
         uint8_t cmd = bytes[1] & MemoryConfigDefs::COMMAND_MASK;
-        if (address != offset_)
+        if (address != request()->address)
         {
+            LOG(VERBOSE, "mismatched address a %u o %u", (unsigned)address,
+                (unsigned)request()->address);
             return handle_read_error(Defs::ERROR_OUT_OF_ORDER);
         }
         if (space != request()->memory_space)
         {
+            LOG(VERBOSE, "mismatched space");
             return handle_read_error(Defs::ERROR_OUT_OF_ORDER);
         }
         if (cmd == MemoryConfigDefs::COMMAND_READ_STREAM_FAILED)

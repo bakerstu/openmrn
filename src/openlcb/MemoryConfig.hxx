@@ -720,6 +720,8 @@ private:
             case MemoryConfigDefs::COMMAND_WRITE_STREAM_FAILED:
             case MemoryConfigDefs::COMMAND_READ_REPLY:
             case MemoryConfigDefs::COMMAND_READ_FAILED:
+            case MemoryConfigDefs::COMMAND_READ_STREAM_REPLY:
+            case MemoryConfigDefs::COMMAND_READ_STREAM_FAILED:
             case MemoryConfigDefs::COMMAND_OPTIONS_REPLY:
             case MemoryConfigDefs::COMMAND_INFORMATION_REPLY:
             case MemoryConfigDefs::COMMAND_LOCK_REPLY:
@@ -730,6 +732,7 @@ private:
                     client_->send(transfer_message());
                     return exit();
                 }
+                LOG(VERBOSE, "memcfg handler reply: no client registered");
             } // fall through to unsupported.
             default:
                 // Unknown/unsupported command, reject datagram.
