@@ -346,6 +346,26 @@ TEST_F(MemoryConfigTest, end_to_end)
     EXPECT_EQ(0x0000, recvRequest_->data()->resultCode);
 }
 
+// Error - invalid memory space
+TEST_F(MemoryConfigTest, error_no_space)
+{
+    setup_two_nodes();
+    twait();
+    clear_expect(true);
+
+    expect_packet(":X1B22A225N20600000000218FF;");
+    expect_packet(":X1D22A225N43FFFFFFFF;");
+    // Read stream request, space 0x18, offset 2, length infinite, dst stream
+    // iD 0x43.
+    inject_datagram("20600000000218FF43FFFFFFFF");
+    // datgram rejected, permanent error.
+    expect_packet(":X19A4822AN02251081;");
+
+    twait();
+
+    EXPECT_TRUE(datagramDoneBn_.is_done());
+}
+
 // End to end test case with stream receiver.
 TEST_F(MemoryConfigTest, end_to_end_long)
 {
