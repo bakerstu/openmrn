@@ -81,10 +81,9 @@ public:
 class StreamSenderCan : public StreamSender
 {
 public:
-    StreamSenderCan(Service *service, IfCan *iface, Node *node)
+    StreamSenderCan(Service *service, IfCan *iface)
         : StreamSender(service)
         , ifCan_(iface)
-        , node_(node)
         , sleeping_(false)
         , requestClose_(false)
         , requestInit_(false)
@@ -94,20 +93,26 @@ public:
     /// Initiates using the stream sender. May be called only on idle stream
     /// senders.
     ///
+    /// @param src Source virtual node on the local interface.
     /// @param dst Destination node ID to send the stream to.
     /// @param source_stream_id 8-bit stream ID to use on the this (the source)
     /// side.
+    /// @param dst_stream_id 8-bit stream ID to use on the remote side (the
+    /// destination).
     ///
     /// @return *this for calling optional settings API commands.
     ///
-    StreamSenderCan &start_stream(NodeHandle dst, uint8_t source_stream_id)
+    StreamSenderCan &start_stream(Node *src, NodeHandle dst,
+        uint8_t source_stream_id,
+        uint8_t dst_stream_id = StreamDefs::INVALID_STREAM_ID)
     {
         DASSERT(state_ == IDLE);
         state_ = STARTED;
+        node_ = src;
         dst_ = dst;
         totalByteCount_ = 0;
         localStreamId_ = source_stream_id;
-        dstStreamId_ = 0xFF;
+        dstStreamId_ = dst_stream_id;
         HASSERT(sleeping_ == false);
         HASSERT(requestClose_ == 0);
         requestInit_ = true;
@@ -121,7 +126,11 @@ public:
     }
 
     /// Closes the stream when all the bytes are transferred.
-    void close_stream()
+    /// @param error_code 0 upon success. This code is intended to be
+    /// transferred in the stream close message, but that is not yet
+    /// implemented, because the draft protocol does not have provisions for
+    /// an error code at close.
+    void close_stream(uint16_t error_code = 0)
     {
         requestClose_ = true;
         trigger();
@@ -190,6 +199,18 @@ public:
         return errorCode_;
     }
 
+    /// @return the stream SID (identifier on this node).
+    uint8_t get_src_stream_id()
+    {
+        return localStreamId_;
+    }
+
+    /// @return the stream DID (identifier on the receiving node).
+    uint8_t get_dst_stream_id()
+    {
+        return dstStreamId_;
+    }
+
     /// Start of state machine, called when a buffer of data to send arrives
     /// from the application layer.
     Action entry()
@@ -249,7 +270,7 @@ private:
         b->data()->reset(Defs::MTI_STREAM_INITIATE_REQUEST, node_->node_id(),
             dst_,
             StreamDefs::create_initiate_request(
-                streamWindowSize_, false, localStreamId_));
+                streamWindowSize_, false, localStreamId_, dstStreamId_));
 
         node_->iface()->dispatcher()->register_handler(
             &streamInitiateReplyHandler_, Defs::MTI_STREAM_INITIATE_REPLY,
@@ -288,12 +309,18 @@ private:
         streamFlags_ = payload[2];
         streamAdditionalFlags_ = payload[3];
         streamWindowSize_ = (payload[0] << 8) | payload[1];
+        // Grabs alias / node ID from the cache.
+        node_->iface()->canonicalize_handle(&dst_);
 
         // We save the remote alias here if we haven't got any yet.
         if (message->data()->src.alias)
         {
             dst_.alias = message->data()->src.alias;
         }
+
+        isLoopbackStream_ =
+            (node_->iface()->lookup_local_node_handle(dst_) != nullptr);
+
         sleeping_ = false;
         timer_.trigger();
     }
@@ -310,14 +337,14 @@ private:
         {
             if (streamFlags_ & StreamDefs::FLAG_PERMANENT_ERROR)
             {
-                return return_error(
-                    DatagramDefs::PERMANENT_ERROR | streamAdditionalFlags_,
+                return return_error(DatagramDefs::PERMANENT_ERROR |
+                        (streamFlags_ << 8) | streamAdditionalFlags_,
                     "Stream initiate request was denied (permanent error).");
             }
             else
             {
-                return return_error(
-                    Defs::ERROR_TEMPORARY | streamAdditionalFlags_,
+                return return_error(Defs::ERROR_TEMPORARY |
+                        (streamFlags_ << 8) | streamAdditionalFlags_,
                     "Stream initiate request was denied (temporary error).");
             }
         }
@@ -384,7 +411,14 @@ private:
         memcpy(&frame->data[1], payload(), len);
         advance(len);
 
-        ifCan_->frame_write_flow()->send(b);
+        if (!isLoopbackStream_)
+        {
+            ifCan_->frame_write_flow()->send(b);
+        }
+        else
+        {
+            ifCan_->loopback_frame_write_flow()->send(b);
+        }
         return entry();
     }
 
@@ -522,18 +556,21 @@ private:
     IfCan *ifCan_;
     /// Which node are we sending the outgoing data from. This is a local
     /// virtual node.
-    Node *node_;
+    Node *node_ {nullptr};
     /// Destination node that we are sending to. It is important that the alias
     /// is filled in here.
     NodeHandle dst_;
     /// How many bytes we have transmitted in this stream so far.
-    size_t totalByteCount_;
+    size_t totalByteCount_ {0};
     /// What state the current class is in.
     StreamSenderState state_ {IDLE};
     /// Stream ID at the source node. @todo fill in
-    uint8_t localStreamId_;
+    uint8_t localStreamId_ {StreamDefs::INVALID_STREAM_ID};
     /// Stream ID at the destination node. @todo fill in
-    uint8_t dstStreamId_;
+    uint8_t dstStreamId_ {StreamDefs::INVALID_STREAM_ID};
+    /// Determines whether the stream transmission is happening to
+    /// localhost. Almost never true.
+    uint8_t isLoopbackStream_ : 1;
     /// True if we are waiting for the timer.
     uint8_t sleeping_ : 1;
     /// 1 if there is a pending close request.
@@ -541,15 +578,15 @@ private:
     /// 1 if there is a pending initialize request.
     uint8_t requestInit_ : 1;
     /// Flags from the remote node that we got in stream initiate reply
-    uint8_t streamFlags_;
+    uint8_t streamFlags_ {0};
     /// More flags from the remote node that we got in stream initiate reply
-    uint8_t streamAdditionalFlags_;
+    uint8_t streamAdditionalFlags_ {0};
     /// Total stream window size. @todo fill in
-    uint16_t streamWindowSize_;
+    uint16_t streamWindowSize_ {StreamDefs::MAX_PAYLOAD};
     /// Remaining stream window size. @todo fill in
-    uint16_t streamWindowRemaining_;
+    uint16_t streamWindowRemaining_ {0};
     /// When the stream process fails, this variable contains an error code.
-    uint32_t errorCode_;
+    uint32_t errorCode_ {0};
     /// Source of buffers for outgoing CAN frames. Limtedpool is allocating and
     /// releasing to the mainBufferPool, but blocks when we exceed a certain
     /// number of allocations until some buffers get freed.

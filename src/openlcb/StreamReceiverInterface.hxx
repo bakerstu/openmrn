@@ -52,6 +52,11 @@ class Node;
 
 struct StreamReceiveRequest : public CallableFlowRequestBase
 {
+    enum
+    {
+        OPERATION_PENDING = 0x20000, //< cleared when done is called.
+    };
+
     /// Gets a local stream ID. This will be returning the assigned local
     /// stream ID from the stream receiver object.
     void reset()
@@ -59,6 +64,7 @@ struct StreamReceiveRequest : public CallableFlowRequestBase
         reset_base();
         target_ = nullptr;
         localStreamId_ = StreamDefs::INVALID_STREAM_ID;
+        resultCode = OPERATION_PENDING;
     }
 
     /// Starts the stream receiver and prepares for an announced stream. This
@@ -92,6 +98,7 @@ struct StreamReceiveRequest : public CallableFlowRequestBase
         srcStreamId_ = src_stream_id;
         localStreamId_ = dst_stream_id;
         streamWindowSize_ = max_window;
+        resultCode = OPERATION_PENDING;
     }
 
     /// Where to send the incoming stream data.

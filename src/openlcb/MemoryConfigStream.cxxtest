@@ -1,0 +1,417 @@
+#include "openlcb/MemoryConfigStream.hxx"
+
+#include "utils/async_stream_test_helper.hxx"
+
+namespace openlcb
+{
+
+string largePayload {get_payload_data(15000)};
+string smallPayload {get_payload_data(15)};
+ReadOnlyMemoryBlock largeBlock {
+    largePayload.data(), (unsigned)largePayload.size()};
+ReadOnlyMemoryBlock smallBlock {
+    smallPayload.data(), (unsigned)smallPayload.size()};
+
+/// Stream ID used for the receiver on the second interface.
+static constexpr uint8_t STREAM_DST_ID = 0x43;
+
+class MemoryConfigTest : public StreamTestBase
+{
+protected:
+    MemoryConfigTest()
+        : memoryOne_(&datagram_support_, nullptr, 10)
+    {
+        memoryOne_.registry()->insert(node_, 0x27, &largeBlock);
+        memoryOne_.registry()->insert(node_, 0x28, &smallBlock);
+        wait();
+        // Throw away the first two stream IDs.
+        t_.get_send_stream_id();
+        t_.get_send_stream_id();
+    }
+
+    ~MemoryConfigTest()
+    {
+        wait();
+    }
+
+    void setup_two_nodes()
+    {
+        setup_other_node(true);
+        wait();
+        clear_expect(false);
+        run_x([this]() { ifCan_->send_global_alias_enquiry(node_); });
+        otherT_.reset(new StreamTransportCan(otherIfCan_.get(), 1));
+        receiver_.reset(
+            new StreamReceiverCan(otherIfCan_.get(), STREAM_DST_ID));
+        wait();
+    }
+
+    /// Sends a datagram from the second node to the first node. The addresses
+    /// are automatically
+    /// @param payload the contents that this datagram should have.
+    void inject_datagram(string payload)
+    {
+        DatagramClient *c =
+            otherNodeDatagram_->client_allocator()->next_blocking();
+        auto *b = ifCan_->dispatcher()->alloc();
+        b->set_done(datagramDoneBn_.reset(EmptyNotifiable::DefaultInstance()));
+        b->data()->reset(Defs::MTI_DATAGRAM, otherNode_->node_id(),
+            first_node(), hex2str(payload.c_str()));
+        c->write_datagram(b);
+    }
+
+    NodeHandle first_node()
+    {
+        return NodeHandle(node_->node_id());
+    }
+
+    void invoke_receiver(uint8_t src_stream_id = StreamDefs::INVALID_STREAM_ID)
+    {
+        recvRequest_->data()->reset(
+            &sink_, otherNode_.get(), first_node(), src_stream_id);
+        recvRequest_->data()->done.reset(&sn_);
+        run_x([this]() { receiver_->send(recvRequest_->ref()); });
+    }
+
+    StreamTransportCan t_ {ifCan_.get(), 2};
+    MemoryConfigHandler memoryOne_ {&datagram_support_, nullptr, 10};
+    MemoryConfigStreamHandler memoryStream_ {&memoryOne_};
+    /// This barrier is used for the outgoing datagram created by
+    /// inject_datagram().
+    BarrierNotifiable datagramDoneBn_;
+    /// Stream support for second interface.
+    std::unique_ptr<StreamTransportCan> otherT_;
+    /// Stream receiver bound to the second interface.
+    std::unique_ptr<StreamReceiverCan> receiver_;
+    SyncNotifiable sn_;
+};
+
+TEST_F(MemoryConfigTest, create)
+{
+}
+
+TEST_F(MemoryConfigTest, manual)
+{
+    print_all_packets();
+    clear_expect(true);
+
+    // stream initiate request, SID 0x02 DID 0x37 buffer infinite
+    expect_packet(":X19CC822AN077CFFFF00000237;");
+
+    // Read stream request, space 0x28, offset 2, length infinite, dst stream
+    // iD 0x37.
+    send_packet(":X1B22A77CN20600000000228FF;");
+    send_packet(":X1D22A77CN37FFFFFFFF;");
+
+    wait();
+    clear_expect(true);
+
+    // stream initiate reply, accept, window 240, SID 0x02 DID 0x37
+    send_packet(":X1986877CN022A00F080000237;");
+
+    //::testing::InSequence seq;
+
+    // datagram received ok, response pending. This is for the dg opening the
+    // interaction.
+    expect_packet(":X19A2822AN077C80;");
+    // datagram memory config read stream reply success, offset 2, len inf,
+    // space 0x28, SID 02 DID 37.
+    expect_packet(":X1B77C22AN2070000000022802;");
+    expect_packet(":X1D77C22AN37FFFFFFFF;")
+        .WillOnce(::testing::InvokeWithoutArgs([this]() {
+            // Datagram accept, no response. This is for the read reply
+            // datagram.
+            send_packet(":X19A2877CN022A00;");
+        }));
+
+    // stream payloads
+    expect_packet(":X1F77C22AN3702030405060708;");
+    expect_packet(":X1F77C22AN37090A0B0C0D0E;");
+
+    // stream complete, SID 02 DID 37 sent bytes 13
+    expect_packet(":X198A822AN077C02370000000D;");
+
+    twait();
+
+    clear_expect(true);
+}
+
+// Tihs test is a successful run when the datagram open does not specify the
+// stream destination ID. It will get filled in by the stream initiate reply
+// command.
+TEST_F(MemoryConfigTest, no_stream_did)
+{
+    print_all_packets();
+    clear_expect(true);
+
+    // stream initiate request, SID 0x02 DID unknown buffer infinite
+    expect_packet(":X19CC822AN077CFFFF000002FF;");
+
+    // Read stream request, space 0x28, offset 2, length infinite, dst stream
+    // iD unknown.
+    send_packet(":X1B22A77CN20600000000228FF;");
+    send_packet(":X1D22A77CNFFFFFFFFFF;");
+
+    wait();
+    clear_expect(true);
+
+    // stream initiate reply, accept, window 240, SID 0x02 DID 0x39
+    send_packet(":X1986877CN022A00F080000239;");
+
+    //::testing::InSequence seq;
+
+    // datagram received ok, response pending. This is for the dg opening the
+    // interaction.
+    expect_packet(":X19A2822AN077C80;");
+    // datagram memory config read stream reply success, offset 2, len inf,
+    // space 0x28, SID 02 DID 39.
+    expect_packet(":X1B77C22AN2070000000022802;");
+    expect_packet(":X1D77C22AN39FFFFFFFF;")
+        .WillOnce(::testing::InvokeWithoutArgs([this]() {
+            // Datagram accept, no response. This is for the read reply
+            // datagram.
+            send_packet(":X19A2877CN022A00;");
+        }));
+
+    // stream payloads
+    expect_packet(":X1F77C22AN3902030405060708;");
+    expect_packet(":X1F77C22AN39090A0B0C0D0E;");
+
+    // stream complete, SID 02 DID 39 sent bytes 13
+    expect_packet(":X198A822AN077C02390000000D;");
+
+    twait();
+
+    clear_expect(true);
+}
+
+// Tests the case when a stream read happens, then the stream initiate gets
+// rejected by the source node.
+TEST_F(MemoryConfigTest, stream_reject)
+{
+    print_all_packets();
+    clear_expect(true);
+
+    // stream initiate request, SID 0x02 DID 0x37 buffer infinite
+    expect_packet(":X19CC822AN077CFFFF00000237;");
+
+    // Read stream request, space 0x28, offset 2, length infinite, dst stream
+    // iD 0x37.
+    send_packet(":X1B22A77CN20600000000228FF;");
+    send_packet(":X1D22A77CN37FFFFFFFF;");
+
+    wait();
+    clear_expect(true);
+
+    // stream initiate reply, reject, error 0x2123, window 240, SID 0x02 DID
+    // 0x37
+    send_packet(":X1986877CN022A00F021230237;");
+
+    expect_packet(":X19A2822AN077C80;"); // received ok, response pending
+
+    // datagram memory config read stream reply failure, offset 2, len inf,
+    // space 0x28, error 0x2123.
+    expect_packet(":X1B77C22AN2078000000022821;");
+    expect_packet(":X1D77C22AN23;")
+        .WillOnce(::testing::InvokeWithoutArgs([this]() {
+            // Datagram accept
+            send_packet(":X19A2877CN022A00;");
+        }));
+
+    twait();
+    clear_expect(true);
+}
+
+// End to end test case with two nodes on separate interfaces.
+TEST_F(MemoryConfigTest, two_node)
+{
+    setup_two_nodes();
+    twait();
+    clear_expect(true);
+
+    expect_packet(":X1B22A225N20600000000228FF;");
+    expect_packet(":X1D22A225N43FFFFFFFF;");
+    // stream initiate request, SID 0x02 DID 0x43 buffer infinite
+    expect_packet(":X19CC822AN0225FFFF00000243;");
+
+    // Read stream request, space 0x28, offset 2, length infinite, dst stream
+    // iD 0x43.
+    inject_datagram("20600000000228FF43FFFFFFFF");
+
+    wait();
+    clear_expect(true);
+    EXPECT_FALSE(datagramDoneBn_.is_done());
+
+    // stream initiate reply
+    expect_packet(":X19868225N022A00F080000243;");
+    // datgram ack-ed, reply pending.
+    expect_packet(":X19A2822AN022580;");
+
+    // datagram memory config read stream reply success, offset 2, len inf,
+    // space 0x28, SID 02 DID 43.
+    expect_packet(":X1B22522AN2070000000022802;");
+    expect_packet(":X1D22522AN43FFFFFFFF;");
+
+    // response datagram is rejected because noone is listening on the second
+    // node.
+    expect_packet(":X19A48225N022A1000;");
+
+    // Reply accept, buffer length 240, src ID 02 dst id 43.
+    send_message(otherNode_.get(), Defs::MTI_STREAM_INITIATE_REPLY,
+        first_node(), hex2str("00F080000243"));
+    wait();
+
+    // stream payloads
+    expect_packet(":X1F22522AN4302030405060708;");
+    expect_packet(":X1F22522AN43090A0B0C0D0E;");
+
+    // stream complete, SID 02 DID 43 sent bytes 13
+    expect_packet(":X198A822AN022502430000000D;");
+
+    twait();
+    clear_expect(true);
+    EXPECT_TRUE(datagramDoneBn_.is_done());
+}
+
+// End to end test case with length limits.
+TEST_F(MemoryConfigTest, length_limit)
+{
+    setup_two_nodes();
+    twait();
+    clear_expect(true);
+
+    expect_packet(":X1B22A225N20600000000228FF;");
+    expect_packet(":X1D22A225N4300000009;");
+    // stream initiate request, SID 0x02 DID 0x43 buffer infinite
+    expect_packet(":X19CC822AN0225FFFF00000243;");
+
+    // Read stream request, space 0x28, offset 2, length 9, dst stream
+    // iD 0x43.
+    inject_datagram("20600000000228FF4300000009");
+
+    wait();
+    clear_expect(true);
+    EXPECT_FALSE(datagramDoneBn_.is_done());
+
+    // stream initiate reply
+    expect_packet(":X19868225N022A00F080000243;");
+    // datgram ack-ed, reply pending.
+    expect_packet(":X19A2822AN022580;");
+
+    // datagram memory config read stream reply success, offset 2, len inf,
+    // space 0x28, SID 02 DID 43.
+    expect_packet(":X1B22522AN2070000000022802;");
+    expect_packet(":X1D22522AN4300000009;");
+
+    // response datagram is rejected because noone is listening on the second
+    // node.
+    expect_packet(":X19A48225N022A1000;");
+
+    // Reply accept, buffer length 240, src ID 02 dst id 43.
+    send_message(otherNode_.get(), Defs::MTI_STREAM_INITIATE_REPLY,
+        first_node(), hex2str("00F080000243"));
+    wait();
+
+    // stream payloads
+    expect_packet(":X1F22522AN4302030405060708;");
+    expect_packet(":X1F22522AN43090A;");
+
+    // stream complete, SID 02 DID 43 sent bytes 13
+    expect_packet(":X198A822AN0225024300000009;");
+
+    twait();
+    clear_expect(true);
+    EXPECT_TRUE(datagramDoneBn_.is_done());
+}
+
+// End to end test case with stream receiver.
+TEST_F(MemoryConfigTest, end_to_end)
+{
+    setup_two_nodes();
+    twait();
+    clear_expect(false);
+    invoke_receiver();
+
+    EXPECT_EQ(0x20000, recvRequest_->data()->resultCode);
+
+    // Read stream request, space 0x28, offset 2, length infinite, dst stream
+    // iD 0x43.
+    inject_datagram("20600000000228FF43FFFFFFFF");
+
+    twait();
+
+    EXPECT_TRUE(datagramDoneBn_.is_done());
+    EXPECT_EQ(smallPayload.substr(2), sink_.data);
+    sn_.wait_for_notification();
+    EXPECT_EQ(0x0000, recvRequest_->data()->resultCode);
+}
+
+// End to end test case with stream receiver.
+TEST_F(MemoryConfigTest, end_to_end_long)
+{
+    setup_two_nodes();
+    twait();
+    clear_expect(false);
+    invoke_receiver();
+
+    EXPECT_EQ(0x20000, recvRequest_->data()->resultCode);
+
+    // Read stream request, space 0x27, offset 2, length infinite, dst stream
+    // iD 0x43.
+    inject_datagram("20600000000227FF43FFFFFFFF");
+
+    twait();
+
+    EXPECT_TRUE(datagramDoneBn_.is_done());
+    EXPECT_EQ(largePayload.substr(2), sink_.data);
+    sn_.wait_for_notification();
+    EXPECT_EQ(0x0000, recvRequest_->data()->resultCode);
+}
+
+// End to end test case with stream receiver but empty data coming due to out
+// of bounds request.
+TEST_F(MemoryConfigTest, end_to_end_out_of_bound)
+{
+    setup_two_nodes();
+    twait();
+    clear_expect(false);
+    invoke_receiver();
+
+    EXPECT_EQ(0x20000, recvRequest_->data()->resultCode);
+
+    // Read stream request, space 0x28, offset 0xF2, length infinite, dst stream
+    // iD 0x43.
+    inject_datagram("2060000000F228FF43FFFFFFFF");
+
+    twait();
+
+    EXPECT_TRUE(datagramDoneBn_.is_done());
+    EXPECT_EQ("", sink_.data);
+    sn_.wait_for_notification();
+    EXPECT_EQ(0x0000, recvRequest_->data()->resultCode);
+}
+
+// End to end test case with stream receiver but empty data coming due to out
+// of bounds request.
+TEST_F(MemoryConfigTest, end_to_end_length_limit)
+{
+    setup_two_nodes();
+    twait();
+    clear_expect(false);
+    invoke_receiver();
+
+    EXPECT_EQ(0x20000, recvRequest_->data()->resultCode);
+
+    // Read stream request, space 0x28, offset 0xF2, length 9, dst stream
+    // iD 0x43.
+    inject_datagram("20600000000228FF4300000009");
+
+    twait();
+
+    EXPECT_TRUE(datagramDoneBn_.is_done());
+    EXPECT_EQ(smallPayload.substr(2, 9), sink_.data);
+    sn_.wait_for_notification();
+    EXPECT_EQ(0x0000, recvRequest_->data()->resultCode);
+}
+
+} // namespace openlcb

@@ -64,7 +64,7 @@ protected:
     {
         clear_expect(true);
         expect_packet(":X19CC822AN0225FFFF0000AAFF;");
-        sender_.start_stream(other_handle(), 0xaa);
+        sender_.start_stream(node_, other_handle(), 0xaa);
         wait();
         EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
         // Accepts with buffer size of 8 bytes.
@@ -103,7 +103,7 @@ protected:
         sender_.send(chunk);
     }
 
-    StreamSenderCan sender_ {&g_service, ifCan_.get(), node_};
+    StreamSenderCan sender_ {&g_service, ifCan_.get()};
     /// Temporary storage of externally owned payload.
     vector<std::unique_ptr<string>> ownedPayload_;
 };
@@ -118,7 +118,7 @@ TEST_F(StreamSenderTest, initiate)
     clear_expect(true);
     EXPECT_EQ(StreamSender::IDLE, sender_.get_state());
     expect_packet(":X19CC822AN0225FFFF0000AAFF;");
-    sender_.start_stream(other_handle(), 0xaa);
+    sender_.start_stream(node_, other_handle(), 0xaa);
     wait();
     EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
 }
@@ -128,7 +128,8 @@ TEST_F(StreamSenderTest, initiate_with_bufsize)
     clear_expect(true);
     EXPECT_EQ(StreamSender::IDLE, sender_.get_state());
     expect_packet(":X19CC822AN0225EF320000AAFF;");
-    sender_.start_stream(other_handle(), 0xaa).set_proposed_window_size(0xef32);
+    sender_.start_stream(node_, other_handle(), 0xaa)
+        .set_proposed_window_size(0xef32);
     wait();
     EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
 }
@@ -137,15 +138,15 @@ TEST_F(StreamSenderTest, initiate_rejected)
 {
     clear_expect(true);
     expect_packet(":X19CC822AN0225FFFF0000AAFF;");
-    sender_.start_stream(other_handle(), 0xaa);
+    sender_.start_stream(node_, other_handle(), 0xaa);
     wait();
     EXPECT_EQ(StreamSender::INITIATING, sender_.get_state());
-    // Rejects with a weird error code.
-    send_packet(":X19868225N022A00004220AA55;");
+    // Rejects with a standard error code.
+    send_packet(":X19868225N022A00001234AA55;");
     wait();
     EXPECT_EQ(StreamSender::STATE_ERROR, sender_.get_state());
     // Translated into a permanent error.
-    EXPECT_EQ(0x1020, sender_.get_error());
+    EXPECT_EQ(0x1234, sender_.get_error());
 }
 
 TEST_F(StreamSenderTest, initiate_accepted)

@@ -146,6 +146,25 @@ struct ByteChunk
         return len;
     }
 
+    /// @return the place where data can be written to append to this buffer.
+    /// Requirement: this chunk must be a data source, and there has to be an
+    /// ownedData_ set.
+    uint8_t *append_ptr()
+    {
+        HASSERT(ownedData_.get());
+        uint8_t *end = data_ + size_;
+        return end;
+    }
+
+    /// Notifies that a certain number of bytes have been appended, i.e.,
+    /// written into append_ptr().
+    /// Requirement: this chunk must be a data source, and there has to be an
+    /// ownedData_ set.
+    void append_complete(size_t len)
+    {
+        size_ += len;
+    }
+
     /// @return how many free bytes are there in the underlying raw
     /// buffer. This shall only be used by the source (who set ownedData_ to a
     /// real raw buffer), and assumes that all bytes beyond the end are

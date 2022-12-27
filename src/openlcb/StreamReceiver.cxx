@@ -261,6 +261,7 @@ public:
         uint32_t frame_id = 0;
         CanDefs::set_datagram_fields(
             &frame_id, remote_alias, local_alias, CanDefs::STREAM_DATA);
+        LOG(VERBOSE, "register frame ID %x", (unsigned)frame_id);
         parent_->if_can()->frame_dispatcher()->register_handler(
             this, frame_id, CanDefs::STREAM_DG_RECV_MASK);
     }

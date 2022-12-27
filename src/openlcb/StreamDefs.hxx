@@ -54,7 +54,10 @@ struct StreamDefs
     {
         FLAG_CARRIES_ID = 0x01,
         FLAG_REJECT_OUT_OF_ORDER = 0x02,
-        FLAG_PERMANENT_ERROR = 0x40,
+        /// @todo synchronize the draft text in the standards repository with
+        /// these definitions. These definitions match other OpenLCB protocols.
+        FLAG_PERMANENT_ERROR = 0x10,
+        FLAG_TEMPORARY_ERROR = 0x20,
         FLAG_ACCEPT = 0x80,
     };
 

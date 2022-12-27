@@ -1,55 +1,12 @@
 #include "openlcb/StreamReceiver.hxx"
 
 #include "openlcb/StreamSender.hxx"
-#include "utils/async_datagram_test_helper.hxx"
+#include "utils/async_stream_test_helper.hxx"
 
 namespace openlcb
 {
 
-static constexpr uint8_t LOCAL_STREAM_ID = 0x3a;
-static constexpr uint8_t SRC_STREAM_ID = 0xa7;
-
-string get_payload_data(size_t length)
-{
-    string r(length, 0);
-    for (size_t i = 0; i < length; ++i)
-    {
-        r[i] = i & 0xff;
-    }
-    return r;
-}
-
-struct CollectData : public ByteSink
-{
-    /// Bytes that arrived so far.
-    string data;
-    /// Holds buffers.
-    Q q;
-    /// if true, the buffers are added to the queue instead of unref'ed.
-    bool keepBuffers_ {false};
-
-    void send(ByteBuffer *msg, unsigned prio) override
-    {
-        auto rb = get_buffer_deleter(msg);
-        data.append((char *)msg->data()->data_, msg->data()->size());
-        if (keepBuffers_)
-        {
-            q.insert(msg->ref());
-        }
-    }
-
-    /// Takes a single element from the queue, and releases it.
-    string qtake()
-    {
-        ByteBuffer *b = (ByteBuffer *)q.next(0);
-        HASSERT(b != nullptr);
-        string ret((char *)b->data()->data_, b->data()->size());
-        b->unref();
-        return ret;
-    }
-};
-
-class StreamReceiverTestBase : public TwoNodeDatagramTest
+class StreamReceiverTestBase : public StreamTestBase
 {
 protected:
     StreamReceiverTestBase()
@@ -67,7 +24,6 @@ class StreamReceiverTest : public StreamReceiverTestBase
 protected:
     StreamReceiverTest()
     {
-        mainBufferPool->alloc(&recvRequest_);
     }
 
     ~StreamReceiverTest()
@@ -89,7 +45,8 @@ protected:
 
     void invoke_sender()
     {
-        sender_.start_stream(NodeHandle(node_->node_id()), SRC_STREAM_ID);
+        sender_.start_stream(
+            otherNode_.get(), NodeHandle(node_->node_id()), SRC_STREAM_ID);
     }
 
     void send_data(size_t bytes)
@@ -120,10 +77,8 @@ protected:
 
     StreamReceiverCan receiver_ {ifCan_.get(), LOCAL_STREAM_ID};
     SyncNotifiable sn_;
-    CollectData sink_;
-    BufferPtr<StreamReceiveRequest> recvRequest_;
 
-    StreamSenderCan sender_ {&g_service, otherIfCan_.get(), otherNode_.get()};
+    StreamSenderCan sender_ {&g_service, otherIfCan_.get()};
     string dataSent_;
 };
 
@@ -257,7 +212,7 @@ TEST_F(StreamReceiverTest, blocked_sink)
 /// Runs two streams at the same time.
 TEST_F(StreamReceiverTest, two_streams)
 {
-    StreamSenderCan sender2 {&g_service, otherIfCan_.get(), otherNode_.get()};
+    StreamSenderCan sender2 {&g_service, otherIfCan_.get()};
     StreamReceiverCan receiver2 {ifCan_.get(), LOCAL_STREAM_ID + 1};
     CollectData sink2;
     sink2.keepBuffers_ = true;
@@ -273,7 +228,9 @@ TEST_F(StreamReceiverTest, two_streams)
     wait();
 
     // Starts sender 2.
-    sender2.start_stream(NodeHandle(node_->node_id()), SRC_STREAM_ID + 1)
+    sender2
+        .start_stream(
+            otherNode_.get(), NodeHandle(node_->node_id()), SRC_STREAM_ID + 1)
         .set_proposed_window_size(2);
 
     wait();
@@ -307,6 +264,27 @@ TEST_F(StreamReceiverTest, two_streams)
     // Verifies that the right data arrived.
     EXPECT_EQ(dataSent_, sink_.data);
     EXPECT_EQ(p, sink2.data);
+}
+
+/// Runs a localhost stream.
+TEST_F(StreamReceiverTest, localhost)
+{
+    print_all_packets();
+    // Reallocates the stream sender to the same interface.
+    sender_.~StreamSenderCan();
+    new (&sender_) StreamSenderCan(&g_service, ifCan_.get());
+
+    recvRequest_->data()->reset(&sink_, node_, NodeHandle(node_->node_id()),
+        StreamDefs::INVALID_STREAM_ID);
+    recvRequest_->data()->done.reset(&sn_);
+    run_x([this]() { receiver_.send(recvRequest_->ref()); });
+
+    sender_.start_stream(node_, NodeHandle(node_->node_id()), SRC_STREAM_ID);
+
+    send_data(35);
+    sender_.close_stream();
+    wait();
+    EXPECT_EQ(dataSent_, sink_.data);
 }
 
 } // namespace openlcb

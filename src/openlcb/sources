@@ -45,6 +45,7 @@ CXXSRCS += \
            SimpleNodeInfoMockUserFile.cxx \
            SimpleStack.cxx \
            StreamReceiver.cxx \
+           StreamTransport.cxx \
            TractionTestTrain.cxx \
            TractionProxy.cxx \
            TcpDefs.cxx \
