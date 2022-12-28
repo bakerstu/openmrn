@@ -213,7 +213,7 @@ public:
 
     /// Start of state machine, called when a buffer of data to send arrives
     /// from the application layer.
-    Action entry()
+    Action entry() override
     {
         if (requestInit_)
         {
@@ -365,6 +365,8 @@ private:
     /// to the destination.
     Action do_close_stream()
     {
+        node_->iface()->dispatcher()->unregister_handler(
+            &streamProceedHandler_, Defs::MTI_STREAM_PROCEED, Defs::MTI_EXACT);
         return allocate_and_call(node_->iface()->addressed_message_write_flow(),
             STATE(send_close_stream));
     }
@@ -521,7 +523,7 @@ private:
 
     Action return_error(uint32_t code, string message)
     {
-        LOG(INFO, "error %x: %s", code, message.c_str());
+        LOG(INFO, "error %x: %s", (unsigned)code, message.c_str());
         errorCode_ = code;
         state_ = STATE_ERROR;
         return release_and_exit();
