@@ -720,6 +720,8 @@ private:
             case MemoryConfigDefs::COMMAND_WRITE_STREAM_FAILED:
             case MemoryConfigDefs::COMMAND_READ_REPLY:
             case MemoryConfigDefs::COMMAND_READ_FAILED:
+            case MemoryConfigDefs::COMMAND_READ_STREAM_REPLY:
+            case MemoryConfigDefs::COMMAND_READ_STREAM_FAILED:
             case MemoryConfigDefs::COMMAND_OPTIONS_REPLY:
             case MemoryConfigDefs::COMMAND_INFORMATION_REPLY:
             case MemoryConfigDefs::COMMAND_LOCK_REPLY:
@@ -730,6 +732,7 @@ private:
                     client_->send(transfer_message());
                     return exit();
                 }
+                LOG(VERBOSE, "memcfg handler reply: no client registered");
             } // fall through to unsupported.
             default:
                 // Unknown/unsupported command, reject datagram.
@@ -775,6 +778,10 @@ private:
         response_.push_back(MemoryConfigDefs::COMMAND_OPTIONS_REPLY);
         uint16_t available_commands =
             MemoryConfigDefs::AVAIL_UR | MemoryConfigDefs::AVAIL_UW;
+        if (streamHandler_)
+        {
+            available_commands |= MemoryConfigDefs::AVAIL_SR;
+        }
         // Figure out about ACDI spaces
         MemorySpace* memspace = registry_.lookup(message()->data()->dst, 0xFC);
         if (memspace) {

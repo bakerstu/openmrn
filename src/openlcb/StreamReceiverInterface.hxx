@@ -54,7 +54,10 @@ struct StreamReceiveRequest : public CallableFlowRequestBase
 {
     enum
     {
-        OPERATION_PENDING = 0x20000, //< cleared when done is called.
+        /// This bit in the resultCode is cleared when done is called.
+        OPERATION_PENDING = 0x20000,
+        /// The operation was canceled by the caller using `cancel_request()`
+        ERROR_CANCELED = Defs::ERROR_OUT_OF_ORDER | 1,
     };
 
     /// Gets a local stream ID. This will be returning the assigned local
@@ -117,7 +120,18 @@ struct StreamReceiveRequest : public CallableFlowRequestBase
     uint16_t streamWindowSize_ {0};
 };
 
-using StreamReceiverInterface = FlowInterface<Buffer<StreamReceiveRequest>>;
+class StreamReceiverInterface : public CallableFlow<StreamReceiveRequest>
+{
+public:
+    StreamReceiverInterface(Service *s)
+        : CallableFlow<StreamReceiveRequest>(s)
+    { }
+
+    /// Cancels the currently pending stream receive request. The message will
+    /// then be asynchronously returned using the regular mechanism with a
+    /// temporary error.
+    virtual void cancel_request() = 0;
+};
 
 } // namespace openlcb
 

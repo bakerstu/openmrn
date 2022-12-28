@@ -116,6 +116,9 @@ struct MemoryConfigDefs
         AVAIL_WUM   = 0x8000, /**< write under mask supported */
         AVAIL_UR    = 0x4000, /**< unaligned reads supported */
         AVAIL_UW    = 0x2000, /**< unaligned writes supported */
+        /// @todo This is a proposed value, see
+        /// https://github.com/openlcb/documents/issues/57
+        AVAIL_SR    = 0x1000, /**< stream reads supported */
         AVAIL_R0xFC = 0x0800, /**< read from adddress space 0xFC available */
         AVAIL_R0xFB = 0x0400, /**< read from adddress space 0xFB available */
         AVAIL_W0xFB = 0x0200, /**< write from adddress space 0xFB available */
@@ -201,6 +204,34 @@ struct MemoryConfigDefs
         return p;
     }
 
+    static DatagramPayload read_stream_datagram(uint8_t space, uint32_t offset,
+        uint8_t dst_stream_id, uint32_t length = 0xFFFFFFFF)
+    {
+        DatagramPayload p;
+        p.reserve(13);
+        p.push_back(DatagramDefs::CONFIGURATION);
+        p.push_back(COMMAND_READ_STREAM);
+        p.push_back(0xff & (offset >> 24));
+        p.push_back(0xff & (offset >> 16));
+        p.push_back(0xff & (offset >> 8));
+        p.push_back(0xff & (offset));
+        if (is_special_space(space))
+        {
+            p[1] |= space & ~SPACE_SPECIAL;
+        }
+        else
+        {
+            p.push_back(space);
+        }
+        p.push_back(0xff); // src ID
+        p.push_back(dst_stream_id); // dst ID
+        p.push_back(0xff & (length >> 24));
+        p.push_back(0xff & (length >> 16));
+        p.push_back(0xff & (length >> 8));
+        p.push_back(0xff & (length));
+        return p;
+    }
+    
     /// @return true if the payload has minimum number of bytes you need in a
     /// read or write datagram message to cover for the necessary fields
     /// (command, offset, space).

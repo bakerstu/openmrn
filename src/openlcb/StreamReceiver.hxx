@@ -46,7 +46,7 @@
 namespace openlcb
 {
 
-class StreamReceiverCan : public CallableFlow<StreamReceiveRequest>
+class StreamReceiverCan : public StreamReceiverInterface
 {
 public:
     /// Constructor.
@@ -63,6 +63,11 @@ public:
     /// of send().
     void send(Buffer<StreamReceiveRequest> *msg, unsigned prio = 0) override;
 
+    /// Cancels the currently pending stream receive request. The message will
+    /// then be asynchronously returned using the regular mechanism with a
+    /// temporary error.
+    void cancel_request() override;
+    
 private:
     /// Helper function for send() when a stream has to start synchronously.
     void announced_stream();
@@ -75,6 +80,11 @@ private:
 
     Action wait_for_wakeup()
     {
+        if (pendingCancel_)
+        {
+            return call_immediately(STATE(wakeup));
+        }
+        isWaiting_ = 1;
         return wait_and_call(STATE(wakeup));
     }
 
@@ -108,6 +118,9 @@ private:
     ///
     void handle_stream_complete(Buffer<GenMessage> *message);
 
+    /// Removes all handlers that are registered.
+    void unregister_handlers();
+    
     /// @return the local CAN interface.
     IfCan *if_can()
     {
@@ -161,7 +174,10 @@ private:
     uint8_t streamClosed_ : 1;
     /// 1 if we received the stream init request message.
     uint8_t pendingInit_ : 1;
-
+    /// 1 if we received a cancel request
+    uint8_t pendingCancel_ : 1;
+    /// 1 if we are currently waiting for a notification
+    uint8_t isWaiting_ : 1;
 }; // class StreamReceiver
 
 } // namespace openlcb

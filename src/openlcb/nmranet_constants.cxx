@@ -53,6 +53,10 @@ DEFAULT_CONST(num_datagram_registry_entries, 2);
  * happen concurrently. */
 DEFAULT_CONST(num_datagram_clients, 2);
 
+/** Number of stream senders. This is how many stream send operations can
+ * happen concurrently. */
+DEFAULT_CONST(num_stream_senders, 1);
+
 /** Maximum number of memory spaces that can be registered for the MemoryConfig
  * datagram handler. */
 DEFAULT_CONST(num_memory_spaces, 5);
