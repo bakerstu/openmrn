@@ -137,6 +137,10 @@ DECLARE_CONST(num_datagram_registry_entries);
  * happen concurrently. */
 DECLARE_CONST(num_datagram_clients);
 
+/** Number of stream senders. This is how many stream send operations can
+ * happen concurrently. */
+DECLARE_CONST(num_stream_senders);
+
 /** Maximum number of memory spaces that can be registered for the MemoryConfig
  * datagram handler. */
 DECLARE_CONST(num_memory_spaces);

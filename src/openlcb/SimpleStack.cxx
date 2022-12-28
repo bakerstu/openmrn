@@ -49,8 +49,10 @@
 #include "openlcb/SimpleStack.hxx"
 
 #include "openlcb/EventHandler.hxx"
+#include "openlcb/MemoryConfigStream.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
 #include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/StreamTransport.hxx"
 #include "openmrn_features.h"
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/SocketCan.hxx"
@@ -97,6 +99,16 @@ SimpleTcpStack::SimpleTcpStack(const openlcb::NodeID node_id)
     : SimpleTcpStackBase(node_id)
     , node_(iface(), node_id, false)
 {
+}
+
+void SimpleCanStackBase::add_stream_support()
+{
+    Destructable *t =
+        new StreamTransportCan(if_can(), config_num_stream_senders());
+    additionalComponents_.emplace_back(t);
+    Destructable *mem_stream =
+        new MemoryConfigStreamHandler(memory_config_handler());
+    additionalComponents_.emplace_back(mem_stream);
 }
 
 void SimpleStackBase::start_stack(bool delay_start)
