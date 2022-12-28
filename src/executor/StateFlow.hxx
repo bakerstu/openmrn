@@ -1133,6 +1133,14 @@ public:
     /// numbers mean process earlier.
     virtual void send(MessageType *message, unsigned priority = UINT_MAX) = 0;
 
+    /// This function is never user in the code, but GDB can use it to infer
+    /// the correct message types. It has to be virtual so that it is not
+    /// optimized away.
+    virtual MessageType *type_helper()
+    {
+        return nullptr;
+    }
+
     /** Synchronously allocates a message buffer from the pool of this
      * flow. @return the newly allocates message. */
     MessageType *alloc()
