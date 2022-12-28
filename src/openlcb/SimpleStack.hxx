@@ -440,7 +440,7 @@ public:
     /// Usage: add following at toplevel in main.cxx
     /// ```
     /// SimpleCanStack stack(NODE_ID);
-    /// SimpleCanStack::WithStreamSupport(&stack);
+    /// SimpleCanStack::WithStreamSupport stream_support(&stack);
     /// ```
     class WithStreamSupport
     {
