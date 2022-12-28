@@ -778,6 +778,10 @@ private:
         response_.push_back(MemoryConfigDefs::COMMAND_OPTIONS_REPLY);
         uint16_t available_commands =
             MemoryConfigDefs::AVAIL_UR | MemoryConfigDefs::AVAIL_UW;
+        if (streamHandler_)
+        {
+            available_commands |= MemoryConfigDefs::AVAIL_SR;
+        }
         // Figure out about ACDI spaces
         MemorySpace* memspace = registry_.lookup(message()->data()->dst, 0xFC);
         if (memspace) {

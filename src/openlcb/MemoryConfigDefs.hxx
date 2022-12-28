@@ -116,6 +116,9 @@ struct MemoryConfigDefs
         AVAIL_WUM   = 0x8000, /**< write under mask supported */
         AVAIL_UR    = 0x4000, /**< unaligned reads supported */
         AVAIL_UW    = 0x2000, /**< unaligned writes supported */
+        /// @todo This is a proposed value, see
+        /// https://github.com/openlcb/documents/issues/57
+        AVAIL_SR    = 0x1000, /**< stream reads supported */
         AVAIL_R0xFC = 0x0800, /**< read from adddress space 0xFC available */
         AVAIL_R0xFB = 0x0400, /**< read from adddress space 0xFB available */
         AVAIL_W0xFB = 0x0200, /**< write from adddress space 0xFB available */
