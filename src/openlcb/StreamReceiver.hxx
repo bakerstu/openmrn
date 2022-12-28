@@ -80,6 +80,10 @@ private:
 
     Action wait_for_wakeup()
     {
+        if (pendingCancel_)
+        {
+            return call_immediately(STATE(wakeup));
+        }
         isWaiting_ = 1;
         return wait_and_call(STATE(wakeup));
     }
