@@ -83,6 +83,19 @@ protected:
             otherHandler_.get(), otherT_->get_next_stream_receive_id()));
     }
 
+    /// This function will be used for progress reporting callback.
+    void callback(MemoryConfigClientRequest *req)
+    {
+        ++callCount_;
+    }
+
+    /// @return a callback usable for the progress reporting.
+    std::function<void(MemoryConfigClientRequest *)> get_callback()
+    {
+        return std::bind(
+            &MemoryConfigTest::callback, this, std::placeholders::_1);
+    }
+
     StreamTransportCan t_ {ifCan_.get(), 2};
     MemoryConfigHandler memoryOne_ {&datagram_support_, nullptr, 10};
     MemoryConfigStreamHandler memoryStream_ {&memoryOne_};
@@ -98,6 +111,8 @@ protected:
     std::unique_ptr<MemoryConfigHandler> otherHandler_;
     /// MemCfg Client on the second interface
     std::unique_ptr<MemoryConfigClientWithStream> client_;
+    /// How many times was the callback executed.
+    unsigned callCount_{0};
 };
 
 TEST_F(MemoryConfigTest, create)
@@ -456,9 +471,25 @@ TEST_F(MemoryConfigTest, client_e2e)
     twait();
 
     auto b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM,
-        first_node(), 0x28);
+                         first_node(), 0x28, get_callback());
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(smallPayload, b->data()->payload);
+    EXPECT_EQ(1u, callCount_);
+}
+
+// Partial reads using stream.
+TEST_F(MemoryConfigTest, client_e2e_part)
+{
+    print_all_packets();
+    setup_two_nodes();
+    start_client();
+    twait();
+
+    auto b =
+        invoke_flow(client_.get(), MemoryConfigClientRequest::READ_PART_STREAM,
+            first_node(), 0x28, 2, 9);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(smallPayload.substr(2, 9), b->data()->payload);
 }
 
 // End to end test case with memory config client, executed twice
@@ -474,9 +505,10 @@ TEST_F(MemoryConfigTest, client_e2e_two_calls)
     EXPECT_EQ(smallPayload, b->data()->payload);
 
     b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM,
-        first_node(), 0x27);
+                    first_node(), 0x27, get_callback());
     EXPECT_EQ(0, b->data()->resultCode);
-    EXPECT_EQ(largePayload, b->data()->payload);    
+    EXPECT_EQ(largePayload, b->data()->payload);
+    EXPECT_EQ(15u, callCount_);
 }
 
 // End to end test case with memory config client
