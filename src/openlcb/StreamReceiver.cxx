@@ -47,6 +47,12 @@ namespace openlcb
 
 void StreamReceiverCan::announced_stream()
 {
+    // Resets state bits.
+    streamClosed_ = 0;
+    pendingInit_ = 0;
+    pendingCancel_ = 0;
+    isWaiting_ = 0;
+
     if (!request()->streamWindowSize_)
     {
         request()->streamWindowSize_ =
@@ -295,11 +301,13 @@ private:
 };
 
 StreamReceiverCan::StreamReceiverCan(IfCan *interface, uint8_t local_stream_id)
-    : CallableFlow<StreamReceiveRequest>(interface)
+    : StreamReceiverInterface(interface)
     , dataHandler_(new StreamDataHandler(this))
     , assignedStreamId_(local_stream_id)
     , streamClosed_(0)
     , pendingInit_(0)
+    , pendingCancel_(0)
+    , isWaiting_(0)
 {
 }
 
@@ -307,9 +315,38 @@ StreamReceiverCan::~StreamReceiverCan()
 {
 }
 
+void StreamReceiverCan::cancel_request()
+{
+    pendingCancel_ = 1;
+    if (isWaiting_)
+    {
+        isWaiting_ = 0;
+        notify();
+    }
+}
+
+void StreamReceiverCan::unregister_handlers()
+{
+    dataHandler_->stop();
+    node()->iface()->dispatcher()->unregister_handler_all(
+        &streamInitiateHandler_);
+    node()->iface()->dispatcher()->unregister_handler_all(
+        &streamCompleteHandler_);
+}
+
 StateFlowBase::Action StreamReceiverCan::wakeup()
 {
-    // Check reason for wakeup.
+    isWaiting_ = 0;
+    // Checks reason for wakeup.
+    if (pendingCancel_) {
+        unregister_handlers();
+        if (currentBuffer_)
+        {
+            // Sends off the buffer and clears currentBuffer_.
+            request()->target_->send(currentBuffer_.release());
+        }
+        return return_with_error(StreamReceiveRequest::ERROR_CANCELED);
+    }
     if (pendingInit_)
     {
         pendingInit_ = 0;
