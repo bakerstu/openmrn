@@ -834,7 +834,7 @@ public:
     {
         /// @todo make this not specific to the CAN-buf interface but somehow
         /// portable.
-        IfCan *iface = dynamic_cast<IfCan *>(node_->iface());
+        IfCan *iface = static_cast<IfCan *>(node_->iface());
         HASSERT(iface);
         HASSERT(iface->stream_transport());
         dstStreamId_ = iface->stream_transport()->get_next_stream_receive_id();

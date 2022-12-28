@@ -104,7 +104,7 @@ private:
             full_allocation_result(stream_transport()->sender_allocator());
         /// @todo the APIs are not on the right object in StreamSender, so we
         /// have to do this down cast.
-        senderCan_ = dynamic_cast<StreamSenderCan *>(sender_);
+        senderCan_ = static_cast<StreamSenderCan *>(sender_);
         HASSERT(senderCan_);
         return call_immediately(STATE(initiate_stream));
     }
