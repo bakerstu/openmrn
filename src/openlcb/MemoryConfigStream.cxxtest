@@ -454,12 +454,29 @@ TEST_F(MemoryConfigTest, client_e2e)
     setup_two_nodes();
     start_client();
     twait();
-    // clear_expect(true);
 
     auto b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM,
         first_node(), 0x28);
     EXPECT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(smallPayload, b->data()->payload);
+}
+
+// End to end test case with memory config client, executed twice
+TEST_F(MemoryConfigTest, client_e2e_two_calls)
+{
+    setup_two_nodes();
+    start_client();
+    twait();
+
+    auto b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM,
+        first_node(), 0x28);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(smallPayload, b->data()->payload);
+
+    b = invoke_flow(client_.get(), MemoryConfigClientRequest::READ_STREAM,
+        first_node(), 0x27);
+    EXPECT_EQ(0, b->data()->resultCode);
+    EXPECT_EQ(largePayload, b->data()->payload);    
 }
 
 // End to end test case with memory config client

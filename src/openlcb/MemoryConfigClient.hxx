@@ -975,6 +975,23 @@ protected:
         return finish_read();
     }
 
+    /// Called upon various error conditions, typically before opening the
+    /// stream.
+    Action handle_read_error(int error)
+    {
+        // We don't need to hold on to our extra ref anymore.
+        streamRecvRequest_->data()->done.notify();
+        receiver_->cancel_request();
+        request()->resultCode = error;
+        return wait_and_call(STATE(cleanup_after_error));
+    }
+
+    Action cleanup_after_error()
+    {
+        cleanup_read();
+        return return_with_error(request()->resultCode);
+    }
+
     /// Stores incoming stream data into the request()->payload object
     /// (which is a string).
     struct DefaultSink : public ByteSink
