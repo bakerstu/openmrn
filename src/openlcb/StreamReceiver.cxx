@@ -256,8 +256,7 @@ class StreamReceiverCan::StreamDataHandler : public IncomingFrameHandler
 public:
     StreamDataHandler(StreamReceiverCan *parent)
         : parent_(parent)
-    {
-    }
+    { }
 
     /// Starts registration for receiving stream data with the given aliases.
     void start(NodeAlias remote_alias, NodeAlias local_alias)
@@ -308,12 +307,10 @@ StreamReceiverCan::StreamReceiverCan(IfCan *interface, uint8_t local_stream_id)
     , pendingInit_(0)
     , pendingCancel_(0)
     , isWaiting_(0)
-{
-}
+{ }
 
 StreamReceiverCan::~StreamReceiverCan()
-{
-}
+{ }
 
 void StreamReceiverCan::cancel_request()
 {
@@ -338,7 +335,8 @@ StateFlowBase::Action StreamReceiverCan::wakeup()
 {
     isWaiting_ = 0;
     // Checks reason for wakeup.
-    if (pendingCancel_) {
+    if (pendingCancel_)
+    {
         unregister_handlers();
         if (currentBuffer_)
         {
