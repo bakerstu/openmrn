@@ -60,10 +60,11 @@ public:
         , isAtInitialValue_(false)
         , empty_(true)
         , base_(10)
+        , autoClamp_(true)
     {
     }
 
-    ///Clear the entry string.
+    /// Clear the entry string.
     void clear()
     {
         value_ = 0;
@@ -79,6 +80,7 @@ public:
     void init(unsigned max_size, int base)
     {
         maxSize_ = max_size;
+        autoClamp_ = true;
         clear();
         set_base(base); // this will call set_boundaries()
     }
@@ -87,9 +89,14 @@ public:
     /// @param max_size max number of digits in the base type
     /// @param base base type, 10 or 16
     /// @param value value to initialize with
-    void init(unsigned max_size, int base, T value)
+    /// @param automatic_clamp Unless otherwise specified by the API, enables
+    ///                        automatic clamping of the value each time it is
+    ///                        modified when true, else automatic clamping is
+    ///                        not applied.
+    void init(unsigned max_size, int base, T value, bool automatic_clamp = true)
     {
         init(max_size, base);
+        autoClamp_ = automatic_clamp;
         value_ = value;
         isAtInitialValue_ = true;
         empty_ = false;
@@ -136,7 +143,7 @@ public:
         }
         empty_ = false;
         ++size_;
-        clamp();
+        auto_clamp();
     }
 
     /// Append a character to the "back".
@@ -188,7 +195,7 @@ public:
         if (isAtInitialValue_)
         {
             isAtInitialValue_ = false;
-            clamp();
+            auto_clamp();
             // need to compute the size now that the initial value is false
             calculate_size();
         }
@@ -197,7 +204,7 @@ public:
             // no more characters left, so the entry is "empty"
             empty_ = true;
         }
-        clamp();
+        auto_clamp();
     }
 
     /// Set the radix base.
@@ -236,7 +243,7 @@ public:
     /// @param value value to initialize with
     void set_value(T value)
     {
-        init(maxSize_, base_, value);
+        init(maxSize_, base_, value, autoClamp_);
     }
 
     /// Get the size (actual number of digits). Note, if the entry is still
@@ -297,7 +304,7 @@ public:
     ///                    "empty". However, if force is set to true, we will
     ///                    clamp anyways. This may be valuable when wanting an
     ///                    "empty" entry to return a valid value and '0' is out
-    ///                    of bounds.
+    ///                    of bounds. The auto clamping setting is ignored.
     /// @return value representation of the entry
     T get_value(bool force_clamp = false)
     {
@@ -381,7 +388,7 @@ public:
         {
             ++size_;
         }
-        clamp();
+        auto_clamp();
     }
 
     /// Clamp the value at the min or max. Clamping will not occur if the value
@@ -415,7 +422,8 @@ public:
 
     /// Pre-increment value. While this method does prevent wrap around of
     /// the native type limits, it is incumbent on the caller to limit the
-    /// resulting number of digits.
+    /// resulting number of digits. Always clamps, the auto clamping setting
+    /// is ignroed.
     T operator ++()
     {
         isAtInitialValue_ = false;
@@ -429,7 +437,8 @@ public:
 
     /// Pre-decrement value. While this method does prevent wrap around of
     /// the native type limits, it is incumbent on the caller to limit the
-    /// resulting number of digits.
+    /// resulting number of digits. Always clamps, the auto clamping setting
+    /// is ignroed.
     T operator --()
     {
         isAtInitialValue_ = false;
@@ -442,6 +451,19 @@ public:
     }
 
 protected:
+    /// Calls clamp() only if automatic clamping is enabled (autoClamp_ = true).
+    /// @param force Normally, clamping doesn't occur if the entry is "empty".
+    ///              However, if force is set to true, we will clamp anyways.
+    ///              force also applies if the value is zero yet there is space
+    ///              for more leading zeros.
+    void auto_clamp(bool force = false)
+    {
+        if (autoClamp_)
+        {
+            clamp(force);
+        }
+    }
+
     /// Set min and max boundaries supported based on maxSize_ (digit count).
     virtual void set_boundaries()
     {
@@ -478,6 +500,7 @@ protected:
     unsigned isAtInitialValue_ : 1; ///< true if still has the initial value
     unsigned empty_            : 1; ///< true if the value_ is "empty"
     unsigned base_             : 6; ///< radix base
+    unsigned autoClamp_        : 1; ///< true to auto clamp the values
 
     DISALLOW_COPY_AND_ASSIGN(EntryModel);
 };
@@ -501,10 +524,12 @@ public:
     /// @param min minumum value
     /// @param max maximum value
     /// @param default_val default value
-    void init(unsigned max_size, int base, T value, T min, T max, T default_val)
+    /// @param automatic_clamp
+    void init(unsigned max_size, int base, T value, T min, T max, T default_val,
+              bool automatic_clamp = true)
     {
         // purposely do not boundary check the min, max, and default values
-        EntryModel<T>::init(max_size, base, value);
+        EntryModel<T>::init(max_size, base, value, automatic_clamp);
         // override type min/max values
         EntryModel<T>::valueMin_ = min;
         EntryModel<T>::valueMax_ = max;

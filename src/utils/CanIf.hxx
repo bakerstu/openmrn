@@ -216,6 +216,13 @@ public:
         return &frameWriteFlow_;
     }
 
+    /// @returns the flow for writing CAN frames for localhost (as if they came
+    /// from the bus).
+    OutgoingFrameHandler *loopback_frame_write_flow()
+    {
+        return &frameReadFlow_;
+    }
+
 private:
     friend class CanFrameWriteFlow;
     // friend class CanFrameReadFlow;

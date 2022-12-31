@@ -93,7 +93,7 @@ pool shall be set to `rawBufferPool`.
 
 ### Memory ownership / deallocation
 
-`ByteChunk` contains an `BufferPtr<RawBuffer>`, which is a unique_ptr that
+`ByteChunk` contains a `BufferPtr<RawBuffer>`, which is a unique_ptr that
 unref's the buffer upon the destructor. This represents the ownership of a
 reference to a `RawBuffer`. The destructor of `ByteChunk` will automatically
 release this reference.

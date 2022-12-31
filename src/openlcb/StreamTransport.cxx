@@ -1,9 +1,9 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2022, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are  permitted provided that the following conditions are met:
+ * modification, are permitted provided that the following conditions are met:
  *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
@@ -24,32 +24,42 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file DefaultNode.cxx
+ * \file StreamTransport.cxx
  *
- * Default AsyncNode implementation for a fat virtual node.
+ * Interface for stream functionality attached to an OpenLCB interface.
  *
  * @author Balazs Racz
- * @date 7 December 2013
+ * @date 20 Dec 2022
  */
 
-#include "utils/logging.h"
-#include "openlcb/DefaultNode.hxx"
-#include "openlcb/If.hxx"
+#include "openlcb/StreamTransport.hxx"
+
+#include "openlcb/StreamSender.hxx"
 
 namespace openlcb
 {
 
-DefaultNode::DefaultNode(If* iface, NodeID node_id, bool init)
-    : nodeId_(node_id), isInitialized_(0), iface_(iface)
+StreamTransport::StreamTransport(If *iface)
+    : inUseSendStreamIds_(0)
+    , nextSendStreamId_(0)
 {
-    iface_->add_local_node(this);
-    if (init)
+    iface->set_stream_transport(this);
+}
+
+StreamTransport::~StreamTransport()
+{
+}
+
+StreamTransportCan::StreamTransportCan(IfCan *iface, unsigned num_senders)
+    : StreamTransport(iface)
+{
+    for (unsigned i = 0; i < num_senders; ++i)
     {
-        initialize();
+        senders_.typed_insert(new StreamSenderCan(iface, iface));
     }
 }
 
-DefaultNode::~DefaultNode()
+StreamTransportCan::~StreamTransportCan()
 {
 }
 
