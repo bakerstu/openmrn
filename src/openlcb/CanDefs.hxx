@@ -66,6 +66,7 @@ struct CanDefs {
         FRAME_TYPE_MASK     = 0x08000000, /**< mask for frame type field of CAN ID */
         PRIORITY_MASK       = 0x10000000, /**< mask for priority field of CAN ID */
         PADDING_MASK        = 0xe0000000, /**< mask for padding field of CAN ID */
+        STREAM_DG_RECV_MASK = 0x0fffffff, /**< mask for receiving datagram and stream frames. */
 
         SRC_SHIFT            =  0, /**< shift for source field of CAN ID */
         MTI_SHIFT            = 12, /**< shift for MTI field of CAN ID */
@@ -89,8 +90,6 @@ struct CanDefs {
         CONTROL_PRIORITY_SHIFT = 28, /**< priority shift */
         CONTROL_PADDING_SHIFT  = 29  /**< pad out to a full 32-bit word */
     };
-
-
 
     // @TODO(balazs.racz) do we need this?
     typedef uint16_t CanMTI;
@@ -208,9 +207,17 @@ struct CanDefs {
      */
     static bool is_cid_frame(uint32_t can_id)
     {
-        return ((can_id >> CAN_FRAME_TYPE_SHIFT) & 0x14) == 0x14;
+        return ((can_id >> CAN_FRAME_TYPE_SHIFT) & 0x1C) == 0x14;
     }
 
+    /** Tests if the incoming frame is a stream data send frame.
+     * @param can_id identifier to act upon
+     * @return true for Stream Data frame, false for any other frame.
+     */
+    static bool is_stream_frame(uint32_t can_id)
+    {
+        return ((can_id >> CAN_FRAME_TYPE_SHIFT) & 0xF) == 0xF;
+    }
 
     /** Set the MTI field value of the CAN ID.
      * @param can_id identifier to act upon, passed by reference

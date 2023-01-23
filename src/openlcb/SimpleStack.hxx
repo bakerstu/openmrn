@@ -439,6 +439,25 @@ public:
         return &static_cast<CanPhysicalIf *>(ifaceHolder_.get())->ifCan_;
     }
 
+    /// Enables stream transport in the interface and in the memory config
+    /// protocol.
+    void add_stream_support();
+
+    /// Helper class to add stream support straight after construction.
+    /// Usage: add following at toplevel in main.cxx
+    /// ```
+    /// SimpleCanStack stack(NODE_ID);
+    /// SimpleCanStack::WithStreamSupport stream_support(&stack);
+    /// ```
+    class WithStreamSupport
+    {
+    public:
+        WithStreamSupport(SimpleCanStackBase *p)
+        {
+            p->add_stream_support();
+        }
+    };
+
 protected:
     /// Helper function for start_stack et al.
     void start_iface(bool restart) override;
