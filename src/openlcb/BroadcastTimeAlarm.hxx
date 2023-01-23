@@ -235,7 +235,7 @@ private:
             }
             else if (clock_->is_running())
             {
-                long long real_expires;
+                long long real_expires = 0;
                 bool result =
                     clock_->real_nsec_until_fast_time_abs(expires_,
                                                           &real_expires);

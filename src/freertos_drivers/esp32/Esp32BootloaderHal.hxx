@@ -40,6 +40,7 @@
 #define _FREERTOS_DRIVERS_ESP32_ESP32BOOTLOADERHAL_HXX_
 
 #include "sdkconfig.h"
+#include <esp_idf_version.h>
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
 #error ESP32 Bootloader is only supported with ESP-IDF v4.3+

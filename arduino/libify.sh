@@ -188,6 +188,7 @@ rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
     ${TARGET_LIB_DIR}/src/utils/AesCcmTestVectorsEx.hxx \
     ${TARGET_LIB_DIR}/src/utils/async_datagram_test_helper.hxx \
     ${TARGET_LIB_DIR}/src/utils/async_if_test_helper.hxx \
+    ${TARGET_LIB_DIR}/src/utils/async_stream_test_helper.hxx \
     ${TARGET_LIB_DIR}/src/utils/async_traction_test_helper.hxx \
     ${TARGET_LIB_DIR}/src/utils/EEPROMEmuTest.hxx \
     ${TARGET_LIB_DIR}/src/utils/hub_test_utils.hxx \
