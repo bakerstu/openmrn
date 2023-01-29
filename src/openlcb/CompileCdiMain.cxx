@@ -42,6 +42,8 @@ void render_cdi_helper(const CdiType &t, string ns, string name)
         printf("extern const size_t %s_SIZE;\n", name.c_str());
         printf("const size_t %s_SIZE = sizeof(%s_DATA);\n", name.c_str(),
             name.c_str());
+        printf("const size_t %s_END_OFFSET = %u;\n", name.c_str(),
+               (unsigned)t.end_offset());
         printf("\n}  // namespace %s\n\n", ns.c_str());
     }
 }
