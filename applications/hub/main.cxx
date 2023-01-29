@@ -54,7 +54,7 @@ Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
-OVERRIDE_CONST(gridconnect_buffer_size, 1300);
+OVERRIDE_CONST(gridconnect_buffer_size, 1460);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
 
 

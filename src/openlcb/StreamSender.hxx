@@ -541,7 +541,7 @@ private:
     static constexpr size_t MAX_BYTES_PAYLOAD_PER_CAN_FRAME = 7;
 
     /// How many CAN frames should we allocate at a given time.
-    static constexpr size_t MAX_FRAMES_IN_FLIGHT = 4;
+    static constexpr size_t MAX_FRAMES_IN_FLIGHT = 50;
 
     /// How many bytes the allocation of a single CAN frame should be.
     static constexpr size_t CAN_FRAME_ALLOC_SIZE =
