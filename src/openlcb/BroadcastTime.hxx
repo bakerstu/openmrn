@@ -50,7 +50,16 @@ class BroadcastTime : public SimpleEventHandler
                     , public TimeBase
 {
 public:
-    typedef std::vector<std::function<void()>>::size_type UpdateSubscribeHandle;
+    /// An opaque data element that is returned from update subscriber
+    /// registration, and allows unregistering a subscriber.
+    typedef size_t UpdateSubscribeHandle;
+
+    /// Callback type used for time update subscribers.
+    ///
+    /// @param old Fast clock's current time according to the pre-update state.
+    /// @param current Fast clock's current time according to the post-update
+    /// state.
+    typedef std::function<void(time_t old, time_t current)> TimeUpdateCallback;
 
     /// Destructor.
     virtual ~BroadcastTime()
@@ -127,7 +136,7 @@ public:
     /// executor.
     /// @param callback function callback to be called.
     /// @return handle to entry that can be used in update_unsubscribe
-    UpdateSubscribeHandle update_subscribe_add(std::function<void()> callback)
+    UpdateSubscribeHandle update_subscribe_add(TimeUpdateCallback callback)
     {
         AtomicHolder h(this);
         for (size_t i = 0; i < callbacks_.size(); ++i)
@@ -135,11 +144,11 @@ public:
             // atempt to garbage collect unused entries
             if (callbacks_[i] == nullptr)
             {
-                callbacks_[i] = callback;
+                callbacks_[i] = std::move(callback);
                 return i;
             }
         }
-        callbacks_.emplace_back(callback);
+        callbacks_.emplace_back(std::move(callback));
         return callbacks_.size() - 1;
     }
 
@@ -225,14 +234,17 @@ protected:
 
     /// Service all of the attached update subscribers. These are called when
     /// there are jumps in time or if the clock is stopped or started.
-    void service_callbacks()
+    /// @param old Fast clock's current time according to the pre-update state.
+    /// @param current Fast clock's current time according to the post-update
+    /// state.
+    void service_callbacks(time_t old, time_t current)
     {
         AtomicHolder h(this);
         for (auto n : callbacks_)
         {
             if (n)
             {
-                n();
+                n(old, current);
             }
         }
     }
@@ -245,7 +257,7 @@ protected:
     StateFlowTimer timer_; ///< timer helper
 
     /// update subscribers
-    std::vector<std::function<void()>> callbacks_;
+    std::vector<TimeUpdateCallback> callbacks_;
 
     int16_t rateRequested_; ///< pending clock rate
 
