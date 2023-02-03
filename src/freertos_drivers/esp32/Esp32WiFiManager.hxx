@@ -538,8 +538,18 @@ private:
     /// mDNS service name being advertised by the hub, if enabled.
     std::string hubServiceName_;
 
-    /// @ref SocketClient for this node's uplink.
+    /// @ref SocketClient for this node's uplink connection.
     std::unique_ptr<SocketClient> uplink_;
+
+    /// Socket handle used by the uplink connection.
+    int uplinkFd_{-1};
+
+    /// Notifiable handle provided by the @ref SocketClient once a connection
+    /// has been established. This will be called by @ref UplinkNotifiable when
+    /// not null and the connection needs to be re-established. This will be
+    /// set to null when the uplink is intentionally disconnected by
+    /// configuration updates.
+    Notifiable *uplinkNotifiable_{nullptr};
 
     /// Internal event group used to track the IP assignment events.
     EventGroupHandle_t wifiStatusEventGroup_;
@@ -598,6 +608,39 @@ private:
         nullptr, nullptr
     };
 #endif // IDF v4.1+
+
+    /// This class provides a proxy for the @ref Notifiable provided by the
+    /// @ref SocketClient. This is necessary to ensure the @ref Notifiable does
+    /// not get invalidated when the @ref SocketClient is deleted prior to the
+    /// socket being closed.
+    class UplinkNotifiable : public Notifiable
+    {
+    public:
+        /// Constructor.
+        ///
+        /// @param parent @ref Esp32WiFiManager instance that this notifiable
+        /// will interact with for uplink disconnect events.
+        UplinkNotifiable(Esp32WiFiManager *parent) : parent_(parent)
+        {
+        }
+
+        /// Proxies the notify() call to the uplink if it is not null.
+        virtual void notify() override
+        {
+            // if we have a valid notifiable from the uplink forward the notify
+            // call, otherwise this method is a no-op.
+            if (parent_->uplinkNotifiable_ != nullptr)
+            {
+                parent_->uplinkNotifiable_->notify();
+            }
+        }
+    private:
+        /// @ref Esp32WiFiManager instance that manages this class instance.
+        Esp32WiFiManager *parent_;
+    };
+
+    /// @ref UplinkNotifiable to use for uplink connections.
+    UplinkNotifiable uplinkNotifiableProxy_{this};
 
     /// StateFlow that is responsible for startup and maintenance of the WiFi
     /// stack.

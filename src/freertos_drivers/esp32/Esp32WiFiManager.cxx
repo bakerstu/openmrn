@@ -32,7 +32,7 @@
  * @date 4 February 2019
  */
 
-// Ensure we only compile this code for the ESP32
+// Ensure we only compile this code on ESP32 MCUs
 #ifdef ESP32
 
 #include "Esp32WiFiManager.hxx"
@@ -169,6 +169,8 @@ public:
         : configFd_(fd)
         , cfg_(cfg)
     {
+        // set the parameters on the parent class, all others are loaded
+        // on-demand.
         mdnsService_ = cfg_.auto_address().service_name().read(configFd_);
         staticHost_ = cfg_.manual_address().ip_address().read(configFd_);
         staticPort_ = CDI_READ_TRIMMED(cfg_.manual_address().port, configFd_);
@@ -642,7 +644,7 @@ void Esp32WiFiManager::start_hub()
     hubServiceName_ = cfg_.hub().service_name().read(configFd_);
     uint16_t hub_port = CDI_READ_TRIMMED(cfg_.hub().port, configFd_);
 
-    LOG(INFO, "[HUB] Starting TCP/IP listener on port %d", hub_port);
+    LOG(INFO, "[Hub] Starting TCP/IP listener on port %d", hub_port);
     auto stack = static_cast<openlcb::SimpleCanStackBase *>(stack_);
     stack->start_tcp_hub_server(hub_port);
     auto hub = stack->get_tcp_hub_server();
@@ -660,9 +662,15 @@ void Esp32WiFiManager::stop_uplink()
 {
     if (uplink_)
     {
-        LOG(INFO, "[UPLINK] Disconnecting from uplink.");
+        LOG(INFO, "[Uplink] Disconnecting from uplink.");
         uplink_->shutdown();
         uplink_.reset(nullptr);
+
+        // Mark our cached notifiable as invalid
+        uplinkNotifiable_ = nullptr;
+
+        // force close the socket to ensure it is disconnected and cleaned up.
+        ::close(uplinkFd_);
     }
 }
 
@@ -672,24 +680,42 @@ void Esp32WiFiManager::start_uplink()
 {
     unique_ptr<SocketClientParams> params(
         new Esp32SocketParams(configFd_, cfg_.uplink()));
-    uplink_.reset(new SocketClient(stack_->service(), &executor_,
-        &executor_, std::move(params),
-        std::bind(&Esp32WiFiManager::on_uplink_created, this,
-            std::placeholders::_1, std::placeholders::_2)));
+
+    if (uplink_)
+    {
+        // If we already have an uplink, update the parameters it is using.
+        uplink_->reset_params(std::move(params));
+    }
+    else
+    {
+        // create a new uplink and pass in the parameters.
+        uplink_.reset(new SocketClient(stack_->service(), &executor_,
+            &executor_, std::move(params),
+            std::bind(&Esp32WiFiManager::on_uplink_created, this,
+                std::placeholders::_1, std::placeholders::_2)));
+    }
 }
 
 // Converts the passed fd into a GridConnect port and adds it to the stack.
 void Esp32WiFiManager::on_uplink_created(int fd, Notifiable *on_exit)
 {
-    LOG(INFO, "[UPLINK] Connected to hub, configuring GridConnect port.");
+    LOG(INFO, "[Uplink] Connected to hub, configuring GridConnect HubPort.");
+
+    // stash the socket handle and notifiable for future use if we need to
+    // clean up or re-establish the connection.
+    uplinkFd_ = fd;
+    uplinkNotifiable_ = on_exit;
 
     const bool use_select =
         (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
 
     // create the GridConnect port from the provided socket fd.
+    // NOTE: this uses a local notifiable object instead of the provided
+    // on_exit since it will be invalidated upon calling stop_uplink() which
+    // may result in a crash or other undefined behavior.
     create_gc_port_for_can_hub(
-        static_cast<openlcb::SimpleCanStackBase *>(stack_)->can_hub(), fd,
-        on_exit, use_select);
+        static_cast<openlcb::SimpleCanStackBase *>(stack_)->can_hub(),
+        uplinkFd_, &uplinkNotifiableProxy_, use_select);
 
     // restart the stack to kick off alias allocation and send node init
     // packets.
@@ -1561,10 +1587,6 @@ StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::reload()
         }
     }
 
-    // Since we are loading configuration data, shutdown the hub and
-    // uplink if created previously.
-    parent_->stop_hub();
-    parent_->stop_uplink();
     parent_->reconfigure_wifi_radio_sleep();
     if (parent_->connectionMode_ & CONN_MODE_HUB_BIT)
     {
@@ -1572,17 +1594,16 @@ StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::reload()
     }
     else
     {
-        LOG(INFO, "[WiFi] Hub disabled by configuration.");
+        parent_->stop_hub();
     }
 
     if (parent_->connectionMode_ & CONN_MODE_UPLINK_BIT)
     {
-        LOG(INFO, "[WiFi] Starting uplink.");
         parent_->start_uplink();
     }
     else
     {
-        LOG(INFO, "[WiFi] Uplink disabled by configuration.");
+        parent_->stop_uplink();
     }
     return wait_and_call(STATE(reload));
 }
