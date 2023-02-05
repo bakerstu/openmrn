@@ -145,7 +145,7 @@ int Stm32Can::ioctl(File *file, unsigned long int key, unsigned long data)
     }
     return -EINVAL;
 }
-#endif
+#endif // !ARDUINO
 
 /** Enable use of the device.
  */
