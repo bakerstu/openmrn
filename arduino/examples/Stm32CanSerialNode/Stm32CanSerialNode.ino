@@ -71,6 +71,9 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     BOARD_NAME,
     "1.00"
 };
+
+extern const char* const SNIP_DYNAMIC_FILENAME = nullptr;
+
 } // namespace openlcb
 
 /// Arduino setup routine. Initializes the OpenLCB software and connects the
