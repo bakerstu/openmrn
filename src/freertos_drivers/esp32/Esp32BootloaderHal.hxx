@@ -46,6 +46,14 @@
 #error ESP32 Bootloader is only supported with ESP-IDF v4.3+
 #endif // IDF v4.3+
 
+#ifndef BOOTLOADER_LOG_LEVEL
+#define BOOTLOADER_LOG_LEVEL VERBOSE
+#endif // BOOTLOADER_LOG_LEVEL
+
+#ifndef BOOTLOADER_TWAI_LOG_LEVEL
+#define BOOTLOADER_TWAI_LOG_LEVEL VERBOSE
+#endif // BOOTLOADER_TWAI_LOG_LEVEL
+
 // Enable streaming support for the bootloader
 #define BOOTLOADER_STREAM
 // Set the buffer size to half the sector size to minimize the flash writes.
@@ -148,9 +156,9 @@ void bootloader_hw_init(void)
     g_config.tx_queue_len = config_can_tx_buffer_size();
     g_config.rx_queue_len = config_can_rx_buffer_size();
 
-    LOG(VERBOSE, "[Bootloader] Configuring TWAI driver");
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Configuring TWAI driver");
     ESP_ERROR_CHECK(twai_driver_install(&g_config, &t_config, &f_config));
-    LOG(VERBOSE, "[Bootloader] Starting TWAI driver");
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Starting TWAI driver");
     ESP_ERROR_CHECK(twai_start());
     esp_bl_state.twai_initialized = true;
 }
@@ -160,7 +168,11 @@ void bootloader_hw_init(void)
 /// This will default to reboot the ESP32.
 void application_entry(void)
 {
-    LOG(VERBOSE, "[Bootloader] application_entry");
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] application_entry");
+
+    // reset the RTC persistent variable to not enter bootloader on next
+    // restart.
+    bootloader_request = RTC_BOOL_FALSE;
 
     // restart the esp32 since we do not have a way to rerun app_main.
     esp_restart();
@@ -171,7 +183,7 @@ void application_entry(void)
 /// Currently a NO-OP.
 void bootloader_reboot(void)
 {
-    LOG(VERBOSE, "[Bootloader] Reboot requested");
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Reboot requested");
 }
 
 /// Callback from the bootloader to read a single CAN frame.
@@ -184,7 +196,7 @@ bool read_can_frame(struct can_frame *frame)
     memset(&rx_msg, 0, sizeof(twai_message_t));
     if (twai_receive(&rx_msg, MAX_TWAI_WAIT) == ESP_OK)
     {
-        LOG(VERBOSE, "[Bootloader] CAN_RX");
+        LOG(BOOTLOADER_TWAI_LOG_LEVEL, "[Bootloader] CAN_RX");
         frame->can_id = rx_msg.identifier;
         frame->can_dlc = rx_msg.data_length_code;
         frame->can_err = 0;
@@ -211,7 +223,7 @@ bool try_send_can_frame(const struct can_frame &frame)
     memcpy(tx_msg.data, frame.data, frame.can_dlc);
     if (twai_transmit(&tx_msg, MAX_TWAI_WAIT) == ESP_OK)
     {
-        LOG(VERBOSE, "[Bootloader] CAN_TX");
+        LOG(BOOTLOADER_TWAI_LOG_LEVEL, "[Bootloader] CAN_TX");
         return true;
     }
     return false;
@@ -230,7 +242,7 @@ bool try_send_can_frame(const struct can_frame &frame)
 void get_flash_boundaries(const void **flash_min, const void **flash_max,
     const struct app_header **app_header)
 {
-    LOG(VERBOSE, "[Bootloader] get_flash_boundaries(%d,%d)", 0,
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] get_flash_boundaries(%d,%d)", 0,
         esp_bl_state.app_header.app_size);
     *((uint32_t *)flash_min) = 0;
     *((uint32_t *)flash_max) = esp_bl_state.app_header.app_size;
@@ -249,8 +261,8 @@ void get_flash_page_info(
     value &= ~(CONFIG_WL_SECTOR_SIZE - 1);
     *page_start = (const void *)value;
     *page_length_bytes = CONFIG_WL_SECTOR_SIZE;
-    LOG(VERBOSE, "[Bootloader] get_flash_page_info(%d, %d)", value,
-        *page_length_bytes);
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] get_flash_page_info(%d, %d)",
+        value, *page_length_bytes);
 }
 
 /// Callback from the bootloader to erase a flash page.
@@ -262,7 +274,7 @@ void get_flash_page_info(
 void erase_flash_page(const void *address)
 {
     // NO OP as this is handled automatically as part of esp_ota_write.
-    LOG(VERBOSE, "[Bootloader] Erase: %d", (uint32_t)address);
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Erase: %d", (uint32_t)address);
 }
 
 /// Callback from the bootloader to write to flash.
@@ -280,7 +292,7 @@ void erase_flash_page(const void *address)
 void write_flash(const void *address, const void *data, uint32_t size_bytes)
 {
     uint32_t addr = (uint32_t)address;
-    LOG(VERBOSE, "[Bootloader] Write: %d, %d", addr, size_bytes);
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Write: %d, %d", addr, size_bytes);
 
     // The first part of the received binary should have the image header,
     // segment header and app description. These are used as a first pass
@@ -312,31 +324,14 @@ void write_flash(const void *address, const void *data, uint32_t size_bytes)
         // basic details of the image.
         if (image_header->magic == ESP_IMAGE_HEADER_MAGIC)
         {
-            // Find the application description at the offset in the data. This
-            // assumes the structure of the first block of the application data
-            // is always esp_image_header_t followed immediately by
-            // esp_app_desc_t.
-            esp_app_desc_t *app_desc =
-                (esp_app_desc_t *)(
-                    static_cast<const uint8_t *>(data) +
-                    sizeof(esp_image_header_t));
+            LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Chip ID: %s / %x (%x)",
+                CHIP_ID_NAMES[image_header->chip_id],
+                image_header->chip_id, esp_bl_state.chip_id);
             // validate the image magic byte and chip type to
             // ensure it matches the currently running chip.
             if (image_header->chip_id != ESP_CHIP_ID_INVALID &&
-                image_header->chip_id == esp_bl_state.chip_id &&
-                app_desc->magic_word == ESP_APP_DESC_MAGIC_WORD)
+                image_header->chip_id == esp_bl_state.chip_id)
             {
-                LOG(INFO,
-R"!^!([Bootloader] Firmware details:
-Name: %s (%s)
-ESP-IDF version: %s
-Compile timestamp: %s %s
-Target chip-id: %s (%x) )!^!",
-                    app_desc->project_name, app_desc->version,
-                    app_desc->idf_ver, app_desc->date, app_desc->time,
-                    CHIP_ID_NAMES[image_header->chip_id],
-                    image_header->chip_id);
-
                 // start the OTA process at this point, if we have had a
                 // previous failure this will reset the OTA process so we can
                 // start fresh.
@@ -368,6 +363,9 @@ Target chip-id: %s (%x) )!^!",
         // reboot the node.
         if (should_abort || esp_bl_state.ota_handle == 0)
         {
+            // reset the RTC persistent variable to not enter bootloader on
+            // next restart.
+            bootloader_request = RTC_BOOL_FALSE;
             esp_restart();
         }
     }
@@ -420,11 +418,11 @@ uint16_t flash_complete(void)
 /// value to zero.
 void checksum_data(const void* data, uint32_t size, uint32_t* checksum)
 {
-    LOG(VERBOSE, "[Bootloader] checksum_data(%d)", size);
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] checksum_data(%d)", size);
     // Force the checksum to be zero since it is not currently used on the
     // ESP32. The startup of the node may validate the built-in SHA256 and
     // fallback to previous application binary if the SHA256 validation fails.
-    memset(checksum, 0, 16);
+    memset(checksum, 0, sizeof(uint32_t) * CHECKSUM_COUNT);
 }
 
 /// Callback from the bootloader to obtain the pre-defined alias to use.
@@ -432,7 +430,7 @@ void checksum_data(const void* data, uint32_t size, uint32_t* checksum)
 /// @return zero to have the bootloader assign one based on the node-id.
 uint16_t nmranet_alias(void)
 {
-    LOG(VERBOSE, "[Bootloader] nmranet_alias");
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] nmranet_alias");
     // let the bootloader generate it based on nmranet_nodeid().
     return 0;
 }
@@ -442,7 +440,7 @@ uint16_t nmranet_alias(void)
 /// @return node-id provided to @ref esp32_bootloader_run.
 uint64_t nmranet_nodeid(void)
 {
-    LOG(VERBOSE, "[Bootloader] nmranet_nodeid");
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] nmranet_nodeid");
     return esp_bl_state.node_id;
 }
 
@@ -485,10 +483,6 @@ void esp32_bootloader_init(uint8_t reset_reason)
 void esp32_bootloader_run(uint64_t id, gpio_num_t rx, gpio_num_t tx,
                           bool reboot_on_exit = true)
 {
-    // reset the RTC persistent variable to not enter bootloader on next
-    // restart.
-    bootloader_request = RTC_BOOL_FALSE;
-
     memset(&esp_bl_state, 0, sizeof(Esp32BootloaderState));
 
     esp_bl_state.node_id = id;
@@ -537,7 +531,7 @@ void esp32_bootloader_run(uint64_t id, gpio_num_t rx, gpio_num_t tx,
             esp_bl_state.target->label);
 
         // since we have the target partition identified, start the bootloader.
-        LOG(VERBOSE, "[Bootloader] calling bootloader_entry");
+        LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] calling bootloader_entry");
         bootloader_entry();
     }
     else
@@ -547,11 +541,15 @@ void esp32_bootloader_run(uint64_t id, gpio_num_t rx, gpio_num_t tx,
 
     if (esp_bl_state.twai_initialized)
     {
-        LOG(VERBOSE, "[Bootloader] Stopping TWAI driver");
+        LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Stopping TWAI driver");
         ESP_ERROR_CHECK(twai_stop());
-        LOG(VERBOSE, "[Bootloader] Disabling TWAI driver");
+        LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Disabling TWAI driver");
         ESP_ERROR_CHECK(twai_driver_uninstall());
     }
+
+    // reset the RTC persistent variable to not enter bootloader on next
+    // restart.
+    bootloader_request = RTC_BOOL_FALSE;
 
     if (reboot_on_exit)
     {

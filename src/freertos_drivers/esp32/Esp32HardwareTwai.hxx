@@ -43,6 +43,7 @@
 #error Esp32HardwareTwai is only supported on ESP-IDF v4.3 and above.
 #endif // IDF v4.3+
 
+#include <hal/gpio_types.h>
 #include <soc/soc.h>
 #include <soc/soc_caps.h>
 #include <stdint.h>
