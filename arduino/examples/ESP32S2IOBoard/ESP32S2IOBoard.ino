@@ -39,7 +39,6 @@
 
 #include <OpenMRNLite.h>
 #include "freertos_drivers/arduino/CpuLoad.hxx"
-#include "freertos_drivers/esp32/Esp32WS2812.hxx"
 #include "openlcb/MultiConfiguredConsumer.hxx"
 #include "openlcb/TcpDefs.hxx"
 #include "utils/GpioInitializer.hxx"
@@ -63,12 +62,6 @@
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
 
-// Uncomment USE_STATUS_LED to enable the WS2812 LED on GPIO18 to be used as an
-// activity LED for this node. Note that the LED will blink a purple color when
-// this node has activity. The color can be changed in the status_led
-// declaration.
-//#define USE_STATUS_LED
-
 // uncomment the line below to specify a GPIO pin that should be used to force
 // a factory reset when the node starts and the GPIO pin reads LOW.
 // NOTE: GPIO 15 is also used for IO16, care must be taken to ensure that this
@@ -83,12 +76,7 @@
 //#define USE_USB_CDC_OUTPUT
 
 // Uncomment FIRMWARE_UPDATE_BOOTLOADER to enable the bootloader feature when
-// using the TWAI device. When this is enabled and USE_STATUS_LED is enabled
-// the on-board LED will use the following color scheme:
-// LED_REQUEST: YELLOW
-// LED_WRITE  : PURPLE
-// LED_ACTIVE : GREEN
-// All others will be ignored.
+// using the TWAI device.
 //
 // NOTE: in order for this to work you *MUST* use a partition schema that has
 // two app partitions, typically labeled with "OTA" in the partition name in
@@ -234,37 +222,6 @@ GPIO_PIN(IO24, GpioInputPU, 37);
 GPIO_PIN(IO25, GpioInputPU, 38);
 GPIO_PIN(IO26, GpioInputPU, 39);
 GPIO_PIN(IO27, GpioInputPU, 42);
-
-#if defined(USE_STATUS_LED)
-// The ESP32-S2 has an on-board WS2812 LED on GPIO 18.
-Esp32WS2812 leds(GPIO_NUM_18, RMT_CHANNEL_0, 1);
-Esp32WS2812Gpio status_led(&leds,
-                           0  /* index    */,
-                           32 /* red on   */, 0  /* red off   */,
-                           0  /* green on */, 0  /* green off */,
-                           32 /* blue on  */, 0  /* blue off  */);
-#if defined(FIRMWARE_UPDATE_BOOTLOADER)
-// Define an LED for the bootloader request, this will be an approximation of
-// yellow (red and green both on).
-Esp32WS2812Gpio bootloader_request_led(&leds,
-                           0  /* index    */,
-                           32 /* red on   */, 0  /* red off   */,
-                           32 /* green on */, 0  /* green off */,
-                           0  /* blue on  */, 0  /* blue off  */);
-// Define an LED for the bootloader active. This will be pure green when ON.
-Esp32WS2812Gpio bootloader_active_led(&leds,
-                           0  /* index    */,
-                           0  /* red on   */, 0  /* red off   */,
-                           32 /* green on */, 0  /* green off */,
-                           0  /* blue on  */, 0  /* blue off  */);
-// Define an LED for the bootloader write. This will be purple when ON.
-Esp32WS2812Gpio bootloader_write_led(&leds,
-                           0  /* index    */,
-                           32 /* red on   */, 0  /* red off   */,
-                           0  /* green on */, 0  /* green off */,
-                           32  /* blue on  */, 0  /* blue off  */);
-#endif // FIRMWARE_UPDATE_BOOTLOADER
-#endif // USE_STATUS_LED
 
 // List of GPIO objects that will be used for the output pins. You should keep
 // the constexpr declaration, because it will produce a compile error in case
@@ -421,9 +378,6 @@ void check_for_factory_reset()
         for (uint8_t sec = FACTORY_RESET_COUNTDOWN_SECS;
              sec > 0 && !FACTORY_RESET_Pin::instance()->read(); sec--)
         {
-#if defined(USE_STATUS_LED)
-            status_led.toggle();
-#endif
             LOG(WARNING, "Factory reset will be initiated in %d seconds.",
                 sec);
             usleep(SEC_TO_USEC(1));
@@ -439,9 +393,6 @@ void check_for_factory_reset()
             LOG(WARNING, "Factory reset aborted as pin %d was not held LOW",
                 FACTORY_RESET_GPIO_PIN);
         }
-#if defined(USE_STATUS_LED)
-        status_led.clr();
-#endif
     }
 #endif // FACTORY_RESET_GPIO_PIN
 }
@@ -487,11 +438,6 @@ void setup()
         }
     }
 
-#if defined(USE_STATUS_LED)
-    // initialize the WS2812 LED(s).
-    leds.hw_init();
-#endif // USE_STATUS_LED
-
 #if defined(FIRMWARE_UPDATE_BOOTLOADER)
     // initialize the bootloader.
     esp32_bootloader_init(reset_reason);
@@ -521,10 +467,6 @@ void setup()
 #if defined(USE_TWAI)
     twai.hw_init();
 #endif // USE_TWAI
-
-#if defined(USE_STATUS_LED)
-    openmrn.stack()->set_tx_activity_led(&status_led);
-#endif // USE_STATUS_LED
 
     // Start the OpenMRN stack
     openmrn.begin();
@@ -573,21 +515,7 @@ extern "C"
 /// @param value is the new state of the LED.
 void bootloader_led(enum BootloaderLed led, bool value)
 {
-    LOG(VERBOSE, "[Bootloader] bootloader_led(%d, %d)", led, value);
-#if defined(USE_STATUS_LED)
-    if (led == LED_REQUEST)
-    {
-        bootloader_request_led.write((Gpio::Value)value);
-    }
-    else if (led == LED_ACTIVE)
-    {
-        bootloader_active_led.write((Gpio::Value)value);
-    }
-    else if (led == LED_WRITING)
-    {
-        bootloader_write_led.write((Gpio::Value)value);
-    }
-#endif // USE_STATUS_LED
+    LOG(INFO, "[Bootloader] bootloader_led(%d, %d)", led, value);
 }
 
 } // extern "C"

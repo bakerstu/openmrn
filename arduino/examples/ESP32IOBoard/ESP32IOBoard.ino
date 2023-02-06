@@ -441,7 +441,7 @@ extern "C"
 /// @param value is the new state of the LED.
 void bootloader_led(enum BootloaderLed led, bool value)
 {
-    LOG(VERBOSE, "[Bootloader] bootloader_led(%d, %d)", led, value);
+    LOG(INFO, "[Bootloader] bootloader_led(%d, %d)", led, value);
 }
 
 } // extern "C"
