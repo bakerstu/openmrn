@@ -64,14 +64,10 @@ public:
   /// @return true if a core dump is available, false otherwise.
   static bool is_present()
   {
-#if CONFIG_ESP32_ENABLE_COREDUMP_TO_FLASH
     esp_log_level_set("esp_core_dump_flash", ESP_LOG_NONE);
     esp_err_t res = esp_core_dump_image_check();
     esp_log_level_set("esp_core_dump_flash", ESP_LOG_WARN);
     return res == ESP_OK;
-#else
-    return false;
-#endif // CONFIG_ESP32_ENABLE_COREDUMP_TO_FLASH
   }
 
   /// Utility method that displays a core dump (if present).
@@ -80,8 +76,6 @@ public:
   /// filesystem.
   static void display(const char *output_path = nullptr)
   {
-#if CONFIG_ESP32_ENABLE_COREDUMP_TO_FLASH && \
-    ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,4,0)
     if (is_present())
     {
       esp_core_dump_summary_t details;
@@ -136,18 +130,15 @@ public:
         }
       }
     }
-#endif // CONFIG_ESP32_ENABLE_COREDUMP_TO_FLASH && IDF v4.4+
   }
 
   /// Utility method to cleanup a core dump.
   static void cleanup()
   {
-#if CONFIG_ESP32_ENABLE_COREDUMP_TO_FLASH
     if (is_present())
     {
       ESP_ERROR_CHECK_WITHOUT_ABORT(esp_core_dump_image_erase());
     }
-#endif // CONFIG_ESP32_ENABLE_COREDUMP_TO_FLASH
   }
 };
 
