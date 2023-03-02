@@ -1,5 +1,5 @@
 SUBDIRS = linux.x86 \
-#	js.emscripten
+          js.emscripten
 
 
 include $(OPENMRNPATH)/etc/recurse.mk

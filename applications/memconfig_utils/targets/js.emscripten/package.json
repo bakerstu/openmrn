@@ -1,0 +1,13 @@
+{
+  "name": "openmrn-memconfig-utils",
+  "version": "1.0.0",
+  "dependencies": {
+    "serialport": "^9.2.7"
+  },
+  "bin": "memconfig_utils.js",
+  "pkg": {
+      "assets": [
+          "./node_modules/@serialport/bindings/build/Release/bindings.node"
+      ]
+  }
+}
