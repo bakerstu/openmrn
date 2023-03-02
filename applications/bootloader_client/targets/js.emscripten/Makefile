@@ -11,8 +11,11 @@ release:
 	pkg -C Brotli .
 
 
-clean: clean-wasm
+clean: clean-wasm clean-bin
 
 
 clean-wasm:
 	rm -f $(EXECUTABLE).{wasm,wast}
+
+clean-bin:
+	rm -f openmrn-bootloader-client-{linux,macos,win.exe}
