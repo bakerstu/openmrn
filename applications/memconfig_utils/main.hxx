@@ -66,6 +66,8 @@ Executor<1> g_executor(nt);
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
+OVERRIDE_CONST(gc_generate_newlines, 1);
+
 static const openlcb::NodeID NODE_ID = 0x05010101181FULL;
 
 openlcb::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
