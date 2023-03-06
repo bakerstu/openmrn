@@ -64,7 +64,7 @@
 #include "driverlib/utils.h"
 #endif
 
-#include "freertos_drvers/common/FixedQueue.hxx"
+#include "freertos_drivers/common/FixedQueue.hxx"
 #include "Devtab.hxx"
 #include "RailcomDriver.hxx"
 #include "dcc/DccOutput.hxx"
