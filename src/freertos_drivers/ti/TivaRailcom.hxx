@@ -138,16 +138,17 @@ public:
         , readableNotifiable_(nullptr)
     {
         HW::hw_init();
-        MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
-        MAP_IntEnable(HW::OS_INTERRUPT);
     }
 
     ~RailcomDriverBase()
     {
-        MAP_IntDisable(HW::OS_INTERRUPT);
     }
 
 private:
+    /// Sets a given software interrupt pending.
+    /// @param int_nr interrupt number (will be HW::OS_INTERRUPT)
+    virtual void int_set_pending(unsigned int_nr) = 0;
+    
     ssize_t write(File *, const void *, size_t) OVERRIDE
     {
         // This device is read-only.
@@ -271,7 +272,7 @@ protected:
         uint32_t tick_timer = HW::get_timer_tick();
         memcpy(feedbackQueue_.back().ch2Data, &tick_timer, 4);
         feedbackQueue_.increment_back();
-        MAP_IntPendSet(HW::OS_INTERRUPT);
+        int_set_pending(HW::OS_INTERRUPT);
     }
 
     /** Notify this when we have data in our buffers. */
@@ -294,8 +295,16 @@ template <class HW> class TivaRailcomDriver : public RailcomDriverBase<HW>
 {
 public:
     /// Constructor. @param path is the device node path (e.g. "/dev/railcom0").
-    TivaRailcomDriver(const char *path) : RailcomDriverBase<HW>(path)
+    TivaRailcomDriver(const char *path)
+        : RailcomDriverBase<HW>(path)
     {
+        MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
+        MAP_IntEnable(HW::OS_INTERRUPT);
+    }
+
+    ~TivaRailcomDriver()
+    {
+        MAP_IntDisable(HW::OS_INTERRUPT);
     }
 
 private:
@@ -303,6 +312,14 @@ private:
     bool inCutout_ = false;
 
     using RailcomDriverBase<HW>::returnedPackets_;
+
+    /// Sets a given software interrupt pending.
+    /// @param int_nr interrupt number (will be HW::OS_INTERRUPT)
+    void int_set_pending(unsigned int_nr) override
+    {
+        MAP_IntPendSet(int_nr);
+    }
+
     // File node interface
     void enable() OVERRIDE
     {
