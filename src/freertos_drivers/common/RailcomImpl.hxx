@@ -54,16 +54,12 @@
  * @date 6 Jan 2015
  */
 
-#ifndef _FREERTOS_DRIVERS_TI_TIVARAILCOM_HXX_
-#define _FREERTOS_DRIVERS_TI_TIVARAILCOM_HXX_
-
-#if (!defined(TIVADCC_TIVA)) && (!defined(TIVADCC_CC3200))
-#error must define either TIVADCC_TIVA or TIVADCC_CC3200
-#endif
+#ifndef _FREERTOS_DRIVERS_COMMON_RAILCOMIMPL_HXX_
+#define _FREERTOS_DRIVERS_COMMON_RAILCOMIMPL_HXX_
 
 #include "TivaDCC.hxx"  // for FixedQueue
 
-#include "RailcomDriver.hxx"
+#include "freertos_drivers/common/RailcomDriver.hxx"
 #include "dcc/RailCom.hxx"
 
 /*
@@ -123,11 +119,7 @@ __attribute__((weak)) = {SYSCTL_PERIPH_UART4, SYSCTL_PERIPH_UART3, SYSCTL_PERIPH
 
 */
 
-/// Base class for railcom drivers. Ideally this base class should be
-/// non-specific to the hardwsre or the  TivaWare driver library.
-///
-/// @todo(balazs.racz) factor this class out into
-/// freertos_drivers/common/Railcom.hxx.
+/// Base class for railcom driver implementations.
 template <class HW>
 class RailcomDriverBase : public RailcomDriver, private Node
 {
@@ -286,209 +278,4 @@ protected:
     dcc::Feedback *returnedPackets_[HW::CHANNEL_COUNT];
 };
 
-/// Railcom driver for TI Tiva-class microcontrollers using the TivaWare
-/// peripheral library.
-///
-/// This railcom driver supports parallel polling of multiple UART channels for
-/// the railcom data. 
-template <class HW> class TivaRailcomDriver : public RailcomDriverBase<HW>
-{
-public:
-    /// Constructor. @param path is the device node path (e.g. "/dev/railcom0").
-    TivaRailcomDriver(const char *path)
-        : RailcomDriverBase<HW>(path)
-    {
-        MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
-        MAP_IntEnable(HW::OS_INTERRUPT);
-    }
-
-    ~TivaRailcomDriver()
-    {
-        MAP_IntDisable(HW::OS_INTERRUPT);
-    }
-
-private:
-    /// True when we are currently within a cutout.
-    bool inCutout_ = false;
-
-    using RailcomDriverBase<HW>::returnedPackets_;
-
-    /// Sets a given software interrupt pending.
-    /// @param int_nr interrupt number (will be HW::OS_INTERRUPT)
-    void int_set_pending(unsigned int_nr) override
-    {
-        MAP_IntPendSet(int_nr);
-    }
-
-    // File node interface
-    void enable() OVERRIDE
-    {
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
-        {
-#ifdef TIVADCC_TIVA
-            MAP_SysCtlPeripheralEnable(HW::UART_PERIPH[i]);
-#elif defined(TIVADCC_CC3200)
-            MAP_PRCMPeripheralClkEnable(HW::UART_PERIPH[i], PRCM_RUN_MODE_CLK);
-#endif            
-            MAP_UARTConfigSetExpClk(HW::UART_BASE[i], cm3_cpu_clock_hz, 250000,
-                                    UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
-                                    UART_CONFIG_PAR_NONE);
-            MAP_UARTFIFOEnable(HW::UART_BASE[i]);
-            // Disables the receiver.
-            HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) = 0;
-            MAP_UARTEnable(HW::UART_BASE[i]);
-        }
-    }
-    void disable() OVERRIDE
-    {
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
-        {
-            MAP_UARTDisable(HW::UART_BASE[i]);
-        }
-    }
-
-    // RailcomDriver interface
-    void feedback_sample() OVERRIDE {
-        HW::enable_measurement(true);
-        this->add_sample(HW::sample());
-        HW::disable_measurement();
-    }
-
-    void start_cutout() OVERRIDE
-    {
-        HW::enable_measurement(false);
-        const bool need_ch1_cutout = HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
-        Debug::RailcomRxActivate::set(true);
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
-        {
-            if (need_ch1_cutout)
-            {
-                HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
-            }
-            // HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) =
-            //    UART_CTL_RXE;
-            // flush fifo
-            while (MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]) >= 0)
-                ;
-            returnedPackets_[i] = 0;
-        }
-        Debug::RailcomDriverCutout::set(true);
-    }
-
-    void middle_cutout() OVERRIDE
-    {
-        Debug::RailcomDriverCutout::set(false);
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
-        {
-            while (MAP_UARTCharsAvail(HW::UART_BASE[i]))
-            {
-                Debug::RailcomDataReceived::toggle();
-                Debug::RailcomAnyData::set(true);
-                if (!returnedPackets_[i])
-                {
-                    returnedPackets_[i] = this->alloc_new_packet(i);
-                }
-                if (!returnedPackets_[i])
-                {
-                    break;
-                }
-                long data = MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]);
-                if (data < 0 || data > 0xff) {
-                    // We reset the receiver circuitry because we got an error
-                    // in channel 1. Typical cause of this error is if there
-                    // are multiple locomotives on the block (e.g. if this is
-                    // the global detector) and they talk over each other
-                    // during ch1 broadcast. There is a good likelihood that
-                    // the asynchronous receiver is out of sync with the
-                    // transmitter, but right now we should be in the
-                    // between-byte space.
-                    HWREG(HW::UART_BASE[i] + UART_O_CTL) &= ~UART_CTL_RXE;
-                    Debug::RailcomError::toggle();
-                    returnedPackets_[i]->add_ch1_data(0xF8 | ((data >> 8) & 0x7));
-                    continue;
-                }
-                returnedPackets_[i]->add_ch1_data(data);
-            }
-            HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
-        }
-        HW::middle_cutout_hook();
-        Debug::RailcomDriverCutout::set(true);
-    }
-
-    void end_cutout() OVERRIDE
-    {
-        HW::disable_measurement();
-        bool have_packets = false;
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
-        {
-            while (MAP_UARTCharsAvail(HW::UART_BASE[i]))
-            {
-                Debug::RailcomDataReceived::toggle();
-                Debug::RailcomAnyData::set(true);
-                Debug::RailcomCh2Data::set(true);
-                if (!returnedPackets_[i])
-                {
-                    returnedPackets_[i] = this->alloc_new_packet(i);
-                }
-                if (!returnedPackets_[i])
-                {
-                    break;
-                }
-                long data = MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]);
-                if (data < 0 || data > 0xff) {
-                    Debug::RailcomError::toggle();
-                    returnedPackets_[i]->add_ch2_data(0xF8 | ((data >> 8) & 0x7));
-                    continue;
-                }
-                if (data == 0xE0) {
-                    Debug::RailcomE0::toggle();
-                }
-                returnedPackets_[i]->add_ch2_data(data);
-            }
-            HWREG(HW::UART_BASE[i] + UART_O_CTL) &= ~UART_CTL_RXE;
-            Debug::RailcomRxActivate::set(false);
-            //HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) = 0;
-            if (returnedPackets_[i]) {
-                have_packets = true;
-                this->feedbackQueue_.commit_back();
-                Debug::RailcomPackets::toggle();
-                returnedPackets_[i] = nullptr;
-                MAP_IntPendSet(HW::OS_INTERRUPT);
-            }
-        }
-        if (!have_packets)
-        {
-            // Ensures that at least one feedback packet is sent back even when
-            // it is with no railcom payload.
-            auto *p = this->alloc_new_packet(0);
-            if (p)
-            {
-                this->feedbackQueue_.commit_back();
-                Debug::RailcomPackets::toggle();
-                MAP_IntPendSet(HW::OS_INTERRUPT);
-            }
-        }
-        Debug::RailcomCh2Data::set(false);
-        Debug::RailcomDriverCutout::set(false);
-    }
-
-    void no_cutout() OVERRIDE
-    {
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
-        {
-            if (!returnedPackets_[i])
-            {
-                returnedPackets_[i] = this->alloc_new_packet(i);
-            }
-            if (returnedPackets_[i])
-            {
-                this->feedbackQueue_.commit_back();
-                Debug::RailcomPackets::toggle();
-                returnedPackets_[i] = nullptr;
-                MAP_IntPendSet(HW::OS_INTERRUPT);
-            }
-        }
-    }
-};
-
-#endif // _FREERTOS_DRIVERS_TI_TIVARAILCOM_HXX_
+#endif // _FREERTOS_DRIVERS_COMMON_RAILCOMIMPL_HXX_
