@@ -239,14 +239,19 @@ int appl_main(int argc, char *argv[])
                 openlcb::Defs::TRACTION_CONTROL);
         openlcb::SNIPHandler snip_handler {
             stack.iface(), &train_node, stack.info_flow()};
+
+        // Have to loop before the objects above go out of scope.
+        stack.loop_executor();
     }
     else
     {
         // This is how we can create multiple trains.
         openlcb::TrainInstance some_train(
             address, name, "Deadrail--description");
+
+        // Have to loop before the objects above go out of scope.
+        stack.loop_executor();
     }
 
-    stack.loop_executor();
     return 0;
 }
