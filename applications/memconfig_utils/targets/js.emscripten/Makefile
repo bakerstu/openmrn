@@ -18,4 +18,4 @@ clean-wasm:
 	rm -f $(EXECUTABLE).{wasm,wast}
 
 clean-bin:
-	rm -f openmrn-bootloader-client-{linux,macos,win.exe}
+	rm -f openmrn-memconfig-utils-{linux,macos,win.exe}

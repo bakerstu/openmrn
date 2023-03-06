@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013 - 2023, Balazs Racz
+ * Copyright (c) 2013, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,11 +26,18 @@
  *
  * \file main.cxx
  *
- * An application for downloading an entire memory space from a node.
+ * An application for updating the firmware of a remote node on the bus.
  *
  * @author Balazs Racz
- * @date 1 Mar 2023
+ * @date 3 Aug 2013
  */
+
+#include <emscripten.h>
+#include <emscripten/bind.h>
+#include <emscripten/val.h>
+
+#include "utils/JSSerialPort.hxx"
+#include "utils/JSTcpClient.hxx"
 
 #include "main.hxx"
 
@@ -42,18 +49,16 @@
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-
-    int conn_fd = 0;
+    std::unique_ptr<JSSerialPort> dev;
+    std::unique_ptr<JSTcpClient> client;
     if (device_path)
     {
-        conn_fd = ::open(device_path, O_RDWR);
+        dev.reset(new JSSerialPort(&can_hub0, device_path));
     }
     else
     {
-        conn_fd = ConnectSocket(host, port);
+        client.reset(new JSTcpClient(&can_hub0, host, port));
     }
-    HASSERT(conn_fd >= 0);
-    create_gc_port_for_can_hub(&can_hub0, conn_fd);
 
     execute();
     return 0;
