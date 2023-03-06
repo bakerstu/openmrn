@@ -57,10 +57,6 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_RAILCOMIMPL_HXX_
 #define _FREERTOS_DRIVERS_COMMON_RAILCOMIMPL_HXX_
 
-#if (!defined(TIVADCC_TIVA)) && (!defined(TIVADCC_CC3200))
-#error must define either TIVADCC_TIVA or TIVADCC_CC3200
-#endif
-
 #include "TivaDCC.hxx"  // for FixedQueue
 
 #include "freertos_drivers/common/RailcomDriver.hxx"
