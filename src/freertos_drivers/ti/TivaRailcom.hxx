@@ -61,8 +61,6 @@
 #error must define either TIVADCC_TIVA or TIVADCC_CC3200
 #endif
 
-#include "TivaDCC.hxx"  // for FixedQueue
-
 #include "freertos_drivers/common/RailcomImpl.hxx"
 #include "dcc/RailCom.hxx"
 
