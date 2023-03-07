@@ -24,45 +24,20 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file TivaRailcom.hxx
+ * \file Stm32Railcom.hxx
  *
- * Device driver for TivaWare to read one or more UART inputs for railcom data.
- *
- * usage:
- *
- * struct MyRailcomPins {
- *   // add all definitions from the example RailcomHw here
- * };
- * // Some definitions need to go outside of the class.
- * // no need for attribute weak if this is in a .cxx file.
- * const uint32_t MyRailcomPins::UART_BASE[] __attribute__((weak)) = {...};
- * ...
- *
- * TivaRailcomDriver<MyrailcomPins> railcom_driver("/dev/railcom");
- *
- * // assuming you put OS_INTERRRUPT = INT_UART3 into the structure.
- * void uart3_interrupt_handler() {
- *    railcom_driver.os_interrrupt();
- * }
- *
- * Then open /dev/railcom and read dcc::Feedback structures from it. Each read
- * much be exactly sizeof(dcc::Feedback) length. If there are no more packets to
- * read, you'll get return=0, errno==EAGAIN. Add an ioctl CAN_READ_ACTIVE to
- * get a notification when there is something to read.
+ * Device driver for STM32 chips to read one or more UART inputs for railcom
+ * data.
  *
  * @author Balazs Racz
- * @date 6 Jan 2015
+ * @date 6 Mar 2023
  */
 
-#ifndef _FREERTOS_DRIVERS_TI_TIVARAILCOM_HXX_
-#define _FREERTOS_DRIVERS_TI_TIVARAILCOM_HXX_
+#ifndef _FREERTOS_DRIVERS_ST_STM32RAILCOM_HXX_
+#define _FREERTOS_DRIVERS_ST_STM32RAILCOM_HXX_
 
-#if (!defined(TIVADCC_TIVA)) && (!defined(TIVADCC_CC3200))
-#error must define either TIVADCC_TIVA or TIVADCC_CC3200
-#endif
 
 #include "freertos_drivers/common/RailcomImpl.hxx"
-#include "dcc/RailCom.hxx"
 
 /*
 struct RailcomHw
@@ -120,24 +95,23 @@ const uint32_t RailcomHw::UART_PERIPH[]
 __attribute__((weak)) = {SYSCTL_PERIPH_UART4, SYSCTL_PERIPH_UART3, SYSCTL_PERIPH_UART2, SYSCTL_PERIPH_UART7};
 
 */
-
-/// Railcom driver for TI Tiva-class microcontrollers using the TivaWare
-/// peripheral library.
+/// Railcom driver for STM32-class microcontrollers using the HAL middleware
+/// library.
 ///
 /// This railcom driver supports parallel polling of multiple UART channels for
 /// the railcom data. 
-template <class HW> class TivaRailcomDriver : public RailcomDriverBase<HW>
+template <class HW> class Stm32RailcomDriver : public RailcomDriverBase<HW>
 {
 public:
     /// Constructor. @param path is the device node path (e.g. "/dev/railcom0").
-    TivaRailcomDriver(const char *path)
+    Stm32RailcomDriver(const char *path)
         : RailcomDriverBase<HW>(path)
     {
         MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
         MAP_IntEnable(HW::OS_INTERRUPT);
     }
 
-    ~TivaRailcomDriver()
+    ~Stm32RailcomDriver()
     {
         MAP_IntDisable(HW::OS_INTERRUPT);
     }
@@ -326,4 +300,5 @@ private:
     }
 };
 
-#endif // _FREERTOS_DRIVERS_TI_TIVARAILCOM_HXX_
+
+#endif // _FREERTOS_DRIVERS_ST_STM32RAILCOM_HXX_
