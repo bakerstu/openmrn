@@ -36,20 +36,50 @@
 #ifndef _FREERTOS_DRIVERS_ST_STM32RAILCOM_HXX_
 #define _FREERTOS_DRIVERS_ST_STM32RAILCOM_HXX_
 
+#include "stm32f_hal_conf.hxx"
 
 #include "freertos_drivers/common/RailcomImpl.hxx"
+
+
+#if defined(STM32F072xB) || defined(STM32F091xC)
+#include "stm32f0xx_ll_usart.h"
+#elif defined(STM32F103xB)
+#include "stm32f1xx_ll_usart.h"
+#elif defined(STM32F303xC) || defined(STM32F303xE)
+#include "stm32f3xx_ll_usart.h"
+#elif defined(STM32L431xx) || defined(STM32L432xx)
+#include "stm32l4xx_ll_usart.h"
+#elif defined(STM32F767xx)
+#include "stm32f7xx_ll_usart.h"
+#else
+#error Dont know what STM32 chip you have.
+#endif
+
+/// This struct helps casting the UART base addresses to the appropriate
+/// type. It can be allocated in read-only memory (flash) as a static array. It
+/// can be passed to the STM32 HAL macros as well.
+struct RailcomUartHandle
+{
+    union
+    {
+        /// Initialized by the constants from the processor header like
+        /// USART1_BASE.
+        uint32_t baseAddress;
+        /// Use this to access the registers.
+        USART_TypeDef *Instance;
+    };
+};
 
 /*
 struct RailcomHw
 {
     static const uint32_t CHANNEL_COUNT = 4;
-    static const uint32_t UART_PERIPH[CHANNEL_COUNT];
-    static const uint32_t UART_BASE[CHANNEL_COUNT];
+    static const RailcomUartHandle UART_BASE[CHANNEL_COUNT];
     // Make sure there are enough entries here for all the channels times a few
     // DCC packets.
     static const uint32_t Q_SIZE = 16;
 
-    static const auto OS_INTERRUPT = INT_UART2;
+    static const auto OS_INTERRUPT = USART2_IRQn;
 
     GPIO_HWPIN(CH1, GpioHwPin, C, 4, U4RX);
     GPIO_HWPIN(CH2, GpioHwPin, C, 6, U3RX);
@@ -107,13 +137,17 @@ public:
     Stm32RailcomDriver(const char *path)
         : RailcomDriverBase<HW>(path)
     {
-        MAP_IntPrioritySet(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
-        MAP_IntEnable(HW::OS_INTERRUPT);
+#ifdef GCC_CM3
+        SetInterruptPriority(HW::OS_INTERRUPT, configKERNEL_INTERRUPT_PRIORITY);
+#else
+        SetInterruptPriority(HW::OS_INTERRUPT, 0xff);
+#endif        
+        HAL_NVIC_EnableIRQ(HW::OS_INTERRUPT);
     }
 
     ~Stm32RailcomDriver()
     {
-        MAP_IntDisable(HW::OS_INTERRUPT);
+        HAL_NVIC_DisableIRQ(HW::OS_INTERRUPT);
     }
 
 private:
@@ -126,33 +160,39 @@ private:
     /// @param int_nr interrupt number (will be HW::OS_INTERRUPT)
     void int_set_pending(unsigned int_nr) override
     {
-        MAP_IntPendSet(int_nr);
+        HAL_NVIC_SetPendingIRQ((IRQn_Type)int_nr);
     }
 
     // File node interface
     void enable() OVERRIDE
     {
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
+        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
-#ifdef TIVADCC_TIVA
-            MAP_SysCtlPeripheralEnable(HW::UART_PERIPH[i]);
-#elif defined(TIVADCC_CC3200)
-            MAP_PRCMPeripheralClkEnable(HW::UART_PERIPH[i], PRCM_RUN_MODE_CLK);
-#endif            
-            MAP_UARTConfigSetExpClk(HW::UART_BASE[i], cm3_cpu_clock_hz, 250000,
-                                    UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
-                                    UART_CONFIG_PAR_NONE);
-            MAP_UARTFIFOEnable(HW::UART_BASE[i]);
+            UART_HandleTypeDef uart_handle;
+            memset(&uart_handle, 0, sizeof(uart_handle));
+            uart_handle.Init.BaudRate   = 250000;
+            uart_handle.Init.WordLength = UART_WORDLENGTH_8B;
+            uart_handle.Init.StopBits   = UART_STOPBITS_1;
+            uart_handle.Init.Parity     = UART_PARITY_NONE;
+            uart_handle.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+            uart_handle.Init.Mode       = UART_MODE_RX;
+            uart_handle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+            uart_handle.Instance = HW::UART_BASE[i].Instance;
+            HAL_UART_DeInit(&uart_handle); 
+            volatile auto ret = HAL_UART_Init(&uart_handle);
+            HASSERT(HAL_OK == ret);
+
             // Disables the receiver.
-            HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) = 0;
-            MAP_UARTEnable(HW::UART_BASE[i]);
+            LL_USART_SetTransferDirection(
+                HW::UART_BASE[i].Instance, LL_USART_DIRECTION_NONE);
+            LL_USART_Enable(HW::UART_BASE[i].Instance);
         }
     }
     void disable() OVERRIDE
     {
         for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
         {
-            MAP_UARTDisable(HW::UART_BASE[i]);
+            LL_USART_Disable(HW::UART_BASE[i].Instance);
         }
     }
 
@@ -168,17 +208,17 @@ private:
         HW::enable_measurement(false);
         const bool need_ch1_cutout = HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
         Debug::RailcomRxActivate::set(true);
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
+        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
             if (need_ch1_cutout)
             {
-                HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
+                LL_USART_SetTransferDirection(
+                    HW::UART_BASE[i].Instance, LL_USART_DIRECTION_RX);
             }
-            // HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) =
-            //    UART_CTL_RXE;
-            // flush fifo
-            while (MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]) >= 0)
-                ;
+            while (LL_USART_IsActiveFlag_RXNE(HW::UART_BASE[i].Instance)) {
+                uint8_t data = HW::UART_BASE[i].Instance->RDR;
+                (void) data;
+            }
             returnedPackets_[i] = 0;
         }
         Debug::RailcomDriverCutout::set(true);
@@ -187,9 +227,9 @@ private:
     void middle_cutout() OVERRIDE
     {
         Debug::RailcomDriverCutout::set(false);
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
+        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
-            while (MAP_UARTCharsAvail(HW::UART_BASE[i]))
+            while (LL_USART_IsActiveFlag_RXNE(HW::UART_BASE[i].Instance))
             {
                 Debug::RailcomDataReceived::toggle();
                 Debug::RailcomAnyData::set(true);
@@ -201,8 +241,8 @@ private:
                 {
                     break;
                 }
-                long data = MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]);
-                if (data < 0 || data > 0xff) {
+                uint8_t data = HW::UART_BASE[i].Instance->RDR;
+                if (LL_USART_IsActiveFlag_FE(HW::UART_BASE[i].Instance)) {
                     // We reset the receiver circuitry because we got an error
                     // in channel 1. Typical cause of this error is if there
                     // are multiple locomotives on the block (e.g. if this is
@@ -211,14 +251,20 @@ private:
                     // the asynchronous receiver is out of sync with the
                     // transmitter, but right now we should be in the
                     // between-byte space.
-                    HWREG(HW::UART_BASE[i] + UART_O_CTL) &= ~UART_CTL_RXE;
+                    LL_USART_SetTransferDirection(
+                        HW::UART_BASE[i].Instance, LL_USART_DIRECTION_NONE);
+                    LL_USART_ClearFlag_FE(HW::UART_BASE[i].Instance);
                     Debug::RailcomError::toggle();
-                    returnedPackets_[i]->add_ch1_data(0xF8 | ((data >> 8) & 0x7));
+                    // Not a valid railcom byte.
+                    //returnedPackets_[i]->add_ch1_data(0xF8);
                     continue;
                 }
                 returnedPackets_[i]->add_ch1_data(data);
             }
-            HWREG(HW::UART_BASE[i] + UART_O_CTL) |= UART_CTL_RXE;
+            LL_USART_Disable(HW::UART_BASE[i].Instance);
+            LL_USART_SetTransferDirection(
+                HW::UART_BASE[i].Instance, LL_USART_DIRECTION_RX);
+            LL_USART_Enable(HW::UART_BASE[i].Instance);
         }
         HW::middle_cutout_hook();
         Debug::RailcomDriverCutout::set(true);
@@ -228,9 +274,9 @@ private:
     {
         HW::disable_measurement();
         bool have_packets = false;
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
+        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
-            while (MAP_UARTCharsAvail(HW::UART_BASE[i]))
+            while (LL_USART_IsActiveFlag_RXNE(HW::UART_BASE[i].Instance))
             {
                 Debug::RailcomDataReceived::toggle();
                 Debug::RailcomAnyData::set(true);
@@ -243,10 +289,11 @@ private:
                 {
                     break;
                 }
-                long data = MAP_UARTCharGetNonBlocking(HW::UART_BASE[i]);
-                if (data < 0 || data > 0xff) {
+                uint8_t data = HW::UART_BASE[i].Instance->RDR;
+                if (LL_USART_IsActiveFlag_FE(HW::UART_BASE[i].Instance)) {
                     Debug::RailcomError::toggle();
-                    returnedPackets_[i]->add_ch2_data(0xF8 | ((data >> 8) & 0x7));
+                    LL_USART_ClearFlag_FE(HW::UART_BASE[i].Instance);
+                    //returnedPackets_[i]->add_ch2_data(0xF8);
                     continue;
                 }
                 if (data == 0xE0) {
@@ -254,15 +301,15 @@ private:
                 }
                 returnedPackets_[i]->add_ch2_data(data);
             }
-            HWREG(HW::UART_BASE[i] + UART_O_CTL) &= ~UART_CTL_RXE;
+            LL_USART_SetTransferDirection(
+                HW::UART_BASE[i].Instance, LL_USART_DIRECTION_NONE);
             Debug::RailcomRxActivate::set(false);
-            //HWREGBITW(HW::UART_BASE[i] + UART_O_CTL, UART_CTL_RXE) = 0;
             if (returnedPackets_[i]) {
                 have_packets = true;
                 this->feedbackQueue_.commit_back();
                 Debug::RailcomPackets::toggle();
                 returnedPackets_[i] = nullptr;
-                MAP_IntPendSet(HW::OS_INTERRUPT);
+                HAL_NVIC_SetPendingIRQ(HW::OS_INTERRUPT);
             }
         }
         if (!have_packets)
@@ -274,7 +321,7 @@ private:
             {
                 this->feedbackQueue_.commit_back();
                 Debug::RailcomPackets::toggle();
-                MAP_IntPendSet(HW::OS_INTERRUPT);
+                HAL_NVIC_SetPendingIRQ(HW::OS_INTERRUPT);
             }
         }
         Debug::RailcomCh2Data::set(false);
@@ -283,22 +330,16 @@ private:
 
     void no_cutout() OVERRIDE
     {
-        for (unsigned i = 0; i < ARRAYSIZE(HW::UART_BASE); ++i)
+        // Ensures that at least one feedback packet is sent back even when
+        // it is with no railcom payload.
+        auto *p = this->alloc_new_packet(0);
+        if (p)
         {
-            if (!returnedPackets_[i])
-            {
-                returnedPackets_[i] = this->alloc_new_packet(i);
-            }
-            if (returnedPackets_[i])
-            {
-                this->feedbackQueue_.commit_back();
-                Debug::RailcomPackets::toggle();
-                returnedPackets_[i] = nullptr;
-                MAP_IntPendSet(HW::OS_INTERRUPT);
-            }
+            this->feedbackQueue_.commit_back();
+            Debug::RailcomPackets::toggle();
+            HAL_NVIC_SetPendingIRQ(HW::OS_INTERRUPT);
         }
     }
 };
-
 
 #endif // _FREERTOS_DRIVERS_ST_STM32RAILCOM_HXX_
