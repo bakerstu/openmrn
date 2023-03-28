@@ -53,7 +53,7 @@ public:
     /// @param enable_tick callback to enable ticks
     /// @param disable_tick callback to disable ticks
     BitBangI2C(const char *name, const Gpio *sda_gpio, const Gpio *scl_gpio,
-               void (*enable_tick)(void), void (*disable_tick)(void))
+               void (*enable_tick)(), void (*disable_tick)())
         : I2C(name)
         , sda_(sda_gpio)
         , scl_(scl_gpio)
@@ -200,6 +200,9 @@ private:
     /// @return true if the state machine is finished, count_ may be negative
     ///         to indicate an error.
     bool state_rx(uint8_t *data, bool nack);
+
+    void enable() override {} /**< function to enable device */
+    void disable() override {} /**< function to disable device */
 
     /// Method to transmit/receive the data.
     /// @param msg message to transact.
