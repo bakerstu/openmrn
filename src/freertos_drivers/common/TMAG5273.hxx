@@ -63,18 +63,66 @@ public:
 
     friend class MagSensorTest;
 
-    enum BitMasks {
+    enum BitMasks
+    {
+        /// Mask for averaging field in DEVICE_CONFIG_1 register.
         DCONF1_AVG_MASK = 0b11100,
+        /// Average 1 saples.
         DCONF1_AVG_1 = (0 << 2),
+        /// Average 2 saples.
         DCONF1_AVG_2 = (1 << 2),
+        /// Average 4 saples.
         DCONF1_AVG_4 = (2 << 2),
+        /// Average 8 saples.
         DCONF1_AVG_8 = (3 << 2),
+        /// Average 16 saples.
         DCONF1_AVG_16 = (4 << 2),
+        /// Average 32 saples.
         DCONF1_AVG_32 = (5 << 2),
 
+        /// Mask for MAG_GAIN_CH bits in the SENSOR_CONFIG_2 register.
+        SCONF2_MAG_GAIN_CH_MASK = 1 << 4,
+        SCONF2_MAG_GAIN_CH_ADJ1 = 0,
+        SCONF2_MAG_GAIN_CH_ADJ2 = SCONF2_MAG_GAIN_CH_MASK,
 
+        /// Mask for ANGLE_EN bits in the SENSOR_CONFIG_2 register.
+        SCONF2_ANGLE_EN_MASK = 0b1100,
+        SCONF2_ANGLE_EN_OFF = 0 << 2,
+        SCONF2_ANGLE_EN_XY = 1 << 2,
+        SCONF2_ANGLE_EN_YZ = 2 << 2,
+        SCONF2_ANGLE_EN_XZ = 3 << 2,
     };
-    
+
+    /// Sets the oversampling+averaging mode.
+    ///
+    /// @param val DCONF1_AVG_* to determine what the oversampling should be.
+    ///
+    void set_oversampling(BitMasks val)
+    {
+        register_modify(DEVICE_CONFIG_1, DCONF1_AVG_MASK, val);
+    }
+
+    /// Sets whether angle measurement should be enabled.
+    ///
+    /// @param val SCONF2_ANGLE_EN_* to determine which axis to enable angle
+    /// measurement on.
+    ///
+    void set_angle_en(BitMasks val)
+    {
+        register_modify(SENSOR_CONFIG_2, SCONF2_ANGLE_EN_MASK, val);
+    }
+
+    /// Sets angle gain parameters.
+    ///
+    /// @param gain 8-bit gain value (interpreted as 0..1)
+    /// @param second true if the second channel is larger than the first channel
+    void set_angle_gain(uint8_t gain, bool second)
+    {
+        register_write(MAG_GAIN_CONFIG, gain);
+        register_modify(SENSOR_CONFIG_2, SCONF2_MAG_GAIN_CH_MASK,
+            second ? SCONF2_MAG_GAIN_CH_ADJ2 : SCONF2_MAG_GAIN_CH_ADJ1);
+    }
+
 private:
     enum Registers
     {
@@ -162,14 +210,34 @@ private:
         register_write(reg, &value, 1);
     }
 
-    uint8_t register_read(uint8_t reg) {
+    /// Reads a single register.
+    ///
+    /// @param reg register number.
+    ///
+    /// @return the register's current value.
+    ///
+    uint8_t register_read(uint8_t reg)
+    {
         uint8_t ret;
         register_read(reg, &ret, 1);
         return ret;
     }
-    
-    //void register_modify()
-    
+
+    /// Modifies a register value in place.
+    ///
+    /// @param reg register address to modify.
+    /// @param mask bitmask of which bits to modify
+    /// @param value new value of these bits (shifted to the right position).
+    /// Any bits set outside the mask will be ignored.
+    ///
+    void register_modify(uint8_t reg, uint8_t mask, uint8_t value)
+    {
+        uint8_t current = register_read(reg);
+        current &= ~mask;
+        current |= (value & mask);
+        register_write(reg, current);
+    }
+
     /// I2C device.
     int fd_ = -1;
     /// 7-bit address, right aligned.
