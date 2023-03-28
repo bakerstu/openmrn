@@ -214,14 +214,17 @@ public:
     RailcomToOpenLCBDebugProxy(dcc::RailcomHubFlow *parent, Node *node,
         dcc::RailcomHubPort *occupancy_port, bool ch1_enabled = true,
         bool ack_enabled = true)
-        : dcc::RailcomHubPort(parent->service())
+        : dcc::RailcomHubPort(node->iface())
         , parent_(parent)
         , node_(node)
         , occupancyPort_(occupancy_port)
         , ch1Enabled_(ch1_enabled)
         , ackEnabled_(ack_enabled)
     {
-        parent_->register_port(this);
+        if (parent_)
+        {
+            parent_->register_port(this);
+        }
     }
 
     RailcomToOpenLCBDebugProxy(Node *node)
