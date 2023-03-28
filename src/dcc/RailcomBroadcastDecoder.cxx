@@ -48,15 +48,18 @@ bool RailcomBroadcastDecoder::process_packet(const dcc::Feedback &packet)
 {
     if (packet.ch1Size)
     {
-        return process_data(packet.ch1Data, packet.ch1Size);
-    }
-    else if (packet.ch2Size)
-    {
-        return process_data(packet.ch2Data, packet.ch2Size);
+        return process_data(packet.ch1Data, packet.ch1Size) &&
+            (packet.ch2Size == 0);
     }
     else
     {
-        return true; // empty packet.
+        // No channel1 data.
+        notify_empty();
+        if (!packet.ch2Size)
+        {
+            return true; // empty packet.
+        }
+        return false;
     }
 }
 
@@ -82,7 +85,7 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
         {
             case dcc::RMOB_ADRLOW:
                 if (currentL_ == payload) {
-                    if (countL_ < REPEAT_COUNT) ++countL_;
+                    if (countL_ < MAX_REPEAT_COUNT) countL_ += 2;
                 } else {
                     currentL_ = payload;
                     countL_ = 0;
@@ -90,7 +93,7 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
                 break;
             case dcc::RMOB_ADRHIGH:
                 if (currentH_ == payload) {
-                    if (countH_ < REPEAT_COUNT) ++countH_;
+                    if (countH_ < MAX_REPEAT_COUNT) countH_ += 2;
                 } else {
                     currentH_ = payload;
                     countH_ = 0;
@@ -99,7 +102,7 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
             default:
                 return false; // This is something we don't know about.
         }
-        if (countL_ >= REPEAT_COUNT && countH_ >= REPEAT_COUNT) {
+        if (countL_ >= MIN_REPEAT_COUNT && countH_ >= MIN_REPEAT_COUNT) {
             currentAddress_ = (uint16_t(currentH_) << 8) | currentL_;
         }
         return true;
@@ -110,11 +113,27 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
     }
 }
 
-void RailcomBroadcastDecoder::set_occupancy(bool value) {
-    if (value) return;
-    if (countH_) --countH_;
-    if (countL_) --countL_;
-    if ((!countH_) || (!countL_)) {
+void RailcomBroadcastDecoder::set_occupancy(bool value)
+{
+    if (value)
+    {
+        return;
+    }
+    notify_empty();
+}
+
+void RailcomBroadcastDecoder::notify_empty()
+{
+    if (countH_)
+    {
+        --countH_;
+    }
+    if (countL_)
+    {
+        --countL_;
+    }
+    if ((!countH_) || (!countL_))
+    {
         currentAddress_ = 0;
     }
 }
