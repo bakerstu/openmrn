@@ -62,6 +62,18 @@ public:
     }
 
     friend class MagSensorTest;
+
+    enum BitMasks {
+        DCONF1_AVG_MASK = 0b11100,
+        DCONF1_AVG_1 = (0 << 2),
+        DCONF1_AVG_2 = (1 << 2),
+        DCONF1_AVG_4 = (2 << 2),
+        DCONF1_AVG_8 = (3 << 2),
+        DCONF1_AVG_16 = (4 << 2),
+        DCONF1_AVG_32 = (5 << 2),
+
+
+    };
     
 private:
     enum Registers
@@ -94,6 +106,7 @@ private:
         ANGLE_RESULT_MSB = 0x19,   // Conversion Result Register
         ANGLE_RESULT_LSB = 0x1A,   // Conversion Result Register
         MAGNITUDE_RESULT = 0x1B,   // Conversion Result Register
+        DEVICE_STATUS = 0x1C,      // Device_Diag Status Register
     };
 
     /// Reads one or more (sequential) registers.
@@ -113,7 +126,7 @@ private:
         ::ioctl(fd_, I2C_RDWR, &ioctl_data);
     }
 
-    /// Writes one or more (sequential) registers in the MCP23017.
+    /// Writes one or more (sequential) register.
     /// @param reg starting register offset.
     /// @param data payload to write
     /// @param len number of bytes to write.
@@ -139,6 +152,23 @@ private:
 
         ::ioctl(fd_, I2C_RDWR, &ioctl_data);
     }
+
+    /// Writes one register.
+    /// @param reg starting register offset.
+    /// @param value payload to write
+    /// Returns when the write is complete.
+    void register_write(uint8_t reg, uint8_t value)
+    {
+        register_write(reg, &value, 1);
+    }
+
+    uint8_t register_read(uint8_t reg) {
+        uint8_t ret;
+        register_read(reg, &ret, 1);
+        return ret;
+    }
+    
+    //void register_modify()
     
     /// I2C device.
     int fd_ = -1;
