@@ -28,6 +28,7 @@ CXXSRCS += Fileio.cxx \
            SN74HC595GPO.cxx \
            TCAN4550Can.cxx \
            SPIFlash.cxx \
+           BitBangI2C.cxx
            
 
 
