@@ -24,6 +24,8 @@ public:
         sen_.register_write(TMAG5273::INT_CONFIG_1, 0x1);
         // Clears POR bit
         sen_.register_write(TMAG5273::CONV_STATUS, 0x0);
+        // Sets lower gain / higher range
+        sen_.register_write(TMAG5273::SENSOR_CONFIG_2, 0b11);
         while(true) {
             uint8_t rc[2];
             sen_.register_read(TMAG5273::MANUFACTURER_ID_LSB, rc, 2);
