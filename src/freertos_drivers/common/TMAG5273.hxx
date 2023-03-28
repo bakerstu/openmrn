@@ -44,7 +44,7 @@ public:
     /// @param address is the 7-bit address (right aligned), typically 0x35,
     /// 0x22, 0x78 or 0x44). Default is the A1/A2 device.
     TMAG5273(uint8_t address = 0x35)
-        : address_(address << 1)
+        : i2cAddress_(address)
     { }
 
     void init(const char *i2c_path)
@@ -61,6 +61,8 @@ public:
         fd_ = i2c_fd;
     }
 
+    friend class MagSensorTest;
+    
 private:
     enum Registers
     {
@@ -94,22 +96,54 @@ private:
         MAGNITUDE_RESULT = 0x1B,   // Conversion Result Register
     };
 
-    
-    /// @return the I2C address for reads.
-    uint8_t read_address()
+    /// Reads one or more (sequential) registers.
+    /// @param reg starting register offset.
+    /// @param data where to write payload
+    /// @param len number of registers to read (1 byte each).
+    /// Returns when the read is complete.
+    void register_read(uint8_t reg, uint8_t *data, uint16_t len)
     {
-        return address_ | 1;
-    }
-    /// @return the I2C address for writes.
-    uint8_t write_address()
-    {
-        return address_;
+        struct i2c_msg msgs[] = {
+            {.addr = i2cAddress_, .flags = 0, .len = 1, .buf = &reg},
+            {.addr = i2cAddress_, .flags = I2C_M_RD, .len = len, .buf = data}};
+
+        struct i2c_rdwr_ioctl_data ioctl_data = {
+            .msgs = msgs, .nmsgs = ARRAYSIZE(msgs)};
+
+        ::ioctl(fd_, I2C_RDWR, &ioctl_data);
     }
 
+    /// Writes one or more (sequential) registers in the MCP23017.
+    /// @param reg starting register offset.
+    /// @param data payload to write
+    /// @param len number of bytes to write.
+    /// Returns when the write is complete.
+    void register_write(uint8_t reg, const uint8_t *data, uint16_t len)
+    {
+        HASSERT(len <= 2);
+        uint8_t dat[3];
+        dat[0] = reg;
+        dat[1] = data[0];
+        if (len > 1)
+        {
+            dat[2] = data[1];
+        }
+        HASSERT(len <= 2);
+        struct i2c_msg msgs[] = {{.addr = i2cAddress_,
+            .flags = 0,
+            .len = (uint16_t)(len + 1),
+            .buf = dat}};
+
+        struct i2c_rdwr_ioctl_data ioctl_data = {
+            .msgs = msgs, .nmsgs = ARRAYSIZE(msgs)};
+
+        ::ioctl(fd_, I2C_RDWR, &ioctl_data);
+    }
+    
     /// I2C device.
     int fd_ = -1;
-    /// 7-bit address, left aligned.
-    const uint8_t address_;
+    /// 7-bit address, right aligned.
+    const uint8_t i2cAddress_;
 };
 
 #endif // _FREERTOS_DRIVERS_COMMON_TMAG5273_HXX_
