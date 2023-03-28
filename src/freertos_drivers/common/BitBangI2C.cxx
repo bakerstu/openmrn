@@ -54,7 +54,7 @@ void BitBangI2C::tick_interrupt()
         {
             /// @todo only supporting 7-bit I2C addresses at the moment.
             uint8_t address = msg_->addr << 1;
-            if (msg_->flags | I2C_M_RD)
+            if (msg_->flags & I2C_M_RD)
             {
                 address |= 0x1;
             }
@@ -62,12 +62,14 @@ void BitBangI2C::tick_interrupt()
             {
                 if (count_ < 0)
                 {
-                    // Some error occured, likely an unexpected NACK
-                    exit = true;
+                    // Some error occured, likely an unexpected NACK. Send a
+                    // stop in order to shutdown gracefully.
+                    state_ = State::STOP;
+                    stateStop_ = StateStop::FIRST;
                 }
                 else
                 {
-                    if (msg_->flags | I2C_M_RD)
+                    if (msg_->flags & I2C_M_RD)
                     {
                         state_ = State::DATA_RX;
                         stateRx_ = StateRx::FIRST;
@@ -86,8 +88,10 @@ void BitBangI2C::tick_interrupt()
             {
                 if (count_ < 0)
                 {
-                    // Some error occured, likely an unexpected NACK
-                    exit = true;
+                    // Some error occured, likely an unexpected NACK. Send a
+                    // stop in order to shutdown gracefully.
+                    state_ = State::STOP;
+                    stateStop_ = StateStop::FIRST;
                 }
                 else if (++count_ == msg_->len)
                 {
@@ -245,6 +249,7 @@ bool BitBangI2C::state_tx(uint8_t data)
             {
                 count_ = -EIO;
             }
+            stateTx_ = StateTx::DATA_7_SCL_SET;
             return true; // done
     }
     return false;
@@ -309,6 +314,7 @@ bool BitBangI2C::state_rx(uint8_t *data, bool nack)
         case StateRx::ACK_SCL_CLR:
             gpio_clr(scl_);
             gpio_set(sda_);
+            stateRx_ = StateRx::DATA_7_SCL_SET;
             return true;
     }
     return false;
