@@ -42,7 +42,7 @@
 /// the BitBangI2C::tick_interrupt() method at a rate that is one half the
 /// desired clock rate. For example, for a 100kHz bus, call once every 5
 /// microseconds. The tick should be enabled to start. The driver will
-/// enable/disable the tick as needed.
+/// enable/disable the tick as needed to save on spurious interrupts.
 class BitBangI2C : public I2C
 {
 public:
@@ -85,7 +85,7 @@ private:
         START, ///< start state
         ADDRESS, ///< address state
         DATA_TX, ///< data TX state
-        DATA_RX, ///< data TX state
+        DATA_RX, ///< data RX state
         STOP, ///< stop state
     };
 
@@ -135,7 +135,7 @@ private:
         LAST = ACK_SCL_CLR, ///< last data TX sequence state
     };
 
-    /// Low level I2C data TX states
+    /// Low level I2C data RX states
     enum class StateRx
     {
         DATA_7_SCL_SET, ///< data RX sequence
@@ -172,33 +172,24 @@ private:
     /// Allow pre-increment definition
     friend StateRx &operator++(StateRx &);
 
-    /// Execute start state machine
-    /// @return true to exit the high level state machine
+    /// Execute start state machine.
+    /// @return true if the sub-state machine is finished.
     bool state_start();
 
-    /// Execute stop state machine
-    /// @return true to exit the high level state machine
+    /// Execute stop state machine.
+    /// @return true if the sub-state machine is finished.
     bool state_stop();
 
-    /// Execute data TX state machine
-    /// @return true to exit the high level state machine
-    bool state_tx();
-
-    /// Execute data RX state machine
-    /// @return true to exit the high level state machine
-    bool state_rx();
-
-    /// Execute data TX state machine
+    /// Execute data TX state machine.
     /// @param data value to send
-    /// @return true if the state machine is finished, count_ may be negative
-    ///         to indicate an error.
+    /// @return true if the sub-state machine is finished, count_ may be
+    ///         negative to indicate an error.
     bool state_tx(uint8_t data);
 
-    /// Execute data RX state machine
+    /// Execute data RX state machine.
     /// @param location to shift data into
     /// @param nack send a NACK in the (N)ACK slot
-    /// @return true if the state machine is finished, count_ may be negative
-    ///         to indicate an error.
+    /// @return true if the sub-state machine is finished.
     bool state_rx(uint8_t *data, bool nack);
 
     void enable() override {} /**< function to enable device */
@@ -211,12 +202,14 @@ private:
     int transfer(struct i2c_msg *msg, bool stop) override;
 
     /// Set the GPIO state.
+    /// @param gpio GPIO to set
     void gpio_set(const Gpio *gpio)
     {
         gpio->set_direction(Gpio::Direction::DINPUT);
     }
 
     /// Clear the GPIO state.
+    /// @param gpio GPIO to clear
     void gpio_clr(const Gpio *gpio)
     {
         gpio->clr();
@@ -238,12 +231,13 @@ private:
         StateTx stateTx_; ///< I2C data TX state machine state
         StateRx stateRx_; ///< I2C data RX state machine state
     };
-    int count_; ///< the count of data bytes transferred
+    int count_; ///< the count of data bytes transferred, error if < 0
     bool stop_; ///< if true, issue stop condition at the end of the message
 };
 
 /// Pre-increment operator overload
 /// @param x starting value
+/// @return incremented value
 inline BitBangI2C::StateStart &operator++(BitBangI2C::StateStart &x)
 {
     if (x >= BitBangI2C::StateStart::FIRST && x <= BitBangI2C::StateStart::LAST)
@@ -255,6 +249,7 @@ inline BitBangI2C::StateStart &operator++(BitBangI2C::StateStart &x)
 
 /// Pre-increment operator overload
 /// @param x starting value
+/// @return incremented value
 inline BitBangI2C::StateStop &operator++(BitBangI2C::StateStop &x)
 {
     if (x >= BitBangI2C::StateStop::FIRST && x <= BitBangI2C::StateStop::LAST)
@@ -266,6 +261,7 @@ inline BitBangI2C::StateStop &operator++(BitBangI2C::StateStop &x)
 
 /// Pre-increment operator overload
 /// @param x starting value
+/// @return incremented value
 inline BitBangI2C::StateTx &operator++(BitBangI2C::StateTx &x)
 {
     if (x >= BitBangI2C::StateTx::FIRST && x <= BitBangI2C::StateTx::LAST)
@@ -277,6 +273,7 @@ inline BitBangI2C::StateTx &operator++(BitBangI2C::StateTx &x)
 
 /// Pre-increment operator overload
 /// @param x starting value
+/// @return incremented value
 inline BitBangI2C::StateRx &operator++(BitBangI2C::StateRx &x)
 {
     if (x >= BitBangI2C::StateRx::FIRST && x <= BitBangI2C::StateRx::LAST)

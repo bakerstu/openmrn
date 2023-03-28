@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file BitBangI2C.hxx
+ * @file BitBangI2C.cxx
  * This file implements a bit bang implementation of I2C.
  *
  * @author Stuart W. Baker
@@ -257,6 +257,7 @@ bool BitBangI2C::state_tx(uint8_t data)
 
 //
 // BitBangI2C::state_rx()
+//
 bool BitBangI2C::state_rx(uint8_t *data, bool nack)
 {
     switch(stateRx_)
