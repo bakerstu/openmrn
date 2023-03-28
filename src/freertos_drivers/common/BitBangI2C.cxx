@@ -36,6 +36,7 @@
 //
 // BitBangI2C::tick_interrupt()
 //
+__attribute__((optimize("-O3")))
 void BitBangI2C::tick_interrupt()
 {
     bool exit = false;
@@ -148,6 +149,7 @@ void BitBangI2C::tick_interrupt()
 //
 // BitBangI2C::state_start()
 //
+__attribute__((optimize("-O3")))
 bool BitBangI2C::state_start()
 {
     switch (stateStart_)
@@ -175,6 +177,7 @@ bool BitBangI2C::state_start()
 //
 // BitBangI2C::state_stop()
 //
+__attribute__((optimize("-O3")))
 bool BitBangI2C::state_stop()
 {
     switch (stateStop_)
@@ -198,6 +201,7 @@ bool BitBangI2C::state_stop()
 //
 // BitBangI2C::state_tx()
 //
+__attribute__((optimize("-O3")))
 bool BitBangI2C::state_tx(uint8_t data)
 {
     switch(stateTx_)
@@ -258,6 +262,7 @@ bool BitBangI2C::state_tx(uint8_t data)
 //
 // BitBangI2C::state_rx()
 //
+__attribute__((optimize("-O3")))
 bool BitBangI2C::state_rx(uint8_t *data, bool nack)
 {
     switch(stateRx_)
