@@ -76,6 +76,10 @@
 #include <stdio.h>
 #include <unistd.h>
 
+template <class Defs, bool SAFE_VALUE, bool INVERT> 
+         struct GpioOutputPin;
+template <class Defs, bool ACTIVE_HIGH> struct GpioInputPin;
+
 /// Defines a GPIO output pin. Writes to this structure will change the output
 /// level of the pin. Reads will return the pin's current level.
 /// Uses Linux sysfs ABI
@@ -84,140 +88,160 @@
 /// `SAFE_VALUE'.
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template <int PIN_NUM> class LinuxGpio
+template <int PIN> class LinuxGpio : public Gpio
 {
 public:
-    /// Number of the pin
-    static constexpr const uint32_t PIN = PIN_NUM;
-    
-    /// Export pin
-    static void export_pin()
-    {
-        FILE *fp = fopen("/sys/class/gpio/export","w");
-        fprintf(fp,"%d\n",PIN);
-        fclose(fp);
-        // 50ms delay IS needed while kernel changes ownership of created GPIO directory
-        usleep(50000); 
-    }
-    
-    /// Sets pin to output.
-    static void set_output()
-    {
-        char dirname[40];
-        snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN);
-        int dfd = -1;
-        while ((dfd = open(dirname,O_WRONLY)) < 0) {
-            export_pin();
-        }
-        write(dfd,"out\n",4);
-        close(dfd);
-    }
-    /// Sets pin to input.
-    static void set_input()
-    {
-        char dirname[40];
-        snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN);
-        int dfd = -1;
-        while ((dfd = open(dirname,O_WRONLY)) < 0) {
-            export_pin();
-        }
-        write(dfd,"in\n",3);
-        close(dfd);
-    }
-    /// Sets output to HIGH.
-    static void set_on()
+    /// Sets the output state of the connected GPIO pin.
+    ///
+    /// @param new_state State to set the GPIO pin to.
+    void write(Value new_state) const override
     {
         char valname[40];
         snprintf(valname,sizeof(valname),"/sys/class/gpio/gpio%d/value",PIN);
         int vfd = open(valname,O_WRONLY);
-        write(vfd,"1\n",2);
+        if (vfd <  0) {
+            LOG(WARNING, "LinuxGpio::write(): pin (%d) not exported!",PIN);
+            return;
+        }
+        if (::write(vfd, new_state == Value::SET ? "1\n" : "0\n", 2) < 2) {
+            LOG(WARNING, "LinuxGpio::write(): cannot set value of pin (%d)!",PIN);
+        }
         close(vfd);
     }
-    /// Sets output to LOW.
-    static void set_off()
+    /// Reads the current state of the connected GPIO pin.
+    /// @return @ref SET if currently high, @ref CLR if currently low.
+    Value read() const override
     {
-        char valname[40];
-        snprintf(valname,sizeof(valname),"/sys/class/gpio/gpio%d/value",PIN);
-        int vfd = open(valname,O_WRONLY);
-        write(vfd,"0\n",2);
-        close(vfd);
-    }
-    /// @return input pin level.
-    static bool get()
-    {
-        char valname[40], c;
+        char valname[40], c = '0';
         snprintf(valname,sizeof(valname),"/sys/class/gpio/gpio%d/value",PIN);
         int vfd = open(valname,O_RDONLY);
-        read(vfd,&c,1);
+        if (vfd <  0) {
+            LOG(WARNING, "LinuxGpio::read(): pin (%d) not exported!",PIN);
+            return Value::CLR;
+        }
+        if (::read(vfd,&c,1) < 1) {
+            LOG(WARNING, "LinuxGpio::read(): cannot get value of pin (%d)!",PIN);
+        }
         close(vfd);
-        return (c != '0');
+        return c == '1'? Value::SET : Value::CLR;
     }
-    /// Set output pin level. @param value is the level to set to.
-    static void set(bool value)
+    /// Sets output to HIGH.
+    void set() const override
     {
-        if (value)
-        {
-            set_on();
-        }
-        else
-        {
-            set_off();
-        }
+        write(Value::SET);
     }
-
-    /// Toggles output pin value.
-    static void toggle()
+    
+    /// Sets output to LOW.
+    void clr() const override
     {
-        set(!get());
+        write(Value::CLR);
     }
-
-    /// @return true if pin is configured as an output pin.
-    static bool is_output()
+    
+    /// Sets the direction of the connected GPIO pin.
+    void set_direction(Gpio::Direction dir) const override
     {
-        char dirname[40], c;
+        char dirname[40];
         snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN);
-        int dfd = open(dirname,O_RDONLY);
-        read(dfd,&c,1);
+        int dfd = -1;
+        if ((dfd = open(dirname,O_WRONLY)) < 0) {
+            LOG(WARNING, "LinuxGpio::set_direction(): pin (%d) not exported!",PIN);
+            return;
+        }
+        const char *dirmessage = dir == Gpio::Direction::DOUTPUT? "out\n" : "in\n";
+        if (::write(dfd, dirmessage, strlen(dirmessage)) < (ssize_t)strlen(dirmessage)) {
+            LOG(WARNING, "LinuxGpio::set_direction(): cannot set direction of pin (%d)!",PIN);
+        }
         close(dfd);
-        return (c == 'o');
+        if (dir != direction()) {
+            LOG(WARNING, "LinuxGpio::set_direction(): failed to set direction of pin (%d)!",PIN);
+        }
     }
+
+    /// Gets the GPIO direction.
+    /// @return @ref DINPUT or @ref DOUTPUT
+    Gpio::Direction direction() const override
+    {
+        char dirname[40], c = 'o';
+        snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN);
+        int dfd = -1;
+        if ((dfd = open(dirname,O_RDONLY)) < 0) {
+            LOG(WARNING, "LinuxGpio::direction(): pin (%d) not exported!",PIN);
+            return Gpio::Direction::DOUTPUT;
+        }
+        if (::read(dfd,&c,1) < 1) {
+            LOG(WARNING, "LinuxGpio::direction(): cannot get direction of pin (%d)!",PIN);
+        }
+        close(dfd);
+        return (c == 'o')? Gpio::Direction::DOUTPUT: Gpio::Direction::DINPUT;
+    }
+private:
+    template <class Defs, bool SAFE_VALUE, bool INVERT> 
+          friend struct GpioOutputPin;
+    template <class Defs, bool ACTIVE_HIGH> \
+          friend struct GpioInputPin;
+    static const LinuxGpio instance_;
 };
 
+template <int PIN_NUM>
+const LinuxGpio<PIN_NUM> LinuxGpio<PIN_NUM>::instance_;
 
-/// Generic output pin
-template <class Base, bool SAFE_VALUE, bool INVERT = false> 
-struct GpioOutputPin : public Base
+/// Parametric GPIO output class.
+/// @param Defs is the GPIO pin's definition base class, supplied by the
+/// GPIO_PIN macro.
+/// @param SAFE_VALUE is the initial value for the GPIO output pin.
+/// @param INVERT inverts the high/low state of the pin when set.
+template <class Defs, bool SAFE_VALUE, bool INVERT = false>
+struct GpioOutputPin : public Defs
 {
 public:
+    using Defs::PIN_NUM;
     /// Initializes the hardware pin.
     static void hw_init()
     {
-        Base::export_pin();
-        Base::set_output();
-        Base::set(SAFE_VALUE);
+        LOG(VERBOSE,
+            "[LinuxGpio] Configuring output pin %d, default value: %d",
+            PIN_NUM, SAFE_VALUE);
+        FILE *fp = fopen("/sys/class/gpio/export","w");
+        fprintf(fp,"%d\n",PIN_NUM);
+        fclose(fp);
+        char dirname[40];
+        snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN_NUM);
+        while (access(dirname,W_OK|R_OK) != 0) {
+            // 50ms delay IS needed while kernel (udev) changes 
+            // ownership of created GPIO directory
+            // Note: when there are LOTS of GPIO lines exported, the
+            // uDev ownership update might take awile -- keep sleeping
+            usleep(50000); 
+        }
+        instance()->set_direction(Gpio::Direction::DOUTPUT);
     }
     /// Sets the hardware pin to a safe value.
     static void hw_set_to_safe()
     {
-        Base::set(SAFE_VALUE);
+        instance()->write(SAFE_VALUE);
     }
-    /// Sets the output pinm @param value if true, output is set to HIGH, if
+    
+    /// Toggles the state of the pin to the opposite of what it is currently.
+    static void toggle()
+    {
+        instance()->write(!instance()->read());
+    }
+    
+    /// Sets the output pin @param value if true, output is set to HIGH, if
     /// false, output is set to LOW.
     static void set(bool value)
     {
-        if (INVERT)
-        {
-            Base::set(!value);
-        }
-        else
-        {
-            Base::set(value);
+        if (INVERT) {
+            instance()->write(!value);
+        } else {
+            instance()->write(value);
         }
     }
-    /// @return the static Gpio instance.
+    
+    /// @return static Gpio object instance that controls this output pin.
     static constexpr const Gpio *instance()
     {
-        return GpioWrapper<GpioOutputPin<Base,SAFE_VALUE,INVERT>>::instance();
+        return &LinuxGpio<PIN_NUM>::instance_;
     }
 };
 
@@ -254,57 +278,59 @@ template <class Defs>
 struct GpioOutputSafeHighInvert : public GpioOutputPin<Defs, true, true>
 {
 };
-/// Generic input pin
-template <class Base, bool ACTIVE_HIGH = true> 
-struct GpioInputPin : public Base
+
+/// Parametric GPIO input class.
+/// @param Defs is the GPIO pin's definition base class, supplied by the
+/// GPIO_PIN macro.
+/// @param ACTIVE_HIGH is true if the input is active high and false
+/// if the input is active low
+template <class Defs, bool ACTIVE_HIGH = true> struct GpioInputPin : public Defs
 {
 public:
+        using Defs::PIN_NUM;
     /// Initializes the hardware pin.
     static void hw_init()
     {
-        Base::export_pin();
-        Base::set_input();
-    }
-    /// Sets the hardware pin to a safe state. 
+        LOG(VERBOSE, "[LinuxGpio] Configuring input pin %d, ACTIVE_HIGH: %d",
+            PIN_NUM, ACTIVE_HIGH);
+        FILE *fp = fopen("/sys/class/gpio/export","w");
+        fprintf(fp,"%d\n",PIN_NUM);
+        fclose(fp);
+        char dirname[40];
+        snprintf(dirname,sizeof(dirname),"/sys/class/gpio/gpio%d/direction",PIN_NUM);
+        while (access(dirname,W_OK|R_OK) != 0) {
+            // 50ms delay IS needed while kernel (udev) changes 
+            // ownership of created GPIO directory
+            // Note: when there are LOTS of GPIO lines exported, the
+            // uDev ownership update might take awile -- keep sleeping
+            usleep(50000); 
+        }
+        instance()->set_direction(Gpio::Direction::DINPUT);
+    }   
     static void hw_set_to_safe()
     {
         hw_init();
     }
-    /// @return the static Gpio instance.
-    static const Gpio *instance()
+    /// @return static Gpio object instance that controls this output pin.
+    static constexpr const Gpio *instance()
     {
-        return GpioWrapper<GpioInputPin<Base>>::instance();
-    }
-    static bool get()
-    {
-        if (ACTIVE_HIGH)
-        {
-            return Base::get();
-        }
-        else
-        {
-            return !Base::get();
-        }
+        return &LinuxGpio<PIN_NUM>::instance_;
     }
 };
 
-/// Defines a GPIO input pin, Active High (High == true).
+/// Defines a GPIO input pin active high
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template <class Defs>
-struct GpioInputActiveHigh : public GpioInputPin<Defs, true>
+template <class Defs> struct GpioInputActiveHigh : public GpioInputPin<Defs, true>
 {
 };
 
-/// Defines a GPIO input pin, Active Low (Low == true).
+/// Defines a GPIO input pin active low
 ///
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
-template <class Defs>
-struct GpioInputActiveLow : public GpioInputPin<Defs, false>
+template <class Defs> struct GpioInputActiveLow : public GpioInputPin<Defs, false>
 {
 };
-
-
 
 /// Helper macro for defining GPIO pins on Linux-based microcontrollers (like the Raspberry Pi or Bagle Bone.
 ///
@@ -321,8 +347,18 @@ struct GpioInputActiveLow : public GpioInputPin<Defs, false>
 ///  GPIO_PIN(FOO, GpioOutputSafeLow, 3);
 ///  ...
 ///  FOO_Pin::set(true);
-#define GPIO_PIN(NAME, BaseClass, NUM) \
-    typedef BaseClass<LinuxGpio<NUM>> NAME##_Pin
+#define GPIO_PIN(NAME, BaseClass, NUM)                \
+struct NAME##Defs                                     \
+{                                                     \
+    static const int PIN_NUM = (int)NUM;\
+public:                                               \
+    static const int pin()                     \
+    {                                                 \
+        return PIN_NUM;                               \
+    }                                                 \
+};                                                    \
+typedef BaseClass<NAME##Defs> NAME##_Pin
+
 
 #endif // __LINUXGPIO_HXX
 
