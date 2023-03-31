@@ -28,6 +28,9 @@ public:
         // Sets lower gain / higher range
         //sen_.register_write(TMAG5273::SENSOR_CONFIG_2, 0b11);
 
+        sen_.set_offset_1(-157/2/16); //-5);
+        sen_.set_offset_2((110+330)/2/16); //-128);
+        
         // Average 32 samples together.
         sen_.set_oversampling(TMAG5273::DCONF1_AVG_32);
         // Enable angle sensor on x-z axis
@@ -38,14 +41,15 @@ public:
         
         while (true)
         {
-            uint8_t rc[2];
-            sen_.register_read(TMAG5273::MANUFACTURER_ID_LSB, rc, 2);
+            uint8_t rc[3];
+            sen_.register_read(TMAG5273::DEVICE_ID, rc, 3);
             uint8_t status = 0;
             sen_.register_read(TMAG5273::DEVICE_STATUS, &status, 1);
             uint8_t conv_status = 0;
             sen_.register_read(TMAG5273::CONV_STATUS, &conv_status, 1);
-            LOG(ALWAYS, "hello %02x %02x status=0x%02x convst=0x%02x", rc[0],
-                rc[1], status, conv_status);
+            LOG(ALWAYS,
+                "hello %02x %02x %02x, status=0x%02x convst=0x%02x",
+                rc[0], rc[1], rc[2], status, conv_status);
             int16_t results[4];
             sen_.register_read(TMAG5273::X_MSB_RESULT, (uint8_t *)results, 6);
             sen_.register_read(
