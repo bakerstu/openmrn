@@ -6,7 +6,6 @@ ifdef TICC3220SDKPATH
 INCLUDES += -DSL_PLATFORM_MULTI_THREADED -DSL_FULL -DTARGET_IS_CC3220 \
             -I$(OPENMRNPATH)/src/freertos_drivers/ti \
             -I$(OPENMRNPATH)/src/freertos_drivers/net_cc32xx \
-            -I$(TICC3220SDKPATH)/source/ti/devices/cc32xx/driverlib \
             -I$(TICC3220SDKPATH)/source/ti/devices/cc32xx \
             -I$(TICC3220SDKPATH)/source/ti/posix/gcc
 
