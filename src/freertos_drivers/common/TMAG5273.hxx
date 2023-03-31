@@ -62,6 +62,7 @@ public:
     }
 
     friend class MagSensorTest;
+    friend class Input;
 
     enum BitMasks
     {
@@ -93,6 +94,27 @@ public:
         SCONF2_ANGLE_EN_XZ = 3 << 2,
     };
 
+    /// Checks whether the magnetic sensor is present.
+    /// @return true if it is there and responding.
+    bool is_present()
+    {
+        uint8_t rc[3];
+        // We start with a dummy read to ensure I2C is in a known state.
+        register_read(TMAG5273::DEVICE_ID, rc, 3);
+        if (register_read(TMAG5273::DEVICE_ID, rc, 3) < 0)
+        {
+            // Error reading from i2c.
+            LOG(VERBOSE, "error read");
+            return false;
+        }
+        if (rc[1] != 0x49 || rc[2] != 0x54)
+        {
+            LOG(VERBOSE, "read %x %x %x", rc[0], rc[1], rc[2]);
+            return false;
+        }
+        return true;
+    }
+
     /// Sets the oversampling+averaging mode.
     ///
     /// @param val DCONF1_AVG_* to determine what the oversampling should be.
@@ -115,12 +137,40 @@ public:
     /// Sets angle gain parameters.
     ///
     /// @param gain 8-bit gain value (interpreted as 0..1)
-    /// @param second true if the second channel is larger than the first channel
+    /// @param second true if the second channel is larger than the first
+    /// channel
     void set_angle_gain(uint8_t gain, bool second)
     {
         register_write(MAG_GAIN_CONFIG, gain);
         register_modify(SENSOR_CONFIG_2, SCONF2_MAG_GAIN_CH_MASK,
             second ? SCONF2_MAG_GAIN_CH_ADJ2 : SCONF2_MAG_GAIN_CH_ADJ1);
+    }
+
+    /// Sets offset correction for the first axis. The maximum correction is
+    /// -2048 .. +2032.
+    ///
+    /// @param offset 8-bit signed value to write to offset correction. The
+    /// counts offset are offset * 16.
+    ///
+    void set_offset_1(int8_t offset)
+    {
+        register_write(MAG_OFFSET_CONFIG_1, offset);
+    }
+
+    /// Sets offset correction for the second axis. The maximum correction is
+    /// -2048 .. +2032.
+    ///
+    /// @param offset 8-bit signed value to write to offset correction.
+    ///
+    void set_offset_2(int8_t offset)
+    {
+        register_write(MAG_OFFSET_CONFIG_2, offset);
+    }
+
+    /// @return device ID (die version / sensitivity range).
+    uint8_t get_device_id()
+    {
+        return register_read(DEVICE_ID);
     }
 
 private:
@@ -162,7 +212,8 @@ private:
     /// @param data where to write payload
     /// @param len number of registers to read (1 byte each).
     /// Returns when the read is complete.
-    void register_read(uint8_t reg, uint8_t *data, uint16_t len)
+    /// @return -1 on error (see errno), 0 on success
+    int register_read(uint8_t reg, uint8_t *data, uint16_t len)
     {
         struct i2c_msg msgs[] = {
             {.addr = i2cAddress_, .flags = 0, .len = 1, .buf = &reg},
@@ -171,7 +222,7 @@ private:
         struct i2c_rdwr_ioctl_data ioctl_data = {
             .msgs = msgs, .nmsgs = ARRAYSIZE(msgs)};
 
-        ::ioctl(fd_, I2C_RDWR, &ioctl_data);
+        return ::ioctl(fd_, I2C_RDWR, &ioctl_data);
     }
 
     /// Writes one or more (sequential) register.
