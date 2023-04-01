@@ -78,24 +78,24 @@ public:
         size_t count = 0;
         uint8_t *b = (uint8_t *)buf;
         // Partial write at the beginning.
-        if (index & 3)
+        if (index & 0x3)
         {
             uint32_t rd = 0;
-            MAP_EEPROMRead(&rd, (index + byteOffset_) & ~3, 4);
-            size_t actual_len = 4 - (index & 3);
+            MAP_EEPROMRead(&rd, (index + byteOffset_) & ~0x3, 4);
+            size_t actual_len = 4 - (index & 0x3);
             actual_len = std::min(len, actual_len);
-            memcpy(((uint8_t*)&rd) + (index & 3), b, actual_len);
-            MAP_EEPROMProgram(&rd, (index + byteOffset_) & ~3, 4);
+            memcpy(((uint8_t*)&rd) + (index & 0x3), b, actual_len);
+            MAP_EEPROMProgram(&rd, (index + byteOffset_) & ~0x3, 4);
             len -= actual_len;
             index += actual_len;
             b += actual_len;
             count += actual_len;
         }
         // Full writes in the middle.
-        size_t word_len = len & ~3;
+        size_t word_len = len & ~0x3;
         if (word_len)
         {
-            HASSERT(index % 4 == 0);
+            HASSERT(index & 0x3 == 0);
             MAP_EEPROMProgram((uint32_t *)b, index + byteOffset_, word_len);
             index += word_len;
             b += word_len;
@@ -103,9 +103,9 @@ public:
             count += word_len;
         }
         // Partial write at the end.
-        if (len & 3)
+        if (len & 0x3)
         {
-            HASSERT(index % 4 == 0);
+            HASSERT(index & 0x3 == 0);
             uint32_t rd = 0;
             MAP_EEPROMRead(&rd, index + byteOffset_, 4);
             memcpy(&rd, b, len);
@@ -125,23 +125,23 @@ public:
         size_t count = 0;
         uint8_t *b = (uint8_t *)buf;
         // Partial read at the beginning.
-        if (index & 3)
+        if (index & 0x3)
         {
             uint32_t rd = 0;
-            MAP_EEPROMRead(&rd, (index + byteOffset_) & ~3, 4);
-            size_t actual_len = 4 - (index & 3);
+            MAP_EEPROMRead(&rd, (index + byteOffset_) & ~0x3, 4);
+            size_t actual_len = 4 - (index & 0x3);
             actual_len = std::min(len, actual_len);
-            memcpy(b, ((uint8_t *)&rd) + (index & 3), actual_len);
+            memcpy(b, ((uint8_t *)&rd) + (index & 0x3), actual_len);
             len -= actual_len;
             index += actual_len;
             b += actual_len;
             count += actual_len;
         }
         // Full reads in the middle.
-        size_t word_len = len & ~3;
+        size_t word_len = len & ~0x3;
         if (word_len)
         {
-            HASSERT(index % 4 == 0);
+            HASSERT(index & 0x3 == 0);
             MAP_EEPROMRead((uint32_t *)b, index + byteOffset_, word_len);
             index += word_len;
             b += word_len;
@@ -149,9 +149,9 @@ public:
             count += word_len;
         }
         // Partial read at the end.
-        if (len & 3)
+        if (len & 0x3)
         {
-            HASSERT(index % 4 == 0);
+            HASSERT(index & 0x3 == 0);
             uint32_t rd = 0;
             MAP_EEPROMRead(&rd, index + byteOffset_, 4);
             memcpy(b, &rd, len);
