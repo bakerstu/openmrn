@@ -95,7 +95,7 @@ public:
         size_t word_len = len & ~0x3;
         if (word_len)
         {
-            HASSERT(index & 0x3 == 0);
+            HASSERT((index & 0x3) == 0);
             MAP_EEPROMProgram((uint32_t *)b, index + byteOffset_, word_len);
             index += word_len;
             b += word_len;
@@ -105,7 +105,7 @@ public:
         // Partial write at the end.
         if (len & 0x3)
         {
-            HASSERT(index & 0x3 == 0);
+            HASSERT((index & 0x3) == 0);
             uint32_t rd = 0;
             MAP_EEPROMRead(&rd, index + byteOffset_, 4);
             memcpy(&rd, b, len);
@@ -141,7 +141,7 @@ public:
         size_t word_len = len & ~0x3;
         if (word_len)
         {
-            HASSERT(index & 0x3 == 0);
+            HASSERT((index & 0x3) == 0);
             MAP_EEPROMRead((uint32_t *)b, index + byteOffset_, word_len);
             index += word_len;
             b += word_len;
@@ -151,7 +151,7 @@ public:
         // Partial read at the end.
         if (len & 0x3)
         {
-            HASSERT(index & 0x3 == 0);
+            HASSERT((index & 0x3) == 0);
             uint32_t rd = 0;
             MAP_EEPROMRead(&rd, index + byteOffset_, 4);
             memcpy(b, &rd, len);
