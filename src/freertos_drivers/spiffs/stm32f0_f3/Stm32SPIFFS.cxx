@@ -82,7 +82,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         src += 1;
     }
 
-    while (size > 8)
+    while (size >= 8)
     {
         WriteWord ww;
         memcpy(ww.data, src, 8);
@@ -93,7 +93,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
         src += 8;
     }
 
-    while (size > 2)
+    while (size >= 2)
     {
         WriteWord ww;
         memcpy(ww.data_hword, src, 2);
