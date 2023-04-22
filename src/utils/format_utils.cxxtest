@@ -6,30 +6,30 @@ TEST(HexToString, basic)
 {
     string input = "303132";
     string output;
-    EXPECT_EQ(6, hex_to_string(input.data(), input.size(), &output)); 
+    EXPECT_EQ(6, hex_to_string(input.data(), input.size(), &output));
     EXPECT_EQ("012", output);
 
     output = "xx";
-    EXPECT_EQ(6, hex_to_string(input.data(), input.size(), &output)); 
+    EXPECT_EQ(6, hex_to_string(input.data(), input.size(), &output));
     EXPECT_EQ("xx012", output);
 
     output.clear();
     input = "0A0BfC";
-    EXPECT_EQ(6, hex_to_string(input.data(), input.size(), &output)); 
+    EXPECT_EQ(6, hex_to_string(input.data(), input.size(), &output));
     EXPECT_EQ("\x0a\x0b\xfc", output);
 
     output.clear();
     input = "30.31.32";
-    EXPECT_EQ(2, hex_to_string(input.data(), input.size(), &output)); 
+    EXPECT_EQ(2, hex_to_string(input.data(), input.size(), &output));
     EXPECT_EQ("0", output);
 
     output.clear();
-    EXPECT_EQ(8, hex_to_string(input.data(), input.size(), &output, true)); 
+    EXPECT_EQ(8, hex_to_string(input.data(), input.size(), &output, true));
     EXPECT_EQ("012", output);
 
     output.clear();
     input = "303132F";
-    EXPECT_EQ(7, hex_to_string(input.data(), input.size(), &output)); 
+    EXPECT_EQ(7, hex_to_string(input.data(), input.size(), &output));
     // lost one nibble, this is ok according to the contract
     EXPECT_EQ("012", output);
 }

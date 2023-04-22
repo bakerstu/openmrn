@@ -242,14 +242,18 @@ string string_to_hex(const string &arg)
     return ret;
 }
 
-static uint8_t get_nibble(char b) {
-    if ('0' <= b && b <= '9') {
+static uint8_t get_nibble(char b)
+{
+    if ('0' <= b && b <= '9')
+    {
         return b - '0';
     }
-    if ('a' <= b && b <= 'f') {
+    if ('a' <= b && b <= 'f')
+    {
         return b - 'a' + 10;
     }
-    if ('A' <= b && b <= 'F') {
+    if ('A' <= b && b <= 'F')
+    {
         return b - 'A' + 10;
     }
     return 0xff;
