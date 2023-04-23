@@ -259,13 +259,12 @@ static uint8_t get_nibble(char b)
     return 0xff;
 }
 
-ssize_t hex_to_string(
+size_t hex_to_string(
     const char *input, size_t len, string *output, bool ignore_nonhex)
 {
-    ssize_t ofs = 0;
     uint8_t b = 0;         // current byte
     bool next_high = true; // next nibble is high of the byte
-    for (; ofs < (ssize_t)len; ++ofs)
+    for (size_t ofs = 0; ofs < len; ++ofs)
     {
         uint8_t nib = get_nibble(input[ofs]);
         if (nib == 0xff)
@@ -291,7 +290,7 @@ ssize_t hex_to_string(
             continue;
         }
     }
-    return ofs;
+    return len;
 }
 
 string mac_to_string(uint8_t mac[6], char colon)

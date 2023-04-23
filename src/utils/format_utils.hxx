@@ -142,7 +142,7 @@ string string_to_hex(const string& arg);
 /// first byte was not hex and ignore_nonhex=false. If the number of hex digits
 /// is not even, there will be data loss.
 ///
-ssize_t hex_to_string(
+size_t hex_to_string(
     const char *input, size_t len, string *output, bool ignore_nonhex = false);
 
 /// Formats a MAC address to string. Works both for Ethernet addresses as well
