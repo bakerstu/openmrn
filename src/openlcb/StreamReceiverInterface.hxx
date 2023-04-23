@@ -41,7 +41,7 @@
 
 template <class T> class FlowInterface;
 template <class T> class Buffer;
-class ByteChunk;
+struct ByteChunk;
 using ByteBuffer = Buffer<ByteChunk>;
 using ByteSink = FlowInterface<ByteBuffer>;
 
