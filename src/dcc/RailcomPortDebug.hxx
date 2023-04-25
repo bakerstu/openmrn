@@ -36,6 +36,7 @@
 #define _DCC_RAILCOMPORTDEBUG_HXX
 
 #include "dcc/RailcomHub.hxx"
+#include "utils/LimitedPool.hxx"
 
 namespace dcc
 {
@@ -213,14 +214,17 @@ public:
     RailcomToOpenLCBDebugProxy(dcc::RailcomHubFlow *parent, Node *node,
         dcc::RailcomHubPort *occupancy_port, bool ch1_enabled = true,
         bool ack_enabled = true)
-        : dcc::RailcomHubPort(parent->service())
+        : dcc::RailcomHubPort(node->iface())
         , parent_(parent)
         , node_(node)
         , occupancyPort_(occupancy_port)
         , ch1Enabled_(ch1_enabled)
         , ackEnabled_(ack_enabled)
     {
-        parent_->register_port(this);
+        if (parent_)
+        {
+            parent_->register_port(this);
+        }
     }
 
     RailcomToOpenLCBDebugProxy(Node *node)
@@ -254,11 +258,15 @@ public:
         {
             return release_and_exit();
         }
+        if (outputPool_.free_items() == 0)
+        {
+            return release_and_exit();
+        }
         if (message()->data()->ch1Size && ch1Enabled_)
         {
             return allocate_and_call(
                 node_->iface()->global_message_write_flow(),
-                STATE(ch1_msg_allocated));
+                STATE(ch1_msg_allocated), &outputPool_);
         }
         else
         {
@@ -285,13 +293,14 @@ public:
     Action maybe_send_ch2()
     {
         if (message()->data()->ch2Size &&
+            outputPool_.free_items() != 0 &&
             (ackEnabled_ ||
                 dcc::railcom_decode[message()->data()->ch2Data[0]] !=
                     dcc::RailcomDefs::ACK))
         {
             return allocate_and_call(
                 node_->iface()->global_message_write_flow(),
-                STATE(ch2_msg_allocated));
+                STATE(ch2_msg_allocated), &outputPool_);
         }
         else
         {
@@ -318,6 +327,7 @@ public:
     dcc::RailcomHubFlow *parent_{nullptr};
     Node *node_;
     dcc::RailcomHubPort *occupancyPort_;
+    LimitedPool outputPool_{sizeof(Buffer<openlcb::GenMessage>), 20};
     /// True if we should transmit channel1 data.
     uint8_t ch1Enabled_ : 1;
     /// True if we should transmit data that starts with an ACK.

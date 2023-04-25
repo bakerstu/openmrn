@@ -86,9 +86,15 @@ private:
     /// bytes arethere to decode. @return dunno.
     bool process_data(const uint8_t *data, unsigned size);
 
+    /// Notifies the state machine that there is no occupancy detected.
+    void notify_empty();
+    
     /// How many times we shall get the same data out of railcom before we
     /// believe it and report to the bus.
-    static const uint8_t REPEAT_COUNT = 3;
+    static const uint8_t MIN_REPEAT_COUNT = 3;
+    /// This is how many empty packets we need to forget the current address
+    /// when we're getting empty packets.
+    static const uint8_t MIN_EMPTY_COUNT = 8;
 
     uint8_t currentH_; ///< last received high address bits
     uint8_t currentL_; ///< last received low address bits

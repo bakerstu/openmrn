@@ -48,15 +48,18 @@ bool RailcomBroadcastDecoder::process_packet(const dcc::Feedback &packet)
 {
     if (packet.ch1Size)
     {
-        return process_data(packet.ch1Data, packet.ch1Size);
-    }
-    else if (packet.ch2Size)
-    {
-        return process_data(packet.ch2Data, packet.ch2Size);
+        return process_data(packet.ch1Data, packet.ch1Size) &&
+            (packet.ch2Size == 0);
     }
     else
     {
-        return true; // empty packet.
+        // No channel1 data.
+        notify_empty();
+        if (!packet.ch2Size)
+        {
+            return true; // empty packet.
+        }
+        return false;
     }
 }
 
@@ -65,13 +68,17 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
     for (unsigned i = 0; i < size; ++i)
     {
         if (railcom_decode[data[i]] == RailcomDefs::INV)
+        {
             return true; // garbage.
+        }
     }
     /// TODO(balazs.racz) if we have only one byte in ch1 but we have a second
     /// byte in ch2, we should still process those because it might be a
     /// misaligned window.
     if (size < 2)
-        return true; // Dunno what this is.a
+    {
+        return true; // Dunno what this is.
+    }
     uint8_t type = (dcc::railcom_decode[data[0]] >> 2);
     if (size == 2)
     {
@@ -81,17 +88,29 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
         switch (type)
         {
             case dcc::RMOB_ADRLOW:
-                if (currentL_ == payload) {
-                    if (countL_ < REPEAT_COUNT) ++countL_;
-                } else {
+                if (currentL_ == payload)
+                {
+                    if (countL_ < MIN_EMPTY_COUNT)
+                    {
+                        countL_ += 2;
+                    }
+                }
+                else
+                {
                     currentL_ = payload;
                     countL_ = 0;
                 }
                 break;
             case dcc::RMOB_ADRHIGH:
-                if (currentH_ == payload) {
-                    if (countH_ < REPEAT_COUNT) ++countH_;
-                } else {
+                if (currentH_ == payload)
+                {
+                    if (countH_ < MIN_EMPTY_COUNT)
+                    {
+                        countH_ += 2;
+                    }
+                }
+                else
+                {
                     currentH_ = payload;
                     countH_ = 0;
                 }
@@ -99,7 +118,9 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
             default:
                 return false; // This is something we don't know about.
         }
-        if (countL_ >= REPEAT_COUNT && countH_ >= REPEAT_COUNT) {
+        if (countL_ >= (MIN_REPEAT_COUNT * 2) &&
+            countH_ >= (MIN_REPEAT_COUNT * 2))
+        {
             currentAddress_ = (uint16_t(currentH_) << 8) | currentL_;
         }
         return true;
@@ -110,11 +131,27 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
     }
 }
 
-void RailcomBroadcastDecoder::set_occupancy(bool value) {
-    if (value) return;
-    if (countH_) --countH_;
-    if (countL_) --countL_;
-    if ((!countH_) || (!countL_)) {
+void RailcomBroadcastDecoder::set_occupancy(bool value)
+{
+    if (value)
+    {
+        return;
+    }
+    notify_empty();
+}
+
+void RailcomBroadcastDecoder::notify_empty()
+{
+    if (countH_)
+    {
+        --countH_;
+    }
+    if (countL_)
+    {
+        --countL_;
+    }
+    if ((!countH_) || (!countL_))
+    {
         currentAddress_ = 0;
     }
 }

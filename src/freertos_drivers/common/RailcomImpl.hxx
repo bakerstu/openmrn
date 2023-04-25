@@ -57,9 +57,8 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_RAILCOMIMPL_HXX_
 #define _FREERTOS_DRIVERS_COMMON_RAILCOMIMPL_HXX_
 
-#include "TivaDCC.hxx"  // for FixedQueue
-
 #include "freertos_drivers/common/RailcomDriver.hxx"
+#include "freertos_drivers/common/FixedQueue.hxx"
 #include "dcc/RailCom.hxx"
 
 /*
