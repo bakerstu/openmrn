@@ -68,13 +68,17 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
     for (unsigned i = 0; i < size; ++i)
     {
         if (railcom_decode[data[i]] == RailcomDefs::INV)
+        {
             return true; // garbage.
+        }
     }
     /// TODO(balazs.racz) if we have only one byte in ch1 but we have a second
     /// byte in ch2, we should still process those because it might be a
     /// misaligned window.
     if (size < 2)
-        return true; // Dunno what this is.a
+    {
+        return true; // Dunno what this is.
+    }
     uint8_t type = (dcc::railcom_decode[data[0]] >> 2);
     if (size == 2)
     {
@@ -84,17 +88,29 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
         switch (type)
         {
             case dcc::RMOB_ADRLOW:
-                if (currentL_ == payload) {
-                    if (countL_ < MAX_REPEAT_COUNT) countL_ += 2;
-                } else {
+                if (currentL_ == payload)
+                {
+                    if (countL_ < MIN_EMPTY_COUNT)
+                    {
+                        countL_ += 2;
+                    }
+                }
+                else
+                {
                     currentL_ = payload;
                     countL_ = 0;
                 }
                 break;
             case dcc::RMOB_ADRHIGH:
-                if (currentH_ == payload) {
-                    if (countH_ < MAX_REPEAT_COUNT) countH_ += 2;
-                } else {
+                if (currentH_ == payload)
+                {
+                    if (countH_ < MIN_EMPTY_COUNT)
+                    {
+                        countH_ += 2;
+                    }
+                }
+                else
+                {
                     currentH_ = payload;
                     countH_ = 0;
                 }
@@ -102,7 +118,9 @@ bool RailcomBroadcastDecoder::process_data(const uint8_t *data, unsigned size)
             default:
                 return false; // This is something we don't know about.
         }
-        if (countL_ >= MIN_REPEAT_COUNT && countH_ >= MIN_REPEAT_COUNT) {
+        if (countL_ >= (MIN_REPEAT_COUNT * 2) &&
+            countH_ >= (MIN_REPEAT_COUNT * 2))
+        {
             currentAddress_ = (uint16_t(currentH_) << 8) | currentL_;
         }
         return true;

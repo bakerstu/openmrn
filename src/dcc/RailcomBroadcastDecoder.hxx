@@ -91,10 +91,10 @@ private:
     
     /// How many times we shall get the same data out of railcom before we
     /// believe it and report to the bus.
-    static const uint8_t MIN_REPEAT_COUNT = 6;
-    /// Maximum number of repeats we remember. This is how many empty packets
-    /// we need to forget the current address when we're getting empty packets.
-    static const uint8_t MAX_REPEAT_COUNT = 8;
+    static const uint8_t MIN_REPEAT_COUNT = 3;
+    /// This is how many empty packets we need to forget the current address
+    /// when we're getting empty packets.
+    static const uint8_t MIN_EMPTY_COUNT = 8;
 
     uint8_t currentH_; ///< last received high address bits
     uint8_t currentL_; ///< last received low address bits
