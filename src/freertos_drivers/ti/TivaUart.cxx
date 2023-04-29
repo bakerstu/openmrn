@@ -69,7 +69,7 @@ TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt,
     , interrupt_(interrupt)
     , baud_(baud)
     , hwFIFO_(hw_fifo)
-    , mode_(mode)
+    , uartMode_(mode)
     , txPending_(false)
 {
     static_assert(
@@ -116,7 +116,7 @@ TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt,
             break;
     }
 
-    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud_, mode_);
+    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud_, uartMode_);
     MAP_UARTTxIntModeSet(base_, UART_TXINT_MODE_EOT);
     MAP_IntDisable(interrupt_);
     /* We set the priority so that it is slightly lower than the highest needed
@@ -260,7 +260,7 @@ void TivaUart::interrupt_handler()
 /** Sets the port baud rate and mode from the class variables. */
 void TivaUart::set_mode()
 {
-    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud_, mode_);
+    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud_, uartMode_);
 }
 
 /** Request an ioctl transaction
@@ -283,38 +283,38 @@ int TivaUart::ioctl(File *file, unsigned long int key, unsigned long data)
             MAP_SysCtlDelay(12 * 26);
             break;
         case TCPARNONE:
-            mode_ &= ~UART_CONFIG_PAR_MASK;
-            mode_ |= UART_CONFIG_PAR_NONE;
+            uartMode_ &= ~UART_CONFIG_PAR_MASK;
+            uartMode_ |= UART_CONFIG_PAR_NONE;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_NONE);
             break;
         case TCPARODD:
-            mode_ &= ~UART_CONFIG_PAR_MASK;
-            mode_ |= UART_CONFIG_PAR_ODD;
+            uartMode_ &= ~UART_CONFIG_PAR_MASK;
+            uartMode_ |= UART_CONFIG_PAR_ODD;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ODD);
             break;
         case TCPAREVEN:
-            mode_ &= ~UART_CONFIG_PAR_MASK;
-            mode_ |= UART_CONFIG_PAR_EVEN;
+            uartMode_ &= ~UART_CONFIG_PAR_MASK;
+            uartMode_ |= UART_CONFIG_PAR_EVEN;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_EVEN);
             break;
         case TCPARONE:
-            mode_ &= ~UART_CONFIG_PAR_MASK;
-            mode_ |= UART_CONFIG_PAR_ONE;
+            uartMode_ &= ~UART_CONFIG_PAR_MASK;
+            uartMode_ |= UART_CONFIG_PAR_ONE;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ONE);
             break;
         case TCPARZERO:
-            mode_ &= ~UART_CONFIG_PAR_MASK;
-            mode_ |= UART_CONFIG_PAR_ZERO;
+            uartMode_ &= ~UART_CONFIG_PAR_MASK;
+            uartMode_ |= UART_CONFIG_PAR_ZERO;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ZERO);
             break;
         case TCSTOPONE:
-            mode_ &= ~UART_CONFIG_STOP_MASK;
-            mode_ |= UART_CONFIG_STOP_ONE;
+            uartMode_ &= ~UART_CONFIG_STOP_MASK;
+            uartMode_ |= UART_CONFIG_STOP_ONE;
             set_mode();
             break;
         case TCSTOPTWO:
-            mode_ &= ~UART_CONFIG_STOP_MASK;
-            mode_ |= UART_CONFIG_STOP_TWO;
+            uartMode_ &= ~UART_CONFIG_STOP_MASK;
+            uartMode_ |= UART_CONFIG_STOP_TWO;
             set_mode();
             break;
         case TCBAUDRATE:
