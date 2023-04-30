@@ -107,6 +107,11 @@ void BitBangI2C::tick_interrupt()
                         exit = true;
                     }
                 }
+                else
+                {
+                    // Setup the next byte TX
+                    stateTx_ = StateTx::FIRST;
+                }
             }
             break;
         case State::DATA_RX:
@@ -285,7 +290,6 @@ bool BitBangI2C::state_tx(uint8_t data)
             {
                 count_ = -EIO;
             }
-            stateTx_ = StateTx::DATA_7_SCL_CLR;
             return true; // done
     }
     return false;
