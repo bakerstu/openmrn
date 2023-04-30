@@ -65,6 +65,7 @@ public:
         , stateStop_(StateStop::SDA_CLR)
         , count_(0)
         , stop_(true)
+        , clockStretchActive_(false)
     {
         gpio_set(sda_);
         gpio_clr(scl_);
@@ -113,25 +114,26 @@ private:
     /// Low level I2C data TX states
     enum class StateTx
     {
-        DATA_7_SCL_SET, ///< data TX sequence
         DATA_7_SCL_CLR, ///< data TX sequence
-        DATA_6_SCL_SET, ///< data TX sequence
+        DATA_7_SCL_SET, ///< data TX sequence
         DATA_6_SCL_CLR, ///< data TX sequence
-        DATA_5_SCL_SET, ///< data TX sequence
+        DATA_6_SCL_SET, ///< data TX sequence
         DATA_5_SCL_CLR, ///< data TX sequence
-        DATA_4_SCL_SET, ///< data TX sequence
+        DATA_5_SCL_SET, ///< data TX sequence
         DATA_4_SCL_CLR, ///< data TX sequence
-        DATA_3_SCL_SET, ///< data TX sequence
+        DATA_4_SCL_SET, ///< data TX sequence
         DATA_3_SCL_CLR, ///< data TX sequence
-        DATA_2_SCL_SET, ///< data TX sequence
+        DATA_3_SCL_SET, ///< data TX sequence
         DATA_2_SCL_CLR, ///< data TX sequence
-        DATA_1_SCL_SET, ///< data TX sequence
+        DATA_2_SCL_SET, ///< data TX sequence
         DATA_1_SCL_CLR, ///< data TX sequence
-        DATA_0_SCL_SET, ///< data TX sequence
+        DATA_1_SCL_SET, ///< data TX sequence
         DATA_0_SCL_CLR, ///< data TX sequence
-        ACK_SDA_SCL_SET, ///< data TX sequence
+        DATA_0_SCL_SET, ///< data TX sequence
+        ACK_SDA_SET_SCL_CLR, ///< data TX sequence
+        ACK_SCL_SET, ///< data TX sequence
         ACK_SCL_CLR, ///< data TX sequence
-        FIRST = DATA_7_SCL_SET, ///< first data TX sequence state
+        FIRST = DATA_7_SCL_CLR, ///< first data TX sequence state
         LAST = ACK_SCL_CLR, ///< last data TX sequence state
     };
 
@@ -233,6 +235,7 @@ private:
     };
     int count_; ///< the count of data bytes transferred, error if < 0
     bool stop_; ///< if true, issue stop condition at the end of the message
+    bool clockStretchActive_; ///< true if the slave is clock stretching.
 };
 
 /// Pre-increment operator overload

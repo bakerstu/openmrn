@@ -94,7 +94,7 @@ void BitBangI2C::tick_interrupt()
                     state_ = State::STOP;
                     stateStop_ = StateStop::FIRST;
                 }
-                else if (++count_ == msg_->len)
+                else if (++count_ >= msg_->len)
                 {
                     // All of the data has been transmitted.
                     if (stop_)
@@ -110,14 +110,14 @@ void BitBangI2C::tick_interrupt()
             }
             break;
         case State::DATA_RX:
-            if (state_rx(msg_->buf + count_, (count_ + 1 == msg_->len)))
+            if (state_rx(msg_->buf + count_, (count_ + 1 >= msg_->len)))
             {
                 if (count_ < 0)
                 {
                     // Some error occured, likely an unexpected NACK
                     exit = true;
                 }
-                else if (++count_ == msg_->len)
+                else if (++count_ >= msg_->len)
                 {
                     // All of the data has been received.
                     if (stop_)
@@ -204,17 +204,33 @@ bool BitBangI2C::state_stop()
 __attribute__((optimize("-O3")))
 bool BitBangI2C::state_tx(uint8_t data)
 {
+    // I2C is specified such that the data on the SDA line must be stable
+    // during the high period of the clock, and the data line can only change
+    // when SCL is Low.
+    //
+    // This means that the sequence always has to be
+    // 1a. SCL := low
+    // 1b. set/clear SDA
+    // 2. wait a cycle for lines to settle
+    // 3a. SCL := high
+    // 3b. this edge is when the receiver samples
+    // 4. wait a cycle, lines are stable
     switch(stateTx_)
     {
-        case StateTx::DATA_7_SCL_SET:
-        case StateTx::DATA_6_SCL_SET:
-        case StateTx::DATA_5_SCL_SET:
-        case StateTx::DATA_4_SCL_SET:
-        case StateTx::DATA_3_SCL_SET:
-        case StateTx::DATA_2_SCL_SET:
-        case StateTx::DATA_1_SCL_SET:
-        case StateTx::DATA_0_SCL_SET:
+        case StateTx::DATA_7_SCL_CLR:
+        case StateTx::DATA_6_SCL_CLR:
+        case StateTx::DATA_5_SCL_CLR:
+        case StateTx::DATA_4_SCL_CLR:
+        case StateTx::DATA_3_SCL_CLR:
+        case StateTx::DATA_2_SCL_CLR:
+        case StateTx::DATA_1_SCL_CLR:
+        case StateTx::DATA_0_SCL_CLR:
         {
+            // We can only change the data when SCL is low.
+            gpio_clr(scl_);
+            // The divide by 2 factor (shift right by 1) is because the enum
+            // states alternate between *_SCL_SET and *_SCL_CLR states in
+            // increasing value.
             uint8_t mask = 0x80 >>
                 ((static_cast<int>(stateTx_) -
                   static_cast<int>(StateTx::DATA_7_SCL_SET)) >> 1);
@@ -226,27 +242,46 @@ bool BitBangI2C::state_tx(uint8_t data)
             {
                 gpio_clr(sda_);
             }
-            gpio_set(scl_);
             ++stateTx_;
             break;
         }
-        case StateTx::DATA_7_SCL_CLR:
-        case StateTx::DATA_6_SCL_CLR:
-        case StateTx::DATA_5_SCL_CLR:
-        case StateTx::DATA_4_SCL_CLR:
-        case StateTx::DATA_3_SCL_CLR:
-        case StateTx::DATA_2_SCL_CLR:
-        case StateTx::DATA_1_SCL_CLR:
-        case StateTx::DATA_0_SCL_CLR:
-            gpio_clr(scl_);
+        case StateTx::DATA_7_SCL_SET:
+        case StateTx::DATA_6_SCL_SET:
+        case StateTx::DATA_5_SCL_SET:
+        case StateTx::DATA_4_SCL_SET:
+        case StateTx::DATA_3_SCL_SET:
+        case StateTx::DATA_2_SCL_SET:
+        case StateTx::DATA_1_SCL_SET:
+        case StateTx::DATA_0_SCL_SET:
+            // Data is sampled by the slave following this state transition.
+            gpio_set(scl_);
             ++stateTx_;
             break;
-        case StateTx::ACK_SDA_SCL_SET:
+        case StateTx::ACK_SDA_SET_SCL_CLR:
+            gpio_clr(scl_);
             gpio_set(sda_);
+            ++stateTx_;
+            break;
+        case StateTx::ACK_SCL_SET:
             gpio_set(scl_);
             ++stateTx_;
             break;
         case StateTx::ACK_SCL_CLR:
+            if (scl_->read() == Gpio::Value::CLR)
+            {
+                // Clock stretching, do the same state again.
+                clockStretchActive_ = true;
+                break;
+            }
+            if (clockStretchActive_)
+            {
+                // I2C spec requires minimum 4 microseconds after the SCL line
+                // goes high following a clock stretch for the SCL line to be
+                // pulled low again by the master. Do the same state one more
+                // time to ensure this.
+                clockStretchActive_ = false;
+                break;
+            }
             bool ack = (sda_->read() == Gpio::Value::CLR);
             gpio_clr(scl_);
             if (!ack)
