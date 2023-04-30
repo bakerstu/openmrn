@@ -81,7 +81,7 @@ public:
 
 private:
     /// High level I2C States
-    enum class State
+    enum class State : uint8_t
     {
         START, ///< start state
         ADDRESS, ///< address state
@@ -91,7 +91,7 @@ private:
     };
 
     /// Low level I2C start states
-    enum class StateStart
+    enum class StateStart : uint8_t
     {
         SDA_SET, ///< start sequence
         SCL_SET, ///< start sequence
@@ -101,7 +101,7 @@ private:
     };
 
     /// Low level I2C stop states
-    enum class StateStop
+    enum class StateStop : uint8_t
     {
         SDA_CLR, ///< stop sequence
         SCL_SET, ///< stop sequence
@@ -111,7 +111,7 @@ private:
     };
 
     /// Low level I2C data TX states
-    enum class StateTx
+    enum class StateTx : uint8_t
     {
         DATA_7_SCL_CLR, ///< data TX sequence
         DATA_7_SCL_SET, ///< data TX sequence
@@ -137,7 +137,7 @@ private:
     };
 
     /// Low level I2C data RX states
-    enum class StateRx
+    enum class StateRx : uint8_t
     {
         DATA_7_SCL_SET, ///< data RX sequence
         DATA_7_SCL_CLR, ///< data RX sequence
