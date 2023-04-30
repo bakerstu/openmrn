@@ -61,9 +61,9 @@ public:
         , disableTick_(disable_tick)
         , msg_(nullptr)
         , sem_()
+        , count_(0)
         , state_(State::STOP) // start-up with a stop sequence
         , stateStop_(StateStop::SDA_CLR)
-        , count_(0)
         , stop_(true)
         , clockStretchActive_(false)
     {
@@ -173,24 +173,28 @@ private:
     /// Allow pre-increment definition
     friend StateRx &operator++(StateRx &);
 
-    /// Execute start state machine.
-    /// @return true if the sub-state machine is finished.
+    /// Execute state machine for sending start condition.
+    /// @return true if the sub-state machine is finished, after doing the work
+    ///         required by the current tick.
     bool state_start();
 
-    /// Execute stop state machine.
-    /// @return true if the sub-state machine is finished.
+    /// Execute state machine for sending the stop condition.
+    /// @return true if the sub-state machine is finished, after doing the work
+    ///         required by the current tick.
     bool state_stop();
 
     /// Execute data TX state machine.
     /// @param data value to send
-    /// @return true if the sub-state machine is finished, count_ may be
-    ///         negative to indicate an error.
+    /// @return true if the sub-state machine is finished, after doing the work
+    ///         required by the current tick. count_ may be negative to
+    ///         indicate an error.
     bool state_tx(uint8_t data);
 
     /// Execute data RX state machine.
     /// @param location to shift data into
     /// @param nack send a NACK in the (N)ACK slot
-    /// @return true if the sub-state machine is finished.
+    /// @return true if the sub-state machine is finished, after doing the work
+    ///         required by the current tick.
     bool state_rx(uint8_t *data, bool nack);
 
     void enable() override {} /**< function to enable device */
@@ -224,6 +228,7 @@ private:
     void (*disableTick_)(void); ///< Disable the timer tick
     struct i2c_msg *msg_; ///< I2C message to presently act upon  
     OSSem sem_; ///< semaphore to wakeup task level from ISR
+    int count_; ///< the count of data bytes transferred, error if < 0
     State state_; ///< state machine state
     union
     {
@@ -232,7 +237,6 @@ private:
         StateTx stateTx_; ///< I2C data TX state machine state
         StateRx stateRx_; ///< I2C data RX state machine state
     };
-    int count_; ///< the count of data bytes transferred, error if < 0
     bool stop_; ///< if true, issue stop condition at the end of the message
     bool clockStretchActive_; ///< true if the slave is clock stretching.
 };
@@ -242,7 +246,7 @@ private:
 /// @return incremented value
 inline BitBangI2C::StateStart &operator++(BitBangI2C::StateStart &x)
 {
-    if (x >= BitBangI2C::StateStart::FIRST && x <= BitBangI2C::StateStart::LAST)
+    if (x >= BitBangI2C::StateStart::FIRST && x < BitBangI2C::StateStart::LAST)
     {
         x = static_cast<BitBangI2C::StateStart>(static_cast<int>(x) + 1);
     }
@@ -254,7 +258,7 @@ inline BitBangI2C::StateStart &operator++(BitBangI2C::StateStart &x)
 /// @return incremented value
 inline BitBangI2C::StateStop &operator++(BitBangI2C::StateStop &x)
 {
-    if (x >= BitBangI2C::StateStop::FIRST && x <= BitBangI2C::StateStop::LAST)
+    if (x >= BitBangI2C::StateStop::FIRST && x < BitBangI2C::StateStop::LAST)
     {
         x = static_cast<BitBangI2C::StateStop>(static_cast<int>(x) + 1);
     }
@@ -266,7 +270,7 @@ inline BitBangI2C::StateStop &operator++(BitBangI2C::StateStop &x)
 /// @return incremented value
 inline BitBangI2C::StateTx &operator++(BitBangI2C::StateTx &x)
 {
-    if (x >= BitBangI2C::StateTx::FIRST && x <= BitBangI2C::StateTx::LAST)
+    if (x >= BitBangI2C::StateTx::FIRST && x < BitBangI2C::StateTx::LAST)
     {
         x = static_cast<BitBangI2C::StateTx>(static_cast<int>(x) + 1);
     }
@@ -278,7 +282,7 @@ inline BitBangI2C::StateTx &operator++(BitBangI2C::StateTx &x)
 /// @return incremented value
 inline BitBangI2C::StateRx &operator++(BitBangI2C::StateRx &x)
 {
-    if (x >= BitBangI2C::StateRx::FIRST && x <= BitBangI2C::StateRx::LAST)
+    if (x >= BitBangI2C::StateRx::FIRST && x < BitBangI2C::StateRx::LAST)
     {
         x = static_cast<BitBangI2C::StateRx>(static_cast<int>(x) + 1);
     }
