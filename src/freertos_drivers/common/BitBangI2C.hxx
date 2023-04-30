@@ -96,9 +96,8 @@ private:
         SDA_SET, ///< start sequence
         SCL_SET, ///< start sequence
         SDA_CLR, ///< start sequence
-        SCL_CLR, ///< start sequence
         FIRST = SDA_SET, ///< first start sequence state
-        LAST = SCL_CLR, /// last start sequence state
+        LAST = SDA_CLR, /// last start sequence state
     };
 
     /// Low level I2C stop states
