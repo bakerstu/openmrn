@@ -166,9 +166,6 @@ bool BitBangI2C::state_start()
         case StateStart::SDA_CLR:
             gpio_clr(sda_);
             ++stateStart_;
-            break;
-        case StateStart::SCL_CLR:
-            gpio_clr(scl_);
             return true;
     }
     return false;
@@ -233,7 +230,7 @@ bool BitBangI2C::state_tx(uint8_t data)
             // increasing value.
             uint8_t mask = 0x80 >>
                 ((static_cast<int>(stateTx_) -
-                  static_cast<int>(StateTx::DATA_7_SCL_SET)) >> 1);
+                  static_cast<int>(StateTx::DATA_7_SCL_CLR)) >> 1);
             if (data & mask)
             {
                 gpio_set(sda_);
@@ -288,7 +285,7 @@ bool BitBangI2C::state_tx(uint8_t data)
             {
                 count_ = -EIO;
             }
-            stateTx_ = StateTx::DATA_7_SCL_SET;
+            stateTx_ = StateTx::DATA_7_SCL_CLR;
             return true; // done
     }
     return false;
