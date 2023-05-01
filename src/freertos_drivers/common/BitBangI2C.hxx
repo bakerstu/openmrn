@@ -38,48 +38,16 @@
 #include "os/Gpio.hxx"
 #include "os/OS.hxx"
 
-/// Implement a bit-banged I2C master. A periodic timer [interrupt] should call
-/// the BitBangI2C::tick_interrupt() method at a rate that is one half the
-/// desired clock rate. For example, for a 100kHz bus, call once every 5
-/// microseconds. The tick should be enabled to start. The driver will
-/// enable/disable the tick as needed to save on spurious interrupts.
-class BitBangI2C : public I2C
+/// Consolidate all the state machine enumerations for easy operator
+/// overloading.
+class BitBangI2CStates
 {
-public:
-    /// Constructor.
-    /// @param name name of this device instance in the file system
-    /// @param sda_gpio Gpio instance of the SDA line
-    /// @param scl_gpio Gpio instance of the SCL line
-    /// @param enable_tick callback to enable ticks
-    /// @param disable_tick callback to disable ticks
-    BitBangI2C(const char *name, const Gpio *sda_gpio, const Gpio *scl_gpio,
-               void (*enable_tick)(), void (*disable_tick)())
-        : I2C(name)
-        , sda_(sda_gpio)
-        , scl_(scl_gpio)
-        , enableTick_(enable_tick)
-        , disableTick_(disable_tick)
-        , msg_(nullptr)
-        , sem_()
-        , count_(0)
-        , state_(State::STOP) // start-up with a stop sequence
-        , stateStop_(StateStop::SDA_CLR)
-        , stop_(true)
-        , clockStretchActive_(false)
-    {
-        gpio_set(sda_);
-        gpio_clr(scl_);
-    }
-
-    /// Destructor.
-    ~BitBangI2C()
+protected:
+    /// Default constructor.
+    BitBangI2CStates()
     {
     }
 
-    /// Called at a periodic tick, when enabled.
-    inline void tick_interrupt();
-
-private:
     /// High level I2C States
     enum class State : uint8_t
     {
@@ -172,7 +140,50 @@ private:
 
     /// Allow pre-increment definition
     friend StateRx &operator++(StateRx &);
+};
 
+/// Implement a bit-banged I2C master. A periodic timer [interrupt] should call
+/// the BitBangI2C::tick_interrupt() method at a rate that is one half the
+/// desired clock rate. For example, for a 100kHz bus, call once every 5
+/// microseconds. The tick should be enabled to start. The driver will
+/// enable/disable the tick as needed to save on spurious interrupts.
+template <class HW> class BitBangI2C : protected BitBangI2CStates, public I2C
+{
+public:
+    /// Constructor.
+    /// @param name name of this device instance in the file system
+    /// @param sda_gpio Gpio instance of the SDA line
+    /// @param scl_gpio Gpio instance of the SCL line
+    /// @param enable_tick callback to enable ticks
+    /// @param disable_tick callback to disable ticks
+    BitBangI2C(const char *name, const Gpio *sda_gpio, const Gpio *scl_gpio,
+               void (*enable_tick)(), void (*disable_tick)())
+        : I2C(name)
+        , sda_(sda_gpio)
+        , scl_(scl_gpio)
+        , enableTick_(enable_tick)
+        , disableTick_(disable_tick)
+        , msg_(nullptr)
+        , sem_()
+        , count_(0)
+        , state_(State::STOP) // start-up with a stop sequence
+        , stateStop_(StateStop::SDA_CLR)
+        , stop_(true)
+        , clockStretchActive_(false)
+    {
+        gpio_set(sda_);
+        gpio_clr(scl_);
+    }
+
+    /// Destructor.
+    ~BitBangI2C()
+    {
+    }
+
+    /// Called at a periodic tick, when enabled.
+    inline void tick_interrupt();
+
+private:
     /// Execute state machine for sending start condition.
     /// @return true if the sub-state machine is finished, after doing the work
     ///         required by the current tick.
@@ -244,11 +255,12 @@ private:
 /// Pre-increment operator overload
 /// @param x starting value
 /// @return incremented value
-inline BitBangI2C::StateStart &operator++(BitBangI2C::StateStart &x)
+inline BitBangI2CStates::StateStart &operator++(BitBangI2CStates::StateStart &x)
 {
-    if (x >= BitBangI2C::StateStart::FIRST && x < BitBangI2C::StateStart::LAST)
+    if (x >= BitBangI2CStates::StateStart::FIRST &&
+        x < BitBangI2CStates::StateStart::LAST)
     {
-        x = static_cast<BitBangI2C::StateStart>(static_cast<int>(x) + 1);
+        x = static_cast<BitBangI2CStates::StateStart>(static_cast<int>(x) + 1);
     }
     return x;
 }
@@ -256,11 +268,12 @@ inline BitBangI2C::StateStart &operator++(BitBangI2C::StateStart &x)
 /// Pre-increment operator overload
 /// @param x starting value
 /// @return incremented value
-inline BitBangI2C::StateStop &operator++(BitBangI2C::StateStop &x)
+inline BitBangI2CStates::StateStop &operator++(BitBangI2CStates::StateStop &x)
 {
-    if (x >= BitBangI2C::StateStop::FIRST && x < BitBangI2C::StateStop::LAST)
+    if (x >= BitBangI2CStates::StateStop::FIRST &&
+        x < BitBangI2CStates::StateStop::LAST)
     {
-        x = static_cast<BitBangI2C::StateStop>(static_cast<int>(x) + 1);
+        x = static_cast<BitBangI2CStates::StateStop>(static_cast<int>(x) + 1);
     }
     return x;
 }
@@ -268,11 +281,12 @@ inline BitBangI2C::StateStop &operator++(BitBangI2C::StateStop &x)
 /// Pre-increment operator overload
 /// @param x starting value
 /// @return incremented value
-inline BitBangI2C::StateTx &operator++(BitBangI2C::StateTx &x)
+inline BitBangI2CStates::StateTx &operator++(BitBangI2CStates::StateTx &x)
 {
-    if (x >= BitBangI2C::StateTx::FIRST && x < BitBangI2C::StateTx::LAST)
+    if (x >= BitBangI2CStates::StateTx::FIRST &&
+        x < BitBangI2CStates::StateTx::LAST)
     {
-        x = static_cast<BitBangI2C::StateTx>(static_cast<int>(x) + 1);
+        x = static_cast<BitBangI2CStates::StateTx>(static_cast<int>(x) + 1);
     }
     return x;
 }
@@ -280,11 +294,12 @@ inline BitBangI2C::StateTx &operator++(BitBangI2C::StateTx &x)
 /// Pre-increment operator overload
 /// @param x starting value
 /// @return incremented value
-inline BitBangI2C::StateRx &operator++(BitBangI2C::StateRx &x)
+inline BitBangI2CStates::StateRx &operator++(BitBangI2CStates::StateRx &x)
 {
-    if (x >= BitBangI2C::StateRx::FIRST && x < BitBangI2C::StateRx::LAST)
+    if (x >= BitBangI2CStates::StateRx::FIRST &&
+        x < BitBangI2CStates::StateRx::LAST)
     {
-        x = static_cast<BitBangI2C::StateRx>(static_cast<int>(x) + 1);
+        x = static_cast<BitBangI2CStates::StateRx>(static_cast<int>(x) + 1);
     }
     return x;
 }
@@ -293,7 +308,7 @@ inline BitBangI2C::StateRx &operator++(BitBangI2C::StateRx &x)
 //
 // BitBangI2C::tick_interrupt()
 //
-__attribute__((optimize("-O3")))
+template <class HW> __attribute__((optimize("-O3")))
 inline void BitBangI2C<HW>::tick_interrupt()
 {
     bool exit = false;
@@ -416,8 +431,8 @@ inline void BitBangI2C<HW>::tick_interrupt()
 //
 // BitBangI2C::state_start()
 //
-__attribute__((optimize("-O3")))
-inline bool BitBangI2C::state_start()
+template <class HW> __attribute__((optimize("-O3")))
+inline bool BitBangI2C<HW>::state_start()
 {
     switch (stateStart_)
     {
@@ -441,8 +456,8 @@ inline bool BitBangI2C::state_start()
 //
 // BitBangI2C::state_stop()
 //
-__attribute__((optimize("-O3")))
-inline bool BitBangI2C::state_stop()
+template <class HW> __attribute__((optimize("-O3")))
+inline bool BitBangI2C<HW>::state_stop()
 {
     switch (stateStop_)
     {
@@ -465,8 +480,8 @@ inline bool BitBangI2C::state_stop()
 //
 // BitBangI2C::state_tx()
 //
-__attribute__((optimize("-O3")))
-inline bool BitBangI2C::state_tx(uint8_t data)
+template <class HW> __attribute__((optimize("-O3")))
+inline bool BitBangI2C<HW>::state_tx(uint8_t data)
 {
     // I2C is specified such that the data on the SDA line must be stable
     // during the high period of the clock, and the data line can only change
@@ -560,8 +575,8 @@ inline bool BitBangI2C::state_tx(uint8_t data)
 //
 // BitBangI2C::state_rx()
 //
-__attribute__((optimize("-O3")))
-inline bool BitBangI2C::state_rx(uint8_t *data, bool nack)
+template <class HW> __attribute__((optimize("-O3")))
+inline bool BitBangI2C<HW>::state_rx(uint8_t *data, bool nack)
 {
     switch(stateRx_)
     {
@@ -644,7 +659,8 @@ inline bool BitBangI2C::state_rx(uint8_t *data, bool nack)
 //
 // BitBangI2C::transfer()
 //
-inline int BitBangI2C::transfer(struct i2c_msg *msg, bool stop)
+template <class HW>
+inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
 {
     while (stop_)
     {
