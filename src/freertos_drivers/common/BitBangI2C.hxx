@@ -77,7 +77,7 @@ public:
     }
 
     /// Called at a periodic tick, when enabled.
-    void tick_interrupt();
+    inline void tick_interrupt();
 
 private:
     /// High level I2C States
@@ -176,26 +176,26 @@ private:
     /// Execute state machine for sending start condition.
     /// @return true if the sub-state machine is finished, after doing the work
     ///         required by the current tick.
-    bool state_start();
+    inline bool state_start();
 
     /// Execute state machine for sending the stop condition.
     /// @return true if the sub-state machine is finished, after doing the work
     ///         required by the current tick.
-    bool state_stop();
+    inline bool state_stop();
 
     /// Execute data TX state machine.
     /// @param data value to send
     /// @return true if the sub-state machine is finished, after doing the work
     ///         required by the current tick. count_ may be negative to
     ///         indicate an error.
-    bool state_tx(uint8_t data);
+    inline bool state_tx(uint8_t data);
 
     /// Execute data RX state machine.
     /// @param location to shift data into
     /// @param nack send a NACK in the (N)ACK slot
     /// @return true if the sub-state machine is finished, after doing the work
     ///         required by the current tick.
-    bool state_rx(uint8_t *data, bool nack);
+    inline bool state_rx(uint8_t *data, bool nack);
 
     void enable() override {} /**< function to enable device */
     void disable() override {} /**< function to disable device */
@@ -204,7 +204,7 @@ private:
     /// @param msg message to transact.
     /// @param stop produce a stop condition at the end of the transfer
     /// @return bytes transfered upon success or -1 with errno set
-    int transfer(struct i2c_msg *msg, bool stop) override;
+    inline int transfer(struct i2c_msg *msg, bool stop) override;
 
     /// Set the GPIO state.
     /// @param gpio GPIO to set
@@ -289,5 +289,381 @@ inline BitBangI2C::StateRx &operator++(BitBangI2C::StateRx &x)
     return x;
 }
 
+
+//
+// BitBangI2C::tick_interrupt()
+//
+__attribute__((optimize("-O3")))
+inline void BitBangI2C<HW>::tick_interrupt()
+{
+    bool exit = false;
+    switch (state_)
+    {
+        // start sequence
+        case State::START:
+            if (state_start())
+            {
+                // start done, send the address
+                state_ = State::ADDRESS;
+                stateTx_ = StateTx::FIRST;
+            }
+            break;
+        case State::ADDRESS:
+        {
+            /// @todo only supporting 7-bit I2C addresses at the moment.
+            uint8_t address = msg_->addr << 1;
+            if (msg_->flags & I2C_M_RD)
+            {
+                address |= 0x1;
+            }
+            if (state_tx(address))
+            {
+                if (count_ < 0)
+                {
+                    // Some error occured, likely an unexpected NACK. Send a
+                    // stop in order to shutdown gracefully.
+                    state_ = State::STOP;
+                    stateStop_ = StateStop::FIRST;
+                }
+                else
+                {
+                    if (msg_->flags & I2C_M_RD)
+                    {
+                        state_ = State::DATA_RX;
+                        stateRx_ = StateRx::FIRST;
+                    }
+                    else
+                    {
+                        state_ = State::DATA_TX;
+                        stateTx_ = StateTx::FIRST;
+                    }
+                }
+            }
+            break;
+        }
+        case State::DATA_TX:
+            if (state_tx(msg_->buf[count_]))
+            {
+                if (count_ < 0)
+                {
+                    // Some error occured, likely an unexpected NACK. Send a
+                    // stop in order to shutdown gracefully.
+                    state_ = State::STOP;
+                    stateStop_ = StateStop::FIRST;
+                }
+                else if (++count_ >= msg_->len)
+                {
+                    // All of the data has been transmitted.
+                    if (stop_)
+                    {
+                        state_ = State::STOP;
+                        stateStop_ = StateStop::FIRST;
+                    }
+                    else
+                    {
+                        exit = true;
+                    }
+                }
+                else
+                {
+                    // Setup the next byte TX
+                    stateTx_ = StateTx::FIRST;
+                }
+            }
+            break;
+        case State::DATA_RX:
+            if (state_rx(msg_->buf + count_, (count_ + 1 >= msg_->len)))
+            {
+                if (count_ < 0)
+                {
+                    // Some error occured, likely an unexpected NACK
+                    exit = true;
+                }
+                else if (++count_ >= msg_->len)
+                {
+                    // All of the data has been received.
+                    if (stop_)
+                    {
+                        state_ = State::STOP;
+                        stateStop_ = StateStop::FIRST;
+                    }
+                    else
+                    {
+                        exit = true;
+                    }
+                }
+                else
+                {
+                    // Setup the next byte RX
+                    stateRx_ = StateRx::FIRST;
+                }
+            }
+            break;
+        case State::STOP:
+            exit = state_stop();
+            break;
+    }
+
+    if (exit)
+    {
+        disableTick_();
+        int woken = 0;
+        sem_.post_from_isr(&woken);
+        os_isr_exit_yield_test(woken);
+    }
+}
+
+//
+// BitBangI2C::state_start()
+//
+__attribute__((optimize("-O3")))
+inline bool BitBangI2C::state_start()
+{
+    switch (stateStart_)
+    {
+        // start sequence
+        case StateStart::SDA_SET:
+            gpio_set(sda_);
+            ++stateStart_;
+            break;
+        case StateStart::SCL_SET:
+            gpio_set(scl_);
+            ++stateStart_;
+            break;
+        case StateStart::SDA_CLR:
+            gpio_clr(sda_);
+            ++stateStart_;
+            return true;
+    }
+    return false;
+}
+
+//
+// BitBangI2C::state_stop()
+//
+__attribute__((optimize("-O3")))
+inline bool BitBangI2C::state_stop()
+{
+    switch (stateStop_)
+    {
+        case StateStop::SDA_CLR:
+            gpio_clr(sda_);
+            ++stateStop_;
+            break;
+        case StateStop::SCL_SET:
+            gpio_set(scl_);
+            ++stateStop_;
+            break;
+        case StateStop::SDA_SET:
+            gpio_set(sda_);
+            stop_ = false;
+            return true; // exit
+    }
+    return false;
+}
+
+//
+// BitBangI2C::state_tx()
+//
+__attribute__((optimize("-O3")))
+inline bool BitBangI2C::state_tx(uint8_t data)
+{
+    // I2C is specified such that the data on the SDA line must be stable
+    // during the high period of the clock, and the data line can only change
+    // when SCL is Low.
+    //
+    // This means that the sequence always has to be
+    // 1a. SCL := low
+    // 1b. set/clear SDA
+    // 2. wait a cycle for lines to settle
+    // 3a. SCL := high
+    // 3b. this edge is when the receiver samples
+    // 4. wait a cycle, lines are stable
+    switch(stateTx_)
+    {
+        case StateTx::DATA_7_SCL_CLR:
+        case StateTx::DATA_6_SCL_CLR:
+        case StateTx::DATA_5_SCL_CLR:
+        case StateTx::DATA_4_SCL_CLR:
+        case StateTx::DATA_3_SCL_CLR:
+        case StateTx::DATA_2_SCL_CLR:
+        case StateTx::DATA_1_SCL_CLR:
+        case StateTx::DATA_0_SCL_CLR:
+        {
+            // We can only change the data when SCL is low.
+            gpio_clr(scl_);
+            // The divide by 2 factor (shift right by 1) is because the enum
+            // states alternate between *_SCL_SET and *_SCL_CLR states in
+            // increasing value.
+            uint8_t mask = 0x80 >>
+                ((static_cast<int>(stateTx_) -
+                  static_cast<int>(StateTx::DATA_7_SCL_CLR)) >> 1);
+            if (data & mask)
+            {
+                gpio_set(sda_);
+            }
+            else
+            {
+                gpio_clr(sda_);
+            }
+            ++stateTx_;
+            break;
+        }
+        case StateTx::DATA_7_SCL_SET:
+        case StateTx::DATA_6_SCL_SET:
+        case StateTx::DATA_5_SCL_SET:
+        case StateTx::DATA_4_SCL_SET:
+        case StateTx::DATA_3_SCL_SET:
+        case StateTx::DATA_2_SCL_SET:
+        case StateTx::DATA_1_SCL_SET:
+        case StateTx::DATA_0_SCL_SET:
+            // Data is sampled by the slave following this state transition.
+            gpio_set(scl_);
+            ++stateTx_;
+            break;
+        case StateTx::ACK_SDA_SET_SCL_CLR:
+            gpio_clr(scl_);
+            gpio_set(sda_);
+            ++stateTx_;
+            break;
+        case StateTx::ACK_SCL_SET:
+            gpio_set(scl_);
+            ++stateTx_;
+            break;
+        case StateTx::ACK_SCL_CLR:
+            if (scl_->read() == Gpio::Value::CLR)
+            {
+                // Clock stretching, do the same state again.
+                clockStretchActive_ = true;
+                break;
+            }
+            if (clockStretchActive_)
+            {
+                // I2C spec requires minimum 4 microseconds after the SCL line
+                // goes high following a clock stretch for the SCL line to be
+                // pulled low again by the master. Do the same state one more
+                // time to ensure this.
+                clockStretchActive_ = false;
+                break;
+            }
+            bool ack = (sda_->read() == Gpio::Value::CLR);
+            gpio_clr(scl_);
+            if (!ack)
+            {
+                count_ = -EIO;
+            }
+            return true; // done
+    }
+    return false;
+}
+
+//
+// BitBangI2C::state_rx()
+//
+__attribute__((optimize("-O3")))
+inline bool BitBangI2C::state_rx(uint8_t *data, bool nack)
+{
+    switch(stateRx_)
+    {
+        case StateRx::DATA_7_SCL_SET:
+            gpio_set(sda_); // Always start with SDA high.
+            // fall through
+        case StateRx::DATA_6_SCL_SET:
+        case StateRx::DATA_5_SCL_SET:
+        case StateRx::DATA_4_SCL_SET:
+        case StateRx::DATA_3_SCL_SET:
+        case StateRx::DATA_2_SCL_SET:
+        case StateRx::DATA_1_SCL_SET:
+        case StateRx::DATA_0_SCL_SET:
+            gpio_set(scl_);
+            ++stateRx_;
+            break;
+        case StateRx::DATA_7_SCL_CLR:
+        case StateRx::DATA_6_SCL_CLR:
+        case StateRx::DATA_5_SCL_CLR:
+        case StateRx::DATA_4_SCL_CLR:
+        case StateRx::DATA_3_SCL_CLR:
+        case StateRx::DATA_2_SCL_CLR:
+        case StateRx::DATA_1_SCL_CLR:
+        case StateRx::DATA_0_SCL_CLR:
+            if (scl_->read() == Gpio::Value::CLR)
+            {
+                // Clock stretching, do the same state again.
+                clockStretchActive_ = true;
+                break;
+            }
+            if (clockStretchActive_)
+            {
+                // I2C spec requires minimum 4 microseconds after the SCL line
+                // goes high following a clock stretch for the SCL line to be
+                // pulled low again by the master or for the master to sample
+                // the SDA data. Do the same state one more time to ensure this.
+                clockStretchActive_ = false;
+                break;
+            }
+            *data <<= 1;
+            if (sda_->read() == Gpio::Value::SET)
+            {
+                *data |= 0x01;
+            }
+            gpio_clr(scl_);
+            if (stateRx_ == StateRx::DATA_0_SCL_CLR && !nack)
+            {
+                // Send the ACK. If a NACK, SDA is already set.
+                gpio_clr(sda_);
+            }
+            ++stateRx_;
+            break;
+        case StateRx::ACK_SDA_SCL_SET:
+            gpio_set(scl_);
+            ++stateRx_;
+            break;
+        case StateRx::ACK_SCL_CLR:
+            if (scl_->read() == Gpio::Value::CLR)
+            {
+                // Clock stretching, do the same state again.
+                clockStretchActive_ = true;
+                break;
+            }
+            if (clockStretchActive_)
+            {
+                // I2C spec requires minimum 4 microseconds after the SCL line
+                // goes high following a clock stretch for the SCL line to be
+                // pulled low again by the master. Do the same state one more
+                // time to ensure this.
+                clockStretchActive_ = false;
+                break;
+            }
+            gpio_clr(scl_);
+            gpio_set(sda_);
+            return true;
+    }
+    return false;
+}
+
+//
+// BitBangI2C::transfer()
+//
+inline int BitBangI2C::transfer(struct i2c_msg *msg, bool stop)
+{
+    while (stop_)
+    {
+        // waiting for the initial "stop" condition on reset
+        sem_.wait();
+    }
+    if (msg_->len == 0)
+    {
+        // Message must have length of at least 1.
+        return -EINVAL;
+    }
+    msg_ = msg;
+    count_ = 0;
+    stop_ = stop;
+    state_ = State::START;
+    stateStart_ = StateStart::FIRST;
+    enableTick_();
+    sem_.wait();
+    return count_;
+}
 
 #endif // _FREERTOS_DRIVERS_COMMON_BITBANG_I2C_HXX_
