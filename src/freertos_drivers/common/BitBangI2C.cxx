@@ -315,12 +315,6 @@ bool BitBangI2C::state_rx(uint8_t *data, bool nack)
         case StateRx::DATA_0_SCL_SET:
         {
             gpio_set(scl_);
-            if (scl_->read() == Gpio::Value::SET)
-            {
-                // not clock stretching, move on.
-                ++stateRx_;
-            }
-            // else clock stretching, stay in this state
             break;
         }
         case StateRx::DATA_7_SCL_CLR:
@@ -331,6 +325,21 @@ bool BitBangI2C::state_rx(uint8_t *data, bool nack)
         case StateRx::DATA_2_SCL_CLR:
         case StateRx::DATA_1_SCL_CLR:
         case StateRx::DATA_0_SCL_CLR:
+            if (scl_->read() == Gpio::Value::CLR)
+            {
+                // Clock stretching, do the same state again.
+                clockStretchActive_ = true;
+                break;
+            }
+            if (clockStretchActive_)
+            {
+                // I2C spec requires minimum 4 microseconds after the SCL line
+                // goes high following a clock stretch for the SCL line to be
+                // pulled low again by the master or for the master to sample
+                // the SDA data. Do the same state one more time to ensure this.
+                clockStretchActive_ = false;
+                break;
+            }
             *data <<= 1;
             if (sda_->read() == Gpio::Value::SET)
             {
@@ -338,22 +347,32 @@ bool BitBangI2C::state_rx(uint8_t *data, bool nack)
             }
             gpio_clr(scl_);
             ++stateRx_;
-            break;
-        case StateRx::ACK_SDA_SCL_SET:
-            if (nack)
+            if (stateRx_ == StateRx::DATA_0_SCL_CLR && !nack)
             {
-                // Send NACK.
-                gpio_set(sda_);
-            }
-            else
-            {
-                // Send ACK.
+                // Send the ACK. If a NACK, SDA is already set.
                 gpio_clr(sda_);
             }
+            break;
+        case StateRx::ACK_SDA_SCL_SET:
             gpio_set(scl_);
             ++stateRx_;
             break;
         case StateRx::ACK_SCL_CLR:
+            if (scl_->read() == Gpio::Value::CLR)
+            {
+                // Clock stretching, do the same state again.
+                clockStretchActive_ = true;
+                break;
+            }
+            if (clockStretchActive_)
+            {
+                // I2C spec requires minimum 4 microseconds after the SCL line
+                // goes high following a clock stretch for the SCL line to be
+                // pulled low again by the master. Do the same state one more
+                // time to ensure this.
+                clockStretchActive_ = false;
+                break;
+            }
             gpio_clr(scl_);
             gpio_set(sda_);
             stateRx_ = StateRx::DATA_7_SCL_SET;
