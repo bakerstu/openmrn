@@ -145,8 +145,9 @@ protected:
 /// Implement a bit-banged I2C master. A periodic timer [interrupt] should call
 /// the BitBangI2C::tick_interrupt() method at a rate that is one half the
 /// desired clock rate. For example, for a 100kHz bus, call once every 5
-/// microseconds. The tick should be enabled to start. The driver will
-/// enable/disable the tick as needed to save on spurious interrupts.
+/// microseconds. The tick should be enabled to start. The driver will call
+/// HW::tick_enable()/HW::tick_disable() to enable/disable the tick as needed
+/// to save on spurious interrupts.
 ///
 /// Example:
 /// @code
@@ -185,6 +186,16 @@ protected:
 ///             ...
 ///         }
 ///     };
+///
+///     static void tick_enable()
+///     {
+///         ...
+///     }
+///
+///     static void tick_disable()
+///     {
+///         ...
+///     }
 /// };
 ///
 /// BitBangI2C<I2CHwDefs> bitBangI2C("/dev/i2c0", disable_tick, enable_tick);
@@ -198,10 +209,8 @@ public:
     /// @param name name of this device instance in the file system
     /// @param enable_tick callback to enable ticks
     /// @param disable_tick callback to disable ticks
-    BitBangI2C(const char *name, void (*enable_tick)(), void (*disable_tick)())
+    BitBangI2C(const char *name)
         : I2C(name)
-        , enableTick_(enable_tick)
-        , disableTick_(disable_tick)
         , msg_(nullptr)
         , sem_()
         , count_(0)
@@ -256,8 +265,6 @@ private:
     /// @return bytes transfered upon success or -1 with errno set
     inline int transfer(struct i2c_msg *msg, bool stop) override;
 
-    void (*enableTick_)(void); ///< Enable the timer tick
-    void (*disableTick_)(void); ///< Disable the timer tick
     struct i2c_msg *msg_; ///< I2C message to presently act upon  
     OSSem sem_; ///< semaphore to wakeup task level from ISR
     int count_; ///< the count of data bytes transferred, error if < 0
@@ -442,7 +449,7 @@ inline void BitBangI2C<HW>::tick_interrupt()
 
     if (exit)
     {
-        disableTick_();
+        HW::tick_disable();
         int woken = 0;
         sem_.post_from_isr(&woken);
         os_isr_exit_yield_test(woken);
@@ -698,7 +705,7 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
     stop_ = stop;
     state_ = State::START;
     stateStart_ = StateStart::FIRST;
-    enableTick_();
+    HW::tick_enable();
     sem_.wait();
     return count_;
 }
