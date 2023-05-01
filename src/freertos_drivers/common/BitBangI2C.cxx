@@ -318,10 +318,9 @@ bool BitBangI2C::state_rx(uint8_t *data, bool nack)
         case StateRx::DATA_2_SCL_SET:
         case StateRx::DATA_1_SCL_SET:
         case StateRx::DATA_0_SCL_SET:
-        {
             gpio_set(scl_);
+            ++stateRx_;
             break;
-        }
         case StateRx::DATA_7_SCL_CLR:
         case StateRx::DATA_6_SCL_CLR:
         case StateRx::DATA_5_SCL_CLR:
