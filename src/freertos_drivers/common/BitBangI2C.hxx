@@ -147,20 +147,67 @@ protected:
 /// desired clock rate. For example, for a 100kHz bus, call once every 5
 /// microseconds. The tick should be enabled to start. The driver will
 /// enable/disable the tick as needed to save on spurious interrupts.
+///
+/// Example:
+/// @code
+/// struct I2CHwDefs
+/// {
+///     class SDA_Pin
+///     {
+///     public:
+///         static void set(bool on)
+///         {
+///             ...
+///         }
+///         static bool get()
+///         {
+///             ...
+///         }
+///         static void hw_init()
+///         {
+///             ...
+///         }
+///     };
+///
+///     class SCL_Pin
+///     {
+///     public:
+///         static void set(bool on)
+///         {
+///             ...
+///         }
+///         static bool get()
+///         {
+///             ...
+///         }
+///         static void hw_init()
+///         {
+///             ...
+///         }
+///     };
+/// };
+///
+/// // or
+///
+/// struct I2CHwDefs
+/// {
+///     using SCL_Pin = ::MY_SCL_Pin;
+///     using SDA_Pin = ::MY_SDA_Pin;
+/// };
+///
+/// BitBangI2C<I2CHwDefs> bitBangI2C("/dev/i2c0", disable_tick, enable_tick);
+/// @endcode
+///
+/// @tparam HW hardware interface to the access the SCL and SDA I/O lines
 template <class HW> class BitBangI2C : protected BitBangI2CStates, public I2C
 {
 public:
     /// Constructor.
     /// @param name name of this device instance in the file system
-    /// @param sda_gpio Gpio instance of the SDA line
-    /// @param scl_gpio Gpio instance of the SCL line
     /// @param enable_tick callback to enable ticks
     /// @param disable_tick callback to disable ticks
-    BitBangI2C(const char *name, const Gpio *sda_gpio, const Gpio *scl_gpio,
-               void (*enable_tick)(), void (*disable_tick)())
+    BitBangI2C(const char *name, void (*enable_tick)(), void (*disable_tick)())
         : I2C(name)
-        , sda_(sda_gpio)
-        , scl_(scl_gpio)
         , enableTick_(enable_tick)
         , disableTick_(disable_tick)
         , msg_(nullptr)
@@ -171,8 +218,8 @@ public:
         , stop_(true)
         , clockStretchActive_(false)
     {
-        gpio_set(sda_);
-        gpio_clr(scl_);
+        HW::SDA_Pin::set(1);
+        HW::SCL_Pin::set(0);
     }
 
     /// Destructor.
@@ -217,24 +264,6 @@ private:
     /// @return bytes transfered upon success or -1 with errno set
     inline int transfer(struct i2c_msg *msg, bool stop) override;
 
-    /// Set the GPIO state.
-    /// @param gpio GPIO to set
-    void gpio_set(const Gpio *gpio)
-    {
-        gpio->set_direction(Gpio::Direction::DINPUT);
-    }
-
-    /// Clear the GPIO state.
-    /// @param gpio GPIO to clear
-    void gpio_clr(const Gpio *gpio)
-    {
-        gpio->clr();
-        gpio->set_direction(Gpio::Direction::DOUTPUT);
-        gpio->clr();
-    }
-
-    const Gpio *sda_; ///< GPIO for the SDA line
-    const Gpio *scl_; ///< GPIO for the SCL line
     void (*enableTick_)(void); ///< Enable the timer tick
     void (*disableTick_)(void); ///< Disable the timer tick
     struct i2c_msg *msg_; ///< I2C message to presently act upon  
@@ -438,15 +467,15 @@ inline bool BitBangI2C<HW>::state_start()
     {
         // start sequence
         case StateStart::SDA_SET:
-            gpio_set(sda_);
+            HW::SDA_Pin::set(1);
             ++stateStart_;
             break;
         case StateStart::SCL_SET:
-            gpio_set(scl_);
+            HW::SCL_Pin::set(1);
             ++stateStart_;
             break;
         case StateStart::SDA_CLR:
-            gpio_clr(sda_);
+            HW::SDA_Pin::set(0);
             ++stateStart_;
             return true;
     }
@@ -462,15 +491,15 @@ inline bool BitBangI2C<HW>::state_stop()
     switch (stateStop_)
     {
         case StateStop::SDA_CLR:
-            gpio_clr(sda_);
+            HW::SDA_Pin::set(0);
             ++stateStop_;
             break;
         case StateStop::SCL_SET:
-            gpio_set(scl_);
+            HW::SCL_Pin::set(1);
             ++stateStop_;
             break;
         case StateStop::SDA_SET:
-            gpio_set(sda_);
+            HW::SDA_Pin::set(1);
             stop_ = false;
             return true; // exit
     }
@@ -506,7 +535,7 @@ inline bool BitBangI2C<HW>::state_tx(uint8_t data)
         case StateTx::DATA_0_SCL_CLR:
         {
             // We can only change the data when SCL is low.
-            gpio_clr(scl_);
+            HW::SCL_Pin::set(0);
             // The divide by 2 factor (shift right by 1) is because the enum
             // states alternate between *_SCL_SET and *_SCL_CLR states in
             // increasing value.
@@ -515,11 +544,11 @@ inline bool BitBangI2C<HW>::state_tx(uint8_t data)
                   static_cast<int>(StateTx::DATA_7_SCL_CLR)) >> 1);
             if (data & mask)
             {
-                gpio_set(sda_);
+                HW::SDA_Pin::set(1);
             }
             else
             {
-                gpio_clr(sda_);
+                HW::SDA_Pin::set(0);
             }
             ++stateTx_;
             break;
@@ -533,20 +562,20 @@ inline bool BitBangI2C<HW>::state_tx(uint8_t data)
         case StateTx::DATA_1_SCL_SET:
         case StateTx::DATA_0_SCL_SET:
             // Data is sampled by the slave following this state transition.
-            gpio_set(scl_);
+            HW::SCL_Pin::set(1);
             ++stateTx_;
             break;
         case StateTx::ACK_SDA_SET_SCL_CLR:
-            gpio_clr(scl_);
-            gpio_set(sda_);
+            HW::SCL_Pin::set(0);
+            HW::SDA_Pin::set(1);
             ++stateTx_;
             break;
         case StateTx::ACK_SCL_SET:
-            gpio_set(scl_);
+            HW::SCL_Pin::set(1);
             ++stateTx_;
             break;
         case StateTx::ACK_SCL_CLR:
-            if (scl_->read() == Gpio::Value::CLR)
+            if (HW::SCL_Pin::get() == false)
             {
                 // Clock stretching, do the same state again.
                 clockStretchActive_ = true;
@@ -561,8 +590,8 @@ inline bool BitBangI2C<HW>::state_tx(uint8_t data)
                 clockStretchActive_ = false;
                 break;
             }
-            bool ack = (sda_->read() == Gpio::Value::CLR);
-            gpio_clr(scl_);
+            bool ack = (HW::SDA_Pin::get() == false);
+            HW::SCL_Pin::set(0);
             if (!ack)
             {
                 count_ = -EIO;
@@ -581,7 +610,7 @@ inline bool BitBangI2C<HW>::state_rx(uint8_t *data, bool nack)
     switch(stateRx_)
     {
         case StateRx::DATA_7_SCL_SET:
-            gpio_set(sda_); // Always start with SDA high.
+            HW::SDA_Pin::set(1); // Always start with SDA high.
             // fall through
         case StateRx::DATA_6_SCL_SET:
         case StateRx::DATA_5_SCL_SET:
@@ -590,7 +619,7 @@ inline bool BitBangI2C<HW>::state_rx(uint8_t *data, bool nack)
         case StateRx::DATA_2_SCL_SET:
         case StateRx::DATA_1_SCL_SET:
         case StateRx::DATA_0_SCL_SET:
-            gpio_set(scl_);
+            HW::SCL_Pin::set(1);
             ++stateRx_;
             break;
         case StateRx::DATA_7_SCL_CLR:
@@ -601,7 +630,7 @@ inline bool BitBangI2C<HW>::state_rx(uint8_t *data, bool nack)
         case StateRx::DATA_2_SCL_CLR:
         case StateRx::DATA_1_SCL_CLR:
         case StateRx::DATA_0_SCL_CLR:
-            if (scl_->read() == Gpio::Value::CLR)
+            if (HW::SCL_Pin::get() == false)
             {
                 // Clock stretching, do the same state again.
                 clockStretchActive_ = true;
@@ -617,24 +646,24 @@ inline bool BitBangI2C<HW>::state_rx(uint8_t *data, bool nack)
                 break;
             }
             *data <<= 1;
-            if (sda_->read() == Gpio::Value::SET)
+            if (HW::SDA_Pin::get() == true)
             {
                 *data |= 0x01;
             }
-            gpio_clr(scl_);
+            HW::SCL_Pin::set(0);
             if (stateRx_ == StateRx::DATA_0_SCL_CLR && !nack)
             {
                 // Send the ACK. If a NACK, SDA is already set.
-                gpio_clr(sda_);
+                HW::SDA_Pin::set(0);
             }
             ++stateRx_;
             break;
         case StateRx::ACK_SDA_SCL_SET:
-            gpio_set(scl_);
+            HW::SCL_Pin::set(1);
             ++stateRx_;
             break;
         case StateRx::ACK_SCL_CLR:
-            if (scl_->read() == Gpio::Value::CLR)
+            if (HW::SCL_Pin::get() == false)
             {
                 // Clock stretching, do the same state again.
                 clockStretchActive_ = true;
@@ -649,8 +678,8 @@ inline bool BitBangI2C<HW>::state_rx(uint8_t *data, bool nack)
                 clockStretchActive_ = false;
                 break;
             }
-            gpio_clr(scl_);
-            gpio_set(sda_);
+            HW::SCL_Pin::set(0);
+            HW::SDA_Pin::set(1);
             return true;
     }
     return false;
