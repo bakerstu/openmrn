@@ -152,23 +152,6 @@ protected:
 /// @code
 /// struct I2CHwDefs
 /// {
-///     class SDA_Pin
-///     {
-///     public:
-///         static void set(bool on)
-///         {
-///             ...
-///         }
-///         static bool get()
-///         {
-///             ...
-///         }
-///         static void hw_init()
-///         {
-///             ...
-///         }
-///     };
-///
 ///     class SCL_Pin
 ///     {
 ///     public:
@@ -185,14 +168,23 @@ protected:
 ///             ...
 ///         }
 ///     };
-/// };
 ///
-/// // or
-///
-/// struct I2CHwDefs
-/// {
-///     using SCL_Pin = ::MY_SCL_Pin;
-///     using SDA_Pin = ::MY_SDA_Pin;
+///     class SDA_Pin
+///     {
+///     public:
+///         static void set(bool on)
+///         {
+///             ...
+///         }
+///         static bool get()
+///         {
+///             ...
+///         }
+///         static void hw_init()
+///         {
+///             ...
+///         }
+///     };
 /// };
 ///
 /// BitBangI2C<I2CHwDefs> bitBangI2C("/dev/i2c0", disable_tick, enable_tick);
