@@ -346,12 +346,12 @@ bool BitBangI2C::state_rx(uint8_t *data, bool nack)
                 *data |= 0x01;
             }
             gpio_clr(scl_);
-            ++stateRx_;
             if (stateRx_ == StateRx::DATA_0_SCL_CLR && !nack)
             {
                 // Send the ACK. If a NACK, SDA is already set.
                 gpio_clr(sda_);
             }
+            ++stateRx_;
             break;
         case StateRx::ACK_SDA_SCL_SET:
             gpio_set(scl_);
