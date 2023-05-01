@@ -135,6 +135,11 @@ void BitBangI2C::tick_interrupt()
                         exit = true;
                     }
                 }
+                else
+                {
+                    // Setup the next byte RX
+                    stateRx_ = StateRx::FIRST;
+                }
             }
             break;
         case State::STOP:
@@ -375,7 +380,6 @@ bool BitBangI2C::state_rx(uint8_t *data, bool nack)
             }
             gpio_clr(scl_);
             gpio_set(sda_);
-            stateRx_ = StateRx::DATA_7_SCL_SET;
             return true;
     }
     return false;
