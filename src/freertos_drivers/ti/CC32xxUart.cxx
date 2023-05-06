@@ -72,6 +72,7 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
     , base_(base)
     , interrupt_(interrupt)
     , baud_(baud)
+    , uartMode_(mode | UART_CONFIG_PAR_NONE)
     , txPending_(false)
     , hwFIFO_(hw_fifo)
     , nineBit_(false)
@@ -80,7 +81,7 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
         UART_CONFIG_PAR_NONE == 0, "driverlib changed against our assumptions");
     static_assert(
         UART_CONFIG_STOP_ONE == 0, "driverlib changed against our assumptions");
-    HASSERT(mode <= 0xFFu);
+    HASSERT(uartMode_ <= 0xFFu);
     
     switch (base)
     {
@@ -96,8 +97,7 @@ CC32xxUart::CC32xxUart(const char *name, unsigned long base, uint32_t interrupt,
             break;
     }
     
-    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud,
-                            mode | UART_CONFIG_PAR_NONE);
+    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud, uartMode_);
     MAP_IntDisable(interrupt_);
     /* We set the priority so that it is slightly lower than the highest needed
      * for FreeRTOS compatibility. This will ensure that CAN interrupts take
@@ -151,23 +151,23 @@ int CC32xxUart::ioctl(File *file, unsigned long int key, unsigned long data)
             MAP_UtilsDelay(12 * 26);
             break;
         case TCPARNONE:
-            mode_ &= ~UART_CONFIG_PAR_MASK;
-            mode_ |= UART_CONFIG_PAR_NONE;
+            uartMode_ &= ~UART_CONFIG_PAR_MASK;
+            uartMode_ |= UART_CONFIG_PAR_NONE;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_NONE);
             break;
         case TCPARODD:
-            mode_ &= ~UART_CONFIG_PAR_MASK;
-            mode_ |= UART_CONFIG_PAR_ODD;
+            uartMode_ &= ~UART_CONFIG_PAR_MASK;
+            uartMode_ |= UART_CONFIG_PAR_ODD;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ODD);
             break;
         case TCPAREVEN:
-            mode_ &= ~UART_CONFIG_PAR_MASK;
-            mode_ |= UART_CONFIG_PAR_EVEN;
+            uartMode_ &= ~UART_CONFIG_PAR_MASK;
+            uartMode_ |= UART_CONFIG_PAR_EVEN;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_EVEN);
             break;
         case TCPARONE:
-            mode_ &= ~UART_CONFIG_PAR_MASK;
-            mode_ |= UART_CONFIG_PAR_ONE;
+            uartMode_ &= ~UART_CONFIG_PAR_MASK;
+            uartMode_ |= UART_CONFIG_PAR_ONE;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ONE);
             break;
         case TCNINEBITRX:
@@ -178,18 +178,18 @@ int CC32xxUart::ioctl(File *file, unsigned long int key, unsigned long data)
             }
             // fall through
         case TCPARZERO:
-            mode_ &= ~UART_CONFIG_PAR_MASK;
-            mode_ |= UART_CONFIG_PAR_ZERO;
+            uartMode_ &= ~UART_CONFIG_PAR_MASK;
+            uartMode_ |= UART_CONFIG_PAR_ZERO;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ZERO);
             break;
         case TCSTOPONE:
-            mode_ &= ~UART_CONFIG_STOP_MASK;
-            mode_ |= UART_CONFIG_STOP_ONE;
+            uartMode_ &= ~UART_CONFIG_STOP_MASK;
+            uartMode_ |= UART_CONFIG_STOP_ONE;
             set_mode();
             break;
         case TCSTOPTWO:
-            mode_ &= ~UART_CONFIG_STOP_MASK;
-            mode_ |= UART_CONFIG_STOP_TWO;
+            uartMode_ &= ~UART_CONFIG_STOP_MASK;
+            uartMode_ |= UART_CONFIG_STOP_TWO;
             set_mode();
             break;
         case TCBAUDRATE:
@@ -225,7 +225,9 @@ int CC32xxUart::ioctl(File *file, unsigned long int key, unsigned long data)
 /** Sets the port baud rate and mode from the class variables. */
 void CC32xxUart::set_mode()
 {
-    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud_, mode_);
+    disable();
+    MAP_UARTConfigSetExpClk(base_, cm3_cpu_clock_hz, baud_, uartMode_);
+    enable();
 }
 
 /** Send data until there is no more space left.

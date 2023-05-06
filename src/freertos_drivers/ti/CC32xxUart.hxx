@@ -121,6 +121,7 @@ private:
     unsigned long base_; /**< base address of this device */
     uint32_t interrupt_ : 8; /**< interrupt of this device */
     uint32_t baud_ : 24; /**< desired baud rate */
+    uint32_t uartMode_; /**< mode of the UART, 8 or 9 bit, 1 or 2 stop... */
     uint8_t txPending_; /**< transmission currently pending */
     uint8_t hwFIFO_; /**< true if hardware fifo is to be enabled, else false */
     uint8_t nineBit_; /**< true if using 9-bit reception */
