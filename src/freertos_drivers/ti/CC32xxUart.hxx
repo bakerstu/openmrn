@@ -123,6 +123,7 @@ private:
     uint32_t baud_ : 24; /**< desired baud rate */
     uint8_t txPending_; /**< transmission currently pending */
     uint8_t hwFIFO_; /**< true if hardware fifo is to be enabled, else false */
+    uint8_t nineBit_; /**< true if using 9-bit reception */
 
     /** Default constructor.
      */
