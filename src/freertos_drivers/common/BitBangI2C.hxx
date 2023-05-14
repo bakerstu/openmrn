@@ -692,7 +692,8 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
 {
     while (stop_)
     {
-        // waiting for the initial "stop" condition on reset
+        // No need for a timed wait here because the stop state machine is not
+        // gated by what happens on the bus (e.g. zero stretching).
         sem_.wait();
     }
     if (msg->len == 0)
@@ -700,14 +701,37 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
         // Message must have length of at least 1.
         return -EINVAL;
     }
+
+    // Reset state for a start/restart.
     msg_ = msg;
     count_ = 0;
     stop_ = stop;
     state_ = State::START;
     stateStart_ = StateStart::FIRST;
+
+    // Flush/reset semaphore.
+    while (sem_.timedwait(0) == 0);
+    // Enable tick timer.
     HW::tick_enable();
-    sem_.wait();
-    return count_;
+
+    // We wait a minimum of 10 msec to account for any rounding in the "tick"
+    // rate conversion. msg_->len is at least 1. We assume that worst ~50kHz
+    // is the slowest that anyone will try to run the I2C bus, which will
+    // result in just under 200 microseconds per byte. This leaves some room
+    // for zero stretching.
+    long long wait = std::max(MSEC_TO_NSEC(msg_->len), MSEC_TO_NSEC(10));
+    if (sem_.timedwait(wait) == 0)
+    {
+        return count_;
+    }
+    else
+    {
+        // stop_ must be false for the next call of this method. It should only
+        // be true on first entry at start to "reset" the bus to a known state.
+        // On a timeout, it may not have been reset back to false.
+        stop_ = false;
+        return -ETIMEDOUT;
+    }
 }
 
 #endif // _FREERTOS_DRIVERS_COMMON_BITBANG_I2C_HXX_
