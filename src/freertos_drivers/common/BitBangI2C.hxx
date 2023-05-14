@@ -695,7 +695,7 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
         // waiting for the initial "stop" condition on reset
         sem_.wait();
     }
-    if (msg_->len == 0)
+    if (msg->len == 0)
     {
         // Message must have length of at least 1.
         return -EINVAL;
