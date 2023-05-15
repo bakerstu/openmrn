@@ -98,6 +98,7 @@ public:
 
     friend class MagSensorTest;
     friend class Input;
+    friend class MagneticEncoder;
 
     enum BitMasks
     {
