@@ -667,7 +667,7 @@ OS_INLINE int os_sem_post(os_sem_t *sem)
  */
 OS_INLINE int os_sem_post_from_isr(os_sem_t *sem, int *woken)
 {
-    portBASE_TYPE local_woken;
+    portBASE_TYPE local_woken = 0;
     xSemaphoreGiveFromISR(*sem, &local_woken);
     *woken |= local_woken;
     return 0;
