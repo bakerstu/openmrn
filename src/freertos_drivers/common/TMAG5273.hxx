@@ -34,8 +34,15 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_TMAG5273_HXX_
 #define _FREERTOS_DRIVERS_COMMON_TMAG5273_HXX_
 
+#include <fcntl.h>
+#include <unistd.h>
+#include <stropts.h>
+
 #include "i2c-dev.h"
 #include "i2c.h"
+#include "utils/Atomic.hxx"
+#include "utils/logging.h"
+#include "utils/macros.h"
 
 class TMAG5273 : private Atomic
 {
@@ -49,12 +56,31 @@ public:
         ADDR_D = 0x44, /// D1 and D2 device address
     };
 
-    /// Constructor
+    /// Constructor.
     /// @param address is the 7-bit address (right aligned), typically 0x35,
-    /// 0x22, 0x78 or 0x44). Default is the A1/A2 device.
+    ///        0x22, 0x78 or 0x44). Default is the A1/A2 device.
     TMAG5273(uint8_t address = 0x35)
         : i2cAddress_(address)
     { }
+
+    /// Constructor. Can only be called from thread context.
+    /// @param i2c_path path to the i2c bus to use.
+    /// @param address is the 7-bit address (right aligned), typically 0x35,
+    ///        0x22, 0x78 or 0x44). Default is the A1/A2 device.
+    TMAG5273(const char *i2c_path, uint8_t address = 0x35)
+        : i2cAddress_(address)
+    {
+        init(i2c_path);
+    }
+
+    /// Destructor.
+    ~TMAG5273()
+    {
+        if (fd_ >= 0)
+        {
+            ::close(fd_);
+        }
+    }
 
     void init(const char *i2c_path)
     {
