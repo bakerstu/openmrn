@@ -40,6 +40,15 @@
 class TMAG5273 : private Atomic
 {
 public:
+    /// Supported I2C addresses.
+    enum I2CAddress : uint8_t
+    {
+        ADDR_A = 0x35, /// A1 and A2 device address
+        ADDR_B = 0x22, /// B1 and B2 device address
+        ADDR_C = 0x78, /// C1 and C2 device address
+        ADDR_D = 0x44, /// D1 and D2 device address
+    };
+
     /// Constructor
     /// @param address is the 7-bit address (right aligned), typically 0x35,
     /// 0x22, 0x78 or 0x44). Default is the A1/A2 device.
