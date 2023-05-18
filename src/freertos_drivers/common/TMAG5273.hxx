@@ -45,6 +45,7 @@
 #include "utils/logging.h"
 #include "utils/macros.h"
 
+/// Implementation of TMAG5273 sensor driver.
 class TMAG5273 : private Atomic
 {
 public:
