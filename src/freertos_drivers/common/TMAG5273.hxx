@@ -37,6 +37,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stropts.h>
+#include <endian.h>
 
 #include "i2c-dev.h"
 #include "i2c.h"
@@ -50,10 +51,136 @@ public:
     /// Supported I2C addresses.
     enum I2CAddress : uint8_t
     {
-        ADDR_A = 0x35, /// A1 and A2 device address
-        ADDR_B = 0x22, /// B1 and B2 device address
-        ADDR_C = 0x78, /// C1 and C2 device address
-        ADDR_D = 0x44, /// D1 and D2 device address
+        ADDR_A = 0x35, ///< A1 and A2 device address
+        ADDR_B = 0x22, ///< B1 and B2 device address
+        ADDR_C = 0x78, ///< C1 and C2 device address
+        ADDR_D = 0x44, ///< D1 and D2 device address
+    };
+
+    /// Device Identifier.
+    enum class DeviceID : uint8_t
+    {
+        UNKNOWN        = 0x00, ///< ID unknown or device not detected
+        MT_40_AND_80   = 0x01, ///< 40-mT and 80-mT range supported
+        MT_133_AND_266 = 0x02, ///< 133-mT and 266-mT range supported
+        ERROR          = 0xFF, ///< some kind of error occured
+    };
+
+    /// Channels to enabled.
+    enum class ChannelEnable : uint8_t
+    {
+        ALL_OFF    = 0x00, ///< all channels off, default
+        X_ENABLE   = 0x10, ///< X channel enabled
+        Y_ENABLE   = 0x20, ///< Y channel enabled
+        XY_ENABLE  = 0x30, ///< X and Y channels enabled
+        Z_ENABLE   = 0x40, ///< Z channel enabled
+        XZ_ENABLE  = 0x50, ///< X and Z channels enabled
+        YZ_ENABLE  = 0x60, ///< Y and Z channels enabled
+        XYZ_ENABLE = 0x70, ///< X, Y, and Z channels enabled
+        XYX_ENABLE = 0x80, ///< pseudo-simultaneous X plus Y channels enabled
+        YXY_ENABLE = 0x90, ///< pseudo-simultaneous Y plus X channels enabled
+        YZY_ENABLE = 0xA0, ///< pseudo-simultaneous Y plus Z channels enabled
+        XZX_ENABLE = 0xB0, ///< pseudo-simultaneous X plus Z channels enabled
+    };
+
+    /// Sleep time between conversions when operating mode is wake-up and sleep
+    enum class SleepTime : uint8_t
+    {
+        SLEEP_1_MSEC     = 0x00, ///< 1 millisecond, default
+        SLEEP_5_MSEC     = 0x01, ///< 5 milliseconds
+        SLEEP_10_MSEC    = 0x02, ///< 10 milliseconds
+        SLEEP_15_MSEC    = 0x03, ///< 15 milliseconds
+        SLEEP_20_MSEC    = 0x04, ///< 20 milliseconds
+        SLEEP_30_MSEC    = 0x05, ///< 30 milliseconds
+        SLEEP_50_MSEC    = 0x06, ///< 50 milliseconds
+        SLEEP_100_MSEC   = 0x07, ///< 100 milliseconds
+        SLEEP_500_MSEC   = 0x08, ///< 500 milliseconds
+        SLEEP_1000_MSEC  = 0x09, ///< 1000 milliseconds
+        SLEEP_2000_MSEC  = 0x0A, ///< 2000 milliseconds
+        SLEEP_5000_MSEC  = 0x0B, ///< 5000 milliseconds
+        SLEEP_20000_MSEC = 0x0C, ///< 20000 milliseconds
+    };
+
+    /// Device status bit masks.
+    enum class DeviceStatus : uint8_t
+    {
+        /// value of the INT_N pin read at reset, 0 = low, 1 = high
+        INT_N_PIN_RESET_LEVEL_MASK = 0x10,
+        /// Oscillator error, 0 = no error, 1 = error, write 1 to clear
+        OSC_ERROR_MASK             = 0x08,
+        /// INT_N pin error, 0 = no error, 1 = error, write 1 to clear
+        INT_N_PIN_ERROR_MASK       = 0x04,
+        /// OTP CRC error, 0 = no error, 1 = error, write 1 to clear
+        OTP_CRC_ERROR_MASK         = 0x02,
+        /// VCC < 2.3V, 0 = no VCC UV, 1 = VCC UV, write 1 to clear
+        VCC_UV_ERROR_MASK          = 0x01,
+    };
+
+    /// Interrupt configuration.
+    enum class InterruptConfig : uint8_t
+    {
+        /// interrupt on conversion complete, 0 = disable, 1 = enable
+        CONVERSION_COMPLETE_ENABLE = 0x80,
+        /// interrupt on threshold, 0 = disabled, 1 = enabled
+        THRESHOLD_ENABLE           = 0x40,
+        /// interrupt state, 0 = lached until clear, 1 = pulse for 10 usec
+        STATE_MASK                 = 0x20,
+        /// no interrupt
+        MODE_NONE                  = (0 << 2),
+        /// interrupt mode through INT_N
+        MODE_INT_N                 = (1 << 2),
+        /// interrupt mode through INT_N, except when I2C is busy
+        MODE_INT_N_EXCEPT_I2C_BUSY = (2 << 2),
+        /// interrupt mode through SCL
+        MODE_SCL                   = (3 << 2),
+        /// interrupt mode through SCL, except when I2C is busy
+        MODE_SCL_EXCEPT_I2C_BUSY   = (4 << 2),
+        /// mask interrupt pin when INT_N is connected to ground
+        MASK_INT_N_MASK            = 0x01,
+    };
+
+    /// conversion status.
+    enum class ConversionStatus : uint8_t
+    {
+        /// rolling count of conversion data sets mask
+        SET_COUNT_MASK     = 0xE0,
+        /// rolling count of conversion data sets shift
+        SET_COUNT_SHIFT    = 5,
+        /// Device powered up, 0 = no power on reset, 1 = power on reset
+        POR_MASK           = 0x10,
+        /// Diagnositic status, 0 = no diag fail, 1 diag fail detected
+        DIAG_STATUS_MASK   = 0x02,
+        /// Conversion, 0 = conversion not complete, 1 = conversion complete
+        RESULT_STATUS_MASK = 0x01,
+    };
+
+    /// Conversion oversampling average configuration
+    enum class ConversionAverage : uint8_t
+    {
+        AVG_1  = (0 << 2), ///< average 1 saple
+        AVG_2  = (1 << 2), ///< average 2 saples
+        AVG_4  = (2 << 2), ///< average 4 saples
+        AVG_8  = (3 << 2), ///< average 8 saples
+        AVG_16 = (4 << 2), ///< average 16 saples
+        AVG_32 = (5 << 2), ///< average 32 saples
+    };
+
+    /// Angle calculation to enable.
+    enum class AngleEnable : uint8_t
+    {
+        OFF        = (0 << 2), ///< angle not enabled
+        XY_ENABLE  = (1 << 2), ///< X + Y derived angle
+        YZ_ENABLE  = (2 << 2), ///< Y + Z derived angle
+        XZ_ENABLE  = (3 << 2), ///< X + Z derived angle
+    };
+
+    /// Operating modes of the device.
+    enum class OperatingMode : uint8_t
+    {
+        STANDBY           = 0x00, ///< starts new conversion at trigger event
+        SLEEP             = 0x01, ///< sleep
+        CONTINUOUS        = 0x02, ///< continuous measurement mode
+        WAKE_UP_AND_SLEEP = 0x03, ///< wakeu-up and slee mode
     };
 
     /// Constructor.
@@ -98,41 +225,11 @@ public:
 
     friend class MagSensorTest;
     friend class Input;
-    friend class MagneticEncoder;
-
-    enum BitMasks
-    {
-        /// Mask for averaging field in DEVICE_CONFIG_1 register.
-        DCONF1_AVG_MASK = 0b11100,
-        /// Average 1 saples.
-        DCONF1_AVG_1 = (0 << 2),
-        /// Average 2 saples.
-        DCONF1_AVG_2 = (1 << 2),
-        /// Average 4 saples.
-        DCONF1_AVG_4 = (2 << 2),
-        /// Average 8 saples.
-        DCONF1_AVG_8 = (3 << 2),
-        /// Average 16 saples.
-        DCONF1_AVG_16 = (4 << 2),
-        /// Average 32 saples.
-        DCONF1_AVG_32 = (5 << 2),
-
-        /// Mask for MAG_GAIN_CH bits in the SENSOR_CONFIG_2 register.
-        SCONF2_MAG_GAIN_CH_MASK = 1 << 4,
-        SCONF2_MAG_GAIN_CH_ADJ1 = 0,
-        SCONF2_MAG_GAIN_CH_ADJ2 = SCONF2_MAG_GAIN_CH_MASK,
-
-        /// Mask for ANGLE_EN bits in the SENSOR_CONFIG_2 register.
-        SCONF2_ANGLE_EN_MASK = 0b1100,
-        SCONF2_ANGLE_EN_OFF = 0 << 2,
-        SCONF2_ANGLE_EN_XY = 1 << 2,
-        SCONF2_ANGLE_EN_YZ = 2 << 2,
-        SCONF2_ANGLE_EN_XZ = 3 << 2,
-    };
 
     /// Checks whether the magnetic sensor is present.
-    /// @return true if it is there and responding.
-    bool is_present()
+    /// @return device identifier, else ID_UNKNOWN if not detected or uknown
+    ///         device
+    DeviceID is_present()
     {
         uint8_t rc[3];
         // We start with a dummy read to ensure I2C is in a known state.
@@ -141,33 +238,95 @@ public:
         {
             // Error reading from i2c.
             LOG(VERBOSE, "error read");
-            return false;
+            return DeviceID::ERROR;
         }
-        if (rc[1] != 0x49 || rc[2] != 0x54)
+        if ((rc[0] != static_cast<uint8_t>(DeviceID::MT_40_AND_80) &&
+             rc[0] != static_cast<uint8_t>(DeviceID::MT_133_AND_266)) ||
+            rc[1] != 0x49 || rc[2] != 0x54)
         {
             LOG(VERBOSE, "read %x %x %x", rc[0], rc[1], rc[2]);
-            return false;
+            return DeviceID::UNKNOWN;
         }
-        return true;
+        return static_cast<DeviceID>(rc[0]);
+    }
+
+    /// Get the device status.
+    /// @return bit mask of DeviceStatus
+    DeviceStatus get_device_status()
+    {
+        uint8_t result;
+        register_read(DEVICE_STATUS, &result, 1);
+        return static_cast<DeviceStatus>(result);
+    }
+
+    /// Get the device status.
+    /// @param bit mask of DeviceStatus bits to clear
+    void clr_device_status(DeviceStatus status)
+    {
+        register_write(DEVICE_STATUS, static_cast<uint8_t>(status));
+    }
+
+    /// Enable/disable channels.
+    /// @param enable The channel set to enable. Default is all channels off.
+    void enable_channels(ChannelEnable enable)
+    {
+        register_modify(
+            SENSOR_CONFIG_1, SCONF1_MAG_CH_MASK, static_cast<uint8_t>(enable));
+    }
+
+    /// Set the sleep time between channels in wake and sleep mode.
+    /// @param t The sleep time between conversions.
+    void set_sleep_time(SleepTime t)
+    {
+        register_modify(SENSOR_CONFIG_1, SCONF1_SLEEP_TIME_MASK,
+            static_cast<uint8_t>(t));
+    }
+
+    /// Set the interrupt config.
+    /// @param config InterruptConfig options or'd together.
+    void set_interrupt_config(InterruptConfig config)
+    {
+        register_write(INT_CONFIG_1, static_cast<uint8_t>(config));
+    }
+
+    /// Set the operating mode.
+    /// @param mode operating mode to set
+    void set_operating_mode(OperatingMode mode)
+    {
+        register_modify(DEVICE_CONFIG_2, DCONF2_OPERATING_MODE_MASK,
+            static_cast<uint8_t>(mode));
+    }
+
+    /// Get the conversion status.
+    /// @return mask of ConversionStatus bits
+    uint8_t get_conversion_status()
+    {
+        uint8_t result;
+        register_read(CONV_STATUS, &result, 1);
+        return result;
+    }
+
+    /// Clear the power on reset bit of the conversion status.
+    void clr_por_conversion_status()
+    {
+        register_write(
+            CONV_STATUS, static_cast<uint8_t>(ConversionStatus::POR_MASK));
     }
 
     /// Sets the oversampling+averaging mode.
-    ///
-    /// @param val DCONF1_AVG_* to determine what the oversampling should be.
-    ///
-    void set_oversampling(BitMasks val)
+    /// @param avg average oversample setting
+    void set_oversampling(ConversionAverage avg)
     {
-        register_modify(DEVICE_CONFIG_1, DCONF1_AVG_MASK, val);
+        register_modify(
+            DEVICE_CONFIG_1, DCONF1_AVG_MASK, static_cast<uint8_t>(avg));
     }
 
     /// Sets whether angle measurement should be enabled.
-    ///
-    /// @param val SCONF2_ANGLE_EN_* to determine which axis to enable angle
-    /// measurement on.
-    ///
-    void set_angle_en(BitMasks val)
+    /// @param angle angle measurement to enabld (or disable)
+    void set_angle_en(AngleEnable angle)
     {
-        register_modify(SENSOR_CONFIG_2, SCONF2_ANGLE_EN_MASK, val);
+        register_modify(
+            SENSOR_CONFIG_2, SCONF2_ANGLE_EN_MASK, static_cast<uint8_t>(angle));
     }
 
     /// Sets angle gain parameters.
@@ -209,7 +368,48 @@ public:
         return register_read(DEVICE_ID);
     }
 
+    /// Read the conversion results.
+    /// @param xyz results as a three item array in order of X, Y, and Z
+    void read_conversion_results(int16_t xyz[3])
+    {
+        register_read(X_MSB_RESULT, (uint8_t*)xyz, 6);
+        xyz[0] = be16toh(xyz[0]);
+        xyz[1] = be16toh(xyz[1]);
+        xyz[2] = be16toh(xyz[2]);
+    }
+
+    /// Read the angle result.
+    /// @return angle in degrees (0 - 360) * 16
+    int16_t read_angle_result()
+    {
+        int16_t angle;
+        register_read(ANGLE_RESULT_MSB, (uint8_t*)&angle, sizeof(int16_t));
+        return be16toh(angle);
+    }
+
 private:
+    /// Useful bit masks.
+    enum BitMasks
+    {
+        /// Mask for averaging field in DEVICE_CONFIG_1 register.
+        DCONF1_AVG_MASK = 0b11100,
+
+        /// Mask for the operating mode in DEVICE_CONFIG_2 register.
+        DCONF2_OPERATING_MODE_MASK = 0b11,
+
+        SCONF1_MAG_CH_MASK     = 0b11110000, ///< Channel enable mask.
+        SCONF1_SLEEP_TIME_MASK = 0b00001111, ///< Channel enable mask.
+
+        /// Mask for MAG_GAIN_CH bits in the SENSOR_CONFIG_2 register.
+        SCONF2_MAG_GAIN_CH_MASK = 1 << 4,
+        SCONF2_MAG_GAIN_CH_ADJ1 = 0,
+        SCONF2_MAG_GAIN_CH_ADJ2 = SCONF2_MAG_GAIN_CH_MASK,
+
+        /// Mask for ANGLE_EN bits in the SENSOR_CONFIG_2 register.
+        SCONF2_ANGLE_EN_MASK = 0b1100,
+    };
+
+    /// Device register address offsets.
     enum Registers
     {
         DEVICE_CONFIG_1 = 0x0,     // Configure Device Operation Modes
@@ -330,5 +530,25 @@ private:
     /// 7-bit address, right aligned.
     const uint8_t i2cAddress_;
 };
+
+/// '|' operator for DeviceStatus.
+/// @param a left hand operand
+/// @param b right hand operand
+inline TMAG5273::DeviceStatus operator|(
+    const TMAG5273::DeviceStatus &a, const TMAG5273::DeviceStatus &b)
+{
+    return static_cast<TMAG5273::DeviceStatus>(
+        static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+}
+
+/// '|' operator for InterruptConfig.
+/// @param a left hand operand
+/// @param b right hand operand
+inline TMAG5273::InterruptConfig operator|(
+    const TMAG5273::InterruptConfig &a, const TMAG5273::InterruptConfig &b)
+{
+    return static_cast<TMAG5273::InterruptConfig>(
+        static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+}
 
 #endif // _FREERTOS_DRIVERS_COMMON_TMAG5273_HXX_
