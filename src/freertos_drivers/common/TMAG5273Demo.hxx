@@ -32,9 +32,9 @@ public:
         sen_.set_offset_2((110+330)/2/16); //-128);
         
         // Average 32 samples together.
-        sen_.set_oversampling(TMAG5273::DCONF1_AVG_32);
+        sen_.set_oversampling(TMAG5273::ConversionAverage::AVG_32);
         // Enable angle sensor on x-z axis
-        sen_.set_angle_en(TMAG5273::SCONF2_ANGLE_EN_XZ);
+        sen_.set_angle_en(TMAG5273::AngleEnable::XZ_ENABLE);
 
         // 20 / 32 gain config, Z channel is higher.
         //sen_.set_angle_gain(160, true);
