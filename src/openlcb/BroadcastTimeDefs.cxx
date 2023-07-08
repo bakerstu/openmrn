@@ -139,7 +139,15 @@ bool BroadcastTimeDefs::string_to_time(
 //
 int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
 {
-    float rate = std::stof(srate);
+    const char *rate_c_str = srate.c_str();
+    char *end;
+    float rate = strtof(rate_c_str, &end);
+
+    if (end == rate_c_str)
+    {
+        // None of the string processed.
+        return 0;
+    }
     if (rate < -512)
     {
         // set to minimum valid rate

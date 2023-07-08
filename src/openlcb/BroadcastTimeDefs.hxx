@@ -362,7 +362,9 @@ struct BroadcastTimeDefs
     
     /// Convert a string (float) to rate quarters.
     /// @param srate rate in the form of a string float
-    /// @return rate in the form of an int16_t in rate quarters
+    /// @return Rate in the form of an int16_t in rate quarters. If a
+    ///         conversion error occurs, then the returned value will be 0,
+    ///         which is at least a valid rate.
     static int16_t string_to_rate_quarters(const std::string &srate);
 };
 
