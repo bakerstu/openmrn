@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013 - 2017, Balazs Racz
+ * Copyright (c) 2013 - 2023, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,159 +29,10 @@
  * An application for downloading an entire memory space from a node.
  *
  * @author Balazs Racz
- * @date 7 Sep 2017
+ * @date 1 Mar 2023
  */
 
-#include <fcntl.h>
-#include <getopt.h>
-#include <stdio.h>
-#include <unistd.h>
-
-#include <memory>
-
-#include "os/os.h"
-#include "utils/constants.hxx"
-#include "utils/Hub.hxx"
-#include "utils/GridConnectHub.hxx"
-#include "utils/GcTcpHub.hxx"
-#include "utils/Crc.hxx"
-#include "utils/FileUtils.hxx"
-#include "utils/format_utils.hxx"
-#include "executor/Executor.hxx"
-#include "executor/Service.hxx"
-
-#include "openlcb/IfCan.hxx"
-#include "openlcb/DatagramCan.hxx"
-#include "openlcb/BootloaderClient.hxx"
-#include "openlcb/If.hxx"
-#include "openlcb/AliasAllocator.hxx"
-#include "openlcb/DefaultNode.hxx"
-#include "openlcb/NodeInitializeFlow.hxx"
-#include "openlcb/MemoryConfig.hxx"
-#include "openlcb/MemoryConfigClient.hxx"
-#include "utils/socket_listener.hxx"
-
-NO_THREAD nt;
-Executor<1> g_executor(nt);
-Service g_service(&g_executor);
-CanHubFlow can_hub0(&g_service);
-
-static const openlcb::NodeID NODE_ID = 0x05010101181FULL;
-
-openlcb::IfCan g_if_can(&g_executor, &can_hub0, 3, 3, 2);
-openlcb::InitializeFlow g_init_flow{&g_service};
-openlcb::CanDatagramService g_datagram_can(&g_if_can, 10, 2);
-static openlcb::AddAliasAllocator g_alias_allocator(NODE_ID, &g_if_can);
-openlcb::DefaultNode g_node(&g_if_can, NODE_ID);
-openlcb::MemoryConfigHandler g_memcfg(&g_datagram_can, &g_node, 10);
-openlcb::MemoryConfigClient g_memcfg_cli(&g_node, &g_memcfg);
-
-namespace openlcb
-{
-Pool *const g_incoming_datagram_allocator = mainBufferPool;
-}
-
-static int port = 12021;
-static const char *host = "localhost";
-static const char *device_path = nullptr;
-static const char *filename = nullptr;
-static uint64_t destination_nodeid = 0;
-static uint64_t destination_alias = 0;
-static int memory_space_id = openlcb::MemoryConfigDefs::SPACE_CONFIG;
-static uint32_t offset = 0;
-static constexpr uint32_t NLEN = (uint32_t)-1;
-static uint32_t len = NLEN;
-static bool partial_read = false;
-static bool do_read = false;
-static bool do_write = false;
-
-void usage(const char *e)
-{
-    fprintf(stderr,
-        "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
-        "memory_space_id] [-o offset] [-l len] [-c csum_algo] (-r|-w)  "
-        "(-n nodeid | -a alias) -f filename\n",
-        e);
-    fprintf(stderr, "Connects to an openlcb bus and performs the "
-                    "bootloader protocol on openlcb node with id nodeid with "
-                    "the contents of a given file.\n");
-    fprintf(stderr,
-        "The bus connection will be through an OpenLCB HUB on "
-        "destination_host:port with OpenLCB over TCP "
-        "(in GridConnect format) protocol, or through the CAN-USB device "
-        "(also in GridConnect protocol) found at device_path. Device takes "
-        "precedence over TCP host:port specification.");
-    fprintf(stderr, "The default target is localhost:12021.\n");
-    fprintf(stderr, "nodeid should be a 12-char hex string with 0x prefix and "
-                    "no separators, like '-b 0x05010101141F'\n");
-    fprintf(stderr, "alias should be a 3-char hex string with 0x prefix and no "
-                    "separators, like '-a 0x3F9'\n");
-    fprintf(stderr, "memory_space_id defines which memory space to use "
-                    "data into. Default is '-s 0xF0'.\n");
-    fprintf(stderr, "-r or -w  defines whether to read or write.\n");
-    exit(1);
-}
-
-void parse_args(int argc, char *argv[])
-{
-    int opt;
-    while ((opt = getopt(argc, argv, "hp:i:d:n:a:s:f:rwo:l:")) >= 0)
-    {
-        switch (opt)
-        {
-            case 'h':
-                usage(argv[0]);
-                break;
-            case 'p':
-                port = atoi(optarg);
-                break;
-            case 'i':
-                host = optarg;
-                break;
-            case 'd':
-                device_path = optarg;
-                break;
-            case 'f':
-                filename = optarg;
-                break;
-            case 'n':
-                destination_nodeid = strtoll(optarg, nullptr, 16);
-                break;
-            case 'a':
-                destination_alias = strtoul(optarg, nullptr, 16);
-                break;
-            case 's':
-                memory_space_id = strtol(optarg, nullptr, 16);
-                break;
-            case 'o':
-                offset = strtol(optarg, nullptr, 10);
-                break;
-            case 'l':
-                len = strtol(optarg, nullptr, 10);
-                break;
-            case 'r':
-                do_read = true;
-                break;
-            case 'w':
-                do_write = true;
-                break;
-            default:
-                fprintf(stderr, "Unknown option %c\n", opt);
-                usage(argv[0]);
-        }
-    }
-    partial_read = do_read && ((offset != 0) || (len != NLEN));
-    if ((!filename && !partial_read) ||
-        (!destination_nodeid && !destination_alias))
-    {
-        usage(argv[0]);
-    }
-    if ((do_read ? 1 : 0) + (do_write ? 1 : 0) != 1)
-    {
-        fprintf(stderr, "Must set exactly one of option -r and option -w.\n\n");
-        usage(argv[0]);
-    }
-}
+#include "main.hxx"
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -191,6 +42,7 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
+
     int conn_fd = 0;
     if (device_path)
     {
@@ -203,50 +55,6 @@ int appl_main(int argc, char *argv[])
     HASSERT(conn_fd >= 0);
     create_gc_port_for_can_hub(&can_hub0, conn_fd);
 
-    g_if_can.add_addressed_message_support();
-    // Bootstraps the alias allocation process.
-    g_if_can.alias_allocator()->send(g_if_can.alias_allocator()->alloc());
-
-    g_executor.start_thread("g_executor", 0, 1024);
-    usleep(400000);
-
-    openlcb::NodeHandle dst;
-    dst.alias = destination_alias;
-    dst.id = destination_nodeid;
-    HASSERT((!!do_read) + (!!do_write)  == 1);
-    if (do_write)
-    {
-        auto payload = read_file_to_string(filename);
-        printf("Read %" PRIdPTR
-               " bytes from file %s. Writing to memory space 0x%02x\n",
-               payload.size(), filename, memory_space_id);
-        auto b = invoke_flow(&g_memcfg_cli,
-            openlcb::MemoryConfigClientRequest::WRITE, dst, memory_space_id, 0,
-            std::move(payload));
-        printf("Result: %04x\n", b->data()->resultCode);
-    }
-
-    if (do_read && partial_read)
-    {
-        auto b = invoke_flow(&g_memcfg_cli, openlcb::MemoryConfigClientRequest::READ_PART, dst, memory_space_id, offset, len);
-        printf("Result: %04x\n", b->data()->resultCode);
-        printf("Data: %s\n", string_to_hex(b->data()->payload).c_str());
-    }
-    else if (do_read)
-    {
-        auto cb = [](openlcb::MemoryConfigClientRequest *rq) {
-            static size_t last_len = rq->payload.size();
-            if ((last_len & ~1023) != (rq->payload.size() & ~1023)) {
-                printf("Loaded %d bytes\n", (int)rq->payload.size());
-                last_len = rq->payload.size();
-            }
-        };
-        auto b = invoke_flow(&g_memcfg_cli, openlcb::MemoryConfigClientRequest::READ, dst, memory_space_id, std::move(cb));
-        printf("Result: %04x\n", b->data()->resultCode);
-        write_string_to_file(filename, b->data()->payload);
-        fprintf(stderr, "Written %" PRIdPTR " bytes to file %s.\n",
-            b->data()->payload.size(), filename);
-    }
-
+    execute();
     return 0;
 }

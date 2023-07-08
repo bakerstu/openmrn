@@ -1,10 +1,10 @@
 /** \copyright
- * Copyright (c) 2018, Balazs Racz
+ * Copyright (c) 2013, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,41 +24,42 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file tc_ioctl.h
- * This file implements can specific ioctl() keys for serial devices.
+ * \file main.cxx
+ *
+ * An application for updating the firmware of a remote node on the bus.
  *
  * @author Balazs Racz
- * @date 28 Feb 2018
+ * @date 3 Aug 2013
  */
 
-#ifndef _FREERTOS_TC_IOCTL_H_
-#define _FREERTOS_TC_IOCTL_H_
+#include <emscripten.h>
+#include <emscripten/bind.h>
+#include <emscripten/val.h>
 
-#include "freertos/stropts.h"
+#include "utils/JSSerialPort.hxx"
+#include "utils/JSTcpClient.hxx"
 
-/** Magic number for this driver's ioctl calls */
-#define TERMIOS_IOC_MAGIC ('T')
+#include "main.hxx"
 
-#define TCSBRK      IO(TERMIOS_IOC_MAGIC, 9)
+/** Entry point to application.
+ * @param argc number of command line arguments
+ * @param argv array of command line arguments
+ * @return 0, should never return
+ */
+int appl_main(int argc, char *argv[])
+{
+    parse_args(argc, argv);
+    std::unique_ptr<JSSerialPort> dev;
+    std::unique_ptr<JSTcpClient> client;
+    if (device_path)
+    {
+        dev.reset(new JSSerialPort(&can_hub0, device_path));
+    }
+    else
+    {
+        client.reset(new JSTcpClient(&can_hub0, host, port));
+    }
 
-#define TCPARNONE   IO(TERMIOS_IOC_MAGIC, 0xF0)
-#define TCPARODD    IO(TERMIOS_IOC_MAGIC, 0xF1)
-#define TCPAREVEN   IO(TERMIOS_IOC_MAGIC, 0xF2)
-#define TCPARONE    IO(TERMIOS_IOC_MAGIC, 0xF3)
-#define TCPARZERO   IO(TERMIOS_IOC_MAGIC, 0xF4)
-/// Use 9-bit reception mode
-#define TCNINEBITRX IO(TERMIOS_IOC_MAGIC, 0xF5)
-/// One stop bit
-#define TCSTOPONE   IO(TERMIOS_IOC_MAGIC, 0xF8) 
-/// Two stop bits
-#define TCSTOPTWO   IO(TERMIOS_IOC_MAGIC, 0xF9)
-
-/// Argument is a Notifiable* pointer. This notifiable will be invoked when all
-/// bytes have completed transferring and the transmit engine is idle.
-#define TCDRAINNOTIFY   IOW(TERMIOS_IOC_MAGIC, 0xE0, 4)
-
-/// Argument is the desired baud rate for the port.
-#define TCBAUDRATE   IOW(TERMIOS_IOC_MAGIC, 0xE1, 4)
-
-#endif // _FREERTOS_TC_IOCTL_H_
-
+    execute();
+    return 0;
+}

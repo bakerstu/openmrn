@@ -8,7 +8,7 @@ INCLUDE memory_map.ld
 
 __top_RAM = ORIGIN(RAM) + LENGTH(RAM);
 
-__cs3_heap_end = __top_RAM;
+__cs3_heap_end = __top_RAM - 1024;
 
 __start_ram = ORIGIN(RAM);
 __end_ram = __top_RAM;
@@ -41,6 +41,8 @@ SECTIONS
         __bss_section_table = .;
         LONG(    ADDR(.bss));
         LONG(  SIZEOF(.bss));
+        LONG(__cs3_heap_end);
+        LONG(__top_RAM - __cs3_heap_end - 64);
         __bss_section_table_end = .;
         __section_table_end = . ;
         /* End of Global Section Table */
