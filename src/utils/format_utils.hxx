@@ -130,6 +130,21 @@ string int64_to_string_hex(int64_t value, unsigned padding = 0);
 /// original data.
 string string_to_hex(const string& arg);
 
+/// Converts hex bytes to binary representation.
+///
+/// @param input points to the input hexadecimal string
+/// @param len how many bytes are there
+/// @param output parsed byte data will be appended here
+/// @param ignore_nonhex if true, jumps over all nonhex characters. If false,
+/// stops at the first nonhex character.
+///
+/// @return number of ascii bytes consumed from the input. For example 0 if the
+/// first byte was not hex and ignore_nonhex=false. If the number of hex digits
+/// is not even, there will be data loss.
+///
+size_t hex_to_string(
+    const char *input, size_t len, string *output, bool ignore_nonhex = false);
+
 /// Formats a MAC address to string. Works both for Ethernet addresses as well
 /// as for OpenLCB node IDs.
 ///

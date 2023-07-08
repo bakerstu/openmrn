@@ -224,7 +224,10 @@ struct DccHwDefs {
   static const int RAILCOM_CUTOUT_POST_DELTA_USEC = -16;
   /// Adds this to the negative half after the railcom cutout is done.
   static const int RAILCOM_CUTOUT_POST_NEGATIVE_DELTA_USEC = -4;
-    
+  /// The DCC end of packet bit (after the cutout) has an asymmetry due to the
+  /// interrupt CPU latency, this constant tunes it to disappear. This time
+  /// gets deducted from the second half.
+  static const int RESYNC_DELAY_USEC = 7;
 
   /** These timer blocks will be synchronized once per packet, when the
    *  deadband delay is set up. */

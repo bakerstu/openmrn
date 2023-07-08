@@ -32,6 +32,9 @@
  * @date 2 May 2015
  */
 
+#ifndef _UTILS_EWMA_HXX_
+#define _UTILS_EWMA_HXX_
+
 #include <time.h>
 #include <stdint.h>
 
@@ -178,3 +181,5 @@ public:
     float alpha_;    ///< coefficient for EWMA
     float avg_{0.0}; ///< current state of EWMA
 };
+
+#endif // _UTILS_EWMA_HXX_
