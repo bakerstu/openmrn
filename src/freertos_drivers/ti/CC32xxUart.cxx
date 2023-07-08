@@ -314,15 +314,16 @@ void CC32xxUart::interrupt_handler()
                 rxBuf->signal_condition_from_isr();
             }
         }
-        else
+        else if (data >= 0 && data <= 0xff)
         {
-            if (data >= 0 && data <= 0xff)
+            if (rxBuf->space() < 1)
+            {
+                ++overrunCount;
+            }
+            else
             {
                 unsigned char c = data;
-                if (rxBuf->put(&c, 1) == 0)
-                {
-                    ++overrunCount;
-                }
+                rxBuf->put(&c, 1);
                 rxBuf->signal_condition_from_isr();
             }
         }

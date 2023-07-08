@@ -53,7 +53,6 @@
 /// Two stop bits
 #define TCSTOPTWO   IO(TERMIOS_IOC_MAGIC, 0xF9)
 
-
 /// Argument is a Notifiable* pointer. This notifiable will be invoked when all
 /// bytes have completed transferring and the transmit engine is idle.
 #define TCDRAINNOTIFY   IOW(TERMIOS_IOC_MAGIC, 0xE0, 4)
