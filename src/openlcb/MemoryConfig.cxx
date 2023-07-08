@@ -42,7 +42,7 @@
 #include "utils/logging.h"
 #ifdef __FreeRTOS__
 #include "freertos/can_ioctl.h"
-#else
+#elif defined(ESP32)
 #include "can_ioctl.h"
 #endif
 
