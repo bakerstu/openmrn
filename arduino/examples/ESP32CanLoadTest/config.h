@@ -9,8 +9,8 @@
 #include "freertos_drivers/esp32/Esp32WiFiConfiguration.hxx"
 
 // catch invalid configuration at compile time
-#if !defined(USE_CAN) && !defined(USE_WIFI)
-#error "Invalid configuration detected, USE_CAN or USE_WIFI must be defined."
+#if !defined(USE_TWAI) && !defined(USE_WIFI)
+#error "Invalid configuration detected, USE_TWAI or USE_WIFI must be defined."
 #endif
 
 namespace openlcb
@@ -32,27 +32,17 @@ namespace openlcb
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4,
     "OpenMRN",
-#if defined(USE_WIFI) && !defined(USE_CAN)
+#if defined(USE_WIFI) && !defined(USE_TWAI)
     "Arduino IO Board (WiFi)",
-#elif defined(USE_CAN) && !defined(USE_WIFI)
+#elif defined(USE_TWAI) && !defined(USE_WIFI)
     "Arduino IO Board (CAN)",
-#elif defined(USE_CAN) && defined(USE_WIFI)
+#elif defined(USE_TWAI) && defined(USE_WIFI)
     "Arduino IO Board (WiFi/CAN)",
 #else
     "Arduino IO Board",
 #endif
     ARDUINO_VARIANT,
     "1.00"};
-
-constexpr uint8_t NUM_OUTPUTS = 8;
-constexpr uint8_t NUM_INPUTS = 8;
-
-/// Declares a repeated group of a given base group and number of repeats. The
-/// ProducerConfig and ConsumerConfig groups represent the configuration layout
-/// needed by the ConfiguredProducer and ConfiguredConsumer classes, and come
-/// from their respective hxx file.
-using AllConsumers = RepeatedGroup<ConsumerConfig, NUM_OUTPUTS>;
-using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
@@ -64,8 +54,6 @@ CDI_GROUP(IoBoardSegment, Segment(MemoryConfigDefs::SPACE_CONFIG), Offset(128));
 /// Each entry declares the name of the current entry, then the type and then
 /// optional arguments list.
 CDI_GROUP_ENTRY(internal_config, InternalConfigData);
-CDI_GROUP_ENTRY(consumers, AllConsumers, Name("Outputs"));
-CDI_GROUP_ENTRY(producers, AllProducers, Name("Inputs"));
 #if defined(USE_WIFI)
 CDI_GROUP_ENTRY(wifi, WiFiConfiguration, Name("WiFi Configuration"));
 #endif

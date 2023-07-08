@@ -1,0 +1,46 @@
+#include "utils/async_if_test_helper.hxx"
+
+#include "openlcb/BroadcastTimeDefs.hxx"
+
+#if 0
+#define PRINT_ALL_PACKETS() print_all_packets()
+#else
+#define PRINT_ALL_PACKETS()
+#endif
+
+namespace openlcb
+{
+
+TEST(BroadcastTimeDefs, string_to_rate_quarters)
+{
+    int16_t rate;
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("Freddy");
+    EXPECT_EQ(0, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("2000");
+    EXPECT_EQ(2047, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("-2000");
+    EXPECT_EQ(-2048, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("");
+    EXPECT_EQ(0, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("-");
+    EXPECT_EQ(0, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("    ");
+    EXPECT_EQ(0, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("511,75");
+    EXPECT_EQ(2044, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("1.75");
+    EXPECT_EQ(7, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("-1.75");
+    EXPECT_EQ(-7, rate);
+}
+
+} // namespace openlcb

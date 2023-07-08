@@ -239,6 +239,7 @@ private:
     void start_stop_logic(bool started)
     {
         bool notify = false;
+        time_t val = 0;
         {
             AtomicHolder h(this);
             if (started_ != started)
@@ -254,12 +255,13 @@ private:
                 }
                 started_ = started;
                 notify = true;
+                val = seconds_;
             }
             // release AtomicHolder
         }
         if (notify)
         {
-            service_callbacks();
+            service_callbacks(val, val);
         }
     }
 
@@ -333,19 +335,16 @@ private:
 
         {
             bool notify = false;
+            time_t old_seconds = 0;
+            time_t new_seconds = 0;
             {
                 AtomicHolder h(this);
-                time_t old_seconds;
+                old_seconds = time();
                 if (rate_ != rateRequested_ ||
                     (immediateUpdate_ && immediatePending_))
                 {
                     // rate changed or an immediate update was pending.
                     notify = true;
-                }
-                else
-                {
-                    // we will need to check for jitter later
-                    old_seconds = time();
                 }
 
                 // we are about to commit an updated time, reset the flags
@@ -355,6 +354,7 @@ private:
                 rate_ = rateRequested_;
                 seconds_ = ::mktime(&tm_);
                 timestamp_ = OSTime::get_monotonic();
+                new_seconds = seconds_;
                 if (rolloverPending_)
                 {
                     // roll forward/back the 3 second delay for the year/date
@@ -377,7 +377,7 @@ private:
             }
             if (notify)
             {
-                service_callbacks();
+                service_callbacks(old_seconds, new_seconds);
             }
         }
 

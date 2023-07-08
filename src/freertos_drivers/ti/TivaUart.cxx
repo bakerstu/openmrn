@@ -71,6 +71,7 @@ TivaUart::TivaUart(const char *name, unsigned long base, uint32_t interrupt,
     , hwFIFO_(hw_fifo)
     , uartMode_(mode)
     , txPending_(false)
+    , nineBit_(false)
 {
     static_assert(
         UART_CONFIG_PAR_NONE == 0, "driverlib changed against our assumptions");
@@ -218,14 +219,35 @@ void TivaUart::interrupt_handler()
     while (MAP_UARTCharsAvail(base_))
     {
         long data = MAP_UARTCharGetNonBlocking(base_);
-        if (data >= 0 && data <= 0xff)
+        if (nineBit_)
         {
-            unsigned char c = data;
-            if (rxBuf->put(&c, 1) == 0)
+            if (rxBuf->space() < 2)
             {
-                overrunCount++;
+                ++overrunCount;
             }
-            rxBuf->signal_condition_from_isr();
+            else
+            {
+                // parity error bit is moved to the ninth bit, then two bytes
+                // are written to the buffer.
+                long bit9 = (data & 0x200) >> 1;
+                data &= 0xff;
+                data |= bit9;
+                rxBuf->put((uint8_t *)&data, 2);
+                rxBuf->signal_condition_from_isr();
+            }
+        }
+        else if (data >= 0 && data <= 0xff)
+        {
+            if (rxBuf->space() < 1)
+            {
+                ++overrunCount;
+            }
+            else
+            {
+                unsigned char c = data;
+                rxBuf->put(&c, 1);
+                rxBuf->signal_condition_from_isr();
+            }
         }
     }
     /* transmit a character if we have pending tx data */
@@ -302,6 +324,13 @@ int TivaUart::ioctl(File *file, unsigned long int key, unsigned long data)
             uartMode_ |= UART_CONFIG_PAR_ONE;
             MAP_UARTParityModeSet(base_, UART_CONFIG_PAR_ONE);
             break;
+        case TCNINEBITRX:
+            nineBit_ = data != 0;
+            if (!nineBit_)
+            {
+                break;
+            }
+            // fall through
         case TCPARZERO:
             uartMode_ &= ~UART_CONFIG_PAR_MASK;
             uartMode_ |= UART_CONFIG_PAR_ZERO;

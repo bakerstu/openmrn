@@ -38,7 +38,7 @@
 
 #include <Arduino.h>
 
-#include "freertos_drivers/arduino/ArduinoGpio.hxx"
+#include "CDIXMLGenerator.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
 #include "freertos_drivers/arduino/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
@@ -49,25 +49,57 @@
 
 #if defined(ESP32)
 
+#include <esp_idf_version.h>
 #include <esp_task.h>
 #include <esp_task_wdt.h>
 
-namespace openmrn_arduino {
+namespace openmrn_arduino
+{
 
 /// Default stack size to use for all OpenMRN tasks on the ESP32 platform.
 constexpr uint32_t OPENMRN_STACK_SIZE = 4096L;
 
 /// Default thread priority for any OpenMRN owned tasks on the ESP32 platform.
-/// ESP32 hardware CAN RX and TX tasks run at lower priority (-1 and -2 
-/// respectively) of this default priority to ensure timely consumption of CAN
-/// frames from the hardware driver.
 /// Note: This is set to one priority level lower than the TCP/IP task uses on
 /// the ESP32.
 constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 } // namespace openmrn_arduino
 
+#include "freertos_drivers/esp32/Esp32Gpio.hxx"
+#include "freertos_drivers/esp32/Esp32SocInfo.hxx"
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
+
+// If we are using ESP-IDF v4.3 (or later) enable the Esp32Ledc API.
+#include "freertos_drivers/esp32/Esp32Ledc.hxx"
+
+// ESP32-H2 and ESP32-C2 do not have a built-in TWAI controller.
+#if !defined(CONFIG_IDF_TARGET_ESP32H2) && !defined(CONFIG_IDF_TARGET_ESP32C2)
+
+// If we are using ESP-IDF v4.3 (or later) enable the usage of the TWAI device
+// which allows usage of the filesystem based CAN interface methods.
+#include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"
+#define HAVE_CAN_FS_DEVICE
+
+// The ESP-IDF VFS layer has an optional wrapper around the select() interface
+// when disabled we can not use select() for the CAN/TWAI driver. Normally this
+// is enabled for arduino-esp32.
+#if CONFIG_VFS_SUPPORT_SELECT
+#define HAVE_CAN_FS_SELECT
+#endif
+
+#endif // NOT ESP32-H2 and NOT ESP32-C2
+
+#endif // IDF v4.3+
+
+#if defined(CONFIG_IDF_TARGET_ESP32)
+// Note: This code is deprecated in favor of the TWAI interface which exposes
+// both select() and fnctl() interfaces. Support for this may be removed in the
+// future.
 #include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
+#endif // ESP32 only
+
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiManager.hxx"
 
@@ -79,11 +111,13 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #ifdef ARDUINO_ARCH_STM32
 
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/stm32/Stm32Can.hxx"
 
 #endif
 
-namespace openmrn_arduino {
+namespace openmrn_arduino
+{
 
 /// Bridge class that connects an Arduino API style serial port (sending CAN
 /// frames via gridconnect format) to the OpenMRN core stack. This can be
@@ -409,9 +443,9 @@ public:
                               , OPENMRN_TASK_PRIORITY // priority
                               , nullptr               // task handle
                               , PRO_CPU_NUM);         // cpu core
-#else
+#else // NOT ESP32
         stack_->executor()->start_thread(
-            "OpenMRN", OPENMRN_TASK_PRIORITY, OPENMRN_STACK_SIZE);
+            "OpenMRN", 0 /* default priority */, 0 /* default stack size */);
 #endif // ESP32
     }
 #endif // OPENMRN_FEATURE_SINGLE_THREADED
@@ -444,6 +478,40 @@ public:
         loopMembers_.push_back(new CanBridge(port, stack()->can_hub()));
     }
 
+#if defined(HAVE_CAN_FS_DEVICE)
+    /// Adds a CAN bus port with synchronous driver API.
+    void add_can_port_blocking(const char *device)
+    {
+        stack_->add_can_port_blocking(device);
+    }
+
+    /// Adds a CAN bus port with asynchronous driver API.
+    void add_can_port_async(const char *device)
+    {
+        stack_->add_can_port_async(device);
+    }
+
+#if defined(HAVE_CAN_FS_SELECT)
+    /// Adds a CAN bus port with select-based asynchronous driver API.
+    ///
+    /// NOTE: Be sure to call @ref start_executor_thread in the setup() method.
+    void add_can_port_select(const char *device)
+    {
+        stack_->add_can_port_select(device);
+    }
+
+    /// Adds a CAN bus port with select-based asynchronous driver API.
+    /// @param fd file descriptor to add to can hub
+    /// @param on_error Notifiable to wakeup on error
+    ///
+    /// NOTE: Be sure to call @ref start_executor_thread in the setup() method.
+    void add_can_port_select(int fd, Notifiable *on_error = nullptr)
+    {
+        stack_->add_can_port_select(fd, on_error);
+    }
+#endif // HAVE_CAN_FS_SELECT
+#endif // HAVE_CAN_FS_DEVICE
+
 #if defined(HAVE_FILESYSTEM)
     /// Creates the XML representation of the configuration structure and saves
     /// it to a file on the filesystem. Must be called after SPIFFS.begin() but
@@ -461,50 +529,13 @@ public:
     /// @param cfg is the global configuration instance (usually called cfg).
     /// @param filename is where the xml file can be stored on the
     /// filesystem. For example "/spiffs/cdi.xml".
+    /// @returns true if the cdi.xml was updated, false otherwise.
     template <class ConfigDef>
-    void create_config_descriptor_xml(
+    bool create_config_descriptor_xml(
         const ConfigDef &config, const char *filename)
     {
-        string cdi_string;
-        ConfigDef cfg(config.offset());
-        cfg.config_renderer().render_cdi(&cdi_string);
-        
-        cdi_string += '\0';
-
-        bool need_write = false;
-        FILE *ff = fopen(filename, "rb");
-        if (!ff)
-        {
-            need_write = true;
-        }
-        else
-        {
-            fclose(ff);
-            string current_str = read_file_to_string(filename);
-            if (current_str != cdi_string)
-            {
-                need_write = true;
-            }
-        }
-        if (need_write)
-        {
-            LOG(INFO, "Updating CDI file %s (len %u)", filename,
-                cdi_string.size());
-            write_string_to_file(filename, cdi_string);
-        }
-
-        // Creates list of event IDs for factory reset.
-        auto *v = new vector<uint16_t>();
-        cfg.handle_events([v](unsigned o) { v->push_back(o); });
-        v->push_back(0);
-        stack()->set_event_offsets(v);
-        // We leak v because it has to stay alive for the entire lifetime of
-        // the stack.
-
-        // Exports the file memory space.
-        openlcb::MemorySpace *space = new openlcb::ROFileMemorySpace(filename);
-        stack()->memory_config_handler()->registry()->insert(
-            stack()->node(), openlcb::MemoryConfigDefs::SPACE_CDI, space);
+        return CDIXMLGenerator::create_config_descriptor_xml(
+            config, filename, stack());
     }
 #endif // HAVE_FILESYSTEM
 
