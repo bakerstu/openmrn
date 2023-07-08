@@ -66,22 +66,48 @@ protected:
      * @param flags is the 1-byte payload of the DATAGRAM_OK message.*/
     Action respond_ok(uint8_t flags)
     {
-        responseMti_ = Defs::MTI_DATAGRAM_OK;
-        responseErrorCode_ = flags;
+        prepare_respond_ok(flags);
         return allocate_and_call(
             dg_service()->iface()->addressed_message_write_flow(),
             STATE(send_ok_response));
     }
 
+    
+    /** Sends a DATAGRAM_OK response to the datagram originator node. Call this
+     * from the user handler. Control will be returned ot the caller.
+     *
+     * @param flags is the 1-byte payload of the DATAGRAM_OK message.*/
+    void inline_respond_ok(uint8_t flags)
+    {
+        prepare_respond_ok(flags);
+        auto *b =
+            dg_service()->iface()->addressed_message_write_flow()->alloc();
+        respond_ok_helper(b);
+    }
+
 private:
+    /// Helper function for respond_ok.
+    /// @param flags flag byte to be returned.
+    void prepare_respond_ok(uint8_t flags)
+    {
+        responseMti_ = Defs::MTI_DATAGRAM_OK;
+        responseErrorCode_ = flags;
+    }
+
+    /// Helper function for respond_ok.
+    void respond_ok_helper(Buffer<GenMessage> *b)
+    {
+        b->data()->reset(responseMti_, message()->data()->dst->node_id(),
+            message()->data()->src,
+            Payload(1, (char)(responseErrorCode_ & 0xff)));
+        dg_service()->iface()->addressed_message_write_flow()->send(b);
+    }
+
     Action send_ok_response()
     {
         auto *b = get_allocation_result(
             dg_service()->iface()->addressed_message_write_flow());
-        b->data()->reset(responseMti_, message()->data()->dst->node_id(),
-                         message()->data()->src,
-                         Payload(1, (char)(responseErrorCode_ & 0xff)));
-        dg_service()->iface()->addressed_message_write_flow()->send(b);
+        respond_ok_helper(b);
         return call_immediately(STATE(ok_response_sent));
     }
 
