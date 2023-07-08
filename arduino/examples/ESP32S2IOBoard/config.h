@@ -9,8 +9,8 @@
 #include "freertos_drivers/esp32/Esp32WiFiConfiguration.hxx"
 
 // catch invalid configuration at compile time
-#if !defined(USE_CAN) && !defined(USE_WIFI)
-#error "Invalid configuration detected, USE_CAN or USE_WIFI must be defined."
+#if !defined(USE_TWAI) && !defined(USE_WIFI)
+#error "Invalid configuration detected, USE_TWAI or USE_WIFI must be defined."
 #endif
 
 namespace openlcb
@@ -32,24 +32,20 @@ namespace openlcb
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
     4,
     "OpenMRN",
-#if defined(USE_WIFI) && !defined(USE_CAN) && !defined(USE_TWAI)
+#if defined(USE_WIFI) && !defined(USE_TWAI)
     "Arduino IO Board (WiFi)",
-#elif defined(USE_CAN) && !defined(USE_WIFI)
-    "Arduino IO Board (CAN)",
 #elif defined(USE_TWAI) && !defined(USE_WIFI)
-    "Arduino IO Board (TWAI)",
-#elif defined(USE_CAN) && defined(USE_WIFI)
-    "Arduino IO Board (WiFi/CAN)",
+    "Arduino IO Board (CAN)",
 #elif defined(USE_TWAI) && defined(USE_WIFI)
-    "Arduino IO Board (WiFi/TWAI)",
+    "Arduino IO Board (WiFi/CAN)",
 #else
     "Arduino IO Board",
 #endif
     ARDUINO_VARIANT,
     "1.00"};
 
-constexpr uint8_t NUM_OUTPUTS = 8;
-constexpr uint8_t NUM_INPUTS = 8;
+constexpr uint8_t NUM_OUTPUTS = 14;
+constexpr uint8_t NUM_INPUTS = 14;
 
 /// Declares a repeated group of a given base group and number of repeats. The
 /// ProducerConfig and ConsumerConfig groups represent the configuration layout
@@ -60,7 +56,7 @@ using AllProducers = RepeatedGroup<ProducerConfig, NUM_INPUTS>;
 
 /// Modify this value every time the EEPROM needs to be cleared on the node
 /// after an update.
-static constexpr uint16_t CANONICAL_VERSION = 0x100a;
+static constexpr uint16_t CANONICAL_VERSION = 0x100b;
 
 /// Defines the main segment in the configuration CDI. This is laid out at
 /// origin 128 to give space for the ACDI user data at the beginning.

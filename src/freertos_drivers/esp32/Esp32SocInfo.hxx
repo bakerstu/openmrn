@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2014, Balazs Racz
+ * Copyright (c) 2021, Mike Dunston
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,38 +24,58 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file os/stack_malloc.c
- * This file provides a link time way to allocate RAM bubers.
+ * \file Esp32SocInfo.hxx
  *
- * @author Balazs Racz
- * @date 24 June 2014
+ * Utility class which provides details of the running ESP32 SoC.
+ *
+ * @author Mike Dunston
+ * @date 4 May 2021
  */
-#include <stdlib.h>
+#ifndef _FREERTOS_DRIVERS_ESP32_ESP32SOCINFO_HXX_
+#define _FREERTOS_DRIVERS_ESP32_ESP32SOCINFO_HXX_
 
-#include "openmrn_features.h"
+#include <stdint.h>
 
-#if OPENMRN_FEATURE_THREAD_FREERTOS
-const void *__attribute__((weak)) stack_malloc(unsigned long length);
+#if defined(ESP32)
 
-const void *stack_malloc(unsigned long length)
-{
-    /* We do a trick here to ensure that the compiler will output a stack frame
-     * for this function. We want to avoid tail-chain optimization in this
-     * function or else it disappears from the stack traces done for memory
-     * tracing. */
-    void *volatile v = malloc(length);
-    return v;
-}
+#include "sdkconfig.h"
+
+#include <esp_idf_version.h>
+#if defined(CONFIG_IDF_TARGET_ESP32)
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
+#include <esp32/rom/rtc.h>
+#else
+#include <rom/rtc.h>
+#endif // IDF v4.3+
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+#include <esp32s2/rom/rtc.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+#include <esp32s3/rom/rtc.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+#include <esp32c3/rom/rtc.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32H2)
+#include <esp32h2/rom/rtc.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32C2)
+#include <esp32c2/rom/rtc.h>
 #endif
 
-void *buffer_malloc(size_t length) __attribute__((weak));
-
-void *buffer_malloc(size_t length)
+namespace openmrn_arduino
 {
-    /* We do a trick here to ensure that the compiler will output a stack frame
-     * for this function. We want to avoid tail-chain optimization in this
-     * function or else it disappears from the stack traces done for memory
-     * tracing. */
-    void *volatile v = malloc(length);
-    return v;
-}
+
+/// Utility class which logs information about the currently running SoC.
+class Esp32SocInfo
+{
+public:
+    /// Logs information about the currently running SoC.
+    ///
+    /// @return Reason for the reset of the SoC.
+    static uint8_t print_soc_info();
+};
+
+} // namespace openmrn_arduino
+
+using openmrn_arduino::Esp32SocInfo;
+
+#endif // ESP32
+
+#endif // _FREERTOS_DRIVERS_ESP32_ESP32SOCINFO_HXX_

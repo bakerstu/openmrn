@@ -36,10 +36,16 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "openmrn_features.h"
+#ifdef OPENMRN_FEATURE_FD_CAN_DEVICE
 
 #define LOGLEVEL INFO
 
+#ifdef __FreeRTOS__
 #include "freertos/can_ioctl.h"
+#else
+#include "can_ioctl.h"
+#endif
 #include "dcc/LocalTrackIf.hxx"
 
 namespace dcc
@@ -72,3 +78,5 @@ StateFlowBase::Action LocalTrackIfSelect::entry() {
 }
 
 } // namespace dcc
+
+#endif // OPENMRN_FEATURE_FD_CAN_DEVICE
