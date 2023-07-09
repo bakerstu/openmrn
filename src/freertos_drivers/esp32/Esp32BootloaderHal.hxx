@@ -56,15 +56,15 @@
 
 // Enable streaming support for the bootloader
 #define BOOTLOADER_STREAM
-// Set the buffer size to half the sector size to minimize the flash writes.
+
+#ifndef WRITE_BUFFER_SIZE
+// Set the buffer size to half of the sector size to minimize the flash writes
 #define WRITE_BUFFER_SIZE (CONFIG_WL_SECTOR_SIZE / 2)
+#endif // WRITE_BUFFER_SIZE
 
 #include <driver/twai.h>
-
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,4,0)
+#include <esp_app_format.h>
 #include <esp_chip_info.h>
-#endif // IDF v4.4+
-
 #include <esp_ota_ops.h>
 #if defined(CONFIG_IDF_TARGET_ESP32)
 #include <esp32/rom/rtc.h>
@@ -77,7 +77,10 @@
 #else
 #error Unknown/Unsupported ESP32 variant.
 #endif
+#include <stdint.h>
+
 #include "openlcb/Bootloader.hxx"
+#include "openlcb/Defs.hxx"
 #include "utils/constants.hxx"
 #include "utils/Hub.hxx"
 
@@ -119,9 +122,11 @@ struct Esp32BootloaderState
 /// Bootloader configuration data.
 static Esp32BootloaderState esp_bl_state;
 
-/// Maximum time to wait for a TWAI frame to be received or transmitted before
-/// giving up.
-static constexpr BaseType_t MAX_TWAI_WAIT = pdMS_TO_TICKS(250);
+/// Maximum time to wait for a TWAI frame to be received before giving up.
+static constexpr BaseType_t MAX_TWAI_WAIT_RX = pdMS_TO_TICKS(250);
+
+/// Maximum time to wait for a TWAI frame to be transmitted before giving up.
+static constexpr BaseType_t MAX_TWAI_WAIT_TX = pdMS_TO_TICKS(0);
 
 /// Flag used to indicate that we have been requested to enter the bootloader
 /// instead of normal node operations. Note that this value will not be
@@ -131,7 +136,7 @@ static uint32_t RTC_NOINIT_ATTR bootloader_request;
 
 /// Value to be assigned to @ref bootloader_request when the bootloader should
 /// run instead of normal node operations.
-static constexpr uint32_t RTC_BOOL_TRUE = 1;
+static constexpr uint32_t RTC_BOOL_TRUE = 0x92e01a42;
 
 /// Default value to assign to @ref bootloader_request when the ESP32-C3 starts
 /// the first time or when the bootloader should not be run.
@@ -221,7 +226,7 @@ bool try_send_can_frame(const struct can_frame &frame)
     tx_msg.extd = frame.can_eff;
     tx_msg.rtr = frame.can_rtr;
     memcpy(tx_msg.data, frame.data, frame.can_dlc);
-    if (twai_transmit(&tx_msg, MAX_TWAI_WAIT) == ESP_OK)
+    if (twai_transmit(&tx_msg, MAX_TWAI_WAIT_TX) == ESP_OK)
     {
         LOG(BOOTLOADER_TWAI_LOG_LEVEL, "[Bootloader] CAN_TX");
         return true;
@@ -242,8 +247,9 @@ bool try_send_can_frame(const struct can_frame &frame)
 void get_flash_boundaries(const void **flash_min, const void **flash_max,
     const struct app_header **app_header)
 {
-    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] get_flash_boundaries(%d,%d)", 0,
-        esp_bl_state.app_header.app_size);
+    LOG(BOOTLOADER_LOG_LEVEL,
+        "[Bootloader] get_flash_boundaries(%d, %" PRIu32 ")",
+        0, esp_bl_state.app_header.app_size);
     *((uint32_t *)flash_min) = 0;
     *((uint32_t *)flash_max) = esp_bl_state.app_header.app_size;
     *app_header = &esp_bl_state.app_header;
@@ -261,7 +267,8 @@ void get_flash_page_info(
     value &= ~(CONFIG_WL_SECTOR_SIZE - 1);
     *page_start = (const void *)value;
     *page_length_bytes = CONFIG_WL_SECTOR_SIZE;
-    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] get_flash_page_info(%d, %d)",
+    LOG(BOOTLOADER_LOG_LEVEL,
+        "[Bootloader] get_flash_page_info(%" PRIu32 ", %" PRIu32")",
         value, *page_length_bytes);
 }
 
@@ -274,7 +281,8 @@ void get_flash_page_info(
 void erase_flash_page(const void *address)
 {
     // NO OP as this is handled automatically as part of esp_ota_write.
-    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Erase: %d", (uint32_t)address);
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Erase: %" PRIu32,
+        (uint32_t)address);
 }
 
 /// Callback from the bootloader to write to flash.
@@ -292,7 +300,8 @@ void erase_flash_page(const void *address)
 void write_flash(const void *address, const void *data, uint32_t size_bytes)
 {
     uint32_t addr = (uint32_t)address;
-    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] Write: %d, %d", addr, size_bytes);
+    LOG(VERBOSE, "[Bootloader] Write: %" PRIu32 ", %" PRIu32, addr,
+        size_bytes);
 
     // The first part of the received binary should have the image header,
     // segment header and app description. These are used as a first pass
@@ -366,6 +375,21 @@ void write_flash(const void *address, const void *data, uint32_t size_bytes)
             // reset the RTC persistent variable to not enter bootloader on
             // next restart.
             bootloader_request = RTC_BOOL_FALSE;
+
+            // cleanup the OTA handle since we are aborting.
+            if (esp_bl_state.ota_handle != 0)
+            {
+                // abort the OTA operation, we do not validate the return code
+                // other than logging the error (if any) as this method only
+                // cleans up the ota_handle reference within the OTA system and
+                // does not impact future usage.
+                ESP_ERROR_CHECK_WITHOUT_ABORT(
+                    esp_ota_abort(esp_bl_state.ota_handle));
+            }
+
+            // invalidate ota_handle in case the esp32 does not reboot before
+            // the next time address zero comes up again.
+            esp_bl_state.ota_handle = 0;
             esp_restart();
         }
     }
@@ -380,9 +404,10 @@ void write_flash(const void *address, const void *data, uint32_t size_bytes)
 /// Callback from the bootloader to indicate that the full firmware file has
 /// been received.
 ///
-/// @return zero if the firmware has been received and updated to be used for
-/// the next startup, otherwise non-zero and an error will be printed to the
-/// console.
+/// @return `ERROR_CODE_OK` (0x0000) if the firmware has been received and
+/// updated to be used for the next startup, otherwise `ERROR_FIRMWARE_CSUM`
+/// (0x2088) indicating there was a failure that may be recoverable by
+/// retrying.
 uint16_t flash_complete(void)
 {
     LOG(INFO, "[Bootloader] Finalizing firmware update");
@@ -399,13 +424,16 @@ uint16_t flash_complete(void)
         if (res != ESP_OK)
         {
             LOG_ERROR("[Bootloader] Failed to update the boot partition!");
+            return openlcb::Defs::ERROR_FIRMWARE_CSUM;
         }
     }
-    else if (res == ESP_ERR_OTA_VALIDATE_FAILED)
+    else
     {
-        LOG_ERROR("[Bootloader] Firmware image failed validation, aborting!");
+        LOG_ERROR("[Bootloader] Firmware update failed: %s (%04x), aborting!",
+            esp_err_to_name(res), res);
+        return openlcb::Defs::ERROR_FIRMWARE_CSUM;
     }
-    return res != ESP_OK;
+    return openlcb::Defs::ERROR_CODE_OK;
 }
 
 /// Callback from the bootloader to calculate the checksum of a data block.
@@ -418,7 +446,7 @@ uint16_t flash_complete(void)
 /// value to zero.
 void checksum_data(const void* data, uint32_t size, uint32_t* checksum)
 {
-    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] checksum_data(%d)", size);
+    LOG(BOOTLOADER_LOG_LEVEL, "[Bootloader] checksum_data(%" PRIu32 ")", size);
     // Force the checksum to be zero since it is not currently used on the
     // ESP32. The startup of the node may validate the built-in SHA256 and
     // fallback to previous application binary if the SHA256 validation fails.
@@ -509,7 +537,8 @@ void esp32_bootloader_run(uint64_t id, gpio_num_t rx, gpio_num_t tx,
             esp_bl_state.chip_id = ESP_CHIP_ID_ESP32C3;
             break;
         default:
-            LOG(FATAL, "[Bootloader] Unknown/Unsupported Chip ID: %x", chip_info.model);
+            LOG(FATAL, "[Bootloader] Unknown/Unsupported Chip ID: %x",
+                chip_info.model);
     }
 
     // Initialize the app header details based on the currently running
