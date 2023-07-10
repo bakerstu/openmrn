@@ -83,5 +83,5 @@ jobs:
         arduino-board-fqbn: esp32:esp32:esp32s2
         sketch-names: ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino
         debug-compile: true
-        extra-arduino-cli-args: "--library ~/Arduino/libraries/OpenMRNLite"
+        required-libraries: OpenMRNLite
       if: ${{ matrix.target == 'esp32s2' }}
