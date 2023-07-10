@@ -25,8 +25,8 @@ jobs:
 
     - name: Generate OpenMRNLite library
       run: |
-        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
-        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
+        mkdir $GITHUB_WORKSPACE/Custom_OpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/Custom_OpenMRNLite $GITHUB_WORKSPACE -f -l
         rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
 
     - name: Compile STM32 examples
@@ -51,8 +51,8 @@ jobs:
 
     - name: Generate OpenMRNLite library
       run: |
-        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
-        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
+        mkdir $GITHUB_WORKSPACE/Custom_OpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/Custom_OpenMRNLite $GITHUB_WORKSPACE -f -l
         rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
 
     - name: Compile ESP32 examples
