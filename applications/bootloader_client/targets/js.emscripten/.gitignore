@@ -1,2 +1,4 @@
 bootloader_client.js
 node_modules
+# released binary
+openmrn-bootloader-client-*

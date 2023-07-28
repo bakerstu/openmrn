@@ -132,6 +132,7 @@ Stm32Can::Stm32Can(const char *name)
 #endif
 }
 
+#ifndef ARDUINO
 //
 // Stm32Can::ioctl()
 //
@@ -144,6 +145,7 @@ int Stm32Can::ioctl(File *file, unsigned long int key, unsigned long data)
     }
     return -EINVAL;
 }
+#endif // !ARDUINO
 
 /** Enable use of the device.
  */

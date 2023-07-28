@@ -133,13 +133,13 @@ function copy_dir() {
 copy_file . arduino/{library.json,library.properties,keywords.txt,README.md,LICENSE,CONTRIBUTING.md}
 copy_dir . arduino/examples
 
-copy_file src arduino/OpenMRNLite.{h,cpp} \
+copy_file src arduino/OpenMRNLite.{h,cpp} arduino/CDIXMLGenerator.hxx \
     include/{can_frame.h,nmranet_config.h,openmrn_features.h} \
-    include/freertos/{freertos_includes.h,endian.h} \
+    include/freertos/{bootloader_hal.h,can_ioctl.h,endian.h,freertos_includes.h,stropts.h} \
     include/freertos_select/ifaddrs.h
 
 # General DCC related files (all headers and DCC packet related cxx)
-copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/{DccDebug,Packet}.cxx
+copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/{dcc_constants,DccDebug,LocalTrackIf,Packet}.cxx
 
 # RailCom related DCC files
 copy_file src/dcc src/dcc/{RailCom,RailcomBroadcastDecoder,RailcomDebug}.cxx
@@ -154,16 +154,20 @@ copy_file src/executor src/executor/*.hxx src/executor/*.cxx
 copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
 
 rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
+    ${TARGET_LIB_DIR}/src/openlcb/EventHandlerMock.hxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.hxx
 
 copy_file src/freertos_drivers/arduino \
           src/freertos_drivers/arduino/* \
           src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
+          src/freertos_drivers/common/DummyGPIO.hxx \
           src/freertos_drivers/common/GpioWrapper.hxx \
           src/freertos_drivers/common/CpuLoad.{hxx,cxx} \
           src/freertos_drivers/common/WifiDefs.{hxx,cxx} \
           src/freertos_drivers/common/libatomic.c \
+          src/freertos_drivers/common/PWM.hxx \
+          src/freertos_drivers/common/RailcomDriver.hxx
 
 copy_file src/freertos_drivers/esp32 \
           src/freertos_drivers/esp32/*
@@ -184,11 +188,13 @@ rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
     ${TARGET_LIB_DIR}/src/utils/AesCcmTestVectorsEx.hxx \
     ${TARGET_LIB_DIR}/src/utils/async_datagram_test_helper.hxx \
     ${TARGET_LIB_DIR}/src/utils/async_if_test_helper.hxx \
+    ${TARGET_LIB_DIR}/src/utils/async_stream_test_helper.hxx \
     ${TARGET_LIB_DIR}/src/utils/async_traction_test_helper.hxx \
     ${TARGET_LIB_DIR}/src/utils/EEPROMEmuTest.hxx \
     ${TARGET_LIB_DIR}/src/utils/hub_test_utils.hxx \
     ${TARGET_LIB_DIR}/src/utils/if_tcp_test_helper.hxx \
-    ${TARGET_LIB_DIR}/src/utils/test_main.hxx
+    ${TARGET_LIB_DIR}/src/utils/test_main.hxx \
+    ${TARGET_LIB_DIR}/src/utils/ShaTestVectors.hxx
 
 if [ "x$VERBOSE" != "x" ]; then
     echo "Renaming all cxx to cpp under ${TARGET_LIB_DIR}/src"

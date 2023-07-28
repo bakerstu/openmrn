@@ -46,6 +46,18 @@
 /// Restores the interrupte enable flag from a register.
 #define REL_LOCK() __asm volatile(" msr PRIMASK, %0\n " : : "r"(_pastlock));
 
+/// __atomic_fetch_add_1
+///
+/// This function is needed for GCC-generated code.
+uint8_t __atomic_fetch_add_1(uint8_t *ptr, uint8_t val, int memorder)
+{
+    ACQ_LOCK();
+    uint16_t ret = *ptr;
+    *ptr += val;
+    REL_LOCK();
+    return ret;
+}
+
 /// __atomic_fetch_sub_2
 ///
 /// This function is needed for GCC-generated code.

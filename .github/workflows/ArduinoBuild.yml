@@ -16,8 +16,8 @@ on:
       - '**ArduinoBuild.yml'
   pull_request:
 jobs:
-  build:
-    name: Build ESP32 examples
+  build-stm32:
+    name: Build Arduino STM32 examples
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -29,21 +29,55 @@ jobs:
         $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
         rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
 
-    - name: Compile all STM32 examples
-      uses: ArminJo/arduino-test-compile@v3.0.0
+    - name: Compile STM32 examples
+      uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/stm32duino/BoardManagerFiles/master/STM32/package_stm_index.json
         arduino-board-fqbn: STM32:stm32:Nucleo_144:pnum=NUCLEO_F767ZI,upload_method=MassStorage,xserial=generic,usb=CDCgen,xusb=FS,opt=osstd,rtlib=nano
         sketch-names: Stm32*.ino
         build-properties: '{ "All": "-DHAL_CAN_MODULE_ENABLED" }'
         debug-compile: true
-        
-    - name: Compile all ESP32 examples
-      uses: ArminJo/arduino-test-compile@v3.0.0
+
+  build-esp32:
+    name: Build Arduino ${{ matrix.target }} examples
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 2
+      matrix:
+        target: [esp32, esp32c3, esp32s2]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Generate OpenMRNLite library
+      run: |
+        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f -l
+        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
+
+    - name: Compile ESP32 examples
+      uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
         arduino-board-fqbn: esp32:esp32:node32s
-        sketch-names: ESP*.ino
+        sketch-names: ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino
         debug-compile: true
+      if: ${{ matrix.target == 'esp32' }}
 
-        
+    - name: Compile ESP32-C3 examples
+      uses: ArminJo/arduino-test-compile@v3
+      with:
+        platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+        arduino-board-fqbn: esp32:esp32:esp32c3
+        sketch-names: ESP32C3CanLoadTest.ino,ESP32C3IOBoard.ino
+        debug-compile: true
+      if: ${{ matrix.target == 'esp32c3' }}
+    
+    - name: Compile ESP32-S2 examples
+      uses: ArminJo/arduino-test-compile@v3
+      with:
+        platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+        arduino-board-fqbn: esp32:esp32:esp32s2
+        sketch-names: ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino
+        debug-compile: true
+      if: ${{ matrix.target == 'esp32s2' }}

@@ -227,8 +227,9 @@ private:
     uint32_t interrupt_ : 8; /**< interrupt of this device */
     uint32_t baud_ : 24; /**< desired baud rate */
     uint8_t hwFIFO_; /**< enable HW FIFO */
-    uint8_t mode_; /**< uart config (mode) flags */
+    uint8_t uartMode_; /**< uart config (mode) flags */
     uint8_t txPending_; /**< transmission currently pending */
+    uint8_t nineBit_; /**< true if using 9-bit reception */
 
     /** Default constructor.
      */

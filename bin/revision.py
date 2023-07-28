@@ -103,7 +103,7 @@ for x in inputs :
 
     # get the short hash
     git_hash = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'])
-    git_hash = str(git_hash[:7])
+    git_hash = str(git_hash[:7].decode())
 
     # get the dirty flag
     dirty = os.system('git diff --quiet')
