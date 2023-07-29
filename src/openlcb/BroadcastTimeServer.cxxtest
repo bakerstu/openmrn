@@ -145,6 +145,31 @@ TEST_F(BroadcastTimeServerTest, Time)
     EXPECT_EQ(server_->time(), -3);
 }
 
+TEST_F(BroadcastTimeServerTest, set_date_year_str)
+{
+    expect_any_packet();
+    EXPECT_CALL(*this, update_callback()).Times(AtLeast(0));
+
+    // Valid date.
+    server_->set_date_year_str("Dec 31, 1969");
+    wait_for_event_thread();
+    EXPECT_EQ(server_->time(), -86400);
+
+    // Invalid date, expect no update.
+    //
+    // Note: It is known that the expected result from newlib will not match
+    // glibc (used in this unit test). More details can be found inline to the
+    // BroadcastTime::set_date_year_str() method.
+    server_->set_date_year_str("Dec 32, 1969");
+    wait_for_event_thread();
+    EXPECT_EQ(server_->time(), -86400);
+
+    // Valid date.
+    server_->set_date_year_str("Jan 1, 1970");
+    wait_for_event_thread();
+    EXPECT_EQ(server_->time(), 0);
+}
+
 TEST_F(BroadcastTimeServerTest, FastSecToRealNsecPeriod)
 {
     long long real_nsec;
