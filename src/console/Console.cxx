@@ -320,8 +320,7 @@ StateFlowBase::Action Console::Session::process_read()
                         break;
                     case '\'':
                     case '"':
-                        /// Quote handling added (Robert Heller <heller@deepsoft.com>)
-                        // This is a relativly simple handling.  Escaping
+                        /// This is a relativly simple handling.  Escaping
                         // is not implemented, although both types of
                         // quotes (double and single) are handled,
                         // allowing one to quote the other.

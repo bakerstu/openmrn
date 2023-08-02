@@ -22,7 +22,7 @@ TEST(ConsoleTest, testHelp)
                               "             has an effect on socket based logins sessions\n"
                               "> ", 154));
 
-    EXPECT_EQ(::write(s, "?\n", 5), 5);
+    EXPECT_EQ(::write(s, "?\n", 3), 3);
     usleep(1000);
     EXPECT_EQ(::read(s, buf, 1024), 154);
     EXPECT_TRUE(!strncmp(buf, "  help | ? : print out this help menu\n"
@@ -275,7 +275,7 @@ static Console::CommandStatus echo_command(FILE *fp, int argc, const char *argv[
     if (argc == 0) {
         fprintf(fp, "the echo command\n");
     } else if (argc == 2) {
-        fprintf(fp, "%s\n", argv[2]);
+        fprintf(fp, "%s\n", argv[1]);
     } else {
         return Console::COMMAND_ERROR;
     }
@@ -302,5 +302,15 @@ TEST(ConsoleTest, testQuotedParameters)
     EXPECT_EQ(::read(s, buf, 1024), 32);
     EXPECT_TRUE(!strncmp(buf, "\"Oh no, no, no\", said the man\n> ", 32));
     
+    /* Check for error checks */
+    EXPECT_EQ(::write(s, "echo '\"Oh no, no, no\", said the man\n", 36), 36);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 26);
+    EXPECT_TRUE(!strncmp(buf, "syntax error: unclosed '\n>", 26));
+    
+    EXPECT_EQ(::write(s, "echo \"\n", 7), 7);
+    usleep(1000);
+    EXPECT_EQ(::read(s, buf, 1024), 26);
+    EXPECT_TRUE(!strncmp(buf, "syntax error: unclosed \"\n>", 26));
     close(s);
 }
