@@ -448,31 +448,35 @@ void Stm32Can::sce_interrupt_handler()
         /* error interrupt has occured */
         CAN->MSR |= CAN_MSR_ERRI; // clear flag
 
+        bool cancel_queue = false;
+        
         if (CAN->ESR & CAN_ESR_EWGF)
         {
             /* error warning condition */
             state_ = CAN_STATE_BUS_WARNING;
-            CAN->ESR &= ~CAN_ESR_EWGF;
         }
         if (CAN->ESR & CAN_ESR_EPVF)
         {
             /* error passive condition */
             ++softErrorCount;
             state_ = CAN_STATE_BUS_PASSIVE;
-            CAN->ESR &= ~CAN_ESR_EPVF;
+            cancel_queue = true;
         }
         if (CAN->ESR & CAN_ESR_BOFF)
         {
             /* bus off error condition */
+            ++busOffCount;
+            state_ = CAN_STATE_BUS_OFF;
+            cancel_queue = true;
+        }
+        if (cancel_queue)
+        {
             CAN->TSR |= CAN_TSR_ABRQ2;
             CAN->TSR |= CAN_TSR_ABRQ1;
             CAN->TSR |= CAN_TSR_ABRQ0;
             CAN->IER &= ~CAN_IER_TMEIE;
             txBuf->flush();
             txBuf->signal_condition_from_isr();
-            ++busOffCount;
-            state_ = CAN_STATE_BUS_OFF;
-            CAN->ESR &= ~CAN_ESR_BOFF;
         }
     }
 }
