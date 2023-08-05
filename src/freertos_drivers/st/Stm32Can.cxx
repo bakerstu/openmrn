@@ -219,6 +219,19 @@ void Stm32Can::disable()
  */
 void Stm32Can::tx_msg()
 {
+    // If we are error passive, the last transmission ended with an error, and
+    // there are no free TX mailboxes, then we flush the input queue. This is a
+    // workaround because the STM32 CAN controller can get stuck in this state
+    // and never get to bus off if the TX attempts end up with no-ack (meaning
+    // the controller is alone on the bus).
+    if ((CAN->ESR & CAN_ESR_EPVF) && ((CAN->ESR & CAN_ESR_LEC_Msk) != 0) &&
+        ((CAN->TSR & (CAN_TSR_TME0 | CAN_TSR_TME1 | CAN_TSR_TME2)) == 0))
+    {
+        txBuf->flush();
+        txBuf->signal_condition();
+        return;
+    }
+
     /* see if we can send anything out */
     struct can_frame *can_frame;
 
