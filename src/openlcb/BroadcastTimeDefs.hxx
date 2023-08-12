@@ -353,6 +353,12 @@ struct BroadcastTimeDefs
     /// @return rate represented in the form of a string (float)
     static std::string rate_quarters_to_string(int16_t rate);
 
+    /// Converts a date to a string "Mmm dd, yyyy".
+    /// @param year 0 to 4095
+    /// @param month 1 to 12 (warning! struct tm has 0 to 11)
+    /// @param day 1 to 31
+    static std::string date_to_string(int year, int month, int day);
+    
     /// Convert a string (hh:mm) to hour and minute component integers.
     /// @param stime time in the form of a string
     /// @param hour resulting hour integer (0 to 23)
@@ -366,6 +372,40 @@ struct BroadcastTimeDefs
     ///         conversion error occurs, then the returned value will be 0,
     ///         which is at least a valid rate.
     static int16_t string_to_rate_quarters(const std::string &srate);
+
+    /// Converts a (user-provided) string "Mmm dd, yyyy" to date. Verifies that
+    /// the values are in range for OpenLCB and for a real date.
+    /// @param sdate the input string in "Mmm dd, yyyy" format.
+    /// @param year will be filled in with the year (0 to 4095)
+    /// @param month will be filled in with the month (1 to 12) (warning!
+    /// struct tm has 0 to 11)
+    /// @param day will be filled in with the day (1 to 31)
+    /// @return true on success, false on parse error. Note that it is not
+    /// fully specified what is a parse error; certain errors will be corrected
+    /// (e.g. feb 30, 2001 will be fixed to march 2).
+    static bool string_to_date(
+        const std::string &sdate, int *year, int *month, int *day);
+
+    /// Verifies that a user-provided string parses as time, and canonicalizes
+    /// the string format. Parse errors get turned into "00:00".
+    /// @param stime input-output argument. Input is the user-provided time
+    /// (hh:mm), output is the canonicalized time.
+    /// @return true if the string has changed during canonicalization.
+    static bool canonicalize_time_string(std::string *stime);
+
+    /// Verifies that a user-provided string parses as rate quarters, and
+    /// canonicalizes the string format. Parse errors get turned into "0.00".
+    /// @param srate input-output argument. Input is user-provided rate, output
+    /// is the canonicalized rate.
+    /// @return true if the string has changed during canonicalization.
+    static bool canonicalize_rate_string(std::string* srate);
+
+    /// Verifies that a user-provided string parses as date, and canonicalizes
+    /// the string format. Parse errors get turned into "Jan 1, 1970".
+    /// @param sdate input-output argument. Input is user-provided date in "Mmm
+    /// dd, yyyy" format, output is the canonicalized date.
+    /// @return true if the string has changed during canonicalization.
+    static bool canonicalize_date_string(std::string* sdate);
 };
 
 }  // namespace openlcb

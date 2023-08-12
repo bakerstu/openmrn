@@ -11,12 +11,107 @@
 namespace openlcb
 {
 
+class BroadcastTimeDefsTest : public ::testing::Test
+{
+protected:
+    /// Use this function for testing successful date parsing.
+    ///
+    /// @param d text date to parse
+    /// @param exp_y expected year
+    /// @param exp_m expected month
+    /// @param exp_d expected day
+    ///
+    void parse_date(const string &d, int exp_y, int exp_m, int exp_d)
+    {
+        SCOPED_TRACE(d);
+        year = month = day = -1;
+        EXPECT_TRUE(BroadcastTimeDefs::string_to_date(d, &year, &month, &day));
+        EXPECT_EQ(exp_y, year);
+        EXPECT_EQ(exp_m, month);
+        EXPECT_EQ(exp_d, day);
+    }
+
+    /// Use this function for testing failed date parsing.
+    ///
+    /// @param d date string that should fail to parse
+    ///
+    /// @return false upon parse error
+    ///
+    bool parse_date(const string &d)
+    {
+        return BroadcastTimeDefs::string_to_date(d, &year, &month, &day);
+    }
+
+    /// Tests date canonicalization.
+    ///
+    /// @param d input date string
+    /// @param exp output date string; if left empty then assumes the same as d.
+    ///
+    bool canon_date(const string &d, string exp = "")
+    {
+        if (exp.empty())
+        {
+            exp = d;
+        }
+        SCOPED_TRACE(d + "->'" + exp + "'");
+        string io = d;
+        bool ret = BroadcastTimeDefs::canonicalize_date_string(&io);
+        EXPECT_EQ(d != exp, ret);
+        EXPECT_EQ(exp, io);
+        return ret;
+    }
+
+    /// Tests rate canonicalization.
+    ///
+    /// @param d input rate string
+    /// @param exp output rate string; if left empty then assumes the same as d.
+    ///
+    bool canon_rate(const string &d, string exp = "")
+    {
+        if (exp.empty())
+        {
+            exp = d;
+        }
+        SCOPED_TRACE(d + "->'" + exp + "'");
+        string io = d;
+        bool ret = BroadcastTimeDefs::canonicalize_rate_string(&io);
+        EXPECT_EQ(d != exp, ret);
+        EXPECT_EQ(exp, io);
+        return ret;
+    }
+
+    /// Tests time canonicalization.
+    ///
+    /// @param d input time string
+    /// @param exp output time string; if left empty then assumes the same as d.
+    ///
+    bool canon_time(const string &d, string exp = "")
+    {
+        if (exp.empty())
+        {
+            exp = d;
+        }
+        SCOPED_TRACE(d + "->'" + exp + "'");
+        string io = d;
+        bool ret = BroadcastTimeDefs::canonicalize_time_string(&io);
+        EXPECT_EQ(d != exp, ret);
+        EXPECT_EQ(exp, io);
+        return ret;
+    }
+    
+    /// Output of canonicalization.
+    string out;
+
+    /// Output of parsing.
+    int year = -1, month = -1, day = -1, hour = -1, min = -1;
+};
+
 TEST(BroadcastTimeDefs, string_to_rate_quarters)
 {
     int16_t rate;
 
     rate = BroadcastTimeDefs::string_to_rate_quarters("Freddy");
-    EXPECT_EQ(0, rate);
+    EXPECT_EQ(4, rate);
 
     rate = BroadcastTimeDefs::string_to_rate_quarters("2000");
     EXPECT_EQ(2047, rate);
@@ -25,13 +120,13 @@ TEST(BroadcastTimeDefs, string_to_rate_quarters)
     EXPECT_EQ(-2048, rate);
 
     rate = BroadcastTimeDefs::string_to_rate_quarters("");
-    EXPECT_EQ(0, rate);
+    EXPECT_EQ(4, rate);
 
     rate = BroadcastTimeDefs::string_to_rate_quarters("-");
-    EXPECT_EQ(0, rate);
+    EXPECT_EQ(4, rate);
 
     rate = BroadcastTimeDefs::string_to_rate_quarters("    ");
-    EXPECT_EQ(0, rate);
+    EXPECT_EQ(4, rate);
 
     rate = BroadcastTimeDefs::string_to_rate_quarters("511,75");
     EXPECT_EQ(2044, rate);
@@ -42,5 +137,121 @@ TEST(BroadcastTimeDefs, string_to_rate_quarters)
     rate = BroadcastTimeDefs::string_to_rate_quarters("-1.75");
     EXPECT_EQ(-7, rate);
 }
+
+TEST_F(BroadcastTimeDefsTest, string_to_date)
+{
+    parse_date("Aug 12, 2023", 2023, 8, 12);
+    parse_date("Jan 1, 1970", 1970, 1, 1);
+    parse_date("Oct 30, 2000", 2000, 10, 30);
+
+    parse_date("Jan 01, 1970", 1970, 1, 1);
+
+    // Some leading zeros get misinterpreted.
+    parse_date("Jan 09, 02023", 202, 1, 9);
+
+    // Examples with missing whitespace
+    parse_date("Aug 12,2023", 2023, 8, 12);
+    // Examples with missing whitespace
+    parse_date("Aug12,2023", 2023, 8, 12);
+
+    // Examples with more whitespace
+    parse_date("Aug     12,\n\n2023    ", 2023, 8, 12);
+    parse_date("Aug\r\n12,\t2023    ", 2023, 8, 12);
+
+    // Examples with garbage at end
+    parse_date("Aug 12, 2023xxxxx", 2023, 8, 12);
+
+    // Leap year
+    parse_date("Feb 29, 2024", 2024, 2, 29);
+
+    // Not leap year
+    parse_date("Feb 29, 2023", 2023, 2, 29);
+    // No canonicalization in glibc
+    parse_date("Feb 31, 2023", 2023, 2, 31);
+}
+
+TEST_F(BroadcastTimeDefsTest, string_to_date_fail)
+{
+    EXPECT_FALSE(parse_date("Freddy"));
+    EXPECT_FALSE(parse_date(""));
+    EXPECT_FALSE(parse_date("Mai 1, 2023"));
+    EXPECT_FALSE(parse_date("2023-08-12"));
+    EXPECT_FALSE(parse_date("Dec 32, 1969"));
+    EXPECT_FALSE(parse_date("Aug 12x2023"));
+    EXPECT_FALSE(parse_date("Feb 32, 2023"));
+    EXPECT_FALSE(parse_date("    Aug 12, 2023"));
+
+    EXPECT_FALSE(parse_date("Aug 12"));
+    EXPECT_FALSE(parse_date("Aug"));
+}
+
+TEST_F(BroadcastTimeDefsTest, date_to_string)
+{
+    EXPECT_EQ("Jan  1, 1970", BroadcastTimeDefs::date_to_string(1970, 1, 1));
+    EXPECT_EQ("Aug 12, 2023", BroadcastTimeDefs::date_to_string(2023, 8, 12));
+    EXPECT_EQ("Aug 12, 99", BroadcastTimeDefs::date_to_string(99, 8, 12));
+    EXPECT_EQ("Aug 12, 3099", BroadcastTimeDefs::date_to_string(3099, 8, 12));
+}
+
+TEST_F(BroadcastTimeDefsTest, date_canonicalize)
+{
+    EXPECT_TRUE(canon_date("", "Jan  1, 1970"));
+    EXPECT_TRUE(canon_date("Freddy", "Jan  1, 1970"));
+    EXPECT_TRUE(canon_date("Jan 1, 1970", "Jan  1, 1970"));
+    EXPECT_FALSE(canon_date("Jan  1, 1970", "Jan  1, 1970"));
+
+    EXPECT_FALSE(canon_date("Aug 12, 2023"));
+    EXPECT_TRUE(canon_date("Aug     12, \n\t   2023", "Aug 12, 2023"));
+    EXPECT_FALSE(canon_date("Feb 31, 2023"));
+    EXPECT_FALSE(canon_date("Feb 31, 23"));
+    EXPECT_FALSE(canon_date("Feb 31, 3023"));
+
+    EXPECT_TRUE(canon_date("Aug 9, 2023", "Aug  9, 2023"));
+
+    EXPECT_TRUE(canon_date("Feb 31, 5023", "Jan  1, 1970"));
+    EXPECT_TRUE(canon_date("Dec 32, 2023", "Jan  1, 1970"));
+    EXPECT_TRUE(canon_date("  Aug 9, 2023", "Jan  1, 1970"));
+}
+
+TEST_F(BroadcastTimeDefsTest, rate_canonicalize)
+{
+    EXPECT_TRUE(canon_rate("", "1.00"));
+    EXPECT_TRUE(canon_rate("3", "3.00"));
+    EXPECT_TRUE(canon_rate("-4", "-4.00"));
+    EXPECT_FALSE(canon_rate("1.25"));
+    EXPECT_FALSE(canon_rate("500.00"));
+    EXPECT_FALSE(canon_rate("-10.75"));
+    EXPECT_TRUE(canon_rate("12", "12.00"));
+    EXPECT_TRUE(canon_rate("-12", "-12.00"));
+    EXPECT_TRUE(canon_rate("Freddy", "1.00"));
+    EXPECT_TRUE(canon_rate("17,75", "17.00"));
+    EXPECT_TRUE(canon_rate("1200", "511.75"));
+    EXPECT_TRUE(canon_rate("-1200", "-512.00"));
+    EXPECT_TRUE(canon_rate("  13ab", "13.00"));
+}
+
+TEST_F(BroadcastTimeDefsTest, time_canonicalize)
+{
+    EXPECT_TRUE(canon_time("", "00:00"));
+    EXPECT_TRUE(canon_time("Freddy", "00:00"));
+    EXPECT_TRUE(canon_time("3:22asdasdas", "03:22"));
+    EXPECT_TRUE(canon_time("95:95", "00:00"));
+    EXPECT_TRUE(canon_time("-5:-2", "00:00"));
+    
+    EXPECT_TRUE(canon_time("1:2", "01:02"));
+    EXPECT_TRUE(canon_time("8pm", "00:00"));
+    EXPECT_TRUE(canon_time("8:15pm", "08:15"));
+    EXPECT_TRUE(canon_time("24:59", "00:00"));
+
+    EXPECT_FALSE(canon_time("20:15"));
+    EXPECT_TRUE(canon_time("20: 15", "20:15"));
+    EXPECT_TRUE(canon_time("   20:\n 15", "20:15"));
+    EXPECT_TRUE(canon_time("20: 15   ", "20:15"));
+    EXPECT_TRUE(canon_time("20: 15asdasdas   ", "20:15"));
+
+    EXPECT_FALSE(canon_time("23:59"));
+    EXPECT_FALSE(canon_time("12:00"));
+}
+
 
 } // namespace openlcb
