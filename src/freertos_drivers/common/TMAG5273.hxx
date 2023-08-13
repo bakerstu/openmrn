@@ -181,21 +181,21 @@ public:
         STANDBY           = 0x00, ///< starts new conversion at trigger event
         SLEEP             = 0x01, ///< sleep
         CONTINUOUS        = 0x02, ///< continuous measurement mode
-        WAKE_UP_AND_SLEEP = 0x03, ///< wakeu-up and slee mode
+        WAKE_UP_AND_SLEEP = 0x03, ///< wake-up and sleep mode
     };
 
     /// Constructor.
     /// @param address is the 7-bit address (right aligned), typically 0x35,
-    ///        0x22, 0x78 or 0x44). Default is the A1/A2 device.
-    TMAG5273(uint8_t address = 0x35)
+    ///        0x22, 0x78 or 0x44. Default is the A1/A2 device.
+    TMAG5273(uint8_t address = ADDR_A)
         : i2cAddress_(address)
     { }
 
     /// Constructor. Can only be called from thread context.
     /// @param i2c_path path to the i2c bus to use.
     /// @param address is the 7-bit address (right aligned), typically 0x35,
-    ///        0x22, 0x78 or 0x44). Default is the A1/A2 device.
-    TMAG5273(const char *i2c_path, uint8_t address = 0x35)
+    ///        0x22, 0x78 or 0x44. Default is the A1/A2 device.
+    TMAG5273(const char *i2c_path, uint8_t address = ADDR_A)
         : i2cAddress_(address)
     {
         init(i2c_path);
@@ -228,7 +228,7 @@ public:
     friend class Input;
 
     /// Checks whether the magnetic sensor is present.
-    /// @return device identifier, else ID_UNKNOWN if not detected or uknown
+    /// @return device identifier, else ID_UNKNOWN if not detected or unknown
     ///         device
     DeviceID is_present()
     {
@@ -241,6 +241,8 @@ public:
             LOG(VERBOSE, "error read");
             return DeviceID::ERROR;
         }
+        // mask off the reserved bits of the device ID.
+        rc[0] &= DEVICE_ID_VERSION_MASK;
         if ((rc[0] != static_cast<uint8_t>(DeviceID::MT_40_AND_80) &&
              rc[0] != static_cast<uint8_t>(DeviceID::MT_133_AND_266)) ||
             rc[1] != 0x49 || rc[2] != 0x54)
@@ -363,10 +365,13 @@ public:
         register_write(MAG_OFFSET_CONFIG_2, offset);
     }
 
-    /// @return device ID (die version / sensitivity range).
-    uint8_t get_device_id()
+    /// @return Device ID (die version / sensitivity range). Mask off the
+    ///         reserved bits of the Device ID register. Deprecated, recommend
+    ///         is_present() API instead.
+    DeviceID get_device_id()
     {
-        return register_read(DEVICE_ID);
+        return static_cast<DeviceID>(
+            register_read(DEVICE_ID) & DEVICE_ID_VERSION_MASK);
     }
 
     /// Read the conversion results.
@@ -399,7 +404,7 @@ private:
         DCONF2_OPERATING_MODE_MASK = 0b11,
 
         SCONF1_MAG_CH_MASK     = 0b11110000, ///< Channel enable mask.
-        SCONF1_SLEEP_TIME_MASK = 0b00001111, ///< Channel enable mask.
+        SCONF1_SLEEP_TIME_MASK = 0b00001111, ///< sleep time mask.
 
         /// Mask for MAG_GAIN_CH bits in the SENSOR_CONFIG_2 register.
         SCONF2_MAG_GAIN_CH_MASK = 1 << 4,
@@ -408,6 +413,9 @@ private:
 
         /// Mask for ANGLE_EN bits in the SENSOR_CONFIG_2 register.
         SCONF2_ANGLE_EN_MASK = 0b1100,
+
+        DEVICE_ID_RESERVED_MASK = 0b11111100, ///< reserved bits.
+        DEVICE_ID_VERSION_MASK  = 0b00000011, ///< version bits.
     };
 
     /// Device register address offsets.
@@ -477,7 +485,6 @@ private:
         {
             dat[2] = data[1];
         }
-        HASSERT(len <= 2);
         struct i2c_msg msgs[] = {{.addr = i2cAddress_,
             .flags = 0,
             .len = (uint16_t)(len + 1),
