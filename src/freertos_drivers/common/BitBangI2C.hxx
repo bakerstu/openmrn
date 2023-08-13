@@ -207,8 +207,6 @@ template <class HW> class BitBangI2C : protected BitBangI2CStates, public I2C
 public:
     /// Constructor.
     /// @param name name of this device instance in the file system
-    /// @param enable_tick callback to enable ticks
-    /// @param disable_tick callback to disable ticks
     BitBangI2C(const char *name)
         : I2C(name)
         , msg_(nullptr)
@@ -419,8 +417,10 @@ inline void BitBangI2C<HW>::tick_interrupt()
             {
                 if (count_ < 0)
                 {
-                    // Some error occured, likely an unexpected NACK
-                    exit = true;
+                    // Some error occured, likely an unexpected NACK. Send a
+                    // stop in order to shutdown gracefully.
+                    state_ = State::STOP;
+                    stateStop_ = StateStop::FIRST;
                 }
                 else if (++count_ >= msg_->len)
                 {
