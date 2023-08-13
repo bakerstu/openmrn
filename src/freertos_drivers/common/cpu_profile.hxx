@@ -80,7 +80,7 @@ public:
     /// How many times did we apply the backtrace hack to work around
     /// single-entry backtraces.
     unsigned singleLenHack{0};
-} allocator;
+} cpu_profile_allocator;
 
 /// Linked list entry type for a call-stack backtrace.
 struct trace
@@ -142,7 +142,7 @@ struct trace *add_new_trace(unsigned hash)
 {
     unsigned total_size =
         sizeof(struct trace) + strace_len * sizeof(stacktrace[0]);
-    struct trace *t = (struct trace *)allocator.alloc(total_size);
+    struct trace *t = (struct trace *)cpu_profile_allocator.alloc(total_size);
     if (!t)
         return nullptr;
     memcpy(t + 1, stacktrace, strace_len * sizeof(stacktrace[0]));
@@ -226,14 +226,14 @@ _Unwind_Reason_Code trace_func(struct _Unwind_Context *context, void *arg)
         if (strace_len == 1 && saved_lr != _Unwind_GetGR(context, 14))
         {
             _Unwind_SetGR(context, 14, saved_lr);
-            allocator.singleLenHack++;
+            cpu_profile_allocator.singleLenHack++;
             return _URC_NO_REASON;
         }
         return _URC_END_OF_STACK;
     }
     if (strace_len >= MAX_STRACE - 1)
     {
-        ++allocator.limitReached;
+        ++cpu_profile_allocator.limitReached;
         return _URC_END_OF_STACK;
     }
     // stacktrace[strace_len++] = ip;

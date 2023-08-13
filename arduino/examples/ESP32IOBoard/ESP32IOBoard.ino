@@ -41,14 +41,23 @@
 #include "openlcb/MultiConfiguredConsumer.hxx"
 #include "utils/GpioInitializer.hxx"
 
-// Pick an operating mode below, if you select USE_WIFI it will expose
-// this node on WIFI if you select USE_CAN, this node will be available
-// on CAN.
+// Pick an operating mode below, if you select USE_WIFI it will expose this
+// node on WIFI. If USE_CAN / USE_TWAI / USE_TWAI_ASYNC are enabled the node
+// will be available on CAN.
+//
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
+//
+// NOTE: USE_TWAI and USE_TWAI_ASYNC are similar to USE_CAN but utilize the
+// new TWAI driver which offers both select() (default) or fnctl() (async)
+// access.
+// NOTE: USE_CAN is deprecated and no longer supported upstream by ESP-IDF as
+// of v4.2 or arduino-esp32 as of v2.0.0.
 
 #define USE_WIFI
-//#define USE_CAN
+#define USE_CAN
+//#define USE_TWAI
+//#define USE_TWAI_ASYNC
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
@@ -59,6 +68,30 @@
 // weak pull-up resistor to 3v3 would be recommended to prevent unintended
 // factory resets.
 //#define FACTORY_RESET_GPIO_PIN 22
+
+// Uncomment FIRMWARE_UPDATE_BOOTLOADER to enable the bootloader feature when
+// using the TWAI device.
+//
+// Since many ESP32 DevKit boards do not have an on-board LED, there are no
+// LED indicators enabled by default. If indicator LEDs are desired they can be
+// added to the bootloader_led function at the end of this file.
+//
+// NOTE: in order for this to work you *MUST* use a partition schema that has
+// two app partitions, typically labeled with "OTA" in the partition name in
+// the Arduino IDE.
+//#define FIRMWARE_UPDATE_BOOTLOADER
+
+#if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
+#define USE_TWAI
+#endif // USE_TWAI_ASYNC && !USE_TWAI
+
+#if defined(USE_CAN) && defined(USE_TWAI)
+#error USE_CAN and USE_TWAI are mutually exclusive!
+#endif
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_TWAI)
+#error FIRMWARE_UPDATE_BOOTLOADER requires USE_TWAI or USE_TWAI_SELECT.
+#endif
 
 #include "config.h"
 
@@ -96,7 +129,7 @@ const char *hostname = "esp32mrn";
 
 #endif // USE_WIFI
 
-#if defined(USE_CAN)
+#if defined(USE_CAN) || defined(USE_TWAI)
 /// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 /// Recommended pins: 4, 16, 21.
 /// Note: Any pin can be used for this other than 6-11 which are connected to
@@ -113,7 +146,13 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
 
-#endif // USE_CAN
+#endif // USE_CAN || USE_TWAI
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+// Include the Bootloader HAL implementation for the ESP32. This should only
+// be included in one ino/cpp file.
+#include "freertos_drivers/esp32/Esp32BootloaderHal.hxx"
+#endif // FIRMWARE_UPDATE_BOOTLOADER
 
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
@@ -131,6 +170,10 @@ static constexpr openlcb::ConfigDef cfg(0);
 #if defined(USE_WIFI)
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
+
+#if defined(USE_TWAI) && !defined(USE_CAN)
+Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
+#endif // USE_TWAI && !USE_CAN
 
 // Declare output pins
 // NOTE: pins 6-11 are connected to the onboard flash and can not be used for
@@ -231,7 +274,7 @@ public:
     {
         cfg.userinfo().name().write(fd, openlcb::SNIP_STATIC_DATA.model_name);
         cfg.userinfo().description().write(
-            fd, "OpenLCB + Arduino-ESP32 on an ESP32.");
+            fd, openlcb::SNIP_STATIC_DATA.model_name);
         for(int i = 0; i < openlcb::NUM_OUTPUTS; i++)
         {
             cfg.seg().consumers().entry(i).description().write(fd, "");
@@ -263,28 +306,8 @@ namespace openlcb
     extern const char *const SNIP_DYNAMIC_FILENAME = CONFIG_FILENAME;
 }
 
-void setup()
+void check_for_factory_reset()
 {
-    Serial.begin(115200L);
-
-    // Initialize the SPIFFS filesystem as our persistence layer
-    if (!SPIFFS.begin())
-    {
-        printf("SPIFFS failed to mount, attempting to format and remount\n");
-        if (!SPIFFS.begin(true))
-        {
-            printf("SPIFFS mount failed even with format, giving up!\n");
-            while (1)
-            {
-                // Unable to start SPIFFS successfully, give up and wait
-                // for WDT to kick in
-            }
-        }
-    }
-
-    // initialize all declared GPIO pins
-    GpioInit::hw_init();
-
 #if defined(FACTORY_RESET_GPIO_PIN)
     // Check the factory reset pin which should normally read HIGH (set), if it
     // reads LOW (clr) delete the cdi.xml and openlcb_config
@@ -311,6 +334,58 @@ void setup()
         }
     }
 #endif // FACTORY_RESET_GPIO_PIN
+}
+
+void setup()
+{
+    Serial.begin(115200L);
+    uint8_t reset_reason = Esp32SocInfo::print_soc_info();
+    LOG(INFO, "[Node] ID: %s", uint64_to_string_hex(NODE_ID).c_str());
+    LOG(INFO, "[SNIP] version:%d, manufacturer:%s, model:%s, hw-v:%s, sw-v:%s",
+        openlcb::SNIP_STATIC_DATA.version,
+        openlcb::SNIP_STATIC_DATA.manufacturer_name,
+        openlcb::SNIP_STATIC_DATA.model_name,
+        openlcb::SNIP_STATIC_DATA.hardware_version,
+        openlcb::SNIP_STATIC_DATA.software_version);
+
+    // Initialize the SPIFFS filesystem as our persistence layer
+    if (!SPIFFS.begin())
+    {
+        printf("SPIFFS failed to mount, attempting to format and remount\n");
+        if (!SPIFFS.begin(true))
+        {
+            printf("SPIFFS mount failed even with format, giving up!\n");
+            while (1)
+            {
+                // Unable to start SPIFFS successfully, give up and wait
+                // for WDT to kick in
+            }
+        }
+    }
+
+    // initialize all declared GPIO pins
+    GpioInit::hw_init();
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+    // initialize the bootloader.
+    esp32_bootloader_init(reset_reason);
+
+    // if we have a request to enter the bootloader we need to process it
+    // before we startup the OpenMRN stack.
+    if (request_bootloader())
+    {
+        esp32_bootloader_run(NODE_ID, TWAI_RX_PIN, TWAI_TX_PIN);
+        // This line should not be reached as the esp32_bootloader_run method
+        // will not return by default.
+        HASSERT(false);
+    }
+#endif // FIRMWARE_UPDATE_BOOTLOADER
+
+#if defined(USE_TWAI) && !defined(USE_CAN)
+    twai.hw_init();
+#endif // USE_TWAI && !USE_CAN
+
+    check_for_factory_reset();
 
     // Create the CDI.xml dynamically
     openmrn.create_config_descriptor_xml(cfg, openlcb::CDI_FILENAME);
@@ -321,8 +396,13 @@ void setup()
 
     // Start the OpenMRN stack
     openmrn.begin();
-    openmrn.start_executor_thread();
-
+    if (reset_reason == RTCWDT_BROWN_OUT_RESET)
+    {
+        openmrn.stack()->executor()->add(new CallbackExecutable([]()
+        {
+            openmrn.stack()->send_event(openlcb::Defs::NODE_POWER_BROWNOUT_EVENT);
+        }));
+    }
 #if defined(PRINT_PACKETS)
     // Dump all packets as they are sent/received.
     // Note: This should not be enabled in deployed nodes as it will
@@ -334,8 +414,13 @@ void setup()
     // Add the hardware CAN device as a bridge
     openmrn.add_can_port(
         new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
+#elif defined(USE_TWAI_ASYNC)
+    openmrn.add_can_port_async("/dev/twai/twai0");
+#elif defined(USE_TWAI)
+    openmrn.add_can_port_select("/dev/twai/twai0");
 #endif // USE_CAN
 
+    openmrn.start_executor_thread();
 }
 
 void loop()
@@ -344,3 +429,21 @@ void loop()
     // as possible from the loop() method.
     openmrn.loop();
 }
+
+#if defined(FIRMWARE_UPDATE_BOOTLOADER)
+
+extern "C"
+{
+
+/// Updates the state of a status LED.
+///
+/// @param led is the LED to update.
+/// @param value is the new state of the LED.
+void bootloader_led(enum BootloaderLed led, bool value)
+{
+    LOG(INFO, "[Bootloader] bootloader_led(%d, %d)", led, value);
+}
+
+} // extern "C"
+
+#endif // FIRMWARE_UPDATE_BOOTLOADER

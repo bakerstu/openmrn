@@ -34,18 +34,24 @@
 #ifndef _UTILS_HUBDEVICENONBLOCK_HXX_
 #define _UTILS_HUBDEVICENONBLOCK_HXX_
 
-// Nonblocking hubdevice only works on FreeRTOS.
-#ifdef __FreeRTOS__
+#include "openmrn_features.h"
+#ifdef OPENMRN_FEATURE_FD_CAN_DEVICE
 
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
 
 #include "executor/StateFlow.hxx"
+#ifdef __FreeRTOS__
 #include "freertos/can_ioctl.h"
+#else
+#include "can_ioctl.h"
+#endif
 #include "utils/Hub.hxx"
 
+#ifdef __FreeRTOS__
 extern int ioctl(int fd, unsigned long int key, ...);
+#endif // __FreeRTOS__
 
 template <class HFlow> class HubDeviceNonBlock : public Destructable, private Atomic, public Service
 {
@@ -221,5 +227,5 @@ protected:
     WriteFlow writeFlow_;
 };
 
-#endif // __FreeRTOS__
+#endif // OPENMRN_FEATURE_FD_CAN_DEVICE
 #endif // _UTILS_HUBDEVICENONBLOCK_HXX_

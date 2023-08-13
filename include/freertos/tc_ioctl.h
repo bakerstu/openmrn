@@ -46,6 +46,8 @@
 #define TCPAREVEN   IO(TERMIOS_IOC_MAGIC, 0xF2)
 #define TCPARONE    IO(TERMIOS_IOC_MAGIC, 0xF3)
 #define TCPARZERO   IO(TERMIOS_IOC_MAGIC, 0xF4)
+/// Use 9-bit reception mode
+#define TCNINEBITRX IO(TERMIOS_IOC_MAGIC, 0xF5)
 /// One stop bit
 #define TCSTOPONE   IO(TERMIOS_IOC_MAGIC, 0xF8) 
 /// Two stop bits

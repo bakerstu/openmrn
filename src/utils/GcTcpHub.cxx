@@ -61,7 +61,8 @@ void GcTcpHub::notify()
 GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port)
     : canHub_(can_hub)
     , tcpListener_(port,
-          std::bind(&GcTcpHub::on_new_connection, this, std::placeholders::_1))
+          std::bind(&GcTcpHub::on_new_connection, this, std::placeholders::_1),
+          "GcTcpHub")
 {
 }
 

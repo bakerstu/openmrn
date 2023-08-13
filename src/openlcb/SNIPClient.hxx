@@ -76,7 +76,7 @@ struct SNIPClientRequest : public CallableFlowRequestBase
 #if !defined(GTEST) || !defined(SNIP_CLIENT_TIMEOUT_NSEC)
 /// Specifies how long to wait for a SNIP request to get a response. Writable
 /// for unittesting purposes.
-static constexpr long long SNIP_CLIENT_TIMEOUT_NSEC = MSEC_TO_NSEC(1500);
+static constexpr long long SNIP_CLIENT_TIMEOUT_NSEC = MSEC_TO_NSEC(2000);
 #endif
 
 class SNIPClient : public CallableFlow<SNIPClientRequest>
