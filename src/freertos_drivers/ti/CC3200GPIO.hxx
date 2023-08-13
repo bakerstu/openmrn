@@ -296,4 +296,67 @@ public:
     }
 };
 
+/// Common class for GPIO input pins.
+template <class Defs> struct GpioInputOutputPin : public Defs
+{
+public:
+    using Defs::GPIO_PERIPH;
+    using Defs::GPIO_BASE;
+    using Defs::GPIO_PIN;
+    /// Initializes the hardware pin.
+    static void hw_init()
+    {
+        MAP_PRCMPeripheralClkEnable(GPIO_PERIPH, PRCM_RUN_MODE_CLK);
+        MAP_GPIODirModeSet(GPIO_BASE, GPIO_PIN, GPIO_DIR_MODE_IN);
+    }
+    /// Sets the output pin to a safe value.
+    static void hw_set_to_safe()
+    {
+        hw_init();
+    }
+    /// Sets the output pin to a defined value. @param value if true, output
+    /// will be set to HIGH, otherwise to LOW.
+    static void __attribute__((always_inline)) set(bool value)
+    {
+        volatile uint8_t *ptr = reinterpret_cast<uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        *ptr = value ? 0xff : 0;
+        /// See note at the top of the file about barriers.
+        __asm__ volatile("dsb" : : : "memory");
+    }
+    /// @return current value of the input pin: if true HIGH.
+    static bool __attribute__((always_inline)) get()
+    {
+        const volatile uint8_t *ptr = reinterpret_cast<const uint8_t *>(
+            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+        return *ptr;
+    }
+    /// Changes the value of an output pin.
+    static void __attribute__((always_inline)) toggle()
+    {
+        set(!get());
+    }
+
+    /// @return static Gpio ovject instance that controls this output pin.
+    static constexpr const Gpio *instance()
+    {
+        return &CC3200Gpio<GPIO_BASE, GPIO_PIN>::instance_;
+    }
+
+    /// Sets the direction of the I/O pin.
+    /// @param direction direction to set pin to
+    static void set_direction(Gpio::Direction direction)
+    {
+        MAP_GPIODirModeSet(GPIO_BASE, GPIO_PIN,
+            direction == Gpio::Direction::DINPUT ?
+            GPIO_DIR_MODE_IN : GPIO_DIR_MODE_OUT);
+    }
+
+    /// @return true if this pin is an output pin.
+    static bool is_output()
+    {
+        return (MAP_GPIODirModeGet(GPIO_BASE, GPIO_PIN) == GPIO_DIR_MODE_OUT);
+    }
+};
+
 #endif //_FREERTOS_DRIVERS_TI_CC3200GPIO_HXX_
