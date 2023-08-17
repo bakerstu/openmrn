@@ -730,6 +730,7 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
         // be true on first entry at start to "reset" the bus to a known state.
         // On a timeout, it may not have been reset back to false.
         stop_ = false;
+        HW::tick_disable();
         return -ETIMEDOUT;
     }
 }
