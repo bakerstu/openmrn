@@ -40,7 +40,7 @@
 
 /// Consolidate all the state machine enumerations for easy operator
 /// overloading.
-class BitBangI2CStates
+class BitBangI2CStates : protected Atomic
 {
 protected:
     /// Default constructor.
@@ -702,17 +702,23 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
         return -EINVAL;
     }
 
-    // Reset state for a start/restart.
-    msg_ = msg;
-    count_ = 0;
-    stop_ = stop;
-    state_ = State::START;
-    stateStart_ = StateStart::FIRST;
-
     // Flush/reset semaphore.
-    while (sem_.timedwait(0) == 0);
-    // Enable tick timer.
-    HW::tick_enable();
+    while (sem_.timedwait(0) == 0)
+    {
+    }
+
+    {
+        AtomicHolder h(this);
+        // Reset state for a start/restart.
+        msg_ = msg;
+        count_ = 0;
+        stop_ = stop;
+        state_ = State::START;
+        stateStart_ = StateStart::FIRST;
+
+        // Enable tick timer.
+        HW::tick_enable();
+    }
 
     // We wait a minimum of 10 msec to account for any rounding in the "tick"
     // rate conversion. msg_->len is at least 1. We assume that worst ~50kHz
@@ -729,8 +735,11 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
         // stop_ must be false for the next call of this method. It should only
         // be true on first entry at start to "reset" the bus to a known state.
         // On a timeout, it may not have been reset back to false.
-        stop_ = false;
-        HW::tick_disable();
+        {
+            AtomicHolder h(this);
+            stop_ = false;
+            HW::tick_disable();
+        }
         return -ETIMEDOUT;
     }
 }
