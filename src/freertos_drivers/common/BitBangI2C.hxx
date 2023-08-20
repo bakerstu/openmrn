@@ -726,7 +726,7 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
     // rate conversion. msg_->len is at least 1. We assume that worst ~50kHz
     // is the slowest that anyone will try to run the I2C bus, which will
     // result in just under 200 microseconds per byte. This leaves some room
-    // for zero stretching.
+    // for clock stretching.
     long long wait = std::max(MSEC_TO_NSEC(msg_->len), MSEC_TO_NSEC(10));
     if (sem_.timedwait(wait) == 0)
     {
