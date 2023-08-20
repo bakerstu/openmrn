@@ -202,7 +202,9 @@ protected:
 /// @endcode
 ///
 /// @tparam HW hardware interface to the access the SCL and SDA I/O lines
-template <class HW> class BitBangI2C : protected BitBangI2CStates, public I2C
+template <class HW> class BitBangI2C : protected BitBangI2CStates
+                                     , public I2C
+                                     , private Atomic
 {
 public:
     /// Constructor.
@@ -702,17 +704,23 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
         return -EINVAL;
     }
 
-    // Reset state for a start/restart.
-    msg_ = msg;
-    count_ = 0;
-    stop_ = stop;
-    state_ = State::START;
-    stateStart_ = StateStart::FIRST;
-
     // Flush/reset semaphore.
-    while (sem_.timedwait(0) == 0);
-    // Enable tick timer.
-    HW::tick_enable();
+    while (sem_.timedwait(0) == 0)
+    {
+    }
+
+    {
+        AtomicHolder h(this);
+        // Reset state for a start/restart.
+        msg_ = msg;
+        count_ = 0;
+        stop_ = stop;
+        state_ = State::START;
+        stateStart_ = StateStart::FIRST;
+
+        // Enable tick timer.
+        HW::tick_enable();
+    }
 
     // We wait a minimum of 10 msec to account for any rounding in the "tick"
     // rate conversion. msg_->len is at least 1. We assume that worst ~50kHz
@@ -729,7 +737,11 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
         // stop_ must be false for the next call of this method. It should only
         // be true on first entry at start to "reset" the bus to a known state.
         // On a timeout, it may not have been reset back to false.
-        stop_ = false;
+        {
+            AtomicHolder h(this);
+            stop_ = false;
+            HW::tick_disable();
+        }
         return -ETIMEDOUT;
     }
 }
