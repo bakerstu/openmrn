@@ -40,7 +40,7 @@
 
 /// Consolidate all the state machine enumerations for easy operator
 /// overloading.
-class BitBangI2CStates : protected Atomic
+class BitBangI2CStates
 {
 protected:
     /// Default constructor.
@@ -202,7 +202,9 @@ protected:
 /// @endcode
 ///
 /// @tparam HW hardware interface to the access the SCL and SDA I/O lines
-template <class HW> class BitBangI2C : protected BitBangI2CStates, public I2C
+template <class HW> class BitBangI2C : protected BitBangI2CStates
+                                     , public I2C
+                                     , private Atomic
 {
 public:
     /// Constructor.
