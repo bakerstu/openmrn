@@ -55,6 +55,7 @@ protected:
         ADDRESS, ///< address state
         DATA_TX, ///< data TX state
         DATA_RX, ///< data RX state
+        RECOVERY, ///< recovery state
         STOP, ///< stop state
     };
 
@@ -129,6 +130,32 @@ protected:
         LAST = ACK_SCL_CLR, ///< last data RX sequence state
     };
 
+    /// Low level I2C data RX states
+    enum class StateRecovery : uint8_t
+    {
+        SDA_SET,        ///< recovery sequence, start with SDA high
+        DATA_7_SCL_SET, ///< recovery sequence
+        DATA_7_SCL_CLR, ///< recovery sequence
+        DATA_6_SCL_SET, ///< recovery sequence
+        DATA_6_SCL_CLR, ///< recovery sequence
+        DATA_5_SCL_SET, ///< recovery sequence
+        DATA_5_SCL_CLR, ///< recovery sequence
+        DATA_4_SCL_SET, ///< recovery sequence
+        DATA_4_SCL_CLR, ///< recovery sequence
+        DATA_3_SCL_SET, ///< recovery sequence
+        DATA_3_SCL_CLR, ///< recovery sequence
+        DATA_2_SCL_SET, ///< recovery sequence
+        DATA_2_SCL_CLR, ///< recovery sequence
+        DATA_1_SCL_SET, ///< recovery sequence
+        DATA_1_SCL_CLR, ///< recovery sequence
+        DATA_0_SCL_SET, ///< recovery sequence
+        DATA_0_SCL_CLR, ///< recovery sequence
+        ACK_SCL_SET, ///< recovery sequence
+        ACK_SCL_CLR, ///< recovery sequence
+        FIRST = SDA_SET, ///< first recovery sequence state
+        LAST = ACK_SCL_CLR, ///< last recovery sequence state
+    };
+
     /// Allow pre-increment definition
     friend StateStart &operator++(StateStart &);
 
@@ -140,6 +167,9 @@ protected:
 
     /// Allow pre-increment definition
     friend StateRx &operator++(StateRx &);
+
+    /// Allow pre-increment definition
+    friend StateRecovery &operator++(StateRecovery &);
 };
 
 /// Implement a bit-banged I2C master. A periodic timer [interrupt] should call
@@ -256,6 +286,11 @@ private:
     ///         required by the current tick.
     inline bool state_rx(uint8_t *data, bool nack);
 
+    /// Execute recovery state machine.
+    /// @return true if the sub-state machine is finished, after doing the work
+    ///         required by the current tick.
+    inline bool state_recovery();
+
     void enable() override {} /**< function to enable device */
     void disable() override {} /**< function to disable device */
 
@@ -275,6 +310,7 @@ private:
         StateStop stateStop_; ///< I2C stop state machine state
         StateTx stateTx_; ///< I2C data TX state machine state
         StateRx stateRx_; ///< I2C data RX state machine state
+        StateRecovery stateRecovery_; ///< I2C recovery state machine state
     };
     bool stop_; ///< if true, issue stop condition at the end of the message
     bool clockStretchActive_; ///< true if the slave is clock stretching.
@@ -332,6 +368,20 @@ inline BitBangI2CStates::StateRx &operator++(BitBangI2CStates::StateRx &x)
     return x;
 }
 
+/// Pre-increment operator overload
+/// @param x starting value
+/// @return incremented value
+inline BitBangI2CStates::StateRecovery &operator++(
+    BitBangI2CStates::StateRecovery &x)
+{
+    if (x >= BitBangI2CStates::StateRecovery::FIRST &&
+        x < BitBangI2CStates::StateRecovery::LAST)
+    {
+        x = static_cast<BitBangI2CStates::StateRecovery>(
+            static_cast<int>(x) + 1);
+    }
+    return x;
+}
 
 //
 // BitBangI2C::tick_interrupt()
@@ -442,6 +492,14 @@ inline void BitBangI2C<HW>::tick_interrupt()
                     // Setup the next byte RX
                     stateRx_ = StateRx::FIRST;
                 }
+            }
+            break;
+        case State::RECOVERY:
+            if (state_recovery())
+            {
+                // Recovery always concludes with a stop condition
+                state_ = State::STOP;
+                stateStop_ = StateStop::FIRST;
             }
             break;
         case State::STOP:
@@ -687,6 +745,49 @@ inline bool BitBangI2C<HW>::state_rx(uint8_t *data, bool nack)
 }
 
 //
+// BitBangI2C::state_rx()
+//
+template <class HW> __attribute__((optimize("-O3")))
+inline bool BitBangI2C<HW>::state_recovery()
+{
+    switch(stateRecovery_)
+    {
+        case StateRecovery::SDA_SET:
+            HW::SDA_Pin::set(1); // Always start with SDA high.
+            break;
+        case StateRecovery::DATA_7_SCL_SET:
+        case StateRecovery::DATA_6_SCL_SET:
+        case StateRecovery::DATA_5_SCL_SET:
+        case StateRecovery::DATA_4_SCL_SET:
+        case StateRecovery::DATA_3_SCL_SET:
+        case StateRecovery::DATA_2_SCL_SET:
+        case StateRecovery::DATA_1_SCL_SET:
+        case StateRecovery::DATA_0_SCL_SET:
+        case StateRecovery::ACK_SCL_SET:
+            HW::SCL_Pin::set(1);
+            break;
+        case StateRecovery::DATA_7_SCL_CLR:
+        case StateRecovery::DATA_6_SCL_CLR:
+        case StateRecovery::DATA_5_SCL_CLR:
+        case StateRecovery::DATA_4_SCL_CLR:
+        case StateRecovery::DATA_3_SCL_CLR:
+        case StateRecovery::DATA_2_SCL_CLR:
+        case StateRecovery::DATA_1_SCL_CLR:
+        case StateRecovery::DATA_0_SCL_CLR:
+        case StateRecovery::ACK_SCL_CLR:
+            HW::SCL_Pin::set(0);
+            break;
+    }
+    if (stateRecovery_ == StateRecovery::LAST)
+    {
+        return true;
+    }
+
+    ++stateRecovery_;
+    return false;
+}
+
+//
 // BitBangI2C::transfer()
 //
 template <class HW>
@@ -726,7 +827,7 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
     // rate conversion. msg_->len is at least 1. We assume that worst ~50kHz
     // is the slowest that anyone will try to run the I2C bus, which will
     // result in just under 200 microseconds per byte. This leaves some room
-    // for zero stretching.
+    // for clock stretching.
     long long wait = std::max(MSEC_TO_NSEC(msg_->len), MSEC_TO_NSEC(10));
     if (sem_.timedwait(wait) == 0)
     {
@@ -734,6 +835,24 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
     }
     else
     {
+        // Flush/reset semaphore.
+        while (sem_.timedwait(0) == 0)
+        {
+        }
+
+        // Some kind of problem occured. Try a recovery operation.
+        {
+            AtomicHolder h(this);
+            state_ = State::RECOVERY;
+            stateRecovery_ = StateRecovery::FIRST;
+        }
+
+        // We don't care about the sempahore return value because there is
+        // isn't much more we can do anyways. Just ensure stop_ is false and
+        // ticks are disabled. There is actually no reason to expect the
+        // semaphore to timeout, so this is really just defensive programming.
+        sem_.timedwait(wait);
+
         // stop_ must be false for the next call of this method. It should only
         // be true on first entry at start to "reset" the bus to a known state.
         // On a timeout, it may not have been reset back to false.
@@ -742,6 +861,7 @@ inline int BitBangI2C<HW>::transfer(struct i2c_msg *msg, bool stop)
             stop_ = false;
             HW::tick_disable();
         }
+
         return -ETIMEDOUT;
     }
 }
