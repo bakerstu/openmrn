@@ -136,6 +136,18 @@ STM32CUBEF7PATH:=$(TRYPATH)
 endif
 endif #STM32CUBEF7PATH
 
+################ STM32Cube_G0 ##################
+ifndef STM32CUBEG0PATH
+SEARCHPATH := \
+  /opt/st/STM32Cube_FW_G0/default \
+  $(HOME)/STM32Cube/Repository/STM32Cube_FW_G0_V1.6.1
+
+TRYPATH:=$(call findfirst,Drivers,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32CUBEG0PATH:=$(TRYPATH)
+endif
+endif #STM32CUBEG0PATH
+
 ################ lpcopen_18xx_43xx ##################
 ifndef LPCOPENPATH_18XX_43XX
 SEARCHPATH := \
