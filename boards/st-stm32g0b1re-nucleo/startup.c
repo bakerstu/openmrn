@@ -25,11 +25,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file startup.c
- * This file sets up the runtime environment for ST STM32F0x1, STM32F0x2, and
- * STM32F0x8 MCUs.
+ * This file sets up the runtime environment for ST STM32F0x1, STM32F0x2,
+ * STM32F0x8 and STM32G0x1 MCUs.
  *
  * @author Stuart W. Baker
  * @date 20 April 2015
+ * @author Brian Barnt & Balazs Racz
+ * @date 26 August 2023
  */
 
 #include <stdint.h>
@@ -119,14 +121,14 @@ void (* const __interrupt_vector[])(void) =
     rtc_interrupt_handler,           /**<  18 */
     flash_interrupt_handler,         /**<  19 flash global interrupt */
     rcc_crs_interrupt_handler,       /**<  20 RCC and CRS global interrupt */
-    external0_1_interrupt_handler,  /**<  21 EXTI line[1:0] */
-    external2_3_interrupt_handler,  /**<  22 EXTI line[3:2] */
-    external4_15_interrupt_handler, /**<  23 EXTI line[15:4] */
-    ucpd_usb_interrupt_handler,         /**<  24 USB Power */
+    external0_1_interrupt_handler,   /**<  21 EXTI line[1:0] */
+    external2_3_interrupt_handler,   /**<  22 EXTI line[3:2] */
+    external4_15_interrupt_handler,  /**<  23 EXTI line[15:4] */
+    ucpd_usb_interrupt_handler,      /**<  24 USB Power */
     dma_ch1_interrupt_handler,       /**<  25 DMA channel 1 */
 
     /** DMA channel 2 and 3, DMA2 channel 1 and 2 */
-    dma_ch2_3_interrupt_handler, /* 26 */
+    dma_ch2_3_interrupt_handler,     /* 26 */
 
     /** DMA channel 4, 5, 6, and 7, DMA2 channel 3, 4, and 5 */
     dma_ch4_5_6_7_dma2_ch1_2_3_4_5_interrupt_handler, /* 27 */
@@ -136,24 +138,24 @@ void (* const __interrupt_vector[])(void) =
     timer1_break_update_trigger_commutation_interrupt_handler, /* 29 */
     timer1_cc_interrupt_handler,     /**<  30 timer 1 capture compare */
     timer2_interrupt_handler,        /**<  31 timer 2 */
-    timer3_4_interrupt_handler,        /**<  32 timer 3 */
-    timer6_dac_lptim1_interrupt_handler,    /**<  33 timer 6 and DAC underrun */
+    timer3_4_interrupt_handler,      /**<  32 timer 3 */
+    timer6_dac_lptim1_interrupt_handler, /**<  33 timer 6 and DAC underrun */
     timer7_lptim2_interrupt_handler,        /**<  34 timer 7 */
     timer14_interrupt_handler,       /**<  35 timer 14 */
     timer15_interrupt_handler,       /**<  36 timer 15 */
     timer16_fdcan_it0_interrupt_handler,       /**<  37 timer 16 */
     timer17_fdcan_it1_interrupt_handler,       /**<  38 timer 17 */
     i2c1_interrupt_handler,          /**<  39 I2C1 + EXTI line[23] */
-    i2c2_3_interrupt_handler,          /**<  40 I2C2 */
+    i2c2_3_interrupt_handler,        /**<  40 I2C2 */
     spi1_interrupt_handler,          /**<  41 SPI1 */
-    spi2_3_interrupt_handler,          /**<  42 SPI2 */
+    spi2_3_interrupt_handler,        /**<  42 SPI2 */
     uart1_interrupt_handler,         /**<  43 UART1 + EXTI line[25] */
-    uart2_lpuart2_interrupt_handler,         /**<  44 UART2 + EXTI line[26] */
+    uart2_lpuart2_interrupt_handler, /**<  44 UART2 + EXTI line[26] */
 
     /** UART3, UART4, UART5, UART6, UART7, UART8 + EXTI line[28] */
     uart3_4_5_6_lpuart1_interrupt_handler, /*  45 */
-    cec_interrupt_handler,       /**<  46 CEC and CAN + EXTI line[27] */
-    aes_rng_interrupt_handler,           /**<  47 USB + EXTI line[18] */
+    cec_interrupt_handler,           /**<  46 CEC and CAN + EXTI line[27] */
+    aes_rng_interrupt_handler,       /**<  47 USB + EXTI line[18] */
 
     ignore_fn                        /**< forces the linker to add this fn */
 };
@@ -422,6 +424,6 @@ void spi1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrup
 void spi2_3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void uart1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void uart2_lpuart2_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void     uart3_4_5_6_lpuart1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void uart3_4_5_6_lpuart1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void cec_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void aes_rng_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
