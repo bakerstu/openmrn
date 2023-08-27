@@ -751,7 +751,9 @@ private:
 
         long long timeout() override
         {
+#if OPENMRN_FEATURE_REBOOT         
             reboot();
+#endif            
             return DELETE;
         }
     };
