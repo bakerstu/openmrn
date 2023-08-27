@@ -46,6 +46,8 @@
 #include "stm32l4xx_hal_cortex.h"
 #elif defined(STM32F767xx)
 #include "stm32f7xx_hal_cortex.h"
+#elif defined (STM32G0B1xx)
+#include "stm32g0xx_hal_cortex.h"
 #else
 #error Dont know what STM32 chip you have.
 #endif
@@ -73,6 +75,9 @@ Stm32Uart *Stm32Uart::instances[5] = {NULL};
 #elif defined (STM32F030xC)
 Stm32Uart *Stm32Uart::instances[6] = {NULL};
 #elif defined (STM32F091xC) || defined (STM32F098xx) || defined(STM32F767xx)
+Stm32Uart *Stm32Uart::instances[8] = {NULL};
+#elif defined (STM32G0B1xx)
+// six UARTs + two LPUARTs
 Stm32Uart *Stm32Uart::instances[8] = {NULL};
 #endif
 
