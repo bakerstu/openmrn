@@ -10,19 +10,19 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
      else echo OPENMRNPATH not found; fi" \
 )
 
-# Find STM32CubeF3 libraries
-include $(OPENMRNPATH)/etc/stm32cubef3.mk
+# Find STM32CubeG0 libraries
+include $(OPENMRNPATH)/etc/stm32cubeg0.mk
 
 LDFLAGSEXTRA += 
-SYSLIBRARIESEXTRA += -lfreertos_drivers_stm32cubef303xe
+SYSLIBRARIESEXTRA += -lfreertos_drivers_stm32cubeg0b1xe
 OBJEXTRA += 
 
-CFLAGS += -DSTM32F303xE
-CXXFLAGS += -DSTM32F303xE
-OPENOCDARGS = -f board/st_nucleo_f3.cfg
+CFLAGS += -DSTM32G0B1xx
+CXXFLAGS += -DSTM32G0B1xx
+OPENOCDARGS = -f board/st_nucleo_g0.cfg
 
 ifndef TARGET
-export TARGET := freertos.armv7m
+export TARGET := freertos.armv6m
 endif
 include $(OPENMRNPATH)/etc/prog.mk
 

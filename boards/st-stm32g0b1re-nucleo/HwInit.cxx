@@ -36,8 +36,8 @@
 #include <new>
 #include <cstdint>
 
-#include "stm32f3xx_hal_conf.h"
-#include "stm32f3xx_hal.h"
+#include "stm32g0xx_hal_conf.h"
+#include "stm32g0xx_hal.h"
 
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
