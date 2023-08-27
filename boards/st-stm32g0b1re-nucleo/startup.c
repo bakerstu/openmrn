@@ -57,30 +57,30 @@ extern void rcc_crs_interrupt_handler(void);
 extern void external0_1_interrupt_handler(void);
 extern void external2_3_interrupt_handler(void);
 extern void external4_15_interrupt_handler(void);
-extern void touch_interrupt_handler(void);
+extern void ucpd_usb_interrupt_handler(void);
 extern void dma_ch1_interrupt_handler(void);
-extern void dma_ch2_3_dma2_ch1_2_interrupt_handler(void);
-extern void dma_ch4_5_6_7_dma2_ch3_4_5_interrupt_handler(void);
+extern void dma_ch2_3_interrupt_handler(void);
+extern void dma_ch4_5_6_7_dma2_ch1_2_3_4_5_interrupt_handler(void);
 extern void adc_comp_interrupt_handler(void);
 extern void timer1_break_update_trigger_commutation_interrupt_handler(void);
 extern void timer1_cc_interrupt_handler(void);
 extern void timer2_interrupt_handler(void);
-extern void timer3_interrupt_handler(void);
-extern void timer6_dac_interrupt_handler(void);
-extern void timer7_interrupt_handler(void);
+extern void timer3_4_interrupt_handler(void);
+extern void timer6_dac_lptim1_interrupt_handler(void);
+extern void timer7_lptim2_interrupt_handler(void);
 extern void timer14_interrupt_handler(void);
 extern void timer15_interrupt_handler(void);
-extern void timer16_interrupt_handler(void);
-extern void timer17_interrupt_handler(void);
+extern void timer16_fdcan_it0_interrupt_handler(void);
+extern void timer17_fdcan_it1_interrupt_handler(void);
 extern void i2c1_interrupt_handler(void);
-extern void i2c2_interrupt_handler(void);
+extern void i2c2_3_interrupt_handler(void);
 extern void spi1_interrupt_handler(void);
-extern void spi2_interrupt_handler(void);
+extern void spi2_3_interrupt_handler(void);
 extern void uart1_interrupt_handler(void);
-extern void uart2_interrupt_handler(void);
-extern void uart3_4_5_6_7_8_interrupt_handler(void);
-extern void cec_can_interrupt_handler(void);
-extern void usb_interrupt_handler(void);
+extern void uart2_lpuart2_interrupt_handler(void);
+extern void uart3_4_5_6_lpuart1_interrupt_handler(void);
+extern void cec_interrupt_handler(void);
+extern void aes_rng_interrupt_handler(void);
 
 extern void ignore_fn(void);
 
@@ -122,38 +122,38 @@ void (* const __interrupt_vector[])(void) =
     external0_1_interrupt_handler,  /**<  21 EXTI line[1:0] */
     external2_3_interrupt_handler,  /**<  22 EXTI line[3:2] */
     external4_15_interrupt_handler, /**<  23 EXTI line[15:4] */
-    touch_interrupt_handler,         /**<  24 touch sensing */
+    ucpd_usb_interrupt_handler,         /**<  24 USB Power */
     dma_ch1_interrupt_handler,       /**<  25 DMA channel 1 */
 
     /** DMA channel 2 and 3, DMA2 channel 1 and 2 */
-    dma_ch2_3_dma2_ch1_2_interrupt_handler, /* 26 */
+    dma_ch2_3_interrupt_handler, /* 26 */
 
     /** DMA channel 4, 5, 6, and 7, DMA2 channel 3, 4, and 5 */
-    dma_ch4_5_6_7_dma2_ch3_4_5_interrupt_handler, /* 27 */
+    dma_ch4_5_6_7_dma2_ch1_2_3_4_5_interrupt_handler, /* 27 */
     adc_comp_interrupt_handler,      /**<  28 ADC and COMP + EXTI line[22:21] */
 
     /** timer 1 break, update, trigger, and commutation */
     timer1_break_update_trigger_commutation_interrupt_handler, /* 29 */
     timer1_cc_interrupt_handler,     /**<  30 timer 1 capture compare */
     timer2_interrupt_handler,        /**<  31 timer 2 */
-    timer3_interrupt_handler,        /**<  32 timer 3 */
-    timer6_dac_interrupt_handler,    /**<  33 timer 6 and DAC underrun */
-    timer7_interrupt_handler,        /**<  34 timer 7 */
+    timer3_4_interrupt_handler,        /**<  32 timer 3 */
+    timer6_dac_lptim1_interrupt_handler,    /**<  33 timer 6 and DAC underrun */
+     timer7_lptim2_interrupt_handler,        /**<  34 timer 7 */
     timer14_interrupt_handler,       /**<  35 timer 14 */
     timer15_interrupt_handler,       /**<  36 timer 15 */
-    timer16_interrupt_handler,       /**<  37 timer 16 */
-    timer17_interrupt_handler,       /**<  38 timer 17 */
+    timer16_fdcan_it0_interrupt_handler,       /**<  37 timer 16 */
+    timer17_fdcan_it1_interrupt_handler,       /**<  38 timer 17 */
     i2c1_interrupt_handler,          /**<  39 I2C1 + EXTI line[23] */
-    i2c2_interrupt_handler,          /**<  40 I2C2 */
+    i2c2_3_interrupt_handler,          /**<  40 I2C2 */
     spi1_interrupt_handler,          /**<  41 SPI1 */
-    spi2_interrupt_handler,          /**<  42 SPI2 */
+    spi2_3_interrupt_handler,          /**<  42 SPI2 */
     uart1_interrupt_handler,         /**<  43 UART1 + EXTI line[25] */
-    uart2_interrupt_handler,         /**<  44 UART2 + EXTI line[26] */
+    uart2_lpuart2_interrupt_handler,         /**<  44 UART2 + EXTI line[26] */
 
     /** UART3, UART4, UART5, UART6, UART7, UART8 + EXTI line[28] */
-    uart3_4_5_6_7_8_interrupt_handler, /*  45 */
-    cec_can_interrupt_handler,       /**<  46 CEC and CAN + EXTI line[27] */
-    usb_interrupt_handler,           /**<  47 USB + EXTI line[18] */
+    uart3_4_5_6_lpuart1_interrupt_handler, /*  45 */
+    cec_interrupt_handler,       /**<  46 CEC and CAN + EXTI line[27] */
+    aes_rng_interrupt_handler,           /**<  47 USB + EXTI line[18] */
 
     ignore_fn                        /**< forces the linker to add this fn */
 };
@@ -399,27 +399,29 @@ void rcc_crs_interrupt_handler(void) __attribute__ ((weak, alias ("default_inter
 void external0_1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void external2_3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void external4_15_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void touch_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void ucpd_usb_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+
+
 void dma_ch1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void dma_ch2_3_dma2_ch1_2_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void dma_ch4_5_6_7_dma2_ch3_4_5_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void dma_ch2_3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void  dma_ch4_5_6_7_dma2_ch1_2_3_4_5_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void adc_comp_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void timer1_break_update_trigger_commutation_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void timer1_cc_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void timer2_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void timer3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void timer6_dac_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void timer7_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void timer3_4_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void timer6_dac_lptim1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void timer7_lptim2_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void timer14_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void timer15_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void timer16_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void timer17_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void timer16_fdcan_it0_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void timer17_fdcan_it1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void i2c1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void i2c2_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void i2c2_3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void spi1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void spi2_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void spi2_3_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void uart1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void uart2_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void uart3_4_5_6_7_8_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void cec_can_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
-void usb_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void uart2_lpuart2_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void     uart3_4_5_6_lpuart1_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void cec_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
+void aes_rng_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
