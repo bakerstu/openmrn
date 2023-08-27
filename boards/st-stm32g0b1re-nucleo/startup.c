@@ -138,7 +138,7 @@ void (* const __interrupt_vector[])(void) =
     timer2_interrupt_handler,        /**<  31 timer 2 */
     timer3_4_interrupt_handler,        /**<  32 timer 3 */
     timer6_dac_lptim1_interrupt_handler,    /**<  33 timer 6 and DAC underrun */
-     timer7_lptim2_interrupt_handler,        /**<  34 timer 7 */
+    timer7_lptim2_interrupt_handler,        /**<  34 timer 7 */
     timer14_interrupt_handler,       /**<  35 timer 14 */
     timer15_interrupt_handler,       /**<  36 timer 15 */
     timer16_fdcan_it0_interrupt_handler,       /**<  37 timer 16 */
