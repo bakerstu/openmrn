@@ -53,7 +53,7 @@ $(TESTOBJS): %.test.o : $(SRCDIR)/%.cxxtest
 	$(CXX) $(CXXFLAGS) -MMD -MF $*.dtest -MT $@ -x c++ $< -o $@
 
 gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -Wno-uninitialized -I$(GTESTPATH) -I$(GTESTSRCPATH) -MMD -MF $*.d   $< -o $@
+	$(CXX) $(CXXFLAGS) -Wno-uninitialized -Wno-maybe-uninitialized -I$(GTESTPATH) -I$(GTESTSRCPATH) -MMD -MF $*.d   $< -o $@
 
 gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
 	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) -MMD -MF $*.d  $< -o $@
