@@ -219,6 +219,19 @@ void Stm32Can::disable()
  */
 void Stm32Can::tx_msg()
 {
+    // If we are error passive, the last transmission ended with an error, and
+    // there are no free TX mailboxes, then we flush the input queue. This is a
+    // workaround because the STM32 CAN controller can get stuck in this state
+    // and never get to bus off if the TX attempts end up with no-ack (meaning
+    // the controller is alone on the bus).
+    if ((CAN->ESR & CAN_ESR_EPVF) && ((CAN->ESR & CAN_ESR_LEC_Msk) != 0) &&
+        ((CAN->TSR & (CAN_TSR_TME0 | CAN_TSR_TME1 | CAN_TSR_TME2)) == 0))
+    {
+        txBuf->flush();
+        txBuf->signal_condition();
+        return;
+    }
+
     /* see if we can send anything out */
     struct can_frame *can_frame;
 
@@ -435,31 +448,35 @@ void Stm32Can::sce_interrupt_handler()
         /* error interrupt has occured */
         CAN->MSR |= CAN_MSR_ERRI; // clear flag
 
+        bool cancel_queue = false;
+        
         if (CAN->ESR & CAN_ESR_EWGF)
         {
             /* error warning condition */
             state_ = CAN_STATE_BUS_WARNING;
-            CAN->ESR &= ~CAN_ESR_EWGF;
         }
         if (CAN->ESR & CAN_ESR_EPVF)
         {
             /* error passive condition */
             ++softErrorCount;
             state_ = CAN_STATE_BUS_PASSIVE;
-            CAN->ESR &= ~CAN_ESR_EPVF;
+            cancel_queue = true;
         }
         if (CAN->ESR & CAN_ESR_BOFF)
         {
             /* bus off error condition */
+            ++busOffCount;
+            state_ = CAN_STATE_BUS_OFF;
+            cancel_queue = true;
+        }
+        if (cancel_queue)
+        {
             CAN->TSR |= CAN_TSR_ABRQ2;
             CAN->TSR |= CAN_TSR_ABRQ1;
             CAN->TSR |= CAN_TSR_ABRQ0;
             CAN->IER &= ~CAN_IER_TMEIE;
             txBuf->flush();
             txBuf->signal_condition_from_isr();
-            ++busOffCount;
-            state_ = CAN_STATE_BUS_OFF;
-            CAN->ESR &= ~CAN_ESR_BOFF;
         }
     }
 }

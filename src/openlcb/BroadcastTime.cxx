@@ -47,15 +47,9 @@ namespace openlcb
 void BroadcastTime::clear_timezone()
 {
 #ifndef ESP32
-        setenv("TZ", "GMT0", 1);
-        tzset();
+    setenv("TZ", "GMT0", 1);
+    tzset();
 #endif
-}
-
-extern "C"
-{
-// normally requires _GNU_SOURCE
-char *strptime(const char *, const char *, struct tm *);
 }
 
 //
@@ -63,15 +57,12 @@ char *strptime(const char *, const char *, struct tm *);
 //
 void BroadcastTime::set_date_year_str(const char *date_year)
 {
-    struct tm tm;
-    if (strptime(date_year, "%b %e, %Y", &tm) != nullptr)
+    int year, month, day;
+    if (BroadcastTimeDefs::string_to_date(date_year, &year, &month, &day))
     {
-        if (tm.tm_year >= (0 - 1900) && tm.tm_year <= (4095 - 1900))
-        {
-            // date valid
-            set_date(tm.tm_mon + 1, tm.tm_mday);
-            set_year(tm.tm_year + 1900);
-        }
+        // date valid
+        set_date(month, day);
+        set_year(year);
     }
 }
 

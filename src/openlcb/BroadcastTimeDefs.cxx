@@ -112,6 +112,26 @@ std::string BroadcastTimeDefs::rate_quarters_to_string(int16_t rate)
 }
 
 //
+// BroadcastTimeDefs::date_to_string()
+//
+std::string BroadcastTimeDefs::date_to_string(int year, int month, int day)
+{
+    struct tm tm = {};
+    tm.tm_year = year - 1900;
+    tm.tm_mon = month - 1;
+    tm.tm_mday = day;
+    char value[13];
+    if (strftime(value, 13, "%b %e, %Y", &tm) != 0)
+    {
+        return value;
+    }
+    else
+    {
+        return "Error";
+    }
+}
+
+//
 // BroadcastTimeDefs::string_to_time()
 //
 bool BroadcastTimeDefs::string_to_time(
@@ -146,7 +166,7 @@ int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
     if (end == rate_c_str)
     {
         // None of the string processed.
-        return 0;
+        return 4;
     }
     if (rate < -512)
     {
@@ -161,6 +181,66 @@ int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
     rate *= 4;
     rate += rate < 0 ? -0.5 : 0.5;
     return rate;
+}
+
+//
+// BroadcastTimeDefs::string_to_date()
+//
+bool BroadcastTimeDefs::string_to_date(
+    const std::string &sdate, int *year, int *month, int *day)
+{
+    struct tm tm = {};
+    if (strptime(sdate.c_str(), "%b %e, %Y", &tm) == nullptr)
+    {
+        return false;
+    }
+    if (tm.tm_year < (0 - 1900) || tm.tm_year > (4095 - 1900))
+    {
+        // Out of range for openlcb.
+        return false;
+    }
+    *year = tm.tm_year + 1900;
+    *month = tm.tm_mon + 1;
+    *day = tm.tm_mday;
+    return true;
+}
+
+bool BroadcastTimeDefs::canonicalize_rate_string(std::string *srate)
+{
+    int r = string_to_rate_quarters(*srate);
+    string out = rate_quarters_to_string(r);
+    if (out != *srate)
+    {
+        *srate = std::move(out);
+        return true;
+    }
+    return false;
+}
+
+bool BroadcastTimeDefs::canonicalize_date_string(std::string *sdate)
+{
+    int y = 1970, m = 1, d = 1;
+    string_to_date(*sdate, &y, &m, &d);
+    string out = date_to_string(y, m, d);
+    if (out != *sdate)
+    {
+        *sdate = std::move(out);
+        return true;
+    }
+    return false;
+}
+
+bool BroadcastTimeDefs::canonicalize_time_string(std::string *stime)
+{
+    int h = 0, m = 0;
+    string_to_time(*stime, &h, &m);
+    string out = time_to_string(h, m);
+    if (out != *stime)
+    {
+        *stime = std::move(out);
+        return true;
+    }
+    return false;
 }
 
 } // namespace openlcb
