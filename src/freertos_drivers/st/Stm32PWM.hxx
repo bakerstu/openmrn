@@ -45,6 +45,8 @@
 #include "stm32f3xx_hal_conf.h"
 #elif defined(STM32L432xx)
 #include "stm32l4xx_hal_conf.h"
+#elif defined(STM32F767xx)
+#include "stm32f7xx_hal_conf.h"
 #else
 #error Dont know what STM32 chip you have.
 #endif
