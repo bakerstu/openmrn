@@ -7,6 +7,8 @@
 
 ifneq ($(HOST_TARGET)$(EMU),0)
 
+include $(OPENMRNPATH)/etc/make_utils.mk
+
 FULLPATHCXXTESTSRCS := $(foreach DIR,$(SUBDIRS) tests,$(wildcard $(SRCDIR)/$(DIR)/*.cxxtest))
 
 TESTOBJSEXTRA += gtest-all.o gmock-all.o
@@ -33,8 +35,22 @@ CXXFLAGS += $(INCLUDES)
 ifdef LIBDIR
 # we are under prog.mk
 TESTLIBDEPS += $(foreach lib,$(SUBDIRS),lib/lib$(lib).a)
+
+# This ensures that link targets that depend on lib/libfoo.a will recurse into
+# the directory foo and rebuild stuff that's there. However, the dependency is
+# phrased in a way that if recursing does not change the library (when it's
+# up-to-date) then the .elf linking is not re-done.
+$(foreach lib,$(SUBDIRS),$(eval $(call SUBDIR_helper_template,$(lib))))
+
 else
 LIBDIR = lib
+
+# This ensures that link targets that depend on lib/libfoo.a will recurse into
+# the directory foo and rebuild stuff that's there. However, the dependency is
+# phrased in a way that if recursing does not change the library (when it's
+# up-to-date) then the .elf linking is not re-done.
+$(foreach lib,$(CORELIBS),$(eval $(call SUBDIR_helper_template,$(lib))))
+
 endif
 TESTLIBDEPS += $(foreach lib,$(CORELIBS),$(LIBDIR)/lib$(lib).a)
 
@@ -42,7 +58,8 @@ LDFLAGS      += -L$(LIBDIR)
 
 $(LIBDIR)/timestamp: $(BUILDDIRS)
 
-$(info test deps $(TESTOBJSEXTRA) $(LIBDIR)/timestamp )
+
+$(info test deps $(TESTOBJSEXTRA) $(LIBDIR)/timestamp | $(BUILDDIRS) )
 $(TESTBINS): %.test$(EXTENTION) : %.test.o $(TESTOBJSEXTRA) $(LIBDIR)/timestamp lib/timestamp $(TESTLIBDEPS) $(TESTEXTRADEPS) | $(BUILDDIRS)
 	$(LD) -o $@ $(LDFLAGS) -los  $< $(TESTOBJSEXTRA) $(LIBS) $(STARTGROUP) $(LINKCORELIBS) $(ENDGROUP) $(SYSLIBRARIES) 
 
