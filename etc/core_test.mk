@@ -42,6 +42,8 @@ TESTLIBDEPS += $(foreach lib,$(SUBDIRS),lib/lib$(lib).a)
 # up-to-date) then the .elf linking is not re-done.
 $(foreach lib,$(SUBDIRS),$(eval $(call SUBDIR_helper_template,$(lib))))
 
+$(foreach lib,$(CORELIBS),$(LIBDIR)/lib$(lib).a): $(LIBDIR)/timestamp
+
 else
 LIBDIR = lib
 
