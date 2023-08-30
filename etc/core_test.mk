@@ -42,6 +42,9 @@ TESTLIBDEPS += $(foreach lib,$(SUBDIRS),lib/lib$(lib).a)
 # up-to-date) then the .elf linking is not re-done.
 $(foreach lib,$(SUBDIRS),$(eval $(call SUBDIR_helper_template,$(lib))))
 
+# Ensures that when the core target is clean (missing lib/libfoo.a), make knows
+# how to build its libraries. This also ensures that the text.executable files
+# are remade when something changes in the openmrn codebase.
 $(foreach lib,$(CORELIBS),$(LIBDIR)/lib$(lib).a): $(LIBDIR)/timestamp
 
 else
