@@ -39,6 +39,7 @@
 #include <cstdint>
 
 #include "freertos_drivers/spiffs/SPIFFS.hxx"
+#include "freertos_drivers/st/Stm32Flash.hxx"
 
 /// Specialization of Serial SPIFFS driver for CC32xx devices.
 class Stm32SPIFFS : public SPIFFS
@@ -64,7 +65,10 @@ public:
 private:
     /// size of an erase page in FLASH
     static constexpr size_t ERASE_PAGE_SIZE = 256 * 1024;
-
+    
+    /// Implementation of the flash read/write routines.
+    Stm32Flash<FlashVariableSectors> flash_{STM32F7_SINGLE_BANK_2M_FLASH};
+    
     /// SPIFFS callback to read flash, in context.
     /// @param addr adddress location to read
     /// @param size size of read in bytes

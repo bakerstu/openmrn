@@ -1,5 +1,5 @@
 /** @copyright
- * Copyright (c) 2019, Balazs Racz
+ * Copyright (c) 2023, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,45 +24,124 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file Stm32SPIFFS.cxx
+ * @file Stm32Flash.hxx
  *
- * This file implements a SPIFFS FLASH driver specific to STM32 F7 flash
+ * This file implements a generic Flash driver specific to STM32 F7 flash
  * API.
  *
  * @author Balazs Racz
- * @date 13 July 2019
+ * @date 4 Sep 2023
  */
 
-#include "Stm32SPIFFS.hxx"
-#include "spiffs.h"
+#include <algorithm>
+
+#include "utils/logging.h"
+
 #include "stm32f_hal_conf.hxx"
 
-//
-// Stm32SPIFFS::flash_read()
-//
-int32_t Stm32SPIFFS::flash_read(uint32_t addr, uint32_t size, uint8_t *dst)
+/// Strategy module for finding flash erase sector numbers when the sectors are
+/// constant size.
+template <uint32_t ERASE_PAGE_SIZE> struct FlashFixedSectors {
+    /// Aligns an address to the next possible sector start (i.e., rounds up to
+    /// sector boundary).
+    /// @param addr an address in the flash address space.
+    /// @return If addr is the first byte of a sector, then returns addr
+    /// unmodified. Otherwise returns the starting address of the next sector.
+    static uint32_t next_sector_address(uint32_t addr)
+    {
+        static_assert(
+            ((ERASE_PAGE_SIZE - 1) << 1) & ERASE_PAGE_SIZE == ERASE_PAGE_SIZE,
+            "Erase page size must be a power of two.");
+        return (addr + ERASE_PAGE_SIZE - 1) & ~(ERASE_PAGE_SIZE - 1);
+    }
+
+    /// Lookup the next sector for an address, and return the {sector number,
+    /// address} pair.
+    static std::pair<unsigned, uint32_t> lookup_sector(uint32_t addr)
+    {
+        uint32_t next = next_sector_address(addr);
+        unsigned sector = (next - FLASH_BASE) / ERASE_PAGE_SIZE;
+        return {sector, next};
+    }
+};
+
+static constexpr uint32_t FLASH_EOF = 0xFFFFFFFFul;
+
+/// Strategy module for finding flash erase sector numbers when the sectors are
+/// different sizes.
+struct FlashVariableSectors
 {
-    HASSERT(addr >= fs_->cfg.phys_addr &&
-            (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
+    /// bank_config is an array of uint32 addresses, containing the start of
+    /// each sector. The sector number is the index in this array. As a
+    /// sentinel, the element after the last shall be 0xfffffffful.
+    constexpr FlashVariableSectors(uint32_t* bank_config)
+        : bankConfig_(bank_config) {}
 
+    /// Aligns an address to the next possible sector start (i.e., rounds up to
+    /// sector boundary).
+    /// @param addr an address in the flash address space.
+    /// @return If addr is the first byte of a sector, then returns addr
+    /// unmodified. Otherwise returns the starting address of the next sector.
+    uint32_t next_sector_address(uint32_t addr)
+    {
+        if (addr == bankConfig_[0])
+        {
+            lastIndex_ = 0;
+            return addr;
+        }
+        if (bankConfig_[lastIndex_] >= addr)
+        {
+            lastIndex_ = 0;
+        }
+        HASSERT(bankConfig_[lastIndex_] <= addr);
+        while (bankConfig_[lastIndex_ + 1] < addr)
+        {
+            ++lastIndex_;
+        }
+        // now: bankConfig_[lastIndex_] < addr and
+        // bankConfig_[lastIndex_+1] >= addr
+        return bankConfig_[lastIndex_ + 1];
+    }
+
+    /// Lookup the next sector for an address, and return the {sector number,
+    /// address} pair.
+    std::pair<unsigned, uint32_t> lookup_sector(uint32_t addr)
+    {
+        uint32_t next = next_sector_address(addr);
+        return {lastIndex_ + 1, next};
+    }
+    
+protected:
+    /// 1-element cache on where to start looking for
+    /// sectors. bankConfig_[lastIndex_] <= last address that was queried.
+    unsigned lastIndex_{0};
+private:
+    /// Contains an array of the start addresses of the erase sectors.
+    uint32_t* bankConfig_;
+};
+
+extern uint32_t STM32F7_DUAL_BANK_2M_FLASH[];
+extern uint32_t STM32F7_SINGLE_BANK_2M_FLASH[];
+
+template <class SectorLookup> class Stm32Flash : public SectorLookup {
+public:
+    template <typename... Args>
+    constexpr Stm32Flash(Args &&...args)
+        : SectorLookup(std::forward<Args>(args)...)
+    { }
+
+void read(uint32_t addr, uint32_t size, uint8_t *dst)
+{
     memcpy(dst, (void *)addr, size);
-
-    return 0;
 }
 
-//
-// Stm32SPIFFS::flash_write()
-//
-int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
+void write(uint32_t addr, uint32_t size, uint8_t *src)
 {
     union WriteWord
     {
         uint8_t  data[4];
         uint32_t data_word;
     };
-
-    HASSERT(addr >= fs_->cfg.phys_addr &&
-            (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
 
     HAL_FLASH_Unlock();
 
@@ -79,7 +158,7 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
                 FLASH_TYPEPROGRAM_WORD, addr & (~0x3), ww.data_word));
 
         HAL_FLASH_Lock();
-        return 0;
+        return;
     }
 
     int misaligned = (addr + size) % 4;
@@ -135,36 +214,34 @@ int32_t Stm32SPIFFS::flash_write(uint32_t addr, uint32_t size, uint8_t *src)
     }
 
     HAL_FLASH_Lock();
-
-    return 0;
 }
 
-//
-// Stm32SPIFFS::flash_erase()
-//
-int32_t Stm32SPIFFS::flash_erase(uint32_t addr, uint32_t size)
+void erase(uint32_t addr, uint32_t size)
 {
-    extern char __flash_fs_start;
-    extern char __flash_fs_sector_start;
-    HASSERT(addr >= fs_->cfg.phys_addr &&
-            (addr + size) <= (fs_->cfg.phys_addr  + fs_->cfg.phys_size));
-
     FLASH_EraseInitTypeDef erase_init;
     memset(&erase_init, 0, sizeof(erase_init));
 
     erase_init.TypeErase = TYPEERASE_SECTORS;
-    unsigned offset = addr - (unsigned)&__flash_fs_start;
-    HASSERT((size % ERASE_PAGE_SIZE) == 0);
-    HASSERT((offset % ERASE_PAGE_SIZE) == 0);
-    unsigned sector = offset / ERASE_PAGE_SIZE;
-    erase_init.Sector = ((unsigned)(&__flash_fs_sector_start)) + sector;
-    erase_init.NbSectors = size / ERASE_PAGE_SIZE;
+
+    auto sa = this->lookup_sector(addr);
+    HASSERT(sa.second == addr); // start of erase must fall on sector boundary.
+    erase_init.Sector = sa.first;
+
+    unsigned count = 0;
+    // Figure out how many total sectors we need to erase.
+    do {
+        ++count;
+        sa = this->lookup_sector(sa.second + 1);
+    } while (sa.second < addr + size);
+
+    HASSERT(sa.second == addr + size || sa.second == FLASH_EOF);
+    
+    erase_init.NbSectors = count;
     erase_init.VoltageRange = FLASH_VOLTAGE_RANGE_3; // 3.3 to 3.6 volts powered.
     HAL_FLASH_Unlock();
     uint32_t sector_error;
     HASSERT(HAL_OK == HAL_FLASHEx_Erase(&erase_init, &sector_error));
     HAL_FLASH_Lock();
-
-    return 0;
 }
 
+}; // class Stm32Flash
