@@ -152,6 +152,7 @@ public:
 #else
             alloc.construct(debouncers_ + i, 3);
 #endif // __cplusplus >= 202002L
+        }
     }
 
     ~MultiConfiguredPC()
