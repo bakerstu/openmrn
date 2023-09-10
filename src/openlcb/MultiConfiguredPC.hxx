@@ -41,6 +41,7 @@
 #include "openlcb/RefreshLoop.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
+#include "utils/Debouncer.hxx"
 #include "utils/format_utils.hxx"
 
 namespace openlcb
@@ -138,20 +139,10 @@ public:
         ConfigUpdateService::instance()->register_update_listener(this);
         producedEvents_ = new EventId[size * 2];
         std::allocator<debouncer_type> alloc;
-// C++20 standard removed the construct and destruct methods from
-// std::allocator which are now available in std::allocator_traits requiring
-// passing in the allocator to these methods.
-#if __cplusplus >= 202002L
-        std::allocator_traits<std::allocator<debouncer_type>> alloc_traits;
-#endif // __cplusplus >= 202002L
         debouncers_ = alloc.allocate(size_);
         for (unsigned i = 0; i < size_; ++i)
         {
-#if __cplusplus >= 202002L
-            alloc_traits.construct(alloc, debouncers_ + i, 3);
-#else
-            alloc.construct(debouncers_ + i, 3);
-#endif // __cplusplus >= 202002L
+            alloc_traits::construct(alloc, debouncers_ + i, 3);
         }
     }
 
@@ -161,19 +152,9 @@ public:
         ConfigUpdateService::instance()->unregister_update_listener(this);
         delete[] producedEvents_;
         std::allocator<debouncer_type> alloc;
-// C++20 standard removed the construct and destruct methods from
-// std::allocator which are now available in std::allocator_traits requiring
-// passing in the allocator to these methods.
-#if __cplusplus >= 202002L
-        std::allocator_traits<std::allocator<debouncer_type>> alloc_traits;
-#endif // __cplusplus >= 202002L
         for (unsigned i = 0; i < size_; ++i)
         {
-#if __cplusplus >= 202002L
-            alloc_traits.destroy(alloc, debouncers_ + i);
-#else
-            alloc.destroy(debouncers_ + i);
-#endif // __cplusplus >= 202002L
+            alloc_traits::destroy(alloc, debouncers_ + i);
         }
         alloc.deallocate(debouncers_, size_);
     }
@@ -356,6 +337,8 @@ public:
     }
 
 private:
+    using alloc_traits = std::allocator_traits<std::allocator<debouncer_type>>;
+
     /// Removes registration of this event handler from the global event
     /// registry.
     void do_unregister()
