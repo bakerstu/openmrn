@@ -68,6 +68,7 @@
 #include <hal/twai_types.h>
 #include <hal/twai_hal.h>
 #include <soc/gpio_sig_map.h>
+#include <stdint.h>
 
 #include "can_frame.h"
 #include "can_ioctl.h"
@@ -234,7 +235,7 @@ static inline void twai_purge_rx_queue()
     Notifiable* n = nullptr;
     {
         AtomicHolder h(&twai.buf_lock);
-        LOG(VERBOSE, "ESP-TWAI: puring RX-Q: %d", twai.rx_buf->pending());
+        LOG(VERBOSE, "ESP-TWAI: purging RX-Q: %zu", twai.rx_buf->pending());
         twai.stats.rx_missed += twai.rx_buf->pending();
         twai.rx_buf->flush();
         std::swap(n, twai.readable_notify);
@@ -260,7 +261,7 @@ static inline void twai_purge_tx_queue()
     Notifiable* n = nullptr;
     {
         AtomicHolder h(&twai.buf_lock);
-        LOG(VERBOSE, "ESP-TWAI: puring TX-Q: %d", twai.tx_buf->pending());
+        LOG(VERBOSE, "ESP-TWAI: purging TX-Q: %zu", twai.tx_buf->pending());
         twai.stats.tx_failed += twai.tx_buf->pending();
         twai.tx_buf->flush();
         std::swap(n, twai.writable_notify);
@@ -288,7 +289,7 @@ static inline void twai_purge_tx_queue()
 /// blocking operation.
 static ssize_t twai_vfs_write(int fd, const void *buf, size_t size)
 {
-    LOG(VERBOSE, "ESP-TWAI: write(%d, %p, %d)", fd, buf, size);
+    LOG(VERBOSE, "ESP-TWAI: write(%d, %p, %zu)", fd, buf, size);
     DASSERT(fd == TWAI_VFS_FD);
     ssize_t sent = 0;
     const struct can_frame *data = (const struct can_frame *)buf;
@@ -307,7 +308,7 @@ static ssize_t twai_vfs_write(int fd, const void *buf, size_t size)
         else if (!is_twai_running())
         {
             LOG_ERROR("ESP-TWAI: TWAI driver is not running, unable to write "
-                      "%d frames.", size);
+                      "%zu frames.", size);
             bus_error = true;
             break;
         }
@@ -360,7 +361,7 @@ static ssize_t twai_vfs_write(int fd, const void *buf, size_t size)
     {
         errno = EWOULDBLOCK;
     }
-    LOG(VERBOSE, "ESP-TWAI: write() %d", sent * sizeof(struct can_frame));
+    LOG(VERBOSE, "ESP-TWAI: write() %zu", sent * sizeof(struct can_frame));
     return sent * sizeof(struct can_frame);
 }
 
@@ -373,7 +374,7 @@ static ssize_t twai_vfs_write(int fd, const void *buf, size_t size)
 /// blocking operation.
 static ssize_t twai_vfs_read(int fd, void *buf, size_t size)
 {
-    LOG(VERBOSE, "ESP-TWAI: read(%d, %p, %d)", fd, buf, size);
+    LOG(VERBOSE, "ESP-TWAI: read(%d, %p, %zu)", fd, buf, size);
     DASSERT(fd == TWAI_VFS_FD);
 
     ssize_t received = 0;
@@ -401,7 +402,7 @@ static ssize_t twai_vfs_read(int fd, void *buf, size_t size)
         return -1;
     }
 
-    LOG(VERBOSE, "ESP-TWAI: read() %d", received * sizeof(struct can_frame));
+    LOG(VERBOSE, "ESP-TWAI: read() %zu", received * sizeof(struct can_frame));
     return received * sizeof(struct can_frame);
 }
 
@@ -715,7 +716,7 @@ static void twai_isr(void *arg)
 {
     BaseType_t wakeup = pdFALSE;
     uint32_t events = twai_hal_get_events(&twai.context);
-    ESP_EARLY_LOGV(TWAI_LOG_TAG, "events: %04x", events);
+    ESP_EARLY_LOGV(TWAI_LOG_TAG, "events: %08x", events);
 
 #if defined(CONFIG_TWAI_ERRATA_FIX_RX_FRAME_INVALID) || \
     defined(CONFIG_TWAI_ERRATA_FIX_RX_FIFO_CORRUPT)
@@ -793,8 +794,8 @@ static void twai_isr(void *arg)
     // Arbitration error detected
     if (events & TWAI_HAL_EVENT_ARB_LOST)
     {
-        twai.stats.arb_error++;
-        ESP_EARLY_LOGV(TWAI_LOG_TAG, "arb-lost:%d", twai.stats.arb_error);
+        twai.stats.arb_loss++;
+        ESP_EARLY_LOGV(TWAI_LOG_TAG, "arb-lost:%d", twai.stats.arb_loss);
     }
 
     if (wakeup == pdTRUE)
@@ -877,13 +878,13 @@ void* twai_watchdog(void* param)
                 "ESP-TWAI: "
                 "RX:%d (pending:%zu,overrun:%d,discard:%d,missed:%d,lost:%d) "
                 "TX:%d (pending:%zu,suc:%d,fail:%d) "
-                "Bus (arb-err:%d,err:%d,state:%s)",
+                "Bus (arb-loss:%d,err:%d,state:%s)",
                 twai.stats.rx_processed, twai.rx_buf->pending(),
                 twai.stats.rx_overrun, twai.stats.rx_discard,
                 twai.stats.rx_missed, twai.stats.rx_lost,
                 twai.stats.tx_processed, twai.tx_buf->pending(),
                 twai.stats.tx_success, twai.stats.tx_failed,
-                twai.stats.arb_error, twai.stats.bus_error,
+                twai.stats.arb_loss, twai.stats.bus_error,
                 is_twai_running() ? "Running" :
                 is_twai_recovering() ? "Recovering" :
                 is_twai_err_warn() ? "Err-Warn" :
