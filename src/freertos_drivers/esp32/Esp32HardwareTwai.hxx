@@ -87,8 +87,8 @@ typedef struct
     /// by the low-level TWAI driver.
     uint32_t tx_failed;
 
-    /// Number of arbitration errors that have been observed on the TWAI bus.
-    uint32_t arb_error;
+    /// Number of arbitration losses that have been observed on the TWAI bus.
+    uint32_t arb_loss;
 
     /// Number of general bus errors that have been observed on the TWAI bus.
     uint32_t bus_error;
