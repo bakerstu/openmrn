@@ -73,7 +73,10 @@ int32_t Stm32SPIFFS::flash_erase(uint32_t addr, uint32_t size)
 
     flash_.erase(addr, size);
 
-/*    
+/*
+  This is the old flash erase code. This will be needed in Stm32Flash when we want to support the F3, F0 or L4 MCUs.
+
+  
     extern char __flash_fs_start;
     extern char __flash_fs_sector_start;
 
