@@ -58,7 +58,8 @@ const char *STDERR_DEVICE = "/dev/ser0";
 static Stm32Uart uart0("/dev/ser0", USART2, USART2_LPUART2_IRQn);
 
 /** CAN 0 CAN driver instance */
-static Stm32Can can0("/dev/can0");
+//static Stm32Can can0("/dev/can0");
+// todo: Need FDCAN driver here...
 
 /** EEPROM emulation driver. The file size might be made bigger. */
 static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
@@ -284,8 +285,10 @@ void timer17_interrupt_handler(void)
 void timer17_fdcan_it1_interrupt_handler(void)
 {
     timer17_interrupt_handler();
-    // todo: fdcan1_it1_interrupt_handler();
-    // todo: fdcan2_it1_interrupt_handler();
+    Stm32Can::instances[0]->rx_interrupt_handler();
+    Stm32Can::instances[0]->tx_interrupt_handler();
+ //   Stm32Can::instances[1]->rx_interrupt_handler();
+ //   Stm32Can::instances[1]->tx_interrupt_handler();
   
 }  // ~timer17_fdcan_it1_interrupt_handler()
 

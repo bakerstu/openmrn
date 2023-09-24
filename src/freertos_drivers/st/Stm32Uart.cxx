@@ -29,6 +29,8 @@
  *
  * @author Stuart W. Baker
  * @date 26 April 2015
+ * @author Brian Barnt
+ * @date August 27, 2023
  */
 
 #include "Stm32Uart.hxx"
@@ -78,6 +80,8 @@ Stm32Uart *Stm32Uart::instances[6] = {NULL};
 Stm32Uart *Stm32Uart::instances[8] = {NULL};
 #elif defined (STM32G0B1xx)
 // six UARTs + two LPUARTs
+#define USART7 LPUART1
+#define USART8 LPUART2
 Stm32Uart *Stm32Uart::instances[8] = {NULL};
 #endif
 
@@ -115,7 +119,7 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     else if (base == USART4)
 #elif defined(UART4)
     else if (base == UART4)
-#endif        
+#endif  //  USART4       
     {
         instances[3] = this;
     }
@@ -196,7 +200,13 @@ void Stm32Uart::enable()
     switch (interrupt)
     {
         case USART1_IRQn:
+#if defined(STM32G0B1xx)
+        case USART2_LPUART2_IRQn:
+        case USART3_4_5_6_LPUART1_IRQn:
+#elif
         case USART2_IRQn:
+#endif
+
 #ifdef USART3_IRQn
         case USART3_IRQn:
 #endif
@@ -218,7 +228,13 @@ void Stm32Uart::disable()
     switch (interrupt)
     {
         case USART1_IRQn:
+#if defined(STM32G0B1xx)
+        case USART2_LPUART2_IRQn:
+        case USART3_4_5_6_LPUART1_IRQn:
+#elif
         case USART2_IRQn:
+#endif
+
 #ifdef USART3_IRQn
         case USART3_IRQn:
 #endif
@@ -331,7 +347,7 @@ void Stm32Uart::interrupt_handler(unsigned index)
 #if !defined(STM32F030x6) && !defined(STM32F031x6) && !defined(STM32F038xx) && \
     !defined(STM32F030x8) && !defined(STM32F042x6) && !defined(STM32F048xx) && \
     !defined(STM32F051x8) && !defined(STM32F058xx) && !defined(STM32F070x6) && \
-    !defined(STM32F767xx)
+    !defined(STM32F767xx) && !defined (STM32G0B1xx)
     if (index >= 2)
     {
         for (unsigned i = 2; i < (sizeof(instances)/sizeof(Stm32Uart*)); ++i)
