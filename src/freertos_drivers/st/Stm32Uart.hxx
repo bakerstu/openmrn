@@ -113,6 +113,8 @@ protected:
 #elif defined (STM32F091xC) || defined (STM32F098xx) || defined (STM32F767xx)
     /** Instance pointers help us get context from the interrupt handler(s) */
     static Stm32Uart *instances[8];
+#elif defined (STM32G0B1xx)
+    static Stm32Uart *instances[8];
 #endif
 
 private:
