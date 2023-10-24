@@ -90,7 +90,7 @@ extern const unsigned long cpu_clock_hz;
 
 /** CPU clock speed. */
 const unsigned long cpu_clock_hz = 48000000;
-uint32_t SystemCoreClock = 48000000;
+extern uint32_t SystemCoreClock; // = 48000000;
 
 /** Exception table */
 __attribute__ ((section(".interrupt_vector")))

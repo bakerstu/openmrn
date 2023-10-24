@@ -110,6 +110,8 @@ const unsigned long cm0p_cpu_clock_hz = 16000000UL;
 uint32_t SystemCoreClock;
 const uint32_t AHBPrescTable[16] = {0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 1UL, 2UL, 3UL, 4UL, 6UL, 7UL, 8UL, 9UL};
 const uint32_t APBPrescTable[8]  = {0UL, 0UL, 0UL, 0UL, 1UL, 2UL, 3UL, 4UL};
+const uint32_t HSEValue = 8000000UL;
+//const uint32_t HSIValue = 16000000UL;
 
 /**
   * @brief  System Clock Configuration
@@ -285,8 +287,9 @@ void timer17_interrupt_handler(void)
 void timer17_fdcan_it1_interrupt_handler(void)
 {
     timer17_interrupt_handler();
-    Stm32Can::instances[0]->rx_interrupt_handler();
-    Stm32Can::instances[0]->tx_interrupt_handler();
+    // todo: Fix fdcan Instances...
+//    Stm32Can::instances[0]->rx_interrupt_handler();
+//    Stm32Can::instances[0]->tx_interrupt_handler();
  //   Stm32Can::instances[1]->rx_interrupt_handler();
  //   Stm32Can::instances[1]->tx_interrupt_handler();
   
