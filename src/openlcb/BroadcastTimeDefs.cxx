@@ -204,7 +204,6 @@ bool BroadcastTimeDefs::string_to_date(
     // While glibc does have proper boundary checking for strptime(), it
     // can still use mktime() to correct some invalid struct tm values by
     // making some educated guesses.
-    //
     time_t t = mktime(&tm);
 
     // newlib doe not correctly set the errno value when mktime()
