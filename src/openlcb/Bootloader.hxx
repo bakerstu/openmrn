@@ -1048,10 +1048,6 @@ bool bootloader_init() {
 /// should keep running (i.e., to call again).
 bool bootloader_loop()
 {
-#ifdef BOOTLOADER_LOOP_HOOK
-    BOOTLOADER_LOOP_HOOK();
-#endif
-
     {
 #ifdef __linux__
         AtomicHolder h(&g_bootloader_lock);
@@ -1073,6 +1069,9 @@ bool bootloader_loop()
             g_bootloader_busy = new_busy;
         }
     }
+#ifdef BOOTLOADER_LOOP_HOOK
+    BOOTLOADER_LOOP_HOOK();
+#endif
     if (state_.output_frame_full && try_send_can_frame(state_.output_frame))
     {
         state_.output_frame_full = 0;
