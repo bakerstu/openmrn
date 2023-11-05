@@ -3,10 +3,11 @@ VPATH = $(OPENMRNPATH)/src/freertos_drivers/st \
         $(STM32CUBEF0PATH)/Drivers/STM32F0xx_HAL_Driver/Src
 
 # The STM32f072xB family is a superset of the STM32F071xB (no USB, no CAN)
-CFLAGS += -DSTM32F072xB
+CFLAGS += -DSTM32F072xB  -DHAL_RCC_GetSysClockFreq=OBSOLETE
 CXXFLAGS += -DSTM32F072xB
 
-CSRCS += stm32f0xx_hal_adc.c \
+CSRCS += stm32f0xx_hal.c \
+         stm32f0xx_hal_adc.c \
          stm32f0xx_hal_adc_ex.c \
          stm32f0xx_hal_can.c \
          stm32f0xx_hal_cec.c \
@@ -49,3 +50,7 @@ CSRCS += stm32f0xx_hal_adc.c \
 CXXSRCS += Stm32Can.cxx \
            Stm32Uart.cxx \
            Stm32EEPROMEmulation.cxx
+
+# for some reason, -0s changes the behavior of HAL_FLASHEx_Erase() and
+# doesn't perform the erase.
+stm32f0xx_hal_flash_ex.o : CFLAGS += -O3
