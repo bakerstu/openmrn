@@ -167,7 +167,7 @@ TEST_F(BroadcastTimeDefsTest, string_to_date)
     // Not leap year
     parse_date("Feb 29, 2023", 2023, 3, 1);
 
-    // No canonicalization in glibc
+    // canonize
     parse_date("Feb 31, 2023", 2023, 3, 3);
 }
 

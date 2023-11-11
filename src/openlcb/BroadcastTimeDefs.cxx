@@ -206,7 +206,7 @@ bool BroadcastTimeDefs::string_to_date(
     // making some educated guesses.
     time_t t = mktime(&tm);
 
-    // newlib doe not correctly set the errno value when mktime()
+    // newlib does not correctly set the errno value when mktime()
     // encounters an error. Instead it "only" returns -1, which is technically
     // a valid time. We are counting on the fact that we zeroed out the struct
     // tm above, and subsequently -1 cannot be an expected result.
