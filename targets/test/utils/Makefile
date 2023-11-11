@@ -1,1 +1,1 @@
-include $(OPENMRNPATH)/etc/test.mk
+include $(OPENMRNPATH)/etc/lib.mk
