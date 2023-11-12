@@ -1,6 +1,5 @@
-include ../../etc/core_target.mk
-
-#include $(OPENMRNPATH)/etc/core_target.mk
+OPENMRNPATH ?= $(abspath ../..)
+include $(OPENMRNPATH)/etc/core_target.mk
 
 SRCDIR = $(OPENMRNPATH)/src
 

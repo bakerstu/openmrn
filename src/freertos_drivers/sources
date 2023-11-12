@@ -78,7 +78,7 @@ endif
 endif
 
 ifeq ($(TARGET),bare.armv6m)
-SUBDIRS += stm32cubef091xc
+SUBDIRS += stm32cubef091xc stm32cubef071xb_2xb
 CXXSRCS += c++_operators.cxx
 endif
 
