@@ -41,7 +41,8 @@
 
 /// Strategy module for finding flash erase sector numbers when the sectors are
 /// constant size.
-template <uint32_t ERASE_PAGE_SIZE> struct FlashFixedSectors {
+template <uint32_t ERASE_PAGE_SIZE> struct FlashFixedSectors
+{
     /// Aligns an address to the next possible sector start (i.e., rounds up to
     /// sector boundary).
     /// @param addr an address in the flash address space.
@@ -74,8 +75,9 @@ struct FlashVariableSectors
     /// bank_config is an array of uint32 addresses, containing the start of
     /// each sector. The sector number is the index in this array. As a
     /// sentinel, the element after the last shall be 0xfffffffful.
-    constexpr FlashVariableSectors(uint32_t* bank_config)
-        : bankConfig_(bank_config) {}
+    constexpr FlashVariableSectors(uint32_t *bank_config)
+        : bankConfig_(bank_config)
+    { }
 
     /// Aligns an address to the next possible sector start (i.e., rounds up to
     /// sector boundary).
@@ -110,14 +112,15 @@ struct FlashVariableSectors
         uint32_t next = next_sector_address(addr);
         return {lastIndex_ + 1, next};
     }
-    
+
 protected:
     /// 1-element cache on where to start looking for
     /// sectors. bankConfig_[lastIndex_] <= last address that was queried.
-    unsigned lastIndex_{0};
+    unsigned lastIndex_ {0};
+
 private:
     /// Contains an array of the start addresses of the erase sectors.
-    uint32_t* bankConfig_;
+    uint32_t *bankConfig_;
 };
 
 extern uint32_t STM32F7_DUAL_BANK_2M_FLASH[];

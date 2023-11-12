@@ -35,7 +35,8 @@
 
 #include "freertos_drivers/st/Stm32Flash.hxx"
 
-uint32_t STM32F7_DUAL_BANK_2M_FLASH[] = {
+uint32_t STM32F7_DUAL_BANK_2M_FLASH[] =
+{
     0x08000000,
     0x08004000,
     0x08008000,
@@ -66,7 +67,8 @@ uint32_t STM32F7_DUAL_BANK_2M_FLASH[] = {
 static_assert(ARRAYSIZE(STM32F7_DUAL_BANK_2M_FLASH) == 25,
               "dual bank 2M flash mismatch");
 
-uint32_t STM32F7_SINGLE_BANK_2M_FLASH[] = {
+uint32_t STM32F7_SINGLE_BANK_2M_FLASH[] =
+{
     0x08000000,
     0x08008000,
     0x08010000,
