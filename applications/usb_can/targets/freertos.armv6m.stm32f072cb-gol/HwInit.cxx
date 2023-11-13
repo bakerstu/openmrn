@@ -154,6 +154,35 @@ static void clock_setup(void)
     RCC->CFGR = (RCC->CFGR & (~RCC_CFGR_SW)) | RCC_CFGR_SW_PLL;
     while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_PLL))
         ;
+
+    RCC_PeriphCLKInitTypeDef  PeriphClkInitStruct = {0};
+    /* Select HSI48 as USB clock source */
+    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
+    PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
+    HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
+
+    /*Configure the clock recovery system (CRS)********************************/
+
+    /*Enable CRS Clock*/
+    __HAL_RCC_CRS_CLK_ENABLE();
+
+    RCC_CRSInitTypeDef RCC_CRSInitStruct = {0};
+    
+    /* Default Synchro Signal division factor (not divided) */
+    RCC_CRSInitStruct.Prescaler = RCC_CRS_SYNC_DIV1;
+
+    /* Set the SYNCSRC[1:0] bits according to CRS_Source value */
+    RCC_CRSInitStruct.Source = RCC_CRS_SYNC_SOURCE_USB;
+
+    /* HSI48 is synchronized with USB SOF at 1KHz rate */
+    RCC_CRSInitStruct.ReloadValue =  __HAL_RCC_CRS_RELOADVALUE_CALCULATE(48000000, 1000);
+    RCC_CRSInitStruct.ErrorLimitValue = RCC_CRS_ERRORLIMIT_DEFAULT;
+
+    /* Set the TRIM[5:0] to the default value*/
+    RCC_CRSInitStruct.HSI48CalibrationValue = 0x20;
+
+    /* Start automatic synchronization */
+    HAL_RCCEx_CRSConfig (&RCC_CRSInitStruct);
 }
 
 /** Initialize the processor hardware.
@@ -177,6 +206,7 @@ void hw_preinit(void)
     __HAL_RCC_USART1_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
     __HAL_RCC_TIM14_CLK_ENABLE();
+    __HAL_RCC_USB_CLK_ENABLE();    
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
@@ -192,15 +222,24 @@ void hw_preinit(void)
     gpio_init.Pin = GPIO_PIN_10;
     HAL_GPIO_Init(GPIOA, &gpio_init);
 
-    /* CAN pinmux on PB8 and PB9 */
-    gpio_init.Mode = GPIO_MODE_AF_PP;
-    gpio_init.Pull = GPIO_PULLUP;
+    /* CAN pinmux !!OPEN-DRAIN!! on PB8 and PB9 */
+    gpio_init.Mode = GPIO_MODE_AF_OD;
     gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Pull = GPIO_PULLUP;
     gpio_init.Alternate = GPIO_AF4_CAN;
     gpio_init.Pin = GPIO_PIN_8;
     HAL_GPIO_Init(GPIOB, &gpio_init);
     gpio_init.Pin = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOB, &gpio_init);
+
+    // USB Pins
+    // Configure USB DM and DP pins. This is optional, and maintained only for
+    // user guidance.
+    gpio_init.Pin = (GPIO_PIN_11 | GPIO_PIN_12);
+    gpio_init.Mode = GPIO_MODE_INPUT;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOA, &gpio_init);
 
     GpioInit::hw_init();
 
@@ -225,6 +264,18 @@ void hw_preinit(void)
     }
     SetInterruptPriority(TIM14_IRQn, 0);
     NVIC_EnableIRQ(TIM14_IRQn);
+}
+
+void hw_postinit(void)
+{
+    serUSB0.hw_postinit();
+}
+
+extern void dcd_int_handler(int);
+
+void usb_interrupt_handler(void)
+{
+    dcd_int_handler(0);
 }
 
 }

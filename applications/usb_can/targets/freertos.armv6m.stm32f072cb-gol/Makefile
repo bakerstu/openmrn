@@ -37,6 +37,8 @@ all: $(EXECUTABLE).bin
 multibin:
 	for i in $$(seq 1 $(NUM)) ; do $(MAKE) $(EXECUTABLE).bin ADDRESS=$$(printf 0x%02x $$(($(ADDRESS)+$$i))) ; cp $(EXECUTABLE).bin $(EXECUTABLE).$(MCU_SHORT).$$(printf %02x%02x $(ADDRHIGH) $$(($(ADDRESS)+$$i-1))).bin ; done
 
+startup.o: CFLAGS+= -DHAL_RCC_GetSysClockFreq=OBSOLETEClock
+
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)
 
 flash: $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst
