@@ -46,10 +46,15 @@ public:
     
     // Call this function once from hw_postinit.
     void hw_postinit();
+
+    // Called from static C callback functions.
+    inline void rx_available();
+    inline void tx_complete();
     
 private:
     void enable() override {}
     void disable() override {}
+    void flush_buffers() override {}
     
     /** Device select method. Default impementation returns true.
      * @param file reference to the file

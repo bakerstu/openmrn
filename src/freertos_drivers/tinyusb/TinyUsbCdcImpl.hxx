@@ -39,6 +39,8 @@
 #include "freertos_drivers/tinyusb/TinyUsbCdc.hxx"
 
 #include "os/OS.hxx"
+#include "freertos_drivers/common/DeviceBuffer.hxx"
+#include <fcntl.h>
 
 #include "tusb.h"
 
@@ -76,7 +78,7 @@ void* TinyUsbCdc::UsbDeviceThread::entry()
     }
 }
 
-ssize_t TinyUsbCdc::read(File *file, void *buf, size_t count) override
+ssize_t TinyUsbCdc::read(File *file, void *buf, size_t count)
 {
     unsigned char *data = (unsigned char *)buf;
     ssize_t result = 0;
@@ -103,7 +105,7 @@ ssize_t TinyUsbCdc::read(File *file, void *buf, size_t count) override
                 /* wait for data to come in, this call will release the
                  * critical section lock.
                  */
-                rxBuf->block_until_condition(file, true);
+                DeviceBufferBase::block_until_condition(file, true);
             }
         }
 
@@ -120,12 +122,114 @@ ssize_t TinyUsbCdc::read(File *file, void *buf, size_t count) override
     return result;
 }
 
+ssize_t TinyUsbCdc::write(File *file, const void *buf, size_t count) {
+    const unsigned char *data = (const unsigned char *)buf;
+    ssize_t result = 0;
+
+    while (count)
+    {
+        portENTER_CRITICAL();
+        /* We limit the amount of bytes we write with each iteration in order
+         * to limit the amount of time that interrupts are disabled and
+         * preserve our real-time performance.
+         */
+        size_t bytes_written = tud_cdc_write(data, count < 64 ? count : 64);
+        portEXIT_CRITICAL();
+
+        if (bytes_written == 0)
+        {
+            /* no more space to send data */
+            if ((file->flags & O_NONBLOCK) || result > 0)
+            {
+                break;
+            }
+            else
+            {
+                /* wait for space to be available, this call will release the
+                 * critical section lock.
+                 */
+                DeviceBufferBase::block_until_condition(file, false);
+            }
+        }
+
+        count -= bytes_written;
+        result += bytes_written;
+        data += bytes_written;
+    }
+
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EAGAIN;
+    }
+
+    return result;
+}
+
+/** Device select method. Default impementation returns true.
+ * @param file reference to the file
+ * @param mode FREAD for read active, FWRITE for write active, 0 for
+ *        exceptions
+ * @return true if active, false if inactive
+ */
+bool TinyUsbCdc::select(File *file, int mode)
+{
+    bool retval = false;
+    switch (mode)
+    {
+        case FREAD:
+            portENTER_CRITICAL();
+            if (tud_cdc_available() > 0)
+            {
+                retval = true;
+            }
+            else
+            {
+                Device::select_insert(&selectInfoRead_);
+            }
+            portEXIT_CRITICAL();
+            break;
+        case FWRITE:
+            portENTER_CRITICAL();
+            if (tud_cdc_write_available() > 0)
+            {
+                retval = true;
+            }
+            else
+            {
+                Device::select_insert(&selectInfoWrite_);
+            }
+            portEXIT_CRITICAL();
+            break;
+        default:
+        case 0:
+            /* we don't support any exceptions */
+            break;
+    }
+    return retval;
+}
+
+inline void TinyUsbCdc::rx_available() {
+    Device::select_wakeup(&selectInfoRead_);
+}
+
+inline void TinyUsbCdc::tx_complete() {
+    Device::select_wakeup(&selectInfoWrite_);
+}
+
 extern "C" {
 
 // Invoked when CDC interface received data from host
 void tud_cdc_rx_cb(uint8_t itf)
 {
   (void) itf;
+  Singleton<TinyUsbCdc>::instance()->rx_available();
+}
+
+// Invoked when a TX is complete and therefore space becomes available in TX buffer
+void tud_cdc_tx_complete_cb(uint8_t itf)
+{
+  (void) itf;
+  Singleton<TinyUsbCdc>::instance()->tx_complete();
 }
 
 
