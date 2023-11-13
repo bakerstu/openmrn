@@ -45,7 +45,7 @@
 #include "tusb.h"
 
 #ifndef USBD_STACK_SIZE
-#define USBD_STACK_SIZE 2048
+#define USBD_STACK_SIZE 768
 #endif
 
 #ifndef USBD_TASK_PRIO
@@ -160,6 +160,11 @@ ssize_t TinyUsbCdc::write(File *file, const void *buf, size_t count) {
     if (!result && (file->flags & O_NONBLOCK))
     {
         return -EAGAIN;
+    }
+
+    if (result)
+    {
+        tud_cdc_write_flush();
     }
 
     return result;
