@@ -45,6 +45,7 @@
 #include "os/OS.hxx"
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
+#include "Stm32UsbCdc.hxx"
 #include "Stm32EEPROMEmulation.hxx"
 #include "hardware.hxx"
 
@@ -67,6 +68,10 @@ static Stm32Can can0("/dev/can0");
 static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
 
 const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
+
+/** USB-Serial instance */
+static Stm32UsbCdc serUSB0("/dev/serUSB0");
+
 
 extern "C" {
 

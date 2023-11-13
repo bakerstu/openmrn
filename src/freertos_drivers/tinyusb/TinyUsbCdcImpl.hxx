@@ -50,12 +50,14 @@
 #define USBD_TASK_PRIO 3
 #endif
 
+TinyUsbCdc::~TinyUsbCdc() {}
+
 void TinyUsbCdc::hw_postinit()
 {
     usbdThread_.start("tinyusb_device", USBD_TASK_PRIO, USBD_STACK_SIZE);
 }
 
-void TinyUsbCdc::UsbDeviceThread::entry()
+void* TinyUsbCdc::UsbDeviceThread::entry()
 {
     // init device stack on configured roothub port
     // This should be called after scheduler/kernel is started.
@@ -74,6 +76,49 @@ void TinyUsbCdc::UsbDeviceThread::entry()
     }
 }
 
+ssize_t TinyUsbCdc::read(File *file, void *buf, size_t count) override
+{
+    unsigned char *data = (unsigned char *)buf;
+    ssize_t result = 0;
+
+    while (count)
+    {
+        portENTER_CRITICAL();
+        /* We limit the amount of bytes we read with each iteration in order
+         * to limit the amount of time that interrupts are disabled and
+         * preserve our real-time performance.
+         */
+        size_t bytes_read = tud_cdc_read(data, count < 64 ? count : 64);
+        portEXIT_CRITICAL();
+
+        if (bytes_read == 0)
+        {
+            /* no more data to receive */
+            if ((file->flags & O_NONBLOCK) || result > 0)
+            {
+                break;
+            }
+            else
+            {
+                /* wait for data to come in, this call will release the
+                 * critical section lock.
+                 */
+                rxBuf->block_until_condition(file, true);
+            }
+        }
+
+        count -= bytes_read;
+        result += bytes_read;
+        data += bytes_read;
+    }
+
+    if (!result && (file->flags & O_NONBLOCK))
+    {
+        return -EAGAIN;
+    }
+
+    return result;
+}
 
 extern "C" {
 

@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Stm32CdcUsb.hxx
+ * \file Stm32UsbCdc.hxx
  * Device driver for the STM32 devices using the TinyUsb stack.
  *
  * @author Balazs Racz

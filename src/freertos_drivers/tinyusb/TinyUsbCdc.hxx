@@ -34,23 +34,23 @@
 #ifndef _FREERTOS_DRIVERS_TINYUSB_TINYUSBCDC_HXX_
 #define _FREERTOS_DRIVERS_TINYUSB_TINYUSBCDC_HXX_
 
-#include "Serial.hxx"
+#include "Devtab.hxx"
 #include "os/OS.hxx"
+#include "utils/Singleton.hxx"
 
-class TinyUsbCdc : public Serial, public Singleton<TinyUsbCdc> {
+class TinyUsbCdc : public Node, public Singleton<TinyUsbCdc> {
 public:
     TinyUsbCdc(const char* name)
-        : Serial(name, 128 /* tx buffer size */, 0 /* no rx buffer */) {}
-
+        : Node(name) {}
+    ~TinyUsbCdc();
+    
     // Call this function once from hw_postinit.
     void hw_postinit();
     
 private:
-
-    /** Function to try and transmit a character.
-     */
-    void tx_char() override;
-
+    void enable() override {}
+    void disable() override {}
+    
     /** Device select method. Default impementation returns true.
      * @param file reference to the file
      * @param mode FREAD for read active, FWRITE for write active, 0 for
@@ -67,13 +67,25 @@ private:
      */
     ssize_t read(File *file, void *buf, size_t count) override;
 
+    /** Write to a file or device.
+     * @param file file reference for this device
+     * @param buf location to find write data
+     * @param count number of bytes to write
+     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+     */
+    ssize_t write(File *file, const void *buf, size_t count) override;
+    
     /// Thread for running the tiny usb device stack.
     class UsbDeviceThread : public OSThread {
     public:
-        UsbDeviceThread();
-        
-        void entry() override;
+        void* entry() override;
     } usbdThread_;
+
+    /// Handles the select for incoming data (read).
+    Device::SelectInfo selectInfoRead_;
+
+    /// Handles the select for outgoing data (write).
+    Device::SelectInfo selectInfoWrite_;
 };
 
 

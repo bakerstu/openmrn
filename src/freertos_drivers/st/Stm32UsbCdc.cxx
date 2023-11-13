@@ -24,14 +24,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Stm32CdcUsb.cxx
+ * \file Stm32UsbCdc.cxx
  * Device driver for the STM32 devices using the TinyUsb stack.
  *
  * @author Balazs Racz
  * @date 13 Nov 2023
  */
 
-#include "freertos_drivers/st/Stm32CdcUsb.hxx"
+#include "freertos_drivers/st/Stm32UsbCdc.hxx"
 
 #include "freertos_drivers/tinyusb/TinyUsbCdcImpl.hxx"
 

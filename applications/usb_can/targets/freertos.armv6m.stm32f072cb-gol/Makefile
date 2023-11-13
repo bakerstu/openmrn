@@ -13,17 +13,14 @@ sh -c "if [ \"X`printenv OPENMRNPATH`\" != \"X\" ]; then printenv OPENMRNPATH; \
 )
 
 -include $(OPENMRNPATH)/etc/config.mk
-LINKCORELIBS = -lopenlcb -lutils
-
 include $(OPENMRNPATH)/etc/stm32cubef0.mk
 
 CFLAGSEXTRA += -DSTM32F072xB
 CXXFLAGSEXTRA += -DSTM32F072xB
-SYSLIBRARIES += -lfreertos_drivers_stm32cubef071xb_2xb
+SYSLIBRARIESEXTRA += -lfreertos_drivers_stm32cubef071xb_2xb -lfreertos_drivers_tinyusb_stm32f072xb
 include find-emulator.mk
-#OPENOCDARGS = -f board/st_nucleo_f0.cfg
 
-export TARGET := bare.armv6m
+export TARGET := freertos.armv6m
 
 include $(OPENMRNPATH)/etc/prog.mk
 
@@ -32,10 +29,6 @@ DEFAULT_ADDRESS=0xff
 endif
 
 include $(OPENMRNPATH)/etc/node_id.mk
-
-SYSLIB_SUBDIRS=
-OBJEXTRA=
-LDFLAGSEXTRA += -nostartfiles 
 
 all: $(EXECUTABLE).bin
 
