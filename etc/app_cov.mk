@@ -1,3 +1,6 @@
+# Include this file into an application/target/cov/Makefile to build and run
+# coverage for the app.
+
 CUSTOM_EXEC=1
 
 TESTDIRS = $(TESTSRCS:.cxxtest=.covdir)
