@@ -515,6 +515,7 @@ NodeAlias AliasCache::lookup(NodeID id)
  */
 NodeID AliasCache::lookup(NodeAlias alias)
 {
+    if (alias == 0) return 0;
     HASSERT(alias != 0);
 
     auto it = aliasMap.find(alias);
