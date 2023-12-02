@@ -46,6 +46,7 @@
 /* prototypes */
 extern unsigned long *__stack;
 extern void reset_handler(void);
+extern void invoke_bootloader(void);
 static void nmi_handler(void);
 static void hard_fault_handler(void);
 static void mpu_fault_handler(void);
@@ -172,7 +173,7 @@ __attribute__ ((section(".interrupt_vector")))
 void (* const __interrupt_vector[])(void) =
 {
     (void (*)(void))(&__stack),      /**<   0 initial stack pointer */
-    reset_handler,                   /**<   1 reset vector */
+    invoke_bootloader,               /**<   1 reset vector */
     nmi_handler,                     /**<   2 non-maskable interrupt */
     hard_fault_handler,              /**<   3 hard fault */
     mpu_fault_handler,               /**<   4 memory managment */
@@ -330,6 +331,23 @@ void (* const __interrupt_vector[])(void) =
 };
 
 #include "../boards/armv7m/default_handlers.h"
+
+void invoke_bootloader()
+{
+    /* Globally disables interrupts. */
+    __asm__("cpsid i\n");
+    extern char __bootloader_start;
+    __asm__ volatile(" mov   r3, %[flash_addr] \n"
+                 :
+                 : [flash_addr] "r"(&__bootloader_start));
+    /* Loads SP and jumps to the reset vector. */
+    __asm__ volatile(
+        " ldr r0, [r3]\n"
+        " mov sp, r0\n"
+        " ldr r0, [r3, #4]\n"
+        " bx  r0\n");
+}
+
 
 void debug_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void porta_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
