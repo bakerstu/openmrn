@@ -35,6 +35,7 @@ SECTIONS
     /* MAIN TEXT SECTION */    
     .text : ALIGN(4)
     {
+        KEEP(*(.bl_interrupt_vector))
         
         /* Global Section Table */
         . = ALIGN(4) ;

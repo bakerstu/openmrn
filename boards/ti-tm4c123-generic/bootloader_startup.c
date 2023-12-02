@@ -58,6 +58,8 @@ extern void __libc_init_array(void);
 
 extern int main(int argc, char *argv[]);
 
+extern void default_interrupt_handler(void);
+
 extern void debug_interrupt_handler(void);
 extern void porta_interrupt_handler(void);
 extern void portb_interrupt_handler(void);
@@ -164,6 +166,28 @@ extern void ignore_fn(void);
 extern const unsigned long cm3_cpu_clock_hz;
 /** CPU clock speed. */
 const unsigned long cm3_cpu_clock_hz = 80000000;
+
+/** Exception table at the beginning of the bootloader section. */
+__attribute__ ((section(".bl_interrupt_vector")))
+void (* const __bl_interrupt_vector[])(void) =
+{
+    (void (*)(void))(&__stack),      /**<   0 initial stack pointer */
+    reset_handler,                   /**<   1 reset vector */
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,
+    default_interrupt_handler,       /** 15  */
+};
 
 /** Exception table */
 __attribute__ ((section(".interrupt_vector")))
