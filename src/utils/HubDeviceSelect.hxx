@@ -46,6 +46,7 @@
 
 #include "executor/StateFlow.hxx"
 #include "utils/Hub.hxx"
+#include "utils/LimitedPool.hxx"
 
 /// Generic template for the buffer traits. HubDeviceSelect will not compile on
 /// this default template because it lacks the necessary definitions. For each
@@ -76,6 +77,12 @@ template <> struct SelectBufferInfo<HubFlow::buffer_type>
     {
         return false;
     }
+
+    /// @return true if the input needs to be throttled.
+    static bool limit_input()
+    {
+        return true;
+    }
 };
 
 /// Partial template specialization of buffer traits for struct-typed hubs.
@@ -99,6 +106,12 @@ struct SelectBufferInfo<Buffer<HubContainer<StructContainer<T>>>>
     /// @return true because struct buffers always need to be completely read
     /// before forwarding to lower levels.
     static bool needs_read_fully()
+    {
+        return true;
+    }
+
+    /// @return true if the input needs to be throttled.
+    static bool limit_input()
     {
         return true;
     }
@@ -130,8 +143,18 @@ struct SelectBufferInfo<Buffer<CanHubData>> {
     {
         return true;
     }
+
+    /// @return true if the input needs to be throttled.
+    static bool limit_input()
+    {
+        // We should never throttle a CAN-bus reader.
+        return false;
+    }
 };
 
+/// @return the number of packets to limit read input if we are throttling.
+int hubdevice_incoming_packet_limit();
+    
 /// State flow implementing select-aware fd reads.
 template <class HFlow> class HubDeviceSelectReadFlow : public StateFlowBase
 {
@@ -145,11 +168,23 @@ public:
     HubDeviceSelectReadFlow(FdHubPortService *device,
         typename HFlow::port_type *dst, typename HFlow::port_type *skip_member)
         : StateFlowBase(device)
+        , shouldThrottle_(SelectBufferInfo<buffer_type>::limit_input())
         , b_(nullptr)
         , dst_(dst)
         , skipMember_(skip_member)
     {
         this->start_flow(STATE(allocate_buffer));
+        set_limit_input(shouldThrottle_);
+    }
+
+    void set_limit_input(bool should_throttle)
+    {
+        shouldThrottle_ = should_throttle;
+        int limit = hubdevice_incoming_packet_limit();
+        if (shouldThrottle_ && limit < 1000000 && !inputPool_)
+        {
+            inputPool_.reset(new LimitedPool(sizeof(buffer_type), limit));
+        }
     }
 
     /// Unregisters the current flow from the hub.
@@ -173,7 +208,9 @@ public:
     /// Allocates a new buffer for incoming data. @return next state.
     Action allocate_buffer()
     {
-        return this->allocate_and_call(dst_, STATE(try_read));
+        // If inputPool is nullptr, this will use the destination flow's pool,
+        // which is typically mainBufferPool.
+        return this->allocate_and_call(dst_, STATE(try_read), inputPool_.get());
     }
 
     /// Attempts to read into the current buffer from the target
@@ -231,10 +268,14 @@ private:
 
     /// true iff pending parent->barrier_.notify()
     bool barrierOwned_{true};
+    /// True if we are throttling via a limited pool.
+    bool shouldThrottle_;
     /// Helper object for read/write FD asynchronously.
     StateFlowSelectHelper selectHelper_{this};
     /// Buffer that we are currently filling.
     buffer_type *b_;
+    /// Throttling input helper.
+    std::unique_ptr<LimitedPool> inputPool_;
     /// Where do we forward the messages we created.
     typename HFlow::port_type *dst_;
     /// What should be the source port designation.
