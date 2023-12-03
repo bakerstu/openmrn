@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -38,8 +38,8 @@
 
 #include "freertos_drivers/tinyusb/TinyUsbCdc.hxx"
 
-#include "os/OS.hxx"
 #include "freertos_drivers/common/DeviceBuffer.hxx"
+#include "os/OS.hxx"
 #include <fcntl.h>
 
 #include "tusb.h"
@@ -52,14 +52,16 @@
 #define USBD_TASK_PRIO 3
 #endif
 
-TinyUsbCdc::~TinyUsbCdc() {}
+TinyUsbCdc::~TinyUsbCdc()
+{
+}
 
 void TinyUsbCdc::hw_postinit()
 {
     usbdThread_.start("tinyusb_device", USBD_TASK_PRIO, USBD_STACK_SIZE);
 }
 
-void* TinyUsbCdc::UsbDeviceThread::entry()
+void *TinyUsbCdc::UsbDeviceThread::entry()
 {
     // init device stack on configured roothub port
     // This should be called after scheduler/kernel is started.
@@ -122,7 +124,8 @@ ssize_t TinyUsbCdc::read(File *file, void *buf, size_t count)
     return result;
 }
 
-ssize_t TinyUsbCdc::write(File *file, const void *buf, size_t count) {
+ssize_t TinyUsbCdc::write(File *file, const void *buf, size_t count)
+{
     const unsigned char *data = (const unsigned char *)buf;
     ssize_t result = 0;
 
@@ -213,11 +216,13 @@ bool TinyUsbCdc::select(File *file, int mode)
     return retval;
 }
 
-inline void TinyUsbCdc::rx_available() {
+inline void TinyUsbCdc::rx_available()
+{
     Device::select_wakeup(&selectInfoRead_);
 }
 
-inline void TinyUsbCdc::tx_complete() {
+inline void TinyUsbCdc::tx_complete()
+{
     Device::select_wakeup(&selectInfoWrite_);
 }
 
@@ -226,64 +231,72 @@ extern "C" {
 // Invoked when CDC interface received data from host
 void tud_cdc_rx_cb(uint8_t itf)
 {
-  (void) itf;
-  Singleton<TinyUsbCdc>::instance()->rx_available();
+    (void)itf;
+    Singleton<TinyUsbCdc>::instance()->rx_available();
 }
 
-// Invoked when a TX is complete and therefore space becomes available in TX buffer
+// Invoked when a TX is complete and therefore space becomes available in TX
+// buffer
 void tud_cdc_tx_complete_cb(uint8_t itf)
 {
-  (void) itf;
-  Singleton<TinyUsbCdc>::instance()->tx_complete();
+    (void)itf;
+    Singleton<TinyUsbCdc>::instance()->tx_complete();
 }
-
 
 // ===================== USB DESCRIPTORS =============================
 
-/* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
- * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
+/* A combination of interfaces must have a unique product id, since PC will save
+ * device driver after the first plug. Same VID/PID with different interface e.g
+ * MSC (first), then CDC (later) will possibly cause system error on PC.
  *
  * Auto ProductID layout's Bitmap:
  *   [MSB]         HID | MSC | CDC          [LSB]
  */
-#define _PID_MAP(itf, n)  ( (CFG_TUD_##itf) << (n) )
-#define USB_PID           (0x4000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) | \
-                           _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4) )
+#define _PID_MAP(itf, n) ((CFG_TUD_##itf) << (n))
+#define USB_PID                                                                \
+    (0x4000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) |         \
+        _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4))
 
-#define USB_VID   0xCAFE
-#define USB_BCD   0x0200
+#define USB_VID 0xCAFE
+#define USB_BCD 0x0200
 
 // Invoked when received GET DEVICE DESCRIPTOR
 // Application return pointer to descriptor
-uint8_t const *tud_descriptor_device_cb(void) {
-  static tusb_desc_device_t const desc_device = {
-      .bLength = sizeof(tusb_desc_device_t),
-      .bDescriptorType = TUSB_DESC_DEVICE,
-      .bcdUSB = USB_BCD,
+uint8_t const *tud_descriptor_device_cb(void)
+{
+    static tusb_desc_device_t const desc_device = {
+        .bLength = sizeof(tusb_desc_device_t),
+        .bDescriptorType = TUSB_DESC_DEVICE,
+        .bcdUSB = USB_BCD,
 
-      // Use Interface Association Descriptor (IAD) for CDC
-      // As required by USB Specs IAD's subclass must be common class (2) and
-      // protocol must be IAD (1)
-      .bDeviceClass = TUSB_CLASS_MISC,
-      .bDeviceSubClass = MISC_SUBCLASS_COMMON,
-      .bDeviceProtocol = MISC_PROTOCOL_IAD,
+        // Use Interface Association Descriptor (IAD) for CDC
+        // As required by USB Specs IAD's subclass must be common class (2) and
+        // protocol must be IAD (1)
+        .bDeviceClass = TUSB_CLASS_MISC,
+        .bDeviceSubClass = MISC_SUBCLASS_COMMON,
+        .bDeviceProtocol = MISC_PROTOCOL_IAD,
 
-      .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
+        .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
 
-      .idVendor = USB_VID,
-      .idProduct = USB_PID,
-      .bcdDevice = 0x0100,
+        .idVendor = USB_VID,
+        .idProduct = USB_PID,
+        .bcdDevice = 0x0100,
 
-      .iManufacturer = 0x01,
-      .iProduct = 0x02,
-      .iSerialNumber = 0x03,
+        .iManufacturer = 0x01,
+        .iProduct = 0x02,
+        .iSerialNumber = 0x03,
 
-      .bNumConfigurations = 0x01};
+        .bNumConfigurations = 0x01};
 
-  return (uint8_t const *)&desc_device;
+    return (uint8_t const *)&desc_device;
 }
 
-enum { ITF_NUM_CDC = 0, ITF_NUM_CDC_DATA, ITF_NUM_TOTAL };
+enum
+{
+    ITF_NUM_CDC = 0,
+    ITF_NUM_CDC_DATA,
+    ITF_NUM_TOTAL
+};
 
 #define EPNUM_CDC_NOTIF 0x81
 #define EPNUM_CDC_OUT 0x02
@@ -299,8 +312,8 @@ uint8_t const desc_fs_configuration[] = {
 
     // Interface number, string index, EP notification address and size, EP data
     // address (out, in) and size.
-    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT,
-                       EPNUM_CDC_IN, 64),
+    TUD_CDC_DESCRIPTOR(
+        ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT, EPNUM_CDC_IN, 64),
 };
 
 #if TUD_OPT_HIGH_SPEED
@@ -315,8 +328,8 @@ uint8_t const desc_hs_configuration[] = {
 
     // Interface number, string index, EP notification address and size, EP data
     // address (out, in) and size.
-    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT,
-                       EPNUM_CDC_IN, 512),
+    TUD_CDC_DESCRIPTOR(
+        ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT, EPNUM_CDC_IN, 512),
 };
 
 // other speed configuration
@@ -343,27 +356,29 @@ tusb_desc_device_qualifier_t const desc_device_qualifier = {
 // information about a high-speed capable device that would change if the device
 // were operating at the other speed. If not highspeed capable stall this
 // request.
-uint8_t const *tud_descriptor_device_qualifier_cb(void) {
-  return (uint8_t const *)&desc_device_qualifier;
+uint8_t const *tud_descriptor_device_qualifier_cb(void)
+{
+    return (uint8_t const *)&desc_device_qualifier;
 }
 
 // Invoked when received GET OTHER SEED CONFIGURATION DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long
 // enough for transfer to complete Configuration descriptor in the other speed
 // e.g if high speed then this is for full speed and vice versa
-uint8_t const *tud_descriptor_other_speed_configuration_cb(uint8_t index) {
-  (void)index; // for multiple configurations
+uint8_t const *tud_descriptor_other_speed_configuration_cb(uint8_t index)
+{
+    (void)index; // for multiple configurations
 
-  // if link speed is high return fullspeed config, and vice versa
-  // Note: the descriptor type is OHER_SPEED_CONFIG instead of CONFIG
-  memcpy(desc_other_speed_config,
-         (tud_speed_get() == TUSB_SPEED_HIGH) ? desc_fs_configuration
-                                              : desc_hs_configuration,
-         CONFIG_TOTAL_LEN);
+    // if link speed is high return fullspeed config, and vice versa
+    // Note: the descriptor type is OHER_SPEED_CONFIG instead of CONFIG
+    memcpy(desc_other_speed_config,
+        (tud_speed_get() == TUSB_SPEED_HIGH) ? desc_fs_configuration
+                                             : desc_hs_configuration,
+        CONFIG_TOTAL_LEN);
 
-  desc_other_speed_config[1] = TUSB_DESC_OTHER_SPEED_CONFIG;
+    desc_other_speed_config[1] = TUSB_DESC_OTHER_SPEED_CONFIG;
 
-  return desc_other_speed_config;
+    return desc_other_speed_config;
 }
 
 #endif // highspeed
@@ -371,25 +386,26 @@ uint8_t const *tud_descriptor_other_speed_configuration_cb(uint8_t index) {
 // Invoked when received GET CONFIGURATION DESCRIPTOR
 // Application return pointer to descriptor
 // Descriptor contents must exist long enough for transfer to complete
-uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
-  (void)index; // for multiple configurations
+uint8_t const *tud_descriptor_configuration_cb(uint8_t index)
+{
+    (void)index; // for multiple configurations
 
 #if TUD_OPT_HIGH_SPEED
-  // Although we are highspeed, host may be fullspeed.
-  return (tud_speed_get() == TUSB_SPEED_HIGH) ? desc_hs_configuration
-                                              : desc_fs_configuration;
+    // Although we are highspeed, host may be fullspeed.
+    return (tud_speed_get() == TUSB_SPEED_HIGH) ? desc_hs_configuration
+                                                : desc_fs_configuration;
 #else
-  return desc_fs_configuration;
+    return desc_fs_configuration;
 #endif
 }
 
 // array of pointer to string descriptors
 char const *string_desc_arr[] = {
-    (const char[]){0x09, 0x04}, // 0: is supported language is English (0x0409)
-    "TinyUSB",                  // 1: Manufacturer
-    "TinyUSB Device",           // 2: Product
-    "123456789012",             // 3: Serials, should use chip ID
-    "TinyUSB CDC",              // 4: CDC Interface
+    (const char[]) {0x09, 0x04}, // 0: is supported language is English (0x0409)
+    "TinyUSB",                   // 1: Manufacturer
+    "TinyUSB Device",            // 2: Product
+    "123456789012",              // 3: Serials, should use chip ID
+    "TinyUSB CDC",               // 4: CDC Interface
 };
 
 static uint16_t _desc_str[32];
@@ -397,38 +413,43 @@ static uint16_t _desc_str[32];
 // Invoked when received GET STRING DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long
 // enough for transfer to complete
-uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
-  (void)langid;
+uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid)
+{
+    (void)langid;
 
-  uint8_t chr_count;
+    uint8_t chr_count;
 
-  if (index == 0) {
-    memcpy(&_desc_str[1], string_desc_arr[0], 2);
-    chr_count = 1;
-  } else {
-    // Note: the 0xEE index string is a Microsoft OS 1.0 Descriptors.
-    // https://docs.microsoft.com/en-us/windows-hardware/drivers/usbcon/microsoft-defined-usb-descriptors
-
-    if (!(index < sizeof(string_desc_arr) / sizeof(string_desc_arr[0])))
-      return NULL;
-
-    const char *str = string_desc_arr[index];
-
-    // Cap at max char
-    chr_count = (uint8_t)strlen(str);
-    if (chr_count > 31)
-      chr_count = 31;
-
-    // Convert ASCII string into UTF-16
-    for (uint8_t i = 0; i < chr_count; i++) {
-      _desc_str[1 + i] = str[i];
+    if (index == 0)
+    {
+        memcpy(&_desc_str[1], string_desc_arr[0], 2);
+        chr_count = 1;
     }
-  }
+    else
+    {
+        // Note: the 0xEE index string is a Microsoft OS 1.0 Descriptors.
+        // https://docs.microsoft.com/en-us/windows-hardware/drivers/usbcon/microsoft-defined-usb-descriptors
 
-  // first byte is length (including header), second byte is string type
-  _desc_str[0] = (uint16_t)((TUSB_DESC_STRING << 8) | (2 * chr_count + 2));
+        if (!(index < sizeof(string_desc_arr) / sizeof(string_desc_arr[0])))
+            return NULL;
 
-  return _desc_str;
+        const char *str = string_desc_arr[index];
+
+        // Cap at max char
+        chr_count = (uint8_t)strlen(str);
+        if (chr_count > 31)
+            chr_count = 31;
+
+        // Convert ASCII string into UTF-16
+        for (uint8_t i = 0; i < chr_count; i++)
+        {
+            _desc_str[1 + i] = str[i];
+        }
+    }
+
+    // first byte is length (including header), second byte is string type
+    _desc_str[0] = (uint16_t)((TUSB_DESC_STRING << 8) | (2 * chr_count + 2));
+
+    return _desc_str;
 }
 
 } // extern "C"

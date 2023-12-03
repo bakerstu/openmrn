@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -38,37 +38,47 @@
 #include "os/OS.hxx"
 #include "utils/Singleton.hxx"
 
-class TinyUsbCdc : public Node, public Singleton<TinyUsbCdc> {
+class TinyUsbCdc : public Node, public Singleton<TinyUsbCdc>
+{
 public:
-    TinyUsbCdc(const char* name)
-        : Node(name) {}
+    TinyUsbCdc(const char *name)
+        : Node(name)
+    {
+    }
     ~TinyUsbCdc();
-    
+
     // Call this function once from hw_postinit.
     void hw_postinit();
 
     // Called from static C callback functions.
     inline void rx_available();
     inline void tx_complete();
-    
+
 private:
-    void enable() override {}
-    void disable() override {}
-    void flush_buffers() override {}
-    
+    void enable() override
+    {
+    }
+    void disable() override
+    {
+    }
+    void flush_buffers() override
+    {
+    }
+
     /** Device select method. Default impementation returns true.
      * @param file reference to the file
      * @param mode FREAD for read active, FWRITE for write active, 0 for
      *        exceptions
      * @return true if active, false if inactive
      */
-    bool select(File* file, int mode) override;
-    
+    bool select(File *file, int mode) override;
+
     /** Read from a file or device.
      * @param file file reference for this device
      * @param buf location to place read data
      * @param count number of bytes to read
-     * @return number of bytes read upon success, -1 upon failure with errno containing the cause
+     * @return number of bytes read upon success, -1 upon failure with errno
+     * containing the cause
      */
     ssize_t read(File *file, void *buf, size_t count) override;
 
@@ -76,14 +86,16 @@ private:
      * @param file file reference for this device
      * @param buf location to find write data
      * @param count number of bytes to write
-     * @return number of bytes written upon success, -1 upon failure with errno containing the cause
+     * @return number of bytes written upon success, -1 upon failure with errno
+     * containing the cause
      */
     ssize_t write(File *file, const void *buf, size_t count) override;
-    
+
     /// Thread for running the tiny usb device stack.
-    class UsbDeviceThread : public OSThread {
+    class UsbDeviceThread : public OSThread
+    {
     public:
-        void* entry() override;
+        void *entry() override;
     } usbdThread_;
 
     /// Handles the select for incoming data (read).
@@ -92,8 +104,5 @@ private:
     /// Handles the select for outgoing data (write).
     Device::SelectInfo selectInfoWrite_;
 };
-
-
-
 
 #endif // _FREERTOS_DRIVERS_TINYUSB_TINYUSBCDC_HXX_

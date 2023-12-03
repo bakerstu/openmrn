@@ -72,7 +72,6 @@ const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
 /** USB-Serial instance */
 static Stm32UsbCdc serUSB0("/dev/serUSB0");
 
-
 extern "C" {
 
 /** Blink LED */
@@ -155,7 +154,7 @@ static void clock_setup(void)
     while (!((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_PLL))
         ;
 
-    RCC_PeriphCLKInitTypeDef  PeriphClkInitStruct = {0};
+    RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
     /* Select HSI48 as USB clock source */
     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
     PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
@@ -167,7 +166,7 @@ static void clock_setup(void)
     __HAL_RCC_CRS_CLK_ENABLE();
 
     RCC_CRSInitTypeDef RCC_CRSInitStruct = {0};
-    
+
     /* Default Synchro Signal division factor (not divided) */
     RCC_CRSInitStruct.Prescaler = RCC_CRS_SYNC_DIV1;
 
@@ -175,14 +174,15 @@ static void clock_setup(void)
     RCC_CRSInitStruct.Source = RCC_CRS_SYNC_SOURCE_USB;
 
     /* HSI48 is synchronized with USB SOF at 1KHz rate */
-    RCC_CRSInitStruct.ReloadValue =  __HAL_RCC_CRS_RELOADVALUE_CALCULATE(48000000, 1000);
+    RCC_CRSInitStruct.ReloadValue =
+        __HAL_RCC_CRS_RELOADVALUE_CALCULATE(48000000, 1000);
     RCC_CRSInitStruct.ErrorLimitValue = RCC_CRS_ERRORLIMIT_DEFAULT;
 
     /* Set the TRIM[5:0] to the default value*/
     RCC_CRSInitStruct.HSI48CalibrationValue = 0x20;
 
     /* Start automatic synchronization */
-    HAL_RCCEx_CRSConfig (&RCC_CRSInitStruct);
+    HAL_RCCEx_CRSConfig(&RCC_CRSInitStruct);
 }
 
 /** Initialize the processor hardware.
@@ -206,7 +206,7 @@ void hw_preinit(void)
     __HAL_RCC_USART1_CLK_ENABLE();
     __HAL_RCC_CAN1_CLK_ENABLE();
     __HAL_RCC_TIM14_CLK_ENABLE();
-    __HAL_RCC_USB_CLK_ENABLE();    
+    __HAL_RCC_USB_CLK_ENABLE();
 
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;

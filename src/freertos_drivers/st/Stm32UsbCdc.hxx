@@ -4,7 +4,7 @@
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -45,9 +45,13 @@
 // Make sure that the USB clock is set up in `hw_preinit()`. Use the Clock
 // Recovery System if there is no crystal. Set up the USB pin map in
 // hw_preinit.
-class Stm32UsbCdc : public TinyUsbCdc {
+class Stm32UsbCdc : public TinyUsbCdc
+{
 public:
-    Stm32UsbCdc(const char* name) : TinyUsbCdc(name) {}
+    Stm32UsbCdc(const char *name)
+        : TinyUsbCdc(name)
+    {
+    }
 };
 
 #endif // _FREERTOS_DRIVERS_ST_STM32CDCUSB_HXX_
