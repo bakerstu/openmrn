@@ -28,3 +28,8 @@ include $(OPENMRNPATH)/etc/recurse.mk
 # re-run. Otherwise you need to run tests twice to actually execute them.
 lib/timestamp: $(BUILDDIRS)
 	true
+
+clean: clean-lib
+
+clean-lib:
+	rm -f lib/lib*.a
