@@ -39,6 +39,7 @@
 #include <Arduino.h>
 
 #include "CDIXMLGenerator.hxx"
+#include "executor/Notifiable.hxx"
 #include "freertos_drivers/arduino/Can.hxx"
 #include "freertos_drivers/arduino/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
@@ -178,14 +179,26 @@ private:
     /// Handles data coming in from the serial port and sends it to OpenMRN.
     void loop_for_read()
     {
+        if (!bn_.is_done())
+        {
+            // Blocked because data we've just read has not yet been processed.
+            return;
+        }
         int av = port_->available();
         if (av <= 0)
         {
             return;
         }
+        // We don't read too many bytes into one buffer. 64 is exactly one USB
+        // packet's length.
+        if (av > 64)
+        {
+            av = 64;
+        }
         auto *b = txtHub_.alloc();
         b->data()->skipMember_ = &writePort_;
         b->data()->resize(av);
+        b->set_done(bn_.reset(EmptyNotifiable::DefaultInstance()));
         port_->readBytes((char*)b->data()->data(), b->data()->size());
         txtHub_.send(b);
     }
@@ -247,6 +260,14 @@ private:
     size_t writeOfs_;
     /// Hub for the textual data.
     HubFlow txtHub_{service_};
+    /// This notifiable will know whether the txt packet we read from the
+    /// serial has been processed by the hub. This is a pushback mechanism for
+    /// us not to run out of memory when there is too many packets coming from
+    /// the host or socket.
+    ///
+    /// This notifiable is active while there is a message in flight to the txt
+    /// hub.
+    BarrierNotifiable bn_;
 };
 
 /// Bridge class that connects a native CAN controller to the OpenMRN core

@@ -1,0 +1,25 @@
+include $(OPENMRNPATH)/etc/stm32cubef0.mk
+include $(OPENMRNPATH)/etc/tinyusb.mk
+
+VPATH = $(OPENMRNPATH)/src/freertos_drivers/st \
+        $(TUSB_VPATH) \
+        $(TINYUSBPATH)/src/portable/st/stm32_fsdev \
+
+
+CFLAGS += -DSTM32F072xB -DCFG_TUSB_MCU=OPT_MCU_STM32F0
+CXXFLAGS += -DSTM32F072xB  -DCFG_TUSB_MCU=OPT_MCU_STM32F0
+
+CSRCS += usbd.c \
+         usbd_control.c \
+         tusb_fifo.c \
+         cdc_device.c \
+         tusb.c \
+         dcd_stm32_fsdev.c \
+
+
+CXXSRCS += Stm32UsbCdc.cxx
+
+# This is needed because we are compiling with a C standard, and GCC's builtin
+#  assembler can only be reached using the internal format.
+
+dcd_stm32_fsdev.o: CFLAGS+=-Dasm=__asm__

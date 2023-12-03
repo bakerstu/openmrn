@@ -1,0 +1,1 @@
+../../../../boards/st-stm32f0x1_x2_x8-generic/find-emulator.mk
