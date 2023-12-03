@@ -278,4 +278,4 @@ void usb_interrupt_handler(void)
     dcd_int_handler(0);
 }
 
-}
+} // extern "C"
