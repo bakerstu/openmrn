@@ -34,6 +34,8 @@
 
 #include <OpenMRNLite.h>
 
+OVERRIDE_CONST(gridconnect_bridge_max_incoming_packets, 5);
+
 namespace openmrn_arduino {
 
 OpenMRN::OpenMRN(openlcb::NodeID node_id)

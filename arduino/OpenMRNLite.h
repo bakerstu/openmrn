@@ -117,8 +117,6 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #endif
 
-OVERRIDE_CONST(gridconnect_bridge_max_incoming_packets, 5);
-
 namespace openmrn_arduino
 {
 
