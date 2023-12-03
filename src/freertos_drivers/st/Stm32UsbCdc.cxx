@@ -1,10 +1,10 @@
 /** \copyright
- * Copyright (c) 2018, Balazs Racz
+ * Copyright (c) 2023, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
- * 
+ *
  *  - Redistributions of source code must retain the above copyright notice,
  *    this list of conditions and the following disclaimer.
  *
@@ -24,44 +24,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file OpenMRN.cpp
- * 
- * Implementation that needs to be compiled for the Arduino.
+ * \file Stm32UsbCdc.cxx
+ * Device driver for the STM32 devices using the TinyUsb stack.
  *
  * @author Balazs Racz
- * @date 24 July 2018
+ * @date 13 Nov 2023
  */
 
-#include <OpenMRNLite.h>
+#include "freertos_drivers/st/Stm32UsbCdc.hxx"
 
-OVERRIDE_CONST(gridconnect_bridge_max_incoming_packets, 5);
-
-namespace openmrn_arduino {
-
-OpenMRN::OpenMRN(openlcb::NodeID node_id)
-{
-    init(node_id);
-}
-
-#ifdef ESP32
-extern "C" {
-
-#ifndef OPENMRN_EXCLUDE_REBOOT_IMPL
-/// Reboots the ESP32 via the arduino-esp32 provided restart function.
-void reboot()
-{
-    ESP.restart();
-}
-#endif // OPENMRN_EXCLUDE_REBOOT_IMPL
-
-#ifndef OPENMRN_EXCLUDE_FREE_HEAP_IMPL
-ssize_t os_get_free_heap()
-{
-    return ESP.getFreeHeap();
-}
-#endif // OPENMRN_EXCLUDE_FREE_HEAP_IMPL
-
-}
-#endif // ESP32
-
-} // namespace openmrn_arduino
+#include "freertos_drivers/tinyusb/TinyUsbCdcImpl.hxx"
