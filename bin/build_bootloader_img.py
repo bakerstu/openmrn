@@ -105,6 +105,7 @@ if options.cname is None:
 
   outputblocks = []
 
+  print("Blocks:", end=" ")
   for k, block in enumerate(blocks):
     if k == 0:
       b = Block()
@@ -112,19 +113,24 @@ if options.cname is None:
       b.data = block
       b.end_ofs = 0
       outputblocks.append(b)
+      print("b", end="")
       continue
-    if block.count('\0') == len(block):  # all zeros
+    if block.count(b'\x00') == len(block):  # all zeros
+      print("o", end="")
       continue
     if outputblocks[-1].end_ofs == k - 1:
       outputblocks[-1].data += block
       outputblocks[-1].end_ofs = k
+      print("x", end="")
     else:
       b = Block()
       b.ofs = k
       b.data = block
       b.end_ofs = k
       outputblocks.append(b)
+      print("b", end="")
 
+  print("")
   segmenttable = ''
   for b in outputblocks:
     print_c_array(file_out, "payload_%d" % b.ofs, b.data);
