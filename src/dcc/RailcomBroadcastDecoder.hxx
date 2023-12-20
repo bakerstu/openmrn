@@ -32,10 +32,12 @@
  * @date 11 Jan 2015
  */
 
-#include <stdint.h>
-
 #ifndef _DCC_RAILCOMBROADCASTDECODER_HXX_
 #define _DCC_RAILCOMBROADCASTDECODER_HXX_
+
+#include <stdint.h>
+
+#include "dcc/Defs.hxx"
 
 namespace dcc
 {
@@ -80,6 +82,23 @@ public:
      * @param value is true if the track is sensed as occupied. */
     void set_occupancy(bool value);
 
+    struct AddressInfo {
+        AddressInfo()
+            : address_(Defs::ADR_INVALID)
+            , empty_(true)
+            , dirty_(false)
+        { }
+        /// The DCC address, using the encoding of
+        /// Defs::ADR_MOBILE_SHORT. Defs::ADR_INVALID if this slot is unused.
+        uint16_t address_ : 14;
+        /// True if the address has disappeared. Such entries will be garbage
+        /// collected once the dirty flag is reset.
+        uint16_t empty_ : 1;
+        /// True if this entry was modified by the decoder. Set to false by the
+        /// application as an acknowledgement.
+        uint16_t dirty_ : 1;
+    };
+    
 private:
     /// Helper function to process a sequence of bytes (whichever window they
     /// are coming from). @param data pointer to bytes @param size how many
