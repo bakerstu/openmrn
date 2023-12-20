@@ -85,8 +85,9 @@ bin_file = []
 ofs = 0
 while True :
     c = file_in.read(1)
-    if c == "" :
-        break
+    if len(c) == 0:
+      print("eof at", ofs)
+      break
     bin_file.append(c)
     ofs = ofs + 1
     if options.maxsize is not None and ofs >= options.maxsize:
