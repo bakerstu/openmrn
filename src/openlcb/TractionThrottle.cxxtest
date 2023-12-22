@@ -8,6 +8,7 @@ namespace openlcb
 {
 
 static constexpr NodeID TRAIN_NODE_ID = 0x06010000C000 | 1372;
+static constexpr NodeID REMOTE_NODE_ID = 0x0501010118F3ull;
 
 class ThrottleTest : public AsyncNodeTest
 {
@@ -15,14 +16,28 @@ protected:
     ThrottleTest()
     {
         print_all_packets();
-        run_x(
-            [this]() { otherIf_.local_aliases()->add(TRAIN_NODE_ID, 0x771); });
+        run_x([this]() {
+            otherIf_.local_aliases()->add(TRAIN_NODE_ID, 0x771);
+            otherIf_.local_aliases()->add(TRAIN_NODE_ID+1, 0x772);
+            otherIf_.local_aliases()->add(REMOTE_NODE_ID, 0x553);
+        });
         trainNode_.reset(new TrainNodeForProxy(&trainService_, &trainImpl_));
+        trainNode2_.reset(new TrainNodeForProxy(&trainService_, &trainImpl2_));
+        remoteNode_.reset(new DefaultNode(&otherIf_, REMOTE_NODE_ID, true));
+        wait();
+        // This will re-fill all the alias caches.
+        send_packet(":X19490559N;");
+        send_packet(":X10702559N;");
         wait();
     }
 
     LoggingTrain trainImpl_{1372};
     std::unique_ptr<TrainNode> trainNode_;
+
+    LoggingTrain trainImpl2_{1373};
+    std::unique_ptr<TrainNode> trainNode2_;
+
+    std::unique_ptr<DefaultNode> remoteNode_;
 
     IfCan otherIf_{&g_executor, &can_hub0, 5, 5, 5};
     TrainService trainService_{&otherIf_};
@@ -423,22 +438,16 @@ TEST_F(ThrottleClientTest, ReassignWithListener)
     EXPECT_EQ(1, trainNode_->query_consist_length());
     EXPECT_QRYCONSIST(node_->node_id(), 0x8C, 0);
 
-    static auto TRAIN_NODE_ID2 = TRAIN_NODE_ID + 1;
-    run_x([this]() { otherIf_.local_aliases()->add(TRAIN_NODE_ID2, 0x772); });
-    LoggingTrain train_impl2{1373};
-    TrainNodeForProxy node2(&trainService_, &train_impl2);
-    wait();
-
     b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
-        TRAIN_NODE_ID2, true);
+        TRAIN_NODE_ID + 1, true);
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(0, trainNode_->query_consist_length());
-    EXPECT_EQ(1, node2.query_consist_length());
+    EXPECT_EQ(1, trainNode2_->query_consist_length());
 
     b = invoke_flow(&throttle_, TractionThrottleCommands::RELEASE_TRAIN);
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(0, trainNode_->query_consist_length());
-    EXPECT_EQ(0, node2.query_consist_length());
+    EXPECT_EQ(0, trainNode2_->query_consist_length());
 
     wait();
 }
@@ -453,17 +462,11 @@ TEST_F(ThrottleClientTest, ReassignWithoutListener)
 
     EXPECT_EQ(1, trainNode_->query_consist_length());
 
-    static auto TRAIN_NODE_ID2 = TRAIN_NODE_ID + 1;
-    run_x([this]() { otherIf_.local_aliases()->add(TRAIN_NODE_ID2, 0x772); });
-    LoggingTrain train_impl2{1373};
-    TrainNodeForProxy node2(&trainService_, &train_impl2);
-    wait();
-
     b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
-        TRAIN_NODE_ID2, false);
+        TRAIN_NODE_ID + 1, false);
     ASSERT_EQ(0, b->data()->resultCode);
     EXPECT_EQ(0, trainNode_->query_consist_length());
-    EXPECT_EQ(0, node2.query_consist_length());
+    EXPECT_EQ(0, trainNode2_->query_consist_length());
 
     wait();
 }
@@ -521,12 +524,6 @@ TEST_F(ThrottleClientTest, HeartbeatWrongTrain)
         TRAIN_NODE_ID, false);
     ASSERT_EQ(0, b->data()->resultCode);
 
-    static auto TRAIN_NODE_ID2 = TRAIN_NODE_ID + 1;
-    run_x([this]() { otherIf_.local_aliases()->add(TRAIN_NODE_ID2, 0x772); });
-    LoggingTrain train_impl2{1373};
-    TrainNodeForProxy node2(&trainService_, &train_impl2);
-    wait();
-
     // Primes the caches.
     openlcb::send_message(trainNode_.get(), Defs::MTI_TRACTION_CONTROL_COMMAND,
         NodeHandle(node_->node_id()), TractionDefs::fn_set_payload(13, 1));
@@ -536,7 +533,7 @@ TEST_F(ThrottleClientTest, HeartbeatWrongTrain)
     // heartbeat request is sent from wrong train to throttle
     expect_packet(":X191E9772N022A400303;");
     // no response from the throttle.
-    openlcb::send_message(&node2, Defs::MTI_TRACTION_CONTROL_REPLY,
+    openlcb::send_message(trainNode2_.get(), Defs::MTI_TRACTION_CONTROL_REPLY,
         NodeHandle(node_->node_id()),
         TractionDefs::heartbeat_request_payload());
     wait();
