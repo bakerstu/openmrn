@@ -720,6 +720,8 @@ TEST_F(ThrottleClientTest, MultiListener)
     Mock::VerifyAndClear(&l2);
     Mock::VerifyAndClear(&lr);
 
+    EXPECT_EQ(2, trainNode_->query_consist_length());
+    EXPECT_EQ(1, trainNode2_->query_consist_length());
     
     // =================
     LOG(INFO, "switching throttle2 back but no listener.");
@@ -727,6 +729,9 @@ TEST_F(ThrottleClientTest, MultiListener)
     b = invoke_flow(&throttle2, TractionThrottleCommands::ASSIGN_TRAIN,
         TRAIN_NODE_ID, false);
     ASSERT_EQ(0, b->data()->resultCode);    
+
+    EXPECT_EQ(2, trainNode_->query_consist_length());
+    EXPECT_EQ(0, trainNode2_->query_consist_length());
     
     // Local1 calls go to the remote throttle, not to local2.
     EXPECT_CALL(lr, update(11));
@@ -761,6 +766,15 @@ TEST_F(ThrottleClientTest, MultiListener)
     Mock::VerifyAndClear(&l);
     Mock::VerifyAndClear(&l2);
     Mock::VerifyAndClear(&lr);
+
+    EXPECT_EQ(2, trainNode_->query_consist_length());
+
+    // Local first throttle reassigned to the second train.
+    b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID + 1, false);
+    ASSERT_EQ(0, b->data()->resultCode);    
+    // removed listener.
+    EXPECT_EQ(1, trainNode_->query_consist_length());
 }
 
 } // namespace openlcb
