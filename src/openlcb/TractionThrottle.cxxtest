@@ -624,4 +624,76 @@ TEST_F(ThrottleClientTest, ListenerCallback)
     EXPECT_FALSE(throttle_.get_emergencystop());
 }
 
+
+TEST_F(ThrottleClientTest, MultiListener)
+{
+    TractionThrottle throttle2{node_};
+    TractionThrottle throttler{remoteNode_.get()};
+    StrictMock<MockListener> l, l2, lr;
+    
+    throttle_.set_throttle_listener(
+        std::bind(&ListenerInterface::update, &l, std::placeholders::_1));
+    throttle2.set_throttle_listener(
+        std::bind(&ListenerInterface::update, &l2, std::placeholders::_1));
+    throttler.set_throttle_listener(
+        std::bind(&ListenerInterface::update, &lr, std::placeholders::_1));
+
+    auto b = invoke_flow(&throttle_, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, true);
+    ASSERT_EQ(0, b->data()->resultCode);
+    b = invoke_flow(&throttle2, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, true);
+    ASSERT_EQ(0, b->data()->resultCode);    
+    b = invoke_flow(&throttler, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, true);
+    ASSERT_EQ(0, b->data()->resultCode);    
+
+    wait();
+
+    // This message will trigger no callback on the bus, but the local feedback
+    // will make it appear. The remote node will get its own feedback.
+    EXPECT_CALL(l, update(23));
+    EXPECT_CALL(lr, update(23));
+    throttle2.set_fn(23, 1);
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
+
+    // If the remote node calls, one message will come on the bus but both
+    // throttles will call update.
+    EXPECT_CALL(l, update(22));
+    EXPECT_CALL(l2, update(22));
+    throttler.set_fn(22, 1);
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
+
+    // If a third node calls, all three will call update.
+    EXPECT_CALL(l, update(15));
+    EXPECT_CALL(l2, update(15));
+    EXPECT_CALL(lr, update(15));
+    send_packet(":X195EB330N07710100000f0001;"); // fn 15 = 1
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
+
+    // Local second throttle will be switched over to a different train.
+    b = invoke_flow(&throttle2, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID + 1, true);
+    ASSERT_EQ(0, b->data()->resultCode);    
+
+    // Now a third node calls, two shall call update.
+    EXPECT_CALL(l, update(14));
+    EXPECT_CALL(lr, update(14));
+    send_packet(":X195EB330N07710100000e0001;"); // fn 14 = 1
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
+    
+}
+
 } // namespace openlcb
