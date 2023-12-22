@@ -680,6 +680,9 @@ TEST_F(ThrottleClientTest, MultiListener)
     Mock::VerifyAndClear(&l2);
     Mock::VerifyAndClear(&lr);
 
+    LOG(INFO, "switching throttle2 to other train.");
+
+    // =================
     // Local second throttle will be switched over to a different train.
     b = invoke_flow(&throttle2, TractionThrottleCommands::ASSIGN_TRAIN,
         TRAIN_NODE_ID + 1, true);
@@ -693,7 +696,71 @@ TEST_F(ThrottleClientTest, MultiListener)
     Mock::VerifyAndClear(&l);
     Mock::VerifyAndClear(&l2);
     Mock::VerifyAndClear(&lr);
+
+    // When the remote node calls, the local shall update.
+    EXPECT_CALL(l, update(13));
+    throttler.set_fn(13, 1);
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
+
+    // Local2 calls go to a different train, no update callbacks.
+    throttle2.set_fn(13, 1);
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
+
+    // Local1 calls go to the remote throttle, not to local2.
+    EXPECT_CALL(lr, update(12));
+    throttle_.set_fn(12, 1);
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
+
     
+    // =================
+    LOG(INFO, "switching throttle2 back but no listener.");
+    // Local second throttle reassigned to the same train but without listener.
+    b = invoke_flow(&throttle2, TractionThrottleCommands::ASSIGN_TRAIN,
+        TRAIN_NODE_ID, false);
+    ASSERT_EQ(0, b->data()->resultCode);    
+    
+    // Local1 calls go to the remote throttle, not to local2.
+    EXPECT_CALL(lr, update(11));
+    throttle_.set_fn(11, 1);
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
+
+    // Local2 goes to local1 and remote
+    EXPECT_CALL(l, update(23));
+    EXPECT_CALL(lr, update(23));
+    throttle2.set_fn(23, 1);
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
+
+    // If the remote node calls, only local1 will get it.
+    EXPECT_CALL(l, update(22));
+    throttler.set_fn(22, 1);
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
+
+    // If a third node calls, all local1 and remote will get it.
+    EXPECT_CALL(l, update(15));
+    EXPECT_CALL(lr, update(15));
+    send_packet(":X195EB330N07710100000f0001;"); // fn 15 = 1
+    wait();
+    Mock::VerifyAndClear(&l);
+    Mock::VerifyAndClear(&l2);
+    Mock::VerifyAndClear(&lr);
 }
 
 } // namespace openlcb

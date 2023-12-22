@@ -287,17 +287,57 @@ private:
     {
         if (listenConsist_)
         {
-            handler_.wait_for_response(
-                NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
-            send_traction_message(
-                TractionDefs::consist_del_payload(node_->node_id()));
-            return sleep_and_call(
-                &timer_, TIMEOUT_NSEC, STATE(release_listener_response));
+            // Checks if there is another throttle listening to the same
+            // train. If so, we will not unregister ourselves. The last local
+            // throttle to release will do the unregistering.
+            bool found_other_throttle = false;
+            {
+                AtomicHolder h(LinkedObject<TractionThrottle>::head_mu());
+                for (TractionThrottle *p =
+                         LinkedObject<TractionThrottle>::link_head();
+                     p && !found_other_throttle;
+                     p = p->LinkedObject<TractionThrottle>::link_next())
+                {
+                    if (p == this)
+                    {
+                        // self, ignore
+                        continue;
+                    }
+                    if (p->node_ != node_)
+                    {
+                        // Different virtual node, will get regular
+                        // feedback
+                        continue;
+                    }
+                    if (p->dst_ != dst_)
+                    {
+                        // Target node ID is different.
+                        continue;
+                    }
+                    if (!p->listenConsist_)
+                    {
+                        // other throttle was not set as listener to begin with
+                        continue;
+                    }
+                    found_other_throttle = true;
+                }
+            }
+            if (!found_other_throttle)
+            {
+                LOG(VERBOSE, "unregister listener");
+                handler_.wait_for_response(NodeHandle(dst_),
+                    TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+                send_traction_message(
+                    TractionDefs::consist_del_payload(node_->node_id()));
+                return sleep_and_call(
+                    &timer_, TIMEOUT_NSEC, STATE(release_listener_response));
+            }
+            LOG(VERBOSE,
+                "skipping unregister consist because of another throttle.");
+            // we do have to remove the handler though.
+            clear_listening();
         }
-        else
-        {
-            return call_immediately(STATE(release_step_2));
-        }
+        return call_immediately(STATE(release_step_2));
     }
 
     Action release_listener_response()
@@ -731,6 +771,12 @@ private:
                         // Target node ID is different.
                         continue;
                     }
+                    if (!p->listenConsist_)
+                    {
+                        // other throttle was not set as listener to begin with
+                        continue;
+                    }
+                    
                     // Will call p, but we need to get out of the
                     // atomic first.
                     break;
