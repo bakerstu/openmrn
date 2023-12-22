@@ -69,6 +69,22 @@ public:
     /// be used to figure out which bit this is and whether it is on or off.
     typedef std::function<EventState(const EventRegistryEntry &registry_entry,
         EventReport *report)> EventStateHandlerFn;
+    /// This function (signature) is called when a producer/consumer identified
+    /// message arrives.
+    ///
+    /// @param mti MTI_PRODUCER_IDENTIFIED_UNKNOWN or
+    /// MTI_CONSUMER_IDENTIFIED_UNKNOWN. The state bits can be read from
+    /// report->state.
+    /// @param registry_entry is the included event registry entry. The args
+    /// bits are partially used internally.
+    /// @param report gives access to the event report, including source
+    /// address, event ID, and Write Helpers.
+    /// @param done may be used to create additional children; it does not need
+    /// to be notified in the handler (the caller will do that once).
+    typedef std::function<void(openlcb::Defs::MTI mti,
+        const EventRegistryEntry &registry_entry, EventReport *report,
+        BarrierNotifiable *done)>
+        EventIdentifiedHandlerFn;
 
     enum RegistryEntryBits
     {
@@ -91,10 +107,15 @@ public:
     /// @param state_handler will be called when the network inquires about the
     /// state of the current producer/consumer. May be null, in which case it
     /// will be reported as UNKNOWN state.
+    /// @param identified_handler will be called when the network sends a state
+    /// identified response. May be null. Write this handler if you need to
+    /// send queries to the network.
     CallbackEventHandler(Node *node, EventReportHandlerFn report_handler,
-        EventStateHandlerFn state_handler)
+        EventStateHandlerFn state_handler = nullptr,
+        EventIdentifiedHandlerFn identified_handler = nullptr)
         : reportHandler_(std::move(report_handler))
         , stateHandler_(std::move(state_handler))
+        , identifiedHandler_(std::move(identified_handler))
         , node_(node)
     {
     }
@@ -186,6 +207,28 @@ public:
         done->notify();
     };
 
+    void handle_producer_identified(const EventRegistryEntry &entry,
+        EventReport *event, BarrierNotifiable *done) override
+    {
+        if (identifiedHandler_)
+        {
+            identifiedHandler_(
+                Defs::MTI::MTI_PRODUCER_IDENTIFIED_UNKNOWN, entry, event, done);
+        }
+        done->notify();
+    }
+
+    void handle_consumer_identified(const EventRegistryEntry &entry,
+        EventReport *event, BarrierNotifiable *done) override
+    {
+        if (identifiedHandler_)
+        {
+            identifiedHandler_(
+                Defs::MTI::MTI_CONSUMER_IDENTIFIED_UNKNOWN, entry, event, done);
+        }
+        done->notify();
+    }
+
 protected:
     /// Helper function for implementations.
     void send_producer_identified(const EventRegistryEntry &entry,
@@ -217,6 +260,8 @@ private:
     /// Stores the user callback for getting state for event identified
     /// responses.
     EventStateHandlerFn stateHandler_;
+    /// Stores the user callback for P/C identified messages.
+    EventIdentifiedHandlerFn identifiedHandler_;
     /// Node on which we are registered.
     Node *node_;
 };

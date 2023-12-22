@@ -51,7 +51,8 @@ struct AtomConfigDefs
     DECLARE_OPTIONALARG(Name, name, const char *, 0, nullptr);
     DECLARE_OPTIONALARG(Description, description, const char *, 1, nullptr);
     DECLARE_OPTIONALARG(MapValues, mapvalues, const char *, 2, nullptr);
-    using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues>;
+    DECLARE_OPTIONALARG(SkipInit, skip_init, int, 15, 0);
+    using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues, SkipInit>;
 };
 
 /// Configuration implementation class for CDI Atom elements (strings, events
@@ -68,6 +69,9 @@ public:
     DEFINE_OPTIONALARG(Description, description, const char *);
     /// Represent the value enclosed in the "<map>" tag of the data element.
     DEFINE_OPTIONALARG(MapValues, mapvalues, const char *);
+    /// When set to true, the event initializers will be skipped in this event
+    /// or group.
+    DEFINE_OPTIONALARG(SkipInit, skip_init, int);
 
     void render_cdi(std::string *r) const
     {
@@ -132,7 +136,7 @@ struct NumericConfigDefs : public AtomConfigDefs
     DECLARE_OPTIONALARG(Max, maxvalue, int, 7, INT_MAX);
     DECLARE_OPTIONALARG(Default, defaultvalue, int, 8, INT_MAX);
     using Base = OptionalArg<NumericConfigDefs, Name, Description, MapValues,
-        Min, Max, Default>;
+                             Min, Max, Default, SkipInit>;
 };
 
 /// Definitions for the options for numeric CDI entries.
@@ -152,6 +156,7 @@ public:
     DEFINE_OPTIONALARG(Min, minvalue, int);
     DEFINE_OPTIONALARG(Max, maxvalue, int);
     DEFINE_OPTIONALARG(Default, defaultvalue, int);
+    DEFINE_OPTIONALARG(SkipInit, skip_init, int);
 
     void render_cdi(std::string *r) const
     {
@@ -289,6 +294,11 @@ public:
         }
         };*/
 
+    constexpr int skip_init() const
+    {
+        return 0;
+    }
+
     ///
     /// @return true if this group is a toplevel CDI definition and shall only
     /// allow segments and other toplevel-compatible entries (but no data
@@ -387,7 +397,7 @@ public:
         *s += "<";
         if (opts.is_cdi())
         {
-            *s += "?xml version=\"1.0\"?>\n<";
+            *s += "?xml version=\"1.0\" encoding=\"utf-8\"?>\n<";
             tag = "cdi";
             *s += tag;
             *s += " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
@@ -461,6 +471,11 @@ public:
     DEFINE_OPTIONALARG(Model, model, const char *);
     DEFINE_OPTIONALARG(HwVersion, hardware_version, const char *);
     DEFINE_OPTIONALARG(SwVersion, software_version, const char *);
+
+    constexpr int skip_init() const
+    {
+        return 0;
+    }
 };
 
 /// Helper class for rendering the "<identification>" tag.

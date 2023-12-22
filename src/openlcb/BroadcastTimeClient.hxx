@@ -81,6 +81,13 @@ public:
         return serverDetected_;
     }
 
+    /// Test if this is a server.
+    /// @return true if a BroadcastTimeServer, else false
+    bool is_server_self() override
+    {
+        return false;
+    }
+
     /// Handle requested identification message.
     /// @param entry registry entry for the event range
     /// @param event information about the incoming message
@@ -94,6 +101,13 @@ public:
         {
             // not for us
             return;
+        }
+
+        if (event->dst_node == node_)
+        {
+            // This is directed at us. We were likely re-initialized, so we
+            // need to query for a new clock server and possibly sync.
+            query();
         }
 
         if (is_terminated())
@@ -225,6 +239,7 @@ private:
     void start_stop_logic(bool started)
     {
         bool notify = false;
+        time_t val = 0;
         {
             AtomicHolder h(this);
             if (started_ != started)
@@ -240,34 +255,24 @@ private:
                 }
                 started_ = started;
                 notify = true;
+                val = seconds_;
             }
             // release AtomicHolder
         }
         if (notify)
         {
-            service_callbacks();
+            service_callbacks(val, val);
         }
     }
 
     /// Initialize client by sending a time query.
-    /// @return next state is initialize_done
+    /// @return next state is client_update
     Action initialize()
     {
         rolloverPending_ = false;
         rolloverPendingDate_ = false;
         rolloverPendingYear_ = false;
 
-        writer_.WriteAsync(node_, Defs::MTI_EVENT_REPORT, WriteHelper::global(),
-            eventid_to_buffer(eventBase_ |
-                              BroadcastTimeDefs::QUERY_EVENT_SUFFIX),
-            this);
-        return wait_and_call(STATE(initialize_done));
-    }
-
-    /// Initialize finished
-    /// @return next state client_update.
-    Action initialize_done()
-    {
         waiting();
         return wait_and_call(STATE(client_update));
     }
@@ -275,7 +280,7 @@ private:
     /// Notification arrived that we should update our state.
     /// @return next state client_update_commit if an update is to be made,
     ///         else next state client_update_wait if we are expecting more
-    ///         incoming clock set events or producer identifieds
+    ///         incoming clock set events or producer identified
     Action client_update()
     {
         if (immediateUpdate_ || rolloverPending_)
@@ -330,19 +335,16 @@ private:
 
         {
             bool notify = false;
+            time_t old_seconds = 0;
+            time_t new_seconds = 0;
             {
                 AtomicHolder h(this);
-                time_t old_seconds;
+                old_seconds = time();
                 if (rate_ != rateRequested_ ||
                     (immediateUpdate_ && immediatePending_))
                 {
                     // rate changed or an immediate update was pending.
                     notify = true;
-                }
-                else
-                {
-                    // we will need to check for jitter later
-                    old_seconds = time();
                 }
 
                 // we are about to commit an updated time, reset the flags
@@ -352,6 +354,7 @@ private:
                 rate_ = rateRequested_;
                 seconds_ = ::mktime(&tm_);
                 timestamp_ = OSTime::get_monotonic();
+                new_seconds = seconds_;
                 if (rolloverPending_)
                 {
                     // roll forward/back the 3 second delay for the year/date
@@ -374,7 +377,7 @@ private:
             }
             if (notify)
             {
-                service_callbacks();
+                service_callbacks(old_seconds, new_seconds);
             }
         }
 

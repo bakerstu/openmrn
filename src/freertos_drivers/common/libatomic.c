@@ -46,6 +46,21 @@
 /// Restores the interrupte enable flag from a register.
 #define REL_LOCK() __asm volatile(" msr PRIMASK, %0\n " : : "r"(_pastlock));
 
+/// __atomic_fetch_add_1
+///
+/// This function is needed for GCC-generated code.
+uint8_t __atomic_fetch_add_1(uint8_t *ptr, uint8_t val, int memorder)
+{
+    ACQ_LOCK();
+    uint16_t ret = *ptr;
+    *ptr += val;
+    REL_LOCK();
+    return ret;
+}
+
+/// __atomic_fetch_sub_2
+///
+/// This function is needed for GCC-generated code.
 uint16_t __atomic_fetch_sub_2(uint16_t *ptr, uint16_t val, int memorder)
 {
     ACQ_LOCK();
@@ -55,15 +70,9 @@ uint16_t __atomic_fetch_sub_2(uint16_t *ptr, uint16_t val, int memorder)
     return ret;
 }
 
-uint8_t __atomic_exchange_1(uint8_t *ptr, uint8_t val, int memorder)
-{
-    ACQ_LOCK();
-    uint8_t ret = *ptr;
-    *ptr = val;
-    REL_LOCK();
-    return ret;
-}
-
+/// __atomic_fetch_or_1
+///
+/// This function is needed for GCC-generated code.
 uint8_t __atomic_fetch_or_1(uint8_t *ptr, uint8_t val, int memorder)
 {
     ACQ_LOCK();
@@ -73,6 +82,21 @@ uint8_t __atomic_fetch_or_1(uint8_t *ptr, uint8_t val, int memorder)
     return ret;
 }
 
+/// __atomic_fetch_or_4 
+///
+/// This function is needed for GCC-generated code.
+uint32_t __atomic_fetch_or_4(uint32_t *ptr, uint32_t val, int memorder)
+{
+    ACQ_LOCK();
+    uint32_t ret = *ptr;
+    *ptr = ret | val;
+    REL_LOCK();
+    return ret;
+}
+
+/// __atomic_fetch_and_1
+///
+/// This function is needed for GCC-generated code.
 uint8_t __atomic_fetch_and_1(uint8_t *ptr, uint8_t val, int memorder)
 {
     ACQ_LOCK();
@@ -80,6 +104,76 @@ uint8_t __atomic_fetch_and_1(uint8_t *ptr, uint8_t val, int memorder)
     *ptr = ret & val;
     REL_LOCK();
     return ret;
+}
+
+/// __atomic_fetch_and_4
+///
+/// This function is needed for GCC-generated code.
+uint32_t __atomic_fetch_and_4(uint32_t *ptr, uint32_t val, int memorder)
+{
+    ACQ_LOCK();
+    uint32_t ret = *ptr;
+    *ptr = ret & val;
+    REL_LOCK();
+    return ret;
+}
+
+/// __atomic_exchange_1
+///
+/// This function is needed for GCC-generated code.
+uint8_t __atomic_exchange_1(uint8_t *ptr, uint8_t val, int memorder)
+{
+    ACQ_LOCK();
+    uint8_t ret = *ptr;
+    *ptr = val;
+    REL_LOCK();
+    return ret;
+}
+
+/// __atomic_compare_exchange_1
+///
+/// This function is needed for GCC-generated code.
+///
+/// This built-in function implements an atomic compare and exchange
+/// operation. This compares the contents of *ptr with the contents of
+/// *exp. If equal, the operation is a read-modify-write operation that
+/// writes desired into *ptr. If they are not equal, the operation is a read
+/// and the current contents of *ptr are written into *expected.
+///
+/// If desired is written into *ptr then true is returned.
+_Bool __atomic_compare_exchange_1(uint8_t *ptr, uint8_t *exp, uint8_t desired,
+    _Bool weak, int success_memorder, int failure_memorder)
+{
+    ACQ_LOCK();
+    uint8_t curr = *ptr;
+    if (curr == *exp)
+    {
+        *ptr = desired;
+        REL_LOCK();
+        return 1;
+    }
+    *exp = curr;
+    REL_LOCK();
+    return 0;
+}
+
+/// __atomic_compare_exchange_4
+///
+/// This function is needed for GCC-generated code.
+_Bool __atomic_compare_exchange_4(uint32_t *ptr, uint32_t *exp,
+    uint32_t desired, _Bool weak, int success_memorder, int failure_memorder)
+{
+    ACQ_LOCK();
+    uint32_t curr = *ptr;
+    if (curr == *exp)
+    {
+        *ptr = desired;
+        REL_LOCK();
+        return 1;
+    }
+    *exp = curr;
+    REL_LOCK();
+    return 0;
 }
 
 #endif // guard for arduino compilation

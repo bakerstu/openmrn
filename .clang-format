@@ -34,7 +34,7 @@ Standard:        Cpp11
 IndentWidth:     4
 TabWidth:        8
 UseTab:          Never
-BreakBeforeBraces: Allman
+# BreakBeforeBraces: Allman
 IndentFunctionDeclarationAfterType: false
 SpacesInParentheses: false
 SpacesInAngles:  false
@@ -43,5 +43,26 @@ SpacesInCStyleCastParentheses: false
 SpaceAfterControlStatementKeyword: true
 SpaceBeforeAssignmentOperators: true
 ContinuationIndentWidth: 4
+
+# This big block of settings works around indentation after an extern "C"
+BraceWrapping: {
+  AfterCaseLabel:  true,
+  AfterClass:      true,
+  AfterControlStatement: true,
+  AfterEnum:       true,
+  AfterFunction:   true,
+  AfterNamespace:  true,
+  AfterObjCDeclaration: true,
+  AfterStruct:     true,
+  AfterUnion:      true,
+  AfterExternBlock: false,
+  BeforeCatch:     true,
+  BeforeElse:      true,
+  IndentBraces:    false,
+  SplitEmptyFunction: true,
+  SplitEmptyRecord: false,
+  SplitEmptyNamespace: false }
+BreakBeforeBraces: Custom
+IndentExternBlock: false
 ...
 

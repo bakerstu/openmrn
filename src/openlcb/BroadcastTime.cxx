@@ -47,9 +47,23 @@ namespace openlcb
 void BroadcastTime::clear_timezone()
 {
 #ifndef ESP32
-        setenv("TZ", "GMT0", 1);
-        tzset();
+    setenv("TZ", "GMT0", 1);
+    tzset();
 #endif
+}
+
+//
+// BroadcastTimeClient::set_data_year_str
+//
+void BroadcastTime::set_date_year_str(const char *date_year)
+{
+    int year, month, day;
+    if (BroadcastTimeDefs::string_to_date(date_year, &year, &month, &day))
+    {
+        // date valid
+        set_date(month, day);
+        set_year(year);
+    }
 }
 
 } // namespace openlcb

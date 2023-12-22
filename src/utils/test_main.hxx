@@ -95,8 +95,10 @@ void os_emscripten_yield() {
 Executor<1> g_executor("ex_thread", 0, 1024);
 #endif
 
+#ifndef NO_GC_OPTIMIZE
 /// Do not buffer gridconnect bytes when we are running in a test.
 OVERRIDE_CONST(gridconnect_buffer_size, 1);
+#endif
 
 Service g_service(&g_executor);
 
@@ -378,5 +380,65 @@ private:
     /// out of scope.
     std::unique_ptr<HolderBase> holder_;
 };
+
+/// Converts a character containing a hex digit to the value of that digit.
+///
+/// @param n character with lower or upper case hex digit.
+///
+/// @return int value of that digit.
+int nibble_to_int(char n)
+{
+    if ('0' <= n && n <= '9')
+    {
+        return n - '0';
+    }
+    if ('a' <= n && n <= 'f')
+    {
+        return n - 'a' + 10;
+    }
+    if ('A' <= n && n <= 'F')
+    {
+        return n - 'A' + 10;
+    }
+    DIE("Unknown nibble arrived.");
+}
+
+/// Converts a hex string into the respective byte string.
+/// @param hex a string containing hex digits. Separators between hex bytes are
+/// allowed and ignored.
+/// @return string containing bytes respective to the hex.
+std::string hex2str(const char *hex)
+{
+    std::string ret;
+    while (*hex && *(hex + 1))
+    {
+        if (*hex == ' ')
+        {
+            ++hex;
+            continue;
+        }
+        ret.push_back((nibble_to_int(*hex) << 4) | (nibble_to_int(*(hex + 1))));
+        hex += 2;
+    }
+    return ret;
+}
+
+const char HEXCHR[17] = "0123456789abcdef";
+
+/// Converts a byte string into the hexadecimal representation, with no
+/// separators.
+/// @param s Arbitrary byte payload.
+/// @return string containing two hex digits per incoming byte, with the
+/// respective value..
+std::string str2hex(const string &s)
+{
+    std::string ret;
+    for (char c : s)
+    {
+        ret.push_back(HEXCHR[c >> 4]);
+        ret.push_back(HEXCHR[c & 0xf]);
+    }
+    return ret;
+}
 
 #endif // _UTILS_TEST_MAIN_HXX_

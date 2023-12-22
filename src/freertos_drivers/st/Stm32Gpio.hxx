@@ -88,6 +88,12 @@ template <uint32_t GPIOx, uint16_t PIN, uint8_t PIN_NUM> struct Stm32GpioDefs
         return port()->IDR & pin();
     }
 
+    /// Changes the output pin level.
+    static void toggle()
+    {
+        set(!get());
+    }
+    
     /// @return a os-indepentent Gpio abstraction instance for use in
     /// libraries.
     static constexpr const Gpio *instance()

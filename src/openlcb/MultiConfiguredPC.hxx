@@ -41,6 +41,7 @@
 #include "openlcb/RefreshLoop.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
+#include "utils/Debouncer.hxx"
 #include "utils/format_utils.hxx"
 
 namespace openlcb
@@ -71,8 +72,8 @@ CDI_GROUP_END();
 CDI_GROUP(PCConfig);
 enum class ActionConfig : uint8_t
 {
-    OUTPUT = 0,
-    INPUT = 1
+    DOUTPUT = 0,
+    DINPUT = 1
 };
 
 CDI_GROUP_ENTRY(action, Uint8ConfigEntry, Default(1), MapValues(PC_ACTION_MAP),
@@ -141,7 +142,7 @@ public:
         debouncers_ = alloc.allocate(size_);
         for (unsigned i = 0; i < size_; ++i)
         {
-            alloc.construct(debouncers_ + i, 3);
+            alloc_traits::construct(alloc, debouncers_ + i, 3);
         }
     }
 
@@ -153,7 +154,7 @@ public:
         std::allocator<debouncer_type> alloc;
         for (unsigned i = 0; i < size_; ++i)
         {
-            alloc.destroy(debouncers_ + i);
+            alloc_traits::destroy(alloc, debouncers_ + i);
         }
         alloc.deallocate(debouncers_, size_);
     }
@@ -223,7 +224,7 @@ public:
             EventRegistry::instance()->register_handler(
                 EventRegistryEntry(this, cfg_event_on, i * 2 + 1), 0);
             uint8_t action = cfg_ref.action().read(fd);
-            if (action == (uint8_t)PCConfig::ActionConfig::OUTPUT)
+            if (action == (uint8_t)PCConfig::ActionConfig::DOUTPUT)
             {
                 pins_[i]->set_direction(Gpio::Direction::DOUTPUT);
                 producedEvents_[i * 2] = 0;
@@ -336,6 +337,8 @@ public:
     }
 
 private:
+    using alloc_traits = std::allocator_traits<std::allocator<debouncer_type>>;
+
     /// Removes registration of this event handler from the global event
     /// registry.
     void do_unregister()

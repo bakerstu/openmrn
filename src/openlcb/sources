@@ -6,6 +6,7 @@ CXXSRCS += \
            AliasAllocator.cxx \
            AliasCache.cxx \
            BroadcastTime.cxx \
+           BroadcastTimeDefs.cxx \
            BroadcastTimeClient.cxx \
            BroadcastTimeServer.cxx \
            BulkAliasAllocator.cxx \
@@ -26,6 +27,7 @@ CXXSRCS += \
            NodeBrowser.cxx \
            NodeInitializeFlow.cxx \
            NonAuthoritativeEventProducer.cxx \
+           Node.cxx \
            PIPClient.cxx \
            RoutingLogic.cxx \
            TractionDefs.cxx \
@@ -42,6 +44,8 @@ CXXSRCS += \
            SimpleNodeInfoResponse.cxx \
            SimpleNodeInfoMockUserFile.cxx \
            SimpleStack.cxx \
+           StreamReceiver.cxx \
+           StreamTransport.cxx \
            TractionTestTrain.cxx \
            TractionProxy.cxx \
            TcpDefs.cxx \

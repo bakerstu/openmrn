@@ -13,11 +13,23 @@ include $(OPENMRNPATH)/etc/config.mk
 include $(OPENMRNPATH)/etc/path.mk
 include $(OPENMRNPATH)/etc/$(TARGET).mk
 
-# lib here is only needed for clean to work properly. Libraries are copied
-# there by the original build rules.
-SUBDIRS = $(CORELIBS) $(SYSLIB_SUBDIRS) lib
+SUBDIRS = $(CORELIBS) $(SYSLIB_SUBDIRS)
 
 # This defines how to create nonexistant directories.
 MKSUBDIR_OPENMRNINCLUDE=lib.mk
 
 include $(OPENMRNPATH)/etc/recurse.mk
+
+# lib/timestamp is a dependency to all test binaries. This rule has to have a
+# body to execute, or else make will take the mtime of this file too early in
+# the execution process. The body shall not actually touch the file, as the
+# touches happen in the BUILDDIRS recursions. This workaround ensures that when
+# a source file changes in openmrn, the tests are all re-linked and
+# re-run. Otherwise you need to run tests twice to actually execute them.
+lib/timestamp: $(BUILDDIRS)
+	true
+
+clean: clean-lib
+
+clean-lib:
+	rm -f lib/lib*.a

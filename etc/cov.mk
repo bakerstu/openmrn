@@ -26,12 +26,14 @@ else
 ARCHOPTIMIZATION = -g $(TESTOPTIMIZATION) -fprofile-arcs -ftest-coverage
 endif
 
-CSHAREDFLAGS = -c -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/') $(ARCHOPTIMIZATION) $(INCLUDES) -Wall -Werror -Wno-unknown-pragmas -MD -MP -fno-stack-protector -D_GNU_SOURCE -DGTEST
+CSHAREDFLAGS = -c -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/') \
+    $(ARCHOPTIMIZATION) $(INCLUDES) -Wall -Werror -Wno-unknown-pragmas -MD -MP \
+    -fno-stack-protector -D_GNU_SOURCE -DGTEST
 
-CFLAGS = $(CSHAREDFLAGS) -std=gnu99 $(CFLAGSEXTRA)
+CFLAGS = $(CSHAREDFLAGS) -std=gnu99 $(CFLAGSENV) $(CFLAGSEXTRA)
 
 CXXFLAGS = $(CSHAREDFLAGS) -std=c++14 -D__STDC_FORMAT_MACROS \
-           -D__STDC_LIMIT_MACROS $(CXXFLAGSEXTRA) #-D__LINEAR_MAP__
+           -D__STDC_LIMIT_MACROS $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
 
 
 LDFLAGS = $(ARCHOPTIMIZATION) -Wl,-Map="$(@:%=%.map)"

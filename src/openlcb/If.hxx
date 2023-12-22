@@ -52,6 +52,7 @@ namespace openlcb
 {
 
 class Node;
+class StreamTransport;
 
 /// Helper function to send an event report to the bus. Performs
 /// synchronous (dynamic) memory allocation so use it sparingly and when
@@ -325,6 +326,11 @@ public:
      * on the interface executor. */
     virtual void canonicalize_handle(NodeHandle *h) {}
 
+    /// @return the node ID of the default node on this interface. For TCP
+    /// interfaces this is the gateway node ID, for CAN interfaces this is the
+    /// node ID used for alias allocation on the CAN-bus.
+    virtual NodeID get_default_node_id() = 0;
+
     /// Sets a transmit hook. This function will be called once for every
     /// OpenLCB message transmitted. Used for implementing activity LEDs.
     /// @param hook function to call for each transmit message.
@@ -333,8 +339,27 @@ public:
         txHook_ = std::move(hook);
     }
 
+    /// @return the object supporting stream transport in OpenLCB. May be null
+    /// if stream transport was not initialized for this interface. This is
+    /// typical when a small node is low on flash space for code.
+    StreamTransport *stream_transport()
+    {
+        return streamTransport_;
+    }
+
+    /// Adds the necessary object for this interface to support stream
+    /// transport. May be called only once per interface.
+    /// @param s the stream transport object. Ownership is not transferred. (If
+    /// needed, see add_owned_flow.)
+    void set_stream_transport(StreamTransport *s)
+    {
+        HASSERT(streamTransport_ == nullptr);
+        streamTransport_ = s;
+    }
+
 protected:
-    void remove_local_node_from_map(Node *node) {
+    void remove_local_node_from_map(Node *node)
+    {
         auto it = localNodes_.find(node->node_id());
         HASSERT(it != localNodes_.end());
         localNodes_.erase(it);
@@ -356,6 +381,9 @@ private:
 
     /// Local virtual nodes registered on this interface.
     VNodeMap localNodes_;
+
+    /// Accessor for the objects and variables for supporting stream transport.
+    StreamTransport *streamTransport_ {nullptr};
 
     friend class VerifyNodeIdHandler;
 

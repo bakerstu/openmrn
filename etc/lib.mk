@@ -96,10 +96,11 @@ $(ARM_OBJS): %.o : %.c
 
 $(LIBNAME): $(OBJS)
 	$(AR) crs$(AROPTS) $(LIBNAME) $(OBJS)
+	mkdir -p $(OPENMRNPATH)/targets/$(TARGET)/lib/
 ifeq ($(OS),Windows_NT)
-	cp -f $(TGTDIR)/$(LIBNAME) $(OPENMRNPATH)/targets/$(TARGET)/lib
+	cp -f $(TGTDIR)/$(LIBNAME) $(OPENMRNPATH)/targets/$(TARGET)/lib/$(LIBNAME)
 else
-	ln -sf $(TGTDIR)/$(LIBNAME) $(OPENMRNPATH)/targets/$(TARGET)/lib
+	ln -sf $(TGTDIR)/$(LIBNAME) $(OPENMRNPATH)/targets/$(TARGET)/lib/$(LIBNAME)
 endif
 	touch $(OPENMRNPATH)/targets/$(TARGET)/lib/timestamp
 

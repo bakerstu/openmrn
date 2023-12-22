@@ -529,6 +529,7 @@ protected:
         return wait_and_call(c);
     }
 
+public:
     /** Calls a helper flow to perform some actions. Performs inline
      * synchronous allocation form the main buffer pool. Ignores the target
      * flow's buffer pool settings, because that makes it impossible to
@@ -543,7 +544,7 @@ protected:
      * buffer type.
      */
     template <class T, typename... Args>
-    void invoke_subflow_and_ignore_result(
+    static void invoke_subflow_and_ignore_result(
         FlowInterface<Buffer<T>> *target_flow, Args &&... args)
     {
         Buffer<T> *b;
@@ -552,7 +553,8 @@ protected:
         b->data()->done.reset(EmptyNotifiable::DefaultInstance());
         target_flow->send(b);
     }
-    
+
+protected:
     struct StateFlowSelectHelper;
     struct StateFlowTimedSelectHelper;
 
@@ -734,10 +736,14 @@ protected:
      */
     Action listen_and_call(StateFlowSelectHelper *helper, int fd, Callback c)
     {
+// ESP-IDF does not implement fstat for the LwIP VFS layer
+// https://github.com/espressif/esp-idf/issues/7198
+#ifndef ESP32
         // verify that the fd is a socket
         struct stat stat;
         fstat(fd, &stat);
         HASSERT(S_ISSOCK(stat.st_mode));
+#endif // ESP32
 
         helper->reset(Selectable::READ, fd, Selectable::MAX_PRIO);
         helper->set_wakeup(this);
@@ -753,10 +759,14 @@ protected:
      */
     Action connect_and_call(StateFlowSelectHelper *helper, int fd, Callback c)
     {
+// ESP-IDF does not implement fstat for the LwIP VFS layer
+// https://github.com/espressif/esp-idf/issues/7198
+#ifndef ESP32
         // verify that the fd is a socket
         struct stat stat;
         fstat(fd, &stat);
         HASSERT(S_ISSOCK(stat.st_mode));
+#endif // ESP32
 
         helper->reset(Selectable::WRITE, fd, Selectable::MAX_PRIO);
         helper->set_wakeup(this);
@@ -1130,6 +1140,14 @@ public:
     /// @param priority which priority back the flow should process it. Lower
     /// numbers mean process earlier.
     virtual void send(MessageType *message, unsigned priority = UINT_MAX) = 0;
+
+    /// This function is never user in the code, but GDB can use it to infer
+    /// the correct message types. It has to be virtual so that it is not
+    /// optimized away.
+    virtual MessageType *type_helper()
+    {
+        return nullptr;
+    }
 
     /** Synchronously allocates a message buffer from the pool of this
      * flow. @return the newly allocates message. */

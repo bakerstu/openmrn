@@ -53,6 +53,10 @@ DEFAULT_CONST(num_datagram_registry_entries, 2);
  * happen concurrently. */
 DEFAULT_CONST(num_datagram_clients, 2);
 
+/** Number of stream senders. This is how many stream send operations can
+ * happen concurrently. */
+DEFAULT_CONST(num_stream_senders, 1);
+
 /** Maximum number of memory spaces that can be registered for the MemoryConfig
  * datagram handler. */
 DEFAULT_CONST(num_memory_spaces, 5);
@@ -70,3 +74,7 @@ DEFAULT_CONST_TRUE(node_init_identify);
 /** How many CAN frames should the bulk alias allocator be sending at the same
  * time. */
 DEFAULT_CONST(bulk_alias_num_can_frames, 20);
+
+/** Default number of bytes in maximum stream window size for { @ref
+ * StreamReceiver }. */
+DEFAULT_CONST(stream_receiver_default_window_size, 2 * 1024);

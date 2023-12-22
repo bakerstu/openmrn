@@ -325,8 +325,9 @@ static const NodeID TEST_NODE_ID = 0x02010d000003ULL;
 class LocalIf : public If
 {
 public:
-    LocalIf(int local_nodes_count)
+    LocalIf(int local_nodes_count, NodeID gateway_node_id)
         : If(&g_executor, local_nodes_count)
+        , gatewayNodeID_(gateway_node_id)
     {
     }
 
@@ -352,8 +353,14 @@ public:
         return false;
     }
 
+    NodeID get_default_node_id() override
+    {
+        return gatewayNodeID_;
+    }
+
 private:
     std::vector<std::unique_ptr<Destructable>> ownedFlows_;
+    NodeID gatewayNodeID_;
 };
 
 /** Test fixture base class with helper methods for exercising the asynchronous

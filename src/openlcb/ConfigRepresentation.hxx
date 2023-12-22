@@ -100,6 +100,7 @@ public:
     using Name = AtomConfigOptions::Name;
     using Description = AtomConfigOptions::Description;
     using MapValues = AtomConfigOptions::MapValues;
+    using SkipInit = AtomConfigOptions::SkipInit;
     using Min = NumericConfigOptions::Min;
     using Max = NumericConfigOptions::Max;
     using Default = NumericConfigOptions::Default;
@@ -202,8 +203,8 @@ public:
     {                                                                          \
         return entry(openlcb::EntryMarker<LINE>());                            \
     }                                                                          \
-    static constexpr typename decltype(                                        \
-        TYPE::config_renderer())::OptionsType NAME##_options()                 \
+    static constexpr typename decltype(TYPE::config_renderer())::OptionsType   \
+        NAME##_options()                                                       \
     {                                                                          \
         using SelfType = TYPE;                                                 \
         using OptionsType =                                                    \
@@ -217,11 +218,17 @@ public:
         TYPE::config_renderer().render_cdi(s, ##__VA_ARGS__);                  \
     }                                                                          \
     void __attribute__((always_inline))                                        \
-        recursive_handle_events(const openlcb::EntryMarker<LINE> &e,           \
-            const openlcb::EventOffsetCallback &fn)                            \
+    recursive_handle_events(const openlcb::EntryMarker<LINE> &e,               \
+        const openlcb::EventOffsetCallback &fn)                                \
     {                                                                          \
         recursive_handle_events(openlcb::EntryMarker<LINE - 1>(), fn);         \
-        entry(e).handle_events(fn);                                            \
+        if ((!TYPE(0).group_opts(__VA_ARGS__).is_segment() ||                  \
+                TYPE(0).group_opts(__VA_ARGS__).segment() ==                   \
+                    openlcb::MemoryConfigDefs::SPACE_CONFIG) &&                \
+            NAME##_options().skip_init() == 0)                                 \
+        {                                                                      \
+            entry(e).handle_events(fn);                                        \
+        }                                                                      \
     }
 
 /// Helper macro to generate the code needed at the end of a group.

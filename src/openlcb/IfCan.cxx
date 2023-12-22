@@ -127,6 +127,17 @@ public:
             // This is not a local alias of ours.
             return exit();
         }
+        if (CanDefs::is_stream_frame(id))
+        {
+            // Checks for localhost stream data payloads. These are ok to see
+            // in the incoming data since they are looped back.
+            NodeAlias dst = CanDefs::get_dst(id);
+            NodeID dnode = dst ? if_can()->local_aliases()->lookup(dst) : 0;
+            if (dnode)
+            {
+                return exit();
+            }
+        }
         if (CanDefs::is_cid_frame(id))
         {
             // This is a CID frame. We own the alias, let them know.
@@ -803,6 +814,15 @@ Node *IfCan::lookup_local_node_handle(NodeHandle h)
         h.id = local_aliases()->lookup(h.alias);
     }
     return lookup_local_node(h.id);
+}
+
+NodeID IfCan::get_default_node_id()
+{
+    if (!aliasAllocator_)
+    {
+        return 0;
+    }
+    return aliasAllocator_->if_node_id();
 }
 
 } // namespace openlcb

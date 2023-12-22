@@ -49,8 +49,10 @@
 #include "openlcb/SimpleStack.hxx"
 
 #include "openlcb/EventHandler.hxx"
+#include "openlcb/MemoryConfigStream.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
 #include "openlcb/SimpleNodeInfo.hxx"
+#include "openlcb/StreamTransport.hxx"
 #include "openmrn_features.h"
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/SocketCan.hxx"
@@ -89,14 +91,24 @@ std::unique_ptr<SimpleStackBase::PhysicalIf> SimpleTcpStackBase::create_if(
 
 SimpleCanStack::SimpleCanStack(const openlcb::NodeID node_id)
     : SimpleCanStackBase(node_id)
-    , node_(iface(), node_id)
+    , node_(iface(), node_id, false)
 {
 }
 
 SimpleTcpStack::SimpleTcpStack(const openlcb::NodeID node_id)
     : SimpleTcpStackBase(node_id)
-    , node_(iface(), node_id)
+    , node_(iface(), node_id, false)
 {
+}
+
+void SimpleCanStackBase::add_stream_support()
+{
+    Destructable *t =
+        new StreamTransportCan(if_can(), config_num_stream_senders());
+    additionalComponents_.emplace_back(t);
+    Destructable *mem_stream =
+        new MemoryConfigStreamHandler(memory_config_handler());
+    additionalComponents_.emplace_back(mem_stream);
 }
 
 void SimpleStackBase::start_stack(bool delay_start)
@@ -115,7 +127,7 @@ void SimpleStackBase::start_stack(bool delay_start)
 
     if (!delay_start)
     {
-        start_iface(false);
+        start_after_delay();
     }
 
     // Adds memory spaces.
@@ -142,6 +154,7 @@ void SimpleStackBase::default_start_node()
         additionalComponents_.emplace_back(space);
     }
 #if OPENMRN_HAVE_POSIX_FD 
+    if (SNIP_DYNAMIC_FILENAME != nullptr)
     {
         auto *space = new FileMemorySpace(
             configUpdateFlow_.get_fd(), sizeof(SimpleNodeDynamicValues));
@@ -192,6 +205,12 @@ void SimpleTrainCanStack::start_node()
 void SimpleStackBase::start_after_delay()
 {
     start_iface(false);
+    for (Node *node = iface()->first_local_node();
+         node != nullptr;
+         node = iface()->next_local_node(node->node_id()))
+    {
+        node->initialize();
+    }
 }
 
 void SimpleTcpStackBase::start_iface(bool restart)

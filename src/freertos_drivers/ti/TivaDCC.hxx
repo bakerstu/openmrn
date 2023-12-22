@@ -64,6 +64,7 @@
 #include "driverlib/utils.h"
 #endif
 
+#include "freertos_drivers/common/FixedQueue.hxx"
 #include "Devtab.hxx"
 #include "RailcomDriver.hxx"
 #include "dcc/DccOutput.hxx"
@@ -74,99 +75,6 @@
 /// If non-zero, enables the jitter feature to spread the EMC spectrum of DCC
 /// signal
 extern "C" uint8_t spreadSpectrum;
-
-/// This structure is safe to use from an interrupt context and a regular
-/// context at the same time, provided that
-///
-/// . one context uses only the front() and the other only the back() functions.
-///
-/// . ++ and -- are compiled into atomic operations on the processor (on the
-///   count_ variable).
-///
-/// @deprecated, use @ref DeviceBuffer instead.
-///
-/// @todo(balazs.racz) replace uses of this class with DeviceBuffer (to enable
-/// select support for example).
-template<class T, uint8_t SIZE> class FixedQueue {
-public:
-    FixedQueue()
-        : rdIndex_(0)
-        , wrIndex_(0)
-        , count_(0)
-    {
-    }
-
-    /// @return true if there is no entry in the queue.
-    bool empty() { return size() == 0; }
-    /// @return true if the queue cannot accept more elements.
-    bool full() { return size() >= SIZE; }
-    /// @return the current number of entries in the queue.
-    size_t size() { return __atomic_load_n(&count_, __ATOMIC_SEQ_CST); }
-
-    /// Returns the head of the FIFO (next element to read).
-    T& front() {
-        HASSERT(!empty());
-        return storage_[rdIndex_];
-    }
-
-    /// Removes the head of the FIFO from the queue.
-    void increment_front() {
-        HASSERT(!empty());
-        if (++rdIndex_ >= SIZE) rdIndex_ = 0;
-        __atomic_fetch_add(&count_, -1, __ATOMIC_SEQ_CST);
-    }
-
-    /// Returns the space to write the next element to.
-    T& back() {
-        HASSERT(!full());
-        return storage_[wrIndex_];
-    }
-
-    /// Commits the element at back() into the queue.
-    void increment_back() {
-        HASSERT(!full());
-        if (++wrIndex_ >= SIZE) wrIndex_ = 0;
-        __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
-    }
-
-    /** Increments the back pointer without committing the entry into the
-     * queue.
-     *
-     * This essentially reserves an entry in the queue for filling in, without
-     * making that entry available for reading. Must be followed by a
-     * commit_back call when filling in the entry is finished. An arbitrary
-     * number of such entries can be reserved (up to the number of free entries
-     * in the queue). */
-    void noncommit_back() {
-        HASSERT(has_noncommit_space());
-        if (++wrIndex_ >= SIZE) wrIndex_ = 0;
-    }
-
-    /** @returns true if we can do a noncommit back. */
-    bool has_noncommit_space() {
-        if (full()) return false;
-        auto new_index = wrIndex_;
-        if (++new_index >= SIZE) new_index = 0;
-        return new_index != rdIndex_;
-    }
-
-    /** Commits the oldest entry reserved by noncommit_back. */
-    void commit_back() {
-        HASSERT(count_ <= SIZE);
-        __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
-    }
-
-private:
-    /// Payload of elements stored.
-    T storage_[SIZE];
-    /// The index of the element to return next upon a read. This element is
-    /// typically full (unless the queue is empty itself).
-    uint8_t rdIndex_;
-    /// The index of the element where to write the next input to.
-    uint8_t wrIndex_;
-    /// How many elements are there in the queue.
-    volatile uint8_t count_;
-};
 
 /** A device driver for sending DCC packets.  If the packet queue is empty,
  *  then the device driver automatically sends out idle DCC packets.  The
@@ -1069,13 +977,39 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     /// @todo tune this bit to line up with the bit stream starting after the
     /// railcom cutout.
     fill_timing(DCC_RC_ONE, 57 << 1, 57, 57 << 1);
+
+    // The following #if switch controls whether or not the
+    // "generate_railcom_halfzero()" will actually generate a half zero bit
+    // or if it will in actuality generate a full zero bit. It was determined
+    // that the half zero workaround does not work with some older decoders,
+    // but the full zero workaround does. It also works with older decoders
+    // that needed the half zero, so it seems to be a true super-set workaround.
+    //
+    // There is an issue filed to reevaluate this after more field data is
+    // collected. The idea was to make the most minimal change necessary
+    // until more data can be collected.
+    // https://github.com/bakerstu/openmrn/issues/652
+#if 0
     // A small pulse in one direction then a half zero bit in the other
     // direction.
     fill_timing(DCC_RC_HALF_ZERO, 100 + 56, 56, 100 + 56, 5);
-    // At the end of the packet we stretch the negative side but let the
-    // interval timer kick in on time. The next bit will resync, and this
-    // avoids a glitch output to the track when a marklin preamble is coming.
-    fill_timing(DCC_EOP_ONE, (56 << 1) + 20, 58, 56 << 1);
+#else
+    // A full zero bit inserted following the RailCom cutout.
+    fill_timing(DCC_RC_HALF_ZERO, 100 << 1, 100, 100 << 1, 5);
+#endif
+
+    // At the end of the packet the resync process will happen, which means that
+    // we modify the timer registers in synchronous mode instead of double
+    // buffering to remove any drift that may have happened during the packet.
+    // This means that we need to kick off the interval timer a bit earlier than
+    // nominal to compensate for the CPU execution time. At the same time we
+    // stretch the negative side of the output waveform, because the next packet
+    // might be marklin. Stretching avoids outputting a short positive glitch
+    // between the negative half of the last dcc bit and the fully negative
+    // marklin preamble.
+    fill_timing(
+        DCC_EOP_ONE, (56 << 1) + 20, 56, (56 << 1) - HW::RESYNC_DELAY_USEC);
+
     fill_timing(MM_ZERO, 208, 26, 208, 2);
     fill_timing(MM_ONE, 208, 182, 208, 2);
     // Motorola preamble is negative DC signal.
@@ -1155,7 +1089,7 @@ TivaDCC<HW>::TivaDCC(const char *name, RailcomDriver *railcom_driver)
     MAP_TimerEnable(HW::INTERVAL_BASE, TIMER_A);
 
 #ifdef TIVADCC_TIVA
-    MAP_TimerSynchronize(TIMER0_BASE, TIMER_0A_SYNC | TIMER_0B_SYNC | TIMER_1A_SYNC | TIMER_1B_SYNC);
+    MAP_TimerSynchronize(TIMER0_BASE, HW::TIMER_SYNC);
 #endif
     
     MAP_TimerLoadSet(HW::CCP_BASE, TIMER_B, timings[DCC_ONE].period);
