@@ -811,8 +811,8 @@ private:
         auto *b = iface()->addressed_message_write_flow()->alloc();
         b->data()->reset(Defs::MTI_TRACTION_CONTROL_COMMAND, node_->node_id(),
             NodeHandle(dst_), std::move(payload));
-        iface()->addressed_message_write_flow()->send(b);
-        return get_buffer_deleter(b->ref());
+        iface()->addressed_message_write_flow()->send(b->ref());
+        return get_buffer_deleter(b);
     }
 
     void set_listening()
