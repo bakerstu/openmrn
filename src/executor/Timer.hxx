@@ -168,6 +168,15 @@ public:
      * @returns the new timer period, or one of the above special values. */
     virtual long long timeout() = 0;
 
+    /// @return the time when this timer is triggered. This may be in the past,
+    /// if the timer has just woken up and we are in the timeout() function. It
+    /// may be in the future if this timer is scheduled. It may be zero if this
+    /// timer was never scheduled.
+    long long schedule_time()
+    {
+        return when_;
+    }
+
     /** Starts a timer. The timer must not be active, and neither expired at
      * the time of call.
      * @param period period in nanoseconds before expiration. If not specified,
