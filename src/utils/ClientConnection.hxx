@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <termios.h> /* tc* functions */
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "utils/GridConnectHub.hxx"
 #include "utils/socket_listener.hxx"
