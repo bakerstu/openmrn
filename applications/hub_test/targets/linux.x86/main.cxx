@@ -36,8 +36,8 @@
 #include "os/os.h"
 
 #include "utils/ClientConnection.hxx"
-#include "utils/StringPrintf.hxx"
 #include "utils/LimitedPool.hxx"
+#include "utils/StringPrintf.hxx"
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 
@@ -80,6 +80,9 @@ const char *arg0 = "hub_test";
 
 // Dynamic variables tracking the traffic.
 
+/// How many live links are there (upstream + downstream).
+int g_num_live_links = 1;
+
 /// Index of the next packet to generate.
 unsigned g_next_packet = 1;
 
@@ -88,8 +91,11 @@ unsigned g_pending_buffers = 0;
 
 /// How many packets we have sent to the output iface.
 unsigned g_num_packets_sent = 0;
-/// How many sent packets got their barrier notified.
+/// How many sent packets got their (send) barrier notified.
 unsigned g_num_packets_accepted = 0;
+/// How many sent packets got their (receive) barrier notified and removed from
+/// storage.
+unsigned g_num_packets_all_received = 0;
 
 void usage(const char *e)
 {
@@ -157,7 +163,7 @@ void parse_args(int argc, char *argv[])
 }
 
 /// Establishes a new connection.
-void add_link(Link *link)
+void add_link(Link *link, bool is_receiver)
 {
     static int id = 0;
     if (link->upstream_host)
@@ -179,29 +185,54 @@ void add_link(Link *link)
     ++id;
 }
 
-struct PacketInfo : private Notifiable {
+/// Call this function when a packet has all its receivers confirmed.
+/// @param index packet number.
+void packet_complete(unsigned index);
+
+struct PacketInfo : private Notifiable
+{
     unsigned index_;
 
     /// Timestamp when the timer ticked to send this packet.
-    long long timerTs_{0};
+    long long timerTs_ {0};
     /// Timestamp when the flow started working on this packet.
-    long long flowTs_{0};
+    long long flowTs_ {0};
     /// Timestamp when the buffer was handed over to the output hub.
-    long long sendTs_{0};
+    long long sendTs_ {0};
     /// Timestamp when the notifiable on the buffer triggered.
-    long long confirmTs_{0};
-    
+    long long confirmTs_ {0};
+
     /// Send frame notification barrier.
-    BarrierNotifiable bn_{this};
+    BarrierNotifiable bn_ {this};
+
+    /// Number of receivers that have not yet gotten this message.
+    unsigned pendingReceivers_ {0};
+
 private:
-    void notify() override {
+    void notify() override
+    {
         confirmTs_ = os_get_time_monotonic();
         g_pending_buffers--;
         g_num_packets_accepted++;
+        if (pendingReceivers_)
+        {
+            --pendingReceivers_;
+        }
+        if (!pendingReceivers_)
+        {
+            // Confirmed by all receivers. Removes from storage.
+            g_num_packets_all_received++;
+            packet_complete(index_);
+        }
     }
 };
 
 std::map<unsigned, PacketInfo> g_packet_data;
+
+void packet_complete(unsigned index)
+{
+    g_packet_data.erase(index);
+}
 
 struct SendPacketRequest
 {
@@ -211,6 +242,8 @@ struct SendPacketRequest
     uint64_t generateTsNsec;
 };
 
+/// Implements the state machine to acquire a buffer and send an outgoing
+/// packet.
 class SendFlow : public StateFlow<Buffer<SendPacketRequest>, QList<1>>
 {
 public:
@@ -241,16 +274,19 @@ public:
         b->data()->skipMember_ = nullptr;
         output_port.can_hub->send(b);
         pinfo_->sendTs_ = os_get_time_monotonic();
+        pinfo_->pendingReceivers_ = std::max(0, g_num_live_links - 1);
         g_num_packets_sent++;
         return release_and_exit();
     }
 
 private:
     using BufferType = CanHubFlow::buffer_type;
-    LimitedPool pool_{sizeof(BufferType), SEND_PARALLELISM};
-    PacketInfo* pinfo_;
+    LimitedPool pool_ {sizeof(BufferType), SEND_PARALLELISM};
+    PacketInfo *pinfo_;
 } g_send_flow;
 
+/// This timer triggers packets to be sent by sending messages to the
+/// SendFlow.
 class PacketGenTimer : public ::Timer
 {
 public:
@@ -267,6 +303,69 @@ public:
         return RESTART;
     }
 } pkt_gen_timer;
+
+/// This timer prints stats every second. It is responsible for generating
+/// deltas from absolute counters.
+class StatsTimer : public ::Timer
+{
+public:
+    StatsTimer()
+        : Timer(g_executor.active_timers())
+    {
+        start(SEC_TO_NSEC(1));
+    }
+
+    long long timeout() override
+    {
+        print_stats();
+        return RESTART;
+    }
+
+    void print_stats()
+    {
+        string ret;
+        ret += "Send: ";
+        unsigned d = update_diff(g_next_packet, &next_packet);
+        ret += StringPrintf("+%d gen", d);
+        d = update_diff(g_num_packets_accepted, &num_packets_accepted);
+        ret += StringPrintf(" +%d send complete", d);
+        d = update_diff(g_num_packets_all_received, &num_packets_accepted);
+        ret += StringPrintf(" +%d recv complete", d);
+        // @todo add stats about send queues.
+        // @todo add stats about receivers.
+        // @todo print using hubdeviceselect instead of blocking output.
+        printf("%s\n", ret.c_str());
+    }
+
+private:
+    /// Creates a delta from a counter.
+    /// @param global_value current value of the global counter.
+    /// @param local_value a local shadow variable for the same counter. It
+    /// will be updated with the global value every time the function gets
+    /// called.
+    /// @return diff (number of counts elapsed since last call).
+    unsigned update_diff(unsigned global_value, unsigned *local_value)
+    {
+        unsigned diff = global_value - *local_value;
+        *local_value = global_value;
+        return diff;
+    }
+
+    /// Index of the next packet to generate.
+    unsigned next_packet = 1;
+    /// How many buffers have been sent and waiting for the notification on
+    /// them.
+    //unsigned pending_buffers = 0;
+
+    /// How many packets we have sent to the output iface.
+    //unsigned num_packets_sent = 0;
+    /// How many sent packets got their (send) barrier notified.
+    unsigned num_packets_accepted = 0;
+    /// How many sent packets got their (receive) barrier notified and removed
+    /// from storage.
+    unsigned num_packets_all_received = 0;
+
+} stats_timer;
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -288,10 +387,15 @@ int appl_main(int argc, char *argv[])
 
     while (1)
     {
+        int num_links = 0;
         for (const auto &p : connections)
         {
-            p->ping();
+            if (p->ping())
+            {
+                num_links++;
+            }
         }
+        g_num_live_links = num_links;
         sleep(1);
     }
 
