@@ -44,12 +44,23 @@ OVERRIDE_CONST(gc_generate_newlines, 1);
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
 
+class Receiver;
+
 struct Link
 {
+    /// Config (cmdline): device file to use
     const char *device_path = nullptr;
+    /// Config (cmdline) TCP target port number
     int upstream_port = 12021;
+    /// Config (cmdline) TCP target hostname 
     const char *upstream_host = nullptr;
+    /// The CAN hub for this link.
     std::unique_ptr<CanHubFlow> can_hub {new CanHubFlow(&g_service)};
+    /// The receiver object keeping track of the inputs and stats. Will be
+    /// created for every link, but only used for the input ports.
+    std::unique_ptr<Receiver> receiver;
+
+    Link();
 };
 
 /// We generate packets to this interface.
@@ -84,7 +95,7 @@ const char *arg0 = "hub_test";
 int g_num_live_links = 1;
 
 /// Index of the next packet to generate.
-unsigned g_next_packet = 1;
+uint32_t g_next_packet = 1;
 
 /// How many buffers have been sent and waiting for the notification on them.
 unsigned g_pending_buffers = 0;
@@ -162,6 +173,92 @@ void parse_args(int argc, char *argv[])
     }
 }
 
+
+class Receiver : public CanHubPortInterface
+{
+public:
+    Receiver(CanHubFlow *hub)
+    { }
+
+    void send(message_type *buf, unsigned prio) override
+    {
+        auto rb = get_buffer_deleter(buf);
+        const struct can_frame &f = buf->data()->frame();
+        if (f.can_dlc != 8 || !IS_CAN_FRAME_EFF(f))
+        {
+            // not interesting frame
+            ++numUnknownFrames_;
+            return;
+        }
+        auto id = GET_CAN_FRAME_ID_EFF(f);
+        if (id != SEND_HEADER)
+        {
+            // not interesting frame
+            ++numUnknownFrames_;
+            return;
+        }
+        if (memcmp(f.data, SEND_PAYLOAD, 4) != 0)
+        {
+            // not interesting frame
+            ++numUnknownFrames_;
+            return;
+        }
+        ++numFrames_;
+        uint32_t cnt = 0;
+        memcpy(&cnt, f.data + 4, 4);
+        cnt = be32toh(cnt);
+        if (cnt == nextPacket_)
+        {
+            ++numInOrder_;
+            ++nextPacket_;
+        }
+        else if (cnt > nextPacket_)
+        {
+            numMissed_ = cnt - nextPacket_;
+            nextPacket_ = cnt + 1;
+        }
+        else
+        {
+            numOutOfOrder_++;
+            // we don't adjust next packet here
+        }
+    }
+
+    /// Gets a stats line for this input.
+    string get_stats()
+    {
+        string ret;
+        ret += StringPrintf("\tReceiver: +%d recv, +%d unk, +%d OK, +%d "
+                            "out-of-order, +%d missing\n",
+            numFrames_, numUnknownFrames_, numInOrder_, numOutOfOrder_,
+            numMissed_);
+        numFrames_ = numUnknownFrames_ = numInOrder_ = numOutOfOrder_ =
+            numMissed_ = 0;
+        return ret;
+    }
+
+public:
+    /// Number of incoming frames that we don't recognize.
+    unsigned numUnknownFrames_ = 0;
+    /// Number of successful frames received.
+    unsigned numFrames_ = 0;
+    /// Number of in-order frames.
+    unsigned numInOrder_ = 0;
+    /// Number of frames missed. These may be lost or will arrive later out of
+    /// order.
+    unsigned numMissed_ = 0;
+    /// Number of frames that arrived late / out of order.
+    unsigned numOutOfOrder_ = 0;
+
+private:
+    /// Which packet index are we expecting next.
+    uint32_t nextPacket_ = 1;
+};
+
+Link::Link()
+    : receiver {new Receiver(can_hub.get())}
+{ }
+
 /// Establishes a new connection.
 void add_link(Link *link, bool is_receiver)
 {
@@ -208,12 +305,9 @@ struct PacketInfo : private Notifiable
     /// Number of receivers that have not yet gotten this message.
     unsigned pendingReceivers_ {0};
 
-private:
-    void notify() override
+    /// Notifies that this packet was received by a receiver link.
+    void notify_reception()
     {
-        confirmTs_ = os_get_time_monotonic();
-        g_pending_buffers--;
-        g_num_packets_accepted++;
         if (pendingReceivers_)
         {
             --pendingReceivers_;
@@ -224,6 +318,14 @@ private:
             g_num_packets_all_received++;
             packet_complete(index_);
         }
+    }
+
+private:
+    void notify() override
+    {
+        confirmTs_ = os_get_time_monotonic();
+        g_pending_buffers--;
+        g_num_packets_accepted++;
     }
 };
 
@@ -326,13 +428,17 @@ public:
         string ret;
         ret += "Send: ";
         unsigned d = update_diff(g_next_packet, &next_packet);
-        ret += StringPrintf("+%d gen", d);
+        ret += StringPrintf("+%" PRIu32 " gen", d);
         d = update_diff(g_num_packets_accepted, &num_packets_accepted);
         ret += StringPrintf(" +%d send complete", d);
-        d = update_diff(g_num_packets_all_received, &num_packets_accepted);
+        d = update_diff(g_num_packets_all_received, &num_packets_all_received);
         ret += StringPrintf(" +%d recv complete", d);
         // @todo add stats about send queues.
-        // @todo add stats about receivers.
+        ret += "\n";
+        for (const auto &lnk : input_ports)
+        {
+            ret += lnk.receiver->get_stats();
+        }
         // @todo print using hubdeviceselect instead of blocking output.
         printf("%s\n", ret.c_str());
     }
@@ -344,21 +450,21 @@ private:
     /// will be updated with the global value every time the function gets
     /// called.
     /// @return diff (number of counts elapsed since last call).
-    unsigned update_diff(unsigned global_value, unsigned *local_value)
+    template <typename T> T update_diff(T global_value, T *local_value)
     {
-        unsigned diff = global_value - *local_value;
+        T diff = global_value - *local_value;
         *local_value = global_value;
         return diff;
     }
 
     /// Index of the next packet to generate.
-    unsigned next_packet = 1;
+    uint32_t next_packet = 1;
     /// How many buffers have been sent and waiting for the notification on
     /// them.
-    //unsigned pending_buffers = 0;
+    // unsigned pending_buffers = 0;
 
     /// How many packets we have sent to the output iface.
-    //unsigned num_packets_sent = 0;
+    // unsigned num_packets_sent = 0;
     /// How many sent packets got their (send) barrier notified.
     unsigned num_packets_accepted = 0;
     /// How many sent packets got their (receive) barrier notified and removed
