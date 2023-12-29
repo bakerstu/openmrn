@@ -38,40 +38,18 @@
 #include "netinet/tcp.h"
 #include "nmranet_config.h"
 
-/** Callback from try_connect to donate the file descriptor. @param fd is
- * the file destriptor of the connection freshly opened.  */
+#include "utils/FdUtils.hxx"
+
+/// Callback from try_connect to donate the file descriptor.
+/// @param fd is the file destriptor of the connection freshly opened.
 void GCFdConnectionClient::connection_complete(int fd)
 {
-    struct stat statbuf;
-    fstat(fd, &statbuf);
-
     const bool use_select =
         (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
+
+    // Applies kernel parameters like socket options.
+    FdUtils::optimize_fd(fd);
+    
     fd_ = fd;
-    const int rcvbuf = config_gridconnect_tcp_rcv_buffer_size();
-    if (rcvbuf > 1)
-    {
-        ::setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
-    }
-    const int sndbuf = config_gridconnect_tcp_snd_buffer_size();
-    if (sndbuf > 1)
-    {
-        ::setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
-        int ret = 0;
-        socklen_t retsize = sizeof(ret);
-        ::getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ret, &retsize);
-        LOG(ALWAYS, "fd %d sndbuf %d", fd, ret);
-    }
-    const int lowat = 4096;
-    if (lowat > 1 && S_ISSOCK(statbuf.st_mode))
-    {
-        ERRNOCHECK("tcp lowat",
-            ::setsockopt(
-                fd, IPPROTO_TCP, TCP_NOTSENT_LOWAT, &lowat, sizeof(lowat)));
-        int ret = 0;
-        socklen_t retsize = sizeof(ret);
-        ::getsockopt(fd, IPPROTO_TCP, TCP_NOTSENT_LOWAT, &ret, &retsize);
-        LOG(ALWAYS, "fd %d lowat %d", fd, ret);
-    }
     create_gc_port_for_can_hub(hub_, fd, &closedNotify_, use_select);
 }

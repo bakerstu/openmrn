@@ -38,6 +38,7 @@
 
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
+#include "utils/FdUtils.hxx"
 
 void GcTcpHub::on_new_connection(int fd)
 {
@@ -47,16 +48,8 @@ void GcTcpHub::on_new_connection(int fd)
         AtomicHolder h(this);
         numClients_++;
     }
-    const int rcvbuf = config_gridconnect_tcp_rcv_buffer_size();
-    if (rcvbuf > 1)
-    {
-        ::setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
-    }
-    const int sndbuf = config_gridconnect_tcp_snd_buffer_size();
-    if (sndbuf > 1)
-    {
-        ::setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
-    }
+    // Applies kernel parameters like socket options.
+    FdUtils::optimize_socket_fd(fd);
     create_gc_port_for_can_hub(canHub_, fd, this, use_select);
 }
 
