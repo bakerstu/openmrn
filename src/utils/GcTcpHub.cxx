@@ -31,9 +31,10 @@
  * @date 26 Apr 2014
  */
 
-#include <memory>
-
 #include "utils/GcTcpHub.hxx"
+
+#include <memory>
+#include <sys/socket.h>
 
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
@@ -45,6 +46,16 @@ void GcTcpHub::on_new_connection(int fd)
     {
         AtomicHolder h(this);
         numClients_++;
+    }
+    const int rcvbuf = config_gridconnect_tcp_rcv_buffer_size();
+    if (rcvbuf > 1)
+    {
+        ::setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
+    }
+    const int sndbuf = config_gridconnect_tcp_snd_buffer_size();
+    if (sndbuf > 1)
+    {
+        ::setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
     }
     create_gc_port_for_can_hub(canHub_, fd, this, use_select);
 }
