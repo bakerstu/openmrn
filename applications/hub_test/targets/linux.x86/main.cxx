@@ -46,8 +46,9 @@
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
-OVERRIDE_CONST(gridconnect_tcp_snd_buffer_size, 1024);
+OVERRIDE_CONST(gridconnect_tcp_snd_buffer_size, 8192);
 OVERRIDE_CONST(gridconnect_tcp_rcv_buffer_size, 8192);
+OVERRIDE_CONST(gridconnect_tcp_notsent_lowat_buffer_size, 1024);
 
 
 Executor<1> g_executor("g_executor", 0, 1024);
