@@ -51,6 +51,10 @@ public:
      * is dead. @returns true if there is a live connection. */
     virtual bool ping() = 0;
 
+    /// @return the file descriptor, if this connection has one, or -1 if the
+    /// connection is down or doesn't have an fd.
+    virtual int fd() { return -1; }
+    
     virtual ~ConnectionClient()
     {
     }
@@ -114,6 +118,11 @@ public:
         return fd_ >= 0;
     }
 
+    int fd() override
+    {
+        return fd_;
+    }
+
 protected:
     /// Abstrct base function to attempt to connect (or open device) to the
     /// destination.
@@ -121,11 +130,7 @@ protected:
 
     /** Callback from try_connect to donate the file descriptor. @param fd is
      * the file destriptor of the connection freshly opened.  */
-    void connection_complete(int fd)
-    {
-        fd_ = fd;
-        create_gc_port_for_can_hub(hub_, fd, &closedNotify_);
-    }
+    void connection_complete(int fd);
 
 private:
     /// Will be called when the descriptor experiences an error (typivcally
