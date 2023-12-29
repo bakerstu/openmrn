@@ -112,6 +112,10 @@ DECLARE_CONST(gridconnect_tcp_rcv_buffer_size);
 /// setsockopt(SO_SENDBUF). Set to 1 (default) to not bound it.
 DECLARE_CONST(gridconnect_tcp_snd_buffer_size);
 
+/// TCP_NOTSENT_LOWAT kernel parameter (in bytes) for TCP links. Used via
+/// setsockopt. Set to 1 (default) to not bound it.
+DECLARE_CONST(gridconnect_tcp_notsent_lowat_buffer_size);
+
 /** Number of bytes of gridconnect data to buffer before sending off the
  * lowlevel system (such as TCP socket). */
 DECLARE_CONST(gridconnect_buffer_size);

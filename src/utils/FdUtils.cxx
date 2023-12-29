@@ -41,6 +41,12 @@
 
 #include "nmranet_config.h"
 
+/// Performs a system call on an fd. If an error is returned, prints the error
+/// using the log mechanism, but otherwise ignores it.
+/// @param where user-readable text printed with the error, e.g. "setsockopt"
+/// @param callfn system call, like ::setsockopt
+/// @param fd file descriptor (int)
+/// @param args... all other arguments to callfn
 #define PCALL_LOGERR(where, callfn, fd, args...)                               \
     do                                                                         \
     {                                                                          \
@@ -75,7 +81,7 @@ void FdUtils::optimize_socket_fd(int fd)
         ::getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ret, &retsize);
         LOG(ALWAYS, "fd %d sndbuf %d", fd, ret);
     }
-    const int lowat = 4096;
+    const int lowat = config_gridconnect_tcp_notsent_lowat_buffer_size();
     if (lowat > 1)
     {
         PCALL_LOGERR("setsockopt tcp_notsent_lowat", ::setsockopt, fd,
