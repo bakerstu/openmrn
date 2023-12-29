@@ -12,6 +12,7 @@ CXXSRCS += \
 	   StringPrintf.cxx \
            Buffer.cxx \
            ConfigUpdateListener.cxx \
+           FdUtils.cxx \
            FileUtils.cxx \
            ForwardAllocator.cxx \
            GcStreamParser.cxx \

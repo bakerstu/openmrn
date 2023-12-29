@@ -36,12 +36,12 @@
 #define _UTILS_CLIENTCONNECTION_HXX_
 
 #include <stdio.h>
-#include <termios.h> /* tc* functions */
 #include <unistd.h>
 #include <fcntl.h>
 
 #include "utils/GridConnectHub.hxx"
 #include "utils/socket_listener.hxx"
+#include "utils/FdUtils.hxx"
 
 /// Abstract base class for the Hub's connections.
 class ConnectionClient
@@ -171,18 +171,9 @@ private:
         int fd = ::open(dev_.c_str(), O_RDWR);
         if (fd >= 0)
         {
-            // Sets up the terminal in raw mode. Otherwise linux might echo
-            // characters coming in from the device and that will make
-            // packets go back to where they came from.
-            HASSERT(!tcflush(fd, TCIOFLUSH));
-            struct termios settings;
-            HASSERT(!tcgetattr(fd, &settings));
-            cfmakeraw(&settings);
-            cfsetspeed(&settings, B115200);
-            HASSERT(!tcsetattr(fd, TCSANOW, &settings));
+            FdUtils::optimize_tty_fd(fd);
             LOG(INFO, "Opened device %s.\n", dev_.c_str());
             connection_complete(fd);
-            //
         }
         else
         {
