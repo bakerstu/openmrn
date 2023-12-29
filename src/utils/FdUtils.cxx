@@ -75,7 +75,7 @@ void FdUtils::optimize_socket_fd(int fd)
         ::getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ret, &retsize);
         LOG(ALWAYS, "fd %d sndbuf %d", fd, ret);
     }
-    const int lowat = 4096;
+    const int lowat = config_gridconnect_tcp_notsent_lowat_buffer_size();
     if (lowat > 1)
     {
         PCALL_LOGERR("setsockopt tcp_notsent_lowat", ::setsockopt, fd,
