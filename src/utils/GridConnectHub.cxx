@@ -136,11 +136,14 @@ public:
             , double_bytes_(double_bytes)
         {
             const int cnt = config_gridconnect_bridge_max_outgoing_packets();
-            if (cnt > 1) {
+            if (cnt > 1)
+            {
                 ownedPool_.reset(
                     new LimitedPool(sizeof(Buffer<CanHubData>), cnt));
                 pool_ = ownedPool_.get();
-            } else {
+            }
+            else
+            {
                 pool_ = mainBufferPool;
             }
         }
@@ -213,7 +216,7 @@ public:
         /// If we want frame limits, this pool can do that for us.
         std::unique_ptr<LimitedPool> ownedPool_;
         /// The allocation buffer pool to use for outgoing frames.
-        Pool* pool_;
+        Pool *pool_;
         /// Destination buffer (characters).
         char dbuf_[56];
         /// Pipe to send data to.
