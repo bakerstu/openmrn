@@ -109,7 +109,8 @@ public:
     bool shutdown() OVERRIDE
     {
         unregister();
-        return formatter_.shutdown() && parser_.is_waiting() && formatter_.is_waiting();
+        return formatter_.shutdown() && parser_.shutdown_ready() &&
+            formatter_.is_waiting();
     }
 
     /// HubPort (on a CAN-typed hub) that turns a binary CAN packet into a
@@ -250,9 +251,26 @@ public:
             int max_frames_to_parse =
                 config_gridconnect_bridge_max_incoming_packets();
             if (max_frames_to_parse > 1) {
-                frameAllocator_.reset(new FixedPool(
+                frameAllocator_.reset(new LimitedPool(
                     sizeof(CanHubFlow::buffer_type), max_frames_to_parse));
             }
+        }
+
+        /// @return true when this object can be deleted.  This is typically
+        /// once all outgoing packets are released back to the pool, and there
+        /// is no incoming data processing happening.
+        bool shutdown_ready()
+        {
+            int max_frames_to_parse =
+                config_gridconnect_bridge_max_incoming_packets();
+            if (max_frames_to_parse > 1)
+            {
+                if (frameAllocator_->free_items() < (size_t)max_frames_to_parse)
+                {
+                    return false;
+                }
+            }
+            return is_waiting();
         }
 
         /// @return the destination to write data to.
@@ -317,7 +335,7 @@ public:
 
         // Allocator to get the frame from. If NULL, the target's default
         // buffer pool will be used.
-        std::unique_ptr<FixedPool> frameAllocator_;
+        std::unique_ptr<LimitedPool> frameAllocator_;
         
         // ==== static data ====
 
