@@ -41,6 +41,12 @@
 
 #include "nmranet_config.h"
 
+/// Performs a system call on an fd. If an error is returned, prints the error
+/// using the log mechanism, but otherwise ignores it.
+/// @param where user-readable text printed with the error, e.g. "setsockopt"
+/// @param callfn system call, like ::setsockopt
+/// @param fd file descriptor (int)
+/// @param args... all other arguments to callfn
 #define PCALL_LOGERR(where, callfn, fd, args...)                               \
     do                                                                         \
     {                                                                          \
