@@ -37,6 +37,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "utils/GridConnectHub.hxx"
 #include "utils/socket_listener.hxx"
