@@ -104,6 +104,14 @@ DECLARE_CONST(gridconnect_bridge_max_incoming_packets);
 /// output socket cannot send the data fast enough.
 DECLARE_CONST(gridconnect_bridge_max_outgoing_packets);
 
+/// TCP receive buffer size in bytes for gridconnect hubs. Used via
+/// setsockopt(SO_RCVBUF). Set to 1 (default) to not bound it.
+DECLARE_CONST(gridconnect_tcp_rcv_buffer_size);
+
+/// TCP send buffer size in bytes for gridconnect hubs. Used via
+/// setsockopt(SO_SENDBUF). Set to 1 (default) to not bound it.
+DECLARE_CONST(gridconnect_tcp_snd_buffer_size);
+
 /** Number of bytes of gridconnect data to buffer before sending off the
  * lowlevel system (such as TCP socket). */
 DECLARE_CONST(gridconnect_buffer_size);
