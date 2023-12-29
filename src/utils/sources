@@ -18,19 +18,19 @@ CXXSRCS += \
            GcTcpHub.cxx \
            GridConnect.cxx \
            GridConnectHub.cxx \
-           format_utils.cxx \
            HubDevice.cxx \
            HubDeviceSelect.cxx \
-           Queue.cxx \
            JSHubPort.cxx \
+           Queue.cxx \
            ReflashBootloader.cxx \
+           ServiceLocator.cxx \
            SocketCan.cxx \
+           SocketClient.cxx \
            constants.cxx \
+           format_utils.cxx \
            gc_format.cxx \
            logging.cxx \
-           SocketClient.cxx \
            socket_listener.cxx \
-           ServiceLocator.cxx \
 
 
 CXXTESTSRCS += BufferQueue.cxxtest \
