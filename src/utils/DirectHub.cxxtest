@@ -828,6 +828,19 @@ TEST_F(DirectHubTest, socket_blocked_gc)
     {
         total -= flush_data(fdTwo_);
     }
+}
+
+/// In this test we try to write a lot of data into one port while not reading
+/// anything from the other. This situation should push back on the sending
+/// port after some limited amount of intermediate buffers are filled.
+///
+/// This test uses the default buffer sizes.
+TEST_F(DirectHubTest, socket_blocked_gc_largebuf)
+{
+    useTrivialSegmenter_ = false;
+    create_two_ports();
+
+    size_t total = write_a_lot(fdOne_);
     LOG(INFO, "total %u pool %u", (unsigned)total,
         (unsigned)mainBufferPool->total_size());
     // The total bytes buffered should not be very much, despite having tried
