@@ -50,7 +50,13 @@
 #include "utils/logging.h"
 #include "utils/socket_listener.hxx"
 
-static DataBufferPool g_direct_hub_data_pool(1460);
+/// This object forwards allocations to mainBufferPool. The blocks allocated
+/// here are all the same size. They are used to read bytes from a tcp socket
+/// into memory.
+DataBufferPool g_direct_hub_data_pool(1460);
+/// This object forwards allocations to mainBufferPool. The blocks allocated
+/// here are all the same size. They are used to render outgoing CAN packets
+/// into gridconnect format.
 DataBufferPool g_direct_hub_kbyte_pool(1024);
 
 /// A single service class that is shared between all interconnected DirectHub

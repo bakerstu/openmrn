@@ -708,6 +708,9 @@ TEST_F(DirectHubTest, segmenter_gridconnect_sized)
 /// port after some limited amount of intermediate buffers are filled.
 TEST_F(DirectHubTest, socket_blocked)
 {
+    // This test was designed for a smaller amount of data bytes read in.
+    ScopedOverride ov2(g_direct_hub_data_pool.payload_size_override(), 64);
+    
     create_two_ports();
 
     int buflen;
@@ -771,6 +774,9 @@ TEST_F(DirectHubTest, socket_blocked)
 /// port after some limited amount of intermediate buffers are filled.
 TEST_F(DirectHubTest, socket_blocked_gc)
 {
+    // This test was designed for a smaller amount of data bytes read in.
+    ScopedOverride ov2(g_direct_hub_data_pool.payload_size_override(), 64);
+
     useTrivialSegmenter_ = false;
     create_two_ports();
 
