@@ -11,6 +11,7 @@ DataBufferPool pool_64(64);
 Executor<1> g_read_executor("read_thread", 0, 1024);
 Service g_read_service(&g_read_executor);
 OVERRIDE_CONST_TRUE(gc_generate_newlines);
+extern DataBufferPool g_direct_hub_data_pool;
 /// This state flow
 class ReadAllFromFd : public StateFlowBase
 {
