@@ -1,5 +1,9 @@
 #include "utils/DirectHub.hxx"
 
+#include <sys/ioctl.h>
+#include <linux/sockios.h>
+
+
 #include "executor/StateFlow.hxx"
 #include "utils/FdUtils.hxx"
 #include "utils/Hub.hxx"
@@ -383,6 +387,8 @@ protected:
         create_port_for_fd(
             hub_.get(), fd[0], get_new_segmenter(), bn_.new_child());
 
+        portFds_.push_back(fd[0]);
+        
         wait_for_main_executor();
         return fd[1];
     }
@@ -431,6 +437,25 @@ protected:
         }
     }
 
+    /// Prints a log message with queue statistics about an fd (send/receive
+    /// queue and buffers).
+    void print_queue_stats(int fd, const char* where)
+    {
+        int sndbuflen = -1 ;
+        int rcvbuflen = -1;
+        int sndqlen = -1;
+        int rcvqlen = -1;
+        socklen_t optlen = sizeof(int);
+        ERRNOCHECK("getsockopt",
+            ::getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuflen, &optlen));
+        ERRNOCHECK("getsockopt",
+            ::getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuflen, &optlen));
+        ERRNOCHECK("ioctl", ::ioctl(fd, SIOCINQ, &rcvqlen));
+        ERRNOCHECK("ioctl", ::ioctl(fd, SIOCOUTQ, &sndqlen));
+        LOG(INFO, "Q stats for fd %d (%s):|outbuf %d|outq %d|inbuf %d|inq  %d|",
+            fd, where, sndbuflen, sndqlen, rcvbuflen, rcvqlen);
+    }
+
     /// Reads whatever data is available on fd (up to 1000 bytes) and returns
     /// it as a string.
     /// @param fd a readable file descriptor
@@ -452,6 +477,30 @@ protected:
             total += gc_packet;
         }
         return ::write(fd, total.data(), total.size());
+    }
+
+    /// Writes a lot of data into an fd, also being prepared for the case that
+    /// it gets blocked.
+    /// @return number of total bytes written.
+    size_t write_a_lot(int fd)
+    {
+        ERRNOCHECK("fcntl", ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK));
+        size_t total = 0;
+        for (int i = 0; i < 200; ++i)
+        {
+            int wr = write_some(fdOne_);
+            if (wr >= 0)
+            {
+                total += wr;
+            }
+            wr = write_some(fdOne_);
+            if (wr >= 0)
+            {
+                total += wr;
+            }
+            usleep(100);
+        }
+        return total;
     }
 
     static unsigned flush_data(int fd)
@@ -518,6 +567,8 @@ protected:
     int fdOne_ = -1;
     /// Remote endpoint of the second port.
     int fdTwo_ = -1;
+    /// Fds of the internal parts of the ports.
+    vector<int> portFds_;
     /// If true, uses a trivial segmenter for input, if false, a GcSegmenter.
     bool useTrivialSegmenter_ = true;
     /// Helper flow to drain bytes from a port.
@@ -720,25 +771,14 @@ TEST_F(DirectHubTest, socket_blocked)
         getsockopt(fdOne_, SOL_SOCKET, SO_SNDBUF, &buflen, &optlen));
     LOG(INFO, "snd buf %d", buflen);
 
-    ERRNOCHECK("fcntl", ::fcntl(fdOne_, F_SETFL, O_RDWR | O_NONBLOCK));
-
-    size_t total = 0;
-    for (int i = 0; i < 200; ++i)
-    {
-        int wr = write_some(fdOne_);
-        if (wr >= 0)
-        {
-            total += wr;
-        }
-        wr = write_some(fdOne_);
-        if (wr >= 0)
-        {
-            total += wr;
-        }
-        usleep(100);
-    }
+    size_t total = write_a_lot(fdOne_);
     LOG(INFO, "total %u pool %u", (unsigned)total,
         (unsigned)mainBufferPool->total_size());
+    print_queue_stats(fdOne_, "send remote");
+    print_queue_stats(portFds_[0], "send local");
+    print_queue_stats(fdTwo_, "blocked remote");
+    print_queue_stats(portFds_[1], "blocked local");
+    
     // The total bytes buffered should not be very much, despite having tried
     // to write a lot of data into the socket.
     EXPECT_GT(5000u, total);
@@ -749,20 +789,7 @@ TEST_F(DirectHubTest, socket_blocked)
     ::close(fdTwo_);
     wait_for_main_executor();
 
-    for (int i = 0; i < 200; ++i)
-    {
-        int wr = write_some(fdOne_);
-        if (wr >= 0)
-        {
-            total += wr;
-        }
-        wr = write_some(fdOne_);
-        if (wr >= 0)
-        {
-            total += wr;
-        }
-        usleep(100);
-    }
+    total += write_a_lot(fdOne_);
 
     LOG(INFO, "Total %u", (unsigned)total);
     EXPECT_LT(50000u, total);
@@ -787,18 +814,18 @@ TEST_F(DirectHubTest, socket_blocked_gc)
         getsockopt(fdOne_, SOL_SOCKET, SO_SNDBUF, &buflen, &optlen));
     LOG(INFO, "snd buf %d", buflen);
 
-    ERRNOCHECK("fcntl", ::fcntl(fdOne_, F_SETFL, O_RDWR | O_NONBLOCK));
+    size_t total = write_a_lot(fdOne_);
+    LOG(INFO, "total %u pool %u", (unsigned)total,
+        (unsigned)mainBufferPool->total_size());
+    // The total bytes buffered should not be very much, despite having tried
+    // to write a lot of data into the socket.
+    EXPECT_GT(5000u, total);
+    // Memory usage is also under control.
+    EXPECT_GT(5000u, mainBufferPool->total_size());
 
-    size_t total = 0;
-    for (int i = 0; i < 200; ++i)
+    while (total > 0)
     {
-        int wr = write_some(fdOne_);
-        if (wr >= 0)
-            total += wr;
-        wr = write_some(fdOne_);
-        if (wr >= 0)
-            total += wr;
-        usleep(100);
+        total -= flush_data(fdTwo_);
     }
     LOG(INFO, "total %u pool %u", (unsigned)total,
         (unsigned)mainBufferPool->total_size());
