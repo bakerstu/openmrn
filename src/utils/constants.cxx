@@ -153,9 +153,9 @@ DEFAULT_CONST(gridconnect_bridge_max_outgoing_packets, 1);
 
 DEFAULT_CONST_FALSE(gridconnect_tcp_use_select);
 
-/// how many 64-byte packets per port we parse before waiting for output to
+/// how many 1460-byte packets per port we parse before waiting for output to
 /// drain.
-DEFAULT_CONST(directhub_port_max_incoming_packets, 10);
+DEFAULT_CONST(directhub_port_max_incoming_packets, 2);
 
 #ifdef ESP32
 /// Use a stack size of 3kb for SocketListener tasks.
