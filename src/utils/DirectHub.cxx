@@ -398,7 +398,7 @@ private:
         {
             if (!buf_.free())
             {
-                return alloc_for_read();
+                return call_immediately(STATE(alloc_for_read));
             }
             return call_immediately(STATE(do_some_read));
         }
