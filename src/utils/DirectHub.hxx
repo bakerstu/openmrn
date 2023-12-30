@@ -90,7 +90,7 @@ public:
 };
 
 /// Type specializer for message interface when we are sending untyped data
-/// (i.e. byte streams).
+/// (i.e., byte streams).
 template <> struct MessageAccessor<uint8_t[]> : public MessageMetadata
 {
     void clear()
