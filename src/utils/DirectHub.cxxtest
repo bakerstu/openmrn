@@ -338,7 +338,8 @@ protected:
         /// size of memory allocated.
         delete mainBufferPool;
         mainBufferPool = nullptr;
-        init_main_buffer_pool();
+        mainBufferPool = new DynamicPool(Bucket::init(0));
+        //init_main_buffer_pool();
     }
 
     ~DirectHubTest()
