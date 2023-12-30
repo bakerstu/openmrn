@@ -326,8 +326,7 @@ private:
             {
                 buf_.reset(p);
             }
-            /// @todo figure out where the notifiable really should go.
-            buf_.head()->set_done(bufferNotifiable_);
+            p->set_done(bufferNotifiable_);
             bufferNotifiable_ = nullptr;
             return do_some_read();
         }
@@ -787,7 +786,7 @@ private:
     }
 
     /// Holds the necessary information we need to keep in the queue about a
-    /// single output entry. Auytomatically unrefs the buffer whose pointer we
+    /// single output entry. Automatically unrefs the buffer whose pointer we
     /// are holding when released.
     struct OutputDataEntry
     {

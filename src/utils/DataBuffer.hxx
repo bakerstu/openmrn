@@ -117,7 +117,8 @@ public:
         return this;
     }
 
-    /// Releases one reference to all blocks of this buffer.
+    /// Releases one reference to all blocks of this buffer. This includes one
+    /// reference to the last block which may be a partially filled buffer.
     /// @param total_size the number of bytes starting from the beginning of
     /// *this.
     void unref_all(unsigned total_size)
@@ -279,6 +280,11 @@ public:
         }
         HASSERT(free_ >= 0);
         HASSERT(tail_);
+        // Note: if free_ was > 0, there were some unused bytes in the tail
+        // buffer. However, as part of the append operation, we lose these
+        // bytes as capacity. The new free part will be only in the newly
+        // appended tail_ buffer. This is because free_ can never span more
+        // than one buffer.
         free_ = buf->size();
         buf->set_size(0);
         HASSERT(!tail_->next());
@@ -467,7 +473,7 @@ public:
 
 private:
     /// Internal helper function of constructors and reset functions. Clears
-    /// the current structure (references have to have been dealth with
+    /// the current structure (references have to have been dealt with
     /// before).
     void clear()
     {
