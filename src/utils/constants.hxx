@@ -95,7 +95,6 @@
     const int _sym_##name = value;                                             \
     EXTERNCEND
 
-
 #ifdef GTEST
 
 /// Use this macro at the top of a .cxxtest file to allow overriding constant
@@ -125,7 +124,7 @@
 
 #endif // GTEST
 
-#else  // not simple const, but rather use direct asm / linking statements
+#else // not simple const, but rather use direct asm / linking statements
 
 #define DECLARE_CONST(name)                                                    \
     EXTERNC extern char _sym_##name;                                           \

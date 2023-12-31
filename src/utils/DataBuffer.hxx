@@ -264,7 +264,7 @@ public:
         head_ = buf;
         skip_ = skip;
         size_ = size;
-        free_ = -int(skip+size);
+        free_ = -int(skip + size);
         tail_ = buf;
     }
 
@@ -403,7 +403,7 @@ public:
         HASSERT(len <= size_);
 
         size_t bytes_left = size_ - len;
-        
+
         // tail_->size() is the previously used bytes in the tail buffer. The
         // number of bytes not transferred shall fit into this. There must be
         // however at least one byte in the tail buffer that *was* transferred.
@@ -528,8 +528,8 @@ public:
     {
         return &payloadSize_;
     }
-#endif    
-    
+#endif
+
     /// Number of free items in the pool.
     size_t free_items() override
     {

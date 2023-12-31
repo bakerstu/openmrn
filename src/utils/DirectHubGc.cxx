@@ -139,7 +139,7 @@ public:
     {
     }
 
-    size_t total_{0};
+    size_t total_ {0};
 };
 
 MessageSegmenter *create_trivial_message_segmenter()

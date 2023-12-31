@@ -1752,7 +1752,7 @@ void SimpleLinkFatalErrorEventHandler(SlDeviceFatal_t *slFatalErrorEvent)
         static_cast<CC32xxWiFi::FatalErrorEvent*>(slFatalErrorEvent));
 }
 
-void SimpleLinkSocketTriggerEventHandler(SlSockTriggerEvent_t* event)
+void SimpleLinkSocketTriggerEventHandler(SlSockTriggerEvent_t *event)
 {
     CC32xxWiFi::instance()->trigger_event_handler(
         static_cast<CC32xxWiFi::SockTriggerEvent *>(event));

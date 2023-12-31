@@ -1,15 +1,14 @@
 #include "utils/DirectHub.hxx"
 
-#include <sys/ioctl.h>
 #include <linux/sockios.h>
-
+#include <sys/ioctl.h>
 
 #include "executor/StateFlow.hxx"
+#include "nmranet_config.h"
 #include "utils/FdUtils.hxx"
 #include "utils/Hub.hxx"
 #include "utils/gc_format.h"
 #include "utils/test_main.hxx"
-#include "nmranet_config.h"
 
 DataBufferPool pool_64(64);
 
@@ -343,7 +342,7 @@ protected:
         delete mainBufferPool;
         mainBufferPool = nullptr;
         mainBufferPool = new DynamicPool(Bucket::init(0));
-        //init_main_buffer_pool();
+        // init_main_buffer_pool();
     }
 
     ~DirectHubTest()
@@ -393,7 +392,7 @@ protected:
             hub_.get(), fd[0], get_new_segmenter(), bn_.new_child());
 
         portFds_.push_back(fd[0]);
-        
+
         wait_for_main_executor();
         return fd[1];
     }
@@ -444,9 +443,9 @@ protected:
 
     /// Prints a log message with queue statistics about an fd (send/receive
     /// queue and buffers).
-    void print_queue_stats(int fd, const char* where)
+    void print_queue_stats(int fd, const char *where)
     {
-        int sndbuflen = -1 ;
+        int sndbuflen = -1;
         int rcvbuflen = -1;
         int sndqlen = -1;
         int rcvqlen = -1;
@@ -768,7 +767,7 @@ TEST_F(DirectHubTest, socket_blocked)
     // This test was designed for a smaller amount of data bytes read in.
     ScopedOverride ov2(g_direct_hub_data_pool.payload_size_override(), 64);
     TEST_OVERRIDE_CONST(directhub_port_max_incoming_packets, 10);
-    
+
     create_two_ports();
 
     int buflen;
@@ -784,7 +783,7 @@ TEST_F(DirectHubTest, socket_blocked)
     print_queue_stats(portFds_[0], "send local");
     print_queue_stats(fdTwo_, "blocked remote");
     print_queue_stats(portFds_[1], "blocked local");
-    
+
     // The total bytes buffered should not be very much, despite having tried
     // to write a lot of data into the socket.
     EXPECT_GT(5000u, total);
@@ -800,7 +799,7 @@ TEST_F(DirectHubTest, socket_blocked)
     LOG(INFO, "Total %u", (unsigned)total);
     EXPECT_LT(50000u, total);
     // Memory usage is also under control.
-    EXPECT_GT(5000u, mainBufferPool->total_size());    
+    EXPECT_GT(5000u, mainBufferPool->total_size());
 }
 
 /// In this test we try to write a lot of data into one port while not reading
@@ -860,7 +859,7 @@ TEST_F(DirectHubTest, socket_blocked_gc_largebuf)
     // socket, because that depends on how much the kernel is willing to take
     // into the blocked output queue.
     // EXPECT_GT(5000u, total);
-    
+
     // Memory usage is also under control. This is peak memory usage, because
     // the buffer pool has buckets larger than a TCP packet size.
     EXPECT_GT(6000u, mainBufferPool->total_size());

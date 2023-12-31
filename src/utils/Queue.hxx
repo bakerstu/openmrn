@@ -354,7 +354,7 @@ public:
     {
         return waiting ? Result() : impl_.next();
     }
-    
+
     /** Get the number of pending items in the queue.
      * @param index in the list to operate on
      * @return number of pending items in the queue

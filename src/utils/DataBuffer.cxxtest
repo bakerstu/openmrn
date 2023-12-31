@@ -19,12 +19,13 @@ protected:
         EXPECT_EQ(lastFree_ + count, g_pool.free_items());
     }
 
-    std::string flatten(const LinkedDataBufferPtr& p) {
+    std::string flatten(const LinkedDataBufferPtr &p)
+    {
         std::string ret;
         p.append_to(&ret);
         return ret;
     }
-    
+
     DataBuffer *b_;
     unsigned lastFree_;
 
@@ -144,7 +145,7 @@ TEST_F(DataBufferTest, lnkbuf)
     EXPECT_EQ(0u, lnk_.free());
 
     b_->set_done(bn_.reset(EmptyNotifiable::DefaultInstance()));
-    
+
     // Adding some place to write to
     lnk_.append_empty_buffer(b_);
     EXPECT_EQ(64u, lnk_.free());
@@ -152,7 +153,7 @@ TEST_F(DataBufferTest, lnkbuf)
     EXPECT_EQ(0u, lnk_.head()->size());
 
     EXPECT_EQ(lnk_.data_write_pointer(), b_->data());
-    
+
     // Adds some data.
     memcpy(lnk_.data_write_pointer(), "abcd", 4);
     lnk_.data_write_advance(4);
@@ -166,7 +167,7 @@ TEST_F(DataBufferTest, lnkbuf)
 
     EXPECT_EQ(7u, lnk_.size());
     EXPECT_EQ(7u, lnk_.head()->size());
-    EXPECT_EQ(64u-7, lnk_.free());
+    EXPECT_EQ(64u - 7, lnk_.free());
 
     // Test flatten.
     string flat = "X";
@@ -177,7 +178,7 @@ TEST_F(DataBufferTest, lnkbuf)
     LinkedDataBufferPtr exp1 = lnk_.transfer_head(5);
     EXPECT_EQ(5u, exp1.size());
     EXPECT_EQ(0u, exp1.free());
-    EXPECT_EQ(64u-7, lnk_.free());
+    EXPECT_EQ(64u - 7, lnk_.free());
     EXPECT_EQ(2u, lnk_.size()); // now shorter
     EXPECT_EQ(5u, lnk_.skip());
     // The head buffer still has all those bytes.
@@ -187,7 +188,7 @@ TEST_F(DataBufferTest, lnkbuf)
     flat = "Y";
     lnk_.append_to(&flat);
     EXPECT_EQ("Yfg", flat);
-    
+
     flat = "Z";
     exp1.append_to(&flat);
     EXPECT_EQ("Zabcde", flat);
@@ -248,7 +249,7 @@ TEST_F(DataBufferTest, lnk_multi)
     EXPECT_EQ("Xabcdefg", flat);
     EXPECT_EQ(7u, lnk_.size());
 
-    auto* saved_ptr = lnk_.data_write_pointer();
+    auto *saved_ptr = lnk_.data_write_pointer();
     auto saved_free = lnk_.free();
 
     // Export head and backfill on tail.
@@ -263,7 +264,7 @@ TEST_F(DataBufferTest, lnk_multi)
     memcpy(lnk_.data_write_pointer(), "hijk", 4);
     lnk_.data_write_advance(4);
     EXPECT_EQ(57u, lnk_.free());
-    
+
     // Test flattens.
     flat = "Y";
     lnk_.append_to(&flat);
@@ -274,13 +275,13 @@ TEST_F(DataBufferTest, lnk_multi)
     exp1.append_to(&flat);
     EXPECT_EQ("Zabcde", flat);
     EXPECT_EQ(5u, exp1.size());
-    
+
     EXPECT_EQ(1u, lnk_.skip());
     EXPECT_EQ(b_, lnk_.head());
 
     // Export more and test flattens.
     LinkedDataBufferPtr exp2 = lnk_.transfer_head(2);
-    
+
     EXPECT_EQ(b_, lnk_.head());
     EXPECT_EQ(3u, lnk_.skip());
 
@@ -297,7 +298,7 @@ TEST_F(DataBufferTest, lnk_multi)
     // Test copy and move operations.
     LinkedDataBufferPtr exp1b;
     exp1b.reset(exp1);
-    
+
     exp1 = std::move(exp2);
 
     // Test appends.
@@ -309,7 +310,7 @@ TEST_F(DataBufferTest, lnk_multi)
 
     EXPECT_EQ("abcdefg", flatten(exp2));
     EXPECT_EQ(7u, exp2.size());
-    
+
     EXPECT_TRUE(exp2.try_append_from(lnk_.transfer_head(4)));
 
     EXPECT_EQ("abcdefghijk", flatten(exp2));
@@ -322,8 +323,8 @@ TEST_F(DataBufferTest, lnk_multi)
     EXPECT_EQ(2u, exp2.skip());
 
     // Now the following keep refs to the head buffer:
-    // lnk_ no; exp1 no; exp1b yes; exp2 yes. 
-    
+    // lnk_ no; exp1 no; exp1b yes; exp2 yes.
+
     exp2.data_read_advance(2);
     EXPECT_EQ("efghijk", flatten(exp2));
     EXPECT_EQ(7u, exp2.size());
@@ -334,7 +335,7 @@ TEST_F(DataBufferTest, lnk_multi)
     EXPECT_TRUE(bn_.is_done());
     EXPECT_EQ("fg", flatten(exp1b));
 
-    EXPECT_EQ(0u, lnk_.size());    
+    EXPECT_EQ(0u, lnk_.size());
 
     // Create a chain of packets.
     BarrierNotifiable bn3_;
@@ -364,16 +365,15 @@ TEST_F(DataBufferTest, lnk_multi)
     lnk_.append_empty_buffer(b_);
     memcpy(lnk_.data_write_pointer(), "opq", 3);
     lnk_.data_write_advance(3);
-    
-    LinkedDataBufferPtr exp3 = lnk_.transfer_head(5);
 
+    LinkedDataBufferPtr exp3 = lnk_.transfer_head(5);
 
     EXPECT_FALSE(exp1b.try_append_from(exp3));
     EXPECT_TRUE(exp2.try_append_from(exp3));
     EXPECT_EQ("efghijklmnop", flatten(exp2));
 
     EXPECT_EQ("fg", flatten(exp1));
-    
+
     EXPECT_FALSE(bn2_.is_done());
     exp2.data_read_advance(7);
     EXPECT_FALSE(bn2_.is_done());

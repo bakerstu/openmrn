@@ -159,7 +159,6 @@ DEFAULT_CONST(directhub_port_incoming_buffer_size, 1460);
 // drain.
 DEFAULT_CONST(directhub_port_max_incoming_packets, 2);
 
-
 #ifdef ESP32
 /// Use a stack size of 3kb for SocketListener tasks.
 DEFAULT_CONST(socket_listener_stack_size, 3072);

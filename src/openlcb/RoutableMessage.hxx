@@ -36,34 +36,42 @@
 #ifndef _OPENLCB_ROUTABLEMESSAGE_HXX_
 #define _OPENLCB_ROUTABLEMESSAGE_HXX_
 
-#include "utils/SimpleQueue.hxx"
-#include "utils/Hub.hxx"
+// ============ WARNING =============
+// This code is not used currently.
+// ============ WARNING =============
 
-namespace openlcb {
+#include "utils/Hub.hxx"
+#include "utils/SimpleQueue.hxx"
+
+namespace openlcb
+{
 
 struct RoutableMessage;
 
-typedef shared_ptr<HubData> 
+//typedef shared_ptr<HubData>
 
-
-struct RoutableMessage {
+/// ============ WARNING =============
+/// This code is not used currently.
+/// ============ WARNING =============
+struct RoutableMessage
+{
     /// Filled with Node ID when this is an addressed message. 0,0 for a global
     /// message.
     openlcb::NodeHandle dst_;
     /// Parsed message format. One ref is owned by *this unless nullptr.
-    Buffer<GenMessage>* genMessage_;
+    Buffer<GenMessage> *genMessage_;
     /// Rendered message format for TCP. One ref is owned by *this unless
     /// nullptr.
-    Buffer<HubData>* tcpMessage_;
+    Buffer<HubData> *tcpMessage_;
     /// Sequence of CAN frames in gridconnect (text) format that represent this
     /// message. One ref for each buffer is owned by this.
-    TypedQueue<Buffer<HubData> > gcMessages_;
+    TypedQueue<Buffer<HubData>> gcMessages_;
     /// Sequence of CAN frames binary format that represent this message. One
     /// ref for each buffer is owned by this.
-    TypedQueue<Buffer<CanHubData> > canMessages_;
+    TypedQueue<Buffer<CanHubData>> canMessages_;
     /// Represent the entry port of the message. Used for filtering global
     /// messages.
-    void* skipMember_;
+    void *skipMember_;
     RoutableMessage()
         : genMessage_ {nullptr}
         , tcpMessage_ {nullptr}
@@ -72,19 +80,27 @@ struct RoutableMessage {
 
     ~RoutableMessage()
     {
-        if (genMessage_) {genMessage_->unref();}
-        if (tcpMessage_) {tcpMessage_->unref();}
-        while (!gcMessages_.empty()) {
-            auto* f = gcMessages_.pop_front();
+        if (genMessage_)
+        {
+            genMessage_->unref();
+        }
+        if (tcpMessage_)
+        {
+            tcpMessage_->unref();
+        }
+        while (!gcMessages_.empty())
+        {
+            auto *f = gcMessages_.pop_front();
             f->unref();
         }
-        while (!canMessages_.empty()) {
-            auto* f = canMessages_.pop_front();
+        while (!canMessages_.empty())
+        {
+            auto *f = canMessages_.pop_front();
             f->unref();
         }
     }
 };
 
-}  // namespace openlcb
+} // namespace openlcb
 
 #endif // _OPENLCB_ROUTABLEMESSAGE_HXX_

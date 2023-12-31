@@ -34,15 +34,15 @@
  * @date 9 Feb 2020
  */
 
-//#define LOGLEVEL VERBOSE
+// #define LOGLEVEL VERBOSE
 
 #include "utils/DirectHub.hxx"
 
 #include <algorithm>
 #include <fcntl.h>
-#include <vector>
-#include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <vector>
 
 #include "executor/AsyncNotifiableBlock.hxx"
 #include "executor/StateFlow.hxx"
@@ -821,8 +821,8 @@ private:
     typedef Q QueueType;
 
     /// total number of bytes written to the port.
-    size_t totalWritten_{0};
-    
+    size_t totalWritten_ {0};
+
     /// The buffer that is taken out of the queue while flushing.
     BufferPtr<OutputDataEntry> currentHead_;
     /// Data we are currently writing to a buffer.
@@ -840,7 +840,7 @@ private:
     QueueType pendingQueue_;
     /// Last tail pointer in the pendingQueue. If queue is empty,
     /// nullptr. Protected by pendingQueue_.lock().
-    OutputDataEntry* pendingTail_ = nullptr;
+    OutputDataEntry *pendingTail_ = nullptr;
     /// Total numberof bytes in the pendingQueue.
     size_t totalPendingSize_ = 0;
     /// 1 if the state flow is paused, waiting for the notification.
@@ -857,13 +857,14 @@ private:
     Notifiable *onError_ = nullptr;
 };
 
-extern DirectHubPortSelect* g_last_direct_hub_port;
-DirectHubPortSelect* g_last_direct_hub_port = nullptr;
+extern DirectHubPortSelect *g_last_direct_hub_port;
+DirectHubPortSelect *g_last_direct_hub_port = nullptr;
 
 void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd,
     std::unique_ptr<MessageSegmenter> segmenter, Notifiable *on_error)
 {
-    g_last_direct_hub_port = new DirectHubPortSelect(hub, fd, std::move(segmenter), on_error);
+    g_last_direct_hub_port =
+        new DirectHubPortSelect(hub, fd, std::move(segmenter), on_error);
 }
 
 class DirectGcTcpHub

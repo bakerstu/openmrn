@@ -45,8 +45,7 @@ class Service;
 /// Empty class that can be used as a pointer for identifying where a piece of
 /// data came from. Used as base class for hub ports.
 class HubSource
-{
-};
+{ };
 
 /// Metadata that is the same about every message (independent of data type).
 struct MessageMetadata
