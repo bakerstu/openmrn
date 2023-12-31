@@ -16,6 +16,8 @@ Executor<1> g_read_executor("read_thread", 0, 1024);
 Service g_read_service(&g_read_executor);
 OVERRIDE_CONST_TRUE(gc_generate_newlines);
 extern DataBufferPool g_direct_hub_data_pool;
+
+
 /// This state flow
 class ReadAllFromFd : public StateFlowBase
 {
@@ -843,9 +845,10 @@ TEST_F(DirectHubTest, socket_blocked_gc_largebuf)
     size_t total = write_a_lot(fdOne_);
     LOG(INFO, "total %u pool %u", (unsigned)total,
         (unsigned)mainBufferPool->total_size());
-    // The total bytes buffered should not be very much, despite having tried
-    // to write a lot of data into the socket.
-    EXPECT_GT(5000u, total);
+    // We don't make an expectation on how much data was written into the
+    // socket, because that depends on how much the kernel is willing to take
+    // into the blocked output queue.
+    // EXPECT_GT(5000u, total);
     // Memory usage is also under control.
     EXPECT_GT(5000u, mainBufferPool->total_size());
 
