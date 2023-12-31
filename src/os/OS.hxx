@@ -77,6 +77,7 @@ public:
     */
     void start(const char *name, int priority, size_t stack_size)
     {
+        HASSERT(!is_created());
         os_thread_create(&handle, name, priority, stack_size, start, this);
     }
 

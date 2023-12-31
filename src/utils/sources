@@ -7,8 +7,8 @@ CXXSRCS += \
 	   Base64.cxx \
 	   Blinker.cxx \
 	   CanIf.cxx \
+	   ClientConnection.cxx \
 	   Crc.cxx \
-	   StringPrintf.cxx \
            Buffer.cxx \
            CanIf.cxx \
            ConfigUpdateListener.cxx \
@@ -16,6 +16,7 @@ CXXSRCS += \
            DirectHub.cxx \
            DirectHubGc.cxx \
            DirectHubLegacy.cxx \
+           FdUtils.cxx \
            FileUtils.cxx \
            ForwardAllocator.cxx \
            GcStreamParser.cxx \
@@ -28,9 +29,9 @@ CXXSRCS += \
            Queue.cxx \
            ReflashBootloader.cxx \
            ServiceLocator.cxx \
-           SocketClient.cxx \
            StringPrintf.cxx \
            SocketCan.cxx \
+           SocketClient.cxx \
            constants.cxx \
            format_utils.cxx \
            gc_format.cxx \

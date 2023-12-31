@@ -150,6 +150,12 @@ DEFAULT_CONST(gridconnect_port_max_incoming_packets, 6);
 DEFAULT_CONST(gridconnect_bridge_max_incoming_packets, 1);
 /// 1 = infinite
 DEFAULT_CONST(gridconnect_bridge_max_outgoing_packets, 1);
+/// 1 = don't set
+DEFAULT_CONST(gridconnect_tcp_rcv_buffer_size, 1);
+/// 1 = don't set
+DEFAULT_CONST(gridconnect_tcp_snd_buffer_size, 1);
+/// 1 = don't set
+DEFAULT_CONST(gridconnect_tcp_notsent_lowat_buffer_size, 1);
 
 DEFAULT_CONST_FALSE(gridconnect_tcp_use_select);
 
