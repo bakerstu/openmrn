@@ -53,7 +53,8 @@
 /// This object forwards allocations to mainBufferPool. The blocks allocated
 /// here are all the same size. They are used to read bytes from a tcp socket
 /// into memory.
-DataBufferPool g_direct_hub_data_pool(1460);
+DataBufferPool g_direct_hub_data_pool(
+    config_directhub_port_incoming_buffer_size());
 /// This object forwards allocations to mainBufferPool. The blocks allocated
 /// here are all the same size. They are used to render outgoing CAN packets
 /// into gridconnect format.
