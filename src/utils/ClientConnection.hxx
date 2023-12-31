@@ -36,11 +36,12 @@
 #define _UTILS_CLIENTCONNECTION_HXX_
 
 #include <stdio.h>
-#include <termios.h> /* tc* functions */
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "utils/GridConnectHub.hxx"
 #include "utils/socket_listener.hxx"
+#include "utils/FdUtils.hxx"
 
 /// Abstract base class for the Hub's connections.
 class ConnectionClient
@@ -50,6 +51,10 @@ public:
      * is dead. @returns true if there is a live connection. */
     virtual bool ping() = 0;
 
+    /// @return the file descriptor, if this connection has one, or -1 if the
+    /// connection is down or doesn't have an fd.
+    virtual int fd() { return -1; }
+    
     virtual ~ConnectionClient()
     {
     }
@@ -113,6 +118,11 @@ public:
         return fd_ >= 0;
     }
 
+    int fd() override
+    {
+        return fd_;
+    }
+
 protected:
     /// Abstrct base function to attempt to connect (or open device) to the
     /// destination.
@@ -120,11 +130,7 @@ protected:
 
     /** Callback from try_connect to donate the file descriptor. @param fd is
      * the file destriptor of the connection freshly opened.  */
-    void connection_complete(int fd)
-    {
-        fd_ = fd;
-        create_gc_port_for_can_hub(hub_, fd, &closedNotify_);
-    }
+    void connection_complete(int fd);
 
 private:
     /// Will be called when the descriptor experiences an error (typivcally
@@ -165,18 +171,9 @@ private:
         int fd = ::open(dev_.c_str(), O_RDWR);
         if (fd >= 0)
         {
-            // Sets up the terminal in raw mode. Otherwise linux might echo
-            // characters coming in from the device and that will make
-            // packets go back to where they came from.
-            HASSERT(!tcflush(fd, TCIOFLUSH));
-            struct termios settings;
-            HASSERT(!tcgetattr(fd, &settings));
-            cfmakeraw(&settings);
-            cfsetspeed(&settings, B115200);
-            HASSERT(!tcsetattr(fd, TCSANOW, &settings));
+            FdUtils::optimize_tty_fd(fd);
             LOG(INFO, "Opened device %s.\n", dev_.c_str());
             connection_complete(fd);
-            //
         }
         else
         {
