@@ -9,6 +9,7 @@
 #include "utils/Hub.hxx"
 #include "utils/gc_format.h"
 #include "utils/test_main.hxx"
+#include "nmranet_config.h"
 
 DataBufferPool pool_64(64);
 
@@ -17,6 +18,7 @@ Service g_read_service(&g_read_executor);
 OVERRIDE_CONST_TRUE(gc_generate_newlines);
 extern DataBufferPool g_direct_hub_data_pool;
 
+TEST_CONST(directhub_port_max_incoming_packets, 2);
 
 /// This state flow
 class ReadAllFromFd : public StateFlowBase
@@ -765,6 +767,7 @@ TEST_F(DirectHubTest, socket_blocked)
 {
     // This test was designed for a smaller amount of data bytes read in.
     ScopedOverride ov2(g_direct_hub_data_pool.payload_size_override(), 64);
+    TEST_OVERRIDE_CONST(directhub_port_max_incoming_packets, 10);
     
     create_two_ports();
 
@@ -807,6 +810,7 @@ TEST_F(DirectHubTest, socket_blocked_gc)
 {
     // This test was designed for a smaller amount of data bytes read in.
     ScopedOverride ov2(g_direct_hub_data_pool.payload_size_override(), 64);
+    TEST_OVERRIDE_CONST(directhub_port_max_incoming_packets, 10);
 
     useTrivialSegmenter_ = false;
     create_two_ports();
@@ -839,6 +843,13 @@ TEST_F(DirectHubTest, socket_blocked_gc)
 /// This test uses the default buffer sizes.
 TEST_F(DirectHubTest, socket_blocked_gc_largebuf)
 {
+    delete mainBufferPool;
+    mainBufferPool = nullptr;
+    // Makes sure that 1460-byte buffers are kept around in the freelist. Then
+    // pool->total_size() will count the largest number of 1460-byte sized
+    // packets concurrently allocated.
+    mainBufferPool = new DynamicPool(Bucket::init(96, 1520, 0));
+
     useTrivialSegmenter_ = false;
     create_two_ports();
 
@@ -849,8 +860,10 @@ TEST_F(DirectHubTest, socket_blocked_gc_largebuf)
     // socket, because that depends on how much the kernel is willing to take
     // into the blocked output queue.
     // EXPECT_GT(5000u, total);
-    // Memory usage is also under control.
-    EXPECT_GT(5000u, mainBufferPool->total_size());
+    
+    // Memory usage is also under control. This is peak memory usage, because
+    // the buffer pool has buckets larger than a TCP packet size.
+    EXPECT_GT(6000u, mainBufferPool->total_size());
 
     while (total > 0)
     {
