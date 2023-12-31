@@ -314,12 +314,19 @@ private:
             return get_read_buffer();
         }
 
+        /// Invoked when we have a bufferNotifiable_ from the barrier pool.
         Action get_read_buffer()
         {
             DataBuffer *p;
             LOG(VERBOSE, "read flow %p (fd %d): notif %p alloc() %u", this,
                 parent_->fd_, (BarrierNotifiable *)bufferNotifiable_,
                 (unsigned)mainBufferPool->total_size());
+            // Since there is a limit on how many bufferNotifiable_'s can be,
+            // and they are uniquely assigned to the buffers, we know that this
+            // synchronous allocation can only happen for a few buffers
+            // only. The buffers will get recycled through the main buffer pool
+            // exactly at the time when the bufferNotifiable_ comes back to the
+            // pendingLimiterPool_.
             g_direct_hub_data_pool.alloc(&p);
             if (buf_.head())
             {
@@ -372,6 +379,7 @@ private:
         {
             if (segmentSize_ > 0)
             {
+                // Complete message.
                 segmenter_->clear();
                 return call_immediately(STATE(send_prefix));
             }
@@ -415,7 +423,7 @@ private:
             wait_and_call(STATE(send_callback));
             inlineCall_ = 1;
             sendComplete_ = 0;
-            parent_->hub_->enqueue_send(this);
+            parent_->hub_->enqueue_send(this); // causes the callback
             inlineCall_ = 0;
             if (sendComplete_)
             {
@@ -424,7 +432,10 @@ private:
             return wait();
         }
 
-        /// This is the callback state that is invoked inline by the hub.
+        /// This is the callback state that is invoked inline by the hub. Since
+        /// the hub invokes this->run(), a standard StateFlow will execute
+        /// whatever state is current. We have set STATE(send_callback) as the
+        /// current state above, hence the code continues in this function.
         Action send_callback()
         {
             auto *m = parent_->hub_->mutable_message();
@@ -454,11 +465,14 @@ private:
         {
             if (buf_.size())
             {
-                // we still have unused data in the current buffer.
+                // We still have unused data in the current buffer. We have to
+                // segment that and send it to the hub.
                 return call_head_segmenter();
             }
             if (buf_.free())
             {
+                // We still have space in the current buffer. We can read more
+                // data into that space.
                 return do_some_read();
             }
             else
