@@ -303,7 +303,7 @@ public:
     }
 
     /// @return the pointer where data can be appended into the tail of this
-    /// buffer chain.
+    /// buffer chain. Use free() to know how many bytes can be written here.
     uint8_t *data_write_pointer()
     {
         if (!tail_)
@@ -373,7 +373,7 @@ public:
     }
 
     /// @return the number of bytes that can be written into the tail of this
-    /// buffer chain.
+    /// buffer chain, at data_write_pointer().
     size_t free() const
     {
         if (free_ < 0)
@@ -384,9 +384,11 @@ public:
     }
 
     /// Transfers the ownership of the prefix of this buffer. The tail will
-    /// remain in the current buffer chain.
+    /// remain in the current buffer chain as an extra reference. Any free
+    /// space in the tail will also remain in the current bufferptr.
     /// @param len how many bytes at the beginning (starting at skip_) to
-    /// transfer. Must reach into the tail buffer.
+    /// transfer. Must reach into the tail buffer, meaning that at least one
+    /// byte from the tail buffer must be transferred.
     /// @return a new (moveable) LinkedDataBufferPtr that will get the
     /// ownership of the head. It will be non-extendible.
     LinkedDataBufferPtr transfer_head(size_t len)
@@ -397,16 +399,27 @@ public:
         ret.skip_ = skip_;
         ret.size_ = len;
 
-        HASSERT(tail_);
+        HASSERT(tail_); // always true when we have a buffer
         HASSERT(len <= size_);
-        HASSERT(size_ - len < tail_->size());
 
+        size_t bytes_left = size_ - len;
+        
+        // tail_->size() is the previously used bytes in the tail buffer. The
+        // number of bytes not transferred shall fit into this. There must be
+        // however at least one byte in the tail buffer that *was* transferred.
+        HASSERT(bytes_left < tail_->size());
+
+        size_t bytes_transferred_from_tail_buffer = tail_->size() - bytes_left;
+
+        // Since the tail is now in both the transferred chain as well as in
+        // the current chain, it needs an extra ref. We keep that ref.
         head_ = tail_->ref();
-        size_ -= len;
-        skip_ = tail_->size() - size_;
+        size_ = bytes_left;
+        skip_ = bytes_transferred_from_tail_buffer;
         HASSERT(skip_ > 0);
-        ret.free_ = -skip_;
-        // free_ remains as is.
+        // Saves the end offset of the tail buffer in ret.
+        ret.free_ = -bytes_transferred_from_tail_buffer;
+        // this->free_ remains as is.
         return ret;
     }
 
@@ -491,9 +504,9 @@ private:
     /// How many bytes to skip in the head buffer.
     uint16_t skip_ {0};
     /// If >= 0: How many free bytes are there in the tail buffer. If < 0:
-    /// non-appendable buffer, the -offset of the first non-contained byte in
-    /// the tail buffer. In other words, -1 * the skip() of the next linked
-    /// buffer.
+    /// non-appendable buffer, the -offset of the first byte in the tail buffer
+    /// that's after the payload. In other words, -1 * the skip() of the next
+    /// linked buffer. In other words, -1 * the end pointer in the tail buffer.
     int16_t free_ {0};
 };
 

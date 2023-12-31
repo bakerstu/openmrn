@@ -248,8 +248,17 @@ TEST_F(DataBufferTest, lnk_multi)
     EXPECT_EQ("Xabcdefg", flat);
     EXPECT_EQ(7u, lnk_.size());
 
+    auto* saved_ptr = lnk_.data_write_pointer();
+    auto saved_free = lnk_.free();
+
     // Export head and backfill on tail.
     LinkedDataBufferPtr exp1 = lnk_.transfer_head(5);
+
+    // After transfer_head the write pointer must be the same and the free
+    // bytes must be the same.
+    EXPECT_EQ(saved_ptr, lnk_.data_write_pointer());
+    EXPECT_EQ(saved_free, lnk_.free());
+    EXPECT_EQ(0u, exp1.free()); // No free in the transfer.
 
     memcpy(lnk_.data_write_pointer(), "hijk", 4);
     lnk_.data_write_advance(4);
