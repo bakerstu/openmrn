@@ -135,6 +135,17 @@ public:
             , skipMember_(skip_member)
             , double_bytes_(double_bytes)
         {
+            const int cnt = config_gridconnect_bridge_max_outgoing_packets();
+            if (cnt > 1)
+            {
+                ownedPool_.reset(
+                    new LimitedPool(sizeof(Buffer<CanHubData>), cnt));
+                pool_ = ownedPool_.get();
+            }
+            else
+            {
+                pool_ = mainBufferPool;
+            }
         }
 
         /// @return where to write the packets to.
@@ -143,10 +154,27 @@ public:
             return destination_;
         }
 
-        bool shutdown() {
-            return delayPort_.shutdown();
+        /// @return Triggers releasing all memory after a close. Returns true
+        /// if it's safe to delete this.
+        bool shutdown()
+        {
+            const int cnt = config_gridconnect_bridge_max_outgoing_packets();
+            bool state_delay = delayPort_.shutdown();
+            bool state_pool = true;
+            if (ownedPool_)
+            {
+                state_pool = (int(ownedPool_->free_items()) == cnt);
+            }
+            return state_delay && state_pool;
         }
-        
+
+        /// The dispatcher will be using this pool to allocate frames when a
+        /// hub needs to make a copy for an outgoing queue.
+        Pool *pool() override
+        {
+            return pool_;
+        }
+
         Action entry() override
         {
             LOG(VERBOSE, "can packet arrived: %" PRIx32,
@@ -185,6 +213,10 @@ public:
         /// Helper class that assembles larger outgoing packets from the
         /// individual packets by delaying data a little bit.
         BufferPort delayPort_;
+        /// If we want frame limits, this pool can do that for us.
+        std::unique_ptr<LimitedPool> ownedPool_;
+        /// The allocation buffer pool to use for outgoing frames.
+        Pool *pool_;
         /// Destination buffer (characters).
         char dbuf_[56];
         /// Pipe to send data to.
