@@ -34,7 +34,7 @@
  * @date 9 Feb 2020
  */
 
-#define LOGLEVEL VERBOSE
+//#define LOGLEVEL VERBOSE
 
 #include "utils/DirectHub.hxx"
 
@@ -317,6 +317,9 @@ private:
         Action get_read_buffer()
         {
             DataBuffer *p;
+            LOG(VERBOSE, "read flow %p (fd %d): notif %p alloc() %u", this,
+                parent_->fd_, (BarrierNotifiable *)bufferNotifiable_,
+                (unsigned)mainBufferPool->total_size());
             g_direct_hub_data_pool.alloc(&p);
             if (buf_.head())
             {
@@ -349,8 +352,8 @@ private:
         {
             if (helper_.hasError_)
             {
-                LOG(INFO, "%p: Error reading from fd %d: (%d) %s", parent_, parent_->fd_,
-                    errno, strerror(errno));
+                LOG(INFO, "%p: Error reading from fd %d: (%d) %s", parent_,
+                    parent_->fd_, errno, strerror(errno));
                 set_terminated();
                 buf_.reset();
                 parent_->report_read_error();
@@ -633,6 +636,8 @@ private:
         nextToSkip_ = 0;
         nextToSize_ -= len;
         totalPendingSize_ -= len;
+        totalWritten_ += len;
+        LOG(VERBOSE, "write %u total %zu", (unsigned)len, totalWritten_);
         return write_repeated(
             &selectHelper_, fd_, data, len, STATE(write_done));
     }
@@ -800,6 +805,9 @@ private:
     /// Type of the queue used to keep the output buffer queue.
     typedef Q QueueType;
 
+    /// total number of bytes written to the port.
+    size_t totalWritten_{0};
+    
     /// The buffer that is taken out of the queue while flushing.
     BufferPtr<OutputDataEntry> currentHead_;
     /// Data we are currently writing to a buffer.

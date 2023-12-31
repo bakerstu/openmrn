@@ -44,6 +44,8 @@
 #include "utils/Queue.hxx"
 #include "utils/logging.h"
 
+#include "utils/Buffer.hxx"
+
 /// A block of BarrierNotifiable objects, with an asynchronous allocation
 /// call. Caller StateFlows can block on allocating a new entry, and then get
 /// back a fresh BarrierNotifiable, which, upon being released will
@@ -68,7 +70,9 @@ private:
             AtomicHolder h(this);
             if (count_ == 1)
             {
-                // LOG(VERBOSE, "block notifiable returned");
+                LOG(VERBOSE, "block notifiable %p returned pool size %u",
+                    (BarrierNotifiable *)this,
+                    (unsigned)mainBufferPool->total_size());
                 auto *tgt = static_cast<AsyncNotifiableBlock *>(done_);
                 tgt->insert(this);
             }

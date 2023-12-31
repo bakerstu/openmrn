@@ -130,12 +130,16 @@ class DirectHubTrivialSegmenter : public MessageSegmenter
 public:
     ssize_t segment_message(const void *d, size_t size) override
     {
+        total_ += size;
+        LOG(VERBOSE, "segment %zu total %zu", size, total_);
         return size;
     }
 
     void clear() override
     {
     }
+
+    size_t total_{0};
 };
 
 MessageSegmenter *create_trivial_message_segmenter()
