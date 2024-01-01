@@ -50,6 +50,7 @@ class HubSource
 /// Metadata that is the same about every message (independent of data type).
 struct MessageMetadata
 {
+    /// Clears the message metadata, including notifying the barrier, if set.
     void clear()
     {
         if (done_)
@@ -59,6 +60,19 @@ struct MessageMetadata
         }
         source_ = dst_ = nullptr;
         isFlush_ = false;
+    }
+
+    /// Sets the done notifiable to a barrier.
+    /// @param ref a new reference to a barrier notifiable. Will be notified
+    /// once.
+    void set_done(BarrierNotifiable *done)
+    {
+        if (done_)
+        {
+            done_->notify();
+            done_ = nullptr;
+        }
+        done_ = done;
     }
 
     /// This must be notified when the processing of the message is
