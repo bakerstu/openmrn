@@ -26,10 +26,11 @@
  *
  * \file main.cxx
  *
- * An application which acts as an openlcb hub with the GC protocol.
+ * An application which acts as an openlcb hub with the GC protocol, using the
+ * DirectHub infrastructure.
  *
  * @author Balazs Racz
- * @date 3 Aug 2013
+ * @date 31 Dec 2023
  */
 
 #include <fcntl.h>
@@ -43,27 +44,22 @@
 #include "executor/Service.hxx"
 #include "os/os.h"
 #include "utils/ClientConnection.hxx"
-#include "utils/GcTcpHub.hxx"
-#include "utils/Hub.hxx"
+#include "utils/DirectHub.hxx"
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/SocketCan.hxx"
 #include "utils/constants.hxx"
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
+
+std::unique_ptr<ByteDirectHubInterface> g_direct_hub {create_hub(&g_executor)};
+
 CanHubFlow can_hub0(&g_service);
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
-OVERRIDE_CONST(gridconnect_buffer_size, 1300);
-OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
-OVERRIDE_CONST(gridconnect_bridge_max_incoming_packets, 5);
-OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 5);
 OVERRIDE_CONST(gridconnect_tcp_snd_buffer_size, 8192);
 OVERRIDE_CONST(gridconnect_tcp_rcv_buffer_size, 8192);
 OVERRIDE_CONST(gridconnect_tcp_notsent_lowat_buffer_size, 1024);
-
-OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
-
 
 int port = 12021;
 const char *device_path = nullptr;
@@ -72,7 +68,7 @@ int upstream_port = 12021;
 const char *upstream_host = nullptr;
 bool timestamped = false;
 bool export_mdns = false;
-const char* mdns_name = "openmrn_hub";
+const char *mdns_name = "openmrn_hub";
 bool printpackets = false;
 
 void usage(const char *e)
@@ -90,29 +86,30 @@ void usage(const char *e)
         "reads CAN packets from the incoming connections using "
         "the GridConnect protocol, and forwards all incoming "
         "packets to all other participants.\n\nArguments:\n");
-    fprintf(stderr, "\t-p port     specifies the port number to listen on, "
-                    "default is 12021.\n");
-    fprintf(stderr, "\t-d device   is a path to a physical device doing "
-                    "serial-CAN or USB-CAN. If specified, opens device and "
-                    "adds it to the hub.\n");
+    fprintf(stderr,
+        "\t-p port     specifies the port number to listen on, "
+        "default is 12021.\n");
+    fprintf(stderr,
+        "\t-d device   is a path to a physical device doing "
+        "serial-CAN or USB-CAN. If specified, opens device and "
+        "adds it to the hub.\n");
 #if defined(__linux__)
-    fprintf(stderr, "\t-s socketcan_interface   is a socketcan device (e.g. 'can0'). "
-                    "If specified, opens device and adds it to the hub.\n");
+    fprintf(stderr,
+        "\t-s socketcan_interface   is a socketcan device (e.g. 'can0'). "
+        "If specified, opens device and adds it to the hub.\n");
 #endif
-    fprintf(stderr, "\t-u upstream_host   is the host name for an upstream "
-                    "hub. If specified, this hub will connect to an upstream "
-                    "hub.\n");
     fprintf(stderr,
-            "\t-q upstream_port   is the port number for the upstream hub.\n");
+        "\t-u upstream_host   is the host name for an upstream "
+        "hub. If specified, this hub will connect to an upstream "
+        "hub.\n");
     fprintf(stderr,
-            "\t-t prints timestamps for each packet.\n");
-    fprintf(stderr,
-            "\t-l print all packets.\n");
+        "\t-q upstream_port   is the port number for the upstream hub.\n");
+    fprintf(stderr, "\t-t prints timestamps for each packet.\n");
+    fprintf(stderr, "\t-l print all packets.\n");
 #ifdef HAVE_AVAHI_CLIENT
-    fprintf(stderr,
-            "\t-m exports the current service on mDNS.\n");
-    fprintf(stderr,
-            "\t-n mdns_name sets the exported mDNS name. Implies -m.\n");
+    fprintf(stderr, "\t-m exports the current service on mDNS.\n");
+    fprintf(
+        stderr, "\t-n mdns_name sets the exported mDNS name. Implies -m.\n");
 #endif
     exit(1);
 }
@@ -172,13 +169,14 @@ void parse_args(int argc, char *argv[])
 int appl_main(int argc, char *argv[])
 {
     parse_args(argc, argv);
-    //GcPacketPrinter packet_printer(&can_hub0, timestamped);
+    // GcPacketPrinter packet_printer(&can_hub0, timestamped);
     GcPacketPrinter *packet_printer = NULL;
-    if (printpackets) {
+    if (printpackets)
+    {
         packet_printer = new GcPacketPrinter(&can_hub0, timestamped);
     }
-    fprintf(stderr,"packet_printer points to %p\n",packet_printer);
-    GcTcpHub hub(&can_hub0, port);
+    fprintf(stderr, "packet_printer points to %p\n", packet_printer);
+    create_direct_gc_tcp_hub(g_direct_hub.get(), port);
     vector<std::unique_ptr<ConnectionClient>> connections;
 
 #ifdef HAVE_AVAHI_CLIENT
@@ -191,6 +189,7 @@ int appl_main(int argc, char *argv[])
         mdns_publish(mdns_name, port);
     }
 #endif
+
 #if defined(__linux__)
     if (socket_can_path)
     {
@@ -210,13 +209,13 @@ int appl_main(int argc, char *argv[])
     if (upstream_host)
     {
         connections.emplace_back(new UpstreamConnectionClient(
-                                     "upstream", &can_hub0, upstream_host, upstream_port));
+            "upstream", g_direct_hub.get(), upstream_host, upstream_port));
     }
 
     if (device_path)
     {
-        connections.emplace_back(
-            new DeviceConnectionClient("device", &can_hub0, device_path));
+        connections.emplace_back(new DeviceConnectionClient(
+            "device", g_direct_hub.get(), device_path));
     }
 
     while (1)
