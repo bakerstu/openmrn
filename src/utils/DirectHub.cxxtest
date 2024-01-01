@@ -283,10 +283,17 @@ public:
     /// Implements receiving data from the bus.
     void send(Buffer<CanHubData> *buf, unsigned) override
     {
-        auto rb = get_buffer_deleter(buf);
         AtomicHolder h(this);
         lastFrame_ = *buf->data();
         ++frameCount_;
+        if (blockPackets_)
+        {
+            blockedPackets_.emplace_back(buf);
+        }
+        else
+        {
+            buf->unref();
+        }
     }
 
     /// Inject a new CAN frame to the CAN-bus.
@@ -317,7 +324,19 @@ public:
         return ret;
     }
 
+    /// Unblocks all pending packets.
+    void clear_blocked()
+    {
+        blockedPackets_.clear();
+    }
+
+    /// Set to true to stop acknowledging the incoming packets (from the hub).
+    bool blockPackets_ = false;
+
 private:
+    /// If packets are blocked, they end up here so that they get released upon
+    /// destruction.
+    std::vector<BufferPtr<CanHubData> > blockedPackets_;
     /// Parent hub.
     CanHubFlow *hub_;
     /// Stores a copy of the last frame this port has seen.
@@ -1018,4 +1037,44 @@ TEST_F(DirectHubTest, can_bridge_send_much)
     usleep(1000);
     wait_for_main_executor();
     EXPECT_EQ(929u / 29, legacyReceiver_.count());
+}
+
+TEST_F(DirectHubTest, can_bridge_block)
+{
+    std::unique_ptr<Destructable> bridge(
+        create_gc_to_legacy_can_bridge(hub_.get(), &legacyHub_));
+
+    legacyReceiver_.blockPackets_ = true;
+    useTrivialSegmenter_ = false; // gridconnect segmenter
+    fdOne_ = create_port();
+
+    auto total = write_a_lot(fdOne_);
+    wait_for_main_executor();
+
+    LOG(INFO, "total %u pool %u", (unsigned)total,
+        (unsigned)mainBufferPool->total_size());
+
+    // value of 100 is 2 (packets) * 1460 (bytes/packet) / 29 (bytes per can
+    // frame).
+    EXPECT_EQ(100u, legacyReceiver_.count());
+
+    // The total bytes buffered should not be very much, despite having tried
+    // to write a lot of data into the socket.
+    EXPECT_GT(5000u, total);
+    // Memory usage is also under control. Not as small as we'd like, because
+    // every packet has a copy in a CAN buffer.
+    EXPECT_GT(8000u, mainBufferPool->total_size());
+
+    // Once unblocked, we get a lot of flow.
+    legacyReceiver_.clear_blocked();
+    legacyReceiver_.blockPackets_ = false;
+
+    total += write_a_lot(fdOne_);
+    wait_for_main_executor();
+
+    LOG(INFO, "total %u pool %u", (unsigned)total,
+        (unsigned)mainBufferPool->total_size());
+
+    EXPECT_LT(50000u, total);
+    EXPECT_LT(1000u, legacyReceiver_.count());
 }

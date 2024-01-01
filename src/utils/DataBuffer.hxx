@@ -360,6 +360,12 @@ public:
         return head_;
     }
 
+    /// @return buffer that is at the tail.
+    DataBuffer *tail() const
+    {
+        return tail_;
+    }
+    
     /// @return how many bytes to skip from the head buffer.
     unsigned skip() const
     {

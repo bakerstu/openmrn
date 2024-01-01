@@ -440,7 +440,7 @@ private:
         Action send_callback()
         {
             auto *m = parent_->hub_->mutable_message();
-            /// @todo do we need to set m->done_ notifiable?
+            m->set_done(buf_.tail()->new_child());
             m->source_ = parent_;
             // This call transfers the chained head of the current buffers,
             // taking additional references where necessary or transferring the
