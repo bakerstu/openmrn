@@ -46,10 +46,14 @@
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
-OVERRIDE_CONST(gridconnect_tcp_snd_buffer_size, 8192);
-OVERRIDE_CONST(gridconnect_tcp_rcv_buffer_size, 8192);
-OVERRIDE_CONST(gridconnect_tcp_notsent_lowat_buffer_size, 1024);
+//OVERRIDE_CONST(gridconnect_tcp_snd_buffer_size, 8192);
+//OVERRIDE_CONST(gridconnect_tcp_rcv_buffer_size, 8192);
+OVERRIDE_CONST(gridconnect_tcp_notsent_lowat_buffer_size, 1460);
 
+// Maximum 100 TCP packets per second.
+OVERRIDE_CONST(gridconnect_buffer_delay_usec, 10000);
+// Or one full packet.
+OVERRIDE_CONST(gridconnect_buffer_size, 1460);
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
