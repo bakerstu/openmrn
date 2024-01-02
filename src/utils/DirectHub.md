@@ -43,7 +43,7 @@ separate copy for each one of them, and taking a reference is not sufficient.
 
 ### Entry flow and threading model
 
-In order to make the router be have as little overhead as possible, almost
+In order to make the router have as little overhead as possible, almost
 everything about the router should be happening inline instead of
 asynchronously / via queueing. Virtual function calls are okay, but
 StateFlowWithQueue operations should be avoided.
@@ -53,19 +53,21 @@ time we use the thread of the caller. When concurrent calls are performed, we
 have to hold one of those calls until the other is complete.
 
 Upon an entry call (after the admission controller, see later) we want to first
-check if the router is empty. If yes, we should grab a lock and start
-processing the message inline. If the router is busy, we should queue the
-incoming message.
+check if the router is idle. If yes, we should grab a lock and start processing
+the message inline. If the router is busy, we should queue the incoming
+caller. To allow for both of these, the entry call doesn't actually give us a
+message, we get a callback instead that we'll invoke. The sender renders the
+actual message in that callback.
 
-The router goes back to empty if after processing the message the queue is
-found to be empty. 
+After processing the message, the router goes back to idle if the queue of held
+callers is found to be empty.
 
 If the queue is non-empty, that means that a different thread called the router
 while we were sending a message on the current thread. We notice this in the
 `on_done()` method of the service. In this case the router remains busy and the
 queue front is taken out for processing. The queue front is always an
 Executable and it will be scheduled on the Service's executor (effectively
-yielding), while the caller's thread gets released.
+yielding), while the inline caller's thread gets released.
 
 A consequence is that the caller's send callback may be called either on the
 caller's thread inline, or on the Service's thread, sometime later after the
@@ -97,8 +99,8 @@ queueable). So we put them into a queue, and we put the next one onto the
 executor (yield) whenever we're ready, which is typically when the current
 packet's processing and routing is done.
 
-If we're free to process the packet upon the entry call, we want to run it
-inline by calling run() on the Executable from the caller's thread.
+If we're idle (available) to process the packet upon the entry call, we want to
+run it inline by calling run() on the Executable from the caller's thread.
 
 In other words, assuming the caller is a StateFlow, the inline execution just
 means that we `run()` the executable instead of `notify()`'ing it.
