@@ -200,8 +200,10 @@ public:
     virtual void do_send() = 0;
 };
 
+typedef DirectHubInterface<uint8_t[]> ByteDirectHubInterface;
+
 /// Creates a new byte stream typed hub.
-DirectHubInterface<uint8_t[]> *create_hub(ExecutorBase *e);
+ByteDirectHubInterface *create_hub(ExecutorBase *e);
 
 /// Creates a hub port of byte stream type reading/writing a given fd. This
 /// port will be automaticelly deleted upon any error reading/writing the fd
@@ -212,7 +214,7 @@ DirectHubInterface<uint8_t[]> *create_hub(ExecutorBase *e);
 /// @param segmenter is an newly allocated object for the given protocol to
 /// segment incoming data into messages. Transfers ownership to the function.
 /// @param on_error this will be notified if the port closes due to an error.
-void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd,
+void create_port_for_fd(ByteDirectHubInterface *hub, int fd,
     std::unique_ptr<MessageSegmenter> segmenter,
     Notifiable *on_error = nullptr);
 
@@ -221,7 +223,7 @@ void create_port_for_fd(DirectHubInterface<uint8_t[]> *hub, int fd,
 /// @param hub incoming and outgoing data will be multiplexed through this hub
 /// instance.
 /// @param port the TCP port to listen on.
-void create_direct_gc_tcp_hub(DirectHubInterface<uint8_t[]> *hub, int port);
+void create_direct_gc_tcp_hub(ByteDirectHubInterface *hub, int port);
 
 /// Creates a message segmenter for gridconnect data.
 /// @return a newly allocated message segmenter that chops gridconnect packets
