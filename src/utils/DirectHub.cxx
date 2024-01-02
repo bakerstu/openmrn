@@ -90,6 +90,20 @@ public:
             AtomicHolder h(lock());
             if (busy_)
             {
+                /// @todo there is a short period of priority inversion here,
+                /// because we insert an executable into a separate queue here
+                /// than the Executor. We dequeue the highest priority in
+                /// on_done(), but if that happens to be a low priority, that
+                /// might get stuck in the Executor for a long time, even if in
+                /// the meantime a higher priority message arrives here. A
+                /// better strategy would be to enqueue the Executable's in the
+                /// Service's executor directly instead of queueing them and
+                /// pushing them one by one to the Service's executor. In that
+                /// case we'd need a third state between busy and not busy:
+                /// whether we're queueing executable's or whether we're
+                /// dumping them into the executor. We would also need to keep
+                /// track of how many went to the Executor already, such that
+                /// we know when busy_ gets back to false.
                 pendingSend_.insert_locked(caller);
                 return;
             }
