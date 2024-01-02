@@ -1,8 +1,31 @@
 # DirectHub design
 
 DirectHub is a high performance router component that is suited to do the
-forwarding of packets to multiple receivers across multiple interface types,
-with or without packet filtering, with low CPU and latency overhead.
+forwarding of packets to multiple receivers with minimal CPU and latency
+overhead.
+
+It specifically addresses three performance issues with the traditional CanHub
+/ Dispatcher infrastructure:
+
+- DirectHub is zero-copy when forwarding packets between sockets. There is a
+  buffer which is filled with a ::read on the source socket, and then the
+  DirectHub passes around a reference to this buffer all the way to the output
+  object, which then ::write's it to the output socket.
+- CanHub and GcTcpHub as they operate together perform separate GridConnect
+  formatting for every port. When data passes from one port in to three others
+  out, there would be one parsing and three separate GridConnect rendering
+  calls. DirectHub uses a single GridConnect representation and passes around
+  that representation. Only one parsing is done when a CanIf needs a struct
+  can_frame.
+- DirectHub performs inline calls to the ports when forwarding the packet,
+  while CanHub/GcTcpHub allocates a new copy of the buffer which then gets
+  enqueued separately for each port's queue. This means that the Executor is
+  spinning a lot less for DirectHub, therefore the context switching overhead
+  is much smaller.
+
+As future expansion, DirectHub by design will allow routing packets across
+multiple interface types (e.g. CAN, GridConnect and native-TCP), apply packet
+filtering, and admission control / fair queueing for multiple trafic sources.
 
 ## Theory of operation
 
