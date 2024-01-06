@@ -206,6 +206,49 @@ enum
     ADR_INVALID = (ADR_MOBILE_SHORT << 8),
 };
 
+/// Convers a DCC basic or extended accessory decoder address from user address
+/// (1-2048) to binary address (0..2047). This takes into account the 2023
+/// draft of the DCC standard for address mapping. It uses per-output
+/// addressing for basic accessory decoders. It uses 2044 for the address that
+/// previously was the broadcast address for basic accessory decoders.
+/// @param user user address for accy decoders. 1..2040 uses the legacy
+/// addressing. 2041 .. 2048 uses the 2023 RCN-213 and DCC S-9.2.1 encoding.
+/// @return binary address to be used in the DCC packet. The one's complement
+/// of the highest address bits is not yet applied.
+static inline unsigned accy_address_user_to_binary(unsigned user)
+{
+    if (user >= 2045)
+    {
+        return user - 2045;
+    }
+    else
+    {
+        return user + 3;
+    }
+}
+
+/// Convers a DCC basic or extended accessory decoder address from a binary
+/// address (0 - 2047) to user address (1 - 2048). This takes into account the
+/// 2023 draft of the DCC standard for address mapping. It uses per-output
+/// addressing for basic accessory decoders. It uses 2044 user address for the
+/// binary address that previously was the broadcast for basic accessory
+/// decoders.
+/// @param binary the address in the DCC packet. The one's complement for the
+/// highest bits should be undone already.
+/// @return user user address for accy decoders. 1..2040 uses the legacy
+/// addressing. 2041 .. 2048 uses the 2023 RCN-213 and DCC S-9.2.1 encoding.
+static inline unsigned accy_address_binary_to_user(unsigned binary)
+{
+    if (binary < 4)
+    {
+        return binary + 2045;
+    }
+    else
+    {
+        return binary - 3;
+    }
+}
+
 /// Parameters for the Logon Enable command.
 enum class LogonEnableParam
 {
