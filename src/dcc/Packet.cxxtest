@@ -363,6 +363,17 @@ TEST(DefsTest, AccyAddress)
     EXPECT_EQ(3u, Defs::accy_address_user_to_binary(2048));
 }
 
+TEST_F(PacketTest, DccBasicAccyPom)
+{
+    pkt_.add_dcc_accy_address(true, Defs::accy_address_user_to_binary(3));
+    pkt_.set_dcc_basic_accy_params(false, true);
+    pkt_.add_dcc_pom_write1(11, 6);
+    EXPECT_THAT(get_packet(),
+        ElementsAre(0b10000001, 0b11111100, 0b11101100, 0b00001011, 0b00000110,
+            0b10011100));
+}
+
+
 TEST_F(PacketTest, SvcProgDirectByte)
 {
     pkt_.set_dcc_svc_verify_byte(651, 0x55);

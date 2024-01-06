@@ -305,6 +305,12 @@ struct Packet : public DCCPacket
      */
     void add_dcc_basic_accessory(unsigned address, bool is_activate);
 
+    /// Call this function after setting a basic accy address to set the
+    /// accessory packet options.
+    /// @param is_normal true for normal, false for reverse
+    /// @param is_activate true for activate, false for deactivate
+    void set_dcc_basic_accy_params(bool is_normal, bool is_activate);
+    
     /// Sets the packet to a logon enable packet.
     /// @param param defines which decoders should be requested to logon.
     /// @param cid the command station unique ID hashed.

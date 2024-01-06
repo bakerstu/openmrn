@@ -319,9 +319,9 @@ void Packet::set_dcc_svc_paged_verify_reg(uint8_t reg, uint8_t value)
     add_dcc_checksum();
 }
 
-void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate) {
-    add_dcc_accy_address(true, address >> 1);
-    if (address & 1)
+void Packet::set_dcc_basic_accy_params(bool is_normal, bool is_activate)
+{
+    if (is_normal)
     {
         payload[1] |= DCC_BASIC_ACCESSORY_B2_CLOSED;
     }
@@ -337,6 +337,12 @@ void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate) {
     {
         payload[1] |= DCC_BASIC_ACCESSORY_B2_DEACTIVATE;
     }
+}
+
+void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate)
+{
+    add_dcc_accy_address(true, address >> 1);
+    set_dcc_basic_accy_params(address & 1, is_activate);
     add_dcc_checksum();
 }
 
