@@ -113,8 +113,31 @@ enum
     DCC_SVC_PAGED_VERIFY = 0b01110000,
     DCC_SVC_PAGED_MASK = 0b11111000,
 
+    // Byte 1 of dcc accessory control packet
     DCC_BASIC_ACCESSORY_B1 = 0b10000000,
+    // Mask to check on DCC_BASIC_ACCESSORY_B1
+    DCC_BASIC_ACCESSORY_MASK1 = 0b11000000,
+    // Byte 2 of dcc basic accessory control packet
     DCC_BASIC_ACCESSORY_B2 = 0b10000000,
+    // Mask for dcc basic accessory control packet
+    DCC_BASIC_ACCESSORY_MASK2 = 0b10000000,
+    // Byte 2 of DCC extended accessory control packet
+    DCC_EXT_ACCESSORY_B2 = 0b00000001,
+    // Mask for DCC_EXT_ACCESSORY_B2
+    DCC_EXT_ACCESSORY_MASK2 = 0b10001001,
+
+    // Basic accy activate command (in byte 2)
+    DCC_BASIC_ACCESSORY_B2_ACTIVATE = 0b00001000,
+    // Basic accy deactivate command (in byte 2)
+    DCC_BASIC_ACCESSORY_B2_DEACTIVATE = 0b00000000,
+    // Mask for activate/deactivate
+    DCC_BASIC_ACCESSORY_B2_ACTIVATE_MASK = DCC_BASIC_ACCESSORY_B2_ACTIVATE,
+    // Basic accy thrown / reverse / red / off command (in byte 2)
+    DCC_BASIC_ACCESSORY_B2_THROWN = 0b00000000,
+    // Basic accy closed / normal / green / on command (in byte 2)
+    DCC_BASIC_ACCESSORY_B2_CLOSED = 0b00000001,
+    // Mask for thrown / closed
+    DCC_BASIC_ACCESSORY_B2_DIR_MASK = DCC_BASIC_ACCESSORY_B2_CLOSED,
 
     // Extended packet: 128-step speed.
     DCC_EXT_SPEED = 0b00111111,

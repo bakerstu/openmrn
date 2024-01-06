@@ -116,6 +116,13 @@ struct Packet : public DCCPacket
     /// Adds the header to the packet needed for addressing a DCC
     /// locomotive. @param address is the DCC (long) address.
     void add_dcc_address(DccLongAddress address);
+    /// Adds the header to the packet needed for addressing a DCC
+    /// accessory (e.g. for POM).
+    /// @param is_basic true for basic accessory, false for extended accessory
+    /// @param address the 11-bit accessory address, 0..2047. This is NOT the
+    /// user-visible address (that one is rotated by 3). For basic accessories
+    /// this is addressing an output number.
+    void add_dcc_accy_address(bool is_basic, unsigned address);
 
     /** Adds a speed-and-direction command (dcc baseline command) ot the
      * packet. Speed is maximum 14. This should be called after
