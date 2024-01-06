@@ -237,8 +237,23 @@ string packet_to_string(const DCCPacket &pkt, bool bin_payload)
         bool is_activate = cmd & 1;
         cmd >>= 1;
         accy_address |= ((~cmd) & 0b111) << 9;
-        options += StringPrintf(" Accy %u %s", accy_address,
-            is_activate ? "activate" : "deactivate");
+        unsigned user_address = accy_address >> 1;
+        if (user_address < 4)
+        {
+            user_address += 2044;
+        }
+        else
+        {
+            user_address -= 3;
+        }
+        string user_string = accy_address >= 4094
+            ? "broadcast"
+            : StringPrintf("%u", user_address);
+        const char *n_r =
+            accy_address & 1 ? "closed/normal/on" : "thrown/reverse/off";
+        const char* a_d = is_activate ? "activate" : "deactivate";
+        options += StringPrintf(" Accy %u (user %s %s) %s", accy_address,
+            user_string.c_str(), n_r, a_d);
     }
     else if (is_unknown_packet || is_svc_packet)
     {
