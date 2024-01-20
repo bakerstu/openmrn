@@ -206,6 +206,16 @@ enum
     ADR_INVALID = (ADR_MOBILE_SHORT << 8),
 };
 
+/// Decodes a 14-bit address (according to S-9.2.1.1) into an address type and
+/// a raw address.
+/// @param addr14 a 14-bit address according to S-9.2.1.1
+/// @param addr the decoded address value (8 to 14 bits)
+/// @param partition the partition of the address type (the top byte, max 6 bits, e.g. ADR_MOBILE_SHORT)
+/// @param atype address type enum
+/// @return true if the decoding is successful, false if the value is not
+/// representable.
+bool decode_address_partition(uint16_t addr14, uint16_t* addr, uint8_t* partition, dcc::TrainAddressType* atype);
+
 /// Convers a DCC basic or extended accessory decoder address from user address
 /// (1-2048) to binary address (0..2047). This takes into account the 2023
 /// draft of the DCC standard for address mapping. It uses per-output
