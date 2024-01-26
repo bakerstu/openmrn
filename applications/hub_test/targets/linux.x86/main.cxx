@@ -53,7 +53,8 @@ OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 OVERRIDE_CONST(gridconnect_tcp_notsent_lowat_buffer_size, 1460);
 
 // Maximum 100 TCP packets per second.
-OVERRIDE_CONST(gridconnect_buffer_delay_usec, 10000);
+//OVERRIDE_CONST(gridconnect_buffer_delay_usec, 10000);
+OVERRIDE_CONST(gridconnect_buffer_delay_usec, 100);
 // Or one full packet.
 OVERRIDE_CONST(gridconnect_buffer_size, 1460);
 
