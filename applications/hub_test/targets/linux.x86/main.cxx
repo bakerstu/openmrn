@@ -43,6 +43,8 @@
 #include "utils/LimitedPool.hxx"
 #include "utils/StringPrintf.hxx"
 #include "utils/Stats.hxx"
+#include "openlcb/Convert.hxx"
+
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
@@ -75,16 +77,43 @@ struct Link
     std::unique_ptr<Receiver> receiver;
 };
 
+/// Defines which packet type we should send to the output interface.
+enum class PacketType {
+    /// Send an event report, listen for the same message coming back.
+    EVENT_REPORT,
+    /// Send an Identify Consumer, listen for Consumer Identified
+    /// valid/invalid/unknown.
+    EVENT_IDENTIFY,
+    /// Ping: send an addressed Verify Node ID, listen for Node ID Verified. 
+    NODE_ID_VERIFY,
+};
+
 /// We generate packets to this interface.
 Link output_port;
 /// Traffic to generate, default is to saturate the link.
 int pkt_per_sec = -1;
+/// Which packet to send/expect.
+PacketType pkt_type = PacketType::EVENT_REPORT;
+/// If we are using an addressed ping, which node should we ping.
+openlcb::NodeID destination_nodeid;
+
+/// We use this special value in the "upstream port" argument to denote a
+/// receiver link that should be a loopback.
+static constexpr int LOOPBACK_PORT_NUMBER = -999;
 
 /// How many pending buffers we can allow for the send flow.
 static constexpr unsigned SEND_PARALLELISM = 10;
 
 /// The output frames will go wioth this CAN ID.
-static constexpr uint32_t SEND_HEADER = 0x195b4ffe;
+static constexpr uint32_t SEND_HEADER_EVENT = 0x195b4ffe;
+static constexpr uint32_t SEND_HEADER_IDENT = 0x198f4ffe;
+static constexpr uint32_t SEND_HEADER_NODEID = 0x19490ffe;
+/// The response frames come with the CAN ID (masked).
+static constexpr uint32_t RECV_HEADER_IDENT = 0x194c7fff;
+static constexpr uint32_t RECV_MASK_IDENT = ~0x00003fff;
+static constexpr uint32_t RECV_HEADER_NODEID = 0x19170fff;
+static constexpr uint32_t RECV_MASK_NODEID = ~0x00000fff;
+
 /// The output frames will go with this CAN data bytes. This is NMRA ID 1,
 /// which is not assigned. Lower four bytes are the id.
 static constexpr uint8_t SEND_PAYLOAD[8] = {0x9, 0x0, 0x01, 0x39, 0, 0, 0, 0};
@@ -125,7 +154,7 @@ void usage(const char *e)
     fprintf(stderr,
         "Usage: %s (-d device_path | [-q upstream_port] -u upstream_host) [-s "
         "speed]\n\t(-D device_path | [-Q upstream_port] -U "
-        "upstream_host)...\n\n",
+        "upstream_host) [-N repeat] [-i | -n node_id]...\n\n",
         e);
     fprintf(stderr,
         "\tdevice_path   is a path to a physical device doing "
@@ -139,15 +168,23 @@ void usage(const char *e)
         "\t-d -q -u specifies the output port, -D -Q -U specifies input ports. "
         "-Q must be before -U. Multiple input ports can be specified.\n");
     fprintf(stderr,
-        "\t-s speed   is the packets/sec to generate. Set to -1 for utomatic "
+        "\t-s speed   is the packets/sec to generate. Set to -1 for automatic "
         "(saturation).\n");
+    fprintf(stderr,
+        "\t-N repeat   will open this many input ports with the last settings.\n");
+    fprintf(stderr,
+        "\t-i selects using event identify packets to test node response latency.\n");
+    fprintf(stderr,
+        "\t-n node_id selects using verify node id global packets to test node response latency. These packets are not ordered. Node id should be like 0x0501010118FF\n");
+    fprintf(stderr,
+        "\t-l adds a loopback receiver. This makes sense with -i or -n packet types.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hd:u:q:s:D:U:Q:")) >= 0)
+    while ((opt = getopt(argc, argv, "hd:u:q:s:D:U:Q:in:N:l")) >= 0)
     {
         switch (opt)
         {
@@ -172,11 +209,39 @@ void parse_args(int argc, char *argv[])
                 input_ports.back().upstream_host = optarg;
                 input_ports.back().upstream_port = in_upstream_port;
                 break;
+            case 'l':
+                input_ports.emplace_back();
+                input_ports.back().upstream_port = LOOPBACK_PORT_NUMBER;
+                break;
+            case 'N':
+            {
+                int rept = strtol(optarg, nullptr, 0);
+                unsigned ref = input_ports.size() - 1;
+                for (int idx = 0; idx < rept - 1; ++idx)
+                {
+                    if (!input_ports[ref].upstream_host)
+                    {
+                        DIE("-N multiplicity can not be used with device link "
+                            "(-D /dev/ttyXXX)");
+                    }
+                    input_ports.emplace_back();
+                    input_ports.back().upstream_host = input_ports[ref].upstream_host;
+                    input_ports.back().upstream_port = input_ports[ref].upstream_port;
+                }
+                break;
+            }
             case 'Q':
                 in_upstream_port = atoi(optarg);
                 break;
             case 's':
                 pkt_per_sec = atoi(optarg);
+                break;
+            case 'i':
+                pkt_type = PacketType::EVENT_IDENTIFY;
+                break;
+            case 'n':
+                pkt_type = PacketType::NODE_ID_VERIFY;
+                destination_nodeid = strtoll(optarg, nullptr, 16);
                 break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
@@ -242,34 +307,77 @@ public:
         hub->register_port(this);
     }
 
+    // This function handles an incoming CAN frame.
     void send(message_type *buf, unsigned prio) override
     {
         auto ts = os_get_time_monotonic();
         auto rb = get_buffer_deleter(buf);
         const struct can_frame &f = buf->data()->frame();
-        if (f.can_dlc != 8 || !IS_CAN_FRAME_EFF(f))
+        if (!IS_CAN_FRAME_EFF(f))
         {
             // not interesting frame
             ++numUnknownFrames_;
             return;
         }
         auto id = GET_CAN_FRAME_ID_EFF(f);
-        if (id != SEND_HEADER)
-        {
-            // not interesting frame
-            ++numUnknownFrames_;
-            return;
+        uint32_t cnt = 0;
+        bool skip = true;
+        switch(pkt_type) {
+            case PacketType::EVENT_REPORT: {
+                if (id != SEND_HEADER_EVENT) {
+                    break;
+                }
+                if (f.can_dlc != 8 || memcmp(f.data, SEND_PAYLOAD, 4) != 0)
+                {
+                    break;
+                }
+                memcpy(&cnt, f.data + 4, 4);
+                cnt = be32toh(cnt);
+                skip = false;
+                break;
+            }
+            case PacketType::EVENT_IDENTIFY: {
+                if ((id & RECV_MASK_IDENT) !=
+                    (RECV_HEADER_IDENT & RECV_MASK_IDENT))
+                {
+                    break;
+                }
+                if (f.can_dlc != 8 || memcmp(f.data, SEND_PAYLOAD, 4) != 0)
+                {
+                    break;
+                }
+                memcpy(&cnt, f.data + 4, 4);
+                cnt = be32toh(cnt);
+                skip = false;
+                break;
+            }
+            case PacketType::NODE_ID_VERIFY: {
+                if ((id & RECV_MASK_NODEID) !=
+                    (RECV_HEADER_NODEID & RECV_MASK_NODEID))
+                {
+                    LOG(VERBOSE, "response with wrong header %x", id); 
+                    break;
+                }
+                openlcb::NodeID actual = openlcb::data_to_node_id(f.data);
+                if (actual != destination_nodeid) {
+                    
+                    LOG(INFO, "response with wrong node id %012" PRIx64 " vs %012" PRIx64, actual, destination_nodeid);
+                    break;
+                }
+                // This packet type does not carry a counter. We just assume
+                // this is the next correct packet.
+                cnt = nextPacket_;
+                skip = false;
+                break;
+            }
         }
-        if (memcmp(f.data, SEND_PAYLOAD, 4) != 0)
+        if (skip)
         {
             // not interesting frame
             ++numUnknownFrames_;
             return;
         }
         ++numFrames_;
-        uint32_t cnt = 0;
-        memcpy(&cnt, f.data + 4, 4);
-        cnt = be32toh(cnt);
         if (cnt == nextPacket_)
         {
             ++numInOrder_;
@@ -349,6 +457,12 @@ void add_link(Link *link, bool is_receiver)
             new DeviceConnectionClient(StringPrintf("device%d", id),
                 link->can_hub.get(), link->device_path));
     }
+    else if (link->upstream_port == LOOPBACK_PORT_NUMBER)
+    {
+        // Loopback port is connected to the can hub of the output.
+        link->receiver.reset(new Receiver(output_port.can_hub.get()));
+        is_receiver = false;
+    }
     else
     {
         usage(arg0);
@@ -409,11 +523,28 @@ public:
         auto *b = get_allocation_result(output_port.can_hub.get());
         b->set_done(&pinfo_->bn_);
         auto &f = *b->data()->mutable_frame();
-        SET_CAN_FRAME_ID_EFF(f, SEND_HEADER);
         f.can_dlc = 8;
-        memcpy(f.data, SEND_PAYLOAD, 8);
         uint32_t idx_be = htobe32(pinfo_->index_);
-        memcpy(f.data + 4, &idx_be, 4);
+        switch(pkt_type) {
+            case PacketType::EVENT_REPORT: {
+                SET_CAN_FRAME_ID_EFF(f, SEND_HEADER_EVENT);
+                memcpy(f.data, SEND_PAYLOAD, 8);
+                memcpy(f.data + 4, &idx_be, 4);
+                break;
+            }
+            case PacketType::EVENT_IDENTIFY: {
+                SET_CAN_FRAME_ID_EFF(f, SEND_HEADER_IDENT);
+                memcpy(f.data, SEND_PAYLOAD, 8);
+                memcpy(f.data + 4, &idx_be, 4);
+                break;
+            }
+            case PacketType::NODE_ID_VERIFY: {
+                SET_CAN_FRAME_ID_EFF(f, SEND_HEADER_NODEID);
+                f.can_dlc = 6;
+                openlcb::node_id_to_data(destination_nodeid, f.data);
+                break;
+            }
+        }
         b->data()->skipMember_ = nullptr;
         pinfo_->pendingReceivers_ = std::max(0, g_num_live_links - 1);
         g_num_packets_sent++;
