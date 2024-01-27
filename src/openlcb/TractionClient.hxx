@@ -153,16 +153,16 @@ private:
 
     Action entry() OVERRIDE
     {
-        LOG_ERROR("response came");
+        LOG(VERBOSE, "response came");
 
         if (!trigger_)
         {
             // We already matched -- drop all packets to the floor.
-            LOG_ERROR("no trigger");
+            LOG(VERBOSE, "no trigger");
             return release_and_exit();
         }
         if (nmsg()->dstNode != expectedDst_) {
-            LOG_ERROR("dst not match");
+            LOG(VERBOSE, "dst not match");
             return release_and_exit();
         }
         /// @TODO(balazs.racz) factor out this code into a helper function that
@@ -172,7 +172,7 @@ private:
         {
             if (expectedSrc_.id != nmsg()->src.id)
             {
-                LOG_ERROR("src.id not match");
+                LOG(VERBOSE, "src.id not match");
                 return release_and_exit();
             }
         }
@@ -180,7 +180,7 @@ private:
         {
             if (expectedSrc_.alias != nmsg()->src.alias)
             {
-                LOG_ERROR("src.alias not match");
+                LOG(VERBOSE, "src.alias not match");
                 return release_and_exit();
             }
         }
@@ -194,11 +194,11 @@ private:
         // Now: message is from the right source node, to the right destination
         // node.
         if (nmsg()->payload.size() < 1) {
-            LOG_ERROR("no payload");
+            LOG(VERBOSE, "no payload");
             return release_and_exit();
         }
         if (nmsg()->payload[0] != expectedType_) {
-            LOG_ERROR("payload type no match");
+            LOG(VERBOSE, "payload type no match");
             return release_and_exit();
         }
         // Now: we matched!
