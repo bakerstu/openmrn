@@ -8,12 +8,13 @@
 
 function usage() {
     echo
-    echo 'usage: libify.sh path/to/arduino/library/output path/to/openmrn [-f] [-l]'
+    echo 'usage: libify.sh path/to/arduino/library/output path/to/openmrn [-f] [-l] [-i]'
     echo 'exports OpenMRN code as an arduino library.'
     echo 'example: libify.sh ~/Arduino/libraries/OpenMRN .. -l'
     echo '(options must come after the path specification)'
     echo '-f will erase the target library before exporting.'
     echo '-l will create symlinks instead of copying files.'
+    echo '-i will create OpenMRNIDF repository instead of arduino.'
     exit 1
 }
 
@@ -61,6 +62,7 @@ fi
 
 USE_LINK=
 VERBOSE=
+TARGET_IDF=
 
 while [ "x$1" != "x" ] ; do
     case $1 in
@@ -70,6 +72,9 @@ while [ "x$1" != "x" ] ; do
             ;;
         -l)
             USE_LINK=-s
+            ;;
+        -i)
+            TARGET_IDF=1
             ;;
         -v)
             VERBOSE=1
@@ -130,8 +135,10 @@ function copy_dir() {
     popd >/dev/null
 }
 
-copy_file . arduino/{library.json,library.properties,keywords.txt,README.md,LICENSE,CONTRIBUTING.md}
-copy_dir . arduino/examples
+if [ "x$TARGET_IDF" == "x" ]; then
+    copy_file . arduino/{library.json,library.properties,keywords.txt,README.md,LICENSE,CONTRIBUTING.md}
+    copy_dir . arduino/examples
+fi
 
 copy_file src arduino/OpenMRNLite.{h,cpp} arduino/CDIXMLGenerator.hxx \
     include/{can_frame.h,nmranet_config.h,openmrn_features.h} \
