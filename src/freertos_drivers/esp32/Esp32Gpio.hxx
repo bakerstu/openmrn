@@ -554,112 +554,11 @@ template <class Defs> struct GpioInputPUPD : public GpioInputPin<Defs, true, tru
     {                                                                          \
         static const gpio_num_t PIN_NUM = (gpio_num_t)NUM;                     \
     public:                                                                    \
-        static const gpio_num_t pin()                                          \
+        static gpio_num_t pin()                                          \
         {                                                                      \
             return PIN_NUM;                                                    \
         }                                                                      \
     };                                                                         \
     typedef BaseClass<NAME##Defs> NAME##_Pin
-
-/// Helper macro for an ADC GPIO input on the ESP32.
-///
-/// @param NAME is the basename of the declaration. For NAME==FOO the macro
-/// declared FOO_Pin as a structure on which the read-write functions will be
-/// available.
-/// @param ADC_CHANNEL is the ADC channel to configure.
-/// @param ATTENUATION is the voltage range for the ADC input.
-/// @param BIT_RANGE is the bit range to configure the ADC to use.
-///
-/// Supported ATTENUATION values and voltage ranges:
-/// ADC_ATTEN_DB_0   - 0dB attenuaton gives full-scale voltage 1.1V
-/// ADC_ATTEN_DB_2_5 - 2.5dB attenuation gives full-scale voltage 1.5V
-/// ADC_ATTEN_DB_6   - 6dB attenuation gives full-scale voltage 2.2V
-/// ADC_ATTEN_DB_11  - 11dB attenuation gives full-scale voltage 3.9V
-///
-/// Supported BIT_RANGE values and ADC sample values:
-/// ADC_WIDTH_BIT_9  - 0-511
-/// ADC_WIDTH_BIT_10 - 0-1023
-/// ADC_WIDTH_BIT_11 - 0-2047
-/// ADC_WIDTH_BIT_12 - 0-4065
-/// ADC_WIDTH_BIT_13 - 0-8191 -- Only valid on the ESP32-S2 and ESP32-S3.
-/// NOTE: When using ADC1_CHANNEL_X this bit range will be applied to all
-/// ADC1 channels, it is not recommended to mix values for ADC1 channels.
-///
-/// Supported ADC_CHANNEL values and pin assignments for the ESP32:
-/// ADC1_CHANNEL_0 : 36
-/// ADC1_CHANNEL_1 : 37 -- NOTE: Not recommended for use, see note below.
-/// ADC1_CHANNEL_2 : 38 -- NOTE: Not recommended for use, see note below.
-/// ADC1_CHANNEL_3 : 39
-/// ADC1_CHANNEL_4 : 32
-/// ADC1_CHANNEL_5 : 33
-/// ADC1_CHANNEL_6 : 34
-/// ADC1_CHANNEL_7 : 35
-/// ADC2_CHANNEL_0 : 4  -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_1 : 0  -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_2 : 2  -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_3 : 15 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_4 : 13 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_5 : 12 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_6 : 14 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_7 : 27 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_8 : 25 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_9 : 29 -- NOTE: Not usable when WiFi is active.
-/// NOTE: ADC1_CHANNEL_1 and ADC1_CHANNEL_2 typically have a capacitor which
-/// connects to ADC1_CHANNEL_0 or ADC1_CHANNEL_3. The only known exception to
-/// this is for some ESP32-PICO-D4/ESP32-PICO-V3 based boards, confirm on the
-/// board schematic before using these pins.
-///
-/// Supported ADC_CHANNEL values and pin assignments for the ESP32-S2/ESP32-S3:
-/// ADC1_CHANNEL_0 : 1
-/// ADC1_CHANNEL_1 : 2
-/// ADC1_CHANNEL_2 : 3
-/// ADC1_CHANNEL_3 : 4
-/// ADC1_CHANNEL_4 : 5
-/// ADC1_CHANNEL_5 : 6
-/// ADC1_CHANNEL_6 : 7
-/// ADC1_CHANNEL_7 : 8
-/// ADC1_CHANNEL_8 : 9
-/// ADC1_CHANNEL_9 : 10
-/// ADC2_CHANNEL_0 : 11
-/// ADC2_CHANNEL_1 : 12
-/// ADC2_CHANNEL_2 : 13
-/// ADC2_CHANNEL_3 : 14
-/// ADC2_CHANNEL_4 : 15
-/// ADC2_CHANNEL_5 : 16
-/// ADC2_CHANNEL_6 : 17
-/// ADC2_CHANNEL_7 : 18
-/// ADC2_CHANNEL_8 : 19 -- NOTE: This pin is also used for USB PHY (D-).
-/// ADC2_CHANNEL_9 : 20 -- NOTE: This pin is also used for USB PHY (D+).
-///
-/// Supported ADC_CHANNEL values and pin assignments for the ESP32-C3:
-/// ADC1_CHANNEL_0 : 0
-/// ADC1_CHANNEL_1 : 1
-/// ADC1_CHANNEL_2 : 2
-/// ADC1_CHANNEL_3 : 3
-/// ADC1_CHANNEL_4 : 4
-/// ADC2_CHANNEL_0 : 5
-///
-/// Example:
-///   ADC_PIN(SENSE, ADC1_CHANNEL_0, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12);
-///   ...
-///   int level = SENSE_Pin::sample();
-#define ADC_PIN(NAME, ADC_CHANNEL, ATTENUATION, BIT_RANGE)                     \
-    struct NAME##Defs                                                          \
-    {                                                                          \
-        static const adc_channel_t CHANNEL = (adc_channel_t)ADC_CHANNEL;       \
-        static const gpio_num_t PIN = (gpio_num_t)ADC_CHANNEL##_GPIO_NUM;      \
-        static const adc_atten_t ATTEN = (adc_atten_t)ATTENUATION;             \
-        static const adc_bits_width_t BITS = (adc_bits_width_t)BIT_RANGE;      \
-    public:                                                                    \
-        static const gpio_num_t pin()                                          \
-        {                                                                      \
-            return PIN;                                                        \
-        }                                                                      \
-        static const adc_channel_t channel()                                   \
-        {                                                                      \
-            return CHANNEL;                                                    \
-        }                                                                      \
-    };                                                                         \
-    typedef Esp32ADCInput<NAME##Defs> NAME##_Pin
 
 #endif // _DRIVERS_ESP32GPIO_HXX_
