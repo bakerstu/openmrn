@@ -54,7 +54,7 @@
 #include <sys/select.h>
 #endif
 
-#ifdef ESP32
+#ifdef ESP_PLATFORM
 #include "sdkconfig.h"
 
 #ifdef CONFIG_VFS_SUPPORT_TERMIOS
@@ -65,16 +65,8 @@
 #endif // CONFIG_VFS_SUPPORT_TERMIOS
 
 #include <esp_vfs.h>
-#include <esp_idf_version.h>
 
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
-// SemaphoreHandle_t is defined by inclusion of esp_vfs.h so no additional
-// includes are necessary.
-/// Alias for the internal data type used by ESP-IDF select() calls.
-typedef SemaphoreHandle_t * esp_vfs_select_sem_t;
-#endif // IDF v3.x
-
-#endif // ESP32
+#endif // ESP_PLATFORM
 
 /// Signal handler that does nothing. @param sig ignored.
 void empty_signal_handler(int sig);
@@ -91,7 +83,7 @@ public:
 
     ~OSSelectWakeup()
     {
-#ifdef ESP32
+#ifdef ESP_PLATFORM
         esp_deallocate_vfs_fd();
 #endif
     }
@@ -108,7 +100,7 @@ public:
     {
         // Gets the current thread.
         thread_ = os_thread_self();
-#ifdef ESP32
+#ifdef ESP_PLATFORM
         esp_allocate_vfs_fd();
 #endif
 #if OPENMRN_FEATURE_DEVICE_SELECT
@@ -149,7 +141,7 @@ public:
             Device::select_wakeup(&copy);
 #elif OPENMRN_HAVE_PSELECT
             pthread_kill(thread_, WAKEUP_SIG);
-#elif defined(ESP32)
+#elif defined(ESP_PLATFORM)
             esp_wakeup();
 #elif !defined(OPENMRN_FEATURE_SINGLE_THREADED)
             DIE("need wakeup code");
@@ -179,7 +171,7 @@ public:
 // TODO: confirm if pthread_kill is ISR safe
 //#elif OPENMRN_HAVE_PSELECT
 //            pthread_kill(thread_, WAKEUP_SIG);
-#elif defined(ESP32)
+#elif defined(ESP_PLATFORM)
             esp_wakeup_from_isr();
 #else
             DIE("need wakeup code");
@@ -206,7 +198,7 @@ public:
                long long deadline_nsec);
 
 private:
-#ifdef ESP32
+#ifdef ESP_PLATFORM
     void esp_allocate_vfs_fd();
     void esp_deallocate_vfs_fd();
     void esp_wakeup();
@@ -233,12 +225,7 @@ private:
     /// when waking up early from select().
     fd_set exceptFdsOrig_;
 
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
-    /// Semaphore for waking up LwIP select.
-    void* lwipSem_{nullptr};
-#endif // IDF < v4.0
-
-#endif // ESP32
+#endif // ESP_PLATFORM
 
 #if OPENMRN_HAVE_PSELECT
     /** This signal is used for the wakeup kill in a pthreads OS. */

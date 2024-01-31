@@ -36,27 +36,16 @@
 #define _DRIVERS_ESP32GPIO_HXX_
 
 #include "freertos_drivers/arduino/GpioWrapper.hxx"
+#include "freertos_drivers/esp32/Esp32AdcOneShot.hxx"
 #include "os/Gpio.hxx"
 #include "utils/logging.h"
 #include "utils/macros.h"
 
-#include <driver/adc.h>
 #include <driver/gpio.h>
-#include <esp_idf_version.h>
+#include <esp_rom_gpio.h>
 #include <soc/adc_channel.h>
 
-// esp_rom_gpio.h is a target agnostic replacement for esp32/rom/gpio.h
-#if __has_include(<esp_rom_gpio.h>)
-#include <esp_rom_gpio.h>
-#elif ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
-#include <rom/gpio.h>
-#else
-#include <esp32/rom/gpio.h>
-#endif
-
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5,0,0)
 #include <soc/gpio_struct.h>
-#endif
 
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
 /// Helper macro to test if a pin has been configured for output.
@@ -94,7 +83,7 @@ public:
     static_assert(!(PIN_NUM >= 26 && PIN_NUM <= 32)
                 , "Pin is reserved for flash usage.");
 #if defined(CONFIG_SPIRAM_MODE_OCT) || defined(CONFIG_ESPTOOLPY_OCT_FLASH)
-    static_assert(!(PIN_NUM >= 33 && PIN_NUM <= 37)),
+    static_assert(!(PIN_NUM >= 33 && PIN_NUM <= 37),
                   "Pin is not available when Octal SPI mode is enabled.");
 #endif // ESP32S3 with Octal SPI
 #elif CONFIG_IDF_TARGET_ESP32S2
@@ -126,7 +115,7 @@ public:
 #else
     static_assert(!(PIN_NUM >= 6 && PIN_NUM <= 11)
                 , "Pin is reserved for flash usage.");
-#if defined(BOARD_HAS_PSRAM)
+#if defined(BOARD_HAS_PSRAM) || defined(CONFIG_SPIRAM_SUPPORT)
     static_assert(PIN_NUM != 16 && PIN_NUM != 17
                 , "Pin is reserved for PSRAM usage.");
 #endif // BOARD_HAS_PSRAM
@@ -238,11 +227,7 @@ public:
         LOG(VERBOSE,
             "[Esp32Gpio] Configuring output pin %d, default value: %d",
             PIN_NUM, SAFE_VALUE);
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
-        gpio_pad_select_gpio(PIN_NUM);
-#else // IDF v4.4 (or later)
         esp_rom_gpio_pad_select_gpio(PIN_NUM);
-#endif // IDF v4.3 (or earlier)
         gpio_config_t cfg;
         memset(&cfg, 0, sizeof(gpio_config_t));
         cfg.pin_bit_mask = BIT64(PIN_NUM);
@@ -358,11 +343,7 @@ public:
     {
         LOG(VERBOSE, "[Esp32Gpio] Configuring input pin %d, PUEN: %d, PDEN: %d",
             PIN_NUM, PUEN, PDEN);
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
-        gpio_pad_select_gpio(PIN_NUM);
-#else // IDF v4.4 (or later)
         esp_rom_gpio_pad_select_gpio(PIN_NUM);
-#endif // IDF v4.3 (or earlier)
         gpio_config_t cfg;
         memset(&cfg, 0, sizeof(gpio_config_t));
         cfg.pin_bit_mask = BIT64(PIN_NUM);
@@ -418,71 +399,6 @@ template <class Defs> struct GpioInputPD : public GpioInputPin<Defs, false, true
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
 template <class Defs> struct GpioInputPUPD : public GpioInputPin<Defs, true, true>
 {
-};
-
-/// Defines an ADC input pin.
-///
-/// Do not use this class directly. Use @ref ADC_PIN instead.
-template <class Defs> struct Esp32ADCInput : public Defs
-{
-public:
-    using Defs::CHANNEL;
-    using Defs::PIN;
-    using Defs::ATTEN;
-    using Defs::BITS;
-#if CONFIG_IDF_TARGET_ESP32
-    static const adc_unit_t UNIT = PIN >= 30 ? ADC_UNIT_1 : ADC_UNIT_2;
-#elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
-    static const adc_unit_t UNIT = PIN <= 10 ? ADC_UNIT_1 : ADC_UNIT_2;
-#elif CONFIG_IDF_TARGET_ESP32C3
-    static const adc_unit_t UNIT = PIN <= 4 ? ADC_UNIT_1 : ADC_UNIT_2;
-#endif
-    static void hw_init()
-    {
-        LOG(VERBOSE,
-            "[Esp32ADCInput] Configuring ADC%d:%d input pin %d, "
-            "attenuation %d, bits %d",
-            UNIT + 1, CHANNEL, PIN, ATTEN, BITS);
-
-        if (UNIT == ADC_UNIT_1)
-        {
-            ESP_ERROR_CHECK(adc1_config_width(BITS));
-            ESP_ERROR_CHECK(
-                adc1_config_channel_atten((adc1_channel_t)CHANNEL, ATTEN));
-        }
-        else
-        {
-            ESP_ERROR_CHECK(
-                adc2_config_channel_atten((adc2_channel_t)CHANNEL, ATTEN));
-        }
-    }
-
-    /// NO-OP
-    static void hw_set_to_safe()
-    {
-        // NO-OP
-    }
-
-    /// NO-OP
-    static void set(bool value)
-    {
-        // NO-OP
-    }
-
-    static int sample()
-    {
-        int value = 0;
-        if (UNIT == ADC_UNIT_1)
-        {
-            value = adc1_get_raw((adc1_channel_t)CHANNEL);
-        }
-        else
-        {
-            ESP_ERROR_CHECK(
-                adc2_get_raw((adc2_channel_t)CHANNEL, BITS, &value));
-        }
-        return value;
-    }
 };
 
 /// Helper macro for defining GPIO pins on the ESP32. 

@@ -38,7 +38,7 @@
 extern "C" {
 #endif
 
-#if defined(ESP32)
+#if defined(ESP_PLATFORM)
 #include <sys/ioctl.h>
 #else
 /** Request and ioctl transaction
@@ -47,7 +47,7 @@ extern "C" {
  * @param ... key data (as a pointer or unsigned long type)
  */
 int ioctl(int fd, unsigned long int key, ...);
-#endif // ESP32
+#endif // ESP_PLATFORM
 
 /** ioctl key value for operation (not read or write) */
 #define IOC_NONE 0U
