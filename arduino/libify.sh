@@ -8,13 +8,14 @@
 
 function usage() {
     echo
-    echo 'usage: libify.sh path/to/arduino/library/output path/to/openmrn [-f] [-l] [-i]'
+    echo 'usage: libify.sh path/to/arduino/library/output path/to/openmrn [-f] [-l] [-i] [-r]'
     echo 'exports OpenMRN code as an arduino library.'
-    echo 'example: libify.sh ~/Arduino/libraries/OpenMRN .. -l'
+    echo 'example: libify.sh ~/Arduino/libraries/OpenMRNLite .. -l'
     echo '(options must come after the path specification)'
     echo '-f will erase the target library before exporting.'
     echo '-l will create symlinks instead of copying files.'
     echo '-i will create OpenMRNIDF repository instead of arduino.'
+    echo '-r will create relative symlinks. OPenMRNPath has to be a relative path from the library export directoty back to openmrn, starting with ../'
     exit 1
 }
 
@@ -39,6 +40,7 @@ fi
 
 TARGET_LIB_DIR=$($REALPATH $1 2>/dev/null)
 OPENMRNPATH=$($REALPATH $2 2>/dev/null)
+ORIGOMRNPATH="${2}"
 
 if [[ -z ${TARGET_LIB_DIR} ]]; then
   if [[ $1 ]]; then
@@ -79,16 +81,52 @@ while [ "x$1" != "x" ] ; do
         -v)
             VERBOSE=1
             ;;
+        -r)
+            USE_LINK=-s
+            export RELATIVE=1
+            OPENMRNPATH="${ORIGOMRNPATH}"
+            ;;
     esac
     shift
 done
+
+# Creates a relative path to the toplevel of the directory.
+# $1 is a directory path without trailing /, such as
+# 'src/freertos_drivers/esp32"
+# prints to stdout a relative path like "../../.." to get back to the toplevel
+# from the given subdiretory.
+function get_relative() {
+    if [ "x${RELATIVE}" == "x" ]; then
+       # print nothing
+       return
+    fi      
+    if [ "x${1}" == "x." ] ; then
+       echo "./"
+       return
+    fi
+    SUB="$(echo $1 | sed s/[^/]//g)"
+    case ${SUB} in
+        "")
+            echo "../"
+            ;;
+        "/")
+            echo "../../"
+            ;;
+        "//")
+            echo "../../../"
+            ;;
+        *)
+            echo UNKNOWN SUBTREE "'"${SUB}"'"
+    esac
+}
 
 # Arguments:
 # $1 is the relative path in the library directory
 # $2... is the relative path in openmrn tree with the filename
 # Will create necessary directories internally.
 function copy_file() {
-    REL_DIR=$1
+    REL_DIR="$1"
+    INVERSE_DIR="$(get_relative $1)"
     shift
     if [ "x$VERBOSE" != "x" ]; then
         echo "Creating ${TARGET_LIB_DIR}/${REL_DIR}"
@@ -97,13 +135,13 @@ function copy_file() {
     pushd ${TARGET_LIB_DIR}/${REL_DIR} >/dev/null
     while [ "x$1" != "x" ] ; do
         if [ "x$VERBOSE" != "x" ]; then
-            echo "${OPENMRNPATH}/${1} ==> ${TARGET_LIB_DIR}/${REL_DIR}"
+            echo "${INVERSE_DIR}${OPENMRNPATH}/${1} ==> ${TARGET_LIB_DIR}/${REL_DIR}"
         fi
 
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            cp -fa ${USE_LINK} ${OPENMRNPATH}/${1} .
+            cp -fa ${USE_LINK} ${INVERSE_DIR}${OPENMRNPATH}/${1} .
         else
-            cp -fax ${USE_LINK} ${OPENMRNPATH}/${1} .
+            cp -fax ${USE_LINK} ${INVERSE_DIR}${OPENMRNPATH}/${1} .
         fi
 
         shift
@@ -123,13 +161,13 @@ function copy_dir() {
     pushd ${TARGET_LIB_DIR}/$1 >/dev/null
     
     if [ "x$VERBOSE" != "x" ]; then
-        echo "${OPENMRNPATH}/${2} ==> ${TARGET_LIB_DIR}/$1"
+        echo "${INVERSE_DIR}${OPENMRNPATH}/${2} ==> ${TARGET_LIB_DIR}/$1"
     fi
 
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        cp -fa ${USE_LINK} ${OPENMRNPATH}/$2 .
+        cp -fa ${USE_LINK} ${INVERSE_DIR}${OPENMRNPATH}/$2 .
     else
-        cp -faxr ${USE_LINK} ${OPENMRNPATH}/$2 .
+        cp -faxr ${USE_LINK} ${INVERSE_DIR}${OPENMRNPATH}/$2 .
     fi
 
     popd >/dev/null
