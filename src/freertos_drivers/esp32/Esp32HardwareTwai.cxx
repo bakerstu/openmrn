@@ -795,7 +795,7 @@ static void twai_isr(void *arg)
     {
         twai.stats.arb_loss++;
         ESP_EARLY_LOGV(TWAI_LOG_TAG, "arb-lost:%" PRIu32,
-                       twai.stats.arb_error);
+                       twai.stats.arb_loss);
     }
 
     if (wakeup == pdTRUE)
