@@ -142,7 +142,7 @@ TEST(FullCdi, SegmentOffset)
     EXPECT_TRUE(def.group_opts().is_cdi());
     EXPECT_EQ(-2, def.group_opts().segment());
 
-    EXPECT_EQ(INT_MAX, def.ident().group_opts().offset());
+    EXPECT_EQ(0, def.ident().group_opts().offset());
     EXPECT_EQ(0u, def.ident().group_opts().get_segment_offset());
     EXPECT_EQ(0u, def.ident().offset());
     EXPECT_EQ(1000, def.ident().group_opts().segment());
@@ -156,6 +156,7 @@ TEST(FullCdi, SegmentOffset)
     EXPECT_EQ(128u, def.seg().offset());
 
     EXPECT_EQ(128u, def.seg().first().offset());
+    EXPECT_EQ(0, def.seg2().group_opts().offset());
     EXPECT_EQ(0u, def.seg2().first().offset());
 
     EXPECT_EQ(142u, def.seg3().first().offset());
