@@ -50,10 +50,11 @@ enum class TrainAddressType : uint8_t
     DCC_LONG_ADDRESS,
     /// Marklin-motorola packets. Addresses 1..80 are supported.
     MM,
-    /// Per-output addressing of DCC basic accessories. (user facing is 1 to
-    /// 2047, internal is 0 to 2047)
+    /// Per-output addressing of DCC basic accessories (user facing is 1 to
+    /// 2048, internal is 0 to 2047)
     DCC_ACCY_BASIC_OUTPUT,
-    /// DCC 11-bit extended accessory decoder address (1 to 2047).
+    /// DCC 11-bit extended accessory decoder address (user facing is 1 to
+    /// 2048, internal is 0 to 2047).
     DCC_ACCY_EXT,
     /// Unsupported address type (e.g. a protocol we don't have an
     /// implementation for).

@@ -345,7 +345,7 @@ TEST(DefsTest, AccyAddress)
             Defs::accy_address_binary_to_user(
                 Defs::accy_address_user_to_binary(user)));
     }
-    for (unsigned binary = 0; binary < 2048; ++binary)
+    for (unsigned binary = 0; binary <= 2047; ++binary)
     {
         SCOPED_TRACE(binary);
         // Inversion should be OK.
