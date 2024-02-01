@@ -116,6 +116,13 @@ struct Packet : public DCCPacket
     /// Adds the header to the packet needed for addressing a DCC
     /// locomotive. @param address is the DCC (long) address.
     void add_dcc_address(DccLongAddress address);
+    /// Adds the header to the packet needed for addressing a DCC
+    /// accessory (e.g. for POM).
+    /// @param is_basic true for basic accessory, false for extended accessory
+    /// @param address the 11-bit accessory address, 0..2047. This is NOT the
+    /// user-visible address (that one is rotated by 3). For basic accessories
+    /// this is addressing an output number.
+    void add_dcc_accy_address(bool is_basic, unsigned address);
 
     /** Adds a speed-and-direction command (dcc baseline command) ot the
      * packet. Speed is maximum 14. This should be called after
@@ -298,6 +305,12 @@ struct Packet : public DCCPacket
      */
     void add_dcc_basic_accessory(unsigned address, bool is_activate);
 
+    /// Call this function after setting a basic accy address to set the
+    /// accessory packet options.
+    /// @param is_normal true for normal, false for reverse
+    /// @param is_activate true for activate, false for deactivate
+    void set_dcc_basic_accy_params(bool is_normal, bool is_activate);
+    
     /// Sets the packet to a logon enable packet.
     /// @param param defines which decoders should be requested to logon.
     /// @param cid the command station unique ID hashed.
