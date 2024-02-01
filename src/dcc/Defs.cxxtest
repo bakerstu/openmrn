@@ -1,0 +1,9 @@
+#include "dcc/Defs.hxx"
+
+#include "utils/test_main.hxx"
+
+
+
+TEST(DccDefs, address_partition_14) {
+// TODO.
+}
