@@ -406,7 +406,11 @@ public:
         GroupConfigOptions opts(args..., Body::group_opts());
         if (opts.hidden())
         {
-            EmptyGroupConfigRenderer(Body::size() * replication_).render_cdi(s);
+            if (!opts.is_segment())
+            {
+                EmptyGroupConfigRenderer(Body::size() * replication_)
+                    .render_cdi(s);
+            }
             return;
         }
         const char *tag = nullptr;
