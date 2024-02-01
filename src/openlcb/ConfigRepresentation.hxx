@@ -197,7 +197,8 @@ public:
             "May only have segments inside CDI.");                             \
         return TYPE(group_opts().is_cdi()                                      \
                 ? TYPE(0).group_opts(__VA_ARGS__).get_segment_offset()         \
-                : entry(openlcb::EntryMarker<LINE - 1>()).end_offset());       \
+                : entry(openlcb::EntryMarker<LINE - 1>()).end_offset() +       \
+                    NAME##_options().offset());                                \
     }                                                                          \
     constexpr TYPE NAME() const                                                \
     {                                                                          \
