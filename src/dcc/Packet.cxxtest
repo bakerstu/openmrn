@@ -335,6 +335,45 @@ TEST_F(PacketTest, DccBasicAccyOn)
     EXPECT_THAT(get_packet(), ElementsAre(b1, b2, b1 ^ b2));
 }
 
+TEST(DefsTest, AccyAddress)
+{
+    for (unsigned user = 1; user <= 2048; ++user)
+    {
+        SCOPED_TRACE(user);
+        // Inversion should be OK.
+        EXPECT_EQ(user,
+            Defs::accy_address_binary_to_user(
+                Defs::accy_address_user_to_binary(user)));
+    }
+    for (unsigned binary = 0; binary <= 2047; ++binary)
+    {
+        SCOPED_TRACE(binary);
+        // Inversion should be OK.
+        EXPECT_EQ(binary,
+            Defs::accy_address_user_to_binary(
+                Defs::accy_address_binary_to_user(binary)));
+    }
+    // First address is 4.
+    EXPECT_EQ(4u, Defs::accy_address_user_to_binary(1));
+    // This address gets translated to the former broadcast address.
+    EXPECT_EQ(2047u, Defs::accy_address_user_to_binary(2044));
+    // Rollover at 2045
+    EXPECT_EQ(0u, Defs::accy_address_user_to_binary(2045));
+    // Highest address is 2048
+    EXPECT_EQ(3u, Defs::accy_address_user_to_binary(2048));
+}
+
+TEST_F(PacketTest, DccBasicAccyPom)
+{
+    pkt_.add_dcc_accy_address(true, Defs::accy_address_user_to_binary(3));
+    pkt_.set_dcc_basic_accy_params(false, true);
+    pkt_.add_dcc_pom_write1(11, 6);
+    EXPECT_THAT(get_packet(),
+        ElementsAre(0b10000001, 0b11111100, 0b11101100, 0b00001011, 0b00000110,
+            0b10011100));
+}
+
+
 TEST_F(PacketTest, SvcProgDirectByte)
 {
     pkt_.set_dcc_svc_verify_byte(651, 0x55);
@@ -929,6 +968,5 @@ TEST_F(Train128Test, MaxSpeed)
     do_callback();
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b00111111, 0x7F, _));
 }
-
 
 } // namespace dcc
