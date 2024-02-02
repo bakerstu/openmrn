@@ -38,5 +38,6 @@
 
 std::string Stats::debug_string()
 {
-    return StringPrintf("%.1f msec +- %.1f\n", favg() / 1000, stddev() / 1000);
+    return StringPrintf("%.1f msec +- %.1f, max %.1f\n", favg() / 1000,
+        stddev() / 1000, ((FloatType)max_) / 1000);
 }
