@@ -32,71 +32,11 @@
  * @date 28 Dec 2023
  */
 
-#ifndef _UTILS_STATS_HXX_
-#define _UTILS_STATS_HXX_
+#include "utils/Stats.hxx"
 
-#include <math.h>
-#include <stdint.h>
-#include <string>
+#include "utils/StringPrintf.hxx"
 
-class Stats
+std::string Stats::debug_string()
 {
-public:
-    using FloatType = double;
-
-    Stats()
-    {
-        clear();
-    }
-
-    // Clear the statistics (erase all data points).
-    void clear()
-    {
-        sum_ = 0;
-        count_ = 0;
-        qsum_ = 0;
-    }
-
-    /// Appends a data point to the statistics.
-    /// @param value the data point.
-    void add(int32_t value)
-    {
-        ++count_;
-        sum_ += value;
-        FloatType fval = value;
-        qsum_ += fval * fval;
-    }
-
-    /// @return the average
-    FloatType favg()
-    {
-        return FloatType(sum_) / count_;
-    }
-
-    /// @return the average (rounded down to nearest integer).
-    int32_t avg()
-    {
-        return sum_ / count_;
-    }
-
-    /// @return the sample standard deviation (uncorrected).
-    FloatType stddev()
-    {
-        // Formula: sqrt(N*qsum - sum^2) / N
-        FloatType sum(sum_);
-        return sqrt(qsum_ * count_ - sum * sum) / count_;
-    }
-
-    /// Creates a half-a-line prinout of this stats object for debug purposes.
-    std::string debug_string();
-    
-private:
-    /// Number of samples added.
-    uint32_t count_;
-    /// Sum of sample values added.
-    int64_t sum_;
-    /// Sum of squares of sample values added.
-    FloatType qsum_;
-};
-
-#endif // _UTILS_STATS_HXX_
+    return StringPrintf("%.1f msec +- %.1f\n", favg() / 1000, stddev() / 1000);
+}
