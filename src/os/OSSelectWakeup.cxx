@@ -240,7 +240,6 @@ void OSSelectWakeup::esp_wakeup()
 /// call from within an ISR context.
 void OSSelectWakeup::esp_wakeup_from_isr()
 {
-    AtomicHolder h(this);
     BaseType_t woken = pdFALSE;
 
     // If our VFS FD is not set in the except fd_set we can exit early.
