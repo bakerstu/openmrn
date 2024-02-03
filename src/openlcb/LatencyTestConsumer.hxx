@@ -37,12 +37,18 @@
 
 #include "openlcb/EventHandlerTemplates.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
-class LatencyTestConsumer : public SimpleEventHandler {
+class LatencyTestConsumer : public SimpleEventHandler
+{
 public:
-    LatencyTestConsumer(Node *node)
+    /// To complete the hook, call the notifiable.
+    using HookFn = std::function<void(Notifiable *)>;
+
+    LatencyTestConsumer(Node *node, HookFn hook = nullptr)
         : node_(node)
+        , hook_(hook)
     {
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(this, EVENT_BASE), 32);
@@ -61,29 +67,49 @@ public:
             eventid_to_buffer(EncodeRange(EVENT_BASE, 0xffffffff)),
             done->new_child());
     }
-    
+
     void handle_identify_consumer(const EventRegistryEntry &entry,
         EventReport *event, BarrierNotifiable *done) override
     {
-        AutoNotify an(done);
-        event->event_write_helper<1>()->WriteAsync(node_,
-            Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN, WriteHelper::global(),
-            eventid_to_buffer(event->event), done->new_child());
+        event_ = event;
+        done_ = done;
+        if (hook_)
+        {
+            hook_(new TempNotifiable([this]() { reply(); }));
+        }
+        else
+        {
+            reply();
+        }
     }
 
 private:
+    void reply()
+    {
+        AutoNotify an(done_);
+        event_->event_write_helper<1>()->WriteAsync(node_,
+            Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN, WriteHelper::global(),
+            eventid_to_buffer(event_->event), done_->new_child());
+    }
+
     /// This is within NMRA ID 1, which is not assigned. Lower four bytes are
     /// the id.
     static constexpr EventId EVENT_BASE = 0x0900013900000000;
 
     /// Which node should be sending responses.
-    Node* node_;
+    Node *node_;
+
+    /// The owner's hook will be invoked and run (asynchronous) before
+    /// replying..
+    HookFn hook_;
+
+    /// Incoming event report we are working on.
+    EventReport *event_;
+
+    /// Will notify this after sending the reply.
+    BarrierNotifiable *done_ {nullptr};
 };
-
-
 
 } // namespace openlcb
 
-
 #endif // _OPENLCB_LATENCYTESTCONSUMER_HXX_
-
