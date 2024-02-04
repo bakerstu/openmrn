@@ -1,0 +1,392 @@
+#include "utils/DataBuffer.hxx"
+
+#include "utils/test_main.hxx"
+
+DataBufferPool g_pool(64);
+
+class DataBufferTest : public ::testing::Test
+{
+protected:
+    DataBufferTest()
+    {
+        g_pool.alloc(&b_);
+        lastFree_ = g_pool.free_items();
+    }
+
+    /// Adds an expectation that exactly count item has been freed.
+    void expect_freed(unsigned count = 1)
+    {
+        EXPECT_EQ(lastFree_ + count, g_pool.free_items());
+    }
+
+    std::string flatten(const LinkedDataBufferPtr &p)
+    {
+        std::string ret;
+        p.append_to(&ret);
+        return ret;
+    }
+
+    DataBuffer *b_;
+    unsigned lastFree_;
+
+    BarrierNotifiable bn_;
+    BarrierNotifiable bn2_;
+    LinkedDataBufferPtr lnk_;
+};
+
+TEST_F(DataBufferTest, alloc_free)
+{
+    EXPECT_EQ(64u, b_->size());
+    b_->unref();
+    expect_freed();
+}
+
+TEST_F(DataBufferTest, alloc_resize_free)
+{
+    EXPECT_EQ(64u, b_->size());
+    b_->set_size(3);
+    b_->unref();
+    expect_freed();
+}
+
+TEST_F(DataBufferTest, BufferPtr_free)
+{
+    b_->set_size(2);
+    {
+        auto r = get_buffer_deleter(b_);
+    }
+    expect_freed();
+    DataBuffer *bb;
+    g_pool.alloc(&bb);
+    EXPECT_EQ(bb, b_);
+}
+
+TEST_F(DataBufferTest, data_content)
+{
+    memcpy(b_->data(), "abcd", 4);
+    b_->set_size(4);
+    EXPECT_EQ('b', b_->data()[1]);
+
+    uint8_t *p;
+    unsigned avail;
+    b_->get_read_pointer(2, &p, &avail);
+    EXPECT_EQ('c', *p);
+    EXPECT_EQ(2u, avail);
+}
+
+TEST_F(DataBufferTest, ref_single)
+{
+    EXPECT_EQ(b_, b_->ref_all(13));
+    EXPECT_EQ(2u, b_->references());
+    expect_freed(0);
+    {
+        auto r = get_buffer_deleter(b_);
+    }
+    EXPECT_EQ(1u, b_->references());
+    expect_freed(0);
+    b_->unref();
+    expect_freed(1);
+}
+
+TEST_F(DataBufferTest, ref_unref_linked)
+{
+    DataBuffer *c;
+    g_pool.alloc(&c);
+    b_->set_next(c);
+    b_->set_size(4);
+    memcpy(b_->data(), "abcd", 4);
+    memcpy(c->data(), "efghij", 6);
+    c->set_size(6);
+
+    EXPECT_EQ(1u, b_->references());
+    EXPECT_EQ(1u, c->references());
+
+    b_->ref_all(8);
+    EXPECT_EQ(2u, b_->references());
+    EXPECT_EQ(2u, c->references());
+
+    expect_freed(0);
+    {
+        auto r = get_buffer_deleter(b_);
+    }
+    expect_freed(0);
+    EXPECT_EQ(1u, b_->references());
+    EXPECT_EQ(2u, c->references());
+
+    b_->unref_all(8);
+    expect_freed(1);
+    EXPECT_EQ(1u, c->references());
+
+    c->unref_all(3);
+    expect_freed(2);
+}
+
+TEST_F(DataBufferTest, readptr_linked)
+{
+    DataBuffer *c;
+    g_pool.alloc(&c);
+    b_->set_next(c);
+    b_->set_size(4);
+    memcpy(b_->data(), "abcd", 4);
+    memcpy(c->data(), "efghij", 6);
+    c->set_size(6);
+
+    uint8_t *p;
+    unsigned avail;
+    b_->get_read_pointer(6, &p, &avail);
+    EXPECT_EQ('g', *p);
+    EXPECT_EQ(4u, avail);
+}
+
+TEST_F(DataBufferTest, lnkbuf)
+{
+    // Initial state
+    EXPECT_EQ(64u, b_->size());
+    EXPECT_EQ(0u, lnk_.free());
+
+    b_->set_done(bn_.reset(EmptyNotifiable::DefaultInstance()));
+
+    // Adding some place to write to
+    lnk_.append_empty_buffer(b_);
+    EXPECT_EQ(64u, lnk_.free());
+    EXPECT_EQ(0u, lnk_.size());
+    EXPECT_EQ(0u, lnk_.head()->size());
+
+    EXPECT_EQ(lnk_.data_write_pointer(), b_->data());
+
+    // Adds some data.
+    memcpy(lnk_.data_write_pointer(), "abcd", 4);
+    lnk_.data_write_advance(4);
+
+    EXPECT_EQ(4u, lnk_.size());
+    EXPECT_EQ(4u, lnk_.head()->size());
+
+    // Appends some data.
+    memcpy(lnk_.data_write_pointer(), "efg", 3);
+    lnk_.data_write_advance(3);
+
+    EXPECT_EQ(7u, lnk_.size());
+    EXPECT_EQ(7u, lnk_.head()->size());
+    EXPECT_EQ(64u - 7, lnk_.free());
+
+    // Test flatten.
+    string flat = "X";
+    lnk_.append_to(&flat);
+    EXPECT_EQ("Xabcdefg", flat);
+
+    // Export head.
+    LinkedDataBufferPtr exp1 = lnk_.transfer_head(5);
+    EXPECT_EQ(5u, exp1.size());
+    EXPECT_EQ(0u, exp1.free());
+    EXPECT_EQ(64u - 7, lnk_.free());
+    EXPECT_EQ(2u, lnk_.size()); // now shorter
+    EXPECT_EQ(5u, lnk_.skip());
+    // The head buffer still has all those bytes.
+    EXPECT_EQ(7u, lnk_.head()->size());
+
+    // Test flatten both cases.
+    flat = "Y";
+    lnk_.append_to(&flat);
+    EXPECT_EQ("Yfg", flat);
+
+    flat = "Z";
+    exp1.append_to(&flat);
+    EXPECT_EQ("Zabcde", flat);
+
+    // Move constructor test
+    LinkedDataBufferPtr exp2 = std::move(exp1);
+    EXPECT_EQ(0u, exp1.size());
+    flat = "W";
+    exp1.append_to(&flat);
+    EXPECT_EQ("W", flat);
+    flat = "P";
+    exp2.append_to(&flat);
+    EXPECT_EQ("Pabcde", flat);
+
+    // Copy test
+    exp1.reset(exp2);
+    flat = "W";
+    exp1.append_to(&flat);
+    EXPECT_EQ("Wabcde", flat);
+    flat = "P";
+    exp2.append_to(&flat);
+    EXPECT_EQ("Pabcde", flat);
+
+    // Release: all three need to be reset for the buffer to be released.
+    expect_freed(0);
+    lnk_.reset();
+    expect_freed(0);
+    exp1.reset();
+    expect_freed(0);
+    EXPECT_FALSE(bn_.is_done());
+    exp2.reset();
+    expect_freed(1);
+    EXPECT_TRUE(bn_.is_done());
+}
+
+TEST_F(DataBufferTest, lnk_multi)
+{
+    b_->set_done(bn_.reset(EmptyNotifiable::DefaultInstance()));
+    // Adding two buffers with bytes on the tail.
+    lnk_.append_empty_buffer(b_);
+    EXPECT_EQ(64u, lnk_.free());
+    memcpy(lnk_.data_write_pointer(), "abcd", 4);
+    lnk_.data_write_advance(4);
+    EXPECT_EQ(60u, lnk_.free());
+
+    g_pool.alloc(&b_);
+    b_->set_done(bn2_.reset(EmptyNotifiable::DefaultInstance()));
+    lnk_.append_empty_buffer(b_);
+    EXPECT_EQ(64u, lnk_.free());
+
+    memcpy(lnk_.data_write_pointer(), "efg", 3);
+    lnk_.data_write_advance(3);
+    EXPECT_EQ(61u, lnk_.free());
+
+    // Test flatten.
+    string flat = "X";
+    lnk_.append_to(&flat);
+    EXPECT_EQ("Xabcdefg", flat);
+    EXPECT_EQ(7u, lnk_.size());
+
+    auto *saved_ptr = lnk_.data_write_pointer();
+    auto saved_free = lnk_.free();
+
+    // Export head and backfill on tail.
+    LinkedDataBufferPtr exp1 = lnk_.transfer_head(5);
+
+    // After transfer_head the write pointer must be the same and the free
+    // bytes must be the same.
+    EXPECT_EQ(saved_ptr, lnk_.data_write_pointer());
+    EXPECT_EQ(saved_free, lnk_.free());
+    EXPECT_EQ(0u, exp1.free()); // No free in the transfer.
+
+    memcpy(lnk_.data_write_pointer(), "hijk", 4);
+    lnk_.data_write_advance(4);
+    EXPECT_EQ(57u, lnk_.free());
+
+    // Test flattens.
+    flat = "Y";
+    lnk_.append_to(&flat);
+    EXPECT_EQ("Yfghijk", flat);
+    EXPECT_EQ(6u, lnk_.size());
+
+    flat = "Z";
+    exp1.append_to(&flat);
+    EXPECT_EQ("Zabcde", flat);
+    EXPECT_EQ(5u, exp1.size());
+
+    EXPECT_EQ(1u, lnk_.skip());
+    EXPECT_EQ(b_, lnk_.head());
+
+    // Export more and test flattens.
+    LinkedDataBufferPtr exp2 = lnk_.transfer_head(2);
+
+    EXPECT_EQ(b_, lnk_.head());
+    EXPECT_EQ(3u, lnk_.skip());
+
+    flat = "W";
+    lnk_.append_to(&flat);
+    EXPECT_EQ("Whijk", flat);
+    EXPECT_EQ(4u, lnk_.size());
+
+    flat = "U";
+    exp2.append_to(&flat);
+    EXPECT_EQ("Ufg", flat);
+    EXPECT_EQ(2u, exp2.size());
+
+    // Test copy and move operations.
+    LinkedDataBufferPtr exp1b;
+    exp1b.reset(exp1);
+
+    exp1 = std::move(exp2);
+
+    // Test appends.
+    EXPECT_TRUE(exp1b.try_append_from(exp1));
+    EXPECT_EQ("abcdefg", flatten(exp1b));
+    EXPECT_EQ(7u, exp1b.size());
+
+    exp2.reset(exp1b);
+
+    EXPECT_EQ("abcdefg", flatten(exp2));
+    EXPECT_EQ(7u, exp2.size());
+
+    EXPECT_TRUE(exp2.try_append_from(lnk_.transfer_head(4)));
+
+    EXPECT_EQ("abcdefghijk", flatten(exp2));
+    EXPECT_EQ(11u, exp2.size());
+
+    // Test data_read_advance.
+    exp2.data_read_advance(2);
+    EXPECT_EQ("cdefghijk", flatten(exp2));
+    EXPECT_EQ(9u, exp2.size());
+    EXPECT_EQ(2u, exp2.skip());
+
+    // Now the following keep refs to the head buffer:
+    // lnk_ no; exp1 no; exp1b yes; exp2 yes.
+
+    exp2.data_read_advance(2);
+    EXPECT_EQ("efghijk", flatten(exp2));
+    EXPECT_EQ(7u, exp2.size());
+    EXPECT_EQ(0u, exp2.skip());
+
+    EXPECT_FALSE(bn_.is_done());
+    exp1b.data_read_advance(5);
+    EXPECT_TRUE(bn_.is_done());
+    EXPECT_EQ("fg", flatten(exp1b));
+
+    EXPECT_EQ(0u, lnk_.size());
+
+    // Create a chain of packets.
+    BarrierNotifiable bn3_;
+    g_pool.alloc(&b_);
+    b_->set_done(bn3_.reset(EmptyNotifiable::DefaultInstance()));
+    lnk_.append_empty_buffer(b_);
+    memcpy(lnk_.data_write_pointer(), "l", 1);
+    lnk_.data_write_advance(1);
+
+    BarrierNotifiable bn4_;
+    g_pool.alloc(&b_);
+    b_->set_done(bn4_.reset(EmptyNotifiable::DefaultInstance()));
+    lnk_.append_empty_buffer(b_);
+    memcpy(lnk_.data_write_pointer(), "m", 1);
+    lnk_.data_write_advance(1);
+
+    BarrierNotifiable bn5_;
+    g_pool.alloc(&b_);
+    b_->set_done(bn5_.reset(EmptyNotifiable::DefaultInstance()));
+    lnk_.append_empty_buffer(b_);
+    memcpy(lnk_.data_write_pointer(), "n", 1);
+    lnk_.data_write_advance(1);
+
+    BarrierNotifiable bn6_;
+    g_pool.alloc(&b_);
+    b_->set_done(bn6_.reset(EmptyNotifiable::DefaultInstance()));
+    lnk_.append_empty_buffer(b_);
+    memcpy(lnk_.data_write_pointer(), "opq", 3);
+    lnk_.data_write_advance(3);
+
+    LinkedDataBufferPtr exp3 = lnk_.transfer_head(5);
+
+    EXPECT_FALSE(exp1b.try_append_from(exp3));
+    EXPECT_TRUE(exp2.try_append_from(exp3));
+    EXPECT_EQ("efghijklmnop", flatten(exp2));
+
+    EXPECT_EQ("fg", flatten(exp1));
+
+    EXPECT_FALSE(bn2_.is_done());
+    exp2.data_read_advance(7);
+    EXPECT_FALSE(bn2_.is_done());
+    exp1b.reset();
+    EXPECT_FALSE(bn2_.is_done());
+    exp1.reset();
+    EXPECT_FALSE(bn2_.is_done());
+    exp3.reset();
+    EXPECT_TRUE(bn2_.is_done());
+    EXPECT_EQ("lmnop", flatten(exp2));
+
+    exp2.reset();
+    lnk_.reset();
+    // The barriers will verify upon destruction time that they were correctly
+    // notified.
+}

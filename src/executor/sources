@@ -3,6 +3,7 @@ VPATH := $(SRCDIR)
 CSRCS += 
 
 CXXSRCS += \
+        AsyncNotifiableBlock.cxx \
         Executor.cxx \
         Notifiable.cxx \
         Service.cxx \

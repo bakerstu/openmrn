@@ -183,6 +183,9 @@ protected:
     /** Allow LimitedPool access to our fields */
     friend class LimitedPool;
 
+    /** Allow DataBufferPool access to our fields */
+    friend class DataBufferPool;
+
     DISALLOW_COPY_AND_ASSIGN(BufferBase);
 };
 
@@ -220,7 +223,6 @@ private:
      */
     Buffer(Pool *pool)
         : BufferBase(sizeof(Buffer<T>), pool)
-        , data_()
     {
     }
 
@@ -234,6 +236,8 @@ private:
 
     /** Allow Pool access to our constructor */
     friend class Pool;
+    /** Allow DataBuffer access to our constructor */
+    friend class DataBuffer;
 
     /** user data */
     T data_;
@@ -377,6 +381,8 @@ private:
     friend class BufferBase;
     /** LimitedPool proxies to a base Pool. */
     friend class LimitedPool;
+    /** DataBufferPool proxies to a base Pool. */
+    friend class DataBufferPool;
 
     /** Allow Buffer to access this class */
     template <class T> friend class Buffer;
@@ -668,7 +674,6 @@ private:
  */
 template <class T> void Buffer<T>::unref()
 {
-    HASSERT(sizeof(Buffer<T>) <= size_);
     if (count_.fetch_sub(1) == 1u)
     {
         this->~Buffer();

@@ -95,7 +95,36 @@
     const int _sym_##name = value;                                             \
     EXTERNCEND
 
-#else  // native C
+#ifdef GTEST
+
+/// Use this macro at the top of a .cxxtest file to allow overriding constant
+/// values in that test.
+///
+/// @param name the constant name
+/// @param start_value an integer; this value will be used for each test if no
+/// specific value is given. It is ideal if this matches what is as
+/// DEFAULT_CONST in constants.cxx, but there is no mechanism to keep them in
+/// sync.
+#define TEST_CONST(name, start_value)                                          \
+    EXTERNC extern const int _sym_##name;                                      \
+    const int __attribute__((section(".data"))) _sym_##name = start_value;     \
+    EXTERNCEND                                                                 \
+    int *config##name##override()                                              \
+    {                                                                          \
+        return (int *)&_sym_##name;                                            \
+    }
+
+/// Call this macro at the beginning of a test function, or inside a test
+/// fixture class to set the constant's value for that test.
+/// @param name the name of the constant
+/// @param new_value an integer, the constant will be overridden to this value
+/// during the given scope.
+#define TEST_OVERRIDE_CONST(name, new_value)                                   \
+    ScopedOverride ov##name{config##name##override(), new_value}
+
+#endif // GTEST
+
+#else // not simple const, but rather use direct asm / linking statements
 
 #define DECLARE_CONST(name)                                                    \
     EXTERNC extern char _sym_##name;                                           \
