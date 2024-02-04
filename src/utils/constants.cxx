@@ -159,7 +159,7 @@ DEFAULT_CONST(gridconnect_tcp_notsent_lowat_buffer_size, 1);
 
 DEFAULT_CONST_FALSE(gridconnect_tcp_use_select);
 
-#ifdef ESP32
+#ifdef ESP_PLATFORM
 /// Use a stack size of 3kb for SocketListener tasks.
 DEFAULT_CONST(socket_listener_stack_size, 3072);
 /// Allow one socket to be pending for accept() in SocketListener.
@@ -169,4 +169,4 @@ DEFAULT_CONST(socket_listener_backlog, 1);
 DEFAULT_CONST(socket_listener_stack_size, 1000);
 /// Allow up to five sockets to be pending for accept() in SocketListener.
 DEFAULT_CONST(socket_listener_backlog, 5);
-#endif
+#endif // ESP_PLATFORM

@@ -48,9 +48,8 @@
 #include "utils/logging.h"
 #include "utils/Uninitialized.hxx"
 
-#if defined(ESP32)
+#if defined(ESP_PLATFORM)
 
-#include <esp_idf_version.h>
 #include <esp_task.h>
 #include <esp_task_wdt.h>
 
@@ -69,8 +68,6 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #include "freertos_drivers/esp32/Esp32Gpio.hxx"
 #include "freertos_drivers/esp32/Esp32SocInfo.hxx"
-
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 
 // If we are using ESP-IDF v4.3 (or later) enable the Esp32Ledc API.
 #include "freertos_drivers/esp32/Esp32Ledc.hxx"
@@ -91,15 +88,6 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 #endif
 
 #endif // NOT ESP32-H2 and NOT ESP32-C2
-
-#endif // IDF v4.3+
-
-#if defined(CONFIG_IDF_TARGET_ESP32)
-// Note: This code is deprecated in favor of the TWAI interface which exposes
-// both select() and fnctl() interfaces. Support for this may be removed in the
-// future.
-#include "freertos_drivers/esp32/Esp32HardwareCanAdapter.hxx"
-#endif // ESP32 only
 
 #include "freertos_drivers/esp32/Esp32HardwareSerialAdapter.hxx"
 #include "freertos_drivers/esp32/Esp32WiFiManager.hxx"

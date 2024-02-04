@@ -40,11 +40,6 @@
 #define _FREERTOS_DRIVERS_ESP32_ESP32BOOTLOADERHAL_HXX_
 
 #include "sdkconfig.h"
-#include <esp_idf_version.h>
-
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
-#error ESP32 Bootloader is only supported with ESP-IDF v4.3+
-#endif // IDF v4.3+
 
 #ifndef BOOTLOADER_LOG_LEVEL
 #define BOOTLOADER_LOG_LEVEL VERBOSE
@@ -56,13 +51,13 @@
 
 // Enable streaming support for the bootloader
 #define BOOTLOADER_STREAM
-
 #ifndef WRITE_BUFFER_SIZE
-// Set the buffer size to half of the sector size to minimize the flash writes
+// Set the buffer size to half of the sector size to minimize the flash writes.
 #define WRITE_BUFFER_SIZE (CONFIG_WL_SECTOR_SIZE / 2)
 #endif // WRITE_BUFFER_SIZE
 
 #include <driver/twai.h>
+
 #include <esp_app_format.h>
 #include <esp_chip_info.h>
 #include <esp_ota_ops.h>
