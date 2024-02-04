@@ -34,10 +34,12 @@
 
 #include "FdUtils.hxx"
 
+#ifdef __linux__
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/stat.h>
 #include <termios.h> /* tc* functions */
+#endif
 
 #include "nmranet_config.h"
 

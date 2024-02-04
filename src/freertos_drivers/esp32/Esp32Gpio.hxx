@@ -43,7 +43,6 @@
 
 #include <driver/gpio.h>
 #include <esp_rom_gpio.h>
-#include <soc/adc_channel.h>
 
 #include <soc/gpio_struct.h>
 

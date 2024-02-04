@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2021, Mike Dunston
+ * Copyright (c) 2023, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,24 +24,75 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Esp32Ledc.cxx
+ * \file Stats.hxx
  *
- * ESP-IDF LEDC adapter that exposes a PWM interface.
+ * Utility class for collecting statistics.
  *
- * @author Mike Dunston
- * @date 1 June 2021
+ * @author Balazs Racz
+ * @date 28 Dec 2023
  */
 
-// Ensure we only compile this code for the ESP32 family of MCUs.
-#if defined(ESP_PLATFORM)
+#ifndef _UTILS_STATS_HXX_
+#define _UTILS_STATS_HXX_
 
-#include "Esp32Ledc.hxx"
+#include <math.h>
+#include <stdint.h>
 
-namespace openmrn_arduino
+class Stats
 {
+public:
+    using FloatType = double;
 
-pthread_once_t Esp32Ledc::ledcFadeOnce_ = PTHREAD_ONCE_INIT;
+    Stats()
+    {
+        clear();
+    }
 
-} // namespace openmrn_arduino
+    // Clear the statistics (erase all data points).
+    void clear()
+    {
+        sum_ = 0;
+        count_ = 0;
+        qsum_ = 0;
+    }
 
-#endif // ESP_PLATFORM
+    /// Appends a data point to the statistics.
+    /// @param value the data point.
+    void add(int32_t value)
+    {
+        ++count_;
+        sum_ += value;
+        FloatType fval = value;
+        qsum_ += fval * fval;
+    }
+
+    /// @return the average
+    FloatType favg()
+    {
+        return FloatType(sum_) / count_;
+    }
+
+    /// @return the average (rounded down to nearest integer).
+    int32_t avg()
+    {
+        return sum_ / count_;
+    }
+
+    /// @return the sample standard deviation (uncorrected).
+    FloatType stddev()
+    {
+        // Formula: sqrt(N*qsum - sum^2) / N
+        FloatType sum(sum_);
+        return sqrt(qsum_ * count_ - sum * sum) / count_;
+    }
+
+private:
+    /// Number of samples added.
+    uint32_t count_;
+    /// Sum of sample values added.
+    int64_t sum_;
+    /// Sum of squares of sample values added.
+    FloatType qsum_;
+};
+
+#endif // _UTILS_STATS_HXX_

@@ -35,8 +35,7 @@
  * @date 1 May 2021
  */
 
-// Ensure we only compile this code for the ESP32 family of MCUs and that the
-// ESP-IDF version is supported for this code.
+// Ensure we only compile this code for the ESP32 family of MCUs.
 #if defined(ESP_PLATFORM)
 
 #include "sdkconfig.h"
@@ -714,7 +713,7 @@ static void twai_isr(void *arg)
 {
     BaseType_t wakeup = pdFALSE;
     uint32_t events = twai_hal_get_events(&twai.context);
-    ESP_EARLY_LOGV(TWAI_LOG_TAG, "events: %04x", events);
+    ESP_EARLY_LOGV(TWAI_LOG_TAG, "events: %04" PRIx32, events);
 
 #if defined(CONFIG_TWAI_ERRATA_FIX_RX_FRAME_INVALID) || \
     defined(CONFIG_TWAI_ERRATA_FIX_RX_FIFO_CORRUPT)
