@@ -351,5 +351,26 @@ TEST(CdiRender, RenderIdent)
     EXPECT_EQ(34u, cfg.testseg().e2().offset());
 }
 
+
+CDI_GROUP(TestCdi3, MainCdi());
+CDI_GROUP_ENTRY(acdi, Acdi);
+CDI_GROUP_ENTRY(testseg, OtherSegment, Hidden(true));
+CDI_GROUP_END();
+
+TEST(CdiRender, NoRenderHiddenSegment)
+{
+    string s;
+    TestCdi3 cfg(0);
+    cfg.config_renderer().render_cdi(&s);
+    const char kExpectedTestNodeCdi[] = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" R"data(
+<cdi xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openlcb.org/schema/cdi/1/1/cdi.xsd">
+<acdi/>
+</cdi>
+)data";
+    EXPECT_EQ(kExpectedTestNodeCdi, s);
+    EXPECT_EQ(34u, cfg.testseg().e2().offset());
+}
+
+
 } // namespace
 } // namespace openlcb
