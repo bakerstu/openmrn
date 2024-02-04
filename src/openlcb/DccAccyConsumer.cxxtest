@@ -58,6 +58,11 @@ public:
 class DccAccyTest : public AsyncNodeTest
 {
 protected:
+    DccAccyTest()
+    {
+        wait();
+    }
+
     StrictMock<MockPacketQueue> trackSendQueue_;
     DccAccyConsumer consumer_{node_, &trackSendQueue_};
 };
@@ -71,6 +76,19 @@ TEST_F(DccAccyTest, identify_boot_invalid)
     send_packet_and_expect_response(
         ":X198F4111N0101020000FF01F0;", ":X194C722AN0101020000FF01F0;");
 }
+
+TEST_F(DccAccyTest, global_identify)
+{
+    clear_expect(true);
+    // Consumer range for two 4096 long ranges.
+    expect_packet(":X194A422AN0101020000FF0FFF;");
+    expect_packet(":X194A422AN0101020000FE0FFF;");
+    
+    // identify events addressed.
+    send_packet(":X19968111N022A;");
+    wait();
+}
+
 
 TEST_F(DccAccyTest, identify_throw_identify)
 {
