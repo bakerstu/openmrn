@@ -346,6 +346,14 @@ void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate)
     add_dcc_checksum();
 }
 
+void Packet::add_dcc_ext_accessory(unsigned address, uint8_t aspect)
+{
+    add_dcc_accy_address(false, address);
+    payload[dlc++] = aspect;
+    add_dcc_checksum();
+}
+
+
 void Packet::set_dcc_logon_enable(
     Defs::LogonEnableParam param, uint16_t cid, uint8_t session_id)
 {
