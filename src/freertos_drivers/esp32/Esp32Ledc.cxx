@@ -33,7 +33,7 @@
  */
 
 // Ensure we only compile this code for the ESP32 family of MCUs.
-#if defined(ESP32)
+#if defined(ESP_PLATFORM)
 
 #include "Esp32Ledc.hxx"
 

@@ -373,6 +373,21 @@ TEST_F(PacketTest, DccBasicAccyPom)
             0b10011100));
 }
 
+TEST_F(PacketTest, DccExtAccySet)
+{
+    pkt_.add_dcc_ext_accessory(1733, 0x5a);
+    // 1733 = 0x6c5 = 0b 110 1100 0101
+    uint8_t b1 = 0b10110001;
+    uint8_t b2 = 0b00010011;
+    uint8_t b3 = 0x5a;
+    EXPECT_THAT(get_packet(), ElementsAre(b1, b2, b3, b1 ^ b2 ^ b3));
+
+    pkt_.clear();
+    pkt_.add_dcc_ext_accessory(1733, 0x80);
+    b3 = 0x80;
+    EXPECT_THAT(get_packet(), ElementsAre(b1, b2, b3, b1 ^ b2 ^ b3));
+}
+
 
 TEST_F(PacketTest, SvcProgDirectByte)
 {

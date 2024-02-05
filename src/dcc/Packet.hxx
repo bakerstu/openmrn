@@ -310,6 +310,17 @@ struct Packet : public DCCPacket
     /// @param is_normal true for normal, false for reverse
     /// @param is_activate true for activate, false for deactivate
     void set_dcc_basic_accy_params(bool is_normal, bool is_activate);
+
+    /// Adds a DCC extended accessory decoder command packet and the checksum
+    /// byte.
+    /// @param address is the 11-bit binary address, 0..2047. No bits have to be
+    /// inverted. This will be A10..A0 on the track. (To convert from a user
+    /// address, see accy_address_user_to_binary in dcc::Defs.)
+    /// @param aspect is the argument byte to the extended
+    /// accessory. Traditionally this was used as an aspect for a signal
+    /// decoder, but different accessories might have different interpretation
+    /// of it.
+    void add_dcc_ext_accessory(unsigned address, uint8_t aspect);
     
     /// Sets the packet to a logon enable packet.
     /// @param param defines which decoders should be requested to logon.

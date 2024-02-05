@@ -43,7 +43,6 @@
 
 #include <driver/gpio.h>
 #include <esp_rom_gpio.h>
-#include <soc/adc_channel.h>
 
 #include <soc/gpio_struct.h>
 
@@ -553,8 +552,9 @@ template <class Defs> struct GpioInputPUPD : public GpioInputPin<Defs, true, tru
     struct NAME##Defs                                                          \
     {                                                                          \
         static const gpio_num_t PIN_NUM = (gpio_num_t)NUM;                     \
+                                                                               \
     public:                                                                    \
-        static gpio_num_t pin()                                          \
+        static gpio_num_t pin()                                                \
         {                                                                      \
             return PIN_NUM;                                                    \
         }                                                                      \
