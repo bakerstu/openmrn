@@ -176,6 +176,9 @@ function copy_dir() {
 if [ "x$TARGET_IDF" == "x" ]; then
     copy_file . arduino/{library.json,library.properties,keywords.txt,README.md,LICENSE,CONTRIBUTING.md}
     copy_dir . arduino/examples
+else
+    copy_file . arduino/LICENSE arduino/idf/{CMakeLists.txt,README.md}
+    copy_file src arduino/idf/library.properties arduino/keywords.txt
 fi
 
 copy_file src arduino/OpenMRNLite.{h,cpp} arduino/CDIXMLGenerator.hxx \
