@@ -94,7 +94,7 @@ public:
         return sqrt(qsum_ * count_ - sum * sum) / count_;
     }
 
-    /// Creates a half-a-line prinout of this stats object for debug purposes.
+    /// Creates a half-a-line printout of this stats object for debug purposes.
     std::string debug_string();
 
 private:
