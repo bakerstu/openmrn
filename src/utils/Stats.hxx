@@ -37,11 +37,14 @@
 
 #include <math.h>
 #include <stdint.h>
+#include <string>
+#include <limits>
 
 class Stats
 {
 public:
     using FloatType = double;
+    using ValueType = int32_t;
 
     Stats()
     {
@@ -54,16 +57,21 @@ public:
         sum_ = 0;
         count_ = 0;
         qsum_ = 0;
+        max_ = std::numeric_limits<ValueType>::min();
     }
 
     /// Appends a data point to the statistics.
     /// @param value the data point.
-    void add(int32_t value)
+    void add(ValueType value)
     {
         ++count_;
         sum_ += value;
         FloatType fval = value;
         qsum_ += fval * fval;
+        if (value > max_)
+        {
+            max_ = value;
+        }
     }
 
     /// @return the average
@@ -86,9 +94,14 @@ public:
         return sqrt(qsum_ * count_ - sum * sum) / count_;
     }
 
+    /// Creates a half-a-line printout of this stats object for debug purposes.
+    std::string debug_string();
+
 private:
     /// Number of samples added.
     uint32_t count_;
+    /// Maximum value found since the last clear.
+    ValueType max_;
     /// Sum of sample values added.
     int64_t sum_;
     /// Sum of squares of sample values added.

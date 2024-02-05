@@ -414,8 +414,7 @@ public:
         numFrames_ = numUnknownFrames_ = numInOrder_ = numOutOfOrder_ =
             numMissed_ = 0;
 
-        ret += StringPrintf("|RTT %.1f msec +- %.1f\n",
-            rttUsec_.favg()/1000, rttUsec_.stddev() / 1000);
+        ret += StringPrintf("|RTT %s\n", rttUsec_.debug_string().c_str());
 
         rttUsec_.clear();
         return ret;
