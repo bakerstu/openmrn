@@ -74,21 +74,31 @@ protected:
     void handle_identify_global(const EventRegistryEntry &registry_entry,
         EventReport *event, BarrierNotifiable *done) OVERRIDE
     {
+        AutoNotify an(done);
         if (event->dst_node && event->dst_node != node_)
         {
-            return done->notify();
+            return;
         }
-        event->event_write_helper<1>()->WriteAsync(node_,
-            Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
-            eventid_to_buffer(EncodeRange(
-                TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE, 2044)),
-            done->new_child());
-        event->event_write_helper<2>()->WriteAsync(node_,
-            Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
-            eventid_to_buffer(EncodeRange(
-                TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE, 2044)),
-            done->new_child());
-        done->notify();
+        if (registry_entry.event ==
+            TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE)
+        {
+            event->event_write_helper<1>()->WriteAsync(node_,
+                Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
+                eventid_to_buffer(EncodeRange(
+                    TractionDefs::ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
+                    4095)),
+                done->new_child());
+        }
+        if (registry_entry.event ==
+            TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE)
+        {
+            event->event_write_helper<2>()->WriteAsync(node_,
+                Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
+                eventid_to_buffer(EncodeRange(
+                    TractionDefs::INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE,
+                    4095)),
+                done->new_child());
+        }
     }
 
     void handle_event_report(const EventRegistryEntry &registry_entry,
@@ -249,6 +259,150 @@ private:
     /// Track to send DCC packets to.
     dcc::TrackIf *track_;
 };
+
+/// Base (generic protocol) implementation of the DCC extended accessory
+/// consumer. Unlike the basic accessory version, this one does not remember
+/// the last set state.
+class DccExtAccyConsumerBase : public SimpleEventHandler
+{
+protected:
+    /// How may addresses are there for extended accessories.
+    static constexpr unsigned NUM_ADDRESS = 2048;
+    /// How may aspects are supported per accessory.
+    static constexpr unsigned NUM_ASPECT = 256;
+    /// Total number of events we are listening for.
+    static constexpr unsigned NUM_EVENT = NUM_ASPECT * NUM_ADDRESS;
+    
+    /// Constructs a listener for DCC extended accessory control.
+    /// @param node is the virtual node that will be listening for events and
+    /// responding to Identify messages.
+    DccExtAccyConsumerBase(Node *node)
+        : node_(node)
+    {
+        EventRegistry::instance()->register_handler(
+            EventRegistryEntry(
+                this, TractionDefs::EXT_DCC_ACCESSORY_EVENT_BASE),
+            11+8 /*number of bits*/);
+    }
+
+    /// Destructor.
+    ~DccExtAccyConsumerBase()
+    {
+        EventRegistry::instance()->unregister_handler(this);
+    }
+
+    void handle_identify_global(const EventRegistryEntry &registry_entry,
+        EventReport *event, BarrierNotifiable *done) OVERRIDE
+    {
+        AutoNotify an(done);
+        if (event->dst_node && event->dst_node != node_)
+        {
+            return;
+        }
+        event->event_write_helper<1>()->WriteAsync(node_,
+            Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
+            eventid_to_buffer(EncodeRange(
+                TractionDefs::EXT_DCC_ACCESSORY_EVENT_BASE, NUM_EVENT - 1)),
+            done->new_child());
+    }
+
+    void handle_event_report(const EventRegistryEntry &registry_entry,
+        EventReport *event, BarrierNotifiable *done) override
+    {
+        AutoNotify an(done);
+        if (!parse_event(event->event))
+        {
+            return;
+        }
+        send_accy_command();
+    }
+
+    void handle_identify_consumer(const EventRegistryEntry &entry,
+        EventReport *event, BarrierNotifiable *done) override
+    {
+        AutoNotify an(done);
+        if (!parse_event(event->event))
+        {
+            return;
+        }
+        event->event_write_helper<1>()->WriteAsync(node_,
+            Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN, WriteHelper::global(),
+            eventid_to_buffer(event->event), done->new_child());
+    }
+
+    /// Send the actual accessory command.
+    virtual void send_accy_command() = 0;
+
+    /// Parses an event into an openlcb accessory offset.
+    /// @return true if the event is in the accessory range, false if this
+    /// event can be ignored.
+    /// @param on_off will be set to true if this is an activate event, false
+    /// if it is an inactivate event.
+    /// @param ofs will be set to the offset in the state_ arrays.
+    /// @param mask will be set to a single bit value that marks the location
+    /// in the state_ arrays.
+    bool parse_event(EventId event)
+    {
+        if (event >= TractionDefs::EXT_DCC_ACCESSORY_EVENT_BASE &&
+            event <
+                TractionDefs::EXT_DCC_ACCESSORY_EVENT_BASE + NUM_EVENT)
+        {
+            aspect_ = event & 0xff;
+            dccAddress_ = (event >> 8) & (NUM_ADDRESS - 1);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+
+    /// Parsed event state: dcc address (0..2047) without inverting or encoding.
+    unsigned dccAddress_ : 11;
+    /// Parsed event state: the aspect commanded.
+    unsigned aspect_ : 8;
+
+    /// OpenLCB node to export the consumer on.
+    Node *node_;
+};
+
+/// Specialized (DCC protocol) implementation of a DCC extended accessory
+/// consumer.
+class DccExtAccyConsumer : public DccExtAccyConsumerBase
+{
+public:
+    /// Constructs a listener for DCC accessory control.
+    /// @param node is the virtual node that will be listening for events and
+    /// responding to Identify messages.
+    /// @param track is the interface through which we will be writing DCC
+    /// accessory packets.
+    DccExtAccyConsumer(Node *node, dcc::TrackIf *track)
+        : DccExtAccyConsumerBase(node)
+        , track_(track)
+    {
+    }
+
+    /// Destructor.
+    ~DccExtAccyConsumer()
+    {
+    }
+
+private:
+    /// Send the actual accessory command.
+    void send_accy_command() override
+    {
+        dcc::TrackIf::message_type *pkt;
+        mainBufferPool->alloc(&pkt);
+        pkt->data()->add_dcc_ext_accessory(dccAddress_, aspect_);
+        pkt->data()->packet_header.rept_count = 3;
+        track_->send(pkt);
+    }
+
+    /// Track to send DCC packets to.
+    dcc::TrackIf *track_;
+};
+
 
 } // namespace openlcb
 

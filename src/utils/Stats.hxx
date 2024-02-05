@@ -94,14 +94,14 @@ public:
         return sqrt(qsum_ * count_ - sum * sum) / count_;
     }
 
-    /// Creates a half-a-line prinout of this stats object for debug purposes.
+    /// Creates a half-a-line printout of this stats object for debug purposes.
     std::string debug_string();
 
 private:
     /// Number of samples added.
     uint32_t count_;
     /// Maximum value found since the last clear.
-    int32_t max_;
+    ValueType max_;
     /// Sum of sample values added.
     int64_t sum_;
     /// Sum of squares of sample values added.

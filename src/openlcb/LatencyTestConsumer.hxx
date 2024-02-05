@@ -40,6 +40,24 @@
 namespace openlcb
 {
 
+/// This event consumer works together with the hub_test application in order
+/// to detect the response latency of a node. The theory of operation is that
+/// hub_test sends out an identify consumer message with a given event ID, and
+/// this consumer is going to respond. The hub_test then measures the response
+/// latency. There is a big event range being advertised (32 bits), and
+/// hub_test will send events with different IDs to be able to match request to
+/// response.
+///
+/// Here in the consumer the only thing we need to do is respond to identify
+/// consumer messages with consumer identified.
+///
+/// An additional feature is to be able to measure an arbitrary processing step
+/// inside the node. For this purpose we have a hook function. When the
+/// identify producer message comes in, we call the hook. When the measured
+/// process completes, it should notify the given notifiable. Only thereafter
+/// the consumer will reply on the bus. Requests' handling is not
+/// parallelized. If the hook process cannot complete the requests fast enough,
+/// the node will run out of memory and crash.
 class LatencyTestConsumer : public SimpleEventHandler
 {
 public:
