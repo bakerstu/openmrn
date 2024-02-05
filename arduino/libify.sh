@@ -15,7 +15,7 @@ function usage() {
     echo '-f will erase the target library before exporting.'
     echo '-l will create symlinks instead of copying files.'
     echo '-i will create OpenMRNIDF repository instead of arduino.'
-    echo '-r will create relative symlinks. OPenMRNPath has to be a relative path from the library export directoty back to openmrn, starting with ../'
+    echo '-r will create relative symlinks. OpenMRNPath has to be a relative path from the library export directory back to openmrn, starting with ../'
     exit 1
 }
 
@@ -176,12 +176,13 @@ function copy_dir() {
 if [ "x$TARGET_IDF" == "x" ]; then
     copy_file . arduino/{library.json,library.properties,keywords.txt,README.md,LICENSE,CONTRIBUTING.md}
     copy_dir . arduino/examples
+    copy_file src arduino/OpenMRNLite.{h,cpp}
 else
     copy_file . arduino/LICENSE arduino/idf/{CMakeLists.txt,README.md}
     copy_file src arduino/idf/library.properties arduino/keywords.txt
 fi
 
-copy_file src arduino/OpenMRNLite.{h,cpp} arduino/CDIXMLGenerator.hxx \
+copy_file src arduino/CDIXMLGenerator.hxx \
     include/{can_frame.h,nmranet_config.h,openmrn_features.h,i2c.h,i2c-dev.h} \
     include/freertos/{bootloader_hal.h,can_ioctl.h,endian.h,freertos_includes.h,stropts.h} \
     include/freertos_select/ifaddrs.h
