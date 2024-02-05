@@ -159,6 +159,10 @@ public:
 #if OPENMRN_FEATURE_RTOS_FROM_ISR
     void wakeup_from_isr()
     {
+#if defined(ESP_PLATFORM)
+        // On multi-core ESP32s we need to lock objects even in ISRs.
+        AtomicHolder h(this);
+#endif
         pendingWakeup_ = true;
         if (inSelect_)
         {

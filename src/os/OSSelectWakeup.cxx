@@ -55,6 +55,11 @@ int OSSelectWakeup::select(int nfds, fd_set *readfds,
         else
         {
 #if OPENMRN_FEATURE_DEVICE_SELECT
+            // It is important that we do this select_clear() in the same
+            // critical section as checking pendingWakeup above. This ensures
+            // tht all wakeups before this clear cause sleep to be zero, and
+            // all wakeups after this clear will cause the event group bit to
+            // be set.
             Device::select_clear();
 #endif
         }
@@ -189,6 +194,15 @@ void OSSelectWakeup::esp_start_select(fd_set *readfds, fd_set *writefds,
     exceptFds_ = exceptfds;
     exceptFdsOrig_ = *exceptfds;
     FD_ZERO(exceptFds_);
+    if (pendingWakeup_)
+    {
+        // There is a race condition between the Executor deciding to run
+        // select, and the internal implementation of select() calling this
+        // function. Since we only get the semaphone in this call, the wakeup
+        // functions are noops if they hit during this window. If there was a
+        // missed wakeup, we repeat it.
+        esp_wakeup();
+    }
 }
 
 /// This function marks the stored semaphore as invalid which indicates no
@@ -226,7 +240,6 @@ void OSSelectWakeup::esp_wakeup()
 /// call from within an ISR context.
 void OSSelectWakeup::esp_wakeup_from_isr()
 {
-    AtomicHolder h(this);
     BaseType_t woken = pdFALSE;
 
     // If our VFS FD is not set in the except fd_set we can exit early.
