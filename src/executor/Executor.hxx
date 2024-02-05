@@ -165,7 +165,7 @@ public:
 
     /// Helper function for debugging and tracing.
     /// @return currently running executable or nullptr if none active.
-    Executable* volatile current() { return current_; }
+    Executable* current() { return current_; }
     
 protected:
     /** Thread entry point.
