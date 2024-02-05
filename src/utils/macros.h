@@ -91,12 +91,6 @@ extern const char* g_death_file;
 
 #elif defined(ESP32)
 
-// For the ESP32 family or MCUs use ets_printf() instead of printf() to bypass
-// internal locking within the newlib implementation which has been observed
-// crashing the MCU at times when printf() is used in conjuction with ISRs on
-// the same core. The call to assert() internally uses ets_printf() as well
-// prior to "hanging" the MCU core in a busy loop.
-
 #include <stdio.h>
 #include <assert.h>
 
@@ -112,6 +106,11 @@ extern const char* g_death_file;
 #else
 #error Unknown/Unsupported ESP32 variant.
 #endif // CONFIG_IDF_TARGET_ESP32
+
+// For the ESP32 we are using ets_printf() instead of printf() to avoid the
+// internal locking within the newlib implementation. This locking can cause
+// difficult to parse backtraces when an ISR is on the same core as the code
+// that crashes due to these two macros.
 
 #define HASSERT(x) do { if (!(x)) { ets_printf("Assertion failed in file " __FILE__ " line %d: assert(%s)\n", __LINE__, #x); g_death_file = __FILE__; g_death_lineno = __LINE__; assert(0); abort();} } while(0)
 

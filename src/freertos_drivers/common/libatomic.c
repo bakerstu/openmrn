@@ -35,7 +35,7 @@
 
 #include <stdint.h>
 
-#if defined(STM32F0xx) || (!defined(ARDUINO) && !defined(ESP32))
+#if defined(STM32F0xx) || (!defined(ARDUINO) && !defined(ESP_PLATFORM))
 // On Cortex-M0 the only way to do atomic operation is to disable interrupts.
 
 /// Disables interrupts and saves the interrupt enable flag in a register.

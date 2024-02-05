@@ -33,16 +33,13 @@
  * @date 4 May 2021
  */
 
-#if defined(ESP32)
+#if defined(ESP_PLATFORM)
 
 #include "freertos_drivers/esp32/Esp32SocInfo.hxx"
 #include "utils/logging.h"
 
 #include <esp_ota_ops.h>
-
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,4,0)
 #include <esp_chip_info.h>
-#endif // IDF v4.4+
 
 namespace openmrn_arduino
 {
@@ -265,25 +262,14 @@ uint8_t Esp32SocInfo::print_soc_info()
         chip_info.features & CHIP_FEATURE_BLE ? "Yes" : "No",
         chip_info.features & CHIP_FEATURE_BT ? "Yes" : "No");
 
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
     LOG(INFO, "[SoC] Heap: %.2fkB / %.2fkB",
         heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024.0f,
         heap_caps_get_total_size(MALLOC_CAP_INTERNAL) / 1024.0f);
-#if CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM
+#if CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM || CONFIG_SPIRAM
     LOG(INFO, "[SoC] PSRAM: %.2fkB / %.2fkB",
         heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024.0f,
         heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1024.0f);
-#endif // CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM
-
-#else // NOT IDF v4.3+
-    LOG(INFO, "[SoC] Free Heap: %.2fkB",
-        heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024.0f);
-#if CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM
-    LOG(INFO, "[SoC] Free PSRAM: %.2fkB",
-        heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024.0f);
-#endif // CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM
-
-#endif // IDF v4.3+
+#endif // CONFIG_SPIRAM_SUPPORT || BOARD_HAS_PSRAM || CONFIG_SPIRAM
 
     LOG(INFO, "[SoC] App running from partition: %s",
         esp_ota_get_running_partition()->label);
@@ -297,4 +283,4 @@ uint8_t Esp32SocInfo::print_soc_info()
 
 } // namespace openmrn_arduino
 
-#endif // ESP32
+#endif // ESP_PLATFORM

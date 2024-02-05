@@ -111,7 +111,7 @@ public:
     {
         // Ensure the pin count is valid and within range of usable channels.
         HASSERT(pins_.size() > 0 &&
-                pins_.size() < (LEDC_CHANNEL_MAX - first_channel));
+                pins_.size() <= (LEDC_CHANNEL_MAX - first_channel));
         memset(&timerConfig_, 0, sizeof(ledc_timer_config_t));
         // timerConfig_.speed_mode will be assigned the SOC default mode, which
         // is either HIGH speed or LOW speed depending on the hardware support.
@@ -132,7 +132,8 @@ public:
     void hw_init()
     {
         LOG(INFO,
-            "[Esp32Ledc:%d] Configuring timer (resolution:%d, frequency:%d)",
+            "[Esp32Ledc:%d] Configuring timer (resolution:%d, frequency:%"
+            PRIu32 ")",
             timerConfig_.timer_num,
             (1 << (uint8_t)timerConfig_.duty_resolution) - 1,
             timerConfig_.freq_hz);
@@ -277,6 +278,7 @@ private:
     {
         ESP_ERROR_CHECK(
             ledc_set_duty(timerConfig_.speed_mode, channel, counts));
+        ESP_ERROR_CHECK(ledc_update_duty(timerConfig_.speed_mode, channel));
     }
 
     /// Gets the duty cycle.
