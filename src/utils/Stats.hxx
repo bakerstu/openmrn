@@ -101,7 +101,7 @@ private:
     /// Number of samples added.
     uint32_t count_;
     /// Maximum value found since the last clear.
-    int32_t max_;
+    ValueType max_;
     /// Sum of sample values added.
     int64_t sum_;
     /// Sum of squares of sample values added.
