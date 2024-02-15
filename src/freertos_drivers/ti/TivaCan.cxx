@@ -138,7 +138,8 @@ void TivaCan::enable()
     // FreeRTOS compatibility.
     MAP_IntPrioritySet(interrupt, configKERNEL_INTERRUPT_PRIORITY);
     MAP_CANEnable(base);
-    canState = CAN_STATE_ACTIVE;
+    // Wait for a successful RX or TX before moving to CAN_STATE_ACTIVE.
+    canState = CAN_STATE_STOPPED;
 }
 
 /** Disable use of the device.
