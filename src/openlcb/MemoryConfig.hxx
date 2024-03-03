@@ -245,6 +245,7 @@ class FileMemorySpace : public MemorySpace
 {
 public:
     static const address_t AUTO_LEN = (address_t) - 1;
+    static const address_t UNLIMITED_LEN = (address_t) - 2;
 
     /** Creates a memory space based on an fd.
      *
