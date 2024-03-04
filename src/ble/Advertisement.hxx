@@ -67,6 +67,14 @@ public:
     {
     }
 
+    /// Concatenate a 128-bit (16-byte) UUID with provided data.
+    /// @param uuid 128-bit UUID
+    /// @param data data to concatenate
+    /// @param size size of data in bytes to concatenate
+    /// @return resulting string
+    std::string concat_service_data_128(
+        const uint8_t uuid[16], const void *data, size_t size);
+
     /// Add to the beginning of the advertisement.
     /// @param f field to place the advertisement into
     /// @param type type of data to add

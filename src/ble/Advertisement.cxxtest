@@ -1,0 +1,125 @@
+#include "utils/test_main.hxx"
+#include "ble/Advertisement.hxx"
+
+using namespace ble;
+
+static uint8_t testUUID[] =
+{
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+    0x06, 0x07,
+    0x08, 0x09,
+    0x0A, 0x0B,
+    0x0C, 0x0D, 0x0E, 0x0F
+};
+
+static uint8_t testNodeID[] = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
+
+TEST(AdvertisementTest, create)
+{
+    Advertisement adv;
+    Advertisement adv_ext(true);
+
+    EXPECT_EQ(0U, adv.get_data_size());
+    EXPECT_EQ(0U, adv.get_scan_data_size());
+    EXPECT_FALSE(adv.is_extended());
+
+    EXPECT_EQ(0U, adv_ext.get_data_size());
+    EXPECT_EQ(0U, adv_ext.get_scan_data_size());
+    EXPECT_TRUE(adv_ext.is_extended());
+}
+
+TEST(AdvertisementTest, build)
+{
+    int result;
+    Advertisement adv;
+
+    // Add 128-bit UUID + 6 bytes of "data".
+    std::string uuid_128_data = adv.concat_service_data_128(
+        testUUID, testNodeID, sizeof(testNodeID));
+    result = adv.append(Advertisement::Field::DATA,
+        Defs::AdvType::SERVICE_DATA_128, uuid_128_data);
+    EXPECT_EQ(2 + 22, result);
+    EXPECT_EQ(2U + 22U, adv.get_data_size());
+    EXPECT_EQ(0U, adv.get_scan_data_size());
+    {
+        uint8_t expect[] =
+        {
+            23, 0x21,
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+            0x06, 0x07,
+            0x08, 0x09,
+            0x0A, 0x0B,
+            0x0C, 0x0D, 0x0E, 0x0F,
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01
+        };
+        uint8_t *actual = adv.get_data();
+        
+        ASSERT_THAT(std::vector<uint8_t>(actual, actual + adv.get_data_size()),
+            testing::ElementsAreArray(expect, sizeof(expect)));
+    }
+
+    // Prepend flags to the data.
+    uint8_t flags = (uint8_t)Advertisement::Flags::LE_ONLY_GENERAL_DISC_MODE;
+    result = adv.prepend(Advertisement::Field::DATA, Defs::AdvType::FLAGS,
+        &flags, sizeof(flags));
+    EXPECT_EQ(2 + 1, result);
+    EXPECT_EQ((2U + 1U) + (2U + 22U), adv.get_data_size());
+    EXPECT_EQ(0U, adv.get_scan_data_size());
+    {
+        uint8_t expect[] =
+        {
+            2, 1, 0x06,
+            23, 0x21,
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+            0x06, 0x07,
+            0x08, 0x09,
+            0x0A, 0x0B,
+            0x0C, 0x0D, 0x0E, 0x0F,
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01
+        };
+        uint8_t *actual = adv.get_data();
+        
+        ASSERT_THAT(std::vector<uint8_t>(actual, actual + adv.get_data_size()),
+            testing::ElementsAreArray(expect, sizeof(expect)));
+    }
+
+    // Try to append name, without clipping.
+    std::string name("Long Name");
+    result = adv.append(Advertisement::Field::DATA, Defs::AdvType::NAME_COMPLETE,
+        name);
+    EXPECT_EQ(-1, result);
+    EXPECT_EQ(2U + 1U + 2U + 22U, adv.get_data_size());
+    EXPECT_EQ(0U, adv.get_scan_data_size());
+
+    // Try to prepend name, without clipping.
+    result = adv.prepend(Advertisement::Field::DATA, Defs::AdvType::NAME_COMPLETE,
+        name);
+    EXPECT_EQ(-1, result);
+    EXPECT_EQ(2U + 1U + 2U + 22U, adv.get_data_size());
+    EXPECT_EQ(0U, adv.get_scan_data_size());
+
+    // Append name, with clipping.
+    result = adv.append(Advertisement::Field::DATA, Defs::AdvType::NAME_COMPLETE,
+        name, true);
+    EXPECT_EQ(2 + 2, result);
+    EXPECT_EQ((2U + 1U) + (2U + 22U) + (2U + 2U), adv.get_data_size());
+    EXPECT_EQ(0U, adv.get_scan_data_size());
+    {
+        uint8_t expect[] =
+        {
+            2, 1, 0x06,
+            23, 0x21,
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+            0x06, 0x07,
+            0x08, 0x09,
+            0x0A, 0x0B,
+            0x0C, 0x0D, 0x0E, 0x0F,
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01,
+            3, 0x09, 'L', 'o'
+        };
+        uint8_t *actual = adv.get_data();
+        
+        ASSERT_THAT(std::vector<uint8_t>(actual, actual + adv.get_data_size()),
+            testing::ElementsAreArray(expect, sizeof(expect)));
+    }
+}

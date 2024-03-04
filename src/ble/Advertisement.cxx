@@ -31,6 +31,17 @@ namespace ble
 {
 
 //
+// Advertisement::concat_service_data_128()
+//
+std::string Advertisement::concat_service_data_128(
+    const uint8_t uuid[16], const void *data, size_t size)
+{
+    std::string result((const char*)(uuid), 16);
+    result.append(static_cast<const char*>(data), size);
+    return result;
+}
+
+//
 // Advertisement::prepend()
 //
 int Advertisement::prepend(
@@ -58,14 +69,14 @@ int Advertisement::prepend(
             break;
     }
 
-    size_t space = std::min((size - 2), (max - d->size()));
+    size_t space = std::min((size + 2), (max - d->size()));
     if (space < size && clip == false)
     {
         return -1;
     }
-    d->insert(0, 1, static_cast<char>(size + 1));
+    d->insert(0, 1, static_cast<char>(space - 1));
     d->insert(1, 1, static_cast<char>(type));
-    d->insert(2, static_cast<const char*>(data), space);
+    d->insert(2, static_cast<const char*>(data), space - 2);
     return space;
 }
 
@@ -97,14 +108,14 @@ int Advertisement::append(
             break;
     }
 
-    size_t space = std::min((size - 2), (max - d->size()));
+    size_t space = std::min((size + 2), (max - d->size()));
     if (space < size && clip == false)
     {
         return -1;
     }
-    d->push_back(static_cast<char>(size + 1));
+    d->push_back(static_cast<char>(space - 1));
     d->push_back(static_cast<char>(type));
-    d->append(static_cast<const char*>(data), space);
+    d->append(static_cast<const char*>(data), space - 2);
     return space;
 }
 
@@ -144,7 +155,7 @@ int Advertisement::update(Field field, Defs::AdvType type, const void *data,
         // No matching advertising data found.
         return -1;
     }
-    return pos;
+    return max;//pos;
 }
 
 
