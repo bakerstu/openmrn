@@ -28,8 +28,6 @@
 #ifndef _BLE_ADVERTISEMENT_HXX_
 #define _BLE_ADVERTISEMENT_HXX_
 
-#include <string>
-
 #include "ble/Defs.hxx"
 #include "utils/macros.h"
 
@@ -40,6 +38,15 @@ namespace ble
 class Advertisement
 {
 public:
+    /// Maximum payload size of data.
+    static constexpr size_t MAX_DATA_PAYLOAD_SIZE = 31;
+
+    /// Maximum payload size of scan data.
+    static constexpr size_t MAX_SCAN_DATA_PAYLOAD_SIZE = 31;
+
+    /// Maximum payload size of extended data
+    static constexpr size_t MAX_EXT_DATA_PAYLOAD_SIZE = 254;
+
     /// Data fields that make up an advertisement.
     enum Field
     {
@@ -67,34 +74,67 @@ public:
     {
     }
 
+    /// Constructor which reserves data and scan data space. This cannot
+    /// be and extended advertisement because it is assumed to have scan data.
+    /// @param data_reserve size in bytes to reserve for the data
+    /// @param scan_data_reserve size in bytes to reserve for the scan data
+    Advertisement(size_t data_reserve, size_t scan_data_reserve)
+        : extended_(false)
+    {
+        if (data_reserve > MAX_DATA_PAYLOAD_SIZE)
+        {
+            data_reserve = MAX_DATA_PAYLOAD_SIZE;
+        }
+        if (scan_data_reserve > MAX_SCAN_DATA_PAYLOAD_SIZE)
+        {
+            scan_data_reserve = MAX_SCAN_DATA_PAYLOAD_SIZE;
+        }
+        data_.reserve(data_reserve);
+        scanData_.reserve(scan_data_reserve);
+    }
+
+    /// Constructor which reserves data space.
+    /// @param data_reserve size in bytes to reserve for the data
+    /// @param dummy not used, present to remove ambiguity
+    /// @param extended true if an extended advertisement, else false
+    Advertisement(size_t data_reserve, size_t dummy, bool extended)
+        : extended_(extended)
+    {
+        if (data_reserve > MAX_DATA_PAYLOAD_SIZE)
+        {
+            data_reserve = MAX_DATA_PAYLOAD_SIZE;
+        }
+        data_.reserve(data_reserve);
+    }
+
     /// Concatenate a 128-bit (16-byte) UUID with provided data.
     /// @param uuid 128-bit UUID
     /// @param data data to concatenate
     /// @param size size of data in bytes to concatenate
     /// @return resulting string
-    std::string concat_service_data_128(
-        const uint8_t uuid[16], const void *data, size_t size);
+    std::vector<uint8_t> concat_service_data_128(
+        const uint8_t uuid[16], const void *buf, size_t size);
 
     /// Add to the beginning of the advertisement.
     /// @param f field to place the advertisement into
     /// @param type type of data to add
-    /// @param data data to add
+    /// @param buf data to add
     /// @param size size of data in bytes
     /// @param clip if the data does not all fit, clip the end of it off
     /// @return number of bytes added, else -1 upon error
-    int prepend(Field field, Defs::AdvType type, const void *data, size_t size,
+    int prepend(Field field, Defs::AdvType type, const void *buf, size_t size,
                 bool clip = false);
 
     /// Add to the beginning of the advertisement.
     /// @param field field to place the data into
     /// @param type type of data to add
-    /// @param data data to add
+    /// @param buf data to add
     /// @param clip if the data does not all fit, clip the end of it off
     /// @return number of bytes added, else -1 upon error
-    int prepend(Field field, Defs::AdvType type, std::string &data,
+    int prepend(Field field, Defs::AdvType type, std::vector<uint8_t> &buf,
                 bool clip = false)
     {
-        return prepend(field, type, data.c_str(), data.size(), clip);
+        return prepend(field, type, buf.data(), buf.size(), clip);
     }
 
     /// Add name to the beginning of the advertisement. Will use type
@@ -104,33 +144,36 @@ public:
     /// @return number of bytes added, else -1 upon error
     int prepend_name(Field field, std::string &name)
     {
-        if (prepend(field, Defs::AdvType::NAME_COMPLETE, name) > 0)
+        int result = prepend(
+            field, Defs::AdvType::NAME_COMPLETE, name.data(), name.size());
+        if (result > 0)
         {
-            return name.size();
+            return result;
         }
-        return prepend(field, Defs::AdvType::NAME_SHORT, name, true);
+        return prepend(
+            field, Defs::AdvType::NAME_SHORT, name.data(), name.size(), true);
     }
 
     /// Add to the end of the advertisement.
     /// @param field field to place the data into
     /// @param type type of data to add
-    /// @param data data to add
+    /// @param buf data to add
     /// @param size size of data in bytes
     /// @param clip if the data does not all fit, clip the end of it off
     /// @return number of bytes added, else -1 upon error
-    int append(Field field, Defs::AdvType type, const void *data, size_t size,
+    int append(Field field, Defs::AdvType type, const void *buf, size_t size,
                bool clip = false);
 
     /// Add to the end of the advertisement.
     /// @param field field to place the data into
     /// @param type type of data to add
-    /// @param data data to add
+    /// @param buf data to add
     /// @param clip if the data does not all fit, clip the end of it off
     /// @return number of bytes added, else -1 upon error
-    int append(Field field, Defs::AdvType type, std::string &data,
+    int append(Field field, Defs::AdvType type, std::vector<uint8_t> &buf,
                bool clip = false)
     {
-        return append(field, type, data.data(), data.size(), clip);
+        return append(field, type, buf.data(), buf.size(), clip);
     }
 
     /// Add name to the end of the advertisement. Will use type
@@ -140,23 +183,26 @@ public:
     /// @return number of bytes added, else -1 upon error
     int append_name(Field field, std::string &name)
     {
-        if (append(field, Defs::AdvType::NAME_COMPLETE, name) > 0)
+        int result = append(
+            field, Defs::AdvType::NAME_COMPLETE, name.data(), name.size());
+        if (result > 0)
         {
-            return name.size();
+            return result;
         }
-        return append(field, Defs::AdvType::NAME_SHORT, name, true);
+        return append(
+            field, Defs::AdvType::NAME_SHORT, name.data(), name.size(), true);
     }
 
     /// Update existing advertisement.
     /// @param field field to place the data into
     /// @param type type of data to update
-    /// @param data data to update
+    /// @param buf data to update
     /// @param size size of data in bytes
     /// @param instance the instance occurance to update
     /// @param exact_size the new data size must match the old data size
     /// @param clip if the data does not all fit, clip the end of it off
     /// @return number of bytes updated, else -1 upon error
-    int update(Field field, Defs::AdvType type, const void *data, size_t size,
+    int update(Field field, Defs::AdvType type, const void *buf, size_t size,
                unsigned instance = 1, bool exact_size = true,
                bool clip = false);
 
@@ -196,18 +242,24 @@ public:
         return extended_ ? 0 : scanData_.size();
     }
 
+#if defined(GTEST)
+    std::vector<uint8_t> &test_get_data()
+    {
+        return data_;
+    }
+
+    std::vector<uint8_t> &test_get_scan_data()
+    {
+        return scanData_;
+    }
+#endif
+
 private:
-    /// Maximum payload size of data.
-    static constexpr size_t MAX_DATA_PAYLOAD_SIZE = 31;
+    /// advertising data, also used for extended advertising
+    std::vector<uint8_t> data_;
 
-    /// Maximum payload size of scan data.
-    static constexpr size_t MAX_SCAN_DATA_PAYLOAD_SIZE = 31;
-
-    /// Maximum payload size of extended data
-    static constexpr size_t MAX_EXT_DATA_PAYLOAD_SIZE = 254;
-
-    std::string data_; ///< advertising data, also used for extended advertising
-    std::string scanData_; ///< advertising scan data
+    ///< advertising scan data
+    std::vector<uint8_t> scanData_;
 
     bool extended_; ///< true extended advertisement, else false
 };

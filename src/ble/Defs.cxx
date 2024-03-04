@@ -44,8 +44,8 @@ const uint8_t Defs::CHAR_PROP_READ_WRITE_NOTIFY[1] =
 //
 // Defs::adv_find_data()
 //
-size_t Defs::adv_find_data(
-    std::string &adv, AdvType type, uint8_t *size, unsigned instance)
+ssize_t Defs::adv_find_data(
+    std::vector<uint8_t> &adv, AdvType type, uint8_t *size, unsigned instance)
 {
     char t = static_cast<char>(type);
 
@@ -67,7 +67,7 @@ size_t Defs::adv_find_data(
         }
     }
 
-    return std::string::npos;
+    return -1;
 }
 
 } // namespace ble

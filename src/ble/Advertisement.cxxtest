@@ -14,27 +14,45 @@ static uint8_t testUUID[] =
 
 static uint8_t testNodeID[] = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
 
-TEST(AdvertisementTest, create)
+TEST(AdvertisementTest, Create)
 {
     Advertisement adv;
     Advertisement adv_ext(true);
+    Advertisement adv_reserve(20, 21);
+    Advertisement adv_reserve_ext(20, 21, true);
 
     EXPECT_EQ(0U, adv.get_data_size());
     EXPECT_EQ(0U, adv.get_scan_data_size());
     EXPECT_FALSE(adv.is_extended());
+    EXPECT_EQ(0U, adv.test_get_data().capacity());
+    EXPECT_EQ(0U, adv.test_get_scan_data().capacity());
 
     EXPECT_EQ(0U, adv_ext.get_data_size());
     EXPECT_EQ(0U, adv_ext.get_scan_data_size());
+    EXPECT_EQ(0U, adv_ext.test_get_data().capacity());
+    EXPECT_EQ(0U, adv_ext.test_get_scan_data().capacity());
     EXPECT_TRUE(adv_ext.is_extended());
+
+    EXPECT_EQ(0U, adv_reserve.get_data_size());
+    EXPECT_EQ(0U, adv_reserve.get_scan_data_size());
+    EXPECT_EQ(20U, adv_reserve.test_get_data().capacity());
+    EXPECT_EQ(21U, adv_reserve.test_get_scan_data().capacity());
+    EXPECT_FALSE(adv_reserve.is_extended());
+
+    EXPECT_EQ(0U, adv_reserve_ext.get_data_size());
+    EXPECT_EQ(0U, adv_reserve_ext.get_scan_data_size());
+    EXPECT_EQ(20U, adv_reserve_ext.test_get_data().capacity());
+    EXPECT_EQ(0U, adv_reserve_ext.test_get_scan_data().capacity());
+    EXPECT_TRUE(adv_reserve_ext.is_extended());
 }
 
-TEST(AdvertisementTest, build)
+TEST(AdvertisementTest, BuildData)
 {
     int result;
     Advertisement adv;
 
     // Add 128-bit UUID + 6 bytes of "data".
-    std::string uuid_128_data = adv.concat_service_data_128(
+    std::vector<uint8_t> uuid_128_data = adv.concat_service_data_128(
         testUUID, testNodeID, sizeof(testNodeID));
     result = adv.append(Advertisement::Field::DATA,
         Defs::AdvType::SERVICE_DATA_128, uuid_128_data);
@@ -86,21 +104,21 @@ TEST(AdvertisementTest, build)
     // Try to append name, without clipping.
     std::string name("Long Name");
     result = adv.append(Advertisement::Field::DATA, Defs::AdvType::NAME_COMPLETE,
-        name);
+        name.data(), name.size());
     EXPECT_EQ(-1, result);
     EXPECT_EQ(2U + 1U + 2U + 22U, adv.get_data_size());
     EXPECT_EQ(0U, adv.get_scan_data_size());
 
     // Try to prepend name, without clipping.
     result = adv.prepend(Advertisement::Field::DATA, Defs::AdvType::NAME_COMPLETE,
-        name);
+        name.data(), name.size());
     EXPECT_EQ(-1, result);
     EXPECT_EQ(2U + 1U + 2U + 22U, adv.get_data_size());
     EXPECT_EQ(0U, adv.get_scan_data_size());
 
     // Append name, with clipping.
     result = adv.append(Advertisement::Field::DATA, Defs::AdvType::NAME_COMPLETE,
-        name, true);
+        name.data(), name.size(), true);
     EXPECT_EQ(2 + 2, result);
     EXPECT_EQ((2U + 1U) + (2U + 22U) + (2U + 2U), adv.get_data_size());
     EXPECT_EQ(0U, adv.get_scan_data_size());

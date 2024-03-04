@@ -28,8 +28,9 @@
 #ifndef _BLE_DEFS_HXX_
 #define _BLE_DEFS_HXX_
 
+#include <sys/types.h> // ssize_t on some platforms
 #include <cstdint>
-#include <string>
+#include <vector>
 
 namespace ble
 {
@@ -88,9 +89,9 @@ public:
     /// @param type the data type to find
     /// @param size location to place the data size, size includes type byte
     /// @param instance which instance, starting from the front, to find
-    /// @return starting position of the data, else string::npos if not found
-    static size_t adv_find_data(
-        std::string &adv, AdvType type, uint8_t *size, unsigned instance = 1);
+    /// @return starting position of the data, else -1 if not found
+    static ssize_t adv_find_data(std::vector<uint8_t> &adv, AdvType type,
+        uint8_t *size, unsigned instance = 1);
 };
 
 /// '|' operator for GATTPerm.
