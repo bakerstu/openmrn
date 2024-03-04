@@ -100,9 +100,11 @@ public:
     Advertisement(size_t data_reserve, size_t dummy, bool extended)
         : extended_(extended)
     {
-        if (data_reserve > MAX_DATA_PAYLOAD_SIZE)
+        size_t max =
+            extended_ ? MAX_EXT_DATA_PAYLOAD_SIZE : MAX_DATA_PAYLOAD_SIZE;
+        if (data_reserve > max)
         {
-            data_reserve = MAX_DATA_PAYLOAD_SIZE;
+            data_reserve = max;
         }
         data_.reserve(data_reserve);
     }
