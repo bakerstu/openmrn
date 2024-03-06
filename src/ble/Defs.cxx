@@ -56,11 +56,11 @@ ssize_t Defs::adv_find_data(
             uint8_t len = adv[idx - 1];
             if (size)
             {
-                *size = len;
+                *size = len - 1;
             }
             if (--instance == 0)
             {
-                return idx;
+                return idx - 1;
             }
             // one additional added by the four loop to skip over next length
             idx += len;

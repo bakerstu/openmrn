@@ -70,6 +70,7 @@ int Advertisement::prepend(
     size_t space = std::min((size + 2), (max - d->size()));
     if (space < size && clip == false)
     {
+        // Data doesn't fit and clipping is not allowed.
         return -1;
     }
     d->insert(d->begin(), data, data + (space - 2));
@@ -106,6 +107,7 @@ int Advertisement::append(
     size_t space = std::min((size + 2), (max - d->size()));
     if (space < size && clip == false)
     {
+        // Data doesn't fit and clipping is not allowed.
         return -1;
     }
     d->push_back(space - 1);
@@ -117,10 +119,11 @@ int Advertisement::append(
 //
 // Advertisement::update()
 //
-int Advertisement::update(Field field, Defs::AdvType type, const void *data,
+int Advertisement::update(Field field, Defs::AdvType type, const void *buf,
                           size_t size, unsigned instance, bool exact_size,
                           bool clip)
 {
+    const uint8_t *data = static_cast<const uint8_t*>(buf);
     std::vector<uint8_t> *d;
     size_t max;
 
@@ -146,7 +149,22 @@ int Advertisement::update(Field field, Defs::AdvType type, const void *data,
         // No matching advertising data found.
         return -1;
     }
-    return max;//pos;
+    if (exact_size && len != size)
+    {
+        // Found the data, but it is the wrong size.
+        return -1;
+    }
+    size_t space = std::min((size + 2), (max - d->size()) + (len + 1));
+    if (space < size && clip == false)
+    {
+        // Data doesn't fit and clipping is not allowed.
+        return -1;
+    }
+    d->at(pos) = space - 1;
+    d->at(pos + 1) = static_cast<uint8_t>(type);
+    d->erase(d->begin() + (pos + 2), d->begin() + (pos + 2) + (len - 1));
+    d->insert(d->begin() + pos, data, data + space);
+    return space;//pos;
 }
 
 

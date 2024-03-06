@@ -89,7 +89,7 @@ public:
     /// @param type the data type to find
     /// @param size location to place the data size, size includes type byte
     /// @param instance which instance, starting from the front, to find
-    /// @return starting position of the data, else -1 if not found
+    /// @return starting position of the length byte, else -1 if not found
     static ssize_t adv_find_data(std::vector<uint8_t> &adv, AdvType type,
         uint8_t *size, unsigned instance = 1);
 };
