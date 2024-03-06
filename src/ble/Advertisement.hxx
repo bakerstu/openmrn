@@ -113,7 +113,7 @@ public:
     /// @param data data to concatenate
     /// @param size size of data in bytes to concatenate
     /// @return resulting string
-    std::vector<uint8_t> concat_service_data_128(
+    std::basic_string<uint8_t> concat_service_data_128(
         const uint8_t uuid[16], const void *buf, size_t size);
 
     /// Add to the beginning of the advertisement.
@@ -132,8 +132,8 @@ public:
     /// @param buf data to add
     /// @param clip if the data does not all fit, clip the end of it off
     /// @return number of bytes added, else -1 upon error
-    int prepend(Field field, Defs::AdvType type, std::vector<uint8_t> &buf,
-                bool clip = false)
+    int prepend(Field field, Defs::AdvType type,
+                std::basic_string<uint8_t> &buf, bool clip = false)
     {
         return prepend(field, type, buf.data(), buf.size(), clip);
     }
@@ -171,7 +171,7 @@ public:
     /// @param buf data to add
     /// @param clip if the data does not all fit, clip the end of it off
     /// @return number of bytes added, else -1 upon error
-    int append(Field field, Defs::AdvType type, std::vector<uint8_t> &buf,
+    int append(Field field, Defs::AdvType type, std::basic_string<uint8_t> &buf,
                bool clip = false)
     {
         return append(field, type, buf.data(), buf.size(), clip);
@@ -244,12 +244,12 @@ public:
     }
 
 #if defined(GTEST)
-    std::vector<uint8_t> &test_get_data()
+    std::basic_string<uint8_t> &test_get_data()
     {
         return data_;
     }
 
-    std::vector<uint8_t> &test_get_scan_data()
+    std::basic_string<uint8_t> &test_get_scan_data()
     {
         return scanData_;
     }
@@ -257,10 +257,10 @@ public:
 
 private:
     /// advertising data, also used for extended advertising
-    std::vector<uint8_t> data_;
+    std::basic_string<uint8_t> data_;
 
     ///< advertising scan data
-    std::vector<uint8_t> scanData_;
+    std::basic_string<uint8_t> scanData_;
 
     bool extended_; ///< true extended advertisement, else false
 };

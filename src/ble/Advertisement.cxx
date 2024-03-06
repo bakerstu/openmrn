@@ -33,12 +33,12 @@ namespace ble
 //
 // Advertisement::concat_service_data_128()
 //
-std::vector<uint8_t> Advertisement::concat_service_data_128(
+std::basic_string<uint8_t> Advertisement::concat_service_data_128(
     const uint8_t uuid[16], const void *buf, size_t size)
 {
     const uint8_t *data = static_cast<const uint8_t*>(buf);
-    std::vector<uint8_t> result(uuid, uuid + 16);
-    result.insert(result.end(), data, data + size);
+    std::basic_string<uint8_t> result(uuid, uuid + 16);
+    result.append(data, size);
     return result;
 }
 
@@ -49,7 +49,7 @@ int Advertisement::prepend(
     Field field, Defs::AdvType type, const void *buf, size_t size, bool clip)
 {
     const uint8_t *data = static_cast<const uint8_t*>(buf);
-    std::vector<uint8_t> *d;
+    std::basic_string<uint8_t> *d;
     size_t max;
 
     switch (field)
@@ -73,9 +73,9 @@ int Advertisement::prepend(
         // Data doesn't fit and clipping is not allowed.
         return -1;
     }
-    d->insert(d->begin(), data, data + (space - 2));
-    d->insert(d->begin(), static_cast<uint8_t>(type));
-    d->insert(d->begin(), space - 1);
+    d->insert(0, 1, space - 1);
+    d->insert(1, 1, static_cast<uint8_t>(type));
+    d->insert(2, data, space - 2);
     return space;
 }
 
@@ -86,7 +86,7 @@ int Advertisement::append(
     Field field, Defs::AdvType type, const void *buf, size_t size, bool clip)
 {
     const uint8_t *data = static_cast<const uint8_t*>(buf);
-    std::vector<uint8_t> *d;
+    std::basic_string<uint8_t> *d;
     size_t max;
 
     switch (field)
@@ -112,7 +112,7 @@ int Advertisement::append(
     }
     d->push_back(space - 1);
     d->push_back(static_cast<uint8_t>(type));
-    d->insert(d->end(), data, data + (space - 2));
+    d->append(data, space - 2);
     return space;
 }
 
@@ -124,7 +124,7 @@ int Advertisement::update(Field field, Defs::AdvType type, const void *buf,
                           bool clip)
 {
     const uint8_t *data = static_cast<const uint8_t*>(buf);
-    std::vector<uint8_t> *d;
+    std::basic_string<uint8_t> *d;
     size_t max;
 
     switch (field)
@@ -162,8 +162,7 @@ int Advertisement::update(Field field, Defs::AdvType type, const void *buf,
     }
     d->at(pos) = space - 1;
     d->at(pos + 1) = static_cast<uint8_t>(type);
-    d->erase(d->begin() + (pos + 2), d->begin() + (pos + 2) + (len - 1));
-    d->insert(d->begin() + pos, data, data + space);
+    d->replace(pos + 2, len + 1, data, 0, space);
     return space;//pos;
 }
 
