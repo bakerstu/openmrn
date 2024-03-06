@@ -56,19 +56,14 @@ int Advertisement::prepend(
     {
         default:
         case Field::DATA:
-            HASSERT(!extended_);
             d = &data_;
-            max = MAX_DATA_PAYLOAD_SIZE;
+            max = extended_ ?
+                MAX_EXT_DATA_PAYLOAD_SIZE : MAX_SCAN_DATA_PAYLOAD_SIZE;
             break;
         case Field::SCAN_DATA:
             HASSERT(!extended_);
             d = &scanData_;
-            max = MAX_SCAN_DATA_PAYLOAD_SIZE;
-            break;
-        case Field::EXT_DATA:
-            HASSERT(extended_);
-            d = &data_;
-            max = MAX_EXT_DATA_PAYLOAD_SIZE;
+            max = MAX_DATA_PAYLOAD_SIZE;
             break;
     }
 
@@ -92,23 +87,19 @@ int Advertisement::append(
     const uint8_t *data = static_cast<const uint8_t*>(buf);
     std::vector<uint8_t> *d;
     size_t max;
+
     switch (field)
     {
         default:
         case Field::DATA:
-            HASSERT(!extended_);
             d = &data_;
-            max = MAX_DATA_PAYLOAD_SIZE;
+            max = extended_ ?
+                MAX_EXT_DATA_PAYLOAD_SIZE : MAX_SCAN_DATA_PAYLOAD_SIZE;
             break;
         case Field::SCAN_DATA:
             HASSERT(!extended_);
             d = &scanData_;
-            max = MAX_SCAN_DATA_PAYLOAD_SIZE;
-            break;
-        case Field::EXT_DATA:
-            HASSERT(extended_);
-            d = &data_;
-            max = MAX_EXT_DATA_PAYLOAD_SIZE;
+            max = MAX_DATA_PAYLOAD_SIZE;
             break;
     }
 
@@ -132,23 +123,19 @@ int Advertisement::update(Field field, Defs::AdvType type, const void *data,
 {
     std::vector<uint8_t> *d;
     size_t max;
+
     switch (field)
     {
         default:
         case Field::DATA:
-            HASSERT(!extended_);
             d = &data_;
-            max = MAX_DATA_PAYLOAD_SIZE;
+            max = extended_ ?
+                MAX_EXT_DATA_PAYLOAD_SIZE : MAX_SCAN_DATA_PAYLOAD_SIZE;
             break;
         case Field::SCAN_DATA:
             HASSERT(!extended_);
             d = &scanData_;
-            max = MAX_SCAN_DATA_PAYLOAD_SIZE;
-            break;
-        case Field::EXT_DATA:
-            HASSERT(extended_);
-            d = &data_;
-            max = MAX_EXT_DATA_PAYLOAD_SIZE;
+            max = MAX_DATA_PAYLOAD_SIZE;
             break;
     }
 

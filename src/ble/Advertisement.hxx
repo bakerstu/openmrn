@@ -52,7 +52,6 @@ public:
     {
         DATA, ///< main data
         SCAN_DATA, ///< scan data
-        EXT_DATA, ///< extended data
     };
 
     /// Flag values.
