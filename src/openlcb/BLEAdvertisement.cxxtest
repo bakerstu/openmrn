@@ -1,0 +1,2 @@
+#include "utils/test_main.hxx"
+#include "openlcb/BLEAdvertisement.hxx"

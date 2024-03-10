@@ -116,6 +116,16 @@ public:
     std::basic_string<uint8_t> concat_service_data_128(
         const uint8_t uuid[16], const void *buf, size_t size);
 
+    /// Concatenate a 128-bit (16-byte) UUID with provided data.
+    /// @param uuid 128-bit UUID
+    /// @param data data to concatenate
+    /// @return resulting string
+    std::basic_string<uint8_t> concat_service_data_128(
+        const uint8_t uuid[16], std::basic_string<uint8_t> &buf)
+    {
+        return concat_service_data_128(uuid, buf.data(), buf.size());
+    }
+
     /// Add to the beginning of the advertisement.
     /// @param f field to place the advertisement into
     /// @param type type of data to add
