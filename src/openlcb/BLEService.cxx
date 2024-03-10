@@ -25,7 +25,7 @@
  * @date 2 March 2024
  */
 
-#include "ble/BLEService.hxx"
+#include "openlcb/BLEService.hxx"
 
 namespace openlcb
 {
