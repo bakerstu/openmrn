@@ -87,7 +87,7 @@ public:
     /// Find an advertisment data within an advertisement set.
     /// @param adv contents of the advertisement set
     /// @param type the data type to find
-    /// @param size location to place the data size, size includes type byte
+    /// @param size location to place the data size, size excludes type byte
     /// @param instance which instance, starting from the front, to find
     /// @return starting position of the length byte, else -1 if not found
     static ssize_t adv_find_data(std::basic_string<uint8_t> &adv, AdvType type,

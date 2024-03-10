@@ -154,17 +154,15 @@ int Advertisement::update(Field field, Defs::AdvType type, const void *buf,
         // Found the data, but it is the wrong size.
         return -1;
     }
-    size_t space = std::min((size + 2), (max - d->size()) + (len + 1));
+    size_t space = std::min((size + 2), (max - d->size()) + (len + 2));
     if (space < size && clip == false)
     {
         // Data doesn't fit and clipping is not allowed.
         return -1;
     }
     d->at(pos) = space - 1;
-    d->at(pos + 1) = static_cast<uint8_t>(type);
-    d->replace(pos + 2, len + 1, data, 0, space);
-    return space;//pos;
+    d->replace(pos + 2, len, data, space - 2);
+    return space;
 }
-
 
 } // namespace ble

@@ -207,6 +207,23 @@ public:
                unsigned instance = 1, bool exact_size = true,
                bool clip = false);
 
+    /// Update existing advertisement.
+    /// @param field field to place the data into
+    /// @param type type of data to update
+    /// @param buf data to update
+    /// @param size size of data in bytes
+    /// @param instance the instance occurance to update
+    /// @param exact_size the new data size must match the old data size
+    /// @param clip if the data does not all fit, clip the end of it off
+    /// @return number of bytes updated, else -1 upon error
+    int update(Field field, Defs::AdvType type, std::basic_string<uint8_t> &buf,
+               unsigned instance = 1, bool exact_size = true,
+               bool clip = false)
+    {
+        return update(
+            field, type, buf.data(), buf.size(), instance, exact_size, clip);
+    }
+
     /// Test if extended advertisement or not.
     /// @return true if extended advertisement, else false
     bool is_extended()

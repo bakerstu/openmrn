@@ -51,9 +51,9 @@ ssize_t Defs::adv_find_data(std::basic_string<uint8_t> &adv,
 
     for (size_t idx = 1; instance && idx < adv.size(); ++idx)
     {
+        uint8_t len = adv[idx - 1];
         if (adv[idx] == t)
         {
-            uint8_t len = adv[idx - 1];
             if (size)
             {
                 *size = len - 1;
@@ -62,9 +62,9 @@ ssize_t Defs::adv_find_data(std::basic_string<uint8_t> &adv,
             {
                 return idx - 1;
             }
-            // one additional added by the four loop to skip over next length
-            idx += len;
         }
+        // One additional added by the four loop to skip over next length.
+        idx += len;
     }
 
     return -1;
