@@ -1,2 +1,93 @@
 #include "utils/test_main.hxx"
 #include "openlcb/BLEAdvertisement.hxx"
+
+namespace openlcb
+{
+
+NodeID nodeIdTest = 0x060504030201UL;
+
+uint32_t pipTest = 0xF45EF000;
+
+//
+// Advertisement where the node name fits.
+//
+TEST(BLEAdvertisementTest, CreateShortName)
+{
+    BLEAdvertisement adv(nodeIdTest, "Short Name", pipTest);
+
+    {
+        uint8_t expect[] =
+        {
+            2, 1, 0x06, // flags
+            11, 0x09, // name complete
+            'S', 'h', 'o', 'r', 't', ' ', 'N', 'a', 'm', 'e',
+        };
+        uint8_t *actual = adv.get_data();
+
+        ASSERT_THAT(std::vector<uint8_t>(actual, actual + adv.get_data_size()),
+            testing::ElementsAreArray(expect, sizeof(expect)));
+    }
+    {
+        uint8_t expect[] =
+        {
+            27, 0x21, // Service Data 128
+            0x51, 0x18, 0x8D, 0x82, 0x4C, 0xDA, // UUID
+            0xE7, 0x83,
+            0xAF, 0x4D,
+            0xA9, 0x84,
+            0x20, 0x52, 0xF4, 0x0F,
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Node ID
+            0x00, 0xF0, 0x5E, 0xf4, // PIP
+        };
+        uint8_t *actual = adv.get_scan_data();
+
+        ASSERT_THAT(
+            std::vector<uint8_t>(actual, actual + adv.get_scan_data_size()),
+            testing::ElementsAreArray(expect, sizeof(expect)));
+    }
+
+}
+
+//
+// Advertisement where the node name does not fit.
+//
+TEST(BLEAdvertisementTest, CreateLongName)
+{
+    BLEAdvertisement adv(nodeIdTest, "Long Long Long Long Name 12", pipTest);
+
+    {
+        uint8_t expect[] =
+        {
+            2, 1, 0x06, // flags
+            27, 0x08, // name short
+            'L', 'o', 'n', 'g', ' ', 'L', 'o', 'n', 'g', ' ',
+            'L', 'o', 'n', 'g', ' ', 'L', 'o', 'n', 'g', ' ',
+            'N', 'a', 'm', 'e', ' ', '1',
+        };
+        uint8_t *actual = adv.get_data();
+
+        ASSERT_THAT(std::vector<uint8_t>(actual, actual + adv.get_data_size()),
+            testing::ElementsAreArray(expect, sizeof(expect)));
+    }
+    {
+        uint8_t expect[] =
+        {
+            27, 0x21, // Service Data 128
+            0x51, 0x18, 0x8D, 0x82, 0x4C, 0xDA, // UUID
+            0xE7, 0x83,
+            0xAF, 0x4D,
+            0xA9, 0x84,
+            0x20, 0x52, 0xF4, 0x0F,
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Node ID
+            0x00, 0xF0, 0x5E, 0xf4, // PIP
+        };
+        uint8_t *actual = adv.get_scan_data();
+
+        ASSERT_THAT(
+            std::vector<uint8_t>(actual, actual + adv.get_scan_data_size()),
+            testing::ElementsAreArray(expect, sizeof(expect)));
+    }
+
+}
+
+} // namespace openlcb
