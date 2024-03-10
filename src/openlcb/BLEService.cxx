@@ -19,7 +19,7 @@
  *
  * @file BLEService.hxx
  *
- * OpenLCB BLE Service definition definition.
+ * OpenLCB BLE Service definition.
  *
  * @author Stuart Baker
  * @date 2 March 2024
