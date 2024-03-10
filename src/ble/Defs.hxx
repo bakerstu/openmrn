@@ -92,6 +92,30 @@ public:
     /// @return starting position of the length byte, else -1 if not found
     static ssize_t adv_find_data(std::basic_string<uint8_t> &adv, AdvType type,
         uint8_t *size, unsigned instance = 1);
+
+    /// Find an advertisment name short type within an advertisement set.
+    /// @param adv contents of the advertisement set
+    /// @param instance which instance, starting from the front, to find
+    /// @return string containing the name, empty string if not found.
+    static std::string adv_find_name_short(
+        std::basic_string<uint8_t> &adv, unsigned instance = 1);
+
+    /// Find an advertisment name complete type within an advertisement set.
+    /// @param adv contents of the advertisement set
+    /// @param instance which instance, starting from the front, to find
+    /// @return string containing the name, empty string if not found.
+    static std::string adv_find_name_complete(
+        std::basic_string<uint8_t> &adv, unsigned instance = 1);
+
+    /// Find an advertisment service data 128 type within an advertisement set.
+    /// @param adv contents of the advertisement set
+    /// @param service_uuid 128-bit UUID of the service to extract data from
+    /// @param instance which instance, starting from the front, to find
+    /// @return basic_string containing the data, empty basic_string if not
+    ///         found.
+    static std::basic_string<uint8_t> adv_find_service_data_128(
+        std::basic_string<uint8_t> &adv, const uint8_t service_uuid[16],
+        unsigned instance = 1);
 };
 
 /// '|' operator for GATTPerm.

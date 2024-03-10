@@ -70,4 +70,71 @@ ssize_t Defs::adv_find_data(std::basic_string<uint8_t> &adv,
     return -1;
 }
 
+//
+// Defs::adv_find_name_short()
+//
+std::string Defs::adv_find_name_short(
+    std::basic_string<uint8_t> &adv, unsigned instance)
+{
+    ssize_t pos;
+    uint8_t size;
+
+    pos = adv_find_data(adv, AdvType::NAME_SHORT, &size, instance);
+
+    return (pos < 0) ?
+        std::string() :
+        std::string((const char*)(adv.data() + pos + 2), size);
+}
+
+//
+// Defs::adv_find_name_complete()
+//
+std::string Defs::adv_find_name_complete(
+    std::basic_string<uint8_t> &adv, unsigned instance)
+{
+    ssize_t pos;
+    uint8_t size;
+
+    pos = adv_find_data(adv, AdvType::NAME_COMPLETE, &size, instance);
+
+    return (pos < 0) ?
+        std::string() :
+        std::string((const char*)(adv.data() + pos + 2), size);
+}
+
+//
+// Defs::adv_find_service_data_128()
+//
+std::basic_string<uint8_t> Defs::adv_find_service_data_128(
+    std::basic_string<uint8_t> &adv, const uint8_t service_uuid[16],
+    unsigned instance)
+{
+    ssize_t pos;
+    unsigned inst = 1;
+    uint8_t size;
+
+    for ( ; /* forever */ ; )
+    {
+        pos = adv_find_data(adv, AdvType::SERVICE_DATA_128, &size, inst);
+        if (pos < 0)
+        {
+            // Not found.
+            break;
+        }
+        if (adv.compare(pos + 2, 16, service_uuid, 16) == 0)
+        {
+            // Match.
+            if (inst == instance)
+            {
+                // Found and instance count matches.
+                return std::basic_string<uint8_t>(adv, pos + 2 + 16, size - 16);
+            }
+        }
+        ++inst;
+    }
+
+    // Not found.
+    return std::basic_string<uint8_t>();
+}
+
 } // namespace ble
