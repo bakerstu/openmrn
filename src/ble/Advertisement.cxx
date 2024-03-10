@@ -68,7 +68,7 @@ int Advertisement::prepend(
     }
 
     size_t space = std::min((size + 2), (max - d->size()));
-    if (space < size && clip == false)
+    if (space < (size + 2) && clip == false)
     {
         // Data doesn't fit and clipping is not allowed.
         return -1;
@@ -105,7 +105,7 @@ int Advertisement::append(
     }
 
     size_t space = std::min((size + 2), (max - d->size()));
-    if (space < size && clip == false)
+    if (space < (size + 2) && clip == false)
     {
         // Data doesn't fit and clipping is not allowed.
         return -1;
