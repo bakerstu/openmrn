@@ -245,7 +245,7 @@ public:
     /// @return pointer to the advertisement data
     uint8_t *get_data()
     {
-        return (uint8_t*)(data_.data());
+        return (uint8_t*)data_.data();
     }
 
     /// Get the advertisement data size in bytes.
