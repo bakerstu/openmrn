@@ -40,13 +40,6 @@ namespace openlcb
 class BLEService : public ble::Service
 {
 public:
-    /// Constructor.
-    BLEService()
-    {
-        memset(dataIn_, 0, sizeof(dataIn_));
-        memset(dataOut_, 0, sizeof(dataOut_));
-    }
-
     /// OpenLCB GATT service UUID.
     static const uint8_t GATT_SERVICE_UUID_OPENLCB[16];
 
@@ -60,8 +53,8 @@ private:
     static uint8_t dataIn_[200]; ///< data incoming to the server
     static uint8_t dataOut_[200]; ///< data outgoing from the server
 
-    static uint8_t dataInCCCD_[2];
-    static uint8_t dataOutCCCD_[2];
+    static uint8_t dataInCCCD_[2]; ///< configuration descriptor for input
+    static uint8_t dataOutCCCD_[2]; ///< configuration descriptor for output
 
 public:
     /// GATT Attribute table properties for this service.
@@ -127,7 +120,7 @@ public:
 
     /// Get the size in number of elements (Attributes).
     /// @return number of elements
-    size_t size() override
+    static constexpr size_t size()
     {
         return ARRAYSIZE(GATT_ATTRIBUTES);
     }

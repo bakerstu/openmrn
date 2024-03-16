@@ -39,10 +39,6 @@ namespace ble
 class Service
 {
 public:
-    /// Get the size in number of elements (Attributes).
-    /// @return number of elements
-    virtual size_t size() = 0;
-
     struct GATTAttribute
     {
         const uint8_t uuidLen_; ///< UUID_LEN_16, UUID_LEN_32, or UUID_LEN_16

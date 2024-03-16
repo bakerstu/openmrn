@@ -60,6 +60,8 @@ const uint8_t BLEService::GATT_CHAR_UUID_DATA_OUT[16] =
     0x17, 0xD9, 0xFE, 0xC4,
 };
 
+uint8_t BLEService::dataIn_[200];
+uint8_t BLEService::dataOut_[200];
 uint8_t BLEService::dataInCCCD_[2] = {0x00, 0x00};
 uint8_t BLEService::dataOutCCCD_[2] = {0x00, 0x00};
 
