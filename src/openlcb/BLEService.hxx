@@ -57,6 +57,18 @@ private:
     static uint8_t dataOutCCCD_[2]; ///< configuration descriptor for output
 
 public:
+    /// The entry indexes for the GATT_ATTRIBUTES table.
+    enum GATTAttributeIndexs
+    {
+        GATT_SERVICE_INDEX = 0,    ///< GATT Primary Service index
+        GATT_DATA_IN_DECL_INDEX,   ///< GATT data in declaration index
+        GATT_DATA_IN_VALUE_INDEX,  ///< GATT data in value index
+        GATT_DATA_IN_CCCD_INDEX,   ///< GATT data in CCCD index
+        GATT_DATA_OUT_DECL_INDEX,  ///< GATT data out declaration index
+        GATT_DATA_OUT_VALUE_INDEX, ///< GATT data out value index
+        GATT_DATA_OUT_CCCD_INDEX,  ///< GATT data out CCCD index
+    };
+
     /// GATT Attribute table properties for this service.
     static constexpr GATTAttribute GATT_ATTRIBUTES[] =
     {
@@ -73,8 +85,8 @@ public:
             ble::Defs::UUID_LEN_16,
             ble::Defs::CHAR_DECLARATOIN_UUID,
             ble::Defs::GATTPerm::READ,
-            sizeof(ble::Defs::CHAR_PROP_READ_WRITE_NOTIFY),
-            ble::Defs::CHAR_PROP_READ_WRITE_NOTIFY
+            sizeof(ble::Defs::CHAR_PROP_WRITE),
+            ble::Defs::CHAR_PROP_WRITE
         },
         // Characteristic value for data in.
         {
@@ -97,8 +109,8 @@ public:
             ble::Defs::UUID_LEN_16,
             ble::Defs::CHAR_DECLARATOIN_UUID,
             ble::Defs::GATTPerm::READ,
-            sizeof(ble::Defs::CHAR_PROP_READ_WRITE_NOTIFY),
-            ble::Defs::CHAR_PROP_READ_WRITE_NOTIFY
+            sizeof(ble::Defs::CHAR_PROP_READ_NOTIFY_ACK),
+            ble::Defs::CHAR_PROP_READ_NOTIFY_ACK
         },
         // Characteristic value for data out.
         {
