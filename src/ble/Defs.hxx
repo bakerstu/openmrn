@@ -39,9 +39,10 @@ namespace ble
 class Defs
 {
 public:
-    /// The value of an invalid or unitialized handle.
+    /// The value of an invalid or unitialized attribute handle.
     static constexpr uint16_t ATTR_HANDLE_INVALID = 0;
 
+    /// The value of an invalid or unitialized connection handle.
     static constexpr uint16_t CONN_HANDLE_INVALID = 0xFFFF;
 
     /// Primary service UUID.
