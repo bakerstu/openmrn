@@ -34,11 +34,23 @@ const uint8_t Defs::PRIMARY_SERVICE_UUID[2] = {0x00, 0x28};
 const uint8_t Defs::SECONDARY_SERVICE_UUID[2] = {0x01, 0x28};
 const uint8_t Defs::CHAR_DECLARATOIN_UUID[2] = {0x03, 0x28};
 const uint8_t Defs::CHAR_CLIENT_CONFIG_UUID[2] = {0x02, 0x29};
+
 const uint8_t Defs::CHAR_PROP_READ_WRITE_NOTIFY[1] =
 {
     (1 << 1) | // read
-    (1 << 3) | // write
+    (1 << 3) | // write with response
     (1 << 4)   // notify
+};
+
+const uint8_t Defs::CHAR_PROP_READ_NOTIFY_ACK[1] =
+{
+    (1 << 1) | // read
+    (1 << 5)   // notify with ack
+};
+
+const uint8_t Defs::CHAR_PROP_WRITE[1] =
+{
+    (1 << 3) // write
 };
 
 //

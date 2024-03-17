@@ -39,6 +39,11 @@ namespace ble
 class Defs
 {
 public:
+    /// The value of an invalid or unitialized handle.
+    static constexpr uint16_t ATTR_HANDLE_INVALID = 0;
+
+    static constexpr uint16_t CONN_HANDLE_INVALID = 0xFFFF;
+
     /// Primary service UUID.
     static const uint8_t PRIMARY_SERVICE_UUID[2];
 
@@ -53,6 +58,12 @@ public:
 
     /// Characteristic read/write/notify property.
     static const uint8_t CHAR_PROP_READ_WRITE_NOTIFY[1];
+
+    /// Characteristic read/write/notify property.
+    static const uint8_t CHAR_PROP_READ_NOTIFY_ACK[1];
+
+    /// Characteristic read/write/notify property.
+    static const uint8_t CHAR_PROP_WRITE[1];
 
     /// GATT Permisions.
     enum class GATTPerm : uint8_t
@@ -126,6 +137,16 @@ inline constexpr Defs::GATTPerm operator|(
 {
     return static_cast<Defs::GATTPerm>(
         static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+}
+
+/// '&' operator for GATTPerm.
+/// @param a left hand operand
+/// @param b right hand operand
+inline constexpr bool operator&(
+    const Defs::GATTPerm &a, const Defs::GATTPerm &b)
+{
+    return static_cast<bool>(
+        static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
 }
 
 } // namespace ble
