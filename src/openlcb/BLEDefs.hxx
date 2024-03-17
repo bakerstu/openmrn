@@ -25,6 +25,9 @@
  * @date 10 March 2024
  */
 
+#ifndef _OPENLCB_BLEDEFS_HXX_
+#define _OPENLCB_BLEDEFS_HXX_
+
 namespace openlcb
 {
 
@@ -55,3 +58,5 @@ public:
 };
 
 } // namespace openlcb
+
+#endif // _OPENLCB_BLEDEFS_HXX_
