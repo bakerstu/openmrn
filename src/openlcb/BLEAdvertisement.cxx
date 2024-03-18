@@ -46,8 +46,11 @@ BLEAdvertisement::BLEAdvertisement(
     uint8_t flags = static_cast<uint8_t>(Flags::LE_ONLY_GENERAL_DISC_MODE);
     append(Field::DATA, ble::Defs::AdvType::FLAGS, &flags, 1);
     // Add name to data.
-    std::string name(node_name);
-    append_name(Field::DATA, name);
+    if (node_name && strlen(node_name) != 0)
+    {
+        std::string name(node_name);
+        append_name(Field::DATA, name);
+    }
 
     // Add OpenLCB service data 128 to scan data.
     pip = htole32(pip);
