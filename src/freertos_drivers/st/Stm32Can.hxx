@@ -45,6 +45,12 @@
 
 #include "stm32f_hal_conf.hxx"
 
+// Max possible number of CAN ifs across the whole STM32 -- the constructor
+// will calculate the actual max for the specific chip compiling for
+#define MAXCANIFS 3 
+
+struct CAN_TypeDef;
+
 /** Specialization of CAN driver for LPC17xx and LPC40xx CAN.
  */
 class Stm32Can : public Can
@@ -69,7 +75,7 @@ public:
     void sce_interrupt_handler();
 
     /** Instance pointers help us get context from the interrupt handler(s) */
-    static Stm32Can *instances[1];
+    static Stm32Can *instances[MAXCANIFS];
 
 private:
 #ifndef ARDUINO    
@@ -91,11 +97,17 @@ private:
     static unsigned int intCount;
 
     uint8_t state_; ///< present bus state
-
+    
+    struct CAN_TypeDef *can_;
+    int can_irqn_;
+    int can_second_irqn_;
+    int can_third_irqn_;
+    
     /** Default constructor.
      */
     Stm32Can();
-
+    
+    
     DISALLOW_COPY_AND_ASSIGN(Stm32Can);
 };
 
