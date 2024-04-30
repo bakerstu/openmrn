@@ -152,7 +152,7 @@ Stm32Can::Stm32Can(const char *name)
         can_third_irqn_ = CAN1_THIRD_IRQN;
 #endif
         break;
-#idef CAN2
+#ifdef CAN2
     case 1: /* CAN2... */
         can_ = CAN2;
         can_irqn_ = CAN2_IRQN;
