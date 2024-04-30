@@ -86,7 +86,9 @@
 #define CAN1_IRQN CAN1_TX_IRQN
 #define CAN1_SECOND_IRQN CAN1_RX0_IRQn
 #define CAN1_THIRD_IRQN CAN1_SCE_IRQn
+#ifndef CAN1
 #define CAN1 CAN
+#endif
 #define CAN_CLOCK (cm3_cpu_clock_hz)
 
 #elif defined (STM32F767xx)
