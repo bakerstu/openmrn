@@ -99,9 +99,9 @@ private:
     uint8_t state_; ///< present bus state
     
     CAN_TypeDef *can_;
-    int can_irqn_;
-    int can_second_irqn_;
-    int can_third_irqn_;
+    IRQn_Type can_irqn_;
+    IRQn_Type can_second_irqn_;
+    IRQn_Type can_third_irqn_;
     
     /** Default constructor.
      */
