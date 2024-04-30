@@ -49,7 +49,7 @@
 // will calculate the actual max for the specific chip compiling for
 #define MAXCANIFS 3 
 
-struct CAN_TypeDef;
+//struct CAN_TypeDef;
 
 /** Specialization of CAN driver for LPC17xx and LPC40xx CAN.
  */
@@ -98,7 +98,7 @@ private:
 
     uint8_t state_; ///< present bus state
     
-    struct CAN_TypeDef *can_;
+    CAN_TypeDef *can_;
     int can_irqn_;
     int can_second_irqn_;
     int can_third_irqn_;
