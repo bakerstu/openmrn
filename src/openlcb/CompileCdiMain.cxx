@@ -27,6 +27,9 @@ void render_cdi_helper(const CdiType &t, string ns, string name)
     t.config_renderer().render_cdi(&payload);
     if (raw_render)
     {
+        // Adds trailing zero to the file written.
+        payload.push_back(0);
+        // Writes the file.
         string filename = name + ".xmlout";
         printf("Writing %d bytes to %s\n", (int)payload.size(),
             filename.c_str());

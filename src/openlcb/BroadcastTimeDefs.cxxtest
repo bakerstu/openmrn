@@ -165,9 +165,10 @@ TEST_F(BroadcastTimeDefsTest, string_to_date)
     parse_date("Feb 29, 2024", 2024, 2, 29);
 
     // Not leap year
-    parse_date("Feb 29, 2023", 2023, 2, 29);
-    // No canonicalization in glibc
-    parse_date("Feb 31, 2023", 2023, 2, 31);
+    parse_date("Feb 29, 2023", 2023, 3, 1);
+
+    // canonize
+    parse_date("Feb 31, 2023", 2023, 3, 3);
 }
 
 TEST_F(BroadcastTimeDefsTest, string_to_date_fail)
@@ -202,9 +203,9 @@ TEST_F(BroadcastTimeDefsTest, date_canonicalize)
 
     EXPECT_FALSE(canon_date("Aug 12, 2023"));
     EXPECT_TRUE(canon_date("Aug     12, \n\t   2023", "Aug 12, 2023"));
-    EXPECT_FALSE(canon_date("Feb 31, 2023"));
-    EXPECT_FALSE(canon_date("Feb 31, 23"));
-    EXPECT_FALSE(canon_date("Feb 31, 3023"));
+    EXPECT_TRUE(canon_date("Feb 31, 2023", "Mar  3, 2023"));
+    EXPECT_TRUE(canon_date("Feb 31, 23", "Mar  3, 23"));
+    EXPECT_TRUE(canon_date("Feb 31, 3023", "Mar  3, 3023"));
 
     EXPECT_TRUE(canon_date("Aug 9, 2023", "Aug  9, 2023"));
 

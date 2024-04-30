@@ -66,6 +66,10 @@ rflash: $(EXECUTABLE).bin
 	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -r -n 0x05010101$$(printf %02x $(ADDRHIGH))$$(printf %02x $(ADDRESS)) -f $<
 
 
-package: $(EXECUTABLE).bin
-	$(MAKE) -C $(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/
-	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -f $< -D $(EXECUTABLE).upload
+$(EXECUTABLE).lflash.bin: $(EXECUTABLE).bin $(EXECUTABLE).lst
+	@[ -x $(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client ] || (echo ======================== ; echo ***please run: ; echo make -C $(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/ ; exit 1)
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -c tiva123 -f $< -D $@
+
+lflash: $(EXECUTABLE).lflash.bin
+	$(GDB) $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex "set remotetimeout 6000" -ex "monitor program $< 0x00000000 verify reset exit" -ex "detach" -ex "quit"
+

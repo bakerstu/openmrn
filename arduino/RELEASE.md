@@ -37,6 +37,7 @@ Arduino ecosystem (whichever incarnation) are used.
 1. Edit library.properties and library.json to increment the version number.
 1. Run `arduino/libify.sh "/path/to/OpenMRNLite" . -f`
 1. Go to OpenMRNLite, commit the results to git, then push it to master.
+   To generate the commit note and later the release notes, use this command: `git log --oneline OpenMRNLite-v1.0.3..OpenMRNLite-v2.0.0 | sed -e 's/[(]#/(https:\/\/github.com\/bakerstu\/openmrn\/pull\//' | sed 's/^/bakerstu\/openmrn@/'` 
 1. go to http://github.com/openmrn/OpenMRNLite, click the releases tab, then
    create a release called v1.2.3 if your library.properties said 1.2.3 as
    version.

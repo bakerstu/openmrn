@@ -189,11 +189,32 @@ int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
 bool BroadcastTimeDefs::string_to_date(
     const std::string &sdate, int *year, int *month, int *day)
 {
-    struct tm tm = {};
+    struct tm tm;
+    memset(&tm, 0, sizeof(tm));
     if (strptime(sdate.c_str(), "%b %e, %Y", &tm) == nullptr)
     {
         return false;
     }
+
+    // newlib does not have the proper boundary checking for strptime().
+    // Therefore we use mktime() to determine if the time we have is really
+    // valid or not. In newlib, mktime() can actually correct some invalid
+    // struct tm values by making some educated guesses.
+    //
+    // While glibc does have proper boundary checking for strptime(), it
+    // can still use mktime() to correct some invalid struct tm values by
+    // making some educated guesses.
+    time_t t = mktime(&tm);
+
+    // newlib does not correctly set the errno value when mktime()
+    // encounters an error. Instead it "only" returns -1, which is technically
+    // a valid time. We are counting on the fact that we zeroed out the struct
+    // tm above, and subsequently -1 cannot be an expected result.
+    if (t == (time_t)-1)
+    {
+        return false;
+    }
+
     if (tm.tm_year < (0 - 1900) || tm.tm_year > (4095 - 1900))
     {
         // Out of range for openlcb.

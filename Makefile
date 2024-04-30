@@ -29,7 +29,7 @@ cov:
 	$(MAKE) -C targets/cov cov
 
 tests:
-	$(MAKE) -C targets/cov tests
+	$(MAKE) -C targets/test tests
 
 llvm-tests:
 	$(MAKE) -C targets/linux.llvm run-tests

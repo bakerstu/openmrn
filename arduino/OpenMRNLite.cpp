@@ -34,6 +34,8 @@
 
 #include <OpenMRNLite.h>
 
+OVERRIDE_CONST(gridconnect_bridge_max_incoming_packets, 5);
+
 namespace openmrn_arduino {
 
 OpenMRN::OpenMRN(openlcb::NodeID node_id)
@@ -41,7 +43,7 @@ OpenMRN::OpenMRN(openlcb::NodeID node_id)
     init(node_id);
 }
 
-#ifdef ESP32
+#ifdef ESP_PLATFORM
 extern "C" {
 
 #ifndef OPENMRN_EXCLUDE_REBOOT_IMPL
@@ -60,6 +62,6 @@ ssize_t os_get_free_heap()
 #endif // OPENMRN_EXCLUDE_FREE_HEAP_IMPL
 
 }
-#endif // ESP32
+#endif // ESP_PLATFORM
 
 } // namespace openmrn_arduino

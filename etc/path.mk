@@ -718,6 +718,18 @@ SXMLCPATH:=$(TRYPATH)
 endif
 endif #SXMLCPATH
 
+################ TinyUSB ##################
+ifndef TINYUSBPATH
+SEARCHPATH := \
+  /opt/tinyusb/default \
+  /opt/tinyusb/tinyusb \
+
+TRYPATH:=$(call findfirst,src/tusb.c,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TINYUSBPATH:=$(TRYPATH)
+endif
+endif #TINYUSBPATH
+
 
 endif # ifndef OPENMRN_EXPLICIT_DEPS_ONLY
 endif # if  $(OS)  != Windows_NT

@@ -65,7 +65,7 @@
 
 #elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || \
       defined (__WIN32__) || defined (__EMSCRIPTEN__) || defined (ESP_NONOS) || \
-      defined (ARDUINO) || defined (ESP32)
+      defined (ARDUINO) || defined (ESP_PLATFORM)
     #include <stdint.h>
 
     struct can_frame

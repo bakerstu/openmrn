@@ -472,7 +472,13 @@ struct DCCDecode
     /// counts how many edges / transitions we had on the DCC signal.
     static unsigned sampleCount_;
     static inline void cap_event_hook() { ++sampleCount_; }
+
+    // These functions fine-tune the railcom cutout timing.
+    static int time_delta_railcom_pre_usec() { return 0; } 
+    static int time_delta_railcom_mid_usec() { return 0; } 
+    static int time_delta_railcom_end_usec() { return 0; } 
 };
+
 
 #endif // ! pindefs_only
 

@@ -1,116 +1,42 @@
-ifeq ($(BASENAME),)
-# if the basename is so far undefined
-BASENAME := $(notdir $(CURDIR))
-endif
+TOOLPATH ?= /usr/bin
 
-include $(OPENMRNPATH)/etc/config.mk
+# Get the $(CFLAGSENV), $(CXXFLAGSENV), $(LDFLAGSENV)
+include $(OPENMRNPATH)/etc/env.mk
 
-include $(OPENMRNPATH)/etc/linux.x86.mk
+# Define this variable if you want to use a specific (suffixed) GCC version
+# instead of the system default.
+#GCCVERSION=-8
 
-include $(OPENMRNPATH)/etc/path.mk
+CC = $(shell $(OPENMRNPATH)/bin/find_distcc.sh gcc$(GCCVERSION))
+CXX = $(shell $(OPENMRNPATH)/bin/find_distcc.sh g++$(GCCVERSION))
+AR = ar
+LD = g++$(GCCVERSION)
+OBJDUMP = objdump
 
-SRCDIR = $(OPENMRNPATH)/src/$(BASENAME)/
-VPATH = $(SRCDIR):$(GMOCKPATH)/src:$(GMOCKSRCPATH)
+AROPTS=D
 
-exist := $(wildcard $(SRCDIR)/sources)
-ifneq ($(strip $(exist)),)
-include $(SRCDIR)/sources
-else
-exist := $(wildcard sources)
-ifneq ($(strip $(exist)),)
-include sources
-else
-FULLPATHCSRCS        = $(wildcard $(VPATH)*.c)
-FULLPATHCXXSRCS      = $(wildcard $(VPATH)*.cxx)
-FULLPATHCXXTESTSRCS  = $(wildcard $(VPATH)*.cxxtest)
+HOST_TARGET := 1
 
-CSRCS       = $(notdir $(FULLPATHCSRCS))       $(wildcard *.c)
-CXXSRCS     = $(notdir $(FULLPATHCXXSRCS))     $(wildcard *.cxx)
-CXXTESTSRCS = $(notdir $(FULLPATHCXXTESTSRCS)) $(wildcard *.cxxtest)
-endif
-endif
-
-OBJS = $(CXXSRCS:.cxx=.o) $(CSRCS:.c=.o)
-TESTOBJS = $(CXXTESTSRCS:.cxxtest=.otest)
-TESTOBJSEXTRA = gtest-all.o gmock-all.o
-
-TESTBINS = $(CXXTESTSRCS:.cxxtest=.test)
-TESTOUTPUTS = $(CXXTESTSRCS:.cxxtest=.testout)
-
-LIBDIR = $(OPENMRNPATH)/targets/linux.x86/lib
-FULLPATHLIBS = $(wildcard $(LIBDIR)/*.a) $(wildcard lib/*.a)
-LIBDIRS := $(SUBDIRS)
-LIBS = $(STARTGROUP) \
-       $(foreach lib,$(LIBDIRS),-l$(lib)) \
-       $(ENDGROUP) \
-       $(LINKCORELIBS)
+STARTGROUP := -Wl,--start-group
+ENDGROUP := -Wl,--end-group
 
 TESTOPTIMIZATION=-O0
 
-INCLUDES     += -I$(GTESTPATH)/include -I$(GMOCKPATH)/include -I$(GMOCKPATH) \
-                -I$(OPENMRNPATH)/src -I$(OPENMRNPATH)/include
-CFLAGS       += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage $(TESTOPTIMIZATION)
-CXXFLAGS     += -DGTEST $(INCLUDES) -Wno-unused-but-set-variable -fprofile-arcs -ftest-coverage $(TESTOPTIMIZATION)
-SYSLIBRARIES += -lgcov -fprofile-arcs -ftest-coverage $(TESTOPTIMIZATION)
-LDFLAGS      += -L$(LIBDIR)
+ARCHOPTIMIZATION = -g $(TESTOPTIMIZATION) -fdata-sections -ffunction-sections -fPIC -O0
 
-.SUFFIXES:
-.SUFFIXES: .o .otest .c .cxx .cxxtest .test
+CSHAREDFLAGS = -c -frandom-seed=$(shell echo $(abspath $<) | md5sum  | sed 's/\(.*\) .*/\1/') \
+    $(ARCHOPTIMIZATION) $(INCLUDES) -Wall -Werror -Wno-unknown-pragmas -MD -MP \
+    -fno-stack-protector -D_GNU_SOURCE -DGTEST
 
-all: $(TESTBINS)
+CFLAGS = $(CSHAREDFLAGS) -std=gnu99 $(CFLAGSENV) $(CFLAGSEXTRA)
 
--include $(OBJS:.o=.d) $(TESTOBJS:.otest=.dtest)
+CXXFLAGS = $(CSHAREDFLAGS) -std=c++14 -D__STDC_FORMAT_MACROS \
+           -D__STDC_LIMIT_MACROS $(CXXFLAGSENV) $(CXXFLAGSEXTRA) \
 
-$(TESTBINS): $(OBJS) $(TESTOBJS) $(FULLPATHLIBS) $(TESTOBJSEXTRA)
-	$(LD) -o $@ $*.otest $(TESTOBJSEXTRA) \
-	$(filter $(@:.test=.o),$(OBJS)) $(OBJSEXTRA) \
-	$(LDFLAGS) $(LIBS) $(SYSLIBRARIES)
+LDFLAGS = $(ARCHOPTIMIZATION) -pg -Wl,-Map="$(@:%=%.map)" -Wl,--undefined=ignore_fn
 
-$(TESTOUTPUTS): %.testout : %.test
-	(cd lcovdir; ../$< $(TESTARGS) --gtest_death_test_style=threadsafe && touch $@)
+SYSLIB_SUBDIRS +=
+SYSLIBRARIES = -lrt -lpthread -lavahi-client -lavahi-common $(SYSLIBRARIESEXTRA)
 
-gtest-all.o : %.o : $(GTESTSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH)  $< -o $@
-	$(CXX) -MM $(CXXFLAGS) -I$(GTESTPATH) -I$(GTESTSRCPATH) $< > $*.d
+EXTENTION =
 
-gmock-all.o : %.o : $(GMOCKSRCPATH)/src/%.cc
-	$(CXX) $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH)  $< -o $@
-	$(CXX) -MM $(CXXFLAGS) -I$(GMOCKPATH) -I$(GMOCKSRCPATH) $< > $*.d
-
-.cxx.o:
-	$(CXX) $(CXXFLAGS) $< -o $@
-
-.c.o:
-	$(CC) $(CFLAGS) $< -o $@
-
-.cxxtest.otest:
-	$(CXX) $(CXXFLAGS) -MF $*.dtest -x c++ $< -o $@
-#	ln -s $@.gcno $*.gcno
-
-#.otest.test:
-#	$(LD) -o $@ $< $(GTESTPATH)/src/gtest-all.o \
-#	$(GTESTPATH)/src/gtest_main.o $(filter $(<:.otest=.o),$(OBJS)) \
-#	$(LDFLAGS) $(SYSLIBRARIES)
-
-tests: all
-	echo $(foreach TESTBINS,$(TESTBINS),gcov $(VPATH)$(TESTBINS:.test=.cxxtest))
-	[ -z "$(TESTBINS)" ] || (mkdir -p lcovdir; cd lcovdir; \
-	lcov --directory ../ --no-recursion -z; cd .. ; \
-	$(MAKE) run-tests ; cd lcovdir ; \
-	lcov --directory ../ --no-recursion --capture --output-file app.info; \
-	lcov -r app.info "/usr/include/*" -o app.info; \
-	lcov -r app.info "*.cxxtest" -o app.info; \
-	lcov -r app.info "*gtest*" -o app.info; \
-	genhtml -o . app.info )
-
-run-tests: $(TESTOUTPUTS)
-
-clean: clean-local
-
-clean-local:
-	rm -rf *.o *.otest *.d *.dtest *.test *.gcda *.gcno *.png *.info bits ext home i686-linux-gnu opt usr *.html *.css lcovdir *.map
-
-veryclean: clean-local
-
-#nothing to do
-mksubdirs:

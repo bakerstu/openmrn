@@ -35,7 +35,7 @@
 #ifndef _OPENLCB_APPLICATIONCHECKSUM_HXX_
 #define _OPENLCB_APPLICATIONCHECKSUM_HXX_
 
-#ifdef ESP32
+#ifdef ESP_PLATFORM
 #include "bootloader_hal.h"
 #else
 #include "freertos/bootloader_hal.h"
