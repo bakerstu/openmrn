@@ -45,6 +45,9 @@ public:
     /// The value of an invalid or unitialized connection handle.
     static constexpr uint16_t CONN_HANDLE_INVALID = 0xFFFF;
 
+    /// The length of an address.
+    static constexpr uint8_t ADDR_LEN = 6;
+
     /// Primary service UUID.
     static const uint8_t PRIMARY_SERVICE_UUID[2];
 
@@ -65,6 +68,17 @@ public:
 
     /// Characteristic read/write/notify property.
     static const uint8_t CHAR_PROP_WRITE[1];
+
+    /// BLE address.
+    typedef uint8_t Addr[ADDR_LEN];
+
+    /// Address Type.
+    typedef uint8_t AddrType;
+
+    /// Connection handle.
+    typedef uint16_t ConnHandle;
+
+    typedef uint16_t AttHandle;
 
     /// GATT Permisions.
     enum class GATTPerm : uint8_t
@@ -95,7 +109,7 @@ public:
         NAME_COMPLETE    = 0x09, ///< complete local name
         SERVICE_DATA_128 = 0x21, ///< 128-bit service UUID folloed by data  
     };
-
+    
     /// Find an advertisment data within an advertisement set.
     /// @param adv contents of the advertisement set
     /// @param type the data type to find
