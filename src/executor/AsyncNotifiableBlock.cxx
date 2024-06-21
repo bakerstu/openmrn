@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2020, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,8 +45,8 @@
 
 AsyncNotifiableBlock::~AsyncNotifiableBlock()
 {
-    // Recollects all notifiable instances, including waiting a bit if
-    // there are some that have not finished yet.
+    // Recollects all notifiable instances, including waiting as long as needed
+    // if there are some that have not finished yet.
     for (unsigned i = 0; i < count_; ++i)
     {
         while (true)
