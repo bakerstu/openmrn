@@ -294,6 +294,8 @@ private:
                 e->unselect(&helper_);
                 set_terminated();
                 buf_.reset();
+                /// @todo We should first clean up the async notifiable block
+                /// and only start the shutdown afterwards.
                 parent_->read_flow_exit();
             }
             // Else we're waiting for the regular progress to wake up the
@@ -563,6 +565,7 @@ public:
         if (fd_ < 0)
         {
             // Port already closed. Ignore data to send.
+            return;
         }
         {
             AtomicHolder h(lock());
