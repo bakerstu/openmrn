@@ -1390,7 +1390,7 @@ void CC32xxWiFi::trigger_event_handler(SockTriggerEvent *event)
         return;
     }
 
-    LOG(ALWAYS, "trigger event %u %d", (unsigned)event->Event,
+    LOG(INFO, "Socket trigger event %u %d", (unsigned)event->Event,
         (unsigned)event->EventData);
 }
 
@@ -1752,6 +1752,10 @@ void SimpleLinkFatalErrorEventHandler(SlDeviceFatal_t *slFatalErrorEvent)
         static_cast<CC32xxWiFi::FatalErrorEvent*>(slFatalErrorEvent));
 }
 
+/** Notifies the service about a wifi asynchronous socket event callback. This
+ * means that sl_Select needs to be re-run and certain sockets might need
+ * wakeup.
+ * @param event parameters from the socket. */
 void SimpleLinkSocketTriggerEventHandler(SlSockTriggerEvent_t *event)
 {
     CC32xxWiFi::instance()->trigger_event_handler(
