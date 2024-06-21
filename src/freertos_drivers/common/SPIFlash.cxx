@@ -124,31 +124,49 @@ void SPIFlash::read(uint32_t addr, void *buf, size_t len)
         db[0], db[1], db[2], db[3], len);
 }
 
-void SPIFlash::write(uint32_t addr, const void *buf, size_t len)
+void SPIFlash::write(uint32_t addr, const void *buf, size_t size_bytes)
 {
-    HASSERT((addr & cfg_->pageSizeMask_) ==
-        ((addr + len - 1) & cfg_->pageSizeMask_));
     LockIfExists l(lock_);
-    struct spi_ioc_transfer xfer[3] = {0, 0, 0};
-    uint8_t wreq[4];
-    wreq[0] = cfg_->writeCommand_;
-    wreq[1] = (addr >> 16) & 0xff;
-    wreq[2] = (addr >> 8) & 0xff;
-    wreq[3] = addr & 0xff;
-    xfer[0].tx_buf = (uintptr_t)&cfg_->writeEnableCommand_;
-    xfer[0].len = 1;
-    xfer[0].cs_change = true;
-    xfer[1].tx_buf = (uintptr_t)wreq;
-    xfer[1].len = 4;
-    xfer[2].tx_buf = (uintptr_t)buf;
-    xfer[2].len = len;
-    xfer[2].cs_change = true;
-    ::ioctl(spiFd_, SPI_IOC_MESSAGE(3), xfer);
+    const size_t page_size = (~cfg_->pageSizeMask_) + 1;
+    const uint8_t *d = (const uint8_t *)buf;
+    while (size_bytes)
+    {
+        size_t len = std::min(page_size, size_bytes);
+        if ((addr & cfg_->pageSizeMask_) !=
+            ((addr + len - 1) & cfg_->pageSizeMask_))
+        {
+            // Anything that overflows to the next page we don't write now.
+            len -= (addr + len) & ~cfg_->pageSizeMask_;
+        }
 
-    unsigned waitcount = wait_for_write();
-    auto db = (const uint8_t *)buf;
-    LOG(INFO, "write [%x]=%02x%02x%02x%02x, %u bytes success after %u iter",
-        (unsigned)addr, db[0], db[1], db[2], db[3], len, waitcount);
+        HASSERT((addr & cfg_->pageSizeMask_) ==
+            ((addr + len - 1) & cfg_->pageSizeMask_));
+
+        struct spi_ioc_transfer xfer[3] = {0, 0, 0};
+        uint8_t wreq[4];
+        wreq[0] = cfg_->writeCommand_;
+        wreq[1] = (addr >> 16) & 0xff;
+        wreq[2] = (addr >> 8) & 0xff;
+        wreq[3] = addr & 0xff;
+        xfer[0].tx_buf = (uintptr_t)&cfg_->writeEnableCommand_;
+        xfer[0].len = 1;
+        xfer[0].cs_change = true;
+        xfer[1].tx_buf = (uintptr_t)wreq;
+        xfer[1].len = 4;
+        xfer[2].tx_buf = (uintptr_t)d;
+        xfer[2].len = len;
+        xfer[2].cs_change = true;
+        ::ioctl(spiFd_, SPI_IOC_MESSAGE(3), xfer);
+
+        unsigned waitcount = wait_for_write();
+        LOG(VERBOSE,
+            "write [%x]=%02x%02x%02x%02x, %u bytes success after %u iter",
+            (unsigned)addr, d[0], d[1], d[2], d[3], len, waitcount);
+
+        size_bytes -= len;
+        addr += len;
+        d += len;
+    }
 }
 
 unsigned SPIFlash::wait_for_write()

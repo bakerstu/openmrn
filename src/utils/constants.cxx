@@ -165,7 +165,7 @@ DEFAULT_CONST(directhub_port_incoming_buffer_size, 1460);
 // drain.
 DEFAULT_CONST(directhub_port_max_incoming_packets, 2);
 
-#ifdef ESP32
+#ifdef ESP_PLATFORM
 /// Use a stack size of 3kb for SocketListener tasks.
 DEFAULT_CONST(socket_listener_stack_size, 3072);
 /// Allow one socket to be pending for accept() in SocketListener.
@@ -175,4 +175,4 @@ DEFAULT_CONST(socket_listener_backlog, 1);
 DEFAULT_CONST(socket_listener_stack_size, 1000);
 /// Allow up to five sockets to be pending for accept() in SocketListener.
 DEFAULT_CONST(socket_listener_backlog, 5);
-#endif
+#endif // ESP_PLATFORM

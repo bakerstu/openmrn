@@ -36,17 +36,12 @@
 
 #include <stdint.h>
 
-#if defined(ESP32)
+#if defined(ESP_PLATFORM)
 
 #include "sdkconfig.h"
 
-#include <esp_idf_version.h>
 #if defined(CONFIG_IDF_TARGET_ESP32)
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
 #include <esp32/rom/rtc.h>
-#else
-#include <rom/rtc.h>
-#endif // IDF v4.3+
 #elif defined(CONFIG_IDF_TARGET_ESP32S2)
 #include <esp32s2/rom/rtc.h>
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -76,6 +71,6 @@ public:
 
 using openmrn_arduino::Esp32SocInfo;
 
-#endif // ESP32
+#endif // ESP_PLATFORM
 
 #endif // _FREERTOS_DRIVERS_ESP32_ESP32SOCINFO_HXX_

@@ -138,7 +138,8 @@ void TivaCan::enable()
     // FreeRTOS compatibility.
     MAP_IntPrioritySet(interrupt, configKERNEL_INTERRUPT_PRIORITY);
     MAP_CANEnable(base);
-    canState = CAN_STATE_ACTIVE;
+    // Wait for a successful RX or TX before moving to CAN_STATE_ACTIVE.
+    canState = CAN_STATE_STOPPED;
 }
 
 /** Disable use of the device.
@@ -198,6 +199,8 @@ void TivaCan::interrupt_handler()
 
     if (status == CAN_INT_INTID_STATUS)
     {
+        bool cancel_queue = false;
+        
         status = MAP_CANStatusGet(base, CAN_STS_CONTROL);
         /* some error occured */
         if (status & CAN_STATUS_BUS_OFF)
@@ -206,10 +209,7 @@ void TivaCan::interrupt_handler()
             ++busOffCount;
             canState = CAN_STATE_BUS_OFF;
 
-            /* flush data in the tx pipeline */
-            txBuf->flush();
-            txPending = false;
-            txBuf->signal_condition_from_isr();
+            cancel_queue = true;
 
             /* attempt recovery */
             MAP_CANEnable(base);
@@ -218,11 +218,12 @@ void TivaCan::interrupt_handler()
         {
             /* One of the error counters has exceded a value of 96 */
             ++softErrorCount;
-            canState = CAN_STATE_BUS_PASSIVE;
         }
         if (status & CAN_STATUS_EPASS)
         {
             /* In error passive state */
+            canState = CAN_STATE_BUS_PASSIVE;
+            cancel_queue = true;
         }
         if (status & CAN_STATUS_LEC_STUFF)
         {
@@ -239,6 +240,14 @@ void TivaCan::interrupt_handler()
         if (status & CAN_STATUS_LEC_CRC)
         {
             /* CRC error detected in received message */
+        }
+
+        if (cancel_queue)
+        {
+            /* flush data in the tx pipeline */
+            txBuf->flush();
+            txPending = false;
+            txBuf->signal_condition_from_isr();
         }
     }
     else if (status == 1)

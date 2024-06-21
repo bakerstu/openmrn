@@ -27,6 +27,7 @@ CXXSRCS += \
         Queue.cxx \
         ReflashBootloader.cxx \
         ServiceLocator.cxx \
+        Stats.cxx \
         SocketCan.cxx \
         SocketClient.cxx \
         StringPrintf.cxx \

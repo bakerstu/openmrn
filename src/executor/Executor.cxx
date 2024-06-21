@@ -386,7 +386,13 @@ void ExecutorBase::wait_with_select(long long wait_length)
     fd_set fd_r(selectRead_);
     fd_set fd_w(selectWrite_);
     fd_set fd_x(selectExcept_);
-    if (!empty()) {
+    // We will check the queue for any prior wakeups after this call. If we
+    // already processed the executables, the wakeup is not necessary. Without
+    // this clear, there would always be two select() iterations happening when
+    // we are done with work and can go to sleep.
+    selectHelper_.clear_wakeup();
+    if (!empty())
+    {
         wait_length = 0;
     }
     long long max_sleep = MSEC_TO_NSEC(config_executor_max_sleep_msec());
