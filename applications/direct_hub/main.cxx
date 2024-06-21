@@ -161,6 +161,14 @@ void parse_args(int argc, char *argv[])
     }
 }
 
+void create_legacy_bridge() {
+    static bool is_created = false;
+    if (!is_created) {
+        is_created = true;
+        create_gc_to_legacy_can_bridge(g_direct_hub.get(), &can_hub0);
+    }
+}
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -173,6 +181,7 @@ int appl_main(int argc, char *argv[])
     GcPacketPrinter *packet_printer = NULL;
     if (printpackets)
     {
+        create_legacy_bridge();
         packet_printer = new GcPacketPrinter(&can_hub0, timestamped);
     }
     fprintf(stderr, "packet_printer points to %p\n", packet_printer);
@@ -196,6 +205,7 @@ int appl_main(int argc, char *argv[])
         int s = socketcan_open(socket_can_path, 1);
         if (s >= 0)
         {
+            create_legacy_bridge();
             new HubDeviceSelect<CanHubFlow>(&can_hub0, s);
             fprintf(stderr, "Opened SocketCan %s: fd %d\n", socket_can_path, s);
         }
