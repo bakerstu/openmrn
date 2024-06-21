@@ -49,5 +49,14 @@ void GCFdConnectionClient::connection_complete(int fd)
     FdUtils::optimize_fd(fd);
     
     fd_ = fd;
-    create_gc_port_for_can_hub(hub_, fd, &closedNotify_, use_select);
+
+    if (hub_) {
+        create_gc_port_for_can_hub(hub_, fd, &closedNotify_, use_select);
+    } else if (directHub_) {
+        create_port_for_fd(directHub_, fd,
+            std::unique_ptr<MessageSegmenter>(create_gc_message_segmenter()),
+            &closedNotify_);
+    } else {
+        DIE("Neither hub, nor directhub given to connection client");
+    }
 }
