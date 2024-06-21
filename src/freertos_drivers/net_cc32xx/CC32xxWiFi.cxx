@@ -59,6 +59,9 @@ struct CC32xxWiFi::NetAppEvent : public ::SlNetAppEvent_t {};
 struct CC32xxWiFi::SockEvent : public ::SlSockEvent_t {};
 
 /** CC32xx forward declaration Helper */
+struct CC32xxWiFi::SockTriggerEvent : public ::SlSockTriggerEvent_t {};
+
+/** CC32xx forward declaration Helper */
 struct CC32xxWiFi::HttpServerEvent : public ::SlNetAppHttpServerEvent_t {};
 
 /** CC32xx forward declaration Helper */
@@ -1378,6 +1381,20 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
 }
 
 /*
+ * CC32xxWiFi::trigger_event_handler()
+ */
+void CC32xxWiFi::trigger_event_handler(SockTriggerEvent *event)
+{
+    if (!event)
+    {
+        return;
+    }
+
+    LOG(INFO, "Socket trigger event %u %d", (unsigned)event->Event,
+        (unsigned)event->EventData);
+}
+
+/*
  * CC32xxWiFi::http_server_callback()
  */
 void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
@@ -1733,6 +1750,16 @@ void SimpleLinkFatalErrorEventHandler(SlDeviceFatal_t *slFatalErrorEvent)
 {
     CC32xxWiFi::instance()->fatal_error_callback(
         static_cast<CC32xxWiFi::FatalErrorEvent*>(slFatalErrorEvent));
+}
+
+/** Notifies the service about a wifi asynchronous socket event callback. This
+ * means that sl_Select needs to be re-run and certain sockets might need
+ * wakeup.
+ * @param event parameters from the socket. */
+void SimpleLinkSocketTriggerEventHandler(SlSockTriggerEvent_t *event)
+{
+    CC32xxWiFi::instance()->trigger_event_handler(
+        static_cast<CC32xxWiFi::SockTriggerEvent *>(event));
 }
 
 extern int slcb_SetErrno(int Errno);

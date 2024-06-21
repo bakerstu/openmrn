@@ -187,7 +187,8 @@ public:
         }
     }
 
-    /// Unregisters the current flow from the hub.
+    /// Unregisters the current flow from the hub. Must be called on the main
+    /// executor.
     void shutdown()
     {
         auto *e = this->service()->executor();

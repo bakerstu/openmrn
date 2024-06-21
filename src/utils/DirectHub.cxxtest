@@ -1,0 +1,1080 @@
+#include "utils/DirectHub.hxx"
+
+#include <linux/sockios.h>
+#include <sys/ioctl.h>
+
+#include "executor/StateFlow.hxx"
+#include "nmranet_config.h"
+#include "utils/FdUtils.hxx"
+#include "utils/Hub.hxx"
+#include "utils/gc_format.h"
+#include "utils/test_main.hxx"
+
+DataBufferPool pool_64(64);
+
+Executor<1> g_read_executor("read_thread", 0, 1024);
+Service g_read_service(&g_read_executor);
+OVERRIDE_CONST_TRUE(gc_generate_newlines);
+extern DataBufferPool g_direct_hub_data_pool;
+
+TEST_CONST(directhub_port_max_incoming_packets, 2);
+
+/// This state flow
+class ReadAllFromFd : public StateFlowBase
+{
+public:
+    ReadAllFromFd()
+        : StateFlowBase(&g_read_service)
+    {
+    }
+
+    ~ReadAllFromFd()
+    {
+        stop();
+    }
+
+    /// Start reading all bytes from an fd.
+    /// @param fd the file descriptor of the socket.
+    /// @param cb will be called on a different thread for all data that was
+    /// read.
+    void start(int fd, std::function<void(uint8_t *, size_t)> cb)
+    {
+        ERRNOCHECK("dup", fd_ = dup(fd));
+        ERRNOCHECK("fcntl", ::fcntl(fd_, F_SETFL, O_RDWR | O_NONBLOCK));
+
+        cb_ = std::move(cb);
+        isRunning_ = true;
+        start_flow(STATE(read_some));
+    }
+
+    /// Stops reading. Takes about 10 msec to run.
+    void stop()
+    {
+        if (isRunning_)
+        {
+            doExit_ = true;
+            exitNotify_.wait_for_notification();
+        }
+    }
+
+private:
+    Action read_some()
+    {
+        return read_repeated_with_timeout(&helper_, MSEC_TO_NSEC(10), fd_,
+            readBuf_, sizeof(readBuf_), STATE(read_done));
+    }
+
+    Action read_done()
+    {
+        size_t arrived = sizeof(readBuf_) - helper_.remaining_;
+        if (doExit_)
+        {
+            isRunning_ = false;
+            ::close(fd_);
+            exitNotify_.notify();
+            return exit();
+        }
+        else if (arrived > 0)
+        {
+            cb_(readBuf_, arrived);
+        }
+        return call_immediately(STATE(read_some));
+    }
+
+    /// Helper for stateflow reads.
+    StateFlowTimedSelectHelper helper_ {this};
+    /// Buffer to read data into.
+    uint8_t readBuf_[1000];
+    /// File descriptor to read from.
+    int fd_ = -1;
+    /// Requests the flow to exit.
+    bool doExit_ = false;
+    /// True if the flow was ever started and not yet stopped.
+    bool isRunning_ = false;
+    /// This function will be called with all incoming data.
+    std::function<void(uint8_t *, size_t)> cb_;
+    /// Used to synchronize the exit of this flow.
+    SyncNotifiable exitNotify_;
+};
+
+/// Helper class to send message to the hub directly (i.e., not via a port).
+class SendSomeData : public Executable
+{
+public:
+    SendSomeData(DirectHubInterface<uint8_t[]> *hub, const std::string &data,
+        size_t skip = 0)
+        : hub_(hub)
+    {
+        pool_64.alloc(&bufHead_);
+        bufHead_->set_done(&bn1_);
+        buf_.reset(bufHead_);
+        memcpy(buf_.data_write_pointer(), data.data(), data.size());
+        buf_.data_write_advance(data.size());
+        if (skip)
+        {
+            buf_.transfer_head(skip);
+        }
+    }
+
+    ~SendSomeData()
+    {
+        EXPECT_TRUE(is_done());
+    }
+
+    /// Triggers the send.
+    void enqueue()
+    {
+        hub_->enqueue_send(this);
+    }
+
+    /// Callback from the hub that actually does the send.
+    void run() override
+    {
+        isRunning_.post();
+        hasSeenRun_ = false;
+        sem_.wait();
+        hub_->mutable_message()->done_ = &bn2_;
+        hub_->mutable_message()->buf_ = buf_.transfer_head(buf_.size());
+        buf_.reset();
+        hub_->do_send();
+    }
+
+    bool is_done()
+    {
+        return bn1_.is_done() && bn2_.is_done() &&
+            (bufHead_->references() == 0);
+    }
+
+    DirectHubInterface<uint8_t[]> *hub_;
+    BarrierNotifiable bn1_ {EmptyNotifiable::DefaultInstance()};
+    BarrierNotifiable bn2_ {EmptyNotifiable::DefaultInstance()};
+    DataBuffer *bufHead_;
+    LinkedDataBufferPtr buf_;
+    size_t len_;
+    size_t skip_;
+    /// We take one share of this semaphore when sending. Owners can go from
+    /// blocking to nonblocking sending this way. Default is one share.
+    OSSem sem_ {1};
+    /// True if the Hub has already executed the callback, which is equivalent
+    /// to the message actually having been sent to the hub.
+    bool hasSeenRun_ {false};
+    /// This semaphore is notified when we are blocked.
+    OSSem isRunning_ {0};
+};
+
+/// Class that implements the Segmenter interface, and performs expectation on
+/// what data arrives and that the calls are made according to the API
+/// contract. Segments by | characters.
+class TestSegmenter : public MessageSegmenter
+{
+public:
+    /// @param expected_data is all the bytes that will be sent from the remote
+    /// endpoint.
+    TestSegmenter(std::shared_ptr<string> expected_data)
+        : data_(expected_data)
+    {
+    }
+
+    ssize_t segment_message(const void *data, size_t size) override
+    {
+        LOG(VERBOSE, "segment: ofs %u size %u", (unsigned)nextToReceive_,
+            (unsigned)size);
+        if (needClear_)
+        {
+            EXPECT_TRUE(isClear_) << "Failed to call clear().";
+            needClear_ = false;
+        }
+        else
+        {
+            EXPECT_FALSE(isClear_) << "Unexpected call to clear().";
+        }
+        isClear_ = false;
+        std::string current((char *)data, size);
+        EXPECT_EQ(data_->substr(nextToReceive_, size), current)
+            << "Wrong data passed to segmenter.";
+        if (current.find('|') != string::npos)
+        {
+            // have a segment end.
+            size_t end_ofs = data_->find('|', packetStart_);
+            HASSERT(end_ofs != string::npos);
+            ssize_t ret = end_ofs - packetStart_ + 1;
+            packetStart_ = end_ofs + 1;
+            nextToReceive_ = packetStart_;
+            needClear_ = true;
+            LOG(VERBOSE, "segment: chunk %u", (unsigned)ret);
+            return ret;
+        }
+        nextToReceive_ += size;
+        return 0;
+    }
+
+    /// Resets internal state machine. The next call to segment_message()
+    /// assumes no previous data present.
+    void clear() override
+    {
+        isClear_ = true;
+    }
+
+private:
+    /// What data is being sent.
+    std::shared_ptr<string> data_;
+    /// Offset in the data_ array for the first byte of the current packet.
+    size_t packetStart_ = 0;
+    /// Offset in the data_ array for the next byte we have not seen yet.
+    size_t nextToReceive_ = 0;
+    /// True if clear was called.
+    bool isClear_ = true;
+    /// True if clear needs to be called next.
+    bool needClear_ = true;
+};
+
+/// Class that implements the HubPort interface (downstream), and performs
+/// expectation on what data arrives and that the calls are made according to
+/// the API contract. Segments by | characters.
+class TestReceiver : public DirectHubPort<uint8_t[]>
+{
+public:
+    TestReceiver(std::shared_ptr<string> expected_data)
+        : data_(expected_data)
+    {
+    }
+
+    void send(MessageAccessor<uint8_t[]> *msg) override
+    {
+        ASSERT_TRUE(msg);
+
+        // Assembles the real bytes that came into a single string.
+        string recvd;
+        msg->buf_.append_to(&recvd);
+
+        // Expectations that we got exactly one segmented packet.
+        EXPECT_EQ(msg->buf_.size(), recvd.size());
+        EXPECT_EQ(data_->substr(packetStart_, msg->buf_.size()), recvd)
+            << "Wrong data arrived as part of a packet.";
+        size_t next_div = data_->find('|', packetStart_) + 1;
+        EXPECT_EQ(next_div, packetStart_ + msg->buf_.size())
+            << "Packet end unexpected.";
+        packetStart_ = next_div;
+    }
+
+private:
+    /// What data is being sent.
+    std::shared_ptr<string> data_;
+    /// Offset in the data_ array for the first byte of the next packet.
+    size_t packetStart_ = 0;
+};
+
+/// Hub port for a legacy CAN-bus hub that allows tests to put expectations on
+/// what is happening.
+class TestLegacyCanReceiver : public CanHubPortInterface, private Atomic
+{
+public:
+    TestLegacyCanReceiver(CanHubFlow *hub)
+        : hub_(hub)
+    {
+        hub_->register_port(this);
+    }
+
+    ~TestLegacyCanReceiver()
+    {
+        hub_->unregister_port(this);
+    }
+
+    /// Implements receiving data from the bus.
+    void send(Buffer<CanHubData> *buf, unsigned) override
+    {
+        AtomicHolder h(this);
+        lastFrame_ = *buf->data();
+        ++frameCount_;
+        if (blockPackets_)
+        {
+            blockedPackets_.emplace_back(buf);
+        }
+        else
+        {
+            buf->unref();
+        }
+    }
+
+    /// Inject a new CAN frame to the CAN-bus.
+    /// @param gc_frame gridconnect format frame.
+    void inject_frame(const string &gc_frame)
+    {
+        auto b = get_buffer_deleter(hub_->alloc());
+        ASSERT_EQ(0, gc_format_parse(gc_frame.c_str(), b->data()));
+        b->data()->skipMember_ = this;
+        hub_->send(b.release());
+    }
+
+    /// @return number of CAN frames seen.
+    uint32_t count()
+    {
+        AtomicHolder h(this);
+        return frameCount_;
+    }
+
+    /// @return last seen CAN frame
+    struct can_frame frame()
+    {
+        struct can_frame ret;
+        {
+            AtomicHolder h(this);
+            ret = lastFrame_;
+        }
+        return ret;
+    }
+
+    /// Unblocks all pending packets.
+    void clear_blocked()
+    {
+        blockedPackets_.clear();
+    }
+
+    /// Set to true to stop acknowledging the incoming packets (from the hub).
+    bool blockPackets_ = false;
+
+private:
+    /// If packets are blocked, they end up here so that they get released upon
+    /// destruction.
+    std::vector<BufferPtr<CanHubData> > blockedPackets_;
+    /// Parent hub.
+    CanHubFlow *hub_;
+    /// Stores a copy of the last frame this port has seen.
+    struct can_frame lastFrame_;
+    /// Total number of frames this port has seen.
+    uint32_t frameCount_ {0};
+};
+
+class DirectHubTest : public ::testing::Test
+{
+protected:
+    DirectHubTest()
+    {
+#if OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
+        // We expect write failures to occur but we want to handle them where
+        // the error occurs rather than in a SIGPIPE handler.
+        signal(SIGPIPE, SIG_IGN);
+#endif // OPENMRN_FEATURE_BSD_SOCKETS_IGNORE_SIGPIPE
+
+        /// re-creates main buffer pool to have good expectations on the total
+        /// size of memory allocated.
+        delete mainBufferPool;
+        mainBufferPool = nullptr;
+        mainBufferPool = new DynamicPool(Bucket::init(0));
+        // init_main_buffer_pool();
+    }
+
+    ~DirectHubTest()
+    {
+        if (fdOne_ >= 0)
+        {
+            flush_data(fdOne_);
+            ::close(fdOne_);
+            fdOne_ = -1;
+        }
+        if (fdTwo_ >= 0)
+        {
+            flush_data(fdTwo_);
+            ::close(fdTwo_);
+            fdTwo_ = -1;
+        }
+        wait_for_main_executor();
+        wait_for_main_executor();
+        bn_.notify(); // resolve current barrier.
+        exitNotify_.wait_for_notification();
+    }
+
+    /// Creates two hub ports via socketpair and registers them to the data
+    /// hub. Saves the other endpoints to fdOne_ and fdTwo_.
+    void create_two_ports()
+    {
+        fdOne_ = create_port();
+        fdTwo_ = create_port();
+    }
+
+    /// Creates a hub port via socketpair and registers it to the data
+    /// hub.
+    /// @return the other endpoint fd.
+    int create_port()
+    {
+        int fd[2];
+        ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+
+        int buflen = 1700;
+        socklen_t optlen = sizeof(buflen);
+        ERRNOCHECK("setsockopt",
+            setsockopt(fd[0], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
+        ERRNOCHECK("setsockopt",
+            setsockopt(fd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
+
+        create_port_for_fd(
+            hub_.get(), fd[0], get_new_segmenter(), bn_.new_child());
+
+        portFds_.push_back(fd[0]);
+
+        wait_for_main_executor();
+        return fd[1];
+    }
+
+    /// Creates a pipe to send test-segmented (random) messages. Adds the test
+    /// segmenter to this port.
+    /// @param data the sequence of bytes that will come through this port.
+    void create_test_segmenter_port(std::shared_ptr<string> data)
+    {
+        int fd[2];
+        ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+
+        int buflen = 1700;
+        socklen_t optlen = sizeof(buflen);
+        ERRNOCHECK("setsockopt",
+            setsockopt(fd[0], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
+        ERRNOCHECK("setsockopt",
+            setsockopt(fd[1], SOL_SOCKET, SO_SNDBUF, &buflen, optlen));
+
+        create_port_for_fd(hub_.get(), fd[0],
+            std::unique_ptr<MessageSegmenter>(new TestSegmenter(data)));
+        fdOne_ = fd[1];
+        wait_for_main_executor();
+    }
+
+    /// Creates a new hub port that will make expectations according to the
+    /// test-segmented messages.
+    /// @param data the sequence of bytes that will be sent to the hub.
+    void create_test_receiver_port(std::shared_ptr<string> data)
+    {
+        receiver_.reset(new TestReceiver(data));
+        hub_->register_port(receiver_.get());
+    }
+
+    std::unique_ptr<MessageSegmenter> get_new_segmenter()
+    {
+        if (useTrivialSegmenter_)
+        {
+            return std::unique_ptr<MessageSegmenter>(
+                create_trivial_message_segmenter());
+        }
+        else
+        {
+            return std::unique_ptr<MessageSegmenter>(
+                create_gc_message_segmenter());
+        }
+    }
+
+    /// Prints a log message with queue statistics about an fd (send/receive
+    /// queue and buffers).
+    void print_queue_stats(int fd, const char *where)
+    {
+        int sndbuflen = -1;
+        int rcvbuflen = -1;
+        int sndqlen = -1;
+        int rcvqlen = -1;
+        socklen_t optlen = sizeof(int);
+        ERRNOCHECK("getsockopt",
+            ::getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuflen, &optlen));
+        ERRNOCHECK("getsockopt",
+            ::getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuflen, &optlen));
+        ERRNOCHECK("ioctl", ::ioctl(fd, SIOCINQ, &rcvqlen));
+        ERRNOCHECK("ioctl", ::ioctl(fd, SIOCOUTQ, &sndqlen));
+        LOG(INFO, "Q stats for fd %d (%s):|outbuf %d|outq %d|inbuf %d|inq  %d|",
+            fd, where, sndbuflen, sndqlen, rcvbuflen, rcvqlen);
+    }
+
+    /// Reads whatever data is available on fd (up to 1000 bytes) and returns
+    /// it as a string.
+    /// @param fd a readable file descriptor
+    /// @return data read.
+    string read_some(int fd)
+    {
+        char buf[1000];
+        int ret = ::read(fd, buf, sizeof(buf));
+        HASSERT(ret >= 0);
+        return string(buf, ret);
+    }
+
+    ssize_t write_some(int fd)
+    {
+        string gc_packet(":X195B4111N0102030405060708;\n");
+        string total;
+        while (total.size() < 900)
+        {
+            total += gc_packet;
+        }
+        return ::write(fd, total.data(), total.size());
+    }
+
+    /// Writes a lot of data into an fd, also being prepared for the case that
+    /// it gets blocked.
+    /// @return number of total bytes written.
+    size_t write_a_lot(int fd)
+    {
+        ERRNOCHECK("fcntl", ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK));
+        size_t total = 0;
+        for (int i = 0; i < 200; ++i)
+        {
+            int wr = write_some(fdOne_);
+            if (wr >= 0)
+            {
+                total += wr;
+            }
+            wr = write_some(fdOne_);
+            if (wr >= 0)
+            {
+                total += wr;
+            }
+            usleep(100);
+        }
+        return total;
+    }
+
+    static unsigned flush_data(int fd)
+    {
+        ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK);
+        int ret;
+        unsigned total = 0;
+
+        do
+        {
+            usleep(100);
+            char buf[1000];
+            ret = ::read(fd, buf, sizeof(buf));
+            if (ret > 0)
+            {
+                total += ret;
+            }
+        } while (ret > 0);
+        return total;
+    }
+
+    /// Generates a large random string to send to the input.  The format of
+    /// the string is 1-2-3-4|5-6-|. Numbers are sequential, length of packets
+    /// segmented by | are random.
+    /// @param len total number of bytes to generate.
+    /// @param pmin the minimum length of a packet
+    /// @param pmax the maximum length of a packet
+    string generate_random_data(
+        size_t len, unsigned pmin = 15, unsigned pmax = 150)
+    {
+        string ret;
+        ret.reserve(len);
+        int ctr = 0;
+        while (ret.size() < len)
+        {
+            size_t random_plen = random(pmin, pmax);
+            unsigned packetlen = std::min(len - ret.size(), random_plen);
+            string packet;
+            while (packet.size() < packetlen)
+            {
+                packet += StringPrintf("%d-", ctr++);
+            }
+            packet.resize(packetlen - 1);
+            packet.push_back('|');
+            ret += packet;
+        }
+        return ret;
+    }
+
+    /// @return a random integer in an interval [pmin, pmax]. Deterministic in
+    /// each test run.
+    /// @param pmin minimum of intarval
+    /// @param pmax maximum of interval
+    unsigned random(unsigned pmin, unsigned pmax)
+    {
+        return (rand_r(&randomSeed_) % (pmax - pmin + 1)) + pmin;
+    }
+
+    std::unique_ptr<TestReceiver> receiver_;
+    std::unique_ptr<DirectHubInterface<uint8_t[]>> hub_ {
+        create_hub(&g_executor)};
+
+    /// Remote endpoint of the first port.
+    int fdOne_ = -1;
+    /// Remote endpoint of the second port.
+    int fdTwo_ = -1;
+    /// Fds of the internal parts of the ports.
+    vector<int> portFds_;
+    /// If true, uses a trivial segmenter for input, if false, a GcSegmenter.
+    bool useTrivialSegmenter_ = true;
+    /// Helper flow to drain bytes from a port.
+    ReadAllFromFd fdReaderFlow_;
+    /// Deterministic random seed for repeatable tests.
+    unsigned int randomSeed_ = 994433227;
+
+    /// Hub flow for legacy CAN packets (compatible with openlcb::IfCan).
+    CanHubFlow legacyHub_ {&g_service};
+    /// Fake entry in the legacy hub that receives and injects CAN frames.
+    TestLegacyCanReceiver legacyReceiver_ {&legacyHub_};
+
+    /// Exit notifiable -- when all ports are done.
+    SyncNotifiable exitNotify_;
+    /// This notify will have a child given to each port.
+    BarrierNotifiable bn_ {&exitNotify_};
+};
+
+/// Sends some data from one remote socket through the hub to another remote
+/// socket.
+TEST_F(DirectHubTest, end_to_end_data)
+{
+    create_two_ports();
+
+    ASSERT_EQ(6, ::write(fdOne_, "abcdef", 6));
+    usleep(10000);
+
+    EXPECT_EQ("abcdef", read_some(fdTwo_));
+
+    ASSERT_EQ(1, ::write(fdOne_, "x", 1));
+    usleep(10000);
+    ASSERT_EQ(1, ::write(fdOne_, "y", 1));
+    usleep(10000);
+    ASSERT_EQ(1, ::write(fdOne_, "z", 1));
+    usleep(10000);
+    ASSERT_EQ(1, ::write(fdOne_, "w", 1));
+    usleep(10000);
+
+    EXPECT_EQ("xyzw", read_some(fdTwo_));
+}
+
+/// Checks that the done notifiables are called when sending to an empty hub.
+TEST_F(DirectHubTest, notifies_messages_empty)
+{
+    BarrierNotifiable bn1(EmptyNotifiable::DefaultInstance());
+    BarrierNotifiable bn2(EmptyNotifiable::DefaultInstance());
+    DataBuffer *buf;
+    pool_64.alloc(&buf);
+    EXPECT_EQ(1u, buf->references());
+    buf->set_done(&bn1);
+    bool complete = false;
+    hub_->enqueue_send(new CallbackExecutable([this, buf, &bn2, &complete]() {
+        hub_->mutable_message()->done_ = &bn2;
+        hub_->mutable_message()->buf_.reset(buf, 0, 10);
+        hub_->do_send();
+        complete = true;
+    }));
+    EXPECT_TRUE(complete);
+    EXPECT_TRUE(bn1.is_done());
+    EXPECT_TRUE(bn2.is_done());
+    EXPECT_EQ(0u, buf->references());
+}
+
+/// Transfers a lot of data through the hub from one remote socket to another.
+TEST_F(DirectHubTest, large_end_to_end_data)
+{
+    create_two_ports();
+
+    size_t bytes = 0;
+    fdReaderFlow_.start(
+        fdTwo_, [&bytes](uint8_t *, size_t len) { bytes += len; });
+    for (int i = 0; i < 100; i++)
+    {
+        write_some(fdOne_);
+    }
+    usleep(40000);
+    LOG(INFO, "total bytes transferred: %zu", bytes);
+    EXPECT_EQ(92800u, bytes);
+    fdReaderFlow_.stop();
+}
+
+/// Verifies that the on_exit notifiable is called when an error on the socket
+/// causes the port to be closed.
+TEST_F(DirectHubTest, close_notify)
+{
+    int fd[2];
+    int ffd[2];
+    ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+    ERRNOCHECK("socketpair", socketpair(AF_UNIX, SOCK_STREAM, 0, ffd));
+    LOG(INFO, "socket %d %d", fd[0], fd[1]);
+    SyncNotifiable n;
+    create_port_for_fd(hub_.get(), fd[0],
+        std::unique_ptr<MessageSegmenter>(create_trivial_message_segmenter()),
+        &n);
+    create_port_for_fd(hub_.get(), ffd[0],
+        std::unique_ptr<MessageSegmenter>(create_trivial_message_segmenter()));
+    write_some(fd[1]);
+
+    read_some(ffd[1]);
+    ::close(fd[1]);
+    write_some(ffd[1]);
+    usleep(10000);
+    n.wait_for_notification();
+
+    ::close(ffd[1]);
+}
+
+TEST_F(DirectHubTest, random_deterministic)
+{
+    string d = generate_random_data(35, 3, 9);
+    EXPECT_EQ(35u, d.size());
+    EXPECT_EQ("0-1-2-3|4-5-6-|8-9-1|11-12|13-14-1|", d);
+}
+
+TEST_F(DirectHubTest, segmenter_small)
+{
+    std::shared_ptr<string> d =
+        std::make_shared<string>(generate_random_data(35, 3, 9));
+    create_test_segmenter_port(d);
+    create_test_receiver_port(d);
+    for (size_t ofs = 0; ofs < d->size();)
+    {
+        size_t len = random(10, 80);
+        len = std::min(len, d->size() - ofs);
+        ::write(fdOne_, d->data() + ofs, len);
+        ofs += len;
+        wait_for_main_executor();
+        usleep(100);
+        wait_for_main_executor();
+    }
+}
+
+TEST_F(DirectHubTest, segmenter_long)
+{
+    std::shared_ptr<string> d =
+        std::make_shared<string>(generate_random_data(20000, 3, 9));
+    create_test_segmenter_port(d);
+    create_test_receiver_port(d);
+    for (size_t ofs = 0; ofs < d->size();)
+    {
+        size_t len = random(10, 80);
+        len = std::min(len, d->size() - ofs);
+        ::write(fdOne_, d->data() + ofs, len);
+        ofs += len;
+        wait_for_main_executor();
+        usleep(100);
+        wait_for_main_executor();
+    }
+}
+
+TEST_F(DirectHubTest, segmenter_largepkt)
+{
+    std::shared_ptr<string> d =
+        std::make_shared<string>(generate_random_data(20000, 30, 130));
+    create_test_segmenter_port(d);
+    create_test_receiver_port(d);
+    for (size_t ofs = 0; ofs < d->size();)
+    {
+        size_t len = random(10, 80);
+        len = std::min(len, d->size() - ofs);
+        ::write(fdOne_, d->data() + ofs, len);
+        ofs += len;
+        wait_for_main_executor();
+        usleep(100);
+        wait_for_main_executor();
+    }
+}
+
+TEST_F(DirectHubTest, segmenter_gridconnect_sized)
+{
+    std::shared_ptr<string> d =
+        std::make_shared<string>(generate_random_data(20000, 26, 30));
+    create_test_segmenter_port(d);
+    create_test_receiver_port(d);
+    for (size_t ofs = 0; ofs < d->size();)
+    {
+        size_t len = random(300, 1000);
+        len = std::min(len, d->size() - ofs);
+        ::write(fdOne_, d->data() + ofs, len);
+        ofs += len;
+        wait_for_main_executor();
+        usleep(100);
+        wait_for_main_executor();
+    }
+}
+
+/// In this test we try to write a lot of data into one port while not reading
+/// anything from the other. This situation should push back on the sending
+/// port after some limited amount of intermediate buffers are filled.
+TEST_F(DirectHubTest, socket_blocked)
+{
+    // This test was designed for a smaller amount of data bytes read in.
+    ScopedOverride ov2(g_direct_hub_data_pool.payload_size_override(), 64);
+    TEST_OVERRIDE_CONST(directhub_port_max_incoming_packets, 10);
+
+    create_two_ports();
+
+    int buflen;
+    socklen_t optlen = sizeof(buflen);
+    ERRNOCHECK("getsockopt",
+        getsockopt(fdOne_, SOL_SOCKET, SO_SNDBUF, &buflen, &optlen));
+    LOG(INFO, "snd buf %d", buflen);
+
+    size_t total = write_a_lot(fdOne_);
+    LOG(INFO, "total %u pool %u", (unsigned)total,
+        (unsigned)mainBufferPool->total_size());
+    print_queue_stats(fdOne_, "send remote");
+    print_queue_stats(portFds_[0], "send local");
+    print_queue_stats(fdTwo_, "blocked remote");
+    print_queue_stats(portFds_[1], "blocked local");
+
+    // The total bytes buffered should not be very much, despite having tried
+    // to write a lot of data into the socket.
+    EXPECT_GT(5000u, total);
+    // Memory usage is also under control.
+    EXPECT_GT(5000u, mainBufferPool->total_size());
+
+    // We should survive the case when a blocked socket dies.
+    ::close(fdTwo_);
+    wait_for_main_executor();
+
+    total += write_a_lot(fdOne_);
+
+    LOG(INFO, "Total %u", (unsigned)total);
+    EXPECT_LT(50000u, total);
+    // Memory usage is also under control.
+    EXPECT_GT(5000u, mainBufferPool->total_size());
+}
+
+/// In this test we try to write a lot of data into one port while not reading
+/// anything from the other. This situation should push back on the sending
+/// port after some limited amount of intermediate buffers are filled.
+TEST_F(DirectHubTest, socket_blocked_gc)
+{
+    // This test was designed for a smaller amount of data bytes read in.
+    ScopedOverride ov2(g_direct_hub_data_pool.payload_size_override(), 64);
+    TEST_OVERRIDE_CONST(directhub_port_max_incoming_packets, 10);
+
+    useTrivialSegmenter_ = false;
+    create_two_ports();
+
+    int buflen;
+    socklen_t optlen = sizeof(buflen);
+    ERRNOCHECK("getsockopt",
+        getsockopt(fdOne_, SOL_SOCKET, SO_SNDBUF, &buflen, &optlen));
+    LOG(INFO, "snd buf %d", buflen);
+
+    size_t total = write_a_lot(fdOne_);
+    LOG(INFO, "total %u pool %u", (unsigned)total,
+        (unsigned)mainBufferPool->total_size());
+    // The total bytes buffered should not be very much, despite having tried
+    // to write a lot of data into the socket.
+    EXPECT_GT(5000u, total);
+    // Memory usage is also under control.
+    EXPECT_GT(5000u, mainBufferPool->total_size());
+
+    while (total > 0)
+    {
+        total -= flush_data(fdTwo_);
+    }
+}
+
+/// In this test we try to write a lot of data into one port while not reading
+/// anything from the other. This situation should push back on the sending
+/// port after some limited amount of intermediate buffers are filled.
+///
+/// This test uses the default buffer sizes.
+TEST_F(DirectHubTest, socket_blocked_gc_largebuf)
+{
+    delete mainBufferPool;
+    mainBufferPool = nullptr;
+    // Makes sure that 1460-byte buffers are kept around in the freelist. Then
+    // pool->total_size() will count the largest number of 1460-byte sized
+    // packets concurrently allocated.
+    mainBufferPool = new DynamicPool(Bucket::init(96, 1520, 0));
+
+    useTrivialSegmenter_ = false;
+    create_two_ports();
+
+    size_t total = write_a_lot(fdOne_);
+    LOG(INFO, "total %u pool %u", (unsigned)total,
+        (unsigned)mainBufferPool->total_size());
+    // We don't make an expectation on how much data was written into the
+    // socket, because that depends on how much the kernel is willing to take
+    // into the blocked output queue.
+    // EXPECT_GT(5000u, total);
+
+    // Memory usage is also under control. This is peak memory usage, because
+    // the buffer pool has buckets larger than a TCP packet size.
+    EXPECT_GT(6000u, mainBufferPool->total_size());
+
+    while (total > 0)
+    {
+        total -= flush_data(fdTwo_);
+    }
+}
+
+/// Proxies data to two remote sockets from a locally injected source. Checks
+/// that done notifiables are called and data arrives correctly.
+TEST_F(DirectHubTest, local_source_two_targets)
+{
+    create_two_ports();
+    SendSomeData d(hub_.get(), "abcde");
+    d.enqueue();
+    wait_for_main_executor();
+    EXPECT_TRUE(d.is_done());
+    usleep(2000);
+    string rda = read_some(fdOne_);
+    string rdb = read_some(fdTwo_);
+    EXPECT_EQ("abcde", rda);
+    EXPECT_EQ("abcde", rdb);
+}
+
+/// Simulates a race condition between two threads sending.
+TEST_F(DirectHubTest, race_condition)
+{
+    create_two_ports();
+    SendSomeData d(hub_.get(), "a");
+    d.sem_.wait(); // makes it blocking.
+    g_read_executor.add(new CallbackExecutable([&d]() { d.enqueue(); }));
+    d.isRunning_.wait(); // blocked indeed.
+
+    SendSomeData d2(hub_.get(), "b");
+    d2.enqueue();
+    SendSomeData d3(hub_.get(), "c");
+    d3.enqueue();
+    SendSomeData d4(hub_.get(), "d");
+    d4.enqueue();
+    wait_for_main_executor();
+    EXPECT_FALSE(d2.hasSeenRun_);
+    EXPECT_FALSE(d2.is_done());
+
+    d.sem_.post();        // unblock
+    d4.isRunning_.wait(); // should get all the way to d4.
+    wait_for_main_executor();
+
+    EXPECT_TRUE(d.is_done());
+    EXPECT_TRUE(d2.is_done());
+    EXPECT_TRUE(d3.is_done());
+    EXPECT_TRUE(d4.is_done());
+    usleep(2000);
+    string rda = read_some(fdOne_);
+    string rdb = read_some(fdTwo_);
+    EXPECT_EQ("abcd", rda);
+    EXPECT_EQ("abcd", rdb);
+}
+
+/// Tests that skip_ is correctly handled.
+TEST_F(DirectHubTest, check_skip)
+{
+    create_two_ports();
+    SendSomeData d(hub_.get(), "abc");
+    d.enqueue();
+    SendSomeData d2(hub_.get(), "xyzde", 3);
+    d2.enqueue();
+    wait_for_main_executor();
+    EXPECT_TRUE(d2.is_done());
+    usleep(2000);
+    string rda = read_some(fdOne_);
+    string rdb = read_some(fdTwo_);
+    EXPECT_EQ("abcde", rda);
+    EXPECT_EQ("abcde", rdb);
+}
+
+/// Tests that skipping and chaining is correctly handled.
+TEST_F(DirectHubTest, check_size_skip_chain)
+{
+    create_two_ports();
+    BarrierNotifiable bn2(EmptyNotifiable::DefaultInstance());
+    DataBuffer *buf1;
+    DataBuffer *buf2;
+    pool_64.alloc(&buf1);
+    pool_64.alloc(&buf2);
+    buf2->set_done(&bn2);
+    ASSERT_EQ(64u, buf1->size());
+    buf1->set_size(13);
+    EXPECT_EQ(13u, buf1->size());
+    unsigned skip = buf1->size() - 3;
+    memcpy(buf1->data() + skip, "abc", 3);
+    buf1->set_next(buf2);
+    memcpy(buf2->data(), "de", 2);
+
+    hub_->enqueue_send(new CallbackExecutable([this, skip, buf1]() {
+        hub_->mutable_message()->buf_.reset(buf1, skip, 5);
+        hub_->do_send();
+    }));
+    wait_for_main_executor();
+    EXPECT_EQ(0u, buf1->references());
+    EXPECT_EQ(0u, buf2->references());
+    EXPECT_TRUE(bn2.is_done());
+    usleep(2000);
+    string rda = read_some(fdOne_);
+    string rdb = read_some(fdTwo_);
+    EXPECT_EQ("abcde", rda);
+    EXPECT_EQ("abcde", rdb);
+}
+
+TEST_F(DirectHubTest, can_bridge_create)
+{
+    std::unique_ptr<Destructable> bridge(
+        create_gc_to_legacy_can_bridge(hub_.get(), &legacyHub_));
+}
+
+TEST_F(DirectHubTest, can_bridge_send_recv)
+{
+    std::unique_ptr<Destructable> bridge(
+        create_gc_to_legacy_can_bridge(hub_.get(), &legacyHub_));
+
+    useTrivialSegmenter_ = false; // gridconnect segmenter
+    fdOne_ = create_port();
+
+    FdUtils::repeated_write(fdOne_, ":X195B4333N8877665544332211;", 29);
+    usleep(1000);
+    wait_for_main_executor();
+    EXPECT_EQ(1u, legacyReceiver_.count());
+    auto frame = legacyReceiver_.frame();
+    EXPECT_TRUE(IS_CAN_FRAME_EFF(frame));
+    EXPECT_EQ(0x195b4333u, GET_CAN_FRAME_ID_EFF(frame));
+    EXPECT_EQ(8u, frame.can_dlc);
+    EXPECT_EQ(0x66u, frame.data[2]);
+    EXPECT_EQ(0x11u, frame.data[7]);
+
+    // Send frame the other way
+    legacyReceiver_.inject_frame(":X1f555333NF1F2F3F4F5F6F7F8;");
+    wait_for_main_executor();
+    usleep(1000);
+    string d = read_some(fdOne_);
+    EXPECT_EQ(":X1F555333NF1F2F3F4F5F6F7F8;\n", d);
+
+    // Hopefully did not come back.
+    EXPECT_EQ(1u, legacyReceiver_.count());
+}
+
+TEST_F(DirectHubTest, can_bridge_send_much)
+{
+    std::unique_ptr<Destructable> bridge(
+        create_gc_to_legacy_can_bridge(hub_.get(), &legacyHub_));
+
+    useTrivialSegmenter_ = false; // gridconnect segmenter
+    fdOne_ = create_port();
+
+    write_some(fdOne_);
+    usleep(1000);
+    wait_for_main_executor();
+    EXPECT_EQ(929u / 29, legacyReceiver_.count());
+}
+
+TEST_F(DirectHubTest, can_bridge_block)
+{
+    std::unique_ptr<Destructable> bridge(
+        create_gc_to_legacy_can_bridge(hub_.get(), &legacyHub_));
+
+    legacyReceiver_.blockPackets_ = true;
+    useTrivialSegmenter_ = false; // gridconnect segmenter
+    fdOne_ = create_port();
+
+    auto total = write_a_lot(fdOne_);
+    wait_for_main_executor();
+
+    LOG(INFO, "total %u pool %u", (unsigned)total,
+        (unsigned)mainBufferPool->total_size());
+
+    // value of 100 is 2 (packets) * 1460 (bytes/packet) / 29 (bytes per can
+    // frame).
+    EXPECT_EQ(100u, legacyReceiver_.count());
+
+    // The total bytes buffered should not be very much, despite having tried
+    // to write a lot of data into the socket.
+    EXPECT_GT(5000u, total);
+    // Memory usage is also under control. Not as small as we'd like, because
+    // every packet has a copy in a CAN buffer.
+    EXPECT_GT(8000u, mainBufferPool->total_size());
+
+    // Once unblocked, we get a lot of flow.
+    legacyReceiver_.clear_blocked();
+    legacyReceiver_.blockPackets_ = false;
+
+    total += write_a_lot(fdOne_);
+    wait_for_main_executor();
+
+    LOG(INFO, "total %u pool %u", (unsigned)total,
+        (unsigned)mainBufferPool->total_size());
+
+    EXPECT_LT(50000u, total);
+    EXPECT_LT(1000u, legacyReceiver_.count());
+}
