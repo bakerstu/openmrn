@@ -295,7 +295,7 @@ private:
                 set_terminated();
                 buf_.reset();
                 /// @todo We should first clean up the async notifiable block
-                /// and only start the shutdown afterwards.
+                /// and only signal the exit afterwards.
                 parent_->read_flow_exit();
             }
             // Else we're waiting for the regular progress to wake up the
@@ -916,9 +916,9 @@ private:
 
 void DirectGcTcpHub::OnNewConnection(int fd)
 {
+#if 0    
     uint32_t rcvbuf;
     socklen_t len = sizeof(rcvbuf);
-#if 0    
     int ret = getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, &len);
     if (ret >= 0)
     {
