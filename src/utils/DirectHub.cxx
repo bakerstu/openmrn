@@ -915,11 +915,13 @@ void DirectGcTcpHub::OnNewConnection(int fd)
 {
     uint32_t rcvbuf;
     socklen_t len = sizeof(rcvbuf);
+#if 0    
     int ret = getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, &len);
     if (ret >= 0)
     {
         LOG(ALWAYS, "Socket rcvbuf %u", (unsigned)rcvbuf);
     }
+#endif    
     create_port_for_fd(gcHub_, fd,
         std::unique_ptr<MessageSegmenter>(create_gc_message_segmenter()));
 }
