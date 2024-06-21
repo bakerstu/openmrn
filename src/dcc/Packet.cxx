@@ -110,6 +110,18 @@ void Packet::add_dcc_address(DccLongAddress address)
     feedback_key = address.value;
 }
 
+void Packet::add_dcc_accy_address(bool is_basic, unsigned address)
+{
+    start_dcc_packet();
+
+    payload[dlc++] = DCC_BASIC_ACCESSORY_B1 | ((address >> 2) & 0b111111);
+    uint8_t b2 = is_basic ? DCC_BASIC_ACCESSORY_B2 : DCC_EXT_ACCESSORY_B2;
+    b2 |= ((~(address >> 8)) & 0b111) << 4;
+    b2 |= (address & 0b11) << 1;
+    payload[dlc++] = b2;
+    feedback_key = 0x10000 | address;
+}
+
 void Packet::add_dcc_speed14(bool is_fwd, bool light, unsigned speed)
 {
     /// TODO(balazs.racz) add unittests.
@@ -307,18 +319,40 @@ void Packet::set_dcc_svc_paged_verify_reg(uint8_t reg, uint8_t value)
     add_dcc_checksum();
 }
 
-void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate) {
-    payload[dlc++] = DCC_BASIC_ACCESSORY_B1 | ((address >> 3) & 0b111111);
-    uint8_t b2 = 1;
-    b2 <<= 3;
-    b2 |= ((~(address >> 9)) & 0b111);
-    b2 <<= 1;
-    b2 |= (is_activate ? 1 : 0);
-    b2 <<= 3;
-    b2 |= address & 0b111;
-    payload[dlc++] = b2;
+void Packet::set_dcc_basic_accy_params(bool is_normal, bool is_activate)
+{
+    if (is_normal)
+    {
+        payload[1] |= DCC_BASIC_ACCESSORY_B2_CLOSED;
+    }
+    else
+    {
+        payload[1] |= DCC_BASIC_ACCESSORY_B2_THROWN;
+    }
+    if (is_activate)
+    {
+        payload[1] |= DCC_BASIC_ACCESSORY_B2_ACTIVATE;
+    }
+    else
+    {
+        payload[1] |= DCC_BASIC_ACCESSORY_B2_DEACTIVATE;
+    }
+}
+
+void Packet::add_dcc_basic_accessory(unsigned address, bool is_activate)
+{
+    add_dcc_accy_address(true, address >> 1);
+    set_dcc_basic_accy_params(address & 1, is_activate);
     add_dcc_checksum();
 }
+
+void Packet::add_dcc_ext_accessory(unsigned address, uint8_t aspect)
+{
+    add_dcc_accy_address(false, address);
+    payload[dlc++] = aspect;
+    add_dcc_checksum();
+}
+
 
 void Packet::set_dcc_logon_enable(
     Defs::LogonEnableParam param, uint16_t cid, uint8_t session_id)

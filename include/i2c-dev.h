@@ -36,7 +36,7 @@
 
 #if defined (__linux__)
     #include <linux/i2c-dev.h>
-#elif defined (__FreeRTOS__)
+#elif defined (__FreeRTOS__) || defined(ESP_PLATFORM)
     #include <stdint.h>
     /** magic number for this driver's ioctl calls */
     #define I2C_MAGIC ('i')

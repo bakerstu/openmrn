@@ -33,11 +33,7 @@
  */
 
 // Ensure we only compile this code for the ESP32 family of MCUs.
-#if defined(ESP32)
-
-#include <esp_idf_version.h>
-
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4,3,0)
+#if defined(ESP_PLATFORM)
 
 #include "Esp32Ledc.hxx"
 
@@ -48,6 +44,4 @@ pthread_once_t Esp32Ledc::ledcFadeOnce_ = PTHREAD_ONCE_INIT;
 
 } // namespace openmrn_arduino
 
-#endif // IDF v4.3+
-
-#endif // ESP32
+#endif // ESP_PLATFORM

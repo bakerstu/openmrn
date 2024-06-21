@@ -1,12 +1,13 @@
 COREPATH=$(ESPARDUINOPATH)/hardware/esp8266/2.2.0/cores/esp8266
 
-VPATH := $(COREPATH):$(COREPATH)/umm_malloc \
+VPATH := $(COREPATH):$(COREPATH)/umm_malloc:$(OPENMRNPATH)/src/freertos_drivers/common \
 
 
 CSRCS += core_esp8266_noniso.c \
 	heap.c \
 	umm_malloc.c \
 	libc_replacements.c \
+        libatomic.c \
 
 
 CFLAGS += -I$(COREPATH) -include $(OPENMRNPATH)/include/esp8266/esp_predef.h

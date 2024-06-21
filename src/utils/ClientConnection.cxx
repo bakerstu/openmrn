@@ -34,8 +34,6 @@
 
 #include "utils/ClientConnection.hxx"
 
-#include "netinet/in.h"
-#include "netinet/tcp.h"
 #include "nmranet_config.h"
 
 #include "utils/FdUtils.hxx"

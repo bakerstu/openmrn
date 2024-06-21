@@ -26,7 +26,7 @@
  *
  * \file main.cxx
  *
- * Main file for the io board application on the Tiva Launchpad board.
+ * Main file for the load generator application for the load-test suite.
  *
  * @author Balazs Racz
  * @date 5 Jun 2015

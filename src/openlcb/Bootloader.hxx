@@ -43,7 +43,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef ESP32
+#ifdef ESP_PLATFORM
 #include "bootloader_hal.h"
 #else
 #include "freertos/bootloader_hal.h"

@@ -216,6 +216,7 @@ protected:
         LOG(INFO, "set up test case");
         stack1_.start_executor_thread("stack1", 0, 0);
         stack1_.start_tcp_hub_server(50989);
+        wait_for_main_executor();
         int fd = ConnectSocket("localhost", 50989);
         HASSERT(fd >= 0);
         create_gc_port_for_can_hub(&canHub2_, fd);

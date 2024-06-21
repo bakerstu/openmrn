@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2020, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,14 +41,12 @@
 
 #include "AsyncNotifiableBlock.hxx"
 
-#include <unistd.h>
+#include "os/sleep.h"
 
 AsyncNotifiableBlock::~AsyncNotifiableBlock()
 {
-    unsigned max = 10;
-    // Recollects all notifiable instances, including waiting a bit if
-    // there are some that have not finished yet. Limits the total amount
-    // of wait.
+    // Recollects all notifiable instances, including waiting as long as needed
+    // if there are some that have not finished yet.
     for (unsigned i = 0; i < count_; ++i)
     {
         while (true)
@@ -58,8 +56,7 @@ AsyncNotifiableBlock::~AsyncNotifiableBlock()
             {
                 LOG(VERBOSE,
                     "shutdown async notifiable block: waiting for returns");
-                usleep(100);
-                HASSERT(--max);
+                microsleep(100);
             }
             else
             {

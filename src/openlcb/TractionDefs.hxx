@@ -73,6 +73,8 @@ struct TractionDefs {
     static constexpr uint64_t ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE = 0x0101020000FF0000ULL;
     /// Base address of DCC accessory decoder well-known event range (inactive)
     static constexpr uint64_t INACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE = 0x0101020000FE0000ULL;
+    /// Base address of DCC extended accessory decoder well-known event range
+    static constexpr uint64_t EXT_DCC_ACCESSORY_EVENT_BASE = 0x0101020001000000ULL;
     /// Node ID space allocated for DC blocks.
     static const uint64_t NODE_ID_DC_BLOCK = 0x060000000000ULL;
     /// Node ID space allocated for DCC locomotives.

@@ -294,6 +294,8 @@ private:
                 e->unselect(&helper_);
                 set_terminated();
                 buf_.reset();
+                /// @todo We should first clean up the async notifiable block
+                /// and only signal the exit afterwards.
                 parent_->read_flow_exit();
             }
             // Else we're waiting for the regular progress to wake up the
@@ -563,6 +565,7 @@ public:
         if (fd_ < 0)
         {
             // Port already closed. Ignore data to send.
+            return;
         }
         {
             AtomicHolder h(lock());
@@ -913,6 +916,7 @@ private:
 
 void DirectGcTcpHub::OnNewConnection(int fd)
 {
+#if 0    
     uint32_t rcvbuf;
     socklen_t len = sizeof(rcvbuf);
     int ret = getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, &len);
@@ -920,6 +924,7 @@ void DirectGcTcpHub::OnNewConnection(int fd)
     {
         LOG(ALWAYS, "Socket rcvbuf %u", (unsigned)rcvbuf);
     }
+#endif    
     create_port_for_fd(gcHub_, fd,
         std::unique_ptr<MessageSegmenter>(create_gc_message_segmenter()));
 }
