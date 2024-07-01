@@ -1,0 +1,382 @@
+/** \copyright
+ * Copyright (c) 2024, Rick Lull
+ * Based on work by Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file HwInit.cxx
+ *
+ * This file represents the hardware initialization for the STM32F303RE Nucelo
+ * board with the DevKit IO board plugged in.
+ *
+ * @author Rick Lull
+ * @date June 14, 2024
+ */
+
+#define _DEFAULT_SOURCE
+
+#include <new>
+#include <cstdint>
+
+#include "stm32l4xx_hal_conf.h"
+#include "stm32l4xx_hal.h"
+
+#include "os/OS.hxx"
+#include "Stm32Uart.hxx"
+#include "Stm32Can.hxx"
+#include "Stm32SPI.hxx"
+#include "Stm32I2C.hxx"
+#include "Stm32EEPROMEmulation.hxx"
+#include "Stm32PWM.hxx"
+#include "hardware.hxx"
+
+/** override stdin */
+const char *STDIN_DEVICE = "/dev/ser0";
+
+/** override stdout */
+const char *STDOUT_DEVICE = "/dev/ser0";
+
+/** override stderr */
+const char *STDERR_DEVICE = "/dev/ser0";
+
+/** UART 0 serial driver instance */
+static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
+
+/** CAN 0 CAN driver instance */
+static Stm32Can can0("/dev/can0");
+
+/** EEPROM emulation driver. The file size might be made bigger. */
+static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 8192);
+// originally 4000
+
+/** I2C0 driver instance */
+static Stm32I2C i2c1("/dev/i2c0", I2C1, I2C1_EV_IRQn, I2C1_ER_IRQn);
+
+/** I2C1 driver instance */
+static Stm32I2C i2c2("/dev/i2c1", I2C2, I2C2_EV_IRQn, I2C2_ER_IRQn);
+
+/** How many bytes of flash should hold the entire dataset. Must be an integer
+ * multiple of the minimum erase length (which is the flash page length, for
+ * the STM32F0 | STM32F3 it is 2 kbytes). The file size maximum is half this value. */
+const size_t EEPROMEmulation::SECTOR_SIZE = 16384;
+
+/// Recursive mutex for SPI1 peripheral.
+OSMutex spi1_lock(true);
+
+static void noop_cs() {
+}
+
+/// SPI1 driver for io-board peripherals
+static Stm32SPI spi1_0(
+    "/dev/spi1.ioboard", SPI1, SPI1_IRQn, noop_cs, noop_cs, &spi1_lock);
+
+static void spi1_ext_cs_assert() {
+    EXT_CS_Pin::set(false);
+}
+
+static void spi1_ext_cs_deassert() {
+    EXT_CS_Pin::set(true);
+}
+
+/// SPI1 driver for the expansion port.
+static Stm32SPI spi1_1("/dev/spi1.ext", SPI1, SPI1_IRQn, &spi1_ext_cs_assert,
+    &spi1_ext_cs_deassert, &spi1_lock);
+
+/// SPI2 driver for the onboard input ports.
+static Stm32SPI spi2("/dev/spi2", SPI2, SPI2_IRQn, &noop_cs, &noop_cs, nullptr);
+
+extern "C" {
+
+/** Blink LED */
+uint32_t blinker_pattern = 0;
+static uint32_t rest_pattern = 0;
+
+void hw_set_to_safe(void)
+{
+}
+
+void reboot()
+{
+    NVIC_SystemReset();
+}
+
+void resetblink(uint32_t pattern)
+{
+    blinker_pattern = pattern;
+    rest_pattern = pattern ? 1 : 0;
+    BLINKER_RAW_Pin::set(pattern ? true : false);
+    /* make a timer event trigger immediately */
+}
+
+void setblink(uint32_t pattern)
+{
+    resetblink(pattern);
+}
+
+void i2c1_ev_interrupt_handler(void)
+{
+    i2c1.event_interrupt_handler();
+}
+
+void i2c1_er_interrupt_handler(void)
+{
+    i2c1.error_interrupt_handler();
+}
+
+void i2c2_ev_interrupt_handler(void)
+{
+    i2c2.event_interrupt_handler();
+}
+
+void i2c2_er_interrupt_handler(void)
+{
+    i2c2.error_interrupt_handler();
+}
+
+/// TIM17 shares this interrupt with certain features of timer1
+//void tim7_trg_com_interrupt_handler(void)
+void tim7_interrupt_handler(void)
+{
+    //
+    // Clear the timer interrupt.
+    //
+    TIM7->SR = ~TIM_IT_UPDATE;
+
+    // Set output LED.
+    BLINKER_RAW_Pin::set(rest_pattern & 1);
+
+    // Shift and maybe reset pattern.
+    rest_pattern >>= 1;
+    if (!rest_pattern)
+    {
+        rest_pattern = blinker_pattern;
+    }
+}
+
+void diewith(uint32_t pattern)
+{
+    // vPortClearInterruptMask(0x20);
+    asm("cpsie i\n");
+
+    resetblink(pattern);
+    while (1)
+        ;
+}
+
+/** CPU clock speed. */
+const unsigned long cm3_cpu_clock_hz = 80000000;
+uint32_t SystemCoreClock;
+const uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
+const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
+const uint32_t MSIRangeTable[12] = {100000U, 200000U, 400000U, 800000U,
+    1000000U, 2000000U, 4000000U, 8000000U, 16000000U, 24000000U, 32000000U,
+    48000000U};
+const uint32_t HSEValue = 8000000;
+
+/**
+  * @brief  System Clock Configuration
+  *         The system Clock is configured as follow : 
+  *            System Clock source            = PLL (HSE)
+  *            SYSCLK(Hz)                     = 80000000
+  *            HCLK(Hz)                       = 80000000
+  *            AHB Prescaler                  = 1
+  *            APB1 Prescaler                 = 1
+  *            APB2 Prescaler                 = 1
+  *            HSE Frequency(Hz)              = 800000
+  *            PLL_M                          = 1
+  *            PLL_N                          = 20
+  *            PLL_R                          = 2
+  *            PLL_P                          = 7
+  *            PLL_Q                          = 4
+  *            Flash Latency(WS)              = 4
+  * @param  None
+  * @retval None
+  */
+static void clock_setup() {
+    HAL_RCC_DeInit();
+
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    /* Activates PLL with HSE as source, assuming 8 MHz input clock /
+     * crystal.  */
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.MSIState = RCC_MSI_OFF;
+    RCC_OscInitStruct.LSEState = RCC_LSE_OFF;
+    RCC_OscInitStruct.HSIState = RCC_HSI_OFF;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM = 1;
+    RCC_OscInitStruct.PLL.PLLN = 20;  // 8 * 20 = 160 MHz VCO
+    RCC_OscInitStruct.PLL.PLLR = 2;   // 80 MHz sysclk
+    RCC_OscInitStruct.PLL.PLLP = 7;   // ?
+    RCC_OscInitStruct.PLL.PLLQ = 4;   // 40 MHz RNG clock.
+
+    HASSERT(HAL_RCC_OscConfig(&RCC_OscInitStruct) == HAL_OK);
+
+    /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2
+       clocks dividers */
+    RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK |
+        RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+    HASSERT(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) == HAL_OK);
+
+    // This will fail if the clocks are somehow misconfigured.
+//    HASSERT(SystemCoreClock == EXPECTED_CLOCK_SPEED);
+    HASSERT(SystemCoreClock == cm3_cpu_clock_hz);
+}
+
+/// We don't need the HAL tick configuration code to run. FreeRTOS will take
+/// care of that.
+HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
+{
+    return HAL_OK;
+}
+
+/** Initialize the processor hardware.
+ */
+void hw_preinit(void)
+{
+    /* Globally disables interrupts until the FreeRTOS scheduler is up. */
+    asm("cpsid i\n");
+
+    /* these FLASH settings enable opertion at 72 MHz */
+    __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
+    __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_2);
+
+    /* setup the system clock */
+    clock_setup();
+
+    /* enable peripheral clocks */
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+//    __HAL_RCC_GPIOF_CLK_ENABLE();
+    __HAL_RCC_USART2_CLK_ENABLE();
+    __HAL_RCC_CAN1_CLK_ENABLE();
+    __HAL_RCC_TIM7_CLK_ENABLE();
+//    __HAL_RCC_TIM3_CLK_ENABLE();
+
+    /* setup pinmux */
+    GPIO_InitTypeDef gpio_init;
+    memset(&gpio_init, 0, sizeof(gpio_init));
+
+    /* USART1 pinmux on PA9 and PA10 */
+//    gpio_init.Mode = GPIO_MODE_AF_PP;
+//    gpio_init.Pull = GPIO_PULLUP;
+//    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+//    gpio_init.Alternate = GPIO_AF7_USART2;
+//    gpio_init.Pin = GPIO_PIN_2;
+//    HAL_GPIO_Init(GPIOA, &gpio_init);
+//    gpio_init.Pin = GPIO_PIN_3;
+//    HAL_GPIO_Init(GPIOA, &gpio_init);
+
+    /* CAN pinmux on PA11 and PA12 */
+    gpio_init.Mode = GPIO_MODE_AF_PP;
+    // Disables pull-ups because this is a 5V tolerant pin.
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Alternate = GPIO_AF9_CAN1;
+    gpio_init.Pin = GPIO_PIN_11;
+    HAL_GPIO_Init(GPIOA, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_12;
+    HAL_GPIO_Init(GPIOA, &gpio_init);
+
+    /* SPI1 pinmux on PB3 and PB5 */
+    gpio_init.Mode = GPIO_MODE_AF_PP;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Alternate = GPIO_AF5_SPI1;
+    gpio_init.Pin = GPIO_PIN_3;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_5;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+
+    /* SPI2 pinmux on PB13 (SCK), and PB14 (MISO2) */
+    gpio_init.Mode = GPIO_MODE_AF_PP;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Alternate = GPIO_AF5_SPI2;
+    gpio_init.Pin = GPIO_PIN_14;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_13;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+
+    /* I2C2 pinmux on PB6 (SCL), and PB7 (SDA) */
+    gpio_init.Mode = GPIO_MODE_AF_OD;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
+    gpio_init.Alternate = GPIO_AF4_I2C2;
+    gpio_init.Pin = GPIO_PIN_6;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_7;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+
+    /* I2C1 pinmux on PB10 (SCL), and PB11 (SDA) */
+    gpio_init.Mode = GPIO_MODE_AF_OD;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
+    gpio_init.Alternate = GPIO_AF4_I2C1;
+    gpio_init.Pin = GPIO_PIN_10;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    gpio_init.Pin = GPIO_PIN_11;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+
+    GpioInit::hw_init();
+
+    /* Initializes the blinker timer. */
+    TIM_HandleTypeDef TimHandle;
+    memset(&TimHandle, 0, sizeof(TimHandle));
+    TimHandle.Instance = TIM7;
+    TimHandle.Init.Period = configCPU_CLOCK_HZ / 10000 / 8;
+    TimHandle.Init.Prescaler = 10000;
+    TimHandle.Init.ClockDivision = 0;
+    TimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
+    TimHandle.Init.RepetitionCounter = 0;
+    if (HAL_TIM_Base_Init(&TimHandle) != HAL_OK)
+    {
+        /* Initialization Error */
+        HASSERT(0);
+    }
+    if (HAL_TIM_Base_Start_IT(&TimHandle) != HAL_OK)
+    {
+        /* Starting Error */
+        HASSERT(0);
+    }
+    __HAL_DBGMCU_FREEZE_TIM7();
+    SetInterruptPriority(TIM7_IRQn, 0);
+    NVIC_EnableIRQ(TIM7_IRQn);
+}
+
+void usart2_interrupt_handler(void)
+{
+    Stm32Uart::interrupt_handler(1);
+}
+
+}
