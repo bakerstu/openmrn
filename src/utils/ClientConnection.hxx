@@ -40,6 +40,7 @@
 #include <fcntl.h>
 
 #include "utils/GridConnectHub.hxx"
+#include "utils/DirectHub.hxx"
 #include "utils/socket_listener.hxx"
 #include "utils/FdUtils.hxx"
 
@@ -103,6 +104,16 @@ public:
     {
     }
 
+    /// Constructor.
+    ///
+    /// @param name user-readable name for this port.
+    /// @param direct_hub gridconnect DirectHub to connect this device to.
+    GCFdConnectionClient(const string &name, ByteDirectHubInterface *direct_hub)
+        : closedNotify_(&fd_, name)
+        , directHub_(direct_hub)
+    {
+    }
+    
     virtual ~GCFdConnectionClient()
     {
     }
@@ -136,10 +147,12 @@ private:
     /// Will be called when the descriptor experiences an error (typivcally
     /// upon device closed or connection lost).
     DeviceClosedNotify closedNotify_;
-    /// Filedes of the currently open device/socket.
+    /// File descriptor of the currently open device/socket.
     int fd_{-1};
     /// CAN hub to read-write data to.
-    CanHubFlow *hub_;
+    CanHubFlow *hub_{nullptr};
+    /// DirectHub to read/write data to.
+    ByteDirectHubInterface *directHub_{nullptr};
 };
 
 /// Connection client that opens a character device (such as an usb-serial) and
@@ -151,10 +164,11 @@ public:
     /// Constructor.
     ///
     /// @param name user-readable name of this device
-    /// @param hub CAN packet hub to connect this device to
+    /// @param hub CAN packet hub or GC DirectHub to connect this device to
     /// @param dev filename of the device node to open
+    template<typename HubType>
     DeviceConnectionClient(
-        const string &name, CanHubFlow *hub, const string &dev)
+        const string &name, HubType *hub, const string &dev)
         : GCFdConnectionClient(name, hub)
         , dev_(dev)
     {
@@ -193,11 +207,12 @@ public:
     /// Constructor.
     ///
     /// @param name user-readable name that will be printed upon an error.
-    /// @param hub CAN hub to connect device to
+    /// @param hub CAN packet hub or GC DirectHub to connect this device to
     /// @param host where to connect to
     /// @param port where to connect to
+    template<typename HubType>
     UpstreamConnectionClient(
-        const string &name, CanHubFlow *hub, const string &host, int port)
+        const string &name, HubType *hub, const string &host, int port)
         : GCFdConnectionClient(name, hub)
         , host_(host)
         , port_(port)

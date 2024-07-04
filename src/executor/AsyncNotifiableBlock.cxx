@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2023, Balazs Racz
+ * Copyright (c) 2020, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,39 +24,45 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file ClientConnection.cxx
+ * \file AsyncNotifiableBlock.cxx
  *
- * Utilities for managing can-hub connections as a client application.
+ * An advanced notifiable construct that acts as a fixed pool of
+ * BarrierNotifiables. A stateflow can pend on acquiring one of them, use that
+ * barrier, with it automatically returning to the next caller when the Barrier
+ * goes out of counts.
  *
  * @author Balazs Racz
- * @date 27 Dec 2023
+ * @date 18 Feb 2020
  */
 
-#include "utils/ClientConnection.hxx"
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
 
-#include "nmranet_config.h"
+#include "AsyncNotifiableBlock.hxx"
 
-#include "utils/FdUtils.hxx"
+#include "os/sleep.h"
 
-/// Callback from try_connect to donate the file descriptor.
-/// @param fd is the file destriptor of the connection freshly opened.
-void GCFdConnectionClient::connection_complete(int fd)
+AsyncNotifiableBlock::~AsyncNotifiableBlock()
 {
-    const bool use_select =
-        (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
-
-    // Applies kernel parameters like socket options.
-    FdUtils::optimize_fd(fd);
-    
-    fd_ = fd;
-
-    if (hub_) {
-        create_gc_port_for_can_hub(hub_, fd, &closedNotify_, use_select);
-    } else if (directHub_) {
-        create_port_for_fd(directHub_, fd,
-            std::unique_ptr<MessageSegmenter>(create_gc_message_segmenter()),
-            &closedNotify_);
-    } else {
-        DIE("Neither hub, nor directhub given to connection client");
+    // Recollects all notifiable instances, including waiting as long as needed
+    // if there are some that have not finished yet.
+    for (unsigned i = 0; i < count_; ++i)
+    {
+        while (true)
+        {
+            QMember *m = next().item;
+            if (!m)
+            {
+                LOG(VERBOSE,
+                    "shutdown async notifiable block: waiting for returns");
+                microsleep(100);
+            }
+            else
+            {
+                HASSERT(initialize(m)->abort_if_almost_done());
+                break;
+            }
+        }
     }
 }
