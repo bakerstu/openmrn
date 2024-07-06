@@ -324,6 +324,29 @@ public:
         size_ += len;
     }
 
+    /// Retrieves a pointer where data can be read out of the buffer.
+    /// @param len will be filled in with the number of available bytes to read
+    /// at this point.
+    /// @return the read pointer, or nullptr if there is no data in this
+    /// buffer.
+    const uint8_t* data_read_pointer(size_t* len)
+    {
+        if (!head_ || !size_)
+        {
+            *len = 0;
+            return nullptr;
+        }
+        unsigned avail = 0;
+        uint8_t *p;
+        head_->get_read_pointer(skip_, &p, &avail);
+        if (avail > size_)
+        {
+            avail = size_;
+        }
+        *len = avail;
+        return p;
+    }
+
     /// Advances the head pointer. Typically used after a successful read
     /// happened.
     /// @param len how many bytes to advance the read pointer.
@@ -334,6 +357,7 @@ public:
         {
             uint8_t *p;
             unsigned available;
+            HASSERT(skip_ < head_->size());
             DataBuffer *next_head =
                 head_->get_read_pointer(skip_, &p, &available);
             if ((len > available) || (len == available && len < size_))
@@ -346,6 +370,7 @@ public:
             }
             else
             {
+                // now: len < available || len == available == size_
                 skip_ += len;
                 size_ -= len;
                 len = 0;
