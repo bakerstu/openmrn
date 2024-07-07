@@ -43,8 +43,7 @@ class BLEGattClient
 public:
     /// Destructor.
     ~BLEGattClient()
-    {
-    }
+    { }
 
     /// Get the out bound data characteristic handle.
     /// @return out bound data characteristic handle
@@ -73,16 +72,48 @@ private:
     /// @param out_bound handle to out bound data characteristic
     /// @param in_bound handle to in bound data characteristic
     BLEGattClient(ble::Connection *conn, ble::Defs::AttHandle out_bound,
-                  ble::Defs::AttHandle in_bound)
+        ble::Defs::AttHandle in_bound, ByteDirectHubInterface *hub,
+        Service *service)
         : conn_(conn)
         , outBound_(out_bound)
         , inBound_(in_bound)
-    {
-    }
+        , port_(new BLEGattCHubPort(hub, service, this))
+    { }
 
-    ble::Connection *conn_; ///< BLE device connection
+    ~BLEGattClient() {
+        /// @TODO: destroy hub port properly.
+    }
+    
+    class BLEGattCHubPort : public BLEHubPort
+    {
+    public:
+        BLEGattCHubPort(ByteDirectHubInterface *hub, BLEGattClient *client,
+            Service *service)
+            : BLEHubPort(hub,
+                  std::unique_ptr<MessageSegmenter>(
+                      create_gc_message_segmenter()),
+                  service)
+            , client_(client)
+        { }
+
+        void do_send(const uint8_t *data, size_t len) override
+        {
+            esp_err_t result = esp_ble_gattc_write_char(
+                parent_->gattcProfileTable_[PROFILE_OLCB].interface_,
+                client->connection()->get_handle(), client->get_out_bound(),
+                200, data, ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
+            ESP_LOGI("GATTC_DEMO", "write char status: 0x%x", result);
+        }
+
+    private:
+        /// Reference to the client object holding the various handles.
+        BLEGattClient *client_;
+    };
+
+    ble::Connection *conn_;         ///< BLE device connection
     ble::Defs::AttHandle outBound_; ///< handle to out bound data characteristic
-    ble::Defs::AttHandle inBound_; ///< handle to in bound data characteristic
+    ble::Defs::AttHandle inBound_;  ///< handle to in bound data characteristic
+    std::unique_ptr<BLEHubPort> port_; ///< Direct hub I/O object.
 
     /// Allow private access from BLEGattClients container object.
     friend class BLEGattClients;
@@ -99,24 +130,33 @@ public:
             &BLEGattClients::disconnect_callback, this, std::placeholders::_1));
     }
 
+    void set_stack(ByteDirectHubInterface *hub, Service *send_service)
+    {
+        hub_ = hub;
+        sendService_ = send_service;
+    }
+
     /// Register an active client.
     /// @param conn BLE device connection
     /// @param out_bound handle to out bound data characteristic
     /// @param in_bound handle to in bound data characteristic
-    void register_client(ble::Connection *conn, ble::Defs::AttHandle out_bound,
-                         ble::Defs::AttHandle in_bound)
+    /// @return newly created client instance. Ownership is retained.
+    BLEGattClient *register_client(ble::Connection *conn,
+        ble::Defs::AttHandle out_bound, ble::Defs::AttHandle in_bound)
     {
-        clients_.emplace_back(BLEGattClient(conn, out_bound, in_bound));
+        auto *c =
+            new BLEGattClient(conn, out_bound, in_bound, hub, sendService_);
+        clients_.emplace_back(c);
     }
 
     /// Invoke a callback method on each of the registered clients.
     /// @param callback callback to invoke.
-    void for_each_call(std::function<void(BLEGattClient*)> callback)
+    void for_each_call(std::function<void(BLEGattClient *)> callback)
     {
         for (auto it = clients_.begin(); it != clients_.end(); ++it)
         {
             callback(&(*it));
-        }      
+        }
     }
 
 private:
@@ -131,11 +171,16 @@ private:
             {
                 clients_.erase(it);
             }
-        }      
+        }
     }
 
     /// All the BLE Gatt clients managed by the container.
-    std::vector<BLEGattClient> clients_;
+    std::vector<std::unique_ptr<BLEGattClient>> clients_;
+    /// Direct hub to interface with for traffic. Externally owned.
+    ByteDirectHubInterface *hub_;
+    /// This executor willbe used by the hub ports to perform the send calls on
+    /// the BLE stack.
+    Service *sendService_;
 };
 
 } // namespace openlcb
