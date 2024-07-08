@@ -35,21 +35,50 @@
 #ifndef _OPENLCB_BLEHUBPORT_HXX_
 #define _OPENLCB_BLEHUBPORT_HXX_
 
+#include <functional>
+
+#include "executor/StateFlow.hxx"
+#include "openlcb/BLEDefs.hxx"
 #include "os/OS.hxx"
 #include "utils/DirectHub.hxx"
 
-namespace openlcb {
+namespace openlcb
+{
 
-class BLEHubPort : public DirectHubPort<uint8_t[]>, private StateFlowBase
+class BLEHubPort : public DirectHubPort<uint8_t[]>,
+                   private StateFlowBase,
+                   public BLEProtocolEngine
 {
 public:
+    /// This function needs to be implemented by the application that has the
+    /// specific BLE stack. Performs the actual send. Synchronous, with the
+    /// expectation being that once this function returns, the data is copied
+    /// away from the buffer and is sent or will eventually be sent.
+    ///
+    /// @param data data payload to send
+    /// @param len number of bytes to send
+    ///
+    using SendFunction = std::function<void(const uint8_t *data, size_t len)>;
+
+    /// Constructor
+    ///
+    /// @param hub pointer to the direct hub instance. Externally owned.
+    /// @param segmenter Segments incoming data into messages. Ownership will be
+    /// taken. Typically created using creat_gc_message_segmenter().
+    /// @param ble_write_service Thread on which the send_function will be
+    /// invoked.
+    /// @param send_function Function that performs the actual send. See {\link
+    /// SendFunction}
+    /// @param on_error Will be notified upon disconnect.
+    ///
     BLEHubPort(DirectHubInterface<uint8_t[]> *hub,
         std::unique_ptr<MessageSegmenter> segmenter, Service *ble_write_service,
-        Notifiable *on_error = nullptr)
+        SendFunction send_function, Notifiable *on_error = nullptr)
         : StateFlowBase(ble_write_service)
         , pendingShutdown_(false)
         , segmenter_(std::move(segmenter))
         , hub_(hub)
+        , sendFunction_(std::move(send_function))
         , onError_(on_error)
     {
         // Sets the initial state of the write flow to the stage where we read
@@ -62,15 +91,27 @@ public:
         hub_->register_port(this);
     }
 
-    /// To be implemented by a subclass. Performs the actual send. Synchronous,
-    /// with the expectation being that once this function returns, the data is
-    /// copied away from the buffer and is sent or will eventually be sent.
-    ///
-    ///
-    /// @param data data payload to send
-    /// @param len number of bytes to send
-    ///
-    virtual void do_send(const uint8_t *data, size_t len) = 0;
+    void disconnect_and_delete() override
+    {
+        {
+            AtomicHolder l(lock());
+            HASSERT(!pendingShutdown_);
+            hub_->unregister_port(this);
+            // After this, the next notify will eventually reach the shutdown
+            // and delete state.
+            pendingShutdown_ = true;
+            if (notRunning_)
+            {
+                notRunning_ = 0;
+                notify();
+            }
+        }
+        // Synchronization point that ensures that there is no currently
+        // running Executable on this executor. This ensures that is no
+        // currently pending nor will there be any future invocations of
+        // sendFunction_ after this function returns.
+        service()->executor()->sync_run([]() {});
+    }
 
     /// Synchronous output routine called by the hub.
     void send(MessageAccessor<uint8_t[]> *msg) override
@@ -128,6 +169,10 @@ public:
     /// and we are woken up.
     Action read_queue()
     {
+        if (pendingShutdown_)
+        {
+            return call_immediately(STATE(shutdown_and_exit));
+        }
         BufferType *head;
         {
             AtomicHolder h(lock());
@@ -145,11 +190,16 @@ public:
 
     Action do_write()
     {
+        if (pendingShutdown_)
+        {
+            return call_immediately(STATE(shutdown_and_exit));
+        }
+
         const uint8_t *read_ptr;
         size_t num_bytes;
-        auto& b = currentHead_->data()->buf_;
+        auto &b = currentHead_->data()->buf_;
         read_ptr = b.data_read_pointer(&num_bytes);
-        do_send(read_ptr, num_bytes);
+        sendFunction_(read_ptr, num_bytes);
         b.data_read_advance(num_bytes);
         if (b.size())
         {
@@ -158,10 +208,41 @@ public:
         else
         {
             currentHead_.reset();
-            // go back to sleep
-            notRunning_ = 1;
-            return wait_and_call(STATE(read_queue));
+            AtomicHolder h(lock());
+            if (pendingShutdown_)
+            {
+                return call_immediately(STATE(shutdown_and_exit));
+            }
+            if (pendingQueue_.empty())
+            {
+                // go back to sleep
+                notRunning_ = 1;
+                return wait_and_call(STATE(read_queue));
+            }
+            else
+            {
+                return yield_and_call(STATE(read_queue));
+            }
         }
+    }
+
+    /// Invoked after pendingShutdown == true. At this point nothing gets added
+    /// to the pending queue.
+    Action shutdown_and_exit()
+    {
+        // Synchronization with other threads that might have written
+        // pendingShutdown == true.
+        {
+            AtomicHolder h(lock());
+        }
+
+        // Releases all buffers.
+        currentHead_.reset();
+        while (auto *h = static_cast<BufferType *>(pendingQueue_.next().item))
+        {
+            h->unref();
+        }
+        return delete_this();
     }
 
 protected:
@@ -208,6 +289,10 @@ protected:
     std::unique_ptr<MessageSegmenter> segmenter_;
     /// Parent hub where output data is coming from.
     DirectHubInterface<uint8_t[]> *hub_;
+    /// Function object used to send out actual data. This is synchronously
+    /// operating, meaning it makes a copy of the data to the stack for sending
+    /// it out.
+    SendFunction sendFunction_;
     /// This notifiable will be called before exiting.
     Notifiable *onError_ = nullptr;
 }; // class BLEHubPort
