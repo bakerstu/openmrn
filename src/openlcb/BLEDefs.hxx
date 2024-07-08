@@ -28,12 +28,34 @@
 #ifndef _OPENLCB_BLEDEFS_HXX_
 #define _OPENLCB_BLEDEFS_HXX_
 
+#include <memory>
+
+#include "utils/Destructable.hxx"
+
 namespace openlcb
 {
 
 #include <string>
 
-/// Miscillaneous BLE definitions.
+/// Shared base class for protocol implementation on a per-BLE-connection
+/// basis.
+class BLEProtocolEngine : public Destructable {
+public:
+    /// Notifies the protocol engine that the connection has been
+    /// terminated. The implementation must (eventually) call `delete this`.
+    virtual void disconnect_and_delete() = 0;
+
+    struct Deleter {
+        void operator()(BLEProtocolEngine* e) {
+            e->disconnect_and_delete();
+        }
+    };
+};
+
+using BLEProtocolEnginePtr = std::unique_ptr<BLEProtocolEngine, BLEProtocolEngine::Deleter>;
+
+
+/// Miscellaneous BLE definitions.
 class BLEDefs
 {
 public:
