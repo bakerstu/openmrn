@@ -278,7 +278,7 @@ public:
             reset(buf);
             return;
         }
-        HASSERT(free_ >= 0);
+        HASSERT(free_ >= 0); // appendable
         HASSERT(tail_);
         // Note: if free_ was > 0, there were some unused bytes in the tail
         // buffer. However, as part of the append operation, we lose these
@@ -357,24 +357,34 @@ public:
         {
             uint8_t *p;
             unsigned available;
+            while (head_ && skip_ >= head_->size())
+            {
+                skip_ -= head_->size();
+                auto *next_head = head_->next();
+                head_->unref();
+                head_ = next_head;
+                if (!head_)
+                    tail_ = nullptr;
+            }
             HASSERT(skip_ < head_->size());
             DataBuffer *next_head =
                 head_->get_read_pointer(skip_, &p, &available);
-            if ((len > available) || (len == available && len < size_))
-            {
+            if (len < available ||
+                (len == available && head_ == tail_ && free() > 0)) {
+                // now: len < available || len == available && there is free
+                // space in that buffer still
+                skip_ += len;
+                size_ -= len;
+                len = 0;
+                // keeps the head buffer because we can still write into it.
+                break;
+            } else {
+                // now: len >= available.
                 head_->unref();
                 head_ = next_head;
                 skip_ = 0;
                 size_ -= available;
                 len -= available;
-            }
-            else
-            {
-                // now: len < available || len == available == size_
-                skip_ += len;
-                size_ -= len;
-                len = 0;
-                break;
             }
         }
     }
