@@ -3,6 +3,7 @@
 #include "utils/test_main.hxx"
 
 DataBufferPool g_pool(64);
+DataBufferPool g_pool10(10);
 
 class DataBufferTest : public ::testing::Test
 {
@@ -390,3 +391,139 @@ TEST_F(DataBufferTest, lnk_multi)
     // The barriers will verify upon destruction time that they were correctly
     // notified.
 }
+
+class DataBufferFuzzTest : public ::testing::Test
+{
+protected:
+    DataBufferFuzzTest()
+    {
+        for (int i = 0; i < NUM_OP; ++i) {
+            freq_[i] = 1;
+        }
+        freq_[NUM_OP] = 0;
+    }
+
+    enum Op {
+        OP_APPEND,
+        OP_READ,
+        NUM_OP
+    };
+
+    int freq_[NUM_OP + 1];
+    
+    /// @return a pseudorandom number uniformly distributed between 0 and max -
+    /// 1.
+    /// @param max distribution parameter.
+    unsigned get_random_uni(unsigned max)
+    {
+        return rand_r(&randSeed_) % max;
+    }
+
+    void prep_fuzz() {
+        int sum = 0;
+        for (int i = 0; i <= NUM_OP; ++i) {
+            sum += freq_[i];
+            freq_[i] = sum;
+        }
+    }
+
+    void run_fuzz(unsigned iter) {
+        prep_fuzz();
+
+        while (--iter && !HasFatalFailure())
+        {
+            int oper = get_random_uni(freq_[NUM_OP]);
+            for (int i = 0; i < NUM_OP; ++i) {
+                if (freq_[i] > oper) {
+                    run_op((Op)i);
+                    break;
+                }
+            }
+        }
+    }
+
+    void run_op(Op op) {
+        switch(op) {
+            case OP_APPEND: {
+                int len = get_random_uni(22);
+                while(len) {
+                    int free = lnk_.free();
+                    if (!free) {
+                        DataBuffer *c;
+                        g_pool10.alloc(&c);
+                        lnk_.append_empty_buffer(c);
+                        continue;
+                    }
+                    auto* p = lnk_.data_write_pointer();
+                    int count = 0;
+                    while (free > 0 && len > 0) {
+                        *p++ = nextByte_++;
+                        --free;
+                        --len;
+                        ++count;
+                    }
+                    lnk_.data_write_advance(count);
+                }
+                break;
+            }
+            case OP_READ: {
+                int len = get_random_uni(22);
+                while(len > 0 && lnk_.size() > 0) {
+                    size_t avail;
+                    const uint8_t* ptr = lnk_.data_read_pointer(&avail);
+                    if ((int)avail > len) {
+                        avail = len;
+                    }
+                    int count = 0;
+                    while (avail) {
+                        EXPECT_EQ(nextByteRead_, *ptr);
+                        ++nextByteRead_;
+                        ++ptr;
+                        ++count;
+                        --avail;
+                        --len;
+                    }
+                    lnk_.data_read_advance(count);
+                }                
+                break;
+            }
+            default:
+                return;
+        }
+    }
+    
+    std::string flatten(const LinkedDataBufferPtr &p)
+    {
+        std::string ret;
+        p.append_to(&ret);
+        return ret;
+    }
+
+    DataBuffer *b_;
+    unsigned lastFree_;
+    unsigned int randSeed_{83012475};
+    uint8_t nextByte_{0};
+    uint8_t nextByteRead_{0};
+
+    BarrierNotifiable bn_;
+    BarrierNotifiable bn2_;
+    LinkedDataBufferPtr lnk_;
+    std::vector<std::unique_ptr<BarrierNotifiable> > bns_;
+};
+
+TEST_F(DataBufferFuzzTest, small_fuzz) {
+    run_fuzz(10);
+}
+
+TEST_F(DataBufferFuzzTest, medium_fuzz) {
+    run_fuzz(1000);
+}
+
+TEST_F(DataBufferFuzzTest, large_fuzz) {
+    run_fuzz(100000);
+}
+
+TEST_F(DataBufferFuzzTest, xl_fuzz) {
+    run_fuzz(1000000);
+}
+
