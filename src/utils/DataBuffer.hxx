@@ -504,6 +504,11 @@ public:
             return false;
         }
         HASSERT(o.head());
+        if (!size_) {
+            // We are empty, so anything can be appended.
+            reset(o);
+            return true;
+        }
         if (o.head() != tail_)
         {
             // Buffer does not start in the same chain where we end.
