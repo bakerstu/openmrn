@@ -39,7 +39,9 @@
 #include "utils/Buffer.hxx"
 #include "utils/LinkedObject.hxx"
 
-#define DEBUG_DATA_BUFFER_FREE
+#ifdef GTEST
+//#define DEBUG_DATA_BUFFER_FREE
+#endif
 
 class DataBufferPool;
 
@@ -127,7 +129,8 @@ public:
     }
 
     /// Releases one reference to all blocks of this buffer. This includes one
-    /// reference to the last block which may be a partially filled buffer.
+    /// reference to the last block which may be a partially filled
+    /// buffer. Calling with zero length will call release on the head block.
     /// @param total_size the number of bytes starting from the beginning of
     /// *this.
     void unref_all(unsigned total_size)
@@ -392,42 +395,35 @@ public:
     void data_read_advance(size_t len)
     {
         HASSERT(len <= size());
-        while (len > 0)
+        skip_ += len;
+        size_ -= len;
+        while (head_ && skip_ >= head_->size())
         {
-            uint8_t *p;
-            unsigned available;
-            while (head_ && skip_ >= head_->size())
+            if (head_ == tail_)
             {
-                skip_ -= head_->size();
-                auto *b = head_;
-                auto *next_head = head_->next();
-                head_ = next_head;
-                if (!head_) {
-                    tail_ = nullptr;
+                if (free() > 0)
+                {
+                    // We can still write into this buffer, do not unref it.
+                    break;
                 }
-                b->unref();
+                else
+                {
+                    // We're ending up with an empty linkedbuffer.
+                    auto *b = head_;
+                    clear();
+                    b->unref();
+                    return;
+                }
             }
-            HASSERT(skip_ < head_->size());
-            DataBuffer *next_head =
-                head_->get_read_pointer(skip_, &p, &available);
-            if (len < available ||
-                (len == available && head_ == tail_ && free() > 0)) {
-                // now: len < available || len == available && there is free
-                // space in that buffer still
-                skip_ += len;
-                size_ -= len;
-                len = 0;
-                // keeps the head buffer because we can still write into it.
-                break;
-            } else {
-                // now: len >= available.
-                auto *b = head_;
-                head_ = next_head;
-                skip_ = 0;
-                size_ -= available;
-                len -= available;
-                b->unref();
+            skip_ -= head_->size();
+            auto *b = head_;
+            auto *next_head = head_->next();
+            head_ = next_head;
+            if (!head_)
+            {
+                tail_ = nullptr;
             }
+            b->unref();
         }
     }
 
