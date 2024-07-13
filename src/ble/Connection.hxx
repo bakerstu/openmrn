@@ -198,6 +198,13 @@ public:
         return nullptr;
     }
 
+    /// Get the number of active connections being tracked by this object.
+    /// @return number of active connections
+    size_t get_active_count()
+    {
+        return connections_.size();
+    }
+
 private:
     /// All the connections managed by the container.
     std::vector<Connection> connections_;
