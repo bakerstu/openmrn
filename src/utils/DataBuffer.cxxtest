@@ -438,7 +438,17 @@ protected:
         freq_[OP_XFERMID] = 1;
         freq_[OP_READMID] = 1;
     }
-    
+
+    /// Setup a fuzz test scenario where we append one LinkedDataBufferPtr,
+    /// then move data to a middle one, then move data to a third one, then
+    /// read that last.
+    void setup_write_transfer_read_transfer_read() {
+        freq_[OP_APPEND] = 1;
+        freq_[OP_XFERMID] = 1;
+        freq_[OP_XFEREND] = 1;
+        freq_[OP_READEND] = 1;
+    }
+
     void prep_fuzz() {
         int sum = 0;
         for (int i = 0; i <= NUM_OP; ++i) {
@@ -622,3 +632,22 @@ TEST_F(DataBufferFuzzTest, medium_duo) {
     run_fuzz(1000);
 }
 
+TEST_F(DataBufferFuzzTest, large_duo) {
+    setup_write_transfer_read();
+    run_fuzz(100000);
+}
+
+TEST_F(DataBufferFuzzTest, small_tri) {
+    setup_write_transfer_read_transfer_read();
+    run_fuzz(10);
+}
+
+TEST_F(DataBufferFuzzTest, medium_tri) {
+    setup_write_transfer_read_transfer_read();
+    run_fuzz(1000);
+}
+
+TEST_F(DataBufferFuzzTest, large_tri) {
+    setup_write_transfer_read_transfer_read();
+    run_fuzz(100000);
+}
