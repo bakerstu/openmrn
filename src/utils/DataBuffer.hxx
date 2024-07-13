@@ -37,8 +37,17 @@
 #define _UTILS_DATABUFFER_HXX_
 
 #include "utils/Buffer.hxx"
+#include "utils/LinkedObject.hxx"
+
+#define DEBUG_DATA_BUFFER_FREE
 
 class DataBufferPool;
+
+
+#ifdef DEBUG_DATA_BUFFER_FREE
+class DataBuffer;
+static void check_db_ownership(DataBuffer* p);
+#endif
 
 /// Specialization of the Buffer class that is designed for storing untyped
 /// data arrays. Adds the ability to treat the next pointers as links to
@@ -165,6 +174,15 @@ public:
         return curr->next();
     }
 
+#ifdef DEBUG_DATA_BUFFER_FREE    
+    void unref() {
+        if (references() == 1) {
+            check_db_ownership(this);
+        }
+        Buffer::unref();
+    }
+#endif    
+    
 private:
     friend class DataBufferPool;
 
@@ -176,8 +194,13 @@ private:
 
 using DataBufferPtr = std::unique_ptr<DataBuffer, BufferDelete<uint8_t[]>>;
 
+class LinkedDataBufferPtr;
+
 /// A class that keeps ownership of a chain of linked DataBuffer references.
 class LinkedDataBufferPtr
+#ifdef DEBUG_DATA_BUFFER_FREE
+    : public LinkedObject<LinkedDataBufferPtr>
+#endif
 {
 public:
     LinkedDataBufferPtr()
@@ -306,9 +329,16 @@ public:
     {
         if (head_)
         {
-            head_->unref_all(size_ + skip_);
+            auto *h = head_;
+            size_t len = size_ + skip_;
+            clear();
+            h->unref_all(len);
+            return;
         }
-        clear();
+        else
+        {
+            clear();
+        }
     }
 
     /// @return the pointer where data can be appended into the tail of this
@@ -369,11 +399,13 @@ public:
             while (head_ && skip_ >= head_->size())
             {
                 skip_ -= head_->size();
+                auto *b = head_;
                 auto *next_head = head_->next();
-                head_->unref();
                 head_ = next_head;
-                if (!head_)
+                if (!head_) {
                     tail_ = nullptr;
+                }
+                b->unref();
             }
             HASSERT(skip_ < head_->size());
             DataBuffer *next_head =
@@ -389,11 +421,12 @@ public:
                 break;
             } else {
                 // now: len >= available.
-                head_->unref();
+                auto *b = head_;
                 head_ = next_head;
                 skip_ = 0;
                 size_ -= available;
                 len -= available;
+                b->unref();
             }
         }
     }
@@ -588,6 +621,20 @@ private:
     /// linked buffer. In other words, -1 * the end pointer in the tail buffer.
     int16_t free_ {0};
 };
+
+#ifdef DEBUG_DATA_BUFFER_FREE
+void check_db_ownership(DataBuffer* b) {
+    AtomicHolder h(LinkedDataBufferPtr::head_mu());
+    for (LinkedDataBufferPtr* l = LinkedDataBufferPtr::link_head(); l; l = l->link_next()) {
+        ssize_t total = l->skip() + l->size();
+        for (DataBuffer* curr = l->head(); total > 0;) {
+            HASSERT(curr != b);
+            total -= curr->size();
+            curr = curr->next();
+        }
+    }
+}
+#endif
 
 /// Proxy Pool that can allocate DataBuffer objects of a certain size. All
 /// memory comes from the mainBufferPool.
