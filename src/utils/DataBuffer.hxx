@@ -231,6 +231,15 @@ public:
         {
             size = o.size_;
         }
+        if ((size_t)size > o.size_)
+        {
+            size = o.size_;
+        }
+        if (!size)
+        {
+            // Nothing to copy, this will be an empty buffer.
+            return;
+        }
         skip_ = o.skip_;
         size_ = size;
         // Takes references, keeping the tail and tail size.
