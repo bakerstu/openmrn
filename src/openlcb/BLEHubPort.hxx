@@ -357,7 +357,7 @@ protected:
             }
             {
                 AtomicHolder h(this);
-                HASSERT(transferBuf_.try_append_from(appendBuf_));
+                HASSERT(transferBuf_.try_append_from(appendBuf_, true));
                 if (flowWaiting_) {
                     flowWaiting_ = false;
                     notify();
@@ -371,7 +371,7 @@ protected:
         /// the hub.
         Action take_input() {
             AtomicHolder h(this);
-            HASSERT(segmentBuf_.try_append_from(transferBuf_));
+            HASSERT(segmentBuf_.try_append_from(transferBuf_, true));
             transferBuf_.data_read_advance(transferBuf_.size());
             return call_immediately(STATE(segment_head));
         }
@@ -398,7 +398,7 @@ protected:
             LinkedDataBufferPtr p;
             p.reset(segmentBuf_, xfer);
             segmentBuf_.data_read_advance(xfer);
-            HASSERT(outputBuf_.try_append_from(p));
+            HASSERT(outputBuf_.try_append_from(p, true));
             if (segment_size) {
                 segmenter_->clear();
                 // completed data
