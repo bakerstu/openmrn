@@ -147,6 +147,21 @@ public:
         return nullptr;
     }
 
+    /// @return the first client for the given connection ID.
+    BLEGattClient *find_client_by_in(
+        ble::Connection *conn, ble::Defs::AttHandle in_handle)
+    {
+        for (auto it = clients_.begin(); it != clients_.end(); ++it)
+        {
+            if (it->get()->connection() == conn &&
+                it->get()->get_in_bound() == in_handle)
+            {
+                return it->get();
+            }
+        }
+        return nullptr;
+    }
+    
     /// Invoke a callback method on each of the registered clients.
     /// @param callback callback to invoke.
     void for_each_call(std::function<void(BLEGattClient *)> callback)
