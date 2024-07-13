@@ -449,13 +449,15 @@ protected:
 
     void run_fuzz(unsigned iter) {
         prep_fuzz();
-
+        size_t idx = 0;
         while (--iter && !HasFatalFailure())
         {
             int oper = get_random_uni(freq_[NUM_OP]);
             for (int i = 0; i < NUM_OP; ++i) {
                 if (freq_[i] > oper) {
+                    SCOPED_TRACE(idx);
                     run_op((Op)i);
+                    ++idx;
                     break;
                 }
             }
@@ -542,7 +544,7 @@ protected:
         len = std::min(len, (size_t)from->size());
         tmp.reset(*from, len);
         from->data_read_advance(len);
-        ASSERT_TRUE(to->try_append_from(tmp));
+        ASSERT_TRUE(to->try_append_from(tmp, true));
     }
     
     /// Consumes (reads) a certain number of characters from a ptr. Characters
