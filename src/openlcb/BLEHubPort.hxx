@@ -64,7 +64,7 @@ public:
 
     /// How big can a single attribute write be? ESP's BLE implementation says
     /// 600 bytes. We keep some buffer.
-    static constexpr size_t MAX_BYTES_PER_WRITE = 500;
+    static constexpr size_t MAX_BYTES_PER_WRITE = 220;
 
     /// Constructor
     ///
@@ -222,7 +222,7 @@ public:
         }
 
         currentHead_.reset(head);
-        return do_write();
+        return call_immediately(STATE(do_write));
     }
 
     Action do_write()
