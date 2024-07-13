@@ -500,12 +500,20 @@ public:
     /// this. This tries to do `*this += o`. It will succeed if o.head() ==
     /// this->tail() and the bytes in these buffers are back to back.
     /// @param o a LinkedDataBuffer with data payload.
+    /// @param add_link creates a tail-to-head link if none exist yet between
+    /// *this and o.head_. This is fundamentally dangerous, do it only if there
+    /// is no shared ownership of this->tail_.
     /// @return true if append succeeded. If false, nothing was changed.
-    bool try_append_from(const LinkedDataBufferPtr &o)
+    bool try_append_from(const LinkedDataBufferPtr &o, bool add_link = false)
     {
         if (!o.size())
         {
             return true; // zero bytes, nothing to do.
+        }
+        if (!size_) {
+            // We are empty, so anything can be appended.
+            reset(o);
+            return true;
         }
         if (free_ >= 0)
         {
@@ -513,29 +521,45 @@ public:
             return false;
         }
         HASSERT(o.head());
-        if (!size_) {
-            // We are empty, so anything can be appended.
-            reset(o);
-            return true;
-        }
-        if (o.head() != tail_)
+        if (o.head() != tail_) // Buffer does not start in the same chain where
+                               // we end.
         {
-            // Buffer does not start in the same chain where we end.
-            return false;
+            HASSERT(tail_); // else we went into the !size_ branch above
+
+            // Checks if the end of the tail buffer is already reached. This
+            // means that we don't depend on the value of free_ anymore for
+            // correctness. We also check that o starts at the beginning of the
+            // head buffer.
+            if (tail_->size() == (size_t)-free_ && o.skip() == 0) {
+                if (tail_->next() == o.head()) {
+                    // link already exists
+                } else if (add_link && tail_->next() == nullptr) {
+                    tail_->set_next(o.head());
+                } else {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
         }
-        if (-free_ != (int)o.skip())
+        else if (-free_ != (int)o.skip())
         {
             // Not back-to-back.
             return false;
         }
         // Now we're good, so take over the extra buffers.
+        // Acquire extra references
+        o.head_->ref_all(o.skip() + o.size());
+        if (tail_ == o.head()) {
+            HASSERT(o.head_->references() > 1);
+            // Release duplicate reference between the two chains.
+            o.head_->unref();
+        }
         tail_ = o.tail_;
         free_ = o.free_;
         size_ += o.size_;
-        // Acquire extra references
-        o.head_->ref_all(o.skip() + o.size());
-        // Release duplicate reference between the two chains.
-        o.head_->unref();
         return true;
     }
 
