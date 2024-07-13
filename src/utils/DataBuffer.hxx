@@ -38,6 +38,8 @@
 
 #include "utils/Buffer.hxx"
 #include "utils/LinkedObject.hxx"
+#include "utils/macros.h"
+
 
 #ifdef GTEST
 //#define DEBUG_DATA_BUFFER_FREE
@@ -587,7 +589,11 @@ public:
             o.head_->unref();
         }
         tail_ = o.tail_;
-        free_ = o.free_;
+        if (o.free_ < 0) {
+            free_ = o.free_;
+        } else {
+            free_ = -tail_->size();
+        }
         size_ += o.size_;
         return true;
     }
