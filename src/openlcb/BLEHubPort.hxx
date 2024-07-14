@@ -157,6 +157,7 @@ public:
             AtomicHolder h(lock());
             if (pendingTail_ && pendingTail_->buf_.try_append_from(msg->buf_))
             {
+                totalPendingSize_ += msg->buf_.size();
                 // Successfully enqueued the bytes into the tail of the queue.
                 // Nothing else to do here.
                 return;
@@ -249,7 +250,7 @@ public:
             AtomicHolder h(lock());
             ++sendPending_;
         }
-        LOG(INFO, "BLE send %d bytes pendcount %d queuesize %u/%d", (int)num_bytes, sendPending_, totalPendingSize_, pendingQueue_.pending());
+        LOG(INFO, "BLE send %d bytes pendcount %d queuesize %d/%d", (int)num_bytes, sendPending_, (int)totalPendingSize_, pendingQueue_.pending());
         sendFunction_(read_ptr, num_bytes);
         b.data_read_advance(num_bytes);
         if (b.size())
