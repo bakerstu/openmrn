@@ -219,6 +219,7 @@ public:
             {
                 pendingTail_ = nullptr;
             }
+            totalPendingSize_ -= head->data()->buf_.size();
         }
 
         currentHead_.reset(head);
@@ -244,7 +245,7 @@ public:
             AtomicHolder h(lock());
             ++sendPending_;
         }
-        LOG(INFO, "BLE send %d bytes pend %d", (int)num_bytes, sendPending_);
+        LOG(INFO, "BLE send %d bytes pendcount %d queuesize %u/%d", (int)num_bytes, sendPending_, totalPendingSize_, pendingQueue_.pending());
         sendFunction_(read_ptr, num_bytes);
         b.data_read_advance(num_bytes);
         if (b.size())
