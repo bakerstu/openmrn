@@ -187,6 +187,10 @@ public:
             if (notRunning_)
             {
                 notRunning_ = 0;
+                // When we have exactly one buffer at hand, we release the done
+                // notify of it to allow the upstream stack to generate more
+                // data quicker.
+                b->set_done(nullptr);
             }
             else
             {
