@@ -40,7 +40,6 @@
 
 #include <algorithm>
 #include <fcntl.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <vector>
 
@@ -829,8 +828,6 @@ private:
     {
         LinkedDataBufferPtr buf_;
     };
-
-    friend class DirectHubReadFlow;
 
     /// Type of buffers we are enqueuing for output.
     typedef Buffer<OutputDataEntry> BufferType;

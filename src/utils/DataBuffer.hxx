@@ -44,7 +44,7 @@ class DataBufferPool;
 /// data arrays. Adds the ability to treat the next pointers as links to
 /// consecutive data bytes, ref'ing and unref'ing a sequence of buffers in one
 /// go.
-class DataBuffer : public Buffer<uint8_t[]>
+class DataBuffer : public Buffer<uint8_t[0]>
 {
 public:
     /// Overrides the size of the data buffer. The semantic meaning of the
@@ -78,7 +78,7 @@ public:
     /// @return a new reference to *this.
     DataBuffer *ref()
     {
-        return static_cast<DataBuffer *>(Buffer<uint8_t[]>::ref());
+        return static_cast<DataBuffer *>(Buffer<uint8_t[0]>::ref());
     }
 
     /// Acquires one reference to all blocks of this buffer.
@@ -169,12 +169,12 @@ private:
     friend class DataBufferPool;
 
     DataBuffer(DataBufferPool *p)
-        : Buffer<uint8_t[]>((Pool *)p)
+        : Buffer<uint8_t[0]>((Pool *)p)
     {
     }
 }; // class DataBuffer
 
-using DataBufferPtr = std::unique_ptr<DataBuffer, BufferDelete<uint8_t[]>>;
+using DataBufferPtr = std::unique_ptr<DataBuffer, BufferDelete<uint8_t[0]>>;
 
 /// A class that keeps ownership of a chain of linked DataBuffer references.
 class LinkedDataBufferPtr
