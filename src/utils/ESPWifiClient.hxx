@@ -65,10 +65,12 @@ public:
         } else {
             apConfig_.authmode = AUTH_WPA_WPA2_PSK;
         }
+        apConfig_.max_connection = 4;
+        apConfig_.beacon_interval = 100;
         
         wifi_softap_set_config(&apConfig_);
         wifi_set_event_handler_cb(&static_wifi_callback);
-        wifi_softap_dhcps_start();        
+        //wifi_softap_dhcps_start();        
     }
 
     /// Callback when an event happens on the wifi port. @param evt describes
@@ -87,12 +89,17 @@ public:
 
             case EVENT_SOFTAPMODE_STADISCONNECTED:
             {
-                os_printf("SOFTAP: station dicconnected %d: " MACSTR "\n",
+                os_printf("SOFTAP: station disconnected %d: " MACSTR "\n",
                     evt->event_info.sta_disconnected.aid,
                     MAC2STR(evt->event_info.sta_connected.mac));
                 break;
             }
-            
+
+            case EVENT_SOFTAPMODE_PROBEREQRECVED:
+            {
+                // We don't care about probe received events, ignore.
+                break;
+            }
             default:
             {
                 os_printf("SOFTAP: unhandled event %d\n", evt->event);
@@ -138,6 +145,8 @@ private:
         conn_.proto.tcp = &tcp_;
         conn_.proto.tcp->local_port = LISTEN_PORT;
         espconn_regist_connectcb(&conn_, on_connect);
+        espconn_regist_disconcb(&conn_, on_discon);
+        espconn_regist_reconcb(&conn_, on_recon);
 
         espconn_accept(&conn_);
         os_printf("Server: Listening on port %d / %p\n",
@@ -155,6 +164,7 @@ private:
 
         espconn_regist_recvcb(pesp_conn, on_recv);
         espconn_regist_disconcb(pesp_conn, on_discon);
+        espconn_regist_reconcb(pesp_conn, on_recon);
     }
 
     /// Invoked by the system when a connected TCP socket disconnects.
@@ -170,6 +180,22 @@ private:
         /// @TODO delete connection.
     }
 
+    /// Invoked by the system when a connected TCP socket disconnects.
+    /// @param arg the espconn pointer.
+    static void on_recon(void* arg, sint8 err) {
+        struct espconn *pesp_conn = static_cast<struct espconn *>(arg);
+
+        os_printf("Server: reconnected %d.%d.%d.%d:%d err %d / %p\n",
+            pesp_conn->proto.tcp->remote_ip[0],
+            pesp_conn->proto.tcp->remote_ip[1],
+            pesp_conn->proto.tcp->remote_ip[2],
+            pesp_conn->proto.tcp->remote_ip[3],
+            pesp_conn->proto.tcp->remote_port, err, pesp_conn);
+
+        /// @TODO delete connection.
+    }
+
+    
     /// Invoked by the system when there is incoming data coming on a TCP
     /// socket that is already connected.
     /// @param arg the espconn pointer.
