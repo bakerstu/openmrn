@@ -667,7 +667,7 @@ endif
 endif #XTENSAGCCPATH
 
 ##################### ESPTOOL ######################
-ifndef ESPTOOLPATH
+ifndef ESPTOOLPYPATH
 SEARCHPATH := \
   $(ESPOPENSDKPATH)/esptool \
   $(XTENSAGCCPATH)/bin \
@@ -676,9 +676,37 @@ SEARCHPATH := \
 
 TRYPATH:=$(call findfirst,esptool.py,$(SEARCHPATH))
 ifneq ($(TRYPATH),)
+ESPTOOLPYPATH:=$(TRYPATH)
+ESPTOOL:=$(ESPTOOLPYPATH)/esptool.py
+endif
+endif #ESPTOOLPYPATH
+
+##################### ESPTOOL ######################
+ifndef ESPTOOLPATH
+SEARCHPATH := \
+  /usr/bin \
+
+
+TRYPATH:=$(call findfirst,esptool,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
 ESPTOOLPATH:=$(TRYPATH)
+ESPTOOL:=$(ESPTOOLPATH)/esptool
 endif
 endif #ESPTOOLPATH
+
+##################### ESPTOOL ######################
+ifndef ESPTOOLPATH
+SEARCHPATH := \
+  /usr/bin \
+
+
+TRYPATH:=$(call findfirst,esptool,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+ESPTOOLPATH:=$(TRYPATH)
+ESPTOOL:=$(ESPTOOLPATH)/esptool
+endif
+endif #ESPTOOLPATH
+
 
 ##################### ESPNONOSSDK ######################
 ifndef ESPNONOSSDKPATH
