@@ -289,7 +289,9 @@ int appl_main(int argc, char**argv) {
 
     new ESPWifiAP(WIFI_SSID, WIFI_PASS);
 
-    (new ESPGcTcpServer(&g_can_hub, 1200))->start();
+    auto* srv = new ESPGcTcpServer(&g_can_hub, 1200);
+    srv->start();
+    srv->start_mdns();
     
 #endif    
     return 0;

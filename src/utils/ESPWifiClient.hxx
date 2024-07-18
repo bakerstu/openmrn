@@ -141,6 +141,21 @@ public:
         start_listen();
     }
 
+    void start_mdns()
+    {
+        struct ip_info ipconfig;
+        wifi_get_ip_info(SOFTAP_IF, &ipconfig);
+
+        struct mdns_info *info =
+            (struct mdns_info *)malloc(sizeof(struct mdns_info));
+        memset(info, 0, sizeof(struct mdns_info));
+        info->host_name = (char*)"esp_host";
+        info->ipAddr = ipconfig.ip.addr; // sation ip
+        info->server_name = (char*)"openlcb-can";
+        info->server_port = LISTEN_PORT;
+        espconn_mdns_init(info);
+    }
+
 private:
     /// Starts the listening socket for the TCP server.
     void start_listen()
