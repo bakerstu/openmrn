@@ -39,38 +39,44 @@
 extern "C" {
 #include "ets_sys.h"
 #include <ip_addr.h>
-#include <user_interface.h>
-#include <osapi.h>
+
+
 #include <espconn.h>
+#include <osapi.h>
+#include <user_interface.h>
 }
 
-#include "utils/Singleton.hxx"
-#include "utils/Hub.hxx"
 #include "utils/GridConnectHub.hxx"
-
+#include "utils/Hub.hxx"
+#include "utils/Singleton.hxx"
 
 /// Uses the ESPConn WiFi API on an ESP8266 to set up the module in SoftAP
 /// mode.
-class ESPWifiAP : public Singleton<ESPWifiAP> {
+class ESPWifiAP : public Singleton<ESPWifiAP>
+{
 public:
-    ESPWifiAP(const string &ssid, const string &password, int channel = 9) {
+    ESPWifiAP(const string &ssid, const string &password, int channel = 9)
+    {
         memset(&apConfig_, 0, sizeof(apConfig_));
         wifi_set_opmode_current(SOFTAP_MODE);
         memcpy(&apConfig_.ssid, ssid.c_str(), ssid.size() + 1);
         apConfig_.ssid_len = ssid.size();
         memcpy(&apConfig_.password, password.c_str(), password.size() + 1);
         apConfig_.channel = channel;
-        if (password.empty()) {
+        if (password.empty())
+        {
             apConfig_.authmode = AUTH_OPEN;
-        } else {
+        }
+        else
+        {
             apConfig_.authmode = AUTH_WPA_WPA2_PSK;
         }
         apConfig_.max_connection = 4;
         apConfig_.beacon_interval = 100;
-        
+
         wifi_softap_set_config(&apConfig_);
         wifi_set_event_handler_cb(&static_wifi_callback);
-        //wifi_softap_dhcps_start();        
+        // wifi_softap_dhcps_start();
     }
 
     /// Callback when an event happens on the wifi port. @param evt describes
@@ -107,39 +113,41 @@ public:
             }
         }
     }
-    
+
     /// Configuration of the access point we are creating.
     struct softap_config apConfig_;
 };
 
 /// Starts a listening socket for gridconnect TCP connections using the EspConn
 /// API.
-class ESPGcTcpServer : public Singleton<ESPGcTcpServer> {
+class ESPGcTcpServer : public Singleton<ESPGcTcpServer>
+{
 public:
     /// Constructor
     /// @param hub CAN hub to connect to the server
     /// @param send_buf_size in bytes, how much to buffer befone handing over to
     /// the TCP stack.
     ESPGcTcpServer(CanHubFlow *hub, unsigned send_buf_size)
-        : hub_(hub), bufSize_(send_buf_size) {
-        
-    }
+        : hub_(hub)
+        , bufSize_(send_buf_size)
+    { }
 
     /// OpenLCB gridconnect TCP port number.
     static constexpr unsigned LISTEN_PORT = 12021;
-    
+
     /// Starts up the server.
-    void start() {
+    void start()
+    {
         start_listen();
     }
 
 private:
     /// Starts the listening socket for the TCP server.
-    void start_listen() {
-        listen_.reset(new Conn); 
+    void start_listen()
+    {
         memset(&conn_, 0, sizeof(conn_));
         memset(&tcp_, 0, sizeof(tcp_));
-        
+
         conn_.type = ESPCONN_TCP;
         conn_.state = ESPCONN_NONE;
         conn_.proto.tcp = &tcp_;
@@ -154,13 +162,16 @@ private:
     }
 
     /// Callback when a client connected to the server socket.
-    static void on_connect(void* arg) {
+    static void on_connect(void *arg)
+    {
         struct espconn *pesp_conn = static_cast<struct espconn *>(arg);
 
         os_printf("Server: connection from %d.%d.%d.%d:%d / %p\n",
-            pesp_conn->proto.tcp->remote_ip[0], pesp_conn->proto.tcp->remote_ip[1],
-            pesp_conn->proto.tcp->remote_ip[2], pesp_conn->proto.tcp->remote_ip[3],
-                  pesp_conn->proto.tcp->remote_port, pesp_conn);
+            pesp_conn->proto.tcp->remote_ip[0],
+            pesp_conn->proto.tcp->remote_ip[1],
+            pesp_conn->proto.tcp->remote_ip[2],
+            pesp_conn->proto.tcp->remote_ip[3],
+            pesp_conn->proto.tcp->remote_port, pesp_conn);
 
         espconn_regist_recvcb(pesp_conn, on_recv);
         espconn_regist_disconcb(pesp_conn, on_discon);
@@ -169,20 +180,24 @@ private:
 
     /// Invoked by the system when a connected TCP socket disconnects.
     /// @param arg the espconn pointer.
-    static void on_discon(void* arg) {
+    static void on_discon(void *arg)
+    {
         struct espconn *pesp_conn = static_cast<struct espconn *>(arg);
-        
+
         os_printf("Server: disconnected %d.%d.%d.%d:%d / %p\n",
-            pesp_conn->proto.tcp->remote_ip[0], pesp_conn->proto.tcp->remote_ip[1],
-            pesp_conn->proto.tcp->remote_ip[2], pesp_conn->proto.tcp->remote_ip[3],
-                  pesp_conn->proto.tcp->remote_port, pesp_conn);
+            pesp_conn->proto.tcp->remote_ip[0],
+            pesp_conn->proto.tcp->remote_ip[1],
+            pesp_conn->proto.tcp->remote_ip[2],
+            pesp_conn->proto.tcp->remote_ip[3],
+            pesp_conn->proto.tcp->remote_port, pesp_conn);
 
         /// @TODO delete connection.
     }
 
     /// Invoked by the system when a connected TCP socket disconnects.
     /// @param arg the espconn pointer.
-    static void on_recon(void* arg, sint8 err) {
+    static void on_recon(void *arg, sint8 err)
+    {
         struct espconn *pesp_conn = static_cast<struct espconn *>(arg);
 
         os_printf("Server: reconnected %d.%d.%d.%d:%d err %d / %p\n",
@@ -195,44 +210,107 @@ private:
         /// @TODO delete connection.
     }
 
-    
     /// Invoked by the system when there is incoming data coming on a TCP
     /// socket that is already connected.
     /// @param arg the espconn pointer.
     /// @param pdata pointer to data received.
     /// @param len number of bytes received.
-    static void on_recv(void *arg, char *pusrdata, unsigned short length) {
-        
+    static void on_recv(void *arg, char *pusrdata, unsigned short length)
+    { }
 
+    /// Converts an espconn pointer to a key representing the TCP connection
+    /// with remote ip, remote port, local port tuple.
+    /// @param arg espconn callback, typically a pointer to an espconn
+    /// structure.
+    /// @return a key composed of the identifying attributes of the TCP
+    /// connection.
+    static uint64_t key_from_espconn(void *arg)
+    {
+        struct Key
+        {
+            uint16_t remote_port;
+            uint16_t local_port;
+            uint8 remote_ip[4];
+        };
+        struct KU
+        {
+            union
+            {
+                Key k;
+                uint64_t u;
+            };
+        } ku;
+        static_assert(sizeof(ku) == 8, "incorrect alignment or something");
+        struct espconn *pespconn = static_cast<struct espconn *>(arg);
+        if (!pespconn || pespconn->type != ESPCONN_TCP)
+        {
+            return 0;
+        }
+        auto *tcp = pespconn->proto.tcp;
+        memcpy(ku.k.remote_ip, tcp->remote_ip, 4);
+        ku.k.remote_port = tcp->remote_port;
+        ku.k.local_port = tcp->local_port;
+        return ku.u;
     }
 
     /// Stores the values we need to know about a single client connection.
     struct Conn
     {
-        Conn() {
-        }
-        
+        uint64_t key_;
+        Conn(void *arg)
+            : key_(key_from_espconn(arg))
+        { }
     };
 
-    static Conn* lookup_by_espconn(void* arg) {
-#if 0
-        auto& v = instance()->conns_;
-        for (unsigned i = 0; i < v.size(); ++i) {
-            if (v[i]->arg() == arg) {
-                return v.get();
+    /// Finds the index of a known connection.
+    /// @param arg callback argument from an espconn callback.
+    /// @return the index at which the matching Conn is stored in the conns_
+    /// array, or -1 if not found.
+    static int idx_by_espconn(void *arg)
+    {
+        uint64_t key = key_from_espconn(arg);
+        auto &v = instance()->conns_;
+        for (unsigned i = 0; i < v.size(); ++i)
+        {
+            if (v[i]->key_ == key)
+            {
+                return i;
             }
         }
-#endif        
-        return nullptr;
+        return -1;
+    }
+
+    /// Finds a connection indexed by espconn*.
+    /// @param arg callback argument from an espconn callback.
+    /// @return the matchin Conn instance, or nullptr if not known.
+    static Conn *lookup_by_espconn(void *arg)
+    {
+        int id = idx_by_espconn(arg);
+        if (id < 0)
+        {
+            return nullptr;
+        }
+        return instance()->conns_[id].get();
+    }
+
+    /// Removes a connection indexed by espconn*.
+    static void erase_by_espconn(void *arg)
+    {
+        int id = idx_by_espconn(arg);
+        if (id < 0)
+        {
+            os_printf("Server: failed to delete entry\n");
+            return;
+        }
+        auto &v = instance()->conns_;
+        v.erase(v.begin() + id);
     }
 
     /// Listening server socket connection handle.
     struct espconn conn_;
     /// TCP connection handle for server socket.
     esp_tcp tcp_;
-    
-    /// The currently listening TCP server socket.
-    std::unique_ptr<Conn> listen_;
+
     /// The list of connected TCP sockets.
     std::vector<std::unique_ptr<Conn>> conns_;
     /// CAN hub to send incoming packets to and to receive outgoing packets
@@ -241,7 +319,6 @@ private:
     /// How many bytes are there in the send buffer.
     unsigned bufSize_;
 };
-
 
 /// Uses the ESPConn API on the ESP8266 wifi-enabled MCU to connect to a wifi
 /// base station, perform a DNS lookup to a given target, and connect to a
@@ -272,7 +349,7 @@ public:
         , sendPending_(0)
         , sendBlocked_(0)
         , timerPending_(0)
-        , sendBuf_((uint8_t*)malloc(send_buf_size))
+        , sendBuf_((uint8_t *)malloc(send_buf_size))
         , bufSize_(send_buf_size)
         , hub_(hub)
         , gcHub_(hub_->service())
@@ -493,7 +570,8 @@ private:
     void timeout()
     {
         timerPending_ = 0;
-        if (!sendPending_) {
+        if (!sendPending_)
+        {
             send_buffer();
         }
     }
@@ -535,8 +613,7 @@ private:
         BufferTimer(ESPWifiClient *parent)
             : Timer(parent->service()->executor()->active_timers())
             , parent_(parent)
-        {
-        }
+        { }
 
         /// callback when the timer expires. @return do not restart timer.
         long long timeout() override
@@ -544,9 +621,10 @@ private:
             parent_->timeout();
             return NONE;
         }
+
     private:
         ESPWifiClient *parent_; ///< parent who owns *this.
-    } bufferTimer_{this}; ///< Instance of the timer we own.
+    } bufferTimer_ {this};      ///< Instance of the timer we own.
 
     /// Configuration of the access pint we are connecting to.
     struct station_config stationConfig_;
