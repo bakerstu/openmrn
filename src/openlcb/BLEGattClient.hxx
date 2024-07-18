@@ -178,11 +178,13 @@ private:
     void disconnect_callback(ble::Connection *conn)
     {
         /// Remove any clients using the given connection from the container.
-        for (auto it = clients_.begin(); it != clients_.end(); ++it)
+        for (int i = 0; i < (int)clients_.size(); ++i)
         {
-            if ((*it)->conn_ == conn)
+            if (clients_[i]->conn_ == conn)
             {
-                clients_.erase(it);
+                clients_.erase(clients_.begin() + i);
+                --i;
+                continue;
             }
         }
     }
