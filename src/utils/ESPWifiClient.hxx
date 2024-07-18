@@ -48,6 +48,175 @@ extern "C" {
 #include "utils/Hub.hxx"
 #include "utils/GridConnectHub.hxx"
 
+
+/// Uses the ESPConn WiFi API on an ESP8266 to set up the module in SoftAP
+/// mode.
+class ESPWifiAP : public Singleton<ESPWifiAP> {
+public:
+    ESPWifiAP(const string &ssid, const string &password, int channel = 9) {
+        memset(&apConfig_, 0, sizeof(apConfig_));
+        wifi_set_opmode_current(SOFTAP_MODE);
+        memcpy(&apConfig_.ssid, ssid.c_str(), ssid.size() + 1);
+        apConfig_.ssid_len = ssid.size();
+        memcpy(&apConfig_.password, password.c_str(), password.size() + 1);
+        apConfig_.channel = channel;
+        if (password.empty()) {
+            apConfig_.authmode = AUTH_OPEN;
+        } else {
+            apConfig_.authmode = AUTH_WPA_WPA2_PSK;
+        }
+        
+        wifi_softap_set_config(&apConfig_);
+        wifi_set_event_handler_cb(&static_wifi_callback);
+        wifi_softap_dhcps_start();        
+    }
+
+    /// Callback when an event happens on the wifi port. @param evt describes
+    /// event that happened.
+    static void static_wifi_callback(System_Event_t *evt)
+    {
+        switch (evt->event)
+        {
+            case EVENT_SOFTAPMODE_STACONNECTED:
+            {
+                os_printf("SOFTAP: station connected %d: " MACSTR "\n",
+                    evt->event_info.sta_connected.aid,
+                    MAC2STR(evt->event_info.sta_connected.mac));
+                break;
+            }
+
+            case EVENT_SOFTAPMODE_STADISCONNECTED:
+            {
+                os_printf("SOFTAP: station dicconnected %d: " MACSTR "\n",
+                    evt->event_info.sta_disconnected.aid,
+                    MAC2STR(evt->event_info.sta_connected.mac));
+                break;
+            }
+            
+            default:
+            {
+                os_printf("SOFTAP: unhandled event %d\n", evt->event);
+                break;
+            }
+        }
+    }
+    
+    /// Configuration of the access point we are creating.
+    struct softap_config apConfig_;
+};
+
+/// Starts a listening socket for gridconnect TCP connections using the EspConn
+/// API.
+class ESPGcTcpServer : public Singleton<ESPGcTcpServer> {
+public:
+    /// Constructor
+    /// @param hub CAN hub to connect to the server
+    /// @param send_buf_size in bytes, how much to buffer befone handing over to
+    /// the TCP stack.
+    ESPGcTcpServer(CanHubFlow *hub, unsigned send_buf_size)
+        : hub_(hub), bufSize_(send_buf_size) {
+        
+    }
+
+    /// OpenLCB gridconnect TCP port number.
+    static constexpr unsigned LISTEN_PORT = 12021;
+    
+    /// Starts up the server.
+    void start() {
+        start_listen();
+    }
+
+private:
+    /// Starts the listening socket for the TCP server.
+    void start_listen() {
+        listen_.reset(new Conn); 
+        memset(&conn_, 0, sizeof(conn_));
+        memset(&tcp_, 0, sizeof(tcp_));
+        
+        conn_.type = ESPCONN_TCP;
+        conn_.state = ESPCONN_NONE;
+        conn_.proto.tcp = &tcp_;
+        conn_.proto.tcp->local_port = LISTEN_PORT;
+        espconn_regist_connectcb(&conn_, on_connect);
+
+        espconn_accept(&conn_);
+        os_printf("Server: Listening on port %d / %p\n",
+            conn_.proto.tcp->local_port, &conn_);
+    }
+
+    /// Callback when a client connected to the server socket.
+    static void on_connect(void* arg) {
+        struct espconn *pesp_conn = static_cast<struct espconn *>(arg);
+
+        os_printf("Server: connection from %d.%d.%d.%d:%d / %p\n",
+            pesp_conn->proto.tcp->remote_ip[0], pesp_conn->proto.tcp->remote_ip[1],
+            pesp_conn->proto.tcp->remote_ip[2], pesp_conn->proto.tcp->remote_ip[3],
+                  pesp_conn->proto.tcp->remote_port, pesp_conn);
+
+        espconn_regist_recvcb(pesp_conn, on_recv);
+        espconn_regist_disconcb(pesp_conn, on_discon);
+    }
+
+    /// Invoked by the system when a connected TCP socket disconnects.
+    /// @param arg the espconn pointer.
+    static void on_discon(void* arg) {
+        struct espconn *pesp_conn = static_cast<struct espconn *>(arg);
+        
+        os_printf("Server: disconnected %d.%d.%d.%d:%d / %p\n",
+            pesp_conn->proto.tcp->remote_ip[0], pesp_conn->proto.tcp->remote_ip[1],
+            pesp_conn->proto.tcp->remote_ip[2], pesp_conn->proto.tcp->remote_ip[3],
+                  pesp_conn->proto.tcp->remote_port, pesp_conn);
+
+        /// @TODO delete connection.
+    }
+
+    /// Invoked by the system when there is incoming data coming on a TCP
+    /// socket that is already connected.
+    /// @param arg the espconn pointer.
+    /// @param pdata pointer to data received.
+    /// @param len number of bytes received.
+    static void on_recv(void *arg, char *pusrdata, unsigned short length) {
+        
+
+    }
+
+    /// Stores the values we need to know about a single client connection.
+    struct Conn
+    {
+        Conn() {
+        }
+        
+    };
+
+    static Conn* lookup_by_espconn(void* arg) {
+#if 0
+        auto& v = instance()->conns_;
+        for (unsigned i = 0; i < v.size(); ++i) {
+            if (v[i]->arg() == arg) {
+                return v.get();
+            }
+        }
+#endif        
+        return nullptr;
+    }
+
+    /// Listening server socket connection handle.
+    struct espconn conn_;
+    /// TCP connection handle for server socket.
+    esp_tcp tcp_;
+    
+    /// The currently listening TCP server socket.
+    std::unique_ptr<Conn> listen_;
+    /// The list of connected TCP sockets.
+    std::vector<std::unique_ptr<Conn>> conns_;
+    /// CAN hub to send incoming packets to and to receive outgoing packets
+    /// from.
+    CanHubFlow *hub_;
+    /// How many bytes are there in the send buffer.
+    unsigned bufSize_;
+};
+
+
 /// Uses the ESPConn API on the ESP8266 wifi-enabled MCU to connect to a wifi
 /// base station, perform a DNS lookup to a given target, and connect to a
 /// given port via TCP. Acts as a HubPort, meaning the data coming from the Hub
@@ -83,7 +252,6 @@ public:
         , gcHub_(hub_->service())
         , connectCallback_(std::move(connect_callback))
     {
-
         wifi_set_opmode_current(STATION_MODE);
         memcpy(&stationConfig_.ssid, ssid.c_str(), ssid.size() + 1);
         memcpy(&stationConfig_.password, password.c_str(), password.size() + 1);
@@ -122,12 +290,7 @@ public:
 
             case EVENT_STAMODE_GOT_IP:
             {
-                /*
-                os_printf("ip:" IPSTR ",mask:" IPSTR ",gw:" IPSTR,
-                    IP2STR(evt->event_info.got_ip.ip),
-                    IP2STR(evt->event_info.got_ip.mask),
-                    IP2STR(evt->event_info.got_ip.gw));
-                    os_printf("\n");*/
+                os_printf("ip: %08x\n", evt->event_info.got_ip.ip);
 
                 Singleton<ESPWifiClient>::instance()->do_dns_lookup();
                 break;
@@ -143,6 +306,7 @@ public:
     /// Initiates the DNS lookup of the target host.
     void do_dns_lookup()
     {
+        os_printf("DNS lookup start: %s\n", host_.c_str());
         espconn_gethostbyname(&conn_, host_.c_str(), &targetIp_, dns_done);
     }
 
@@ -154,6 +318,7 @@ public:
     ///
     static void dns_done(const char *name, ip_addr_t *ipaddr, void *arg)
     {
+        os_printf("dns_done\n");
         if (ipaddr == NULL)
         {
             os_printf("DNS lookup failed\n");
@@ -192,6 +357,7 @@ public:
     /// Callback when the TCP connection is established.
     void tcp_connected()
     {
+        os_printf("%s\n", __FUNCTION__);
         gcAdapter_.reset(
             GCAdapterBase::CreateGridConnectAdapter(&gcHub_, hub_, false));
         espconn_regist_recvcb(&conn_, static_data_received);
