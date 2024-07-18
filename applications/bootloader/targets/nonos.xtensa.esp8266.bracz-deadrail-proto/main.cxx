@@ -271,6 +271,7 @@ int appl_main(int argc, char**argv) {
     printf("bootloader init done.\n");
     g_can_hub.register_port(&g_bootloader_port);
     resetblink(1);
+#if 0
     new ESPWifiClient(WIFI_SSID, WIFI_PASS, &g_can_hub, WIFI_HUB_HOSTNAME,
                       WIFI_HUB_PORT, 1200, []()
         {
@@ -280,6 +281,17 @@ int appl_main(int argc, char**argv) {
             g_executor.thread_body();
             (new BootloaderFlow())->start();
         });
+#else
+    // This will actually return due to the event-driven OS
+    // implementation of the stack.
+    g_executor.thread_body();
+    (new BootloaderFlow())->start();
+
+    new ESPWifiAP(WIFI_SSID, WIFI_PASS);
+
+    (new ESPGcTcpServer(&g_can_hub, 1200))->start();
+    
+#endif    
     return 0;
 }
 
