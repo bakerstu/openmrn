@@ -63,7 +63,7 @@ public:
         LE_BR_EDR_CONTROLLER      = 0x08, ///< BLE + BR/EDR controller
         LE_BR_EDR_HOST            = 0x10, ///< BLE + BR/EDR Host
         LE_ONLY_LIMITED_DISC_MODE = 0x05, ///< BLE only limited discovery mode
-        LE_ONLY_GENERAL_DISC_MODE = 0x06, ///< BEE only limited discovery mode
+        LE_ONLY_GENERAL_DISC_MODE = 0x06, ///< BEE only general discovery mode
     };
 
     /// Constructor.
