@@ -50,6 +50,189 @@ extern "C" {
 #include "utils/Hub.hxx"
 #include "utils/Singleton.hxx"
 
+
+class ESPHubPort : public HubPort {
+public:
+    /// @param hub CAN hub to connect to the server
+    /// @param send_buf_size in bytes, how much to buffer befone handing over to
+    /// the TCP stack.
+    ESPHubPort(CanHubFlow *hub, struct espconn *conn, uint16_t send_buf_size)
+        : HubPort(hub->service())
+        , conn_(conn)
+        , sendPending_(0)
+        , sendBlocked_(0)
+        , timerPending_(0)
+        , bufSize_(send_buf_size)
+        , sendBuf_(new uint8_t[send_buf_size])
+        , hub_(hub)
+        , gcHub_(hub_->service())
+    {
+        // This is how much space we have for this variable.
+        HASSERT(send_buf_size < (1u<<12));
+
+        gcAdapter_.reset(
+            GCAdapterBase::CreateGridConnectAdapter(&gcHub_, hub_, false));
+        gcHub_.register_port(this);
+    }
+
+    /// Callback when incoming data is received.
+    ///
+    /// @param pdata incoming data
+    /// @param len number of bytes received.
+    ///
+    void data_received(char *pdata, unsigned short len)
+    {
+        auto *b = gcHub_.alloc();
+        b->data()->skipMember_ = this;
+        b->data()->assign(pdata, len);
+        gcHub_.send(b);
+    }
+
+    /// Callback from the TCP stack when the data send has been completed.
+    void data_sent()
+    {
+        sendPending_ = 0;
+        bufEnd_ = 0;
+        if (sendBlocked_)
+        {
+            sendBlocked_ = 0;
+            notify();
+        }
+    }
+
+    
+private:
+    /// Sending base state. @return next action.
+    Action entry() override
+    {
+        if (sendPending_)
+        {
+            sendBlocked_ = 1;
+            // Will call again once the wifi notification comes back.
+            return wait();
+        }
+        if (message()->data()->size() > bufSize_)
+        {
+            if (bufEnd_ > 0)
+            {
+                // Cannot copy the data to the buffer. Must send separately.
+                send_buffer();
+                return again();
+            }
+            else
+            {
+                sendPending_ = 1;
+                sendBlocked_ = 1; // will cause notify.
+                espconn_sent(conn_, (uint8 *)message()->data()->data(),
+                    message()->data()->size());
+                return wait_and_call(STATE(send_done));
+            }
+        }
+        if ((int)message()->data()->size() > (bufSize_ - bufEnd_))
+        {
+            // Doesn't fit into the current buffer.
+            send_buffer();
+            return again();
+        }
+        // Copies the data into the buffer.
+        memcpy(sendBuf_.get() + bufEnd_, message()->data()->data(),
+            message()->data()->size());
+        bufEnd_ += message()->data()->size();
+        release();
+        // Decides whether to send off the buffer now.
+        if (!queue_empty())
+        {
+            // let's process more of the queue
+            return exit();
+        }
+        if (!timerPending_)
+        {
+            timerPending_ = 1;
+            bufferTimer_.start(MSEC_TO_NSEC(3));
+        }
+        return exit();
+    }
+
+    /// Callback state when we are sending directly off of the input buffer
+    /// becuase the data payload is too much to fit into the send assembly
+    /// buffer. Called when the send is completed and the input buffer can be
+    /// releases. @return next action
+    Action send_done()
+    {
+        return release_and_exit();
+    }
+    
+    /// Writes all bytes that are in the send buffer to the TCP socket.
+    void send_buffer()
+    {
+        espconn_sent(conn_, sendBuf_.get(), bufEnd_);
+        sendPending_ = 1;
+    }
+
+    /// Called from the timer to signal sending off the buffer's contents.
+    void timeout()
+    {
+        timerPending_ = 0;
+        if (!sendPending_)
+        {
+            send_buffer();
+        }
+    }
+    
+    /// Timer that triggers the parent flow when expiring. Used to flush the
+    /// accumulated gridconnect bytes to the TCP socket.
+    class BufferTimer : public ::Timer
+    {
+    public:
+        /// Constructor. @param parent who owns *this.
+        BufferTimer(ESPHubPort *parent)
+            : Timer(parent->service()->executor()->active_timers())
+            , parent_(parent)
+        { }
+
+        /// callback when the timer expires. @return do not restart timer.
+        long long timeout() override
+        {
+            parent_->timeout();
+            return NONE;
+        }
+
+    private:
+        ESPHubPort *parent_; ///< parent who owns *this.
+    } bufferTimer_ {this};      ///< Instance of the timer we own.
+
+    /// TCP connection handle. This connection has been established already
+    /// before the constructor is called.
+    struct espconn* conn_;
+
+    /// True when the TCP stack is busy.
+    uint16_t sendPending_ : 1;
+    /// True when we are waiting for a notification from the TCP stack send done
+    /// callback.
+    uint16_t sendBlocked_ : 1;
+    /// True when there is a send timer running with the assembly buffer being
+    /// not full.
+    uint16_t timerPending_ : 1;
+
+    /// Offset in sendBuf_ of the first unused byte.
+    uint16_t bufEnd_ : 13;
+
+    /// How many bytes are there in the send buffer.
+    const uint16_t bufSize_ : 13;
+    
+    /// Temporarily stores outgoing data until the TCP stack becomes free.
+    std::unique_ptr<uint8_t[]> sendBuf_;
+    
+    /// CAN hub to send incoming packets to and to receive outgoing packets
+    /// from.
+    CanHubFlow *hub_;
+    /// String-typed hub for the gridconnect-rendered packets.
+    HubFlow gcHub_;
+    /// Transcoder bridge from CAN to GridConnect protocol.
+    std::unique_ptr<GCAdapterBase> gcAdapter_;
+
+};
+
 /// Uses the ESPConn WiFi API on an ESP8266 to set up the module in SoftAP
 /// mode.
 class ESPWifiAP : public Singleton<ESPWifiAP>
@@ -206,7 +389,7 @@ private:
             pesp_conn->proto.tcp->remote_ip[3],
             pesp_conn->proto.tcp->remote_port, pesp_conn);
 
-        /// @TODO delete connection.
+        /// @todo delete connection.
     }
 
     /// Invoked by the system when a connected TCP socket disconnects.
@@ -222,7 +405,7 @@ private:
             pesp_conn->proto.tcp->remote_ip[3],
             pesp_conn->proto.tcp->remote_port, err, pesp_conn);
 
-        /// @TODO delete connection.
+        /// @todo delete connection.
     }
 
     /// Invoked by the system when there is incoming data coming on a TCP
@@ -231,7 +414,9 @@ private:
     /// @param pdata pointer to data received.
     /// @param len number of bytes received.
     static void on_recv(void *arg, char *pusrdata, unsigned short length)
-    { }
+    {
+        /// @todo
+    }
 
     /// Converts an espconn pointer to a key representing the TCP connection
     /// with remote ip, remote port, local port tuple.
