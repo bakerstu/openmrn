@@ -62,6 +62,7 @@ public:
         , sendPending_(0)
         , sendBlocked_(0)
         , timerPending_(0)
+        , isDisconnected_(0)
         , bufSize_(send_buf_size)
         , sendBuf_(new uint8_t[send_buf_size])
         , hub_(hub)
@@ -100,6 +101,23 @@ public:
         }
     }
 
+    /// Notifies the flow that the TCP endpoint has been disconnected. The flow
+    /// will not call send after this function returns.
+    void disconnected() {
+        isDisconnected_ = 1;
+        gcHub_.unregister_port(this);
+        if (gcAdapter_ && gcAdapter_->shutdown()) {
+            os_printf("HubPort: gc adapter deleted");
+            gcAdapter_.reset();
+        }
+        conn_ = nullptr;
+        // Fakes callback to make flow progress in case it was waiting for data
+        // send.
+        data_sent();
+        /// @todo we should add something to the contract on who and when will
+        /// delete this object. Probably start a timer to wait for data to
+        /// drain.
+    }
     
 private:
     /// Sending base state. @return next action.
@@ -119,13 +137,15 @@ private:
                 send_buffer();
                 return again();
             }
-            else
+            else if (!isDisconnected_)
             {
                 sendPending_ = 1;
                 sendBlocked_ = 1; // will cause notify.
                 espconn_sent(conn_, (uint8 *)message()->data()->data(),
                     message()->data()->size());
                 return wait_and_call(STATE(send_done));
+            } else {
+                return call_immediately(STATE(send_done));
             }
         }
         if ((int)message()->data()->size() > (bufSize_ - bufEnd_))
@@ -165,8 +185,12 @@ private:
     /// Writes all bytes that are in the send buffer to the TCP socket.
     void send_buffer()
     {
-        espconn_sent(conn_, sendBuf_.get(), bufEnd_);
-        sendPending_ = 1;
+        if (isDisconnected_) {
+            return;
+        } else {
+            espconn_sent(conn_, sendBuf_.get(), bufEnd_);
+            sendPending_ = 1;
+        }
     }
 
     /// Called from the timer to signal sending off the buffer's contents.
@@ -213,6 +237,10 @@ private:
     /// True when there is a send timer running with the assembly buffer being
     /// not full.
     uint16_t timerPending_ : 1;
+    /// Set to true when the TCP connection is broken. We know this from the
+    /// call `disconnected()`. It prevents calling any `send` calls on the TCP
+    /// port.
+    uint16_t isDisconnected_ : 1;
 
     /// Offset in sendBuf_ of the first unused byte.
     uint16_t bufEnd_ : 13;
@@ -359,6 +387,14 @@ private:
             conn_.proto.tcp->local_port, &conn_);
     }
 
+    /// Creates a hub link for a given esp TCP socket. Registers the connection
+    /// by key in the conns_ array.
+    void register_link(struct espconn* pespconn) {
+        Conn* n = new Conn(pespconn);
+        conns_.emplace_back(n);
+        n->port_.reset(new ESPHubPort(hub_, pespconn, 500));
+    }
+    
     /// Callback when a client connected to the server socket.
     static void on_connect(void *arg)
     {
@@ -372,8 +408,13 @@ private:
             pesp_conn->proto.tcp->remote_port, pesp_conn);
 
         espconn_regist_recvcb(pesp_conn, on_recv);
+        espconn_regist_sentcb(pesp_conn, on_sent);
         espconn_regist_disconcb(pesp_conn, on_discon);
         espconn_regist_reconcb(pesp_conn, on_recon);
+        // Ups idle timeout disconnect to 2 hours. The default is something
+        // like 10 seconds.
+        espconn_regist_time(pesp_conn, 7200, 1);
+        instance()->register_link(pesp_conn);
     }
 
     /// Invoked by the system when a connected TCP socket disconnects.
@@ -389,10 +430,13 @@ private:
             pesp_conn->proto.tcp->remote_ip[3],
             pesp_conn->proto.tcp->remote_port, pesp_conn);
 
+        auto* c = lookup_by_espconn(arg);
+        if (c) c->port_->disconnected();
         /// @todo delete connection.
     }
 
-    /// Invoked by the system when a connected TCP socket disconnects.
+    /// Invoked by the system when a connected TCP socket reconnects (?? not
+    /// sure when this happens).
     /// @param arg the espconn pointer.
     static void on_recon(void *arg, sint8 err)
     {
@@ -415,9 +459,19 @@ private:
     /// @param len number of bytes received.
     static void on_recv(void *arg, char *pusrdata, unsigned short length)
     {
-        /// @todo
+        auto* c = lookup_by_espconn(arg);
+        if (c) c->port_->data_received(pusrdata, length);
     }
 
+    /// Invoked by the system when outgoing data sent to a TCP socket drained
+    /// from the system.
+    /// @param arg the espconn pointer.
+    static void on_sent(void *arg)
+    {
+        auto* c = lookup_by_espconn(arg);
+        if (c) c->port_->data_sent();
+    }
+    
     /// Converts an espconn pointer to a key representing the TCP connection
     /// with remote ip, remote port, local port tuple.
     /// @param arg espconn callback, typically a pointer to an espconn
@@ -460,6 +514,7 @@ private:
         Conn(void *arg)
             : key_(key_from_espconn(arg))
         { }
+        std::unique_ptr<ESPHubPort> port_;
     };
 
     /// Finds the index of a known connection.
