@@ -256,6 +256,13 @@ public:
         node()->iface()->addressed_message_write_flow()->send(b);
     }
 
+    /// Get the PIP response value.
+    /// @return PIP value
+    virtual uint64_t get_pip()
+    {
+        return 0;
+    }
+
 protected:
     /// Call this function once after the actual IO ports are set up. Calling
     /// before the executor starts looping is okay.
@@ -624,6 +631,13 @@ private:
         default_start_node();
     }
 
+    /// Get the PIP response value.
+    /// @return PIP value
+    uint64_t get_pip() override
+    {
+        return PIP_RESPONSE;
+    }
+
     /// The actual node.
     DefaultNode node_;
     /// Handles PIP requests.
@@ -652,6 +666,13 @@ private:
     void start_node() override
     {
         default_start_node();
+    }
+
+    /// Get the PIP response value.
+    /// @return PIP value
+    uint64_t get_pip() override
+    {
+        return PIP_RESPONSE;
     }
 
     /// The actual node.
@@ -688,6 +709,13 @@ private:
         Defs::ABBREVIATED_DEFAULT_CDI | Defs::CDI;
 
     void start_node() override;
+
+    /// Get the PIP response value.
+    /// @return PIP value
+    uint64_t get_pip() override
+    {
+        return PIP_RESPONSE;
+    }
 
     TrainService tractionService_ {iface()};
     /// The actual node.

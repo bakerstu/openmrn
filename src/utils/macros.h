@@ -86,10 +86,9 @@ extern const char* g_death_file;
  */
 #define HASSERT(x) do { if (!(x)) { RECORD_DEATH(); abort(); } } while(0)
 
-
 #define DIE(MSG) abort()
 
-#elif defined(ESP32)
+#elif defined(ESP32) || defined(ESP_PLATFORM)
 
 #include <stdio.h>
 #include <assert.h>
