@@ -77,7 +77,6 @@ int appl_main(int argc, char *argv[])
     Buffer<openlcb::BootloaderRequest> *b = fill_request();
 
     b->set_done(&bn);
-    maybe_checksum(&b->data()->data);
 
     bootloader_client.send(b);
     n.wait_for_notification();
