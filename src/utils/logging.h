@@ -89,6 +89,28 @@ extern os_mutex_t g_log_mutex;
 #define LOG_MAYBE_DIE(level) 0
 #endif
 
+#ifdef ESP_NONOS
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include <ets_sys.h>
+#include <osapi.h>
+#ifdef __cplusplus
+}
+#endif
+
+#define IMMEDIATE_PRINT(message...)                                            \
+    os_printf(message);                                                        \
+    os_printf("\n");
+
+#else
+#define IMMEDIATE_PRINT(message...)                                            \
+    fprintf(stderr, message);                                                  \
+    fprintf(stderr, "\n");
+
+#endif
+
 /// Conditionally write a message to the logging output.
 /// @param level is the log level; if the configured loglevel is smaller, then
 /// the log is not printed, not rendered, and the rendering code is never even
@@ -105,8 +127,7 @@ extern os_mutex_t g_log_mutex;
         }                                                                      \
         else if (level == FATAL)                                               \
         {                                                                      \
-            fprintf(stderr, message);                                          \
-            fprintf(stderr, "\n");                                             \
+            IMMEDIATE_PRINT(message);                                          \
             abort();                                                           \
         }                                                                      \
         else if (LOGLEVEL >= level)                                            \
