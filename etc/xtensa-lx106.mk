@@ -16,7 +16,8 @@ LD = $(PREFIX)g++
 SIZE = $(PREFIX)size
 OBJCOPY = $(PREFIX)objcopy
 OBJDUMP = $(PREFIX)objdump
-GDB = $(PREFIX)gdb
+#GDB = $(PREFIX)gdb
+GDB = $(ESPARDUINOPATH)/tools/xtensa-lx106-elf-gcc/1.20.0-26-gb404fb9-2/bin/xtensa-lx106-elf-gdb
 #ESPTOOL = PATH=$(XTENSAGCCPATH)/bin:$$PATH $(ESPTOOLPATH)/esptool.py
 
 AROPTS=D
@@ -74,8 +75,10 @@ SYSLIBRARIES += -Wl,--start-group -lmain -lnet80211 -lcrypto -lwpa -llwip -lpp -
 #          -Wl,--defsym=printf=ets_printf \
 
 
+
 SYSLIBRARIES += $(SYSLIBRARIESEXTRA) \
           -Wl,--defsym=__assert_func=abort \
+          -Wl,--defsym=_ZSt9terminatev=abort \
           -Wl,--wrap=__cxa_pure_virtual \
           -Wl,--defsym=__wrap___cxa_pure_virtual=abort \
           -Wl,--wrap=__cxa_atexit \
