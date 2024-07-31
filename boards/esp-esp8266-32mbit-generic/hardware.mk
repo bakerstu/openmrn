@@ -62,6 +62,8 @@ main.o.stripped: main.o
 	$(OBJCOPY) @lib/flagfilemaino.lst $<
 	touch $@
 
+gdb:
+	$(GDB) $(EXECUTABLE)$(EXTENTION)
 
 $(EXECUTABLE)-0x00000.bin: $(EXECUTABLE)$(EXTENTION)
 	ln -sf $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE)
@@ -78,6 +80,10 @@ $(EXECUTABLE)-btgt.bin:  $(EXECUTABLE)$(EXTENTION)
 flash: $(EXECUTABLE)-bload.bin $(EXECUTABLE).lst
 	$(ESPTOOL) write_flash 0 $<
 
+clearflash:
+	$(ESPTOOL) erase_region 0x60000 4096
+
+
 clean:
 	rm -f $(EXECUTABLE)-{0x00000,0x40000,bload,btgt}.bin lib/*.a lib/*.lst
 
@@ -88,4 +94,9 @@ xflash: $(EXECUTABLE)-bload.bin $(EXECUTABLE).lst
 
 rflash: $(EXECUTABLE)-btgt.bin $(EXECUTABLE).lst
 	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -r -c esp8266 -w 10 -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $< 
+
+
+# reboot target into bootloader mode
+enter_bl: $(EXECUTABLE)-btgt.bin $(EXECUTABLE).lst
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -r -t  -n 0x0501010114$$(printf %02x $(ADDRESS)) -f /dev/null
 
