@@ -116,7 +116,25 @@ extern const char* g_death_file;
 
 #define DIE(MSG) do { ets_printf("Crashed in file " __FILE__ " line %d: " MSG "\n", __LINE__); assert(0); abort(); } while(0)
 
-#elif defined(ESP_NONOS) || defined(ARDUINO)
+
+#elif defined(ESP_NONOS)
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include <osapi.h>
+#ifdef __cplusplus
+}
+#endif
+
+#include <stdio.h>
+#include <assert.h>
+
+#define HASSERT(x) do { if (!(x)) { os_printf("Assertion failed in file " __FILE__ " line %d: assert(%s)\n", __LINE__, #x); g_death_file = __FILE__; g_death_lineno = __LINE__; abort();} } while(0)
+
+#define DIE(MSG) do { os_printf("Crashed in file " __FILE__ " line %d: " MSG "\n", __LINE__); abort(); } while(0)
+
+
+#elif defined(ARDUINO)
 
 #include <stdio.h>
 #include <assert.h>
@@ -125,7 +143,7 @@ extern const char* g_death_file;
 
 #define DIE(MSG) do { printf("Crashed in file " __FILE__ " line %d: " MSG "\n", __LINE__); assert(0); abort(); } while(0)
 
-#else
+#else // linux or other desktop OS
 
 #include <assert.h>
 #include <stdio.h>
