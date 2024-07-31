@@ -80,6 +80,7 @@ void setblink(uint32_t pattern)
 void __attribute__((noreturn)) diewith(uint32_t pattern)
 {
     extern void ets_wdt_disable();
+    os_printf("Die with %x\n", pattern);
     ets_wdt_disable();
     uint32_t p = 0;
     while(true) {
@@ -99,6 +100,8 @@ void __attribute__((noreturn)) diewith(uint32_t pattern)
 }
 
 void ICACHE_FLASH_ATTR abort() {
+    void* p = __builtin_return_address(0);
+    os_printf("abort() from %p\n", p);
     diewith(BLINK_DIE_ABORT);
 }
 
@@ -144,10 +147,11 @@ void init_done() {
     int fd = ::open(openlcb::CONFIG_FILENAME, O_RDONLY);
     if (fd < 0) fd = ::open(openlcb::CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR);
     if (fd < 0) {
-        printf("Formatting the SPIFFS fs.");
+        printf("Formatting the SPIFFS fs... ");
         extern void esp_spiffs_deinit(uint8_t);
         esp_spiffs_deinit(1);
         spiffs_init();
+        printf("Done.\n");
     }
 
     printf("userinit pinout: B hi %d; B lo %d; A hi %d; A lo %d;\n",
