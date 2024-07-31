@@ -431,6 +431,7 @@ int appl_main(int argc, char *argv[])
         stack.create_config_file_if_needed(cfg.seg().internal_data(),
             openlcb::EXPECTED_VERSION, openlcb::CONFIG_FILE_SIZE);
 
+#if 0
     new ESPWifiClient(WIFI_SSID, WIFI_PASS, stack.can_hub(), WIFI_HUB_HOSTNAME,
                       WIFI_HUB_PORT, 1200, []()
         {
@@ -439,5 +440,18 @@ int appl_main(int argc, char *argv[])
             // implementation of the stack.
             stack.loop_executor();
         });
+#else
+    // This will actually return due to the event-driven OS
+    // implementation of the stack.
+    stack.loop_executor();
+
+    new ESPWifiAP("LAYOUTWIFI", "123456789");
+
+    auto* srv = new ESPGcTcpServer(stack.can_hub(), 1200);
+    srv->start();
+    srv->start_mdns();
+    
+#endif    
+    
     return 0;
 }
