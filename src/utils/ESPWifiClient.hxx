@@ -40,10 +40,12 @@ extern "C" {
 #include "ets_sys.h"
 #include <ip_addr.h>
 
-
 #include <espconn.h>
 #include <osapi.h>
 #include <user_interface.h>
+
+int ipaddr_aton(const char *cp, ip_addr_t *addr)ICACHE_FLASH_ATTR;
+
 }
 
 #include "utils/GridConnectHub.hxx"
@@ -103,23 +105,44 @@ public:
 
     /// Notifies the flow that the TCP endpoint has been disconnected. The flow
     /// will not call send after this function returns.
+    /// Will delete *this after the shutdown is complete.
     void disconnected() {
         isDisconnected_ = 1;
         gcHub_.unregister_port(this);
-        if (gcAdapter_ && gcAdapter_->shutdown()) {
-            os_printf("HubPort: gc adapter deleted");
-            gcAdapter_.reset();
-        }
         conn_ = nullptr;
         // Fakes callback to make flow progress in case it was waiting for data
         // send.
         data_sent();
-        /// @todo we should add something to the contract on who and when will
-        /// delete this object. Probably start a timer to wait for data to
-        /// drain.
+        try_delete();
     }
     
 private:
+    /// @return true if it is okay to delete this object.
+    bool delete_okay()
+    {
+        return !gcAdapter_ && is_waiting() && gcHub_.is_waiting();
+    }
+
+    bool try_delete()
+    {
+        HASSERT(isDisconnected_);
+        if (gcAdapter_ && gcAdapter_->shutdown()) {
+            os_printf("HubPort: gc adapter deleted\n");
+            gcAdapter_.reset();
+        }
+        if (delete_okay())
+        {
+            os_printf("HubPort: deleted\n");
+            delete this;
+            return true;
+        }
+        os_printf("HubPort: pending delete\n");
+        // Make another attempt at delete later.
+        timerPending_ = 1;
+        bufferTimer_.start(MSEC_TO_NSEC(3));
+        return false;
+    }
+
     /// Sending base state. @return next action.
     Action entry() override
     {
@@ -197,6 +220,10 @@ private:
     void timeout()
     {
         timerPending_ = 0;
+        if (isDisconnected_) {
+            try_delete();
+            return;
+        }
         if (!sendPending_)
         {
             send_buffer();
@@ -431,8 +458,10 @@ private:
             pesp_conn->proto.tcp->remote_port, pesp_conn);
 
         auto* c = lookup_by_espconn(arg);
-        if (c) c->port_->disconnected();
-        /// @todo delete connection.
+        if (c) {
+            c->port_.release()->disconnected();
+            erase_by_espconn(arg);
+        }
     }
 
     /// Invoked by the system when a connected TCP socket reconnects (?? not
@@ -664,8 +693,17 @@ public:
     /// Initiates the DNS lookup of the target host.
     void do_dns_lookup()
     {
-        os_printf("DNS lookup start: %s\n", host_.c_str());
-        espconn_gethostbyname(&conn_, host_.c_str(), &targetIp_, dns_done);
+        if (ipaddr_aton(host_.c_str(), &targetIp_))
+        {
+            os_printf("Target seems to be an ip: " IPSTR "\n",
+                IP2STR(targetIp_.addr));
+            do_connect(&targetIp_);
+        }
+        else
+        {
+            os_printf("DNS lookup start: %s\n", host_.c_str());
+            espconn_gethostbyname(&conn_, host_.c_str(), &targetIp_, dns_done);
+        }
     }
 
     /// Callback when the DNS lookup is completed.
