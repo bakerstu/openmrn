@@ -18,6 +18,7 @@
 void ICACHE_FLASH_ATTR spiffs_init()
 {
     struct esp_spiffs_config config;
+    memset(&config, 0, sizeof(config));
 
     config.phys_size = 128 * 1024;
     config.phys_addr = 1024 * 1024;
