@@ -18,7 +18,7 @@ extern "C" {
 #include "freertos/bootloader_hal.h"
 
 namespace openlcb {
-extern char CONFIG_FILENAME[];
+extern const char *const CONFIG_FILENAME;
 }
 
 extern "C" {
