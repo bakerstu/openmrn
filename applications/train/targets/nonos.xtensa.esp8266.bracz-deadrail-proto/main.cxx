@@ -305,6 +305,12 @@ public:
                 f1 = value;
                 HW::F1_Pin::set(!value);
                 break;
+            case 28:
+                if (!value) {
+                    system_deep_sleep_set_option(0);
+                    system_deep_sleep(60 * 1000 * 1000); // 60 seconds
+                }
+                break;
         }
     }
 
