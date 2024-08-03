@@ -287,7 +287,8 @@ int appl_main(int argc, char**argv) {
     g_executor.thread_body();
     (new BootloaderFlow())->start();
 
-    new ESPWifiAP(WIFI_SSID, WIFI_PASS);
+    new ESPWifiAP("LAYOUTWIFI", "123456789");
+    //new ESPWifiAP(WIFI_SSID, WIFI_PASS);
 
     auto* srv = new ESPGcTcpServer(&g_can_hub, 1200);
     srv->start();
