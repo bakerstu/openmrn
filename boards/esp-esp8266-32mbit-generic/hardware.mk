@@ -77,6 +77,13 @@ $(EXECUTABLE)-bload.bin:  $(EXECUTABLE)$(EXTENTION)
 $(EXECUTABLE)-btgt.bin:  $(EXECUTABLE)$(EXTENTION)
 	$(ESPARDUINOPATH)/tools/esptool/*/esptool -eo $< -bo $@ -bm qio -bf 40 -bz 4M -bs .irom0.text -bs .text -bs .iram.text -bs .data -bs .rodata -bc -ec
 
+$(EXECUTABLE)-rflash.bin:  $(EXECUTABLE)-btgt.bin
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -D $@ -c esp8266 -f $<
+
+lflash: $(EXECUTABLE)-rflash.bin
+	$(ESPTOOL) write_flash 0x60000 $<
+
+
 flash: $(EXECUTABLE)-bload.bin $(EXECUTABLE).lst
 	$(ESPTOOL) write_flash 0 $<
 
