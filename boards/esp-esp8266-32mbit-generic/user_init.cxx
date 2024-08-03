@@ -16,6 +16,9 @@ extern "C" {
 #include "utils/blinker.h"
 #include "hardware.hxx"
 #include "freertos/bootloader_hal.h"
+#include "utils/Revision.hxx"
+#include "openlcb/ConfigRepresentation.hxx"
+#include "Revision.hxxout"
 
 namespace openlcb {
 extern const char *const CONFIG_FILENAME;
@@ -140,6 +143,11 @@ extern void spiffs_init();
 
 void init_done() {
     system_set_os_print(1);
+    printf("init_done()\nRevision:");
+    for (unsigned i = 0; i < Revision::count(); ++i) {
+        os_printf("%s\n", Revision::get(i).c_str());
+    }
+
     //gdb_init();
     do_global_ctors();
     spiffs_init();
