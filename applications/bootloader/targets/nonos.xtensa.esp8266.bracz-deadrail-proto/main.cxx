@@ -99,10 +99,10 @@ bool request_bootloader()
         __bootloader_magic_ptr = 0;
         return true;
     }
-    return !HW::REQ_BLOAD_Pin::get();
+    //return !HW::REQ_BLOAD_Pin::get();
 
     // there is no way to request bootloader mode by pressing a button for now.
-    //return false;
+    return false;
 }
 
 /// Pointer in the memory where the SPI flash is mapped.
