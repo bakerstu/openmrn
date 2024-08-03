@@ -114,6 +114,7 @@ BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
             if (result == NULL)
             {
                 result = (BufferBase*)buffer_malloc(current->size());
+                HASSERT(result);
                 {
                     AtomicHolder h(this);
                     if (0 && totalSize < 5000 && totalSize + current->size() >= 5000) {
@@ -152,7 +153,9 @@ BufferBase *DynamicPool::alloc_untyped(size_t size, Executable *flow)
 }
 
 void* DynamicPool::alloc_large(size_t size) {
-    return malloc(size);
+    void* ret = malloc(size);
+    HASSERT(ret);
+    return ret;
 }
 
 void DynamicPool::free_large(void* buffer) {
