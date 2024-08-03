@@ -19,6 +19,7 @@ extern "C" {
 #include "utils/Revision.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
 #include "Revision.hxxout"
+#include "utils/Buffer.hxx"
 
 namespace openlcb {
 extern const char *const CONFIG_FILENAME;
@@ -147,6 +148,12 @@ void init_done() {
     for (unsigned i = 0; i < Revision::count(); ++i) {
         os_printf("%s\n", Revision::get(i).c_str());
     }
+
+    // Disables all buffer retention. All buffers will go back directly to
+    // malloc.
+    mainBufferPool =
+        new DynamicPool(Bucket::init(0));
+    
 
     //gdb_init();
     do_global_ctors();
