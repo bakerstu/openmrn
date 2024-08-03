@@ -471,14 +471,18 @@ private:
     {
         struct espconn *pesp_conn = static_cast<struct espconn *>(arg);
 
-        os_printf("Server: reconnected %d.%d.%d.%d:%d err %d / %p\n",
+        os_printf("Server: error on %d.%d.%d.%d:%d err %d / %p\n",
             pesp_conn->proto.tcp->remote_ip[0],
             pesp_conn->proto.tcp->remote_ip[1],
             pesp_conn->proto.tcp->remote_ip[2],
             pesp_conn->proto.tcp->remote_ip[3],
             pesp_conn->proto.tcp->remote_port, err, pesp_conn);
 
-        /// @todo delete connection.
+        auto* c = lookup_by_espconn(arg);
+        if (c) {
+            c->port_.release()->disconnected();
+            erase_by_espconn(arg);
+        }
     }
 
     /// Invoked by the system when there is incoming data coming on a TCP
