@@ -80,16 +80,41 @@ public:
 
     /// Callback when incoming data is received.
     ///
+    /// @param conn espconn pointer
     /// @param pdata incoming data
     /// @param len number of bytes received.
     ///
-    void data_received(char *pdata, unsigned short len)
+    void data_received(void* conn, char *pdata, unsigned short len)
     {
         auto *b = gcHub_.alloc();
+        b->set_done(unholdNotify_.reset((struct espconn *)conn));
+
         b->data()->skipMember_ = this;
         b->data()->assign(pdata, len);
         gcHub_.send(b);
     }
+
+    /// Helper class that sets the TCP socket to hold/unhold. It acts as a
+    /// notifiable target when the incoming frame buffer is sent to the
+    /// gridconnect hub.
+    struct RecvUnhold : public Notifiable
+    {
+        BarrierNotifiable* reset(struct espconn* conn) {
+            HASSERT(!conn_);
+            conn_ = conn;
+            espconn_recv_hold(conn_);
+            
+            return bn_.reset(this);
+        }
+        void notify() override {
+            HASSERT(conn_);
+            espconn_recv_unhold(conn_);
+            conn_ = nullptr;
+        }
+
+        struct espconn* conn_ = nullptr;
+        BarrierNotifiable bn_;
+    } unholdNotify_;
 
     /// Callback from the TCP stack when the data send has been completed.
     void data_sent()
@@ -493,7 +518,7 @@ private:
     static void on_recv(void *arg, char *pusrdata, unsigned short length)
     {
         auto* c = lookup_by_espconn(arg);
-        if (c) c->port_->data_received(pusrdata, length);
+        if (c) c->port_->data_received(arg, pusrdata, length);
     }
 
     /// Invoked by the system when outgoing data sent to a TCP socket drained
