@@ -45,6 +45,8 @@ extern "C" {
 #include <user_interface.h>
 
 int ipaddr_aton(const char *cp, ip_addr_t *addr)ICACHE_FLASH_ATTR;
+size_t umm_free_heap_size();
+sint8 espconn_tcp_set_wnd(uint8 num);
 
 }
 
@@ -437,6 +439,8 @@ private:
         espconn_accept(&conn_);
         os_printf("Server: Listening on port %d / %p\n",
             conn_.proto.tcp->local_port, &conn_);
+
+        espconn_tcp_set_wnd(2);
     }
 
     /// Creates a hub link for a given esp TCP socket. Registers the connection
@@ -444,7 +448,7 @@ private:
     void register_link(struct espconn* pespconn) {
         Conn* n = new Conn(pespconn);
         conns_.emplace_back(n);
-        n->port_.reset(new ESPHubPort(hub_, pespconn, 500));
+        n->port_.reset(new ESPHubPort(hub_, pespconn, 270));
     }
     
     /// Callback when a client connected to the server socket.
@@ -467,6 +471,7 @@ private:
         // like 10 seconds.
         espconn_regist_time(pesp_conn, 7200, 1);
         instance()->register_link(pesp_conn);
+        os_printf("Free heap: %u\n", (unsigned)umm_free_heap_size());
     }
 
     /// Invoked by the system when a connected TCP socket disconnects.
