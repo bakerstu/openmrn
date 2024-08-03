@@ -157,16 +157,22 @@ void init_done() {
 
     //gdb_init();
     do_global_ctors();
-    spiffs_init();
+
     // Try to open the config file
-    int fd = ::open(openlcb::CONFIG_FILENAME, O_RDONLY);
-    if (fd < 0) fd = ::open(openlcb::CONFIG_FILENAME, O_CREAT|O_TRUNC|O_RDWR);
-    if (fd < 0) {
-        printf("Formatting the SPIFFS fs... ");
-        extern void esp_spiffs_deinit(uint8_t);
-        esp_spiffs_deinit(1);
+    if (openlcb::CONFIG_FILENAME)
+    {
         spiffs_init();
-        printf("Done.\n");
+        int fd = ::open(openlcb::CONFIG_FILENAME, O_RDONLY);
+        if (fd < 0)
+            fd = ::open(openlcb::CONFIG_FILENAME, O_CREAT | O_TRUNC | O_RDWR);
+        if (fd < 0)
+        {
+            printf("Formatting the SPIFFS fs... ");
+            extern void esp_spiffs_deinit(uint8_t);
+            esp_spiffs_deinit(1);
+            spiffs_init();
+            printf("Done.\n");
+        }
     }
 
     printf("userinit pinout: B hi %d; B lo %d; A hi %d; A lo %d;\n",
