@@ -15,6 +15,9 @@ endif
 
 include $(OPENMRNPATH)/etc/prog.mk
 
+ifdef PORT
+ESPTOOL += -p $(PORT)
+endif
 
 XLATEDLIBS=openlcb spiffs utils os executor
 
@@ -55,7 +58,8 @@ $(eval $(foreach fbase,$(XLATEDSTDLIBS),$(call LIBCOPY_template,$(fbase),$(XTENS
 
 $(eval $(foreach fbase,$(XLATEDGCCLIBS),$(call LIBCOPY_template,$(fbase),$(wildcard $(XTENSAGCCPATH)/lib/gcc/xtensa-lx106-elf/*/lib$(fbase).a))))
 
-$(EXECUTABLE)$(EXTENTION): $(FULLP_XLATEDLIBS) main.o.stripped
+$(EXECUTABLE)$(EXTENTION): $(FULLP_XLATEDLIBS) main.o.stripped eagle.common.ld
+
 
 main.o.stripped: main.o
 	$(OBJDUMP) -h $<  | grep [.]text[.] | cut -d . -f 3- | cut -d " " -f 1 | sed 's/.*/--rename-section .text.\0=.irom0.text --rename-section .literal.\0=.irom0.literal/g' > lib/flagfilemaino.lst
@@ -75,6 +79,7 @@ $(EXECUTABLE)-bload.bin:  $(EXECUTABLE)$(EXTENTION)
 	$(ESPARDUINOPATH)/tools/esptool/*/esptool -eo "$(ESPARDUINOPATH)/hardware/esp8266/2.2.0/bootloaders/eboot/eboot.elf" -bo $@ -bm qio -bf 40 -bz 4M -bs .text -bp 4096 -ec -eo $< -bs .irom0.text -bs .text -bs .iram.text -bs .data -bs .rodata -bc -ec
 
 $(EXECUTABLE)-btgt.bin:  $(EXECUTABLE)$(EXTENTION)
+	nm $< | egrep '(heap_total_bytes|iram_free_bytes)'
 	$(ESPARDUINOPATH)/tools/esptool/*/esptool -eo $< -bo $@ -bm qio -bf 40 -bz 4M -bs .irom0.text -bs .text -bs .iram.text -bs .data -bs .rodata -bc -ec
 
 $(EXECUTABLE)-rflash.bin:  $(EXECUTABLE)-btgt.bin
@@ -100,7 +105,7 @@ xflash: $(EXECUTABLE)-bload.bin $(EXECUTABLE).lst
 
 
 rflash: $(EXECUTABLE)-btgt.bin $(EXECUTABLE).lst
-	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -r -c esp8266 -w 10 -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $< 
+	$(OPENMRNPATH)/applications/bootloader_client/targets/linux.x86/bootloader_client -r -c esp8266 -w 10 -W 20 -n 0x0501010114$$(printf %02x $(ADDRESS)) -f $< 
 
 
 # reboot target into bootloader mode

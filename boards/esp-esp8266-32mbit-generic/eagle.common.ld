@@ -221,3 +221,8 @@ SECTIONS
 
 /* get ROM code address */
 INCLUDE "../ld/eagle.rom.addr.v6.ld"
+
+_heap_total_bytes = 0x3fffc000 - _heap_start;
+
+_iram_free_bytes = 0x40108000 - _etext;
+
