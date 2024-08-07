@@ -102,6 +102,10 @@ public:
     struct RecvUnhold : public Notifiable
     {
         BarrierNotifiable* reset(struct espconn* conn) {
+            if (conn_)
+            {
+                return nullptr;
+            }
             HASSERT(!conn_);
             conn_ = conn;
             espconn_recv_hold(conn_);
@@ -637,6 +641,203 @@ private:
     /// How many bytes are there in the send buffer.
     unsigned bufSize_;
 };
+
+/// Connects to a remote server using Gridconnect TCP, with the EspConn
+/// API.
+class ESPGcTcpClient : public Singleton<ESPGcTcpClient>
+{
+public:
+    /// Creates a wifi+TCP client connection via the ESPConn API.
+    ///
+    /// @param hub CAN hub to connect to the server
+    /// @param hostname hostname of the gridconnect TCP hub server. IP address
+    /// in dot format is not supported.
+    /// @param port port number of the TCP hub server.
+    /// @param send_buf_size in bytes, how much to buffer befone handing over to
+    /// the TCP stack.
+    /// @param connect_callback will be called after the wifi and the TCP
+    /// connection is established. Usually used for starting the OpenLCB stack.
+    ESPGcTcpClient(CanHubFlow *hub,
+        const string &hostname, int port, unsigned send_buf_size,
+        std::function<void()> connect_callback)
+        : host_(hostname)
+        , tcpPort_(port)
+        , hub_(hub)
+        , connectCallback_(std::move(connect_callback))
+    {
+
+    }
+
+    /// Invoke this function when the wifi station is connected and the IP
+    /// address negotiation is completed.
+    void start() {
+        do_dns_lookup();
+    }
+
+private:
+    /// Initiates the DNS lookup of the target host.
+    void do_dns_lookup()
+    {
+        if (ipaddr_aton(host_.c_str(), &targetIp_))
+        {
+            os_printf("Target seems to be an ip: " IPSTR "\n",
+                IP2STR(targetIp_.addr));
+            do_connect(&targetIp_);
+        }
+        else
+        {
+            os_printf("DNS lookup start: %s\n", host_.c_str());
+            espconn_gethostbyname(&conn_, host_.c_str(), &targetIp_, dns_done);
+        }
+    }
+
+    /// Callback when the DNS lookup is completed.
+    ///
+    /// @param name what we were looking up (ignored)
+    /// @param ipaddr ip address of the host
+    /// @param arg ignored.
+    ///
+    static void dns_done(const char *name, ip_addr_t *ipaddr, void *arg)
+    {
+        os_printf("dns_done\n");
+        if (ipaddr == NULL)
+        {
+            os_printf("DNS lookup failed. Retrying.\n");
+            instance()->do_dns_lookup();
+            return;
+        }
+        else
+        {
+            instance()->do_connect(ipaddr);
+        }
+    }
+
+    /// Connects to the specific IP address. @param ipaddr is the address of
+    /// the host we wanted to connect to.
+    void do_connect(ip_addr_t *ipaddr)
+    {
+        os_printf("Connecting to %s at " IPSTR ":%d...\n", host_.c_str(),
+            IP2STR(ipaddr->addr), tcpPort_);
+
+        conn_.type = ESPCONN_TCP;
+        conn_.state = ESPCONN_NONE;
+        conn_.proto.tcp = &tcp_;
+        conn_.proto.tcp->local_port = espconn_port();
+        conn_.proto.tcp->remote_port = tcpPort_;
+        memcpy(conn_.proto.tcp->remote_ip, &ipaddr->addr, 4);
+
+        espconn_regist_connectcb(&conn_, static_tcp_connected);
+        espconn_regist_disconcb(&conn_, static_tcp_disconnected);
+
+        espconn_connect(&conn_);
+    }
+
+    /// Callback when the TCP connection is established. @param arg ignored.
+    static void static_tcp_connected(void *arg)
+    {
+        os_printf("%s\n", __FUNCTION__);
+        instance()->tcp_connected();
+    }
+
+    /// Callback when the TCP connection is established.
+    void tcp_connected()
+    {
+        os_printf("%s\n", __FUNCTION__);
+        espconn_regist_recvcb(&conn_, static_data_received);
+        espconn_regist_sentcb(&conn_, static_data_sent);
+        port_.reset(new ESPHubPort(hub_, &conn_, 270));
+        connectCallback_();
+    }
+
+    /// Callback when the TCP connection is lost. @param arg ignored.
+    static void static_tcp_disconnected(void *arg)
+    {
+        os_printf("%s\n", __FUNCTION__);
+        instance()->tcp_disconnected();
+    }
+
+    /// Callback when the TCP connection is lost.
+    void tcp_disconnected()
+    {
+        port_.release()->disconnected();
+        start();
+    }
+
+    /// Callback for incoming data.
+    ///
+    /// @param arg ignored
+    /// @param pdata pointer to data received.
+    /// @param len number of bytes received.
+    static void static_data_received(void *arg, char *pdata, unsigned short len)
+    {
+        instance()->data_received(pdata, len);
+    }
+
+    /// Callback when data that was requested to be sent has completed
+    /// sending. @param arg ignored.
+    static void static_data_sent(void *arg)
+    {
+        instance()->port_->data_sent();
+    }
+
+    /// Callback when incoming data is received.
+    ///
+    /// @param pdata incoming data
+    /// @param len number of bytes received.
+    ///
+    void data_received(char *pdata, unsigned short len)
+    {
+        port_->data_received(&conn_, pdata, len);
+    }
+    
+    /// IP (including DNS) connection handle.
+    struct espconn conn_;
+    /// TCP connection handle.
+    esp_tcp tcp_;
+
+    /// IP address of the target host.
+    ip_addr_t targetIp_;
+    /// Target host we are trying to connect to.
+    string host_;
+    /// Port numer we are connecting to on the target host.
+    int tcpPort_;
+
+    /// CAN hub to send incoming packets to and to receive outgoing packets
+    /// from.
+    CanHubFlow *hub_;
+
+    /// Contains the state flows of reading and writing to the socket.
+    std::unique_ptr<ESPHubPort> port_;
+    
+    /// Application level callback function to call when the connection has
+    /// been successfully established.
+    std::function<void()> connectCallback_;
+};
+
+#if 0
+class ESPWifiSTA : public Singleton<ESPWifiSTA> {
+public:
+    /// Creates a wifi+TCP client connection via the ESPConn API.
+    ///
+    /// @param ssid wifi access point name
+    /// @param password passphrase for the wifi access point, or empty string
+    /// for open (unencrypted) connection.
+    /// @param connect_callback will be called after the wifi and the TCP
+    /// connection is up. Usually used for starting the OpenLCB stack.
+    ESPWifiSTA(const string &ssid, const string &password, std::function<void()> connect_callback) {
+
+        memcpy(&stationConfig_.ssid, ssid.c_str(), ssid.size() + 1);
+        memcpy(&stationConfig_.password, password.c_str(), password.size() + 1);
+        wifi_station_set_config(&stationConfig_);
+        wifi_set_event_handler_cb(&static_wifi_callback);
+        wifi_station_connect(); // may be avoided if the constructor is still
+                                // called in the user_init.
+    }
+
+    
+
+};
+#endif
 
 /// Uses the ESPConn API on the ESP8266 wifi-enabled MCU to connect to a wifi
 /// base station, perform a DNS lookup to a given target, and connect to a
