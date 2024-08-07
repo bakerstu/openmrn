@@ -31,6 +31,7 @@ CXXSRCS += \
         SocketCan.cxx \
         SocketClient.cxx \
         StringPrintf.cxx \
+        align_helpers.cxx \
         constants.cxx \
         format_utils.cxx \
         gc_format.cxx \
