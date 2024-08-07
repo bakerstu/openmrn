@@ -81,12 +81,32 @@ SECTIONS
     _data_end = ABSOLUTE(.);
   } >dram0_0_seg :dram0_0_phdr
 
+  .irom0.text : ALIGN(4)
+  {
+    _irom0_text_start = ABSOLUTE(.);
+    *(SORT(.rodata._ZTV*))
+    *.c.o( EXCLUDE_FILE (umm_malloc.c.o) .literal*, \
+           EXCLUDE_FILE (umm_malloc.c.o) .text*)
+    *.cpp.o(.literal*, .text*)
+    *libm.a:(.literal .text .literal.* .text.*)
+    *libgcc.a:_umoddi3.o(.literal .text)
+    *libgcc.a:_udivdi3.o(.literal .text)
+    *libgcc.a:unwind-dw2.o(.literal .text)
+    *libgcc.a:unwind-dw2-fde.o(.literal .text)
+    *libstdc++.a:(.literal .text .literal.* .text.*)
+    NodeId.o:(.literal .text .literal.* .text.*)
+    *libsmartconfig.a:(.literal .text .literal.* .text.*)
+    *(.irom0.literal .irom.literal .irom.text.literal .irom0.text .irom.text .irom.text.*)
+    _irom0_text_end = ABSOLUTE(.);
+    _flash_code_end = ABSOLUTE(.);
+  } >irom0_0_seg :irom0_0_phdr
+
   .rodata : ALIGN(4)
   {
     _rodata_start = ABSOLUTE(.);
     *(.sdk.version)
     *(.rodata)
-    *(.rodata.*)
+    *(SORT(.rodata.*))
     *(.gnu.linkonce.r.*)
     *(.rodata1)
     __XT_EXCEPTION_TABLE__ = ABSOLUTE(.);
@@ -146,25 +166,6 @@ SECTIONS
 /*    _stack_sentry = ALIGN(0x8); */
   } >dram0_0_seg :dram0_0_bss_phdr
 /* __stack = 0x3ffc8000; */
-
-  .irom0.text : ALIGN(4)
-  {
-    _irom0_text_start = ABSOLUTE(.);
-    *.c.o( EXCLUDE_FILE (umm_malloc.c.o) .literal*, \
-           EXCLUDE_FILE (umm_malloc.c.o) .text*)
-    *.cpp.o(.literal*, .text*)
-    *libm.a:(.literal .text .literal.* .text.*)
-    *libgcc.a:_umoddi3.o(.literal .text)
-    *libgcc.a:_udivdi3.o(.literal .text)
-    *libgcc.a:unwind-dw2.o(.literal .text)
-    *libgcc.a:unwind-dw2-fde.o(.literal .text)
-    *libstdc++.a:(.literal .text .literal.* .text.*)
-    NodeId.o:(.literal .text .literal.* .text.*)
-    *libsmartconfig.a:(.literal .text .literal.* .text.*)
-    *(.irom0.literal .irom.literal .irom.text.literal .irom0.text .irom.text .irom.text.*)
-    _irom0_text_end = ABSOLUTE(.);
-    _flash_code_end = ABSOLUTE(.);
-  } >irom0_0_seg :irom0_0_phdr
 
   .text : ALIGN(4)
   {

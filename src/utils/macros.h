@@ -122,16 +122,46 @@ extern const char* g_death_file;
 extern "C" {
 #endif
 #include <osapi.h>
+#include "ets_sys.h"
 #ifdef __cplusplus
 }
 #endif
 
 #include <stdio.h>
 #include <assert.h>
+#include "utils/align_helpers.h"
 
-#define HASSERT(x) do { if (!(x)) { os_printf("Assertion failed in file " __FILE__ " line %d: assert(%s)\n", __LINE__, #x); g_death_file = __FILE__; g_death_lineno = __LINE__; abort();} } while(0)
+// These complicated set of macros generate the same assertion output as above,
+// while putting the constant text into the FLASH section. By default
+// "C-strings" are placed into SRAM. Instead, we create a special const char[]
+// with a section attribute. Normally the processor would crash if this is
+// given to printf, therefore we copy the value into a temporary array.
 
-#define DIE(MSG) do { os_printf("Crashed in file " __FILE__ " line %d: " MSG "\n", __LINE__); abort(); } while(0)
+#define SECTIONNAME(LN) ".irom.text." #LN
+
+#define CAT2(x,y) x##y
+#define CONCAT(x,y) CAT2(x,y)
+#define QUOT(x) #x
+#define QUOTE(x) QUOT(x) 
+#define SET_SECT() __attribute__((section(QUOTE(CONCAT(.irom.text.,__LINE__)))))
+
+//#define TEXTLOCALSTR(name, val) static const char __attribute__((section(SECTIONNAME(__LINE__)))) name[] = val
+//#define TEXTLOCALSTR(name, val) static const char SET_SECT() name[] = val
+//#define TEXTLOCALSTR(name, val) const char* name = val
+#define TEXTLOCALSTR2(name, val)                                               \
+    static const char SET_SECT() name##_c[] = val;                             \
+    char name[unaligned_strlen(name##_c)];                                     \
+    unaligned_strcpy(name, name##_c)
+
+#define TEXTLOCALSTR(name, val) TEXTLOCALSTR2(name, val)
+
+#define CAT_(a, b) a ## b
+#define CAT(a, b) CAT_(a, b)
+#define VARNAME(Var) CAT(Var, __LINE__)
+
+#define HASSERT(x) do { if (!(x)) { TEXTLOCALSTR(VARNAME(txt), #x); TEXTLOCALSTR(VARNAME(fn), __FILE__); os_printf("%s:%d: assert fail(%s)\n", VARNAME(fn), __LINE__, VARNAME(txt)); g_death_lineno = __LINE__; abort();} } while(0)
+
+#define DIE(MSG) do { TEXTLOCALSTR(VARNAME(txt), "" MSG); TEXTLOCALSTR(VARNAME(fn), __FILE__); os_printf("%s:%d: crash: %s\n", VARNAME(fn), __LINE__, VARNAME(txt)); abort(); } while(0)
 
 
 #elif defined(ARDUINO)
