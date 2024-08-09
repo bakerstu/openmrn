@@ -140,10 +140,11 @@ extern "C" {
 #define SECTIONNAME(LN) ".irom.text." #LN
 
 #define CAT2(x,y) x##y
-#define CONCAT(x,y) CAT2(x,y)
+#define CAT3(x,y,z) x##y##z
+#define CONCAT(x,y,z) CAT3(x,y,z)
 #define QUOT(x) #x
 #define QUOTE(x) QUOT(x) 
-#define SET_SECT() __attribute__((section(QUOTE(CONCAT(.irom.text.,__LINE__)))))
+#define SET_SECT() __attribute__((section(QUOTE(CONCAT(.irom.text.,__LINE__,__COUNTER__)))))
 
 //#define TEXTLOCALSTR(name, val) static const char __attribute__((section(SECTIONNAME(__LINE__)))) name[] = val
 //#define TEXTLOCALSTR(name, val) static const char SET_SECT() name[] = val
@@ -161,7 +162,7 @@ extern "C" {
 
 #define HASSERT(x) do { if (!(x)) { TEXTLOCALSTR(VARNAME(txt), #x); TEXTLOCALSTR(VARNAME(fn), __FILE__); os_printf("%s:%d: assert fail(%s)\n", VARNAME(fn), __LINE__, VARNAME(txt)); g_death_lineno = __LINE__; abort();} } while(0)
 
-#define DIE(MSG) do { TEXTLOCALSTR(VARNAME(txt), "" MSG); TEXTLOCALSTR(VARNAME(fn), __FILE__); os_printf("%s:%d: crash: %s\n", VARNAME(fn), __LINE__, VARNAME(txt)); abort(); } while(0)
+#define DIE(MSG) do { TEXTLOCALSTR(VARNAME(dtxt), "" MSG); TEXTLOCALSTR(VARNAME(dfn), __FILE__); os_printf("%s:%d: crash: %s\n", VARNAME(dfn), __LINE__, VARNAME(dtxt)); abort(); } while(0)
 
 
 #elif defined(ARDUINO)
