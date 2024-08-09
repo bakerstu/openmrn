@@ -63,6 +63,8 @@ extern void ets_delay_us(uint32_t us);
 #include "openlcb/TrainInterface.hxx"
 #include "hardware.hxx"
 
+openlcb::ConfigDef cfg(0);
+
 struct SpeedRequest
 {
     SpeedRequest()
@@ -199,6 +201,13 @@ private:
     {
         mpar_.pwm_frequency().write(
             fd, mpar_.pwm_frequency_options().defaultvalue());
+
+        string default_name = "Train ";
+        uint8_t mac[6];
+        wifi_get_macaddr(0, mac);
+        default_name += mac_to_string(mac, false).substr(8);
+        cfg.userinfo().name().write(fd, default_name);
+        cfg.userinfo().description().write(fd, "");
     }
     UpdateAction apply_configuration(
         int fd, bool initial_load, BarrierNotifiable *done) override
@@ -347,7 +356,7 @@ private:
     bool estop = false;
 };
 
-const char kFdiXml[] =
+const char ICACHE_RODATA_ATTR kFdiXml[] =
     R"(<?xml version='1.0' encoding='UTF-8'?>
 <?xml-stylesheet type='text/xsl' href='xslt/fdi.xsl'?>
 <fdi xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='http://openlcb.org/trunk/prototypes/xml/schema/fdi.xsd'>
@@ -363,7 +372,6 @@ const char kFdiXml[] =
 </group></segment></fdi>)";
 
 ESPHuzzahTrain trainImpl;
-openlcb::ConfigDef cfg(0);
 
 extern openlcb::NodeID NODE_ID;
 

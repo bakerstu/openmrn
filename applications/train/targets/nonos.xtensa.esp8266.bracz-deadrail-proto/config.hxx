@@ -41,9 +41,9 @@ namespace openlcb
 /// - the Simple Node Ident Info Protocol will return this data
 /// - the ACDI memory space will contain this data.
 extern const SimpleNodeStaticValues SNIP_STATIC_DATA = {
-    4, "Balazs Racz", "Dead-rail train", "ESP12", "0.1"};
+    4, "Balazs Racz", "Dead-rail train", "ESP12", "0.11"};
 
-static const uint16_t EXPECTED_VERSION = 0x1bd6;
+static const uint16_t EXPECTED_VERSION = 0x1be6;
 
 /// The main structure of the CDI. ConfigDef is the symbol we use in main.cxx
 /// to refer to the configuration defined here.
@@ -54,9 +54,9 @@ CDI_GROUP_ENTRY(ident, Identification);
 CDI_GROUP_ENTRY(acdi, Acdi);
 /// Adds a segment for changing the values in the ACDI user-defined
 /// space. UserInfoSegment is defined in the system header.
-CDI_GROUP_ENTRY(userinfo, UserInfoSegment);
+CDI_GROUP_ENTRY(userinfo, UserInfoSegment, Name("User Info"));
 /// Adds the main configuration segment.
-CDI_GROUP_ENTRY(seg, TrainBoardSegment);
+CDI_GROUP_ENTRY(seg, TrainBoardSegment, Name("Train Settings"));
 CDI_GROUP_END();
 
 } // namespace openlcb
