@@ -312,7 +312,9 @@ public:
                     analogWrite(2, 100);
                     }*/
                 f1 = value;
-                HW::F1_Pin::set(!value);
+                BLINKER_Pin::set(!value);
+                break;
+            case 2:
                 break;
             case 28:
                 if (!value) {
