@@ -56,6 +56,11 @@
 #include "openmrn_features.h"
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/SocketCan.hxx"
+#include "utils/align_helpers.h"
+
+#ifdef ESP_NONOS
+#define strlen unaligned_strlen
+#endif
 
 namespace openlcb
 {

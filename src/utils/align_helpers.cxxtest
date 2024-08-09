@@ -1,0 +1,30 @@
+#include "utils/align_helpers.h"
+
+#include "utils/test_main.hxx"
+
+
+
+TEST(AlignStrLen, simple) {
+    EXPECT_EQ(3u, strlen("abc"));
+    EXPECT_EQ(3u, unaligned_strlen("abc"));
+    EXPECT_EQ(0u, unaligned_strlen(""));
+    EXPECT_EQ(3u, unaligned_strlen("def"));
+    const char* f = "ghijklmn";
+    EXPECT_EQ(8u, unaligned_strlen(f));
+    EXPECT_EQ(7u, unaligned_strlen(f+1));
+    EXPECT_EQ(6u, unaligned_strlen(f+2));
+    EXPECT_EQ(5u, unaligned_strlen(f+3));
+    EXPECT_EQ(4u, unaligned_strlen(f+4));
+    EXPECT_EQ(3u, unaligned_strlen(f+5));
+    EXPECT_EQ(2u, unaligned_strlen(f+6));
+    EXPECT_EQ(1u, unaligned_strlen(f+7));
+    EXPECT_EQ(0u, unaligned_strlen(f+8));
+}
+
+
+TEST(AlignMemCpy, simple) {
+    char f[8] = "abcdefg";
+    EXPECT_STREQ("abcdefg", f);
+    unaligned_memcpy(f+2, "abc", 2);
+    EXPECT_STREQ("ababefg", f);
+}

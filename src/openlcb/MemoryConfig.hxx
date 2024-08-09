@@ -39,6 +39,7 @@
 #include "openlcb/DatagramHandlerDefault.hxx"
 #include "openlcb/MemoryConfigDefs.hxx"
 #include "openmrn_features.h"
+#include "utils/align_helpers.h"
 #include "utils/ConfigUpdateService.hxx"
 #include "utils/Destructable.hxx"
 
@@ -169,7 +170,12 @@ public:
         {
             count = len_ - source;
         }
+#ifdef ESP_NONOS
+        unaligned_memcpy(dst, data_ + source, count);
+#else
         memcpy(dst, data_ + source, count);
+#endif        
+        
         return count;
     }
 

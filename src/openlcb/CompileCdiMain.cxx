@@ -12,6 +12,12 @@ bool raw_render = false;
 
 // openlcb::ConfigDef def(0);
 
+#ifdef CONST_STRING_SECTION
+string section = "__attribute__((section(\"" CONST_STRING_SECTION "\")))";
+#else
+string section;
+#endif
+
 RENDER_CDI(openlcb, ConfigDef, "CDI", 1);
 
 template <int N> void render_all_cdi()
@@ -37,11 +43,11 @@ void render_cdi_helper(const CdiType &t, string ns, string name)
     }
     else
     {
-        printf("namespace %s {\n\nextern const char %s_DATA[];\n", ns.c_str(),
-            name.c_str());
+        printf("namespace %s {\n\nextern const char %s %s_DATA[];\n",
+            ns.c_str(), section.c_str(), name.c_str());
         printf("// This is a C++11 raw string.\n");
-        printf("const char %s_DATA[] = R\"xmlpayload(%s)xmlpayload\";\n",
-            name.c_str(), payload.c_str());
+        printf("const char %s %s_DATA[] = R\"xmlpayload(%s)xmlpayload\";\n",
+               ""/*section.c_str()*/, name.c_str(), payload.c_str());
         printf("extern const size_t %s_SIZE;\n", name.c_str());
         printf("extern const size_t %s_SIZE = sizeof(%s_DATA);\n", name.c_str(),
             name.c_str());

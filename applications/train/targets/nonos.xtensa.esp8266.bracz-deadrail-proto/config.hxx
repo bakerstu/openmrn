@@ -6,6 +6,8 @@
 #include "openlcb/ConfiguredProducer.hxx"
 #include "openlcb/MemoryConfig.hxx"
 
+#define CONST_STRING_SECTION ".irom.text.cdi"
+
 
 CDI_GROUP(MotorControl, Name("Motor control"));
 CDI_GROUP_ENTRY(pwm_frequency, openlcb::Uint16ConfigEntry, Name("PWM frequency"),

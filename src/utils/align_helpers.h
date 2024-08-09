@@ -47,7 +47,7 @@ size_t unaligned_strlen(const char* p);
 void unaligned_strcpy(char* dst, const char* src);
 
 /// Performs a copy of arbitrary data using unaligned loads.
-void unaligned_memcpy(char* dst, const char* src, size_t n);
+void unaligned_memcpy(void* dst, const void* src, size_t n);
 
 #ifdef __cplusplus
 }

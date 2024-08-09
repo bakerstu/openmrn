@@ -42,8 +42,8 @@ struct UnalignedPtr
 {
 public:
     UnalignedPtr(const char *p)
-        : ofs_((uintptr_t)p & 3u)
-        , p_((uint32_t*)((uintptr_t)p & ~3u))
+        : ofs_(uintptr_t(p) & uintptr_t(3u))
+        , p_((uint32_t *)(uintptr_t(p) & ~uintptr_t(3u)))
     {
         data_ = *p_;
     }
@@ -55,7 +55,7 @@ public:
 
     UnalignedPtr &operator++()
     {
-        if (ofs_ >= 4)
+        if (ofs_ >= 3)
         {
             data_ = *++p_;
             ofs_ = 0;
@@ -84,7 +84,7 @@ size_t unaligned_strlen(const char *p)
 {
     size_t len = 0;
     UnalignedPtr pp(p);
-    while (!*pp)
+    while (*pp != 0)
     {
         ++len;
         ++pp;
@@ -101,16 +101,19 @@ void unaligned_strcpy(char *dst, const char *src)
         char v = *pp;
         *dst = v;
         if (!v)
+        {
             return;
+        }
         ++pp;
         ++dst;
     }
 }
 
 /// Performs a copy of arbitrary data using unaligned loads.
-void unaligned_memcpy(char *dst, const char *src, size_t n)
+void unaligned_memcpy(void *xdst, const void *src, size_t n)
 {
-    for (UnalignedPtr pp(src); n; --n, ++pp, ++dst)
+    char *dst = (char *)xdst;
+    for (UnalignedPtr pp((const char *)src); n; --n, ++pp, ++dst)
     {
         *dst = *pp;
     }
