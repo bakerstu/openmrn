@@ -400,11 +400,21 @@ TEST_F(AsyncMessageCanTests, AliasConflictAllocatedNode)
     // This alias is in the cache since the setup routine.
     RX(EXPECT_EQ(
         TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A))));
-    // If someone else uses it (not for CID frame)
-    send_packet(":X1800022AN;");
+
+    // AME will find it.
+    send_packet_and_expect_response(":X10702999N;", ":X1070122AN02010D000003;");
+    
+    // If someone else uses it (not for CID frame), then an RID gets generated
+    // and
+    send_packet_and_expect_response(":X1800022AN;", ":X1070322AN02010D000003;");
     wait();
-    // Then it disappears from there.
+    // Then it disappears from the cache.
     RX(EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x22A))));
+    RX(EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeID(TEST_NODE_ID))));
+    clear_expect(true);
+    // AME returns nothing.
+    send_packet(":X10702999N;");
+    clear_expect(true);
 }
 
 TEST_F(AsyncMessageCanTests, AliasConflictCIDReply)
