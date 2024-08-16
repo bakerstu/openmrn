@@ -266,6 +266,42 @@ private:
     If::VNodeMap::Iterator it_;
 #endif
 };
+
+class UnhandledAddressedMessageHandler : public IncomingMessageStateFlow
+{
+public:
+    UnhandledAddressedMessageHandler(If *service)
+        : IncomingMessageStateFlow(service)
+    {
+        iface()->dispatcher()->register_fallback_handler(this);
+    }
+
+    /// Handler callback for incoming messages.
+    Action entry() override
+    {
+        if (!message()->data()->dstNode)
+        {
+            // Destination is not a local node.
+            return release_and_exit();
+        }
+        return allocate_and_call(
+            iface()->addressed_message_write_flow(), STATE(fill_oir));
+    }
+
+    Action fill_oir()
+    {
+        auto rb = get_buffer_deleter(
+            get_allocation_result(iface()->addressed_message_write_flow()));
+        GenMessage *inm = message()->data();
+        GenMessage *outm = rb->data();
+        outm->reset(Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
+            inm->dstNode->node_id(), inm->src,
+            error_payload(Defs::ERROR_UNIMPLEMENTED, inm->mti));
+        iface()->addressed_message_write_flow()->send(rb.release());
+        return release_and_exit();
+    }
+};
+
 } // namespace openlcb
 
 #endif // _OPENLCB_IFIMPL_HXX_
