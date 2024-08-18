@@ -849,7 +849,9 @@ void CC32xxWiFi::wlan_get_ap_config(string *ssid, SecurityType *security_type)
     {
         uint16_t len = sizeof(*security_type);
         uint16_t config_opt = SL_WLAN_AP_OPT_SECURITY_TYPE;
-        sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (_u8*) security_type);
+        uint8_t sl_sec_type = 0;
+        sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, &sl_sec_type);
+        *security_type = security_type_from_simplelink(sl_sec_type);
     }
 }
 
