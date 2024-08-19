@@ -67,10 +67,12 @@ protected:
     {
     }
 
-    /** Setup access point role credentials.
-     * @param ssid access point ssid
-     * @param security_key access point security key
-     * @param security_type specifies security type
+    /** Setup access point role credentials. It is OK to leave ssid as nullptr
+     * or password as nullptr, in which case those properties will not be
+     * changed.
+     * @param ssid access point ssid (name)
+     * @param security_key access point security key (password)
+     * @param security_type specifies security type. Required.
      */
     virtual void wlan_setup_ap(const char *ssid, const char *security_key,
                                SecurityType security_type) = 0;
