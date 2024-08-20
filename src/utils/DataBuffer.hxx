@@ -199,8 +199,6 @@ private:
 
 using DataBufferPtr = std::unique_ptr<DataBuffer, BufferDelete<uint8_t[]>>;
 
-class LinkedDataBufferPtr;
-
 /// A class that keeps ownership of a chain of linked DataBuffer references.
 class LinkedDataBufferPtr
 #ifdef DEBUG_DATA_BUFFER_FREE
