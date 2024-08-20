@@ -40,17 +40,15 @@
 #include "utils/LinkedObject.hxx"
 #include "utils/macros.h"
 
-
 #ifdef GTEST
-//#define DEBUG_DATA_BUFFER_FREE
+// #define DEBUG_DATA_BUFFER_FREE
 #endif
 
 class DataBufferPool;
 
-
 #ifdef DEBUG_DATA_BUFFER_FREE
 class DataBuffer;
-static void check_db_ownership(DataBuffer* p);
+static void check_db_ownership(DataBuffer *p);
 #endif
 
 /// Specialization of the Buffer class that is designed for storing untyped
@@ -179,15 +177,17 @@ public:
         return curr->next();
     }
 
-#ifdef DEBUG_DATA_BUFFER_FREE    
-    void unref() {
-        if (references() == 1) {
+#ifdef DEBUG_DATA_BUFFER_FREE
+    void unref()
+    {
+        if (references() == 1)
+        {
             check_db_ownership(this);
         }
         Buffer::unref();
     }
-#endif    
-    
+#endif
+
 private:
     friend class DataBufferPool;
 
@@ -371,7 +371,7 @@ public:
     /// at this point.
     /// @return the read pointer, or nullptr if there is no data in this
     /// buffer.
-    const uint8_t* data_read_pointer(size_t* len)
+    const uint8_t *data_read_pointer(size_t *len)
     {
         if (!head_ || !size_)
         {
@@ -539,7 +539,8 @@ public:
         {
             return true; // zero bytes, nothing to do.
         }
-        if (!size_) {
+        if (!size_)
+        {
             // We are empty, so anything can be appended.
             reset(o);
             return true;
@@ -559,12 +560,18 @@ public:
             // means that we don't depend on the value of free_ anymore for
             // correctness. We also check that o starts at the beginning of the
             // head buffer.
-            if (tail_->size() == (size_t)-free_ && o.skip() == 0) {
-                if (tail_->next() == o.head()) {
+            if (tail_->size() == (size_t)-free_ && o.skip() == 0)
+            {
+                if (tail_->next() == o.head())
+                {
                     // link already exists
-                } else if (add_link && tail_->next() == nullptr) {
+                }
+                else if (add_link && tail_->next() == nullptr)
+                {
                     tail_->set_next(o.head());
-                } else {
+                }
+                else
+                {
                     return false;
                 }
             }
@@ -581,15 +588,19 @@ public:
         // Now we're good, so take over the extra buffers.
         // Acquire extra references
         o.head_->ref_all(o.skip() + o.size());
-        if (tail_ == o.head()) {
+        if (tail_ == o.head())
+        {
             HASSERT(o.head_->references() > 1);
             // Release duplicate reference between the two chains.
             o.head_->unref();
         }
         tail_ = o.tail_;
-        if (o.free_ < 0) {
+        if (o.free_ < 0)
+        {
             free_ = o.free_;
-        } else {
+        }
+        else
+        {
             free_ = -tail_->size();
         }
         size_ += o.size_;
@@ -623,11 +634,15 @@ private:
 };
 
 #ifdef DEBUG_DATA_BUFFER_FREE
-void check_db_ownership(DataBuffer* b) {
+void check_db_ownership(DataBuffer *b)
+{
     AtomicHolder h(LinkedDataBufferPtr::head_mu());
-    for (LinkedDataBufferPtr* l = LinkedDataBufferPtr::link_head(); l; l = l->link_next()) {
+    for (LinkedDataBufferPtr *l = LinkedDataBufferPtr::link_head(); l;
+         l = l->link_next())
+    {
         ssize_t total = l->skip() + l->size();
-        for (DataBuffer* curr = l->head(); total > 0;) {
+        for (DataBuffer *curr = l->head(); total > 0;)
+        {
             HASSERT(curr != b);
             total -= curr->size();
             curr = curr->next();
