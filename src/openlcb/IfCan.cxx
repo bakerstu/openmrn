@@ -176,8 +176,8 @@ public:
     }
 
     /// Sends an AMR (alias mapping release) frame with the alias alias_ and
-    /// the loca node ID that we have for it. Then deletes the mapping from the
-    /// local node table.
+    /// the local node ID that we have for it. Then deletes the mapping from
+    /// the local node table.
     ///
     /// This is done in response to an alias conflict seen from the bus with
     /// the given alias.
@@ -190,10 +190,9 @@ public:
             alias_ ? if_can()->local_aliases()->lookup(NodeAlias(alias_)) : 0;
         // Actually purge the table entry.
         if_can()->local_aliases()->remove(alias_);
-        if (!node)
+        if (!node || CanDefs::is_reserved_alias_node_id(node))
         {
-            LOG(INFO, "No node ID for AMR.");
-            // Did not find the node ID to use for alias release.
+            // We do not have a node ID to use for alias release.
             return exit();
         }
             
