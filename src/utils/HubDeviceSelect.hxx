@@ -350,11 +350,10 @@ public:
         if (fd_ >= 0) {
             unregister_write_port();
             close_fd();
-            executor()->sync_run([this]()
-                                 {
-                                     readFlow_.shutdown();
-                                     writeFlow_.shutdown();
-                                 });
+            executor()->sync_run([this]() {
+                readFlow_.shutdown();
+                writeFlow_.shutdown();
+            });
         }
         bool completed = false;
         while (!completed)
@@ -495,12 +494,14 @@ protected:
         close_fd();
     }
 
-    void close_fd() {
+    void close_fd()
+    {
         int fd = -1;
         {
             AtomicHolder h(this);
             fd = fd_;
-            if (fd < 0) {
+            if (fd < 0)
+            {
                 return;
             }
             fd_ = -1;
