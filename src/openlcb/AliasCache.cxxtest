@@ -298,8 +298,8 @@ static void remove_callback(NodeID node_id, NodeAlias alias, void *context)
 {
     EXPECT_TRUE(context == (void*)0xABCD0123);
     
-    EXPECT_TRUE(10 == alias);
-    EXPECT_TRUE(101 == node_id);
+    EXPECT_EQ(10u, alias);
+    EXPECT_EQ(101u, node_id);
 }
 
 TEST(AliasCacheTest, kick_out_duplicate_alias_callback)
