@@ -3,6 +3,7 @@
 #include "utils/test_main.hxx"
 
 DataBufferPool g_pool(64);
+DataBufferPool g_pool10(10);
 
 class DataBufferTest : public ::testing::Test
 {
@@ -389,4 +390,293 @@ TEST_F(DataBufferTest, lnk_multi)
     lnk_.reset();
     // The barriers will verify upon destruction time that they were correctly
     // notified.
+}
+
+class DataBufferFuzzTest : public ::testing::Test
+{
+protected:
+    DataBufferFuzzTest()
+    {
+        for (int i = 0; i < NUM_OP; ++i)
+        {
+            freq_[i] = 0;
+        }
+        freq_[0] = 1;
+        freq_[NUM_OP] = 0;
+    }
+
+    enum Op
+    {
+        OP_APPEND,
+        OP_READ,
+        OP_XFERMID,
+        OP_READMID,
+        OP_XFEREND,
+        OP_READEND,
+        NUM_OP
+    };
+
+    int freq_[NUM_OP + 1];
+
+    /// @return a pseudorandom number uniformly distributed between 0 and max -
+    /// 1.
+    /// @param max distribution parameter.
+    unsigned get_random_uni(unsigned max)
+    {
+        return rand_r(&randSeed_) % max;
+    }
+
+    /// Setup a fuzz test scenario where we append a given LinkedDataBufferPtr
+    /// and then read from the same one.
+    void setup_basic_readwrite()
+    {
+        freq_[OP_APPEND] = 1;
+        freq_[OP_READ] = 1;
+    }
+
+    /// Setup a fuzz test scenario where we append one LinkedDataBufferPtr,
+    /// then move data to a middle one, then read that middle one.
+    void setup_write_transfer_read()
+    {
+        freq_[OP_APPEND] = 1;
+        freq_[OP_XFERMID] = 1;
+        freq_[OP_READMID] = 1;
+    }
+
+    /// Setup a fuzz test scenario where we append one LinkedDataBufferPtr,
+    /// then move data to a middle one, then move data to a third one, then
+    /// read that last.
+    void setup_write_transfer_read_transfer_read()
+    {
+        freq_[OP_APPEND] = 1;
+        freq_[OP_XFERMID] = 1;
+        freq_[OP_XFEREND] = 1;
+        freq_[OP_READEND] = 1;
+    }
+
+    void prep_fuzz()
+    {
+        int sum = 0;
+        for (int i = 0; i <= NUM_OP; ++i)
+        {
+            sum += freq_[i];
+            freq_[i] = sum;
+        }
+    }
+
+    void run_fuzz(unsigned iter)
+    {
+        prep_fuzz();
+        size_t idx = 0;
+        while (--iter && !HasFatalFailure())
+        {
+            int oper = get_random_uni(freq_[NUM_OP]);
+            for (int i = 0; i < NUM_OP; ++i)
+            {
+                if (freq_[i] > oper)
+                {
+                    SCOPED_TRACE(idx);
+                    run_op((Op)i);
+                    ++idx;
+                    break;
+                }
+            }
+        }
+    }
+
+    void run_op(Op op)
+    {
+        switch (op)
+        {
+            case OP_APPEND:
+            {
+                int len = get_random_uni(22);
+                append_helper(&lnk_, len);
+                break;
+            }
+            case OP_READ:
+            {
+                int len = get_random_uni(22);
+                consume_helper(&lnk_, len);
+                break;
+            }
+            case OP_XFERMID:
+            {
+                int len = get_random_uni(22);
+                xfer_helper(&lnk_, &mid_, len);
+                break;
+            }
+            case OP_READMID:
+            {
+                int len = get_random_uni(22);
+                consume_helper(&mid_, len);
+                break;
+            }
+            case OP_XFEREND:
+            {
+                int len = get_random_uni(22);
+                xfer_helper(&mid_, &end_, len);
+                break;
+            }
+            case OP_READEND:
+            {
+                int len = get_random_uni(22);
+                consume_helper(&end_, len);
+                break;
+            }
+            default:
+                return;
+        }
+    }
+
+    std::string flatten(const LinkedDataBufferPtr &p)
+    {
+        std::string ret;
+        p.append_to(&ret);
+        return ret;
+    }
+
+    /// Appends a certain number of characters to a ptr. Characters are always
+    /// taken in the input sequence.
+    void append_helper(LinkedDataBufferPtr *p, size_t len)
+    {
+        while (len)
+        {
+            int free = p->free();
+            if (!free)
+            {
+                DataBuffer *c;
+                g_pool10.alloc(&c);
+                p->append_empty_buffer(c);
+                continue;
+            }
+            auto *rp = p->data_write_pointer();
+            int count = 0;
+            while (free > 0 && len > 0)
+            {
+                *rp++ = generate();
+                --free;
+                --len;
+                ++count;
+            }
+            p->data_write_advance(count);
+        }
+    }
+
+    /// Appends a certain number of characters to a ptr. Characters are always
+    /// taken in the input sequence.
+    void xfer_helper(
+        LinkedDataBufferPtr *from, LinkedDataBufferPtr *to, size_t len)
+    {
+        LinkedDataBufferPtr tmp;
+        len = std::min(len, (size_t)from->size());
+        tmp.reset(*from, len);
+        from->data_read_advance(len);
+        ASSERT_TRUE(to->try_append_from(tmp, true));
+    }
+
+    /// Consumes (reads) a certain number of characters from a ptr. Characters
+    /// are compared to the expected output sequence.
+    void consume_helper(LinkedDataBufferPtr *p, size_t len)
+    {
+        while (len > 0 && p->size() > 0)
+        {
+            size_t avail;
+            const uint8_t *ptr = p->data_read_pointer(&avail);
+            if (avail > len)
+            {
+                avail = len;
+            }
+            int count = 0;
+            while (avail)
+            {
+                consume(*(ptr++));
+                ++count;
+                --avail;
+                --len;
+            }
+            p->data_read_advance(count);
+        }
+    }
+
+    /// @return the next byte of the generated sequence.
+    uint8_t generate()
+    {
+        return nextByte_++;
+    }
+
+    /// Take in the next byte that came out at the end. Verifies that it is the
+    /// correct byte value.
+    void consume(uint8_t next_byte)
+    {
+        EXPECT_EQ(nextByteRead_, next_byte);
+        ++nextByteRead_;
+    }
+
+    DataBuffer *b_;
+    unsigned lastFree_;
+    unsigned int randSeed_ {83012475};
+    uint8_t nextByte_ {0};
+    uint8_t nextByteRead_ {0};
+
+    BarrierNotifiable bn_;
+    BarrierNotifiable bn2_;
+    LinkedDataBufferPtr lnk_;
+    LinkedDataBufferPtr mid_;
+    LinkedDataBufferPtr end_;
+    std::vector<std::unique_ptr<BarrierNotifiable>> bns_;
+};
+
+TEST_F(DataBufferFuzzTest, small_fuzz)
+{
+    setup_basic_readwrite();
+    run_fuzz(10);
+}
+
+TEST_F(DataBufferFuzzTest, medium_fuzz)
+{
+    setup_basic_readwrite();
+    run_fuzz(1000);
+}
+
+TEST_F(DataBufferFuzzTest, large_fuzz)
+{
+    setup_basic_readwrite();
+    run_fuzz(100000);
+}
+
+TEST_F(DataBufferFuzzTest, small_duo)
+{
+    setup_write_transfer_read();
+    run_fuzz(10);
+}
+
+TEST_F(DataBufferFuzzTest, medium_duo)
+{
+    setup_write_transfer_read();
+    run_fuzz(1000);
+}
+
+TEST_F(DataBufferFuzzTest, large_duo)
+{
+    setup_write_transfer_read();
+    run_fuzz(100000);
+}
+
+TEST_F(DataBufferFuzzTest, small_tri)
+{
+    setup_write_transfer_read_transfer_read();
+    run_fuzz(10);
+}
+
+TEST_F(DataBufferFuzzTest, medium_tri)
+{
+    setup_write_transfer_read_transfer_read();
+    run_fuzz(1000);
+}
+
+TEST_F(DataBufferFuzzTest, large_tri)
+{
+    setup_write_transfer_read_transfer_read();
+    run_fuzz(100000);
 }

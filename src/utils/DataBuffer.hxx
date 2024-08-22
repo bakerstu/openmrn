@@ -37,8 +37,19 @@
 #define _UTILS_DATABUFFER_HXX_
 
 #include "utils/Buffer.hxx"
+#include "utils/LinkedObject.hxx"
+#include "utils/macros.h"
+
+#ifdef GTEST
+// #define DEBUG_DATA_BUFFER_FREE
+#endif
 
 class DataBufferPool;
+
+#ifdef DEBUG_DATA_BUFFER_FREE
+class DataBuffer;
+static void check_db_ownership(DataBuffer *p);
+#endif
 
 /// Specialization of the Buffer class that is designed for storing untyped
 /// data arrays. Adds the ability to treat the next pointers as links to
@@ -118,7 +129,8 @@ public:
     }
 
     /// Releases one reference to all blocks of this buffer. This includes one
-    /// reference to the last block which may be a partially filled buffer.
+    /// reference to the last block which may be a partially filled
+    /// buffer. Calling with zero length will call release on the head block.
     /// @param total_size the number of bytes starting from the beginning of
     /// *this.
     void unref_all(unsigned total_size)
@@ -165,6 +177,17 @@ public:
         return curr->next();
     }
 
+#ifdef DEBUG_DATA_BUFFER_FREE
+    void unref()
+    {
+        if (references() == 1)
+        {
+            check_db_ownership(this);
+        }
+        Buffer::unref();
+    }
+#endif
+
 private:
     friend class DataBufferPool;
 
@@ -178,6 +201,9 @@ using DataBufferPtr = std::unique_ptr<DataBuffer, BufferDelete<uint8_t[]>>;
 
 /// A class that keeps ownership of a chain of linked DataBuffer references.
 class LinkedDataBufferPtr
+#ifdef DEBUG_DATA_BUFFER_FREE
+    : public LinkedObject<LinkedDataBufferPtr>
+#endif
 {
 public:
     LinkedDataBufferPtr()
@@ -231,6 +257,15 @@ public:
         {
             size = o.size_;
         }
+        if ((size_t)size > o.size_)
+        {
+            size = o.size_;
+        }
+        if (!size)
+        {
+            // Nothing to copy, this will be an empty buffer.
+            return;
+        }
         skip_ = o.skip_;
         size_ = size;
         // Takes references, keeping the tail and tail size.
@@ -278,7 +313,7 @@ public:
             reset(buf);
             return;
         }
-        HASSERT(free_ >= 0);
+        HASSERT(free_ >= 0); // appendable
         HASSERT(tail_);
         // Note: if free_ was > 0, there were some unused bytes in the tail
         // buffer. However, as part of the append operation, we lose these
@@ -297,9 +332,16 @@ public:
     {
         if (head_)
         {
-            head_->unref_all(size_ + skip_);
+            auto *h = head_;
+            size_t len = size_ + skip_;
+            clear();
+            h->unref_all(len);
+            return;
         }
-        clear();
+        else
+        {
+            clear();
+        }
     }
 
     /// @return the pointer where data can be appended into the tail of this
@@ -324,33 +366,64 @@ public:
         size_ += len;
     }
 
+    /// Retrieves a pointer where data can be read out of the buffer.
+    /// @param len will be filled in with the number of available bytes to read
+    /// at this point.
+    /// @return the read pointer, or nullptr if there is no data in this
+    /// buffer.
+    const uint8_t *data_read_pointer(size_t *len)
+    {
+        if (!head_ || !size_)
+        {
+            *len = 0;
+            return nullptr;
+        }
+        unsigned avail = 0;
+        uint8_t *p;
+        head_->get_read_pointer(skip_, &p, &avail);
+        if (avail > size_)
+        {
+            avail = size_;
+        }
+        *len = avail;
+        return p;
+    }
+
     /// Advances the head pointer. Typically used after a successful read
     /// happened.
     /// @param len how many bytes to advance the read pointer.
     void data_read_advance(size_t len)
     {
         HASSERT(len <= size());
-        while (len > 0)
+        skip_ += len;
+        size_ -= len;
+        while (head_ && skip_ >= head_->size())
         {
-            uint8_t *p;
-            unsigned available;
-            DataBuffer *next_head =
-                head_->get_read_pointer(skip_, &p, &available);
-            if ((len > available) || (len == available && len < size_))
+            if (head_ == tail_)
             {
-                head_->unref();
-                head_ = next_head;
-                skip_ = 0;
-                size_ -= available;
-                len -= available;
+                if (free() > 0)
+                {
+                    // We can still write into this buffer, do not unref it.
+                    break;
+                }
+                else
+                {
+                    // We're ending up with an empty linkedbuffer.
+                    auto *b = head_;
+                    clear();
+                    b->unref();
+                    return;
+                }
             }
-            else
+            skip_ -= head_->size();
+            auto *b = head_;
+            auto *next_head = head_->next();
+            head_ = next_head;
+            if (!head_)
             {
-                skip_ += len;
-                size_ -= len;
-                len = 0;
-                break;
+                tail_ = nullptr;
             }
+            b->unref();
         }
     }
 
@@ -456,12 +529,21 @@ public:
     /// this. This tries to do `*this += o`. It will succeed if o.head() ==
     /// this->tail() and the bytes in these buffers are back to back.
     /// @param o a LinkedDataBuffer with data payload.
+    /// @param add_link creates a tail-to-head link if none exist yet between
+    /// *this and o.head_. This is fundamentally dangerous, do it only if there
+    /// is no shared ownership of this->tail_.
     /// @return true if append succeeded. If false, nothing was changed.
-    bool try_append_from(const LinkedDataBufferPtr &o)
+    bool try_append_from(const LinkedDataBufferPtr &o, bool add_link = false)
     {
         if (!o.size())
         {
             return true; // zero bytes, nothing to do.
+        }
+        if (!size_)
+        {
+            // We are empty, so anything can be appended.
+            reset(o);
+            return true;
         }
         if (free_ >= 0)
         {
@@ -469,24 +551,59 @@ public:
             return false;
         }
         HASSERT(o.head());
-        if (o.head() != tail_)
+        if (o.head() != tail_) // Buffer does not start in the same chain where
+                               // we end.
         {
-            // Buffer does not start in the same chain where we end.
-            return false;
+            HASSERT(tail_); // else we went into the !size_ branch above
+
+            // Checks if the end of the tail buffer is already reached. This
+            // means that we don't depend on the value of free_ anymore for
+            // correctness. We also check that o starts at the beginning of the
+            // head buffer.
+            if (tail_->size() == (size_t)-free_ && o.skip() == 0)
+            {
+                if (tail_->next() == o.head())
+                {
+                    // link already exists
+                }
+                else if (add_link && tail_->next() == nullptr)
+                {
+                    tail_->set_next(o.head());
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
         }
-        if (-free_ != (int)o.skip())
+        else if (-free_ != (int)o.skip())
         {
             // Not back-to-back.
             return false;
         }
         // Now we're good, so take over the extra buffers.
-        tail_ = o.tail_;
-        free_ = o.free_;
-        size_ += o.size_;
         // Acquire extra references
         o.head_->ref_all(o.skip() + o.size());
-        // Release duplicate reference between the two chains.
-        o.head_->unref();
+        if (tail_ == o.head())
+        {
+            HASSERT(o.head_->references() > 1);
+            // Release duplicate reference between the two chains.
+            o.head_->unref();
+        }
+        tail_ = o.tail_;
+        if (o.free_ < 0)
+        {
+            free_ = o.free_;
+        }
+        else
+        {
+            free_ = -tail_->size();
+        }
+        size_ += o.size_;
         return true;
     }
 
@@ -515,6 +632,24 @@ private:
     /// linked buffer. In other words, -1 * the end pointer in the tail buffer.
     int16_t free_ {0};
 };
+
+#ifdef DEBUG_DATA_BUFFER_FREE
+void check_db_ownership(DataBuffer *b)
+{
+    AtomicHolder h(LinkedDataBufferPtr::head_mu());
+    for (LinkedDataBufferPtr *l = LinkedDataBufferPtr::link_head(); l;
+         l = l->link_next())
+    {
+        ssize_t total = l->skip() + l->size();
+        for (DataBuffer *curr = l->head(); total > 0;)
+        {
+            HASSERT(curr != b);
+            total -= curr->size();
+            curr = curr->next();
+        }
+    }
+}
+#endif
 
 /// Proxy Pool that can allocate DataBuffer objects of a certain size. All
 /// memory comes from the mainBufferPool.

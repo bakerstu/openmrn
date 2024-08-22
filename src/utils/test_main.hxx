@@ -112,8 +112,8 @@ Service g_service(&g_executor);
  * the last command in a TEST_F. */
 void wait_for_main_executor()
 {
-    ExecutorGuard guard(&g_executor);
-    guard.wait_for_notification();
+    std::unique_ptr<ExecutorGuard> guard(new ExecutorGuard(&g_executor));
+    guard->wait_for_notification();
 }
 
 
