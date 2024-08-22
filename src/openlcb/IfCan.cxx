@@ -721,6 +721,7 @@ IfCan::IfCan(ExecutorBase *executor, CanHubFlow *device,
     add_owned_flow(new FrameToGlobalMessageParser(this));
     add_owned_flow(new VerifyNodeIdHandler(this));
     add_owned_flow(new UnhandledAddressedMessageHandler(this));
+    add_owned_flow(new NullErrorHandler(this));
     add_owned_flow(new RemoteAliasCacheUpdater(this));
     add_owned_flow(new AMEQueryHandler(this));
     add_owned_flow(new AMEGlobalQueryHandler(this));

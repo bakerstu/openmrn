@@ -302,6 +302,33 @@ public:
     }
 };
 
+/// This is an addressed message handler that catches errors (OIR and TDE) but
+/// ignores them. While this sounds not super useful, it ensures that these
+/// messages never trigger the UnhandledAddressedMessageHandler.
+class NullErrorHandler : public IncomingMessageStateFlow
+{
+public:
+    NullErrorHandler(If *service)
+        : IncomingMessageStateFlow(service)
+    {
+        service->dispatcher()->register_handler(
+            this, Defs::MTI_OPTIONAL_INTERACTION_REJECTED, Defs::MTI_EXACT);
+        service->dispatcher()->register_handler(
+            this, Defs::MTI_TERMINATE_DUE_TO_ERROR, Defs::MTI_EXACT);
+    }
+
+    void send(Buffer<GenMessage> *b, unsigned) override
+    {
+        b->unref();
+    }
+
+    Action entry() override
+    {
+        DIE("should not get here");
+        return release_and_exit();
+    }
+};
+
 } // namespace openlcb
 
 #endif // _OPENLCB_IFIMPL_HXX_
