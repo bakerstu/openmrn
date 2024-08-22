@@ -127,6 +127,7 @@ public:
         {
             return false;
         }
+        tgt->clear();
         HASSERT((flags & FLAGS_CHAINING) == 0);
         tgt->flagsDst = 0;
         tgt->flagsSrc = 0;
