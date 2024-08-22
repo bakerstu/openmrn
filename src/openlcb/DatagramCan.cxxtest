@@ -407,10 +407,13 @@ TEST_F(AsyncDatagramTest, DoubleReply)
     wait();
     wait();
     send_packet(":X19A2877CN022A00;"); // Received OK
-    send_packet(":X19A2877CN022A00;"); // Received OK dup
+    wait(); // will unregister handlers
+    send_packet_and_expect_response(
+        ":X19A2877CN022A00;", ":X1906822AN077C10400A28;"); // Received OK dup
     wait_for_notification();
     // Releases client.
-    send_packet(":X19A2877CN022A00;"); // Received OK dup
+    send_packet_and_expect_response(
+        ":X19A2877CN022A00;", ":X1906822AN077C10400A28;"); // Received OK dup
     wait();
     datagram_support_.client_allocator()->insert(c);
 }
