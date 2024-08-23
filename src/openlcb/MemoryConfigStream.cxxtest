@@ -16,6 +16,7 @@ ReadOnlyMemoryBlock smallBlock {
 /// Stream ID used for the receiver on the second interface.
 static constexpr uint8_t STREAM_DST_ID = 0x43;
 
+
 class MemoryConfigTest : public StreamTestBase
 {
 public:
@@ -263,9 +264,24 @@ TEST_F(MemoryConfigTest, two_node)
     twait();
     clear_expect(true);
 
+    StrictMock<MockMessageHandler> handler;
+
+    
     expect_packet(":X1B22A225N20600000000228FF;");
     expect_packet(":X1D22A225N43FFFFFFFF;");
+
+    otherIfCan_->dispatcher()->register_handler(
+        &handler, Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
+    
     // stream initiate request, SID 0x02 DID 0x43 buffer infinite
+    EXPECT_CALL(handler,
+        handle_message(Pointee(AllOf(Field(&GenMessage::mti,
+                                         Defs::MTI_STREAM_INITIATE_REQUEST),
+                           Field(&GenMessage::dstNode, otherNode_.get()),
+                           Field(&GenMessage::payload,
+                               IsBufferNodeValueString(0xFFFF00000243ULL)) //,
+                           )),
+            _));
     expect_packet(":X19CC822AN0225FFFF00000243;");
 
     // Read stream request, space 0x28, offset 2, length infinite, dst stream
@@ -274,6 +290,8 @@ TEST_F(MemoryConfigTest, two_node)
 
     wait();
     clear_expect(true);
+    Mock::VerifyAndClear(&handler);
+    otherIfCan_->dispatcher()->unregister_handler_all(&handler);
     EXPECT_FALSE(datagramDoneBn_.is_done());
 
     // stream initiate reply
@@ -299,11 +317,24 @@ TEST_F(MemoryConfigTest, two_node)
     expect_packet(":X1F22522AN4302030405060708;");
     expect_packet(":X1F22522AN43090A0B0C0D0E;");
 
+    otherIfCan_->dispatcher()->register_handler(
+        &handler, Defs::MTI_STREAM_COMPLETE, Defs::MTI_EXACT);
+
     // stream complete, SID 02 DID 43 sent bytes 13
+    EXPECT_CALL(handler,
+        handle_message(Pointee(AllOf(Field(&GenMessage::mti,
+                                         Defs::MTI_STREAM_COMPLETE),
+                           Field(&GenMessage::dstNode, otherNode_.get()),
+                           Field(&GenMessage::payload,
+                               IsBufferNodeValueString(0x02430000000D)) //,
+                           )),
+            _));
     expect_packet(":X198A822AN022502430000000D;");
 
     twait();
     clear_expect(true);
+    Mock::VerifyAndClear(&handler);
+    otherIfCan_->dispatcher()->unregister_handler_all(&handler);
     EXPECT_TRUE(datagramDoneBn_.is_done());
 }
 
@@ -314,9 +345,22 @@ TEST_F(MemoryConfigTest, length_limit)
     twait();
     clear_expect(true);
 
+    StrictMock<MockMessageHandler> handler;
+
     expect_packet(":X1B22A225N20600000000228FF;");
     expect_packet(":X1D22A225N4300000009;");
+
+    otherIfCan_->dispatcher()->register_handler(
+        &handler, Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
     // stream initiate request, SID 0x02 DID 0x43 buffer infinite
+    EXPECT_CALL(handler,
+        handle_message(Pointee(AllOf(Field(&GenMessage::mti,
+                                         Defs::MTI_STREAM_INITIATE_REQUEST),
+                           Field(&GenMessage::dstNode, otherNode_.get()),
+                           Field(&GenMessage::payload,
+                               IsBufferNodeValueString(0xFFFF00000243ULL)) //,
+                           )),
+            _));
     expect_packet(":X19CC822AN0225FFFF00000243;");
 
     // Read stream request, space 0x28, offset 2, length 9, dst stream
@@ -325,6 +369,8 @@ TEST_F(MemoryConfigTest, length_limit)
 
     wait();
     clear_expect(true);
+    Mock::VerifyAndClear(&handler);
+    otherIfCan_->dispatcher()->unregister_handler_all(&handler);
     EXPECT_FALSE(datagramDoneBn_.is_done());
 
     // stream initiate reply
@@ -350,11 +396,23 @@ TEST_F(MemoryConfigTest, length_limit)
     expect_packet(":X1F22522AN4302030405060708;");
     expect_packet(":X1F22522AN43090A;");
 
+    otherIfCan_->dispatcher()->register_handler(
+        &handler, Defs::MTI_STREAM_COMPLETE, Defs::MTI_EXACT);
     // stream complete, SID 02 DID 43 sent bytes 13
+    EXPECT_CALL(handler,
+        handle_message(Pointee(AllOf(Field(&GenMessage::mti,
+                                         Defs::MTI_STREAM_COMPLETE),
+                           Field(&GenMessage::dstNode, otherNode_.get()),
+                           Field(&GenMessage::payload,
+                               IsBufferNodeValueString(0x024300000009)) //,
+                           )),
+            _));
     expect_packet(":X198A822AN0225024300000009;");
 
     twait();
     clear_expect(true);
+    Mock::VerifyAndClear(&handler);
+    otherIfCan_->dispatcher()->unregister_handler_all(&handler);
     EXPECT_TRUE(datagramDoneBn_.is_done());
 }
 
