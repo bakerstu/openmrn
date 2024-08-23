@@ -16,7 +16,6 @@ ReadOnlyMemoryBlock smallBlock {
 /// Stream ID used for the receiver on the second interface.
 static constexpr uint8_t STREAM_DST_ID = 0x43;
 
-
 class MemoryConfigTest : public StreamTestBase
 {
 public:
@@ -266,13 +265,12 @@ TEST_F(MemoryConfigTest, two_node)
 
     StrictMock<MockMessageHandler> handler;
 
-    
     expect_packet(":X1B22A225N20600000000228FF;");
     expect_packet(":X1D22A225N43FFFFFFFF;");
 
     otherIfCan_->dispatcher()->register_handler(
         &handler, Defs::MTI_STREAM_INITIATE_REQUEST, Defs::MTI_EXACT);
-    
+
     // stream initiate request, SID 0x02 DID 0x43 buffer infinite
     EXPECT_CALL(handler,
         handle_message(Pointee(AllOf(Field(&GenMessage::mti,
@@ -322,12 +320,12 @@ TEST_F(MemoryConfigTest, two_node)
 
     // stream complete, SID 02 DID 43 sent bytes 13
     EXPECT_CALL(handler,
-        handle_message(Pointee(AllOf(Field(&GenMessage::mti,
-                                         Defs::MTI_STREAM_COMPLETE),
-                           Field(&GenMessage::dstNode, otherNode_.get()),
-                           Field(&GenMessage::payload,
-                               IsBufferNodeValueString(0x02430000000D)) //,
-                           )),
+        handle_message(
+            Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_STREAM_COMPLETE),
+                Field(&GenMessage::dstNode, otherNode_.get()),
+                Field(&GenMessage::payload,
+                    IsBufferNodeValueString(0x02430000000D)) //,
+                )),
             _));
     expect_packet(":X198A822AN022502430000000D;");
 
@@ -400,12 +398,12 @@ TEST_F(MemoryConfigTest, length_limit)
         &handler, Defs::MTI_STREAM_COMPLETE, Defs::MTI_EXACT);
     // stream complete, SID 02 DID 43 sent bytes 13
     EXPECT_CALL(handler,
-        handle_message(Pointee(AllOf(Field(&GenMessage::mti,
-                                         Defs::MTI_STREAM_COMPLETE),
-                           Field(&GenMessage::dstNode, otherNode_.get()),
-                           Field(&GenMessage::payload,
-                               IsBufferNodeValueString(0x024300000009)) //,
-                           )),
+        handle_message(
+            Pointee(AllOf(Field(&GenMessage::mti, Defs::MTI_STREAM_COMPLETE),
+                Field(&GenMessage::dstNode, otherNode_.get()),
+                Field(&GenMessage::payload,
+                    IsBufferNodeValueString(0x024300000009)) //,
+                )),
             _));
     expect_packet(":X198A822AN0225024300000009;");
 
