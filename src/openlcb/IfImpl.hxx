@@ -267,6 +267,15 @@ private:
 #endif
 };
 
+/// Message handler that is registered as a fallback handler in the interface's
+/// message dispatcher. This means that all incoming messages that were not
+/// matching the MTI / mask of any existing instantiated handler will end up
+/// here.
+///
+/// THe standard requires that when an addressed message is not handled by a
+/// node (e.g. because it does not know about the MTI at all), then an Optional
+/// Interaction Rejected reply be sent to the originator. This flow generates
+/// that OIR reply.
 class UnhandledAddressedMessageHandler : public IncomingMessageStateFlow
 {
 public:
