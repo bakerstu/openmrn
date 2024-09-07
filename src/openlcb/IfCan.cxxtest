@@ -781,6 +781,13 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
     wait();
 }
 
+TEST_F(AsyncNodeTest, OIROnUnknownMTI)
+{
+    send_packet_and_expect_response(":X19948210N022A;",
+                                    ":X1906822AN021010400948;");
+    wait();
+}
+
 TEST_F(AsyncNodeTest, SendAddressedMessageToAlias)
 {
     static const NodeAlias alias = 0x210U;
