@@ -272,7 +272,7 @@ private:
 /// matching the MTI / mask of any existing instantiated handler will end up
 /// here.
 ///
-/// THe standard requires that when an addressed message is not handled by a
+/// The standard requires that when an addressed message is not handled by a
 /// node (e.g. because it does not know about the MTI at all), then an Optional
 /// Interaction Rejected reply be sent to the originator. This flow generates
 /// that OIR reply.
@@ -305,6 +305,9 @@ public:
             iface()->addressed_message_write_flow(), STATE(fill_oir));
     }
 
+    /// Called after the message buffer allocation is complete. Fills in the
+    /// outgoing Optional Interaction Rejected message and sends it off to the
+    /// write flow.
     Action fill_oir()
     {
         auto rb = get_buffer_deleter(
