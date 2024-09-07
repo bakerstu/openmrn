@@ -293,6 +293,14 @@ public:
             // Destination is not a local node.
             return release_and_exit();
         }
+        auto mti = message()->data()->mti;
+        if (mti == Defs::MTI_OPTIONAL_INTERACTION_REJECTED ||
+            mti == Defs::MTI_TERMINATE_DUE_TO_ERROR) {
+            // We don't generate an OIR for an incoming error report, as this
+            // generally would cause an infinite bouncing of error reports back
+            // and forth between two OpenMRN nodes.
+            return release_and_exit();
+        }
         return allocate_and_call(
             iface()->addressed_message_write_flow(), STATE(fill_oir));
     }
@@ -307,33 +315,6 @@ public:
             inm->dstNode->node_id(), inm->src,
             error_payload(Defs::ERROR_UNIMPLEMENTED, inm->mti));
         iface()->addressed_message_write_flow()->send(rb.release());
-        return release_and_exit();
-    }
-};
-
-/// This is an addressed message handler that catches errors (OIR and TDE) but
-/// ignores them. While this sounds not super useful, it ensures that these
-/// messages never trigger the UnhandledAddressedMessageHandler.
-class NullErrorHandler : public IncomingMessageStateFlow
-{
-public:
-    NullErrorHandler(If *service)
-        : IncomingMessageStateFlow(service)
-    {
-        service->dispatcher()->register_handler(
-            this, Defs::MTI_OPTIONAL_INTERACTION_REJECTED, Defs::MTI_EXACT);
-        service->dispatcher()->register_handler(
-            this, Defs::MTI_TERMINATE_DUE_TO_ERROR, Defs::MTI_EXACT);
-    }
-
-    void send(Buffer<GenMessage> *b, unsigned) override
-    {
-        b->unref();
-    }
-
-    Action entry() override
-    {
-        DIE("should not get here");
         return release_and_exit();
     }
 };
