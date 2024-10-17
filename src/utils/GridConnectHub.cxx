@@ -367,6 +367,7 @@ struct GcPacketPrinter::Impl : public CanHubPortInterface
         {
             fprintf(stderr, "\n");
         }
+        fflush(stderr);
     }
 
     /// Which hun are we registered to.
