@@ -70,13 +70,13 @@ TEST_F(LoggingTrainTest, CreateDestroy)
 
 TEST_F(LoggingTrainTest, SetSpeed)
 {
-    send_packet(":X195EA551N033A0050B0;");
+    send_packet(":X195EB551N033A0050B0;");
 }
 
 TEST_F(LoggingTrainTest, SetFn)
 {
-    send_packet(":X195EA551N033A010000050001;");
-    send_packet(":X195EA551N033A010000050000;");
+    send_packet(":X195EB551N033A010000050001;");
+    send_packet(":X195EB551N033A010000050000;");
 }
 
 } // namespace openlcb

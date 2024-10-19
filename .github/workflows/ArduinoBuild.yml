@@ -64,6 +64,7 @@ jobs:
         sketch-names: ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino
         debug-compile: true
         required-libraries: OpenMRNLite
+        arduino-platform: esp32:esp32@2.0.17
       if: ${{ matrix.target == 'esp32' }}
 
     - name: Compile ESP32-C3 examples
@@ -74,6 +75,7 @@ jobs:
         sketch-names: ESP32C3CanLoadTest.ino,ESP32C3IOBoard.ino
         debug-compile: true
         required-libraries: OpenMRNLite
+        arduino-platform: esp32:esp32@2.0.17
       if: ${{ matrix.target == 'esp32c3' }}
     
     - name: Compile ESP32-S2 examples
@@ -84,4 +86,5 @@ jobs:
         sketch-names: ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino
         debug-compile: true
         required-libraries: OpenMRNLite
+        arduino-platform: esp32:esp32@2.0.17
       if: ${{ matrix.target == 'esp32s2' }}
