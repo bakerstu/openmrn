@@ -199,6 +199,8 @@ private:
 
 using DataBufferPtr = std::unique_ptr<DataBuffer, BufferDelete<uint8_t[]>>;
 
+class LinkedDataBufferPtr;
+
 /// A class that keeps ownership of a chain of linked DataBuffer references.
 class LinkedDataBufferPtr
 #ifdef DEBUG_DATA_BUFFER_FREE
@@ -269,7 +271,7 @@ public:
         skip_ = o.skip_;
         size_ = size;
         // Takes references, keeping the tail and tail size.
-        unsigned tail_size;
+        unsigned tail_size = 0;
         head_ = o.head_->ref_all(o.skip_ + size, &tail_, &tail_size);
         HASSERT(tail_size > 0);
         free_ = -tail_size;

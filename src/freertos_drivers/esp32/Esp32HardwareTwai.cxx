@@ -87,7 +87,7 @@ static constexpr int TWAI_VFS_FD = 0;
 static constexpr BaseType_t WATCHDOG_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 /// Stack size (bytes) to use for the ESP32 TWAI status reporting task.
-static constexpr BaseType_t WATCHDOG_TASK_STACK = 2048;
+static constexpr BaseType_t WATCHDOG_TASK_STACK = 2548;
 
 /// Interval at which to print the ESP32 TWAI bus status.
 static constexpr TickType_t STATUS_PRINT_INTERVAL = pdMS_TO_TICKS(10000);
