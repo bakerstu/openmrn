@@ -151,9 +151,12 @@ idf_component_register(SRCS "${SRCS}"
                        REQUIRES "${IDF_DEPS}")
 
 ###############################################################################
-# Suppress compilation warnings in OpenMRN
+# Warn all and make all warnings into errors in OpenMRN
 ###############################################################################
-
-target_compile_options(${COMPONENT_LIB} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Werror)
+
+###############################################################################
+# Suppress compilation warnings in OpenMRN
+###############################################################################
+target_compile_options(${COMPONENT_LIB} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>)
