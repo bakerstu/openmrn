@@ -18,7 +18,7 @@ set(SRCS
     $ENV{OPENMRNPATH}/src/executor/StateFlow.cxx
     $ENV{OPENMRNPATH}/src/executor/Timer.cxx
 
-    $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32HardwareI2C.cpp
+    $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32HardwareI2C.cxx
     $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32HardwareTwai.cxx
     $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32Ledc.cxx
     $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32SocInfo.cxx
