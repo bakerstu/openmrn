@@ -23,7 +23,6 @@ set(SRCS
     $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32Ledc.cxx
     $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32SocInfo.cxx
     $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32WiFiManager.cxx
-    #$ENV{OPENMRNPATH}/src/freertos_drivers/arduino/
 
     $ENV{OPENMRNPATH}/src/openlcb/AliasAllocator.cxx
     $ENV{OPENMRNPATH}/src/openlcb/AliasCache.cxx
@@ -155,11 +154,6 @@ idf_component_register(SRCS "${SRCS}"
 # Suppress compilation warnings in OpenMRN
 ###############################################################################
 
-#target_compile_options(${COMPONENT_LIB} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>)
-#target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-type-limits)
-#target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-ignored-qualifiers)
-#target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-missing-field-initializers)
-#target_compile_options(${COMPONENT_LIB} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-class-memaccess>)
-#target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-implicit-fallthrough)
-#target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-error=nonnull)
-#target_compile_options(${COMPONENT_LIB} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-redundant-move>)
+target_compile_options(${COMPONENT_LIB} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>)
+target_compile_options(${COMPONENT_LIB} PRIVATE -Wall)
+target_compile_options(${COMPONENT_LIB} PRIVATE -Werror)
