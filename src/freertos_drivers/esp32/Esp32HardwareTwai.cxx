@@ -70,7 +70,7 @@
 #include "can_frame.h"
 #include "can_ioctl.h"
 #include "executor/Notifiable.hxx"
-#include "freertos_drivers/arduino/DeviceBuffer.hxx"
+#include "freertos_drivers/common/DeviceBuffer.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"
 #include "utils/Atomic.hxx"
 #include "utils/logging.h"

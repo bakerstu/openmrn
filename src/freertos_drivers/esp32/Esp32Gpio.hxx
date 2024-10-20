@@ -35,7 +35,7 @@
 #ifndef _DRIVERS_ESP32GPIO_HXX_
 #define _DRIVERS_ESP32GPIO_HXX_
 
-#include "freertos_drivers/arduino/GpioWrapper.hxx"
+#include "freertos_drivers/common/GpioWrapper.hxx"
 #include "freertos_drivers/esp32/Esp32AdcOneShot.hxx"
 #include "os/Gpio.hxx"
 #include "utils/logging.h"
@@ -363,6 +363,13 @@ public:
     static void hw_set_to_safe()
     {
         hw_init();
+    }
+
+    /// Get the current pin state.
+    /// @return true if the pin input is seeing HIGH.
+    static bool get()
+    {
+        return instance()->read();
     }
 
     /// @return static Gpio object instance that controls this output pin.
