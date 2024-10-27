@@ -188,7 +188,7 @@ copy_file src arduino/CDIXMLGenerator.hxx \
     include/freertos_select/ifaddrs.h
 
 # General DCC related files (all headers and DCC packet related cxx)
-copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/{dcc_constants,DccDebug,LocalTrackIf,Packet}.cxx
+copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/{Defs,dcc_constants,DccDebug,LocalTrackIf,Packet}.cxx
 
 # RailCom related DCC files
 copy_file src/dcc src/dcc/{RailCom,RailcomBroadcastDecoder,RailcomDebug}.cxx
