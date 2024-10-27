@@ -2,5 +2,5 @@
 dependencies:
   OpenMRN:
     git: https://github.com/bakerstu/openmrn.git
-    path: /etc/esp-idf
+    path: etc/esp-idf
   idf: "<5.3"
