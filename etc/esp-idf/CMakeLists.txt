@@ -1,142 +1,142 @@
+file(REAL_PATH ${COMPONENT_DIR} OPENMRNESPIDFPATH)
+set(OPENMRNPATH ${OPENMRNESPIDFPATH}/../..)
+
 set(SRCS
-    $ENV{OPENMRNPATH}/src/ble/Advertisement.cxx
-    $ENV{OPENMRNPATH}/src/ble/Defs.cxx
+    ${OPENMRNPATH}/src/ble/Advertisement.cxx
+    ${OPENMRNPATH}/src/ble/Defs.cxx
 
-    $ENV{OPENMRNPATH}/src/dcc/dcc_constants.cxx
-    $ENV{OPENMRNPATH}/src/dcc/DccDebug.cxx
-    $ENV{OPENMRNPATH}/src/dcc/Defs.cxx
-    $ENV{OPENMRNPATH}/src/dcc/LocalTrackIf.cxx
-    $ENV{OPENMRNPATH}/src/dcc/Loco.cxx
-    $ENV{OPENMRNPATH}/src/dcc/Packet.cxx
-    $ENV{OPENMRNPATH}/src/dcc/RailcomBroadcastDecoder.cxx
-    $ENV{OPENMRNPATH}/src/dcc/RailCom.cxx
-    $ENV{OPENMRNPATH}/src/dcc/RailcomDebug.cxx
-    $ENV{OPENMRNPATH}/src/dcc/SimpleUpdateLoop.cxx
-    $ENV{OPENMRNPATH}/src/dcc/UpdateLoop.cxx
+    ${OPENMRNPATH}/src/dcc/dcc_constants.cxx
+    ${OPENMRNPATH}/src/dcc/DccDebug.cxx
+    ${OPENMRNPATH}/src/dcc/Defs.cxx
+    ${OPENMRNPATH}/src/dcc/LocalTrackIf.cxx
+    ${OPENMRNPATH}/src/dcc/Loco.cxx
+    ${OPENMRNPATH}/src/dcc/Packet.cxx
+    ${OPENMRNPATH}/src/dcc/RailcomBroadcastDecoder.cxx
+    ${OPENMRNPATH}/src/dcc/RailCom.cxx
+    ${OPENMRNPATH}/src/dcc/RailcomDebug.cxx
+    ${OPENMRNPATH}/src/dcc/SimpleUpdateLoop.cxx
+    ${OPENMRNPATH}/src/dcc/UpdateLoop.cxx
     
-    $ENV{OPENMRNPATH}/src/executor/AsyncNotifiableBlock.cxx
-    $ENV{OPENMRNPATH}/src/executor/Executor.cxx
-    $ENV{OPENMRNPATH}/src/executor/Notifiable.cxx
-    $ENV{OPENMRNPATH}/src/executor/Service.cxx
-    $ENV{OPENMRNPATH}/src/executor/StateFlow.cxx
-    $ENV{OPENMRNPATH}/src/executor/Timer.cxx
+    ${OPENMRNPATH}/src/executor/AsyncNotifiableBlock.cxx
+    ${OPENMRNPATH}/src/executor/Executor.cxx
+    ${OPENMRNPATH}/src/executor/Notifiable.cxx
+    ${OPENMRNPATH}/src/executor/Service.cxx
+    ${OPENMRNPATH}/src/executor/StateFlow.cxx
+    ${OPENMRNPATH}/src/executor/Timer.cxx
 
-    $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32HardwareI2C.cxx
-    $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32HardwareTwai.cxx
-    $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32Ledc.cxx
-    $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32SocInfo.cxx
-    $ENV{OPENMRNPATH}/src/freertos_drivers/esp32/Esp32WiFiManager.cxx
+    ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32HardwareI2C.cxx
+    ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32HardwareTwai.cxx
+    ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32Ledc.cxx
+    ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32SocInfo.cxx
+    ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32WiFiManager.cxx
 
-    $ENV{OPENMRNPATH}/src/openlcb/AliasAllocator.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/AliasCache.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/BLEAdvertisement.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/BLEService.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/BroadcastTime.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/BroadcastTimeClient.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/BroadcastTimeDefs.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/BroadcastTimeServer.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/BulkAliasAllocator.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/CanDefs.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/ConfigEntry.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/ConfigUpdateFlow.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/Datagram.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/DatagramCan.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/DatagramTcp.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/DccAccyProducer.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/DefaultNode.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/DefaultCdi.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/EventHandler.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/EventHandlerContainer.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/EventHandlerTemplates.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/EventService.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/If.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/IfCan.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/IfImpl.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/IfTcp.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/MemoryConfig.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/nmranet_constants.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/Node.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/NodeBrowser.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/NodeInitializeFlow.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/NonAuthoritativeEventProducer.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/PIPClient.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/RoutingLogic.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/SimpleNodeInfo.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/SimpleNodeInfoMockUserFile.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/SimpleNodeInfoResponse.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/SimpleStack.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/StreamReceiver.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/StreamTransport.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/TcpDefs.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/TractionCvSpace.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/TractionDefs.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/TractionProxy.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/TractionTestTrain.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/TractionThrottle.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/TractionTrain.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/Velocity.cxx
-    $ENV{OPENMRNPATH}/src/openlcb/WriteHelper.cxx
+    ${OPENMRNPATH}/src/openlcb/AliasAllocator.cxx
+    ${OPENMRNPATH}/src/openlcb/AliasCache.cxx
+    ${OPENMRNPATH}/src/openlcb/BLEAdvertisement.cxx
+    ${OPENMRNPATH}/src/openlcb/BLEService.cxx
+    ${OPENMRNPATH}/src/openlcb/BroadcastTime.cxx
+    ${OPENMRNPATH}/src/openlcb/BroadcastTimeClient.cxx
+    ${OPENMRNPATH}/src/openlcb/BroadcastTimeDefs.cxx
+    ${OPENMRNPATH}/src/openlcb/BroadcastTimeServer.cxx
+    ${OPENMRNPATH}/src/openlcb/BulkAliasAllocator.cxx
+    ${OPENMRNPATH}/src/openlcb/CanDefs.cxx
+    ${OPENMRNPATH}/src/openlcb/ConfigEntry.cxx
+    ${OPENMRNPATH}/src/openlcb/ConfigUpdateFlow.cxx
+    ${OPENMRNPATH}/src/openlcb/Datagram.cxx
+    ${OPENMRNPATH}/src/openlcb/DatagramCan.cxx
+    ${OPENMRNPATH}/src/openlcb/DatagramTcp.cxx
+    ${OPENMRNPATH}/src/openlcb/DccAccyProducer.cxx
+    ${OPENMRNPATH}/src/openlcb/DefaultNode.cxx
+    ${OPENMRNPATH}/src/openlcb/DefaultCdi.cxx
+    ${OPENMRNPATH}/src/openlcb/EventHandler.cxx
+    ${OPENMRNPATH}/src/openlcb/EventHandlerContainer.cxx
+    ${OPENMRNPATH}/src/openlcb/EventHandlerTemplates.cxx
+    ${OPENMRNPATH}/src/openlcb/EventService.cxx
+    ${OPENMRNPATH}/src/openlcb/If.cxx
+    ${OPENMRNPATH}/src/openlcb/IfCan.cxx
+    ${OPENMRNPATH}/src/openlcb/IfImpl.cxx
+    ${OPENMRNPATH}/src/openlcb/IfTcp.cxx
+    ${OPENMRNPATH}/src/openlcb/MemoryConfig.cxx
+    ${OPENMRNPATH}/src/openlcb/nmranet_constants.cxx
+    ${OPENMRNPATH}/src/openlcb/Node.cxx
+    ${OPENMRNPATH}/src/openlcb/NodeBrowser.cxx
+    ${OPENMRNPATH}/src/openlcb/NodeInitializeFlow.cxx
+    ${OPENMRNPATH}/src/openlcb/NonAuthoritativeEventProducer.cxx
+    ${OPENMRNPATH}/src/openlcb/PIPClient.cxx
+    ${OPENMRNPATH}/src/openlcb/RoutingLogic.cxx
+    ${OPENMRNPATH}/src/openlcb/SimpleNodeInfo.cxx
+    ${OPENMRNPATH}/src/openlcb/SimpleNodeInfoMockUserFile.cxx
+    ${OPENMRNPATH}/src/openlcb/SimpleNodeInfoResponse.cxx
+    ${OPENMRNPATH}/src/openlcb/SimpleStack.cxx
+    ${OPENMRNPATH}/src/openlcb/StreamReceiver.cxx
+    ${OPENMRNPATH}/src/openlcb/StreamTransport.cxx
+    ${OPENMRNPATH}/src/openlcb/TcpDefs.cxx
+    ${OPENMRNPATH}/src/openlcb/TractionCvSpace.cxx
+    ${OPENMRNPATH}/src/openlcb/TractionDefs.cxx
+    ${OPENMRNPATH}/src/openlcb/TractionProxy.cxx
+    ${OPENMRNPATH}/src/openlcb/TractionTestTrain.cxx
+    ${OPENMRNPATH}/src/openlcb/TractionThrottle.cxx
+    ${OPENMRNPATH}/src/openlcb/TractionTrain.cxx
+    ${OPENMRNPATH}/src/openlcb/Velocity.cxx
+    ${OPENMRNPATH}/src/openlcb/WriteHelper.cxx
 
     
-    $ENV{OPENMRNPATH}/src/os/FakeClock.cxx
-    $ENV{OPENMRNPATH}/src/os/logging_malloc.cxx
-    $ENV{OPENMRNPATH}/src/os/MDNS.cxx
-    $ENV{OPENMRNPATH}/src/os/os.c
-    $ENV{OPENMRNPATH}/src/os/OSImpl.cxx
-    $ENV{OPENMRNPATH}/src/os/OSSelectWakeup.cxx
-    $ENV{OPENMRNPATH}/src/os/stack_malloc.c
-    $ENV{OPENMRNPATH}/src/os/TempFile.cxx
-    $ENV{OPENMRNPATH}/src/os/watchdog.c
+    ${OPENMRNPATH}/src/os/FakeClock.cxx
+    ${OPENMRNPATH}/src/os/logging_malloc.cxx
+    ${OPENMRNPATH}/src/os/MDNS.cxx
+    ${OPENMRNPATH}/src/os/os.c
+    ${OPENMRNPATH}/src/os/OSImpl.cxx
+    ${OPENMRNPATH}/src/os/OSSelectWakeup.cxx
+    ${OPENMRNPATH}/src/os/stack_malloc.c
+    ${OPENMRNPATH}/src/os/TempFile.cxx
+    ${OPENMRNPATH}/src/os/watchdog.c
 
-    $ENV{OPENMRNPATH}/src/utils/Base64.cxx
-    $ENV{OPENMRNPATH}/src/utils/Blinker.cxx
-    $ENV{OPENMRNPATH}/src/utils/Buffer.cxx
-    $ENV{OPENMRNPATH}/src/utils/CanIf.cxx
-    $ENV{OPENMRNPATH}/src/utils/ClientConnection.cxx
-    $ENV{OPENMRNPATH}/src/utils/ConfigUpdateListener.cxx
-    $ENV{OPENMRNPATH}/src/utils/constants.cxx
-    $ENV{OPENMRNPATH}/src/utils/Crc.cxx
-    $ENV{OPENMRNPATH}/src/utils/DirectHub.cxx
-    $ENV{OPENMRNPATH}/src/utils/DirectHubGc.cxx
-    $ENV{OPENMRNPATH}/src/utils/DirectHubLegacy.cxx
-    $ENV{OPENMRNPATH}/src/utils/errno_exit.c
-    $ENV{OPENMRNPATH}/src/utils/FdUtils.cxx
-    $ENV{OPENMRNPATH}/src/utils/FileUtils.cxx
-    $ENV{OPENMRNPATH}/src/utils/format_utils.cxx
-    $ENV{OPENMRNPATH}/src/utils/ForwardAllocator.cxx
-    $ENV{OPENMRNPATH}/src/utils/GcStreamParser.cxx
-    $ENV{OPENMRNPATH}/src/utils/GcTcpHub.cxx
-    $ENV{OPENMRNPATH}/src/utils/gc_format.cxx
-    $ENV{OPENMRNPATH}/src/utils/GridConnect.cxx
-    $ENV{OPENMRNPATH}/src/utils/GridConnectHub.cxx
-    $ENV{OPENMRNPATH}/src/utils/HubDevice.cxx
-    $ENV{OPENMRNPATH}/src/utils/HubDeviceSelect.cxx
-    $ENV{OPENMRNPATH}/src/utils/ieeehalfprecision.c
-    $ENV{OPENMRNPATH}/src/utils/JSHubPort.cxx
-    $ENV{OPENMRNPATH}/src/utils/logging.cxx
-    $ENV{OPENMRNPATH}/src/utils/Queue.cxx
-    $ENV{OPENMRNPATH}/src/utils/ReflashBootloader.cxx
-    $ENV{OPENMRNPATH}/src/utils/ServiceLocator.cxx
-    $ENV{OPENMRNPATH}/src/utils/SocketCan.cxx
-    $ENV{OPENMRNPATH}/src/utils/SocketClient.cxx
-    $ENV{OPENMRNPATH}/src/utils/socket_listener.cxx
-    $ENV{OPENMRNPATH}/src/utils/Stats.cxx
-    $ENV{OPENMRNPATH}/src/utils/StringPrintf.cxx
+    ${OPENMRNPATH}/src/utils/Base64.cxx
+    ${OPENMRNPATH}/src/utils/Blinker.cxx
+    ${OPENMRNPATH}/src/utils/Buffer.cxx
+    ${OPENMRNPATH}/src/utils/CanIf.cxx
+    ${OPENMRNPATH}/src/utils/ClientConnection.cxx
+    ${OPENMRNPATH}/src/utils/ConfigUpdateListener.cxx
+    ${OPENMRNPATH}/src/utils/constants.cxx
+    ${OPENMRNPATH}/src/utils/Crc.cxx
+    ${OPENMRNPATH}/src/utils/DirectHub.cxx
+    ${OPENMRNPATH}/src/utils/DirectHubGc.cxx
+    ${OPENMRNPATH}/src/utils/DirectHubLegacy.cxx
+    ${OPENMRNPATH}/src/utils/errno_exit.c
+    ${OPENMRNPATH}/src/utils/FdUtils.cxx
+    ${OPENMRNPATH}/src/utils/FileUtils.cxx
+    ${OPENMRNPATH}/src/utils/format_utils.cxx
+    ${OPENMRNPATH}/src/utils/ForwardAllocator.cxx
+    ${OPENMRNPATH}/src/utils/GcStreamParser.cxx
+    ${OPENMRNPATH}/src/utils/GcTcpHub.cxx
+    ${OPENMRNPATH}/src/utils/gc_format.cxx
+    ${OPENMRNPATH}/src/utils/GridConnect.cxx
+    ${OPENMRNPATH}/src/utils/GridConnectHub.cxx
+    ${OPENMRNPATH}/src/utils/HubDevice.cxx
+    ${OPENMRNPATH}/src/utils/HubDeviceSelect.cxx
+    ${OPENMRNPATH}/src/utils/ieeehalfprecision.c
+    ${OPENMRNPATH}/src/utils/JSHubPort.cxx
+    ${OPENMRNPATH}/src/utils/logging.cxx
+    ${OPENMRNPATH}/src/utils/Queue.cxx
+    ${OPENMRNPATH}/src/utils/ReflashBootloader.cxx
+    ${OPENMRNPATH}/src/utils/ServiceLocator.cxx
+    ${OPENMRNPATH}/src/utils/SocketCan.cxx
+    ${OPENMRNPATH}/src/utils/SocketClient.cxx
+    ${OPENMRNPATH}/src/utils/socket_listener.cxx
+    ${OPENMRNPATH}/src/utils/Stats.cxx
+    ${OPENMRNPATH}/src/utils/StringPrintf.cxx
 )
 
 set(INCLUDE_DIRS
-    $ENV{OPENMRNPATH}/src
-    $ENV{OPENMRNPATH}/include/esp-idf
-    $ENV{OPENMRNPATH}/include
+    ${OPENMRNPATH}/src
+    ${OPENMRNPATH}/include/esp-idf
+    ${OPENMRNPATH}/include
 )
-
-if(CONFIG_ENABLE_ARDUINO_DEPENDS)
-    list(APPEND SOURCE_DIRS src)
-endif()
 
 set(IDF_DEPS
     app_update
     bootloader_support
+    bt
     driver
     esp_adc
     esp_app_format
@@ -145,9 +145,9 @@ set(IDF_DEPS
     espcoredump
     hal
     heap
-    vfs
     mdns
-    bt)
+    pthread
+    vfs)
 
 idf_component_register(SRCS "${SRCS}"
                        INCLUDE_DIRS "${INCLUDE_DIRS}"
@@ -157,9 +157,10 @@ idf_component_register(SRCS "${SRCS}"
 # Warn all and make all warnings into errors in OpenMRN
 ###############################################################################
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall)
-target_compile_options(${COMPONENT_LIB} PRIVATE -Werror)
+target_compile_options(${COMPONENT_LIB} PRIVATE -Werror=all)
+target_compile_options(${COMPONENT_LIB} PRIVATE -Wextra)
 
 ###############################################################################
 # Suppress compilation warnings in OpenMRN
 ###############################################################################
-target_compile_options(${COMPONENT_LIB} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>)
+target_compile_options(${COMPONENT_LIB} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>)
