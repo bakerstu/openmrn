@@ -1,4 +1,7 @@
 set(SRCS
+    $ENV{OPENMRNPATH}/src/ble/Advertisement.cxx
+    $ENV{OPENMRNPATH}/src/ble/Defs.cxx
+
     $ENV{OPENMRNPATH}/src/dcc/dcc_constants.cxx
     $ENV{OPENMRNPATH}/src/dcc/DccDebug.cxx
     $ENV{OPENMRNPATH}/src/dcc/Defs.cxx
