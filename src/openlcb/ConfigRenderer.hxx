@@ -52,6 +52,7 @@ struct AtomConfigDefs
     DECLARE_OPTIONALARG(Name, name, const char *, 0, nullptr);
     DECLARE_OPTIONALARG(Description, description, const char *, 1, nullptr);
     DECLARE_OPTIONALARG(MapValues, mapvalues, const char *, 2, nullptr);
+    DECLARE_OPTIONALARG(Hints, hints, const char *, 3, nullptr);
     DECLARE_OPTIONALARG(SkipInit, skip_init, int, 15, 0);
     DECLARE_OPTIONALARG(Offset, offset, int, 10, 0);
     using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues, SkipInit, Offset>;
@@ -71,6 +72,8 @@ public:
     DEFINE_OPTIONALARG(Description, description, const char *);
     /// Represent the value enclosed in the "<map>" tag of the data element.
     DEFINE_OPTIONALARG(MapValues, mapvalues, const char *);
+    /// Represent the value enclosed in the "<hints>" tag of the data element.
+    DEFINE_OPTIONALARG(Hints, hints, const char *);
     /// When set to true, the event initializers will be skipped in this event
     /// or group.
     DEFINE_OPTIONALARG(SkipInit, skip_init, int);
@@ -93,6 +96,10 @@ public:
         if (mapvalues())
         {
             *r += StringPrintf("<map>%s</map>\n", mapvalues());
+        }
+        if (hints())
+        {
+            *r += StringPrintf("<hints>%s</hints>\n", mapvalues());
         }
     }
 };
@@ -147,7 +154,7 @@ struct NumericConfigDefs : public AtomConfigDefs
     DECLARE_OPTIONALARG(Max, maxvalue, int, 7, INT_MAX);
     DECLARE_OPTIONALARG(Default, defaultvalue, int, 8, INT_MAX);
     using Base = OptionalArg<NumericConfigDefs, Name, Description, MapValues,
-                             Min, Max, Default, SkipInit, Offset>;
+                             Hints, Min, Max, Default, SkipInit, Offset>;
 };
 
 /// Definitions for the options for numeric CDI entries.
@@ -164,6 +171,8 @@ public:
     DEFINE_OPTIONALARG(Description, description, const char *);
     /// Represent the value enclosed in the <map> tag of the data element.
     DEFINE_OPTIONALARG(MapValues, mapvalues, const char *);
+    /// Represent the value enclosed in the <hints> tag of the data element.
+    DEFINE_OPTIONALARG(Hints, hints, const char *);
     DEFINE_OPTIONALARG(Min, minvalue, int);
     DEFINE_OPTIONALARG(Max, maxvalue, int);
     DEFINE_OPTIONALARG(Default, defaultvalue, int);
@@ -196,6 +205,10 @@ public:
         if (mapvalues())
         {
             *r += StringPrintf("<map>%s</map>\n", mapvalues());
+        }
+        if (hints())
+        {
+            *r += StringPrintf("<hints>%s</hints>\n", mapvalues());
         }
     }
 
@@ -263,7 +276,7 @@ struct GroupConfigDefs : public AtomConfigDefs
     DECLARE_OPTIONALARG(FixedSize, fixed_size, unsigned, 13, 0);
     DECLARE_OPTIONALARG(Hidden, hidden, int, 14, 0);
     using Base = OptionalArg<GroupConfigDefs, Name, Description, Segment,
-                             Offset, RepName, FixedSize, Hidden>;
+                             Hints, Offset, RepName, FixedSize, Hidden>;
 };
 
 /// Implementation class for the condifuration options of a CDI group element.
@@ -298,6 +311,9 @@ public:
     /// effectively hiding hte settings from the user. The space will still be
     /// reserved and skipped.
     DEFINE_OPTIONALARG(Hidden, hidden, int);
+
+    /// Represents the value enclosed in the <hints> tag of the data element.
+    DEFINE_OPTIONALARG(Hints, hints, const char*);
 
     /// Declares that this group is a toplevel CDI. Causes the group to render
     /// the xml header.
@@ -357,6 +373,10 @@ public:
         {
             *r +=
                 StringPrintf("<repname>%s</repname>\n", repname());
+        }
+        if (hints())
+        {
+            *r += StringPrintf("<hints>%s</hints>\n", hints());
         }
     }
 };

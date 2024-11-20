@@ -100,6 +100,7 @@ public:
     using Name = AtomConfigOptions::Name;
     using Description = AtomConfigOptions::Description;
     using MapValues = AtomConfigOptions::MapValues;
+    using Hints = AtomConfigOptions::Hints;
     using SkipInit = AtomConfigOptions::SkipInit;
     using Min = NumericConfigOptions::Min;
     using Max = NumericConfigOptions::Max;
