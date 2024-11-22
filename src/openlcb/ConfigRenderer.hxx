@@ -392,16 +392,8 @@ public:
         if (linkref())
         {
             *r +=
-                StringPrintf("<link ref=\"%s\"", linkref());
-            if (linktext())
-            {
-                *r +=
-                    StringPrintf(">%s</link>\n", linktext());
-            }
-            else
-            {
-                *r += " />\n";
-            }
+                StringPrintf("<link ref=\"%s\">%s</link>\n", linkref(),
+                linktext() ? linktext() : linkref());
         }
     }
 };
@@ -597,16 +589,8 @@ public:
         if (opts.linkref())
         {
             *s +=
-                StringPrintf("<link ref=\"%s\"", opts.linkref());
-            if (opts.linktext())
-            {
-                *s +=
-                    StringPrintf(">%s</link>\n", opts.linktext());
-            }
-            else
-            {
-                *s += " />\n";
-            }
+                StringPrintf("<link ref=\"%s\">%s</link>\n", opts.linkref(),
+                alt(opts.linktext(), opts.linkref()));
         }
         *s += "</identification>\n";
     }
