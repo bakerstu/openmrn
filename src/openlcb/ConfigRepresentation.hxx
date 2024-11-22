@@ -110,6 +110,8 @@ public:
     using RepName = GroupConfigOptions::RepName;
     using FixedSize = GroupConfigOptions::FixedSize;
     using Hidden = GroupConfigOptions::Hidden;
+    using LinkRef = GroupConfigOptions::LinkRef;
+    using LinkText = GroupConfigOptions::LinkText;
     using Manufacturer = IdentificationConfigOptions::Manufacturer;
     using Model = IdentificationConfigOptions::Model;
     using HwVersion = IdentificationConfigOptions::HwVersion;

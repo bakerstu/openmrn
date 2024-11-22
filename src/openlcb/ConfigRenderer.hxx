@@ -55,7 +55,8 @@ struct AtomConfigDefs
     DECLARE_OPTIONALARG(Hints, hints, const char *, 3, nullptr);
     DECLARE_OPTIONALARG(SkipInit, skip_init, int, 15, 0);
     DECLARE_OPTIONALARG(Offset, offset, int, 10, 0);
-    using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues, SkipInit, Offset>;
+    using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues,
+                             Hints, SkipInit, Offset>;
 };
 
 /// Configuration implementation class for CDI Atom elements (strings, events
@@ -99,7 +100,7 @@ public:
         }
         if (hints())
         {
-            *r += StringPrintf("<hints>%s</hints>\n", mapvalues());
+            *r += StringPrintf("<hints>%s</hints>\n", hints());
         }
     }
 };
@@ -190,6 +191,10 @@ public:
             *r +=
                 StringPrintf("<description>%s</description>\n", description());
         }
+        if (hints())
+        {
+            *r += StringPrintf("<hints>%s</hints>\n", hints());
+        }
         if (minvalue() != INT_MAX)
         {
             *r += StringPrintf("<min>%d</min>\n", minvalue());
@@ -205,10 +210,6 @@ public:
         if (mapvalues())
         {
             *r += StringPrintf("<map>%s</map>\n", mapvalues());
-        }
-        if (hints())
-        {
-            *r += StringPrintf("<hints>%s</hints>\n", mapvalues());
         }
     }
 
@@ -275,8 +276,12 @@ struct GroupConfigDefs : public AtomConfigDefs
     DECLARE_OPTIONALARG(RepName, repname, const char*, 12, nullptr);
     DECLARE_OPTIONALARG(FixedSize, fixed_size, unsigned, 13, 0);
     DECLARE_OPTIONALARG(Hidden, hidden, int, 14, 0);
+    // 15 is used for SkipInit
+    DECLARE_OPTIONALARG(LinkRef, linkref, const char *, 16, nullptr);
+    DECLARE_OPTIONALARG(LinkText, linktext, const char *, 17, nullptr);
     using Base = OptionalArg<GroupConfigDefs, Name, Description, Segment,
-                             Hints, Offset, RepName, FixedSize, Hidden>;
+                             Hints, LinkRef, LinkText, Offset, RepName,
+                             FixedSize, Hidden>;
 };
 
 /// Implementation class for the condifuration options of a CDI group element.
@@ -312,8 +317,14 @@ public:
     /// reserved and skipped.
     DEFINE_OPTIONALARG(Hidden, hidden, int);
 
-    /// Represents the value enclosed in the <hints> tag of the data element.
-    DEFINE_OPTIONALARG(Hints, hints, const char*);
+    /// Represent the value enclosed in the <hints> tag of the data element.
+    DEFINE_OPTIONALARG(Hints, hints, const char *);
+
+    /// Represent the <link ref=..> value.
+    DEFINE_OPTIONALARG(LinkRef, linkref, const char *);
+
+    /// Represent the value enclosed in the <link> tag of the data element.
+    DEFINE_OPTIONALARG(LinkText, linktext, const char *);
 
     /// Declares that this group is a toplevel CDI. Causes the group to render
     /// the xml header.
@@ -369,14 +380,28 @@ public:
             *r +=
                 StringPrintf("<description>%s</description>\n", description());
         }
+        if (hints())
+        {
+            *r += StringPrintf("<hints>%s</hints>\n", hints());
+        }
         if (repname())
         {
             *r +=
                 StringPrintf("<repname>%s</repname>\n", repname());
         }
-        if (hints())
+        if (linkref())
         {
-            *r += StringPrintf("<hints>%s</hints>\n", hints());
+            *r +=
+                StringPrintf("<link ref=\"%s\"", linkref());
+            if (linktext())
+            {
+                *r +=
+                    StringPrintf(">%s</link>\n", linktext());
+            }
+            else
+            {
+                *r += " />\n";
+            }
         }
     }
 };
@@ -500,8 +525,13 @@ struct IdentificationConfigDefs
     DECLARE_OPTIONALARG(Model, model, const char *, 1, nullptr);
     DECLARE_OPTIONALARG(HwVersion, hardware_version, const char *, 2, nullptr);
     DECLARE_OPTIONALARG(SwVersion, software_version, const char *, 3, nullptr);
+    // NOTE: the unique index for LinkRef and LinkText must match the values
+    // used in GroupConfigDefs otherwise complile_cdi will enter recursive loop
+    // and segfault.
+    DECLARE_OPTIONALARG(LinkRef, linkref, const char *, 16, nullptr);
+    DECLARE_OPTIONALARG(LinkText, linktext, const char *, 17, nullptr);
     using Base = OptionalArg<IdentificationConfigDefs, Manufacturer, Model,
-                             HwVersion, SwVersion>;
+                             HwVersion, SwVersion, LinkRef, LinkText>;
 };
 
 /// Configuration implementation options for rendering CDI (identification)
@@ -516,6 +546,8 @@ public:
     DEFINE_OPTIONALARG(Model, model, const char *);
     DEFINE_OPTIONALARG(HwVersion, hardware_version, const char *);
     DEFINE_OPTIONALARG(SwVersion, software_version, const char *);
+    DEFINE_OPTIONALARG(LinkRef, linkref, const char *);
+    DEFINE_OPTIONALARG(LinkText, linktext, const char *);
 
     constexpr int skip_init() const
     {
@@ -562,6 +594,20 @@ public:
             alt(opts.hardware_version(), SNIP_STATIC_DATA.hardware_version), s);
         render_tag("softwareVersion",
             alt(opts.software_version(), SNIP_STATIC_DATA.software_version), s);
+        if (opts.linkref())
+        {
+            *s +=
+                StringPrintf("<link ref=\"%s\"", opts.linkref());
+            if (opts.linktext())
+            {
+                *s +=
+                    StringPrintf(">%s</link>\n", opts.linktext());
+            }
+            else
+            {
+                *s += " />\n";
+            }
+        }
         *s += "</identification>\n";
     }
 };
