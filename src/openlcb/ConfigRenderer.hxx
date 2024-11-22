@@ -393,7 +393,7 @@ public:
         {
             *r +=
                 StringPrintf("<link ref=\"%s\">%s</link>\n", linkref(),
-                linktext() ? linktext() : linkref());
+                has_linktext() ? linktext() : linkref());
         }
     }
 };
