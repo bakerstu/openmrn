@@ -1,0 +1,1 @@
+../ti-mspm0l1x-generic/target.ld
