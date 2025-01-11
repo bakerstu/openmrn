@@ -1,4 +1,4 @@
-/** \copyright
+/** @copyright
  * Copyright (c) 2016, Balazs Racz
  * All rights reserved.
  *
@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file Uninitialized.hxx
+ * @file Uninitialized.hxx
  * Helper class for creating delayed initialized objects in static memory.
  *
  * @author Balazs Racz
