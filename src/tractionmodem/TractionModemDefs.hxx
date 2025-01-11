@@ -31,8 +31,8 @@
  * @date 24 June 2017
  */
 
-#ifndef _WOWW_MAIN_TRACTIONMODEMDEFS_HXX_
-#define _WOWW_MAIN_TRACTIONMODEMDEFS_HXX_
+#ifndef _TRACTIONMODEM_TRACTIONMODEMDEFS_HXX_
+#define _TRACTIONMODEM_TRACTIONMODEMDEFS_HXX_
 
 #include <string>
 
@@ -256,4 +256,4 @@ struct Defs
 
 } // namespace tractionmodem
 
-#endif // _WOWW_MAIN_TRACTIONMODEMDEFS_HXX_
+#endif // _TRACTIONMODEM_TRACTIONMODEMDEFS_HXX_
