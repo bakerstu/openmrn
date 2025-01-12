@@ -20,7 +20,7 @@ OBJEXTRA += $(TIMSPM0SDKPATH)/source/ti/driverlib/lib/gcc/m0p/mspm0l11xx_l13xx/d
 
 include $(OPENMRNPATH)/boards/ti-mspm0l1x-generic/find-emulator.mk
 
-TARGET := bare.armv6m
+export TARGET := bare.armv6m
 include $(OPENMRNPATH)/etc/prog.mk
 
 ifeq ($(call find_missing_deps,OPENOCDPATH OPENOCDSCRIPTSPATH),)

@@ -81,6 +81,28 @@ void setup_spi() {
     DL_SPI_enable(SPI0);
 }
 
+
+static const DL_UART_Main_ClockConfig gUART_0ClockConfig = {
+    .clockSel    = DL_UART_MAIN_CLOCK_BUSCLK,
+    .divideRatio = DL_UART_MAIN_CLOCK_DIVIDE_RATIO_1
+};
+
+static const DL_UART_Main_Config gUART_0Config = {
+    .mode        = DL_UART_MAIN_MODE_NORMAL,
+    .direction   = DL_UART_MAIN_DIRECTION_TX_RX,
+    .flowControl = DL_UART_MAIN_FLOW_CONTROL_NONE,
+    .parity      = DL_UART_MAIN_PARITY_NONE,
+    .wordLength  = DL_UART_MAIN_WORD_LENGTH_8_BITS,
+    .stopBits    = DL_UART_MAIN_STOP_BITS_ONE
+};
+
+void setup_uart() {
+    DL_UART_Main_setClockConfig(UART0, (DL_UART_Main_ClockConfig *) &gUART_0ClockConfig);
+
+    DL_UART_Main_init(UART0, (DL_UART_Main_Config *) &gUART_0Config);
+    
+}
+
 void hw_preinit(void)
 {
     DL_GPIO_reset(GPIOA);
@@ -88,6 +110,9 @@ void hw_preinit(void)
 
     DL_SPI_reset(SPI0);
     DL_SPI_enablePower(SPI0);
+
+    DL_UART_Main_reset(UART0);
+    DL_UART_Main_enablePower(UART0);
     
     delay_cycles(POWER_STARTUP_DELAY);
 
@@ -108,11 +133,16 @@ void hw_preinit(void)
 
     setup_spi();
 
+    setup_uart();
+
     /// Pinmux setup.
     DL_GPIO_initPeripheralOutputFunctionFeatures(
         IOMUX_PINCM19 /*PA18*/, IOMUX_PINCM19_PF_SPI0_PICO,
         DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_DOWN,
         DL_GPIO_DRIVE_STRENGTH_LOW, DL_GPIO_HIZ_DISABLE);
+
+    DL_GPIO_initPeripheralInputFunction(
+        IOMUX_PINCM23, IOMUX_PINCM23_PF_UART0_RX);
 }
 
 extern int appl_main(int argc, char *argv[]);
