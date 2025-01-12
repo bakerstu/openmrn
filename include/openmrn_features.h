@@ -75,8 +75,7 @@
 #endif
 
 /// @todo this should probably be a whitelist: __linux__ || __MACH__.
-#if !defined(__FreeRTOS__) && !defined(__WINNT__) && !defined(ESP_PLATFORM) && \
-    !defined(ARDUINO) && !defined(ESP_NONOS)
+#if defined(__linux__) || defined(__MACH__)
 /// Uses ::pselect in the Executor for sleep and pkill for waking up.
 #define OPENMRN_HAVE_PSELECT 1
 #endif
@@ -92,7 +91,7 @@
 #endif
 
 #if (defined(ARDUINO) && !defined(ESP_PLATFORM)) || defined(ESP_NONOS) ||      \
-    defined(__EMSCRIPTEN__)
+    defined(__EMSCRIPTEN__) || defined(OPENMRN_BARE)
 /// A loop() function is calling the executor in the single-threaded OS context.
 #define OPENMRN_FEATURE_SINGLE_THREADED 1
 #endif
@@ -169,12 +168,20 @@
 #define OPENMRN_FEATURE_BSD_SOCKETS_REPORT_EOF_ERROR 1
 #endif
 
-#endif
+#endif // if we have BSD sockets
 
 #if !defined(__MACH__)
 /// Compiles support for calling reboot() in ConfigUpdateFlow.hxx and
 /// MemoryConfig.cxx.
 #define OPENMRN_FEATURE_REBOOT 1
+#endif
+
+#if defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || \
+      defined (__WIN32__) || defined (__EMSCRIPTEN__) || defined (ESP_NONOS) || \
+defined (ARDUINO) || defined (ESP_PLATFORM) || defined(OPENMRN_BARE)
+
+#define OPENMRN_FEATURE_STRUCT_CAN_FRAME 1
+
 #endif
 
 

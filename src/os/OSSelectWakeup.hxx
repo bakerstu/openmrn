@@ -184,6 +184,7 @@ public:
     }
 #endif // OPENMRN_FEATURE_RTOS_FROM_ISR
 
+#if defined(OPENMRN_FEATURE_EXECUTOR_SELECT)
     /** Portable call to a select that can be woken up asynchronously from a
      * different thread or an ISR context.
      *
@@ -200,7 +201,8 @@ public:
      */
     int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
                long long deadline_nsec);
-
+#endif
+    
 private:
 #ifdef ESP_PLATFORM
     void esp_allocate_vfs_fd();

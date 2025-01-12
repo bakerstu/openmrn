@@ -185,6 +185,7 @@ private:
      */
     virtual Executable *next(unsigned *priority) = 0;
 
+#if defined(OPENMRN_FEATURE_EXECUTOR_SELECT)    
     /** Executes a select call, and schedules any necessary executables based
      * on the return. Will not sleep at all if not empty, otherwise sleeps at
      * most next_timer_nsec nanoseconds (from now).
@@ -209,6 +210,7 @@ private:
         LOG(FATAL, "Unexpected select type %d", type);
         return nullptr;
     }
+#endif
 
     /** name of this Executor */
     const char *name_;
@@ -219,6 +221,7 @@ private:
     /** List of active timers. */
     ActiveTimers activeTimers_;
 
+#if defined(OPENMRN_FEATURE_EXECUTOR_SELECT)    
     /** fd to select for read. */
     fd_set selectRead_;
     /** fd to select for write. */
@@ -229,7 +232,8 @@ private:
     int selectNFds_;
     /** Head of the linked list for the select calls. */
     TypedQueue<Selectable> selectables_;
-
+#endif
+    
     /** Set to 1 when the executor thread has exited and it is safe to delete
      * *this. */
     std::atomic_uint_least8_t done_;

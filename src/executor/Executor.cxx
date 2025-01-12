@@ -77,10 +77,12 @@ ExecutorBase::ExecutorBase()
     , started_(0)
     , selectPrescaler_(0)
 {
+#if defined(OPENMRN_FEATURE_EXECUTOR_SELECT)    
     FD_ZERO(&selectRead_);
     FD_ZERO(&selectWrite_);
     FD_ZERO(&selectExcept_);
     selectNFds_ = 0;
+#endif    
 }
 
 /** Lookup an executor by its name.

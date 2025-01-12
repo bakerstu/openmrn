@@ -34,6 +34,8 @@
 #ifndef _nmranet_can_h_
 #define _nmranet_can_h_
 
+#include "openmrn_features.h"
+
 #if defined (__linux__)
     #include <sys/socket.h>
     #include <linux/can.h>
@@ -63,9 +65,7 @@
         (_frame).can_id += ((_value) & CAN_SFF_MASK);   \
     }
 
-#elif defined (__nuttx__) || defined (__FreeRTOS__) || defined (__MACH__) || \
-      defined (__WIN32__) || defined (__EMSCRIPTEN__) || defined (ESP_NONOS) || \
-      defined (ARDUINO) || defined (ESP_PLATFORM)
+#elif defined(OPENMRN_FEATURE_STRUCT_CAN_FRAME)
     #include <stdint.h>
 
     struct can_frame
