@@ -99,6 +99,8 @@ struct Defs
         Payload p;
         prepare(&p, CMD_WIRELESS_PRESENT, LEN_WIRELESS_PRESENT);
         append_uint8(&p, is_present ? 1 : 0);
+
+        append_crc(&p);
         return p;
     }
 
@@ -217,7 +219,7 @@ struct Defs
     static uint32_t get_uint32(const Payload &p, unsigned ofs)
     {
         uint32_t ret;
-        if (ofs + 4 < p.size())
+        if ((ofs + 4) <= p.size())
         {
             memcpy(&ret, p.data() + ofs, 4);
             return be32toh(ret);
@@ -228,7 +230,7 @@ struct Defs
     static uint16_t get_uint16(const Payload &p, unsigned ofs)
     {
         uint16_t ret;
-        if (ofs + 2 < p.size())
+        if ((ofs + 2) <= p.size())
         {
             memcpy(&ret, p.data() + ofs, 2);
             return be16toh(ret);

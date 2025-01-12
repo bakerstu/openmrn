@@ -36,9 +36,12 @@
 #define _TRACTIONMODEM_TRACTIONMODEM_HXX_
 
 #include "TractionModemDefs.hxx"
-#include "hardware.hxx"
+//#include "hardware.hxx"
 
 #include "executor/StateFlow.hxx"
+#include "openlcb/MemoryConfig.hxx"
+#include "openlcb/TrainInterface.hxx"
+#include "utils/format_utils.hxx"
 
 namespace tractionmodem
 {
@@ -510,6 +513,7 @@ public:
         {
             default:
                 break;
+#if !defined(GTEST)
             case 0:
                 if (lastSpeed_.direction() == openlcb::Velocity::REVERSE)
                 {
@@ -536,6 +540,7 @@ public:
             case 6:
                 LOGIC_F6_Pin::set(value ? 1 : 0);
                 break;
+#endif // !defined(GTEST)
 // Commented out since these pins cannot be defined as both inputs
 // and outputs.
 #if 0
@@ -546,6 +551,7 @@ public:
                 LOGIC_F8_Pin::set(value ? 1 : 0);
                 break;
 #endif
+#if !defined(GTEST)
             case 7:
             {
                 bool input1 = INPUT1_Pin::get();
@@ -560,6 +566,7 @@ public:
                 LOG(ALWAYS, "INPUT2: %u", input2);
                 break;
             }
+#endif // !defined(GTEST)
         }
     }
 

@@ -1,0 +1,89 @@
+#include "utils/test_main.hxx"
+#include "os/os.h"
+
+#include "tractionmodem/TractionModem.hxx"
+
+using namespace tractionmodem;
+using namespace std::string_literals;
+
+/// Test object for the TxFlow
+class TxFlowTest : public ::testing::Test
+{
+protected:
+    /// Constructor.
+    TxFlowTest()
+    {
+    }
+
+    /// Destructor.
+    ~TxFlowTest()
+    {
+        wait_for_main_executor();
+    }
+
+    /// Initialization helper that starts the Flow.
+    void init()
+    {
+        pipe(fd_);
+        for (unsigned i = 0; i < 2; ++i)
+        {
+            int opt = fcntl(fd_[i], F_GETFL);
+            opt |= O_NONBLOCK;
+            fcntl(fd_[i], F_SETFL, opt);
+        }
+        flow_.start(fd_[1]);
+    }
+
+    /// Helper to receive all the data from the pipe.
+    /// @return string containing all the data from the pipe
+    std::string recv()
+    {
+        std::string data;
+        int result;
+        char buf[32];
+        do
+        {
+            result = read(fd_[0], buf, sizeof(buf));
+            if (result > 0)
+            {
+                data.append(buf, result);
+            }
+        } while (result > 0);
+
+        return data;
+    }
+
+
+    int fd_[2];
+    TxFlow flow_{&g_service};
+};
+
+//
+// TxFlowTest::CreateNoStart
+//
+TEST_F(TxFlowTest, CreateNoStart)
+{
+    auto b = flow_.alloc();
+    b->data()->payload = std::move(Defs::get_fn_set_payload(10, 1));
+    flow_.send(b);
+}
+
+//
+// TxFlowTest::Write
+//
+TEST_F(TxFlowTest, Write)
+{
+    std::string result;
+    std::string expected;
+    init();
+
+    auto b = flow_.alloc();
+    b->data()->payload = std::move(Defs::get_fn_set_payload(10, 1));
+    flow_.send(b);
+    wait_for_main_executor();
+
+    result = recv();
+    expected = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
+               "\x00\x00\x00\x0A\x00\x01"s "\x00\x00\x00\x00\x00\x00"s;
+    EXPECT_EQ(expected, result);
+}
