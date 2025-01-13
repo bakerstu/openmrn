@@ -81,21 +81,28 @@ struct TxMessage
 using PacketFlowInterface = FlowInterface<Buffer<TxMessage>>;
 using TxFlowBase = StateFlow<Buffer<TxMessage>, QList<2>>;
 
+/// Object responsible for writing messages to the modem interface.
 class TxFlow : public TxFlowBase
 {
 public:
+    /// Constructor.
+    /// @param service service that the flow is bound to
     TxFlow(Service *service)
         : TxFlowBase(service)
     {
         LOG(ALWAYS, "[ModemTx] constructor");
     }
 
-    void start(int uart_fd)
+    /// Bind an interface to the flow to start transmitting to.
+    /// @param fd interface to transmit the messages on
+    void start(int fd)
     {
         LOG(ALWAYS, "[ModemTx] fd");
-        fd_ = uart_fd;
+        fd_ = fd;
     }
 
+    /// Entry point to the state flow for incoming TxMessages to transmit.
+    /// @return next state write_complete
     Action entry() override
     {
         if (fd_ < 0)
@@ -109,6 +116,8 @@ public:
             message()->data()->payload.size(), STATE(write_complete));
     }
 
+    /// Finish up the write and exit
+    /// @return release_and_exit
     Action write_complete()
     {
         unsigned len = message()->data()->payload.size();
@@ -122,27 +131,36 @@ public:
     }
 
 private:
+    /// Helper for performing the writes.
     StateFlowSelectHelper helper_ {this};
-    /// UART fd.
+    /// Interface fd.
     int fd_ = -1;
 };
 
+/// Object responsible for reading in a stream of bytes over the modem interface
+/// and forming the stream of bytes into complete messages.
 class RxFlow : public StateFlowBase
 {
 public:
     using BufferType = Buffer<TxMessage>;
     using Receiver = PacketFlowInterface;
 
+    /// Constructor.
+    /// @param service service that the flow is bound to
     RxFlow(Service *service)
         : StateFlowBase(service)
     { }
 
-    void start(int uart_fd)
+    /// Start the flow using the given interface.
+    /// @param fd interface to receive messages on
+    void start(int fd)
     {
-        fd_ = uart_fd;
+        fd_ = fd;
         start_flow(STATE(reset));
     }
 
+    /// Register a listener to send incoming messages to.
+    /// @param rcv lister that will receive incoming messages
     void set_listener(Receiver *rcv)
     {
         receiver_ = rcv;
@@ -152,9 +170,9 @@ public:
     /// @return next state wait_for_base_data()
     Action reset()
     {
-        // Looking for the start of a new packet. The clear is needed to "reset"
-        // the string from the std::move() operation that might have occurred on
-        // the prior message.
+        // Looking for the start of a new message. The clear is needed to
+        // "reset" the string from the std::move() operation that might have 
+        // occurred on the prior message, leaving it in an unknown state.
         payload_.clear();
         // Note: We are relying on the fact that the default allocator is used,
         //       which is the heap allocator, and that the heap allocator will
@@ -166,11 +184,11 @@ public:
         return call_immediately(STATE(wait_for_base_data));
     }
 
-    /// Wait until we have at least as much data as a minimum size packet.
+    /// Wait until we have at least as much data as a minimum size message.
     /// @return next state base_data_received
     Action wait_for_base_data()
     {
-        // Every packet is at least a minimum size. There is really no point
+        // Every message is at least a minimum size. There is really no point
         // to waste any cycles processing until at least the minimum count is
         // received.
         if (recvCnt_ >= MIN_MESSAGE_SIZE)
@@ -215,7 +233,7 @@ public:
     /// We think we have a complete header because we just validated a preamble.
     /// Validate that the header meta data (data length) is legit.
     /// @return next state is resync on error (invalid data length), else
-    ///         next state is maybe_packet_complete.
+    ///         next state is maybe_message_complete.
     Action header_complete()
     {
         const Defs::Message *m = (const Defs::Message*)payload_.data();
@@ -233,19 +251,19 @@ public:
 
         if (recvCnt_ >= total_len)
         {
-            // We already have enough data for the complete packet.
-            return call_immediately(STATE(maybe_packet_complete));
+            // We already have enough data for the complete message.
+            return call_immediately(STATE(maybe_message_complete));
         }
 
         return read_repeated_with_timeout(&helper_, CHARACTER_NSEC * len,
             fd_, &payload_[recvCnt_], total_len - recvCnt_,
-            STATE(maybe_packet_complete));
+            STATE(maybe_message_complete));
     }
 
     /// We might have a complete message if we have received enough data.
     /// @return next state is resync if a timeout occurred or a CRC error is
     ///         detected, else next state is reset.
-    Action maybe_packet_complete()
+    Action maybe_message_complete()
     {
         const Defs::Message *m = (const Defs::Message*)payload_.data();
         size_t len = be16toh(m->header_.length_);
@@ -278,7 +296,7 @@ public:
     ///         found, else next state is reset to start over with new data.
     Action resync()
     {
-        // Packet out of sync.
+        // Message parsing out of sync.
 
         /// @todo Should we be sending out a framing error? I think so. How to
         ///       dispatch that? Maybe an error field in the TxMessage?
@@ -313,21 +331,20 @@ private:
     /// Minimum size of a message.
     static constexpr unsigned MIN_MESSAGE_SIZE = Defs::LEN_BASE;
 
+    /// Maximum size of the data portion of a message.
     static constexpr unsigned MAX_DATA_LEN = Defs::MAX_LEN;
 
-    /// Time when we received the start of this packet.
-    long long packetStartNsec_ = 0;
     /// Helper for reading in a select flow.
     StateFlowTimedSelectHelper helper_ {this};
-    /// We assemble the packet here.
+    /// We assemble the message here.
     string payload_;
     /// Number of bytes that have been received into payload_, which may be
     /// less than payload_.size() since we reserve space ahead of time.
     size_t recvCnt_;
-    /// Incoming packets get routed to this object.
+    /// Incoming messages get routed to this object.
     Receiver *receiver_;
 
-    /// UART fd.
+    /// Interface fd.
     int fd_ = -1;
 };
 
