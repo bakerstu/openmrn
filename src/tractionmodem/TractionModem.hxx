@@ -90,14 +90,14 @@ public:
     TxFlow(Service *service)
         : TxFlowBase(service)
     {
-        LOG(ALWAYS, "[ModemTx] constructor");
+        LOG(INFO, "[ModemTx] constructor");
     }
 
     /// Bind an interface to the flow to start transmitting to.
     /// @param fd interface to transmit the messages on
     void start(int fd)
     {
-        LOG(ALWAYS, "[ModemTx] fd");
+        LOG(INFO, "[ModemTx] fd");
         fd_ = fd;
     }
 
@@ -107,10 +107,10 @@ public:
     {
         if (fd_ < 0)
         {
-            LOG(ALWAYS, "[ModemTx] no uart");
+            LOG(INFO, "[ModemTx] no uart");
             return release_and_exit();
         }
-        LOG(ALWAYS, "[ModemTx] msg len %d",
+        LOG(INFO, "[ModemTx] msg len %d",
             (int)message()->data()->payload.size());
         return write_repeated(&helper_, fd_, message()->data()->payload.data(),
             message()->data()->payload.size(), STATE(write_complete));
@@ -123,7 +123,7 @@ public:
         unsigned len = message()->data()->payload.size();
         unsigned num_sent = len - helper_.remaining_;
         const uint8_t *d = (const uint8_t *)message()->data()->payload.data();
-        LOG(ALWAYS, "[ModemTx] sent E%d len %u done %u %08x %04x...",
+        LOG(INFO, "[ModemTx] sent E%d len %u done %u %08x %04x...",
             helper_.hasError_, len, num_sent, *(unsigned *)(d + 0),
             (unsigned)be32toh(*(uint16_t *)(d + 4)));
         /// @TODO check for error
@@ -166,6 +166,20 @@ public:
         receiver_ = rcv;
     }
 
+    /// Get the wire time for a single character.
+    /// @param wire time for a single character in nanoseconds
+    long long get_character_nsec()
+    {
+        /// @todo Once we support multi-baud, this should be modified to
+        ///       provide the character nsec at the current baud rate.
+        return CHARACTER_NSEC;
+    }
+
+#if defined(GTEST)
+    bool exit_ = false;
+#endif
+
+private:
     /// Resets the message reception state machine.
     /// @return next state wait_for_base_data()
     Action reset()
@@ -188,14 +202,22 @@ public:
     /// @return next state base_data_received
     Action wait_for_base_data()
     {
+#if defined(GTEST)
+        if (exit_)
+        {
+            return exit();
+        }
+#endif
         // Every message is at least a minimum size. There is really no point
         // to waste any cycles processing until at least the minimum count is
         // received.
         if (recvCnt_ >= MIN_MESSAGE_SIZE)
         {
             // We already have enough data to start processing.
-            return call_immediately(STATE(wait_for_base_data));
+            return call_immediately(STATE(base_data_received));
         }
+
+        HASSERT(payload_.size() >= MIN_MESSAGE_SIZE);
 
         // This is pre-emptive. We will have received this count by the time we
         // enter the next state because the read blocks until we have all the
@@ -212,7 +234,6 @@ public:
     ///         next state is resync to look for a valid header.
     Action base_data_received()
     {
-        //LOG(ALWAYS, "base_data_received");
         const Defs::Message *m = (const Defs::Message*)payload_.data();
 
         // Look for the preamble.
@@ -220,7 +241,7 @@ public:
         {
             // Valid preamble found where it is supposed to be. Assume for now
             // that we also have a valid header that follows.
-            LOG(ALWAYS, "[ModemRx] recv cmd: 0x%04x, len: %u",
+            LOG(INFO, "[ModemRx] recv cmd: 0x%04x, len: %u",
                 be16toh(m->header_.command_), be16toh(m->header_.length_));
             return call_immediately(STATE(header_complete));
         }
@@ -255,9 +276,11 @@ public:
             return call_immediately(STATE(maybe_message_complete));
         }
 
-        return read_repeated_with_timeout(&helper_, CHARACTER_NSEC * len,
-            fd_, &payload_[recvCnt_], total_len - recvCnt_,
-            STATE(maybe_message_complete));
+        size_t needed_len = total_len - recvCnt_;
+
+        return read_repeated_with_timeout(&helper_,
+            2 * get_character_nsec() * needed_len, fd_, &payload_[recvCnt_],
+            needed_len, STATE(maybe_message_complete));
     }
 
     /// We might have a complete message if we have received enough data.
@@ -279,7 +302,7 @@ public:
         /// @todo Check CRC here.
 
         // A this point, we have a valid message.
-        LOG(ALWAYS, "[ModemRx] %s", string_to_hex(payload_).c_str());
+        LOG(INFO, "[ModemRx] %s", string_to_hex(payload_).c_str());
 
         if (receiver_)
         {
@@ -299,13 +322,15 @@ public:
         // Message parsing out of sync.
 
         /// @todo Should we be sending out a framing error? I think so. How to
-        ///       dispatch that? Maybe an error field in the TxMessage?
+        ///       dispatch that? Maybe an error field in the TxMessage? If we
+        ///       send this to the dispatcher, be sure to add the appropriate
+        ///       EXPECT_CALL(s) to the unit tests.
 
         for (unsigned idx = 1; idx < recvCnt_; ++idx)
         {
             if (payload_[idx] == Defs::PREAMBLE_FIRST)
             {
-                if ((idx + 4) < recvCnt_)
+                if ((idx + 4) <= recvCnt_)
                 {
                     uint32_t p;
                     memcpy(&p, payload_.data() + idx, 4);
@@ -314,7 +339,11 @@ public:
                         continue;
                     }
                 }
-                payload_.erase(0, idx);
+                // A memmove is more efficient than payload_.erase(0, idx)
+                // because it will not shrink the size of the payload_, and it
+                // maintains proper alignment by reusing the original heap
+                // allocation.
+                memmove(&payload_[0], &payload_[idx], recvCnt_ - idx);
                 recvCnt_ -= idx;
                 return call_immediately(STATE(wait_for_base_data));
             }
@@ -324,7 +353,6 @@ public:
         return call_immediately(STATE(reset));
     }
 
-private:
     /// Used to place a bounds on a timeout of a message.
     static constexpr long long CHARACTER_NSEC = 10 * SEC_TO_NSEC(1) / 250000;
 
