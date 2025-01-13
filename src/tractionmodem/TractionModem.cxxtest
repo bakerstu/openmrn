@@ -1,4 +1,5 @@
 #include "utils/test_main.hxx"
+#include "os/FakeClock.hxx"
 #include "os/os.h"
 
 #include "tractionmodem/TractionModem.hxx"
@@ -40,6 +41,8 @@ protected:
     ~TxFlowTest()
     {
         wait_for_main_executor();
+        close(fd_[0]);
+        close(fd_[1]);
     }
 
     /// Initialization helper that starts the Flow.
@@ -90,14 +93,29 @@ protected:
     /// Destructor.
     ~RxFlowTest()
     {
+        testing::Mock::VerifyAndClearExpectations(&mPFI_);
+        // Trigger the flow to exit.
+        flow_.exit_ = true;
+        std::string dummy(1000, '\0');
+        write(fd_[1], dummy.data(), dummy.size());
+
+        // Wait for exit.
         wait_for_main_executor();
+        while (!g_executor.active_timers()->empty())
+        {
+            usleep(20000);
+            wait_for_main_executor();
+        }
+        wait_for_main_executor();
+        close(fd_[0]);
+        close(fd_[1]);
     }
 
     /// Initialization helper that starts the Flow.
     void init()
     {
         pipe(fd_);
-        // Only make the read pipe blocking.
+        // Only make the read pipe non-blocking.
         int opt = fcntl(fd_[0], F_GETFL);
         opt |= O_NONBLOCK;
         fcntl(fd_[0], F_SETFL, opt);
@@ -206,3 +224,60 @@ TEST_F(RxFlowTest, Read)
     wait_for_main_executor();
 }
 
+//
+// RxFlowTest::Rsync
+//
+TEST_F(RxFlowTest, Rsync)
+{
+    using ::testing::_;
+
+    std::string good_data;
+    std::string bad_data;
+    std::string bad_size;
+    std::string big_size;
+    init();
+    // Register a receiver.
+    flow_.set_listener(&mPFI_);
+
+    // This is an actual valid packet.
+    good_data = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
+                "\x00\x00\x00\x0A\x00\x01"s "\x00\x00\x00\x00\x00\x00"s;
+    // This is just garbage. Something to fill the space and force resync.
+    bad_data = "\x89\x06\xdc\x7a\x41\x01\x06\x06\x00\x00\xaa\xab\x74\x01"s
+               "\x05\x30\x56\x89\x82\x01"s;
+    // Invalid size, too large
+    bad_size = "\x02\x01"s;
+    // Valid size, but just really large.
+    big_size = "\x01\x00"s;
+
+    //
+    // Start sending a valid packet, but skip the last preamble byte.
+    //
+    EXPECT_CALL(mPFI_, send(_, _)).Times(0);
+    send(good_data.substr(0, 3));
+    send(good_data.substr(5, good_data.size() - 5));
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mPFI_);
+
+    //
+    // Send a "good" packet header, but with too large data size. +
+    // ...send a bit of bad data +
+    // ...send a valid packet acn expect a resync and successful reception
+    //
+    EXPECT_CALL(mPFI_, send(testing::Eq(good_data), UINT_MAX)).Times(1);
+    send(good_data.substr(0, 6) + bad_size + bad_data.substr(0, 6) + good_data);
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mPFI_);
+
+    //
+    // Test the timeout waiting for packet data.
+    //
+    FakeClock clk;
+    EXPECT_CALL(mPFI_, send(_, _)).Times(0);
+    send(good_data.substr(0, 8 + 6)); // Send the header plus some data.
+    wait_for_main_executor();
+    send(good_data.substr(8, 4)); // Send some more of the data/crc, not all.
+    wait_for_main_executor();
+    clk.advance(2 * flow_.get_character_nsec() * (6 + 2));
+    wait_for_main_executor();
+}
