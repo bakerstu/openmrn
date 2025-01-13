@@ -91,6 +91,28 @@ struct Defs
     /// Offset of the first data byte in the packet.
     static constexpr unsigned OFS_DATA = 8;
 
+    /// The header of a message.
+    struct Header
+    {
+        uint16_t command_; ///< message command
+        uint16_t length_; ///< message length
+    };
+
+    /// The definition of a message.
+    struct Message
+    {
+        uint32_t preamble_; ///< packet preamble
+        Header header_; ///< packet command
+        uint8_t data[0]; ///< start of the message data
+    };
+
+    // CRC definition of a message.
+    struct CRC
+    {
+        uint16_t all_; ///< CRC of all bytes
+        uint16_t even_; ///< CRC of even bytes
+        uint16_t odd_; ///< CRC of odd bytes
+    };
 
     /// Computes payload for the wirless present message.
     /// @apram is_present true if "present", else false

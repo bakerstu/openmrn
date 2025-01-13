@@ -35,8 +35,13 @@
 #ifndef _TRACTIONMODEM_TRACTIONMODEM_HXX_
 #define _TRACTIONMODEM_TRACTIONMODEM_HXX_
 
+/// @todo Need to prune out the "hardware.hxx" dependencies from this file.
+///       These need to be dispatched to hardware specific code somehow.
+
 #include "TractionModemDefs.hxx"
-//#include "hardware.hxx"
+#if !defined(GTEST)
+#include "hardware.hxx"
+#endif
 
 #include "executor/StateFlow.hxx"
 #include "openlcb/MemoryConfig.hxx"
@@ -135,7 +140,7 @@ public:
     void start(int uart_fd)
     {
         fd_ = uart_fd;
-        start_flow(STATE(wait_for_data));
+        start_flow(STATE(reset));
     }
 
     void set_listener(Receiver *rcv)
@@ -143,92 +148,141 @@ public:
         receiver_ = rcv;
     }
 
-    Action wait_for_data()
+    /// Resets the packet reception state machine.
+    /// @return next state wait_for_base_data()
+    Action reset()
     {
+        // Looking for the start of a new packet.
         payload_.clear();
-        if (!overflow_.empty())
+        // Note: We are relying on the fact that the default allocator is used,
+        //       which is the heap allocator, and that the heap allocator will
+        //       allocate memory on (at least) the native machine size boundary.
+        //       This is important in order to be able to cast payload_.data()
+        //       to a Defs::Message type for easier decoding.
+        payload_.resize(MIN_MESSAGE_SIZE);
+        recvCnt_ = 0;
+        return call_immediately(STATE(wait_for_base_data));
+    }
+
+    /// Wait until we have at least as much data as a minimum size packet.
+    /// @return next state base_data_received
+    Action wait_for_base_data()
+    {
+        // Every packet is at least LEN_BASE in size. There is really no point
+        // to waste any cycles processing until at least this many bytes is
+        // received.
+        if (recvCnt_ >= MIN_MESSAGE_SIZE)
         {
-            payload_ = std::move(overflow_);
-            overflow_.clear();
-            return call_immediately(STATE(expand_header));
+            // We already have enough data to start processing.
+            return call_immediately(STATE(wait_for_base_data));
         }
-        return read_single(
-            &helper_, fd_, buf_, sizeof(buf_), STATE(data_received));
+
+        // This is pre-emptive. We will have received this count by the time we
+        // enter the next state because the read blocks until we have all the
+        // base data.
+        size_t offset = recvCnt_;
+        recvCnt_ = MIN_MESSAGE_SIZE;
+
+        return read_repeated(&helper_, fd_, &payload_[offset],
+            MIN_MESSAGE_SIZE - offset, STATE(base_data_received));
     }
 
-    Action data_received()
+    /// Received at least as much data as the minimum message size.
+    /// @return next state is header_complete if valid preamble found, else
+    ///         next state is resync to look for a valid header.
+    Action base_data_received()
     {
-        unsigned num_received = sizeof(buf_) - helper_.remaining_;
-        // Ignores received data.
-        LOG(ALWAYS, "[ModemRx] recvd len=%u data=%08x cmd=%04x...",
-            num_received, (unsigned)be32toh(*(unsigned *)buf_),
-            be16toh((((uint16_t *)buf_)[2])));
-        payload_.append((char *)buf_, num_received);
-        return call_immediately(STATE(expand_header));
-    }
+        //LOG(ALWAYS, "base_data_received");
+        const Defs::Message *m = (const Defs::Message*)payload_.data();
 
-    Action expand_header()
-    {
-        if (payload_.size() >= HEADER_SIZE)
+        // Look for the preamble.
+        if (m->preamble_ == htobe32(Defs::PREAMBLE))
         {
+            // Valid preamble found where it is supposed to be. Assume for now
+            // that we also have a valid header that follows.
+            LOG(ALWAYS, "[ModemRx] recv cmd: 0x%04x, len: %u",
+                be16toh(m->header_.command_), be16toh(m->header_.length_));
             return call_immediately(STATE(header_complete));
         }
-        return read_repeated_with_timeout(&helper_,
-            (MIN_PACKET_SIZE + 10) * CHARACTER_NSEC, fd_, buf_,
-            HEADER_SIZE - payload_.size(), STATE(min_read_done));
-    }
 
-    Action min_read_done()
-    {
-        unsigned tried_read = HEADER_SIZE - payload_.size();
-        unsigned num_received = tried_read - helper_.remaining_;
-        payload_.append((char *)buf_, num_received);
-        if (payload_.size() >= MIN_PACKET_SIZE)
-        {
-            return call_immediately(STATE(header_complete));
-        }
-        // else we have an error.
+        // Else valid preamble and/or header not found where it is supposed to
+        // be.
         return call_immediately(STATE(resync));
     }
 
+    /// We think we have a complete header because we just validated a preamble.
+    /// Validate that the header meta data (data length) is legit.
+    /// @return next state is resync on error (invalid data length), else
+    ///         next state is maybe_packet_complete.
     Action header_complete()
     {
-        if ((*(uint32_t *)payload_.data()) != htobe32(Defs::PREAMBLE))
+        const Defs::Message *m = (const Defs::Message*)payload_.data();
+        size_t len = be16toh(m->header_.length_);
+
+        if (len > MAX_DATA_LEN)
         {
+            // Violated the maximum length data allowed by the protocol. We are
+            // probably out of sync.
             return call_immediately(STATE(resync));
         }
-        uint16_t len = be16toh(*(uint16_t *)(&payload_[6]));
-        if (len > 512)
+
+        size_t total_len = MIN_MESSAGE_SIZE + len;
+        payload_.resize(total_len);
+
+        if (recvCnt_ >= total_len)
         {
-            // This is garbage. The protocol only allows length of 512.
-            return call_immediately(STATE(resync));
+            // We already have enough data for the complete packet.
+            return call_immediately(STATE(maybe_packet_complete));
         }
-        unsigned total_length = Defs::LEN_BASE + len;
-        if (payload_.size() > total_length)
-        {
-            // We read too much.
-            overflow_ = payload_.substr(total_length);
-            payload_.resize(total_length);
-        }
-        if (payload_.size() == total_length)
-        {
-            return call_immediately(STATE(packet_complete));
-        }
-        unsigned offset = payload_.size();
-        payload_.resize(total_length);
-        return read_repeated_with_timeout(&helper_,
-            total_length * CHARACTER_NSEC * 2, fd_, &payload_[offset],
-            total_length - offset, STATE(header_complete));
+
+        return read_repeated_with_timeout(&helper_, CHARACTER_NSEC * len,
+            fd_, &payload_[recvCnt_], total_len - recvCnt_,
+            STATE(maybe_packet_complete));
     }
 
+    /// We might have a complete packet if we have received enough data.
+    /// @return next state is resync if a timeout occurred, else next state is
+    ///         reset.
+    Action maybe_packet_complete()
+    {
+        const Defs::Message *m = (const Defs::Message*)payload_.data();
+        size_t len = be16toh(m->header_.length_);
+
+        if (recvCnt_ < (MIN_MESSAGE_SIZE + len) && helper_.remaining_)
+        {
+            // Timeout, we may be out ot sync. Check for a preamble in the data
+            // we did receive.
+            recvCnt_ += len - helper_.remaining_;
+            return call_immediately(STATE(resync));
+        }
+
+        LOG(ALWAYS, "[ModemRx] %s", string_to_hex(payload_).c_str());
+        if (receiver_)
+        {
+            /// @todo Check CRC here.
+            auto *b = receiver_->alloc();
+            b->data()->payload = std::move(payload_);
+            receiver_->send(b);
+        }
+        return call_immediately(STATE(reset));
+    }
+
+    /// Something went wrong in decoding the data stream. Try to resync on a
+    /// preamble word.
+    /// @return next state is wait_for_base_data if a valid preamble word is
+    ///         found, else next state is reset to start over with new data.
     Action resync()
     {
         // Packet out of sync.
-        for (unsigned idx = 1; idx < payload_.size(); ++idx)
+
+        /// @todo Should we be sending out a framing error? I think so. How to
+        ///       dispatch that? Maybe an error field in the TxMessage?
+
+        for (unsigned idx = 1; idx < recvCnt_; ++idx)
         {
             if (payload_[idx] == Defs::PREAMBLE_FIRST)
             {
-                if (idx + 4 < payload_.size())
+                if ((idx + 4) < recvCnt_)
                 {
                     uint32_t p;
                     memcpy(&p, payload_.data() + idx, 4);
@@ -238,41 +292,33 @@ public:
                     }
                 }
                 payload_.erase(0, idx);
-                return call_immediately(STATE(expand_header));
+                recvCnt_ -= idx;
+                return call_immediately(STATE(wait_for_base_data));
             }
         }
         // Now: we're out of sync and never found a viable first byte. Drop
         // all data.
-        return call_immediately(STATE(wait_for_data));
-    }
-
-    Action packet_complete()
-    {
-        LOG(ALWAYS, "[Rx] %s", string_to_hex(payload_).c_str());
-        if (receiver_)
-        {
-            auto *b = receiver_->alloc();
-            b->data()->payload = std::move(payload_);
-            receiver_->send(b);
-        }
-        return call_immediately(STATE(wait_for_data));
+        return call_immediately(STATE(reset));
     }
 
 private:
-    static constexpr unsigned CHARACTER_NSEC = 10 * SEC_TO_NSEC(1) / 250000;
-    static constexpr unsigned HEADER_SIZE = Defs::LEN_HEADER;
-    static constexpr unsigned MIN_PACKET_SIZE = Defs::LEN_BASE;
+    /// Used to place a bounds on a timeout of a message.
+    static constexpr long long CHARACTER_NSEC = 10 * SEC_TO_NSEC(1) / 250000;
+
+    /// Minimum size of a message.
+    static constexpr unsigned MIN_MESSAGE_SIZE = Defs::LEN_BASE;
+
+    static constexpr unsigned MAX_DATA_LEN = Defs::MAX_LEN;
 
     /// Time when we received the start of this packet.
     long long packetStartNsec_ = 0;
     /// Helper for reading in a select flow.
     StateFlowTimedSelectHelper helper_ {this};
-    /// Raw reads come into this buffer.
-    uint8_t buf_[64];
     /// We assemble the packet here.
     string payload_;
-    /// If we overread the packet, the remaining data is here.
-    string overflow_;
+    /// Number of bytes that have been received into payload_, which may be
+    /// less than payload_.size() since we reserve space ahead of time.
+    size_t recvCnt_;
     /// Incoming packets get routed to this object.
     Receiver *receiver_;
 

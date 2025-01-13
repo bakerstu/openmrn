@@ -6,6 +6,27 @@
 using namespace tractionmodem;
 using namespace std::string_literals;
 
+//
+// Mock objects.
+//
+class TestPacketFlowInterface : public PacketFlowInterface
+{
+public:
+    virtual void send(std::string &m, unsigned priority) = 0;
+
+    virtual void send(
+        Buffer<TxMessage> *message, unsigned priority = UINT_MAX) override
+    {
+        send(message->data()->payload, priority);
+    }
+};
+
+class MockPacketFlowInterface : public TestPacketFlowInterface
+{
+public:
+    MOCK_METHOD2(send, void(std::string &, unsigned));
+};
+
 /// Test object for the TxFlow
 class TxFlowTest : public ::testing::Test
 {
@@ -53,9 +74,54 @@ protected:
         return data;
     }
 
+    int fd_[2]; ///< pipe FDs
+    TxFlow flow_{&g_service}; ///< flow instance under test
+};
 
-    int fd_[2];
-    TxFlow flow_{&g_service};
+/// Test object for the RxFlow
+class RxFlowTest : public ::testing::Test
+{
+protected:
+    /// Constructor.
+    RxFlowTest()
+    {
+    }
+
+    /// Destructor.
+    ~RxFlowTest()
+    {
+        wait_for_main_executor();
+    }
+
+    /// Initialization helper that starts the Flow.
+    void init()
+    {
+        pipe(fd_);
+        // Only make the read pipe blocking.
+        int opt = fcntl(fd_[0], F_GETFL);
+        opt |= O_NONBLOCK;
+        fcntl(fd_[0], F_SETFL, opt);
+        flow_.start(fd_[0]);
+        wait_for_main_executor();
+    }
+
+    /// Helper to send all the data to the pipe.
+    /// @param data data to send
+    void send(const std::string &data)
+    {
+        LOG(ALWAYS, "[TestTx]  sent len:%3zu, data: %s", data.size(),
+            string_to_hex(data).c_str());
+        int result = write(fd_[1], data.data(), data.size());
+        // We don't really care about this expectation because it should always
+        // pass. We are using it as a catch that something went very wrong.
+        EXPECT_EQ(result, (int)data.size());
+    }
+
+    int fd_[2]; ///< pipe FDs
+    RxFlow flow_{&g_service}; ///< flow instance under test
+
+    /// Mock packet flow interface.
+    ::testing::StrictMock<MockPacketFlowInterface> mPFI_;
 };
 
 //
@@ -87,3 +153,56 @@ TEST_F(TxFlowTest, Write)
                "\x00\x00\x00\x0A\x00\x01"s "\x00\x00\x00\x00\x00\x00"s;
     EXPECT_EQ(expected, result);
 }
+
+//
+// RxFlowTest::CreateNoStart
+//
+TEST_F(RxFlowTest, CreateNoStart)
+{
+}
+
+//
+// RxFlowTest::Read
+//
+TEST_F(RxFlowTest, Read)
+{
+    using ::testing::_;
+
+    std::string data;
+    init();
+    
+    data = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
+           "\x00\x00\x00\x0A\x00\x01"s "\x00\x00\x00\x00\x00\x00"s;
+
+    // Send a packet without a registered receiver.
+    EXPECT_CALL(mPFI_, send(_, _)).Times(0);
+    send(data);
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mPFI_);
+
+    // All the data should have been pulled from the pipe. Since there is no
+    // receiver, it gets thrown on the floor.
+    {
+        uint8_t dummy[4];
+        int result = read(fd_[0], dummy, sizeof(dummy));
+        EXPECT_LT(result, 0);
+        EXPECT_EQ(EAGAIN, errno);
+    }
+
+    // Register a receiver and make sure it gets the next sent message.
+    flow_.set_listener(&mPFI_);
+    EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(1);
+    send(data);
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mPFI_);
+
+    // Send a message in pieces in order to exercise some of the other paths.
+    send(data.substr(0, 1));
+    wait_for_main_executor();
+    send(data.substr(1, 4));
+    wait_for_main_executor();
+    EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(1);
+    send(data.substr(5, data.size() - 5));
+    wait_for_main_executor();
+}
+
