@@ -148,11 +148,13 @@ public:
         receiver_ = rcv;
     }
 
-    /// Resets the packet reception state machine.
+    /// Resets the message reception state machine.
     /// @return next state wait_for_base_data()
     Action reset()
     {
-        // Looking for the start of a new packet.
+        // Looking for the start of a new packet. The clear is needed to "reset"
+        // the string from the std::move() operation that might have occurred on
+        // the prior message.
         payload_.clear();
         // Note: We are relying on the fact that the default allocator is used,
         //       which is the heap allocator, and that the heap allocator will
@@ -168,8 +170,8 @@ public:
     /// @return next state base_data_received
     Action wait_for_base_data()
     {
-        // Every packet is at least LEN_BASE in size. There is really no point
-        // to waste any cycles processing until at least this many bytes is
+        // Every packet is at least a minimum size. There is really no point
+        // to waste any cycles processing until at least the minimum count is
         // received.
         if (recvCnt_ >= MIN_MESSAGE_SIZE)
         {
@@ -240,9 +242,9 @@ public:
             STATE(maybe_packet_complete));
     }
 
-    /// We might have a complete packet if we have received enough data.
-    /// @return next state is resync if a timeout occurred, else next state is
-    ///         reset.
+    /// We might have a complete message if we have received enough data.
+    /// @return next state is resync if a timeout occurred or a CRC error is
+    ///         detected, else next state is reset.
     Action maybe_packet_complete()
     {
         const Defs::Message *m = (const Defs::Message*)payload_.data();
@@ -256,10 +258,13 @@ public:
             return call_immediately(STATE(resync));
         }
 
+        /// @todo Check CRC here.
+
+        // A this point, we have a valid message.
         LOG(ALWAYS, "[ModemRx] %s", string_to_hex(payload_).c_str());
+
         if (receiver_)
         {
-            /// @todo Check CRC here.
             auto *b = receiver_->alloc();
             b->data()->payload = std::move(payload_);
             receiver_->send(b);
