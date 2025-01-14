@@ -48,9 +48,11 @@ static const uint16_t crc_16_ibm_poly = 0xA001; // TODO: check
 ///
 /// @return the input bits reversed (bit 0 exchanged with bit 7 et al.)
 ///
-uint8_t reverse(uint8_t data) {
+uint8_t reverse(uint8_t data)
+{
     uint8_t out = 0;
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++)
+    {
         out = (out << 1) | (data & 1);
         data >>= 1;
     }
@@ -61,39 +63,48 @@ uint8_t reverse(uint8_t data) {
 
 static const uint16_t crc_16_ibm_poly = 0x8005; // WORKING
 
-inline void crc_16_ibm_add(uint16_t& state, uint8_t data) {
+inline void crc_16_ibm_add(uint16_t& state, uint8_t data)
+{
     //data = reverse(data);
     // This does LSB-first.
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++)
+    {
         bool bit = data & 1;
         data >>= 1;
-        if (state & 0x8000) {
+        if (state & 0x8000)
+        {
             bit = !bit;
         }
-        if (bit) {
+        if (bit)
+        {
             state = (state << 1) ^ crc_16_ibm_poly;
-        } else {
+        }
+        else
+        {
             state = (state << 1);
         }
     }
 }
 
-inline uint16_t crc_16_ibm_finish(uint16_t state) {
+inline uint16_t crc_16_ibm_finish(uint16_t state)
+{
     return (reverse(state & 0xff) << 8) | reverse(state >> 8);
     //crc_16_ibm_add(state, 0);
     //crc_16_ibm_add(state, 0);
     //return state;
-    }*/
+}*/
 
 /// Translation table for crc16-ibm, high nibble.
 static const uint16_t CRC16_IBM_HI[16] =
 {
-    0x0000, 0xcc01, 0xd801, 0x1400, 0xf001, 0x3c00, 0x2800, 0xe401, 0xa001, 0x6c00, 0x7800, 0xb401, 0x5000, 0x9c01, 0x8801, 0x4400, 
+    0x0000, 0xcc01, 0xd801, 0x1400, 0xf001, 0x3c00, 0x2800, 0xe401,
+    0xa001, 0x6c00, 0x7800, 0xb401, 0x5000, 0x9c01, 0x8801, 0x4400,
 };
 /// Translation table for crc16-ibm, low nibble.
 static const uint16_t CRC16_IBM_LO[16] =
 {
-    0x0000, 0xc0c1, 0xc181, 0x0140, 0xc301, 0x03c0, 0x0280, 0xc241, 0xc601, 0x06c0, 0x0780, 0xc741, 0x0500, 0xc5c1, 0xc481, 0x0440, 
+    0x0000, 0xc0c1, 0xc181, 0x0140, 0xc301, 0x03c0, 0x0280, 0xc241,
+    0xc601, 0x06c0, 0x0780, 0xc741, 0x0500, 0xc5c1, 0xc481, 0x0440,
 };
 
 /// Appends a byte to a CRC16 state machine.
@@ -101,7 +112,8 @@ static const uint16_t CRC16_IBM_LO[16] =
 /// @param state the state machine of the CRC computer.
 /// @param data next byte to add.
 ///
-inline void __attribute__((always_inline)) crc_16_ibm_add(uint16_t &state, uint8_t data)
+inline void __attribute__((always_inline))
+crc_16_ibm_add(uint16_t &state, uint8_t data)
 {
     state ^= data;
     state = (state >> 8) ^ CRC16_IBM_LO[state & 0xf] ^
@@ -132,7 +144,8 @@ void crc_16_ibm_add_basic(uint16_t &state, uint8_t data)
 /// @return the CRC-16-IBM value of the byte sequence added to the state
 /// machine during its lifetime.
 ///
-inline uint16_t crc_16_ibm_finish(uint16_t state) {
+inline uint16_t crc_16_ibm_finish(uint16_t state)
+{
     //return (reverse(state & 0xff) << 8) | reverse(state >> 8);
     //crc_16_ibm_add(state, 0);
     //crc_16_ibm_add(state, 0);
@@ -140,62 +153,77 @@ inline uint16_t crc_16_ibm_finish(uint16_t state) {
 }
 
 
-uint16_t crc_16_ibm(const void* data, size_t length) {
+uint16_t crc_16_ibm(const void* data, size_t length)
+{
     const uint8_t *payload = static_cast<const uint8_t*>(data);
     uint16_t state = crc_16_ibm_init_value;
-    for (size_t i = 0; i < length; ++i) {
+    for (size_t i = 0; i < length; ++i)
+    {
         crc_16_ibm_add(state, payload[i]);
     }
     return crc_16_ibm_finish(state);
 }
 
-void crc3_crc16_ibm(const void* data, size_t length_bytes, uint16_t* checksum) {
-  uint16_t state1 = crc_16_ibm_init_value;
-  uint16_t state2 = crc_16_ibm_init_value;
-  uint16_t state3 = crc_16_ibm_init_value;
+void crc3_crc16_ibm(const void* data, size_t length_bytes, uint16_t* checksum)
+{
+    uint16_t state1 = crc_16_ibm_init_value;
+    uint16_t state2 = crc_16_ibm_init_value;
+    uint16_t state3 = crc_16_ibm_init_value;
 
 #ifdef ESP_NONOS
-  // Aligned reads only.
-  const uint32_t* payload = static_cast<const uint32_t*>(data);
-  HASSERT((((uint32_t)payload) & 3) == 0);
-  uint32_t cword = 0;
-  for (size_t i = 1; i <= length_bytes; ++i) {
-      if ((i & 3) == 1) {
-          cword = payload[(i - 1) >> 2];
-      } else {
-          cword >>= 8;
-      }
-      uint8_t cbyte = cword & 0xff;
-      crc_16_ibm_add(state1, cbyte);
-      if (i & 1) {
-          // odd byte
-          crc_16_ibm_add(state2, cbyte);
-      } else {
-          // even byte
-          crc_16_ibm_add(state3, cbyte);
-      }
-  }
-#else
-  const uint8_t *payload = static_cast<const uint8_t*>(data);
-  for (size_t i = 1; i <= length_bytes; ++i) {
-    crc_16_ibm_add(state1, payload[i-1]);
-    if (i & 1) {
-      // odd byte
-      crc_16_ibm_add(state2, payload[i-1]);
-    } else {
-      // even byte
-      crc_16_ibm_add(state3, payload[i-1]);
+    // Aligned reads only.
+    const uint32_t* payload = static_cast<const uint32_t*>(data);
+    HASSERT((((uint32_t)payload) & 3) == 0);
+    uint32_t cword = 0;
+    for (size_t i = 1; i <= length_bytes; ++i)
+    {
+        if ((i & 3) == 1)
+        {
+            cword = payload[(i - 1) >> 2];
+        }
+        else
+        {
+            cword >>= 8;
+        }
+        uint8_t cbyte = cword & 0xff;
+        crc_16_ibm_add(state1, cbyte);
+        if (i & 1)
+        {
+            // odd byte
+            crc_16_ibm_add(state2, cbyte);
+        }
+        else
+        {
+            // even byte
+            crc_16_ibm_add(state3, cbyte);
+        }
     }
-  }
+#else
+    const uint8_t *payload = static_cast<const uint8_t*>(data);
+    for (size_t i = 1; i <= length_bytes; ++i)
+    {
+        crc_16_ibm_add(state1, payload[i-1]);
+        if (i & 1)
+        {
+            // odd byte
+            crc_16_ibm_add(state2, payload[i-1]);
+        }
+        else
+        {
+            // even byte
+            crc_16_ibm_add(state3, payload[i-1]);
+        }
+    }
 #endif
 
-  checksum[0] = crc_16_ibm_finish(state1);
-  checksum[1] = crc_16_ibm_finish(state2);
-  checksum[2] = crc_16_ibm_finish(state3);
+    checksum[0] = crc_16_ibm_finish(state1);
+    checksum[1] = crc_16_ibm_finish(state2);
+    checksum[2] = crc_16_ibm_finish(state3);
 }
 
 // static
-uint8_t Crc8DallasMaxim::table256[256] = {
+uint8_t Crc8DallasMaxim::table256[256] =
+{
     0x00, 0x5e, 0xbc, 0xe2, 0x61, 0x3f, 0xdd, 0x83,
     0xc2, 0x9c, 0x7e, 0x20, 0xa3, 0xfd, 0x1f, 0x41,
     0x9d, 0xc3, 0x21, 0x7f, 0xfc, 0xa2, 0x40, 0x1e,
@@ -231,13 +259,15 @@ uint8_t Crc8DallasMaxim::table256[256] = {
 };
 
 // static
-uint8_t Crc8DallasMaxim::tableLo16[16] = {
+uint8_t Crc8DallasMaxim::tableLo16[16] =
+{
     0x00, 0x5e, 0xbc, 0xe2, 0x61, 0x3f, 0xdd, 0x83,
     0xc2, 0x9c, 0x7e, 0x20, 0xa3, 0xfd, 0x1f, 0x41,
 };
 
 // static
-uint8_t Crc8DallasMaxim::tableHi16[16] = {
+uint8_t Crc8DallasMaxim::tableHi16[16] =
+{
     0x00, 0x9d, 0x23, 0xbe, 0x46, 0xdb, 0x65, 0xf8,
     0x8c, 0x11, 0xaf, 0x32, 0xca, 0x57, 0xe9, 0x74
 };

@@ -70,7 +70,8 @@ void crc3_crc16_ibm(const void* data, size_t length_bytes, uint16_t* checksum);
 ///
 /// This class can incrementally compute CRC byte by byte. There are three
 /// implementations available, with different code space requirements.
-class Crc8DallasMaxim {
+class Crc8DallasMaxim
+{
 public:
     Crc8DallasMaxim()
         : state_(0)
