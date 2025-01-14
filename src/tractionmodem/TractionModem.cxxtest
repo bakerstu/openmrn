@@ -280,4 +280,11 @@ TEST_F(RxFlowTest, Rsync)
     wait_for_main_executor();
     clk.advance(2 * flow_.get_character_nsec() * (6 + 2));
     wait_for_main_executor();
+
+    // Ensure that we can still recover and decode the next full good packet.
+    flow_.set_listener(&mPFI_);
+    EXPECT_CALL(mPFI_, send(testing::Eq(good_data), UINT_MAX)).Times(1);
+    send(good_data);
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mPFI_);
 }
