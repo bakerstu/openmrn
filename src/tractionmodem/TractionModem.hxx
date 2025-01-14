@@ -237,7 +237,7 @@ private:
         const Defs::Message *m = (const Defs::Message*)payload_.data();
 
         // Look for the preamble.
-        if (m->preamble_ == htobe32(Defs::PREAMBLE))
+        if (m->header_.preamble_ == htobe32(Defs::PREAMBLE))
         {
             // Valid preamble found where it is supposed to be. Assume for now
             // that we also have a valid header that follows.

@@ -41,32 +41,69 @@
 namespace tractionmodem
 {
 
+/// Useful definitions for the traction modem.
 struct Defs
 {
     using Payload = std::string;
 
     /// Every command starts with these bytes.
     static constexpr uint32_t PREAMBLE = 0x41d2c37a;
+    /// First byte of the preamble
     static constexpr char PREAMBLE_FIRST = 0x41;
 
+    /// The most significant bit of each command means "response" to a previous
+    /// message.
     static constexpr uint16_t RESPONSE = 0x8000;
 
+    /// Command values.
     enum Command : uint16_t
     {
-        CMD_FN_SET = 0x0101,
-        CMD_SPEED_SET = 0x0100,
-        CMD_ESTOP_SET = 0x0102,
-        CMD_WIRELESS_PRESENT = 0x0201,
-        CMD_MEM_R = 0x1000,
-        CMD_MEM_W = 0x1001,
+        CMD_PING              = 0x0000, ///< ping
+        CMD_NOP               = 0x0001, ///< no-operation (do nothing)
+        CMD_REBOOT            = 0x0002, ///< reboot request
+        CMD_BAUD_RATE_QUERY   = 0x0003, ///< query the supported baud rates
+        CMD_BAUD_RATE_REQUEST = 0x0004, ///< request a specific baud rate
+        CMD_SPEED_SET         = 0x0100, ///< set velocity
+        CMD_FN_SET            = 0x0101, ///< set function
+        CMD_ESTOP_SET         = 0x0102, ///< emergency stop request
+        CMD_SPEED_QUERY       = 0x0110, ///< query current speed
+        CMD_FN_QUERY          = 0x0111, ///< query function status
+        CMD_DC_DCC_PRESENT    = 0x0200, ///< DC/DCC present
+        CMD_WIRELESS_PRESENT  = 0x0201, ///< wireless present
+        CMD_MEM_R             = 0x1000, ///< memory read
+        CMD_MEM_W             = 0x1001, ///< memory write
 
-        RESP_MEM_R = CMD_MEM_R | RESPONSE,
-        RESP_MEM_W = CMD_MEM_W | RESPONSE,
+        //
+        // response commands
+        //
+        /// ping response
+        RESP_PING             = RESPONSE | CMD_PING,
+        /// baud rate query response
+        RESP_BAUD_RATE_QUERY  = RESPONSE | CMD_BAUD_RATE_QUERY,
+        /// set velocity response
+        RESP_SPEED_SET        = RESPONSE | CMD_SPEED_SET,
+        /// set function response
+        RESP_FN_SET           = RESPONSE | CMD_FN_SET,
+        /// emergency stop response
+        RESP_ESTOP_SET        = RESPONSE | CMD_ESTOP_SET,
+        /// query current speed response
+        RESP_SPEED_QUERY      = RESPONSE | CMD_SPEED_QUERY,
+        /// query function status response
+        RESP_FN_QUERY         = RESPONSE | CMD_FN_QUERY,
+        /// DC/DCC present response
+        RESP_DC_DCC_PRESENT   = RESPONSE | CMD_DC_DCC_PRESENT,
+        /// wireless present response
+        RESP_WIRELESS_PRESENT = RESPONSE | CMD_WIRELESS_PRESENT,
+        /// memory read response
+        RESP_MEM_R            = RESPONSE | CMD_MEM_R,
+        /// memory write response
+        RESP_MEM_W            = RESPONSE | CMD_MEM_W,
     };
 
+    /// Length of a the header. 4 bytes preamble, 2 bytes cmd, 2 bytes length.
     static constexpr unsigned LEN_HEADER = 4+2+2;
 
-    /// Length ofa zero-payload packet. 4 bytes preamble, 2 bytes cmd, 2 bytes
+    /// Length of a zero-payload packet. 4 bytes preamble, 2 bytes cmd, 2 bytes
     /// length, 6 bytes CRC.
     static constexpr unsigned LEN_BASE = 14;
     /// Length of the data payload of a set function packet.
@@ -79,7 +116,8 @@ struct Defs
     static constexpr unsigned LEN_WIRELESS_PRESENT = 1;
     /// Length of the data payload of a set estop packet.
     static constexpr unsigned LEN_MEM_R = 6;
-    static constexpr unsigned LEN_MEM_W = 5; // add the numberof payload bytes
+    /// Base length of the data, add the number of payload bytes.
+    static constexpr unsigned LEN_MEM_W = 5;
 
     /// Maximum allowed len value.
     static constexpr unsigned MAX_LEN = 512;
@@ -94,6 +132,7 @@ struct Defs
     /// The header of a message.
     struct Header
     {
+        uint32_t preamble_; ///< packet preamble
         uint16_t command_; ///< message command
         uint16_t length_; ///< message length
     };
@@ -101,7 +140,6 @@ struct Defs
     /// The definition of a message.
     struct Message
     {
-        uint32_t preamble_; ///< packet preamble
         Header header_; ///< packet command
         uint8_t data[0]; ///< start of the message data
     };
@@ -114,8 +152,9 @@ struct Defs
         uint16_t odd_; ///< CRC of odd bytes
     };
 
-    /// Computes payload for the wirless present message.
-    /// @apram is_present true if "present", else false
+    /// Computes payload for the wireless present message.
+    /// @param is_present true if "present", else false
+    /// @return wire formatted payload
     static Payload get_wireless_present_payload(bool is_present)
     {
         Payload p;
@@ -129,6 +168,7 @@ struct Defs
     /// Computes payload to set a function.
     /// @param fn function number
     /// @param value function value. For binary functions, 0 is off, 1 is on.
+    /// @return wire formatted payload
     static Payload get_fn_set_payload(unsigned fn, uint16_t value)
     {
         Payload p;
@@ -142,6 +182,7 @@ struct Defs
 
     /// Computes payload to set speed and direction.
     /// @param v speed and direction data.
+    /// @return wire formatted payload
     static Payload get_speed_set_payload(openlcb::Velocity v)
     {
         Payload p;
@@ -153,6 +194,7 @@ struct Defs
     }
 
     /// Computes payload to set estop.
+    /// @return wire formatted payload
     static Payload get_estop_payload()
     {
         Payload p;
@@ -163,6 +205,10 @@ struct Defs
     }
 
     /// Computes payload to read some data.
+    /// @param space address space
+    /// @param address address offset within address space
+    /// @param count size of read data requested in bytes
+    /// @return wire formatted payload
     static Payload get_memr_payload(
         uint8_t space, uint32_t address, uint8_t count)
     {
@@ -177,6 +223,10 @@ struct Defs
     }
 
     /// Computes payload to write some data.
+    /// @param space address space
+    /// @param address address offset within address space
+    /// @param data data to write
+    /// @return wire formatted payload
     static Payload get_memw_payload(
         uint8_t space, uint32_t address, const std::string& data)
     {
@@ -184,6 +234,11 @@ struct Defs
     }
 
     /// Computes payload to write some data.
+    /// @param space address space
+    /// @param address address offset within address space
+    /// @param buf data to write
+    /// @param count size of data to write in bytes
+    /// @return wire formatted payload
     static Payload get_memw_payload(
         uint8_t space, uint32_t address, const uint8_t* buf, size_t count)
     {
@@ -198,6 +253,8 @@ struct Defs
     }
 
     /// Appends an uint32_t in network byte order to the payload.
+    /// @param p wire formatted payload to append to
+    /// @param v value to append
     static void append_uint32(Payload *p, uint32_t v)
     {
         p->push_back(v >> 24);
@@ -205,13 +262,19 @@ struct Defs
         p->push_back((v >> 8) & 0xff);
         p->push_back((v)&0xff);
     }
+
     /// Appends an uint16_t in network byte order to the payload.
+    /// @param p wire formatted payload to append to
+    /// @param v value to append
     static void append_uint16(Payload *p, uint16_t v)
     {
         p->push_back((v >> 8) & 0xff);
         p->push_back((v)&0xff);
     }
+
     /// Appends an uint8_t to the payload.
+    /// @param p wire formatted payload to append to
+    /// @param v value to append
     static void append_uint8(Payload *p, uint8_t v)
     {
         p->push_back((v)&0xff);
@@ -230,14 +293,19 @@ struct Defs
     }
 
     /// Computes and appends the CRC to the payload.
+    /// @param p wire formatted payload to append to
     static void append_crc(Payload *p)
     {
-        /// @todo
+        /// @todo Calculate CRC here.
         append_uint16(p, 0);
         append_uint16(p, 0);
         append_uint16(p, 0);
     }
 
+    /// Extract uint32_t value from a given offset in a wire formatted payload.
+    /// @param p wire formatted payload
+    /// @param ofs byte offset to start from for extraction
+    /// @return extracted value
     static uint32_t get_uint32(const Payload &p, unsigned ofs)
     {
         uint32_t ret;
@@ -249,6 +317,10 @@ struct Defs
         return 0;
     }
 
+    /// Extract uint16_t value from a given offset in a wire formatted payload.
+    /// @param p wire formatted payload
+    /// @param ofs byte offset to start from for extraction
+    /// @return extracted value
     static uint16_t get_uint16(const Payload &p, unsigned ofs)
     {
         uint16_t ret;
@@ -263,6 +335,8 @@ struct Defs
     /// Verifies that a given payload is a valid packet. This checks for the
     /// preamble and the length matching what is needed for the packet
     /// size. Does not check the CRC.
+    /// @param p wire formatted payload
+    /// @return true if valid, else false.
     static bool is_valid(const Payload &p)
     {
         if (get_uint32(p, 0) != PREAMBLE)
