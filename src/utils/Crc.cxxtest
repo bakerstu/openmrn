@@ -248,3 +248,60 @@ TEST(Crc8Test, LogonExample4)
     m.update256(0xaa);
     LOG(INFO, "example: 0x%02x", m.get());
 }
+
+TEST(CRC16CCITTTest, Example)
+{
+    std::basic_string<uint8_t> vector =
+    {
+        '1', '2', '3', '4', '5', '6', '7', '8', '9'
+    };
+
+    printf("sizeof(vector): %zu\n", sizeof(vector));
+    Crc16CCITT crc;
+    crc.crc(vector.data(), vector.size());
+    EXPECT_EQ(0x29B1U, crc.get());
+
+    crc.init();
+    for (unsigned i = 0; i < vector.size(); ++i)
+    {
+        crc.update16(vector[i]);
+    }
+    EXPECT_EQ(0x29B1U, crc.get());
+
+    crc.init();
+    for (unsigned i = 0; i < vector.size(); ++i)
+    {
+        crc.update256(vector[i]);
+    }
+    EXPECT_EQ(0x29B1U, crc.get());
+}
+
+TEST(CRC16CCITTTest, ExampleCRC3)
+{
+    {
+        // Even number of bytes.
+        const uint8_t vector[] =
+        {
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+        };
+        uint16_t results[3];
+        crc3_crc16_ccitt(vector, sizeof(vector), results);
+        EXPECT_EQ(0x4792, results[0]);
+        EXPECT_EQ(0x2436, results[1]);
+        EXPECT_EQ(0x9EC6, results[2]);
+    }
+
+    {
+        // Odd number of bytes.
+        const uint8_t vector[] =
+        {
+            0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B
+        };
+        uint16_t results[3];
+        crc3_crc16_ccitt(vector, sizeof(vector), results);
+        EXPECT_EQ(0x6989, results[0]);
+        EXPECT_EQ(0x23ED, results[1]);
+        EXPECT_EQ(0xF408, results[2]);
+    }
+
+}
