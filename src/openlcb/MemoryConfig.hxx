@@ -84,6 +84,21 @@ public:
     {
         return true;
     }
+
+    /// Get the read timeout. Default is no timeout.
+    /// @return The read timeout to reply with.
+    virtual DatagramDefs::Flag get_read_timeout()
+    {
+        return DatagramDefs::TIMEOUT_NONE;
+    }
+
+    /// Get the write timeout. Default is no timeout.
+    /// @return The write timeout to reply with.
+    virtual DatagramDefs::Flag get_write_timeout()
+    {
+        return DatagramDefs::TIMEOUT_NONE;
+    }
+
     /// @returns the lowest address that's valid for this block.
     virtual address_t min_address()
     {
@@ -94,23 +109,36 @@ public:
      */
     virtual address_t max_address() = 0;
 
-    /** @returns the number of bytes successfully written (before hitting end
-     * of space). If *error is set to non-null, then the operation has
-     * failed. If the operation needs to be continued, then sets error to
-     * MemorySpace::ERROR_AGAIN, and calls the Notifiable @param again when a
-     * re-try makes sense. The caller should call write once more, with the
-     * offset adjusted with the previously returned bytes. */
+    /// Write data to the address space.
+    /// @param source memory space offset address to write to
+    /// @param data data to write
+    /// @param len length of write data in bytes
+    /// @param error Error code that can be passed back. if != 0, the operation
+    ///        has failed. If the operation needs to be continued, then set
+    ///        error to ERROR_EAGAIN, and later call the Notifiable to continue.
+    /// @param again notify() when the caller should call the write again, with
+    ///        the offset (source) adjusted with the previously returned bytes.
+    /// @return the number of bytes successfully written (before hitting the end
+    ///         of the space)
     virtual size_t write(address_t destination, const uint8_t *data, size_t len,
                          errorcode_t *error, Notifiable *again)
     {
+        // Should never get here because read only address spaces should never
+        // call write, and writable address spaces shall override this method.
         DIE("Unimplemented");
     }
-    /** @returns the number of bytes successfully read (before hitting end of
-     * space). If *error is set to non-null, then the operation has failed. If
-     * the operation needs to be continued, then sets error to ERROR_AGAIN, and
-     * calls the Notifiable @param again when a re-try makes sense. The caller
-     * should call read once more, with the offset adjusted with the previously
-     * returned bytes. */
+
+    /// Read data from the address space.
+    /// @param source memory space offset address to read from
+    /// @param dst location to fill in with read data
+    /// @param len length of requested read data in bytes
+    /// @param error Error code that can be passed back. if != 0, the operation
+    ///        has failed. If the operation needs to be continued, then set
+    ///        error to ERROR_EAGAIN, and later call the Notifiable to continue.
+    /// @param again notify() when the caller should call the read again, with
+    ///        the offset (source) adjusted with the previously returned bytes.
+    /// @return the number of bytes successfully read (before hitting the end of
+    ///         the space)
     virtual size_t read(address_t source, uint8_t *dst, size_t len,
                         errorcode_t *error, Notifiable *again) = 0;
 
@@ -326,6 +354,7 @@ public:
     }
 };
 
+/// Base for all other Memory Config Handlers (datagrams, streams, etc.).
 class MemoryConfigHandlerBase : public DefaultDatagramHandler
 {
 protected:
@@ -346,7 +375,7 @@ protected:
 
     Action ok_response_sent() OVERRIDE
     {
-        if (!response_.empty())
+    if (!response_.empty())
         {
             return allocate_and_call(
                 STATE(client_allocated), dg_service()->client_allocator());
@@ -525,7 +554,7 @@ protected:
             message()->data()->payload.data());
     }
 
-    DatagramPayload response_; //< reply payload to send back.
+    DatagramPayload response_; ///< reply payload to send back.
     DatagramClient *responseFlow_;
     BarrierNotifiable b_;
 }; // class MemoryConfigHandlerBase
@@ -895,6 +924,8 @@ private:
         currentOffset_ = 0;
         char c = 0;
         response_.assign(response_len, c);
+        inline_respond_ok(
+            DatagramClient::REPLY_PENDING | space->get_read_timeout());
         return call_immediately(STATE(try_read));
     }
 
@@ -914,7 +945,7 @@ private:
         uint8_t *response_bytes = out_bytes();
         if (read_len > 0)
         {
-            int byte_read = space->read(address,
+            size_t byte_read = space->read(address,
                 response_bytes + response_data_offset, read_len, &error, this);
             currentOffset_ += byte_read;
             read_len -= byte_read;
@@ -951,7 +982,7 @@ private:
         {
             response_.resize(response_data_offset + currentOffset_);
         }
-        return respond_ok(DatagramClient::REPLY_PENDING);
+        return call_immediately(STATE(ok_response_sent));
     }
 
     Action handle_write()
@@ -976,7 +1007,8 @@ private:
             return respond_reject(Defs::ERROR_INVALID_ARGS);
         }
         currentOffset_ = 0;
-        inline_respond_ok(DatagramClient::REPLY_PENDING);
+        inline_respond_ok(
+            DatagramClient::REPLY_PENDING | space->get_write_timeout());
         return call_immediately(STATE(try_write));
     }
 
