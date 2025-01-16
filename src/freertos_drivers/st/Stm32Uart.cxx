@@ -203,7 +203,7 @@ void Stm32Uart::enable()
 #if defined(STM32G0B1xx)
         case USART2_LPUART2_IRQn:
         case USART3_4_5_6_LPUART1_IRQn:
-#elif
+#else
         case USART2_IRQn:
 #endif
 
@@ -231,7 +231,7 @@ void Stm32Uart::disable()
 #if defined(STM32G0B1xx)
         case USART2_LPUART2_IRQn:
         case USART3_4_5_6_LPUART1_IRQn:
-#elif
+#else
         case USART2_IRQn:
 #endif
 

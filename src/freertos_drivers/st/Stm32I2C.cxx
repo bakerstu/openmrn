@@ -69,8 +69,8 @@
 #define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(8, 9, 9, 9, 27))
 
 #elif defined(STM32G0B1xx)
-#include "stm32G0xx_ll_rcc.h"
-#include "stm32G0xx_ll_i2c.h"
+#include "stm32g0xx_ll_rcc.h"
+#include "stm32g0xx_ll_i2c.h"
 
 // This timing is assuming 48 MHz main clock, the I2C module being clocked
 // from the main clock, and gives 400 kHz clock (fast mode).
