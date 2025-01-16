@@ -375,7 +375,7 @@ protected:
 
     Action ok_response_sent() OVERRIDE
     {
-    if (!response_.empty())
+        if (!response_.empty())
         {
             return allocate_and_call(
                 STATE(client_allocated), dg_service()->client_allocator());
