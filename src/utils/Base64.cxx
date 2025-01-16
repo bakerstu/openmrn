@@ -34,6 +34,7 @@
 
 #include "utils/Base64.hxx"
 
+#include <stdint.h>
 #include "utils/macros.h"
 
 static const char nib64[] =

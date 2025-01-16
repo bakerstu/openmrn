@@ -35,28 +35,16 @@
 #ifndef _DRIVERS_ESP32GPIO_HXX_
 #define _DRIVERS_ESP32GPIO_HXX_
 
-#include "freertos_drivers/arduino/GpioWrapper.hxx"
+#include "freertos_drivers/common/GpioWrapper.hxx"
+#include "freertos_drivers/esp32/Esp32AdcOneShot.hxx"
 #include "os/Gpio.hxx"
 #include "utils/logging.h"
 #include "utils/macros.h"
 
-#include <driver/adc.h>
 #include <driver/gpio.h>
-#include <esp_idf_version.h>
-#include <soc/adc_channel.h>
-
-// esp_rom_gpio.h is a target agnostic replacement for esp32/rom/gpio.h
-#if __has_include(<esp_rom_gpio.h>)
 #include <esp_rom_gpio.h>
-#elif ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,0,0)
-#include <rom/gpio.h>
-#else
-#include <esp32/rom/gpio.h>
-#endif
 
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5,0,0)
 #include <soc/gpio_struct.h>
-#endif
 
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
 /// Helper macro to test if a pin has been configured for output.
@@ -94,7 +82,7 @@ public:
     static_assert(!(PIN_NUM >= 26 && PIN_NUM <= 32)
                 , "Pin is reserved for flash usage.");
 #if defined(CONFIG_SPIRAM_MODE_OCT) || defined(CONFIG_ESPTOOLPY_OCT_FLASH)
-    static_assert(!(PIN_NUM >= 33 && PIN_NUM <= 37)),
+    static_assert(!(PIN_NUM >= 33 && PIN_NUM <= 37),
                   "Pin is not available when Octal SPI mode is enabled.");
 #endif // ESP32S3 with Octal SPI
 #elif CONFIG_IDF_TARGET_ESP32S2
@@ -126,7 +114,7 @@ public:
 #else
     static_assert(!(PIN_NUM >= 6 && PIN_NUM <= 11)
                 , "Pin is reserved for flash usage.");
-#if defined(BOARD_HAS_PSRAM)
+#if defined(BOARD_HAS_PSRAM) || defined(CONFIG_SPIRAM_SUPPORT)
     static_assert(PIN_NUM != 16 && PIN_NUM != 17
                 , "Pin is reserved for PSRAM usage.");
 #endif // BOARD_HAS_PSRAM
@@ -238,11 +226,7 @@ public:
         LOG(VERBOSE,
             "[Esp32Gpio] Configuring output pin %d, default value: %d",
             PIN_NUM, SAFE_VALUE);
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
-        gpio_pad_select_gpio(PIN_NUM);
-#else // IDF v4.4 (or later)
         esp_rom_gpio_pad_select_gpio(PIN_NUM);
-#endif // IDF v4.3 (or earlier)
         gpio_config_t cfg;
         memset(&cfg, 0, sizeof(gpio_config_t));
         cfg.pin_bit_mask = BIT64(PIN_NUM);
@@ -358,11 +342,7 @@ public:
     {
         LOG(VERBOSE, "[Esp32Gpio] Configuring input pin %d, PUEN: %d, PDEN: %d",
             PIN_NUM, PUEN, PDEN);
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
-        gpio_pad_select_gpio(PIN_NUM);
-#else // IDF v4.4 (or later)
         esp_rom_gpio_pad_select_gpio(PIN_NUM);
-#endif // IDF v4.3 (or earlier)
         gpio_config_t cfg;
         memset(&cfg, 0, sizeof(gpio_config_t));
         cfg.pin_bit_mask = BIT64(PIN_NUM);
@@ -383,6 +363,13 @@ public:
     static void hw_set_to_safe()
     {
         hw_init();
+    }
+
+    /// Get the current pin state.
+    /// @return true if the pin input is seeing HIGH.
+    static bool get()
+    {
+        return instance()->read();
     }
 
     /// @return static Gpio object instance that controls this output pin.
@@ -418,71 +405,6 @@ template <class Defs> struct GpioInputPD : public GpioInputPin<Defs, false, true
 /// Do not use this class directly. Use @ref GPIO_PIN instead.
 template <class Defs> struct GpioInputPUPD : public GpioInputPin<Defs, true, true>
 {
-};
-
-/// Defines an ADC input pin.
-///
-/// Do not use this class directly. Use @ref ADC_PIN instead.
-template <class Defs> struct Esp32ADCInput : public Defs
-{
-public:
-    using Defs::CHANNEL;
-    using Defs::PIN;
-    using Defs::ATTEN;
-    using Defs::BITS;
-#if CONFIG_IDF_TARGET_ESP32
-    static const adc_unit_t UNIT = PIN >= 30 ? ADC_UNIT_1 : ADC_UNIT_2;
-#elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
-    static const adc_unit_t UNIT = PIN <= 10 ? ADC_UNIT_1 : ADC_UNIT_2;
-#elif CONFIG_IDF_TARGET_ESP32C3
-    static const adc_unit_t UNIT = PIN <= 4 ? ADC_UNIT_1 : ADC_UNIT_2;
-#endif
-    static void hw_init()
-    {
-        LOG(VERBOSE,
-            "[Esp32ADCInput] Configuring ADC%d:%d input pin %d, "
-            "attenuation %d, bits %d",
-            UNIT + 1, CHANNEL, PIN, ATTEN, BITS);
-
-        if (UNIT == ADC_UNIT_1)
-        {
-            ESP_ERROR_CHECK(adc1_config_width(BITS));
-            ESP_ERROR_CHECK(
-                adc1_config_channel_atten((adc1_channel_t)CHANNEL, ATTEN));
-        }
-        else
-        {
-            ESP_ERROR_CHECK(
-                adc2_config_channel_atten((adc2_channel_t)CHANNEL, ATTEN));
-        }
-    }
-
-    /// NO-OP
-    static void hw_set_to_safe()
-    {
-        // NO-OP
-    }
-
-    /// NO-OP
-    static void set(bool value)
-    {
-        // NO-OP
-    }
-
-    static int sample()
-    {
-        int value = 0;
-        if (UNIT == ADC_UNIT_1)
-        {
-            value = adc1_get_raw((adc1_channel_t)CHANNEL);
-        }
-        else
-        {
-            ESP_ERROR_CHECK(
-                adc2_get_raw((adc2_channel_t)CHANNEL, BITS, &value));
-        }
-        return value;
-    }
 };
 
 /// Helper macro for defining GPIO pins on the ESP32. 
@@ -637,113 +559,13 @@ public:
     struct NAME##Defs                                                          \
     {                                                                          \
         static const gpio_num_t PIN_NUM = (gpio_num_t)NUM;                     \
+                                                                               \
     public:                                                                    \
-        static const gpio_num_t pin()                                          \
+        static gpio_num_t pin()                                                \
         {                                                                      \
             return PIN_NUM;                                                    \
         }                                                                      \
     };                                                                         \
     typedef BaseClass<NAME##Defs> NAME##_Pin
-
-/// Helper macro for an ADC GPIO input on the ESP32.
-///
-/// @param NAME is the basename of the declaration. For NAME==FOO the macro
-/// declared FOO_Pin as a structure on which the read-write functions will be
-/// available.
-/// @param ADC_CHANNEL is the ADC channel to configure.
-/// @param ATTENUATION is the voltage range for the ADC input.
-/// @param BIT_RANGE is the bit range to configure the ADC to use.
-///
-/// Supported ATTENUATION values and voltage ranges:
-/// ADC_ATTEN_DB_0   - 0dB attenuaton gives full-scale voltage 1.1V
-/// ADC_ATTEN_DB_2_5 - 2.5dB attenuation gives full-scale voltage 1.5V
-/// ADC_ATTEN_DB_6   - 6dB attenuation gives full-scale voltage 2.2V
-/// ADC_ATTEN_DB_11  - 11dB attenuation gives full-scale voltage 3.9V
-///
-/// Supported BIT_RANGE values and ADC sample values:
-/// ADC_WIDTH_BIT_9  - 0-511
-/// ADC_WIDTH_BIT_10 - 0-1023
-/// ADC_WIDTH_BIT_11 - 0-2047
-/// ADC_WIDTH_BIT_12 - 0-4065
-/// ADC_WIDTH_BIT_13 - 0-8191 -- Only valid on the ESP32-S2 and ESP32-S3.
-/// NOTE: When using ADC1_CHANNEL_X this bit range will be applied to all
-/// ADC1 channels, it is not recommended to mix values for ADC1 channels.
-///
-/// Supported ADC_CHANNEL values and pin assignments for the ESP32:
-/// ADC1_CHANNEL_0 : 36
-/// ADC1_CHANNEL_1 : 37 -- NOTE: Not recommended for use, see note below.
-/// ADC1_CHANNEL_2 : 38 -- NOTE: Not recommended for use, see note below.
-/// ADC1_CHANNEL_3 : 39
-/// ADC1_CHANNEL_4 : 32
-/// ADC1_CHANNEL_5 : 33
-/// ADC1_CHANNEL_6 : 34
-/// ADC1_CHANNEL_7 : 35
-/// ADC2_CHANNEL_0 : 4  -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_1 : 0  -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_2 : 2  -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_3 : 15 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_4 : 13 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_5 : 12 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_6 : 14 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_7 : 27 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_8 : 25 -- NOTE: Not usable when WiFi is active.
-/// ADC2_CHANNEL_9 : 29 -- NOTE: Not usable when WiFi is active.
-/// NOTE: ADC1_CHANNEL_1 and ADC1_CHANNEL_2 typically have a capacitor which
-/// connects to ADC1_CHANNEL_0 or ADC1_CHANNEL_3. The only known exception to
-/// this is for some ESP32-PICO-D4/ESP32-PICO-V3 based boards, confirm on the
-/// board schematic before using these pins.
-///
-/// Supported ADC_CHANNEL values and pin assignments for the ESP32-S2/ESP32-S3:
-/// ADC1_CHANNEL_0 : 1
-/// ADC1_CHANNEL_1 : 2
-/// ADC1_CHANNEL_2 : 3
-/// ADC1_CHANNEL_3 : 4
-/// ADC1_CHANNEL_4 : 5
-/// ADC1_CHANNEL_5 : 6
-/// ADC1_CHANNEL_6 : 7
-/// ADC1_CHANNEL_7 : 8
-/// ADC1_CHANNEL_8 : 9
-/// ADC1_CHANNEL_9 : 10
-/// ADC2_CHANNEL_0 : 11
-/// ADC2_CHANNEL_1 : 12
-/// ADC2_CHANNEL_2 : 13
-/// ADC2_CHANNEL_3 : 14
-/// ADC2_CHANNEL_4 : 15
-/// ADC2_CHANNEL_5 : 16
-/// ADC2_CHANNEL_6 : 17
-/// ADC2_CHANNEL_7 : 18
-/// ADC2_CHANNEL_8 : 19 -- NOTE: This pin is also used for USB PHY (D-).
-/// ADC2_CHANNEL_9 : 20 -- NOTE: This pin is also used for USB PHY (D+).
-///
-/// Supported ADC_CHANNEL values and pin assignments for the ESP32-C3:
-/// ADC1_CHANNEL_0 : 0
-/// ADC1_CHANNEL_1 : 1
-/// ADC1_CHANNEL_2 : 2
-/// ADC1_CHANNEL_3 : 3
-/// ADC1_CHANNEL_4 : 4
-/// ADC2_CHANNEL_0 : 5
-///
-/// Example:
-///   ADC_PIN(SENSE, ADC1_CHANNEL_0, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12);
-///   ...
-///   int level = SENSE_Pin::sample();
-#define ADC_PIN(NAME, ADC_CHANNEL, ATTENUATION, BIT_RANGE)                     \
-    struct NAME##Defs                                                          \
-    {                                                                          \
-        static const adc_channel_t CHANNEL = (adc_channel_t)ADC_CHANNEL;       \
-        static const gpio_num_t PIN = (gpio_num_t)ADC_CHANNEL##_GPIO_NUM;      \
-        static const adc_atten_t ATTEN = (adc_atten_t)ATTENUATION;             \
-        static const adc_bits_width_t BITS = (adc_bits_width_t)BIT_RANGE;      \
-    public:                                                                    \
-        static const gpio_num_t pin()                                          \
-        {                                                                      \
-            return PIN;                                                        \
-        }                                                                      \
-        static const adc_channel_t channel()                                   \
-        {                                                                      \
-            return CHANNEL;                                                    \
-        }                                                                      \
-    };                                                                         \
-    typedef Esp32ADCInput<NAME##Defs> NAME##_Pin
 
 #endif // _DRIVERS_ESP32GPIO_HXX_

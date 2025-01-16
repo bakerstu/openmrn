@@ -37,12 +37,6 @@
 #ifndef _FREERTOS_DRIVERS_ESP32_ESP32HARDWARETWAI_HXX_
 #define _FREERTOS_DRIVERS_ESP32_ESP32HARDWARETWAI_HXX_
 
-#include <esp_idf_version.h>
-
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
-#error Esp32HardwareTwai is only supported on ESP-IDF v4.3 and above.
-#endif // IDF v4.3+
-
 #include <hal/gpio_types.h>
 #include <soc/soc.h>
 #include <soc/soc_caps.h>
@@ -87,8 +81,8 @@ typedef struct
     /// by the low-level TWAI driver.
     uint32_t tx_failed;
 
-    /// Number of arbitration errors that have been observed on the TWAI bus.
-    uint32_t arb_error;
+    /// Number of arbitration losses that have been observed on the TWAI bus.
+    uint32_t arb_loss;
 
     /// Number of general bus errors that have been observed on the TWAI bus.
     uint32_t bus_error;

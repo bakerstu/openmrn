@@ -221,8 +221,8 @@ private:
 #if OPENMRN_HAVE_POSIX_FD
             case SimpleInfoDescriptor::FILE_CHAR_ARRAY:
                 open_and_seek_next_file();
-                // fall through
 #endif
+            // Fall through 
             case SimpleInfoDescriptor::CHAR_ARRAY:
                 byteOffset_ = 0;
                 currentLength_ = d.arg;

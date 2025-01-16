@@ -41,6 +41,7 @@
 #include "openlcb/RefreshLoop.hxx"
 #include "utils/ConfigUpdateListener.hxx"
 #include "utils/ConfigUpdateService.hxx"
+#include "utils/Debouncer.hxx"
 #include "utils/format_utils.hxx"
 
 namespace openlcb
@@ -141,7 +142,7 @@ public:
         debouncers_ = alloc.allocate(size_);
         for (unsigned i = 0; i < size_; ++i)
         {
-            alloc.construct(debouncers_ + i, 3);
+            alloc_traits::construct(alloc, debouncers_ + i, 3);
         }
     }
 
@@ -153,7 +154,7 @@ public:
         std::allocator<debouncer_type> alloc;
         for (unsigned i = 0; i < size_; ++i)
         {
-            alloc.destroy(debouncers_ + i);
+            alloc_traits::destroy(alloc, debouncers_ + i);
         }
         alloc.deallocate(debouncers_, size_);
     }
@@ -336,6 +337,8 @@ public:
     }
 
 private:
+    using alloc_traits = std::allocator_traits<std::allocator<debouncer_type>>;
+
     /// Removes registration of this event handler from the global event
     /// registry.
     void do_unregister()

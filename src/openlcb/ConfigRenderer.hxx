@@ -37,6 +37,7 @@
 
 #include <climits>
 #include <string>
+#include <stdint.h>
 
 #include "openlcb/SimpleNodeInfoDefs.hxx"
 #include "utils/OptionalArgs.hxx"
@@ -52,7 +53,8 @@ struct AtomConfigDefs
     DECLARE_OPTIONALARG(Description, description, const char *, 1, nullptr);
     DECLARE_OPTIONALARG(MapValues, mapvalues, const char *, 2, nullptr);
     DECLARE_OPTIONALARG(SkipInit, skip_init, int, 15, 0);
-    using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues, SkipInit>;
+    DECLARE_OPTIONALARG(Offset, offset, int, 10, 0);
+    using Base = OptionalArg<AtomConfigDefs, Name, Description, MapValues, SkipInit, Offset>;
 };
 
 /// Configuration implementation class for CDI Atom elements (strings, events
@@ -72,6 +74,10 @@ public:
     /// When set to true, the event initializers will be skipped in this event
     /// or group.
     DEFINE_OPTIONALARG(SkipInit, skip_init, int);
+    /// Represents the 'offset' attribute for groups and elements and the
+    /// 'origin' attribute for segments.
+    DEFINE_OPTIONALARG(Offset, offset, int);
+
 
     void render_cdi(std::string *r) const
     {
@@ -115,6 +121,11 @@ public:
         {
             *s += StringPrintf(" size=\'%u\'", size_);
         }
+        int ofs = AtomConfigOptions(args...).offset();
+        if (ofs != 0)
+        {
+            *s += StringPrintf(" offset=\'%d\'", ofs);
+        }
         *s += ">\n";
         AtomConfigOptions(args...).render_cdi(s);
         *s += StringPrintf("</%s>\n", tag_);
@@ -136,7 +147,7 @@ struct NumericConfigDefs : public AtomConfigDefs
     DECLARE_OPTIONALARG(Max, maxvalue, int, 7, INT_MAX);
     DECLARE_OPTIONALARG(Default, defaultvalue, int, 8, INT_MAX);
     using Base = OptionalArg<NumericConfigDefs, Name, Description, MapValues,
-                             Min, Max, Default, SkipInit>;
+                             Min, Max, Default, SkipInit, Offset>;
 };
 
 /// Definitions for the options for numeric CDI entries.
@@ -157,6 +168,7 @@ public:
     DEFINE_OPTIONALARG(Max, maxvalue, int);
     DEFINE_OPTIONALARG(Default, defaultvalue, int);
     DEFINE_OPTIONALARG(SkipInit, skip_init, int);
+    DEFINE_OPTIONALARG(Offset, offset, int);
 
     void render_cdi(std::string *r) const
     {
@@ -222,6 +234,11 @@ public:
         {
             *s += StringPrintf(" size=\'%u\'", size_);
         }
+        int ofs = NumericConfigOptions(args...).offset();
+        if (ofs != 0)
+        {
+            *s += StringPrintf(" offset=\'%d\'", ofs);
+        }
         *s += ">\n";
         NumericConfigOptions(args...).render_cdi(s);
         *s += StringPrintf("</%s>\n", tag_);
@@ -241,13 +258,12 @@ struct GroupConfigDefs : public AtomConfigDefs
 {
     // This is needed for inheriting declarations.
     using AtomConfigDefs::check_arguments_are_valid;
-    DECLARE_OPTIONALARG(Offset, offset, int, 10, INT_MAX);
     DECLARE_OPTIONALARG(Segment, segment, int, 11, -1);
     DECLARE_OPTIONALARG(RepName, repname, const char*, 12, nullptr);
     DECLARE_OPTIONALARG(FixedSize, fixed_size, unsigned, 13, 0);
     DECLARE_OPTIONALARG(Hidden, hidden, int, 14, 0);
     using Base = OptionalArg<GroupConfigDefs, Name, Description, Segment,
-        Offset, RepName, FixedSize, Hidden>;
+                             Offset, RepName, FixedSize, Hidden>;
 };
 
 /// Implementation class for the condifuration options of a CDI group element.
@@ -390,7 +406,11 @@ public:
         GroupConfigOptions opts(args..., Body::group_opts());
         if (opts.hidden())
         {
-            EmptyGroupConfigRenderer(Body::size() * replication_).render_cdi(s);
+            if (!opts.is_segment())
+            {
+                EmptyGroupConfigRenderer(Body::size() * replication_)
+                    .render_cdi(s);
+            }
             return;
         }
         const char *tag = nullptr;
@@ -414,6 +434,11 @@ public:
             if (replication_ != 1)
             {
                 *s += StringPrintf(" replication='%u'", replication_);
+            }
+            int ofs = opts.offset();
+            if (ofs != 0)
+            {
+                *s += StringPrintf(" offset=\'%d\'", ofs);
             }
         }
         else
@@ -456,7 +481,7 @@ struct IdentificationConfigDefs
     DECLARE_OPTIONALARG(HwVersion, hardware_version, const char *, 2, nullptr);
     DECLARE_OPTIONALARG(SwVersion, software_version, const char *, 3, nullptr);
     using Base = OptionalArg<IdentificationConfigDefs, Manufacturer, Model,
-        HwVersion, SwVersion>;
+                             HwVersion, SwVersion>;
 };
 
 /// Configuration implementation options for rendering CDI (identification)
@@ -473,6 +498,11 @@ public:
     DEFINE_OPTIONALARG(SwVersion, software_version, const char *);
 
     constexpr int skip_init() const
+    {
+        return 0;
+    }
+
+    constexpr int offset() const
     {
         return 0;
     }

@@ -78,7 +78,7 @@ endif
 endif
 
 ifeq ($(TARGET),bare.armv6m)
-SUBDIRS += stm32cubef091xc stm32cubeg0b1xe
+SUBDIRS += stm32cubef091xc stm32cubef071xb_2xb stm32cubeg0b1xe
 CXXSRCS += c++_operators.cxx
 endif
 
@@ -87,7 +87,8 @@ SUBDIRS += drivers_lpc2368
 endif
 
 ifeq ($(TARGET),freertos.armv6m)
-SUBDIRS += drivers_lpc11cxx stm32cubef071xb_2xb stm32cubef091xc stm32cubeg0b1xe
+SUBDIRS += drivers_lpc11cxx stm32cubef071xb_2xb stm32cubef091xc \
+        tinyusb_stm32f072xb stm32cubeg0b1xe
 # Avoids exception handling from operator new.
 CXXSRCS += c++_operators.cxx
 # Implementations for the __atomic_* "builtins" for GCC.

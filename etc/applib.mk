@@ -76,9 +76,9 @@ $(LIBNAME): $(OBJS)
 	$(AR) cr $(LIBNAME) $(OBJS)
 	mkdir -p ../lib
 ifeq ($(OS),Windows_NT)
-	cp -f $(LIBNAME) ../lib/
+	cp -f $(LIBNAME) ../lib/$(LIBNAME)
 else
-	(cd ../lib ; ln -sf ../$(BASENAME)/$(LIBNAME) . )	
+	(cd ../lib ; ln -sf ../$(BASENAME)/$(LIBNAME) ./$(LIBNAME) )	
 endif
 	touch ../lib/timestamp
 

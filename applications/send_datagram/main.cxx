@@ -241,6 +241,7 @@ int appl_main(int argc, char *argv[])
         }
         if (wait_for_response) {
             g_datagram_can.registry()->insert(&g_node, payload[0], &printer);
+            g_datagram_can.registry()->insert(&g_node, payload[0] ^ 1, &printer);
         }
         Buffer<openlcb::GenMessage> *b;
         mainBufferPool->alloc(&b);
@@ -256,11 +257,11 @@ int appl_main(int argc, char *argv[])
         fprintf(stderr, "Datagram send result: %04x\n", client->result());
         if (!(client->result() & DatagramClient::OK_REPLY_PENDING)) {
             LOG(INFO, "Target node indicates no response pending.");
-        } else if (wait_for_response) {
-            printer.wait();
         }
         if (wait_for_response) {
+            printer.wait();
             g_datagram_can.registry()->erase(&g_node, payload[0], &printer);
+            g_datagram_can.registry()->erase(&g_node, payload[0] ^ 1, &printer);
         }
     }
 

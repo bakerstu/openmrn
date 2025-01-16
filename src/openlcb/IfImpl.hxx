@@ -266,6 +266,62 @@ private:
     If::VNodeMap::Iterator it_;
 #endif
 };
+
+/// Message handler that is registered as a fallback handler in the interface's
+/// message dispatcher. This means that all incoming messages that were not
+/// matching the MTI / mask of any existing instantiated handler will end up
+/// here.
+///
+/// The standard requires that when an addressed message is not handled by a
+/// node (e.g. because it does not know about the MTI at all), then an Optional
+/// Interaction Rejected reply be sent to the originator. This flow generates
+/// that OIR reply.
+class UnhandledAddressedMessageHandler : public IncomingMessageStateFlow
+{
+public:
+    UnhandledAddressedMessageHandler(If *service)
+        : IncomingMessageStateFlow(service)
+    {
+        iface()->dispatcher()->register_fallback_handler(this);
+    }
+
+    /// Handler callback for incoming messages.
+    Action entry() override
+    {
+        if (!message()->data()->dstNode)
+        {
+            // Destination is not a local node.
+            return release_and_exit();
+        }
+        auto mti = message()->data()->mti;
+        if (mti == Defs::MTI_OPTIONAL_INTERACTION_REJECTED ||
+            mti == Defs::MTI_TERMINATE_DUE_TO_ERROR) {
+            // We don't generate an OIR for an incoming error report, as this
+            // generally would cause an infinite bouncing of error reports back
+            // and forth between two OpenMRN nodes.
+            return release_and_exit();
+        }
+        return allocate_and_call(
+            iface()->addressed_message_write_flow(), STATE(fill_oir));
+    }
+
+    /// Called after the message buffer allocation is complete. Fills in the
+    /// outgoing Optional Interaction Rejected message and sends it off to the
+    /// write flow.
+    Action fill_oir()
+    {
+        auto rb = get_buffer_deleter(
+            get_allocation_result(iface()->addressed_message_write_flow()));
+        GenMessage *inm = message()->data();
+        GenMessage *outm = rb->data();
+        outm->reset(Defs::MTI_OPTIONAL_INTERACTION_REJECTED,
+            inm->dstNode->node_id(), inm->src,
+            error_payload(Defs::ERROR_UNIMPLEMENTED, inm->mti));
+        iface()->addressed_message_write_flow()->send(rb.release());
+        return release_and_exit();
+    }
+};
+
 } // namespace openlcb
 
 #endif // _OPENLCB_IFIMPL_HXX_

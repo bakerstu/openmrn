@@ -31,12 +31,13 @@
  * @date 26 Apr 2014
  */
 
-#include <memory>
-
 #include "utils/GcTcpHub.hxx"
+
+#include <memory>
 
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"
+#include "utils/FdUtils.hxx"
 
 void GcTcpHub::on_new_connection(int fd)
 {
@@ -46,6 +47,8 @@ void GcTcpHub::on_new_connection(int fd)
         AtomicHolder h(this);
         numClients_++;
     }
+    // Applies kernel parameters like socket options.
+    FdUtils::optimize_socket_fd(fd);
     create_gc_port_for_can_hub(canHub_, fd, this, use_select);
 }
 

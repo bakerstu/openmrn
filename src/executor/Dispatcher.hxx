@@ -98,6 +98,15 @@ protected:
     /// is the handler to unregister from all instances.
     void unregister_handler_all(UntypedHandler *handler);
 
+    /// Sets one handler to receive all messages that no other handler has
+    /// matched. May be called only once in the lifetime of a dispatcher
+    /// object. @param handler is the handler pointer for the fallback handler.
+    void register_fallback_handler(UntypedHandler *handler)
+    {
+        HASSERT(!fallbackHandler_);
+        fallbackHandler_ = handler;
+    }
+
     /// Returns the current message's ID.
     virtual ID get_message_id() = 0;
 
@@ -180,7 +189,10 @@ private:
 
 protected:
     /// If non-NULL we still need to call this handler.
-    UntypedHandler *lastHandlerToCall_;
+    UntypedHandler *lastHandlerToCall_{nullptr};
+    /// Handler to give all messages that were not matched by any other handler
+    /// registration.
+    UntypedHandler *fallbackHandler_{nullptr};
 private:
     /// Protects handler add / remove against iteration.
     OSMutex lock_;
@@ -256,8 +268,17 @@ public:
     }
 
     /// Removes all instances of a handler from this dispatcher.
-    void unregister_handler_all(HandlerType *handler) {
+    void unregister_handler_all(HandlerType *handler)
+    {
         Base::unregister_handler_all(handler);
+    }
+
+    /// Sets one handler to receive all messages that no other handler has
+    /// matched. May be called only once in the lifetime of a dispatcher
+    /// object. @param handler is the handler pointer for the fallback handler.
+    void register_fallback_handler(HandlerType *handler)
+    {
+        Base::register_fallback_handler(handler);
     }
 
 protected:
@@ -458,6 +479,13 @@ StateFlowBase::Action DispatchFlowBase<NUM_PRIO>::iteration_done()
 {
     if (lastHandlerToCall_)
     {
+        send_transfer();
+    }
+    else if (fallbackHandler_)
+    {
+        // Nothing handled this message, and we have a fallbac handler
+        // registered. Gives the message to the fallback handler.
+        lastHandlerToCall_ = fallbackHandler_;
         send_transfer();
     }
     return release_and_exit();

@@ -45,9 +45,10 @@
 #include "utils/GridConnectHub.hxx"
 #include "utils/Hub.hxx"
 #include "utils/HubDevice.hxx"
+#include "utils/HubDeviceSelect.hxx"
 #include "utils/blinker.h"
 
-Executor<1> g_executor("g_executor", 0, 1024);
+Executor<1> g_executor(NO_THREAD{});
 Service g_service(&g_executor);
 CanHubFlow can_hub0(&g_service);
 
@@ -62,7 +63,8 @@ OVERRIDE_CONST(main_thread_stack_size, 2500);
 OVERRIDE_CONST(main_thread_stack_size, 900);
 #endif
 
-OVERRIDE_CONST(gridconnect_bridge_max_incoming_packets, 10);
+OVERRIDE_CONST(gridconnect_bridge_max_incoming_packets, 5);
+OVERRIDE_CONST(gridconnect_port_max_incoming_packets, 2);
 
 /** Entry point to application.
  * @param argc number of command line arguments
@@ -73,19 +75,17 @@ int appl_main(int argc, char* argv[])
 {
     int serial_fd = ::open("/dev/serUSB0", O_RDWR); // or /dev/ser0
     HASSERT(serial_fd >= 0);
-    create_gc_port_for_can_hub(&can_hub0, serial_fd);
+    ::fcntl(serial_fd, F_SETFL, O_NONBLOCK);
+
+    create_gc_port_for_can_hub(&can_hub0, serial_fd, nullptr, true);
 
     int can_fd = ::open("/dev/can0", O_RDWR);
     HASSERT(can_fd >= 0);
+    ::fcntl(can_fd, F_SETFL, O_NONBLOCK);
 
-    FdHubPort<CanHubFlow> can_hub_port(
+    HubDeviceSelect<CanHubFlow> can_hub_port(
         &can_hub0, can_fd, EmptyNotifiable::DefaultInstance());
 
-    while(1) {
-        sleep(1);
-        resetblink(1);
-        sleep(1);
-        resetblink(0);
-    }
+    g_executor.thread_body();
     return 0;
 }

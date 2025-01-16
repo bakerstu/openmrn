@@ -245,6 +245,7 @@ class FileMemorySpace : public MemorySpace
 {
 public:
     static const address_t AUTO_LEN = (address_t) - 1;
+    static const address_t UNLIMITED_LEN = (address_t) - 2;
 
     /** Creates a memory space based on an fd.
      *
@@ -670,8 +671,8 @@ private:
                     // Custom spaces cannot do free yet.
                     return respond_reject(Defs::ERROR_INVALID_ARGS);
                 }
-                // Fall through.
             }
+            // Fall through
             case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
             {
                 enter_bootloader();
@@ -733,7 +734,8 @@ private:
                     return exit();
                 }
                 LOG(VERBOSE, "memcfg handler reply: no client registered");
-            } // fall through to unsupported.
+                // fall through to unsupported
+            } // fall through
             default:
                 // Unknown/unsupported command, reject datagram.
                 return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);

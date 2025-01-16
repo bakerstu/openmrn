@@ -40,6 +40,7 @@
 #include "openlcb/TractionDefs.hxx"
 #include "openlcb/TractionThrottleInterface.hxx"
 #include "openlcb/TrainInterface.hxx"
+#include "utils/LinkedObject.hxx"
 
 namespace openlcb
 {
@@ -47,7 +48,8 @@ namespace openlcb
 /** Interface for a single throttle for running a train node.
  *
  */
-class TractionThrottle : public TractionThrottleBase
+class TractionThrottle : public TractionThrottleBase,
+                         public LinkedObject<TractionThrottle>
 {
 public:
     /// @param node is the openlcb node from which this throttle will be
@@ -79,7 +81,8 @@ public:
 
     void set_speed(SpeedType speed) override
     {
-        send_traction_message(TractionDefs::speed_set_payload(speed));
+        send_traction_message_with_loopback(
+            TractionDefs::speed_set_payload(speed));
         lastSetSpeed_ = speed;
         estopActive_ = false;
     }
@@ -93,7 +96,7 @@ public:
 
     void set_emergencystop() override
     {
-        send_traction_message(TractionDefs::estop_set_payload());
+        send_traction_message_with_loopback(TractionDefs::estop_set_payload());
         estopActive_ = true;
         lastSetSpeed_.set_mph(0);
     }
@@ -107,7 +110,8 @@ public:
 
     void set_fn(uint32_t address, uint16_t value) override
     {
-        send_traction_message(TractionDefs::fn_set_payload(address, value));
+        send_traction_message_with_loopback(
+            TractionDefs::fn_set_payload(address, value));
         lastKnownFn_[address] = value;
     }
 
@@ -283,17 +287,57 @@ private:
     {
         if (listenConsist_)
         {
-            handler_.wait_for_response(
-                NodeHandle(dst_), TractionDefs::RESP_CONSIST_CONFIG, &timer_);
-            send_traction_message(
-                TractionDefs::consist_del_payload(node_->node_id()));
-            return sleep_and_call(
-                &timer_, TIMEOUT_NSEC, STATE(release_listener_response));
+            // Checks if there is another throttle listening to the same
+            // train. If so, we will not unregister ourselves. The last local
+            // throttle to release will do the unregistering.
+            bool found_other_throttle = false;
+            {
+                AtomicHolder h(LinkedObject<TractionThrottle>::head_mu());
+                for (TractionThrottle *p =
+                         LinkedObject<TractionThrottle>::link_head();
+                     p && !found_other_throttle;
+                     p = p->LinkedObject<TractionThrottle>::link_next())
+                {
+                    if (p == this)
+                    {
+                        // self, ignore
+                        continue;
+                    }
+                    if (p->node_ != node_)
+                    {
+                        // Different virtual node, will get regular
+                        // feedback
+                        continue;
+                    }
+                    if (p->dst_ != dst_)
+                    {
+                        // Target node ID is different.
+                        continue;
+                    }
+                    if (!p->listenConsist_)
+                    {
+                        // other throttle was not set as listener to begin with
+                        continue;
+                    }
+                    found_other_throttle = true;
+                }
+            }
+            if (!found_other_throttle)
+            {
+                LOG(VERBOSE, "unregister listener");
+                handler_.wait_for_response(NodeHandle(dst_),
+                    TractionDefs::RESP_CONSIST_CONFIG, &timer_);
+                send_traction_message(
+                    TractionDefs::consist_del_payload(node_->node_id()));
+                return sleep_and_call(
+                    &timer_, TIMEOUT_NSEC, STATE(release_listener_response));
+            }
+            LOG(VERBOSE,
+                "skipping unregister consist because of another throttle.");
+            // we do have to remove the handler though.
+            clear_listening();
         }
-        else
-        {
-            return call_immediately(STATE(release_step_2));
-        }
+        return call_immediately(STATE(release_step_2));
     }
 
     Action release_listener_response()
@@ -429,6 +473,8 @@ private:
         return false;
     }
 
+    /// Invoked for TRACTION_CONTROL_REPLY messages coming in via the
+    /// dispatcher.
     void speed_reply(Buffer<GenMessage> *msg)
     {
         AutoReleaseBuffer<GenMessage> rb(msg);
@@ -594,6 +640,9 @@ private:
         return return_ok();
     }
 
+    /// Invoked for TRACTION_CONTROL_COMMAND messages coming in via the
+    /// dispatcher. These are generally update commands coming on when another
+    /// throttle is controlling the same loco or consist via another member.
     void listen_reply(Buffer<GenMessage> *msg)
     {
         AutoReleaseBuffer<GenMessage> rb(msg);
@@ -606,7 +655,15 @@ private:
         {
             return;
         }
-        const Payload &p = msg->data()->payload;
+        listen_reply_process(msg->data()->payload);
+    }
+
+    /// Business logic for interpreting a proxied traction command payload. The
+    /// command may be coming back as a consist forward message due to throttle
+    /// listener, or may be one that went out from another TractionThrottle
+    /// instance to the same train.
+    void listen_reply_process(const Payload &p)
+    {
         if (p.size() < 1)
             return;
         switch (p[0] & TractionDefs::REQ_MASK)
@@ -653,16 +710,109 @@ private:
         }
     }
 
-    /** Allocates (synchronously) an outgoing openlcb buffer with traction
-     * request MTI and the given payload and sends off the message to the bus
-     * for dst_. */
-    void send_traction_message(const Payload &payload)
+    /// Allocates (synchronously) an outgoing openlcb buffer with traction
+    /// request MTI and the given payload and sends off the message to the bus
+    /// for dst_.
+    ///
+    /// Performs loopback to other traction throttles that might be assigned to
+    /// the same train.
+    ///
+    /// @param payload is the data contents of the message
+    /// (e.g. TractionDefs::speed_set_payload(...).
+    void send_traction_message_with_loopback(Payload payload)
+    {
+        auto b = send_traction_message_helper(std::move(payload));
+        std::function<void()> f = std::bind(
+            &TractionThrottle::loopback_traction_message, this, b.release());
+        iface()->executor()->add(new CallbackExecutable(std::move(f)));
+    }
+
+    /// Performs loopback processing of an outgoing traction message. Run on
+    /// the iface()'s executor.
+    ///
+    /// @param b the message that was sent out. Will be unreffed.
+    void loopback_traction_message(Buffer<GenMessage>* b)
+    {
+        auto rb = get_buffer_deleter(b);
+        // Walks all TractionThrottle objects.
+        TractionThrottle *p = nullptr;
+        do
+        {
+            {
+                // finds next instance that's interesting
+                AtomicHolder h(LinkedObject<TractionThrottle>::head_mu());
+                while (true)
+                {
+                    if (!p)
+                    {
+                        p = LinkedObject<TractionThrottle>::link_head();
+                    }
+                    else
+                    {
+                        p = p->LinkedObject<TractionThrottle>::link_next();
+                    }
+                    if (!p)
+                    {
+                        break;
+                    }
+                    if (p == this)
+                    {
+                        // self, ignore
+                        continue;
+                    }
+                    if (p->node_ != node_)
+                    {
+                        // Differnet virtual node, will get regular
+                        // feedback
+                        continue;
+                    }
+                    if (p->dst_ != dst_)
+                    {
+                        // Target node ID is different.
+                        continue;
+                    }
+                    if (!p->listenConsist_)
+                    {
+                        // other throttle was not set as listener to begin with
+                        continue;
+                    }
+                    
+                    // Will call p, but we need to get out of the
+                    // atomic first.
+                    break;
+                }
+            } // atomic
+            if (p)
+            {
+                p->listen_reply_process(b->data()->payload);
+            }
+        } while (p != nullptr);
+    }
+
+    /// Allocates (synchronously) an outgoing openlcb buffer with traction
+    /// request MTI and the given payload and sends off the message to the bus
+    /// for dst_.
+    ///
+    /// @param payload is the data contents of the message
+    /// (e.g. TractionDefs::speed_set_payload(...).
+    void send_traction_message(Payload payload)
+    {
+        send_traction_message_helper(std::move(payload));
+    }
+    
+    /// Allocates (synchronously) an outgoing openlcb buffer with traction
+    /// request MTI and the given payload and sends off the message to the bus
+    /// for dst_.
+    ///
+    /// Returns a reference to the buffer.
+    BufferPtr<GenMessage> send_traction_message_helper(Payload payload)
     {
         HASSERT(dst_ != 0);
         auto *b = iface()->addressed_message_write_flow()->alloc();
         b->data()->reset(Defs::MTI_TRACTION_CONTROL_COMMAND, node_->node_id(),
-            NodeHandle(dst_), payload);
-        iface()->addressed_message_write_flow()->send(b);
+            NodeHandle(dst_), std::move(payload));
+        iface()->addressed_message_write_flow()->send(b->ref());
+        return get_buffer_deleter(b);
     }
 
     void set_listening()

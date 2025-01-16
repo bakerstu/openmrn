@@ -384,6 +384,41 @@ struct GpioInputNP : public GpioInputPin<Defs, GPIO_PIN_TYPE_STD>
 {
 };
 
+/// Common class for GPIO input/output pins.
+template <class Defs> struct GpioInputOutputPin : public GpioShared<Defs>
+{
+public:
+    using Defs::GPIO_PERIPH;
+    using Defs::GPIO_BASE;
+    using Defs::GPIO_PIN;
+    /// Initializes the hardware pin.
+    static void hw_init()
+    {
+        MAP_SysCtlPeripheralEnable(GPIO_PERIPH);
+        MAP_GPIOPinTypeGPIOInput(GPIO_BASE, GPIO_PIN);
+        MAP_GPIOPadConfigSet(GPIO_BASE, GPIO_PIN, GPIO_STRENGTH_2MA,
+             GPIO_PIN_TYPE_STD);
+    }
+    /// Sets the hardware pin to a safe state.
+    static void hw_set_to_safe()
+    {
+        hw_init();
+    }
+    /// Sets the direction of the I/O pin.
+    /// @param direction direction to set pin to
+    static void set_direction(Gpio::Direction direction)
+    {
+        MAP_GPIODirModeSet(GPIO_BASE, GPIO_PIN,
+            direction == Gpio::Direction::DINPUT ?
+            GPIO_DIR_MODE_IN : GPIO_DIR_MODE_OUT);
+    }
+    /// @return true if the pin is set to an output.
+    static bool is_output()
+    {
+        return (MAP_GPIODirModeGet(GPIO_BASE, GPIO_PIN) == GPIO_DIR_MODE_OUT);
+    }
+};
+
 /// GPIO Input pin in ADC configuration (analog).
 ///
 /// This pin cannot be read or written directly (will fail compilation).
