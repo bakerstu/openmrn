@@ -1,1 +1,1 @@
-../st-stm32f303x_28x_58x_98x-generic/target.ld
+../st-stm32g0b1xx/target.ld
