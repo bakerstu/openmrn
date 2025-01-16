@@ -54,6 +54,8 @@ public:
     MOCK_METHOD0(read_only, bool());
     MOCK_METHOD0(min_address, address_t());
     MOCK_METHOD0(max_address, address_t());
+    MOCK_METHOD0(get_read_timeout, DatagramDefs::Flag());
+    MOCK_METHOD0(get_write_timeout, DatagramDefs::Flag());
 
     MOCK_METHOD5(write, size_t(address_t destination, const uint8_t* data,
                                size_t len, errorcode_t* error, Notifiable*));
@@ -67,6 +69,10 @@ protected:
     MemoryConfigTest()
         : memoryOne_(&datagram_support_, nullptr, 10)
     {
+        ON_CALL(space, get_read_timeout())
+            .WillByDefault(Return(DatagramDefs::TIMEOUT_NONE));
+        ON_CALL(space, get_write_timeout())
+            .WillByDefault(Return(DatagramDefs::TIMEOUT_NONE));
         ON_CALL(space, write(_, _, _, _, _))
             .WillByDefault(DoAll(SetArgPointee<3>(0x2F00), Return(0)));
         ON_CALL(space, read(_, _, _, _, _))
@@ -162,6 +168,8 @@ TEST_F(MemoryConfigTest, MockMemoryConfigRead)
 {
     memoryOne_.registry()->insert(node_, 0x27, &space);
 
+    EXPECT_CALL(space, get_read_timeout())
+        .WillOnce(Return(DatagramDefs::TIMEOUT_NONE));
     EXPECT_CALL(space, read(0x100, _, 10, _, _))
         .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(10)));
 
@@ -197,6 +205,8 @@ TEST_F(MemoryConfigTest, MockSpecialSpaceRead)
 {
     memoryOne_.registry()->insert(node_, 0xFE, &space);
 
+    EXPECT_CALL(space, get_read_timeout())
+        .WillOnce(Return(DatagramDefs::TIMEOUT_NONE));
     EXPECT_CALL(space, read(0x100, _, 10, _, _))
         .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(10)));
 
@@ -213,6 +223,8 @@ TEST_F(MemoryConfigTest, MockMemoryConfigReadShort)
 {
     memoryOne_.registry()->insert(node_, 0x27, &space);
 
+    EXPECT_CALL(space, get_read_timeout())
+        .WillOnce(Return(DatagramDefs::TIMEOUT_NONE));
     // The read reaches EOF early.
     EXPECT_CALL(space, read(0x100, _, 10, _, _))
         .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(8)));
@@ -233,6 +245,8 @@ TEST_F(MemoryConfigTest, MockMemoryConfigReadEof)
 {
     memoryOne_.registry()->insert(node_, 0x27, &space);
 
+    EXPECT_CALL(space, get_read_timeout())
+        .WillOnce(Return(DatagramDefs::TIMEOUT_NONE));
     // The read reaches EOF early.
     EXPECT_CALL(space, read(0x100, _, 10, _, _)).WillOnce(DoAll(SetArgPointee<3>(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS), Return(0)));
 
@@ -252,6 +266,8 @@ TEST_F(MemoryConfigTest, MockMemoryConfigWrite)
     EXPECT_CALL(space, read_only())
         .WillOnce(Return(false));
 
+    EXPECT_CALL(space, get_write_timeout())
+        .WillOnce(Return(DatagramDefs::TIMEOUT_NONE));
     EXPECT_CALL(space, write(0x100, IsRawData("01234567"), 8, _, _))
         .WillOnce(Return(8));
 
