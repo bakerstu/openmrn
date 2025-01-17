@@ -110,12 +110,12 @@ public:
     virtual address_t max_address() = 0;
 
     /// Write data to the address space.
-    /// @param source memory space offset address to write to
+    /// @param destination memory space offset address to write to
     /// @param data data to write
     /// @param len length of write data in bytes
     /// @param error Error code that can be passed back. if != 0, the operation
     ///        has failed. If the operation needs to be continued, then set
-    ///        error to ERROR_EAGAIN, and later call the Notifiable to continue.
+    ///        error to ERROR_AGAIN, and later call the Notifiable to continue.
     /// @param again notify() when the caller should call the write again, with
     ///        the offset (source) adjusted with the previously returned bytes.
     /// @return the number of bytes successfully written (before hitting the end
@@ -134,7 +134,7 @@ public:
     /// @param len length of requested read data in bytes
     /// @param error Error code that can be passed back. if != 0, the operation
     ///        has failed. If the operation needs to be continued, then set
-    ///        error to ERROR_EAGAIN, and later call the Notifiable to continue.
+    ///        error to ERROR_AGAIN, and later call the Notifiable to continue.
     /// @param again notify() when the caller should call the read again, with
     ///        the offset (source) adjusted with the previously returned bytes.
     /// @return the number of bytes successfully read (before hitting the end of
