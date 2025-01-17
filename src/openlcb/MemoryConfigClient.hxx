@@ -391,8 +391,17 @@ private:
         if (responseCode_ & DatagramClient::OPERATION_PENDING)
         {
             isWaitingForTimer_ = 1;
+            // Retrieve the timeout flags
+            uint8_t timeout_flags =
+                (dgClient_->result() >> DatagramClient::RESPONSE_FLAGS_SHIFT) &
+                    DatagramClient::REPLY_TIMEOUT_MASK;
+            // Convert the timeout flags to seconds. Timeout flags == 0 means
+            // no timeout, which we interpret as the OpenLCB intrinsic default
+            // of 3 seconds.
+            long long timeout_nsec = timeout_flags == 0 ?
+                 SEC_TO_NSEC(3) : SEC_TO_NSEC(0x1 << timeout_flags);
             return sleep_and_call(
-                &timer_, SEC_TO_NSEC(3), STATE(read_response_timeout));
+                &timer_, timeout_nsec, STATE(read_response_timeout));
         }
         else
         {
@@ -529,8 +538,17 @@ private:
         if (responseCode_ & DatagramClient::OPERATION_PENDING)
         {
             isWaitingForTimer_ = 1;
+            // Retrieve the timeout flags
+            uint8_t timeout_flags =
+                (dgClient_->result() >> DatagramClient::RESPONSE_FLAGS_SHIFT) &
+                    DatagramClient::REPLY_TIMEOUT_MASK;
+            // Convert the timeout flags to seconds. Timeout flags == 0 means
+            // no timeout, which we interpret as the OpenLCB intrinsic default
+            // of 3 seconds.
+            long long timeout_nsec = timeout_flags == 0 ?
+                 SEC_TO_NSEC(3) : SEC_TO_NSEC(0x1 << timeout_flags);
             return sleep_and_call(
-                &timer_, SEC_TO_NSEC(3), STATE(write_response_timeout));
+                &timer_, timeout_nsec, STATE(write_response_timeout));
         }
         else
         {
