@@ -72,9 +72,9 @@
 #include "stm32g0xx_ll_rcc.h"
 #include "stm32g0xx_ll_i2c.h"
 
-// This timing is assuming 48 MHz main clock, the I2C module being clocked
+// This timing is assuming 64 MHz main clock, the I2C module being clocked
 // from the main clock, and gives 400 kHz clock (fast mode).
-#define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(5, 0x3, 0x3, 0x3, 0x9))
+#define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(7, 0x3, 0x3, 0x3, 0x9))
 
 #else
 #error Dont know what STM32 chip you have.
