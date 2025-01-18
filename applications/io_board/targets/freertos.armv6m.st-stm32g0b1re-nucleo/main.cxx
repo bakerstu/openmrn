@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2013, Balazs Racz
+ * Copyright (c) 2015, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  *
  * \file main.cxx
  *
- * Main file for the io board application on the STM32 Nucleo board.
+ * Main file for the io board application on the STM32 Nucleo G0B1 board.
  *
  * @author Balazs Racz
  * @date 5 Jun 2015
