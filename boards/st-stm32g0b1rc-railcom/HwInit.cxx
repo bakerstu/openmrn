@@ -44,6 +44,7 @@
 #include "Stm32Uart.hxx"
 #include "Stm32Can.hxx"
 #include "Stm32EEPROMEmulation.hxx"
+#include "Stm32SpiPixelStrip.hxx"
 #include "hardware.hxx"
 
 /** override stdin */
@@ -67,6 +68,11 @@ static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
 
 const size_t EEPROMEmulation::SECTOR_SIZE = 2048;
 
+uint8_t pix[9*3] = {3, 3, 3};
+
+Stm32SpiPixelStrip strip0(SPI1, 9, pix);
+
+
 extern "C" {
 
 /** Blink LED */
@@ -87,6 +93,8 @@ void resetblink(uint32_t pattern)
     blinker_pattern = pattern;
     rest_pattern = pattern ? 1 : 0;
     BLINKER_RAW_Pin::set(pattern ? true : false);
+    pix[0] = rest_pattern & 1 ? 0x20 : 3;
+    strip0.update_sync();
     /* make a timer event trigger immediately */
 }
 
@@ -105,9 +113,14 @@ void blinker_interrupt_handler(void)
         //
         TIM17->SR = ~TIM_IT_UPDATE;
 
+#if 0
         // Set output LED.
         BLINKER_RAW_Pin::set(rest_pattern & 1);
-
+#else
+        pix[0] = rest_pattern & 1 ? 0x20 : 3;
+        strip0.update_sync();
+#endif
+        
         // Shift and maybe reset pattern.
         rest_pattern >>= 1;
         if (!rest_pattern)
@@ -231,6 +244,8 @@ void hw_preinit(void)
     __HAL_RCC_FDCAN_CLK_ENABLE();
     __HAL_RCC_TIM17_CLK_ENABLE();
 
+    __HAL_RCC_SPI1_CLK_ENABLE();    
+
     /* setup pinmux */
     GPIO_InitTypeDef gpio_init;
     memset(&gpio_init, 0, sizeof(gpio_init));
@@ -255,6 +270,14 @@ void hw_preinit(void)
     gpio_init.Pin =         GPIO_PIN_9;
     HAL_GPIO_Init(GPIOB, &gpio_init);
 
+    /* SPI MOSI on PB5 */
+    gpio_init.Mode =        GPIO_MODE_AF_PP;
+    gpio_init.Pull =        GPIO_NOPULL;
+    gpio_init.Speed =       GPIO_SPEED_FREQ_HIGH;
+    gpio_init.Alternate =   GPIO_AF0_SPI1;
+    gpio_init.Pin =         GPIO_PIN_5;
+    HAL_GPIO_Init(GPIOB, &gpio_init);
+    
     GpioInit::hw_init();
 
     /* Initializes the blinker timer. */
@@ -281,7 +304,10 @@ void hw_preinit(void)
     NVIC_EnableIRQ(TIM17_FDCAN_IT1_IRQn);
 }
 
-void hw_init(void) {
+void hw_init(void)
+{
+    strip0.hw_init(SPI_BAUDRATEPRESCALER_16);
+    strip0.update_sync();
 }
 
 void uart2_lpuart2_interrupt_handler(void)
