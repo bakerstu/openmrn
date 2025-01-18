@@ -25,8 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * \file startup.c
- * This file sets up the runtime environment for ST STM32F0x1, STM32F0x2,
- * STM32F0x8 and STM32G0x1 MCUs.
+ * This file sets up the runtime environment for ST STM32G0x1 MCUs.
  *
  * @author Stuart W. Baker
  * @date 20 April 2015
@@ -39,18 +38,6 @@
 #include "FreeRTOSConfig.h"
 
 /* prototypes */
-extern unsigned long *__stack;
-extern void reset_handler(void);
-static void nmi_handler(void);
-static void hard_fault_handler(void);
-extern void SVC_Handler(void);
-extern void PendSV_Handler(void);
-extern void SysTick_Handler(void);
-
-extern void __libc_init_array(void);
-
-extern int main(int argc, char *argv[]);
-
 extern void watchdog_interrupt_handler(void);
 extern void pvd_vddio2_interrupt_handler(void);
 extern void rtc_interrupt_handler(void);
@@ -84,13 +71,13 @@ extern void uart3_4_5_6_lpuart1_interrupt_handler(void);
 extern void cec_interrupt_handler(void);
 extern void aes_rng_interrupt_handler(void);
 
-extern void ignore_fn(void);
-
 extern const unsigned long cpu_clock_hz;
 
 /** CPU clock speed. */
-const unsigned long cpu_clock_hz = 48000000;
-extern uint32_t SystemCoreClock; // = 48000000;
+const unsigned long cpu_clock_hz = 64000000;
+extern uint32_t SystemCoreClock;
+
+#include "../boards/armv6m/default_handlers.h"
 
 /** Exception table */
 __attribute__ ((section(".interrupt_vector")))
@@ -160,17 +147,6 @@ void (* const __interrupt_vector[])(void) =
     ignore_fn                        /**< forces the linker to add this fn */
 };
 
-extern unsigned long __data_section_table;
-extern unsigned long __data_section_table_end;
-extern unsigned long __bss_section_table;
-extern unsigned long __bss_section_table_end;
-
-extern unsigned long _etext;
-extern unsigned long _data;
-extern unsigned long _edata;
-extern unsigned long _bss;
-extern unsigned long _ebss;
-
 /** Get the system clock requency.
  * @return SystemCoreClock
 */
@@ -189,209 +165,8 @@ uint32_t HAL_GetTick(void)
     return 0;
 }
 
-/** This hardware initialization code will be called before C++ global objects
- * are initialized. */
-extern void hw_preinit(void);
-
-/** Sets the hardware outputs to a safe state. Called when the program crashes
- * handler. */
-/*void hw_set_to_safe(void) __attribute__ ((weak));
-void hw_set_to_safe(void)
-{
-}*/
-extern void hw_set_to_safe(void);
-
-
-/** Startup the C/C++ runtime environment.
- */
-void reset_handler(void)
-{
-    unsigned long *section_table_addr = &__data_section_table;
-
-    /* copy ram load sections from flash to ram */
-    while (section_table_addr < &__data_section_table_end)
-    {
-        unsigned long *src = (unsigned long *)*section_table_addr++;
-        unsigned long *dst = (unsigned long *)*section_table_addr++;
-        unsigned long  len = (unsigned long)  *section_table_addr++;
-
-        for ( ; len; len -= 4)
-        {
-            *dst++ = *src++;
-        }
-    }
-
-    /* zero initialize bss segment(s) */
-    while (section_table_addr < &__bss_section_table_end)
-    {
-        unsigned long *zero = (unsigned long *)*section_table_addr++;
-        unsigned long  len  = (unsigned long)  *section_table_addr++;
-        
-        for ( ; len; len -= 4)
-        {
-            *zero++ = 0;
-        }
-    }
-
-    hw_preinit();
-
-    /* call static constructors */
-    __libc_init_array();
-
-    /* execute main */
-    char *argv[] = {0};
-    main(0, argv);
-
-    for ( ; /* forever */ ;)
-    {
-        /* if we ever return from main, loop forever */
-    }
-}
-
 extern void resetblink(unsigned long pattern);
 //extern void diewith(unsigned pattern);
-
-volatile uint32_t r0;
-volatile uint32_t r1;
-volatile uint32_t r2;
-volatile uint32_t r3;
-volatile uint32_t r12;
-volatile uint32_t lr; /* Link register. */
-volatile uint32_t pc; /* Program counter. */
-volatile uint32_t psr;/* Program status register. */
-
-
-/* These are volatile to try and prevent the compiler/linker optimising them
- * away as the variables never actually get used. 
- */
-typedef struct hardfault_args
-{
-    volatile unsigned long stacked_r0 ;
-    volatile unsigned long stacked_r1 ;
-    volatile unsigned long stacked_r2 ;
-    volatile unsigned long stacked_r3 ;
-    volatile unsigned long stacked_r12 ;
-    volatile unsigned long stacked_lr ;
-    volatile unsigned long stacked_pc ;
-    volatile unsigned long stacked_psr ;
-    volatile unsigned long _CFSR ;
-    volatile unsigned long _HFSR ;
-    volatile unsigned long _DFSR ;
-    volatile unsigned long _AFSR ;
-    volatile unsigned long _BFAR ;
-    volatile unsigned long _MMAR ;
-} HardfaultArgs;
-
-volatile HardfaultArgs hf_args;
-
-
-/** Decode the stack state prior to an exception occuring.  This code is
- * inspired by FreeRTOS.
- * @param address address of the stack
- */
-__attribute__((__naked__, optimize("-O0"))) void hard_fault_handler_c( unsigned long *hardfault_args )
-{
-    hw_set_to_safe();
-
-    hf_args.stacked_r0 = ((unsigned long)hardfault_args[0]) ;
-    hf_args.stacked_r1 = ((unsigned long)hardfault_args[1]) ;
-    hf_args.stacked_r2 = ((unsigned long)hardfault_args[2]) ;
-    hf_args.stacked_r3 = ((unsigned long)hardfault_args[3]) ;
-    hf_args.stacked_r12 = ((unsigned long)hardfault_args[4]) ;
-    hf_args.stacked_lr = ((unsigned long)hardfault_args[5]) ;
-    hf_args.stacked_pc = ((unsigned long)hardfault_args[6]) ;
-    hf_args.stacked_psr = ((unsigned long)hardfault_args[7]) ;
-
-    // Configurable Fault Status Register
-    // Consists of MMSR, BFSR and UFSR
-    hf_args._CFSR = (*((volatile unsigned long *)(0xE000ED28))) ;   
-                                                                                    
-    // Hard Fault Status Register
-    hf_args._HFSR = (*((volatile unsigned long *)(0xE000ED2C))) ;
-
-    // Debug Fault Status Register
-    hf_args._DFSR = (*((volatile unsigned long *)(0xE000ED30))) ;
-
-    // Auxiliary Fault Status Register
-    hf_args._AFSR = (*((volatile unsigned long *)(0xE000ED3C))) ;
-
-    // Read the Fault Address Registers. These may not contain valid values.
-    // Check BFARVALID/MMARVALID to see if they are valid values
-    // MemManage Fault Address Register
-    hf_args._MMAR = (*((volatile unsigned long *)(0xE000ED34))) ;
-    // Bus Fault Address Register
-    hf_args._BFAR = (*((volatile unsigned long *)(0xE000ED38))) ;
-
-    __asm("BKPT #0\n") ; // Break into the debugger
-
-    /* When the following line is hit, the variables contain the register values. */
-    if (hf_args.stacked_r0 || hf_args.stacked_r1  || hf_args.stacked_r2 ||
-        hf_args.stacked_r3 || hf_args.stacked_r12 || hf_args.stacked_lr ||
-        hf_args.stacked_pc || hf_args.stacked_psr || hf_args._CFSR      ||
-        hf_args._HFSR      || hf_args._DFSR       || hf_args._AFSR      ||
-        hf_args._MMAR      || hf_args._BFAR)
-    {
-        resetblink(BLINK_DIE_HARDFAULT);
-        for( ;; );
-    }
-}
-
-/** The fault handler implementation.  This code is inspired by FreeRTOS.
- */
-static void hard_fault_handler(void)
-{
-    __asm volatile
-    (
-        "MOVS   R0, #4                  \n"
-        "MOV    R1, LR                  \n"
-        "TST    R0, R1                  \n"
-        "BEQ    _MSP                    \n"
-        "MRS    R0, PSP                 \n"
-        "B      hard_fault_handler_c    \n"
-        "_MSP:                          \n"
-        "MRS    R0, MSP                 \n"
-        "B      hard_fault_handler_c    \n"
-        "BX    LR\n"
-    );
-}
-
-static void nmi_handler(void)
-{
-    for ( ; /* forever */ ; )
-    {
-    }
-}
-#if 0
-static void mpu_fault_handler(void)
-{
-    for ( ; /* forever */ ; )
-    {
-    }
-}
-
-static void bus_fault_handler(void)
-{
-    for ( ; /* forever */ ; )
-    {
-    }
-}
-
-static void usage_fault_handler(void)
-{
-    for ( ; /* forever */ ; )
-    {
-    }
-}
-#endif
-
-/** This is the default handler for exceptions not defined by the application.
- */
-void default_interrupt_handler(void) __attribute__ ((weak));
-void default_interrupt_handler(void)
-{
-    while(1);
-    diewith(BLINK_DIE_UNEXPIRQ);
-}
 
 void watchdog_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));
 void pvd_vddio2_interrupt_handler(void) __attribute__ ((weak, alias ("default_interrupt_handler")));

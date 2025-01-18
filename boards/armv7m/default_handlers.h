@@ -88,7 +88,7 @@ void reset_handler(void)
     {
         unsigned long *src = (unsigned long *)*section_table_addr++;
         unsigned long *dst = (unsigned long *)*section_table_addr++;
-        unsigned long len = (unsigned long)*section_table_addr++;
+        long len = (long)*section_table_addr++;
 
         for (; len > 0; len -= 4)
         {
@@ -100,7 +100,7 @@ void reset_handler(void)
     while (section_table_addr < &__bss_section_table_end)
     {
         unsigned long *zero = (unsigned long *)*section_table_addr++;
-        unsigned long len = (unsigned long)*section_table_addr++;
+        long len = (unsigned long)*section_table_addr++;
 
         for (; len > 0; len -= 4)
         {
@@ -131,14 +131,27 @@ void hard_fault_handler_step_3(void);
 __attribute__((__naked__)) static void hard_fault_handler(void)
 {
 // set switch to 0 in order to alternatively recreate the previous stack frame
-// and hald the CPU
+// and halt the CPU
 #if 1
     __asm volatile
     (
-        " tst   lr, #4               \n"
-        " ite   eq                   \n"
-        " mrseq r0, msp              \n"
-        " mrsne r0, psp              \n"
+        " mov r0, #4                 \n"
+        " mov r1, lr                 \n"
+        " tst r0, r1                 \n"
+
+#if 1 // code rewritten for ARMv6m
+        " bne has_bit_two            \n"
+        " mrs r0, msp                \n"
+        " b test_done                \n"
+        "has_bit_two:                \n"
+        " mrs r0, psp                \n"
+        "test_done:                  \n"
+#else // original code        
+        " ite   eq                   \n"  // check if LR & (1<<2)
+        " mrseq r0, msp              \n"  // if 0 (bit clear), load msp
+        " mrsne r0, psp              \n"  // if nonzero (bit set), load psp
+#endif
+        
         " ldr r1, [r0, #24]          \n"
         " ldr r2, =hard_fault_handler_step_2 \n"
         " bx r2 \n");
@@ -146,9 +159,20 @@ __attribute__((__naked__)) static void hard_fault_handler(void)
     __asm volatile
     (
         " tst   lr, #4 \n"
-        " ite   eq     \n"
-        " mrseq r0, msp\n"
-        " mrsne r0, psp\n"
+
+#if 1 // code rewritten for ARMv6m
+        " bnz has_bit_two            \n"
+        " mrs r0, msp                \n"
+        " b test_done                \n"
+        "has_bit_two:                \n"
+        " mrs r0, psp                \n"
+        "test_done:                  \n"
+#else // original code        
+        " ite   eq                   \n"  // check if LR & (1<<2)
+        " mrseq r0, msp              \n"  // if 0 (bit clear), load msp
+        " mrsne r0, psp              \n"  // if nonzero (bit set), load psp
+#endif
+
         " mov   sp, r0 \n"
         " bkpt  #1     \n"
         " bx    lr     \n"
@@ -160,15 +184,15 @@ __attribute__((__naked__)) static void hard_fault_handler(void)
         // Simulates a BL instruction from the original PC. Moves the PC to LR,
         // overwrites PC with our return address.
         " ldr   r3, =g_saved_lr      \n"
-        " ldr   r1, [r0, 20]         \n"
+        " ldr   r1, [r0, #20]         \n"
         " str   r1, [r3]             \n"
         " ldr   r3, =g_saved_pc      \n"
-        " ldr   r1, [r0, 24]         \n"
+        " ldr   r1, [r0, #24]         \n"
         " str   r1, [r3]             \n"
-        " str   r1, [r0, 20]         \n"
+        " str   r1, [r0, #20]         \n"
         // Overwrites hard fault return address with our breakpoint.
         " ldr   r3, =hard_fault_stub \n"
-        " str   r3, [r0, 24]         \n"
+        " str   r3, [r0, #24]         \n"
         " bx    r2\n"
 //        " b     hardfault_return \n"
 //        " b     hard_fault_handler_c \n"
@@ -272,7 +296,8 @@ __attribute__((optimize("-O0"),unused)) void hard_fault_handler_step_2(unsigned 
 void wait_with_blinker(void) __attribute__ ((weak));
 void wait_with_blinker(void)
 {
-    // noop
+    // noop, but disables all interrupts. Normally there would be an implementation 
+    __asm volatile("cpsid i");
 }
 
 void hard_fault_handler_step_3(void) {
@@ -281,10 +306,10 @@ void hard_fault_handler_step_3(void) {
     if (debugreg & C_DEBUGEN) {
         __asm volatile(
             " ldr r0, =faultInfo \n"
-            " ldr r3, [r0, 12]   \n"
-            " ldr r2, [r0, 8]    \n"
-            " ldr r1, [r0, 4]    \n"
-            " ldr r0, [r0, 0]    \n"
+            " ldr r3, [r0, #12]   \n"
+            " ldr r2, [r0, #8]    \n"
+            " ldr r1, [r0, #4]    \n"
+            " ldr r0, [r0, #0]    \n"
             " BKPT #1            \n"
             ::: "r0", "r1", "r2", "r3");
     }
@@ -295,10 +320,10 @@ void hard_fault_handler_step_3(void) {
         __asm volatile (
             " cpsid i\n"
             " ldr r0, =faultInfo \n"
-            " ldr r3, [r0, 12]   \n"
-            " ldr r2, [r0, 8]    \n"
-            " ldr r1, [r0, 4]    \n"
-            " ldr r0, [r0, 0]    \n"
+            " ldr r3, [r0, #12]   \n"
+            " ldr r2, [r0, #8]    \n"
+            " ldr r1, [r0, #4]    \n"
+            " ldr r0, [r0, #0]    \n"
             " nop                \n"
             " nop                \n"
             " .global hard_fault_debug \n"
@@ -310,28 +335,28 @@ void hard_fault_handler_step_3(void) {
     }
 }
 
-static void nmi_handler(void)
+void nmi_handler(void)
 {
     for ( ; /* forever */ ; )
     {
     }
 }
 
-static void mpu_fault_handler(void)
+void mpu_fault_handler(void)
 {
     for ( ; /* forever */ ; )
     {
     }
 }
 
-static void bus_fault_handler(void)
+void bus_fault_handler(void)
 {
     for ( ; /* forever */ ; )
     {
     }
 }
 
-static void usage_fault_handler(void)
+void usage_fault_handler(void)
 {
     for ( ; /* forever */ ; )
     {
