@@ -94,20 +94,47 @@ void setblink(uint32_t pattern)
     resetblink(pattern);
 }
 
+void blinker_interrupt_handler(void)
+{
+    // Check for a timer 17 interrupt
+    if ((TIM17->SR & TIM_IT_UPDATE) != 0)
+    {
+        //
+        // Clear the timer interrupt.
+        //
+        TIM17->SR = ~TIM_IT_UPDATE;
+
+        // Set output LED.
+        BLINKER_RAW_Pin::set(rest_pattern & 1);
+
+        // Shift and maybe reset pattern.
+        rest_pattern >>= 1;
+        if (!rest_pattern)
+        {
+            rest_pattern = blinker_pattern;
+        }
+    }  // nope, not timer 17
+}
+
+void wait_with_blinker(void)
+{
+    while (1)
+    {
+        blinker_interrupt_handler();
+    }
+}
 
 void diewith(uint32_t pattern)
 {
     // vPortClearInterruptMask(0x20);
-    asm("cpsie i\n");
+    asm("cpsid i\n");
 
     resetblink(pattern);
-    while (1)
-        ;
+    wait_with_blinker();
 }
 
 /** CPU clock speed. */
-const unsigned long cm0p_cpu_clock_hz = 16000000UL;
-uint32_t SystemCoreClock;
+uint32_t SystemCoreClock = 0;
 const uint32_t AHBPrescTable[16] = {0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 1UL, 2UL, 3UL, 4UL, 6UL, 7UL, 8UL, 9UL};
 const uint32_t APBPrescTable[8]  = {0UL, 0UL, 0UL, 0UL, 1UL, 2UL, 3UL, 4UL};
 const uint32_t HSEValue = 8000000UL;
@@ -168,12 +195,19 @@ static void clock_setup(void)
     HASSERT(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) == HAL_OK);
 
     // This will fail if the clocks are somehow misconfigured.
-    HASSERT(SystemCoreClock == cm0p_cpu_clock_hz);
+    HASSERT(SystemCoreClock == cpu_clock_hz);
 
     PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_FDCAN;
     PeriphClkInit.FdcanClockSelection = RCC_FDCANCLKSOURCE_PCLK1;
 
     HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
+}
+
+/// We don't need the HAL tick configuration code to run. FreeRTOS will take
+/// care of that.
+HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
+{
+    return HAL_OK;
 }
 
 /** Initialize the processor hardware.
@@ -229,7 +263,7 @@ void hw_preinit(void)
     TIM_HandleTypeDef TimHandle;
     memset(&TimHandle, 0, sizeof(TimHandle));
     TimHandle.Instance =            TIM17;
-    TimHandle.Init.Period =         configCPU_CLOCK_HZ / 10000 / 8;
+    TimHandle.Init.Period =         configCPU_CLOCK_HZ / 10000 / 5;
     TimHandle.Init.Prescaler =      10000;
     TimHandle.Init.ClockDivision =  0;
     TimHandle.Init.CounterMode =    TIM_COUNTERMODE_UP;
@@ -249,6 +283,9 @@ void hw_preinit(void)
     NVIC_EnableIRQ(TIM17_FDCAN_IT1_IRQn);
 }
 
+void hw_init(void) {
+}
+
 void usart2_interrupt_handler(void)
 {
     Stm32Uart::interrupt_handler(1);
@@ -259,34 +296,6 @@ void uart3_4_5_6_lpuart1_interrupt_handler(void)
     Stm32Uart::interrupt_handler(2);
 }
 
-// timer17_interrupt_handler()
-//
-// The timer 17 handler is not called via the nvic table since
-// it is shared with the fdcan_it1 handler.
-//
-void timer17_interrupt_handler(void)
-{
-  // Check for a timer 17 interrupt
-    if ((TIM17->SR & TIM_IT_UPDATE) != 0)
-    {
-        //
-        // Clear the timer interrupt.
-        //
-        TIM17->SR = ~TIM_IT_UPDATE;
-
-        // Set output LED.
-        BLINKER_RAW_Pin::set(rest_pattern & 1);
-
-        // Shift and maybe reset pattern.
-        rest_pattern >>= 1;
-        if (!rest_pattern)
-        {
-            rest_pattern = blinker_pattern;
-        }
-    }  // nope, not timer 17
-
-}  // ~timer17_interrupt_handler
-
 // timer17_fdcan_it1_interrupt_handler()
 //
 // the timer17/fdcan_it1 isr is invoked from the interrupt vector table.  It 
@@ -296,7 +305,7 @@ void timer17_interrupt_handler(void)
 
 void timer17_fdcan_it1_interrupt_handler(void)
 {
-    timer17_interrupt_handler();
+    blinker_interrupt_handler();
     // todo: Fix fdcan Instances...
 //    Stm32Can::instances[0]->rx_interrupt_handler();
 //    Stm32Can::instances[0]->tx_interrupt_handler();
