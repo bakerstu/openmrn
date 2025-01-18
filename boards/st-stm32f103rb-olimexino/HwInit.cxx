@@ -254,4 +254,11 @@ void hw_preinit(void)
     LED1_Pin::hw_init();
     LED2_Pin::hw_init();
 }
+
+/// UART1 interrupt handler.
+void usart1_interrupt_handler(void)
+{
+    Stm32Uart::interrupt_handler(0);
+}
+
 }

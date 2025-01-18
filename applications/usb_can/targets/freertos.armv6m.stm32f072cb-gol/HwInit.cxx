@@ -278,4 +278,10 @@ void usb_interrupt_handler(void)
     dcd_int_handler(0);
 }
 
+/// UART2 interrupt handler.
+void uart2_interrupt_handler(void)
+{
+    Stm32Uart::interrupt_handler(1);
+}
+
 } // extern "C"
