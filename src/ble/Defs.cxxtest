@@ -1,0 +1,108 @@
+#include "utils/test_main.hxx"
+#include "ble/Defs.hxx"
+
+namespace ble
+{
+
+// A test UUID to be uses as a test advertisement service date type field.
+static uint8_t testUUID[] =
+{
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+    0x06, 0x07,
+    0x08, 0x09,
+    0x0A, 0x0B,
+    0x0C, 0x0D, 0x0E, 0x0F
+};
+
+// A test node ID to be used as a test advertisement service data type field.
+static uint8_t testNodeID[] = {0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
+
+// A test node ID to be used as a test advertisement service data type field.
+static uint8_t testNodeID2[] = {0x0C, 0x0B, 0x0A, 0x09, 0x08, 0x07};
+
+//
+// Find advertisement names short
+//
+TEST(DefsTest, AdvFindNameShort)
+{
+    std::string name;
+    std::basic_string<uint8_t> adv(
+    {
+        6, 0x08,
+        'N', 'a', 'm', 'e', '1',
+        6, 0x08,
+        'N', 'a', 'm', 'e', '2',        
+    });
+
+    name = Defs::adv_find_name_short(adv);
+    EXPECT_EQ("Name1", name);
+    EXPECT_EQ(5U, name.size());
+
+    name = Defs::adv_find_name_short(adv, 2);
+    EXPECT_EQ("Name2", name);
+    EXPECT_EQ(5U, name.size());
+}
+
+//
+// Find advertisement names long
+//
+TEST(DefsTest, AdvFindNameComplete)
+{
+    std::string name;
+    std::basic_string<uint8_t> adv(
+    {
+        6, 0x09,
+        'N', 'a', 'm', 'e', '1',
+        6, 0x09,
+        'N', 'a', 'm', 'e', '2',        
+    });
+
+    name = Defs::adv_find_name_complete(adv);
+    EXPECT_EQ("Name1", name);
+    EXPECT_EQ(5U, name.size());
+
+    name = Defs::adv_find_name_complete(adv, 2);
+    EXPECT_EQ("Name2", name);
+    EXPECT_EQ(5U, name.size());
+}
+
+//
+// Find advertisement service data 128
+//
+TEST(DefsTest, AdvFindServiceData128)
+{
+    std::basic_string<uint8_t> data;
+    std::basic_string<uint8_t> adv(
+    {
+        23, 0x21,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+        0x06, 0x07,
+        0x08, 0x09,
+        0x0A, 0x0B,
+        0x0C, 0x0D, 0x0E, 0x0F,
+        0x06, 0x05, 0x04, 0x03, 0x02, 0x01,
+        23, 0x21,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+        0x06, 0x07,
+        0x08, 0x09,
+        0x0A, 0x0B,
+        0x0C, 0x0D, 0x0E, 0x0F,
+        0x0C, 0x0B, 0x0A, 0x09, 0x08, 0x07,
+    });
+
+    data = Defs::adv_find_service_data_128(adv, testUUID);
+    EXPECT_EQ(0, data.compare(0, data.size(), testNodeID, sizeof(testNodeID)));
+    EXPECT_EQ(sizeof(testNodeID), data.size());
+
+    data = Defs::adv_find_service_data_128(adv, testUUID, 2);
+    EXPECT_EQ(
+        0, data.compare(0, data.size(), testNodeID2, sizeof(testNodeID2)));
+    EXPECT_EQ(sizeof(testNodeID2), data.size());
+
+    // Not found.
+    data = Defs::adv_find_service_data_128(adv, testUUID, 3);
+    EXPECT_EQ(0U, data.size());
+}
+
+
+} // namespace ble
