@@ -29,14 +29,7 @@
  *
  * @author Stuart W. Baker
  * @date 3 May 2015
- * added support for STM32G0B1 series by removing CAN logic
- * (G0 uses FDCAN, not CAN)
- * @author Brian Barnt
- * @date 20 Sep 2023
  */
-
-#ifndef STM32G0B1xx
-#pragma message "Compiling CAN Driver"
 
 #if (!defined(ARDUINO)) || defined(ARDUINO_ARCH_STM32)
 
@@ -96,6 +89,7 @@
 #define CAN_SECOND_IRQN CAN1_RX0_IRQn
 #define CAN_THIRD_IRQN CAN1_SCE_IRQn
 #define CAN_CLOCK (cm3_cpu_clock_hz >> 2) // 54 MHz, sysclk/4
+
 #else
 #error Dont know what STM32 chip you have.
 #endif
@@ -555,7 +549,7 @@ void can1_sce_interrupt_handler(void)
 
 } // extern "C"
 
-#endif // (!ARDUINO || STM32)
+#endif // !ARDUINO
 
 #if defined(ARDUINO_ARCH_STM32)
 
@@ -630,5 +624,3 @@ void CAN1_SCE_IRQHandler(void)
 } // extern "C"
 
 #endif // ARDUINO_ARCH_STM32
-#endif // !STM32G0B1
-#pragma message "CAN Driver Complete"

@@ -78,13 +78,18 @@ CSRCS += \
          stm32g0xx_ll_utils.c \
 
 
-CXXSRCS += Stm32Can.cxx \
-           Stm32Uart.cxx \
+CXXSRCS += Stm32Uart.cxx \
            Stm32SPI.cxx \
            Stm32I2C.cxx \
            Stm32EEPROMEmulation.cxx \
            Stm32RailcomSender.cxx
 
+# Note: Stm32Can.cxx was removed because the G0 has an MCAN peripheral, which
+# is not compatible with the CAN peripheral that Stm32Can was written for.
+
+
 # for some reason, -0s changes the behavior of HAL_FLASHEx_Erase() and
 # doesn't perform the erase.
 stm32g0xx_hal_flash_ex.o : CFLAGS += -O3
+
+           
