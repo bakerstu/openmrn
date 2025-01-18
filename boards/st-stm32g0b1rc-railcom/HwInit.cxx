@@ -144,14 +144,14 @@ const uint32_t HSEValue = 8000000UL;
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow : 
   *            System Clock source            = PLL (HSI)
-  *            SYSCLK(Hz)                     = 16000000
-  *            HCLK(Hz)                       = 16000000
+  *            SYSCLK(Hz)                     = 64000000
+  *            HCLK(Hz)                       = 64000000
   *            AHB Prescaler                  = 1
-  *            APB1 Prescaler                 = 2
-  *            APB2 Prescaler                 = 1
+  *            APB Prescaler                  = 1
   *            HSI Frequency(Hz)              = 16000000
   *            HSI PREDIV                     = 1
-  *            PLLMUL                         = 9
+  *            PLLMUL                         = 8
+  *            P, Q, R DIV                    = 2
   *            Flash Latency(WS)              = 2
   * @param  None
   * @retval None
@@ -286,7 +286,7 @@ void hw_preinit(void)
 void hw_init(void) {
 }
 
-void usart2_interrupt_handler(void)
+void uart2_lpuart2_interrupt_handler(void)
 {
     Stm32Uart::interrupt_handler(1);
 }
