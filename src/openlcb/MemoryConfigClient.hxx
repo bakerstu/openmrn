@@ -405,7 +405,8 @@ private:
 
     Action read_response_timeout()
     {
-        if (responseCode_ & DatagramClient::OPERATION_PENDING)
+        if (responseCode_ & DatagramClient::OPERATION_PENDING ||
+            !timer_.is_triggered())
         {
             return handle_read_error(Defs::OPENMRN_TIMEOUT);
         }
@@ -546,7 +547,8 @@ private:
 
     Action write_response_timeout()
     {
-        if (responseCode_ & DatagramClient::OPERATION_PENDING)
+        if (responseCode_ & DatagramClient::OPERATION_PENDING ||
+            !timer_.is_triggered())
         {
             return handle_write_error(Defs::OPENMRN_TIMEOUT);
         }
