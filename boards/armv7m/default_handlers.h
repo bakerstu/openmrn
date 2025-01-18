@@ -138,44 +138,31 @@ __attribute__((__naked__)) static void hard_fault_handler(void)
         " mov r0, #4                 \n"
         " mov r1, lr                 \n"
         " tst r0, r1                 \n"
-
-#if 1 // code rewritten for ARMv6m
         " bne has_bit_two            \n"
         " mrs r0, msp                \n"
         " b test_done                \n"
         "has_bit_two:                \n"
         " mrs r0, psp                \n"
         "test_done:                  \n"
-#else // original code        
-        " ite   eq                   \n"  // check if LR & (1<<2)
-        " mrseq r0, msp              \n"  // if 0 (bit clear), load msp
-        " mrsne r0, psp              \n"  // if nonzero (bit set), load psp
-#endif
-        
         " ldr r1, [r0, #24]          \n"
         " ldr r2, =hard_fault_handler_step_2 \n"
         " bx r2 \n");
 #else
     __asm volatile
     (
-        " tst   lr, #4 \n"
-
-#if 1 // code rewritten for ARMv6m
-        " bnz has_bit_two            \n"
+        " mov r0, #4                 \n"
+        " mov r1, lr                 \n"
+        " tst r0, r1                 \n"
+        " bne has_bit_two            \n"
         " mrs r0, msp                \n"
         " b test_done                \n"
         "has_bit_two:                \n"
         " mrs r0, psp                \n"
         "test_done:                  \n"
-#else // original code        
-        " ite   eq                   \n"  // check if LR & (1<<2)
-        " mrseq r0, msp              \n"  // if 0 (bit clear), load msp
-        " mrsne r0, psp              \n"  // if nonzero (bit set), load psp
-#endif
-
-        " mov   sp, r0 \n"
-        " bkpt  #1     \n"
-        " bx    lr     \n"
+        " ldr r1, [r0, #24]          \n"
+        " mov   sp, r0               \n"
+        " bkpt  #1                   \n"
+        " bx    lr                   \n"
     );
 #endif
 #if 0
