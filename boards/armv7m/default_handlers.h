@@ -296,7 +296,8 @@ __attribute__((optimize("-O0"),unused)) void hard_fault_handler_step_2(unsigned 
 void wait_with_blinker(void) __attribute__ ((weak));
 void wait_with_blinker(void)
 {
-    // noop, but disables all interrupts. Normally there would be an implementation 
+    // noop, but disables all interrupts. Normally there would be an
+    // implementation of this weak function in HwInit.cxx.
     __asm volatile("cpsid i");
 }
 
