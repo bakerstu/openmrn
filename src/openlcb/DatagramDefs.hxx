@@ -151,8 +151,7 @@ struct DatagramDefs
     static long long timeout_from_flags_nsec(uint8_t flags)
     {
         flags &= TIMEOUT_MASK;
-        return flags == 0 ?
-            SEC_TO_NSEC(TIMEOUT_NONE_NSEC) : SEC_TO_NSEC(0x1 << flags);
+        return flags == 0 ? TIMEOUT_NONE_NSEC : SEC_TO_NSEC(0x1 << flags);
     }
 
 private:
