@@ -24,9 +24,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * \file DatagramCan.cxx
+ * \file DatagramImpl.hxx
  *
- * CANbus datagram parser and renderer flows.
+ * Datagram parser and renderer flows.
  *
  * @author Balazs Racz
  * @date 27 Jan 2013
@@ -42,7 +42,7 @@ namespace openlcb
 /// ack/nack response message.
 extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
 
-/// Datagram client implementation for CANbus-based datagram protocol.
+/// Datagram client implementation for datagram protocol.
 ///
 /// This flow is responsible for the outgoing CAN datagram framing, and listens
 /// for incoming datagram response messages.
