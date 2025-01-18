@@ -48,6 +48,22 @@ gdb:
 	@if ps ax -o comm | grep -q openocd ; then echo openocd already running. quit existing first. ; exit 1 ; fi
 	$(GDB) $(EXECUTABLE)$(EXTENTION) -ex "target remote | $(OPENOCDPATH)/openocd -c \"gdb_port pipe\" --search $(OPENOCDSCRIPTSPATH) $(OPENOCDARGS)" -ex "continue" # -ex "monitor reset halt"
 
+# Prints the option bytes and other relevant memory areas. For debugging.
+option_view_xds:
+	openocd -f interface/xds110.cfg -c 'transport select swd' -c 'adapter_khz 950' -f target/stm32l4x.cfg -c 'reset_config separate' -c 'init' -c 'echo "option flash"' -c 'read_memory 0x1fff7800 32 8' -c 'echo "option reg"' -c 'read_memory 0x40022020 32 4' -c 'stm32l4x option_read 0 0x20'  -c 'stm32l4x option_read 0 0x2C' -c 'echo "flash begin"' -c 'read_memory 0x08000000 32 8' -c 'exit'
+
+# Recovers a "level-1" locked microcontroller to an empty state. Uses an
+# XDS110.
+factory_reset_xds:
+	openocd -f interface/xds110.cfg -c 'transport select swd' -c 'adapter_khz 950' -f target/stm32l4x.cfg -c 'reset_config separate' -c 'init' -c 'stm32l4x option_write 0 0x20 0xFFFFF8BB 0xFFFFFFFF' -c 'exit'
+	$(TIUNIFLASH4PATH)/simplelink/imagecreator/bin/xds110reset
+	@echo ========= power cycle the board ^ =========== ; echo press ENTER ; read
+	openocd -f interface/xds110.cfg -c 'transport select swd' -c 'adapter_khz 950' -f target/stm32l4x.cfg -c 'reset_config separate' -c 'init' -c 'stm32l4x option_write 0 0x20 0xFFFFF8AA 0xFFFFFFFF' -c 'stm32l4x option_write 0 0x2C 0xFF00FFFF 0xFFFFFFFF' -c 'exit'
+	@echo ========= power cycle the board ^^ =========== ; echo press ENTER ; read
+	$(TIUNIFLASH4PATH)/simplelink/imagecreator/bin/xds110reset
+	$(MAKE) option_view_xds
+
+
 else
 
 flash gdb:
