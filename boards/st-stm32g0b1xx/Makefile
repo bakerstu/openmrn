@@ -19,7 +19,7 @@ OBJEXTRA +=
 
 CFLAGS += -DSTM32G0B1xx
 CXXFLAGS += -DSTM32G0B1xx
-OPENOCDARGS = -f board/st_nucleo_g0.cfg
+include find-emulator.mk
 
 ifndef TARGET
 export TARGET := freertos.armv6m
