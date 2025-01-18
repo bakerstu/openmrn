@@ -137,20 +137,19 @@ void diewith(uint32_t pattern)
 uint32_t SystemCoreClock = 0;
 const uint32_t AHBPrescTable[16] = {0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 1UL, 2UL, 3UL, 4UL, 6UL, 7UL, 8UL, 9UL};
 const uint32_t APBPrescTable[8]  = {0UL, 0UL, 0UL, 0UL, 1UL, 2UL, 3UL, 4UL};
-const uint32_t HSEValue = 8000000UL;
+const uint32_t HSEValue = 16000000UL;
 //const uint32_t HSIValue = 16000000UL;
 
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow : 
-  *            System Clock source            = PLL (HSI)
+  *            System Clock source            = PLL (HSE)
   *            SYSCLK(Hz)                     = 64000000
   *            HCLK(Hz)                       = 64000000
   *            AHB Prescaler                  = 1
   *            APB Prescaler                  = 1
-  *            HSI Frequency(Hz)              = 16000000
-  *            HSI PREDIV                     = 1
-  *            PLLMUL                         = 8
+  *            HSE Frequency(Hz)              = 16000000
+  *            PLLMUL (N)                     = 8
   *            P, Q, R DIV                    = 2
   *            Flash Latency(WS)              = 2
   * @param  None
@@ -171,12 +170,10 @@ static void clock_setup(void)
     /** Initializes the RCC Oscillators according to the specified parameters
      * in the RCC_OscInitTypeDef structure.
      */
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-    RCC_OscInitStruct.HSIDiv = RCC_HSI_DIV1;
-    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;    
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
     RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
     RCC_OscInitStruct.PLL.PLLN = 8;
     RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
