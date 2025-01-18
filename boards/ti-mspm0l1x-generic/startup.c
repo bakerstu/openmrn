@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2015, Stuart W Baker
+ * Copyright (c) 2025, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,8 @@
  * \file startup.c
  * This file sets up the runtime environment for TI MSPM0L130x MCUs.
  *
- * @author Stuart W. Baker
- * @date 20 April 2015
+ * @author Balazs Racz
+ * @date 12 Jan 2025
  */
 
 #include <stdint.h>

@@ -28,6 +28,8 @@
  *
  * Implements an RGB pixel strip using the SPI peripheral of a TI MSPM0 device.
  *
+ * @author Balazs Racz
+ * @date 12 Jan 2025
  */
 
 #ifndef _FREERTOS_DRIVERS_TI_MSPM0PIXELSTRIP_HXX_
