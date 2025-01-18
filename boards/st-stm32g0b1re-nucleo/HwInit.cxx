@@ -140,6 +140,17 @@ const uint32_t APBPrescTable[8]  = {0UL, 0UL, 0UL, 0UL, 1UL, 2UL, 3UL, 4UL};
 const uint32_t HSEValue = 8000000UL;
 //const uint32_t HSIValue = 16000000UL;
 
+/// The internal clock has poor accuracy (1% calibrated but drifts with
+/// temperature). The nucleo-g0b1 board does not connect the 8 MHz clock source
+/// from the ST-Link to the MCU pin by default -- some soldering is needed. We
+/// don't want to require that. The only available high accuracy clock is the
+/// 32 kHz crystal. Unfortunately this can not be used to automatically trim
+/// the HSI clock. This means we don't have an easy way to get a high accuracy
+/// clock.
+///
+/// @todo build a trimming mechanism for the HSI16 clock using the LSE 32 kHz
+/// crystal.
+
 /**
   * @brief  System Clock Configuration
   *         The system Clock is configured as follow : 
