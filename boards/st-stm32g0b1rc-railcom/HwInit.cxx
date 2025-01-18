@@ -1,5 +1,6 @@
 /** \copyright
- * Copyright (c) 2018, Balazs Racz
+ * Copyright (c) 2025, Balazs Racz
+ * Copyright (c) 2023, Brian Barnt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,11 +27,11 @@
  *
  * \file HwInit.cxx
  *
- * This file represents the hardware initialization for the STM32G0B1RE Nucelo
- * board (bare).
+ * This file represents the hardware initialization for the G0B1-based RailCom
+ * board.
  *
  * @author Balazs Racz & Brian Barnt
- * @date August 26, 2023
+ * @date 18 Jan 2025
  */
 
 #include <new>

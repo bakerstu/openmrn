@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2015, Stuart W Baker
+ * Copyright (c) 2015-2025, Stuart W Baker, Balazs Racz, Brian Barnt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

@@ -1,5 +1,6 @@
 /** \copyright
- * Copyright (c) 2018, Balazs Racz
+ * Copyright (c) 2025, Balazs Racz
+ * Copyright (c) 2023, Brian Barnt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
