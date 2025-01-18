@@ -1,5 +1,6 @@
-/** @copyright
- * Copyright (c) 2019, Balazs Racz
+/** \copyright
+ * Copyright (c) 2025, Balazs Racz
+ * Copyright (c) 2023, Brian Barnt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,35 +25,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file stm32f_hal_conf.hxx
- * Master include file that brings in the appropriate HAL driver for the chip.
+ * \file hardware.hxx
  *
- * @author Balazs Racz
- * @date 13 July 2019
+ * Pinout definitions for the Nucleo-G0B1 board.
+ *
+ * @author Balazs Racz & Brian Barnt
+ * @date 18 Jan 2025
  */
 
-#ifndef _FREERTOS_DRIVERS_ST_STM32F_HAL_CONF_HXX_
-#define _FREERTOS_DRIVERS_ST_STM32F_HAL_CONF_HXX_
+#ifndef _HARDWARE_HXX_
+#define _HARDWARE_HXX_
 
-#if defined(STM32F030x6) || defined(STM32F031x6) || defined(STM32F038xx) ||    \
-    defined(STM32F030x8) || defined(STM32F030xC) || defined(STM32F042x6) ||    \
-    defined(STM32F048xx) || defined(STM32F051x8) || defined(STM32F058xx) ||    \
-    defined(STM32F070x6) || defined(STM32F070xB) || defined(STM32F071xB) ||    \
-    defined(STM32F072xB) || defined(STM32F078xx) || defined(STM32F091xC) ||    \
-    defined(STM32F098xx)
-#include "stm32f0xx_hal_conf.h"
-#elif defined(STM32F103xB)
-#include "stm32f1xx_hal_conf.h"
-#elif defined(STM32F303xC) || defined(STM32F303xE)
-#include "stm32f3xx_hal_conf.h"
-#elif defined(STM32F767xx)
-#include "stm32f7xx_hal_conf.h"
-#elif defined(STM32L432xx) || defined(STM32L431xx)
-#include "stm32l4xx_hal_conf.h"
-#elif defined(STM32G0B1xx)
-#include "stm32g0xx_hal_conf.h"
-#else
-#error "STM32F_HAL_CONF unsupported STM32 device"
-#endif
+#include "Stm32Gpio.hxx"
+#include "utils/GpioInitializer.hxx"
+#include "BlinkerGPIO.hxx"
 
-#endif // _FREERTOS_DRIVERS_ST_STM32F_HAL_CONF_HXX_
+GPIO_PIN(LED_GREEN_RAW, LedPin, A, 5);
+
+GPIO_PIN(SW_USER, GpioInputPU, C, 13);
+
+typedef GpioInitializer<LED_GREEN_RAW_Pin,SW_USER_Pin> GpioInit;
+
+typedef LED_GREEN_RAW_Pin BLINKER_RAW_Pin;
+typedef BLINKER_Pin LED_GREEN_Pin;
+
+#endif // _HARDWARE_HXX_

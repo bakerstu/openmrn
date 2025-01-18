@@ -132,7 +132,7 @@ Stm32Can::Stm32Can(const char *name)
 #endif
 }
 
-#ifndef ARDUINO
+#if !defined(ARDUINO) 
 //
 // Stm32Can::ioctl()
 //
@@ -485,6 +485,12 @@ extern "C" {
 /** This is the interrupt handler for the can device.
  */
 
+//----------------------------------------------------------------------------
+//
+// F072xB & F091xC
+//
+//----------------------------------------------------------------------------
+
 #if defined (STM32F072xB) || defined (STM32F091xC)
 void cec_can_interrupt_handler(void)
 {
@@ -493,6 +499,11 @@ void cec_can_interrupt_handler(void)
     Stm32Can::instances[0]->sce_interrupt_handler();
 }
 #elif defined (STM32F103xB) || defined (STM32F303xC) || defined (STM32F303xE)
+//----------------------------------------------------------------------------
+//
+// F103xB, F303xC and F303E
+//
+//----------------------------------------------------------------------------
 
 void usb_hp_can1_tx_interrupt_handler(void)
 {
@@ -510,6 +521,11 @@ void can1_sce_interrupt_handler(void)
 }
 
 #elif defined(STM32F767xx) || defined(STM32L431xx) || defined(STM32L432xx)
+//----------------------------------------------------------------------------
+//
+// F767xx L431xx & L432xx
+//
+//----------------------------------------------------------------------------
 
 void can1_tx_interrupt_handler(void)
 {
@@ -526,13 +542,14 @@ void can1_sce_interrupt_handler(void)
     Stm32Can::instances[0]->sce_interrupt_handler();
 }
 
+
 #else
 #error Dont know what STM32 chip you have.
 #endif
 
 } // extern "C"
 
-#endif // !ARDUINO || STM32
+#endif // !ARDUINO
 
 #if defined(ARDUINO_ARCH_STM32)
 
@@ -606,5 +623,4 @@ void CAN1_SCE_IRQHandler(void)
 }
 } // extern "C"
 
-#endif
-
+#endif // ARDUINO_ARCH_STM32
