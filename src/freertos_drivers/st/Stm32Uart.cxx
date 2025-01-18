@@ -304,7 +304,7 @@ inline void Stm32Uart::try_instance(unsigned i)
         return;
     }
     auto hw = instances[i]->uartHandle.Instance;
-    if (hw->CR3 & USART_CR3_EIE)
+    if ((hw->CR3 & USART_CR3_EIE) == 0)
     {
         // Driver is not enabled.
         return;
