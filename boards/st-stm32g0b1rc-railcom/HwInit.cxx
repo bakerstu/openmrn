@@ -217,7 +217,7 @@ void hw_preinit(void)
      /* Globally disables interrupts until the FreeRTOS scheduler is up. */
     asm("cpsid i\n");
 
-    /* these FLASH settings enable opertion at 72 MHz */
+    /* these FLASH settings enable opertion at 64 MHz */
     __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
     __HAL_FLASH_SET_LATENCY(FLASH_LATENCY_2);
 
