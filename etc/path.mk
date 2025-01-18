@@ -70,6 +70,17 @@ endif
 endif
 endif #TIVAWAREPATH
 
+################ TI MSPM0 SDK ##################
+ifndef TIMSPM0SDKPATH
+SEARCHPATH := \
+  /opt/ti/mspm0sdk/default
+
+TRYPATH:=$(call findfirst,source/ti/devices/msp/msp.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TIMSPM0SDKPATH:=$(TRYPATH)
+endif
+endif #TIMSPM0SDKPATH
+
 ################ STM32Cube_F0 ##################
 ifndef STM32CUBEF0PATH
 SEARCHPATH := \
