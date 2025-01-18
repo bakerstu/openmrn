@@ -1,0 +1,1 @@
+../st-stm32g0b1xx/target.ld
