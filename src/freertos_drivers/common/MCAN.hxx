@@ -1,5 +1,5 @@
 /** @copyright
- * Copyright (c) 2020 Stuart W Baker
+ * Copyright (c) 2020-2025 Stuart W Baker, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,13 +45,10 @@
 
 #include "can_ioctl.h"
 
-#define TCAN4550_DEBUG 0
+#define MCAN_DEBUG 0
 
-/// Specification of CAN driver for the TCAN4550.
-/// @todo The TCAN4550 uses the Bosch MCAN IP. If we end up supporting other
-///       devices that also use this IP, then some of the generic MCAN related
-///       content can be factored out into a common location.
-class TCAN4550Can : public Can, public OSThread, private Atomic
+/// Base class for a CAN driver of a controller using the Bosch MCAN IP.
+class MCANCan : public Can, public OSThread, private Atomic
 {
 public:
     /// Constructor.
@@ -59,9 +56,9 @@ public:
     /// @param interrupt_enable callback to enable the interrupt
     /// @param interrupt_disable callback to disable the interrupt
     /// @param test_pin test GPIO pin for instrumenting the code
-    TCAN4550Can(const char *name,
+    MCANCan(const char *name,
                 void (*interrupt_enable)(), void (*interrupt_disable)(),
-#if TCAN4550_DEBUG
+#if MCAN_DEBUG
                 const Gpio *test_pin = DummyPinWithRead::instance()
 #else
                 const Gpio *test_pin = nullptr
@@ -79,24 +76,24 @@ public:
         , state_(CAN_STATE_STOPPED)
         , txPending_(false)
         , rxPending_(false)
-#if TCAN4550_DEBUG
+#if MCAN_DEBUG
         , testPin_(test_pin)
 #endif
     {
-#if TCAN4550_DEBUG
+#if MCAN_DEBUG
         testPin_->set();
 #endif
     }
 
     /// Destructor.
-    ~TCAN4550Can()
+    ~MCANCan()
     {
     }
 
     /// Initialize CAN device settings.  Typically called in hw_postinit(), not
     /// hw_preinit() or hw_init().
-    /// @param spi_name spi interface that the TCAN4550Can is on
-    /// @param freq frequency in Hz that the TCAN4550 clock runs at
+    /// @param spi_name spi interface that the MCANCan is on
+    /// @param freq frequency in Hz that the MCAN clock runs at
     /// @param baud target baud rate in Hz
     /// @param rx_timeout_bits timeout in CAN bit periods for rx interrupt
     void init(const char *spi_name, uint32_t freq, uint32_t baud,
@@ -182,7 +179,7 @@ private:
     /// SPI Registers, word addressing, not byte addressing.
     /// This means that the values here need to be multiplied by 4 to get the
     /// actual address.
-    enum Registers : uint16_t
+    enum class Registers : uint16_t
     {
         DEVICE_IDL = 0x0, ///< device ID "TCAN"
         DEVICE_IDH,       ///< device ID "4550"
@@ -271,9 +268,9 @@ private:
     };
 
     // Check alignment
-    static_assert(TXEFS * 4 == 0x10F4, "register enum misaligned");
-    static_assert(ILE * 4 == 0x105C, "register enum misaligned");
-    static_assert(MCAN_INTERRUPT_STATUS * 4 == 0x0824,
+    static_assert(uint16_t(Registers::TXEFS) * 4 == 0x10F4, "register enum misaligned");
+    static_assert(uint16_t(Registers::ILE) * 4 == 0x105C, "register enum misaligned");
+    static_assert(uint16_t(Registers::MCAN_INTERRUPT_STATUS) * 4 == 0x0824,
                   "register enum misaligned");
 
     enum Command : uint8_t
@@ -737,7 +734,7 @@ private:
         };
     };
 
-    /// TCAN4550 interrupt registers (INTERRUPT_ENABLE/STATUS)
+    /// MCAN interrupt registers (INTERRUPT_ENABLE/STATUS)
     struct Interrupt
     {
         /// Constructor. Sets the reset value.
@@ -857,7 +854,7 @@ private:
     };
 
     /// Buad rate table entry
-    struct TCAN4550Baud
+    struct MCANBaud
     {
         uint32_t freq; ///< incoming frequency
         uint32_t baud; ///< target baud rate
@@ -1038,8 +1035,8 @@ private:
     {
         SPIMessage msg;
         msg.cmd = READ;
-        msg.addrH = address >> 6;
-        msg.addrL = (address << 2) & 0xFF;
+        msg.addrH = uint16_t(address) >> 6;
+        msg.addrL = (uint16_t(address) << 2) & 0xFF;
         msg.length = 1;
 
         spi_ioc_transfer xfer;
@@ -1049,7 +1046,7 @@ private:
 
         spi_->transfer_with_cs_assert_polled(&xfer);
 
-#if TCAN4550_DEBUG
+#if MCAN_DEBUG
         HASSERT((msg.status & 0x8) == 0);
 #endif
 
@@ -1064,8 +1061,8 @@ private:
     {
         SPIMessage msg;
         msg.cmd = WRITE;
-        msg.addrH = address >> 6;
-        msg.addrL = (address << 2) & 0xFF;
+        msg.addrH = uint16_t(address) >> 6;
+        msg.addrL = (uint16_t(address) << 2) & 0xFF;
         msg.length = 1;
         msg.data = data;
 
@@ -1075,7 +1072,7 @@ private:
         xfer.len = sizeof(msg);
 
         spi_->transfer_with_cs_assert_polled(&xfer);
-#if TCAN4550_DEBUG
+#if MCAN_DEBUG
         HASSERT((msg.status & 0x8) == 0);
 #endif
     }
@@ -1103,7 +1100,7 @@ private:
         xfer[1].len = count * sizeof(MRAMRXBuffer);
 
         spi_->transfer_with_cs_assert_polled(xfer, 2);
-#if TCAN4550_DEBUG
+#if MCAN_DEBUG
         HASSERT((msg.status & 0x8) == 0);
 #endif
     }
@@ -1130,14 +1127,14 @@ private:
         xfer.len = sizeof(buf->header) + (count * sizeof(MRAMTXBuffer));
 
         spi_->transfer_with_cs_assert_polled(&xfer);
-#if TCAN4550_DEBUG
+#if MCAN_DEBUG
         HASSERT((buf->header.status & 0x8) == 0);
 #endif
     }
 
     void (*interruptEnable_)(); ///< enable interrupt callback
     void (*interruptDisable_)(); ///< disable interrupt callback
-    int spiFd_; ///< SPI bus that accesses TCAN4550
+    int spiFd_; ///< SPI bus that accesses MCAN
     SPI *spi_; ///< pointer to a SPI object instance
     OSSem sem_; ///< semaphore for posting events
     MCANInterrupt mcanInterruptEnable_; ///< shadow for the interrupt enable
@@ -1151,10 +1148,10 @@ private:
     uint8_t rxPending_ : 1; ///< waiting on a RX active event
 
     /// Allocating this buffer here avoids having to put it on the
-    /// TCAN4550Can::write() caller's stack.
+    /// MCANCan::write() caller's stack.
     MRAMTXBufferMultiWrite txBufferMultiWrite_ __attribute__((aligned(8)));
-#if TCAN4550_DEBUG
-    volatile uint32_t regs_[64]; ///< debug copy of TCAN4550 registers
+#if MCAN_DEBUG
+    volatile uint32_t regs_[64]; ///< debug copy of MCAN registers
     volatile uint32_t status_;
     volatile uint32_t enable_;
     volatile uint32_t spiStatus_;
@@ -1162,12 +1159,12 @@ private:
 #endif
 
     /// baud rate settings table
-    static const TCAN4550Baud BAUD_TABLE[];
+    static const MCANBaud BAUD_TABLE[];
 
     /// Default Constructor.
-    TCAN4550Can();
+    MCANCan();
 
-    DISALLOW_COPY_AND_ASSIGN(TCAN4550Can);
+    DISALLOW_COPY_AND_ASSIGN(MCANCan);
 };
 
 #endif // _FREERTOS_DRIVERS_COMMON_MCAN_HXX_
