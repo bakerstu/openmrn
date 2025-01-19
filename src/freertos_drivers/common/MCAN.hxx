@@ -24,15 +24,16 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file TCAN4550Can.hxx
- * This file implements the CAN driver for the TCAN4550 CAN Controller.
+ * @file MCAN.hxx
+ * This file implements a generic CAN driver for the MCAN controller IP.
  *
  * @author Stuart W. Baker
- * @date 26 February 2020
+ * @author Balazs Racz
+ * @date 19 Jan 2025
  */
 
-#ifndef _FREERTOS_DRIVERS_COMMON_TCAN4550CAN_HXX_
-#define _FREERTOS_DRIVERS_COMMON_TCAN4550CAN_HXX_
+#ifndef _FREERTOS_DRIVERS_COMMON_MCAN_HXX_
+#define _FREERTOS_DRIVERS_COMMON_MCAN_HXX_
 
 #include "Can.hxx"
 #include "DummyGPIO.hxx"
@@ -1169,5 +1170,5 @@ private:
     DISALLOW_COPY_AND_ASSIGN(TCAN4550Can);
 };
 
-#endif // _FREERTOS_DRIVERS_COMMON_TCAN4550CAN_HXX_
+#endif // _FREERTOS_DRIVERS_COMMON_MCAN_HXX_
 

@@ -1,5 +1,5 @@
 /** @copyright
- * Copyright (c) 2020 Stuart W Baker
+ * Copyright (c) 2020-2025 Stuart W Baker, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,8 +24,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file TCAN4550Can.cxx
- * This file implements the CAN driver for the TCAN4550 CAN Controller.
+ * @file MCANCan.cxx
+ * This file implements the CAN driver for the MCAN CAN Controller.
  *
  * @author Stuart W. Baker
  * @date 26 February 2020
@@ -35,7 +35,7 @@
 #define _DEFAULT_SOURCE
 #endif
 
-#include "TCAN4550Can.hxx"
+#include "MCAN.hxx"
 
 #include <fcntl.h>
 #include <unistd.h>
