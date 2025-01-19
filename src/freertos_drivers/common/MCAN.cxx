@@ -83,13 +83,7 @@ const typename MCANCan<Defs, Registers>::MCANBaud MCANCan<Defs, Registers>::BAUD
     {40000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (20 - 1)}},
 };
 
-
-//
-// init()
-//
-template<class Defs, typename Registers>
-void MCANCan<Defs, Registers>::init(const char *spi_name, uint32_t freq, uint32_t baud,
-                       uint16_t rx_timeout_bits)
+void TCAN4550Defs::init_spi(const char *spi_name, uint32_t freq)
 {
     spiFd_ = ::open(spi_name, O_RDWR);
     HASSERT(spiFd_ >= 0);
@@ -108,7 +102,15 @@ void MCANCan<Defs, Registers>::init(const char *spi_name, uint32_t freq, uint32_
     ::ioctl(spiFd_, SPI_IOC_WR_MODE, &spi_mode);
     ::ioctl(spiFd_, SPI_IOC_WR_BITS_PER_WORD, &spi_bpw);
     ::ioctl(spiFd_, SPI_IOC_WR_MAX_SPEED_HZ, &spi_max_speed_hz);
+}
 
+//
+// init()
+//
+template<class Defs, typename Registers>
+void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
+                       uint16_t rx_timeout_bits)
+{
     // lock SPI bus access
     OSMutexLock locker(&lock_);
 
@@ -148,7 +150,7 @@ void MCANCan<Defs, Registers>::init(const char *spi_name, uint32_t freq, uint32_
     register_write(Registers::INTERRUPT_ENABLE, 0);
 
     // clear MRAM, a bit brute force, but gets the job done
-    for (uint16_t offset = 0x0000; offset < MRAM_SIZE_WORDS; ++offset)
+    for (uint16_t offset = 0x0000; offset < Defs::MRAM_SIZE_WORDS; ++offset)
     {
         register_write((Registers)(int16_t(Registers::MRAM) + offset), 0);
     }
@@ -501,7 +503,7 @@ ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t coun
 
                 uint32_t txbar = 0;
                 uint32_t put_index = txfqs.tfqpi;
-                MRAMTXBuffer *tx_buffers = txBufferMultiWrite_.txBuffers;
+                MRAMTXBuffer *tx_buffers = Defs::txBufferMultiWrite_.txBuffers;
                 // shuffle data for structure translation
                 for (size_t i = 0; i < frames_written; ++i, ++put_index)
                 {
@@ -530,7 +532,7 @@ ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t coun
                 // write to MRAM
                 txbuf_write(
                     Defs::TX_BUFFERS_MRAM_ADDR + (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
-                    &txBufferMultiWrite_, frames_written);
+                    &Defs::txBufferMultiWrite_, frames_written);
 
                 // add transmission requests
                 register_write(Registers::TXBAR, txbar);
