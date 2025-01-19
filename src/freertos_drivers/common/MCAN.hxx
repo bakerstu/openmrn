@@ -212,6 +212,12 @@ struct TCAN4550Defs
 {
     typedef TCAN4550Registers Registers;
 
+    // Check alignment
+    static_assert(uint16_t(Registers::TXEFS) * 4 == 0x10F4, "register enum misaligned");
+    static_assert(uint16_t(Registers::ILE) * 4 == 0x105C, "register enum misaligned");
+    static_assert(uint16_t(Registers::MCAN_INTERRUPT_STATUS) * 4 == 0x0824,
+                  "register enum misaligned");
+    
     typedef MCANCommonDefs::MRAMRXBuffer MRAMRXBuffer;
     typedef MCANCommonDefs::MRAMTXBuffer MRAMTXBuffer;
     typedef MCANCommonDefs::MRAMTXEventFIFOElement MRAMTXEventFIFOElement;
@@ -511,7 +517,7 @@ public:
     void interrupt_handler()
     {
         int woken = false;
-        interruptDisable_();
+        interruptDisable_(interruptArg_);
         sem_.post_from_isr(&woken);
         os_isr_exit_yield_test(woken);
     }
@@ -520,12 +526,6 @@ private:
     typedef typename Defs::MRAMRXBuffer MRAMRXBuffer;
     typedef typename Defs::MRAMTXBuffer MRAMTXBuffer;
     
-    // Check alignment
-    static_assert(uint16_t(Registers::TXEFS) * 4 == 0x10F4, "register enum misaligned");
-    static_assert(uint16_t(Registers::ILE) * 4 == 0x105C, "register enum misaligned");
-    static_assert(uint16_t(Registers::MCAN_INTERRUPT_STATUS) * 4 == 0x0824,
-                  "register enum misaligned");
-
     /// Mode register definition
     struct Mode
     {
