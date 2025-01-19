@@ -96,6 +96,8 @@ public:
     {
         LL_SPI_Enable(spi_);
         clear_iteration();
+        /// @todo use DMA instead of a critical section here.
+        portENTER_CRITICAL();
         while (!eof())
         {
             uint16_t next_word = 0;
@@ -124,6 +126,7 @@ public:
         }
         // The last bit output is a zero, and leaving the line there is
         // reasonable, because it matches the latch level.
+        portEXIT_CRITICAL();
     }
 
 private:
