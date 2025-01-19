@@ -42,7 +42,8 @@
 
 #include <atomic>
 
-const MCANCan::MCANBaud MCANCan::BAUD_TABLE[] =
+template<class Defs, typename Registers>
+const typename MCANCan<Defs, Registers>::MCANBaud MCANCan<Defs, Registers>::BAUD_TABLE[] =
 {
     /* 20 MHz clock source
      * TQ = BRP / freq = 10 / 20 MHz = 500 nsec
@@ -86,7 +87,8 @@ const MCANCan::MCANBaud MCANCan::BAUD_TABLE[] =
 //
 // init()
 //
-void MCANCan::init(const char *spi_name, uint32_t freq, uint32_t baud,
+template<class Defs, typename Registers>
+void MCANCan<Defs, Registers>::init(const char *spi_name, uint32_t freq, uint32_t baud,
                        uint16_t rx_timeout_bits)
 {
     spiFd_ = ::open(spi_name, O_RDWR);
@@ -154,16 +156,16 @@ void MCANCan::init(const char *spi_name, uint32_t freq, uint32_t baud,
     {
         // setup RX FIFO 0
         Rxfxc rxf0c;
-        rxf0c.fsa = RX_FIFO_0_MRAM_ADDR; // FIFO start address
-        rxf0c.fs = RX_FIFO_SIZE;         // FIFO size
+        rxf0c.fsa = Defs::RX_FIFO_0_MRAM_ADDR; // FIFO start address
+        rxf0c.fs = Defs::RX_FIFO_SIZE;         // FIFO size
         register_write(Registers::RXF0C, rxf0c.data);
     }
     {
         // setup TX configuration
         Txbc txbc;
-        txbc.tbsa = TX_BUFFERS_MRAM_ADDR;      // buffers start address
-        txbc.ndtb = TX_DEDICATED_BUFFER_COUNT; // dedicated transmit buffers
-        txbc.tfqs = TX_FIFO_SIZE;              // FIFO/queue size
+        txbc.tbsa = Defs::TX_BUFFERS_MRAM_ADDR;      // buffers start address
+        txbc.ndtb = Defs::TX_DEDICATED_BUFFER_COUNT; // dedicated transmit buffers
+        txbc.tfqs = Defs::TX_FIFO_SIZE;              // FIFO/queue size
         register_write(Registers::TXBC, txbc.data);
     }
     {
@@ -175,9 +177,9 @@ void MCANCan::init(const char *spi_name, uint32_t freq, uint32_t baud,
     {
         // setup TX event FIFO
         Txefc txefc;
-        txefc.efsa = TX_EVENT_FIFO_MRAM_ADDR; // event FIFO start address
-        txefc.efs = TX_EVENT_FIFO_SIZE;       // event FIFO size
-        txefc.efwm = TX_EVENT_FIFO_SIZE / 2;  // event FIFO watermark
+        txefc.efsa = Defs::TX_EVENT_FIFO_MRAM_ADDR; // event FIFO start address
+        txefc.efs = Defs::TX_EVENT_FIFO_SIZE;       // event FIFO size
+        txefc.efwm = Defs::TX_EVENT_FIFO_SIZE / 2;  // event FIFO watermark
         register_write(Registers::TXEFC, txefc.data);
     }
     {
@@ -222,7 +224,8 @@ void MCANCan::init(const char *spi_name, uint32_t freq, uint32_t baud,
 //
 // enable()
 //
-void MCANCan::enable()
+template<class Defs, typename Registers>
+void MCANCan<Defs, Registers>::enable()
 {
     // There is a mutex lock of lock_ above us, so the following sequence is
     // thread safe.
@@ -279,7 +282,8 @@ void MCANCan::enable()
 //
 // disable()
 //
-void MCANCan::disable()
+template<class Defs, typename Registers>
+void MCANCan<Defs, Registers>::disable()
 {
     // There is a mutex lock of lock_ above us, so the following sequence is
     // thread safe.
@@ -310,13 +314,14 @@ void MCANCan::disable()
 //
 // MCANCan::flush_buffers()
 //
-void MCANCan::flush_buffers()
+template<class Defs, typename Registers>
+void MCANCan<Defs, Registers>::flush_buffers()
 {
     // lock SPI bus access
     OSMutexLock locker(&lock_);
 
     // cancel TX FIFO buffers
-    register_write(Registers::TXBCR, TX_FIFO_BUFFERS_MASK);
+    register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
 
     // get the rx status (FIFO fill level)
     Rxfxs rxf0s;
@@ -331,7 +336,7 @@ void MCANCan::flush_buffers()
         register_write(Registers::RXF0A, rxf0a.data);
 
         // increment index and count
-        if (++rxf0s.fgi >= RX_FIFO_SIZE)
+        if (++rxf0s.fgi >= Defs::RX_FIFO_SIZE)
         {
             rxf0s.fgi = 0;
         }
@@ -342,7 +347,8 @@ void MCANCan::flush_buffers()
 //
 // MCANCan::read()
 //
-ssize_t MCANCan::read(File *file, void *buf, size_t count)
+template<class Defs, typename Registers>
+ssize_t MCANCan<Defs, Registers>::read(File *file, void *buf, size_t count)
 {
     HASSERT((count % sizeof(struct can_frame)) == 0);
 
@@ -366,14 +372,14 @@ ssize_t MCANCan::read(File *file, void *buf, size_t count)
                 static_assert(sizeof(struct can_frame) == sizeof(MRAMRXBuffer), "RX buffer size does not match assumptions.");
 
                 // clip to the continous buffer memory available
-                frames_read = std::min(RX_FIFO_SIZE - rxf0s.fgi, rxf0s.ffl);
+                frames_read = std::min(Defs::RX_FIFO_SIZE - rxf0s.fgi, rxf0s.ffl);
 
                 // clip to the number of asked for frames
                 frames_read = std::min(frames_read, count);
 
                 // read from MRAM
                 rxbuf_read(
-                    RX_FIFO_0_MRAM_ADDR + (rxf0s.fgi * sizeof(MRAMRXBuffer)),
+                    Defs::RX_FIFO_0_MRAM_ADDR + (rxf0s.fgi * sizeof(MRAMRXBuffer)),
                     mram_rx_buffer, frames_read);
 
                 // acknowledge the last FIFO index read
@@ -446,7 +452,8 @@ ssize_t MCANCan::read(File *file, void *buf, size_t count)
 //
 // MCANCan::write()
 //
-ssize_t MCANCan::write(File *file, const void *buf, size_t count)
+template<class Defs, typename Registers>
+ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t count)
 {
     HASSERT((count % sizeof(struct can_frame)) == 0);
 
@@ -466,7 +473,7 @@ ssize_t MCANCan::write(File *file, const void *buf, size_t count)
             if (state_ != CAN_STATE_ACTIVE)
             {
                 // cancel pending TX FIFO buffers to make room
-                register_write(Registers::TXBCR, TX_FIFO_BUFFERS_MASK);
+                register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
 
                 /// @todo It is possible that the tramsmit FIFO writes which
                 ///       follow will be stuck in the FIFO until we pass
@@ -486,7 +493,7 @@ ssize_t MCANCan::write(File *file, const void *buf, size_t count)
             {
                 // clip to the continous buffer memory available
                 frames_written = std::min(
-                    TX_FIFO_SIZE - (txfqs.tfqpi - TX_DEDICATED_BUFFER_COUNT),
+                    Defs::TX_FIFO_SIZE - (txfqs.tfqpi - Defs::TX_DEDICATED_BUFFER_COUNT),
                     txfqs.tffl);
 
                 // clip to the number of provided frames
@@ -522,7 +529,7 @@ ssize_t MCANCan::write(File *file, const void *buf, size_t count)
 
                 // write to MRAM
                 txbuf_write(
-                    TX_BUFFERS_MRAM_ADDR + (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
+                    Defs::TX_BUFFERS_MRAM_ADDR + (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
                     &txBufferMultiWrite_, frames_written);
 
                 // add transmission requests
@@ -536,11 +543,11 @@ ssize_t MCANCan::write(File *file, const void *buf, size_t count)
                 // set pending flag
                 txPending_ = true;
 
-                uint32_t watermark_index = txfqs.tfgi + (TX_FIFO_SIZE / 2);
+                uint32_t watermark_index = txfqs.tfgi + (Defs::TX_FIFO_SIZE / 2);
                 if (watermark_index >=
-                    (TX_FIFO_SIZE + TX_DEDICATED_BUFFER_COUNT))
+                    (Defs::TX_FIFO_SIZE + Defs::TX_DEDICATED_BUFFER_COUNT))
                 {
-                    watermark_index -= TX_FIFO_SIZE;
+                    watermark_index -= Defs::TX_FIFO_SIZE;
                 }
                 txCompleteMask_ |= 0x1 << watermark_index;
 
@@ -581,7 +588,8 @@ ssize_t MCANCan::write(File *file, const void *buf, size_t count)
 //
 // TCQN4550Can::select()
 //
-bool MCANCan::select(File* file, int mode)
+template<class Defs, typename Registers>
+bool MCANCan<Defs, Registers>::select(File* file, int mode)
 {
     bool retval = false;
     switch (mode)
@@ -622,7 +630,8 @@ bool MCANCan::select(File* file, int mode)
 //
 // MCANCan::ioctl()
 //
-int MCANCan::ioctl(File *file, unsigned long int key, unsigned long data)
+template<class Defs, typename Registers>
+int MCANCan<Defs, Registers>::ioctl(File *file, unsigned long int key, unsigned long data)
 {
     if (key == SIOCGCANSTATE)
     {
@@ -635,8 +644,9 @@ int MCANCan::ioctl(File *file, unsigned long int key, unsigned long data)
 //
 // entry()
 //
+template<class Defs, typename Registers>
 __attribute__((optimize("-O3")))
-void *MCANCan::entry()
+void *MCANCan<Defs, Registers>::entry()
 {
     for ( ; /* forever */ ; )
     {
@@ -744,7 +754,7 @@ void *MCANCan::entry()
                     } while (cccr.init == 1);
 
                     // cancel TX FIFO buffers
-                    register_write(Registers::TXBCR, TX_FIFO_BUFFERS_MASK);
+                    register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
 
                     txBuf->signal_condition();
 #if MCAN_DEBUG

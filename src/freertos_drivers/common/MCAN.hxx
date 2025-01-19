@@ -47,7 +47,157 @@
 
 #define MCAN_DEBUG 0
 
+/// Defines the register layout of the TCAN4550.
+///
+/// These are SPI Registers with word addressing, not byte addressing. This
+/// means that the values here need to be multiplied by 4 to get the actual
+/// address.
+enum class TCAN4550Registers : uint16_t
+{
+    DEVICE_IDL = 0x0, ///< device ID "TCAN"
+    DEVICE_IDH,       ///< device ID "4550"
+    REVISION,         ///< silicon revision
+    STATUS,           ///< status
+
+    MODE = 0x200,        ///< modes of operation and pin configurations
+    TIMESTAMP_PRESCALER, ///< timestamp presacaler
+    TEST,                ///< read and write test registers, scratchpad
+    ECC,                 ///< ECC error detection and testing
+
+    INTERRUPT_STATUS = 0x208, ///< interrupt and diagnostic flags
+    MCAN_INTERRUPT_STATUS,    ///< interrupt flags related to MCAN core
+
+    INTERRUPT_ENABLE = 0x20C, ///< interrupt and diagnostic flags
+
+    CREL = 0x400, ///< core release
+    ENDN,         ///< endianess
+    CUST,         ///< customer
+    DBTP,         ///< data bit timing and prescaler
+    TEST2,        ///< test
+    RWD,          ///< RAM watchdog
+    CCCR,         ///< CC control
+    NBTP,         ///< nominal bit timing and prescaler
+    TSCC,         ///< timestamp counter configuration
+    TSCV,         ///< timestamp counter value
+    TOCC,         ///< timeout counter configuration
+    TOCV,         ///< timeout counter value
+    RSVD1,        ///< reserved
+    RSVD2,        ///< reserved
+    RSVD3,        ///< reserved
+    RSVD4,        ///< reserved
+    ECR,          ///< error count
+    PSR,          ///< protocol status
+    TDCR,         ///< transmitter delay compensation
+    RSVD5,        ///< reserved
+    IR,           ///< interrupt status
+    IE,           ///< interrupt enable
+    ILS,          ///< interrupt line select
+    ILE,          ///< interrupt line enable
+    RSVD6,        ///< reserved
+    RSVD7,        ///< reserved
+    RSVD8,        ///< reserved
+    RSVD9,        ///< reserved
+    RSVD10,       ///< reserved
+    RSVD11,       ///< reserved
+    RSVD12,       ///< reserved
+    RSVD13,       ///< reserved
+                  //   From here on the register offsets differ between
+                  //   implementations:
+                  //   TCAN STM32 < register offset
+    GFC,          ///< 0x80 0x80 global filter configuration
+    SIDFC,        ///< 0x84 ---- standard ID filter configuration
+    XIDFC,        ///< 0x88 ---- extended ID filter configuration
+    RSVD14,       ///< 0x8C ---- reserved
+    XIDAM,        ///< 0x90 0x84 extended ID and mask
+    HPMS,         ///< 0x94 0x88 high prioirty message status
+    NDAT1,        ///< 0x98 ---- new data 1
+    NDAT2,        ///< 0x9C ---- new data 2
+    RXF0C,        ///< 0xA0 ---- RX FIFO 0 configuration
+    RXF0S,        ///< 0xA4 0x90 RX FIFO 0 status
+    RXF0A,        ///< 0xA8 0x94 RX FIFO 0 Acknowledge
+    RXBC,         ///< 0xAC ---- RX buffer configuration
+    RXF1C,        ///< 0xB0 ---- RX FIFO 1 configuration
+    RXF1S,        ///< 0xB4 0x98 RX FIFO 1 status
+    RXF1A,        ///< 0xB8 0x9C RX FIFO 1 acknowledge
+    RXESC,        ///< 0xBC ---- RX buffer/FIFO element size configuration
+    TXBC,         ///< 0xC0 0xC0 TX buffer configuration
+    TXFQS,        ///< 0xC4 0xC4 TX FIFO/queue status
+    TXESC,        ///< 0xC8 ---- TX buffer element size configuration
+    TXBRP,        ///< 0xCC 0xC8 TX buffer request pending
+    TXBAR,        ///< 0xD0 0xCC TX buffer add request
+    TXBCR,        ///< 0xD4 0xD0 TX buffer cancellation request
+    TXBTO,        ///< 0xD8 0xD4 TX buffer transmission occurred
+    TXBCF,        ///< 0xDC 0xD8 TX buffer cancellation finished
+    TXBTIE,       ///< 0xE0 0xDC TX buffer transmission interrupt enable
+    TXBCIE, ///< 0xE4 0xE0 TX buffer cancellation finished interrupt enable
+    RSVD15, ///< 0xE8 ---- reserved
+    RSVD16, ///< 0xEC ---- reserved
+    TXEFC,  ///< 0xF0 ---- TX event FIFO configuration
+    TXEFS,  ///< 0xF4 0xE4 TX event FIFO status
+    TXEFA,  ///< 0xF8 0xE8 TX event FIFO acknowledge
+    RSVD17, ///< reserved
+
+    MRAM = 0x2000, ///< MRAM offset
+};
+
+/// Static definitions and helper functions for the TCAN4550.
+struct TCAN4550Defs
+{
+    // ---- Memory layout ----
+    //
+    // +-----------------------+
+    // | RX FIFO 0, buf 0      | 0x0000
+    // | ...                   |
+    // | RX FIFO 0, buf 63     | 0x03F0
+    // +-----------------------+
+    // | TX Event 0 (FIFO)     | 0x0400
+    // | ...                   |
+    // | TX Event 15 (FIFO)    | 0x047F
+    // +-----------------------+
+    // | TX Buf 0              | 0x0480
+    // | ...                   |
+    // | TX Buf 15             | 0x057F
+    // +-----------------------+
+    // | TX Buf 16 (FIFO)      | 0x0580
+    // | ...                   |
+    // | TX Buf 31 (FIFO)      | 0x067F
+    // +-----------------------+
+    // | Unused                | 0x0680
+    // +-----------------------+
+
+    /// size in elements for the RX FIFO
+    static constexpr uint32_t RX_FIFO_SIZE = 64;
+
+    /// size in elements for the TX event FIFO
+    static constexpr uint32_t TX_EVENT_FIFO_SIZE = 16;
+
+    /// size in elements for the dedicated TX buffers
+    static constexpr uint32_t TX_DEDICATED_BUFFER_COUNT = 16;
+
+    /// size in elements for the TX FIFO
+    static constexpr uint32_t TX_FIFO_SIZE = 16;
+
+    /// mask of all the TX buffers used in the TX FIFO
+    static constexpr uint32_t TX_FIFO_BUFFERS_MASK = 0xFFFF0000;
+
+    /// start address of RX FIFO 0 in MRAM
+    static constexpr uint16_t RX_FIFO_0_MRAM_ADDR = 0x0000;
+
+    /// start address of TX Event FIFO in MRAM
+    static constexpr uint16_t TX_EVENT_FIFO_MRAM_ADDR = 0x0400;
+
+    /// start address of TX BUFFERS in MRAM
+    static constexpr uint16_t TX_BUFFERS_MRAM_ADDR = 0x0480;
+
+    /// start address of TX FIFO in MRAM
+    static constexpr uint16_t TX_FIFO_BUFFERS_MRAM_ADDR = 0x0580;
+
+    /// Offset of the MRAM address over SPI
+    static constexpr uint16_t MRAM_ADDR_OFFSET = 0x8000;
+};
+
 /// Base class for a CAN driver of a controller using the Bosch MCAN IP.
+template<class Defs = TCAN4550Defs, typename Registers = TCAN4550Registers>
 class MCANCan : public Can, public OSThread, private Atomic
 {
 public:
@@ -124,148 +274,6 @@ private:
     /// size in words of the MRAM memory
     static constexpr size_t MRAM_SIZE_WORDS = (2 * 1024) / 4;
 
-    // ---- Memory layout ----
-    //
-    // +-----------------------+
-    // | RX FIFO 0, buf 0      | 0x0000
-    // | ...                   |
-    // | RX FIFO 0, buf 63     | 0x03F0
-    // +-----------------------+
-    // | TX Event 0 (FIFO)     | 0x0400
-    // | ...                   |
-    // | TX Event 15 (FIFO)    | 0x047F
-    // +-----------------------+
-    // | TX Buf 0              | 0x0480
-    // | ...                   |
-    // | TX Buf 15             | 0x057F
-    // +-----------------------+
-    // | TX Buf 16 (FIFO)      | 0x0580
-    // | ...                   |
-    // | TX Buf 31 (FIFO)      | 0x067F
-    // +-----------------------+
-    // | Unused                | 0x0680
-    // +-----------------------+
-
-    /// size in elements for the RX FIFO
-    static constexpr uint32_t RX_FIFO_SIZE = 64;
-
-    /// size in elements for the TX event FIFO
-    static constexpr uint32_t TX_EVENT_FIFO_SIZE = 16;
-
-    /// size in elements for the dedicated TX buffers
-    static constexpr uint32_t TX_DEDICATED_BUFFER_COUNT = 16;
-
-    /// size in elements for the TX FIFO
-    static constexpr uint32_t TX_FIFO_SIZE = 16;
-
-    /// mask of all the TX buffers used in the TX FIFO
-    static constexpr uint32_t TX_FIFO_BUFFERS_MASK = 0xFFFF0000;
-
-    /// start address of RX FIFO 0 in MRAM
-    static constexpr uint16_t RX_FIFO_0_MRAM_ADDR = 0x0000;
-
-    /// start address of TX Event FIFO in MRAM
-    static constexpr uint16_t TX_EVENT_FIFO_MRAM_ADDR = 0x0400;
-
-    /// start address of TX BUFFERS in MRAM
-    static constexpr uint16_t TX_BUFFERS_MRAM_ADDR = 0x0480;
-
-    /// start address of TX FIFO in MRAM
-    static constexpr uint16_t TX_FIFO_BUFFERS_MRAM_ADDR = 0x0580;
-
-    /// Offset of the MRAM address over SPI
-    static constexpr uint16_t MRAM_ADDR_OFFSET = 0x8000;
-
-    /// SPI Registers, word addressing, not byte addressing.
-    /// This means that the values here need to be multiplied by 4 to get the
-    /// actual address.
-    enum class Registers : uint16_t
-    {
-        DEVICE_IDL = 0x0, ///< device ID "TCAN"
-        DEVICE_IDH,       ///< device ID "4550"
-        REVISION,         ///< silicon revision
-        STATUS,           ///< status
-
-        MODE = 0x200,        ///< modes of operation and pin configurations
-        TIMESTAMP_PRESCALER, ///< timestamp presacaler
-        TEST,                ///< read and write test registers, scratchpad
-        ECC,                 ///< ECC error detection and testing
-
-        INTERRUPT_STATUS = 0x208, ///< interrupt and diagnostic flags
-        MCAN_INTERRUPT_STATUS,    ///< interrupt flags related to MCAN core
-
-        INTERRUPT_ENABLE = 0x20C, ///< interrupt and diagnostic flags
-
-        CREL = 0x400, ///< core release
-        ENDN,         ///< endianess
-        CUST,         ///< customer
-        DBTP,         ///< data bit timing and prescaler
-        TEST2,        ///< test
-        RWD,          ///< RAM watchdog
-        CCCR,         ///< CC control
-        NBTP,         ///< nominal bit timing and prescaler
-        TSCC,         ///< timestamp counter configuration
-        TSCV,         ///< timestamp counter value
-        TOCC,         ///< timeout counter configuration
-        TOCV,         ///< timeout counter value
-        RSVD1,        ///< reserved
-        RSVD2,        ///< reserved
-        RSVD3,        ///< reserved
-        RSVD4,        ///< reserved
-        ECR,          ///< error count
-        PSR,          ///< protocol status
-        TDCR,         ///< transmitter delay compensation
-        RSVD5,        ///< reserved
-        IR,           ///< interrupt status
-        IE,           ///< interrupt enable
-        ILS,          ///< interrupt line select
-        ILE,          ///< interrupt line enable
-        RSVD6,        ///< reserved
-        RSVD7,        ///< reserved
-        RSVD8,        ///< reserved
-        RSVD9,        ///< reserved
-        RSVD10,       ///< reserved
-        RSVD11,       ///< reserved
-        RSVD12,       ///< reserved
-        RSVD13,       ///< reserved
-                      //   From here on the register offsets differ between
-                      //   implementations:
-                      //   TCAN STM32 < register offset
-        GFC,          ///< 0x80 0x80 global filter configuration
-        SIDFC,        ///< 0x84 ---- standard ID filter configuration
-        XIDFC,        ///< 0x88 ---- extended ID filter configuration
-        RSVD14,       ///< 0x8C ---- reserved
-        XIDAM,        ///< 0x90 0x84 extended ID and mask
-        HPMS,         ///< 0x94 0x88 high prioirty message status
-        NDAT1,        ///< 0x98 ---- new data 1
-        NDAT2,        ///< 0x9C ---- new data 2
-        RXF0C,        ///< 0xA0 ---- RX FIFO 0 configuration
-        RXF0S,        ///< 0xA4 0x90 RX FIFO 0 status
-        RXF0A,        ///< 0xA8 0x94 RX FIFO 0 Acknowledge
-        RXBC,         ///< 0xAC ---- RX buffer configuration
-        RXF1C,        ///< 0xB0 ---- RX FIFO 1 configuration
-        RXF1S,        ///< 0xB4 0x98 RX FIFO 1 status
-        RXF1A,        ///< 0xB8 0x9C RX FIFO 1 acknowledge
-        RXESC,        ///< 0xBC ---- RX buffer/FIFO element size configuration
-        TXBC,         ///< 0xC0 0xC0 TX buffer configuration
-        TXFQS,        ///< 0xC4 0xC4 TX FIFO/queue status
-        TXESC,        ///< 0xC8 ---- TX buffer element size configuration
-        TXBRP,        ///< 0xCC 0xC8 TX buffer request pending
-        TXBAR,        ///< 0xD0 0xCC TX buffer add request
-        TXBCR,        ///< 0xD4 0xD0 TX buffer cancellation request
-        TXBTO,        ///< 0xD8 0xD4 TX buffer transmission occurred
-        TXBCF,        ///< 0xDC 0xD8 TX buffer cancellation finished
-        TXBTIE,       ///< 0xE0 0xDC TX buffer transmission interrupt enable
-        TXBCIE,       ///< 0xE4 0xE0 TX buffer cancellation finished interrupt enable
-        RSVD15,       ///< 0xE8 ---- reserved
-        RSVD16,       ///< 0xEC ---- reserved
-        TXEFC,        ///< 0xF0 ---- TX event FIFO configuration
-        TXEFS,        ///< 0xF4 0xE4 TX event FIFO status
-        TXEFA,        ///< 0xF8 0xE8 TX event FIFO acknowledge
-        RSVD17,       ///< reserved
-
-        MRAM = 0x2000, ///< MRAM offset
-    };
 
     // Check alignment
     static_assert(uint16_t(Registers::TXEFS) * 4 == 0x10F4, "register enum misaligned");
@@ -978,7 +986,7 @@ private:
 
         uint32_t padding; ///< padding for 8-byte alignment
         MRAMSPIMessage header; ///< message header
-        MRAMTXBuffer txBuffers[TX_FIFO_SIZE]; ///< buffer payload
+        MRAMTXBuffer txBuffers[Defs::TX_FIFO_SIZE]; ///< buffer payload
     };
 
     /// Called after disable.
@@ -1084,7 +1092,7 @@ private:
     __attribute__((optimize("-O3")))
     void rxbuf_read(uint16_t offset, MRAMRXBuffer *buf, size_t count)
     {
-        uint16_t address = offset + MRAM_ADDR_OFFSET;
+        uint16_t address = offset + Defs::MRAM_ADDR_OFFSET;
         SPIMessage msg;
         msg.cmd = READ;
         msg.addrH = address >> 8;
@@ -1115,7 +1123,7 @@ private:
         static_assert(sizeof(MRAMTXBuffer) == 16,
                       "Unexpected MRAMTXBuffer size");
 
-        uint16_t address = offset + MRAM_ADDR_OFFSET;
+        uint16_t address = offset + Defs::MRAM_ADDR_OFFSET;
         buf->header.cmd = WRITE;
         buf->header.addrH = address >> 8;
         buf->header.addrL = address & 0xFF;
