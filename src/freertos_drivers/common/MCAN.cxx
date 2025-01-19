@@ -116,8 +116,8 @@ void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
 
     {
         // read/clear TCAN status flags
-        uint32_t status = register_read(Registers::INTERRUPT_STATUS);
-        register_write(Registers::INTERRUPT_STATUS, status);
+        uint32_t status = Defs::register_read(Registers::INTERRUPT_STATUS);
+        Defs::register_write(Registers::INTERRUPT_STATUS, status);
     }
     {
         // transition to "Normal" mode with sleep and watchdog disabled
@@ -127,32 +127,32 @@ void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
         mode.modeSel = 2;  // normal mode
         mode.clkRef = (freq == 40000000);
 
-        register_write(Registers::MODE, mode.data);
+        Defs::register_write(Registers::MODE, mode.data);
     }
     {
         // enter configuration mode
         Cccr cccr; // default is initialization mode
-        register_write(Registers::CCCR, cccr.data);
+        Defs::register_write(Registers::CCCR, cccr.data);
         do
         {
-            cccr.data = register_read(Registers::CCCR);
+            cccr.data = Defs::register_read(Registers::CCCR);
         } while (cccr.init == 0);
 
         cccr.cce = 1; // configuration change enable
-        register_write(Registers::CCCR, cccr.data);
+        Defs::register_write(Registers::CCCR, cccr.data);
         do
         {
-            cccr.data = register_read(Registers::CCCR);
+            cccr.data = Defs::register_read(Registers::CCCR);
         } while (cccr.cce == 0);
     }
 
     // diasable all TCAN interrupts
-    register_write(Registers::INTERRUPT_ENABLE, 0);
+    Defs::register_write(Registers::INTERRUPT_ENABLE, 0);
 
     // clear MRAM, a bit brute force, but gets the job done
     for (uint16_t offset = 0x0000; offset < Defs::MRAM_SIZE_WORDS; ++offset)
     {
-        register_write((Registers)(int16_t(Registers::MRAM) + offset), 0);
+        Defs::register_write((Registers)(int16_t(Registers::MRAM) + offset), 0);
     }
 
     {
@@ -160,7 +160,7 @@ void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
         Rxfxc rxf0c;
         rxf0c.fsa = Defs::RX_FIFO_0_MRAM_ADDR; // FIFO start address
         rxf0c.fs = Defs::RX_FIFO_SIZE;         // FIFO size
-        register_write(Registers::RXF0C, rxf0c.data);
+        Defs::register_write(Registers::RXF0C, rxf0c.data);
     }
     {
         // setup TX configuration
@@ -168,13 +168,13 @@ void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
         txbc.tbsa = Defs::TX_BUFFERS_MRAM_ADDR;      // buffers start address
         txbc.ndtb = Defs::TX_DEDICATED_BUFFER_COUNT; // dedicated transmit buffers
         txbc.tfqs = Defs::TX_FIFO_SIZE;              // FIFO/queue size
-        register_write(Registers::TXBC, txbc.data);
+        Defs::register_write(Registers::TXBC, txbc.data);
     }
     {
         // setup TX buffer element size
         Txesc txesc;
         txesc.tbds = 0; // 8 byte data field size
-        register_write(Registers::TXESC, txesc.data);
+        Defs::register_write(Registers::TXESC, txesc.data);
     }
     {
         // setup TX event FIFO
@@ -182,7 +182,7 @@ void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
         txefc.efsa = Defs::TX_EVENT_FIFO_MRAM_ADDR; // event FIFO start address
         txefc.efs = Defs::TX_EVENT_FIFO_SIZE;       // event FIFO size
         txefc.efwm = Defs::TX_EVENT_FIFO_SIZE / 2;  // event FIFO watermark
-        register_write(Registers::TXEFC, txefc.data);
+        Defs::register_write(Registers::TXEFC, txefc.data);
     }
     {
         // setup timestamp counter
@@ -191,13 +191,13 @@ void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
 
         Tscc tscc;    // default TCP = (1 - 1) = 0
         tscc.tss = 1; // value incremented according to TCP
-        register_write(Registers::TSCC, tscc.data);
+        Defs::register_write(Registers::TSCC, tscc.data);
 
         Tocc tocc;
         tocc.etoc = 1;                    // enable timeout counter
         tocc.tos = 2;                     // timeout controlled by RX FIFO 0
         tocc.top = (rx_timeout_bits - 1); // timeout counts in bit periods
-        register_write(Registers::TOCC, tocc.data);
+        Defs::register_write(Registers::TOCC, tocc.data);
     }
 
     // Setup timing
@@ -205,14 +205,14 @@ void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
     {
         if (BAUD_TABLE[i].freq == freq && BAUD_TABLE[i].baud == baud)
         {
-            register_write(Registers::NBTP, BAUD_TABLE[i].nbtp.data);
+            Defs::register_write(Registers::NBTP, BAUD_TABLE[i].nbtp.data);
 
             Cccr cccr;
             do
             {
                 cccr.data = 0;
-                register_write(Registers::CCCR, cccr.data);
-                cccr.data = register_read(Registers::CCCR);
+                Defs::register_write(Registers::CCCR, cccr.data);
+                cccr.data = Defs::register_read(Registers::CCCR);
             } while (cccr.init == 1);
 
             return;
@@ -251,7 +251,7 @@ void MCANCan<Defs, Registers>::enable()
         // clear MCAN interrupts
         MCANInterrupt mcan_interrupt;
         mcan_interrupt.data = 0x3FFFFFFF;
-        register_write(Registers::IR, mcan_interrupt.data);
+        Defs::register_write(Registers::IR, mcan_interrupt.data);
     }
     {
         // enable MCAN interrupts
@@ -261,19 +261,19 @@ void MCANCan<Defs, Registers>::enable()
         mcanInterruptEnable_.too = 1;  // timeout occured (RX timeout)
         mcanInterruptEnable_.ep = 1;   // error passive
         mcanInterruptEnable_.bo = 1;   // bus-off status
-        register_write(Registers::IE, mcanInterruptEnable_.data);
+        Defs::register_write(Registers::IE, mcanInterruptEnable_.data);
     }
     {
         // enable interrupt line 0
         Ile ile;
         ile.eint0 = 1;
-        register_write(Registers::ILE, ile.data);
+        Defs::register_write(Registers::ILE, ile.data);
     }
     {
         // enable normal operation mode
         Cccr cccr;
         cccr.init = 0; // normal operation mode, enables CAN bus access
-        register_write(Registers::CCCR, cccr.data);
+        Defs::register_write(Registers::CCCR, cccr.data);
     }
 
     state_ = CAN_STATE_ACTIVE;
@@ -297,17 +297,17 @@ void MCANCan<Defs, Registers>::disable()
         // enable initalization mode
         Cccr cccr;
         cccr.init = 1; // initialization mode, disables CAN bus access
-        register_write(Registers::CCCR, cccr.data);
+        Defs::register_write(Registers::CCCR, cccr.data);
     }
     {
         // disable interrupt line 0
         Ile ile;
-        register_write(Registers::ILE, ile.data);
+        Defs::register_write(Registers::ILE, ile.data);
     }
     {
         // disable MCAN interrupts
         mcanInterruptEnable_.data = 0;
-        register_write(Registers::IE, mcanInterruptEnable_.data);
+        Defs::register_write(Registers::IE, mcanInterruptEnable_.data);
     }
 
     flush_buffers();
@@ -323,11 +323,11 @@ void MCANCan<Defs, Registers>::flush_buffers()
     OSMutexLock locker(&lock_);
 
     // cancel TX FIFO buffers
-    register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
+    Defs::register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
 
     // get the rx status (FIFO fill level)
     Rxfxs rxf0s;
-    rxf0s.data = register_read(Registers::RXF0S);
+    rxf0s.data = Defs::register_read(Registers::RXF0S);
 
     /// @todo this could be made more efficeint, but does it matter?
     while (rxf0s.ffl)
@@ -335,7 +335,7 @@ void MCANCan<Defs, Registers>::flush_buffers()
         // acknowledge the next FIFO index
         Rxfxa rxf0a;
         rxf0a.fai = rxf0s.fgi;
-        register_write(Registers::RXF0A, rxf0a.data);
+        Defs::register_write(Registers::RXF0A, rxf0a.data);
 
         // increment index and count
         if (++rxf0s.fgi >= Defs::RX_FIFO_SIZE)
@@ -368,7 +368,7 @@ ssize_t MCANCan<Defs, Registers>::read(File *file, void *buf, size_t count)
             // lock SPI bus access
             OSMutexLock locker(&lock_);
             Rxfxs rxf0s;
-            rxf0s.data = register_read(Registers::RXF0S);
+            rxf0s.data = Defs::register_read(Registers::RXF0S);
             if (rxf0s.ffl)
             {
                 static_assert(sizeof(struct can_frame) == sizeof(MRAMRXBuffer), "RX buffer size does not match assumptions.");
@@ -380,14 +380,14 @@ ssize_t MCANCan<Defs, Registers>::read(File *file, void *buf, size_t count)
                 frames_read = std::min(frames_read, count);
 
                 // read from MRAM
-                rxbuf_read(
+                Defs::rxbuf_read(
                     Defs::RX_FIFO_0_MRAM_ADDR + (rxf0s.fgi * sizeof(MRAMRXBuffer)),
                     mram_rx_buffer, frames_read);
 
                 // acknowledge the last FIFO index read
                 Rxfxa rxf0a;
                 rxf0a.fai = rxf0s.fgi + (frames_read - 1);
-                register_write(Registers::RXF0A, rxf0a.data);
+                Defs::register_write(Registers::RXF0A, rxf0a.data);
             }
             if (frames_read == rxf0s.ffl)
             {
@@ -399,29 +399,13 @@ ssize_t MCANCan<Defs, Registers>::read(File *file, void *buf, size_t count)
 
                 // enable receive timeout interrupt
                 mcanInterruptEnable_.too = 1;
-                register_write(Registers::IE, mcanInterruptEnable_.data);
+                Defs::register_write(Registers::IE, mcanInterruptEnable_.data);
             }
         }
         // shuffle data for structure translation
         for (size_t i = 0; i < frames_read; ++i)
         {
-            struct can_frame tmp;
-
-            tmp.can_id = mram_rx_buffer[i].id;
-            if (!mram_rx_buffer[i].xtd)
-            {
-                // standard frame
-                tmp.can_id >>= 18;
-            }
-            tmp.can_dlc = mram_rx_buffer[i].dlc;
-            tmp.can_rtr = mram_rx_buffer[i].rtr;
-            tmp.can_eff = mram_rx_buffer[i].xtd;
-            tmp.can_err = mram_rx_buffer[i].esi;
-
-            std::atomic_thread_fence(std::memory_order_seq_cst);
-
-            data[i].raw[0] = tmp.raw[0];
-            data[i].raw[1] = tmp.raw[1];
+            Defs::Common::rx_buf_to_struct_can_frame(&data[i]);
         }
 
         if (frames_read == 0)
@@ -475,7 +459,7 @@ ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t coun
             if (state_ != CAN_STATE_ACTIVE)
             {
                 // cancel pending TX FIFO buffers to make room
-                register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
+                Defs::register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
 
                 /// @todo It is possible that the tramsmit FIFO writes which
                 ///       follow will be stuck in the FIFO until we pass
@@ -490,7 +474,7 @@ ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t coun
             }
 
             Txfqs txfqs;
-            txfqs.data = register_read(Registers::TXFQS);
+            txfqs.data = Defs::register_read(Registers::TXFQS);
             if (txfqs.tffl)
             {
                 // clip to the continous buffer memory available
@@ -530,12 +514,12 @@ ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t coun
                 }
 
                 // write to MRAM
-                txbuf_write(
+                Defs::txbuf_write(
                     Defs::TX_BUFFERS_MRAM_ADDR + (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
-                    &Defs::txBufferMultiWrite_, frames_written);
+                    &this->txBufferMultiWrite_, frames_written);
 
                 // add transmission requests
-                register_write(Registers::TXBAR, txbar);
+                Defs::register_write(Registers::TXBAR, txbar);
             }
             if (frames_written == txfqs.tffl)
             {
@@ -554,7 +538,7 @@ ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t coun
                 txCompleteMask_ |= 0x1 << watermark_index;
 
                 // enable TX FIFO buffer interrupt
-                register_write(Registers::TXBTIE, txCompleteMask_);
+                Defs::register_write(Registers::TXBTIE, txCompleteMask_);
             }
         }
 
@@ -658,9 +642,9 @@ void *MCANCan<Defs, Registers>::entry()
         if (result != 0)
         {
             OSMutexLock locker(&lock_);
-            enable_ = register_read(INTERRUPT_ENABLE);
-            spiStatus_ = register_read(STATUS);
-            status_ = register_read(INTERRUPT_STATUS);
+            enable_ = Defs::register_read(INTERRUPT_ENABLE);
+            spiStatus_ = Defs::register_read(STATUS);
+            status_ = Defs::register_read(INTERRUPT_STATUS);
 
             MRAMSPIMessage msg;
             msg.cmd = READ;
@@ -692,16 +676,16 @@ void *MCANCan<Defs, Registers>::entry()
 
         // read status flags
         MCANInterrupt mcan_interrupt;
-        mcan_interrupt.data = register_read(Registers::IR);
+        mcan_interrupt.data = Defs::register_read(Registers::IR);
 
         // clear status flags for enabled interrupts
-        register_write(Registers::IR, mcan_interrupt.data & mcanInterruptEnable_.data);
+        Defs::register_write(Registers::IR, mcan_interrupt.data & mcanInterruptEnable_.data);
 
         // read TCAN status flags
-        uint32_t status = register_read(Registers::INTERRUPT_STATUS);
+        uint32_t status = Defs::register_read(Registers::INTERRUPT_STATUS);
 
         // clear TCAN status flags
-        register_write(Registers::INTERRUPT_STATUS, status);
+        Defs::register_write(Registers::INTERRUPT_STATUS, status);
 #if MCAN_DEBUG
         status_ = status;
 #endif
@@ -710,7 +694,7 @@ void *MCANCan<Defs, Registers>::entry()
         {
             // read protocol status
             Psr psr;
-            psr.data = register_read(Registers::PSR);
+            psr.data = Defs::register_read(Registers::PSR);
 
             if (mcan_interrupt.rf0l)
             {
@@ -751,12 +735,12 @@ void *MCANCan<Defs, Registers>::entry()
                     do
                     {
                         cccr.data = 0;
-                        register_write(Registers::CCCR, cccr.data);
-                        cccr.data = register_read(Registers::CCCR);
+                        Defs::register_write(Registers::CCCR, cccr.data);
+                        cccr.data = Defs::register_read(Registers::CCCR);
                     } while (cccr.init == 1);
 
                     // cancel TX FIFO buffers
-                    register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
+                    Defs::register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
 
                     txBuf->signal_condition();
 #if MCAN_DEBUG
@@ -787,7 +771,7 @@ void *MCANCan<Defs, Registers>::entry()
 
             // disable TX buffer tranmission complete interrupt
             txCompleteMask_ = 0;
-            register_write(Registers::TXBTIE, txCompleteMask_);
+            Defs::register_write(Registers::TXBTIE, txCompleteMask_);
         }
 
         // received timeout
@@ -804,7 +788,7 @@ void *MCANCan<Defs, Registers>::entry()
 
             // disable timeout interrupt
             mcanInterruptEnable_.too = 0;
-            register_write(Registers::IE, mcanInterruptEnable_.data);
+            Defs::register_write(Registers::IE, mcanInterruptEnable_.data);
         }
 
         interruptEnable_(interruptArg_);
@@ -812,3 +796,6 @@ void *MCANCan<Defs, Registers>::entry()
 
     return NULL;
 }
+
+// Explicitly instantiates the MCAN implementation for the TCAN4550.
+template class MCANCan<>;

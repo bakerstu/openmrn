@@ -35,6 +35,8 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_MCAN_HXX_
 #define _FREERTOS_DRIVERS_COMMON_MCAN_HXX_
 
+#include <atomic>
+
 #include "Can.hxx"
 #include "DummyGPIO.hxx"
 #include "SPI.hxx"
@@ -140,6 +142,7 @@ enum class TCAN4550Registers : uint16_t
     MRAM = 0x2000, ///< MRAM offset
 };
 
+template<unsigned DATA_BYTES>
 struct MCANCommonDefs {
     /// RX Buffer structure
     struct MRAMRXBuffer
@@ -159,10 +162,10 @@ struct MCANCommonDefs {
 
         union
         {
-            uint64_t data64; ///< data payload (64-bit)
-            uint32_t data32[2]; ///< data payload (0 - 1 word)
-            uint16_t data16[4]; ///< data payload (0 - 3 half word)
-            uint8_t  data[8]; ///< data payload (0 - 8 byte)
+            uint64_t data64[DATA_BYTES/8]; ///< data payload (64-bit)
+            uint32_t data32[DATA_BYTES/4]; ///< data payload (0 - 1 word)
+            uint16_t data16[DATA_BYTES/2]; ///< data payload (0 - 3 half word)
+            uint8_t  data[DATA_BYTES]; ///< data payload (0 - 8 byte)
         };
     };
 
@@ -205,6 +208,32 @@ struct MCANCommonDefs {
         uint32_t et   :  2; ///< event type
         uint32_t mm   :  8; ///< message marker
     };
+
+    /// Fixes the header of a struct can_frame object that had an MRAMRXBuffer
+    /// copied into it.
+    /// @param f is a 16-byte memory that contains an MRAMRXBuffer. It will be
+    /// modified in place to contain the equivalent struct can_frame.
+    static void rx_buf_to_struct_can_frame(struct can_frame *f)
+    {
+        const MRAMRXBuffer* in = reinterpret_cast<MRAMRXBuffer*>(f);
+        struct can_frame tmp;
+
+        tmp.can_id = in->id;
+        if (!in->xtd)
+        {
+            // standard frame
+            tmp.can_id >>= 18;
+        }
+        tmp.can_dlc = in->dlc;
+        tmp.can_rtr = in->rtr;
+        tmp.can_eff = in->xtd;
+        tmp.can_err = in->esi;
+
+        std::atomic_thread_fence(std::memory_order_seq_cst);
+
+        f->raw[0] = tmp.raw[0];
+        f->raw[1] = tmp.raw[1];
+    }
 };
 
 /// Static definitions and helper functions for the TCAN4550.
@@ -217,10 +246,12 @@ struct TCAN4550Defs
     static_assert(uint16_t(Registers::ILE) * 4 == 0x105C, "register enum misaligned");
     static_assert(uint16_t(Registers::MCAN_INTERRUPT_STATUS) * 4 == 0x0824,
                   "register enum misaligned");
+
+    typedef MCANCommonDefs<8> Common;
+    typedef Common::MRAMRXBuffer MRAMRXBuffer;
+    typedef Common::MRAMTXBuffer MRAMTXBuffer;
+    typedef Common::MRAMTXEventFIFOElement MRAMTXEventFIFOElement;
     
-    typedef MCANCommonDefs::MRAMRXBuffer MRAMRXBuffer;
-    typedef MCANCommonDefs::MRAMTXBuffer MRAMTXBuffer;
-    typedef MCANCommonDefs::MRAMTXEventFIFOElement MRAMTXEventFIFOElement;
     
     // ---- Memory layout ----
     //
@@ -335,6 +366,9 @@ struct TCAN4550Defs
     };
     
 protected:
+    /// size in words of the MRAM memory
+    static constexpr size_t MRAM_SIZE_WORDS = (2 * 1024) / 4;
+    
     /// Read from a SPI register.
     /// @param address address to read from
     /// @return data read
@@ -450,12 +484,10 @@ private:
     /// maximum SPI clock speed in Hz
     static constexpr uint32_t SPI_MAX_SPEED_HZ = 18000000;
 
-    /// size in words of the MRAM memory
-    static constexpr size_t MRAM_SIZE_WORDS = (2 * 1024) / 4;
-    
     int spiFd_{-1}; ///< SPI bus that accesses MCAN
     SPI *spi_{nullptr}; ///< pointer to a SPI object instance
 
+protected:    
     /// Allocating this buffer here avoids having to put it on the
     /// MCANCan::write() caller's stack.
     MRAMTXBufferMultiWrite txBufferMultiWrite_ __attribute__((aligned(8)));
@@ -1184,6 +1216,8 @@ private:
 
     DISALLOW_COPY_AND_ASSIGN(MCANCan);
 };
+
+
 
 #endif // _FREERTOS_DRIVERS_COMMON_MCAN_HXX_
 
