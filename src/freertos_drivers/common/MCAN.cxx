@@ -362,7 +362,6 @@ ssize_t MCANCan<Defs, Registers>::read(File *file, void *buf, size_t count)
     while (count)
     {
         size_t frames_read = 0;
-        MRAMRXBuffer *mram_rx_buffer = reinterpret_cast<MRAMRXBuffer*>(data);
 
         {
             // lock SPI bus access
@@ -371,7 +370,6 @@ ssize_t MCANCan<Defs, Registers>::read(File *file, void *buf, size_t count)
             rxf0s.data = Defs::register_read(Registers::RXF0S);
             if (rxf0s.ffl)
             {
-                static_assert(sizeof(struct can_frame) == sizeof(MRAMRXBuffer), "RX buffer size does not match assumptions.");
 
                 // clip to the continous buffer memory available
                 frames_read = std::min(Defs::RX_FIFO_SIZE - rxf0s.fgi, rxf0s.ffl);
@@ -382,7 +380,7 @@ ssize_t MCANCan<Defs, Registers>::read(File *file, void *buf, size_t count)
                 // read from MRAM
                 Defs::rxbuf_read(
                     Defs::RX_FIFO_0_MRAM_ADDR + (rxf0s.fgi * sizeof(MRAMRXBuffer)),
-                    mram_rx_buffer, frames_read);
+                    data, frames_read);
 
                 // acknowledge the last FIFO index read
                 Rxfxa rxf0a;
@@ -402,10 +400,8 @@ ssize_t MCANCan<Defs, Registers>::read(File *file, void *buf, size_t count)
                 Defs::register_write(Registers::IE, mcanInterruptEnable_.data);
             }
         }
-        // shuffle data for structure translation
         for (size_t i = 0; i < frames_read; ++i)
         {
-            Defs::Common::rx_buf_to_struct_can_frame(&data[i]);
         }
 
         if (frames_read == 0)
@@ -681,14 +677,8 @@ void *MCANCan<Defs, Registers>::entry()
         // clear status flags for enabled interrupts
         Defs::register_write(Registers::IR, mcan_interrupt.data & mcanInterruptEnable_.data);
 
-        // read TCAN status flags
-        uint32_t status = Defs::register_read(Registers::INTERRUPT_STATUS);
-
-        // clear TCAN status flags
-        Defs::register_write(Registers::INTERRUPT_STATUS, status);
-#if MCAN_DEBUG
-        status_ = status;
-#endif
+        Defs::clear_global_interrupt_flags();
+        
         // error handling
         if (mcan_interrupt.bo || mcan_interrupt.ep || mcan_interrupt.rf0l)
         {

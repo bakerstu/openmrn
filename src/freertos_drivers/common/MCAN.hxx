@@ -421,11 +421,13 @@ protected:
 
     /// Read one or more RX buffers.
     /// @param offset word offset in the MRAM to read from
-    /// @param buf location to read into
+    /// @param buf location to read into. The RX Buffer will be converted into
+    /// a struct can_frame.
     /// @param count number of buffers to read
     __attribute__((optimize("-O3")))
-    void rxbuf_read(uint16_t offset, MRAMRXBuffer *buf, size_t count)
+    void rxbuf_read(uint16_t offset, struct can_frame* buf, size_t count)
     {
+        static_assert(sizeof(struct can_frame) == sizeof(MRAMRXBuffer), "RX buffer size does not match assumptions.");
         uint16_t address = offset + MRAM_ADDR_OFFSET;
         SPIMessage msg;
         msg.cmd = READ;
@@ -445,6 +447,11 @@ protected:
 #if MCAN_DEBUG
         HASSERT((msg.status & 0x8) == 0);
 #endif
+        // shuffle data for structure translation
+        for (unsigned i = 0; i < count; ++i)
+        {
+            Common::rx_buf_to_struct_can_frame(&buf[i]);
+        }
     }
 
     /// Write one or more TX buffers.
@@ -471,6 +478,20 @@ protected:
         spi_->transfer_with_cs_assert_polled(&xfer);
 #if MCAN_DEBUG
         HASSERT((buf->header.status & 0x8) == 0);
+#endif
+    }
+
+    /// Reads the global status/interrupt flags and clears them. These flags
+    /// are outside of the MCAN component.
+    void clear_global_interrupt_flags()
+    {
+        // read TCAN status flags
+        uint32_t status = register_read(Registers::INTERRUPT_STATUS);
+
+        // clear TCAN status flags
+        register_write(Registers::INTERRUPT_STATUS, status);
+#if MCAN_DEBUG
+        status_ = status;
 #endif
     }
 

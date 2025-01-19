@@ -120,12 +120,13 @@ static_assert(uint16_t(Stm32FDCANRegisters::TXBC) * 4 == offsetof(FDCAN_GlobalTy
 static_assert(uint16_t(Stm32FDCANRegisters::TXEFA) * 4 == offsetof(FDCAN_GlobalTypeDef, TXEFA), "Registers misaligned.");
 
 struct Stm32FDCANDefs {
-    typedef MCANCommonDefs<64>::MRAMRXBuffer MRAMRXBuffer;
-    typedef MCANCommonDefs<64>::MRAMTXBuffer MRAMTXBuffer;
-    typedef MCANCommonDefs<64>::MRAMTXEventFIFOElement MRAMTXEventFIFOElement;
+    typedef MCANCommonDefs<64> Common;
+    typedef Common::MRAMRXBuffer MRAMRXBuffer;
+    typedef Common::MRAMTXBuffer MRAMTXBuffer;
+    typedef Common::MRAMTXEventFIFOElement MRAMTXEventFIFOElement;
 
     typedef Stm32FDCANRegisters Registers;
-
+    
     void init_fdcan(FDCAN_GlobalTypeDef* instance) {
         base_ = reinterpret_cast<uint32_t *>(instance);
         if (instance == FDCAN1)
@@ -169,6 +170,11 @@ struct Stm32FDCANDefs {
     //static constexpr uint16_t MRAM_ADDR_OFFSET = 0x8000;
 
 protected:
+    struct MRAMTXBufferMultiWrite
+    {
+        MRAMTXBuffer txBuffers[TX_FIFO_SIZE]; ///< buffer payload
+    } txBufferMultiWrite_;
+
     /// Read from an FDCAN register.
     /// @param address address to read from
     /// @return data read
@@ -193,7 +199,7 @@ protected:
     /// @param buf location to read into
     /// @param count number of buffers to read
     __attribute__((optimize("-O3")))
-    void rxbuf_read(uint16_t offset, MRAMRXBuffer *buf, size_t count)
+    void rxbuf_read(uint16_t offset, struct can_frame *buf, size_t count)
     {
         // This prints the size of the struct. Use it when the below assertion
         // fails.
@@ -203,7 +209,26 @@ protected:
         // middleware. It is not exported in a header.
         static_assert(
             sizeof(MRAMRXBuffer) == 18u * 4u, "RX buffer size mismatch");
-        memcpy(buf, mram_ + (offset >> 2), count * sizeof(MRAMRXBuffer));
+        for (unsigned i = 0; i < count; ++i) {
+            memcpy(&buf[i], mram_ + ((offset + i * sizeof(MRAMRXBuffer)) >> 2),
+                sizeof(struct can_frame));
+            Common::rx_buf_to_struct_can_frame(&buf[i]);
+        }
+    }
+
+    /// Write one or more TX buffers.
+    /// @param offset word offset in the MRAM to write to
+    /// @param buf location to write from
+    /// @param count number of buffers to write
+    __attribute__((optimize("-O3")))
+    void txbuf_write(uint16_t offset, MRAMTXBufferMultiWrite *buf, size_t count)
+    {
+        memcpy(mram_ + (offset >> 2), buf, count * sizeof(MRAMTXBuffer));
+    }
+
+    /// Unused hook.
+    void clear_global_interrupt_flags()
+    {
     }
     
 private:
