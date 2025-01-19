@@ -230,37 +230,40 @@ private:
         RSVD11,       ///< reserved
         RSVD12,       ///< reserved
         RSVD13,       ///< reserved
-        GFC,          ///< global filter configuration
-        SIDFC,        ///< standard ID filter configuration
-        XIDFC,        ///< extended ID filter configuration
-        RSVD14,       ///< reserved
-        XIDAM,        ///< extended ID and mask
-        HPMS,         ///< high prioirty message status
-        NDAT1,        ///< new data 1
-        NDAT2,        ///< new data 2
-        RXF0C,        ///< RX FIFO 0 configuration
-        RXF0S,        ///< RX FIFO 0 status
-        RXF0A,        ///< RX FIFO 0 Acknowledge
-        RXBC,         ///< RX buffer configuration
-        RXF1C,        ///< RX FIFO 1 configuration
-        RXF1S,        ///< RX FIFO 1 status
-        RXF1A,        ///< RX FIFO 1 acknowledge
-        RXESC,        ///< RX buffer/FIFO element size configuration
-        TXBC,         ///< TX buffer configuration
-        TXFQS,        ///< TX FIFO/queue status
-        TXESC,        ///< TX buffer element size configuration
-        TXBRP,        ///< TX buffer request pending
-        TXBAR,        ///< TX buffer add request
-        TXBCR,        ///< TX buffer cancellation request
-        TXBTO,        ///< TX buffer transmission occurred
-        TXBCF,        ///< TX buffer cancellation finished
-        TXBTIE,       ///< TX buffer transmission interrupt enable
-        TXBCIE,       ///< TX buffer cancellation finished interrupt enable
-        RSVD15,       ///< reserved
-        RSVD16,       ///< reserved
-        TXEFC,        ///< TX event FIFO configuration
-        TXEFS,        ///< TX event FIFO status
-        TXEFA,        ///< TX event FIFO acknowledge
+                      //   From here on the register offsets differ between
+                      //   implementations:
+                      //   TCAN STM32 < register offset
+        GFC,          ///< 0x80 0x80 global filter configuration
+        SIDFC,        ///< 0x84 ---- standard ID filter configuration
+        XIDFC,        ///< 0x88 ---- extended ID filter configuration
+        RSVD14,       ///< 0x8C ---- reserved
+        XIDAM,        ///< 0x90 0x84 extended ID and mask
+        HPMS,         ///< 0x94 0x88 high prioirty message status
+        NDAT1,        ///< 0x98 ---- new data 1
+        NDAT2,        ///< 0x9C ---- new data 2
+        RXF0C,        ///< 0xA0 ---- RX FIFO 0 configuration
+        RXF0S,        ///< 0xA4 0x90 RX FIFO 0 status
+        RXF0A,        ///< 0xA8 0x94 RX FIFO 0 Acknowledge
+        RXBC,         ///< 0xAC ---- RX buffer configuration
+        RXF1C,        ///< 0xB0 ---- RX FIFO 1 configuration
+        RXF1S,        ///< 0xB4 0x98 RX FIFO 1 status
+        RXF1A,        ///< 0xB8 0x9C RX FIFO 1 acknowledge
+        RXESC,        ///< 0xBC ---- RX buffer/FIFO element size configuration
+        TXBC,         ///< 0xC0 0xC0 TX buffer configuration
+        TXFQS,        ///< 0xC4 0xC4 TX FIFO/queue status
+        TXESC,        ///< 0xC8 ---- TX buffer element size configuration
+        TXBRP,        ///< 0xCC 0xC8 TX buffer request pending
+        TXBAR,        ///< 0xD0 0xCC TX buffer add request
+        TXBCR,        ///< 0xD4 0xD0 TX buffer cancellation request
+        TXBTO,        ///< 0xD8 0xD4 TX buffer transmission occurred
+        TXBCF,        ///< 0xDC 0xD8 TX buffer cancellation finished
+        TXBTIE,       ///< 0xE0 0xDC TX buffer transmission interrupt enable
+        TXBCIE,       ///< 0xE4 0xE0 TX buffer cancellation finished interrupt enable
+        RSVD15,       ///< 0xE8 ---- reserved
+        RSVD16,       ///< 0xEC ---- reserved
+        TXEFC,        ///< 0xF0 ---- TX event FIFO configuration
+        TXEFS,        ///< 0xF4 0xE4 TX event FIFO status
+        TXEFA,        ///< 0xF8 0xE8 TX event FIFO acknowledge
         RSVD17,       ///< reserved
 
         MRAM = 0x2000, ///< MRAM offset
