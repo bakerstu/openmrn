@@ -464,19 +464,21 @@ public:
     /// @param name name of this device instance in the file system
     /// @param interrupt_enable callback to enable the interrupt
     /// @param interrupt_disable callback to disable the interrupt
+    /// @param intarg argument for interrupt en/dis functions
     /// @param test_pin test GPIO pin for instrumenting the code
-    MCANCan(const char *name,
-                void (*interrupt_enable)(), void (*interrupt_disable)(),
+    MCANCan(const char *name, void (*interrupt_enable)(void*),
+        void (*interrupt_disable)(void*), void *intarg,
 #if MCAN_DEBUG
-                const Gpio *test_pin = DummyPinWithRead::instance()
+        const Gpio *test_pin = DummyPinWithRead::instance()
 #else
-                const Gpio *test_pin = nullptr
+        const Gpio *test_pin = nullptr
 #endif
-               )
+            )
         : Can(name, 0, 0)
         , OSThread()
         , interruptEnable_(interrupt_enable)
         , interruptDisable_(interrupt_disable)
+        , interruptArg_(intarg)
         , sem_()
         , mcanInterruptEnable_()
         , txCompleteMask_(0)
@@ -1152,8 +1154,9 @@ private:
         // unused in this implementation
     }
 
-    void (*interruptEnable_)(); ///< enable interrupt callback
-    void (*interruptDisable_)(); ///< disable interrupt callback
+    void (*interruptEnable_)(void*); ///< enable interrupt callback
+    void (*interruptDisable_)(void*); ///< disable interrupt callback
+    void* interruptArg_; ///< parameter to interrupt en/dis
     OSSem sem_; ///< semaphore for posting events
     MCANInterrupt mcanInterruptEnable_; ///< shadow for the interrupt enable
     uint32_t txCompleteMask_; ///< shadow for the transmit complete buffer mask

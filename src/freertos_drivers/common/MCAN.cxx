@@ -278,7 +278,7 @@ void MCANCan<Defs, Registers>::enable()
 
     state_ = CAN_STATE_ACTIVE;
 
-    interruptEnable_();
+    interruptEnable_(interruptArg_);
 }
 
 //
@@ -289,7 +289,7 @@ void MCANCan<Defs, Registers>::disable()
 {
     // There is a mutex lock of lock_ above us, so the following sequence is
     // thread safe.
-    interruptDisable_();
+    interruptDisable_(interruptArg_);
 
     state_ = CAN_STATE_STOPPED;
 
@@ -807,7 +807,7 @@ void *MCANCan<Defs, Registers>::entry()
             register_write(Registers::IE, mcanInterruptEnable_.data);
         }
 
-        interruptEnable_();
+        interruptEnable_(interruptArg_);
     }
 
     return NULL;
