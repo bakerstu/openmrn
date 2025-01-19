@@ -64,7 +64,7 @@ const typename MCANCan<Defs, Registers>::MCANBaud MCANCan<Defs, Registers>::BAUD
      */
     {20000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (10 - 1)}},
     /* 40 MHz clock source
-     * TQ = BRP / freq = 10 / 40 MHz = 500 nsec
+     * TQ = BRP / freq = 20 / 40 MHz = 500 nsec
      * Baud = 125 kHz
      * bit time = 1 / 125 kHz = 8 usec = 16 TQ
      * SyncSeg = 1 TQ
@@ -81,6 +81,24 @@ const typename MCANCan<Defs, Registers>::MCANBaud MCANCan<Defs, Registers>::BAUD
      *     = 0.938%
      */
     {40000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (20 - 1)}},
+    /* 64 MHz clock source
+     * TQ = BRP / freq = 32 / 64 MHz = 500 nsec
+     * Baud = 125 kHz
+     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
+     * SyncSeg = 1 TQ
+     * PropSeg = 7 TQ
+     * Seg1 = 4 TQ
+     * Seg2 = 4 TQ
+     * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
+     * SJW = Seg - 1 = 4 - 1 = 3
+     * SJW = 3 * 500 nsec = 1.5 usec
+     *
+     * Oscillator Tolerance:
+     *     4 / (2 * ((13 * 16) - 4)) = 0.980%
+     *     3 / (20 * 16) = 0.938%
+     *     = 0.938%
+     */
+    {64000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (32 - 1)}},
 };
 
 void TCAN4550Defs::init_spi(const char *spi_name, uint32_t freq)
@@ -114,21 +132,9 @@ void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
     // lock SPI bus access
     OSMutexLock locker(&lock_);
 
-    {
-        // read/clear TCAN status flags
-        uint32_t status = Defs::register_read(Registers::INTERRUPT_STATUS);
-        Defs::register_write(Registers::INTERRUPT_STATUS, status);
-    }
-    {
-        // transition to "Normal" mode with sleep and watchdog disabled
-        Mode mode;
-        mode.sweDis = 1;   // disable sleep
-        mode.wdEnable = 0; // disable watchdog
-        mode.modeSel = 2;  // normal mode
-        mode.clkRef = (freq == 40000000);
-
-        Defs::register_write(Registers::MODE, mode.data);
-    }
+    // read/clear TCAN status flags
+    Defs::clear_global_interrupt_flags();
+    Defs::preinit_hook(freq);
     {
         // enter configuration mode
         Cccr cccr; // default is initialization mode
@@ -146,44 +152,8 @@ void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
         } while (cccr.cce == 0);
     }
 
-    // diasable all TCAN interrupts
-    Defs::register_write(Registers::INTERRUPT_ENABLE, 0);
-
-    // clear MRAM, a bit brute force, but gets the job done
-    for (uint16_t offset = 0x0000; offset < Defs::MRAM_SIZE_WORDS; ++offset)
-    {
-        Defs::register_write((Registers)(int16_t(Registers::MRAM) + offset), 0);
-    }
-
-    {
-        // setup RX FIFO 0
-        Rxfxc rxf0c;
-        rxf0c.fsa = Defs::RX_FIFO_0_MRAM_ADDR; // FIFO start address
-        rxf0c.fs = Defs::RX_FIFO_SIZE;         // FIFO size
-        Defs::register_write(Registers::RXF0C, rxf0c.data);
-    }
-    {
-        // setup TX configuration
-        Txbc txbc;
-        txbc.tbsa = Defs::TX_BUFFERS_MRAM_ADDR;      // buffers start address
-        txbc.ndtb = Defs::TX_DEDICATED_BUFFER_COUNT; // dedicated transmit buffers
-        txbc.tfqs = Defs::TX_FIFO_SIZE;              // FIFO/queue size
-        Defs::register_write(Registers::TXBC, txbc.data);
-    }
-    {
-        // setup TX buffer element size
-        Txesc txesc;
-        txesc.tbds = 0; // 8 byte data field size
-        Defs::register_write(Registers::TXESC, txesc.data);
-    }
-    {
-        // setup TX event FIFO
-        Txefc txefc;
-        txefc.efsa = Defs::TX_EVENT_FIFO_MRAM_ADDR; // event FIFO start address
-        txefc.efs = Defs::TX_EVENT_FIFO_SIZE;       // event FIFO size
-        txefc.efwm = Defs::TX_EVENT_FIFO_SIZE / 2;  // event FIFO watermark
-        Defs::register_write(Registers::TXEFC, txefc.data);
-    }
+    Defs::init_hook();
+    
     {
         // setup timestamp counter
         // make sure that the timeout is reasonable
@@ -505,7 +475,7 @@ ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t coun
                     tx_buffers[i].fdf = 0;
                     tx_buffers[i].efc = 0;
                     tx_buffers[i].mm = 0;
-                    tx_buffers[i].data64 = data[i].data64;
+                    tx_buffers[i].data64[0] = data[i].data64;
                     txbar |= 0x1 << put_index;
                 }
 

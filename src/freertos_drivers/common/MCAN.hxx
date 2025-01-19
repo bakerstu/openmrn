@@ -187,9 +187,10 @@ struct MCANCommonDefs {
 
         union
         {
-            uint64_t data64;  ///< data payload 64-bit
-            uint32_t data32[2]; ///< data payload (0 - 1 word)
-            uint16_t data16[4]; ///< data payload (0 - 3 half word)
+            uint64_t data64[DATA_BYTES/8]; ///< data payload (64-bit)
+            uint32_t data32[DATA_BYTES/4]; ///< data payload (0 - 1 word)
+            uint16_t data16[DATA_BYTES/2]; ///< data payload (0 - 3 half word)
+            uint8_t  data[DATA_BYTES]; ///< data payload (0 - 8 byte)
         };
     };
 
@@ -236,8 +237,107 @@ struct MCANCommonDefs {
     }
 };
 
+struct RegisterDefs {
+    /// RX FIFO x configuraation register definition
+    struct Rxfxc
+    {
+        /// Constructor. Sets the reset value.
+        Rxfxc()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t fsa : 16; ///< RX FIFO start address
+
+                uint32_t fs   : 7; ///< RX FIFO size
+                uint32_t rsvd : 1; ///< reserved
+
+                uint32_t fwm : 7; ///< RX FIFO high water mark
+                uint32_t fom : 1; ///< RX FIFO operation mode
+            };
+        };
+    };
+
+    /// TX Buffer configuration register definition
+    struct Txbc
+    {
+        /// Constructor. Sets the reset value.
+        Txbc()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t tbsa : 16; ///< TX buffers start address
+
+                uint32_t ndtb  : 6; ///< number of dediated transmit buffers
+                uint32_t rsvd1 : 2; ///< reserved
+
+                uint32_t tfqs  : 6; ///< TX FIFO/queue size
+                uint32_t tfqm  : 1; ///< TX FIFO/queue mode
+                uint32_t rsvd2 : 1; ///< reserved
+            };
+        };
+    };
+
+
+    /// TX buffer element size configurataion register definition
+    struct Txesc
+    {
+        /// Constructor. Sets the reset value.
+        Txesc()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t tbds :  3; ///< TX buffer data field size
+                uint32_t rsvd : 29; ///< reserved
+            };
+        };
+    };
+
+    /// TX event FIFO configuration register definition
+    struct Txefc
+    {
+        /// Constructor. Sets the reset value.
+        Txefc()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t efsa : 16; ///< event FIFO start address
+
+                uint32_t efs   : 6; ///< event FIFO size
+                uint32_t rsvd1 : 2; ///< reserved
+
+                uint32_t efwm  : 6; ///< event FIFO watermark
+                uint32_t rsvd2 : 2; ///< reserved
+            };
+        };
+    };
+};
+
 /// Static definitions and helper functions for the TCAN4550.
-struct TCAN4550Defs
+struct TCAN4550Defs : public RegisterDefs
 {
     typedef TCAN4550Registers Registers;
 
@@ -252,6 +352,58 @@ struct TCAN4550Defs
     typedef Common::MRAMTXBuffer MRAMTXBuffer;
     typedef Common::MRAMTXEventFIFOElement MRAMTXEventFIFOElement;
     
+
+    /// MCAN interrupt registers (IR, IE, and ILS) definition
+    struct MCANInterrupt
+    {
+        /// Constructor. Sets the reset value.
+        MCANInterrupt()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t rf0n : 1; ///< RX FIFO 0 new message
+                uint32_t rf0w : 1; ///< RX FIFO 0 watermark reached
+                uint32_t rf0f : 1; ///< RX FIFO 0 full
+                uint32_t rf0l : 1; ///< RX FIFO 0 message lost
+                uint32_t rf1n : 1; ///< RX FIFO 1 new message
+                uint32_t rf1w : 1; ///< RX FIFO 1 watermark reached
+                uint32_t rf1f : 1; ///< RX FIFO 1 full
+                uint32_t rf1l : 1; ///< RX FIFO 1 message lost
+
+                uint32_t hpm  : 1; ///< high priority message
+                uint32_t tc   : 1; ///< transmission completed
+                uint32_t tcf  : 1; ///< transmission cancellation finished
+                uint32_t tfe  : 1; ///< TX FIFO empty
+                uint32_t tefn : 1; ///< TX event FIFO new entry
+                uint32_t tefw : 1; ///< TX event FIFO watermark reached
+                uint32_t teff : 1; ///< TX event FIFO full
+                uint32_t tefl : 1; ///< TX event FIFO event lost
+
+                uint32_t tsw  : 1; ///< timestamp wraparound
+                uint32_t mraf : 1; ///< message RAM access failure
+                uint32_t too  : 1; ///< timeout occurred
+                uint32_t drx  : 1; ///< message stored to dedicated RX buffer
+                uint32_t bec  : 1; ///< bit error corrected
+                uint32_t beu  : 1; ///< bit error uncorrected
+                uint32_t elo  : 1; ///< error logging overflow
+                uint32_t ep   : 1; ///< error passive
+
+                uint32_t ew   : 1; ///< warning status
+                uint32_t bo   : 1; ///< bus-off status
+                uint32_t wdi  : 1; ///< watchdog
+                uint32_t pea  : 1; ///< protocol error in arbitration phase
+                uint32_t ped  : 1; ///< protocol error in data phase
+                uint32_t ara  : 1; ///< access to reserved address
+                uint32_t rsvd : 2; ///< reserved
+            };
+        };
+    };
     
     // ---- Memory layout ----
     //
@@ -495,11 +647,110 @@ protected:
 #endif
     }
 
+    /// This hook is called during initialization. It is meant to set up clocks
+    /// before the MCAN is configured.
+    /// @param freq clock frequency
+    void preinit_hook(uint32_t freq) {
+        // transition to "Normal" mode with sleep and watchdog disabled
+        Mode mode;
+        mode.sweDis = 1;   // disable sleep
+        mode.wdEnable = 0; // disable watchdog
+        mode.modeSel = 2;  // normal mode
+        mode.clkRef = (freq == 40000000);
+
+        register_write(Registers::MODE, mode.data);
+    }
+
+    /// This hook is called during initialization, after the MCAN core has been
+    /// switched to configuration mode.
+    void init_hook()
+    {
+        // diasable all TCAN interrupts
+        register_write(Registers::INTERRUPT_ENABLE, 0);
+
+        // clear MRAM, a bit brute force, but gets the job done
+        for (uint16_t offset = 0x0000; offset < MRAM_SIZE_WORDS; ++offset)
+        {
+            register_write((Registers)(int16_t(Registers::MRAM) + offset), 0);
+        }
+
+        {
+            // setup RX FIFO 0
+            Rxfxc rxf0c;
+            rxf0c.fsa = RX_FIFO_0_MRAM_ADDR; // FIFO start address
+            rxf0c.fs = RX_FIFO_SIZE;         // FIFO size
+            register_write(Registers::RXF0C, rxf0c.data);
+        }
+        {
+            // setup TX buffer element size
+            Txesc txesc;
+            txesc.tbds = 0; // 8 byte data field size
+            register_write(Registers::TXESC, txesc.data);
+        }
+        {
+            // setup TX event FIFO
+            Txefc txefc;
+            txefc.efsa = TX_EVENT_FIFO_MRAM_ADDR; // event FIFO start address
+            txefc.efs = TX_EVENT_FIFO_SIZE;       // event FIFO size
+            txefc.efwm = TX_EVENT_FIFO_SIZE / 2;  // event FIFO watermark
+            register_write(Registers::TXEFC, txefc.data);
+        }
+        {
+            // setup TX configuration
+            Txbc txbc;
+            txbc.tbsa = TX_BUFFERS_MRAM_ADDR; // buffers start address
+            txbc.ndtb =
+                TX_DEDICATED_BUFFER_COUNT; // dedicated transmit buffers
+            txbc.tfqs = TX_FIFO_SIZE;      // FIFO/queue size
+            register_write(Registers::TXBC, txbc.data);
+        }
+    }
+
 private:
     enum Command : uint8_t
     {
         WRITE = 0x61, ///< write one or more addresses
         READ  = 0x41, ///< read one or more addresses
+    };
+
+    /// Mode register definition
+    struct Mode
+    {
+        /// Constructor. Sets the reset value.
+        Mode()
+            : data(0xC8000468)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t testModeConfig : 1; ///< test mode configuration
+                uint32_t sweDis         : 1; ///< sleep wake error disable
+                uint32_t reset          : 1; ///< device reset
+                uint32_t wdEnable       : 1; ///< watchdog enable
+                uint32_t reserved1      : 2; ///< reserved
+                uint32_t modeSel        : 2; ///< mode of operation select
+                uint32_t nWkrqConfig    : 1; ///< nWKRQ pin function
+                uint32_t inhDisable     : 1; ///< INH pin disable
+                uint32_t gpio1GpoConfig : 2; ///< GPIO1 output function select
+                uint32_t reserved2      : 1; ///< reserved
+                uint32_t failSafeEnable : 1; ///< fail safe mode enable
+                uint32_t gpio1Config    : 2; ///< GPIO1 pin function select
+                uint32_t wdAction       : 2; ///< selected watchdog action
+                uint32_t wdBitSet       : 1; ///< write a '1' to reset timer
+                uint32_t nWkrqVoltage   : 1; ///< nWKRQ pin GPO buffer voltage
+                uint32_t reserved3      : 1; ///< reserved
+                uint32_t testModeEn     : 1; ///< test mode enable
+                uint32_t gpo2Config     : 2; ///< GPO2 pin configuration
+                uint32_t reserved4      : 3; ///< reserved
+                uint32_t clkRef         : 1; ///< CLKIN/crystal freq reference
+                uint32_t wdTimer        : 2; ///< watchdog timer
+                uint32_t wakeConfig     : 2; ///< Wake pin configuration
+            };
+        };
     };
 
     /// maximum SPI clock speed in Hz
@@ -578,47 +829,8 @@ public:
 private:
     typedef typename Defs::MRAMRXBuffer MRAMRXBuffer;
     typedef typename Defs::MRAMTXBuffer MRAMTXBuffer;
+    typedef typename Defs::MCANInterrupt MCANInterrupt;
     
-    /// Mode register definition
-    struct Mode
-    {
-        /// Constructor. Sets the reset value.
-        Mode()
-            : data(0xC8000468)
-        {
-        }
-
-        union
-        {
-            uint32_t data; ///< raw word value
-            struct
-            {
-                uint32_t testModeConfig : 1; ///< test mode configuration
-                uint32_t sweDis         : 1; ///< sleep wake error disable
-                uint32_t reset          : 1; ///< device reset
-                uint32_t wdEnable       : 1; ///< watchdog enable
-                uint32_t reserved1      : 2; ///< reserved
-                uint32_t modeSel        : 2; ///< mode of operation select
-                uint32_t nWkrqConfig    : 1; ///< nWKRQ pin function
-                uint32_t inhDisable     : 1; ///< INH pin disable
-                uint32_t gpio1GpoConfig : 2; ///< GPIO1 output function select
-                uint32_t reserved2      : 1; ///< reserved
-                uint32_t failSafeEnable : 1; ///< fail safe mode enable
-                uint32_t gpio1Config    : 2; ///< GPIO1 pin function select
-                uint32_t wdAction       : 2; ///< selected watchdog action
-                uint32_t wdBitSet       : 1; ///< write a '1' to reset timer
-                uint32_t nWkrqVoltage   : 1; ///< nWKRQ pin GPO buffer voltage
-                uint32_t reserved3      : 1; ///< reserved
-                uint32_t testModeEn     : 1; ///< test mode enable
-                uint32_t gpo2Config     : 2; ///< GPO2 pin configuration
-                uint32_t reserved4      : 3; ///< reserved
-                uint32_t clkRef         : 1; ///< CLKIN/crystal freq reference
-                uint32_t wdTimer        : 2; ///< watchdog timer
-                uint32_t wakeConfig     : 2; ///< Wake pin configuration
-            };
-        };
-    };
-
     /// Data bit timing and prescaler register definition
     struct Dbtp
     {
@@ -827,31 +1039,6 @@ private:
         };
     };
 
-    /// RX FIFO x configuraation register definition
-    struct Rxfxc
-    {
-        /// Constructor. Sets the reset value.
-        Rxfxc()
-            : data(0x00000000)
-        {
-        }
-
-        union
-        {
-            uint32_t data; ///< raw word value
-            struct
-            {
-                uint32_t fsa : 16; ///< RX FIFO start address
-
-                uint32_t fs   : 7; ///< RX FIFO size
-                uint32_t rsvd : 1; ///< reserved
-
-                uint32_t fwm : 7; ///< RX FIFO high water mark
-                uint32_t fom : 1; ///< RX FIFO operation mode
-            };
-        };
-    };
-
     /// RX FIFO x status register definition
     struct Rxfxs
     {
@@ -896,7 +1083,7 @@ private:
         };
     };
 
-    /// TX Buffer configuraation register definition
+    /// TX Buffer configuration register definition
     struct Txbc
     {
         /// Constructor. Sets the reset value.
@@ -941,51 +1128,6 @@ private:
                 uint32_t rsvd3 : 2; ///< reserved
 
                 uint32_t rsvd4 : 8; ///< reserved
-            };
-        };
-    };
-
-    /// TX buffer element size configurataion register definition
-    struct Txesc
-    {
-        /// Constructor. Sets the reset value.
-        Txesc()
-            : data(0x00000000)
-        {
-        }
-
-        union
-        {
-            uint32_t data; ///< raw word value
-            struct
-            {
-                uint32_t tbds :  3; ///< TX buffer data field size
-                uint32_t rsvd : 29; ///< reserved
-            };
-        };
-    };
-
-    /// TX event FIFO configuration register definition
-    struct Txefc
-    {
-        /// Constructor. Sets the reset value.
-        Txefc()
-            : data(0x00000000)
-        {
-        }
-
-        union
-        {
-            uint32_t data; ///< raw word value
-            struct
-            {
-                uint32_t efsa : 16; ///< event FIFO start address
-
-                uint32_t efs   : 6; ///< event FIFO size
-                uint32_t rsvd1 : 2; ///< reserved
-
-                uint32_t efwm  : 6; ///< event FIFO watermark
-                uint32_t rsvd2 : 2; ///< reserved
             };
         };
     };
@@ -1080,57 +1222,6 @@ private:
         };
     };
 
-    /// MCAN interrupt registers (IR, IE, and ILS) definition
-    struct MCANInterrupt
-    {
-        /// Constructor. Sets the reset value.
-        MCANInterrupt()
-            : data(0x00000000)
-        {
-        }
-
-        union
-        {
-            uint32_t data; ///< raw word value
-            struct
-            {
-                uint32_t rf0n : 1; ///< RX FIFO 0 new message
-                uint32_t rf0w : 1; ///< RX FIFO 0 watermark reached
-                uint32_t rf0f : 1; ///< RX FIFO 0 full
-                uint32_t rf0l : 1; ///< RX FIFO 0 message lost
-                uint32_t rf1n : 1; ///< RX FIFO 1 new message
-                uint32_t rf1w : 1; ///< RX FIFO 1 watermark reached
-                uint32_t rf1f : 1; ///< RX FIFO 1 full
-                uint32_t rf1l : 1; ///< RX FIFO 1 message lost
-
-                uint32_t hpm  : 1; ///< high priority message
-                uint32_t tc   : 1; ///< transmission completed
-                uint32_t tcf  : 1; ///< transmission cancellation finished
-                uint32_t tfe  : 1; ///< TX FIFO empty
-                uint32_t tefn : 1; ///< TX event FIFO new entry
-                uint32_t tefw : 1; ///< TX event FIFO watermark reached
-                uint32_t teff : 1; ///< TX event FIFO full
-                uint32_t tefl : 1; ///< TX event FIFO event lost
-
-                uint32_t tsw  : 1; ///< timestamp wraparound
-                uint32_t mraf : 1; ///< message RAM access failure
-                uint32_t too  : 1; ///< timeout occurred
-                uint32_t drx  : 1; ///< message stored to dedicated RX buffer
-                uint32_t bec  : 1; ///< bit error corrected
-                uint32_t beu  : 1; ///< bit error uncorrected
-                uint32_t elo  : 1; ///< error logging overflow
-                uint32_t ep   : 1; ///< error passive
-
-                uint32_t ew   : 1; ///< warning status
-                uint32_t bo   : 1; ///< bus-off status
-                uint32_t wdi  : 1; ///< watchdog
-                uint32_t pea  : 1; ///< protocol error in arbitration phase
-                uint32_t ped  : 1; ///< protocol error in data phase
-                uint32_t ara  : 1; ///< access to reserved address
-                uint32_t rsvd : 2; ///< reserved
-            };
-        };
-    };
 
     /// MCAN interrupt line enable register definition
     struct Ile

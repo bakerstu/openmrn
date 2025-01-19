@@ -169,6 +169,71 @@ struct Stm32FDCANDefs {
     /// Offset of the MRAM address over SPI
     //static constexpr uint16_t MRAM_ADDR_OFFSET = 0x8000;
 
+    /// TX Buffer configuration register definition
+    struct Txbc
+    {
+        /// Constructor. Sets the reset value.
+        Txbc()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t resvd : 24; ///< reserved
+
+                uint32_t tfqm  : 1; ///< TX FIFO/queue mode
+            };
+        };
+    };
+
+    /// MCAN interrupt registers (IR, IE, and ILS) definition
+    struct MCANInterrupt
+    {
+        /// Constructor. Sets the reset value.
+        MCANInterrupt()
+            : data(0x00000000)
+        {
+        }
+
+        union
+        {
+            uint32_t data; ///< raw word value
+            struct
+            {
+                uint32_t rf0n : 1; ///< RX FIFO 0 new message
+                uint32_t rf0f : 1; ///< RX FIFO 0 full
+                uint32_t rf0l : 1; ///< RX FIFO 0 message lost
+                uint32_t rf1n : 1; ///< RX FIFO 1 new message
+                uint32_t rf1f : 1; ///< RX FIFO 1 full
+                uint32_t rf1l : 1; ///< RX FIFO 1 message lost
+                uint32_t hpm  : 1; ///< high priority message
+                uint32_t tc   : 1; ///< transmission completed
+
+                uint32_t tcf  : 1; ///< transmission cancellation finished
+                uint32_t tfe  : 1; ///< TX FIFO empty
+                uint32_t tefn : 1; ///< TX event FIFO new entry
+                uint32_t teff : 1; ///< TX event FIFO full
+                uint32_t tefl : 1; ///< TX event FIFO event lost
+                uint32_t tsw  : 1; ///< timestamp wraparound
+                uint32_t mraf : 1; ///< message RAM access failure
+                uint32_t too  : 1; ///< timeout occurred
+
+                uint32_t elo  : 1; ///< error logging overflow
+                uint32_t ep   : 1; ///< error passive
+                uint32_t ew   : 1; ///< warning status
+                uint32_t bo   : 1; ///< bus-off status
+                uint32_t wdi  : 1; ///< watchdog
+                uint32_t pea  : 1; ///< protocol error in arbitration phase
+                uint32_t ped  : 1; ///< protocol error in data phase
+                uint32_t ara  : 1; ///< access to reserved address
+            };
+        };
+    };
+    
 protected:
     struct MRAMTXBufferMultiWrite
     {
@@ -209,9 +274,16 @@ protected:
         // middleware. It is not exported in a header.
         static_assert(
             sizeof(MRAMRXBuffer) == 18u * 4u, "RX buffer size mismatch");
-        for (unsigned i = 0; i < count; ++i) {
-            memcpy(&buf[i], mram_ + ((offset + i * sizeof(MRAMRXBuffer)) >> 2),
-                sizeof(struct can_frame));
+        for (unsigned i = 0; i < count; ++i)
+        {
+            unsigned mram_idx = ((offset + i * sizeof(MRAMRXBuffer)) >> 2);
+            unsigned len = sizeof(struct can_frame) >> 2;
+            uint32_t *dst = reinterpret_cast<uint32_t *>(&buf[i]);
+            while (len > 0)
+            {
+                *dst++ = mram_[mram_idx++];
+                --len;
+            }
             Common::rx_buf_to_struct_can_frame(&buf[i]);
         }
     }
@@ -223,14 +295,34 @@ protected:
     __attribute__((optimize("-O3")))
     void txbuf_write(uint16_t offset, MRAMTXBufferMultiWrite *buf, size_t count)
     {
-        memcpy(mram_ + (offset >> 2), buf, count * sizeof(MRAMTXBuffer));
+        //char (*__errorprint)[sizeof(MRAMTXBuffer)] = 1;
+        static_assert(sizeof(MRAMTXBuffer) == (18U * 4U), "TX Buffer size mismatch");
+        const uint32_t* src = reinterpret_cast<uint32_t*>(buf);
+        unsigned len = (count * sizeof(MRAMTXBuffer)) >> 2;
+        offset >>= 2;
+        while(len > 0) {
+            mram_[offset++] = *src++;
+            --len;
+        }
+        //memcpy(mram_ + (offset >> 2), buf, count * sizeof(MRAMTXBuffer));
     }
 
     /// Unused hook.
     void clear_global_interrupt_flags()
     {
     }
-    
+
+    void preinit_hook(uint32_t freq) {}
+
+    void init_hook()
+    {
+        {
+            Txbc txbc;
+            txbc.tfqm = 0;
+            register_write(Registers::TXBC, txbc.data);
+        }
+    }
+
 private:
     FDCAN_GlobalTypeDef* inst() {
         return reinterpret_cast<FDCAN_GlobalTypeDef *>(
@@ -255,7 +347,9 @@ public:
         : MCANCan(name, &Stm32MCan::interrupt_enable,
               &Stm32MCan::interrupt_disable, this)
         , interrupt_(interrupt)
-    { }
+    {
+        MCANCan::init_fdcan(inst);
+    }
 
     void interrupt_handler()
     {

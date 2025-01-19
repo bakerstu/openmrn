@@ -36,3 +36,5 @@
 #include "freertos_drivers/st/Stm32MCan.hxx"
 // Includes implementation of templates for instantiation.
 #include "freertos_drivers/common/MCAN.cxx"
+
+template class MCANCan<Stm32FDCANDefs, Stm32FDCANRegisters>;
