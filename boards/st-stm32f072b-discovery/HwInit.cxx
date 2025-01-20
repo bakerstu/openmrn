@@ -222,4 +222,10 @@ void hw_preinit(void)
     NVIC_EnableIRQ(TIM14_IRQn);
 }
 
+/// UART1 interrupt handler.
+void uart1_interrupt_handler(void)
+{
+    Stm32Uart::interrupt_handler(0);
+}
+
 }
