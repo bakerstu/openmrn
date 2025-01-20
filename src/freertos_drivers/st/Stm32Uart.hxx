@@ -101,13 +101,6 @@ public:
     {
     }
 
-    /** Translate an interrupt handler into C++ object context.
-     * @param index UART index to translate, 0 to 7. For interrupt numbers that
-     * are shared between multiple UARTs (e.g. 3-4 or 3-to-8 or 2-and-lpuart2,
-     * call it once with the lowest index.
-     */
-    static void interrupt_handler(unsigned index);
-
     /** Request an ioctl transaction. Supported ioctl is TCBAUDRATE from
      * include/freertos/tc_ioctl.h */
     int ioctl(File *file, unsigned long int key, unsigned long data) override;
@@ -134,17 +127,11 @@ protected:
     static uint8_t interrupt3_to_8EnableCnt;
     static uint8_t interrupt2_8EnableCnt;
 
-    /** Instance pointers help us get context from the interrupt handler(s) */
-    static Stm32Uart *instances[NUM_USART];
-
 private:
     /** Default constructor.
      */
     Stm32Uart();
 
-    // Helper function for static interrupt handler.
-    static void try_instance(unsigned i);
-    
     DISALLOW_COPY_AND_ASSIGN(Stm32Uart);
 };
 
