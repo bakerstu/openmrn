@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file MCANCan.cxx
+ * @file MCAN.cxx
  * This file implements the CAN driver for the MCAN CAN Controller.
  *
  * @author Stuart W. Baker
@@ -43,7 +43,7 @@
 #include <atomic>
 
 template<class Defs, typename Registers>
-const typename MCANCan<Defs, Registers>::MCANBaud MCANCan<Defs, Registers>::BAUD_TABLE[] =
+const typename MCAN<Defs, Registers>::MCANBaud MCAN<Defs, Registers>::BAUD_TABLE[] =
 {
     /* 20 MHz clock source
      * TQ = BRP / freq = 10 / 20 MHz = 500 nsec
@@ -126,7 +126,7 @@ void TCAN4550Defs::init_spi(const char *spi_name, uint32_t freq)
 // init()
 //
 template<class Defs, typename Registers>
-void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
+void MCAN<Defs, Registers>::init(uint32_t freq, uint32_t baud,
                        uint16_t rx_timeout_bits)
 {
     // lock SPI bus access
@@ -197,7 +197,7 @@ void MCANCan<Defs, Registers>::init(uint32_t freq, uint32_t baud,
 // enable()
 //
 template<class Defs, typename Registers>
-void MCANCan<Defs, Registers>::enable()
+void MCAN<Defs, Registers>::enable()
 {
     // There is a mutex lock of lock_ above us, so the following sequence is
     // thread safe.
@@ -255,7 +255,7 @@ void MCANCan<Defs, Registers>::enable()
 // disable()
 //
 template<class Defs, typename Registers>
-void MCANCan<Defs, Registers>::disable()
+void MCAN<Defs, Registers>::disable()
 {
     // There is a mutex lock of lock_ above us, so the following sequence is
     // thread safe.
@@ -284,10 +284,10 @@ void MCANCan<Defs, Registers>::disable()
 }
 
 //
-// MCANCan::flush_buffers()
+// MCAN::flush_buffers()
 //
 template<class Defs, typename Registers>
-void MCANCan<Defs, Registers>::flush_buffers()
+void MCAN<Defs, Registers>::flush_buffers()
 {
     // lock SPI bus access
     OSMutexLock locker(&lock_);
@@ -317,10 +317,10 @@ void MCANCan<Defs, Registers>::flush_buffers()
 }
 
 //
-// MCANCan::read()
+// MCAN::read()
 //
 template<class Defs, typename Registers>
-ssize_t MCANCan<Defs, Registers>::read(File *file, void *buf, size_t count)
+ssize_t MCAN<Defs, Registers>::read(File *file, void *buf, size_t count)
 {
     HASSERT((count % sizeof(struct can_frame)) == 0);
 
@@ -402,10 +402,10 @@ ssize_t MCANCan<Defs, Registers>::read(File *file, void *buf, size_t count)
 }
 
 //
-// MCANCan::write()
+// MCAN::write()
 //
 template<class Defs, typename Registers>
-ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t count)
+ssize_t MCAN<Defs, Registers>::write(File *file, const void *buf, size_t count)
 {
     HASSERT((count % sizeof(struct can_frame)) == 0);
 
@@ -431,7 +431,7 @@ ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t coun
                 ///       follow will be stuck in the FIFO until we pass
                 ///       through this code again (could be another time
                 ///       time through the loop or a future call to
-                ///       MCANCan::write()). This could be a long time,
+                ///       MCAN::write()). This could be a long time,
                 ///       resulting in stale data going out on the bus once the
                 ///       error state is removed. A possible future enhancement
                 ///       would be to use the MCAN timeout counter to flush the
@@ -541,7 +541,7 @@ ssize_t MCANCan<Defs, Registers>::write(File *file, const void *buf, size_t coun
 // TCQN4550Can::select()
 //
 template<class Defs, typename Registers>
-bool MCANCan<Defs, Registers>::select(File* file, int mode)
+bool MCAN<Defs, Registers>::select(File* file, int mode)
 {
     bool retval = false;
     switch (mode)
@@ -580,10 +580,10 @@ bool MCANCan<Defs, Registers>::select(File* file, int mode)
 }
 
 //
-// MCANCan::ioctl()
+// MCAN::ioctl()
 //
 template<class Defs, typename Registers>
-int MCANCan<Defs, Registers>::ioctl(File *file, unsigned long int key, unsigned long data)
+int MCAN<Defs, Registers>::ioctl(File *file, unsigned long int key, unsigned long data)
 {
     if (key == SIOCGCANSTATE)
     {
@@ -598,7 +598,7 @@ int MCANCan<Defs, Registers>::ioctl(File *file, unsigned long int key, unsigned 
 //
 template<class Defs, typename Registers>
 __attribute__((optimize("-O3")))
-void *MCANCan<Defs, Registers>::entry()
+void *MCAN<Defs, Registers>::entry()
 {
     for ( ; /* forever */ ; )
     {
@@ -758,4 +758,5 @@ void *MCANCan<Defs, Registers>::entry()
 }
 
 // Explicitly instantiates the MCAN implementation for the TCAN4550.
-template class MCANCan<>;
+/// @todo move this to TCAN4550.cxx.
+template class MCAN<>;

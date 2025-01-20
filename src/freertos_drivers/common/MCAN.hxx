@@ -49,29 +49,14 @@
 
 #define MCAN_DEBUG 0
 
-/// Defines the register layout of the TCAN4550.
+/// Defines the register layout of the original (unchanged) Bosch MCAN
+/// controller. These come from the Bosch M_CAN User's Manual.
 ///
-/// These are SPI Registers with word addressing, not byte addressing. This
-/// means that the values here need to be multiplied by 4 to get the actual
-/// address.
-enum class TCAN4550Registers : uint16_t
+/// Note that actual devices typically have an offset from where this register
+/// set appears, but they might also display a different register layout.
+enum class MCANBaseRegisters : uint16_t
 {
-    DEVICE_IDL = 0x0, ///< device ID "TCAN"
-    DEVICE_IDH,       ///< device ID "4550"
-    REVISION,         ///< silicon revision
-    STATUS,           ///< status
-
-    MODE = 0x200,        ///< modes of operation and pin configurations
-    TIMESTAMP_PRESCALER, ///< timestamp presacaler
-    TEST,                ///< read and write test registers, scratchpad
-    ECC,                 ///< ECC error detection and testing
-
-    INTERRUPT_STATUS = 0x208, ///< interrupt and diagnostic flags
-    MCAN_INTERRUPT_STATUS,    ///< interrupt flags related to MCAN core
-
-    INTERRUPT_ENABLE = 0x20C, ///< interrupt and diagnostic flags
-
-    CREL = 0x400, ///< core release
+    CREL = 0,     ///< core release
     ENDN,         ///< endianess
     CUST,         ///< customer
     DBTP,         ///< data bit timing and prescaler
@@ -138,8 +123,35 @@ enum class TCAN4550Registers : uint16_t
     TXEFS,  ///< 0xF4 0xE4 TX event FIFO status
     TXEFA,  ///< 0xF8 0xE8 TX event FIFO acknowledge
     RSVD17, ///< reserved
+};
 
-    MRAM = 0x2000, ///< MRAM offset
+
+/// @todo move this component and enum into the TCAN4550.hxx/cxx file.
+///
+/// Defines the register layout of the TCAN4550. The standard register set is
+/// not included.
+///
+/// These are SPI Registers with word addressing, not byte addressing. This
+/// means that the values here need to be multiplied by 4 to get the actual
+/// address.
+enum class TCAN4550Registers : int16_t
+{
+    DEVICE_IDL = 0x0, ///< device ID "TCAN"
+    DEVICE_IDH,              ///< device ID "4550"
+    REVISION,                ///< silicon revision
+    STATUS,                  ///< status
+
+    MODE = 0x200, ///< modes of operation and pin configurations
+    TIMESTAMP_PRESCALER, ///< timestamp presacaler
+    TEST,                ///< read and write test registers, scratchpad
+    ECC,                 ///< ECC error detection and testing
+
+    INTERRUPT_STATUS = 0x208, ///< interrupt and diagnostic flags
+    MCAN_INTERRUPT_STATUS,           ///< interrupt flags related to MCAN core
+
+    INTERRUPT_ENABLE = 0x20C, ///< interrupt and diagnostic flags
+
+    BASE = 0x400, ///< Address of the base register set in the device.
 };
 
 template<unsigned DATA_BYTES>
@@ -237,6 +249,8 @@ struct MCANCommonDefs {
     }
 };
 
+/// These registers exist in the Bosch MCAN but not with the same layout in the
+/// Stm32 FDCAN.
 struct RegisterDefs {
     /// RX FIFO x configuraation register definition
     struct Rxfxc
@@ -336,22 +350,39 @@ struct RegisterDefs {
     };
 };
 
-/// Static definitions and helper functions for the TCAN4550.
-struct TCAN4550Defs : public RegisterDefs
+/// Defines helper functions for the 4550 that are constexpr. These must be in
+/// a base class.
+struct TCAN4550BaseDefs : public RegisterDefs
 {
-    typedef TCAN4550Registers Registers;
+    static constexpr uint16_t tcan_register_to_address(TCAN4550Registers r)
+    {
+        return (static_cast<uint16_t>(r)) << 2;
+    }
+
+    static constexpr uint16_t register_to_address(MCANBaseRegisters r)
+    {
+        return (static_cast<uint16_t>(r) +
+                   static_cast<uint16_t>(TCAN4550Registers::BASE))
+            << 2;
+    }
+};
+
+/// Static definitions and helper functions for the TCAN4550.
+struct TCAN4550Defs : public TCAN4550BaseDefs
+{
+    typedef MCANBaseRegisters Registers;
 
     // Check alignment
-    static_assert(uint16_t(Registers::TXEFS) * 4 == 0x10F4, "register enum misaligned");
-    static_assert(uint16_t(Registers::ILE) * 4 == 0x105C, "register enum misaligned");
-    static_assert(uint16_t(Registers::MCAN_INTERRUPT_STATUS) * 4 == 0x0824,
-                  "register enum misaligned");
+    static_assert(register_to_address(Registers::TXEFS) == 0x10F4, "register enum misaligned");
+    static_assert(register_to_address(Registers::ILE) == 0x105C, "register enum misaligned");
+    static_assert(tcan_register_to_address(
+                      TCAN4550Registers::MCAN_INTERRUPT_STATUS) == 0x0824,
+        "register enum misaligned");
 
     typedef MCANCommonDefs<8> Common;
     typedef Common::MRAMRXBuffer MRAMRXBuffer;
     typedef Common::MRAMTXBuffer MRAMTXBuffer;
     typedef Common::MRAMTXEventFIFOElement MRAMTXEventFIFOElement;
-    
 
     /// MCAN interrupt registers (IR, IE, and ILS) definition
     struct MCANInterrupt
@@ -525,12 +556,12 @@ protected:
     /// @param address address to read from
     /// @return data read
     __attribute__((optimize("-O3")))
-    uint32_t register_read(Registers address)
+    uint32_t register_read(uint16_t addr)
     {
         SPIMessage msg;
         msg.cmd = READ;
-        msg.addrH = uint16_t(address) >> 6;
-        msg.addrL = (uint16_t(address) << 2) & 0xFF;
+        msg.addrH = addr >> 8;
+        msg.addrL = addr & 0xFF;
         msg.length = 1;
 
         spi_ioc_transfer xfer;
@@ -547,16 +578,28 @@ protected:
         return msg.data;
     }
 
+    uint32_t __attribute__((always_inline))
+    register_read(TCAN4550Registers tcan_reg)
+    {
+        return register_read(tcan_register_to_address(tcan_reg));
+    }
+
+    uint32_t __attribute__((always_inline))
+    register_read(Registers reg)
+    {
+        return register_read(register_to_address(reg));
+    }
+    
     /// Write to a SPI register.
     /// @param address address to write to
     /// @param data data to write
     __attribute__((optimize("-O3")))
-    void register_write(Registers address, uint32_t data)
+    void register_write(uint16_t addr, uint32_t data)
     {
         SPIMessage msg;
         msg.cmd = WRITE;
-        msg.addrH = uint16_t(address) >> 6;
-        msg.addrL = (uint16_t(address) << 2) & 0xFF;
+        msg.addrH = addr >> 8;
+        msg.addrL = addr & 0xFF;
         msg.length = 1;
         msg.data = data;
 
@@ -571,6 +614,18 @@ protected:
 #endif
     }
 
+    void __attribute__((always_inline))
+    register_write(Registers reg, uint32_t data)
+    {
+        register_write(register_to_address(reg), data);
+    }
+
+    void __attribute__((always_inline))
+    register_write(TCAN4550Registers tcan_reg, uint32_t data)
+    {
+        register_write(tcan_register_to_address(tcan_reg), data);
+    }
+    
     /// Read one or more RX buffers.
     /// @param offset word offset in the MRAM to read from
     /// @param buf location to read into. The RX Buffer will be converted into
@@ -638,10 +693,10 @@ protected:
     void clear_global_interrupt_flags()
     {
         // read TCAN status flags
-        uint32_t status = register_read(Registers::INTERRUPT_STATUS);
+        uint32_t status = register_read(TCAN4550Registers::INTERRUPT_STATUS);
 
         // clear TCAN status flags
-        register_write(Registers::INTERRUPT_STATUS, status);
+        register_write(TCAN4550Registers::INTERRUPT_STATUS, status);
 #if MCAN_DEBUG
         status_ = status;
 #endif
@@ -658,7 +713,7 @@ protected:
         mode.modeSel = 2;  // normal mode
         mode.clkRef = (freq == 40000000);
 
-        register_write(Registers::MODE, mode.data);
+        register_write(TCAN4550Registers::MODE, mode.data);
     }
 
     /// This hook is called during initialization, after the MCAN core has been
@@ -666,12 +721,12 @@ protected:
     void init_hook()
     {
         // diasable all TCAN interrupts
-        register_write(Registers::INTERRUPT_ENABLE, 0);
+        register_write(TCAN4550Registers::INTERRUPT_ENABLE, 0);
 
         // clear MRAM, a bit brute force, but gets the job done
         for (uint16_t offset = 0x0000; offset < MRAM_SIZE_WORDS; ++offset)
         {
-            register_write((Registers)(int16_t(Registers::MRAM) + offset), 0);
+            register_write(MRAM_ADDR_OFFSET + (offset << 2), 0);
         }
 
         {
@@ -767,7 +822,7 @@ protected:
 
 /// Base class for a CAN driver of a controller using the Bosch MCAN IP.
 template<class Defs = TCAN4550Defs, typename Registers = typename Defs::Registers>
-class MCANCan : public Can, public OSThread, private Atomic, public Defs
+class MCAN : public Can, public OSThread, private Atomic, public Defs
 {
 public:
     /// Constructor.
@@ -776,7 +831,7 @@ public:
     /// @param interrupt_disable callback to disable the interrupt
     /// @param intarg argument for interrupt en/dis functions
     /// @param test_pin test GPIO pin for instrumenting the code
-    MCANCan(const char *name, void (*interrupt_enable)(void*),
+    MCAN(const char *name, void (*interrupt_enable)(void*),
         void (*interrupt_disable)(void*), void *intarg,
 #if MCAN_DEBUG
         const Gpio *test_pin = DummyPinWithRead::instance()
@@ -805,7 +860,7 @@ public:
     }
 
     /// Destructor.
-    ~MCANCan()
+    ~MCAN()
     {
     }
 
@@ -1324,9 +1379,9 @@ private:
     static const MCANBaud BAUD_TABLE[];
 
     /// Default Constructor.
-    MCANCan();
+    MCAN();
 
-    DISALLOW_COPY_AND_ASSIGN(MCANCan);
+    DISALLOW_COPY_AND_ASSIGN(MCAN);
 };
 
 

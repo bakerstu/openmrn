@@ -334,7 +334,7 @@ private:
 };
 
 
-class Stm32MCan : public MCANCan<Stm32FDCANDefs>
+class Stm32MCan : public MCAN<Stm32FDCANDefs>
 {
 public:
     /// Constructor.
@@ -344,16 +344,16 @@ public:
     /// FDCAN2
     /// @param interrupt interrupt number for the module.
     Stm32MCan(const char *name, FDCAN_GlobalTypeDef *inst, IRQn_Type interrupt)
-        : MCANCan(name, &Stm32MCan::interrupt_enable,
+        : MCAN(name, &Stm32MCan::interrupt_enable,
               &Stm32MCan::interrupt_disable, this)
         , interrupt_(interrupt)
     {
-        MCANCan::init_fdcan(inst);
+        MCAN::init_fdcan(inst);
     }
 
     void interrupt_handler()
     {
-        MCANCan::interrupt_handler();
+        MCAN::interrupt_handler();
     }
 
 private:
