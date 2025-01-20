@@ -72,7 +72,7 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
+static Stm32Uart uart2("/dev/ser0", USART2, USART2_IRQn);
 
 /** RailCom sender UART */
 static Stm32RailcomSender railcomUart("/dev/ser1", USART1, USART1_IRQn);
@@ -360,7 +360,7 @@ void touch_interrupt_handler(void) {
 /// UART2 interrupt handler.
 void uart2_interrupt_handler(void)
 {
-    Stm32Uart::interrupt_handler(1);
+    uart2.interrupt_handler();
 }
 
 }

@@ -59,7 +59,7 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-// static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
+// static Stm32Uart uart1("/dev/ser0", USART1, USART1_IRQn);
 
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
@@ -279,9 +279,9 @@ void usb_interrupt_handler(void)
 }
 
 /// UART2 interrupt handler.
-void uart2_interrupt_handler(void)
+void uart1_interrupt_handler(void)
 {
-    Stm32Uart::interrupt_handler(1);
+    // uart1.interrupt_handler();
 }
 
 } // extern "C"
