@@ -1342,6 +1342,9 @@ private:
 
     /// User entry point for the created thread.
     /// @return exit status
+    ///
+    /// @todo move this thread to the TCAN4550 implementation instead of the
+    /// generic driver.
     void *entry() override;
 
     void enable() override; ///< function to enable device
