@@ -57,7 +57,7 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-static Stm32Uart uart0("/dev/ser0", USART3, USART3_4_5_6_LPUART1_IRQn);
+static Stm32Uart uart3("/dev/ser0", USART3, USART3_4_5_6_LPUART1_IRQn);
 
 /** CAN 0 CAN driver instance */
 //static Stm32Can can0("/dev/can0");
@@ -312,12 +312,12 @@ void hw_init(void)
 
 void uart2_lpuart2_interrupt_handler(void)
 {
-    Stm32Uart::interrupt_handler(1);
+    // no instance.
 }
 
 void uart3_4_5_6_lpuart1_interrupt_handler(void)
 {
-    Stm32Uart::interrupt_handler(2);
+    uart3.interrupt_handler();
 }
 
 // timer17_fdcan_it1_interrupt_handler()

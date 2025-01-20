@@ -53,11 +53,7 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-
-// this driver causes us to crash in default_interrupt_handler. Check that the
-// appropriate weak definition / implementation is used.
-
-//static Stm32Uart uart0("/dev/ser0", USART1, USART1_IRQn);
+static Stm32Uart uart1("/dev/ser0", USART1, USART1_IRQn);
 
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
@@ -247,6 +243,12 @@ void hw_preinit(void)
     }
     SetInterruptPriority(TIM7_IRQn, 0);
     NVIC_EnableIRQ(TIM7_IRQn);
+}
+
+/// USART1 interrupt handler.
+void usart1_interrupt_handler(void)
+{
+    uart1.interrupt_handler();
 }
 
 }
