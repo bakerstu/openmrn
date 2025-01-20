@@ -278,7 +278,7 @@ void usb_interrupt_handler(void)
     dcd_int_handler(0);
 }
 
-/// UART2 interrupt handler.
+/// UART1 interrupt handler.
 void uart1_interrupt_handler(void)
 {
     // uart1.interrupt_handler();
