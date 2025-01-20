@@ -101,6 +101,14 @@ public:
     {
     }
 
+    /** handle an interrupt.
+     *
+     * Call this function from HwInit.cxx from `void
+     * u(s)artN_interrupt_handler(void)`. If there are multiple instances on
+     * the same interrupt, call them all from the relevant interrupt handler.
+     */
+    void interrupt_handler();
+
     /** Request an ioctl transaction. Supported ioctl is TCBAUDRATE from
      * include/freertos/tc_ioctl.h */
     int ioctl(File *file, unsigned long int key, unsigned long data) override;
@@ -108,11 +116,6 @@ public:
 protected:
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
-
-    /** @todo (Stuart Baker) this should be made private */
-    /** handle an interrupt.
-     */
-    void interrupt_handler();
 
     /** Try and transmit a message.
      */

@@ -41,8 +41,6 @@
 #include "FreeRTOSConfig.h"
 
 // static
-Stm32Uart *Stm32Uart::instances[NUM_USART] = {NULL};
-// static
 uint8_t Stm32Uart::interrupt3_to_8EnableCnt = 0;
 // static
 uint8_t Stm32Uart::interrupt2_8EnableCnt = 0;
@@ -59,57 +57,6 @@ Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     memset(&uartHandle, 0, sizeof(uartHandle));
     uartHandle.Instance = base;
     HAL_UART_DeInit(&uartHandle); 
-
-    if (base == USART1)
-    {
-        instances[0] = this;
-    }
-#if (NUM_USART > 1)
-    else if (base == USART2)
-    {
-        instances[1] = this;
-    }
-#endif    
-#if (NUM_USART > 2)
-    else if (base == USART3)
-    {
-        instances[2] = this;
-    }
-#endif
-#if (NUM_USART > 3)
-    else if (base == USART4)
-    {
-        instances[3] = this;
-    }
-#endif
-#if (NUM_USART > 4)
-    else if (base == USART5)
-    {
-        instances[4] = this;
-    }
-#endif
-#if (NUM_USART > 5)
-    else if (base == USART6)
-    {
-        instances[5] = this;
-    }
-#endif
-#if (NUM_USART > 6)
-    else if (base == USART7)
-    {
-        instances[6] = this;
-    }
-#endif
-#if (NUM_USART > 7)
-    else if (base == USART8)
-    {
-        instances[7] = this;
-    }
-#endif
-    else
-    {
-        DIE("Unknown USART base address.");
-    }
 
     HAL_NVIC_DisableIRQ(interrupt);
 #if defined(GCC_ARMCM0)    
