@@ -45,6 +45,7 @@
 #include "Stm32Can.hxx"
 #include "Stm32EEPROMEmulation.hxx"
 #include "Stm32SpiPixelStrip.hxx"
+#include "Stm32MCan.hxx"
 #include "hardware.hxx"
 
 /** override stdin */
@@ -60,8 +61,11 @@ const char *STDERR_DEVICE = "/dev/ser0";
 static Stm32Uart uart0("/dev/ser0", USART3, USART3_4_5_6_LPUART1_IRQn);
 
 /** CAN 0 CAN driver instance */
-//static Stm32Can can0("/dev/can0");
-// todo: Need FDCAN driver here...
+static Stm32MCan can0("/dev/can0", FDCAN1, TIM16_FDCAN_IT0_IRQn);
+
+extern FDCAN_GlobalTypeDef* fdcan1;
+FDCAN_GlobalTypeDef* fdcan1 = FDCAN1;
+
 
 /** EEPROM emulation driver. The file size might be made bigger. */
 static Stm32EEPROMEmulation eeprom0("/dev/eeprom", 512);
@@ -302,12 +306,17 @@ void hw_preinit(void)
     __HAL_DBGMCU_FREEZE_TIM17();
     SetInterruptPriority(TIM17_FDCAN_IT1_IRQn, 0);
     NVIC_EnableIRQ(TIM17_FDCAN_IT1_IRQn);
+
+    fdcan1 = FDCAN1;
 }
 
 void hw_init(void)
 {
     strip0.hw_init(SPI_BAUDRATEPRESCALER_16);
     strip0.update_sync();
+
+    can0.init(64000000, config_nmranet_can_bitrate(),
+        (3 * config_nmranet_can_bitrate()) / 1000);
 }
 
 void uart2_lpuart2_interrupt_handler(void)
@@ -320,22 +329,14 @@ void uart3_4_5_6_lpuart1_interrupt_handler(void)
     Stm32Uart::interrupt_handler(2);
 }
 
-// timer17_fdcan_it1_interrupt_handler()
-//
-// the timer17/fdcan_it1 isr is invoked from the interrupt vector table.  It 
-// in turn calls each of the shared isr routines: timer17, fdcan1_it1 and 
-// fdcan2_it2.
-//
+void timer16_fdcan_it0_interrupt_handler(void)
+{
+    can0.interrupt_handler();
+}
 
 void timer17_fdcan_it1_interrupt_handler(void)
 {
     blinker_interrupt_handler();
-    // todo: Fix fdcan Instances...
-//    Stm32Can::instances[0]->rx_interrupt_handler();
-//    Stm32Can::instances[0]->tx_interrupt_handler();
- //   Stm32Can::instances[1]->rx_interrupt_handler();
- //   Stm32Can::instances[1]->tx_interrupt_handler();
-  
-}  // ~timer17_fdcan_it1_interrupt_handler()
+}
 
 }  // end of extern "C"
