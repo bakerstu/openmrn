@@ -67,6 +67,8 @@ protected:
     MemoryConfigTest()
         : memoryOne_(&datagram_support_, nullptr, 10)
     {
+        using testing::DoAll;
+
         ON_CALL(space, write(_, _, _, _, _))
             .WillByDefault(DoAll(SetArgPointee<3>(0x2F00), Return(0)));
         ON_CALL(space, read(_, _, _, _, _))
