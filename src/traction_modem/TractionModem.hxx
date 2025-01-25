@@ -299,10 +299,23 @@ private:
             return call_immediately(STATE(resync));
         }
 
-        /// @todo Check CRC here.
-
         // A this point, we have a valid message.
         LOG(INFO, "[ModemRx] %s", string_to_hex(payload_).c_str());
+
+        Defs::CRC crc_calc;
+        Defs::CRC crc_recv = Defs::get_crc(payload_);
+        crc3_crc16_ccitt(
+            payload_.data() + sizeof(uint32_t),
+            payload_.size() - (sizeof(uint32_t) + sizeof(crc_calc)),
+            crc_calc.crc);
+        if (crc_calc != crc_recv)
+        {
+            LOG(INFO, "CRC Error, received: 0x%04X 0x%04X 0x%04X, "
+                "calculated: 0x%04X 0x%04X 0x%04X",
+                crc_recv.all_, crc_recv.even_, crc_recv.odd_,
+                crc_calc.all_, crc_calc.even_, crc_calc.odd_);
+            return call_immediately(STATE(resync));
+        }
 
         if (receiver_)
         {

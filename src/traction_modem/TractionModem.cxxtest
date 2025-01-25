@@ -142,6 +142,32 @@ protected:
     ::testing::StrictMock<MockPacketFlowInterface> mPFI_;
 };
 
+/// Append the expected CRC value.
+/// @param payload packet payload
+/// @param all crc of all bytes
+/// @param even crc of even index bytes
+/// @param odd crc of odd index bytes
+static void append_expected_crc(
+    Defs::Payload *payload, uint16_t all, uint16_t even, uint16_t odd)
+{
+    payload->push_back(all >> 8);
+    payload->push_back(all & 0xFF);
+    payload->push_back(even >> 8);
+    payload->push_back(even & 0xFF);
+    payload->push_back(odd >> 8);
+    payload->push_back(odd & 0xFF);
+}
+
+/// Append the expected CRC value.
+/// @param payload packet payload, including a prepended preamble
+static void append_expected_crc(Defs::Payload *payload)
+{
+    Defs::CRC crc;
+    crc3_crc16_ccitt(payload->data() + sizeof(uint32_t),
+         payload->size() - sizeof(uint32_t), crc.crc);
+    append_expected_crc(payload, crc.all_, crc.even_, crc.odd_);
+}
+
 //
 // TxFlowTest::CreateNoStart
 //
@@ -168,7 +194,8 @@ TEST_F(TxFlowTest, Write)
 
     result = recv();
     expected = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
-               "\x00\x00\x00\x0A\x00\x01"s "\x00\x00\x00\x00\x00\x00"s;
+               "\x00\x00\x00\x0A\x00\x01"s;
+    append_expected_crc(&expected);
     EXPECT_EQ(expected, result);
 }
 
@@ -190,7 +217,8 @@ TEST_F(RxFlowTest, Read)
     init();
     
     data = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
-           "\x00\x00\x00\x0A\x00\x01"s "\x00\x00\x00\x00\x00\x00"s;
+           "\x00\x00\x00\x0A\x00\x01"s;
+    append_expected_crc(&data);
 
     // Send a packet without a registered receiver.
     EXPECT_CALL(mPFI_, send(_, _)).Times(0);
@@ -241,7 +269,8 @@ TEST_F(RxFlowTest, Rsync)
 
     // This is an actual valid packet.
     good_data = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
-                "\x00\x00\x00\x0A\x00\x01"s "\x00\x00\x00\x00\x00\x00"s;
+                "\x00\x00\x00\x0A\x00\x01"s;
+    append_expected_crc(&good_data);
     // This is just garbage. Something to fill the space and force resync.
     bad_data = "\x89\x06\xdc\x7a\x41\x01\x06\x06\x00\x00\xaa\xab\x74\x01"s
                "\x05\x30\x56\x89\x82\x01"s;
@@ -280,6 +309,47 @@ TEST_F(RxFlowTest, Rsync)
     wait_for_main_executor();
     clk.advance(2 * flow_.get_character_nsec() * (6 + 2));
     wait_for_main_executor();
+
+    // Ensure that we can still recover and decode the next full good packet.
+    flow_.set_listener(&mPFI_);
+    EXPECT_CALL(mPFI_, send(testing::Eq(good_data), UINT_MAX)).Times(1);
+    send(good_data);
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mPFI_);
+}
+
+//
+// RxFlowTest::BadCrcRsync
+//
+TEST_F(RxFlowTest, BadCrcRsync)
+{
+    using ::testing::_;
+
+    std::string good_data;
+    std::string bad_data;
+    std::string bad_size;
+    std::string big_size;
+    init();
+    // Register a receiver.
+    flow_.set_listener(&mPFI_);
+
+    // This is an actual valid packet.
+    good_data = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
+                "\x00\x00\x00\x0A\x00\x01"s;
+    append_expected_crc(&good_data);
+    // This is just garbage. Something to fill the space and force resync.
+    bad_data = good_data;
+    // Corrupt one of the CRC values.
+    bad_data[bad_data.size() - 2] = 0xFF;
+    bad_data[bad_data.size() - 1] = 0xFF;
+
+    //
+    // Send the packet with the bad CRC value.
+    //
+    EXPECT_CALL(mPFI_, send(_, _)).Times(0);
+    send(bad_data);
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mPFI_);
 
     // Ensure that we can still recover and decode the next full good packet.
     flow_.set_listener(&mPFI_);

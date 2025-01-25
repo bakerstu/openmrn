@@ -16,10 +16,30 @@ int appl_main(int argc, char* argv[])
 using namespace tractionmodem;
 using namespace std::string_literals;
 
+/// Append the expected CRC value.
+/// @param payload packet payload
+/// @param all crc of all bytes
+/// @param even crc of even index bytes
+/// @param odd crc of odd index bytes
+static void append_expected_crc(
+    Defs::Payload *payload, uint16_t all, uint16_t even, uint16_t odd)
+{
+    payload->push_back(all >> 8);
+    payload->push_back(all & 0xFF);
+    payload->push_back(even >> 8);
+    payload->push_back(even & 0xFF);
+    payload->push_back(odd >> 8);
+    payload->push_back(odd & 0xFF);
+}
+
+/// Append the expected CRC value.
+/// @param payload packet payload, including a prepended preamble
 static void append_expected_crc(Defs::Payload *payload)
 {
-    // @todo Caclulate the expected CRC here.
-    payload->append("\x00\x00\x00\x00\x00\x00"s);
+    Defs::CRC crc;
+    crc3_crc16_ccitt(payload->data() + sizeof(uint32_t),
+         payload->size() - sizeof(uint32_t), crc.crc);
+    append_expected_crc(payload, crc.all_, crc.even_, crc.odd_);
 }
 
 //
@@ -128,9 +148,9 @@ TEST(TractionModemDefsTest, GetMemwPayload)
 TEST(TractionModemDefsTest, AppendCRC)
 {
     Defs::Payload payload = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x00\x01"s "\x01"s;
-    Defs::Payload expected = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x00\x01"s "\x01"s
-                             "\x00\x00"s "\x00\x00"s "\x00\x00"s;
+    Defs::Payload expected = payload;
 
+    append_expected_crc(&expected, 0x002B, 0xB2DD, 0x3E1F);
     Defs::append_crc(&payload);
     EXPECT_EQ(expected, payload);
 }

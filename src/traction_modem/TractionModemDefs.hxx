@@ -37,6 +37,7 @@
 #include <string>
 
 #include "openlcb/Velocity.hxx"
+#include "utils/Crc.hxx"
 
 namespace tractionmodem
 {
@@ -147,9 +148,32 @@ struct Defs
     // CRC definition of a message.
     struct CRC
     {
-        uint16_t all_; ///< CRC of all bytes
-        uint16_t even_; ///< CRC of even bytes
-        uint16_t odd_; ///< CRC of odd bytes
+        union
+        {
+            uint16_t crc[3];
+            struct
+            {
+                uint16_t all_; ///< CRC of all bytes
+                uint16_t even_; ///< CRC of even bytes
+                uint16_t odd_; ///< CRC of odd bytes
+            };
+        };
+
+        /// Overload == operator.
+        /// @param c comparison value
+        /// @return true if equal, else false
+        bool operator==(const CRC &c)
+        {
+            return (all_ == c.all_ && even_ == c.even_ && odd_ == c.odd_);
+        }
+
+        /// Overload != operator.
+        /// @param c comparison value
+        /// @return true if not equal, else false
+        bool operator!=(const CRC &c)
+        {
+            return !(all_ == c.all_ && even_ == c.even_ && odd_ == c.odd_);
+        }
     };
 
     /// Computes payload for the wireless present message.
@@ -293,13 +317,16 @@ struct Defs
     }
 
     /// Computes and appends the CRC to the payload.
-    /// @param p wire formatted payload to append to
+    /// @param p wire formatted payload, including prepended preamble, to
+    ///        append to
     static void append_crc(Payload *p)
     {
-        /// @todo Calculate CRC here.
-        append_uint16(p, 0);
-        append_uint16(p, 0);
-        append_uint16(p, 0);
+        CRC crc;
+        crc3_crc16_ccitt(p->data() + sizeof(uint32_t),
+            p->size() - sizeof(uint32_t), crc.crc);
+        append_uint16(p, crc.all_);
+        append_uint16(p, crc.even_);
+        append_uint16(p, crc.odd_);
     }
 
     /// Extract uint32_t value from a given offset in a wire formatted payload.
@@ -330,6 +357,18 @@ struct Defs
             return be16toh(ret);
         }
         return 0;
+    }
+
+    /// Extract the CRC value(s) from a given payload. The assumption is that
+    /// the last 6 bytes of the payload contain the CRC value(s).
+    /// @param p wire formatted payload
+    static const CRC get_crc(const Payload &p, bool preamble_prepended = true)
+    {
+        CRC result;
+        result.all_ = get_uint16(p, p.size() - 6);
+        result.even_ = get_uint16(p, p.size() - 4);
+        result.odd_ = get_uint16(p, p.size() - 2);
+        return result;
     }
 
     /// Verifies that a given payload is a valid packet. This checks for the
