@@ -924,8 +924,8 @@ private:
         currentOffset_ = 0;
         char c = 0;
         response_.assign(response_len, c);
-        inline_respond_ok(
-            DatagramClient::REPLY_PENDING | space->get_read_timeout());
+        inline_respond_ok(static_cast<uint8_t>(DatagramClient::REPLY_PENDING) |
+            static_cast<uint8_t>(space->get_read_timeout()));
         return call_immediately(STATE(try_read));
     }
 
@@ -1007,8 +1007,8 @@ private:
             return respond_reject(Defs::ERROR_INVALID_ARGS);
         }
         currentOffset_ = 0;
-        inline_respond_ok(
-            DatagramClient::REPLY_PENDING | space->get_write_timeout());
+        inline_respond_ok(static_cast<uint8_t>(DatagramClient::REPLY_PENDING) |
+            static_cast<uint8_t>(space->get_write_timeout()));
         return call_immediately(STATE(try_write));
     }
 
