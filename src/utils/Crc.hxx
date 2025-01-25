@@ -186,7 +186,7 @@ public:
 #elif CRC8DALLAS_TABLE_SIZE == 256
         update256(message_byte);
 #else
-#error "Invalid value for CRC16CCITT_TABLE_SIZE"
+#error "Invalid value for CRC8DALLAS_TABLE_SIZE"
 #endif
     }
 
