@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "os/os.h"
 
-#include "tractionmodem/TractionModemDefs.hxx"
+#include "traction_modem/TractionModemDefs.hxx"
 
 /// Entry point to the test infrastructure. Run all the tests.
 /// @param argc passed to GoogleTest

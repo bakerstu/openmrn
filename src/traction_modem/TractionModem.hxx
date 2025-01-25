@@ -38,7 +38,7 @@
 /// @todo Need to prune out the "hardware.hxx" dependencies from this file.
 ///       These need to be dispatched to hardware specific code somehow.
 
-#include "TractionModemDefs.hxx"
+#include "traction_modem/TractionModemDefs.hxx"
 #if !defined(GTEST)
 #include "hardware.hxx"
 #endif
