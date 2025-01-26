@@ -25,8 +25,8 @@ jobs:
 
     - name: Generate OpenMRNLite library
       run: |
-        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
-        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f
+        mkdir --parents $GITHUB_WORKSPACE/CustomOpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/CustomOpenMRNLite $GITHUB_WORKSPACE -f
         rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
 
     - name: Compile STM32 examples
@@ -37,7 +37,6 @@ jobs:
         sketch-names: Stm32*.ino
         build-properties: '{ "All": "-DHAL_CAN_MODULE_ENABLED" }'
         debug-compile: true
-        required-libraries: OpenMRNLite
 
   build-esp32:
     name: Build Arduino ${{ matrix.target }} examples
@@ -52,8 +51,8 @@ jobs:
 
     - name: Generate OpenMRNLite library
       run: |
-        mkdir --parents $HOME/Arduino/libraries/OpenMRNLite
-        $GITHUB_WORKSPACE/arduino/libify.sh $HOME/Arduino/libraries/OpenMRNLite $GITHUB_WORKSPACE -f
+        mkdir --parents $GITHUB_WORKSPACE/CustomOpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/CustomOpenMRNLite $GITHUB_WORKSPACE -f
         rm -f $GITHUB_WORKSPACE/arduino/examples/Stm*/build_opt.h
 
     - name: Compile ESP32 examples
@@ -63,7 +62,6 @@ jobs:
         arduino-board-fqbn: esp32:esp32:node32s
         sketch-names: ESP32CanLoadTest.ino,ESP32IOBoard.ino,ESP32SerialBridge.ino,ESP32WifiCanBridge.ino
         debug-compile: true
-        required-libraries: OpenMRNLite
         arduino-platform: esp32:esp32@3.1.1
       if: ${{ matrix.target == 'esp32' }}
 
@@ -74,7 +72,6 @@ jobs:
         arduino-board-fqbn: esp32:esp32:esp32c3
         sketch-names: ESP32C3CanLoadTest.ino,ESP32C3IOBoard.ino
         debug-compile: true
-        required-libraries: OpenMRNLite
         arduino-platform: esp32:esp32@3.1.1
       if: ${{ matrix.target == 'esp32c3' }}
     
@@ -85,6 +82,5 @@ jobs:
         arduino-board-fqbn: esp32:esp32:esp32s2
         sketch-names: ESP32S2CanLoadTest.ino,ESP32S2IOBoard.ino
         debug-compile: true
-        required-libraries: OpenMRNLite
         arduino-platform: esp32:esp32@3.1.1
       if: ${{ matrix.target == 'esp32s2' }}
