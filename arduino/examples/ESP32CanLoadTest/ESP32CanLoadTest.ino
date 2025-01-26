@@ -35,6 +35,7 @@
 #include <Arduino.h>
 #include <SPIFFS.h>
 #include <esp_spi_flash.h>
+#include <esp_private/cache_utils.h>
 
 #include <OpenMRNLite.h>
 #include <openlcb/TcpDefs.hxx>
@@ -197,17 +198,23 @@ namespace openlcb
 }
 
 CpuLoad cpu_load;
-hw_timer_t * timer = nullptr;
 CpuLoadLog* cpu_log = nullptr;
 
-void IRAM_ATTR onTimer()
+// Callback function for the hardware timer configured to fire roughly 163
+// times per second.
+void ARDUINO_ISR_ATTR record_cpu_usage()
 {
-    if (spi_flash_cache_enabled())
+#if CONFIG_ARDUINO_ISR_IRAM
+    // if the ISR is called with flash disabled we can not safely recored the
+    // cpu usage.
+    if (!spi_flash_cache_enabled())
     {
-        // Retrieves the vtable pointer from the currently running executable.
-        unsigned *pp = (unsigned *)openmrn.stack()->executor()->current();
-        cpuload_tick(pp ? pp[0] | 1 : 0);
+        return;
     }
+#endif
+    // Retrieves the vtable pointer from the currently running executable.
+    unsigned *pp = (unsigned *)openmrn.stack()->executor()->current();
+    cpuload_tick(pp ? pp[0] | 1 : 0);
 }
 
 void setup()
@@ -217,11 +224,16 @@ void setup()
 #endif    
     Serial.begin(115200L);
 
-    timer = timerBegin(3, 80, true); // timer_id = 3; divider=80; countUp = true;
-    timerAttachInterrupt(timer, &onTimer, true); // edge = true
-    // 1MHz clock, 163 ticks per second desired.
-    timerAlarmWrite(timer, 1000000/163, true);
-    timerAlarmEnable(timer);
+    // Register hardware timer zero to use a 1Mhz resolution and to count up
+    // from zero when the timer triggers.
+    auto timer = timerBegin(80);
+    // Attach our callback function to be called when the timer is ready to
+    // fire.
+    timerAttachInterrupt(timer, &record_cpu_usage);
+    // Configure the trigger point to be roughly 163 times per second.
+    timerWrite(timer, 1000000/163);
+    // Enable the timer.
+    timerStart(timer);
 
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
