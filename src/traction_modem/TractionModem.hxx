@@ -48,7 +48,7 @@
 #include "openlcb/TrainInterface.hxx"
 #include "utils/format_utils.hxx"
 
-namespace tractionmodem
+namespace traction_modem
 {
 
 struct TxMessage
@@ -149,6 +149,7 @@ public:
     /// @param service service that the flow is bound to
     RxFlow(Service *service)
         : StateFlowBase(service)
+        , receiver_(nullptr)
     { }
 
     /// Start the flow using the given interface.
@@ -192,7 +193,9 @@ private:
         //       which is the heap allocator, and that the heap allocator will
         //       allocate memory on (at least) the native machine size boundary.
         //       This is important in order to be able to cast payload_.data()
-        //       to a Defs::Message type for easier decoding.
+        //       to a Defs::Message type for easier decoding. Otherwise if the
+        //       architecture supports unaligned accesses, then we are fine for
+        //       all allocators.
         payload_.resize(MIN_MESSAGE_SIZE);
         recvCnt_ = 0;
         return call_immediately(STATE(wait_for_base_data));
@@ -248,6 +251,8 @@ private:
 
         // Else valid preamble and/or header not found where it is supposed to
         // be.
+        LOG(INFO,
+            "[ModemRx] Did not find an expected valid preamble and/or header.");
         return call_immediately(STATE(resync));
     }
 
@@ -264,11 +269,15 @@ private:
         {
             // Violated the maximum length data allowed by the protocol. We are
             // probably out of sync.
+            LOG(INFO, "[ModemRx] Maximum data length violation.");
             return call_immediately(STATE(resync));
         }
 
         size_t total_len = MIN_MESSAGE_SIZE + len;
-        payload_.resize(total_len);
+        if (payload_.size() < total_len)
+        {
+            payload_.resize(total_len);
+        }
 
         if (recvCnt_ >= total_len)
         {
@@ -296,6 +305,9 @@ private:
             // Timeout, we may be out ot sync. Check for a preamble in the data
             // we did receive.
             recvCnt_ += len - helper_.remaining_;
+            LOG(INFO,
+                "[ModemRx] Timeout waiting for expected receive data, "
+                "remaining: %u", helper_.remaining_);
             return call_immediately(STATE(resync));
         }
 
@@ -306,15 +318,25 @@ private:
         Defs::CRC crc_recv = Defs::get_crc(payload_);
         crc3_crc16_ccitt(
             payload_.data() + sizeof(uint32_t),
-            payload_.size() - (sizeof(uint32_t) + sizeof(crc_calc)),
-            crc_calc.crc);
+            sizeof(m->header_.command_) + sizeof(m->header_.length_) + len,
+            &crc_calc.crc[0]);
         if (crc_calc != crc_recv)
         {
-            LOG(INFO, "CRC Error, received: 0x%04X 0x%04X 0x%04X, "
+            LOG(INFO, "[ModemRx] CRC Error, received: 0x%04X 0x%04X 0x%04X, "
                 "calculated: 0x%04X 0x%04X 0x%04X",
                 crc_recv.all_, crc_recv.even_, crc_recv.odd_,
                 crc_calc.all_, crc_calc.even_, crc_calc.odd_);
             return call_immediately(STATE(resync));
+        }
+
+        size_t total_len = MIN_MESSAGE_SIZE + len;
+        std::string payload_tmp;
+        if (payload_.size() > total_len)
+        {
+            // We have the start of the next message, which we need to save off.
+            payload_tmp =
+                payload_.substr(total_len, payload_.size() - total_len);
+            payload_.resize(total_len);
         }
 
         if (receiver_)
@@ -322,6 +344,16 @@ private:
             auto *b = receiver_->alloc();
             b->data()->payload = std::move(payload_);
             receiver_->send(b);
+        }
+
+        if (payload_tmp.size())
+        {
+            // Move the start of the next message into payload.
+            LOG(INFO, "[ModemRx] Remaining payload size: %zu",
+                payload_tmp.size());
+            payload_ = std::move(payload_tmp);
+            recvCnt_ = payload_.size();
+            return call_immediately(STATE(wait_for_base_data));
         }
         return call_immediately(STATE(reset));
     }
@@ -358,6 +390,11 @@ private:
                 // allocation.
                 memmove(&payload_[0], &payload_[idx], recvCnt_ - idx);
                 recvCnt_ -= idx;
+                size_t new_size =
+                    recvCnt_ < MIN_MESSAGE_SIZE ? MIN_MESSAGE_SIZE : recvCnt_;
+                payload_.resize(new_size);
+                LOG(INFO, "[ModemRx] Sync on preamble first, recvCnt_: %zu",
+                    recvCnt_);
                 return call_immediately(STATE(wait_for_base_data));
             }
         }
@@ -665,14 +702,14 @@ public:
             {
                 bool input1 = INPUT1_Pin::get();
                 LOGIC_F5_Pin::set(INPUT2_Pin::get());
-                LOG(ALWAYS, "INPUT1: %u", input1);
+                LOG(INFO, "INPUT1: %u", input1);
                 break;
             }
             case 8:
             {
                 bool input2 = INPUT2_Pin::get();
                 LOGIC_F6_Pin::set(INPUT2_Pin::get());
-                LOG(ALWAYS, "INPUT2: %u", input2);
+                LOG(INFO, "INPUT2: %u", input2);
                 break;
             }
 #endif // !defined(GTEST)
@@ -682,6 +719,7 @@ public:
     /** @returns the value of a function. */
     uint16_t get_fn(uint32_t address) override
     {
+        /// @todo Need to implement this.
         return 0;
     }
 
@@ -719,6 +757,6 @@ private:
     bool isActive_;
 };
 
-} // namespace tractionmodem
+} // namespace traction_modem
 
 #endif // _TRACTIONMODEM_TRACTIONMODEM_HXX_

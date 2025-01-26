@@ -13,7 +13,7 @@ int appl_main(int argc, char* argv[])
     return RUN_ALL_TESTS();
 }
 
-using namespace tractionmodem;
+using namespace traction_modem;
 using namespace std::string_literals;
 
 /// Append the expected CRC value.
@@ -107,8 +107,9 @@ TEST(TractionModemDefsTest, GetEstopPayload)
     Defs::Payload expected;
 
     result = Defs::get_estop_payload();
-    expected = "\x41\xd2\xc3\x7a" "\x01\x02" "\x00\x00";
-    EXPECT_FALSE(memcmp(expected.data(), result.data(), expected.size()));
+    expected = "\x41\xd2\xc3\x7a"s "\x01\x02"s "\x00\x00"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
 }
 
 //

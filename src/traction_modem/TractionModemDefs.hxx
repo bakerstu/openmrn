@@ -39,7 +39,7 @@
 #include "openlcb/Velocity.hxx"
 #include "utils/Crc.hxx"
 
-namespace tractionmodem
+namespace traction_modem
 {
 
 /// Useful definitions for the traction modem.
@@ -364,10 +364,12 @@ struct Defs
     /// @param p wire formatted payload
     static const CRC get_crc(const Payload &p, bool preamble_prepended = true)
     {
+        const Message *m = (const Defs::Message*)p.data();
+        unsigned offset = be16toh(m->header_.length_) + sizeof(Header);
         CRC result;
-        result.all_ = get_uint16(p, p.size() - 6);
-        result.even_ = get_uint16(p, p.size() - 4);
-        result.odd_ = get_uint16(p, p.size() - 2);
+        result.all_ = get_uint16(p, offset);
+        result.even_ = get_uint16(p, offset + 2);
+        result.odd_ = get_uint16(p, offset + 4);
         return result;
     }
 
@@ -391,6 +393,6 @@ struct Defs
     }
 }; // struct Defs
 
-} // namespace tractionmodem
+} // namespace traction_modem
 
 #endif // _TRACTIONMODEM_TRACTIONMODEMDEFS_HXX_

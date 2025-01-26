@@ -4,28 +4,23 @@
 
 #include "traction_modem/TractionModem.hxx"
 
-using namespace tractionmodem;
+using namespace traction_modem;
 using namespace std::string_literals;
 
 //
 // Mock objects.
 //
-class TestPacketFlowInterface : public PacketFlowInterface
+class MockPacketFlowInterface : public PacketFlowInterface
 {
 public:
-    virtual void send(std::string &m, unsigned priority) = 0;
+    MOCK_METHOD2(send, void(std::string &, unsigned));
 
     virtual void send(
         Buffer<TxMessage> *message, unsigned priority = UINT_MAX) override
     {
         send(message->data()->payload, priority);
+        message->unref();
     }
-};
-
-class MockPacketFlowInterface : public TestPacketFlowInterface
-{
-public:
-    MOCK_METHOD2(send, void(std::string &, unsigned));
 };
 
 /// Test object for the TxFlow
@@ -100,13 +95,7 @@ protected:
         write(fd_[1], dummy.data(), dummy.size());
 
         // Wait for exit.
-        wait_for_main_executor();
-        while (!g_executor.active_timers()->empty())
-        {
-            usleep(20000);
-            wait_for_main_executor();
-        }
-        wait_for_main_executor();
+        wait_for_main_timers();
         close(fd_[0]);
         close(fd_[1]);
     }
@@ -249,6 +238,70 @@ TEST_F(RxFlowTest, Read)
     wait_for_main_executor();
     EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(1);
     send(data.substr(5, data.size() - 5));
+    wait_for_main_executor();
+}
+
+//
+// RxFlowTest::ReadBackToBack
+//
+TEST_F(RxFlowTest, ReadBackToBack)
+{
+    using ::testing::_;
+
+    std::string data;
+    init();
+    
+    data = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
+           "\x00\x00\x00\x0A\x00\x01"s;
+    append_expected_crc(&data);
+    std::string data2 = data + data; // Double the packet.
+
+    // Send a packet without a registered receiver.
+    EXPECT_CALL(mPFI_, send(_, _)).Times(0);
+    send(data2);
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mPFI_);
+
+    // All the data should have been pulled from the pipe. Since there is no
+    // receiver, it gets thrown on the floor.
+    {
+        uint8_t dummy[4];
+        int result = read(fd_[0], dummy, sizeof(dummy));
+        EXPECT_LT(result, 0);
+        EXPECT_EQ(EAGAIN, errno);
+    }
+
+    // Register a receiver and make sure it gets the next two sent messages.
+    flow_.set_listener(&mPFI_);
+    EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(2);
+    send(data2);
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mPFI_);
+
+    // Send a message in pieces in order to exercise some of the other paths.
+    send(data2.substr(0, 1));
+    wait_for_main_executor();
+    send(data2.substr(1, 4));
+    wait_for_main_executor();
+    EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(2);
+    send(data2.substr(5, data2.size() - 5));
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mPFI_);
+
+    // Create an intentional framing error that results in left over data in
+    // the payload buffer after sending a packet to the registered listener.
+    std::string bad_data = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\xFF"s
+                           "\x00\x00\x00\x0A\x00\x01"s;
+    // Send bad data that includes a long length field.
+    send(bad_data);
+    // Send two packets of good data that should be inclusive in size of the
+    // previous bad packet's length field.
+    EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(2);
+    send(data2);
+    wait_for_main_executor();
+    // Force a timeout so that resycn runs
+    FakeClock clk;
+    clk.advance(2 * flow_.get_character_nsec() * (6 + 0xFF));
     wait_for_main_executor();
 }
 
