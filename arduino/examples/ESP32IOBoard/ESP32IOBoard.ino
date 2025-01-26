@@ -42,21 +42,14 @@
 #include "utils/GpioInitializer.hxx"
 
 // Pick an operating mode below, if you select USE_WIFI it will expose this
-// node on WIFI. If USE_CAN / USE_TWAI / USE_TWAI_ASYNC are enabled the node
+// node on WIFI. If USE_TWAI / USE_TWAI_ASYNC are enabled the node
 // will be available on CAN.
 //
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
-//
-// NOTE: USE_TWAI and USE_TWAI_ASYNC are similar to USE_CAN but utilize the
-// new TWAI driver which offers both select() (default) or fnctl() (async)
-// access.
-// NOTE: USE_CAN is deprecated and no longer supported upstream by ESP-IDF as
-// of v4.2 or arduino-esp32 as of v2.0.0.
 
 #define USE_WIFI
-#define USE_CAN
-//#define USE_TWAI
+#define USE_TWAI
 //#define USE_TWAI_ASYNC
 
 // uncomment the line below to have all packets printed to the Serial
@@ -84,10 +77,6 @@
 #if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
 #define USE_TWAI
 #endif // USE_TWAI_ASYNC && !USE_TWAI
-
-#if defined(USE_CAN) && defined(USE_TWAI)
-#error USE_CAN and USE_TWAI are mutually exclusive!
-#endif
 
 #if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_TWAI)
 #error FIRMWARE_UPDATE_BOOTLOADER requires USE_TWAI or USE_TWAI_SELECT.
@@ -129,7 +118,7 @@ const char *hostname = "esp32mrn";
 
 #endif // USE_WIFI
 
-#if defined(USE_CAN) || defined(USE_TWAI)
+#if defined(USE_TWAI)
 /// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 /// Recommended pins: 4, 16, 21.
 /// Note: Any pin can be used for this other than 6-11 which are connected to
@@ -146,7 +135,7 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
 
-#endif // USE_CAN || USE_TWAI
+#endif // USE_TWAI
 
 #if defined(FIRMWARE_UPDATE_BOOTLOADER)
 // Include the Bootloader HAL implementation for the ESP32. This should only
@@ -171,9 +160,9 @@ static constexpr openlcb::ConfigDef cfg(0);
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
 
-#if defined(USE_TWAI) && !defined(USE_CAN)
+#if defined(USE_TWAI)
 Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
-#endif // USE_TWAI && !USE_CAN
+#endif // USE_TWAI
 
 // Declare output pins
 // NOTE: pins 6-11 are connected to the onboard flash and can not be used for
@@ -381,9 +370,9 @@ void setup()
     }
 #endif // FIRMWARE_UPDATE_BOOTLOADER
 
-#if defined(USE_TWAI) && !defined(USE_CAN)
+#if defined(USE_TWAI)
     twai.hw_init();
-#endif // USE_TWAI && !USE_CAN
+#endif // USE_TWAI
 
     check_for_factory_reset();
 
@@ -410,15 +399,11 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_CAN)
-    // Add the hardware CAN device as a bridge
-    openmrn.add_can_port(
-        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
-#elif defined(USE_TWAI_ASYNC)
+#if defined(USE_TWAI_ASYNC)
     openmrn.add_can_port_async("/dev/twai/twai0");
 #elif defined(USE_TWAI)
     openmrn.add_can_port_select("/dev/twai/twai0");
-#endif // USE_CAN
+#endif // USE_TWAI_ASYNC
 
     openmrn.start_executor_thread();
 }

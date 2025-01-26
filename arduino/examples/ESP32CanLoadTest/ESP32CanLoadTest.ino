@@ -46,20 +46,13 @@
 
 
 // Pick an operating mode below, if you select USE_WIFI it will expose this
-// node on WIFI. If USE_CAN / USE_TWAI / USE_TWAI_ASYNC are enabled the node
+// node on WIFI. If USE_TWAI / USE_TWAI_ASYNC are enabled the node
 // will be available on CAN.
 //
 // Enabling both options will allow the ESP32 to be accessible from
-// both WiFi and CAN interfaces.
-//
-// NOTE: USE_TWAI and USE_TWAI_ASYNC are similar to USE_CAN but utilize the
-// new TWAI driver which offers both select() (default) or fnctl() (async)
-// access.
-// NOTE: USE_CAN is deprecated and no longer supported upstream by ESP-IDF as
-// of v4.2 or arduino-esp32 as of v2.0.0.
+// both WiFi and TWAI interfaces.
 
 #define USE_WIFI
-//#define USE_CAN
 //#define USE_TWAI
 //#define USE_TWAI_ASYNC
 
@@ -73,11 +66,6 @@
 #if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
 #define USE_TWAI
 #endif // USE_TWAI_ASYNC && !USE_TWAI
-
-// Verify that both CAN and TWAI are not enabled.
-#if defined(USE_CAN) && defined(USE_TWAI)
-#error Enabling both USE_CAN and USE_TWAI is not supported.
-#endif // USE_CAN && USE_TWAI
 
 #if defined(USE_TWAI) && ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
 #error Esp32HardwareTwai is not supported on this version of arduino-esp32.
@@ -273,17 +261,13 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_CAN)
-    // Add the hardware CAN device as a bridge
-    openmrn.add_can_port(
-        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
-#elif defined(USE_TWAI_ASYNC)
+#if defined(USE_TWAI_ASYNC)
     // add TWAI driver with non-blocking usage
     openmrn.add_can_port_async("/dev/twai/twai0");
 #elif defined(USE_TWAI)
     // add TWAI driver with select() usage
     openmrn.add_can_port_select("/dev/twai/twai0");
-#endif // USE_TWAI_SELECT / USE_TWAI
+#endif // USE_TWAI_ASYNC / USE_TWAI
 }
 
 void loop()
