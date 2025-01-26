@@ -35,7 +35,8 @@
  * @date 1 May 2021
  */
 
-// Ensure we only compile this code for the ESP32 family of MCUs.
+// Ensure we only compile this code for the ESP32 family of MCUs and that the
+// ESP-IDF version is supported for this code.
 #if defined(ESP_PLATFORM)
 
 #include "sdkconfig.h"
@@ -55,7 +56,9 @@
 #include <esp_clk_tree.h>
 #endif
 #include <esp_private/periph_ctrl.h>
+#ifndef CONFIG_FREERTOS_UNICORE
 #include <esp_ipc.h>
+#endif
 #include <esp_log.h>
 #include <esp_rom_gpio.h>
 #include <esp_intr_alloc.h>
@@ -70,7 +73,14 @@
 #include "can_frame.h"
 #include "can_ioctl.h"
 #include "executor/Notifiable.hxx"
+// TODO: clean this up as part of https://github.com/bakerstu/openmrn/issues/778
+// as this file should be coming in from common and not arduino ideally.
+#if defined(__has_include) && \
+    __has_include("freertos_drivers/common/DeviceBuffer.hxx")
 #include "freertos_drivers/common/DeviceBuffer.hxx"
+#else
+#include "freertos_drivers/arduino/DeviceBuffer.hxx"
+#endif
 #include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"
 #include "utils/Atomic.hxx"
 #include "utils/logging.h"
@@ -232,7 +242,7 @@ static inline void twai_purge_rx_queue()
     Notifiable* n = nullptr;
     {
         AtomicHolder h(&twai.buf_lock);
-        LOG(VERBOSE, "ESP-TWAI: purging RX-Q: %zu", twai.rx_buf->pending());
+        LOG(VERBOSE, "ESP-TWAI: purging RX-Q:%zu", twai.rx_buf->pending());
         twai.stats.rx_missed += twai.rx_buf->pending();
         twai.rx_buf->flush();
         std::swap(n, twai.readable_notify);
@@ -258,8 +268,8 @@ static inline void twai_purge_tx_queue()
     Notifiable* n = nullptr;
     {
         AtomicHolder h(&twai.buf_lock);
-        LOG(VERBOSE, "ESP-TWAI: purging TX-Q: %zu", twai.tx_buf->pending());
-        twai.stats.tx_failed += twai.tx_buf->pending();
+        LOG(VERBOSE, "ESP-TWAI: purging TX-Q:%zu", twai.tx_buf->pending());
+        twai.stats.tx_lost += twai.tx_buf->pending();
         twai.tx_buf->flush();
         std::swap(n, twai.writable_notify);
     }
@@ -306,6 +316,20 @@ static ssize_t twai_vfs_write(int fd, const void *buf, size_t size)
         {
             LOG_ERROR("ESP-TWAI: TWAI driver is not running, unable to write "
                       "%zu frames.", size);
+            bus_error = true;
+            break;
+        }
+        else if (is_twai_err_passive())
+        {
+            // When the TWAI driver is in an error passive state it is not
+            // possible to transmit additional frames, purge the TX queue and
+            // track remaining frames as failed.
+            //
+            // NOTE: we are tracking pending remaining frames as written to
+            // ensure the stack does not unnecessarily become blocked.
+
+            sent += size;
+            twai.stats.tx_lost += size;
             bus_error = true;
             break;
         }
@@ -419,7 +443,7 @@ static int twai_vfs_open(const char *path, int flags, int mode)
     path++;
     twai.non_blocking = (flags & O_NONBLOCK);
 
-    LOG(INFO, "ESP-TWAI: Starting TWAI driver on:%s mode:%x (%s) fd:%d",
+    LOG(VERBOSE, "ESP-TWAI: Starting TWAI driver on:%s mode:%x (%s) fd:%d",
         path, mode, twai.non_blocking ? "non-blocking" : "blocking", 
         TWAI_VFS_FD);
     twai_purge_rx_queue();
@@ -617,7 +641,7 @@ static inline uint32_t twai_rx_frames()
             {
                 // DLC is longer than supported, discard the frame.
                 twai.stats.rx_discard++;
-                ESP_EARLY_LOGE(TWAI_LOG_TAG, "rx-discard:%" PRIu32,
+                ESP_EARLY_LOGE(TWAI_LOG_TAG, "rx-discard:%zu",
                                twai.stats.rx_discard);
             }
             else if (twai.rx_buf->data_write_pointer(&can_frame))
@@ -649,7 +673,7 @@ static inline uint32_t twai_rx_frames()
             else
             {
                 twai.stats.rx_missed++;
-                ESP_EARLY_LOGV(TWAI_LOG_TAG, "rx-missed:%" PRIu32,
+                ESP_EARLY_LOGV(TWAI_LOG_TAG, "rx-missed:%zu",
                                twai.stats.rx_missed);
             }
         }
@@ -713,7 +737,7 @@ static void twai_isr(void *arg)
 {
     BaseType_t wakeup = pdFALSE;
     uint32_t events = twai_hal_get_events(&twai.context);
-    ESP_EARLY_LOGV(TWAI_LOG_TAG, "events: %04" PRIx32, events);
+    ESP_EARLY_LOGV(TWAI_LOG_TAG, "events:%04x", events);
 
 #if defined(CONFIG_TWAI_ERRATA_FIX_RX_FRAME_INVALID) || \
     defined(CONFIG_TWAI_ERRATA_FIX_RX_FIFO_CORRUPT)
@@ -746,7 +770,7 @@ static void twai_isr(void *arg)
             esp_vfs_select_triggered_isr(twai.select_sem, &wakeup);
         }
 #endif // CONFIG_VFS_SUPPORT_SELECT
-        // std::swap is not ISR safe so it is not used here.
+        // std::swap is not guaranteed to be in IRAM, so it is not used here.
         if (twai.readable_notify)
         {
             twai.readable_notify->notify_from_isr();
@@ -765,7 +789,7 @@ static void twai_isr(void *arg)
             esp_vfs_select_triggered_isr(twai.select_sem, &wakeup);
         }
 #endif // CONFIG_VFS_SUPPORT_SELECT
-        // std::swap is not ISR safe so it is not used here.
+        // std::swap is not guaranteed to be in IRAM, so it is not used here.
         if (twai.writable_notify)
         {
             twai.writable_notify->notify_from_isr();
@@ -782,19 +806,19 @@ static void twai_isr(void *arg)
     }
 
     // Bus error detected
-    if (events & TWAI_HAL_EVENT_BUS_ERR)
+    // NOTE: this will be raised even after entering error-passive state and
+    // should be excluded from the bus_error increment accordingly.
+    if (events & TWAI_HAL_EVENT_BUS_ERR && !is_twai_err_passive())
     {
         twai.stats.bus_error++;
-        ESP_EARLY_LOGV(TWAI_LOG_TAG, "bus-error:%" PRIu32,
-                       twai.stats.bus_error);
+        ESP_EARLY_LOGV(TWAI_LOG_TAG, "bus-error:%zu", twai.stats.bus_error);
     }
 
     // Arbitration error detected
     if (events & TWAI_HAL_EVENT_ARB_LOST)
     {
         twai.stats.arb_loss++;
-        ESP_EARLY_LOGV(TWAI_LOG_TAG, "arb-lost:%" PRIu32,
-                       twai.stats.arb_loss);
+        ESP_EARLY_LOGV(TWAI_LOG_TAG, "arb-loss:%zu", twai.stats.arb_loss);
     }
 
     if (wakeup == pdTRUE)
@@ -822,9 +846,10 @@ static void twai_isr(void *arg)
 /// a general failure in communicating with the CAN transceiver IC.
 void* twai_watchdog(void* param)
 {
-    LOG(INFO, "ESP-TWAI: Starting TWAI watchdog and reporting task");
+    LOG(VERBOSE, "ESP-TWAI: Starting TWAI watchdog and reporting task");
     size_t last_rx_pending = 0;
     size_t last_tx_pending = 0;
+    size_t last_tx_success = 0;
     uint32_t last_twai_state = 0;
 
     while (twai.active)
@@ -862,30 +887,31 @@ void* twai_watchdog(void* param)
         }
         last_rx_pending = twai.rx_buf->pending();
 
-        // If the TX queue has not changed since our last check, purge the RX
+        // If the TX queue has not changed since our last check and the TX
+        // success count has not changed since our last check, purge the TX
         // queue and track it as failed frames.
-        if (last_tx_pending && last_tx_pending == twai.tx_buf->pending())
+        if (last_tx_pending && last_tx_pending == twai.tx_buf->pending() &&
+            last_tx_success && last_tx_success == twai.stats.tx_success)
         {
             LOG_ERROR("ESP-TWAI: TX-Q appears stuck, purging TX-Q!");
             twai_purge_tx_queue();
         }
         last_tx_pending = twai.tx_buf->pending();
+        last_tx_success = twai.stats.tx_success;
 
         if (twai.report_stats)
         {
             LOG(INFO,
                 "ESP-TWAI: "
-                "RX:%" PRIu32 " (pending:%zu,overrun:%" PRIu32
-                ",discard:%" PRIu32 ",missed:%" PRIu32 ",lost:%" PRIu32 ") "
-                "TX:%" PRIu32 " (pending:%zu,suc:%" PRIu32
-                ",fail:%" PRIu32 ") "
-                "Bus (arb-err:%" PRIu32 ",err:%" PRIu32 ",state:%s)",
+                "RX:%zu (pending:%zu,overrun:%zu,discard:%zu,miss:%zu,lost:%zu) "
+                "TX:%zu (pending:%zu,suc:%zu,fail:%zu,lost:%zu) "
+                "Bus (arb-loss:%zu,err:%zu,state:%s)",
                 twai.stats.rx_processed, twai.rx_buf->pending(),
                 twai.stats.rx_overrun, twai.stats.rx_discard,
                 twai.stats.rx_missed, twai.stats.rx_lost,
                 twai.stats.tx_processed, twai.tx_buf->pending(),
                 twai.stats.tx_success, twai.stats.tx_failed,
-                twai.stats.arb_loss, twai.stats.bus_error,
+                twai.stats.tx_lost, twai.stats.arb_loss, twai.stats.bus_error,
                 is_twai_running() ? "Running" :
                 is_twai_recovering() ? "Recovering" :
                 is_twai_err_warn() ? "Err-Warn" :
@@ -962,7 +988,7 @@ static void esp32_twai_isr_init(void *param)
 
 void Esp32HardwareTwai::hw_init()
 {
-    LOG(INFO,
+    LOG(VERBOSE,
         "ESP-TWAI: Configuring TWAI (TX:%d, RX:%d, EXT-CLK:%d, BUS-CTRL:%d)",
         txPin_, rxPin_, extClockPin_, busStatusPin_);
     gpio_set_pull_mode((gpio_num_t)txPin_, GPIO_FLOATING);
@@ -1046,12 +1072,12 @@ void Esp32HardwareTwai::hw_init()
     twai_hal_configure(&twai.context, &timingCfg, &filterCfg,
         TWAI_DEFAULT_INTERRUPTS, 0);
 
-#if SOC_CPU_CORES_NUM > 1
+#ifndef CONFIG_FREERTOS_UNICORE
     ESP_ERROR_CHECK(
         esp_ipc_call_blocking(preferredIsrCore_, esp32_twai_isr_init, nullptr));
 #else
     esp32_twai_isr_init(nullptr);
-#endif // SOC_CPU_CORES_NUM > 1
+#endif // CONFIG_FREERTOS_UNICORE
     twai.active = true;
 
     os_thread_create(&twai.wd_thread, "TWAI-WD", WATCHDOG_TASK_PRIORITY,
