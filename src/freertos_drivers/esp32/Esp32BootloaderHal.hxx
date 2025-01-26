@@ -51,13 +51,13 @@
 
 // Enable streaming support for the bootloader
 #define BOOTLOADER_STREAM
+
 #ifndef WRITE_BUFFER_SIZE
 // Set the buffer size to half of the sector size to minimize the flash writes.
 #define WRITE_BUFFER_SIZE (CONFIG_WL_SECTOR_SIZE / 2)
 #endif // WRITE_BUFFER_SIZE
 
 #include <driver/twai.h>
-
 #include <esp_app_format.h>
 #include <esp_chip_info.h>
 #include <esp_ota_ops.h>
@@ -194,7 +194,7 @@ bool read_can_frame(struct can_frame *frame)
 {
     twai_message_t rx_msg;
     memset(&rx_msg, 0, sizeof(twai_message_t));
-    if (twai_receive(&rx_msg, MAX_TWAI_WAIT) == ESP_OK)
+    if (twai_receive(&rx_msg, MAX_TWAI_WAIT_RX) == ESP_OK)
     {
         LOG(BOOTLOADER_TWAI_LOG_LEVEL, "[Bootloader] CAN_RX");
         frame->can_id = rx_msg.identifier;

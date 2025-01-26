@@ -232,6 +232,8 @@ copy_file src/sys include/sys/tree.hxx
 
 copy_file src/utils src/utils/*.{cxx,hxx,c,h}
 
+copy_file src/ble src/ble/*.{cxx,hxx}
+
 rm -f ${TARGET_LIB_DIR}/src/utils/ReflashBootloader.cxx \
     ${TARGET_LIB_DIR}/src/utils/AesCcmTestVectors.hxx \
     ${TARGET_LIB_DIR}/src/utils/AesCcmTestVectorsEx.hxx \
