@@ -59,7 +59,7 @@
 /// This is necessary since ESP-IDF does not expose gpio_get_direction(pin).
 #define IS_GPIO_OUTPUT(pin) (GPIO_IS_VALID_OUTPUT_GPIO(pin) &&                 \
                              GPIO.enable.data & \
-                             BIT(pin & SOC_GPIO_VALID_OUTPUT_GPIO_MASK)
+                             BIT(pin & SOC_GPIO_VALID_OUTPUT_GPIO_MASK))
 #else // NOT ESP32-C3
 /// Helper macro to test if a pin has been configured for output.
 ///
