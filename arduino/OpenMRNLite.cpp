@@ -68,6 +68,10 @@ ssize_t os_get_free_heap()
 
 #ifdef ESP_PLATFORM
 
+#include "lwip/ip_addr.h"
+#include "lwip/err.h"
+#include "lwip/netif.h"
+
 /*
 temporary hack due to:
 
