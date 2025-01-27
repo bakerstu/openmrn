@@ -26,7 +26,9 @@
  *
  * \file DatagramImpl.hxx
  *
- * Datagram parser and renderer flows.
+ * Datagram parser and renderer flows. These are independent of the transport
+ * method. For transport-specific renderers, see DatagramCan.cxx and
+ * DatagramTcp.cxx.
  *
  * @author Balazs Racz
  * @date 27 Jan 2013

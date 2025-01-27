@@ -192,7 +192,8 @@ TEST_F(MemoryConfigTest, MockMemoryConfigReadTimeout)
     EXPECT_CALL(space, read(0x100, _, 10, _, _))
         .WillOnce(DoAll(WithArgs<1, 2>(Invoke(&FillPayload)), Return(10)));
 
-    expect_packet(":X19A2822AN077C82;"); // received ok, response pending
+    // received ok, response pending, timeout 4
+    expect_packet(":X19A2822AN077C82;");
     expect_packet(":X1B77C22AN2050000001002730;");
     expect_packet(":X1C77C22AN3132333435363738;");
     expect_packet(":X1D77C22AN39;")
@@ -310,7 +311,8 @@ TEST_F(MemoryConfigTest, MockMemoryConfigWriteTimeout)
     EXPECT_CALL(space, write(0x100, IsRawData("01234567"), 8, _, _))
         .WillOnce(Return(8));
 
-    expect_packet(":X19A2822AN077C84;"); // received ok, response pending
+    // received ok, response pending, timeout 16
+    expect_packet(":X19A2822AN077C84;");
     expect_packet(":X1A77C22AN20100000010027;")
         .WillOnce(InvokeWithoutArgs(this, &MemoryConfigTest::AckResponse));
     send_packet(":X1B22A77CN2000000001002730;");

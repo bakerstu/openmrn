@@ -70,7 +70,7 @@ public:
     /** This error code signals that the operation was only partially
      * completed, the again notify was used and will be notified when the
      * operation can be re-tried). */
-    static const errorcode_t ERROR_AGAIN = 0x3FFF;
+    static constexpr errorcode_t ERROR_AGAIN = 0x3FFF;
 
     /// Specifies which node the next operation pertains. If it returns false,
     /// the operation will be rejected by "unknown memory space ID".
@@ -86,14 +86,16 @@ public:
     }
 
     /// Get the read timeout. Default is no timeout.
-    /// @return The read timeout to reply with.
+    /// @return The read timeout to reply with, for example
+    ///         DatagramDefs::TIMEOUT_16 for 16 seconds.
     virtual DatagramDefs::Flag get_read_timeout()
     {
         return DatagramDefs::TIMEOUT_NONE;
     }
 
     /// Get the write timeout. Default is no timeout.
-    /// @return The write timeout to reply with.
+    /// @return The write timeout to reply with, for example
+    ///         DatagramDefs::TIMEOUT_16 for 16 seconds.
     virtual DatagramDefs::Flag get_write_timeout()
     {
         return DatagramDefs::TIMEOUT_NONE;
@@ -109,15 +111,21 @@ public:
      */
     virtual address_t max_address() = 0;
 
-    /// Write data to the address space.
+    /// Write data to the address space. Called by the memory config service for
+    /// incoming write requests.
     /// @param destination memory space offset address to write to
     /// @param data data to write
     /// @param len length of write data in bytes
-    /// @param error Error code that can be passed back. if != 0, the operation
-    ///        has failed. If the operation needs to be continued, then set
-    ///        error to ERROR_AGAIN, and later call the Notifiable to continue.
-    /// @param again notify() when the caller should call the write again, with
-    ///        the offset (source) adjusted with the previously returned bytes.
+    /// @param error The output argument for the error code. If the operation
+    ///        succeeded, sets *error to zero. If the operation failed, sets
+    ///        *error to non-zero. If the operation needs to be continued, then
+    ///        sets error to ERROR_AGAIN, and later calls the Notifiable when
+    ///        ready to continue. The caller preset *error to zero, such that
+    ///        the callee is not required to also set it to zero upon "success".
+    /// @param again Used only when *error was set to ERROR_AGAIN. Calls
+    ///        again->notify() when the operation is ready to be continued. The
+    ///        caller should then call the write again, with the offset (source)
+    ///        adjusted with the previously returned bytes.
     /// @return the number of bytes successfully written (before hitting the end
     ///         of the space)
     virtual size_t write(address_t destination, const uint8_t *data, size_t len,
@@ -128,15 +136,21 @@ public:
         DIE("Unimplemented");
     }
 
-    /// Read data from the address space.
+    /// Read data from the address space. Called by the memory config service
+    /// for incoming read requests.
     /// @param source memory space offset address to read from
     /// @param dst location to fill in with read data
     /// @param len length of requested read data in bytes
-    /// @param error Error code that can be passed back. if != 0, the operation
-    ///        has failed. If the operation needs to be continued, then set
-    ///        error to ERROR_AGAIN, and later call the Notifiable to continue.
-    /// @param again notify() when the caller should call the read again, with
-    ///        the offset (source) adjusted with the previously returned bytes.
+    /// @param error The output argument for the error code. If the operation
+    ///        succeeded, sets *error to zero. If the operation failed, sets
+    ///        *error to non-zero. If the operation needs to be continued, then
+    ///        sets error to ERROR_AGAIN, and later calls the Notifiable when
+    ///        ready to continue. The caller preset *error to zero, such that
+    ///        the callee is not required to also set it to zero upon "success".
+    /// @param again Used only when *error was set to ERROR_AGAIN. Calls
+    ///        again->notify() when the operation is ready to be continued. The
+    ///        caller should then call the read again, with the offset (source)
+    ///        adjusted with the previously returned bytes.
     /// @return the number of bytes successfully read (before hitting the end of
     ///         the space)
     virtual size_t read(address_t source, uint8_t *dst, size_t len,
@@ -925,11 +939,13 @@ private:
         char c = 0;
         response_.assign(response_len, c);
         inline_respond_ok(static_cast<uint8_t>(DatagramClient::REPLY_PENDING) |
-            static_cast<uint8_t>(space->get_read_timeout()));
+            (static_cast<uint8_t>(space->get_read_timeout()) &
+            static_cast<uint8_t>(DatagramDefs::TIMEOUT_MASK)));
         return call_immediately(STATE(try_read));
     }
 
-    Action try_read() {
+    Action try_read()
+    {
         MemorySpace *space = get_space();
         int read_len = get_read_length();
         address_t address = get_address();
@@ -1008,7 +1024,8 @@ private:
         }
         currentOffset_ = 0;
         inline_respond_ok(static_cast<uint8_t>(DatagramClient::REPLY_PENDING) |
-            static_cast<uint8_t>(space->get_write_timeout()));
+            (static_cast<uint8_t>(space->get_write_timeout()) &
+            static_cast<uint8_t>(DatagramDefs::TIMEOUT_MASK)));
         return call_immediately(STATE(try_write));
     }
 
