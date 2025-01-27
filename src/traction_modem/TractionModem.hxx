@@ -274,17 +274,13 @@ private:
         }
 
         size_t total_len = MIN_MESSAGE_SIZE + len;
-        if (payload_.size() < total_len)
-        {
-            payload_.resize(total_len);
-        }
-
         if (recvCnt_ >= total_len)
         {
             // We already have enough data for the complete message.
             return call_immediately(STATE(maybe_message_complete));
         }
 
+        payload_.resize(total_len);
         size_t needed_len = total_len - recvCnt_;
 
         return read_repeated_with_timeout(&helper_,
@@ -294,7 +290,8 @@ private:
 
     /// We might have a complete message if we have received enough data.
     /// @return next state is resync if a timeout occurred or a CRC error is
-    ///         detected, else next state is reset.
+    ///         detected, else if we have the likely start to the next message
+    ///         next state is wait_for_base_data, else next state is reset.
     Action maybe_message_complete()
     {
         const Defs::Message *m = (const Defs::Message*)payload_.data();
@@ -305,17 +302,13 @@ private:
             // Timeout, we may be out ot sync. Check for a preamble in the data
             // we did receive.
             recvCnt_ += len - helper_.remaining_;
-            LOG(INFO,
-                "[ModemRx] Timeout waiting for expected receive data, "
+            LOG(INFO, "[ModemRx] Timeout waiting for expected receive data, "
                 "remaining: %u", helper_.remaining_);
             return call_immediately(STATE(resync));
         }
 
-        // A this point, we have a valid message.
-        LOG(INFO, "[ModemRx] %s", string_to_hex(payload_).c_str());
-
         Defs::CRC crc_calc;
-        Defs::CRC crc_recv = Defs::get_crc(payload_);
+        Defs::CRC crc_recv = Defs::get_crc(payload_, len);
         crc3_crc16_ccitt(
             payload_.data() + sizeof(uint32_t),
             sizeof(m->header_.command_) + sizeof(m->header_.length_) + len,
@@ -338,6 +331,8 @@ private:
                 payload_.substr(total_len, payload_.size() - total_len);
             payload_.resize(total_len);
         }
+        // A this point, we have a valid message.
+        LOG(INFO, "[ModemRx] %s", string_to_hex(payload_).c_str());
 
         if (receiver_)
         {
@@ -390,9 +385,6 @@ private:
                 // allocation.
                 memmove(&payload_[0], &payload_[idx], recvCnt_ - idx);
                 recvCnt_ -= idx;
-                size_t new_size =
-                    recvCnt_ < MIN_MESSAGE_SIZE ? MIN_MESSAGE_SIZE : recvCnt_;
-                payload_.resize(new_size);
                 LOG(INFO, "[ModemRx] Sync on preamble first, recvCnt_: %zu",
                     recvCnt_);
                 return call_immediately(STATE(wait_for_base_data));
@@ -552,7 +544,7 @@ public:
     }
 
     /// This is the memory space we will be using on the decoder.
-    uint8_t proxySpace_ = openlcb::MemoryConfigDefs::SPACE_DCC_CV;
+    static constexpr uint8_t proxySpace_ = openlcb::MemoryConfigDefs::SPACE_DCC_CV;
 
     /// true if we are waiting for a read response
     bool pendingRead_ : 1;

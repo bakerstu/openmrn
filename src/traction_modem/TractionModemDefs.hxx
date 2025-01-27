@@ -360,16 +360,17 @@ struct Defs
     }
 
     /// Extract the CRC value(s) from a given payload. The assumption is that
-    /// the last 6 bytes of the payload contain the CRC value(s).
+    /// p contains a valid (correctly formatted) message. Additional partial
+    /// or complete messages contained within p are ignored.
     /// @param p wire formatted payload
-    static const CRC get_crc(const Payload &p, bool preamble_prepended = true)
+    /// @param length length field from the Header in host endianess (length
+    ///        in bytes of the message data)
+    static const CRC get_crc(const Payload &p, uint16_t length)
     {
-        const Message *m = (const Defs::Message*)p.data();
-        unsigned offset = be16toh(m->header_.length_) + sizeof(Header);
         CRC result;
-        result.all_ = get_uint16(p, offset);
-        result.even_ = get_uint16(p, offset + 2);
-        result.odd_ = get_uint16(p, offset + 4);
+        result.all_ = get_uint16(p, length + sizeof(Header));
+        result.even_ = get_uint16(p, length + sizeof(Header) + 2);
+        result.odd_ = get_uint16(p, length + sizeof(Header) + 4);
         return result;
     }
 
