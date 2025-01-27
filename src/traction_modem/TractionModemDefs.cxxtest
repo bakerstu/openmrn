@@ -1,0 +1,219 @@
+#include "gtest/gtest.h"
+#include "os/os.h"
+
+#include "traction_modem/TractionModemDefs.hxx"
+
+/// Entry point to the test infrastructure. Run all the tests.
+/// @param argc passed to GoogleTest
+/// @param argv passed to GoogleTest
+/// @return Result of running the tests
+int appl_main(int argc, char* argv[])
+{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+
+using namespace traction_modem;
+using namespace std::string_literals;
+
+/// Append the expected CRC value.
+/// @param payload packet payload
+/// @param all crc of all bytes
+/// @param even crc of even index bytes
+/// @param odd crc of odd index bytes
+static void append_expected_crc(
+    Defs::Payload *payload, uint16_t all, uint16_t even, uint16_t odd)
+{
+    payload->push_back(all >> 8);
+    payload->push_back(all & 0xFF);
+    payload->push_back(even >> 8);
+    payload->push_back(even & 0xFF);
+    payload->push_back(odd >> 8);
+    payload->push_back(odd & 0xFF);
+}
+
+/// Append the expected CRC value.
+/// @param payload packet payload, including a prepended preamble
+static void append_expected_crc(Defs::Payload *payload)
+{
+    Defs::CRC crc;
+    crc3_crc16_ccitt(payload->data() + sizeof(uint32_t),
+         payload->size() - sizeof(uint32_t), crc.crc);
+    append_expected_crc(payload, crc.all_, crc.even_, crc.odd_);
+}
+
+//
+// GetWirelessPresentPayload
+//
+TEST(TractionModemDefsTest, GetWirelessPresentPayload)
+{
+    Defs::Payload result;
+    Defs::Payload expected;
+
+    result = Defs::get_wireless_present_payload(true);
+    expected = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x00\x01"s "\x01"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+
+    result = Defs::get_wireless_present_payload(false);
+    expected = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x00\x01"s "\x00"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+}
+
+//
+// GetFnSetPayload
+//
+TEST(TractionModemDefsTest, GetFnSetPayload)
+{
+    Defs::Payload result;
+    Defs::Payload expected;
+
+    result = Defs::get_fn_set_payload(10, 0);
+    expected = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
+               "\x00\x00\x00\x0A\x00\x00"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+
+    result = Defs::get_fn_set_payload(8, 1);
+    expected = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
+               "\x00\x00\x00\x08\x00\x01"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+}
+
+//
+// GetSpeedSetPayload
+//
+TEST(TractionModemDefsTest, GetSpeedSetPayload)
+{
+    Defs::Payload result;
+    Defs::Payload expected;
+    openlcb::Velocity velocity;
+
+    velocity.set_mph(14);
+    result = Defs::get_speed_set_payload(velocity);
+    expected = "\x41\xd2\xc3\x7a"s "\x01\x00"s "\x00\x01"s "\x8f"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+}
+
+//
+// GetEstopPayload
+//
+TEST(TractionModemDefsTest, GetEstopPayload)
+{
+    Defs::Payload result;
+    Defs::Payload expected;
+
+    result = Defs::get_estop_payload();
+    expected = "\x41\xd2\xc3\x7a"s "\x01\x02"s "\x00\x00"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+}
+
+//
+// GetMemrPayload
+//
+TEST(TractionModemDefsTest, GetMemrPayload)
+{
+    Defs::Payload result;
+    Defs::Payload expected;
+
+    result = Defs::get_memr_payload(0xFE, 0xAA00CC00, 255);
+    expected = "\x41\xd2\xc3\x7a"s "\x10\x00"s "\x00\x06"s "\xAA\x00\xCC\x00"s
+               "\xFE\xFF"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+}
+
+//
+// GetMemwPayload
+//
+TEST(TractionModemDefsTest, GetMemwPayload)
+{
+    Defs::Payload result;
+    Defs::Payload expected;
+
+    std::string data = "dummy data";
+    result = Defs::get_memw_payload(0xFE, 0xAA00CC00, data);
+    expected = "\x41\xd2\xc3\x7a"s "\x10\x01" "\x00\x0F"s "\xAA\x00\xCC\x00"s
+               "\xFE"s "dummy data"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+}
+
+//
+// AppendCRC
+//
+TEST(TractionModemDefsTest, AppendCRC)
+{
+    Defs::Payload payload = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x00\x01"s "\x01"s;
+    Defs::Payload expected = payload;
+
+    append_expected_crc(&expected, 0x002B, 0xB2DD, 0x3E1F);
+    Defs::append_crc(&payload);
+    EXPECT_EQ(expected, payload);
+}
+
+//
+// GetUint32
+//
+TEST(TractionModemDefsTest, GetUint32)
+{
+    Defs::Payload payload = "\x41\xd2\xc3\x7a"s "\xAA\xBB\xCC\xDD"s;
+
+    EXPECT_EQ(0x41D2C37AU, Defs::get_uint32(payload, 0));
+    EXPECT_EQ(0xD2C37AAAU, Defs::get_uint32(payload, 1));
+    EXPECT_EQ(0xC37AAABBU, Defs::get_uint32(payload, 2));
+    EXPECT_EQ(0x7AAABBCCU, Defs::get_uint32(payload, 3));
+    EXPECT_EQ(0xAABBCCDDU, Defs::get_uint32(payload, 4));
+    EXPECT_EQ(0U, Defs::get_uint32(payload, 5));
+}
+
+//
+// GetUint16
+//
+TEST(TractionModemDefsTest, GetUint16)
+{
+    Defs::Payload payload = "\x41\xd2\xc3\x7a"s;
+
+    EXPECT_EQ(0x41D2U, Defs::get_uint16(payload, 0));
+    EXPECT_EQ(0xD2C3U, Defs::get_uint16(payload, 1));
+    EXPECT_EQ(0xC37AU, Defs::get_uint16(payload, 2));
+    EXPECT_EQ(0U, Defs::get_uint16(payload, 3));
+}
+
+//
+// IsValid
+//
+TEST(TractionModemDefsTest, IsValid)
+{
+    Defs::Payload payload = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x00\x01"s "\x01"s;
+
+    // Missing CRC.
+    EXPECT_FALSE(Defs::is_valid(payload));
+
+    // Valid packet with CRC.
+    Defs::append_crc(&payload);
+    EXPECT_TRUE(Defs::is_valid(payload));
+
+    //
+    // Bad preamble.
+    //
+    payload = "\x41\xd2\xc0\x7a"s "\x02\x01"s "\x00\x01"s "\x01"s;
+    Defs::append_crc(&payload);
+    EXPECT_FALSE(Defs::is_valid(payload));
+
+    //
+    // To large a packet now.
+    //
+    payload = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x02\x01"s;
+
+    payload.append(0x201, 'A');
+    EXPECT_FALSE(Defs::is_valid(payload));
+
+    // Valid packet with CRC.
+    Defs::append_crc(&payload);
+    EXPECT_FALSE(Defs::is_valid(payload));
+}
