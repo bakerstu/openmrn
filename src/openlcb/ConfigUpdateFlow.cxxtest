@@ -42,6 +42,8 @@ namespace openlcb
 namespace
 {
 
+using testing::DoAll;
+
 /// Helper class for testing config update flow.
 class MockConfigListener : public ConfigUpdateListener
 {
