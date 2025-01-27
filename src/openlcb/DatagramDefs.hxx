@@ -36,12 +36,18 @@
 
 #include <stdint.h>
 
+#include "os/os.h"
+
 namespace openlcb
 {
 
 /** Static constants and functions related to the Datagram protocol. */
 struct DatagramDefs
 {
+    /// Defines the default timeout when no specific guidance is given
+    /// (TIMEOUT_NONE).
+    static constexpr long long TIMEOUT_NONE_NSEC = SEC_TO_NSEC(3);
+
     /** All known datagram protocols */
     enum Protocol
     {
@@ -137,6 +143,15 @@ struct DatagramDefs
     {
         return (((protocol & PROTOCOL_SIZE_MASK) == PROTOCOL_SIZE_6) ? 6 :
                 ((protocol & PROTOCOL_SIZE_MASK) == PROTOCOL_SIZE_2) ? 2 : 1);
+    }
+
+    /// Extract the timeout from a provided "flags" byte.
+    /// @param flags flags value in the format of @ref Flag
+    /// @return extracted timeout in units of nanoseconds
+    static long long timeout_from_flags_nsec(uint8_t flags)
+    {
+        flags &= TIMEOUT_MASK;
+        return flags == 0 ? TIMEOUT_NONE_NSEC : SEC_TO_NSEC(0x1 << flags);
     }
 
 private:
