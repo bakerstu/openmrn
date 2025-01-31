@@ -68,6 +68,14 @@
 // from the main clock, and gives 400 kHz clock (fast mode).
 #define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(8, 9, 9, 9, 27))
 
+#elif defined(STM32G0B1xx)
+#include "stm32g0xx_ll_rcc.h"
+#include "stm32g0xx_ll_i2c.h"
+
+// This timing is assuming 64 MHz main clock, the I2C module being clocked
+// from the main clock, and gives 400 kHz clock (fast mode).
+#define I2C_TIMING (__LL_I2C_CONVERT_TIMINGS(7, 0x3, 0x3, 0x3, 0x9))
+
 #else
 #error Dont know what STM32 chip you have.
 #endif
@@ -99,7 +107,9 @@ static void i2c_reset(I2C_TypeDef *port)
 #endif
 #ifdef I2C3
         case I2C3_BASE:
+            #ifdef LL_RCC_I2C3_CLKSOURCE_SYSCLK
             LL_RCC_SetI2CClockSource(LL_RCC_I2C3_CLKSOURCE_SYSCLK);
+            #endif
             __HAL_RCC_I2C3_CLK_ENABLE();
             __HAL_RCC_I2C3_FORCE_RESET();
             __HAL_RCC_I2C3_RELEASE_RESET();

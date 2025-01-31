@@ -114,6 +114,12 @@ extern void append_error_to_buffer(uint16_t error_code, Payload *p);
 extern void buffer_to_error(const Payload &payload, uint16_t *error_code,
     uint16_t *mti, string *error_message);
 
+/// Generates the payload for an OIR or TDE message.
+/// @param error_code the 16-bit ErrorCodes value.
+/// @param incoming_mti the MTI of the message that this error should refer
+/// to.
+extern Payload error_payload(uint16_t error_code, Defs::MTI incoming_mti);
+
 /** A global class / variable for empty or not-yet-initialized payloads. */
 extern string EMPTY_PAYLOAD;
 

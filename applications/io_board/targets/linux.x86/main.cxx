@@ -125,6 +125,23 @@ openlcb::ConfiguredProducer producer_sw2(
 openlcb::RefreshLoop loop(
     stack.node(), {&consumer_pulse1, &consumer_pulse2});
 
+class FactoryResetHelper : public DefaultConfigUpdateListener
+{
+public:
+    UpdateAction apply_configuration(
+        int fd, bool initial_load, BarrierNotifiable *done) OVERRIDE
+    {
+        AutoNotify n(done);
+        return UPDATED;
+    }
+
+    void factory_reset(int fd) override
+    {
+        cfg.userinfo().name().write(fd, "IO Board");
+        cfg.userinfo().description().write(fd, "User description");
+    }
+} reset_helper;
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments

@@ -126,11 +126,22 @@ TEST_F(SNIPClientTest, remote)
 TEST_F(SNIPClientTest, timeout)
 {
     long long start = os_get_time_monotonic();
-    auto b = invoke_flow(&client_, &nodeTwo_, NodeHandle(nodeTwo_.node_id()));
+    auto b = invoke_flow(&client_, &nodeTwo_, NodeHandle(NodeAlias(0x123)));
     EXPECT_EQ(SNIPClientRequest::OPENMRN_TIMEOUT, b->data()->resultCode);
     EXPECT_EQ(0u, b->data()->response.size());
     long long time = os_get_time_monotonic() - start;
     EXPECT_LT(MSEC_TO_NSEC(49), time);
+    twait();
+}
+
+TEST_F(SNIPClientTest, self_reject)
+{
+    // Sending to self on nodeTwo will get an OIR rejection from the stack
+    // because there is no SNIP handler there.
+    auto b = invoke_flow(&client_, &nodeTwo_, NodeHandle(nodeTwo_.node_id()));
+    EXPECT_EQ(SNIPClientRequest::ERROR_REJECTED | Defs::ERROR_UNIMPLEMENTED,
+        b->data()->resultCode);
+    EXPECT_EQ(0u, b->data()->response.size());
 }
 
 TEST_F(SNIPClientTest, reject)

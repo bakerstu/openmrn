@@ -34,7 +34,6 @@
 #include "utils/GcTcpHub.hxx"
 
 #include <memory>
-#include <sys/socket.h>
 
 #include "nmranet_config.h"
 #include "utils/GridConnectHub.hxx"

@@ -37,7 +37,7 @@
 #include <new>
 #include "utils/macros.h"
 
-/** Implements a vanilla ring buffer.
+/** Implements a vanilla ring buffer. Not thread safe.
  */
 template <typename T> class RingBuffer
 {
@@ -110,7 +110,90 @@ public:
         count -= removed;
         return removed;
     }
-    
+
+    /** Get a reference to the current location in the buffer for read.
+     * @param buf location to store resulting reference
+     * @return number of items in contiguous memory.  May be less than total
+     *         number of items in the buffer.
+     */
+    size_t data_read_pointer(T **buf)
+    {
+        size_t result = size - readIndex;
+        if (count < result)
+        {
+            result = count;
+        }
+        *buf = data + readIndex;
+        return result;
+    }
+
+    /** Get a reference to the current location in the buffer for write.
+     * @param buf location to store resulting reference
+     * @return amount of space in contiguous memory.  May be less than total
+     *         amount of space avaiable.
+     */
+    size_t data_write_pointer(T **buf)
+    {
+        size_t result = size - writeIndex;
+        if (space() < result)
+        {
+            result = space();
+        }
+        *buf = data + writeIndex;
+        return result;
+    }
+
+    /** Remove a number of items from the buffer by advancing the readIndex.
+     * @param items total number of items to remove
+     * @return total number of items removed
+     */
+    size_t consume(size_t items)
+    {
+        if (items > count)
+        {
+            items = count;
+        }
+        size_t consumed = items;
+        count -= items;
+        if ((readIndex + items) >= size)
+        {
+            items -= (size - readIndex);
+            readIndex = 0;
+        }
+        readIndex += items;
+
+        // Try to align the buffer so that we have the most available space to
+        // write.
+        if (!count)
+        {
+            readIndex = writeIndex = 0;
+        }
+
+        return consumed;
+    }
+
+    /** Add a number of items to the buffer by advancing the writeIndex.
+     * @param items total number of items to add
+     * @return total number of items added
+     */
+    size_t advance(size_t items)
+    {
+        if (items > space())
+        {
+            items = space();
+        }
+        size_t added = items;
+        count += items;
+        if ((writeIndex + items) >= size)
+        {
+            items -= (size - writeIndex);
+            writeIndex = 0;
+        }
+        writeIndex += items;
+
+        return added;
+    }
+
     /** Number of items in the buffer.
      * @return number of items in the buffer
      */

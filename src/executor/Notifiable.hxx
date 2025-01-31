@@ -171,7 +171,7 @@ private:
 /// A BarrierNotifiable allows to create a number of child Notifiable and wait
 /// for all of them to finish. When the last one is finished, the parent done
 /// callback is called.
-class BarrierNotifiable : public Notifiable, private Atomic
+class BarrierNotifiable : public Notifiable, protected Atomic
 {
 public:
     /** Constructs a barrier notifiable that is done. Users should call reset()
@@ -240,7 +240,7 @@ public:
         }
     }
 
-private:
+protected:
     /// How many outstanding notifications we are still waiting for. When 0,
     /// the barrier is not live; when reaches zero, done_ will be called.
     unsigned count_;

@@ -35,7 +35,7 @@
 #ifndef _DRIVERS_ESP32LEDC_HXX_
 #define _DRIVERS_ESP32LEDC_HXX_
 
-#include "freertos_drivers/arduino/PWM.hxx"
+#include "freertos_drivers/common/PWM.hxx"
 #include "utils/logging.h"
 #include "utils/macros.h"
 #include "utils/Uninitialized.hxx"

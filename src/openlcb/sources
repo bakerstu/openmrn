@@ -5,6 +5,8 @@ CSRCS +=
 CXXSRCS += \
            AliasAllocator.cxx \
            AliasCache.cxx \
+           BLEAdvertisement.cxx \
+           BLEService.cxx \
            BroadcastTime.cxx \
            BroadcastTimeDefs.cxx \
            BroadcastTimeClient.cxx \

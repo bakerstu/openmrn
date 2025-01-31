@@ -72,7 +72,7 @@ extern const size_t openlcb::CONFIG_FILE_SIZE =
 extern const char *const openlcb::SNIP_DYNAMIC_FILENAME =
     openlcb::CONFIG_FILENAME;
 
-void time_update_callback();
+void time_update_callback(time_t old, time_t current);
 void minute_update_callback(BarrierNotifiable *done);
 
 // Main time protocol client.
@@ -101,7 +101,7 @@ void minute_update_callback(BarrierNotifiable *done)
 
 /// Callback from the time client when the time jumps or is reset for any other
 /// reason.
-void time_update_callback()
+void time_update_callback(time_t old, time_t current)
 {
     print_time("update: ");
 }

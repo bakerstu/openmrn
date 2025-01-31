@@ -188,6 +188,7 @@ IfTcp::IfTcp(NodeID gateway_node_id, HubFlow *device, int local_nodes_count)
     , device_(device)
 {
     add_owned_flow(new VerifyNodeIdHandler(this));
+    add_owned_flow(new UnhandledAddressedMessageHandler(this));
     seq_ = new ClockBaseSequenceNumberGenerator;
     add_owned_flow(seq_);
     auto filter = new LocalMessageFilter(this);

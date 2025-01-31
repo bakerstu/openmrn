@@ -7,6 +7,7 @@
 #include "utils/FdUtils.hxx"
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/async_if_test_helper.hxx"
+#include "utils/format_utils.hxx"
 
 using ::testing::_;
 using ::testing::SaveArg;
@@ -22,6 +23,15 @@ public:
 
     void send(Buffer<HubData> *b, unsigned priority) override
     {
+        {
+            GenMessage actual;
+            actual.clear();
+            EXPECT_TRUE(TcpDefs::parse_tcp_message(*b->data(), &actual));
+            LOG(INFO,
+                "[sent] 0x%012" PRIx64 " -> %012" PRIx64 " MTI %03x payload %s",
+                actual.src.id, actual.dst.id, actual.mti,
+                string_to_hex(actual.payload).c_str());
+        }
         send(*b->data(), priority);
         b->unref();
     }

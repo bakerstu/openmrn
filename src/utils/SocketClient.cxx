@@ -232,7 +232,7 @@ std::unique_ptr<SocketClientParams> SocketClientParams::from_static(
     std::unique_ptr<DefaultSocketClientParams> p(new DefaultSocketClientParams);
     p->staticHost_ = std::move(hostname);
     p->staticPort_ = port;
-    return std::move(p);
+    return p;
 }
 
 std::unique_ptr<SocketClientParams> SocketClientParams::from_static_and_mdns(
@@ -242,7 +242,7 @@ std::unique_ptr<SocketClientParams> SocketClientParams::from_static_and_mdns(
     p->staticHost_ = std::move(hostname);
     p->staticPort_ = port;
     p->mdnsService_ = std::move(mdns_service);
-    return std::move(p);
+    return p;
 }
 
 #endif // OPENMRN_FEATURE_BSD_SOCKETS

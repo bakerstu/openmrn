@@ -173,8 +173,8 @@ public:
         , dst_(dst)
         , skipMember_(skip_member)
     {
-        this->start_flow(STATE(allocate_buffer));
         set_limit_input(shouldThrottle_);
+        this->start_flow(STATE(allocate_buffer));
     }
 
     void set_limit_input(bool should_throttle)
@@ -187,7 +187,8 @@ public:
         }
     }
 
-    /// Unregisters the current flow from the hub.
+    /// Unregisters the current flow from the hub. Must be called on the main
+    /// executor.
     void shutdown()
     {
         auto *e = this->service()->executor();
@@ -242,9 +243,9 @@ public:
         {
             /// Error reading the socket.
             b_->unref();
-            notify_barrier();
             set_terminated();
             device()->report_read_error();
+            notify_barrier();
             return exit();
         }
         SelectBufferInfo<buffer_type>::check_target_size(
@@ -312,6 +313,7 @@ public:
             on_error ? on_error : EmptyNotifiable::DefaultInstance());
         barrier_.new_child();
         hub_->register_port(write_port());
+        isRegistered_ = true;
     }
 #endif
 
@@ -339,6 +341,7 @@ public:
         ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK);
 #endif
         hub_->register_port(write_port());
+        isRegistered_ = true;
     }
 
     /// If the barrier has not been called yet, will notify it inline.
@@ -346,22 +349,21 @@ public:
     {
         if (fd_ >= 0) {
             unregister_write_port();
-            int fd = -1;
-            executor()->sync_run([this, &fd]()
-                                 {
-                                     fd = fd_;
-                                     fd_ = -1;
-                                     readFlow_.shutdown();
-                                     writeFlow_.shutdown();
-                                 });
-            ::close(fd);
-            bool completed = false;
-            while (!completed) {
-                executor()->sync_run([this, &completed]()
-                                 {
-                                     if (barrier_.is_done()) completed = true;
-                                 });
-            }
+            close_fd();
+            executor()->sync_run([this]() {
+                readFlow_.shutdown();
+                writeFlow_.shutdown();
+            });
+        }
+        bool completed = false;
+        while (!completed)
+        {
+            executor()->sync_run([this, &completed]() {
+                if (barrier_.is_done())
+                {
+                    completed = true;
+                }
+            });
         }
     }
 
@@ -382,6 +384,14 @@ public:
     {
         LOG(VERBOSE, "HubDeviceSelect::unregister write port %p %p",
             write_port(), &writeFlow_);
+        {
+            AtomicHolder h(this);
+            if (!isRegistered_)
+            {
+                return;
+            }
+            isRegistered_ = false;
+        }
         hub_->unregister_port(&writeFlow_);
         /* We put an empty message at the end of the queue. This will cause
          * wait until all pending messages are dealt with, and then ping the
@@ -472,10 +482,7 @@ protected:
     {
         readFlow_.shutdown();
         unregister_write_port();
-        if (fd_ >= 0) {
-            ::close(fd_);
-            fd_ = -1;
-        }
+        close_fd();
     }
 
     /** Callback from the ReadFlow when the read call has seen an error. The
@@ -484,10 +491,29 @@ protected:
     void report_read_error() override
     {
         unregister_write_port();
-        if (fd_ >= 0) {
-            ::close(fd_);
+        close_fd();
+    }
+
+    void close_fd()
+    {
+        int fd = -1;
+        {
+            AtomicHolder h(this);
+            fd = fd_;
+            if (fd < 0)
+            {
+                return;
+            }
             fd_ = -1;
         }
+        // This is a workaround that sometimes my linux kernel gets stuck in
+        // ::read when I closed the fd like this, even though the fd is
+        // O_NONBLOCK.
+        executor()->add(new CallbackExecutable([this, fd]() {
+            ::close(fd);
+            readFlow_.shutdown();
+            writeFlow_.shutdown();
+        }));
     }
 
     /// Hub whose data we are trying to send.
@@ -497,6 +523,9 @@ protected:
     /// StateFlow for writing data to the fd. Woken by data to send or the fd
     /// being writeable.
     WriteFlow writeFlow_;
+    /// True when the write flow is registered in the hub. Used to synchronize
+    /// different and concurrent shutdown paths. Protected by Atomic this.
+    bool isRegistered_;
 };
 
 #endif // FEATURE_EXECUTOR_SELECT

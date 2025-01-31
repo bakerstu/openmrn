@@ -259,10 +259,24 @@ TEST_F(AsyncAliasAllocatorTest, AllocateMultiple)
     expect_packet(":X14003AAAN;");
     expect_packet(":X10700AAAN;");
 
+    run_x([this]() {
+        EXPECT_EQ(
+            0x02010D000005u, ifCan_->local_aliases()->lookup(NodeAlias(0x555)));
+        EXPECT_EQ(
+            0x555u, ifCan_->local_aliases()->lookup(NodeID(0x02010D000005u)));
+    });
     /* Conflicts with the previous alias to be tested. That's not a problem at
      * this point however, because that alias has already left the
-     * allocator. */
+     * allocator. The conflict will generate an AMR frame. */
+    expect_packet(":X10703555N02010D000005;");
     send_packet(":X10700555N;");
+    twait();
+    run_x([this]() {
+        // This mapping should be removed.
+        EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x555)));
+        EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeID(0x02010D000005u)));
+    });
+        
 
     get_next_alias();
     EXPECT_EQ(0xAAAU, b_->data()->alias);
@@ -297,6 +311,7 @@ TEST_F(AsyncAliasAllocatorTest, AllocationConflict)
             ifCan_->local_aliases()->lookup(NodeAlias(0xAA5)));
         // This one should be unknown.
         EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x555)));
+        EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeID(0x02010D000005u)));
     });
 
     get_next_alias();
