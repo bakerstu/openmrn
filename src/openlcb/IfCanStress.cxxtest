@@ -174,8 +174,10 @@ protected:
 
     ~AsyncIfStressTest()
     {
-        while (!(g1_executor.empty() && g2_executor.empty() &&
-                 g3_executor.empty() && g4_executor.empty() &&
+        while (!(g1_executor.empty() && g1_executor.active_timers()->empty() &&
+                 g2_executor.empty() && g2_executor.active_timers()->empty() &&
+                 g3_executor.empty() && g3_executor.active_timers()->empty() &&
+                 g4_executor.empty() && g4_executor.active_timers()->empty() &&
                  g_executor.empty()))
         {
             usleep(100);

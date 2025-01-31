@@ -71,7 +71,7 @@ public:
     }
 };
 
-#elif defined(ESP32)
+#elif defined(ESP_PLATFORM)
 
 #include "freertos_includes.h"
 
@@ -95,34 +95,12 @@ public:
     /// Locks the specific critical section.
     void lock()
     {
-        // This should really use portENTER_CRITICAL_SAFE() but that is not
-        // available prior to ESP-IDF 3.3 which is not available in the
-        // arduino-esp32 environment generally. The below code is the
-        // implementation of that macro.
-        if (xPortInIsrContext())
-        {
-            portENTER_CRITICAL_ISR(&mux);
-        }
-        else
-        {
-            portENTER_CRITICAL(&mux);
-        }
+        portENTER_CRITICAL_SAFE(&mux);
     }
     /// Unlocks the specific critical section.
     void unlock()
     {
-        // This should really use portEXIT_CRITICAL_SAFE() but that is not
-        // available prior to ESP-IDF 3.3 which is not available in the
-        // arduino-esp32 environment generally. The below code is the
-        // implementation of that macro.
-        if (xPortInIsrContext())
-        {
-            portEXIT_CRITICAL_ISR(&mux);
-        }
-        else
-        {
-            portEXIT_CRITICAL(&mux);
-        }
+        portEXIT_CRITICAL_SAFE(&mux);
     }
 
 private:

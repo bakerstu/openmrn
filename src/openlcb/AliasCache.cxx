@@ -311,12 +311,13 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     {
         /* we already have a mapping for this alias, so lets remove it */
         insert = it->deref(this);
+        auto nid = insert->get_node_id();
         remove(insert->alias_);
 
         if (removeCallback)
         {
             /* tell the interface layer that we removed this mapping */
-            (*removeCallback)(insert->get_node_id(), insert->alias_, context);
+            (*removeCallback)(nid, insert->alias_, context);
         }
     }
     auto nit = idMap.find(id);
@@ -324,12 +325,13 @@ void AliasCache::add(NodeID id, NodeAlias alias)
     {
         /* we already have a mapping for this id, so lets remove it */
         insert = nit->deref(this);
+        auto nid = insert->get_node_id();
         remove(insert->alias_);
 
         if (removeCallback)
         {
             /* tell the interface layer that we removed this mapping */
-            (*removeCallback)(insert->get_node_id(), insert->alias_, context);
+            (*removeCallback)(nid, insert->alias_, context);
         }
     }
 
@@ -420,7 +422,10 @@ void AliasCache::remove(NodeAlias alias)
         Metadata *metadata = it->deref(this);
         aliasMap.erase(it);
         idMap.erase(idMap.find(metadata->get_node_id()));
+        // Ensures that the AME query handler does not find this metadata.
+        metadata->set_node_id(0);
 
+        // Removes metadata from the linked lists.
         if (!metadata->newer_.empty())
         {
             metadata->newer_.deref(this)->older_ = metadata->older_;
@@ -438,6 +443,7 @@ void AliasCache::remove(NodeAlias alias)
             oldest = metadata->newer_;
         }
 
+        // Adds metadata to the freelist.
         metadata->older_ = freeList;
         freeList.idx_ = metadata - pool;
     }
@@ -515,7 +521,10 @@ NodeAlias AliasCache::lookup(NodeID id)
  */
 NodeID AliasCache::lookup(NodeAlias alias)
 {
-    HASSERT(alias != 0);
+    if (alias == 0)
+    {
+        return 0;
+    }
 
     auto it = aliasMap.find(alias);
 

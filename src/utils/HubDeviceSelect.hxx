@@ -46,6 +46,7 @@
 
 #include "executor/StateFlow.hxx"
 #include "utils/Hub.hxx"
+#include "utils/LimitedPool.hxx"
 
 /// Generic template for the buffer traits. HubDeviceSelect will not compile on
 /// this default template because it lacks the necessary definitions. For each
@@ -76,6 +77,12 @@ template <> struct SelectBufferInfo<HubFlow::buffer_type>
     {
         return false;
     }
+
+    /// @return true if the input needs to be throttled.
+    static bool limit_input()
+    {
+        return true;
+    }
 };
 
 /// Partial template specialization of buffer traits for struct-typed hubs.
@@ -99,6 +106,12 @@ struct SelectBufferInfo<Buffer<HubContainer<StructContainer<T>>>>
     /// @return true because struct buffers always need to be completely read
     /// before forwarding to lower levels.
     static bool needs_read_fully()
+    {
+        return true;
+    }
+
+    /// @return true if the input needs to be throttled.
+    static bool limit_input()
     {
         return true;
     }
@@ -130,8 +143,18 @@ struct SelectBufferInfo<Buffer<CanHubData>> {
     {
         return true;
     }
+
+    /// @return true if the input needs to be throttled.
+    static bool limit_input()
+    {
+        // We should never throttle a CAN-bus reader.
+        return false;
+    }
 };
 
+/// @return the number of packets to limit read input if we are throttling.
+int hubdevice_incoming_packet_limit();
+    
 /// State flow implementing select-aware fd reads.
 template <class HFlow> class HubDeviceSelectReadFlow : public StateFlowBase
 {
@@ -145,14 +168,27 @@ public:
     HubDeviceSelectReadFlow(FdHubPortService *device,
         typename HFlow::port_type *dst, typename HFlow::port_type *skip_member)
         : StateFlowBase(device)
+        , shouldThrottle_(SelectBufferInfo<buffer_type>::limit_input())
         , b_(nullptr)
         , dst_(dst)
         , skipMember_(skip_member)
     {
+        set_limit_input(shouldThrottle_);
         this->start_flow(STATE(allocate_buffer));
     }
 
-    /// Unregisters the current flow from the hub.
+    void set_limit_input(bool should_throttle)
+    {
+        shouldThrottle_ = should_throttle;
+        int limit = hubdevice_incoming_packet_limit();
+        if (shouldThrottle_ && limit < 1000000 && !inputPool_)
+        {
+            inputPool_.reset(new LimitedPool(sizeof(buffer_type), limit));
+        }
+    }
+
+    /// Unregisters the current flow from the hub. Must be called on the main
+    /// executor.
     void shutdown()
     {
         auto *e = this->service()->executor();
@@ -173,7 +209,9 @@ public:
     /// Allocates a new buffer for incoming data. @return next state.
     Action allocate_buffer()
     {
-        return this->allocate_and_call(dst_, STATE(try_read));
+        // If inputPool is nullptr, this will use the destination flow's pool,
+        // which is typically mainBufferPool.
+        return this->allocate_and_call(dst_, STATE(try_read), inputPool_.get());
     }
 
     /// Attempts to read into the current buffer from the target
@@ -205,9 +243,9 @@ public:
         {
             /// Error reading the socket.
             b_->unref();
-            notify_barrier();
             set_terminated();
             device()->report_read_error();
+            notify_barrier();
             return exit();
         }
         SelectBufferInfo<buffer_type>::check_target_size(
@@ -231,10 +269,14 @@ private:
 
     /// true iff pending parent->barrier_.notify()
     bool barrierOwned_{true};
+    /// True if we are throttling via a limited pool.
+    bool shouldThrottle_;
     /// Helper object for read/write FD asynchronously.
     StateFlowSelectHelper selectHelper_{this};
     /// Buffer that we are currently filling.
     buffer_type *b_;
+    /// Throttling input helper.
+    std::unique_ptr<LimitedPool> inputPool_;
     /// Where do we forward the messages we created.
     typename HFlow::port_type *dst_;
     /// What should be the source port designation.
@@ -271,6 +313,7 @@ public:
             on_error ? on_error : EmptyNotifiable::DefaultInstance());
         barrier_.new_child();
         hub_->register_port(write_port());
+        isRegistered_ = true;
     }
 #endif
 
@@ -298,6 +341,7 @@ public:
         ::fcntl(fd, F_SETFL, O_RDWR | O_NONBLOCK);
 #endif
         hub_->register_port(write_port());
+        isRegistered_ = true;
     }
 
     /// If the barrier has not been called yet, will notify it inline.
@@ -305,22 +349,21 @@ public:
     {
         if (fd_ >= 0) {
             unregister_write_port();
-            int fd = -1;
-            executor()->sync_run([this, &fd]()
-                                 {
-                                     fd = fd_;
-                                     fd_ = -1;
-                                     readFlow_.shutdown();
-                                     writeFlow_.shutdown();
-                                 });
-            ::close(fd);
-            bool completed = false;
-            while (!completed) {
-                executor()->sync_run([this, &completed]()
-                                 {
-                                     if (barrier_.is_done()) completed = true;
-                                 });
-            }
+            close_fd();
+            executor()->sync_run([this]() {
+                readFlow_.shutdown();
+                writeFlow_.shutdown();
+            });
+        }
+        bool completed = false;
+        while (!completed)
+        {
+            executor()->sync_run([this, &completed]() {
+                if (barrier_.is_done())
+                {
+                    completed = true;
+                }
+            });
         }
     }
 
@@ -341,6 +384,14 @@ public:
     {
         LOG(VERBOSE, "HubDeviceSelect::unregister write port %p %p",
             write_port(), &writeFlow_);
+        {
+            AtomicHolder h(this);
+            if (!isRegistered_)
+            {
+                return;
+            }
+            isRegistered_ = false;
+        }
         hub_->unregister_port(&writeFlow_);
         /* We put an empty message at the end of the queue. This will cause
          * wait until all pending messages are dealt with, and then ping the
@@ -431,10 +482,7 @@ protected:
     {
         readFlow_.shutdown();
         unregister_write_port();
-        if (fd_ >= 0) {
-            ::close(fd_);
-            fd_ = -1;
-        }
+        close_fd();
     }
 
     /** Callback from the ReadFlow when the read call has seen an error. The
@@ -443,10 +491,29 @@ protected:
     void report_read_error() override
     {
         unregister_write_port();
-        if (fd_ >= 0) {
-            ::close(fd_);
+        close_fd();
+    }
+
+    void close_fd()
+    {
+        int fd = -1;
+        {
+            AtomicHolder h(this);
+            fd = fd_;
+            if (fd < 0)
+            {
+                return;
+            }
             fd_ = -1;
         }
+        // This is a workaround that sometimes my linux kernel gets stuck in
+        // ::read when I closed the fd like this, even though the fd is
+        // O_NONBLOCK.
+        executor()->add(new CallbackExecutable([this, fd]() {
+            ::close(fd);
+            readFlow_.shutdown();
+            writeFlow_.shutdown();
+        }));
     }
 
     /// Hub whose data we are trying to send.
@@ -456,6 +523,9 @@ protected:
     /// StateFlow for writing data to the fd. Woken by data to send or the fd
     /// being writeable.
     WriteFlow writeFlow_;
+    /// True when the write flow is registered in the hub. Used to synchronize
+    /// different and concurrent shutdown paths. Protected by Atomic this.
+    bool isRegistered_;
 };
 
 #endif // FEATURE_EXECUTOR_SELECT

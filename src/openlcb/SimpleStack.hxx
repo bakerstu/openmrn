@@ -39,6 +39,7 @@
 
 #include "executor/Executor.hxx"
 #include "nmranet_config.h"
+#include "openmrn_features.h"
 #include "openlcb/AliasAllocator.hxx"
 #include "openlcb/ConfigRepresentation.hxx"
 #include "openlcb/ConfigUpdateFlow.hxx"
@@ -59,7 +60,7 @@
 #include "utils/GridConnectHub.hxx"
 #include "utils/HubDevice.hxx"
 #include "utils/HubDeviceNonBlock.hxx"
-#ifdef __FreeRTOS__
+#ifdef OPENMRN_FEATURE_FD_CAN_DEVICE
 #include "utils/HubDeviceSelect.hxx"
 #endif
 
@@ -255,6 +256,13 @@ public:
         node()->iface()->addressed_message_write_flow()->send(b);
     }
 
+    /// Get the PIP response value.
+    /// @return PIP value
+    virtual uint64_t get_pip()
+    {
+        return 0;
+    }
+
 protected:
     /// Call this function once after the actual IO ports are set up. Calling
     /// before the executor starts looping is okay.
@@ -328,7 +336,7 @@ public:
         additionalComponents_.emplace_back(port);
     }
 
-#ifdef __FreeRTOS__
+#ifdef OPENMRN_FEATURE_FD_CAN_DEVICE
     /// Adds a CAN bus port with asynchronous driver API.
     ///
     /// @deprecated: most current FreeRTOS drivers use the the select-based
@@ -354,7 +362,7 @@ public:
         auto *port = new HubDeviceSelect<CanHubFlow>(can_hub(), fd, on_error);
         additionalComponents_.emplace_back(port);
     }
-#endif
+#endif // OPENMRN_FEATURE_FD_CAN_DEVICE
 
     /// Adds a gridconnect port to the CAN bus.
     void add_gridconnect_port(const char *path, Notifiable *on_exit = nullptr);
@@ -392,6 +400,12 @@ public:
     GcTcpHub *get_tcp_hub_server()
     {
         return gcHubServer_.get();
+    }
+
+    /// Shuts down the GridConnect Hub server, if previously started.
+    void shutdown_tcp_hub_server()
+    {
+        gcHubServer_.reset(nullptr);
     }
 
     /// Connects to a CAN hub using TCP with the gridconnect protocol.
@@ -617,6 +631,13 @@ private:
         default_start_node();
     }
 
+    /// Get the PIP response value.
+    /// @return PIP value
+    uint64_t get_pip() override
+    {
+        return PIP_RESPONSE;
+    }
+
     /// The actual node.
     DefaultNode node_;
     /// Handles PIP requests.
@@ -645,6 +666,13 @@ private:
     void start_node() override
     {
         default_start_node();
+    }
+
+    /// Get the PIP response value.
+    /// @return PIP value
+    uint64_t get_pip() override
+    {
+        return PIP_RESPONSE;
     }
 
     /// The actual node.
@@ -681,6 +709,13 @@ private:
         Defs::ABBREVIATED_DEFAULT_CDI | Defs::CDI;
 
     void start_node() override;
+
+    /// Get the PIP response value.
+    /// @return PIP value
+    uint64_t get_pip() override
+    {
+        return PIP_RESPONSE;
+    }
 
     TrainService tractionService_ {iface()};
     /// The actual node.

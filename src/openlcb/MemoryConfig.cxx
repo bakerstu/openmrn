@@ -41,6 +41,8 @@
 #include "openmrn_features.h"
 #include "utils/logging.h"
 #ifdef __FreeRTOS__
+#include "freertos/can_ioctl.h"
+#elif defined(ESP32)
 #include "can_ioctl.h"
 #endif
 
@@ -205,6 +207,12 @@ size_t FileMemorySpace::read(address_t destination, uint8_t *dst, size_t len,
     {
         LOG(INFO, "Error reading from fd %d: %s", fd_, strerror(errno));
         *error = Defs::ERROR_PERMANENT;
+        return 0;
+    }
+    else if (ret == 0)
+    {
+        // EOF
+        *error = MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
         return 0;
     }
     else if ((size_t)ret < len)

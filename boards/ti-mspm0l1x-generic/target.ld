@@ -1,0 +1,1 @@
+../armv6m/target.ld

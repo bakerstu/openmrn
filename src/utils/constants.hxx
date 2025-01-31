@@ -68,13 +68,15 @@
     typedef unsigned char                                                      \
         _do_not_add_declare_and_default_const_to_the_same_file_for_##name;
 
-/// Defines the default value of a constant. Use this is a single .cxx file and
+/// Defines the default value of a constant. Use this in a single .cxx file and
 /// make sure NOT to include the header that has the respective DECLARE_CONST
 /// macros. Best not to incude anything at all.
 ///
 /// @param name name of the constant.
 /// @param value is what the default value should be.
-#define DEFAULT_CONST(name, value)                                             \
+#define DEFAULT_CONST(name, value) DEFAULT_CONST_(name, value)
+
+#define DEFAULT_CONST_(name, value)                                            \
     EXTERNC extern const int __attribute__((__weak__)) _sym_##name = value;    \
     EXTERNCEND                                                                 \
     /** internal guard */                                                      \
@@ -86,12 +88,43 @@
 ///
 /// @param name name of the constant.
 /// @param value is what the actual value should be.
-#define OVERRIDE_CONST(name, value)                                            \
+#define OVERRIDE_CONST(name, value) OVERRIDE_CONST_(name, value)
+
+#define OVERRIDE_CONST_(name, value)                                           \
     EXTERNC extern const int _sym_##name;                                      \
     const int _sym_##name = value;                                             \
     EXTERNCEND
 
-#else  // native C
+#ifdef GTEST
+
+/// Use this macro at the top of a .cxxtest file to allow overriding constant
+/// values in that test.
+///
+/// @param name the constant name
+/// @param start_value an integer; this value will be used for each test if no
+/// specific value is given. It is ideal if this matches what is as
+/// DEFAULT_CONST in constants.cxx, but there is no mechanism to keep them in
+/// sync.
+#define TEST_CONST(name, start_value)                                          \
+    EXTERNC extern const int _sym_##name;                                      \
+    const int __attribute__((section(".data"))) _sym_##name = start_value;     \
+    EXTERNCEND                                                                 \
+    int *config##name##override()                                              \
+    {                                                                          \
+        return (int *)&_sym_##name;                                            \
+    }
+
+/// Call this macro at the beginning of a test function, or inside a test
+/// fixture class to set the constant's value for that test.
+/// @param name the name of the constant
+/// @param new_value an integer, the constant will be overridden to this value
+/// during the given scope.
+#define TEST_OVERRIDE_CONST(name, new_value)                                   \
+    ScopedOverride ov##name{config##name##override(), new_value}
+
+#endif // GTEST
+
+#else // not simple const, but rather use direct asm / linking statements
 
 #define DECLARE_CONST(name)                                                    \
     EXTERNC extern char _sym_##name;                                           \
@@ -102,14 +135,18 @@
         return (ptrdiff_t)(&_sym_##name);                                      \
     }
 
-#define DEFAULT_CONST(name, value)                                             \
+#define DEFAULT_CONST(name, value) DEFAULT_CONST_(name, value) 
+
+#define DEFAULT_CONST_(name, value)                                            \
     typedef signed char                                                        \
     _do_not_add_declare_and_default_const_to_the_same_file_for_##name;         \
     asm(".global _sym_" #name " \n");                                          \
     asm(".weak _sym_" #name " \n");                                            \
     asm(".set _sym_" #name ", " #value " \n");
 
-#define OVERRIDE_CONST(name, value)                                            \
+#define OVERRIDE_CONST(name, value) OVERRIDE_CONST_(name, value)
+
+#define OVERRIDE_CONST_(name, value)                                           \
     asm(".global _sym_" #name " \n");                                          \
     asm(".set _sym_" #name ", " #value " \n");
 

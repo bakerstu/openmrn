@@ -1,0 +1,1 @@
+../../../../boards/st-stm32g0b1rc-railcom/HwInit.cxx

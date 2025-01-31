@@ -59,6 +59,9 @@ struct CC32xxWiFi::NetAppEvent : public ::SlNetAppEvent_t {};
 struct CC32xxWiFi::SockEvent : public ::SlSockEvent_t {};
 
 /** CC32xx forward declaration Helper */
+struct CC32xxWiFi::SockTriggerEvent : public ::SlSockTriggerEvent_t {};
+
+/** CC32xx forward declaration Helper */
 struct CC32xxWiFi::HttpServerEvent : public ::SlNetAppHttpServerEvent_t {};
 
 /** CC32xx forward declaration Helper */
@@ -802,18 +805,18 @@ void CC32xxWiFi::wlan_wps_pbc_initiate()
 void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
                                SecurityType security_type)
 {
-    HASSERT(strlen(ssid) <= 32);
-    HASSERT(strlen(security_key) <= 64);
+    if (ssid)
+    {
+        HASSERT(strlen(ssid) <= 32);
+        sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SSID, strlen(ssid),
+            (uint8_t *)ssid);
+        if (wlanRole == WlanRole::AP)
+        {
+            str_populate(this->ssid, ssid);
+        }
+    }
 
     uint8_t sec_type = security_type_to_simplelink(security_type);
-
-    sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SSID, strlen(ssid),
-               (uint8_t*)ssid);
-    if (wlanRole == WlanRole::AP)
-    {
-        str_populate(this->ssid, ssid);
-    }
-    
     sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SECURITY_TYPE, 1,
                (uint8_t*)&sec_type);
 
@@ -823,6 +826,7 @@ void CC32xxWiFi::wlan_setup_ap(const char *ssid, const char *security_key,
         return;
     }
 
+    HASSERT(strlen(security_key) <= 64);
     sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_PASSWORD,
                strlen(security_key), (uint8_t*)security_key);
 }
@@ -846,7 +850,9 @@ void CC32xxWiFi::wlan_get_ap_config(string *ssid, SecurityType *security_type)
     {
         uint16_t len = sizeof(*security_type);
         uint16_t config_opt = SL_WLAN_AP_OPT_SECURITY_TYPE;
-        sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (_u8*) security_type);
+        uint8_t sl_sec_type = 0;
+        sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, &sl_sec_type);
+        *security_type = security_type_from_simplelink(sl_sec_type);
     }
 }
 
@@ -1378,6 +1384,20 @@ void CC32xxWiFi::sock_event_handler(SockEvent *event)
 }
 
 /*
+ * CC32xxWiFi::trigger_event_handler()
+ */
+void CC32xxWiFi::trigger_event_handler(SockTriggerEvent *event)
+{
+    if (!event)
+    {
+        return;
+    }
+
+    LOG(INFO, "Socket trigger event %u %d", (unsigned)event->Event,
+        (unsigned)event->EventData);
+}
+
+/*
  * CC32xxWiFi::http_server_callback()
  */
 void CC32xxWiFi::http_server_callback(HttpServerEvent *event,
@@ -1733,6 +1753,16 @@ void SimpleLinkFatalErrorEventHandler(SlDeviceFatal_t *slFatalErrorEvent)
 {
     CC32xxWiFi::instance()->fatal_error_callback(
         static_cast<CC32xxWiFi::FatalErrorEvent*>(slFatalErrorEvent));
+}
+
+/** Notifies the service about a wifi asynchronous socket event callback. This
+ * means that sl_Select needs to be re-run and certain sockets might need
+ * wakeup.
+ * @param event parameters from the socket. */
+void SimpleLinkSocketTriggerEventHandler(SlSockTriggerEvent_t *event)
+{
+    CC32xxWiFi::instance()->trigger_event_handler(
+        static_cast<CC32xxWiFi::SockTriggerEvent *>(event));
 }
 
 extern int slcb_SetErrno(int Errno);

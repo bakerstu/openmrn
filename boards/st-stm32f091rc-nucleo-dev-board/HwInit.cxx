@@ -62,7 +62,7 @@ const char *STDOUT_DEVICE = "/dev/ser0";
 const char *STDERR_DEVICE = "/dev/ser0";
 
 /** UART 0 serial driver instance */
-static Stm32Uart uart0("/dev/ser0", USART2, USART2_IRQn);
+static Stm32Uart uart2("/dev/ser0", USART2, USART2_IRQn);
 
 /** CAN 0 CAN driver instance */
 static Stm32Can can0("/dev/can0");
@@ -325,6 +325,12 @@ void hw_preinit(void)
     __HAL_DBGMCU_FREEZE_TIM14();
     SetInterruptPriority(TIM14_IRQn, 0);
     NVIC_EnableIRQ(TIM14_IRQn);
+}
+
+/// UART2 interrupt handler.
+void uart2_interrupt_handler(void)
+{
+    uart2.interrupt_handler();
 }
 
 }

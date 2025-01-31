@@ -355,6 +355,7 @@ protected:
         Pool *p = pool;
         if (!p)
         {
+            HASSERT(target_flow != nullptr);
             p = target_flow->pool();
         }
         LOG(VERBOSE, "allocate from pool %p, main pool %p", p, mainBufferPool);
@@ -736,10 +737,12 @@ protected:
      */
     Action listen_and_call(StateFlowSelectHelper *helper, int fd, Callback c)
     {
+#if OPENMRN_HAVE_SOCKET_FSTAT
         // verify that the fd is a socket
         struct stat stat;
         fstat(fd, &stat);
         HASSERT(S_ISSOCK(stat.st_mode));
+#endif // OPENMRN_HAVE_SOCKET_FSTAT
 
         helper->reset(Selectable::READ, fd, Selectable::MAX_PRIO);
         helper->set_wakeup(this);
@@ -755,10 +758,12 @@ protected:
      */
     Action connect_and_call(StateFlowSelectHelper *helper, int fd, Callback c)
     {
+#if OPENMRN_HAVE_SOCKET_FSTAT
         // verify that the fd is a socket
         struct stat stat;
         fstat(fd, &stat);
         HASSERT(S_ISSOCK(stat.st_mode));
+#endif // OPENMRN_HAVE_SOCKET_FSTAT
 
         helper->reset(Selectable::WRITE, fd, Selectable::MAX_PRIO);
         helper->set_wakeup(this);

@@ -24,13 +24,13 @@ $(foreach tgt,$(1),$(eval $(call REDIRECT_helper_template,$(tgt),$(2))))
 endef
 
 
-### Helper template to declare a dependency.
-### Arguments: target_file dependency_file
+### Helper template to declare a library subdirectory dependency.
+### Arguments: library_basename
 ### Example on how to call: Put the following on a standalone line in the Makefile
-### $(foreach lib,$(LIBDIRS),$(eval $(call SUBDIR_helper_template,lib/lib$(lib).a,build-$(lib))))
+### $(foreach lib,$(LIBDIRS),$(eval $(call SUBDIR_helper_template,$(lib))))
 define SUBDIR_helper_template
 
-$(1)/lib$(1).a: | build-$(1)
+$(1)/lib$(1).a: build-$(1)
 
 lib/lib$(1).a: $(1)/lib$(1).a
 

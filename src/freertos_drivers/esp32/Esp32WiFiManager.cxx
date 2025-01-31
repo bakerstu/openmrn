@@ -32,58 +32,41 @@
  * @date 4 February 2019
  */
 
-// Ensure we only compile this code for the ESP32
-#ifdef ESP32
+// Ensure we only compile this code for ESP32 MCUs
+#ifdef ESP_PLATFORM
 
 #include "Esp32WiFiManager.hxx"
+#include "openlcb/SimpleStack.hxx"
+#include "openlcb/TcpDefs.hxx"
 #include "os/MDNS.hxx"
 #include "utils/FdUtils.hxx"
+#include "utils/format_utils.hxx"
+#include "utils/SocketClient.hxx"
+#include "utils/SocketClientParams.hxx"
 
-#include <esp_event_loop.h>
 #include <esp_log.h>
+#include <esp_sntp.h>
 #include <esp_system.h>
 #include <esp_wifi.h>
-
 #include <lwip/dns.h>
 #include <mdns.h>
-#include <tcpip_adapter.h>
 
-// Starting in ESP-IDF v4.0 a few header files have been relocated so we need
-// to adjust the include paths accordingly. If the __has_include preprocessor
-// directive is defined we can use it to find the appropriate header files.
-// If it is not usable then we will default the older header filenames.
-#if defined(__has_include)
-
-// rom/crc.h was relocated to esp32/rom/crc.h in ESP-IDF v4.0
-// TODO: This will need to be platform specific in IDF v4.1 since this is
-// exposed in unique header paths for each supported platform. Detecting the
-// operating platform (ESP32, ESP32-S2, ESP32-S3, etc) can be done by checking
-// for the presence of one of the following defines:
-// CONFIG_IDF_TARGET_ESP32      -- ESP32
-// CONFIG_IDF_TARGET_ESP32S2    -- ESP32-S2
-// CONFIG_IDF_TARGET_ESP32S3    -- ESP32-S3
-// If none of these are defined it means the ESP-IDF version is v4.0 or
-// earlier.
-#if __has_include("esp32/rom/crc.h")
-#include <esp32/rom/crc.h>
-#else
-#include <rom/crc.h>
-#endif
-
-// esp_wifi_internal.h was relocated to esp_private/wifi.h in ESP-IDF v4.0
-#if __has_include("esp_private/wifi.h")
+// ESP-IDF v4+ has a slightly different directory structure to previous
+// versions.
+#include <dhcpserver/dhcpserver.h>
+#include <esp_event.h>
 #include <esp_private/wifi.h>
-#else
-#include <esp_wifi_internal.h>
-#endif
 
-#else
-
-// We are unable to use __has_include, default to the old include paths.
-#include <esp_wifi_internal.h>
-#include <rom/crc.h>
-
-#endif // defined __has_include
+#if defined(CONFIG_IDF_TARGET_ESP32S2)
+#include <esp32s2/rom/crc.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
+#include <esp32c3/rom/crc.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+#include <esp32s3/rom/crc.h>
+#else // default to ESP32
+#include <esp32/rom/crc.h>
+#endif // CONFIG_IDF_TARGET
+#include <stdint.h>
 
 using openlcb::NodeID;
 using openlcb::SimpleCanStackBase;
@@ -116,9 +99,8 @@ using std::unique_ptr;
 /// and is used as part of the Esp32 WiFi HUB support.
 void mdns_publish(const char *name, const char *service, uint16_t port);
 
-/// Removes advertisement of an mDNS service name. This is not currently
-/// exposed in the MDNS class but is supported on the ESP32.
-void mdns_unpublish(const char *service);
+/// Removes advertisement of an mDNS service name.
+void mdns_unpublish(const char *name, const char *service);
 
 /// Splits a service name since the ESP32 mDNS library requires the service
 /// name and service protocol to be passed in individually.
@@ -133,28 +115,30 @@ void split_mdns_service_name(string *service_name, string *protocol_name);
 
 namespace openmrn_arduino
 {
+// When running on a unicore (ESP32-S2 or ESP32-C3) use a lower priority so the
+// task will run in co-op mode with loop. When running on a multi-core SoC we
+// can use a higher priority for the background task.
+#if CONFIG_FREERTOS_UNICORE
+/// Priority for the task performing the mdns lookups, connections for the
+/// wifi uplink and any other background tasks needed by the wifi manager.
+static constexpr UBaseType_t EXECUTOR_TASK_PRIORITY = 1;
+#else // multi-core
+/// Priority for the task performing the mdns lookups, connections for the
+/// wifi uplink and any other background tasks needed by the wifi manager.
+static constexpr UBaseType_t EXECUTOR_TASK_PRIORITY = 3;
+#endif // CONFIG_FREERTOS_UNICORE
 
-/// Priority to use for the wifi_manager_task. This is currently set to one
-/// level higher than the arduino-esp32 loopTask. The task will be in a sleep
-/// state until woken up by Esp32WiFiManager::process_wifi_event or
-/// Esp32WiFiManager::apply_configuration.
-static constexpr UBaseType_t WIFI_TASK_PRIORITY = 2;
-
-/// Priority for the task performing the mdns lookups and connections for the
-/// wifi uplink.
-static constexpr UBaseType_t CONNECT_TASK_PRIORITY = 3;
-
-/// Stack size for the wifi_manager_task.
-static constexpr uint32_t WIFI_TASK_STACK_SIZE = 2560L;
-
-/// Stack size for the connect_executor.
-static constexpr uint32_t CONNECT_TASK_STACK_SIZE = 2560L;
+/// Stack size for the background task executor.
+static constexpr uint32_t EXECUTOR_TASK_STACK_SIZE = 5120L;
 
 /// Interval at which to check the WiFi connection status.
-static constexpr TickType_t WIFI_CONNECT_CHECK_INTERVAL = pdMS_TO_TICKS(5000);
+static constexpr uint32_t WIFI_CONNECT_CHECK_INTERVAL_SEC = 5;
 
 /// Interval at which to check if the GcTcpHub has started or not.
 static constexpr uint32_t HUB_STARTUP_DELAY_USEC = MSEC_TO_USEC(50);
+
+/// Interval at which to check if the WiFi task has shutdown or not.
+static constexpr uint32_t TASK_SHUTDOWN_DELAY_USEC = MSEC_TO_USEC(1);
 
 /// Bit designator for wifi_status_event_group which indicates we are connected
 /// to the SSID.
@@ -170,26 +154,6 @@ static constexpr int WIFI_GOTIP_BIT = BIT1;
 /// seconds.
 static constexpr uint8_t MAX_CONNECTION_CHECK_ATTEMPTS = 36;
 
-/// This is the number of consecutive IP addresses which will be available in
-/// the SoftAP DHCP server IP pool. These will be allocated immediately
-/// following the SoftAP IP address (default is 192.168.4.1). Default number to
-/// reserve is 48 IP addresses. Only four stations can be connected to the
-/// ESP32 SoftAP at any single time.
-static constexpr uint8_t SOFTAP_IP_RESERVATION_BLOCK_SIZE = 48;
-
-/// Event handler for the ESP32 WiFi system. This will receive events from the
-/// ESP-IDF event loop processor and pass them on to the Esp32WiFiManager for
-/// possible processing. This is only used when Esp32WiFiManager is managing
-/// both the WiFi and mDNS systems, if these are managed externally the
-/// consumer is responsible for calling Esp32WiFiManager::process_wifi_event
-/// when WiFi events occur.
-static esp_err_t wifi_event_handler(void *context, system_event_t *event)
-{
-    auto wifi = static_cast<Esp32WiFiManager *>(context);
-    wifi->process_wifi_event(event);
-    return ESP_OK;
-}
-
 /// Adapter class to load/store configuration via CDI
 class Esp32SocketParams : public DefaultSocketClientParams
 {
@@ -199,15 +163,17 @@ public:
         : configFd_(fd)
         , cfg_(cfg)
     {
+        // set the parameters on the parent class, all others are loaded
+        // on-demand.
         mdnsService_ = cfg_.auto_address().service_name().read(configFd_);
         staticHost_ = cfg_.manual_address().ip_address().read(configFd_);
         staticPort_ = CDI_READ_TRIMMED(cfg_.manual_address().port, configFd_);
     }
 
     /// @return search mode for how to locate the server.
-    SearchMode search_mode() override
+    SocketClientParams::SearchMode search_mode() override
     {
-        return (SearchMode)CDI_READ_TRIMMED(cfg_.search_mode, configFd_);
+        return (SocketClientParams::SearchMode)CDI_READ_TRIMMED(cfg_.search_mode, configFd_);
     }
 
     /// @return null or empty string if any mdns server is okay to connect
@@ -302,36 +268,25 @@ private:
 
 // With this constructor being used the Esp32WiFiManager will manage the
 // WiFi connection, mDNS system and the hostname of the ESP32.
-Esp32WiFiManager::Esp32WiFiManager(const char *ssid
-                                 , const char *password
-                                 , SimpleCanStackBase *stack
-                                 , const WiFiConfiguration &cfg
-                                 , const char *hostname_prefix
-                                 , wifi_mode_t wifi_mode
-                                 , tcpip_adapter_ip_info_t *station_static_ip
-                                 , ip_addr_t primary_dns_server
-                                 , uint8_t soft_ap_channel
-                                 , wifi_auth_mode_t soft_ap_auth
-                                 , const char *soft_ap_password
-                                 , tcpip_adapter_ip_info_t *softap_static_ip)
-    : DefaultConfigUpdateListener()
+Esp32WiFiManager::Esp32WiFiManager(const char *station_ssid
+    , const char *station_password, openlcb::SimpleStackBase *stack
+    , const WiFiConfiguration &cfg, wifi_mode_t wifi_mode
+    , uint8_t connection_mode, const char *hostname_prefix
+    , const char *sntp_server, const char *timezone, bool sntp_enabled
+    , uint8_t softap_channel, wifi_auth_mode_t softap_auth_mode
+    , const char *softap_ssid, const char *softap_password)
+    : DefaultConfigUpdateListener(), Service(&executor_)
     , hostname_(hostname_prefix)
-    , ssid_(ssid)
-    , password_(password)
-    , cfg_(cfg)
-    , manageWiFi_(true)
-    , stack_(stack)
-    , wifiMode_(wifi_mode)
-    , stationStaticIP_(station_static_ip)
-    , primaryDNSAddress_(primary_dns_server)
-    , softAPChannel_(soft_ap_channel)
-    , softAPAuthMode_(soft_ap_auth)
-    , softAPPassword_(soft_ap_password ? soft_ap_password : password)
-    , softAPStaticIP_(softap_static_ip)
+    , ssid_(station_ssid), password_(station_password), cfg_(cfg)
+    , stack_(stack), wifiMode_(wifi_mode), softAPChannel_(softap_channel)
+    , softAPAuthMode_(softap_auth_mode), softAPName_(softap_ssid)
+    , softAPPassword_(softap_password), sntpEnabled_(sntp_enabled)
+    , sntpServer_(sntp_server), timeZone_(timezone)
+    , connectionMode_(connection_mode)
 {
     // Extend the capacity of the hostname to make space for the node-id and
     // underscore.
-    hostname_.reserve(TCPIP_HOSTNAME_MAX_SIZE);
+    hostname_.reserve(MAX_HOSTNAME_LENGTH);
 
     // Generate the hostname for the ESP32 based on the provided node id.
     // node_id : 0x050101011425
@@ -342,29 +297,71 @@ Esp32WiFiManager::Esp32WiFiManager(const char *ssid
     // The maximum length hostname for the ESP32 is 32 characters so truncate
     // when necessary. Reference to length limitation:
     // https://github.com/espressif/esp-idf/blob/master/components/tcpip_adapter/include/tcpip_adapter.h#L611
-    if (hostname_.length() > TCPIP_HOSTNAME_MAX_SIZE)
+    if (hostname_.length() > MAX_HOSTNAME_LENGTH)
     {
-        LOG(WARNING, "ESP32 hostname is too long, original hostname: %s",
+        LOG(WARNING, "ESP32 hostname is too long, original hostname:%s",
             hostname_.c_str());
-        hostname_.resize(TCPIP_HOSTNAME_MAX_SIZE);
-        LOG(WARNING, "truncated hostname: %s", hostname_.c_str());
+        hostname_.resize(MAX_HOSTNAME_LENGTH);
+        LOG(WARNING, "truncated hostname:%s", hostname_.c_str());
     }
 
     // Release any extra capacity allocated for the hostname.
     hostname_.shrink_to_fit();
 }
 
-// With this constructor being used, it will be the responsibility of the
-// application to manage the WiFi and mDNS systems.
-Esp32WiFiManager::Esp32WiFiManager(
-    SimpleCanStackBase *stack, const WiFiConfiguration &cfg)
-    : DefaultConfigUpdateListener()
-    , cfg_(cfg)
-    , manageWiFi_(false)
-    , stack_(stack)
+Esp32WiFiManager::~Esp32WiFiManager()
 {
-    // Nothing to do here.
+    // Remove our event listeners from the event loop, note that we do not stop
+    // the event loop.
+    esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID
+                               , &Esp32WiFiManager::process_idf_event);
+    esp_event_handler_unregister(IP_EVENT, ESP_EVENT_ANY_ID
+                               , &Esp32WiFiManager::process_idf_event);
+
+    // shutdown the background task executor.
+    executor_.shutdown();
+
+    // cleanup event group
+    vEventGroupDelete(wifiStatusEventGroup_);
+
+    // cleanup internal vectors/maps
+    ssidScanResults_.clear();
+    mdnsDeferredPublish_.clear();
 }
+
+void Esp32WiFiManager::display_configuration()
+{
+    static const char * const wifiModes[] =
+    {
+        "Off",
+        "Station Only",
+        "SoftAP Only",
+        "Station and SoftAP",
+        "Unknown"
+    };
+
+    LOG(INFO, "[WiFi] Configuration Settings:");
+    LOG(INFO, "[WiFi] Mode:%s (%d)", wifiModes[wifiMode_], wifiMode_);
+    LOG(INFO, "[WiFi] Station SSID:'%s'", ssid_.c_str());
+    LOG(INFO, "[WiFi] SoftAP SSID:'%s'", softAPName_.c_str());
+    LOG(INFO, "[WiFi] Hostname:%s", hostname_.c_str());
+    LOG(INFO, "[WiFi] SNTP Enabled:%s, Server:%s, TimeZone:%s",
+        sntpEnabled_ ? "true" : "false", sntpServer_.c_str(),
+        timeZone_.c_str());
+}
+
+#ifndef CONFIG_FREERTOS_UNICORE
+/// Entrypoint for Esp32WiFiManager Executor thread when running on an ESP32
+/// with more than one core.
+///
+/// @param param @ref Executor to be started.
+static void thread_entry(void *param)
+{
+    // donate our task to the executor.
+    static_cast<Executor<1> *>(param)->thread_body();
+    vTaskDelete(nullptr);
+}
+#endif // !CONFIG_FREERTOS_UNICORE
 
 ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
     int fd, bool initial_load, BarrierNotifiable *done)
@@ -375,9 +372,11 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
 
     // Cache the fd for later use by the wifi background task.
     configFd_ = fd;
-    configReloadRequested_ = initial_load;
 
-    // Load the CDI entry into memory to do an CRC-32 check against our last
+    // always load the connection mode.
+    connectionMode_ = CDI_READ_TRIMMED(cfg_.connection_mode, fd);
+
+    // Load the CDI entry into memory to do an CRC32 check against our last
     // loaded configuration so we can avoid reloading configuration when there
     // are no interesting changes.
     unique_ptr<uint8_t[]> crcbuf(new uint8_t[cfg_.size()]);
@@ -393,30 +392,35 @@ ConfigUpdateListener::UpdateAction Esp32WiFiManager::apply_configuration(
     // Read the full configuration to the buffer for crc check.
     FdUtils::repeated_read(fd, crcbuf.get(), cfg_.size());
 
-    // Calculate CRC-32 from the loaded buffer.
+    // Calculate CRC32 from the loaded buffer.
     uint32_t configCrc32 = crc32_le(0, crcbuf.get(), cfg_.size());
-    LOG(VERBOSE, "existing config CRC-32: \"%s\", new CRC-32: \"%s\"",
-        integer_to_string(configCrc32_, 0).c_str(),
-        integer_to_string(configCrc32, 0).c_str());
+    LOG(VERBOSE, "existing config CRC32:%" PRIu32 ", new CRC32:%" PRIu32,
+        configCrc32_, configCrc32);
 
-    // if this is not the initial loading of the CDI entry check the CRC-32
-    // value and trigger a configuration reload if necessary.
-    if (!initial_load)
+    if (initial_load)
     {
-        if (configCrc32 != configCrc32_)
-        {
-            configReloadRequested_ = true;
-            // If a configuration change has been detected, wake up the
-            // wifi_manager_task so it can consume the change prior to the next
-            // wake up interval.
-            xTaskNotifyGive(wifiTaskHandle_);
-        }
+        // If we have more than one core start the Executor on the APP CPU (1)
+        // since the main OpenMRN Executor normally will run on the PRO CPU (0)
+#ifndef CONFIG_FREERTOS_UNICORE
+        xTaskCreatePinnedToCore(&thread_entry,              // entry point
+                                "Esp32WiFiConn",            // task name
+                                EXECUTOR_TASK_STACK_SIZE,   // stack size
+                                &executor_,                 // entry point arg
+                                EXECUTOR_TASK_PRIORITY,     // priority
+                                nullptr,                    // task handle
+                                APP_CPU_NUM);               // cpu core
+#else
+        // start the background task executor since it will be used for any
+        // callback notifications that arise from starting the network stack.
+        executor_.start_thread(
+            "Esp32WiFiConn", EXECUTOR_TASK_PRIORITY, EXECUTOR_TASK_STACK_SIZE);
+#endif // !CONFIG_FREERTOS_UNICORE
     }
-    else
+    else if (configCrc32 != configCrc32_)
     {
-        // This is the initial loading of the CDI entry, start the background
-        // task that will manage the node's WiFi connection(s).
-        start_wifi_task();
+        // If a configuration change has been detected, wake up the wifi stack
+        // so it can consume the change.
+        wifiStackFlow_.notify();
     }
 
     // Store the calculated CRC-32 for future use when the apply_configuration
@@ -435,7 +439,9 @@ void Esp32WiFiManager::factory_reset(int fd)
 
     // General WiFi configuration settings.
     CDI_FACTORY_RESET(cfg_.sleep);
-    CDI_FACTORY_RESET(cfg_.connection_mode);
+    // NOTE: this is not using CDI_FACTORY_RESET so consumers can provide a
+    // default value as part of constructing the Esp32WiFiManager instance.
+    cfg_.connection_mode().write(fd, connectionMode_);
 
     // Hub specific configuration settings.
     CDI_FACTORY_RESET(cfg_.hub().port);
@@ -463,589 +469,128 @@ void Esp32WiFiManager::factory_reset(int fd)
     CDI_FACTORY_RESET(cfg_.uplink().reconnect);
 }
 
-// Processes a WiFi system event
-void Esp32WiFiManager::process_wifi_event(system_event_t *event)
+void Esp32WiFiManager::process_idf_event(void *arg, esp_event_base_t event_base
+                                       , int32_t event_id, void *event_data)
 {
-    LOG(VERBOSE, "Esp32WiFiManager::process_wifi_event(%d)", event->event_id);
-
-    // We only are interested in this event if we are managing the
-    // WiFi and MDNS systems and our mode includes STATION.
-    if (event->event_id == SYSTEM_EVENT_STA_START && manageWiFi_ &&
-        (wifiMode_ == WIFI_MODE_APSTA || wifiMode_ == WIFI_MODE_STA))
+    LOG(VERBOSE, "Esp32WiFiManager::process_idf_event(%s, %" PRIi32 ", %p)",
+        event_base, event_id, event_data);
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
-        // Set the generated hostname prior to connecting to the SSID
-        // so that it shows up with the generated hostname instead of
-        // the default "Espressif".
-        LOG(INFO, "[WiFi] Setting ESP32 hostname to \"%s\".",
-            hostname_.c_str());
-        ESP_ERROR_CHECK(tcpip_adapter_set_hostname(
-            TCPIP_ADAPTER_IF_STA, hostname_.c_str()));
-        uint8_t mac[6];
-        esp_wifi_get_mac(WIFI_IF_STA, mac);
-        LOG(INFO, "[WiFi] MAC Address: %s", mac_to_string(mac).c_str());
-
-        if (stationStaticIP_)
-        {
-            // Stop the DHCP service before connecting, this allows us to
-            // specify a static IP address for the WiFi connection
-            LOG(INFO, "[DHCP] Stopping DHCP Client (if running).");
-            ESP_ERROR_CHECK(
-                tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_STA));
-
-            LOG(INFO,
-                "[WiFi] Configuring Static IP address:\n"
-                "IP     : " IPSTR "\n"
-                "Gateway: " IPSTR "\n"
-                "Netmask: " IPSTR,
-                IP2STR(&stationStaticIP_->ip),
-                IP2STR(&stationStaticIP_->gw),
-                IP2STR(&stationStaticIP_->netmask));
-            ESP_ERROR_CHECK(
-                tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_STA,
-                                          stationStaticIP_));
-
-            // if we do not have a primary DNS address configure the default
-            if (ip_addr_isany(&primaryDNSAddress_))
-            {
-                IP4_ADDR(&primaryDNSAddress_.u_addr.ip4, 8, 8, 8, 8);
-            }
-            LOG(INFO, "[WiFi] Configuring primary DNS address to: " IPSTR,
-                IP2STR(&primaryDNSAddress_.u_addr.ip4));
-            // set the primary server (0)
-            dns_setserver(0, &primaryDNSAddress_);
-        }
-        else
-        {
-            // Start the DHCP service before connecting so it hooks into
-            // the flow early and provisions the IP automatically.
-            LOG(INFO, "[DHCP] Starting DHCP Client.");
-            ESP_ERROR_CHECK(
-                tcpip_adapter_dhcpc_start(TCPIP_ADAPTER_IF_STA));
-        }
-
-        LOG(INFO,
-            "[WiFi] Station started, attempting to connect to SSID: %s.",
-            ssid_);
-        // Start the SSID connection process.
-        esp_wifi_connect();
+        Singleton<Esp32WiFiManager>::instance()->on_station_started();
     }
-    else if (event->event_id == SYSTEM_EVENT_STA_CONNECTED)
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED)
     {
-        LOG(INFO, "[WiFi] Connected to SSID: %s", ssid_);
-        // Set the flag that indictes we are connected to the SSID.
-        xEventGroupSetBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
+        Singleton<Esp32WiFiManager>::instance()->on_station_connected();
     }
-    else if (event->event_id == SYSTEM_EVENT_STA_GOT_IP)
+    else if (event_base == WIFI_EVENT &&
+             event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
-        // Retrieve the configured IP address from the TCP/IP stack.
-        tcpip_adapter_ip_info_t ip_info;
-        tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
-        LOG(INFO, "[WiFi] IP address is " IPSTR ".", IP2STR(&ip_info.ip));
-
-        // Start the mDNS system since we have an IP address, the mDNS system
-        // on the ESP32 requires that the IP address be assigned otherwise it
-        // will not start the UDP listener.
-        start_mdns_system();
-
-        // Set the flag that indictes we have an IPv4 address.
-        xEventGroupSetBits(wifiStatusEventGroup_, WIFI_GOTIP_BIT);
-
-        // Wake up the wifi_manager_task so it can start connections
-        // creating connections, this will be a no-op for initial startup.
-        xTaskNotifyGive(wifiTaskHandle_);
+        Singleton<Esp32WiFiManager>::instance()->on_station_disconnected(
+            static_cast<wifi_event_sta_disconnected_t *>(event_data)->reason);
     }
-    else if (event->event_id == SYSTEM_EVENT_STA_LOST_IP)
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_START)
     {
-        // Clear the flag that indicates we are connected and have an
-        // IPv4 address.
-        xEventGroupClearBits(wifiStatusEventGroup_, WIFI_GOTIP_BIT);
-        // Wake up the wifi_manager_task so it can clean up connections.
-        xTaskNotifyGive(wifiTaskHandle_);
+        Singleton<Esp32WiFiManager>::instance()->on_softap_start();
     }
-    else if (event->event_id == SYSTEM_EVENT_STA_DISCONNECTED)
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STOP)
     {
-        // flag to indicate that we should print the reconnecting log message.
-        bool was_previously_connected = false;
-
-        // Check if we have already connected, this event can be raised
-        // even before we have successfully connected during the SSID
-        // connect process.
-        if (xEventGroupGetBits(wifiStatusEventGroup_) & WIFI_CONNECTED_BIT)
-        {
-            // track that we were connected previously.
-            was_previously_connected = true;
-
-            LOG(INFO, "[WiFi] Lost connection to SSID: %s (reason:%d)", ssid_
-              , event->event_info.disconnected.reason);
-            // Clear the flag that indicates we are connected to the SSID.
-            xEventGroupClearBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
-            // Clear the flag that indicates we have an IPv4 address.
-            xEventGroupClearBits(wifiStatusEventGroup_, WIFI_GOTIP_BIT);
-
-            // Wake up the wifi_manager_task so it can clean up
-            // connections.
-            xTaskNotifyGive(wifiTaskHandle_);
-        }
-
-        // If we are managing the WiFi and MDNS systems we need to
-        // trigger the reconnection process at this point.
-        if (manageWiFi_)
-        {
-            if (was_previously_connected)
-            {
-                LOG(INFO, "[WiFi] Attempting to reconnect to SSID: %s.",
-                    ssid_);
-            }
-            else
-            {
-                LOG(INFO,
-                    "[WiFi] Connection failed, reconnecting to SSID: %s.",
-                    ssid_);
-            }
-            esp_wifi_connect();
-        }
+        Singleton<Esp32WiFiManager>::instance()->on_softap_stop();
     }
-    else if (event->event_id == SYSTEM_EVENT_AP_START && manageWiFi_)
+    else if (event_base == WIFI_EVENT &&
+             event_id == WIFI_EVENT_AP_STACONNECTED)
     {
-        // Set the generated hostname prior to connecting to the SSID
-        // so that it shows up with the generated hostname instead of
-        // the default "Espressif".
-        LOG(INFO, "[SoftAP] Setting ESP32 hostname to \"%s\".",
-            hostname_.c_str());
-        ESP_ERROR_CHECK(tcpip_adapter_set_hostname(
-            TCPIP_ADAPTER_IF_AP, hostname_.c_str()));
-
-        uint8_t mac[6];
-        esp_wifi_get_mac(WIFI_IF_AP, mac);
-        LOG(INFO, "[SoftAP] MAC Address: %s", mac_to_string(mac).c_str());
-
-        // If the SoftAP is not configured to use a static IP it will default
-        // to 192.168.4.1.
-        if (softAPStaticIP_ && wifiMode_ != WIFI_MODE_STA)
-        {
-            // Stop the DHCP server so we can reconfigure it.
-            LOG(INFO, "[SoftAP] Stopping DHCP Server (if running).");
-            ESP_ERROR_CHECK(tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP));
-
-            LOG(INFO,
-                "[SoftAP] Configuring Static IP address:\n"
-                "IP     : " IPSTR "\n"
-                "Gateway: " IPSTR "\n"
-                "Netmask: " IPSTR,
-                IP2STR(&softAPStaticIP_->ip),
-                IP2STR(&softAPStaticIP_->gw),
-                IP2STR(&softAPStaticIP_->netmask));
-            ESP_ERROR_CHECK(
-                tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_AP,
-                                          softAPStaticIP_));
-
-            // Convert the Soft AP Static IP to a uint32 for manipulation
-            uint32_t apIP = ntohl(ip4_addr_get_u32(&softAPStaticIP_->ip));
-
-            // Default configuration is for DHCP addresses to follow
-            // immediately after the static ip address of the Soft AP.
-            ip4_addr_t first_ip, last_ip;
-            ip4_addr_set_u32(&first_ip, htonl(apIP + 1));
-            ip4_addr_set_u32(&last_ip,
-                             htonl(apIP + SOFTAP_IP_RESERVATION_BLOCK_SIZE));
-
-            dhcps_lease_t dhcp_lease {
-                true,                   // enable dhcp lease functionality
-                first_ip,               // first ip to assign
-                last_ip,                // last ip to assign
-            };
-
-            LOG(INFO,
-                "[SoftAP] Configuring DHCP Server for IPs: " IPSTR " - " IPSTR,
-                IP2STR(&dhcp_lease.start_ip), IP2STR(&dhcp_lease.end_ip));
-            ESP_ERROR_CHECK(
-                tcpip_adapter_dhcps_option(TCPIP_ADAPTER_OP_SET,
-                                           TCPIP_ADAPTER_REQUESTED_IP_ADDRESS,
-                                           (void *)&dhcp_lease,
-                                           sizeof(dhcps_lease_t)));
-
-            // Start the DHCP server so it can provide IP addresses to stations
-            // when they connect.
-            LOG(INFO, "[SoftAP] Starting DHCP Server.");
-            ESP_ERROR_CHECK(
-                tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP));
-        }
-
-        // If we are not operating in SoftAP mode only we can start the mDNS
-        // system now, otherwise we need to defer it until the station has
-        // received it's IP address to avoid reinitializing the mDNS system.
-        if (wifiMode_ == WIFI_MODE_AP)
-        {
-            start_mdns_system();
-        }
+        auto sta_data = static_cast<wifi_event_ap_staconnected_t *>(event_data);
+        Singleton<Esp32WiFiManager>::instance()->on_softap_station_connected(
+            sta_data->mac, sta_data->aid);
     }
-    else if (event->event_id == SYSTEM_EVENT_AP_STACONNECTED)
+    else if (event_base == WIFI_EVENT &&
+             event_id == WIFI_EVENT_AP_STADISCONNECTED)
     {
-        LOG(INFO, "[SoftAP aid:%d] %s connected.",
-            event->event_info.sta_connected.aid,
-            mac_to_string(event->event_info.sta_connected.mac).c_str());
+        auto sta_data = static_cast<wifi_event_ap_staconnected_t *>(event_data);
+        Singleton<Esp32WiFiManager>::instance()->on_softap_station_disconnected(
+            sta_data->mac, sta_data->aid);
     }
-    else if (event->event_id == SYSTEM_EVENT_AP_STADISCONNECTED)
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE)
     {
-        LOG(INFO, "[SoftAP aid:%d] %s disconnected.",
-            event->event_info.sta_disconnected.aid,
-            mac_to_string(event->event_info.sta_connected.mac).c_str());
+        auto scan_data = static_cast<wifi_event_sta_scan_done_t *>(event_data);
+        Singleton<Esp32WiFiManager>::instance()->on_wifi_scan_completed(
+            scan_data->status, scan_data->number);
     }
-    else if (event->event_id == SYSTEM_EVENT_SCAN_DONE)
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
-        {
-            OSMutexLock l(&ssidScanResultsLock_);
-            uint16_t num_found{0};
-            esp_wifi_scan_get_ap_num(&num_found);
-            LOG(VERBOSE, "[WiFi] %d SSIDs found via scan", num_found);
-            ssidScanResults_.resize(num_found);
-            esp_wifi_scan_get_ap_records(&num_found, ssidScanResults_.data());
-#if LOGLEVEL >= VERBOSE
-            for (int i = 0; i < num_found; i++)
-            {
-                LOG(VERBOSE, "SSID: %s, RSSI: %d, channel: %d"
-                  , ssidScanResults_[i].ssid
-                  , ssidScanResults_[i].rssi, ssidScanResults_[i].primary);
-            }
-#endif
-        }
-        if (ssidCompleteNotifiable_)
-        {
-            ssidCompleteNotifiable_->notify();
-            ssidCompleteNotifiable_ = nullptr;
-        }
+        ip_event_got_ip_t *data = static_cast<ip_event_got_ip_t *>(event_data);
+        Singleton<Esp32WiFiManager>::instance()->on_station_ip_assigned(
+            htonl(data->ip_info.ip.addr));
     }
-
+    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_LOST_IP)
     {
-        OSMutexLock l(&eventCallbacksLock_);
-        // Pass the event received from ESP-IDF to any registered callbacks.
-        for(auto callback : eventCallbacks_)
-        {
-            callback(event);
-        }
+        Singleton<Esp32WiFiManager>::instance()->on_station_ip_lost();
     }
 }
 
-void Esp32WiFiManager::enable_verbose_logging()
+// Adds a callback which will be called when the network is up.
+void Esp32WiFiManager::register_network_up_callback(
+    esp_network_up_callback_t callback)
 {
-    esp32VerboseLogging_ = true;
-    enable_esp_wifi_logging();
+    OSMutexLock l(&networkCallbacksLock_);
+    networkUpCallbacks_.push_back(callback);
 }
 
-// If the Esp32WiFiManager is setup to manage the WiFi system, the following
-// steps are executed:
-// 1) Start the TCP/IP adapter.
-// 2) Hook into the ESP event loop so we receive WiFi events.
-// 3) Initialize the WiFi system.
-// 4) Set the WiFi mode to STATION (WIFI_STA)
-// 5) Configure the WiFi system to store parameters only in memory to avoid
-// potential corruption of entries in NVS.
-// 6) Configure the WiFi system for SSID/PW.
-// 7) Set the hostname based on the generated hostname.
-// 8) Connect to WiFi and wait for IP assignment.
-// 9) Verify that we connected and received a IP address, if not log a FATAL
-// message and give up.
-void Esp32WiFiManager::start_wifi_system()
+// Adds a callback which will be called when the network is down.
+void Esp32WiFiManager::register_network_down_callback(
+    esp_network_down_callback_t callback)
 {
-    // Create the event group used for tracking connected/disconnected status.
-    // This is used internally regardless of if we manage the rest of the WiFi
-    // or mDNS systems.
-    wifiStatusEventGroup_ = xEventGroupCreate();
-
-    // If we do not need to manage the WiFi and mDNS systems exit early.
-    if (!manageWiFi_)
-    {
-        return;
-    }
-
-    // Initialize the TCP/IP adapter stack.
-    LOG(INFO, "[WiFi] Starting TCP/IP stack");
-    tcpip_adapter_init();
-
-    // Install event loop handler.
-    ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, this));
-
-    // Start the WiFi adapter.
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    LOG(INFO, "[WiFi] Initializing WiFi stack");
-
-    // Disable NVS storage for the WiFi driver
-    cfg.nvs_enable = false;
-
-    // override the defaults coming from arduino-esp32, the ones below improve
-    // throughput and stability of TCP/IP, for more info on these values, see:
-    // https://github.com/espressif/arduino-esp32/issues/2899 and
-    // https://github.com/espressif/arduino-esp32/pull/2912
-    //
-    // Note: these numbers are slightly higher to allow compatibility with the
-    // WROVER chip and WROOM-32 chip. The increase results in ~2kb less heap
-    // at runtime.
-    //
-    // These do not require recompilation of arduino-esp32 code as these are
-    // used in the WIFI_INIT_CONFIG_DEFAULT macro, they simply need to be redefined.
-    cfg.static_rx_buf_num = 16;
-    cfg.dynamic_rx_buf_num = 32;
-    cfg.rx_ba_win = 16;
-
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    if (esp32VerboseLogging_)
-    {
-        enable_esp_wifi_logging();
-    }
-
-    wifi_mode_t requested_wifi_mode = wifiMode_;
-    if (wifiMode_ == WIFI_MODE_AP)
-    {
-      // override the wifi mode from AP only to AP+STA so we can perform wifi
-      // scans on demand.
-      requested_wifi_mode = WIFI_MODE_APSTA;
-    }
-    // Set the requested WiFi mode.
-    ESP_ERROR_CHECK(esp_wifi_set_mode(requested_wifi_mode));
-
-    // This disables storage of SSID details in NVS which has been shown to be
-    // problematic at times for the ESP32, it is safer to always pass fresh
-    // config and have the ESP32 resolve the details at runtime rather than
-    // use a cached set from NVS.
-    esp_wifi_set_storage(WIFI_STORAGE_RAM);
-
-    // If we want to host a SoftAP configure it now.
-    if (wifiMode_ == WIFI_MODE_APSTA || wifiMode_ == WIFI_MODE_AP)
-    {
-        wifi_config_t conf;
-        bzero(&conf, sizeof(wifi_config_t));
-        conf.ap.authmode = softAPAuthMode_;
-        conf.ap.beacon_interval = 100;
-        conf.ap.channel = softAPChannel_;
-        conf.ap.max_connection = 4;
-        if (wifiMode_ == WIFI_MODE_AP)
-        {
-            // Configure the SSID for the Soft AP based on the SSID passed to
-            // the Esp32WiFiManager constructor.
-            strcpy(reinterpret_cast<char *>(conf.ap.ssid), ssid_);
-        }
-        else
-        {
-            // Configure the SSID for the Soft AP based on the generated
-            // hostname when operating in WIFI_MODE_APSTA mode.
-            strcpy(reinterpret_cast<char *>(conf.ap.ssid), hostname_.c_str());
-        }
-        
-        if (password_ && softAPAuthMode_ != WIFI_AUTH_OPEN)
-        {
-            strcpy(reinterpret_cast<char *>(conf.ap.password), password_);
-        }
-
-        LOG(INFO, "[WiFi] Configuring SoftAP (SSID: %s)", conf.ap.ssid);
-        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &conf));
-    }
-
-    // If we need to connect to an SSID, configure it now.
-    if (wifiMode_ == WIFI_MODE_APSTA || wifiMode_ == WIFI_MODE_STA)
-    {
-        // Configure the SSID details for the station based on the SSID and
-        // password provided to the Esp32WiFiManager constructor.
-        wifi_config_t conf;
-        bzero(&conf, sizeof(wifi_config_t));
-        strcpy(reinterpret_cast<char *>(conf.sta.ssid), ssid_);
-        if (password_)
-        {
-            strcpy(reinterpret_cast<char *>(conf.sta.password), password_);
-        }
-
-        LOG(INFO, "[WiFi] Configuring Station (SSID: %s)", conf.sta.ssid);
-        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &conf));
-    }
-
-    // Start the WiFi stack. This will start the SoftAP and/or connect to the
-    // SSID based on the configuration set above.
-    LOG(INFO, "[WiFi] Starting WiFi stack");
-    ESP_ERROR_CHECK(esp_wifi_start());
-
-    // If we are using the STATION interface, this will block until the ESP32
-    // starts the connection process, note it may not have an IP address
-    // immediately thus the need to check the connection result a few times
-    // before giving up with a FATAL error.
-    if (wifiMode_ == WIFI_MODE_APSTA || wifiMode_ == WIFI_MODE_STA)
-    {
-        uint8_t attempt = 0;
-        EventBits_t bits = 0;
-        uint32_t bit_mask = WIFI_CONNECTED_BIT;
-        while (++attempt <= MAX_CONNECTION_CHECK_ATTEMPTS)
-        {
-            // If we have connected to the SSID we then are waiting for IP
-            // address.
-            if (bits & WIFI_CONNECTED_BIT)
-            {
-                LOG(INFO, "[IPv4] [%d/%d] Waiting for IP address assignment.",
-                    attempt, MAX_CONNECTION_CHECK_ATTEMPTS);
-            }
-            else
-            {
-                // Waiting for SSID connection
-                LOG(INFO, "[WiFi] [%d/%d] Waiting for SSID connection.",
-                    attempt, MAX_CONNECTION_CHECK_ATTEMPTS);
-            }
-            bits = xEventGroupWaitBits(wifiStatusEventGroup_,
-                bit_mask, // bits we are interested in
-                pdFALSE,  // clear on exit
-                pdTRUE,   // wait for all bits
-                WIFI_CONNECT_CHECK_INTERVAL);
-            // Check if have connected to the SSID
-            if (bits & WIFI_CONNECTED_BIT)
-            {
-                // Since we have connected to the SSID we now need to track
-                // that we get an IP.
-                bit_mask |= WIFI_GOTIP_BIT;
-            }
-            // Check if we have received an IP.
-            if (bits & WIFI_GOTIP_BIT)
-            {
-                break;
-            }
-        }
-
-        // Check if we successfully connected or not. If not, force a reboot.
-        if ((bits & WIFI_CONNECTED_BIT) != WIFI_CONNECTED_BIT)
-        {
-            LOG(FATAL, "[WiFi] Failed to connect to SSID: %s.", ssid_);
-        }
-
-        // Check if we successfully connected or not. If not, force a reboot.
-        if ((bits & WIFI_GOTIP_BIT) != WIFI_GOTIP_BIT)
-        {
-            LOG(FATAL, "[IPv4] Timeout waiting for an IP.");
-        }
-    }
+    OSMutexLock l(&networkCallbacksLock_);
+    networkDownCallbacks_.push_back(callback);
 }
 
-// Starts a background task for the Esp32WiFiManager.
-void Esp32WiFiManager::start_wifi_task()
+// Adds a callback which will be called when the network is initializing.
+void Esp32WiFiManager::register_network_init_callback(
+    esp_network_init_callback_t callback)
 {
-    LOG(INFO, "[WiFi] Starting WiFi Manager task");
-    os_thread_create(&wifiTaskHandle_, "Esp32WiFiMgr", WIFI_TASK_PRIORITY,
-        WIFI_TASK_STACK_SIZE, wifi_manager_task, this);
+    OSMutexLock l(&networkCallbacksLock_);
+    networkInitCallbacks_.push_back(callback);
 }
 
-// Background task for the Esp32WiFiManager. This handles all outbound
-// connection attempts, configuration loading and making this node as a hub.
-void *Esp32WiFiManager::wifi_manager_task(void *param)
+// Adds a callback which will be called when SNTP packets are processed.
+void Esp32WiFiManager::register_network_time_callback(
+    esp_network_time_callback_t callback)
 {
-    Esp32WiFiManager *wifi = static_cast<Esp32WiFiManager *>(param);
-
-    // Start the WiFi system before proceeding with remaining tasks.
-    wifi->start_wifi_system();
-
-    while (true)
-    {
-        EventBits_t bits = xEventGroupGetBits(wifi->wifiStatusEventGroup_);
-        if (bits & WIFI_GOTIP_BIT)
-        {
-            // If we do not have not an uplink connection force a config reload
-            // to start the connection process.
-            if (!wifi->uplink_)
-            {
-                wifi->configReloadRequested_ = true;
-            }
-        }
-        else
-        {
-            // Since we do not have an IP address we need to shutdown any
-            // active connections since they will be invalid until a new IP
-            // has been provisioned.
-            wifi->stop_hub();
-            wifi->stop_uplink();
-
-            // Make sure we don't try and reload configuration since we can't
-            // create outbound connections at this time.
-            wifi->configReloadRequested_ = false;
-        }
-
-        // Check if there are configuration changes to pick up.
-        if (wifi->configReloadRequested_)
-        {
-            // Since we are loading configuration data, shutdown the hub and
-            // uplink if created previously.
-            wifi->stop_hub();
-            wifi->stop_uplink();
-
-            if (CDI_READ_TRIMMED(wifi->cfg_.sleep, wifi->configFd_))
-            {
-                // When sleep is enabled this will trigger the WiFi system to
-                // only wake up every DTIM period to receive beacon updates.
-                // no data loss is expected for this setting but it does delay
-                // receiption until the DTIM period.
-                ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MIN_MODEM));
-            }
-            else
-            {
-                // When sleep is disabled the WiFi radio will always be active.
-                // This will increase power consumption of the ESP32 but it
-                // will result in a more reliable behavior when the ESP32 is
-                // connected to an always-on power supply (ie: not a battery).
-                ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
-            }
-
-            bool have_hub = false;
-            uint8_t conn_cfg = CDI_READ_TRIMMED(wifi->cfg_.connection_mode,
-                                                wifi->configFd_);
-            if (conn_cfg & 2)
-            {
-              LOG(INFO, "[WiFi] Starting hub.");
-                // Since hub mode is enabled start the HUB creation process.
-                wifi->start_hub();
-                have_hub = true;
-            } else {
-              LOG(INFO, "[WiFi] Hub disabled by configuration.");
-            }
-            if (conn_cfg & 1) {
-              LOG(INFO, "[WiFi] Starting uplink.");
-              wifi->start_uplink();
-            } else if (!have_hub) {
-              LOG(INFO, "[WiFi] Starting uplink, because hub is disabled.");
-              wifi->start_uplink();
-            } else {
-              LOG(INFO, "[WiFi] Uplink disabled by configuration.");
-            }
-            
-            wifi->configReloadRequested_ = false;
-        }
-
-        // Sleep until we are woken up again for configuration update or WiFi
-        // event.
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    }
-
-    return nullptr;
+    OSMutexLock l(&networkCallbacksLock_);
+    networkTimeCallbacks_.push_back(callback);
 }
 
 // Shuts down the hub listener (if enabled and running) for this node.
 void Esp32WiFiManager::stop_hub()
 {
-    if (hub_)
-    {
-        mdns_unpublish(hubServiceName_);
-        LOG(INFO, "[HUB] Shutting down TCP/IP listener");
-        hub_.reset(nullptr);
-    }
+    auto stack = static_cast<openlcb::SimpleCanStackBase *>(stack_);
+    stack->shutdown_tcp_hub_server();
 }
 
 // Creates a hub listener for this node after loading configuration details.
 void Esp32WiFiManager::start_hub()
 {
-    hubServiceName_ = cfg_.hub().service_name().read(configFd_);
-    uint16_t hub_port = CDI_READ_TRIMMED(cfg_.hub().port, configFd_);
+    auto stack = static_cast<openlcb::SimpleCanStackBase *>(stack_);
 
-    LOG(INFO, "[HUB] Starting TCP/IP listener on port %d", hub_port);
-    hub_.reset(new GcTcpHub(stack_->can_hub(), hub_port));
-
-    // wait for the hub to complete it's startup tasks
-    while (!hub_->is_started())
+    // Check if we already have a GC Hub running or not, if we do then we can
+    // skip creating one. It would be best to validate the port in use but it
+    // is not exposed by GcHub at this time.
+    if (!stack->get_tcp_hub_server())
     {
-        usleep(HUB_STARTUP_DELAY_USEC);
+        hubServiceName_ = cfg_.hub().service_name().read(configFd_);
+        uint16_t hub_port = CDI_READ_TRIMMED(cfg_.hub().port, configFd_);
+        LOG(INFO, "[HUB] Starting TCP/IP listener on port %" PRIu16, hub_port);
+        stack->start_tcp_hub_server(hub_port);
+        auto hub = stack->get_tcp_hub_server();
+
+        // wait for the hub to complete it's startup tasks
+        while (!hub->is_started())
+        {
+            usleep(HUB_STARTUP_DELAY_USEC);
+        }
+
+        mdns_publish(hubServiceName_, hub_port);
     }
-    mdns_publish(hubServiceName_, hub_port);
 }
 
 // Disconnects and shuts down the uplink connector socket if running.
@@ -1053,9 +598,15 @@ void Esp32WiFiManager::stop_uplink()
 {
     if (uplink_)
     {
-        LOG(INFO, "[UPLINK] Disconnecting from uplink.");
+        LOG(INFO, "[Uplink] Disconnecting from uplink.");
         uplink_->shutdown();
         uplink_.reset(nullptr);
+
+        // Mark our cached notifiable as invalid
+        uplinkNotifiable_ = nullptr;
+
+        // force close the socket to ensure it is disconnected and cleaned up.
+        ::close(uplinkFd_);
     }
 }
 
@@ -1065,27 +616,42 @@ void Esp32WiFiManager::start_uplink()
 {
     unique_ptr<SocketClientParams> params(
         new Esp32SocketParams(configFd_, cfg_.uplink()));
-    uplink_.reset(new SocketClient(stack_->service(), &connectExecutor_,
-        &connectExecutor_, std::move(params),
-        std::bind(&Esp32WiFiManager::on_uplink_created, this,
-            std::placeholders::_1, std::placeholders::_2)));
-    if (!connectExecutorStarted_) {
-        connectExecutorStarted_ = true;
-        connectExecutor_.start_thread(
-            "Esp32WiFiConn", CONNECT_TASK_PRIORITY, CONNECT_TASK_STACK_SIZE);
+
+    if (uplink_)
+    {
+        // If we already have an uplink, update the parameters it is using.
+        uplink_->reset_params(std::move(params));
+    }
+    else
+    {
+        // create a new uplink and pass in the parameters.
+        uplink_.reset(new SocketClient(stack_->service(), &executor_,
+            &executor_, std::move(params),
+            std::bind(&Esp32WiFiManager::on_uplink_created, this,
+                std::placeholders::_1, std::placeholders::_2)));
     }
 }
 
 // Converts the passed fd into a GridConnect port and adds it to the stack.
 void Esp32WiFiManager::on_uplink_created(int fd, Notifiable *on_exit)
 {
-    LOG(INFO, "[UPLINK] Connected to hub, configuring GridConnect port.");
+    LOG(INFO, "[Uplink] Connected to hub, configuring GridConnect HubPort.");
+
+    // stash the socket handle and notifiable for future use if we need to
+    // clean up or re-establish the connection.
+    uplinkFd_ = fd;
+    uplinkNotifiable_ = on_exit;
 
     const bool use_select =
         (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
 
     // create the GridConnect port from the provided socket fd.
-    create_gc_port_for_can_hub(stack_->can_hub(), fd, on_exit, use_select);
+    // NOTE: this uses a local notifiable object instead of the provided
+    // on_exit since it will be invalidated upon calling stop_uplink() which
+    // may result in a crash or other undefined behavior.
+    create_gc_port_for_can_hub(
+        static_cast<openlcb::SimpleCanStackBase *>(stack_)->can_hub(),
+        uplinkFd_, &uplinkNotifiableProxy_, use_select);
 
     // restart the stack to kick off alias allocation and send node init
     // packets.
@@ -1170,16 +736,16 @@ void Esp32WiFiManager::mdns_publish(string service, const uint16_t port)
 
     // Schedule the publish to be done through the Executor since we may need
     // to retry it.
-    stack_->executor()->add(new CallbackExecutable([service, port]()
+    executor_.add(new CallbackExecutable([service, port]()
     {
         string service_name = service;
         string protocol_name;
         split_mdns_service_name(&service_name, &protocol_name);
         esp_err_t res = mdns_service_add(
             NULL, service_name.c_str(), protocol_name.c_str(), port, NULL, 0);
-        LOG(INFO, "[mDNS] mdns_service_add(%s.%s:%d): %s."
-          , service_name.c_str(), protocol_name.c_str(), port
-          , esp_err_to_name(res));
+        LOG(VERBOSE, "[mDNS] mdns_service_add(%s.%s:%" PRIu16 "):%s.",
+            service_name.c_str(), protocol_name.c_str(), port,
+            esp_err_to_name(res));
         // ESP_FAIL will be triggered if there is a timeout during publish of
         // the new mDNS entry. The mDNS task runs at a very low priority on the
         // PRO_CPU which is also where the OpenMRN Executor runs from which can
@@ -1187,13 +753,31 @@ void Esp32WiFiManager::mdns_publish(string service, const uint16_t port)
         if (res == ESP_FAIL)
         {
             // Send it back onto the scheduler to be retried
-            Singleton<Esp32WiFiManager>::instance()->mdns_publish(service
-                                                                , port);
+            Singleton<Esp32WiFiManager>::instance()->mdns_publish(
+                service, port);
+        }
+        else if (res == ESP_ERR_INVALID_ARG)
+        {
+            // ESP_ERR_INVALID_ARG can be returned if the mDNS server is not UP
+            // which we have previously checked via mdnsInitialized_, this can
+            // also be returned if the service name has already been published
+            // since the server came up. If we see this error code returned we
+            // should try unpublish and then publish again.
+            Singleton<Esp32WiFiManager>::instance()->mdns_unpublish(service);
+            Singleton<Esp32WiFiManager>::instance()->mdns_publish(
+                service, port);
+        }
+        else if (res == ESP_OK)
+        {
+            LOG(INFO, "[mDNS] Advertising %s.%s:%" PRIu16 ".",
+                service_name.c_str(), protocol_name.c_str(), port);
         }
         else
         {
-            LOG(INFO, "[mDNS] Advertising %s.%s:%d.", service_name.c_str()
-              , protocol_name.c_str(), port);
+            LOG_ERROR("[mDNS] Failed to publish:%s.%s:%" PRIu16,
+                      service_name.c_str(), protocol_name.c_str(), port);
+            Singleton<Esp32WiFiManager>::instance()->mdns_publish(
+                service, port);
         }
     }));
 }
@@ -1217,7 +801,8 @@ void Esp32WiFiManager::mdns_unpublish(string service)
       , service_name.c_str(), protocol_name.c_str());
     esp_err_t res =
         mdns_service_remove(service_name.c_str(), protocol_name.c_str());
-    LOG(VERBOSE, "[mDNS] mdns_service_remove: %s.", esp_err_to_name(res));
+    LOG(VERBOSE, "[mDNS] mdns_service_remove:%s.", esp_err_to_name(res));
+    // TODO: should we queue up unpublish requests for future retries?
 }
 
 // Initializes the mDNS system on the ESP32.
@@ -1240,7 +825,7 @@ void Esp32WiFiManager::start_mdns_system()
 
         // Set the mDNS hostname based on our generated hostname so it can be
         // found by other nodes.
-        LOG(INFO, "[mDNS] Setting mDNS hostname to \"%s\"", hostname_.c_str());
+        LOG(INFO, "[mDNS] Setting hostname to \"%s\"", hostname_.c_str());
         ESP_ERROR_CHECK(mdns_hostname_set(hostname_.c_str()));
 
         // Set the default mDNS instance name to the generated hostname.
@@ -1256,6 +841,669 @@ void Esp32WiFiManager::start_mdns_system()
         mdns_publish(entry.first, entry.second);
     }
     mdnsDeferredPublish_.clear();
+}
+
+void Esp32WiFiManager::on_station_started()
+{
+    // Set the generated hostname prior to connecting to the SSID
+    // so that it shows up with the generated hostname instead of
+    // the default "Espressif".
+    LOG(INFO, "[Station] Setting hostname to \"%s\".", hostname_.c_str());
+    esp_netif_set_hostname(espNetIfaces_[STATION_INTERFACE], hostname_.c_str());
+    uint8_t mac[6];
+    esp_wifi_get_mac(WIFI_IF_STA, mac);
+    LOG(INFO, "[Station] MAC Address:%s", mac_to_string(mac).c_str());
+
+    // Start the DHCP service before connecting so it hooks into
+    // the flow early and provisions the IP automatically.
+    LOG(INFO, "[Station] Starting DHCP Client.");
+    ESP_ERROR_CHECK(esp_netif_dhcpc_start(espNetIfaces_[STATION_INTERFACE]));
+
+    LOG(INFO, "[Station] Connecting to SSID:%s.", ssid_.c_str());
+    // Start the SSID connection process.
+    esp_wifi_connect();
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp_network_init_callback_t cb : networkInitCallbacks_)
+        {
+            executor_.add(new CallbackExecutable([cb]
+            {
+                cb(STATION_INTERFACE);
+            }));
+        }
+    }
+}
+
+void Esp32WiFiManager::on_station_connected()
+{
+    LOG(INFO, "[Station] Connected to SSID:%s", ssid_.c_str());
+    // Set the flag that indictes we are connected to the SSID.
+    xEventGroupSetBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
+}
+
+void Esp32WiFiManager::on_station_disconnected(uint8_t reason)
+{
+    // flag to indicate that we should print the reconnecting log message.
+    bool was_previously_connected = false;
+
+    // capture the current state so we can check if we were already connected
+    // with an IP address or still in the connecting phase.
+    EventBits_t event_bits = xEventGroupGetBits(wifiStatusEventGroup_);
+
+    // Check if we have already connected, this event can be raised
+    // even before we have successfully connected during the SSID
+    // connect process.
+    if (event_bits & WIFI_CONNECTED_BIT)
+    {
+        // If we were previously connected and had an IP address we should
+        // count that as previously connected, otherwise we will just reconnect
+        // and not wake up the state flow since it may be waiting for an event
+        // and will wakeup on it's own.
+        was_previously_connected = event_bits & WIFI_GOTIP_BIT;
+
+        LOG(INFO, "[Station] Lost connection to SSID:%s (reason:%d)",
+            ssid_.c_str(), reason);
+        // Clear the flag that indicates we are connected to the SSID.
+        xEventGroupClearBits(wifiStatusEventGroup_, WIFI_CONNECTED_BIT);
+        // Clear the flag that indicates we have an IPv4 address.
+        xEventGroupClearBits(wifiStatusEventGroup_, WIFI_GOTIP_BIT);
+    }
+
+    // If we are managing the WiFi and MDNS systems we need to
+    // trigger the reconnection process at this point.
+    if (was_previously_connected)
+    {
+        LOG(INFO, "[Station] Reconnecting to SSID:%s.",
+            ssid_.c_str());
+        wifiStackFlow_.notify();
+    }
+    else
+    {
+        LOG(INFO,
+            "[Station] Connection to SSID:%s (reason:%d) failed, retrying.",
+            ssid_.c_str(), reason);
+    }
+    esp_wifi_connect();
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp_network_init_callback_t cb : networkInitCallbacks_)
+        {
+            executor_.add(new CallbackExecutable([cb]
+            {
+                cb(STATION_INTERFACE);
+            }));
+        }
+    }
+}
+
+void Esp32WiFiManager::on_station_ip_assigned(uint32_t ip_address)
+{
+    LOG(INFO, "[Station] IP address:%s", ipv4_to_string(ip_address).c_str());
+
+    // Start the mDNS system since we have an IP address, the mDNS system
+    // on the ESP32 requires that the IP address be assigned otherwise it
+    // will not start the UDP listener.
+    start_mdns_system();
+
+    // Set the flag that indictes we have an IPv4 address.
+    xEventGroupSetBits(wifiStatusEventGroup_, WIFI_GOTIP_BIT);
+
+    // wake up the stack to process the event
+    wifiStackFlow_.notify();
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp_network_up_callback_t cb : networkUpCallbacks_)
+        {
+            executor_.add(new CallbackExecutable([cb, ip_address]
+            {
+                cb(STATION_INTERFACE, ip_address);
+            }));
+        }
+    }
+
+    configure_sntp();
+    reconfigure_wifi_tx_power();
+    if (statusLed_)
+    {
+        statusLed_->write(true);
+    }
+}
+
+void Esp32WiFiManager::on_station_ip_lost()
+{
+    // Clear the flag that indicates we are connected and have an
+    // IPv4 address.
+    xEventGroupClearBits(wifiStatusEventGroup_, WIFI_GOTIP_BIT);
+
+    // wake up the stack to process the event
+    wifiStackFlow_.notify();
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp_network_down_callback_t cb : networkDownCallbacks_)
+        {
+            executor_.add(new CallbackExecutable([cb]
+            {
+                cb(STATION_INTERFACE);
+            }));
+        }
+    }
+}
+
+void Esp32WiFiManager::on_softap_start()
+{
+    uint32_t ip_address = 0;
+    uint8_t mac[6];
+    esp_wifi_get_mac(WIFI_IF_AP, mac);
+    LOG(INFO, "[SoftAP] MAC Address:%s", mac_to_string(mac).c_str());
+
+    // Set the generated hostname prior to connecting to the SSID
+    // so that it shows up with the generated hostname instead of
+    // the default "Espressif".
+    LOG(INFO, "[SoftAP] Setting hostname to \"%s\".", hostname_.c_str());
+    ESP_ERROR_CHECK(esp_netif_set_hostname(
+        espNetIfaces_[SOFTAP_INTERFACE], hostname_.c_str()));
+
+    // fetch the IP address from the adapter since it defaults to
+    // 192.168.4.1 but can be altered via sdkconfig.
+    esp_netif_ip_info_t ip_info;
+    ESP_ERROR_CHECK(
+        esp_netif_get_ip_info(espNetIfaces_[SOFTAP_INTERFACE], &ip_info));
+    ip_address = ntohl(ip4_addr_get_u32(&ip_info.ip));
+
+    LOG(INFO, "[SoftAP] IP address:%s", ipv4_to_string(ip_address).c_str());
+
+    // If we are operating only in SoftAP mode we can start any background
+    // services that would also be started when the station interface is ready
+    // and has an IP address.
+    if (wifiMode_ == WIFI_MODE_AP)
+    {
+        start_mdns_system();
+        reconfigure_wifi_tx_power();
+        if (connectionMode_ & CONN_MODE_HUB_BIT)
+        {
+            start_hub();
+        }
+    }
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp_network_up_callback_t cb : networkUpCallbacks_)
+        {
+            executor_.add(new CallbackExecutable([cb, ip_address]
+            {
+                cb(SOFTAP_INTERFACE, htonl(ip_address));
+            }));
+        }
+    }
+}
+
+void Esp32WiFiManager::on_softap_stop()
+{
+    if (wifiMode_ == WIFI_MODE_AP)
+    {
+        stop_uplink();
+        stop_hub();
+    }
+
+    // Schedule callbacks via the executor rather than call directly here.
+    {
+        OSMutexLock l(&networkCallbacksLock_);
+        for (esp_network_down_callback_t cb : networkDownCallbacks_)
+        {
+            executor_.add(new CallbackExecutable([cb]
+            {
+                cb(SOFTAP_INTERFACE);
+            }));
+        }
+    }
+}
+
+void Esp32WiFiManager::on_softap_station_connected(uint8_t mac[6], uint8_t aid)
+{
+    LOG(INFO, "[SoftAP aid:%d] %s connected.", aid,
+        mac_to_string(mac).c_str());
+}
+
+void Esp32WiFiManager::on_softap_station_disconnected(uint8_t mac[6],
+    uint8_t aid)
+{
+    LOG(INFO, "[SoftAP aid:%d] %s disconnected.", aid,
+        mac_to_string(mac).c_str());
+}
+
+void Esp32WiFiManager::on_wifi_scan_completed(uint32_t status, uint8_t count)
+{
+    OSMutexLock l(&ssidScanResultsLock_);
+    if (status)
+    {
+        LOG_ERROR("[WiFi] SSID scan failed!");
+    }
+    else
+    {
+        uint16_t num_found = count;
+        esp_wifi_scan_get_ap_num(&num_found);
+        LOG(VERBOSE, "[WiFi] %" PRIu16 " SSIDs found via scan", num_found);
+        ssidScanResults_.resize(num_found);
+        esp_wifi_scan_get_ap_records(&num_found, ssidScanResults_.data());
+#if LOGLEVEL >= VERBOSE
+        for (int i = 0; i < num_found; i++)
+        {
+            LOG(VERBOSE, "SSID:%s, RSSI:%d, channel:%d"
+                , ssidScanResults_[i].ssid
+                , ssidScanResults_[i].rssi, ssidScanResults_[i].primary);
+        }
+#endif
+    }
+    if (ssidCompleteNotifiable_)
+    {
+        ssidCompleteNotifiable_->notify();
+        ssidCompleteNotifiable_ = nullptr;
+    }
+}
+
+// SNTP callback hook to schedule callbacks.
+void Esp32WiFiManager::sync_time(time_t now)
+{
+    OSMutexLock l(&networkCallbacksLock_);
+    for (esp_network_time_callback_t cb : networkTimeCallbacks_)
+    {
+        executor_.add(new CallbackExecutable([cb,now]
+        {
+            cb(now);
+        }));
+    }
+}
+
+static void sntp_update_received(struct timeval *tv)
+{
+    time_t new_time = tv->tv_sec;
+    LOG(INFO, "[SNTP] Received time update, new localtime:%s"
+      , ctime(&new_time));
+    Singleton<Esp32WiFiManager>::instance()->sync_time(new_time);
+}
+
+void Esp32WiFiManager::configure_sntp()
+{
+    if (sntpEnabled_ && !sntpConfigured_)
+    {
+        sntpConfigured_ = true;
+        LOG(INFO, "[SNTP] Polling %s for time updates", sntpServer_.c_str());
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5,1,0)
+        esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+        esp_sntp_setservername(0, sntpServer_.c_str());
+        sntp_set_time_sync_notification_cb(sntp_update_received);
+        esp_sntp_init();
+#else
+        sntp_setoperatingmode(SNTP_OPMODE_POLL);
+        sntp_setservername(0, sntpServer_.c_str());
+        sntp_set_time_sync_notification_cb(sntp_update_received);
+        sntp_init();
+#endif // IDF v5.1+
+
+        if (!timeZone_.empty())
+        {
+            LOG(INFO, "[TimeZone] %s", timeZone_.c_str());
+            setenv("TZ", timeZone_.c_str(), 1);
+            tzset();
+        }
+    }
+}
+
+void Esp32WiFiManager::reconfigure_wifi_radio_sleep()
+{
+    wifi_ps_type_t current_mode = WIFI_PS_NONE;
+    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_get_ps(&current_mode));
+    uint8_t sleepEnabled = CDI_READ_TRIMMED(cfg_.sleep, configFd_);
+
+    if (sleepEnabled && current_mode != WIFI_PS_MIN_MODEM)
+    {
+        LOG(INFO, "[WiFi] Enabling radio power saving mode");
+        // When sleep is enabled this will trigger the WiFi system to
+        // only wake up every DTIM period to receive beacon updates.
+        // no data loss is expected for this setting but it does delay
+        // receiption until the DTIM period.
+        ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MIN_MODEM));
+    }
+    else if (!sleepEnabled && current_mode != WIFI_PS_NONE)
+    {
+        LOG(INFO, "[WiFi] Disabling radio power saving mode");
+        // When sleep is disabled the WiFi radio will always be active.
+        // This will increase power consumption of the ESP32 but it
+        // will result in a more reliable behavior when the ESP32 is
+        // connected to an always-on power supply (ie: not a battery).
+        ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+    }
+}
+
+void Esp32WiFiManager::reconfigure_wifi_tx_power()
+{
+    ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(wifiTXPower_));
+}
+
+Esp32WiFiManager::WiFiStackFlow::WiFiStackFlow(Esp32WiFiManager * parent)
+    : StateFlowBase(parent), parent_(parent),
+    wifiConnectBitMask_(WIFI_CONNECTED_BIT)
+{
+    start_flow(STATE(startup));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::startup()
+{
+    if (parent_->wifiMode_ != WIFI_MODE_NULL)
+    {
+        return yield_and_call(STATE(init_interface));
+    }
+    return yield_and_call(STATE(noop));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::noop()
+{
+    return wait_and_call(STATE(noop));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::init_interface()
+{
+    // create default interfaces for station and SoftAP, ethernet is not used
+    // today.
+    ESP_ERROR_CHECK(esp_netif_init());
+
+    // create the event loop.
+    esp_err_t err = esp_event_loop_create_default();
+
+    // The esp_event_loop_create_default() method will return either ESP_OK if
+    // the event loop was created or ESP_ERR_INVALID_STATE if one already
+    // exists.
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE)
+    {
+        LOG(FATAL, "[WiFi] Failed to initialize the default event loop:%s",
+            esp_err_to_name(err));
+    }
+
+    parent_->espNetIfaces_[STATION_INTERFACE] =
+        esp_netif_create_default_wifi_sta();
+    parent_->espNetIfaces_[SOFTAP_INTERFACE] =
+        esp_netif_create_default_wifi_ap();
+
+    // Connect our event listeners.
+    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                               &Esp32WiFiManager::process_idf_event, nullptr);
+    esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID,
+                               &Esp32WiFiManager::process_idf_event, nullptr);
+
+    return yield_and_call(STATE(init_wifi));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::init_wifi()
+{
+    // Start the WiFi adapter.
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    LOG(INFO, "[WiFi] Initializing WiFi stack");
+
+    // Disable NVS storage for the WiFi driver
+    cfg.nvs_enable = false;
+
+    // override the defaults coming from arduino-esp32, the ones below improve
+    // throughput and stability of TCP/IP, for more info on these values, see:
+    // https://github.com/espressif/arduino-esp32/issues/2899 and
+    // https://github.com/espressif/arduino-esp32/pull/2912
+    //
+    // Note: these numbers are slightly higher to allow compatibility with the
+    // WROVER chip and WROOM-32 chip. The increase results in ~2kb less heap
+    // at runtime.
+    //
+    // These do not require recompilation of arduino-esp32 code as these are
+    // used in the WIFI_INIT_CONFIG_DEFAULT macro, they simply need to be redefined.
+    if (cfg.static_rx_buf_num < 16)
+    {
+        cfg.static_rx_buf_num = 16;
+    }
+    if (cfg.dynamic_rx_buf_num < 32)
+    {
+        cfg.dynamic_rx_buf_num = 32;
+    }
+    if (cfg.rx_ba_win < 16)
+    {
+        cfg.rx_ba_win = 16;
+    }
+
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    if (parent_->verboseLogging_)
+    {
+        parent_->enable_esp_wifi_logging();
+    }
+
+    // Create the event group used for tracking connected/disconnected status.
+    // This is used internally regardless of if we manage the rest of the WiFi
+    // or mDNS systems.
+    parent_->wifiStatusEventGroup_ = xEventGroupCreate();
+
+    wifi_mode_t requested_wifi_mode = parent_->wifiMode_;
+    if (parent_->wifiMode_ == WIFI_MODE_AP)
+    {
+      // override the wifi mode from AP only to AP+STA so we can perform wifi
+      // scans on demand.
+      requested_wifi_mode = WIFI_MODE_APSTA;
+    }
+    // Set the requested WiFi mode.
+    ESP_ERROR_CHECK(esp_wifi_set_mode(requested_wifi_mode));
+
+    // This disables storage of SSID details in NVS which has been shown to be
+    // problematic at times for the ESP32, it is safer to always pass fresh
+    // config and have the ESP32 resolve the details at runtime rather than
+    // use a cached set from NVS.
+    esp_wifi_set_storage(WIFI_STORAGE_RAM);
+
+    if (parent_->wifiMode_ == WIFI_MODE_APSTA ||
+        parent_->wifiMode_ == WIFI_MODE_AP)
+    {
+        return yield_and_call(STATE(configure_softap));
+    }
+    return yield_and_call(STATE(configure_station));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::configure_station()
+{
+    // Configure the SSID details for the station based on the SSID and
+    // password provided to the Esp32WiFiManager constructor.
+    wifi_config_t conf;
+    memset(&conf, 0, sizeof(wifi_config_t));
+    strcpy(reinterpret_cast<char *>(conf.sta.ssid), parent_->ssid_.c_str());
+    if (!parent_->password_.empty())
+    {
+        strcpy(reinterpret_cast<char *>(conf.sta.password),
+               parent_->password_.c_str());
+    }
+
+    LOG(INFO, "[WiFi] Configuring Station (SSID:%s)", conf.sta.ssid);
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &conf));
+
+    return yield_and_call(STATE(start_wifi));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::configure_softap()
+{
+    wifi_config_t conf;
+    memset(&conf, 0, sizeof(wifi_config_t));
+    conf.ap.authmode = parent_->softAPAuthMode_;
+    conf.ap.beacon_interval = 100;
+    conf.ap.channel = parent_->softAPChannel_;
+    conf.ap.max_connection = 4;
+
+    if (!parent_->softAPName_.empty())
+    {
+        // Configure the SSID for the Soft AP based on the SSID passed
+        // to the Esp32WiFiManager constructor.
+        strcpy(reinterpret_cast<char *>(conf.ap.ssid),
+                parent_->softAPName_.c_str());
+    }
+    else if (parent_->wifiMode_ == WIFI_MODE_AP && !parent_->ssid_.empty())
+    {
+        strcpy(reinterpret_cast<char *>(conf.ap.ssid),
+                parent_->ssid_.c_str());
+    }
+    else
+    {
+        // Configure the SSID for the Soft AP based on the generated
+        // hostname when operating in WIFI_MODE_APSTA mode.
+        strcpy(reinterpret_cast<char *>(conf.ap.ssid),
+                parent_->hostname_.c_str());
+    }
+
+    if (parent_->softAPAuthMode_ != WIFI_AUTH_OPEN)
+    {
+        if (!parent_->softAPPassword_.empty())
+        {
+            strcpy(reinterpret_cast<char *>(conf.ap.password),
+                    parent_->softAPPassword_.c_str());
+        }
+        else if (!parent_->password_.empty())
+        {
+            strcpy(reinterpret_cast<char *>(conf.ap.password),
+                    parent_->password_.c_str());
+        }
+        else
+        {
+            LOG(WARNING,
+                "[WiFi] SoftAP password is blank, using OPEN auth mode.");
+            parent_->softAPAuthMode_ = WIFI_AUTH_OPEN;
+        }
+    }
+
+    LOG(INFO, "[WiFi] Configuring SoftAP (SSID:%s)", conf.ap.ssid);
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &conf));
+
+    // If we are only enabling the SoftAP we can transition to starting the
+    // WiFi stack.
+    if (parent_->wifiMode_ == WIFI_MODE_AP)
+    {
+        return yield_and_call(STATE(start_wifi));
+    }
+    // Configure the station interface
+    return yield_and_call(STATE(configure_station));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::start_wifi()
+{
+    // Start the WiFi stack. This will start the SoftAP and/or connect to the
+    // SSID based on the configuration set above.
+    LOG(INFO, "[WiFi] Starting WiFi stack");
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    // force WiFi power to maximum during startup.
+    ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(84));
+
+    if (parent_->wifiMode_ != WIFI_MODE_AP && parent_->waitForStationConnect_)
+    {
+        return sleep_and_call(&timer_,
+                              SEC_TO_NSEC(WIFI_CONNECT_CHECK_INTERVAL_SEC),
+                              STATE(wait_for_connect));
+    }
+    return wait_and_call(STATE(reload));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::wait_for_connect()
+{
+    EventBits_t bits =
+        xEventGroupWaitBits(parent_->wifiStatusEventGroup_,
+                            wifiConnectBitMask_, pdFALSE, pdTRUE, 0);
+    // If we need the STATION interface *AND* configured to wait until 
+    // successfully connected to the SSID this code block will wait for up to
+    // approximately three minutes for an IP address to be assigned. In most
+    // cases this completes in under thirty seconds. If there is a connection
+    // failure the esp32 will be restarted via a FATAL error being logged.
+    if (++wifiConnectAttempts_ <= MAX_CONNECTION_CHECK_ATTEMPTS)
+    {
+        // If we have connected to the SSID we then are waiting for IP
+        // address.
+        if (bits & WIFI_CONNECTED_BIT)
+        {
+            LOG(INFO, "[IPv4] [%d/%d] Waiting for IP address assignment.",
+                wifiConnectAttempts_, MAX_CONNECTION_CHECK_ATTEMPTS);
+        }
+        else
+        {
+            // Waiting for SSID connection
+            LOG(INFO, "[WiFi] [%d/%d] Waiting for SSID connection.",
+                wifiConnectAttempts_, MAX_CONNECTION_CHECK_ATTEMPTS);
+        }
+        // Check if have connected to the SSID
+        if (bits & WIFI_CONNECTED_BIT)
+        {
+            // Since we have connected to the SSID we now need to track
+            // that we get an IP.
+            wifiConnectBitMask_ |= WIFI_GOTIP_BIT;
+        }
+        // Check if we have received an IP.
+        if (bits & WIFI_GOTIP_BIT)
+        {
+            return yield_and_call(STATE(reload));
+        }
+        return sleep_and_call(&timer_,
+                              SEC_TO_NSEC(WIFI_CONNECT_CHECK_INTERVAL_SEC),
+                              STATE(wait_for_connect));
+    }
+    // Check if we successfully connected or not. If not, force a reboot.
+    if ((bits & WIFI_CONNECTED_BIT) != WIFI_CONNECTED_BIT)
+    {
+        LOG(FATAL, "[WiFi] Failed to connect to SSID:%s.",
+            parent_->ssid_.c_str());
+    }
+
+    // Check if we successfully connected or not. If not, force a reboot.
+    if ((bits & WIFI_GOTIP_BIT) != WIFI_GOTIP_BIT)
+    {
+        LOG(FATAL, "[IPv4] Timeout waiting for an IP.");
+    }
+
+    return yield_and_call(STATE(reload));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::reload()
+{
+    if (parent_->wifiMode_ == WIFI_MODE_STA ||
+        parent_->wifiMode_ == WIFI_MODE_APSTA)
+    {
+        EventBits_t bits = xEventGroupGetBits(parent_->wifiStatusEventGroup_);
+        if (!(bits & WIFI_GOTIP_BIT))
+        {
+            // Since we do not have an IP address we need to shutdown any
+            // active connections since they will be invalid until a new IP
+            // has been provisioned.
+            parent_->stop_hub();
+            parent_->stop_uplink();
+            return wait_and_call(STATE(reload));
+        }
+    }
+
+    parent_->reconfigure_wifi_radio_sleep();
+    if (parent_->connectionMode_ & CONN_MODE_HUB_BIT)
+    {
+        parent_->start_hub();
+    }
+    else
+    {
+        parent_->stop_hub();
+    }
+
+    if (parent_->connectionMode_ & CONN_MODE_UPLINK_BIT)
+    {
+        parent_->start_uplink();
+    }
+    else
+    {
+        parent_->stop_uplink();
+    }
+    return wait_and_call(STATE(reload));
 }
 
 } // namespace openmrn_arduino
@@ -1274,7 +1522,7 @@ void mdns_publish(const char *name, const char *service, uint16_t port)
 }
 
 // Removes advertisement of an mDNS service name.
-void mdns_unpublish(const char *service)
+void mdns_unpublish(const char *name, const char *service)
 {
     Singleton<Esp32WiFiManager>::instance()->mdns_unpublish(service);
 }
@@ -1293,7 +1541,6 @@ void split_mdns_service_name(string *service_name, string *protocol_name)
         service_name->resize(split_loc);
     }
 }
-
 
 // EAI_AGAIN may not be defined on the ESP32
 #ifndef EAI_AGAIN
@@ -1354,7 +1601,7 @@ int mdns_lookup(
     {
         // failed to find any matches
         LOG(ESP32_WIFIMGR_MDNS_LOOKUP_LOG_LEVEL,
-            "[mDNS] No matches found for service: %s.",
+            "[mDNS] No matches found for service:%s.",
             service);
         return EAI_AGAIN;
     }
@@ -1373,7 +1620,7 @@ int mdns_lookup(
             if (ipaddr->addr.type == IPADDR_TYPE_V4)
             {
                 LOG(ESP32_WIFIMGR_MDNS_LOOKUP_LOG_LEVEL,
-                    "[mDNS] Found %s as providing service: %s on port %d.",
+                    "[mDNS] Found %s providing service:%s on port %" PRIu16,
                     res->hostname, service, res->port);
                 inet_addr_from_ip4addr(
                     &sa_in->sin_addr, &ipaddr->addr.u_addr.ip4);
@@ -1391,8 +1638,7 @@ int mdns_lookup(
     if (!match_found)
     {
         LOG(ESP32_WIFIMGR_MDNS_LOOKUP_LOG_LEVEL,
-            "[mDNS] No matches found for service: %s.",
-            service);
+            "[mDNS] No matches found for service:%s.", service);
         return EAI_AGAIN;
     }
 
@@ -1414,15 +1660,25 @@ int mdns_lookup(
 /// @return zero for success, -1 for failure.
 int getifaddrs(struct ifaddrs **ifap)
 {
-    tcpip_adapter_ip_info_t ip_info;
+    esp_netif_ip_info_t ip_info;
 
     /* start with something "safe" in case we bail out early */
     *ifap = nullptr;
 
-    if (!tcpip_adapter_is_netif_up(TCPIP_ADAPTER_IF_STA))
+    // Lookup the interface by it's internal name assigned by ESP-IDF.
+    esp_netif_t *iface = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (iface == nullptr)
     {
-        // Station TCP/IP interface is not up
+        // Station interface was not found.
         errno = ENODEV;
+        return -1;
+    }
+
+    // retrieve TCP/IP address from the interface
+    if (esp_netif_get_ip_info(iface, &ip_info) != ESP_OK)
+    {
+        // Failed to retrieve IP address.
+        errno = EADDRNOTAVAIL;
         return -1;
     }
 
@@ -1448,9 +1704,6 @@ int getifaddrs(struct ifaddrs **ifap)
         return -1;
     }
     bzero(ifa_addr.get(), sizeof(struct sockaddr));
-
-    // retrieve TCP/IP address from the interface
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
 
     // copy address into ifaddrs structure
     struct sockaddr_in *addr_in = (struct sockaddr_in *)ifa_addr.get();

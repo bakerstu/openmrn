@@ -42,10 +42,11 @@
 
 #include <memory>
 #include <netdb.h>
-#ifndef ESP32 // these don't exist on the ESP32 with LWiP
+#ifndef ESP_PLATFORM
+// these don't exist on the ESP32 with LWiP
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#endif // ESP32
+#endif // ESP_PLATFORM
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -57,9 +58,10 @@
 #include "utils/macros.h"
 #include "utils/logging.h"
 
-#ifdef ESP32 // this is not declared in netdb.h on ESP32
+#ifdef ESP_PLATFORM
+// this is not declared in netdb.h on ESP32
 const char *gai_strerror (int __ecode);
-#endif // ESP32
+#endif // ESP_PLATFORM
 
 int ConnectSocket(const char *host, int port)
 {
@@ -230,7 +232,7 @@ std::unique_ptr<SocketClientParams> SocketClientParams::from_static(
     std::unique_ptr<DefaultSocketClientParams> p(new DefaultSocketClientParams);
     p->staticHost_ = std::move(hostname);
     p->staticPort_ = port;
-    return std::move(p);
+    return p;
 }
 
 std::unique_ptr<SocketClientParams> SocketClientParams::from_static_and_mdns(
@@ -240,7 +242,7 @@ std::unique_ptr<SocketClientParams> SocketClientParams::from_static_and_mdns(
     p->staticHost_ = std::move(hostname);
     p->staticPort_ = port;
     p->mdnsService_ = std::move(mdns_service);
-    return std::move(p);
+    return p;
 }
 
 #endif // OPENMRN_FEATURE_BSD_SOCKETS

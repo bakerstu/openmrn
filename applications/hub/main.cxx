@@ -56,6 +56,13 @@ CanHubFlow can_hub0(&g_service);
 OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(gridconnect_buffer_size, 1300);
 OVERRIDE_CONST(gridconnect_buffer_delay_usec, 2000);
+OVERRIDE_CONST(gridconnect_bridge_max_incoming_packets, 5);
+OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 5);
+OVERRIDE_CONST(gridconnect_tcp_snd_buffer_size, 8192);
+OVERRIDE_CONST(gridconnect_tcp_rcv_buffer_size, 8192);
+OVERRIDE_CONST(gridconnect_tcp_notsent_lowat_buffer_size, 1024);
+
+OVERRIDE_CONST_TRUE(gridconnect_tcp_use_select);
 
 
 int port = 12021;

@@ -33,6 +33,7 @@
  */
 
 #include "openlcb/If.hxx"
+#include "openlcb/Convert.hxx"
 
 /// Ensures that the largest bucket in the main buffer pool is exactly the size
 /// of a GenMessage.
@@ -129,6 +130,14 @@ void buffer_to_error(const Payload &payload, uint16_t *error_code,
     {
         error_message->assign(&payload[4], payload.size() - 4);
     }
+}
+
+Payload error_payload(uint16_t error_code, Defs::MTI incoming_mti)
+{
+    Payload p(4, 0);
+    error_to_data(error_code, &p[0]);
+    error_to_data(incoming_mti, &p[2]);
+    return p;
 }
 
 void send_event(Node* src_node, uint64_t event_id)

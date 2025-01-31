@@ -40,6 +40,49 @@
 
 #include "Serial.hxx"
 
+#if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx)
+  #define NUM_USART 1
+#elif defined (STM32F030x8) || defined (STM32F042x6) || defined (STM32F048xx) \
+   || defined (STM32F051x8) || defined (STM32F058xx) || defined (STM32F070x6)
+  #define NUM_USART 2
+#elif defined (STM32L432xx)
+  #define NUM_USART 3
+  #define USART3 LPUART1
+  #define LPUART_IDX 2
+#elif defined (STM32L431xx)
+  #define NUM_USART 4
+  #define USART4 LPUART1
+  #define LPUART_IDX 3
+#elif defined (STM32F070xB) || defined (STM32F071xB) || defined (STM32F072xB) \
+   || defined (STM32F078xx)
+  #define NUM_USART 4
+  #define SHARED_UART3_8_IRQn USART3_4_IRQn
+#elif defined (STM32F303xC) || defined (STM32F303xE)
+  #define NUM_USART 5
+  #define USART4 UART4
+  #define USART5 UART5
+#elif defined (STM32F030xC)
+  #define NUM_USART 6
+  #define SHARED_UART3_8_IRQn USART3_6_IRQn
+#elif defined (STM32F091xC) || defined (STM32F098xx)
+  #define NUM_USART 8
+  #define SHARED_UART3_8_IRQn USART3_8_IRQn
+#elif defined (STM32F767xx)
+  #define NUM_USART 8
+  #define USART4 UART4
+  #define USART5 UART5
+  #define USART7 UART7
+  #define USART8 UART8
+#elif defined (STM32G0B1xx)
+  #define NUM_USART 8
+  #define SHARED_UART3_8_IRQn USART3_4_5_6_LPUART1_IRQn
+  #define USART7 LPUART1
+  #define USART8 LPUART2
+#else
+#error don_t know this STM32 MCU
+#endif
+
+
 /** Specialization of Serial driver for STM32F0xx devices.
  */
 class Stm32Uart : public Serial
@@ -58,10 +101,13 @@ public:
     {
     }
 
-    /** Translate an interrupt handler into C++ object context.
-     * @param index UART index to translate
+    /** handle an interrupt.
+     *
+     * Call this function from HwInit.cxx from `void
+     * u(s)artN_interrupt_handler(void)`. If there are multiple instances on
+     * the same interrupt, call them all from the relevant interrupt handler.
      */
-    static void interrupt_handler(unsigned index);
+    void interrupt_handler();
 
     /** Request an ioctl transaction. Supported ioctl is TCBAUDRATE from
      * include/freertos/tc_ioctl.h */
@@ -70,11 +116,6 @@ public:
 protected:
     void enable() override; /**< function to enable device */
     void disable() override; /**< function to disable device */
-
-    /** @todo (Stuart Baker) this should be made private */
-    /** handle an interrupt.
-     */
-    void interrupt_handler();
 
     /** Try and transmit a message.
      */
@@ -86,34 +127,8 @@ protected:
     UART_HandleTypeDef uartHandle;
 
     /** number of times interrupts have been enabled on these UART channels */
-    unsigned int interrupt3_8EnableCnt;
-
-#if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx)
-    /** Instance pointers help us get context from the interrupt handler(s) */
-    static Stm32Uart *instances[1];
-#elif defined (STM32F030x8) || defined (STM32F042x6) || defined (STM32F048xx) \
-   || defined (STM32F051x8) || defined (STM32F058xx) || defined (STM32F070x6)
-    /** Instance pointers help us get context from the interrupt handler(s) */
-    static Stm32Uart *instances[2];
-#elif defined (STM32L432xx)
-    /** Instance pointers help us get context from the interrupt handler(s) */
-    static Stm32Uart *instances[3];
-#elif defined (STM32L431xx)
-    /** Instance pointers help us get context from the interrupt handler(s) */
-    static Stm32Uart *instances[4];
-#elif defined (STM32F070xB) || defined (STM32F071xB) || defined (STM32F072xB) \
-   || defined (STM32F078xx)
-    /** Instance pointers help us get context from the interrupt handler(s) */
-    static Stm32Uart *instances[4];
-#elif defined (STM32F303xC) || defined (STM32F303xE)
-    static Stm32Uart *instances[5];
-#elif defined (STM32F030xC)
-    /** Instance pointers help us get context from the interrupt handler(s) */
-    static Stm32Uart *instances[6];
-#elif defined (STM32F091xC) || defined (STM32F098xx) || defined (STM32F767xx)
-    /** Instance pointers help us get context from the interrupt handler(s) */
-    static Stm32Uart *instances[8];
-#endif
+    static uint8_t interrupt3_to_8EnableCnt;
+    static uint8_t interrupt2_8EnableCnt;
 
 private:
     /** Default constructor.

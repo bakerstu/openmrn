@@ -70,6 +70,17 @@ endif
 endif
 endif #TIVAWAREPATH
 
+################ TI MSPM0 SDK ##################
+ifndef TIMSPM0SDKPATH
+SEARCHPATH := \
+  /opt/ti/mspm0sdk/default
+
+TRYPATH:=$(call findfirst,source/ti/devices/msp/msp.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TIMSPM0SDKPATH:=$(TRYPATH)
+endif
+endif #TIMSPM0SDKPATH
+
 ################ STM32Cube_F0 ##################
 ifndef STM32CUBEF0PATH
 SEARCHPATH := \
@@ -135,6 +146,18 @@ ifneq ($(TRYPATH),)
 STM32CUBEF7PATH:=$(TRYPATH)
 endif
 endif #STM32CUBEF7PATH
+
+################ STM32Cube_G0 ##################
+ifndef STM32CUBEG0PATH
+SEARCHPATH := \
+  /opt/st/STM32Cube_FW_G0/default \
+  $(HOME)/STM32Cube/Repository/STM32Cube_FW_G0_V1.6.1
+
+TRYPATH:=$(call findfirst,Drivers,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+STM32CUBEG0PATH:=$(TRYPATH)
+endif
+endif #STM32CUBEG0PATH
 
 ################ lpcopen_18xx_43xx ##################
 ifndef LPCOPENPATH_18XX_43XX
@@ -717,6 +740,18 @@ ifneq ($(TRYPATH),)
 SXMLCPATH:=$(TRYPATH)
 endif
 endif #SXMLCPATH
+
+################ TinyUSB ##################
+ifndef TINYUSBPATH
+SEARCHPATH := \
+  /opt/tinyusb/default \
+  /opt/tinyusb/tinyusb \
+
+TRYPATH:=$(call findfirst,src/tusb.c,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+TINYUSBPATH:=$(TRYPATH)
+endif
+endif #TINYUSBPATH
 
 
 endif # ifndef OPENMRN_EXPLICIT_DEPS_ONLY

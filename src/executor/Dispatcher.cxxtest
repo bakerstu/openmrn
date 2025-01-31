@@ -194,6 +194,27 @@ TEST_F(DispatcherTest, TestMultiplehandlers)
     wait();
 }
 
+TEST_F(DispatcherTest, TestFallbackHandler)
+{
+    StrictMock<MockCanMessageHandler> h1;
+    f_.register_handler(&h1, 1, 0xFFUL);
+    StrictMock<MockCanMessageHandler> h2;
+    f_.register_handler(&h2, 257, 0x1FFFFFFFUL);
+    StrictMock<MockCanMessageHandler> hfb;
+    f_.register_fallback_handler(&hfb);
+
+    EXPECT_CALL(h1, handle_message(257, _));
+    EXPECT_CALL(h1, handle_message(1, _));
+    EXPECT_CALL(h2, handle_message(257, _));
+    send_message(257);
+    send_message(1);
+    wait();
+
+    EXPECT_CALL(hfb, handle_message(2, _));
+    send_message(2);
+    wait();
+}
+
 /*TEST_F(DispatcherTest, TestAsync)
 {
     StrictMock<MockCanMessageHandler> h1;

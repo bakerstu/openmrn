@@ -1,0 +1,116 @@
+#include "dcc/Defs.hxx"
+
+#include "utils/test_main.hxx"
+
+class Addr14DecodeTest : public ::testing::Test
+{
+protected:
+    bool do_decode(uint16_t addr14)
+    {
+        return dcc::Defs::decode_address_partition(
+            addr14, &addr_, &partition_, &atype_);
+    }
+
+    // Decoding results go in here.
+    dcc::TrainAddressType atype_ = (dcc::TrainAddressType)99;
+    uint8_t partition_ = 255;
+    uint16_t addr_ = UINT16_MAX;
+};
+
+TEST_F(Addr14DecodeTest, decode_dcc_long)
+{
+    EXPECT_TRUE(do_decode(9987));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_LONG_ADDRESS, atype_);
+    EXPECT_EQ(9987u, addr_);
+    EXPECT_EQ(0u, partition_);
+}
+
+TEST_F(Addr14DecodeTest, decode_dcc_long_max)
+{
+    EXPECT_TRUE(do_decode(10239));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_LONG_ADDRESS, atype_);
+    EXPECT_EQ(10239u, addr_);
+    EXPECT_EQ(0u, partition_);
+}
+
+TEST_F(Addr14DecodeTest, decode_dcc_long_zero)
+{
+    EXPECT_TRUE(do_decode(0));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_LONG_ADDRESS, atype_);
+    EXPECT_EQ(0u, addr_);
+    EXPECT_EQ(0u, partition_);
+}
+
+TEST_F(Addr14DecodeTest, decode_dcc_short)
+{
+    EXPECT_TRUE(do_decode((0b111000 << 8) | 33));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_SHORT_ADDRESS, atype_);
+    EXPECT_EQ(33u, addr_);
+    EXPECT_EQ(0b111000, partition_);
+}
+
+TEST_F(Addr14DecodeTest, decode_dcc_short_max)
+{
+    EXPECT_TRUE(do_decode((0b111000 << 8) | 127));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_SHORT_ADDRESS, atype_);
+    EXPECT_EQ(127u, addr_);
+    EXPECT_EQ(0b111000, partition_);
+}
+
+TEST_F(Addr14DecodeTest, decode_dcc_short_min)
+{
+    EXPECT_TRUE(do_decode((0b111000 << 8) | 1));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_SHORT_ADDRESS, atype_);
+    EXPECT_EQ(1u, addr_);
+    EXPECT_EQ(0b111000, partition_);
+}
+
+TEST_F(Addr14DecodeTest, decode_dcc_short_zero)
+{
+    EXPECT_TRUE(do_decode((0b111000 << 8) | 0));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_SHORT_ADDRESS, atype_);
+    // This is not technically valid as a short address, but this is the best
+    // guess after decoding.
+    EXPECT_EQ(0u, addr_);
+    EXPECT_EQ(0b111000, partition_);
+}
+
+TEST_F(Addr14DecodeTest, decode_dcc_basic_accy)
+{
+    EXPECT_TRUE(do_decode((0b110000 << 8) | 1328));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_ACCY_BASIC_OUTPUT, atype_);
+    EXPECT_EQ(1328u, addr_);
+    EXPECT_EQ(0b110000, partition_);
+}
+
+TEST_F(Addr14DecodeTest, decode_dcc_basic_accy_max)
+{
+    EXPECT_TRUE(do_decode((0b110000 << 8) | 2047));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_ACCY_BASIC_OUTPUT, atype_);
+    EXPECT_EQ(2047u, addr_);
+    EXPECT_EQ(0b110000, partition_);
+}
+
+TEST_F(Addr14DecodeTest, decode_dcc_ext_accy)
+{
+    EXPECT_TRUE(do_decode((0b101000 << 8) | 1328));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_ACCY_EXT, atype_);
+    EXPECT_EQ(1328u, addr_);
+    EXPECT_EQ(0b101000, partition_);
+}
+
+TEST_F(Addr14DecodeTest, decode_dcc_ext_accy_max)
+{
+    EXPECT_TRUE(do_decode((0b101000 << 8) | 2047));
+    EXPECT_EQ(dcc::TrainAddressType::DCC_ACCY_EXT, atype_);
+    EXPECT_EQ(2047u, addr_);
+    EXPECT_EQ(0b101000, partition_);
+}
+
+TEST_F(Addr14DecodeTest, fails)
+{
+    EXPECT_FALSE(do_decode((0b111000 << 8) | 2047));
+    EXPECT_EQ(99, (int)atype_);
+    EXPECT_EQ(UINT16_MAX, addr_);
+    EXPECT_EQ(0xff, partition_);
+}

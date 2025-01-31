@@ -13,11 +13,17 @@ class TcpDatagramTestBase : public MultiTcpIfTest
 protected:
     TcpDatagramTestBase()
     {
+        LOG(INFO, "Add client 0");
         add_client(REMOTE_NODE_ID + 0);
+        LOG(INFO, "Add client 1");
         add_client(REMOTE_NODE_ID + 1);
+        LOG(INFO, "Add node nc");
         create_new_node(&nc_, TEST_NODE_ID, &ifTcp_);
+        LOG(INFO, "Add node nc2");
         create_new_node(&nc2_, TEST_NODE_ID + 1, &ifTcp_);
+        LOG(INFO, "Add node n0");
         create_new_node(&n0_, REMOTE_NODE_ID + 0, &clients_[0]->ifTcp_);
+        LOG(INFO, "Add node n1");
         create_new_node(&n1_, REMOTE_NODE_ID + 1, &clients_[1]->ifTcp_);
     }
 

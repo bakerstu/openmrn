@@ -158,12 +158,20 @@ endif  # have_config_cdi
 #$(FULLPATHLIBS): $(BUILDDIRS)
 
 # This file acts as a guard describing when the last libsomething.a was remade
-# in the application libraries.
-lib/timestamp : FORCE
-#	 creates the lib directory
+# in the application libraries.  This rule has to have a body to execute, or
+# else make will take the mtime of this file too early in the execution
+# process. The body shall not actually touch the file, as the touches happen in
+# the BUILDDIRS recursions.
+lib/timestamp : $(BUILDDIRS) mktimestamp
+	true
+
+$(BUILDDIRS): mktimestamp
+
+mktimestamp: FORCE
+#	creates the lib directory
 	@[ -d lib ] || mkdir lib
-# in case there are not applibs.
-	@[ -f $@ ] || touch $@  
+#       in case there are not applibs.
+	@[ -f lib/timestamp ] || touch lib/timestamp
 
 # Detect when we have a compound toplevel build and use the toplevel build
 # timestamp to decide whether we need to recurse into the target
@@ -177,7 +185,7 @@ endif
 
 # This file acts as a guard describing when the last libsomething.a was remade
 # in the core target libraries.
-$(LIBDIR)/timestamp: $(LIBBUILDDEP) $(BUILDDIRS)
+$(LIBDIR)/timestamp: $(LIBBUILDDEP)
 ifdef FLOCKPATH
 	@$(FLOCKPATH)/flock $(OPENMRNPATH)/targets/$(TARGET) -c "if [ $@ -ot $(LIBBUILDDEP) -o ! -f $(LIBBUILDDEP) ] ; then $(MAKE) -C $(OPENMRNPATH)/targets/$(TARGET) all ; else echo short-circuiting core target build, because $@ is older than $(LIBBUILDDEP) ; fi"
 else
@@ -291,6 +299,7 @@ clean: clean-local
 clean-local:
 	rm -f $(wildcard *.o *.d *.a *.so *.output *.cout *.cxxout *.hxxout *.stripped lib/*.stripped lib/*.lst) $(TESTOBJS:.o=) $(EXECUTABLE)$(EXTENTION) $(EXECUTABLE).bin $(EXECUTABLE).lst $(EXECUTABLE).map cg.debug.txt cg.dot cg.svg gmon.out $(OBJS) demangled.txt $(EXECUTABLE).ndlst objcopy.params
 	rm -rf $(XMLSRCS:.xml=.c)
+	rm -f lib/lib*.a
 
 veryclean: clean-local clean
 

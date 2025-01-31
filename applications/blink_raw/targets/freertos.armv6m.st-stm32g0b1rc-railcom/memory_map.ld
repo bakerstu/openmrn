@@ -1,0 +1,1 @@
+../../../../boards/st-stm32g0b1rc-railcom/memory_map.ld

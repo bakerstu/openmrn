@@ -170,6 +170,7 @@ public:
     RamDisk(const char* path, T* data, bool read_only = false)
         : RamDiskBase(path, data, sizeof(T), read_only) {
         owned_ = 0;
+        actualSize_ = sizeof(T);
     }
 
     ~RamDisk()

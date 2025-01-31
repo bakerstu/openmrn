@@ -150,10 +150,22 @@ DEFAULT_CONST(gridconnect_port_max_incoming_packets, 6);
 DEFAULT_CONST(gridconnect_bridge_max_incoming_packets, 1);
 /// 1 = infinite
 DEFAULT_CONST(gridconnect_bridge_max_outgoing_packets, 1);
+/// 1 = don't set
+DEFAULT_CONST(gridconnect_tcp_rcv_buffer_size, 1);
+/// 1 = don't set
+DEFAULT_CONST(gridconnect_tcp_snd_buffer_size, 1);
+/// 1 = don't set
+DEFAULT_CONST(gridconnect_tcp_notsent_lowat_buffer_size, 1);
 
 DEFAULT_CONST_FALSE(gridconnect_tcp_use_select);
 
-#ifdef ESP32
+// By default read a full TCP packet from the input port in one go.
+DEFAULT_CONST(directhub_port_incoming_buffer_size, 1460);
+// how many 1460-byte packets per port we parse before waiting for output to
+// drain.
+DEFAULT_CONST(directhub_port_max_incoming_packets, 2);
+
+#ifdef ESP_PLATFORM
 /// Use a stack size of 3kb for SocketListener tasks.
 DEFAULT_CONST(socket_listener_stack_size, 3072);
 /// Allow one socket to be pending for accept() in SocketListener.
@@ -163,4 +175,4 @@ DEFAULT_CONST(socket_listener_backlog, 1);
 DEFAULT_CONST(socket_listener_stack_size, 1000);
 /// Allow up to five sockets to be pending for accept() in SocketListener.
 DEFAULT_CONST(socket_listener_backlog, 5);
-#endif
+#endif // ESP_PLATFORM

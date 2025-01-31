@@ -77,6 +77,7 @@ public:
     */
     void start(const char *name, int priority, size_t stack_size)
     {
+        HASSERT(!is_created());
         os_thread_create(&handle, name, priority, stack_size, start, this);
     }
 
@@ -732,7 +733,7 @@ private:
     /** handle to event object */
     EventGroupHandle_t event;
 };
-#elif defined(ARDUINO) && !defined(ESP32)
+#elif defined(ARDUINO) && !defined(ESP_PLATFORM)
 
 typedef uint32_t OSEventType;
 

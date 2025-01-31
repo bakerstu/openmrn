@@ -245,6 +245,7 @@ class FileMemorySpace : public MemorySpace
 {
 public:
     static const address_t AUTO_LEN = (address_t) - 1;
+    static const address_t UNLIMITED_LEN = (address_t) - 2;
 
     /** Creates a memory space based on an fd.
      *
@@ -670,8 +671,8 @@ private:
                     // Custom spaces cannot do free yet.
                     return respond_reject(Defs::ERROR_INVALID_ARGS);
                 }
-                // Fall through.
             }
+            // Fall through
             case MemoryConfigDefs::COMMAND_ENTER_BOOTLOADER:
             {
                 enter_bootloader();
@@ -733,7 +734,8 @@ private:
                     return exit();
                 }
                 LOG(VERBOSE, "memcfg handler reply: no client registered");
-            } // fall through to unsupported.
+                // fall through to unsupported
+            } // fall through
             default:
                 // Unknown/unsupported command, reject datagram.
                 return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
@@ -751,7 +753,9 @@ private:
 
         long long timeout() override
         {
+#if OPENMRN_FEATURE_REBOOT         
             reboot();
+#endif            
             return DELETE;
         }
     };
@@ -972,15 +976,17 @@ private:
             return respond_reject(Defs::ERROR_INVALID_ARGS);
         }
         currentOffset_ = 0;
+        inline_respond_ok(DatagramClient::REPLY_PENDING);
         return call_immediately(STATE(try_write));
     }
 
+    /// Internal loop performing the writes. This state will be invoked
+    /// multiple times if the writes are asynchronous. The OK datagram response
+    /// has been already sent. Eventually when all writes are completed, the
+    /// ok_response_sent state will be invoked. This is correct even if there
+    /// is an error; the error will be returned in the response datagram.
     Action try_write()
     {
-        // TODO(balazs.racz): At this point we will not do a respond_reject
-        // anymore. Technically we should first send off the respond_ok() and
-        // only afterwards perform the actual try_write steps here. Any errors
-        // we encounter will be returned in a datagram in the other direction.
         MemorySpace *space = get_space();
         int write_len = get_write_length();
         address_t address = get_address();
@@ -1011,7 +1017,9 @@ private:
         char c = 0;
         int response_len = 6;
         if (has_custom_space())
+        {
             response_len++;
+        }
         if (error == 0)
         {
             response_.assign(response_len, c);
@@ -1026,9 +1034,8 @@ private:
         }
         out_bytes()[0] = DATAGRAM_ID;
         set_address_and_space();
-        return respond_ok(DatagramClient::REPLY_PENDING);
+        return call_immediately(STATE(ok_response_sent));
     }
-
 
     /** Looks up the memory space for the current datagram. Returns NULL if no
      * space was registered (for neither the current node, nor global). */

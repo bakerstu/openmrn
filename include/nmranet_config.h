@@ -104,6 +104,18 @@ DECLARE_CONST(gridconnect_bridge_max_incoming_packets);
 /// output socket cannot send the data fast enough.
 DECLARE_CONST(gridconnect_bridge_max_outgoing_packets);
 
+/// TCP receive buffer size in bytes for gridconnect hubs. Used via
+/// setsockopt(SO_RCVBUF). Set to 1 (default) to not bound it.
+DECLARE_CONST(gridconnect_tcp_rcv_buffer_size);
+
+/// TCP send buffer size in bytes for gridconnect hubs. Used via
+/// setsockopt(SO_SENDBUF). Set to 1 (default) to not bound it.
+DECLARE_CONST(gridconnect_tcp_snd_buffer_size);
+
+/// TCP_NOTSENT_LOWAT kernel parameter (in bytes) for TCP links. Used via
+/// setsockopt. Set to 1 (default) to not bound it.
+DECLARE_CONST(gridconnect_tcp_notsent_lowat_buffer_size);
+
 /** Number of bytes of gridconnect data to buffer before sending off the
  * lowlevel system (such as TCP socket). */
 DECLARE_CONST(gridconnect_buffer_size);
@@ -115,6 +127,14 @@ DECLARE_CONST(gridconnect_buffer_delay_usec);
 /** Whether the GridConnect TCP server should use select (single-threaded) or
  * two threads per client (multi-threaded) execution model. */
 DECLARE_CONST(gridconnect_tcp_use_select);
+
+/// Maximum number of packets to parse from a single DirectHubPort before we
+/// wait for data to drain from the system.
+DECLARE_CONST(directhub_port_max_incoming_packets);
+
+/// Number of bytes that we will be reading in one go from an incoming port. We
+/// will allocate at least this many bytes dedicated for each input port.
+DECLARE_CONST(directhub_port_incoming_buffer_size);
 
 /** Number of entries in the remote alias cache */
 DECLARE_CONST(remote_alias_cache_size);

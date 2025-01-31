@@ -1,6 +1,5 @@
-include ../../etc/core_target.mk
-
-#include $(OPENMRNPATH)/etc/core_target.mk
+OPENMRNPATH ?= $(abspath ../..)
+include $(OPENMRNPATH)/etc/core_target.mk
 
 SRCDIR = $(OPENMRNPATH)/src
 
@@ -17,18 +16,18 @@ utils/OpenSSLAesCcm.test: SYSLIBRARIESEXTRA+=-lcrypto
 %.testout : %.testmd5
 	mkdir -p $*.covdir
 	rm -f $*.covdir/app.info
-	lcov --directory $*.covdir/ -z
+	lcov --rc branch_coverage=1 --directory $*.covdir/ -z
 	GCOV_PREFIX=$(abspath $*.covdir) GCOV_PREFIX_STRIP=$(shell echo $(realpath .) | tr -C -d '/' | wc -c) $(<:.testmd5=.test$(EXTENTION)) $(TESTARGS) --gtest_death_test_style=threadsafe
 	touch $@
 
 
 %.covdir/app.info : %.testout
-	cd $*.covdir/ ; \
+	cd $*.covdir/ && \
 	for i in $$(find . -name \*.gcda) ; do \
-	  echo i $$i base $${i%%.gcda} ; \
+	  echo i $$i base $${i%%.gcda} && \
 	  ln -sf $(realpath .)/$${i%%.gcda}.gcno $${i%%.gcda}.gcno ; \
-	done ; \
-	lcov --directory . --capture --output-file app.info ; \
+	done && \
+	lcov --rc branch_coverage=1 --ignore-errors mismatch --ignore-errors inconsistent --ignore-errors negative --directory . --capture --output-file app.info && \
 	rm -f $$(find . -name \*.gcno -type l)
 
 
@@ -54,20 +53,20 @@ $(foreach testout,$(TESTOUTPUTS),$(eval $(call TEST_TO_DIR_COV_template,$(testou
 
 $(COVAGGRFILES):
 	rm -f $@
-	lcov --output-file $@ $(foreach F,$^, -a $F)
+	lcov --rc branch_coverage=1 --ignore-errors mismatch --ignore-errors empty --output-file $@ $(foreach F,$^, -a $F)
 
 cov: lcovdir/index.html
 
 lcovdir/index.html: $(TESTOUTPUTS) $(TESTMD5) $(COVAGGRFILES)
-	mkdir lcovdir ; \
-	rm lcovdir/app_base.info; \
-	lcov -c -i -d . -o lcovdir/app_base.info; \
-	cd lcovdir ; rm app.info; \
-	lcov --output-file app.info $(foreach F,$(COVAGGRFILES), -a ../$F) ; \
-	lcov -r app.info "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app.info; \
-	lcov -r app_base.info "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app_base.info; \
-	lcov -a app_base.info -a app.info -o app_total.info; \
-	genhtml -o . app_total.info
+	mkdir -p lcovdir && \
+	rm -f lcovdir/app_base.info&& \
+	lcov --rc branch_coverage=1 --ignore-errors mismatch --ignore-errors inconsistent -c -i -d . -o lcovdir/app_base.info && \
+	cd lcovdir && rm -f app.info&& \
+	lcov --rc branch_coverage=1 --ignore-errors mismatch -o app.info $(foreach F,$(COVAGGRFILES), -a ../$F) && \
+	lcov --rc branch_coverage=1 -r app.info "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app.info&& \
+	lcov --rc branch_coverage=1 -r app_base.info "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app_base.info&& \
+	lcov --rc branch_coverage=1 -a app_base.info -a app.info -o app_total.info&& \
+	genhtml --branch-coverage --ignore-errors unmapped -o . app_total.info
 
 # Helper function to create per-direcotry coverage summaries.
 #
@@ -76,11 +75,11 @@ define PER_DIR_COV_template
 $(1)cov: $(1)lcovdir/index.html
 
 $(1)lcovdir/index.html: $(1)cov.info
-	cd $(1) ; \
-	mkdir -p lcovdir ; \
-	cd lcovdir ; \
-	lcov -r ../../$$< "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app.info ; \
-	genhtml -o . app.info
+	cd $(1) && \
+	mkdir -p lcovdir && \
+	cd lcovdir && \
+	lcov --rc branch_coverage=1 -r ../../$$< "/usr/include/*" "*.cxxtest" "*gtest*" "*gmock*" -o app.info && \
+	genhtml --branch-coverage --ignore-errors unmapped -o . app.info
 endef
 
 $(foreach dirname,$(COVAGGRDIRS_UNIQ),$(eval $(call PER_DIR_COV_template,$(dirname))))

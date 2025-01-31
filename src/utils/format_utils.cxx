@@ -242,6 +242,57 @@ string string_to_hex(const string &arg)
     return ret;
 }
 
+static uint8_t get_nibble(char b)
+{
+    if ('0' <= b && b <= '9')
+    {
+        return b - '0';
+    }
+    if ('a' <= b && b <= 'f')
+    {
+        return b - 'a' + 10;
+    }
+    if ('A' <= b && b <= 'F')
+    {
+        return b - 'A' + 10;
+    }
+    return 0xff;
+}
+
+size_t hex_to_string(
+    const char *input, size_t len, string *output, bool ignore_nonhex)
+{
+    uint8_t b = 0;         // current byte
+    bool next_high = true; // next nibble is high of the byte
+    for (size_t ofs = 0; ofs < len; ++ofs)
+    {
+        uint8_t nib = get_nibble(input[ofs]);
+        if (nib == 0xff)
+        {
+            if (!ignore_nonhex)
+            {
+                return ofs;
+            }
+            continue;
+        }
+        b |= nib & 0xf;
+        if (next_high)
+        {
+            b <<= 4;
+            next_high = false;
+            continue;
+        }
+        else
+        {
+            output->push_back(b);
+            b = 0;
+            next_high = true;
+            continue;
+        }
+    }
+    return len;
+}
+
 string mac_to_string(uint8_t mac[6], char colon)
 {
     string ret;

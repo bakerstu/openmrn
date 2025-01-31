@@ -39,6 +39,7 @@
 
 #include "openlcb/BroadcastTimeDefs.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
+#include "utils/TimeBase.hxx"
 
 namespace openlcb
 {
@@ -46,10 +47,19 @@ namespace openlcb
 /// Implementation of Broadcast Time Protocol.
 class BroadcastTime : public SimpleEventHandler
                     , public StateFlowBase
-                    , protected Atomic
+                    , public TimeBase
 {
 public:
-    typedef std::vector<std::function<void()>>::size_type UpdateSubscribeHandle;
+    /// An opaque data element that is returned from update subscriber
+    /// registration, and allows unregistering a subscriber.
+    typedef size_t UpdateSubscribeHandle;
+
+    /// Callback type used for time update subscribers.
+    ///
+    /// @param old Fast clock's current time according to the pre-update state.
+    /// @param current Fast clock's current time according to the post-update
+    /// state.
+    typedef std::function<void(time_t old, time_t current)> TimeUpdateCallback;
 
     /// Destructor.
     virtual ~BroadcastTime()
@@ -89,7 +99,7 @@ public:
     }
 
     /// Set the date and year from a C string.
-    /// @param data_year date and year format in "Mmm dd, yyyy" format
+    /// @param date_year date and year format in "Mmm dd, yyyy" format
     void set_date_year_str(const char *date_year);
 
     /// Set Rate. The new rate does not become valid until the update callbacks
@@ -121,236 +131,12 @@ public:
         send_event(node_, eventBase_ | BroadcastTimeDefs::QUERY_EVENT_SUFFIX);
     }
 
-    /// Get the time as a value of seconds relative to the system epoch.  At the
-    /// same time get an atomic matching pair of the rate
-    /// @return pair<time in seconds relative to the system epoch, rate>
-    std::pair<time_t, int16_t> time_and_rate_quarters()
-    {
-        AtomicHolder h(this);
-        return std::make_pair(time(), rate_);
-    }
-
-    /// Get the difference in time scaled to real time.
-    /// @param t1 time 1 to compare
-    /// @param t2 time 2 to compare
-    /// @return (t1 - t2) scaled to real time.
-    time_t compare_realtime(time_t t1, time_t t2)
-    {
-        int rate = rate_;
-        if (rate == 0)
-        {
-            // avoid divid by zero error
-            rate = 4;
-        }
-        return ((t1 - t2) * 4) / rate;
-    }
-
-    /// Get the time as a value of seconds relative to the system epoch.
-    /// @return time in seconds relative to the system epoch
-    time_t time()
-    {
-        AtomicHolder h(this);
-        if (started_)
-        {
-            long long elapsed = OSTime::get_monotonic() - timestamp_;
-            elapsed = ((elapsed * std::abs(rate_)) + 2) / 4;
-
-            time_t diff = (time_t)NSEC_TO_SEC_ROUNDED(elapsed);
-            return (rate_ < 0) ? seconds_ - diff : seconds_ + diff;
-        }
-        else
-        {
-            // clock is stopped, time is not progressing
-            return seconds_;
-        }
-    }
-
-    /// Get the time as a standard struct tm.
-    /// @param result a pointer to the structure that will hold the result
-    /// @return pointer to the passed in result on success, nullptr on failure
-    struct tm *gmtime_r(struct tm *result)
-    {
-        time_t now = time();
-        return ::gmtime_r(&now, result);
-    }
-
-    /// Get the date (month/day).
-    /// @param month month (1 to 12)
-    /// @param day day of month (1 to 31)
-    /// @return 0 upon success, else -1 on failure
-    int date(int *month, int *day)
-    {
-        struct tm tm;
-        if (gmtime_r(&tm) == nullptr)
-        {
-            return -1;
-        }
-        *month = tm.tm_mon + 1;
-        *day = tm.tm_mday;
-        return 0;
-    }
-
-    /// Get the day of the week.
-    /// @returns day of the week (0 - 6, Sunday - Saturday) upon success,
-    ///          else -1 on failure
-    int day_of_week()
-    {
-        struct tm tm;
-        if (gmtime_r(&tm) == nullptr)
-        {
-            return -1;
-        }
-        return tm.tm_wday;
-    }
-
-    /// Get the day of the year.
-    /// @returns day of the year (0 - 365) upon success, else -1 on failure
-    int day_of_year()
-    {
-        struct tm tm;
-        if (gmtime_r(&tm) == nullptr)
-        {
-            return -1;
-        }
-        return tm.tm_yday;
-    }
-
-    /// Get the year.
-    /// @returns year (0 - 4095) upon success, else -1 on failure
-    int year()
-    {
-        struct tm tm;
-        if (gmtime_r(&tm) == nullptr)
-        {
-            return -1;
-        }
-        return tm.tm_year + 1900;
-    }
-
-    /// Report the clock rate as a 12-bit fixed point number
-    /// (-512.00 to 511.75).
-    /// @return clock rate 
-    int16_t get_rate_quarters()
-    {
-        return rate_;
-    }
-
-    /// Test of the clock is running. Running backwards (negative rate) also
-    /// qualifies as running.
-    /// @return true if running, else false
-    bool is_running()
-    {
-        AtomicHolder h(this);
-        return rate_ != 0 && started_;
-    }
-
-    /// Test of the clock is started (rate could still be 0).
-    /// @return true if started, else false
-    bool is_started()
-    {
-        return started_;
-    }
-
-    /// Convert fast clock period to a period in real nsec. Result will
-    /// preserve sign.
-    /// @param rate rate to use in conversion
-    /// @param fast_sec period in seconds in fast clock time
-    /// @param real_nsec period in nsec
-    /// @return true if successfull, else false if clock is not running
-    bool fast_sec_to_real_nsec_period(int16_t rate, time_t fast_sec,
-                                      long long *real_nsec)
-    {
-        if (rate != 0 && rate >= -2048 && rate <= 2047)
-        {
-            *real_nsec = ((SEC_TO_NSEC(std::abs(fast_sec)) * 4) +
-                          (std::abs(rate) / 2)) / rate;
-            if (fast_sec < 0)
-            {
-                *real_nsec = -(*real_nsec);
-            }
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-    /// Convert period in real nsec to a fast clock period. Result will
-    /// preserve sign.
-    /// @param rate rate to use in conversion
-    /// @param real_nsec period in nsec
-    /// @param fast_sec period in seconds in fast clock time
-    /// @return true if successfull, else false if clock is not running
-    bool real_nsec_to_fast_sec_period(int16_t rate, long long real_nsec,
-                                      time_t *fast_sec)
-    {
-        if (rate != 0 && rate >= -2048 && rate <= 2047)
-        {
-            *fast_sec = (std::abs(NSEC_TO_SEC(real_nsec * rate)) + 2) / 4;
-            if ((real_nsec < 0 && rate > 0) || (real_nsec >= 0 && rate < 0))
-            {
-                *fast_sec = -(*fast_sec);
-            }
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-    /// Convert a fast time to absolute nsec until it will occur.
-    ///
-    /// Caution!!! Not an atomic operation if called from a different thread or
-    /// executor than the thread or executor being used by this object.
-    ///
-    /// @param fast_sec seconds in rate time
-    /// @param real_nsec period in nsec until it will occure
-    /// @return true if successfull, else false if clock is not running
-    bool real_nsec_until_fast_time_abs(time_t fast_sec, long long *real_nsec)
-    {
-        if (fast_sec_to_real_nsec_period_abs(fast_sec - seconds_, real_nsec))
-        {
-            *real_nsec += timestamp_;
-            long long monotonic = OSTime::get_monotonic();
-            *real_nsec -= monotonic;
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-    /// Convert fast clock absolute (negative or positive) period to a positive
-    /// (absolute) period in real nsec.
-    ///
-    /// Caution!!! Not an atomic operation if called from a different thread or
-    /// executor than the thread or executor being used by this object.
-    ///
-    /// @param sec period in seconds in fast clock time
-    /// @param real_nsec period in nsec
-    /// @return true if successfull, else false if clock is not running
-    bool fast_sec_to_real_nsec_period_abs(time_t fast_sec, long long *real_nsec)
-    {
-        if (fast_sec_to_real_nsec_period(rate_, fast_sec, real_nsec))
-        {
-            *real_nsec = std::abs(*real_nsec);
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
     /// Register a callback for when the time synchronization is updated. The
     /// context of the caller will be from a state flow on the Node Interface
     /// executor.
     /// @param callback function callback to be called.
     /// @return handle to entry that can be used in update_unsubscribe
-    UpdateSubscribeHandle update_subscribe_add(std::function<void()> callback)
+    UpdateSubscribeHandle update_subscribe_add(TimeUpdateCallback callback)
     {
         AtomicHolder h(this);
         for (size_t i = 0; i < callbacks_.size(); ++i)
@@ -358,11 +144,11 @@ public:
             // atempt to garbage collect unused entries
             if (callbacks_[i] == nullptr)
             {
-                callbacks_[i] = callback;
+                callbacks_[i] = std::move(callback);
                 return i;
             }
         }
-        callbacks_.emplace_back(callback);
+        callbacks_.emplace_back(std::move(callback));
         return callbacks_.size() - 1;
     }
 
@@ -429,11 +215,7 @@ protected:
         , writer_()
         , timer_(this)
         , callbacks_()
-        , timestamp_(OSTime::get_monotonic())
-        , seconds_(0)
-        , rate_(0)
         , rateRequested_(0)
-        , started_(false)
     {
         // use a process-local timezone
         clear_timezone();
@@ -452,14 +234,17 @@ protected:
 
     /// Service all of the attached update subscribers. These are called when
     /// there are jumps in time or if the clock is stopped or started.
-    void service_callbacks()
+    /// @param old Fast clock's current time according to the pre-update state.
+    /// @param current Fast clock's current time according to the post-update
+    /// state.
+    void service_callbacks(time_t old, time_t current)
     {
         AtomicHolder h(this);
         for (auto n : callbacks_)
         {
             if (n)
             {
-                n();
+                n(old, current);
             }
         }
     }
@@ -472,14 +257,9 @@ protected:
     StateFlowTimer timer_; ///< timer helper
 
     /// update subscribers
-    std::vector<std::function<void()>> callbacks_;
+    std::vector<TimeUpdateCallback> callbacks_;
 
-    long long timestamp_; ///< monotonic timestamp from last server update
-    time_t seconds_; ///< clock time in seconds from last server update
-    int16_t rate_; ///< effective clock rate
     int16_t rateRequested_; ///< pending clock rate
-
-    uint16_t started_ : 1; ///< true if clock is started
 
 private:
     /// Reset our process local timezone environment to GMT0.

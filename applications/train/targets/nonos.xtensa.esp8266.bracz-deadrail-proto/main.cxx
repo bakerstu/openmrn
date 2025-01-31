@@ -233,6 +233,7 @@ public:
     void set_speed(openlcb::SpeedType speed) override
     {
         lastSpeed_ = speed;
+        estop = false;
         g_speed_controller.call_speed(speed);
         if (f0)
         {
@@ -257,10 +258,16 @@ public:
     /** Sets the train to emergency stop. */
     void set_emergencystop() override
     {
-        // g_speed_controller.call_estop();
+        g_speed_controller.call_estop();
         lastSpeed_.set_mph(0); // keeps direction
+        estop = true;
     }
 
+    bool get_emergencystop() override
+    {
+        return estop;
+    }
+    
     /** Sets the value of a function.
      * @param address is a 24-bit address of the function to set. For legacy DCC
      * locomotives, see @ref TractionDefs for the address definitions (0=light,
@@ -331,6 +338,7 @@ private:
     openlcb::SpeedType lastSpeed_ = 0.0;
     bool f0 = false;
     bool f1 = false;
+    bool estop = false;
 };
 
 const char kFdiXml[] =

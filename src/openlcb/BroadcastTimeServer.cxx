@@ -451,7 +451,7 @@ private:
                 expires -= tm->tm_sec ? (tm->tm_sec + 2) : 2;
             }
 
-            long long real_expires;
+            long long real_expires = 0;
             bool result =
                 server_->real_nsec_until_fast_time_abs(expires, &real_expires);
             HASSERT(result);
@@ -543,6 +543,8 @@ private:
         bool start_or_stop = false;
         struct tm tm;
         server_->gmtime_r(&tm);
+        time_t old_seconds = server_->time();
+        time_t new_seconds = 0;
 
         uint16_t suffix = message()->data()->suffix_;
 
@@ -590,9 +592,10 @@ private:
             AtomicHolder h(server_);
             server_->seconds_ = mktime(&tm);
             server_->timestamp_ = OSTime::get_monotonic();
+            new_seconds = server_->seconds_;
         }
 
-        server_->service_callbacks();
+        server_->service_callbacks(old_seconds, new_seconds);
 
         if (start_or_stop)
         {

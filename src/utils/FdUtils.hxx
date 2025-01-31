@@ -35,6 +35,8 @@
 #ifndef _UTILS_FD_UTILS_HXX_
 #define _UTILS_FD_UTILS_HXX_
 
+#include <unistd.h>
+
 #include "utils/logging.h"
 #include "utils/macros.h"
 
@@ -81,6 +83,20 @@ struct FdUtils
             dst += ret;
         }
     }
+
+    /// Optimizes the kernel settings like socket and TCP options for an fd
+    /// that is an outgoing TCP socket.
+    /// @param fd socket file descriptor.
+    static void optimize_socket_fd(int fd);
+
+    /// Sets the kernel settings like queuing and terminal settings for an fd
+    /// that is an outgoing tty.
+    /// @param fd tty file descriptor.
+    static void optimize_tty_fd(int fd);
+
+    /// For an fd that is an outgoing link, detects what kind of file
+    /// descriptor this is and calls the appropriate optimize call for it.
+    static void optimize_fd(int fd);
 };
 
 #endif // _UTILS_FD_UTILS_HXX_

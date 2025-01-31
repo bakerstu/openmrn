@@ -118,7 +118,7 @@ void SimpleStackBase::start_stack(bool delay_start)
     // listeners. We must only call ConfigUpdateFlow::open_file() once and it
     // may have been done by an earlier call to create_config_file_if_needed()
     // or check_version_and_factory_reset().
-    if (configUpdateFlow_.get_fd() < 0)
+    if (configUpdateFlow_.get_fd() < 0 && CONFIG_FILENAME != nullptr)
     {
         configUpdateFlow_.open_file(CONFIG_FILENAME);
     }
@@ -156,8 +156,14 @@ void SimpleStackBase::default_start_node()
 #if OPENMRN_HAVE_POSIX_FD 
     if (SNIP_DYNAMIC_FILENAME != nullptr)
     {
-        auto *space = new FileMemorySpace(
-            configUpdateFlow_.get_fd(), sizeof(SimpleNodeDynamicValues));
+        FileMemorySpace* space = nullptr;
+        if (SNIP_DYNAMIC_FILENAME == CONFIG_FILENAME) {
+            space = new FileMemorySpace(
+                configUpdateFlow_.get_fd(), sizeof(SimpleNodeDynamicValues));
+        } else {
+            space = new FileMemorySpace(
+                SNIP_DYNAMIC_FILENAME, sizeof(SimpleNodeDynamicValues));
+        }
         memoryConfigHandler_.registry()->insert(
             node(), MemoryConfigDefs::SPACE_ACDI_USR, space);
         additionalComponents_.emplace_back(space);

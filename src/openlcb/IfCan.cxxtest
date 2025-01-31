@@ -2,6 +2,7 @@
 
 #include "openlcb/CanDefs.hxx"
 #include "openlcb/WriteHelper.hxx"
+#include "os/FakeClock.hxx"
 
 namespace openlcb
 {
@@ -139,6 +140,108 @@ TEST_F(AsyncIfTest, AMEReceiveSupport)
     expect_packet(":X10701729N050101011877;");
     send_packet(":X10702643N;");
     wait();
+}
+
+void print_alias_cache_entry(void *, NodeID id, NodeAlias alias)
+{
+    LOG(INFO, "  alias %03x: 0x%012" PRIx64, alias, id);
+}
+
+void print_alias_cache(AliasCache *ac, const char *s)
+{
+    LOG(INFO, "%salias cache:", s);
+    ac->for_each(&print_alias_cache_entry, nullptr);
+}
+
+TEST_F(AsyncIfTest, NewNodeWithAliasConflict)
+{
+    FakeClock clk;
+    AliasCache *ac;
+    run_x([this, &ac]() { ac = ifCan_->local_aliases(); });
+    print_alias_cache(ac, "local ");
+
+    print_all_packets();
+
+    expect_next_alias_allocation(0xB84);
+    // This is what simplestack does to get aliases.
+    run_x([this]() {
+        ifCan_->alias_allocator()->send(ifCan_->alias_allocator()->alloc());
+    });
+    wait();
+    clk.advance(MSEC_TO_NSEC(250));
+    wait();
+    clk.advance(MSEC_TO_NSEC(250));
+    wait();
+    print_alias_cache(ac, "local ");
+    expect_packet(":X10701B84N0501010114DD;");
+    expect_packet(":X19100B84N0501010114DD;");
+    DefaultNode nn {ifCan_.get(), 0x0501010114dd};
+    wait();
+
+    print_alias_cache(ac, "local ");
+
+    expect_next_alias_allocation(0xDE1);
+    // Another alias, this will be reserved.
+    run_x([this]() {
+        ifCan_->alias_allocator()->send(ifCan_->alias_allocator()->alloc());
+    });
+    wait();
+    clk.advance(MSEC_TO_NSEC(250));
+    wait();
+    print_alias_cache(ac, "local ");
+
+    // Conflict with DE1, which is reserved but not allocated (no node is in
+    // permitted state with it), will not cause a RID frame to be sent.
+    clear_expect(true);
+    EXPECT_EQ(CanDefs::get_reserved_alias_node_id(0xDE1),
+        ac->lookup(NodeAlias(0xDE1)));
+
+    send_packet(":X19100DE1N030000000001;");
+    wait();
+    clear_expect(true);
+    // Kicked out of the cache.
+    EXPECT_EQ(0u, ac->lookup(NodeAlias(0xDE1)));
+    print_alias_cache(ac, "local ");
+
+    // Starts a new node. This will get a new alias, not the one that
+    // conflicted.
+    expect_next_alias_allocation(0x03E);
+    DefaultNode nnn {ifCan_.get(), 0x0501010114ee};
+    wait();
+    expect_packet(":X1070103EN0501010114EE;");
+    expect_packet(":X1910003EN0501010114EE;");
+    clk.advance(MSEC_TO_NSEC(250));
+    wait();
+    clear_expect(true);
+    EXPECT_EQ(nnn.node_id(), ac->lookup(NodeAlias(0x03E)));
+
+    print_alias_cache(ac, "local ");
+
+    // Conflict with B84, which is allocated to nn and in permitted state, will
+    // make an RID frame sent.
+    EXPECT_EQ(nn.node_id(), ac->lookup(NodeAlias(0xB84)));
+    expect_packet(":X10703B84N0501010114DD;");
+    send_packet(":X19100B84N030000000002;");
+    wait();
+    clear_expect(true);
+    // Confirms that the conflicted alias is not in the map.
+    EXPECT_EQ(0u, ac->lookup(NodeAlias(0xB84)));
+    EXPECT_EQ(0u, ac->lookup(nn.node_id()));
+
+    print_alias_cache(ac, "local ");
+
+    // Next message out from nn will do a new alias allocation.
+    expect_next_alias_allocation(0x29B);
+    send_event(&nn, 0x0102030405060708u);
+    wait();
+    expect_packet(":X1070129BN0501010114DD;");
+    expect_packet(":X195B429BN0102030405060708;");
+    clk.advance(MSEC_TO_NSEC(250));
+    wait();
+    clear_expect(true);
+
+    EXPECT_EQ(nn.node_id(), ac->lookup(NodeAlias(0x29B)));
+    EXPECT_EQ(0x29Bu, ac->lookup(nn.node_id()));
 }
 
 TEST_F(AsyncIfTest, GetDefaultNodeId)
@@ -400,11 +503,21 @@ TEST_F(AsyncMessageCanTests, AliasConflictAllocatedNode)
     // This alias is in the cache since the setup routine.
     RX(EXPECT_EQ(
         TEST_NODE_ID, ifCan_->local_aliases()->lookup(NodeAlias(0x22A))));
-    // If someone else uses it (not for CID frame)
-    send_packet(":X1800022AN;");
+
+    // AME will find it.
+    send_packet_and_expect_response(":X10702999N;", ":X1070122AN02010D000003;");
+    
+    // If someone else uses it (not for CID frame), then an RID gets generated
+    // and
+    send_packet_and_expect_response(":X1800022AN;", ":X1070322AN02010D000003;");
     wait();
-    // Then it disappears from there.
+    // Then it disappears from the cache.
     RX(EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeAlias(0x22A))));
+    RX(EXPECT_EQ(0U, ifCan_->local_aliases()->lookup(NodeID(TEST_NODE_ID))));
+    clear_expect(true);
+    // AME returns nothing.
+    send_packet(":X10702999N;");
+    clear_expect(true);
 }
 
 TEST_F(AsyncMessageCanTests, AliasConflictCIDReply)
@@ -665,6 +778,13 @@ TEST_F(AsyncNodeTest, PassAddressedMessageToIfWithPayloadUnknownSource)
     // is an addressed message.
     send_packet_and_expect_response(":X19488210N022A010203040506;",
                                     ":X1917022AN02010d000003;");
+    wait();
+}
+
+TEST_F(AsyncNodeTest, OIROnUnknownMTI)
+{
+    send_packet_and_expect_response(":X19948210N022A;",
+                                    ":X1906822AN021010400948;");
     wait();
 }
 
