@@ -127,13 +127,7 @@ protected:
      * pending timers have completed. */
     void twait()
     {
-        wait_for_main_executor();
-        while (!g_executor.active_timers()->empty())
-        {
-            usleep(20000);
-            wait_for_main_executor();
-        }
-        wait_for_main_executor();
+        wait_for_main_timers();
     }
 
 #ifdef __EMSCRIPTEN__
@@ -560,8 +554,8 @@ MATCHER_P(IsBufferNodeValue, id, "")
     uint64_t value = htobe64(id);
     if (arg->used() != 6)
         return false;
-    uint8_t *expected = reinterpret_cast<uint8_t *>(&value) + 2;
-    uint8_t *actual = static_cast<uint8_t *>(arg->start());
+    const uint8_t *expected = reinterpret_cast<const uint8_t *>(&value) + 2;
+    const uint8_t *actual = static_cast<const uint8_t *>(arg->start());
     if (memcmp(expected, actual, 6))
     {
         for (int i = 0; i < 6; ++i)
@@ -583,8 +577,8 @@ MATCHER_P(IsBufferNodeValueString, id, "")
     uint64_t value = htobe64(id);
     if (arg.size() != 6)
         return false;
-    uint8_t *expected = reinterpret_cast<uint8_t *>(&value) + 2;
-    uint8_t *actual = static_cast<uint8_t *>(arg->start());
+    const uint8_t *expected = reinterpret_cast<const uint8_t *>(&value) + 2;
+    const uint8_t *actual = reinterpret_cast<const uint8_t *>(arg.data());
     if (memcmp(expected, actual, 6))
     {
         for (int i = 0; i < 6; ++i)

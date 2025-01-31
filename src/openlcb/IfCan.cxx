@@ -156,10 +156,15 @@ public:
          * into the empty_alias_allocator() instead to be picked up by the
          * alias allocator flow.  */
         g_alias_use_conflicts++;
-        if_can()->local_aliases()->remove(alias);
-        return exit();
+        alias_ = alias;
+        return allocate_and_call(
+            if_can()->frame_write_flow(), STATE(send_release_alias));
     }
 
+    /// Sends an RID with the alias alias_.
+    ///
+    /// This is done in response to a CID frame seen from the bus with the
+    /// given alias.
     Action send_reserved_alias()
     {
         auto *b = get_allocation_result(if_can()->frame_write_flow());
@@ -170,6 +175,36 @@ public:
         return exit();
     }
 
+    /// Sends an AMR (alias mapping release) frame with the alias alias_ and
+    /// the local node ID that we have for it. Then deletes the mapping from
+    /// the local node table.
+    ///
+    /// This is done in response to an alias conflict seen from the bus with
+    /// the given alias.
+    Action send_release_alias()
+    {
+        auto b = get_buffer_deleter(
+            get_allocation_result(if_can()->frame_write_flow()));
+
+        NodeID node =
+            alias_ ? if_can()->local_aliases()->lookup(NodeAlias(alias_)) : 0;
+        // Actually purge the table entry.
+        if_can()->local_aliases()->remove(alias_);
+        if (!node || CanDefs::is_reserved_alias_node_id(node))
+        {
+            // We do not have a node ID to use for alias release.
+            return exit();
+        }
+            
+        // We are sending an AMR frame to release the alias.
+        struct can_frame *f = b->data();
+        CanDefs::control_init(*f, alias_, CanDefs::AMR_FRAME, 0);
+        f->can_dlc = 6;
+        node_id_to_data(node, f->data);
+        if_can()->frame_write_flow()->send(b.release());
+        return exit();
+    }
+    
 private:
     /// Alias being checked.
     unsigned alias_ : 12;
@@ -685,6 +720,7 @@ IfCan::IfCan(ExecutorBase *executor, CanHubFlow *device,
     add_owned_flow(new AliasConflictHandler(this));
     add_owned_flow(new FrameToGlobalMessageParser(this));
     add_owned_flow(new VerifyNodeIdHandler(this));
+    add_owned_flow(new UnhandledAddressedMessageHandler(this));
     add_owned_flow(new RemoteAliasCacheUpdater(this));
     add_owned_flow(new AMEQueryHandler(this));
     add_owned_flow(new AMEGlobalQueryHandler(this));

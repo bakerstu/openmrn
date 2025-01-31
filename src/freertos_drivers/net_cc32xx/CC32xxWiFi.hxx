@@ -67,10 +67,12 @@ protected:
     {
     }
 
-    /** Setup access point role credentials.
-     * @param ssid access point ssid
-     * @param security_key access point security key
-     * @param security_type specifies security type
+    /** Setup access point role credentials. It is OK to leave ssid as nullptr
+     * or password as nullptr, in which case those properties will not be
+     * changed.
+     * @param ssid access point ssid (name)
+     * @param security_key access point security key (password)
+     * @param security_type specifies security type. Required.
      */
     virtual void wlan_setup_ap(const char *ssid, const char *security_key,
                                SecurityType security_type) = 0;
@@ -111,6 +113,9 @@ public:
 
     /** CC32xx SimpleLink forward declaration */
     struct SockEvent;
+
+    /** CC32xx SimpleLink forward declaration */
+    struct SockTriggerEvent;
 
     /** CC32xx SimpleLink forward declaration */
     struct HttpServerEvent;
@@ -553,6 +558,12 @@ public:
      * @param event pointer to Socket Event Info
      */
     void sock_event_handler(SockEvent *event);
+
+    /** Notifies the service about a wifi asynchronous socket event
+     * callback. This means that sl_Select needs to be re-run and certain
+     * sockets might need wakeup. DO NOT use directly.
+     * @param event parameters from the socket. */
+    void trigger_event_handler(SockTriggerEvent *event);
 
     /** This function handles http server callback indication.  This is public
      * only so that an extern "C" method can call it.  DO NOT use directly.
