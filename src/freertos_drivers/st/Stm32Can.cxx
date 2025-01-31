@@ -634,7 +634,6 @@ void can1_sce_interrupt_handler(void)
     Stm32Can::instances[0]->sce_interrupt_handler();
 }
 
-<<<<<<< HEAD
 #ifdef CAN2
 void can2_tx_interrupt_handler(void)
 {
@@ -667,8 +666,6 @@ void can3_sce_interrupt_handler(void)
     Stm32Can::instances[2]->sce_interrupt_handler();
 }
 #endif
-=======
->>>>>>> e35c58d4aba4b9d5a4dc355684a2eb1c87008f01
 
 #else
 #error Dont know what STM32 chip you have.
