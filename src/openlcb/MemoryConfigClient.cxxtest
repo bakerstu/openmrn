@@ -199,10 +199,12 @@ TEST_F(MemoryConfigClientTest, readTimeout)
 {
     using testing::DoAll;
     using testing::WithArgs;
-    using ::testing::SetArgPointee;
+    using testing::SetArgPointee;
+    using testing::Sequence;
 
     Notifiable *done;
     FakeClock clock;
+    Sequence s1;
 
 
     //
@@ -255,10 +257,13 @@ TEST_F(MemoryConfigClientTest, readTimeout)
     // does not recover from a memory space timing out and never calls `done`
     // notifiable.
     EXPECT_CALL(tSpace_, read(0, _, 64, _, _))
-        .WillOnce(DoAll(WithArgs<0, 1, 2>(
+        .InSequence(s1).WillOnce(DoAll(WithArgs<0, 1, 2>(
                 Invoke(this, &MemoryConfigClientTest::FillPayload)),
-            SetArgPointee<3>(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS),
             Return(24)));
+    EXPECT_CALL(tSpace_, read(24, _, 64 - 24, _, _))
+        .InSequence(s1).WillOnce(DoAll(
+            SetArgPointee<3>(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS),
+            Return(0)));
     done->notify();
     wait();
     ASSERT_EQ(0U, b->data()->payload.size());
@@ -285,10 +290,13 @@ TEST_F(MemoryConfigClientTest, readTimeout)
     testing::Mock::VerifyAndClearExpectations(&tSpace_);
     expect_any_packet();
     EXPECT_CALL(tSpace_, read(0, _, 64, _, _))
-        .WillOnce(DoAll(WithArgs<0, 1, 2>(
+        .InSequence(s1).WillOnce(DoAll(WithArgs<0, 1, 2>(
                 Invoke(this, &MemoryConfigClientTest::FillPayload)),
-            SetArgPointee<3>(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS),
             Return(24)));
+    EXPECT_CALL(tSpace_, read(24, _, 64 - 24, _, _))
+        .InSequence(s1).WillOnce(DoAll(
+            SetArgPointee<3>(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS),
+            Return(0)));
     done->notify();
     wait();
     EXPECT_EQ(0, b->data()->resultCode);
@@ -320,10 +328,13 @@ TEST_F(MemoryConfigClientTest, readTimeout)
     testing::Mock::VerifyAndClearExpectations(&tSpace_);
     expect_any_packet();
     EXPECT_CALL(tSpace_, read(0, _, 64, _, _))
-        .WillOnce(DoAll(WithArgs<0, 1, 2>(
+        .InSequence(s1).WillOnce(DoAll(WithArgs<0, 1, 2>(
                 Invoke(this, &MemoryConfigClientTest::FillPayload)),
-            SetArgPointee<3>(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS),
             Return(24)));
+    EXPECT_CALL(tSpace_, read(24, _, 64 - 24, _, _))
+        .InSequence(s1).WillOnce(DoAll(
+            SetArgPointee<3>(MemoryConfigDefs::ERROR_OUT_OF_BOUNDS),
+            Return(0)));
     done->notify();
     wait();
     ASSERT_EQ(0U, b->data()->payload.size());
@@ -334,7 +345,7 @@ TEST_F(MemoryConfigClientTest, writeTimeout)
 {
     using testing::DoAll;
     using testing::WithArgs;
-    using ::testing::SetArgPointee;
+    using testing::SetArgPointee;
 
     Notifiable *done;
     FakeClock clock;
@@ -378,8 +389,7 @@ TEST_F(MemoryConfigClientTest, writeTimeout)
         .WillRepeatedly(Return(DatagramDefs::TIMEOUT_NONE));
     EXPECT_CALL(
         tSpace_, write(0, _, test_payload.size(), _, NotifyCapture(&done)))
-            .WillOnce(DoAll(
-                SetArgPointee<3>(ERROR_AGAIN), Return(test_payload.size())));
+            .WillOnce(DoAll(SetArgPointee<3>(ERROR_AGAIN), Return(0)));
     b = invoke_client_no_block(MemoryConfigClientRequest::WRITE,
         NodeHandle(TEST_NODE_ID), 0x52, 0, test_payload);
     wait();
@@ -394,12 +404,16 @@ TEST_F(MemoryConfigClientTest, writeTimeout)
         memcmp(&dataContents2_[0], test_payload.data(), test_payload.size()));
     EXPECT_TRUE(clientTwo_.is_waiting());
     testing::Mock::VerifyAndClearExpectations(&tSpace_);
-    expect_any_packet();
-    EXPECT_CALL(tSpace_, write(_, _, _, _, _)).Times(0);
-    done->notify();
-    wait();
     EXPECT_NE(0,
         memcmp(&dataContents2_[0], test_payload.data(), test_payload.size()));
+    expect_any_packet();
+    EXPECT_CALL(tSpace_,
+        write(0, _, test_payload.size(), _, _))
+        .WillOnce(DoAll(WithArgs<0, 1, 2>(
+                Invoke(this, &MemoryConfigClientTest::AcceptPayload)),
+            Return(test_payload.size())));
+    done->notify();
+    wait();
     testing::Mock::VerifyAndClearExpectations(&tSpace_);
 
     //
@@ -410,10 +424,7 @@ TEST_F(MemoryConfigClientTest, writeTimeout)
         .WillRepeatedly(Return(DatagramDefs::TIMEOUT_32));
     EXPECT_CALL(tSpace_,
         write(0, _, test_payload.size(), _, NotifyCapture(&done)))
-        .WillOnce(DoAll(WithArgs<0, 1, 2>(
-                Invoke(this, &MemoryConfigClientTest::AcceptPayload)),
-            SetArgPointee<3>(ERROR_AGAIN),
-            Return(test_payload.size())));
+        .WillOnce(DoAll(SetArgPointee<3>(ERROR_AGAIN), Return(0)));
     b = invoke_client_no_block(MemoryConfigClientRequest::WRITE,
         NodeHandle(TEST_NODE_ID), 0x52, 0, test_payload);
     wait();
@@ -422,7 +433,11 @@ TEST_F(MemoryConfigClientTest, writeTimeout)
     EXPECT_EQ(MemoryConfigClient::OPERATION_PENDING, b->data()->resultCode);
     testing::Mock::VerifyAndClearExpectations(&tSpace_);
     expect_any_packet();
-    EXPECT_CALL(tSpace_, write(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(tSpace_,
+        write(0, _, test_payload.size(), _, NotifyCapture(&done)))
+        .WillOnce(DoAll(WithArgs<0, 1, 2>(
+                Invoke(this, &MemoryConfigClientTest::AcceptPayload)),
+            Return(test_payload.size())));
     done->notify();
     wait();
     EXPECT_EQ(0, b->data()->resultCode);
@@ -441,8 +456,7 @@ TEST_F(MemoryConfigClientTest, writeTimeout)
         .WillRepeatedly(Return(DatagramDefs::TIMEOUT_32));
     EXPECT_CALL(
         tSpace_, write(0, _, test_payload.size(), _, NotifyCapture(&done)))
-            .WillOnce(DoAll(
-                SetArgPointee<3>(ERROR_AGAIN), Return(test_payload.size())));
+            .WillOnce(DoAll(SetArgPointee<3>(ERROR_AGAIN), Return(0)));
     b = invoke_client_no_block(MemoryConfigClientRequest::WRITE,
         NodeHandle(TEST_NODE_ID), 0x52, 0, test_payload);
     wait();
@@ -453,12 +467,16 @@ TEST_F(MemoryConfigClientTest, writeTimeout)
         memcmp(&dataContents2_[0], test_payload.data(), test_payload.size()));
     EXPECT_TRUE(clientTwo_.is_waiting());
     testing::Mock::VerifyAndClearExpectations(&tSpace_);
+    EXPECT_NE(0,
+        memcmp(&dataContents2_[0], test_payload.data(), test_payload.size()));
     expect_any_packet();
-    EXPECT_CALL(tSpace_, write(_, _, _, _, _)).Times(0);
+    EXPECT_CALL(tSpace_,
+        write(0, _, test_payload.size(), _, NotifyCapture(&done)))
+        .WillOnce(DoAll(WithArgs<0, 1, 2>(
+                Invoke(this, &MemoryConfigClientTest::AcceptPayload)),
+            Return(test_payload.size())));
     done->notify();
     wait();
-    EXPECT_TRUE(
-        memcmp(&dataContents2_[0], test_payload.data(), test_payload.size()));
     testing::Mock::VerifyAndClearExpectations(&tSpace_);
 }
 

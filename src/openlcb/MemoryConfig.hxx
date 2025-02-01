@@ -114,7 +114,10 @@ public:
     /// Write data to the address space. Called by the memory config service for
     /// incoming write requests.
     /// @param destination memory space offset address to write to
-    /// @param data data to write
+    /// @param data data to write. The callee may capture and begin processing
+    ///        this data but should only acount for what it has captured in the
+    ///        return value once it has been successfully written, and not just
+    ///        "in process".
     /// @param len length of write data in bytes
     /// @param error The output argument for the error code. If the operation
     ///        succeeded, sets *error to zero. If the operation failed, sets
