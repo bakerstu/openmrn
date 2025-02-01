@@ -21,6 +21,7 @@ void HAL_GPIO_Init(GPIO_TypeDef* port, GPIO_InitTypeDef* cfg) {
 } // extern "C"
 
 GPIO_XPIN(TEST, GpioHwPin, B, 5);
+GPIO_XPIN(TEST2, GpioHwPin, B, 5, PullDown());
 
 class GpioTest : public ::testing::Test {
 protected:
@@ -29,12 +30,50 @@ protected:
 };
 
 
-TEST_F(GpioTest, bar) {
+TEST_F(GpioTest, base_settings) {
+    EXPECT_EQ(GPIOB, TEST_Pin::port());
+    EXPECT_EQ(GPIO_PIN_5, TEST_Pin::pin());
+}
+
+TEST_F(GpioTest, input_settings) {
+    EXPECT_EQ(GPIOB, TEST_Pin::input_opts().port());
+    EXPECT_EQ(GPIO_PIN_5, TEST_Pin::input_opts().pin());
+    EXPECT_EQ(GPIO_MODE_INPUT, TEST_Pin::input_opts().gpio_mode());
+    EXPECT_FALSE(TEST_Pin::input_opts().has_afmode());
+    EXPECT_EQ(0xffffffff, TEST_Pin::input_opts().afmode());
+}
+
+TEST_F(GpioTest, copy_constructor) {
+    EXPECT_EQ(GPIO_PIN_5, TEST_Pin::opts().pin());
+    EXPECT_EQ(GPIO_PIN_5, Stm32GpioOptions(TEST_Pin::opts()).pin());
+}
+
+TEST_F(GpioTest, fill_options) {
+    GPIO_InitTypeDef gpio_init = {0};
+    Stm32GpioOptions::fill_options(&gpio_init, TEST_Pin::opts());
+    EXPECT_EQ(GPIO_PIN_5, gpio_init.Pin);
+}
+
+TEST_F(GpioTest, test_hw_init)
+{
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_INPUT, GPIO_NOPULL,
+            GPIO_SPEED_FREQ_LOW, 0));
+    TEST_Pin::hw_init();
+}
+
+TEST_F(GpioTest, test_in_out)
+{
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_INPUT, GPIO_PULLDOWN,
+            GPIO_SPEED_FREQ_LOW, 0));
     TEST_Pin::hw_init();
 }
 
 #else
-#info Not compiling Stm32Gpio test because G0B1 Cube is not available.
+
+// Not compiling Stm32Gpio test because G0B1 Cube is not available.
+
 #endif
 
 

@@ -284,6 +284,7 @@ public:
             "Must specify AfMode for any AF modes.");
 #endif        
         gpio_init->Mode = Stm32GpioOptions(args...).gpio_mode();
+        gpio_init->Pin = Stm32GpioOptions(args...).pin();
         gpio_init->Pull = Stm32GpioOptions(args...).pull();
         gpio_init->Speed = Stm32GpioOptions(args...).speed();
         gpio_init->Alternate = Stm32GpioOptions(args...).has_afmode()
@@ -386,6 +387,10 @@ struct GpioHwPin : public Stm32GpioDefs<Defs::opts().periph_base(),
         hw_init();
     }
 
+    static constexpr Stm32GpioOptions opts() {
+        return Defs::opts();
+    }
+    
     static constexpr Stm32GpioOptions output_opts()
     {
         return Stm32GpioOptions(Stm32GpioOptions::GpioMode(Defs::opts().is_od()
