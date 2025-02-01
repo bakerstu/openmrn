@@ -869,9 +869,11 @@ TEST_F(Train28Test, AllFunctions)
 TEST_F(Train28Test, isSmall)
 {
 #if UINTPTR_MAX > UINT_MAX
+    // 16 bytes of payload plus one virtual method table pointer.
     EXPECT_EQ(24U, sizeof(train_));
 #else
-    EXPECT_EQ(16U, sizeof(train_));
+    // 16 bytes of payload plus one virtual method table pointer.
+    EXPECT_EQ(20U, sizeof(train_));
 #endif
     // 4 bytes of function bits   // 3
     // 4 bytes of virtual method table
