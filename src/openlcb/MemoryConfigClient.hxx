@@ -530,7 +530,12 @@ private:
             // some error occurred.
             return handle_write_error(dgClient_->result());
         }
-        if (responseCode_ & DatagramClient::OPERATION_PENDING)
+        if (!(dgClient_->result() & DatagramClient::OK_REPLY_PENDING))
+        {
+            // Received an immediate received okay with no pending reply.
+            return call_immediately(STATE(finish_write));
+        }
+        else if (responseCode_ & DatagramClient::OPERATION_PENDING)
         {
             isWaitingForTimer_ = 1;
             // Extract the timeout.
