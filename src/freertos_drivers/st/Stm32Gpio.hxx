@@ -216,9 +216,6 @@ struct Stm32GpioOptionDefs
     /// GPIO_MODE_OUTPUT_PP, GPIO_MODE_OUTPUT_OD, GPIO_MODE_AF_PP,
     /// GPIO_MODE_AF_OD.
     DECLARE_OPTIONALARG(GpioMode, gpio_mode, uint32_t, 0, GPIO_MODE_INPUT);
-    /// Open Drain. false is push-pull, true is open-drain. Only used for AF
-    /// and Output modes. When true, switches a PP mode to OD mode.
-    DECLARE_OPTIONALARG(OD, gpio_od, bool, 1, false);
     /// Pullup/Pulldown configuration. One of GPIO_NOPULL, GPIO_PULLUP,
     /// GPIO_PULLDOWN.
     DECLARE_OPTIONALARG(Pull, pull, uint32_t, 2, GPIO_NOPULL);
@@ -239,7 +236,7 @@ struct Stm32GpioOptionDefs
     /// Sets the GPIO pin number, 0..15. Required.
     DECLARE_OPTIONALARG(PinNum, pin_num, uint8_t, 11, 0xff);
 
-    using Base = OptionalArg<Stm32GpioOptionDefs, GpioMode, OD, Pull, Speed,
+    using Base = OptionalArg<Stm32GpioOptionDefs, GpioMode, Pull, Speed,
         AfMode, PeriphBase, Pin, PinNum>;
 };
 
@@ -249,7 +246,6 @@ public:
     INHERIT_CONSTEXPR_CONSTRUCTOR(Stm32GpioOptions, Stm32GpioOptionDefs::Base);
 
     DEFINE_OPTIONALARG(GpioMode, gpio_mode, uint32_t);
-    DEFINE_OPTIONALARG(OD, gpio_od, bool);
     DEFINE_OPTIONALARG(Pull, pull, uint32_t);
     DEFINE_OPTIONALARG(Speed, speed, uint32_t);
     DEFINE_OPTIONALARG(AfMode, afmode, uint32_t);
@@ -268,6 +264,12 @@ public:
     {
         return (gpio_mode() == GPIO_MODE_AF_OD) ||
             (gpio_mode() == GPIO_MODE_OUTPUT_OD);
+    }
+
+    constexpr void __attribute__((always_inline))
+    fill_options(GPIO_InitTypeDef *gpio_init)
+    {
+        return fill_options(gpio_init, *this);
     }
 
     template <typename... Args>
@@ -339,6 +341,10 @@ public:
         {                                                                      \
             return Pull(GPIO_NOPULL);                                          \
         }                                                                      \
+        static constexpr GpioMode Input()                                      \
+        {                                                                      \
+            return GpioMode(GPIO_MODE_INPUT);                                  \
+        }                                                                      \
         static constexpr GpioMode Output()                                     \
         {                                                                      \
             return GpioMode(GPIO_MODE_OUTPUT_PP);                              \
@@ -381,16 +387,19 @@ struct GpioHwPin : public Stm32GpioDefs<Defs::opts().periph_base(),
         hw_init();
     }
 
-    /// Switches the GPIO pin to the hardware peripheral. */
+    /// Switches the GPIO pin to the hardware peripheral.
     static void set_hw()
     {
         hw_init();
     }
 
-    static constexpr Stm32GpioOptions opts() {
+    /// Options for default behavior (set_hw).
+    static constexpr Stm32GpioOptions opts()
+    {
         return Defs::opts();
     }
-    
+
+    /// Options for output behavior (set_output).
     static constexpr Stm32GpioOptions output_opts()
     {
         return Stm32GpioOptions(Stm32GpioOptions::GpioMode(Defs::opts().is_od()
@@ -399,10 +408,10 @@ struct GpioHwPin : public Stm32GpioDefs<Defs::opts().periph_base(),
             Defs::opts());
     }
 
+    /// Options for input behavior (set_input).
     static constexpr Stm32GpioOptions input_opts()
     {
-        return Stm32GpioOptions(
-            Stm32GpioOptions::GpioMode(GPIO_MODE_INPUT), Defs::opts());
+        return Stm32GpioOptions(Defs::Input(), Defs::opts());
     }
 
     /// Switches the GPIO pin to an output pin. Maintains the OD status from
@@ -410,7 +419,7 @@ struct GpioHwPin : public Stm32GpioDefs<Defs::opts().periph_base(),
     static void set_output()
     {
         GPIO_InitTypeDef gpio_init = {0};
-        output_opts().fill_options(&gpio_init);
+        Stm32GpioOptions::fill_options(&gpio_init, output_opts());
         HAL_GPIO_Init(Defs::opts().port(), &gpio_init);
     }
 
@@ -419,123 +428,10 @@ struct GpioHwPin : public Stm32GpioDefs<Defs::opts().periph_base(),
     static void set_input()
     {
         GPIO_InitTypeDef gpio_init = {0};
-        input_opts().fill_options(&gpio_init);
+        Stm32GpioOptions::fill_options(&gpio_init, input_opts());
         HAL_GPIO_Init(Defs::opts().port(), &gpio_init);
     }
 }; // class GpioHwPin
-
-#if 0
-
-template <uint32_t afnum, uint32_t afmode = GPIO_AF_PP,
-    uint32_t pull = GPIO_NOPULL, uint32_t speed = GPIO_SPEED_FREQ_LOW>
-struct GpioHwParams
-{
-    /// Used for setting pullup pulldown, example value GPIO_NOPULL,
-    /// GPIO_PULLUP, GPIO_PULLDOWN.
-    static constexpr uint32_t PULL_MODE = pull;
-    /// Used for setting slew rate, example value GPIO_SPEED_FREQ_LOW,
-    /// GPIO_SPEED_FREQ_HIGH.
-    static constexpr uint32_t SPEED_FREQ = speed;
-    /// Used for setting alternate function mode, example GPIO_AF_PP,
-    /// GPIO_AF_OD.
-    static constexpr uint32_t AF_MODE = afmode;
-    
-    static constexpr uint32_t AF_NUM = afnum;
-    
-    using Input = GpioInputPin;
-};
-
-template<class Defs>
-struct GpioHwPin : public Defs
-{
-    using Defs::PULL_MODE;
-    using Defs::SPEED_FREQ;
-    using Defs::AF_MODE;    
-
-    /// Implements hw_init functionality for this pin only.
-    static void hw_init()
-    {
-        GPIO_InitTypeDef gpio_init = {0};
-        gpio_init.Pin = pin();
-        gpio_init.Mode = AF_MODE;
-        gpio_init.Pull = PULL_MODE;
-        gpio_init.Speed = SPEED_FREQ;
-        gpio_init.Alternate = GPIO_AF3_FDCAN1;
-        HAL_GPIO_Init(port(), &gpio_init);
-
-
-        gpio_init.Mode = GPIO_MODE_AF_PP;
-        gpio_init.Pull = GPIO_NOPULL;
-        gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
-        gpio_init.Alternate = GPIO_AF3_FDCAN1;
-        gpio_init.Pin = GPIO_PIN_8;
-        HAL_GPIO_Init(GPIOB, &gpio_init);
-        gpio_init.Pin = GPIO_PIN_9;
-        HAL_GPIO_Init(GPIOB, &gpio_init);
-    }
-
-    /// Implements hw_set_to_safe functionality for this pin only.
-    static void hw_set_to_safe()
-    {
-        Defs::Safe::hw_init();
-    }
-
-    /// Switches the GPIO pin to the hardware peripheral. */
-    static void set_hw()
-    {
-        hw_init();
-    }
-
-    /// Switches the GPIO pin to an output pin. Note that this will set the pin
-    /// to the SAFE value. Use the set() command afterwards to define the
-    /// desired value.
-    static void set_output()
-    {
-        Defs::Output::hw_init();
-        static_assert(
-            Defs::Output::is_output() == true, "Output pin is not correct");
-    }
-
-    /** Switches the GPIO pin to an input pin. Use the get() command to
-     * retrieve the value.
-     *
-     * @param drive_type specifies whether there should be a weak pullup
-     * (GPIO_PIN_TYPE_STD_WPU), pull-down (GPIO_PIN_TYPE_STD_WPD) or standard
-     * pin (default, GPIO_PIN_TYPE_STD)*/
-    static void set_input()
-    {
-        Defs::Input::hw_init();
-        static_assert(Defs::Output::is_output() == true);
-    }
-
-/// Helper macro for defining GPIO pins with a specific hardware config on the
-/// Tiva microcontrollers.
-///
-/// @param NAME is the basename of the declaration. For NAME==FOO the macro
-/// declared FOO_Pin as a structure on which the read-write functions will be
-/// available.
-///
-/// @param BaseClass is the initialization structure, such as @ref LedPin, or
-/// @ref GpioOutputSafeHigh or @ref GpioOutputSafeLow.
-///
-/// @param PORTNAME is the letter (e.g. D)
-///
-/// @param NUM is the pin number, such as 3
-///
-/// @param CONFIG is the suffix of the symbol that defines the pinmux for the
-/// hardware, e.g. U7TX.
-///
-/// @param TYPE is a suffix for a TivaWare GPIOPinType function such as UART
-/// for GPIOPinTypeUART() to set the pin to the hardware configuration.
-#define GPIO_HWPIN(NAME, SafeType, PORTNAME, NUM, AFTYPE, AFNUM, Args...)      \
-    struct NAME##Defs                                                          \
-    {                                                                          \
-        DECL_HWPIN(GPIO, PORT, NUM, CONFIG, TYPE);                             \
-        using Params = HwPinParams<Args...>;                                   \
-    };                                                                         \
-    typedef GpioHwPin<NAME##Defs> NAME##_Pin
-
-#endif // if 0, for HWPIN draft.
 
 /// Helper macro for defining GPIO pins.
 ///

@@ -23,9 +23,12 @@ void HAL_GPIO_Init(GPIO_TypeDef* port, GPIO_InitTypeDef* cfg) {
 GPIO_XPIN(TEST, GpioHwPin, B, 5);
 GPIO_XPIN(TEST2, GpioHwPin, B, 5, PullDown());
 
+GPIO_XPIN(TEST_AF, GpioHwPin, B, 5, PullDown(), Af(), AfMode(GPIO_AF3_FDCAN1));
+
+GPIO_XPIN(TEST_AFOD, GpioHwPin, B, 5, PullDown(), AfOd(), AfMode(GPIO_AF3_FDCAN1));
+
 class GpioTest : public ::testing::Test {
 protected:
-    
     ::testing::StrictMock<InitMock> mock_;
 };
 
@@ -33,14 +36,27 @@ protected:
 TEST_F(GpioTest, base_settings) {
     EXPECT_EQ(GPIOB, TEST_Pin::port());
     EXPECT_EQ(GPIO_PIN_5, TEST_Pin::pin());
+
+    EXPECT_EQ(GPIO_NOPULL, TEST_Pin::opts().pull());
+    EXPECT_EQ(GPIO_PULLDOWN, TEST2_Pin::opts().pull());
 }
 
 TEST_F(GpioTest, input_settings) {
     EXPECT_EQ(GPIOB, TEST_Pin::input_opts().port());
     EXPECT_EQ(GPIO_PIN_5, TEST_Pin::input_opts().pin());
     EXPECT_EQ(GPIO_MODE_INPUT, TEST_Pin::input_opts().gpio_mode());
+    EXPECT_EQ(GPIO_NOPULL, TEST_Pin::input_opts().pull());
     EXPECT_FALSE(TEST_Pin::input_opts().has_afmode());
     EXPECT_EQ(0xffffffff, TEST_Pin::input_opts().afmode());
+}
+
+TEST_F(GpioTest, output_settings) {
+    EXPECT_EQ(GPIOB, TEST_Pin::output_opts().port());
+    EXPECT_EQ(GPIO_PIN_5, TEST_Pin::output_opts().pin());
+    EXPECT_EQ(GPIO_MODE_OUTPUT_PP, TEST_Pin::output_opts().gpio_mode());
+    EXPECT_EQ(GPIO_NOPULL, TEST_Pin::output_opts().pull());
+    EXPECT_FALSE(TEST_Pin::output_opts().has_afmode());
+    EXPECT_EQ(0xffffffff, TEST_Pin::output_opts().afmode());
 }
 
 TEST_F(GpioTest, copy_constructor) {
@@ -52,6 +68,14 @@ TEST_F(GpioTest, fill_options) {
     GPIO_InitTypeDef gpio_init = {0};
     Stm32GpioOptions::fill_options(&gpio_init, TEST_Pin::opts());
     EXPECT_EQ(GPIO_PIN_5, gpio_init.Pin);
+    EXPECT_EQ(GPIO_NOPULL, gpio_init.Pull);
+}
+
+TEST_F(GpioTest, fill_options2) {
+    GPIO_InitTypeDef gpio_init = {0};
+    Stm32GpioOptions::fill_options(&gpio_init, TEST2_Pin::opts());
+    EXPECT_EQ(GPIO_PIN_5, gpio_init.Pin);
+    EXPECT_EQ(GPIO_PULLDOWN, gpio_init.Pull);
 }
 
 TEST_F(GpioTest, test_hw_init)
@@ -62,12 +86,66 @@ TEST_F(GpioTest, test_hw_init)
     TEST_Pin::hw_init();
 }
 
-TEST_F(GpioTest, test_in_out)
+TEST_F(GpioTest, test2_hw_init)
 {
     EXPECT_CALL(mock_,
         gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_INPUT, GPIO_PULLDOWN,
             GPIO_SPEED_FREQ_LOW, 0));
-    TEST_Pin::hw_init();
+    TEST2_Pin::hw_init();
+}
+
+TEST_F(GpioTest, test2_output)
+{
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_OUTPUT_PP, GPIO_PULLDOWN,
+            GPIO_SPEED_FREQ_LOW, 0));
+    TEST2_Pin::set_output();
+}
+
+TEST_F(GpioTest, set_i_o_hw)
+{
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_PULLDOWN,
+            GPIO_SPEED_FREQ_LOW, GPIO_AF3_FDCAN1));
+    TEST_AF_Pin::hw_init();
+
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_INPUT, GPIO_PULLDOWN,
+            GPIO_SPEED_FREQ_LOW, GPIO_AF3_FDCAN1));
+    TEST_AF_Pin::set_input();
+
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_OUTPUT_PP, GPIO_PULLDOWN,
+            GPIO_SPEED_FREQ_LOW, GPIO_AF3_FDCAN1));
+    TEST_AF_Pin::set_output();
+
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_PULLDOWN,
+            GPIO_SPEED_FREQ_LOW, GPIO_AF3_FDCAN1));
+    TEST_AF_Pin::set_hw();
+}
+
+TEST_F(GpioTest, set_i_o_hw_od)
+{
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_AF_OD, GPIO_PULLDOWN,
+            GPIO_SPEED_FREQ_LOW, GPIO_AF3_FDCAN1));
+    TEST_AFOD_Pin::hw_init();
+
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_INPUT, GPIO_PULLDOWN,
+            GPIO_SPEED_FREQ_LOW, GPIO_AF3_FDCAN1));
+    TEST_AFOD_Pin::set_input();
+
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_OUTPUT_OD, GPIO_PULLDOWN,
+            GPIO_SPEED_FREQ_LOW, GPIO_AF3_FDCAN1));
+    TEST_AFOD_Pin::set_output();
+
+    EXPECT_CALL(mock_,
+        gpio_init(GPIOB_BASE, GPIO_PIN_5, GPIO_MODE_AF_OD, GPIO_PULLDOWN,
+            GPIO_SPEED_FREQ_LOW, GPIO_AF3_FDCAN1));
+    TEST_AFOD_Pin::set_hw();
 }
 
 #else
