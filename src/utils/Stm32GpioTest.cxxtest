@@ -1,10 +1,40 @@
+#include "utils/test_main.hxx"
+#include "utils/Singleton.hxx"
+
+
+struct InitMock : public Singleton<InitMock>
+{
+    MOCK_METHOD6(gpio_init,
+        void(uint32_t base, uint32_t pin, uint32_t mode, uint32_t pull,
+            uint32_t speed, uint32_t alternate));
+}; //InitMock
+
+
 #ifdef STM32G0B1xx
 
 #include "freertos_drivers/st/Stm32Gpio.hxx"
 
+extern "C" {
+void HAL_GPIO_Init(GPIO_TypeDef* port, GPIO_InitTypeDef* cfg) {
+    InitMock::instance()->gpio_init((uint32_t)port, cfg->Pin, cfg->Mode, cfg->Pull, cfg->Speed, cfg->Alternate);
+}
+} // extern "C"
+
+GPIO_XPIN(TEST, GpioHwPin, B, 5);
+
+class GpioTest : public ::testing::Test {
+protected:
+    
+    ::testing::StrictMock<InitMock> mock_;
+};
+
+
+TEST_F(GpioTest, bar) {
+    TEST_Pin::hw_init();
+}
+
+#else
+#info Not compiling Stm32Gpio test because G0B1 Cube is not available.
 #endif
 
-#include "utils/test_main.hxx"
 
-
-TEST(foo, bar) {}
