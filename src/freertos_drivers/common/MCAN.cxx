@@ -99,6 +99,24 @@ const typename MCAN<Defs, Registers>::MCANBaud MCAN<Defs, Registers>::BAUD_TABLE
      *     = 0.938%
      */
     {64000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (32 - 1)}},
+    /* 4 MHz clock source
+     * TQ = BRP / freq = 2 / 4 MHz = 500 nsec
+     * Baud = 125 kHz
+     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
+     * SyncSeg = 1 TQ
+     * PropSeg = 7 TQ
+     * Seg1 = 4 TQ
+     * Seg2 = 4 TQ
+     * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
+     * SJW = Seg - 1 = 4 - 1 = 3
+     * SJW = 3 * 500 nsec = 1.5 usec
+     *
+     * Oscillator Tolerance:
+     *     4 / (2 * ((13 * 16) - 4)) = 0.980%
+     *     3 / (20 * 16) = 0.938%
+     *     = 0.938%
+     */
+    {4000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (2 - 1)}},
 };
 
 void TCAN4550Defs::init_spi(const char *spi_name, uint32_t freq)
