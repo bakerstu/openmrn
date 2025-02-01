@@ -1,0 +1,10 @@
+#ifdef STM32G0B1xx
+
+#include "freertos_drivers/st/Stm32Gpio.hxx"
+
+#endif
+
+#include "utils/test_main.hxx"
+
+
+TEST(foo, bar) {}
