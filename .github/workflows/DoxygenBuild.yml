@@ -1,0 +1,33 @@
+name: Deploy Doxygen Documentation to Pages
+
+on:
+  push:
+    branches: [master] # branch to trigger deployment
+
+jobs:
+  pages:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        submodules: "true"
+    - name: Install Dependencies
+      run: sudo apt-get update && sudo apt-get install -y doxygen make graphviz
+      shell: bash
+    - name: Build Documentation
+      id: build
+      run: cd doc && make html && touch html/.nojekyll
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: html/
+    - name: Deploy
+      id: deployment
+      uses: actions/deploy-pages@v4
