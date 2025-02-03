@@ -357,6 +357,10 @@ public:
         {                                                                      \
             return GpioMode(GPIO_MODE_AF_PP);                                  \
         }                                                                      \
+        static constexpr GpioMode Analog()                                     \
+        {                                                                      \
+            return GpioMode(GPIO_MODE_ANALOG);                                 \
+        }                                                                      \
         static constexpr GpioMode AfOd()                                       \
         {                                                                      \
             return GpioMode(GPIO_MODE_AF_OD);                                  \
