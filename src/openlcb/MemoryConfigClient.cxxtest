@@ -434,7 +434,7 @@ TEST_F(MemoryConfigClientTest, writeTimeout)
     testing::Mock::VerifyAndClearExpectations(&tSpace_);
     expect_any_packet();
     EXPECT_CALL(tSpace_,
-        write(0, _, test_payload.size(), _, NotifyCapture(&done)))
+        write(0, _, test_payload.size(), _, _))
         .WillOnce(DoAll(WithArgs<0, 1, 2>(
                 Invoke(this, &MemoryConfigClientTest::AcceptPayload)),
             Return(test_payload.size())));
@@ -471,7 +471,7 @@ TEST_F(MemoryConfigClientTest, writeTimeout)
         memcmp(&dataContents2_[0], test_payload.data(), test_payload.size()));
     expect_any_packet();
     EXPECT_CALL(tSpace_,
-        write(0, _, test_payload.size(), _, NotifyCapture(&done)))
+        write(0, _, test_payload.size(), _, _))
         .WillOnce(DoAll(WithArgs<0, 1, 2>(
                 Invoke(this, &MemoryConfigClientTest::AcceptPayload)),
             Return(test_payload.size())));
