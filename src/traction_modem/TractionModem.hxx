@@ -49,7 +49,7 @@
 #include "openlcb/TrainInterface.hxx"
 #include "utils/format_utils.hxx"
 
-#include "traction_modem/Train.hxx"
+#include "traction_modem/ModemTrain.hxx"
 
 namespace traction_modem
 {
