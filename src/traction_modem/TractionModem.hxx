@@ -51,7 +51,7 @@
 namespace traction_modem
 {
 
-struct TxMessage
+struct Message
 {
     bool valid() const
     {
@@ -78,8 +78,8 @@ struct TxMessage
     string payload;
 };
 
-using PacketFlowInterface = FlowInterface<Buffer<TxMessage>>;
-using TxFlowBase = StateFlow<Buffer<TxMessage>, QList<2>>;
+using PacketFlowInterface = FlowInterface<Buffer<Message>>;
+using TxFlowBase = StateFlow<Buffer<Message>, QList<2>>;
 
 /// Object responsible for writing messages to the modem interface.
 class TxFlow : public TxFlowBase
@@ -101,7 +101,7 @@ public:
         fd_ = fd;
     }
 
-    /// Entry point to the state flow for incoming TxMessages to transmit.
+    /// Entry point to the state flow for incoming Messages to transmit.
     /// @return next state write_complete
     Action entry() override
     {
@@ -142,7 +142,7 @@ private:
 class RxFlow : public StateFlowBase
 {
 public:
-    using BufferType = Buffer<TxMessage>;
+    using BufferType = Buffer<Message>;
     using Receiver = PacketFlowInterface;
 
     /// Constructor.
@@ -362,7 +362,7 @@ private:
         // Message parsing out of sync.
 
         /// @todo Should we be sending out a framing error? I think so. How to
-        ///       dispatch that? Maybe an error field in the TxMessage? If we
+        ///       dispatch that? Maybe an error field in the Message? If we
         ///       send this to the dispatcher, be sure to add the appropriate
         ///       EXPECT_CALL(s) to the unit tests.
 
@@ -417,6 +417,7 @@ private:
     /// Interface fd.
     int fd_ = -1;
 };
+
 
 class CvSpace : public openlcb::MemorySpace, public PacketFlowInterface
 {
@@ -488,7 +489,7 @@ public:
 
     /// Handles messages coming back from the decoder via the traction modem
     /// protocol.
-    void send(Buffer<TxMessage>* buf, unsigned prio) override {
+    void send(Buffer<Message>* buf, unsigned prio) override {
         auto rb = get_buffer_deleter(buf);
         auto& txm = *buf->data();
         if (!txm.valid()) {
@@ -515,7 +516,7 @@ public:
         }
     }
 
-    void handle_read_response(TxMessage &txm)
+    void handle_read_response(Message &txm)
     {
         doneRead_ = true;
         pendingRead_ = false;
@@ -532,7 +533,7 @@ public:
         done_->notify();
     }
 
-    void handle_write_response(TxMessage& txm) {
+    void handle_write_response(Message& txm) {
         pendingWrite_ = false;
         doneWrite_ = true;
         errorCode_ = txm.response_status();

@@ -16,7 +16,7 @@ public:
     MOCK_METHOD2(send, void(std::string &, unsigned));
 
     virtual void send(
-        Buffer<TxMessage> *message, unsigned priority = UINT_MAX) override
+        Buffer<Message> *message, unsigned priority = UINT_MAX) override
     {
         send(message->data()->payload, priority);
         message->unref();
