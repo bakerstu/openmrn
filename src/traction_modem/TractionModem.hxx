@@ -43,6 +43,7 @@
 #include "hardware.hxx"
 #endif
 
+#include "executor/Dispatcher.hxx"
 #include "executor/StateFlow.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "openlcb/TrainInterface.hxx"
@@ -51,35 +52,54 @@
 namespace traction_modem
 {
 
+/// A TractionModem message.
 struct Message
 {
+    /// Type of the dispatcher criteria (command).
+    typedef uint16_t id_type;
+
+    /// Test for the message being "valid".
+    /// @return true if valid, else false
     bool valid() const
     {
         return Defs::is_valid(payload);
     }
 
-    uint16_t command() const
+    /// Extract the command from the message.
+    /// @return command
+    id_type command() const
     {
         return Defs::get_uint16(payload, Defs::OFS_CMD);
     }
 
+    /// Extract the id from the message (for the dispatcher). Same as command.
+    /// @return id
+    id_type id()
+    {
+        return command();
+    };
+
+    /// Extract the length from the message.
+    /// @return length in bytes, excluding header and CRC.
     uint16_t length() const
     {
         return Defs::get_uint16(payload, Defs::OFS_LEN);
     }
 
-    /// Return the first two bytes of a response payload as an uint16_t. This is
-    /// often a status / error code.
+    /// Extract the first two bytes of a response payload as an uint16_t. This
+    /// is often a status / error code.
+    /// @return status and/or error code
     uint16_t response_status()
     {
         return Defs::get_uint16(payload, Defs::OFS_DATA);
     }
 
+    /// The raw data of the message.
     string payload;
 };
 
 using PacketFlowInterface = FlowInterface<Buffer<Message>>;
-using TxFlowBase = StateFlow<Buffer<Message>, QList<2>>;
+using MessageFlowBase = StateFlow<Buffer<Message>, QList<2>>;
 
 /// Object responsible for writing messages to the modem interface.
 class TxFlow : public TxFlowBase
@@ -578,6 +598,7 @@ public:
     ModemTrain(Service *service)
         : txFlow_(service)
         , rxFlow_(service)
+        , dispatcher_(service)
         , isActive_(false)
     {
         rxFlow_.set_listener(&cvSpace_);
@@ -744,8 +765,13 @@ private:
     /// True if the last set was estop, false if it was a speed.
     bool inEStop_ = false;
 
+    /// Handles sending message frames.
     TxFlow txFlow_;
+    /// Handles receiving message frames.
     RxFlow rxFlow_;
+    /// Handles incoming messages fro the RX Flow.
+    DispatchFlow<Buffer<Message>, 2> dispatcher_;
+
     CvSpace cvSpace_{&txFlow_};
     bool isActive_;
 };
