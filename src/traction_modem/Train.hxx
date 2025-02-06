@@ -207,6 +207,15 @@ public:
         return dcc::TrainAddressType::DCC_LONG_ADDRESS;
     }
 
+    /// Register a message handler.
+    /// @param id ID of the message
+    /// @param mask bit mask of the message ID.
+    void register_handler(PacketFlowInterface *if, Message::id_type id,
+        Message::id_type mask = Message::EXACT_MASK)
+    {
+        dispatcher_.register_handler(if, id, mask);
+    }
+
 private:
     inline void send_packet(Defs::Payload p)
     {
