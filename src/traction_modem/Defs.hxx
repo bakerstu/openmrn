@@ -24,15 +24,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file Uninitialized.hxx
+ * @file Defs.hxx
  * Helper class for creating delayed initialized objects in static memory.
  *
  * @author Balazs Racz
  * @date 24 June 2017
  */
 
-#ifndef _TRACTION_MODEM_TRACTIONMODEMDEFS_HXX_
-#define _TRACTION_MODEM_TRACTIONMODEMDEFS_HXX_
+#ifndef _TRACTION_MODEM_DEFS_HXX_
+#define _TRACTION_MODEM_DEFS_HXX_
 
 #include <string>
 
@@ -396,4 +396,4 @@ struct Defs
 
 } // namespace traction_modem
 
-#endif // _TRACTION_MODEM_TRACTIONMODEMDEFS_HXX_
+#endif // _TRACTION_MODEM_DEFS_HXX_
