@@ -79,14 +79,7 @@ public:
         if (state_ == DONE)
         {
             state_ = IDLE;
-            if (size_ == 0)
-            {
-                *error = openlcb::Defs::ERROR_OPENLCB_TIMEOUT;
-            }
-            else if (size_ < len)
-            {
-                *error = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
-            }
+            *error = error_;
             return size_;
         }
         HASSERT(state_ == IDLE);
@@ -129,14 +122,7 @@ public:
         if (state_ == DONE)
         {
             state_ = IDLE;
-            if (size_ == 0)
-            {
-                *error = openlcb::Defs::ERROR_OPENLCB_TIMEOUT;
-            }
-            else if (size_ < len)
-            {
-                *error = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
-            }
+            *error = error_;
             return size_;
         }
         HASSERT(state_ == IDLE);
@@ -191,10 +177,21 @@ private:
             {
                 Defs::WriteResponse *wr =
                     (Defs::WriteResponse*)message()->data()->payload.data();
-                if (be16toh(wr->error_) !=
-                    openlcb::Defs::ErrorCodes::ERROR_CODE_OK)
+                error_ = be16toh(wr->error_);
+                switch (error_)
                 {
-                    size_ = be16toh(wr->length_);
+                    default:
+                        // Fall through.
+                    case openlcb::MemoryConfigDefs::ERROR_WRITE_TO_RO:
+                        // Fall through.
+                    case openlcb::MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN:
+                        size_ = 0;
+                        break;
+                    case openlcb::Defs::ErrorCodes::ERROR_CODE_OK:
+                        // Fall through.
+                    case openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS:
+                        size_ = be16toh(wr->length_);
+                        break;
                 }
                 rxFlow_->unregister_handler(this, Defs::RESP_MEM_W);
                 break;
@@ -203,21 +200,25 @@ private:
             {
                 Defs::ReadResponse *rr =
                     (Defs::ReadResponse*)message()->data()->payload.data();
-                size_t read_size =
-                    be16toh(rr->header_.length_) - sizeof(rr->error_);
-                switch (be16toh(rr->error_))
+                error_ = be16toh(rr->error_);
+                switch (error_)
                 {
                     default:
-                    case openlcb::Defs::ErrorCodes::ERROR_TEMPORARY + 1:
-                        read_size = 0;
-                        break;
-                    case openlcb::Defs::ErrorCodes::ERROR_TEMPORARY:
+                        // Fall through.
+                    case openlcb::MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN:
+                        size_ = 0;
                         break;
                     case openlcb::Defs::ErrorCodes::ERROR_CODE_OK:
+                        // Fall through.
+                    case openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS:
+                    {
+                        size_t read_size =
+                            be16toh(rr->header_.length_) - sizeof(rr->error_);
+                        size_ = std::min(size_, read_size);
+                        memcpy(rdData_, rr->data_, size_);
                         break;
+                    }
                 }
-                size_ = std::min(size_, read_size);
-                memcpy(rdData_, rr->data_, size_);
                 rxFlow_->unregister_handler(this, Defs::RESP_MEM_R);
                 break;
             }
@@ -246,14 +247,15 @@ private:
         {
             if (!is_triggered())
             {
-                // Expired early, unregister the handlers.
+                // Timed out, unregister the handlers.
                 parent_->rxFlow_->unregister_handler(parent_, Defs::RESP_MEM_W);
                 parent_->rxFlow_->unregister_handler(parent_, Defs::RESP_MEM_R);
                 parent_->size_ = 0;
+                parent_->error_ = openlcb::Defs::ERROR_OPENLCB_TIMEOUT;
             }
             parent_->state_ = DONE;
             parent_->done_->notify();
-           return NONE;
+            return NONE;
         };
 
         /// parent object
@@ -267,6 +269,7 @@ private:
     uint8_t *rdData_; ///< read data pointer
     size_t size_; ///< requested size
     State state_; ///< current request state
+    errorcode_t error_; ///< unsupported space
 
     /// Allow access from child timer object.
     friend class timeout;
