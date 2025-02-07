@@ -245,7 +245,7 @@ private:
     /// Handles receiving message frames.
     RxFlowInterface *rxFlow_;
     /// Space for CV read/write.
-    NewCvSpace cvSpace_;
+    CvSpace cvSpace_;
     /// Is the wireless active.
     bool isActive_;
 };

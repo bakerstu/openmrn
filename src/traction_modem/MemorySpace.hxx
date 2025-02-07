@@ -268,7 +268,7 @@ private:
 };
 
 /// Memory space for DCC CVs.
-class NewCvSpace : public MemorySpace
+class CvSpace : public MemorySpace
 {
 public:
     /// Memory space number for CVs
@@ -278,7 +278,7 @@ public:
     /// @param service Service instance to bind this flow to
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
-    NewCvSpace(
+    CvSpace(
         Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
         : MemorySpace(service, tx_flow, rx_flow)
     {
