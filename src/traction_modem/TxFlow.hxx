@@ -42,13 +42,13 @@ namespace traction_modem
 {
 
 /// Object responsible for writing messages to the modem interface.
-class TxFlow : public MessageFlowBase
+class TxFlow : public TxFlowBase
 {
 public:
     /// Constructor.
     /// @param service service that the flow is bound to
     TxFlow(Service *service)
-        : MessageFlowBase(service)
+        : TxFlowBase(service)
     {
         LOG(INFO, "[ModemTx] constructor");
     }

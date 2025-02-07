@@ -10,11 +10,11 @@ using namespace std::string_literals;
 //
 // Mock objects.
 //
-class MockRxFlowInterface : public StateFlow<Buffer<Message>, QList<1>>
+class MockRxFlowInterface : public RxFlowBase
 {
 public:
     MockRxFlowInterface(Service *service)
-        : StateFlow<Buffer<Message>, QList<1>>(service)
+        : RxFlowBase(service)
     {
     }
 

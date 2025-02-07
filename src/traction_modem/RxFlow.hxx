@@ -93,6 +93,16 @@ public:
         dispatcher_.register_handler(interface, id, mask);
     }
 
+    /// Unregister a message handler.
+    /// @param interface interface to dispatch the messages to
+    /// @param id ID of the message
+    /// @param mask bit mask of the message ID.
+    void unregister_handler(PacketFlowInterface *interface, Message::id_type id,
+        Message::id_type mask = Message::EXACT_MASK)
+    {
+        dispatcher_.unregister_handler(interface, id, mask);
+    }
+
 private:
     /// Resets the message reception state machine.
     /// @return next state wait_for_base_data()

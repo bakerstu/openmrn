@@ -142,7 +142,7 @@ struct Defs
     /// The definition of a message.
     struct Message
     {
-        Header header_; ///< packet command
+        Header header_; ///< packet header
         uint8_t data[0]; ///< start of the message data
     };
 
@@ -175,6 +175,22 @@ struct Defs
         {
             return !(all_ == c.all_ && even_ == c.even_ && odd_ == c.odd_);
         }
+    };
+
+    /// Structure of a read reply packet
+    struct ReadResponse
+    {
+        Header header_; ///< packet header
+        uint16_t error_; ///< error code
+        uint8_t data_[0];
+    };
+
+    /// Structure of a read reply packet
+    struct WriteResponse
+    {
+        Header header_; ///< packet header
+        uint16_t error_; ///< error code
+        uint16_t length_; ///< length in number of bytes actually written
     };
 
     /// Computes payload for the wireless present message.

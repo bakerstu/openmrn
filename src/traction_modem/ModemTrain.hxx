@@ -214,6 +214,16 @@ public:
         rxFlow_.register_handler(interface, id, mask);
     }
 
+    /// Register a message handler.
+    /// @param interface interface to dispatch the messages to
+    /// @param id ID of the message
+    /// @param mask bit mask of the message ID.
+    void unregister_handler(PacketFlowInterface *interface, Message::id_type id,
+        Message::id_type mask = Message::EXACT_MASK)
+    {
+        rxFlow_.unregister_handler(interface, id, mask);
+    }
+
     inline void send_packet(Defs::Payload p)
     {
         auto *b = txFlow_.alloc();

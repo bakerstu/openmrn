@@ -88,6 +88,7 @@ struct MemorySpaceClientRequest : public CallableFlowRequestBase
         uint8_t *rdData_; ///< read data pointer
     };
     size_t size_; ///< requested size on request, actual size on return
+    uint8_t space_; ///< memory space id
 };
 
 class MemorySpaceClientFlow : public CallableFlow<MemorySpaceClientRequest>
@@ -99,11 +100,18 @@ public:
     /// @param train train instance
     MemorySpaceClientFlow(Service *service, ModemTrain *train)
         : CallableFlow(service)
+        , timer_(this)
         , train_(train)
     {
-        //train->register_handler(this, Defs::RESP_MEM_R);
         //train->register_handler(this, Defs::RESP_MEM_W);
     }
+
+    /// Error codes.
+    enum Error
+    {
+        ERROR_OK = 0, ///< no error
+        ERROR_TIMEOUT ///< timeout occurred
+    };
 
 private:
 
@@ -112,15 +120,103 @@ private:
         switch (request()->cmd_)
         {
             case MemorySpaceClientRequest::Type::WRITE:
-                break;
+                train_->register_handler(&rxFlow_, Defs::RESP_MEM_W);
+                train_->send_packet(Defs::get_memw_payload(request()->space_,
+                    request()->address_, request()->wrData_, request()->size_));
+                return sleep_and_call(
+                    &timer_, SEC_TO_NSEC(1), STATE(write_done));
             case MemorySpaceClientRequest::Type::READ:
-                break;
+                train_->register_handler(&rxFlow_, Defs::RESP_MEM_R);
+                train_->send_packet(Defs::get_memr_payload(request()->space_,
+                    request()->address_, request()->size_));
+                return sleep_and_call(
+                    &timer_, SEC_TO_NSEC(1), STATE(read_done));
         }
         return return_with_error(openlcb::Defs::ERROR_UNIMPLEMENTED_CMD);
     }
 
+    Action write_done()
+    {
+        train_->unregister_handler(&rxFlow_, Defs::RESP_MEM_W);
+        int error = timer_.is_triggered() ? ERROR_OK : ERROR_TIMEOUT;
+        return return_with_error(error);
+    }
+
+    Action read_done()
+    {
+        train_->unregister_handler(&rxFlow_, Defs::RESP_MEM_R);
+        int error = timer_.is_triggered() ? ERROR_OK : ERROR_TIMEOUT;
+        return return_with_error(error);
+    }
+
+    /// Flow for receiving the reply message.
+    class ReplyFlow : public RxFlowBase
+    {
+    public:
+        /// Constructor.
+        /// @param service Service instance to bind this flow to.
+        ReplyFlow(MemorySpaceClientFlow *parent)
+            : RxFlowBase(parent_->service())
+            , parent_(parent)
+        {
+        }
+
+    private:
+        Action entry()
+        {
+            Defs::Message *m =
+                (Defs::Message*)message()->data()->payload.data();
+            switch (be16toh(m->header_.command_))
+            {
+                case Defs::RESP_MEM_W:
+                {
+                    Defs::WriteResponse *wr =
+                        (Defs::WriteResponse*)message()->data()->payload.data();
+                    if (be16toh(wr->error_) !=
+                        openlcb::Defs::ErrorCodes::ERROR_CODE_OK)
+                    {
+                        parent_->request()->size_ = be16toh(wr->length_);
+                    }
+                    break;
+                }
+                case Defs::RESP_MEM_R:
+                {
+                    Defs::ReadResponse *rr =
+                        (Defs::ReadResponse*)message()->data()->payload.data();
+                    switch (be16toh(rr->error_))
+                    {
+                        default:
+                        case openlcb::Defs::ErrorCodes::ERROR_TEMPORARY:
+                            parent_->request()->size_ =
+                                be16toh(rr->header_.length_) -
+                                sizeof(rr->error_);
+                            break;
+                        case openlcb::Defs::ErrorCodes::ERROR_TEMPORARY + 1:
+                            parent_->request()->size_ = 0;
+                            break;                        
+                        case openlcb::Defs::ErrorCodes::ERROR_CODE_OK:
+                            break;
+                    }
+                    memcpy(parent_->request()->rdData_,
+                        rr->data_, parent_->request()->size_);
+                    break;
+                }
+            }
+            parent_->timer_.ensure_triggered();
+            return release_and_exit();
+        }
+
+        MemorySpaceClientFlow *parent_; ///< parent to this object
+    } rxFlow_{this};
+
+    /// Timer helper to supported timed waits.
+    StateFlowTimer timer_;
+
     /// Parent train object that contains the dispatcher.
     ModemTrain *train_;
+
+    /// Allow access from child reply flow.
+    friend class ReplyFlow;
 };
 
 /// Abstract interface for traction modem memory spaces.
@@ -257,6 +353,10 @@ private:
     {
         auto b = get_buffer_deleter(
             full_allocation_result(MemorySpaceClientFlow::instance()));
+        if (b->data()->resultCode == MemorySpaceClientFlow::ERROR_TIMEOUT)
+        {
+            size_ = 0;
+        }
         size_ = b->data()->size_; // Get the actual consumed size.
         state_ = DONE;
         done_->notify();
