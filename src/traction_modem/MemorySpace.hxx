@@ -52,7 +52,8 @@ protected:
     /// @param service Service instance to bind this flow to.
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
-    MemorySpace(Service *service, TxFlow *tx_flow, RxFlow *rx_flow)
+    MemorySpace(
+        Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
         : RxFlowBase(service)
         , timer_(this, service)
         , txFlow_(tx_flow)
@@ -254,8 +255,8 @@ private:
         MemorySpace *parent_;
     } timer_;
 
-    TxFlow *txFlow_; ///< reference to the transmit flow
-    RxFlow *rxFlow_; ///< reference to the receive flow
+    TxFlowInterface *txFlow_; ///< reference to the transmit flow
+    RxFlowInterface *rxFlow_; ///< reference to the receive flow
 
     Notifiable *done_; ///< Notifiable for the memory operation to continue.
     uint8_t *rdData_; ///< read data pointer
@@ -277,7 +278,8 @@ public:
     /// @param service Service instance to bind this flow to
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
-    NewCvSpace(Service *service, TxFlow *tx_flow, RxFlow *rx_flow)
+    NewCvSpace(
+        Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
         : MemorySpace(service, tx_flow, rx_flow)
     {
     }
@@ -296,6 +298,13 @@ private:
     {
         return 1023;
     };
+
+    /// Get the space ID that will be used over the modem interface.
+    /// @return space id
+    uint8_t get_space_id() override
+    {
+        return SPACE_ID;
+    }
 };
 
 /// Memory space for firmware updates.
@@ -310,7 +319,8 @@ public:
     /// @param service Service instance to bind this flow to
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
-    FirmwareSpace(Service *service, TxFlow *tx_flow, RxFlow *rx_flow)
+    FirmwareSpace(
+        Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
         : MemorySpace(service, tx_flow, rx_flow)
     {
     }

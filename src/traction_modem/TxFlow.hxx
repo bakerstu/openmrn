@@ -40,8 +40,24 @@
 namespace traction_modem
 {
 
+/// Public interface to aid in testing.
+class TxFlowInterface
+{
+public:
+    /// Bind an interface to the flow to start transmitting to.
+    /// @param fd interface to transmit the messages on
+    virtual void start(int fd) = 0;
+
+    /// Send a packet.
+    /// @param p payload to send
+    virtual void send_packet(Defs::Payload p) = 0;
+};
+
+/// Using simplification.
+using TxFlowBase = StateFlow<Buffer<Message>, QList<2>>;
+
 /// Object responsible for writing messages to the modem interface.
-class TxFlow : public TxFlowBase
+class TxFlow : public TxFlowInterface, public TxFlowBase
 {
 public:
     /// Constructor.
@@ -54,7 +70,7 @@ public:
 
     /// Bind an interface to the flow to start transmitting to.
     /// @param fd interface to transmit the messages on
-    void start(int fd)
+    void start(int fd) override
     {
         LOG(INFO, "[ModemTx] fd");
         fd_ = fd;
@@ -62,7 +78,7 @@ public:
 
     /// Send a packet.
     /// @param p payload to send
-    void send_packet(Defs::Payload p)
+    void send_packet(Defs::Payload p) override
     {
         auto *b = alloc();
         b->data()->payload = std::move(p);

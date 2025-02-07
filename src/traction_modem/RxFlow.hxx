@@ -42,9 +42,32 @@
 namespace traction_modem
 {
 
+/// Public interface to aid in testing.
+class RxFlowInterface
+{
+public:
+    /// Start the flow using the given interface.
+    /// @param fd interface to receive messages on
+    virtual void start(int fd) = 0;
+
+    /// Register a message handler.
+    /// @param interface interface to dispatch the messages to
+    /// @param id ID of the message
+    /// @param mask bit mask of the message ID.
+    virtual void register_handler(PacketFlowInterface *interface,
+        Message::id_type id, Message::id_type mask = Message::EXACT_MASK) = 0;
+
+    /// Unregister a message handler.
+    /// @param interface interface to dispatch the messages to
+    /// @param id ID of the message
+    /// @param mask bit mask of the message ID.
+    virtual void unregister_handler(PacketFlowInterface *interface,
+        Message::id_type id, Message::id_type mask = Message::EXACT_MASK) = 0;
+};
+
 /// Object responsible for reading in a stream of bytes over the modem interface
 /// and forming the stream of bytes into complete messages.
-class RxFlow : public StateFlowBase
+class RxFlow : public RxFlowInterface, public StateFlowBase
 {
 public:
     using BufferType = Buffer<Message>;
@@ -59,7 +82,7 @@ public:
 
     /// Start the flow using the given interface.
     /// @param fd interface to receive messages on
-    void start(int fd)
+    void start(int fd) override
     {
         fd_ = fd;
         start_flow(STATE(reset));
@@ -88,7 +111,7 @@ public:
     /// @param id ID of the message
     /// @param mask bit mask of the message ID.
     void register_handler(PacketFlowInterface *interface, Message::id_type id,
-        Message::id_type mask = Message::EXACT_MASK)
+        Message::id_type mask = Message::EXACT_MASK) override
     {
         dispatcher_.register_handler(interface, id, mask);
     }
@@ -98,7 +121,7 @@ public:
     /// @param id ID of the message
     /// @param mask bit mask of the message ID.
     void unregister_handler(PacketFlowInterface *interface, Message::id_type id,
-        Message::id_type mask = Message::EXACT_MASK)
+        Message::id_type mask = Message::EXACT_MASK) override
     {
         dispatcher_.unregister_handler(interface, id, mask);
     }

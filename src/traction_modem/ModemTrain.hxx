@@ -53,18 +53,23 @@ namespace traction_modem
 class ModemTrain : public openlcb::TrainImpl
 {
 public:
-    ModemTrain(Service *service)
-        : txFlow_(service)
-        , rxFlow_(service)
-        , cvSpace_(service, txFlow_, rxFlow_)
+    /// Constructor.
+    /// @param service Service instance to bind this flow to.
+    /// @param tx_flow reference to the transmit flow
+    /// @param rx_flow reference to the receive flow
+    ModemTrain(
+        Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
+        : txFlow_(tx_flow)
+        , rxFlow_(rx_flow)
+        , cvSpace_(service, tx_flow, rx_flow)
         , isActive_(false)
     {
     }
 
     void start(int uart_fd)
     {
-        txFlow_.start(uart_fd);
-        rxFlow_.start(uart_fd);
+        txFlow_->start(uart_fd);
+        rxFlow_->start(uart_fd);
     }
 
     /// Set the active state of the wireless control.
@@ -74,7 +79,7 @@ public:
         if (isActive_ != is_active)
         {
             isActive_ = is_active;
-            txFlow_.send_packet(Defs::get_wireless_present_payload(isActive_));
+            txFlow_->send_packet(Defs::get_wireless_present_payload(isActive_));
         }
     }
 
@@ -90,7 +95,7 @@ public:
         set_is_active(true);
         inEStop_ = false;
         lastSpeed_ = speed;
-        txFlow_.send_packet(Defs::get_speed_set_payload(speed));
+        txFlow_->send_packet(Defs::get_speed_set_payload(speed));
     }
 
     /** Returns the last set speed of the locomotive. */
@@ -104,7 +109,7 @@ public:
     {
         inEStop_ = true;
         lastSpeed_.set_mph(0); // keeps direction
-        txFlow_.send_packet(Defs::get_estop_payload());
+        txFlow_->send_packet(Defs::get_estop_payload());
     }
 
     bool get_emergencystop() override
@@ -121,7 +126,7 @@ public:
     void set_fn(uint32_t address, uint16_t value) override
     {
         set_is_active(true);
-        txflow.send_packet(Defs::get_fn_set_payload(address, value));
+        txFlow_->send_packet(Defs::get_fn_set_payload(address, value));
         /// @todo The following switch statement is for hardware testing only.
         ///       In production software, the main MCU should have the on/off
         ///       logical by "output" number, and not by function number. The
@@ -213,7 +218,7 @@ public:
     void register_handler(PacketFlowInterface *interface, Message::id_type id,
         Message::id_type mask = Message::EXACT_MASK)
     {
-        rxFlow_.register_handler(interface, id, mask);
+        rxFlow_->register_handler(interface, id, mask);
     }
 
     /// Register a message handler.
@@ -223,7 +228,7 @@ public:
     void unregister_handler(PacketFlowInterface *interface, Message::id_type id,
         Message::id_type mask = Message::EXACT_MASK)
     {
-        rxFlow_.unregister_handler(interface, id, mask);
+        rxFlow_->unregister_handler(interface, id, mask);
     }
 
 private:
@@ -236,9 +241,9 @@ private:
     bool inEStop_ = false;
 
     /// Handles sending message frames.
-    TxFlow txFlow_;
+    TxFlowInterface *txFlow_;
     /// Handles receiving message frames.
-    RxFlow rxFlow_;
+    RxFlowInterface *rxFlow_;
     /// Space for CV read/write.
     NewCvSpace cvSpace_;
     /// Is the wireless active.

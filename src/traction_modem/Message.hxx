@@ -90,7 +90,6 @@ struct Message
 };
 
 using PacketFlowInterface = FlowInterface<Buffer<Message>>;
-using TxFlowBase = StateFlow<Buffer<Message>, QList<2>>;
 using RxFlowBase = StateFlow<Buffer<Message>, QList<2>>;
 
 } // namespace traction_modem
