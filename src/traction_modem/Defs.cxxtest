@@ -45,7 +45,7 @@ static void append_expected_crc(Defs::Payload *payload)
 //
 // GetWirelessPresentPayload
 //
-TEST(TractionModemDefsTest, GetWirelessPresentPayload)
+TEST(DefsTest, GetWirelessPresentPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -64,7 +64,7 @@ TEST(TractionModemDefsTest, GetWirelessPresentPayload)
 //
 // GetFnSetPayload
 //
-TEST(TractionModemDefsTest, GetFnSetPayload)
+TEST(DefsTest, GetFnSetPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -85,7 +85,7 @@ TEST(TractionModemDefsTest, GetFnSetPayload)
 //
 // GetSpeedSetPayload
 //
-TEST(TractionModemDefsTest, GetSpeedSetPayload)
+TEST(DefsTest, GetSpeedSetPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -101,7 +101,7 @@ TEST(TractionModemDefsTest, GetSpeedSetPayload)
 //
 // GetEstopPayload
 //
-TEST(TractionModemDefsTest, GetEstopPayload)
+TEST(DefsTest, GetEstopPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -115,7 +115,7 @@ TEST(TractionModemDefsTest, GetEstopPayload)
 //
 // GetMemrPayload
 //
-TEST(TractionModemDefsTest, GetMemrPayload)
+TEST(DefsTest, GetMemrPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -130,7 +130,7 @@ TEST(TractionModemDefsTest, GetMemrPayload)
 //
 // GetMemwPayload
 //
-TEST(TractionModemDefsTest, GetMemwPayload)
+TEST(DefsTest, GetMemwPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -146,7 +146,7 @@ TEST(TractionModemDefsTest, GetMemwPayload)
 //
 // AppendCRC
 //
-TEST(TractionModemDefsTest, AppendCRC)
+TEST(DefsTest, AppendCRC)
 {
     Defs::Payload payload = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x00\x01"s "\x01"s;
     Defs::Payload expected = payload;
@@ -159,7 +159,7 @@ TEST(TractionModemDefsTest, AppendCRC)
 //
 // GetUint32
 //
-TEST(TractionModemDefsTest, GetUint32)
+TEST(DefsTest, GetUint32)
 {
     Defs::Payload payload = "\x41\xd2\xc3\x7a"s "\xAA\xBB\xCC\xDD"s;
 
@@ -174,7 +174,7 @@ TEST(TractionModemDefsTest, GetUint32)
 //
 // GetUint16
 //
-TEST(TractionModemDefsTest, GetUint16)
+TEST(DefsTest, GetUint16)
 {
     Defs::Payload payload = "\x41\xd2\xc3\x7a"s;
 
@@ -187,7 +187,7 @@ TEST(TractionModemDefsTest, GetUint16)
 //
 // IsValid
 //
-TEST(TractionModemDefsTest, IsValid)
+TEST(DefsTest, IsValid)
 {
     Defs::Payload payload = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x00\x01"s "\x01"s;
 
