@@ -47,34 +47,7 @@ namespace traction_modem
 /// Abstract interface for traction modem memory spaces.
 class MemorySpace : public openlcb::MemorySpace, public RxFlowBase
 {
-protected:
-    /// Constructor.
-    /// @param service Service instance to bind this flow to.
-    /// @param tx_flow reference to the transmit flow
-    /// @param rx_flow reference to the receive flow
-    MemorySpace(
-        Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
-        : RxFlowBase(service)
-        , timer_(this, service)
-        , txFlow_(tx_flow)
-        , rxFlow_(rx_flow)
-        , state_(IDLE)
-    {
-    }
-
-private:
-    /// Internal state.
-    enum State
-    {
-        IDLE, ///< waiting for a new request
-        PENDING, ///< request in progress
-        DONE ///< previous request is finished
-    };
-
-    /// Get the space ID that will be used over the modem interface.
-    /// @return space id
-    virtual uint8_t get_space_id() = 0;
-
+public:
     /// Write data to the address space. Called by the memory config service for
     /// incoming write requests.
     /// @param destination memory space offset address to write to
@@ -106,18 +79,22 @@ private:
         if (state_ == DONE)
         {
             state_ = IDLE;
-            if (size_ < len)
+            if (size_ == 0)
+            {
+                *error = openlcb::Defs::ERROR_OPENLCB_TIMEOUT;
+            }
+            else if (size_ < len)
             {
                 *error = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             }
             return size_;
         }
         HASSERT(state_ == IDLE);
-        HASSERT(is_terminated());
         rxFlow_->register_handler(this, Defs::RESP_MEM_W);
         txFlow_->send_packet(Defs::get_memw_payload(
             get_space_id(), destination, data, len));
-
+        timer_.start(openlcb::DatagramDefs::timeout_from_flags_nsec(
+            get_write_timeout()));
         *error = ERROR_AGAIN;
         done_ = again;
         state_ = PENDING;
@@ -152,17 +129,22 @@ private:
         if (state_ == DONE)
         {
             state_ = IDLE;
-            if (size_ < len)
+            if (size_ == 0)
+            {
+                *error = openlcb::Defs::ERROR_OPENLCB_TIMEOUT;
+            }
+            else if (size_ < len)
             {
                 *error = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             }
             return size_;
         }
         HASSERT(state_ == IDLE);
-        HASSERT(is_terminated());
         rxFlow_->register_handler(this, Defs::RESP_MEM_R);
         txFlow_->send_packet(Defs::get_memr_payload(
             get_space_id(), source, len));
+        timer_.start(openlcb::DatagramDefs::timeout_from_flags_nsec(
+            get_read_timeout()));
         *error = ERROR_AGAIN;
         done_ = again;
         rdData_ = dst;
@@ -170,6 +152,34 @@ private:
         state_ = PENDING;
         return 0;
     }
+
+protected:
+    /// Constructor.
+    /// @param service Service instance to bind this flow to.
+    /// @param tx_flow reference to the transmit flow
+    /// @param rx_flow reference to the receive flow
+    MemorySpace(
+        Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
+        : RxFlowBase(service)
+        , timer_(this, service)
+        , txFlow_(tx_flow)
+        , rxFlow_(rx_flow)
+        , state_(IDLE)
+    {
+    }
+
+private:
+    /// Internal state.
+    enum State
+    {
+        IDLE, ///< waiting for a new request
+        PENDING, ///< request in progress
+        DONE ///< previous request is finished
+    };
+
+    /// Get the space ID that will be used over the modem interface.
+    /// @return space id
+    virtual uint8_t get_space_id() = 0;
 
     Action entry()
     {
@@ -186,6 +196,7 @@ private:
                 {
                     size_ = be16toh(wr->length_);
                 }
+                rxFlow_->unregister_handler(this, Defs::RESP_MEM_W);
                 break;
             }
             case Defs::RESP_MEM_R:
@@ -207,6 +218,7 @@ private:
                 }
                 size_ = std::min(size_, read_size);
                 memcpy(rdData_, rr->data_, size_);
+                rxFlow_->unregister_handler(this, Defs::RESP_MEM_R);
                 break;
             }
         }
@@ -279,10 +291,10 @@ public:
 
 private:
     /// Test if the memory space is read only.
-    /// @return true
+    /// @return false
     bool read_only() override
     {
-        return true;
+        return false;
     }
 
     /// Get the largest supported address.
@@ -320,10 +332,10 @@ public:
 
 private:
     /// Test if the memory space is read only.
-    /// @return true
+    /// @return false
     bool read_only() override
     {
-        return true;
+        return false;
     }
 
     /// Get the largest supported address.
