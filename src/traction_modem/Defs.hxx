@@ -35,7 +35,6 @@
 #define _TRACTION_MODEM_DEFS_HXX_
 
 #include <string>
-#include <cstring>
 
 #include "openlcb/Velocity.hxx"
 #include "utils/Crc.hxx"
