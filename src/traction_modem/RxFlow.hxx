@@ -35,6 +35,7 @@
 #ifndef _TRACTION_MODEM_RXFLOW_HXX_
 #define _TRACTION_MODEM_RXFLOW_HXX_
 
+#include "executor/Dispatcher.hxx"
 #include "traction_modem/Message.hxx"
 #include "utils/format_utils.hxx"
 
@@ -53,7 +54,7 @@ public:
     /// @param service service that the flow is bound to
     RxFlow(Service *service)
         : StateFlowBase(service)
-        , receiver_(nullptr)
+        , dispatcher_(service)
     { }
 
     /// Start the flow using the given interface.
@@ -62,13 +63,6 @@ public:
     {
         fd_ = fd;
         start_flow(STATE(reset));
-    }
-
-    /// Register a listener to send incoming messages to.
-    /// @param rcv lister that will receive incoming messages
-    void set_listener(Receiver *rcv)
-    {
-        receiver_ = rcv;
     }
 
     /// Get the wire time for a single character.
@@ -82,7 +76,22 @@ public:
 
 #if defined(GTEST)
     bool exit_ = false;
+
+    void register_handler(PacketFlowInterface *interface)
+    {
+        dispatcher_.register_fallback_handler(interface);
+    }
 #endif
+
+    /// Register a message handler.
+    /// @param interface interface to dispatch the messages to
+    /// @param id ID of the message
+    /// @param mask bit mask of the message ID.
+    void register_handler(PacketFlowInterface *interface, Message::id_type id,
+        Message::id_type mask = Message::EXACT_MASK)
+    {
+        dispatcher_.register_handler(interface, id, mask);
+    }
 
 private:
     /// Resets the message reception state machine.
@@ -238,12 +247,9 @@ private:
         // A this point, we have a valid message.
         LOG(INFO, "[ModemRx] %s", string_to_hex(payload_).c_str());
 
-        if (receiver_)
-        {
-            auto *b = receiver_->alloc();
-            b->data()->payload = std::move(payload_);
-            receiver_->send(b);
-        }
+        auto *b = dispatcher_.alloc();
+        b->data()->payload = std::move(payload_);
+        dispatcher_.send(b);
 
         if (payload_tmp.size())
         {
@@ -315,8 +321,8 @@ private:
     /// Number of bytes that have been received into payload_, which may be
     /// less than payload_.size() since we reserve space ahead of time.
     size_t recvCnt_;
-    /// Incoming messages get routed to this object.
-    Receiver *receiver_;
+    /// Handles incoming messages fro the RX Flow.
+    DispatchFlow<Buffer<Message>, 2> dispatcher_;
 
     /// Interface fd.
     int fd_ = -1;

@@ -42,7 +42,6 @@
 #include "hardware.hxx"
 #endif
 
-#include "executor/Dispatcher.hxx"
 #include "openlcb/TrainInterface.hxx"
 #include "traction_modem/TxFlow.hxx"
 #include "traction_modem/RxFlow.hxx"
@@ -56,10 +55,8 @@ public:
     ModemTrain(Service *service)
         : txFlow_(service)
         , rxFlow_(service)
-        , dispatcher_(service)
         , isActive_(false)
     {
-        rxFlow_.set_listener(&cvSpace_);
     }
 
     void start(int uart_fd)
@@ -214,10 +211,9 @@ public:
     void register_handler(PacketFlowInterface *interface, Message::id_type id,
         Message::id_type mask = Message::EXACT_MASK)
     {
-        dispatcher_.register_handler(interface, id, mask);
+        rxFlow_.register_handler(interface, id, mask);
     }
 
-private:
     inline void send_packet(Defs::Payload p)
     {
         auto *b = txFlow_.alloc();
@@ -225,6 +221,7 @@ private:
         txFlow_.send(b);
     }
 
+private:
     bool isRunning_ = false;
     /// UART fd to send traffic to the device.
     int fd_;
@@ -237,9 +234,6 @@ private:
     TxFlow txFlow_;
     /// Handles receiving message frames.
     RxFlow rxFlow_;
-    /// Handles incoming messages fro the RX Flow.
-    DispatchFlow<Buffer<Message>, 2> dispatcher_;
-
     CvSpace cvSpace_{&txFlow_};
     bool isActive_;
 };

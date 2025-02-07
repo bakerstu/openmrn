@@ -10,16 +10,21 @@ using namespace std::string_literals;
 //
 // Mock objects.
 //
-class MockPacketFlowInterface : public PacketFlowInterface
+class MockRxFlowInterface : public StateFlow<Buffer<Message>, QList<1>>
 {
 public:
-    MOCK_METHOD2(send, void(std::string &, unsigned));
-
-    virtual void send(
-        Buffer<Message> *message, unsigned priority = UINT_MAX) override
+    MockRxFlowInterface(Service *service)
+        : StateFlow<Buffer<Message>, QList<1>>(service)
     {
-        send(message->data()->payload, priority);
-        message->unref();
+    }
+
+    MOCK_METHOD2(test_send, void(std::string &, unsigned));
+
+    Action entry() override
+    {
+        test_send(message()->data()->payload, UINT32_MAX);
+        message()->unref();
+        return release_and_exit();
     }
 };
 
@@ -83,6 +88,7 @@ protected:
     /// Constructor.
     RxFlowTest()
     {
+        flow_.register_handler(&mPFI_);
     }
 
     /// Destructor.
@@ -128,7 +134,7 @@ protected:
     RxFlow flow_{&g_service}; ///< flow instance under test
 
     /// Mock packet flow interface.
-    ::testing::StrictMock<MockPacketFlowInterface> mPFI_;
+    ::testing::StrictMock<MockRxFlowInterface> mPFI_{&g_service};
 };
 
 /// Append the expected CRC value.
@@ -200,8 +206,6 @@ TEST_F(RxFlowTest, CreateNoStart)
 //
 TEST_F(RxFlowTest, Read)
 {
-    using ::testing::_;
-
     std::string data;
     init();
     
@@ -209,24 +213,9 @@ TEST_F(RxFlowTest, Read)
            "\x00\x00\x00\x0A\x00\x01"s;
     append_expected_crc(&data);
 
-    // Send a packet without a registered receiver.
-    EXPECT_CALL(mPFI_, send(_, _)).Times(0);
-    send(data);
-    wait_for_main_executor();
-    testing::Mock::VerifyAndClearExpectations(&mPFI_);
 
-    // All the data should have been pulled from the pipe. Since there is no
-    // receiver, it gets thrown on the floor.
-    {
-        uint8_t dummy[4];
-        int result = read(fd_[0], dummy, sizeof(dummy));
-        EXPECT_LT(result, 0);
-        EXPECT_EQ(EAGAIN, errno);
-    }
-
-    // Register a receiver and make sure it gets the next sent message.
-    flow_.set_listener(&mPFI_);
-    EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(1);
+    // Make sure it gets the sent message.
+    EXPECT_CALL(mPFI_, test_send(testing::Eq(data), UINT_MAX)).Times(1);
     send(data);
     wait_for_main_executor();
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
@@ -236,7 +225,7 @@ TEST_F(RxFlowTest, Read)
     wait_for_main_executor();
     send(data.substr(1, 4));
     wait_for_main_executor();
-    EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(1);
+    EXPECT_CALL(mPFI_, test_send(testing::Eq(data), UINT_MAX)).Times(1);
     send(data.substr(5, data.size() - 5));
     wait_for_main_executor();
 }
@@ -246,8 +235,6 @@ TEST_F(RxFlowTest, Read)
 //
 TEST_F(RxFlowTest, ReadBackToBack)
 {
-    using ::testing::_;
-
     std::string data;
     init();
     
@@ -256,24 +243,8 @@ TEST_F(RxFlowTest, ReadBackToBack)
     append_expected_crc(&data);
     std::string data2 = data + data; // Double the packet.
 
-    // Send a packet without a registered receiver.
-    EXPECT_CALL(mPFI_, send(_, _)).Times(0);
-    send(data2);
-    wait_for_main_executor();
-    testing::Mock::VerifyAndClearExpectations(&mPFI_);
-
-    // All the data should have been pulled from the pipe. Since there is no
-    // receiver, it gets thrown on the floor.
-    {
-        uint8_t dummy[4];
-        int result = read(fd_[0], dummy, sizeof(dummy));
-        EXPECT_LT(result, 0);
-        EXPECT_EQ(EAGAIN, errno);
-    }
-
-    // Register a receiver and make sure it gets the next two sent messages.
-    flow_.set_listener(&mPFI_);
-    EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(2);
+    // Make sure it gets the two sent messages.
+    EXPECT_CALL(mPFI_, test_send(testing::Eq(data), UINT_MAX)).Times(2);
     send(data2);
     wait_for_main_executor();
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
@@ -283,7 +254,7 @@ TEST_F(RxFlowTest, ReadBackToBack)
     wait_for_main_executor();
     send(data2.substr(1, 4));
     wait_for_main_executor();
-    EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(2);
+    EXPECT_CALL(mPFI_, test_send(testing::Eq(data), UINT_MAX)).Times(2);
     send(data2.substr(5, data2.size() - 5));
     wait_for_main_executor();
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
@@ -296,10 +267,10 @@ TEST_F(RxFlowTest, ReadBackToBack)
     send(bad_data);
     // Send two packets of good data that should be inclusive in size of the
     // previous bad packet's length field.
-    EXPECT_CALL(mPFI_, send(testing::Eq(data), UINT_MAX)).Times(2);
+    EXPECT_CALL(mPFI_, test_send(testing::Eq(data), UINT_MAX)).Times(2);
     send(data2);
     wait_for_main_executor();
-    // Force a timeout so that resycn runs
+    // Force a timeout so that resync runs
     FakeClock clk;
     clk.advance(2 * flow_.get_character_nsec() * (6 + 0xFF));
     wait_for_main_executor();
@@ -318,7 +289,6 @@ TEST_F(RxFlowTest, Rsync)
     std::string big_size;
     init();
     // Register a receiver.
-    flow_.set_listener(&mPFI_);
 
     // This is an actual valid packet.
     good_data = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
@@ -335,7 +305,7 @@ TEST_F(RxFlowTest, Rsync)
     //
     // Start sending a valid packet, but skip the last preamble byte.
     //
-    EXPECT_CALL(mPFI_, send(_, _)).Times(0);
+    EXPECT_CALL(mPFI_, test_send(_, _)).Times(0);
     send(good_data.substr(0, 3));
     send(good_data.substr(5, good_data.size() - 5));
     wait_for_main_executor();
@@ -346,7 +316,7 @@ TEST_F(RxFlowTest, Rsync)
     // ...send a bit of bad data +
     // ...send a valid packet acn expect a resync and successful reception
     //
-    EXPECT_CALL(mPFI_, send(testing::Eq(good_data), UINT_MAX)).Times(1);
+    EXPECT_CALL(mPFI_, test_send(testing::Eq(good_data), UINT_MAX)).Times(1);
     send(good_data.substr(0, 6) + bad_size + bad_data.substr(0, 6) + good_data);
     wait_for_main_executor();
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
@@ -355,7 +325,7 @@ TEST_F(RxFlowTest, Rsync)
     // Test the timeout waiting for packet data.
     //
     FakeClock clk;
-    EXPECT_CALL(mPFI_, send(_, _)).Times(0);
+    EXPECT_CALL(mPFI_, test_send(_, _)).Times(0);
     send(good_data.substr(0, 8 + 6)); // Send the header plus some data.
     wait_for_main_executor();
     send(good_data.substr(8, 4)); // Send some more of the data/crc, not all.
@@ -364,8 +334,7 @@ TEST_F(RxFlowTest, Rsync)
     wait_for_main_executor();
 
     // Ensure that we can still recover and decode the next full good packet.
-    flow_.set_listener(&mPFI_);
-    EXPECT_CALL(mPFI_, send(testing::Eq(good_data), UINT_MAX)).Times(1);
+    EXPECT_CALL(mPFI_, test_send(testing::Eq(good_data), UINT_MAX)).Times(1);
     send(good_data);
     wait_for_main_executor();
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
@@ -384,7 +353,6 @@ TEST_F(RxFlowTest, BadCrcRsync)
     std::string big_size;
     init();
     // Register a receiver.
-    flow_.set_listener(&mPFI_);
 
     // This is an actual valid packet.
     good_data = "\x41\xd2\xc3\x7a"s "\x01\x01"s "\x00\x06"s
@@ -399,14 +367,13 @@ TEST_F(RxFlowTest, BadCrcRsync)
     //
     // Send the packet with the bad CRC value.
     //
-    EXPECT_CALL(mPFI_, send(_, _)).Times(0);
+    EXPECT_CALL(mPFI_, test_send(_, _)).Times(0);
     send(bad_data);
     wait_for_main_executor();
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
 
     // Ensure that we can still recover and decode the next full good packet.
-    flow_.set_listener(&mPFI_);
-    EXPECT_CALL(mPFI_, send(testing::Eq(good_data), UINT_MAX)).Times(1);
+    EXPECT_CALL(mPFI_, test_send(testing::Eq(good_data), UINT_MAX)).Times(1);
     send(good_data);
     wait_for_main_executor();
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
