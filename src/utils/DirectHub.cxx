@@ -36,6 +36,10 @@
 
 // #define LOGLEVEL VERBOSE
 
+#include "openmrn_features.h"
+
+#if OPENMRN_FEATURE_BSD_SOCKETS
+
 #include "utils/DirectHub.hxx"
 
 #include <algorithm>
@@ -946,3 +950,5 @@ void create_direct_gc_tcp_hub(DirectHubInterface<uint8_t[]> *hub, int port)
 {
     new DirectGcTcpHub(hub, port);
 }
+
+#endif // OPENMRN_FEATURE_BSD_SOCKETS
