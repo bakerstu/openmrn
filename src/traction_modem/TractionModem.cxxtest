@@ -2,7 +2,8 @@
 #include "os/FakeClock.hxx"
 #include "os/os.h"
 
-#include "traction_modem/ModemTrain.hxx"
+#include "traction_modem/TxFlow.hxx"
+#include "traction_modem/RxFlow.hxx"
 
 using namespace traction_modem;
 using namespace std::string_literals;

@@ -43,6 +43,7 @@
 #endif
 
 #include "openlcb/TrainInterface.hxx"
+#include "traction_modem/MemorySpace.hxx"
 #include "traction_modem/TxFlow.hxx"
 #include "traction_modem/RxFlow.hxx"
 
@@ -55,6 +56,7 @@ public:
     ModemTrain(Service *service)
         : txFlow_(service)
         , rxFlow_(service)
+        , cvSpace_(service, txFlow_, rxFlow_)
         , isActive_(false)
     {
     }
@@ -72,7 +74,7 @@ public:
         if (isActive_ != is_active)
         {
             isActive_ = is_active;
-            send_packet(Defs::get_wireless_present_payload(isActive_));
+            txFlow_.send_packet(Defs::get_wireless_present_payload(isActive_));
         }
     }
 
@@ -88,7 +90,7 @@ public:
         set_is_active(true);
         inEStop_ = false;
         lastSpeed_ = speed;
-        send_packet(Defs::get_speed_set_payload(speed));
+        txFlow.send_packet(Defs::get_speed_set_payload(speed));
     }
 
     /** Returns the last set speed of the locomotive. */
@@ -102,7 +104,7 @@ public:
     {
         inEStop_ = true;
         lastSpeed_.set_mph(0); // keeps direction
-        send_packet(Defs::get_estop_payload());
+        txFlow.send_packet(Defs::get_estop_payload());
     }
 
     bool get_emergencystop() override
@@ -119,7 +121,7 @@ public:
     void set_fn(uint32_t address, uint16_t value) override
     {
         set_is_active(true);
-        send_packet(Defs::get_fn_set_payload(address, value));
+        txflow.send_packet(Defs::get_fn_set_payload(address, value));
         /// @todo The following switch statement is for hardware testing only.
         ///       In production software, the main MCU should have the on/off
         ///       logical by "output" number, and not by function number. The
@@ -224,13 +226,6 @@ public:
         rxFlow_.unregister_handler(interface, id, mask);
     }
 
-    inline void send_packet(Defs::Payload p)
-    {
-        auto *b = txFlow_.alloc();
-        b->data()->payload = std::move(p);
-        txFlow_.send(b);
-    }
-
 private:
     bool isRunning_ = false;
     /// UART fd to send traffic to the device.
@@ -244,7 +239,9 @@ private:
     TxFlow txFlow_;
     /// Handles receiving message frames.
     RxFlow rxFlow_;
-    CvSpace cvSpace_{&txFlow_};
+    /// Space for CV read/write.
+    NewCvSpace cvSpace_;
+    /// Is the wireless active.
     bool isActive_;
 };
 

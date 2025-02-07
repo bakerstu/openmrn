@@ -36,7 +36,6 @@
 #define _TRACTION_MODEM_TXFLOW_HXX_
 
 #include "traction_modem/Message.hxx"
-#include "traction_modem/TractionModem.hxx"
 
 namespace traction_modem
 {
@@ -61,6 +60,16 @@ public:
         fd_ = fd;
     }
 
+    /// Send a packet.
+    /// @param p payload to send
+    void send_packet(Defs::Payload p)
+    {
+        auto *b = alloc();
+        b->data()->payload = std::move(p);
+        send(b);
+    }
+
+private:
     /// Entry point to the state flow for incoming Messages to transmit.
     /// @return next state write_complete
     Action entry() override
@@ -90,7 +99,6 @@ public:
         return release_and_exit();
     }
 
-private:
     /// Helper for performing the writes.
     StateFlowSelectHelper helper_ {this};
     /// Interface fd.

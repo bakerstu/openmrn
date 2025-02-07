@@ -36,6 +36,7 @@
 #define _TRACTION_MODEM_MESSAGE_HXX_
 
 #include "executor/StateFlow.hxx"
+#include "traction_modem/Defs.hxx"
 
 namespace traction_modem
 {

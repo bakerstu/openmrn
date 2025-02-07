@@ -36,197 +36,27 @@
 #define _TRACTION_MODEM_MEMORYSPACE_HXX_
 
 #include "executor/CallableFlow.hxx"
-#include "traction_modem/ModemTrain.hxx"
+#include "openlcb/MemoryConfig.hxx"
+#include "traction_modem/RxFlow.hxx"
+#include "traction_modem/TxFlow.hxx"
 #include "utils/Singleton.hxx"
 
 namespace traction_modem
 {
 
-/// MemorySpace operation request.
-struct MemorySpaceClientRequest : public CallableFlowRequestBase
-{
-    enum Write
-    {
-        WRITE,
-    };
-
-    enum Read
-    {
-        READ,
-    };
-
-    void reset(Write, uint32_t address, const uint8_t *data, size_t size)
-    {
-        reset_base();
-        cmd_ = Type::WRITE;
-        address_ = address;
-        wrData_ = data;
-        size_ = size;
-    }
-
-    void reset(Read, uint32_t address, uint8_t *data, size_t size)
-    {
-        reset_base();
-        cmd_ = Type::WRITE;
-        address_ = address;
-        rdData_ = data;
-        size_ = size;
-    }
-
-    /// Type of request.
-    enum class Type
-    {
-        WRITE, ///< write request
-        READ, ///< read request
-    };
-
-    Type cmd_; ///< request type
-    uint32_t address_; ///< start address offset
-    union
-    {
-        const uint8_t *wrData_; ///< write data pointer
-        uint8_t *rdData_; ///< read data pointer
-    };
-    size_t size_; ///< requested size on request, actual size on return
-    uint8_t space_; ///< memory space id
-};
-
-class MemorySpaceClientFlow : public CallableFlow<MemorySpaceClientRequest>
-                            , public Singleton<MemorySpaceClientFlow>
-{
-public:
-    /// Constructor.
-    /// @param service Service instance to bind this flow to.
-    /// @param train train instance
-    MemorySpaceClientFlow(Service *service, ModemTrain *train)
-        : CallableFlow(service)
-        , timer_(this)
-        , train_(train)
-    {
-        //train->register_handler(this, Defs::RESP_MEM_W);
-    }
-
-    /// Error codes.
-    enum Error
-    {
-        ERROR_OK = 0, ///< no error
-        ERROR_TIMEOUT ///< timeout occurred
-    };
-
-private:
-
-    Action entry() override
-    {
-        switch (request()->cmd_)
-        {
-            case MemorySpaceClientRequest::Type::WRITE:
-                train_->register_handler(&rxFlow_, Defs::RESP_MEM_W);
-                train_->send_packet(Defs::get_memw_payload(request()->space_,
-                    request()->address_, request()->wrData_, request()->size_));
-                return sleep_and_call(
-                    &timer_, SEC_TO_NSEC(1), STATE(write_done));
-            case MemorySpaceClientRequest::Type::READ:
-                train_->register_handler(&rxFlow_, Defs::RESP_MEM_R);
-                train_->send_packet(Defs::get_memr_payload(request()->space_,
-                    request()->address_, request()->size_));
-                return sleep_and_call(
-                    &timer_, SEC_TO_NSEC(1), STATE(read_done));
-        }
-        return return_with_error(openlcb::Defs::ERROR_UNIMPLEMENTED_CMD);
-    }
-
-    Action write_done()
-    {
-        train_->unregister_handler(&rxFlow_, Defs::RESP_MEM_W);
-        int error = timer_.is_triggered() ? ERROR_OK : ERROR_TIMEOUT;
-        return return_with_error(error);
-    }
-
-    Action read_done()
-    {
-        train_->unregister_handler(&rxFlow_, Defs::RESP_MEM_R);
-        int error = timer_.is_triggered() ? ERROR_OK : ERROR_TIMEOUT;
-        return return_with_error(error);
-    }
-
-    /// Flow for receiving the reply message.
-    class ReplyFlow : public RxFlowBase
-    {
-    public:
-        /// Constructor.
-        /// @param service Service instance to bind this flow to.
-        ReplyFlow(MemorySpaceClientFlow *parent)
-            : RxFlowBase(parent_->service())
-            , parent_(parent)
-        {
-        }
-
-    private:
-        Action entry()
-        {
-            Defs::Message *m =
-                (Defs::Message*)message()->data()->payload.data();
-            switch (be16toh(m->header_.command_))
-            {
-                case Defs::RESP_MEM_W:
-                {
-                    Defs::WriteResponse *wr =
-                        (Defs::WriteResponse*)message()->data()->payload.data();
-                    if (be16toh(wr->error_) !=
-                        openlcb::Defs::ErrorCodes::ERROR_CODE_OK)
-                    {
-                        parent_->request()->size_ = be16toh(wr->length_);
-                    }
-                    break;
-                }
-                case Defs::RESP_MEM_R:
-                {
-                    Defs::ReadResponse *rr =
-                        (Defs::ReadResponse*)message()->data()->payload.data();
-                    switch (be16toh(rr->error_))
-                    {
-                        default:
-                        case openlcb::Defs::ErrorCodes::ERROR_TEMPORARY:
-                            parent_->request()->size_ =
-                                be16toh(rr->header_.length_) -
-                                sizeof(rr->error_);
-                            break;
-                        case openlcb::Defs::ErrorCodes::ERROR_TEMPORARY + 1:
-                            parent_->request()->size_ = 0;
-                            break;                        
-                        case openlcb::Defs::ErrorCodes::ERROR_CODE_OK:
-                            break;
-                    }
-                    memcpy(parent_->request()->rdData_,
-                        rr->data_, parent_->request()->size_);
-                    break;
-                }
-            }
-            parent_->timer_.ensure_triggered();
-            return release_and_exit();
-        }
-
-        MemorySpaceClientFlow *parent_; ///< parent to this object
-    } rxFlow_{this};
-
-    /// Timer helper to supported timed waits.
-    StateFlowTimer timer_;
-
-    /// Parent train object that contains the dispatcher.
-    ModemTrain *train_;
-
-    /// Allow access from child reply flow.
-    friend class ReplyFlow;
-};
-
 /// Abstract interface for traction modem memory spaces.
-class MemorySpace : public openlcb::MemorySpace, public StateFlowBase
+class MemorySpace : public openlcb::MemorySpace, public RxFlowBase
 {
 protected:
     /// Constructor.
     /// @param service Service instance to bind this flow to.
-    MemorySpace(Service *service)
-        : StateFlowBase(service)
+    /// @param tx_flow reference to the transmit flow
+    /// @param rx_flow reference to the receive flow
+    MemorySpace(Service *service, TxFlow *tx_flow, RxFlow *rx_flow)
+        : RxFlowBase(service)
+        , timer_(this, service)
+        , txFlow_(tx_flow)
+        , rxFlow_(rx_flow)
         , state_(IDLE)
     {
     }
@@ -239,6 +69,17 @@ private:
         PENDING, ///< request in progress
         DONE ///< previous request is finished
     };
+
+    /// Get the space ID that will be used over the modem interface.
+    /// @return space id
+    virtual uint8_t get_space_id() = 0;
+
+    /// Get the proxy space ID that will be used as a proxy.
+    /// @return space id
+    virtual uint8_t get_proxy_space_id()
+    {
+        return get_space_id();
+    }
 
     /// Write data to the address space. Called by the memory config service for
     /// incoming write requests.
@@ -279,12 +120,12 @@ private:
         }
         HASSERT(state_ == IDLE);
         HASSERT(is_terminated());
-        start_flow(STATE(do_write));
+        rxFlow_->register_handler(this, Defs::RESP_MEM_W);
+        txFlow_->send_packet(Defs::get_memw_payload(
+            get_space_id(), destination, data, len));
+
         *error = ERROR_AGAIN;
         done_ = again;
-        address_ = destination;
-        wrData_ = data;
-        size_ = len;
         state_ = PENDING;
         return 0;
     }
@@ -325,56 +166,104 @@ private:
         }
         HASSERT(state_ == IDLE);
         HASSERT(is_terminated());
-        start_flow(STATE(do_read));
+        rxFlow_->register_handler(this, Defs::RESP_MEM_R);
+        txFlow_->send_packet(Defs::get_memr_payload(
+            get_space_id(), source, len));
         *error = ERROR_AGAIN;
         done_ = again;
-        address_ = source;
         rdData_ = dst;
         size_ = len;
         state_ = PENDING;
         return 0;
     }
 
-    Action do_write()
+    Action entry()
     {
-        return invoke_subflow_and_wait(
-            MemorySpaceClientFlow::instance(), STATE(done),
-            MemorySpaceClientRequest::WRITE, address_, wrData_, size_);
-    }
-
-    Action do_read()
-    {
-        return invoke_subflow_and_wait(
-            MemorySpaceClientFlow::instance(), STATE(done),
-            MemorySpaceClientRequest::READ, address_, rdData_, size_);
-    }
-
-    Action done()
-    {
-        auto b = get_buffer_deleter(
-            full_allocation_result(MemorySpaceClientFlow::instance()));
-        if (b->data()->resultCode == MemorySpaceClientFlow::ERROR_TIMEOUT)
+        Defs::Message *m =
+            (Defs::Message*)message()->data()->payload.data();
+        switch (be16toh(m->header_.command_))
         {
-            size_ = 0;
+            case Defs::RESP_MEM_W:
+            {
+                Defs::WriteResponse *wr =
+                    (Defs::WriteResponse*)message()->data()->payload.data();
+                if (be16toh(wr->error_) !=
+                    openlcb::Defs::ErrorCodes::ERROR_CODE_OK)
+                {
+                    size_ = be16toh(wr->length_);
+                }
+                break;
+            }
+            case Defs::RESP_MEM_R:
+            {
+                Defs::ReadResponse *rr =
+                    (Defs::ReadResponse*)message()->data()->payload.data();
+                size_t read_size =
+                    be16toh(rr->header_.length_) - sizeof(rr->error_);
+                switch (be16toh(rr->error_))
+                {
+                    default:
+                    case openlcb::Defs::ErrorCodes::ERROR_TEMPORARY + 1:
+                        read_size = 0;
+                        break;
+                    case openlcb::Defs::ErrorCodes::ERROR_TEMPORARY:
+                        break;
+                    case openlcb::Defs::ErrorCodes::ERROR_CODE_OK:
+                        break;
+                }
+                size_ = std::min(size_, read_size);
+                memcpy(rdData_, rr->data_, size_);
+                break;
+            }
         }
-        size_ = b->data()->size_; // Get the actual consumed size.
-        state_ = DONE;
-        done_->notify();
-        return exit();
+        timer_.ensure_triggered();
+        return release_and_exit();
     }
 
-    /// Get the proxy space ID that will be used as a proxy.
-    virtual uint8_t get_proxy_space_id() = 0;
+    /// Timeout supervisor for the memory transaction.
+    class Timeout : public Timer
+    {
+    public:
+        /// Constructor.
+        /// @param parent parent MemorySpace object
+        /// @param service Service instance to bind this flow to
+        Timeout(MemorySpace *parent, Service *service)
+            : Timer(service->executor()->active_timers())
+            , parent_(parent)
+        {
+        }
+
+    private:
+        /// Timer expiration callback.
+        /// @return NONE
+        long long timeout() override
+        {
+            if (!is_triggered())
+            {
+                // Expired early, unregister the handlers.
+                parent_->rxFlow_->unregister_handler(parent_, Defs::RESP_MEM_W);
+                parent_->rxFlow_->unregister_handler(parent_, Defs::RESP_MEM_R);
+                parent_->size_ = 0;
+            }
+            parent_->state_ = DONE;
+            parent_->done_->notify();
+           return NONE;
+        };
+
+        /// parent object
+        MemorySpace *parent_;
+    } timer_;
+
+    TxFlow *txFlow_; ///< reference to the transmit flow
+    RxFlow *rxFlow_; ///< reference to the receive flow
 
     Notifiable *done_; ///< Notifiable for the memory operation to continue.
-    uint32_t address_; ///< start address offset
-    union
-    {
-        const uint8_t *wrData_; ///< write data pointer
-        uint8_t *rdData_; ///< read data pointer
-    };
+    uint8_t *rdData_; ///< read data pointer
     size_t size_; ///< requested size
     State state_; ///< current request state
+
+    /// Allow access from child timer object.
+    friend class timeout;
 };
 
 /// Memory space for DCC CVs.
@@ -386,8 +275,10 @@ public:
 
     /// Constructor.
     /// @param service Service instance to bind this flow to
-    NewCvSpace(Service *service)
-        : MemorySpace(service)
+    /// @param tx_flow reference to the transmit flow
+    /// @param rx_flow reference to the receive flow
+    NewCvSpace(Service *service, TxFlow *tx_flow, RxFlow *rx_flow)
+        : MemorySpace(service, tx_flow, rx_flow)
     {
     }
 
@@ -405,11 +296,6 @@ private:
     {
         return 1023;
     };
-
-    uint8_t get_proxy_space_id() override
-    {
-        return SPACE_ID;
-    }
 };
 
 /// Memory space for firmware updates.
@@ -422,8 +308,10 @@ public:
 
     /// Constructor.
     /// @param service Service instance to bind this flow to
-    FirmwareSpace(Service *service)
-        : MemorySpace(service)
+    /// @param tx_flow reference to the transmit flow
+    /// @param rx_flow reference to the receive flow
+    FirmwareSpace(Service *service, TxFlow *tx_flow, RxFlow *rx_flow)
+        : MemorySpace(service, tx_flow, rx_flow)
     {
     }
 
@@ -442,6 +330,15 @@ private:
         return UINT32_MAX;
     };
 
+    /// Get the space ID that will be used over the modem interface.
+    /// @return space id
+    uint8_t get_space_id() override
+    {
+        return SPACE_ID;
+    }
+
+    /// Get the proxy space ID that will be used as a proxy.
+    /// @return space id
     uint8_t get_proxy_space_id() override
     {
         /// @todo Need to revisit this proxy number

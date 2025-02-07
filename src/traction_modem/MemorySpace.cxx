@@ -37,6 +37,4 @@
 namespace traction_modem
 {
 
-DEFINE_SINGLETON_INSTANCE(MemorySpaceClientFlow);
-
 } // namespace traction_modem
