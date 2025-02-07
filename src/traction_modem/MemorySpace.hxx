@@ -1,6 +1,6 @@
 /** @copyright
  * Copyright (c) 2025, Stuart Baker
- * All rights reserved
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
@@ -74,13 +74,6 @@ private:
     /// Get the space ID that will be used over the modem interface.
     /// @return space id
     virtual uint8_t get_space_id() = 0;
-
-    /// Get the proxy space ID that will be used as a proxy.
-    /// @return space id
-    virtual uint8_t get_proxy_space_id()
-    {
-        return get_space_id();
-    }
 
     /// Write data to the address space. Called by the memory config service for
     /// incoming write requests.
@@ -345,14 +338,6 @@ private:
     uint8_t get_space_id() override
     {
         return SPACE_ID;
-    }
-
-    /// Get the proxy space ID that will be used as a proxy.
-    /// @return space id
-    uint8_t get_proxy_space_id() override
-    {
-        /// @todo Need to revisit this proxy number
-        return 0x59;
     }
 };
 
