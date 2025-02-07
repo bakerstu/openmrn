@@ -1,0 +1,59 @@
+#include "utils/test_main.hxx"
+
+#include "traction_modem/ModemTrain.hxx"
+
+namespace traction_modem
+{
+
+//
+// Mock objects.
+//
+class MockRxFlow : public RxFlowInterface
+{
+public:
+    MOCK_METHOD1(start, void(int));
+    MOCK_METHOD3(register_handler,
+        void(PacketFlowInterface*, Message::id_type, Message::id_type));
+    MOCK_METHOD3(unregister_handler,
+        void(PacketFlowInterface*, Message::id_type, Message::id_type));
+};
+
+class MockTxFlow : public TxFlowInterface
+{
+public:
+    MOCK_METHOD1(start, void(int));
+    MOCK_METHOD1(send_packet, void(Defs::Payload));
+};
+
+/// Test object for the ModemTrain.
+class ModemTrainTest : public ::testing::Test
+{
+protected:
+    /// Constructor.
+    ModemTrainTest()
+        : train_(&g_service, &mTxFlow_, &mRxFlow_)
+    {
+    }
+
+    /// Destructor.
+    ~ModemTrainTest()
+    {
+    }
+
+    ::testing::StrictMock<MockRxFlow> mRxFlow_;
+    ::testing::StrictMock<MockTxFlow> mTxFlow_;
+    ModemTrain train_; ///< modem train instance
+};
+
+TEST_F(ModemTrainTest, Create)
+{
+}
+
+TEST_F(ModemTrainTest, Start)
+{
+    EXPECT_CALL(mRxFlow_, start(9)).Times(1);
+    EXPECT_CALL(mTxFlow_, start(9)).Times(1);
+    train_.start(9);
+}
+
+} // namespace traction_modem
