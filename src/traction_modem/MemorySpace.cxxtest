@@ -258,4 +258,171 @@ TEST_F(MemorySpaceTest, CvRead)
     EXPECT_EQ(openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS, error);
 }
 
+TEST_F(MemorySpaceTest, CvWrite)
+{
+    using ::testing::StartsWith;
+    using namespace std::literals;
+
+    CvSpace cs(&g_service, &mTxFlow_, &mRxFlow_);
+    MemorySpace::errorcode_t error;
+    SyncNotifiable done;
+    FakeClock clock;
+
+    // Setup to send the messages to the memory space.
+    dispatcher_.register_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK);
+
+    //
+    // Write fail out of bounds.
+    //
+    error = 0;
+    EXPECT_EQ(0U, cs.write(1024, data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS, error);
+
+
+
+    //
+    // Write with timeout.
+    //
+    EXPECT_CALL(mRxFlow_,
+        register_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK)).Times(1);
+    EXPECT_CALL(mTxFlow_, send_packet(
+        StartsWith(
+            "\x41\xd2\xc3\x7a\x10\x01\x00\x0D\x00\x00\x00\x00\xF8"s +
+            "\x10\x11\x12\x13\x14\x15\x16\x17"s)))
+        .Times(1);
+    error = 0;
+    EXPECT_EQ(0U, cs.write(0, data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(ERROR_AGAIN, error);
+    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+
+    EXPECT_CALL(mRxFlow_,
+        unregister_handler(&cs, Defs::RESP_MEM_R, Message::EXACT_MASK))
+        .Times(1);
+    EXPECT_CALL(mRxFlow_,
+        unregister_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK))
+        .Times(1);
+    clock.advance(MSEC_TO_NSEC(3200));
+    done.wait_for_notification();
+    EXPECT_EQ(0, memcmp(data_, expectData_, sizeof(data_)));
+    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+
+    error = 0;
+    EXPECT_EQ(0U, cs.write(0, data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(openlcb::Defs::ERROR_OPENLCB_TIMEOUT, error);
+    
+
+
+    //
+    // Write unsupported space.
+    //
+    EXPECT_CALL(mRxFlow_,
+        register_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK)).Times(1);
+    EXPECT_CALL(mTxFlow_, send_packet(
+        StartsWith(
+            "\x41\xd2\xc3\x7a\x10\x01\x00\x0D\x00\x00\x00\x00\xF8"s +
+            "\x10\x11\x12\x13\x14\x15\x16\x17"s)))
+        .Times(1);
+    error = 0;
+    EXPECT_EQ(0U, cs.write(0, data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(ERROR_AGAIN, error);
+    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+
+    EXPECT_CALL(mRxFlow_,
+        unregister_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK))
+        .Times(1);
+    {
+        auto *b = dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::RESP_MEM_W, 4);
+        Defs::append_uint16(&b->data()->payload,
+            openlcb::MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN);
+        Defs::append_uint16(&b->data()->payload, 0);
+        Defs::append_crc(&b->data()->payload);
+        dispatcher_.send(b);
+    }
+    wait_for_main_executor();
+    done.wait_for_notification();
+    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+
+    error = 0;
+    EXPECT_EQ(0U, cs.write(0, data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(openlcb::MemoryConfigDefs::ERROR_SPACE_NOT_KNOWN, error);
+
+
+
+    //
+    // Write success.
+    //
+    EXPECT_CALL(mRxFlow_,
+        register_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK)).Times(1);
+    EXPECT_CALL(mTxFlow_, send_packet(
+        StartsWith(
+            "\x41\xd2\xc3\x7a\x10\x01\x00\x0D\x00\x00\x00\x00\xF8"s +
+            "\x10\x11\x12\x13\x14\x15\x16\x17"s)))
+        .Times(1);
+    error = 0;
+    EXPECT_EQ(0U, cs.write(0, data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(ERROR_AGAIN, error);
+    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+
+    EXPECT_CALL(mRxFlow_,
+        unregister_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK))
+        .Times(1);
+    {
+        auto *b = dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::RESP_MEM_W, 4);
+        Defs::append_uint16(&b->data()->payload, openlcb::Defs::ERROR_CODE_OK);
+        Defs::append_uint16(&b->data()->payload, 8);
+        Defs::append_crc(&b->data()->payload);
+        dispatcher_.send(b);
+    }
+    wait_for_main_executor();
+    done.wait_for_notification();
+    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+
+    error = 0;
+    EXPECT_EQ(8U, cs.write(0, data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(openlcb::Defs::ERROR_CODE_OK, error);
+    
+
+
+    //
+    // Write success, but with less than asked for data.
+    //
+    EXPECT_CALL(mRxFlow_,
+        register_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK)).Times(1);
+    EXPECT_CALL(mTxFlow_, send_packet(
+        StartsWith(
+            "\x41\xd2\xc3\x7a\x10\x01\x00\x0D\x00\x00\x00\x00\xF8"s +
+            "\x10\x11\x12\x13\x14\x15\x16\x17"s)))
+        .Times(1);
+    error = 0;
+    EXPECT_EQ(0U, cs.write(0, data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(ERROR_AGAIN, error);
+    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+
+    EXPECT_CALL(mRxFlow_,
+        unregister_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK))
+        .Times(1);
+    {
+        auto *b = dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::RESP_MEM_W, 4);
+        Defs::append_uint16(&b->data()->payload,
+            openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS);
+        Defs::append_uint16(&b->data()->payload, 6);
+        Defs::append_crc(&b->data()->payload);
+        dispatcher_.send(b);
+    }
+    wait_for_main_executor();
+    done.wait_for_notification();
+    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+
+    error = 0;
+    EXPECT_EQ(6U, cs.write(0, data_, sizeof(data_), &error, &done));
+    EXPECT_EQ(openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS, error);
+}
+
 } // traction_modem
