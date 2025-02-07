@@ -35,9 +35,14 @@
 #include "openlcb/If.hxx"
 #include "openlcb/Convert.hxx"
 
-/// Ensures that the largest bucket in the main buffer pool is exactly the size
-/// of a GenMessage.
-const unsigned LARGEST_BUFFERPOOL_BUCKET = sizeof(Buffer<openlcb::GenMessage>);
+static constexpr unsigned BUCKET_SIZE = std::min(sizeof(Buffer<openlcb::GenMessage>), 64u + sizeof(BufferBase));
+// This also verifies that LARGEST_BUFFERPOOL_BUCKET will end up being in
+// rodata instead of being computed at static constructor time. We want to make
+// sure that init_main_buffer_pool can work at any moment.
+static_assert(BUCKET_SIZE >= 64, "min bucket size wrong");
+/// Ensures that the largest bucket in the main buffer pool at least the size
+/// of a GenMessage, or a DataBuffer<64>.
+const unsigned LARGEST_BUFFERPOOL_BUCKET = BUCKET_SIZE;
 
 namespace openlcb
 {
