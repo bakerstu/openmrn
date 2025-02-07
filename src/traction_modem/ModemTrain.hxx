@@ -90,7 +90,7 @@ public:
         set_is_active(true);
         inEStop_ = false;
         lastSpeed_ = speed;
-        txFlow.send_packet(Defs::get_speed_set_payload(speed));
+        txFlow_.send_packet(Defs::get_speed_set_payload(speed));
     }
 
     /** Returns the last set speed of the locomotive. */
@@ -104,7 +104,7 @@ public:
     {
         inEStop_ = true;
         lastSpeed_.set_mph(0); // keeps direction
-        txFlow.send_packet(Defs::get_estop_payload());
+        txFlow_.send_packet(Defs::get_estop_payload());
     }
 
     bool get_emergencystop() override
