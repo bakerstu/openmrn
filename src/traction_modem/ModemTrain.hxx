@@ -211,26 +211,6 @@ public:
         return dcc::TrainAddressType::DCC_LONG_ADDRESS;
     }
 
-    /// Register a message handler.
-    /// @param interface interface to dispatch the messages to
-    /// @param id ID of the message
-    /// @param mask bit mask of the message ID.
-    void register_handler(PacketFlowInterface *interface, Message::id_type id,
-        Message::id_type mask = Message::EXACT_MASK)
-    {
-        rxFlow_->register_handler(interface, id, mask);
-    }
-
-    /// Register a message handler.
-    /// @param interface interface to dispatch the messages to
-    /// @param id ID of the message
-    /// @param mask bit mask of the message ID.
-    void unregister_handler(PacketFlowInterface *interface, Message::id_type id,
-        Message::id_type mask = Message::EXACT_MASK)
-    {
-        rxFlow_->unregister_handler(interface, id, mask);
-    }
-
 private:
     bool isRunning_ = false;
     /// UART fd to send traffic to the device.
