@@ -24,15 +24,15 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file Uninitialized.hxx
+ * @file Defs.hxx
  * Helper class for creating delayed initialized objects in static memory.
  *
  * @author Balazs Racz
  * @date 24 June 2017
  */
 
-#ifndef _TRACTIONMODEM_TRACTIONMODEMDEFS_HXX_
-#define _TRACTIONMODEM_TRACTIONMODEMDEFS_HXX_
+#ifndef _TRACTION_MODEM_DEFS_HXX_
+#define _TRACTION_MODEM_DEFS_HXX_
 
 #include <string>
 
@@ -101,12 +101,22 @@ struct Defs
         RESP_MEM_W            = RESPONSE | CMD_MEM_W,
     };
 
+    /// Reboot command argument options.
+    enum RebootArg : uint8_t
+    {
+        BOOT         = 0, ///< reboot into the bootloader
+        APP          = 1, ///< reboot into the application
+        APP_VALIDATE = 2, ///< reboot into the application after full validation
+    };
+
     /// Length of a the header. 4 bytes preamble, 2 bytes cmd, 2 bytes length.
     static constexpr unsigned LEN_HEADER = 4+2+2;
 
     /// Length of a zero-payload packet. 4 bytes preamble, 2 bytes cmd, 2 bytes
     /// length, 6 bytes CRC.
     static constexpr unsigned LEN_BASE = 14;
+    /// Length of the data payload of a reboot packet.
+    static constexpr unsigned LEN_REBOOT = 1;
     /// Length of the data payload of a set function packet.
     static constexpr unsigned LEN_FN_SET = 6;
     /// Length of the data payload of a set speed packet.
@@ -141,7 +151,7 @@ struct Defs
     /// The definition of a message.
     struct Message
     {
-        Header header_; ///< packet command
+        Header header_; ///< packet header
         uint8_t data[0]; ///< start of the message data
     };
 
@@ -175,6 +185,35 @@ struct Defs
             return !(all_ == c.all_ && even_ == c.even_ && odd_ == c.odd_);
         }
     };
+
+    /// Structure of a read reply packet
+    struct ReadResponse
+    {
+        Header header_; ///< packet header
+        uint16_t error_; ///< error code
+        uint8_t data_[0];
+    };
+
+    /// Structure of a read reply packet
+    struct WriteResponse
+    {
+        Header header_; ///< packet header
+        uint16_t error_; ///< error code
+        uint16_t bytesWritten_; ///< length in number of bytes actually written
+    };
+
+    /// Computes the payload for a reboot message.
+    /// @param arg type of reboot
+    /// @return wire formatted payload
+    static Payload get_reboot_payload(RebootArg arg)
+    {
+        Payload p;
+        prepare(&p, CMD_REBOOT, LEN_REBOOT);
+        append_uint8(&p, arg);
+
+        append_crc(&p);
+        return p;
+    }
 
     /// Computes payload for the wireless present message.
     /// @param is_present true if "present", else false
@@ -396,4 +435,4 @@ struct Defs
 
 } // namespace traction_modem
 
-#endif // _TRACTIONMODEM_TRACTIONMODEMDEFS_HXX_
+#endif // _TRACTION_MODEM_DEFS_HXX_
