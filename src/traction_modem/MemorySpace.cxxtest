@@ -425,4 +425,24 @@ TEST_F(MemorySpaceTest, CvWrite)
     EXPECT_EQ(openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS, error);
 }
 
+TEST_F(MemorySpaceTest, FirmwareFreezeUnfreeze)
+{
+    using ::testing::StartsWith;
+    using namespace std::literals;
+
+    FirmwareSpace fs(&g_service, &mTxFlow_, &mRxFlow_);
+
+    EXPECT_CALL(mTxFlow_, send_packet(
+        StartsWith("\x41\xd2\xc3\x7a\x00\x02\x00\x01\x00"s))).Times(1);
+    EXPECT_EQ(openlcb::Defs::ErrorCodes::ERROR_CODE_OK, fs.freeze());
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+
+    EXPECT_CALL(mTxFlow_, send_packet(
+        StartsWith("\x41\xd2\xc3\x7a\x00\x02\x00\x01\x02"s))).Times(1);
+    EXPECT_EQ(openlcb::Defs::ErrorCodes::ERROR_CODE_OK, fs.unfreeze());
+    wait_for_main_executor();
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+}
+
 } // traction_modem

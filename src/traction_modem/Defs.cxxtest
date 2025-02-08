@@ -43,6 +43,30 @@ static void append_expected_crc(Defs::Payload *payload)
 }
 
 //
+// GetRebootPayload
+//
+TEST(DefsTest, GetRebootPayload)
+{
+    Defs::Payload result;
+    Defs::Payload expected;
+
+    result = Defs::get_reboot_payload(Defs::RebootArg::BOOT);
+    expected = "\x41\xd2\xc3\x7a"s "\x00\x02"s "\x00\x01"s "\x00"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+
+    result = Defs::get_reboot_payload(Defs::RebootArg::APP);
+    expected = "\x41\xd2\xc3\x7a"s "\x00\x02"s "\x00\x01"s "\x01"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+
+    result = Defs::get_reboot_payload(Defs::RebootArg::APP_VALIDATE);
+    expected = "\x41\xd2\xc3\x7a"s "\x00\x02"s "\x00\x01"s "\x02"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+}
+
+//
 // GetWirelessPresentPayload
 //
 TEST(DefsTest, GetWirelessPresentPayload)

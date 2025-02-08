@@ -147,12 +147,15 @@ protected:
     MemorySpace(
         Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
         : RxFlowBase(service)
-        , timer_(this, service)
         , txFlow_(tx_flow)
         , rxFlow_(rx_flow)
+        , timer_(this, service)
         , state_(IDLE)
     {
     }
+
+    TxFlowInterface *txFlow_; ///< reference to the transmit flow
+    RxFlowInterface *rxFlow_; ///< reference to the receive flow
 
 private:
     /// Internal state.
@@ -262,9 +265,6 @@ private:
         MemorySpace *parent_;
     } timer_;
 
-    TxFlowInterface *txFlow_; ///< reference to the transmit flow
-    RxFlowInterface *rxFlow_; ///< reference to the receive flow
-
     Notifiable *done_; ///< Notifiable for the memory operation to continue.
     uint8_t *rdData_; ///< read data pointer
     size_t size_; ///< requested size
@@ -331,6 +331,23 @@ public:
         Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
         : MemorySpace(service, tx_flow, rx_flow)
     {
+    }
+
+    /// Reboot into bootloader request.
+    /// @return openlcb::Defs::ErrorCodes::ERROR_CODE_OK
+    virtual errorcode_t freeze()
+    {
+        txFlow_->send_packet(Defs::get_reboot_payload(Defs::RebootArg::BOOT));
+        return openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
+    }
+
+    /** Handles space unfreeze command. Returns an error code, or 0 for
+     * success. */
+    virtual errorcode_t unfreeze()
+    {
+        txFlow_->send_packet(
+            Defs::get_reboot_payload(Defs::RebootArg::APP_VALIDATE));
+        return openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
     }
 
 private:

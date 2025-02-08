@@ -101,12 +101,22 @@ struct Defs
         RESP_MEM_W            = RESPONSE | CMD_MEM_W,
     };
 
+    /// Reboot command argument options.
+    enum RebootArg : uint8_t
+    {
+        BOOT         = 0, ///< reboot into the bootloader
+        APP          = 1, ///< reboot into the application
+        APP_VALIDATE = 2, ///< reboot into the application after full validation
+    };
+
     /// Length of a the header. 4 bytes preamble, 2 bytes cmd, 2 bytes length.
     static constexpr unsigned LEN_HEADER = 4+2+2;
 
     /// Length of a zero-payload packet. 4 bytes preamble, 2 bytes cmd, 2 bytes
     /// length, 6 bytes CRC.
     static constexpr unsigned LEN_BASE = 14;
+    /// Length of the data payload of a reboot packet.
+    static constexpr unsigned LEN_REBOOT = 1;
     /// Length of the data payload of a set function packet.
     static constexpr unsigned LEN_FN_SET = 6;
     /// Length of the data payload of a set speed packet.
@@ -191,6 +201,19 @@ struct Defs
         uint16_t error_; ///< error code
         uint16_t length_; ///< length in number of bytes actually written
     };
+
+    /// Computes the payload for a reboot message.
+    /// @param arg type of reboot
+    /// @return wire formatted payload
+    static Payload get_reboot_payload(RebootArg arg)
+    {
+        Payload p;
+        prepare(&p, CMD_REBOOT, LEN_REBOOT);
+        append_uint8(&p, arg);
+
+        append_crc(&p);
+        return p;
+    }
 
     /// Computes payload for the wireless present message.
     /// @param is_present true if "present", else false
