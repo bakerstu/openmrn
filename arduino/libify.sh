@@ -184,7 +184,7 @@ fi
 
 copy_file src arduino/CDIXMLGenerator.hxx \
     include/{can_frame.h,nmranet_config.h,openmrn_features.h,i2c.h,i2c-dev.h} \
-    include/freertos/{bootloader_hal.h,can_ioctl.h,endian.h,freertos_includes.h,stropts.h} \
+    include/freertos/{can_ioctl.h,endian.h,freertos_includes.h,stropts.h} \
     include/freertos_select/ifaddrs.h
 
 # General DCC related files (all headers and DCC packet related cxx)
@@ -200,7 +200,7 @@ copy_file src/dcc src/dcc/{Loco,SimpleUpdateLoop,UpdateLoop}.cxx
 rm -f ${TARGET_LIB_DIR}/src/dcc/dcc_test_utils.hxx
 
 copy_file src/executor src/executor/*.hxx src/executor/*.cxx
-copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
+copy_file src/openlcb src/openlcb/*.h src/openlcb/*.hxx src/openlcb/*.cxx
 
 rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/EventHandlerMock.hxx \
