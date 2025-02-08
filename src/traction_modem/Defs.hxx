@@ -199,7 +199,7 @@ struct Defs
     {
         Header header_; ///< packet header
         uint16_t error_; ///< error code
-        uint16_t length_; ///< length in number of bytes actually written
+        uint16_t bytesWritten_; ///< length in number of bytes actually written
     };
 
     /// Computes the payload for a reboot message.

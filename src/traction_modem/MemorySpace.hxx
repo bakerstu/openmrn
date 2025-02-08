@@ -44,8 +44,11 @@
 namespace traction_modem
 {
 
-/// Abstract interface for traction modem memory spaces.
-class MemorySpace : public openlcb::MemorySpace, public RxFlowBase
+/// Shared base class for the implementation proxies memory space read and write
+/// requests over the modem interface to the decoder using the matching
+/// messages. The address space is 1:1 mapping, while the memory space number
+/// is specified by a virtual function and thus can be translated.
+class MemorySpace : public openlcb::MemorySpace, public PacketFlowInterface
 {
 public:
     /// Write data to the address space. Called by the memory config service for
@@ -156,17 +159,16 @@ protected:
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
     MemorySpace(
-        Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
-        : RxFlowBase(service)
-        , txFlow_(tx_flow)
+        Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
+        : txFlow_(tx_flow)
         , rxFlow_(rx_flow)
         , timer_(this, service)
         , state_(IDLE)
     {
     }
 
-    TxFlowInterface *txFlow_; ///< reference to the transmit flow
-    RxFlowInterface *rxFlow_; ///< reference to the receive flow
+    TxInterface *txFlow_; ///< reference to the transmit flow
+    RxInterface *rxFlow_; ///< reference to the receive flow
 
 private:
     /// Internal state.
@@ -177,25 +179,24 @@ private:
         DONE ///< previous request is finished
     };
 
-    /// Get the space ID that will be used over the modem interface.
+    /// Get the space ID that will be used over the modem interface. This is
+    /// the space number that the server in the decoder will see.
     /// @return space id
     virtual uint8_t get_space_id() = 0;
 
-    /// Entry for receiving read and write responses
-    /// @return release_and_exit()
-    Action entry()
+    /// Receive for read and write responses.
+    void send(Buffer<Message> *buf, unsigned prio) override
     {
-        Defs::Message *m =
-            (Defs::Message*)message()->data()->payload.data();
-        switch (be16toh(m->header_.command_))
+        auto rb = get_buffer_deleter(buf);
+        switch (rb->data()->command())
         {
             case Defs::RESP_MEM_W:
             {
                 // This is a write, decode the response, save the error code,
                 // and set the size_ that will get returned appropriately.
                 Defs::WriteResponse *wr =
-                    (Defs::WriteResponse*)message()->data()->payload.data();
-                error_ = be16toh(wr->error_);
+                    (Defs::WriteResponse*)rb->data()->payload.data();
+                error_ = rb->data()->response_status();
                 switch (error_)
                 {
                     default:
@@ -208,12 +209,11 @@ private:
                     case openlcb::Defs::ErrorCodes::ERROR_CODE_OK:
                         // Fall through.
                     case openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS:
-                        size_ = be16toh(wr->length_);
+                        size_ = be16toh(wr->bytesWritten_);
                         break;
                 }
                 // We got the expected response, unregister so that unexpected
                 // responses fall on the floor.
-                rxFlow_->unregister_handler(this, Defs::RESP_MEM_W);
                 break;
             }
             case Defs::RESP_MEM_R:
@@ -221,8 +221,8 @@ private:
                 // This is a read, decode the response, save the error code,
                 // and set the size_ that will get returned appropriately.
                 Defs::ReadResponse *rr =
-                    (Defs::ReadResponse*)message()->data()->payload.data();
-                error_ = be16toh(rr->error_);
+                    (Defs::ReadResponse*)rb->data()->payload.data();
+                error_ = rb->data()->response_status();
                 switch (error_)
                 {
                     default:
@@ -235,7 +235,7 @@ private:
                     case openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS:
                     {
                         size_t read_size =
-                            be16toh(rr->header_.length_) - sizeof(rr->error_);
+                            rb->data()->length() - sizeof(rr->error_);
                         // Defensive coding to prevent memory corruption.
                         size_ = std::min(size_, read_size);
                         memcpy(rdData_, rr->data_, size_);
@@ -244,14 +244,13 @@ private:
                 }
                 // We got the expected response, unregister so that unexpected
                 // responses fall on the floor.
-                rxFlow_->unregister_handler(this, Defs::RESP_MEM_R);
                 break;
             }
         }
         // Trigger the supervising timer to expire early because we have the
         // result.
+        rxFlow_->unregister_handler_all(this);
         timer_.ensure_triggered();
-        return release_and_exit();
     }
 
     /// Timeout supervisor for the memory transaction.
@@ -278,14 +277,15 @@ private:
             {
                 // Timed out. Unregister the handlers so successive responses
                 // fall on the floor.
-                parent_->rxFlow_->unregister_handler(parent_, Defs::RESP_MEM_W);
-                parent_->rxFlow_->unregister_handler(parent_, Defs::RESP_MEM_R);
+                LOG(VERBOSE, "Timer expired");
+                parent_->rxFlow_->unregister_handler_all(parent_);
                 parent_->size_ = 0;
                 parent_->error_ = openlcb::Defs::ERROR_OPENLCB_TIMEOUT;
             }
             // Notify our caller so that the results can be provided.
             parent_->state_ = DONE;
             parent_->done_->notify();
+            parent_->done_ = nullptr; // Defensive coding.
             return NONE;
         };
 
@@ -296,7 +296,7 @@ private:
     uint8_t *rdData_; ///< read data pointer
     size_t size_; ///< requested size
     State state_; ///< current request state
-    errorcode_t error_; ///< unsupported space
+    errorcode_t error_; ///< error code returned by the decoder
 
     /// Allow access from child timer object.
     friend class timeout;
@@ -314,7 +314,7 @@ public:
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
     CvSpace(
-        Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
+        Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
         : MemorySpace(service, tx_flow, rx_flow)
     {
     }
@@ -331,7 +331,7 @@ private:
     /// @return 1023 (max CV address)
     address_t max_address() override
     {
-        return 1023;
+        return (0x1 << 24) - 1;
     };
 
     /// Get the space ID that will be used over the modem interface.
@@ -355,7 +355,7 @@ public:
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
     FirmwareSpace(
-        Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
+        Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
         : MemorySpace(service, tx_flow, rx_flow)
     {
     }
@@ -384,7 +384,7 @@ private:
 
     /// Reboot into bootloader request.
     /// @return openlcb::Defs::ErrorCodes::ERROR_CODE_OK
-    virtual errorcode_t freeze()
+    errorcode_t freeze() override
     {
         txFlow_->send_packet(Defs::get_reboot_payload(Defs::RebootArg::BOOT));
         return openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
@@ -392,7 +392,7 @@ private:
 
     /// Reboot into application with full validation request.
     /// @return openlcb::Defs::ErrorCodes::ERROR_CODE_OK
-    virtual errorcode_t unfreeze()
+    errorcode_t unfreeze() override
     {
         txFlow_->send_packet(
             Defs::get_reboot_payload(Defs::RebootArg::APP_VALIDATE));

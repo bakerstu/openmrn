@@ -43,7 +43,7 @@ namespace traction_modem
 {
 
 /// Public interface to aid in testing.
-class RxFlowInterface
+class RxInterface
 {
 public:
     /// Start the flow using the given interface.
@@ -57,17 +57,22 @@ public:
     virtual void register_handler(PacketFlowInterface *interface,
         Message::id_type id, Message::id_type mask = Message::EXACT_MASK) = 0;
 
-    /// Unregister a message handler.
+    /// Unregister a message handler. Must be currently registered by a previous
+    /// call to register handler.
     /// @param interface interface to dispatch the messages to
     /// @param id ID of the message
     /// @param mask bit mask of the message ID.
     virtual void unregister_handler(PacketFlowInterface *interface,
         Message::id_type id, Message::id_type mask = Message::EXACT_MASK) = 0;
+
+    /// Unregister all message handlers.
+    /// @param interface interface to dispatch the messages to
+    virtual void unregister_handler_all(PacketFlowInterface *interface) = 0;
 };
 
 /// Object responsible for reading in a stream of bytes over the modem interface
 /// and forming the stream of bytes into complete messages.
-class RxFlow : public RxFlowInterface, public StateFlowBase
+class RxFlow : public RxInterface, public StateFlowBase
 {
 public:
     using BufferType = Buffer<Message>;
@@ -116,7 +121,8 @@ public:
         dispatcher_.register_handler(interface, id, mask);
     }
 
-    /// Unregister a message handler.
+    /// Unregister a message handler. Must be currently registered by a previous
+    /// call to register handler.
     /// @param interface interface to dispatch the messages to
     /// @param id ID of the message
     /// @param mask bit mask of the message ID.
@@ -124,6 +130,13 @@ public:
         Message::id_type mask = Message::EXACT_MASK) override
     {
         dispatcher_.unregister_handler(interface, id, mask);
+    }
+
+    /// Unregister all message handlers.
+    /// @param interface interface to dispatch the messages to
+    void unregister_handler_all(PacketFlowInterface *interface) override
+    {
+        dispatcher_.unregister_handler_all(interface);
     }
 
 private:
@@ -354,7 +367,7 @@ private:
     /// Number of bytes that have been received into payload_, which may be
     /// less than payload_.size() since we reserve space ahead of time.
     size_t recvCnt_;
-    /// Handles incoming messages fro the RX Flow.
+    /// Handles incoming messages from the RX Flow.
     DispatchFlow<Buffer<Message>, 2> dispatcher_;
 
     /// Interface fd.

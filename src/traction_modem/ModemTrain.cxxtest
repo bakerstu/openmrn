@@ -8,7 +8,7 @@ namespace traction_modem
 //
 // Mock objects.
 //
-class MockRxFlow : public RxFlowInterface
+class MockRxFlow : public RxInterface
 {
 public:
     MOCK_METHOD1(start, void(int));
@@ -16,9 +16,10 @@ public:
         void(PacketFlowInterface*, Message::id_type, Message::id_type));
     MOCK_METHOD3(unregister_handler,
         void(PacketFlowInterface*, Message::id_type, Message::id_type));
+    MOCK_METHOD1(unregister_handler_all, void(PacketFlowInterface*));
 };
 
-class MockTxFlow : public TxFlowInterface
+class MockTxFlow : public TxInterface
 {
 public:
     MOCK_METHOD1(start, void(int));

@@ -41,7 +41,7 @@ namespace traction_modem
 {
 
 /// Public interface to aid in testing.
-class TxFlowInterface
+class TxInterface
 {
 public:
     /// Bind an interface to the flow to start transmitting to.
@@ -57,7 +57,7 @@ public:
 using TxFlowBase = StateFlow<Buffer<Message>, QList<2>>;
 
 /// Object responsible for writing messages to the modem interface.
-class TxFlow : public TxFlowInterface, public TxFlowBase
+class TxFlow : public TxInterface, public TxFlowBase
 {
 public:
     /// Constructor.

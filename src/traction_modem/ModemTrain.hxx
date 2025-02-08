@@ -58,7 +58,7 @@ public:
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
     ModemTrain(
-        Service *service, TxFlowInterface *tx_flow, RxFlowInterface *rx_flow)
+        Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
         : txFlow_(tx_flow)
         , rxFlow_(rx_flow)
         , cvSpace_(service, tx_flow, rx_flow)
@@ -77,14 +77,14 @@ public:
 
     /// Get a reference to the train's transmit flow.
     /// @return reference to transmit flow
-    TxFlowInterface *get_tx_flow()
+    TxInterface *get_tx_flow()
     {
         return txFlow_;
     }
 
     /// Get a reference to the train's receive flow.
     /// @return reference to receive flow
-    RxFlowInterface *get_rx_flow()
+    RxInterface *get_rx_flow()
     {
         return rxFlow_;
     }
@@ -255,16 +255,16 @@ private:
     int fd_;
     /// last/current speed of the locomotive.
     openlcb::SpeedType lastSpeed_ = 0.0;
-    /// True if the last set was estop, false if it was a speed.
-    bool inEStop_ = false;
     /// Handles sending message frames.
-    TxFlowInterface *txFlow_;
+    TxInterface *txFlow_;
     /// Handles receiving message frames.
-    RxFlowInterface *rxFlow_;
+    RxInterface *rxFlow_;
     /// Space for CV read/write.
     CvSpace cvSpace_;
     /// Space for firmware updates.
     CvSpace fuSpace_;
+    /// True if the last set was estop, false if it was a speed.
+    bool inEStop_ = false;
     /// Is the wireless active.
     bool isActive_;
 };
