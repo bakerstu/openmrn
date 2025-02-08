@@ -69,6 +69,8 @@ protected:
     MemoryConfigTest()
         : memoryOne_(&datagram_support_, nullptr, 10)
     {
+        using testing::DoAll;
+
         ON_CALL(space, get_read_timeout())
             .WillByDefault(Return(DatagramDefs::TIMEOUT_NONE));
         ON_CALL(space, get_write_timeout())
