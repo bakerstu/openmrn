@@ -787,11 +787,11 @@ private:
             available_commands |= MemoryConfigDefs::AVAIL_SR;
         }
         // Figure out about ACDI spaces
-        MemorySpace* memspace = registry_.lookup(message()->data()->dst, 0xFC);
+        MemorySpace* memspace = get_space(0xFC);
         if (memspace) {
             available_commands |= MemoryConfigDefs::AVAIL_R0xFC;
         }
-        memspace = registry_.lookup(message()->data()->dst, 0xFB);
+        memspace = get_space(0xFB);
         if (memspace) {
             available_commands |= MemoryConfigDefs::AVAIL_R0xFB;
             if (!memspace->read_only()) {
@@ -836,7 +836,7 @@ private:
             return respond_reject(DatagramClient::PERMANENT_ERROR);
         }
         uint8_t space_number = in_bytes()[2];
-        MemorySpace* space = registry_.lookup(message()->data()->dst, space_number);
+        MemorySpace* space = get_space(space_number);
         response_.reserve(8);
         response_.push_back(DATAGRAM_ID);
         response_.push_back(MemoryConfigDefs::COMMAND_INFORMATION_REPLY);
@@ -1039,11 +1039,16 @@ private:
 
     /** Looks up the memory space for the current datagram. Returns NULL if no
      * space was registered (for neither the current node, nor global). */
-    MemorySpace *get_space()
+    MemorySpace *get_space(int space_number = -1)
     {
-        int space_number = get_space_number();
         if (space_number < 0)
+	{
+	    space_number = get_space_number();
+	}
+        if (space_number < 0)
+	{
             return nullptr;
+	}
         MemorySpace *space =
             registry_.lookup(message()->data()->dst, space_number);
         if (!space)
