@@ -45,11 +45,9 @@
 
 #include "stm32f_hal_conf.hxx"
 
-// Max possible number of CAN ifs across the whole STM32 -- the constructor
-// will calculate the actual max for the specific chip compiling for
+/// Max possible number of CAN ifs across the whole STM32 -- the constructor
+/// will calculate the actual max for the specific chip compiling for
 #define MAXCANIFS 3 
-
-//struct CAN_TypeDef;
 
 /** Specialization of CAN driver for LPC17xx and LPC40xx CAN.
  */
@@ -59,7 +57,7 @@ public:
     /** Constructor.
      * @param name name of this device instance in the file system
      */
-    Stm32Can(const char *name);
+    Stm32Can(const char *name, uint8_t index = 0);
 
     /** Destructor.
      */
@@ -98,13 +96,12 @@ private:
 
     uint8_t state_; ///< present bus state
     
-    CAN_TypeDef *can_;
-    IRQn_Type can_irqn_;
-    IRQn_Type can_second_irqn_;
-    IRQn_Type can_third_irqn_;
+    CAN_TypeDef *can_; ///< CAN hardware registers for this instance (defined in the SDK).
+    IRQn_Type can_irqn_; ///< CAN IRQn for this instance.
+    IRQn_Type can_second_irqn_; ///< CAN Second IRQn (if used) for this instance. 
+    IRQn_Type can_third_irqn_; ///< CAN Third IRQn (if used) for this instance. 
     
-    /** Default constructor.
-     */
+    /** Default constructor. */
     Stm32Can();
     
     

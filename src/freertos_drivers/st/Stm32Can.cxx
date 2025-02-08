@@ -36,7 +36,6 @@
 #include "Stm32Can.hxx"
 
 #include <stdint.h>
-#include <string.h>
 
 #include "can_ioctl.h"
 
@@ -128,14 +127,10 @@ Stm32Can *Stm32Can::instances[MAXCANIFS] = {NULL,NULL,NULL};
 /** Constructor.
  * @param name name of this device instance in the file system
  */
-Stm32Can::Stm32Can(const char *name)
+Stm32Can::Stm32Can(const char *name, uint8_t index)
     : Can(name)
     , state_(CAN_STATE_STOPPED)
 {
-    /* Get dev num (digit at the end of the devname). */
-    char dev = name[strlen(name)-1];
-    HASSERT(dev >= '0');
-    int index = dev - '0';
 #if defined(CAN3)
     HASSERT(index < 3);
 #elif defined(CAN2)
@@ -150,36 +145,36 @@ Stm32Can::Stm32Can(const char *name)
     instances[index] = this;
     switch (index)
     {
-    case 0: /* CAN1... */
-        can_ = CAN1;
-        can_irqn_ = CAN1_IRQN;
+        case 0: /* CAN1... */
+            can_ = CAN1;
+            can_irqn_ = CAN1_IRQN;
 #ifdef SPLIT_INT
-        can_second_irqn_ = CAN1_SECOND_IRQN;
-        can_third_irqn_ = CAN1_THIRD_IRQN;
+            can_second_irqn_ = CAN1_SECOND_IRQN;
+            can_third_irqn_ = CAN1_THIRD_IRQN;
 #endif
-        break;
+            break;
 #ifdef CAN2
-    case 1: /* CAN2... */
-        can_ = CAN2;
-        can_irqn_ = CAN2_IRQN;
+        case 1: /* CAN2... */
+            can_ = CAN2;
+            can_irqn_ = CAN2_IRQN;
 #ifdef SPLIT_INT
-        can_second_irqn_ = CAN2_SECOND_IRQN;
-        can_third_irqn_ = CAN2_THIRD_IRQN;
+            can_second_irqn_ = CAN2_SECOND_IRQN;
+            can_third_irqn_ = CAN2_THIRD_IRQN;
 #endif
-        break;
+            break;
 #endif
 #ifdef CAN3
-    case 2: /* CAN3... */
-        can_ = CAN3;
-        can_irqn_ = CAN3_IRQN;
+        case 2: /* CAN3... */
+            can_ = CAN3;
+            can_irqn_ = CAN3_IRQN;
 #ifdef SPLIT_INT
-        can_second_irqn_ = CAN3_SECOND_IRQN;
-        can_third_irqn_ = CAN3_THIRD_IRQN;
+            can_second_irqn_ = CAN3_SECOND_IRQN;
+            can_third_irqn_ = CAN3_THIRD_IRQN;
 #endif
-        break;
+            break;
 #endif
-    default:
-        break;
+        default:
+            break;
     }
 
     /* should already be disabled, but just in case */
