@@ -78,6 +78,7 @@ public:
         {
             // The write is starting outside the bounds of the memory space.
             *error = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
+            evaluate_error(*error);
             return 0;
         }
         if (state_ == DONE)
@@ -85,6 +86,7 @@ public:
             // The write is completed, return the results.
             state_ = IDLE;
             *error = error_;
+            evaluate_error(*error);
             return size_;
         }
         HASSERT(state_ == IDLE);
@@ -130,6 +132,7 @@ public:
         {
             // The read is starting outside the bounds of the memory space.
             *error = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
+            evaluate_error(*error);
             return 0;
         }
         if (state_ == DONE)
@@ -137,6 +140,7 @@ public:
             // The read is completed, return the results.
             state_ = IDLE;
             *error = error_;
+            evaluate_error(*error);
             return size_;
         }
         HASSERT(state_ == IDLE);
@@ -174,6 +178,13 @@ protected:
         , rxFlow_(rx_flow)
         , timer_(this, service)
         , state_(IDLE)
+    {
+    }
+
+    /// Pass error results down to derived objects. This gives a derived object
+    /// an opportunity to track the error state over a series of operations.
+    /// @param error error code to pass down for evaluation
+    virtual void evaluate_error(errorcode_t error)
     {
     }
 
@@ -396,6 +407,7 @@ private:
     /// @return openlcb::Defs::ErrorCodes::ERROR_CODE_OK
     errorcode_t freeze() override
     {
+        trackedError_ = openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
         txFlow_->send_packet(Defs::get_reboot_payload(Defs::RebootArg::BOOT));
         return openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
     }
@@ -406,8 +418,22 @@ private:
     {
         txFlow_->send_packet(
             Defs::get_reboot_payload(Defs::RebootArg::APP_VALIDATE));
-        return openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
+        return trackedError_;
     }
+
+    /// Pass error results down to derived objects. This gives a derived object
+    /// an opportunity to track the error state over a series of operations.
+    /// @param error error code to pass down for evaluation
+    void evaluate_error(errorcode_t error) override
+    {
+        if (trackedError_ == openlcb::Defs::ErrorCodes::ERROR_CODE_OK)
+        {
+            // Capture the first error occurrence.
+            trackedError_ = error;
+        }
+    }
+
+    errorcode_t trackedError_; ///< tracks errors during an update sequence
 };
 
 } // namespace traction_modem
