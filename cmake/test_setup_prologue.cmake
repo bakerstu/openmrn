@@ -30,7 +30,7 @@ FetchContent_MakeAvailable(googletest)
 # This magic is required in order to properly add the "-x" option for the
 # *.cxxtest file extension.
 set(CMAKE_CXX_COMPILE_OBJECT
-    "<CMAKE_CXX_COMPILER> -c -MD -MF $$@.dep <DEFINES> <INCLUDES> <FLAGS> -o \
+    "<CMAKE_CXX_COMPILER> -MD -MF $$@.dep <DEFINES> <INCLUDES> <FLAGS> -o \
     <OBJECT> -c -x c++ <SOURCE>"
 )
 
