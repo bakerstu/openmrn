@@ -73,21 +73,25 @@ public:
     {
         if (destination < min_address() || destination > max_address())
         {
+            // The write is starting outside the bounds of the memory space.
             *error = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             return 0;
         }
         if (state_ == DONE)
         {
+            // The write is completed, return the results.
             state_ = IDLE;
             *error = error_;
             return size_;
         }
         HASSERT(state_ == IDLE);
+        // Register for a write response and send the read request.
         rxFlow_->register_handler(this, Defs::RESP_MEM_W);
         txFlow_->send_packet(Defs::get_memw_payload(
             get_space_id(), destination, data, len));
         timer_.start(openlcb::DatagramDefs::timeout_from_flags_nsec(
             get_write_timeout()));
+        // Indicate to the caller we must be called again.
         *error = ERROR_AGAIN;
         done_ = again;
         state_ = PENDING;
@@ -116,24 +120,31 @@ public:
     {
         if (source < min_address() || source > max_address())
         {
+            // The read is starting outside the bounds of the memory space.
             *error = openlcb::MemoryConfigDefs::ERROR_OUT_OF_BOUNDS;
             return 0;
         }
         if (state_ == DONE)
         {
+            // The read is completed, return the results.
             state_ = IDLE;
             *error = error_;
             return size_;
         }
         HASSERT(state_ == IDLE);
+        // Register for a read response and send the read request.
         rxFlow_->register_handler(this, Defs::RESP_MEM_R);
         txFlow_->send_packet(Defs::get_memr_payload(
             get_space_id(), source, len));
         timer_.start(openlcb::DatagramDefs::timeout_from_flags_nsec(
             get_read_timeout()));
+        // Indicate to the caller we must be called again.
         *error = ERROR_AGAIN;
         done_ = again;
         rdData_ = dst;
+        // The size is saved so that we don't overrun the provided buffer in
+        // case we get back an unexpected size of data from our read. This is
+        // for defensive coding purposes.
         size_ = len;
         state_ = PENDING;
         return 0;
@@ -170,6 +181,8 @@ private:
     /// @return space id
     virtual uint8_t get_space_id() = 0;
 
+    /// Entry for receiving read and write responses
+    /// @return release_and_exit()
     Action entry()
     {
         Defs::Message *m =
@@ -178,6 +191,8 @@ private:
         {
             case Defs::RESP_MEM_W:
             {
+                // This is a write, decode the response, save the error code,
+                // and set the size_ that will get returned appropriately.
                 Defs::WriteResponse *wr =
                     (Defs::WriteResponse*)message()->data()->payload.data();
                 error_ = be16toh(wr->error_);
@@ -196,11 +211,15 @@ private:
                         size_ = be16toh(wr->length_);
                         break;
                 }
+                // We got the expected response, unregister so that unexpected
+                // responses fall on the floor.
                 rxFlow_->unregister_handler(this, Defs::RESP_MEM_W);
                 break;
             }
             case Defs::RESP_MEM_R:
             {
+                // This is a read, decode the response, save the error code,
+                // and set the size_ that will get returned appropriately.
                 Defs::ReadResponse *rr =
                     (Defs::ReadResponse*)message()->data()->payload.data();
                 error_ = be16toh(rr->error_);
@@ -217,15 +236,20 @@ private:
                     {
                         size_t read_size =
                             be16toh(rr->header_.length_) - sizeof(rr->error_);
+                        // Defensive coding to prevent memory corruption.
                         size_ = std::min(size_, read_size);
                         memcpy(rdData_, rr->data_, size_);
                         break;
                     }
                 }
+                // We got the expected response, unregister so that unexpected
+                // responses fall on the floor.
                 rxFlow_->unregister_handler(this, Defs::RESP_MEM_R);
                 break;
             }
         }
+        // Trigger the supervising timer to expire early because we have the
+        // result.
         timer_.ensure_triggered();
         return release_and_exit();
     }
@@ -244,25 +268,28 @@ private:
         }
 
     private:
-        /// Timer expiration callback.
+        /// Timer expiration callback. We will get here if either there is a
+        /// timeout waiting for a response or if a valid response has come in
+        /// and we can move on.
         /// @return NONE
         long long timeout() override
         {
             if (!is_triggered())
             {
-                // Timed out, unregister the handlers.
+                // Timed out. Unregister the handlers so successive responses
+                // fall on the floor.
                 parent_->rxFlow_->unregister_handler(parent_, Defs::RESP_MEM_W);
                 parent_->rxFlow_->unregister_handler(parent_, Defs::RESP_MEM_R);
                 parent_->size_ = 0;
                 parent_->error_ = openlcb::Defs::ERROR_OPENLCB_TIMEOUT;
             }
+            // Notify our caller so that the results can be provided.
             parent_->state_ = DONE;
             parent_->done_->notify();
             return NONE;
         };
 
-        /// parent object
-        MemorySpace *parent_;
+        MemorySpace *parent_; ///< parent object
     } timer_;
 
     Notifiable *done_; ///< Notifiable for the memory operation to continue.
@@ -333,23 +360,6 @@ public:
     {
     }
 
-    /// Reboot into bootloader request.
-    /// @return openlcb::Defs::ErrorCodes::ERROR_CODE_OK
-    virtual errorcode_t freeze()
-    {
-        txFlow_->send_packet(Defs::get_reboot_payload(Defs::RebootArg::BOOT));
-        return openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
-    }
-
-    /** Handles space unfreeze command. Returns an error code, or 0 for
-     * success. */
-    virtual errorcode_t unfreeze()
-    {
-        txFlow_->send_packet(
-            Defs::get_reboot_payload(Defs::RebootArg::APP_VALIDATE));
-        return openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
-    }
-
 private:
     /// Test if the memory space is read only.
     /// @return false
@@ -370,6 +380,23 @@ private:
     uint8_t get_space_id() override
     {
         return SPACE_ID;
+    }
+
+    /// Reboot into bootloader request.
+    /// @return openlcb::Defs::ErrorCodes::ERROR_CODE_OK
+    virtual errorcode_t freeze()
+    {
+        txFlow_->send_packet(Defs::get_reboot_payload(Defs::RebootArg::BOOT));
+        return openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
+    }
+
+    /// Reboot into application with full validation request.
+    /// @return openlcb::Defs::ErrorCodes::ERROR_CODE_OK
+    virtual errorcode_t unfreeze()
+    {
+        txFlow_->send_packet(
+            Defs::get_reboot_payload(Defs::RebootArg::APP_VALIDATE));
+        return openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
     }
 };
 

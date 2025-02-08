@@ -56,6 +56,12 @@ TEST_F(ModemTrainTest, Start)
     train_.start(9);
 }
 
+TEST_F(ModemTrainTest, GetFlow)
+{
+    EXPECT_EQ(&mTxFlow_, train_.get_tx_flow());
+    EXPECT_EQ(&mRxFlow_, train_.get_rx_flow());
+}
+
 TEST_F(ModemTrainTest, Set_Is_Active)
 {
     using ::testing::StartsWith;

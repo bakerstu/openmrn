@@ -62,14 +62,31 @@ public:
         : txFlow_(tx_flow)
         , rxFlow_(rx_flow)
         , cvSpace_(service, tx_flow, rx_flow)
+        , fuSpace_(service, tx_flow, rx_flow)
         , isActive_(false)
     {
     }
 
+    /// Start the flow of modem data.
+    /// @param uart_fd file descriptor to send and receive data on
     void start(int uart_fd)
     {
         txFlow_->start(uart_fd);
         rxFlow_->start(uart_fd);
+    }
+
+    /// Get a reference to the train's transmit flow.
+    /// @return reference to transmit flow
+    TxFlowInterface *get_tx_flow()
+    {
+        return txFlow_;
+    }
+
+    /// Get a reference to the train's receive flow.
+    /// @return reference to receive flow
+    RxFlowInterface *get_rx_flow()
+    {
+        return rxFlow_;
     }
 
     /// Set the active state of the wireless control.
@@ -83,13 +100,24 @@ public:
         }
     }
 
+    /// Get a reference to the CV memory space.
+    /// @return CV memory space reference
     openlcb::MemorySpace *get_cv_space()
     {
         return &cvSpace_;
     }
 
+    /// Get a reference to the firmware update memory space.
+    /// @return firmware update memory space reference
+    openlcb::MemorySpace *get_firmware_update_space()
+    {
+        return &fuSpace_;
+    }
+
     // ====== Train interface =======
 
+    /// Set train speed.
+    /// @param speed speed to set the train to.
     void set_speed(openlcb::SpeedType speed) override
     {
         set_is_active(true);
@@ -98,13 +126,14 @@ public:
         txFlow_->send_packet(Defs::get_speed_set_payload(speed));
     }
 
-    /** Returns the last set speed of the locomotive. */
+    /// Returns the last set speed of the locomotive.
+    /// @return last set speed of the locomotive.
     openlcb::SpeedType get_speed() override
     {
         return lastSpeed_;
     }
 
-    /** Sets the train to emergency stop. */
+    /// Set emergency top active.
     void set_emergencystop() override
     {
         inEStop_ = true;
@@ -112,17 +141,19 @@ public:
         txFlow_->send_packet(Defs::get_estop_payload());
     }
 
+    /// Get the current emergency stop state
+    /// @return  true if current state is E-Stop, else false
     bool get_emergencystop() override
     {
         return inEStop_;
     }
 
-    /** Sets the value of a function.
-     * @param address is a 24-bit address of the function to set. For legacy DCC
-     * locomotives, see @ref TractionDefs for the address definitions (0=light,
-     * 1-28= traditional function buttons).
-     * @param value is the function value. For binary functions, any non-zero
-     * value sets the function to on, zero sets it to off.*/
+    /// Sets the value of a function.
+    /// @param address is a 24-bit address of the function to set. For legacy
+    ///        DCC locomotives, see @ref TractionDefs for the address
+    ///        definitions (0=light, 1-28= traditional function buttons).
+    /// @param value is the function value. For binary functions, any non-zero
+    ///        value sets the function to on, zero sets it to off.*/
     void set_fn(uint32_t address, uint16_t value) override
     {
         set_is_active(true);
@@ -192,40 +223,48 @@ public:
         }
     }
 
-    /** @returns the value of a function. */
+    /// Get the current function value.
+    /// @return the current value of the function
     uint16_t get_fn(uint32_t address) override
     {
         /// @todo Need to implement this.
         return 0;
     }
 
+    /// @Get the legacy address.
+    /// @return legacy address (typically DCC)
     uint32_t legacy_address() override
     {
-        /// @todo what should this be?
+        /// @todo What should this be? Should we do a CV1/17/18/29 read to get
+        ///       this?
         return 883;
     }
 
-    /** @returns the type of legacy protocol in use. */
+    /// Get the type of legacy protocol in use.
+    /// @return the legacy address type
     dcc::TrainAddressType legacy_address_type() override
     {
+        /// @todo What should this be. Should we do a CV29 read to get this?
         return dcc::TrainAddressType::DCC_LONG_ADDRESS;
     }
 
 private:
+    /// True if the wireless is up and running.
     bool isRunning_ = false;
     /// UART fd to send traffic to the device.
     int fd_;
-
+    /// last/current speed of the locomotive.
     openlcb::SpeedType lastSpeed_ = 0.0;
     /// True if the last set was estop, false if it was a speed.
     bool inEStop_ = false;
-
     /// Handles sending message frames.
     TxFlowInterface *txFlow_;
     /// Handles receiving message frames.
     RxFlowInterface *rxFlow_;
     /// Space for CV read/write.
     CvSpace cvSpace_;
+    /// Space for firmware updates.
+    CvSpace fuSpace_;
     /// Is the wireless active.
     bool isActive_;
 };

@@ -431,16 +431,17 @@ TEST_F(MemorySpaceTest, FirmwareFreezeUnfreeze)
     using namespace std::literals;
 
     FirmwareSpace fs(&g_service, &mTxFlow_, &mRxFlow_);
+    openlcb::MemorySpace *ms = static_cast<openlcb::MemorySpace *>(&fs);
 
     EXPECT_CALL(mTxFlow_, send_packet(
         StartsWith("\x41\xd2\xc3\x7a\x00\x02\x00\x01\x00"s))).Times(1);
-    EXPECT_EQ(openlcb::Defs::ErrorCodes::ERROR_CODE_OK, fs.freeze());
+    EXPECT_EQ(openlcb::Defs::ErrorCodes::ERROR_CODE_OK, ms->freeze());
     wait_for_main_executor();
     testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
 
     EXPECT_CALL(mTxFlow_, send_packet(
         StartsWith("\x41\xd2\xc3\x7a\x00\x02\x00\x01\x02"s))).Times(1);
-    EXPECT_EQ(openlcb::Defs::ErrorCodes::ERROR_CODE_OK, fs.unfreeze());
+    EXPECT_EQ(openlcb::Defs::ErrorCodes::ERROR_CODE_OK, ms->unfreeze());
     wait_for_main_executor();
     testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
 }

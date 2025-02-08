@@ -47,6 +47,7 @@ struct Message
     /// Type of the dispatcher criteria (command).
     typedef uint16_t id_type;
 
+    /// Mask for an exact match of the ID.
     static constexpr id_type EXACT_MASK = UINT16_MAX;
 
     /// Test for the message being "valid".
