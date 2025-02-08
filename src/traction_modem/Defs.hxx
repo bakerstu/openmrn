@@ -132,6 +132,10 @@ struct Defs
 
     /// Maximum allowed len value.
     static constexpr unsigned MAX_LEN = 512;
+    /// Maximum allowed length of the user data portion of a read.
+    static constexpr size_t MAX_READ_DATA_LEN = 256;
+    /// Maximum allowed length of the user data portion of a write.
+    static constexpr size_t MAX_WRITE_DATA_LEN = 256;
 
     /// Offset of the command in the packet.
     static constexpr unsigned OFS_CMD = 4;
