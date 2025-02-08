@@ -89,7 +89,10 @@ public:
         }
         HASSERT(state_ == IDLE);
         // Clamp the write length to the max supported by the modem.
-        len = std::min(len, Defs::MAX_WRITE_DATA_LEN);
+        if (len > Defs::MAX_WRITE_DATA_LEN)
+        {
+            len = Defs::MAX_WRITE_DATA_LEN;
+        }
         // Register for a write response and send the read request.
         rxFlow_->register_handler(this, Defs::RESP_MEM_W);
         txFlow_->send_packet(Defs::get_memw_payload(
@@ -138,7 +141,10 @@ public:
         }
         HASSERT(state_ == IDLE);
         // Clamp the read length to the max supported by the modem.
-        len = std::min(len, Defs::MAX_READ_DATA_LEN);
+        if (len > Defs::MAX_READ_DATA_LEN)
+        {
+            len = Defs::MAX_READ_DATA_LEN;
+        }
         // Register for a read response and send the read request.
         rxFlow_->register_handler(this, Defs::RESP_MEM_R);
         txFlow_->send_packet(Defs::get_memr_payload(
