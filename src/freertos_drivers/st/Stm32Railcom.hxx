@@ -43,6 +43,9 @@
 #if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_ll_dma.h"
 #include "stm32f0xx_ll_usart.h"
+#elif defined(STM32G0B1xx)
+#include "stm32g0xx_ll_dma.h"
+#include "stm32g0xx_ll_usart.h"
 #elif defined(STM32F103xB)
 #include "stm32f1xx_ll_dma.h"
 #include "stm32f1xx_ll_usart.h"
