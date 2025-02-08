@@ -59,19 +59,32 @@ public:
 
     /// Unregister a message handler. Must be currently registered by a previous
     /// call to register handler.
-    /// @param interface interface to dispatch the messages to
+    /// @param interface interface previously registered to dispatch the
+    ///        messages to
     /// @param id ID of the message
     /// @param mask bit mask of the message ID.
     virtual void unregister_handler(PacketFlowInterface *interface,
         Message::id_type id, Message::id_type mask = Message::EXACT_MASK) = 0;
 
     /// Unregister all message handlers.
-    /// @param interface interface to dispatch the messages to
+    /// @param interface interface previously registered to dispatch the
+    ///        messages to
     virtual void unregister_handler_all(PacketFlowInterface *interface) = 0;
+
+    /// Get the current resynchronization count value.
+    /// @return resynchronization count
+    unsigned get_resync_count()
+    {
+        return resyncCount_;
+    }
+protected:
+    /// Track the number of times that we try to resync.
+    unsigned resyncCount_{0};
 };
 
-/// Object responsible for reading in a stream of bytes over the modem interface
-/// and forming the stream of bytes into complete messages.
+/// Object responsible for reading in a stream of bytes over the modem
+/// interface, forming the stream of bytes into complete messages, and
+/// dispatching them to registered handlers.
 class RxFlow : public RxInterface, public StateFlowBase
 {
 public:
@@ -86,7 +99,8 @@ public:
     { }
 
     /// Start the flow using the given interface.
-    /// @param fd interface to receive messages on
+    /// @param fd interface to transmit the messages on, should be open with
+    ///           all serial settings already applied
     void start(int fd) override
     {
         fd_ = fd;
@@ -105,7 +119,7 @@ public:
 #if defined(GTEST)
     bool exit_ = false;
 
-    void register_handler(PacketFlowInterface *interface)
+    void register_fallback_handler(PacketFlowInterface *interface)
     {
         dispatcher_.register_fallback_handler(interface);
     }
@@ -123,7 +137,8 @@ public:
 
     /// Unregister a message handler. Must be currently registered by a previous
     /// call to register handler.
-    /// @param interface interface to dispatch the messages to
+    /// @param interface interface previously registered to dispatch the
+    ///        messages to
     /// @param id ID of the message
     /// @param mask bit mask of the message ID.
     void unregister_handler(PacketFlowInterface *interface, Message::id_type id,
@@ -133,7 +148,8 @@ public:
     }
 
     /// Unregister all message handlers.
-    /// @param interface interface to dispatch the messages to
+    /// @param interface interface previously registered to dispatch the
+    ///        messages to
     void unregister_handler_all(PacketFlowInterface *interface) override
     {
         dispatcher_.unregister_handler_all(interface);
@@ -198,19 +214,21 @@ private:
     {
         const Defs::Message *m = (const Defs::Message*)payload_.data();
 
+        /// @todo Handle read errors.
+
         // Look for the preamble.
         if (m->header_.preamble_ == htobe32(Defs::PREAMBLE))
         {
             // Valid preamble found where it is supposed to be. Assume for now
             // that we also have a valid header that follows.
-            LOG(INFO, "[ModemRx] recv cmd: 0x%04x, len: %u",
+            LOG(VERBOSE, "[ModemRx] recv cmd: 0x%04x, len: %u",
                 be16toh(m->header_.command_), be16toh(m->header_.length_));
             return call_immediately(STATE(header_complete));
         }
 
         // Else valid preamble and/or header not found where it is supposed to
         // be.
-        LOG(INFO,
+        LOG(WARNING,
             "[ModemRx] Did not find an expected valid preamble and/or header.");
         return call_immediately(STATE(resync));
     }
@@ -228,7 +246,7 @@ private:
         {
             // Violated the maximum length data allowed by the protocol. We are
             // probably out of sync.
-            LOG(INFO, "[ModemRx] Maximum data length violation.");
+            LOG(WARNING, "[ModemRx] Maximum data length violation.");
             return call_immediately(STATE(resync));
         }
 
@@ -261,7 +279,7 @@ private:
             // Timeout, we may be out ot sync. Check for a preamble in the data
             // we did receive.
             recvCnt_ += len - helper_.remaining_;
-            LOG(INFO, "[ModemRx] Timeout waiting for expected receive data, "
+            LOG(WARNING, "[ModemRx] Timeout waiting for expected receive data, "
                 "remaining: %u", helper_.remaining_);
             return call_immediately(STATE(resync));
         }
@@ -274,7 +292,7 @@ private:
             &crc_calc.crc[0]);
         if (crc_calc != crc_recv)
         {
-            LOG(INFO, "[ModemRx] CRC Error, received: 0x%04X 0x%04X 0x%04X, "
+            LOG(WARNING, "[ModemRx] CRC Error, received: 0x%04X 0x%04X 0x%04X, "
                 "calculated: 0x%04X 0x%04X 0x%04X",
                 crc_recv.all_, crc_recv.even_, crc_recv.odd_,
                 crc_calc.all_, crc_calc.even_, crc_calc.odd_);
@@ -282,7 +300,7 @@ private:
         }
 
         size_t total_len = MIN_MESSAGE_SIZE + len;
-        std::string payload_tmp;
+        Defs::Payload payload_tmp;
         if (payload_.size() > total_len)
         {
             // We have the start of the next message, which we need to save off.
@@ -291,7 +309,7 @@ private:
             payload_.resize(total_len);
         }
         // A this point, we have a valid message.
-        LOG(INFO, "[ModemRx] %s", string_to_hex(payload_).c_str());
+        LOG(VERBOSE, "[ModemRx] %s", string_to_hex(payload_).c_str());
 
         auto *b = dispatcher_.alloc();
         b->data()->payload = std::move(payload_);
@@ -300,7 +318,7 @@ private:
         if (payload_tmp.size())
         {
             // Move the start of the next message into payload.
-            LOG(INFO, "[ModemRx] Remaining payload size: %zu",
+            LOG(VERBOSE, "[ModemRx] Remaining payload size: %zu",
                 payload_tmp.size());
             payload_ = std::move(payload_tmp);
             recvCnt_ = payload_.size();
@@ -316,6 +334,7 @@ private:
     Action resync()
     {
         // Message parsing out of sync.
+        ++resyncCount_;
 
         /// @todo Should we be sending out a framing error? I think so. How to
         ///       dispatch that? Maybe an error field in the Message? If we
@@ -341,7 +360,7 @@ private:
                 // allocation.
                 memmove(&payload_[0], &payload_[idx], recvCnt_ - idx);
                 recvCnt_ -= idx;
-                LOG(INFO, "[ModemRx] Sync on preamble first, recvCnt_: %zu",
+                LOG(VERBOSE, "[ModemRx] Sync on preamble first, recvCnt_: %zu",
                     recvCnt_);
                 return call_immediately(STATE(wait_for_base_data));
             }

@@ -89,7 +89,7 @@ protected:
     /// Constructor.
     RxFlowTest()
     {
-        flow_.register_handler(&mPFI_);
+        flow_.register_fallback_handler(&mPFI_);
     }
 
     /// Destructor.
@@ -200,6 +200,7 @@ TEST_F(TxFlowTest, Write)
 //
 TEST_F(RxFlowTest, CreateNoStart)
 {
+    EXPECT_EQ(0U, flow_.get_resync_count());
 }
 
 //
@@ -229,6 +230,7 @@ TEST_F(RxFlowTest, Read)
     EXPECT_CALL(mPFI_, test_send(testing::Eq(data), UINT_MAX)).Times(1);
     send(data.substr(5, data.size() - 5));
     wait_for_main_executor();
+    EXPECT_EQ(0U, flow_.get_resync_count());
 }
 
 //
@@ -258,6 +260,7 @@ TEST_F(RxFlowTest, ReadBackToBack)
     EXPECT_CALL(mPFI_, test_send(testing::Eq(data), UINT_MAX)).Times(2);
     send(data2.substr(5, data2.size() - 5));
     wait_for_main_executor();
+    EXPECT_EQ(0U, flow_.get_resync_count());
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
 
     // Create an intentional framing error that results in left over data in
@@ -275,6 +278,7 @@ TEST_F(RxFlowTest, ReadBackToBack)
     FakeClock clk;
     clk.advance(2 * flow_.get_character_nsec() * (6 + 0xFF));
     wait_for_main_executor();
+    EXPECT_EQ(2U, flow_.get_resync_count());
 }
 
 //
@@ -310,6 +314,7 @@ TEST_F(RxFlowTest, Rsync)
     send(good_data.substr(0, 3));
     send(good_data.substr(5, good_data.size() - 5));
     wait_for_main_executor();
+    EXPECT_EQ(1U, flow_.get_resync_count());
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
 
     //
@@ -320,6 +325,7 @@ TEST_F(RxFlowTest, Rsync)
     EXPECT_CALL(mPFI_, test_send(testing::Eq(good_data), UINT_MAX)).Times(1);
     send(good_data.substr(0, 6) + bad_size + bad_data.substr(0, 6) + good_data);
     wait_for_main_executor();
+    EXPECT_EQ(4U, flow_.get_resync_count());
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
 
     //
@@ -333,11 +339,13 @@ TEST_F(RxFlowTest, Rsync)
     wait_for_main_executor();
     clk.advance(2 * flow_.get_character_nsec() * (6 + 2));
     wait_for_main_executor();
+    EXPECT_EQ(5U, flow_.get_resync_count());
 
     // Ensure that we can still recover and decode the next full good packet.
     EXPECT_CALL(mPFI_, test_send(testing::Eq(good_data), UINT_MAX)).Times(1);
     send(good_data);
     wait_for_main_executor();
+    EXPECT_EQ(5U, flow_.get_resync_count());
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
 }
 
@@ -371,6 +379,7 @@ TEST_F(RxFlowTest, BadCrcRsync)
     EXPECT_CALL(mPFI_, test_send(_, _)).Times(0);
     send(bad_data);
     wait_for_main_executor();
+    EXPECT_EQ(1U, flow_.get_resync_count());
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
 
     // Ensure that we can still recover and decode the next full good packet.
@@ -378,4 +387,5 @@ TEST_F(RxFlowTest, BadCrcRsync)
     send(good_data);
     wait_for_main_executor();
     testing::Mock::VerifyAndClearExpectations(&mPFI_);
+    EXPECT_EQ(1U, flow_.get_resync_count());
 }

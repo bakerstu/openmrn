@@ -36,6 +36,7 @@
 #define _TRACTION_MODEM_TXFLOW_HXX_
 
 #include "traction_modem/Message.hxx"
+#include "utils/logging.h"
 
 namespace traction_modem
 {
@@ -65,18 +66,19 @@ public:
     TxFlow(Service *service)
         : TxFlowBase(service)
     {
-        LOG(INFO, "[ModemTx] constructor");
+        LOG(VERBOSE, "[ModemTx] constructor");
     }
 
     /// Bind an interface to the flow to start transmitting to.
-    /// @param fd interface to transmit the messages on
+    /// @param fd interface to transmit the messages on, should be open with
+    ///           all serial settings already applied
     void start(int fd) override
     {
-        LOG(INFO, "[ModemTx] fd");
+        LOG(VERBOSE, "[ModemTx] fd");
         fd_ = fd;
     }
 
-    /// Send a packet.
+    /// Equates to a packet send.
     /// @param p payload to send
     void send_packet(Defs::Payload p) override
     {
@@ -92,10 +94,10 @@ private:
     {
         if (fd_ < 0)
         {
-            LOG(INFO, "[ModemTx] no uart");
+            LOG(WARNING, "[ModemTx] no uart");
             return release_and_exit();
         }
-        LOG(INFO, "[ModemTx] msg len %d",
+        LOG(VERBOSE, "[ModemTx] msg len %d",
             (int)message()->data()->payload.size());
         return write_repeated(&helper_, fd_, message()->data()->payload.data(),
             message()->data()->payload.size(), STATE(write_complete));
@@ -108,7 +110,7 @@ private:
         unsigned len = message()->data()->payload.size();
         unsigned num_sent = len - helper_.remaining_;
         const uint8_t *d = (const uint8_t *)message()->data()->payload.data();
-        LOG(INFO, "[ModemTx] sent E%d len %u done %u %08x %04x...",
+        LOG(VERBOSE, "[ModemTx] sent E%d len %u done %u %08x %04x...",
             helper_.hasError_, len, num_sent, *(unsigned *)(d + 0),
             (unsigned)be32toh(*(uint16_t *)(d + 4)));
         /// @TODO check for error
