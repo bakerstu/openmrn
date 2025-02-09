@@ -381,7 +381,6 @@ public:
     {
     }
 
-private:
     /// Test if the memory space is read only.
     /// @return false
     bool read_only() override
@@ -421,6 +420,7 @@ private:
         return trackedError_;
     }
 
+private:
     /// Pass error results down to derived objects. This gives a derived object
     /// an opportunity to track the error state over a series of operations.
     /// @param error error code to pass down for evaluation
