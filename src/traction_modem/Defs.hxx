@@ -35,6 +35,7 @@
 #define _TRACTION_MODEM_DEFS_HXX_
 
 #include <string>
+#include <cstring>
 
 #include "openlcb/Velocity.hxx"
 #include "utils/Crc.hxx"
@@ -59,46 +60,62 @@ struct Defs
     /// Command values.
     enum Command : uint16_t
     {
-        CMD_PING              = 0x0000, ///< ping
-        CMD_NOP               = 0x0001, ///< no-operation (do nothing)
-        CMD_REBOOT            = 0x0002, ///< reboot request
-        CMD_BAUD_RATE_QUERY   = 0x0003, ///< query the supported baud rates
-        CMD_BAUD_RATE_REQUEST = 0x0004, ///< request a specific baud rate
-        CMD_SPEED_SET         = 0x0100, ///< set velocity
-        CMD_FN_SET            = 0x0101, ///< set function
-        CMD_ESTOP_SET         = 0x0102, ///< emergency stop request
-        CMD_SPEED_QUERY       = 0x0110, ///< query current speed
-        CMD_FN_QUERY          = 0x0111, ///< query function status
-        CMD_DC_DCC_PRESENT    = 0x0200, ///< DC/DCC present
-        CMD_WIRELESS_PRESENT  = 0x0201, ///< wireless present
-        CMD_MEM_R             = 0x1000, ///< memory read
-        CMD_MEM_W             = 0x1001, ///< memory write
+        CMD_PING               = 0x0000, ///< ping
+        CMD_NOP                = 0x0001, ///< no-operation (do nothing)
+        CMD_REBOOT             = 0x0002, ///< reboot request
+        CMD_BAUD_RATE_QUERY    = 0x0003, ///< query the supported baud rates
+        CMD_BAUD_RATE_REQUEST  = 0x0004, ///< request a specific baud rate
+        CMD_SPEED_SET          = 0x0100, ///< set velocity
+        CMD_FN_SET             = 0x0101, ///< set function
+        CMD_ESTOP_SET          = 0x0102, ///< emergency stop request
+        CMD_SPEED_QUERY        = 0x0110, ///< query current speed
+        CMD_FN_QUERY           = 0x0111, ///< query function status
+        CMD_DC_DCC_PRESENT     = 0x0200, ///< DC/DCC present
+        CMD_WIRELESS_PRESENT   = 0x0201, ///< wireless present
+        CMD_OUTPUT_STATE       = 0x0300, ///< output state
+        CMD_OUTPUT_STATE_QUERY = 0x0301, ///< output state query
+        CMD_OUTPUT_RESTART     = 0x0302, ///< output restart
+        CMD_INPUT_STATE        = 0x0304, ///< input state
+        CMD_INPUT_STATE_QUERY  = 0x0305, ///< input state query
+        CMD_INPUT_CONFIGURE    = 0x0306, ///< input configure
+        CMD_MEM_R              = 0x1000, ///< memory read
+        CMD_MEM_W              = 0x1001, ///< memory write
 
         //
         // response commands
         //
         /// ping response
-        RESP_PING             = RESPONSE | CMD_PING,
+        RESP_PING               = RESPONSE | CMD_PING,
         /// baud rate query response
-        RESP_BAUD_RATE_QUERY  = RESPONSE | CMD_BAUD_RATE_QUERY,
+        RESP_BAUD_RATE_QUERY    = RESPONSE | CMD_BAUD_RATE_QUERY,
         /// set velocity response
-        RESP_SPEED_SET        = RESPONSE | CMD_SPEED_SET,
+        RESP_SPEED_SET          = RESPONSE | CMD_SPEED_SET,
         /// set function response
-        RESP_FN_SET           = RESPONSE | CMD_FN_SET,
+        RESP_FN_SET             = RESPONSE | CMD_FN_SET,
         /// emergency stop response
-        RESP_ESTOP_SET        = RESPONSE | CMD_ESTOP_SET,
+        RESP_ESTOP_SET          = RESPONSE | CMD_ESTOP_SET,
         /// query current speed response
-        RESP_SPEED_QUERY      = RESPONSE | CMD_SPEED_QUERY,
+        RESP_SPEED_QUERY        = RESPONSE | CMD_SPEED_QUERY,
         /// query function status response
-        RESP_FN_QUERY         = RESPONSE | CMD_FN_QUERY,
+        RESP_FN_QUERY           = RESPONSE | CMD_FN_QUERY,
         /// DC/DCC present response
-        RESP_DC_DCC_PRESENT   = RESPONSE | CMD_DC_DCC_PRESENT,
+        RESP_DC_DCC_PRESENT     = RESPONSE | CMD_DC_DCC_PRESENT,
         /// wireless present response
-        RESP_WIRELESS_PRESENT = RESPONSE | CMD_WIRELESS_PRESENT,
+        RESP_WIRELESS_PRESENT   = RESPONSE | CMD_WIRELESS_PRESENT,
+        /// output state response
+        RESP_OUTPUT_STATE       = RESPONSE | CMD_OUTPUT_STATE,
+        /// output state query response
+        RESP_OUTPUT_STATE_QUERY = RESPONSE | CMD_OUTPUT_STATE_QUERY,
+        /// input state response
+        RESP_INPUT_STATE        = RESPONSE | CMD_INPUT_STATE,
+        /// input state query response
+        RESP_INPUT_STATE_QUERY  = RESPONSE | CMD_INPUT_STATE_QUERY,
+        /// input configure response
+        RESP_INPUT_CONFIGURE    = RESPONSE | CMD_INPUT_CONFIGURE,
         /// memory read response
-        RESP_MEM_R            = RESPONSE | CMD_MEM_R,
+        RESP_MEM_R              = RESPONSE | CMD_MEM_R,
         /// memory write response
-        RESP_MEM_W            = RESPONSE | CMD_MEM_W,
+        RESP_MEM_W              = RESPONSE | CMD_MEM_W,
     };
 
     /// Reboot command argument options.
@@ -204,6 +221,29 @@ struct Defs
         Header header_; ///< packet header
         uint16_t error_; ///< error code
         uint16_t bytesWritten_; ///< length in number of bytes actually written
+    };
+
+    /// Bitfield definition of an output state
+    struct OutputEffect
+    {
+        union
+        {
+            uint16_t state_; ///< state of the output
+            struct
+            {
+                uint16_t effect_ : 14; ///< effect type, 0 = off
+                uint16_t activeR_ : 1; ///< active in reverse
+                uint16_t activeF_ : 1; ///< active in forward
+            };
+        };
+    };
+
+    /// Structure of an output state message
+    struct OutputState
+    {
+        Header header_; ///< packet header
+        uint16_t output_; ///< output number
+        OutputEffect effect_; ///< the effect bit fields
     };
 
     /// Computes the payload for a reboot message.
