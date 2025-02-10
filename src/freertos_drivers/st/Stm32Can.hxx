@@ -104,7 +104,6 @@ private:
     /** Default constructor. */
     Stm32Can();
     
-    
     DISALLOW_COPY_AND_ASSIGN(Stm32Can);
 };
 
