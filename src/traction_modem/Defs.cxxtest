@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "os/os.h"
 
-#include "traction_modem/TractionModemDefs.hxx"
+#include "traction_modem/Defs.hxx"
 
 /// Entry point to the test infrastructure. Run all the tests.
 /// @param argc passed to GoogleTest
@@ -43,9 +43,33 @@ static void append_expected_crc(Defs::Payload *payload)
 }
 
 //
+// GetRebootPayload
+//
+TEST(DefsTest, GetRebootPayload)
+{
+    Defs::Payload result;
+    Defs::Payload expected;
+
+    result = Defs::get_reboot_payload(Defs::RebootArg::BOOT);
+    expected = "\x41\xd2\xc3\x7a"s "\x00\x02"s "\x00\x01"s "\x00"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+
+    result = Defs::get_reboot_payload(Defs::RebootArg::APP);
+    expected = "\x41\xd2\xc3\x7a"s "\x00\x02"s "\x00\x01"s "\x01"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+
+    result = Defs::get_reboot_payload(Defs::RebootArg::APP_VALIDATE);
+    expected = "\x41\xd2\xc3\x7a"s "\x00\x02"s "\x00\x01"s "\x02"s;
+    append_expected_crc(&expected);
+    EXPECT_EQ(expected, result);
+}
+
+//
 // GetWirelessPresentPayload
 //
-TEST(TractionModemDefsTest, GetWirelessPresentPayload)
+TEST(DefsTest, GetWirelessPresentPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -64,7 +88,7 @@ TEST(TractionModemDefsTest, GetWirelessPresentPayload)
 //
 // GetFnSetPayload
 //
-TEST(TractionModemDefsTest, GetFnSetPayload)
+TEST(DefsTest, GetFnSetPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -85,7 +109,7 @@ TEST(TractionModemDefsTest, GetFnSetPayload)
 //
 // GetSpeedSetPayload
 //
-TEST(TractionModemDefsTest, GetSpeedSetPayload)
+TEST(DefsTest, GetSpeedSetPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -101,7 +125,7 @@ TEST(TractionModemDefsTest, GetSpeedSetPayload)
 //
 // GetEstopPayload
 //
-TEST(TractionModemDefsTest, GetEstopPayload)
+TEST(DefsTest, GetEstopPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -115,7 +139,7 @@ TEST(TractionModemDefsTest, GetEstopPayload)
 //
 // GetMemrPayload
 //
-TEST(TractionModemDefsTest, GetMemrPayload)
+TEST(DefsTest, GetMemrPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -130,7 +154,7 @@ TEST(TractionModemDefsTest, GetMemrPayload)
 //
 // GetMemwPayload
 //
-TEST(TractionModemDefsTest, GetMemwPayload)
+TEST(DefsTest, GetMemwPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
@@ -146,7 +170,7 @@ TEST(TractionModemDefsTest, GetMemwPayload)
 //
 // AppendCRC
 //
-TEST(TractionModemDefsTest, AppendCRC)
+TEST(DefsTest, AppendCRC)
 {
     Defs::Payload payload = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x00\x01"s "\x01"s;
     Defs::Payload expected = payload;
@@ -159,7 +183,7 @@ TEST(TractionModemDefsTest, AppendCRC)
 //
 // GetUint32
 //
-TEST(TractionModemDefsTest, GetUint32)
+TEST(DefsTest, GetUint32)
 {
     Defs::Payload payload = "\x41\xd2\xc3\x7a"s "\xAA\xBB\xCC\xDD"s;
 
@@ -174,7 +198,7 @@ TEST(TractionModemDefsTest, GetUint32)
 //
 // GetUint16
 //
-TEST(TractionModemDefsTest, GetUint16)
+TEST(DefsTest, GetUint16)
 {
     Defs::Payload payload = "\x41\xd2\xc3\x7a"s;
 
@@ -187,7 +211,7 @@ TEST(TractionModemDefsTest, GetUint16)
 //
 // IsValid
 //
-TEST(TractionModemDefsTest, IsValid)
+TEST(DefsTest, IsValid)
 {
     Defs::Payload payload = "\x41\xd2\xc3\x7a"s "\x02\x01"s "\x00\x01"s "\x01"s;
 
