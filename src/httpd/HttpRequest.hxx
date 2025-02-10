@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 21:04:02 2025
-//  Last Modified : <250210.0839>
+//  Last Modified : <250210.1350>
 //
 //  Description	
 //
@@ -79,11 +79,6 @@ public:
      */
     ~HttpRequest()
     {
-        /* should only delete sockets, which should have the same read
-         * and write fds.  Socket will be closed in the HttpReply once
-         * the reply is completely sent.
-         */
-        HASSERT(fdIn == fdOut);
     }
     using HeaderMap_t = std::multimap<String,String>;
     using HeaderMap_iterator_t = HeaderMap_t::iterator;
@@ -149,6 +144,7 @@ private:
     char *line;       /**< current line content */
     size_t line_size; /**< current max line size */
     size_t pos;       /**< current line position */
+    size_t hlineStart; /**< start of current header */
     size_t contentLength_; /**< Content Length received */
     String contentType_;   /**< Content Type received */
     HTTPMethod method_;    /**< HTTP Method */
