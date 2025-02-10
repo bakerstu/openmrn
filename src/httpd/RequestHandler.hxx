@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 19:22:26 2025
-//  Last Modified : <250208.2103>
+//  Last Modified : <250210.0908>
 //
 //  Description	
 //
@@ -56,6 +56,7 @@
 #include "utils/macros.h"
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
+#include "httpd/Httpd.hxx"
 #include "httpd/HTTP_Method.hxx"
 #include "httpd/Uri.hxx"
 #include "httpd/RequestHandler.hxx"
@@ -68,22 +69,63 @@
 
 using String = std::string;
 
+
 namespace HTTPD {
 
 class RequestHandler {
 public:
     virtual ~RequestHandler() { }
-    virtual bool canHandle(HTTPMethod method, String uri) { (void) method; (void) uri; return false; }
-    virtual bool canUpload(String uri) { (void) uri; return false; }
-    virtual void upload(WebServer& server, String requestUri, HTTPUpload& upload) { (void) server; (void) requestUri; (void) upload; }
+    virtual bool canHandle(HTTPMethod method, String uri) /*override*/
+    { 
+        (void) method; 
+        (void) uri; 
+        return false; 
+    }
+    virtual bool canUpload(String uri) /*override */
+    { 
+        (void) uri; 
+        return false; 
+    }
+    virtual void upload(const HttpRequest *request, HttpReply *reply,
+                        HTTPMethod requestMethod, String requestUri) /*override*/
+    { 
+        (void) request; 
+        (void) reply;
+        (void) requestMethod;
+        (void) requestUri; 
+    }
 #ifdef HTTP_RAW
-    virtual bool canRaw(String uri) { (void) uri; return false; }
-    virtual void raw(WebServer& server, String requestUri, HTTPRaw& raw) { (void) server; (void) requestUri; (void) raw; }
+    virtual bool canRaw(String uri) override
+    { 
+        (void) uri; 
+        return false; 
+    }
+    virtual void raw(const HttpRequest *request, HttpReply *reply,
+                        HTTPMethod requestMethod, String requestUri) override
+    { 
+        (void) request; 
+        (void) reply;
+        (void) requestMethod;
+        (void) requestUri; 
+    }
 #endif
-    virtual bool handle(WebServer& server, HTTPMethod requestMethod, String requestUri) { (void) server; (void) requestMethod; (void) requestUri; return false; }
+    virtual void handle(const HttpRequest *request, HttpReply *reply,
+                        HTTPMethod requestMethod, String requestUri) /*override*/
+    { 
+        (void) request; 
+        (void) reply;
+        (void) requestMethod;
+        (void) requestUri; 
+    }
 
-    RequestHandler* next() { return _next; }
-    void next(RequestHandler* r) { _next = r; }
+    RequestHandler* next() 
+    { 
+        return _next; 
+    }
+    void next(RequestHandler* r) 
+    { 
+        _next = r; 
+    }
 
 private:
     RequestHandler* _next = nullptr;
@@ -92,7 +134,8 @@ protected:
     std::vector<String> pathArgs;
 
 public:
-    const String& pathArg(unsigned int i) { 
+    const String& pathArg(unsigned int i) 
+    { 
         HASSERT(i < pathArgs.size());
         return pathArgs[i];
     }
@@ -114,47 +157,53 @@ public:
         _uri->initPathArgs(pathArgs);
     }
 
-    ~FunctionRequestHandler() {
+    ~FunctionRequestHandler() 
+    {
         delete _uri;
     }
 
-    bool canHandle(HTTPMethod requestMethod, String requestUri) override  {
+    bool canHandle(HTTPMethod requestMethod, String requestUri) override  
+    {
         if (_method != HTTP_ANY && _method != requestMethod)
             return false;
 
         return _uri->canHandle(requestUri, pathArgs);
     }
 
-    bool canUpload(String requestUri) override  {
+    bool canUpload(String requestUri) override  
+    {
         if (!_ufn || !canHandle(HTTP_POST, requestUri))
             return false;
 
         return true;
     }
 #ifdef HTTP_RAW                                                                 
-    bool canRaw(String requestUri) override {
+    bool canRaw(String requestUri) override 
+    {
         if (!_ufn || _method == HTTP_GET)
             return false;
 
         return true;
     }
-    void raw(const HttpRequest &request, HttpReply &reply,String requestUri) override {
+    void raw(const HttpRequest *request, HttpReply *reply,String requestUri) override 
+    {
         if (canRaw(requestUri))
             _ufn.handle(request,reply);
     }
 #endif
     
-    bool handle(const HttpRequest &request, HttpReply &reply,HTTPMethod requestMethod, String requestUri) override {
+    void handle(const HttpRequest *request, HttpReply *reply,HTTPMethod requestMethod, String requestUri) override 
+    {
         if (!canHandle(requestMethod, requestUri))
-            return false;
+            return;
 
         _fn.handle(request,reply);
-        return true;
     }
 
-    void upload(const HttpRequest &request, HttpReply &reply,String requestUri) override {
+    void upload(const HttpRequest *request, HttpReply *reply,String requestUri) /*override */
+    {
         if (canUpload(requestUri))
-            _ufn.handle(request,reply)();
+            _ufn.handle(request,reply);
     }
 
 

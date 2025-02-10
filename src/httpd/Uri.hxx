@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 19:11:53 2025
-//  Last Modified : <250208.2028>
+//  Last Modified : <250209.1657>
 //
 //  Description	
 //
@@ -89,9 +89,9 @@ public:
     };
     
     void initPathArgs(std::vector<String> &pathArgs) override final {
-        int numParams = 0, start = 0;
+        size_t numParams = 0, start = 0;
         do {
-            start = _uri.indexOf("{}", start);
+            start = _uri.find("{}", start);
             if (start > 0) {
                 numParams++;
                 start += 2;
@@ -119,16 +119,16 @@ public:
             i += 2; // index of char after '}'
             if (i >= uriLength) {
                 // there is no char after '}'
-                pathArgs[pathArgIndex] = requestUri.substring(requestUriIndex);
-                return pathArgs[pathArgIndex].indexOf("/") == -1; // path argument may not contain a '/'
+                pathArgs[pathArgIndex] = requestUri.substr(requestUriIndex);
+                return pathArgs[pathArgIndex].find("/") == String::npos; // path argument may not contain a '/'
             }
             else
             {
                 char charEnd = _uri[i];
-                int uriIndex = requestUri.indexOf(charEnd, requestUriIndex);
-                if (uriIndex < 0)
+                size_t uriIndex = requestUri.find(charEnd, requestUriIndex);
+                if (uriIndex == String::npos)
                     return false;
-                pathArgs[pathArgIndex] = requestUri.substring(requestUriIndex, uriIndex);
+                pathArgs[pathArgIndex] = requestUri.substr(requestUriIndex, uriIndex-requestUriIndex);
                 requestUriIndex = (unsigned int) uriIndex;
             }
             pathArgIndex++;

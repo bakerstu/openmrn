@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 19:08:26 2025
-//  Last Modified : <250208.2101>
+//  Last Modified : <250210.0908>
 //
 //  Description	
 //
@@ -61,11 +61,13 @@
 #include "executor/StateFlow.hxx"
 #include "httpd/HTTP_Method.hxx"
 #include "httpd/Uri.hxx"
-#include "httpd/RequestHandler.hxx"
 #include "httpd/HttpRequest.hxx"
 #include "httpd/HttpReply.hxx"
 
 namespace HTTPD {
+
+/** Forward declaration */
+class RequestHandler;
 
 /** This class provides a httpd server instance. The @ref add_uri() method
  * is used to add elements to the dispatching table.
@@ -78,12 +80,12 @@ public:
     {
         Data_follows = 200,
         No_Content = 204,
-        Moved_Permanently = 301,
+        Moved_PermanentlyA = 301,
         Found = 302,
-        Moved_Temporarily = 303,
+        Moved_TemporarilyA = 303,
         Not_Modified = 304,
-        Moved_Permanently = 307,
-        Moved_Temporarily = 308,
+        Moved_PermanentlyB = 307,
+        Moved_TemporarilyB = 308,
         Bad_Request = 400,
         Authorization_Required = 401,
         Permission_denied = 403,
@@ -98,7 +100,7 @@ public:
         HTTP_Version_Not_Supported = 505
     };
     /** Http Request Handler callback. */
-    typedef  std::function<void(const HttpRequest &request, HttpReply &reply, 
+    typedef  std::function<void(const HttpRequest *request, HttpReply *reply, 
                                 void *userContext)> HandlerFunction;
     
     /** Constructor.
@@ -106,7 +108,7 @@ public:
      * execute on
      * @param port TCP port number to open a httpd server listen socket on
      */
-    Httpd(ExecutorBase *executor, uint16_t port);
+    Httpd(ExecutorBase *executor, uint16_t port = 80);
     
     /** Destructor. */
     ~Httpd()
@@ -118,43 +120,72 @@ public:
      * @param callback callback function for the uri.
      * @param context context pointer to pass into callback.
      */
-    void add_uri(const Uri &uri, RequestHandler callback, void *context);
+    void add_uri(const Uri &uri, HandlerFunction callback, void *context);
     
     /** Add a handler for 404 (Not Found).
      * @param callback callback function for the the 404 page.
      * @param context context pointer to pass into callback.
      */
-    void add_notfound(RequestHandler callback, void *context);
+    void add_notfound(HandlerFunction callback, void *context);
+    
+    /** Add an upload handler.
+     * @param callback callback function for uploading.
+     * @param context context pointer to pass into callback.
+     */
+    void add_upload(HandlerFunction callback, void *context);
     
     
     /** Uri Handler Class */
     class UriHandler {
     public:
         /** Construct a Uri Handler.
-         * @param uri The uri to handle
          * @param callback callback function for uri
          * @param context context pointer to pass into callback
          */
-        UriHandler(RequestHandler callback, void *context = NULL)
+        UriHandler(HandlerFunction callback, void *context = NULL)
                     : callback_(callback)
               , context_(context)
+    
         {
         }
-        void handle(const HttpRequest &request, HttpReply &reply)
+        /** Copy construct a Uri Handler.
+         * @param other the other Uri Handler.
+         */
+        UriHandler(const UriHandler& other)
+        {
+            callback_ = other.callback_;
+            context_  = other.context_;
+        }
+        UriHandler& operator = (const UriHandler& other)
+        {
+            callback_ = other.callback_;
+            context_  = other.context_;
+            return *this;
+        }
+            
+        void handle(const HttpRequest *request, HttpReply *reply) const
         {
             callback_(request,reply,context_);
         }
+        bool operator !() const
+        {
+            return callback_ == nullptr;
+        }
     private:
-        RequestHandler callback_; /**< callback function for Uri */
-        void *context_; /**< context pointer to pass into callback */
+        HandlerFunction callback_ = nullptr; /**< callback function for Uri */
+        void *context_ = nullptr; /**< context pointer to pass into callback */
     };
     
+    RequestHandler * FirstHandler() {return firstHandler_;}
+    UriHandler * NotFoundHandler() {return &notFoundHandler_;}
 private:
     
     RequestHandler *firstHandler_;
     RequestHandler *lastHandler_;
-    RequestHandler notFoundHandler_;
-    
+    UriHandler      notFoundHandler_;
+    UriHandler      fileUploadHandler_;
+
+    void addRequestHandler_(RequestHandler* handler);
     /** State flow that will accept incoming connections.
      */
     class Listen : public StateFlowBase
@@ -196,14 +227,12 @@ private:
     void open_request(int fd_in, int fd_out);
     Listen listen; /**< object that will listen for incoming connections */
     
-    /** Give HTTPRequest class access to Httpd private members */
-    friend class HTTPRequest;
-    
-    /** Give HTTPReply class access to Httpd private members */
-    friend class HTTPReply;
+    static void DefaultNotFound(const HttpRequest *request, HttpReply *reply, void *userContext);
+    static void DefaultUpload(const HttpRequest *request, HttpReply *reply, void *userContext);
     
     /** Give Listen class access to Httpd private members */
     friend class Listen;
+    
     
     DISALLOW_COPY_AND_ASSIGN(Httpd);
     
