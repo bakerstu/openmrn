@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 19:08:26 2025
-//  Last Modified : <250210.0908>
+//  Last Modified : <250210.1950>
 //
 //  Description	
 //
@@ -99,7 +99,13 @@ public:
         Service_Temporarily_Unavailable = 504,
         HTTP_Version_Not_Supported = 505
     };
-    /** Http Request Handler callback. */
+    /** Http Request Handler callback. 
+     * @param request HttpRequest class instance containing information about 
+     *                the request
+     * @param reply HttpReply class instance to be used to build the reply
+     * @param userContext a user supplied pointer for use by the user's 
+     *                    code.
+     */
     typedef  std::function<void(const HttpRequest *request, HttpReply *reply, 
                                 void *userContext)> HandlerFunction;
     
@@ -107,7 +113,7 @@ public:
      * @param executor the executor thread that the Httpd Server flows will 
      * execute on
      * @param port TCP port number to open a httpd server listen socket on
-     */
+     */            (defaults to 80)
     Httpd(ExecutorBase *executor, uint16_t port = 80);
     
     /** Destructor. */
@@ -156,17 +162,27 @@ public:
             callback_ = other.callback_;
             context_  = other.context_;
         }
+        /** Assignment operator
+         * @param other RHS of the equal sign (source object)
+         * @returns this LHS of the equal sign (destination object)
+         */
         UriHandler& operator = (const UriHandler& other)
         {
             callback_ = other.callback_;
             context_  = other.context_;
             return *this;
         }
-            
+        /** Invoke the handler.  Calls the handler with its context.
+         * @param request The request instance
+         * @param reply The reply instance
+         */
         void handle(const HttpRequest *request, HttpReply *reply) const
         {
             callback_(request,reply,context_);
         }
+        /** Not operator: is this a valid handler.
+         * @returns true if the callback function is a nullptr.
+         */
         bool operator !() const
         {
             return callback_ == nullptr;
@@ -176,15 +192,20 @@ public:
         void *context_ = nullptr; /**< context pointer to pass into callback */
     };
     
+    /** Return the head of the handler list. */
     RequestHandler * FirstHandler() {return firstHandler_;}
+    /** Return the not found handler. */
     UriHandler * NotFoundHandler() {return &notFoundHandler_;}
 private:
     
-    RequestHandler *firstHandler_;
-    RequestHandler *lastHandler_;
-    UriHandler      notFoundHandler_;
-    UriHandler      fileUploadHandler_;
-
+    RequestHandler *firstHandler_; /**< Head of the handler list. */
+    RequestHandler *lastHandler_; /**< Tail of the handler list. */
+    UriHandler      notFoundHandler_; /**< Not Found (404) handler */
+    UriHandler      fileUploadHandler_; /**< File Upload handler */
+    
+    /** Add a request handler to the list
+     * @param handler The handler to add.
+     */
     void addRequestHandler_(RequestHandler* handler);
     /** State flow that will accept incoming connections.
      */
@@ -227,7 +248,17 @@ private:
     void open_request(int fd_in, int fd_out);
     Listen listen; /**< object that will listen for incoming connections */
     
+    /** Default Not Found (404) handler
+     * @param request the request instance
+     * @param reply the reply instance
+     * @param userContext context pointer (not used)
+     */
     static void DefaultNotFound(const HttpRequest *request, HttpReply *reply, void *userContext);
+    /** Default upload handler
+     * @param request the request instance
+     * @param reply the reply instance
+     * @param userContext context pointer (not used)
+     */
     static void DefaultUpload(const HttpRequest *request, HttpReply *reply, void *userContext);
     
     /** Give Listen class access to Httpd private members */
