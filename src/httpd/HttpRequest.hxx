@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 21:04:02 2025
-//  Last Modified : <250210.1350>
+//  Last Modified : <250210.2009>
 //
 //  Description	
 //
@@ -66,6 +66,12 @@ using String = std::string;
 
 namespace HTTPD {
 
+
+/** HTTP Request class.  Contains the Http request information, including the
+ * request method, the Uri, the Http version.  Also all of the request headers.
+ * A const pointer to an instanstance of this class is passed to the handler
+ * function.
+ */
 class HttpRequest : public StateFlowBase
 {
 public:
@@ -80,23 +86,44 @@ public:
     ~HttpRequest()
     {
     }
+    /** Request headers container type */
     using HeaderMap_t = std::multimap<String,String>;
+    /** Request headers container iterator type */
     using HeaderMap_iterator_t = HeaderMap_t::iterator;
+    /** Content length accessor */
     size_t ContentLength() const {return contentLength_;}
+    /** Content type accessor */
     const String ContentType() const {return contentType_;}
+    /** Http Method accessor */
     HTTPMethod Method() const {return method_;}
+    /** Request Uri accessor */
     const String RequestUri() const {return uri_;}
+    /** Http version accessor */
     int HttpVersion () const {return httpVersion_;}
+    /** Host accessor */
     const String Host () const {return host_;}
+    /** Query string accessor */
     const String Query () const {return query_;}
+    /** Header accessor
+     * @param header Header name
+     * @returns a pair of iterators giving the range of results
+     */
     std::pair<HeaderMap_iterator_t,HeaderMap_iterator_t> HeaderValues (String header)
     {
         return headerMap_.equal_range(header);
     }
+    /** Request body accessor */
     const String Body () const {return body_;}
 private:
+    /** Create a reply for this request.
+     * @param version the version of the http request
+     * @returns a new HttpReply instance to be filled in by the handler
+     */
     HttpReply *Reply (int version=0);
-    
+    /** Lookup the method code for the request method
+     * @param methodString the method string
+     * @returns the method code
+     */
     HTTPMethod lookupMethodString(const char *methodString);
     /** Entry point to the state machine.  Read HTTP request line.
      * @return next state is process_requestline()
@@ -157,7 +184,7 @@ private:
     
     /** metadata for waiting on the http request socket to become active */
     StateFlowBase::StateFlowSelectHelper selectHelper;
-    
+    /** The method string array. */
     static const char *HttpMethodStrings[HTTP_METHOD_COUNT];
 
     DISALLOW_COPY_AND_ASSIGN(HttpRequest);

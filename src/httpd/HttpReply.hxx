@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sun Feb 9 13:17:25 2025
-//  Last Modified : <250210.1424>
+//  Last Modified : <250210.2019>
 //
 //  Description	
 //
@@ -78,33 +78,52 @@ public:
           , selectHelper(this)
     {
     }
-    /** Desctructor.
+    /** Desctructor.  Close the socket.
      */
     ~HttpReply()
     {
         close(fdOut);
     }
+    /** Add a header to the reply headers
+     * @param header the header name
+     * @param value the header's value
+     */
     void SetHeader(const String header,const String value)
     {
         headerMap_.insert(std::pair<String,String>(header,value));
     }
+    /** Set the statuss code
+     * @param StatusCode The status code
+     */
     void SetStatus(int StatusCode)
     {
         status_ = StatusCode;
     }
+    /** Append text to the output body
+     * @param s some text to add to the body
+     */
     void Puts(const String s)
     {
         body_ += s;
     }
+    /** Set the content type
+     * @param contentType the content type string
+     */
     inline void SetContentType(const String contentType)
     {
         SetHeader("Content-Type",contentType);
     }
+    /** Start sending the reply
+     */
     void SendReply()
     {
         start_flow(STATE(entry));
     }
 private:
+    /** Lookup the status message
+     * @param statuscode The status code to lookup
+     * @returns the status message
+     */
     const char *lookupStatusMessage(int statuscode) const;
     /** Entry point to the state machine.  Write the reply headers.
      * @return next state is write_body
@@ -124,11 +143,17 @@ private:
         return write_repeated(&selectHelper, fdOut, buffer, strlen(buffer),
                               STATE(write_headers));
     }
+    /** Start writing header lines. Initialize iterator and then call 
+     *  write_nextheader
+     */
     StateFlowBase::Action write_headers()
     {
         next_header_ = headerMap_.begin();
         return call_immediately(STATE(write_nextheader));
     }
+    /** Write one header line, if more headers increment the iterator and 
+     * write the next header.  Otherwise write a blank line and write the body.
+     */
     StateFlowBase::Action write_nextheader()
     {
         if (next_header_ == headerMap_.end())
@@ -161,11 +186,11 @@ private:
         }
     }
     int fdOut;        /**< output file descriptor of the HTTPReply */
-    int version_;
-    int status_;
+    int version_;     /**< The http version */
+    int status_;      /**< The reply status */
     std::multimap<String,String> headerMap_; /**< All of the headers to send. */
     std::multimap<String,String>::iterator next_header_;
-    String CurrentHeader_;
+    String CurrentHeader_; /**< Holds the current header line being sent */
     String body_;          /**< The body of the reply. */
     
     /** metadata for waiting on the http reply socket to become active */
