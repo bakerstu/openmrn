@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sun Feb 9 15:04:53 2025
-//  Last Modified : <250209.1505>
+//  Last Modified : <250210.2056>
 //
 //  Description	
 //
@@ -54,7 +54,7 @@
 namespace mime
 {
 
-// Table of extension->MIME
+/// Table of extension->MIME
 const Entry mimeTable[maxType] = 
 {
     { ".html", "text/html" },

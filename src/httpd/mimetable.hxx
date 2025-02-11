@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sun Feb 9 15:03:13 2025
-//  Last Modified : <250209.1503>
+//  Last Modified : <250210.2055>
 //
 //  Description	
 //
@@ -56,6 +56,7 @@
 namespace mime
 {
 
+/** file extensions */
 enum type
 {
   html,
@@ -84,13 +85,14 @@ enum type
   maxType
 };
 
+/** table elements */
 struct Entry
 {
-  const char endsWith[16]; 
-  const char mimeType[32];
+  const char endsWith[16]; /**< what a file ends with */
+  const char mimeType[32]; /**< what its mime type is */
 };
 
-
+/** Mime table */
 extern const Entry mimeTable[maxType];
 }
 

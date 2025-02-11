@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 19:13:08 2025
-//  Last Modified : <250209.1414>
+//  Last Modified : <250210.2053>
 //
 //  Description	
 //
@@ -54,15 +54,16 @@
 
 namespace HTTPD {
 
+/** Http method codes */
 typedef enum http_method
 {
-    HTTP_DELETE,
-    HTTP_GET,
-    HTTP_HEAD,
-    HTTP_POST,
-    HTTP_PUT,
-    HTTP_METHOD_COUNT,
-    HTTP_ANY = 255
+    HTTP_DELETE,  /**< DELETE */
+    HTTP_GET,     /**< GET */
+    HTTP_HEAD,    /**< HEAD */
+    HTTP_POST,    /**< POST */
+    HTTP_PUT,     /**< PUT */
+    HTTP_METHOD_COUNT, /**< Number of support methods */
+    HTTP_ANY = 255 /**< Wildcard */
 } HTTPMethod;
 
 };
