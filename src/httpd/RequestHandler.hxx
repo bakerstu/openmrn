@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 19:22:26 2025
-//  Last Modified : <250210.0908>
+//  Last Modified : <250210.2049>
 //
 //  Description	
 //
@@ -72,20 +72,40 @@ using String = std::string;
 
 namespace HTTPD {
 
+/** Base class for Request handlers
+ */
 class RequestHandler {
 public:
+    /** Destructor
+     */
     virtual ~RequestHandler() { }
+    /** can handle predicate
+     * @param method the request method
+     * @param uri the request string
+     * @returns true if this request handler can handle this uri
+     */
     virtual bool canHandle(HTTPMethod method, String uri) /*override*/
     { 
         (void) method; 
         (void) uri; 
         return false; 
     }
+    /** can upload predicate
+     * @param method the request method
+     * @param uri the request string
+     * @returns true if this request handler can upload this uri
+     */
     virtual bool canUpload(String uri) /*override */
     { 
         (void) uri; 
         return false; 
     }
+    /** upload handler
+     * @param request the http request
+     * @param reply the http reply
+     * @param requestMethod the request method
+     * @param requestUri the request uri
+     */
     virtual void upload(const HttpRequest *request, HttpReply *reply,
                         HTTPMethod requestMethod, String requestUri) /*override*/
     { 
@@ -95,11 +115,21 @@ public:
         (void) requestUri; 
     }
 #ifdef HTTP_RAW
+    /** The raw predicate
+     * @param uri the uri
+     * @returns true if this handler can handle a raw request
+     */
     virtual bool canRaw(String uri) override
     { 
         (void) uri; 
         return false; 
     }
+    /** raw handler
+     * @param request the http request
+     * @param reply the http reply
+     * @param requestMethod the request method
+     * @param requestUri the request uri
+     */
     virtual void raw(const HttpRequest *request, HttpReply *reply,
                         HTTPMethod requestMethod, String requestUri) override
     { 
@@ -109,6 +139,12 @@ public:
         (void) requestUri; 
     }
 #endif
+    /** the handler
+     * @param request the http request
+     * @param reply the http reply
+     * @param requestMethod the request method
+     * @param requestUri the request uri
+     */
     virtual void handle(const HttpRequest *request, HttpReply *reply,
                         HTTPMethod requestMethod, String requestUri) /*override*/
     { 
@@ -117,23 +153,32 @@ public:
         (void) requestMethod;
         (void) requestUri; 
     }
-
+    /** Next pointer accessor
+     * @returns the next pointer
+     */
     RequestHandler* next() 
     { 
         return _next; 
     }
+    /** Next pointer setter
+     * @param r the new next
+     */
     void next(RequestHandler* r) 
     { 
         _next = r; 
     }
 
 private:
-    RequestHandler* _next = nullptr;
+    RequestHandler* _next = nullptr; /**< next pointer */
 
 protected:
-    std::vector<String> pathArgs;
+    std::vector<String> pathArgs; /**< the pathArgs */
 
 public:
+    /** Accessor for a path arg
+     * @param i the index of the desired path arg
+     * @returns the ith path arg
+     */
     const String& pathArg(unsigned int i) 
     { 
         HASSERT(i < pathArgs.size());
@@ -144,8 +189,16 @@ public:
 
 using namespace mime;
 
+/** Function request handler
+ */
 class FunctionRequestHandler : public RequestHandler {
 public:
+    /** Constructor
+     * @param fn Uri handler for the handler function
+     * @param ufn Uri handler for the upload function
+     * @uri the uri match object
+     * @method the request method for this handler
+     */
     FunctionRequestHandler(const Httpd::UriHandler &fn, 
                            const Httpd::UriHandler &ufn, 
                            const Uri &uri, HTTPMethod method)
@@ -156,12 +209,19 @@ public:
     {
         _uri->initPathArgs(pathArgs);
     }
-
+    
+    /** Destructor
+     */
     ~FunctionRequestHandler() 
     {
         delete _uri;
     }
-
+    
+    /** can handle predicate
+     * @param method the request method
+     * @param uri the request string
+     * @returns true if this request handler can handle this uri
+     */
     bool canHandle(HTTPMethod requestMethod, String requestUri) override  
     {
         if (_method != HTTP_ANY && _method != requestMethod)
@@ -170,6 +230,11 @@ public:
         return _uri->canHandle(requestUri, pathArgs);
     }
 
+    /** can upload predicate
+     * @param method the request method
+     * @param uri the request string
+     * @returns true if this request handler can upload this uri
+     */
     bool canUpload(String requestUri) override  
     {
         if (!_ufn || !canHandle(HTTP_POST, requestUri))
@@ -178,6 +243,10 @@ public:
         return true;
     }
 #ifdef HTTP_RAW                                                                 
+    /** The raw predicate
+     * @param uri the uri
+     * @returns true if this handler can handle a raw request
+     */
     bool canRaw(String requestUri) override 
     {
         if (!_ufn || _method == HTTP_GET)
@@ -185,6 +254,12 @@ public:
 
         return true;
     }
+    /** raw handler
+     * @param request the http request
+     * @param reply the http reply
+     * @param requestMethod the request method
+     * @param requestUri the request uri
+     */
     void raw(const HttpRequest *request, HttpReply *reply,String requestUri) override 
     {
         if (canRaw(requestUri))
@@ -192,6 +267,12 @@ public:
     }
 #endif
     
+    /** the handler
+     * @param request the http request
+     * @param reply the http reply
+     * @param requestMethod the request method
+     * @param requestUri the request uri
+     */
     void handle(const HttpRequest *request, HttpReply *reply,HTTPMethod requestMethod, String requestUri) override 
     {
         if (!canHandle(requestMethod, requestUri))
@@ -200,6 +281,12 @@ public:
         _fn.handle(request,reply);
     }
 
+    /** upload handler
+     * @param request the http request
+     * @param reply the http reply
+     * @param requestMethod the request method
+     * @param requestUri the request uri
+     */
     void upload(const HttpRequest *request, HttpReply *reply,String requestUri) /*override */
     {
         if (canUpload(requestUri))
@@ -208,10 +295,10 @@ public:
 
 
 protected:
-    const Httpd::UriHandler _fn;
-    const Httpd::UriHandler _ufn;
-    Uri *_uri;
-    HTTPMethod _method;
+    const Httpd::UriHandler _fn; /**< handler function */
+    const Httpd::UriHandler _ufn; /**< the upload handler */
+    Uri *_uri;                    /**< the uri match */
+    HTTPMethod _method;           /**< the request method */
 };
 
 };
