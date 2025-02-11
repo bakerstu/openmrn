@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 19:11:53 2025
-//  Last Modified : <250209.1657>
+//  Last Modified : <250210.2033>
 //
 //  Description	
 //
@@ -61,33 +61,66 @@ using String = std::string;
 
 namespace HTTPD {
 
+/** Class for a plain constant uri (and base class for all Uris)
+ * This class holds a Uri match string
+ */
 class Uri {
 protected:
-    const String _uri;
+    const String _uri; /**< the uri string */
 public:
+    /** Constructor given a C char* string 
+     * @param uri the uri
+     */
     Uri(const char *uri) : _uri(uri) {}
+    /** Constructor given a std::string 
+     * @param uri the uri
+     */
     Uri(const String &uri) : _uri(uri) {}
+    /** Destructor */
     virtual ~Uri() {}
+    /** Clone a Uri 
+     * @returns a new Uri
+     */
     virtual Uri* clone() const {
         return new Uri(_uri);
     };
+    /** Initialize the PathArgs
+     * @param pathArgs a vector of path elements
+     */
     virtual void initPathArgs(__attribute__((unused)) std::vector<String> &pathArgs) {}
+    /** Predicate to check if this Uri matches
+     * @param requestUri the uri
+     * @param pathArgs (not used)
+     */
     virtual bool canHandle(const String &requestUri, __attribute__((unused)) std::vector<String> &pathArgs) {
         return _uri == requestUri;
     }
 };
 
-
+/** Class to use brace matching for uris
+ */
 class UriBraces : public Uri {
     
 public:
+    /** Constructor for char *
+     * @param uri the uri
+     */
     explicit UriBraces(const char *uri) : Uri(uri) {};
+    /** Constructor for std::string
+     * @param uri the uri
+     */
     explicit UriBraces(const String &uri) : Uri(uri) {};
     
+    /** Clone a Uri
+     * @returns a new Uri
+     */
     Uri* clone() const override final {
         return new UriBraces(_uri);
     };
     
+    /** Initialize the PathArgs
+     * @param pathArgs a vector of path elements
+     */
     void initPathArgs(std::vector<String> &pathArgs) override final {
         size_t numParams = 0, start = 0;
         do {
@@ -99,7 +132,10 @@ public:
         } while (start > 0);
         pathArgs.resize(numParams);
     }
-    
+    /** Predicate to check if this Uri matches
+     * @param requestUri the uri
+     * @param pathArgs the path args to fill in
+     */
     bool canHandle(const String &requestUri, std::vector<String> &pathArgs) override final {
         if (Uri::canHandle(requestUri, pathArgs))
             return true;
@@ -138,31 +174,61 @@ public:
     }
 };
 
+/** Class to use glob matching
+ */
 class UriGlob : public Uri {
 
 public:
+    /** Constructor given a C char* string 
+     * @param uri the uri
+     */
     explicit UriGlob(const char *uri) : Uri(uri) {};
+    /** Constructor given a std::string 
+     * @param uri the uri
+     */
     explicit UriGlob(const String &uri) : Uri(uri) {};
 
+    /** Clone a Uri 
+     * @returns a new Uri
+     */
     Uri* clone() const override final {
         return new UriGlob(_uri);
     };
 
+    /** Predicate to check if this Uri matches
+     * @param requestUri the uri
+     * @param pathArgs (not used)
+     */
     bool canHandle(const String &requestUri, __attribute__((unused)) std::vector<String> &pathArgs) override final {
         return fnmatch(_uri.c_str(), requestUri.c_str(), 0) == 0;
     }
 };
 
+
+/** Class to use Regular Expression matching
+ */
 class UriRegex : public Uri {
 
 public:
+    /** Constructor for char *
+     * @param uri the uri
+     */
     explicit UriRegex(const char *uri) : Uri(uri) {};
+    /** Constructor for std::string
+     * @param uri the uri
+     */
     explicit UriRegex(const String &uri) : Uri(uri) {};
 
+    /** Clone a Uri
+     * @returns a new Uri
+     */
     Uri* clone() const override final {
         return new UriRegex(_uri);
     };
 
+    /** Initialize the PathArgs
+     * @param pathArgs a vector of path elements
+     */
     void initPathArgs(std::vector<String> &pathArgs) override final {
         std::regex rgx((_uri + "|").c_str());
         std::smatch matches;
@@ -171,6 +237,10 @@ public:
         pathArgs.resize(matches.size() - 1);
     }
 
+    /** Predicate to check if this Uri matches
+     * @param requestUri the uri
+     * @param pathArgs the path args to fill in
+     */
     bool canHandle(const String &requestUri, std::vector<String> &pathArgs) override final {
         if (Uri::canHandle(requestUri, pathArgs))
             return true;
