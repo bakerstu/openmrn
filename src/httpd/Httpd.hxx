@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 19:08:26 2025
-//  Last Modified : <250210.1950>
+//  Last Modified : <250211.0855>
 //
 //  Description	
 //
@@ -119,6 +119,12 @@ public:
     /** Destructor. */
     ~Httpd()
     {
+        RequestHandler* handler = firstHandler_;
+        while (handler) {
+            RequestHandler* next = handler->next();
+            delete handler;
+            handler = next;
+        }
     }
     
     /** Add a new URI handler to the server.
@@ -217,7 +223,12 @@ private:
          * @param port port number to listen on
          */
         Listen(Service *service, int port);
-
+        /** Destructor
+         */
+        ~Listen()
+        {
+            close(fdListen);
+        }
     private:
         /** Entry point to the state machine.
          * @return next state is accept() pending an active listen socket
