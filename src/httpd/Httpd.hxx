@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 19:08:26 2025
-//  Last Modified : <250212.0003>
+//  Last Modified : <250212.0005>
 //
 //  Description	
 //
@@ -118,15 +118,7 @@ public:
     Httpd(ExecutorBase *executor, uint16_t port = 80);
     
     /** Destructor. */
-    ~Httpd()
-    {
-        RequestHandler* handler = firstHandler_;
-        while (handler) {
-            RequestHandler* next = handler->next();
-            delete handler;
-            handler = next;
-        }
-    }
+    ~Httpd();
     
     /** Add a new URI handler to the server.
      * @param uri the URI to dispatch on.

@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sun Feb 9 15:18:08 2025
-//  Last Modified : <250210.0843>
+//  Last Modified : <250212.0006>
 //
 //  Description	
 //
@@ -96,6 +96,16 @@ void Httpd::add_uri(const Uri &uri, HandlerFunction callback, void *context)
                                      fileUploadHandler_,
                                      uri,HTTP_ANY));
     
+}
+
+Httpd::~Httpd()
+{
+    RequestHandler* handler = firstHandler_;
+    while (handler) {
+        RequestHandler* next = handler->next();
+        delete handler;
+        handler = next;
+    }
 }
 
 /*
