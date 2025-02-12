@@ -8,7 +8,7 @@
 //  Author        : $Author$
 //  Created By    : Robert Heller
 //  Created       : Sat Feb 8 19:08:26 2025
-//  Last Modified : <250211.0855>
+//  Last Modified : <250212.0003>
 //
 //  Description	
 //
@@ -113,7 +113,8 @@ public:
      * @param executor the executor thread that the Httpd Server flows will 
      * execute on
      * @param port TCP port number to open a httpd server listen socket on
-     */            (defaults to 80)
+     *             (defaults to 80)
+     */
     Httpd(ExecutorBase *executor, uint16_t port = 80);
     
     /** Destructor. */
