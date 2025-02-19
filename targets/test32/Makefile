@@ -14,10 +14,6 @@ HOST_TARGET=1
 # avahi-client for 32-bit?).
 TESTBLACKLIST += utils/OpenSSLAesCcm.cxxtest utils/SocketClient.cxxtest
 
-# This test has a problem with the main buffer pool not retaining a released
-# block.
-TESTBLACKLIST += utils/DataBuffer.cxxtest
-
 # Unknown problem
 TESTBLACKLIST += openlcb/MemoryConfigStream.cxxtest
 
