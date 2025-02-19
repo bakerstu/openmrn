@@ -240,6 +240,14 @@ struct Stm32GpioOptionDefs
         AfMode, PeriphBase, Pin, PinNum>;
 };
 
+/// Constexpr class for representing the actual options that are defined on a
+/// particular pin. An object of this class gets constexpr-constructed by the
+/// code from the symbols like Pull(), Speed() and their arguments, but never
+/// should actually appear in a binary. Instead, it has only constexpr
+/// functions to query certain properties. Beyond the base functions like
+/// pull() and speed() there are also some convenience functions, also
+/// constexpr, that process the raw returned values into something more
+/// intuitive or easier to use.
 class Stm32GpioOptions : public Stm32GpioOptionDefs::Base
 {
 public:
@@ -277,6 +285,12 @@ public:
     fill_options(GPIO_InitTypeDef *gpio_init, Args... args)
     {
 #if 0
+        // It would be ideal to have these assertions in here, but despite
+        // always_inline and everything being constexpr here, the compiler does
+        // not consider these as static expressions. We don't want them as
+        // dynamic assertions, because of performance reasons and because this
+        // code runs in hw_preinit where the assertion output facility is not
+        // initialized yet.
         constexpr Stm32GpioOptions ao(args...);
         static_assert(IS_GPIO_MODE(Stm32GpioOptions(args...).gpio_mode()), "Incorrect gpio mode");
         static_assert(IS_GPIO_SPEED(ao.speed()), "Incorrect gpio speed");
@@ -373,6 +387,14 @@ public:
     };                                                                         \
     typedef BaseClass<NAME##_PinDefs> NAME##_Pin
 
+/// Policy class to use for GPIO_XPIN as BaseClass argument.
+///
+/// Example:
+///
+/// GPIO_XPIN(FOO, GpioHwPin, B, 7, Af(), PullUp(), AfMode(GPIO_AF0_USART1));
+///
+/// This will make FOO_Pin::hw_init() configure PB7 for AF0 mode for USART1
+/// using internal weak pullup.
 template <class Defs>
 struct GpioHwPin : public Stm32GpioDefs<Defs::opts().periph_base(),
                        Defs::opts().pin(), Defs::opts().pin_num()>
