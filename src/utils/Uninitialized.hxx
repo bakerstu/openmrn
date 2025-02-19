@@ -34,6 +34,7 @@
 #ifndef _UTILS_UNINITIALIZED_HXX_
 #define _UTILS_UNINITIALIZED_HXX_
 
+#include <array>
 #include <type_traits>
 
 /// Template class that allows allocating storage for an object but not calling
@@ -120,7 +121,14 @@ public:
     }
 
 private:
+#if __cplusplus >= 202002L
+    // std::aligned_storage is deprecated in C++23
+    // NOTE: not using 202302L above due to ESP-IDF v5.2 packaging GCC 13.2.0
+    // which did not use this value for C++23.
+    alignas(T) std::array<std::byte, sizeof(T)> data;
+#else
     typename std::aligned_storage<sizeof(T), alignof(T)>::type data;
+#endif
 
     /// @return the embedded object (mutable pointer)
     constexpr T *tptrm() const

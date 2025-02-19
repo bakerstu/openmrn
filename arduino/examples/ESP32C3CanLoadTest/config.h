@@ -10,7 +10,7 @@
 
 // catch invalid configuration at compile time
 #if !defined(USE_TWAI) && !defined(USE_WIFI)
-#error "Invalid configuration detected, USE_CAN or USE_WIFI must be defined."
+#error "Invalid configuration detected, USE_TWAI or USE_WIFI must be defined."
 #endif
 
 namespace openlcb
