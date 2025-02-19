@@ -127,13 +127,7 @@ protected:
      * pending timers have completed. */
     void twait()
     {
-        wait_for_main_executor();
-        while (!g_executor.active_timers()->empty())
-        {
-            usleep(20000);
-            wait_for_main_executor();
-        }
-        wait_for_main_executor();
+        wait_for_main_timers();
     }
 
 #ifdef __EMSCRIPTEN__

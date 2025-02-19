@@ -38,52 +38,12 @@
 #include "freertos/tc_ioctl.h"
 #include "stm32f_hal_conf.hxx"
 
-#if defined(STM32F072xB) || defined(STM32F091xC)
-#include "stm32f0xx_hal_cortex.h"
-#elif defined(STM32F103xB)
-#include "stm32f1xx_hal_cortex.h"
-#elif defined(STM32F303xC) || defined(STM32F303xE)
-#include "stm32f3xx_hal_cortex.h"
-#elif defined(STM32L431xx) || defined(STM32L432xx)
-#include "stm32l4xx_hal_cortex.h"
-#elif defined(STM32F767xx)
-#include "stm32f7xx_hal_cortex.h"
-#elif defined (STM32G0B1xx)
-#include "stm32g0xx_hal_cortex.h"
-#else
-#error Dont know what STM32 chip you have.
-#endif
-
 #include "FreeRTOSConfig.h"
 
-#if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx)
-Stm32Uart *Stm32Uart::instances[1] = {NULL};
-#elif defined (STM32F030x8) || defined (STM32F042x6) || defined (STM32F048xx) \
-   || defined (STM32F051x8) || defined (STM32F058xx) || defined (STM32F070x6)
-Stm32Uart *Stm32Uart::instances[2] = {NULL};
-#elif defined (STM32L432xx)
-Stm32Uart *Stm32Uart::instances[3] = {NULL};
-#define USART3 LPUART1
-#elif defined (STM32F070xB) || defined (STM32F071xB) || defined (STM32F072xB) \
-   || defined (STM32F078xx)
-Stm32Uart *Stm32Uart::instances[4] = {NULL};
-#elif defined (STM32L431xx)
-Stm32Uart *Stm32Uart::instances[4] = {NULL};
-#define USART4 LPUART1
-#elif defined (STM32F303xC) || defined (STM32F303xE)
-Stm32Uart *Stm32Uart::instances[5] = {NULL};
-#define USART4 UART4
-#define USART5 UART5
-#elif defined (STM32F030xC)
-Stm32Uart *Stm32Uart::instances[6] = {NULL};
-#elif defined (STM32F091xC) || defined (STM32F098xx) || defined(STM32F767xx)
-Stm32Uart *Stm32Uart::instances[8] = {NULL};
-#elif defined (STM32G0B1xx)
-// six UARTs + two LPUARTs
-#define USART7 LPUART1
-#define USART8 LPUART2
-Stm32Uart *Stm32Uart::instances[8] = {NULL};
-#endif
+// static
+uint8_t Stm32Uart::interrupt3_to_8EnableCnt = 0;
+// static
+uint8_t Stm32Uart::interrupt2_8EnableCnt = 0;
 
 /** Constructor.
  * @param name name of this device instance in the file system
@@ -93,81 +53,10 @@ Stm32Uart *Stm32Uart::instances[8] = {NULL};
 Stm32Uart::Stm32Uart(const char *name, USART_TypeDef *base, IRQn_Type interrupt)
     : Serial(name)
     , interrupt(interrupt)
-    , interrupt3_8EnableCnt(0)
 {
     memset(&uartHandle, 0, sizeof(uartHandle));
     uartHandle.Instance = base;
     HAL_UART_DeInit(&uartHandle); 
-
-    if (base == USART1)
-    {
-        instances[0] = this;
-    }
-#if !defined (STM32F030x6) && !defined (STM32F031x6) && !defined (STM32F038xx)
-    else if (base == USART2)
-    {
-        instances[1] = this;
-    }
-#if !defined (STM32F030x8) && !defined (STM32F042x6) && !defined (STM32F048xx) \
- && !defined (STM32F051x8) && !defined (STM32F058xx) && !defined (STM32F070x6)
-    else if (base == USART3)
-    {
-        instances[2] = this;
-    }
-#if !defined(STM32L432xx)    
-#ifdef USART4    
-    else if (base == USART4)
-#elif defined(UART4)
-    else if (base == UART4)
-#endif  //  USART4       
-    {
-        instances[3] = this;
-    }
-#if !defined (STM32F070xB) && !defined (STM32F071xB) && !defined (STM32F072xB) \
-    && !defined (STM32F078xx) && !defined(STM32L431xx)
-#ifdef USART5
-    else if (base == USART5)
-#elif defined(UART5)
-    else if (base == UART5)
-#endif        
-    {
-        instances[4] = this;
-    }
-#if !defined (STM32F303xC) && !defined(STM32F303xE)
-    else if (base == USART6)
-    {
-        instances[5] = this;
-    }
-#if !defined (STM32F030xC)
-#ifdef USART7
-    else if (base == USART7)
-#elif defined(UART7)
-    else if (base == UART7)
-#endif        
-    {
-        instances[6] = this;
-    }
-#ifdef USART8
-    else if (base == USART8)
-#elif defined(UART8)
-    else if (base == UART8)
-#endif        
-    {
-        instances[7] = this;
-    }
-#if !defined (STM32F091xC) && !defined (STM32F098xx)
-	/* room for future devices with more UARTs */
-#endif
-#endif
-#endif
-#endif
-#endif
-#endif
-#endif
-    else
-    {
-        HASSERT(0);
-    }
 
     HAL_NVIC_DisableIRQ(interrupt);
 #if defined(GCC_ARMCM0)    
@@ -197,27 +86,34 @@ void Stm32Uart::enable()
     __HAL_UART_ENABLE_IT(&uartHandle, UART_IT_RXNE);
     __HAL_UART_ENABLE_IT(&uartHandle,  UART_IT_ERR);
 
-    switch (interrupt)
+    // Verifies shared interrupts.
+    if (false)
     {
-        case USART1_IRQn:
-#if defined(STM32G0B1xx)
-        case USART2_LPUART2_IRQn:
-        case USART3_4_5_6_LPUART1_IRQn:
-#else
-        case USART2_IRQn:
-#endif
-
-#ifdef USART3_IRQn
-        case USART3_IRQn:
-#endif
+    }
+#if defined(SHARED_UART3_8_IRQn)
+    else if (interrupt == SHARED_UART3_8_IRQn)
+    {
+        if (interrupt3_to_8EnableCnt++ == 0)
+        {
             HAL_NVIC_EnableIRQ(interrupt);
-            break;
-        default:
-            if (interrupt3_8EnableCnt++ == 0)
-            {
-                HAL_NVIC_EnableIRQ(interrupt);
-            }
-            break;
+        }
+    }
+#endif    
+#if defined(STM32G0B1xx)
+    // This is the only device we support with more than one shared interrupt
+    // line.
+    else if (interrupt == USART2_LPUART2_IRQn)
+    {
+        if (interrupt2_8EnableCnt++ == 0)
+        {
+            HAL_NVIC_EnableIRQ(interrupt);
+        }
+    }
+#endif
+    else
+    {
+        // Individual interrupt.
+        HAL_NVIC_EnableIRQ(interrupt);
     }
 }
 
@@ -225,33 +121,38 @@ void Stm32Uart::enable()
  */
 void Stm32Uart::disable()
 {
-    switch (interrupt)
+    // Verifies shared interrupts.
+    if (false) { }
+#if defined(SHARED_UART3_8_IRQn)
+    else if (interrupt == SHARED_UART3_8_IRQn)
     {
-        case USART1_IRQn:
-#if defined(STM32G0B1xx)
-        case USART2_LPUART2_IRQn:
-        case USART3_4_5_6_LPUART1_IRQn:
-#else
-        case USART2_IRQn:
-#endif
-
-#ifdef USART3_IRQn
-        case USART3_IRQn:
-#endif
+        if (--interrupt3_to_8EnableCnt == 0)
+        {
             HAL_NVIC_DisableIRQ(interrupt);
-            break;
-        default:
-            if (--interrupt3_8EnableCnt == 0)
-            {
-                HAL_NVIC_DisableIRQ(interrupt);
-            }
-            break;
+        }
     }
-
+#endif    
+#if defined(STM32G0B1xx)
+    // This is the only device we support with more than one shared interrupt
+    // lines.
+    else if (interrupt == USART2_LPUART2_IRQn)
+    {
+        if (--interrupt2_8EnableCnt == 0)
+        {
+            HAL_NVIC_DisableIRQ(interrupt);
+        }
+    }
+#endif
+    else
+    {
+        // Individual interrupt.
+        HAL_NVIC_DisableIRQ(interrupt);
+    }
+    
     __HAL_UART_DISABLE_IT(&uartHandle, UART_IT_TXE);
     __HAL_UART_DISABLE_IT(&uartHandle, UART_IT_ERR);
     __HAL_UART_DISABLE_IT(&uartHandle, UART_IT_RXNE);
-    HAL_UART_DeInit(&uartHandle); 
+    HAL_UART_DeInit(&uartHandle);
 }
 
 int Stm32Uart::ioctl(File *file, unsigned long int key, unsigned long data)
@@ -338,88 +239,3 @@ void Stm32Uart::interrupt_handler()
         }
     }
 }
-
-/** Translate an interrupt handler into C++ object context.
-* @param index UART index to translate
-*/
-void Stm32Uart::interrupt_handler(unsigned index)
-{
-#if !defined(STM32F030x6) && !defined(STM32F031x6) && !defined(STM32F038xx) && \
-    !defined(STM32F030x8) && !defined(STM32F042x6) && !defined(STM32F048xx) && \
-    !defined(STM32F051x8) && !defined(STM32F058xx) && !defined(STM32F070x6) && \
-    !defined(STM32F767xx) && !defined (STM32G0B1xx)
-    if (index >= 2)
-    {
-        for (unsigned i = 2; i < (sizeof(instances)/sizeof(Stm32Uart*)); ++i)
-        {
-            UART_HandleTypeDef *uart_handle = &instances[i]->uartHandle;
-            if ((uart_handle->Instance->CR3 & USART_CR3_EIE) ||
-                (uart_handle->Instance->CR1 & USART_CR1_RXNEIE))
-            {
-                instances[i]->interrupt_handler();
-            }
-        }
-    }
-    else
-#endif
-    {
-        instances[index]->interrupt_handler();
-    }
-}
-
-extern "C" {
-/** UART1 interrupt handler.
- */
-void uart1_interrupt_handler(void)
-{
-    Stm32Uart::interrupt_handler(0);
-}
-
-#if !defined (STM32F030x6) && !defined (STM32F031x6) && !defined (STM32F038xx)
-/** UART2 interrupt handler.
- */
-void uart2_interrupt_handler(void)
-{
-    Stm32Uart::interrupt_handler(1);
-}
-
-#if defined (STM32F303xC)
-/** UART3 interrupt handler.
- */
-void uart3_interrupt_handler(void)
-{
-    Stm32Uart::interrupt_handler(2);
-}
-
-/** UART4 interrupt handler.
- */
-void uart4_interrupt_handler(void)
-{
-    Stm32Uart::interrupt_handler(3);
-}
-
-/** UART5 interrupt handler.
- */
-void uart5_interrupt_handler(void)
-{
-    Stm32Uart::interrupt_handler(4);
-}
-
-#else
-#if !defined (STM32F030x8) && !defined (STM32F042x6) && !defined (STM32F048xx) \
- && !defined (STM32F051x8) && !defined (STM32F058xx) && !defined (STM32F070x6)
-/** UART3 interrupt handler.
- */
-void uart3_4_5_6_7_8_interrupt_handler(void)
-{
-    Stm32Uart::interrupt_handler(2);
-}
-#if !defined (STM32F070xB) && !defined (STM32F071xB) && !defined (STM32F072xB) \
- && !defined (STM32F078xx) && !defined (STM32F030xC) && !defined (STM32F091xC) \
- && !defined (STM32F098xx)
-/* room for future devices with more Interrupt vectors */
-#endif
-#endif
-#endif
-#endif
-} // extern C

@@ -184,11 +184,11 @@ fi
 
 copy_file src arduino/CDIXMLGenerator.hxx \
     include/{can_frame.h,nmranet_config.h,openmrn_features.h,i2c.h,i2c-dev.h} \
-    include/freertos/{bootloader_hal.h,can_ioctl.h,endian.h,freertos_includes.h,stropts.h} \
+    include/freertos/{can_ioctl.h,endian.h,freertos_includes.h,stropts.h} \
     include/freertos_select/ifaddrs.h
 
 # General DCC related files (all headers and DCC packet related cxx)
-copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/{dcc_constants,DccDebug,LocalTrackIf,Packet}.cxx
+copy_file src/dcc src/dcc/*.hxx src/dcc/*.h src/dcc/{Defs,dcc_constants,DccDebug,LocalTrackIf,Packet}.cxx
 
 # RailCom related DCC files
 copy_file src/dcc src/dcc/{RailCom,RailcomBroadcastDecoder,RailcomDebug}.cxx
@@ -200,7 +200,7 @@ copy_file src/dcc src/dcc/{Loco,SimpleUpdateLoop,UpdateLoop}.cxx
 rm -f ${TARGET_LIB_DIR}/src/dcc/dcc_test_utils.hxx
 
 copy_file src/executor src/executor/*.hxx src/executor/*.cxx
-copy_file src/openlcb src/openlcb/*.hxx src/openlcb/*.cxx
+copy_file src/openlcb src/openlcb/*.h src/openlcb/*.hxx src/openlcb/*.cxx
 
 rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/EventHandlerMock.hxx \

@@ -43,16 +43,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef ESP_PLATFORM
-#include "bootloader_hal.h"
-#else
-#include "freertos/bootloader_hal.h"
-#endif
-#include "openlcb/Defs.hxx"
+#include "openlcb/ApplicationChecksum.hxx"
 #include "openlcb/CanDefs.hxx"
 #include "openlcb/DatagramDefs.hxx"
+#include "openlcb/Defs.hxx"
 #include "openlcb/MemoryConfig.hxx"
-#include "openlcb/ApplicationChecksum.hxx"
+#include "openlcb/bootloader_hal.h"
 #include "can_frame.h"
 
 namespace openlcb
