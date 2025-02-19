@@ -281,7 +281,7 @@ void MDNS::resolve_callback(AvahiServiceResolver *r,
             struct sockaddr *sa;
 
             ai = (struct addrinfo*)malloc(sizeof(struct addrinfo));
-            sa = (struct sockaddr*)malloc(sizeof(struct sockaddr));
+            sa = (struct sockaddr*)malloc(std::max(sizeof(struct sockaddr_in), sizeof(struct sockaddr_in6)));
 
             memset(ai, 0, sizeof(struct addrinfo));
             memset(sa, 0, sizeof(struct sockaddr));
