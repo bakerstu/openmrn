@@ -50,6 +50,11 @@ SECTIONS
         *(.after_vectors*)
 
         *(SORT(.text*))
+
+        . = ALIGN(4);
+        _end_code = .;
+        _srodata = .;
+        
         *(.rodata)
         *(SORT(.rodata.*))
         . = ALIGN(4);
