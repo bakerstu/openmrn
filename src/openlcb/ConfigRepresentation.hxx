@@ -231,6 +231,9 @@ public:
     {                                                                          \
         return entry(openlcb::EntryMarker<LINE>());                            \
     }                                                                          \
+    static constexpr                                                           \
+        typename decltype(TYPE::config_renderer())::OptionsType NAME##_OPTS =  \
+            decltype(TYPE::config_renderer())::OptionsType(__VA_ARGS__);       \
     static constexpr typename decltype(TYPE::config_renderer())::OptionsType   \
         NAME##_options()                                                       \
     {                                                                          \
