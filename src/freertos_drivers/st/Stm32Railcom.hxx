@@ -400,13 +400,7 @@ private:
         {
             // Ensures that at least one feedback packet is sent back even when
             // it is with no railcom payload.
-            auto *p = this->alloc_new_packet(15);
-            if (p)
-            {
-                this->feedbackQueue_.commit_back();
-                Debug::RailcomPackets::toggle();
-                HAL_NVIC_SetPendingIRQ(HW::OS_INTERRUPT);
-            }
+            no_cutout();
         }
         Debug::RailcomCh2Data::set(false);
         Debug::RailcomDriverCutout::set(false);
