@@ -276,10 +276,10 @@ private:
 
     void start_cutout() override
     {
+        Debug::RailcomRxActivate::set(true);
         HW::enable_measurement(false);
         const bool need_ch1_cutout =
             HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
-        Debug::RailcomRxActivate::set(true);
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
             while (LL_USART_IsActiveFlag_RXNE(uart(i)))
@@ -287,7 +287,9 @@ private:
                 uint8_t data = uart(i)->RDR;
                 (void)data;
             }
-            returnedPackets_[i] = this->alloc_new_packet(i);
+            if (!returnedPackets_[i]) {
+                returnedPackets_[i] = this->alloc_new_packet(i);
+            }
             if (need_ch1_cutout && returnedPackets_[i])
             {
                 LL_USART_EnableDMAReq_RX(uart(i));
@@ -417,6 +419,19 @@ private:
             Debug::RailcomPackets::toggle();
             HAL_NVIC_SetPendingIRQ(HW::OS_INTERRUPT);
         }
+    }
+
+    void set_feedback_key(uint32_t key) override
+    {
+        Debug::RailComBeforeCutoutTiming::set(false);
+        RailcomDriverBase<HW>::set_feedback_key(key);
+        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
+        {
+            if (!returnedPackets_[i]) {
+                returnedPackets_[i] = this->alloc_new_packet(i);
+            }
+        }
+        Debug::RailComBeforeCutoutTiming::set(true);
     }
 };
 
