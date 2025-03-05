@@ -337,6 +337,7 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             }
             railcomDriver_->set_feedback_key(packetId_);
             Module::dcc_before_cutout_hook();
+            Debug::RailComBeforeCutoutTiming::set(true);
         }
         // If we are at the second half of the last 1 bit and the
         // value of the input pin is 1, then we cannot recognize when
@@ -347,6 +348,7 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             true) // Module::NRZ_Pin::get())
         {
             //Debug::RailcomDriverCutout::set(true);
+            Debug::RailComBeforeCutoutTiming::set(false);
             Module::set_cap_timer_time();
             Module::set_cap_timer_delay_usec(
                 RAILCOM_CUTOUT_PRE + Module::time_delta_railcom_pre_usec());
@@ -363,13 +365,15 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             //railcomDriver_->start_cutout();
             //inCutout_ = true;
         }
-        else if (decoder_.state() == dcc::DccDecoder::DCC_PACKET_FINISHED)
+        else if ((decoder_.state() == dcc::DccDecoder::DCC_PACKET_FINISHED &&
+                     !inCutout_) ||
+            (decoder_.state() == dcc::DccDecoder::DCC_PREAMBLE && prepCutout_ &&
+                !inCutout_))
         {
+            // The first partial bit after the cutout is done (for upstream
+            // cutout), or the preamble bit which came after the
+            // locally-generated cutout was finished.
             Debug::DccPacketFinishedHook::set(true);
-            if (inCutout_) {
-                //railcomDriver_->end_cutout();
-                inCutout_ = false;
-            }
             Module::dcc_packet_finished_hook();
             prepCutout_ = false;
             cutout_just_finished = true;
