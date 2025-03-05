@@ -115,6 +115,9 @@ struct DccDecoderHW
 template <class HW> class Stm32DccTimerModule
 {
 public:
+    // Declaration matching the DccOutput static class pattern.
+    using Output = typename HW::Output;
+    
     /// Exports the input pin to the driver on the module interface.
     using NRZ_Pin = typename HW::NRZ_Pin;
 

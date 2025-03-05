@@ -65,6 +65,8 @@
   - SAMPLE_PERIOD_CLOCKS
   - Q_SIZE
   - TICKS_PER_USEC
+  - Output, which is a DccOutput compatible static object for creating
+      Railcom cutout.
   - module_init()
   - module_enable()
   - module_disable()
@@ -400,6 +402,16 @@ DccDecoder<Module>::rcom_interrupt_handler()
             {
                 Module::set_cap_timer_delay_usec(
                     RAILCOM_CUTOUT_MID + Module::time_delta_railcom_mid_usec());
+                if (Module::Output::need_railcom_cutout()) {
+                    Debug::RailcomTurnonPhase1::set(true);
+                    unsigned delay_usec =
+                        Module::Output::start_railcom_cutout_phase1();
+                    Module::Output::isRailcomCutoutActive_ = 1;
+                    microdelay(delay_usec);
+                    Debug::RailcomTurnonPhase1::set(false);
+                    delay_usec = Module::Output::start_railcom_cutout_phase2();
+                    microdelay(delay_usec);
+                }
                 railcomDriver_->start_cutout();
                 cutoutState_ = 1;
                 break;
@@ -417,7 +429,20 @@ DccDecoder<Module>::rcom_interrupt_handler()
                 Module::stop_cap_timer_time();
                 Module::set_cap_timer_capture();
                 railcomDriver_->end_cutout();
+                if (Module::Output::isRailcomCutoutActive_) {
+                    Debug::RailcomTurnonPhase1::set(true);
+                    unsigned delay_usec =
+                        Module::Output::stop_railcom_cutout_phase1();
+                    microdelay(delay_usec);
+                    Debug::RailcomTurnonPhase1::set(false);
+                    Module::Output::stop_railcom_cutout_phase2();
+                    Module::Output::isRailcomCutoutActive_ = 0;
+                }
                 inCutout_ = false;
+                if (Module::Output::should_be_enabled())
+                {
+                    Module::Output::enable_output();
+                }
                 break;
             }
         }
