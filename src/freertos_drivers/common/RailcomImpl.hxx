@@ -222,13 +222,12 @@ public:
         }
     }
 
-private:
+protected:
     void set_feedback_key(uint32_t key) OVERRIDE
     {
         feedbackKey_ = key;
     }
 
-protected:
     /** Takes a new empty packet at the front of the queue, fills in feedback
      * key and channel information.
      * @param channel is which channel to set the packet for.
