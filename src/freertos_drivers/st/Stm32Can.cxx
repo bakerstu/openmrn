@@ -58,9 +58,9 @@
 #define CAN1_THIRD_IRQN CAN1_SCE_IRQn
 
 #ifdef CAN2
-#define CAN2_TX_IRQN USB_HP_CAN2_TX_IRQn
+#define CAN2_TX_IRQN CAN2_TX_IRQn
 #define CAN2_IRQN CAN2_TX_IRQN
-#define CAN2_SECOND_IRQN USB_LP_CAN2_RX0_IRQn
+#define CAN2_SECOND_IRQN CAN2_RX0_IRQn
 #define CAN2_THIRD_IRQN CAN2_SCE_IRQn
 #endif
 
@@ -147,29 +147,29 @@ Stm32Can::Stm32Can(const char *name, uint8_t index)
     {
         case 0: /* CAN1... */
             can_ = CAN1;
-            can_irqn_ = CAN1_IRQN;
+            canIrqn_ = CAN1_IRQN;
 #ifdef SPLIT_INT
-            can_second_irqn_ = CAN1_SECOND_IRQN;
-            can_third_irqn_ = CAN1_THIRD_IRQN;
+            canSecondIrqn_ = CAN1_SECOND_IRQN;
+            canThirdIrqn_ = CAN1_THIRD_IRQN;
 #endif
             break;
 #ifdef CAN2
         case 1: /* CAN2... */
             can_ = CAN2;
-            can_irqn_ = CAN2_IRQN;
+            canIrqn_ = CAN2_IRQN;
 #ifdef SPLIT_INT
-            can_second_irqn_ = CAN2_SECOND_IRQN;
-            can_third_irqn_ = CAN2_THIRD_IRQN;
+            canSecondIrqn_ = CAN2_SECOND_IRQN;
+            canThirdIrqn_ = CAN2_THIRD_IRQN;
 #endif
             break;
 #endif
 #ifdef CAN3
         case 2: /* CAN3... */
             can_ = CAN3;
-            can_irqn_ = CAN3_IRQN;
+            canIrqn_ = CAN3_IRQN;
 #ifdef SPLIT_INT
-            can_second_irqn_ = CAN3_SECOND_IRQN;
-            can_third_irqn_ = CAN3_THIRD_IRQN;
+            canSecondIrqn_ = CAN3_SECOND_IRQN;
+            canThirdIrqn_ = CAN3_THIRD_IRQN;
 #endif
             break;
 #endif
@@ -178,7 +178,7 @@ Stm32Can::Stm32Can(const char *name, uint8_t index)
     }
 
     /* should already be disabled, but just in case */
-    HAL_NVIC_DisableIRQ(can_irqn_);
+    HAL_NVIC_DisableIRQ(canIrqn_);
 
 #if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
  || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \
@@ -190,13 +190,13 @@ Stm32Can::Stm32Can(const char *name, uint8_t index)
     /* The priority of CAN interrupt is as high as possible while maintaining
      * FreeRTOS compatibility.
      */
-    SetInterruptPriority(can_irqn_, configKERNEL_INTERRUPT_PRIORITY);
+    SetInterruptPriority(canIrqn_, configKERNEL_INTERRUPT_PRIORITY);
 
 #ifdef SPLIT_INT
-    HAL_NVIC_DisableIRQ(can_second_irqn_);
-    SetInterruptPriority(can_second_irqn_, configKERNEL_INTERRUPT_PRIORITY);
-    HAL_NVIC_DisableIRQ(can_third_irqn_);
-    SetInterruptPriority(can_third_irqn_, configKERNEL_INTERRUPT_PRIORITY);
+    HAL_NVIC_DisableIRQ(canSecondIrqn_);
+    SetInterruptPriority(canSecondIrqn_, configKERNEL_INTERRUPT_PRIORITY);
+    HAL_NVIC_DisableIRQ(canThirdIrqn_);
+    SetInterruptPriority(canThirdIrqn_, configKERNEL_INTERRUPT_PRIORITY);
 #endif
 #endif
 }
@@ -260,10 +260,10 @@ void Stm32Can::enable()
     /* enable interrupts */
     can_->IER = (CAN_IER_BOFIE | CAN_IER_EPVIE | CAN_IER_EWGIE); // errors
     can_->IER |= (CAN_IER_ERRIE | CAN_IER_FMPIE0); // error + receive
-    HAL_NVIC_EnableIRQ(can_irqn_);
+    HAL_NVIC_EnableIRQ(canIrqn_);
 #ifdef SPLIT_INT
-    HAL_NVIC_EnableIRQ(can_second_irqn_);
-    HAL_NVIC_EnableIRQ(can_third_irqn_);
+    HAL_NVIC_EnableIRQ(canSecondIrqn_);
+    HAL_NVIC_EnableIRQ(canThirdIrqn_);
 #endif
 }
 
@@ -271,10 +271,10 @@ void Stm32Can::enable()
  */
 void Stm32Can::disable()
 {
-    HAL_NVIC_DisableIRQ(can_irqn_);
+    HAL_NVIC_DisableIRQ(canIrqn_);
 #ifdef SPLIT_INT
-    HAL_NVIC_DisableIRQ(can_second_irqn_);
-    HAL_NVIC_DisableIRQ(can_third_irqn_);
+    HAL_NVIC_DisableIRQ(canSecondIrqn_);
+    HAL_NVIC_DisableIRQ(canThirdIrqn_);
 #endif
     can_->IER = 0;
 
@@ -590,12 +590,12 @@ void can1_sce_interrupt_handler(void)
 }
 
 #ifdef CAN2
-void usb_hp_can2_tx_interrupt_handler(void)
+void can2_tx_interrupt_handler(void)
 {
     Stm32Can::instances[1]->tx_interrupt_handler();
 }
 
-void usb_lp_can2_rx0_interrupt_handler(void)
+void can2_rx0_interrupt_handler(void)
 {
     Stm32Can::instances[1]->rx_interrupt_handler();
 }

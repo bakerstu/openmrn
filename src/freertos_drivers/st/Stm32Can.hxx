@@ -97,9 +97,9 @@ private:
     uint8_t state_; ///< present bus state
     
     CAN_TypeDef *can_; ///< CAN hardware registers for this instance (defined in the SDK).
-    IRQn_Type can_irqn_; ///< CAN IRQn for this instance.
-    IRQn_Type can_second_irqn_; ///< CAN Second IRQn (if used) for this instance. 
-    IRQn_Type can_third_irqn_; ///< CAN Third IRQn (if used) for this instance. 
+    IRQn_Type canIrqn_; ///< CAN IRQn for this instance.
+    IRQn_Type canSecondIrqn_; ///< CAN Second IRQn (if used) for this instance. 
+    IRQn_Type canThirdIrqn_; ///< CAN Third IRQn (if used) for this instance. 
     
     /** Default constructor. */
     Stm32Can();
