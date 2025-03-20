@@ -39,9 +39,10 @@
 #include "os/os.h"
 #include "freertos_includes.h"
 
-#ifdef ESP32
+#ifdef ESP_PLATFORM
 #include "sdkconfig.h"
-#endif // ESP32
+#include <esp_idf_version.h>
+#endif // ESP_PLATFORM
 
 extern "C"
 {
@@ -117,13 +118,26 @@ uint8_t CpuLoad::get_load() {
     return (avg_ * 100) >> SHIFT_ONE;
 }
 
+#ifdef ESP_PLATFORM
+// In ESP-IDF v5.3.0 there were method renames as part of standardizing the
+// APIs with the upstream FreeRTOS version, as such these methods were
+// renamed and require usage of wrappers.
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5,3,0)
+#define FREERTOS_GET_CURRENT_TASK_HANDLE_FOR_CORE(core) xTaskGetCurrentTaskHandleForCore(core)
+#define FREERTOS_GET_IDLE_TASK_HANDLE_FOR_CORE(core) xTaskGetIdleTaskHandleForCore(core)
+#else
+#define FREERTOS_GET_CURRENT_TASK_HANDLE_FOR_CORE(core) xTaskGetCurrentTaskHandleForCPU(core)
+#define FREERTOS_GET_IDLE_TASK_HANDLE_FOR_CORE(core) xTaskGetIdleTaskHandleForCPU(core)
+#endif
+#endif // ESP_PLATFORM
+
 void cpuload_tick(unsigned irq)
 {
     if (!Singleton<CpuLoad>::exists())
         return;
 // On the ESP32 it is necessary to use a slightly different approach for
 // recording CPU usage metrics since there may be additional CPU cores.
-#ifdef ESP32
+#ifdef ESP_PLATFORM
     if (irq != 0)
     {
         Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
@@ -132,21 +146,21 @@ void cpuload_tick(unsigned irq)
     {
         // Record the first CPU core (PRO_CPU). NOTE: This assumes that OpenMRN
         // is running on this core.
-        auto hdl = xTaskGetCurrentTaskHandleForCPU(PRO_CPU_NUM);
-        bool is_idle = xTaskGetIdleTaskHandleForCPU(PRO_CPU_NUM) == hdl;
+        auto hdl = FREERTOS_GET_CURRENT_TASK_HANDLE_FOR_CORE(PRO_CPU_NUM);
+        bool is_idle = FREERTOS_GET_IDLE_TASK_HANDLE_FOR_CORE(PRO_CPU_NUM) == hdl;
         Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
     }
 // NOTE: The ESP32-S2 and ESP32-C3 are single-core SoC and defines the
 // FREERTOS_UNICORE flag which we can use here to disable recording of the
-// APP_CPU.
+// APP_CPU. This can also be used on dual core SoCs with some restrictions.
 #ifndef CONFIG_FREERTOS_UNICORE
     // Record the second CPU core (APP_CPU). NOTE: this is where application
     // code typically runs.
-    auto hdl = xTaskGetCurrentTaskHandleForCPU(APP_CPU_NUM);
-    bool is_idle = xTaskGetIdleTaskHandleForCPU(APP_CPU_NUM) == hdl;
+    auto hdl = FREERTOS_GET_CURRENT_TASK_HANDLE_FOR_CORE(APP_CPU_NUM);
+    bool is_idle = FREERTOS_GET_IDLE_TASK_HANDLE_FOR_CORE(APP_CPU_NUM) == hdl;
     Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
-#endif // CONFIG_FREERTOS_UNICORE
-#else // NOT ESP32
+#endif // !CONFIG_FREERTOS_UNICORE
+#else // NOT ESP_PLATFORM
     if (irq != 0)
     {
         Singleton<CpuLoad>::instance()->record_value(true, (uintptr_t)irq);
@@ -155,7 +169,7 @@ void cpuload_tick(unsigned irq)
     auto hdl = xTaskGetCurrentTaskHandle();
     bool is_idle = xTaskGetIdleTaskHandle() == hdl;
     Singleton<CpuLoad>::instance()->record_value(!is_idle, (uintptr_t)hdl);
-#endif // ESP32
+#endif // ESP_PLATFORM
 }
 } // extern "C"
 

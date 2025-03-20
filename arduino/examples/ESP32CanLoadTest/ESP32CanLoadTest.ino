@@ -35,6 +35,7 @@
 #include <Arduino.h>
 #include <SPIFFS.h>
 #include <esp_spi_flash.h>
+#include <esp_private/cache_utils.h>
 
 #include <OpenMRNLite.h>
 #include <openlcb/TcpDefs.hxx>
@@ -45,20 +46,13 @@
 
 
 // Pick an operating mode below, if you select USE_WIFI it will expose this
-// node on WIFI. If USE_CAN / USE_TWAI / USE_TWAI_ASYNC are enabled the node
+// node on WIFI. If USE_TWAI / USE_TWAI_ASYNC are enabled the node
 // will be available on CAN.
 //
 // Enabling both options will allow the ESP32 to be accessible from
-// both WiFi and CAN interfaces.
-//
-// NOTE: USE_TWAI and USE_TWAI_ASYNC are similar to USE_CAN but utilize the
-// new TWAI driver which offers both select() (default) or fnctl() (async)
-// access.
-// NOTE: USE_CAN is deprecated and no longer supported upstream by ESP-IDF as
-// of v4.2 or arduino-esp32 as of v2.0.0.
+// both WiFi and TWAI interfaces.
 
 #define USE_WIFI
-//#define USE_CAN
 //#define USE_TWAI
 //#define USE_TWAI_ASYNC
 
@@ -72,11 +66,6 @@
 #if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
 #define USE_TWAI
 #endif // USE_TWAI_ASYNC && !USE_TWAI
-
-// Verify that both CAN and TWAI are not enabled.
-#if defined(USE_CAN) && defined(USE_TWAI)
-#error Enabling both USE_CAN and USE_TWAI is not supported.
-#endif // USE_CAN && USE_TWAI
 
 #if defined(USE_TWAI) && ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
 #error Esp32HardwareTwai is not supported on this version of arduino-esp32.
@@ -197,17 +186,23 @@ namespace openlcb
 }
 
 CpuLoad cpu_load;
-hw_timer_t * timer = nullptr;
 CpuLoadLog* cpu_log = nullptr;
 
-void IRAM_ATTR onTimer()
+// Callback function for the hardware timer configured to fire roughly 163
+// times per second.
+void ARDUINO_ISR_ATTR record_cpu_usage()
 {
-    if (spi_flash_cache_enabled())
+#if CONFIG_ARDUINO_ISR_IRAM
+    // if the ISR is called with flash disabled we can not safely recored the
+    // cpu usage.
+    if (!spi_flash_cache_enabled())
     {
-        // Retrieves the vtable pointer from the currently running executable.
-        unsigned *pp = (unsigned *)openmrn.stack()->executor()->current();
-        cpuload_tick(pp ? pp[0] | 1 : 0);
+        return;
     }
+#endif
+    // Retrieves the vtable pointer from the currently running executable.
+    unsigned *pp = (unsigned *)openmrn.stack()->executor()->current();
+    cpuload_tick(pp ? pp[0] | 1 : 0);
 }
 
 void setup()
@@ -217,11 +212,16 @@ void setup()
 #endif    
     Serial.begin(115200L);
 
-    timer = timerBegin(3, 80, true); // timer_id = 3; divider=80; countUp = true;
-    timerAttachInterrupt(timer, &onTimer, true); // edge = true
-    // 1MHz clock, 163 ticks per second desired.
-    timerAlarmWrite(timer, 1000000/163, true);
-    timerAlarmEnable(timer);
+    // Register hardware timer zero to use a 1Mhz resolution and to count up
+    // from zero when the timer triggers.
+    auto timer = timerBegin(80);
+    // Attach our callback function to be called when the timer is ready to
+    // fire.
+    timerAttachInterrupt(timer, &record_cpu_usage);
+    // Configure the trigger point to be roughly 163 times per second.
+    timerWrite(timer, 1000000/163);
+    // Enable the timer.
+    timerStart(timer);
 
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
@@ -261,17 +261,13 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_CAN)
-    // Add the hardware CAN device as a bridge
-    openmrn.add_can_port(
-        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
-#elif defined(USE_TWAI_ASYNC)
+#if defined(USE_TWAI_ASYNC)
     // add TWAI driver with non-blocking usage
     openmrn.add_can_port_async("/dev/twai/twai0");
 #elif defined(USE_TWAI)
     // add TWAI driver with select() usage
     openmrn.add_can_port_select("/dev/twai/twai0");
-#endif // USE_TWAI_SELECT / USE_TWAI
+#endif // USE_TWAI_ASYNC / USE_TWAI
 }
 
 void loop()

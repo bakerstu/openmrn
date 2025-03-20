@@ -36,6 +36,7 @@
 #if defined(ESP_PLATFORM)
 
 #include "Esp32Ledc.hxx"
+#include <pthread.h>
 
 namespace openmrn_arduino
 {

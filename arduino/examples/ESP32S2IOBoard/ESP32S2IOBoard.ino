@@ -44,15 +44,14 @@
 #include "utils/GpioInitializer.hxx"
 
 // Pick an operating mode below, if you select USE_WIFI it will expose this
-// node on WIFI. If USE_CAN / USE_TWAI / USE_TWAI_ASYNC are enabled the node
-// will be available on CAN.
+// node on WIFI. If USE_TWAI / USE_TWAI_ASYNC are enabled the node will be
+// available on CAN.
 //
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
 //
-// NOTE: USE_TWAI and USE_TWAI_ASYNC are similar to USE_CAN but utilize the
-// new TWAI driver which offers both select() (default) or fnctl() (async)
-// access.
+// NOTE: USE_TWAI and USE_TWAI_ASYNC utilize the new TWAI driver which offers
+// both select() (default) or fnctl() (async) access.
 
 #define USE_WIFI
 //#define USE_TWAI
@@ -157,7 +156,7 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_40;
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_41;
 
-#endif // USE_CAN or USE_TWAI
+#endif // USE_TWAI
 
 #if defined(FACTORY_RESET_GPIO_PIN)
 static constexpr uint8_t FACTORY_RESET_COUNTDOWN_SECS = 10;
