@@ -412,8 +412,8 @@ template <class HW> void Stm32DccTimerModule<HW>::module_enable()
     __HAL_TIM_DISABLE_IT(usec_timer_handle(), HW::USEC_IF);
 
 #if defined(GCC_ARMCM0)
-    HAL_NVIC_SetPriority(HW::CAPTURE_IRQn, 0, 0);
-    HAL_NVIC_SetPriority(HW::TIMER_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(HW::CAPTURE_IRQn, 1, 0);
+    HAL_NVIC_SetPriority(HW::TIMER_IRQn, 1, 0);
     HAL_NVIC_SetPriority(HW::OS_IRQn, 3, 0);
 #elif defined(GCC_ARMCM3)
     SetInterruptPriority(HW::CAPTURE_IRQn, 0x20);
