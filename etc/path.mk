@@ -433,9 +433,37 @@ endif
 endif #CMSIS_LPC11_PATH
 
 
+############### GTEST ###################
+ifndef GTESTPATH
+SEARCHPATH := \
+  /opt/gtest/default \
+  /opt/gtest/default/googletest \
+  /opt/gtest/gtest \
+  /opt/gtest/googletest \
+
+
+TRYPATH:=$(call findfirst,include/gtest/gtest.h,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+GTESTPATH:=$(TRYPATH)
+endif
+endif #GTESTPATH
+
+ifndef GTESTSRCPATH
+SEARCHPATH := \
+  $(GTESTPATH) \
+
+TRYPATH:=$(call findfirst,src/gtest-all.cc,$(SEARCHPATH))
+ifneq ($(TRYPATH),)
+GTESTSRCPATH:=$(TRYPATH)
+endif
+endif #GTESTSRCPATH
+
 ############### GMOCK ###################
 ifndef GMOCKPATH
 SEARCHPATH := \
+  $(GTESTPATH)/googlemock \
+  $(GTESTPATH)/../googlemock \
+  /opt/gtest/default/googlemock \
   /opt/gmock/default \
   /usr \
 
@@ -456,35 +484,6 @@ ifneq ($(TRYPATH),)
 GMOCKSRCPATH:=$(TRYPATH)
 endif
 endif #GMOCKSRCPATH
-
-
-############### GTEST ###################
-ifndef GTESTPATH
-SEARCHPATH := \
-  $(GMOCKPATH)/gtest \
-  /opt/gmock/default/gtest \
-  /opt/gtest/gtest \
-  /opt/gtest/default \
-  /usr \
-
-TRYPATH:=$(call findfirst,include/gtest/gtest.h,$(SEARCHPATH))
-ifneq ($(TRYPATH),)
-GTESTPATH:=$(TRYPATH)
-endif
-endif #GTESTPATH
-
-ifndef GTESTSRCPATH
-SEARCHPATH := \
-  $(GTESTPATH) \
-  /opt/gmock/default/gtest \
-  /usr/src/gtest \
-  /opt/gtest/default \
-
-TRYPATH:=$(call findfirst,src/gtest-all.cc,$(SEARCHPATH))
-ifneq ($(TRYPATH),)
-GTESTSRCPATH:=$(TRYPATH)
-endif
-endif #GTESTSRCPATH
 
 ################### MIPS-ELF-GCC #####################
 ifndef MIPSGCCPATH
