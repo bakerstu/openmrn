@@ -305,12 +305,12 @@ TEST(ConsoleTest, testQuotedParameters)
     /* Check for error checks */
     EXPECT_EQ(::write(s, "echo '\"Oh no, no, no\", said the man\n", 36), 36);
     usleep(1000);
-    EXPECT_EQ(::read(s, buf, 1024), 26);
-    EXPECT_TRUE(!strncmp(buf, "syntax error: unclosed '\n>", 26));
+    EXPECT_EQ(::read(s, buf, 1024), 27);
+    EXPECT_TRUE(!strncmp(buf, "syntax error: unclosed '\n>", 27));
     
     EXPECT_EQ(::write(s, "echo \"\n", 7), 7);
     usleep(1000);
-    EXPECT_EQ(::read(s, buf, 1024), 26);
-    EXPECT_TRUE(!strncmp(buf, "syntax error: unclosed \"\n>", 26));
+    EXPECT_EQ(::read(s, buf, 1024), 27);
+    EXPECT_TRUE(!strncmp(buf, "syntax error: unclosed \"\n>", 27));
     close(s);
 }
