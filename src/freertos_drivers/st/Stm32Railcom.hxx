@@ -270,8 +270,9 @@ private:
     void feedback_sample() override
     {
         HW::enable_measurement(true);
-        this->add_sample(HW::sample());
+        auto s = HW::sample();
         HW::disable_measurement();
+        this->add_sample(s);
     }
 
     void start_cutout() override
