@@ -31,4 +31,4 @@ jobs:
       - name: Run tests
         run: |
           cd openmrn
-          make -j5 tests TESTBLACKLIST=utils/SocketClient.cxxtest
+          make -j1 tests TESTBLACKLIST=utils/SocketClient.cxxtest
