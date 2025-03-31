@@ -106,7 +106,7 @@ run-tests-single:
 
 tests: run-tests
 
-tests-single: run-tests
+tests-single: run-tests-single
 
 clean-gtest:
 	rm -f {gtest-all,gmock-all}.{d,o,gcno}
