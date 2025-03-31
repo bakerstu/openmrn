@@ -218,7 +218,7 @@ protected:
         send_packet_helper(client, identify ? "544" : "5B4", stime);
         if (rollover)
         {
-            sleep(3);
+            sleep_helper(3000000); // 3 seconds in microseconds
             send_report_year(client);
             send_report_date(client);
         }
@@ -233,13 +233,29 @@ protected:
         send_report_year(client, true);
         send_report_date(client, true);
         send_report_time(client, true);
-        usleep(delay_msec * 1000);
+        sleep_helper(delay_msec * 1000);
         client->advance_time_minute();
         send_report_time(client);
     }
 
     MockBroadcastTimeClient *client1_; // not a configure agent
     MockBroadcastTimeClient *client2_; // configure agent
+
+    void sleep_helper(unsigned microseconds)
+    {
+        unsigned increments = microseconds / 20000;
+        for (unsigned i = 0; i < increments; ++i)
+        {
+            FakeClock::instance()->advance(20000);
+            wait_for_main_executor();
+        }
+        unsigned remaining = microseconds % 20000;
+        if (remaining > 0)
+        {
+            FakeClock::instance()->advance(remaining);
+            wait_for_main_executor();
+        }
+    }
 };
 
 TEST_F(BroadcastTimeClientTest, Create)
@@ -335,7 +351,7 @@ TEST_F(BroadcastTimeClientTest, ProgressionForwardFast)
 
     // wait 960 fast seconds (16 minutes).
     // 960 / 500 = 1.92 fast seconds
-    usleep(1920000);
+    sleep_helper(1920000);
 
 
     // check the time, we give it a finite range just in case of some OS jitter
@@ -360,7 +376,7 @@ TEST_F(BroadcastTimeClientTest, ProgressionReverseFast)
 
     // wait 960 fast seconds (16 minutes).
     // 960 / 500 = 1.92 fast seconds
-    usleep(1920000);
+    sleep_helper(1920000);
 
     // check the time, we give it a finite range just in case of some OS jitter
     EXPECT_TRUE(IsBetweenInclusive(client1_->time(), 179, 182));
@@ -398,7 +414,7 @@ TEST_F(BroadcastTimeClientTest, NoUpdateCallbackExpected)
 
     EXPECT_CALL(*client1_, update_callback()).Times(1);
     sync(client1_, 0);
-    sleep(1);
+    sleep_helper(1000000); // 1 second in microseconds
     client1_->settime(60 * 4, 1970, 1, 1, 0, 2);
     send_report_time(client1_);
     wait();
@@ -420,7 +436,7 @@ TEST_F(BroadcastTimeClientTest, DriftChangeUpdateCallbackExpected)
 
     EXPECT_CALL(*client1_, update_callback()).Times(1);
     sync(client1_, 0);
-    sleep(1);
+    sleep_helper(1000000); // 1 second in microseconds
     EXPECT_CALL(*client1_, update_callback()).Times(1);
     client1_->settime(60 * 4, 1970, 1, 1, 0, 5 * 4);
     send_report_time(client1_);
