@@ -100,7 +100,13 @@ endif
 
 run-tests: $(TESTOUTPUTS) $(TESTMD5)
 
+run-tests-single:
+	$(MAKE) $(TESTMD5)
+	$(MAKE) -j1 $(TESTOUTPUTS)
+
 tests: run-tests
+
+tests-single: run-tests
 
 clean-gtest:
 	rm -f {gtest-all,gmock-all}.{d,o,gcno}

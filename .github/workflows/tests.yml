@@ -27,7 +27,10 @@ jobs:
 
       - name: Install dependent packages
         run: sudo apt install -y libavahi-client-dev libssl-dev
-    
+
+      - name: Look at proc
+        run: cat /proc/cpuinfo
+        
       - name: Run tests
         run: |
           cd openmrn
