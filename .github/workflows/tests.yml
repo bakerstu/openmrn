@@ -25,6 +25,9 @@ jobs:
           ref: v1.16.0
           path: googletest
 
+      - name: Install dependent packages
+        run: sudo apt install -y libavahi-client-dev libssl-dev
+    
       - name: Run tests
         run: |
           cd openmrn
