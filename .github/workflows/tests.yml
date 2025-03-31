@@ -15,6 +15,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+          path: openmrn
 
       - name: Checkout googletest
         uses: actions/checkout@v4
@@ -24,4 +25,6 @@ jobs:
           path: googletest
 
       - name: Run tests
-        run: make -j5 tests
+        run: |
+          cd openmrn
+          make -j5 tests
