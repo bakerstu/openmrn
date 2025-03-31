@@ -380,8 +380,9 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             Debug::DccPacketFinishedHook::set(false);
         }
         lastTimerValue_ = raw_new_value;
-        if (sampleActive_ && Module::NRZ_Pin::get() && !prepCutout_ &&
-            !cutout_just_finished)
+        if (sampleActive_ // && !inCutout_
+            && !prepCutout_ &&
+            !cutout_just_finished && Module::NRZ_Pin::get())
         {
             sampleActive_ = false;
             // The first positive edge after the sample timer expired (but
