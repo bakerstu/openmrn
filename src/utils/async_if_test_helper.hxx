@@ -22,6 +22,7 @@ using ::testing::AtMost;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::Invoke;
+using ::testing::DoAll;
 using ::testing::IsNull;
 using ::testing::Mock;
 using ::testing::NiceMock;
