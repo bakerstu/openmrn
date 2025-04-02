@@ -440,6 +440,7 @@ SEARCHPATH := \
   /opt/gtest/default/googletest \
   /opt/gtest/gtest \
   /opt/gtest/googletest \
+  $(abspath $(OPENMRNPATH)/../googletest/googletest) \
 
 
 TRYPATH:=$(call findfirst,include/gtest/gtest.h,$(SEARCHPATH))
