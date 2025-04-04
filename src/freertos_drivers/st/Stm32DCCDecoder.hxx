@@ -264,6 +264,13 @@ public:
         //TIM_CCxChannelCmd(usec_timer(), HW::USEC_CHANNEL, TIM_CCx_DISABLE);
     }
 
+    /// Called during the railcom cutout when the railcom usec timer expires.
+    /// The implementation is expected to modify cutout_state if the default
+    /// sequence of handlers are not matching the desired
+    /// functionality. Additional wakeups can be scheduled with
+    /// set_cap_timer_delay_usec(...). An empty implementation is acceptable.
+    static inline void rcom_cutout_hook(uint32_t* cutout_state);
+    
 private:
     static TIM_HandleTypeDef captureTimerHandle_;
     static TIM_HandleTypeDef usecTimerHandle_;

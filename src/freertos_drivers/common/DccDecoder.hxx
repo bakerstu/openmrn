@@ -115,6 +115,16 @@ public:
     /** Handles a software interrupt to FreeRTOS. */
     inline void os_interrupt_handler() __attribute__((always_inline));
 
+    /// How many usec the railcom has before the cutout (measured from the
+    /// packet end 1 bit complete)
+    static const auto RAILCOM_CUTOUT_PRE = 26;
+    /// How many usec the railcom has to the middle of window (measured from the
+    /// packet end 1 bit complete)
+    static const auto RAILCOM_CUTOUT_MID = 185;
+    /// How many usec the railcom has to the end of the window (measured from
+    /// the packet end 1 bit complete)
+    static const auto RAILCOM_CUTOUT_END = 471;
+
 private:
     /** Read from a file or device.
      * @param file file reference for this device
@@ -240,16 +250,6 @@ private:
 
     /// DCC packet decoder state machine and internal state.
     dcc::DccDecoder decoder_ {Module::get_ticks_per_usec()};
-
-    /// How many usec the railcom has before the cutout (measured from the
-    /// packet end 1 bit complete)
-    static const auto RAILCOM_CUTOUT_PRE = 26;
-    /// How many usec the railcom has to the middle of window (measured from the
-    /// packet end 1 bit complete)
-    static const auto RAILCOM_CUTOUT_MID = 185;
-    /// How many usec the railcom has to the end of the window (measured from
-    /// the packet end 1 bit complete)
-    static const auto RAILCOM_CUTOUT_END = 471;
 
     DISALLOW_COPY_AND_ASSIGN(DccDecoder);
 };
@@ -401,6 +401,7 @@ DccDecoder<Module>::rcom_interrupt_handler()
     if (Module::int_get_and_clear_delay_event())
     {
         // Debug::RailcomDriverCutout::set(false);
+        Module::rcom_cutout_hook(&cutoutState_);
         switch (cutoutState_)
         {
             case 0:
@@ -429,11 +430,13 @@ DccDecoder<Module>::rcom_interrupt_handler()
                 cutoutState_ = 2;
                 break;
             }
-            default:
+            case 2:
             {
                 Module::stop_cap_timer_time();
                 Module::set_cap_timer_capture();
                 railcomDriver_->end_cutout();
+            } // fall through
+            case 100: {
                 if (Module::Output::isRailcomCutoutActive_) {
                     Debug::RailcomTurnonPhase1::set(true);
                     unsigned delay_usec =
@@ -450,6 +453,8 @@ DccDecoder<Module>::rcom_interrupt_handler()
                 }
                 break;
             }
+            default:
+                break;
         }
     }
     Debug::DccDecodeInterrupts::set(false);
