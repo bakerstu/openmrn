@@ -424,7 +424,7 @@ private:
 
     void set_feedback_key(uint32_t key) override
     {
-        Debug::RailComBeforeCutoutTiming::set(false);
+        Debug::RailComAllocPacketTiming::set(true);
         RailcomDriverBase<HW>::set_feedback_key(key);
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
@@ -432,7 +432,7 @@ private:
                 returnedPackets_[i] = this->alloc_new_packet(i);
             }
         }
-        Debug::RailComBeforeCutoutTiming::set(true);
+        Debug::RailComAllocPacketTiming::set(false);
     }
 };
 
