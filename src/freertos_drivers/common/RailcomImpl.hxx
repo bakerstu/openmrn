@@ -235,12 +235,11 @@ protected:
      * nullptr.*/
     dcc::Feedback *alloc_new_packet(uint8_t channel)
     {
-        if (!feedbackQueue_.has_noncommit_space())
+        dcc::Feedback *entry = feedbackQueue_.noncommit_back_or_null();
+        if (!entry)
         {
             return nullptr;
         }
-        dcc::Feedback *entry = &feedbackQueue_.back();
-        feedbackQueue_.noncommit_back();
         entry->reset(feedbackKey_);
         entry->channel = channel;
         return entry;
