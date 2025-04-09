@@ -46,8 +46,41 @@
 #endif // __has_include driver/adc_types_legacy.h
 #endif // has_include
 
+#include <adc_cali_schemes.h>
 #include <esp_adc/adc_oneshot.h>
+#include <esp_adc/adc_cali.h>
+#ifndef CONFIG_ADC_SUPPRESS_DEPRECATE_WARN
+#define CONFIG_ADC_SUPPRESS_DEPRECATE_WARN 1
+#endif
+#include <esp_adc_cal.h>
+#include <esp_idf_version.h>
+#include <soc/soc_caps.h>
 #include <soc/adc_channel.h>
+
+/// This class manages a single ADC Unit.
+class Esp32ADCUnitManager
+{
+public:
+    /// Constructor.
+    ///
+    /// @param unit @ref adc_unit_t that this instance owns the handle for.
+    Esp32ADCUnitManager(const adc_unit_t unit);
+
+    /// Initializes the underlying hardware unit if not already initialized.
+    void hw_init();
+
+    /// @returns the handle to use for this ADC unit.
+    adc_oneshot_unit_handle_t handle();
+private:
+    /// ADC unit identifier that this instance manages.
+    const adc_unit_t unit_;
+
+    /// @ref adc_oneshot_unit_handle_t that this instance manages.
+    adc_oneshot_unit_handle_t handle_;
+};
+
+/// Declaration of ADC unit managers.
+extern Esp32ADCUnitManager Esp32AdcUnit[SOC_ADC_PERIPH_NUM];
 
 /// Defines an ADC input pin.
 ///
@@ -59,56 +92,114 @@ public:
     using Defs::BITS;
     using Defs::CHANNEL;
     using Defs::PIN;
-    using Defs::HANDLE;
+    using Defs::CALIB_HANDLE;
+    using Defs::VREF_CALIB;
 
+    /// Initializes the underlying ADC hardware for use, including calibration
+    /// for millivolt reading.
     static void hw_init()
     {
-        // due to using #if/#elif/#endif it is not possible to include this in
-        // the ADC_PIN wrapper code.
-        const adc_oneshot_unit_init_cfg_t unit_config =
-        {
 #if CONFIG_IDF_TARGET_ESP32
-            .unit_id = PIN >= 30 ? ADC_UNIT_1 : ADC_UNIT_2,
+        const adc_unit_t unit = PIN >= 30 ? ADC_UNIT_1 : ADC_UNIT_2;
 #elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
-            .unit_id = PIN <= 10 ? ADC_UNIT_1 : ADC_UNIT_2,
+        const adc_unit_t unit = PIN <= 10 ? ADC_UNIT_1 : ADC_UNIT_2;
 #elif CONFIG_IDF_TARGET_ESP32C3
-            .unit_id = PIN <= 4 ? ADC_UNIT_1 : ADC_UNIT_2,
+        const adc_unit_t unit = PIN <= 4 ? ADC_UNIT_1 : ADC_UNIT_2;
+#else
+        #warning Unable to determine ADC unit number, defaulting to ADC_UNIT_1
+        const adc_unit_t unit = ADC_UNIT_1;
 #endif
-            .ulp_mode = ADC_ULP_MODE_DISABLE,
-        };
         const adc_oneshot_chan_cfg_t channel_config =
         {
             .atten = ATTEN,
             .bitwidth = BITS,
         };
 
+        // Initialize the ADC unit.
+        Esp32AdcUnit[unit].hw_init();
+
         LOG(VERBOSE,
             "[Esp32ADCInput] Configuring ADC%d:%d input pin %d, "
             "attenuation %d, bits %d",
-            unit_config.unit_id, CHANNEL, PIN, ATTEN, BITS);
-        ESP_ERROR_CHECK(adc_oneshot_new_unit(&unit_config, &HANDLE));
+            unit, CHANNEL, PIN, ATTEN, BITS);
+
+        // Initialize the ADC channel using the handle from the unit manager.
+        ESP_ERROR_CHECK(adc_oneshot_config_channel(
+            Esp32AdcUnit[unit].handle(), CHANNEL, &channel_config));
+
+#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+        adc_cali_curve_fitting_config_t config =
+        {
+            .unit_id = unit,
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5,1,2)
+            .chan = CHANNEL,
+#endif
+            .atten = ATTEN,
+            .bitwidth = BITS
+        };
         ESP_ERROR_CHECK(
-            adc_oneshot_config_channel(HANDLE, CHANNEL, &channel_config));
+            adc_cali_create_scheme_curve_fitting(&config, &CALIB_HANDLE));
+#elif ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+        adc_cali_line_fitting_config_t config =
+        {
+            .unit_id = unit,
+            .atten = ATTEN,
+            .bitwidth = BITS
+        };
+        ESP_ERROR_CHECK(
+            adc_cali_create_scheme_line_fitting(&config, &CALIB_HANDLE));
+#else
+        esp_adc_cal_characterize(unit, ATTEN, BITS, DEFAULT_VREF, &VREF_CALIB);
+        LOG(VERBOSE, "[Esp32ADCInput] Using vRef of %d mV", VREF_CALIB.vref);
+#endif
     }
 
-    /// NO-OP
+    /// NO-OP, unsupported
     static void hw_set_to_safe()
     {
         // NO-OP
     }
 
-    /// NO-OP
+    /// NO-OP, unsupported
     static void set(bool value)
     {
         // NO-OP
     }
 
+    /// @return raw sample from the ADC hardware.
     static int sample()
     {
+#if CONFIG_IDF_TARGET_ESP32
+        const adc_unit_t unit = PIN >= 30 ? ADC_UNIT_1 : ADC_UNIT_2;
+#elif CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
+        const adc_unit_t unit = PIN <= 10 ? ADC_UNIT_1 : ADC_UNIT_2;
+#elif CONFIG_IDF_TARGET_ESP32C3
+        const adc_unit_t unit = PIN <= 4 ? ADC_UNIT_1 : ADC_UNIT_2;
+#else
+        const adc_unit_t unit = ADC_UNIT_1;
+#endif
         int value = 0;
-        ESP_ERROR_CHECK(adc_oneshot_read(HANDLE, CHANNEL, &value));
+        ESP_ERROR_CHECK(
+            adc_oneshot_read(Esp32AdcUnit[unit].handle(), CHANNEL, &value));
         return value;
     }
+
+    /// @return Approximate millivolt value from the ADC hardware.
+    static int sample_mv()
+    {
+#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED || \
+    ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+        int calib_mv = 0;
+        ESP_ERROR_CHECK(
+            adc_cali_raw_to_voltage(CALIB_HANDLE, sample(), &calib_mv));
+        return calib_mv;
+#else
+        return esp_adc_cal_raw_to_voltage(sample(), &VREF_CALIB);
+#endif
+    }
+private:
+    /// Default ADC voltage reference value.
+    static constexpr uint32_t DEFAULT_VREF = 1100;
 };
 
 /// Helper macro for an ADC GPIO input on the ESP32.
@@ -200,7 +291,8 @@ public:
         static const gpio_num_t PIN = (gpio_num_t)ADC_CHANNEL##_GPIO_NUM;      \
         static const adc_atten_t ATTEN = (adc_atten_t)ATTENUATION;             \
         static const adc_bitwidth_t BITS = (adc_bitwidth_t)BIT_RANGE;          \
-        static adc_oneshot_unit_handle_t HANDLE;                               \
+        static adc_cali_handle_t CALIB_HANDLE;                                 \
+        static esp_adc_cal_characteristics_t VREF_CALIB;                       \
     public:                                                                    \
         static const gpio_num_t pin()                                          \
         {                                                                      \
@@ -211,7 +303,8 @@ public:
             return CHANNEL;                                                    \
         }                                                                      \
     };                                                                         \
-    adc_oneshot_unit_handle_t NAME##Defs::HANDLE;                              \
+    adc_cali_handle_t NAME##Defs::CALIB_HANDLE;                                \
+    esp_adc_cal_characteristics_t NAME##Defs::VREF_CALIB;                      \
     typedef Esp32ADCInput<NAME##Defs> NAME##_Pin
 
 #endif // _DRIVERS_ESP32ADCONESHOT_HXX_

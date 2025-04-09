@@ -106,10 +106,15 @@ static constexpr openlcb::ConfigDef cfg(0);
 
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 
-class FactoryResetHelper : public DefaultConfigUpdateListener {
+// @ref Esp32HardwareTwai instance to use for this node.
+static Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
+
+class FactoryResetHelper : public DefaultConfigUpdateListener
+{
 public:
     UpdateAction apply_configuration(int fd, bool initial_load,
-                                     BarrierNotifiable *done) OVERRIDE {
+                                     BarrierNotifiable *done) OVERRIDE
+    {
         AutoNotify n(done);
         return UPDATED;
     }
@@ -167,6 +172,11 @@ void setup()
     openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
         openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
 
+    // Initialize the TWAI peripheral
+    twai.hw_init();
+    // Add TWAI port to the stack
+    openmrn.add_can_port_select("/dev/twai/twai0");
+
     // Start the OpenMRN stack
     openmrn.begin();
     openmrn.start_executor_thread();
@@ -177,10 +187,6 @@ void setup()
     // have performance impact.
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
-
-    // Add the hardware CAN device as a bridge
-    openmrn.add_can_port(
-        new Esp32HardwareCan("esp32can", CAN_RX_PIN, CAN_TX_PIN));
 }
 
 void loop()
