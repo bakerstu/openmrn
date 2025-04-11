@@ -326,9 +326,22 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         debugLog_.add(new_value);
 #endif        
         bool cutout_just_finished = false;
+        Debug::DccDecodeInterrupts::set(false);
         decoder_.process_data(new_value);
+        Debug::DccDecodeInterrupts::set(true);
+        if (decoder_.state() == dcc::DccDecoder::DCC_END_OF_PREAMBLE) {
+            // Resets these state bits in case the state machines have
+            // diverged due to a bug.
+            inCutout_ = false;
+            prepCutout_ = false;
+            cutoutState_ = 0;
+        }
+        if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT) {
+            Debug::DccInCutoutPin::set(true);
+        }
         if (decoder_.before_dcc_cutout())
         {
+            Debug::RailComBeforeCutoutTiming::set(true);
             prepCutout_ = true;
             auto* p = decoder_.pkt();
             if (p)
@@ -337,7 +350,6 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             }
             railcomDriver_->set_feedback_key(packetId_);
             Module::dcc_before_cutout_hook();
-            Debug::RailComBeforeCutoutTiming::set(true);
         }
         // If we are at the second half of the last 1 bit and the
         // value of the input pin is 1, then we cannot recognize when
@@ -391,6 +403,8 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             Module::after_feedback_hook();
         }
     }
+    Debug::DccInCutoutPin::set(inCutout_);
+    Debug::DccDecodeInterrupts::set(false);
 }
 
 template <class Module>
@@ -436,8 +450,10 @@ DccDecoder<Module>::rcom_interrupt_handler()
                 Module::set_cap_timer_capture();
                 railcomDriver_->end_cutout();
             } // fall through
-            case 100: {
-                if (Module::Output::isRailcomCutoutActive_) {
+            case 100:
+            {
+                if (Module::Output::isRailcomCutoutActive_)
+                {
                     Debug::RailcomTurnonPhase1::set(true);
                     unsigned delay_usec =
                         Module::Output::stop_railcom_cutout_phase1();
@@ -458,6 +474,7 @@ DccDecoder<Module>::rcom_interrupt_handler()
         }
     }
     Debug::DccDecodeInterrupts::set(false);
+    Debug::DccInCutoutPin::set(inCutout_);
 }
 
 template <class Module>
