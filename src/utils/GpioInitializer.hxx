@@ -35,6 +35,8 @@
 #ifndef _UTILS_GPIOINITIALIZER_HXX_
 #define _UTILS_GPIOINITIALIZER_HXX_
 
+#include <tuple>
+
 /// Forward declaration to make the template matcher happy.
 template <class T> struct GpioInitHelper;
 
