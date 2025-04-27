@@ -1759,4 +1759,4 @@ const char *gai_strerror(int __ecode)
     }
 }
 
-#endif // ESP32
+#endif // ESP_PLATFORM
