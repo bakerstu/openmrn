@@ -278,7 +278,7 @@ public:
     /// @param n Notifiable to notify when *this goes out of scope. May be null
     /// in which case nothing will be notified.
     ///
-    AutoNotify(Notifiable *n)
+    AutoNotify(Notifiable *n = nullptr)
         : n_(n)
     {
     }
@@ -286,10 +286,19 @@ public:
     /// Destructor. Notifies the stored notifiable.
     ~AutoNotify()
     {
+        reset();
+    }
+
+    /// Performs the notification of the stored notifiable. Can be called
+    /// multiple times, but any later calls do nothing. Stores the new
+    /// notifiable instead.
+    void reset(Notifiable* new_notifiable = nullptr)
+    {
         if (n_)
         {
             n_->notify();
         }
+        n_ = new_notifiable;
     }
 
     /** Transfers the ownership of the notification; it will NOT be called in
@@ -303,6 +312,8 @@ public:
     }
 
 private:
+    DISALLOW_COPY_AND_ASSIGN(AutoNotify);
+    
     /// Stored notifiable to notify upon destruction.
     Notifiable* n_;
 };
