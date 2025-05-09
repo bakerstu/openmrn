@@ -41,6 +41,8 @@
 #include "utils/blinker.h"
 #include "freertos_drivers/ti/MSPM0SpiPixelStrip.hxx"
 
+#include "hardware.hxx"
+
 #define POWER_STARTUP_DELAY (16)
 
 #define CPUCLK_FREQ 32000000
@@ -49,11 +51,20 @@ uint8_t pix[3] = {3, 3, 3};
 
 SpiPixelStrip strip0(SPI0, 1, pix);
 
+/// Sets the onboard pixel to a given color.
+/// @param color is 0x00RRGGBB 
+void set_pix(uint32_t color) {
+  pix[0] = (color >> 8) & 0xff;
+  pix[1] = (color >> 16) & 0xff;
+  pix[2] = (color >> 0) & 0xff;
+  strip0.update_sync();
+}
+
 extern "C" {
 
 void resetblink(uint32_t p)
 {
-    pix[0] = p ? 30 : 3;
+    pix[1] = p ? 30 : 3;
     strip0.update_sync();
 }
 
@@ -62,10 +73,28 @@ void setblink(uint32_t p)
     resetblink(p);
 }
 
-void diewith(uint32_t)
+void usleep(uint32_t usecs);
+
+void __attribute__((noreturn)) diewith(uint32_t pattern)
 {
-    while (1)
-        ;
+  uint32_t p = 1;
+  pix[0] = pix[1] = pix[2] = 0;
+  while (1) {
+    resetblink(p & 1);
+    usleep(200000);
+    p >>= 1;
+    if (!p) p = pattern;
+  }
+}
+
+// These are replicated from os.c in order not to pull in os.o in the linking
+// phase. That file has dependencies on freertos which does not link under a
+// bare target.
+unsigned g_death_lineno;
+
+void __attribute__((noreturn)) abort(void)
+{
+  diewith(BLINK_DIE_ABORT);
 }
 
 extern uint64_t g_time_msec;
@@ -136,6 +165,39 @@ void setup_uart() {
     
 }
 
+
+/*
+ * Timer clock configuration to be sourced by BUSCLK (32 MHz)
+ * timerClkFreq = (timerClkSrc / (timerClkDivRatio * (timerClkPrescale + 1)))
+ *   1 MHz = 32 MHz / (1 * (31 + 1))
+ */
+static const DL_TimerG_ClockConfig g_usec_timer_ClockConfig = {
+    .clockSel    = DL_TIMER_CLOCK_BUSCLK,
+    .divideRatio = DL_TIMER_CLOCK_DIVIDE_1,
+    .prescale    = 31U,
+};
+
+/*
+ * Timer load value (where the counter starts from) is calculated as (timerPeriod * timerClockFreq) - 1
+ * TIMER_0_INST_LOAD_VALUE = (500 ms * 128 Hz) - 1
+ */
+static const DL_TimerG_TimerConfig g_usec_timer_TimerConfig = {
+    .timerMode  = DL_TIMER_TIMER_MODE_ONE_SHOT_UP,
+    .period     = 65534,
+    .startTimer = DL_TIMER_STOP,
+    .genIntermInt = DL_TIMER_INTERM_INT_DISABLED,
+};
+
+void setup_timer() {
+    DL_TimerG_setClockConfig(USEC_TIMER,
+        (DL_TimerG_ClockConfig *) &g_usec_timer_ClockConfig);
+    DL_TimerG_enableClock(USEC_TIMER);
+    DL_TimerG_initTimerMode(USEC_TIMER,
+        (DL_TimerG_TimerConfig *) &g_usec_timer_TimerConfig);
+    DL_Timer_setLoadValue(USEC_TIMER, 65535);
+    //DL_TimerG_enableInterrupt(USEC_TIMER , DL_TIMERG_INTERRUPT_ZERO_EVENT);
+}
+
 void hw_preinit(void)
 {
     DL_GPIO_reset(GPIOA);
@@ -146,6 +208,9 @@ void hw_preinit(void)
 
     DL_UART_Main_reset(UART0);
     DL_UART_Main_enablePower(UART0);
+
+    DL_TimerG_reset(USEC_TIMER);
+    DL_TimerG_enablePower(USEC_TIMER);
     
     delay_cycles(POWER_STARTUP_DELAY);
 
@@ -168,6 +233,8 @@ void hw_preinit(void)
 
     setup_uart();
 
+    setup_timer();
+    
     /// Pinmux setup.
     DL_GPIO_initPeripheralOutputFunctionFeatures(
         IOMUX_PINCM19 /*PA18*/, IOMUX_PINCM19_PF_SPI0_PICO,
@@ -175,7 +242,13 @@ void hw_preinit(void)
         DL_GPIO_DRIVE_STRENGTH_LOW, DL_GPIO_HIZ_DISABLE);
 
     DL_GPIO_initPeripheralInputFunction(
-        IOMUX_PINCM23, IOMUX_PINCM23_PF_UART0_RX);
+        IOMUX_PINCM23 /*PA22*/, IOMUX_PINCM23_PF_UART0_RX);
+
+    DL_GPIO_initPeripheralOutputFunctionFeatures(
+        IOMUX_PINCM24 /*PA23*/, IOMUX_PINCM24_PF_UART0_TX,
+        DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_NONE,
+        DL_GPIO_DRIVE_STRENGTH_HIGH, DL_GPIO_HIZ_ENABLE);
+
 }
 
 extern int appl_main(int argc, char *argv[]);
@@ -201,10 +274,22 @@ void PendSV_Handler(void)
 
 void usleep(uint32_t usecs)
 {
+  do {
+    uint32_t limit = usecs;
+    if (limit > 10000) limit = 10000;
+    DL_Timer_stopCounter(USEC_TIMER);
+    DL_Timer_setTimerCount(USEC_TIMER, 0);
+    DL_Timer_startCounter(USEC_TIMER);
+    while (DL_Timer_getTimerCount(USEC_TIMER) < limit) {}
+    usecs -= limit;
+  } while (usecs > 0);
+
+#if 0  
     auto end = current_time_msec() + (usecs + 999) / 1000;
     while (current_time_msec() < end) {
         __WFI();
     }
+#endif    
 }
 
 // This is needed to avoid pulling in os.o, which has a dependency on freertos.
