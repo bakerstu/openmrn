@@ -90,7 +90,7 @@ void __attribute__((noreturn)) diewith(uint32_t pattern)
 // These are replicated from os.c in order not to pull in os.o in the linking
 // phase. That file has dependencies on freertos which does not link under a
 // bare target.
-unsigned g_death_lineno;
+int g_death_lineno;
 
 void __attribute__((noreturn)) abort(void)
 {
@@ -200,6 +200,11 @@ void setup_timer() {
 
 void hw_preinit(void)
 {
+    /* Globally disables interrupts. */
+    asm("cpsid i\n");
+
+    
+    
     DL_GPIO_reset(GPIOA);
     DL_GPIO_enablePower(GPIOA);
 
