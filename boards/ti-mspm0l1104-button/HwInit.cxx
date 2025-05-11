@@ -198,12 +198,14 @@ void setup_timer() {
     //DL_TimerG_enableInterrupt(USEC_TIMER , DL_TIMERG_INTERRUPT_ZERO_EVENT);
 }
 
+extern void (* const __interrupt_vector[])(void);
+
 void hw_preinit(void)
 {
     /* Globally disables interrupts. */
     asm("cpsid i\n");
 
-    
+    SCB->VTOR = (volatile uint32_t)&__interrupt_vector;
     
     DL_GPIO_reset(GPIOA);
     DL_GPIO_enablePower(GPIOA);
@@ -219,7 +221,7 @@ void hw_preinit(void)
     
     delay_cycles(POWER_STARTUP_DELAY);
 
-    // SYSCFG_DL_GPIO_init(); // empty
+    GpioInit::hw_init();
 
     /* Module-Specific Initializations*/
     DL_SYSCTL_setSYSOSCFreq(DL_SYSCTL_SYSOSC_FREQ_BASE);
@@ -254,6 +256,8 @@ void hw_preinit(void)
         DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_NONE,
         DL_GPIO_DRIVE_STRENGTH_HIGH, DL_GPIO_HIZ_ENABLE);
 
+    // Enables interrupts.
+    asm("cpsie i\n");
 }
 
 extern int appl_main(int argc, char *argv[]);
