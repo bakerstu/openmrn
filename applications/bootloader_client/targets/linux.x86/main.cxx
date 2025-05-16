@@ -56,6 +56,7 @@ public:
 
     Action disconnected()
     {
+        g_if_can.remote_aliases()->clear();
         connect();
         return wait_and_call(STATE(disconnected));
     }
