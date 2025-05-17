@@ -224,7 +224,9 @@ StateFlowBase::Action EventIteratorFlow::entry()
             set_priority(4);
             break;
         default:
-            DIE("Unexpected message arrived at the global event handler.");
+            LOG(INFO,
+                "Unexpected message arrived at the global event handler.");
+            return release_and_exit();
     } //    case
     // The incoming message is not needed anymore.
     incomingDone_ = message()->new_child();

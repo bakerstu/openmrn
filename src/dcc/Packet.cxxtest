@@ -710,7 +710,7 @@ TEST_F(Train28Test, MinSpeed)
 
 TEST_F(Train28Test, ZeroSpeed)
 {
-    EXPECT_CALL(loop_, send_update(&train_, _)).Times(2).WillRepeatedly(
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
         SaveArg<1>(&code_));
     SpeedType s;
     // Even the smallest nonzero velocity should set the train in motion.
@@ -719,6 +719,8 @@ TEST_F(Train28Test, ZeroSpeed)
     do_callback();
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b01100010, _));
 
+    EXPECT_CALL(loop_, send_update(&train_, _)).WillOnce(
+        SaveArg<1>(&code_));
     s.set_mph(0);
     train_.set_speed(s);
     do_callback();
@@ -732,7 +734,7 @@ TEST_F(Train28Test, EstopSaved)
     s.set_mph(128);
     code_ = 0;
     EXPECT_CALL(loop_, send_update(&train_, _))
-        .WillRepeatedly(SaveArg<1>(&code_));
+        .WillOnce(SaveArg<1>(&code_));
 
     // First make the train move.
     train_.set_speed(s);
@@ -741,6 +743,9 @@ TEST_F(Train28Test, EstopSaved)
     EXPECT_THAT(get_packet(), ElementsAre(55, 0b01111111, _));
     EXPECT_FALSE(train_.get_emergencystop());
     EXPECT_NEAR(128, train_.get_speed().mph(), 0.1);
+
+    EXPECT_CALL(loop_, send_update(&train_, _))
+        .WillOnce(SaveArg<1>(&code_));
 
     // Then estop the train.
     EXPECT_FALSE(train_.get_emergencystop());
@@ -754,6 +759,9 @@ TEST_F(Train28Test, EstopSaved)
     EXPECT_TRUE(train_.get_emergencystop());
     EXPECT_NEAR(0, train_.get_speed().mph(), 0.1);
 
+    EXPECT_CALL(loop_, send_update(&train_, _))
+        .WillOnce(SaveArg<1>(&code_));
+    
     // Move the train again.
     s = 37.5;
     train_.set_speed(s);
@@ -869,9 +877,11 @@ TEST_F(Train28Test, AllFunctions)
 TEST_F(Train28Test, isSmall)
 {
 #if UINTPTR_MAX > UINT_MAX
+    // 16 bytes of payload plus one virtual method table pointer.
     EXPECT_EQ(24U, sizeof(train_));
 #else
-    EXPECT_EQ(16U, sizeof(train_));
+    // 16 bytes of payload plus one virtual method table pointer.
+    EXPECT_EQ(20U, sizeof(train_));
 #endif
     // 4 bytes of function bits   // 3
     // 4 bytes of virtual method table
