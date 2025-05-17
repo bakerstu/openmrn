@@ -47,27 +47,19 @@ public:
     ConnectionMonitor()
         : StateFlowBase(&g_service)
     {
-        OSSem sem;
-        sem_ = &sem;
         connect();
-        sem.wait();
         wait_and_call(STATE(disconnected));
     }
 
     Action disconnected()
     {
         g_if_can.remote_aliases()->clear();
-        connect();
+        new (&thread_) OSThread("ConnectSocket", 0, 1024, connect_thread, this);
         return wait_and_call(STATE(disconnected));
     }
 
 private:
     void connect()
-    {
-        new (&thread_) OSThread("ConnectSocket", 0, 1024, connect_thread, this);
-    }
-
-    void *connect_thread()
     {
         if (device_path)
         {
@@ -79,21 +71,15 @@ private:
         }
         HASSERT(fd_ >= 0);
         create_gc_port_for_can_hub(&can_hub0, fd_, this);
-        if (sem_)
-        {
-            sem_->post();
-            sem_ = nullptr;
-        }
-        return nullptr;
     }
 
     static void *connect_thread(void *arg)
     {
-        return static_cast<ConnectionMonitor*>(arg)->connect_thread();
+        static_cast<ConnectionMonitor*>(arg)->connect();
+        return nullptr;
     }
 
     OSThread thread_;
-    OSSem *sem_;
     int fd_;
 };
 
