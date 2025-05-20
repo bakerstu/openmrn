@@ -48,11 +48,14 @@ public:
         : StateFlowBase(&g_service)
     {
         connect();
+        HASSERT(fd_ >= 0);
+        create_gc_port_for_can_hub(&can_hub0, fd_, this);
         wait_and_call(STATE(disconnected));
     }
 
     Action disconnected()
     {
+        LOG(ALWAYS, "disconnected()");
         g_if_can.remote_aliases()->clear();
         new (&thread_) OSThread("ConnectSocket", 0, 1024, connect_thread, this);
         return wait_and_call(STATE(disconnected));
@@ -69,13 +72,22 @@ private:
         {
             fd_ = ConnectSocket(host, port);
         }
-        HASSERT(fd_ >= 0);
+    }
+
+    void connect_thread()
+    {
+        do
+        {
+            usleep(500000);
+            connect();
+        } while (fd_ < 0);
+        LOG(ALWAYS, "reconnected()");
         create_gc_port_for_can_hub(&can_hub0, fd_, this);
     }
 
     static void *connect_thread(void *arg)
     {
-        static_cast<ConnectionMonitor*>(arg)->connect();
+        static_cast<ConnectionMonitor*>(arg)->connect_thread();
         return nullptr;
     }
 
