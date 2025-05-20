@@ -325,6 +325,12 @@ public:
     /// NOTE: This is not intended to be called by the user.
     void sync_time(time_t now);
 
+    void shutdown()
+    {
+        connectionMode_ = CONN_MODE_SHUTDOWN_BIT;
+        wifiStackFlow_.notify();
+    }
+
     /// @return the Executor used by the Esp32WiFiManager.
     ///
     /// This can be used for other background tasks that should run
@@ -578,6 +584,9 @@ private:
     /// Constant used to determine if the Hub mode should be enabled.
     static constexpr uint8_t CONN_MODE_HUB_BIT = BIT(1);
 
+    /// Constant used to determine if the WiFi should be shutdown.
+    static constexpr uint8_t CONN_MODE_SHUTDOWN_BIT = BIT(7);
+
     /// Network interfaces that are managed by Esp32WiFiManager.
     esp_netif_t *espNetIfaces_[MAX_NETWORK_INTERFACES]
     {
@@ -676,6 +685,8 @@ private:
         /// State which processes a configuration reload or the initial
         /// configuration of the hub and uplink tasks (if either are enabled).
         STATE_FLOW_STATE(reload);
+
+        STATE_FLOW_STATE(shutdown);
     };
 
     /// Instance of @ref WiFiStackFlow used for WiFi maintenance.

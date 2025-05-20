@@ -1503,7 +1503,21 @@ StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::reload()
     {
         parent_->stop_uplink();
     }
+
+    if (parent_->connectionMode_ & CONN_MODE_SHUTDOWN_BIT)
+    {
+        // Alow a bit of time for lingering sockets to terminate.
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(shutdown));
+    }
     return wait_and_call(STATE(reload));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::shutdown()
+{
+    LOG(INFO, "[WiFi] Shutting down.");
+    esp_wifi_stop();
+    //esp_wifi_deinit();
+    return exit();
 }
 
 } // namespace openmrn_arduino
