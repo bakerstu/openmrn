@@ -43,22 +43,11 @@ void GcTcpHub::on_new_connection(int fd)
 {
     const bool use_select =
         (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
-    {
-        AtomicHolder h(this);
-        numClients_++;
-    }
     // Applies kernel parameters like socket options.
     FdUtils::optimize_socket_fd(fd);
-    create_gc_port_for_can_hub(canHub_, fd, this, use_select);
-}
-
-void GcTcpHub::notify()
-{
-    AtomicHolder h(this);
-    if (numClients_)
-    {
-        numClients_--;
-    }
+    Notify *n = new Notify(this, fd);
+    create_gc_port_for_can_hub(canHub_, fd, n, use_select);
+    LOG(ALWAYS, "on_new_connection() fd: %i", fd);
 }
 
 GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port)
@@ -72,4 +61,12 @@ GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port)
 GcTcpHub::~GcTcpHub()
 {
     tcpListener_.shutdown();
+    // There is probably a race condition here with regard to the GC Port being
+    // closed elsewhere. Since shutting down a hub is typically proceeding an
+    // attempt at a graceful shutdown anyways, we are letting it go.
+    for (auto it = clients_.begin(); it != clients_.end(); ++it)
+    {
+        close(*it);
+        LOG(ALWAYS, "GcTcpHub delete, close: %i", *it);
+    }
 }

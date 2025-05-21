@@ -34,6 +34,8 @@
 #ifndef _UTILS_GCTCPHUB_HXX_
 #define _UTILS_GCTCPHUB_HXX_
 
+#include <vector>
+
 #include "utils/socket_listener.hxx"
 #include "utils/Hub.hxx"
 
@@ -43,7 +45,7 @@ class ExecutorBase;
  * format. Any new incoming connection will be wired into the same virtual CAN
  * hub. All packets will be forwarded to every participant, without
  * loopback. */
-class GcTcpHub : private Notifiable, private Atomic
+class GcTcpHub
 {
 public:
     /// Constructor.
@@ -63,27 +65,62 @@ public:
     /// @return currently connected client count.
     unsigned get_num_clients()
     {
-        return numClients_;
+        return clients_.size();
     }
 
 private:
+    class Notify : public Notifiable, private Atomic
+    {
+    public:
+        Notify(GcTcpHub *parent, int fd)
+            : parent_(parent)
+            , fd_(fd)
+        {
+            AtomicHolder h(this);
+            parent_->clients_.push_back(fd);
+        }
+
+        void notify() override
+        {
+            {
+                AtomicHolder h(this);
+                for (auto it = parent_->clients_.begin();
+                    it != parent_->clients_.end(); ++it)
+                {
+                    if (*it == fd_)
+                    {
+                        parent_->clients_.erase(it);
+                        LOG(ALWAYS, "GcTcpHub notify, erase: %i", fd_);
+                    }
+                }
+            }
+            delete this;
+        }
+
+    private:
+        GcTcpHub *parent_;
+        int fd_;
+    };
+
+
     /// Callback when a new connection arrives.
     ///
     /// @param fd filedes of the freshly established incoming connection.
     ///
     void on_new_connection(int fd);
 
-    /// Error callback from the gridconnect socket. This is invoked when a
-    /// client disconnects.
-    void notify() override;
-
     /// @param can_hub Which CAN-hub should we attach the TCP gridconnect hub
     /// onto.
     CanHubFlow *canHub_;
     /// How many clients are connected right now.
-    unsigned numClients_ {0};
+    //unsigned numClients_ {0};
     /// Helper object representing the listening on the socket.
     SocketListener tcpListener_;
+    /// List of connected clients
+    std::vector<int> clients_;
+
+    /// Provide access to private members from child object.
+    friend class Notify;
 };
 
 #endif // _UTILS_GCTCPHUB_HXX_
