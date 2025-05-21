@@ -271,7 +271,7 @@ private:
 Esp32WiFiManager::Esp32WiFiManager(const char *station_ssid
     , const char *station_password, openlcb::SimpleStackBase *stack
     , const WiFiConfiguration &cfg, wifi_mode_t wifi_mode
-    , uint8_t connection_mode, const char *hostname_prefix
+    , ConnectionMode connection_mode, const char *hostname_prefix
     , const char *sntp_server, const char *timezone, bool sntp_enabled
     , uint8_t softap_channel, wifi_auth_mode_t softap_auth_mode
     , const char *softap_ssid, const char *softap_password)

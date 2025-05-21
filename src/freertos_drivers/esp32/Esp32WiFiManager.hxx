@@ -122,6 +122,17 @@ class Esp32WiFiManager
     , public Singleton<Esp32WiFiManager>
 {
 public:
+    /// OpenLCB connection mode.
+    enum ConnectionMode: uint8_t
+    {
+        /// Uplink connection only
+        CONN_MODE_UPLINK_ONLY = BIT(0),
+        /// Hub connection only
+        CONN_MODE_HUB_ONLY = BIT(1),
+        /// Uplink + hub connection
+        CONN_MODE_UPLINK_PLUS_HUB = CONN_MODE_UPLINK_ONLY | CONN_MODE_HUB_ONLY,
+    };
+
     /// Constructor.
     ///
     /// With this constructor the ESP32 WiFi and MDNS systems will be managed
@@ -168,7 +179,7 @@ public:
                    , openlcb::SimpleStackBase *stack
                    , const WiFiConfiguration &cfg
                    , wifi_mode_t wifi_mode = WIFI_MODE_STA
-                   , uint8_t connection_mode = CONN_MODE_UPLINK_BIT
+                   , ConnectionMode connection_mode = CONN_MODE_UPLINK_ONLY
                    , const char *hostname_prefix = "esp32_"
                    , const char *sntp_server = "pool.ntp.org"
                    , const char *timezone = "UTC0"
@@ -579,10 +590,10 @@ private:
     static constexpr uint8_t MAX_HOSTNAME_LENGTH = 32;
 
     /// Constant used to determine if the Uplink mode should be enabled.
-    static constexpr uint8_t CONN_MODE_UPLINK_BIT = BIT(0);
+    static constexpr uint8_t CONN_MODE_UPLINK_BIT = CONN_MODE_UPLINK_ONLY;
 
     /// Constant used to determine if the Hub mode should be enabled.
-    static constexpr uint8_t CONN_MODE_HUB_BIT = BIT(1);
+    static constexpr uint8_t CONN_MODE_HUB_BIT = CONN_MODE_HUB_ONLY;
 
     /// Constant used to determine if the WiFi should be shutdown.
     static constexpr uint8_t CONN_MODE_SHUTDOWN_BIT = BIT(7);
