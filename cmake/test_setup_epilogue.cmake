@@ -27,6 +27,7 @@ foreach(testsourcefile ${TESTS})
 
         -fPIC
         -lgcov
+        -lcrypto
         -Wl,--start-group
         openmrn
         ${LINK_LIBS}
