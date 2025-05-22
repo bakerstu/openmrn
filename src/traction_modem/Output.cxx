@@ -66,10 +66,12 @@ void Output::send(Buffer<Message> *buf, unsigned prio)
             break;
         }
         case Defs::CMD_OUTPUT_RESTART:
+        {
             Defs::OutputRestart *o_restart =
                 (Defs::OutputRestart*)b->data()->payload.data();
             train_->output_restart(be16toh(o_restart->output_));
             break;
+        }
     }
 }
 
