@@ -45,6 +45,7 @@ void GcTcpHub::on_new_connection(int fd)
         (config_gridconnect_tcp_use_select() == CONSTANT_TRUE);
     // Applies kernel parameters like socket options.
     FdUtils::optimize_socket_fd(fd);
+    // Create new notification object for tracking the fd.
     Notify *n = new Notify(this, fd);
     create_gc_port_for_can_hub(canHub_, fd, n, use_select);
     LOG(ALWAYS, "on_new_connection() fd: %i", fd);

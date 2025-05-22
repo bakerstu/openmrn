@@ -69,9 +69,13 @@ public:
     }
 
 private:
+    /// Helper object for managing connected clients.
     class Notify : public Notifiable, private Atomic
     {
     public:
+        /// Constructor.
+        /// @param parent parent object pointer
+        /// @param fd file descriptor to register
         Notify(GcTcpHub *parent, int fd)
             : parent_(parent)
             , fd_(fd)
@@ -80,6 +84,7 @@ private:
             parent_->clients_.push_back(fd);
         }
 
+        /// Provides notification that the client is is being removed.
         void notify() override
         {
             {
@@ -89,6 +94,7 @@ private:
                 {
                     if (*it == fd_)
                     {
+                        // Found a match, stop tracking it.
                         parent_->clients_.erase(it);
                         LOG(ALWAYS, "GcTcpHub notify, erase: %i", fd_);
                     }
@@ -98,8 +104,8 @@ private:
         }
 
     private:
-        GcTcpHub *parent_;
-        int fd_;
+        GcTcpHub *parent_; ///< parent object pointer
+        int fd_; /// registered file descriptor
     };
 
 

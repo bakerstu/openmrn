@@ -336,6 +336,9 @@ public:
     /// NOTE: This is not intended to be called by the user.
     void sync_time(time_t now);
 
+    /// Initiates a graceful shutdown. Will trigger a graceful stop of the
+    /// hub and uplink. This is not intended to be reversible, and a system
+    /// reset is expected to follow.
     void shutdown()
     {
         connectionMode_ = CONN_MODE_SHUTDOWN_BIT;
@@ -695,8 +698,10 @@ private:
 
         /// State which processes a configuration reload or the initial
         /// configuration of the hub and uplink tasks (if either are enabled).
+        /// Also can initiate a shutdown.
         STATE_FLOW_STATE(reload);
 
+        /// State which finalizes the shutdown request.
         STATE_FLOW_STATE(shutdown);
     };
 
