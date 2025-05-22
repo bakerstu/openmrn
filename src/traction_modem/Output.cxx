@@ -32,9 +32,10 @@
  * @date 17 May 2025
  */
 
- #include "traction_modem/Output.hxx"
+#include "traction_modem/Output.hxx"
 
- #include "traction_modem/ModemTrain.hxx"
+#include "traction_modem/ModemTrain.hxx"
+
 namespace traction_modem
 {
 
