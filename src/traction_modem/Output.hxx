@@ -56,8 +56,7 @@ public:
     /// @param train reference to a train object
     Output(TxInterface *tx_flow, RxInterface *rx_flow,
         ModemTrainInterface *train)
-        : txFlow_(tx_flow)
-        , rxFlow_(rx_flow)
+        : rxFlow_(rx_flow)
         , train_(train)
     {
         rxFlow_->register_handler(this, Defs::CMD_OUTPUT_STATE);
@@ -77,7 +76,6 @@ private:
     /// @prio message priority
     void send(Buffer<Message> *buf, unsigned prio) override;
 
-    TxInterface *txFlow_; ///< reference to the transmit flow
     RxInterface *rxFlow_; ///< reference to the receive flow
     ModemTrainInterface *train_;
 };
