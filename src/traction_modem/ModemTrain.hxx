@@ -47,7 +47,25 @@
 namespace traction_modem
 {
 
-class ModemTrain : public openlcb::TrainImpl
+/// Virtual interface for a ModemTrain.
+class ModemTrainInterface
+{
+public:
+    /// Set an output state.
+    /// @param output output number
+    /// @param effect 0 = off, 0xFFFF = on, else effect
+    virtual void output_state(uint16_t output, uint16_t effect)
+    {
+    }
+
+    /// Restart an output (synchronize lighting effect).
+    /// @param output output number
+    virtual void output_restart(uint16_t output)
+    {
+    }
+};
+
+class ModemTrain : public ModemTrainInterface, public openlcb::TrainImpl
 {
 public:
     /// Constructor.
@@ -60,9 +78,7 @@ public:
         , rxFlow_(rx_flow)
         , cvSpace_(service, tx_flow, rx_flow)
         , fuSpace_(service, tx_flow, rx_flow)
-        , output_(tx_flow, rx_flow, std::bind(
-            &ModemTrain::set_output, this, std::placeholders::_1,
-            std::placeholders::_2))
+        , output_(tx_flow, rx_flow, this)
         , isActive_(false)
     {
     }
@@ -151,13 +167,6 @@ public:
     bool get_emergencystop() override
     {
         return inEStop_;
-    }
-
-    /// Set an output state.
-    /// @param output output number
-    /// @param effect 0 = off, 0xFFFF = on, else effect
-    virtual void set_output(uint16_t output, uint16_t effect)
-    {
     }
 
     /// Sets the value of a function.

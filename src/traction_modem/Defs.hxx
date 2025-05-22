@@ -130,6 +130,8 @@ struct Defs
     static constexpr unsigned LEN_ESTOP_SET = 0;
     /// Length of the data payload of a wireless present packet.
     static constexpr unsigned LEN_WIRELESS_PRESENT = 1;
+    /// Length of the data payload of an output state queue packet.
+    static constexpr unsigned LEN_OUTPUT_STATE_QUERY = 2;
     /// Length of the data payload of a set estop packet.
     static constexpr unsigned LEN_MEM_R = 6;
     /// Base length of the data, add the number of payload bytes.
@@ -203,6 +205,22 @@ struct Defs
         uint16_t effect_; ///< 0 = off, 0xFFFF = on, else effect
     };
 
+    /// Structure of an output state query response
+    struct OutputStateQueryResponse
+    {
+        Header header_; ///< packet header
+        uint16_t error_; ///< error code
+        uint16_t output_; ///< output number
+        uint16_t effect_; ///< 0 = off, 0xFFFF = on, else effect
+    };
+
+    /// Structure of an output restart command (synchronize lighting effect)
+    struct OutputRestart
+    {
+        Header header_; ///< packet header
+        uint16_t output_; ///< output number
+    };
+
     /// Structure of a read reply packet
     struct ReadResponse
     {
@@ -240,6 +258,19 @@ struct Defs
         Payload p;
         prepare(&p, CMD_WIRELESS_PRESENT, LEN_WIRELESS_PRESENT);
         append_uint8(&p, is_present ? 1 : 0);
+
+        append_crc(&p);
+        return p;
+    }
+
+    /// Computes the payload to query for the current output state
+    /// @param output output number
+    /// @return wire formatted payload
+    static Payload get_output_state_payload(uint16_t output)
+    {
+        Payload p;
+        prepare(&p, CMD_OUTPUT_STATE_QUERY, LEN_OUTPUT_STATE_QUERY);
+        append_uint16(&p, output);
 
         append_crc(&p);
         return p;

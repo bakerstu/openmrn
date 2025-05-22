@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file Output.hxx
+ * @file Output.cxx
  *
  * Logic for interacting with outputs.
  *
@@ -32,56 +32,44 @@
  * @date 17 May 2025
  */
 
-#ifndef _TRACTION_MODEM_OUTPUT_HXX_
-#define _TRACTION_MODEM_OUTPUT_HXX_
+ #include "traction_modem/Output.hxx"
 
-#include <functional>
-
-#include "traction_modem/RxFlow.hxx"
-#include "traction_modem/TxFlow.hxx"
-
+ #include "traction_modem/ModemTrain.hxx"
 namespace traction_modem
 {
 
-// Forward declaration
-class ModemTrainInterface;
-
-/// Object for handling output messages.
-class Output : public PacketFlowInterface
+//
+// Output::send()
+//
+void Output::send(Buffer<Message> *buf, unsigned prio)
 {
-public:
-    /// Constructor.
-    /// @param tx_flow reference to the transmit flow
-    /// @param rx_flow reference to the receive flow
-    /// @param train reference to a train object
-    Output(TxInterface *tx_flow, RxInterface *rx_flow,
-        ModemTrainInterface *train)
-        : txFlow_(tx_flow)
-        , rxFlow_(rx_flow)
-        , train_(train)
+    auto b = get_buffer_deleter(buf);
+    switch (b->data()->command())
     {
-        rxFlow_->register_handler(this, Defs::CMD_OUTPUT_STATE);
-        rxFlow_->register_handler(this, Defs::CMD_OUTPUT_RESTART);
-        rxFlow_->register_handler(this, Defs::RESP_OUTPUT_STATE_QUERY);
+        case Defs::CMD_OUTPUT_STATE:
+        {
+            Defs::OutputState *os =
+                (Defs::OutputState*)b->data()->payload.data();
+            train_->output_state(be16toh(os->output_), be16toh(os->effect_));
+            break;
+        }
+        case Defs::RESP_OUTPUT_STATE_QUERY:
+        {
+            Defs::OutputStateQueryResponse *osqr =
+                (Defs::OutputStateQueryResponse*)b->data()->payload.data();
+            if (osqr->error_ == 0)
+            {
+                train_->output_state(
+                    be16toh(osqr->output_), be16toh(osqr->effect_));
+            }
+            break;
+        }
+        case Defs::CMD_OUTPUT_RESTART:
+            Defs::OutputRestart *o_restart =
+                (Defs::OutputRestart*)b->data()->payload.data();
+            train_->output_restart(be16toh(o_restart->output_));
+            break;
     }
-
-    /// Destrutor
-    ~Output()
-    {
-        rxFlow_->unregister_handler_all(this);
-    }
-
-private:
-    /// Receive for output commands.
-    /// @buf incoming message
-    /// @prio message priority
-    void send(Buffer<Message> *buf, unsigned prio) override;
-
-    TxInterface *txFlow_; ///< reference to the transmit flow
-    RxInterface *rxFlow_; ///< reference to the receive flow
-    ModemTrainInterface *train_;
-};
+}
 
 } // namespace traction_modem
-
-#endif // _TRACTION_MODEM_OUTPUT_HXX_
