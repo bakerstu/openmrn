@@ -1,0 +1,119 @@
+#include "utils/test_main.hxx"
+
+#include "traction_modem/Output.hxx"
+
+namespace traction_modem
+{
+
+//
+// Mock objects.
+//
+class MockRxFlow : public RxInterface
+{
+public:
+    MOCK_METHOD1(start, void(int));
+    MOCK_METHOD3(register_handler,
+        void(PacketFlowInterface*, Message::id_type, Message::id_type));
+    MOCK_METHOD3(unregister_handler,
+        void(PacketFlowInterface*, Message::id_type, Message::id_type));
+    MOCK_METHOD1(unregister_handler_all, void(PacketFlowInterface*));
+};
+
+class MyMockRxFlow : public MockRxFlow
+{
+public:
+    void register_handler(PacketFlowInterface *interface, Message::id_type id,
+        Message::id_type mask = Message::EXACT_MASK) override
+    {
+        dispatcher_.register_handler(interface, id, mask);
+        MockRxFlow::register_handler(interface, id, mask);
+    }
+ 
+    void unregister_handler_all(PacketFlowInterface *interface) override
+    {
+        dispatcher_.unregister_handler_all(interface);
+        MockRxFlow::unregister_handler_all(interface);
+    }
+
+    DispatchFlow<Buffer<Message>, 2> dispatcher_{&g_service};
+};
+
+class MockTxFlow : public TxInterface
+{
+public:
+    MOCK_METHOD1(start, void(int));
+    MOCK_METHOD1(send_packet, void(Defs::Payload));
+};
+
+class MockOutputCallback
+{
+public:
+    MOCK_METHOD2(set_output, void(uint16_t, uint16_t));
+};
+
+/// Test object for memory spaces.
+class OutputTest : public ::testing::Test
+{
+protected:
+    /// Constructor.
+    OutputTest()
+    {
+        using ::testing::_;
+        EXPECT_CALL(
+            mRxFlow_, register_handler(_, Defs::CMD_OUTPUT_STATE, _)).Times(1);
+        output_ = new Output(&mTxFlow_, &mRxFlow_, std::bind(
+            &MockOutputCallback::set_output, &mOutCback_,
+            std::placeholders::_1, std::placeholders::_2));
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+    }
+
+    /// Destructor.
+    ~OutputTest()
+    {
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+        using ::testing::_;
+        EXPECT_CALL(mRxFlow_, unregister_handler_all(_)).Times(1);
+        delete output_;
+    }
+
+
+    ::testing::StrictMock<MyMockRxFlow> mRxFlow_; ///< mock receive flow
+    ::testing::StrictMock<MockTxFlow> mTxFlow_; ///< mock transmit flow
+    ::testing::StrictMock<MockOutputCallback> mOutCback_; ///< mock callback
+    Output *output_; ///< output instance
+};
+
+TEST_F(OutputTest, Create)
+{
+}
+
+TEST_F(OutputTest, OutputState)
+{
+    // Output 0, value 0
+    EXPECT_CALL(mOutCback_, set_output(0, 0)).Times(1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_OUTPUT_STATE, 4);
+        Defs::append_uint16(&b->data()->payload, 0);
+        Defs::append_uint16(&b->data()->payload, 0);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mOutCback_);
+
+    // Output 25, value 55
+    EXPECT_CALL(mOutCback_, set_output(25, 55)).Times(1);
+    {
+        auto *b = mRxFlow_.dispatcher_.alloc();
+        Defs::prepare(&b->data()->payload, Defs::CMD_OUTPUT_STATE, 4);
+        Defs::append_uint16(&b->data()->payload, 25);
+        Defs::append_uint16(&b->data()->payload, 55);
+        Defs::append_crc(&b->data()->payload);
+        mRxFlow_.dispatcher_.send(b);
+        wait_for_main_executor();
+    }
+    testing::Mock::VerifyAndClearExpectations(&mOutCback_);
+}
+
+} // namespace traction_modem
