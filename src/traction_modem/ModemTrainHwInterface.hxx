@@ -1,6 +1,6 @@
 /** @copyright
  * Copyright (c) 2025, Stuart Baker
- * All rights reserved.
+ * All rights reserved
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are  permitted provided that the following conditions are met:
@@ -24,51 +24,38 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file Output.hxx
+ * @file ModemTrainHwInterface.hxx
  *
- * Logic for interacting with outputs.
+ * Provides an abstract modem train interface for hardware specific logic
  *
  * @author Stuart Baker
- * @date 17 May 2025
+ * @date 22 May 2025
  */
 
-#ifndef _TRACTION_MODEM_OUTPUT_HXX_
-#define _TRACTION_MODEM_OUTPUT_HXX_
-
-#include "traction_modem/Message.hxx"
+#ifndef _TRACTION_MODEMTRAINHWINTERFACE_HXX_
+#define _TRACTION_MODEMTRAINHWINTERFACE_HXX_
 
 namespace traction_modem
 {
 
-// Forward declarations.
-class ModemTrainHwInterface;
-class TxInterface;
-class RxInterface;
-
-/// Object for handling output messages.
-class Output : public PacketFlowInterface
+    // Virtual interface for a ModemTrain.
+class ModemTrainHwInterface
 {
 public:
-    /// Constructor.
-    /// @param tx_flow reference to the transmit flow
-    /// @param rx_flow reference to the receive flow
-    /// @param hw_interface hardware specific interface to the modem train.
-    Output(TxInterface *tx_flow, RxInterface *rx_flow,
-        ModemTrainHwInterface *hw_interface);
+    /// Set an output state.
+    /// @param output output number
+    /// @param effect 0 = off, 0xFFFF = on, else effect
+    virtual void output_state(uint16_t output, uint16_t effect)
+    {
+    }
 
-    /// Destructor.
-    ~Output();
-
-private:
-    /// Receive for output commands.
-    /// @buf incoming message
-    /// @prio message priority
-    void send(Buffer<Message> *buf, unsigned prio) override;
-
-    RxInterface *rxFlow_; ///< reference to the receive flow
-    ModemTrainHwInterface *hwIf_; ///< hardware specific interface
+    /// Restart an output (synchronize lighting effect).
+    /// @param output output number
+    virtual void output_restart(uint16_t output)
+    {
+    }
 };
 
 } // namespace traction_modem
 
-#endif // _TRACTION_MODEM_OUTPUT_HXX_
+#endif // _TRACTION_MODEMTRAINHWINTERFACE_HXX_

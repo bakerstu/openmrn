@@ -1,7 +1,9 @@
 #include "utils/test_main.hxx"
 
 #include "traction_modem/Output.hxx"
-#include "traction_modem/ModemTrain.hxx"
+#include "traction_modem/ModemTrainHwInterface.hxx"
+#include "traction_modem/RxFlow.hxx"
+#include "traction_modem/TxFlow.hxx"
 
 namespace traction_modem
 {
@@ -46,7 +48,7 @@ public:
     MOCK_METHOD1(send_packet, void(Defs::Payload));
 };
 
-class MockTrain : public ModemTrainInterface
+class MockTrainHwInterface : public ModemTrainHwInterface
 {
 public:
     MOCK_METHOD2(output_state, void(uint16_t, uint16_t));
@@ -67,7 +69,7 @@ protected:
             .Times(1);
         EXPECT_CALL(mRxFlow_,
             register_handler(_, Defs::RESP_OUTPUT_STATE_QUERY, _)).Times(1);
-        output_ = new Output(&mTxFlow_, &mRxFlow_, &mTrain_);
+        output_ = new Output(&mTxFlow_, &mRxFlow_, &mHwIf_);
         testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
     }
 
@@ -83,7 +85,7 @@ protected:
 
     ::testing::StrictMock<MyMockRxFlow> mRxFlow_; ///< mock receive flow
     ::testing::StrictMock<MockTxFlow> mTxFlow_; ///< mock transmit flow
-    ::testing::StrictMock<MockTrain> mTrain_; ///< mock train
+    ::testing::StrictMock<MockTrainHwInterface> mHwIf_; ///< mock train hardware
     Output *output_; ///< output instance
 };
 
@@ -94,7 +96,7 @@ TEST_F(OutputTest, Create)
 TEST_F(OutputTest, OutputState)
 {
     // Output 0, value 0
-    EXPECT_CALL(mTrain_, output_state(0, 0)).Times(1);
+    EXPECT_CALL(mHwIf_, output_state(0, 0)).Times(1);
     {
         auto *b = mRxFlow_.dispatcher_.alloc();
         Defs::prepare(&b->data()->payload, Defs::CMD_OUTPUT_STATE, 4);
@@ -104,10 +106,10 @@ TEST_F(OutputTest, OutputState)
         mRxFlow_.dispatcher_.send(b);
         wait_for_main_executor();
     }
-    testing::Mock::VerifyAndClearExpectations(&mTrain_);
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
 
     // Output 25, value 55
-    EXPECT_CALL(mTrain_, output_state(25, 55)).Times(1);
+    EXPECT_CALL(mHwIf_, output_state(25, 55)).Times(1);
     {
         auto *b = mRxFlow_.dispatcher_.alloc();
         Defs::prepare(&b->data()->payload, Defs::CMD_OUTPUT_STATE, 4);
@@ -117,7 +119,7 @@ TEST_F(OutputTest, OutputState)
         mRxFlow_.dispatcher_.send(b);
         wait_for_main_executor();
     }
-    testing::Mock::VerifyAndClearExpectations(&mTrain_);
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
 }
 
 TEST_F(OutputTest, OutputStateQueryResponse)
@@ -125,7 +127,7 @@ TEST_F(OutputTest, OutputStateQueryResponse)
     using ::testing::_;
 
     // No error, Output 0, value 0
-    EXPECT_CALL(mTrain_, output_state(0, 0)).Times(1);
+    EXPECT_CALL(mHwIf_, output_state(0, 0)).Times(1);
     {
         auto *b = mRxFlow_.dispatcher_.alloc();
         Defs::prepare(&b->data()->payload, Defs::RESP_OUTPUT_STATE_QUERY, 6);
@@ -136,10 +138,10 @@ TEST_F(OutputTest, OutputStateQueryResponse)
         mRxFlow_.dispatcher_.send(b);
         wait_for_main_executor();
     }
-    testing::Mock::VerifyAndClearExpectations(&mTrain_);
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
 
     // No error, Output 25, value 55
-    EXPECT_CALL(mTrain_, output_state(25, 55)).Times(1);
+    EXPECT_CALL(mHwIf_, output_state(25, 55)).Times(1);
     {
         auto *b = mRxFlow_.dispatcher_.alloc();
         Defs::prepare(&b->data()->payload, Defs::RESP_OUTPUT_STATE_QUERY, 6);
@@ -150,10 +152,10 @@ TEST_F(OutputTest, OutputStateQueryResponse)
         mRxFlow_.dispatcher_.send(b);
         wait_for_main_executor();
     }
-    testing::Mock::VerifyAndClearExpectations(&mTrain_);
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
 
     // Unsupported, Output 25, value 55
-    EXPECT_CALL(mTrain_, output_state(_, _)).Times(0);
+    EXPECT_CALL(mHwIf_, output_state(_, _)).Times(0);
     {
         auto *b = mRxFlow_.dispatcher_.alloc();
         Defs::prepare(&b->data()->payload, Defs::RESP_OUTPUT_STATE_QUERY, 6);
@@ -164,13 +166,13 @@ TEST_F(OutputTest, OutputStateQueryResponse)
         mRxFlow_.dispatcher_.send(b);
         wait_for_main_executor();
     }
-    testing::Mock::VerifyAndClearExpectations(&mTrain_);
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
 }
 
 TEST_F(OutputTest, OutputRestart)
 {
     // Output 0, value 0
-    EXPECT_CALL(mTrain_, output_restart(0)).Times(1);
+    EXPECT_CALL(mHwIf_, output_restart(0)).Times(1);
     {
         auto *b = mRxFlow_.dispatcher_.alloc();
         Defs::prepare(&b->data()->payload, Defs::CMD_OUTPUT_RESTART, 4);
@@ -179,10 +181,10 @@ TEST_F(OutputTest, OutputRestart)
         mRxFlow_.dispatcher_.send(b);
         wait_for_main_executor();
     }
-    testing::Mock::VerifyAndClearExpectations(&mTrain_);
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
 
     // Output 25, value 55
-    EXPECT_CALL(mTrain_, output_restart(25)).Times(1);
+    EXPECT_CALL(mHwIf_, output_restart(25)).Times(1);
     {
         auto *b = mRxFlow_.dispatcher_.alloc();
         Defs::prepare(&b->data()->payload, Defs::CMD_OUTPUT_RESTART, 4);
@@ -191,7 +193,7 @@ TEST_F(OutputTest, OutputRestart)
         mRxFlow_.dispatcher_.send(b);
         wait_for_main_executor();
     }
-    testing::Mock::VerifyAndClearExpectations(&mTrain_);
+    testing::Mock::VerifyAndClearExpectations(&mHwIf_);
 }
 
 } // namespace traction_modem

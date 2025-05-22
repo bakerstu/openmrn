@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file Train.hxx
+ * @file ModemTrain.hxx
  *
  * Implements a Traction Modem Train.
  *
@@ -34,8 +34,6 @@
 
 #ifndef _TRACTION_MODEM_TRAIN_HXX_
 #define _TRACTION_MODEM_TRAIN_HXX_
-
-#include <functional>
 
 #include "openlcb/TrainInterface.hxx"
 #include "traction_modem/Defs.hxx"
@@ -47,38 +45,25 @@
 namespace traction_modem
 {
 
-/// Virtual interface for a ModemTrain.
-class ModemTrainInterface
-{
-public:
-    /// Set an output state.
-    /// @param output output number
-    /// @param effect 0 = off, 0xFFFF = on, else effect
-    virtual void output_state(uint16_t output, uint16_t effect)
-    {
-    }
+// Forward declaration
+class ModemTrainHwInterface;
 
-    /// Restart an output (synchronize lighting effect).
-    /// @param output output number
-    virtual void output_restart(uint16_t output)
-    {
-    }
-};
-
-class ModemTrain : public ModemTrainInterface, public openlcb::TrainImpl
+/// ModemTrain definition.
+class ModemTrain : public openlcb::TrainImpl
 {
 public:
     /// Constructor.
     /// @param service Service instance to bind this flow to.
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
-    ModemTrain(
-        Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
+    /// @param hw_interface hardware specific interface to the modem train.
+    ModemTrain(Service *service, TxInterface *tx_flow, RxInterface *rx_flow,
+        ModemTrainHwInterface *hw_interface)
         : txFlow_(tx_flow)
         , rxFlow_(rx_flow)
         , cvSpace_(service, tx_flow, rx_flow)
         , fuSpace_(service, tx_flow, rx_flow)
-        , output_(tx_flow, rx_flow, this)
+        , output_(tx_flow, rx_flow, hw_interface)
         , isActive_(false)
     {
     }

@@ -34,10 +34,34 @@
 
 #include "traction_modem/Output.hxx"
 
-#include "traction_modem/ModemTrain.hxx"
+#include "traction_modem/ModemTrainHwInterface.hxx"
+#include "traction_modem/RxFlow.hxx"
+#include "traction_modem/TxFlow.hxx"
+
 
 namespace traction_modem
 {
+
+//
+// Output::Output()
+//
+Output::Output(TxInterface *tx_flow, RxInterface *rx_flow,
+    ModemTrainHwInterface *hw_interface)
+    : rxFlow_(rx_flow)
+    , hwIf_(hw_interface)
+{
+    rxFlow_->register_handler(this, Defs::CMD_OUTPUT_STATE);
+    rxFlow_->register_handler(this, Defs::CMD_OUTPUT_RESTART);
+    rxFlow_->register_handler(this, Defs::RESP_OUTPUT_STATE_QUERY);
+}
+
+//
+// Output::~Output()
+//
+Output::~Output()
+{
+    rxFlow_->unregister_handler_all(this);
+}
 
 //
 // Output::send()
@@ -51,7 +75,7 @@ void Output::send(Buffer<Message> *buf, unsigned prio)
         {
             Defs::OutputState *os =
                 (Defs::OutputState*)b->data()->payload.data();
-            train_->output_state(be16toh(os->output_), be16toh(os->effect_));
+            hwIf_->output_state(be16toh(os->output_), be16toh(os->effect_));
             break;
         }
         case Defs::RESP_OUTPUT_STATE_QUERY:
@@ -60,7 +84,7 @@ void Output::send(Buffer<Message> *buf, unsigned prio)
                 (Defs::OutputStateQueryResponse*)b->data()->payload.data();
             if (osqr->error_ == 0)
             {
-                train_->output_state(
+                hwIf_->output_state(
                     be16toh(osqr->output_), be16toh(osqr->effect_));
             }
             break;
@@ -69,7 +93,7 @@ void Output::send(Buffer<Message> *buf, unsigned prio)
         {
             Defs::OutputRestart *o_restart =
                 (Defs::OutputRestart*)b->data()->payload.data();
-            train_->output_restart(be16toh(o_restart->output_));
+            hwIf_->output_restart(be16toh(o_restart->output_));
             break;
         }
     }
