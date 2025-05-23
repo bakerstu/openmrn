@@ -38,7 +38,7 @@
 namespace traction_modem
 {
 
-    // Virtual interface for a ModemTrain.
+/// Virtual interface for hardware access needed for a ModemTrain.
 class ModemTrainHwInterface
 {
 public:

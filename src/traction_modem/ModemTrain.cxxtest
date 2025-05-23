@@ -1,31 +1,11 @@
 #include "utils/test_main.hxx"
 
+#include "traction_modem/modem_test_helper.hxx"
+
 #include "traction_modem/ModemTrain.hxx"
-#include "traction_modem/ModemTrainHwInterface.hxx"
 
 namespace traction_modem
 {
-
-//
-// Mock objects.
-//
-class MockRxFlow : public RxInterface
-{
-public:
-    MOCK_METHOD1(start, void(int));
-    MOCK_METHOD3(register_handler,
-        void(PacketFlowInterface*, Message::id_type, Message::id_type));
-    MOCK_METHOD3(unregister_handler,
-        void(PacketFlowInterface*, Message::id_type, Message::id_type));
-    MOCK_METHOD1(unregister_handler_all, void(PacketFlowInterface*));
-};
-
-class MockTxFlow : public TxInterface
-{
-public:
-    MOCK_METHOD1(start, void(int));
-    MOCK_METHOD1(send_packet, void(Defs::Payload));
-};
 
 /// Test object for the ModemTrain.
 class ModemTrainTest : public ::testing::Test
@@ -41,7 +21,7 @@ protected:
             .Times(1);
         EXPECT_CALL(mRxFlow_,
             register_handler(_, Defs::RESP_OUTPUT_STATE_QUERY, _)).Times(1);
-        train_ = new ModemTrain(&g_service, &mTxFlow_, &mRxFlow_, &hwIf_);
+        train_ = new ModemTrain(&g_service, &mTxFlow_, &mRxFlow_, &mHwIf_);
         testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
     }
 
@@ -56,7 +36,7 @@ protected:
 
     ::testing::StrictMock<MockRxFlow> mRxFlow_;
     ::testing::StrictMock<MockTxFlow> mTxFlow_;
-    ModemTrainHwInterface hwIf_;
+    ::testing::StrictMock<ModemTrainHwInterface> mHwIf_;
     ModemTrain *train_; ///< modem train instance
 };
 

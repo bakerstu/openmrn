@@ -88,17 +88,17 @@ TEST(DefsTest, GetWirelessPresentPayload)
 //
 // GetOutputStatePayload
 //
-TEST(DefsTest, GetOutputStatePayload)
+TEST(DefsTest, GetOutputStateQueryPayload)
 {
     Defs::Payload result;
     Defs::Payload expected;
 
-    result = Defs::get_output_state_payload(1);
+    result = Defs::get_output_state_query_payload(1);
     expected = "\x41\xd2\xc3\x7a"s "\x03\x01"s "\x00\x02"s "\x00\x01"s;
     append_expected_crc(&expected);
     EXPECT_EQ(expected, result);
 
-    result = Defs::get_output_state_payload(256);
+    result = Defs::get_output_state_query_payload(256);
     expected = "\x41\xd2\xc3\x7a"s "\x03\x01"s "\x00\x02"s "\x01\x00"s;
     append_expected_crc(&expected);
     EXPECT_EQ(expected, result);

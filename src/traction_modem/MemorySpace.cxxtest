@@ -1,51 +1,13 @@
 #include "utils/test_main.hxx"
 
+#include "traction_modem/modem_test_helper.hxx"
+
 #include "traction_modem/MemorySpace.hxx"
 
 #include "os/FakeClock.hxx"
 
 namespace traction_modem
 {
-
-//
-// Mock objects.
-//
-class MockRxFlow : public RxInterface
-{
-public:
-    MOCK_METHOD1(start, void(int));
-    MOCK_METHOD3(register_handler,
-        void(PacketFlowInterface*, Message::id_type, Message::id_type));
-    MOCK_METHOD3(unregister_handler,
-        void(PacketFlowInterface*, Message::id_type, Message::id_type));
-    MOCK_METHOD1(unregister_handler_all, void(PacketFlowInterface*));
-};
-
-class MyMockRxFlow : public MockRxFlow
-{
-public:
-    void register_handler(PacketFlowInterface *interface, Message::id_type id,
-        Message::id_type mask = Message::EXACT_MASK) override
-    {
-        dispatcher_.register_handler(interface, id, mask);
-        MockRxFlow::register_handler(interface, id, mask);
-    }
- 
-    void unregister_handler_all(PacketFlowInterface *interface) override
-    {
-        dispatcher_.unregister_handler_all(interface);
-        MockRxFlow::unregister_handler_all(interface);
-    }
-
-    DispatchFlow<Buffer<Message>, 2> dispatcher_{&g_service};
-};
-
-class MockTxFlow : public TxInterface
-{
-public:
-    MOCK_METHOD1(start, void(int));
-    MOCK_METHOD1(send_packet, void(Defs::Payload));
-};
 
 /// Test object for memory spaces.
 class MemorySpaceTest : public ::testing::Test
