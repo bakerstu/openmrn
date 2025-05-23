@@ -24,7 +24,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @file Train.hxx
+ * @file ModemTrain.hxx
  *
  * Implements a Traction Modem Train.
  *
@@ -35,21 +35,20 @@
 #ifndef _TRACTION_MODEM_TRAIN_HXX_
 #define _TRACTION_MODEM_TRAIN_HXX_
 
-/// @todo Need to prune out the "hardware.hxx" dependencies from this file.
-///       These need to be dispatched to hardware specific code somehow.
-#include "traction_modem/Defs.hxx"
-#if !defined(GTEST)
-#include "hardware.hxx"
-#endif
-
 #include "openlcb/TrainInterface.hxx"
+#include "traction_modem/Defs.hxx"
 #include "traction_modem/MemorySpace.hxx"
+#include "traction_modem/Output.hxx"
 #include "traction_modem/TxFlow.hxx"
 #include "traction_modem/RxFlow.hxx"
 
 namespace traction_modem
 {
 
+// Forward declaration
+class ModemTrainHwInterface;
+
+/// ModemTrain definition.
 class ModemTrain : public openlcb::TrainImpl
 {
 public:
@@ -57,13 +56,20 @@ public:
     /// @param service Service instance to bind this flow to.
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
-    ModemTrain(
-        Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
+    /// @param hw_interface hardware specific interface to the modem train.
+    ModemTrain(Service *service, TxInterface *tx_flow, RxInterface *rx_flow,
+        ModemTrainHwInterface *hw_interface)
         : txFlow_(tx_flow)
         , rxFlow_(rx_flow)
         , cvSpace_(service, tx_flow, rx_flow)
         , fuSpace_(service, tx_flow, rx_flow)
+        , output_(tx_flow, rx_flow, hw_interface)
         , isActive_(false)
+    {
+    }
+
+    /// Destructor.
+    virtual ~ModemTrain()
     {
     }
 
@@ -158,69 +164,6 @@ public:
     {
         set_is_active(true);
         txFlow_->send_packet(Defs::get_fn_set_payload(address, value));
-        /// @todo The following switch statement is for hardware testing only.
-        ///       In production software, the main MCU should have the on/off
-        ///       logical by "output" number, and not by function number. The
-        ///       main MCU should instruct the modem of the activity state.
-        switch (address)
-        {
-            default:
-                break;
-#if !defined(GTEST)
-            case 0:
-                if (lastSpeed_.direction() == openlcb::Velocity::REVERSE)
-                {
-                    LOGIC_F0R_Pin::set(value ? 1 : 0);
-                }
-                break;
-            case 1:
-                LOGIC_F1_Pin::set(value ? 1 : 0);
-                break;
-            case 2:
-                LOGIC_F2_Pin::set(value ? 1 : 0);
-                break;
-            case 3:
-                LOGIC_F3_Pin::set(value ? 1 : 0);
-                break;
-            case 4:
-                LOGIC_F4_Pin::set(value ? 1 : 0);
-                break;
-            // F5 and F6 also overwritten with input1 and input2 values when
-            // button 7 or 8 are pressed
-            case 5:
-                LOGIC_F5_Pin::set(value ? 1 : 0);
-                break;
-            case 6:
-                LOGIC_F6_Pin::set(value ? 1 : 0);
-                break;
-#endif // !defined(GTEST)
-// Commented out since these pins cannot be defined as both inputs
-// and outputs.
-#if 0
-            case 7:
-                LOGIC_F7_Pin::set(value ? 1 : 0);
-                break;
-            case 8:
-                LOGIC_F8_Pin::set(value ? 1 : 0);
-                break;
-#endif
-#if !defined(GTEST)
-            case 7:
-            {
-                bool input1 = INPUT1_Pin::get();
-                LOGIC_F5_Pin::set(INPUT2_Pin::get());
-                LOG(INFO, "INPUT1: %u", input1);
-                break;
-            }
-            case 8:
-            {
-                bool input2 = INPUT2_Pin::get();
-                LOGIC_F6_Pin::set(INPUT2_Pin::get());
-                LOG(INFO, "INPUT2: %u", input2);
-                break;
-            }
-#endif // !defined(GTEST)
-        }
     }
 
     /// Get the current function value.
@@ -263,6 +206,8 @@ private:
     CvSpace cvSpace_;
     /// Space for firmware updates.
     CvSpace fuSpace_;
+    /// Output handler.
+    Output output_;
     /// True if the last set was estop, false if it was a speed.
     bool inEStop_ = false;
     /// Is the wireless active.
