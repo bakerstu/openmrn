@@ -79,7 +79,6 @@ set(SRCS
     ${OPENMRNPATH}/src/openlcb/TractionTrain.cxx
     ${OPENMRNPATH}/src/openlcb/Velocity.cxx
     ${OPENMRNPATH}/src/openlcb/WriteHelper.cxx
-
     
     ${OPENMRNPATH}/src/os/FakeClock.cxx
     ${OPENMRNPATH}/src/os/logging_malloc.cxx
@@ -90,6 +89,8 @@ set(SRCS
     ${OPENMRNPATH}/src/os/stack_malloc.c
     ${OPENMRNPATH}/src/os/TempFile.cxx
     ${OPENMRNPATH}/src/os/watchdog.c
+
+    ${OPENMRNPATH}/src/traction_modem/Output.cxx
 
     ${OPENMRNPATH}/src/utils/Base64.cxx
     ${OPENMRNPATH}/src/utils/Blinker.cxx

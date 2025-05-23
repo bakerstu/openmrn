@@ -101,6 +101,8 @@ set(SOURCES
     ${OPENMRNPATH}/src/os/TempFile.cxx
     ${OPENMRNPATH}/src/os/watchdog.c
 
+    ${OPENMRNPATH}/src/traction_modem/Output.cxx
+
     ${OPENMRNPATH}/src/utils/Base64.cxx
     ${OPENMRNPATH}/src/utils/Blinker.cxx
     ${OPENMRNPATH}/src/utils/Buffer.cxx
@@ -258,6 +260,12 @@ set(TESTS ${TESTS}
 
     ${OPENMRNPATH}/src/os/FakeClock.cxxtest
     ${OPENMRNPATH}/src/os/OS.cxxtest
+
+    ${OPENMRNPATH}/src/traction_modem/Defs.cxxtest
+    ${OPENMRNPATH}/src/traction_modem/MemorySpace.cxxtest
+    ${OPENMRNPATH}/src/traction_modem/ModemTrain.cxxtest
+    ${OPENMRNPATH}/src/traction_modem/Output.cxxtest
+    ${OPENMRNPATH}/src/traction_modem/RxTxFlow.cxxtest
 
     ${OPENMRNPATH}/src/utils/async_if_test_helper.cxxtest
     ${OPENMRNPATH}/src/utils/BandwidthMerger.cxxtest
