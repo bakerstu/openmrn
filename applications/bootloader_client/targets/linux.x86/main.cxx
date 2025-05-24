@@ -41,6 +41,99 @@
 
 #include "main.hxx"
 
+class ConnectionMonitor : StateFlowBase
+{
+public:
+    ConnectionMonitor()
+        : StateFlowBase(&g_service)
+    {
+        connect();
+        HASSERT(fd_ >= 0);
+        create_gc_port_for_can_hub(&can_hub0, fd_, this);
+        wait_and_call(STATE(disconnected));
+    }
+
+    Action disconnected()
+    {
+        LOG(ALWAYS, "disconnected()");
+        g_if_can.remote_aliases()->clear();
+        new (&thread_) OSThread("ConnectSocket", 0, 1024, connect_thread, this);
+        return wait_and_call(STATE(disconnected));
+    }
+
+private:
+    void connect()
+    {
+        if (device_path)
+        {
+            fd_ = ::open(device_path, O_RDWR);
+        }
+        else
+        {
+            fd_ = ConnectSocket(host, port);
+        }
+    }
+
+    void connect_thread()
+    {
+        do
+        {
+            usleep(500000);
+            connect();
+        } while (fd_ < 0);
+        LOG(ALWAYS, "reconnected()");
+        create_gc_port_for_can_hub(&can_hub0, fd_, this);
+    }
+
+    static void *connect_thread(void *arg)
+    {
+        static_cast<ConnectionMonitor*>(arg)->connect_thread();
+        return nullptr;
+    }
+
+    OSThread thread_;
+    int fd_;
+};
+
+class ClientMonitor : public StateFlowBase
+{
+public:
+    ClientMonitor(SyncNotifiable *sn)
+        : StateFlowBase(&g_service)
+        , sn_(sn)
+    {
+        send_request();
+        wait_and_call(STATE(request_complete));
+    }
+
+    Action request_complete()
+    {
+        if (retries && response.error_code != 0)
+        {
+            // Try again.
+            --retries;
+            LOG(ALWAYS, "request_retry()");
+            send_request();
+            return wait_and_call(STATE(request_complete));
+        }
+        sn_->notify();
+        return exit();
+    }
+
+private:
+    void send_request()
+    {
+        Buffer<openlcb::BootloaderRequest> *b = fill_request();
+        bn_.reset(this);
+        b->set_done(&bn_);
+        maybe_checksum(&b->data()->data);
+        bootloader_client.send(b);
+    }
+
+    SyncNotifiable *sn_;
+    BarrierNotifiable bn_;
+};
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -53,17 +146,7 @@ int appl_main(int argc, char *argv[])
     {
         return 0;
     }
-    int conn_fd = 0;
-    if (device_path)
-    {
-        conn_fd = ::open(device_path, O_RDWR);
-    }
-    else
-    {
-        conn_fd = ConnectSocket(host, port);
-    }
-    HASSERT(conn_fd >= 0);
-    create_gc_port_for_can_hub(&can_hub0, conn_fd);
+    new ConnectionMonitor();
 
     g_if_can.add_addressed_message_support();
     // Bootstraps the alias allocation process.
@@ -73,13 +156,7 @@ int appl_main(int argc, char *argv[])
     usleep(400000);
 
     SyncNotifiable n;
-    BarrierNotifiable bn(&n);
-    Buffer<openlcb::BootloaderRequest> *b = fill_request();
-
-    b->set_done(&bn);
-    maybe_checksum(&b->data()->data);
-
-    bootloader_client.send(b);
+    new ClientMonitor(&n);
     n.wait_for_notification();
     printf("Result: %04x  %s\n", response.error_code,
         response.error_details.c_str());
