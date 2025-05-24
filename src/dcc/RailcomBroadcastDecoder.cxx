@@ -54,7 +54,6 @@ bool RailcomBroadcastDecoder::process_packet(const dcc::Feedback &packet)
     else
     {
         // No channel1 data.
-        notify_empty();
         if (!packet.ch2Size)
         {
             return true; // empty packet.
