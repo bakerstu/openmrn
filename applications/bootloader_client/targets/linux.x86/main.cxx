@@ -41,9 +41,11 @@
 
 #include "main.hxx"
 
+/// Handle the device/socket connection and reconnection upon disconnect.
 class ConnectionMonitor : StateFlowBase
 {
 public:
+    /// Constructor.
     ConnectionMonitor()
         : StateFlowBase(&g_service)
     {
@@ -53,15 +55,18 @@ public:
         wait_and_call(STATE(disconnected));
     }
 
+    /// Disconnect occurred.
     Action disconnected()
     {
-        LOG(ALWAYS, "disconnected()");
+        LOG(INFO, "disconnected()");
         g_if_can.remote_aliases()->clear();
+        // Spawn a thread so that the executor is not blocked.
         new (&thread_) OSThread("ConnectSocket", 0, 1024, connect_thread, this);
         return wait_and_call(STATE(disconnected));
     }
 
 private:
+    /// Make a connection to the device or socket.
     void connect()
     {
         if (device_path)
@@ -74,64 +79,31 @@ private:
         }
     }
 
+    /// In context helper thread for making socket connections.
     void connect_thread()
     {
         do
         {
-            usleep(500000);
+            // This sleep serves two functions:
+            // 1. Some delay between reconnect attempts.
+            // 2. Allows some extra time for the client to exit upon completion
+            //    before attempting a new connection.
+            sleep(1);
             connect();
         } while (fd_ < 0);
-        LOG(ALWAYS, "reconnected()");
+        LOG(INFO, "reconnected()");
         create_gc_port_for_can_hub(&can_hub0, fd_, this);
     }
 
+    /// Helper thread for making socket connections.
     static void *connect_thread(void *arg)
     {
         static_cast<ConnectionMonitor*>(arg)->connect_thread();
         return nullptr;
     }
 
-    OSThread thread_;
-    int fd_;
-};
-
-class ClientMonitor : public StateFlowBase
-{
-public:
-    ClientMonitor(SyncNotifiable *sn)
-        : StateFlowBase(&g_service)
-        , sn_(sn)
-    {
-        send_request();
-        wait_and_call(STATE(request_complete));
-    }
-
-    Action request_complete()
-    {
-        if (retries && response.error_code != 0)
-        {
-            // Try again.
-            --retries;
-            LOG(ALWAYS, "request_retry()");
-            send_request();
-            return wait_and_call(STATE(request_complete));
-        }
-        sn_->notify();
-        return exit();
-    }
-
-private:
-    void send_request()
-    {
-        Buffer<openlcb::BootloaderRequest> *b = fill_request();
-        bn_.reset(this);
-        b->set_done(&bn_);
-        maybe_checksum(&b->data()->data);
-        bootloader_client.send(b);
-    }
-
-    SyncNotifiable *sn_;
-    BarrierNotifiable bn_;
+    OSThread thread_; ///< thread object
+    int fd_; ///< file descriptor for the connection
 };
 
 /** Entry point to application.
@@ -156,7 +128,13 @@ int appl_main(int argc, char *argv[])
     usleep(400000);
 
     SyncNotifiable n;
-    new ClientMonitor(&n);
+    BarrierNotifiable bn(&n);
+    Buffer<openlcb::BootloaderRequest> *b = fill_request();
+
+    b->set_done(&bn);
+    maybe_checksum(&b->data()->data);
+
+    bootloader_client.send(b);
     n.wait_for_notification();
     printf("Result: %04x  %s\n", response.error_code,
         response.error_details.c_str());

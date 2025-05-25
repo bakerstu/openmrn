@@ -73,7 +73,6 @@ extern long long DATAGRAM_RESPONSE_TIMEOUT_NSEC;
 }
 
 int port = 12021;
-unsigned retries = 0;
 const char *host = "localhost";
 const char *device_path = nullptr;
 const char *filename = nullptr;
@@ -94,7 +93,7 @@ void usage(const char *e)
     fprintf(stderr,
         "Usage: %s ([-i destination_host] [-p port] | [-d device_path]) [-s "
         "memory_space_id] [-c csum_algo [-m hw_magic] [-M hw_magic2]] [-r] [-t] [-x] "
-        "[-w dg_timeout] [-W stream_timeout] [-D dump_filename] [-R retries] "
+        "[-w dg_timeout] [-W stream_timeout] [-D dump_filename] "
         "(-n nodeid | -a alias) -f filename\n",
         e);
     fprintf(stderr, "Connects to an openlcb bus and performs the "
@@ -132,15 +131,13 @@ void usage(const char *e)
         "reply.\n");
     fprintf(stderr,
         "\n\t-D filename  writes the checksummed payload to the given file.\n");
-    fprintf(stderr,
-        "\n\t-R count  number of retries in the case of error, default 0.\n");
     exit(1);
 }
 
 void parse_args(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:m:M:xw:W:D:R:")) >= 0)
+    while ((opt = getopt(argc, argv, "hp:i:rtd:n:a:s:f:c:m:M:xw:W:D:")) >= 0)
     {
         switch (opt)
         {
@@ -194,9 +191,6 @@ void parse_args(int argc, char *argv[])
                 break;
             case 't':
                 request_reboot_after = false;
-                break;
-            case 'R':
-                retries = strtoul(optarg, nullptr, 0);
                 break;
             default:
                 fprintf(stderr, "Unknown option %c\n", opt);
