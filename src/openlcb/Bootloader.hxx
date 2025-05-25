@@ -1138,7 +1138,7 @@ void bootloader_entry()
     try_send_can_frame(state_.output_frame);
 }
 
-/// Reset the bootloader state to an restart initialization
+/// Set bootloader state to restart initialization.
 void bootloader_reinit_node()
 {
     state_.request_reinit_node = true;
