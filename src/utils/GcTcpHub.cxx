@@ -39,6 +39,8 @@
 #include "utils/GridConnectHub.hxx"
 #include "utils/FdUtils.hxx"
 
+Atomic GcTcpHub::lock_;
+
 void GcTcpHub::on_new_connection(int fd)
 {
     const bool use_select =
@@ -46,13 +48,19 @@ void GcTcpHub::on_new_connection(int fd)
     // Applies kernel parameters like socket options.
     FdUtils::optimize_socket_fd(fd);
     // Create new notification object for tracking the fd.
-    Notify *n = new Notify(this, fd);
+    OnErrorNotify *n = new OnErrorNotify(this, fd);
     create_gc_port_for_can_hub(canHub_, fd, n, use_select);
-    LOG(ALWAYS, "on_new_connection() fd: %i", fd);
+
+    if (onConnectCallback_)
+    {
+        onConnectCallback_();
+    }
 }
 
-GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port)
-    : canHub_(can_hub)
+GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port,
+    std::function<void()> on_connect_callback)
+    : onConnectCallback_(on_connect_callback)
+    , canHub_(can_hub)
     , tcpListener_(port,
           std::bind(&GcTcpHub::on_new_connection, this, std::placeholders::_1),
           "GcTcpHub")
@@ -61,13 +69,28 @@ GcTcpHub::GcTcpHub(CanHubFlow *can_hub, int port)
 
 GcTcpHub::~GcTcpHub()
 {
+    // Since shutdown is a blocking call, we cannot get delivered any
+    // on_new_connection() callbacks following it.
     tcpListener_.shutdown();
-    // There is probably a race condition here with regard to the GC Port being
+
+    {
+        AtomicHolder h(&GcTcpHub::lock_);
+        for (auto it = clients_.begin(); it != clients_.end(); ++it)
+        {
+            (*it).n_->unregister_port();
+        }
+    }
+
+    // From this point forward, it should be safe to manipulate the clients
+    // vector with exclusive access. This is because any registered
+    // notifications will do nothing, having been "unregistered".
+
+    // There is probably a race condition here with regard to the socket being
     // closed elsewhere. Since shutting down a hub is typically proceeding an
     // attempt at a graceful shutdown anyways, we are letting it go.
     for (auto it = clients_.begin(); it != clients_.end(); ++it)
     {
-        close(*it);
-        LOG(ALWAYS, "GcTcpHub delete, close: %i", *it);
+        ::close((*it).fd_);
+        LOG(INFO, "GcTcpHub delete, close: %i", (*it).fd_);
     }
 }

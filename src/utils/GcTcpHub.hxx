@@ -35,6 +35,7 @@
 #define _UTILS_GCTCPHUB_HXX_
 
 #include <vector>
+#include <functional>
 
 #include "utils/socket_listener.hxx"
 #include "utils/Hub.hxx"
@@ -51,9 +52,13 @@ public:
     /// Constructor.
     ///
     /// @param can_hub Which CAN-hub should we attach the TCP gridconnect hub
-    /// onto.
+    ///        onto.
     /// @param port TCp port number to listen on.
-    GcTcpHub(CanHubFlow *can_hub, int port);
+    /// @param on_connect_callback hook for the application "on connect".
+    GcTcpHub(CanHubFlow *can_hub, int port,
+        std::function<void()> on_connect_callback = nullptr);
+
+    /// Destructor
     ~GcTcpHub();
 
     /// @return true of the listener is ready to accept incoming connections.
@@ -70,36 +75,51 @@ public:
 
 private:
     /// Helper object for managing connected clients.
-    class Notify : public Notifiable, private Atomic
+    class OnErrorNotify : public Notifiable
     {
     public:
         /// Constructor.
         /// @param parent parent object pointer
-        /// @param fd file descriptor to register
-        Notify(GcTcpHub *parent, int fd)
+        /// @param fd file descriptor to track for nitifications
+        OnErrorNotify(GcTcpHub *parent, int fd)
             : parent_(parent)
             , fd_(fd)
         {
-            AtomicHolder h(this);
-            parent_->clients_.push_back(fd);
+            AtomicHolder h(&GcTcpHub::lock_);
+            parent_->clients_.push_back({this, fd});
+        }
+
+        /// Should be called on any active clients when parent is destructed.
+        void unregister_port()
+        {
+            fd_ = -1;
         }
 
         /// Provides notification that the client is is being removed.
         void notify() override
         {
             {
-                AtomicHolder h(this);
-                for (auto it = parent_->clients_.begin();
-                    it != parent_->clients_.end(); ++it)
+                AtomicHolder h(&GcTcpHub::lock_);
+                if (fd_ >= 0)
                 {
-                    if (*it == fd_)
+                    for (auto it = parent_->clients_.begin();
+                        it != parent_->clients_.end(); ++it)
                     {
-                        // Found a match, stop tracking it.
-                        parent_->clients_.erase(it);
-                        LOG(ALWAYS, "GcTcpHub notify, erase: %i", fd_);
+                        if ((*it).fd_ == fd_)
+                        {
+                            // Found a match, stop tracking it.
+                            parent_->clients_.erase(it);
+                            break;
+                        }
                     }
                 }
+                else
+                {
+                    // Likely the parent is undergoing or has completed
+                    // destruction.
+                }
             }
+            LOG(INFO, "GcTcpHub notify, erase: %i", fd_);
             delete this;
         }
 
@@ -108,6 +128,16 @@ private:
         int fd_; /// registered file descriptor
     };
 
+    /// Metadata structure for tracking clinets.
+    struct Client
+    {
+        OnErrorNotify *n_; ///< reference to the notify object.
+        int fd_; ///< file descriptor that is being tracked.
+    };
+
+    /// This object allows us to always use and AtomicHolder even if it is used
+    /// from a Notify instance that has outlived its parent.
+    static Atomic lock_;
 
     /// Callback when a new connection arrives.
     ///
@@ -115,15 +145,17 @@ private:
     ///
     void on_new_connection(int fd);
 
+    /// Callback hook for the application "on connect".
+    std::function<void()> onConnectCallback_;
+
     /// @param can_hub Which CAN-hub should we attach the TCP gridconnect hub
     /// onto.
     CanHubFlow *canHub_;
-    /// How many clients are connected right now.
-    //unsigned numClients_ {0};
     /// Helper object representing the listening on the socket.
     SocketListener tcpListener_;
+
     /// List of connected clients
-    std::vector<int> clients_;
+    std::vector<Client> clients_;
 
     /// Provide access to private members from child object.
     friend class Notify;
