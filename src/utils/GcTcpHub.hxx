@@ -80,7 +80,7 @@ private:
     public:
         /// Constructor.
         /// @param parent parent object pointer
-        /// @param fd file descriptor to track for nitifications
+        /// @param fd file descriptor to track for notifications
         OnErrorNotify(GcTcpHub *parent, int fd)
             : parent_(parent)
             , fd_(fd)
@@ -100,6 +100,9 @@ private:
         {
             {
                 AtomicHolder h(&GcTcpHub::lock_);
+                // This check is critical during and after the destruction of
+                // the parent. Once the fd_ has been set to < 0, parent_ is
+                // is no longer guaranteed to be a valid pointer.
                 if (fd_ >= 0)
                 {
                     for (auto it = parent_->clients_.begin();
