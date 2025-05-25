@@ -1516,7 +1516,6 @@ StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::shutdown()
 {
     LOG(INFO, "[WiFi] Shutting down.");
     esp_wifi_stop();
-    //esp_wifi_deinit();
     return exit();
 }
 
