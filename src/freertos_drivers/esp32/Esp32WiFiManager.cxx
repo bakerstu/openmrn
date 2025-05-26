@@ -1506,7 +1506,13 @@ StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::reload()
 
     if (parent_->connectionMode_ & CONN_MODE_SHUTDOWN_BIT)
     {
-        // Alow a bit of time for lingering sockets to terminate.
+        HASSERT((parent_->connectionMode_ & CONN_MODE_HUB_BIT) == 0);
+        HASSERT((parent_->connectionMode_ & CONN_MODE_UPLINK_BIT) == 0);
+        // If we have gotten here, then the CONN_MODE_UPLINK_BIT and
+        // CONN_MODE_SHUTDOWN_BIT should both be clear. This means that both
+        // stop_hub() and stop_uplink() should have been called above. Alow a
+        // bit of time for lingering sockets to terminate before completeing the
+        // shutdown.
         return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(shutdown));
     }
     return wait_and_call(STATE(reload));
@@ -1514,6 +1520,8 @@ StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::reload()
 
 StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::shutdown()
 {
+    // Some time has passed since calling stop_hub() and stop_uplink(). Now the
+    // WiFi can be shutdown.
     LOG(INFO, "[WiFi] Shutting down.");
     esp_wifi_stop();
     return exit();

@@ -59,6 +59,8 @@ public:
     Action disconnected()
     {
         LOG(INFO, "disconnected()");
+        /// @todo cleanup main to use a SimpleStack, then replace this with
+        /// SimpleStack::restart_stack().
         g_if_can.remote_aliases()->clear();
         // Spawn a thread so that the executor is not blocked.
         new (&thread_) OSThread("ConnectSocket", 0, 1024, connect_thread, this);

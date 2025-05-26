@@ -42,10 +42,10 @@
 
 class ExecutorBase;
 
-/** This class runs a CAN-bus HUB listening on TCP socket using the gridconnect
- * format. Any new incoming connection will be wired into the same virtual CAN
- * hub. All packets will be forwarded to every participant, without
- * loopback. */
+/// This class runs a CAN-bus HUB listening on TCP socket using the gridconnect
+/// format. Any new incoming connection will be wired into the same virtual CAN
+/// hub. All packets will be forwarded to every participant, without
+/// loopback.
 class GcTcpHub
 {
 public:
@@ -53,7 +53,7 @@ public:
     ///
     /// @param can_hub Which CAN-hub should we attach the TCP gridconnect hub
     ///        onto.
-    /// @param port TCp port number to listen on.
+    /// @param port TCP port number to listen on.
     /// @param on_connect_callback hook for the application "on connect".
     GcTcpHub(CanHubFlow *can_hub, int port,
         std::function<void()> on_connect_callback = nullptr);
@@ -95,6 +95,7 @@ private:
             fd_ = -1;
         }
 
+    private:
         /// Provides notification that the client is is being removed.
         void notify() override
         {
@@ -126,12 +127,11 @@ private:
             delete this;
         }
 
-    private:
         GcTcpHub *parent_; ///< parent object pointer
         int fd_; /// registered file descriptor
     };
 
-    /// Metadata structure for tracking clinets.
+    /// Metadata structure for tracking clients.
     struct Client
     {
         OnErrorNotify *n_; ///< reference to the notify object.
@@ -143,25 +143,20 @@ private:
     static Atomic lock_;
 
     /// Callback when a new connection arrives.
-    ///
     /// @param fd filedes of the freshly established incoming connection.
-    ///
     void on_new_connection(int fd);
 
     /// Callback hook for the application "on connect".
     std::function<void()> onConnectCallback_;
 
-    /// @param can_hub Which CAN-hub should we attach the TCP gridconnect hub
-    /// onto.
+    /// Which CAN-hub should we attach the TCP gridconnect hub onto.
     CanHubFlow *canHub_;
+
     /// Helper object representing the listening on the socket.
     SocketListener tcpListener_;
 
     /// List of connected clients
     std::vector<Client> clients_;
-
-    /// Provide access to private members from child object.
-    friend class Notify;
 };
 
 #endif // _UTILS_GCTCPHUB_HXX_
