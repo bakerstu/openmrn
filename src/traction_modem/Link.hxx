@@ -68,11 +68,10 @@ public:
     /// @param rx_flow reference to the receive flow
     /// @param service service that the flow is bound to
     Link(Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
-        : txFlow_(tx_flow)
+        : linkEstablishment_(service, this)
+        , txFlow_(tx_flow)
         , rxFlow_(rx_flow)
-        , restartTimer_(service->executor(), this)
-        , txTimer_(service->executor(), this)
-        , rxTimer_(service->executor(), this)
+        , pingTimer_(service->executor(), this)
         , state_(State::STOP)
         , dispatcher_(service)
     {
@@ -83,7 +82,7 @@ public:
     /// @return true if link is up, else link is down.
     bool is_link_up()
     {
-        return state_ == STATE::UP;
+        return state_ == State::UP;
     }
 
     /// Bind an interface to the flow to start transmitting to.
@@ -97,7 +96,7 @@ public:
         }
         txFlow_->start(fd);
         rxFlow_->start(fd);
-        reset_link();
+        linkEstablishment_.start();
     }
 
     /// Equates to a packet send. If the link is not up, the packet will be
@@ -107,7 +106,7 @@ public:
     {
         if (state_ == State::UP)
         {
-            txTimer_.restart();
+            pingTimer_.restart();
             txFlow_->send_packet(p);
         }
     }
@@ -158,175 +157,198 @@ public:
     }
 
 private:
-    /// Helper timer for restarting the link.
-    class RestartTimer : public Timer
+    /// State flow that establishes and monitors the link.
+    class LinkEstablishment : public PacketFlowInterface, public StateFlowBase
     {
     public:
         /// Constructor.
-        /// @param e Executor to run on
-        /// @param parent_ parent object
-        RestartTimer(ExecutorBase *e, Link *parent_)
-            : Timer(e->active_timers())
+        /// @param service service that the flow is bound to
+        /// @param parent parent object
+        LinkEstablishment(Service *service, Link *parent)
+            : StateFlowBase(service)
+            , parent_(parent)
+            , timer_(this)
+            , baudSupport_(Defs::BAUD_NONE)
         {
         }
 
-        /// Timer expired.
-        /// @returns the new timer period, or one of the above special values.
-        long long timeout() override
+        /// Start the establishing and monitoring the link.
+        void start()
         {
-            parent_->reset_link();
-            return NONE;
+            start_flow(STATE(ping));
+        }
+
+        /// Reset the link timeout. Should only be called when the link is up.
+        void reset_link_timeout()
+        {
+            HASSERT(is_state(STATE(link_timeout)));
+            HASSERT(parent_->is_link_up());
+            timer_.restart();
         }
 
     private:
+        /// Alias for short response timeout used during link establishment.
+        static constexpr long long RESP_TIMEOUT = Defs::RESP_TIMEOUT_SHORT;
+
+        /// Send a link establishment ping. Look for a pong response.
+        /// @return nest state is pong(), wait for timeout or early trigger.
+        Action ping()
+        {
+            parent_->rxFlow_->register_handler(this, Defs::RESP_PING);
+            baudSupport_ = Defs::BAUD_NONE;
+            Defs::Payload p = Defs::get_ping_payload();
+            parent_->txFlow_->send_packet(p);
+            return sleep_and_call(&timer_, RESP_TIMEOUT, STATE(pong));
+        }
+
+        /// Either pong received or timed out. If pong received, send a baud
+        /// rate query, wait for a baud rate query response.
+        /// @return next state ping() on timeout, else next state is
+        ///         baud_rate_response(), wait for timeout or early trigger.
+        Action pong()
+        {
+            parent_->rxFlow_->unregister_handler(this, Defs::RESP_PING);
+            if (!timer_.is_triggered())
+            {
+                // Timed out, waiting for response try again.
+                return call_immediately(STATE(ping));
+            }
+
+            parent_->rxFlow_->register_handler(
+                this, Defs::RESP_BAUD_RATE_QUERY);
+
+            // Query for the supported baud rates.
+            Defs::Payload p = Defs::get_baud_rate_query_payload();
+            parent_->txFlow_->send_packet(p);
+            return sleep_and_call(
+                &timer_, RESP_TIMEOUT, STATE(baud_rate_response));
+        }
+
+        /// Either baud rate response received or timed out. If baud rate
+        /// response received, either accept the current baud or transition
+        /// directly to link up.
+        /// @return next state ping() on timeout, else next state is
+        ///         link_timeout(), Wait on timeout.
+        Action baud_rate_response()
+        {
+            parent_->rxFlow_->unregister_handler(
+                this, Defs::RESP_BAUD_RATE_QUERY);
+            if (!timer_.is_triggered())
+            {
+                // Timed out, waiting for response try again.
+                return call_immediately(STATE(ping));
+            }
+
+            HASSERT((baudSupport_ & Defs::BAUD_250K_MASK) != 0);
+            /// @todo Need to decide if we should change the baud rate here
+            ///       and restart the ping/pong process.
+
+            // For now, we don't try to change the baud.
+            parent_->link_up();
+
+            return sleep_and_call(
+                &timer_, Defs::RESP_TIMEOUT, STATE(link_timeout));
+        }
+
+        /// Link timed out. Transition directly to link down.
+        /// @return next state ping()
+        Action link_timeout()
+        {
+            parent_->link_down();
+            return call_immediately(STATE(ping));
+        }
+
+        /// Receive for link establishment responses.
+        /// @buf incoming message
+        /// @prio message priority
+        void send(Buffer<Message> *buf, unsigned prio) override
+        {
+            auto b = get_buffer_deleter(buf);
+            switch(be16toh(buf->data()->command()))
+            {
+                case Defs::RESP_PING:
+                    break;
+                case Defs::RESP_BAUD_RATE_QUERY:
+                {
+                    Defs::BaudRateQueryResponse *brqr =
+                        (Defs::BaudRateQueryResponse*)buf->data()->payload.data();
+                    baudSupport_ = be16toh(brqr->rates_);
+                    break;
+                }
+                case Defs::RESP_MEM_W:
+                    /// @todo There is a special case where we want to intercept
+                    ///       these packets during a baud rate integrity test.
+                    break;
+            } 
+            timer_.ensure_triggered();
+        }
+
         Link *parent_; ///< parent object
+        StateFlowTimer timer_; ///< timeout helper
+        uint16_t baudSupport_; ///< mask of supported baud rates
     };
 
-    /// Helper timer for periodic transmit.
-    class TxTimer : public Timer
+    /// Helper timer for sending pings during extended idle times.
+    class PingTimer : public Timer
     {
     public:
         /// Constructor.
         /// @param e Executor to run on
         /// @param parent_ parent object
-        TxTimer(ExecutorBase *e, Link *parent_)
+        PingTimer(ExecutorBase *e, Link *parent_)
             : Timer(e->active_timers())
         {
         }
 
         /// Timer expired.
-        /// @returns the new timer period, or one of the above special values.
+        /// @return RESTART after sending a ping, NONE if triggered early.
         long long timeout() override
         {
             if (!is_triggered())
             {
-                parent_->send_ping();
-                return RESTART;
+                // The link went down.
+                return NONE;
             }
-            return NONE
+            Defs::Payload p = Defs::get_ping_payload();
+            parent_->send_packet(p);
+            return RESTART;
         }
 
     private:
         Link *parent_; ///< parent object
     };
 
-    /// Helper timer for link receive timeout.
-    class RxTimer : public Timer
-    {
-    public:
-        /// Constructor.
-        /// @param e Executor to run on
-        /// @param parent_ parent object
-        TxTimer(ExecutorBase *e, Link *parent_)
-            : Timer(e->active_timers())
-        {
-        }
-
-        /// Timer expired.
-        /// @returns the new timer period, or one of the above special values.
-        long long timeout() override
-        {
-            if (!is_triggered())
-            {
-                parent_->link_down();
-            }
-            return NONE;
-        }
-
-    private:
-        Link *parent_; ///< parent object
-    };
-
+    /// Link state.
     enum class State
     {
         STOP, ///< link not yet started
-        BAUD, ///< link baud still being negotiated
-        BAUD_TEST, ///< link baud chosen, testing for integrity
-        UP, ///< ink up
+        DOWN, ///< link down
+        UP, ///< link up
     };
 
-    /// Receive for output commands.
+    /// Receive incoming message
     /// @buf incoming message
     /// @prio message priority
     void send(Buffer<Message> *buf, unsigned prio) override
     {
-        // Certain commands/responses are intercepted for link management.
-        switch(be16toh(buf->data()->command()))
+        if (state_ == State::UP)
         {
-            case Defs::RESP_PING:
-                if (state_ == State::BAUD)
-                {
-                    // Still in the baud rate negotiation stage.
-                    Defs::Payload p = Defs::get_baud_rate_query_payload();
-                    txFlow_->send_packet(p);
-                }
-                else if (state_ == State::UP)
-                {
-                    // Link is running normally, reset the RX timeout.
-                    rxTimer_.restart();
-                }
-                else
-                {
-                    // Should never get here.
-                    LOG(WARNING, "Unexpected ping response.");
-                }
-                break;
-            case Defs::RESP_BAUD_RATE_QUERY:
-            {
-                Defs::BaudRateQueryResponse *brqr =
-                    (Defs::BaudRateQueryResponse*)buf->data()->payload.data();
-                /// @todo For now only supporting 250Kbps.
-                HASSERT((be16toh(brqr->rates_) & Defs::BAUD_250K_MASK) != 0);
-                /// @todo Need to decide if we should change the baud rate here
-                ///       and restart the ping/pong process.
-                link_up();
-                break;
-            }
-            case Defs::RESP_MEM_W:
-                /// @todo There is a special case where we want to intercept
-                ///       these packets during a baud rate integrity test.
-            default:
-                // Not a link management message.
-                if (state_ == State::UP)
-                {
-                    // Reset the RX timeout.
-                    rxTimer_.restart();
-                    // Transfer the message.
-                    dispatcher_.send(buf, prio);
-                    return;
-                }
-                // Throw the message on the floor since the link is down.
-                break;
+            // Transfer the message. Ping responses (pong) can also come
+            // through here.
+            linkEstablishment_.reset_link_timeout();
+            dispatcher_.send(buf, prio);
         }
-        buf->unref();
-    }
-
-    /// Send a ping packet.
-    void send_ping()
-    {
-        Defs::Payload p = Defs::get_ping_payload();
-        txFlow_->send_packet(p);
-    }
-
-    /// Restart link.
-    void restart_link()
-    {
-        state_ = State::BAUD;
-        restartTimer_.start(SEC_TO_NSEC(3));
-    }
-
-    /// Reset the link negotiation.
-    void reset_link()
-    {
-        state_ = State::BAUD;
-        send_ping();
+        else
+        {
+            // Since the link is not "up" throw the message on the floor.
+            buf->unref();
+        }
     }
 
     /// Called when link transitions to "up" state.
     void link_up() override
     {
-        txTimer_.start(SEC_TO_NSEC(2));
-        rxTimer_.start(SEC_TO_NSEC(3));
+        pingTimer_.start(Defs::PING_TIMEOUT);
         state_ = State::UP;
         for (auto it = linkInterfaces_.begin();
             it != linkInterfaces_.end(); ++it)
@@ -338,23 +360,21 @@ private:
     /// Called when link transitions to "down" state.
     void link_down() override
     {
-        state_ = State::BAUD;
-        txTimer_.ensure_triggered();
-        rxTimer_.ensure_triggered();
+        state_ = State::DOWN;
+        pingTimer_.ensure_triggered();
         for (auto it = linkInterfaces_.begin();
             it != linkInterfaces_.end(); ++it)
         {
             (*it)->link_down();
         }
-        // Restart the link.
-        restartTimer_.start();
     }
+
+    /// State flow instance that establishes and maintains the link.
+    LinkEstablishment linkEstablishment_;
 
     TxInterface *txFlow_; ///< reference to the receive flow
     RxInterface *rxFlow_; ///< reference to the receive flow
-    RestartTimer restartTimer_; ///< timer that manages restarting the link
-    TxTimer txTimer_; ///< timer that ensures periodic message transmission
-    RxTimer rxTimer_; ///< timer that ensures periodic message reception
+    PingTimer pingTimer_; ///< timer that periodically pings when link is idle
     State state_; ///< link status.
 
     /// Handles incoming messages from the RX Flow.
@@ -363,7 +383,6 @@ private:
     /// List of interfaces that have registered for link updates.
     std::vector<LinkInterface*> linkInterfaces_;
 };
-
 
 } // namespace traction_modem
 

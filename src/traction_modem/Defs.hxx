@@ -56,6 +56,16 @@ struct Defs
     /// message.
     static constexpr uint16_t RESPONSE = 0x8000;
 
+    /// Normal (default) response timeout.
+    static constexpr long long RESP_TIMEOUT = SEC_TO_NSEC(3);
+
+    /// Shortened response timeout, typically used in the link establishment
+    /// phase.
+    static constexpr long long RESP_TIMEOUT_SHORT = SEC_TO_NSEC(1);
+
+    /// Time to wait for inactivity before proactively sending a ping.
+    static constexpr long long PING_TIMEOUT = SEC_TO_NSEC(2);
+
     /// Command values.
     enum Command : uint16_t
     {
@@ -116,13 +126,14 @@ struct Defs
 
     enum BuadRates : uint16_t
     {
+        BAUD_NONE      = 0x0000, ///< no baud rate
         BAUD_5M_MASK   = 0x0200, ///< 5 Mbps
-        BAUD_4M_MASK   = 0x0200, ///< 4 Mbps
-        BAUD_3M_MASK   = 0x0200, ///< 3 Mbps
-        BAUD_2M_MASK   = 0x0200, ///< 2 Mbps
-        BAUD_1M_MASK   = 0x0200, ///< 1 Mbps
-        BAUD_500K_MASK = 0x0200, ///< 500 Kbps
-        BAUD_250K_MASK = 0x0200, ///< 250 Kbps
+        BAUD_4M_MASK   = 0x0400, ///< 4 Mbps
+        BAUD_3M_MASK   = 0x0800, ///< 3 Mbps
+        BAUD_2M_MASK   = 0x1000, ///< 2 Mbps
+        BAUD_1M_MASK   = 0x2000, ///< 1 Mbps
+        BAUD_500K_MASK = 0x4000, ///< 500 Kbps
+        BAUD_250K_MASK = 0x8000, ///< 250 Kbps
     };
 
     /// Length of a the header. 4 bytes preamble, 2 bytes cmd, 2 bytes length.
