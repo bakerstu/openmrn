@@ -17,6 +17,7 @@ public:
     MOCK_METHOD3(unregister_handler,
         void(PacketFlowInterface*, Message::id_type, Message::id_type));
     MOCK_METHOD1(unregister_handler_all, void(PacketFlowInterface*));
+    MOCK_METHOD1(register_fallback_handler, void(PacketFlowInterface*));
 };
 
 class MyMockRxFlow : public MockRxFlow

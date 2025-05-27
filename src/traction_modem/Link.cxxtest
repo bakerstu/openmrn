@@ -1,0 +1,65 @@
+#include "utils/test_main.hxx"
+#include "os/FakeClock.hxx"
+
+#include "traction_modem/modem_test_helper.hxx"
+
+#include "traction_modem/Link.hxx"
+
+namespace traction_modem
+{
+
+class LinkTest : public ::testing::Test
+{
+protected:
+    /// Constructor.
+    LinkTest()
+        : link_(&g_service, &mTxFlow_, &mRxFlow_)
+        , linkEstablishment_(link_.get_link_establishment())
+    {
+        using ::testing::Sequence;
+        using ::testing::_;
+        using ::testing::StartsWith;
+        using namespace std::literals;
+
+        Sequence s1, s2;
+
+        EXPECT_CALL(mRxFlow_,
+            register_fallback_handler(&link_)).Times(1).InSequence(s1, s2);
+        EXPECT_CALL(mRxFlow_, start(50)).Times(1).InSequence(s1);
+        EXPECT_CALL(mTxFlow_, start(50)).Times(1).InSequence(s2);
+        EXPECT_CALL(mRxFlow_, register_handler(
+            linkEstablishment_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            .InSequence(s1, s2);
+        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+            "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(1).InSequence(s1, s2);
+        link_.start(50);
+        wait_for_main_executor();
+        testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+    }
+
+    ~LinkTest()
+    {
+        wait_for_main_executor();
+        testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+        EXPECT_CALL(mRxFlow_, unregister_handler(
+            linkEstablishment_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1);
+        FakeClock clk;
+        clk.advance(SEC_TO_NSEC(4));
+        link_.shutdown();
+        wait_for_main_timers();
+    }
+
+    ::testing::StrictMock<MockTxFlow> mTxFlow_;
+    ::testing::StrictMock<MockRxFlow> mRxFlow_;
+    Link link_;
+    PacketFlowInterface *linkEstablishment_;
+};
+
+TEST_F(LinkTest, Create)
+{
+
+}
+
+} // traction modem

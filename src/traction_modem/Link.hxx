@@ -75,7 +75,6 @@ public:
         , state_(State::STOP)
         , dispatcher_(service)
     {
-        rxFlow_->register_fallback_handler(this);
     }
 
     /// Check on the link status
@@ -94,6 +93,7 @@ public:
             // Already started.
             return;
         }
+        rxFlow_->register_fallback_handler(this);
         txFlow_->start(fd);
         rxFlow_->start(fd);
         linkEstablishment_.start();
@@ -156,6 +156,18 @@ public:
         DIE("Fallback handler not allowed.");
     }
 
+#if defined(GTEST)
+    PacketFlowInterface *get_link_establishment()
+    {
+        return &linkEstablishment_;
+    }
+
+    void shutdown()
+    {
+        linkEstablishment_.shutdown();
+    }
+#endif
+
 private:
     /// State flow that establishes and monitors the link.
     class LinkEstablishment : public PacketFlowInterface, public StateFlowBase
@@ -186,6 +198,14 @@ private:
             timer_.restart();
         }
 
+#if defined(GTEST)
+        void shutdown()
+        {
+            shutdown_ = true;
+        }
+    private:
+        bool shutdown_{false};
+#endif
     private:
         /// Alias for short response timeout used during link establishment.
         static constexpr long long RESP_TIMEOUT = Defs::RESP_TIMEOUT_SHORT;
@@ -194,6 +214,12 @@ private:
         /// @return nest state is pong(), wait for timeout or early trigger.
         Action ping()
         {
+#if defined (GTEST)
+            if (shutdown_)
+            {
+                return exit();
+            }
+#endif
             parent_->rxFlow_->register_handler(this, Defs::RESP_PING);
             baudSupport_ = Defs::BAUD_NONE;
             Defs::Payload p = Defs::get_ping_payload();
