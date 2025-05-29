@@ -61,19 +61,24 @@ class Link : public TxInterface
            , public RxInterface
            , public PacketFlowInterface
            , public LinkInterface
+           , private Atomic
 {
 public:
     /// Constructor
     /// @param tx_flow reference to the transmit flow
     /// @param rx_flow reference to the receive flow
     /// @param service service that the flow is bound to
-    Link(Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
+    /// @param use_default_baud the default baud rate of 250 Kbps will be used
+    ///        and the baud rate negotiation will be skipped.
+    Link(Service *service, TxInterface *tx_flow, RxInterface *rx_flow,
+        bool use_default_baud = true)
         : linkEstablishment_(service, this)
         , txFlow_(tx_flow)
         , rxFlow_(rx_flow)
         , pingTimer_(service->executor(), this)
         , state_(State::STOP)
         , dispatcher_(service)
+        , useDefaultBaud_(use_default_baud)
     {
     }
 
@@ -84,14 +89,19 @@ public:
         return state_ == State::UP;
     }
 
-    /// Bind an interface to the flow to start transmitting to.
-    /// @param fd interface to transmit the messages on
+    /// Bind an interface to the TX and RX interfaces to start transmitting and
+    /// receiving on.
+    /// @param fd interface to transmit and receive messages on
     void start(int fd) override
     {
-        if (state_ != State::STOP)
         {
-            // Already started.
-            return;
+            AtomicHolder h(this);
+            if (state_ != State::STOP)
+            {
+                // Already started.
+                return;
+            }
+            state_ = State::DOWN;
         }
         rxFlow_->register_fallback_handler(this);
         txFlow_->start(fd);
@@ -104,8 +114,9 @@ public:
     /// @param p payload to send
     void send_packet(Defs::Payload p) override
     {
-        if (state_ == State::UP)
+        if (is_link_up())
         {
+            // Periodic ping can be delayed since we are going to send a packet.
             pingTimer_.restart();
             txFlow_->send_packet(p);
         }
@@ -157,14 +168,27 @@ public:
     }
 
 #if defined(GTEST)
-    PacketFlowInterface *get_link_establishment()
+    /// Get a reference to the linkEstablishment_ object.
+    /// @return pointer to linkEstablishment_
+    PacketFlowInterface *TEST_get_link_establishment()
     {
         return &linkEstablishment_;
     }
 
-    void shutdown()
+    /// Request a shutdown for concluding tests.
+    void TEST_shutdown()
     {
-        linkEstablishment_.shutdown();
+        if (is_link_up())
+        {
+            link_down();
+        }
+        linkEstablishment_.TEST_shutdown();
+    }
+
+    /// Disable default baud setting to override constructor argument.
+    void TEST_disable_default_baud()
+    {
+        useDefaultBaud_ = false;
     }
 #endif
 
@@ -191,7 +215,7 @@ private:
         }
 
         /// Reset the link timeout. Should only be called when the link is up.
-        void reset_link_timeout()
+        void reset_link_rx_timeout()
         {
             HASSERT(is_state(STATE(link_timeout)));
             HASSERT(parent_->is_link_up());
@@ -199,12 +223,14 @@ private:
         }
 
 #if defined(GTEST)
-        void shutdown()
+        /// Request a shutdown for concluding tests.
+        void TEST_shutdown()
         {
-            shutdown_ = true;
+            TEST_shutdown_ = true;
         }
     private:
-        bool shutdown_{false};
+        /// Flag used in order to initiate the conclusion of tests.
+        bool TEST_shutdown_{false};
 #endif
     private:
         /// Alias for short response timeout used during link establishment.
@@ -215,7 +241,7 @@ private:
         Action ping()
         {
 #if defined (GTEST)
-            if (shutdown_)
+            if (TEST_shutdown_)
             {
                 return exit();
             }
@@ -229,8 +255,9 @@ private:
 
         /// Either pong received or timed out. If pong received, send a baud
         /// rate query, wait for a baud rate query response.
-        /// @return next state ping() on timeout, else next state is
-        ///         baud_rate_response(), wait for timeout or early trigger.
+        /// @return next state ping() on timeout, else link_timeout() if using
+        ///         the default baud rate or is baud_rate_response() if it
+        ///         should be negotiated, wait for timeout or early trigger.
         Action pong()
         {
             parent_->rxFlow_->unregister_handler(this, Defs::RESP_PING);
@@ -238,6 +265,13 @@ private:
             {
                 // Timed out, waiting for response try again.
                 return call_immediately(STATE(ping));
+            }
+            if (parent_->useDefaultBaud_)
+            {
+                // Do not negotiate the baud rate, stick with the default.
+                parent_->link_up();
+                return sleep_and_call(
+                    &timer_, Defs::RESP_TIMEOUT, STATE(link_timeout));
             }
 
             parent_->rxFlow_->register_handler(
@@ -290,7 +324,7 @@ private:
         void send(Buffer<Message> *buf, unsigned prio) override
         {
             auto b = get_buffer_deleter(buf);
-            switch(be16toh(buf->data()->command()))
+            switch(buf->data()->command())
             {
                 case Defs::RESP_PING:
                     break;
@@ -320,9 +354,10 @@ private:
     public:
         /// Constructor.
         /// @param e Executor to run on
-        /// @param parent_ parent object
-        PingTimer(ExecutorBase *e, Link *parent_)
+        /// @param parent parent object
+        PingTimer(ExecutorBase *e, Link *parent)
             : Timer(e->active_timers())
+            , parent_(parent)
         {
         }
 
@@ -330,13 +365,13 @@ private:
         /// @return RESTART after sending a ping, NONE if triggered early.
         long long timeout() override
         {
-            if (!is_triggered())
+            if (is_triggered())
             {
                 // The link went down.
                 return NONE;
             }
             Defs::Payload p = Defs::get_ping_payload();
-            parent_->send_packet(p);
+            parent_->txFlow_->send_packet(p);
             return RESTART;
         }
 
@@ -361,7 +396,7 @@ private:
         {
             // Transfer the message. Ping responses (pong) can also come
             // through here.
-            linkEstablishment_.reset_link_timeout();
+            linkEstablishment_.reset_link_rx_timeout();
             dispatcher_.send(buf, prio);
         }
         else
@@ -408,6 +443,10 @@ private:
 
     /// List of interfaces that have registered for link updates.
     std::vector<LinkInterface*> linkInterfaces_;
+
+    /// True in order to skip the baud rate negotiation and use the default
+    /// 250 Kbps baud rate.
+    bool useDefaultBaud_;
 };
 
 } // namespace traction_modem
