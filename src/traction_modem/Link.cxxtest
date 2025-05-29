@@ -136,6 +136,62 @@ TEST_F(LinkTest, LinkUpDefaultBaud)
     }
 }
 
+TEST_F(LinkTest, LinkUpTimeoutBaudRateQuery)
+{
+    link_.TEST_disable_default_baud();
+
+    using ::testing::StartsWith;
+    using namespace std::literals;
+
+    //
+    // Send the ping response (pong).
+    //
+    {
+        ::testing::Sequence s1;
+        EXPECT_CALL(mRxFlow_, unregister_handler(
+            linkEstablishment_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            .InSequence(s1);
+        EXPECT_CALL(mRxFlow_, register_handler(
+            linkEstablishment_, Defs::RESP_BAUD_RATE_QUERY,
+            Message::EXACT_MASK)).Times(1).InSequence(s1);
+        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+            "\x41\xD2\xC3\x7A\x00\x03\x00\x00"s))).Times(1).InSequence(s1);
+        clk_advance(MSEC_TO_NSEC(990));
+        auto *b = linkEstablishment_->alloc();
+        Defs::prepare(&b->data()->payload, Defs::RESP_PING, 4);
+        Defs::append_uint8(&b->data()->payload, 0);
+        Defs::append_uint8(&b->data()->payload, 0);
+        Defs::append_uint8(&b->data()->payload, 0);
+        Defs::append_uint8(&b->data()->payload, 0);
+        Defs::append_crc(&b->data()->payload);
+        linkEstablishment_->send(b);
+        wait_for_main_executor();
+        testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+        EXPECT_FALSE(link_.is_link_up());
+    }
+
+    //
+    // Do not send a baud rate query response, timeout, expect another ping and
+    // link down.
+    //
+    {
+        ::testing::Sequence s1;
+        EXPECT_CALL(mRxFlow_, unregister_handler(
+            linkEstablishment_, Defs::RESP_BAUD_RATE_QUERY, Message::EXACT_MASK)).Times(1)
+            .InSequence(s1);
+        EXPECT_CALL(mRxFlow_, register_handler(
+            linkEstablishment_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            .InSequence(s1);
+        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+            "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(1).InSequence(s1);
+        clk_advance(MSEC_TO_NSEC(1010));
+        testing::Mock::VerifyAndClearExpectations(&mLinkCback_);
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+        EXPECT_FALSE(link_.is_link_up());
+    }
+}
+
 TEST_F(LinkTest, LinkUpMaxDelay)
 {
     link_.TEST_disable_default_baud();
@@ -226,6 +282,35 @@ TEST_F(LinkTest, LinkUpMaxDelay)
         clk_advance(MSEC_TO_NSEC(20));
         testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
     }
+}
+
+TEST_F(LinkTest, LinkDownRxMessage)
+{
+    class MockHandler : public PacketFlowInterface
+    {
+    public:
+        MockHandler(Link *link)
+        {
+            link->register_handler(this, Defs::CMD_OUTPUT_STATE);
+        }
+
+        MOCK_METHOD2(send, void(Buffer<Message>*, unsigned));
+    };
+
+    ::testing::StrictMock<MockHandler> mHandler_(&link_);
+
+    auto *b = link_.alloc();
+    Defs::prepare(&b->data()->payload, Defs::CMD_OUTPUT_STATE, 4);
+    Defs::append_uint8(&b->data()->payload, 0);
+    Defs::append_uint8(&b->data()->payload, 0);
+    Defs::append_uint8(&b->data()->payload, 0);
+    Defs::append_uint8(&b->data()->payload, 0);
+    Defs::append_crc(&b->data()->payload);
+    b->ref(); // Add an extra ref so that we can track it after the send.
+    static_cast<PacketFlowInterface *>(&link_)->send(b);
+    EXPECT_EQ(1U, b->references());
+    EXPECT_FALSE(link_.is_link_up());
+    b->unref(); // Recover buffer memory.
 }
 
 } // traction modem
