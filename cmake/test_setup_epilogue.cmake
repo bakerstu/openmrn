@@ -55,7 +55,7 @@ if(${COVERAGE})
 # Generate the HTML coverage report
 add_custom_command(OUTPUT gcovr/coverage.html
     COMMAND mkdir -p gcovr
-    COMMAND gcovr --gcov-ignore-parse-errors negative_hits.warn_once_per_file --html-details gcovr/coverage.html --exclude=_deps.* -r ${GCOV_SOURCE_DIR} .
+    COMMAND gcovr --decisions --exclude-unreachable-branches --gcov-ignore-parse-errors negative_hits.warn_once_per_file --html-details gcovr/coverage.html --exclude=_deps.* -r ${GCOV_SOURCE_DIR} .
     VERBATIM
 )
 endif()
