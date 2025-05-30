@@ -57,7 +57,7 @@ The following state machine for link management is implemented in Link.hxx on th
 stateDiagram
     direction TB
 
-    Ping: Ping (Link Down)
+    Ping: Ping
     BaudRateQuery: Baud Rate Query
     PingBaudRateChange: Baud Rate Request
     Write: Write
@@ -153,8 +153,8 @@ classDiagram
     PacketFlowInterface : +send(MessageType*, unsigned) virtual void = 0
     RxFlow              : -DispatchFlow~Buffer~Message~~ dispatcher_
     TxFlow              : +send_packet(Payload) void override
-    Link                : -TxFlow *txFlow_
-    Link                : -RxFlow *rxFlow_
+    Link                : -TxInterface *txFlow_
+    Link                : -RxInterface *rxFlow_
     Link                : -DispatchFlow~Buffer~Message~~ dispatcher_
     Link                : vector~LinkInterface*~ linkInterfaces_
     Link                : +Link(Service*, TxInterface*, RxInterface*, bool)
