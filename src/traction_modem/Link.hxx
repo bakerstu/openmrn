@@ -217,7 +217,7 @@ private:
         /// Reset the link timeout. Should only be called when the link is up.
         void reset_link_rx_timeout()
         {
-            HASSERT(is_state(STATE(link_timeout)));
+            HASSERT(is_state(STATE(link_down)));
             HASSERT(parent_->is_link_up());
             timer_.restart();
         }
@@ -250,15 +250,16 @@ private:
             baudSupport_ = Defs::BAUD_NONE;
             Defs::Payload p = Defs::get_ping_payload();
             parent_->txFlow_->send_packet(p);
-            return sleep_and_call(&timer_, RESP_TIMEOUT, STATE(pong));
+            return sleep_and_call(
+                &timer_, RESP_TIMEOUT, STATE(baud_rate_query));
         }
 
         /// Either pong received or timed out. If pong received, send a baud
         /// rate query, wait for a baud rate query response.
-        /// @return next state ping() on timeout, else link_timeout() if using
-        ///         the default baud rate or is baud_rate_response() if it
-        ///         should be negotiated, wait for timeout or early trigger.
-        Action pong()
+        /// @return next state ping() on timeout, else link_up() if using the
+        ///         default baud rate or baud_rate_request() if it should be
+        ///         negotiated, wait for timeout or early trigger.
+        Action baud_rate_query()
         {
             parent_->rxFlow_->unregister_handler(this, Defs::RESP_PING);
             if (!timer_.is_triggered())
@@ -269,9 +270,7 @@ private:
             if (parent_->useDefaultBaud_)
             {
                 // Do not negotiate the baud rate, stick with the default.
-                parent_->link_up();
-                return sleep_and_call(
-                    &timer_, Defs::RESP_TIMEOUT, STATE(link_timeout));
+                return call_immediately(STATE(link_up));
             }
 
             parent_->rxFlow_->register_handler(
@@ -281,15 +280,15 @@ private:
             Defs::Payload p = Defs::get_baud_rate_query_payload();
             parent_->txFlow_->send_packet(p);
             return sleep_and_call(
-                &timer_, RESP_TIMEOUT, STATE(baud_rate_response));
+                &timer_, RESP_TIMEOUT, STATE(baud_rate_request));
         }
 
         /// Either baud rate response received or timed out. If baud rate
         /// response received, either accept the current baud or transition
         /// directly to link up.
         /// @return next state ping() on timeout, else next state is
-        ///         link_timeout(), Wait on timeout.
-        Action baud_rate_response()
+        ///         link_up(), Wait on timeout.
+        Action baud_rate_request()
         {
             parent_->rxFlow_->unregister_handler(
                 this, Defs::RESP_BAUD_RATE_QUERY);
@@ -304,15 +303,21 @@ private:
             ///       and restart the ping/pong process.
 
             // For now, we don't try to change the baud.
-            parent_->link_up();
+            return call_immediately(STATE(link_up));
+        }
 
+        /// Set the link state to "up".
+        /// @return next state link_down() on timeout
+        Action link_up()
+        {
+            parent_->link_up();
             return sleep_and_call(
-                &timer_, Defs::RESP_TIMEOUT, STATE(link_timeout));
+                &timer_, Defs::RESP_TIMEOUT, STATE(link_down));
         }
 
         /// Link timed out. Transition directly to link down.
         /// @return next state ping()
-        Action link_timeout()
+        Action link_down()
         {
             parent_->link_down();
             return call_immediately(STATE(ping));
