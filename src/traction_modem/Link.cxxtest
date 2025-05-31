@@ -26,7 +26,7 @@ class LinkTest : public ::testing::Test
 protected:
     /// Constructor.
     LinkTest()
-        : link_(&g_service, &mTxFlow_, &mRxFlow_)
+        : link_(&mTxFlow_, &mRxFlow_)
         , linkManager_(&g_service, &link_)
     {
         link_.register_link_status(&mLinkCback_);

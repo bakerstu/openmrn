@@ -33,15 +33,13 @@
  */
 
 #ifndef _TRACTION_MODEM_LINK_HXX_
-#define _TRACTION_MODEM_LINK_HXX
+#define _TRACTION_MODEM_LINK_HXX_
 
 #include "traction_modem/RxFlow.hxx"
 #include "traction_modem/TxFlow.hxx"
 
 namespace traction_modem
 {
-
-class LinkManager;
 
 /// Interface for link start and up/down status.
 class LinkStatusInterface
@@ -66,15 +64,15 @@ protected:
     friend class Link;
 };
 
-/// Link management object that will act as a proxy for TxFlow and RxFlow.
+/// Link object that holds references to the TX and RX interfaces and tracks
+/// link state.
 class Link : private Atomic
 {
 public:
     /// Constructor
-    /// @param service service that the flow is bound to
     /// @param tx_iface reference to the transmit interface
     /// @param rx_iface reference to the receive interface
-    Link(Service *service, TxInterface *tx_iface, RxInterface *rx_iface)
+    Link(TxInterface *tx_iface, RxInterface *rx_iface)
         : txIface_(tx_iface)
         , rxIface_(rx_iface)
         , state_(State::STOP)
@@ -104,8 +102,8 @@ public:
         }        
         txIface_->start(fd);
         rxIface_->start(fd);
-        for (auto it = linkInterfaces_.begin();
-            it != linkInterfaces_.end(); ++it)
+        for (auto it = linkIfaces_.begin();
+            it != linkIfaces_.end(); ++it)
         {
             (*it)->link_start();
         }
@@ -115,7 +113,21 @@ public:
     /// @param interface object to register
     void register_link_status(LinkStatusInterface *interface)
     {
-        linkInterfaces_.push_back(interface);
+        linkIfaces_.push_back(interface);
+    }
+
+    /// Register for updates on link status.
+    /// @param interface object to register
+    void unregister_link_status(LinkStatusInterface *interface)
+    {
+        for (auto it = linkIfaces_.begin(); it != linkIfaces_.end(); ++it)
+        {
+            if (interface == *it)
+            {
+                linkIfaces_.erase(it);
+                break;
+            }
+        }
     }
 
     /// Get a reference to the link's transmit interface.
@@ -143,8 +155,7 @@ private:
     void link_up()
     {
         state_ = State::UP;
-        for (auto it = linkInterfaces_.begin();
-            it != linkInterfaces_.end(); ++it)
+        for (auto it = linkIfaces_.begin(); it != linkIfaces_.end(); ++it)
         {
             (*it)->link_up();
         }
@@ -154,8 +165,7 @@ private:
     void link_down()
     {
         state_ = State::DOWN;
-        for (auto it = linkInterfaces_.begin();
-            it != linkInterfaces_.end(); ++it)
+        for (auto it = linkIfaces_.begin(); it != linkIfaces_.end(); ++it)
         {
             (*it)->link_down();
         }
@@ -166,7 +176,7 @@ private:
     State state_; ///< link state
 
     /// List of interfaces that have registered for link updates.
-    std::vector<LinkStatusInterface*> linkInterfaces_;
+    std::vector<LinkStatusInterface*> linkIfaces_;
 
     friend class LinkManager;
 };
@@ -388,4 +398,4 @@ private:
 
 } // namespace traction_modem
 
-#endif // _TRACTION_MODEM_LINK_HXX
+#endif // _TRACTION_MODEM_LINK_HXX_
