@@ -147,8 +147,8 @@ classDiagram
 
     RxInterface         : +register_handler(PacketFlowInterface *, ...) void override
     TxInterface         : +send_packet(Payload) virtual void = 0
-    Link                : -TxInterface *txFlow_
-    Link                : -RxInterface *rxFlow_
+    Link                : -TxInterface *txIface_
+    Link                : -RxInterface *rxIface_
     Link                : -State state_
     Link                : -vector~LinkStatusInterface*~ linkIfaces_
     Link                : +Link(TxInterface*, RxInterface*)
