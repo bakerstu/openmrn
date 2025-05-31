@@ -1,5 +1,5 @@
 # Traction Modem
-Traction modem is a protocol that can be used to exchange typical OpenLCB train information and control over a simple serial interface, typically a UART. Communication is largely peer-to-peer, but link management is peformed by the modem side of the interface.
+Traction modem is a protocol that can be used to exchange typical OpenLCB train information and control over a simple serial interface, typically a UART. Communication is largely peer-to-peer, but link management is performed by the modem side of the interface.
 
 1. [Link Management](#link_management)
 2. [Timing](#timing)
@@ -51,7 +51,7 @@ sequenceDiagram
     end
 ```
 
-The following state machine for link management is implemented in Link.hxx on the modem side:
+The following state machine for link management is implemented in Link.hxx by the LinkManager object on the modem side:
 
 ```mermaid
 stateDiagram
@@ -61,8 +61,8 @@ stateDiagram
     BaudRateQuery: Baud Rate Query
     PingBaudRateChange: Baud Rate Request
     Write: Write
-    LinkUp: Link Up
-    LinkDown: Link Down
+    LinkUp: Link Up<br>(start 2 second ping)
+    LinkDown: Link Down<br>(stop 2 second ping)
 
     state PongState <<choice>>
     state DefaultBaudState <<choice>>
@@ -104,8 +104,8 @@ stateDiagram
 
     LinkUp                     --> LinkTimeoutState
 
-    LinkTimeoutState           --> LinkDown: if (3 second timeout)
-    LinkTimeoutState           --> LinkUp: if (no timeout)
+    LinkTimeoutState           --> LinkDown: if (3 second pong timeout)
+    LinkTimeoutState           --> LinkUp: if (no pong timeout)
 
     LinkDown                   --> Ping
 ```
@@ -115,12 +115,12 @@ In general, the following link timings should be adhered to:
 | Parameter                     | Value | Units |
 |:------------------------------|:-----:|:-----:|
 | Modem RX Timeout              | 3     | s     |
-| Modem Idle Ping Timeout       | 2     | s     |
+| Modem Ping Timeout            | 2     | s     |
 | Response Timeout              | 750   | ms    |
 | Link Establishment RX Timeout | 1     | s     |
 
 ### Modem RX Timeout
-The modem must receive at least one message every 3 seconds. Periodic pings help facilitate this. A ping from the modem should solicit a pong response from the train in order to reset the modem RX timeout. Any received message, without framing error, shall reset the modem RX timeout.
+The modem must receive at least one ping response (pong) every 3 seconds. Periodic pings facilitate this. A ping from the modem should solicit a pong response from the train in order to reset the modem RX timeout.
 
 ### Modem Idle Ping Timeout
 While the link is in the "up" state, the modem shall send a ping every 2 seconds.
@@ -140,28 +140,38 @@ The following diagram shows the high level class hierarchy for generic message t
 ```mermaid
 classDiagram
     RxInterface                      <|-- RxFlow
-    RxInterface                      <|-- Link
-    LinkInterface                    <|-- Link
-    PacketFlowInterface~MessageType~ <|-- Link
-    TxInterface                      <|-- Link
     TxInterface                      <|-- TxFlow
+    LinkStatusInterface              <|-- LinkManager
+    PacketFlowInterface~MessageType~ <|-- LinkManager
+    StateFlowBase                    <|-- LinkManager
 
     RxInterface         : +register_handler(PacketFlowInterface *, ...) void override
     TxInterface         : +send_packet(Payload) virtual void = 0
-    LinkInterface       : +link_up() virtual void = 0
-    LinkInterface       : +link_down() virtual void = 0
+    Link                : -TxInterface *txFlow_
+    Link                : -RxInterface *rxFlow_
+    Link                : -State state_
+    Link                : -vector~LinkStatusInterface*~ linkIfaces_
+    Link                : +Link(TxInterface*, RxInterface*)
+    Link                : +is_link_down() bool
+    Link                : +start(int fd) void
+    Link                : +register_link_status(LinkStatusInterface*) void
+    Link                : +unregister_link_status(LinkStatusInterface*) void
+    Link                : +get_tx_iface() TxInterface
+    Link                : +get_rx_iface() RxInterface
+    Link                : -link_down() void
+    Link                : -link_up() void
     PacketFlowInterface : +send(MessageType*, unsigned) virtual void = 0
     RxFlow              : -DispatchFlow~Buffer~Message~~ dispatcher_
     TxFlow              : +send_packet(Payload) void override
-    Link                : -TxInterface *txFlow_
-    Link                : -RxInterface *rxFlow_
-    Link                : -DispatchFlow~Buffer~Message~~ dispatcher_
-    Link                : vector~LinkInterface*~ linkInterfaces_
-    Link                : +Link(Service*, TxInterface*, RxInterface*, bool)
-    Link                : +send_packet(payload) void override
-    Link                : -send(MessageType*, unsigned) void override
-    Link                : -link_down() void override
-    Link                : -link_up() void override
+    LinkStatusInterface : #friend class Link
+    LinkStatusInterface : #link_start() virtual void
+    LinkStatusInterface : #link_up() virtual void
+    LinkStatusInterface : #link_down() virtual void
+    LinkManager         : -Link *link_
+    LinkManager         : -PingTimer *pingTimer_
+    LinkManager         : +LinkManager(Service *, Link*, bool use_default_baud)
+    LinkManager         : -link_start() void override
+    LinkManager         : -send(MessageType*, unsigned) virtual void = 0
 ```
 
 ### Specialized Message Handling
@@ -170,60 +180,70 @@ The MemorySpace object(s) are provided as an example.
 ```mermaid
 classDiagram
     PacketFlowInterface <|-- MemorySpace
-    LinkInterface       <|-- MemorySapce
+    LinkStatusInterface <|-- MemorySpace
+    MemorySpace         <|-- CvSpace
 
-    LinkInterface       : +link_up() virtual void = 0
-    LinkInterface       : +link_down() virtual void = 0
-    PacketFlowInterface : +send(MessageType*, unsigned) virtual void = 0
-    MemorySpace         : Link *link_
-    MemorySpace         : +MemorySpace(Service*, Link*)
+    LinkStatusInterface : #friend class Link
+    LinkStatusInterface : #link_start() virtual void
+    LinkStatusInterface : #link_up() virtual void
+    LinkStatusInterface : #link_down() virtual void
+    PacketFlowInterface : #send(MessageType*, unsigned) virtual void = 0
+    MemorySpace         : #Link *link_
     MemorySpace         : +write() size_t
     MemorySpace         : +read() size_t
+    MemorySpace         : #MemorySpace(Service*, Link*)
     MemorySpace         : -send(MessageType*, unsigned) void override
     MemorySpace         : -link_up() void override
-    MemorySpace         : -link_down() void override
 ```
 
-The following provides and example call sequence for writing and reading a memory space interspersed with background pings.
+The following provides and example call sequence for writing a memory space. Link starts down, then later comes up and is interspersed with background pings.
 
 ```mermaid
 sequenceDiagram
     actor User
     participant MemorySpace
     participant LinkObject as Link
-    participant TxFlow
+    participant LinkManager
     participant RxFlow
-
-    LinkObject  -->> TxFlow      : ping
-    RxFlow      -->> LinkObject  : pong
-    LinkObject  -->> TxFlow      : ping
-    RxFlow      -->> LinkObject  : pong
+    participant TxFlow
 
     User         ->> MemorySpace : write()
     activate MemorySpace
-    MemorySpace  ->> LinkObject  : link_->send_packet()
-    LinkObject   ->> TxFlow      : txFlow_->send_packet()
-    RxFlow       ->> LinkObject  : dispatcher_.send()
-    LinkObject   ->> MemorySpace : dispatcher_.send()
-    MemorySpace  ->> User : 
+    MemorySpace  ->> LinkObject  : is_link_up()
+    activate LinkObject
+    LinkObject   ->> MemorySpace : false
+    deactivate LinkObject
+    MemorySpace  ->> User        : 0, ERROR_AGAIN
     deactivate MemorySpace
+
+    User         ->> LinkObject  : start()
+    LinkObject   ->> LinkManager : link_start()
+    LinkManager -->> TxFlow      : ping
+    RxFlow      -->> LinkManager : pong
+    Note over LinkManager, RxFlow: Link Up<br>(start background ping/pong)
+    LinkManager  ->> LinkObject  : link_up()
+    LinkObject   ->> MemorySpace : link_up()
+
+    MemorySpace  ->> TxFlow      : link_.get_tx_Iface()->send_packet()
+    activate TxFlow
+    activate RxFlow
+    RxFlow       ->> MemorySpace : dispatcher_.send()
+    deactivate TxFlow
+    deactivate RxFlow
+    MemorySpace  ->> User        : notify()
     
-    LinkObject  -->> TxFlow      : ping
-    RxFlow      -->> LinkObject  : pong
-    LinkObject  -->> TxFlow      : ping
-    RxFlow      -->> LinkObject  : pong
+    LinkManager -->> TxFlow      : ping
+    RxFlow      -->> LinkManager : pong
 
-    User         ->> MemorySpace : read()
+    User         ->> MemorySpace : write()
     activate MemorySpace
-    MemorySpace  ->> LinkObject  : link_->send_packet()
-    LinkObject   ->> TxFlow      : txFlow_->send_packet()
-    RxFlow       ->> LinkObject  : dispatcher_.send()
-    LinkObject   ->> MemorySpace : dispatcher_.send()
-    MemorySpace  ->> User        : 
+    MemorySpace  ->> LinkObject  : is_link_up()
+    activate LinkObject
+    LinkObject   ->> MemorySpace : true
+    deactivate LinkObject
+    MemorySpace  ->> User        : bytes written, ERROR_SUCCESS
     deactivate MemorySpace
 
-    LinkObject  -->> TxFlow      : ping
-    RxFlow      -->> LinkObject  : pong
-    LinkObject  -->> TxFlow      : ping
-    RxFlow      -->> LinkObject  : pong
+    LinkManager -->> TxFlow      : ping
+    RxFlow      -->> LinkManager : pong
 ```
