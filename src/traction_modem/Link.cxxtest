@@ -37,18 +37,18 @@ protected:
         ::testing::Sequence s1, s2;
 
         EXPECT_CALL(mTxFlow_, start(50)).Times(1).InSequence(s1);
-        EXPECT_CALL(mRxFlow_, start(51)).Times(1).InSequence(s2);
+        EXPECT_CALL(mRxFlow_, start(50)).Times(1).InSequence(s2);
         EXPECT_CALL(mLinkCback_, link_start()).Times(1).InSequence(s1, s2);
         EXPECT_CALL(mRxFlow_, register_handler(
             &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1, s2);
         EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
             "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(1).InSequence(s1, s2);
-        link_.start(50, 51);
+        link_.start(50);
         wait_for_main_executor();
         testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
         testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
-        ::testing::StrictMock<MockLinkCallback> mLinkCback_;
+        testing::Mock::VerifyAndClearExpectations(&mLinkCback_);
     }
 
     /// Destructor.
@@ -103,89 +103,12 @@ TEST_F(LinkTest, Create)
 TEST_F(LinkTest, StartAgain)
 {
     EXPECT_CALL(mLinkCback_, link_start()).Times(0);
-    link_.start(50, 51);
+    link_.start(50);
+    testing::Mock::VerifyAndClearExpectations(&mLinkCback_);
     EXPECT_FALSE(link_.is_link_up());
 }
 
-
-#if 0
-class LinkTest : public ::testing::Test
-{
-protected:
-    /// Constructor.
-    LinkTest()
-        : link_(&g_service, &mTxFlow_, &mRxFlow_)
-        , linkEstablishment_(link_.TEST_get_link_establishment())
-    {
-        link_.register_link_status(&mLinkCback_);
-
-        using ::testing::StartsWith;
-        using namespace std::literals;
-
-        ::testing::Sequence s1, s2;
-
-        EXPECT_CALL(mRxFlow_,
-            register_fallback_handler(&link_)).Times(1).InSequence(s1, s2);
-        EXPECT_CALL(mRxFlow_, start(50)).Times(1).InSequence(s1);
-        EXPECT_CALL(mTxFlow_, start(50)).Times(1).InSequence(s2);
-        EXPECT_CALL(mRxFlow_, register_handler(
-            linkEstablishment_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
-            .InSequence(s1, s2);
-        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
-            "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(1).InSequence(s1, s2);
-        link_.start(50);
-        wait_for_main_executor();
-        testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
-        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
-    }
-
-    /// Destructor.
-    ~LinkTest()
-    {
-        using ::testing::StartsWith;
-        using namespace std::literals;
-        wait_for_main_executor();
-        testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
-        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
-        testing::Mock::VerifyAndClearExpectations(&mLinkCback_);
-        EXPECT_CALL(mRxFlow_, unregister_handler(
-            linkEstablishment_, Defs::RESP_PING, Message::EXACT_MASK))
-            .Times(::testing::AtLeast(0));
-        EXPECT_CALL(mRxFlow_, unregister_handler(
-            linkEstablishment_, Defs::RESP_BAUD_RATE_QUERY,
-            Message::EXACT_MASK)).Times(::testing::AtLeast(0));
-        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
-            "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(::testing::AtLeast(0));
-        EXPECT_CALL(mLinkCback_, link_down()).Times(::testing::AtLeast(0));
-        link_.TEST_shutdown();
-        clk_advance(SEC_TO_NSEC(4));
-        wait_for_main_timers();
-    }
-
-    /// Fake clock helper
-    /// @param nsec how far to advance in nanoseconds
-    /// @param step_size_msec step size in milliseconds
-    void clk_advance(long long nsec, unsigned step_size_msec = 10)
-    {
-        while (nsec > 0)
-        {
-            nsec -= MSEC_TO_NSEC(step_size_msec);
-            clk_.advance(MSEC_TO_NSEC(step_size_msec));
-            wait_for_main_executor();
-        }
-    }
-
-    FakeClock clk_;
-    ::testing::StrictMock<MockTxFlow> mTxFlow_;
-    ::testing::StrictMock<MockRxFlow> mRxFlow_;
-    ::testing::StrictMock<MockLinkCallback> mLinkCback_;
-    Link link_;
-    PacketFlowInterface *linkEstablishment_;
-};
-#endif
-
-#if 0
-TEST_F(LinkTest, LinkUpDefaultBaud)
+TEST_F(LinkTest, LinkUpDownDefaultBaud)
 {
     using ::testing::StartsWith;
     using namespace std::literals;
@@ -196,35 +119,56 @@ TEST_F(LinkTest, LinkUpDefaultBaud)
     {
         ::testing::Sequence s1;
         EXPECT_CALL(mRxFlow_, unregister_handler(
-            linkEstablishment_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1);
         EXPECT_CALL(mLinkCback_, link_up()).Times(1).InSequence(s1);
-        // Link is not up yet, so this packet should fall on the floor.
-        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
-            "\x41\xD2\xC3\x7A\x01\x02\x00\x00"s))).Times(0);
-        Defs::Payload p = Defs::get_estop_payload();
-        wait_for_main_executor();
+        EXPECT_CALL(mRxFlow_, register_handler(
+            &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            .InSequence(s1);
         EXPECT_FALSE(link_.is_link_up());
         // Now send the ping response.
-        link_.send_packet(p);
-        auto *b = linkEstablishment_->alloc();
+        auto b = linkManager_.alloc();
         Defs::prepare(&b->data()->payload, Defs::RESP_PING, 4);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_crc(&b->data()->payload);
-        linkEstablishment_->send(b);
+        static_cast<PacketFlowInterface*>(&linkManager_)->send(b);
         wait_for_main_executor();
         testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
         testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+        testing::Mock::VerifyAndClearExpectations(&mLinkCback_);
         EXPECT_TRUE(link_.is_link_up());
+    }
+
+    //
+    // Wait over 3 seconds without a ping response (pong).
+    //
+    {
+        ::testing::Sequence s1;
+        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+            "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(1).InSequence(s1);
+        EXPECT_CALL(mRxFlow_, unregister_handler(
+            &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            .InSequence(s1);
+        EXPECT_CALL(mLinkCback_, link_down()).Times(1).InSequence(s1);
+        EXPECT_CALL(mRxFlow_, register_handler(
+            &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            .InSequence(s1);
+        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+            "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(1).InSequence(s1);
+        clk_advance(MSEC_TO_NSEC(3010));
+        testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+        testing::Mock::VerifyAndClearExpectations(&mLinkCback_);
+        EXPECT_FALSE(link_.is_link_up());
     }
 }
 
 TEST_F(LinkTest, LinkUpTimeoutBaudRateQuery)
 {
-    link_.TEST_disable_default_baud();
+    linkManager_.TEST_disable_default_baud();
 
     using ::testing::StartsWith;
     using namespace std::literals;
@@ -235,22 +179,22 @@ TEST_F(LinkTest, LinkUpTimeoutBaudRateQuery)
     {
         ::testing::Sequence s1;
         EXPECT_CALL(mRxFlow_, unregister_handler(
-            linkEstablishment_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1);
         EXPECT_CALL(mRxFlow_, register_handler(
-            linkEstablishment_, Defs::RESP_BAUD_RATE_QUERY,
+            &linkManager_, Defs::RESP_BAUD_RATE_QUERY,
             Message::EXACT_MASK)).Times(1).InSequence(s1);
         EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
             "\x41\xD2\xC3\x7A\x00\x03\x00\x00"s))).Times(1).InSequence(s1);
         clk_advance(MSEC_TO_NSEC(990));
-        auto *b = linkEstablishment_->alloc();
+        auto b = linkManager_.alloc();
         Defs::prepare(&b->data()->payload, Defs::RESP_PING, 4);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_crc(&b->data()->payload);
-        linkEstablishment_->send(b);
+        static_cast<PacketFlowInterface*>(&linkManager_)->send(b);
         wait_for_main_executor();
         testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
         testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
@@ -264,15 +208,15 @@ TEST_F(LinkTest, LinkUpTimeoutBaudRateQuery)
     {
         ::testing::Sequence s1;
         EXPECT_CALL(mRxFlow_, unregister_handler(
-            linkEstablishment_, Defs::RESP_BAUD_RATE_QUERY, Message::EXACT_MASK)).Times(1)
-            .InSequence(s1);
+            &linkManager_, Defs::RESP_BAUD_RATE_QUERY, Message::EXACT_MASK))
+            .Times(1).InSequence(s1);
         EXPECT_CALL(mRxFlow_, register_handler(
-            linkEstablishment_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1);
         EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
             "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(1).InSequence(s1);
         clk_advance(MSEC_TO_NSEC(1010));
-        testing::Mock::VerifyAndClearExpectations(&mLinkCback_);
+        testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
         testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
         EXPECT_FALSE(link_.is_link_up());
     }
@@ -280,7 +224,7 @@ TEST_F(LinkTest, LinkUpTimeoutBaudRateQuery)
 
 TEST_F(LinkTest, LinkUpMaxDelay)
 {
-    link_.TEST_disable_default_baud();
+    linkManager_.TEST_disable_default_baud();
 
     using ::testing::StartsWith;
     using namespace std::literals;
@@ -291,22 +235,22 @@ TEST_F(LinkTest, LinkUpMaxDelay)
     {
         ::testing::Sequence s1;
         EXPECT_CALL(mRxFlow_, unregister_handler(
-            linkEstablishment_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1);
         EXPECT_CALL(mRxFlow_, register_handler(
-            linkEstablishment_, Defs::RESP_BAUD_RATE_QUERY,
+            &linkManager_, Defs::RESP_BAUD_RATE_QUERY,
             Message::EXACT_MASK)).Times(1).InSequence(s1);
         EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
             "\x41\xD2\xC3\x7A\x00\x03\x00\x00"s))).Times(1).InSequence(s1);
         clk_advance(MSEC_TO_NSEC(990));
-        auto *b = linkEstablishment_->alloc();
+        auto b = linkManager_.alloc();
         Defs::prepare(&b->data()->payload, Defs::RESP_PING, 4);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_crc(&b->data()->payload);
-        linkEstablishment_->send(b);
+        static_cast<PacketFlowInterface*>(&linkManager_)->send(b);
         wait_for_main_executor();
         testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
         testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
@@ -319,84 +263,46 @@ TEST_F(LinkTest, LinkUpMaxDelay)
     {
         ::testing::Sequence s1;
         EXPECT_CALL(mRxFlow_, unregister_handler(
-            linkEstablishment_, Defs::RESP_BAUD_RATE_QUERY, Message::EXACT_MASK)).Times(1)
-            .InSequence(s1);
+            &linkManager_, Defs::RESP_BAUD_RATE_QUERY, Message::EXACT_MASK))
+            .Times(1).InSequence(s1);
         EXPECT_CALL(mLinkCback_, link_up()).Times(1).InSequence(s1);
+        EXPECT_CALL(mRxFlow_, register_handler(
+            &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
+            .InSequence(s1);
         clk_advance(MSEC_TO_NSEC(990));
-        auto *b = linkEstablishment_->alloc();
+        auto b = linkManager_.alloc();
         Defs::prepare(&b->data()->payload, Defs::RESP_BAUD_RATE_QUERY, 2);
         Defs::append_uint16(&b->data()->payload, Defs::BAUD_250K_MASK);
         Defs::append_crc(&b->data()->payload);
-        linkEstablishment_->send(b);
+        static_cast<PacketFlowInterface*>(&linkManager_)->send(b);
         wait_for_main_executor();
         testing::Mock::VerifyAndClearExpectations(&mLinkCback_);
         testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
         EXPECT_TRUE(link_.is_link_up());
     }
 
+    // Expect a ping every 2 seconds.
+    clk_advance(MSEC_TO_SEC(10));
+    for (unsigned i = 0; i < 10; ++i)
     {
         // Expect a ping after 2 seconds
         EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
             "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(1);
-        clk_advance(MSEC_TO_NSEC(2010));
+        clk_advance(MSEC_TO_NSEC(2000));
         testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
         // Send a ping response (pong) back.
-        auto *b = link_.alloc();
+        auto b = linkManager_.alloc();
         Defs::prepare(&b->data()->payload, Defs::RESP_PING, 4);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_uint8(&b->data()->payload, 0);
         Defs::append_crc(&b->data()->payload);
-        static_cast<PacketFlowInterface *>(&link_)->send(b);
+        static_cast<PacketFlowInterface*>(&linkManager_)->send(b);
         wait_for_main_executor();
+        testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
         EXPECT_TRUE(link_.is_link_up());
-
-        // Send a non-ping packet, do not expect a ping.
-        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
-            "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(0);
-        clk_advance(MSEC_TO_SEC(1000));
-        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
-            "\x41\xD2\xC3\x7A\x01\x02\x00\x00"s))).Times(1);
-        Defs::Payload p = Defs::get_estop_payload();
-        link_.send_packet(p);
-        clk_advance(MSEC_TO_NSEC(1990));
-        testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
-        // Now ~2 seconds after last packet, non-ping in this case, expect ping.
-        EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
-            "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(1);
-        clk_advance(MSEC_TO_NSEC(20));
-        testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
     }
 }
 
-TEST_F(LinkTest, LinkDownRxMessage)
-{
-    class MockHandler : public PacketFlowInterface
-    {
-    public:
-        MockHandler(Link *link)
-        {
-            link->register_handler(this, Defs::CMD_OUTPUT_STATE);
-        }
-
-        MOCK_METHOD2(send, void(Buffer<Message>*, unsigned));
-    };
-
-    ::testing::StrictMock<MockHandler> mHandler_(&link_);
-
-    auto *b = link_.alloc();
-    Defs::prepare(&b->data()->payload, Defs::CMD_OUTPUT_STATE, 4);
-    Defs::append_uint8(&b->data()->payload, 0);
-    Defs::append_uint8(&b->data()->payload, 0);
-    Defs::append_uint8(&b->data()->payload, 0);
-    Defs::append_uint8(&b->data()->payload, 0);
-    Defs::append_crc(&b->data()->payload);
-    b->ref(); // Add an extra ref so that we can track it after the send.
-    static_cast<PacketFlowInterface *>(&link_)->send(b);
-    EXPECT_EQ(1U, b->references());
-    EXPECT_FALSE(link_.is_link_up());
-    b->unref(); // Recover buffer memory.
-}
-#endif
 } // traction modem

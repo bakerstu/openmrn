@@ -67,7 +67,6 @@ protected:
 };
 
 /// Link management object that will act as a proxy for TxFlow and RxFlow.
-/// @todo Need a way to adjust the baud rate of the UART interface.
 class Link : private Atomic
 {
 public:
@@ -91,9 +90,8 @@ public:
 
     /// Bind an interface to the TX and RX interfaces to start transmitting and
     /// receiving on.
-    /// @param tx_fd interface to transmit messages on
-    /// @param rx_fd interface to receive messages on
-    void start(int tx_fd, int rx_fd)
+    /// @param fd interface to transmit and receive messages on
+    void start(int fd)
     {
         {
             AtomicHolder h(this);
@@ -104,8 +102,8 @@ public:
             }
             state_ = State::DOWN;
         }        
-        txIface_->start(tx_fd);
-        rxIface_->start(rx_fd);
+        txIface_->start(fd);
+        rxIface_->start(fd);
         for (auto it = linkInterfaces_.begin();
             it != linkInterfaces_.end(); ++it)
         {
@@ -144,6 +142,7 @@ private:
     /// Called when link transitions to "up" state.
     void link_up()
     {
+        state_ = State::UP;
         for (auto it = linkInterfaces_.begin();
             it != linkInterfaces_.end(); ++it)
         {
@@ -154,6 +153,7 @@ private:
     /// Called when link transitions to "down" state.
     void link_down()
     {
+        state_ = State::DOWN;
         for (auto it = linkInterfaces_.begin();
             it != linkInterfaces_.end(); ++it)
         {
@@ -172,6 +172,7 @@ private:
 };
 
 /// Object that can manage the link, including negotiation of baud rate.
+/// @todo Need a way to adjust the baud rate of the UART interface.
 class LinkManager : public LinkStatusInterface
                   , public PacketFlowInterface
                   , public StateFlowBase
@@ -213,6 +214,12 @@ private:
 private:
     /// Alias for short response timeout used during link establishment.
     static constexpr long long RESP_TIMEOUT = Defs::RESP_TIMEOUT_SHORT;
+
+    /// Called when the link is started.
+    void link_start() override
+    {
+        start_flow(STATE(ping));
+    }
 
     /// Send a link establishment ping. Look for a pong response.
     /// @return nest state is pong(), wait for timeout or early trigger.
@@ -303,12 +310,6 @@ private:
         link_->get_rx_iface()->unregister_handler(this, Defs::RESP_PING);
         link_->link_down();
         return call_immediately(STATE(ping));
-    }
-
-    /// Called when the link is started.
-    void link_start() override
-    {
-        start_flow(STATE(ping));
     }
 
     /// Receive for link establishment responses.
