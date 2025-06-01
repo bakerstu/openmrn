@@ -18,5 +18,8 @@ set(GTEST ON)
 # Include tests setup.
 include(${OPENMRNPATH}/cmake/test_setup_prologue.cmake)
 
+# Setup gcovr source directory path
+set(GCOV_SOURCE_DIR ${OPENMRNPATH}/src)
+
 # Include tests setup.
 include(${OPENMRNPATH}/cmake/test_setup_epilogue.cmake)
