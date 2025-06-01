@@ -239,6 +239,7 @@ private:
             return exit();
         }
 #endif
+        LOG(VERBOSE, "LinkManager::ping()");
         link_->get_rx_iface()->register_handler(this, Defs::RESP_PING);
         baudSupport_ = Defs::BAUD_NONE;
         Defs::Payload p = Defs::get_ping_payload();
@@ -254,6 +255,7 @@ private:
     ///         negotiated, wait for timeout or early trigger.
     Action baud_rate_query()
     {
+        LOG(VERBOSE, "LinkManager::baud_rate_query()");
         link_->get_rx_iface()->unregister_handler(this, Defs::RESP_PING);
         if (!timer_.is_triggered())
         {
@@ -283,6 +285,7 @@ private:
     ///         link_is_up(), Wait on timeout.
     Action baud_rate_request()
     {
+        LOG(VERBOSE, "LinkManager::baud_rate_request()");
         link_->get_rx_iface()->unregister_handler(
             this, Defs::RESP_BAUD_RATE_QUERY);
         if (!timer_.is_triggered())
@@ -303,6 +306,7 @@ private:
     /// @return next state link_is_down() on timeout
     Action link_is_up()
     {
+        LOG(VERBOSE, "LinkManager::link_is_up()");
         link_->link_up();
         link_->get_rx_iface()->register_handler(this, Defs::RESP_PING);
         pingTimer_.start(Defs::PING_TIMEOUT);
@@ -314,6 +318,7 @@ private:
     /// @return next state ping()
     Action link_is_down()
     {
+        LOG(VERBOSE, "LinkManager::link_is_down()");
         pingTimer_.ensure_triggered();
         link_->get_rx_iface()->unregister_handler(this, Defs::RESP_PING);
         link_->link_down();
