@@ -102,8 +102,7 @@ public:
         }        
         txIface_->start(fd);
         rxIface_->start(fd);
-        for (auto it = linkIfaces_.begin();
-            it != linkIfaces_.end(); ++it)
+        for (auto it = linkIfaces_.begin(); it != linkIfaces_.end(); ++it)
         {
             (*it)->link_start();
         }
@@ -193,8 +192,7 @@ public:
     /// @param parent parent object
     /// @param use_default_baud the default baud rate of 250 Kbps will be used
     ///        and the baud rate negotiation will be skipped.
-    LinkManager(Service *service, Link *link,
-        bool use_default_baud = true)
+    LinkManager(Service *service, Link *link, bool use_default_baud = true)
         : StateFlowBase(service)
         , link_(link)
         , timer_(this)
