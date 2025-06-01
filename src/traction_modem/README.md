@@ -61,8 +61,8 @@ stateDiagram
     BaudRateQuery: Baud Rate Query
     PingBaudRateChange: Baud Rate Request
     Write: Write
-    LinkUp: Link Up<br>(start 2 second ping)
-    LinkDown: Link Down<br>(stop 2 second ping)
+    LinkUp: Link Is Up<br>(start 2 second ping)
+    LinkDown: Link Is Down<br>(stop 2 second ping)
 
     state PongState <<choice>>
     state DefaultBaudState <<choice>>
