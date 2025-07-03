@@ -333,3 +333,30 @@ string ipv4_to_string(uint8_t ip[4])
 
     return ret;
 }
+
+string ipv6_to_string(uint8_t ip[16])
+{
+    string ret;
+    ret.reserve(32+8);
+    char tmp[10];
+    for (int i = 0; i < 16; ++i)
+    {
+        uint16_t ip_seg16 = ((uint16_t)ip[i + 1] << 8) + ip[i];
+        if (ip_seg16 != 0)
+        {
+            unsigned_integer_to_buffer_hex(ip[i], tmp);
+            if (ip[i] <= 9)
+            {
+                ret += '0';
+            }
+            ret += tmp;
+        }
+        if (i & 0x1 )
+        {
+            ret.push_back(':');
+        }
+    }
+    ret.pop_back();
+
+    return ret;
+}
