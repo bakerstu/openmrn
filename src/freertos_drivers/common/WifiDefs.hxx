@@ -35,7 +35,8 @@ enum class WlanRole : uint8_t
     UNKNOWN = 0,       /**< Default mode (from stored configuration) */
     DEFAULT_ROLE = UNKNOWN, /**< Default mode (from stored configuration) */
     STA,               /**< Wi-Fi station mode */
-    AP                 /**< Wi-Fi access point mode */
+    AP,                /**< Wi-Fi access point mode */
+    AP_STA,            /**< Wi-Fi access point + station mode */
 };
 
 enum class CountryCode : uint8_t
