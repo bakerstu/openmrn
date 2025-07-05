@@ -26,7 +26,7 @@
  *
  * @file EspIdfWiFi.hxx
  *
- * Interface for interacting with WiFi services.
+ * WiFi manager for ESP-IDF platform. Implements WiFiInterface.
  *
  * @author Balazs Racz, extended by Stuart Baker
  * @date 27 Aug 2024, extended starting Jun 17 2025
@@ -79,24 +79,34 @@
 /// @endcode
 ///
 /// In order to support non-volatile configuration, use the specialized version
-/// of this object EspIdfWiFiWithConfigUpdateListener instead. In this version,
-/// whenever there is an update to the user configuration, an update flow is
-/// triggered which will commit the user config to both NVS and a companion
-/// MemorySpace.
+/// of this object that includes a DefaultConfigUpdateListener instead.
+/// Whenever there is an update to the WiFi profiles managed by this object,
+/// the virtual method config_sync() is called. config_sync() can be overriden
+/// in a derived version of this object in order to trigger synchronization with
+/// more complex user configuration, such as that of memory spaces and CDI.
 ///
-class EspIdfWiFi : public WiFiInterface, public StateFlowBase, protected OSMutex
+/// Note: The protected status variables in the WiFiInterface object are only
+///       modified from the ESP event handler thread. Therefore, they do not
+///       need an additional atomic or mutex lock.
+class EspIdfWiFi : public WiFiInterface, public StateFlowBase
 {
 public:
     /// Default wifi password.
     static constexpr char DEFAULT_PASSWORD[] = "123456789";
 
     /// Constructor.
-    /// @param service service to bind this object to.
-    /// @param hostname hostname to publish over the network
-    /// @param can_hub CAN hub to use
-    EspIdfWiFi(Service *service, const char * hostname)
+    /// @param service Service to bind this object to. This object does not
+    ///        block the executor, except in the case of a mutex used for
+    ///        mutual exclusion. Within this object, no blocking calls are made
+    ///        while the mutex is held. In the case of a derived version of
+    ///        this object, it is possible that a derived object will have
+    ///        different blocking behavior in either the use of this service or
+    ///        it internal mutex.
+    /// @param hostname hostname to publish over the network, it is be copied
+    ///        over to an std::string
+    EspIdfWiFi(Service *service, const char *hostname)
         : StateFlowBase(service)
-        , OSMutex(true) // Recursive.
+        , lock_(true) // Recursive.
         , initialized_(false)
         , timer_(this)
         , apIface_(nullptr)
@@ -130,15 +140,17 @@ public:
     /// Stop the WiFi.
     void stop() override;
 
-    /// Connect to access point.
+    /// Connect to access point. This is a non-blocking call. The results will
+    /// be delivered by callback registered with set_wlan_connect_callback().
     /// @param ssid access point SSID
     /// @param pass access point password
     /// @param sec_type access point security type
-    /// @return WlanConnectResult::CONNECT_OK upon connect, else error code
-    WlanConnectResult connect(
+    void connect(
         const char *ssid, const char *pass, SecurityType sec_type) override;
 
-    /// Disconnect from the current AP.
+    /// Disconnect from the current AP. This is a non-blocking call. The
+    /// results will be delivered by callback registered with
+    /// set_wlan_connect_callback().
     void disconnect() override;
 
     /// Setup access point role credentials. May require reboot to take effect.
@@ -153,7 +165,7 @@ public:
     /// @param sec_type access point security type
     void get_ap_config(std::string *ssid, SecurityType *sec_type) override
     {
-        OSMutexLock locker(this);
+        OSMutexLock locker(&lock_);
         *ssid = userCfg_.ap_.ssid_;
         *sec_type = sec_type_encode(userCfg_.ap_.sec_);
     }
@@ -220,7 +232,7 @@ public:
             return -1;
         }
         {
-            OSMutexLock lock(this);
+            OSMutexLock locker(&lock_);
             memset(userCfg_.sta_[index].ssid_, 0, MAX_SSID_SIZE);
             memset(userCfg_.sta_[index].pass_, 0, MAX_SSID_SIZE);
         }
@@ -246,19 +258,19 @@ public:
     int network_list_get(
         std::vector<NetworkEntry> *entries, size_t count) override
     {
-        OSMutexLock locker(this);
+        OSMutexLock locker(&lock_);
         *entries = scanResults_;
         return entries->size();
     }
 
-    /// Get the indexed network entry from the last of scan results. Use
+    /// Get the indexed network entry from the list of scan results. Use
     /// rescan() and wait for the scan to complete to refresh the results.
     /// @param entry location to fill in the network entry
     /// @param index index in the network entry list to get
     /// @return 0 on success, else -1 if index is beyond the list of entries.
     int network_get(NetworkEntry *entry, unsigned index) override
     {
-        OSMutexLock locker(this);
+        OSMutexLock locker(&lock_);
         if (index >= scanResults_.size())
         {
             return -1;
@@ -285,6 +297,7 @@ public:
     /// In some cases, we want to disable mDNS publishing in station mode.
     void disable_mdns_publish_on_sta()
     {
+        OSMutexLock locker(&lock_);
         mdns_disable_sta();
         mdnsAdvInhibitSta_ = true;
     }
@@ -293,6 +306,7 @@ public:
     /// credentials in STA mode.
     void enable_fast_connect_only_on_sta()
     {
+        OSMutexLock locker(&lock_);
         fastConnectOnlySta_ = true;
     }
 
@@ -330,7 +344,8 @@ protected:
         char pass_[64]; ///< STA password
     };
 
-    /// C structure version of the WiFi configuration settings.
+    /// C structure version of the WiFi configuration settings. These are
+    /// essentially the connection profiles (SSID, password, security type).
     struct WiFiConfigNVS
     {
         uint32_t magic_; ///< magic number to detect initialization
@@ -338,8 +353,13 @@ protected:
         WiFiConfigCredentialsNVS ap_; ///< access point configuration
         WiFiConfigCredentialsNVS sta_[7]; ///< station profiles
     };
+    static_assert(sizeof(WiFiConfigNVS) == 792,
+        "The size of WiFiConfigNVS has changed. This could lead to "
+        "compatiblity issues in deployed devices.");
 
-    /// Private configuration metadata.
+    /// Private configuration metadata. This is non-volatile information that
+    /// informs the WiFi "state", primarily at startup, and is not exposed to
+    /// the user.
     struct ConfigPrivate
     {
         WiFiConfigCredentialsNVS last_; ///< last STA successfully connected to
@@ -353,23 +373,51 @@ protected:
     static constexpr char DEFAULT_STA_SSID[] = "LAYOUTWIFI";
 
     /// NVS key for the WiFi user config.
-    static constexpr char NVS_KEY_USER_NAME[] = "user";
+    static constexpr char NVS_KEY_USER_NAME[] = "wifi_user.v1";
 
     /// NVS key for the WiFi private config.
-    static constexpr char NVS_KEY_LAST_NAME[] = "last";
+    static constexpr char NVS_KEY_LAST_NAME[] = "wifi_last.v1";
 
-    /// Maximum length of a stored SSID not including '/0' termination.
+    /// Maximum length of a stored SSID not including '\0' termination.
     static constexpr size_t MAX_SSID_SIZE =
         sizeof(WiFiConfigCredentialsNVS::ssid_) - 1;
     static_assert(MAX_SSID_SIZE == 32, "Invalid maximum SSID length.");
 
-    /// Maximum length of a stored password not including '/0' termination.
+    /// Maximum length of a stored password not including '\0' termination.
     static constexpr size_t MAX_PASS_SIZE =
         sizeof(WiFiConfigCredentialsNVS::pass_) - 1;
     static_assert(MAX_PASS_SIZE == 63, "Invalid maximum password length.");
 
     /// Reset configuration to factory defaults.
     void factory_default();
+
+    /// Trigger synchronize configuration between NVS and MemorySpace.
+    virtual void config_sync()
+    {
+    }
+
+    /// It is impossible to predict from what thread the public API will be
+    /// called from. Additionally, the WiFi "stack" invokes callbacks from its
+    /// own thread. Therefore, some of the resources managed by this object
+    /// need mutual exclusion protection. There are at least two different
+    /// threads in use:
+    /// 1. Service passed in.
+    /// 2. WiFi "stack".
+    ///
+    /// ...and the potential for one or more additional threads that invoke the
+    /// public API. Protected resources include:
+    /// - AP and STA profiles configuration
+    /// - AP scan results
+    /// - mDNS scanning state machine
+    ///   - mdnsClientStarted_ (are we looking for any services yet)
+    ///   - mdnsAdvInhibit_ (is advertising currently blocked, so we can scan)
+    ///   - mdnsAdvInhibitSta_ (should we inhibit advertising on STA interface)
+    ///   - mdnsAdvInhibitStaActive_ (advertising inhibit on STA is active)
+    ///   - mdnsClientTrigRefresh_ (is there a scan refresh pending)
+    ///   - mdnsStaLockCount_ (locking count STA interface, 0 = STA disabled)
+    ///   - mdnsServices_ (services being advertised)
+    ///   - mdnsClientCache_ (services being looked for)
+    OSMutex lock_;
 
     nvs_handle_t cfg_; ///< handle to the nvs config for wifi configuration
     WiFiConfigNVS userCfg_; ///< cached copy of the wifi user config
@@ -591,14 +639,14 @@ private:
     uint8_t sec_type_translate(SecurityType sec_type);
 
     /// Translate from ESP security type to generic security type.
-    /// @param sec_type generic security type
-    /// @return ESP security type
+    /// @param sec_type ESP security type
+    /// @return generic security type
     SecurityType sec_type_encode(uint8_t sec_type);
 
-    /// Trigger synchronize configuration between NVS and MemorySpace.
-    virtual void config_sync()
-    {
-    }
+    /// Translate from ESP connection reason to generic connection result.
+    /// @param reason ESP connection reason
+    /// @return generic connection result
+    ConnectionResult connection_result_encode(uint8_t reason);
 
     StateFlowTimer timer_; ///< sleep timer helper object
     esp_netif_t *apIface_; ///< access point network interface
@@ -606,21 +654,29 @@ private:
     std::vector<MDNSService> mdnsServices_; ///< registered mDNS services
     std::vector<NetworkEntry> scanResults_; ///< AP scan results
     std::string staConnectPass_; ///< last station connect attempt password
-    const char *hostname_; ///< published hostname
+    const std::string hostname_; ///< published hostname
     unsigned mdnsStaLockCount_; ///< counter for recursive mDNS STA lock
     uint8_t apClientCount_; ///< number of connected wifi clients
 
-    // Note: The following boolean values are not bitmasks so that mutual
-    //       exclusion is less of a concern. They could be made bitmasks if the
-    //       mutual exclusion contract is reviewed and protections are added
-    //       if needed.
-    bool mdnsClientStarted_; ///< mDNS client state machine started.
-    bool mdnsClientTrigRefresh_; ///< an mDNS client refresh has been triggered
-    bool mdnsAdvInhibit_; ///< true if services are blocked from advertising
-    bool mdnsAdvInhibitSta_; ///< true if mDNS advertising is blocked on STA
-    bool mdnsAdvInhibitStaActive_; ///< true if mdnsAdvInhibitSta_ is active
-    bool mdnsScanActive_; ///< mDNS scanning is active
-    bool fastConnectOnlySta_; ///< true if only to use fast connect credentials
+    //
+    // The following objects are write protected for mutual exclusion by
+    // the lock_ mutex.
+    //
+
+    /// mDNS client state machine started.
+    bool mdnsClientStarted_       : 1;
+    /// an mDNS client refresh has been triggered
+    bool mdnsClientTrigRefresh_   : 1;
+    /// true if services are blocked from advertising
+    bool mdnsAdvInhibit_          : 1;
+    /// true if mDNS advertising is blocked on STA
+    bool mdnsAdvInhibitSta_       : 1;
+    /// true if mdnsAdvInhibitSta_ is active
+    bool mdnsAdvInhibitStaActive_ : 1;
+    /// mDNS scanning is active
+    bool mdnsScanActive_          : 1;
+    /// true if only to use fast connect credentials
+    bool fastConnectOnlySta_      : 1;
 };
 
 #endif // _FREERTOS_DRIVERS_ESP_IDF_ESPIDFWIFI_HXX_

@@ -26,7 +26,7 @@
  *
  * @file EspIdfWiFi.cxx
  *
- * Interface for interacting with WiFi services.
+ * WiFi manager for ESP-IDF platform. Implements WiFiInterface.
  *
  * @author Balazs Racz, extended by Stuart Baker
  * @date 27 Aug 2024, extended starting Jun 17 2025
@@ -118,7 +118,7 @@ static struct ifaddrs *getifaddrs_helper(esp_netif_t *iface, const char *name)
         addr_in[1].sin_family = AF_INET;
         addr_in[1].sin_addr.s_addr = ip_info.netmask.addr;
 
-        LOG(INFO, "wifi: getifaddrs() ip: %s, netmask: %s",
+        LOG(VERBOSE, "wifi: getifaddrs() ip: %s, netmask: %s",
             ipv4_to_string(addr_in[0].sin_addr.s_addr).c_str(),
             ipv4_to_string(addr_in[1].sin_addr.s_addr).c_str());
 
@@ -136,12 +136,14 @@ static struct ifaddrs *getifaddrs_helper(esp_netif_t *iface, const char *name)
 /// @return 0 upon success, else -1 with errno set to indicate the error
 int getifaddrs(struct ifaddrs **ifap)
 {
+    HASSERT(ifap);
+
     esp_netif_t *netif_ap = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
     esp_netif_t *netif_sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     struct ifaddrs *if_addrs_ap = getifaddrs_helper(netif_ap, "ap");
     struct ifaddrs *if_addrs_sta = getifaddrs_helper(netif_sta, "sta");
 
-    if (netif_ap)
+    if (if_addrs_ap)
     {
         *ifap = if_addrs_ap;
         if_addrs_ap->ifa_next = if_addrs_sta;
@@ -205,13 +207,11 @@ void EspIdfWiFi::stop()
 //
 // EspIdfWiFi::connect()
 //
-WlanConnectResult EspIdfWiFi::connect(
+void EspIdfWiFi::connect(
     const char *ssid, const char *pass, SecurityType sec_type)
 {
-    securityFailure_ = false;
     sta_connect(
         std::string(ssid), std::string(pass), sec_type_translate(sec_type));
-    return WlanConnectResult::CONNECT_OK;
 }
 
 //
@@ -231,7 +231,7 @@ void EspIdfWiFi::disconnect()
 void EspIdfWiFi::setup_ap(
         const char *ssid, const char *pass, SecurityType sec_type)
 {
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     strncpy(userCfg_.ap_.ssid_, ssid, MAX_SSID_LEN);
     userCfg_.ap_.ssid_[sizeof(userCfg_.ap_.ssid_) - 1] = '\0';
     strncpy(userCfg_.ap_.pass_, pass, MAX_PASSPHRASE_LEN);
@@ -258,7 +258,7 @@ int EspIdfWiFi::profile_add(const char *ssid, const char *pass,
     SecurityType sec_type, uint8_t priority)
 {
     // find an "empty" profie
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     int index = find_sta_profile("");
     if (index >= 0)
     {
@@ -278,7 +278,7 @@ int EspIdfWiFi::profile_add(const char *ssid, const char *pass,
 int EspIdfWiFi::profile_get(
     int index, char ssid[], SecurityType *sec_type, uint8_t *priority)
 {
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     if (index >= ARRAYSIZE(userCfg_.sta_))
     {
         return -1;
@@ -322,7 +322,7 @@ void EspIdfWiFi::mdns_service_add(const char *service, uint16_t port)
     mdns_split(service, &name, &proto);
     LOG(INFO, "wifi: MDNS service add, name: %s, proto: %s, port: %u",
         name.c_str(), proto.c_str(), port);
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     if (!mdnsAdvInhibit_)
     {
         ::mdns_service_add(
@@ -341,7 +341,7 @@ void EspIdfWiFi::mdns_service_remove(const char *service)
     mdns_split(service, &name, &proto);
     LOG(INFO, "wifi: MDNS service remove, service: %s, proto: %s",
         name.c_str(), proto.c_str());
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     if (!mdnsAdvInhibit_)
     {
         ::mdns_service_remove(name.c_str(), proto.c_str());
@@ -364,7 +364,7 @@ int EspIdfWiFi::mdns_lookup(
 {
     bool looking = false;
     *addr = nullptr;
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     for (auto it = mdnsClientCache_.begin(); it != mdnsClientCache_.end(); ++it)
     {
         if ((*it).service_ != service)
@@ -453,7 +453,7 @@ int EspIdfWiFi::mdns_lookup(
 void EspIdfWiFi::mdns_scan(const char *service)
 {
     bool match = false;
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     for (auto it = mdnsClientCache_.begin(); it != mdnsClientCache_.end(); ++it)
     {
         if ((*it).service_ == service)
@@ -495,7 +495,7 @@ void EspIdfWiFi::factory_default()
     memset(&userCfg_, 0, sizeof(userCfg_));
     userCfg_.magic_ = WIFI_CONFIG_INIT_MAGIC;
     userCfg_.mode_ = WlanRole::AP_STA;
-    strncpy(userCfg_.ap_.ssid_, hostname_, MAX_SSID_SIZE);
+    strncpy(userCfg_.ap_.ssid_, hostname_.c_str(), MAX_SSID_SIZE);
     userCfg_.ap_.ssid_[MAX_SSID_SIZE] = '\0';
     strcpy(userCfg_.ap_.pass_, DEFAULT_PASSWORD);
     userCfg_.ap_.sec_ = 2;
@@ -535,7 +535,7 @@ StateFlowBase::Action EspIdfWiFi::mdns_start()
 //
 StateFlowBase::Action EspIdfWiFi::mdns_query()
 {
-    OSMutexLock lock(this);
+    OSMutexLock locker(&lock_);
     mdnsClientTrigRefresh_ = false;
     for (auto it = mdnsClientCache_.begin(); it != mdnsClientCache_.end(); ++it)
     {
@@ -559,7 +559,7 @@ StateFlowBase::Action EspIdfWiFi::mdns_query()
 StateFlowBase::Action EspIdfWiFi::mdns_check()
 {
     bool search_still_active = false;
-    OSMutexLock lock(this);
+    OSMutexLock locker(&lock_);
     // Loop through all of the service clients.
     for (auto it = mdnsClientCache_.begin(); it != mdnsClientCache_.end(); ++it)
     {
@@ -696,7 +696,7 @@ StateFlowBase::Action EspIdfWiFi::mdns_check()
     }
     else
     {
-        // No more active or pending queries. block mDNS on the STA interface
+        // No more active or pending queries. Block mDNS on the STA interface
         // and resume mDNS advertising.
         if (mdnsAdvInhibitStaActive_)
         {
@@ -714,7 +714,7 @@ StateFlowBase::Action EspIdfWiFi::mdns_check()
 //
 void EspIdfWiFi::mdns_adv_inhibit()
 {
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     if (!mdnsAdvInhibit_)
     {
         mdnsAdvInhibit_ = true;
@@ -732,7 +732,7 @@ void EspIdfWiFi::mdns_adv_inhibit()
 //
 void EspIdfWiFi::mdns_adv_inhibit_remove()
 {
-   OSMutexLock locker(this);
+   OSMutexLock locker(&lock_);
     if (mdnsAdvInhibit_)
     {
         mdnsAdvInhibit_ = false;
@@ -752,7 +752,7 @@ void EspIdfWiFi::mdns_adv_inhibit_remove()
 void EspIdfWiFi::mdns_disable_sta()
 {
 #if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     HASSERT(mdnsStaLockCount_ < 10); // Check for runaway asymmetry.
     if (mdnsStaLockCount_++ == 0)
     {
@@ -768,7 +768,7 @@ void EspIdfWiFi::mdns_disable_sta()
 void EspIdfWiFi::mdns_restore_sta()
 {
 #if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     HASSERT(mdnsStaLockCount_ != 0);
     if (--mdnsStaLockCount_ == 0)
     {
@@ -832,13 +832,19 @@ void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *dat
         {
             HASSERT(!connected_);
             connected_ = true;
-            securityFailure_ = false;
             wifi_event_sta_connected_t *sdata =
                 (wifi_event_sta_connected_t*)data;
             LOG(INFO, "wifi: STA connected, channel: %u, authmode: %u",
                 sdata->channel, (unsigned)sdata->authmode);
+            // There is a very small chance for a race condition whereby another
+            // call "sta_connect()" call has been made with a different password
+            // after this connection has been established. The chances are very
+            // small and the harm is very limited to the next fast connect
+            // attempt failing.
             last_sta_update(std::string((char*)sdata->ssid, sdata->ssid_len),
                 staConnectPass_, sdata->authmode, sdata->channel);
+            std::string ssid((char*)sdata->ssid, sdata->ssid_len);
+            wlan_connected(true, CONNECT_OK, ssid);
             break;
         }
         case WIFI_EVENT_STA_DISCONNECTED:
@@ -850,17 +856,12 @@ void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *dat
             LOG(INFO, "wifi: STA disconnected ssid=%s reason %d rssi=%d",
                 evdata->ssid, evdata->reason, evdata->rssi);
 
-            if (evdata->reason == WIFI_REASON_AUTH_FAIL)
-            {
-                securityFailure_ = true;
-            }
-
             bool try_fast_reconnect = false;
             {
                 // We have to take a mutex because for some reason the
                 // IP_EVENT_STA_LOST_IP event does not get delivered when there
                 // is an unexpected WiFi disconnect. I guess it is implied?
-                OSMutexLock locker(this);
+                OSMutexLock locker(&lock_);
                 if (ipAcquiredSta_)
                 {
                     ipAcquiredSta_ = false; // Disconnect implies we lost IP.
@@ -884,6 +885,9 @@ void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *dat
                 esp_wifi_scan_start(nullptr, false);
                 LOG(INFO, "wifi: STA disconnected, scanning...");
             }
+            std::string ssid((char*)evdata->ssid, evdata->ssid_len);
+            wlan_connected(
+                false, connection_result_encode(evdata->reason), ssid);
             break;
         }
         case WIFI_EVENT_SCAN_DONE:
@@ -906,7 +910,7 @@ void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *dat
             uint8_t sec = WIFI_AUTH_WPA2_PSK;
             uint8_t conn_channel = 0;
             {
-                OSMutexLock locker(this);
+                OSMutexLock locker(&lock_);
                 scanResults_.clear();
                 for (unsigned i = 0; i < number; ++i)
                 {
@@ -1006,8 +1010,7 @@ void EspIdfWiFi::ip_event_handler(esp_event_base_t base, int32_t id, void *data)
                 // We have to take a mutex because for some reason the
                 // IP_EVENT_STA_LOST_IP event does not get delivered when there
                 // is an unexpected WiFi disconnect. I guess it is implied?
-                OSMutexLock locker(this);
-                HASSERT(ipAcquiredSta_ == false);
+                OSMutexLock locker(&lock_);
                 ipAcquiredSta_ = true;
                 mdns_restore_sta();
             }
@@ -1024,7 +1027,7 @@ void EspIdfWiFi::ip_event_handler(esp_event_base_t base, int32_t id, void *data)
                 // We have to take a mutex because for some reason the
                 // IP_EVENT_STA_LOST_IP event does not get delivered when there
                 // is an unexpected WiFi disconnect. I guess it is implied?
-                OSMutexLock locker(this);
+                OSMutexLock locker(&lock_);
                 if (ipAcquiredSta_)
                 {
                     ipAcquiredSta_ = false;
@@ -1182,8 +1185,8 @@ void EspIdfWiFi::init_wifi(WlanRole role)
 
     // Initialize mDNS.
     ESP_ERROR_CHECK(mdns_init());
-    mdns_hostname_set(hostname_);
-    mdns_instance_name_set(hostname_);
+    mdns_hostname_set(hostname_.c_str());
+    mdns_instance_name_set(hostname_.c_str());
 }
 
 //
@@ -1192,7 +1195,7 @@ void EspIdfWiFi::init_wifi(WlanRole role)
 void EspIdfWiFi::init_softap(std::string ssid, std::string pass)
 {
     apIface_ = esp_netif_create_default_wifi_ap();
-    esp_netif_set_hostname(apIface_, hostname_);
+    esp_netif_set_hostname(apIface_, hostname_.c_str());
 
     wifi_config_t conf;
     memset(&conf, 0, sizeof(wifi_config_t));
@@ -1222,7 +1225,7 @@ void EspIdfWiFi::init_softap(std::string ssid, std::string pass)
 void EspIdfWiFi::init_sta()
 {
     staIface_ = esp_netif_create_default_wifi_sta();
-    esp_netif_set_hostname(staIface_, hostname_);
+    esp_netif_set_hostname(staIface_, hostname_.c_str());
     ESP_ERROR_CHECK(esp_netif_dhcpc_start(staIface_));
 }
 
@@ -1240,7 +1243,6 @@ void EspIdfWiFi::sta_connect(
 
     size_t pass_len = std::min(pass.size(), (size_t)MAX_PASSPHRASE_LEN);
     memcpy(conf.sta.password, pass.c_str(), pass_len);
-    staConnectPass_ = std::move(pass);
 
     LOG(INFO, "wifi: STA SSID: %s, PASS: %s", conf.sta.ssid, conf.sta.password);
     if (pass_len)
@@ -1257,6 +1259,10 @@ void EspIdfWiFi::sta_connect(
     conf.sta.threshold.rssi = -100;
     conf.sta.channel = channel;
 
+    {
+        OSMutexLock locker(&lock_);
+        staConnectPass_ = std::move(pass);
+    }
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &conf));
     esp_wifi_connect();
 }
@@ -1309,7 +1315,7 @@ void EspIdfWiFi::last_sta_get(
 //
 int EspIdfWiFi::find_sta_profile(std::string ssid)
 {
-    OSMutexLock locker(this);
+    OSMutexLock locker(&lock_);
     for (unsigned i = 0; i < ARRAYSIZE(userCfg_.sta_); ++i)
     {
         if (userCfg_.sta_[i].ssid_ == ssid)
@@ -1351,5 +1357,42 @@ WiFiInterface::SecurityType EspIdfWiFi::sec_type_encode(uint8_t sec_type)
             return SEC_WEP;
         case WIFI_AUTH_WPA2_PSK:
             return SEC_WPA2;
+    }
+}
+
+//
+// EspIdfWiFi::connection_result_encode()
+//
+WiFiInterface::ConnectionResult EspIdfWiFi::connection_result_encode(
+    uint8_t reason)
+{
+    switch (reason)
+    {
+        default:
+            return WiFiInterface::CONNECT_UNKNOWN;
+        case 0:
+            return WiFiInterface::CONNECT_OK;
+        case WIFI_REASON_AUTH_EXPIRE:
+            // fall through
+        case WIFI_REASON_AUTH_LEAVE:
+            // fall through
+        case WIFI_REASON_AUTH_FAIL:
+            // fall through
+        case WIFI_REASON_NOT_AUTHED:
+            // fall through
+        case WIFI_REASON_802_1X_AUTH_FAILED:
+            // fallthrough
+        case WIFI_REASON_ASSOC_NOT_AUTHED:
+            return WiFiInterface::AUTHENTICATION_FAILED;
+        case WIFI_REASON_ASSOC_EXPIRE:
+            // fall through
+        case WIFI_REASON_ASSOC_TOOMANY:
+            // fall through
+        case WIFI_REASON_ASSOC_LEAVE:
+            // fall through
+        case WIFI_REASON_ASSOC_FAIL:
+            // fall through
+        case WIFI_REASON_ASSOC_COMEBACK_TIME_TOO_LONG:
+            return WiFiInterface::ASSOCIATION_FAILED;
     }
 }

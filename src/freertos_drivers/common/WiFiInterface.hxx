@@ -61,6 +61,15 @@ public:
         SEC_WPA2, ///< WPA2 security mode
     };
 
+    /// Result code for connections and disconnections.
+    enum ConnectionResult : uint8_t
+    {
+        CONNECT_OK = 0, ///< connection succeeded
+        AUTHENTICATION_FAILED, ///< authentication failure
+        ASSOCIATION_FAILED, ///< association failure
+        CONNECT_UNKNOWN, ///< unknown result
+    };
+
     /// Network info, typically used in an access point scan.
     struct NetworkEntry
     {
@@ -99,15 +108,17 @@ public:
         return started_;
     }
 
-    /// Connect to access point.
+    /// Connect to access point. This is a non-blocking call. The results will
+    /// be delivered by callback registered with set_wlan_connect_callback().
     /// @param ssid access point SSID
     /// @param pass access point password
     /// @param sec_type access point security type
-    /// @return WlanConnectResult::CONNECT_OK upon connect, else error code
-    virtual WlanConnectResult connect(
+    virtual void connect(
         const char *ssid, const char *pass, SecurityType sec_type) = 0;
 
-    /// Disconnect from the current AP.
+    /// Disconnect from the current AP. This is a non-blocking call. The
+    /// result will be delivered by callback registered with
+    /// set_wlan_connect_callback().
     virtual void disconnect() = 0;
 
     /// Gets the connected state of the STA interface
@@ -208,16 +219,31 @@ public:
     virtual std::string get_hostname() = 0;
 
     /// Set the callback for when an IP address is acquired.
+    /// @param iface interface index
+    /// @param acquired true if acquired, false if lost
     virtual void set_ip_acquired_callback(
-        std::function<void(Interface, bool)> callback)
+        std::function<void(Interface iface, bool acquired)> callback)
     {
-        ipAcquiredCallback_ = callback;
+        ipAcquiredCallback_ = std::move(callback);
+    }
+
+    /// Set the callback for when a wlan connect or disconnect occurs.
+    /// Back-to-back deliveries of "disconnected" are possible without first
+    /// transitioning to a connected state. This can occur when a connection
+    /// "attempt" has failed to succeed.
+    /// @param connected true if connected, else false if disconnected
+    /// @param result result code for the connection event
+    /// @param ssid SSID of the connection event
+    virtual void set_wlan_connect_callback(std::function<void(
+        bool connected, ConnectionResult result, std::string &ssid)> callback)
+    {
+        wlanConnectedCallback_ = std::move(callback);
     }
 
     /// Set the callback for when a scan is finished.
     virtual void set_scan_finished_callback(std::function<void()> callback)
     {
-        scanFinishedCallback_ = callback;
+        scanFinishedCallback_ = std::move(callback);
     }
 
 protected:
@@ -228,7 +254,6 @@ protected:
         , ipAcquiredSta_(false)
         , ipAcquiredAp_(false)
         , ipLeased_(false)
-        , securityFailure_(false)
     {
     }
 
@@ -240,6 +265,19 @@ protected:
         if (ipAcquiredCallback_)
         {
             ipAcquiredCallback_(iface, acquired);
+        }
+    }
+
+    /// Deliver WLAN connected callback, if registered.
+    /// @param connected true if connected, else false if disconnected
+    /// @param result result code for the connection event
+    /// @param ssid SSID of the connection event
+    void wlan_connected(
+        bool connected, ConnectionResult result, std::string &ssid)
+    {
+        if (wlanConnectedCallback_)
+        {
+            wlanConnectedCallback_(connected, result, ssid);
         }
     }
 
@@ -257,6 +295,14 @@ protected:
     /// @param acquired true if acquired, false if lost
     std::function<void(Interface iface, bool acquired)> ipAcquiredCallback_;
 
+    /// Callback for when WLAN connect or disconnect on STA occurs.
+    /// @param connected true if connected, else false if disconnected
+    /// @param result result code for the connection event
+    /// @param ssid SSID of the connection event
+    std::function<void(
+        bool connected, ConnectionResult result, std::string &ssid)>
+            wlanConnectedCallback_;
+
     /// Callback for when a scan is finished.
     std::function<void()> scanFinishedCallback_;
 
@@ -267,7 +313,6 @@ protected:
     bool ipAcquiredSta_    : 1; ///< IP address acquired STA mode
     bool ipAcquiredAp_     : 1; ///< IP address acquired AP mode
     bool ipLeased_         : 1; ///< IP address leased to a client (AP mode)
-    bool securityFailure_  : 1; ///< Disconnected due to wrong password
 };
 
 #endif // _FREERTOS_DRIVERS_COMMON_WIFIINTERFACE_HXX_
