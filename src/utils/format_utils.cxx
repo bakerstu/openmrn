@@ -351,7 +351,7 @@ string ipv6_to_string(uint8_t ip[16])
             }
             ret += tmp;
         }
-        if (i & 0x1 )
+        if (i & 0x1)
         {
             ret.push_back(':');
         }

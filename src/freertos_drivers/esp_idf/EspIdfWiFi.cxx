@@ -44,6 +44,13 @@
 
 #include "utils/format_utils.hxx"
 
+/// The name "key" for the AP network interface.
+static constexpr char NETIF_KEY_NAME_AP[] = "WIFI_AP_DEF";
+
+/// The name "key" for the AP network interface.
+static constexpr char NETIF_KEY_NAME_STA[] = "WIFI_STA_DEF";
+
+
 /// Scanning parameter configuration.
 static const wifi_scan_config_t SCAN_CONFIG = 
 {
@@ -52,7 +59,15 @@ static const wifi_scan_config_t SCAN_CONFIG =
     .channel = 0,
     .show_hidden = true,
     .scan_type = WIFI_SCAN_TYPE_ACTIVE,
-    .scan_time = {.active = {.min = 0, .max = 120}, .passive = 360},
+    .scan_time =
+    {
+        .active =
+        {
+            .min = 0,
+            .max = 120,
+        },
+        .passive = 360,
+    },
     .home_chan_dwell_time = 30,
 };
 
@@ -138,8 +153,10 @@ int getifaddrs(struct ifaddrs **ifap)
 {
     HASSERT(ifap);
 
-    esp_netif_t *netif_ap = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
-    esp_netif_t *netif_sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_t *netif_ap =
+        esp_netif_get_handle_from_ifkey(NETIF_KEY_NAME_AP);
+    esp_netif_t *netif_sta =
+        esp_netif_get_handle_from_ifkey(NETIF_KEY_NAME_STA);
     struct ifaddrs *if_addrs_ap = getifaddrs_helper(netif_ap, "ap");
     struct ifaddrs *if_addrs_sta = getifaddrs_helper(netif_sta, "sta");
 
@@ -219,9 +236,6 @@ void EspIdfWiFi::connect(
 //
 void EspIdfWiFi::disconnect()
 {
-    /// @todo Do we need to manually handle status flags and user callbacks, or
-    ///       will the ESP events be delivered that can do this for us? Need to
-    ///       test.
     esp_wifi_disconnect();
 }
 
@@ -232,10 +246,10 @@ void EspIdfWiFi::setup_ap(
         const char *ssid, const char *pass, SecurityType sec_type)
 {
     OSMutexLock locker(&lock_);
-    strncpy(userCfg_.ap_.ssid_, ssid, MAX_SSID_LEN);
-    userCfg_.ap_.ssid_[sizeof(userCfg_.ap_.ssid_) - 1] = '\0';
-    strncpy(userCfg_.ap_.pass_, pass, MAX_PASSPHRASE_LEN);
-    userCfg_.ap_.pass_[sizeof(userCfg_.ap_.pass_) - 1] = '\0';
+    strncpy(userCfg_.ap_.ssid_, ssid, MAX_SSID_SIZE);
+    userCfg_.ap_.ssid_[MAX_SSID_SIZE] = '\0';
+    strncpy(userCfg_.ap_.pass_, pass, MAX_PASS_SIZE);
+    userCfg_.ap_.pass_[MAX_PASS_SIZE] = '\0';
     userCfg_.ap_.sec_ = sec_type_translate(sec_type);
     config_sync();
 }
@@ -632,7 +646,8 @@ StateFlowBase::Action EspIdfWiFi::mdns_check()
                     {
                         duplicate &= 
                             !memcmp((*ait).addrIn6_.sin6_addr.un.u32_addr,
-                                addr->addr.u_addr.ip6.addr, 16);
+                                addr->addr.u_addr.ip6.addr,
+                                sizeof(*ait).addrIn6_.sin6_addr.un.u32_addr);
                     }
 #endif
                 }
@@ -823,8 +838,14 @@ void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *dat
             {
                 // Try the fast connect parameters first.
                 sta_connect(ssid, pass, authmode, channel);
-                LOG(INFO, "wifi: STA start, ssid: %s, pass: %s, connecting...",
+#if (LOGLEVEL == VERBOSE)
+                LOG(VERBOSE,
+                    "wifi: STA start, ssid: %s, pass: %s, connecting...",
                     ssid.c_str(), pass.c_str());
+#else
+                LOG(INFO, "wifi: STA start, ssid: %s, connecting...",
+                    ssid.c_str());
+#endif
             }
             break;
         }
@@ -857,25 +878,19 @@ void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *dat
                 evdata->ssid, evdata->reason, evdata->rssi);
 
             bool try_fast_reconnect = false;
+            // For some reason the IP_EVENT_STA_LOST_IP event does not get
+            // delivered when there is an unexpected WiFi disconnect. I guess
+            // it is implied?
+            if (ipAcquiredSta_)
             {
-                // We have to take a mutex because for some reason the
-                // IP_EVENT_STA_LOST_IP event does not get delivered when there
-                // is an unexpected WiFi disconnect. I guess it is implied?
-                OSMutexLock locker(&lock_);
-                if (ipAcquiredSta_)
-                {
-                    ipAcquiredSta_ = false; // Disconnect implies we lost IP.
-                    try_fast_reconnect = true; // Try a fast reconnect.
-                    mdns_disable_sta();
-                }
-            }
-            if (try_fast_reconnect)
-            {
+                ipAcquiredSta_ = false; // Disconnect implies we lost IP.
+                try_fast_reconnect = true; // Try a fast reconnect.
+                mdns_disable_sta();
                 ip_acquired(IFACE_STA, false);
             }
             if (try_fast_reconnect || fastConnectOnlySta_)
             {
-                // First reconnect attempt.
+                // First reconnect attempt, or forced "fast" connect.
                 esp_wifi_connect();
                 LOG(INFO, "wifi: STA disconnected, fast reconnect attempt...");
             }
@@ -1006,14 +1021,9 @@ void EspIdfWiFi::ip_event_handler(esp_event_base_t base, int32_t id, void *data)
             break;
         case IP_EVENT_STA_GOT_IP:
         {
-            {
-                // We have to take a mutex because for some reason the
-                // IP_EVENT_STA_LOST_IP event does not get delivered when there
-                // is an unexpected WiFi disconnect. I guess it is implied?
-                OSMutexLock locker(&lock_);
-                ipAcquiredSta_ = true;
-                mdns_restore_sta();
-            }
+            HASSERT(ipAcquiredSta_ == false);
+            ipAcquiredSta_ = true;
+            mdns_restore_sta();
             ip_event_got_ip_t *d = static_cast<ip_event_got_ip_t *>(data);
             char ip_addr[16];
             inet_ntoa_r(d->ip_info.ip.addr, ip_addr, 16);
@@ -1023,17 +1033,9 @@ void EspIdfWiFi::ip_event_handler(esp_event_base_t base, int32_t id, void *data)
         }
         case IP_EVENT_STA_LOST_IP:
         {
-            {
-                // We have to take a mutex because for some reason the
-                // IP_EVENT_STA_LOST_IP event does not get delivered when there
-                // is an unexpected WiFi disconnect. I guess it is implied?
-                OSMutexLock locker(&lock_);
-                if (ipAcquiredSta_)
-                {
-                    ipAcquiredSta_ = false;
-                    mdns_disable_sta();
-                }
-            }
+            HASSERT(ipAcquiredSta_ == true);
+            ipAcquiredSta_ = false;
+            mdns_disable_sta();
             LOG(INFO, "wifi: STA lost IP.");
             ip_acquired(IFACE_STA, false);
             break;
@@ -1091,7 +1093,8 @@ void EspIdfWiFi::init_config()
     switch (result)
     {
         case ESP_OK:
-            if (len == sizeof(privCfg_))
+            if (privCfg_.magic_ == PRIV_CONFIG_INIT_MAGIC &&
+                len == sizeof(privCfg_))
             {
                 // Already initialized.
                 break;
@@ -1173,7 +1176,7 @@ void EspIdfWiFi::init_wifi(WlanRole role)
     {
         esp_netif_ip_info_t ip_info;
         esp_netif_get_ip_info(
-            esp_netif_get_handle_from_ifkey("WIFI_AP_DEF"), &ip_info);
+            esp_netif_get_handle_from_ifkey(NETIF_KEY_NAME_AP), &ip_info);
 
         char ip_addr[16];
         inet_ntoa_r(ip_info.ip.addr, ip_addr, 16);
@@ -1201,6 +1204,9 @@ void EspIdfWiFi::init_softap(std::string ssid, std::string pass)
     memset(&conf, 0, sizeof(wifi_config_t));
 
     conf.ap.max_connection = 4;
+    // Beacon interval is in units of milliseconds. 100ms beacon interval is
+    // pretty universally standard, and it would be extremely unusual to use
+    // anything else.
     conf.ap.beacon_interval = 100;
     conf.ap.ssid_len = std::min(ssid.size(), (size_t)MAX_SSID_LEN);
     memcpy(conf.ap.ssid, ssid.c_str(), conf.ap.ssid_len);
@@ -1244,7 +1250,12 @@ void EspIdfWiFi::sta_connect(
     size_t pass_len = std::min(pass.size(), (size_t)MAX_PASSPHRASE_LEN);
     memcpy(conf.sta.password, pass.c_str(), pass_len);
 
-    LOG(INFO, "wifi: STA SSID: %s, PASS: %s", conf.sta.ssid, conf.sta.password);
+#if (LOGLEVEL == VERBOSE)
+    LOG(VERBOSE, "wifi: STA SSID: %s, PASS: %s",
+        conf.sta.ssid, conf.sta.password);
+#else
+    LOG(INFO, "wifi: STA SSID: %s", conf.sta.ssid);
+#endif
     if (pass_len)
     {
         conf.sta.threshold.authmode = (wifi_auth_mode_t)authmode;
@@ -1256,7 +1267,7 @@ void EspIdfWiFi::sta_connect(
     conf.sta.pmf_cfg.required = false;
     conf.sta.scan_method = WIFI_FAST_SCAN;
     conf.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
-    conf.sta.threshold.rssi = -100;
+    conf.sta.threshold.rssi = STA_CONNECT_RSSI_THRESHOLD;
     conf.sta.channel = channel;
 
     {

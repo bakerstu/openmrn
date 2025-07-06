@@ -41,13 +41,14 @@
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
 #include "freertos_drivers/common/WiFiInterface.hxx"
+#include "openmrn_features.h"
 
 #include <sys/socket.h>
 
 #include <list>
 
 #if OPENMRN_HAVE_BSD_SOCKETS_IPV6
-#if LWIP_IPV6
+#if CONFIG_LWIP_IPV6
 #define ESP_IDF_WIFI_IPV6
 #endif
 #endif
@@ -233,8 +234,10 @@ public:
         }
         {
             OSMutexLock locker(&lock_);
-            memset(userCfg_.sta_[index].ssid_, 0, MAX_SSID_SIZE);
-            memset(userCfg_.sta_[index].pass_, 0, MAX_SSID_SIZE);
+            memset(userCfg_.sta_[index].ssid_, 0,
+                sizeof(userCfg_.sta_[index].ssid_));
+            memset(userCfg_.sta_[index].pass_, 0,
+                sizeof(userCfg_.sta_[index].pass_));
         }
         config_sync();
         return 0;
@@ -362,12 +365,16 @@ protected:
     /// the user.
     struct ConfigPrivate
     {
+        uint32_t magic_;
         WiFiConfigCredentialsNVS last_; ///< last STA successfully connected to
         uint8_t channelLast_; ///< last channel successfully connected with
     };
 
-    /// Magic number to detect initialization
+    /// Magic number to detect initialization.
     static constexpr uint32_t WIFI_CONFIG_INIT_MAGIC = 0x6160CBC6;
+
+    /// Magic number to detect initialization.
+    static constexpr uint32_t PRIV_CONFIG_INIT_MAGIC = 0xBD959C63;
 
     /// Default STA SSID.
     static constexpr char DEFAULT_STA_SSID[] = "LAYOUTWIFI";
@@ -485,9 +492,6 @@ private:
         void *searchHandle_; ///< mDNS search once key
     };
 
-    /// Cache of all the subscribed mDNS services.
-    std::vector<MDNSCacheItem> mdnsClientCache_;
-
     /// NVS namespace for the wifi configuration.
     static constexpr char NVS_NAMESPACE_NAME[] = "wifi_config";
 
@@ -504,6 +508,10 @@ private:
     /// State flow timeout for inactive time between mDNS queries.
     static constexpr long long MDNS_QUERY_INACTIVE_TIMEOUT_NSEC =
         SEC_TO_NSEC(10);
+
+    /// Minimum RSSI threshold for an AP signal before a connection attempt
+    /// will be made in STA mode.
+    static constexpr int8_t STA_CONNECT_RSSI_THRESHOLD = -100;
 
     /// Entry point. Wait for mDNS client to be invoked.
     /// @return next state mdns_start()
@@ -652,6 +660,8 @@ private:
     esp_netif_t *apIface_; ///< access point network interface
     esp_netif_t *staIface_; ///< station network interface
     std::vector<MDNSService> mdnsServices_; ///< registered mDNS services
+    /// Cache of all the subscribed mDNS services.
+    std::vector<MDNSCacheItem> mdnsClientCache_;
     std::vector<NetworkEntry> scanResults_; ///< AP scan results
     std::string staConnectPass_; ///< last station connect attempt password
     const std::string hostname_; ///< published hostname
