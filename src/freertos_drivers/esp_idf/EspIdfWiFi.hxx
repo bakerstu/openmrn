@@ -36,7 +36,6 @@
 #define _FREERTOS_DRIVERS_ESP_IDF_ESPIDFWIFI_HXX_
 
 #include <esp_netif.h>
-#include <nvs_flash.h>
 
 #include "executor/Service.hxx"
 #include "executor/StateFlow.hxx"
@@ -234,10 +233,8 @@ public:
         }
         {
             OSMutexLock locker(&lock_);
-            memset(userCfg_.sta_[index].ssid_, 0,
-                sizeof(userCfg_.sta_[index].ssid_));
-            memset(userCfg_.sta_[index].pass_, 0,
-                sizeof(userCfg_.sta_[index].pass_));
+            memset(userCfg_.sta_[index].ssid_, 0, MAX_SSID_SIZE);
+            memset(userCfg_.sta_[index].pass_, 0, MAX_PASS_SIZE);
         }
         config_sync();
         return 0;
@@ -379,6 +376,9 @@ protected:
     /// Default STA SSID.
     static constexpr char DEFAULT_STA_SSID[] = "LAYOUTWIFI";
 
+    /// NVS namespace for the wifi configuration.
+    static constexpr char NVS_NAMESPACE_NAME[] = "wifi_config";
+
     /// NVS key for the WiFi user config.
     static constexpr char NVS_KEY_USER_NAME[] = "wifi_user.v1";
 
@@ -387,13 +387,13 @@ protected:
 
     /// Maximum length of a stored SSID not including '\0' termination.
     static constexpr size_t MAX_SSID_SIZE =
-        sizeof(WiFiConfigCredentialsNVS::ssid_) - 1;
-    static_assert(MAX_SSID_SIZE == 32, "Invalid maximum SSID length.");
+        sizeof(WiFiConfigCredentialsNVS::ssid_);
+    static_assert(MAX_SSID_SIZE == 33, "Invalid maximum SSID length.");
 
     /// Maximum length of a stored password not including '\0' termination.
     static constexpr size_t MAX_PASS_SIZE =
-        sizeof(WiFiConfigCredentialsNVS::pass_) - 1;
-    static_assert(MAX_PASS_SIZE == 63, "Invalid maximum password length.");
+        sizeof(WiFiConfigCredentialsNVS::pass_);
+    static_assert(MAX_PASS_SIZE == 64, "Invalid maximum password length.");
 
     /// Reset configuration to factory defaults.
     void factory_default();
@@ -426,7 +426,6 @@ protected:
     ///   - mdnsClientCache_ (services being looked for)
     OSMutex lock_;
 
-    nvs_handle_t cfg_; ///< handle to the nvs config for wifi configuration
     WiFiConfigNVS userCfg_; ///< cached copy of the wifi user config
     ConfigPrivate privCfg_; ///< private WiFi configuration
     bool initialized_; ///< initialization complete
@@ -491,9 +490,6 @@ private:
         std::list<MDNSCacheAddr> addr_; ///< list of addresses
         void *searchHandle_; ///< mDNS search once key
     };
-
-    /// NVS namespace for the wifi configuration.
-    static constexpr char NVS_NAMESPACE_NAME[] = "wifi_config";
 
     /// Maximum number of MDNS results we will cache for a given service.
     static constexpr size_t MDNS_RESULT_COUNT_MAX = 5;

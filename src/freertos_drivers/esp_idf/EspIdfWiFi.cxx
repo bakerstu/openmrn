@@ -41,6 +41,7 @@
 #include <lwip/inet.h>
 #include <lwip/netdb.h>
 #include <mdns.h>
+#include <nvs_flash.h>
 
 #include "utils/format_utils.hxx"
 
@@ -54,21 +55,21 @@ static constexpr char NETIF_KEY_NAME_STA[] = "WIFI_STA_DEF";
 /// Scanning parameter configuration.
 static const wifi_scan_config_t SCAN_CONFIG = 
 {
-    .ssid = nullptr,
-    .bssid = nullptr,
-    .channel = 0,
-    .show_hidden = true,
-    .scan_type = WIFI_SCAN_TYPE_ACTIVE,
+    .ssid = nullptr,     // any SSID
+    .bssid = nullptr,    // any BSSID
+    .channel = 0,        // any channel
+    .show_hidden = true, // include "hidden" SSIDs
+    .scan_type = WIFI_SCAN_TYPE_ACTIVE, // active scan
     .scan_time =
     {
         .active =
         {
-            .min = 0,
-            .max = 120,
+            .min = 0,   // milliseconds
+            .max = 120, // milliseconds
         },
-        .passive = 360,
+        .passive = 360, // milliseconds
     },
-    .home_chan_dwell_time = 30,
+    .home_chan_dwell_time = 30, //milliseconds
 };
 
 //
@@ -227,8 +228,7 @@ void EspIdfWiFi::stop()
 void EspIdfWiFi::connect(
     const char *ssid, const char *pass, SecurityType sec_type)
 {
-    sta_connect(
-        std::string(ssid), std::string(pass), sec_type_translate(sec_type));
+    sta_connect(ssid, pass, sec_type_translate(sec_type));
 }
 
 //
@@ -246,10 +246,8 @@ void EspIdfWiFi::setup_ap(
         const char *ssid, const char *pass, SecurityType sec_type)
 {
     OSMutexLock locker(&lock_);
-    strncpy(userCfg_.ap_.ssid_, ssid, MAX_SSID_SIZE);
-    userCfg_.ap_.ssid_[MAX_SSID_SIZE] = '\0';
-    strncpy(userCfg_.ap_.pass_, pass, MAX_PASS_SIZE);
-    userCfg_.ap_.pass_[MAX_PASS_SIZE] = '\0';
+    str_populate<MAX_SSID_SIZE>(userCfg_.ap_.ssid_, ssid);
+    str_populate<MAX_PASS_SIZE>(userCfg_.ap_.pass_, pass);
     userCfg_.ap_.sec_ = sec_type_translate(sec_type);
     config_sync();
 }
@@ -260,7 +258,7 @@ void EspIdfWiFi::setup_ap(
 void EspIdfWiFi::set_role(WlanRole new_role)
 {
     // This is a single byte copy, it is already atomic.
-    static_assert(sizeof(userCfg_.mode_)== sizeof(uint8_t));
+    static_assert(sizeof(userCfg_.mode_) == sizeof(uint8_t));
     userCfg_.mode_ = new_role;
     config_sync();
 }
@@ -276,11 +274,9 @@ int EspIdfWiFi::profile_add(const char *ssid, const char *pass,
     int index = find_sta_profile("");
     if (index >= 0)
     {
-        strncpy(userCfg_.sta_[index].pass_, pass, MAX_PASS_SIZE);
-        userCfg_.sta_[index].pass_[MAX_PASS_SIZE] = '\0';
+        str_populate<MAX_PASS_SIZE>(userCfg_.sta_[index].pass_, pass);
         userCfg_.sta_[index].sec_ = sec_type_encode(sec_type);
-        strncpy(userCfg_.sta_[index].ssid_, ssid, MAX_SSID_SIZE);
-        userCfg_.sta_[index].ssid_[MAX_SSID_SIZE] = '\0';
+        str_populate<MAX_SSID_SIZE>(userCfg_.sta_[index].ssid_, ssid);
         config_sync();
     }
     return index;
@@ -509,13 +505,12 @@ void EspIdfWiFi::factory_default()
     memset(&userCfg_, 0, sizeof(userCfg_));
     userCfg_.magic_ = WIFI_CONFIG_INIT_MAGIC;
     userCfg_.mode_ = WlanRole::AP_STA;
-    strncpy(userCfg_.ap_.ssid_, hostname_.c_str(), MAX_SSID_SIZE);
-    userCfg_.ap_.ssid_[MAX_SSID_SIZE] = '\0';
-    strcpy(userCfg_.ap_.pass_, DEFAULT_PASSWORD);
-    userCfg_.ap_.sec_ = 2;
-    strcpy(userCfg_.sta_[0].ssid_, DEFAULT_STA_SSID);
-    strcpy(userCfg_.sta_[0].pass_, DEFAULT_PASSWORD);
-    userCfg_.sta_[0].sec_ = 2;
+    str_populate<MAX_SSID_SIZE>(userCfg_.ap_.ssid_, hostname_.c_str());
+    str_populate<MAX_PASS_SIZE>(userCfg_.ap_.pass_, DEFAULT_PASSWORD);
+    userCfg_.ap_.sec_ = WIFI_AUTH_WPA2_PSK;
+    str_populate<MAX_SSID_SIZE>(userCfg_.sta_[0].ssid_, DEFAULT_STA_SSID);
+    str_populate<MAX_PASS_SIZE>(userCfg_.sta_[0].pass_, DEFAULT_PASSWORD);
+    userCfg_.sta_[0].sec_ = WIFI_AUTH_WPA2_PSK;
 }
 
 //
@@ -806,11 +801,7 @@ void EspIdfWiFi::mdns_restore_sta()
 //
 void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *data)
 {
-    if (base != WIFI_EVENT)
-    {
-        LOG(WARNING, "wifi: wifi_event_handler(), not a WIFI_EVENT.");
-        return;
-    }
+    HASSERT(base == WIFI_EVENT);
 
     switch (id)
     {
@@ -1008,11 +999,7 @@ void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *dat
 //
 void EspIdfWiFi::ip_event_handler(esp_event_base_t base, int32_t id, void *data)
 {
-    if (base != IP_EVENT)
-    {
-        LOG(WARNING, "wifi: ip_event_handler(), not a IP_EVENT.");
-        return;
-    }
+    HASSERT(base == IP_EVENT);
 
     switch (id)
     {
@@ -1051,17 +1038,18 @@ void EspIdfWiFi::ip_event_handler(esp_event_base_t base, int32_t id, void *data)
 //
 void EspIdfWiFi::init_config()
 {
-    esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg_);
+    nvs_handle_t cfg;
+    esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
     if (result != ESP_OK)
     {
-        LOG(LEVEL_ERROR, "wifi: Error %s opening NVS handle.",
+        LOG_ERROR("wifi: Error %s opening NVS handle.",
             esp_err_to_name(result));
         return;
     }
 
     // User configuration.
     size_t len = sizeof(userCfg_);
-    result = nvs_get_blob(cfg_, NVS_KEY_USER_NAME, &userCfg_, &len);
+    result = nvs_get_blob(cfg, NVS_KEY_USER_NAME, &userCfg_, &len);
     switch(result)
     {
         case ESP_OK:
@@ -1078,18 +1066,18 @@ void EspIdfWiFi::init_config()
         case ESP_ERR_NVS_INVALID_LENGTH:
             // Initialize WiFi user configuration to factory defaults.
             factory_default();
-            nvs_set_blob(cfg_, NVS_KEY_USER_NAME, &userCfg_, sizeof(userCfg_));
-            nvs_commit(cfg_);
+            nvs_set_blob(cfg, NVS_KEY_USER_NAME, &userCfg_, sizeof(userCfg_));
+            nvs_commit(cfg);
             break;
         default:
-            LOG(LEVEL_ERROR, "wifi: Error %s getting userCfg_.",
+            LOG_ERROR("wifi: Error %s getting userCfg_.",
                 esp_err_to_name(result));
             break;
     }
 
     // Private configuration.
     len = sizeof(privCfg_);
-    result = nvs_get_blob(cfg_, NVS_KEY_LAST_NAME, &privCfg_, &len);
+    result = nvs_get_blob(cfg, NVS_KEY_LAST_NAME, &privCfg_, &len);
     switch (result)
     {
         case ESP_OK:
@@ -1106,14 +1094,15 @@ void EspIdfWiFi::init_config()
         case ESP_ERR_NVS_INVALID_LENGTH:
             // Reset to factory defaults.
             memset(&privCfg_, 0, sizeof(privCfg_));
-            nvs_set_blob(cfg_, NVS_KEY_LAST_NAME, &userCfg_, sizeof(userCfg_));
-            nvs_commit(cfg_);
+            nvs_set_blob(cfg, NVS_KEY_LAST_NAME, &userCfg_, sizeof(userCfg_));
+            nvs_commit(cfg);
             break;
         default:
-            LOG(LEVEL_ERROR, "wifi: Error %s getting privCfg_.",
+            LOG_ERROR("wifi: Error %s getting privCfg_.",
                 esp_err_to_name(result));
             break;
     }
+    nvs_close(cfg);
 }
 
 //
@@ -1132,7 +1121,7 @@ void EspIdfWiFi::init_wifi(WlanRole role)
     esp_err_t result = esp_event_loop_create_default();
     if (result != ESP_OK)
     {
-        LOG(LEVEL_ERROR, "wifi: esp_event_loop_create_default() failed: %s",
+        LOG_ERROR("wifi: esp_event_loop_create_default() failed: %s",
             esp_err_to_name(result));
     }
 
@@ -1146,7 +1135,6 @@ void EspIdfWiFi::init_wifi(WlanRole role)
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
 
     // Set and initialize the appropriate role(s).
     switch (role)
@@ -1288,15 +1276,20 @@ void EspIdfWiFi::last_sta_update(
     if (ssid != privCfg_.last_.ssid_ || pass != privCfg_.last_.pass_ ||
         authmode != privCfg_.last_.sec_|| channel != privCfg_.channelLast_)
     {
-        LOG(INFO, "wifi: Update last STA.");
-        strncpy(privCfg_.last_.ssid_, ssid.c_str(), MAX_SSID_SIZE);
-        privCfg_.last_.ssid_[MAX_SSID_SIZE] = '\0';
-        strncpy(privCfg_.last_.pass_, pass.c_str(), MAX_PASS_SIZE);
-        privCfg_.last_.pass_[MAX_PASS_SIZE] = '\0';
-        privCfg_.last_.sec_ = authmode;
-        privCfg_.channelLast_ = channel;
-        nvs_set_blob(cfg_, NVS_KEY_LAST_NAME, &privCfg_, sizeof(privCfg_));
-        nvs_commit(cfg_);
+        nvs_handle_t cfg;
+        esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
+        if (result == ESP_OK)
+        {
+            LOG(INFO, "wifi: Update last STA.");
+            str_populate<MAX_SSID_SIZE>(privCfg_.last_.ssid_, ssid.c_str());
+            str_populate<MAX_PASS_SIZE>(privCfg_.last_.pass_, pass.c_str());
+            privCfg_.last_.sec_ = authmode;
+            privCfg_.channelLast_ = channel;
+            
+            nvs_set_blob(cfg, NVS_KEY_LAST_NAME, &privCfg_, sizeof(privCfg_));
+            nvs_commit(cfg);
+            nvs_close(cfg);
+        }
     }
 }
 
@@ -1355,7 +1348,7 @@ uint8_t EspIdfWiFi::sec_type_translate(SecurityType sec_type)
 }
 
 //
-// EspIdfWiFi::sec_type_translate()
+// EspIdfWiFi::sec_type_encode()
 //
 WiFiInterface::SecurityType EspIdfWiFi::sec_type_encode(uint8_t sec_type)
 {
