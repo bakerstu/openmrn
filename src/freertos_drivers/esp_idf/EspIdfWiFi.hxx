@@ -475,6 +475,15 @@ private:
     /// Restore mDNS status on the STA interface.
     void mdns_restore_sta();
 
+    /// Will start the mDNS client state machine if not already started. Will
+    /// Trigger the mDNS state machine to execute early if it is already
+    /// started. If a query is already taking place, a new one will start
+    /// immediately following it. If a query it not taking place, one will be
+    /// started immediately.
+    ///
+    /// Note: This API should be called only while holding the lock_ mutex.
+    void mdns_scanning_start_or_trigger_refresh();
+
     /// Static callback for the ESP event handler.
     /// @param arg passed in context (this pointer)
     /// @param base event base

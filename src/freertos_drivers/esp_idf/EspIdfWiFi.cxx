@@ -415,24 +415,8 @@ void EspIdfWiFiBase::mdns_scan(const char *service)
         // Start looking for a new service.
         mdnsClientCache_.emplace_back(std::move(std::string(service)));
     }
-    if (!mdnsClientStarted_)
-    {
-        // Start the client if not already started.
-        mdnsClientStarted_ = true;
-        notify();
-        LOG(INFO, "wifi: mdns_scan() start.");
-    }
-    else if (!mdnsClientTrigRefresh_)
-    {
-        // Trigger the mDNS state machine to execute early. If a query is
-        // already taking place, a new one will start immediately following it.
-        // If a query it not taking place, one will be started immediately.
-        mdnsClientTrigRefresh_ = true;
-        CallbackExecutable *e =
-            new CallbackExecutable([this](){this->timer_.ensure_triggered();});
-        this->service()->executor()->add(e);
-        LOG(INFO, "wifi: mdns_scan() trigger.");
-    }
+    mdns_scanning_start_or_trigger_refresh();
+
 }
 
 //
@@ -736,6 +720,31 @@ void EspIdfWiFiBase::mdns_restore_sta()
 }
 
 //
+// EspIdfWiFiBase::mdns_scanning_start_or_trigger_refresh()
+//
+void EspIdfWiFiBase::mdns_scanning_start_or_trigger_refresh()
+{
+    if (!mdnsClientStarted_)
+    {
+        // Start the client if not already started.
+        mdnsClientStarted_ = true;
+        notify();
+        LOG(INFO, "wifi: mdns_scan() start.");
+    }
+    else if (!mdnsClientTrigRefresh_)
+    {
+        // Trigger the mDNS state machine to execute early. If a query is
+        // already taking place, a new one will start immediately following it.
+        // If a query it not taking place, one will be started immediately.
+        mdnsClientTrigRefresh_ = true;
+        CallbackExecutable *e =
+            new CallbackExecutable([this](){this->timer_.ensure_triggered();});
+        this->service()->executor()->add(e);
+        LOG(INFO, "wifi: mdns_scan() trigger.");
+    }
+}
+
+//
 // EspIdfWiFiBase::wifi_event_handler()
 //
 void EspIdfWiFiBase::wifi_event_handler(
@@ -957,10 +966,18 @@ void EspIdfWiFiBase::ip_event_handler(
             break;
         case IP_EVENT_STA_GOT_IP:
         {
+            ip_event_got_ip_t *d = static_cast<ip_event_got_ip_t *>(data);
             HASSERT(ipAcquiredSta_ == false);
             ipAcquiredSta_ = true;
             mdns_restore_sta();
-            ip_event_got_ip_t *d = static_cast<ip_event_got_ip_t *>(data);
+            {
+                OSMutexLock locker(&lock_);
+                if (mdnsClientCache_.size())
+                {
+                    // Trigger an immediate scan in order to refresh the cache.
+                    mdns_scanning_start_or_trigger_refresh();
+                }
+            }
             char ip_addr[16];
             inet_ntoa_r(d->ip_info.ip.addr, ip_addr, 16);
             LOG(INFO, "wifi: STA got IP: %s", ip_addr);
