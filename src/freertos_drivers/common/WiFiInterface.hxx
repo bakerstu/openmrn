@@ -108,6 +108,31 @@ public:
         return started_;
     }
 
+    /// Get the default AP password.
+    /// @return default AP password
+    virtual const char *default_ap_password() = 0;
+
+    /// Get the default STA password.
+    /// @return default STA password
+    virtual const char *default_sta_password() = 0;
+
+    /// Get the default AP SSID.
+    /// @return default AP SSID
+    virtual const char *default_ap_ssid() = 0;
+
+    /// Get the default STA SSID.
+    /// @return default STA SSID
+    virtual const char *default_sta_ssid() = 0;
+
+    /// Get the maximum number of STA client connections in AP mode. Be careful,
+    // the max supported by hardware is device dependent.
+    /// @return maximum number of STA client connections in AP mode
+    virtual uint8_t max_ap_client_connections() = 0;
+
+    /// Get the maximum number of stored STA profiles.
+    /// @return maximum number of stored STA profiles
+    virtual uint8_t max_sta_profiles() = 0;
+
     /// Connect to access point. This is a non-blocking call. The results will
     /// be delivered by callback registered with set_wlan_connect_callback().
     /// @param ssid access point SSID

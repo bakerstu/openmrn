@@ -77,7 +77,7 @@ static const wifi_scan_config_t SCAN_CONFIG =
 //
 void mdns_publish(const char *name, const char *service, uint16_t port)
 {
-    static_cast<EspIdfWiFi*>(WiFiInterface::instance())
+    static_cast<EspIdfWiFiBase*>(WiFiInterface::instance())
         ->mdns_service_add(service, port);
 }
 
@@ -86,7 +86,7 @@ void mdns_publish(const char *name, const char *service, uint16_t port)
 //
 void mdns_unpublish(const char *name, const char *service)
 {
-    static_cast<EspIdfWiFi*>(WiFiInterface::instance())
+    static_cast<EspIdfWiFiBase*>(WiFiInterface::instance())
         ->mdns_service_remove(service);
 }
 
@@ -95,7 +95,7 @@ void mdns_unpublish(const char *name, const char *service)
 //
 void mdns_scan(const char *service)
 {
-    static_cast<EspIdfWiFi*>(WiFiInterface::instance())
+    static_cast<EspIdfWiFiBase*>(WiFiInterface::instance())
         ->mdns_scan(service);
 }
 
@@ -105,7 +105,7 @@ void mdns_scan(const char *service)
 int mdns_lookup(const char *service, struct addrinfo *hints,
                 struct addrinfo **addr)
 {
-    return static_cast<EspIdfWiFi*>(WiFiInterface::instance())
+    return static_cast<EspIdfWiFiBase*>(WiFiInterface::instance())
         ->mdns_lookup(service, hints, addr);
 }
 
@@ -215,103 +215,42 @@ void freeifaddrs(struct ifaddrs *ifa)
 }
 
 //
-// EspIdfWiFi::stop()
+// EspIdfWiFiBase::stop()
 //
-void EspIdfWiFi::stop()
+void EspIdfWiFiBase::stop()
 {
     esp_wifi_stop();
 }
 
 //
-// EspIdfWiFi::connect()
+// EspIdfWiFiBase::connect()
 //
-void EspIdfWiFi::connect(
+void EspIdfWiFiBase::connect(
     const char *ssid, const char *pass, SecurityType sec_type)
 {
     sta_connect(ssid, pass, sec_type_translate(sec_type));
 }
 
 //
-// EspIdfWiFi::disconnect()
+// EspIdfWiFiBase::disconnect()
 //
-void EspIdfWiFi::disconnect()
+void EspIdfWiFiBase::disconnect()
 {
     esp_wifi_disconnect();
 }
 
 //
-// EspIdfWiFi::setup_ap()
+// EspIdfWiFiBase::scan()
 //
-void EspIdfWiFi::setup_ap(
-        const char *ssid, const char *pass, SecurityType sec_type)
-{
-    OSMutexLock locker(&lock_);
-    str_populate<MAX_SSID_SIZE>(userCfg_.ap_.ssid_, ssid);
-    str_populate<MAX_PASS_SIZE>(userCfg_.ap_.pass_, pass);
-    userCfg_.ap_.sec_ = sec_type_translate(sec_type);
-    config_sync();
-}
-
-//
-// EspIdfWiFi::set_role()
-//
-void EspIdfWiFi::set_role(WlanRole new_role)
-{
-    // This is a single byte copy, it is already atomic.
-    static_assert(sizeof(userCfg_.mode_) == sizeof(uint8_t));
-    userCfg_.mode_ = new_role;
-    config_sync();
-}
-
-//
-// EspIdfWiFi::profile_add()
-//
-int EspIdfWiFi::profile_add(const char *ssid, const char *pass,
-    SecurityType sec_type, uint8_t priority)
-{
-    // find an "empty" profie
-    OSMutexLock locker(&lock_);
-    int index = find_sta_profile("");
-    if (index >= 0)
-    {
-        str_populate<MAX_PASS_SIZE>(userCfg_.sta_[index].pass_, pass);
-        userCfg_.sta_[index].sec_ = sec_type_encode(sec_type);
-        str_populate<MAX_SSID_SIZE>(userCfg_.sta_[index].ssid_, ssid);
-        config_sync();
-    }
-    return index;
-}
-
-//
-// EspIdfWiFi::profile_get()
-//
-int EspIdfWiFi::profile_get(
-    int index, char ssid[], SecurityType *sec_type, uint8_t *priority)
-{
-    OSMutexLock locker(&lock_);
-    if (index >= ARRAYSIZE(userCfg_.sta_))
-    {
-        return -1;
-    }
-    strncpy(ssid, userCfg_.sta_[index].ssid_, MAX_SSID_SIZE);
-    ssid[MAX_SSID_SIZE] = '\0';
-    *sec_type = sec_type_encode(userCfg_.sta_[index].sec_);
-    *priority = 0;
-    return 0;
-}
-
-//
-// EspIdfWiFi::scan()
-//
-void EspIdfWiFi::scan()
+void EspIdfWiFiBase::scan()
 {
     esp_wifi_scan_start(&SCAN_CONFIG, false);
 }
 
 //
-// EspIdfWiFi::rssi()
+// EspIdfWiFiBase::rssi()
 //
-int EspIdfWiFi::rssi()
+int EspIdfWiFiBase::rssi()
 {
     if (connected_)
     {
@@ -323,9 +262,9 @@ int EspIdfWiFi::rssi()
 }
 
 //
-// EspIdfWiFi::mdns_service_add()
+// EspIdfWiFiBase::mdns_service_add()
 //
-void EspIdfWiFi::mdns_service_add(const char *service, uint16_t port)
+void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
 {
     std::string name;
     std::string proto;
@@ -342,9 +281,9 @@ void EspIdfWiFi::mdns_service_add(const char *service, uint16_t port)
 }
 
 //
-// EspIdfWiFi::mdns_service_remove()
+// EspIdfWiFiBase::mdns_service_remove()
 //
-void EspIdfWiFi::mdns_service_remove(const char *service)
+void EspIdfWiFiBase::mdns_service_remove(const char *service)
 {
     std::string name;
     std::string proto;
@@ -367,9 +306,9 @@ void EspIdfWiFi::mdns_service_remove(const char *service)
 }
 
 //
-// EspIdfWiFi::mdns_lookup()
+// EspIdfWiFiBase::mdns_lookup()
 //
-int EspIdfWiFi::mdns_lookup(
+int EspIdfWiFiBase::mdns_lookup(
     const char *service, struct addrinfo *hints, struct addrinfo **addr)
 {
     bool looking = false;
@@ -458,9 +397,9 @@ int EspIdfWiFi::mdns_lookup(
 }
 
 //
-// EspIdfWiFi::mdns_scan()
+// EspIdfWiFiBase::mdns_scan()
 //
-void EspIdfWiFi::mdns_scan(const char *service)
+void EspIdfWiFiBase::mdns_scan(const char *service)
 {
     bool match = false;
     OSMutexLock locker(&lock_);
@@ -497,25 +436,25 @@ void EspIdfWiFi::mdns_scan(const char *service)
 }
 
 //
-// EspIdfWiFi::factory_default()
+// EspIdfWiFiBase::factory_default()
 //
-void EspIdfWiFi::factory_default()
+void EspIdfWiFiBase::factory_default()
 {
     LOG(INFO, "wifi: factory_default()");
-    memset(&userCfg_, 0, sizeof(userCfg_));
-    userCfg_.magic_ = WIFI_CONFIG_INIT_MAGIC;
-    userCfg_.mode_ = WlanRole::AP_STA;
-    str_populate<MAX_SSID_SIZE>(userCfg_.ap_.ssid_, hostname_.c_str());
-    str_populate<MAX_PASS_SIZE>(userCfg_.ap_.pass_, DEFAULT_PASSWORD);
-    userCfg_.ap_.sec_ = WIFI_AUTH_WPA2_PSK;
-    str_populate<MAX_SSID_SIZE>(userCfg_.sta_[0].ssid_, DEFAULT_STA_SSID);
-    str_populate<MAX_PASS_SIZE>(userCfg_.sta_[0].pass_, DEFAULT_PASSWORD);
-    userCfg_.sta_[0].sec_ = WIFI_AUTH_WPA2_PSK;
+    // This mutex lock will hold off a configuration sync until all the updates
+    // are made.
+    OSMutexLock locker(&lock_);
+    setup_ap(default_ap_ssid(), default_ap_password(), SEC_WPA2);
+    for (unsigned i = 0; i < max_sta_profiles(); ++i)
+    {
+        profile_del(i);
+    }
+    profile_add(default_sta_ssid(), default_sta_password(), SEC_WPA2, 0);
 }
 
 //
-// EspIdfWiFi::MDNSCacheItem::reset()
-void EspIdfWiFi::MDNSCacheItem::reset(void *handle)
+// EspIdfWiFiBase::MDNSCacheItem::reset()
+void EspIdfWiFiBase::MDNSCacheItem::reset(void *handle)
 {
     if (searchHandle_ && handle != searchHandle_)
     {
@@ -525,9 +464,9 @@ void EspIdfWiFi::MDNSCacheItem::reset(void *handle)
 }
 
 //
-// EspIdfWiFi::mdns_start()
+// EspIdfWiFiBase::mdns_start()
 //
-StateFlowBase::Action EspIdfWiFi::mdns_start()
+StateFlowBase::Action EspIdfWiFiBase::mdns_start()
 {
     HASSERT(mdnsClientCache_.size() > 0);
     if (mdnsAdvInhibitSta_)
@@ -540,9 +479,9 @@ StateFlowBase::Action EspIdfWiFi::mdns_start()
 }
 
 //
-// EspIdfWiFi::mdns_query()
+// EspIdfWiFiBase::mdns_query()
 //
-StateFlowBase::Action EspIdfWiFi::mdns_query()
+StateFlowBase::Action EspIdfWiFiBase::mdns_query()
 {
     OSMutexLock locker(&lock_);
     mdnsClientTrigRefresh_ = false;
@@ -563,9 +502,9 @@ StateFlowBase::Action EspIdfWiFi::mdns_query()
 }
 
 //
-// EspIdfWiFi::mdns_check()
+// EspIdfWiFiBase::mdns_check()
 //
-StateFlowBase::Action EspIdfWiFi::mdns_check()
+StateFlowBase::Action EspIdfWiFiBase::mdns_check()
 {
     bool search_still_active = false;
     OSMutexLock locker(&lock_);
@@ -720,9 +659,9 @@ StateFlowBase::Action EspIdfWiFi::mdns_check()
 }
 
 //
-// EspIdfWiFi::mdns_adv_inhibit()
+// EspIdfWiFiBase::mdns_adv_inhibit()
 //
-void EspIdfWiFi::mdns_adv_inhibit()
+void EspIdfWiFiBase::mdns_adv_inhibit()
 {
     OSMutexLock locker(&lock_);
     if (!mdnsAdvInhibit_)
@@ -738,9 +677,9 @@ void EspIdfWiFi::mdns_adv_inhibit()
 }
 
 //
-// EspIdfWiFi::mdns_adv_inhibit_remove()
+// EspIdfWiFiBase::mdns_adv_inhibit_remove()
 //
-void EspIdfWiFi::mdns_adv_inhibit_remove()
+void EspIdfWiFiBase::mdns_adv_inhibit_remove()
 {
    OSMutexLock locker(&lock_);
     if (mdnsAdvInhibit_)
@@ -757,9 +696,9 @@ void EspIdfWiFi::mdns_adv_inhibit_remove()
 }
 
 //
-// EspIdfWiFi::mdns_disable_sta()
+// EspIdfWiFiBase::mdns_disable_sta()
 //
-void EspIdfWiFi::mdns_disable_sta()
+void EspIdfWiFiBase::mdns_disable_sta()
 {
 #if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
     OSMutexLock locker(&lock_);
@@ -773,9 +712,9 @@ void EspIdfWiFi::mdns_disable_sta()
 }
 
 //
-// EspIdfWiFi::try_restore_sta()
+// EspIdfWiFiBase::try_restore_sta()
 //
-void EspIdfWiFi::mdns_restore_sta()
+void EspIdfWiFiBase::mdns_restore_sta()
 {
 #if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
     OSMutexLock locker(&lock_);
@@ -797,9 +736,10 @@ void EspIdfWiFi::mdns_restore_sta()
 }
 
 //
-// EspIdfWiFi::wifi_event_handler()
+// EspIdfWiFiBase::wifi_event_handler()
 //
-void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *data)
+void EspIdfWiFiBase::wifi_event_handler(
+    esp_event_base_t base, int32_t id, void *data)
 {
     HASSERT(base == WIFI_EVENT);
 
@@ -927,19 +867,27 @@ void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *dat
 
                     if (staIface_ && !connected_ && idx < 0)
                     {
-                        int index = find_sta_profile(
-                            std::string((char*)ap_records[i].ssid));
-                        if (index >= 0 &&
-                            ap_records[i].authmode >= userCfg_.sta_[index].sec_)
+                        int index = 0;
+                        do
                         {
-                            // profile SSID and security mode match.
-                            idx = index;
-                            ssid = userCfg_.sta_[index].ssid_;
-                            pass = userCfg_.sta_[index].pass_;
-                            sec = userCfg_.sta_[index].sec_;
-                            conn_channel = ap_records[i].primary;
-                        }
-
+                            std::string profile_pass;
+                            uint8_t profile_sec;
+                            index = find_sta_profile(
+                                std::string((char*)ap_records[i].ssid),
+                                &profile_pass, &profile_sec, index);
+                            if (index >= 0 &&
+                                ap_records[i].authmode >= profile_sec)
+                            {
+                                // profile SSID and security mode match.
+                                idx = index;
+                                ssid = (char*)ap_records[i].ssid;
+                                pass = std::move(profile_pass);
+                                sec = profile_sec;
+                                conn_channel = ap_records[i].primary;
+                                // Found a match, stop looking.
+                                break;
+                            }
+                        } while (index >= 0);
                     }
                 }
             }
@@ -995,9 +943,10 @@ void EspIdfWiFi::wifi_event_handler(esp_event_base_t base, int32_t id, void *dat
 }
 
 //
-// EspIdfWiFi::ip_event_handler()
+// EspIdfWiFiBase::ip_event_handler()
 //
-void EspIdfWiFi::ip_event_handler(esp_event_base_t base, int32_t id, void *data)
+void EspIdfWiFiBase::ip_event_handler(
+    esp_event_base_t base, int32_t id, void *data)
 {
     HASSERT(base == IP_EVENT);
 
@@ -1034,9 +983,9 @@ void EspIdfWiFi::ip_event_handler(esp_event_base_t base, int32_t id, void *data)
 }
 
 //
-// EspIdfWiFi::init_config()
+// EspIdfWiFiBase::init_config()
 //
-void EspIdfWiFi::init_config()
+void EspIdfWiFiBase::init_config()
 {
     nvs_handle_t cfg;
     esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
@@ -1048,13 +997,15 @@ void EspIdfWiFi::init_config()
     }
 
     // User configuration.
-    size_t len = sizeof(userCfg_);
-    result = nvs_get_blob(cfg, NVS_KEY_USER_NAME, &userCfg_, &len);
+    uint32_t magic;
+    size_t user_config_len;
+    void *user_config = get_user_config(&user_config_len, &magic);
+    size_t len = user_config_len;
+    result = nvs_get_blob(cfg, NVS_KEY_USER_NAME, user_config, &len);
     switch(result)
     {
         case ESP_OK:
-            if (userCfg_.magic_ == WIFI_CONFIG_INIT_MAGIC &&
-                len == sizeof(userCfg_))
+            if (magic == WIFI_CONFIG_INIT_MAGIC && len == user_config_len)
             {
                 // Already initialized.
                 break;
@@ -1066,7 +1017,7 @@ void EspIdfWiFi::init_config()
         case ESP_ERR_NVS_INVALID_LENGTH:
             // Initialize WiFi user configuration to factory defaults.
             factory_default();
-            nvs_set_blob(cfg, NVS_KEY_USER_NAME, &userCfg_, sizeof(userCfg_));
+            nvs_set_blob(cfg, NVS_KEY_USER_NAME, user_config, user_config_len);
             nvs_commit(cfg);
             break;
         default:
@@ -1094,7 +1045,7 @@ void EspIdfWiFi::init_config()
         case ESP_ERR_NVS_INVALID_LENGTH:
             // Reset to factory defaults.
             memset(&privCfg_, 0, sizeof(privCfg_));
-            nvs_set_blob(cfg, NVS_KEY_LAST_NAME, &userCfg_, sizeof(userCfg_));
+            nvs_set_blob(cfg, NVS_KEY_LAST_NAME, &privCfg_, sizeof(privCfg_));
             nvs_commit(cfg);
             break;
         default:
@@ -1106,13 +1057,13 @@ void EspIdfWiFi::init_config()
 }
 
 //
-// EspIdfWiFi::init_wifi()
+// EspIdfWiFiBase::init_wifi()
 //
-void EspIdfWiFi::init_wifi(WlanRole role)
+void EspIdfWiFiBase::init_wifi(WlanRole role)
 {
     if (role == WlanRole::DEFAULT_ROLE)
     {
-        role = userCfg_.mode_;
+        role = get_role();
     }
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -1136,6 +1087,9 @@ void EspIdfWiFi::init_wifi(WlanRole role)
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
+    std::string ap_ssid;
+    std::string ap_pass;
+
     // Set and initialize the appropriate role(s).
     switch (role)
     {
@@ -1145,12 +1099,14 @@ void EspIdfWiFi::init_wifi(WlanRole role)
             // Fall through.
         case WlanRole::AP_STA:
             ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-            init_softap(userCfg_.ap_.ssid_, userCfg_.ap_.pass_);
+            get_ap_config(&ap_ssid, &ap_pass);
+            init_softap(std::move(ap_ssid), std::move(ap_pass));
             init_sta();
             break;
         case WlanRole::AP:
             ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-            init_softap(userCfg_.ap_.ssid_, userCfg_.ap_.pass_);
+            get_ap_config(&ap_ssid, &ap_pass);
+            init_softap(std::move(ap_ssid), std::move(ap_pass));
             break;
         case WlanRole::STA:
             ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -1169,9 +1125,6 @@ void EspIdfWiFi::init_wifi(WlanRole role)
         char ip_addr[16];
         inet_ntoa_r(ip_info.ip.addr, ip_addr, 16);
         LOG(INFO, "wifi: Set up softAP with IP: %s", ip_addr);
-
-        LOG(INFO, "wifi: init_softap() finished. SSID:'%s' password:'%s'",
-            userCfg_.ap_.ssid_, userCfg_.ap_.pass_);
     }
 
     // Initialize mDNS.
@@ -1181,9 +1134,9 @@ void EspIdfWiFi::init_wifi(WlanRole role)
 }
 
 //
-// EspIdfWiFi::init_softap()
+// EspIdfWiFiBase::init_softap()
 //
-void EspIdfWiFi::init_softap(std::string ssid, std::string pass)
+void EspIdfWiFiBase::init_softap(std::string ssid, std::string pass)
 {
     apIface_ = esp_netif_create_default_wifi_ap();
     esp_netif_set_hostname(apIface_, hostname_.c_str());
@@ -1214,9 +1167,9 @@ void EspIdfWiFi::init_softap(std::string ssid, std::string pass)
 }
 
 //
-// EspIdfWiFi::init_sta()
+// EspIdfWiFiBase::init_sta()
 //
-void EspIdfWiFi::init_sta()
+void EspIdfWiFiBase::init_sta()
 {
     staIface_ = esp_netif_create_default_wifi_sta();
     esp_netif_set_hostname(staIface_, hostname_.c_str());
@@ -1224,9 +1177,9 @@ void EspIdfWiFi::init_sta()
 }
 
 //
-// EspIdfWiFi::sta_connect()
+// EspIdfWiFiBase::sta_connect()
 //
-void EspIdfWiFi::sta_connect(
+void EspIdfWiFiBase::sta_connect(
     std::string ssid, std::string pass, uint8_t authmode, uint8_t channel)
 {
     wifi_config_t conf;
@@ -1268,9 +1221,9 @@ void EspIdfWiFi::sta_connect(
 
 
 //
-// EspIdfWiFi::last_sta_update()
+// EspIdfWiFiBase::last_sta_update()
 //
-void EspIdfWiFi::last_sta_update(
+void EspIdfWiFiBase::last_sta_update(
     std::string ssid, std::string pass, uint8_t authmode, uint8_t channel)
 {
     if (ssid != privCfg_.last_.ssid_ || pass != privCfg_.last_.pass_ ||
@@ -1294,46 +1247,39 @@ void EspIdfWiFi::last_sta_update(
 }
 
 //
-// EspIdfWiFi::last_sta_set()
+// EspIdfWiFiBase::last_sta_set()
 //
-void EspIdfWiFi::last_sta_get(
+void EspIdfWiFiBase::last_sta_get(
     std::string *ssid, std::string *pass, uint8_t *authmode, uint8_t *channel)
 {
-    if (privCfg_.last_.ssid_[0] != '\0' &&
-        find_sta_profile(privCfg_.last_.ssid_) >= 0)
+    std::string profile_pass;
+    uint8_t profile_sec;
+    int index = 0;
+    do
     {
-        // Last SSID is valid and exists in the profile list.
-        *ssid = privCfg_.last_.ssid_;
-        *pass = privCfg_.last_.pass_;
-        *authmode = privCfg_.last_.sec_;
-        *channel = privCfg_.channelLast_;
-    }
-    else
-    {
-        ssid->clear();
-    }
-}
-
-//
-// EspIdfWiFi::find_sta_profile()
-//
-int EspIdfWiFi::find_sta_profile(std::string ssid)
-{
-    OSMutexLock locker(&lock_);
-    for (unsigned i = 0; i < ARRAYSIZE(userCfg_.sta_); ++i)
-    {
-        if (userCfg_.sta_[i].ssid_ == ssid)
+        index = find_sta_profile(
+            privCfg_.last_.ssid_, &profile_pass, &profile_sec, index);
+        if (index && privCfg_.last_.pass_ == profile_pass &&
+            privCfg_.last_.sec_ == profile_sec)
         {
-            return i;
+            // Last SSID is valid and exists in the profile list.
+            *ssid = privCfg_.last_.ssid_;
+            *pass = std::move(profile_pass);
+            *authmode = profile_sec;
+            *channel = privCfg_.channelLast_;
+            // Match found, stop looking.
+            return;
         }
-    }
-    return -1;
+    } while (index >= 0);
+
+    // No match found.
+    ssid->clear();
 }
 
 //
-// EspIdfWiFi::sec_type_translate()
+// EspIdfWiFiBase::sec_type_translate()
 //
-uint8_t EspIdfWiFi::sec_type_translate(SecurityType sec_type)
+uint8_t EspIdfWiFiBase::sec_type_translate(SecurityType sec_type)
 {
     switch (sec_type)
     {
@@ -1348,9 +1294,9 @@ uint8_t EspIdfWiFi::sec_type_translate(SecurityType sec_type)
 }
 
 //
-// EspIdfWiFi::sec_type_encode()
+// EspIdfWiFiBase::sec_type_encode()
 //
-WiFiInterface::SecurityType EspIdfWiFi::sec_type_encode(uint8_t sec_type)
+WiFiInterface::SecurityType EspIdfWiFiBase::sec_type_encode(uint8_t sec_type)
 {
     switch (sec_type)
     {
@@ -1365,9 +1311,9 @@ WiFiInterface::SecurityType EspIdfWiFi::sec_type_encode(uint8_t sec_type)
 }
 
 //
-// EspIdfWiFi::connection_result_encode()
+// EspIdfWiFiBase::connection_result_encode()
 //
-WiFiInterface::ConnectionResult EspIdfWiFi::connection_result_encode(
+WiFiInterface::ConnectionResult EspIdfWiFiBase::connection_result_encode(
     uint8_t reason)
 {
     switch (reason)
