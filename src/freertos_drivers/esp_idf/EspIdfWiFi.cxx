@@ -416,7 +416,6 @@ void EspIdfWiFiBase::mdns_scan(const char *service)
         mdnsClientCache_.emplace_back(std::move(std::string(service)));
     }
     mdns_scanning_start_or_trigger_refresh();
-
 }
 
 //
