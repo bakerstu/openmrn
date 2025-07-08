@@ -110,6 +110,8 @@ public:
 
     /// Connect to access point. This is a non-blocking call. The results will
     /// be delivered by callback registered with set_wlan_connect_callback().
+    /// The AP credentials are not saved as a connection profile, but they may
+    /// be saved in non-volatile storage for use on the next connection attempt.
     /// @param ssid access point SSID
     /// @param pass access point password
     /// @param sec_type access point security type
@@ -145,8 +147,9 @@ public:
     }
 
     /// Get a list of available networks. This is based on a prior scan. Use
-    /// rescan() and wait for the scan to complete to refresh the list.
-    /// @param entries returns a list of available network entries
+    /// scan() and wait for the scan to complete to refresh the list.
+    /// @param entries returns a list of available network entries, will be
+    ///        cleared first, does not append to existing entries passed in
     /// @param count max size of the entry list to return.
     /// @return number of valid network entries in the list, same as
     ///         entries->size()
@@ -159,7 +162,7 @@ public:
     }
 
     /// Get the indexed network entry from the list of scan results. Use
-    /// rescan() and wait for the scan to complete to refresh the results.
+    /// scan() and wait for the scan to complete to refresh the results.
     /// @param entry location to fill in the network entry
     /// @param index index in the network entry list to get
     /// @return 0 on success, else -1 if index is beyond the list of entries.
@@ -174,11 +177,14 @@ public:
         return 0;
     }
 
-    /// Initiate scanning of available networks.
+    /// Initiate scanning of available networks. Use 
+    /// set_scan_finished_callback() to register a callback upon completion of
+    /// the scan.
     void scan() override;
 
     /// Get the RSSI of the AP in STA mode.
-    /// @return signal strength, 0 when not connected to an access point
+    /// @return signal strength, 0 when not connected to an access point, else
+    ///         should be a negative number.
     int rssi() override;
 
     /// Get the network hostname for the device.
@@ -226,7 +232,8 @@ public:
     int mdns_lookup(
         const char *service, struct addrinfo *hints, struct addrinfo **addr);
 
-    /// Start continuous scan for mDNS service name.
+    /// Start continuous scan for mDNS service name. mdns_lookup() can be called
+    /// to check on the results.
     /// @param service servicename to scan
     void mdns_scan(const char *service);
 
@@ -364,7 +371,7 @@ private:
         std::string name_; ///< service name
         std::string proto_; ///< service protocol
         uint16_t port_; ///< service port
-    };
+    }; // struct MDNSService
 
     /// Metadata for an subscribed mDNS cashed address.
     struct MDNSCacheAddr
@@ -379,7 +386,7 @@ private:
             struct sockaddr_in6 addrIn6_; ///< IPv6 address
 #endif
         };
-    };
+    }; // struct MDNSCacheAddr
 
     /// Metadata for a subscribed mDNS client.
     struct MDNSCacheItem
@@ -406,7 +413,7 @@ private:
         std::string service_; ///< sevice name
         std::list<MDNSCacheAddr> addr_; ///< list of addresses
         void *searchHandle_; ///< mDNS search once key
-    };
+    }; // struct MDNSCacheItem
 
     /// Maximum number of MDNS results we will cache for a given service.
     static constexpr size_t MDNS_RESULT_COUNT_MAX = 5;
@@ -662,28 +669,28 @@ public:
     }
 
     /// Get the default AP password.
-    /// @return default AP password
+    /// @return default AP password, should point to persistent memory
     const char *default_ap_password() override
     {
         return HWDefs::DEFAULT_AP_PASSWORD;
     }
 
     /// Get the default STA password.
-    /// @return default STA password
+    /// @return default STA password, should point to persistent memory
     const char *default_sta_password() override
     {
         return HWDefs::DEFAULT_STA_PASSWORD;
     }
 
     /// Get the default AP SSID.
-    /// @return default AP SSID
+    /// @return default AP SSID, should point to persistent memory
     const char *default_ap_ssid() override
     {
         return HWDefs::DEFAULT_AP_SSID;
     }
 
     /// Get the default STA SSID.
-    /// @return default STA SSID
+    /// @return default STA SSID, should point to persistent memory
     const char *default_sta_ssid() override
     {
         return HWDefs::DEFAULT_STA_SSID;
@@ -826,7 +833,7 @@ protected:
         uint8_t padding_[3]; ///< padded for alignment
         WiFiConfigCredentialsNVS ap_; ///< access point configuration
         WiFiConfigCredentialsNVS sta_[N]; ///< station profiles
-    };
+    }; // template<size_t N> struct WiFiConfigNVS
     static_assert(sizeof(WiFiConfigNVS<HWDefs::MAX_STA_PROFILES>::mode_) ==
         sizeof(uint8_t));
     static_assert(

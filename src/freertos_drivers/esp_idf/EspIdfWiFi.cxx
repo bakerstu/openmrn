@@ -809,7 +809,10 @@ void EspIdfWiFiBase::wifi_event_handler(
         }
         case WIFI_EVENT_STA_DISCONNECTED:
         {
-            HASSERT(connected_);
+            // Note: It is possible to get here when we are already
+            //       "disconnected". Therefore, we should not assert on
+            //       connected_ == true. Every failed connection "attempt"
+            //       lands us here.
             connected_ = false;
             wifi_event_sta_disconnected_t *evdata =
                 (wifi_event_sta_disconnected_t *)data;

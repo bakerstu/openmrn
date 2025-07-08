@@ -109,19 +109,19 @@ public:
     }
 
     /// Get the default AP password.
-    /// @return default AP password
+    /// @return default AP password, should point to persistent memory
     virtual const char *default_ap_password() = 0;
 
     /// Get the default STA password.
-    /// @return default STA password
+    /// @return default STA password, should point to persistent memory
     virtual const char *default_sta_password() = 0;
 
     /// Get the default AP SSID.
-    /// @return default AP SSID
+    /// @return default AP SSID, should point to persistent memory
     virtual const char *default_ap_ssid() = 0;
 
     /// Get the default STA SSID.
-    /// @return default STA SSID
+    /// @return default STA SSID, should point to persistent memory
     virtual const char *default_sta_ssid() = 0;
 
     /// Get the maximum number of STA client connections in AP mode. Be careful,
@@ -135,6 +135,8 @@ public:
 
     /// Connect to access point. This is a non-blocking call. The results will
     /// be delivered by callback registered with set_wlan_connect_callback().
+    /// The AP credentials are not saved as a connection profile, but they may
+    /// be saved in non-volatile storage for use on the next connection attempt.
     /// @param ssid access point SSID
     /// @param pass access point password
     /// @param sec_type access point security type
@@ -217,7 +219,7 @@ public:
         int index, char ssid[], SecurityType *sec_type, uint8_t *priority) = 0;
 
     /// Get a list of available networks. This is based on a prior scan. Use
-    /// rescan() and wait for the scan to complete to refresh the list.
+    /// scan() and wait for the scan to complete to refresh the list.
     /// @param entries returns a list of available network entries
     /// @param count max size of the entry list to return.
     /// @return number of valid network entries in the list, same as
@@ -226,17 +228,20 @@ public:
         std::vector<NetworkEntry> *entries, size_t count) = 0;
 
     /// Get the indexed network entry from the last of scan results. Use
-    /// rescan() and wait for the scan to complete to refresh the results.
+    /// scan() and wait for the scan to complete to refresh the results.
     /// @param entry location to fill in the network entry
     /// @param index index in the network entry list to get
     /// @return 0 on success, else -1 if index is beyond the list of entries.
     virtual int network_get(NetworkEntry *entry, unsigned index) = 0;
 
-    /// Initiate scanning of available networks.
+    /// Initiate scanning of available networks. Use 
+    /// set_scan_finished_callback() to register a callback upon completion of
+    /// the scan.
     virtual void scan() = 0;
 
     /// Get the RSSI of the AP in STA mode.
-    /// @return signal strength, 0 when not connected to an access point
+    /// @return signal strength, 0 when not connected to an access point, else
+    ///         should be a negative number.
     virtual int rssi() = 0;
 
     /// Get the network hostname for the device.
@@ -259,13 +264,13 @@ public:
     /// @param connected true if connected, else false if disconnected
     /// @param result result code for the connection event
     /// @param ssid SSID of the connection event
-    virtual void set_wlan_connect_callback(std::function<void(
-        bool connected, ConnectionResult result, std::string &ssid)> callback)
+    virtual void set_wlan_connect_callback(std::function<void(bool connected,
+        ConnectionResult result, const std::string &ssid)> callback)
     {
         wlanConnectedCallback_ = std::move(callback);
     }
 
-    /// Set the callback for when a scan is finished.
+    /// Set the callback for when a WiFi access point scan is finished.
     virtual void set_scan_finished_callback(std::function<void()> callback)
     {
         scanFinishedCallback_ = std::move(callback);
@@ -298,7 +303,7 @@ protected:
     /// @param result result code for the connection event
     /// @param ssid SSID of the connection event
     void wlan_connected(
-        bool connected, ConnectionResult result, std::string &ssid)
+        bool connected, ConnectionResult result, const std::string &ssid)
     {
         if (wlanConnectedCallback_)
         {
@@ -325,7 +330,7 @@ protected:
     /// @param result result code for the connection event
     /// @param ssid SSID of the connection event
     std::function<void(
-        bool connected, ConnectionResult result, std::string &ssid)>
+        bool connected, ConnectionResult result, const std::string &ssid)>
             wlanConnectedCallback_;
 
     /// Callback for when a scan is finished.
@@ -333,11 +338,13 @@ protected:
 
     // Note: Because these are bitmasks, care must be taken in the derived
     //       class that there are no mutual exclusion issues on write.
-    bool started_          : 1; ///< WiFi started
-    bool connected_        : 1; ///< STA mode connection to AP connected state
-    bool ipAcquiredSta_    : 1; ///< IP address acquired STA mode
-    bool ipAcquiredAp_     : 1; ///< IP address acquired AP mode
-    bool ipLeased_         : 1; ///< IP address leased to a client (AP mode)
+    //       Implementations are expected to continuously update these bits as
+    //       state transitions occur.
+    bool started_       : 1; ///< WiFi started
+    bool connected_     : 1; ///< STA mode connection to AP connected state
+    bool ipAcquiredSta_ : 1; ///< IP address acquired STA mode
+    bool ipAcquiredAp_  : 1; ///< IP address acquired AP mode
+    bool ipLeased_      : 1; ///< IP address leased to a client (AP mode)
 };
 
 #endif // _FREERTOS_DRIVERS_COMMON_WIFIINTERFACE_HXX_

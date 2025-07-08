@@ -186,7 +186,7 @@ inline string ipv4_to_string(uint32_t ip)
 /// Formats an IPv6 address to string.
 /// @param ip a 16-byte array storing the IPv6 address, ip[0] will be printed
 ///        at the beginning (network endianness)
-/// @return a string containing a collon-separated printout of the given IPv6
+/// @return a string containing a colon-separated printout of the given IPv6
 ///         address
 string ipv6_to_string(uint8_t ip[16]);
 
