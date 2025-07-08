@@ -150,15 +150,10 @@ public:
     /// scan() and wait for the scan to complete to refresh the list.
     /// @param entries returns a list of available network entries, will be
     ///        cleared first, does not append to existing entries passed in
-    /// @param count max size of the entry list to return.
-    /// @return number of valid network entries in the list, same as
-    ///         entries->size()
-    int network_list_get(
-        std::vector<NetworkEntry> *entries, size_t count) override
+    void network_list_get(std::vector<NetworkEntry> *entries) override
     {
         OSMutexLock locker(&lock_);
         *entries = scanResults_;
-        return entries->size();
     }
 
     /// Get the indexed network entry from the list of scan results. Use
@@ -220,7 +215,7 @@ public:
     /// @param service service, e.g. _openlcb-can._tcp
     void mdns_service_remove(const char *service);
 
-    /// Lookup an mDNS name.
+    /// Lookup an mDNS name. Non-blocking.
     /// @param service servicename to lookup
     /// @param hints hints about limiting the types of services that will
     ///        respond
@@ -251,8 +246,9 @@ protected:
     /// the user.
     struct ConfigPrivate
     {
-        uint32_t magic_;
-        WiFiConfigCredentialsNVS last_; ///< last STA successfully connected to
+        uint32_t magic_; ///< magic number to detect initialization
+        /// last AP that the STA interface connected to.
+        WiFiConfigCredentialsNVS last_;
         uint8_t channelLast_; ///< last channel successfully connected with
     };
 
@@ -313,7 +309,9 @@ protected:
     /// Reset configuration to factory defaults.
     void factory_default();
 
-    /// Trigger synchronize configuration between NVS and MemorySpace.
+    /// Trigger synchronize configuration between NVS and MemorySpace. This may
+    /// be called without the lock_ mutex being held. If mutual exclusion is
+    /// needed in a specialization of this method, it must be separately taken.
     virtual void config_sync()
     {
     }
@@ -585,7 +583,8 @@ private:
     /// @param sec where to fill in the security, ignored if nullptr
     /// @param index index to start the linear search from
     /// @return index within the wifi profiles config, else -1 if not found
-    virtual int find_sta_profile(std::string ssid, std::string *pass = nullptr,
+    virtual int find_sta_profile(
+        const std::string &ssid, std::string *pass = nullptr,
         uint8_t *sec = nullptr, uint8_t index = 0) = 0;
 
     /// Get a pointer to the start of user config.
@@ -767,7 +766,6 @@ public:
             str_populate<MAX_SSID_SIZE>(userCfg_.sta_[index].ssid_, ssid);
             config_sync();
         }
-        config_sync();
         return index;
     }
 
@@ -826,7 +824,7 @@ public:
 protected:
     /// C structure version of the WiFi configuration settings. These are
     /// essentially the connection profiles (SSID, password, security type).
-    template<size_t N> struct WiFiConfigNVS
+    template<size_t N> struct WiFiConfigNVSTemplate
     {
         uint32_t magic_; ///< magic number to detect initialization
         WlanRole mode_; ///< role that the device will operate (AP, STA, etc.)
@@ -834,16 +832,19 @@ protected:
         WiFiConfigCredentialsNVS ap_; ///< access point configuration
         WiFiConfigCredentialsNVS sta_[N]; ///< station profiles
     }; // template<size_t N> struct WiFiConfigNVS
-    static_assert(sizeof(WiFiConfigNVS<HWDefs::MAX_STA_PROFILES>::mode_) ==
-        sizeof(uint8_t));
+
+    /// Abbreviate template class declaration.
+    typedef WiFiConfigNVSTemplate<HWDefs::MAX_STA_PROFILES> WiFiConfigNVS;
+
+    static_assert(sizeof(WiFiConfigNVS::mode_) == sizeof(uint8_t));
     static_assert(
-        sizeof(WiFiConfigNVS<HWDefs::MAX_STA_PROFILES>) ==
-            4 + 4 + 98 + (98 * HWDefs::MAX_STA_PROFILES),
+        sizeof( // These magic numbers come from the struct members' sizes
+            WiFiConfigNVS) == 4 + 1 + 3 + 98 + (98 * HWDefs::MAX_STA_PROFILES),
         "The size of WiFiConfigNVS has changed. This could lead to "
         "compatiblity issues in deployed devices.");
 
     /// cached copy of the wifi user config
-    WiFiConfigNVS<HWDefs::MAX_STA_PROFILES> userCfg_; 
+    WiFiConfigNVS userCfg_; 
 
 private:
     /// Get the configured WiFi role.
@@ -871,7 +872,7 @@ private:
     /// @param sec where to fill in the security, ignored if nullptr
     /// @param index index to start the linear search from
     /// @return index within the wifi profiles config, else -1 if not found
-    int find_sta_profile(std::string ssid, std::string *pass = nullptr,
+    int find_sta_profile(const std::string &ssid, std::string *pass = nullptr,
         uint8_t *sec = nullptr, uint8_t index = 0) override
     {
         OSMutexLock locker(&lock_);

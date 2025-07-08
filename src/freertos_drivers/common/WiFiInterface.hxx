@@ -221,11 +221,7 @@ public:
     /// Get a list of available networks. This is based on a prior scan. Use
     /// scan() and wait for the scan to complete to refresh the list.
     /// @param entries returns a list of available network entries
-    /// @param count max size of the entry list to return.
-    /// @return number of valid network entries in the list, same as
-    ///         entries->size()
-    virtual int network_list_get(
-        std::vector<NetworkEntry> *entries, size_t count) = 0;
+    virtual void network_list_get(std::vector<NetworkEntry> *entries) = 0;
 
     /// Get the indexed network entry from the last of scan results. Use
     /// scan() and wait for the scan to complete to refresh the results.
