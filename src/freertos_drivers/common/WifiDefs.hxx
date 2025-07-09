@@ -64,4 +64,33 @@ extern char WIFI_HUB_HOSTNAME[];
 extern int WIFI_HUB_PORT;
 }
 
+/// Useful WiFi Definitions. Eventually, the enums above should be encorporated
+/// into this structure, but for now they are left separate for legacy code.
+struct WiFiDefs
+{
+    /// Interface index by type.
+    enum Interface : uint8_t
+    {
+        IFACE_STA, ///< STA mode interface
+        IFACE_AP, ///< AP mode interface
+    };
+
+    /// Security types.
+    enum SecurityType : uint8_t
+    {
+        SEC_OPEN = 0, ///< open (no security)
+        SEC_WEP, ///< WEP security mode
+        SEC_WPA2, ///< WPA2 security mode
+    };
+
+    /// Result code for connections and disconnections.
+    enum ConnectionResult : uint8_t
+    {
+        CONNECT_OK = 0, ///< connection succeeded
+        AUTHENTICATION_FAILED, ///< authentication failure
+        ASSOCIATION_FAILED, ///< association failure
+        CONNECT_UNKNOWN, ///< unknown result
+    };
+};
+
 #endif // _FREERTOS_DRIVERS_COMMON_WIFIDEFS_HXX_

@@ -390,7 +390,16 @@ private:
     struct MDNSCacheItem
     {
         /// Constructor.
+        /// @param service service name to look for, captured by std::move()
         MDNSCacheItem(std::string service)
+            : service_(std::move(service))
+            , searchHandle_(nullptr)
+        {
+        }
+
+        /// Constructor.
+        /// @param service service name to look for, string is copied in
+        MDNSCacheItem(const char *service)
             : service_(service)
             , searchHandle_(nullptr)
         {
@@ -575,7 +584,8 @@ private:
     /// Retrieve current access point config, including password.
     /// @param ssid access point SSID
     /// @param pass access point password
-    virtual void get_ap_config(std::string *ssid, std::string *pass) = 0;
+    virtual void get_ap_config_password(
+        std::string *ssid, std::string *pass) = 0;
 
     /// Find a WiFi STA profile that matches the given SSID
     /// @param ssid SSID to match
@@ -857,7 +867,7 @@ private:
     /// Retrieve current access point config, including password.
     /// @param ssid access point SSID
     /// @param pass access point password
-    void get_ap_config(std::string *ssid, std::string *pass) override
+    void get_ap_config_password(std::string *ssid, std::string *pass) override
     {
         SecurityType sec_type;
         OSMutexLock locker(&lock_);

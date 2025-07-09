@@ -413,7 +413,7 @@ void EspIdfWiFiBase::mdns_scan(const char *service)
     if (!match)
     {
         // Start looking for a new service.
-        mdnsClientCache_.emplace_back(std::move(std::string(service)));
+        mdnsClientCache_.emplace_back(service);
     }
     mdns_scanning_start_or_trigger_refresh();
 }
@@ -455,6 +455,7 @@ void EspIdfWiFiBase::factory_default()
 
 //
 // EspIdfWiFiBase::MDNSCacheItem::reset()
+//
 void EspIdfWiFiBase::MDNSCacheItem::reset(void *handle)
 {
     if (searchHandle_ && handle != searchHandle_)
@@ -1130,13 +1131,13 @@ void EspIdfWiFiBase::init_wifi(WlanRole role)
             // Fall through.
         case WlanRole::AP_STA:
             ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-            get_ap_config(&ap_ssid, &ap_pass);
+            get_ap_config_password(&ap_ssid, &ap_pass);
             init_softap(std::move(ap_ssid), std::move(ap_pass));
             init_sta();
             break;
         case WlanRole::AP:
             ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-            get_ap_config(&ap_ssid, &ap_pass);
+            get_ap_config_password(&ap_ssid, &ap_pass);
             init_softap(std::move(ap_ssid), std::move(ap_pass));
             break;
         case WlanRole::STA:
