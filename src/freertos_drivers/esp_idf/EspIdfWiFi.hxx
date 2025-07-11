@@ -46,6 +46,8 @@
 
 #include <list>
 
+#include <nvs_flash.h>
+
 #if OPENMRN_HAVE_BSD_SOCKETS_IPV6
 #if CONFIG_LWIP_IPV6
 #define ESP_IDF_WIFI_IPV6
@@ -94,7 +96,8 @@ public:
     /// Initialize the WiFi.
     void init() override
     {
-        init_config();
+        init_config_priv();
+        init_config_user();
     }
 
     /// Start the WiFi.
@@ -253,16 +256,10 @@ protected:
     };
 
     /// Magic number to detect initialization.
-    static constexpr uint32_t WIFI_CONFIG_INIT_MAGIC = 0x6160CBC6;
-
-    /// Magic number to detect initialization.
     static constexpr uint32_t PRIV_CONFIG_INIT_MAGIC = 0xBD959C63;
 
     /// NVS namespace for the wifi configuration.
     static constexpr char NVS_NAMESPACE_NAME[] = "wifi_config";
-
-    /// NVS key for the WiFi user config.
-    static constexpr char NVS_KEY_USER_NAME[] = "wifi_user.v1";
 
     /// NVS key for the WiFi private config.
     static constexpr char NVS_KEY_LAST_NAME[] = "wifi_last.v1";
@@ -305,9 +302,6 @@ protected:
     {
         wait_and_call(STATE(mdns_start));
     }
-
-    /// Reset configuration to factory defaults.
-    void factory_default();
 
     /// Trigger synchronize configuration between NVS and MemorySpace. This may
     /// be called without the lock_ mutex being held. If mutual exclusion is
@@ -532,8 +526,8 @@ private:
     /// @param data event data
     void ip_event_handler(esp_event_base_t base, int32_t id, void *data);
 
-    /// Initialize wifi configuration, including program defaults if necessary.
-    void init_config();
+    /// Initialize private configuration.
+    void init_config_priv();
 
     /// Initialize the WiFi.
     /// @param role device role
@@ -555,6 +549,12 @@ private:
     void sta_connect(std::string ssid, std::string pass, uint8_t authmode = 1,
         uint8_t channel = 0);
 
+    /// Initiate a WiFi station connect using "fast" mode
+    /// @param last_channel true to use "last" channel, false to use any channel
+    /// @return true upon success, else false if no valid fast connect
+    ///         credentials
+    bool sta_connect_fast(bool last_channel = true);
+
     /// Set/Update the last WiFi STA mode connection parameters.
     /// @param ssid SSID
     /// @param pass password
@@ -562,15 +562,6 @@ private:
     /// @param channel WiFi channel
     void last_sta_update(
         std::string ssid, std::string pass, uint8_t authmode, uint8_t channel);
-
-    /// Get the last WiFi STA mode connection parameters.
-    /// @param ssid SSID, empty string if invalid
-    /// @param pass password
-    /// @param authmode authentication mode
-    /// @param channel WiFi channel
-    void last_sta_get(
-        std::string *ssid, std::string *pass, uint8_t *authmode,
-        uint8_t *channel);
 
     /// Translate from ESP connection reason to generic connection result.
     /// @param reason ESP connection reason
@@ -580,6 +571,9 @@ private:
     /// Get the configured WiFi role.
     /// @return configured WiFi role
     virtual WlanRole get_role() = 0;
+
+    /// Initialize wifi configuration, including program defaults if necessary.
+    virtual void init_config_user() = 0;
 
     /// Retrieve current access point config, including password.
     /// @param ssid access point SSID
@@ -596,12 +590,6 @@ private:
     virtual int find_sta_profile(
         const std::string &ssid, std::string *pass = nullptr,
         uint8_t *sec = nullptr, uint8_t index = 0) = 0;
-
-    /// Get a pointer to the start of user config.
-    /// @param len size of user config in bytes
-    /// @param magic stored magic number, ignored if nullptr
-    /// @return pointer to the start of user config
-    virtual void *get_user_config(size_t *len, uint32_t *magic) = 0;
 
     StateFlowTimer timer_; ///< sleep timer helper object
     esp_netif_t *apIface_; ///< access point network interface
@@ -659,6 +647,8 @@ struct DefaultEspIdfWiFiHwDefs
     static constexpr uint8_t MAX_STA_PROFILES = 7;
 };
 
+/// Specialization of the EspIdfWiFiBase with allows for user configuration.
+/// @tparam HWDefs The Default and static configuration options
 template<class HWDefs> class EspIdfWiFi : public EspIdfWiFiBase
 {
 public:
@@ -832,6 +822,12 @@ public:
     }
 
 protected:
+    /// Magic number to detect initialization.
+    static constexpr uint32_t WIFI_CONFIG_INIT_MAGIC = 0x6160CBC6;
+
+    /// NVS key for the WiFi user config.
+    static constexpr char NVS_KEY_USER_NAME[] = "wifi_user.v1";
+
     /// C structure version of the WiFi configuration settings. These are
     /// essentially the connection profiles (SSID, password, security type).
     template<size_t N> struct WiFiConfigNVSTemplate
@@ -852,6 +848,41 @@ protected:
             WiFiConfigNVS) == 4 + 1 + 3 + 98 + (98 * HWDefs::MAX_STA_PROFILES),
         "The size of WiFiConfigNVS has changed. This could lead to "
         "compatiblity issues in deployed devices.");
+
+    /// Reset configuration to factory defaults.
+    void factory_default()
+    {
+        LOG(INFO, "wifi: factory_default()");
+        OSMutexLock locker(&lock_);
+
+        // Clear all configuration.
+        memset(&userCfg_, 0, sizeof(userCfg_));
+
+        // AP setup.
+        SecurityType sec = SEC_WPA2;
+        if (HWDefs::DEFAULT_AP_PASSWORD[0] == '\0')
+        {
+            sec = SEC_OPEN;
+        }
+        str_populate<MAX_SSID_SIZE>(
+            userCfg_.ap_.ssid_, HWDefs::DEFAULT_AP_SSID);
+        str_populate<MAX_PASS_SIZE>(
+            userCfg_.ap_.pass_, HWDefs::DEFAULT_AP_PASSWORD);
+        userCfg_.ap_.sec_ = sec_type_translate(sec);
+
+        // Add single default STA profile.
+        sec = SEC_WPA2;
+        if (HWDefs::DEFAULT_STA_PASSWORD[0] == '\0')
+        {
+            sec = SEC_OPEN;
+        }
+        str_populate<MAX_SSID_SIZE>(
+            userCfg_.sta_[0].ssid_, HWDefs::DEFAULT_STA_SSID);
+        str_populate<MAX_PASS_SIZE>(
+            userCfg_.sta_[0].pass_, HWDefs::DEFAULT_STA_PASSWORD);
+        userCfg_.sta_[0].sec_ = sec_type_translate(sec);
+        config_sync();
+    }
 
     /// cached copy of the wifi user config
     WiFiConfigNVS userCfg_; 
@@ -874,6 +905,49 @@ private:
         get_ap_config(ssid, &sec_type);
         pass->assign(userCfg_.ap_.pass_);
         (void)sec_type; // unused;
+    }
+
+    /// Initialize wifi configuration, including program defaults if necessary.
+    void init_config_user() override
+    {
+        nvs_handle_t cfg;
+        esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
+        if (result != ESP_OK)
+        {
+            LOG_ERROR("wifi: Error %s opening NVS handle.",
+                esp_err_to_name(result));
+            return;
+        }
+
+        // User configuration.
+        size_t len = sizeof(userCfg_);
+        result = nvs_get_blob(cfg, NVS_KEY_USER_NAME, &userCfg_, &len);
+        switch(result)
+        {
+            case ESP_OK:
+                if (userCfg_.magic_ == WIFI_CONFIG_INIT_MAGIC &&
+                    len == sizeof(userCfg_))
+                {
+                    // Already initialized.
+                    break;
+                }
+                // Not initialized yet.
+                // fall through
+            case ESP_ERR_NVS_NOT_FOUND:
+                // fall through
+            case ESP_ERR_NVS_INVALID_LENGTH:
+                // Initialize WiFi user configuration to factory defaults.
+                factory_default();
+                nvs_set_blob(
+                    cfg, NVS_KEY_USER_NAME, &userCfg_, sizeof(userCfg_));
+                nvs_commit(cfg);
+                break;
+            default:
+                LOG_ERROR("wifi: Error %s getting userCfg_.",
+                    esp_err_to_name(result));
+                break;
+        }
+        nvs_close(cfg);
     }
 
     /// Find a WiFi STA profile that matches the given SSID
@@ -903,20 +977,183 @@ private:
         }
         return -1;
     }
+};
 
-    /// Get a pointer to the start of user config.
-    /// @param len size of user config in bytes
-    /// @param magic stored magic number, ignored if nullptr
-    /// @return pointer to the start of user config
-    void *get_user_config(size_t *len, uint32_t *magic) override
+/// Specialization of the EspIdfWiFiBase with no user configuration. It will
+/// broadcast an AP, if given credentials. In STA mode, it will connect to the
+/// last known AP only.
+class EspIdfWiFiNoConfig : public EspIdfWiFiBase
+{
+public:
+    /// Constructor.
+    /// @param service Service to bind this object to. This object does not
+    ///        block the executor, except in the case of a mutex used for
+    ///        mutual exclusion. Within this object, no blocking calls are made
+    ///        while the mutex is held. In the case of a derived version of
+    ///        this object, it is possible that a derived object will have
+    ///        different blocking behavior in either the use of this service or
+    ///        it internal mutex.
+    /// @param hostname hostname to publish over the network, it is be copied
+    ///        over to an std::string
+    /// @param ap_ssid SSID of the AP
+    /// @param ap_pass password of the AP
+    /// @param ap_sec security mode of the ap
+    EspIdfWiFiNoConfig(Service *service, const char *hostname,
+        const char *ap_ssid = nullptr, const char *ap_pass = nullptr,
+        SecurityType ap_sec = SEC_OPEN)
+        : EspIdfWiFiBase(service, hostname)
+        , apSsid_(ap_ssid ? ap_ssid : "")
+        , apPass_(ap_pass ? ap_pass : "")
+        , apSec_(ap_sec)
     {
-        *len = sizeof(userCfg_);
-        if (magic)
-        {
-            *magic = userCfg_.magic_;
-        }
-        return &userCfg_;
+        enable_fast_connect_only_on_sta();
     }
+
+    /// Get the default AP password.
+    /// @return default AP password, should point to persistent memory
+    const char *default_ap_password() override
+    {
+        return "";
+    }
+
+    /// Get the default STA password.
+    /// @return default STA password, should point to persistent memory
+    const char *default_sta_password() override
+    {
+        return "";
+    }
+
+    /// Get the default AP SSID.
+    /// @return default AP SSID, should point to persistent memory
+    const char *default_ap_ssid() override
+    {
+        return "";
+    }
+
+    /// Get the default STA SSID.
+    /// @return default STA SSID, should point to persistent memory
+    const char *default_sta_ssid() override
+    {
+        return "";
+    }
+
+    /// Get the maximum number of STA client connections in AP mode. Be careful,
+    // the max supported by hardware is device dependent.
+    /// @return maximum number of STA client connections in AP mode
+    uint8_t max_ap_client_connections() override
+    {
+        return 4;
+    }
+
+    /// Get the maximum number of stored STA profiles.
+    /// @return maximum number of stored STA profiles
+    uint8_t max_sta_profiles() override
+    {
+        return 0;
+    }
+
+    /// Not supported, does nothing.
+    /// @param ssid access point SSID
+    /// @param pass access point password
+    /// @param sec_type access point security type
+    void setup_ap(
+        const char *ssid, const char *pass, SecurityType sec_type) override
+    {
+    }
+
+    /// Retrieve current access point config.
+    /// @param ssid access point SSID
+    /// @param sec_type access point security type
+    void get_ap_config(std::string *ssid, SecurityType *sec_type) override
+    {
+        ssid->assign(apSsid_);
+        *sec_type = apSec_;
+    }
+
+    /// Not supported, does nothing, returns error.
+    /// @param new_role new role, must not be UNKOWN or DEFAULT_ROLE
+    void set_role(WlanRole new_role) override
+    {
+    }
+
+    /// Not supported, does nothing
+    /// @param ssid access point SSID
+    /// @param pass access point password
+    /// @param sec_type access point security type
+    /// @param priority priority when more than one profile is saved, 0 =
+    ///        lowest priority, may be unused
+    /// @return resulting index in the list of profiles, else -1 on error
+    int profile_add(const char *ssid, const char *pass,
+        SecurityType sec_type, uint8_t priority) override
+    {
+        return -1;
+    }
+
+    /// Not supported, does nothing, returns error.
+    /// @param ssid access point SSID
+    /// @return profile index deleted, else -1 if profile not found
+    int profile_del(const char *ssid) override
+    {
+        return -1;
+    }
+
+    /// Not supported, does nothing, returns error.
+    /// @param index index of profile to delete, 0xFF removes all
+    /// @return 0 if successful, else -1 if profile not found
+    int profile_del(uint8_t index) override
+    {
+        return -1;
+    }
+
+    /// Not supported, does nothing, returns error.
+    /// @param index index within saved profilelist to get
+    /// @param ssid 33 byte array that will return the SSID of the index
+    /// @param sec_type will return the security type of the index
+    /// @param priority will return the priority of the index, may be unused
+    /// @return 0 upon success, -1 on error (index does not exist)
+    int profile_get(int index, char ssid[], SecurityType *sec_type,
+        uint8_t *priority) override
+    {
+        return -1;
+    }
+
+private:
+    /// Get the configured WiFi role.
+    /// @return configured WiFi role
+    WlanRole get_role() override
+    {
+        return apSsid_.empty() ? WlanRole::STA : WlanRole::AP_STA;
+    }
+
+    /// Retrieve current access point config, including password.
+    /// @param ssid access point SSID
+    /// @param pass access point password
+    void get_ap_config_password(std::string *ssid, std::string *pass) override
+    {
+        *ssid = apSsid_;
+        *pass = apPass_;
+    }
+
+    /// Initialize wifi configuration, including program defaults if necessary.
+    void init_config_user() override
+    {
+    }
+
+    /// Not supported, does nothing, returns error.
+    /// @param ssid SSID to match
+    /// @param pass where to fill in the password, ignored if nullptr
+    /// @param sec where to fill in the security, ignored if nullptr
+    /// @param index index to start the linear search from
+    /// @return index within the wifi profiles config, else -1 if not found
+    int find_sta_profile(const std::string &ssid, std::string *pass = nullptr,
+        uint8_t *sec = nullptr, uint8_t index = 0) override
+    {
+        return -1;
+    }
+
+    std::string apSsid_; ///< passed in AP SSID
+    std::string apPass_; ///< passed in AP password
+    SecurityType apSec_; ///< passed in AP security
 };
 
 /// Default configuration type.

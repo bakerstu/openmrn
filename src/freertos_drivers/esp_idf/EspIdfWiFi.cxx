@@ -41,7 +41,6 @@
 #include <lwip/inet.h>
 #include <lwip/netdb.h>
 #include <mdns.h>
-#include <nvs_flash.h>
 
 #include "utils/format_utils.hxx"
 
@@ -419,41 +418,6 @@ void EspIdfWiFiBase::mdns_scan(const char *service)
 }
 
 //
-// EspIdfWiFiBase::factory_default()
-//
-void EspIdfWiFiBase::factory_default()
-{
-    LOG(INFO, "wifi: factory_default()");
-    // This mutex lock will hold off a configuration sync until all the updates
-    // are made.
-    OSMutexLock locker(&lock_);
-
-    // AP setup.
-    const char *pass = default_ap_password();
-    SecurityType sec = SEC_WPA2;
-    if (!pass || pass[0] == '\0')
-    {
-        sec = SEC_OPEN;
-    }
-    setup_ap(default_ap_ssid(), pass, sec);
-
-    // Delete all STA profiles.
-    for (unsigned i = 0; i < max_sta_profiles(); ++i)
-    {
-        profile_del(i);
-    }
-
-    // Add single default STA profile.
-    pass = default_sta_password();
-    sec = SEC_WPA2;
-    if (!pass || pass[0] == '\0')
-    {
-        sec = SEC_OPEN;
-    }
-    profile_add(default_sta_ssid(), pass, sec, 0);
-}
-
-//
 // EspIdfWiFiBase::MDNSCacheItem::reset()
 //
 void EspIdfWiFiBase::MDNSCacheItem::reset(void *handle)
@@ -781,23 +745,11 @@ void EspIdfWiFiBase::wifi_event_handler(
             break;
         case WIFI_EVENT_STA_START:
         {
-            std::string ssid;
-            std::string pass;
-            uint8_t authmode;
-            uint8_t channel;
-            last_sta_get(&ssid, &pass, &authmode, &channel);
-            if (ssid.empty())
+            if (!sta_connect_fast() && !fastConnectOnlySta_)
             {
                 // No valid "fast" connect parameters.
                 esp_wifi_scan_start(&SCAN_CONFIG, false);
                 LOG(INFO, "wifi: STA start, scanning...");
-            }
-            else
-            {
-                // Try the fast connect parameters first.
-                sta_connect(ssid, pass, authmode, channel);
-                LOG(INFO, "wifi: STA start, ssid: %s, connecting...",
-                    ssid.c_str());
             }
             break;
         }
@@ -845,8 +797,9 @@ void EspIdfWiFiBase::wifi_event_handler(
             }
             if (try_fast_reconnect || fastConnectOnlySta_)
             {
-                // First reconnect attempt, or forced "fast" connect.
-                esp_wifi_connect();
+                // First reconnect attempt (use last channel), or forced "fast"
+                // connect (use any channel if not first attempt).
+                sta_connect_fast(try_fast_reconnect);
                 LOG(INFO, "wifi: STA disconnected, fast reconnect attempt...");
             }
             else
@@ -1015,9 +968,9 @@ void EspIdfWiFiBase::ip_event_handler(
 }
 
 //
-// EspIdfWiFiBase::init_config()
+// EspIdfWiFiBase::init_config_priv()
 //
-void EspIdfWiFiBase::init_config()
+void EspIdfWiFiBase::init_config_priv()
 {
     nvs_handle_t cfg;
     esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
@@ -1028,38 +981,8 @@ void EspIdfWiFiBase::init_config()
         return;
     }
 
-    // User configuration.
-    uint32_t magic;
-    size_t user_config_len;
-    void *user_config = get_user_config(&user_config_len, &magic);
-    size_t len = user_config_len;
-    result = nvs_get_blob(cfg, NVS_KEY_USER_NAME, user_config, &len);
-    switch(result)
-    {
-        case ESP_OK:
-            if (magic == WIFI_CONFIG_INIT_MAGIC && len == user_config_len)
-            {
-                // Already initialized.
-                break;
-            }
-            // Not initialized yet.
-            // fall through
-        case ESP_ERR_NVS_NOT_FOUND:
-            // fall through
-        case ESP_ERR_NVS_INVALID_LENGTH:
-            // Initialize WiFi user configuration to factory defaults.
-            factory_default();
-            nvs_set_blob(cfg, NVS_KEY_USER_NAME, user_config, user_config_len);
-            nvs_commit(cfg);
-            break;
-        default:
-            LOG_ERROR("wifi: Error %s getting userCfg_.",
-                esp_err_to_name(result));
-            break;
-    }
-
     // Private configuration.
-    len = sizeof(privCfg_);
+    size_t len = sizeof(privCfg_);
     result = nvs_get_blob(cfg, NVS_KEY_LAST_NAME, &privCfg_, &len);
     switch (result)
     {
@@ -1077,6 +1000,7 @@ void EspIdfWiFiBase::init_config()
         case ESP_ERR_NVS_INVALID_LENGTH:
             // Reset to factory defaults.
             memset(&privCfg_, 0, sizeof(privCfg_));
+            privCfg_.magic_ = PRIV_CONFIG_INIT_MAGIC;
             nvs_set_blob(cfg, NVS_KEY_LAST_NAME, &privCfg_, sizeof(privCfg_));
             nvs_commit(cfg);
             break;
@@ -1247,6 +1171,22 @@ void EspIdfWiFiBase::sta_connect(
     esp_wifi_connect();
 }
 
+//
+// EspIdfWiFiBase::sta_connect_fast()
+//
+bool EspIdfWiFiBase::sta_connect_fast(bool any_channel)
+{
+    if (privCfg_.last_.ssid_[0] != '\0')
+    {
+        uint8_t channel = any_channel ? 0 : privCfg_.channelLast_;
+        sta_connect(privCfg_.last_.ssid_, privCfg_.last_.pass_,
+            privCfg_.last_.sec_, channel);
+        LOG(INFO, "wifi: STA fast connect, ssid: %s, channel %u, connecting...",
+            privCfg_.last_.ssid_, channel);
+        return true;
+    }
+    return false;
+}
 
 //
 // EspIdfWiFiBase::last_sta_update()
@@ -1272,36 +1212,6 @@ void EspIdfWiFiBase::last_sta_update(
             nvs_close(cfg);
         }
     }
-}
-
-//
-// EspIdfWiFiBase::last_sta_set()
-//
-void EspIdfWiFiBase::last_sta_get(
-    std::string *ssid, std::string *pass, uint8_t *authmode, uint8_t *channel)
-{
-    std::string profile_pass;
-    uint8_t profile_sec;
-    int index = 0;
-    do
-    {
-        index = find_sta_profile(
-            privCfg_.last_.ssid_, &profile_pass, &profile_sec, index);
-        if (index && privCfg_.last_.pass_ == profile_pass &&
-            privCfg_.last_.sec_ == profile_sec)
-        {
-            // Last SSID is valid and exists in the profile list.
-            *ssid = privCfg_.last_.ssid_;
-            *pass = std::move(profile_pass);
-            *authmode = profile_sec;
-            *channel = privCfg_.channelLast_;
-            // Match found, stop looking.
-            return;
-        }
-    } while (index >= 0);
-
-    // No match found.
-    ssid->clear();
 }
 
 //
