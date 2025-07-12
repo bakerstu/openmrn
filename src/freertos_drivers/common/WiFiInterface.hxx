@@ -46,25 +46,6 @@
 class WiFiInterface : public WiFiDefs, public Singleton<WiFiInterface>
 {
 public:
-    /// Network info, typically used in an access point scan.
-    struct NetworkEntry
-    {
-        /// Constructor.
-        /// @param ssid SSID of the access point
-        /// @param sec_type security type of the access point
-        /// @param rssi receive signal strength of the access point
-        NetworkEntry(const char *ssid, SecurityType sec_type, int rssi)
-            : ssid(ssid)
-            , secType(sec_type)
-            , rssi(rssi)
-        {
-        }
-
-        std::string ssid; ///< SSID of the access point
-        SecurityType secType; ///< security type of the access point
-        int rssi; ///< receive signal strength of the access point
-    };
-
     /// Initialize the WiFi.
     virtual void init()
     {

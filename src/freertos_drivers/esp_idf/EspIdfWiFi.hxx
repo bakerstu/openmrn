@@ -369,6 +369,97 @@ private:
     /// Metadata for an subscribed mDNS cashed address.
     struct MDNSCacheAddr
     {
+        /// Overloaded == operator.
+        /// @param other the other item to compare to
+        /// @return result of the comparison
+        bool operator==(const MDNSCacheAddr &other)
+        {
+            bool same = family_ == other.family_;
+            same &= port_ == other.port_;
+            if (family_ == AF_INET)
+            {
+                same &=
+                    addrIn_.sin_addr.s_addr == other.addrIn_.sin_addr.s_addr;
+            }
+#if defined(ESP_IDF_WIFI_IPV6)
+            else if (family_ == AF_INET6)
+            {
+                same &= 
+                    !memcmp(addrIn6_.sin6_addr.un.u32_addr,
+                        other.addrIn6_.sin6_addr.un.u32_addr,
+                        sizeof(addrIn6_.sin6_addr.un.u32_addr));
+            }
+#endif
+            return same;
+        }
+
+        /// Set the IPv4 address.
+        /// @param addr address to set
+        void set_addr(uint32_t addr)
+        {
+            addrIn_.sin_addr.s_addr = addr;
+        }
+
+#if defined(ESP_IDF_WIFI_IPV6)
+        /// Set the IPv6 address.
+        /// @param addr address to set
+        void set_addr6(uint32_t addr[4])
+        {
+           set_addr((uint8_t*)addr);
+        }
+
+        /// Set the IPv6 address.
+        /// @param addr address to set
+        void set_addr6(uint8_t *addr)
+        {
+            memcpy(addrIn6_.sin6_addr.un.u32_addr, addr,
+                sizeof(addrIn6_.sin6_addr.un.u32_addr));
+        }
+#endif
+
+        /// Get the IPv4 address.
+        /// @return address
+        uint32_t get_addr()
+        {
+            return addrIn_.sin_addr.s_addr;
+        }
+
+#if defined(ESP_IDF_WIFI_IPV6)
+        /// Get the IPv6 address.
+        /// @return address
+        const uint8_t *get_addr6()
+        {
+           return addrIn6_.sin6_addr.un.u8_addr;
+        }
+#endif
+
+        /// Compare with an IPv4 address.
+        /// @param addr IPv4 address
+        /// @return 0 if the same, non-zero if different
+        int addrcmp(uint32_t addr)
+        {
+            return addrIn_.sin_addr.s_addr - addr;
+        }
+
+#if defined(ESP_IDF_WIFI_IPV6)
+        /// Compare with an IPv6 address.
+        /// @param addr IPv6 address
+        /// @return 0 if the same, non-zero if different
+        int addr6cmp(uint32_t addr[4])
+        {
+            return addr6cmp((uint8_t*)addr);
+        }
+
+        /// Compare with an IPv6 address.
+        /// @param addr IPv6 address
+        /// @return 0 if the same, non-zero if different
+        int addr6cmp(uint8_t *addr)
+        {
+            return memcmp(addrIn6_.sin6_addr.un.u32_addr, addr,
+                sizeof(addrIn6_.sin6_addr.un.u32_addr));
+        }
+#endif
+
         uint32_t timestamp_; ///< timestamp in seconds since last discovered
         uint32_t ttl_; ///< time to live for the entry in seconds
         sa_family_t family_; ///< protocol family
@@ -430,8 +521,22 @@ private:
         MSEC_TO_NSEC(100);
 
     /// State flow timeout for inactive time between mDNS queries.
+    ///
+    /// @todo After making the mdns_lookup() blocking, this background query
+    ///       has limited utility. Ideally, we would like the mDNS to passively
+    ///       listen for results. That way a bunch of instances don't trigger
+    ///       a bunch of unnecessary mDNS traffic. However, the ESP-IDF has
+    ///       several limitations that get in our way.
+    ///       1) To enable mDNS queries on STA, mDNS advertisements also get
+    ///          enabled.
+    ///       2) It does not look like the ESP-IDF platform has any API to do
+    ///          passive scanning.
+    ///       ...therefore, for now, the inactive timeout is set very high to
+    ///       effectively disable this feature. In newer versions of the mDNS
+    ///       implementation, there is an mdns_browse_new() API. It is worth
+    ///       exploring if this can do a background search for mDNS services.
     static constexpr long long MDNS_QUERY_INACTIVE_TIMEOUT_NSEC =
-        SEC_TO_NSEC(10);
+        SEC_TO_NSEC(1200);
 
     /// Minimum RSSI threshold for an AP signal before a connection attempt
     /// will be made in STA mode.
@@ -531,6 +636,14 @@ private:
 
     /// Initialize private configuration.
     void init_config_priv();
+
+    /// By default, we do not want to allow reset of the private NVS. Derived
+    /// objects can enable it though.
+    /// @return true if private NVS reset allowed, else false.
+    virtual bool config_priv_reset_allowed()
+    {
+        return false;
+    }
 
     /// Initialize the WiFi.
     /// @param role device role
@@ -761,7 +874,13 @@ public:
     {
         // find an "empty" profie
         OSMutexLock locker(&lock_);
-        int index = find_sta_profile("");
+        // look for a duplicate slot first.
+        int index = find_sta_profile(ssid);
+        if (index < 0)
+        {
+            // duplicate slot not found, look for an empty slot.
+            find_sta_profile("");
+        }
         if (index >= 0)
         {
             str_populate<MAX_PASS_SIZE>(userCfg_.sta_[index].pass_, pass);
@@ -908,6 +1027,13 @@ private:
         get_ap_config(ssid, &sec_type);
         pass->assign(userCfg_.ap_.pass_);
         (void)sec_type; // unused;
+    }
+
+    /// Allow reset of the private NVS configuration.
+    /// @return true if private NVS reset allowed, else false.
+    bool config_priv_reset_allowed() override
+    {
+        return true;
     }
 
     /// Initialize wifi configuration, including program defaults if necessary.

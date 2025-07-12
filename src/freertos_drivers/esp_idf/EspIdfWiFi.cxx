@@ -351,7 +351,7 @@ int EspIdfWiFiBase::mdns_lookup(
     #if !defined(LWIP_HDR_MEMP_H)
     #error "lwIP memory pool implementation required and not found."
     #endif
-                if ((now_sec - lit->timestamp_) >= lit->ttl_)
+                if ((now_sec - lit->timestamp_) > lit->ttl_)
                 {
                     // Address has expired. It will be removed from the list
                     // elsewhere.
@@ -403,6 +403,11 @@ int EspIdfWiFiBase::mdns_lookup(
     if (*addr == nullptr)
     {
         // Not found yet, do a "fast" blocking query.
+        std::string name;
+        std::string proto;
+        mdns_split(service, &name, &proto);
+
+        // Enable mDNS on STA if required.
         bool mdns_adv_inhibited_on_sta = false;
         if (mdnsAdvInhibitSta_)
         {
@@ -411,24 +416,25 @@ int EspIdfWiFiBase::mdns_lookup(
             mdns_restore_sta();
         }
 
-        std::string name;
-        std::string proto;
-        mdns_split(service, &name, &proto);
-
-        LOG(INFO, "wifi: ::mdns_query() start:  %llu",
-            NSEC_TO_MSEC(OSTime::get_monotonic()));
+        // Do the blocking query for 2 seconds, only 1 result.
         mdns_result_t *results;
-        // Blocking query for 2 seconds, only 1 result.
         esp_err_t err =
             mdns_query_ptr(name.c_str(), proto.c_str(), 2000, 1, &results);
+
+        // Disable mDNS on STA if required.
+        if (mdns_adv_inhibited_on_sta)
+        {
+            mdns_disable_sta();
+            mdns_adv_inhibit_remove();
+        }
+
+        // Check for an error result from the query.
         if (err != ESP_OK)
         {
             LOG_ERROR("wifi: mdns_query_ptr() failed: %s",
                 esp_err_to_name(err));
                 return EAI_AGAIN;
         }
-        LOG(INFO, "wifi: ::mdns_query() finish: %llu",
-            NSEC_TO_MSEC(OSTime::get_monotonic()));
 
         if (results)
         {
@@ -485,12 +491,12 @@ int EspIdfWiFiBase::mdns_lookup(
             }
             else
             {
-                // Add the results to the cache.
+                // Result found, add it to the cache.
                 OSMutexLock locker(&lock_);
                 mdnsClientCache_.emplace_back(service);
                 MDNSCacheAddr ca;
                 ca.timestamp_ = now_sec;
-                ca.ttl_ = results->ttl;
+                ca.ttl_ = results->ttl ? results->ttl : 1;
                 ca.family_ = (*addr)->ai_family;
                 ca.port_ = results->port;
                 if ((*addr)->ai_family == AF_INET)
@@ -506,14 +512,8 @@ int EspIdfWiFiBase::mdns_lookup(
                 auto it = mdnsClientCache_.end() - 1;
                 it->addr_.emplace_front(ca);
             }
-        }
-
+        } // if (results)
         mdns_query_results_free(results);
-        if (mdns_adv_inhibited_on_sta)
-        {
-            mdns_disable_sta();
-            mdns_adv_inhibit_remove();
-        }
     }
     if (*addr == nullptr && !looking)
     {
@@ -667,52 +667,45 @@ StateFlowBase::Action EspIdfWiFiBase::mdns_check()
                     duplicate &= ait->port_ == cache_addr.port_;
                     if (cache_addr.family_ == AF_INET)
                     {
-                        duplicate &= ait->addrIn_.sin_addr.s_addr ==
-                            addr->addr.u_addr.ip4.addr;
+                        duplicate &= ait->addrcmp(addr->addr.u_addr.ip4.addr);
                     }
 #if defined(ESP_IDF_WIFI_IPV6)
                     else if (cache_addr.family_ == AF_INET6)
                     {
-                        duplicate &= 
-                            !memcmp(ait->addrIn6_.sin6_addr.un.u32_addr,
-                                addr->addr.u_addr.ip6.addr,
-                                sizeof(ait->addrIn6_.sin6_addr.un.u32_addr));
+                        duplicate &= ait->addr6cmp(addr->addr.u_addr.ip6.addr);
                     }
+#endif
                     if (duplicate)
                     {
                         // Refresh the timestamp and ttl.
                         ait->timestamp_ = now_sec;
                         ait->ttl_ = mdns_result->ttl ? mdns_result->ttl : 1;
                     }
-#endif
                 }
                 if (!duplicate)
                 {
                     if (cache_addr.family_ == AF_INET)
                     {
-                        cache_addr.addrIn_.sin_addr.s_addr =
-                            addr->addr.u_addr.ip4.addr;
+                        cache_addr.set_addr(addr->addr.u_addr.ip4.addr);
                         cache_addr.addrIn_.sin_port = cache_addr.port_;
                         LOG(INFO, "wifi: mDNS service discovered: %s\n"
                             "     %s %s:%u", cur_result->hostname,
                             it->service_.c_str(),
-                            ipv4_to_string(ntohl(
-                                cache_addr.addrIn_.sin_addr.s_addr)).c_str(),
+                            ipv4_to_string(
+                                ntohl(cache_addr.get_addr())).c_str(),
                             ntohs(cache_addr.port_));
                     }
 #if defined(ESP_IDF_WIFI_IPV6)
                     else if (cache_addr.family_ == AF_INET6)
                     {
-                        memcpy(cache_addr.addrIn6_.sin6_addr.un.u32_addr,
-                            addr->addr.u_addr.ip6.addr,
-                            sizeof(cache_addr.addrIn6_.sin6_addr.un.u32_addr));
+                        cache_addr.set_addr6(addr->addr.u_addr.ip6.addr);
                         cache_addr.addrIn6_.sin6_port = cache_addr.port_;
+                        char ip6_str[INET6_ADDRSTRLEN];
                         LOG(INFO, "wifi: mDNS service discovered: %s\n"
                             "     %s %s:%u", cur_result->hostname,
                             it->service_.c_str(),
-                            ipv6_to_string(
-                                cache_addr.addrIn6_.sin6_addr.un.u8_addr)
-                                    .c_str(),
+                            inet_ntop(AF_INET6, cache_addr.get_addr6(), ip6_str,
+                                INET6_ADDRSTRLEN),
                             ntohs(cache_addr.port_));
                     }
 #endif
@@ -735,7 +728,7 @@ StateFlowBase::Action EspIdfWiFiBase::mdns_check()
         // Prune any expired entries.
         for (auto ait = it->addr_.begin(); ait != it->addr_.end(); )
         {
-            if ((now_sec - ait->timestamp_) >= ait->ttl_)
+            if ((now_sec - ait->timestamp_) > ait->ttl_)
             {
                 ait = it->addr_.erase(ait);
             }
@@ -972,7 +965,7 @@ void EspIdfWiFiBase::wifi_event_handler(
             uint16_t number;
             esp_wifi_scan_get_ap_num(&number);
             LOG(INFO, "wifi: Scan done, number of records: %u.", number);
-            number = std::min(number, static_cast<uint16_t>(10));
+            number = std::min(number, static_cast<uint16_t>(16));
 
             // This takes a lot of memory. Not the best API design. See note
             // above.
@@ -994,27 +987,18 @@ void EspIdfWiFiBase::wifi_event_handler(
 
                     if (staIface_ && !connected_ && idx < 0)
                     {
-                        int index = 0;
-                        do
+                        std::string profile_pass;
+                        uint8_t profile_sec;
+                        idx = find_sta_profile(scanResults_.back().ssid,
+                            &profile_pass, &profile_sec);
+                        if (idx >= 0 && ap_records[i].authmode >= profile_sec)
                         {
-                            std::string profile_pass;
-                            uint8_t profile_sec;
-                            index = find_sta_profile(
-                                std::string((char*)ap_records[i].ssid),
-                                &profile_pass, &profile_sec, index);
-                            if (index >= 0 &&
-                                ap_records[i].authmode >= profile_sec)
-                            {
-                                // profile SSID and security mode match.
-                                idx = index;
-                                ssid = (char*)ap_records[i].ssid;
-                                pass = std::move(profile_pass);
-                                sec = profile_sec;
-                                conn_channel = ap_records[i].primary;
-                                // Found a match, stop looking.
-                                break;
-                            }
-                        } while (index >= 0);
+                            // profile SSID and security mode match.
+                            ssid = (char*)ap_records[i].ssid;
+                            pass = std::move(profile_pass);
+                            sec = ap_records[i].authmode;
+                            conn_channel = ap_records[i].primary;
+                        }
                     }
                 }
             }
@@ -1025,6 +1009,12 @@ void EspIdfWiFiBase::wifi_event_handler(
                 // a connection.
                 if (idx < 0)
                 {
+                    /// @todo If we get into a situation where we are
+                    ///       continuously scanning forever, does this effect
+                    ///       the quality of the AP or BLE peformance, since
+                    ///       there is only one radio? Not sure. Need to do
+                    ///       some practical testing. Perhaps there should be
+                    ///       some delay between scans.
                     // No profile match found, scan again.
                     esp_wifi_scan_start(nullptr, false);
                 }
@@ -1132,11 +1122,18 @@ void EspIdfWiFiBase::init_config_priv()
     }
 
     // Private configuration.
+    memset(&privCfg_, 0, sizeof(privCfg_));
     size_t len = sizeof(privCfg_);
     result = nvs_get_blob(cfg, NVS_KEY_LAST_NAME, &privCfg_, &len);
     switch (result)
     {
         case ESP_OK:
+            if (!config_priv_reset_allowed())
+            {
+                // Reset of the private configuration is not allowed. No reason
+                // to check if it was read out in tact.
+                break;
+            }
             if (privCfg_.magic_ == PRIV_CONFIG_INIT_MAGIC &&
                 len == sizeof(privCfg_))
             {
@@ -1378,6 +1375,8 @@ uint8_t EspIdfWiFiBase::sec_type_translate(SecurityType sec_type)
             return WIFI_AUTH_WEP;
         case SEC_WPA2:
             return WIFI_AUTH_WPA2_PSK;
+        case SEC_WPA3:
+            return WIFI_AUTH_WPA3_PSK;
     }
 }
 
@@ -1394,7 +1393,13 @@ WiFiInterface::SecurityType EspIdfWiFiBase::sec_type_encode(uint8_t sec_type)
         case WIFI_AUTH_WEP:
             return SEC_WEP;
         case WIFI_AUTH_WPA2_PSK:
+            // fall through
+        case WIFI_AUTH_WPA_WPA2_PSK:
             return SEC_WPA2;
+        case WIFI_AUTH_WPA3_PSK:
+            // fall through
+        case WIFI_AUTH_WPA2_WPA3_PSK:
+            return SEC_WPA3;
     }
 }
 
