@@ -995,15 +995,15 @@ public:
     ///        it internal mutex.
     /// @param hostname hostname to publish over the network, it is be copied
     ///        over to an std::string
-    /// @param ap_ssid SSID of the AP
-    /// @param ap_pass password of the AP
+    /// @param ap_ssid SSID of the AP, copied into an std::string()
+    /// @param ap_pass password of the AP, copied into an sd::string()
     /// @param ap_sec security mode of the ap
     EspIdfWiFiNoConfig(Service *service, const char *hostname,
-        const char *ap_ssid = nullptr, const char *ap_pass = nullptr,
+        const char *ap_ssid = "", const char *ap_pass = "",
         SecurityType ap_sec = SEC_OPEN)
         : EspIdfWiFiBase(service, hostname)
-        , apSsid_(ap_ssid ? ap_ssid : "")
-        , apPass_(ap_pass ? ap_pass : "")
+        , apSsid_(ap_ssid)
+        , apPass_(ap_pass)
         , apSec_(ap_sec)
     {
         enable_fast_connect_only_on_sta();
