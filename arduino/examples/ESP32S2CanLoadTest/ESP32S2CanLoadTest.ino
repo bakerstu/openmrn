@@ -35,6 +35,7 @@
 #include <Arduino.h>
 #include <SPIFFS.h>
 #include <esp_spi_flash.h>
+#include <esp_private/cache_utils.h>
 #include <USB.h>
 
 #include <OpenMRNLite.h>
@@ -267,13 +268,14 @@ void setup()
 
     // Register hardware timer zero to use a 1Mhz resolution and to count up
     // from zero when the timer triggers.
-    auto timer = timerBegin(0, 80, true);
-    // Attach our callback function to be called on the timer edge signal.
-    timerAttachInterrupt(timer, record_cpu_usage, true);
+    auto timer = timerBegin(80);
+    // Attach our callback function to be called when the timer is ready to
+    // fire.
+    timerAttachInterrupt(timer, &record_cpu_usage);
     // Configure the trigger point to be roughly 163 times per second.
-    timerAlarmWrite(timer, 1000000/163, true);
+    timerWrite(timer, 1000000/163);
     // Enable the timer.
-    timerAlarmEnable(timer);
+    timerStart(timer);
 
     // Initialize the SPIFFS filesystem as our persistence layer
     if (!SPIFFS.begin())
