@@ -218,7 +218,8 @@ public:
     /// @param service service, e.g. _openlcb-can._tcp
     void mdns_service_remove(const char *service);
 
-    /// Lookup an mDNS name. Non-blocking.
+    /// Lookup an mDNS name. Blocking for up to ~2 seconds, will return early
+    /// if results are available sooner.
     /// @param service servicename to lookup
     /// @param hints hints about limiting the types of services that will
     ///        respond
@@ -368,6 +369,8 @@ private:
     /// Metadata for an subscribed mDNS cashed address.
     struct MDNSCacheAddr
     {
+        uint32_t timestamp_; ///< timestamp in seconds since last discovered
+        uint32_t ttl_; ///< time to live for the entry in seconds
         sa_family_t family_; ///< protocol family
         uint16_t port_; ///< port number, network endianness
         union
@@ -600,7 +603,7 @@ private:
     std::vector<NetworkEntry> scanResults_; ///< AP scan results
     std::string staConnectPass_; ///< last station connect attempt password
     const std::string hostname_; ///< published hostname
-    unsigned mdnsStaLockCount_; ///< counter for recursive mDNS STA lock
+    int mdnsStaLockCount_; ///< counter for recursive mDNS STA lock
     uint8_t apClientCount_; ///< number of connected wifi clients
 
     //
