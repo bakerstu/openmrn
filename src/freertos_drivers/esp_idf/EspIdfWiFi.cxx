@@ -32,6 +32,9 @@
  * @date 27 Aug 2024, extended starting Jun 17 2025
  */
 
+// Uncomment following line to enable verbose logging.
+//#define LOGLEVEL VERBOSE
+
 #include "freertos_drivers/esp_idf/EspIdfWiFi.hxx"
 
 #include <ifaddrs.h>
@@ -268,7 +271,7 @@ void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
     std::string name;
     std::string proto;
     mdns_split(service, &name, &proto);
-    LOG(INFO, "wifi: MDNS service add, name: %s, proto: %s, port: %u",
+    LOG(VERBOSE, "wifi: MDNS service add, name: %s, proto: %s, port: %u",
         name.c_str(), proto.c_str(), port);
     OSMutexLock locker(&lock_);
     if (!mdnsAdvInhibit_)
@@ -287,7 +290,7 @@ void EspIdfWiFiBase::mdns_service_remove(const char *service)
     std::string name;
     std::string proto;
     mdns_split(service, &name, &proto);
-    LOG(INFO, "wifi: MDNS service remove, service: %s, proto: %s",
+    LOG(VERBOSE, "wifi: MDNS service remove, service: %s, proto: %s",
         name.c_str(), proto.c_str());
     OSMutexLock locker(&lock_);
     if (!mdnsAdvInhibit_)
@@ -388,7 +391,7 @@ int EspIdfWiFiBase::mdns_lookup(
                 current->ai_addr = (struct sockaddr*)(current + 1);
                 memcpy(current->ai_addr, &ca->addr_, addr_len);
                 last = current;
-                LOG(INFO, "wifi: mdns_lookup() address: %s, port: %u",
+                LOG(VERBOSE, "wifi: mdns_lookup() address: %s, port: %u",
                     ipv4_to_string(ntohl(ca->addrIn_.sin_addr.s_addr)).c_str(),
                     ntohs(ca->addrIn_.sin_port));
             }
@@ -688,7 +691,7 @@ StateFlowBase::Action EspIdfWiFiBase::mdns_check()
                     {
                         cache_addr.set_addr(addr->addr.u_addr.ip4.addr);
                         cache_addr.addrIn_.sin_port = cache_addr.port_;
-                        LOG(INFO, "wifi: mDNS service discovered: %s\n"
+                        LOG(VERBOSE, "wifi: mDNS service discovered: %s\n"
                             "     %s %s:%u", cur_result->hostname,
                             it->service_.c_str(),
                             ipv4_to_string(
@@ -701,7 +704,7 @@ StateFlowBase::Action EspIdfWiFiBase::mdns_check()
                         cache_addr.set_addr6(addr->addr.u_addr.ip6.addr);
                         cache_addr.addrIn6_.sin6_port = cache_addr.port_;
                         char ip6_str[INET6_ADDRSTRLEN];
-                        LOG(INFO, "wifi: mDNS service discovered: %s\n"
+                        LOG(VERBOSE, "wifi: mDNS service discovered: %s\n"
                             "     %s %s:%u", cur_result->hostname,
                             it->service_.c_str(),
                             inet_ntop(AF_INET6, cache_addr.get_addr6(), ip6_str,
@@ -854,7 +857,7 @@ void EspIdfWiFiBase::mdns_scanning_start_or_trigger_refresh()
         // Start the client if not already started.
         mdnsClientStarted_ = true;
         notify();
-        LOG(INFO, "wifi: mdns_scan() start.");
+        LOG(VERBOSE, "wifi: mdns_scan() start.");
     }
     else if (!mdnsClientTrigRefresh_)
     {
@@ -865,7 +868,7 @@ void EspIdfWiFiBase::mdns_scanning_start_or_trigger_refresh()
         CallbackExecutable *e =
             new CallbackExecutable([this](){this->timer_.ensure_triggered();});
         this->service()->executor()->add(e);
-        LOG(INFO, "wifi: mdns_scan() trigger.");
+        LOG(VERBOSE, "wifi: mdns_scan() trigger.");
     }
 }
 
@@ -888,11 +891,12 @@ void EspIdfWiFiBase::wifi_event_handler(
             break;
         case WIFI_EVENT_STA_START:
         {
+            LOG(INFO, "wifi: STA started.");
             if (!sta_connect_fast() && !fastConnectOnlySta_)
             {
                 // No valid "fast" connect parameters.
                 esp_wifi_scan_start(&SCAN_CONFIG, false);
-                LOG(INFO, "wifi: STA start, scanning...");
+                LOG(VERBOSE, "wifi: STA start, scanning...");
             }
             break;
         }
@@ -943,13 +947,13 @@ void EspIdfWiFiBase::wifi_event_handler(
                 // First reconnect attempt (use last channel), or forced "fast"
                 // connect (use any channel if not first attempt).
                 sta_connect_fast(try_fast_reconnect);
-                LOG(INFO, "wifi: STA disconnected, fast reconnect attempt...");
+                LOG(VERBOSE, "wifi: STA disconnected, fast reconnect attempt...");
             }
             else
             {
                 // Successive reconnect attempts.
                 esp_wifi_scan_start(nullptr, false);
-                LOG(INFO, "wifi: STA disconnected, scanning...");
+                LOG(VERBOSE, "wifi: STA disconnected, scanning...");
             }
             std::string ssid((char*)evdata->ssid, evdata->ssid_len);
             wlan_connected(
@@ -1028,9 +1032,18 @@ void EspIdfWiFiBase::wifi_event_handler(
             break;
         }
         case WIFI_EVENT_AP_START:
+        {
             ipAcquiredAp_ = true;
             ip_acquired(IFACE_AP, true);
+            esp_netif_ip_info_t ip_info;
+            esp_netif_get_ip_info(
+                esp_netif_get_handle_from_ifkey(NETIF_KEY_NAME_AP), &ip_info);
+
+            char ip_addr[16];
+            inet_ntoa_r(ip_info.ip.addr, ip_addr, 16);
+            LOG(INFO, "wifi: Set up softAP with IP: %s", ip_addr);
             break;
+        }
         case WIFI_EVENT_AP_STOP:
             ipAcquiredAp_ = false;
             ip_acquired(IFACE_AP, false);
@@ -1102,6 +1115,7 @@ void EspIdfWiFiBase::ip_event_handler(
             break;
         }
         case IP_EVENT_AP_STAIPASSIGNED:
+            LOG(INFO, "wifi: Soft-AP assigned out IP address.");
             ipLeased_ = true;
             break;
     }
@@ -1146,6 +1160,7 @@ void EspIdfWiFiBase::init_config_priv()
             // fall through
         case ESP_ERR_NVS_INVALID_LENGTH:
             // Reset to factory defaults.
+            LOG(INFO, "wifi: Reset private config.");
             memset(&privCfg_, 0, sizeof(privCfg_));
             privCfg_.magic_ = PRIV_CONFIG_INIT_MAGIC;
             nvs_set_blob(cfg, NVS_KEY_LAST_NAME, &privCfg_, sizeof(privCfg_));
@@ -1219,17 +1234,6 @@ void EspIdfWiFiBase::init_wifi(WlanRole role)
     // Start the WiFi.
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    if (apIface_)
-    {
-        esp_netif_ip_info_t ip_info;
-        esp_netif_get_ip_info(
-            esp_netif_get_handle_from_ifkey(NETIF_KEY_NAME_AP), &ip_info);
-
-        char ip_addr[16];
-        inet_ntoa_r(ip_info.ip.addr, ip_addr, 16);
-        LOG(INFO, "wifi: Set up softAP with IP: %s", ip_addr);
-    }
-
     // Initialize mDNS.
     ESP_ERROR_CHECK(mdns_init());
     mdns_hostname_set(hostname_.c_str());
@@ -1294,7 +1298,7 @@ void EspIdfWiFiBase::sta_connect(
     size_t pass_len = std::min(pass.size(), (size_t)MAX_PASSPHRASE_LEN);
     memcpy(conf.sta.password, pass.c_str(), pass_len);
 
-    LOG(INFO, "wifi: STA SSID: %s", conf.sta.ssid);
+    LOG(VERBOSE, "wifi: STA SSID: %s", conf.sta.ssid);
 
     if (pass_len)
     {
@@ -1328,7 +1332,8 @@ bool EspIdfWiFiBase::sta_connect_fast(bool any_channel)
         uint8_t channel = any_channel ? 0 : privCfg_.channelLast_;
         sta_connect(privCfg_.last_.ssid_, privCfg_.last_.pass_,
             privCfg_.last_.sec_, channel);
-        LOG(INFO, "wifi: STA fast connect, ssid: %s, channel %u, connecting...",
+        LOG(VERBOSE,
+            "wifi: STA fast connect, ssid: %s, channel %u, connecting...",
             privCfg_.last_.ssid_, channel);
         return true;
     }
@@ -1348,7 +1353,7 @@ void EspIdfWiFiBase::last_sta_update(
         esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
         if (result == ESP_OK)
         {
-            LOG(INFO, "wifi: Update last STA.");
+            LOG(VERBOSE, "wifi: Update last STA.");
             str_populate<MAX_SSID_SIZE>(privCfg_.last_.ssid_, ssid.c_str());
             str_populate<MAX_PASS_SIZE>(privCfg_.last_.pass_, pass.c_str());
             privCfg_.last_.sec_ = authmode;

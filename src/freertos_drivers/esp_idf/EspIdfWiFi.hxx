@@ -59,13 +59,9 @@
 ///   -# init()
 ///       - performs initialize before starting WiFi
 ///   -# setup_ap()
-///       - option, can be used to override the stored AP profile in bootloader
+///       - optional, can be used to override the stored AP profile
 ///   -# start()
 ///       - starts the WiFi based on config (AP, STA, or AP + STA mode)
-///
-/// By default, all user configuration is volatile, and will be forgotten upon
-/// reboot. This is useful for a bootloader that just needs to connect to the
-/// "last" known STA and broadcast the "default" AP. Bootloader example:
 ///
 /// @code
 /// EspIdfWifi wifi;
@@ -80,12 +76,27 @@
 /// }
 /// @endcode
 ///
-/// In order to support non-volatile configuration, use the specialized version
-/// of this object that includes a DefaultConfigUpdateListener instead.
-/// Whenever there is an update to the WiFi profiles managed by this object,
-/// the virtual method config_sync() is called. config_sync() can be overriden
-/// in a derived version of this object in order to trigger synchronization with
-/// more complex user configuration, such as that of memory spaces and CDI.
+/// This base object contains no user configuration. The only non-volatile
+/// configuration it contains is the credentials for the last STA that a
+/// successful connection was mad to. Its constructor is intentionally protected
+/// such that some derived version is required for further specialization. Two
+/// such specializations are provided.
+///
+///   -# EspIdfWiFi
+///       - This is a templated class that implements user configuration for
+///         AP and STA profiles, factory reset default SSIDs and passwords,
+///         max AP client connections, and max STA profiles.
+///       - DefaultEspIdfWiFiHwDefs is provided as a default configuration. It
+///         can be used directly, or as a reference in creating a customized
+///         variant.
+///   -# EspIdfWiFiConfigDefalt
+///       - Implemented as shorthand for EspIdfWiFi<DefaultEspIdfWiFiHwDefs>
+///   -# EspIdfWiFiNoConfig
+///       - This version provides no user configuration, and assumes that fast
+///         connect will always be used. It allows the user to explicitly
+///         specify the AP credentials at construction. This version can be
+///         useful for bootloaders where fixed credentials and no user
+///         configuration is often desired.
 ///
 /// Note: The protected status variables in the WiFiInterface object are only
 ///       modified from the ESP event handler thread. Therefore, they do not
@@ -1110,7 +1121,7 @@ private:
 
 /// Specialization of the EspIdfWiFiBase with no user configuration. It will
 /// broadcast an AP, if given credentials. In STA mode, it will connect to the
-/// last known AP only.
+/// last known AP only, always using fast connect.
 class EspIdfWiFiNoConfig : public EspIdfWiFiBase
 {
 public:
@@ -1285,7 +1296,7 @@ private:
     SecurityType apSec_; ///< passed in AP security
 };
 
-/// Default configuration type.
+/// Shorthand for default configuration type.
 using EspIdfWiFiConfigDefault = EspIdfWiFi<DefaultEspIdfWiFiHwDefs>;
 
 #endif // _FREERTOS_DRIVERS_ESP_IDF_ESPIDFWIFI_HXX_
