@@ -496,14 +496,6 @@ private:
         {
         }
 
-        /// Constructor.
-        /// @param service service name to look for, string is copied in
-        MDNSCacheItem(const char *service)
-            : service_(service)
-            , searchHandle_(nullptr)
-        {
-        }
-
         /// Reset the search.
         /// @param handle the new search handle value, delete previous handle
         ///        if still valid, should be called with mutex lock
