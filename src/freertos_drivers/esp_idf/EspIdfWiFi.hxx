@@ -41,6 +41,7 @@
 #include "executor/StateFlow.hxx"
 #include "freertos_drivers/common/WiFiInterface.hxx"
 #include "openmrn_features.h"
+#include "utils/format_utils.hxx"
 
 #include <sys/socket.h>
 
