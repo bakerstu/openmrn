@@ -116,6 +116,18 @@ void wait_for_main_executor()
     guard->wait_for_notification();
 }
 
+/** Delays the current thread until all asynchronous processing and all
+ * pending timers have completed. */
+void wait_for_main_timers()
+{
+    wait_for_main_executor();
+    while (!g_executor.active_timers()->empty())
+    {
+        usleep(20000);
+        wait_for_main_executor();
+    }
+    wait_for_main_executor();
+}
 
 /** Fixes race condition between test teardown and executor startup.
  *

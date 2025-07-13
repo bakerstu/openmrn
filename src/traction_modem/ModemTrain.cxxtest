@@ -1,0 +1,173 @@
+#include "utils/test_main.hxx"
+
+#include "traction_modem/modem_test_helper.hxx"
+
+#include "traction_modem/ModemTrain.hxx"
+
+namespace traction_modem
+{
+
+/// Test object for the ModemTrain.
+class ModemTrainTest : public ::testing::Test
+{
+protected:
+    /// Constructor.
+    ModemTrainTest()
+    {
+        using ::testing::_;
+        EXPECT_CALL(mRxFlow_, register_handler(_, Defs::CMD_OUTPUT_STATE, _))
+            .Times(1);
+        EXPECT_CALL(mRxFlow_, register_handler(_, Defs::CMD_OUTPUT_RESTART, _))
+            .Times(1);
+        EXPECT_CALL(mRxFlow_,
+            register_handler(_, Defs::RESP_OUTPUT_STATE_QUERY, _)).Times(1);
+        train_ = new ModemTrain(&g_service, &mTxFlow_, &mRxFlow_, &mHwIf_);
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+    }
+
+    /// Destructor.
+    ~ModemTrainTest()
+    {
+        testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
+        using ::testing::_;
+        EXPECT_CALL(mRxFlow_, unregister_handler_all(_)).Times(1);
+        delete train_;
+    }
+
+    ::testing::StrictMock<MockRxFlow> mRxFlow_;
+    ::testing::StrictMock<MockTxFlow> mTxFlow_;
+    ::testing::StrictMock<ModemTrainHwInterface> mHwIf_;
+    ModemTrain *train_; ///< modem train instance
+};
+
+TEST_F(ModemTrainTest, Create)
+{
+}
+
+TEST_F(ModemTrainTest, Start)
+{
+    EXPECT_CALL(mRxFlow_, start(9)).Times(1);
+    EXPECT_CALL(mTxFlow_, start(9)).Times(1);
+    train_->start(9);
+}
+
+TEST_F(ModemTrainTest, GetFlow)
+{
+    EXPECT_EQ(&mTxFlow_, train_->get_tx_flow());
+    EXPECT_EQ(&mRxFlow_, train_->get_rx_flow());
+}
+
+TEST_F(ModemTrainTest, Set_Is_Active)
+{
+    using ::testing::StartsWith;
+    using namespace std::literals;
+
+    EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+        "\x41\xD2\xC3\x7A\x02\x01\x00\x01\x01"s))).Times(1);
+    train_->set_is_active(true);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+
+    EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+        "\x41\xD2\xC3\x7A\x02\x01\x00\x01\x00"s))).Times(1);
+    train_->set_is_active(false);
+}
+
+TEST_F(ModemTrainTest, Speed)
+{
+    using ::testing::StartsWith;
+    using namespace std::literals;
+
+    openlcb::Velocity v;
+    bool estop;
+    openlcb::SpeedType lastspeed;
+
+    // Set forward speed.
+    {
+    ::testing::InSequence seq;
+    EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+        "\x41\xD2\xC3\x7A\x02\x01\x00\x01\x01"s))).Times(1);
+    EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+        "\x41\xD2\xC3\x7A\x01\x00\x00\x01\xB9"s))).Times(1);
+    v.set_mph(56);
+    v.set_direction(openlcb::Velocity::FORWARD);
+    train_->set_speed(v);
+    estop = train_->get_emergencystop();
+    EXPECT_FALSE(estop);
+    lastspeed = train_->get_speed();
+    EXPECT_EQ(v,lastspeed);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+    }
+
+    // Set reverse speed.
+    EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+        "\x41\xD2\xC3\x7A\x01\x00\x00\x01\x0B"s))).Times(1);
+    v.set_mph(10);
+    v.set_direction(openlcb::Velocity::REVERSE);
+    train_->set_speed(v);
+    estop = train_->get_emergencystop();
+    EXPECT_FALSE(estop);
+    lastspeed = train_->get_speed();
+    EXPECT_EQ(v,lastspeed);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+
+    // Set emergency stop.
+    EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+        "\x41\xD2\xC3\x7A\x01\x02\x00\x00"s))).Times(1);
+    train_->set_emergencystop();
+    estop = train_->get_emergencystop();
+    EXPECT_TRUE(estop);
+    lastspeed = train_->get_speed();
+    v.set_mph(0); // keeps direction
+    EXPECT_EQ(v,lastspeed);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+
+    // Clear the emergency stop, set speed to 0 forward.
+    EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+        "\x41\xD2\xC3\x7A\x01\x00\x00\x01\x80"s))).Times(1);
+    v.set_direction(openlcb::Velocity::FORWARD);
+    train_->set_speed(v);
+    estop = train_->get_emergencystop();
+    EXPECT_FALSE(estop);
+    lastspeed = train_->get_speed();
+    EXPECT_EQ(v,lastspeed);
+}
+
+TEST_F(ModemTrainTest, Function)
+{
+    using ::testing::StartsWith;
+    using namespace std::literals;
+
+    uint32_t address = 0;
+    uint16_t value = 1;
+
+    // Set function.
+    {
+    ::testing::InSequence seq;
+    EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+        "\x41\xD2\xC3\x7A\x02\x01\x00\x01\x01"s))).Times(1);
+    EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
+        "\x41\xD2\xC3\x7A\x01\x01\x00\x06\x00\x00\x00\x00\x00\x01"s))).Times(1);
+    train_->set_fn(address,value);
+    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
+    }
+
+    // Get function.
+    value = train_->get_fn(address);
+    EXPECT_EQ(0 ,value);
+}
+
+TEST_F(ModemTrainTest, Legacy_Address)
+{
+    uint32_t address;
+    dcc::TrainAddressType type;
+
+    // Get address value.
+    address = train_->legacy_address();
+    EXPECT_EQ(883U ,address);
+
+    // Get address type.
+    type = train_->legacy_address_type();
+    EXPECT_EQ(dcc::TrainAddressType::DCC_LONG_ADDRESS,type);
+}
+
+} // namespace traction_modem
