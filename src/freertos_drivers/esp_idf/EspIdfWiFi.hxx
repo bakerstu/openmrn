@@ -127,7 +127,8 @@ public:
         initialized_ = true;
     }
 
-    /// Stop the WiFi.
+    /// Stop the WiFi. Has no expectation that start() can be called again
+    /// without first rebooting. esp_wifi_deinit() is not called.
     void stop() override;
 
     /// Connect to access point. This is a non-blocking call. The results will

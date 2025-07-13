@@ -55,7 +55,8 @@ public:
     /// @param role device role
     virtual void start(WlanRole role = WlanRole::DEFAULT_ROLE) = 0;
 
-    /// Stop the WiFi.
+    /// Stop the WiFi. Has no expectation that start() can be called again
+    /// without first rebooting.
     virtual void stop() = 0;
 
     /// Get the started state of the WiFi.

@@ -224,6 +224,7 @@ void freeifaddrs(struct ifaddrs *ifa)
 //
 void EspIdfWiFiBase::stop()
 {
+    initialized_ = false;
     esp_wifi_stop();
 }
 
@@ -945,6 +946,15 @@ void EspIdfWiFiBase::wifi_event_handler(
                 mdns_disable_sta();
                 ip_acquired(IFACE_STA, false);
             }
+            std::string ssid((char*)evdata->ssid, evdata->ssid_len);
+            wlan_connected(
+                false, connection_result_encode(evdata->reason), ssid);
+            if (!initialized_)
+            {
+                // This is likely a "stop" condition. Do not try to reconnect
+                // or scan for APs. Otherwise, there will be a crash.
+                break;
+            }
             if (try_fast_reconnect || fastConnectOnlySta_)
             {
                 // First reconnect attempt (use last channel), or forced "fast"
@@ -958,9 +968,6 @@ void EspIdfWiFiBase::wifi_event_handler(
                 esp_wifi_scan_start(nullptr, false);
                 LOG(VERBOSE, "wifi: STA disconnected, scanning...");
             }
-            std::string ssid((char*)evdata->ssid, evdata->ssid_len);
-            wlan_connected(
-                false, connection_result_encode(evdata->reason), ssid);
             break;
         }
         case WIFI_EVENT_SCAN_DONE:
