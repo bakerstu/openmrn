@@ -851,9 +851,7 @@ public:
         const char *ssid, const char *pass, SecurityType sec_type) override
     {
         OSMutexLock locker(&lock_);
-        str_populate<MAX_SSID_SIZE>(userCfg_.ap_.ssid_, ssid);
-        str_populate<MAX_PASS_SIZE>(userCfg_.ap_.pass_, pass);
-        userCfg_.ap_.sec_ = sec_type_translate(sec_type);
+        setup_ap_helper(ssid, pass, sec_type);
         config_sync();
     }
 
@@ -889,20 +887,11 @@ public:
     int profile_add(const char *ssid, const char *pass,
         SecurityType sec_type, uint8_t priority) override
     {
-        // find an "empty" profie
         OSMutexLock locker(&lock_);
-        // look for a duplicate slot first.
-        int index = find_sta_profile(ssid);
-        if (index < 0)
-        {
-            // duplicate slot not found, look for an empty slot.
-            find_sta_profile("");
-        }
+        int index = profile_add_helper(ssid, pass, sec_type, priority);
         if (index >= 0)
         {
-            str_populate<MAX_PASS_SIZE>(userCfg_.sta_[index].pass_, pass);
-            userCfg_.sta_[index].sec_ = sec_type_encode(sec_type);
-            str_populate<MAX_SSID_SIZE>(userCfg_.sta_[index].ssid_, ssid);
+            // Success, found an empty slot.
             config_sync();
         }
         return index;
@@ -985,11 +974,62 @@ protected:
         "The size of WiFiConfigNVS has changed. This could lead to "
         "compatiblity issues in deployed devices.");
 
+    /// Initialize wifi configuration, including program defaults if necessary.
+    void init_config_user() override
+    {
+        memset(&userCfg_, 0, sizeof(userCfg_));
+        userCfg_.magic_ = WIFI_CONFIG_INIT_MAGIC;
+        setup_ap_helper(
+            HWDefs::DEFAULT_AP_SSID, HWDefs::DEFAULT_AP_PASSWORD, SEC_WPA2);
+        profile_add_helper(
+            HWDefs::DEFAULT_STA_SSID, HWDefs::DEFAULT_STA_PASSWORD, SEC_WPA2,
+            0);
+    }
 
     /// cached copy of the wifi user config
     WiFiConfigNVS userCfg_; 
 
 private:
+    /// Setup access point role credentials, but don't take the mutex lock or
+    /// call config_sync(). May require reboot to take effect.
+    /// @param ssid access point SSID
+    /// @param pass access point password
+    /// @param sec_type access point security type
+    void setup_ap_helper(
+        const char *ssid, const char *pass, SecurityType sec_type)
+    {
+        str_populate<MAX_SSID_SIZE>(userCfg_.ap_.ssid_, ssid);
+        str_populate<MAX_PASS_SIZE>(userCfg_.ap_.pass_, pass);
+        userCfg_.ap_.sec_ = sec_type_translate(sec_type);
+    }
+
+    /// Add a saved WiFi access point profile, but don't take the mutex lock or
+    /// call config_sync().
+    /// @param ssid access point SSID
+    /// @param pass access point password
+    /// @param sec_type access point security type
+    /// @param priority priority when more than one profile is saved, 0 =
+    ///        lowest priority, may be unused
+    /// @return resulting index in the list of profiles, else -1 on error
+    int profile_add_helper(const char *ssid, const char *pass,
+        SecurityType sec_type, uint8_t priority)
+    {
+        // find an "empty" profile, look for a duplicate slot first.
+        int index = find_sta_profile(ssid);
+        if (index < 0)
+        {
+            // duplicate slot not found, look for an empty slot.
+            find_sta_profile("");
+        }
+        if (index >= 0)
+        {
+            str_populate<MAX_PASS_SIZE>(userCfg_.sta_[index].pass_, pass);
+            userCfg_.sta_[index].sec_ = sec_type_translate(sec_type);
+            str_populate<MAX_SSID_SIZE>(userCfg_.sta_[index].ssid_, ssid);
+        }
+        return index;
+    }
+
     /// Get the configured WiFi role.
     /// @return configured WiFi role
     WlanRole get_role() override
@@ -1014,17 +1054,6 @@ private:
     bool config_priv_reset_allowed() override
     {
         return true;
-    }
-
-    /// Initialize wifi configuration, including program defaults if necessary.
-    void init_config_user() override
-    {
-        memset(&userCfg_, 0, sizeof(userCfg_));
-        userCfg_.magic_ = WIFI_CONFIG_INIT_MAGIC;
-        setup_ap(
-            HWDefs::DEFAULT_AP_SSID, HWDefs::DEFAULT_AP_PASSWORD, SEC_WPA2);
-        profile_add(
-            HWDefs::DEFAULT_STA_SSID, HWDefs::DEFAULT_STA_PASSWORD, SEC_WPA2, 0);
     }
 
     /// Find a WiFi STA profile that matches the given SSID
@@ -1114,7 +1143,7 @@ private:
                 // fall through
             case ESP_ERR_NVS_INVALID_LENGTH:
                 // Initialize WiFi user configuration to factory defaults.
-                factory_default();
+                EspIdfWiFi<HWDefs>::init_config_user();
                 nvs_set_blob(cfg, NVS_KEY_USER_NAME, &this->userCfg_,
                     sizeof(this->userCfg_));
                 nvs_commit(cfg);
@@ -1125,41 +1154,6 @@ private:
                 break;
         }
         nvs_close(cfg);
-    }
-
-    /// Reset configuration to factory defaults.
-    void factory_default()
-    {
-        LOG(INFO, "wifi: factory_default()");
-        OSMutexLock locker(&this->lock_);
-
-        // Clear all configuration.
-        memset(&this->userCfg_, 0, sizeof(this->userCfg_));
-
-        // AP setup.
-        WiFiDefs::SecurityType sec = WiFiDefs::SEC_WPA2;
-        if (HWDefs::DEFAULT_AP_PASSWORD[0] == '\0')
-        {
-            sec = WiFiDefs::SEC_OPEN;
-        }
-        str_populate<this->MAX_SSID_SIZE>(
-            this->userCfg_.ap_.ssid_, HWDefs::DEFAULT_AP_SSID);
-        str_populate<this->MAX_PASS_SIZE>(
-            this->userCfg_.ap_.pass_, HWDefs::DEFAULT_AP_PASSWORD);
-        this->userCfg_.ap_.sec_ = this->sec_type_translate(sec);
-
-        // Add single default STA profile.
-        sec = WiFiDefs::SEC_WPA2;
-        if (HWDefs::DEFAULT_STA_PASSWORD[0] == '\0')
-        {
-            sec = WiFiDefs::SEC_OPEN;
-        }
-        str_populate<this->MAX_SSID_SIZE>(
-            this->userCfg_.sta_[0].ssid_, HWDefs::DEFAULT_STA_SSID);
-        str_populate<this->MAX_PASS_SIZE>(
-            this->userCfg_.sta_[0].pass_, HWDefs::DEFAULT_STA_PASSWORD);
-        this->userCfg_.sta_[0].sec_ = this->sec_type_translate(sec);
-        config_sync();
     }
 
     /// Trigger synchronize configuration between NVS and MemorySpace. This may
