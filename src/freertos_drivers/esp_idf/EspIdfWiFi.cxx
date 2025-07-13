@@ -224,6 +224,7 @@ void freeifaddrs(struct ifaddrs *ifa)
 //
 void EspIdfWiFiBase::stop()
 {
+    initialized_ = false;
     esp_wifi_stop();
 }
 
@@ -944,6 +945,12 @@ void EspIdfWiFiBase::wifi_event_handler(
                 try_fast_reconnect = true; // Try a fast reconnect.
                 mdns_disable_sta();
                 ip_acquired(IFACE_STA, false);
+            }
+            if (!initialized_)
+            {
+                // This is likely a "stop" condition. Do not try to reconnect
+                // or scan for APs. Otherwise, there will be a crash.
+                break;
             }
             if (try_fast_reconnect || fastConnectOnlySta_)
             {
