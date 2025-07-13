@@ -90,14 +90,21 @@
 ///       - DefaultEspIdfWiFiHwDefs is provided as a default configuration. It
 ///         can be used directly, or as a reference in creating a customized
 ///         variant.
-///   -# EspIdfWiFiConfigDefalt
-///       - Implemented as shorthand for EspIdfWiFi<DefaultEspIdfWiFiHwDefs>
+///   -# EspIdfWiFiConfigNVS
+///       - This is derived from EspIdfWiFi and provides non-volatile storage
+///         for the user configuration in NVS memory.
+///       - This can be used directly, or as a reference in createing a
+///         customized variant.
 ///   -# EspIdfWiFiNoConfig
 ///       - This version provides no user configuration, and assumes that fast
 ///         connect will always be used. It allows the user to explicitly
 ///         specify the AP credentials at construction. This version can be
 ///         useful for bootloaders where fixed credentials and no user
 ///         configuration is often desired.
+///   -# EspIdfWiFiConfigDefalt
+///       - Implemented as shorthand for EspIdfWiFi<DefaultEspIdfWiFiHwDefs>
+///   -# EspIdfWiFiConfigDefaultNVS
+///       - Implemented as shorthand for EspIdfWiFiNVS<DefaultEspIdfWiFiHwDefs>
 ///
 /// Note: The protected status variables in the WiFiInterface object are only
 ///       modified from the ESP event handler thread. Therefore, they do not
@@ -768,6 +775,12 @@ struct DefaultEspIdfWiFiHwDefs
 };
 
 /// Specialization of the EspIdfWiFiBase with allows for user configuration.
+/// The user configuration is volatile and reverts back to default values
+/// whenever the system is restarted. The derived EspIdfWiFiConfigNVS class
+/// can be used in order to store the user configuration in non-volatile FLASH
+/// for recall when the system is started/restarted. EspIdfWiFiConfigNVS can
+/// also serve as an example for a user customized specialization with
+/// non-volatile storage.
 /// @tparam HWDefs The Default and static configuration options
 template<class HWDefs> class EspIdfWiFi : public EspIdfWiFiBase
 {
