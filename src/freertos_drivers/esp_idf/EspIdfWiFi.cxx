@@ -45,8 +45,6 @@
 #include <lwip/netdb.h>
 #include <mdns.h>
 
-#include "utils/format_utils.hxx"
-
 /// The name "key" for the AP network interface.
 static constexpr char NETIF_KEY_NAME_AP[] = "WIFI_AP_DEF";
 
@@ -71,7 +69,12 @@ static const wifi_scan_config_t SCAN_CONFIG =
         },
         .passive = 360, // milliseconds
     },
-    .home_chan_dwell_time = 30, //milliseconds
+    .home_chan_dwell_time = 30, // milliseconds
+    .channel_bitmap =
+    {
+        .ghz_2_channels = 0,
+        .ghz_5_channels = 0,
+    },
 };
 
 //

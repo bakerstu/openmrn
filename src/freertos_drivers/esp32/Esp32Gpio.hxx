@@ -566,7 +566,7 @@ template <class Defs> struct GpioInputPUPD : public GpioInputPin<Defs, true, tru
     {                                                                          \
         static const gpio_num_t PIN_NUM = (gpio_num_t)NUM;                     \
     public:                                                                    \
-        static const gpio_num_t pin()                                          \
+        static gpio_num_t pin()                                                \
         {                                                                      \
             return PIN_NUM;                                                    \
         }                                                                      \
