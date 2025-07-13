@@ -90,14 +90,21 @@
 ///       - DefaultEspIdfWiFiHwDefs is provided as a default configuration. It
 ///         can be used directly, or as a reference in creating a customized
 ///         variant.
-///   -# EspIdfWiFiConfigDefalt
-///       - Implemented as shorthand for EspIdfWiFi<DefaultEspIdfWiFiHwDefs>
+///   -# EspIdfWiFiConfigNVS
+///       - This is derived from EspIdfWiFi and provides non-volatile storage
+///         for the user configuration in NVS memory.
+///       - This can be used directly, or as a reference in createing a
+///         customized variant.
 ///   -# EspIdfWiFiNoConfig
 ///       - This version provides no user configuration, and assumes that fast
 ///         connect will always be used. It allows the user to explicitly
 ///         specify the AP credentials at construction. This version can be
 ///         useful for bootloaders where fixed credentials and no user
 ///         configuration is often desired.
+///   -# EspIdfWiFiConfigDefalt
+///       - Implemented as shorthand for EspIdfWiFi<DefaultEspIdfWiFiHwDefs>
+///   -# EspIdfWiFiConfigDefaultNVS
+///       - Implemented as shorthand for EspIdfWiFiNVS<DefaultEspIdfWiFiHwDefs>
 ///
 /// Note: The protected status variables in the WiFiInterface object are only
 ///       modified from the ESP event handler thread. Therefore, they do not
@@ -768,6 +775,12 @@ struct DefaultEspIdfWiFiHwDefs
 };
 
 /// Specialization of the EspIdfWiFiBase with allows for user configuration.
+/// The user configuration is volatile and reverts back to default values
+/// whenever the system is restarted. The derived EspIdfWiFiConfigNVS class
+/// can be used in order to store the user configuration in non-volatile FLASH
+/// for recall when the system is started/restarted. EspIdfWiFiConfigNVS can
+/// also serve as an example for a user customized specialization with
+/// non-volatile storage.
 /// @tparam HWDefs The Default and static configuration options
 template<class HWDefs> class EspIdfWiFi : public EspIdfWiFiBase
 {
@@ -838,9 +851,7 @@ public:
         const char *ssid, const char *pass, SecurityType sec_type) override
     {
         OSMutexLock locker(&lock_);
-        str_populate<MAX_SSID_SIZE>(userCfg_.ap_.ssid_, ssid);
-        str_populate<MAX_PASS_SIZE>(userCfg_.ap_.pass_, pass);
-        userCfg_.ap_.sec_ = sec_type_translate(sec_type);
+        setup_ap_helper(ssid, pass, sec_type);
         config_sync();
     }
 
@@ -876,20 +887,11 @@ public:
     int profile_add(const char *ssid, const char *pass,
         SecurityType sec_type, uint8_t priority) override
     {
-        // find an "empty" profie
         OSMutexLock locker(&lock_);
-        // look for a duplicate slot first.
-        int index = find_sta_profile(ssid);
-        if (index < 0)
-        {
-            // duplicate slot not found, look for an empty slot.
-            find_sta_profile("");
-        }
+        int index = profile_add_helper(ssid, pass, sec_type, priority);
         if (index >= 0)
         {
-            str_populate<MAX_PASS_SIZE>(userCfg_.sta_[index].pass_, pass);
-            userCfg_.sta_[index].sec_ = sec_type_encode(sec_type);
-            str_populate<MAX_SSID_SIZE>(userCfg_.sta_[index].ssid_, ssid);
+            // Success, found an empty slot.
             config_sync();
         }
         return index;
@@ -951,9 +953,6 @@ protected:
     /// Magic number to detect initialization.
     static constexpr uint32_t WIFI_CONFIG_INIT_MAGIC = 0x6160CBC6;
 
-    /// NVS key for the WiFi user config.
-    static constexpr char NVS_KEY_USER_NAME[] = "wifi_user.v1";
-
     /// C structure version of the WiFi configuration settings. These are
     /// essentially the connection profiles (SSID, password, security type).
     template<size_t N> struct WiFiConfigNVSTemplate
@@ -975,45 +974,62 @@ protected:
         "The size of WiFiConfigNVS has changed. This could lead to "
         "compatiblity issues in deployed devices.");
 
-    /// Reset configuration to factory defaults.
-    void factory_default()
+    /// Initialize wifi configuration, including program defaults if necessary.
+    void init_config_user() override
     {
-        LOG(INFO, "wifi: factory_default()");
-        OSMutexLock locker(&lock_);
-
-        // Clear all configuration.
         memset(&userCfg_, 0, sizeof(userCfg_));
-
-        // AP setup.
-        SecurityType sec = SEC_WPA2;
-        if (HWDefs::DEFAULT_AP_PASSWORD[0] == '\0')
-        {
-            sec = SEC_OPEN;
-        }
-        str_populate<MAX_SSID_SIZE>(
-            userCfg_.ap_.ssid_, HWDefs::DEFAULT_AP_SSID);
-        str_populate<MAX_PASS_SIZE>(
-            userCfg_.ap_.pass_, HWDefs::DEFAULT_AP_PASSWORD);
-        userCfg_.ap_.sec_ = sec_type_translate(sec);
-
-        // Add single default STA profile.
-        sec = SEC_WPA2;
-        if (HWDefs::DEFAULT_STA_PASSWORD[0] == '\0')
-        {
-            sec = SEC_OPEN;
-        }
-        str_populate<MAX_SSID_SIZE>(
-            userCfg_.sta_[0].ssid_, HWDefs::DEFAULT_STA_SSID);
-        str_populate<MAX_PASS_SIZE>(
-            userCfg_.sta_[0].pass_, HWDefs::DEFAULT_STA_PASSWORD);
-        userCfg_.sta_[0].sec_ = sec_type_translate(sec);
-        config_sync();
+        userCfg_.magic_ = WIFI_CONFIG_INIT_MAGIC;
+        setup_ap_helper(
+            HWDefs::DEFAULT_AP_SSID, HWDefs::DEFAULT_AP_PASSWORD, SEC_WPA2);
+        profile_add_helper(
+            HWDefs::DEFAULT_STA_SSID, HWDefs::DEFAULT_STA_PASSWORD, SEC_WPA2,
+            0);
     }
 
     /// cached copy of the wifi user config
     WiFiConfigNVS userCfg_; 
 
 private:
+    /// Setup access point role credentials, but don't take the mutex lock or
+    /// call config_sync(). May require reboot to take effect.
+    /// @param ssid access point SSID
+    /// @param pass access point password
+    /// @param sec_type access point security type
+    void setup_ap_helper(
+        const char *ssid, const char *pass, SecurityType sec_type)
+    {
+        str_populate<MAX_SSID_SIZE>(userCfg_.ap_.ssid_, ssid);
+        str_populate<MAX_PASS_SIZE>(userCfg_.ap_.pass_, pass);
+        userCfg_.ap_.sec_ = sec_type_translate(sec_type);
+    }
+
+    /// Add a saved WiFi access point profile, but don't take the mutex lock or
+    /// call config_sync().
+    /// @param ssid access point SSID
+    /// @param pass access point password
+    /// @param sec_type access point security type
+    /// @param priority priority when more than one profile is saved, 0 =
+    ///        lowest priority, may be unused
+    /// @return resulting index in the list of profiles, else -1 on error
+    int profile_add_helper(const char *ssid, const char *pass,
+        SecurityType sec_type, uint8_t priority)
+    {
+        // find an "empty" profile, look for a duplicate slot first.
+        int index = find_sta_profile(ssid);
+        if (index < 0)
+        {
+            // duplicate slot not found, look for an empty slot.
+            find_sta_profile("");
+        }
+        if (index >= 0)
+        {
+            str_populate<MAX_PASS_SIZE>(userCfg_.sta_[index].pass_, pass);
+            userCfg_.sta_[index].sec_ = sec_type_translate(sec_type);
+            str_populate<MAX_SSID_SIZE>(userCfg_.sta_[index].ssid_, ssid);
+        }
+        return index;
+    }
+
     /// Get the configured WiFi role.
     /// @return configured WiFi role
     WlanRole get_role() override
@@ -1038,49 +1054,6 @@ private:
     bool config_priv_reset_allowed() override
     {
         return true;
-    }
-
-    /// Initialize wifi configuration, including program defaults if necessary.
-    void init_config_user() override
-    {
-        nvs_handle_t cfg;
-        esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
-        if (result != ESP_OK)
-        {
-            LOG_ERROR("wifi: Error %s opening NVS handle.",
-                esp_err_to_name(result));
-            return;
-        }
-
-        // User configuration.
-        size_t len = sizeof(userCfg_);
-        result = nvs_get_blob(cfg, NVS_KEY_USER_NAME, &userCfg_, &len);
-        switch(result)
-        {
-            case ESP_OK:
-                if (userCfg_.magic_ == WIFI_CONFIG_INIT_MAGIC &&
-                    len == sizeof(userCfg_))
-                {
-                    // Already initialized.
-                    break;
-                }
-                // Not initialized yet.
-                // fall through
-            case ESP_ERR_NVS_NOT_FOUND:
-                // fall through
-            case ESP_ERR_NVS_INVALID_LENGTH:
-                // Initialize WiFi user configuration to factory defaults.
-                factory_default();
-                nvs_set_blob(
-                    cfg, NVS_KEY_USER_NAME, &userCfg_, sizeof(userCfg_));
-                nvs_commit(cfg);
-                break;
-            default:
-                LOG_ERROR("wifi: Error %s getting userCfg_.",
-                    esp_err_to_name(result));
-                break;
-        }
-        nvs_close(cfg);
     }
 
     /// Find a WiFi STA profile that matches the given SSID
@@ -1109,6 +1082,100 @@ private:
             }
         }
         return -1;
+    }
+};
+
+/// Specialization of the EspIdfWiFi that uses NVS for non-volatile storage
+/// of user configuration.
+/// @tparam HWDefs The Default and static configuration options
+template<class HWDefs> class EspIdfWiFiConfigNVS : public EspIdfWiFi<HWDefs>
+{
+public:
+    /// Constructor.
+    /// @param service Service to bind this object to. This object does not
+    ///        block the executor, except in the case of a mutex used for
+    ///        mutual exclusion. Within this object, no blocking calls are made
+    ///        while the mutex is held. In the case of a derived version of
+    ///        this object, it is possible that a derived object will have
+    ///        different blocking behavior in either the use of this service or
+    ///        it internal mutex.
+    /// @param hostname hostname to publish over the network, it is be copied
+    ///        over to an std::string
+    EspIdfWiFiConfigNVS(Service *service, const char *hostname)
+        : EspIdfWiFi<HWDefs>(service, hostname)
+    {
+    }
+
+protected:
+    /// NVS key for the WiFi user config.
+    static constexpr char NVS_KEY_USER_NAME[] = "wifi_user.v1";
+
+private:
+    /// Initialize wifi configuration, including program defaults if necessary.
+    void init_config_user() override
+    {
+        nvs_handle_t cfg;
+        esp_err_t result =
+            nvs_open(this->NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
+        if (result != ESP_OK)
+        {
+            LOG_ERROR("wifi: Error %s opening NVS handle.",
+                esp_err_to_name(result));
+            return;
+        }
+
+        // User configuration.
+        size_t len = sizeof(this->userCfg_);
+        result = nvs_get_blob(
+            cfg, this->NVS_KEY_USER_NAME, &this->userCfg_, &len);
+        switch(result)
+        {
+            case ESP_OK:
+                if (this->userCfg_.magic_ == this->WIFI_CONFIG_INIT_MAGIC &&
+                    len == sizeof(this->userCfg_))
+                {
+                    // Already initialized.
+                    break;
+                }
+                // Not initialized yet.
+                // fall through
+            case ESP_ERR_NVS_NOT_FOUND:
+                // fall through
+            case ESP_ERR_NVS_INVALID_LENGTH:
+                // Initialize WiFi user configuration to factory defaults.
+                EspIdfWiFi<HWDefs>::init_config_user();
+                nvs_set_blob(cfg, NVS_KEY_USER_NAME, &this->userCfg_,
+                    sizeof(this->userCfg_));
+                nvs_commit(cfg);
+                break;
+            default:
+                LOG_ERROR("wifi: Error %s getting userCfg_.",
+                    esp_err_to_name(result));
+                break;
+        }
+        nvs_close(cfg);
+    }
+
+    /// Trigger synchronize configuration between NVS and MemorySpace. This may
+    /// be called without the lock_ mutex being held. If mutual exclusion is
+    /// needed in a specialization of this method, it must be separately taken.
+    void config_sync() override
+    {
+        OSMutexLock locker(&this->lock_);
+        nvs_handle_t cfg;
+        esp_err_t result =
+            nvs_open(this->NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
+        if (result != ESP_OK)
+        {
+            LOG_ERROR("wifi: Error %s opening NVS handle.",
+                esp_err_to_name(result));
+            return;
+        }
+
+        nvs_set_blob(cfg, this->NVS_KEY_USER_NAME, &this->userCfg_,
+            sizeof(this->userCfg_));
+        nvs_commit(cfg);
+        nvs_close(cfg);
     }
 };
 
@@ -1291,5 +1358,8 @@ private:
 
 /// Shorthand for default configuration type.
 using EspIdfWiFiConfigDefault = EspIdfWiFi<DefaultEspIdfWiFiHwDefs>;
+
+/// Shorthand for default configuration with NVS storage.
+using EspIdfWiFiConfigDefaultNVS = EspIdfWiFiConfigNVS<DefaultEspIdfWiFiHwDefs>;
 
 #endif // _FREERTOS_DRIVERS_ESP_IDF_ESPIDFWIFI_HXX_
