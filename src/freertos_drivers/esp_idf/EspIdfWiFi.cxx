@@ -946,6 +946,9 @@ void EspIdfWiFiBase::wifi_event_handler(
                 mdns_disable_sta();
                 ip_acquired(IFACE_STA, false);
             }
+            std::string ssid((char*)evdata->ssid, evdata->ssid_len);
+            wlan_connected(
+                false, connection_result_encode(evdata->reason), ssid);
             if (!initialized_)
             {
                 // This is likely a "stop" condition. Do not try to reconnect
@@ -965,9 +968,6 @@ void EspIdfWiFiBase::wifi_event_handler(
                 esp_wifi_scan_start(nullptr, false);
                 LOG(VERBOSE, "wifi: STA disconnected, scanning...");
             }
-            std::string ssid((char*)evdata->ssid, evdata->ssid_len);
-            wlan_connected(
-                false, connection_result_encode(evdata->reason), ssid);
             break;
         }
         case WIFI_EVENT_SCAN_DONE:
