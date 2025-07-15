@@ -1145,7 +1145,7 @@ public:
     void factory_reset() override
     {
         // Reset private configuration.
-        EspIdfWiFiBase::factory_reset();
+        EspIdfWiFi<HWDefs>::factory_reset();
 
         nvs_handle_t cfg;
         esp_err_t result =
