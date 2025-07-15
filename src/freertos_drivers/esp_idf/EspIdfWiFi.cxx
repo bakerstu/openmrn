@@ -55,10 +55,10 @@ static constexpr char NETIF_KEY_NAME_STA[] = "WIFI_STA_DEF";
 /// Scanning parameter configuration.
 static const wifi_scan_config_t SCAN_CONFIG = 
 {
-    .ssid = nullptr,     // any SSID
-    .bssid = nullptr,    // any BSSID
-    .channel = 0,        // any channel
-    .show_hidden = true, // include "hidden" SSIDs
+    .ssid = nullptr,      // any SSID
+    .bssid = nullptr,     // any BSSID
+    .channel = 0,         // any channel
+    .show_hidden = false, // do not include "hidden" SSIDs
     .scan_type = WIFI_SCAN_TYPE_ACTIVE, // active scan
     .scan_time =
     {
@@ -904,6 +904,18 @@ void EspIdfWiFiBase::wifi_event_handler(
             }
             break;
         }
+        case WIFI_EVENT_HOME_CHANNEL_CHANGE:
+        {
+            wifi_event_home_channel_change_t *cdata =
+                (wifi_event_home_channel_change_t*)data;
+            if (connected_)
+            {
+                last_sta_update_channel(cdata->new_chan);
+            }
+            LOG(INFO, "wifi: Home channel change, channel: %u",
+                cdata->new_chan);
+            break;
+        }
         case WIFI_EVENT_STA_CONNECTED:
         {
             HASSERT(!connected_);
@@ -972,60 +984,43 @@ void EspIdfWiFiBase::wifi_event_handler(
         }
         case WIFI_EVENT_SCAN_DONE:
         {
-            /// @todo The newer IDF versions have a new api that can read
-            ///       AP records one at a time, which is much more memory
-            ///       friendly. Revisit this when updating the IDF version.
-            int idx = -1;
-            uint16_t number;
-            esp_wifi_scan_get_ap_num(&number);
-            LOG(INFO, "wifi: Scan done, number of records: %u.", number);
-            number = std::min(number, static_cast<uint16_t>(16));
+            collect_scan_results();
 
-            // This takes a lot of memory. Not the best API design. See note
-            // above.
-            wifi_ap_record_t *ap_records = new wifi_ap_record_t[number];
-            esp_wifi_scan_get_ap_records(&number, ap_records);
-            std::string ssid(MAX_SSID_SIZE + 1, '\0');
-            std::string pass(MAX_PASS_SIZE + 1, '\0');
-            uint8_t sec = WIFI_AUTH_WPA2_PSK;
-            uint8_t conn_channel = 0;
-            {
-                OSMutexLock locker(&lock_);
-                scanResults_.clear();
-                for (unsigned i = 0; i < number; ++i)
-                {
-                    // Cache the scan record for the user to read later.
-                    scanResults_.emplace_back((char*)ap_records[i].ssid,
-                        sec_type_encode(ap_records[i].authmode),
-                        ap_records[i].rssi);
-
-                    if (staIface_ && !connected_ && idx < 0)
-                    {
-                        std::string profile_pass;
-                        uint8_t profile_sec;
-                        idx = find_sta_profile(scanResults_.back().ssid,
-                            &profile_pass, &profile_sec);
-                        if (idx >= 0 && ap_records[i].authmode >= profile_sec)
-                        {
-                            // profile SSID and security mode match.
-                            ssid = (char*)ap_records[i].ssid;
-                            pass = std::move(profile_pass);
-                            sec = ap_records[i].authmode;
-                            conn_channel = ap_records[i].primary;
-                        }
-                    }
-                }
-            }
-            delete [] ap_records;
             if (staIface_ && !connected_)
             {
+                // Not currently connected, try to find a match to connect.
+                int match_index = -1;
+                std::string ssid;
+                std::string pass;
+                uint8_t sec;
+                uint8_t conn_channel;
+
+                // Look for a result that matches one of our profiles.
+                for (auto it = scanResults_.begin();
+                    it != scanResults_.end(); ++it)
+                {
+                    int idx = find_sta_profile(it->ssid, &pass, &sec);
+                    if (idx >= 0 && sec_type_translate(it->secType) >= sec)
+                    {
+                        // Found a profile match, capture the credentials to
+                        // connect below.
+                        match_index = idx;
+                        ssid = it->ssid;
+                        sec = sec_type_translate(it->secType);
+                        conn_channel = it->channel;
+                        LOG(INFO, "wifi: Found match, ssid: %s, sec: %u",
+                            ssid.c_str(), sec);
+                        break;
+                    }
+                }
+
                 // If in STA mode and not connected, always be trying to make
                 // a connection.
-                if (idx < 0)
+                if (match_index < 0)
                 {
                     /// @todo If we get into a situation where we are
                     ///       continuously scanning forever, does this effect
-                    ///       the quality of the AP or BLE peformance, since
+                    ///       the quality of the AP or BLE performance, since
                     ///       there is only one radio? Not sure. Need to do
                     ///       some practical testing. Perhaps there should be
                     ///       some delay between scans.
@@ -1129,6 +1124,68 @@ void EspIdfWiFiBase::ip_event_handler(
             ipLeased_ = true;
             break;
     }
+}
+
+//
+// EspIdfWiFiBase::collect_scan_results()
+//
+void EspIdfWiFiBase::collect_scan_results()
+{
+    uint16_t number;
+    esp_wifi_scan_get_ap_num(&number);
+    LOG(INFO, "wifi: Scan done, number of records: %u.", number);
+
+    OSMutexLock locker(&lock_);
+    scanResults_.clear();
+    do
+    {
+        wifi_ap_record_t ap_record;
+        if (esp_wifi_scan_get_ap_record(&ap_record) != ESP_OK)
+        {
+            // No more results, stop processing.
+            LOG(VERBOSE, "wifi: No more scan results.");
+            break;
+        }
+        if (ap_record.ssid[0] == '\0')
+        {
+            // "Hidden SSID, ignore."
+            continue;
+        }
+        if (prune_duplicate_ap_scan_results_by_rssi())
+        {
+            // Pruning of duplicates is enabled. Look for a
+            // duplicate.
+            bool duplicate = false;
+            for (auto it = scanResults_.begin(); it != scanResults_.end(); ++it)
+            {
+                if (it->ssid == (char*)ap_record.ssid)
+                {
+                    // Duplicate. Since results are presented in
+                    // highest SSID first, we can ignore this
+                    // result.
+                    duplicate = true;
+                    LOG(VERBOSE, "wifi: Duplicate scan result, ssid: %s",
+                        it->ssid.c_str());
+                    break;
+                }
+            }
+            if (duplicate)
+            {
+                // Duplicate, move on to the next record.
+                continue;
+            }
+        }
+        // Archive the result for the user.
+        scanResults_.emplace_back((char*)ap_record.ssid,
+            ap_record.rssi, sec_type_encode(ap_record.authmode),
+            ap_record.primary);
+        LOG(VERBOSE, "wifi: Added scan result, ssid: %s, sec: %u, chan: %u",
+            scanResults_.back().ssid.c_str(), scanResults_.back().secType,
+            scanResults_.back().channel);
+    } while (scanResults_.size() < max_ap_scan_results());
+
+    // Free any remaining scan results.
+    esp_wifi_clear_ap_list();
 }
 
 //
@@ -1335,14 +1392,14 @@ void EspIdfWiFiBase::sta_connect(
 //
 // EspIdfWiFiBase::sta_connect_fast()
 //
-bool EspIdfWiFiBase::sta_connect_fast(bool any_channel)
+bool EspIdfWiFiBase::sta_connect_fast(bool last_channel)
 {
     if (privCfg_.last_.ssid_[0] != '\0')
     {
-        uint8_t channel = any_channel ? 0 : privCfg_.channelLast_;
+        uint8_t channel = last_channel ? privCfg_.channelLast_ : 0;
         sta_connect(privCfg_.last_.ssid_, privCfg_.last_.pass_,
             privCfg_.last_.sec_, channel);
-        LOG(VERBOSE,
+        LOG(INFO,
             "wifi: STA fast connect, ssid: %s, channel %u, connecting...",
             privCfg_.last_.ssid_, channel);
         return true;
@@ -1368,7 +1425,28 @@ void EspIdfWiFiBase::last_sta_update(
             str_populate<MAX_PASS_SIZE>(privCfg_.last_.pass_, pass.c_str());
             privCfg_.last_.sec_ = authmode;
             privCfg_.channelLast_ = channel;
-            
+
+            nvs_set_blob(cfg, NVS_KEY_LAST_NAME, &privCfg_, sizeof(privCfg_));
+            nvs_commit(cfg);
+            nvs_close(cfg);
+        }
+    }
+}
+
+//
+// EspIdfWiFiBase::last_sta_update_channel()
+//
+void EspIdfWiFiBase::last_sta_update_channel(uint8_t channel)
+{
+    if (channel != privCfg_.channelLast_)
+    {
+        nvs_handle_t cfg;
+        esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
+        if (result == ESP_OK)
+        {
+            LOG(VERBOSE, "wifi: Update last STA channel only.");
+            privCfg_.channelLast_ = channel;
+
             nvs_set_blob(cfg, NVS_KEY_LAST_NAME, &privCfg_, sizeof(privCfg_));
             nvs_commit(cfg);
             nvs_close(cfg);

@@ -205,9 +205,10 @@ public:
     ///         should be a negative number.
     int rssi() override;
 
-    /// Get the network hostname for the device.
+    /// Get the network hostname for the device. This is implemented as a const
+    /// std::string and does not mutate.
     /// @return hostname
-    std::string get_hostname() override
+    const std::string &get_hostname() override
     {
         // We don't need to get this from the interface because it is cached.
         return hostname_;
@@ -646,6 +647,9 @@ private:
     /// @param data event data
     void ip_event_handler(esp_event_base_t base, int32_t id, void *data);
 
+    /// Collect the scan results of a previous scan.
+    void collect_scan_results();
+
     /// Initialize private configuration.
     void init_config_priv();
 
@@ -690,6 +694,10 @@ private:
     /// @param channel WiFi channel
     void last_sta_update(
         std::string ssid, std::string pass, uint8_t authmode, uint8_t channel);
+
+    /// Set/Update the last WiFi STA channel only connection parameter.
+    /// @param channel WiFi channel
+    void last_sta_update_channel(uint8_t channel);
 
     /// Translate from ESP connection reason to generic connection result.
     /// @param reason ESP connection reason
@@ -773,6 +781,13 @@ struct DefaultEspIdfWiFiHwDefs
 
     /// Maximum number of station profiles we can store.
     static constexpr uint8_t MAX_STA_PROFILES = 7;
+
+    /// Maximum number of AP scan results collected, per scan.
+    static constexpr uint8_t MAX_AP_SCAN_RESULTS = 16;
+
+    /// True to prune out duplicate AP scan results, taking the highest RSSI,
+    /// else false to keep duplicates.
+    static constexpr bool PRUNE_DUPLICATE_AP_SCAN_RESULTS_BY_RSSI = true;
 };
 
 /// Specialization of the EspIdfWiFiBase with allows for user configuration.
@@ -819,7 +834,8 @@ public:
     /// @return default AP SSID, should point to persistent memory
     const char *default_ap_ssid() override
     {
-        return HWDefs::DEFAULT_AP_SSID;
+        return HWDefs::DEFAULT_AP_SSID[0] == '\0' ?
+            get_hostname().c_str() : HWDefs::DEFAULT_AP_SSID;
     }
 
     /// Get the default STA SSID.
@@ -842,6 +858,21 @@ public:
     uint8_t max_sta_profiles() override
     {
         return HWDefs::MAX_STA_PROFILES;
+    }
+
+    /// Get the maximum number of AP scan results collected, per scan.
+    /// @return maximum number of scan results
+    uint8_t max_ap_scan_results() override
+    {
+        return HWDefs::MAX_AP_SCAN_RESULTS;
+    }
+
+    /// Get the configuration for pruning duplicate AP scan results by RSSI.
+    /// @return true to prune out duplicate AP scan results, taking the highest
+    ///         RSSI, else false to keep duplicates
+    bool prune_duplicate_ap_scan_results_by_rssi() override
+    {
+        return HWDefs::PRUNE_DUPLICATE_AP_SCAN_RESULTS_BY_RSSI;
     }
 
     /// Setup access point role credentials. May require reboot to take effect.
@@ -1020,7 +1051,7 @@ private:
         if (index < 0)
         {
             // duplicate slot not found, look for an empty slot.
-            find_sta_profile("");
+            index = find_sta_profile("");
         }
         if (index >= 0)
         {
@@ -1251,6 +1282,21 @@ public:
     uint8_t max_sta_profiles() override
     {
         return 0;
+    }
+
+    /// Get the maximum number of AP scan results collected, per scan.
+    /// @return maximum number of scan results
+    uint8_t max_ap_scan_results() override
+    {
+        return 16;
+    }
+
+    /// Get the configuration for pruning duplicate AP scan results by RSSI.
+    /// @return true to prune out duplicate AP scan results, taking the highest
+    ///         RSSI, else false to keep duplicates
+    bool prune_duplicate_ap_scan_results_by_rssi() override
+    {
+        return true;
     }
 
     /// Not supported, does nothing.

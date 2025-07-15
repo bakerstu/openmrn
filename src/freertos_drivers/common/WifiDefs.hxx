@@ -100,16 +100,20 @@ struct WiFiDefs
         /// @param ssid SSID of the access point
         /// @param sec_type security type of the access point
         /// @param rssi receive signal strength of the access point
-        NetworkEntry(const char *ssid, SecurityType sec_type, int rssi)
+        /// @param channel channel of the AP, 0 means any/unknown
+        NetworkEntry(const char *ssid, int rssi, SecurityType sec_type,
+            uint8_t channel = 0)
             : ssid(ssid)
-            , secType(sec_type)
             , rssi(rssi)
+            , secType(sec_type)
+            , channel(channel)
         {
         }
 
         std::string ssid; ///< SSID of the access point
+        int16_t rssi; ///< receive signal strength of the access point
         SecurityType secType; ///< security type of the access point
-        int rssi; ///< receive signal strength of the access point
+        uint8_t channel; ///< channel of the AP, 0 means any/unknown
     };
 };
 

@@ -91,6 +91,15 @@ public:
     /// @return maximum number of stored STA profiles
     virtual uint8_t max_sta_profiles() = 0;
 
+    /// Get the maximum number of AP scan results collected, per scan.
+    /// @return maximum number of scan results
+    virtual uint8_t max_ap_scan_results() = 0;
+
+    /// Get the configuration for pruning duplicate AP scan results by RSSI.
+    /// @return true to prune out duplicate AP scan results, taking the highest
+    ///         RSSI, else false to keep duplicates
+    virtual bool prune_duplicate_ap_scan_results_by_rssi() = 0;
+
     /// Connect to access point. This is a non-blocking call. The results will
     /// be delivered by callback registered with set_wlan_connect_callback().
     /// The AP credentials are not saved as a connection profile, but they may
@@ -198,9 +207,10 @@ public:
     ///         should be a negative number.
     virtual int rssi() = 0;
 
-    /// Get the network hostname for the device.
+    /// Get the network hostname for the device. This is implemented as a const
+    /// std::string and does not mutate.
     /// @return hostname
-    virtual std::string get_hostname() = 0;
+    virtual const std::string &get_hostname() = 0;
 
     /// Set the callback for when an IP address is acquired.
     /// @param iface interface index
