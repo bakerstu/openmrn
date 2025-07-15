@@ -268,6 +268,29 @@ int EspIdfWiFiBase::rssi()
 }
 
 //
+// EspIdfWiFiBase::factory_reset()
+//
+void EspIdfWiFiBase::factory_reset()
+{
+    nvs_handle_t cfg;
+    esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
+    if (result != ESP_OK)
+    {
+        LOG_ERROR("wifi: Error %s opening NVS handle.",
+            esp_err_to_name(result));
+        return;
+    }
+
+    // Clear private configuration.
+    memset(&privCfg_, 0, sizeof(privCfg_));
+    nvs_erase_key(cfg, NVS_KEY_LAST_NAME);
+    nvs_commit(cfg);
+    nvs_close(cfg);
+
+    // Default "volatile" values will be put in privCfg_ in init_config_priv().
+}
+
+//
 // EspIdfWiFiBase::mdns_service_add()
 //
 void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
@@ -1239,6 +1262,20 @@ void EspIdfWiFiBase::init_config_priv()
             break;
     }
     nvs_close(cfg);
+
+    if (privCfg_.last_.ssid_[0] == '\0')
+    {
+        // There are no "last" STA credentials to use for fast connect. Set the
+        // default STA as the last connected STA, but do not commit it to
+        // non-volatile storage. It will be commited to non-volatile storage
+        // only once a connection is actually successful.
+        str_populate<MAX_SSID_SIZE>(privCfg_.last_.ssid_, default_sta_ssid());
+        str_populate<MAX_PASS_SIZE>(
+            privCfg_.last_.pass_, default_sta_password());
+        privCfg_.last_.sec_ = privCfg_.last_.pass_[0] == '\0' ?
+            sec_type_translate(SEC_OPEN) : sec_type_translate(SEC_WPA2);
+        privCfg_.channelLast_ = 0; // Any channel.
+    }
 }
 
 //

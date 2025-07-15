@@ -143,7 +143,28 @@ public:
     /// @return true if ready, else false
     virtual bool ready()
     {
-        return (ipAcquiredSta_ || ipAcquiredAp_);
+        // It is important to call the API and not access the member variables
+        // directly. This is in case any derived object overrides sta_ready() or
+        // ap_ready() with additional implementation specific logic.
+        return (sta_ready() || ap_ready());
+    }
+
+    /// Get the STA mode ready state.
+    /// @return true if STA is connected to an AP and has an IP address, else
+    ///         false if not connected to an AP or no IP assigned
+    virtual bool sta_ready()
+    {
+        // Typically, an IP cannot be acquired without being connected, so
+        // AND'ing with the connected state flag is simply defensive. An
+        // alternative might be to use an HASSERT(connected_) here instead.
+        return connected_ && ipAcquiredSta_;
+    }
+
+    /// Get the AP mode ready state.
+    /// @return true if AP has an IP address, else false if no IP assigned
+    virtual bool ap_ready()
+    {
+        return ipAcquiredAp_;
     }
 
     /// Get the WiFi role.
@@ -239,6 +260,9 @@ public:
     {
         scanFinishedCallback_ = std::move(callback);
     }
+
+    /// Reset any configuration and/or non-volatile storage to factory defaults.
+    virtual void factory_reset() = 0;
 
 protected:
     /// Constructor.
