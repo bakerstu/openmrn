@@ -826,7 +826,8 @@ public:
     /// @return default AP SSID, should point to persistent memory
     const char *default_ap_ssid() override
     {
-        return HWDefs::DEFAULT_AP_SSID;
+        return HWDefs::DEFAULT_AP_SSID[0] == '\0' ?
+            get_hostname().c_str() : HWDefs::DEFAULT_AP_SSID;
     }
 
     /// Get the default STA SSID.
