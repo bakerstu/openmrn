@@ -773,6 +773,13 @@ struct DefaultEspIdfWiFiHwDefs
 
     /// Maximum number of station profiles we can store.
     static constexpr uint8_t MAX_STA_PROFILES = 7;
+
+    /// Maximum number of AP scan results collected, per scan.
+    static constexpr uint8_t MAX_AP_SCAN_RESULTS = 16;
+
+    /// True to prune out duplicate AP scan results, taking the highest RSSI,
+    /// else false to keep duplicates.
+    static constexpr bool PRUNE_DUPLICATE_AP_SCAN_RESULTS_BY_RSSI = true;
 };
 
 /// Specialization of the EspIdfWiFiBase with allows for user configuration.
@@ -842,6 +849,21 @@ public:
     uint8_t max_sta_profiles() override
     {
         return HWDefs::MAX_STA_PROFILES;
+    }
+
+    /// Get the maximum number of AP scan results collected, per scan.
+    /// @return maximum number of scan results
+    uint8_t max_ap_scan_results() override
+    {
+        return HWDefs::MAX_AP_SCAN_RESULTS;
+    }
+
+    /// Get the configuration for pruning duplicate AP scan results by RSSI.
+    /// @return true to prune out duplicate AP scan results, taking the highest
+    ///         RSSI, else false to keep duplicates
+    bool prune_duplicate_ap_scan_results_by_rssi() override
+    {
+        return HWDefs::PRUNE_DUPLICATE_AP_SCAN_RESULTS_BY_RSSI;
     }
 
     /// Setup access point role credentials. May require reboot to take effect.
@@ -1251,6 +1273,21 @@ public:
     uint8_t max_sta_profiles() override
     {
         return 0;
+    }
+
+    /// Get the maximum number of AP scan results collected, per scan.
+    /// @return maximum number of scan results
+    uint8_t max_ap_scan_results() override
+    {
+        return 16;
+    }
+
+    /// Get the configuration for pruning duplicate AP scan results by RSSI.
+    /// @return true to prune out duplicate AP scan results, taking the highest
+    ///         RSSI, else false to keep duplicates
+    bool prune_duplicate_ap_scan_results_by_rssi() override
+    {
+        return true;
     }
 
     /// Not supported, does nothing.
