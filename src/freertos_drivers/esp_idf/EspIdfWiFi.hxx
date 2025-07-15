@@ -1255,15 +1255,20 @@ public:
     ///        it internal mutex.
     /// @param hostname hostname to publish over the network, it is be copied
     ///        over to an std::string
-    /// @param ap_ssid SSID of the AP, copied into an std::string()
-    /// @param ap_pass password of the AP, copied into an sd::string()
+    /// @param ap_ssid SSID of the AP, copied into an std::string
+    /// @param ap_pass password of the AP, copied into an sd::string
     /// @param ap_sec security mode of the ap
+    /// @param default_sta_ssid default STA SSID, copied into an std::string
+    /// @param default_sta_pass default STA password, copied into an std::string
     EspIdfWiFiNoConfig(Service *service, const char *hostname,
         const char *ap_ssid = "", const char *ap_pass = "",
-        SecurityType ap_sec = SEC_OPEN)
+        SecurityType ap_sec = SEC_OPEN, const char *default_sta_ssid = "",
+        const char *default_sta_pass = "")
         : EspIdfWiFiBase(service, hostname)
         , apSsid_(ap_ssid)
         , apPass_(ap_pass)
+        , defaultStaSsid_(default_sta_ssid)
+        , defaultStaPass_(default_sta_pass)
         , apSec_(ap_sec)
     {
         enable_fast_connect_only_on_sta();
@@ -1280,7 +1285,7 @@ public:
     /// @return default STA password, should point to persistent memory
     const char *default_sta_password() override
     {
-        return "";
+        return defaultStaPass_.c_str();
     }
 
     /// Get the default AP SSID.
@@ -1294,7 +1299,7 @@ public:
     /// @return default STA SSID, should point to persistent memory
     const char *default_sta_ssid() override
     {
-        return "";
+        return defaultStaSsid_.c_str();
     }
 
     /// Get the maximum number of STA client connections in AP mode. Be careful,
@@ -1426,8 +1431,10 @@ private:
         return -1;
     }
 
-    std::string apSsid_; ///< passed in AP SSID
-    std::string apPass_; ///< passed in AP password
+    const std::string apSsid_; ///< passed in AP SSID
+    const std::string apPass_; ///< passed in AP password
+    const std::string defaultStaSsid_; ///< passed in default STA SSID
+    const std::string defaultStaPass_; ///< passed in default STA password
     SecurityType apSec_; ///< passed in AP security
 };
 
