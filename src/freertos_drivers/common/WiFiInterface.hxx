@@ -207,9 +207,10 @@ public:
     ///         should be a negative number.
     virtual int rssi() = 0;
 
-    /// Get the network hostname for the device.
+    /// Get the network hostname for the device. This is implemented as a const
+    /// std::string and does not mutate.
     /// @return hostname
-    virtual std::string get_hostname() = 0;
+    virtual const std::string &get_hostname() = 0;
 
     /// Set the callback for when an IP address is acquired.
     /// @param iface interface index

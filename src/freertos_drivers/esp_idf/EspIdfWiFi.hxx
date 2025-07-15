@@ -205,9 +205,10 @@ public:
     ///         should be a negative number.
     int rssi() override;
 
-    /// Get the network hostname for the device.
+    /// Get the network hostname for the device. This is implemented as a const
+    /// std::string and does not mutate.
     /// @return hostname
-    std::string get_hostname() override
+    const std::string &get_hostname() override
     {
         // We don't need to get this from the interface because it is cached.
         return hostname_;
