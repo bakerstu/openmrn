@@ -214,6 +214,9 @@ public:
         return hostname_;
     }
 
+    /// Reset any configuration and/or non-volatile storage to factory defaults.
+    void factory_reset() override;
+
     /// In some cases, we want to disable mDNS publishing in station mode.
     void disable_mdns_publish_on_sta()
     {
@@ -1136,6 +1139,31 @@ public:
     EspIdfWiFiConfigNVS(Service *service, const char *hostname)
         : EspIdfWiFi<HWDefs>(service, hostname)
     {
+    }
+
+    /// Reset any configuration and/or non-volatile storage to factory defaults.
+    void factory_reset() override
+    {
+        // Reset private configuration.
+        EspIdfWiFiBase::factory_reset();
+
+        nvs_handle_t cfg;
+        esp_err_t result =
+            nvs_open(this->NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
+        if (result != ESP_OK)
+        {
+            LOG_ERROR("wifi: Error %s opening NVS handle.",
+                esp_err_to_name(result));
+            return;
+        }
+
+        // Clear user configuration.
+        memset(&this->userCfg_, 0, sizeof(this->userCfg_));
+        nvs_erase_key(cfg, this->NVS_KEY_USER_NAME);
+        nvs_commit(cfg);
+        nvs_close(cfg);
+
+        // Default values will be put in userCfg_ in init_config_user().
     }
 
 protected:

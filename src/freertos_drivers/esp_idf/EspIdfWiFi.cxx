@@ -268,6 +268,29 @@ int EspIdfWiFiBase::rssi()
 }
 
 //
+// EspIdfWiFiBase::factory_reset()
+//
+void EspIdfWiFiBase::factory_reset()
+{
+    nvs_handle_t cfg;
+    esp_err_t result = nvs_open(NVS_NAMESPACE_NAME, NVS_READWRITE, &cfg);
+    if (result != ESP_OK)
+    {
+        LOG_ERROR("wifi: Error %s opening NVS handle.",
+            esp_err_to_name(result));
+        return;
+    }
+
+    // Clear private configuration.
+    memset(&privCfg_, 0, sizeof(privCfg_));
+    nvs_erase_key(cfg, NVS_KEY_LAST_NAME);
+    nvs_commit(cfg);
+    nvs_close(cfg);
+
+    // Default "volatile" values will be put in privCfg_ in init_config_priv().
+}
+
+//
 // EspIdfWiFiBase::mdns_service_add()
 //
 void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
