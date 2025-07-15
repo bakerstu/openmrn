@@ -1255,15 +1255,6 @@ void EspIdfWiFiBase::init_config_priv()
             privCfg_.magic_ = PRIV_CONFIG_INIT_MAGIC;
             nvs_set_blob(cfg, NVS_KEY_LAST_NAME, &privCfg_, sizeof(privCfg_));
             nvs_commit(cfg);
-            // Set the default STA as the last connected STA, but do not commit
-            // it to non-volatile storage. It will be commited to non-volatile
-            // storage only once a connection is actually successful.
-            str_populate<MAX_SSID_SIZE>(
-                privCfg_.last_.ssid_, default_sta_ssid());
-            str_populate<MAX_PASS_SIZE>(
-                privCfg_.last_.pass_, default_sta_password());
-            privCfg_.last_.sec_ = sec_type_translate(SEC_WPA2);
-            privCfg_.channelLast_ = 0; // Any channel.
             break;
         default:
             LOG_ERROR("wifi: Error %s getting privCfg_.",
@@ -1271,6 +1262,19 @@ void EspIdfWiFiBase::init_config_priv()
             break;
     }
     nvs_close(cfg);
+
+    if (privCfg_.last_.pass_[0] == '\0')
+    {
+        // There are no "last" STA credentials to use for fast connect. Set the
+        // default STA as the last connected STA, but do not commit it to
+        // non-volatile storage. It will be commited to non-volatile storage
+        // only once a connection is actually successful.
+        str_populate<MAX_SSID_SIZE>(privCfg_.last_.ssid_, default_sta_ssid());
+        str_populate<MAX_PASS_SIZE>(
+            privCfg_.last_.pass_, default_sta_password());
+        privCfg_.last_.sec_ = sec_type_translate(SEC_WPA2);
+        privCfg_.channelLast_ = 0; // Any channel.
+    }
 }
 
 //
