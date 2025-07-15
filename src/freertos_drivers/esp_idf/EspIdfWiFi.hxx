@@ -1042,7 +1042,7 @@ private:
         if (index < 0)
         {
             // duplicate slot not found, look for an empty slot.
-            find_sta_profile("");
+            index = find_sta_profile("");
         }
         if (index >= 0)
         {
