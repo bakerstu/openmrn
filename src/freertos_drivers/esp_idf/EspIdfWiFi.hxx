@@ -647,6 +647,9 @@ private:
     /// @param data event data
     void ip_event_handler(esp_event_base_t base, int32_t id, void *data);
 
+    /// Collect the scan results of a previous scan.
+    void collect_scan_results();
+
     /// Initialize private configuration.
     void init_config_priv();
 
@@ -691,6 +694,10 @@ private:
     /// @param channel WiFi channel
     void last_sta_update(
         std::string ssid, std::string pass, uint8_t authmode, uint8_t channel);
+
+    /// Set/Update the last WiFi STA channel only connection parameter.
+    /// @param channel WiFi channel
+    void last_sta_update_channel(uint8_t channel);
 
     /// Translate from ESP connection reason to generic connection result.
     /// @param reason ESP connection reason
