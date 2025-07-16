@@ -993,11 +993,9 @@ void EspIdfWiFiBase::wifi_event_handler(
                 try_fast_reconnect = true; // Try a fast reconnect.
                 mdns_disable_sta();
                 // Register a callback to run on the passed in service executor.
-                CallbackExecutable *e = new CallbackExecutable([this]()
-                {
-                    this->ip_acquired(IFACE_STA, false);
-                });
-                this->service()->executor()->add(e);
+                CallbackExecutable *e = new CallbackExecutable(std::bind(
+                    &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, false));
+                service()->executor()->add(e);
             }
             std::string ssid((char*)evdata->ssid, evdata->ssid_len);
 
@@ -1082,22 +1080,18 @@ void EspIdfWiFiBase::wifi_event_handler(
                 }
             }
             // Register a callback to run on the passed in service executor.
-            CallbackExecutable *e = new CallbackExecutable([this]()
-            {
-                this->scan_finished();
-            });
-            this->service()->executor()->add(e);
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::scan_finished, this));
+            service()->executor()->add(e);
             break;
         }
         case WIFI_EVENT_AP_START:
         {
             ipAcquiredAp_ = true;
             // Register a callback to run on the passed in service executor.
-            CallbackExecutable *e = new CallbackExecutable([this]()
-            {
-                this->ip_acquired(IFACE_AP, true);
-            });
-            this->service()->executor()->add(e);
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::ip_acquired, this, IFACE_AP, true));
+            service()->executor()->add(e);
 
             esp_netif_ip_info_t ip_info;
             esp_netif_get_ip_info(
@@ -1112,11 +1106,9 @@ void EspIdfWiFiBase::wifi_event_handler(
         {
             ipAcquiredAp_ = false;
             // Register a callback to run on the passed in service executor.
-            CallbackExecutable *e = new CallbackExecutable([this]()
-            {
-                this->ip_acquired(IFACE_AP, false);
-            });
-            this->service()->executor()->add(e);
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::ip_acquired, this, IFACE_AP, false));
+            service()->executor()->add(e);
             break;
         }
         case WIFI_EVENT_AP_STACONNECTED:
@@ -1174,11 +1166,9 @@ void EspIdfWiFiBase::ip_event_handler(
             inet_ntoa_r(d->ip_info.ip.addr, ip_addr, 16);
             LOG(INFO, "wifi: STA got IP: %s", ip_addr);
             // Register a callback to run on the passed in service executor.
-            CallbackExecutable *e = new CallbackExecutable([this]()
-            {
-                this->ip_acquired(IFACE_STA, true);
-            });
-            this->service()->executor()->add(e);
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, true));
+            service()->executor()->add(e);
             break;
         }
         case IP_EVENT_STA_LOST_IP:
@@ -1188,11 +1178,9 @@ void EspIdfWiFiBase::ip_event_handler(
             mdns_disable_sta();
             LOG(INFO, "wifi: STA lost IP.");
             // Register a callback to run on the passed in service executor.
-            CallbackExecutable *e = new CallbackExecutable([this]()
-            {
-                this->ip_acquired(IFACE_STA, false);
-            });
-            this->service()->executor()->add(e);
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, false));
+            service()->executor()->add(e);
             break;
         }
         case IP_EVENT_AP_STAIPASSIGNED:
