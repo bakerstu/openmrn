@@ -123,8 +123,13 @@ public:
     /// @param role device role
     void start(WlanRole role = WlanRole::DEFAULT_ROLE) override
     {
-        init_wifi(role);
-        initialized_ = true;
+        // Do the work on the passed in service executor.
+        CallbackExecutable *e = new CallbackExecutable([this, role]()
+        {
+            this->init_wifi(role);
+            initialized_ = true;
+        });
+        this->service()->executor()->add(e);
     }
 
     /// Stop the WiFi. Has no expectation that start() can be called again
