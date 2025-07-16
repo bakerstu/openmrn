@@ -140,8 +140,8 @@ static struct ifaddrs *getifaddrs_helper(esp_netif_t *iface, const char *name)
         addr_in[1].sin_addr.s_addr = ip_info.netmask.addr;
 
         LOG(VERBOSE, "wifi: getifaddrs() ip: %s, netmask: %s",
-            ipv4_to_string(addr_in[0].sin_addr.s_addr).c_str(),
-            ipv4_to_string(addr_in[1].sin_addr.s_addr).c_str());
+            ipv4_to_string(ntohl(addr_in[0].sin_addr.s_addr)).c_str(),
+            ipv4_to_string(ntohl(addr_in[1].sin_addr.s_addr)).c_str());
 
         if_addrs->ifa_addr = (struct sockaddr*)addr_in;
         if_addrs->ifa_netmask = (struct sockaddr*)(addr_in + 1);
