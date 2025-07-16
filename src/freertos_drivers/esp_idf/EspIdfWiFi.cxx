@@ -140,8 +140,8 @@ static struct ifaddrs *getifaddrs_helper(esp_netif_t *iface, const char *name)
         addr_in[1].sin_addr.s_addr = ip_info.netmask.addr;
 
         LOG(VERBOSE, "wifi: getifaddrs() ip: %s, netmask: %s",
-            ipv4_to_string(addr_in[0].sin_addr.s_addr).c_str(),
-            ipv4_to_string(addr_in[1].sin_addr.s_addr).c_str());
+            ipv4_to_string(ntohl(addr_in[0].sin_addr.s_addr)).c_str(),
+            ipv4_to_string(ntohl(addr_in[1].sin_addr.s_addr)).c_str());
 
         if_addrs->ifa_addr = (struct sockaddr*)addr_in;
         if_addrs->ifa_netmask = (struct sockaddr*)(addr_in + 1);
@@ -1265,6 +1265,7 @@ void EspIdfWiFiBase::init_config_priv()
 
     if (privCfg_.last_.ssid_[0] == '\0')
     {
+        LOG(VERBOSE, "wifi: No fast connect credentials.");
         // There are no "last" STA credentials to use for fast connect. Set the
         // default STA as the last connected STA, but do not commit it to
         // non-volatile storage. It will be commited to non-volatile storage
@@ -1349,6 +1350,7 @@ void EspIdfWiFiBase::init_wifi(WlanRole role)
 //
 void EspIdfWiFiBase::init_softap(std::string ssid, std::string pass)
 {
+    LOG(VERBOSE, "wifi: init_softap(), ssid: %s", ssid.c_str());
     apIface_ = esp_netif_create_default_wifi_ap();
     esp_netif_set_hostname(apIface_, hostname_.c_str());
 
