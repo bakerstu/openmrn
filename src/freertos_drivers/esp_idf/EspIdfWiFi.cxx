@@ -33,7 +33,7 @@
  */
 
 // Uncomment following line to enable verbose logging.
-#define LOGLEVEL VERBOSE
+//#define LOGLEVEL VERBOSE
 
 #include "freertos_drivers/esp_idf/EspIdfWiFi.hxx"
 
