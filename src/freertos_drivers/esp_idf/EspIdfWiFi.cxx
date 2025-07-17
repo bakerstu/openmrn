@@ -303,13 +303,8 @@ void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
     OSMutexLock locker(&lock_);
     if (!mdnsAdvInhibit_)
     {
-        esp_err_t result = ::mdns_service_add(
-            nullptr, name.c_str(), proto.c_str(), port, nullptr, 0);
-        if (result != ESP_OK)
-        {
-            LOG_ERROR("wifi: Error %s mdns_service_add()",
-                esp_err_to_name(result));
-        }
+        ESP_ERROR_CHECK_WITHOUT_ABORT(::mdns_service_add(
+            nullptr, name.c_str(), proto.c_str(), port, nullptr, 0));
     }
     mdnsServices_.emplace_back(std::move(name), std::move(proto), port);
 }
@@ -964,11 +959,10 @@ void EspIdfWiFiBase::wifi_event_handler(
                 ssid, staConnectPass_, sdata->authmode, sdata->channel);
 
             // Register a callback to run on the passed in service executor.
-            CallbackExecutable *e = new CallbackExecutable([this, ssid]()
-            {
-                this->wlan_connected(true, CONNECT_OK, ssid);
-            });
-            this->service()->executor()->add(e);
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::wlan_connected, this, true, CONNECT_OK,
+                std::move(ssid)));
+            service()->executor()->add(e);
             break;
         }
         case WIFI_EVENT_STA_DISCONNECTED:
@@ -1001,11 +995,10 @@ void EspIdfWiFiBase::wifi_event_handler(
 
             // Register a callback to run on the passed in service executor.
             ConnectionResult reason = connection_result_encode(evdata->reason);
-            CallbackExecutable *e = new CallbackExecutable([this, reason, ssid]()
-            {
-                this->wlan_connected(true, reason, ssid);
-            });
-            this->service()->executor()->add(e);
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::wlan_connected, this, true, reason,
+                std::move(ssid)));
+            service()->executor()->add(e);
 
             if (!initialized_)
             {
@@ -1384,6 +1377,7 @@ void EspIdfWiFiBase::init_wifi(WlanRole role)
     ESP_ERROR_CHECK(mdns_init());
     mdns_hostname_set(hostname_.c_str());
     mdns_instance_name_set(hostname_.c_str());
+    initialized_ = true;
 }
 
 //
