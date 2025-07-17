@@ -996,7 +996,7 @@ void EspIdfWiFiBase::wifi_event_handler(
             // Register a callback to run on the passed in service executor.
             ConnectionResult reason = connection_result_encode(evdata->reason);
             CallbackExecutable *e = new CallbackExecutable(std::bind(
-                &EspIdfWiFiBase::wlan_connected, false, true, reason,
+                &EspIdfWiFiBase::wlan_connected, this, false, reason,
                 std::move(ssid)));
             service()->executor()->add(e);
 
