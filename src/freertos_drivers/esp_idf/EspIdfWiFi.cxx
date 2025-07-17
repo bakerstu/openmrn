@@ -303,8 +303,8 @@ void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
     OSMutexLock locker(&lock_);
     if (!mdnsAdvInhibit_)
     {
-        ::mdns_service_add(
-            nullptr, name.c_str(), proto.c_str(), port, nullptr, 0);
+        ESP_ERROR_CHECK_WITHOUT_ABORT(::mdns_service_add(
+            nullptr, name.c_str(), proto.c_str(), port, nullptr, 0));
     }
     mdnsServices_.emplace_back(std::move(name), std::move(proto), port);
 }
@@ -848,6 +848,7 @@ void EspIdfWiFiBase::mdns_disable_sta()
         LOG(VERBOSE, "wifi: STA unregistered on mDNS.");
     }
 #endif
+    LOG(VERBOSE, "wifi: mdns_disable_sta(): %u", mdnsStaLockCount_);
 }
 
 //
@@ -872,6 +873,7 @@ void EspIdfWiFiBase::mdns_restore_sta()
         }
     }
 #endif
+    LOG(VERBOSE, "wifi: mdns_retore_sta(): %u", mdnsStaLockCount_);
 }
 
 //
@@ -955,7 +957,12 @@ void EspIdfWiFiBase::wifi_event_handler(
             std::string ssid((char*)sdata->ssid, sdata->ssid_len);
             last_sta_update(
                 ssid, staConnectPass_, sdata->authmode, sdata->channel);
-            wlan_connected(true, CONNECT_OK, ssid);
+
+            // Register a callback to run on the passed in service executor.
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::wlan_connected, this, true, CONNECT_OK,
+                std::move(ssid)));
+            service()->executor()->add(e);
             break;
         }
         case WIFI_EVENT_STA_DISCONNECTED:
@@ -979,11 +986,20 @@ void EspIdfWiFiBase::wifi_event_handler(
                 ipAcquiredSta_ = false; // Disconnect implies we lost IP.
                 try_fast_reconnect = true; // Try a fast reconnect.
                 mdns_disable_sta();
-                ip_acquired(IFACE_STA, false);
+                // Register a callback to run on the passed in service executor.
+                CallbackExecutable *e = new CallbackExecutable(std::bind(
+                    &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, false));
+                service()->executor()->add(e);
             }
             std::string ssid((char*)evdata->ssid, evdata->ssid_len);
-            wlan_connected(
-                false, connection_result_encode(evdata->reason), ssid);
+
+            // Register a callback to run on the passed in service executor.
+            ConnectionResult reason = connection_result_encode(evdata->reason);
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::wlan_connected, this, false, reason,
+                std::move(ssid)));
+            service()->executor()->add(e);
+
             if (!initialized_)
             {
                 // This is likely a "stop" condition. Do not try to reconnect
@@ -1056,13 +1072,20 @@ void EspIdfWiFiBase::wifi_event_handler(
                     sta_connect(ssid.c_str(), pass.c_str(), sec, conn_channel);
                 }
             }
-            scan_finished();
+            // Register a callback to run on the passed in service executor.
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::scan_finished, this));
+            service()->executor()->add(e);
             break;
         }
         case WIFI_EVENT_AP_START:
         {
             ipAcquiredAp_ = true;
-            ip_acquired(IFACE_AP, true);
+            // Register a callback to run on the passed in service executor.
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::ip_acquired, this, IFACE_AP, true));
+            service()->executor()->add(e);
+
             esp_netif_ip_info_t ip_info;
             esp_netif_get_ip_info(
                 esp_netif_get_handle_from_ifkey(NETIF_KEY_NAME_AP), &ip_info);
@@ -1073,9 +1096,14 @@ void EspIdfWiFiBase::wifi_event_handler(
             break;
         }
         case WIFI_EVENT_AP_STOP:
+        {
             ipAcquiredAp_ = false;
-            ip_acquired(IFACE_AP, false);
+            // Register a callback to run on the passed in service executor.
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::ip_acquired, this, IFACE_AP, false));
+            service()->executor()->add(e);
             break;
+        }
         case WIFI_EVENT_AP_STACONNECTED:
         {
             wifi_event_ap_staconnected_t *event =
@@ -1130,7 +1158,10 @@ void EspIdfWiFiBase::ip_event_handler(
             char ip_addr[16];
             inet_ntoa_r(d->ip_info.ip.addr, ip_addr, 16);
             LOG(INFO, "wifi: STA got IP: %s", ip_addr);
-            ip_acquired(IFACE_STA, true);
+            // Register a callback to run on the passed in service executor.
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, true));
+            service()->executor()->add(e);
             break;
         }
         case IP_EVENT_STA_LOST_IP:
@@ -1139,7 +1170,10 @@ void EspIdfWiFiBase::ip_event_handler(
             ipAcquiredSta_ = false;
             mdns_disable_sta();
             LOG(INFO, "wifi: STA lost IP.");
-            ip_acquired(IFACE_STA, false);
+            // Register a callback to run on the passed in service executor.
+            CallbackExecutable *e = new CallbackExecutable(std::bind(
+                &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, false));
+            service()->executor()->add(e);
             break;
         }
         case IP_EVENT_AP_STAIPASSIGNED:
@@ -1343,6 +1377,7 @@ void EspIdfWiFiBase::init_wifi(WlanRole role)
     ESP_ERROR_CHECK(mdns_init());
     mdns_hostname_set(hostname_.c_str());
     mdns_instance_name_set(hostname_.c_str());
+    initialized_ = true;
 }
 
 //
