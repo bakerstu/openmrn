@@ -205,7 +205,8 @@ copy_file src/openlcb src/openlcb/*.h src/openlcb/*.hxx src/openlcb/*.cxx
 rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/EventHandlerMock.hxx \
     ${TARGET_LIB_DIR}/src/openlcb/Stream.cxx \
-    ${TARGET_LIB_DIR}/src/openlcb/Stream.hxx
+    ${TARGET_LIB_DIR}/src/openlcb/Stream.hxx \
+    ${TARGET_LIB_DIR}/src/openlcb/BLE* \
 
 copy_file src/freertos_drivers/arduino \
           src/freertos_drivers/arduino/* \
@@ -225,6 +226,9 @@ copy_file src/freertos_drivers/stm32 \
           src/freertos_drivers/st/Stm32Can.* \
           arduino/stm32f_hal_conf.hxx \
 
+copy_file src/freertos_drivers/sam \
+          src/freertos_drivers/sam/*              
+          
 copy_file src/os src/os/*.h src/os/*.c src/os/*.hxx \
           src/os/{OSImpl,MDNS,OSSelectWakeup}.cxx
 
