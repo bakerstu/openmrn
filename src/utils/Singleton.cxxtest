@@ -1,8 +1,9 @@
+#include "utils/Singleton.hxx"
+
 #include <stdio.h>
 #include "gtest/gtest.h"
 #include "os/os.h"
-
-#include "utils/Singleton.hxx"
+#include "utils/Uninitialized.hxx"
 
 
 class MyClass : public Singleton<MyClass> {
@@ -19,17 +20,19 @@ TEST(SingletonTest, CreateAndGetSingle) {
 }
 
 TEST(SingletonTest, CreateAndGetMultiple) {
-  MyClass* p;
-  {
-    MyClass obj;
-    p = &obj;
-    EXPECT_EQ(p, MyClass::instance());
-  }
-  {
-    MyClass obj2;
-    EXPECT_EQ(&obj2, MyClass::instance());
-    EXPECT_NE(p, &obj2);
-  }
+  const MyClass* p;
+  uninitialized<MyClass> obj;
+  uninitialized<MyClass> obj2;
+
+  obj.emplace();
+  p = obj.get();
+  EXPECT_EQ(p, MyClass::instance());
+  obj.reset();
+
+  obj2.emplace();
+  EXPECT_EQ(obj2.get(), MyClass::instance());
+  EXPECT_NE(p, MyClass::instance());
+  obj2.reset();
 }
 
 TEST(SingletonTest, DieEmptyRef) {

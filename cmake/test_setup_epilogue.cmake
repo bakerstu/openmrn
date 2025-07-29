@@ -12,7 +12,12 @@ endif()
 
 # Build an executable for each test file.
 foreach(testsourcefile ${TESTS})
+    # Manipulate path to result in unique test names.
     get_filename_component(testname ${testsourcefile} NAME_WE)
+    get_filename_component(testdir ${testsourcefile} DIRECTORY)
+    get_filename_component(testdir ${testdir} NAME)
+    set(testname "${testdir}_${testname}")
+
     add_executable(${testname} ${testsourcefile})
     target_include_directories(${testname}
         PUBLIC
@@ -27,6 +32,7 @@ foreach(testsourcefile ${TESTS})
 
         -fPIC
         -lgcov
+        -lcrypto
         -Wl,--start-group
         openmrn
         ${LINK_LIBS}

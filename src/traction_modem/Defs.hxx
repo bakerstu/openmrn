@@ -59,46 +59,51 @@ struct Defs
     /// Command values.
     enum Command : uint16_t
     {
-        CMD_PING              = 0x0000, ///< ping
-        CMD_NOP               = 0x0001, ///< no-operation (do nothing)
-        CMD_REBOOT            = 0x0002, ///< reboot request
-        CMD_BAUD_RATE_QUERY   = 0x0003, ///< query the supported baud rates
-        CMD_BAUD_RATE_REQUEST = 0x0004, ///< request a specific baud rate
-        CMD_SPEED_SET         = 0x0100, ///< set velocity
-        CMD_FN_SET            = 0x0101, ///< set function
-        CMD_ESTOP_SET         = 0x0102, ///< emergency stop request
-        CMD_SPEED_QUERY       = 0x0110, ///< query current speed
-        CMD_FN_QUERY          = 0x0111, ///< query function status
-        CMD_DC_DCC_PRESENT    = 0x0200, ///< DC/DCC present
-        CMD_WIRELESS_PRESENT  = 0x0201, ///< wireless present
-        CMD_MEM_R             = 0x1000, ///< memory read
-        CMD_MEM_W             = 0x1001, ///< memory write
+        CMD_PING               = 0x0000, ///< ping
+        CMD_NOP                = 0x0001, ///< no-operation (do nothing)
+        CMD_REBOOT             = 0x0002, ///< reboot request
+        CMD_BAUD_RATE_QUERY    = 0x0003, ///< query the supported baud rates
+        CMD_BAUD_RATE_REQUEST  = 0x0004, ///< request a specific baud rate
+        CMD_SPEED_SET          = 0x0100, ///< set velocity
+        CMD_FN_SET             = 0x0101, ///< set function
+        CMD_ESTOP_SET          = 0x0102, ///< emergency stop request
+        CMD_SPEED_QUERY        = 0x0110, ///< query current speed
+        CMD_FN_QUERY           = 0x0111, ///< query function status
+        CMD_DC_DCC_PRESENT     = 0x0200, ///< DC/DCC present
+        CMD_WIRELESS_PRESENT   = 0x0201, ///< wireless present
+        CMD_OUTPUT_STATE       = 0x0300, ///< command the output state
+        CMD_OUTPUT_STATE_QUERY = 0x0301, ///< query the output state
+        CMD_OUTPUT_RESTART     = 0x0302, ///< synchronize/restart the output
+        CMD_MEM_R              = 0x1000, ///< memory read
+        CMD_MEM_W              = 0x1001, ///< memory write
 
         //
         // response commands
         //
         /// ping response
-        RESP_PING             = RESPONSE | CMD_PING,
+        RESP_PING               = RESPONSE | CMD_PING,
         /// baud rate query response
-        RESP_BAUD_RATE_QUERY  = RESPONSE | CMD_BAUD_RATE_QUERY,
+        RESP_BAUD_RATE_QUERY    = RESPONSE | CMD_BAUD_RATE_QUERY,
         /// set velocity response
-        RESP_SPEED_SET        = RESPONSE | CMD_SPEED_SET,
+        RESP_SPEED_SET          = RESPONSE | CMD_SPEED_SET,
         /// set function response
-        RESP_FN_SET           = RESPONSE | CMD_FN_SET,
+        RESP_FN_SET             = RESPONSE | CMD_FN_SET,
         /// emergency stop response
-        RESP_ESTOP_SET        = RESPONSE | CMD_ESTOP_SET,
+        RESP_ESTOP_SET          = RESPONSE | CMD_ESTOP_SET,
         /// query current speed response
-        RESP_SPEED_QUERY      = RESPONSE | CMD_SPEED_QUERY,
+        RESP_SPEED_QUERY        = RESPONSE | CMD_SPEED_QUERY,
         /// query function status response
-        RESP_FN_QUERY         = RESPONSE | CMD_FN_QUERY,
+        RESP_FN_QUERY           = RESPONSE | CMD_FN_QUERY,
         /// DC/DCC present response
-        RESP_DC_DCC_PRESENT   = RESPONSE | CMD_DC_DCC_PRESENT,
+        RESP_DC_DCC_PRESENT     = RESPONSE | CMD_DC_DCC_PRESENT,
         /// wireless present response
-        RESP_WIRELESS_PRESENT = RESPONSE | CMD_WIRELESS_PRESENT,
+        RESP_WIRELESS_PRESENT   = RESPONSE | CMD_WIRELESS_PRESENT,
+        /// Output state query response
+        RESP_OUTPUT_STATE_QUERY = RESPONSE | CMD_OUTPUT_STATE_QUERY,
         /// memory read response
-        RESP_MEM_R            = RESPONSE | CMD_MEM_R,
+        RESP_MEM_R              = RESPONSE | CMD_MEM_R,
         /// memory write response
-        RESP_MEM_W            = RESPONSE | CMD_MEM_W,
+        RESP_MEM_W              = RESPONSE | CMD_MEM_W,
     };
 
     /// Reboot command argument options.
@@ -125,6 +130,14 @@ struct Defs
     static constexpr unsigned LEN_ESTOP_SET = 0;
     /// Length of the data payload of a wireless present packet.
     static constexpr unsigned LEN_WIRELESS_PRESENT = 1;
+    /// Length of the data payload of an output state packet.
+    static constexpr unsigned LEN_OUTPUT_STATE = 4;
+    /// Length of the data payload of an output state queue packet.
+    static constexpr unsigned LEN_OUTPUT_STATE_QUERY = 2;
+    /// Length of the data payload of an output state queue response packet.
+    static constexpr unsigned LEN_OUTPUT_STATE_QUERY_RESP = 6;
+    /// Length of the data payload of an output restart packet.
+    static constexpr unsigned LEN_OUTPUT_RESTART = 2;
     /// Length of the data payload of a set estop packet.
     static constexpr unsigned LEN_MEM_R = 6;
     /// Base length of the data, add the number of payload bytes.
@@ -190,6 +203,44 @@ struct Defs
         }
     };
 
+    /// Structure of an output state command
+    struct OutputState
+    {
+        Header header_; ///< packet header
+        uint16_t output_; ///< output number
+        uint16_t effect_; ///< 0 = off, 0xFFFF = on, else effect
+        uint8_t end; ///< used for alignment and length validation only
+    };
+    static_assert(offsetof(OutputState, end) == (LEN_HEADER + LEN_OUTPUT_STATE),
+        "OutputState struct length or alignment mismatch.");
+    static_assert(std::is_standard_layout<OutputState>::value == true);
+
+    /// Structure of an output state query response
+    struct OutputStateQueryResponse
+    {
+        Header header_; ///< packet header
+        uint16_t error_; ///< error code
+        uint16_t output_; ///< output number
+        uint16_t effect_; ///< 0 = off, 0xFFFF = on, else effect
+        uint8_t end; ///< used for alignment and length validation only
+    };
+    static_assert(
+        offsetof(OutputStateQueryResponse, end) == (LEN_HEADER + LEN_OUTPUT_STATE_QUERY_RESP),
+        "OutputStateQueryResponse struct length or alignment mismatch.");
+    static_assert(
+        std::is_standard_layout<OutputStateQueryResponse>::value == true);
+
+    /// Structure of an output restart command (synchronize lighting effect)
+    struct OutputRestart
+    {
+        Header header_; ///< packet header
+        uint16_t output_; ///< output number
+        uint8_t end; ///< used for alignment and length validation only
+    };
+    static_assert(offsetof(OutputRestart, end) == (LEN_HEADER + LEN_OUTPUT_RESTART),
+        "OutputState struct length or alignment mismatch.");
+    static_assert(std::is_standard_layout<OutputRestart>::value == true);
+
     /// Structure of a read reply packet
     struct ReadResponse
     {
@@ -197,6 +248,7 @@ struct Defs
         uint16_t error_; ///< error code
         uint8_t data_[0];
     };
+    static_assert(std::is_standard_layout<ReadResponse>::value == true);
 
     /// Structure of a read reply packet
     struct WriteResponse
@@ -205,6 +257,7 @@ struct Defs
         uint16_t error_; ///< error code
         uint16_t bytesWritten_; ///< length in number of bytes actually written
     };
+    static_assert(std::is_standard_layout<WriteResponse>::value == true);
 
     /// Computes the payload for a reboot message.
     /// @param arg type of reboot
@@ -227,6 +280,19 @@ struct Defs
         Payload p;
         prepare(&p, CMD_WIRELESS_PRESENT, LEN_WIRELESS_PRESENT);
         append_uint8(&p, is_present ? 1 : 0);
+
+        append_crc(&p);
+        return p;
+    }
+
+    /// Computes the payload to query for the current output state
+    /// @param output output number
+    /// @return wire formatted payload
+    static Payload get_output_state_query_payload(uint16_t output)
+    {
+        Payload p;
+        prepare(&p, CMD_OUTPUT_STATE_QUERY, LEN_OUTPUT_STATE_QUERY);
+        append_uint16(&p, output);
 
         append_crc(&p);
         return p;
