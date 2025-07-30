@@ -34,7 +34,6 @@ jobs:
       with:
         platform-url: https://raw.githubusercontent.com/stm32duino/BoardManagerFiles/master/STM32/package_stm_index.json
         arduino-board-fqbn: STM32:stm32:Nucleo_144:pnum=NUCLEO_F767ZI,upload_method=MassStorage,xserial=generic,usb=CDCgen,xusb=FS,opt=osstd,rtlib=nano
-#        sketch-names: *.ino
         sketch-names-find-start: arduino/examples/Stm32
         build-properties: '{ "All": "-DHAL_CAN_MODULE_ENABLED" }'
         debug-compile: true
@@ -54,14 +53,13 @@ jobs:
       run: |
         mkdir --parents $GITHUB_WORKSPACE/CustomOpenMRNLite
         $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/CustomOpenMRNLite $GITHUB_WORKSPACE -f
-        rm -f $GITHUB_WORKSPACE/arduino/examples/Stm32/*/build_opt.h
 
     - name: Compile ESP32 examples
       uses: ArminJo/arduino-test-compile@v3
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
         arduino-board-fqbn: esp32:esp32:node32s
-        sketch-names: ESP32/CanLoadTest.ino,ESP32/IOBoard.ino,ESP32/WifiCanBridge.ino
+        sketch-names-find-start: arduino/examples/ESP32
         debug-compile: true
         arduino-platform: esp32:esp32@3.1.1
       if: ${{ matrix.target == 'esp32' }}
@@ -71,7 +69,7 @@ jobs:
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
         arduino-board-fqbn: esp32:esp32:esp32c3
-        sketch-names: ESP32C3/CanLoadTest.ino,ESP32C3/IOBoard.ino
+        sketch-names-find-start: arduino/examples/ESP32C3
         debug-compile: true
         arduino-platform: esp32:esp32@3.1.1
       if: ${{ matrix.target == 'esp32c3' }}
@@ -81,7 +79,7 @@ jobs:
       with:
         platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
         arduino-board-fqbn: esp32:esp32:esp32s2
-        sketch-names: ESP32S2/CanLoadTest.ino,ESP32S2/IOBoard.ino
+        sketch-names-find-start: arduino/examples/ESP32S2
         debug-compile: true
         arduino-platform: esp32:esp32@3.1.1
       if: ${{ matrix.target == 'esp32s2' }}
