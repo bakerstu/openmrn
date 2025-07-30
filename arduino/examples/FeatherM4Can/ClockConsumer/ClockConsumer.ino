@@ -95,13 +95,21 @@ void update_minute(BarrierNotifiable *done)
 }
 
 /// Called when the current known time makes a jump.
-void time_jump(time_t old, time_t current)
+void update(time_t old, time_t current)
 {
-    if (old != current)
-    {
-        update_date(nullptr);
-        update_minute(nullptr);
-    }
+    struct tm time;
+    time_client.gmtime_r(&time);
+    auto time_s =
+        openlcb::BroadcastTimeDefs::time_to_string(time.tm_hour, time.tm_min);
+    int y = time_client.year();
+    int mon, day;
+    time_client.date(&mon, &day);
+    auto date_s = openlcb::BroadcastTimeDefs::date_to_string(y, mon, day);
+    const char *is_run = time_client.is_running() ? "running" : "stopped";
+    int rate_q = time_client.get_rate_quarters();
+    string rate_s = openlcb::BroadcastTimeDefs::rate_quarters_to_string(rate_q);
+    SERIAL_PORT.printf("Clock %s, rate %s, %s %s\n", is_run, rate_s.c_str(),
+        date_s.c_str(), time_s.c_str());
 }
 
 openlcb::BroadcastTimeAlarmMinute alarm_minute {
@@ -147,7 +155,7 @@ void setup()
     HASSERT(CanDriver.begin());
     openmrn.add_can_port(&CanDriver);
     openmrn.begin();
-    time_client.update_subscribe_add(&time_jump);
+    time_client.update_subscribe_add(&update);
 }
 
 //-----------------------------------------------------------------
