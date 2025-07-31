@@ -59,7 +59,7 @@
 /// void setup() {
 ///   ...
 ///   HASSERT(can_driver.begin());
-///   openmrn.add_can_port(&CanDriver);
+///   openmrn.add_can_port(&can_driver);
 ///   openmrn.begin();
 ///   ...
 /// }
