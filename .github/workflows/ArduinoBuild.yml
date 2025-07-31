@@ -61,7 +61,7 @@ jobs:
         sketch-names-find-start: arduino/examples/FeatherM4Can
         debug-compile: true
         required-libraries: |
-          "ACANFD_FeatherM4CAN"
+          "ACANFD FeatherM4CAN"
 
   build-esp32:
     name: Build Arduino ${{ matrix.target }} examples
