@@ -60,8 +60,7 @@ jobs:
         arduino-board-fqbn: adafruit:samd:adafruit_feather_m4_can
         sketch-names-find-start: arduino/examples/FeatherM4Can
         debug-compile: true
-        required-libraries: |
-          "ACANFD FeatherM4CAN"
+        required-libraries: ACANFD_FeatherM4CAN
 
   build-esp32:
     name: Build Arduino ${{ matrix.target }} examples
