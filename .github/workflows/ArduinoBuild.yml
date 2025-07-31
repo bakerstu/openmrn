@@ -15,6 +15,9 @@ on:
       - '**rduino**'
       - '**ArduinoBuild.yml'
   pull_request:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build-stm32:
     name: Build Arduino STM32 examples
@@ -36,6 +39,26 @@ jobs:
         arduino-board-fqbn: STM32:stm32:Nucleo_144:pnum=NUCLEO_F767ZI,upload_method=MassStorage,xserial=generic,usb=CDCgen,xusb=FS,opt=osstd,rtlib=nano
         sketch-names-find-start: arduino/examples/Stm32
         build-properties: '{ "All": "-DHAL_CAN_MODULE_ENABLED" }'
+        debug-compile: true
+
+  build-featherm4can:
+    name: Build Arduino Feather M4 CAN examples
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Generate OpenMRNLite library
+      run: |
+        mkdir --parents $GITHUB_WORKSPACE/CustomOpenMRNLite
+        $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/CustomOpenMRNLite $GITHUB_WORKSPACE -f
+
+    - name: Compile Feather M4 CAN examples
+      uses: ArminJo/arduino-test-compile@v3
+      with:
+        platform-url: https://adafruit.github.io/arduino-board-index/package_adafruit_index.json
+        arduino-board-fqbn: adafruit:samd:adafruit_feather_m4_can
+        sketch-names-find-start: arduino/examples/FeatherM4Can
         debug-compile: true
 
   build-esp32:
@@ -61,7 +84,7 @@ jobs:
         arduino-board-fqbn: esp32:esp32:node32s
         sketch-names-find-start: arduino/examples/ESP32
         debug-compile: true
-        arduino-platform: esp32:esp32@3.1.1
+        arduino-platform: esp32:esp32@3.3.0
       if: ${{ matrix.target == 'esp32' }}
 
     - name: Compile ESP32-C3 examples
@@ -71,7 +94,7 @@ jobs:
         arduino-board-fqbn: esp32:esp32:esp32c3
         sketch-names-find-start: arduino/examples/ESP32C3
         debug-compile: true
-        arduino-platform: esp32:esp32@3.1.1
+        arduino-platform: esp32:esp32@3.3.0
       if: ${{ matrix.target == 'esp32c3' }}
     
     - name: Compile ESP32-S2 examples
@@ -81,5 +104,5 @@ jobs:
         arduino-board-fqbn: esp32:esp32:esp32s2
         sketch-names-find-start: arduino/examples/ESP32S2
         debug-compile: true
-        arduino-platform: esp32:esp32@3.1.1
+        arduino-platform: esp32:esp32@3.3.0
       if: ${{ matrix.target == 'esp32s2' }}
