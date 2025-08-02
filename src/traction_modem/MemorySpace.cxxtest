@@ -84,75 +84,24 @@ TEST_F(MemorySpaceTest, CvRead)
 
 
     //
-    // Read link down with timeout.
+    // Read link down.
     //
     EXPECT_CALL(mRxFlow_,
-        register_handler(&cs, Defs::RESP_MEM_R, Message::EXACT_MASK)).Times(1);
+        register_handler(&cs, Defs::RESP_MEM_R, Message::EXACT_MASK)).Times(0);
     EXPECT_CALL(mTxFlow_, send_packet(
         StartsWith(
             "\x41\xd2\xc3\x7a\x10\x00\x00\x06\x00\x00\x00\x00\xF8\x08"s)))
         .Times(0);
     error = 0;
     EXPECT_EQ(0U, cs.read(0, data_, sizeof(data_), &error, &done));
-    EXPECT_EQ(ERROR_AGAIN, error);
+    EXPECT_EQ(openlcb::Defs::ERROR_TEMPORARY, error);
     testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
     testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
 
-    EXPECT_CALL(mRxFlow_, unregister_handler_all(&cs)).Times(1);
-    clk_advance(MSEC_TO_NSEC(3200));
-    done.wait_for_notification();
-    EXPECT_EQ(0, memcmp(data_, expectData_, sizeof(data_)));
-    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
-
-    error = 0;
-    EXPECT_EQ(0U, cs.read(0, data_, sizeof(data_), &error, &done));
-    EXPECT_EQ(openlcb::Defs::ERROR_OPENLCB_TIMEOUT, error);
 
 
-
-    //
-    // Read start link down but bring link up before the timeout.
-    //
-    EXPECT_CALL(mRxFlow_,
-        register_handler(&cs, Defs::RESP_MEM_R, Message::EXACT_MASK)).Times(1);
-    EXPECT_CALL(mTxFlow_, send_packet(
-        StartsWith(
-            "\x41\xd2\xc3\x7a\x10\x00\x00\x06\x00\x00\x00\x00\xF8\x08"s)))
-        .Times(0);
-    error = 0;
-    EXPECT_EQ(0U, cs.read(0, data_, sizeof(data_), &error, &done));
-    EXPECT_EQ(ERROR_AGAIN, error);
-    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
-    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
-    clk_advance(MSEC_TO_NSEC(2800));
     // Bring link up.
-    EXPECT_CALL(mTxFlow_, send_packet(
-        StartsWith(
-            "\x41\xd2\xc3\x7a\x10\x00\x00\x06\x00\x00\x00\x00\xF8\x08"s)))
-        .Times(1);
     do_link_up();
-    EXPECT_CALL(mRxFlow_, unregister_handler_all(&cs)).Times(1);
-    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
-    {
-        auto *b = mRxFlow_.dispatcher_.alloc();
-        Defs::prepare(&b->data()->payload, Defs::RESP_MEM_R, 2 + 8);
-        Defs::append_uint16(&b->data()->payload, openlcb::Defs::ERROR_CODE_OK);
-        for (unsigned i = 0; i < sizeof(expectData_); ++i)
-        {
-            Defs::append_uint8(&b->data()->payload, expectData_[i]);
-        }
-        Defs::append_crc(&b->data()->payload);
-        mRxFlow_.dispatcher_.send(b);
-    }
-    wait_for_main_executor();
-    done.wait_for_notification();
-    EXPECT_EQ(0, memcmp(data_, expectData_, sizeof(data_)));
-    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
-
-    error = 0;
-    EXPECT_EQ(8U, cs.read(0, data_, sizeof(data_), &error, &done));
-    EXPECT_EQ(0, memcmp(data_, expectData_, sizeof(data_)));
-    EXPECT_EQ(openlcb::Defs::ERROR_CODE_OK, error);
 
 
 
@@ -315,10 +264,10 @@ TEST_F(MemorySpaceTest, CvWrite)
 
 
     //
-    // Write link down with timeout.
+    // Write link down.
     //
     EXPECT_CALL(mRxFlow_,
-        register_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK)).Times(1);
+        register_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK)).Times(0);
     EXPECT_CALL(mTxFlow_, send_packet(
         StartsWith(
             "\x41\xd2\xc3\x7a\x10\x01\x00\x0D\x00\x00\x00\x00\xF8"s +
@@ -326,61 +275,14 @@ TEST_F(MemorySpaceTest, CvWrite)
         .Times(0);
     error = 0;
     EXPECT_EQ(0U, cs.write(0, data_, sizeof(data_), &error, &done));
-    EXPECT_EQ(ERROR_AGAIN, error);
+    EXPECT_EQ(openlcb::Defs::ERROR_TEMPORARY, error);
     testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
     testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
 
-    EXPECT_CALL(mRxFlow_, unregister_handler_all(&cs)).Times(1);
-    clk_advance(MSEC_TO_NSEC(3200));
-    done.wait_for_notification();
-    EXPECT_EQ(0, memcmp(data_, expectData_, sizeof(data_)));
-    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
 
-    error = 0;
-    EXPECT_EQ(0U, cs.write(0, data_, sizeof(data_), &error, &done));
-    EXPECT_EQ(openlcb::Defs::ERROR_OPENLCB_TIMEOUT, error);
-    
 
-    //
-    // Write start link down but bring link up before the timeout.
-    //
-    EXPECT_CALL(mRxFlow_,
-        register_handler(&cs, Defs::RESP_MEM_W, Message::EXACT_MASK)).Times(1);
-    EXPECT_CALL(mTxFlow_, send_packet(
-        StartsWith(
-            "\x41\xd2\xc3\x7a\x10\x01\x00\x0D\x00\x00\x00\x00\xF8"s +
-            "\x10\x11\x12\x13\x14\x15\x16\x17"s)))
-        .Times(0);
-    error = 0;
-    EXPECT_EQ(0U, cs.write(0, data_, sizeof(data_), &error, &done));
-    EXPECT_EQ(ERROR_AGAIN, error);
-    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
-    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
-    clk_advance(MSEC_TO_NSEC(2800));
     // Bring link up.
-    EXPECT_CALL(mTxFlow_, send_packet(
-        StartsWith(
-            "\x41\xd2\xc3\x7a\x10\x01\x00\x0D\x00\x00\x00\x00\xF8"s +
-            "\x10\x11\x12\x13\x14\x15\x16\x17"s)))
-        .Times(1);
     do_link_up();
-    testing::Mock::VerifyAndClearExpectations(&mTxFlow_);
-    EXPECT_CALL(mRxFlow_, unregister_handler_all(&cs)).Times(1);
-    {
-        auto *b = mRxFlow_.dispatcher_.alloc();
-        Defs::prepare(&b->data()->payload, Defs::RESP_MEM_W, 4);
-        Defs::append_uint16(&b->data()->payload, openlcb::Defs::ERROR_CODE_OK);
-        Defs::append_uint16(&b->data()->payload, 8);
-        Defs::append_crc(&b->data()->payload);
-        mRxFlow_.dispatcher_.send(b);
-    }
-    wait_for_main_executor();
-    done.wait_for_notification();
-    testing::Mock::VerifyAndClearExpectations(&mRxFlow_);
-
-    error = 0;
-    EXPECT_EQ(8U, cs.write(0, data_, sizeof(data_), &error, &done));
-    EXPECT_EQ(openlcb::Defs::ERROR_CODE_OK, error);
 
 
 
