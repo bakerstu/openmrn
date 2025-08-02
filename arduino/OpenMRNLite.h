@@ -105,6 +105,14 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #endif
 
+#ifdef ARDUINO_FEATHER_M4_CAN
+
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
+#include "freertos_drivers/sam/FeatherM4Can.hxx"
+
+#endif
+
+
 namespace openmrn_arduino
 {
 
