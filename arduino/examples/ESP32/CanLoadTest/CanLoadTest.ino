@@ -46,30 +46,17 @@
 
 
 // Pick an operating mode below, if you select USE_WIFI it will expose this
-// node on WIFI. If USE_TWAI / USE_TWAI_ASYNC are enabled the node
-// will be available on CAN.
+// node on WIFI. If USE_CAN is enabled the node will be available on CAN.
 //
 // Enabling both options will allow the ESP32 to be accessible from
-// both WiFi and TWAI interfaces.
+// both WiFi and CAN interfaces.
 
-#define USE_WIFI
-//#define USE_TWAI
-//#define USE_TWAI_ASYNC
+//#define USE_WIFI
+#define USE_CAN
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
-
-// Configuration option validation
-
-// If USE_TWAI_ASYNC is enabled but USE_TWAI is not, enable USE_TWAI.
-#if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
-#define USE_TWAI
-#endif // USE_TWAI_ASYNC && !USE_TWAI
-
-#if defined(USE_TWAI) && ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
-#error Esp32HardwareTwai is not supported on this version of arduino-esp32.
-#endif // USE_TWAI && IDF < v4.3
 
 #include "config.h"
 
@@ -110,7 +97,7 @@ OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
+#if defined(USE_CAN)
 /// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 /// Recommended pins: 4, 16, 21.
 /// Note: Any pin can be used for this other than 6-11 which are connected to
@@ -126,8 +113,7 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 /// Note: If you are using a pin other than 5 you will likely need to adjust
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
-
-#endif // USE_TWAI
+#endif // USE_CAN
 
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
@@ -146,9 +132,9 @@ static constexpr openlcb::ConfigDef cfg(0);
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
-Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
-#endif // USE_TWAI
+#if defined(USE_CAN)
+Esp32Can can_driver(CAN_TX_PIN, CAN_RX_PIN);
+#endif // USE_CAN
 
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:
@@ -245,10 +231,11 @@ void setup()
     openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
         openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
 
-#if defined(USE_TWAI)
-    twai.hw_init();
-#endif // USE_TWAI
-
+#if defined(USE_CAN)
+    can_driver.begin();
+    openmrn.add_can_port(&can_driver);
+#endif // USE_CAN
+    
     // Start the OpenMRN stack
     openmrn.begin();
     openmrn.start_executor_thread();
@@ -260,14 +247,6 @@ void setup()
     // have performance impact.
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
-
-#if defined(USE_TWAI_ASYNC)
-    // add TWAI driver with non-blocking usage
-    openmrn.add_can_port_async("/dev/twai/twai0");
-#elif defined(USE_TWAI)
-    // add TWAI driver with select() usage
-    openmrn.add_can_port_select("/dev/twai/twai0");
-#endif // USE_TWAI_ASYNC / USE_TWAI
 }
 
 void loop()

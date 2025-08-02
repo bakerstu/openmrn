@@ -222,6 +222,9 @@ copy_file src/freertos_drivers/arduino \
 copy_file src/freertos_drivers/esp32 \
           src/freertos_drivers/esp32/*
 
+# remove HAL style Twai driver that does not compile under arduino
+rm -f ${TARGET_LIB_DIR}/src/freertos_drivers/esp32/*Twai*
+
 copy_file src/freertos_drivers/stm32 \
           src/freertos_drivers/st/Stm32Can.* \
           arduino/stm32f_hal_conf.hxx \
