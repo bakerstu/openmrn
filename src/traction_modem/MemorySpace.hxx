@@ -230,7 +230,7 @@ private:
     virtual uint8_t get_space_id() = 0;
 
     /// Called when link transitions to "up" state.
-    void link_up() override
+    void on_link_up() override
     {
         if (payload_.size())
         {
@@ -242,6 +242,8 @@ private:
     }
 
     /// Receive for read and write responses.
+    /// @param buf incoming message
+    /// @param prio message priority
     void send(Buffer<Message> *buf, unsigned prio) override
     {
         auto rb = get_buffer_deleter(buf);

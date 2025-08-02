@@ -46,21 +46,21 @@ class LinkStatusInterface
 {
 protected:
     /// Called when the link is started.
-    virtual void link_start()
+    virtual void on_link_start()
     {
     }
 
     /// Called when link transitions to "up" state.
-    virtual void link_up()
+    virtual void on_link_up()
     {
     }
 
     /// Called when link transitions to "down" state.
-    virtual void link_down()
+    virtual void on_link_down()
     {
     }
 
-    // Protected access for Link object.
+    /// Protected access for Link object.
     friend class Link;
 };
 
@@ -96,15 +96,16 @@ public:
             if (state_ != State::STOP)
             {
                 // Already started.
+                LOG_ERROR("Link already started.");
                 return;
             }
             state_ = State::DOWN;
         }        
         txIface_->start(fd);
         rxIface_->start(fd);
-        for (auto it = linkIfaces_.begin(); it != linkIfaces_.end(); ++it)
+        for (auto it = linkCbacks_.begin(); it != linkCbacks_.end(); ++it)
         {
-            (*it)->link_start();
+            (*it)->on_link_start();
         }
     }
 
@@ -112,18 +113,18 @@ public:
     /// @param interface object to register
     void register_link_status(LinkStatusInterface *interface)
     {
-        linkIfaces_.push_back(interface);
+        linkCbacks_.push_back(interface);
     }
 
     /// Register for updates on link status.
     /// @param interface object to register
     void unregister_link_status(LinkStatusInterface *interface)
     {
-        for (auto it = linkIfaces_.begin(); it != linkIfaces_.end(); ++it)
+        for (auto it = linkCbacks_.begin(); it != linkCbacks_.end(); ++it)
         {
             if (interface == *it)
             {
-                linkIfaces_.erase(it);
+                linkCbacks_.erase(it);
                 break;
             }
         }
@@ -151,22 +152,22 @@ private:
     };
 
     /// Called when link transitions to "up" state.
-    void link_up()
+    void on_link_up()
     {
         state_ = State::UP;
-        for (auto it = linkIfaces_.begin(); it != linkIfaces_.end(); ++it)
+        for (auto it = linkCbacks_.begin(); it != linkCbacks_.end(); ++it)
         {
-            (*it)->link_up();
+            (*it)->on_link_up();
         }
     }
 
     /// Called when link transitions to "down" state.
-    void link_down()
+    void on_link_down()
     {
         state_ = State::DOWN;
-        for (auto it = linkIfaces_.begin(); it != linkIfaces_.end(); ++it)
+        for (auto it = linkCbacks_.begin(); it != linkCbacks_.end(); ++it)
         {
-            (*it)->link_down();
+            (*it)->on_link_down();
         }
     }
 
@@ -175,8 +176,9 @@ private:
     State state_; ///< link state
 
     /// List of interfaces that have registered for link updates.
-    std::vector<LinkStatusInterface*> linkIfaces_;
+    std::vector<LinkStatusInterface*> linkCbacks_;
 
+    // Private access for LinkManager.
     friend class LinkManager;
 };
 
@@ -189,7 +191,7 @@ class LinkManager : public LinkStatusInterface
 public:
     /// Constructor.
     /// @param service service that the flow is bound to
-    /// @param parent parent object
+    /// @param link the link object that the manager is bound to
     /// @param use_default_baud the default baud rate of 250 Kbps will be used
     ///        and the baud rate negotiation will be skipped.
     LinkManager(Service *service, Link *link, bool use_default_baud = true)
@@ -224,7 +226,7 @@ private:
     static constexpr long long RESP_TIMEOUT = Defs::RESP_TIMEOUT_SHORT;
 
     /// Called when the link is started.
-    void link_start() override
+    void on_link_start() override
     {
         start_flow(STATE(ping));
     }
@@ -307,7 +309,7 @@ private:
     Action link_is_up()
     {
         LOG(VERBOSE, "LinkManager::link_is_up()");
-        link_->link_up();
+        link_->on_link_up();
         link_->get_rx_iface()->register_handler(this, Defs::RESP_PING);
         pingTimer_.start(Defs::PING_TIMEOUT);
         return sleep_and_call(
@@ -321,13 +323,13 @@ private:
         LOG(VERBOSE, "LinkManager::link_is_down()");
         pingTimer_.ensure_triggered();
         link_->get_rx_iface()->unregister_handler(this, Defs::RESP_PING);
-        link_->link_down();
+        link_->on_link_down();
         return call_immediately(STATE(ping));
     }
 
     /// Receive for link establishment responses.
-    /// @buf incoming message
-    /// @prio message priority
+    /// @param buf incoming message
+    /// @param prio message priority
     void send(Buffer<Message> *buf, unsigned prio) override
     {
         auto b = get_buffer_deleter(buf);
@@ -392,7 +394,7 @@ private:
 
     Link *link_; ///< parent object
     StateFlowTimer timer_; ///< timeout helper
-    PingTimer pingTimer_; ///< timer that periodically pings when link is idle
+    PingTimer pingTimer_; ///< timer that periodically pings
     uint16_t baudSupport_; ///< mask of supported baud rates
     /// True in order to skip the baud rate negotiation and use the default
     /// 250 Kbps baud rate.

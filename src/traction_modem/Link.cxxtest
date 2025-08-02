@@ -16,9 +16,9 @@ namespace traction_modem
 class MockLinkCallback : public LinkStatusInterface
 {
 public:
-    MOCK_METHOD0(link_start, void());
-    MOCK_METHOD0(link_up, void());
-    MOCK_METHOD0(link_down, void());
+    MOCK_METHOD0(on_link_start, void());
+    MOCK_METHOD0(on_link_up, void());
+    MOCK_METHOD0(on_link_down, void());
 };
 
 class LinkTest : public ::testing::Test
@@ -38,7 +38,7 @@ protected:
 
         EXPECT_CALL(mTxFlow_, start(50)).Times(1).InSequence(s1);
         EXPECT_CALL(mRxFlow_, start(50)).Times(1).InSequence(s2);
-        EXPECT_CALL(mLinkCback_, link_start()).Times(1).InSequence(s1, s2);
+        EXPECT_CALL(mLinkCback_, on_link_start()).Times(1).InSequence(s1, s2);
         EXPECT_CALL(mRxFlow_, register_handler(
             &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1, s2);
@@ -68,7 +68,7 @@ protected:
             Message::EXACT_MASK)).Times(::testing::AtLeast(0));
         EXPECT_CALL(mTxFlow_, send_packet(StartsWith(
             "\x41\xD2\xC3\x7A\x00\x00\x00\x00"s))).Times(::testing::AtLeast(0));
-        EXPECT_CALL(mLinkCback_, link_down()).Times(::testing::AtLeast(0));
+        EXPECT_CALL(mLinkCback_, on_link_down()).Times(::testing::AtLeast(0));
         linkManager_.TEST_shutdown();
         clk_advance(SEC_TO_NSEC(4));
         wait_for_main_timers();
@@ -102,7 +102,7 @@ TEST_F(LinkTest, Create)
 
 TEST_F(LinkTest, StartAgain)
 {
-    EXPECT_CALL(mLinkCback_, link_start()).Times(0);
+    EXPECT_CALL(mLinkCback_, on_link_start()).Times(0);
     link_.start(50);
     testing::Mock::VerifyAndClearExpectations(&mLinkCback_);
     EXPECT_FALSE(link_.is_link_up());
@@ -121,7 +121,7 @@ TEST_F(LinkTest, LinkUpDownDefaultBaud)
         EXPECT_CALL(mRxFlow_, unregister_handler(
             &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1);
-        EXPECT_CALL(mLinkCback_, link_up()).Times(1).InSequence(s1);
+        EXPECT_CALL(mLinkCback_, on_link_up()).Times(1).InSequence(s1);
         EXPECT_CALL(mRxFlow_, register_handler(
             &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1);
@@ -152,7 +152,7 @@ TEST_F(LinkTest, LinkUpDownDefaultBaud)
         EXPECT_CALL(mRxFlow_, unregister_handler(
             &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1);
-        EXPECT_CALL(mLinkCback_, link_down()).Times(1).InSequence(s1);
+        EXPECT_CALL(mLinkCback_, on_link_down()).Times(1).InSequence(s1);
         EXPECT_CALL(mRxFlow_, register_handler(
             &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1);
@@ -265,7 +265,7 @@ TEST_F(LinkTest, LinkUpMaxDelay)
         EXPECT_CALL(mRxFlow_, unregister_handler(
             &linkManager_, Defs::RESP_BAUD_RATE_QUERY, Message::EXACT_MASK))
             .Times(1).InSequence(s1);
-        EXPECT_CALL(mLinkCback_, link_up()).Times(1).InSequence(s1);
+        EXPECT_CALL(mLinkCback_, on_link_up()).Times(1).InSequence(s1);
         EXPECT_CALL(mRxFlow_, register_handler(
             &linkManager_, Defs::RESP_PING, Message::EXACT_MASK)).Times(1)
             .InSequence(s1);

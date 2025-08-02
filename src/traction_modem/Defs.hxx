@@ -63,7 +63,9 @@ struct Defs
     /// phase.
     static constexpr long long RESP_TIMEOUT_SHORT = SEC_TO_NSEC(1);
 
-    /// Time to wait for inactivity before proactively sending a ping.
+    /// Time to wait between sending the next ping. This must be comfortably
+    /// below RESP_TIMEOUT, otherwise the ping could be sent too late resulting
+    /// in link down.
     static constexpr long long PING_TIMEOUT = SEC_TO_NSEC(2);
 
     /// Command values.
@@ -124,7 +126,7 @@ struct Defs
         APP_VALIDATE = 2, ///< reboot into the application after full validation
     };
 
-    enum BuadRates : uint16_t
+    enum BaudRates : uint16_t
     {
         BAUD_NONE      = 0x0000, ///< no baud rate
         BAUD_5M_MASK   = 0x0200, ///< 5 Mbps
