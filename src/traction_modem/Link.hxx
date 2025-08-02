@@ -159,6 +159,7 @@ private:
         {
             (*it)->on_link_up();
         }
+        LOG(VERBOSE, "Link: on_link_up()");
     }
 
     /// Called when link transitions to "down" state.
@@ -169,6 +170,7 @@ private:
         {
             (*it)->on_link_down();
         }
+        LOG(VERBOSE, "Link: on_link_down()");
     }
 
     TxInterface *txIface_; ///< reference to the transmit interface interface
