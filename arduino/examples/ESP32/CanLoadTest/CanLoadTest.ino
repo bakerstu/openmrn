@@ -46,32 +46,22 @@
 
 
 // Pick an operating mode below, if you select USE_WIFI it will expose this
-// node on WIFI. If USE_TWAI / USE_TWAI_ASYNC are enabled the node
-// will be available on CAN.
+// node on WIFI. If USE_ESP32CAN is enabled the node will be available on CAN.
 //
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and TWAI interfaces.
 
-#define USE_WIFI
-//#define USE_TWAI
-//#define USE_TWAI_ASYNC
+//#define USE_WIFI
+#define USE_ESP32CAN
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
 //#define PRINT_PACKETS
 
-// Configuration option validation
-
-// If USE_TWAI_ASYNC is enabled but USE_TWAI is not, enable USE_TWAI.
-#if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
-#define USE_TWAI
-#endif // USE_TWAI_ASYNC && !USE_TWAI
-
-#if defined(USE_TWAI) && ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,3,0)
-#error Esp32HardwareTwai is not supported on this version of arduino-esp32.
-#endif // USE_TWAI && IDF < v4.3
-
 #include "config.h"
+#if defined(USE_ESP32CAN)
+#include "freertos_drivers/esp32/Esp32Can.hxx"
+#endif
 
 /// This is the node id to assign to this device, this must be unique
 /// on the CAN bus.
