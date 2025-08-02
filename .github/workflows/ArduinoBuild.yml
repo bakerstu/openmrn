@@ -59,7 +59,6 @@ jobs:
         platform-url: https://adafruit.github.io/arduino-board-index/package_adafruit_index.json
         arduino-board-fqbn: adafruit:samd:adafruit_feather_m4_can
         sketch-names-find-start: arduino/examples/FeatherM4Can
-        debug-compile: true
         required-libraries: ACANFD_FeatherM4CAN
 
   build-esp32:
