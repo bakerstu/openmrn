@@ -158,19 +158,19 @@ classDiagram
     Link                : +unregister_link_status(LinkStatusInterface*) void
     Link                : +get_tx_iface() TxInterface
     Link                : +get_rx_iface() RxInterface
-    Link                : -link_down() void
-    Link                : -link_up() void
+    Link                : -on_link_down() void
+    Link                : -on_link_up() void
     PacketFlowInterface : +send(MessageType*, unsigned) virtual void = 0
     RxFlow              : -DispatchFlow~Buffer~Message~~ dispatcher_
     TxFlow              : +send_packet(Payload) void override
     LinkStatusInterface : #friend class Link
-    LinkStatusInterface : #link_start() virtual void
-    LinkStatusInterface : #link_up() virtual void
-    LinkStatusInterface : #link_down() virtual void
+    LinkStatusInterface : #on_link_start() virtual void
+    LinkStatusInterface : #on_link_up() virtual void
+    LinkStatusInterface : #on_link_down() virtual void
     LinkManager         : -Link *link_
     LinkManager         : -PingTimer *pingTimer_
     LinkManager         : +LinkManager(Service *, Link*, bool use_default_baud)
-    LinkManager         : -link_start() void override
+    LinkManager         : -on_link_start() void override
     LinkManager         : -send(MessageType*, unsigned) virtual void = 0
 ```
 
@@ -184,16 +184,16 @@ classDiagram
     MemorySpace         <|-- CvSpace
 
     LinkStatusInterface : #friend class Link
-    LinkStatusInterface : #link_start() virtual void
-    LinkStatusInterface : #link_up() virtual void
-    LinkStatusInterface : #link_down() virtual void
+    LinkStatusInterface : #on_link_start() virtual void
+    LinkStatusInterface : #on_link_up() virtual void
+    LinkStatusInterface : #on_link_down() virtual void
     PacketFlowInterface : #send(MessageType*, unsigned) virtual void = 0
     MemorySpace         : #Link *link_
     MemorySpace         : +write() size_t
     MemorySpace         : +read() size_t
     MemorySpace         : #MemorySpace(Service*, Link*)
     MemorySpace         : -send(MessageType*, unsigned) void override
-    MemorySpace         : -link_up() void override
+    MemorySpace         : -on_link_up() void override
 ```
 
 The following provides and example call sequence for writing a memory space. Link starts down, then later comes up and is interspersed with background pings.
@@ -213,16 +213,16 @@ sequenceDiagram
     activate LinkObject
     LinkObject   ->> MemorySpace : false
     deactivate LinkObject
-    MemorySpace  ->> User        : 0, ERROR_AGAIN
+    MemorySpace  ->> User        : 0, ERROR_TEMPORARY
     deactivate MemorySpace
 
     User         ->> LinkObject  : start()
-    LinkObject   ->> LinkManager : link_start()
+    LinkObject   ->> LinkManager : on_link_start()
     LinkManager -->> TxFlow      : ping
     RxFlow      -->> LinkManager : pong
     Note over LinkManager, RxFlow: Link Up<br>(start background ping/pong)
-    LinkManager  ->> LinkObject  : link_up()
-    LinkObject   ->> MemorySpace : link_up()
+    LinkManager  ->> LinkObject  : on_link_up()
+    LinkObject   ->> MemorySpace : on_link_up()
 
     MemorySpace  ->> TxFlow      : link_.get_tx_Iface()->send_packet()
     activate TxFlow
