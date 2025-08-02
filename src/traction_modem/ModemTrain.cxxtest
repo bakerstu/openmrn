@@ -8,7 +8,7 @@ namespace traction_modem
 {
 
 /// Test object for the ModemTrain.
-class ModemTrainTest : public ::testing::Test
+class ModemTrainTest : public LinkTestBase
 {
 protected:
     /// Constructor.
@@ -34,8 +34,6 @@ protected:
         delete train_;
     }
 
-    ::testing::StrictMock<MockRxFlow> mRxFlow_;
-    ::testing::StrictMock<MockTxFlow> mTxFlow_;
     ::testing::StrictMock<ModemTrainHwInterface> mHwIf_;
     ModemTrain *train_; ///< modem train instance
 };
@@ -46,9 +44,7 @@ TEST_F(ModemTrainTest, Create)
 
 TEST_F(ModemTrainTest, Start)
 {
-    EXPECT_CALL(mRxFlow_, start(9)).Times(1);
-    EXPECT_CALL(mTxFlow_, start(9)).Times(1);
-    train_->start(9);
+    do_link_up();
 }
 
 TEST_F(ModemTrainTest, GetFlow)

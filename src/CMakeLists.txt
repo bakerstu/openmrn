@@ -262,6 +262,7 @@ set(TESTS ${TESTS}
     ${OPENMRNPATH}/src/os/OS.cxxtest
 
     ${OPENMRNPATH}/src/traction_modem/Defs.cxxtest
+    ${OPENMRNPATH}/src/traction_modem/Link.cxxtest
     ${OPENMRNPATH}/src/traction_modem/MemorySpace.cxxtest
     ${OPENMRNPATH}/src/traction_modem/ModemTrain.cxxtest
     ${OPENMRNPATH}/src/traction_modem/Output.cxxtest
