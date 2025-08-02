@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2023, Balazs Racz
+ * Copyright (c) 2025, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,10 +26,10 @@
  *
  * \file Esp32Can.hxx
  *
- * Wrapper for the ESP32 TWAI driver.
+ * Wrapper for the ESP32 TWAI driver fr arduino environments.
  *
  * @author Balazs Racz
- * @date 18 April 2023
+ * @date 2 Aug 2025
  */
 
 #ifndef _FREERTOS_DRIVERS_ESP32_ESP32CAN_HXX_
