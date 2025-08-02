@@ -59,9 +59,6 @@
 //#define PRINT_PACKETS
 
 #include "config.h"
-#if defined(USE_CAN)
-#include "freertos_drivers/esp32/Esp32Can.hxx"
-#endif
 
 /// This is the node id to assign to this device, this must be unique
 /// on the CAN bus.

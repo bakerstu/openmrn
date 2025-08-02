@@ -39,6 +39,10 @@
 #error "This driver is for ESP32 only."
 #endif
 
+#if !defined(ARDUINO)
+#error "This driver is for Arduino environment only."
+#endif
+
 #include <string.h>
 #include "driver/twai.h"
 #include "freertos_drivers/arduino/Can.hxx"
