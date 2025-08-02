@@ -153,7 +153,7 @@ public:
             return 1;
         }
 
-        message.identifier = frame->can_id & (IS_CAN_FRAME_EFF(*frame) ? CAN_EFF_MASK : CAN_SFF_MASK);
+        message.identifier = IS_CAN_FRAME_EFF(*frame) ? GET_CAN_FRAME_ID_EFF(*frame) : GET_CAN_FRAME_ID(*frame);
         message.data_length_code = frame->can_dlc;
         memcpy(message.data, frame->data, frame->can_dlc);
 
