@@ -116,7 +116,8 @@ In general, the following link timings should be adhered to:
 |:------------------------------|:-----:|:-----:|
 | Modem RX Timeout              | 3     | s     |
 | Modem Ping Timeout            | 2     | s     |
-| Response Timeout              | 750   | ms    |
+| Response Time                 | 750   | ms    |
+| Response Timeout (minimum)    | 3     | s     |
 | Link Establishment RX Timeout | 1     | s     |
 
 ### Modem RX Timeout
