@@ -38,7 +38,6 @@
 #include <USBCDC.h>
 
 #include <OpenMRNLite.h>
-#include "freertos_drivers/arduino/CpuLoad.hxx"
 #include "openlcb/MultiConfiguredConsumer.hxx"
 #include "openlcb/TcpDefs.hxx"
 #include "utils/GpioInitializer.hxx"
@@ -50,12 +49,11 @@
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
 //
-// NOTE: USE_TWAI and USE_TWAI_ASYNC utilize the new TWAI driver which offers
+// NOTE: USE_CAN utilizes the new CAN driver which offers
 // both select() (default) or fnctl() (async) access.
 
 #define USE_WIFI
-//#define USE_TWAI
-//#define USE_TWAI_ASYNC
+#define USE_CAN
 
 // Uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
@@ -84,16 +82,8 @@
 
 // Configuration option validation
 
-#if defined(USE_TWAI_ASYNC) && defined(USE_TWAI)
-#error USE_TWAI_ASYNC and USE_TWAI are mutually exclusive!
-#endif
-
-#if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
-#define USE_TWAI
-#endif // USE_TWAI_ASYNC && !USE_TWAI
-
-#if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_TWAI)
-#error Firmware update is only supported via TWAI, enable USE_TWAI to use this.
+#if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_CAN)
+#error Firmware update is only supported via CAN, enable USE_CAN to use this.
 #endif
 
 #if ARDUINO_USB_CDC_ON_BOOT && defined(USE_USB_CDC_OUTPUT)
@@ -143,7 +133,7 @@ OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
+#if defined(USE_CAN)
 /// This is the ESP32-S2 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 /// Recommended pins: 40, 41, 42.
 /// NOTE: If you are using a pin other than 40 you will likely need to adjust
@@ -156,7 +146,7 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_40;
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_41;
 
-#endif // USE_TWAI
+#endif // USE_CAN
 
 #if defined(FACTORY_RESET_GPIO_PIN)
 static constexpr uint8_t FACTORY_RESET_COUNTDOWN_SECS = 10;
@@ -181,9 +171,9 @@ static constexpr openlcb::ConfigDef cfg(0);
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
-Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
-#endif // USE_TWAI
+#if defined(USE_CAN)
+Esp32Can can_driver(CAN_TX_PIN, CAN_RX_PIN);
+#endif // USE_CAN
 
 // Declare output pins.
 GPIO_PIN(IO0, GpioOutputSafeLow, 0);
@@ -463,9 +453,10 @@ void setup()
     // initialize all declared GPIO pins
     GpioInit::hw_init();
 
-#if defined(USE_TWAI)
-    twai.hw_init();
-#endif // USE_TWAI
+#if defined(USE_CAN)
+    can_driver.begin();
+    openmrn.add_can_port(&can_driver);
+#endif // USE_CAN
 
     // Start the OpenMRN stack
     openmrn.begin();
@@ -485,15 +476,9 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_TWAI_ASYNC)
-    openmrn.add_can_port_async("/dev/twai/twai0");
-#elif defined(USE_TWAI)
-    openmrn.add_can_port_select("/dev/twai/twai0");
-
     // start executor thread since this is required for select() to work in the
     // OpenMRN executor.
     openmrn.start_executor_thread();
-#endif // USE_TWAI_ASYNC
 }
 
 void loop()
