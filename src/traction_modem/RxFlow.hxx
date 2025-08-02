@@ -71,6 +71,12 @@ public:
     ///        messages to
     virtual void unregister_handler_all(PacketFlowInterface *interface) = 0;
 
+    /// Sets one handler to receive all messages that no other handler has
+    /// matched. May be called only once in the lifetime of a dispatcher
+    /// object.
+    /// @param handler is the handler pointer for the fallback handler.
+    virtual void register_fallback_handler(PacketFlowInterface *interface) = 0;
+
     /// Get the current resynchronization count value.
     /// @return resynchronization count
     unsigned get_resync_count()
@@ -118,11 +124,6 @@ public:
 
 #if defined(GTEST)
     bool exit_ = false;
-
-    void register_fallback_handler(PacketFlowInterface *interface)
-    {
-        dispatcher_.register_fallback_handler(interface);
-    }
 #endif
 
     /// Register a message handler.
@@ -153,6 +154,15 @@ public:
     void unregister_handler_all(PacketFlowInterface *interface) override
     {
         dispatcher_.unregister_handler_all(interface);
+    }
+
+    /// Sets one handler to receive all messages that no other handler has
+    /// matched. May be called only once in the lifetime of a dispatcher
+    /// object.
+    /// @param handler is the handler pointer for the fallback handler.
+    void register_fallback_handler(PacketFlowInterface *interface) override
+    {
+        dispatcher_.register_fallback_handler(interface);
     }
 
 private:
