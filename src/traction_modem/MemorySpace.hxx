@@ -90,6 +90,13 @@ public:
             evaluate_error(*error);
             return size_;
         }
+        if (!link_->is_link_up())
+        {
+            // Link is down, return error.
+            LOG(INFO, "traction_modem::MemorySpace: write() link is not up.");
+            *error = openlcb::Defs::ERROR_TEMPORARY;
+            return 0;
+        }
         HASSERT(state_ == IDLE);
         // Clamp the write length to the max supported by the modem.
         if (len > Defs::MAX_WRITE_DATA_LEN)
@@ -98,19 +105,10 @@ public:
         }
         // Register for a write response and send the read request.
         link_->get_rx_iface()->register_handler(this, Defs::RESP_MEM_W);
-        Defs::Payload p =
-            Defs::get_memw_payload(get_space_id(), destination, data, len);
-        if (link_->is_link_up())
-        {
-            // Link is up, we can send the write request immediately.
-            link_->get_tx_iface()->send_packet(p);
-        }
-        else
-        {
-            // Link is down, let's save the message in case the link comes up
-            // later, before a timeout, and we can send it then.
-            payload_ = std::move(p);
-        }
+        // Link is up, we can send the write request.
+        link_->get_tx_iface()->send_packet(
+            Defs::get_memw_payload(get_space_id(), destination, data, len));
+        // Start the supervisor timer.
         timer_.start(openlcb::DatagramDefs::timeout_from_flags_nsec(
             get_write_timeout()));
         // Indicate to the caller we must be called again.
@@ -155,6 +153,13 @@ public:
             evaluate_error(*error);
             return size_;
         }
+        if (!link_->is_link_up())
+        {
+            // Link is down, return error.
+            LOG(INFO, "traction_modem::MemorySpace: read() link is not up.");
+            *error = openlcb::Defs::ERROR_TEMPORARY;
+            return 0;
+        }
         HASSERT(state_ == IDLE);
         // Clamp the read length to the max supported by the modem.
         if (len > Defs::MAX_READ_DATA_LEN)
@@ -163,18 +168,10 @@ public:
         }
         // Register for a read response and send the read request.
         link_->get_rx_iface()->register_handler(this, Defs::RESP_MEM_R);
-        Defs::Payload p = Defs::get_memr_payload(get_space_id(), source, len);
-        if (link_->is_link_up())
-        {
-            // Link is up, we can send the write request immediately.
-            link_->get_tx_iface()->send_packet(p);
-        }
-        else
-        {
-            // Link is down, let's save the message in case the link comes up
-            // later, before a timeout, and we can send it then.
-            payload_ = std::move(p);
-        }
+        // Send the read request.
+        link_->get_tx_iface()->send_packet(
+            Defs::get_memr_payload(get_space_id(), source, len));
+        // Start the supervisor timer.
         timer_.start(openlcb::DatagramDefs::timeout_from_flags_nsec(
             get_read_timeout()));
         // Indicate to the caller we must be called again.
@@ -228,18 +225,6 @@ private:
     /// the space number that the server in the decoder will see.
     /// @return space id
     virtual uint8_t get_space_id() = 0;
-
-    /// Called when link transitions to "up" state.
-    void on_link_up() override
-    {
-        if (payload_.size())
-        {
-            // Link was down when the previous request came in and there has
-            // not been a timeout.
-            link_->get_tx_iface()->send_packet(payload_);
-            payload_.clear();
-        }
-    }
 
     /// Receive for read and write responses.
     /// @param buf incoming message
@@ -338,7 +323,6 @@ private:
                 // fall on the floor.
                 LOG(VERBOSE, "Timer expired");
                 parent_->link_->get_rx_iface()->unregister_handler_all(parent_);
-                parent_->payload_.clear();
                 parent_->size_ = 0;
                 parent_->error_ = openlcb::Defs::ERROR_OPENLCB_TIMEOUT;
             }
@@ -355,7 +339,6 @@ private:
     /// If this is not empty, it means the link is down when we tried to
     /// transmit the message. If the link comes up and this is not empty, it
     /// should be transmitted. If a timeout occurs, it shall be cleared.
-    Defs::Payload payload_;
     Notifiable *done_; ///< Notifiable for the memory operation to continue.
     uint8_t *rdData_; ///< read data pointer
     size_t size_; ///< requested size
