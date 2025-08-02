@@ -100,7 +100,7 @@ OVERRIDE_CONST(gridconnect_bridge_max_outgoing_packets, 2);
 
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
+#if defined(USE_ESP32CAN)
 /// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 /// Recommended pins: 4, 16, 21.
 /// Note: Any pin can be used for this other than 6-11 which are connected to
@@ -116,8 +116,7 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 /// Note: If you are using a pin other than 5 you will likely need to adjust
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
-
-#endif // USE_TWAI
+#endif // USE_ESP32CAN
 
 /// This is the primary entrypoint for the OpenMRN/LCC stack.
 OpenMRN openmrn(NODE_ID);
@@ -136,9 +135,9 @@ static constexpr openlcb::ConfigDef cfg(0);
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
-Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
-#endif // USE_TWAI
+#if defined(USE_ESP32CAN)
+Esp32Can can_driver(CAN_TX_PIN, CAN_RX_PIN);
+#endif // USE_ESP32CAN
 
 class FactoryResetHelper : public DefaultConfigUpdateListener {
 public:
@@ -235,10 +234,6 @@ void setup()
     openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
         openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
 
-#if defined(USE_TWAI)
-    twai.hw_init();
-#endif // USE_TWAI
-
     // Start the OpenMRN stack
     openmrn.begin();
     openmrn.start_executor_thread();
@@ -251,13 +246,10 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_TWAI_ASYNC)
-    // add TWAI driver with non-blocking usage
-    openmrn.add_can_port_async("/dev/twai/twai0");
-#elif defined(USE_TWAI)
-    // add TWAI driver with select() usage
-    openmrn.add_can_port_select("/dev/twai/twai0");
-#endif // USE_TWAI_ASYNC / USE_TWAI
+#if defined(USE_ESP32CAN)
+    can_driver.begin();
+    openmrn.add_can_port(&can_driver);
+#endif // USE_ESP32CAN
 }
 
 void loop()
