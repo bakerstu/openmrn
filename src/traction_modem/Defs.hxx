@@ -56,6 +56,18 @@ struct Defs
     /// message.
     static constexpr uint16_t RESPONSE = 0x8000;
 
+    /// Normal (default) response timeout.
+    static constexpr long long RESP_TIMEOUT = SEC_TO_NSEC(3);
+
+    /// Shortened response timeout, typically used in the link establishment
+    /// phase.
+    static constexpr long long RESP_TIMEOUT_SHORT = SEC_TO_NSEC(1);
+
+    /// Time to wait between sending the next ping. This must be comfortably
+    /// below RESP_TIMEOUT, otherwise the ping could be sent too late resulting
+    /// in link down.
+    static constexpr long long PING_TIMEOUT = SEC_TO_NSEC(2);
+
     /// Command values.
     enum Command : uint16_t
     {
@@ -114,14 +126,34 @@ struct Defs
         APP_VALIDATE = 2, ///< reboot into the application after full validation
     };
 
+    enum BaudRates : uint16_t
+    {
+        BAUD_NONE      = 0x0000, ///< no baud rate
+        BAUD_5M_MASK   = 0x0200, ///< 5 Mbps
+        BAUD_4M_MASK   = 0x0400, ///< 4 Mbps
+        BAUD_3M_MASK   = 0x0800, ///< 3 Mbps
+        BAUD_2M_MASK   = 0x1000, ///< 2 Mbps
+        BAUD_1M_MASK   = 0x2000, ///< 1 Mbps
+        BAUD_500K_MASK = 0x4000, ///< 500 Kbps
+        BAUD_250K_MASK = 0x8000, ///< 250 Kbps
+    };
+
     /// Length of a the header. 4 bytes preamble, 2 bytes cmd, 2 bytes length.
     static constexpr unsigned LEN_HEADER = 4+2+2;
 
     /// Length of a zero-payload packet. 4 bytes preamble, 2 bytes cmd, 2 bytes
     /// length, 6 bytes CRC.
     static constexpr unsigned LEN_BASE = 14;
+    /// Length of the data payload of a ping packet.
+    static constexpr unsigned LEN_PING = 0;
     /// Length of the data payload of a reboot packet.
     static constexpr unsigned LEN_REBOOT = 1;
+    /// Length of the data payload of a buad rate query packet.
+    static constexpr unsigned LEN_BAUD_RATE_QUERY = 0;
+    /// Length of the data payload of a buad rate query response packet.
+    static constexpr unsigned LEN_BAUD_RATE_QUERY_RESP = 2;
+    /// Length of the data payload of a buad rate request packet.
+    static constexpr unsigned LEN_BAUD_RATE_REQUEST = 2;
     /// Length of the data payload of a set function packet.
     static constexpr unsigned LEN_FN_SET = 6;
     /// Length of the data payload of a set speed packet.
@@ -203,6 +235,19 @@ struct Defs
         }
     };
 
+    /// Structure of a baud rate query response.
+    struct BaudRateQueryResponse
+    {
+        Header header_; ///< packet header
+        uint16_t rates_; ///< supported baud rates
+        uint8_t end; ///< used for alignment and length validation only
+    };
+    static_assert(
+        offsetof(BaudRateQueryResponse, end) ==
+            (LEN_HEADER + LEN_BAUD_RATE_QUERY_RESP),
+        "BuadRateQueryResponse struct length or alignment mismatch.");
+    static_assert(std::is_standard_layout<BaudRateQueryResponse>::value == true);
+
     /// Structure of an output state command
     struct OutputState
     {
@@ -238,7 +283,7 @@ struct Defs
         uint8_t end; ///< used for alignment and length validation only
     };
     static_assert(offsetof(OutputRestart, end) == (LEN_HEADER + LEN_OUTPUT_RESTART),
-        "OutputState struct length or alignment mismatch.");
+        "OutputRestart struct length or alignment mismatch.");
     static_assert(std::is_standard_layout<OutputRestart>::value == true);
 
     /// Structure of a read reply packet
@@ -258,6 +303,26 @@ struct Defs
         uint16_t bytesWritten_; ///< length in number of bytes actually written
     };
     static_assert(std::is_standard_layout<WriteResponse>::value == true);
+
+    /// Computes the payload for a ping message.
+    static Payload get_ping_payload()
+    {
+        Payload p;
+        prepare(&p, CMD_PING, LEN_PING);
+
+        append_crc(&p);
+        return p;
+    }
+
+    /// Computes the payload for a ping message.
+    static Payload get_baud_rate_query_payload()
+    {
+        Payload p;
+        prepare(&p, CMD_BAUD_RATE_QUERY, LEN_BAUD_RATE_QUERY);
+
+        append_crc(&p);
+        return p;
+    }
 
     /// Computes the payload for a reboot message.
     /// @param arg type of reboot

@@ -39,8 +39,7 @@
 #include "traction_modem/Defs.hxx"
 #include "traction_modem/MemorySpace.hxx"
 #include "traction_modem/Output.hxx"
-#include "traction_modem/TxFlow.hxx"
-#include "traction_modem/RxFlow.hxx"
+#include "traction_modem/Link.hxx"
 
 namespace traction_modem
 {
@@ -61,8 +60,10 @@ public:
         ModemTrainHwInterface *hw_interface)
         : txFlow_(tx_flow)
         , rxFlow_(rx_flow)
-        , cvSpace_(service, tx_flow, rx_flow)
-        , fuSpace_(service, tx_flow, rx_flow)
+        , link_(tx_flow, rx_flow)
+        , linkManager_(service, &link_)
+        , cvSpace_(service, &link_)
+        , fuSpace_(service, &link_)
         , output_(tx_flow, rx_flow, hw_interface)
         , isActive_(false)
     {
@@ -77,8 +78,7 @@ public:
     /// @param uart_fd file descriptor to send and receive data on
     void start(int uart_fd)
     {
-        txFlow_->start(uart_fd);
-        rxFlow_->start(uart_fd);
+        link_.start(uart_fd);
     }
 
     /// Get a reference to the train's transmit flow.
@@ -202,6 +202,10 @@ private:
     TxInterface *txFlow_;
     /// Handles receiving message frames.
     RxInterface *rxFlow_;
+    /// Link status object.
+    Link link_;
+    /// Link Management object.
+    LinkManager linkManager_;
     /// Space for CV read/write.
     CvSpace cvSpace_;
     /// Space for firmware updates.

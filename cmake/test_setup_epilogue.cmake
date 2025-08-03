@@ -42,6 +42,9 @@ foreach(testsourcefile ${TESTS})
     )
     add_custom_command(TARGET ${testname}
         POST_BUILD
+        # This copy is a trick to keep a debuggable version around in case the
+        # make process deletes it on failure.
+        COMMAND cp -f ./${testname} ./${testname}.copy
         COMMAND ./${testname}
         # Forces the coverage report to be regenerated if tests are run.
         COMMAND rm -rf gcovr
@@ -55,7 +58,7 @@ if(${COVERAGE})
 # Generate the HTML coverage report
 add_custom_command(OUTPUT gcovr/coverage.html
     COMMAND mkdir -p gcovr
-    COMMAND gcovr --html-details gcovr/coverage.html --exclude=_deps.* -r ${GCOV_SOURCE_DIR} .
+    COMMAND gcovr --decisions --exclude-unreachable-branches --gcov-ignore-parse-errors negative_hits.warn_once_per_file --html-details gcovr/coverage.html --exclude=.*.cxxtest --exclude=.*test_helper.hxx --exclude=.*.test_main.hxx --exclude=_deps.* -r ${GCOV_SOURCE_DIR} .
     VERBATIM
 )
 endif()
