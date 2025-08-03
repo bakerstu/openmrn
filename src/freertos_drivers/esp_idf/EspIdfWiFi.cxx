@@ -1166,14 +1166,16 @@ void EspIdfWiFiBase::ip_event_handler(
         }
         case IP_EVENT_STA_LOST_IP:
         {
-            HASSERT(ipAcquiredSta_ == true);
-            ipAcquiredSta_ = false;
-            mdns_disable_sta();
-            LOG(INFO, "wifi: STA lost IP.");
-            // Register a callback to run on the passed in service executor.
-            CallbackExecutable *e = new CallbackExecutable(std::bind(
-                &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, false));
-            service()->executor()->add(e);
+            if (ipAcquiredSta_)
+            {
+                ipAcquiredSta_ = false;
+                mdns_disable_sta();
+                LOG(INFO, "wifi: STA lost IP.");
+                // Register a callback to run on the passed in service executor.
+                CallbackExecutable *e = new CallbackExecutable(std::bind(
+                    &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, false));
+                service()->executor()->add(e);
+            }
             break;
         }
         case IP_EVENT_AP_STAIPASSIGNED:
