@@ -94,6 +94,10 @@ public:
         {
             return 0;
         }
+        if (status.state == TWAI_STATE_BUS_OFF)
+        {
+            twai_initiate_recovery();
+        }
         return status.msgs_to_rx;
     }
 
