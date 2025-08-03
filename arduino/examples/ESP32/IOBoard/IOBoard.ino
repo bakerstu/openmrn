@@ -42,15 +42,13 @@
 #include "utils/GpioInitializer.hxx"
 
 // Pick an operating mode below, if you select USE_WIFI it will expose this
-// node on WIFI. If USE_TWAI / USE_TWAI_ASYNC are enabled the node
-// will be available on CAN.
+// node on WIFI. If USE_CAN is enabled the node will be available on CAN.
 //
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
 
 #define USE_WIFI
-#define USE_TWAI
-//#define USE_TWAI_ASYNC
+#define USE_CAN
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
@@ -63,7 +61,7 @@
 //#define FACTORY_RESET_GPIO_PIN 22
 
 // Uncomment FIRMWARE_UPDATE_BOOTLOADER to enable the bootloader feature when
-// using the TWAI device.
+// using the CAN device.
 //
 // Since many ESP32 DevKit boards do not have an on-board LED, there are no
 // LED indicators enabled by default. If indicator LEDs are desired they can be
@@ -74,12 +72,8 @@
 // the Arduino IDE.
 //#define FIRMWARE_UPDATE_BOOTLOADER
 
-#if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
-#define USE_TWAI
-#endif // USE_TWAI_ASYNC && !USE_TWAI
-
-#if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_TWAI)
-#error FIRMWARE_UPDATE_BOOTLOADER requires USE_TWAI or USE_TWAI_SELECT.
+#if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_CAN)
+#error FIRMWARE_UPDATE_BOOTLOADER requires USE_CAN.
 #endif
 
 #include "config.h"
@@ -118,7 +112,7 @@ const char *hostname = "esp32mrn";
 
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
+#if defined(USE_CAN)
 /// This is the ESP32 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 /// Recommended pins: 4, 16, 21.
 /// Note: Any pin can be used for this other than 6-11 which are connected to
@@ -135,7 +129,7 @@ constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_4;
 /// the GPIO pin definitions for the outputs.
 constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_5;
 
-#endif // USE_TWAI
+#endif // USE_CAN
 
 #if defined(FIRMWARE_UPDATE_BOOTLOADER)
 // Include the Bootloader HAL implementation for the ESP32. This should only
@@ -160,9 +154,9 @@ static constexpr openlcb::ConfigDef cfg(0);
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
-Esp32HardwareTwai twai(CAN_RX_PIN, CAN_TX_PIN);
-#endif // USE_TWAI
+#if defined(USE_CAN)
+Esp32Can can_driver(CAN_TX_PIN, CAN_RX_PIN);
+#endif // USE_CAN
 
 // Declare output pins
 // NOTE: pins 6-11 are connected to the onboard flash and can not be used for
@@ -327,6 +321,9 @@ void check_for_factory_reset()
 
 void setup()
 {
+#ifdef USE_WIFI
+    //wifi_mgr.enable_verbose_logging();
+#endif
     Serial.begin(115200L);
     uint8_t reset_reason = Esp32SocInfo::print_soc_info();
     LOG(INFO, "[Node] ID: %s", uint64_to_string_hex(NODE_ID).c_str());
@@ -363,16 +360,12 @@ void setup()
     // before we startup the OpenMRN stack.
     if (request_bootloader())
     {
-        esp32_bootloader_run(NODE_ID, TWAI_RX_PIN, TWAI_TX_PIN);
+        esp32_bootloader_run(NODE_ID, CAN_RX_PIN, CAN_TX_PIN);
         // This line should not be reached as the esp32_bootloader_run method
         // will not return by default.
         HASSERT(false);
     }
 #endif // FIRMWARE_UPDATE_BOOTLOADER
-
-#if defined(USE_TWAI)
-    twai.hw_init();
-#endif // USE_TWAI
 
     check_for_factory_reset();
 
@@ -382,6 +375,11 @@ void setup()
     // Create the default internal configuration file
     openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
         openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
+
+#if defined(USE_CAN)
+    can_driver.begin();
+    openmrn.add_can_port(&can_driver);
+#endif // USE_CAN
 
     // Start the OpenMRN stack
     openmrn.begin();
@@ -398,12 +396,6 @@ void setup()
     // have performance impact.
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
-
-#if defined(USE_TWAI_ASYNC)
-    openmrn.add_can_port_async("/dev/twai/twai0");
-#elif defined(USE_TWAI)
-    openmrn.add_can_port_select("/dev/twai/twai0");
-#endif // USE_TWAI_ASYNC
 
     openmrn.start_executor_thread();
 }

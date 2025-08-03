@@ -9,8 +9,8 @@
 #include "freertos_drivers/esp32/Esp32WiFiConfiguration.hxx"
 
 // catch invalid configuration at compile time
-#if !defined(USE_TWAI) && !defined(USE_WIFI)
-#error "Invalid configuration detected, USE_TWAI or USE_WIFI must be defined."
+#if !defined(USE_CAN) && !defined(USE_WIFI)
+#error "Invalid configuration detected, USE_CAN or USE_WIFI must be defined."
 #endif
 
 namespace openlcb
@@ -33,12 +33,12 @@ extern const SimpleNodeStaticValues SNIP_STATIC_DATA =
 {
     4,
     "OpenMRN",
-#if defined(USE_WIFI) && !defined(USE_TWAI)
+#if defined(USE_WIFI) && !defined(USE_CAN)
     "Arduino Load Test (WiFi)",
-#elif defined(USE_TWAI) && !defined(USE_WIFI)
-    "Arduino Load Test (TWAI)",
+#elif defined(USE_CAN) && !defined(USE_WIFI)
+    "Arduino Load Test (CAN)",
 #else
-    "Arduino Load Test (WiFi/TWAI)",
+    "Arduino Load Test (WiFi/CAN)",
 #endif
     ARDUINO_VARIANT,
     "1.00"

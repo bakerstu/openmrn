@@ -42,15 +42,14 @@
 #include "utils/GpioInitializer.hxx"
 
 // Pick an operating mode below, if you select USE_WIFI it will expose this
-// node on WIFI. If USE_TWAI or USE_TWAI_ASYNC are enabled the node will be
+// node on WIFI. If USE_CAN is enabled the node will be
 // available on CAN.
 //
 // Enabling both options will allow the ESP32 to be accessible from
 // both WiFi and CAN interfaces.
 
 #define USE_WIFI
-//#define USE_TWAI
-//#define USE_TWAI_ASYNC
+#define USE_CAN
 
 // uncomment the line below to have all packets printed to the Serial
 // output. This is not recommended for production deployment.
@@ -63,7 +62,7 @@
 //#define FACTORY_RESET_GPIO_PIN 10
 
 // Uncomment FIRMWARE_UPDATE_BOOTLOADER to enable the bootloader feature when
-// using the TWAI device.
+// using the CAN device.
 //
 // NOTE: in order for this to work you *MUST* use a partition schema that has
 // two app partitions, typically labeled with "OTA" in the partition name in
@@ -72,16 +71,8 @@
 
 // Configuration option validation
 
-#if defined(USE_TWAI_ASYNC) && defined(USE_TWAI)
-#error USE_TWAI_ASYNC and USE_TWAI are mutually exclusive!
-#endif
-
-#if defined(USE_TWAI_ASYNC) && !defined(USE_TWAI)
-#define USE_TWAI
-#endif // USE_TWAI_ASYNC && !USE_TWAI
-
-#if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_TWAI)
-#error Firmware update is only supported via TWAI, enable USE_TWAI to use this.
+#if defined(FIRMWARE_UPDATE_BOOTLOADER) && !defined(USE_CAN)
+#error Firmware update is only supported via CAN, enable USE_CAN to use this.
 #endif
 
 #include "config.h"
@@ -120,7 +111,7 @@ const char *hostname = "esp32mrn";
 
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
+#if defined(USE_CAN)
 // This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 R (RX) pin.
 // NOTE: Any pin can be used for this other than 11-17 which are connected to
 // the onboard flash.
@@ -130,7 +121,7 @@ const char *hostname = "esp32mrn";
 // to any other pins. When "USB CDC On Boot" is selected in Arduino IDE this
 // pin will need to be changed as well as input/output pins changed
 // accordingly.
-constexpr gpio_num_t TWAI_RX_PIN = GPIO_NUM_18;
+constexpr gpio_num_t CAN_RX_PIN = GPIO_NUM_18;
 
 // This is the ESP32-C3 pin connected to the SN65HVD23x/MCP2551 D (TX) pin.
 // NOTE: Any pin can be used for this other than 11-17 which are connected to
@@ -141,9 +132,9 @@ constexpr gpio_num_t TWAI_RX_PIN = GPIO_NUM_18;
 // to any other pins. When "USB CDC On Boot" is selected in Arduino IDE this
 // pin will need to be changed as well as input/output pins changed
 // accordingly.
-constexpr gpio_num_t TWAI_TX_PIN = GPIO_NUM_19;
+constexpr gpio_num_t CAN_TX_PIN = GPIO_NUM_19;
 
-#endif // USE_TWAI
+#endif // USE_CAN
 
 #if defined(FACTORY_RESET_GPIO_PIN)
 static constexpr uint8_t FACTORY_RESET_COUNTDOWN_SECS = 10;
@@ -168,9 +159,9 @@ static constexpr openlcb::ConfigDef cfg(0);
 Esp32WiFiManager wifi_mgr(ssid, password, openmrn.stack(), cfg.seg().wifi());
 #endif // USE_WIFI
 
-#if defined(USE_TWAI)
-Esp32HardwareTwai twai(TWAI_RX_PIN, TWAI_TX_PIN);
-#endif // USE_TWAI
+#if defined(USE_CAN)
+Esp32Can can_driver(CAN_TX_PIN, CAN_RX_PIN);
+#endif // USE_CAN
 
 // Declare output pins.
 GPIO_PIN(IO0, GpioOutputSafeLow, 0);
@@ -357,7 +348,7 @@ void setup()
     // before we startup the OpenMRN stack.
     if (request_bootloader())
     {
-        esp32_bootloader_run(NODE_ID, TWAI_RX_PIN, TWAI_TX_PIN);
+        esp32_bootloader_run(NODE_ID, CAN_RX_PIN, CAN_TX_PIN);
         // This line should not be reached as the esp32_bootloader_run method
         // will not return by default.
         HASSERT(false);
@@ -373,9 +364,10 @@ void setup()
     openmrn.stack()->create_config_file_if_needed(cfg.seg().internal_config(),
         openlcb::CANONICAL_VERSION, openlcb::CONFIG_FILE_SIZE);
 
-#if defined(USE_TWAI)
-    twai.hw_init();
-#endif // USE_TWAI
+#if defined(USE_CAN)
+    can_driver.begin();
+    openmrn.add_can_port(&can_driver);
+#endif // USE_CAN
 
     // Start the OpenMRN stack
     openmrn.begin();
@@ -395,15 +387,9 @@ void setup()
     openmrn.stack()->print_all_packets();
 #endif // PRINT_PACKETS
 
-#if defined(USE_TWAI_ASYNC)
-    openmrn.add_can_port_async("/dev/twai/twai0");
-#elif defined(USE_TWAI)
-    openmrn.add_can_port_select("/dev/twai/twai0");
-
     // start executor thread since this is required for select() to work in the
     // OpenMRN executor.
     openmrn.start_executor_thread();
-#endif // USE_TWAI_ASYNC
 }
 
 void loop()
