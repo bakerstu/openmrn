@@ -31,6 +31,7 @@ jobs:
         mkdir --parents $GITHUB_WORKSPACE/CustomOpenMRNLite
         $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/CustomOpenMRNLite $GITHUB_WORKSPACE -f
         rm -f $GITHUB_WORKSPACE/arduino/examples/Stm32/*/build_opt.h
+        echo ${{ github.workflow }}-${{ github.ref }}
 
     - name: Compile STM32 examples
       uses: ArminJo/arduino-test-compile@v3
@@ -52,6 +53,7 @@ jobs:
       run: |
         mkdir --parents $GITHUB_WORKSPACE/CustomOpenMRNLite
         $GITHUB_WORKSPACE/arduino/libify.sh $GITHUB_WORKSPACE/CustomOpenMRNLite $GITHUB_WORKSPACE -f
+        echo ${{ github.workflow }}-${{ github.ref }}
 
     - name: Compile Feather M4 CAN examples
       uses: ArminJo/arduino-test-compile@v3
