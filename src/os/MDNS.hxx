@@ -35,6 +35,8 @@
 #ifndef _OS_MDNS_HXX_
 #define _OS_MDNS_HXX_
 
+#include <stdint.h>
+
 #if defined (__linux__)
 #include <netdb.h>
 #include <stdio.h>

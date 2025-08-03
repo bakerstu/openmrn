@@ -56,9 +56,9 @@ public:
     /// @param rx_pin GPIO pin for CAN RX.
     Esp32Can(gpio_num_t tx_pin, gpio_num_t rx_pin)
         : openmrn_arduino::Can("")
-        , tx_pin_(tx_pin)
-        , rx_pin_(rx_pin)
-        , tx_queue_len_(0)
+        , txPin_(tx_pin)
+        , rxPin_(rx_pin)
+        , txQueueLen_(0)
     {
     }
 
@@ -67,8 +67,8 @@ public:
     bool begin()
     {
         twai_general_config_t g_config =
-            TWAI_GENERAL_CONFIG_DEFAULT(tx_pin_, rx_pin_, TWAI_MODE_NORMAL);
-        tx_queue_len_ = g_config.tx_queue_len;
+            TWAI_GENERAL_CONFIG_DEFAULT(txPin_, rxPin_, TWAI_MODE_NORMAL);
+        txQueueLen_ = g_config.tx_queue_len;
         twai_timing_config_t t_config = TWAI_TIMING_CONFIG_125KBITS();
         twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
@@ -94,6 +94,10 @@ public:
         {
             return 0;
         }
+        if (status.state == TWAI_STATE_BUS_OFF)
+        {
+            twai_initiate_recovery();
+        }
         return status.msgs_to_rx;
     }
 
@@ -104,7 +108,7 @@ public:
         {
             return 0;
         }
-        return tx_queue_len_ - status.msgs_to_tx;
+        return txQueueLen_ - status.msgs_to_tx;
     }
 
     int read(struct can_frame *frame) override
@@ -177,9 +181,9 @@ private:
     void disable() override {}
     void tx_msg() override {}
 
-    gpio_num_t tx_pin_;
-    gpio_num_t rx_pin_;
-    size_t tx_queue_len_;
+    gpio_num_t txPin_;
+    gpio_num_t rxPin_;
+    size_t txQueueLen_;
 };
 
 #endif // _FREERTOS_DRIVERS_ESP32_ESP32CAN_HXX_
