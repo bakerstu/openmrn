@@ -181,6 +181,10 @@ public:
     /// @return true if the shutdown has completed.
     bool is_shutdown()
     {
+        if (mdnsPending_)
+        {
+            return false;
+        }
         return is_terminated();
     }
 
