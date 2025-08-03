@@ -10,10 +10,7 @@
 name: ArduinoBuild
 on:
   push:
-    paths:
-      - '**.ino'
-      - '**rduino**'
-      - '**ArduinoBuild.yml'
+    branch: master
   pull_request:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
