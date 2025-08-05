@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <string>
+
 /// Wifi not associated to access point: continuous short blinks.
 #define WIFI_BLINK_NOTASSOCIATED  0b1010
 /// Waiting for IP address: double short blink, pause, double short blink, ...
@@ -83,6 +85,8 @@ struct WiFiDefs
         SEC_WPA2, ///< WPA2 security mode
         SEC_WPA3, ///< WPA3 security mode
     };
+
+    static const char *security_type_to_string(SecurityType sec);
 
     /// Result code for connections and disconnections.
     enum ConnectionResult : uint8_t

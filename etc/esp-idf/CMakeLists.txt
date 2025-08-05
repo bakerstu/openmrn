@@ -29,6 +29,7 @@ set(SRCS
     ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32Ledc.cxx
     ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32SocInfo.cxx
     ${OPENMRNPATH}/src/freertos_drivers/esp_idf/EspIdfWiFi.cxx
+    ${OPENMRNPATH}/src/freertos_drivers/common/WifiDefs.cxx
 
     ${OPENMRNPATH}/src/openlcb/AliasAllocator.cxx
     ${OPENMRNPATH}/src/openlcb/AliasCache.cxx
