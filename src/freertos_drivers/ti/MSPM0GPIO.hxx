@@ -54,6 +54,8 @@
 #define DL_GPIO_PIN_08 DL_GPIO_PIN_8
 #define DL_GPIO_PIN_09 DL_GPIO_PIN_9
 
+/// Defines an enum for setting which pin mode a given gpio pad should be set
+/// to. Used in the Mode() setting of the GpioOptions.
 enum MspM0PinMode
 {
     DIGITAL_INPUT,
@@ -89,7 +91,7 @@ struct MspM0GpioOptionDefs
     DECLARE_OPTIONALARG(Function, function, uint32_t, 5, 0xffffffff);
 
     /// Specifies the safe value for an output, used during startup and
-    /// in hw_set_to_safe.
+    /// in hw_set_to_safe. True is high, false is low.
     DECLARE_OPTIONALARG(Safe, safe, bool, 9, false);
 
     /// Sets the pin number in the form of a CM index. Take this value from the
@@ -133,6 +135,7 @@ public:
     DEFINE_OPTIONALARG(GpioBase, gpio_base, uint32_t);
     DEFINE_OPTIONALARG(Pin, pin, uint32_t);
 
+    /// @return true if the desired mode is a peripheral alternate function.
     constexpr bool is_af() const
     {
         return (mode() == PERIPHERAL_INPUT) || (mode() == PERIPHERAL_OUTPUT);
@@ -150,65 +153,58 @@ template <unsigned GPIO_BASE, unsigned GPIO_PIN> class Mspm0Gpio : public Gpio
 {
 public:
     /// This constructor is constexpr which ensures that the object can be
-    /// initialized in the data section.
+    /// initialized in the rodata section.
     constexpr Mspm0Gpio()
     {
     }
 
     void write(Value new_state) const OVERRIDE
     {
-        *pin_address() = (new_state ? 0xff : 0);
+        *pin_address_w() = (new_state ? 1 : 0);
     }
 
     void set() const OVERRIDE
     {
-        *pin_address() = 0xff;
+        *pin_address_w() = 1;
     }
 
     void clr() const OVERRIDE
     {
-        *pin_address() = 0;
+        *pin_address_w() = 0;
     }
 
     Value read() const OVERRIDE
     {
-        return *pin_address() ? VHIGH : VLOW;
+        return *pin_address_r() ? VHIGH : VLOW;
     }
 
     void set_direction(Direction dir) const OVERRIDE
     {
-        /// @todo
         if (dir == Direction::DOUTPUT)
         {
-            // GPIOPinTypeGPIOOutput(GPIO_BASE, GPIO_PIN);
+            DL_GPIO_enableOutput(port(), pinmask());
         }
         else
         {
-            // GPIOPinTypeGPIOInput(GPIO_BASE, GPIO_PIN);
+            DL_GPIO_disableOutput(port(), pinmask());
         }
     }
 
     Direction direction() const OVERRIDE
     {
-        /// @todo
-        return Direction::DINPUT;
-#if 0        
-        uint32_t mode = GPIODirModeGet(GPIO_BASE, GPIO_PIN);
-        switch (mode)
+        if (port()->DOE31_0 & pinmask())
         {
-            default:
-                HASSERT(0);
-            case GPIO_DIR_MODE_IN:
-                return Direction::DINPUT;
-            case GPIO_DIR_MODE_OUT:
-                return Direction::DOUTPUT;
+            // high is output
+            return Direction::DOUTPUT;
         }
-#endif
+        else
+        {
+            return Direction::DINPUT;
+        }
     }
 
 private:
-    template <class Defs> friend struct GpioShared;
-    /// Static instance variable that can be used for libraries expectiong a
+    /// Static instance variable that can be used for libraries expecting a
     /// generic Gpio pointer. This instance variable will be initialized by the
     /// linker and (assuming the application developer initialized the hardware
     /// pins in hw_preinit) is accessible, including virtual methods at static
@@ -216,15 +212,37 @@ private:
     static const Mspm0Gpio instance_;
 
     /// Computes the memory address where the bit referring to this pin can be
-    /// accessed. This address is bit-masked to the single individual pin, so
-    /// only ever one bit can be read to be non-zero, and setting any other bit
-    /// than the desired has no effect. This allows write with 0xff and 0x00 to
-    /// set/clear and read != 0 to test.
+    /// accessed for read. This is an 8-bit address and only one bit is in it --
+    /// all other bits are zero.
     /// @return magic address.
-    constexpr volatile uint8_t *pin_address() const
+    constexpr volatile uint8_t *pin_address_r() const
     {
         return reinterpret_cast<volatile uint8_t *>(
-            GPIO_BASE + (((unsigned)GPIO_PIN) << 2));
+            &port()->DIN0_3) + GPIO_PIN;
+    }
+
+    /// Computes the memory address where the bit referring to this pin can be
+    /// accessed for write. This is an 8-bit address and only one bit is active
+    /// in it, all other bits writes are ignored.
+    /// @return magic address.
+    constexpr volatile uint8_t *pin_address_w() const
+    {
+        return reinterpret_cast<volatile uint8_t *>(
+            &port()->DOUT0_3) + GPIO_PIN;
+    }
+
+    
+    /// @return the port's register overlay structure.
+    constexpr GPIO_Regs* port() const
+    {
+        return reinterpret_cast<(GPIO_Regs *)>(GPIO_BASE);
+    }
+
+    /// @return the bit in the pinmask for the given pin. This is used in a
+    /// number of APIs.
+    constexpr uint32_t pinmask() const
+    {
+        return 1u << GPIO_PIN;
     }
 };
 
@@ -372,8 +390,7 @@ template <class Defs> struct MspM0GpioPin
     typedef MspM0GpioPin<NAME##Defs> NAME##_Pin;
 
 /// Defines the linker symbol for the wrapped Gpio instance.
-/// @todo
-// template <class Defs>
-// const Mspm0Gpio<Defs> Mspm0Gpio<GPIO_BASE, GPIO_PIN>::instance_;
+template <class Defs>
+const Mspm0Gpio<Defs> Mspm0Gpio<GPIO_BASE, GPIO_PIN>::instance_;
 
 #endif //_FREERTOS_DRIVERS_TI_MSPM0GPIO_HXX_
