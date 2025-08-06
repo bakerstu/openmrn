@@ -235,7 +235,7 @@ private:
     /// @return the port's register overlay structure.
     constexpr GPIO_Regs* port() const
     {
-        return reinterpret_cast<(GPIO_Regs *)>(GPIO_BASE);
+        return reinterpret_cast<GPIO_Regs *>(GPIO_BASE);
     }
 
     /// @return the bit in the pinmask for the given pin. This is used in a
@@ -390,7 +390,7 @@ template <class Defs> struct MspM0GpioPin
     typedef MspM0GpioPin<NAME##Defs> NAME##_Pin;
 
 /// Defines the linker symbol for the wrapped Gpio instance.
-template <class Defs>
-const Mspm0Gpio<Defs> Mspm0Gpio<GPIO_BASE, GPIO_PIN>::instance_;
+template <unsigned GPIO_BASE, unsigned GPIO_PIN>
+const Mspm0Gpio<GPIO_BASE, GPIO_PIN> Mspm0Gpio<GPIO_BASE, GPIO_PIN>::instance_;
 
 #endif //_FREERTOS_DRIVERS_TI_MSPM0GPIO_HXX_
