@@ -118,6 +118,8 @@ struct BootloaderState
     uintptr_t write_buffer_offset;
     // Offset inside the write buffer for the next incoming data.
     unsigned write_buffer_index;
+    // Request the bootloader to reinit the node (on the bus).
+    bool request_reinit_node;
 };
 
 /// Global state variables.
@@ -1044,6 +1046,17 @@ bool bootloader_init() {
 /// should keep running (i.e., to call again).
 bool bootloader_loop()
 {
+    if (state_.request_reinit_node)
+    {
+        if (state_.init_state == INITIALIZED)
+        {
+            // Back out of the initialized state so that it can try the node
+            // initialized transition again. Assume the alias is still good. If
+            // it is not, then there is already recovery logic for this.
+            state_.init_state = static_cast<InitState>(state_.init_state - 1);
+        }
+        state_.request_reinit_node = false;
+    }
     {
 #ifdef __linux__
         AtomicHolder h(&g_bootloader_lock);
@@ -1123,6 +1136,12 @@ void bootloader_entry()
 #endif
     } // while true
     try_send_can_frame(state_.output_frame);
+}
+
+/// Set bootloader state to restart initialization.
+void bootloader_reinit_node()
+{
+    state_.request_reinit_node = true;
 }
 
 } // extern "C"
