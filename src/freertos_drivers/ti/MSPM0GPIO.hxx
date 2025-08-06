@@ -217,8 +217,7 @@ private:
     /// @return magic address.
     constexpr volatile uint8_t *pin_address_r() const
     {
-        return reinterpret_cast<volatile uint8_t *>(
-            &port()->DIN0_3) + GPIO_PIN;
+        return reinterpret_cast<volatile uint8_t *>(&port()->DIN0_3) + GPIO_PIN;
     }
 
     /// Computes the memory address where the bit referring to this pin can be
@@ -227,13 +226,12 @@ private:
     /// @return magic address.
     constexpr volatile uint8_t *pin_address_w() const
     {
-        return reinterpret_cast<volatile uint8_t *>(
-            &port()->DOUT0_3) + GPIO_PIN;
+        return reinterpret_cast<volatile uint8_t *>(&port()->DOUT0_3) +
+            GPIO_PIN;
     }
 
-    
     /// @return the port's register overlay structure.
-    constexpr GPIO_Regs* port() const
+    constexpr GPIO_Regs *port() const
     {
         return reinterpret_cast<GPIO_Regs *>(GPIO_BASE);
     }
