@@ -31,6 +31,8 @@
  * @date 3 February 2017
  */
 
+#include "freertos_drivers/common/WifiDefs.hxx"
+
 // The following defaults are a template for what needs to be defined in a
 // given application for Wi-Fi to work.  Do not modify this file.  Copy these
 // globals into an application specific file and remove the weak attribute.
@@ -48,3 +50,27 @@ char __attribute__((weak)) WIFI_HUB_HOSTNAME[] = "10.0.0.7";
 int __attribute__((weak)) WIFI_HUB_PORT = 12021;
 }
 
+// static
+const char *WiFiDefs::security_type_to_string(SecurityType sec)
+{
+    switch (sec)
+    {
+        case SEC_OPEN:
+        {
+            return "open";
+        }
+        case SEC_WEP:
+        {
+            return "WEP";
+        }
+        case SEC_WPA2:
+        {
+            return "WPA2";
+        }
+        case SEC_WPA3:
+        {
+            return "WPA3";
+        }
+    }
+    return "unknown";
+}
