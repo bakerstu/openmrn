@@ -70,7 +70,7 @@ struct MspM0GpioOptionDefs
 {
     /// Mode: Selects which pin mode to use (input/output, GPIO or peripheral
     /// or analog).
-    DECLARE_OPTIONALARG(Mode, mode, MspM0PinMode, 0, DIGITAL_INPUT);
+    DECLARE_OPTIONALARG(Mode, mode, MspM0PinMode, 0, (MspM0PinMode)-1);
     /// Pullup/Pulldown configuration. One of DL_GPIO_RESISTOR_NONE (default),
     /// DL_GPIO_RESISTOR_PULL_UP, DL_GPIO_RESISTOR_PULL_DOWN.
     DECLARE_OPTIONALARG(Pull, pull, DL_GPIO_RESISTOR, 1, DL_GPIO_RESISTOR_NONE);
@@ -87,8 +87,8 @@ struct MspM0GpioOptionDefs
         4, DL_GPIO_DRIVE_STRENGTH_LOW);
     /// Selects peripheral function for peripheral input/output.  example
     /// IOMUX_PINCM19_PF_SPI0_PICO. Take the values from the datasheet or the
-    /// specific chip's header file.
-    DECLARE_OPTIONALARG(Function, function, uint32_t, 5, 0xffffffff);
+    /// specific chip's header file. The default value is 1, which is GPIO.
+    DECLARE_OPTIONALARG(Function, function, uint32_t, 5, 1);
 
     /// Specifies the safe value for an output, used during startup and
     /// in hw_set_to_safe. True is high, false is low.
@@ -254,49 +254,64 @@ static constexpr MspM0GpioOptions GpioInputPU {
 /// Static GPIO pin struct for MSP M0.
 template <class Defs> struct MspM0GpioPin
 {
-    static void hw_init()
+    static_assert(Defs::opts.mode() == DIGITAL_INPUT ||
+            Defs::opts.mode() == DIGITAL_OUTPUT ||
+            Defs::opts.mode() == PERIPHERAL_INPUT ||
+            Defs::opts.mode() == PERIPHERAL_OUTPUT ||
+            Defs::opts.mode() == ANALOG,
+        "Pin's mode is not set.");
+    template<typename U = Defs>
+    static std::enable_if_t<U::opts.mode() == DIGITAL_INPUT>
+    hw_init()
     {
         DL_GPIO_enablePower(Defs::opts.port());
-        if (Defs::opts.mode() == DIGITAL_INPUT)
-        {
-            static_assert(1 == Defs::opts.function(),
-                "GPIO input should not have peripheral function");
-            DL_GPIO_initDigitalInputFeatures(Defs::opts.cm(),
-                Defs::opts.invert(), Defs::opts.pull(),
-                DL_GPIO_HYSTERESIS_DISABLE, DL_GPIO_WAKEUP_DISABLE);
-        }
-        else if (Defs::opts.mode() == DIGITAL_OUTPUT)
-        {
-            static_assert(1 == Defs::opts.function(),
-                "GPIO output should not have peripheral function");
-            DL_GPIO_initDigitalOutputFeatures(Defs::opts.cm(),
-                Defs::opts.invert(), Defs::opts.pull(),
-                Defs::opts.drive_strength(), Defs::opts.od());
-            enable_input();
-            set(Defs::opts.safe());
-            DL_GPIO_enableOutput(Defs::opts.port(), Defs::opts.pin());
-        }
-        else if (Defs::opts.mode() == ANALOG)
-        {
-            DL_GPIO_initPeripheralAnalogFunction(Defs::opts.cm());
-        }
-        else if (Defs::opts.mode() == PERIPHERAL_INPUT)
-        {
-            static_assert(
-                1 != Defs::opts.function(), "Missing peripheral function");
-            DL_GPIO_initPeripheralInputFunctionFeatures(Defs::opts.cm(),
-                Defs::opts.function(), Defs::opts.invert(), Defs::opts.pull(),
-                DL_GPIO_HYSTERESIS_DISABLE, DL_GPIO_WAKEUP_DISABLE);
-        }
-        else if (Defs::opts.mode() == PERIPHERAL_OUTPUT)
-        {
-            static_assert(
-                1 != Defs::opts.function(), "Missing peripheral function");
-            DL_GPIO_initPeripheralOutputFunctionFeatures(Defs::opts.cm(),
-                Defs::opts.function(), Defs::opts.invert(), Defs::opts.pull(),
-                Defs::opts.drive_strength(), Defs::opts.od());
-            enable_input();
-        }
+        static_assert(1 == Defs::opts.function(),
+            "GPIO input should not have peripheral function");
+        DL_GPIO_initDigitalInputFeatures(Defs::opts.cm(), Defs::opts.invert(),
+            Defs::opts.pull(), DL_GPIO_HYSTERESIS_DISABLE,
+            DL_GPIO_WAKEUP_DISABLE);
+    }
+    template<typename U = Defs>
+    static std::enable_if_t<U::opts.mode() == DIGITAL_OUTPUT>
+    hw_init()
+    {
+        DL_GPIO_enablePower(Defs::opts.port());
+        static_assert(1 == Defs::opts.function(),
+            "GPIO output should not have peripheral function");
+        DL_GPIO_initDigitalOutputFeatures(Defs::opts.cm(), Defs::opts.invert(),
+            Defs::opts.pull(), Defs::opts.drive_strength(), Defs::opts.od());
+        enable_input();
+        set(Defs::opts.safe());
+        DL_GPIO_enableOutput(Defs::opts.port(), Defs::opts.pin());
+    }
+    template<typename U = Defs>
+    static typename std::enable_if<U::opts.mode() == PERIPHERAL_INPUT>::type
+    hw_init()
+    {
+        DL_GPIO_enablePower(Defs::opts.port());
+        static_assert(
+            1 != Defs::opts.function(), "Missing peripheral function");
+        DL_GPIO_initPeripheralInputFunctionFeatures(Defs::opts.cm(),
+            Defs::opts.function(), Defs::opts.invert(), Defs::opts.pull(),
+            DL_GPIO_HYSTERESIS_DISABLE, DL_GPIO_WAKEUP_DISABLE);
+    }
+    template<typename U = Defs>
+    static typename std::enable_if<U::opts.mode() == PERIPHERAL_OUTPUT>::type
+    hw_init()
+    {
+        DL_GPIO_enablePower(Defs::opts.port());
+        static_assert(
+            1 != Defs::opts.function(), "Missing peripheral function");
+        DL_GPIO_initPeripheralOutputFunctionFeatures(Defs::opts.cm(),
+            Defs::opts.function(), Defs::opts.invert(), Defs::opts.pull(),
+            Defs::opts.drive_strength(), Defs::opts.od());
+        enable_input();
+    }
+    template<typename U = Defs>
+    static typename std::enable_if<U::opts.mode() == ANALOG>::type hw_init()
+    {
+        DL_GPIO_enablePower(Defs::opts.port());
+        DL_GPIO_initPeripheralAnalogFunction(Defs::opts.cm());
     }
 
     /// Enables the input structure in the IOMUX pad. This is needed when gpio
@@ -338,12 +353,12 @@ template <class Defs> struct MspM0GpioPin
     /// Helper function to compute the pointer for the digital output.
     static constexpr uint8_t *douts()
     {
-        return (uint8_t *)(&Defs::port()->DOUT3_0);
+        return (uint8_t *)(&Defs::opts.port()->DOUT3_0);
     }
     /// Helper function to compute the pointer for the digital input.
     static constexpr uint8_t *dins()
     {
-        return (uint8_t *)(&Defs::port()->DIN3_0);
+        return (uint8_t *)(&Defs::opts.port()->DIN3_0);
     }
 };
 
