@@ -158,27 +158,27 @@ public:
     {
     }
 
-    void write(Value new_state) const OVERRIDE
+    void write(Value new_state) const override
     {
         *pin_address_w() = (new_state ? 1 : 0);
     }
 
-    void set() const OVERRIDE
+    void set() const override
     {
         *pin_address_w() = 1;
     }
 
-    void clr() const OVERRIDE
+    void clr() const override
     {
         *pin_address_w() = 0;
     }
 
-    Value read() const OVERRIDE
+    Value read() const override
     {
         return *pin_address_r() ? VHIGH : VLOW;
     }
 
-    void set_direction(Direction dir) const OVERRIDE
+    void set_direction(Direction dir) const override
     {
         if (dir == Direction::DOUTPUT)
         {
@@ -190,7 +190,7 @@ public:
         }
     }
 
-    Direction direction() const OVERRIDE
+    Direction direction() const override
     {
         if (port()->DOE31_0 & pinmask())
         {
