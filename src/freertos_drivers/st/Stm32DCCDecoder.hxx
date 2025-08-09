@@ -115,6 +115,9 @@ struct DccDecoderHW
 template <class HW> class Stm32DccTimerModule
 {
 public:
+    // Declaration matching the DccOutput static class pattern.
+    using Output = typename HW::Output;
+    
     /// Exports the input pin to the driver on the module interface.
     using NRZ_Pin = typename HW::NRZ_Pin;
 
@@ -261,6 +264,13 @@ public:
         //TIM_CCxChannelCmd(usec_timer(), HW::USEC_CHANNEL, TIM_CCx_DISABLE);
     }
 
+    /// Called during the railcom cutout when the railcom usec timer expires.
+    /// The implementation is expected to modify cutout_state if the default
+    /// sequence of handlers are not matching the desired
+    /// functionality. Additional wakeups can be scheduled with
+    /// set_cap_timer_delay_usec(...). An empty implementation is acceptable.
+    static inline void rcom_cutout_hook(uint32_t* cutout_state);
+    
 private:
     static TIM_HandleTypeDef captureTimerHandle_;
     static TIM_HandleTypeDef usecTimerHandle_;
@@ -409,8 +419,8 @@ template <class HW> void Stm32DccTimerModule<HW>::module_enable()
     __HAL_TIM_DISABLE_IT(usec_timer_handle(), HW::USEC_IF);
 
 #if defined(GCC_ARMCM0)
-    HAL_NVIC_SetPriority(HW::CAPTURE_IRQn, 0, 0);
-    HAL_NVIC_SetPriority(HW::TIMER_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(HW::CAPTURE_IRQn, 1, 0);
+    HAL_NVIC_SetPriority(HW::TIMER_IRQn, 1, 0);
     HAL_NVIC_SetPriority(HW::OS_IRQn, 3, 0);
 #elif defined(GCC_ARMCM3)
     SetInterruptPriority(HW::CAPTURE_IRQn, 0x20);

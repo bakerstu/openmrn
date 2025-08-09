@@ -134,6 +134,23 @@ public:
         __atomic_fetch_add(&count_, 1, __ATOMIC_SEQ_CST);
     }
 
+    /// Checks if there is space in the back. If yes, allocates one entry as
+    /// noncommit space and returns the pointer. If full, returns nullptr.
+    /// @return nullptr if the queue is full, otherwise a noncommit entry.
+    T* noncommit_back_or_null() {
+        auto sz = size();
+        if (sz >= SIZE) {
+            return nullptr;
+        }
+        if (sz != 0 && rdIndex_ == wrIndex_) {
+            // noncommit members make the queue full.
+            return nullptr;
+        }
+        auto* ret = &storage_[wrIndex_];
+        if (++wrIndex_ >= SIZE) wrIndex_ = 0;
+        return ret;
+    }
+    
 private:
     /// Payload of elements stored.
     T storage_[SIZE];
