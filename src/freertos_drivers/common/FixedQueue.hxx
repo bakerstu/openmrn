@@ -64,7 +64,20 @@ public:
     /// @return true if there is no entry in the queue.
     bool empty() { return size() == 0; }
     /// @return true if the queue cannot accept more elements.
-    bool full() { return size() >= SIZE; }
+    bool full()
+    {
+        auto sz = size();
+        if (sz >= SIZE)
+        {
+            return true;
+        }
+        if (sz != 0 && rdIndex_ == wrIndex_)
+        {
+            // noncommit members make the queue full.
+            return true;
+        }
+        return false;
+    }
     /// @return the current number of entries in the queue.
     size_t size() { return __atomic_load_n(&count_, __ATOMIC_SEQ_CST); }
 

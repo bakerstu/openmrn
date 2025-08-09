@@ -47,7 +47,6 @@ R"cdi(<?xml version="1.0"?>
 <identification/>
 <acdi/>
 <segment origin='0' space='252'>
- <group>
  <name>Manufacturer Information</name>
  <description>Manufacturer-provided fixed node description</description>
  <int size='1'>
@@ -65,10 +64,8 @@ R"cdi(<?xml version="1.0"?>
  <string size='21'>
  <name>Software Version</name>
  </string>
- </group>
 </segment>
 <segment origin='0' space='251'>
- <group>
  <name>User Identification</name>
  <description>Lets the user add his own description</description>
  <int size='1'>
@@ -80,7 +77,6 @@ R"cdi(<?xml version="1.0"?>
  <string size='64'>
  <name>Node Description</name>
  </string>
- </group>
 </segment>
 </cdi>
 )cdi";

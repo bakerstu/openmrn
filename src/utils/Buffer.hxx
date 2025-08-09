@@ -677,7 +677,14 @@ template <class T> void Buffer<T>::unref()
     if (count_.fetch_sub(1) == 1u)
     {
         this->~Buffer();
+/// @todo This one line of code is causing issues with a newer GCC. The static
+///       analyzer seems to be smarter than we are. We need to dig into the root
+///       cause.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
         pool_->free(this);
+#pragma GCC diagnostic pop
     }
 }
 

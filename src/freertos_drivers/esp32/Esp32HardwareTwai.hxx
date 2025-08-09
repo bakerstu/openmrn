@@ -55,37 +55,41 @@ typedef struct
 {
     /// Number of frames have been removed from @ref rx_buf and sent to the
     /// OpenMRN stack.
-    uint32_t rx_processed;
+    size_t rx_processed;
 
     /// Number of frames frames that could not be sent to @ref rx_buf.
-    uint32_t rx_missed;
+    size_t rx_missed;
 
     /// Number of frames that were discarded that had too large of a DLC count.
-    uint32_t rx_discard;
+    size_t rx_discard;
 
     /// Number of frames that were lost due to driver reset.
-    uint32_t rx_lost;
+    size_t rx_lost;
 
     /// Number of frames that were lost due to RX FIFO overrun.
-    uint32_t rx_overrun;
+    size_t rx_overrun;
 
     /// Number of frames that have been sent to the @ref twai_tx_queue by the
     /// OpenMRN stack successfully.
-    uint32_t tx_processed;
+    size_t tx_processed;
 
     /// Number of frames that have been transmitted successfully by the
     /// low-level TWAI driver.
-    uint32_t tx_success;
+    size_t tx_success;
 
     /// Number of frames that have been could not be transmitted successfully
     /// by the low-level TWAI driver.
-    uint32_t tx_failed;
+    size_t tx_failed;
+
+    /// Number of frames that were lost due to the low-level TWAI driver being
+    /// in an error-passive state or the tx queue was purged.
+    size_t tx_lost;
 
     /// Number of arbitration losses that have been observed on the TWAI bus.
-    uint32_t arb_loss;
+    size_t arb_loss;
 
     /// Number of general bus errors that have been observed on the TWAI bus.
-    uint32_t bus_error;
+    size_t bus_error;
 } esp32_twai_stats_t;
 
 /// ESP32 Hardware TWAI (CAN) driver interface.

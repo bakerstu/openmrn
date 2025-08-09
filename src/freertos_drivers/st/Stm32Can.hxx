@@ -39,8 +39,10 @@
 #ifdef ARDUINO
 #include <Arduino.h>
 #include "freertos_drivers/arduino/Can.hxx"
+using CanBase = openmrn_arduino::Can;
 #else
 #include "freertos_drivers/common/Can.hxx"
+using CanBase = ::Can;
 #endif
 
 #include "stm32f_hal_conf.hxx"
@@ -51,7 +53,7 @@
 
 /** Specialization of CAN driver for LPC17xx and LPC40xx CAN.
  */
-class Stm32Can : public Can
+class Stm32Can : public CanBase
 {
 public:
     /** Constructor.
