@@ -288,7 +288,8 @@ private:
                 uint8_t data = uart(i)->RDR;
                 (void)data;
             }
-            if (!returnedPackets_[i]) {
+            if (!returnedPackets_[i])
+            {
                 returnedPackets_[i] = this->alloc_new_packet(i);
             }
             if (need_ch1_cutout && returnedPackets_[i])
@@ -428,7 +429,8 @@ private:
         RailcomDriverBase<HW>::set_feedback_key(key);
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
-            if (!returnedPackets_[i]) {
+            if (!returnedPackets_[i])
+            {
                 returnedPackets_[i] = this->alloc_new_packet(i);
             }
         }

@@ -117,7 +117,7 @@ template <class HW> class Stm32DccTimerModule
 public:
     // Declaration matching the DccOutput static class pattern.
     using Output = typename HW::Output;
-    
+
     /// Exports the input pin to the driver on the module interface.
     using NRZ_Pin = typename HW::NRZ_Pin;
 
@@ -269,8 +269,8 @@ public:
     /// sequence of handlers are not matching the desired
     /// functionality. Additional wakeups can be scheduled with
     /// set_cap_timer_delay_usec(...). An empty implementation is acceptable.
-    static inline void rcom_cutout_hook(uint32_t* cutout_state);
-    
+    static inline void rcom_cutout_hook(uint32_t *cutout_state);
+
 private:
     static TIM_HandleTypeDef captureTimerHandle_;
     static TIM_HandleTypeDef usecTimerHandle_;

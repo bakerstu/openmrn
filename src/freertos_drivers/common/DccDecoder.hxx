@@ -329,14 +329,16 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         Debug::DccDecodeInterrupts::set(false);
         decoder_.process_data(new_value);
         Debug::DccDecodeInterrupts::set(true);
-        if (decoder_.state() == dcc::DccDecoder::DCC_END_OF_PREAMBLE) {
+        if (decoder_.state() == dcc::DccDecoder::DCC_END_OF_PREAMBLE)
+        {
             // Resets these state bits in case the state machines have
             // diverged due to a bug.
             inCutout_ = false;
             prepCutout_ = false;
             cutoutState_ = 0;
         }
-        if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT) {
+        if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT)
+        {
             Debug::DccInCutoutPin::set(true);
         }
         if (decoder_.before_dcc_cutout())
@@ -393,8 +395,7 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
         }
         lastTimerValue_ = raw_new_value;
         if (sampleActive_ // && !inCutout_
-            && !prepCutout_ &&
-            !cutout_just_finished && Module::NRZ_Pin::get())
+            && !prepCutout_ && !cutout_just_finished && Module::NRZ_Pin::get())
         {
             sampleActive_ = false;
             // The first positive edge after the sample timer expired (but
@@ -422,7 +423,8 @@ DccDecoder<Module>::rcom_interrupt_handler()
             {
                 Module::set_cap_timer_delay_usec(
                     RAILCOM_CUTOUT_MID + Module::time_delta_railcom_mid_usec());
-                if (Module::Output::need_railcom_cutout()) {
+                if (Module::Output::need_railcom_cutout())
+                {
                     Debug::RailcomTurnonPhase1::set(true);
                     unsigned delay_usec =
                         Module::Output::start_railcom_cutout_phase1();
