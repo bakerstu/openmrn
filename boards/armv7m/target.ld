@@ -50,6 +50,11 @@ SECTIONS
         *(.after_vectors*)
 
         *(SORT(.text*))
+
+        . = ALIGN(4);
+        _end_code = .;
+        _srodata = .;
+        
         *(.rodata)
         *(SORT(.rodata.*))
         . = ALIGN(4);
@@ -117,10 +122,7 @@ SECTIONS
         _end_uninit_RESERVED = .;
     } > RAM
 
-    /* It seems that in order for LPCXpresso to properly flash the data
-    section, an alignment of 256 bytes is necessary. Otherwise the separate
-    flashing of the data section will corrupt the end of the text section. */
-    .data : ALIGN(256)
+    .data : ALIGN(4)
     {
         FILL(0xff)
         _data = .;
