@@ -64,12 +64,15 @@ public:
     /// @return true if there is no entry in the queue.
     bool empty() { return size() == 0; }
     /// @return true if the queue cannot accept more elements.
-    bool full() {
+    bool full()
+    {
         auto sz = size();
-        if (sz >= SIZE) {
+        if (sz >= SIZE)
+        {
             return true;
         }
-        if (sz != 0 && rdIndex_ == wrIndex_) {
+        if (sz != 0 && rdIndex_ == wrIndex_)
+        {
             // noncommit members make the queue full.
             return true;
         }
