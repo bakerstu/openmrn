@@ -51,11 +51,13 @@ public:
     /// @param backing_data array of 3*num_pixels which stores the RGB data to
     /// be sent to the devices. Note that the byte order is G R B in the
     /// storage.
-    Stm32SpiPixelStrip(
-        SPI_TypeDef *spi, unsigned num_pixels, uint8_t *backing_data)
+    /// @param invert true if the bits output should be inverted.
+    Stm32SpiPixelStrip(SPI_TypeDef *spi, unsigned num_pixels,
+        uint8_t *backing_data, bool invert = false)
         : spi_(spi)
         , numPixels_(num_pixels)
         , data_(backing_data)
+        , invert_(invert)
     {
         memset(&spiHandle_, 0, sizeof(spiHandle_));
     }
@@ -96,6 +98,7 @@ public:
     {
         LL_SPI_Enable(spi_);
         clear_iteration();
+        uint16_t polarity = invert_ ? 0xffff : 0;
         /// @todo use DMA instead of a critical section here.
         portENTER_CRITICAL();
         while (!eof())
@@ -119,7 +122,7 @@ public:
 
             // Waits for space in tx buffer.
             while (!LL_SPI_IsActiveFlag_TXE(spi_)) { }
-            LL_SPI_TransmitData16(spi_, next_word ^ 0xffff);
+            LL_SPI_TransmitData16(spi_, next_word ^ polarity);
             // Note that there is no wait here for the transfer to complete.
             // This is super important, because we want to be computing the
             // next word while the previous word is emitted by SPI.
@@ -170,6 +173,8 @@ private:
     /// Controls iteration over the data sequence when producing the output.
     /// This is the mask of the next bit to use.
     uint8_t nextBit_;
+    /// If true, the bits are output inverted, false if normal.
+    bool invert_;
 };
 
 #endif // _FREERTOS_DRIVERS_ST_STM32PIXELSTRIP_HXX_
