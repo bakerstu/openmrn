@@ -9,7 +9,7 @@ on:
       - '*'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.sha }}
   cancel-in-progress: true
       
 jobs:
@@ -37,5 +37,6 @@ jobs:
         
       - name: Run tests
         run: |
+          echo "concurrency: " ${{ github.workflow }}-${{ github.sha }}
           cd openmrn
           make -j5 tests-single TESTBLACKLIST="utils/SocketClient.cxxtest openlcb/IfTcp.cxxtest"
