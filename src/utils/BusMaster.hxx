@@ -193,7 +193,7 @@ public:
         /// Total number of packets that the pool can generate.
         uint16_t numPacketsInPool_;
         /// True if shutdown was requested.
-        uint16_t needShutdown_ : 1;
+        bool needShutdown_;
     }; // class Master
 
 private:
