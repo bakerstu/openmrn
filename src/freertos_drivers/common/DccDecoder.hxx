@@ -38,6 +38,28 @@
 #include "dcc/PacketProcessor.hxx"
 #include "dcc/packet.h"
 
+struct DccDecoderDefs
+{
+    /// Allowed values of DccDecoder::cutoutState_.
+    enum CutoutState : uint8_t
+    {
+        /// Next wakeup of the usec timer will be the beginning of the cutout
+        /// (nominally 26 usec after the last 1 bit), when the cutout FET
+        /// should be turned on.
+        CUTOUT_BEGIN,
+        /// Next wakeup of the cutout timer is the middle between the two
+        /// windows.
+        CUTOUT_MID,
+        /// Next wakeup of the cutout timer is the end of the cutout, when the
+        /// railcom fet should be switched off and the booster output be
+        /// reenabled.
+        CUTOUT_END,
+        /// Alias for the cutout end, but do not call the railcomDriver and do
+        /// not reset the module.
+        CUTOUT_END_AFTER_DRIVER
+    };
+}; // struct DccDecoderDefs
+
 /**
   Device driver for decoding a DCC signal using a Timer resource.
 
@@ -86,6 +108,8 @@
 template <class Module> class DccDecoder : public Node
 {
 public:
+    using Defs = DccDecoderDefs;
+    
     /// Constructor.
     ///
     /// @param name name of device node, e.g. "/dev/dccdecode0"
@@ -236,7 +260,7 @@ private:
     /// colliding with cutout.
     bool prepCutout_ = false;
     /// Which window of the cutout we are in.
-    uint32_t cutoutState_;
+    Defs::CutoutState cutoutState_;
     /// Counts unique identifiers for DCC packets to be returned.
     uint32_t packetId_ = 0;
     /// How many times did we lose a DCC packet due to no buffer available.
@@ -419,7 +443,7 @@ DccDecoder<Module>::rcom_interrupt_handler()
         Module::rcom_cutout_hook(&cutoutState_);
         switch (cutoutState_)
         {
-            case 0:
+            case Defs::CUTOUT_BEGIN:
             {
                 Module::set_cap_timer_delay_usec(
                     RAILCOM_CUTOUT_MID + Module::time_delta_railcom_mid_usec());
@@ -435,24 +459,24 @@ DccDecoder<Module>::rcom_interrupt_handler()
                     microdelay(delay_usec);
                 }
                 railcomDriver_->start_cutout();
-                cutoutState_ = 1;
+                cutoutState_ = Defs::CUTOUT_MID;
                 break;
             }
-            case 1:
+            case Defs::CUTOUT_MID:
             {
                 Module::set_cap_timer_delay_usec(
                     RAILCOM_CUTOUT_END + Module::time_delta_railcom_end_usec());
                 railcomDriver_->middle_cutout();
-                cutoutState_ = 2;
+                cutoutState_ = Defs::CUTOUT_END;
                 break;
             }
-            case 2:
+            case Defs::CUTOUT_END:
             {
                 Module::stop_cap_timer_time();
                 Module::set_cap_timer_capture();
                 railcomDriver_->end_cutout();
             } // fall through
-            case 100:
+            case Defs::CUTOUT_END_AFTER_DRIVER:
             {
                 if (Module::Output::isRailcomCutoutActive_)
                 {

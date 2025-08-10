@@ -214,7 +214,7 @@ private:
     }
 
     // File node interface
-    void enable() OVERRIDE
+    void enable() override
     {
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
@@ -423,6 +423,12 @@ private:
         }
     }
 
+    /// @copydoc RailcomDriver::set_feedback_key()
+    ///
+    /// This implementation also preallocates storage for returned packets fo
+    /// CHANNEL_COUNT entries. Since the packet allocation can take a few usec,
+    /// doing it here, ahead of time can avoid running out of time starting
+    /// the cutout.
     void set_feedback_key(uint32_t key) override
     {
         Debug::RailComAllocPacketTiming::set(true);
