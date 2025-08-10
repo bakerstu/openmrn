@@ -35,14 +35,7 @@
 #ifndef _DRIVERS_ESP32LEDC_HXX_
 #define _DRIVERS_ESP32LEDC_HXX_
 
-// TODO: clean this up as part of https://github.com/bakerstu/openmrn/issues/778
-// as this file should be coming in from common and not arduino ideally.
-#if defined(__has_include) && \
-    __has_include("freertos_drivers/common/PWM.hxx")
 #include "freertos_drivers/common/PWM.hxx"
-#else
-#include "freertos_drivers/arduino/PWM.hxx"
-#endif
 #include "utils/logging.h"
 #include "utils/macros.h"
 #include "utils/Uninitialized.hxx"

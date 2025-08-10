@@ -45,7 +45,7 @@
 
 #include <string.h>
 #include "driver/twai.h"
-#include "freertos_drivers/arduino/Can.hxx"
+#include "freertos_drivers/common/Can.hxx"
 
 /// ESP32 TWAI CAN driver.
 class Esp32Can : public openmrn_arduino::Can

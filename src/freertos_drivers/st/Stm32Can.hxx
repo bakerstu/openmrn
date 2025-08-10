@@ -36,12 +36,11 @@
 
 #include <cstdint>
 
+#include "freertos_drivers/common/Can.hxx"
 #ifdef ARDUINO
 #include <Arduino.h>
-#include "freertos_drivers/arduino/Can.hxx"
 using CanBase = openmrn_arduino::Can;
 #else
-#include "freertos_drivers/common/Can.hxx"
 using CanBase = ::Can;
 #endif
 

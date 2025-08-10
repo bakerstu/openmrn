@@ -42,8 +42,8 @@
 #include <openlcb/TcpDefs.hxx>
 
 #include <openlcb/MultiConfiguredConsumer.hxx>
-#include <utils/GpioInitializer.hxx>
-#include <freertos_drivers/arduino/CpuLoad.hxx>
+#include "utils/GpioInitializer.hxx"
+#include <freertos_drivers/common/CpuLoad.hxx>
 
 // Pick an operating mode below, if you select USE_WIFI it will expose
 // this node on WIFI if you select USE_CAN this node will be available on

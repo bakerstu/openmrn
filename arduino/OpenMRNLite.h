@@ -40,8 +40,8 @@
 
 #include "CDIXMLGenerator.hxx"
 #include "executor/Notifiable.hxx"
-#include "freertos_drivers/arduino/Can.hxx"
-#include "freertos_drivers/arduino/WifiDefs.hxx"
+#include "freertos_drivers/common/Can.hxx"
+#include "freertos_drivers/common/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/FileUtils.hxx"
 #include "utils/GridConnectHub.hxx"
@@ -89,18 +89,14 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 
 #endif // ESP32
 
+#include "freertos_drivers/common/ArduinoGpio.hxx"
+
 #ifdef ARDUINO_ARCH_STM32
-
-#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/stm32/Stm32Can.hxx"
-
 #endif
 
 #ifdef ARDUINO_FEATHER_M4_CAN
-
-#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/sam/FeatherM4Can.hxx"
-
 #endif
 
 
