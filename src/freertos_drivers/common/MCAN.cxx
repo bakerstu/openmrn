@@ -42,99 +42,99 @@
 
 #include <atomic>
 
-template<class Defs, typename Registers>
-const typename MCAN<Defs, Registers>::MCANBaud MCAN<Defs, Registers>::BAUD_TABLE[] =
-{
-    /* 20 MHz clock source
-     * TQ = BRP / freq = 10 / 20 MHz = 500 nsec
-     * Baud = 125 kHz
-     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
-     * SyncSeg = 1 TQ
-     * PropSeg = 7 TQ
-     * Seg1 = 4 TQ
-     * Seg2 = 4 TQ
-     * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
-     * SJW = Seg - 1 = 4 - 1 = 3
-     * SJW = 3 * 500 nsec = 1.5 usec
-     *
-     * Oscillator Tolerance:
-     *     4 / (2 * ((13 * 16) - 4)) = 0.980%
-     *     3 / (20 * 16) = 0.938%
-     *     = 0.938%
-     */
-    {20000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (10 - 1)}},
-    /* 40 MHz clock source
-     * TQ = BRP / freq = 20 / 40 MHz = 500 nsec
-     * Baud = 125 kHz
-     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
-     * SyncSeg = 1 TQ
-     * PropSeg = 7 TQ
-     * Seg1 = 4 TQ
-     * Seg2 = 4 TQ
-     * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
-     * SJW = Seg - 1 = 4 - 1 = 3
-     * SJW = 3 * 500 nsec = 1.5 usec
-     *
-     * Oscillator Tolerance:
-     *     4 / (2 * ((13 * 16) - 4)) = 0.980%
-     *     3 / (20 * 16) = 0.938%
-     *     = 0.938%
-     */
-    {40000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (20 - 1)}},
-    /* 64 MHz clock source
-     * TQ = BRP / freq = 32 / 64 MHz = 500 nsec
-     * Baud = 125 kHz
-     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
-     * SyncSeg = 1 TQ
-     * PropSeg = 7 TQ
-     * Seg1 = 4 TQ
-     * Seg2 = 4 TQ
-     * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
-     * SJW = Seg - 1 = 4 - 1 = 3
-     * SJW = 3 * 500 nsec = 1.5 usec
-     *
-     * Oscillator Tolerance:
-     *     4 / (2 * ((13 * 16) - 4)) = 0.980%
-     *     3 / (20 * 16) = 0.938%
-     *     = 0.938%
-     */
-    {64000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (32 - 1)}},
-    /* 4 MHz clock source
-     * TQ = BRP / freq = 2 / 4 MHz = 500 nsec
-     * Baud = 125 kHz
-     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
-     * SyncSeg = 1 TQ
-     * PropSeg = 7 TQ
-     * Seg1 = 4 TQ
-     * Seg2 = 4 TQ
-     * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
-     * SJW = Seg - 1 = 4 - 1 = 3
-     * SJW = 3 * 500 nsec = 1.5 usec
-     *
-     * Oscillator Tolerance:
-     *     4 / (2 * ((13 * 16) - 4)) = 0.980%
-     *     3 / (20 * 16) = 0.938%
-     *     = 0.938%
-     */
-    {4000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (2 - 1)}},
-    /* 8 MHz clock source
-     * TQ = BRP / freq = 4 / 8 MHz = 500 nsec
-     * Baud = 125 kHz
-     * bit time = 1 / 125 kHz = 8 usec = 16 TQ
-     * SyncSeg = 1 TQ
-     * PropSeg = 7 TQ
-     * Seg1 = 4 TQ
-     * Seg2 = 4 TQ
-     * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
-     * SJW = Seg - 1 = 4 - 1 = 3
-     * SJW = 3 * 500 nsec = 1.5 usec
-     *
-     * Oscillator Tolerance:
-     *     4 / (2 * ((13 * 16) - 4)) = 0.980%
-     *     3 / (20 * 16) = 0.938%
-     *     = 0.938%
-     */
-    {8000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (4 - 1)}},
+template <class Defs, typename Registers>
+const typename MCAN<Defs, Registers>::MCANBaud
+    MCAN<Defs, Registers>::BAUD_TABLE[] = {
+        /* 20 MHz clock source
+         * TQ = BRP / freq = 10 / 20 MHz = 500 nsec
+         * Baud = 125 kHz
+         * bit time = 1 / 125 kHz = 8 usec = 16 TQ
+         * SyncSeg = 1 TQ
+         * PropSeg = 7 TQ
+         * Seg1 = 4 TQ
+         * Seg2 = 4 TQ
+         * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
+         * SJW = Seg - 1 = 4 - 1 = 3
+         * SJW = 3 * 500 nsec = 1.5 usec
+         *
+         * Oscillator Tolerance:
+         *     4 / (2 * ((13 * 16) - 4)) = 0.980%
+         *     3 / (20 * 16) = 0.938%
+         *     = 0.938%
+         */
+        {20000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (10 - 1)}},
+        /* 40 MHz clock source
+         * TQ = BRP / freq = 20 / 40 MHz = 500 nsec
+         * Baud = 125 kHz
+         * bit time = 1 / 125 kHz = 8 usec = 16 TQ
+         * SyncSeg = 1 TQ
+         * PropSeg = 7 TQ
+         * Seg1 = 4 TQ
+         * Seg2 = 4 TQ
+         * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
+         * SJW = Seg - 1 = 4 - 1 = 3
+         * SJW = 3 * 500 nsec = 1.5 usec
+         *
+         * Oscillator Tolerance:
+         *     4 / (2 * ((13 * 16) - 4)) = 0.980%
+         *     3 / (20 * 16) = 0.938%
+         *     = 0.938%
+         */
+        {40000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (20 - 1)}},
+        /* 64 MHz clock source
+         * TQ = BRP / freq = 32 / 64 MHz = 500 nsec
+         * Baud = 125 kHz
+         * bit time = 1 / 125 kHz = 8 usec = 16 TQ
+         * SyncSeg = 1 TQ
+         * PropSeg = 7 TQ
+         * Seg1 = 4 TQ
+         * Seg2 = 4 TQ
+         * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
+         * SJW = Seg - 1 = 4 - 1 = 3
+         * SJW = 3 * 500 nsec = 1.5 usec
+         *
+         * Oscillator Tolerance:
+         *     4 / (2 * ((13 * 16) - 4)) = 0.980%
+         *     3 / (20 * 16) = 0.938%
+         *     = 0.938%
+         */
+        {64000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (32 - 1)}},
+        /* 4 MHz clock source
+         * TQ = BRP / freq = 2 / 4 MHz = 500 nsec
+         * Baud = 125 kHz
+         * bit time = 1 / 125 kHz = 8 usec = 16 TQ
+         * SyncSeg = 1 TQ
+         * PropSeg = 7 TQ
+         * Seg1 = 4 TQ
+         * Seg2 = 4 TQ
+         * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
+         * SJW = Seg - 1 = 4 - 1 = 3
+         * SJW = 3 * 500 nsec = 1.5 usec
+         *
+         * Oscillator Tolerance:
+         *     4 / (2 * ((13 * 16) - 4)) = 0.980%
+         *     3 / (20 * 16) = 0.938%
+         *     = 0.938%
+         */
+        {4000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (2 - 1)}},
+        /* 8 MHz clock source
+         * TQ = BRP / freq = 4 / 8 MHz = 500 nsec
+         * Baud = 125 kHz
+         * bit time = 1 / 125 kHz = 8 usec = 16 TQ
+         * SyncSeg = 1 TQ
+         * PropSeg = 7 TQ
+         * Seg1 = 4 TQ
+         * Seg2 = 4 TQ
+         * sample time = (1 TQ + 7 TQ + 4 TQ) / 16 TQ = 75%
+         * SJW = Seg - 1 = 4 - 1 = 3
+         * SJW = 3 * 500 nsec = 1.5 usec
+         *
+         * Oscillator Tolerance:
+         *     4 / (2 * ((13 * 16) - 4)) = 0.980%
+         *     3 / (20 * 16) = 0.938%
+         *     = 0.938%
+         */
+        {8000000, 125000, {(3 - 1), (4 - 1), (11 - 1), (4 - 1)}},
 };
 
 void TCAN4550Defs::init_spi(const char *spi_name, uint32_t freq)
@@ -161,9 +161,9 @@ void TCAN4550Defs::init_spi(const char *spi_name, uint32_t freq)
 //
 // init()
 //
-template<class Defs, typename Registers>
-void MCAN<Defs, Registers>::init(uint32_t freq, uint32_t baud,
-                       uint16_t rx_timeout_bits)
+template <class Defs, typename Registers>
+void MCAN<Defs, Registers>::init(
+    uint32_t freq, uint32_t baud, uint16_t rx_timeout_bits)
 {
     // lock SPI bus access
     OSMutexLock locker(&lock_);
@@ -189,7 +189,7 @@ void MCAN<Defs, Registers>::init(uint32_t freq, uint32_t baud,
     }
 
     Defs::init_hook();
-    
+
     {
         // setup timestamp counter
         // make sure that the timeout is reasonable
@@ -232,8 +232,7 @@ void MCAN<Defs, Registers>::init(uint32_t freq, uint32_t baud,
 //
 // enable()
 //
-template<class Defs, typename Registers>
-void MCAN<Defs, Registers>::enable()
+template <class Defs, typename Registers> void MCAN<Defs, Registers>::enable()
 {
     // There is a mutex lock of lock_ above us, so the following sequence is
     // thread safe.
@@ -290,8 +289,7 @@ void MCAN<Defs, Registers>::enable()
 //
 // disable()
 //
-template<class Defs, typename Registers>
-void MCAN<Defs, Registers>::disable()
+template <class Defs, typename Registers> void MCAN<Defs, Registers>::disable()
 {
     // There is a mutex lock of lock_ above us, so the following sequence is
     // thread safe.
@@ -322,7 +320,7 @@ void MCAN<Defs, Registers>::disable()
 //
 // MCAN::flush_buffers()
 //
-template<class Defs, typename Registers>
+template <class Defs, typename Registers>
 void MCAN<Defs, Registers>::flush_buffers()
 {
     // lock SPI bus access
@@ -355,7 +353,7 @@ void MCAN<Defs, Registers>::flush_buffers()
 //
 // MCAN::read()
 //
-template<class Defs, typename Registers>
+template <class Defs, typename Registers>
 ssize_t MCAN<Defs, Registers>::read(File *file, void *buf, size_t count)
 {
     HASSERT((count % sizeof(struct can_frame)) == 0);
@@ -378,14 +376,15 @@ ssize_t MCAN<Defs, Registers>::read(File *file, void *buf, size_t count)
             {
 
                 // clip to the continous buffer memory available
-                frames_read = std::min(Defs::RX_FIFO_SIZE - rxf0s.fgi, rxf0s.ffl);
+                frames_read =
+                    std::min(Defs::RX_FIFO_SIZE - rxf0s.fgi, rxf0s.ffl);
 
                 // clip to the number of asked for frames
                 frames_read = std::min(frames_read, count);
 
                 // read from MRAM
-                Defs::rxbuf_read(
-                    Defs::RX_FIFO_0_MRAM_ADDR + (rxf0s.fgi * sizeof(MRAMRXBuffer)),
+                Defs::rxbuf_read(Defs::RX_FIFO_0_MRAM_ADDR +
+                        (rxf0s.fgi * sizeof(MRAMRXBuffer)),
                     data, frames_read);
 
                 // acknowledge the last FIFO index read
@@ -440,7 +439,7 @@ ssize_t MCAN<Defs, Registers>::read(File *file, void *buf, size_t count)
 //
 // MCAN::write()
 //
-template<class Defs, typename Registers>
+template <class Defs, typename Registers>
 ssize_t MCAN<Defs, Registers>::write(File *file, const void *buf, size_t count)
 {
     HASSERT((count % sizeof(struct can_frame)) == 0);
@@ -461,7 +460,8 @@ ssize_t MCAN<Defs, Registers>::write(File *file, const void *buf, size_t count)
             if (state_ != CAN_STATE_ACTIVE)
             {
                 // cancel pending TX FIFO buffers to make room
-                Defs::register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
+                Defs::register_write(
+                    Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
 
                 /// @todo It is possible that the tramsmit FIFO writes which
                 ///       follow will be stuck in the FIFO until we pass
@@ -480,8 +480,8 @@ ssize_t MCAN<Defs, Registers>::write(File *file, const void *buf, size_t count)
             if (txfqs.tffl)
             {
                 // clip to the continous buffer memory available
-                frames_written = std::min(
-                    Defs::TX_FIFO_SIZE - (txfqs.tfqpi - Defs::TX_DEDICATED_BUFFER_COUNT),
+                frames_written = std::min(Defs::TX_FIFO_SIZE -
+                        (txfqs.tfqpi - Defs::TX_DEDICATED_BUFFER_COUNT),
                     txfqs.tffl);
 
                 // clip to the number of provided frames
@@ -516,8 +516,8 @@ ssize_t MCAN<Defs, Registers>::write(File *file, const void *buf, size_t count)
                 }
 
                 // write to MRAM
-                Defs::txbuf_write(
-                    Defs::TX_BUFFERS_MRAM_ADDR + (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
+                Defs::txbuf_write(Defs::TX_BUFFERS_MRAM_ADDR +
+                        (txfqs.tfqpi * sizeof(MRAMTXBuffer)),
                     &this->txBufferMultiWrite_, frames_written);
 
                 // add transmission requests
@@ -531,7 +531,8 @@ ssize_t MCAN<Defs, Registers>::write(File *file, const void *buf, size_t count)
                 // set pending flag
                 txPending_ = true;
 
-                uint32_t watermark_index = txfqs.tfgi + (Defs::TX_FIFO_SIZE / 2);
+                uint32_t watermark_index =
+                    txfqs.tfgi + (Defs::TX_FIFO_SIZE / 2);
                 if (watermark_index >=
                     (Defs::TX_FIFO_SIZE + Defs::TX_DEDICATED_BUFFER_COUNT))
                 {
@@ -576,8 +577,8 @@ ssize_t MCAN<Defs, Registers>::write(File *file, const void *buf, size_t count)
 //
 // TCQN4550Can::select()
 //
-template<class Defs, typename Registers>
-bool MCAN<Defs, Registers>::select(File* file, int mode)
+template <class Defs, typename Registers>
+bool MCAN<Defs, Registers>::select(File *file, int mode)
 {
     bool retval = false;
     switch (mode)
@@ -618,8 +619,9 @@ bool MCAN<Defs, Registers>::select(File* file, int mode)
 //
 // MCAN::ioctl()
 //
-template<class Defs, typename Registers>
-int MCAN<Defs, Registers>::ioctl(File *file, unsigned long int key, unsigned long data)
+template <class Defs, typename Registers>
+int MCAN<Defs, Registers>::ioctl(
+    File *file, unsigned long int key, unsigned long data)
 {
     if (key == SIOCGCANSTATE)
     {
@@ -632,9 +634,8 @@ int MCAN<Defs, Registers>::ioctl(File *file, unsigned long int key, unsigned lon
 //
 // entry()
 //
-template<class Defs, typename Registers>
-__attribute__((optimize("-O3")))
-void *MCAN<Defs, Registers>::entry()
+template <class Defs, typename Registers>
+__attribute__((optimize("-O3"))) void *MCAN<Defs, Registers>::entry()
 {
     for ( ; /* forever */ ; )
     {
@@ -681,10 +682,11 @@ void *MCAN<Defs, Registers>::entry()
         mcan_interrupt.data = Defs::register_read(Registers::IR);
 
         // clear status flags for enabled interrupts
-        Defs::register_write(Registers::IR, mcan_interrupt.data & mcanInterruptEnable_.data);
+        Defs::register_write(
+            Registers::IR, mcan_interrupt.data & mcanInterruptEnable_.data);
 
         Defs::clear_global_interrupt_flags();
-        
+
         // error handling
         if (mcan_interrupt.bo || mcan_interrupt.ep || mcan_interrupt.rf0l)
         {
@@ -736,7 +738,8 @@ void *MCAN<Defs, Registers>::entry()
                     } while (cccr.init == 1);
 
                     // cancel TX FIFO buffers
-                    Defs::register_write(Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
+                    Defs::register_write(
+                        Registers::TXBCR, Defs::TX_FIFO_BUFFERS_MASK);
 
                     txBuf->signal_condition();
 #if MCAN_DEBUG
