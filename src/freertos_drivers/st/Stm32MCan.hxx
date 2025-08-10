@@ -36,8 +36,8 @@
 #ifndef _FREERTOS_DRIVERS_ST_STM32MCAN_HXX_
 #define _FREERTOS_DRIVERS_ST_STM32MCAN_HXX_
 
-#include <cstddef>
 #include "stm32f_hal_conf.hxx"
+#include <cstddef>
 
 #include "freertos_drivers/common/MCAN.hxx"
 
@@ -111,31 +111,47 @@ enum class Stm32FDCANRegisters : uint16_t
     TXEFA,  ///< 0xF8 0xE8 TX event FIFO acknowledge
 };
 
-static_assert(uint16_t(Stm32FDCANRegisters::CREL) * 4 == offsetof(FDCAN_GlobalTypeDef, CREL), "Registers misaligned.");
-static_assert(uint16_t(Stm32FDCANRegisters::NBTP) * 4 == offsetof(FDCAN_GlobalTypeDef, NBTP), "Registers misaligned.");
-static_assert(uint16_t(Stm32FDCANRegisters::ILE) * 4 == offsetof(FDCAN_GlobalTypeDef, ILE), "Registers misaligned.");
-static_assert(uint16_t(Stm32FDCANRegisters::HPMS) * 4 == offsetof(FDCAN_GlobalTypeDef, HPMS), "Registers misaligned.");
-static_assert(uint16_t(Stm32FDCANRegisters::RXF1S) * 4 == offsetof(FDCAN_GlobalTypeDef, RXF1S), "Registers misaligned.");
-static_assert(uint16_t(Stm32FDCANRegisters::TXBC) * 4 == offsetof(FDCAN_GlobalTypeDef, TXBC), "Registers misaligned.");
-static_assert(uint16_t(Stm32FDCANRegisters::TXEFA) * 4 == offsetof(FDCAN_GlobalTypeDef, TXEFA), "Registers misaligned.");
+static_assert(uint16_t(Stm32FDCANRegisters::CREL) * 4 ==
+        offsetof(FDCAN_GlobalTypeDef, CREL),
+    "Registers misaligned.");
+static_assert(uint16_t(Stm32FDCANRegisters::NBTP) * 4 ==
+        offsetof(FDCAN_GlobalTypeDef, NBTP),
+    "Registers misaligned.");
+static_assert(uint16_t(Stm32FDCANRegisters::ILE) * 4 ==
+        offsetof(FDCAN_GlobalTypeDef, ILE),
+    "Registers misaligned.");
+static_assert(uint16_t(Stm32FDCANRegisters::HPMS) * 4 ==
+        offsetof(FDCAN_GlobalTypeDef, HPMS),
+    "Registers misaligned.");
+static_assert(uint16_t(Stm32FDCANRegisters::RXF1S) * 4 ==
+        offsetof(FDCAN_GlobalTypeDef, RXF1S),
+    "Registers misaligned.");
+static_assert(uint16_t(Stm32FDCANRegisters::TXBC) * 4 ==
+        offsetof(FDCAN_GlobalTypeDef, TXBC),
+    "Registers misaligned.");
+static_assert(uint16_t(Stm32FDCANRegisters::TXEFA) * 4 ==
+        offsetof(FDCAN_GlobalTypeDef, TXEFA),
+    "Registers misaligned.");
 
-struct Stm32FDCANDefs {
+struct Stm32FDCANDefs
+{
     typedef MCANCommonDefs<64> Common;
     typedef Common::MRAMRXBuffer MRAMRXBuffer;
     typedef Common::MRAMTXBuffer MRAMTXBuffer;
     typedef Common::MRAMTXEventFIFOElement MRAMTXEventFIFOElement;
 
     typedef Stm32FDCANRegisters Registers;
-    
-    void init_fdcan(FDCAN_GlobalTypeDef* instance) {
+
+    void init_fdcan(FDCAN_GlobalTypeDef *instance)
+    {
         base_ = reinterpret_cast<uint32_t *>(instance);
         if (instance == FDCAN1)
         {
-            mram_ = reinterpret_cast<uint32_t*>(SRAMCAN_BASE);
+            mram_ = reinterpret_cast<uint32_t *>(SRAMCAN_BASE);
         }
         else if (instance == FDCAN2)
         {
-            mram_ = reinterpret_cast<uint32_t*>(SRAMCAN_BASE + 0x350);
+            mram_ = reinterpret_cast<uint32_t *>(SRAMCAN_BASE + 0x350);
         }
     }
 
@@ -167,7 +183,7 @@ struct Stm32FDCANDefs {
     static constexpr uint16_t TX_FIFO_BUFFERS_MRAM_ADDR = 0x0278;
 
     /// Offset of the MRAM address over SPI
-    //static constexpr uint16_t MRAM_ADDR_OFFSET = 0x8000;
+    // static constexpr uint16_t MRAM_ADDR_OFFSET = 0x8000;
 
     /// TX Buffer configuration register definition
     struct Txbc
@@ -185,7 +201,7 @@ struct Stm32FDCANDefs {
             {
                 uint32_t resvd : 24; ///< reserved
 
-                uint32_t tfqm  : 1; ///< TX FIFO/queue mode
+                uint32_t tfqm : 1; ///< TX FIFO/queue mode
             };
         };
     };
@@ -210,30 +226,30 @@ struct Stm32FDCANDefs {
                 uint32_t rf1n : 1; ///< RX FIFO 1 new message
                 uint32_t rf1f : 1; ///< RX FIFO 1 full
                 uint32_t rf1l : 1; ///< RX FIFO 1 message lost
-                uint32_t hpm  : 1; ///< high priority message
-                uint32_t tc   : 1; ///< transmission completed
+                uint32_t hpm : 1;  ///< high priority message
+                uint32_t tc : 1;   ///< transmission completed
 
-                uint32_t tcf  : 1; ///< transmission cancellation finished
-                uint32_t tfe  : 1; ///< TX FIFO empty
+                uint32_t tcf : 1;  ///< transmission cancellation finished
+                uint32_t tfe : 1;  ///< TX FIFO empty
                 uint32_t tefn : 1; ///< TX event FIFO new entry
                 uint32_t teff : 1; ///< TX event FIFO full
                 uint32_t tefl : 1; ///< TX event FIFO event lost
-                uint32_t tsw  : 1; ///< timestamp wraparound
+                uint32_t tsw : 1;  ///< timestamp wraparound
                 uint32_t mraf : 1; ///< message RAM access failure
-                uint32_t too  : 1; ///< timeout occurred
+                uint32_t too : 1;  ///< timeout occurred
 
-                uint32_t elo  : 1; ///< error logging overflow
-                uint32_t ep   : 1; ///< error passive
-                uint32_t ew   : 1; ///< warning status
-                uint32_t bo   : 1; ///< bus-off status
-                uint32_t wdi  : 1; ///< watchdog
-                uint32_t pea  : 1; ///< protocol error in arbitration phase
-                uint32_t ped  : 1; ///< protocol error in data phase
-                uint32_t ara  : 1; ///< access to reserved address
+                uint32_t elo : 1; ///< error logging overflow
+                uint32_t ep : 1;  ///< error passive
+                uint32_t ew : 1;  ///< warning status
+                uint32_t bo : 1;  ///< bus-off status
+                uint32_t wdi : 1; ///< watchdog
+                uint32_t pea : 1; ///< protocol error in arbitration phase
+                uint32_t ped : 1; ///< protocol error in data phase
+                uint32_t ara : 1; ///< access to reserved address
             };
         };
     };
-    
+
 protected:
     struct MRAMTXBufferMultiWrite
     {
@@ -243,8 +259,7 @@ protected:
     /// Read from an FDCAN register.
     /// @param address address to read from
     /// @return data read
-    __attribute__((optimize("-O3")))
-    uint32_t register_read(Registers address)
+    __attribute__((optimize("-O3"))) uint32_t register_read(Registers address)
     {
         return base_[uint16_t(address)];
     }
@@ -252,19 +267,18 @@ protected:
     /// Write to an FDCAN register.
     /// @param address address to write to
     /// @param data data to write
-    __attribute__((optimize("-O3")))
-    void register_write(Registers address, uint32_t data)
+    __attribute__((optimize("-O3"))) void register_write(
+        Registers address, uint32_t data)
     {
         base_[uint16_t(address)] = data;
     }
-
 
     /// Read one or more RX buffers.
     /// @param offset word offset in the MRAM to read from
     /// @param buf location to read into
     /// @param count number of buffers to read
-    __attribute__((optimize("-O3")))
-    void rxbuf_read(uint16_t offset, struct can_frame *buf, size_t count)
+    __attribute__((optimize("-O3"))) void rxbuf_read(
+        uint16_t offset, struct can_frame *buf, size_t count)
     {
         // This prints the size of the struct. Use it when the below assertion
         // fails.
@@ -292,19 +306,21 @@ protected:
     /// @param offset word offset in the MRAM to write to
     /// @param buf location to write from
     /// @param count number of buffers to write
-    __attribute__((optimize("-O3")))
-    void txbuf_write(uint16_t offset, MRAMTXBufferMultiWrite *buf, size_t count)
+    __attribute__((optimize("-O3"))) void txbuf_write(
+        uint16_t offset, MRAMTXBufferMultiWrite *buf, size_t count)
     {
-        //char (*__errorprint)[sizeof(MRAMTXBuffer)] = 1;
-        static_assert(sizeof(MRAMTXBuffer) == (18U * 4U), "TX Buffer size mismatch");
-        const uint32_t* src = reinterpret_cast<uint32_t*>(buf);
+        // char (*__errorprint)[sizeof(MRAMTXBuffer)] = 1;
+        static_assert(
+            sizeof(MRAMTXBuffer) == (18U * 4U), "TX Buffer size mismatch");
+        const uint32_t *src = reinterpret_cast<uint32_t *>(buf);
         unsigned len = (count * sizeof(MRAMTXBuffer)) >> 2;
         offset >>= 2;
-        while(len > 0) {
+        while (len > 0)
+        {
             mram_[offset++] = *src++;
             --len;
         }
-        //memcpy(mram_ + (offset >> 2), buf, count * sizeof(MRAMTXBuffer));
+        // memcpy(mram_ + (offset >> 2), buf, count * sizeof(MRAMTXBuffer));
     }
 
     /// Unused hook.
@@ -312,7 +328,9 @@ protected:
     {
     }
 
-    void preinit_hook(uint32_t freq) {}
+    void preinit_hook(uint32_t freq)
+    {
+    }
 
     void init_hook()
     {
@@ -324,15 +342,15 @@ protected:
     }
 
 private:
-    FDCAN_GlobalTypeDef* inst() {
+    FDCAN_GlobalTypeDef *inst()
+    {
         return reinterpret_cast<FDCAN_GlobalTypeDef *>(
             const_cast<uint32_t *>(base_));
     }
-    
-    volatile uint32_t* base_{nullptr};
-    uint32_t* mram_{nullptr};
-};
 
+    volatile uint32_t *base_ {nullptr};
+    uint32_t *mram_ {nullptr};
+};
 
 class Stm32MCan : public MCAN<Stm32FDCANDefs>
 {
@@ -358,18 +376,17 @@ public:
 
 private:
     IRQn_Type interrupt_;
-    
-    static void interrupt_disable(void* inst)
+
+    static void interrupt_disable(void *inst)
     {
-        auto intn = static_cast<Stm32MCan*>(inst)->interrupt_;
+        auto intn = static_cast<Stm32MCan *>(inst)->interrupt_;
         HAL_NVIC_DisableIRQ(intn);
     }
-    static void interrupt_enable(void* inst)
+    static void interrupt_enable(void *inst)
     {
-        auto intn = static_cast<Stm32MCan*>(inst)->interrupt_;
+        auto intn = static_cast<Stm32MCan *>(inst)->interrupt_;
         HAL_NVIC_EnableIRQ(intn);
     }
-
 };
 
 #endif // _FREERTOS_DRIVERS_ST_STM32MCAN_HXX_
