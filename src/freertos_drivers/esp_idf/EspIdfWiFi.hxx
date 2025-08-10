@@ -178,6 +178,7 @@ public:
     void network_list_get(std::vector<NetworkEntry> *entries) override
     {
         OSMutexLock locker(&lock_);
+        entries->reserve(scanResults_.size());
         entries->assign(scanResults_.begin(), scanResults_.end());
     }
 
@@ -193,11 +194,18 @@ public:
         {
             return -1;
         }
+        // The following code is effectively equivalent to scanResultsEntry_ =
+        // scanResults_.begin() + index but list<> does not support random
+        // access iterator pattern.
+        //
+        // If the cached iterator is beyond the index asked for, we start at
+        // begin().
         if (index < scanResultsEntryIndex_)
         {
             scanResultsEntry_ = scanResults_.begin();
             scanResultsEntryIndex_ = 0;
         }
+        // Move forward the iterator until it reaches the index asked for. 
         while (scanResultsEntryIndex_ < index)
         {
             ++scanResultsEntry_;
@@ -282,12 +290,12 @@ protected:
     };
 
 public:
-    /// Maximum length of a stored SSID not including '\0' termination.
+    /// Maximum length of a stored SSID including '\0' termination.
     static constexpr size_t MAX_SSID_SIZE =
         sizeof(WiFiConfigCredentialsNVS::ssid_);
     static_assert(MAX_SSID_SIZE == 33, "Invalid maximum SSID length.");
 
-    /// Maximum length of a stored password not including '\0' termination.
+    /// Maximum length of a stored password including '\0' termination.
     static constexpr size_t MAX_PASS_SIZE =
         sizeof(WiFiConfigCredentialsNVS::pass_);
     static_assert(MAX_PASS_SIZE == 64, "Invalid maximum password length.");

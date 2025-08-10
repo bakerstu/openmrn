@@ -86,6 +86,10 @@ struct WiFiDefs
         SEC_WPA3, ///< WPA3 security mode
     };
 
+    /// Turns a security type into a user-readable string.
+    /// @param sec the security type enum.
+    /// @return a user-readable string. The pointer is valid for the entire
+    /// lifetime of the program.
     static const char *security_type_to_string(SecurityType sec);
 
     /// Result code for connections and disconnections.
