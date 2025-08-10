@@ -2,6 +2,7 @@ set(SOURCE_DIRS
     src/dcc
     src/executor
     src/freertos_drivers/esp32
+    src/freertos_drivers/common
     src/freertos_drivers/arduino
     src/openlcb
     src/os

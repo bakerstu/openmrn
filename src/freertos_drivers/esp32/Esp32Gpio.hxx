@@ -35,14 +35,7 @@
 #ifndef _DRIVERS_ESP32GPIO_HXX_
 #define _DRIVERS_ESP32GPIO_HXX_
 
-// TODO: clean this up as part of https://github.com/bakerstu/openmrn/issues/778
-// as this file should be coming in from common and not arduino ideally.
-#if defined(__has_include) && \
-    __has_include("freertos_drivers/common/GpioWrapper.hxx")
 #include "freertos_drivers/common/GpioWrapper.hxx"
-#else
-#include "freertos_drivers/arduino/GpioWrapper.hxx"
-#endif
 #include "freertos_drivers/esp32/Esp32AdcOneShot.hxx"
 #include "os/Gpio.hxx"
 #include "utils/logging.h"

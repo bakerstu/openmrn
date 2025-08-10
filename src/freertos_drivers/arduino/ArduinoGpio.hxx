@@ -36,7 +36,7 @@
 #define _DRIVERS_ARDUINOGPIO_HXX_
 
 #include "os/Gpio.hxx"
-#include "GpioWrapper.hxx"
+#include "freertos_drivers/common/GpioWrapper.hxx"
 #ifdef ESP_PLATFORM
 #include <esp32-hal.h>
 #include <driver/gpio.h>

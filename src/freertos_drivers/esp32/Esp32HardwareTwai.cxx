@@ -73,14 +73,7 @@
 #include "can_frame.h"
 #include "can_ioctl.h"
 #include "executor/Notifiable.hxx"
-// TODO: clean this up as part of https://github.com/bakerstu/openmrn/issues/778
-// as this file should be coming in from common and not arduino ideally.
-#if defined(__has_include) && \
-    __has_include("freertos_drivers/common/DeviceBuffer.hxx")
 #include "freertos_drivers/common/DeviceBuffer.hxx"
-#else
-#include "freertos_drivers/arduino/DeviceBuffer.hxx"
-#endif
 #include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"
 #include "utils/Atomic.hxx"
 #include "utils/logging.h"
