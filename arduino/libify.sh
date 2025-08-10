@@ -209,7 +209,10 @@ rm -f ${TARGET_LIB_DIR}/src/openlcb/CompileCdiMain.cxx \
     ${TARGET_LIB_DIR}/src/openlcb/BLE* \
 
 copy_file src/freertos_drivers/arduino \
-          src/freertos_drivers/arduino/* \
+          src/freertos_drivers/arduino/*
+
+copy_file src/freertos_drivers/common \
+          src/freertos_drivers/arduino/Can.{hxx,cxx} \
           src/freertos_drivers/common/DeviceBuffer.{hxx,cxx} \
           src/freertos_drivers/common/DummyGPIO.hxx \
           src/freertos_drivers/common/GpioWrapper.hxx \
