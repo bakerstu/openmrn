@@ -37,7 +37,7 @@
 #ifndef _FREERTOS_DRIVERS_ARDUINO_CAN_HXX_
 #define _FREERTOS_DRIVERS_ARDUINO_CAN_HXX_
 
-#include "DeviceBuffer.hxx"
+#include "freertos_drivers/common/DeviceBuffer.hxx"
 #include "can_frame.h"
 #include "nmranet_config.h"
 #include "os/OS.hxx"

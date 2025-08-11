@@ -42,7 +42,7 @@
 
 #include <ACANFD_FeatherM4CAN-from-cpp.h>
 
-#include "freertos_drivers/arduino/Can.hxx"
+#include "freertos_drivers/common/Can.hxx"
 
 /// Wrapper for Arduino CAN driver for the Feather M4 CAN board using the
 /// external ACANFD_FeatherM4CAN library.
