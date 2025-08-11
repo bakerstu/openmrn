@@ -359,7 +359,7 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             // diverged due to a bug.
             inCutout_ = false;
             prepCutout_ = false;
-            cutoutState_ = 0;
+            cutoutState_ = DccDecoderDefs::CUTOUT_BEGIN;
         }
         if (decoder_.state() == dcc::DccDecoder::DCC_MAYBE_CUTOUT)
         {
@@ -391,7 +391,7 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             Module::set_cap_timer_delay_usec(
                 RAILCOM_CUTOUT_PRE + Module::time_delta_railcom_pre_usec());
             inCutout_ = true;
-            cutoutState_ = 0;
+            cutoutState_ = DccDecoderDefs::CUTOUT_BEGIN;
             if (decoder_.pkt())
             {
                 nextPacketFilled_ = true;

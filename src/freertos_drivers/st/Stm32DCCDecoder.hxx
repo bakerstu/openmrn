@@ -269,7 +269,7 @@ public:
     /// sequence of handlers are not matching the desired
     /// functionality. Additional wakeups can be scheduled with
     /// set_cap_timer_delay_usec(...). An empty implementation is acceptable.
-    static inline void rcom_cutout_hook(uint32_t *cutout_state);
+    static inline void rcom_cutout_hook(DccDecoderDefs::CutoutState *cutout_state);
 
 private:
     static TIM_HandleTypeDef captureTimerHandle_;
