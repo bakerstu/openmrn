@@ -178,7 +178,8 @@ public:
     void network_list_get(std::vector<NetworkEntry> *entries) override
     {
         OSMutexLock locker(&lock_);
-        *entries = scanResults_;
+        entries->reserve(scanResults_.size());
+        entries->assign(scanResults_.begin(), scanResults_.end());
     }
 
     /// Get the indexed network entry from the list of scan results. Use
@@ -193,7 +194,24 @@ public:
         {
             return -1;
         }
-        *entry = scanResults_[index];
+        // The following code is effectively equivalent to scanResultsEntry_ =
+        // scanResults_.begin() + index but list<> does not support random
+        // access iterator pattern.
+        //
+        // If the cached iterator is beyond the index asked for, we start at
+        // begin().
+        if (index < scanResultsEntryIndex_)
+        {
+            scanResultsEntry_ = scanResults_.begin();
+            scanResultsEntryIndex_ = 0;
+        }
+        // Move forward the iterator until it reaches the index asked for. 
+        while (scanResultsEntryIndex_ < index)
+        {
+            ++scanResultsEntry_;
+            ++scanResultsEntryIndex_;
+        }
+        *entry = *scanResultsEntry_;
         return 0;
     }
 
@@ -271,6 +289,18 @@ protected:
         char pass_[64]; ///< STA password
     };
 
+public:
+    /// Maximum length of a stored SSID including '\0' termination.
+    static constexpr size_t MAX_SSID_SIZE =
+        sizeof(WiFiConfigCredentialsNVS::ssid_);
+    static_assert(MAX_SSID_SIZE == 33, "Invalid maximum SSID length.");
+
+    /// Maximum length of a stored password including '\0' termination.
+    static constexpr size_t MAX_PASS_SIZE =
+        sizeof(WiFiConfigCredentialsNVS::pass_);
+    static_assert(MAX_PASS_SIZE == 64, "Invalid maximum password length.");
+
+protected:
     /// Private configuration metadata. This is non-volatile information that
     /// informs the WiFi "state", primarily at startup, and is not exposed to
     /// the user.
@@ -290,16 +320,6 @@ protected:
 
     /// NVS key for the WiFi private config.
     static constexpr char NVS_KEY_LAST_NAME[] = "wifi_last.v1";
-
-    /// Maximum length of a stored SSID not including '\0' termination.
-    static constexpr size_t MAX_SSID_SIZE =
-        sizeof(WiFiConfigCredentialsNVS::ssid_);
-    static_assert(MAX_SSID_SIZE == 33, "Invalid maximum SSID length.");
-
-    /// Maximum length of a stored password not including '\0' termination.
-    static constexpr size_t MAX_PASS_SIZE =
-        sizeof(WiFiConfigCredentialsNVS::pass_);
-    static_assert(MAX_PASS_SIZE == 64, "Invalid maximum password length.");
 
     /// Constructor.
     /// @param service Service to bind this object to. This object does not
@@ -738,7 +758,13 @@ private:
     std::vector<MDNSService> mdnsServices_; ///< registered mDNS services
     /// Cache of all the subscribed mDNS services.
     std::vector<MDNSCacheItem> mdnsClientCache_;
-    std::vector<NetworkEntry> scanResults_; ///< AP scan results
+    std::list<NetworkEntry> scanResults_; ///< AP scan results
+    /// Cache of the last returned entry iterator from the scanResults_
+    /// list. Used for linear time iteration over the list with the existing
+    /// API.
+    std::list<NetworkEntry>::iterator scanResultsEntry_ {scanResults_.end()};
+    /// Which index in the list does scanResultsEntryIndex_ point to.
+    unsigned scanResultsEntryIndex_ {INT_MAX};
     std::string staConnectPass_; ///< last station connect attempt password
     const std::string hostname_; ///< published hostname
     int mdnsStaLockCount_; ///< counter for recursive mDNS STA lock

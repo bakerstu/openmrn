@@ -1196,6 +1196,8 @@ void EspIdfWiFiBase::collect_scan_results()
 
     OSMutexLock locker(&lock_);
     scanResults_.clear();
+    scanResultsEntryIndex_ = INT_MAX;
+    scanResultsEntry_ = scanResults_.end();
     do
     {
         wifi_ap_record_t ap_record;
