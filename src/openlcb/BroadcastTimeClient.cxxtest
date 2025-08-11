@@ -1,8 +1,9 @@
-#include "utils/async_if_test_helper.hxx"
-
 #include "openlcb/BroadcastTimeClient.hxx"
 
 #include <inttypes.h>
+
+#include "utils/async_if_test_helper.hxx"
+#include "os/FakeClock.hxx"
 
 #if 0
 #define PRINT_ALL_PACKETS() print_all_packets()
@@ -32,8 +33,8 @@ public:
                             bool configure_agent = false)
         : BroadcastTimeClient(node, clock_id, configure_agent)
         , time_(0)
-        , mochRate_(1)
-        , mochStarted_(false)
+        , mockRate_(1)
+        , mockStarted_(false)
     {
         snprintf(clockIDString_, 13, "%012" PRIX64, clock_id);
         update_subscribe_add(
@@ -43,7 +44,7 @@ public:
     void settime(int rate = 0, unsigned year = 0, unsigned month = 0,
                  unsigned day = 1, unsigned hour = 0, unsigned minute = 0)
     {
-        mochRate_ = rate;
+        mockRate_ = rate;
         tmMock_.tm_sec = 0;
         tmMock_.tm_min = minute;
         tmMock_.tm_hour = hour;
@@ -56,7 +57,7 @@ public:
 
     void advance_time_minute()
     {
-        time_ += mochRate_ >= 0 ? 60 : -60;
+        time_ += mockRate_ >= 0 ? 60 : -60;
         ::gmtime_r(&time_, &tmMock_);
     }
 
@@ -89,8 +90,8 @@ public:
 
     time_t time_;
     struct tm tmMock_;
-    int mochRate_;
-    bool mochStarted_;
+    int mockRate_;
+    bool mockStarted_;
     char clockIDString_[13];
 };
 
@@ -152,14 +153,14 @@ protected:
     void send_start(MockBroadcastTimeClient *client, bool identify = false)
     {
         send_packet_helper(client, identify ? "544" : "5B4", "F002");
-        client->mochStarted_ = true;
+        client->mockStarted_ = true;
     }
 
     // send stop
     void send_stop(MockBroadcastTimeClient *client, bool identify = false)
     {
         send_packet_helper(client, identify ? "544" : "5B4", "F001");
-        client->mochStarted_ = false;
+        client->mockStarted_ = false;
     }
 
     // send report rate
@@ -167,7 +168,7 @@ protected:
                           bool identify = false)
     {
         char srate[5];
-        uint16_t rate12 = client->mochRate_ & 0xFFF;
+        uint16_t rate12 = client->mockRate_ & 0xFFF;
         snprintf(srate, 5, "4%03x", rate12);
         send_packet_helper(client, identify ? "544" : "5B4", srate);
     }
@@ -198,13 +199,13 @@ protected:
         char stime[5];
         snprintf(stime, 5, "%02x%02x", client->gethour(), client->getminute());
 
-        if (client->mochStarted_ && client->mochRate_ > 0 &&
+        if (client->mockStarted_ && client->mockRate_ > 0 &&
             !identify && client->gethour() == 0 && client->getminute() == 0)
         {
             // rollover running forward
             rollover = true;
         }
-        if (client->mochStarted_ && client->mochRate_ < 0 &&
+        if (client->mockStarted_ && client->mockRate_ < 0 &&
             !identify && client->gethour() == 23 && client->getminute() == 59)
         {
             // rollover running backward
@@ -227,7 +228,7 @@ protected:
     // send the synchronization sequence
     void sync(MockBroadcastTimeClient *client, unsigned delay_msec = 0)
     {
-        client->mochStarted_ ? send_start(client, true) :
+        client->mockStarted_ ? send_start(client, true) :
                                send_stop(client, true);
         send_report_rate(client, true);
         send_report_year(client, true);
@@ -238,9 +239,8 @@ protected:
         send_report_time(client);
     }
 
-    MockBroadcastTimeClient *client1_; // not a configure agent
-    MockBroadcastTimeClient *client2_; // configure agent
-
+    /// Simulates usleep(microseconds) with the fake clock.
+    /// @param microseconds how long to sleep.
     void sleep_helper(unsigned microseconds)
     {
         unsigned increments = microseconds / 20000;
@@ -255,7 +255,13 @@ protected:
             FakeClock::instance()->advance(remaining);
             wait_for_main_executor();
         }
+        wait_for_main_executor();
     }
+
+    FakeClock clk_;
+
+    MockBroadcastTimeClient *client1_; // not a configure agent
+    MockBroadcastTimeClient *client2_; // configure agent
 };
 
 TEST_F(BroadcastTimeClientTest, Create)
