@@ -425,7 +425,7 @@ private:
 
     /// @copydoc RailcomDriver::set_feedback_key()
     ///
-    /// This implementation also preallocates storage for returned packets fo
+    /// This implementation also preallocates storage for returned packets for
     /// CHANNEL_COUNT entries. Since the packet allocation can take a few usec,
     /// doing it here, ahead of time can avoid running out of time starting
     /// the cutout.
