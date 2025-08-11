@@ -878,7 +878,7 @@ private:
     bool listenConsist_{false};
     /// keep track if E-Stop is active
     bool estopActive_{false};
-    NodeID dst_;
+    NodeID dst_{0};
     Node *node_;
     /// Helper class for stateful query/return flows.
     TractionResponseHandler handler_{iface(), node_};

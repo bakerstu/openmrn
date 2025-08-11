@@ -206,6 +206,12 @@ public:
         return currentState_;
     }
 
+    /// @return the number of 1's in the past window.
+    unsigned current_count()
+    {
+        return lastCount_;
+    }
+
     /// Callback from the polling loop checking the input state. @param state
     /// is the currently observed input state. @return true if the debounced
     /// state has just transitioned to matching the inbound parameter, false if

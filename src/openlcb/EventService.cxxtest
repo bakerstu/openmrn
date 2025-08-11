@@ -114,4 +114,38 @@ TEST_F(AsyncEventTest, ManyEvents)
     }
 }
 
+// Regression test for event service crashing on EWP packet.
+TEST_F(AsyncEventTest, EwpPacketRegression)
+{
+    EventRegistry::instance()->register_handler(
+        EventRegistryEntry(&h1_, 0x0102030405060704ULL), 64);
+
+    // Expect the handler to be called once for the first valid report
+    EXPECT_CALL(h1_,
+        handle_event_report(
+            _, Pointee(Field(&EventReport::event, 0x0102030405060704ULL)), _))
+        .Times(1)
+        .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+
+    // Send a valid event report
+    send_packet(":X195B4621N0102030405060704;");
+
+    wait(); // Ensure the first event is handled before sending the next packet
+
+    // Send the problematic packet
+    send_packet(":X19f1611cN010202012C010000;");
+
+    // Expect the handler to be called once for the second valid report
+    EXPECT_CALL(h1_,
+        handle_event_report(
+            _, Pointee(Field(&EventReport::event, 0x0102030405060704ULL)), _))
+        .Times(1)
+        .WillOnce(WithArg<2>(Invoke(&InvokeNotification)));
+
+    // Send another valid event report
+    send_packet(":X195B4621N0102030405060704;");
+
+    wait(); // Ensure the second event is handled before exit
+}
+
 } // namespace openlcb

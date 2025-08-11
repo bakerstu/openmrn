@@ -37,8 +37,7 @@
 
 #include "executor/CallableFlow.hxx"
 #include "openlcb/MemoryConfig.hxx"
-#include "traction_modem/RxFlow.hxx"
-#include "traction_modem/TxFlow.hxx"
+#include "traction_modem/Link.hxx"
 #include "utils/Singleton.hxx"
 
 namespace traction_modem
@@ -48,7 +47,9 @@ namespace traction_modem
 /// requests over the modem interface to the decoder using the matching
 /// messages. The address space is 1:1 mapping, while the memory space number
 /// is specified by a virtual function and thus can be translated.
-class MemorySpace : public openlcb::MemorySpace, public PacketFlowInterface
+class MemorySpace : public openlcb::MemorySpace
+                  , public PacketFlowInterface
+                  , public LinkStatusInterface
 {
 public:
     /// Write data to the address space. Called by the memory config service for
@@ -89,6 +90,13 @@ public:
             evaluate_error(*error);
             return size_;
         }
+        if (!link_->is_link_up())
+        {
+            // Link is down, return error.
+            LOG(INFO, "traction_modem::MemorySpace: write() link is not up.");
+            *error = openlcb::Defs::ERROR_TEMPORARY;
+            return 0;
+        }
         HASSERT(state_ == IDLE);
         // Clamp the write length to the max supported by the modem.
         if (len > Defs::MAX_WRITE_DATA_LEN)
@@ -96,9 +104,11 @@ public:
             len = Defs::MAX_WRITE_DATA_LEN;
         }
         // Register for a write response and send the read request.
-        rxFlow_->register_handler(this, Defs::RESP_MEM_W);
-        txFlow_->send_packet(Defs::get_memw_payload(
-            get_space_id(), destination, data, len));
+        link_->get_rx_iface()->register_handler(this, Defs::RESP_MEM_W);
+        // Link is up, we can send the write request.
+        link_->get_tx_iface()->send_packet(
+            Defs::get_memw_payload(get_space_id(), destination, data, len));
+        // Start the supervisor timer.
         timer_.start(openlcb::DatagramDefs::timeout_from_flags_nsec(
             get_write_timeout()));
         // Indicate to the caller we must be called again.
@@ -143,6 +153,13 @@ public:
             evaluate_error(*error);
             return size_;
         }
+        if (!link_->is_link_up())
+        {
+            // Link is down, return error.
+            LOG(INFO, "traction_modem::MemorySpace: read() link is not up.");
+            *error = openlcb::Defs::ERROR_TEMPORARY;
+            return 0;
+        }
         HASSERT(state_ == IDLE);
         // Clamp the read length to the max supported by the modem.
         if (len > Defs::MAX_READ_DATA_LEN)
@@ -150,9 +167,11 @@ public:
             len = Defs::MAX_READ_DATA_LEN;
         }
         // Register for a read response and send the read request.
-        rxFlow_->register_handler(this, Defs::RESP_MEM_R);
-        txFlow_->send_packet(Defs::get_memr_payload(
-            get_space_id(), source, len));
+        link_->get_rx_iface()->register_handler(this, Defs::RESP_MEM_R);
+        // Send the read request.
+        link_->get_tx_iface()->send_packet(
+            Defs::get_memr_payload(get_space_id(), source, len));
+        // Start the supervisor timer.
         timer_.start(openlcb::DatagramDefs::timeout_from_flags_nsec(
             get_read_timeout()));
         // Indicate to the caller we must be called again.
@@ -170,15 +189,18 @@ public:
 protected:
     /// Constructor.
     /// @param service Service instance to bind this flow to.
-    /// @param tx_flow reference to the transmit flow
-    /// @param rx_flow reference to the receive flow
-    MemorySpace(
-        Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
-        : txFlow_(tx_flow)
-        , rxFlow_(rx_flow)
+    /// @param link reference to the link object.
+    MemorySpace(Service *service, Link *link)
+        : link_(link)
         , timer_(this, service)
         , state_(IDLE)
     {
+        link_->register_link_status(this);
+    }
+
+    ~MemorySpace()
+    {
+        link_->unregister_link_status(this);
     }
 
     /// Pass error results down to derived objects. This gives a derived object
@@ -188,8 +210,7 @@ protected:
     {
     }
 
-    TxInterface *txFlow_; ///< reference to the transmit flow
-    RxInterface *rxFlow_; ///< reference to the receive flow
+    Link *link_; ///< reference to the link object
 
 private:
     /// Internal state.
@@ -206,6 +227,8 @@ private:
     virtual uint8_t get_space_id() = 0;
 
     /// Receive for read and write responses.
+    /// @param buf incoming message
+    /// @param prio message priority
     void send(Buffer<Message> *buf, unsigned prio) override
     {
         auto rb = get_buffer_deleter(buf);
@@ -270,7 +293,7 @@ private:
         }
         // Trigger the supervising timer to expire early because we have the
         // result.
-        rxFlow_->unregister_handler_all(this);
+        link_->get_rx_iface()->unregister_handler_all(this);
         timer_.ensure_triggered();
     }
 
@@ -299,7 +322,7 @@ private:
                 // Timed out. Unregister the handlers so successive responses
                 // fall on the floor.
                 LOG(VERBOSE, "Timer expired");
-                parent_->rxFlow_->unregister_handler_all(parent_);
+                parent_->link_->get_rx_iface()->unregister_handler_all(parent_);
                 parent_->size_ = 0;
                 parent_->error_ = openlcb::Defs::ERROR_OPENLCB_TIMEOUT;
             }
@@ -313,6 +336,9 @@ private:
         MemorySpace *parent_; ///< parent object
     } timer_;
 
+    /// If this is not empty, it means the link is down when we tried to
+    /// transmit the message. If the link comes up and this is not empty, it
+    /// should be transmitted. If a timeout occurs, it shall be cleared.
     Notifiable *done_; ///< Notifiable for the memory operation to continue.
     uint8_t *rdData_; ///< read data pointer
     size_t size_; ///< requested size
@@ -332,11 +358,10 @@ public:
 
     /// Constructor.
     /// @param service Service instance to bind this flow to
-    /// @param tx_flow reference to the transmit flow
-    /// @param rx_flow reference to the receive flow
+    /// @param link reference to the link object.
     CvSpace(
-        Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
-        : MemorySpace(service, tx_flow, rx_flow)
+        Service *service, Link *link)
+        : MemorySpace(service, link)
     {
     }
 
@@ -373,11 +398,10 @@ public:
 
     /// Constructor.
     /// @param service Service instance to bind this flow to
-    /// @param tx_flow reference to the transmit flow
-    /// @param rx_flow reference to the receive flow
+    /// @param link reference to the link object.
     FirmwareSpace(
-        Service *service, TxInterface *tx_flow, RxInterface *rx_flow)
-        : MemorySpace(service, tx_flow, rx_flow)
+        Service *service, Link *link)
+        : MemorySpace(service, link)
     {
     }
 
@@ -407,7 +431,8 @@ public:
     errorcode_t freeze() override
     {
         trackedError_ = openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
-        txFlow_->send_packet(Defs::get_reboot_payload(Defs::RebootArg::BOOT));
+        link_->get_tx_iface()->send_packet(
+            Defs::get_reboot_payload(Defs::RebootArg::BOOT));
         return openlcb::Defs::ErrorCodes::ERROR_CODE_OK;
     }
 
@@ -415,7 +440,7 @@ public:
     /// @return openlcb::Defs::ErrorCodes::ERROR_CODE_OK
     errorcode_t unfreeze() override
     {
-        txFlow_->send_packet(
+        link_->get_tx_iface()->send_packet(
             Defs::get_reboot_payload(Defs::RebootArg::APP_VALIDATE));
         return trackedError_;
     }

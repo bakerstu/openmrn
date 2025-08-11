@@ -41,6 +41,7 @@
 #include "utils/Uninitialized.hxx"
 
 #include <driver/ledc.h>
+#include <pthread.h>
 
 namespace openmrn_arduino
 {
@@ -131,7 +132,7 @@ public:
     /// will generate a runtime failure.
     void hw_init()
     {
-        LOG(INFO,
+        LOG(VERBOSE,
             "[Esp32Ledc:%d] Configuring timer (resolution:%d, frequency:%"
             PRIu32 ")",
             timerConfig_.timer_num,
@@ -145,7 +146,7 @@ public:
 
             ledc_channel_t led_channel =
                 static_cast<ledc_channel_t>(firstChannel_ + count);
-            LOG(INFO, "[Esp32Ledc:%d] Configuring LEDC channel %d on GPIO %d",
+            LOG(VERBOSE, "[Esp32Ledc:%d] Configuring LEDC channel %d on GPIO %d",
                 timerConfig_.timer_num, led_channel, pin);
             ledc_channel_config_t config;
             memset(&config, 0, sizeof(ledc_channel_config_t));

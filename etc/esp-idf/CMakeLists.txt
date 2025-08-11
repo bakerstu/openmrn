@@ -28,7 +28,7 @@ set(SRCS
     ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32HardwareTwai.cxx
     ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32Ledc.cxx
     ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32SocInfo.cxx
-    ${OPENMRNPATH}/src/freertos_drivers/esp32/Esp32WiFiManager.cxx
+    ${OPENMRNPATH}/src/freertos_drivers/esp_idf/EspIdfWiFi.cxx
 
     ${OPENMRNPATH}/src/openlcb/AliasAllocator.cxx
     ${OPENMRNPATH}/src/openlcb/AliasCache.cxx
@@ -79,7 +79,6 @@ set(SRCS
     ${OPENMRNPATH}/src/openlcb/TractionTrain.cxx
     ${OPENMRNPATH}/src/openlcb/Velocity.cxx
     ${OPENMRNPATH}/src/openlcb/WriteHelper.cxx
-
     
     ${OPENMRNPATH}/src/os/FakeClock.cxx
     ${OPENMRNPATH}/src/os/logging_malloc.cxx
@@ -90,6 +89,8 @@ set(SRCS
     ${OPENMRNPATH}/src/os/stack_malloc.c
     ${OPENMRNPATH}/src/os/TempFile.cxx
     ${OPENMRNPATH}/src/os/watchdog.c
+
+    ${OPENMRNPATH}/src/traction_modem/Output.cxx
 
     ${OPENMRNPATH}/src/utils/Base64.cxx
     ${OPENMRNPATH}/src/utils/Blinker.cxx
@@ -130,7 +131,6 @@ set(SRCS
 set(INCLUDE_DIRS
     ${OPENMRNPATH}/src
     ${OPENMRNPATH}/include/esp-idf
-    ${OPENMRNPATH}/include
 )
 
 set(IDF_DEPS
@@ -146,6 +146,7 @@ set(IDF_DEPS
     hal
     heap
     mdns
+    nvs_flash
     pthread
     vfs)
 

@@ -27,6 +27,7 @@ CXXSRCS += Fileio.cxx \
            PCA9685PWM.cxx \
            SN74HC595GPO.cxx \
            TCAN4550Can.cxx \
+           MCAN.cxx \
            SPIFlash.cxx
            
 
@@ -61,6 +62,7 @@ ifeq ($(TARGET),freertos.armv7m.exc)
 
 SUBDIRS += stm32cubef303x_28x_58x_98x stm32cubef303xe stm32cubef767xx \
            spiffs_stm32f767xx \
+           spiffs_spi \
 
 
 # Avoids exception handling from operator new.

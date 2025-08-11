@@ -379,6 +379,11 @@ protected:
         expect_packet(":X191004AAN1A2A3A4A5A6A;");
     }
 
+    void expect_node_initialized()
+    {
+        expect_packet(":X191004AAN1A2A3A4A5A6A;");
+    }
+
     void proper_startup()
     {
         expect_boot(true);
@@ -508,6 +513,12 @@ TEST_F(BootloaderTest, NoStartAppIfChecksumTampered)
 TEST_F(BootloaderTest, WelcomeMessageArrives)
 {
     proper_startup();
+
+    // Get another node initialized.
+    clear_expect();
+    expect_node_initialized();
+    bootloader_reinit_node();
+
     exit_bootloader();
 }
 
