@@ -34,7 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_TI_TIVAEEPROMEMULATION_HXX_
 #define _FREERTOS_DRIVERS_TI_TIVAEEPROMEMULATION_HXX_
 
-#include "EEPROMEmulation.hxx"
+#include "freertos_drivers/common/EEPROMEmulation.hxx"
 
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"

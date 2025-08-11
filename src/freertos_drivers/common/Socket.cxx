@@ -36,9 +36,9 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 
-#include "Devtab.hxx"
-#include "Socket.hxx"
-#include "can_ioctl.h"
+#include "freertos_drivers/common/Devtab.hxx"
+#include "freertos_drivers/common/Socket.hxx"
+#include "freertos/can_ioctl.h"
 
 /** Read from a file or device.
  * @param file file reference for this device

@@ -1,7 +1,7 @@
 #include "mbed.h"
 #include "utils/Hub.hxx"
 
-#include "FreeRTOSConfig.h"
+#include "freertos/FreeRTOSConfig.h"
 
 #include "os/OS.hxx"
 

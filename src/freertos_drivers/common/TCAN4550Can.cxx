@@ -35,7 +35,7 @@
 #define _DEFAULT_SOURCE
 #endif
 
-#include "TCAN4550Can.hxx"
+#include "freertos_drivers/common/TCAN4550Can.hxx"
 
 #include <fcntl.h>
 #include <unistd.h>

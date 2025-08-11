@@ -35,7 +35,7 @@
 #include <string.h>
 
 #include "utils/macros.h"
-#include "FreeRTOSConfig.h"
+#include "freertos/FreeRTOSConfig.h"
 #include "portmacro.h"
 #include "plib.h"
 #include "peripheral/ports.h"

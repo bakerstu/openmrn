@@ -33,12 +33,12 @@
  * @date August 27, 2023
  */
 
-#include "Stm32Uart.hxx"
+#include "freertos_drivers/st/Stm32Uart.hxx"
 
 #include "freertos/tc_ioctl.h"
-#include "stm32f_hal_conf.hxx"
+#include "freertos_drivers/st/stm32f_hal_conf.hxx"
 
-#include "FreeRTOSConfig.h"
+#include "freertos/FreeRTOSConfig.h"
 
 // static
 uint8_t Stm32Uart::interrupt3_to_8EnableCnt = 0;

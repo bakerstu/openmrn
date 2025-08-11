@@ -73,7 +73,7 @@ public:
 
 #elif defined(ESP_PLATFORM)
 
-#include "freertos_includes.h"
+#include "freertos/freertos_includes.h"
 
 /// Lightweight locking class for protecting small critical sections.
 ///

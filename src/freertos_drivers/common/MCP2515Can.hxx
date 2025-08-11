@@ -38,12 +38,12 @@
 #include <cstddef>
 
 #include "Can.hxx"
-#include "SPI.hxx"
+#include "freertos_drivers/common/SPI.hxx"
 
 #include "os/Gpio.hxx"
 #include "os/OS.hxx"
 
-#include "can_ioctl.h"
+#include "freertos/can_ioctl.h"
 
 #define MCP2515_DEBUG 0
 #define MCP2515_NULL_TX 0

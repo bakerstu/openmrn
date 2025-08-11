@@ -34,12 +34,12 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_CAN_HXX_
 #define _FREERTOS_DRIVERS_COMMON_CAN_HXX_
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #include "can_frame.h"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
 #include "executor/Notifiable.hxx"
-#include "DeviceBuffer.hxx"
+#include "freertos_drivers/common/DeviceBuffer.hxx"
 
 /** Private data for a can device */
 class Can : public NonBlockNode

@@ -44,7 +44,7 @@ using CanBase = openmrn_arduino::Can;
 using CanBase = ::Can;
 #endif
 
-#include "stm32f_hal_conf.hxx"
+#include "freertos_drivers/st/stm32f_hal_conf.hxx"
 
 /// Max possible number of CAN ifs across the whole STM32 -- the constructor
 /// will calculate the actual max for the specific chip compiling for

@@ -35,14 +35,14 @@
 #define _FREERTOS_DRIVERS_COMMON_TCAN4550CAN_HXX_
 
 #include "Can.hxx"
-#include "DummyGPIO.hxx"
-#include "SPI.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
+#include "freertos_drivers/common/SPI.hxx"
 
 #include "os/Gpio.hxx"
 #include "os/OS.hxx"
 #include "utils/Atomic.hxx"
 
-#include "can_ioctl.h"
+#include "freertos/can_ioctl.h"
 
 #define TCAN4550_DEBUG 0
 

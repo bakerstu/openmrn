@@ -34,7 +34,7 @@
 
 #include "LPC11xx.h"
 #include "core_cm0.h"
-#include "FreeRTOSConfig.h"
+#include "freertos/FreeRTOSConfig.h"
 
 #if defined(__cplusplus)
 #ifdef __REDLIB__

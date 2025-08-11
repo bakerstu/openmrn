@@ -33,7 +33,7 @@
 
 #include <stdint.h>
 
-#include "bootloader_hal.h"
+#include "openlcb/bootloader_hal.h"
 /* we define this our selves because TivaWare forces us to otherwise bring in 
  * a device specific header to define this.  We want to keep this file generic
  * to all Cortex-M based TI MCU's

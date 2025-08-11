@@ -45,9 +45,9 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
-#include "TivaDev.hxx"
-#include "TivaDCC.hxx"
-#include "DummyGPIO.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
+#include "freertos_drivers/ti/TivaDCC.hxx"
+#include "freertos_drivers/common/DummyGPIO.hxx"
 
 struct Debug {
   // High between start_cutout and end_cutout from the TivaRailcom driver.
@@ -64,7 +64,7 @@ struct Debug {
   // application.
   typedef DummyPin RailcomPackets;
 };
-#include "TivaRailcom.hxx"
+#include "freertos_drivers/ti/TivaRailcom.hxx"
 
 /** override stdin */
 const char *STDIN_DEVICE = "/dev/ser0";

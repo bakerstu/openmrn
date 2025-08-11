@@ -43,7 +43,7 @@
 #ifdef __FreeRTOS__
 #include "freertos/can_ioctl.h"
 #else
-#include "can_ioctl.h"
+#include "freertos/can_ioctl.h"
 #endif
 #include "freertos_drivers/common/SimpleLog.hxx"
 #include "dcc/packet.h"

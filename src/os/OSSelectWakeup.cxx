@@ -113,7 +113,7 @@ int OSSelectWakeup::select(int nfds, fd_set *readfds,
 }
 
 #ifdef ESP_PLATFORM
-#include "freertos_includes.h"
+#include "freertos/freertos_includes.h"
 
 #include <esp_system.h>
 #include <esp_vfs.h>

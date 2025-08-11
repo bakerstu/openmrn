@@ -34,7 +34,7 @@
 #ifndef _FREERTOS_DRIVERS_ST_STM32F0xxEEPROMEMULATION_HXX_
 #define _FREERTOS_DRIVERS_ST_STM32F0xxEEPROMEMULATION_HXX_
 
-#include "EEPROMEmulation.hxx"
+#include "freertos_drivers/common/EEPROMEmulation.hxx"
 
 /** Emulates EEPROM in FLASH for the STM32F0xx platform.  The EEPROM file size
  * is limited to the @ref SECTOR_SIZE / 2.  For the STM32, the erase size is

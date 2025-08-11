@@ -35,7 +35,7 @@
 #include "utils/logging.h"
 
 #include "mbed.h"
-#include "FreeRTOSConfig.h"
+#include "freertos/FreeRTOSConfig.h"
 //#include "src/base.h"
 //#include "src/automata_control.h"
 

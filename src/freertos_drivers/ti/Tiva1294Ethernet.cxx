@@ -59,15 +59,15 @@
 #include "driverlib/emac.h"
 #include "driverlib/flash.h"
 
-#include "FreeRTOSConfig.h"
+#include "freertos/FreeRTOSConfig.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
 #include "semphr.h"
 #include "timers.h"
 
-#include "Tiva1294Ethernet.hxx"
-#include "FreeRTOSIPConfig.h"
+#include "freertos_drivers/ti/Tiva1294Ethernet.hxx"
+#include "freertos/FreeRTOSIPConfig.h"
 #include "FreeRTOS_IP.h"
 #include "NetworkInterface.h"
 #include "NetworkBufferManagement.h"

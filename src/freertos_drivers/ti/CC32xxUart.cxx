@@ -45,7 +45,7 @@
 #include "freertos/tc_ioctl.h"
 #include "executor/Notifiable.hxx"
 
-#include "CC32xxUart.hxx"
+#include "freertos_drivers/ti/CC32xxUart.hxx"
 
 /** Instance pointers help us get context from the interrupt handler(s) */
 static CC32xxUart *instances[2] = {NULL};

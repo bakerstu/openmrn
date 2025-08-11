@@ -32,12 +32,12 @@
  */
 
 
-#include "CpuLoad.hxx"
+#include "freertos_drivers/common/CpuLoad.hxx"
 
 #ifdef OPENMRN_FEATURE_THREAD_FREERTOS
 
 #include "os/os.h"
-#include "freertos_includes.h"
+#include "freertos/freertos_includes.h"
 
 #ifdef ESP_PLATFORM
 #include "sdkconfig.h"

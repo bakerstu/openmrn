@@ -31,7 +31,7 @@
  * @date 21 January 2015
  */
 
-#include "TivaEEPROMEmulation.hxx"
+#include "freertos_drivers/ti/TivaEEPROMEmulation.hxx"
 
 #include <cstring>
 

@@ -31,11 +31,11 @@
  * @date 24 June 2015
  */
 
-#include "Stm32EEPROMEmulation.hxx"
+#include "freertos_drivers/st/Stm32EEPROMEmulation.hxx"
 
 #include <cstring>
 
-#include "stm32f_hal_conf.hxx"
+#include "freertos_drivers/st/stm32f_hal_conf.hxx"
 
 #if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
  || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \

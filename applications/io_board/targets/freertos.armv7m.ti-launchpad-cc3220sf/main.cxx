@@ -46,7 +46,7 @@
 #include "config.hxx"
 #include "hardware.hxx"
 
-#include "CC32xxWiFi.hxx"
+#include "freertos_drivers/net_cc32xx/CC32xxWiFi.hxx"
 #include "utils/stdio_logging.h"
 
 // These preprocessor symbols are used to select which physical connections

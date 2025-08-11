@@ -43,7 +43,7 @@
 #ifdef __FreeRTOS__
 #include "freertos/can_ioctl.h"
 #elif defined(ESP32)
-#include "can_ioctl.h"
+#include "freertos/can_ioctl.h"
 #endif
 
 #include "openlcb/ConfigUpdateFlow.hxx"

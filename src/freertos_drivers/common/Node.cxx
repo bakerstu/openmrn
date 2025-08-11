@@ -31,12 +31,12 @@
  * @date 31 January 2015
  */
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 
 #include <algorithm>
 #include <sys/stat.h>
 
-#include "can_ioctl.h"
+#include "freertos/can_ioctl.h"
 #include "executor/Notifiable.hxx"
 
 /** Open method */

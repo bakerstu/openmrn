@@ -38,7 +38,7 @@
 #include <cstdint>
 
 
-#include "stm32f_hal_conf.hxx"
+#include "freertos_drivers/st/stm32f_hal_conf.hxx"
 
 #include "stm32g0xx_ll_spi.h"
 

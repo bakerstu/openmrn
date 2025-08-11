@@ -52,7 +52,7 @@
 #include "config.hxx"
 #include "hardware.hxx"
 
-#include "CC32xxWiFi.hxx"
+#include "freertos_drivers/net_cc32xx/CC32xxWiFi.hxx"
 #include "freertos_drivers/common/WifiDefs.hxx"
 #include "console/FileCommands.hxx"
 

@@ -33,11 +33,11 @@
 
 #include <fcntl.h>
 #include <unistd.h>
-#include "stropts.h"
+#include "freertos/stropts.h"
 #include "i2c.h"
 #include "i2c-dev.h"
 
-#include "PWM.hxx"
+#include "freertos_drivers/common/PWM.hxx"
 
 
 #include "os/OS.hxx"

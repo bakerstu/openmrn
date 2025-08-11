@@ -1,7 +1,7 @@
 #ifndef _HARDWARE_HXX_
 #define _HARDWARE_HXX_
 
-#include "Stm32Gpio.hxx"
+#include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "utils/GpioInitializer.hxx"
 
 GPIO_PIN(SW1, GpioInputPD, A, 0);

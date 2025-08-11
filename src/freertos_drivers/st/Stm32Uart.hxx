@@ -36,9 +36,9 @@
 
 #include <cstdint>
 
-#include "stm32f_hal_conf.hxx"
+#include "freertos_drivers/st/stm32f_hal_conf.hxx"
 
-#include "Serial.hxx"
+#include "freertos_drivers/common/Serial.hxx"
 
 #if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx)
   #define NUM_USART 1

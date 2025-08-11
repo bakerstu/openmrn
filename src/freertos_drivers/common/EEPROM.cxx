@@ -31,7 +31,7 @@
  * @date 22 January 2015
  */
 
-#include "EEPROM.hxx"
+#include "freertos_drivers/common/EEPROM.hxx"
 
 #include <fcntl.h>
 

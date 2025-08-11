@@ -1,4 +1,4 @@
-#include "FreeRTOSConfig.h"
+#include "freertos/FreeRTOSConfig.h"
 #include "os/OS.hxx"
 
 #include "stm32f10x.h"

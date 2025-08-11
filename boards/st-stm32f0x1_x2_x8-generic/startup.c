@@ -34,7 +34,7 @@
 
 #include <stdint.h>
 
-#include "FreeRTOSConfig.h"
+#include "freertos/FreeRTOSConfig.h"
 
 /* prototypes */
 extern unsigned long *__stack;

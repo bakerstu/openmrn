@@ -36,7 +36,7 @@
 #ifndef _FREERTOS_DRIVERS_PIC32MX_PIC32MXUART_HXX_
 #define _FREERTOS_DRIVERS_PIC32MX_PIC32MXUART_HXX_
 
-#include "Serial.hxx"
+#include "freertos_drivers/common/Serial.hxx"
 #include "peripheral/uart.h"
 
 extern "C"

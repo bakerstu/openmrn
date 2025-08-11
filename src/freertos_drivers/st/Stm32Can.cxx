@@ -33,13 +33,13 @@
 
 #if (!defined(ARDUINO)) || defined(ARDUINO_ARCH_STM32)
 
-#include "Stm32Can.hxx"
+#include "freertos_drivers/st/Stm32Can.hxx"
 
 #include <stdint.h>
 
-#include "can_ioctl.h"
+#include "freertos/can_ioctl.h"
 
-#include "stm32f_hal_conf.hxx"
+#include "freertos_drivers/st/stm32f_hal_conf.hxx"
 
 #if defined (STM32F072xB) || defined (STM32F091xC)
 

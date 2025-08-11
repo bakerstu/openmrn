@@ -36,9 +36,9 @@
 
 
 
-#include "BlockOrWakeUp.hxx"
-#include "SimpleLog.hxx"
-#include "Devtab.hxx"
+#include "freertos_drivers/common/BlockOrWakeUp.hxx"
+#include "freertos_drivers/common/SimpleLog.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
 #include "i2c.h"
