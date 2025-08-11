@@ -390,10 +390,6 @@ public:
     {
         for (auto *e : loopMembers_)
         {
-#if defined(ESP32) && CONFIG_TASK_WDT
-            // Feed the watchdog so it doesn't reset the ESP32
-            esp_task_wdt_reset();
-#endif // ESP32 && CONFIG_TASK_WDT
             e->run();
         }
     }
