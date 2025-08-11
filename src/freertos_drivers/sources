@@ -27,6 +27,7 @@ CXXSRCS += Fileio.cxx \
            PCA9685PWM.cxx \
            SN74HC595GPO.cxx \
            TCAN4550Can.cxx \
+           MCAN.cxx \
            SPIFlash.cxx
            
 

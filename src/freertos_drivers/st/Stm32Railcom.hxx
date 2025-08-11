@@ -214,7 +214,7 @@ private:
     }
 
     // File node interface
-    void enable() OVERRIDE
+    void enable() override
     {
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
@@ -270,16 +270,17 @@ private:
     void feedback_sample() override
     {
         HW::enable_measurement(true);
-        this->add_sample(HW::sample());
+        auto s = HW::sample();
         HW::disable_measurement();
+        this->add_sample(s);
     }
 
     void start_cutout() override
     {
+        Debug::RailcomRxActivate::set(true);
         HW::enable_measurement(false);
         const bool need_ch1_cutout =
             HW::need_ch1_cutout() || (this->feedbackKey_ < 11000);
-        Debug::RailcomRxActivate::set(true);
         for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
         {
             while (LL_USART_IsActiveFlag_RXNE(uart(i)))
@@ -287,7 +288,10 @@ private:
                 uint8_t data = uart(i)->RDR;
                 (void)data;
             }
-            returnedPackets_[i] = this->alloc_new_packet(i);
+            if (!returnedPackets_[i])
+            {
+                returnedPackets_[i] = this->alloc_new_packet(i);
+            }
             if (need_ch1_cutout && returnedPackets_[i])
             {
                 LL_USART_EnableDMAReq_RX(uart(i));
@@ -400,13 +404,7 @@ private:
         {
             // Ensures that at least one feedback packet is sent back even when
             // it is with no railcom payload.
-            auto *p = this->alloc_new_packet(15);
-            if (p)
-            {
-                this->feedbackQueue_.commit_back();
-                Debug::RailcomPackets::toggle();
-                HAL_NVIC_SetPendingIRQ(HW::OS_INTERRUPT);
-            }
+            no_cutout();
         }
         Debug::RailcomCh2Data::set(false);
         Debug::RailcomDriverCutout::set(false);
@@ -423,6 +421,26 @@ private:
             Debug::RailcomPackets::toggle();
             HAL_NVIC_SetPendingIRQ(HW::OS_INTERRUPT);
         }
+    }
+
+    /// @copydoc RailcomDriver::set_feedback_key()
+    ///
+    /// This implementation also preallocates storage for returned packets for
+    /// CHANNEL_COUNT entries. Since the packet allocation can take a few usec,
+    /// doing it here, ahead of time can avoid running out of time starting
+    /// the cutout.
+    void set_feedback_key(uint32_t key) override
+    {
+        Debug::RailComAllocPacketTiming::set(true);
+        RailcomDriverBase<HW>::set_feedback_key(key);
+        for (unsigned i = 0; i < HW::CHANNEL_COUNT; ++i)
+        {
+            if (!returnedPackets_[i])
+            {
+                returnedPackets_[i] = this->alloc_new_packet(i);
+            }
+        }
+        Debug::RailComAllocPacketTiming::set(false);
     }
 };
 
