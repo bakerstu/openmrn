@@ -410,7 +410,7 @@ public:
     {
 #if defined(ESP32) && CONFIG_TASK_WDT
         uint32_t current_core = xPortGetCoreID();
-        TaskHandle_t idleTask = xTaskGetIdleTaskHandleForCPU(current_core);
+        TaskHandle_t idleTask = xTaskGetIdleTaskHandleForCore(current_core);
         // check if watchdog is enabled and print a warning if it is
         if (esp_task_wdt_status(idleTask) == ESP_OK)
         {
@@ -434,7 +434,22 @@ public:
 #if CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
         // Remove IDLE0 task watchdog, because the openmrn task sometimes
         // uses 100% cpu and it is pinned to CPU 0.
-        disableCore0WDT();
+        {
+            esp_task_wdt_config_t twdt_config = {
+                .timeout_ms = CONFIG_ESP_TASK_WDT_TIMEOUT_S * 1000,
+                .idle_core_mask = 0,
+#if CONFIG_ESP_TASK_WDT_PANIC
+                .trigger_panic = true,
+#endif
+            };
+#if CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0
+            // core 0 should not be checked ever.
+#endif
+#if CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1
+            twdt_config.idle_core_mask |= (1 << 1);
+#endif
+            ESP_ERROR_CHECK(esp_task_wdt_reconfigure(&twdt_config));
+        }
 #endif // CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
         xTaskCreatePinnedToCore(&thread_entry         // entry point
                               , "OpenMRN"             // task name
