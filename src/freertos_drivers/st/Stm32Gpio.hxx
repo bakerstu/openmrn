@@ -39,7 +39,7 @@
 #include "freertos_drivers/common/GpioWrapper.hxx"
 #include "os/Gpio.hxx"
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 /// Static GPIO implementation for the STM32 microcontrollers. Do not use
 /// directly: use @ref GPIO_PIN macro.

@@ -34,7 +34,7 @@
 
 #include <stdint.h>
 
-#include "freertos/FreeRTOSConfig.h"
+#include "FreeRTOSConfig.h"
 #include "utils/macros.h"
 
 /* prototypes */

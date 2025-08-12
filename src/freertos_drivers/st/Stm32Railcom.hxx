@@ -36,7 +36,7 @@
 #ifndef _FREERTOS_DRIVERS_ST_STM32RAILCOM_HXX_
 #define _FREERTOS_DRIVERS_ST_STM32RAILCOM_HXX_
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 #include "freertos_drivers/common/RailcomImpl.hxx"
 

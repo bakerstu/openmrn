@@ -37,9 +37,9 @@
 
 #include <stdint.h>
 
-#include "freertos/can_ioctl.h"
+#include "can_ioctl.h"
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 #if defined (STM32F072xB) || defined (STM32F091xC)
 

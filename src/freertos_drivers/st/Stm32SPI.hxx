@@ -38,7 +38,7 @@
 
 #include "freertos_drivers/common/SPI.hxx"
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 /** Specialization of SPI driver for STM32 devices.
  */

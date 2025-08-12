@@ -35,7 +35,7 @@
 
 #include <stdint.h>
 
-#include "freertos/FreeRTOSConfig.h"
+#include "FreeRTOSConfig.h"
 
 /* prototypes */
 extern void watchdog_interrupt_handler(void);

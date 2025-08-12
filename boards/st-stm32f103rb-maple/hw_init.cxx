@@ -1,4 +1,4 @@
-#include "freertos/FreeRTOSConfig.h"
+#include "FreeRTOSConfig.h"
 #include "os/OS.hxx"
 
 #include <wirish/wirish.h>

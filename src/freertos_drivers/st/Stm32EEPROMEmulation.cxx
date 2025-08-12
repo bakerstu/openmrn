@@ -35,7 +35,7 @@
 
 #include <cstring>
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 #if defined (STM32F030x6) || defined (STM32F031x6) || defined (STM32F038xx) \
  || defined (STM32F030x8) || defined (STM32F030xC) || defined (STM32F042x6) \

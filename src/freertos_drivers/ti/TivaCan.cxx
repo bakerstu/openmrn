@@ -33,7 +33,7 @@
 
 #include <stdint.h>
 
-#include "freertos/can_ioctl.h"
+#include "can_ioctl.h"
 #include "driverlib/can.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/rom.h"

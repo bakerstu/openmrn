@@ -36,7 +36,7 @@
 #include <new>
 #include <cstdint>
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 #include "stm32l4xx_hal.h"
 
 #include "os/OS.hxx"

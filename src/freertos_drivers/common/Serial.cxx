@@ -35,7 +35,7 @@
 #include <fcntl.h>
 #include "freertos_drivers/common/Devtab.hxx"
 #include "freertos_drivers/common/Serial.hxx"
-#include "freertos/can_ioctl.h"
+#include "can_ioctl.h"
 
 /** Flush the receive and transmit buffers for this device.
  */

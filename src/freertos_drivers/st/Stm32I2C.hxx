@@ -38,7 +38,7 @@
 
 #include "freertos_drivers/common/I2C.hxx"
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 /** Specialization of I2C driver for STM32 devices.
  */

@@ -71,7 +71,7 @@
 #include <stdint.h>
 
 #include "can_frame.h"
-#include "freertos/can_ioctl.h"
+#include "can_ioctl.h"
 #include "executor/Notifiable.hxx"
 #include "freertos_drivers/common/DeviceBuffer.hxx"
 #include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"

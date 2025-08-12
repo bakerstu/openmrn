@@ -42,7 +42,7 @@
 #include "os/OS.hxx"
 #include "utils/Atomic.hxx"
 
-#include "freertos/can_ioctl.h"
+#include "can_ioctl.h"
 
 #define TCAN4550_DEBUG 0
 

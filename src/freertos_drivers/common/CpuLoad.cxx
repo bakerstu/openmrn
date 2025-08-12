@@ -37,7 +37,7 @@
 #ifdef OPENMRN_FEATURE_THREAD_FREERTOS
 
 #include "os/os.h"
-#include "freertos/freertos_includes.h"
+#include "freertos_includes.h"
 
 #ifdef ESP_PLATFORM
 #include "sdkconfig.h"

@@ -36,7 +36,7 @@
 
 #include "freertos_drivers/st/Stm32RailcomSender.hxx"
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 /// Called at the beginning of the first window.
 void Stm32RailcomSender::start_cutout()

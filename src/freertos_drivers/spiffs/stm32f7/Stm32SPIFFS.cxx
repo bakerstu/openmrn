@@ -35,7 +35,7 @@
 
 #include "freertos_drivers/spiffs/stm32f7/Stm32SPIFFS.hxx"
 #include "spiffs.h"
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 //
 // Stm32SPIFFS::flash_read()

@@ -33,7 +33,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>
-#include "freertos/stropts.h"
+#include "stropts.h"
 #include "i2c.h"
 #include "i2c-dev.h"
 

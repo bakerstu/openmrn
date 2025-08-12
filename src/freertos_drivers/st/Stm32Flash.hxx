@@ -37,7 +37,7 @@
 
 #include "utils/logging.h"
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 /// Strategy module for finding flash erase sector numbers when the sectors are
 /// constant size.

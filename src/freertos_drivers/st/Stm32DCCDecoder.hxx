@@ -32,11 +32,11 @@
  * @date 9 Apr 2020
  */
 
-#include "freertos/FreeRTOSConfig.h"
+#include "FreeRTOSConfig.h"
 #include "freertos_drivers/st/Stm32Gpio.hxx"
 #include "freertos_drivers/common/DccDecoder.hxx"
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 typedef DummyPin PIN_RailcomCutout;
 

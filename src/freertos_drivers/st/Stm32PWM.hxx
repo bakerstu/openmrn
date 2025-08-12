@@ -37,7 +37,7 @@
 #include "freertos_drivers/common/PWM.hxx"
 #include "utils/Uninitialized.hxx"
 
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
 /// Set of 4 PWM channels that belong to a single timer resource in the STM32
 /// microcontrollers. Note that the different channels are tied to be using the

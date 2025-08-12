@@ -36,9 +36,9 @@
 #include "freertos_drivers/st/Stm32Uart.hxx"
 
 #include "freertos/tc_ioctl.h"
-#include "freertos_drivers/st/stm32f_hal_conf.hxx"
+#include "stm32f_hal_conf.hxx"
 
-#include "freertos/FreeRTOSConfig.h"
+#include "FreeRTOSConfig.h"
 
 // static
 uint8_t Stm32Uart::interrupt3_to_8EnableCnt = 0;

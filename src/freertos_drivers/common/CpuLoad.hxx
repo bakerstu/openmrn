@@ -44,7 +44,7 @@
 #include "utils/SimpleQueue.hxx"
 #include "utils/Singleton.hxx"
 #include "utils/StringPrintf.hxx"
-#include "freertos/freertos_includes.h"
+#include "freertos_includes.h"
 
 extern "C" {
     /// Call this function repeatedly from a hardware timer to feed the CPUload

@@ -36,7 +36,7 @@
 #include <algorithm>
 #include <sys/stat.h>
 
-#include "freertos/can_ioctl.h"
+#include "can_ioctl.h"
 #include "executor/Notifiable.hxx"
 
 /** Open method */

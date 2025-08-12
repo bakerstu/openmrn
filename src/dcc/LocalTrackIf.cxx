@@ -44,7 +44,7 @@
 #ifdef __FreeRTOS__
 #include "freertos/can_ioctl.h"
 #else
-#include "freertos/can_ioctl.h"
+#include "can_ioctl.h"
 #endif
 
 #endif // OPENMRN_FEATURE_FD_CAN_DEVICE

@@ -43,7 +43,7 @@
 #include "os/Gpio.hxx"
 #include "os/OS.hxx"
 
-#include "freertos/can_ioctl.h"
+#include "can_ioctl.h"
 
 #define MCP2515_DEBUG 0
 #define MCP2515_NULL_TX 0

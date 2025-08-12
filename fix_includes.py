@@ -45,12 +45,17 @@ def process_file(filepath, header_map):
 
             filename = os.path.basename(include_path)
 
-            if filename == 'endian.h':
+            if filename == 'endian.h' or filename == 'stm32f_hal_conf.hxx':
                 new_lines.append(line)
                 continue
 
             if filename in header_map and len(header_map[filename]) == 1:
                 new_include_path = header_map[filename][0]
+
+                if 'include/freertos/' in new_include_path:
+                    new_lines.append(line)
+                    continue
+
                 if new_include_path.startswith('src/'):
                     new_include_path = new_include_path[len('src/'):]
                 elif new_include_path.startswith('include/'):

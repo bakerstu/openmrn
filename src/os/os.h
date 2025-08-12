@@ -45,7 +45,7 @@
 #include "openmrn_features.h"
 
 #if OPENMRN_FEATURE_MUTEX_FREERTOS
-#include "freertos/freertos_includes.h"
+#include "freertos_includes.h"
 #endif
 #if OPENMRN_FEATURE_DEVICE_SELECT
 #include <event_groups.h>
