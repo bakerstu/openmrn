@@ -535,9 +535,9 @@ OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
 #if OPENMRN_FEATURE_MUTEX_FREERTOS
     if (mutex->sem == NULL)
     {
-        bool need_scheduler =
+        bool task_scheduler_running =
             (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING);
-        if (need_scheduler)
+        if (task_scheduler_running)
         {
             vTaskSuspendAll();
         }
@@ -552,7 +552,7 @@ OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
                 mutex->sem = xSemaphoreCreateMutex();
             }
         }
-        if (need_scheduler)
+        if (task_scheduler_running)
         {
             xTaskResumeAll();
         }
