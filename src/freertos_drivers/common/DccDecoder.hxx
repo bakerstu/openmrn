@@ -37,6 +37,7 @@
 #include "dcc/Receiver.hxx"
 #include "dcc/PacketProcessor.hxx"
 #include "dcc/packet.h"
+#include "os/sleep.h"
 
 struct DccDecoderDefs
 {

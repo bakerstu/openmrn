@@ -535,7 +535,7 @@ OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
 #if OPENMRN_FEATURE_MUTEX_FREERTOS
     if (mutex->sem == NULL)
     {
-        bool task_scheduler_running =
+        int task_scheduler_running =
             (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING);
         if (task_scheduler_running)
         {
