@@ -387,13 +387,12 @@ int EspIdfWiFiBase::mdns_lookup(
                     // elsewhere.
                     continue;
                 }
-                current = (struct addrinfo*)memp_malloc(MEMP_NETDB);
+                current = allocaddrinfo();
                 if (!current)
                 {
                     // Out of memory in the pool
                     break;
                 }
-                memset(current, 0, total_size);
                 if (last)
                 {
                     // Link the last item to us.
@@ -414,8 +413,6 @@ int EspIdfWiFiBase::mdns_lookup(
                 HASSERT(ca->family_ == AF_INET);
     #endif
                 current->ai_family = ca->family_;
-                current->ai_addrlen = sizeof(struct sockaddr_storage);
-                current->ai_addr = (struct sockaddr*)(current + 1);
                 memcpy(current->ai_addr, &ca->addr_, addr_len);
                 last = current;
                 LOG(VERBOSE, "wifi: mdns_lookup() address: %s, port: %u",
@@ -469,15 +466,11 @@ int EspIdfWiFiBase::mdns_lookup(
         if (results)
         {
             // Only return one result.
-            struct addrinfo *addr_info =
-                (struct addrinfo*)memp_malloc(MEMP_NETDB);
+            struct addrinfo *addr_info = allocaddrinfo();
             if (addr_info == nullptr)
             {
                 return EAI_MEMORY;
             }
-            memset(addr_info, 0, total_size);
-                    addr_info->ai_addrlen = sizeof(struct sockaddr_storage);
-            addr_info->ai_addr = (struct sockaddr*)((addr_info) + 1);
             struct sockaddr_in *addr_in =
                 (struct sockaddr_in*)addr_info->ai_addr;
 #if defined(ESP_IDF_WIFI_IPV6)
@@ -899,6 +892,34 @@ void EspIdfWiFiBase::mdns_scanning_start_or_trigger_refresh()
         this->service()->executor()->add(e);
         LOG(VERBOSE, "wifi: mdns_scan() trigger.");
     }
+}
+
+//
+// EspIdfWiFiBase::allocaddrinfo()
+//
+struct addrinfo *EspIdfWiFiBase::allocaddrinfo()
+{
+    // The caller is expected to free the struct addrinfo using the method
+    // freeaddrinfo(). In the lwIP implementation, they use a special buffer
+    // pool to free the struct addrinfo to. Therefore, we must also allocate
+    // from the same pool.
+    #if !defined(LWIP_HDR_MEMP_H)
+    #error "lwIP memory pool implementation required and not found."
+    #endif
+
+    constexpr size_t total_size =
+        sizeof(struct addrinfo) + sizeof(struct sockaddr_storage);
+    static_assert(
+        total_size <= NETDB_ELEM_SIZE, "total_size > NETDB_ELEM_SIZE");
+
+    struct addrinfo *addr_info = (struct addrinfo*)memp_malloc(MEMP_NETDB);
+    if (addr_info)
+    {
+        memset(addr_info, 0, total_size);
+        addr_info->ai_addrlen = sizeof(struct sockaddr_storage);
+        addr_info->ai_addr = (struct sockaddr*)((addr_info) + 1);
+    }
+    return addr_info;
 }
 
 //

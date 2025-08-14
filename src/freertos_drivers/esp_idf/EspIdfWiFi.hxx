@@ -638,6 +638,18 @@ private:
     /// Note: This API should be called only while holding the lock_ mutex.
     void mdns_scanning_start_or_trigger_refresh();
 
+    /// Allocate a struct addrinfo compatible with freeaddrinfo(). Also
+    /// initializes the addrinfo.ai_addr member to allocated memory.
+    ///
+    /// 1. The allocated memory is initialized to zero.
+    /// 2. addrinfo.ai_addrlen is set to sizeof(struct sockaddr_storage)
+    /// 3. addrinfo.ai_addr is set to valid allocated memory of
+    ///    sizeof(sockaddr_storage), large enough to hold either a
+    ///    struct sockaddr_in or struct sockaddr_in6.
+    ///
+    /// @return allocated struct addrinfo upon success
+    static struct addrinfo *allocaddrinfo();
+
     /// Static callback for the ESP event handler.
     /// @param arg passed in context (this pointer)
     /// @param base event base
