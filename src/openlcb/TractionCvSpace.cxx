@@ -140,7 +140,7 @@ size_t TractionCvSpace::read(const address_t source, uint8_t *dst, size_t len,
         }
         // Translate from user-visible CV to wire protocol CV.
         cv = lastIndexedCv_ - 1;
-        // fall through
+        // fall through to regular processing
     }
     if (source < OFFSET_CV_INDEX)
     {
@@ -362,7 +362,7 @@ size_t TractionCvSpace::write(address_t destination, const uint8_t *src,
         }
         // Translate from user-visible CV to wire protocol CV.
         destination = lastIndexedCv_ - 1;
-        // fall through
+        // fall through to regular processing
     }
     LOG(INFO, "cv write %" PRIu32 " := %d", destination, *src);
     if (destination > MAX_CV)
