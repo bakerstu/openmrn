@@ -34,12 +34,12 @@
 #ifndef _FREERTOS_DRIVERS_COMMON_SERIAL_HXX_
 #define _FREERTOS_DRIVERS_COMMON_SERIAL_HXX_
 
-#include "BlockOrWakeUp.hxx"
-#include "SimpleLog.hxx"
-#include "Devtab.hxx"
+#include "freertos_drivers/common/BlockOrWakeUp.hxx"
+#include "freertos_drivers/common/SimpleLog.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 #include "nmranet_config.h"
 #include "os/OS.hxx"
-#include "DeviceBuffer.hxx"
+#include "freertos_drivers/common/DeviceBuffer.hxx"
 
 /** Private data for a serial device */
 class Serial : public Node

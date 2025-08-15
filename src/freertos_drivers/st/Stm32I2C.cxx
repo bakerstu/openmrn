@@ -33,7 +33,7 @@
  * @date 28 Oct 2018
  */
 
-#include "Stm32I2C.hxx"
+#include "freertos_drivers/st/Stm32I2C.hxx"
 
 #if defined(STM32F072xB) || defined(STM32F091xC)
 #include "stm32f0xx_ll_rcc.h"

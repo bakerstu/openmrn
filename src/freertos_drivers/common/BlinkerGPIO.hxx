@@ -37,7 +37,7 @@
 
 #include "utils/blinker.h"
 #include "os/Gpio.hxx"
-#include "GpioWrapper.hxx"
+#include "freertos_drivers/common/GpioWrapper.hxx"
 
 /** GPIO-abstraction implementation for the blinker bit. This allows a
  * GPIO-style usage of the LED that is controlled by the blinker code in the

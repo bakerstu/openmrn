@@ -47,12 +47,12 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "os/OS.hxx"
-#include "TivaDev.hxx"
+#include "freertos_drivers/ti/TivaDev.hxx"
 #include "hardware.hxx"
-#include "TivaEEPROMEmulation.hxx"
-#include "TivaDCCDecoder.hxx"
-#include "TivaRailcom.hxx"
-#include "bootloader_hal.h"
+#include "freertos_drivers/ti/TivaEEPROMEmulation.hxx"
+#include "freertos_drivers/ti/TivaDCCDecoder.hxx"
+#include "freertos_drivers/ti/TivaRailcom.hxx"
+#include "openlcb/bootloader_hal.h"
 
 //#define ERASE_ALL_EEPROM
 
