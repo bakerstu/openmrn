@@ -340,17 +340,17 @@ void EspIdfWiFiBase::mdns_service_remove(const char *service)
 int EspIdfWiFiBase::mdns_lookup(
     const char *service, struct addrinfo *hints, struct addrinfo **addr)
 {
-    constexpr size_t total_size =
-        sizeof(struct addrinfo) + sizeof(struct sockaddr_storage);
-    static_assert(
-        total_size <= NETDB_ELEM_SIZE, "total_size > NETDB_ELEM_SIZE");
+    *addr = nullptr;
+    if (!initialized_)
+    {
+        return EAI_AGAIN;
+    }
 
     bool looking = false;
-    *addr = nullptr;
-    uint32_t now_sec;
     {
+        // Check the cache.
         OSMutexLock locker(&lock_);
-        now_sec = NSEC_TO_SEC(OSTime::get_monotonic());
+        uint32_t now_sec = NSEC_TO_SEC(OSTime::get_monotonic());
         for (auto it = mdnsClientCache_.begin(); it != mdnsClientCache_.end();
             ++it)
         {
@@ -374,13 +374,6 @@ int EspIdfWiFiBase::mdns_lookup(
 
             for (auto lit = it->addr_.begin(); lit != it->addr_.end(); ++lit)
             {
-    // The caller is expected to free the struct addrinfo using the method
-    // freeaddrinfo. In the lwIP implementation, they use a special buffer pool
-    // to free the struct addrinfo to. Therefore, we must also allocate from the
-    // same pool.
-    #if !defined(LWIP_HDR_MEMP_H)
-    #error "lwIP memory pool implementation required and not found."
-    #endif
                 if ((now_sec - lit->timestamp_) > lit->ttl_)
                 {
                     // Address has expired. It will be removed from the list
@@ -429,7 +422,13 @@ int EspIdfWiFiBase::mdns_lookup(
     }
     if (*addr == nullptr)
     {
-        // Not found yet, do a "fast" blocking query.
+        if (looking)
+        {
+            // Already looking.
+            return EAI_AGAIN;
+        }
+
+        // Not found yet, and not looking, do a "fast" blocking query.
         std::string name;
         std::string proto;
         mdns_split(service, &name, &proto);
@@ -518,7 +517,7 @@ int EspIdfWiFiBase::mdns_lookup(
                 OSMutexLock locker(&lock_);
                 mdnsClientCache_.emplace_back(service);
                 MDNSCacheAddr ca;
-                ca.timestamp_ = now_sec;
+                ca.timestamp_ = NSEC_TO_SEC(OSTime::get_monotonic());
                 ca.ttl_ = results->ttl ? results->ttl : 1;
                 ca.family_ = (*addr)->ai_family;
                 ca.port_ = results->port;
@@ -538,12 +537,22 @@ int EspIdfWiFiBase::mdns_lookup(
         } // if (results)
         mdns_query_results_free(results);
     }
-    if (*addr == nullptr && !looking)
+    if (*addr == nullptr)
     {
-        // Start background scanning for the service.
-        mdns_scan(service);
+        // Not found.
+        if (mdnsAdvInhibitSta_ && apIface_ && staIface_)
+        {
+            // Add to background scan if, and only if:
+            //   1. there is more than one interface.
+            //   2. mDNS advertising is inhibited on the STA interface.
+            // ...otherwise, we should not get here.
+            mdns_scan(service);
+        }
+        return EAI_AGAIN;
     }
-    return EAI_AGAIN;
+
+    // Found.
+    return 0;
 }
 
 //
