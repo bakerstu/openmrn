@@ -434,13 +434,7 @@ int EspIdfWiFiBase::mdns_lookup(
         mdns_split(service, &name, &proto);
 
         // Enable mDNS on STA if required.
-        bool mdns_adv_inhibited_on_sta = false;
-        if (mdnsAdvInhibitSta_)
-        {
-            mdns_adv_inhibited_on_sta = true;
-            mdns_adv_inhibit();
-            mdns_restore_sta();
-        }
+        bool mdns_key = mdns_adv_inhibit_on_sta_maybe_disable();
 
         // Do the blocking query for 2 seconds, only 1 result.
         mdns_result_t *results;
@@ -448,11 +442,7 @@ int EspIdfWiFiBase::mdns_lookup(
             mdns_query_ptr(name.c_str(), proto.c_str(), 2000, 1, &results);
 
         // Disable mDNS on STA if required.
-        if (mdns_adv_inhibited_on_sta)
-        {
-            mdns_disable_sta();
-            mdns_adv_inhibit_remove();
-        }
+        mdns_adv_inhibit_on_sta_restore(mdns_key);
 
         // Check for an error result from the query.
         if (err != ESP_OK)
@@ -595,12 +585,7 @@ void EspIdfWiFiBase::MDNSCacheItem::reset(void *handle)
 StateFlowBase::Action EspIdfWiFiBase::mdns_start()
 {
     HASSERT(mdnsClientCache_.size() > 0);
-    if (mdnsAdvInhibitSta_)
-    {
-        mdns_adv_inhibit();
-        mdns_restore_sta();
-        mdnsAdvInhibitStaActive_ = true;
-    }
+    mdnsAdvInhibitStaActive_ = mdns_adv_inhibit_on_sta_maybe_disable();
     return call_immediately(STATE(mdns_query));
 }
 
@@ -788,12 +773,7 @@ StateFlowBase::Action EspIdfWiFiBase::mdns_check()
     {
         // No more active or pending queries. Block mDNS on the STA interface
         // and resume mDNS advertising.
-        if (mdnsAdvInhibitStaActive_)
-        {
-            mdns_disable_sta();
-            mdns_adv_inhibit_remove();
-            mdnsAdvInhibitStaActive_ = false;
-        }
+        mdns_adv_inhibit_on_sta_restore(mdnsAdvInhibitStaActive_);
         return sleep_and_call(
             &timer_, MDNS_QUERY_INACTIVE_TIMEOUT_NSEC, STATE(mdns_start));
     }

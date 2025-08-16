@@ -629,6 +629,37 @@ private:
     /// Restore mDNS status on the STA interface.
     void mdns_restore_sta();
 
+    /// Test if mDNS advertising is inhibited on STA interface. If so, disable
+    /// advertising and enable mDNS on STA. The purpose is to perform an mDNS
+    /// lookup that includes the STA interface.
+    /// @return key passed into a corresponding
+    ///         mdns_test_adv_inhibit_on_sta_restore() so that it knows if
+    ///         STA interface was previously enabled, and needs to be disabled
+    bool mdns_adv_inhibit_on_sta_maybe_disable()
+    {
+        if (mdnsAdvInhibitSta_)
+        {
+            mdns_adv_inhibit();
+            mdns_restore_sta();
+            return true;
+        }
+        return false;
+    }
+
+    /// Restore the mDNS enabled state on the STA interface and advertising of
+    /// registered services to the state prior to a previous call to
+    /// mdns_adv_inhibit_on_sta_maybe_disable()
+    /// @param key key passed back from the companion call to
+    ///        mdns_adv_inhibit_on_sta_maybe_disable()
+    void mdns_adv_inhibit_on_sta_restore(bool key)
+    {
+        if (key)
+        {
+            mdns_disable_sta();
+            mdns_adv_inhibit_remove();
+        }
+    }
+
     /// Will start the mDNS client state machine if not already started. Will
     /// Trigger the mDNS state machine to execute early if it is already
     /// started. If a query is already taking place, a new one will start
