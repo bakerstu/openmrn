@@ -35,6 +35,8 @@
 #ifndef _FREERTOS_DRIVERS_ESP_IDF_ESPIDFWIFI_HXX_
 #define _FREERTOS_DRIVERS_ESP_IDF_ESPIDFWIFI_HXX_
 
+#include <random>
+
 #include <esp_netif.h>
 
 #include "executor/Service.hxx"
@@ -109,9 +111,16 @@
 /// Note: The protected status variables in the WiFiInterface object are only
 ///       modified from the ESP event handler thread. Therefore, they do not
 ///       need an additional atomic or mutex lock.
-class EspIdfWiFiBase : public WiFiInterface, public StateFlowBase
+class EspIdfWiFiBase : public WiFiInterface
 {
 public:
+    /// Get the passed in service.
+    /// @return passed in service
+    Service *service()
+    {
+        return service_;
+    }
+
     /// Initialize the WiFi.
     void init() override
     {
@@ -332,10 +341,12 @@ protected:
     /// @param hostname hostname to publish over the network, it is be copied
     ///        over to an std::string
     EspIdfWiFiBase(Service *service, const char *hostname)
-        : StateFlowBase(service)
-        , lock_(true) // Recursive.
+        : lock_(true) // Recursive.
         , initialized_(false)
-        , timer_(this)
+        , mdnsLookupTimestamp_(-1)
+        , mdnsLookupRd_()
+        , mdnsLookupUd_(-250, 250)
+        , service_(service)
         , apIface_(nullptr)
         , staIface_(nullptr)
         , hostname_(hostname)
@@ -347,7 +358,8 @@ protected:
         , mdnsAdvInhibitSta_(false)
         , fastConnectOnlySta_(false)
     {
-        wait_and_call(STATE(mdns_start));
+        size_t h = std::hash<std::string>{}(hostname_);
+        mdnsLookupRd_.seed(h);
     }
 
     /// Trigger synchronize configuration between NVS and MemorySpace. This may
@@ -412,195 +424,16 @@ private:
         uint16_t port_; ///< service port
     }; // struct MDNSService
 
-    /// Metadata for an subscribed mDNS cashed address.
-    struct MDNSCacheAddr
-    {
-        /// Overloaded == operator.
-        /// @param other the other item to compare to
-        /// @return result of the comparison
-        bool operator==(const MDNSCacheAddr &other)
-        {
-            bool same = family_ == other.family_;
-            same &= port_ == other.port_;
-            if (family_ == AF_INET)
-            {
-                same &=
-                    addrIn_.sin_addr.s_addr == other.addrIn_.sin_addr.s_addr;
-            }
-#if defined(ESP_IDF_WIFI_IPV6)
-            else if (family_ == AF_INET6)
-            {
-                same &= 
-                    !memcmp(addrIn6_.sin6_addr.un.u32_addr,
-                        other.addrIn6_.sin6_addr.un.u32_addr,
-                        sizeof(addrIn6_.sin6_addr.un.u32_addr));
-            }
-#endif
-            return same;
-        }
-
-        /// Set the IPv4 address.
-        /// @param addr address to set
-        void set_addr(uint32_t addr)
-        {
-            addrIn_.sin_addr.s_addr = addr;
-        }
-
-#if defined(ESP_IDF_WIFI_IPV6)
-        /// Set the IPv6 address.
-        /// @param addr address to set
-        void set_addr6(uint32_t addr[4])
-        {
-           set_addr((uint8_t*)addr);
-        }
-
-        /// Set the IPv6 address.
-        /// @param addr address to set
-        void set_addr6(uint8_t *addr)
-        {
-            memcpy(addrIn6_.sin6_addr.un.u32_addr, addr,
-                sizeof(addrIn6_.sin6_addr.un.u32_addr));
-        }
-#endif
-
-        /// Get the IPv4 address.
-        /// @return address
-        uint32_t get_addr()
-        {
-            return addrIn_.sin_addr.s_addr;
-        }
-
-#if defined(ESP_IDF_WIFI_IPV6)
-        /// Get the IPv6 address.
-        /// @return address
-        const uint8_t *get_addr6()
-        {
-           return addrIn6_.sin6_addr.un.u8_addr;
-        }
-#endif
-
-        /// Compare with an IPv4 address.
-        /// @param addr IPv4 address
-        /// @return 0 if the same, non-zero if different
-        int addrcmp(uint32_t addr)
-        {
-            return addrIn_.sin_addr.s_addr - addr;
-        }
-
-#if defined(ESP_IDF_WIFI_IPV6)
-        /// Compare with an IPv6 address.
-        /// @param addr IPv6 address
-        /// @return 0 if the same, non-zero if different
-        int addr6cmp(uint32_t addr[4])
-        {
-            return addr6cmp((uint8_t*)addr);
-        }
-
-        /// Compare with an IPv6 address.
-        /// @param addr IPv6 address
-        /// @return 0 if the same, non-zero if different
-        int addr6cmp(uint8_t *addr)
-        {
-            return memcmp(addrIn6_.sin6_addr.un.u32_addr, addr,
-                sizeof(addrIn6_.sin6_addr.un.u32_addr));
-        }
-#endif
-
-        uint32_t timestamp_; ///< timestamp in seconds since last discovered
-        uint32_t ttl_; ///< time to live for the entry in seconds
-        sa_family_t family_; ///< protocol family
-        uint16_t port_; ///< port number, network endianness
-        union
-        {
-            struct sockaddr addr_; ///< address
-            struct sockaddr_in addrIn_; ///< IPv4 address
-#if defined(ESP_IDF_WIFI_IPV6)
-            struct sockaddr_in6 addrIn6_; ///< IPv6 address
-#endif
-        };
-    }; // struct MDNSCacheAddr
-
-    /// Metadata for a subscribed mDNS client.
-    struct MDNSCacheItem
-    {
-        /// Constructor.
-        /// @param service service name to look for, captured by std::move()
-        MDNSCacheItem(std::string service)
-            : service_(std::move(service))
-            , searchHandle_(nullptr)
-        {
-        }
-
-        /// Reset the search.
-        /// @param handle the new search handle value, delete previous handle
-        ///        if still valid, should be called with mutex lock
-        void reset(void *handle = nullptr);
-
-        /// Get the current search handle
-        /// @return current search handle
-        void *get()
-        {
-            return searchHandle_;
-        }
-
-        std::string service_; ///< sevice name
-        std::list<MDNSCacheAddr> addr_; ///< list of addresses
-        void *searchHandle_; ///< mDNS search once key
-    }; // struct MDNSCacheItem
-
-    /// Maximum number of MDNS results we will cache for a given service.
-    static constexpr size_t MDNS_RESULT_COUNT_MAX = 5;
-
-    /// Timeout value passed for an mDNS query in asynchronous mode.
-    static constexpr uint32_t MDNS_QUERY_ASYNC_NEW_TIMEOUT_MSEC = 700;
-
-    /// State flow timeout for checking on mDNS query results.
-    static constexpr long long MDNS_QUERY_CHECK_TIMEOUT_NSEC =
-        MSEC_TO_NSEC(100);
-
-    /// State flow timeout for inactive time between mDNS queries.
-    ///
-    /// @todo After making the mdns_lookup() blocking, this background query
-    ///       has limited utility. Ideally, we would like the mDNS to passively
-    ///       listen for results. That way a bunch of instances don't trigger
-    ///       a bunch of unnecessary mDNS traffic. However, the ESP-IDF has
-    ///       several limitations that get in our way.
-    ///       1) To enable mDNS queries on STA, mDNS advertisements also get
-    ///          enabled.
-    ///       2) It does not look like the ESP-IDF platform has any API to do
-    ///          passive scanning.
-    ///       ...therefore, for now, the inactive timeout is set very high to
-    ///       effectively disable this feature. In newer versions of the mDNS
-    ///       implementation, there is an mdns_browse_new() API. It is worth
-    ///       exploring if this can do a background search for mDNS services.
-    static constexpr long long MDNS_QUERY_INACTIVE_TIMEOUT_NSEC =
-        SEC_TO_NSEC(1200);
+    /// Time between two consecutive mDNS lookup events. Only used when there
+    /// is more than one interface and mdns advertisements are inhibited on the
+    /// STA interface. The value is purposely odd to minimize the possibility
+    /// that it lines up with another periodic activity in the system.
+    static constexpr long long MDNS_LOOKUP_BLANKING_TIME_MSEC =
+        MSEC_TO_NSEC(5157);
 
     /// Minimum RSSI threshold for an AP signal before a connection attempt
     /// will be made in STA mode.
     static constexpr int8_t STA_CONNECT_RSSI_THRESHOLD = -100;
-
-    /// Entry point. Wait for mDNS client to be invoked.
-    /// @return next state mdns_start()
-    Action mdns_wait()
-    {
-        return wait_and_call(STATE(mdns_start));
-    }
-
-    /// Start an mDNS query sequence. If mDNS advertising is inhibited in STA
-    /// mode, then inhibit advertisements during the query.
-    /// @return next state mdns_query()
-    Action mdns_start();
-
-    /// Register the mDNS queries with the mDNS client.
-    /// @return next state mdns_check() after timeout
-    Action mdns_query();
-
-    /// Check the results of the mDNS queries.
-    /// @return next state mdns_check() after timeout if there are still active
-    ///         queries, mdns_query() if another mdns_scan() was triggered,
-    ///         else mdns_start() after timeout
-    Action mdns_check();
 
     /// Split a service into its name and protocol parts
     /// @param service service, e.g. _openlcb-can._tcp
@@ -659,15 +492,6 @@ private:
             mdns_adv_inhibit_remove();
         }
     }
-
-    /// Will start the mDNS client state machine if not already started. Will
-    /// Trigger the mDNS state machine to execute early if it is already
-    /// started. If a query is already taking place, a new one will start
-    /// immediately following it. If a query it not taking place, one will be
-    /// started immediately.
-    ///
-    /// Note: This API should be called only while holding the lock_ mutex.
-    void mdns_scanning_start_or_trigger_refresh();
 
     /// Allocate a struct addrinfo compatible with freeaddrinfo(). Also
     /// initializes the addrinfo.ai_addr member to allocated memory.
@@ -795,12 +619,14 @@ private:
         const std::string &ssid, std::string *pass = nullptr,
         uint8_t *sec = nullptr, uint8_t index = 0) = 0;
 
-    StateFlowTimer timer_; ///< sleep timer helper object
+    long long mdnsLookupTimestamp_; ///< timestamp for the last mDNS lookup
+    std::mt19937 mdnsLookupRd_; ///< random distribution for mDNS query timeout
+    /// uniform distribution for mDNS query timeout
+    std::uniform_int_distribution<int16_t> mdnsLookupUd_;
+    Service *service_; ///< passed in service
     esp_netif_t *apIface_; ///< access point network interface
     esp_netif_t *staIface_; ///< station network interface
     std::vector<MDNSService> mdnsServices_; ///< registered mDNS services
-    /// Cache of all the subscribed mDNS services.
-    std::vector<MDNSCacheItem> mdnsClientCache_;
     std::list<NetworkEntry> scanResults_; ///< AP scan results
     /// Cache of the last returned entry iterator from the scanResults_
     /// list. Used for linear time iteration over the list with the existing
