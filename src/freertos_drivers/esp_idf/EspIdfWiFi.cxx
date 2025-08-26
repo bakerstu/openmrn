@@ -353,18 +353,19 @@ int EspIdfWiFiBase::mdns_lookup(
     // disable_mdns_publish_on_sta() is being utilized. In order to prevent
     // a situation where advertising is masked for too long, it is important
     // to force some dead time between queries.
-    if (mdnsLookupTimestamp_ > 0 && mdnsAdvInhibitSta_ && apIface_ && staIface_)
+    if (mdnsLookupTimestamp_ > 0 && mdnsAdvInhibitSta_ && ipAcquiredSta_)
     {
-        // 1. Not the first time through.
-        // 2. mDNS advertising is inhibited on the STA interface.
-        // 3. there is more than one interface.
+        // All of the following must be true:
+        //   1. not the first time through (mdnsLookupTimestamp_ > 0)
+        //   2. mDNS advertising is inhibited on the STA interface
+        //   3. the STA has an acquired IP (meaning it could be registered with
+        //      mDNS)
         // ...otherwise, we should not get here.
         long long now = OSTime::get_monotonic();
-        long long expires =
-            mdnsLookupTimestamp_ + MDNS_LOOKUP_BLANKING_TIME_MSEC;
         // introduce some randomness to avoid different systems lining up in
         // time.
-        expires += mdnsLookupUd_(mdnsLookupRd_);
+        long long expires =
+            mdnsLookupTimestamp_ + MSEC_TO_NSEC(mdnsLookupUd_(mdnsLookupRd_));
         if (expires > now)
         {
             // Need to add some extra blanking time between mDNS queries.
@@ -380,10 +381,10 @@ int EspIdfWiFiBase::mdns_lookup(
     // Enable mDNS on STA if required.
     bool mdns_key = mdns_adv_inhibit_on_sta_maybe_disable();
 
-    // Do the blocking query for 2 seconds, only 1 result.
+    // Do the blocking query for 1.5 seconds, only 1 result.
     mdns_result_t *results;
     esp_err_t err =
-        mdns_query_ptr(name.c_str(), proto.c_str(), 2000, 1, &results);
+        mdns_query_ptr(name.c_str(), proto.c_str(), 1500, 1, &results);
     mdnsLookupTimestamp_ = OSTime::get_monotonic();
 
     // Disable mDNS on STA if required.

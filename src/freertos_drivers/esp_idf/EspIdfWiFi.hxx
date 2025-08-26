@@ -345,7 +345,8 @@ protected:
         , initialized_(false)
         , mdnsLookupTimestamp_(-1)
         , mdnsLookupRd_()
-        , mdnsLookupUd_(-250, 250)
+        , mdnsLookupUd_(MDNS_LOOKUP_BLANKING_TIME_MIN_MSEC,
+            MDNS_LOOKUP_BLANKING_TIME_MAX_MSEC)
         , service_(service)
         , apIface_(nullptr)
         , staIface_(nullptr)
@@ -427,11 +428,16 @@ private:
     /// Time between two consecutive mDNS lookup events. Only used when there
     /// is more than one interface and mdns advertisements are inhibited on the
     /// STA interface. The value is purposely odd to minimize the possibility
-    /// that it lines up with another periodic activity in the system.
-    static constexpr long long MDNS_LOOKUP_BLANKING_TIME_MSEC =
-        MSEC_TO_NSEC(5157);
+    /// that it lines up with another periodic activity in the system. This
+    /// is the lower bound for a randomized value.
+    static constexpr int16_t MDNS_LOOKUP_BLANKING_TIME_MIN_MSEC = 3457;
 
-    /// Minimum RSSI threshold for an AP signal before a connection attempt
+    /// This is the upper bound component counterpart to
+    /// MDNS_LOOKUP_BLANKING_TIME_MIN_MSEC.
+    static constexpr int16_t MDNS_LOOKUP_BLANKING_TIME_MAX_MSEC =
+        MDNS_LOOKUP_BLANKING_TIME_MIN_MSEC + 512;
+
+        /// Minimum RSSI threshold for an AP signal before a connection attempt
     /// will be made in STA mode.
     static constexpr int8_t STA_CONNECT_RSSI_THRESHOLD = -100;
 
