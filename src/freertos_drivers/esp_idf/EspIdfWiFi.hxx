@@ -353,8 +353,6 @@ protected:
         , hostname_(hostname)
         , mdnsStaLockCount_(1) // Start disabled, enable when IP received.
         , apClientCount_(0)
-        , mdnsClientStarted_(false)
-        , mdnsClientTrigRefresh_(false)
         , mdnsAdvInhibit_(false)
         , mdnsAdvInhibitSta_(false)
         , fastConnectOnlySta_(false)
@@ -393,11 +391,9 @@ protected:
     /// - AP and STA profiles configuration
     /// - AP scan results
     /// - mDNS scanning state machine
-    ///   - mdnsClientStarted_ (are we looking for any services yet)
     ///   - mdnsAdvInhibit_ (is advertising currently blocked, so we can scan)
     ///   - mdnsAdvInhibitSta_ (should we inhibit advertising on STA interface)
     ///   - mdnsAdvInhibitStaActive_ (advertising inhibit on STA is active)
-    ///   - mdnsClientTrigRefresh_ (is there a scan refresh pending)
     ///   - mdnsStaLockCount_ (locking count STA interface, 0 = STA disabled)
     ///   - mdnsServices_ (services being advertised)
     ///   - mdnsClientCache_ (services being looked for)
@@ -650,18 +646,10 @@ private:
     // the lock_ mutex.
     //
 
-    /// mDNS client state machine started.
-    bool mdnsClientStarted_       : 1;
-    /// an mDNS client refresh has been triggered
-    bool mdnsClientTrigRefresh_   : 1;
     /// true if services are blocked from advertising
     bool mdnsAdvInhibit_          : 1;
     /// true if mDNS advertising is blocked on STA
     bool mdnsAdvInhibitSta_       : 1;
-    /// true if mdnsAdvInhibitSta_ is active
-    bool mdnsAdvInhibitStaActive_ : 1;
-    /// mDNS scanning is active
-    bool mdnsScanActive_          : 1;
     /// true if only to use fast connect credentials
     bool fastConnectOnlySta_      : 1;
 };
