@@ -35,12 +35,9 @@
 #ifndef _FREERTOS_DRIVERS_ESP_IDF_ESPIDFWIFI_HXX_
 #define _FREERTOS_DRIVERS_ESP_IDF_ESPIDFWIFI_HXX_
 
-#include <random>
-
 #include <esp_netif.h>
 
 #include "executor/Service.hxx"
-#include "executor/StateFlow.hxx"
 #include "freertos_drivers/common/WiFiInterface.hxx"
 #include "openmrn_features.h"
 #include "utils/format_utils.hxx"
@@ -81,9 +78,9 @@
 ///
 /// This base object contains no user configuration. The only non-volatile
 /// configuration it contains is the credentials for the last STA that a
-/// successful connection was mad to. Its constructor is intentionally protected
-/// such that some derived version is required for further specialization. Two
-/// such specializations are provided.
+/// successful connection was made to. Its constructor is intentionally
+/// protected such that some derived version is required for further
+/// specialization. Several such specializations are provided.
 ///
 ///   -# EspIdfWiFi
 ///       - This is a templated class that implements user configuration for
@@ -246,7 +243,17 @@ public:
     /// Reset any configuration and/or non-volatile storage to factory defaults.
     void factory_reset() override;
 
-    /// In some cases, we want to disable mDNS publishing in station mode.
+    /// In some cases, we want to disable mDNS publishing in STA mode. This API
+    /// does not remove from advertising any services that have already been
+    /// added prior to this call. It is incumbent on the application to ensure
+    /// that this API is called before adding any advertisements that shall be
+    /// masked on the STA interface.
+    ///
+    /// It is conceivable that in the future, we may want the capability to
+    /// mask some, but not all, service advertisements on the STA interface. If
+    /// this need should arise, then we will need to add a flag to the service
+    /// metadata for this indication, and then act accordingly in the internal
+    /// implementation. Currently this is not supported.
     void disable_mdns_publish_on_sta()
     {
 #if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
@@ -347,10 +354,6 @@ protected:
     EspIdfWiFiBase(Service *service, const char *hostname)
         : lock_(true) // Recursive.
         , initialized_(false)
-        , mdnsLookupTimestamp_(-1)
-        , mdnsLookupRd_()
-        , mdnsLookupUd_(MDNS_LOOKUP_BLANKING_TIME_MIN_MSEC,
-            MDNS_LOOKUP_BLANKING_TIME_MAX_MSEC)
         , service_(service)
         , apIface_(nullptr)
         , staIface_(nullptr)
@@ -359,8 +362,6 @@ protected:
         , mdnsAdvInhibitSta_(false)
         , fastConnectOnlySta_(false)
     {
-        size_t h = std::hash<std::string>{}(hostname_);
-        mdnsLookupRd_.seed(h);
     }
 
     /// Trigger synchronize configuration between NVS and MemorySpace. This may
@@ -576,10 +577,6 @@ private:
         const std::string &ssid, std::string *pass = nullptr,
         uint8_t *sec = nullptr, uint8_t index = 0) = 0;
 
-    long long mdnsLookupTimestamp_; ///< timestamp for the last mDNS lookup
-    std::mt19937 mdnsLookupRd_; ///< random distribution for mDNS query timeout
-    /// uniform distribution for mDNS query timeout
-    std::uniform_int_distribution<int16_t> mdnsLookupUd_;
     Service *service_; ///< passed in service
     esp_netif_t *apIface_; ///< access point network interface
     esp_netif_t *staIface_; ///< station network interface

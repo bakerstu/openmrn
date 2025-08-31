@@ -363,48 +363,17 @@ int EspIdfWiFiBase::mdns_lookup(
         return EAI_AGAIN;
     }
 
-    // The ESP-IDF mDNS implementation cannot mask registered interfaces
-    // for mDNS advertising. Therefore, in order to query on all interfaces,
-    // advertising may need to be disabled on the STA interface, if
-    // disable_mdns_publish_on_sta() is being utilized. In order to prevent
-    // a situation where advertising is masked for too long, it is important
-    // to force some dead time between queries.
-    if (mdnsLookupTimestamp_ > 0 && mdnsAdvInhibitSta_ && ipAcquiredSta_)
-    {
-        // All of the following must be true:
-        //   1. not the first time through (mdnsLookupTimestamp_ > 0)
-        //   2. mDNS advertising is inhibited on the STA interface
-        //   3. the STA has an acquired IP (meaning it could be registered with
-        //      mDNS)
-        // ...otherwise, we should not get here.
-        long long now = OSTime::get_monotonic();
-        // introduce some randomness to avoid different systems lining up in
-        // time.
-        long long expires =
-            mdnsLookupTimestamp_ + MSEC_TO_NSEC(mdnsLookupUd_(mdnsLookupRd_));
-        if (expires > now)
-        {
-            // Need to add some extra blanking time between mDNS queries.
-            usleep(NSEC_TO_USEC(expires - now));
-        }
-    }
-
-    // Not found yet, and not looking, do a "fast" blocking query.
     std::string name;
     std::string proto;
     mdns_split(service, &name, &proto);
 
-    // Enable mDNS on STA if required.
-    //bool mdns_key = mdns_adv_inhibit_on_sta_maybe_disable();
-
-    // Do the blocking query for 1.5 seconds, only 1 result.
+    // Do the blocking query for 3 seconds, only 1 result.
+    /// @todo In the future, may want to do a faster query which collects more
+    ///       than one result and then tries to asses which of multiple results
+    ///       will be the highest performance option.
     mdns_result_t *results;
     esp_err_t err =
-        mdns_query_ptr(name.c_str(), proto.c_str(), 1500, 1, &results);
-    mdnsLookupTimestamp_ = OSTime::get_monotonic();
-
-    // Disable mDNS on STA if required.
-    //mdns_adv_inhibit_on_sta_restore(mdns_key);
+        mdns_query_ptr(name.c_str(), proto.c_str(), 3000, 1, &results);
 
     // Check for an error result from the query.
     if (err != ESP_OK)
@@ -764,10 +733,11 @@ void EspIdfWiFiBase::ip_event_handler(
                 // already does this. However, we don't know if its handler or
                 // this handler is called first. Therefore, we redundantly add
                 // the event actions so that the mDNS services can be
-                // immediately added.
+                // immediately added inline.
                 mdns_event_actions_t action = static_cast<mdns_event_actions_t>(
                     MDNS_EVENT_ENABLE_IP4 | MDNS_EVENT_ANNOUNCE_IP4);
                 ESP_ERROR_CHECK(mdns_netif_action(staIface_, action));
+
                 OSMutexLock locker(&lock_);
                 for (auto it = mdnsServices_.begin(); it != mdnsServices_.end();
                     ++it)
