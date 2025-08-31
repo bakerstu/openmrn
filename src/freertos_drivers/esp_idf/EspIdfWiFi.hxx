@@ -249,9 +249,14 @@ public:
     /// In some cases, we want to disable mDNS publishing in station mode.
     void disable_mdns_publish_on_sta()
     {
+#if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
         OSMutexLock locker(&lock_);
-        mdns_disable_sta();
         mdnsAdvInhibitSta_ = true;
+#else
+        DIE("ESP-IDF configuration error. disable_mdns_publish_on_sta() "
+            "requires CONFIG_MDNS_PREDEF_NETIF_STA to be undefined so that "
+            "dynamic registration of the STA interface can be supported.");
+#endif
     }
 
     /// In some cases, we want to only use the last known connection
@@ -351,9 +356,7 @@ protected:
         , apIface_(nullptr)
         , staIface_(nullptr)
         , hostname_(hostname)
-        , mdnsStaLockCount_(1) // Start disabled, enable when IP received.
         , apClientCount_(0)
-        , mdnsAdvInhibit_(false)
         , mdnsAdvInhibitSta_(false)
         , fastConnectOnlySta_(false)
     {
@@ -391,12 +394,8 @@ protected:
     /// - AP and STA profiles configuration
     /// - AP scan results
     /// - mDNS scanning state machine
-    ///   - mdnsAdvInhibit_ (is advertising currently blocked, so we can scan)
     ///   - mdnsAdvInhibitSta_ (should we inhibit advertising on STA interface)
-    ///   - mdnsAdvInhibitStaActive_ (advertising inhibit on STA is active)
-    ///   - mdnsStaLockCount_ (locking count STA interface, 0 = STA disabled)
     ///   - mdnsServices_ (services being advertised)
-    ///   - mdnsClientCache_ (services being looked for)
     OSMutex lock_;
 
     ConfigPrivate privCfg_; ///< private WiFi configuration
@@ -449,49 +448,6 @@ private:
         {
             proto->assign(name->substr(split + 1));
             name->resize(split);
-        }
-    }
-
-    /// Put an advertising inhibit in place.
-    void mdns_adv_inhibit();
-
-    /// Remove the advertising inhibit.
-    void mdns_adv_inhibit_remove();
-
-    /// Unconditionally disable mDNS on the station interface.
-    void mdns_disable_sta();
-
-    /// Restore mDNS status on the STA interface.
-    void mdns_restore_sta();
-
-    /// Test if mDNS advertising is inhibited on STA interface. If so, disable
-    /// advertising and enable mDNS on STA. The purpose is to perform an mDNS
-    /// lookup that includes the STA interface.
-    /// @return key passed into a corresponding
-    ///         mdns_test_adv_inhibit_on_sta_restore() so that it knows if
-    ///         STA interface was previously enabled, and needs to be disabled
-    bool mdns_adv_inhibit_on_sta_maybe_disable()
-    {
-        if (mdnsAdvInhibitSta_)
-        {
-            mdns_adv_inhibit();
-            mdns_restore_sta();
-            return true;
-        }
-        return false;
-    }
-
-    /// Restore the mDNS enabled state on the STA interface and advertising of
-    /// registered services to the state prior to a previous call to
-    /// mdns_adv_inhibit_on_sta_maybe_disable()
-    /// @param key key passed back from the companion call to
-    ///        mdns_adv_inhibit_on_sta_maybe_disable()
-    void mdns_adv_inhibit_on_sta_restore(bool key)
-    {
-        if (key)
-        {
-            mdns_disable_sta();
-            mdns_adv_inhibit_remove();
         }
     }
 
@@ -638,7 +594,6 @@ private:
     unsigned scanResultsEntryIndex_ {INT_MAX};
     std::string staConnectPass_; ///< last station connect attempt password
     const std::string hostname_; ///< published hostname
-    int mdnsStaLockCount_; ///< counter for recursive mDNS STA lock
     uint8_t apClientCount_; ///< number of connected wifi clients
 
     //
@@ -646,8 +601,6 @@ private:
     // the lock_ mutex.
     //
 
-    /// true if services are blocked from advertising
-    bool mdnsAdvInhibit_          : 1;
     /// true if mDNS advertising is blocked on STA
     bool mdnsAdvInhibitSta_       : 1;
     /// true if only to use fast connect credentials
