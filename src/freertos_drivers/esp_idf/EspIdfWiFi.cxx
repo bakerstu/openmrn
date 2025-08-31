@@ -732,18 +732,18 @@ void EspIdfWiFiBase::ip_event_handler(
             CallbackExecutable *e = new CallbackExecutable(std::bind(
                 &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, true));
             service()->executor()->add(e);
+
+            OSMutexLock locker(&lock_);
+            // The mDNS implementation has its own event handler that
+            // already does this. However, we don't know if its handler or
+            // this handler is called first. Therefore, we redundantly add
+            // the event actions so that the mDNS services can be
+            // immediately added inline.
+            mdns_event_actions_t action = static_cast<mdns_event_actions_t>(
+                MDNS_EVENT_ENABLE_IP4 | MDNS_EVENT_ANNOUNCE_IP4);
+            ESP_ERROR_CHECK(mdns_netif_action(staIface_, action));
             if (!mdnsAdvInhibitSta_)
             {
-                // The mDNS implementation has its own event handler that
-                // already does this. However, we don't know if its handler or
-                // this handler is called first. Therefore, we redundantly add
-                // the event actions so that the mDNS services can be
-                // immediately added inline.
-                mdns_event_actions_t action = static_cast<mdns_event_actions_t>(
-                    MDNS_EVENT_ENABLE_IP4 | MDNS_EVENT_ANNOUNCE_IP4);
-                ESP_ERROR_CHECK(mdns_netif_action(staIface_, action));
-
-                OSMutexLock locker(&lock_);
                 for (auto it = mdnsServices_.begin(); it != mdnsServices_.end();
                     ++it)
                 {
@@ -975,7 +975,9 @@ void EspIdfWiFiBase::init_wifi(WlanRole role)
 #if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
     if (staIface_)
     {
-        // If the STA interface is not registered by default, register it.
+        // If the STA interface is not registered by default, register it. The
+        // mutex prevents a possible race condition with mdns_service_add().
+        OSMutexLock locker(&lock_);
         ESP_ERROR_CHECK(mdns_register_netif(staIface_));
         LOG(VERBOSE, "wifi: STA registered on mDNS.");
     }
