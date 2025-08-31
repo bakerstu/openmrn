@@ -263,7 +263,6 @@ public:
     /// credentials in STA mode.
     void enable_fast_connect_only_on_sta()
     {
-        OSMutexLock locker(&lock_);
         fastConnectOnlySta_ = true;
     }
 
@@ -595,16 +594,10 @@ private:
     std::string staConnectPass_; ///< last station connect attempt password
     const std::string hostname_; ///< published hostname
     uint8_t apClientCount_; ///< number of connected wifi clients
-
-    //
-    // The following objects are write protected for mutual exclusion by
-    // the lock_ mutex.
-    //
-
     /// true if mDNS advertising is blocked on STA
-    bool mdnsAdvInhibitSta_       : 1;
+    bool mdnsAdvInhibitSta_;
     /// true if only to use fast connect credentials
-    bool fastConnectOnlySta_      : 1;
+    bool fastConnectOnlySta_;
 };
 
 /// Default implementation of the hardware specific definitions.
