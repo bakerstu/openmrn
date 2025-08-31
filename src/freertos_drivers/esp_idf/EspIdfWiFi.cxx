@@ -389,6 +389,7 @@ int EspIdfWiFiBase::mdns_lookup(
         struct addrinfo *addr_info = allocaddrinfo();
         if (addr_info == nullptr)
         {
+            LOG_ERROR("wifi: mdns_lookup() out of memory.");
             return EAI_MEMORY;
         }
         struct sockaddr_in *addr_in = (struct sockaddr_in*)addr_info->ai_addr;
@@ -407,6 +408,9 @@ int EspIdfWiFiBase::mdns_lookup(
                 addr_in->sin_len = sizeof(struct sockaddr_in);
                 addr_in->sin_addr.s_addr = current->addr.u_addr.ip4.addr;
                 *addr = addr_info;
+                LOG(VERBOSE, "wifi: ip: %s, port: %u",
+                    ipv4_to_string(ntohl(addr_in->sin_addr.s_addr)).c_str(),
+                    ntohs(addr_in->sin_port));
                 break;
             }
 #if defined(ESP_IDF_WIFI_IPV6)
@@ -433,6 +437,7 @@ int EspIdfWiFiBase::mdns_lookup(
         {
             // No result actually found.
             freeaddrinfo(addr_info);
+            LOG(VERBOSE, "wifi: mdns_lookup() no result found.");
         }
     } // if (results)
     mdns_query_results_free(results);
