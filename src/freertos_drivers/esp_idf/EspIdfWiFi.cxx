@@ -303,7 +303,7 @@ void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
     OSMutexLock locker(&lock_);
 
     // Check if we are inhibiting advertisements.
-    if (mdnsAdvInhibitedCnt_ == 0)
+    if (!mdnsAdvInhibited_)
     {
         // Add the advertisement
         ESP_ERROR_CHECK_WITHOUT_ABORT(::mdns_service_add(
@@ -348,45 +348,56 @@ int EspIdfWiFiBase::mdns_lookup(
         return EAI_AGAIN;
     }
 
+    // Do not allow concurent lookups for simplicity.
+    OSMutexLock lookup_locker(&mdnsLookupLock_);
+    if (staIface_ && mdnsAdvInhibitSta_)
+    {
+        // The pseudo randomness of the resulting expires time helps
+        // ensure timing jitter between two or more devices using the
+        // same algorithm.
+        long long now = OSTime::get_monotonic();
+        long long expires = MSEC_TO_NSEC(mdnsLookupUd_(mdnsLookupRd_));
+        expires += mdnsLookupTimestamp_;
+        if (expires > now)
+        {
+            // Ensure some blanking time since the last inhibit.
+            usleep(NSEC_TO_USEC(expires - now));
+        }
+        // The placement of this lock must come after the usleep() call above.
+        // this is so that other Wifi API can run concurrently during the sleep.
+        OSMutexLock locker(&lock_);
+        mdnsAdvInhibited_ = true;
+        // Advertising on STA is inhibited, remove all advertising services.
+        ::mdns_service_remove_all();
+        // Enable mDNS on STA.
+        ESP_ERROR_CHECK(
+            mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
+    }
+
     std::string name;
     std::string proto;
     mdns_split(service, &name, &proto);
 
-    {
-        // Check if we need to inhibit advertising on STA interface.
-        OSMutexLock locker(&lock_);
-        if (staIface_ && mdnsAdvInhibitSta_)
-        {
-            if (mdnsAdvInhibitedCnt_++ == 0)
-            {
-                // Remove all advertising services.
-                ::mdns_service_remove_all();
-                // Enable mDNS on STA.
-                ESP_ERROR_CHECK(
-                    mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
-            }
-            // Test for runaway asymmetry.
-            HASSERT(mdnsAdvInhibitedCnt_ < 15);
-        }
-    }
-
-    // Do the blocking query for 3 seconds, only 1 result.
     /// @todo In the future, may want to do a faster query which collects more
     ///       than one result and then tries to asses which of multiple results
     ///       will be the highest performance option.
     mdns_result_t *results;
     esp_err_t err =
-        mdns_query_ptr(name.c_str(), proto.c_str(), 3000, 1, &results);
+        mdns_query_ptr(name.c_str(), proto.c_str(),
+            MDNS_LOOKUP_ACTIVE_TIME_MAX_MSEC, 1, &results);
 
     {
-        // Check if we need to (re-)enable advertising on STA interface.
+        // Check if we need to (re-)enable advertising and disable the STA
+        // interface.
         OSMutexLock locker(&lock_);
-        if (staIface_ &&
-            mdnsAdvInhibitedCnt_ > 0 && --mdnsAdvInhibitedCnt_ == 0)
+        if (mdnsAdvInhibited_)
         {
-            // We do not need to check the mdnsAdvInhibitSta_ flag since we can
-            // get here if it was previously set when advertising was disabled.
+            // We do not need to check for valid staIface_ or the
+            // mdnsAdvInhibitSta_ flag since we can only get here if it both
+            // were was previously valid/set before starting the query.
 
+            // Update the timestamp for the last scan.
+            mdnsLookupTimestamp_ = OSTime::get_monotonic();
             // Disable mDNS on STA.
             ESP_ERROR_CHECK(
                 mdns_netif_action(staIface_, MDNS_EVENT_DISABLE_IP4));
@@ -400,6 +411,7 @@ int EspIdfWiFiBase::mdns_lookup(
                 ::mdns_service_add(nullptr, it->name_.c_str(),
                     it->proto_.c_str(), it->port_, nullptr, 0);
             }
+            mdnsAdvInhibited_ = false;
         }
     }
 
@@ -761,7 +773,7 @@ void EspIdfWiFiBase::ip_event_handler(
                 &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, true));
             service()->executor()->add(e);
             OSMutexLock locker(&lock_);
-            if (!mdnsAdvInhibitSta_ || mdnsAdvInhibitedCnt_ > 0)
+            if (!mdnsAdvInhibitSta_ || mdnsAdvInhibited_)
             {
                 // Enable mDNS on STA.
                 ESP_ERROR_CHECK(

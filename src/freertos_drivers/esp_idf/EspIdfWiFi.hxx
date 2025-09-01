@@ -35,6 +35,8 @@
 #ifndef _FREERTOS_DRIVERS_ESP_IDF_ESPIDFWIFI_HXX_
 #define _FREERTOS_DRIVERS_ESP_IDF_ESPIDFWIFI_HXX_
 
+#include <random>
+
 #include <esp_netif.h>
 
 #include "executor/Service.hxx"
@@ -256,7 +258,6 @@ public:
     /// implementation. Currently this is not supported.
     void disable_mdns_publish_on_sta()
     {
-        OSMutexLock locker(&lock_);
         mdnsAdvInhibitSta_ = true;
     }
 
@@ -348,15 +349,24 @@ protected:
     EspIdfWiFiBase(Service *service, const char *hostname)
         : lock_(true) // Recursive.
         , initialized_(false)
+          // This initial value ensures the first lookup will not sleep.
+        , mdnsLookupTimestamp_(-(MDNS_LOOKUP_BLANKING_TIME_MAX_MSEC + 1))
+        , mdnsLookupLock_()
+        , mdnsLookupRd_()
+        , mdnsLookupUd_(MDNS_LOOKUP_BLANKING_TIME_MIN_MSEC,
+            MDNS_LOOKUP_BLANKING_TIME_MAX_MSEC)
         , service_(service)
         , apIface_(nullptr)
         , staIface_(nullptr)
         , hostname_(hostname)
         , apClientCount_(0)
-        , mdnsAdvInhibitedCnt_(0)
+        , mdnsAdvInhibited_(false)
         , mdnsAdvInhibitSta_(false)
         , fastConnectOnlySta_(false)
     {
+        // The hostname is likely to be unique, so it is a good random seed.
+        size_t h = std::hash<std::string>{}(hostname_);
+        mdnsLookupRd_.seed(h);
     }
 
     /// Trigger synchronize configuration between NVS and MemorySpace. This may
@@ -388,9 +398,8 @@ protected:
     /// public API. Protected resources include:
     /// - AP and STA profiles configuration
     /// - AP scan results
-    /// - mDNS scanning state machine
-    ///   - mmdnsAdvInhibitedCnt_ (non-zero if advertising is blocked)
-    ///   - mdnsAdvInhibitSta_ (should we inhibit advertising on STA interface)
+    /// - mDNS
+    ///   - mdnsAdvInhibited_ (true if advertising is blocked)
     ///   - mdnsServices_ (services being advertised)
     OSMutex lock_;
 
@@ -428,7 +437,10 @@ private:
     static constexpr int16_t MDNS_LOOKUP_BLANKING_TIME_MAX_MSEC =
         MDNS_LOOKUP_BLANKING_TIME_MIN_MSEC + 512;
 
-        /// Minimum RSSI threshold for an AP signal before a connection attempt
+    /// This is the upper bound of time that an mDNS query can block.
+    static constexpr uint32_t MDNS_LOOKUP_ACTIVE_TIME_MAX_MSEC = 1500;
+
+    /// Minimum RSSI threshold for an AP signal before a connection attempt
     /// will be made in STA mode.
     static constexpr int8_t STA_CONNECT_RSSI_THRESHOLD = -100;
 
@@ -573,6 +585,11 @@ private:
         const std::string &ssid, std::string *pass = nullptr,
         uint8_t *sec = nullptr, uint8_t index = 0) = 0;
 
+    long long mdnsLookupTimestamp_; ///< timestamp for the last mDNS lookup
+    OSMutex mdnsLookupLock_; /// only allow one mDNS lookup at a time.
+    std::mt19937 mdnsLookupRd_; ///< random distribution for mDNS query timeout
+    /// uniform distribution for mDNS query timeout
+    std::uniform_int_distribution<int16_t> mdnsLookupUd_;
     Service *service_; ///< passed in service
     esp_netif_t *apIface_; ///< access point network interface
     esp_netif_t *staIface_; ///< station network interface
@@ -587,8 +604,8 @@ private:
     std::string staConnectPass_; ///< last station connect attempt password
     const std::string hostname_; ///< published hostname
     uint8_t apClientCount_; ///< number of connected wifi clients
-    /// non-zero if advertising currently inhibited on the STA interface
-    uint8_t mdnsAdvInhibitedCnt_;
+    /// true if advertising currently inhibited on the STA interface
+    bool mdnsAdvInhibited_;
     /// true if mDNS advertising is blocked
     bool mdnsAdvInhibitSta_;
     /// true if only to use fast connect credentials
