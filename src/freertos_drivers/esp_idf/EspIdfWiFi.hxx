@@ -256,14 +256,8 @@ public:
     /// implementation. Currently this is not supported.
     void disable_mdns_publish_on_sta()
     {
-#if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
         OSMutexLock locker(&lock_);
         mdnsAdvInhibitSta_ = true;
-#else
-        DIE("ESP-IDF configuration error. disable_mdns_publish_on_sta() "
-            "requires CONFIG_MDNS_PREDEF_NETIF_STA to be undefined so that "
-            "dynamic registration of the STA interface can be supported.");
-#endif
     }
 
     /// In some cases, we want to only use the last known connection
@@ -359,6 +353,7 @@ protected:
         , staIface_(nullptr)
         , hostname_(hostname)
         , apClientCount_(0)
+        , mdnsAdvInhibitedCnt_(0)
         , mdnsAdvInhibitSta_(false)
         , fastConnectOnlySta_(false)
     {
@@ -394,6 +389,7 @@ protected:
     /// - AP and STA profiles configuration
     /// - AP scan results
     /// - mDNS scanning state machine
+    ///   - mmdnsAdvInhibitedCnt_ (non-zero if advertising is blocked)
     ///   - mdnsAdvInhibitSta_ (should we inhibit advertising on STA interface)
     ///   - mdnsServices_ (services being advertised)
     OSMutex lock_;
@@ -591,7 +587,9 @@ private:
     std::string staConnectPass_; ///< last station connect attempt password
     const std::string hostname_; ///< published hostname
     uint8_t apClientCount_; ///< number of connected wifi clients
-    /// true if mDNS advertising is blocked on STA
+    /// non-zero if advertising currently inhibited on the STA interface
+    uint8_t mdnsAdvInhibitedCnt_;
+    /// true if mDNS advertising is blocked
     bool mdnsAdvInhibitSta_;
     /// true if only to use fast connect credentials
     bool fastConnectOnlySta_;

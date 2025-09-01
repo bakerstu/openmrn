@@ -302,27 +302,12 @@ void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
         name.c_str(), proto.c_str(), port);
     OSMutexLock locker(&lock_);
 
-    // Maybe unregister STA interface.
-    if (staIface_ && mdnsAdvInhibitSta_)
+    // Check if we are inhibiting advertisements.
+    if (mdnsAdvInhibitedCnt_ == 0)
     {
-        ESP_ERROR_CHECK(mdns_unregister_netif(staIface_));
-    }
-
-    // Add the advertisement
-    ESP_ERROR_CHECK_WITHOUT_ABORT(::mdns_service_add(
-        nullptr, name.c_str(), proto.c_str(), port, nullptr, 0));
-
-    // Maybe re-register STA interface
-    if (staIface_ && mdnsAdvInhibitSta_)
-    {
-        ESP_ERROR_CHECK(mdns_register_netif(staIface_));
-        mdns_event_actions_t action = static_cast<mdns_event_actions_t>(
-            MDNS_EVENT_ENABLE_IP4 | MDNS_EVENT_ANNOUNCE_IP4
-#if defined(ESP_IDF_WIFI_IPV6)
-            | MDNS_EVENT_ENABLE_IP6 | MDNS_EVENT_ANNOUNCE_IP6
-#endif
-        );
-        ESP_ERROR_CHECK(mdns_netif_action(staIface_, action));
+        // Add the advertisement
+        ESP_ERROR_CHECK_WITHOUT_ABORT(::mdns_service_add(
+            nullptr, name.c_str(), proto.c_str(), port, nullptr, 0));
     }
 
     mdnsServices_.emplace_back(std::move(name), std::move(proto), port);
@@ -367,6 +352,24 @@ int EspIdfWiFiBase::mdns_lookup(
     std::string proto;
     mdns_split(service, &name, &proto);
 
+    {
+        // Check if we need to inhibit advertising on STA interface.
+        OSMutexLock locker(&lock_);
+        if (staIface_ && mdnsAdvInhibitSta_)
+        {
+            if (mdnsAdvInhibitedCnt_++ == 0)
+            {
+                // Remove all advertising services.
+                ::mdns_service_remove_all();
+                // Enable mDNS on STA.
+                ESP_ERROR_CHECK(
+                    mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
+            }
+            // Test for runaway asymmetry.
+            HASSERT(mdnsAdvInhibitedCnt_ < 15);
+        }
+    }
+
     // Do the blocking query for 3 seconds, only 1 result.
     /// @todo In the future, may want to do a faster query which collects more
     ///       than one result and then tries to asses which of multiple results
@@ -374,6 +377,31 @@ int EspIdfWiFiBase::mdns_lookup(
     mdns_result_t *results;
     esp_err_t err =
         mdns_query_ptr(name.c_str(), proto.c_str(), 3000, 1, &results);
+
+    {
+        // Check if we need to (re-)enable advertising on STA interface.
+        OSMutexLock locker(&lock_);
+        if (staIface_ &&
+            mdnsAdvInhibitedCnt_ > 0 && --mdnsAdvInhibitedCnt_ == 0)
+        {
+            // We do not need to check the mdnsAdvInhibitSta_ flag since we can
+            // get here if it was previously set when advertising was disabled.
+
+            // Disable mDNS on STA.
+            ESP_ERROR_CHECK(
+                mdns_netif_action(staIface_, MDNS_EVENT_DISABLE_IP4));
+            // (Re-)register all the services.
+            for (auto it = mdnsServices_.begin(); it != mdnsServices_.end();
+                ++it)
+            {
+                LOG(VERBOSE, "wifi: got IP, mDNS service add, service: %s, "
+                    "proto: %s",
+                    it->name_.c_str(), it->proto_.c_str());
+                ::mdns_service_add(nullptr, it->name_.c_str(),
+                    it->proto_.c_str(), it->port_, nullptr, 0);
+            }
+        }
+    }
 
     // Check for an error result from the query.
     if (err != ESP_OK)
@@ -732,27 +760,14 @@ void EspIdfWiFiBase::ip_event_handler(
             CallbackExecutable *e = new CallbackExecutable(std::bind(
                 &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, true));
             service()->executor()->add(e);
-
             OSMutexLock locker(&lock_);
-            // The mDNS implementation has its own event handler that
-            // already does this. However, we don't know if its handler or
-            // this handler is called first. Therefore, we redundantly add
-            // the event actions so that the mDNS services can be
-            // immediately added inline.
-            mdns_event_actions_t action = static_cast<mdns_event_actions_t>(
-                MDNS_EVENT_ENABLE_IP4 | MDNS_EVENT_ANNOUNCE_IP4);
-            ESP_ERROR_CHECK(mdns_netif_action(staIface_, action));
-            if (!mdnsAdvInhibitSta_)
+            if (!mdnsAdvInhibitSta_ || mdnsAdvInhibitedCnt_ > 0)
             {
-                for (auto it = mdnsServices_.begin(); it != mdnsServices_.end();
-                    ++it)
-                {
-                    LOG(VERBOSE, "wifi: got IP, mDNS service add, service: %s, "
-                        "proto: %s",
-                        it->name_.c_str(), it->proto_.c_str());
-                    ::mdns_service_add(nullptr, it->name_.c_str(),
-                        it->proto_.c_str(), it->port_, nullptr, 0);
-                }
+                // Enable mDNS on STA.
+                ESP_ERROR_CHECK(
+                    mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
+                ESP_ERROR_CHECK(
+                    mdns_netif_action(staIface_, MDNS_EVENT_ANNOUNCE_IP4));
             }
             break;
         }
@@ -972,16 +987,6 @@ void EspIdfWiFiBase::init_wifi(WlanRole role)
     ESP_ERROR_CHECK(mdns_init());
     mdns_hostname_set(hostname_.c_str());
     mdns_instance_name_set(hostname_.c_str());
-#if !defined(CONFIG_MDNS_PREDEF_NETIF_STA)
-    if (staIface_)
-    {
-        // If the STA interface is not registered by default, register it. The
-        // mutex prevents a possible race condition with mdns_service_add().
-        OSMutexLock locker(&lock_);
-        ESP_ERROR_CHECK(mdns_register_netif(staIface_));
-        LOG(VERBOSE, "wifi: STA registered on mDNS.");
-    }
-#endif
     initialized_ = true;
 }
 
