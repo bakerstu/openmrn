@@ -308,6 +308,7 @@ void EspIdfWiFiBase::mdns_service_add(const char *service, uint16_t port)
         // Add the advertisement
         ESP_ERROR_CHECK_WITHOUT_ABORT(::mdns_service_add(
             nullptr, name.c_str(), proto.c_str(), port, nullptr, 0));
+        LOG(VERBOSE, "wifi: mdns_service_add() %s", service);
     }
 
     mdnsServices_.emplace_back(std::move(name), std::move(proto), port);
@@ -372,6 +373,7 @@ int EspIdfWiFiBase::mdns_lookup(
         // Enable mDNS on STA.
         ESP_ERROR_CHECK(
             mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
+        LOG(VERBOSE, "wifi: mdns_lookup() remove all services, enable STA.");
     }
 
     std::string name;
@@ -412,6 +414,7 @@ int EspIdfWiFiBase::mdns_lookup(
                     it->proto_.c_str(), it->port_, nullptr, 0);
             }
             mdnsAdvInhibited_ = false;
+            LOG(VERBOSE, "wifi: mdns_lookup() add all services, disable STA.");
         }
     }
 
@@ -780,6 +783,7 @@ void EspIdfWiFiBase::ip_event_handler(
                     mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
                 ESP_ERROR_CHECK(
                     mdns_netif_action(staIface_, MDNS_EVENT_ANNOUNCE_IP4));
+                LOG(VERBOSE, "wifi: ip_event_handler() enable mDNS on STA.");
             }
             break;
         }
