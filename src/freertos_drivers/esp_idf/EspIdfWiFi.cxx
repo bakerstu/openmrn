@@ -996,13 +996,15 @@ void EspIdfWiFiBase::init_wifi(WlanRole role)
             init_sta();
             break;
     }
-    // Start the WiFi.
-    ESP_ERROR_CHECK(esp_wifi_start());
 
     // Initialize mDNS.
     ESP_ERROR_CHECK(mdns_init());
     mdns_hostname_set(hostname_.c_str());
     mdns_instance_name_set(hostname_.c_str());
+
+    // Start the WiFi.
+    ESP_ERROR_CHECK(esp_wifi_start());
+
     initialized_ = true;
 }
 
