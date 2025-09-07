@@ -83,9 +83,18 @@ public:
     {
         return resyncCount_;
     }
+
+    /// Register for a callback when any packet is received.
+    virtual void register_packet_rx_callback(std::function<void()> callback)
+    {
+        pktRxCallback_ = callback;
+    }
+
 protected:
     /// Track the number of times that we try to resync.
     unsigned resyncCount_{0};
+    /// Callback for when any packet is received.
+    std::function<void()> pktRxCallback_;
 };
 
 /// Object responsible for reading in a stream of bytes over the modem
@@ -323,6 +332,10 @@ private:
 
         auto *b = dispatcher_.alloc();
         b->data()->payload = std::move(payload_);
+        if (pktRxCallback_)
+        {
+            pktRxCallback_();
+        }
         dispatcher_.send(b);
 
         if (payload_tmp.size())
