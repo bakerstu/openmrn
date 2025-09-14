@@ -50,6 +50,11 @@ public:
         is_waiting_ = false;
     }
 
+    void set_callback(std::fucntion<void()> cb)
+    {
+        packetCb_ = std::move(cb);
+    }
+
     bool is_waiting()
     {
         return is_waiting_;
@@ -59,6 +64,10 @@ public:
     {
         AtomicHolder h(this);
         is_waiting_ = true;
+        if (packetCb_)
+        {
+            packetCb_();
+        }
         return wait_and_call(STATE(sent));
     }
 
@@ -86,6 +95,7 @@ public:
     }
 
 private:
+    std::function<void()> packetCb_;
     /** True if an incoming message is ready for dispatching and the current
      * flow is waiting for a notify. */
     bool is_waiting_ = false;
