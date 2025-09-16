@@ -50,7 +50,7 @@ public:
         is_waiting_ = false;
     }
 
-    void set_callback(std::fucntion<void()> cb)
+    void set_callback(std::function<void()> cb)
     {
         packetCb_ = std::move(cb);
     }
