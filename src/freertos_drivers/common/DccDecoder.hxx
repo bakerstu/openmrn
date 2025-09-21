@@ -476,7 +476,8 @@ DccDecoder<Module>::rcom_interrupt_handler()
                 Module::stop_cap_timer_time();
                 Module::set_cap_timer_capture();
                 railcomDriver_->end_cutout();
-            } // fall through
+            }
+            // fall through
             case Defs::CUTOUT_END_AFTER_DRIVER:
             {
                 if (Module::Output::isRailcomCutoutActive_)

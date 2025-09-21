@@ -781,7 +781,8 @@ private:
                 }
                 LOG(VERBOSE, "memcfg handler reply: no client registered");
                 // fall through to unsupported
-            } // fall through
+            }
+            // fall through
             default:
                 // Unknown/unsupported command, reject datagram.
                 return respond_reject(Defs::ERROR_UNIMPLEMENTED_SUBCMD);
