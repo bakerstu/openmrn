@@ -91,6 +91,24 @@ public:
         LL_SPI_SetTransferDirection(spi_, LL_SPI_HALF_DUPLEX_TX);
     }
 
+    /// Sets up a strip for a custom pattern.
+    ///
+    /// @param one_value These bits will be shifted out (LSB-first) for a one
+    /// bit in the data. Typical value is 0b011
+    /// @param one_bit_count Number of bits to shift out. Typical value is 3.
+    /// @param zero_value These bits will be shifted out (LSB-first) for a zero
+    /// bit in the data. Typical value is 0b001
+    /// @param zero_bit_count  Number of bits to shift out. Typical value is 3.
+    ///
+    void set_pattern(uint8_t one_value, uint8_t one_bit_count,
+        uint8_t zero_value, uint8_t zero_bit_count)
+    {
+        oneValue_ = one_value;
+        oneBitCount_ = one_bit_count;
+        zeroValue_ = zero_value;
+        zeroBitCount_ = zero_bit_count;
+    }
+
     /// Updates the hardware from the backing data. The update is synchronous,
     /// this call returns when all bytes are sent, or at least enqueued in the
     /// SPI peripheral's TX FIFO.
@@ -103,29 +121,37 @@ public:
         portENTER_CRITICAL();
         while (!eof())
         {
-            uint16_t next_word = 0;
+            uint32_t next_word = 0;
             uint16_t ofs = 1u;
             // Computes 16 SPI bits with 5 pulses.
-            while (!eof() && ofs < (1u << 13))
+            while (!eof())
             {
-                // Appends an 110 or 100 depending opn what the next bit should
-                // be.
-                next_word |= ofs;
-                ofs <<= 1;
+                // Appends an 110 or 100 depending on what the next bit should
+                // be. Generalized for other patterns too.
                 if (next_bit())
-                    next_word |= ofs;
-                ofs <<= 2;
+                {
+                    next_word |= uint32_t(oneValue_) << ofs;
+                    ofs += oneBitCount_;
+                }
+                else
+                {
+                    next_word |= uint32_t(zeroValue_) << ofs;
+                    ofs += zeroBitCount_;
+                }
+                if (ofs >= 16)
+                {
+                    // Waits for space in tx buffer.
+                    while (!LL_SPI_IsActiveFlag_TXE(spi_)) { }
+                    LL_SPI_TransmitData16(
+                        spi_, (next_word & 0xffffu) ^ polarity);
+                    next_word >>= 16;
+                    ofs -= 16;
+                    // Note that there is no wait here for the transfer to
+                    // complete.  This is super important, because we want to
+                    // be computing the next word while the previous word is
+                    // emitted by SPI.
+                }
             }
-            // We leave an extra bit as zero at the end of the word. We hope
-            // that this will not confuse the pixel. They care mostly about the
-            // length of the HIGH pulse.
-
-            // Waits for space in tx buffer.
-            while (!LL_SPI_IsActiveFlag_TXE(spi_)) { }
-            LL_SPI_TransmitData16(spi_, next_word ^ polarity);
-            // Note that there is no wait here for the transfer to complete.
-            // This is super important, because we want to be computing the
-            // next word while the previous word is emitted by SPI.
         }
         // The last bit output is a zero, and leaving the line there is
         // reasonable, because it matches the latch level.
@@ -175,6 +201,16 @@ private:
     uint8_t nextBit_;
     /// If true, the bits are output inverted, false if normal.
     bool invert_;
+    /// Right-aligned bit pattern to shift out for a zero. Will be shifted
+    /// LSB-first.
+    uint8_t zeroValue_ = 0b001;
+    /// Number of bits in zeroValue_.
+    uint8_t zeroBitCount_ = 3;
+    /// Right-aligned bit pattern to shift out for a one. Will be shifted
+    /// LSB-first.
+    uint8_t oneValue_ = 0b011;
+    /// Number of bits in oneValue_.
+    uint8_t oneBitCount_ = 3;
 };
 
 #endif // _FREERTOS_DRIVERS_ST_STM32PIXELSTRIP_HXX_
