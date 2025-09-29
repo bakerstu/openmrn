@@ -41,6 +41,9 @@
 #include "stm32f_hal_conf.hxx"
 
 #include "stm32g0xx_ll_spi.h"
+#include "stm32g0xx_ll_dma.h"
+#include "stm32g0xx_hal_dma.h"
+#include "stm32g0xx_hal_spi.h"
 
 class Stm32SpiPixelStrip
 {
@@ -52,14 +55,22 @@ public:
     /// be sent to the devices. Note that the byte order is G R B in the
     /// storage.
     /// @param invert true if the bits output should be inverted.
-    Stm32SpiPixelStrip(SPI_TypeDef *spi, unsigned num_pixels,
-        uint8_t *backing_data, bool invert = false)
+    Stm32SpiPixelStrip(SPI_TypeDef *spi, DMA_Channel_TypeDef *dma_ch,
+        unsigned dma_request, unsigned num_pixels, uint8_t *backing_data,
+        bool invert = false)
         : spi_(spi)
+        , dmaCh_(dma_ch)
+        , dmaRequest_(dma_request)
         , numPixels_(num_pixels)
         , data_(backing_data)
         , invert_(invert)
     {
         memset(&spiHandle_, 0, sizeof(spiHandle_));
+    }
+
+    ~Stm32SpiPixelStrip()
+    {
+        delete[] dmaBuf_;
     }
 
     /// Opens and initializes the SPI hardware.
@@ -78,7 +89,7 @@ public:
         spiHandle_.Init.Direction = SPI_DIRECTION_1LINE;
         spiHandle_.Init.CLKPolarity = SPI_POLARITY_LOW;
         spiHandle_.Init.CLKPhase = SPI_PHASE_2EDGE;
-        spiHandle_.Init.DataSize = SPI_DATASIZE_15BIT;
+        spiHandle_.Init.DataSize = SPI_DATASIZE_16BIT;
         spiHandle_.Init.FirstBit = SPI_FIRSTBIT_LSB;
         spiHandle_.Init.NSS = SPI_NSS_SOFT;
         spiHandle_.Init.TIMode = SPI_TIMODE_DISABLE;
@@ -114,15 +125,15 @@ public:
     /// SPI peripheral's TX FIFO.
     void update_sync()
     {
-        LL_SPI_Enable(spi_);
+        alloc_buffer();
         clear_iteration();
         uint16_t polarity = invert_ ? 0xffff : 0;
-        /// @todo use DMA instead of a critical section here.
-        portENTER_CRITICAL();
+        unsigned word_ofs = 0;
+        // Generates the output data.
         while (!eof())
         {
             uint32_t next_word = 0;
-            uint16_t ofs = 1u;
+            uint16_t ofs = 0;
             // Computes 16 SPI bits with 5 pulses.
             while (!eof())
             {
@@ -140,25 +151,67 @@ public:
                 }
                 if (ofs >= 16)
                 {
-                    // Waits for space in tx buffer.
-                    while (!LL_SPI_IsActiveFlag_TXE(spi_)) { }
-                    LL_SPI_TransmitData16(
-                        spi_, (next_word & 0xffffu) ^ polarity);
+                    dmaBuf_[word_ofs++] = (next_word & 0xffffu) ^ polarity;
                     next_word >>= 16;
                     ofs -= 16;
-                    // Note that there is no wait here for the transfer to
-                    // complete.  This is super important, because we want to
-                    // be computing the next word while the previous word is
-                    // emitted by SPI.
                 }
             }
+            // last / partial word
+            dmaBuf_[word_ofs++] = (next_word & 0xffffu) ^ polarity;
         }
         // The last bit output is a zero, and leaving the line there is
         // reasonable, because it matches the latch level.
-        portEXIT_CRITICAL();
+
+        // Triggers the actual transfer.
+        dma_transfer(word_ofs);
     }
 
 private:
+    /// Allocates the DMA data buffer.
+    void alloc_buffer()
+    {
+        if (dmaBuf_)
+        {
+            return;
+        }
+        unsigned need = std::max(zeroBitCount_, oneBitCount_) * 24 * numPixels_;
+        dmaBuf_ = new uint16_t[need / 16];
+    }
+
+    /// Initiates the DMA transfer via SPI TX line.
+    /// @param num_words the number of 16-bit SPI words that are written into
+    /// the dmaBuf_.
+    void dma_transfer(unsigned num_words)
+    {
+        dmaCh_->CCR &= ~DMA_CCR_EN;
+        DMA_HandleTypeDef hdl = {0};
+        memset(&hdl, 0, sizeof(hdl));
+        hdl.Instance = dmaCh_;
+        // Makes sure the channel is not running right now.
+        HASSERT(READ_BIT(dmaCh_->CCR, DMA_CCR_EN) == 0);
+
+        hdl.Init.Request = dmaRequest_;
+        hdl.Init.Direction = DMA_MEMORY_TO_PERIPH;
+        hdl.Init.PeriphInc = LL_DMA_PERIPH_NOINCREMENT;
+        hdl.Init.MemInc = LL_DMA_MEMORY_INCREMENT;
+        hdl.Init.PeriphDataAlignment = LL_DMA_PDATAALIGN_HALFWORD;
+        hdl.Init.MemDataAlignment = LL_DMA_MDATAALIGN_HALFWORD;
+        hdl.Init.Mode = LL_DMA_MODE_NORMAL;
+        hdl.Init.Priority = LL_DMA_PRIORITY_HIGH;
+        HASSERT(HAL_OK == HAL_DMA_Init(&hdl));
+        HASSERT(HAL_OK ==
+            HAL_DMA_Start(
+                &hdl, (uint32_t)dmaBuf_, (uint32_t)&spi_->DR, num_words));
+        // Enable error, transfer complete interrupt
+        //__HAL_DMA_ENABLE_IT(&hdl, (DMA_IT_TC | DMA_IT_TE));
+
+        // Enable SPI
+        LL_SPI_Enable(spi_);
+        // Enable Tx DMA Request. This will start the transfer by invoking the
+        // DMA, which will then copy the first data byte.
+        LL_SPI_EnableDMAReq_TX(spi_);
+    }
+
     /// Starts a new iteration over the strip. Call next_bit() repeatedly to
     /// get the bits in transmission order.
     void clear_iteration()
@@ -188,10 +241,16 @@ private:
     SPI_TypeDef *spi_;
     /// Stm32 HAL device structure.
     SPI_HandleTypeDef spiHandle_;
+    /// Hardware register set for the DMA channel.
+    DMA_Channel_TypeDef* dmaCh_;
+    /// DMAMUX request number.
+    unsigned dmaRequest_;
     /// Number of pixels to drive.
     unsigned numPixels_;
     /// Backing framebuffer to use.
     uint8_t *data_;
+    /// DMA buffer for output bit stream.
+    uint16_t* dmaBuf_ = nullptr;
 
     /// Controls iteration over the data sequence when producing the output.
     /// This is the index of the current byte.
