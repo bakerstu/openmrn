@@ -147,19 +147,44 @@ std::string BroadcastTimeDefs::rate_quarters_to_string(int16_t rate)
 //
 std::string BroadcastTimeDefs::date_to_string(int year, int month, int day)
 {
-    struct tm tm = {};
+    // Note: The obvious way to simplify this method would be to make use of
+    //       strftime(). However, avoiding strftime() saves over 3K of code
+    //       space (ARMv7m, -Os).
+
+    struct tm tm;
+    memset(&tm, 0, sizeof(tm));
     tm.tm_year = year - 1900;
     tm.tm_mon = month - 1;
     tm.tm_mday = day;
-    char value[13];
-    if (strftime(value, 13, "%b %e, %Y", &tm) != 0)
-    {
-        return value;
-    }
-    else
+
+    // We use mktime() to determine if the time we have is really valid or not.
+    // In newlib, mktime() can actually correct some invalid struct tm values by
+    // making some educated guesses.
+    //
+    // glibc can also use mktime() to correct some invalid struct tm values by
+    // making some educated guesses.
+    time_t t = mktime(&tm);
+    tm.tm_year += 1900;
+
+    // newlib does not correctly set the errno value when mktime()
+    // encounters an error. Instead it "only" returns -1, which is technically
+    // a valid time. We are counting on the fact that we zeroed out the struct
+    // tm above, and subsequently -1 cannot be an expected result.
+    if (t == (time_t)-1 || tm.tm_year < 0 || tm.tm_year > 4095)
     {
         return "Error";
     }
+    HASSERT(tm.tm_mon < 12);
+    HASSERT(tm.tm_mday >= 1 && tm.tm_mday <= 31);
+
+    std::string sdate;
+    sdate.reserve(12);
+    sdate.append(MONTHS[tm.tm_mon]);
+    sdate.append(integer_to_string(tm.tm_mday, 3));
+    sdate.append(", ");
+    sdate.append(integer_to_string(tm.tm_year));
+
+    return sdate;
 }
 
 //
