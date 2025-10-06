@@ -48,6 +48,43 @@ extern "C"
 char *strptime(const char *, const char *, struct tm *);
 }
 
+/// An array that contains all Mmm abbreviations of the months of the year.
+static const char *MONTHS[12] =
+{
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+};
+
+/// Searches the string for the first  character that is not a space of the
+/// characters specified in the arguments.
+/// @param str String to search
+/// @param pos position of the first character in the string to be considered
+///        in the search.
+/// @return The position of the first character is not a space. If no such match
+///         is found, returns std::string::npos.
+static size_t string_find_first_not_space(
+    const std::string &str, size_t pos = 0)
+{
+    for (auto it = str.begin() + pos; it < str.end(); ++it)
+    {
+        if (!(isspace(*it)))
+        {
+            return it - str.begin();
+        }
+    }
+    return std::string::npos;
+}
+
 //
 // BroadcastTimeDefs::time_to_string()
 //
@@ -137,21 +174,54 @@ std::string BroadcastTimeDefs::date_to_string(int year, int month, int day)
 bool BroadcastTimeDefs::string_to_time(
     const std::string &stime, int *hour, int *min)
 {
-    struct tm tm;
-    if (strptime(stime.c_str(), "%R", &tm) == nullptr)
+    // Note: The obvious way to simplify this method would be to make use of
+    //       strptime(). However, avoiding strptime() saves nearly 2K of code
+    //       space (ARMv7m, -Os).
+
+    bool result = true;
+    int h_value = 0;
+    int m_value = 0;
+
+    // Find the colon separator.
+    size_t colon = stime.find(':');
+    if (colon == std::string::npos)
     {
-        return false;
+        // Invalid format.
+        result = false;
+    }
+    else
+    {
+        // Translate the hour.
+        {
+            std::string hour_str = stime.substr(0, colon);
+            h_value = strtol(hour_str.c_str(), nullptr, 10);
+            if (h_value < 0 || h_value > 23)
+            {
+                result = false;
+            }
+        }
+
+        // Translate the minute.
+        {
+            std::string min_str = stime.substr(colon + 1);
+            m_value = strtol(min_str.c_str(), nullptr, 10);
+            if (m_value < 0 || m_value > 59)
+            {
+                result = false;
+            }
+        }
     }
 
     if (hour)
     {
-        *hour = tm.tm_hour;
+        *hour = result ? h_value : 0;
     }
     if (min)
     {
-        *min = tm.tm_min;
+        *min = result ? m_value : 0;
     }
-    return true;
+
+    return result;
 }
 
 //
@@ -220,11 +290,70 @@ int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
 bool BroadcastTimeDefs::string_to_date(
     const std::string &sdate, int *year, int *month, int *day)
 {
+    // Note: The obvious way to simplify this method would be to make use of
+    //       strptime(). However, avoiding strptime() saves nearly 2K of code
+    //       space (ARMv7m, -Os).
+
+    size_t m_offset = string_find_first_not_space(sdate);
+    size_t d_offset = string_find_first_not_space(sdate, m_offset + 3);
+    size_t y_offset = sdate.find(',', d_offset + 1);
+    if (y_offset == std::string::npos)
+    {
+        // Invalid format, no comma.
+        return false;
+    }
+
+    y_offset = string_find_first_not_space(sdate, y_offset + 1);
+    if (y_offset == std::string::npos)
+    {
+        // Invalid format, no year.
+        return false;
+    }
+
     struct tm tm;
     memset(&tm, 0, sizeof(tm));
-    if (strptime(sdate.c_str(), "%b %e, %Y", &tm) == nullptr)
+
+    // Month.
     {
-        return false;
+        // Get a sub-string that matches the Mmm case format.
+        std::string m_str = sdate.substr(m_offset, 3);
+        m_str.replace(0, 1, 1, std::toupper(m_str[0]));
+        m_str.replace(1, 1, 1, std::tolower(m_str[1]));
+        m_str.replace(2, 1, 1, std::tolower(m_str[2]));
+
+        unsigned m_idx;
+        for (m_idx = 0; m_idx < ARRAYSIZE(MONTHS); ++m_idx)
+        {
+            if (m_str == MONTHS[m_idx])
+            {
+                break;
+            }
+        }
+        if (m_idx >= ARRAYSIZE(MONTHS))
+        {
+            // Invalid month.
+            return false;
+        }
+        tm.tm_mon = m_idx;
+    }
+
+    // Day.
+    {
+        std::string d_str = sdate.substr(d_offset, 2);
+        int d_value = strtol(d_str.c_str(), nullptr, 10);
+        if (d_value < 1 || d_value > 31)
+        {
+            // Invalid day.
+            return false;
+        }
+        tm.tm_mday = d_value;
+    }
+
+    // Year.
+    {
+        std::string y_str = sdate.substr(y_offset, 4);
+        tm.tm_year = strtol(y_str.c_str(), nullptr, 10);
+        tm.tm_year -= 1900;
     }
 
     // newlib does not have the proper boundary checking for strptime().
