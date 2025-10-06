@@ -159,27 +159,58 @@ bool BroadcastTimeDefs::string_to_time(
 //
 int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
 {
-    const char *rate_c_str = srate.c_str();
-    char *end;
-    float rate = strtof(rate_c_str, &end);
+    // Note: The obvious way to simplify this method would be to make use of
+    //       strtof(). However, avoiding strtof() saves nearly 8K of code space
+    //       (ARMv7m, -Os).
 
-    if (end == rate_c_str)
+    size_t decimal = srate.find('.');
+
+    char *end;
+    long rate;
+    bool negative = false;
+
+    // Get the whole number portion.
     {
-        // None of the string processed.
-        return 4;
-    }
-    if (rate < -512)
-    {
-        // set to minimum valid rate
-        rate = -512;
-    }
-    else if (rate > 511.75)
-    {
-        // set to maximum valid rate
-        rate = 511.75;
+        std::string whole_str = srate.substr(0, decimal);
+        rate = strtol(whole_str.c_str(), &end, 0);
+        if (end == whole_str.c_str())
+        {
+            // None of the string processed.
+            return 4;
+        }
+        negative = whole_str.find('-') != std::string::npos;
     }
     rate *= 4;
-    rate += rate < 0 ? -0.5 : 0.5;
+
+    // Get the fractional portion
+    if (decimal != std::string::npos)
+    {
+        std::string decimal_str = srate.substr(decimal + 1);
+        decimal_str.resize(2, '0');
+        long rate_frac = strtol(decimal_str.c_str(), &end, 10);
+        if (end != decimal_str.c_str())
+        {
+            // Value 12 is chosen so that we round up when not an exact multiple
+            // of 0.25.
+            while (rate_frac > 12)
+            {
+                rate += negative ? -1 : 1;
+                rate_frac -= 25;
+            }
+        }
+    }
+
+    // Boundary checks
+    if (rate < -2048)
+    {
+        // set to minimum valid rate
+        rate = -2048;
+    }
+    else if (rate > 2047)
+    {
+        // set to maximum valid rate
+        rate = 2047;
+    }
     return rate;
 }
 
