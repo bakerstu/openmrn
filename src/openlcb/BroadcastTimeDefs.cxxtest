@@ -157,6 +157,7 @@ TEST_F(BroadcastTimeDefsTest, string_to_date)
     // Examples with more whitespace
     parse_date("Aug     12,\n\n2023    ", 2023, 8, 12);
     parse_date("Aug\r\n12,\t2023    ", 2023, 8, 12);
+    parse_date("    Aug 12, 2023", 2023, 8, 12);
 
     // Examples with garbage at end
     parse_date("Aug 12, 2023xxxxx", 2023, 8, 12);
@@ -180,7 +181,6 @@ TEST_F(BroadcastTimeDefsTest, string_to_date_fail)
     EXPECT_FALSE(parse_date("Dec 32, 1969"));
     EXPECT_FALSE(parse_date("Aug 12x2023"));
     EXPECT_FALSE(parse_date("Feb 32, 2023"));
-    EXPECT_FALSE(parse_date("    Aug 12, 2023"));
 
     EXPECT_FALSE(parse_date("Aug 12"));
     EXPECT_FALSE(parse_date("Aug"));
@@ -211,7 +211,7 @@ TEST_F(BroadcastTimeDefsTest, date_canonicalize)
 
     EXPECT_TRUE(canon_date("Feb 31, 5023", "Jan  1, 1970"));
     EXPECT_TRUE(canon_date("Dec 32, 2023", "Jan  1, 1970"));
-    EXPECT_TRUE(canon_date("  Aug 9, 2023", "Jan  1, 1970"));
+    EXPECT_TRUE(canon_date("  Aug 9, 2023", "Aug  9, 2023"));
 }
 
 TEST_F(BroadcastTimeDefsTest, rate_canonicalize)
