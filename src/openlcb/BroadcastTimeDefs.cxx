@@ -350,13 +350,11 @@ bool BroadcastTimeDefs::string_to_date(
         tm.tm_year -= 1900;
     }
 
-    // newlib does not have the proper boundary checking for strptime().
-    // Therefore we use mktime() to determine if the time we have is really
-    // valid or not. In newlib, mktime() can actually correct some invalid
-    // struct tm values by making some educated guesses.
+    // We use mktime() to determine if the time we have is really valid or not.
+    // In newlib, mktime() can actually correct some invalid struct tm values by
+    // making some educated guesses.
     //
-    // While glibc does have proper boundary checking for strptime(), it
-    // can still use mktime() to correct some invalid struct tm values by
+    // glibc can also use mktime() to correct some invalid struct tm values by
     // making some educated guesses.
     time_t t = mktime(&tm);
 
