@@ -59,13 +59,13 @@ static const char *MONTHS[12] =
     "Dec"
 };
 
-/// Searches the string for the first  character that is not a space of the
+/// Searches the string for the first character that is not a space of the
 /// characters specified in the arguments.
 /// @param str String to search
 /// @param pos position of the first character in the string to be considered
 ///        in the search.
-/// @return The position of the first character is not a space. If no such match
-///         is found, returns std::string::npos.
+/// @return The position of the first character which is not a space. If no such
+///         match is found, returns std::string::npos.
 static size_t string_find_first_not_space(
     const std::string &str, size_t pos = 0)
 {
