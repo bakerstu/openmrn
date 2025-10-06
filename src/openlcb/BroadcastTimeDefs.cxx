@@ -42,12 +42,6 @@
 namespace openlcb
 {
 
-extern "C"
-{
-// normally requires _GNU_SOURCE
-char *strptime(const char *, const char *, struct tm *);
-}
-
 /// An array that contains all Mmm abbreviations of the months of the year.
 static const char *MONTHS[12] =
 {
