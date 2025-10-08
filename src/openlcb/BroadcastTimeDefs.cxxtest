@@ -146,8 +146,8 @@ TEST_F(BroadcastTimeDefsTest, string_to_date)
 
     parse_date("Jan 01, 1970", 1970, 1, 1);
 
-    // Some leading zeros get misinterpreted.
-    parse_date("Jan 09, 02023", 202, 1, 9);
+    // Some leading zeros in the year.
+    parse_date("Jan 09, 02023", 2023, 1, 9);
 
     // Examples with missing whitespace
     parse_date("Aug 12,2023", 2023, 8, 12);
@@ -158,6 +158,7 @@ TEST_F(BroadcastTimeDefsTest, string_to_date)
     parse_date("Aug     12,\n\n2023    ", 2023, 8, 12);
     parse_date("Aug\r\n12,\t2023    ", 2023, 8, 12);
     parse_date("    Aug 12, 2023", 2023, 8, 12);
+    parse_date("Aug12,2023", 2023, 8, 12);
 
     // Examples with garbage at end
     parse_date("Aug 12, 2023xxxxx", 2023, 8, 12);

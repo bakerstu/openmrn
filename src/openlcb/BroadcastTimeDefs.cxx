@@ -59,24 +59,40 @@ static const char *MONTHS[12] =
     "Dec"
 };
 
-/// Searches the string for the first character that is not a space of the
-/// characters specified in the arguments.
-/// @param str String to search
-/// @param pos position of the first character in the string to be considered
-///        in the search.
-/// @return The position of the first character which is not a space. If no such
-///         match is found, returns std::string::npos.
-static size_t string_find_first_not_space(
-    const std::string &str, size_t pos = 0)
+/// Trim the leading "left" space of the C string.
+/// @param str C string to trim
+/// @param offset number of characters to ignore before looking.
+/// @return pointer to the first non space character of the string or the null
+///         terminating character if the end of the string is reached
+static const char *ltrim(const char *str, size_t offset = 0)
 {
-    for (auto it = str.begin() + pos; it < str.end(); ++it)
+    while (*str != '\0')
     {
-        if (!(isspace(*it)))
+        if (offset)
         {
-            return it - str.begin();
+            --offset;
         }
+        else if (!std::isspace(*str))
+        {
+            break;
+        }
+        ++str;
     }
-    return std::string::npos;
+    return str;
+}
+
+/// Find the next instance of a character in a string.
+/// @param str C string to search
+/// @param c character value to search for
+/// @return pointer to the first instance of the character in the string or the
+///         null terminating character if the end of the string is reached
+static const char *cfind(const char *str, char c)
+{
+    while (*str != '\0' && *str != c)
+    {
+        ++str;
+    }
+    return str;
 }
 
 //
@@ -197,38 +213,29 @@ bool BroadcastTimeDefs::string_to_time(
     //       strptime(). However, avoiding strptime() saves nearly 2K of code
     //       space (ARMv7m, -Os).
 
-    bool result = true;
+    const char *p = stime.c_str();
+    char *p_new;
     int h_value = 0;
     int m_value = 0;
+    bool result = true;
 
-    // Find the colon separator.
-    size_t colon = stime.find(':');
-    if (colon == std::string::npos)
+    h_value = strtol(p, &p_new, 10);
+    p = ltrim(p_new);
+    if (p[0] == ':')
     {
-        // Invalid format.
-        result = false;
+        ++p;
+        m_value = strtol(p, nullptr, 10);
+
+        if (h_value < 0 || h_value > 23 || m_value < 0 || m_value > 59)
+        {
+            // Invalid string, out of range.
+            result = false;
+        }
     }
     else
     {
-        // Translate the hour.
-        {
-            std::string hour_str = stime.substr(0, colon);
-            h_value = strtol(hour_str.c_str(), nullptr, 10);
-            if (h_value < 0 || h_value > 23)
-            {
-                result = false;
-            }
-        }
-
-        // Translate the minute.
-        {
-            std::string min_str = stime.substr(colon + 1);
-            m_value = strtol(min_str.c_str(), nullptr, 10);
-            if (m_value < 0 || m_value > 59)
-            {
-                result = false;
-            }
-        }
+        // Invalid string, no colon.
+        result = false;
     }
 
     if (hour)
@@ -252,32 +259,31 @@ int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
     //       strtof(). However, avoiding strtof() saves nearly 8K of code space
     //       (ARMv7m, -Os).
 
-    size_t decimal = srate.find('.');
-
-    char *end;
-    long rate;
+    const char *p = srate.c_str();
+    char *p_new;
+    int rate;
     bool negative = false;
 
     // Get the whole number portion.
     {
-        std::string whole_str = srate.substr(0, decimal);
-        rate = strtol(whole_str.c_str(), &end, 0);
-        if (end == whole_str.c_str())
+        rate = strtol(p, &p_new, 0);
+        if (p_new == p)
         {
-            // None of the string processed.
+            // None of the string processed, default to 1:1 rate.
             return 4;
         }
-        negative = whole_str.find('-') != std::string::npos;
+        negative = rate < 0;
     }
     rate *= 4;
 
     // Get the fractional portion
-    if (decimal != std::string::npos)
+    p = ltrim(p_new);
+    if (*p == '.')
     {
-        std::string decimal_str = srate.substr(decimal + 1);
-        decimal_str.resize(2, '0');
-        long rate_frac = strtol(decimal_str.c_str(), &end, 10);
-        if (end != decimal_str.c_str())
+        ++p;
+        char tmp[3] = {p[0], p[1], '\0'};
+        int rate_frac = strtol(tmp, &p_new, 10);
+        if (p_new != p)
         {
             // Value 12 is chosen so that we round up when not an exact multiple
             // of 0.25.
@@ -289,17 +295,9 @@ int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
         }
     }
 
-    // Boundary checks
-    if (rate < -2048)
-    {
-        // set to minimum valid rate
-        rate = -2048;
-    }
-    else if (rate > 2047)
-    {
-        // set to maximum valid rate
-        rate = 2047;
-    }
+    rate = std::max(rate, -2048);
+    rate = std::min(rate, 2047);
+
     return rate;
 }
 
@@ -313,20 +311,25 @@ bool BroadcastTimeDefs::string_to_date(
     //       strptime(). However, avoiding strptime() saves nearly 2K of code
     //       space (ARMv7m, -Os).
 
-    size_t m_offset = string_find_first_not_space(sdate);
-    size_t d_offset = string_find_first_not_space(sdate, m_offset + 3);
-    size_t y_offset = sdate.find(',', d_offset + 1);
-    if (y_offset == std::string::npos)
+    const char *m_str = ltrim(sdate.c_str());
+    const char *y_str = cfind(m_str, ',');
+    if (*y_str != ',')
     {
-        // Invalid format, no comma.
+        // Invalid format, no comma
         return false;
     }
-
-    y_offset = string_find_first_not_space(sdate, y_offset + 1);
-    if (y_offset == std::string::npos)
+    y_str = ltrim(y_str + 1);
+    if (*y_str == '\0')
     {
         // Invalid format, no year.
         return false;
+    }
+
+    const char *d_str = ltrim(m_str, 3);
+    if (d_str > y_str)
+    {
+        // Likely no space between month and day.
+        d_str = m_str + 3;
     }
 
     struct tm tm;
@@ -335,15 +338,16 @@ bool BroadcastTimeDefs::string_to_date(
     // Month.
     {
         // Get a sub-string that matches the Mmm case format.
-        std::string m_str = sdate.substr(m_offset, 3);
-        m_str.replace(0, 1, 1, std::toupper(m_str[0]));
-        m_str.replace(1, 1, 1, std::tolower(m_str[1]));
-        m_str.replace(2, 1, 1, std::tolower(m_str[2]));
+        char Mmm_str[4] =
+        {
+            (char)std::toupper(m_str[0]), (char)std::tolower(m_str[1]),
+            (char)std::tolower(m_str[2]), '\0'
+        };
 
         unsigned m_idx;
         for (m_idx = 0; m_idx < ARRAYSIZE(MONTHS); ++m_idx)
         {
-            if (m_str == MONTHS[m_idx])
+            if (!strcmp(Mmm_str, MONTHS[m_idx]))
             {
                 break;
             }
@@ -358,8 +362,7 @@ bool BroadcastTimeDefs::string_to_date(
 
     // Day.
     {
-        std::string d_str = sdate.substr(d_offset, 2);
-        int d_value = strtol(d_str.c_str(), nullptr, 10);
+        int d_value = strtol(d_str, nullptr, 10);
         if (d_value < 1 || d_value > 31)
         {
             // Invalid day.
@@ -370,8 +373,7 @@ bool BroadcastTimeDefs::string_to_date(
 
     // Year.
     {
-        std::string y_str = sdate.substr(y_offset, 4);
-        tm.tm_year = strtol(y_str.c_str(), nullptr, 10);
+        tm.tm_year = strtol(y_str, nullptr, 10);
         tm.tm_year -= 1900;
     }
 
