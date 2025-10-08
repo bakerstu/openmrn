@@ -109,18 +109,21 @@ std::string BroadcastTimeDefs::time_to_string(int hour, int min)
         min = 0;
     }
 
-    struct tm tm;
-    tm.tm_hour = hour;
-    tm.tm_min = min;
-    char value[6];
-    if (strftime(value, 6, "%R", &tm) != 0)
+    std::string stime;
+    stime.reserve(5);
+    if (hour < 10)
     {
-        return value;
+        stime.append(1, '0');
     }
-    else
+    stime.append(integer_to_string(hour));
+    stime.append(":");
+    if (min < 10)
     {
-        return "Error";
+        stime.append(1, '0');
     }
+    stime.append(integer_to_string(min));
+
+    return stime;
 }
 
 //
