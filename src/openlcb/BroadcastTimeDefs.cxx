@@ -269,13 +269,14 @@ int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
 
     // Get the whole number portion.
     {
+        p = ltrim(p);
         rate = strtol(p, &p_new, 0);
         if (p_new == p)
         {
             // None of the string processed, default to 1:1 rate.
             return 4;
         }
-        negative = rate < 0;
+        negative = *p == '-';
     }
     rate *= 4;
 

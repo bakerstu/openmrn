@@ -136,6 +136,12 @@ TEST(BroadcastTimeDefs, string_to_rate_quarters)
 
     rate = BroadcastTimeDefs::string_to_rate_quarters("-1.75");
     EXPECT_EQ(-7, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("-0.75");
+    EXPECT_EQ(-3, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters(" 0.75");
+    EXPECT_EQ(3, rate);
 }
 
 TEST_F(BroadcastTimeDefsTest, string_to_date)
