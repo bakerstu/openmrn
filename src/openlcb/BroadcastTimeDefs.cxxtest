@@ -140,7 +140,19 @@ TEST(BroadcastTimeDefs, string_to_rate_quarters)
     rate = BroadcastTimeDefs::string_to_rate_quarters("-0.75");
     EXPECT_EQ(-3, rate);
 
+    rate = BroadcastTimeDefs::string_to_rate_quarters(" -0.75");
+    EXPECT_EQ(-3, rate);
+
     rate = BroadcastTimeDefs::string_to_rate_quarters(" 0.75");
+    EXPECT_EQ(3, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("- 0.75");
+    EXPECT_EQ(-3, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters("-.75");
+    EXPECT_EQ(-3, rate);
+
+    rate = BroadcastTimeDefs::string_to_rate_quarters(".75");
     EXPECT_EQ(3, rate);
 }
 

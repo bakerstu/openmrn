@@ -268,17 +268,19 @@ int16_t BroadcastTimeDefs::string_to_rate_quarters(const std::string &srate)
     bool negative = false;
 
     // Get the whole number portion.
+    p = ltrim(p);
+    if (*p == '-')
     {
-        p = ltrim(p);
-        rate = strtol(p, &p_new, 0);
-        if (p_new == p)
-        {
-            // None of the string processed, default to 1:1 rate.
-            return 4;
-        }
-        negative = *p == '-';
+        negative = true;
+        p = ltrim(p + 1);
     }
-    rate *= 4;
+    rate = strtol(p, &p_new, 0);
+    if (p_new == p && *p != '.')
+    {
+        // None of the string processed, default to 1:1 rate.
+        return 4;
+    }
+    rate *= negative ? -4 : 4;
 
     // Get the fractional portion
     p = ltrim(p_new);
@@ -376,10 +378,8 @@ bool BroadcastTimeDefs::string_to_date(
     }
 
     // Year.
-    {
-        tm.tm_year = strtol(y_str, nullptr, 10);
-        tm.tm_year -= 1900;
-    }
+    tm.tm_year = strtol(y_str, nullptr, 10);
+    tm.tm_year -= 1900;
 
     // We use mktime() to determine if the time we have is really valid or not.
     // In newlib, mktime() can actually correct some invalid struct tm values by
