@@ -86,7 +86,7 @@ static const char *ltrim(const char *str, size_t offset = 0)
 /// @param c character value to search for
 /// @return pointer to the first instance of the character in the string or the
 ///         null terminating character if the end of the string is reached
-static const char *cfind(const char *str, char c)
+static const char *c_str_find(const char *str, char c)
 {
     while (*str != '\0' && *str != c)
     {
@@ -315,7 +315,7 @@ bool BroadcastTimeDefs::string_to_date(
     //       space (ARMv7m, -Os).
 
     const char *m_str = ltrim(sdate.c_str());
-    const char *y_str = cfind(m_str, ',');
+    const char *y_str = c_str_find(m_str, ',');
     if (*y_str != ',')
     {
         // Invalid format, no comma
