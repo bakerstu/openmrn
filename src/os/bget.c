@@ -403,7 +403,7 @@
 					 how many buffer allocation attempts
 					 the test program should make. */
 #endif
-#define SizeQuant   4		      /* Buffer allocation size quantum:
+#define SizeQuant   16		      /* Buffer allocation size quantum:
 					 all buffers allocated are a
 					 multiple of this size.  This
 					 MUST be a power of two. */

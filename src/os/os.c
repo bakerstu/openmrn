@@ -707,6 +707,47 @@ void __real__free_r(void *address);
 volatile unsigned wait = 1;
 
 /** malloc() wrapper for newlib-nano
+ * @param reent reentrancy structure
+ * @param nmemb number of elements of provided size
+ * @param size size of malloc in bytes
+ * @return pointer to newly malloc'd space
+ */
+void *__wrap__calloc_r(struct _reent *reent, size_t nmemb, size_t size)
+{
+    void *result;
+    __malloc_lock();
+    result = bget_impl_calloc(nmemb * size);
+    if (result == NULL)
+    {
+        /* Heap and stack collision */
+        diewith(BLINK_DIE_OUTOFMEM);
+    }
+    __malloc_unlock();
+    return result;
+}
+
+/** malloc() wrapper for newlib-nano
+ * @param reent reentrancy structure
+ * @param ptr pointer to reallocate
+ * @param size size of malloc in bytes
+ * @return pointer to newly malloc'd space
+ */
+void *__wrap__realloc_r(struct _reent *reent, void *ptr, size_t size)
+{
+    void *result;
+    __malloc_lock();
+    result = bget_impl_realloc(ptr, size);
+    if (result == NULL)
+    {
+        /* Heap and stack collision */
+        diewith(BLINK_DIE_OUTOFMEM);
+    }
+    __malloc_unlock();
+    return result;
+}
+
+/** malloc() wrapper for newlib-nano
+ * @param reent reentrancy structure
  * @param size size of malloc in bytes
  * @return pointer to newly malloc'd space
  */
@@ -729,6 +770,7 @@ void *__wrap__malloc_r(struct _reent *reent, size_t size)
 }
 
 /** free() wrapper for newlib-nano
+ * @param reent reentrancy structure
  * @param address pointer to previously malloc'd address
  */
 void __wrap__free_r(struct _reent *reent, void *address)

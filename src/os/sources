@@ -15,5 +15,5 @@ CXXSRCS += FakeClock.cxx \
 
 
 
-bget.o: CFLAGS+= -Wno-error=strict-prototypes -O0
-bget_impl.o: CFLAGS+= -Wno-error=strict-prototypes -O0
+bget.o: CFLAGS+= -Wno-error=strict-prototypes
+bget_impl.o: CFLAGS+= -Wno-error=strict-prototypes

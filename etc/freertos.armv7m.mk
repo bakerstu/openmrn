@@ -77,7 +77,8 @@ LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            $(ARCHFLAGS) -Os \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
            -Wl,--undefined=ignore_fn $(LDFLAGSEXTRA) $(LDFLAGSENV) \
-           --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r
+           --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r \
+           -Wl,--wrap=_calloc_r -Wl,--wrap=_realloc_r
 
 SYSLIB_SUBDIRS +=
 SYSLIBRARIES +=

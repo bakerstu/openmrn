@@ -44,8 +44,7 @@ static void bget_impl_add(size_t incr)
 
 void *bget_impl_malloc(size_t size)
 {
-    void *result = NULL;
-    result = bget(size);
+    void *result = bget(size);
     if (result == NULL)
     {
         bget_impl_add(size);
@@ -60,4 +59,26 @@ void bget_impl_free(void *ptr)
     {
         brel(ptr);
     }
+}
+
+void *bget_impl_calloc(size_t size)
+{
+    void *result = bgetz(size);
+    if (result == NULL)
+    {
+        bget_impl_add(size);
+        result = bgetz(size);
+    }
+    return result;
+}
+
+void *bget_impl_realloc(void *ptr, size_t size)
+{
+    void *result = bgetr(ptr, size);
+    if (result == NULL)
+    {
+        bget_impl_add(size);
+        result = bgetr(ptr, size);
+    }
+    return result;
 }
