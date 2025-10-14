@@ -1,0 +1,19 @@
+VPATH := $(SRCDIR):
+
+CSRCS += bget.c \
+         bget_impl.c \
+         os.c \
+         stack_malloc.c \
+         watchdog.c
+
+CXXSRCS += FakeClock.cxx \
+           logging_malloc.cxx \
+           MDNS.cxx \
+           OSImpl.cxx \
+           OSSelectWakeup.cxx \
+           TempFile.cxx
+
+
+
+bget.o: CFLAGS+= -Wno-error=strict-prototypes -O0
+bget_impl.o: CFLAGS+= -Wno-error=strict-prototypes -O0

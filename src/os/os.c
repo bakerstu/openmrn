@@ -700,18 +700,30 @@ void __malloc_unlock(void)
 }
 
 #if defined (_REENT_SMALL)
+#include "os/bget_impl.h"
 void *__real__malloc_r(size_t size);
 void __real__free_r(void *address);
+
+volatile unsigned wait = 1;
 
 /** malloc() wrapper for newlib-nano
  * @param size size of malloc in bytes
  * @return pointer to newly malloc'd space
  */
-void *__wrap__malloc_r(size_t size)
+void *__wrap__malloc_r(struct _reent *reent, size_t size)
 {
     void *result;
     __malloc_lock();
-    result = __real__malloc_r(size);
+#if 0
+    result = __real__malloc_r(reent, size);
+#else
+    result = bget_impl_malloc(size);
+    if (result == NULL)
+    {
+        /* Heap and stack collision */
+        diewith(BLINK_DIE_OUTOFMEM);
+    }
+#endif
     __malloc_unlock();
     return result;
 }
@@ -719,10 +731,14 @@ void *__wrap__malloc_r(size_t size)
 /** free() wrapper for newlib-nano
  * @param address pointer to previously malloc'd address
  */
-void __wrap__free_r(void *address)
+void __wrap__free_r(struct _reent *reent, void *address)
 {
     __malloc_lock();
-    __real__free_r(address);
+#if 0
+    __real__free_r(reent, address);
+#else
+    bget_impl_free(address);
+#endif
     __malloc_unlock();
 }
 #endif
@@ -770,6 +786,7 @@ extern char *heap2_end;
 char *heap2_end = 0;
 void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 {
+#if 0
     /** @todo (Stuart Baker) change naming to remove "cs3" convention */
     extern char __cs3_heap_start;
     extern char __cs3_heap_end; /* Defined by the linker */
@@ -802,6 +819,9 @@ void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
     }
     heap_end += incr;
     return (caddr_t) prev_heap_end;
+#else
+    return (caddr_t)-1;
+#endif
 }
 
 ssize_t os_get_free_heap()
