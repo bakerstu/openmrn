@@ -52,7 +52,7 @@ CORECFLAGS = $(ARCHOPTIMIZATION) $(ARCHFLAGS) -Wall -Werror \
              -specs=nano.specs
 
 CFLAGS += -c $(CORECFLAGS) -std=c99 -Wstrict-prototypes  \
-          $(CFLAGSENV) $(CFLAGSEXTRA)
+              -D_REENT_SMALL -DHEAP_BGET $(CFLAGSENV) $(CFLAGSEXTRA)
 
 CXXFLAGS += -c $(CORECFLAGS) -std=c++14 -D_ISOC99_SOURCE \
             -D__USE_LIBSTDCPP__ -D__STDC_FORMAT_MACROS -D__LINEAR_MAP__ \
@@ -64,7 +64,8 @@ LDFLAGS += -g -fdata-sections -ffunction-sections -T target.ld \
            -march=armv6-m -mthumb -L$(TOOLPATH)/arm-none-eabi/lib/armv6-m \
            -Wl,-Map="$(@:%.elf=%.map)" -Wl,--gc-sections \
            -Wl,--undefined=ignore_fn -Wl,--undefined=cpuload_tick $(LDFLAGSEXTRA) $(LDFLAGSENV) \
-           --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r
+           --specs=nano.specs -Wl,--wrap=_malloc_r -Wl,--wrap=_free_r \
+           -Wl,--wrap=_calloc_r -Wl,--wrap=_realloc_r
 
 # We disable linking against certain components from libc that we don't need
 # and pull in a lot of code dependencies (typically 50-100 kbytes), like

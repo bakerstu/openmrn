@@ -58,7 +58,7 @@ CORECFLAGS = $(ARCHFLAGS) -Wall -Werror -Wno-unknown-pragmas \
              -D__FreeRTOS__ -DGCC_ARMCM3 -specs=nano.specs
 
 CFLAGS += $(COMPILEOPT) $(ARCHOPTIMIZATION) $(CORECFLAGS) -std=c99 \
-          -Wstrict-prototypes -D_REENT_SMALL \
+          -Wstrict-prototypes -D_REENT_SMALL -DHEAP_BGET \
           $(CFLAGSENV) $(CFLAGSEXTRA) \
 
 

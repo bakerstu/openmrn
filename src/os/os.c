@@ -700,11 +700,37 @@ void __malloc_unlock(void)
 }
 
 #if defined (_REENT_SMALL)
+#if defined (HEAP_BGET)
 #include "os/bget_impl.h"
-void *__real__malloc_r(size_t size);
-void __real__free_r(void *address);
+#else
+void *__real__malloc_r(struct _reent *reent, size_t size);
+void *__real__calloc_r(struct _reent *reent, size_t nmemb, size_t size);
+void *__real__realloc_r(struct _reent *reent, void *ptr, size_t size);
+void __real__free_r(struct _reent *rent, void *address);
+#endif
 
-volatile unsigned wait = 1;
+/** malloc() wrapper for newlib-nano
+ * @param reent reentrancy structure
+ * @param size size of malloc in bytes
+ * @return pointer to newly malloc'd space
+ */
+void *__wrap__malloc_r(struct _reent *reent, size_t size)
+{
+    void *result;
+    __malloc_lock();
+#if defined (HEAP_BGET)
+    result = bget_impl_malloc(size);
+    if (result == NULL)
+    {
+        /* Heap and stack collision */
+        diewith(BLINK_DIE_OUTOFMEM);
+    }
+#else
+    result = __real__malloc_r(reent, size);
+#endif
+    __malloc_unlock();
+    return result;
+}
 
 /** malloc() wrapper for newlib-nano
  * @param reent reentrancy structure
@@ -716,12 +742,16 @@ void *__wrap__calloc_r(struct _reent *reent, size_t nmemb, size_t size)
 {
     void *result;
     __malloc_lock();
+#if defined (HEAP_BGET)
     result = bget_impl_calloc(nmemb * size);
     if (result == NULL)
     {
         /* Heap and stack collision */
         diewith(BLINK_DIE_OUTOFMEM);
     }
+#else
+    result = __real__calloc_r(reent, nmemb, size);
+#endif
     __malloc_unlock();
     return result;
 }
@@ -736,34 +766,15 @@ void *__wrap__realloc_r(struct _reent *reent, void *ptr, size_t size)
 {
     void *result;
     __malloc_lock();
+#if defined (HEAP_BGET)
     result = bget_impl_realloc(ptr, size);
     if (result == NULL)
     {
         /* Heap and stack collision */
         diewith(BLINK_DIE_OUTOFMEM);
     }
-    __malloc_unlock();
-    return result;
-}
-
-/** malloc() wrapper for newlib-nano
- * @param reent reentrancy structure
- * @param size size of malloc in bytes
- * @return pointer to newly malloc'd space
- */
-void *__wrap__malloc_r(struct _reent *reent, size_t size)
-{
-    void *result;
-    __malloc_lock();
-#if 0
-    result = __real__malloc_r(reent, size);
 #else
-    result = bget_impl_malloc(size);
-    if (result == NULL)
-    {
-        /* Heap and stack collision */
-        diewith(BLINK_DIE_OUTOFMEM);
-    }
+    result = __real__realloc_r(reent, ptr, size);
 #endif
     __malloc_unlock();
     return result;
@@ -776,10 +787,10 @@ void *__wrap__malloc_r(struct _reent *reent, size_t size)
 void __wrap__free_r(struct _reent *reent, void *address)
 {
     __malloc_lock();
-#if 0
-    __real__free_r(reent, address);
-#else
+#if defined (HEAP_BGET)
     bget_impl_free(address);
+#else
+    __real__free_r(reent, address);
 #endif
     __malloc_unlock();
 }
@@ -828,7 +839,9 @@ extern char *heap2_end;
 char *heap2_end = 0;
 void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 {
-#if 0
+#if defined (HEAP_BGET)
+    return (caddr_t)-1;
+#else
     /** @todo (Stuart Baker) change naming to remove "cs3" convention */
     extern char __cs3_heap_start;
     extern char __cs3_heap_end; /* Defined by the linker */
@@ -861,8 +874,6 @@ void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
     }
     heap_end += incr;
     return (caddr_t) prev_heap_end;
-#else
-    return (caddr_t)-1;
 #endif
 }
 

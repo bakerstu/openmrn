@@ -8,8 +8,12 @@ extern char __heap2_end;
 extern char *heap_end;
 extern char *heap2_end;
 
+/// Add more system memory to BGET.
+/// @param incr (minimum) size in bytes to allocate. Additional metadata
+///        padding will be added.
 static void bget_impl_add(size_t incr)
 {
+    // Add a bit extra and align to a 256 byte boundary.
     incr += 128;
     incr = (incr + (256U - 1U)) & ~(256U - 1U);
 
@@ -42,6 +46,9 @@ static void bget_impl_add(size_t incr)
     heap_end += incr;
 }
 
+//
+// bget_impl_malloc()
+//
 void *bget_impl_malloc(size_t size)
 {
     void *result = bget(size);
@@ -53,14 +60,9 @@ void *bget_impl_malloc(size_t size)
     return result;
 }
 
-void bget_impl_free(void *ptr)
-{
-    if (ptr)
-    {
-        brel(ptr);
-    }
-}
-
+//
+// bget_impl_calloc()
+//
 void *bget_impl_calloc(size_t size)
 {
     void *result = bgetz(size);
@@ -72,6 +74,9 @@ void *bget_impl_calloc(size_t size)
     return result;
 }
 
+//
+// bget_impl_realloc()
+//
 void *bget_impl_realloc(void *ptr, size_t size)
 {
     void *result = bgetr(ptr, size);
@@ -81,4 +86,15 @@ void *bget_impl_realloc(void *ptr, size_t size)
         result = bgetr(ptr, size);
     }
     return result;
+}
+
+//
+// bget_impl_free()
+//
+void bget_impl_free(void *ptr)
+{
+    if (ptr)
+    {
+        brel(ptr);
+    }
 }
