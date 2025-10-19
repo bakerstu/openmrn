@@ -681,7 +681,7 @@ int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 
 /** Lock access to malloc.
  */
-void __malloc_lock(void)
+void __malloc_lock(struct _reent *reent)
 {
     if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
     {
@@ -691,7 +691,7 @@ void __malloc_lock(void)
 
 /** Unlock access to malloc.
  */
-void __malloc_unlock(void)
+void __malloc_unlock(struct _reent *reent)
 {
     if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
     {
@@ -699,31 +699,72 @@ void __malloc_unlock(void)
     }
 }
 
-#if defined (_REENT_SMALL)
-void *__real__malloc_r(size_t size);
-void __real__free_r(void *address);
+// These wrappers allow for the stubbing in of a custom memory allocator.
+// Originally these were needed for newlib-nano because Newlib-nano did not
+// implement proper multi-thread locking for the heap methods. Later,
+// Newlib-nano was updated to use the __malloc_lock()/unlock() methods. This
+// has been verified in ARM GCC version 8.2.1 (20181213). It is assumed that
+// later versions of ARM GCC no longer need these definitions either, if using
+// the integrated Newlib-nano heap.
+#if 0
+void *__real__malloc_r(struct _reent *reent, size_t size);
+void *__real__calloc_r(struct _reent *reent, size_t nmemb, size_t size);
+void *__real__realloc_r(struct _reent *reent, void *ptr, size_t size);
+void __real__free_r(struct _reent *rent, void *address);
 
 /** malloc() wrapper for newlib-nano
+ * @param reent reentrancy structure
  * @param size size of malloc in bytes
  * @return pointer to newly malloc'd space
  */
-void *__wrap__malloc_r(size_t size)
+void *__wrap__malloc_r(struct _reent *reent, size_t size)
 {
     void *result;
-    __malloc_lock();
-    result = __real__malloc_r(size);
-    __malloc_unlock();
+    __malloc_lock(reent);
+    result = __real__malloc_r(reent, size);
+    __malloc_unlock(reent);
+    return result;
+}
+
+/** malloc() wrapper for newlib-nano
+ * @param reent reentrancy structure
+ * @param nmemb number of elements of provided size
+ * @param size size of malloc in bytes
+ * @return pointer to newly malloc'd space
+ */
+void *__wrap__calloc_r(struct _reent *reent, size_t nmemb, size_t size)
+{
+    void *result;
+    __malloc_lock(reent);
+    result = __real__calloc_r(reent, nmemb, size);
+    __malloc_unlock(reent);
+    return result;
+}
+
+/** malloc() wrapper for newlib-nano
+ * @param reent reentrancy structure
+ * @param ptr pointer to reallocate
+ * @param size size of malloc in bytes
+ * @return pointer to newly malloc'd space
+ */
+void *__wrap__realloc_r(struct _reent *reent, void *ptr, size_t size)
+{
+    void *result;
+    __malloc_lock(reent);
+    result = __real__realloc_r(reent, ptr, size);
+    __malloc_unlock(reent);
     return result;
 }
 
 /** free() wrapper for newlib-nano
+ * @param reent reentrancy structure
  * @param address pointer to previously malloc'd address
  */
-void __wrap__free_r(void *address)
+void __wrap__free_r(struct _reent *reent, void *address)
 {
-    __malloc_lock();
-    __real__free_r(address);
-    __malloc_unlock();
+    __malloc_lock(reent);
+    __real__free_r(reent, address);
+    __malloc_unlock(reent);
 }
 #endif
 
@@ -768,6 +809,12 @@ extern char *heap_end;
 char *heap_end = 0;
 extern char *heap2_end;
 char *heap2_end = 0;
+
+/** Allocate additional memory to the heap.
+ * @param reent reentrancy structure
+ * @param incr size in bytes requested for allocation
+ * @return pointer to the newly allocated memory
+ */
 void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 {
     /** @todo (Stuart Baker) change naming to remove "cs3" convention */
@@ -804,6 +851,9 @@ void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
     return (caddr_t) prev_heap_end;
 }
 
+/** Get the amount of free memory, not yet allocated to the heap.
+ * @return remaining unallocated size in bytes
+ */
 ssize_t os_get_free_heap()
 {
     /** @todo (Stuart Baker) change naming to remove "cs3" convention */
