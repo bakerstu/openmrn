@@ -685,6 +685,8 @@ void __malloc_lock(struct _reent *reent)
 {
     if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
     {
+        // Task suspension is safe to nest. vTaskSuspendAll() and
+        // xTaskSuspendAll utilize a nesting counter.
         vTaskSuspendAll();
     }
 }
