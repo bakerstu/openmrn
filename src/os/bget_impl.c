@@ -1,49 +1,20 @@
 #include "os/bget_impl.h"
 #include "os/bget.h"
 
-extern char __heap2_start_alias;
-extern char __heap2_start;
-extern char __heap2_end;
+extern void* _sbrk_r(struct _reent *reent, ptrdiff_t incr);
 
-extern char *heap_end;
-extern char *heap2_end;
+/// Must be the same size as SizeQuant in bget.c
+#define SIZE_QUANT 16
 
 /// Add more system memory to BGET.
 /// @param incr (minimum) size in bytes to allocate. Additional metadata
 ///        padding will be added.
 static void bget_impl_add(size_t incr)
 {
-    // Add a bit extra and align to a 256 byte boundary.
-    incr += 128;
-    incr = (incr + (256U - 1U)) & ~(256U - 1U);
-
-    /** @todo (Stuart Baker) change naming to remove "cs3" convention */
-    extern char __cs3_heap_start;
-    extern char __cs3_heap_end; /* Defined by the linker */
-    if (heap_end == 0)
-    {
-        heap_end = &__cs3_heap_start;
-    }
-    if (heap2_end == 0)
-    {
-        heap2_end = &__heap2_start;
-    }
-    if ((heap_end + incr) > &__cs3_heap_end)
-    {
-        if (&__heap2_start != &__heap2_end)
-        {
-            /* there is a second heap */
-            if ((heap2_end + incr) <= &__heap2_end)
-            {
-                bpool(heap2_end, incr);
-                heap2_end += incr;
-            }
-        }
-        /* Heap and stack collision */
-        return;
-    }
-    bpool(heap_end, incr);
-    heap_end += incr;
+    incr = (incr + (SIZE_QUANT - 1)) & (~(SIZE_QUANT - 1));
+    incr += 4 * sizeof(bufsize); // Header block.
+    void *mem = _sbrk_r(NULL, incr);
+    bpool(mem, incr);
 }
 
 //

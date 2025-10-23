@@ -728,11 +728,6 @@ void *__wrap__malloc_r(struct _reent *reent, size_t size)
     __malloc_lock(reent);
 #if defined (HEAP_BGET)
     result = bget_impl_malloc(size);
-    if (result == NULL)
-    {
-        /* Heap and stack collision */
-        diewith(BLINK_DIE_OUTOFMEM);
-    }
 #else
     result = __real__malloc_r(reent, size);
 #endif
@@ -752,11 +747,6 @@ void *__wrap__calloc_r(struct _reent *reent, size_t nmemb, size_t size)
     __malloc_lock(reent);
 #if defined (HEAP_BGET)
     result = bget_impl_calloc(nmemb * size);
-    if (result == NULL)
-    {
-        /* Heap and stack collision */
-        diewith(BLINK_DIE_OUTOFMEM);
-    }
 #else
     result = __real__calloc_r(reent, nmemb, size);
 #endif
@@ -776,11 +766,6 @@ void *__wrap__realloc_r(struct _reent *reent, void *ptr, size_t size)
     __malloc_lock(reent);
 #if defined (HEAP_BGET)
     result = bget_impl_realloc(ptr, size);
-    if (result == NULL)
-    {
-        /* Heap and stack collision */
-        diewith(BLINK_DIE_OUTOFMEM);
-    }
 #else
     result = __real__realloc_r(reent, ptr, size);
 #endif
@@ -853,9 +838,6 @@ char *heap2_end = 0;
  */
 void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 {
-#if defined (HEAP_BGET)
-    return (caddr_t)-1;
-#else
     /** @todo (Stuart Baker) change naming to remove "cs3" convention */
     extern char __cs3_heap_start;
     extern char __cs3_heap_end; /* Defined by the linker */
@@ -888,7 +870,6 @@ void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
     }
     heap_end += incr;
     return (caddr_t) prev_heap_end;
-#endif
 }
 
 /** Get the amount of free memory, not yet allocated to the heap.

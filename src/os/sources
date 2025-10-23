@@ -1,8 +1,18 @@
+ifeq ($(TARGET),freertos.armv6m)
+USE_BGET := True
+endif
+ifeq ($(TARGET),freertos.armv7m)
+USE_BGET := True
+endif
+ifeq ($(TARGET),freertos.armv7m.exc)
+USE_BGET := True
+endif
+USE_BGET ?= False
+
+
 VPATH := $(SRCDIR):
 
-CSRCS += bget.c \
-         bget_impl.c \
-         os.c \
+CSRCS += os.c \
          stack_malloc.c \
          watchdog.c
 
@@ -14,6 +24,10 @@ CXXSRCS += FakeClock.cxx \
            TempFile.cxx
 
 
+ifeq ($(USE_BGET),True)
+CSRCS += bget.c \
+         bget_impl.c \
 
 bget.o: CFLAGS+= -Wno-error=strict-prototypes
 bget_impl.o: CFLAGS+= -Wno-error=strict-prototypes
+endif
