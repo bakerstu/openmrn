@@ -681,17 +681,19 @@ int os_thread_once(os_thread_once_t *once, void (*routine)(void))
 
 /** Lock access to malloc.
  */
-void __malloc_lock(void)
+void __malloc_lock(struct _reent *reent)
 {
     if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
     {
+        // Task suspension is safe to nest. vTaskSuspendAll() and
+        // xTaskSuspendAll utilize a nesting counter.
         vTaskSuspendAll();
     }
 }
 
 /** Unlock access to malloc.
  */
-void __malloc_unlock(void)
+void __malloc_unlock(struct _reent *reent)
 {
     if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
     {
@@ -699,10 +701,16 @@ void __malloc_unlock(void)
     }
 }
 
-#if defined (_REENT_SMALL)
+// These wrappers allow for the stubbing in of a custom memory allocator.
+// Originally these were needed for newlib-nano because Newlib-nano did not
+// implement proper multi-thread locking for the heap methods. Later,
+// Newlib-nano was updated to use the __malloc_lock()/unlock() methods. This
+// has been verified in ARM GCC version 8.2.1 (20181213). It is assumed that
+// later versions of ARM GCC no longer need these definitions either, if using
+// the integrated Newlib-nano heap.
 #if defined (HEAP_BGET)
 #include "os/bget_impl.h"
-#else
+#if 0
 void *__real__malloc_r(struct _reent *reent, size_t size);
 void *__real__calloc_r(struct _reent *reent, size_t nmemb, size_t size);
 void *__real__realloc_r(struct _reent *reent, void *ptr, size_t size);
@@ -717,7 +725,7 @@ void __real__free_r(struct _reent *rent, void *address);
 void *__wrap__malloc_r(struct _reent *reent, size_t size)
 {
     void *result;
-    __malloc_lock();
+    __malloc_lock(reent);
 #if defined (HEAP_BGET)
     result = bget_impl_malloc(size);
     if (result == NULL)
@@ -728,7 +736,7 @@ void *__wrap__malloc_r(struct _reent *reent, size_t size)
 #else
     result = __real__malloc_r(reent, size);
 #endif
-    __malloc_unlock();
+    __malloc_unlock(reent);
     return result;
 }
 
@@ -741,7 +749,7 @@ void *__wrap__malloc_r(struct _reent *reent, size_t size)
 void *__wrap__calloc_r(struct _reent *reent, size_t nmemb, size_t size)
 {
     void *result;
-    __malloc_lock();
+    __malloc_lock(reent);
 #if defined (HEAP_BGET)
     result = bget_impl_calloc(nmemb * size);
     if (result == NULL)
@@ -752,7 +760,7 @@ void *__wrap__calloc_r(struct _reent *reent, size_t nmemb, size_t size)
 #else
     result = __real__calloc_r(reent, nmemb, size);
 #endif
-    __malloc_unlock();
+    __malloc_unlock(reent);
     return result;
 }
 
@@ -765,7 +773,7 @@ void *__wrap__calloc_r(struct _reent *reent, size_t nmemb, size_t size)
 void *__wrap__realloc_r(struct _reent *reent, void *ptr, size_t size)
 {
     void *result;
-    __malloc_lock();
+    __malloc_lock(reent);
 #if defined (HEAP_BGET)
     result = bget_impl_realloc(ptr, size);
     if (result == NULL)
@@ -776,7 +784,7 @@ void *__wrap__realloc_r(struct _reent *reent, void *ptr, size_t size)
 #else
     result = __real__realloc_r(reent, ptr, size);
 #endif
-    __malloc_unlock();
+    __malloc_unlock(reent);
     return result;
 }
 
@@ -786,13 +794,13 @@ void *__wrap__realloc_r(struct _reent *reent, void *ptr, size_t size)
  */
 void __wrap__free_r(struct _reent *reent, void *address)
 {
-    __malloc_lock();
+    __malloc_lock(reent);
 #if defined (HEAP_BGET)
     bget_impl_free(address);
 #else
     __real__free_r(reent, address);
 #endif
-    __malloc_unlock();
+    __malloc_unlock(reent);
 }
 #endif
 
@@ -837,6 +845,12 @@ extern char *heap_end;
 char *heap_end = 0;
 extern char *heap2_end;
 char *heap2_end = 0;
+
+/** Allocate additional memory to the heap.
+ * @param reent reentrancy structure
+ * @param incr size in bytes requested for allocation
+ * @return pointer to the newly allocated memory
+ */
 void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 {
 #if defined (HEAP_BGET)
@@ -877,6 +891,9 @@ void* _sbrk_r(struct _reent *reent, ptrdiff_t incr)
 #endif
 }
 
+/** Get the amount of free memory, not yet allocated to the heap.
+ * @return remaining unallocated size in bytes
+ */
 ssize_t os_get_free_heap()
 {
     /** @todo (Stuart Baker) change naming to remove "cs3" convention */
