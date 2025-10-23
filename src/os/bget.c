@@ -407,7 +407,7 @@
 					 all buffers allocated are a
 					 multiple of this size.  This
 					 MUST be a power of two. */
-
+#if 0
 #define BufDump     1		      /* Define this symbol to enable the
 					 bpoold() function which dumps the
 					 buffers in a buffer pool. */
@@ -420,29 +420,31 @@
 					 bufdump() function which allows
 					 dumping the contents of an allocated
 					 or free buffer. */
-
+#endif
+#if 0
 #define BufStats    1		      /* Define this symbol to enable the
 					 bstats() function which calculates
 					 the total free space in the buffer
 					 pool, the largest available
 					 buffer, and the total space
 					 currently allocated. */
-
+#endif
+#if 0
 #define FreeWipe    1		      /* Wipe free buffers to a guaranteed
 					 pattern of garbage to trip up
 					 miscreants who attempt to use
 					 pointers into released buffers. */
-
+#endif
 #define BestFit     1		      /* Use a best fit algorithm when
 					 searching for space for an
 					 allocation request.  This uses
 					 memory more efficiently, but
 					 allocation will be much slower. */
-
+#if 0
 #define BECtl	    1		      /* Define this symbol to enable the
 					 bectl() function for automatic
 					 pool space control.  */
-
+#endif
 #include <stdio.h>
 
 #ifdef lint
