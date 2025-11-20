@@ -533,19 +533,30 @@ OS_INLINE int os_mutex_destroy(os_mutex_t *mutex)
 OS_INLINE int os_mutex_lock(os_mutex_t *mutex)
 {
 #if OPENMRN_FEATURE_MUTEX_FREERTOS
-    vTaskSuspendAll();
     if (mutex->sem == NULL)
     {
-        if (mutex->recursive)
+        int task_scheduler_running =
+            (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING);
+        if (task_scheduler_running)
         {
-            mutex->sem = xSemaphoreCreateRecursiveMutex();
+            vTaskSuspendAll();
         }
-        else
+        if (mutex->sem == NULL)
         {
-            mutex->sem = xSemaphoreCreateMutex();
+            if (mutex->recursive)
+            {
+                mutex->sem = xSemaphoreCreateRecursiveMutex();
+            }
+            else
+            {
+                mutex->sem = xSemaphoreCreateMutex();
+            }
+        }
+        if (task_scheduler_running)
+        {
+            xTaskResumeAll();
         }
     }
-    xTaskResumeAll();
 
     if (mutex->recursive)
     {

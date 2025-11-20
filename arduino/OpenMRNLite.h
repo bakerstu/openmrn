@@ -40,8 +40,8 @@
 
 #include "CDIXMLGenerator.hxx"
 #include "executor/Notifiable.hxx"
-#include "freertos_drivers/arduino/Can.hxx"
-#include "freertos_drivers/arduino/WifiDefs.hxx"
+#include "freertos_drivers/common/Can.hxx"
+#include "freertos_drivers/common/WifiDefs.hxx"
 #include "openlcb/SimpleStack.hxx"
 #include "utils/FileUtils.hxx"
 #include "utils/GridConnectHub.hxx"
@@ -75,17 +75,8 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 // ESP32-H2 and ESP32-C2 do not have a built-in TWAI controller.
 #if !defined(CONFIG_IDF_TARGET_ESP32H2) && !defined(CONFIG_IDF_TARGET_ESP32C2)
 
-// If we are using ESP-IDF v4.3 (or later) enable the usage of the TWAI device
-// which allows usage of the filesystem based CAN interface methods.
-#include "freertos_drivers/esp32/Esp32HardwareTwai.hxx"
-#define HAVE_CAN_FS_DEVICE
-
-// The ESP-IDF VFS layer has an optional wrapper around the select() interface
-// when disabled we can not use select() for the CAN/TWAI driver. Normally this
-// is enabled for arduino-esp32.
-#if CONFIG_VFS_SUPPORT_SELECT
-#define HAVE_CAN_FS_SELECT
-#endif
+// If we are using ESP-IDF v4.3 (or later) enable the usage of the TWAI device.
+#include "freertos_drivers/esp32/Esp32Can.hxx"
 
 #endif // NOT ESP32-H2 and NOT ESP32-C2
 
@@ -99,11 +90,15 @@ constexpr UBaseType_t OPENMRN_TASK_PRIORITY = ESP_TASK_TCPIP_PRIO - 1;
 #endif // ESP32
 
 #ifdef ARDUINO_ARCH_STM32
-
-#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #include "freertos_drivers/stm32/Stm32Can.hxx"
-
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
 #endif
+
+#ifdef ARDUINO_FEATHER_M4_CAN
+#include "freertos_drivers/sam/FeatherM4Can.hxx"
+#include "freertos_drivers/arduino/ArduinoGpio.hxx"
+#endif
+
 
 namespace openmrn_arduino
 {
@@ -395,10 +390,6 @@ public:
     {
         for (auto *e : loopMembers_)
         {
-#if defined(ESP32) && CONFIG_TASK_WDT
-            // Feed the watchdog so it doesn't reset the ESP32
-            esp_task_wdt_reset();
-#endif // ESP32 && CONFIG_TASK_WDT
             e->run();
         }
     }
@@ -419,7 +410,7 @@ public:
     {
 #if defined(ESP32) && CONFIG_TASK_WDT
         uint32_t current_core = xPortGetCoreID();
-        TaskHandle_t idleTask = xTaskGetIdleTaskHandleForCPU(current_core);
+        TaskHandle_t idleTask = xTaskGetIdleTaskHandleForCore(current_core);
         // check if watchdog is enabled and print a warning if it is
         if (esp_task_wdt_status(idleTask) == ESP_OK)
         {
@@ -443,7 +434,22 @@ public:
 #if CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
         // Remove IDLE0 task watchdog, because the openmrn task sometimes
         // uses 100% cpu and it is pinned to CPU 0.
-        disableCore0WDT();
+        {
+            esp_task_wdt_config_t twdt_config = {
+                .timeout_ms = CONFIG_ESP_TASK_WDT_TIMEOUT_S * 1000,
+                .idle_core_mask = 0,
+#if CONFIG_ESP_TASK_WDT_PANIC
+                .trigger_panic = true,
+#endif
+            };
+#if CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0
+            // core 0 should not be checked ever.
+#endif
+#if CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1
+            twdt_config.idle_core_mask |= (1 << 1);
+#endif
+            ESP_ERROR_CHECK(esp_task_wdt_reconfigure(&twdt_config));
+        }
 #endif // CONFIG_TASK_WDT_CHECK_IDLE_TASK_CPU0
         xTaskCreatePinnedToCore(&thread_entry         // entry point
                               , "OpenMRN"             // task name

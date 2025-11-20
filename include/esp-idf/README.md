@@ -1,0 +1,2 @@
+# ESP IDF Notes
+The include/esp-idf directory is specifically for ESP IDF builds. Because ESP IDF provides its own FreeRTOSConfig.h, the version in include/freertos conflicts. Therefore, include/ is removed from the build include path (etc/esp-idf/CMakeLists.txt), and any required includes from that directory are symlinked to include/esp-idf.

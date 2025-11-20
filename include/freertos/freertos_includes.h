@@ -54,7 +54,7 @@
 #define xQueueHandle                  QueueHandle_t
 #define xSemaphoreHandle              SemaphoreHandle_t
 
-// used in freertos_drivers/arduino/CpuLoad.hxx and os/os.c
+// used in freertos_drivers/common/CpuLoad.hxx and os/os.c
 #define pcTaskGetTaskName             pcTaskGetName
 
 #endif // IDF v5.0+ and !CONFIG_FREERTOS_ENABLE_BACKWARD_COMPATIBILITY

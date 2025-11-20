@@ -271,7 +271,7 @@ private:
 Esp32WiFiManager::Esp32WiFiManager(const char *station_ssid
     , const char *station_password, openlcb::SimpleStackBase *stack
     , const WiFiConfiguration &cfg, wifi_mode_t wifi_mode
-    , uint8_t connection_mode, const char *hostname_prefix
+    , ConnectionMode connection_mode, const char *hostname_prefix
     , const char *sntp_server, const char *timezone, bool sntp_enabled
     , uint8_t softap_channel, wifi_auth_mode_t softap_auth_mode
     , const char *softap_ssid, const char *softap_password)
@@ -1503,7 +1503,28 @@ StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::reload()
     {
         parent_->stop_uplink();
     }
+
+    if (parent_->connectionMode_ & CONN_MODE_SHUTDOWN_BIT)
+    {
+        HASSERT((parent_->connectionMode_ & CONN_MODE_HUB_BIT) == 0);
+        HASSERT((parent_->connectionMode_ & CONN_MODE_UPLINK_BIT) == 0);
+        // If we have gotten here, then the CONN_MODE_UPLINK_BIT and
+        // CONN_MODE_SHUTDOWN_BIT should both be clear. This means that both
+        // stop_hub() and stop_uplink() should have been called above. Alow a
+        // bit of time for lingering sockets to terminate before completeing the
+        // shutdown.
+        return sleep_and_call(&timer_, MSEC_TO_NSEC(500), STATE(shutdown));
+    }
     return wait_and_call(STATE(reload));
+}
+
+StateFlowBase::Action Esp32WiFiManager::WiFiStackFlow::shutdown()
+{
+    // Some time has passed since calling stop_hub() and stop_uplink(). Now the
+    // WiFi can be shutdown.
+    LOG(INFO, "[WiFi] Shutting down.");
+    esp_wifi_stop();
+    return exit();
 }
 
 } // namespace openmrn_arduino
@@ -1759,4 +1780,4 @@ const char *gai_strerror(int __ecode)
     }
 }
 
-#endif // ESP32
+#endif // ESP_PLATFORM

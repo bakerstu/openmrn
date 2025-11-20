@@ -41,6 +41,73 @@
 
 #include "main.hxx"
 
+/// Handle the device/socket connection and reconnection upon disconnect.
+class ConnectionMonitor : StateFlowBase
+{
+public:
+    /// Constructor.
+    ConnectionMonitor()
+        : StateFlowBase(&g_service)
+    {
+        connect();
+        HASSERT(fd_ >= 0);
+        create_gc_port_for_can_hub(&can_hub0, fd_, this);
+        wait_and_call(STATE(disconnected));
+    }
+
+    /// Disconnect occurred.
+    Action disconnected()
+    {
+        LOG(INFO, "disconnected()");
+        /// @todo cleanup main to use a SimpleStack, then replace this with
+        /// SimpleStack::restart_stack().
+        g_if_can.remote_aliases()->clear();
+        // Spawn a thread so that the executor is not blocked.
+        new (&thread_) OSThread("ConnectSocket", 0, 1024, connect_thread, this);
+        return wait_and_call(STATE(disconnected));
+    }
+
+private:
+    /// Make a connection to the device or socket.
+    void connect()
+    {
+        if (device_path)
+        {
+            fd_ = ::open(device_path, O_RDWR);
+        }
+        else
+        {
+            fd_ = ConnectSocket(host, port);
+        }
+    }
+
+    /// In context helper thread for making socket connections.
+    void connect_thread()
+    {
+        do
+        {
+            // This sleep serves two functions:
+            // 1. Some delay between reconnect attempts.
+            // 2. Allows some extra time for the client to exit upon completion
+            //    before attempting a new connection.
+            sleep(1);
+            connect();
+        } while (fd_ < 0);
+        LOG(INFO, "reconnected()");
+        create_gc_port_for_can_hub(&can_hub0, fd_, this);
+    }
+
+    /// Helper thread for making socket connections.
+    static void *connect_thread(void *arg)
+    {
+        static_cast<ConnectionMonitor*>(arg)->connect_thread();
+        return nullptr;
+    }
+
+    OSThread thread_; ///< thread object
+    int fd_; ///< file descriptor for the connection
+};
+
 /** Entry point to application.
  * @param argc number of command line arguments
  * @param argv array of command line arguments
@@ -53,17 +120,7 @@ int appl_main(int argc, char *argv[])
     {
         return 0;
     }
-    int conn_fd = 0;
-    if (device_path)
-    {
-        conn_fd = ::open(device_path, O_RDWR);
-    }
-    else
-    {
-        conn_fd = ConnectSocket(host, port);
-    }
-    HASSERT(conn_fd >= 0);
-    create_gc_port_for_can_hub(&can_hub0, conn_fd);
+    new ConnectionMonitor();
 
     g_if_can.add_addressed_message_support();
     // Bootstraps the alias allocation process.

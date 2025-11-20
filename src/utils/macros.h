@@ -238,7 +238,7 @@ extern const char* g_death_file;
 /// };
 #define GET_PARENT_PTR(ParentClass, variable)                                  \
     reinterpret_cast<ParentClass *>(                                           \
-        reinterpret_cast<char *>(this) - offsetof(ParentClass, variable));
+        reinterpret_cast<char *>(this) - offsetof(ParentClass, variable))
 
 
 /// Helper macro for printing a node ID on printf that does not support %llx.

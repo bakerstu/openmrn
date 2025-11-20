@@ -58,7 +58,7 @@ TempDir::TempDir()
 #else
     dirName_ = "./openmrntmpdirXXXXXX";
 #endif
-    dirName_.c_str();
+    (void)dirName_.c_str();
     HASSERT(mkdtemp(&dirName_[0]));
 }
 #endif
@@ -69,7 +69,7 @@ TempDir::TempDir()
 TempFile::TempFile(const TempDir& dir, const string& basename)
 {
     fileName_ = dir.name() + "/" + basename + ".XXXXXX";
-    fileName_.c_str();
+    (void)fileName_.c_str();
     fd_ = mkstemp((char*)fileName_.c_str());
 }
 

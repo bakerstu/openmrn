@@ -43,7 +43,7 @@
 
 #include <driver/gpio.h>
 #include <esp_rom_gpio.h>
-
+#include <soc/adc_channel.h>
 #include <soc/gpio_struct.h>
 
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
@@ -51,7 +51,8 @@
 ///
 /// This is necessary since ESP-IDF does not expose gpio_get_direction(pin).
 #define IS_GPIO_OUTPUT(pin) (GPIO_IS_VALID_OUTPUT_GPIO(pin) &&                 \
-                             GPIO.enable.data & BIT(pin & 25))
+                             GPIO.enable.data & \
+                             BIT(pin & SOC_GPIO_VALID_OUTPUT_GPIO_MASK))
 #else // NOT ESP32-C3
 /// Helper macro to test if a pin has been configured for output.
 ///
@@ -346,8 +347,6 @@ public:
         gpio_config_t cfg;
         memset(&cfg, 0, sizeof(gpio_config_t));
         cfg.pin_bit_mask = BIT64(PIN_NUM);
-        // using GPIO_MODE_INPUT_OUTPUT instead of GPIO_MODE_OUTPUT so that
-        // we can read the IO state
         cfg.mode = GPIO_MODE_INPUT;
         if (PUEN)
         {
@@ -559,7 +558,6 @@ template <class Defs> struct GpioInputPUPD : public GpioInputPin<Defs, true, tru
     struct NAME##Defs                                                          \
     {                                                                          \
         static const gpio_num_t PIN_NUM = (gpio_num_t)NUM;                     \
-                                                                               \
     public:                                                                    \
         static gpio_num_t pin()                                                \
         {                                                                      \
