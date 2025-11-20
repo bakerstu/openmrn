@@ -68,3 +68,4 @@ CXXSRCS += Stm32Can.cxx \
            Stm32I2C.cxx \
            Stm32EEPROMEmulation.cxx
 
+stm32f3xx_hal_crc.o: CFLAGS += -Wno-overflow
