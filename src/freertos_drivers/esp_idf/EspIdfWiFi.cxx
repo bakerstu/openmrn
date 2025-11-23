@@ -400,7 +400,7 @@ int EspIdfWiFiBase::mdns_lookup(
         {
             // We do not need to check for valid staIface_ or the
             // mdnsAdvInhibitSta_ flag since we can only get here if it both
-            // were was previously valid/set before starting the query.
+            // were previously valid/set before starting the query.
 
             // Update the timestamp for the last scan.
             mdnsLookupTimestamp_ = OSTime::get_monotonic();
@@ -738,6 +738,8 @@ void EspIdfWiFiBase::wifi_event_handler(
         case WIFI_EVENT_AP_STOP:
         {
             ipAcquiredAp_ = false;
+            apClientCount_ = 0;
+            ipLeased_ = false;
             // Register a callback to run on the passed in service executor.
             CallbackExecutable *e = new CallbackExecutable(std::bind(
                 &EspIdfWiFiBase::ip_acquired, this, IFACE_AP, false));
@@ -753,7 +755,10 @@ void EspIdfWiFiBase::wifi_event_handler(
                 (wifi_event_ap_staconnected_t *)data;
             LOG(INFO, "wifi: station " MACSTR " join, AID=%d",
                 MAC2STR(event->mac), event->aid);
-            ++apClientCount_;
+            if (ipAcquiredAp_)
+            {
+                ++apClientCount_;
+            }
             break;
         }
         case WIFI_EVENT_AP_STADISCONNECTED:
@@ -762,9 +767,12 @@ void EspIdfWiFiBase::wifi_event_handler(
                 (wifi_event_ap_stadisconnected_t *)data;
             LOG(INFO, "wifi: station " MACSTR " leave, AID=%d",
                 MAC2STR(event->mac), event->aid);
-            if (--apClientCount_ == 0)
+            if (ipAcquiredAp_ && apClientCount_)
             {
-                ipLeased_ = false;
+                if (--apClientCount_ == 0)
+                {
+                    ipLeased_ = false;
+                }
             }
             break;
         }
