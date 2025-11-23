@@ -662,7 +662,11 @@ void EspIdfWiFiBase::wifi_event_handler(
                 LOG(VERBOSE, "wifi: STA disconnected, scanning...");
             }
 #if !defined(ESP_IDF_PREDEF_NETIF)
-            mdns_netif_action(staIface_, MDNS_EVENT_DISABLE_IP4);
+            OSMutexLock locker(&lock_);
+            if (!mdnsAdvInhibitSta_)
+            {
+                mdns_netif_action(staIface_, MDNS_EVENT_DISABLE_IP4);
+            }
 #endif
             break;
         }
