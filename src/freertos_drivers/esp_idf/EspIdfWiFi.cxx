@@ -33,7 +33,7 @@
  */
 
 // Uncomment following line to enable verbose logging.
-//#define LOGLEVEL VERBOSE
+#define LOGLEVEL VERBOSE
 
 #include "freertos_drivers/esp_idf/EspIdfWiFi.hxx"
 
@@ -351,6 +351,7 @@ int EspIdfWiFiBase::mdns_lookup(
 
     // Do not allow concurent lookups for simplicity.
     OSMutexLock lookup_locker(&mdnsLookupLock_);
+#if !defined(ESP_IDF_PREDEF_NETIF)
     if (staIface_ && mdnsAdvInhibitSta_)
     {
         // The pseudo randomness of the resulting expires time helps
@@ -371,10 +372,12 @@ int EspIdfWiFiBase::mdns_lookup(
         // Advertising on STA is inhibited, remove all advertising services.
         ::mdns_service_remove_all();
         // Enable mDNS on STA.
+        mdns_register_netif(staIface_);
         ESP_ERROR_CHECK(
             mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
         LOG(VERBOSE, "wifi: mdns_lookup() remove all services, enable STA.");
     }
+#endif
 
     std::string name;
     std::string proto;
@@ -383,11 +386,12 @@ int EspIdfWiFiBase::mdns_lookup(
     /// @todo In the future, may want to do a faster query which collects more
     ///       than one result and then tries to asses which of multiple results
     ///       will be the highest performance option.
-    mdns_result_t *results;
+    mdns_result_t *results = nullptr;
     esp_err_t err =
         mdns_query_ptr(name.c_str(), proto.c_str(),
             MDNS_LOOKUP_ACTIVE_TIME_MAX_MSEC, 1, &results);
 
+#if !defined(ESP_IDF_PREDEF_NETIF)
     {
         // Check if we need to (re-)enable advertising and disable the STA
         // interface.
@@ -400,7 +404,8 @@ int EspIdfWiFiBase::mdns_lookup(
 
             // Update the timestamp for the last scan.
             mdnsLookupTimestamp_ = OSTime::get_monotonic();
-            // Disable mDNS on STA.
+            // Disable mDNS on STA. Note that the STA interface will also be
+            // unregistered, equivalent of calling mdns_unregister(staIface_).
             ESP_ERROR_CHECK(
                 mdns_netif_action(staIface_, MDNS_EVENT_DISABLE_IP4));
             // (Re-)register all the services.
@@ -417,72 +422,77 @@ int EspIdfWiFiBase::mdns_lookup(
             LOG(VERBOSE, "wifi: mdns_lookup() add all services, disable STA.");
         }
     }
+#endif
 
     // Check for an error result from the query.
     if (err != ESP_OK)
     {
         LOG_ERROR("wifi: mdns_query_ptr() failed: %s",
             esp_err_to_name(err));
-            return EAI_AGAIN;
+        return EAI_AGAIN;
     }
 
-    if (results)
+    if (!results)
     {
-        // Only return one result.
-        struct addrinfo *addr_info = allocaddrinfo();
-        if (addr_info == nullptr)
-        {
-            LOG_ERROR("wifi: mdns_lookup() out of memory.");
-            return EAI_MEMORY;
-        }
-        struct sockaddr_in *addr_in = (struct sockaddr_in*)addr_info->ai_addr;
+        LOG(VERBOSE, "wifi: mdns_query_ptr() results == nullptr");
+        return EAI_AGAIN;
+    }
+
+    // Only return one result.
+    struct addrinfo *addr_info = allocaddrinfo();
+    if (addr_info == nullptr)
+    {
+        LOG_ERROR("wifi: mdns_lookup() out of memory.");
+        mdns_query_results_free(results);
+        return EAI_MEMORY;
+    }
+    struct sockaddr_in *addr_in = (struct sockaddr_in*)addr_info->ai_addr;
 #if defined(ESP_IDF_WIFI_IPV6)
-        struct sockaddr_in6 *addr_in6 =
-            (struct sockaddr_in6*)addr_info->ai_addr;
+    struct sockaddr_in6 *addr_in6 =
+        (struct sockaddr_in6*)addr_info->ai_addr;
 #endif
-        mdns_ip_addr_t *current = results->addr;
-        while (current)
+    mdns_ip_addr_t *current = results->addr;
+    while (current)
+    {
+        if (current->addr.type == ESP_IPADDR_TYPE_V4)
         {
-            if (current->addr.type == ESP_IPADDR_TYPE_V4)
-            {
-                addr_info->ai_family = AF_INET;
-                addr_in->sin_family = AF_INET;
-                addr_in->sin_port = htons(results->port);
-                addr_in->sin_len = sizeof(struct sockaddr_in);
-                addr_in->sin_addr.s_addr = current->addr.u_addr.ip4.addr;
-                *addr = addr_info;
-                LOG(VERBOSE, "wifi: ip: %s, port: %u",
-                    ipv4_to_string(ntohl(addr_in->sin_addr.s_addr)).c_str(),
-                    ntohs(addr_in->sin_port));
-                break;
-            }
+            addr_info->ai_family = AF_INET;
+            addr_in->sin_family = AF_INET;
+            addr_in->sin_port = htons(results->port);
+            addr_in->sin_len = sizeof(struct sockaddr_in);
+            addr_in->sin_addr.s_addr = current->addr.u_addr.ip4.addr;
+            *addr = addr_info;
+            LOG(VERBOSE, "wifi: ip: %s, port: %u",
+                ipv4_to_string(ntohl(addr_in->sin_addr.s_addr)).c_str(),
+                ntohs(addr_in->sin_port));
+            break;
+        }
 #if defined(ESP_IDF_WIFI_IPV6)
-            else if (current->addr.type == ESP_IPADDR_TYPE_V6)
-            {
-                addr_info->ai_family = AF_INET6;
-                addr_in6->sin6_family = AF_INET6;
-                addr_in6->sin6_port = htons(results->port);
-                addr_in6->sin6_len = sizeof(struct sockaddr_in6);
-                memcpy(addr_in6->sin6_addr.un.u32_addr,
-                    current->addr.u_addr.ip6.addr,
-                    sizeof(addr_in6->sin6_addr.un.u32_addr));
-                *addr = addr_info;
-                break;
-            }
-#endif
-            else
-            {
-                // Unknown protocol.
-            }
-            current = current->next;
-        }
-        if (*addr == nullptr)
+        else if (current->addr.type == ESP_IPADDR_TYPE_V6)
         {
-            // No result actually found.
-            freeaddrinfo(addr_info);
-            LOG(VERBOSE, "wifi: mdns_lookup() no result found.");
+            addr_info->ai_family = AF_INET6;
+            addr_in6->sin6_family = AF_INET6;
+            addr_in6->sin6_port = htons(results->port);
+            addr_in6->sin6_len = sizeof(struct sockaddr_in6);
+            memcpy(addr_in6->sin6_addr.un.u32_addr,
+                current->addr.u_addr.ip6.addr,
+                sizeof(addr_in6->sin6_addr.un.u32_addr));
+            *addr = addr_info;
+            break;
         }
-    } // if (results)
+#endif
+        else
+        {
+            // Unknown protocol.
+        }
+        current = current->next;
+    }
+    if (*addr == nullptr)
+    {
+        // No result actually found.
+        freeaddrinfo(addr_info);
+        LOG(VERBOSE, "wifi: mdns_lookup() no result found.");
+    }
     mdns_query_results_free(results);
 
     return *addr == nullptr ? EAI_AGAIN : 0;
@@ -641,6 +651,9 @@ void EspIdfWiFiBase::wifi_event_handler(
                 esp_wifi_scan_start(nullptr, false);
                 LOG(VERBOSE, "wifi: STA disconnected, scanning...");
             }
+#if !defined(ESP_IDF_PREDEF_NETIF)
+            mdns_netif_action(staIface_, MDNS_EVENT_DISABLE_IP4);
+#endif
             break;
         }
         case WIFI_EVENT_SCAN_DONE:
@@ -715,6 +728,11 @@ void EspIdfWiFiBase::wifi_event_handler(
             char ip_addr[16];
             inet_ntoa_r(ip_info.ip.addr, ip_addr, 16);
             LOG(INFO, "wifi: Set up softAP with IP: %s", ip_addr);
+#if !defined (ESP_IDF_PREDEF_NETIF)
+            mdns_register_netif(apIface_);
+            mdns_netif_action(apIface_, MDNS_EVENT_ENABLE_IP4);
+            mdns_netif_action(apIface_, MDNS_EVENT_ANNOUNCE_IP4);
+#endif
             break;
         }
         case WIFI_EVENT_AP_STOP:
@@ -724,6 +742,9 @@ void EspIdfWiFiBase::wifi_event_handler(
             CallbackExecutable *e = new CallbackExecutable(std::bind(
                 &EspIdfWiFiBase::ip_acquired, this, IFACE_AP, false));
             service()->executor()->add(e);
+#if !defined (ESP_IDF_PREDEF_NETIF)
+            mdns_netif_action(apIface_, MDNS_EVENT_DISABLE_IP4);
+#endif
             break;
         }
         case WIFI_EVENT_AP_STACONNECTED:
@@ -775,16 +796,19 @@ void EspIdfWiFiBase::ip_event_handler(
             CallbackExecutable *e = new CallbackExecutable(std::bind(
                 &EspIdfWiFiBase::ip_acquired, this, IFACE_STA, true));
             service()->executor()->add(e);
+#if !defined(ESP_IDF_PREDEF_NETIF)
             OSMutexLock locker(&lock_);
             if (!mdnsAdvInhibitSta_ || mdnsAdvInhibited_)
             {
                 // Enable mDNS on STA.
+                mdns_register_netif(staIface_);
                 ESP_ERROR_CHECK(
                     mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
                 ESP_ERROR_CHECK(
                     mdns_netif_action(staIface_, MDNS_EVENT_ANNOUNCE_IP4));
                 LOG(VERBOSE, "wifi: ip_event_handler() enable mDNS on STA.");
             }
+#endif
             break;
         }
         case IP_EVENT_STA_LOST_IP:

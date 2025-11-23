@@ -56,6 +56,11 @@
 #endif
 #endif
 
+#if CONFIG_MDNS_PREDEF_NETIF_STA || CONFIG_MDNS_PREDEF_NETIF_AP || \
+    CONFIG_MDNS_PREDEF_NETIF_ETH
+#define ESP_IDF_PREDEF_NETIF
+#endif
+
 /// Object for managing WiFi and network interfaces. The following sequence
 /// must be called within or after app_main() in the following order:
 ///   -# init()
@@ -258,7 +263,11 @@ public:
     /// implementation. Currently this is not supported.
     void disable_mdns_publish_on_sta()
     {
+#if defined (ESP_IDF_PREDEF_NETIF)
+        DIE("To disable mDNS publish on STA, must be no predefined NETIF");
+#else
         mdnsAdvInhibitSta_ = true;
+#endif
     }
 
     /// In some cases, we want to only use the last known connection
