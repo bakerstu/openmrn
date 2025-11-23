@@ -483,6 +483,7 @@ int EspIdfWiFiBase::mdns_lookup(
 #endif
         else
         {
+            LOG(VERBOSE, "wifi: mdns_lookup() unknown protocol.");
             // Unknown protocol.
         }
         current = current->next;
