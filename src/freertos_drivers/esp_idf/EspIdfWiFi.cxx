@@ -372,6 +372,8 @@ int EspIdfWiFiBase::mdns_lookup(
         // Advertising on STA is inhibited, remove all advertising services.
         ::mdns_service_remove_all();
         // Enable mDNS on STA.
+        // Registering the interface is sometimes redundant, but resolves some
+        // potential race conditions.
         mdns_register_netif(staIface_);
         ESP_ERROR_CHECK(
             mdns_netif_action(staIface_, MDNS_EVENT_ENABLE_IP4));
@@ -417,6 +419,13 @@ int EspIdfWiFiBase::mdns_lookup(
                     it->name_.c_str(), it->proto_.c_str());
                 ::mdns_service_add(nullptr, it->name_.c_str(),
                     it->proto_.c_str(), it->port_, nullptr, 0);
+            }
+            // We know that the mDNS worker thread has competed the disable
+            // action once we can re-register the STA interface. This helps us
+            // to know that we are ready for another lookup before continuing.
+            while (mdns_register_netif(staIface_) != ESP_OK)
+            {
+                usleep(1000);
             }
             mdnsAdvInhibited_ = false;
             LOG(VERBOSE, "wifi: mdns_lookup() add all services, disable STA.");
