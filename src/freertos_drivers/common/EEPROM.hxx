@@ -36,7 +36,7 @@
 
 #include <cstdint>
 
-#include "Devtab.hxx"
+#include "freertos_drivers/common/Devtab.hxx"
 
 /** Common base class for all EEPROM access.
  */

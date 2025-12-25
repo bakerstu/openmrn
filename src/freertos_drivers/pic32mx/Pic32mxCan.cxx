@@ -35,7 +35,7 @@
 
 #include "freertos_drivers/pic32mx/Pic32mxCan.hxx"
 
-#include "DeviceBuffer.hxx"
+#include "freertos_drivers/common/DeviceBuffer.hxx"
 #include "nmranet_config.h"
 #include "can_frame.h"
 #include <fcntl.h>

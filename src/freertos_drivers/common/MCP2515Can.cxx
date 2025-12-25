@@ -33,7 +33,7 @@
 
 #define _DEFAULT_SOURCE
 
-#include "MCP2515Can.hxx"
+#include "freertos_drivers/common/MCP2515Can.hxx"
 
 #include <fcntl.h>
 #include <compiler.h>
