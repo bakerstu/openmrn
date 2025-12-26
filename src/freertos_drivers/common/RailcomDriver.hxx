@@ -70,8 +70,11 @@ public:
    *  packets. This feedback key is used by the application layer to correlate
    *  the stream of DCC packets to the stream of Railcom packets. This method
    *  shall be called before start_cutout. The feedback key set here is used
-   *  until this method is called again. @param key is the new feedback key. */
-  virtual void set_feedback_key(uint32_t key) = 0;
+   *  until this method is called again. @param key is the new feedback
+   *  key. @param dcc_address is the first two bytes of the DCC packet, which
+   *  will contain the DCC address. The first byte on the rail is the MSB, the
+   *  second byte is the LSB. */
+  virtual void set_feedback_key(uint32_t key, uint16_t dcc_address) = 0;
 
   /** Specifies what packet should be sent for the channel1 cutout. It is
    * okay to specify the same packet pointer for ch1 and ch2 cutout.
@@ -103,7 +106,7 @@ class NoRailcomDriver : public RailcomDriver {
   void middle_cutout() OVERRIDE {}
   void end_cutout() OVERRIDE {}
   void no_cutout() OVERRIDE {}
-  void set_feedback_key(uint32_t key) OVERRIDE {}
+    void set_feedback_key(uint32_t key, uint16_t dcc_address) OVERRIDE {}
 };
 
 #endif // _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_
