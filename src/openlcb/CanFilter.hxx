@@ -36,10 +36,12 @@
 #define _OPENLCB_CANFILTER_HXX_
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <map>
 #include <vector>
 
+#include "os/OS.hxx"
 #include "openlcb/CanDefs.hxx"
 #include "utils/Hub.hxx"
 
@@ -56,9 +58,11 @@ namespace openlcb
  * When there is an Alias to which a CAN frame is targeted, the frame will only
  * be sent to the port(s) registered for this specific alias.
  *
- * This class is NOT thread-safe. It is intended to be used by a single
- * StateFlow, which guarantees execution on a single processor and no parallel
- * access.
+ * The prepare_packet and is_matching methods are NOT thread-safe and must be
+ * called from a single StateFlow (single thread).
+ * The remove_port method IS thread-safe and can be called from any thread.
+ * It schedules the removal which is applied at the beginning of the next
+ * prepare_packet call.
  */
 class CanFilter
 {
@@ -74,6 +78,12 @@ public:
      */
     void prepare_packet(CanHubData *frame)
     {
+        // Apply pending removals
+        if (hasPendingRemovals_.load(std::memory_order_acquire))
+        {
+            apply_pending_removals();
+        }
+
         const struct can_frame &can_frame = frame->frame();
 
         // Update routing table with source info
@@ -164,24 +174,45 @@ public:
 
     /**
      * Removes all routing entries associated with the given port.
+     * This method is thread-safe.
      * @param port_id The identifier of the port to remove.
      */
     void remove_port(uintptr_t port_id)
     {
-        for (auto it = routingTable_.begin(); it != routingTable_.end(); )
+        OSMutexLock l(&lock_);
+        pendingRemovals_.push_back(port_id);
+        hasPendingRemovals_.store(true, std::memory_order_release);
+    }
+
+private:
+    /**
+     * Applies pending port removals to the routing table.
+     */
+    void apply_pending_removals()
+    {
+        std::vector<uintptr_t> removals;
         {
-            if (it->second == port_id)
+            OSMutexLock l(&lock_);
+            removals.swap(pendingRemovals_);
+            hasPendingRemovals_.store(false, std::memory_order_release);
+        }
+
+        for (uintptr_t port_id : removals)
+        {
+            for (auto it = routingTable_.begin(); it != routingTable_.end(); )
             {
-                it = routingTable_.erase(it);
-            }
-            else
-            {
-                ++it;
+                if (it->second == port_id)
+                {
+                    it = routingTable_.erase(it);
+                }
+                else
+                {
+                    ++it;
+                }
             }
         }
     }
 
-private:
     /**
      * Gets the source address from the CAN frame.
      * @param frame The CAN frame.
@@ -264,6 +295,15 @@ private:
 
     /// Source port of the current packet.
     uintptr_t sourcePort_{0};
+
+    /// Mutex protecting the pending removals.
+    OSMutex lock_;
+
+    /// List of ports to be removed.
+    std::vector<uintptr_t> pendingRemovals_;
+
+    /// Flag indicating if there are pending removals.
+    std::atomic<bool> hasPendingRemovals_{false};
 };
 
 } // namespace openlcb
