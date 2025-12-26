@@ -36,7 +36,6 @@
 #define _OPENLCB_CANFILTER_HXX_
 
 #include <algorithm>
-#include <atomic>
 #include <cstdint>
 #include <map>
 #include <vector>
@@ -79,7 +78,7 @@ public:
     void prepare_packet(CanHubData *frame)
     {
         // Apply pending removals
-        if (hasPendingRemovals_.load(std::memory_order_acquire))
+        if (hasPendingRemovals_)
         {
             apply_pending_removals();
         }
@@ -181,7 +180,7 @@ public:
     {
         OSMutexLock l(&lock_);
         pendingRemovals_.push_back(port_id);
-        hasPendingRemovals_.store(true, std::memory_order_release);
+        hasPendingRemovals_ = true;
     }
 
 private:
@@ -194,7 +193,7 @@ private:
         {
             OSMutexLock l(&lock_);
             removals.swap(pendingRemovals_);
-            hasPendingRemovals_.store(false, std::memory_order_release);
+            hasPendingRemovals_ = false;
         }
 
         for (uintptr_t port_id : removals)
@@ -303,7 +302,7 @@ private:
     std::vector<uintptr_t> pendingRemovals_;
 
     /// Flag indicating if there are pending removals.
-    std::atomic<bool> hasPendingRemovals_{false};
+    bool hasPendingRemovals_{false};
 };
 
 } // namespace openlcb
