@@ -162,6 +162,25 @@ public:
         return false;
     }
 
+    /**
+     * Removes all routing entries associated with the given port.
+     * @param port_id The identifier of the port to remove.
+     */
+    void remove_port(uintptr_t port_id)
+    {
+        for (auto it = routingTable_.begin(); it != routingTable_.end(); )
+        {
+            if (it->second == port_id)
+            {
+                it = routingTable_.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+    }
+
 private:
     /**
      * Gets the source address from the CAN frame.

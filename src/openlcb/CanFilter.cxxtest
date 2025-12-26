@@ -177,4 +177,47 @@ TEST_F(CanFilterTest, AddressedMessageWithZeroDestIsBroadcast) {
     EXPECT_FALSE(filter.is_matching(100));
 }
 
+TEST_F(CanFilterTest, RemovePort) {
+    Context ctxLearn1, ctxLearn2, ctxTest;
+
+    // Learn 0x456 on port 200.
+    uint32_t idLearn = 0;
+    CanDefs::set_fields(&idLearn, 0x456, Defs::MTI_EVENT_REPORT, CanDefs::GLOBAL_ADDRESSED, CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
+    setup_frame(&ctxLearn1.data, idLearn, 200);
+    filter.prepare_packet(&ctxLearn1.data);
+
+    // Learn 0x456 on port 201.
+    setup_frame(&ctxLearn2.data, idLearn, 201);
+    filter.prepare_packet(&ctxLearn2.data);
+
+    // Setup test packet: Unicast to 0x456. Dest in payload.
+    uint32_t idTest = 0;
+    CanDefs::set_fields(&idTest, 0x123, Defs::MTI_VERIFY_NODE_ID_ADDRESSED, CanDefs::GLOBAL_ADDRESSED, CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
+    setup_frame(&ctxTest.data, idTest, 100, {0x04, 0x56});
+
+    // Verify before removal: Matches both.
+    filter.prepare_packet(&ctxTest.data);
+    EXPECT_TRUE(filter.is_matching(200));
+    EXPECT_TRUE(filter.is_matching(201));
+    EXPECT_FALSE(filter.is_matching(300));
+
+    // Remove port 200.
+    filter.remove_port(200);
+
+    // Verify after removal: Matches only 201.
+    filter.prepare_packet(&ctxTest.data);
+    EXPECT_FALSE(filter.is_matching(200));
+    EXPECT_TRUE(filter.is_matching(201));
+    EXPECT_FALSE(filter.is_matching(300));
+
+    // Remove port 201.
+    filter.remove_port(201);
+
+    // Verify after removal: Unknown destination -> Broadcast.
+    filter.prepare_packet(&ctxTest.data);
+    EXPECT_TRUE(filter.is_matching(200)); // Broadcast matches all (except source)
+    EXPECT_TRUE(filter.is_matching(201));
+    EXPECT_TRUE(filter.is_matching(300));
+}
+
 } // namespace openlcb
