@@ -106,7 +106,7 @@ class NoRailcomDriver : public RailcomDriver {
   void middle_cutout() OVERRIDE {}
   void end_cutout() OVERRIDE {}
   void no_cutout() OVERRIDE {}
-    void set_feedback_key(uint32_t key, uint16_t dcc_address) OVERRIDE {}
+  void set_feedback_key(uint32_t key, uint16_t dcc_address) OVERRIDE {}
 };
 
 #endif // _FREERTOS_DRIVERS_COMMON_RAILCOMDRIVER_HXX_

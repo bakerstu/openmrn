@@ -892,8 +892,8 @@ inline void TivaDCC<HW>::interrupt_handler()
         if (!packetQueue_.empty())
         {
             packet = &packetQueue_.front();
-            railcomDriver_->set_feedback_key(
-                packet->feedback_key, (packet->payload[0] << 8) | packet->payload[1]);
+            railcomDriver_->set_feedback_key(packet->feedback_key,
+                (packet->payload[0] << 8) | packet->payload[1]);
         }
         else
         {
