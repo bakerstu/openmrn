@@ -74,17 +74,17 @@ public:
      */
     void prepare_packet(CanHubData *frame)
     {
-        const struct can_frame &canFrame = frame->frame();
+        const struct can_frame &can_frame = frame->frame();
 
         // Update routing table with source info
-        NodeAlias src = get_source_address(canFrame);
-        uintptr_t srcPort = reinterpret_cast<uintptr_t>(frame->skipMember_);
+        NodeAlias src = get_source_address(can_frame);
+        uintptr_t src_port = reinterpret_cast<uintptr_t>(frame->skipMember_);
 
         auto range = routingTable_.equal_range(src);
         bool found = false;
         for (auto it = range.first; it != range.second; ++it)
         {
-            if (it->second == srcPort)
+            if (it->second == src_port)
             {
                 found = true;
                 break;
@@ -92,28 +92,34 @@ public:
         }
         if (!found)
         {
-            routingTable_.insert(std::make_pair(src, srcPort));
+            routingTable_.insert(std::make_pair(src, src_port));
         }
 
         // Store source port for filtering
-        sourcePort_ = srcPort;
+        sourcePort_ = src_port;
         targetPorts_.clear();
 
         // Determine destination and routing
-        if (is_broadcast(canFrame))
+        if (is_broadcast(can_frame))
         {
             isBroadcast_ = true;
         }
         else
         {
-            NodeAlias dst = get_destination_address(canFrame);
-            auto dstRange = routingTable_.equal_range(dst);
+            NodeAlias dst = get_destination_address(can_frame);
+            if (dst == 0)
+            {
+                isBroadcast_ = true;
+                return;
+            }
 
-            if (dstRange.first != dstRange.second)
+            auto dst_range = routingTable_.equal_range(dst);
+
+            if (dst_range.first != dst_range.second)
             {
                 // Unicast to known destination(s)
                 isBroadcast_ = false;
-                for (auto it = dstRange.first; it != dstRange.second; ++it)
+                for (auto it = dst_range.first; it != dst_range.second; ++it)
                 {
                     targetPorts_.push_back(it->second);
                 }
@@ -176,9 +182,9 @@ private:
     NodeAlias get_destination_address(const struct can_frame &frame)
     {
         uint32_t can_id = GET_CAN_FRAME_ID_EFF(frame);
-        CanDefs::CanFrameType canType = CanDefs::get_can_frame_type(can_id);
+        CanDefs::CanFrameType can_type = CanDefs::get_can_frame_type(can_id);
 
-        if (canType == CanDefs::GLOBAL_ADDRESSED)
+        if (can_type == CanDefs::GLOBAL_ADDRESSED)
         {
             // For MTI-based messages, if address bit is set, destination is in payload.
             // We assume this is only called if is_broadcast returned false, which checks the MTI address bit.
@@ -215,11 +221,11 @@ private:
             return true;
         }
 
-        CanDefs::CanFrameType canType = CanDefs::get_can_frame_type(can_id);
+        CanDefs::CanFrameType can_type = CanDefs::get_can_frame_type(can_id);
         Defs::MTI mti = static_cast<Defs::MTI>(CanDefs::get_mti(can_id));
 
         // is_broadcast is true when ((CanFrameType is GLOBAL_ADDRESSED) AND (MTI & MTI_ADDRESS_MASK == 0)).
-        if (canType == CanDefs::GLOBAL_ADDRESSED &&
+        if (can_type == CanDefs::GLOBAL_ADDRESSED &&
             (mti & Defs::MTI_ADDRESS_MASK) == 0)
         {
             return true;

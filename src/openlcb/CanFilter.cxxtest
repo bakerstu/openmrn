@@ -59,8 +59,6 @@ TEST_F(CanFilterTest, UnicastUnknownDestination) {
     Context ctx;
     // Unicast message: Address Present.
     // Destination 0x456. In payload.
-    // 0x456 -> Hi: 0x4, Lo: 0x56.
-    // Payload: 0x04, 0x56.
 
     uint32_t id = 0;
     CanDefs::set_fields(&id, 0x123, Defs::MTI_VERIFY_NODE_ID_ADDRESSED, CanDefs::GLOBAL_ADDRESSED, CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
@@ -151,6 +149,32 @@ TEST_F(CanFilterTest, MultiplePortsForAlias) {
     EXPECT_TRUE(filter.is_matching(200));
     EXPECT_TRUE(filter.is_matching(201));
     EXPECT_FALSE(filter.is_matching(300));
+}
+
+TEST_F(CanFilterTest, AddressedMessageWithZeroDestIsBroadcast) {
+    Context ctx;
+    // Addressed message (MTI address bit set).
+    // But payload is empty or has 0 as dest.
+
+    uint32_t id = 0;
+    CanDefs::set_fields(&id, 0x123, Defs::MTI_VERIFY_NODE_ID_ADDRESSED, CanDefs::GLOBAL_ADDRESSED, CanDefs::NMRANET_MSG, CanDefs::NORMAL_PRIORITY);
+
+    // Empty payload -> get_destination_address returns 0.
+    setup_frame(&ctx.data, id, 100, {});
+
+    filter.prepare_packet(&ctx.data);
+
+    // Should be broadcast.
+    EXPECT_TRUE(filter.is_matching(200));
+    EXPECT_FALSE(filter.is_matching(100)); // Source filtering
+
+    // Zero payload -> dest 0.
+    Context ctx2;
+    setup_frame(&ctx2.data, id, 100, {0, 0});
+    filter.prepare_packet(&ctx2.data);
+
+    EXPECT_TRUE(filter.is_matching(200));
+    EXPECT_FALSE(filter.is_matching(100));
 }
 
 } // namespace openlcb
