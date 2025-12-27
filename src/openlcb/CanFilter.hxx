@@ -40,8 +40,8 @@
 #include <map>
 #include <vector>
 
-#include "os/OS.hxx"
 #include "openlcb/CanDefs.hxx"
+#include "os/OS.hxx"
 #include "utils/Hub.hxx"
 
 namespace openlcb
@@ -198,7 +198,7 @@ private:
 
         for (uintptr_t port_id : removals)
         {
-            for (auto it = routingTable_.begin(); it != routingTable_.end(); )
+            for (auto it = routingTable_.begin(); it != routingTable_.end();)
             {
                 if (it->second == port_id)
                 {
@@ -235,17 +235,19 @@ private:
 
         if (can_type == CanDefs::GLOBAL_ADDRESSED)
         {
-            // For MTI-based messages, if address bit is set, destination is in payload.
-            // We assume this is only called if is_broadcast returned false, which checks the MTI address bit.
-            // However, to be safe and complete:
+            // For MTI-based messages, if address bit is set, destination is in
+            // payload. We assume this is only called if is_broadcast returned
+            // false, which checks the MTI address bit. However, to be safe and
+            // complete:
             Defs::MTI mti = static_cast<Defs::MTI>(CanDefs::get_mti(can_id));
             if ((mti & Defs::MTI_ADDRESS_MASK) != 0 && frame.can_dlc >= 2)
             {
-                 NodeAlias dst = frame.data[0] & 0x0f;
-                 dst = (dst << 8) | frame.data[1];
-                 return dst;
+                NodeAlias dst = frame.data[0] & 0x0f;
+                dst = (dst << 8) | frame.data[1];
+                return dst;
             }
-            // Should not happen if called correctly on unicast packets, or if packet is malformed.
+            // Should not happen if called correctly on unicast packets, or if
+            // packet is malformed.
             return 0;
         }
         else
@@ -273,7 +275,8 @@ private:
         CanDefs::CanFrameType can_type = CanDefs::get_can_frame_type(can_id);
         Defs::MTI mti = static_cast<Defs::MTI>(CanDefs::get_mti(can_id));
 
-        // is_broadcast is true when ((CanFrameType is GLOBAL_ADDRESSED) AND (MTI & MTI_ADDRESS_MASK == 0)).
+        // is_broadcast is true when ((CanFrameType is GLOBAL_ADDRESSED) AND
+        // (MTI & MTI_ADDRESS_MASK == 0)).
         if (can_type == CanDefs::GLOBAL_ADDRESSED &&
             (mti & Defs::MTI_ADDRESS_MASK) == 0)
         {
@@ -286,14 +289,15 @@ private:
     /// Stores mapping from Alias to Port ID.
     std::multimap<NodeAlias, uintptr_t> routingTable_;
 
-    /// True if the current packet should be broadcast (sent to all except source).
-    bool isBroadcast_{false};
+    /// True if the current packet should be broadcast (sent to all except
+    /// source).
+    bool isBroadcast_ {false};
 
     /// If not broadcast, contains the list of target ports.
     std::vector<uintptr_t> targetPorts_;
 
     /// Source port of the current packet.
-    uintptr_t sourcePort_{0};
+    uintptr_t sourcePort_ {0};
 
     /// Mutex protecting the pending removals.
     OSMutex lock_;
@@ -302,7 +306,7 @@ private:
     std::vector<uintptr_t> pendingRemovals_;
 
     /// Flag indicating if there are pending removals.
-    bool hasPendingRemovals_{false};
+    bool hasPendingRemovals_ {false};
 };
 
 } // namespace openlcb
