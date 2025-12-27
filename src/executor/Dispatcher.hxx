@@ -141,7 +141,7 @@ protected:
 
     /// Iterate on potential handlers, matching the ID of the incoming message
     /// to the handlers' masks. @return next action
-    STATE_FLOW_STATE(iterate);
+    virtual STATE_FLOW_STATE(iterate);
     /// State after a clone-and-send operation is complete.  @return next action
     STATE_FLOW_STATE(clone_done);
     /// State when the entire iteration is done.  @return next action
