@@ -147,12 +147,13 @@ protected:
     /// State when the entire iteration is done.  @return next action
     STATE_FLOW_STATE(iteration_done);
 
-private:
+protected:
     /// true if this flow should negate the match condition.
     bool negateMatch_;
     template<class T>
     friend class GenericHubFlow;
 
+protected:
     /// Internal information we store about each registered handler:
     /// identifier, mask, handler pointer.
     struct HandlerInfo
@@ -193,7 +194,7 @@ protected:
     /// Handler to give all messages that were not matched by any other handler
     /// registration.
     UntypedHandler *fallbackHandler_{nullptr};
-private:
+protected:
     /// Protects handler add / remove against iteration.
     OSMutex lock_;
 };
