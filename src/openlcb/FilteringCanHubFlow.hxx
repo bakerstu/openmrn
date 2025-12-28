@@ -1,8 +1,8 @@
 #ifndef _OPENLCB_FILTERINGCANHUBFLOW_HXX_
 #define _OPENLCB_FILTERINGCANHUBFLOW_HXX_
 
-#include "utils/Hub.hxx"
 #include "openlcb/CanFilter.hxx"
+#include "utils/Hub.hxx"
 
 namespace openlcb
 {
@@ -23,7 +23,7 @@ public:
     Action entry() override;
     Action iterate() override;
 
-    void unregister_port(CanHubFlow::port_type* port) override;
+    void unregister_port(CanHubFlow::port_type *port) override;
 
 private:
     CanFilter filter_;
