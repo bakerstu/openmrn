@@ -66,26 +66,12 @@ StateFlowBase::Action FilteringCanHubFlow::iterate()
     }
 
     // Filtering behavior
-    ID id = get_message_id();
     {
         OSMutexLock l(&lock_);
         for (; currentIndex_ < handlers_.size(); ++currentIndex_)
         {
             auto &h = handlers_[currentIndex_];
-            if (!h.handler)
-            {
-                continue;
-            }
-            if (negateMatch_ && (id & h.mask) == (h.id & h.mask))
-            {
-                continue;
-            }
-            if ((!negateMatch_) && (id & h.mask) != (h.id & h.mask))
-            {
-                continue;
-            }
-
-            // Additional check: filtering
+            // Filtering check. Will also prevent loopback.
             if (!filter_.is_matching(reinterpret_cast<uintptr_t>(h.handler)))
             {
                 continue;
@@ -105,7 +91,7 @@ StateFlowBase::Action FilteringCanHubFlow::iterate()
     {
         return iteration_done();
     }
-    // Now: we have at least two different handler. We need to clone the
+    // Now: we have at least two different handlers. We need to clone the
     // message. We use the pool of the last handler to call by default.
     return allocate_and_clone();
 }
