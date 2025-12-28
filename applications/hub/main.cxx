@@ -48,10 +48,11 @@
 #include "utils/HubDeviceSelect.hxx"
 #include "utils/SocketCan.hxx"
 #include "utils/constants.hxx"
+#include "openlcb/FilteringCanHubFlow.hxx"
 
 Executor<1> g_executor("g_executor", 0, 1024);
 Service g_service(&g_executor);
-CanHubFlow can_hub0(&g_service);
+openlcb::FilteringCanHubFlow can_hub0(&g_service);
 
 OVERRIDE_CONST(gc_generate_newlines, 1);
 OVERRIDE_CONST(gridconnect_buffer_size, 1300);
