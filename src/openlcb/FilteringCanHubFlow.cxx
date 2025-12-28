@@ -18,6 +18,12 @@ StateFlowBase::Action FilteringCanHubFlow::entry()
     return CanHubFlow::entry();
 }
 
+void FilteringCanHubFlow::unregister_port(CanHubFlow::port_type* port)
+{
+    filter_.remove_port(reinterpret_cast<uintptr_t>(port));
+    CanHubFlow::unregister_port(port);
+}
+
 StateFlowBase::Action FilteringCanHubFlow::iterate()
 {
     if (!isFiltering_)

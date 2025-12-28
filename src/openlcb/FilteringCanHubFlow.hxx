@@ -23,6 +23,8 @@ public:
     Action entry() override;
     Action iterate() override;
 
+    void unregister_port(CanHubFlow::port_type* port) override;
+
 private:
     CanFilter filter_;
     bool isFiltering_;

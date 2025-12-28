@@ -36,6 +36,10 @@ protected:
         flow_.register_port(p);
     }
 
+    void unregister_port(MockPort* p) {
+        flow_.unregister_port(p);
+    }
+
     void send_frame(uint32_t id, CanHubPortInterface* source) {
         auto* b = flow_.alloc();
         struct can_frame* f = b->data()->mutable_frame();
@@ -103,6 +107,45 @@ TEST_F(FilteringCanHubFlowTest, UnicastWithFiltering) {
 
     EXPECT_CALL(p2_, send(_, _)).WillOnce(Invoke(&p2_, &MockPort::UnrefAction));
     // p3 should NOT receive it because of filtering
+
+    b = flow_.alloc();
+    f = b->data()->mutable_frame();
+    f->can_id = 0x1A222111;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p1_;
+    flow_.send(b);
+    wait_for_main_executor();
+}
+
+TEST_F(FilteringCanHubFlowTest, Unregister) {
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+
+    // 1. Packet from P2 (Source Alias 0x222) -> Learn P2
+    EXPECT_CALL(p1_, send(_, _)).WillOnce(Invoke(&p1_, &MockPort::UnrefAction));
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
+
+    auto* b = flow_.alloc();
+    struct can_frame* f = b->data()->mutable_frame();
+    f->can_id = 0x17000222;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p2_;
+    flow_.send(b);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // 2. Unregister P2
+    unregister_port(&p2_);
+
+    // 3. Addressed packet from P1 to 0x222 (P2)
+    // P2 is gone. Filter should have forgotten P2.
+    // So it should act as "unknown destination" -> Flood.
+    // P1 sends. P2 is gone. P3 receives.
+
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
 
     b = flow_.alloc();
     f = b->data()->mutable_frame();
