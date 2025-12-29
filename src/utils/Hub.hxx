@@ -171,7 +171,7 @@ public:
     }
 
     /// Removes a previously added port. @param port is the port to remove.
-    void unregister_port(port_type *port)
+    virtual void unregister_port(port_type *port)
     {
         this->unregister_handler(port, reinterpret_cast<uintptr_t>(port),
                                  POINTER_MASK);

@@ -153,7 +153,6 @@ protected:
     template<class T>
     friend class GenericHubFlow;
 
-protected:
     /// Internal information we store about each registered handler:
     /// identifier, mask, handler pointer.
     struct HandlerInfo
@@ -188,13 +187,12 @@ protected:
     /// Index of the next handler to look at.
     size_t currentIndex_;
 
-protected:
     /// If non-NULL we still need to call this handler.
     UntypedHandler *lastHandlerToCall_{nullptr};
     /// Handler to give all messages that were not matched by any other handler
     /// registration.
     UntypedHandler *fallbackHandler_{nullptr};
-protected:
+
     /// Protects handler add / remove against iteration.
     OSMutex lock_;
 };
