@@ -187,7 +187,6 @@ protected:
     /// Index of the next handler to look at.
     size_t currentIndex_;
 
-protected:
     /// If non-NULL we still need to call this handler.
     UntypedHandler *lastHandlerToCall_{nullptr};
     /// Handler to give all messages that were not matched by any other handler
