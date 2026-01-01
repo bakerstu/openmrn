@@ -50,6 +50,9 @@ class Stm32SpiPixelStrip
 public:
     /// Initializes the SPI peripheral.
     /// @param spi the SPI peripheral instance, e.g. SPI0.
+    /// @param dma_ch is a channel definition, e.g. DMA1_Channel3.
+    /// @param dma_request the constant needed for the DMAMUX of the given SPI
+    /// peripheral's TX, for example DMA_REQUEST_SPI1_TX.
     /// @param num_pixels the number of RGB pixels to drive.
     /// @param backing_data array of 3*num_pixels which stores the RGB data to
     /// be sent to the devices. Note that the byte order is G R B in the
