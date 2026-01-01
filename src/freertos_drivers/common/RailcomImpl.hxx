@@ -223,9 +223,10 @@ public:
     }
 
 protected:
-    void set_feedback_key(uint32_t key) OVERRIDE
+    void set_feedback_key(uint32_t key, uint16_t dcc_address) OVERRIDE
     {
         feedbackKey_ = key;
+        dccAddress_ = dcc_address;
     }
 
     /** Takes a new empty packet at the front of the queue, fills in feedback
@@ -240,7 +241,7 @@ protected:
         {
             return nullptr;
         }
-        entry->reset(feedbackKey_);
+        entry->reset(feedbackKey_, dccAddress_);
         entry->channel = channel;
         return entry;
     }
@@ -255,7 +256,7 @@ protected:
             ++feedback_sample_overflow_count;
             return;
         }
-        feedbackQueue_.back().reset(feedbackKey_);
+        feedbackQueue_.back().reset(feedbackKey_, 0xFF00);
         feedbackQueue_.back().channel = HW::get_feedback_channel();
         feedbackQueue_.back().add_ch1_data(sample);
         uint32_t tick_timer = HW::get_timer_tick();
@@ -270,6 +271,8 @@ protected:
     FixedQueue<dcc::Feedback, HW::Q_SIZE> feedbackQueue_;
     /// Stores the key for the next packets to read.
     uint32_t feedbackKey_;
+    /// Value of the dcc address to report on the next feedback data packet.
+    uint16_t dccAddress_;
     /** Stores pointers to packets we are filling right now, one for each
      * channel. */
     dcc::Feedback *returnedPackets_[HW::CHANNEL_COUNT];

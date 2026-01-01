@@ -49,9 +49,10 @@ namespace dcc
 struct Feedback : public DCCFeedback
 {
     /// Clears the structure and sets the feedback key to a specific value.
-    void reset(uint32_t feedback_key)
+    void reset(uint32_t feedback_key, uint16_t dcc_address)
     {
         this->feedbackKey = feedback_key;
+        this->dccAddress = dcc_address;
         ch1Size = 0;
         ch2Size = 0;
         channel = 0;
@@ -163,7 +164,8 @@ struct RailcomDefs
     }
 
     /// Creates a Logon Enable feedback with the decoder unique ID.
-    /// @param decoder_id the 44-bit decoder ID (justified to MSb).
+    /// @param decoder_id the 44-bit decoder ID (justified to LSb, high bits
+    /// are ignored).
     /// @param fb the feedback packet to generate.
     static void add_did_feedback(uint64_t decoder_id, Feedback *fb);
 
