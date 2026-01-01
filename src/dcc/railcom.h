@@ -52,6 +52,9 @@ typedef struct dcc_feedback
     /// Used by multi-channel railcom receiver drivers. Specifies which
     /// hardware channel captured this data.
     uint8_t channel;
+    /// First two bytes of the DCC packet. First byte is MSB, second byte is
+    /// LSB.
+    uint16_t dccAddress;
     /// Opaque identifier that allows linking outgoing dcc::Packet sent to the
     /// DCC waveform generator to the incoming dcc::Feedback structure read
     /// back from the railcom driver.

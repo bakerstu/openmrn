@@ -375,7 +375,8 @@ __attribute__((optimize("-O3"))) void DccDecoder<Module>::interrupt_handler()
             {
                 p->feedback_key = ++packetId_;
             }
-            railcomDriver_->set_feedback_key(packetId_);
+            railcomDriver_->set_feedback_key(
+                packetId_, (p->payload[0] << 8) | p->payload[1]);
             Module::dcc_before_cutout_hook();
         }
         // If we are at the second half of the last 1 bit and the
