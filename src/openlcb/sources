@@ -41,6 +41,7 @@ CXXSRCS += \
            Datagram.cxx \
            DatagramCan.cxx \
            DatagramTcp.cxx \
+           FilteringCanHubFlow.cxx \
            MemoryConfig.cxx \
            SimpleNodeInfo.cxx \
            SimpleNodeInfoResponse.cxx \

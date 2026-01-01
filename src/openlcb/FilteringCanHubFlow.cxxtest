@@ -1,0 +1,244 @@
+/** \copyright
+ * Copyright (c) 2025, Balazs Racz
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are  permitted provided that the following conditions are met:
+ *
+ *  - Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ *  - Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * \file FilteringCanHubFlow.cxxtest
+ *
+ * Unit tests for the filtering can hub flow.
+ *
+ * @author Balazs Racz
+ * @date 28 Dec 2025
+ */
+
+#include "openlcb/FilteringCanHubFlow.hxx"
+
+#include "openlcb/CanDefs.hxx"
+#include "utils/Hub.hxx"
+#include "utils/async_if_test_helper.hxx"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+namespace openlcb
+{
+namespace
+{
+
+using ::testing::_;
+using ::testing::Mock;
+using ::testing::StrictMock;
+
+class MockPort : public CanHubPortInterface
+{
+public:
+    MOCK_METHOD2(send, void(Buffer<CanHubData> *b, unsigned priority));
+
+    // Helper to unref the buffer when send is called
+    void UnrefAction(Buffer<CanHubData> *b, unsigned priority)
+    {
+        b->unref();
+    }
+};
+
+class FilteringCanHubFlowTest : public ::testing::Test
+{
+protected:
+    FilteringCanHubFlowTest()
+    {
+        flow_.set_filtering(true);
+    }
+
+    ~FilteringCanHubFlowTest()
+    {
+        wait_for_main_executor();
+    }
+
+    void register_port(MockPort *p)
+    {
+        flow_.register_port(p);
+    }
+
+    void unregister_port(MockPort *p)
+    {
+        flow_.unregister_port(p);
+    }
+
+    void send_frame(uint32_t id, CanHubPortInterface *source)
+    {
+        auto *b = flow_.alloc();
+        struct can_frame *f = b->data()->mutable_frame();
+        f->can_id = id;
+        f->can_dlc = 0;
+        SET_CAN_FRAME_EFF(*f);
+        CLR_CAN_FRAME_ERR(*f);
+        CLR_CAN_FRAME_RTR(*f);
+
+        b->data()->skipMember_ = source;
+        flow_.send(b);
+        wait_for_main_executor();
+    }
+
+    FilteringCanHubFlow flow_ {&g_service};
+    StrictMock<MockPort> p1_;
+    StrictMock<MockPort> p2_;
+    StrictMock<MockPort> p3_;
+};
+
+TEST_F(FilteringCanHubFlowTest, Broadcast)
+{
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+
+    EXPECT_CALL(p2_, send(_, _)).WillOnce(Invoke(&p2_, &MockPort::UnrefAction));
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
+
+    // Send broadcast frame from p1
+    // CID frame is broadcast
+    send_frame(0x17000123, &p1_);
+}
+
+TEST_F(FilteringCanHubFlowTest, UnicastWithFiltering)
+{
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+
+    // 1. Packet from P2 (Source Alias 0x222)
+    // This learns 0x222 -> P2
+    // CID frame 0x17000222
+    EXPECT_CALL(p1_, send(_, _)).WillOnce(Invoke(&p1_, &MockPort::UnrefAction));
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
+
+    auto *b = flow_.alloc();
+    struct can_frame *f = b->data()->mutable_frame();
+    // CID frame for alias 222
+    f->can_id = 0x17000222;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p2_;
+    flow_.send(b);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // 2. Addressed packet from P1 to 0x222 (P2)
+    // MTI 0x0640 (Verify Node ID), Src 0x111, Dst 0x222.
+    // Dst is encoded in payload for global MTI, or in ID for Datagram/Stream.
+    // Let's use Datagram: Frame Type 0x2xxx, 0x3xxx, 0x4xxx, 0x5xxx.
+    // 0x19A28111 is global addressed?
+    // Let's use simple OpenLCB message:
+    // Frame Type 1 (OpenLCB). MTI.
+    // Datagram: 0x1A222111 (Datagram Start, dst=222, src=111)
+
+    EXPECT_CALL(p2_, send(_, _)).WillOnce(Invoke(&p2_, &MockPort::UnrefAction));
+    // p3 should NOT receive it because of filtering
+
+    b = flow_.alloc();
+    f = b->data()->mutable_frame();
+    f->can_id = 0x1A222111;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p1_;
+    flow_.send(b);
+    wait_for_main_executor();
+}
+
+TEST_F(FilteringCanHubFlowTest, Unregister)
+{
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+
+    // 1. Packet from P2 (Source Alias 0x222) -> Learn P2
+    EXPECT_CALL(p1_, send(_, _)).WillOnce(Invoke(&p1_, &MockPort::UnrefAction));
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
+
+    auto *b = flow_.alloc();
+    struct can_frame *f = b->data()->mutable_frame();
+    f->can_id = 0x17000222;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p2_;
+    flow_.send(b);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // 2. Unregister P2
+    unregister_port(&p2_);
+
+    // 3. Addressed packet from P1 to 0x222 (P2)
+    // P2 is gone. Filter should have forgotten P2.
+    // So it should act as "unknown destination" -> Flood.
+    // P1 sends. P2 is gone. P3 receives.
+
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
+
+    b = flow_.alloc();
+    f = b->data()->mutable_frame();
+    f->can_id = 0x1A222111;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p1_;
+    flow_.send(b);
+    wait_for_main_executor();
+}
+
+TEST_F(FilteringCanHubFlowTest, LegacyMode)
+{
+    flow_.set_filtering(false);
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+
+    // 1. Packet from P2 (Source Alias 0x222)
+    EXPECT_CALL(p1_, send(_, _)).WillOnce(Invoke(&p1_, &MockPort::UnrefAction));
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
+
+    auto *b = flow_.alloc();
+    struct can_frame *f = b->data()->mutable_frame();
+    f->can_id = 0x17000222;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p2_;
+    flow_.send(b);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // 2. Addressed packet from P1 to 0x222 (P2)
+    // In legacy mode, it should be broadcast because no filtering.
+    EXPECT_CALL(p2_, send(_, _)).WillOnce(Invoke(&p2_, &MockPort::UnrefAction));
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
+
+    b = flow_.alloc();
+    f = b->data()->mutable_frame();
+    f->can_id = 0x1A222111;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p1_;
+    flow_.send(b);
+    wait_for_main_executor();
+}
+
+} // namespace
+} // namespace openlcb

@@ -211,6 +211,7 @@ set(TESTS ${TESTS}
     ${OPENMRNPATH}/src/openlcb/BroadcastTimeDefs.cxxtest
     ${OPENMRNPATH}/src/openlcb/BroadcastTimeServer.cxxtest
     ${OPENMRNPATH}/src/openlcb/CallbackEventHandler.cxxtest
+    ${OPENMRNPATH}/src/openlcb/CanFilter.cxxtest
     ${OPENMRNPATH}/src/openlcb/CanRoutingHub.cxxtest
     ${OPENMRNPATH}/src/openlcb/ConfigRenderer.cxxtest
     ${OPENMRNPATH}/src/openlcb/ConfigUpdateFlow.cxxtest

@@ -48,6 +48,7 @@
 #include "openlcb/DefaultNode.hxx"
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/EventService.hxx"
+#include "openlcb/FilteringCanHubFlow.hxx"
 #include "openlcb/IfCan.hxx"
 #include "openlcb/MemoryConfig.hxx"
 #include "openlcb/NodeInitializeFlow.hxx"
@@ -502,7 +503,7 @@ private:
         /// This flow is the connection between the stack and the device
         /// drivers. It also acts as a hub to multiple different clients or CAN
         /// ports.
-        CanHubFlow canHub0_;
+        FilteringCanHubFlow canHub0_;
         /// Implementation of OpenLCB interface.
         IfCan ifCan_;
         /// Datagram service (and clients) matching the interface.
