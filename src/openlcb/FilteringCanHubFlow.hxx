@@ -57,7 +57,6 @@ public:
     Action entry() override;
     Action iterate() override;
 
-    void register_port(CanHubFlow::port_type *port);
     void unregister_port(CanHubFlow::port_type *port) override;
 
     /** Sets a port to be promiscuous.

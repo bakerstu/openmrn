@@ -52,11 +52,6 @@ StateFlowBase::Action FilteringCanHubFlow::entry()
     return CanHubFlow::entry();
 }
 
-void FilteringCanHubFlow::register_port(CanHubFlow::port_type *port)
-{
-    CanHubFlow::register_port(port);
-}
-
 void FilteringCanHubFlow::unregister_port(CanHubFlow::port_type *port)
 {
     filter_.remove_port(reinterpret_cast<uintptr_t>(port));
