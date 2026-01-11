@@ -434,6 +434,11 @@ GcPacketPrinter::~GcPacketPrinter()
 {
 }
 
+CanHubPortInterface* GcPacketPrinter::get_port()
+{
+    return impl_.get();
+}
+
 /// Implementation class that adds a device to a CAN hub with dynamic
 /// translation of the packets to/from GridConnect format.
 ///
