@@ -57,7 +57,14 @@ public:
     Action entry() override;
     Action iterate() override;
 
+    void register_port(CanHubFlow::port_type *port);
     void unregister_port(CanHubFlow::port_type *port) override;
+
+    /** Sets a port to be promiscuous.
+     * @param port the port to set.
+     * @param is_promiscuous true to enable promiscuous mode, false to disable.
+     */
+    void set_port_promiscuous(CanHubFlow::port_type *port, bool is_promiscuous);
 
 private:
     CanFilter filter_;
