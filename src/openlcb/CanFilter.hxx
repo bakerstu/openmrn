@@ -145,14 +145,20 @@ public:
      * Checks if the current frame matches the given port.
      *
      * @param port_id The identifier of the port to check.
+     * @param is_promisc True if the port is in promiscuous mode.
      * @return true if the frame should be sent to this destination port.
      */
-    bool is_matching(uintptr_t port_id)
+    bool is_matching(uintptr_t port_id, bool is_promisc = false)
     {
         // Source filtering: never send back to the source
         if (port_id == sourcePort_)
         {
             return false;
+        }
+
+        if (is_promisc)
+        {
+            return true;
         }
 
         if (isBroadcast_)

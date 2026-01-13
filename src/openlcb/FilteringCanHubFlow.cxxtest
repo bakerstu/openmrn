@@ -240,5 +240,107 @@ TEST_F(FilteringCanHubFlowTest, LegacyMode)
     wait_for_main_executor();
 }
 
+TEST_F(FilteringCanHubFlowTest, PromiscuousMode)
+{
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+    flow_.set_port_promiscuous(&p3_, true);
+
+    // 1. Packet from P2 (Source Alias 0x222)
+    // P3 is promiscuous, should receive it.
+    // P1 sees it as unicast/unknown -> Flood if unknown.
+    // Wait, P2 is unknown. So it's broadcast unless we learned it?
+    // The packet is a check ID frame (0x17000222), which is broadcast.
+    EXPECT_CALL(p1_, send(_, _)).WillOnce(Invoke(&p1_, &MockPort::UnrefAction));
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
+
+    auto *b = flow_.alloc();
+    struct can_frame *f = b->data()->mutable_frame();
+    f->can_id = 0x17000222;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p2_;
+    flow_.send(b);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // 2. Unicast packet from P1 to P2 (0x222).
+    // P2 should receive (unicast target).
+    // P3 should receive (promiscuous).
+    // P1 sent it.
+    EXPECT_CALL(p2_, send(_, _)).WillOnce(Invoke(&p2_, &MockPort::UnrefAction));
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
+
+    b = flow_.alloc();
+    f = b->data()->mutable_frame();
+    f->can_id = 0x1A222111;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p1_;
+    flow_.send(b);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // 3. Packet from P3.
+    // P3 sent it. Should NOT receive (loopback check).
+    // P2 is known (0x222). P1 is not known.
+    // If we send unicast to P2 from P3.
+    EXPECT_CALL(p2_, send(_, _)).WillOnce(Invoke(&p2_, &MockPort::UnrefAction));
+
+    b = flow_.alloc();
+    f = b->data()->mutable_frame();
+    f->can_id = 0x1A222333; // src=333, dst=222
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p3_;
+    flow_.send(b);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+}
+
+TEST_F(FilteringCanHubFlowTest, DefaultNotPromiscuous)
+{
+    register_port(&p1_);
+    register_port(&p2_);
+    register_port(&p3_);
+    // Do not set P3 as promiscuous.
+
+    // 1. Packet from P2 (Source Alias 0x222)
+    // Learn P2.
+    EXPECT_CALL(p1_, send(_, _)).WillOnce(Invoke(&p1_, &MockPort::UnrefAction));
+    EXPECT_CALL(p3_, send(_, _)).WillOnce(Invoke(&p3_, &MockPort::UnrefAction));
+
+    auto *b = flow_.alloc();
+    struct can_frame *f = b->data()->mutable_frame();
+    f->can_id = 0x17000222;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p2_;
+    flow_.send(b);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+
+    // 2. Unicast packet from P1 to P2 (0x222).
+    // P2 should receive (unicast target).
+    // P3 should NOT receive (default is not promiscuous).
+    EXPECT_CALL(p2_, send(_, _)).WillOnce(Invoke(&p2_, &MockPort::UnrefAction));
+
+    b = flow_.alloc();
+    f = b->data()->mutable_frame();
+    f->can_id = 0x1A222111;
+    SET_CAN_FRAME_EFF(*f);
+    b->data()->skipMember_ = &p1_;
+    flow_.send(b);
+    wait_for_main_executor();
+    Mock::VerifyAndClear(&p1_);
+    Mock::VerifyAndClear(&p2_);
+    Mock::VerifyAndClear(&p3_);
+}
+
 } // namespace
 } // namespace openlcb
