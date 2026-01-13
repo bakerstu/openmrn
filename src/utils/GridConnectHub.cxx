@@ -434,7 +434,7 @@ GcPacketPrinter::~GcPacketPrinter()
 {
 }
 
-CanHubPortInterface* GcPacketPrinter::get_port()
+CanHubPortInterface *GcPacketPrinter::get_port()
 {
     return impl_.get();
 }

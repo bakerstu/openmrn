@@ -117,7 +117,7 @@ public:
     ~GcPacketPrinter();
 
     /// @return the underlying port object.
-    CanHubPortInterface* get_port();
+    CanHubPortInterface *get_port();
 
 private:
     /// pImpl class.
