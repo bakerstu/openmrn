@@ -123,10 +123,13 @@ public:
         zeroBitCount_ = zero_bit_count;
     }
 
-    /// Updates the hardware from the backing data. The update is synchronous,
-    /// this call returns when all bytes are sent, or at least enqueued in the
-    /// SPI peripheral's TX FIFO.
-    void update_sync()
+    /// Updates the hardware from the backing data. The update is asynchronous,
+    /// triggering a DMA transfer. This call returns before all bytes are
+    /// sent. The caller must ensure that the next call to this function
+    /// happens after the transfer is complete; the only way to reasonably
+    /// ensure this today is to call this from a timer that will give a fixed
+    /// refresh rate.
+    void update_dma()
     {
         alloc_buffer();
         clear_iteration();
