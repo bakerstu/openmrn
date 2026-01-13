@@ -109,9 +109,25 @@ extern void hw_set_to_safe(void);
 void resetblink(uint32_t pattern)
 {
     blinker_pattern = pattern;
-    rest_pattern = pattern ? 1 : 0;
-    BLINKER_RAW_Pin::set(pattern ? true : false);
-    /* todo: make a timer event trigger immediately */
+    if (pattern == 1)
+    {
+        rest_pattern = 1;
+        BLINKER_RAW_Pin::set(true);
+    }
+    else if (pattern == 0)
+    {
+        rest_pattern = 0;
+        BLINKER_RAW_Pin::set(false);
+    }
+    else
+    {
+        // Setting the pattern to 2 will make the LED be turned on upon the
+        // next interrupt.
+        rest_pattern = 2;
+        BLINKER_RAW_Pin::set(false);
+        // Makes an event trigger immediately.
+        get_blinker_timer()->CNT = get_blinker_timer()->ARR - 2;
+    }
 }
 
 void setblink(uint32_t pattern)
