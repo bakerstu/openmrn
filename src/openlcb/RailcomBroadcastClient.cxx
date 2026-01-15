@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2024, Balazs Racz
+ * Copyright (c) 2026, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * Implementation of RailcomBroadcastClient.
  *
  * @author Balazs Racz
- * @date 4 May 2024
+ * @date 15 Jan 2026
  */
 
 #include "openlcb/RailcomBroadcastClient.hxx"
@@ -42,10 +42,11 @@
 namespace openlcb
 {
 
-RailcomBroadcastClient::RailcomBroadcastClient(Node *node, uint64_t railcomEventBase)
+RailcomBroadcastClient::RailcomBroadcastClient(
+    Node *node, uint64_t railcom_event_base)
     : node_(node)
 {
-    railcomEventBase_ = railcomEventBase & ~0xFFFFULL;
+    railcomEventBase_ = railcom_event_base & ~0xFFFFULL;
     uint64_t registered_base = railcomEventBase_;
     // Register for 65536 events (16 bits)
     unsigned mask = EventRegistry::align_mask(&registered_base, 65536);
@@ -64,9 +65,9 @@ bool RailcomBroadcastClient::is_our_event(uint64_t event_id) const
     return (event_id & ~0xFFFFULL) == railcomEventBase_;
 }
 
-void RailcomBroadcastClient::handle_event_report(const EventRegistryEntry &registry_entry,
-                                                 EventReport *event,
-                                                 BarrierNotifiable *done)
+void RailcomBroadcastClient::handle_event_report(
+    const EventRegistryEntry &registry_entry, EventReport *event,
+    BarrierNotifiable *done)
 {
     if (!is_our_event(event->event))
     {
@@ -96,9 +97,9 @@ void RailcomBroadcastClient::handle_event_report(const EventRegistryEntry &regis
     done->notify();
 }
 
-void RailcomBroadcastClient::handle_producer_identified(const EventRegistryEntry &registry_entry,
-                                                        EventReport *event,
-                                                        BarrierNotifiable *done)
+void RailcomBroadcastClient::handle_producer_identified(
+    const EventRegistryEntry &registry_entry, EventReport *event,
+    BarrierNotifiable *done)
 {
     if (!is_our_event(event->event))
     {
@@ -122,9 +123,9 @@ void RailcomBroadcastClient::handle_producer_identified(const EventRegistryEntry
     done->notify();
 }
 
-void RailcomBroadcastClient::handle_identify_global(const EventRegistryEntry &registry_entry,
-                                                    EventReport *event,
-                                                    BarrierNotifiable *done)
+void RailcomBroadcastClient::handle_identify_global(
+    const EventRegistryEntry &registry_entry, EventReport *event,
+    BarrierNotifiable *done)
 {
     if (event->dst_node && event->dst_node != node_)
     {
@@ -134,16 +135,14 @@ void RailcomBroadcastClient::handle_identify_global(const EventRegistryEntry &re
     // We are a consumer of these events.
     uint64_t range = EncodeRange(railcomEventBase_, 65536);
     event->event_write_helper<1>()->WriteAsync(node_,
-                                               Defs::MTI_CONSUMER_IDENTIFIED_RANGE,
-                                               WriteHelper::global(),
-                                               eventid_to_buffer(range),
-                                               done->new_child());
+        Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
+        eventid_to_buffer(range), done->new_child());
     done->maybe_done();
 }
 
-void RailcomBroadcastClient::handle_identify_consumer(const EventRegistryEntry &registry_entry,
-                                                      EventReport *event,
-                                                      BarrierNotifiable *done)
+void RailcomBroadcastClient::handle_identify_consumer(
+    const EventRegistryEntry &registry_entry, EventReport *event,
+    BarrierNotifiable *done)
 {
     if (!is_our_event(event->event))
     {
@@ -152,10 +151,8 @@ void RailcomBroadcastClient::handle_identify_consumer(const EventRegistryEntry &
 
     // Report unknown state for specific events queried
     event->event_write_helper<1>()->WriteAsync(node_,
-                                               Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN,
-                                               WriteHelper::global(),
-                                               eventid_to_buffer(event->event),
-                                               done->new_child());
+        Defs::MTI_CONSUMER_IDENTIFIED_UNKNOWN, WriteHelper::global(),
+        eventid_to_buffer(event->event), done->new_child());
     done->maybe_done();
 }
 

@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2024, Balazs Racz
+ * Copyright (c) 2026, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,61 +29,66 @@
  * Client for receiving Railcom broadcast messages about trains in a block.
  *
  * @author Balazs Racz
- * @date 4 May 2024
+ * @date 15 Jan 2026
  */
 
 #ifndef _OPENLCB_RAILCOMBROADCASTCLIENT_HXX_
 #define _OPENLCB_RAILCOMBROADCASTCLIENT_HXX_
 
-#include <vector>
 #include "openlcb/EventHandlerTemplates.hxx"
 #include "openlcb/TractionDefs.hxx"
+#include <vector>
 
 namespace openlcb
 {
 
+/// Client class for receiving event based updates for the occupancy of a
+/// railcom block. Consumes events for entry and exit reports from the railcom
+/// broadcast flow, and maintains a list of locomotives that are currently in
+/// the block.
 class RailcomBroadcastClient : public SimpleEventHandler
 {
 public:
     /** Constructor.
-     * @param node The virtual node to send messages from (for identify responses).
-     * @param railcomEventBase The base event ID for the Railcom broadcast range.
-     *                         The bottom 16 bits will be cleared.
+     * @param node The virtual node to send messages from (for identify
+     * responses).
+     * @param railcom_event_base The base event ID for the Railcom broadcast
+     * range. The bottom 16 bits will be cleared.
      */
-    RailcomBroadcastClient(Node *node, uint64_t railcomEventBase);
+    RailcomBroadcastClient(Node *node, uint64_t railcom_event_base);
 
     virtual ~RailcomBroadcastClient();
 
     /** Returns the list of locomotives currently reported in the block.
      * The NodeIDs are computed using the legacy DCC long address format.
      */
-    const std::vector<NodeID>& current_locos() const
+    const std::vector<NodeID> &current_locos() const
     {
         return locos_;
     }
 
     void handle_event_report(const EventRegistryEntry &registry_entry,
-                             EventReport *event,
-                             BarrierNotifiable *done) override;
+        EventReport *event, BarrierNotifiable *done) override;
 
     void handle_producer_identified(const EventRegistryEntry &registry_entry,
-                                    EventReport *event,
-                                    BarrierNotifiable *done) override;
+        EventReport *event, BarrierNotifiable *done) override;
 
     void handle_identify_global(const EventRegistryEntry &registry_entry,
-                                EventReport *event,
-                                BarrierNotifiable *done) override;
+        EventReport *event, BarrierNotifiable *done) override;
 
     void handle_identify_consumer(const EventRegistryEntry &registry_entry,
-                                  EventReport *event,
-                                  BarrierNotifiable *done) override;
+        EventReport *event, BarrierNotifiable *done) override;
 
 private:
     /// Checks if the given event ID falls within our monitored range.
     bool is_our_event(uint64_t event_id) const;
 
+    /// OpenLCB node on which to export the consumer.
     Node *node_;
+    /// Evnet ID with bottom 16 bits as zero. We are registered for this event
+    /// range.
     uint64_t railcomEventBase_;
+    /// Locomotives that are currently active in this range.
     std::vector<NodeID> locos_;
 };
 
