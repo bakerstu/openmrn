@@ -92,6 +92,7 @@ void RailcomBroadcastClient::handle_event_report(
     if (!found)
     {
         locos_.push_back(id);
+        seq_++;
     }
 
     done->notify();
@@ -117,6 +118,7 @@ void RailcomBroadcastClient::handle_producer_identified(
         if (it != locos_.end())
         {
             locos_.erase(it, locos_.end());
+            seq_++;
         }
     }
 

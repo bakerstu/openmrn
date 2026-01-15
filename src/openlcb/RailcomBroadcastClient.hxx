@@ -67,6 +67,14 @@ public:
         return locos_;
     }
 
+    /// The number returned by this function is changed every time the
+    /// current_locos() array is different. This allows a user to keep track of
+    /// whether their state is dirty or not.
+    uint16_t seq()
+    {
+        return seq_;
+    }
+
     void handle_event_report(const EventRegistryEntry &registry_entry,
         EventReport *event, BarrierNotifiable *done) override;
 
@@ -83,6 +91,8 @@ private:
     /// Checks if the given event ID falls within our monitored range.
     bool is_our_event(uint64_t event_id) const;
 
+    /// Sequence number for data version in the locos_ array.
+    uint16_t seq_{0};
     /// OpenLCB node on which to export the consumer.
     Node *node_;
     /// Evnet ID with bottom 16 bits as zero. We are registered for this event

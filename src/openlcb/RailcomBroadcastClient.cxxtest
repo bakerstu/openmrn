@@ -48,6 +48,7 @@ protected:
         // Use a base address that has bottom 16 bits cleared.
         base_ = 0x0501010100000000ULL;
         client_ = new RailcomBroadcastClient(node_, base_);
+        last_seq_ = client_->seq();
     }
 
     ~RailcomBroadcastClientTest()
@@ -57,7 +58,21 @@ protected:
 
     uint64_t base_;
     RailcomBroadcastClient *client_;
+    uint16_t last_seq_;
 
+    void expect_seq_increment()
+    {
+        auto new_seq = client_->seq();
+        EXPECT_EQ(last_seq_ + 1, new_seq);
+        last_seq_ = new_seq;
+    }
+
+    void expect_no_seq_increment()
+    {
+        auto new_seq = client_->seq();
+        EXPECT_EQ(last_seq_, new_seq);
+    }
+    
     std::string make_incoming_event_packet(uint16_t mti, uint64_t event_id)
     {
         char buf[64];
@@ -85,7 +100,7 @@ TEST_F(RailcomBroadcastClientTest, AddLoco)
     uint64_t event = base_ | 3;
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
-
+    expect_seq_increment();
     ASSERT_EQ(1u, client_->current_locos().size());
     NodeID expected = TractionDefs::train_node_id_from_legacy(
         dcc::TrainAddressType::DCC_LONG_ADDRESS, 3);
@@ -98,10 +113,12 @@ TEST_F(RailcomBroadcastClientTest, AddDuplicateLoco)
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     ASSERT_EQ(1u, client_->current_locos().size());
+    expect_seq_increment();
 
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     ASSERT_EQ(1u, client_->current_locos().size());
+    expect_no_seq_increment();
 }
 
 TEST_F(RailcomBroadcastClientTest, RemoveLoco)
@@ -110,12 +127,14 @@ TEST_F(RailcomBroadcastClientTest, RemoveLoco)
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     ASSERT_EQ(1u, client_->current_locos().size());
+    expect_seq_increment();
 
     // Producer Identified INVALID
     send_packet(make_incoming_event_packet(
         Defs::MTI_PRODUCER_IDENTIFIED_INVALID, event));
     wait();
     ASSERT_TRUE(client_->current_locos().empty());
+    expect_seq_increment();
 }
 
 TEST_F(RailcomBroadcastClientTest, RemoveNonExistentLoco)
@@ -125,6 +144,7 @@ TEST_F(RailcomBroadcastClientTest, RemoveNonExistentLoco)
         Defs::MTI_PRODUCER_IDENTIFIED_INVALID, event));
     wait();
     ASSERT_TRUE(client_->current_locos().empty());
+    expect_no_seq_increment();
 }
 
 TEST_F(RailcomBroadcastClientTest, IgnoreOutOfRange)
@@ -133,6 +153,7 @@ TEST_F(RailcomBroadcastClientTest, IgnoreOutOfRange)
     send_packet(make_incoming_event_packet(Defs::MTI_EVENT_REPORT, event));
     wait();
     ASSERT_TRUE(client_->current_locos().empty());
+    expect_no_seq_increment();
 }
 
 TEST_F(RailcomBroadcastClientTest, IdentifyGlobal)
