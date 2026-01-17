@@ -86,19 +86,19 @@ public:
 
 protected:
     /// Parses an event into identifying properties.
-    bool parse_event(EventId event, uint32_t *index, bool *value) override
+    bool parse_event(EventId event, uint32_t *address, bool *value) override
     {
         if (event >= cfg_->activate_base &&
             event < cfg_->activate_base + (1UL << cfg_->mask_bits))
         {
             *value = true;
-            *index = event - cfg_->activate_base;
+            *address = event - cfg_->activate_base;
         }
         else if (event >= cfg_->inactivate_base &&
             event < cfg_->inactivate_base + (1UL << cfg_->mask_bits))
         {
             *value = false;
-            *index = event - cfg_->inactivate_base;
+            *address = event - cfg_->inactivate_base;
         }
         else
         {

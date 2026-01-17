@@ -77,7 +77,7 @@ public:
 
 protected:
     /// Parses an event into an openlcb accessory offset.
-    bool parse_event(EventId event, uint32_t *index, bool *value) override
+    bool parse_event(EventId event, uint32_t *address, bool *value) override
     {
         uint32_t dcc_address;
         if (event >= cfg_->activate_base &&
@@ -104,8 +104,8 @@ protected:
         // Normal/Reverse is determined by LSB of dccAddress. 1 = Normal, 0 = Reverse.
         *value = (dcc_address & 1) != 0;
 
-        // Index is dccAddress / 2.
-        *index = dcc_address >> 1;
+        // Address is dccAddress / 2.
+        *address = dcc_address >> 1;
 
         return true;
     }

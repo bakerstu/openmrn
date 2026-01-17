@@ -127,15 +127,15 @@ protected:
         EventReport *event, BarrierNotifiable *done) override
     {
         AutoNotify an(done);
-        uint32_t index;
+        uint32_t address;
         bool value;
-        if (!parse_event(event->event, &index, &value))
+        if (!parse_event(event->event, &address, &value))
         {
             return;
         }
 
-        uint32_t word_index = index / 32;
-        uint32_t bit_mask = 1UL << (index % 32);
+        uint32_t word_index = address / 32;
+        uint32_t bit_mask = 1UL << (address % 32);
 
         if (word_index >= stateWordCount_) return;
 
@@ -156,15 +156,15 @@ protected:
         EventReport *event, BarrierNotifiable *done) override
     {
         AutoNotify an(done);
-        uint32_t index;
+        uint32_t address;
         bool value;
-        if (!parse_event(event->event, &index, &value))
+        if (!parse_event(event->event, &address, &value))
         {
             return;
         }
 
-        uint32_t word_index = index / 32;
-        uint32_t bit_mask = 1UL << (index % 32);
+        uint32_t word_index = address / 32;
+        uint32_t bit_mask = 1UL << (address % 32);
 
         if (word_index >= stateWordCount_) return;
 
@@ -196,30 +196,30 @@ protected:
 
     /// Parses an event into identifying properties.
     /// @param event the event ID to parse.
-    /// @param index will be set to the linear index in the state array.
+    /// @param address will be set to the 0-based binary address of the bit.
     /// @param value will be set to the boolean value this event represents.
     /// @return true if the event is handled by this consumer, false otherwise.
-    virtual bool parse_event(EventId event, uint32_t *index, bool *value) = 0;
+    virtual bool parse_event(EventId event, uint32_t *address, bool *value) = 0;
 
     /// Gets the current state of a bit.
-    /// @param index linear index.
+    /// @param address 0-based binary address.
     /// @return true if set (normal/active), false if clear (reverse/inactive).
     /// If state is unknown, returns false (check is_state_known first).
-    bool get_state(uint32_t index) const
+    bool get_state(uint32_t address) const
     {
-        uint32_t word_index = index / 32;
+        uint32_t word_index = address / 32;
         if (word_index >= stateWordCount_) return false;
-        return (lastSetState_[word_index] & (1UL << (index % 32))) != 0;
+        return (lastSetState_[word_index] & (1UL << (address % 32))) != 0;
     }
 
     /// Checks if the state of a bit is known.
-    /// @param index linear index.
+    /// @param address 0-based binary address.
     /// @return true if state is known.
-    bool is_state_known(uint32_t index) const
+    bool is_state_known(uint32_t address) const
     {
-        uint32_t word_index = index / 32;
+        uint32_t word_index = address / 32;
         if (word_index >= stateWordCount_) return false;
-        return (isStateKnown_[word_index] & (1UL << (index % 32))) != 0;
+        return (isStateKnown_[word_index] & (1UL << (address % 32))) != 0;
     }
 
     /// OpenLCB node to export the consumer on.
