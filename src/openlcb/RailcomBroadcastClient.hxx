@@ -97,6 +97,11 @@ private:
     /// Checks if the given event ID falls within our monitored range.
     bool is_our_event(uint64_t event_id) const;
 
+    /// Adds a locomotive to the locos_ array.
+    void add_loco(NodeID n);
+    /// Removes a locomotive from the locos_ array.
+    void del_loco(NodeID n);
+    
     /// Sequence number for data version in the locos_ array.
     uint16_t seq_{0};
     /// OpenLCB node on which to export the consumer.

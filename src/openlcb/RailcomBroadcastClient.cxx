@@ -97,9 +97,13 @@ void RailcomBroadcastClient::handle_event_report(
     {
         return;
     }
-    
 
     NodeID id = node_id_from_event(event->event);
+    add_loco(id);
+}
+
+void RailcomBroadcastClient::add_loco(NodeID id)
+{
     if (!id)
     {
         // Unoccupied.
@@ -110,7 +114,6 @@ void RailcomBroadcastClient::handle_event_report(
         }
         return;
     }
-    
     bool found = false;
     for (auto existing_id : locos_)
     {
@@ -126,7 +129,17 @@ void RailcomBroadcastClient::handle_event_report(
         locos_.push_back(id);
         seq_++;
     }
- }
+}
+
+void RailcomBroadcastClient::del_loco(NodeID id)
+{
+    auto it = std::remove(locos_.begin(), locos_.end(), id);
+    if (it != locos_.end())
+    {
+        locos_.erase(it, locos_.end());
+        seq_++;
+    }
+}
 
 void RailcomBroadcastClient::handle_producer_identified(
     const EventRegistryEntry &registry_entry, EventReport *event,
@@ -137,16 +150,14 @@ void RailcomBroadcastClient::handle_producer_identified(
         return done->notify();
     }
 
+    NodeID id = node_id_from_event(event->event);
     if (event->state == EventState::INVALID)
     {
-        NodeID id = node_id_from_event(event->event);
-
-        auto it = std::remove(locos_.begin(), locos_.end(), id);
-        if (it != locos_.end())
-        {
-            locos_.erase(it, locos_.end());
-            seq_++;
-        }
+        del_loco(id);
+    }
+    else if (event->state == EventState::VALID)
+    {
+        add_loco(id);
     }
 
     done->notify();
@@ -166,6 +177,10 @@ void RailcomBroadcastClient::handle_identify_global(
     event->event_write_helper<1>()->WriteAsync(node_,
         Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
         eventid_to_buffer(range), done->new_child());
+    // Queries current state from the producer.
+    event->event_write_helper<2>()->WriteAsync(node_,
+        Defs::MTI_PRODUCER_IDENTIFY, WriteHelper::global(),
+        eventid_to_buffer(railcomEventBase_), done->new_child());
     done->maybe_done();
 }
 
