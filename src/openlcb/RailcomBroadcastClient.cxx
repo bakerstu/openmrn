@@ -65,20 +65,52 @@ bool RailcomBroadcastClient::is_our_event(uint64_t event_id) const
     return (event_id & ~0xFFFFULL) == railcomEventBase_;
 }
 
+static openlcb::NodeID node_id_from_event(uint64_t event) {
+    uint16_t lo = event & 0xFFFF;
+    if (!lo)
+    {
+        return 0;
+    }
+
+    // Extract address from bottom 14 bits
+    uint16_t address = event & 0x3FFF;
+    NodeID id = 0;
+    if (lo & 0x8000)
+    {
+        id = TractionDefs::train_node_id_from_legacy(
+            dcc::TrainAddressType::DCC_LONG_ADDRESS, address);
+    }
+    else
+    {
+        id = TractionDefs::train_node_id_from_legacy(
+            dcc::TrainAddressType::DCC_SHORT_ADDRESS, address & 127);
+    }
+    return id;
+}
+
 void RailcomBroadcastClient::handle_event_report(
     const EventRegistryEntry &registry_entry, EventReport *event,
     BarrierNotifiable *done)
 {
+    AutoNotify an(done);
     if (!is_our_event(event->event))
     {
-        return done->notify();
+        return;
     }
+    
 
-    // Extract address from bottom 14 bits
-    uint16_t address = event->event & 0x3FFF;
-    NodeID id = TractionDefs::train_node_id_from_legacy(
-        dcc::TrainAddressType::DCC_LONG_ADDRESS, address);
-
+    NodeID id = node_id_from_event(event->event);
+    if (!id)
+    {
+        // Unoccupied.
+        if (locos_.size())
+        {
+            locos_.clear();
+            seq_++;
+        }
+        return;
+    }
+    
     bool found = false;
     for (auto existing_id : locos_)
     {
@@ -94,9 +126,7 @@ void RailcomBroadcastClient::handle_event_report(
         locos_.push_back(id);
         seq_++;
     }
-
-    done->notify();
-}
+ }
 
 void RailcomBroadcastClient::handle_producer_identified(
     const EventRegistryEntry &registry_entry, EventReport *event,
@@ -109,10 +139,7 @@ void RailcomBroadcastClient::handle_producer_identified(
 
     if (event->state == EventState::INVALID)
     {
-        // Extract address from bottom 14 bits
-        uint16_t address = event->event & 0x3FFF;
-        NodeID id = TractionDefs::train_node_id_from_legacy(
-            dcc::TrainAddressType::DCC_LONG_ADDRESS, address);
+        NodeID id = node_id_from_event(event->event);
 
         auto it = std::remove(locos_.begin(), locos_.end(), id);
         if (it != locos_.end())

@@ -75,6 +75,12 @@ public:
         return seq_;
     }
 
+    /// @return the event base which we are listening to.
+    uint64_t event_base()
+    {
+        return railcomEventBase_;
+    }
+
     void handle_event_report(const EventRegistryEntry &registry_entry,
         EventReport *event, BarrierNotifiable *done) override;
 
