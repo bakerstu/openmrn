@@ -44,9 +44,13 @@ namespace openlcb
 /// Configuration structure for defining event ranges.
 struct EventRangeConfig
 {
+    /// Event ID base for the active state range.
     uint64_t activate_base;
+    /// Event ID base for the inactive state range.
     uint64_t inactivate_base;
+    /// Number of bits in the mask (e.g., 12 for 4096 events).
     uint32_t mask_bits;
+    /// Total number of state bits managed (e.g. 2048 or 4096).
     uint32_t state_bit_count;
 };
 
@@ -54,7 +58,9 @@ struct EventRangeConfig
 class WellKnownEventRangeConsumer : public SimpleEventHandler
 {
 public:
+    /// Constant representing the Normal (active) state.
     static constexpr bool STATE_NORMAL = true;
+    /// Constant representing the Reverse (inactive) state.
     static constexpr bool STATE_REVERSE = false;
 
 protected:

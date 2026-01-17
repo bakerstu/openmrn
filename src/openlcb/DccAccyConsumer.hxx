@@ -79,18 +79,18 @@ protected:
     /// Parses an event into an openlcb accessory offset.
     bool parse_event(EventId event, uint32_t *index, bool *value) override
     {
-        uint32_t dccAddress;
+        uint32_t dcc_address;
         if (event >= cfg_->activate_base &&
             event < cfg_->activate_base + (1UL << cfg_->mask_bits))
         {
             onOff_ = 1;
-            dccAddress = event - cfg_->activate_base;
+            dcc_address = event - cfg_->activate_base;
         }
         else if (event >= cfg_->inactivate_base &&
             event < cfg_->inactivate_base + (1UL << cfg_->mask_bits))
         {
             onOff_ = 0;
-            dccAddress = event - cfg_->inactivate_base;
+            dcc_address = event - cfg_->inactivate_base;
         }
         else
         {
@@ -98,14 +98,14 @@ protected:
         }
 
         // Populate DccAccyConsumer specific members
-        dccAddress_ = dccAddress;
+        dccAddress_ = dcc_address;
 
         // Populate base class generic properties
         // Normal/Reverse is determined by LSB of dccAddress. 1 = Normal, 0 = Reverse.
-        *value = (dccAddress & 1) != 0;
+        *value = (dcc_address & 1) != 0;
 
         // Index is dccAddress / 2.
-        *index = dccAddress >> 1;
+        *index = dcc_address >> 1;
 
         return true;
     }
