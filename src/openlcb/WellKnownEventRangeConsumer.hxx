@@ -70,9 +70,13 @@ protected:
     WellKnownEventRangeConsumer(Node *node, const EventRangeConfig *cfg)
         : node_(node)
         , cfg_(cfg)
-        , lastSetState_((cfg->state_bit_count + 31) / 32, 0)
-        , isStateKnown_((cfg->state_bit_count + 31) / 32, 0)
+        , stateWordCount_((cfg->state_bit_count + 31) / 32)
     {
+        lastSetState_ = new uint32_t[stateWordCount_];
+        isStateKnown_ = new uint32_t[stateWordCount_];
+        memset(lastSetState_, 0, stateWordCount_ * sizeof(uint32_t));
+        memset(isStateKnown_, 0, stateWordCount_ * sizeof(uint32_t));
+
         EventRegistry::instance()->register_handler(
             EventRegistryEntry(
                 this, cfg_->activate_base),
@@ -87,6 +91,8 @@ protected:
     ~WellKnownEventRangeConsumer()
     {
         EventRegistry::instance()->unregister_handler(this);
+        delete[] lastSetState_;
+        delete[] isStateKnown_;
     }
 
     void handle_identify_global(const EventRegistryEntry &registry_entry,
@@ -131,7 +137,7 @@ protected:
         uint32_t word_index = index / 32;
         uint32_t bit_mask = 1UL << (index % 32);
 
-        if (word_index >= isStateKnown_.size()) return;
+        if (word_index >= stateWordCount_) return;
 
         isStateKnown_[word_index] |= bit_mask;
         if (value)
@@ -160,7 +166,7 @@ protected:
         uint32_t word_index = index / 32;
         uint32_t bit_mask = 1UL << (index % 32);
 
-        if (word_index >= isStateKnown_.size()) return;
+        if (word_index >= stateWordCount_) return;
 
         EventState s;
         if (isStateKnown_[word_index] & bit_mask)
@@ -202,7 +208,7 @@ protected:
     bool get_state(uint32_t index) const
     {
         uint32_t word_index = index / 32;
-        if (word_index >= lastSetState_.size()) return false;
+        if (word_index >= stateWordCount_) return false;
         return (lastSetState_[word_index] & (1UL << (index % 32))) != 0;
     }
 
@@ -212,7 +218,7 @@ protected:
     bool is_state_known(uint32_t index) const
     {
         uint32_t word_index = index / 32;
-        if (word_index >= isStateKnown_.size()) return false;
+        if (word_index >= stateWordCount_) return false;
         return (isStateKnown_[word_index] & (1UL << (index % 32))) != 0;
     }
 
@@ -221,10 +227,12 @@ protected:
     /// Configuration for this consumer.
     const EventRangeConfig *cfg_;
 
+    /// Number of words in state arrays.
+    uint32_t stateWordCount_;
     /// Stored state bits.
-    std::vector<uint32_t> lastSetState_;
+    uint32_t* lastSetState_;
     /// Known state bits.
-    std::vector<uint32_t> isStateKnown_;
+    uint32_t* isStateKnown_;
 };
 
 } // namespace openlcb
