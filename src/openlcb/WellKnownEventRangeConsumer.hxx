@@ -200,6 +200,7 @@ protected:
     /// consumer), false if it should be ignored.
     virtual bool parse_event(EventId event, uint32_t *address, bool *value) = 0;
 
+public:
     /// Gets the current state of a bit.
     /// @param address 0-based binary address.
     /// @return true if set (normal/active), false if clear (reverse/inactive).
@@ -225,6 +226,7 @@ protected:
         return (isStateKnown_[word_index] & (1UL << (address & 31))) != 0;
     }
 
+protected:
     /// OpenLCB node to export the consumer on.
     Node *node_;
     /// Configuration for this consumer.

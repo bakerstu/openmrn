@@ -53,7 +53,7 @@ public:
     /// Constant representing the Normal (active) state.
     static constexpr bool STATE_NORMAL = true;
     /// Constant representing the Reverse (inactive) state.
-    static constexpr bool STATE_REVERSE = false;
+    static constexpr bool STATE_REVERSED = false;
     
     static const EventRangeConfig* get_config()
     {
@@ -104,7 +104,7 @@ protected:
         // Populate base class generic properties
         // Normal/Reverse is determined by LSB of dccAddress. 1 = Normal, 0 =
         // Reverse.
-        *value = (dcc_address & 1) ? STATE_NORMAL : STATE_REVERSE;
+        *value = (dcc_address & 1) ? STATE_NORMAL : STATE_REVERSED;
 
         // Address is dccAddress / 2.
         *address = dcc_address >> 1;

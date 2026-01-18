@@ -92,15 +92,19 @@ TEST_F(DccAccyTest, global_identify)
 
 TEST_F(DccAccyTest, identify_throw_identify)
 {
+    static constexpr unsigned address = 0x1F0 / 2;
     EXPECT_CALL(trackSendQueue_, arrived(_, _)).Times(2);
     // unknown at beginning
     send_packet_and_expect_response(
         ":X198F4111N0101020000FF01F0;", ":X194C722AN0101020000FF01F0;");
+    EXPECT_FALSE(consumer_.is_state_known(address));
     // throw it
     send_packet(":X195B4111N0101020000FF01F0;");
     // got to VALID
     send_packet_and_expect_response(
         ":X198F4111N0101020000FF01F0;", ":X194C422AN0101020000FF01F0;");
+    EXPECT_TRUE(consumer_.is_state_known(address));
+    EXPECT_EQ((bool)consumer_.STATE_REVERSED, consumer_.get_state(address));
 
     // the opposite is INVALID state
     send_packet_and_expect_response(
@@ -109,10 +113,12 @@ TEST_F(DccAccyTest, identify_throw_identify)
     // the next accessory is UNKNOWN state
     send_packet_and_expect_response(
         ":X198F4111N0101020000FF01F2;", ":X194C722AN0101020000FF01F2;");
+    EXPECT_FALSE(consumer_.is_state_known(address + 1));
 
     // the previous accessory is UNKNOWN state
     send_packet_and_expect_response(
         ":X198F4111N0101020000FF01EF;", ":X194C722AN0101020000FF01EF;");
+    EXPECT_FALSE(consumer_.is_state_known(address - 1));
 
     // set to closed
     send_packet(":X195B4111N0101020000FF01F1;");
@@ -120,6 +126,7 @@ TEST_F(DccAccyTest, identify_throw_identify)
     // got to INVALID
     send_packet_and_expect_response(
         ":X198F4111N0101020000FF01F0;", ":X194C522AN0101020000FF01F0;");
+    EXPECT_EQ((bool)consumer_.STATE_NORMAL, consumer_.get_state(address));
 
     // the opposite is VALID state
     send_packet_and_expect_response(
