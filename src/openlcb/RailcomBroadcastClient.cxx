@@ -26,7 +26,7 @@
  *
  * \file RailcomBroadcastClient.cxx
  *
- * Implementation of RailcomBroadcastClient.
+ * Client for receiving Railcom broadcast messages about trains in a block.
  *
  * @author Balazs Racz
  * @date 15 Jan 2026

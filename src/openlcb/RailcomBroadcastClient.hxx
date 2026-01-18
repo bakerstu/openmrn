@@ -106,7 +106,7 @@ private:
     uint16_t seq_{0};
     /// OpenLCB node on which to export the consumer.
     Node *node_;
-    /// Evnet ID with bottom 16 bits as zero. We are registered for this event
+    /// Event ID with bottom 16 bits as zero. We are registered for this event
     /// range.
     uint64_t railcomEventBase_;
     /// Locomotives that are currently active in this range.
