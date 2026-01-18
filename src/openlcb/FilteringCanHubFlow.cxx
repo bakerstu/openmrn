@@ -58,6 +58,20 @@ void FilteringCanHubFlow::unregister_port(CanHubFlow::port_type *port)
     CanHubFlow::unregister_port(port);
 }
 
+void FilteringCanHubFlow::set_port_promiscuous(
+    CanHubFlow::port_type *port, bool is_promiscuous)
+{
+    OSMutexLock l(&lock_);
+    for (auto &h : handlers_)
+    {
+        if (h.handler == port)
+        {
+            h.mask = is_promiscuous ? 0 : POINTER_MASK;
+            return;
+        }
+    }
+}
+
 StateFlowBase::Action FilteringCanHubFlow::iterate()
 {
     if (!isFiltering_)
@@ -71,8 +85,10 @@ StateFlowBase::Action FilteringCanHubFlow::iterate()
         for (; currentIndex_ < handlers_.size(); ++currentIndex_)
         {
             auto &h = handlers_[currentIndex_];
+            bool is_promisc = (h.mask == 0);
             // Filtering check. Will also prevent loopback.
-            if (!filter_.is_matching(reinterpret_cast<uintptr_t>(h.handler)))
+            if (!filter_.is_matching(
+                    reinterpret_cast<uintptr_t>(h.handler), is_promisc))
             {
                 continue;
             }

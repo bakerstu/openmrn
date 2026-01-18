@@ -177,6 +177,7 @@ int appl_main(int argc, char *argv[])
     GcPacketPrinter *packet_printer = NULL;
     if (printpackets) {
         packet_printer = new GcPacketPrinter(&can_hub0, timestamped);
+        can_hub0.set_port_promiscuous(packet_printer->get_port(), true);
     }
     fprintf(stderr,"packet_printer points to %p\n",packet_printer);
     GcTcpHub hub(&can_hub0, port);
