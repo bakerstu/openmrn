@@ -41,7 +41,8 @@
 namespace openlcb
 {
 
-/// Specialized implementation of a DCC System Sensor consumer.
+/// Well-Known event consumer for DCC System Sensors. The state is stored in
+/// memory and no output is generated.
 class DccSystemSensorConsumer : public WellKnownEventRangeConsumer
 {
 public:
