@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2024, Balazs Racz
+ * Copyright (c) 2026, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,17 +26,20 @@
  *
  * \file WellKnownEventRangeConsumer.hxx
  *
- * Base class for consumers of well-known event ranges.
+ * Base class for consumers of well-known event ranges like DCC turnout and
+ * sensors.
  *
  * @author Balazs Racz
- * @date 3 Feb 2017
+ * @date 18 Jan 2026
  */
 
 #ifndef _OPENLCB_WELLKNOWNEVENTRANGECONSUMER_HXX_
 #define _OPENLCB_WELLKNOWNEVENTRANGECONSUMER_HXX_
 
-#include "openlcb/EventHandlerTemplates.hxx"
+#include <stdint.h>
 #include <vector>
+
+#include "openlcb/EventHandlerTemplates.hxx"
 
 namespace openlcb
 {
@@ -48,7 +51,7 @@ struct EventRangeConfig
     uint64_t activate_base;
     /// Event ID base for the inactive state range.
     uint64_t inactivate_base;
-    /// Number of bits in the mask (e.g., 12 for 4096 events).
+    /// Number of bits in the event registry mask (e.g., 12 for 4096 events).
     uint32_t mask_bits;
     /// Total number of state bits managed (e.g. 2048 or 4096).
     uint32_t state_bit_count;
@@ -58,15 +61,12 @@ struct EventRangeConfig
 class WellKnownEventRangeConsumer : public SimpleEventHandler
 {
 public:
-    /// Constant representing the Normal (active) state.
-    static constexpr bool STATE_NORMAL = true;
-    /// Constant representing the Reverse (inactive) state.
-    static constexpr bool STATE_REVERSE = false;
-
 protected:
     /// Constructs a listener for well-known event ranges.
     /// @param node is the virtual node that will be listening for events.
-    /// @param cfg is the configuration structure for the event ranges.
+    /// @param cfg is the configuration structure for the event ranges. The
+    /// pointer has to remain valid through the entire life of the object. It
+    /// is OK to store this in flash.
     WellKnownEventRangeConsumer(Node *node, const EventRangeConfig *cfg)
         : node_(node)
         , cfg_(cfg)
@@ -78,13 +78,9 @@ protected:
         memset(isStateKnown_, 0, stateWordCount_ * sizeof(uint32_t));
 
         EventRegistry::instance()->register_handler(
-            EventRegistryEntry(
-                this, cfg_->activate_base),
-            cfg_->mask_bits);
+            EventRegistryEntry(this, cfg_->activate_base), cfg_->mask_bits);
         EventRegistry::instance()->register_handler(
-            EventRegistryEntry(
-                this, cfg_->inactivate_base),
-            cfg_->mask_bits);
+            EventRegistryEntry(this, cfg_->inactivate_base), cfg_->mask_bits);
     }
 
     /// Destructor.
@@ -107,18 +103,16 @@ protected:
         {
             event->event_write_helper<1>()->WriteAsync(node_,
                 Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
-                eventid_to_buffer(EncodeRange(
-                    cfg_->activate_base,
-                    1UL << cfg_->mask_bits)),
+                eventid_to_buffer(
+                    EncodeRange(cfg_->activate_base, 1UL << cfg_->mask_bits)),
                 done->new_child());
         }
         if (registry_entry.event == cfg_->inactivate_base)
         {
             event->event_write_helper<2>()->WriteAsync(node_,
                 Defs::MTI_CONSUMER_IDENTIFIED_RANGE, WriteHelper::global(),
-                eventid_to_buffer(EncodeRange(
-                    cfg_->inactivate_base,
-                    1UL << cfg_->mask_bits)),
+                eventid_to_buffer(
+                    EncodeRange(cfg_->inactivate_base, 1UL << cfg_->mask_bits)),
                 done->new_child());
         }
     }
@@ -135,9 +129,12 @@ protected:
         }
 
         uint32_t word_index = address / 32;
-        uint32_t bit_mask = 1UL << (address % 32);
+        uint32_t bit_mask = 1UL << (address & 31);
 
-        if (word_index >= stateWordCount_) return;
+        if (word_index >= stateWordCount_)
+        {
+            return;
+        }
 
         isStateKnown_[word_index] |= bit_mask;
         if (value)
@@ -164,9 +161,10 @@ protected:
         }
 
         uint32_t word_index = address / 32;
-        uint32_t bit_mask = 1UL << (address % 32);
+        uint32_t bit_mask = 1UL << (address & 31);
 
-        if (word_index >= stateWordCount_) return;
+        if (word_index >= stateWordCount_)
+            return;
 
         EventState s;
         if (isStateKnown_[word_index] & bit_mask)
@@ -198,7 +196,8 @@ protected:
     /// @param event the event ID to parse.
     /// @param address will be set to the 0-based binary address of the bit.
     /// @param value will be set to the boolean value this event represents.
-    /// @return true if the event is handled by this consumer, false otherwise.
+    /// @return true if the event is in range (should be handled by this
+    /// consumer), false if it should be ignored.
     virtual bool parse_event(EventId event, uint32_t *address, bool *value) = 0;
 
     /// Gets the current state of a bit.
@@ -208,8 +207,11 @@ protected:
     bool get_state(uint32_t address) const
     {
         uint32_t word_index = address / 32;
-        if (word_index >= stateWordCount_) return false;
-        return (lastSetState_[word_index] & (1UL << (address % 32))) != 0;
+        if (word_index >= stateWordCount_)
+        {
+            return false;
+        }
+        return (lastSetState_[word_index] & (1UL << (address & 31))) != 0;
     }
 
     /// Checks if the state of a bit is known.
@@ -218,8 +220,9 @@ protected:
     bool is_state_known(uint32_t address) const
     {
         uint32_t word_index = address / 32;
-        if (word_index >= stateWordCount_) return false;
-        return (isStateKnown_[word_index] & (1UL << (address % 32))) != 0;
+        if (word_index >= stateWordCount_)
+            return false;
+        return (isStateKnown_[word_index] & (1UL << (address & 31))) != 0;
     }
 
     /// OpenLCB node to export the consumer on.
@@ -229,10 +232,10 @@ protected:
 
     /// Number of words in state arrays.
     uint32_t stateWordCount_;
-    /// Stored state bits.
-    uint32_t* lastSetState_;
-    /// Known state bits.
-    uint32_t* isStateKnown_;
+    /// Stored state bits. Array of stateWordCount_ entries, owned by us.
+    uint32_t *lastSetState_;
+    /// Known state bits. Array of stateWordCount_ entries, owned by us.
+    uint32_t *isStateKnown_;
 };
 
 } // namespace openlcb

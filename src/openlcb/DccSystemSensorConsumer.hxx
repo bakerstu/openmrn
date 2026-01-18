@@ -1,5 +1,5 @@
 /** \copyright
- * Copyright (c) 2024, Balazs Racz
+ * Copyright (c) 2026, Balazs Racz
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,14 @@
  * Consumer class for DCC System Sensor events.
  *
  * @author Balazs Racz
- * @date 3 Feb 2017
+ * @date 18 Jan 2026
  */
 
 #ifndef _OPENLCB_DCCSYSTEMSENSORCONSUMER_HXX_
 #define _OPENLCB_DCCSYSTEMSENSORCONSUMER_HXX_
 
-#include "openlcb/WellKnownEventRangeConsumer.hxx"
 #include "openlcb/TractionDefs.hxx"
+#include "openlcb/WellKnownEventRangeConsumer.hxx"
 
 namespace openlcb
 {
@@ -45,12 +45,12 @@ namespace openlcb
 class DccSystemSensorConsumer : public WellKnownEventRangeConsumer
 {
 public:
-    static const EventRangeConfig* get_config()
+    static const EventRangeConfig *get_config()
     {
         static constexpr EventRangeConfig cfg = {
             TractionDefs::ACTIVATE_DCC_SYSTEM_SENSOR_EVENT_BASE,
             TractionDefs::INACTIVATE_DCC_SYSTEM_SENSOR_EVENT_BASE,
-            12, // 4096 events (12 bits)
+            12,  // 4096 events (12 bits)
             4096 // 4096 state bits (4096 sensors)
         };
         return &cfg;
@@ -69,7 +69,7 @@ public:
     }
 
     /// Checks if a sensor is currently active (on/high).
-    /// @param sensor_num the sensor address (0-4095).
+    /// @param sensor_num the binary sensor address (0-4095).
     /// @return true if the sensor is active, false otherwise.
     bool is_sensor_active(uint32_t sensor_num) const
     {
@@ -77,7 +77,7 @@ public:
     }
 
     /// Checks if the state of a sensor is known.
-    /// @param sensor_num the sensor address (0-4095).
+    /// @param sensor_num the binary sensor address (0-4095).
     /// @return true if the sensor state is known, false otherwise.
     bool is_sensor_known(uint32_t sensor_num) const
     {
@@ -110,7 +110,8 @@ protected:
     /// Perform action after state change.
     void action_impl() override
     {
-        // No action required for system sensors, they just update internal state.
+        // No action required for system sensors, they just update internal
+        // state.
     }
 };
 

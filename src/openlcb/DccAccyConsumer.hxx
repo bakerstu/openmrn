@@ -44,10 +44,17 @@
 namespace openlcb
 {
 
-/// Specialized (DCC protocol) implementation of a DCC accessory consumer.
+/// The DCC accessory consumer listens to the well-known events for DCC
+/// accessory (e.g. turnout) commands, and generates the respective DCC
+/// packets.
 class DccAccyConsumer : public WellKnownEventRangeConsumer
 {
 public:
+    /// Constant representing the Normal (active) state.
+    static constexpr bool STATE_NORMAL = true;
+    /// Constant representing the Reverse (inactive) state.
+    static constexpr bool STATE_REVERSE = false;
+    
     static const EventRangeConfig* get_config()
     {
         static constexpr EventRangeConfig cfg = {
@@ -101,8 +108,9 @@ protected:
         dccAddress_ = dcc_address;
 
         // Populate base class generic properties
-        // Normal/Reverse is determined by LSB of dccAddress. 1 = Normal, 0 = Reverse.
-        *value = (dcc_address & 1) != 0;
+        // Normal/Reverse is determined by LSB of dccAddress. 1 = Normal, 0 =
+        // Reverse.
+        *value = (dcc_address & 1) ? STATE_NORMAL : STATE_REVERSE;
 
         // Address is dccAddress / 2.
         *address = dcc_address >> 1;
