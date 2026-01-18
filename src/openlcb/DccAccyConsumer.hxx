@@ -44,10 +44,10 @@
 namespace openlcb
 {
 
-/// The DCC accessory consumer listens to the well-known events for DCC
-/// accessory (e.g. turnout) commands, and generates the respective DCC
-/// packets.
-class DccAccyConsumer : public WellKnownEventRangeConsumer
+/// The Null DCC accessory consumer listens to the well-known events for DCC
+/// accessory (e.g. turnout) commands. The state is stored in memory and allows
+/// query by is_state_known(address) and get_state(address).
+class NullDccAccyConsumer : public WellKnownEventRangeConsumer
 {
 public:
     /// Constant representing the Normal (active) state.
@@ -71,14 +71,8 @@ public:
     /// responding to Identify messages.
     /// @param track is the interface through which we will be writing DCC
     /// accessory packets.
-    DccAccyConsumer(Node *node, dcc::TrackIf *track)
+    NullDccAccyConsumer(Node *node)
         : WellKnownEventRangeConsumer(node, get_config())
-        , track_(track)
-    {
-    }
-
-    /// Destructor.
-    ~DccAccyConsumer()
     {
     }
 
@@ -118,6 +112,31 @@ protected:
         return true;
     }
 
+protected:
+    /// Parsed event state: 1 = activate (C=1), 0 = deactivate (C=0).
+    unsigned onOff_ : 1;
+    /// Parsed event state: dcc address (0..4095) without inverting or encoding.
+    unsigned dccAddress_ : 12;
+};
+
+/// The DCC accessory consumer listens to the well-known events for DCC
+/// accessory (e.g. turnout) commands, and generates the respective DCC
+/// packets.
+class DccAccyConsumer : public NullDccAccyConsumer
+{
+public:
+    /// Constructs a listener for DCC accessory control.
+    /// @param node is the virtual node that will be listening for events and
+    /// responding to Identify messages.
+    /// @param track is the interface through which we will be writing DCC
+    /// accessory packets.
+    DccAccyConsumer(Node *node, dcc::TrackIf *track)
+        : NullDccAccyConsumer(node)
+        , track_(track)
+    {
+    }
+
+private:
     /// Send the actual accessory command.
     void action_impl() override
     {
@@ -128,14 +147,8 @@ protected:
         track_->send(pkt);
     }
 
-private:
     /// Track to send DCC packets to.
     dcc::TrackIf *track_;
-
-    /// Parsed event state: 1 = activate (C=1), 0 = deactivate (C=0).
-    unsigned onOff_ : 1;
-    /// Parsed event state: dcc address (0..4095) without inverting or encoding.
-    unsigned dccAddress_ : 12;
 };
 
 /// Base (generic protocol) implementation of the DCC extended accessory
