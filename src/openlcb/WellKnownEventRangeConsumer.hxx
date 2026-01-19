@@ -91,6 +91,10 @@ protected:
         delete[] isStateKnown_;
     }
 
+    /// {@inheritdoc}
+    ///
+    /// For identify global, we output the consumer range identified messages,
+    /// one for each handler registry entry.
     void handle_identify_global(const EventRegistryEntry &registry_entry,
         EventReport *event, BarrierNotifiable *done) OVERRIDE
     {
@@ -117,6 +121,10 @@ protected:
         }
     }
 
+    /// {@inheritdoc}
+    ///
+    /// Even report sets the state from the network and triggers the output
+    /// action (e.g. DCC packet for accy).
     void handle_event_report(const EventRegistryEntry &registry_entry,
         EventReport *event, BarrierNotifiable *done) override
     {
@@ -149,6 +157,10 @@ protected:
         action_impl();
     }
 
+    /// {@inheritdoc}
+    ///
+    /// Individual consumer identify will report valid/invalid if we know the
+    /// state of the given bit, otherwise report unknown.
     void handle_identify_consumer(const EventRegistryEntry &entry,
         EventReport *event, BarrierNotifiable *done) override
     {
@@ -187,6 +199,55 @@ protected:
         event->event_write_helper<1>()->WriteAsync(node_, mti,
             WriteHelper::global(), eventid_to_buffer(event->event),
             done->new_child());
+    }
+
+    /// {@inheritdoc}
+    ///
+    /// Producer identified is typically an answer to a query about an
+    /// individual turnout/sensor. We only use this to go from unknown state to
+    /// a known state. We never produce the output action. Inputs with INVALID
+    /// or UNKNOWN event state are ignored, in order to support the case where
+    /// to momentary input buttons are controlling a turnout.
+    void handle_producer_identified(const EventRegistryEntry &entry,
+        EventReport *event, BarrierNotifiable *done) override
+    {
+        AutoNotify an(done);
+        if (event->state != EventState::VALID)
+        {
+            // We only care about "VALID" state, as invalid or unknown does not
+            // give us the actual bit state.
+            return;
+        }
+
+        uint32_t address;
+        bool value;
+        if (!parse_event(event->event, &address, &value))
+        {
+            return;
+        }
+
+        uint32_t word_index = address / 32;
+        uint32_t bit_mask = 1UL << (address & 31);
+
+        if (word_index >= stateWordCount_)
+        {
+            return;
+        }
+
+        if (isStateKnown_[word_index] & bit_mask)
+        {
+            // already have state
+            return;
+        }
+        isStateKnown_[word_index] |= bit_mask;
+        if (value)
+        {
+            lastSetState_[word_index] |= bit_mask;
+        }
+        else
+        {
+            lastSetState_[word_index] &= ~bit_mask;
+        }
     }
 
     /// Perform action after state change.
