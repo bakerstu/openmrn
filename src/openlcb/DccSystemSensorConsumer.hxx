@@ -48,13 +48,13 @@ class DccSystemSensorConsumer : public WellKnownEventRangeConsumer
 public:
     /// Largest valid user address.
     static constexpr unsigned MAX_ADDRESS = 4096;
-    
+
     static const EventRangeConfig *get_config()
     {
         static constexpr EventRangeConfig cfg = {
             TractionDefs::ACTIVATE_DCC_SYSTEM_SENSOR_EVENT_BASE,
             TractionDefs::INACTIVATE_DCC_SYSTEM_SENSOR_EVENT_BASE,
-            12,  // 4096 events (12 bits)
+            12,         // 4096 events (12 bits)
             MAX_ADDRESS // 4096 state bits (4096 sensors)
         };
         return &cfg;
@@ -72,19 +72,13 @@ public:
     {
     }
 
-    /// Converts a user-visible sensor address to a binary address usable for
-    /// the state query.
-    static constexpr uint32_t address_user_to_binary(unsigned user_address)
-    {
-        return user_address - 1;
-    }
-
     /// Checks if a sensor is currently active (on/high).
     /// @param sensor_num the user visible sensor address (1-4096).
     /// @return true if the sensor is active, false otherwise.
     bool is_sensor_state_active(uint32_t user_address) const
     {
-        return get_state(address_user_to_binary(user_address));
+        return get_state(
+            TractionDefs::sensor_address_user_to_binary(user_address));
     }
 
     /// Checks if the state of a sensor is known.
@@ -92,7 +86,8 @@ public:
     /// @return true if the sensor state is known, false otherwise.
     bool is_sensor_state_known(uint32_t user_address) const
     {
-        return is_state_known(address_user_to_binary(user_address));
+        return is_state_known(
+            TractionDefs::sensor_address_user_to_binary(user_address));
     }
 
 protected:

@@ -539,6 +539,46 @@ struct TractionDefs {
         p[1] = MGMTREQ_NOOP;
         return p;
     }
+
+    /// Converts a user-visible sensor address to a binary address usable for
+    /// the state query.
+    static constexpr uint32_t sensor_address_user_to_binary(
+        unsigned user_address)
+    {
+        return user_address - 1;
+    }
+    
+    /// Computes the event ID for a system sensor to active.
+    /// @param user_num the user-visible sensor number (1 to 4096)
+    static uint64_t sensor_active_event(unsigned user_num)
+    {
+        unsigned binary_addr = sensor_address_user_to_binary(user_num);
+        return ACTIVATE_DCC_SYSTEM_SENSOR_EVENT_BASE + binary_addr;
+    }
+
+    /// Computes the event ID for a system sensor to inactive.
+    /// @param user_num the user-visible sensor number (1 to 4096)
+    static uint64_t sensor_inactive_event(unsigned user_num)
+    {
+        unsigned binary_addr = sensor_address_user_to_binary(user_num);
+        return INACTIVATE_DCC_SYSTEM_SENSOR_EVENT_BASE + binary_addr;
+    }
+    
+    /// Computes the event ID for setting an accy to normal.
+    /// @param user_num the user-visible accessoiry number (1 to 2048)
+    static uint64_t accy_normal_event(unsigned user_num)
+    {
+        unsigned binary_addr = dcc::Defs::accy_address_user_to_binary(user_num);
+        return ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE + (binary_addr << 1) + 1;
+    }
+
+    /// Computes the event ID for setting an accy to reverse.
+    /// @param user_num the user-visible accessoiry number (1 to 2048)
+    static uint64_t accy_reversed_event(unsigned user_num)
+    {
+        unsigned binary_addr = dcc::Defs::accy_address_user_to_binary(user_num);
+        return ACTIVATE_BASIC_DCC_ACCESSORY_EVENT_BASE + (binary_addr << 1);
+    }
 };
 
 }  // namespace openlcb
