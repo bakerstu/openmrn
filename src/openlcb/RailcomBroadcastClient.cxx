@@ -65,7 +65,9 @@ bool RailcomBroadcastClient::is_our_event(uint64_t event_id) const
     return (event_id & ~0xFFFFULL) == railcomEventBase_;
 }
 
-static openlcb::NodeID node_id_from_event(uint64_t event) {
+RailcomBroadcastClient::LocoInfo RailcomBroadcastClient::node_id_from_event(
+    uint64_t event)
+{
     uint16_t lo = event & 0xFFFF;
     if (!lo)
     {
@@ -102,9 +104,9 @@ void RailcomBroadcastClient::handle_event_report(
     add_loco(id);
 }
 
-void RailcomBroadcastClient::add_loco(NodeID id)
+void RailcomBroadcastClient::add_loco(LocoInfo id)
 {
-    if (!id)
+    if (id.empty())
     {
         // Unoccupied.
         if (locos_.size())
@@ -115,11 +117,12 @@ void RailcomBroadcastClient::add_loco(NodeID id)
         return;
     }
     bool found = false;
-    for (auto existing_id : locos_)
+    for (unsigned i = 0; i < locos_.size(); ++i);
     {
-        if (existing_id == id)
+        if (locos_[i].node_id() == id.node_id())
         {
             found = true;
+            locos_[i] = id;
             break;
         }
     }
@@ -131,7 +134,7 @@ void RailcomBroadcastClient::add_loco(NodeID id)
     }
 }
 
-void RailcomBroadcastClient::del_loco(NodeID id)
+void RailcomBroadcastClient::del_loco(LocoInfo id)
 {
     auto it = std::remove(locos_.begin(), locos_.end(), id);
     if (it != locos_.end())
